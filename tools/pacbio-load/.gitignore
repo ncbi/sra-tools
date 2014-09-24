@@ -1,0 +1,7 @@
+*.vers.h
+*.bin
+*.txt
+*.sh
+*.h5
+dst
+pacbio1

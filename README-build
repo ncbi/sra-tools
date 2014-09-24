@@ -1,0 +1,237 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+
+The NCBI SRA ( Sequence Read Archive ) SDK ( Software Development Kit )
+
+
+Contact: sra-tools@ncbi.nlm.nih.gov
+http://trace.ncbi.nlm.nih.gov/Traces/sra/std
+
+
+This version of the NCBI SRA SDK generates loading and dumping tools with
+their respective libraries for building new and accessing existing runs.
+It may be built with GCC, ICC or Microsoft VC++.
+
+
+REQUIREMENTS:
+
+This software release was designed to run under Linux, MacOSX and Windows
+operating systems on Intel x86-compatible 32 and 64 bit architectures.
+
+  ar                # tested with version 2.15.90
+  bash              # certain scripts require bash
+  make              # GNU make version 3.80 or later
+  gcc, g++          # tested with 4.1.2, but should work with others
+  libz              # version 1
+  libbz2            # version 1
+  libxml2           # tested with version 2.6.7 [Linux and Mac only]
+
+If your system does NOT have libz or libbz2, or if the build fails due to
+missing one of the expected libraries, try running "make all" which will
+attempt to download the sources to libz and libbz2 and build them.
+
+OPTIONS:
+
+Specific versions of ICC are supported as an alternate compiler.
+
+  icc, icpc         # tested with 11.0 (64-bit) and 10.1 (32-bit)
+                    # 32-bit 11.0 does not work
+
+WINDOWS BUILD:
+
+The Windows build uses the same makefiles as Linux and Mac, and has been tested
+under Cygwin. You need to execute Cygwin AFTER sourcing the Microsoft batch file
+from Visual Studio.
+
+
+CONTENTS:
+
+  CHANGES           # describes changes at pertinent levels
+  Makefile          # drives configuration and sub-target builds
+  README
+  README-WINDOWS.txt
+  USAGE
+  build             # holds special makefiles and configuration
+  interfaces        # contains module interfaces, schema, plus
+                      compiler and platform specific includes
+  libs              # sdk library code
+  tools             # toolkit code
+  test              # testing code
+
+
+CONFIGURATION:
+
+There are three configurable parameters:
+  1) BUILD  = 'debug', 'release' etc.
+  2) COMP   = 'GCC' etc.
+  3) OUTDIR = <path-to-binaries-libs-objfiles>
+
+The target architecture is chosen to match your build host. At this
+time, only the Macintosh build will support cross-compilation. In the
+instructions below, x86_64 is the assumed architecture. If your host
+is i386 (32-bit), then you would substitute 32 for paths that contain
+64.
+
+
+BUILD INSTRUCTIONS:
+
+## create output directories and symlinks for first time
+
+  $ OUTDIR=<path-to-output>
+  $ make OUTDIR="$OUTDIR" out
+
+The path in OUTDIR MUST be a full path - relative paths may fail.
+
+## decide upon STATIC or DYNAMIC builds
+#  VDB.2 was designed to make use of dynamic libraries, but
+#  in many environments static builds are more convenient or may even be
+#  required, due to installation restrictions.
+#
+#  THE BUILD DOES NOT CURRENTLY SUPPORT PARALLEL DYNAMIC AND STATIC MODES
+#  if you switch between them, you should perform a "make clean" first.
+
+  $ make static
+-OR_
+  $ make dynamic
+
+## if you are using a dynamic build, update LD_LIBRARY_PATH - probably want to put
+# in shell startup ( ensure that libz, libbz2 and libxml2 can be found in your path )
+
+  $ export LD_LIBRARY_PATH="$LD_LIBRARY_PATH:$OUTDIR/lib64"
+
+## the build uses "TOP" as an internal variable
+#  if you have it defined in your shell environment, unset it before making
+
+## build the libraries and binaries
+
+  $ make GCC debug     # optionally set compiler and/or build
+  $ make               # builds libraries and binary executables
+
+The standard make will cause default libraries and tools to be built. Binary
+executables and both shared and static libraries can be found in their
+respective output directories.
+
+If the build fails due to not finding libz or libbz2, try:
+
+  $ make all           # see note above on libraries
+
+
+STATIC BUILD RESULTS:
+
+<OUTDIR>/bin64/         # (bin32 for 32-bit builds)
+  abi-dump              # dump to ABI-native format
+  abi-load              # load from ABI-native format
+  align-info            # retrieve information from cSRA object
+  fastq-dump            # dump to FASTQ format
+  fastq-load            # load from FASTQ format
+  helicos-load          # load from Helicos native format
+  illumina-dump         # dump to Illumina-native format
+  illumina-load         # load from Illumina-native format
+  kar                   # single file archive utility
+  kdbmeta               # access db, table or column metadata
+  rcexplain             # return code display utility
+  sam-dump              # dump to SAM format from cSRA
+  sff-dump              # dumps 454 runs in SFF format
+  sff-load              # load from SFF format
+  sra-dbcc              # consistency checker
+  sra-kar               # sra-specific kar tool
+  sra-stat              # gather run statistics and print to stdout
+  srf-load              # load from SRF format
+  vdb-copy              # tool to copy tables
+  vdb-dump              # dump rows in a textual format
+  vdb-lock              # locks an object against modification
+  vdb-unlock            # unlocks an object
+
+<OUTDIR>/bin64/ncbi     # (bin32 for 32-bit builds)
+  config.kfg            # simple text file for configuring file system
+
+<OUTDIR>/lib64/         # (lib32 for 32-bit builds)
+  libkdb                # static physical layer reading library
+  libkfg                # static configuration library
+  libkfs                # static file system library
+  libklib               # static support library
+  libkproc              # static process synchronization library
+  libkq                 # static cross-thread queue library
+  libksproc             # static single-threaded emulation library
+  libksrch              # static search algorithm library
+  libkxfs               # static XML to filesystem library
+  libkxml               # static XML container support library
+  libload               # static loader tool utility library
+  libsradb              # static API for accessing sra
+  libsrareader          # static reader library
+  libsraschema          # static version of SRA schema
+  libvdb                # static virtual layer reading library
+  libwkdb               # static physical layer update library
+  libwsradb             # static update API for SRA
+  libwvdb               # static virtual layer update library
+
+<OUTDIR>/mod64/         # (mod32 for 32-bit builds)
+  -- empty --
+
+<OUTDIR>/wmod64/        # (wmod32 for 32-bit builds)
+  -- empty --
+
+
+
+DYNAMIC BUILD RESULTS:
+
+<OUTDIR>/bin64/         # (bin32 for 32-bit builds)
+  -- same as static --
+
+<OUTDIR>/bin64/ncbi     # (bin32 for 32-bit builds)
+  -- empty --
+
+<OUTDIR>/lib64/         # (lib32 for 32-bit builds)
+  libkdb                # physical layer reading library
+  libkfg                # configuration library
+  libkfs                # file system library
+  libklib               # support library
+  libkproc              # process synchronization library
+  libkq                 # cross-thread queue library
+  libksproc             # single-threaded emulation library
+  libksrch              # search algorithm library
+  libkxfs               # XML to filesystem library
+  libkxml               # XML container support library
+  libload               # loader tool utility library
+  libsra-schema         # weak-linked sra schema
+  libsradb              # API for accessing sra
+  libsrapath            # weak-link stubs for srapath
+  libsrareader          # reader library
+  libvdb                # virtual layer reading library
+  libwkdb               # physical layer update library
+  libwsradb             # update API for SRA
+  libwvdb               # virtual layer update library
+
+<OUTDIR>/lib64/ncbi     # (lib32 for 32-bit builds)
+  config.kfg            # simple text file for configuring file system
+
+<OUTDIR>/mod64/         # (mod32 for 32-bit builds)
+  libaxf                # cSRA-specific VDB external functions
+  libsraxf              # sra-specific VDB external functions
+  libvxf                # generic VDB external functions
+
+<OUTDIR>/wmod64/        # (wmod32 for 32-bit builds)
+  libwsraxf             # sra-specific VDB external functions for update
+  libwvxf               # update VDB external functions

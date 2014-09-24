@@ -1,0 +1,272 @@
+vdb-dump extended help
+
+(1) dumping a vdb-table:
+
+the only mandatory option to vdb-dump is the name of the object to dump:
+
+vdb-dump object
+
+the object can be:
+
+a) absolute or relative path to a vdb-table (a directory)
+
+on linux:
+vdb-dump /panfs/traces/sra0/SRR/000000/SRR000001
+or
+vdb-dump `srapath SRR000001`
+(only at NCBI, same infrastructure as for a accession needed )
+
+on windows
+vdb-dump \\panfs\traces\sra0\SRR\000000\SRR000001
+or
+vdb-dump Y:\sra0\SRR\000000\SRR000001
+(if "\\panfs\traces" is mapped to the driveletter Y on your windows-pc )
+
+b) absolute or relative path to a file containing a vdb-table
+on linux/windows:
+vdb-dump SRR044989.lite.sra
+
+c) an accession ( only at NCBI )
+on linux/windows:
+vdb-dump SRR000001
+(you need: for linux libsra-path.lib / for windows libsra-path.dll in your search-path,
+a subdir "ncbi" in the same directory where the lib/dll is located,
+in this "ncbi"-subdir you need a config-file "config.kfg"
+in this config-file you need servers and volumes to be defined )
+
+If you specify only the object, vdb-dump will dump all columns for all rows to the standard-output.
+
+The --table / -T option:
+This is for future extensions. Vdb-dump is designed to operate on a vdb-database. A vdb-database can
+contain more then one table. Right now it contains only one table. If you do not specify the table-name,
+vdb-dump will first try to interpret the given object as a vdb-database (and try to dump the first table
+it finds in this database). If this try (silently) fails, because the given object is not a database,
+it is a table instead, vdb-dump will try to interpret the given object as a table.
+That is what happens right now when you use vdb-dump.
+
+The --rows / -R option:
+With this option you can restrict which rows will be dumped.
+vdb-dump file.sra -R 5  ... will dump only row number 5
+vdb-dump file.sra -R 5-20 ... will dump rows number 5 to number 20 (15 rows)
+The ranges can be mixed:
+vdb-dump file.sra -R 5,7-20,200-201,300,305  ... will dump these rows/ranges
+
+The --columns -C option:
+With this option you can restrict which columns per row will be dumped.
+vdb-dump file.sra -C NAME,READ ... will dump only the columns NAME and READ per row
+
+the --exclude -x option:
+If you want to dump all columns, except some specific ones.
+vdb-dump file.sra -x READ,RD_FILTER ... will dump all columns but the READ-column
+and the RD_FILTER-column.
+
+The --schema -S option:
+With this option you can specify one or more additional schema's to be used for dumping
+a table. For instance to reinterpret the content of columns in a new way.
+
+The --row_id_on -I option:
+Vdb-dump does not output the row-id per default, it has to be switched on with this option:
+
+vdb-dump SRR000001 -R1 -CNAME,SPOT_LEN
+    NAME: EM7LVYS01C1LWG
+SPOT_LEN: 255
+
+vdb-dump SRR000001 -R1 -CNAME,SPOT_LEN -I
+ROW-ID = 1
+    NAME: EM7LVYS01C1LWG
+SPOT_LEN: 255
+
+The --line_feed -l option:
+Vdb-dump separates the rows by one empty line (line-feed) per default:
+
+vdb-dump SRR000001 -R1-3 -CNAME,SPOT_LEN   
+    NAME: EM7LVYS01C1LWG
+SPOT_LEN: 255
+
+    NAME: EM7LVYS01B2EMP
+SPOT_LEN: 248
+
+    NAME: EM7LVYS01C2YO0
+SPOT_LEN: 307
+
+with this option you can change that:
+
+vdb-dump SRR000001 -R1-3 -CNAME,SPOT_LEN -l2
+    NAME: EM7LVYS01C1LWG
+SPOT_LEN: 255
+
+
+    NAME: EM7LVYS01B2EMP
+SPOT_LEN: 248
+
+
+    NAME: EM7LVYS01C2YO0
+SPOT_LEN: 307
+
+
+The --colname_off -N option:
+Vdb-dump prints the name of every column in front of the it's data:
+
+vdb-dump SRR000001 -R1-2 -CNAME,SPOT_LEN
+    NAME: EM7LVYS01C1LWG
+SPOT_LEN: 255
+
+    NAME: EM7LVYS01B2EMP
+SPOT_LEN: 248
+
+With this option it prints only the data:
+
+vdb-dump SRR000001 -R1-2 -CNAME,SPOT_LEN -N 
+EM7LVYS01C1LWG
+255
+
+EM7LVYS01B2EMP
+248
+
+The --in_hex -X option:
+With this option all numeric outputs are printed as hexadecimal numbers:
+
+$vdb-dump SRR000001 -R1-2 -CNAME,SPOT_LEN -X
+    NAME: EM7LVYS01C1LWG
+SPOT_LEN: 0xFF
+
+    NAME: EM7LVYS01B2EMP
+SPOT_LEN: 0xF8
+
+The --dna_baese -D option:
+With this option you can force columns into printed as DNA-base "ACGT",
+but only if the column has a datatype with more than one dimension.
+If a column has a datatype with a dimension of 2, each dimension 1 bit,
+it is automatically printed as DNA-base.
+
+The --max_length -M option:
+With this options you can truncate the output of columns longer than this limit.
+
+vdb-dump SRR000001 -R1-2 -CREAD
+READ: TCAGGGGGGAGCTTAAATTTGAAACTAGAAAAATTTTGAACAAAATAATCATAATTGTTAGCTGATGAAAAACTAGAAAAGATTTTCTGAGTGTTGGAACCGAAAGGGTTTGAATTCAAACCCTTTCGGTTCCAACGGTATCCCGTAGTGTGCATTCATCCCTGCTCTGGATACAGTCAGCTCCCAAATTCCATAAACAACTCCTTTGTAAGTAACCTCCTTTTGACAGGGGGTACTGAGCGGGCTGGCAAGGCN
+
+READ: TCAGGGGGGGGTTACACGTGCAGATTTGTTACACGGGTGTACTGTGAGGTTTGGGGTACGAATGATCCCGTTACCTAGATAGTGAGCATGGAACCCGTTGGAACCGAAAGGGTTTGAATTCAAACCCTTTCGGTTCCAACAATGTGCAGGGCTCAGGTCAGCATTAGGGTCAGGTTCTTAGGAAAAGAAAGAGCAAAAACAATGAAACACAATACAAAGTAAAGAACACTGAGCGGGCTGGCAAGGCN
+
+vdb-dump SRR000001 -R1-2 -CREAD -M40
+READ: TCAGGGGGGAGCTTAAATTTGAAACTAGAA ...
+
+READ: TCAGGGGGGGGTTACACGTGCAGATTTGTT ...
+
+The --indent_with -i option:
+With this option you can limit the length of the output-line and force a left-edge
+indenting.
+
+vdb-dump $vdb-dump SRR000001 -R1-2 -CREAD -i80
+READ: TCAGGGGGGAGCTTAAATTTGAAACTAGAAAAATTTTGAACAAAATAATCATAATTGTTAGCTGATGAAAAACT
+      AGAAAAGATTTTCTGAGTGTTGGAACCGAAAGGGTTTGAATTCAAACCCTTTCGGTTCCAACGGTATCCCGTAG
+      TGTGCATTCATCCCTGCTCTGGATACAGTCAGCTCCCAAATTCCATAAACAACTCCTTTGTAAGTAACCTCCTT
+      TTGACAGGGGGTACTGAGCGGGCTGGCAAGGCN
+
+READ: TCAGGGGGGGGTTACACGTGCAGATTTGTTACACGGGTGTACTGTGAGGTTTGGGGTACGAATGATCCCGTTAC
+      CTAGATAGTGAGCATGGAACCCGTTGGAACCGAAAGGGTTTGAATTCAAACCCTTTCGGTTCCAACAATGTGCA
+      GGGCTCAGGTCAGCATTAGGGTCAGGTTCTTAGGAAAAGAAAGAGCAAAAACAATGAAACACAATACAAAGTAA
+      AGAACACTGAGCGGGCTGGCAAGGCN
+
+The --filter -F option:
+Not implemented yet.
+
+The --format -f option:
+This selects other than the default-output formating:
+
+csv = comma-separated on one line
+vdb-dump SRR000001 -R1-2 -CNAME,SPOT_LEN -fcsv
+EM7LVYS01C1LWG,255
+EM7LVYS01B2EMP,248
+
+xml = xml-section
+vdb-dump $vdb-dump SRR000001 -R1-2 -CNAME,SPOT_LEN -fxml
+<row_1>
+ <NAME>
+EM7LVYS01C1LWG
+ </NAME>
+ <SPOT_LEN>
+255
+ </SPOT_LEN>
+</row_1>
+
+<row_2>
+ <NAME>
+EM7LVYS01B2EMP
+ </NAME>
+ <SPOT_LEN>
+248
+ </SPOT_LEN>
+</row_2>
+
+json = json format
+vdb-dump $vdb-dump SRR000001 -R1-2 -CNAME,SPOT_LEN -fjson
+{
+"row_id": 1,
+"NAME":"EM7LVYS01C1LWG",
+"SPOT_LEN":255
+},
+
+{
+"row_id": 2,
+"NAME":"EM7LVYS01B2EMP",
+"SPOT_LEN":248
+},
+
+The --without_sra -n option:
+With this option you can switch off the special treatment (translation) of certain column-types
+
+vdb-dump SRR000001 -R1 -C SPOT_DESC,PLATFORM
+SPOT_DESC: spot_len=255, fixed_len=0, signal_len=400, clip_qual_right=235, num_reads=4
+ PLATFORM: SRA_PLATFORM_454
+
+vdb-dump SRR000001 -R1 -C SPOT_DESC,PLATFORM -n
+SPOT_DESC: [255, 0, 0, 0, 144, 1, 235, 0, 4, 0, 0, 0, 0, 0, 0, 0]
+ PLATFORM: 1
+
+The --no_accession -a option:
+With this option you can switch off the test if a given object is a sra-accession.
+It can speed up executing the tool.
+
+(2) printing other informations about a table:
+
+The --schema_dump -A option:
+With this option you can use vdb-dump to print the schema of a table instead of it's content.
+
+vdb-dump SRR000001 -A
+
+The --table_enum -E option:
+For future use: if the object is a vdb-database, enumerate the tables it contains.
+
+The --version -V option:
+Print the version of the vdb-manager used by vdb-dump.
+
+vdb-dump -V
+vdb-dump: 1.0.0
+
+The column_enum -O option:
+Enumerates the columns and the types of columns of a table.
+
+vdb-dump SRR000001 -O
+/panfs/traces01/sra0/SRR/000000/SRR000001.01 : (032 bits [01],      Int)  CLIP_QUALITY_LEFT
+      (INSDC:coord:one)
+   CLIP_QUALITY_LEFT.type[0] = INSDC:coord:one (dflt)
+   CLIP_QUALITY_LEFT.type[1] = U16
+   CLIP_QUALITY_LEFT.type[2] = INSDC:coord:zero
+
+/panfs/traces01/sra0/SRR/000000/SRR000001.02 : (032 bits [01],      Int)  CLIP_QUALITY_RIGHT
+      (INSDC:coord:one)
+  CLIP_QUALITY_RIGHT.type[0] = INSDC:coord:one (dflt)
+  CLIP_QUALITY_RIGHT.type[1] = U16
+  CLIP_QUALITY_RIGHT.type[2] = INSDC:coord:zero
+
+/panfs/traces01/sra0/SRR/000000/SRR000001.03 : (008 bits [01],     Uint)  COLOR_MATRIX
+      (U8)
+        COLOR_MATRIX.type[0] = U8 (dflt)
+
+etc.
+
+The --id_range -r option:
+Print the row-range that a table contains.
+
+vdb-dump SRR000001 -r
+id-range: first-row = 1, row-count = 470985

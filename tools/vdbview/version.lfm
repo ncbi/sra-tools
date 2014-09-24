@@ -1,0 +1,40 @@
+object VersionForm: TVersionForm
+  Left = 498
+  Height = 215
+  Top = 345
+  Width = 346
+  BorderStyle = bsDialog
+  Caption = 'version...'
+  ClientHeight = 215
+  ClientWidth = 346
+  LCLVersion = '0.9.30'
+  object Panel1: TPanel
+    Left = 0
+    Height = 50
+    Top = 165
+    Width = 346
+    Align = alBottom
+    ClientHeight = 50
+    ClientWidth = 346
+    TabOrder = 0
+    object BitBtn1: TBitBtn
+      Left = 216
+      Height = 30
+      Top = 11
+      Width = 122
+      Caption = '&OK'
+      Default = True
+      Kind = bkOK
+      ModalResult = 1
+      TabOrder = 0
+    end
+  end
+  object StaticText1: TStaticText
+    Left = 8
+    Height = 144
+    Top = 8
+    Width = 329
+    Caption = 'Version 1.0.3'#13#10'December29, 2011'
+    TabOrder = 1
+  end
+end

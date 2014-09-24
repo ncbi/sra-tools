@@ -1,0 +1,343 @@
+<?xml version="1.0"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="9"/>
+    <PathDelim Value="\"/>
+    <General>
+      <MainUnit Value="0"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+      <Icon Value="0"/>
+      <ActiveWindowIndexAtStart Value="0"/>
+    </General>
+    <i18n>
+      <EnableI18N LFM="False"/>
+    </i18n>
+    <VersionInfo>
+      <StringTable ProductVersion=""/>
+    </VersionInfo>
+    <BuildModes Count="1" Active="Default">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <IncludeFileFilter Value="*.(pas|pp|inc|lfm|lpr|lrs|lpi|lpk|sh|xml)"/>
+      <ExcludeFileFilter Value="*.(bak|ppu|o|so);*~;backup"/>
+    </PublishOptions>
+    <RunParams>
+      <local>
+        <FormatVersion Value="1"/>
+      </local>
+    </RunParams>
+    <RequiredPackages Count="4">
+      <Item1>
+        <PackageName Value="FCL"/>
+        <MinVersion Major="1" Valid="True"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="IDEIntf"/>
+        <MinVersion Major="1" Valid="True"/>
+      </Item2>
+      <Item3>
+        <PackageName Value="LazControls"/>
+        <MinVersion Valid="True"/>
+      </Item3>
+      <Item4>
+        <PackageName Value="LCL"/>
+      </Item4>
+    </RequiredPackages>
+    <Units Count="25">
+      <Unit0>
+        <Filename Value="vdbview.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="vdbview"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="46" Y="10"/>
+        <UsageCount Value="202"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="mainwindow.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="Mainform"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="MainWindow"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="0"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="38" Y="11"/>
+        <UsageCount Value="202"/>
+        <Bookmarks Count="1">
+          <Item0 X="5" Y="630" ID="0"/>
+        </Bookmarks>
+        <Loaded Value="True"/>
+        <LoadedDesigner Value="True"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="support_unit.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="support_unit"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="116"/>
+        <CursorPos X="36" Y="135"/>
+        <UsageCount Value="202"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="C:\Apps\User_Installs\lazarus\lcl\grids.pas"/>
+        <UnitName Value="Grids"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="3020"/>
+        <CursorPos X="1" Y="3048"/>
+        <UsageCount Value="1"/>
+      </Unit3>
+      <Unit4>
+        <Filename Value="background.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="background"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="153"/>
+        <CursorPos X="1" Y="187"/>
+        <UsageCount Value="201"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="dataproxy.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="DataProxy"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="517"/>
+        <CursorPos X="3" Y="520"/>
+        <UsageCount Value="201"/>
+      </Unit5>
+      <Unit6>
+        <Filename Value="linkedlist.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="linkedlist"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="52"/>
+        <CursorPos X="3" Y="53"/>
+        <UsageCount Value="201"/>
+      </Unit6>
+      <Unit7>
+        <Filename Value="svdb_obj.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="svdb_obj"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="250"/>
+        <CursorPos X="31" Y="262"/>
+        <UsageCount Value="201"/>
+      </Unit7>
+      <Unit8>
+        <Filename Value="svdb.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="svdb"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="408"/>
+        <CursorPos X="1" Y="447"/>
+        <UsageCount Value="201"/>
+      </Unit8>
+      <Unit9>
+        <Filename Value="selector_types.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="selector_types"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="6" Y="13"/>
+        <UsageCount Value="206"/>
+      </Unit9>
+      <Unit10>
+        <Filename Value="jobdef.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="jobdef"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="49" Y="13"/>
+        <UsageCount Value="202"/>
+      </Unit10>
+      <Unit11>
+        <Filename Value="columnsel.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="Columnform"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="ColumnSel"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="59"/>
+        <CursorPos X="28" Y="93"/>
+        <UsageCount Value="132"/>
+      </Unit11>
+      <Unit12>
+        <Filename Value="C:\Apps\User_Installs\lazarus\fpc\2.4.2\source\rtl\objpas\classes\classesh.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="663"/>
+        <CursorPos X="15" Y="691"/>
+        <UsageCount Value="16"/>
+      </Unit12>
+      <Unit13>
+        <Filename Value="C:\Apps\User_Installs\lazarus\fpc\2.4.2\source\rtl\objpas\classes\stringl.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1145"/>
+        <CursorPos X="3" Y="1148"/>
+        <UsageCount Value="10"/>
+      </Unit13>
+      <Unit14>
+        <Filename Value="C:\Apps\User_Installs\lazarus\lcl\forms.pp"/>
+        <UnitName Value="Forms"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1380"/>
+        <CursorPos X="3" Y="1174"/>
+        <UsageCount Value="10"/>
+      </Unit14>
+      <Unit15>
+        <Filename Value="C:\Apps\User_Installs\lazarus\lcl\checklst.pas"/>
+        <UnitName Value="CheckLst"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="57"/>
+        <CursorPos X="3" Y="85"/>
+        <UsageCount Value="2"/>
+      </Unit15>
+      <Unit16>
+        <Filename Value="C:\Apps\User_Installs\lazarus\lcl\actnlist.pas"/>
+        <UnitName Value="ActnList"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="175"/>
+        <CursorPos X="14" Y="203"/>
+        <UsageCount Value="3"/>
+      </Unit16>
+      <Unit17>
+        <Filename Value="gotoform.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="GotoForm"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="gotoform"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="1" Y="20"/>
+        <UsageCount Value="116"/>
+      </Unit17>
+      <Unit18>
+        <Filename Value="C:\Apps\User_Installs\lazarus\fpc\2.4.2\source\rtl\objpas\sysutils\sysstrh.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="92"/>
+        <CursorPos X="66" Y="125"/>
+        <UsageCount Value="3"/>
+      </Unit18>
+      <Unit19>
+        <Filename Value="C:\Apps\User_Installs\lazarus\lcl\include\customform.inc"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="344"/>
+        <CursorPos X="1" Y="372"/>
+        <UsageCount Value="3"/>
+      </Unit19>
+      <Unit20>
+        <Filename Value="C:\Apps\User_Installs\lazarus\lcl\dialogs.pp"/>
+        <UnitName Value="Dialogs"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="480"/>
+        <CursorPos X="11" Y="508"/>
+        <UsageCount Value="10"/>
+      </Unit20>
+      <Unit21>
+        <Filename Value="searchform.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="SForm"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="searchform"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="23"/>
+        <CursorPos X="23" Y="55"/>
+        <UsageCount Value="75"/>
+      </Unit21>
+      <Unit22>
+        <Filename Value="C:\Apps\User_Installs\lazarus\lcl\menus.pp"/>
+        <UnitName Value="Menus"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="90"/>
+        <CursorPos X="3" Y="118"/>
+        <UsageCount Value="8"/>
+      </Unit22>
+      <Unit23>
+        <Filename Value="C:\Apps\User_Installs\lazarus\lcl\graphics.pp"/>
+        <UnitName Value="Graphics"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1111"/>
+        <CursorPos X="15" Y="1139"/>
+        <UsageCount Value="16"/>
+      </Unit23>
+      <Unit24>
+        <Filename Value="version.pas"/>
+        <IsPartOfProject Value="True"/>
+        <ComponentName Value="VersionForm"/>
+        <ResourceBaseClass Value="Form"/>
+        <UnitName Value="version"/>
+        <WindowIndex Value="0"/>
+        <TopLine Value="1"/>
+        <CursorPos X="3" Y="26"/>
+        <UsageCount Value="20"/>
+      </Unit24>
+    </Units>
+    <JumpHistory Count="6" HistoryIndex="5">
+      <Position1>
+        <Filename Value="mainwindow.pas"/>
+        <Caret Line="613" Column="3" TopLine="562"/>
+      </Position1>
+      <Position2>
+        <Filename Value="mainwindow.pas"/>
+        <Caret Line="598" Column="45" TopLine="566"/>
+      </Position2>
+      <Position3>
+        <Filename Value="mainwindow.pas"/>
+        <Caret Line="611" Column="45" TopLine="583"/>
+      </Position3>
+      <Position4>
+        <Filename Value="mainwindow.pas"/>
+        <Caret Line="618" Column="45" TopLine="590"/>
+      </Position4>
+      <Position5>
+        <Filename Value="mainwindow.pas"/>
+        <Caret Line="577" Column="1" TopLine="575"/>
+      </Position5>
+      <Position6>
+        <Filename Value="mainwindow.pas"/>
+        <Caret Line="11" Column="38" TopLine="1"/>
+      </Position6>
+    </JumpHistory>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="9"/>
+    <PathDelim Value="\"/>
+    <Target>
+      <Filename Value="vdbview"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir)"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Linking>
+      <Options>
+        <Win32>
+          <GraphicApplication Value="True"/>
+        </Win32>
+      </Options>
+    </Linking>
+    <Other>
+      <CompilerMessages>
+        <UseMsgFile Value="True"/>
+      </CompilerMessages>
+      <CompilerPath Value="$(CompPath)"/>
+    </Other>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+</CONFIG>

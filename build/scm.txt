@@ -1,0 +1,117 @@
+SCM-Build
+---------
+
+(scm = software configuration management ?)
+
+(1) "scm" is a '.phony' target, implemented in Makefile.env
+    ( just like "out", "CC", "GCC", "ICC", "VC++", "debug",
+                "profile", "release", "purify", "purecov" )
+
+
+(2) "make scm" triggers the scm-target in Makefile.env,
+    the actions are:
+
+    @ echo scm > $(TOP)/build/BUILD.$(OS)
+    @ $(MAKE) TOP=$(TOP) -f $(TOP)/build/Makefile.env rebuild-dirlinks
+
+    - no actual compilation/linkage is performed
+    - the string "scm" is written into the build-file: build/BUILD.linux for instance
+        switching the build-system into "scm-mode"
+    - the directory links are rebuild (why?)
+
+
+(3) if the build-system is in "scm-mode", Makefile.env configures
+    makefile-variables like that:
+
+    ifeq (scm,$(BUILD))
+        DEBUG := -DNDEBUG
+        BUILDTYPE = rel
+        CHECKSUM := --checksum
+    endif
+
+    that means:
+        - a build in "scm-mode" is performed like a release-build
+        - the makefile-variable CHECKSUM is set to the value "--checksum"
+
+
+(4) the makefile-variable CHECKSUM is used in these Makefiles:
+        Makefile.cc, Makefile.gcc, Makefile.icc, Makefile.vc++
+    these 4 Makefiles add $CHECKSUM to the parameter-list of
+        CC, CP, LD and LP ( the platform specific compile- and link-scripts )
+
+
+(5) $CC and $CP gets called, because Makefile.rules do use them in their
+        list of rules that build the different kinds of object-files
+
+
+(6) $LD gets called, because it appears in the Makefile of every single
+        module, in the rule to build the final libs/binaries
+    $LP looks like never called by our build-system ( we do not link c++ targets ?)
+
+
+(7) the compiler-scripts cc.sh, win-cc.sh and sun-cc.sh pick up the "--checksum"
+        parameter and set the shell-variable CHECKSUM to 0 or 1
+
+
+(8) the cc.sh - script:
+    - ( in scm-mode ) performs a check that the target is not
+        undefined or malformed
+
+    - calls the compiler to build the object-file
+    
+    ( in scm-mode only )
+    - calls: strip $TARG.$OBJX -o $TARG.stripped.$OBJX
+        to strip away the symbol-names: renaming a variable
+        does not create a different checksum after that
+    - calls: MD5RES=`md5sum -b $TARG.stripped.$OBJX`
+        create a md5-sum of the stripped obj-file
+    - calls: rm -f "$TARG.stripped.$OBJX" || true
+        to remove the stripped obj-file
+    - calls: MD5VALUE=${MD5RES:0:32}
+        to pick the md5-sum only ( not the following filename )
+    - calls: echo "$TARG.$OBJX=$MD5VALUE" > "$TARG.md5"
+        creates a md5-file for every obj-file, that contains
+        the name of the obj-file followed by it's md5-sum
+
+(9) the ld.sh - script:
+    - to perform the link operation the ld.sh-script calls this script:
+        "$SCRIPT_BASE.$OS.$TYPE.sh"
+      ( which becomes: ld.linux.slib.sh / ld.linux.dlib.sh / 
+        ld.linux.exe.sh for instance )
+
+(10) the ld.linux.slib.sh / ld.linux.dlib.sh / ld.linux.exe.sh - scripts:
+    - define a shell-variable "SLIBS"
+    - accumulate the static-libs the target depends on in this shell-variable
+    - after producing the target, call the script: "scm-collect.sh"
+    - parameter to this call is the list of obj-file ($OBJS) and
+      the static dependencies ($SLIBS)
+
+(11) the scm-collect.sh - script:
+    - loops through the given obj-files and static dependencies
+    - for every item in the list it looks for its corresponding md5-file
+    - if the file exists and is readable
+    - prints the content of the file to stdout
+
+(12) back in the ld.linux.slib.sh / ld.linux.dlib.sh / ld.linux.exe.sh - scripts:
+    - pipe the output of the scm-collect.sh - script
+      through "sort -u" and redirect the output to "$TARG.md5"
+      ( sort -u to makes the file canonical and removes double dependencies )
+    - this creates a md5-file for every lib/executable built
+      in the output-directory of the module
+      (for the kfs-module for instance the files "libkfs.a.md5" and
+       "libkfs.so.md5" are created in "output/centos/scm/gcc/x86_64/lib"
+    - these files are the "current-md5-file" for the scm.sh-script
+
+(13) back in the ld.sh - script:
+    - after creating the soft-links for the lib/executable
+    - if in scm-mode and building for linux,
+    - if building a dynamic-lib or an executable,
+    - the "scm.sh" - script is called
+    - the parameters are: module-name, current-md5-file and version-file
+
+(14) the scm.sh - script:
+    - creates a scm-dir underneath the build-dir (if it does not exist)
+    - checks if the current-md5-file exists ( exits with error if not )
+    - compares the current-md5-file with the candidate-md5-file
+      ( exits with exit-code=0 if they are identical = nothing to do )
+    - 

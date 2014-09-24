@@ -1,0 +1,183 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+
+# determine OS
+UNAME = $(shell uname -s)
+
+ifeq (Darwin, $(UNAME))
+	HOST_OS = mac
+endif
+ifeq (Linux, $(UNAME))
+	HOST_OS = linux
+endif
+ifeq (SunOS, $(UNAME))
+	HOST_OS = sun
+	ARCHITECTURES = x86_64 i386
+endif
+ifeq (xCYGWIN, $(findstring xCYGWIN,x$(UNAME)))
+	HOST_OS = win
+endif
+ifeq (xMINGW, $(findstring xMINGW,x$(UNAME)))
+	HOST_OS = win
+endif
+
+# assume build OS is the same as host OS
+OS = $(HOST_OS)
+BUILD_OS = $(OS)
+
+# determine ARCH
+ARCHITECTURES = default
+ifeq (mac,$(HOST_OS))
+	HOST_ARCH = $(shell $(TOP)/build/mac.arch.sh)
+else
+	MARCH = $(shell uname -m)
+
+	ifeq (i386, $(MARCH))
+		HOST_ARCH = i386
+	endif
+	ifeq (i486, $(MARCH))
+		HOST_ARCH = i386
+	endif
+	ifeq (i586, $(MARCH))
+		HOST_ARCH = i386
+	endif
+	ifeq (i686, $(MARCH))
+		ifeq (WOW64x, $(findstring WOW64x,$(UNAME)x))
+			# 64-bit capable Cygwin. Analyze the version of cl to set the corect architecture
+			CL = $(shell cl.exe 2>&1 >/dev/null)
+			ifeq (for x64, $(findstring for x64, $(CL)))
+				HOST_ARCH = x86_64
+			else
+				HOST_ARCH = i386
+			endif			
+		else
+			HOST_ARCH = i386
+		endif	
+	endif
+	ifeq (x86_64, $(MARCH))
+		HOST_ARCH = x86_64
+	endif
+	ifeq (i86pc, $(MARCH))
+		HOST_ARCH = x86_64
+		ARCHITECTURES = x86_64 i386
+	endif
+	ifeq (sun4v,$(MARCH))
+		HOST_ARCH = sparc64
+		ARCHITECTURES = sparc64 sparc32
+	endif
+endif
+
+ARCH = $(HOST_ARCH)
+REMOTE_ARCH = $(ARCH)
+
+# pick up dependencies from object directory
+ifdef SRCDIR
+	include $(wildcard *.d)
+else
+
+# determine SRCDIR
+ifdef MODULE
+	SRCDIR=$(TOP)/$(MODULE)
+else
+	SRCDIR=$(TOP)
+endif
+
+# set COMP, LNKG and BUILD
+COMP = $(shell test -f $(TOP)/build/COMP && mv $(TOP)/build/COMP $(TOP)/build/COMP.$(OS); test -f $(TOP)/build/COMP.$(OS) && cat $(TOP)/build/COMP.$(OS) || echo gcc)
+LNKG = $(shell test -f $(TOP)/build/STATIC && mv $(TOP)/build/STATIC $(TOP)/build/LNKG.$(OS) && echo stat > $(TOP)/build/LNKG.$(OS); test -f $(TOP)/build/LNKG.$(OS) && cat $(TOP)/build/LNKG.$(OS) || echo stat)
+BUILD = $(shell test -f $(TOP)/build/BUILD && mv $(TOP)/build/BUILD $(TOP)/build/BUILD.$(OS); test -f $(TOP)/build/BUILD.$(OS) && cat $(TOP)/build/BUILD.$(OS) || echo dbg)
+TOOLSET := $(COMP)
+
+ifdef USE_GCC_IF_ICC
+ifeq (icc,$(COMP))
+COMP = gcc
+endif
+ifeq (clang,$(COMP))
+COMP = gcc
+endif
+endif
+
+endif
+
+RHOSTS = $(shell (test -d $(TOP)/rhosts && test -n "$$(ls $(TOP)/rhosts/)") && \
+                  ls $(TOP)/rhosts/ | xargs -n1 basename | grep -v CVS | grep -v example | grep -v "~")
+
+# detect RHOST
+HAS_RHOST = $(shell test -f $(TOP)/build/RHOST.$(HOST_OS) && echo yes || echo no)
+ifeq (yes,$(HAS_RHOST))
+    include $(TOP)/build/RHOST.$(HOST_OS)
+	ifeq (,$(RPORT))
+		RPORT = 20000
+	endif
+	BUILD_OS = r$(OS)
+	REMOTE_ARCH = $(ARCH)
+	ifeq (,$(LHOME))
+	    LHOME=$(HOME)
+	endif
+endif
+
+# set OUTDIR
+ifndef OUTDIR
+	OUTDIR = $(shell test -f $(TOP)/build/OUTDIR && mv $(TOP)/build/OUTDIR $(TOP)/build/OUTDIR.$(BUILD_OS); test -f $(TOP)/build/OUTDIR.$(BUILD_OS) && cat $(TOP)/build/OUTDIR.$(BUILD_OS) || echo $(TOP))
+	ifeq (,$(OUTDIR))
+		OUTDIR = $(TOP)
+	endif
+endif
+ifeq (,$(ROUTDIR))
+	ROUTDIR = $(RHOME)
+endif
+
+ifeq (yes,$(HAS_RHOST))
+	# set remote flags for calling win-cc.sh and ld.sh)
+	RFLAGS=--rhome "$(RHOME)" --lhome "$(LHOME)" --rhost "$(RHOST)" --rport $(RPORT) --proxy_tool "$(PROXY_TOOL)" \
+ --loutdir "$(OUTDIR)" --routdir "$(ROUTDIR)"
+	# RWORKDIR can be redefined by individual makefiles as needed
+	RWORKDIR = . 
+	RUN_REMOTELY = $(TOP)/build/run_remotely.sh $(PROXY_TOOL) $(RHOST) $(RPORT) $(RHOME) $(LHOME) $(RWORKDIR) $(ROUTDIR) $(OUTDIR)
+endif
+
+# OS flavor is normally OS
+ifeq (linux,$(OS))
+	# test for SuSE or CentOS
+	OSFLAV = $(shell echo "[ -f /etc/SuSE-release ] && echo suse || ( [ -f /etc/redhat-release ] && echo centos || echo linux )" | bash)
+else
+	# OS flavor is normally OS
+	OSFLAV = $(OS)
+endif
+
+# determine BITS
+ifeq (x86_64, $(ARCH))
+	BITS = 64
+endif
+ifeq (sparc64, $(ARCH))
+	BITS = 64
+endif
+ifeq (i386, $(ARCH))
+	BITS = 32
+endif
+ifeq (sparc32, $(ARCH))
+	BITS = 32
+endif
+

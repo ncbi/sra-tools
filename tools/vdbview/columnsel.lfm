@@ -1,0 +1,90 @@
+object Columnform: TColumnform
+  Left = 375
+  Height = 472
+  Top = 154
+  Width = 350
+  BorderStyle = bsSingle
+  Caption = 'columns...'
+  ClientHeight = 472
+  ClientWidth = 350
+  LCLVersion = '0.9.30'
+  object ColumnBox: TCheckListBox
+    Left = 0
+    Height = 376
+    Top = 0
+    Width = 350
+    Align = alClient
+    ItemHeight = 0
+    OnItemClick = ColumnBoxItemClick
+    TabOrder = 0
+  end
+  object Footer: TPanel
+    Left = 0
+    Height = 50
+    Top = 422
+    Width = 350
+    Align = alBottom
+    ClientHeight = 50
+    ClientWidth = 350
+    TabOrder = 1
+    object BOK: TBitBtn
+      Left = 16
+      Height = 30
+      Top = 10
+      Width = 144
+      Caption = '&OK'
+      Default = True
+      Kind = bkOK
+      ModalResult = 1
+      TabOrder = 0
+    end
+    object BCancel: TBitBtn
+      Left = 192
+      Height = 30
+      Top = 10
+      Width = 144
+      Cancel = True
+      Caption = 'Cancel'
+      Kind = bkCancel
+      ModalResult = 2
+      TabOrder = 1
+    end
+  end
+  object Panel1: TPanel
+    Left = 0
+    Height = 46
+    Top = 376
+    Width = 350
+    Align = alBottom
+    ClientHeight = 46
+    ClientWidth = 350
+    TabOrder = 2
+    object BClear: TButton
+      Left = 16
+      Height = 25
+      Top = 8
+      Width = 104
+      Caption = 'Clear all'
+      OnClick = BClearClick
+      TabOrder = 0
+    end
+    object BSetAll: TButton
+      Left = 128
+      Height = 25
+      Top = 8
+      Width = 99
+      Caption = 'Set all'
+      OnClick = BSetAllClick
+      TabOrder = 1
+    end
+    object BNonStatic: TButton
+      Left = 237
+      Height = 25
+      Top = 8
+      Width = 99
+      Caption = 'Set non static'
+      OnClick = BNonStaticClick
+      TabOrder = 2
+    end
+  end
+end

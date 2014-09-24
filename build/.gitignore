@@ -1,0 +1,4 @@
+.cvsignore
+RHOST* ARCH* BUILD* COMP* OUTDIR*
+STATIC
+LNKG.*

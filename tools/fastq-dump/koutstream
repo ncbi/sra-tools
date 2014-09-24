@@ -1,0 +1,281 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
+#ifndef _h_outpost_koutstream_
+#define _h_outpost_koutstream_
+
+#ifndef _h_klib_defs_
+#include <klib/defs.h>
+#endif
+
+#include <ios>
+#include <streambuf>
+#include <ostream>
+
+#include <klib/out.h>
+
+/*)))
+ ///    Something weird. That class will throw exception if any
+ \\\    error will happen. Overwise, You may comment line to return
+ ///    error code instead.
+(((*/
+#define _DO_ALWAYS_THROW_EXCEPTION
+
+#ifdef _DO_ALWAYS_THROW_EXCEPTION
+    /* Using that forward to avoid conflicts with String */
+extern "C" {
+    KLIB_EXTERN rc_t CC string_printf (
+                                    char *dst,
+                                    size_t bsize,
+                                    size_t *num_writ,
+                                    const char *fmt,
+                                    ...
+                                    );
+}
+#endif /* _DO_ALWAYS_THROW_EXCEPTION */
+
+
+/*))))
+ <<<<   Lurics:
+  >>>>  That file created because Kurt want to wrap KOutMsg to 'stream'
+ <<<<
+  >>>>  Important notice ... because it is KOutMsg, that class will
+ <<<<   associate output sequence only with KOutMsg primitive.
+  >>>>  That file contains :
+ <<<<       basic_koutbuf    - buffer
+  >>>>      basic_koutstream - stream
+ <<<<       kout - stream forward
+  >>>>
+ ((((*/
+
+/*)))
+ ///    I think that is valild name for namespace ...
+(((*/
+namespace ngs {
+
+/*))
+ // Buffer
+((*/
+template < typename _CharT, typename _Traits >
+class basic_koutbuf
+    : public std :: basic_streambuf < _CharT, _Traits > {
+
+public :
+    // Typos
+    typedef _CharT      char_type;
+    typedef _Traits     traits_type;
+
+    typedef typename traits_type::int_type int_type;
+
+    typedef std :: allocator < char_type > allocator_type;
+    typedef std :: basic_streambuf < char_type, traits_type > __streambuf_type;
+    typedef basic_koutbuf < char_type, traits_type > __koutbuf_type;
+
+protected :
+
+    static const std :: streamsize _cM_buffer_size = 4096 * 32;
+    char_type * _M_char;
+
+public :
+
+        /* Constructor/destructor */
+    basic_koutbuf ()
+        : __streambuf_type ()
+        , _M_char ( allocator_type () . allocate ( _cM_buffer_size ) )
+        {
+            this -> setbuf ( _M_char, sizeof ( _M_char ) - 1 );
+            __setp ();
+        };
+
+    ~basic_koutbuf ()
+        {
+            try {
+                __sync (); // ?? should we check retval?
+            }
+            catch ( ... ) {
+                // ???? what we should do here ????
+            }
+
+            try {
+                if ( _M_char != NULL ) {
+                    allocator_type () . deallocate (
+                                                    _M_char,
+                                                    _cM_buffer_size
+                                                    );
+                }
+            }
+            catch ( ... ) {
+                // ???? nothing to do 
+            }
+
+            _M_char = NULL;
+        };
+
+    std :: streamsize xsputn ( const char_type * __s, std :: streamsize __n )
+        {
+            std :: streamsize __a = this -> epptr () - this -> pptr ();
+
+            if ( __n < __a ) {
+                    /*)  Here we are adding string to a buffer
+                     (*/
+                traits_type :: copy ( this -> pptr (), __s, __n );
+
+                this -> pbump ( __n );
+            }
+            else {
+                    /*) We are not too effective ...
+                     (*/
+                if ( __sync () == - 1 ) {
+                    return 0;
+                }
+
+                std :: streamsize __q = 0;
+
+                while ( __q < __n ) {
+                    __a = this -> epptr () - this -> pptr ();
+                    std :: streamsize __c = std :: min (
+                                                        __n - __q,
+                                                        __a
+                                                        );
+
+                    traits_type :: copy (
+                                    this -> pbase (),
+                                    __s + __q,
+                                    __c
+                                    );
+                    this -> pbump ( __c );
+
+                    if ( __sync () == - 1 ) {
+                        return 0;
+                    }
+
+                    __q += __c;
+                }
+            }
+
+                /*) We do never fail :lol:
+                 (*/
+            return __n;
+        };
+
+    virtual int sync ()
+        {
+            return __sync ();
+        };
+
+protected :
+
+        int __sync ()
+        {
+            int __ret = 0;
+
+            if ( this -> pbase () < this -> pptr () ) {
+                    /*) KOurMsg is working with null terminated
+                     (*/
+                * ( this -> pptr () ) = 0;
+
+                rc_t __rc = KOutMsg ( "%s", this -> pbase () );
+                if ( __rc != 0 ) {
+#ifdef _DO_ALWAYS_THROW_EXCEPTION
+
+                    /* That was requested by Kurt: I shoud throw
+                       an exception instead of sending overflow
+                       error
+                     */
+                    char __m [ 4096 ];
+                    size_t __n = 0;
+                    string_printf ( __m, sizeof ( __m ), & __n, "%R", __rc );
+                    throw ErrorMsg ( __m );
+#else
+
+                    __ret = - 1;
+#endif /* _DO_ALWAYS_THROW_EXCEPTION */
+                }
+
+                __setp ();
+            }
+
+            return __ret;
+        };
+
+        void __setp ()
+        {
+                /*) the only valid method to set _M_out_cur to zero
+                 /  also, one char reserved for a zero
+                (*/
+            this -> setp ( _M_char, _M_char + sizeof ( _M_char ) - 1 );
+        };
+
+};  /* class basic_koutbuf */
+
+/*))
+ // Stream
+((*/
+template < typename _CharT, typename _Traits >
+class basic_koutstream :
+    public std :: basic_ostream < _CharT, _Traits > {
+
+public :
+    // Typos
+    typedef _CharT      char_type;
+    typedef _Traits     traits_type;
+
+    typedef typename traits_type::int_type int_type;
+
+    typedef basic_koutbuf < char_type, traits_type > __koutbuf_type;
+    typedef std :: basic_ostream < char_type, traits_type > __ostream_type;
+    typedef basic_koutstream < char_type, traits_type > __koutstream_type;
+
+private :
+
+    __koutbuf_type _M_koutbuf;
+
+public :
+
+        /**
+         *  Default constructor, and the only constructor
+         **/
+    basic_koutstream () : __ostream_type ( 0 ), _M_koutbuf ()
+        {
+            this -> init ( & _M_koutbuf );
+        };
+
+    virtual ~basic_koutstream ()
+        {
+        };
+
+};  /* class basic_koutstream */
+
+/*)))
+ ///  Forwards
+(((*/
+typedef basic_koutstream<char, std :: char_traits < char > > koutstream;
+
+koutstream kout;
+
+}   /* namespace ngs */
+
+#endif /* _h_outpost_koutstream_ */

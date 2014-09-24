@@ -1,0 +1,94 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+# matching legacy-tables with schema's to write to for vdb-copy
+
+# ILLUMINA
+/VDBCOPY/NCBI_SRA_Illumina_tbl_v0a_1/schema = "sra/illumina.vschema"
+#/VDBCOPY/NCBI_SRA_Illumina_tbl_v0a_1/tab = "NCBI:SRA:Illumina:tbl:q4:v2"
+#/VDBCOPY/NCBI_SRA_Illumina_tbl_v0a_1/tab = "NCBI:SRA:Illumina:tbl:q1:v2"
+/VDBCOPY/NCBI_SRA_Illumina_tbl_v0a_1/tab = "NCBI:SRA:Illumina:tbl:phred:v2"
+/VDBCOPY/_ILLUMINA_/schema = "sra/illumina.vschema"
+/VDBCOPY/_ILLUMINA_/tab = "NCBI:SRA:Illumina:tbl:phred:v2"
+
+
+# _454_
+/VDBCOPY/NCBI_SRA__454__tbl_v0_1/schema = "sra/454.vschema"
+/VDBCOPY/NCBI_SRA__454__tbl_v0_1/tab = "NCBI:SRA:_454_:tbl:v2"
+/VDBCOPY/_454_/schema = "sra/454.vschema"
+/VDBCOPY/_454_/tab = "NCBI:SRA:_454_:tbl:v2"
+
+
+# ABSOLID
+/VDBCOPY/NCBI_SRA_ABI_tbl_v1_1/schema = "sra/abi.vschema"
+/VDBCOPY/NCBI_SRA_ABI_tbl_v1_1/tab = "NCBI:SRA:ABI:tbl:v2"
+/VDBCOPY/_ABSOLID_/schema = "sra/abi.vschema"
+/VDBCOPY/_ABSOLID_/tab = "NCBI:SRA:ABI:tbl:v2"
+
+
+# scoring of different schema-types for lossy-ness
+/VDBCOPY/SCORE/INSDC_2na_bin = "2"
+/VDBCOPY/SCORE/INSDC_x2na_bin = "1"
+/VDBCOPY/SCORE/INSDC_2na_packed = "2"
+/VDBCOPY/SCORE/INSDC_2cs_bin = "2"
+/VDBCOPY/SCORE/INSDC_x2cs_bin = "1"
+/VDBCOPY/SCORE/INSDC_2cs_packed = "2"
+/VDBCOPY/SCORE/INSDC_quality_phred = "1"
+/VDBCOPY/SCORE/INSDC_quality_log_odds = "1"
+/VDBCOPY/SCORE/INSDC_SRA_read_type = "1"
+
+# global vdb-copy-settings for filtering and redacting
+
+/VDBCOPY/READ_FILTER_COL_NAME = "READ_FILTER"
+
+# first redactable columns are detected by their type
+/VDBCOPY/REDACTABLE_TYPES = "INSDC:color:text,INSDC:x2cs:bin,INSDC:2cs:bin,INSDC:2cs:packed,INSDC:dna:text,INSDC:4na:bin,INSDC:4na:packed,INSDC:x2na:bin,INSDC:2na:bin,INSDC:2na:packed,NCBI:SRA:pos16,INSDC:quality:phred,INSDC:quality:log_odds,NCBI:qual4,INSDC:position:one,INSDC:position:zero,NCBI:fsamp4,NCBI:isamp1"
+
+# (1) specify a list of all types with redact-values other than zero
+#     key = "/VDBCOPY/REDACTVALUE/TYPES" ( ":" replaced by "_" )
+#
+# (2) specify for each type from (1) a redact-value
+#     key = /VDBCOPY/REDACTVALUE/xxxxxx/VALUE
+#     ( replace xxxxxx with one of the types from (1) )
+#     per default the value is one byte ( len = 1 )
+#     the format can be  - "'N'" for the ASCII-value of 'N'
+#                        OR
+#                        - "1" for the binary value of 1
+#                        OR
+#                        - "0x3A" for the binary value of 0x3A (58d)
+#
+# (2) specify for each type from (1) a redact-len (if it differs from 1 byte)
+#     key = /VDBCOPY/REDACTVALUE/xxxxxx/LEN
+#     ( replace xxxxxx with one of the types from (1) )
+#
+
+/VDBCOPY/REDACTVALUE/TYPES = "INSDC_color_text,INSDC_dna_text,NCBI_qual4"
+/VDBCOPY/REDACTVALUE/INSDC_color_text/VALUE = "'.'"
+/VDBCOPY/REDACTVALUE/INSDC_dna_text/VALUE = "'N'"
+/VDBCOPY/REDACTVALUE/NCBI_qual4/VALUE = "-6"
+
+/VDBCOPY/DO_NOT_REDACT = "CS_KEY,FLOW_CHARS,KEY_SEQUENCE,LINKER_SEQUENCE"
+
+# what root-nodes not to copy while copying metadata
+/VDBCOPY/META/IGNORE = "col,.seq,STATS,BASE_COUNT,HUFFMAN_TREE_POS,HUFFMAN_TREE_POS_SIZE,HUFFMAN_TREE_PRB,HUFFMAN_TREE_PRB_SIZE,HUFFMAN_TREE_SIG,HUFFMAN_TREE_SIG_SIZE,MSC454_CLIP_QUALITY_LEFT,MSC454_CLIP_QUALITY_RIGHT,MSC454_FLOW_CHARS,MSC454_KEY_SEQUENCE,NREADS,NUMBER_POS_CHANNELS,NUMBER_PRB_CHANNELS_1,NUMBER_PRB_COLUMNS,NUMBER_SIG_CHANNELS,PLATFORM,READ_0,READ_1,SPOT_COUNT"

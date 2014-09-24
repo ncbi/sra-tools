@@ -1,0 +1,162 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+
+The NCBI SRA ( Sequence Read Archive ) Toolkit
+
+
+Contact: sra-tools@ncbi.nlm.nih.gov
+http://trace.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software
+
+
+For preliminary documentation on tool usage, consult the files within
+the "help" directory.
+
+
+CHANGES:
+
+SRA Toolkit includes new features in sam-dump tool and vdb-dump tools.  
+
+Sam-dump now supports slicing across multiple sequences, and dumping cSRA files to fasta and fastq formats. In addition, sam-dump has three new parameters
+-=|--hide-identical              Output '=' if base is identical to reference
+--gzip                           Compress output using gzip
+--bzip2                          Compress output using bzip2
+
+vdb-dump has two new parameters
+-o|--column_enum_short           enumerates columns in short form
+-b|--boolean                     defines how boolean's are printed (1,T)
+
+We have combined the functionality of two scripts, config-assistant.perl and reference-assistant.perl into a single script, configuration-assistant.perl that helps users download the correct references for a given cSRA file and configure the user environment for the SRA Toolkit.
+
+DESCRIPTION:
+
+ This release includes tools for reading the SRA archive, generally
+ by converting individual runs into some commonly used format such as
+ fastq. Support for NCBI's Compression by Reference is also included.
+
+ "Linux" binaries have been created on CentOS and SuSE Linux
+ distributions. They are not guaranteed to work on other
+ distributions. In particular, the version of libc.so should be
+ compatible. They are specific to the x86-family architectures.
+
+ "Windows" binaries have been created using MSVC's (not Cygwin)
+ tools. This release includes Win32 binaries. The "*-load" tools
+ are not released for "Windows".
+
+ "Mac OS X" binaries are available for the x86-family
+ architectures. They will NOT run on PPC Macs. The 64-bit binaries
+ will run only on OS 10.6. The 32-bit binaries should run on either
+ 10.5 or later.
+
+
+CONTENTS:
+
+ "abi-dump"            - dump ABI color-space runs into their native format
+ "abi-load"            - load ABI color-space runs
+ "fastq-dump"          - dump any run of any platform in FASTQ format
+ "fastq-load"          - load FASTQ runs
+ "helicos-load"        - load HELICOS runs
+ "illumina-dump"       - dump Illumina runs into their native format
+ "illumina-load"       - load Illumina native runs
+ "kar"                 - an archive extraction tool for .sra files
+ "kdbmeta"             - display the contents of one or more metadata stores
+ "rcexplain"           - print out error string for return codes (RC)
+ "refseq-load"         - ( NEW for Linux and Mac ) download a reference
+                         sequence object
+ "sff-dump"            - dump 454 runs into SFF format
+ "sff-load"            - load 454 SFF runs
+ "sra-dbcc"            - check SRA runs
+ "sra-dump"            - dump any run in a textual format [see note below]
+ "sra-kar"             - creates a single file archive from an SRA run
+ "sra-stat"            - display run column statistics
+ "srf-load"            - load SRF runs
+ "sam-dump"            - dump a cSRA into the SAM-format
+ "vdb-copy"            - copy SRA objects
+ "vdb-dump"            - display SRA objects in a textual format [see note below]
+ "vdb-lock"            - lock an object against modification
+ "vdb-unlock"          - unlock an object
+ "align-info"          - displays which references a csra-archive uses
+ "vdb-config"          - displays the configuration
+
+
+NOTES:
+
+ The "sam-dump" tool only works on cSRA's. ( See README-csra )
+ The textual dumpers "sra-dump" and "vdb-dump" are provided in this
+ release as an aid in visual inspection. It is likely that their
+ actual output formatting will be changed in the near future to a
+ stricter, more formalized representation[s].
+
+ The "help" information will be improved in near future releases, and
+ the tool options will become standardized across the set. We will
+ also be providing documentation on our web site.
+
+ Tool options may change in the next release. Version 1 tool options
+ will remain supported wherever possible in order to preserve
+ operation of any existing scripts.
+
+
+CAVEATS:
+
+ SRA tools are designed to handle very large amounts of data, and are
+ not currently oriented toward desktop use. They work well within any
+ Unix-like environment, such as Linux or MacOS's BSD shell.
+
+ Windows operation presents a few challenges. We have tested our
+ binaries under the MS "cmd.exe" shell and Cygwin's bash. Our tools
+ know how to accept paths in Windows, Cygwin, POSIX and MinGW
+ formats. Internally, all paths are treated as MinGW-style POSIX
+ paths, so any information appearing in output will reflect this
+ conversion:
+
+   # simple file names
+   SRR012345.sra                   => [NO CHANGE]
+
+   # relative paths
+   win\SRR012345.sra               => win/SRR012345.sra
+
+   # full or drive-relative paths
+   C:\sra\win\SRR012345.sra        => /C/sra/win/SRR012345.sra
+
+   # network paths
+   \\server\sra\SRR012345.sra      => //server/sra/SRR012345.sra
+
+   # POSIX paths
+   /sra/posix/SRR012345.sra        => [NO CHANGE]
+
+   # Cygwin full paths
+   /cygdrive/C/sra/SRR012345.sra   => /C/sra/SRR012345.sra
+
+ There are some situations where the software may behave unexpectedly
+ due to path conversions. In particular, since Windows does not
+ conform to POSIX path conventions, there may be difficulties
+ combining network paths with non-network paths, explicitly or
+ implicitly. IF YOU HAVE PROBLEMS, we recommend mounting file servers
+ as network drives.
+
+ If you run the software under Cygwin, you should take care to use
+ either relative paths (those that do not begin with '/') or full
+ paths that start with "/cygdrive/". The reason is that Cygwin
+ provides its own path manipulation, but our tools are not aware of
+ which shell they are running under.

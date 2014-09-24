@@ -1,0 +1,7 @@
+*.vers.h
+kqsh-kdb.c
+kqsh-kdb.h
+kqsh-vdb.c
+kqsh-vdb.h
+kqsh-sra.c
+kqsh-sra.h

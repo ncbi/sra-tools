@@ -1,0 +1,268 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://web.resource.org/cc/"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   width="744.09448819"
+   height="1052.3622047"
+   id="svg2"
+   sodipodi:version="0.32"
+   inkscape:version="0.45pre1"
+   sodipodi:docbase="C:\Users\raetzw\Documents\Lazarus_prj\vdbview"
+   sodipodi:docname="buttons.svg"
+   inkscape:output_extension="org.inkscape.output.svg.inkscape"
+   sodipodi:modified="TRUE">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="base"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     gridtolerance="10000"
+     guidetolerance="10"
+     objecttolerance="10"
+     inkscape:pageopacity="0.0"
+     inkscape:pageshadow="2"
+     inkscape:zoom="2.9623907"
+     inkscape:cx="214.19993"
+     inkscape:cy="613.92108"
+     inkscape:document-units="px"
+     inkscape:current-layer="layer1"
+     showgrid="true"
+     gridspacingx="20px"
+     gridspacingy="20px"
+     inkscape:grid-points="true"
+     inkscape:window-width="1335"
+     inkscape:window-height="981"
+     inkscape:window-x="210"
+     inkscape:window-y="93" />
+  <metadata
+     id="metadata7">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g7117"
+       inkscape:export-filename="C:\Users\raetzw\Documents\Lazarus_prj\vdbview\b_nextpage.png"
+       inkscape:export-xdpi="16.5"
+       inkscape:export-ydpi="16.5">
+      <rect
+         transform="matrix(2.9134226,0,0,2.9928606,-74.805361,-183.92217)"
+         y="112.36218"
+         x="60"
+         height="40.095417"
+         width="41.188671"
+         id="rect3131"
+         style="opacity:1;color:#000000;fill:#ff6600;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;marker:none;marker-start:none;marker-mid:none;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+      <path
+         transform="translate(39.999999,39.999993)"
+         id="path4105"
+         d="M 80,132.36218 L 140,172.36218 L 80,212.36218"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none" />
+      <path
+         transform="translate(39.999999,39.999993)"
+         id="path4109"
+         d="M 100,132.36218 L 160,172.36218 L 100,212.36218"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none" />
+    </g>
+    <g
+       id="g7122"
+       transform="translate(-2.8184434e-7,3.3322021e-6)"
+       inkscape:export-filename="C:\Users\raetzw\Documents\Lazarus_prj\vdbview\b_prevpage.png"
+       inkscape:export-xdpi="16.5"
+       inkscape:export-ydpi="16.5">
+      <rect
+         style="opacity:1;color:#000000;fill:#ff6600;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;marker:none;marker-start:none;marker-mid:none;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+         id="rect5080"
+         width="41.188671"
+         height="40.095417"
+         x="60"
+         y="112.36218"
+         transform="matrix(2.9134226,0,0,2.9928606,65.194639,-183.92217)" />
+      <path
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 80,132.36218 L 140,172.36218 L 80,212.36218"
+         id="path5082"
+         transform="matrix(-1,0,0,-1,420,384.72436)" />
+      <path
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 100,132.36218 L 160,172.36218 L 100,212.36218"
+         id="path5084"
+         transform="matrix(-1,0,0,-1,420,384.72436)" />
+    </g>
+    <g
+       id="g7109"
+       inkscape:export-filename="C:\Users\raetzw\Documents\Lazarus_prj\vdbview\b_next.png"
+       inkscape:export-xdpi="16.5"
+       inkscape:export-ydpi="16.5">
+      <rect
+         style="opacity:1;color:#000000;fill:#ff6600;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;marker:none;marker-start:none;marker-mid:none;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+         id="rect5086"
+         width="41.188671"
+         height="40.095417"
+         x="60"
+         y="112.36218"
+         transform="matrix(2.9134226,0,0,2.9928606,-74.805361,-43.922167)" />
+      <path
+         sodipodi:nodetypes="ccc"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 80,132.36218 L 160,172.36218 L 80,212.36218"
+         id="path5088"
+         transform="translate(39.999999,180)" />
+    </g>
+    <g
+       id="g7136">
+      <rect
+         transform="matrix(2.9134226,0,0,2.9928606,65.194639,-43.922167)"
+         y="112.36218"
+         x="60"
+         height="40.095417"
+         width="41.188671"
+         id="rect5092"
+         style="color:#000000;fill:#ff6600;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;marker:none;marker-start:none;marker-mid:none;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+      <path
+         sodipodi:nodetypes="ccc"
+         transform="matrix(-1,0,0,-1,420,524.72436)"
+         id="path5094"
+         d="M 80,132.36218 L 160,172.36218 L 80,212.36218"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    </g>
+    <g
+       id="g7086"
+       inkscape:export-filename="C:\Users\raetzw\Documents\Lazarus_prj\vdbview\b_last.png"
+       inkscape:export-xdpi="16.5"
+       inkscape:export-ydpi="16.5">
+      <rect
+         style="opacity:1;color:#000000;fill:#ff6600;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;marker:none;marker-start:none;marker-mid:none;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+         id="rect5098"
+         width="41.188671"
+         height="40.095417"
+         x="60"
+         y="112.36218"
+         transform="matrix(2.9134226,0,0,2.9928606,-74.805361,96.077833)" />
+      <path
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 80,132.36218 L 140,172.36218 L 80,212.36218"
+         id="path5100"
+         transform="translate(39.999999,320)" />
+      <path
+         sodipodi:nodetypes="cc"
+         transform="translate(120,320)"
+         id="path5112"
+         d="M 80,132.36218 L 80,212.36218"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    </g>
+    <g
+       id="g7081"
+       inkscape:export-filename="C:\Users\raetzw\Documents\Lazarus_prj\vdbview\b_first.png"
+       inkscape:export-xdpi="16.5"
+       inkscape:export-ydpi="16.5">
+      <rect
+         transform="matrix(2.9134226,0,0,2.9928606,65.194639,96.077833)"
+         y="112.36218"
+         x="60"
+         height="40.095417"
+         width="41.188671"
+         id="rect5104"
+         style="opacity:1;color:#000000;fill:#ff6600;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;marker:none;marker-start:none;marker-mid:none;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+      <path
+         transform="matrix(-1,0,0,-1,420,664.72436)"
+         id="path5106"
+         d="M 80,132.36218 L 140,172.36218 L 80,212.36218"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+      <path
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 80,132.36218 L 80,212.36218"
+         id="path5115"
+         transform="translate(180,320)"
+         sodipodi:nodetypes="cc" />
+    </g>
+    <g
+       id="g7127"
+       inkscape:export-filename="C:\Users\raetzw\Documents\Lazarus_prj\vdbview\b_search.png"
+       inkscape:export-xdpi="16.5"
+       inkscape:export-ydpi="16.5">
+      <rect
+         transform="matrix(2.9134226,0,0,2.9928606,205.19464,-183.92217)"
+         y="112.36218"
+         x="60"
+         height="40.095417"
+         width="41.188671"
+         id="rect5135"
+         style="opacity:1;color:#000000;fill:#ff6600;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;marker:none;marker-start:none;marker-mid:none;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;visibility:visible;display:inline;overflow:visible;enable-background:accumulate" />
+      <path
+         transform="translate(4.5,-124.5)"
+         d="M 480 322.36218 A 30 30 0 1 1  420,322.36218 A 30 30 0 1 1  480 322.36218 z"
+         sodipodi:ry="30"
+         sodipodi:rx="30"
+         sodipodi:cy="322.36218"
+         sodipodi:cx="450"
+         id="path5137"
+         style="opacity:1;color:#000000;fill:none;fill-opacity:1;fill-rule:nonzero;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;marker:none;marker-start:none;marker-mid:none;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+         sodipodi:type="arc" />
+      <path
+         sodipodi:nodetypes="cc"
+         id="path6108"
+         d="M 434.26139,220.46374 L 400,252.36218"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:miter;stroke-opacity:1;stroke-miterlimit:4;stroke-dasharray:none" />
+    </g>
+    <g
+       id="g7146"
+       inkscape:export-filename="C:\Users\raetzw\Documents\Lazarus_prj\vdbview\b_goto.png"
+       inkscape:export-xdpi="16.5"
+       inkscape:export-ydpi="16.5">
+      <rect
+         style="opacity:1;color:#000000;fill:#ff6600;fill-opacity:1;fill-rule:nonzero;stroke:none;stroke-width:4;stroke-linecap:butt;stroke-linejoin:miter;marker:none;marker-start:none;marker-mid:none;marker-end:none;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;visibility:visible;display:inline;overflow:visible;enable-background:accumulate"
+         id="rect7079"
+         width="41.188671"
+         height="40.095417"
+         x="60"
+         y="112.36218"
+         transform="matrix(2.9134226,0,0,2.9928606,205.19464,-43.922167)" />
+      <path
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 80,132.36218 L 80,212.36218"
+         id="path7134"
+         transform="matrix(-1,0,0,-1,500,524.72436)"
+         sodipodi:nodetypes="cc" />
+      <path
+         sodipodi:nodetypes="cc"
+         transform="matrix(-1,0,0,-1,540,524.72436)"
+         id="path7140"
+         d="M 80,132.36218 L 80,212.36218"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+      <path
+         inkscape:transform-center-y="19.999997"
+         inkscape:transform-center-x="-60"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         d="M 80,132.36218 L 80,212.36218"
+         id="path7142"
+         transform="matrix(0,1,-1,0,612.36218,252.36218)"
+         sodipodi:nodetypes="cc" />
+      <path
+         sodipodi:nodetypes="cc"
+         transform="matrix(0,1,-1,0,612.36218,292.36218)"
+         id="path7144"
+         d="M 80,132.36218 L 80,212.36218"
+         style="fill:none;fill-rule:evenodd;stroke:#000000;stroke-width:9;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+         inkscape:transform-center-x="-60"
+         inkscape:transform-center-y="19.999997" />
+    </g>
+  </g>
+</svg>

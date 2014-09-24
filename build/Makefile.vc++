@@ -1,0 +1,81 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+# RFLAGS have to go before any other flags since they can affect their handling
+# compilers
+CC = @ $(TOP)/build/win-cc.sh $(BUILD_OS) "cl /c /MD /D_WIN32_WINNT=0x0502" \
+	 $(CHECKSUM) --objx $(OBJX) $(RFLAGS) $(CFLAGS) -MD -D_CRT_SECURE_NO_WARNINGS
+
+CP = @ $(TOP)/build/win-cc.sh $(BUILD_OS) "cl /c /MD" \
+	 $(CHECKSUM) --objx $(OBJX) $(RFLAGS) $(CPFLAGS) -MD -EHsc
+
+
+# C preprocessor
+PP = gcc -E $(CFLAGS)
+
+# linkers
+LD = @ $(TOP)/build/ld.sh $(BUILD_OS) $(ARCH) link \
+	--build $(BUILD) $(RFLAGS) $(LDFLAGS) $(STATIC) $(CHECKSUM) \
+	--objx $(OBJX) --shlx $(SHLX) --libx $(LIBX) \
+	-MD --srcdir $(SRCDIR) --bindir $(BINDIR) -L$(LIBDIR):$(ILIBDIR)
+
+LP = @ $(TOP)/build/ld.sh $(BUILD_OS) $(ARCH) link \
+	--build $(BUILD) $(RFLAGS) $(LDFLAGS) $(STATIC) $(CHECKSUM) \
+	--objx $(OBJX) --shlx $(SHLX) --libx $(LIBX) \
+	-MD --srcdir $(SRCDIR) --bindir $(BINDIR) -L$(LIBDIR):$(ILIBDIR)
+
+# tool options
+CDECL = -Gd
+STDCALL = -Gz
+CALLCONV = $(CDECL)
+STRING_POOLING = -GF
+OPT := $(STRING_POOLING) $(CALLCONV) -nologo
+NOPT := -Od $(OPT)
+
+ifeq (64,$(BITS))
+	CARCH = #-m64
+	WARN := -wd4101
+else
+	CARCH = #-m32
+	WARN := -wd4101
+endif
+
+ifeq (prof, $(BUILD))
+#	PROF := -pg
+endif
+
+ifeq (dbg, $(BUILD))
+	DBG = -Od
+	OPT += -Zi $(WARN)
+	NOPT += -Zi $(WARN)
+else
+# -Ox caused us failures noticed in libs/vdb/cast.c
+#	OPT += -Ox -w
+# /Ox == /Ob2gity  g is deprecated so removed
+# Removing either the 2 or the t makes it seem to work
+# But there is a warning about not knowing what /Ob is
+# if the 2 is removed.  But not if the 2 is there.
+# Woo hoo...
+	OPT += -Ob2iy  -w
+endif

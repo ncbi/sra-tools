@@ -1,0 +1,81 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+
+# default compiler
+ifeq (,$(COMP))
+	COMP = clang
+endif
+
+# architecture
+xARCH = $(shell test -f $(TOP)/build/ARCH.mac && cat $(TOP)/build/ARCH.mac)
+ifneq (,$(xARCH))
+
+  # the user has selected an architecture
+  ifeq (i386,$(xARCH))
+    ARCH = i386
+    BITS = 32
+  endif
+  ifeq (x86_64,$(xARCH))
+    ARCH = x86_64
+    BITS = 64
+  endif
+
+endif
+
+# allow the user to override architecture
+i386 x86_64:
+	@ echo $@ > $(TOP)/build/ARCH.mac
+
+.PHONY: i386 x86_64
+
+
+# library prefix
+LPFX = lib
+
+# file extensions
+OBJX = o
+LOBX = pic.o
+LIBX = a
+SHLX = dylib
+
+# compilation defines
+DEFINES	:= -DMAC -DBSD -DUNIX -D_REENTRANT -D_FILE_OFFSET_BITS=64 -DPKGNAME=mac$(BITS)
+
+# Darwin is a Unix variant
+OS_DAD = bsd
+OS_GDAD = unix
+
+# minimum deployment os
+MIN_DEPLOY_OS = 10.6
+MIN_DEPLOY_OS_OPT = -mmacosx-version-min=$(MIN_DEPLOY_OS)
+
+LIBXML_LPATH = /usr/lib
+
+# flex+bison: on Mac, use source-controlled generated .c/.h files
+YACC = @ true
+LEX = @ true
+
+# build matrix
+COMPILERS = CLANG GCC

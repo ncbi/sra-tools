@@ -1,0 +1,88 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+
+# compilers
+CC = @ $(TOP)/build/cc.sh $(OS) 'gcc -c' \
+	 $(CHECKSUM) --objx $(OBJX) --cflags "$(CFLAGS)" -MD
+CP = @ $(TOP)/build/cc.sh $(OS) 'g++ -c' \
+	 $(CHECKSUM) --objx $(OBJX) --cflags "$(CPFLAGS)" -MD
+
+# C preprocessor
+PP = gcc -E $(CFLAGS)
+
+# linkers
+LD = @ $(TOP)/build/ld.sh $(OS) $(ARCH) gcc \
+	--build $(BUILD) --ldflags "$(LDFLAGS)" $(STATIC) \
+	$(STATICSYSLIBS) $(CHECKSUM) --objx $(OBJX) --shlx $(SHLX) --libx $(LIBX) \
+	-MD --srcdir $(SRCDIR) --bindir $(BINDIR) -L$(LIBDIR):$(ILIBDIR)
+
+LPFLAGS = $(LDFLAGS)
+
+LP = @ $(TOP)/build/ld.sh $(OS) $(ARCH) g++ \
+	--build $(BUILD) --ldflags "$(LPFLAGS)" $(STATIC) \
+	$(STATICSYSLIBS) $(CHECKSUM) --objx $(OBJX) --shlx $(SHLX) --libx $(LIBX) \
+	-MD --srcdir $(SRCDIR) --bindir $(BINDIR) -L$(LIBDIR):$(ILIBDIR)
+
+# tool options
+WARN = -Wall -Wno-long-long 
+ifneq (sun,$(OS))
+    WARN += -Wno-variadic-macros
+endif
+
+ifeq (linux,$(OS))
+    NO_ARRAY_BOUNDS_WARNING = -Wno-array-bounds
+endif
+
+ifeq (64,$(BITS))
+	CARCH = -m64
+else
+	CARCH = -m32
+endif
+
+ifeq (prof, $(BUILD))
+	PROF = -pg
+endif
+
+ifeq (dbg, $(BUILD))
+	DBG = -g
+	OPT = $(WARN)
+	NOPT = $(WARN)
+	# GCC seems unable to use c99 without ansi, which
+	# basically clobbers features back to c89. the options
+	# must be specified in the order shown.
+	PED = -std=gnu99 -pedantic # -fdiagnostics-show-option
+else
+
+ifeq (x86_64, $(ARCH))
+	OPT = -O3 -Wall -Wno-variadic-macros -fno-strict-aliasing
+else
+	OPT = -O3 -Wno-variadic-macros -fno-strict-aliasing
+endif
+endif
+
+ifeq (mac,$(OS))
+     # g++ linker on mac needs to be told which standard c++ library to use
+     LPFLAGS += -lstdc++
+endif

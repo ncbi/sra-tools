@@ -1,0 +1,4 @@
+*.vers.h
+*.sh
+*.txt
+stat-table

@@ -1,0 +1,58 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+#ifndef _sra_load_pstring_
+#define _sra_load_pstring_
+
+#include <klib/rc.h>
+
+typedef struct pstring_struct {
+    uint16_t len;
+    char data[64 * 1024];
+} pstring;
+
+rc_t pstring_clear(pstring* str);
+
+rc_t pstring_copy(pstring* dst, const pstring* src);
+
+rc_t pstring_assign(pstring* str, const void* data, const size_t data_sz);
+
+rc_t pstring_concat(pstring* dst, const pstring* src);
+
+rc_t pstring_append(pstring* str, const void* data, const size_t data_sz);
+
+rc_t pstring_append_chr(pstring* str, char c, size_t count);
+
+int pstring_cmp(const pstring* str1, const pstring* str2);
+
+int pstring_strcmp(const pstring* str1, const char* str2);
+
+bool pstring_is_fasta(const pstring* str);
+
+bool pstring_is_csfasta(const pstring* str);
+
+rc_t pstring_quality_convert(pstring* qstr, ExperimentQualityEncoding enc, const uint8_t offset, const int8_t min, const int8_t max);
+
+#endif /* _sra_load_pstring_ */

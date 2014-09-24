@@ -1,0 +1,79 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+
+# default compiler
+ifeq (,$(COMP))
+	COMP = vc++
+endif
+
+# handle attempts to set cross-compilation architecture
+ifeq (i386,$(ARCH))
+i386:
+	@ true
+x86_64:
+	@ echo "Windows builds do not support cross-compilation to this architecture"
+endif
+
+ifeq (x86_64,$(ARCH))
+i386:
+	@ echo "Windows builds do not support cross-compilation to this architecture"
+x86_64:
+	@ true
+endif
+
+.PHONY: i386 x86_64
+
+# library prefix
+LPFX = lib
+
+# file extensions
+OBJX = obj
+LOBX = pic.obj
+LIBX = a
+SHLX = lib
+DLLX = dll
+
+# compilation defines
+DEFINES	:= -DWINDOWS -DPKGNAME=win$(BITS)
+
+# flex+bison: make sure only correct versions are used
+# otherwise, use source-controlled generated .c/.h files
+ifeq (bison (GNU Bison) 2.5, $(shell bison -V | grep "2\.5"))
+    YACC = bison -l
+else
+    YACC = @ $(warning bison version 2.5 is not found: $(shell bison -V)) true
+endif
+ifeq (flex 2.5.35, $(shell flex -V))
+    LEX  = flex -L
+else
+    LEX = @ $(warning flex version 2.5.35 is not found: $(shell flex -V)) true
+endif
+
+# build matrix
+COMPILERS = VC++
+
+ifeq (dbg, $(BUILD))
+	PED = -pedantic
+endif

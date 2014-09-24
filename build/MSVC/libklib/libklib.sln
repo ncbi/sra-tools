@@ -1,0 +1,23 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 9.00
+# Visual Studio 2005
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libklib", "libklib.vcproj", "{2FBE5FA5-F94F-4357-B5C5-75FBA9F2E99A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		dbg.dll|Win32 = dbg.dll|Win32
+		dbg.lib|Win32 = dbg.lib|Win32
+		rel.dll|Win32 = rel.dll|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2FBE5FA5-F94F-4357-B5C5-75FBA9F2E99A}.dbg.dll|Win32.ActiveCfg = Debug|Win32
+		{2FBE5FA5-F94F-4357-B5C5-75FBA9F2E99A}.dbg.dll|Win32.Build.0 = Debug|Win32
+		{2FBE5FA5-F94F-4357-B5C5-75FBA9F2E99A}.dbg.lib|Win32.ActiveCfg = dbg.lib|Win32
+		{2FBE5FA5-F94F-4357-B5C5-75FBA9F2E99A}.dbg.lib|Win32.Build.0 = dbg.lib|Win32
+		{2FBE5FA5-F94F-4357-B5C5-75FBA9F2E99A}.rel.dll|Win32.ActiveCfg = Release|Win32
+		{2FBE5FA5-F94F-4357-B5C5-75FBA9F2E99A}.rel.dll|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

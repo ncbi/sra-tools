@@ -1,0 +1,69 @@
+object SForm: TSForm
+  Left = 494
+  Height = 158
+  Top = 314
+  Width = 354
+  Caption = 'SForm'
+  ClientHeight = 158
+  ClientWidth = 354
+  FormStyle = fsStayOnTop
+  LCLVersion = '0.9.30'
+  object Panel1: TPanel
+    Left = 0
+    Height = 50
+    Top = 108
+    Width = 354
+    Align = alBottom
+    ClientHeight = 50
+    ClientWidth = 354
+    TabOrder = 0
+    object B_OK: TBitBtn
+      Left = 168
+      Height = 30
+      Top = 9
+      Width = 83
+      Caption = '&Search'
+      Kind = bkOK
+      ModalResult = 1
+      OnClick = B_OKClick
+      TabOrder = 0
+    end
+    object BCancel: TBitBtn
+      Left = 264
+      Height = 30
+      Top = 9
+      Width = 83
+      Cancel = True
+      Caption = '&Close'
+      Kind = bkCancel
+      ModalResult = 2
+      OnClick = BCancelClick
+      TabOrder = 1
+    end
+  end
+  object EPattern: TEdit
+    Left = 16
+    Height = 21
+    Top = 17
+    Width = 320
+    TabOrder = 1
+  end
+  object RB_Forward: TRadioButton
+    Left = 16
+    Height = 17
+    Top = 47
+    Width = 60
+    Caption = 'Forward'
+    Checked = True
+    TabOrder = 3
+    TabStop = True
+  end
+  object RB_Backward: TRadioButton
+    Left = 16
+    Height = 17
+    Top = 68
+    Width = 66
+    Caption = 'Backward'
+    TabOrder = 2
+  end
+end

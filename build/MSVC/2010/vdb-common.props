@@ -2,12 +2,19 @@
 
   <PropertyGroup Label="Globals">
     <Platform Condition="'$(Platform)' == ''">x64</Platform>
-    <Configuration Condition="'$(Configuration)' == ''">Debug</Configuration>
+    <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
+    
+    <NGS_OUTDIR Condition="'$(NGS_OUTDIR)' == ''">$(USERPROFILE)\</NGS_OUTDIR>
+    <NGS_ROOT Condition="'$(NGS_ROOT)' == ''">$(ProjectDir)..\..\..\..\ngs\ngs-sdk\</NGS_ROOT>
+    <NGS_TARGET Condition="'$(NGS_TARGET)' == ''">$(NGS_OUTDIR)win\cl\$(Platform)\$(Configuration)\</NGS_TARGET>
+    
     <VDB_OUTDIR Condition="'$(VDB_OUTDIR)' == ''">$(USERPROFILE)\</VDB_OUTDIR>
-    <VDB_TARGET Condition="'$(VDB_TARGET)' == ''">$(VDB_OUTDIR)win\cl\$(Platform)\$(Configuration)\</VDB_TARGET>
     <VDB_ROOT Condition="'$(VDB_ROOT)' == ''">$(ProjectDir)..\..\..\..\ncbi-vdb\</VDB_ROOT>
-    <NGS_ROOT Condition="'$(NGS_ROOT)' == ''">$(VDB_ROOT)..\ngs\ngs-sdk\</NGS_ROOT>
-  </PropertyGroup>
+    <VDB_TARGET Condition="'$(VDB_TARGET)' == ''">$(VDB_OUTDIR)win\cl\$(Platform)\$(Configuration)\</VDB_TARGET>
+
+    <SRATOOLS_OUTDIR Condition="'$(SRATOOLS_OUTDIR)' == ''">$(USERPROFILE)\</SRATOOLS_OUTDIR>
+    <SRATOOLS_TARGET Condition="'$(SRATOOLS_TARGET)' == ''">$(SRATOOLS_OUTDIR)win\cl\$(Platform)\$(Configuration)\</SRATOOLS_TARGET>
+ </PropertyGroup>
   
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   

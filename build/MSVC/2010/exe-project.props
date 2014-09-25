@@ -53,6 +53,10 @@
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
       <AdditionalDependencies>Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>del $(TargetDir)$(TargetName).lib
+del $(TargetDir)$(TargetName).exp</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">

@@ -1,5 +1,3 @@
-.cvsignore
-*.vers.h
 pileupcomp
 avg-qual
 sra-rewrite

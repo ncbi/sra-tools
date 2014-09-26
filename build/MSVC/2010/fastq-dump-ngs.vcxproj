@@ -24,6 +24,7 @@
   <ItemDefinitionGroup>
     <Link>
       <AdditionalDependencies>$(VDB_TARGET)bin\ncbi-vdb-dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ngs-c++.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(NGS_TARGET)bin\libngs-sdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>  

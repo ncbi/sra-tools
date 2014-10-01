@@ -120,7 +120,8 @@ if ($OPT{'help'}) {
     }
     exit(0);
 } elsif ($OPT{'status'}) {
-    die;
+    status(1);
+    exit(0);
 }
 my ($filename, $directories, $suffix) = fileparse($0);
 die "configure: error: $filename should be run as ./$filename"
@@ -762,17 +763,48 @@ unless (1 || $AUTORUN || $OS eq 'win') {
     close OUT;
 }
 
-if ($OS ne 'win') {
+status() if ($OS ne 'win');
+
+sub status {
+    my ($load) = @_;
+    if ($load) {
+        ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
+        my $MAKEFILE
+            = File::Spec->catdir(CONFIG_OUT(), "$OUT_MAKEFILE.$OS.$ARCH");
+println "loading $MAKEFILE" if ($DEBUG);
+        die "configure: error: run ./configure [OPTIONS]" unless (-e $MAKEFILE);
+        open F, $MAKEFILE or die "cannot open $MAKEFILE";
+        foreach (<F>) {
+            chomp;
+            if (/BUILD = (.+)/) {
+                $BUILD_TYPE = $1;
+            } elsif (/BUILD \?= /) {
+                $BUILD_TYPE = $_ unless ($BUILD_TYPE);
+            }
+            elsif (/TARGDIR = /) {
+                $TARGDIR = $_;
+println "TARGDIR = $_" if ($DEBUG);
+            } elsif (/TARGDIR \?= (.+)/) {
+                $TARGDIR = $1 unless ($TARGDIR);
+println "TARGDIR ?= $_" if ($DEBUG);
+            }
+            elsif (/INST_INCDIR = (.+)/) {
+                $OPT{includedir} = $1;
+            }
+            elsif (/INST_BINDIR = (.+)/) {
+                $OPT{bindir} = $1;
+            }
+            elsif (/INST_LIBDIR = (.+)/) {
+                $OPT{libdir} = $1;
+            }
+        }
+    }
+
     println "build type: $BUILD_TYPE";
     println "build output path: $TARGDIR" if ($OS ne 'win');
 
-    print "prefix: ";
-    print $OPT{'prefix'} if ($OS ne 'win');
-    println;
-
-    print "eprefix: ";
-    print $OPT{'eprefix'} if ($OPT{'eprefix'});
-    println;
+#   print "prefix: ";    print $OPT{'prefix'} if ($OS ne 'win');    println;
+#   print "eprefix: ";    print $OPT{'eprefix'} if ($OPT{'eprefix'});   println;
 
     print "includedir: ";
     print $OPT{'includedir'} if ($OPT{'includedir'});

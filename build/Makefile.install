@@ -28,6 +28,10 @@ include $(TOP)/build/Makefile.shell
 # load build configuration
 include $(CONFIG_FILE)
 
+# to debug as a fake root, uncomment the next 2 lines and change "ifeq (0, $(shell id -u))" below to "ifneq(0, ...)"
+#ROOT = $(HOME)/root
+#$(shell mkdir -p $(ROOT)/etc/profile.d)
+
 #-------------------------------------------------------------------------------
 # install
 # 
@@ -75,11 +79,37 @@ TOOLS_TO_INSTALL = \
     
 EXE_TARGET = $(INST_BINDIR)
 
-install: 
+installexes:
 	@echo "Installing executables to $(INST_BINDIR)"
 	@mkdir -p $(INST_BINDIR) 
 	@cp -P $(addprefix  $(BINDIR)/, $(TOOLS_TO_INSTALL)) $(INST_BINDIR)
 
+install: installexes
+ifeq (0, $(shell id -u))
+	@ # install configuration file(s)
+	@ echo "Installing configuration files to $(ROOT)/etc/ncbi/"
+	@ mkdir -p $(ROOT)/etc/ncbi/
+	@ cp $(TOP)/tools/vdb-copy/vdb-copy.kfg $(ROOT)/etc/ncbi/
+	@ #
+	@ echo "Updating $(ROOT)/etc/profile.d/sra-tools.[c]sh"
+	@ echo -e \
+"#version $(VERSION)\n"\
+"if ! echo \$$PATH | /bin/grep -q $(EXE_TARGET)\n"\
+"then export PATH=$(EXE_TARGET):\$$PATH\n"\
+"fi" \
+        >$(ROOT)/etc/profile.d/sra-tools.sh;
+	@ echo -e \
+"#version $(VERSION)\n"\
+"echo \$$PATH | /bin/grep -q $(EXE_TARGET)\n"\
+"if ( \$$status ) setenv PATH $(EXE_TARGET):\$$PATH\n"\
+        >$(ROOT)/etc/profile.d/sra-tools.csh;
+	@ #TODO: check version of the files above
+else    
+	@ # install configuration file(s)
+	@ echo "Installing configuration files to $(INST_BINDIR)/ncbi/"
+	@ mkdir -p $(INST_BINDIR)/ncbi/
+	@ cp $(TOP)/tools/vdb-copy/vdb-copy.kfg $(INST_BINDIR)/ncbi/
+endif
 
 else
 install:

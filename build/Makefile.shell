@@ -22,6 +22,10 @@
 #
 # ===========================================================================
 
+CONFIG_FILE = $(TOP)/build/Makefile.config.$(shell perl $(TOP)/os-arch.perl)
+ifeq (no, $(shell test -f $(CONFIG_FILE) && echo yes || echo no))
+    $(error "*** File '$(CONFIG_FILE)' is missing. Please run $(TOP)/build/configure")
+endif
 
 # determine OS
 UNAME = $(shell uname -s)
@@ -95,13 +99,13 @@ REMOTE_ARCH = $(ARCH)
 # pick up dependencies from object directory
 ifdef SRCDIR
 	include $(wildcard *.d)
-else
+endif
 
 # determine SRCDIR
 ifdef MODULE
-	SRCDIR=$(TOP)/$(MODULE)
+    SRCDIR=$(TOP)/$(MODULE)
 else
-	SRCDIR=$(TOP)
+    SRCDIR=$(TOP)
 endif
 
 # set COMP, LNKG and BUILD
@@ -111,14 +115,12 @@ BUILD = $(shell test -f $(TOP)/build/BUILD && mv $(TOP)/build/BUILD $(TOP)/build
 TOOLSET := $(COMP)
 
 ifdef USE_GCC_IF_ICC
-ifeq (icc,$(COMP))
-COMP = gcc
-endif
-ifeq (clang,$(COMP))
-COMP = gcc
-endif
-endif
-
+    ifeq (icc,$(COMP))
+        COMP = gcc
+    endif
+    ifeq (clang,$(COMP))
+        COMP = gcc
+    endif
 endif
 
 RHOSTS = $(shell (test -d $(TOP)/rhosts && test -n "$$(ls $(TOP)/rhosts/)") && \

@@ -9,24 +9,32 @@ sub PKG { ( LNG   => 'C',
             OUT   => 'ncbi-outdir',
             PATH  => '/usr/local/ncbi/vdb-tools',
             UPATH =>      '$HOME/ncbi/vdb-tools', ) }
-sub REQ { ( { name    => 'ngs-sdk',
+sub REQ { (
+            { name    => 'ngs-sdk',
               namew   => 'NGS',
               option  => 'with-ngs-sdk-prefix',
               type    => 'L',
               srcpath => '../ngs/ngs-sdk',
               pkgpath => '/usr/local/ngs/ngs-sdk',
               usrpath =>      '$HOME/ngs/ngs-sdk',
-              bldpath => '$HOME/ncbi-outdir/ngs-sdk/$OS',
-              include => 'ngs/itf/Refcount.h'
+              bldpath => '$HOME/ncbi-outdir/ngs-sdk',
+              include => 'ngs/itf/Refcount.h',
+              lib => 'libngs-sdk.so',
+              ilib => 'libngs-bind-c++.a',
             },
             { name    => 'ncbi-vdb',
               namew   => 'VDB',
-              option  => 'with-ncbi-vdb-prefix',
-              type    => 'L',
+              option  => 'with-ncbi-vdb-sources',
+              boption => 'with-ncbi-vdb-build',
+              type    => 'SB',
               srcpath => '../ncbi-vdb',
               pkgpath => '/usr/local/ncbi/ncbi-vdb',
               usrpath =>      '$HOME/ncbi/ncbi-vdb',
-              bldpath => '$HOME/ncbi-outdir/ncbi-vdb/$OS',
-              include => 'klib/rc.h'
+              bldpath => '$HOME/ncbi-outdir/ncbi-vdb',
+              include => 'klib/rc.h',
+              lib => 'libncbi-vdb.a',
+              ilib => 'libkapp.a',
         } ) }
+=pod
+=cut
 1

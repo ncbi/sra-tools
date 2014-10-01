@@ -62,7 +62,7 @@ $(SUBDIRS_STD):
 # install
 #
 install: std
-	@ $(MAKE) -C build -f Makefile.scm install
+	$(MAKE) -s TOP=$(CURDIR) -f build/Makefile.install install
 
 .PHONY: install
 

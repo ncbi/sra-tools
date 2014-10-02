@@ -657,7 +657,7 @@ if ($OS ne 'win') {
 
     push (@c_arch,  "# directory rules" );
     if ($PKG{LNG} eq 'C') {
-        push (@c_arch,  "\$(BINDIR) \$(LIBDIR) \$(ILIBDIR) \$(OBJDIR):\n"
+        push (@c_arch,  "\$(BINDIR) \$(LIBDIR) \$(ILIBDIR) \$(OBJDIR) \$(INST_LIBDIR) \$(INST_LIBDIR)\$(BITS):\n"
                      . "\tmkdir -p \$@" );
     } elsif ($PKG{LNG} eq 'JAVA') {
         # test if we have jni header path
@@ -682,7 +682,7 @@ if ($OS ne 'win') {
     push (@c_arch, '# installation rules');
     push (@c_arch,
         '$(INST_LIBDIR)$(BITS)/%.$(VERSION_LIBX): $(LIBDIR)/%.$(VERSION_LIBX)');
-    push (@c_arch, "\t@ echo -n installing '\$(\@F)...'");
+    push (@c_arch, "\t@ echo -n installing '\$(\@F)... '");
     push (@c_arch, "\t@ if cp \$^ \$\@ && chmod 644 \$\@;                  \\");
     push (@c_arch, "\t  then                                               \\");
     push (@c_arch, "\t      rm -f \$(subst \$(VERSION),\$(MAJVERS),\$@) \$(subst \$(VERSION_LIBX),\$(LIBX),\$\@); \\");
@@ -696,7 +696,7 @@ if ($OS ne 'win') {
     push (@c_arch, '');
     push (@c_arch,
         '$(INST_LIBDIR)$(BITS)/%.$(VERSION_SHLX): $(LIBDIR)/%.$(VERSION_SHLX)');
-    push (@c_arch, "\t@ echo -n installing '\$(\@F)...'");
+    push (@c_arch, "\t@ echo -n installing '\$(\@F)... '");
     push (@c_arch, "\t@ if cp \$^ \$\@ && chmod 755 \$\@;                  \\");
     push (@c_arch, "\t  then                                               \\");
     push (@c_arch, "\t      rm -f \$(subst \$(VERSION),\$(MAJVERS),\$\@) \$(subst \$(VERSION_SHLX),\$(SHLX),\$\@) ; \\");

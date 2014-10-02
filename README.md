@@ -1,4 +1,4 @@
-# The NCBI SRA ( Sequence Read Archive )
+# The NCBI SRA (Sequence Read Archive)
 
 ## Contact:
 email: sra-tools@ncbi.nlm.nih.gov

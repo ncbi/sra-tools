@@ -4,7 +4,7 @@ sub VERSION      { "2.4.2a" }
 sub PACKAGE_TYPE { 'B' }
 sub PACKAGE_NAME { "VDB-TOOLS" }
 sub PACKAGE_NAMW { "VDBTOOLS" }
-sub DEPENDS      { qw(hdf5, xml) }
+sub DEPENDS      { qw(hdf5 xml) }
 sub CONFIG_OUT   { 'build' }
 sub PKG { ( LNG   => 'C',
             OUT   => 'ncbi-outdir',

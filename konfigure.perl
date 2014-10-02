@@ -133,6 +133,7 @@ my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
 println $OSTYPE unless ($AUTORUN);
 
 {
+    $OPT{'prefix'} = expand($OPT{'prefix'});
     my $prefix = $OPT{'prefix'};
     $OPT{eprefix} = $prefix unless ($OPT{eprefix} || $OS eq 'win');
     my $eprefix = $OPT{eprefix};
@@ -149,7 +150,7 @@ println $OSTYPE unless ($AUTORUN);
         $OPT{pythondir} = $eprefix;
     }
     if ($PKG{LNG} eq 'JAVA' && ! $OPT{javadir} && $OS ne 'win') {
-        $OPT{javadir} = $eprefix;
+        $OPT{javadir} = File::Spec->catdir($eprefix, 'jar');
     }
     if ($PKG{EXAMP} && ! $OPT{sharedir} && $OS ne 'win') {
         $OPT{sharedir} = File::Spec->catdir($eprefix, 'share');
@@ -334,6 +335,10 @@ if ($OS ne 'win') {
     $TARGDIR = File::Spec->catdir($TARGDIR, $OS, $TOOLS, $ARCH, $BUILD);
 }
 
+foreach (DEPENDS()) {
+    check_lib($_);
+}
+
 my @dependencies;
 
 foreach my $href (@REQ) {
@@ -483,7 +488,7 @@ if ($OS ne 'win') {
     push (@c_arch, "INST_INCDIR = $OPT{includedir}") if ($OPT{includedir});
     push (@c_arch, "INST_SCHEMADIR = $OPT{'shemadir'}") if ($OPT{'shemadir'});
     push (@c_arch, "INST_SHAREDIR = $OPT{'sharedir'}") if ($OPT{'sharedir'});
-    push (@c_arch, "INST_JAVADIR = $OPT{'javadir'}") if ($OPT{'javadir'});
+    push (@c_arch, "INST_JARDIR = $OPT{'javadir'}") if ($OPT{'javadir'});
     push (@c_arch, "INST_PYTHONDIR = $OPT{'pythondir'}") if ($OPT{'pythondir'});
     push (@c_arch, "");
 
@@ -801,7 +806,7 @@ unless (1 || $AUTORUN || $OS eq 'win') {
     print OUT "INST_INCDIR = $OPT{includedir}\n" if ($OPT{includedir});
     print OUT "INST_SCHEMADIR = $OPT{'shemadir'}" if ($OPT{'shemadir'});
     print OUT "INST_SHAREDIR = $OPT{'sharedir'}" if ($OPT{'sharedir'});
-    print OUT "INST_JAVADIR = $OPT{'javadir'}" if ($OPT{'javadir'});
+    print OUT "INST_JARDIR = $OPT{'javadir'}" if ($OPT{'javadir'});
     print OUT "INST_PYTHONDIR = $OPT{'pythondir'}" if ($OPT{'pythondir'});
     print OUT "\n";
     close OUT;
@@ -961,6 +966,19 @@ sub find_lib_in_dir {
             return;
         }
     }
+}
+
+sub check_lib {
+    my ($l) = @_;
+    print "checking for $l library... ";
+    while (1) {
+        open GCC, '| gcc -xc -' or last;
+        print GCC 'main(){}' or last;
+        close GCC;
+        println 'yes';
+        return 1;
+    }
+    println 'cannot run gcc: skipped';
 }
 
 ################################################################################

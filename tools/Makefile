@@ -28,6 +28,7 @@ MODULE = tools
 
 include $(TOP)/build/Makefile.shell
 
+include $(TOP)/build/Makefile.config
 
 #-------------------------------------------------------------------------------
 # default
@@ -61,7 +62,7 @@ SUBDIRS = \
 #	nenctool \
 #	nencvalid \
     
-#?
+#
 #   meta-sync  
 #   sam-dump  
 #	varloc-load

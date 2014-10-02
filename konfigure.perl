@@ -338,7 +338,10 @@ if ($OS ne 'win') {
 my @dependencies;
 
 foreach (DEPENDS()) {
-    push @dependencies, 'HAVE_' . uc($_) . '=1' if (check_lib($_));
+    my ($i, $l) = find_lib($_);
+    push @dependencies, 'HAVE_' . uc($_) . ' = 1' if ($i || $l);
+    push @dependencies, uc($_) . "_INCDIR = $i" if ($i);
+    push @dependencies, uc($_) . "_LIBDIR = $l" if ($l);
 }
 
 foreach my $href (@REQ) {
@@ -814,7 +817,8 @@ unless (1 || $AUTORUN || $OS eq 'win') {
 
 status() if ($OS ne 'win');
 
-unlink File::Spec->catdir(getcwd(), 'a.out');
+unlink '/tmp/ncbi.conf';
+unlink 'a.out';
 
 sub status {
     my ($load) = @_;
@@ -972,33 +976,46 @@ sub find_lib_in_dir {
     }
 }
 
-sub check_lib {
+sub find_lib {
     my ($l) = @_;
     print "checking for $l library... ";
     while (1) {
         my $library;
+        my $i;
         if ($l eq 'hdf5') {
             $library = '-lhdf5';
+            $i = '/usr/include/hdf5';
         } elsif ($l eq 'xml2') {
             $library = '-lxml2';
+            $i = '/usr/include/libxml2';
         } else {
             println 'unknown: skipped';
             return;
         }
-        my $cwd = getcwd();
-        open GCC, '| gcc -xc $library - 2> /dev/null' or last;
+        unless (-d $i) {
+            println 'no';
+            return;
+        }
+        my $cmd;
+        my $gcc = "| gcc -I$i -xc $library -";
+        $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
+        open GCC, $gcc or last;
         if ($l eq 'hdf5') {
-            print GCC '#include <hdf5.h> \n main() { H5Gopen(0,0,0); }' or last;
+            $cmd = "#include <hdf5.h>\n main() { H5Gopen(0,0,0); }";
+            print "running echo -e '$cmd' $gcc " if ($OPT{'debug'});
+            print GCC $cmd or last;
         } elsif ($l eq 'xml2') {
-            print GCC '#include <libxml/xmlreader.h>\nmain(){xmlInitParser();}'
-                or last;
+            $cmd = "#include <libxml/xmlreader.h>\nmain() {xmlInitParser();}";
+            print "running echo -e '$cmd' $gcc " if ($OPT{'debug'});
+            print GCC $cmd or last;
         } else {
             die;
         }
         my $ok = close GCC;
         println $ok ? 'yes' : 'no';
-        unlink "$cwd/a.out";
-        return $ok;
+        unlink '/tmp/ncbi.conf';
+        unlink 'a.out';
+        return ($i);
     }
     println 'cannot run gcc: skipped';
 }

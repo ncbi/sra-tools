@@ -38,7 +38,6 @@ SUBDIRS = \
 	kqsh \
 	vdb-dump \
 	sra-dump \
-	sra-load \
 	sra-pileup \
 	bam-loader \
 	fastq-loader \
@@ -67,8 +66,12 @@ SUBDIRS = \
 #   sam-dump  
 #	varloc-load
 #   refseq-load
+
+ifeq (1,$(HAVE_XML2))
+	SUBDIRS += sra-load
+endif    
     
-ifeq (linux,$(BUILD_OS))
+ifeq (1,$(HAVE_HDF5))
 	SUBDIRS += pacbio-load
 endif
 

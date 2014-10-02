@@ -335,11 +335,11 @@ if ($OS ne 'win') {
     $TARGDIR = File::Spec->catdir($TARGDIR, $OS, $TOOLS, $ARCH, $BUILD);
 }
 
-foreach (DEPENDS()) {
-    check_lib($_);
-}
-
 my @dependencies;
+
+foreach (DEPENDS()) {
+    push @dependencies, 'HAVE_' . uc($_) . '=1' if (check_lib($_));
+}
 
 foreach my $href (@REQ) {
     $href->{bldpath} =~ s/(\$\w+)/$1/eeg;
@@ -814,6 +814,8 @@ unless (1 || $AUTORUN || $OS eq 'win') {
 
 status() if ($OS ne 'win');
 
+unlink File::Spec->catdir(getcwd(), 'a.out');
+
 sub status {
     my ($load) = @_;
     if ($load) {
@@ -974,11 +976,29 @@ sub check_lib {
     my ($l) = @_;
     print "checking for $l library... ";
     while (1) {
-        open GCC, '| gcc -xc - 2> /dev/null' or last;
-        print GCC '#include <hdf5.h>\nmain(){}' or last;
-        close GCC;
-        println 'yes';
-        return 1;
+        my $library;
+        if ($l eq 'hdf5') {
+            $library = '-lhdf5';
+        } elsif ($l eq 'xml2') {
+            $library = '-lxml2';
+        } else {
+            println 'unknown: skipped';
+            return;
+        }
+        my $cwd = getcwd();
+        open GCC, '| gcc -xc $library - 2> /dev/null' or last;
+        if ($l eq 'hdf5') {
+            print GCC '#include <hdf5.h> \n main() { H5Gopen(0,0,0); }' or last;
+        } elsif ($l eq 'xml2') {
+            print GCC '#include <libxml/xmlreader.h>\nmain(){xmlInitParser();}'
+                or last;
+        } else {
+            die;
+        }
+        my $ok = close GCC;
+        println $ok ? 'yes' : 'no';
+        unlink "$cwd/a.out";
+        return $ok;
     }
     println 'cannot run gcc: skipped';
 }

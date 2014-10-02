@@ -76,13 +76,18 @@ TOOLS_TO_INSTALL = \
 #    remote-fuser    \
 #    blastn_vdb      \
 #    tblastn_vdb     \
+
+TOOLS_WITH_PREFIX = $(addprefix  $(BINDIR)/, $(TOOLS_TO_INSTALL))
+TOOLS_WITH_EXEX     = $(addsuffix $(EXEX),          $(TOOLS_WITH_PREFIX))
+TOOLS_WITH_VERSION  = $(addsuffix $(VERSION_EXEX),  $(TOOLS_WITH_PREFIX))
+TOOLS_WITH_MAJVERS  = $(addsuffix $(MAJVERS_EXEX),  $(TOOLS_WITH_PREFIX))
     
 EXE_TARGET = $(INST_BINDIR)
 
 installexes:
 	@echo "Installing executables to $(INST_BINDIR)"
 	@mkdir -p $(INST_BINDIR) 
-	@cp -P $(addprefix  $(BINDIR)/, $(TOOLS_TO_INSTALL)) $(INST_BINDIR)
+	@cp -P $(TOOLS_WITH_EXEX) $(TOOLS_WITH_VERSION) $(TOOLS_WITH_MAJVERS) $(INST_BINDIR)
 
 install: installexes
 ifeq (0, $(shell id -u))

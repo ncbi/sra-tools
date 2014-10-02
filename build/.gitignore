@@ -2,4 +2,4 @@
 RHOST* ARCH* BUILD* COMP* OUTDIR*
 STATIC
 LNKG.*
-Makefile.config.*
+Makefile.config*

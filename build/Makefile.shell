@@ -22,7 +22,7 @@
 #
 # ===========================================================================
 
-CONFIG_FILE = $(TOP)/build/Makefile.config.$(shell perl $(TOP)/os-arch.perl)
+CONFIG_FILE = $(TOP)/build/Makefile.config
 ifeq (no, $(shell test -f $(CONFIG_FILE) && echo yes || echo no))
     $(error "*** File '$(CONFIG_FILE)' is missing. Please run $(TOP)/build/configure")
 endif

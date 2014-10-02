@@ -345,6 +345,7 @@ foreach my $href (@REQ) {
     my $need_build = $a{type} =~ /B/;
     my $need_include = $a{type} =~ /I/;
     my $need_lib = $a{type} =~ /L/;
+    ++$need_include if ($need_lib);
     my $need_ilib;
     $need_ilib = $a{ilib} if ($need_build);
     unless ($AUTORUN) {
@@ -411,7 +412,7 @@ foreach my $href (@REQ) {
             $l = $found_lib;
         }
     }
-    if (! $has_b_option && $need_build && ! $found_lib) {
+    if (! $has_b_option && ! $found_lib && ($need_build ||$need_lib)) {
         my $try = $a{bldpath};
         ($found_lib, $found_ilib) = find_lib_in_dir($try, $a{lib}, $need_ilib);
         if ($found_lib) {
@@ -419,12 +420,29 @@ foreach my $href (@REQ) {
         }
     }
 
-    if (! $found_itf || (! $found_lib && $need_lib)
-        || ($need_ilib && ! $found_ilib))
-    {
+    if (! $i || (! $found_lib && $need_lib) || ($need_ilib && ! $found_ilib)) {
         if ($is_optional) {
             println "configure: optional $a{name} package not found: skipped.";
         } else {
+            if ($OPT{'debug'}) {
+                $_ = "$a{name}: includes: ";
+                unless ($need_include) {
+                    $_ .= "not needed";
+                } else {
+                    $_ .= $i;
+                }
+                unless ($need_lib) {
+                    $_ .= "; libs: not needed";
+                } else {
+                    $_ .= "; libs: " . $found_lib;
+                }
+                unless ($need_ilib) {
+                    $_ .= "; ilibs: not needed";
+                } else {
+                    $_ .= "; ilibs: " . $found_ilib;
+                }
+                println "\t\t$_";
+            }
             println "configure: error: required $a{name} package not found.";
             exit 1;
         }
@@ -869,8 +887,10 @@ sub find_lib_in_dir {
     }
     unless (-d $try) {
         println 'no' unless ($AUTORUN);
+        println "\t\tnot found $try" if ($OPT{'debug'});
         return;
     } else {
+        println "\n\t\tfound $try" if ($OPT{'debug'});
         my $builddir = File::Spec->catdir($try, $OS, $TOOLS, $ARCH, $BUILD);
         my $libdir = File::Spec->catdir($builddir, 'lib');
         my $ilibdir = File::Spec->catdir($builddir, 'ilib');
@@ -918,6 +938,7 @@ sub find_lib_in_dir {
 sub check {
     die "No CONFIG_OUT" unless CONFIG_OUT();
     die "No PACKAGE" unless PACKAGE();
+    die "No DEPENDS" unless DEPENDS();
     die "No PACKAGE_NAME" unless PACKAGE_NAME();
     die "No PACKAGE_NAMW" unless PACKAGE_NAMW();
     die "No PACKAGE_TYPE" unless PACKAGE_TYPE();

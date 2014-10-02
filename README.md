@@ -1,8 +1,9 @@
 # The NCBI SRA ( Sequence Read Archive )
 
 ## Contact:
-sra-tools@ncbi.nlm.nih.gov
-http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc
+[Email](sra-tools@ncbi.nlm.nih.gov)
+
+[Website](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc)
 
 ## The SRA Toolkit
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
@@ -23,7 +24,8 @@ on demand and cache them in the user's home directory.  The location of this
 cache is configurable, as is whether the download is automatic or manual.
 
 For additional information on using, configuring, and building the toolkit,
-please visit our wiki or our web site at [NCBI](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc&f=std)
+please visit our [wiki](https://github.com/ncbi/sra-tools/wiki)
+or our web site at [NCBI](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc&f=std)
 
 
 SRA Toolkit Development Team

@@ -694,12 +694,13 @@ EndText
         close OUT;
     } else {
         println "configure: creating 'Makefile.config'" unless ($AUTORUN);
-        my $out = File::Spec->catdir(CONFIG_OUT(), 'Makefile.config');
+        my $CONFIG_OUT = CONFIG_OUT();
+        my $out = File::Spec->catdir($CONFIG_OUT, 'Makefile.config');
         open OUT, ">$out" or die "cannot open $out to write";
         print OUT "### AUTO-GENERATED FILE ###\n";
         print OUT "\n";
         print OUT "OS_ARCH = \$(shell perl \$(TOP)/os-arch.perl)\n";
-        print OUT "include \$(TOP)/Makefile.config.\$(OS_ARCH)\n";
+        print OUT "include \$(TOP)/$CONFIG_OUT/Makefile.config.\$(OS_ARCH)\n";
         close OUT;
 
         println "configure: creating '$OUT_MAKEFILE'" unless ($AUTORUN);

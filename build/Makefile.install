@@ -77,7 +77,7 @@ TOOLS_TO_INSTALL = \
 #    blastn_vdb      \
 #    tblastn_vdb     \
 
-TOOLS_WITH_PREFIX = $(addprefix  $(BINDIR)/, $(TOOLS_TO_INSTALL))
+TOOLS_WITH_PREFIX   = $(addprefix  $(BINDIR)/, $(TOOLS_TO_INSTALL))
 TOOLS_WITH_EXEX     = $(addsuffix $(EXEX),          $(TOOLS_WITH_PREFIX))
 TOOLS_WITH_VERSION  = $(addsuffix $(VERSION_EXEX),  $(TOOLS_WITH_PREFIX))
 TOOLS_WITH_MAJVERS  = $(addsuffix $(MAJVERS_EXEX),  $(TOOLS_WITH_PREFIX))

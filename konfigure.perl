@@ -676,8 +676,55 @@ if ($OS ne 'win') {
         push (@c_arch,  "include \$(wildcard \$(CLSDIR)/*.d)" );
     }
     push (@c_arch, @dependencies);
-
     push (@c_arch,  "" );
+
+    push (@c_arch, '# installation rules');
+    push (@c_arch,
+        '$(INST_LIBDIR)$(BITS)/%.$(VERSION_LIBX): $(LIBDIR)/%.$(VERSION_LIBX)');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, '');
 }
 
 if (! $OPT{'status'} ) {
@@ -936,29 +983,34 @@ sub find_lib_in_dir {
 ################################################################################
 
 sub check {
-    die "No CONFIG_OUT" unless CONFIG_OUT();
-    die "No PACKAGE" unless PACKAGE();
-    die "No DEPENDS" unless DEPENDS();
+    die "No DEPENDS" unless defined &DEPENDS;
+
+    die "No CONFIG_OUT"   unless CONFIG_OUT();
+    die "No PACKAGE"      unless PACKAGE();
     die "No PACKAGE_NAME" unless PACKAGE_NAME();
     die "No PACKAGE_NAMW" unless PACKAGE_NAMW();
     die "No PACKAGE_TYPE" unless PACKAGE_TYPE();
-    die "No VERSION" unless VERSION();
+    die "No VERSION"      unless VERSION();
+
     my %PKG = PKG();
-    die "No LNG" unless $PKG{LNG};
-    die "No OUT" unless $PKG{OUT};
-    die "No PATH" unless $PKG{PATH};
+
+    die "No LNG"   unless $PKG{LNG};
+    die "No OUT"   unless $PKG{OUT};
+    die "No PATH"  unless $PKG{PATH};
     die "No UPATH" unless $PKG{UPATH};
+
     foreach my $href (REQ()) {
         die "No name" unless $href->{name};
+
         die "No $href->{name}:bldpath" unless $href->{bldpath};
-        die "No $href->{name}:ilib" unless $href->{ilib};
+        die "No $href->{name}:ilib"    unless $href->{ilib};
         die "No $href->{name}:include" unless $href->{include};
-        die "No $href->{name}:lib" unless $href->{lib};
-        die "No $href->{name}:namew" unless $href->{namew};
-        die "No $href->{name}:option" unless $href->{option};
+        die "No $href->{name}:lib"     unless $href->{lib};
+        die "No $href->{name}:namew"   unless $href->{namew};
+        die "No $href->{name}:option"  unless $href->{option};
         die "No $href->{name}:pkgpath" unless $href->{pkgpath};
         die "No $href->{name}:srcpath" unless $href->{srcpath};
-        die "No $href->{name}:type" unless $href->{type};
+        die "No $href->{name}:type"    unless $href->{type};
         die "No $href->{name}:usrpath" unless $href->{usrpath};
     }
 }

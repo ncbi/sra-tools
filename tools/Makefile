@@ -65,18 +65,9 @@ SUBDIRS = \
 #?
 #   meta-sync  
 #   sam-dump  
+#	varloc-load
+#   refseq-load
     
-ifneq (sun,$(BUILD_OS))
-# fails to build on ucoremake1
-SUBDIRS += refseq-load 
-endif
-
-ifeq (linux,$(BUILD_OS))
-ifeq (64,$(BITS))
-	SUBDIRS += varloc-load
-endif
-endif
-
 ifeq (linux,$(BUILD_OS))
 	SUBDIRS += pacbio-load
 endif

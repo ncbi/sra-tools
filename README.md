@@ -1,7 +1,7 @@
 # The NCBI SRA ( Sequence Read Archive )
 
 ## Contact:
-[SRA Tools email](sra-tools@ncbi.nlm.nih.gov)
+email: sra-tools@ncbi.nlm.nih.gov
 or [SRA Tools web site](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc)
 
 ## The SRA Toolkit

@@ -2,7 +2,7 @@
 
 ## Contact:
 email: sra-tools@ncbi.nlm.nih.gov
-or [SRA Tools web site](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc)
+or visit the [SRA Tools web site](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc)
 
 ## The SRA Toolkit
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for

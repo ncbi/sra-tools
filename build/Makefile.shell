@@ -160,15 +160,6 @@ ifeq (yes,$(HAS_RHOST))
 	RUN_REMOTELY = $(TOP)/build/run_remotely.sh $(PROXY_TOOL) $(RHOST) $(RPORT) $(RHOME) $(LHOME) $(RWORKDIR) $(ROUTDIR) $(OUTDIR)
 endif
 
-# OS flavor is normally OS
-ifeq (linux,$(OS))
-	# test for SuSE or CentOS
-	OSFLAV = $(shell echo "[ -f /etc/SuSE-release ] && echo suse || ( [ -f /etc/redhat-release ] && echo centos || echo linux )" | bash)
-else
-	# OS flavor is normally OS
-	OSFLAV = $(OS)
-endif
-
 # determine BITS
 ifeq (x86_64, $(ARCH))
 	BITS = 64

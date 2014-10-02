@@ -34,7 +34,7 @@ INT_TOOLS =
 
 EXT_TOOLS = 
 
-ifeq (centos,$(OSFLAV))
+ifeq (linux,$(OS))
 	EXT_TOOLS += ccextract
 endif
 

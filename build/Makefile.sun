@@ -88,17 +88,6 @@ DEFINES	:= -DSUN -DUNIX -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE -D__EXTENSI
 # SunOS is a Unix variant
 OS_DAD = unix
 
-# support for libxml
-## TBD - move to libs/kxml, but this will break static builds...
-ifdef NCBI
-ifeq (dbg,$(BUILD))
-	LIBXML_LPATH = $(NCBI)/libxml/DebugMT/lib
-else
-	LIBXML_LPATH = $(NCBI)/libxml/lib
-endif
-	DFLT_LIBXML_INCLUDES = $(NCBI)/libxml/include/libxml2
-endif
-
 # flex+bison: on sun, use source-controlled generated .c/.h files
 YACC = @ true
 LEX = @ true

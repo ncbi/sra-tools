@@ -89,6 +89,8 @@ CCEXTRACT_OBJ = \
 
 CCEXTRACT_LIB = \
 	-lkapp \
+    -lkxfs \
+    -lkxml \
 	-sncbi-vdb \
 
 

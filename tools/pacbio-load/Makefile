@@ -124,17 +124,7 @@ PACBIO_LOAD_LIB = \
 	-sncbi-wvdb \
 	-lxml2 \
 	-lm \
-
-ifndef NCBI
-PACBIO_LOAD_LIB += \
-	-X$(LIBHDF5_LPATH) -lhdf5 \
-	-lsz
-else
-#ifeq (--static,$(STATIC))
-PACBIO_LOAD_LIB += \
-	-X$(LIBHDF5_LPATH) -shdf5 -lz
-#endif
-endif
+    -lhdf5
 
 $(BINDIR)/pacbio-load: $(PACBIO_LOAD_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(PACBIO_LOAD_LIB)

@@ -288,14 +288,17 @@ then
     CMD="$CMD -lpthread"
 fi
 
-# add in xml
-if [ $HAVE_XML -ne 0 ]
+if [ "$HAVE_XML2" -eq "1" ]
 then
-    if [ "$NCBI" != "" ] && [ -f "$NCBI/libxml/lib/libxml2-static.a" ]
+    # add in xml
+    if [ $HAVE_XML -ne 0 ]
     then
-        CMD="$CMD -L$NCBI/libxml/lib -lxml2-static"
-    else
-        CMD="$CMD -lxml2"
+        if [ "$NCBI" != "" ] && [ -f "$NCBI/libxml/lib/libxml2-static.a" ]
+        then
+            CMD="$CMD -L$NCBI/libxml/lib -lxml2-static"
+        else
+            CMD="$CMD -lxml2"
+        fi
     fi
 fi
 

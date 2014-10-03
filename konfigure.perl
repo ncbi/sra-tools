@@ -339,9 +339,21 @@ my @dependencies;
 
 foreach (DEPENDS()) {
     my ($i, $l) = find_lib($_);
-    push @dependencies, 'HAVE_' . uc($_) . ' = 1' if (defined $i || $l);
-    push @dependencies, uc($_) . "_INCDIR = $i" if ($i);
-    push @dependencies, uc($_) . "_LIBDIR = $l" if ($l);
+    if (defined $i || $l) {
+        my $d = 'HAVE_' . uc($_) . ' = 1';
+        push @dependencies, $d;
+        println "\t\t$d" if ($OPT{'debug'});
+    }
+    if ($i) {
+        my $d = uc($_) . "_INCDIR = $i";
+        push @dependencies, $d;
+        println "\t\t$d" if ($OPT{'debug'});
+    }
+    if ($l) {
+        my $d = uc($_) . "_LIBDIR = $l";
+        push @dependencies, $d;
+        println "\t\t$d" if ($OPT{'debug'});
+    }
 }
 
 foreach my $href (@REQ) {
@@ -766,55 +778,6 @@ EndText
     }
 }
 
-if (0 && ! $AUTORUN) {
-    my $OUT = File::Spec->catdir(CONFIG_OUT(), 'user.status');
-    println "configure: creating '$OUT'";
-    open OUT, ">$OUT" or die "cannot open $OUT to write";
-    print OUT "arch=$OPT{arch}\n" if ($OPT{arch});
-    print OUT "BUILD=$BUILD\n";
-    print OUT "bindir=$OPT{bindir}\n" if ($OPT{bindir});
-    print OUT "libdir=$OPT{libdir}\n" if ($OPT{libdir});
-    print OUT "includedir=$OPT{includedir}\n" if ($OPT{includedir});
-    print OUT "sharedir=$OPT{sharedir}\n" if ($OPT{sharedir});
-    print OUT "javadir=$OPT{javadir}\n" if ($OPT{javadir});
-    print OUT "pythondir=$OPT{pythondir}\n" if ($OPT{pythondir});
-    foreach my $href (@REQ) {
-        my %a = %$href;
-        print OUT "$a{option}=$OPT{$a{option}}\n" if ($OPT{$a{option}});
-        if ($a{boption} && $OPT{$a{boption}}) {
-            print OUT "$a{boption}=$OPT{$a{boption}}\n";
-        }
-    }
-    close OUT;
-}
-
-unless (1 || $AUTORUN || $OS eq 'win') {
-    my $OUT = File::Spec->catdir(CONFIG_OUT(), 'Makefile.userconfig');
-    println "configure: creating '$OUT'";
-    open OUT, ">$OUT" or die "cannot open $OUT to write";
-    print OUT "### AUTO-GENERATED FILE ###\n\n";
-
-#   print OUT "# build type\n" . "BUILD = $BUILD\n\n";
-    if (0 && $OPT{'outputdir'}) {
-        print OUT "# output path\n"
-                . "TARGDIR = $TARGDIR/$PACKAGE\n"
-                . "\n";
-    }
-    print OUT "# required packages\n";
-#   print OUT "NGS_SDK_PREFIX = $NGS_SDK_PREFIX\n" if ($NGS_SDK_PREFIX);
-    print OUT "\n";
-    print OUT "# install paths\n";
-    print OUT "INST_BINDIR = $OPT{bindir}\n" if ($OPT{bindir});
-    print OUT "INST_LIBDIR = $OPT{libdir}\n" if ($OPT{libdir});
-    print OUT "INST_INCDIR = $OPT{includedir}\n" if ($OPT{includedir});
-    print OUT "INST_SCHEMADIR = $OPT{'shemadir'}" if ($OPT{'shemadir'});
-    print OUT "INST_SHAREDIR = $OPT{'sharedir'}" if ($OPT{'sharedir'});
-    print OUT "INST_JARDIR = $OPT{'javadir'}" if ($OPT{'javadir'});
-    print OUT "INST_PYTHONDIR = $OPT{'pythondir'}" if ($OPT{'pythondir'});
-    print OUT "\n";
-    close OUT;
-}
-
 status() if ($OS ne 'win');
 
 unlink '/tmp/ncbi.conf';
@@ -928,6 +891,7 @@ sub find_lib_in_dir {
     } else {
         print "\tlibrary files in $try... " unless ($AUTORUN);
     }
+    println if ($OPT{'debug'});
     unless (-d $try) {
         println 'no' unless ($AUTORUN);
         println "\t\tnot found $try" if ($OPT{'debug'});
@@ -948,18 +912,22 @@ sub find_lib_in_dir {
             $f = File::Spec->catdir($ilibdir, $ilib);
             println "\t\tchecking $f" if ($OPT{'debug'});
             unless (-e $f) {
+                print "\t" if ($OPT{'debug'});
                 println 'no' unless ($AUTORUN);
                 return;
             }
         }
         unless (-e $f) {
+            print "\t" if ($OPT{'debug'});
             println 'no' unless ($AUTORUN);
             return;
         } elsif ($ilib && ! $ilibdir) {
             println "\n\t\tfound $f but no ilib/" if ($OPT{'debug'});
+            print "\t" if ($OPT{'debug'});
             println 'no' unless ($AUTORUN);
             return;
         }
+        print "\t" if ($OPT{'debug'});
         if (! $include) {
             println 'yes' unless ($AUTORUN);
             return ($libdir, $ilibdir);
@@ -976,16 +944,20 @@ sub find_lib_in_dir {
     }
 }
 
+################################################################################
+
 sub find_lib {
     my ($l) = @_;
+
     print "checking for $l library... ";
+
     while (1) {
-        my $library;
-        my $i;
+        my ($i, $library, $cmd);
+
         if ($l eq 'hdf5') {
             $library = '-lhdf5';
+            $cmd = "#include <hdf5.h>            \n main() { H5close     (); }";
         } elsif ($l eq 'xml2') {
-            $library = '-lxml2';
             $i = '/usr/include/libxml2';
         } elsif ($l eq 'magic') {
             $library = '-lmagic';
@@ -994,13 +966,17 @@ sub find_lib {
             println 'unknown: skipped';
             return;
         }
+
+#print 
+
         if ($i && ! -d $i) {
             println 'no';
             return;
         }
-        my $cmd;
+
         my $gcc = "| gcc -xc " . ($i ? "-I$i" : '') . " - $library";
         $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
+
         open GCC, $gcc or last;
         if ($l eq 'hdf5') {
             $cmd = "#include <hdf5.h>\n main() { H5close(); }";
@@ -1018,20 +994,24 @@ sub find_lib {
             die;
         }
         my $ok = close GCC;
+        print "\t" if ($OPT{'debug'});
         println $ok ? 'yes' : 'no';
+
         unlink '/tmp/ncbi.conf';
         unlink 'a.out';
+
+        return if (!$ok);
+
         $i = '' unless ($i);
         return ($i);
     }
+
     println 'cannot run gcc: skipped';
 }
 
 ################################################################################
 
 sub check {
-    die "No DEPENDS" unless defined &DEPENDS;
-
     die "No CONFIG_OUT"   unless CONFIG_OUT();
     die "No PACKAGE"      unless PACKAGE();
     die "No PACKAGE_NAME" unless PACKAGE_NAME();
@@ -1045,6 +1025,8 @@ sub check {
     die "No OUT"   unless $PKG{OUT};
     die "No PATH"  unless $PKG{PATH};
     die "No UPATH" unless $PKG{UPATH};
+
+    foreach (DEPENDS()) {}
 
     foreach my $href (REQ()) {
         die "No name" unless $href->{name};

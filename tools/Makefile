@@ -51,7 +51,6 @@ SUBDIRS = \
 	align-info \
 	qual-recalib-stat \
 	prefetch \
-	ccextract \
 	vdb-decrypt \
 	vdb-validate \
 	sra-sort \
@@ -63,7 +62,7 @@ ifeq (1,$(HAVE_MAGIC))
 endif    
 
 ifeq (1,$(HAVE_XML2))
-	SUBDIRS += sra-load
+	SUBDIRS += sra-load ccextract
 endif    
 
 ifeq (1,$(HAVE_HDF5))

@@ -84,7 +84,6 @@ ALIGN_INFO_OBJ = \
 ALIGN_INFO_LIB = \
 	-lkapp \
 	-sncbi-vdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/align-info: $(ALIGN_INFO_OBJ)

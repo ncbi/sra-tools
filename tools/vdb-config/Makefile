@@ -90,7 +90,6 @@ VDB_CONFIG_LIB = \
 	-stui        \
 	-skapp       \
 	-sncbi-vdb   \
-	-sxml2       \
 	-sm
 
 $(BINDIR)/vdb-config: $(VDB_CONFIG_OBJ)

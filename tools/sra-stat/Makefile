@@ -85,7 +85,6 @@ SRASTAT_OBJ = \
 SRASTAT_LIB = \
 	-lkapp \
 	-sncbi-vdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/sra-stat: $(SRASTAT_OBJ)

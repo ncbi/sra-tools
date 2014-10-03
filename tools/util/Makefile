@@ -122,7 +122,6 @@ KDBMETA_OBJ = \
 KDBMETA_LIB = \
 	-skapp \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/kdbmeta: $(KDBMETA_OBJ)
@@ -142,7 +141,6 @@ VDB_LOCK_OBJ = \
 VDB_LOCK_LIB = \
 	-skapp \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/vdb-lock: $(VDB_LOCK_OBJ)
@@ -162,7 +160,6 @@ VDB_UNLOCK_OBJ = \
 VDB_UNLOCK_LIB = \
 	-skapp \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/vdb-unlock: $(VDB_UNLOCK_OBJ)
@@ -201,7 +198,6 @@ T_OBJ = \
 T_LIB = \
 	-lkapp \
 	-sncbi-vdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/test-sra: $(T_OBJ)
@@ -328,7 +324,6 @@ SCHEMA_REPLACE_OBJ = \
 SCHEMA_REPLACE_LIB = \
 	-lkapp \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/schema-replace: $(SCHEMA_REPLACE_OBJ)

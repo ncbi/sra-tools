@@ -99,7 +99,7 @@ LOADER_SRC = \
 LOADER_OBJ = \
 	$(addsuffix .$(OBJX),$(LOADER_SRC))
 
-LIBXML = -lxml2 -lkxfs -lkxml
+LIBXML = -lkxfs -lkxml
     
 LOADER_LIB = \
 	-lkapp \

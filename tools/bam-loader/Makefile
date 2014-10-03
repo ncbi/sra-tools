@@ -95,7 +95,6 @@ BAMLOAD_LIB = \
 	-lkapp \
 	-lload \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/bam-load: $(BAMLOAD_OBJ)
@@ -117,7 +116,6 @@ BAMLOAD3_LIB = \
 	-lloader \
 	-lload \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/bam-load.3: $(BAMLOAD3_OBJ)

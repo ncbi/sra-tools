@@ -110,7 +110,6 @@ TOOL_OBJ = \
 TOOL_LIB = \
 	-lkapp \
 	-sncbi-vdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/sra-pileup: $(TOOL_OBJ)
@@ -130,7 +129,6 @@ SAMDUMP2_OBJ = \
 SAMDUMP2_LIB = \
 	-lkapp \
 	-sncbi-vdb \
-	-lxml2 \
 	-lm
 
 ifdef NCBI
@@ -164,7 +162,6 @@ SAMDUMP3_OBJ = \
 SAMDUMP3_LIB = \
 	-lkapp \
 	-sncbi-vdb \
-	-lxml2 \
 	-lm
 
 ifdef NCBI

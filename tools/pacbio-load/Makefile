@@ -122,7 +122,6 @@ PACBIO_LOAD_LIB = \
 	-skdf5 \
 	-lload \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm \
     -lhdf5
 

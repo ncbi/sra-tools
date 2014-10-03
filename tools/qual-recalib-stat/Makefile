@@ -94,7 +94,6 @@ Q_RECAL_STAT_OBJ = \
 Q_RECAL_STAT_LIB = \
 	-lkapp \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/qual-recalib-stat: $(Q_RECAL_STAT_OBJ)

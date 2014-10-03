@@ -93,7 +93,6 @@ READ_FILTER_REDACT_OBJ = \
 READ_FILTER_REDACT_LIB = \
 	-lkapp \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 read-filter-redact.vers.h: read-filter-redact.vers

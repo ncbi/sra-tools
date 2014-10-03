@@ -93,7 +93,6 @@ VDB_VALIDATE_OBJ = \
 VDB_VALIDATE_LIB = \
 	-lkapp \
 	-sncbi-vdb \
-	-lxml2 \
 	-lm
 
 vdb-validate.vers.h: vdb-validate.vers

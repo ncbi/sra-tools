@@ -124,7 +124,6 @@ SRA_SORT_OBJ = \
 SRA_SORT_LIB = \
 	-lkapp \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/sra-sort: $(SRA_SORT_OBJ)

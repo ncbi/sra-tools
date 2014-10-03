@@ -103,7 +103,6 @@ META_SYNC_LIB = \
 	-lrdbms \
 	-lklib \
 	-X/export/home/sybase/clients-mssql/current/lib -lct\
-    -lxml2 \
 	-lm
 
 meta-sync.vers.h: meta-sync.vers

@@ -93,7 +93,6 @@ PREFETCH_OBJ = \
 PREFETCH_LIB = \
 	-lkapp \
 	-sncbi-vdb \
-	-lxml2 \
 	-lm
 
 

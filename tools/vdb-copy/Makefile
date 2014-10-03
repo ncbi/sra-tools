@@ -109,7 +109,6 @@ VDB_COPY_OBJ = \
 VDB_COPY_LIB = \
 	-lkapp \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/vdb-copy: $(VDB_COPY_OBJ)

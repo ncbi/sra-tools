@@ -105,7 +105,6 @@ VDB_DUMP_OBJ = \
 VDB_DUMP_LIB = \
 	-skapp \
 	-sncbi-vdb \
-	-sxml2 \
 	-lm
 
 $(BINDIR)/vdb-dump: $(VDB_DUMP_OBJ)

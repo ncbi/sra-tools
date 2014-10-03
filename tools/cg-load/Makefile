@@ -100,7 +100,6 @@ CGLOAD_LIB = \
 	-lkapp \
 	-lload \
 	-sncbi-wvdb \
-	-lxml2 \
 	-lm
 
 $(BINDIR)/cg-load: $(CGLOAD_OBJ)

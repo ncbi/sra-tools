@@ -140,7 +140,6 @@ FASTQ_LOADER_LIB = \
     -sloader \
     -sload \
 	-sncbi-wvdb \
-	-sxml2 \
 	-sm
 
 $(BINDIR)/latf-load: $(FASTQ_LOAD_OBJ)

@@ -63,31 +63,9 @@ DEFINES	:= -DLINUX -DUNIX -D_GNU_SOURCE -D_REENTRANT -D_FILE_OFFSET_BITS=64 -DPK
 # linux is a Unix variant
 OS_DAD = unix
 
-# support for libxml
-## TBD - move to libs/kxml, but this will break static builds...
-ifdef NCBI
-  ifeq (dbg,$(BUILD))
-	LIBXML_LPATH = $(NCBI)/libxml/DebugMT/lib
-  else
-	LIBXML_LPATH = $(NCBI)/libxml/lib
-  endif
-	DFLT_LIBXML_INCLUDES = $(NCBI)/libxml/include/libxml2
-endif
-
-# flex+bison: make sure only correct versions are used
-# otherwise, use source-controlled generated .c/.h files
-ifeq (bison (GNU Bison) 2.5, $(shell bison -V | grep "2\.5"))
-    YACC = bison -l
-else
-    YACC = @ $(warning bison version 2.5 is not found: $(shell bison -V)) true
-endif
-ifeq (flex 2.5.35, $(shell flex -V))
-    LEX  = flex -L
-else
-    LEX = @ $(warning flex version 2.5.35 is not found: $(shell flex -V)) true
-endif
+# flex+bison: on Mac, use source-controlled generated .c/.h files
+YACC = @ true
+LEX = @ true
 
 # build matrix
 COMPILERS = GCC # ICC
-
-JUNITPATH ?= /net/snowman/vol/projects/trace_software/tools/java/junit-4.11.jar

@@ -288,18 +288,10 @@ then
     CMD="$CMD -lpthread"
 fi
 
-if [ "$HAVE_XML2" -eq "1" ]
+# add in xml
+if [ $HAVE_XML -ne 0 ]
 then
-    # add in xml
-    if [ $HAVE_XML -ne 0 ]
-    then
-        if [ "$NCBI" != "" ] && [ -f "$NCBI/libxml/lib/libxml2-static.a" ]
-        then
-            CMD="$CMD -L$NCBI/libxml/lib -lxml2-static"
-        else
-            CMD="$CMD -lxml2"
-        fi
-    fi
+    CMD="$CMD -lxml2"
 fi
 
 # add in math library

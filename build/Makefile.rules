@@ -108,9 +108,3 @@ LOC_INFO = -D__mod_name__=$(MODULE) -D__file_name__=$*
 # version include generation
 %.vers.h: %.vers
 	$(TOP)/build/make-vers-inc.sh $^ > $@
-
-# java
-%.class: %.java
-	@if [ ! -f $(JAVASOURCEPATH) ] ; then mkdir -pv $(JAVASOURCEPATH) ; fi
-	@if [ ! -f $(CLSPATH) ] ; then mkdir -pv $(CLSPATH) ; fi
-	javac -g -classpath $(CLSPATH):$(CLASSPATH) -d $(CLSPATH) -sourcepath $(JAVASOURCEPATH) $< || ( rm -f $@ && false )

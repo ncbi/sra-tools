@@ -988,6 +988,9 @@ sub find_lib {
         } elsif ($l eq 'xml2') {
             $library = '-lxml2';
             $i = '/usr/include/libxml2';
+        } elsif ($l eq 'magic') {
+            $library = '-lmagic';
+            $i = '/usr/include';
         } else {
             println 'unknown: skipped';
             return;
@@ -1006,6 +1009,10 @@ sub find_lib {
             print GCC $cmd or last;
         } elsif ($l eq 'xml2') {
             $cmd = "#include <libxml/xmlreader.h>\nmain() {xmlInitParser();}";
+            print "running echo -e '$cmd' $gcc " if ($OPT{'debug'});
+            print GCC $cmd or last;
+        } elsif ($l eq 'magic') {
+            $cmd = "#include <magic.h>\nmain() {magic_open(0);}";
             print "running echo -e '$cmd' $gcc " if ($OPT{'debug'});
             print GCC $cmd or last;
         } else {

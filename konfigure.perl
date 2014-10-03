@@ -157,25 +157,9 @@ println $OSTYPE unless ($AUTORUN);
     }
 }
 
-if (0 && $AUTORUN) {
-    while (1) {
-        open F,  File::Spec->catdir(CONFIG_OUT(), 'user.status') or last;
-        foreach (<F>) {
-            chomp;
-            @_ = split /=/;
-            if ($#_ == 1) {
-                $OPT{$_[0]} = $_[1] unless ($OPT{$_[0]});
-            }
-        }
-        last;
-    }
-}
-
 # initial values
 my $TARGDIR = File::Spec->catdir($OUTDIR, $PACKAGE);
 $TARGDIR = expand($OPT{'outputdir'}) if ($OPT{'outputdir'});
-
-# $OUT_MAKEFILE = $OPT{'output-makefile'} if ($OPT{'output-makefile'});
 
 my $BUILD = "rel";
 
@@ -959,15 +943,18 @@ sub find_lib {
             $cmd = "#include <hdf5.h>            \n main() { H5close     (); }";
         } elsif ($l eq 'xml2') {
             $i = '/usr/include/libxml2';
+            $library = '-lxml2';
+            $cmd = "#include <libxml/xmlreader.h>\n main() { xmlInitParser();}";
         } elsif ($l eq 'magic') {
-            $library = '-lmagic';
             $i = '/usr/include';
+            $library = '-lmagic';
+            $cmd = "#include <magic.h>\nmain() {magic_open(0);}";
         } else {
             println 'unknown: skipped';
             return;
         }
 
-#print 
+#print TODO
 
         if ($i && ! -d $i) {
             println 'no';
@@ -978,21 +965,8 @@ sub find_lib {
         $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
 
         open GCC, $gcc or last;
-        if ($l eq 'hdf5') {
-            $cmd = "#include <hdf5.h>\n main() { H5close(); }";
-            print "\n\t\trunning echo -e '$cmd' $gcc\n" if ($OPT{'debug'});
-            print GCC $cmd or last;
-        } elsif ($l eq 'xml2') {
-            $cmd = "#include <libxml/xmlreader.h>\nmain() {xmlInitParser();}";
-            print "\n\t\trunning echo -e '$cmd' $gcc\n" if ($OPT{'debug'});
-            print GCC $cmd or last;
-        } elsif ($l eq 'magic') {
-            $cmd = "#include <magic.h>\nmain() {magic_open(0);}";
-            print "running echo -e '$cmd' $gcc " if ($OPT{'debug'});
-            print GCC $cmd or last;
-        } else {
-            die;
-        }
+        print "\n\t\trunning echo -e '$cmd' $gcc\n" if ($OPT{'debug'});
+        print GCC $cmd or last;
         my $ok = close GCC;
         print "\t" if ($OPT{'debug'});
         println $ok ? 'yes' : 'no';

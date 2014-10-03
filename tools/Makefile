@@ -22,6 +22,7 @@
 #
 # ===========================================================================
 
+by_default: default
 
 TOP ?= $(abspath ..)
 MODULE = tools
@@ -57,21 +58,11 @@ SUBDIRS = \
 	sra-sort \
 	cache-mgr \
 	vcf-loader
-    
-#retired:    
-#	nenctool \
-#	nencvalid \
-    
-#
-#   meta-sync  
-#   sam-dump  
-#	varloc-load
-#   refseq-load
 
 ifeq (1,$(HAVE_XML2))
 	SUBDIRS += sra-load
 endif    
-    
+
 ifeq (1,$(HAVE_HDF5))
 	SUBDIRS += pacbio-load
 endif

@@ -339,7 +339,7 @@ my @dependencies;
 
 foreach (DEPENDS()) {
     my ($i, $l) = find_lib($_);
-    push @dependencies, 'HAVE_' . uc($_) . ' = 1' if ($i || $l);
+    push @dependencies, 'HAVE_' . uc($_) . ' = 1' if (defined $i || $l);
     push @dependencies, uc($_) . "_INCDIR = $i" if ($i);
     push @dependencies, uc($_) . "_LIBDIR = $l" if ($l);
 }
@@ -984,7 +984,6 @@ sub find_lib {
         my $i;
         if ($l eq 'hdf5') {
             $library = '-lhdf5';
-            $i = '/usr/include/hdf5';
         } elsif ($l eq 'xml2') {
             $library = '-lxml2';
             $i = '/usr/include/libxml2';
@@ -992,21 +991,21 @@ sub find_lib {
             println 'unknown: skipped';
             return;
         }
-        unless (-d $i) {
+        if ($i && ! -d $i) {
             println 'no';
             return;
         }
         my $cmd;
-        my $gcc = "| gcc -I$i -xc $library -";
+        my $gcc = "| gcc -xc " . ($i ? "-I$i" : '') . " - $library";
         $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
         open GCC, $gcc or last;
         if ($l eq 'hdf5') {
-            $cmd = "#include <hdf5.h>\n main() { H5Gopen(0,0,0); }";
-            print "running echo -e '$cmd' $gcc " if ($OPT{'debug'});
+            $cmd = "#include <hdf5.h>\n main() { H5close(); }";
+            print "\n\t\trunning echo -e '$cmd' $gcc\n" if ($OPT{'debug'});
             print GCC $cmd or last;
         } elsif ($l eq 'xml2') {
             $cmd = "#include <libxml/xmlreader.h>\nmain() {xmlInitParser();}";
-            print "running echo -e '$cmd' $gcc " if ($OPT{'debug'});
+            print "\n\t\trunning echo -e '$cmd' $gcc\n" if ($OPT{'debug'});
             print GCC $cmd or last;
         } else {
             die;
@@ -1015,6 +1014,7 @@ sub find_lib {
         println $ok ? 'yes' : 'no';
         unlink '/tmp/ncbi.conf';
         unlink 'a.out';
+        $i = '' unless ($i);
         return ($i);
     }
     println 'cannot run gcc: skipped';

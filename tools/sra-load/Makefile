@@ -99,13 +99,8 @@ LOADER_SRC = \
 LOADER_OBJ = \
 	$(addsuffix .$(OBJX),$(LOADER_SRC))
 
-LIBXML = -lxml2
-ifdef NCBI
-ifeq (sun,$(OS))
-   LIBXML = -X$(LIBXML_LPATH) -lxml2
-endif
-endif
-
+LIBXML = -lxml2 -lkxfs -lkxml
+    
 LOADER_LIB = \
 	-lkapp \
 	-lload \

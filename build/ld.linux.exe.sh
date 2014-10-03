@@ -289,9 +289,13 @@ then
 fi
 
 # add in xml
-if [ $HAVE_XML -ne 0 ]
-then
-    CMD="$CMD -lxml2"
+grep HAVE_XML2 ${BUILD_DIR}/Makefile.config.linux.$ARCH
+if [ $? -eq 0 ]
+    then
+    if [ $HAVE_XML -ne 0 ]
+    then
+        CMD="$CMD -lxml2"
+    fi
 fi
 
 # add in math library

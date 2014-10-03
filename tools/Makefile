@@ -51,13 +51,16 @@ SUBDIRS = \
 	align-info \
 	qual-recalib-stat \
 	prefetch \
-	copycat \
 	ccextract \
 	vdb-decrypt \
 	vdb-validate \
 	sra-sort \
 	cache-mgr \
 	vcf-loader
+
+ifeq (1,$(HAVE_MAGIC))
+	SUBDIRS += copycat
+endif    
 
 ifeq (1,$(HAVE_XML2))
 	SUBDIRS += sra-load

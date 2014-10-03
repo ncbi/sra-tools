@@ -274,13 +274,10 @@ then
     CMD="$CMD -lpthread"
 fi
 
-if [ "$HAVE_XML2" -eq "1" ]
+# add in xml
+if [ $HAVE_XML -ne 0 ]
 then
-    # add in xml
-    if [ $HAVE_XML -ne 0 ]
-    then
-        CMD="$CMD -lxml2"
-    fi
+    CMD="$CMD -lxml2"
 fi
 
 # add in math library

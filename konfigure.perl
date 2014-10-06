@@ -534,7 +534,8 @@ if ($OS ne 'win') {
     if ( $ARCH eq $MARCH ) {
         push (@c_arch,  "ARCH = " . $ARCH );
     } else {
-        push (@c_arch,  "ARCH = " . $ARCH . " # ( " . $MARCH . " )" );
+        push (@c_arch, "ARCH = $ARCH" );
+        push (@c_arch, "# ARCH = $ARCH ( $MARCH )" );
     }
     push (@c_arch,  "BITS = " . $BITS );
     push (@c_arch,  "" );

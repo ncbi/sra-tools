@@ -24,6 +24,14 @@
 
 use strict;
 
+sub println { print @_; print "\n"; }
+
+my ($filename, $directories, $suffix) = fileparse($0);
+if ($directories ne "./") {
+    println "configure: error: $filename should be run as ./$filename";
+    exit 1;
+}
+
 require 'package.pm';
 require 'os-arch.pm';
 
@@ -32,8 +40,6 @@ use File::Basename 'fileparse';
 use File::Spec 'catdir';
 use FindBin qw($Bin);
 use Getopt::Long 'GetOptions';
-
-sub println { print @_; print "\n"; }
 
 check();
 
@@ -121,10 +127,6 @@ if ($OPT{'help'}) {
     status(1);
     exit(0);
 }
-my ($filename, $directories, $suffix) = fileparse($0);
-die "configure: error: $filename should be run as ./$filename"
-    if ($directories ne "./");
-
 $OPT{'prefix'} = $package_default_prefix unless ($OPT{'prefix'});
 
 my $AUTORUN = $OPT{status};
@@ -349,9 +351,12 @@ foreach my $href (@REQ) {
     my $need_build = $a{type} =~ /B/;
     my $need_include = $a{type} =~ /I/;
     my $need_lib = $a{type} =~ /L/;
-    ++$need_include if ($need_lib);
     my $need_ilib;
-    $need_ilib = $a{ilib} if ($need_build);
+    if ($need_build) {
+        $need_ilib = $a{ilib};
+        ++$need_lib;
+    }
+    ++$need_include if ($need_lib);
     unless ($AUTORUN) {
         if ($need_source && $need_build) {
        println "checking for $a{name} package source files and build results..."
@@ -364,7 +369,7 @@ foreach my $href (@REQ) {
     my $i = expand($OPT{$a{option}});
     my $l = $i;
     my $has_i_option = $i;
-    my $has_b_option = $a{boption} && $OPT{$a{option}};
+    my $has_b_option = $a{boption} && $OPT{$a{boption}};
     if ($has_i_option) {
         if ($need_lib) {
             ($found_lib, $found_ilib, $found_itf)
@@ -377,7 +382,8 @@ foreach my $href (@REQ) {
         }
     }
     if ($has_b_option) {
-        ($found_lib, $found_ilib) = find_lib_in_dir($l, $a{lib}, $need_ilib);
+        ($found_lib, $found_ilib)
+            = find_lib_in_dir(expand($has_b_option), $a{lib}, $need_ilib);
         $l = $found_lib if ($found_lib);
     }
 
@@ -416,7 +422,7 @@ foreach my $href (@REQ) {
             $l = $found_lib;
         }
     }
-    if (! $has_b_option && ! $found_lib && ($need_build ||$need_lib)) {
+    if (! $has_b_option && ! $found_lib && ($need_build || $need_lib)) {
         my $try = $a{bldpath};
         ($found_lib, $found_ilib) = find_lib_in_dir($try, $a{lib}, $need_ilib);
         if ($found_lib) {
@@ -433,16 +439,19 @@ foreach my $href (@REQ) {
                 unless ($need_include) {
                     $_ .= "not needed";
                 } else {
+                    $i = '' unless $i;
                     $_ .= $i;
                 }
                 unless ($need_lib) {
                     $_ .= "; libs: not needed";
                 } else {
+                    $found_lib = '' unless $found_lib;
                     $_ .= "; libs: " . $found_lib;
                 }
                 unless ($need_ilib) {
                     $_ .= "; ilibs: not needed";
                 } else {
+                    $found_ilib = '' unless $found_ilib;
                     $_ .= "; ilibs: " . $found_ilib;
                 }
                 println "\t\t$_";
@@ -478,7 +487,7 @@ if ($OS ne 'win') {
     push (@c_arch,  "" );
     if ($OPT{'outputdir'}) {
         push (@c_arch,  "# output path");
-        push (@c_arch,  "TARGDIR = $TARGDIR/$PACKAGE");
+        push (@c_arch,  "TARGDIR = $TARGDIR");
         push (@c_arch,  "" );
     }
     push (@c_arch, "# install paths");
@@ -878,6 +887,7 @@ sub find_lib_in_dir {
     }
     println if ($OPT{'debug'});
     unless (-d $try) {
+        print "\t" if ($OPT{'debug'});
         println 'no' unless ($AUTORUN);
         println "\t\tnot found $try" if ($OPT{'debug'});
         return;
@@ -903,9 +913,17 @@ sub find_lib_in_dir {
             }
         }
         unless (-e $f) {
+            undef $libdir;
             print "\t" if ($OPT{'debug'});
-            println 'no' unless ($AUTORUN);
-            return;
+            unless ($AUTORUN) {
+                unless ($include) {
+                    println 'no';
+                    return;
+                } else {
+                    println 'libraries... no';
+                    print "\tincludes... ";
+                }
+            }
         } elsif ($ilib && ! $ilibdir) {
             println "\n\t\tfound $f but no ilib/" if ($OPT{'debug'});
             print "\t" if ($OPT{'debug'});
@@ -922,6 +940,9 @@ sub find_lib_in_dir {
         } elsif (-e "$try/include/$include") {
             println 'yes' unless ($AUTORUN);
             return ($libdir, $ilibdir, "$try/include");
+        } elsif (-e "$try/interfaces/$include") {
+            println 'yes' unless ($AUTORUN);
+            return ($libdir, $ilibdir, "$try/interfaces");
         } else {
             println 'no' unless ($AUTORUN);
             return;

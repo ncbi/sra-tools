@@ -1,6 +1,6 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     
-    <Import Condition="Exists('$(ProjectDir)..\..\..\Makefile.config.win')" Project="$(ProjectDir)..\..\..\Makefile.config.win" />
+    <Import Condition="Exists('$(ProjectDir)..\..\Makefile.config.win')" Project="$(ProjectDir)..\..\Makefile.config.win" />
 
     <PropertyGroup Label="Globals">
     <Platform Condition="'$(Platform)' == ''">x64</Platform>
@@ -11,7 +11,7 @@
     <NGS_TARGET Condition="'$(NGS_TARGET)' == ''">$(NGS_OUTDIR)win\cl\$(Platform)\$(Configuration)\</NGS_TARGET>
 
     <VDB_OUTDIR Condition="'$(VDB_OUTDIR)' == ''">$(USERPROFILE)\</VDB_OUTDIR>
-    <VDB_ROOT Condition="'$(VDB_ROOT)' == ''">$(ProjectDir)..\..\..\</VDB_ROOT>
+    <VDB_ROOT Condition="'$(VDB_ROOT)' == ''">$(ProjectDir)..\..\..\..\ncbi-vdb\</VDB_ROOT>
     <VDB_TARGET Condition="'$(VDB_TARGET)' == ''">$(VDB_OUTDIR)win\cl\$(Platform)\$(Configuration)\</VDB_TARGET>
 
   </PropertyGroup>

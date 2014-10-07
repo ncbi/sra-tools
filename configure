@@ -24,6 +24,7 @@
 #
 # ===========================================================================
 
+FILENAME="`basename $0`"
 CURDIR="`dirname $0`"
 
 if [[ -z $CURDIR ]]
@@ -32,7 +33,7 @@ if [[ -z $CURDIR ]]
     exit 1
 fi
 
-if [[ $0 == bash ]]
+if [[ $FILENAME != configure && ! -s konfigure.perl ]]
     then
     echo configure: error: configure should be run as ./configure
 else

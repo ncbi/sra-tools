@@ -958,37 +958,38 @@ sub find_lib {
     print "checking for $l library... ";
 
     while (1) {
-        my ($i, $library, $cmd);
+        my ($i, $library, $log);
 
         if ($l eq 'hdf5') {
             $library = '-lhdf5';
-            $cmd = "#include <hdf5.h>            \n main() { H5close     (); }";
+            $log = '#include <hdf5.h>            \n main() { H5close     (); }';
         } elsif ($l eq 'xml2') {
             $i = '/usr/include/libxml2';
             $library = '-lxml2';
-            $cmd = "#include <libxml/xmlreader.h>\n main() { xmlInitParser();}";
+            $log = '#include <libxml/xmlreader.h>\n main() { xmlInitParser();}';
         } elsif ($l eq 'magic') {
             $i = '/usr/include';
             $library = '-lmagic';
-            $cmd = "#include <magic.h>\nmain() {magic_open(0);}";
+            $log = '#include <magic.h>           \n main() { magic_open (0); }';
         } else {
             println 'unknown: skipped';
             return;
         }
-
-#print TODO
 
         if ($i && ! -d $i) {
             println 'no';
             return;
         }
 
+        my $cmd = $log;
+        $cmd =~ s/\\n/\n/g;
+
         my $gcc = "| gcc -xc " . ($i ? "-I$i" : '') . " - $library";
         $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
 
         open GCC, $gcc or last;
-        print "\n\t\trunning echo -e '$cmd' $gcc\n" if ($OPT{'debug'});
-        print GCC $cmd or last;
+        print "\n\t\trunning echo -e '$log' $gcc\n" if ($OPT{'debug'});
+        print GCC "$cmd" or last;
         my $ok = close GCC;
         print "\t" if ($OPT{'debug'});
         println $ok ? 'yes' : 'no';

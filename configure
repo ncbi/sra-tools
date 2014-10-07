@@ -24,11 +24,21 @@
 #
 # ===========================================================================
 
-
 CURDIR="`dirname $0`"
-cd $CURDIR
 
-perl -v > /dev/null 2>&1 || { echo "checking for perl... no"; \
-    echo >&2 "configure: error: perl not found."; exit 1; }
+if [[ -z $CURDIR ]]
+    then
+    echo configure: error: configure should be run as ./configure
+    exit 1
+fi
 
-perl -w ./konfigure.perl $@
+if [[ $0 == bash ]]
+    then
+    echo configure: error: configure should be run as ./configure
+else
+    perl -v > /dev/null 2>&1 || { echo "checking for perl... no"; \
+        echo >&2 "configure: error: perl not found."; exit 1; }
+
+    cd $CURDIR
+    perl -w ./konfigure.perl $@
+fi

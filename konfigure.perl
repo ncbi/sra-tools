@@ -63,10 +63,10 @@ my $schema_default_dir = $PKG{SCHEMA_PATH} if ($PKG{SCHEMA_PATH});
 my @REQ = REQ();
 
 my @options = ( "arch=s",
+                "build=s",
                 "clean",
                 "debug",
                 "help",
-                "outputdir=s",
 #               "output-makefile=s",
                 "prefix=s",
                 "status",
@@ -161,7 +161,7 @@ println $OSTYPE unless ($AUTORUN);
 
 # initial values
 my $TARGDIR = File::Spec->catdir($OUTDIR, $PACKAGE);
-$TARGDIR = expand($OPT{'outputdir'}) if ($OPT{'outputdir'});
+$TARGDIR = expand($OPT{'build'}) if ($OPT{'build'});
 
 my $BUILD = "rel";
 
@@ -323,6 +323,7 @@ if ($OS ne 'win') {
 
 my @dependencies;
 
+#use File::Temp "mktemp";$_=mktemp("123.XXXX");print "$_\n";`touch $_`
 foreach (DEPENDS()) {
     my ($i, $l) = find_lib($_);
     if (defined $i || $l) {
@@ -344,111 +345,93 @@ foreach (DEPENDS()) {
 
 foreach my $href (@REQ) {
     $href->{bldpath} =~ s/(\$\w+)/$1/eeg;
-    my ($found_itf, $found_lib, $found_ilib);
+    my ($found_itf, $found_lib, $found_ilib);        # found directories
     my %a = %$href;
     my $is_optional = $a{type} eq 'SI';
     my $need_source = $a{type} =~ /S/;
     my $need_build = $a{type} =~ /B/;
-    my $need_include = $a{type} =~ /I/;
     my $need_lib = $a{type} =~ /L/;
-    my $need_ilib;
+    my ($inc, $lib, $ilib) = ($a{include}, $a{lib}); # file names to check
     if ($need_build) {
-        $need_ilib = $a{ilib};
+        $ilib = $a{ilib};
         ++$need_lib;
     }
-    ++$need_include if ($need_lib);
     unless ($AUTORUN) {
         if ($need_source && $need_build) {
-       println "checking for $a{name} package source files and build results..."
+            println
+               "checking for $a{name} package source files and build results..."
         } elsif ($need_source) {
             println "checking for $a{name} package source files...";
         } else {
             println "checking for $a{name} package...";
         }
     }
-    my $i = expand($OPT{$a{option}});
-    my $l = $i;
-    my $has_i_option = $i;
-    my $has_b_option = $a{boption} && $OPT{$a{boption}};
-    if ($has_i_option) {
-        if ($need_lib) {
-            ($found_lib, $found_ilib, $found_itf)
-                = find_lib_in_dir($l, $a{lib}, $need_ilib, $a{include});
-            $i = $found_itf if ($found_itf);
-            $l = $found_lib if ($found_lib);
-        } else {
-            $found_itf = find_include_in_dir($l, $a{include});
-            $i = $found_itf if ($found_itf);
+    my %has_option;
+    foreach my $option ($a{option}, $a{boption}) {
+        next unless ($option);
+        if ($OPT{$option}) {
+            my $try = expand($OPT{$option});
+            my ($i, $l, $il) = ($inc, $lib, $ilib);
+            if ($option =~ /-build$/) {
+                undef $i;
+                ++$has_option{build};
+            } elsif ($option =~ /-prefix$/) {
+                undef $il;
+                ++$has_option{prefix};
+            } elsif ($option =~ /-sources$/) {
+                undef $l;
+                undef $il;
+                ++$has_option{sources};
+            }
+            my ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+            $found_itf  = $fi  if (! $found_itf  && $fi);
+            $found_lib  = $fl  if (! $found_lib  && $fl);
+            $found_ilib = $fil if (! $found_ilib && $fil);
         }
     }
-    if ($has_b_option) {
-        ($found_lib, $found_ilib)
-            = find_lib_in_dir(expand($has_b_option), $a{lib}, $need_ilib);
-        $l = $found_lib if ($found_lib);
-    }
-
-    if (! $has_i_option && ! $found_itf && ($need_include || $need_source)) {
+    unless ($found_itf || $has_option{sources}) {
         my $try = $a{srcpath};
-        $found_itf = find_include_in_dir($a{srcpath}, $a{include});
-        $i = $found_itf if ($found_itf);
+        ($found_itf) = find_in_dir($try, $inc);
     }
-    if (! $has_i_option && ! $found_itf || (! $found_lib && $need_lib)) {
-        my $try = $a{pkgpath};
-        if ($need_lib) {
-            ($found_lib, $found_ilib, $found_itf)
-                = find_lib_in_dir($try, $a{lib}, $need_ilib, $a{include});
-        } else {
-            $found_itf = find_include_in_dir($try, $a{include});
+    if (! $has_option{prefix}) {
+        if (! $found_itf || ($need_lib && ! $found_lib)) {
+            my $try = $a{pkgpath};
+            my ($fi, $fl) = find_in_dir($try, $inc, $lib);
+            $found_itf  = $fi  if (! $found_itf  && $fi);
+            $found_lib  = $fl  if (! $found_lib  && $fl);
         }
-        if ($found_itf) {
-            $i = $found_itf;
-        }
-        if ($found_lib) {
-            $l = $found_lib;
-        }
-    }
-    if (! $has_i_option && ! $found_itf || (! $found_lib && $need_lib)) {
-        my $try = $a{usrpath};
-        if ($need_lib) {
-            ($found_lib, $found_ilib, $found_itf)
-                = find_lib_in_dir($try, $a{lib}, $need_ilib, $a{include});
-        } else {
-            $found_itf = find_include_in_dir($try, $a{include});
-        }
-        if ($found_itf) {
-            $i = $found_itf;
-        }
-        if ($found_lib) {
-            $l = $found_lib;
-        }
-    }
-    if (! $has_b_option && ! $found_lib && ($need_build || $need_lib)) {
-        my $try = $a{bldpath};
-        ($found_lib, $found_ilib) = find_lib_in_dir($try, $a{lib}, $need_ilib);
-        if ($found_lib) {
-            $l = $found_lib;
-        }
-    }
 
-    if (! $i || (! $found_lib && $need_lib) || ($need_ilib && ! $found_ilib)) {
+        if (! $found_itf || ($need_lib && ! $found_lib)) {
+            my $try = $a{usrpath};
+            my ($fi, $fl) = find_in_dir($try, $inc, $lib);
+            $found_itf  = $fi  if (! $found_itf  && $fi);
+            $found_lib  = $fl  if (! $found_lib  && $fl);
+        }
+    }
+    if (! $has_option{build}) {
+        if ($need_build || ($need_lib && ! $found_lib)) {
+            my $try = $a{bldpath};
+            my (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+            $found_lib  = $fl  if (! $found_lib  && $fl);
+            $found_ilib = $fil if (! $found_ilib && $fil);
+        }
+    }
+    if (! $found_itf || ($need_lib && ! $found_lib) || ($ilib && ! $found_ilib))
+    {
         if ($is_optional) {
             println "configure: optional $a{name} package not found: skipped.";
         } else {
             if ($OPT{'debug'}) {
                 $_ = "$a{name}: includes: ";
-                unless ($need_include) {
-                    $_ .= "not needed";
-                } else {
-                    $i = '' unless $i;
-                    $_ .= $i;
-                }
+                $found_itf = '' unless $found_itf;
+                $_ .= $found_itf;
                 unless ($need_lib) {
                     $_ .= "; libs: not needed";
                 } else {
                     $found_lib = '' unless $found_lib;
                     $_ .= "; libs: " . $found_lib;
                 }
-                unless ($need_ilib) {
+                unless ($ilib) {
                     $_ .= "; ilibs: not needed";
                 } else {
                     $found_ilib = '' unless $found_ilib;
@@ -460,13 +443,13 @@ foreach my $href (@REQ) {
             exit 1;
         }
     } else {
-        $i = abs_path($i);
-        push(@dependencies, "$a{namew}_INCDIR = $i");
-        if ($found_lib && $l) {
-            $l = abs_path($l);
-            push(@dependencies, "$a{namew}_LIBDIR = $l");
+        $found_itf = abs_path($found_itf);
+        push(@dependencies, "$a{namew}_INCDIR = $found_itf");
+        if ($found_lib) {
+            $found_lib = abs_path($found_lib);
+            push(@dependencies, "$a{namew}_LIBDIR = $found_lib");
         }
-        if ($need_ilib && $found_ilib) {
+        if ($ilib && $found_ilib) {
             $found_ilib = abs_path($found_ilib);
             push(@dependencies, "$a{namew}_ILIBDIR = $found_ilib");
         }
@@ -485,7 +468,7 @@ if ($OS ne 'win') {
     push (@c_arch,  "# build type");
     push (@c_arch,  "BUILD = $BUILD");
     push (@c_arch,  "" );
-    if ($OPT{'outputdir'}) {
+    if ($OPT{'build'}) {
         push (@c_arch,  "# output path");
         push (@c_arch,  "TARGDIR = $TARGDIR");
         push (@c_arch,  "" );
@@ -774,7 +757,6 @@ EndText
 
 status() if ($OS ne 'win');
 
-unlink '/tmp/ncbi.conf';
 unlink 'a.out';
 
 sub status {
@@ -858,96 +840,80 @@ sub expand {
     $filename;
 }
 
-sub find_include_in_dir {
-    my ($try, $include) = @_;
-    print "\tinclude files in $try... " unless ($AUTORUN);
-    unless (-d $try) {
-        println 'no' unless ($AUTORUN);
+sub find_in_dir {
+    my ($dir, $include, $lib, $ilib) = @_;
+    print "\t$dir... " unless ($AUTORUN);
+    unless (-d $dir) {
+        println "no" unless ($AUTORUN);
+        println "\t\tnot found $dir" if ($OPT{'debug'});
         return;
-    } else {
-        if (-e "$try/$include") {
+    }
+    print "[found] " if ($OPT{'debug'});
+    my ($found_inc, $found_lib, $found_ilib);
+    my $nl;
+    if ($include) {
+        print "includes... " unless ($AUTORUN);
+        if (-e "$dir/$include") {
             println 'yes' unless ($AUTORUN);
-            return $try;
-        } elsif (-e "$try/interfaces/$include") {
+            $found_inc = $dir;
+        } elsif (-e "$dir/include/$include") {
             println 'yes' unless ($AUTORUN);
-            return "$try/interfaces";
+            $found_inc = "$dir/include";
+        } elsif (-e "$dir/interfaces/$include") {
+            println 'yes' unless ($AUTORUN);
+            $found_inc = "$dir/interfaces";
         } else {
             println 'no' unless ($AUTORUN);
-            return;
         }
+        ++$nl;
     }
-}
-
-sub find_lib_in_dir {
-    my ($try, $lib, $ilib, $include) = @_;
-    if ($include) {
-        print "\t$try " unless ($AUTORUN);
-    } else {
-        print "\tlibrary files in $try... " unless ($AUTORUN);
-    }
-    println if ($OPT{'debug'});
-    unless (-d $try) {
-        print "\t" if ($OPT{'debug'});
-        println 'no' unless ($AUTORUN);
-        println "\t\tnot found $try" if ($OPT{'debug'});
-        return;
-    } else {
-        println "\n\t\tfound $try" if ($OPT{'debug'});
-        my $builddir = File::Spec->catdir($try, $OS, $TOOLS, $ARCH, $BUILD);
-        my $libdir = File::Spec->catdir($builddir, 'lib');
+    if ($lib || $ilib) {
+        print "\n\t" if ($nl && !$AUTORUN);
+        print "libraries... " unless ($AUTORUN);
+        my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
+        my $libdir  = File::Spec->catdir($builddir, 'lib');
         my $ilibdir = File::Spec->catdir($builddir, 'ilib');
-        my $f = File::Spec->catdir($libdir, $lib);
-        println "\t\tchecking $f" if ($OPT{'debug'});
-        unless (-e $f) {
-            $libdir = File::Spec->catdir($try, 'lib' . $BITS);
-            undef $ilibdir;
-            $f = File::Spec->catdir($libdir, $lib);
-            println "\t\tchecking $f" if ($OPT{'debug'});
-        } elsif ($ilib) {
-            $f = File::Spec->catdir($ilibdir, $ilib);
-            println "\t\tchecking $f" if ($OPT{'debug'});
-            unless (-e $f) {
-                print "\t" if ($OPT{'debug'});
-                println 'no' unless ($AUTORUN);
-                return;
-            }
-        }
-        unless (-e $f) {
-            undef $libdir;
-            print "\t" if ($OPT{'debug'});
-            unless ($AUTORUN) {
-                unless ($include) {
-                    println 'no';
-                    return;
+        if ($lib) {
+            my $f = File::Spec->catdir($libdir, $lib);
+            print "\n\t\tchecking $f\n\t" if ($OPT{'debug'});
+            if (-e $f) {
+                $found_lib = $libdir;
+                if ($ilib) {
+                    $f = File::Spec->catdir($ilibdir, $ilib);
+                    print "\tchecking $f\n\t" if ($OPT{'debug'});
+                    if (-e $f) {
+                        println 'yes';
+                        $found_ilib = $ilibdir;
+                    } else {
+                        println 'no' unless ($AUTORUN);
+                        return;
+                    }
                 } else {
-                    println 'libraries... no';
-                    print "\tincludes... ";
+                    println 'yes';
+                }
+            } else {
+                $libdir = File::Spec->catdir($dir, 'lib' . $BITS);
+                undef $ilibdir;
+                $f = File::Spec->catdir($libdir, $lib);
+                print "\t\tchecking $f\n\t" if ($OPT{'debug'});
+                if (-e $f) {
+                    println 'yes';
+                    $found_lib = $libdir;
+                } else {
+                    undef $libdir;
+                    print "\t" if ($OPT{'debug'});
                 }
             }
-        } elsif ($ilib && ! $ilibdir) {
-            println "\n\t\tfound $f but no ilib/" if ($OPT{'debug'});
+        }
+        if ($found_lib && $ilib && ! $found_ilib) {
+            println "\n\t\tfound $found_lib but no ilib/" if ($OPT{'debug'});
             print "\t" if ($OPT{'debug'});
             println 'no' unless ($AUTORUN);
-            return;
+            undef $found_lib;
         }
-        print "\t" if ($OPT{'debug'});
-        if (! $include) {
-            println 'yes' unless ($AUTORUN);
-            return ($libdir, $ilibdir);
-        } elsif (-e "$try/$include") {
-            println 'yes' unless ($AUTORUN);
-            return ($libdir, $ilibdir, $try);
-        } elsif (-e "$try/include/$include") {
-            println 'yes' unless ($AUTORUN);
-            return ($libdir, $ilibdir, "$try/include");
-        } elsif (-e "$try/interfaces/$include") {
-            println 'yes' unless ($AUTORUN);
-            return ($libdir, $ilibdir, "$try/interfaces");
-        } else {
-            println 'no' unless ($AUTORUN);
-            return;
-        }
+        ++$nl;
     }
+    return ($found_inc, $found_lib, $found_ilib);
 }
 
 ################################################################################
@@ -994,7 +960,6 @@ sub find_lib {
         print "\t" if ($OPT{'debug'});
         println $ok ? 'yes' : 'no';
 
-        unlink '/tmp/ncbi.conf';
         unlink 'a.out';
 
         return if (!$ok);
@@ -1065,7 +1030,7 @@ Installation directories:
 EndText
 
         my $other_prefix = $PKG{UPATH};
-        if ($PACKAGE eq 'sra-tools') {
+        if ($PACKAGE eq 'sra-tools' && 0) {
             print <<EndText;
   --shemadir=DIR          install schema files in DIR
                           [$schema_default_dir]
@@ -1139,7 +1104,7 @@ Build tuning:
   --without-debug
   --arch=name             specify the name of the target architecture
 
-  --outputdir=DIR         generate build output into DIR directory
+  --build=DIR             generate build output into DIR directory
                           [$OUTDIR]
 
 EndText

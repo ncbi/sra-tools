@@ -1,15 +1,15 @@
 ################################################################################
-sub PACKAGE      { "vdb-tools" }
+sub PACKAGE      { "sra-tools" }
 sub VERSION      { "2.4.2a" }
 sub PACKAGE_TYPE { 'B' }
-sub PACKAGE_NAME { "VDB-TOOLS" }
-sub PACKAGE_NAMW { "VDBTOOLS" }
+sub PACKAGE_NAME { "SRA-TOOLS" }
+sub PACKAGE_NAMW { "SRATOOLS" }
 sub DEPENDS      { qw(hdf5 xml2 magic) }
 sub CONFIG_OUT   { 'build' }
 sub PKG { ( LNG   => 'C',
             OUT   => 'ncbi-outdir',
-            PATH  => '/usr/local/ncbi/vdb-tools',
-            UPATH =>      '$HOME/ncbi/vdb-tools', ) }
+            PATH  => '/usr/local/ncbi/sra-tools',
+            UPATH =>      '$HOME/ncbi/sra-tools', ) }
 sub REQ { (
             { name    => 'ngs-sdk',
               namew   => 'NGS',

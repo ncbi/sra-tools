@@ -163,12 +163,12 @@ println $OSTYPE unless ($AUTORUN);
 my $TARGDIR = File::Spec->catdir($OUTDIR, $PACKAGE);
 $TARGDIR = expand($OPT{'build'}) if ($OPT{'build'});
 
-my $BUILD = "rel";
+my $BUILD = 'rel';
 
 # parse command line
 $BUILD = $OPT{'BUILD'} if ($OPT{'BUILD'});
-$BUILD = "dbg" if ($OPT{'with-debug'});
-$BUILD = "rel" if ($OPT{'without-debug'});
+$BUILD = 'dbg' if ($OPT{'with-debug'});
+$BUILD = 'rel' if ($OPT{'without-debug'});
 
 my $BUILD_TYPE = "release";
 $BUILD_TYPE = "debug" if ( $BUILD eq "dbg" );
@@ -654,11 +654,11 @@ if ($OS ne 'win') {
 
     push (@c_arch,  "# directory rules" );
     if ($PKG{LNG} eq 'C') {
-        push (@c_arch,  "\$(BINDIR) \$(LIBDIR) \$(ILIBDIR) \$(OBJDIR) \$(INST_LIBDIR) \$(INST_LIBDIR)\$(BITS):\n"
+        push(@c_arch,  "\$(BINDIR) \$(LIBDIR) \$(ILIBDIR) \$(OBJDIR) \$(INST_LIBDIR) \$(INST_LIBDIR)\$(BITS):\n"
                      . "\tmkdir -p \$@" );
     } elsif ($PKG{LNG} eq 'JAVA') {
         # test if we have jni header path
-        push (@c_arch,  "\$(LIBDIR) \$(CLSDIR) \$(INST_JARDIR):\n\tmkdir -p \$@" );
+        push(@c_arch,  "\$(LIBDIR) \$(CLSDIR) \$(INST_JARDIR):\n\tmkdir -p \$@")
     }
     push (@c_arch,  "" );
 
@@ -691,6 +691,7 @@ if ($OS ne 'win') {
     push (@c_arch, "\t      false;                                         \\");
     push (@c_arch, "\t  fi");
     push (@c_arch, '');
+
     push (@c_arch,
         '$(INST_LIBDIR)$(BITS)/%.$(VERSION_SHLX): $(LIBDIR)/%.$(VERSION_SHLX)');
     push (@c_arch, "\t@ echo -n \"installing '\$(\@F)'... \"");
@@ -706,6 +707,23 @@ if ($OS ne 'win') {
     push (@c_arch, "\t      echo failure;                                  \\");
     push (@c_arch, "\t      false;                                         \\");
     push (@c_arch, "\t  fi");
+    push (@c_arch, '');
+
+if (0) {
+    push (@c_arch,
+        '$(INST_BINDIR)/%$(VERSION_EXEX): $(BINDIR)/%$(VERSION_EXEX)');
+    push (@c_arch, "\t@ echo -n \"installing '\$(\@F)'... \"");
+    push (@c_arch, "\t@ if cp \$^ \$\@ && chmod 755 \$\@;                  \\");
+    push (@c_arch, "\t  then                                               \\");
+    push (@c_arch, "\t      rm -f \$(subst \$(VERSION),\$(MAJVERS),\$\@) \$(subst \$(VERSION_EXEX),\$(EXEX),\$\@) ; \\");
+    push (@c_arch, "\t      ln -s \$(\@F) \$(subst \$(VERSION),\$(MAJVERS),\$\@); \\");
+    push (@c_arch, "\t      ln -s \$(subst \$(VERSION),\$(MAJVERS),\$(\@F)) \$(subst \$(VERSION_EXEX),\$(EXEX),\$\@) ; \\");
+    push (@c_arch, "\t      echo success;                                  \\");
+    push (@c_arch, "\t  else                                               \\");
+    push (@c_arch, "\t      echo failure;                                  \\");
+    push (@c_arch, "\t      false;                                         \\");
+    push (@c_arch, "\t  fi");
+}
   }
 }
 
@@ -872,16 +890,17 @@ sub find_in_dir {
     if ($lib || $ilib) {
         print "\n\t" if ($nl && !$AUTORUN);
         print "libraries... " unless ($AUTORUN);
-        my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
-        my $libdir  = File::Spec->catdir($builddir, 'lib');
-        my $ilibdir = File::Spec->catdir($builddir, 'ilib');
         if ($lib) {
+            my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
+            my $libdir  = File::Spec->catdir($builddir, 'lib');
+            my $ilibdir = File::Spec->catdir($builddir, 'ilib');
             my $f = File::Spec->catdir($libdir, $lib);
             print "\n\t\tchecking $f\n\t" if ($OPT{'debug'});
+            my $found;
             if (-e $f) {
                 $found_lib = $libdir;
                 if ($ilib) {
-                    $f = File::Spec->catdir($ilibdir, $ilib);
+                    my $f = File::Spec->catdir($ilibdir, $ilib);
                     print "\tchecking $f\n\t" if ($OPT{'debug'});
                     if (-e $f) {
                         println 'yes';
@@ -893,17 +912,41 @@ sub find_in_dir {
                 } else {
                     println 'yes';
                 }
-            } else {
-                $libdir = File::Spec->catdir($dir, 'lib' . $BITS);
-                undef $ilibdir;
-                $f = File::Spec->catdir($libdir, $lib);
-                print "\t\tchecking $f\n\t" if ($OPT{'debug'});
+                ++$found;
+            }
+            if (! $found) {
+                my $libdir = File::Spec->catdir($dir, 'lib' . $BITS);
+                my $f = File::Spec->catdir($libdir, $lib);
+                print "\tchecking $f\n\t" if ($OPT{'debug'});
                 if (-e $f) {
                     println 'yes';
                     $found_lib = $libdir;
-                } else {
-                    undef $libdir;
-                    print "\t" if ($OPT{'debug'});
+                    ++$found;
+                }
+            }
+            if (! $found) {
+                my $builddir = File::Spec->catdir
+                    ($dir, $OS, $TOOLS, $ARCH, reverse_build($BUILD));
+                my $libdir  = File::Spec->catdir($builddir, 'lib');
+                my $ilibdir = File::Spec->catdir($builddir, 'ilib');
+                my $f = File::Spec->catdir($libdir, $lib);
+                print "\tchecking $f\n\t" if ($OPT{'debug'});
+                if (-e $f) {
+                    $found_lib = $libdir;
+                    if ($ilib) {
+                        my $f = File::Spec->catdir($ilibdir, $ilib);
+                        print "\tchecking $f\n\t" if ($OPT{'debug'});
+                        if (-e $f) {
+                            println 'yes';
+                            $found_ilib = $ilibdir;
+                        } else {
+                            println 'no' unless ($AUTORUN);
+                            return;
+                        }
+                    } else {
+                        println 'yes';
+                    }
+                    ++$found;
                 }
             }
         }
@@ -916,6 +959,17 @@ sub find_in_dir {
         ++$nl;
     }
     return ($found_inc, $found_lib, $found_ilib);
+}
+
+sub reverse_build {
+    ($_) = @_;
+    if ($_ eq 'rel') {
+        return 'dbg';
+    } elsif ($_ eq 'dbg') {
+        return 'rel';
+    } else {
+        die $_;
+    }
 }
 
 ################################################################################

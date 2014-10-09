@@ -118,6 +118,7 @@ typedef enum dump_format_t
     df_xml,
     df_json,
     df_piped,
+    df_sra_dump,
     df_tab,
     df_fastq,
     df_fasta,

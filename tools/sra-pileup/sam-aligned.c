@@ -1542,6 +1542,13 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
 
         if ( opts->rna_splicing )
         {
+	    { /*** reset previous identification of N to D ***/
+		int i;
+		char *c=cgc_output.p_cigar.ptr;
+		for(i=0;i< cgc_output.p_cigar.len;i++){
+		    if(c[i]=='N') c[i]='D';
+		}
+	    }
             /* discover which cigar-operations could be a RNA-splice ( it is a D-operation with min length of 10 ) */
             rc = discover_rna_splicing_candidates( cgc_output.p_cigar.len, cgc_output.p_cigar.ptr, 10, &candidates ); /* cg_tools.c */
             if ( rc == 0 && candidates.count > 0 )

@@ -273,6 +273,26 @@ static void CC vdfo_print_col_piped( void *item, void *data )
 
 
 /*************************************************************************************
+    like legacy sra-dump
+*************************************************************************************/
+static void CC vdfo_print_col_sra_dump( void *item, void *data )
+{
+    rc_t rc = 0;
+    p_col_def my_col_def = (p_col_def)item;
+    p_row_context r_ctx = (p_row_context)data;
+
+    if ( my_col_def->valid == false ) return;
+    if ( my_col_def->excluded == true ) return;
+
+    /* first we print the row_id and the column-name for every column! */
+    KOutMsg( "%lu. %s: ", r_ctx->row_id, my_col_def->name );
+
+    if ( rc == 0 )
+        KOutMsg( "%s\n", my_col_def->content.buf );
+}
+
+
+/*************************************************************************************
     TAB-delimited
 *************************************************************************************/
 static void CC vdfo_print_col_tab( void *item, void *data )
@@ -310,6 +330,19 @@ static rc_t vdfo_print_row_piped( const p_row_context r_ctx )
     return rc;
 }
 
+
+static rc_t vdfo_print_row_sra_dump( const p_row_context r_ctx )
+{
+    rc_t rc = vds_clear( &(r_ctx->s_col) );
+    DISP_RC( rc, "dump_str_clear() failed" )
+    if ( rc == 0 )
+    {
+        VectorForEach( &(r_ctx->col_defs->cols), false, vdfo_print_col_sra_dump, r_ctx );
+        rc = KOutMsg( "\n" );
+    }
+    return rc;
+}
+
 static rc_t vdfo_print_row_tab( const p_row_context r_ctx )
 {
     rc_t rc = vds_clear( &(r_ctx->s_col) );
@@ -331,13 +364,14 @@ rc_t vdfo_print_row( const p_row_context r_ctx )
     rc_t rc = 0;
     switch( r_ctx->ctx->format )
     {
-    case df_default : rc = vdfo_print_row_default( r_ctx ); break;
-    case df_csv     : rc = vdfo_print_row_csv( r_ctx ); break;
-    case df_xml     : rc = vdfo_print_row_xml( r_ctx ); break;
-    case df_json    : rc = vdfo_print_row_json( r_ctx ); break;
-    case df_piped   : rc = vdfo_print_row_piped( r_ctx ); break;
-    case df_tab     : rc = vdfo_print_row_tab( r_ctx ); break;
-    default         : rc = vdfo_print_row_default( r_ctx ); break;
+    case df_default     : rc = vdfo_print_row_default( r_ctx ); break;
+    case df_csv         : rc = vdfo_print_row_csv( r_ctx ); break;
+    case df_xml         : rc = vdfo_print_row_xml( r_ctx ); break;
+    case df_json        : rc = vdfo_print_row_json( r_ctx ); break;
+    case df_piped       : rc = vdfo_print_row_piped( r_ctx ); break;
+    case df_sra_dump    : rc = vdfo_print_row_sra_dump( r_ctx ); break;
+    case df_tab         : rc = vdfo_print_row_tab( r_ctx ); break;
+    default            : rc = vdfo_print_row_default( r_ctx ); break;
     }
     return rc;
 }

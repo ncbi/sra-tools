@@ -51,7 +51,7 @@ typedef struct dump_src
 } dump_src;
 typedef dump_src* p_dump_src;
 
-rc_t vdt_dump_element( const p_dump_src src, const p_col_def def );
+rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket );
 
 #ifdef __cplusplus
 }

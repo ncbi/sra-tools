@@ -14,6 +14,7 @@ sub REQ { (
             { name    => 'ngs-sdk',
               namew   => 'NGS',
               option  => 'with-ngs-sdk-prefix',
+              boption => 'with-ngs-sdk-build',
               type    => 'L',
               srcpath => '../ngs/ngs-sdk',
               pkgpath => '/usr/local/ngs/ngs-sdk',

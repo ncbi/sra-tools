@@ -86,7 +86,8 @@ BAMLOAD_SRC = \
 	alignment-writer \
 	reference-writer \
 	sequence-writer \
-	loader-imp
+	loader-imp \
+	mem-bank
 
 BAMLOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(BAMLOAD_SRC))
@@ -98,7 +99,7 @@ BAMLOAD_LIB = \
 	-lm
 
 $(BINDIR)/bam-load: $(BAMLOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(BAMLOAD_LIB)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(BAMLOAD_LIB)
 
 #-------------------------------------------------------------------------------
 # bam-load.3

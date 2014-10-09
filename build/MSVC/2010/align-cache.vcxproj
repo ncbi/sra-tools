@@ -26,7 +26,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\tools\align-cache\align-cache.cpp" />
-    <ClCompile Include="..\..\..\tools\align-cache\helper.cpp_" />
+    <ClCompile Include="..\..\..\tools\align-cache\helper.cpp" />
     <ClCompile Include="..\..\..\tools\align-cache\helper.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

@@ -166,7 +166,7 @@ $TARGDIR = expand($OPT{'build'}) if ($OPT{'build'});
 my $BUILD = 'rel';
 
 # parse command line
-$BUILD = $OPT{'BUILD'} if ($OPT{'BUILD'});
+#$BUILD = $OPT{'BUILD'} if ($OPT{'BUILD'});
 $BUILD = 'dbg' if ($OPT{'with-debug'});
 $BUILD = 'rel' if ($OPT{'without-debug'});
 
@@ -202,7 +202,7 @@ println $MARCH unless ($AUTORUN);
 my $TOOLS = "";
 $TOOLS = "jdk" if ($PKG{LNG} eq 'JAVA');
 
-print "checking " . PACKAGE_NAME() . " version... " unless ($AUTORUN);
+print "checking $PACKAGE_NAME version... " unless ($AUTORUN);
 my $FULL_VERSION = VERSION();
 println $FULL_VERSION unless ($AUTORUN);
 
@@ -460,11 +460,13 @@ my @c_arch;
 
 if ($OS ne 'win') {
     # create Makefile.config
-    push (@c_arch, "### AUTO-GENERATED FILE ###" );
-    push (@c_arch,  "" );
-    push (@c_arch,  "" );
-    push (@c_arch,  'OS_ARCH = $(shell perl $(TOP)/os-arch.perl)' );
+    push (@c_arch, '### AUTO-GENERATED FILE ###');
+    push (@c_arch, '');
+    push (@c_arch, '');
+    push (@c_arch, 'OS_ARCH = $(shell perl $(TOP)/os-arch.perl)');
+    push (@c_arch, '');
 
+if (0) {
     push (@c_arch,  "# build type");
     push (@c_arch,  "BUILD = $BUILD");
     push (@c_arch,  "" );
@@ -473,6 +475,8 @@ if ($OS ne 'win') {
         push (@c_arch,  "TARGDIR = $TARGDIR");
         push (@c_arch,  "" );
     }
+}
+
     push (@c_arch, "# install paths");
     push (@c_arch, "INST_BINDIR = $OPT{bindir}") if ($OPT{bindir});
     push (@c_arch, "INST_LIBDIR = $OPT{libdir}") if ($OPT{libdir});
@@ -483,12 +487,10 @@ if ($OS ne 'win') {
     push (@c_arch, "INST_PYTHONDIR = $OPT{'pythondir'}") if ($OPT{'pythondir'});
     push (@c_arch, "");
 
-#   push (@c_arch,  'include $(TOP)/Makefile.userconfig' );
-#   push (@c_arch,  'include $(TOP)/Makefile.config.$(OS_ARCH)' );
-    push (@c_arch,  "" );
     push (@c_arch, "# build type");
     push (@c_arch, "BUILD ?= $BUILD");
     push (@c_arch,  "" );
+
     push (@c_arch,  "# target OS" );
     push (@c_arch,  "OS = " . $OS );
     push (@c_arch,  "OSINC = " . $OSINC );
@@ -532,8 +534,7 @@ if ($OS ne 'win') {
     push (@c_arch,  "BITS = " . $BITS );
     push (@c_arch,  "" );
 
-    push (@c_arch,  "# tools" );
-    push (@c_arch,  "# tools" );
+    push (@c_arch,  '# tools');
     push (@c_arch,  "CC   = " . $CC ) if ($CC);
     push (@c_arch,  "CP   = " . $CP ) if ($CP);
     push (@c_arch,  "AR   = " . $AR ) if ($AR);
@@ -547,7 +548,6 @@ if ($OS ne 'win') {
     push (@c_arch,  "" );
     push (@c_arch,  "" );
 
-    push (@c_arch,  "# tool options" );
     push (@c_arch,  "# tool options" );
     if ( $BUILD eq "dbg" ) {
         push (@c_arch,  "DBG     = $DBG" );
@@ -584,18 +584,15 @@ if ($OS ne 'win') {
         die $VERSION;
     }
 
-    push (@c_arch,  "# NGS API and library version" );
+    push (@c_arch,  "# $PACKAGE_NAME and library version");
     push (@c_arch,  "VERSION = " . $VERSION );
-    push (@c_arch,  "MAJMIN = " . $MAJMIN );
+    push (@c_arch,  "MAJMIN  = " . $MAJMIN );
     push (@c_arch,  "MAJVERS = " . $MAJVERS );
     push (@c_arch,  "" );
 
     # determine output path
-    if ($PKG{LNG} eq 'C') {
-    #    $TARGDIR = $TARGDIR . "/" . $ARCH;
-    }
     push (@c_arch,  "# output path" );
-    push (@c_arch,  "TARGDIR ?= " . $TARGDIR );
+    push (@c_arch,  "TARGDIR = " . $TARGDIR );
     push (@c_arch,  "" );
 
     # determine include install path

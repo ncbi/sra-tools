@@ -699,6 +699,8 @@ if ($OS ne 'win') {
     push (@c_arch, "\t      rm -f \$(subst \$(VERSION),\$(MAJVERS),\$\@) \$(subst \$(VERSION_SHLX),\$(SHLX),\$\@) ; \\");
     push (@c_arch, "\t      ln -s \$(\@F) \$(subst \$(VERSION),\$(MAJVERS),\$\@); \\");
     push (@c_arch, "\t      ln -s \$(subst \$(VERSION),\$(MAJVERS),\$(\@F)) \$(subst \$(VERSION_SHLX),\$(SHLX),\$\@) ; \\");
+    push (@c_arch, "\t      cp -v \$(LIBDIR)/\$(subst \$(VERSION_SHLX),\$(VERSION_LIBX),\$(\@F)) \$(INST_LIBDIR)\$(BITS)/ ; \\");
+    push (@c_arch, "\t      ln -vfs \$(subst \$(VERSION_SHLX),\$(VERSION_LIBX),\$(\@F)) \$(INST_LIBDIR)\$(BITS)/\$(subst .\$(VERSION_SHLX),-static.\$(LIBX),\$(\@F)) ; \\");
     push (@c_arch, "\t      echo success;                                  \\");
     push (@c_arch, "\t  else                                               \\");
     push (@c_arch, "\t      echo failure;                                  \\");
@@ -850,7 +852,7 @@ sub find_in_dir {
     }
     print "[found] " if ($OPT{'debug'});
     my ($found_inc, $found_lib, $found_ilib);
-    my $nl;
+    my $nl = 1;
     if ($include) {
         print "includes... " unless ($AUTORUN);
         if (-e "$dir/$include") {
@@ -865,7 +867,7 @@ sub find_in_dir {
         } else {
             println 'no' unless ($AUTORUN);
         }
-        ++$nl;
+        $nl = 0;
     }
     if ($lib || $ilib) {
         print "\n\t" if ($nl && !$AUTORUN);
@@ -1019,6 +1021,7 @@ Defaults for the options are specified in brackets.
 
 Configuration:
   -h, --help              display this help and exit
+
 EndText
 
     if ($^O ne 'MSWin32') {
@@ -1077,14 +1080,15 @@ EndText
                 println "  --$a{option}=DIR    search for $a{name} package";
                 println "                                 source files in DIR";
             } else {
-            println "  --$a{option}=DIR      search for $a{name} package in DIR"
+                println
+                    "  --$a{option}=DIR      search for $a{name} package in DIR"
             }
             if ($a{boption}) {
                 println "  --$a{boption}=DIR      search for $a{name} package";
                 println "                                 build output in DIR";
             }
+            println;
         }
-        println;
     }
     
     if ($optional) {

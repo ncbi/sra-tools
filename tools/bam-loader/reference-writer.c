@@ -129,10 +129,10 @@ rc_t Unsorted(Reference *self) {
 
 #define BAIL_ON_FAIL(STMT) do { rc_t const rc__ = (STMT); if (rc__) return rc__; } while(0)
 
-static rc_t FlushBuffers(Reference *self, uint64_t upto, bool full, bool final)
+static rc_t FlushBuffers(Reference *self, unsigned upto, bool full, bool final)
 {
     if (!self->out_of_order && upto > 0) {
-        size_t offset = 0;
+        unsigned offset = 0;
         unsigned *const miss = (unsigned *)self->mismatches.base;
         unsigned *const indel = (unsigned *)self->indels.base;
         unsigned *const cov = (unsigned *)self->coverage.base;
@@ -142,7 +142,7 @@ static rc_t FlushBuffers(Reference *self, uint64_t upto, bool full, bool final)
         
         while ((self->curPos + offset + (full ? 0 : G.maxSeqLen)) <= upto) {
             ReferenceSeqCoverage data;
-            uint64_t const curPos = self->curPos + offset;
+            unsigned const curPos = self->curPos + offset;
             unsigned const n = self->endPos > (curPos + G.maxSeqLen) ?
                                G.maxSeqLen : (self->endPos - curPos);
             unsigned const m = curPos + n > upto ? upto - curPos : n;
@@ -195,7 +195,7 @@ static rc_t FlushBuffers(Reference *self, uint64_t upto, bool full, bool final)
             ++chunk;
         }
         if (!final && offset > 0) {
-            unsigned const newChunkCount = self->pri_overlap.elem_count - chunk;
+            unsigned const newChunkCount = (unsigned)self->pri_overlap.elem_count - chunk;
             unsigned const newBaseCount = self->endPos - self->curPos - offset;
             
             memmove(self->pri_overlap.base, pri_overlap + chunk, newChunkCount * sizeof(pri_overlap[0]));
@@ -214,9 +214,10 @@ static rc_t FlushBuffers(Reference *self, uint64_t upto, bool full, bool final)
 }
 
 rc_t ReferenceSetFile(Reference *self, const char id[],
-                      uint64_t length, uint8_t const md5[16])
+                      uint64_t length, uint8_t const md5[16],
+                      bool *shouldUnmap)
 {
-    const ReferenceSeq *rseq;
+    ReferenceSeq const *rseq;
     unsigned n;
     
     for (n = 0; ; ++n) {
@@ -231,7 +232,7 @@ rc_t ReferenceSetFile(Reference *self, const char id[],
         return RC(rcApp, rcTable, rcAccessing, rcParam, rcTooLong);
     
     BAIL_ON_FAIL(FlushBuffers(self, self->length, true, true));
-    BAIL_ON_FAIL(ReferenceMgr_GetSeq(self->mgr, &rseq, id));
+    BAIL_ON_FAIL(ReferenceMgr_GetSeq(self->mgr, &rseq, id, shouldUnmap));
 
     if (self->rseq)
         ReferenceSeq_Release(self->rseq);
@@ -239,7 +240,7 @@ rc_t ReferenceSetFile(Reference *self, const char id[],
     
     memcpy(self->last_id, id, n + 1);
     self->curPos = self->endPos = 0;
-    self->length = length;
+    self->length = (unsigned)length;
     self->lastOffset = 0;
     KDataBufferResize(&self->pri_overlap, 0);
     KDataBufferResize(&self->sec_overlap, 0);
@@ -251,13 +252,15 @@ rc_t ReferenceSetFile(Reference *self, const char id[],
 
 rc_t ReferenceVerify(Reference const *self, char const id[], uint64_t length, uint8_t const md5[16])
 {
-    return ReferenceMgr_Verify(self->mgr, id, length, md5);
+    return ReferenceMgr_Verify(self->mgr, id, (unsigned)length, md5);
 }
 
 rc_t ReferenceGet1stRow(Reference const *self, int64_t *refID, char const refName[])
 {
-    const ReferenceSeq* rseq;
-    rc_t rc = ReferenceMgr_GetSeq(self->mgr, &rseq, refName);
+    ReferenceSeq const *rseq;
+    bool shouldUnmap = false;
+    rc_t rc = ReferenceMgr_GetSeq(self->mgr, &rseq, refName, &shouldUnmap);
+
     if( rc == 0 ) {
         rc = ReferenceSeq_Get1stRow(rseq, refID);
         ReferenceSeq_Release(rseq);
@@ -294,7 +297,7 @@ rc_t ReferenceAddCoverage(Reference *const self,
     }
     if ((refEnd - self->curPos) / G.maxSeqLen >= self->pri_overlap.elem_count) {
         unsigned const chunks = (refEnd - self->curPos) / G.maxSeqLen + 1;
-        unsigned const end = self->pri_overlap.elem_count;
+        unsigned const end = (unsigned)self->pri_overlap.elem_count;
         
         BAIL_ON_FAIL(KDataBufferResize(&self->pri_overlap, chunks));
         BAIL_ON_FAIL(KDataBufferResize(&self->sec_overlap, chunks));

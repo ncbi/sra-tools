@@ -279,7 +279,7 @@ public :
         /*  Options handling
          */
     void addStdOpts ();
-    void addOpt ( const struct AOptDef & Opt );
+    void addOpt ( const AOptDef & Opt );
 
     inline size_t optDefCount () const
             { return _M_optDefs . size (); };

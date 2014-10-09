@@ -8,7 +8,6 @@
 #include <klib/rc.h>
 #include <kfc/rc.h>
 
-
 #include <sysalloc.h>
 
 #include <string.h>         /* strcmp () */
@@ -18,13 +17,8 @@
 
 #include "koutstream"
 
-
-/* Sorry for that ... but it is just a test */
-using namespace std;
-using namespace ncbi;
-using namespace ngs;
-
 namespace ngs {
+
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 /* Arguments                                                   */
@@ -39,8 +33,8 @@ public :
     static const char * _sM_fastaName;
     static const char * _sM_legacyReportName;
 
-    static const uint64_t _sM_minSpotIdDefValue = 1;
-    static const uint64_t _sM_maxSpotIdDefValue = ~0;
+    static const int64_t _sM_minSpotIdDefValue = 1;
+    static const int64_t _sM_maxSpotIdDefValue = 0;
 
 public :
     typedef AArgs PAPAHEN;
@@ -53,9 +47,9 @@ public :
     inline const String & accession () const
                 { return _M_accession; };
 
-    inline uint64_t minSpotId () const
+    inline int64_t minSpotId () const
                 { return _M_minSpotId; };
-    inline uint64_t maxSpotId () const
+    inline int64_t maxSpotId () const
                 { return _M_maxSpotId; };
 
     inline uint64_t minReadLength () const
@@ -83,8 +77,8 @@ private :
 
         /*) Full Spot Fulters
          (*/
-    uint64_t _M_minSpotId;      /* -N | --minSpotId < rowid > */
-    uint64_t _M_maxSpotId;      /* -X | --maxSpotId < rowid > */
+    int64_t _M_minSpotId;      /* -N | --minSpotId < rowid > */
+    int64_t _M_maxSpotId;      /* -X | --maxSpotId < rowid > */
     uint64_t _M_minReadLength;  /* -M | --minReadLen <len> */
     ReadCategory _M_category;   /* -Y | --category */
     uint64_t _M_fasta;          /* -A | --fasta */
@@ -248,12 +242,12 @@ DumpArgs :: __customParse ()
     _M_accession = parVal () . val ( 0 );
 
     if ( _M_accession . empty () ) {
-        cerr << "ERROR: <accession> is not defined" << endl;
+        std :: cerr << "ERROR: <accession> is not defined" << std :: endl;
         throw ErrorMsg ( "__custromParse: ERROR: <accession> is not defined" );
     }
 
     AOptVal optV = optVal ( _sM_spotIdName );
-    uint64_t __spotId = ~0;
+    int64_t __spotId = 0;
 
     if ( optV . exist () ) {
         if ( optVal ( _sM_minSpotIdName ) . exist () ) {
@@ -268,7 +262,7 @@ DumpArgs :: __customParse ()
             throw ErrorMsg ( String ( "__custromParse: ERROR: Too many \"" ) + _sM_spotIdName + "\" values");
         }
 
-        __spotId = optV . uint64Val ();
+        __spotId = optV . int64Val ();
     }
 
     optV = optVal ( _sM_minSpotIdName );
@@ -277,7 +271,7 @@ DumpArgs :: __customParse ()
             throw ErrorMsg ( String ( "__custromParse: ERROR: Too many \"" ) + _sM_minSpotIdName + "\" values");
         }
 
-        _M_minSpotId = optV . uint64Val ();
+        _M_minSpotId = optV . int64Val ();
     }
 
     optV = optVal ( _sM_maxSpotIdName );
@@ -286,23 +280,12 @@ DumpArgs :: __customParse ()
             throw ErrorMsg ( String ( "__custromParse: ERROR: Too many \"" ) + _sM_maxSpotIdName + "\" values");
         }
 
-        _M_maxSpotId = optV . uint64Val ();
+        _M_maxSpotId = optV . int64Val ();
     }
 
-    if ( __spotId != ( uint64_t ) ~0 ) {
+    if ( __spotId != 0 ) {
         _M_minSpotId = __spotId;
         _M_maxSpotId = __spotId;
-    }
-    else {
-        if ( _M_maxSpotId < _M_minSpotId ) {
-            uint64_t Si = _M_minSpotId;
-            _M_minSpotId = _M_maxSpotId;
-            _M_maxSpotId = Si;
-        }
-    }
-
-    if ( _M_minSpotId == 0 ) {
-        throw ErrorMsg ( String ( "__custromParse: ERROR: Invalid value '0' for \"" ) + _sM_minSpotIdName + "\"");
     }
 
     optV = optVal ( _sM_minReadLengthName );
@@ -361,9 +344,6 @@ DumpArgs :: __customParse ()
         }
 
         _M_fasta = optV . uint64Val ();
-        if ( _M_fasta == 0 ) {
-            _M_fasta = ~0;
-        }
     }
 
     _M_legacyReport = optVal ( _sM_legacyReportName ) . exist ();
@@ -375,6 +355,8 @@ DumpArgs :: __customParse ()
 /*))
  //  KMain, and all other
 ((*/
+
+using namespace ngs;
 
 ver_t CC KAppVersion ( void ) { return 0; }
 const char UsageDefaultName[] = "fq-d";
@@ -389,9 +371,8 @@ UsageSummary ( const char * progname )
                 "Usage:\n"
                 "  %s [Options] <Accession>\n"
                 "\n"
-                "Summary:\n"
-                "  Does something incredibly useful or we wouldn't have written it.\n"
-                "  I mean very very useful like pre-slicomg bread.\n"
+                "\n"
+                "Use option --help for more information\n"
                 "\n",
                 progname
                 );
@@ -468,13 +449,13 @@ KMain ( int argc, char * argv [] )
 
         TheArgs . dispose ();
     }
-    catch ( exception & E ) {
-        cerr << "Hi, I am exception '" << E.what () << "'" << endl;
+    catch ( std :: exception & E ) {
+        std :: cerr << "Exception handled '" << E.what () << "'" << std :: endl;
 
         return 1;
     }
     catch ( ... ) {
-        cerr << "Hi, I am UNKNOWN exception" << endl;
+        std :: cerr << "UNKNOWN exception handled" << std :: endl;
 
         return 2;
     }
@@ -494,7 +475,7 @@ setupFilters ( AFilters & Filters, const DumpArgs & TheArgs )
 static
 void
 dumpFastQ (
-        uint64_t SpotId,
+        int64_t SpotId,
         const ngs :: String & CollectionName,
         const ReadIterator & Iterator
 )
@@ -509,45 +490,45 @@ dumpFastQ (
          (*/
     kout << "@"
         << CollectionName
-        << "."
+        << '.'
         << SpotId
-        << " "
+        << ' '
         << ReadName
         << " length="
         << Bases . size ()
-        << "\n"
+        << '\n'
         ;
 
         /*)  Second is going base itsefl
          (*/
     kout << Bases
-        << "\n"
+        << '\n'
         ;
 
         /*)  Third, header for qualities
          (*/
-    kout << "+"
+    kout << '+'
         << CollectionName
-        << "."
+        << '.'
         << SpotId
-        << " "
+        << ' '
         << ReadName
         << " length="
         << Qualities . size ()
-        << "\n"
+        << '\n'
         ;
 
         /*)  Finally there are qualities
          (*/
     kout << Qualities
-        << "\n"
+        << '\n'
         ;
 }   /* dumpFastQ () */
 
 static
 void
 dumpFastA (
-        uint64_t SpotId,
+        int64_t SpotId,
         const ngs :: String & CollectionName,
         const ReadIterator & Iterator,
         uint64_t Width
@@ -560,31 +541,37 @@ dumpFastA (
 
     uint64_t __l = Bases . size ();
 
-        /*)  First, we are doint base header
+        /*)  First, we are doing base header
          (*/
-    kout << "<"
+    kout << '>'
         << CollectionName
-        << "."
+        << '.'
         << SpotId
-        << " "
+        << ' '
         << ReadName
         << " length="
         << __l
-        << "\n"
+        << '\n'
         ;
 
-        /*)  Second is going base itsefl by width
+        /*)  Second is going base itself by width
          (*/
 
     uint64_t __p = 0;
     const char * __s = Bases . data ();
 
-    while ( __p < __l ) {
-        uint64_t __t = :: min ( Width, __l - __p );
 
-        kout << string ( __s, __p, __t ) << "\n" ;
+    if ( 0 < Width ) {
+        while ( __p < __l ) {
+            uint64_t __t = std :: min ( Width, __l - __p );
 
-        __p += __t;
+            kout << std :: string ( __s, __p, __t ) << "\n" ;
+
+            __p += __t;
+        }
+    }
+    else {
+        kout << __s << "\n" ;
     }
 
 }   /* dumpFastA () */
@@ -597,25 +584,41 @@ void
 run ( const DumpArgs & TheArgs )
 {
     if ( ! TheArgs . good () ) {
-        throw ngs :: ErrorMsg ( "Invalid BC object" );
+        throw ErrorMsg ( "Invalid arguments" );
     }
 
-    ngs :: ReadCollection RCol = NGS :: openReadCollection (
-                                    TheArgs . accession () . c_str ()
-                                    );
+    ngs :: String Acc ( TheArgs . accession () . c_str () );
+    ReadCollection RCol = ncbi :: NGS :: openReadCollection ( Acc );
+
+    int64_t minSpot = TheArgs . minSpotId ();
+    int64_t maxSpot = TheArgs . maxSpotId ();
+
+    if ( minSpot == 0 ) {
+        minSpot = RCol . getReadCount ();
+    }
+
+    if ( maxSpot == 0 ) {
+        maxSpot = RCol . getReadCount ();
+    }
+
+    if ( maxSpot < minSpot ) {
+        int64_t Id = minSpot;
+        minSpot = maxSpot;
+        maxSpot = Id;
+    }
 
     ReadIterator Iterator = RCol.getReadRange (
-                    TheArgs . minSpotId () ,
-                    TheArgs . maxSpotId () - TheArgs . minSpotId () + 1,
-                    TheArgs . category ()
-                    );
+                                            minSpot,
+                                            maxSpot - minSpot + 1,
+                                            TheArgs . category ()
+                                            );
 
     ngs :: String ReadCollectionName = RCol.getName ();
 
     AFilters Filters ( TheArgs . accession () );
     setupFilters ( Filters, TheArgs );
 
-    for ( uint64_t llp = TheArgs . minSpotId () ; Iterator.nextRead (); llp ++ ) {
+    for ( int64_t llp = TheArgs . minSpotId () ; Iterator.nextRead (); llp ++ ) {
 
         if ( Filters . checkIt ( Iterator ) ) {
             if ( TheArgs . fastaDump () ) {
@@ -627,7 +630,9 @@ run ( const DumpArgs & TheArgs )
         }
     }
 
-    cerr << Filters . report ( TheArgs . legacyReport () );
+    kout.flush ();
+
+    std :: cerr << Filters . report ( TheArgs . legacyReport () );
 
 }   /* run () */
 

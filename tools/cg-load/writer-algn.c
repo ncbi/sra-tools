@@ -523,14 +523,16 @@ rc_t CGWriterAlgn_Write_int(CGWriterAlgn *const self, TReadsData *const read)
             unsigned j;
             INSDC_coord_len reflen = 35;
             ReferenceSeq const *rseq;
+            bool shouldUnmap = false;
             
             memset(&self->match[i], 0, sizeof(self->match[i]));
             
-            rc = ReferenceMgr_GetSeq(self->rmgr, &rseq, refname);
+            rc = ReferenceMgr_GetSeq(self->rmgr, &rseq, refname, &shouldUnmap);
             if (rc) {
                 (void)PLOGERR(klogErr, (klogErr, rc, "Failed accessing Reference '$(ref)'", "ref=%s", refname));
                 break;
             }
+            assert(shouldUnmap == false);
             rc = ReferenceSeq_Get1stRow(rseq, &self->match[i].ref_id); /* if the above worked, this is infallible */
             assert(rc == 0);
             ReferenceSeq_Release(rseq);

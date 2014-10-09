@@ -453,7 +453,7 @@ AArgs :: addStdOpts ()
 
 static
 void
-__toOpt ( const struct AOptDef & In, OptDef & Out )
+__toOpt ( const AOptDef & In, OptDef & Out )
 {
     if ( ! In . good () ) {
         throw ErrorMsg ( "__toOpt: IN is not good" );
@@ -471,7 +471,7 @@ __toOpt ( const struct AOptDef & In, OptDef & Out )
 }   /* __toOpt () */
 
 void
-AArgs :: addOpt ( const struct AOptDef & Opt )
+AArgs :: addOpt ( const AOptDef & Opt )
 {
     if ( ! good () ) {
         throw ErrorMsg ( "addOpt: Not good " );

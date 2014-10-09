@@ -302,6 +302,7 @@ static void CC vdm_read_cell_data( void *item, void *data )
     else
     {
         bool print_comma = true;
+        bool sra_dump_format;
 
         /* initialize the element-idx ( for dimension > 1 ) */
         src.element_idx = 0;
@@ -309,6 +310,9 @@ static void CC vdm_read_cell_data( void *item, void *data )
         /* transfer context-flags (hex-print, no sra-types) */
         src.in_hex = r_ctx->ctx->print_in_hex;
         src.without_sra_types = r_ctx->ctx->without_sra_types;
+
+        /* special treatment to suppress spaces between values */
+        sra_dump_format = ( r_ctx->ctx->format == df_sra_dump );
 
         /* hardcoded printing of dna-bases if the column-type fits */
         src.print_dna_bases = ( r_ctx->ctx->print_dna_bases &
@@ -344,7 +348,10 @@ static void CC vdm_read_cell_data( void *item, void *data )
                 uint32_t eidx = src.element_idx;
                 if ( ( eidx > 0 )&& ( src.print_dna_bases == false ) && print_comma )
                 {
-                    vds_append_str( &(my_col_def->content), ", " );
+                    if ( sra_dump_format )
+                        vds_append_str( &(my_col_def->content), "," );
+                    else
+                        vds_append_str( &(my_col_def->content), ", " );
                 }
 
                 /* dumps the basic data-types, implementation in vdb-dump-tools.c
@@ -354,7 +361,7 @@ static void CC vdm_read_cell_data( void *item, void *data )
                    dump_element is also responsible for incrementing
                    the src.element_idx by: 1...bool/int/uint/float
                                            n...string/unicode-string */
-                r_ctx->rc = vdt_dump_element( &src, my_col_def );
+                r_ctx->rc = vdt_dump_element( &src, my_col_def, !sra_dump_format );
 
                 /* insurance against endless loop */
                 if ( eidx == src.element_idx )

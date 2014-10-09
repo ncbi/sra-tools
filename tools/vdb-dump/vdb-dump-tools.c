@@ -468,7 +468,7 @@ my_col_def  [IN] ... the definition of the column to be dumped
 
 dumps one data-element (or a vector of it)
 *************************************************************************************/
-rc_t vdt_dump_element( const p_dump_src src, const p_col_def def )
+rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket )
 {
     int dimension, selection;
     rc_t rc = 0;
@@ -501,7 +501,8 @@ rc_t vdt_dump_element( const p_dump_src src, const p_col_def def )
 
             if ( paren )
             {
-                rc = vds_append_str( &(def->content), "[" );
+                rc = vds_append_str( &(def->content), bracket ? "[" : "{" );
+                
                 DISP_RC( rc, "dump_str_append_str() failed" )
             }
 
@@ -517,7 +518,7 @@ rc_t vdt_dump_element( const p_dump_src src, const p_col_def def )
 
             if ( paren && ( rc == 0 ) )
             {
-                rc = vds_append_str( &(def->content), "]" );
+                rc = vds_append_str( &(def->content), bracket ? "]" : "}" );
                 DISP_RC( rc, "dump_str_append_str() failed" )
             }
         }

@@ -365,6 +365,8 @@ static bool vdco_set_format( p_dump_context ctx, const char *src )
         ctx->format = df_json;
     else if ( strcmp( src, "piped" ) == 0 )
         ctx->format = df_piped;
+    else if ( strcmp( src, "sra-dump" ) == 0 )
+        ctx->format = df_sra_dump;
     else if ( strcmp( src, "tab" ) == 0 )
         ctx->format = df_tab;
     else if ( strcmp( src, "fastq" ) == 0 )
@@ -562,6 +564,9 @@ static void vdco_evaluate_options( const Args *my_args,
     vdco_set_schemas( my_args, ctx );
     vdco_set_filter( ctx, vdco_get_str_option( my_args, OPTION_FILTER ) );
     vdco_set_boolean_char( ctx, vdco_get_str_option( my_args, OPTION_BOOLEAN ) );
+
+    if ( ctx->format == df_sra_dump )
+        ctx->without_sra_types = true;
 }
 
 rc_t vdco_capture_arguments_and_options( const Args * args, dump_context *ctx)

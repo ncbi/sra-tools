@@ -1638,7 +1638,7 @@ rc_t discover_rna_splicing_candidates( uint32_t cigar_len, const char * cigar, u
         {
             char op_code = cigops[ op_idx ].op;
             uint32_t op_len = cigops[ op_idx ].oplen;
-            if ( op_code == 'D' && op_len >= min_len && candidates->count < MAX_RNA_SPLICE_CANDIDATES )
+            if ( (op_code == 'D' || op_code == 'N') && op_len >= min_len && candidates->count < MAX_RNA_SPLICE_CANDIDATES )
             {
                 rna_splice_candidate * rsc = &candidates->candidates[ candidates->count++ ];
                 rsc->ref_offset = ref_offset;

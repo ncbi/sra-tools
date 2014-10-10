@@ -317,10 +317,10 @@ namespace AlignCache
             g_Params.dbPath = args.GetParamValue (0);
 
             if (args.GetOptionCount (OPTION_ID_SPREAD_THRESHOLD))
-                g_Params.id_spread_threshold = args.GetOptionValueInt<int64_t> ( OPTION_ID_SPREAD_THRESHOLD, 0 );
+                g_Params.id_spread_threshold = args.GetOptionValueUInt<int64_t> ( OPTION_ID_SPREAD_THRESHOLD, 0 );
 
             if (args.GetOptionCount (OPTION_CURSOR_CACHE_SIZE))
-                g_Params.cursor_cache_size = args.GetOptionValueInt<size_t> ( OPTION_CURSOR_CACHE_SIZE, 0 );
+                g_Params.cursor_cache_size = args.GetOptionValueUInt<size_t> ( OPTION_CURSOR_CACHE_SIZE, 0 );
 
             //std::cout
             //    << "dbPath=" << g_Params.dbPath << std::endl

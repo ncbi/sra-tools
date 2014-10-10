@@ -24,7 +24,7 @@
 
 use strict;
 
-sub println { print @_; print "\n"; }
+sub println  { print @_; print "\n" }
 
 my ($filename, $directories, $suffix) = fileparse($0);
 if ($directories ne "./") {
@@ -166,7 +166,6 @@ $TARGDIR = expand($OPT{'build'}) if ($OPT{'build'});
 my $BUILD = 'rel';
 
 # parse command line
-#$BUILD = $OPT{'BUILD'} if ($OPT{'BUILD'});
 $BUILD = 'dbg' if ($OPT{'with-debug'});
 $BUILD = 'rel' if ($OPT{'without-debug'});
 
@@ -456,121 +455,106 @@ foreach my $href (@REQ) {
     }
 }
 
-my @c_arch;
-
-if ($OS ne 'win') {
+if ($OS ne 'win' && ! $OPT{'status'}) {
     # create Makefile.config
-    push (@c_arch, '### AUTO-GENERATED FILE ###');
-    push (@c_arch, '');
-    push (@c_arch, '');
-    push (@c_arch, 'OS_ARCH = $(shell perl $(TOP)/os-arch.perl)');
-    push (@c_arch, '');
+    println "configure: creating '$OUT_MAKEFILE'" unless ($AUTORUN);
+    open my $F, ">$OUT_MAKEFILE" or die "cannot open $OUT_MAKEFILE to write";
 
-if (0) {
-    push (@c_arch,  "# build type");
-    push (@c_arch,  "BUILD = $BUILD");
-    push (@c_arch,  "" );
-    if ($OPT{'build'}) {
-        push (@c_arch,  "# output path");
-        push (@c_arch,  "TARGDIR = $TARGDIR");
-        push (@c_arch,  "" );
-    }
-}
+    print $F <<EndText;
+### AUTO-GENERATED FILE ###
 
-    push (@c_arch, "# install paths");
-    push (@c_arch, "INST_BINDIR = $OPT{bindir}") if ($OPT{bindir});
-    push (@c_arch, "INST_LIBDIR = $OPT{libdir}") if ($OPT{libdir});
-    push (@c_arch, "INST_INCDIR = $OPT{includedir}") if ($OPT{includedir});
-    push (@c_arch, "INST_SCHEMADIR = $OPT{'shemadir'}") if ($OPT{'shemadir'});
-    push (@c_arch, "INST_SHAREDIR = $OPT{'sharedir'}") if ($OPT{'sharedir'});
-    push (@c_arch, "INST_JARDIR = $OPT{'javadir'}") if ($OPT{'javadir'});
-    push (@c_arch, "INST_PYTHONDIR = $OPT{'pythondir'}") if ($OPT{'pythondir'});
-    push (@c_arch, "");
+OS_ARCH = \$(shell perl \$(TOP)/os-arch.perl)
 
-    push (@c_arch, "# build type");
-    push (@c_arch, "BUILD ?= $BUILD");
-    push (@c_arch,  "" );
+# install paths
+EndText
 
-    push (@c_arch,  "# target OS" );
-    push (@c_arch,  "OS = " . $OS );
-    push (@c_arch,  "OSINC = " . $OSINC );
-    push (@c_arch,  "" );
-    push (@c_arch,  "# prefix string for system libraries" );
-    push (@c_arch,  "LPFX = " . $LPFX );
-    push (@c_arch,  "" );
+    L($F, "INST_BINDIR = $OPT{bindir}"        ) if ($OPT{bindir});
+    L($F, "INST_LIBDIR = $OPT{libdir}"        ) if ($OPT{libdir});
+    L($F, "INST_INCDIR = $OPT{includedir}"    ) if ($OPT{includedir});
+    L($F, "INST_SCHEMADIR = $OPT{'shemadir'}" ) if ($OPT{'shemadir'});
+    L($F, "INST_SHAREDIR = $OPT{'sharedir'}"  ) if ($OPT{'sharedir'});
+    L($F, "INST_JARDIR = $OPT{'javadir'}"     ) if ($OPT{'javadir'});
+    L($F, "INST_PYTHONDIR = $OPT{'pythondir'}") if ($OPT{'pythondir'});
 
-    push (@c_arch,  "# suffix strings for system libraries" );
-    push (@c_arch,  "LIBX = $LIBX" );
-    push (@c_arch,  "VERSION_LIBX = \$(LIBX).\$(VERSION)" );
-    push (@c_arch,  "MAJMIN_LIBX = \$(LIBX).\$(MAJMIN)" );
-    push (@c_arch,  "MAJVERS_LIBX = \$(LIBX).\$(MAJVERS)" );
-    push (@c_arch,  "" );
-    
-    push (@c_arch,  "SHLX = $SHLX" );
-    push (@c_arch,  "VERSION_SHLX = \$(SHLX).\$(VERSION)" );
-    push (@c_arch,  "MAJMIN_SHLX = \$(SHLX).\$(MAJMIN)" );
-    push (@c_arch,  "MAJVERS_SHLX = \$(SHLX).\$(MAJVERS)" );
-    push (@c_arch,  "" );
+    print $F <<EndText;
 
-    push (@c_arch,  "# suffix strings for system object files" );
-    push (@c_arch,  "OBJX = $OBJX" );
-    push (@c_arch,  "LOBX = $LOBX" );
-    push (@c_arch,  "" );
+# build type
+BUILD = $BUILD
 
-    push (@c_arch,  "# suffix string for system executable" );
-    push (@c_arch,  "EXEX = $EXEX" );
-    push (@c_arch,  "VERSION_EXEX = \$(EXEX).\$(VERSION)" );
-    push (@c_arch,  "MAJMIN_EXEX = \$(EXEX).\$(MAJMIN)" );
-    push (@c_arch,  "MAJVERS_EXEX = \$(EXEX).\$(MAJVERS)" );
-    push (@c_arch,  "" );
+# target OS
+OS    = $OS
+OSINC = $OSINC
 
-    push (@c_arch,  "# system architecture and wordsize" );
-    if ( $ARCH eq $MARCH ) {
-        push (@c_arch,  "ARCH = " . $ARCH );
+# prefix string for system libraries
+LPFX = $LPFX
+
+# suffix strings for system libraries
+LIBX = $LIBX
+VERSION_LIBX = \$(LIBX).\$(VERSION)
+MAJMIN_LIBX  = \$(LIBX).\$(MAJMIN)
+MAJVERS_LIBX = \$(LIBX).\$(MAJVERS)
+
+SHLX = $SHLX
+VERSION_SHLX = \$(SHLX).\$(VERSION)
+MAJMIN_SHLX  = \$(SHLX).\$(MAJMIN)
+MAJVERS_SHLX = \$(SHLX).\$(MAJVERS)
+
+# suffix strings for system object files
+OBJX = $OBJX
+LOBX = $LOBX
+
+# suffix string for system executable
+EXEX = $EXEX
+VERSION_EXEX = \$(EXEX).\$(VERSION)
+MAJMIN_EXEX  = \$(EXEX).\$(MAJMIN)
+MAJVERS_EXEX = \$(EXEX).\$(MAJVERS)
+
+# system architecture and wordsize
+ARCH = $ARCH
+EndText
+
+    L($F, "# ARCH = $ARCH ( $MARCH )") if ($ARCH ne $MARCH);
+
+    print $F <<EndText;
+BITS = $BITS
+
+# tools
+EndText
+
+    L($F, "CC    = $CC"   ) if ($CC);
+    L($F, "CP    = $CP"   ) if ($CP);
+    L($F, "AR    = $AR"   ) if ($AR);
+    L($F, "ARX   = $ARX"  ) if ($ARX);
+    L($F, "ARLS  = $ARLS" ) if ($ARLS);
+    L($F, "LD    = $LD"   ) if ($LD);
+    L($F, "LP    = $LP"   ) if ($LP);
+    L($F, "JAVAC = $JAVAC") if ($JAVAC);
+    L($F, "JAVAH = $JAVAH") if ($JAVAH);
+    L($F, "JAR   = $JAR"  ) if ($JAR);
+    L($F);
+
+    L($F, '# tool options');
+    if ($BUILD eq "dbg") {
+        L($F, "DBG     = $DBG");
+        L($F, "OPT     = ");
     } else {
-        push (@c_arch, "ARCH = $ARCH" );
-        push (@c_arch, "# ARCH = $ARCH ( $MARCH )" );
+        L($F, "DBG     = -DNDEBUG") if ($PKG{LNG} eq 'C');
+        L($F, "OPT     = $OPT"    ) if ($OPT);
     }
-    push (@c_arch,  "BITS = " . $BITS );
-    push (@c_arch,  "" );
-
-    push (@c_arch,  '# tools');
-    push (@c_arch,  "CC   = " . $CC ) if ($CC);
-    push (@c_arch,  "CP   = " . $CP ) if ($CP);
-    push (@c_arch,  "AR   = " . $AR ) if ($AR);
-    push (@c_arch,  "ARX  = " . $ARX ) if ($ARX);
-    push (@c_arch,  "ARLS = " . $ARLS ) if ($ARLS);
-    push (@c_arch,  "LD   = " . $LD ) if ($LD);
-    push (@c_arch,  "LP   = " . $LP ) if ($LP);
-    push (@c_arch,  "JAVAC  = " . $JAVAC ) if ($JAVAC);
-    push (@c_arch,  "JAVAH  = " . $JAVAH ) if ($JAVAH);
-    push (@c_arch,  "JAR  = " . $JAR ) if ($JAR);
-    push (@c_arch,  "" );
-    push (@c_arch,  "" );
-
-    push (@c_arch,  "# tool options" );
-    if ( $BUILD eq "dbg" ) {
-        push (@c_arch,  "DBG     = $DBG" );
-        push (@c_arch,  "OPT     = ");
-    } else {
-        push (@c_arch,  "DBG     = -DNDEBUG" ) if ($PKG{LNG} eq 'C');
-        push (@c_arch,  "OPT     = $OPT" ) if ($OPT);
-    }
-    push (@c_arch,  "PIC     = $PIC" ) if ($PIC);
+    L($F, "PIC     = $PIC") if ($PIC);
     if ($PKG{LNG} eq 'C') {
-        push (@c_arch,
-            "SONAME  = -Wl,-soname=\$(subst \$(VERSION),\$(MAJVERS),\$(\@F))");
-        push (@c_arch,  "SRCINC  = $INC. $INC\$(SRCDIR)" );
+        L($F, 'SONAME  = -Wl,-soname=$(subst $(VERSION),$(MAJVERS),$(@F))');
+        L($F, "SRCINC  = $INC. $INC\$(SRCDIR)");
     } elsif ($PKG{LNG} eq 'JAVA') {
-        push (@c_arch,  "SRCINC  = -sourcepath \$(INCPATHS)" );
+        L($F, 'SRCINC  = -sourcepath $(INCPATHS)');
     }
-    push (@c_arch,  "INCDIRS = \$(SRCINC) $INC\$(TOP)" ) if ($PIC);
+    L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP)") if ($PIC);
     if ($PKG{LNG} eq 'C') {
-        push (@c_arch,  "CFLAGS  = \$(DBG) \$(OPT) \$(INCDIRS) $MD" );
+        L($F, "CFLAGS  = \$(DBG) \$(OPT) \$(INCDIRS) $MD");
     }
-    push (@c_arch,  "CLSPATH = -classpath \$(CLSDIR)" );
-    push (@c_arch,  "" );
-    push (@c_arch,  "" );
+
+    L($F, 'CLSPATH = -classpath $(CLSDIR)');
+    L($F);
 
     # version information
 
@@ -584,144 +568,153 @@ if (0) {
         die $VERSION;
     }
 
-    push (@c_arch,  "# $PACKAGE_NAME and library version");
-    push (@c_arch,  "VERSION = " . $VERSION );
-    push (@c_arch,  "MAJMIN  = " . $MAJMIN );
-    push (@c_arch,  "MAJVERS = " . $MAJVERS );
-    push (@c_arch,  "" );
+    print $F <<EndText;
+# $PACKAGE_NAME and library version
+VERSION = $VERSION
+MAJMIN  = $MAJMIN
+MAJVERS = $MAJVERS
 
-    # determine output path
-    push (@c_arch,  "# output path" );
-    push (@c_arch,  "TARGDIR = " . $TARGDIR );
-    push (@c_arch,  "" );
+# output path
+TARGDIR = $TARGDIR
 
-    # determine include install path
-    # determine library install path
+# derived paths
+MODPATH  ?= \$(subst \$(TOP)/,,\$(CURDIR))
+SRCDIR   ?= \$(TOP)/\$(MODPATH)
+MAKEFILE ?= \$(abspath \$(firstword \$(MAKEFILE_LIST)))
+BINDIR    = \$(TARGDIR)/bin
+EndText
 
-    # other things
-    push (@c_arch,  "# derived paths" );
-    push (@c_arch,  "MODPATH  ?= \$(subst \$(TOP)/,,\$(CURDIR))" );
-    push (@c_arch,  "SRCDIR   ?= \$(TOP)/\$(MODPATH)" );
-    push (@c_arch,  "MAKEFILE ?= \$(abspath \$(firstword \$(MAKEFILE_LIST)))" );
-    push (@c_arch,  "BINDIR    = \$(TARGDIR)/bin" );
     if ($PKG{LNG} eq 'C') {
-        push (@c_arch,  "LIBDIR    = \$(TARGDIR)/lib" );
+        L($F, 'LIBDIR    = $(TARGDIR)/lib');
     } elsif ($PKG{LNG} eq 'JAVA') {
-        push (@c_arch,  "LIBDIR    = \$(TARGDIR)/jar" );
+        L($F, 'LIBDIR    = $(TARGDIR)/jar');
     }
-    push (@c_arch,  "ILIBDIR   = \$(TARGDIR)/ilib" );
-    push (@c_arch,  "OBJDIR    = \$(TARGDIR)/obj/\$(MODPATH)" );
-    push (@c_arch,  "CLSDIR    = \$(TARGDIR)/cls" );
+
+    print $F <<EndText;
+ILIBDIR   = \$(TARGDIR)/ilib
+OBJDIR    = \$(TARGDIR)/obj/\$(MODPATH)
+CLSDIR    = \$(TARGDIR)/cls
+EndText
 
     if ($PKG{LNG} eq 'JAVA') {
-        push (@c_arch, "INCPATHS = "
-            . "\$(SRCDIR):\$(SRCDIR)/itf:\$(TOP)/gov/nih/nlm/ncbi/ngs" );
+        L($F,
+            "INCPATHS = \$(SRCDIR):\$(SRCDIR)/itf:\$(TOP)/gov/nih/nlm/ncbi/ngs")
     }
 
-    push (@c_arch,  "" );
+    print $F <<EndText;
 
-    push (@c_arch,  "# exports" );
-    push (@c_arch,  "export TOP" );
-    push (@c_arch,  "export MODPATH" );
-    push (@c_arch,  "export SRCDIR" );
-    push (@c_arch,  "export MAKEFILE" );
-    push (@c_arch,  "" );
+# exports
+export TOP
+export MODPATH
+export SRCDIR
+export MAKEFILE
 
-    push (@c_arch,  "# auto-compilation rules" );
+# auto-compilation rules
+EndText
+
     if ($PKG{LNG} eq 'C') {
-        push (@c_arch,  "\$(OBJDIR)/%.\$(OBJX): %.c" );
-        push (@c_arch,  "\t\$(CC) -o \$@ \$< \$(CFLAGS)" );
-        push (@c_arch,  "\$(OBJDIR)/%.\$(LOBX): %.c" );
-        push (@c_arch,  "\t\$(CC) -o \$@ \$< \$(PIC) \$(CFLAGS)" );
+        L($F, '$(OBJDIR)/%.$(OBJX): %.c');
+        T($F, '$(CC) -o $@ $< $(CFLAGS)');
+        T($F, '$(OBJDIR)/%.$(LOBX): %.c');
+        T($F, '$(CC) -o $@ $< $(PIC) $(CFLAGS)');
     }
-    push (@c_arch,  "\$(OBJDIR)/%.\$(OBJX): %.cpp" );
-    push (@c_arch,  "\t\$(CP) -o \$@ \$< \$(CFLAGS)" );
-    push (@c_arch,  "\$(OBJDIR)/%.\$(LOBX): %.cpp" );
-    push (@c_arch,  "\t\$(CP) -o \$@ \$< \$(PIC) \$(CFLAGS)" );
-    push (@c_arch,  "" );
+    L($F, '$(OBJDIR)/%.$(OBJX): %.cpp');
+    T($F, '$(CP) -o $@ $< $(CFLAGS)');
+    T($F, '$(OBJDIR)/%.$(LOBX): %.cpp');
+    T($F, '$(CP) -o $@ $< $(PIC) $(CFLAGS)');
+    L($F);
 
     # this is part of Makefile
-    push (@c_arch,  "VPATH = \$(SRCDIR)" );
-    push (@c_arch,  "" );
+    L($F, 'VPATH = $(SRCDIR)');
+    L($F);
 
     # we know how to find jni headers
     if ($PKG{LNG} eq 'JAVA' and $OPT{'with-ngs-sdk-src'}) {
-        push(@c_arch, "JNIPATH = $OPT{'with-ngs-sdk-src'}/language/java");
+        L($F, "JNIPATH = $OPT{'with-ngs-sdk-src'}/language/java");
     }
 
-    push (@c_arch,  "# directory rules" );
+    L($F, '# directory rules');
     if ($PKG{LNG} eq 'C') {
-        push(@c_arch,  "\$(BINDIR) \$(LIBDIR) \$(ILIBDIR) \$(OBJDIR) \$(INST_LIBDIR) \$(INST_LIBDIR)\$(BITS):\n"
-                     . "\tmkdir -p \$@" );
+        L($F, '$(BINDIR) $(LIBDIR) $(ILIBDIR) '
+            . '$(OBJDIR) $(INST_LIBDIR) $(INST_LIBDIR)$(BITS):');
+        T($F, 'mkdir -p $@');
     } elsif ($PKG{LNG} eq 'JAVA') {
         # test if we have jni header path
-        push(@c_arch,  "\$(LIBDIR) \$(CLSDIR) \$(INST_JARDIR):\n\tmkdir -p \$@")
+        L($F, '$(LIBDIR) $(CLSDIR) $(INST_JARDIR):');
+        T($F, 'mkdir -p $@');
     }
-    push (@c_arch,  "" );
+    L($F);
 
-    push (@c_arch,  "# not real targets" );
-    push (@c_arch,  ".PHONY: default clean install all std \$(TARGETS)" );
-    push (@c_arch,  "" );
+    L($F, '# not real targets');
+    L($F, '.PHONY: default clean install all std $(TARGETS)');
+    L($F);
 
-    push (@c_arch,  "# dependencies" );
+    L($F, '# dependencies');
     if ($PKG{LNG} eq 'C') {
-        push (@c_arch,  "include \$(wildcard \$(OBJDIR)/*.d)" );
+        L($F, 'include $(wildcard $(OBJDIR)/*.d)');
     } elsif ($PKG{LNG} eq 'JAVA') {
-        push (@c_arch,  "include \$(wildcard \$(CLSDIR)/*.d)" );
+        L($F, 'include $(wildcard $(CLSDIR)/*.d)');
     }
-    push (@c_arch, @dependencies);
-    push (@c_arch,  "" );
+    L($F, $_) foreach (@dependencies);
+    L($F);
 
-  if ($OS eq 'linux' || $OS eq 'mac') {
-    push (@c_arch, '# installation rules');
-    push (@c_arch,
+    if ($OS eq 'linux' || $OS eq 'mac') {
+        L($F, '# installation rules');
+        L($F,
         '$(INST_LIBDIR)$(BITS)/%.$(VERSION_LIBX): $(LIBDIR)/%.$(VERSION_LIBX)');
-    push (@c_arch, "\t@ echo -n \"installing '\$(\@F)'... \"");
-    push (@c_arch, "\t@ if cp \$^ \$\@ && chmod 644 \$\@;                  \\");
-    push (@c_arch, "\t  then                                               \\");
-    push (@c_arch, "\t      rm -f \$(subst \$(VERSION),\$(MAJVERS),\$@) \$(subst \$(VERSION_LIBX),\$(LIBX),\$\@); \\");
-    push (@c_arch, "\t      ln -s \$(\@F) \$(subst \$(VERSION),\$(MAJVERS),\$\@); \\");
-    push (@c_arch, "\t      ln -s \$(subst \$(VERSION),\$(MAJVERS),\$(\@F)) \$(subst \$(VERSION_LIBX),\$(LIBX),\$\@) ; \\");
-    push (@c_arch, "\t      echo success;                                  \\");
-    push (@c_arch, "\t  else                                               \\");
-    push (@c_arch, "\t      echo failure;                                  \\");
-    push (@c_arch, "\t      false;                                         \\");
-    push (@c_arch, "\t  fi");
-    push (@c_arch, '');
+        T($F, '@ echo -n "installing \'$(@F)\'... "');
+        T($F, '@ if cp $^ $@ && chmod 644 $@;                         \\');
+        T($F, '  then                                                 \\');
+        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
+                      . '$(subst $(VERSION_LIBX),$(LIBX),$@);    \\');
+        T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
+        T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
+                      . '$(subst $(VERSION_LIBX),$(LIBX),$@); \\');
+        T($F, '      echo success;                                    \\');
+        T($F, '  else                                                 \\');
+        T($F, '      echo failure;                                    \\');
+        T($F, '      false;                                           \\');
+        T($F, '  fi');
+        L($F);
 
-    push (@c_arch,
+        L($F,
         '$(INST_LIBDIR)$(BITS)/%.$(VERSION_SHLX): $(LIBDIR)/%.$(VERSION_SHLX)');
-    push (@c_arch, "\t@ echo -n \"installing '\$(\@F)'... \"");
-    push (@c_arch, "\t@ if cp \$^ \$\@ && chmod 755 \$\@;                  \\");
-    push (@c_arch, "\t  then                                               \\");
-    push (@c_arch, "\t      rm -f \$(subst \$(VERSION),\$(MAJVERS),\$\@) \$(subst \$(VERSION_SHLX),\$(SHLX),\$\@) ; \\");
-    push (@c_arch, "\t      ln -s \$(\@F) \$(subst \$(VERSION),\$(MAJVERS),\$\@); \\");
-    push (@c_arch, "\t      ln -s \$(subst \$(VERSION),\$(MAJVERS),\$(\@F)) \$(subst \$(VERSION_SHLX),\$(SHLX),\$\@) ; \\");
-    push (@c_arch, "\t      cp -v \$(LIBDIR)/\$(subst \$(VERSION_SHLX),\$(VERSION_LIBX),\$(\@F)) \$(INST_LIBDIR)\$(BITS)/ ; \\");
-    push (@c_arch, "\t      ln -vfs \$(subst \$(VERSION_SHLX),\$(VERSION_LIBX),\$(\@F)) \$(INST_LIBDIR)\$(BITS)/\$(subst .\$(VERSION_SHLX),-static.\$(LIBX),\$(\@F)) ; \\");
-    push (@c_arch, "\t      echo success;                                  \\");
-    push (@c_arch, "\t  else                                               \\");
-    push (@c_arch, "\t      echo failure;                                  \\");
-    push (@c_arch, "\t      false;                                         \\");
-    push (@c_arch, "\t  fi");
-    push (@c_arch, '');
+        T($F, '@ echo -n "installing \'$(@F)\'... "');
+        T($F, '@ if cp $^ $@ && chmod 755 $@;                         \\');
+        T($F, '  then                                                 \\');
+        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
+                      . '$(subst $(VERSION_SHLX),$(SHLX),$@);    \\');
+        T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
+        T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
+                      . '$(subst $(VERSION_SHLX),$(SHLX),$@); \\');
+        T($F, '      cp -v $(LIBDIR)/$(subst $(VERSION_SHLX),'
+                    . '$(VERSION_LIBX),$(@F)) $(INST_LIBDIR)$(BITS)/; \\');
+        T($F, '      ln -vfs $(subst $(VERSION_SHLX),$(VERSION_LIBX), $(@F)) ' .
+       '$(INST_LIBDIR)$(BITS)/$(subst .$(VERSION_SHLX),-static.\$(LIBX),$(@F));'
+                                                              . ' \\');
+        T($F, '      echo success;                                    \\');
+        T($F, '  else                                                 \\');
+        T($F, '      echo failure;                                    \\');
+        T($F, '      false;                                           \\');
+        T($F, '  fi');
+        L($F);
 
-if (0) {
-    push (@c_arch,
-        '$(INST_BINDIR)/%$(VERSION_EXEX): $(BINDIR)/%$(VERSION_EXEX)');
-    push (@c_arch, "\t@ echo -n \"installing '\$(\@F)'... \"");
-    push (@c_arch, "\t@ if cp \$^ \$\@ && chmod 755 \$\@;                  \\");
-    push (@c_arch, "\t  then                                               \\");
-    push (@c_arch, "\t      rm -f \$(subst \$(VERSION),\$(MAJVERS),\$\@) \$(subst \$(VERSION_EXEX),\$(EXEX),\$\@) ; \\");
-    push (@c_arch, "\t      ln -s \$(\@F) \$(subst \$(VERSION),\$(MAJVERS),\$\@); \\");
-    push (@c_arch, "\t      ln -s \$(subst \$(VERSION),\$(MAJVERS),\$(\@F)) \$(subst \$(VERSION_EXEX),\$(EXEX),\$\@) ; \\");
-    push (@c_arch, "\t      echo success;                                  \\");
-    push (@c_arch, "\t  else                                               \\");
-    push (@c_arch, "\t      echo failure;                                  \\");
-    push (@c_arch, "\t      false;                                         \\");
-    push (@c_arch, "\t  fi");
-}
-  }
+        L($F, '$(INST_BINDIR)/%$(VERSION_EXEX): $(BINDIR)/%$(VERSION_EXEX)');
+        T($F, '@ echo -n "installing \'$(@F)\'... "');
+        T($F, '@ if cp $^ $@ && chmod 755 $@;                         \\');
+        T($F, '  then                                                 \\');
+        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
+                      . '$(subst $(VERSION_EXEX),$(EXEX),$@);     \\');
+        T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
+        T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
+                      . '$(subst $(VERSION_EXEX),$(EXEX),$@); \\');
+        T($F, '      echo success;                                    \\');
+        T($F, '  else                                                 \\');
+        T($F, '      echo failure;                                    \\');
+        T($F, '      false;                                           \\');
+        T($F, '  fi');
+    }
+    close $F;
 }
 
 if (! $OPT{'status'} ) {
@@ -758,23 +751,21 @@ EndText
         println "configure: creating 'Makefile.config'" unless ($AUTORUN);
         my $CONFIG_OUT = CONFIG_OUT();
         my $out = File::Spec->catdir($CONFIG_OUT, 'Makefile.config');
-        open OUT, ">$out" or die "cannot open $out to write";
-        print OUT "### AUTO-GENERATED FILE ###\n";
-        print OUT "\n";
-        print OUT "OS_ARCH = \$(shell perl \$(TOP)/os-arch.perl)\n";
-        print OUT "include \$(TOP)/$CONFIG_OUT/Makefile.config.\$(OS_ARCH)\n";
-        close OUT;
-
-        println "configure: creating '$OUT_MAKEFILE'" unless ($AUTORUN);
-        open OUT, ">$OUT_MAKEFILE" or die "cannot open $OUT_MAKEFILE to write";
-        print OUT "$_\n" foreach (@c_arch);
-        close OUT;
+        open COUT, ">$out" or die "cannot open $out to write";
+        print COUT "### AUTO-GENERATED FILE ###\n";
+        print COUT "\n";
+        print COUT "OS_ARCH = \$(shell perl \$(TOP)/os-arch.perl)\n";
+        print COUT "include \$(TOP)/$CONFIG_OUT/Makefile.config.\$(OS_ARCH)\n";
+        close COUT;
     }
 }
 
 status() if ($OS ne 'win');
 
 unlink 'a.out';
+
+sub L { $_[1] = '' unless ($_[1]); print { $_[0] }   "$_[1]\n" }
+sub T {                            print { $_[0] } "\t$_[1]\n" }
 
 sub status {
     my ($load) = @_;

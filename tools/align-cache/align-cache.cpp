@@ -87,7 +87,7 @@ namespace AlignCache
             size_t percent = (size_t)(points*count/total_count);
             std::cout
                 << percent
-                << "%% ("
+                << "% ("
                 << count
                 << "/"
                 << total_count
@@ -218,7 +218,7 @@ namespace AlignCache
 
         cursor.GetIdRange (idRow, nRowCount);
 
-        for (; (uint64_t)idRow < nRowCount/500; ++idRow )
+        for (; (uint64_t)idRow < nRowCount; ++idRow )
         {
             if ( ProcessSequenceRow (idRow, cursor, vect, ColumnIndexSequence[0]) )
                 ++count;
@@ -292,7 +292,7 @@ namespace AlignCache
         size_t count = FillKVectorWithAlignIDs ( vdb, g_Params.cursor_cache_size, vect );
 
         // For each id in vect cache the PRIMARY_ALIGNMENT record
-        CachePrimaryAlignment ( mgr, vdb, g_Params.cursor_cache_size, vect, count );
+        CachePrimaryAlignment ( mgr, vdb, g_Params.cursor_cache_size, vect, count*2 );
     }
 
 
@@ -321,6 +321,11 @@ namespace AlignCache
 
             if (args.GetOptionCount (OPTION_CURSOR_CACHE_SIZE))
                 g_Params.cursor_cache_size = args.GetOptionValueInt<size_t> ( OPTION_CURSOR_CACHE_SIZE, 0 );
+
+            //std::cout
+            //    << "dbPath=" << g_Params.dbPath << std::endl
+            //    << "threshold=" << g_Params.id_spread_threshold << std::endl
+            //    << "cache_size=" << g_Params.cursor_cache_size << std::endl;
 
             create_cache_db_impl ();
         }

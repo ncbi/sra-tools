@@ -36,6 +36,7 @@
 #include <vdb/cursor.h>
 #include <klib/printf.h>
 #include <klib/vector.h>
+#include <kapp/args.h>
 
 #ifndef countof
 #define countof(arr) (sizeof(arr)/sizeof(arr[0]))
@@ -67,16 +68,16 @@ namespace KLib
         void Make();
         void Release();
 
-        ::KVector* m_pKVector;
+        ::KVector* m_pSelf;
     };
 }
 
 namespace VDBObjects
 {
-    class CErrorMsg : public std::exception
+    class CErrorMsg : public std::exception // TODO: move it out of VDBObjects
     {
     public:
-        CErrorMsg(rc_t rc, char const* temp_str)
+        CErrorMsg(rc_t rc, char const* temp_str) // TODO: add constructor with fmt, ...
             : m_rc(rc)
         {
             strncpy ( m_szDescr, temp_str, countof(m_szDescr) );
@@ -127,7 +128,7 @@ namespace VDBObjects
         CVSchema MakeSchema () const;
 
     private:
-        ::VDBManager* m_pVDBManager;
+        ::VDBManager* m_pSelf;
     };
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -149,7 +150,7 @@ namespace VDBObjects
 
     private:
         void Clone ( CVSchema const& x );
-        ::VSchema* m_pVSchema;
+        ::VSchema* m_pSelf;
     };
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -171,7 +172,7 @@ namespace VDBObjects
 
     private:
         void Clone(CVDatabase const& x);
-        ::VDatabase* m_pVDatabase;
+        ::VDatabase* m_pSelf;
     };
 
 //////////////////////////////////////////////////////////////
@@ -193,7 +194,7 @@ namespace VDBObjects
 
     private:
         void Clone(CVTable const& x);
-        ::VTable* m_pVTable;
+        ::VTable* m_pSelf;
     };
 
 ////////////////////////////////////////////////////////////////////////////
@@ -218,7 +219,7 @@ namespace VDBObjects
         {
             uint32_t nItemsRead = 0;
 
-            rc_t rc = ::VCursorReadDirect(m_pVCursor, idRow, idxCol, 8*sizeof(T), pBuf, nBufLen, &nItemsRead);
+            rc_t rc = ::VCursorReadDirect(m_pSelf, idRow, idxCol, 8*sizeof(T), pBuf, nBufLen, &nItemsRead);
             if (rc)
                 throw CErrorMsg(rc, "VCursorReadDirect");
 
@@ -229,7 +230,7 @@ namespace VDBObjects
 
         template <typename T> void Write (uint32_t idxCol, T const* pBuf, uint64_t count)
         {
-            rc_t rc = ::VCursorWrite ( m_pVCursor, idxCol, 8 * sizeof(T), pBuf, 0, count );
+            rc_t rc = ::VCursorWrite ( m_pSelf, idxCol, 8 * sizeof(T), pBuf, 0, count );
             if (rc)
                 throw CErrorMsg(rc, "VCursorWrite");
         }
@@ -244,7 +245,7 @@ namespace VDBObjects
 
     private:
         void Clone(CVCursor const& x);
-        ::VCursor* m_pVCursor;
+        ::VCursor* m_pSelf;
     };
 }
 
@@ -252,19 +253,55 @@ namespace VDBObjects
 
 namespace KApp
 {
+    template <typename T> T atoi_t ( char const* str_val ) // TODO: throw std::runtime_exception instead of CErrorMsg
+    {
+        if ( str_val [0] == '\0' )
+            throw VDBObjects::CErrorMsg(0, "atoi_t: invalid input string (empty)");
+
+        size_t i = 0;
+        char sign = '+';
+        if ( str_val[0] == '-' || str_val[0] == '+' )
+        {
+            ++i;
+            sign = str_val[0];
+        }
+
+        T ret = 0;
+        for (; str_val[i] != '\0'; ++i )
+        {
+            if ( str_val[i] < '0' || str_val[i] > '9' )
+                throw VDBObjects::CErrorMsg(0, "atoi_t: invalid input string (invalid character)");
+            ret = ret*10 + str_val[i] - '0';
+        }
+
+        return sign == '-' ? -ret : ret;
+    }
+
     class CArgs
     {
     public:
-        CArgs ( int argc, char** argv, ::OptDef** pOptions, size_t option_count );
+        CArgs ( int argc, char** argv, ::OptDef* pOptions, size_t option_count );
         CArgs ( CArgs const& x );
         CArgs& operator= ( CArgs const& x );
         ~CArgs ();
 
+        ::Args const* GetArgs () const;
+        uint32_t GetParamCount () const;
+        char const* GetParamValue ( uint32_t iteration ) const;
+        uint32_t GetOptionCount ( char const* option_name ) const;
+        char const* GetOptionValue ( char const* option_name, uint32_t iteration ) const;
+
+        template <typename T> T GetOptionValueInt ( char const* option_name, uint32_t iteration ) const
+        {
+            char const* str_val = GetOptionValue ( option_name, iteration );
+            return atoi_t <T> ( str_val );
+        }
+
     private:
 
-        void MakeAndHandle ( int argc, char** argv, ::OptDef** pOptions, size_t option_count );
+        void MakeAndHandle ( int argc, char** argv, ::OptDef* pOptions, size_t option_count );
         void Release ();
 
-        ::Args* m_pArgs;
+        ::Args* m_pSelf;
     };
 }

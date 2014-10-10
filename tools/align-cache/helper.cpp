@@ -42,7 +42,7 @@
 // TODO: remove printfs
 namespace KLib
 {
-    CKVector::CKVector() : m_pKVector(NULL)
+    CKVector::CKVector() : m_pSelf(NULL)
     {
         Make();
     }
@@ -54,22 +54,22 @@ namespace KLib
 
     void CKVector::Make()
     {
-        if (m_pKVector)
+        if (m_pSelf)
             throw VDBObjects::CErrorMsg (0, "Duplicated call to KVectorMake");
 
-        rc_t rc = ::KVectorMake(&m_pKVector);
+        rc_t rc = ::KVectorMake(&m_pSelf);
         if (rc)
             throw VDBObjects::CErrorMsg(rc, "KVectorMake");
-        printf("Created KVector %p\n", m_pKVector);
+        printf("Created KVector %p\n", m_pSelf);
     }
 
     void CKVector::Release()
     {
-        if (m_pKVector)
+        if (m_pSelf)
         {
-            printf("Releasing KVector %p\n", m_pKVector);
-            ::KVectorRelease(m_pKVector);
-            m_pKVector = NULL;
+            printf("Releasing KVector %p\n", m_pSelf);
+            ::KVectorRelease(m_pSelf);
+            m_pSelf = NULL;
         }
     }
 
@@ -84,7 +84,7 @@ namespace KLib
         uint64_t stored_bits = 0;
         uint64_t key_qword = key / 64;
         uint64_t key_bit = key % 64;
-        rc_t rc = ::KVectorGetU64 ( m_pKVector, key_qword, &stored_bits );
+        rc_t rc = ::KVectorGetU64 ( m_pSelf, key_qword, &stored_bits );
         bool first_time = rc == RC ( rcCont, rcVector, rcAccessing, rcItem, rcNotFound ); // 0x1e615458
         if ( !first_time && rc )
             throw VDBObjects::CErrorMsg(rc, "KVectorGetU64");
@@ -99,7 +99,7 @@ namespace KLib
             else
                 stored_bits &= ~new_bit;
 
-            rc_t rc = ::KVectorSetU64 ( m_pKVector, key_qword, stored_bits );
+            rc_t rc = ::KVectorSetU64 ( m_pSelf, key_qword, stored_bits );
             if (rc)
                 throw VDBObjects::CErrorMsg(rc, "KVectorSetU64");
         }
@@ -107,7 +107,7 @@ namespace KLib
         uint64_t stored_bits = 0;
         uint64_t key_qword = key / (sizeof(stored_bits) * 8 / RECORD_SIZE_IN_BITS);
         uint64_t bit_offset_in_qword = (key % (sizeof(stored_bits) * 8 / RECORD_SIZE_IN_BITS)) * RECORD_SIZE_IN_BITS;
-        rc_t rc = ::KVectorGetU64 ( m_pKVector, key_qword, &stored_bits );
+        rc_t rc = ::KVectorGetU64 ( m_pSelf, key_qword, &stored_bits );
         bool first_time = rc == RC ( rcCont, rcVector, rcAccessing, rcItem, rcNotFound ); // 0x1e615458;
         if ( !first_time && rc )
             throw VDBObjects::CErrorMsg(rc, "KVectorGetU64");
@@ -120,13 +120,13 @@ namespace KLib
             stored_bits &= ~((uint64_t)BIT_RECORD_MASK << bit_offset_in_qword); // clear stored record to assign a new value by bitwise OR
             stored_bits |= new_bit_record;
 
-            rc_t rc = ::KVectorSetU64 ( m_pKVector, key_qword, stored_bits );
+            rc_t rc = ::KVectorSetU64 ( m_pSelf, key_qword, stored_bits );
             if (rc)
                 throw VDBObjects::CErrorMsg(rc, "KVectorSetU64");
         }
 #else
 
-        rc_t rc = ::KVectorSetBool ( m_pKVector, key, value );
+        rc_t rc = ::KVectorSetBool ( m_pSelf, key, value );
         if (rc)
             throw VDBObjects::CErrorMsg(rc, "KVectorSetBool");
 #endif
@@ -180,12 +180,12 @@ namespace KLib
     {
 #if USING_UINT64_BITMAP == 1
         UserDataU64toBool user_data_adapter = { f, user_data };
-        ::KVectorVisitU64 ( m_pKVector, false, VisitU64toBoolAdapter, &user_data_adapter );
+        ::KVectorVisitU64 ( m_pSelf, false, VisitU64toBoolAdapter, &user_data_adapter );
 #elif USING_UINT64_BITMAP == 2
         UserDataU64toBool user_data_adapter = { f, user_data };
-        ::KVectorVisitU64 ( m_pKVector, false, VisitU64toBoolAdapter, &user_data_adapter );
+        ::KVectorVisitU64 ( m_pSelf, false, VisitU64toBoolAdapter, &user_data_adapter );
 #else
-        ::KVectorVisitBool ( m_pKVector, false, f, user_data );
+        ::KVectorVisitBool ( m_pSelf, false, f, user_data );
 #endif
     }
 }
@@ -194,7 +194,7 @@ namespace KLib
 
 namespace VDBObjects
 {
-    CVCursor::CVCursor() : m_pVCursor(NULL)
+    CVCursor::CVCursor() : m_pSelf(NULL)
     {}
 
     CVCursor::~CVCursor()
@@ -215,29 +215,29 @@ namespace VDBObjects
 
     void CVCursor::Release()
     {
-        if (m_pVCursor)
+        if (m_pSelf)
         {
-            printf("Releasing VCursor %p\n", m_pVCursor);
-            ::VCursorRelease(m_pVCursor);
-            m_pVCursor = NULL;
+            printf("Releasing VCursor %p\n", m_pSelf);
+            ::VCursorRelease(m_pSelf);
+            m_pSelf = NULL;
         }
     }
 
     void CVCursor::Clone(CVCursor const& x)
     {
-        if (false && m_pVCursor)
+        if (false && m_pSelf)
         {
             assert(0);
             Release();
         }
-        m_pVCursor = x.m_pVCursor;
-        ::VCursorAddRef ( m_pVCursor );
-        printf ("CLONING VCursor %p\n", m_pVCursor);
+        m_pSelf = x.m_pSelf;
+        ::VCursorAddRef ( m_pSelf );
+        printf ("CLONING VCursor %p\n", m_pSelf);
     }
 
     void CVCursor::Open() const
     {
-        rc_t rc = ::VCursorOpen(m_pVCursor);
+        rc_t rc = ::VCursorOpen(m_pSelf);
         if (rc)
             throw CErrorMsg(rc, "VCursorOpen");
     }
@@ -246,7 +246,7 @@ namespace VDBObjects
     {
         for (size_t i = 0; i < nCount; ++i)
         {
-            rc_t rc = ::VCursorAddColumn(m_pVCursor, & pColumnIndex[i], ColumnNames[i] );
+            rc_t rc = ::VCursorAddColumn(m_pSelf, & pColumnIndex[i], ColumnNames[i] );
             if (rc)
             {
                 char szDescr[256];
@@ -260,14 +260,14 @@ namespace VDBObjects
                 VTypedesc desc;
                 uint32_t idx = pColumnIndex[i];
 
-                rc = ::VCursorDatatype ( m_pVCursor, idx, & type, & desc );
+                rc = ::VCursorDatatype ( m_pSelf, idx, & type, & desc );
                 if (rc)
                     throw CErrorMsg(rc, "VCursorDatatype");
 
                 uint32_t elem_bits = ::VTypedescSizeof ( & desc );
                 if (rc)
                     throw CErrorMsg(rc, "VTypedescSizeof");
-                rc = ::VCursorDefault ( m_pVCursor, idx, elem_bits, "", 0, 0 );
+                rc = ::VCursorDefault ( m_pSelf, idx, elem_bits, "", 0, 0 );
                 if (rc)
                     throw CErrorMsg(rc, "VCursorDefault");
             }
@@ -276,7 +276,7 @@ namespace VDBObjects
 
     void CVCursor::GetIdRange(int64_t& idFirstRow, uint64_t& nRowCount) const
     {
-        rc_t rc = ::VCursorIdRange(m_pVCursor, 0, &idFirstRow, &nRowCount);
+        rc_t rc = ::VCursorIdRange(m_pSelf, 0, &idFirstRow, &nRowCount);
         if (rc)
             throw CErrorMsg(rc, "VCursorIdRange");
     }
@@ -284,7 +284,7 @@ namespace VDBObjects
     int64_t CVCursor::GetRowId () const
     {
         int64_t row_id;
-        rc_t rc = ::VCursorRowId ( m_pVCursor, & row_id );
+        rc_t rc = ::VCursorRowId ( m_pSelf, & row_id );
         if (rc)
             throw CErrorMsg(rc, "VCursorRowId");
 
@@ -293,49 +293,49 @@ namespace VDBObjects
 
     void CVCursor::SetRowId (int64_t row_id) const
     {
-        rc_t rc = ::VCursorSetRowId ( m_pVCursor, row_id );
+        rc_t rc = ::VCursorSetRowId ( m_pSelf, row_id );
         if (rc)
             throw CErrorMsg(rc, "VCursorSetRowId");
     }
 
     void CVCursor::OpenRow () const
     {
-        rc_t rc = ::VCursorOpenRow ( m_pVCursor );
+        rc_t rc = ::VCursorOpenRow ( m_pSelf );
         if (rc)
             throw CErrorMsg(rc, "VCursorOpenRow");
     }
 
     void CVCursor::CommitRow ()
     {
-        rc_t rc = ::VCursorCommitRow ( m_pVCursor );
+        rc_t rc = ::VCursorCommitRow ( m_pSelf );
         if (rc)
             throw CErrorMsg(rc, "VCursorCommitRow");
     }
 
     void CVCursor::RepeatRow ( uint64_t count )
     {
-        rc_t rc = ::VCursorRepeatRow ( m_pVCursor, count );
+        rc_t rc = ::VCursorRepeatRow ( m_pSelf, count );
         if (rc)
             throw CErrorMsg(rc, "VCursorRepeatRow");
     }
 
     void CVCursor::CloseRow () const
     {
-        rc_t rc = ::VCursorCloseRow ( m_pVCursor );
+        rc_t rc = ::VCursorCloseRow ( m_pSelf );
         if (rc)
             throw CErrorMsg(rc, "VCursorCloseRow");
     }
 
     void CVCursor::Commit ()
     {
-        rc_t rc = ::VCursorCommit ( m_pVCursor );
+        rc_t rc = ::VCursorCommit ( m_pSelf );
         if (rc)
             throw CErrorMsg(rc, "VCursorCommit");
     }
 
 ///////////////////////////////////////////////////////////////////////////////////
 
-    CVTable::CVTable() : m_pVTable(NULL)
+    CVTable::CVTable() : m_pSelf(NULL)
     {
     }
     
@@ -357,51 +357,51 @@ namespace VDBObjects
 
     void CVTable::Release()
     {
-        if (m_pVTable)
+        if (m_pSelf)
         {
-            printf("Releasing VTable %p\n", m_pVTable);
-            ::VTableRelease(m_pVTable);
-            m_pVTable = NULL;
+            printf("Releasing VTable %p\n", m_pSelf);
+            ::VTableRelease(m_pSelf);
+            m_pSelf = NULL;
         }
     }
 
     void CVTable::Clone(CVTable const& x)
     {
-        if (false && m_pVTable)
+        if (false && m_pSelf)
         {
             assert(0);
             Release();
         }
-        m_pVTable = x.m_pVTable;
-        ::VTableAddRef ( m_pVTable );
-        printf ("CLONING VTable %p\n", m_pVTable);
+        m_pSelf = x.m_pSelf;
+        ::VTableAddRef ( m_pSelf );
+        printf ("CLONING VTable %p\n", m_pSelf);
     }
 
     CVCursor CVTable::CreateCursorRead ( size_t cache_size ) const
     {
         CVCursor cursor;
-        rc_t rc = ::VTableCreateCachedCursorRead(m_pVTable, const_cast<VCursor const**>(& cursor.m_pVCursor), cache_size);
+        rc_t rc = ::VTableCreateCachedCursorRead(m_pSelf, const_cast<VCursor const**>(& cursor.m_pSelf), cache_size);
         if (rc)
             throw CErrorMsg(rc, "VTableCreateCachedCursorRead");
 
-        printf("Created cursor (rd) %p\n", cursor.m_pVCursor);
+        printf("Created cursor (rd) %p\n", cursor.m_pSelf);
         return cursor;
     }
 
     CVCursor CVTable::CreateCursorWrite (::KCreateMode mode)
     {
         CVCursor cursor;
-        rc_t rc = ::VTableCreateCursorWrite ( m_pVTable, & cursor.m_pVCursor, mode );
+        rc_t rc = ::VTableCreateCursorWrite ( m_pSelf, & cursor.m_pSelf, mode );
         if (rc)
             throw CErrorMsg(rc, "VTableCreateCursorWrite");
 
-        printf("Created cursor (wr) %p\n", cursor.m_pVCursor);
+        printf("Created cursor (wr) %p\n", cursor.m_pSelf);
         return cursor;
     }
 
 //////////////////////////////////////////////////////////////////////
 
-    CVDatabase::CVDatabase() : m_pVDatabase(NULL)
+    CVDatabase::CVDatabase() : m_pSelf(NULL)
     {}
 
     CVDatabase::~CVDatabase()
@@ -422,51 +422,51 @@ namespace VDBObjects
 
     void CVDatabase::Release()
     {
-        if (m_pVDatabase)
+        if (m_pSelf)
         {
-            printf("Releasing VDatabase %p\n", m_pVDatabase);
-            ::VDatabaseRelease(m_pVDatabase);
-            m_pVDatabase = NULL;
+            printf("Releasing VDatabase %p\n", m_pSelf);
+            ::VDatabaseRelease(m_pSelf);
+            m_pSelf = NULL;
         }
     }
 
     void CVDatabase::Clone(CVDatabase const& x)
     {
-        if (false && m_pVDatabase)
+        if (false && m_pSelf)
         {
             assert(0);
             Release();
         }
-        m_pVDatabase = x.m_pVDatabase;
-        ::VDatabaseAddRef ( m_pVDatabase );
-        printf ("CLONING VDatabase %p\n", m_pVDatabase);
+        m_pSelf = x.m_pSelf;
+        ::VDatabaseAddRef ( m_pSelf );
+        printf ("CLONING VDatabase %p\n", m_pSelf);
     }
 
     CVTable CVDatabase::OpenTable(char const* pszTableName) const
     {
         CVTable table;
-        rc_t rc = ::VDatabaseOpenTableRead(m_pVDatabase, const_cast<VTable const**>(& table.m_pVTable), pszTableName);
+        rc_t rc = ::VDatabaseOpenTableRead(m_pSelf, const_cast<VTable const**>(& table.m_pSelf), pszTableName);
         if (rc)
             throw CErrorMsg(rc, "VDatabaseOpenTableRead");
 
-        printf("Opened table %p\n", table.m_pVTable);
+        printf("Opened table %p\n", table.m_pSelf);
         return table;
     }
 
     CVTable CVDatabase::CreateTable ( char const* pszTableName, ::KCreateMode cmode )
     {
         CVTable table;
-        rc_t rc = ::VDatabaseCreateTable ( m_pVDatabase, & table.m_pVTable, pszTableName, cmode, pszTableName );
+        rc_t rc = ::VDatabaseCreateTable ( m_pSelf, & table.m_pSelf, pszTableName, cmode, pszTableName );
         if (rc)
             throw CErrorMsg(rc, "VDatabaseCreateTable");
 
-        printf("Created table %p\n", table.m_pVTable);
+        printf("Created table %p\n", table.m_pSelf);
         return table;
     }
 
 //////////////////////////////////////////////////////////////////////
 
-    CVSchema::CVSchema() : m_pVSchema (NULL)
+    CVSchema::CVSchema() : m_pSelf (NULL)
     {
     }
     CVSchema::~CVSchema()
@@ -487,36 +487,36 @@ namespace VDBObjects
 
     void CVSchema::Release()
     {
-        if (m_pVSchema)
+        if (m_pSelf)
         {
-            printf("Releasing VSchema %p\n", m_pVSchema);
-            ::VSchemaRelease ( m_pVSchema );
-            m_pVSchema = NULL;
+            printf("Releasing VSchema %p\n", m_pSelf);
+            ::VSchemaRelease ( m_pSelf );
+            m_pSelf = NULL;
         }
     }
 
     void CVSchema::Clone ( CVSchema const& x )
     {
-        if (false && m_pVSchema)
+        if (false && m_pSelf)
         {
             assert(0);
             Release();
         }
-        m_pVSchema = x.m_pVSchema;
-        ::VSchemaAddRef ( m_pVSchema );
-        printf ("CLONING VSchema %p\n", m_pVSchema);
+        m_pSelf = x.m_pSelf;
+        ::VSchemaAddRef ( m_pSelf );
+        printf ("CLONING VSchema %p\n", m_pSelf);
     }
     
     void CVSchema::VSchemaParseFile ( char const* pszFilePath )
     {
-        rc_t rc = ::VSchemaParseFile ( m_pVSchema, pszFilePath );
+        rc_t rc = ::VSchemaParseFile ( m_pSelf, pszFilePath );
         if (rc)
             throw CErrorMsg(rc, "VSchemaParseFile");
     }
 
 //////////////////////////////////////////////////////////////////////
 
-    CVDBManager::CVDBManager() : m_pVDBManager(NULL)
+    CVDBManager::CVDBManager() : m_pSelf(NULL)
     {}
 
     CVDBManager::~CVDBManager()
@@ -526,79 +526,156 @@ namespace VDBObjects
 
     void CVDBManager::Release()
     {
-        if (m_pVDBManager)
+        if (m_pSelf)
         {
-            printf("Releasing VDBManager %p\n", m_pVDBManager);
-            ::VDBManagerRelease(m_pVDBManager);
-            m_pVDBManager = NULL;
+            printf("Releasing VDBManager %p\n", m_pSelf);
+            ::VDBManagerRelease(m_pSelf);
+            m_pSelf = NULL;
         }
     }
 
 #if MANGER_WRITABLE != 0
     void CVDBManager::Make()
     {
-        assert(m_pVDBManager == NULL);
-        if (m_pVDBManager)
+        assert(m_pSelf == NULL);
+        if (m_pSelf)
             throw CErrorMsg(0, "Double call to VDBManagerMakeRead");
 
-        rc_t rc = ::VDBManagerMakeRead(const_cast<VDBManager const**>(&m_pVDBManager), NULL);
+        rc_t rc = ::VDBManagerMakeRead(const_cast<VDBManager const**>(&m_pSelf), NULL);
         if (rc)
             throw CErrorMsg(rc, "VDBManagerMakeRead");
 
-        printf("Created VDBManager (rd) %p\n", m_pVDBManager);
+        printf("Created VDBManager (rd) %p\n", m_pSelf);
     }
 #else
     void CVDBManager::Make()
     {
-        assert(m_pVDBManager == NULL);
-        if (m_pVDBManager)
+        assert(m_pSelf == NULL);
+        if (m_pSelf)
             throw CErrorMsg(0, "Double call to VDBManagerMakeUpdate");
 
-        rc_t rc = ::VDBManagerMakeUpdate ( & m_pVDBManager, NULL );
+        rc_t rc = ::VDBManagerMakeUpdate ( & m_pSelf, NULL );
         if (rc)
             throw CErrorMsg(rc, "VDBManagerMakeUpdate");
 
-	    /*rc = VDBManagerDisablePagemapThread ( m_pVDBManager );
+	    /*rc = VDBManagerDisablePagemapThread ( m_pSelf );
         if (rc)
             throw CErrorMsg(rc, "VDBManagerDisablePagemapThread");*/
 
-        printf("Created VDBManager (wr) %p\n", m_pVDBManager);
+        printf("Created VDBManager (wr) %p\n", m_pSelf);
     }
 #endif
 
     CVDatabase CVDBManager::OpenDB(char const* pszDBName) const
     {
         CVDatabase vdb;
-        rc_t rc = ::VDBManagerOpenDBRead(m_pVDBManager, const_cast<VDatabase const**>(& vdb.m_pVDatabase), NULL, pszDBName);
+        rc_t rc = ::VDBManagerOpenDBRead(m_pSelf, const_cast<VDatabase const**>(& vdb.m_pSelf), NULL, pszDBName);
         if (rc)
             throw CErrorMsg(rc, "VDBManagerOpenDBRead");
 
-        printf("Opened database %p\n", vdb.m_pVDatabase);
+        printf("Opened database %p\n", vdb.m_pSelf);
         return vdb;
     }
     CVDatabase CVDBManager::CreateDB ( CVSchema const& schema, char const* pszTypeDesc, ::KCreateMode cmode, char const* pszPath )
     {
         CVDatabase vdb;
-        rc_t rc = ::VDBManagerCreateDB ( m_pVDBManager, & vdb.m_pVDatabase, schema.m_pVSchema, pszTypeDesc, cmode, pszPath );
+        rc_t rc = ::VDBManagerCreateDB ( m_pSelf, & vdb.m_pSelf, schema.m_pSelf, pszTypeDesc, cmode, pszPath );
         if (rc)
             throw CErrorMsg(rc, "VDBManagerCreateDB");
 
-        printf("Created database %p\n", vdb.m_pVDatabase);
+        printf("Created database %p\n", vdb.m_pSelf);
         return vdb;
     }
 
     CVSchema CVDBManager::MakeSchema () const
     {
         CVSchema schema;
-        rc_t rc = ::VDBManagerMakeSchema ( m_pVDBManager, & schema.m_pVSchema );
+        rc_t rc = ::VDBManagerMakeSchema ( m_pSelf, & schema.m_pSelf );
         if (rc)
             throw CErrorMsg(rc, "VDBManagerMakeSchema");
 
-        printf("Created Schema %p\n", schema.m_pVSchema);
+        printf("Created Schema %p\n", schema.m_pSelf);
         return schema;
     }
 }
 
 namespace KApp
 {
+    CArgs::CArgs (int argc, char** argv, ::OptDef* pOptions, size_t option_count)
+        : m_pSelf(NULL)
+    {
+        MakeAndHandle ( argc, argv, pOptions, option_count );
+    }
+
+    CArgs::~CArgs()
+    {
+        Release();
+    }
+
+    void CArgs::MakeAndHandle (int argc, char** argv, ::OptDef* pOptions, size_t option_count)
+    {
+        if (m_pSelf)
+            throw VDBObjects::CErrorMsg (0, "Duplicated call to ArgsMakeAndHandle");
+
+        rc_t rc = ::ArgsMakeAndHandle (&m_pSelf, argc, argv, 1, pOptions, option_count);
+        if (rc)
+            throw VDBObjects::CErrorMsg(rc, "ArgsMakeAndHandle");
+        printf("Created Args %p\n", m_pSelf);
+    }
+
+    void CArgs::Release()
+    {
+        if (m_pSelf)
+        {
+            printf("Releasing Args %p\n", m_pSelf);
+            ::ArgsRelease (m_pSelf);
+            m_pSelf = NULL;
+        }
+    }
+
+    ::Args const* CArgs::GetArgs () const
+    {
+        return m_pSelf;
+    }
+
+    uint32_t CArgs::GetParamCount () const
+    {
+        uint32_t ret = 0;
+        rc_t rc = ::ArgsParamCount ( m_pSelf, &ret );
+        if (rc)
+            throw VDBObjects::CErrorMsg(rc, "ArgsParamCount");
+
+        return ret;
+    }
+
+    char const* CArgs::GetParamValue ( uint32_t iteration ) const
+    {
+        char const* ret = NULL;
+        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, &ret );
+        if (rc)
+            throw VDBObjects::CErrorMsg(rc, "ArgsParamValue");
+
+        return ret;
+    }
+
+    uint32_t CArgs::GetOptionCount ( char const* option_name ) const
+    {
+        uint32_t ret = 0;
+        rc_t rc = ::ArgsOptionCount ( m_pSelf, option_name, &ret );
+        if (rc)
+            throw VDBObjects::CErrorMsg(rc, "ArgsOptionCount");
+
+        return ret;
+    }
+
+    char const* CArgs::GetOptionValue ( char const* option_name, uint32_t iteration ) const
+    {
+        char const* ret = NULL;
+        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, &ret );
+        if (rc)
+            throw VDBObjects::CErrorMsg(rc, "ArgsOptionValue");
+
+        return ret;
+    }
+
 }

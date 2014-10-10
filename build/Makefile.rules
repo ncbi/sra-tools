@@ -100,10 +100,10 @@ LOC_INFO = -D__mod_name__=$(MODULE) -D__file_name__=$*
 	$(CP) -S -o $@ -fPIC $(NOPT) $<
 
 # yacc and lex
-%.c: %.y
-	$(YACC) -o $@ $^
-%.c: %.l
-	$(LEX) -DYY_BUF_SIZE=16777216 -t $< | grep -v '^#line' > $@
+#%.c: %.y
+#	$(YACC) -o $@ $^
+#%.c: %.l
+#	$(LEX) -DYY_BUF_SIZE=16777216 -t $< | grep -v '^#line' > $@
 
 # version include generation
 %.vers.h: %.vers

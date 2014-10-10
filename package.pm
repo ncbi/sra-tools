@@ -1,6 +1,6 @@
 ################################################################################
 sub PACKAGE      { "sra-tools" }
-sub VERSION      { "2.4.2a" }
+sub VERSION      { "2.4.2" }
 sub PACKAGE_TYPE { 'B' }
 sub PACKAGE_NAME { "SRA-TOOLS" }
 sub PACKAGE_NAMW { "SRATOOLS" }

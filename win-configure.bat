@@ -1,1 +1,1 @@
-perl -w ./perl-config.pl %*
+perl -w ./konfigure.perl %*

@@ -615,12 +615,12 @@ EndText
     if ($PKG{LNG} eq 'C') {
         L($F, '$(OBJDIR)/%.$(OBJX): %.c');
         T($F, '$(CC) -o $@ $< $(CFLAGS)');
-        T($F, '$(OBJDIR)/%.$(LOBX): %.c');
+        L($F, '$(OBJDIR)/%.$(LOBX): %.c');
         T($F, '$(CC) -o $@ $< $(PIC) $(CFLAGS)');
     }
     L($F, '$(OBJDIR)/%.$(OBJX): %.cpp');
     T($F, '$(CP) -o $@ $< $(CFLAGS)');
-    T($F, '$(OBJDIR)/%.$(LOBX): %.cpp');
+    L($F, '$(OBJDIR)/%.$(LOBX): %.cpp');
     T($F, '$(CP) -o $@ $< $(PIC) $(CFLAGS)');
     L($F);
 

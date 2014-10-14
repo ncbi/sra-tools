@@ -47,16 +47,23 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-ifeq (win,$(OS))
-all std:
-	@ echo "not building loaders under Windows"
-else
+ifeq (1,$(HAVE_XML2))
+
 all std: vers-includes
 	@ $(MAKE_CMD) $(TARGDIR)/std
-endif
 
 $(ALL_TOOLS): vers-includes
 	@ $(MAKE_CMD) $(BINDIR)/$@
+
+else
+
+all std: $(ALL_TOOLS)
+
+$(ALL_TOOLS):
+	@ echo "NOTE - $(@F) cannot be built:"                          \
+	       "It requires our internal library 'libkxml'"             \
+	       "which requires 'libxml2' and its development headers."
+endif
 
 .PHONY: all std $(ALL_TOOLS)
 
@@ -100,7 +107,7 @@ LOADER_OBJ = \
 	$(addsuffix .$(OBJX),$(LOADER_SRC))
 
 LIBXML = -lkxfs -lkxml -lxml2
-    
+
 LOADER_LIB = \
 	-lkapp \
 	-lload \

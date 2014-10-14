@@ -32,11 +32,7 @@ include $(TOP)/build/Makefile.env
 
 INT_TOOLS =
 
-EXT_TOOLS = 
-
-ifeq (linux,$(OS))
-	EXT_TOOLS += ccextract
-endif
+EXT_TOOLS = ccextract
 
 
 ALL_TOOLS = \
@@ -46,11 +42,23 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
+ifeq (1,$(HAVE_XML2))
+
 all std: vers-includes
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
 $(ALL_TOOLS): vers-includes
 	@ $(MAKE_CMD) $(BINDIR)/$@
+
+else
+
+all std: $(ALL_TOOLS)
+
+$(ALL_TOOLS):
+	@ echo "NOTE - $(@F) cannot be built:"                          \
+	       "It requires our internal library 'libkxml'"             \
+	       "which requires 'libxml2' and its development headers."
+endif
 
 .PHONY: all std $(ALL_TOOLS)
 
@@ -91,12 +99,7 @@ CCEXTRACT_LIB = \
 	-lkapp \
     -lkxfs \
     -lkxml \
-	-sncbi-vdb \
-
+	-sncbi-vdb
 
 $(BINDIR)/ccextract: $(CCEXTRACT_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(CCEXTRACT_LIB)
-
-
-
-

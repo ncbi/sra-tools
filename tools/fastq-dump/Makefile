@@ -72,22 +72,10 @@ clean: stdclean
 # Common dumper definitions
 #
 DUMP_LIBS = \
-	-lngs-c++-ncbi \
-	-lngs-sdk-ncbi \
-	-lncbi-vdb \
-	-lkapp
-
-DUMP_LIBS = \
-	-L$(LIBDIR)       \
-	-L$(VDB_LIBDIR)   \
-	~/ngs-sdk/x86_64/lib  \
 	-lngs-c++         \
 	-lncbi-ngs-c++    \
 	-lncbi-vdb-static \
 	-lkapp \
-	-lpthread         \
-	-ldl              \
-	-lm
 
 #-------------------------------------------------------------------------------
 # fastq-dump

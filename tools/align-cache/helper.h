@@ -260,7 +260,7 @@ namespace VDBObjects
 
             rc_t rc = ::VCursorReadDirect(m_pSelf, idRow, idxCol, 8*sizeof(T), pBuf, nBufLen, &nItemsRead);
             if (rc)
-                throw Utils::CErrorMsg(rc, "VCursorReadDirect: row_id=%ld, idxCol=%ud", idRow, idxCol);
+                throw Utils::CErrorMsg(rc, "VCursorReadDirect: row_id=%ld, idxCol=%u", idRow, idxCol);
 
             //CPostReadAction<T>(pBuf, nItemsRead)();
 
@@ -271,7 +271,7 @@ namespace VDBObjects
         {
             rc_t rc = ::VCursorWrite ( m_pSelf, idxCol, 8 * sizeof(T), pBuf, 0, count );
             if (rc)
-                throw Utils::CErrorMsg(rc, "VCursorWrite: idxCol=%ud", idxCol);
+                throw Utils::CErrorMsg(rc, "VCursorWrite: idxCol=%u", idxCol);
         }
 
         int64_t GetRowId () const;

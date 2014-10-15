@@ -21,7 +21,6 @@ sub REQ { (
               bldpath => '$HOME/ncbi-outdir/ngs-sdk',
               include => 'ngs/itf/Refcount.h',
               lib => 'libngs-sdk.$SHLX',
-              lib => libngs-c++.a
               ilib => 'libngs-bind-c++.a',
             },
             { name    => 'ncbi-vdb',

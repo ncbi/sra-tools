@@ -1,6 +1,6 @@
 ################################################################################
 sub PACKAGE      { "sra-tools" }
-sub VERSION      { "2.4.2a" }
+sub VERSION      { "2.4.2" }
 sub PACKAGE_TYPE { 'B' }
 sub PACKAGE_NAME { "SRA-TOOLS" }
 sub PACKAGE_NAMW { "SRATOOLS" }
@@ -14,14 +14,13 @@ sub REQ { (
             { name    => 'ngs-sdk',
               namew   => 'NGS',
               option  => 'with-ngs-sdk-prefix',
-              boption => 'with-ngs-sdk-build',
               type    => 'L',
               srcpath => '../ngs/ngs-sdk',
               pkgpath => '/usr/local/ngs/ngs-sdk',
               usrpath =>      '$HOME/ngs/ngs-sdk',
               bldpath => '$HOME/ncbi-outdir/ngs-sdk',
               include => 'ngs/itf/Refcount.h',
-              lib => 'libngs-sdk.so',
+              lib => 'libngs-sdk.$SHLX',
               ilib => 'libngs-bind-c++.a',
             },
             { name    => 'ncbi-vdb',

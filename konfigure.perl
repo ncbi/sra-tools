@@ -350,7 +350,10 @@ foreach my $href (@REQ) {
     my $need_source = $a{type} =~ /S/;
     my $need_build = $a{type} =~ /B/;
     my $need_lib = $a{type} =~ /L/;
+    
     my ($inc, $lib, $ilib) = ($a{include}, $a{lib}); # file names to check
+    $lib =~ s/(\$\w+)/$1/eeg;
+
     if ($need_build) {
         $ilib = $a{ilib};
         ++$need_lib;
@@ -476,6 +479,18 @@ EndText
     L($F, "INST_JARDIR = $OPT{'javadir'}"     ) if ($OPT{'javadir'});
     L($F, "INST_PYTHONDIR = $OPT{'pythondir'}") if ($OPT{'pythondir'});
 
+    my ($VERSION_SHLX, $MAJMIN_SHLX, $MAJVERS_SHLX);
+    if ($OSTYPE =~ /darwin/i) {
+        $VERSION_SHLX = '$(VERSION).$(SHLX)';
+        $MAJMIN_SHLX  = '$(MAJMIN).$(SHLX)';
+        $MAJVERS_SHLX = '$(MAJVERS).$(SHLX)';
+    } else {
+        $VERSION_SHLX = '$(SHLX).$(VERSION)';
+        $MAJMIN_SHLX  = '$(SHLX).$(MAJMIN)';
+        $MAJVERS_SHLX = '$(SHLX).$(MAJVERS)';
+    }
+
+
     print $F <<EndText;
 
 # build type
@@ -495,9 +510,9 @@ MAJMIN_LIBX  = \$(LIBX).\$(MAJMIN)
 MAJVERS_LIBX = \$(LIBX).\$(MAJVERS)
 
 SHLX = $SHLX
-VERSION_SHLX = \$(SHLX).\$(VERSION)
-MAJMIN_SHLX  = \$(SHLX).\$(MAJMIN)
-MAJVERS_SHLX = \$(SHLX).\$(MAJVERS)
+VERSION_SHLX = $VERSION_SHLX
+MAJMIN_SHLX  = $MAJMIN_SHLX
+MAJVERS_SHLX = $MAJVERS_SHLX
 
 # suffix strings for system object files
 OBJX = $OBJX
@@ -543,8 +558,15 @@ EndText
     }
     L($F, "PIC     = $PIC") if ($PIC);
     if ($PKG{LNG} eq 'C') {
-        L($F, 'SONAME  = -Wl,-soname=$(subst $(VERSION),$(MAJVERS),$(@F))');
-        L($F, "SRCINC  = $INC. $INC\$(SRCDIR)");
+        if ($TOOLS =~ /clang/i) {
+      L($F, 'SONAME = -install_name ' .
+               '$(INST_LIBDIR)$(BITS)/$(subst $(VERSION),$(MAJVERS),$(@F)) \\');
+      L($F, ' -compatibility_version $(MAJMIN) -current_version $(VERSION) \\');
+      L($F, ' -flat_namespace -undefined suppress');
+        } else {
+      L($F, 'SONAME = -Wl,-soname=$(subst $(VERSION),$(MAJVERS),$(@F))');
+     }
+     L($F, "SRCINC  = $INC. $INC\$(SRCDIR)");
     } elsif ($PKG{LNG} eq 'JAVA') {
         L($F, 'SRCINC  = -sourcepath $(INCPATHS)');
     }
@@ -665,8 +687,14 @@ EndText
         T($F, '@ echo -n "installing \'$(@F)\'... "');
         T($F, '@ if cp $^ $@ && chmod 644 $@;                         \\');
         T($F, '  then                                                 \\');
+      if ($OS eq 'mac') {
         T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
-                      . '$(subst $(VERSION_LIBX),$(LIBX),$@);    \\');
+                      . '$(subst $(VERSION_LIBX),$(LIBX),$@); '
+                      . '$(subst .$(VERSION_LIBX),-static.$(LIBX),$@); \\');
+      } else {
+        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
+                      . '$(subst $(VERSION_LIBX),$(LIBX),$@);         \\');
+      }
         T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
         T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
                       . '$(subst $(VERSION_LIBX),$(LIBX),$@); \\');
@@ -687,11 +715,13 @@ EndText
         T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
         T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
                       . '$(subst $(VERSION_SHLX),$(SHLX),$@); \\');
+      if ($OS ne 'mac') {
         T($F, '      cp -v $(LIBDIR)/$(subst $(VERSION_SHLX),'
                     . '$(VERSION_LIBX),$(@F)) $(INST_LIBDIR)$(BITS)/; \\');
         T($F, '      ln -vfs $(subst $(VERSION_SHLX),$(VERSION_LIBX), $(@F)) ' .
        '$(INST_LIBDIR)$(BITS)/$(subst .$(VERSION_SHLX),-static.\$(LIBX),$(@F));'
                                                               . ' \\');
+      }
         T($F, '      echo success;                                    \\');
         T($F, '  else                                                 \\');
         T($F, '      echo failure;                                    \\');

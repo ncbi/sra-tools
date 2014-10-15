@@ -559,10 +559,10 @@ EndText
     L($F, "PIC     = $PIC") if ($PIC);
     if ($PKG{LNG} eq 'C') {
         if ($TOOLS =~ /clang/i) {
-      L($F, 'SONAME = -install_name ' .
+   L($F, 'SONAME  = -install_name ' .
                '$(INST_LIBDIR)$(BITS)/$(subst $(VERSION),$(MAJVERS),$(@F)) \\');
-      L($F, ' -compatibility_version $(MAJMIN) -current_version $(VERSION) \\');
-      L($F, ' -flat_namespace -undefined suppress');
+   L($F, '    -compatibility_version $(MAJMIN) -current_version $(VERSION) \\');
+   L($F, '    -flat_namespace -undefined suppress');
         } else {
       L($F, 'SONAME = -Wl,-soname=$(subst $(VERSION),$(MAJVERS),$(@F))');
      }
@@ -689,7 +689,7 @@ EndText
         T($F, '  then                                                 \\');
       if ($OS eq 'mac') {
         T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
-                      . '$(subst $(VERSION_LIBX),$(LIBX),$@); '
+                      . '$(subst $(VERSION_LIBX),$(LIBX),$@) '
                       . '$(subst .$(VERSION_LIBX),-static.$(LIBX),$@); \\');
       } else {
         T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '

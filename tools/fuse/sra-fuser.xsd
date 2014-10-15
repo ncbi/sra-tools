@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <xs:element name="TAR">
+    <xs:annotation>
+      <xs:documentation>This could be used to create an automatic tar archive within directory specified by a physical Directory node in main fuse.xml file.</xs:documentation>
+    </xs:annotation>
+  </xs:element>
+        
+  <xs:element name="FUSE">
+    <xs:annotation>
+      <xs:documentation>Main sra-fuser virtual directory structure root.</xs:documentation>
+    </xs:annotation>
+    <xs:complexType>
+      <xs:complexContent>
+        <xs:extension base="AllEntries">
+          <xs:sequence>
+            <xs:element name="TAR" type="TARType" minOccurs="0" maxOccurs="unbounded"/>
+          </xs:sequence>
+        </xs:extension>
+      </xs:complexContent>
+    </xs:complexType>
+  </xs:element>
+  
+  <xs:complexType name="AllEntries">
+    <xs:sequence minOccurs="0" maxOccurs="unbounded">
+      <xs:element name="Directory" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="DirectoryType"/>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="File" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="FileType"/>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="SRA" minOccurs="0" maxOccurs="unbounded">
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="SRAType"/>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+      <xs:element name="SRAConfig" minOccurs="0" maxOccurs="1">
+        <xs:complexType>
+          <xs:complexContent>
+            <xs:extension base="SRAConfigType"/>
+          </xs:complexContent>
+        </xs:complexType>
+      </xs:element>
+    </xs:sequence>
+  </xs:complexType>
+
+  <xs:complexType name="DirectoryType">
+    <xs:annotation>
+      <xs:documentation>If Directory has path attribute it will detect presence of *.tar.xml files 
+                        with root node TAR (see above) and automatically create .tar file out of detect file's content.</xs:documentation>
+    </xs:annotation>
+    <xs:complexContent>
+      <xs:extension base="AllEntries">
+        <xs:sequence>
+          <xs:element name="TAR" type="TARType" minOccurs="0" maxOccurs="unbounded"/>
+        </xs:sequence>
+        <xs:attribute ref="name" use="optional" >
+          <xs:annotation>
+            <xs:documentation>Must have name OR path, or both</xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="path" type="xs:anyURI" use="optional">
+          <xs:annotation>
+            <xs:documentation>absolute or relative path to a physical directory</xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute ref="timestamp" use="optional"/>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  
+  <xs:complexType name="FileType">
+    <xs:attribute ref="name" use="optional" >
+      <xs:annotation>
+        <xs:documentation>May be used to override original file name in path</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="path" type="xs:anyURI" use="required">
+      <xs:annotation>
+        <xs:documentation>absolute or relative path to a file</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute ref="timestamp" use="optional" />
+    <xs:attribute name="password" type="xs:string" use="optional" />
+  </xs:complexType>
+
+  <xs:complexType name="SRAType">
+    <xs:attribute name="accession" use="required" type="xs:NCName" >
+      <xs:annotation>
+        <xs:documentation>SRA accession used to open the run</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="path" type="xs:anyURI" use="optional">
+      <xs:annotation>
+        <xs:documentation>path is used for direct opening of the tables, for automatic search do not specify</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <!-- next 5 attributes must always come together if present -->
+    <xs:attribute ref="timestamp" use="optional">
+      <xs:annotation>
+        <xs:documentation>time stamp of the size/md5 attribute values</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="size.sra" type ="xs:nonNegativeInteger" use="optional">
+      <xs:annotation>
+        <xs:documentation>file size in bytes</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="md5.sra" type ="xs:hexBinary" use="optional">
+      <xs:annotation>
+        <xs:documentation>MD5 sum of the file</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="size.lite.sra" type ="xs:nonNegativeInteger" use="optional">
+      <xs:annotation>
+        <xs:documentation>file size in bytes</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="md5.lite.sra" type ="xs:hexBinary" use="optional">
+      <xs:annotation>
+        <xs:documentation>MD5 sum of the file</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+  
+  <xs:complexType name="SRAConfigType">
+    <xs:complexContent>
+      <xs:extension base="AllEntries">
+        <xs:annotation>
+          <xs:documentation>Initially all attributes are TRUE, as first config node is encountered only attributes set to TRUE in THAT node are active all others become FALSE</xs:documentation>
+        </xs:annotation>
+        <xs:attribute name="run-directory" type="xs:boolean" use="optional" default="false" >
+          <xs:annotation>
+            <xs:documentation>Create run directory for the SRA node</xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+        <xs:attribute name="SRA-archive" type="xs:boolean" use="optional" default="false" />
+        <xs:attribute name="SRA-archive-lite" type="xs:boolean" use="optional" default="false" />
+        <xs:attribute name="fastq" type="xs:boolean" use="optional" default="false" /> 
+        <xs:attribute name="SFF" type="xs:boolean" use="optional" default="false" />
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  
+  <xs:complexType name="TARType">
+    <xs:complexContent>
+      <xs:extension base="TARItemList">
+        <xs:attribute ref="name" use="required">
+          <xs:annotation>
+            <xs:documentation>Ignored in dynamically loaded .tar.xml files, .tar.xml file name is used, ex: data5.tar.xml -> data5.tar</xs:documentation>
+          </xs:annotation>
+        </xs:attribute>
+      </xs:extension>
+    </xs:complexContent>
+  </xs:complexType>
+  
+  <xs:complexType name="TARItem">
+    <xs:attribute name="name" type="xs:anyURI" use="optional" >
+      <xs:annotation>
+        <xs:documentation>Cannot start with '/'. If omitted, portion of path after last '/' is used</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="path" type="xs:anyURI" use="required">
+      <xs:annotation>
+        <xs:documentation>Absolute or relative path to a file. In case of automatic tar relative
+                          paths will be resolved to from directory where .tar.xml is located.</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute ref="timestamp" use="optional"/>
+    <xs:attribute name="size" use="required" type="xs:nonNegativeInteger">
+      <xs:annotation>
+        <xs:documentation>Actual file size is required to pre-calc resulting file .tar size</xs:documentation>
+      </xs:annotation>
+    </xs:attribute>
+    <xs:attribute name="executable" type="xs:boolean" use="optional" default="false">
+        <xs:annotation>
+            <xs:documentation>Indicate if files has executable type</xs:documentation>
+        </xs:annotation>
+    </xs:attribute>
+  </xs:complexType>
+  
+  <xs:complexType name="TARItemList">
+      <xs:sequence>
+        <xs:element name="Item" type="TARItem" minOccurs="1" maxOccurs="unbounded" />
+      </xs:sequence>
+  </xs:complexType>
+  
+  <xs:attribute name="name" type="xs:NCName"/>
+  
+  <xs:attribute name="timestamp" type="xs:dateTime">
+    <xs:annotation>
+      <xs:documentation>Sets timestamp on a node formatted: YYYY-MM-DDTHH:MM:SS</xs:documentation>
+    </xs:annotation>
+  </xs:attribute>
+  
+</xs:schema>

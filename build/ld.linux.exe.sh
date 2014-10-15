@@ -289,9 +289,8 @@ then
 fi
 
 # add in xml
-grep HAVE_XML2 ${BUILD_DIR}/Makefile.config.linux.$ARCH
-if [ $? -eq 0 ]
-    then
+if grep -q HAVE_XML2 ${BUILD_DIR}/Makefile.config.linux.$ARCH > /dev/null
+then
     if [ $HAVE_XML -ne 0 ]
     then
         CMD="$CMD -lxml2"

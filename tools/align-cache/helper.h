@@ -277,6 +277,22 @@ namespace KApp
         return sign == '-' ? -ret : ret;
     }
 
+    template <typename T> T atou_t ( char const* str_val ) // TODO: throw std::runtime_exception instead of CErrorMsg
+    {
+        if ( str_val [0] == '\0' )
+            throw VDBObjects::CErrorMsg(0, "atou_t: invalid input string (empty)");
+
+        T ret = 0;
+        for ( size_t i = 0; str_val[i] != '\0'; ++i )
+        {
+            if ( str_val[i] < '0' || str_val[i] > '9' )
+                throw VDBObjects::CErrorMsg(0, "atou_t: invalid input string (invalid character)");
+            ret = ret*10 + str_val[i] - '0';
+        }
+
+        return ret;
+    }
+
     class CArgs
     {
     public:
@@ -295,6 +311,11 @@ namespace KApp
         {
             char const* str_val = GetOptionValue ( option_name, iteration );
             return atoi_t <T> ( str_val );
+        }
+        template <typename T> T GetOptionValueUInt ( char const* option_name, uint32_t iteration ) const
+        {
+            char const* str_val = GetOptionValue ( option_name, iteration );
+            return atou_t <T> ( str_val );
         }
 
     private:

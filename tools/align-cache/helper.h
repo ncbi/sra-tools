@@ -72,27 +72,66 @@ namespace KLib
     };
 }
 
-namespace VDBObjects
+namespace Utils
 {
-    class CErrorMsg : public std::exception // TODO: move it out of VDBObjects
+    class CErrorMsg : public std::exception
     {
     public:
-        CErrorMsg(rc_t rc, char const* temp_str) // TODO: add constructor with fmt, ...
-            : m_rc(rc)
-        {
-            strncpy ( m_szDescr, temp_str, countof(m_szDescr) );
-        }
+        CErrorMsg(rc_t rc, char const* fmt_str, ...);
 
-        rc_t getRC() const { return m_rc; }
-        virtual char const* what() const throw() { return m_szDescr; }
+        rc_t getRC() const;
+        virtual char const* what() const throw();
 
     private:
         char m_szDescr[256];
         rc_t m_rc;
     };
 
-/////////////////////////////////////////////////////////
+    template <typename T> T atoi_t ( char const* str_val )
+    {
+        if ( str_val [0] == '\0' )
+            throw Utils::CErrorMsg(0, "atoi_t: invalid input string (empty)");
 
+        size_t i = 0;
+        char sign = '+';
+        if ( str_val[0] == '-' || str_val[0] == '+' )
+        {
+            ++i;
+            sign = str_val[0];
+        }
+
+        T ret = 0;
+        for (; str_val[i] != '\0'; ++i )
+        {
+            if ( str_val[i] < '0' || str_val[i] > '9' )
+                throw Utils::CErrorMsg(0, "atoi_t: invalid input string \"%s\" (invalid character: '%c' at pos=%zu)", str_val, str_val[i], i+1);
+            ret = ret*10 + str_val[i] - '0';
+        }
+
+        return sign == '-' ? -ret : ret;
+    }
+
+    template <typename T> T atou_t ( char const* str_val )
+    {
+        if ( str_val [0] == '\0' )
+            throw Utils::CErrorMsg(0, "atou_t: invalid input string (empty)");
+
+        T ret = 0;
+        for ( size_t i = 0; str_val[i] != '\0'; ++i )
+        {
+            if ( str_val[i] < '0' || str_val[i] > '9' )
+                throw Utils::CErrorMsg(0, "atoi_t: invalid input string \"%s\" (invalid character: '%c' at pos=%zu)", str_val, str_val[i], i+1);
+            ret = ret*10 + str_val[i] - '0';
+        }
+
+        return ret;
+    }
+
+    void HandleException (); // This function must be called inside catch block only
+}
+
+namespace VDBObjects
+{
     /* functor to remove trailing '\n' from char reads */
     template<typename T> class CPostReadAction
     {
@@ -221,7 +260,7 @@ namespace VDBObjects
 
             rc_t rc = ::VCursorReadDirect(m_pSelf, idRow, idxCol, 8*sizeof(T), pBuf, nBufLen, &nItemsRead);
             if (rc)
-                throw CErrorMsg(rc, "VCursorReadDirect");
+                throw Utils::CErrorMsg(rc, "VCursorReadDirect: row_id=%ld, idxCol=%ud", idRow, idxCol);
 
             //CPostReadAction<T>(pBuf, nItemsRead)();
 
@@ -232,7 +271,7 @@ namespace VDBObjects
         {
             rc_t rc = ::VCursorWrite ( m_pSelf, idxCol, 8 * sizeof(T), pBuf, 0, count );
             if (rc)
-                throw CErrorMsg(rc, "VCursorWrite");
+                throw Utils::CErrorMsg(rc, "VCursorWrite: idxCol=%ud", idxCol);
         }
 
         int64_t GetRowId () const;
@@ -253,46 +292,6 @@ namespace VDBObjects
 
 namespace KApp
 {
-    template <typename T> T atoi_t ( char const* str_val ) // TODO: throw std::runtime_exception instead of CErrorMsg
-    {
-        if ( str_val [0] == '\0' )
-            throw VDBObjects::CErrorMsg(0, "atoi_t: invalid input string (empty)");
-
-        size_t i = 0;
-        char sign = '+';
-        if ( str_val[0] == '-' || str_val[0] == '+' )
-        {
-            ++i;
-            sign = str_val[0];
-        }
-
-        T ret = 0;
-        for (; str_val[i] != '\0'; ++i )
-        {
-            if ( str_val[i] < '0' || str_val[i] > '9' )
-                throw VDBObjects::CErrorMsg(0, "atoi_t: invalid input string (invalid character)");
-            ret = ret*10 + str_val[i] - '0';
-        }
-
-        return sign == '-' ? -ret : ret;
-    }
-
-    template <typename T> T atou_t ( char const* str_val ) // TODO: throw std::runtime_exception instead of CErrorMsg
-    {
-        if ( str_val [0] == '\0' )
-            throw VDBObjects::CErrorMsg(0, "atou_t: invalid input string (empty)");
-
-        T ret = 0;
-        for ( size_t i = 0; str_val[i] != '\0'; ++i )
-        {
-            if ( str_val[i] < '0' || str_val[i] > '9' )
-                throw VDBObjects::CErrorMsg(0, "atou_t: invalid input string (invalid character)");
-            ret = ret*10 + str_val[i] - '0';
-        }
-
-        return ret;
-    }
-
     class CArgs
     {
     public:
@@ -310,12 +309,12 @@ namespace KApp
         template <typename T> T GetOptionValueInt ( char const* option_name, uint32_t iteration ) const
         {
             char const* str_val = GetOptionValue ( option_name, iteration );
-            return atoi_t <T> ( str_val );
+            return Utils::atoi_t <T> ( str_val );
         }
         template <typename T> T GetOptionValueUInt ( char const* option_name, uint32_t iteration ) const
         {
             char const* str_val = GetOptionValue ( option_name, iteration );
-            return atou_t <T> ( str_val );
+            return Utils::atou_t <T> ( str_val );
         }
 
     private:

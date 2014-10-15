@@ -159,39 +159,43 @@ namespace AlignCache
             if ( p->prev_key == 0 )
                 cur_cache.SetRowId ( row_id );
 
+            VDBObjects::CVCursor const& cur_pa = *p->pCursorPA;
+            uint32_t const* ColIndexPA = p->pColumnIndex;
+            uint32_t const* ColIndexCache = p->pColumnIndexCache;
+
             cur_cache.OpenRow ();
 
             // MATE_ALIGN_ID
             size_t column_index = 0;
-            copy_single_int_field <int64_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+            copy_single_int_field <int64_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
             // SAM_FLAGS
             ++ column_index;
-            copy_single_int_field <uint32_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+            copy_single_int_field <uint32_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
             // TEMPLATE_LEN
             ++ column_index;
-            copy_single_int_field <int32_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+            copy_single_int_field <int32_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
             // MATE_REF_NAME
             ++ column_index;
-            copy_str_field (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+            copy_str_field (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
             // MATE_REF_POS
             ++ column_index;
-            copy_single_int_field <uint32_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+            copy_single_int_field <uint32_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
             // SAM_QUALITY
             ++ column_index;
-            copy_str_field (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+            copy_str_field (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
             // ALIGNMENT_COUNT
             ++ column_index;
-            copy_single_int_field <uint8_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+            copy_single_int_field <uint8_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
             // RD_FILTER
             ++ column_index;
-            copy_single_int_field <uint8_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+            copy_single_int_field <uint8_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
             cur_cache.CommitRow ();
             cur_cache.CloseRow ();
@@ -350,18 +354,9 @@ namespace AlignCache
 
             create_cache_db_impl ();
         }
-        catch (VDBObjects::CErrorMsg const& e)
-        {
-            char szBufErr[512] = "";
-            size_t rc = e.getRC();
-            rc_t res = string_printf(szBufErr, countof(szBufErr), NULL, "ERROR: %s failed with error 0x%08x (%d) [%R]", e.what(), rc, rc, rc);
-            if (res == rcBuffer || res == rcInsufficient)
-                szBufErr[countof(szBufErr) - 1] = '\0';
-            printf("%s\n", szBufErr);
-        }
         catch (...)
         {
-            printf("Unexpected exception occured\n");
+            Utils::HandleException ();
         }
     }
 }

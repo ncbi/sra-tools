@@ -55,11 +55,11 @@ namespace KLib
     void CKVector::Make()
     {
         if (m_pSelf)
-            throw VDBObjects::CErrorMsg (0, "Duplicated call to KVectorMake");
+            throw Utils::CErrorMsg (0, "Duplicated call to KVectorMake");
 
         rc_t rc = ::KVectorMake(&m_pSelf);
         if (rc)
-            throw VDBObjects::CErrorMsg(rc, "KVectorMake");
+            throw Utils::CErrorMsg(rc, "KVectorMake");
         printf("Created KVector %p\n", m_pSelf);
     }
 
@@ -87,7 +87,7 @@ namespace KLib
         rc_t rc = ::KVectorGetU64 ( m_pSelf, key_qword, &stored_bits );
         bool first_time = rc == RC ( rcCont, rcVector, rcAccessing, rcItem, rcNotFound ); // 0x1e615458
         if ( !first_time && rc )
-            throw VDBObjects::CErrorMsg(rc, "KVectorGetU64");
+            throw Utils::CErrorMsg(rc, "KVectorGetU64");
 
         uint64_t new_bit = (uint64_t)value << key_bit;
         uint64_t stored_bit = (uint64_t)1 << key_bit & stored_bits;
@@ -101,7 +101,7 @@ namespace KLib
 
             rc_t rc = ::KVectorSetU64 ( m_pSelf, key_qword, stored_bits );
             if (rc)
-                throw VDBObjects::CErrorMsg(rc, "KVectorSetU64");
+                throw Utils::CErrorMsg(rc, "KVectorSetU64");
         }
 #elif USING_UINT64_BITMAP == 2
         uint64_t stored_bits = 0;
@@ -110,7 +110,7 @@ namespace KLib
         rc_t rc = ::KVectorGetU64 ( m_pSelf, key_qword, &stored_bits );
         bool first_time = rc == RC ( rcCont, rcVector, rcAccessing, rcItem, rcNotFound ); // 0x1e615458;
         if ( !first_time && rc )
-            throw VDBObjects::CErrorMsg(rc, "KVectorGetU64");
+            throw Utils::CErrorMsg(rc, "KVectorGetU64");
 
         uint64_t new_bit_record = (BIT_SET_MASK | (uint64_t)value) << bit_offset_in_qword;
         uint64_t stored_bit_record = (uint64_t)BIT_RECORD_MASK << bit_offset_in_qword & stored_bits;
@@ -122,13 +122,13 @@ namespace KLib
 
             rc_t rc = ::KVectorSetU64 ( m_pSelf, key_qword, stored_bits );
             if (rc)
-                throw VDBObjects::CErrorMsg(rc, "KVectorSetU64");
+                throw Utils::CErrorMsg(rc, "KVectorSetU64");
         }
 #else
 
         rc_t rc = ::KVectorSetBool ( m_pSelf, key, value );
         if (rc)
-            throw VDBObjects::CErrorMsg(rc, "KVectorSetBool");
+            throw Utils::CErrorMsg(rc, "KVectorSetBool");
 #endif
     }
 
@@ -239,7 +239,7 @@ namespace VDBObjects
     {
         rc_t rc = ::VCursorOpen(m_pSelf);
         if (rc)
-            throw CErrorMsg(rc, "VCursorOpen");
+            throw Utils::CErrorMsg(rc, "VCursorOpen");
     }
 
     void CVCursor::InitColumnIndex(char const* const* ColumnNames, uint32_t* pColumnIndex, size_t nCount, bool set_default)
@@ -248,12 +248,8 @@ namespace VDBObjects
         {
             rc_t rc = ::VCursorAddColumn(m_pSelf, & pColumnIndex[i], ColumnNames[i] );
             if (rc)
-            {
-                char szDescr[256];
-                size_t num_written = 0;
-                string_printf(szDescr, countof(szDescr), &num_written, "VCursorAddColumn - [%s]", ColumnNames[i]);
-                throw CErrorMsg(rc, szDescr);
-            }
+                throw Utils::CErrorMsg(rc, "VCursorAddColumn - [%s]", ColumnNames[i]);
+
             if ( set_default )
             {
                 VTypedecl type;
@@ -262,14 +258,14 @@ namespace VDBObjects
 
                 rc = ::VCursorDatatype ( m_pSelf, idx, & type, & desc );
                 if (rc)
-                    throw CErrorMsg(rc, "VCursorDatatype");
+                    throw Utils::CErrorMsg(rc, "VCursorDatatype (column idx=%ud [%s])", idx, ColumnNames[i]);
 
                 uint32_t elem_bits = ::VTypedescSizeof ( & desc );
                 if (rc)
-                    throw CErrorMsg(rc, "VTypedescSizeof");
+                    throw Utils::CErrorMsg(rc, "VTypedescSizeof (column idx=%ud [%s])", idx, ColumnNames[i]);
                 rc = ::VCursorDefault ( m_pSelf, idx, elem_bits, "", 0, 0 );
                 if (rc)
-                    throw CErrorMsg(rc, "VCursorDefault");
+                    throw Utils::CErrorMsg(rc, "VCursorDefault (column idx=%ud [%s])", idx, ColumnNames[i]);
             }
         }
     }
@@ -278,7 +274,7 @@ namespace VDBObjects
     {
         rc_t rc = ::VCursorIdRange(m_pSelf, 0, &idFirstRow, &nRowCount);
         if (rc)
-            throw CErrorMsg(rc, "VCursorIdRange");
+            throw Utils::CErrorMsg(rc, "VCursorIdRange");
     }
 
     int64_t CVCursor::GetRowId () const
@@ -286,7 +282,7 @@ namespace VDBObjects
         int64_t row_id;
         rc_t rc = ::VCursorRowId ( m_pSelf, & row_id );
         if (rc)
-            throw CErrorMsg(rc, "VCursorRowId");
+            throw Utils::CErrorMsg(rc, "VCursorRowId");
 
         return row_id;
     }
@@ -295,42 +291,42 @@ namespace VDBObjects
     {
         rc_t rc = ::VCursorSetRowId ( m_pSelf, row_id );
         if (rc)
-            throw CErrorMsg(rc, "VCursorSetRowId");
+            throw Utils::CErrorMsg(rc, "VCursorSetRowId (%ld)", row_id);
     }
 
     void CVCursor::OpenRow () const
     {
         rc_t rc = ::VCursorOpenRow ( m_pSelf );
         if (rc)
-            throw CErrorMsg(rc, "VCursorOpenRow");
+            throw Utils::CErrorMsg(rc, "VCursorOpenRow");
     }
 
     void CVCursor::CommitRow ()
     {
         rc_t rc = ::VCursorCommitRow ( m_pSelf );
         if (rc)
-            throw CErrorMsg(rc, "VCursorCommitRow");
+            throw Utils::CErrorMsg(rc, "VCursorCommitRow");
     }
 
     void CVCursor::RepeatRow ( uint64_t count )
     {
         rc_t rc = ::VCursorRepeatRow ( m_pSelf, count );
         if (rc)
-            throw CErrorMsg(rc, "VCursorRepeatRow");
+            throw Utils::CErrorMsg(rc, "VCursorRepeatRow (%lu)", count);
     }
 
     void CVCursor::CloseRow () const
     {
         rc_t rc = ::VCursorCloseRow ( m_pSelf );
         if (rc)
-            throw CErrorMsg(rc, "VCursorCloseRow");
+            throw Utils::CErrorMsg(rc, "VCursorCloseRow");
     }
 
     void CVCursor::Commit ()
     {
         rc_t rc = ::VCursorCommit ( m_pSelf );
         if (rc)
-            throw CErrorMsg(rc, "VCursorCommit");
+            throw Utils::CErrorMsg(rc, "VCursorCommit");
     }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -382,7 +378,7 @@ namespace VDBObjects
         CVCursor cursor;
         rc_t rc = ::VTableCreateCachedCursorRead(m_pSelf, const_cast<VCursor const**>(& cursor.m_pSelf), cache_size);
         if (rc)
-            throw CErrorMsg(rc, "VTableCreateCachedCursorRead");
+            throw Utils::CErrorMsg(rc, "VTableCreateCachedCursorRead (%zu)", cache_size);
 
         printf("Created cursor (rd) %p\n", cursor.m_pSelf);
         return cursor;
@@ -393,7 +389,7 @@ namespace VDBObjects
         CVCursor cursor;
         rc_t rc = ::VTableCreateCursorWrite ( m_pSelf, & cursor.m_pSelf, mode );
         if (rc)
-            throw CErrorMsg(rc, "VTableCreateCursorWrite");
+            throw Utils::CErrorMsg(rc, "VTableCreateCursorWrite");
 
         printf("Created cursor (wr) %p\n", cursor.m_pSelf);
         return cursor;
@@ -447,9 +443,9 @@ namespace VDBObjects
         CVTable table;
         rc_t rc = ::VDatabaseOpenTableRead(m_pSelf, const_cast<VTable const**>(& table.m_pSelf), pszTableName);
         if (rc)
-            throw CErrorMsg(rc, "VDatabaseOpenTableRead");
+            throw Utils::CErrorMsg(rc, "VDatabaseOpenTableRead (%s)", pszTableName);
 
-        printf("Opened table %p\n", table.m_pSelf);
+        printf("Opened table %p (%s)\n", table.m_pSelf, pszTableName);
         return table;
     }
 
@@ -458,9 +454,9 @@ namespace VDBObjects
         CVTable table;
         rc_t rc = ::VDatabaseCreateTable ( m_pSelf, & table.m_pSelf, pszTableName, cmode, pszTableName );
         if (rc)
-            throw CErrorMsg(rc, "VDatabaseCreateTable");
+            throw Utils::CErrorMsg(rc, "VDatabaseCreateTable (%s)", pszTableName);
 
-        printf("Created table %p\n", table.m_pSelf);
+        printf("Created table %p (%s)\n", table.m_pSelf, pszTableName);
         return table;
     }
 
@@ -511,7 +507,7 @@ namespace VDBObjects
     {
         rc_t rc = ::VSchemaParseFile ( m_pSelf, pszFilePath );
         if (rc)
-            throw CErrorMsg(rc, "VSchemaParseFile");
+            throw Utils::CErrorMsg(rc, "VSchemaParseFile (%s)", pszFilePath);
     }
 
 //////////////////////////////////////////////////////////////////////
@@ -539,11 +535,11 @@ namespace VDBObjects
     {
         assert(m_pSelf == NULL);
         if (m_pSelf)
-            throw CErrorMsg(0, "Double call to VDBManagerMakeRead");
+            throw Utils::CErrorMsg(0, "Double call to VDBManagerMakeRead");
 
         rc_t rc = ::VDBManagerMakeRead(const_cast<VDBManager const**>(&m_pSelf), NULL);
         if (rc)
-            throw CErrorMsg(rc, "VDBManagerMakeRead");
+            throw Utils::CErrorMsg(rc, "VDBManagerMakeRead");
 
         printf("Created VDBManager (rd) %p\n", m_pSelf);
     }
@@ -552,15 +548,15 @@ namespace VDBObjects
     {
         assert(m_pSelf == NULL);
         if (m_pSelf)
-            throw CErrorMsg(0, "Double call to VDBManagerMakeUpdate");
+            throw Utils::CErrorMsg(0, "Double call to VDBManagerMakeUpdate");
 
         rc_t rc = ::VDBManagerMakeUpdate ( & m_pSelf, NULL );
         if (rc)
-            throw CErrorMsg(rc, "VDBManagerMakeUpdate");
+            throw Utils::CErrorMsg(rc, "VDBManagerMakeUpdate");
 
 	    /*rc = VDBManagerDisablePagemapThread ( m_pSelf );
         if (rc)
-            throw CErrorMsg(rc, "VDBManagerDisablePagemapThread");*/
+            throw Utils::CErrorMsg(rc, "VDBManagerDisablePagemapThread");*/
 
         printf("Created VDBManager (wr) %p\n", m_pSelf);
     }
@@ -571,9 +567,9 @@ namespace VDBObjects
         CVDatabase vdb;
         rc_t rc = ::VDBManagerOpenDBRead(m_pSelf, const_cast<VDatabase const**>(& vdb.m_pSelf), NULL, pszDBName);
         if (rc)
-            throw CErrorMsg(rc, "VDBManagerOpenDBRead");
+            throw Utils::CErrorMsg(rc, "VDBManagerOpenDBRead (%s)", pszDBName);
 
-        printf("Opened database %p\n", vdb.m_pSelf);
+        printf("Opened database %p (%s)\n", vdb.m_pSelf, pszDBName);
         return vdb;
     }
     CVDatabase CVDBManager::CreateDB ( CVSchema const& schema, char const* pszTypeDesc, ::KCreateMode cmode, char const* pszPath )
@@ -581,9 +577,9 @@ namespace VDBObjects
         CVDatabase vdb;
         rc_t rc = ::VDBManagerCreateDB ( m_pSelf, & vdb.m_pSelf, schema.m_pSelf, pszTypeDesc, cmode, pszPath );
         if (rc)
-            throw CErrorMsg(rc, "VDBManagerCreateDB");
+            throw Utils::CErrorMsg(rc, "VDBManagerCreateDB (%s)", pszPath);
 
-        printf("Created database %p\n", vdb.m_pSelf);
+        printf("Created database %p (%s)\n", vdb.m_pSelf, pszPath);
         return vdb;
     }
 
@@ -592,7 +588,7 @@ namespace VDBObjects
         CVSchema schema;
         rc_t rc = ::VDBManagerMakeSchema ( m_pSelf, & schema.m_pSelf );
         if (rc)
-            throw CErrorMsg(rc, "VDBManagerMakeSchema");
+            throw Utils::CErrorMsg(rc, "VDBManagerMakeSchema");
 
         printf("Created Schema %p\n", schema.m_pSelf);
         return schema;
@@ -615,11 +611,11 @@ namespace KApp
     void CArgs::MakeAndHandle (int argc, char** argv, ::OptDef* pOptions, size_t option_count)
     {
         if (m_pSelf)
-            throw VDBObjects::CErrorMsg (0, "Duplicated call to ArgsMakeAndHandle");
+            throw Utils::CErrorMsg (0, "Duplicated call to ArgsMakeAndHandle");
 
         rc_t rc = ::ArgsMakeAndHandle (&m_pSelf, argc, argv, 1, pOptions, option_count);
         if (rc)
-            throw VDBObjects::CErrorMsg(rc, "ArgsMakeAndHandle");
+            throw Utils::CErrorMsg(rc, "ArgsMakeAndHandle");
         printf("Created Args %p\n", m_pSelf);
     }
 
@@ -643,7 +639,7 @@ namespace KApp
         uint32_t ret = 0;
         rc_t rc = ::ArgsParamCount ( m_pSelf, &ret );
         if (rc)
-            throw VDBObjects::CErrorMsg(rc, "ArgsParamCount");
+            throw Utils::CErrorMsg(rc, "ArgsParamCount");
 
         return ret;
     }
@@ -653,7 +649,7 @@ namespace KApp
         char const* ret = NULL;
         rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, &ret );
         if (rc)
-            throw VDBObjects::CErrorMsg(rc, "ArgsParamValue");
+            throw Utils::CErrorMsg(rc, "ArgsParamValue");
 
         return ret;
     }
@@ -663,7 +659,7 @@ namespace KApp
         uint32_t ret = 0;
         rc_t rc = ::ArgsOptionCount ( m_pSelf, option_name, &ret );
         if (rc)
-            throw VDBObjects::CErrorMsg(rc, "ArgsOptionCount");
+            throw Utils::CErrorMsg(rc, "ArgsOptionCount (%s)", option_name);
 
         return ret;
     }
@@ -673,9 +669,55 @@ namespace KApp
         char const* ret = NULL;
         rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, &ret );
         if (rc)
-            throw VDBObjects::CErrorMsg(rc, "ArgsOptionValue");
+            throw Utils::CErrorMsg(rc, "ArgsOptionValue (%s)", option_name);
 
         return ret;
     }
+}
 
+namespace Utils
+{
+    CErrorMsg::CErrorMsg(rc_t rc, char const* fmt_str, ...)
+        : m_rc(rc)
+    {
+        va_list args;
+        va_start(args, fmt_str);
+        string_vprintf (m_szDescr, countof(m_szDescr), NULL, fmt_str, args);
+        va_end(args);
+    }
+
+    rc_t CErrorMsg::getRC() const
+    {
+        return m_rc;
+    }
+    char const* CErrorMsg::what() const throw()
+    {
+        return m_szDescr;
+    }
+
+
+    void HandleException ()
+    {
+        try
+        {
+            throw;
+        }
+        catch (Utils::CErrorMsg const& e)
+        {
+            char szBufErr[512] = "";
+            size_t rc = e.getRC();
+            rc_t res = string_printf(szBufErr, countof(szBufErr), NULL, "ERROR: %s failed with error 0x%08x (%u) [%R]", e.what(), rc, rc, rc);
+            if (res == rcBuffer || res == rcInsufficient)
+                szBufErr[countof(szBufErr) - 1] = '\0';
+            printf("%s\n", szBufErr);
+        }
+        catch (std::exception const& e)
+        {
+            printf("std::exception: %s\n", e.what());
+        }
+        catch (...)
+        {
+            printf("Unexpected exception occured\n");
+        }
+    }
 }

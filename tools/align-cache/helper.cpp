@@ -258,14 +258,14 @@ namespace VDBObjects
 
                 rc = ::VCursorDatatype ( m_pSelf, idx, & type, & desc );
                 if (rc)
-                    throw Utils::CErrorMsg(rc, "VCursorDatatype (column idx=%ud [%s])", idx, ColumnNames[i]);
+                    throw Utils::CErrorMsg(rc, "VCursorDatatype (column idx=%u [%s])", idx, ColumnNames[i]);
 
                 uint32_t elem_bits = ::VTypedescSizeof ( & desc );
                 if (rc)
-                    throw Utils::CErrorMsg(rc, "VTypedescSizeof (column idx=%ud [%s])", idx, ColumnNames[i]);
+                    throw Utils::CErrorMsg(rc, "VTypedescSizeof (column idx=%u [%s])", idx, ColumnNames[i]);
                 rc = ::VCursorDefault ( m_pSelf, idx, elem_bits, "", 0, 0 );
                 if (rc)
-                    throw Utils::CErrorMsg(rc, "VCursorDefault (column idx=%ud [%s])", idx, ColumnNames[i]);
+                    throw Utils::CErrorMsg(rc, "VCursorDefault (column idx=%u [%s])", idx, ColumnNames[i]);
             }
         }
     }

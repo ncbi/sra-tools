@@ -38,6 +38,10 @@
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   
+  <PropertyGroup Condition="$(TargetName)==''">
+    <TargetName>$(ProjectName)</TargetName>
+  </PropertyGroup>
+  
   <ItemDefinitionGroup>
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>

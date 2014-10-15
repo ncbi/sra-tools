@@ -81,22 +81,52 @@ namespace AlignCache
 
     size_t print_percent ( size_t count, size_t total_count )
     {
-        size_t const points = 100;
-        if ( total_count >= points && !(count % (total_count / points)) )
+        size_t const total_points = 10000;
+        if ( total_count >= total_points && !(count % (total_count / total_points)) )
         {
-            size_t percent = (size_t)(points*count/total_count);
+            size_t points = (size_t)(total_points*count/total_count);
             std::cout
-                << percent
+                << (100*points/total_points)
+                << "."
+                << ( 1000*points/total_points % 10 )
+                << ( 10000*points/total_points % 10 )
                 << "% ("
                 << count
                 << "/"
                 << total_count
                 << ")"
                 << std::endl;
-            return percent;
+            return points;
         }
         else
             return 0;
+    }
+
+    template <typename T>
+    void copy_single_int_field (
+        VDBObjects::CVCursor const& curFrom,
+        VDBObjects::CVCursor& curTo,
+        int64_t row_id,
+        uint32_t column_index_from,
+        uint32_t column_index_to
+        )
+    {
+        T val;
+        curFrom.ReadItems ( row_id, column_index_from, & val, sizeof (T) );
+        curTo.Write ( column_index_to, & val, 1 );
+    }
+
+    void copy_str_field (
+        VDBObjects::CVCursor const& curFrom,
+        VDBObjects::CVCursor& curTo,
+        int64_t row_id,
+        uint32_t column_index_from,
+        uint32_t column_index_to
+        )
+    {
+        char val[4096];
+        uint32_t item_count = curFrom.ReadItems ( row_id, column_index_from, val, sizeof (val) );
+        curTo.Write ( column_index_to, val, item_count );
     }
 
     rc_t KVectorCallbackPrimaryAlignment ( uint64_t key, bool value, void *user_data )
@@ -125,49 +155,43 @@ namespace AlignCache
 
         // Caching (copying) actual record from PRIMARY_ALIGNMENT table
         {
-            // The very first visin - need to set starting row_id
+            // The very first visit - need to set starting row_id
             if ( p->prev_key == 0 )
                 cur_cache.SetRowId ( row_id );
 
             cur_cache.OpenRow ();
 
-            uint32_t item_count;
-
             // MATE_ALIGN_ID
             size_t column_index = 0;
-            int64_t mate_align_id;
-            p->pCursorPA->ReadItems ( row_id, p->pColumnIndex [column_index], & mate_align_id, sizeof (mate_align_id) );
-            cur_cache.Write ( p->pColumnIndexCache [column_index], & mate_align_id, 1 );
+            copy_single_int_field <int64_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
 
             // SAM_FLAGS
             ++ column_index;
-            uint32_t sam_flags;
-            p->pCursorPA->ReadItems ( row_id, p->pColumnIndex [column_index], & sam_flags, sizeof (sam_flags) );
-            cur_cache.Write ( p->pColumnIndexCache [column_index], & sam_flags, 1 );
+            copy_single_int_field <uint32_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
 
             // TEMPLATE_LEN
             ++ column_index;
-            int32_t template_len;
-            p->pCursorPA->ReadItems ( row_id, p->pColumnIndex [column_index], & template_len, sizeof (template_len) );
-            cur_cache.Write ( p->pColumnIndexCache [column_index], & template_len, 1 );
+            copy_single_int_field <int32_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
 
             // MATE_REF_NAME
             ++ column_index;
-            char mate_ref_name[512];
-            item_count = p->pCursorPA->ReadItems ( row_id, p->pColumnIndex [column_index], mate_ref_name, sizeof (mate_ref_name) );
-            cur_cache.Write ( p->pColumnIndexCache [column_index], mate_ref_name, item_count );
+            copy_str_field (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
 
             // MATE_REF_POS
             ++ column_index;
-            uint32_t mate_ref_pos;
-            p->pCursorPA->ReadItems ( row_id, p->pColumnIndex [column_index], & mate_ref_pos, sizeof (mate_ref_pos) );
-            cur_cache.Write ( p->pColumnIndexCache [column_index], & mate_ref_pos, 1 );
+            copy_single_int_field <uint32_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
 
             // SAM_QUALITY
             ++ column_index;
-            char sam_quality[4096];
-            item_count = p->pCursorPA->ReadItems ( row_id, p->pColumnIndex [column_index], sam_quality, sizeof (sam_quality) );
-            cur_cache.Write ( p->pColumnIndexCache [column_index], sam_quality, item_count );
+            copy_str_field (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+
+            // ALIGNMENT_COUNT
+            ++ column_index;
+            copy_single_int_field <uint8_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
+
+            // RD_FILTER
+            ++ column_index;
+            copy_single_int_field <uint8_t> (*p->pCursorPA, cur_cache, row_id, p->pColumnIndex[column_index], p->pColumnIndexCache[column_index] );
 
             cur_cache.CommitRow ();
             cur_cache.CloseRow ();
@@ -233,12 +257,14 @@ namespace AlignCache
         // to the new cache table
 #define DECLARE_PA_COLUMNS( arrName, column_suffix ) char const* arrName[] =\
         {\
-            "MATE_ALIGN_ID" column_suffix,\
-            "SAM_FLAGS"     column_suffix,\
-            "TEMPLATE_LEN"  column_suffix,\
-            "MATE_REF_NAME" column_suffix,\
-            "MATE_REF_POS"  column_suffix,\
-            "SAM_QUALITY"   column_suffix\
+            "MATE_ALIGN_ID"     column_suffix,\
+            "SAM_FLAGS"         column_suffix,\
+            "TEMPLATE_LEN"      column_suffix,\
+            "MATE_REF_NAME"     column_suffix,\
+            "MATE_REF_POS"      column_suffix,\
+            "SAM_QUALITY"       column_suffix,\
+            "ALIGNMENT_COUNT"   column_suffix,\
+            "RD_FILTER"         column_suffix\
         }
 
         DECLARE_PA_COLUMNS (ColumnNamesPrimaryAlignment, "");
@@ -255,12 +281,7 @@ namespace AlignCache
         cursorPA.Open();
 
         // Creating new cache table (with the same name - PRIMARY_ALIGNMENT but in the separate DB file)
-        char const schema_path[] = // TODO: specify schema path in a proper way
-#ifdef _WIN32
-            "Z:/projects/internal/asm-trace/interfaces/align/mate-cache.vschema";
-#else
-            "align/mate-cache.vschema";
-#endif
+        char const schema_path[] = "align/mate-cache.vschema";
 
         VDBObjects::CVSchema schema = mgr.MakeSchema ();
         schema.VSchemaParseFile ( schema_path );
@@ -320,7 +341,7 @@ namespace AlignCache
                 g_Params.id_spread_threshold = args.GetOptionValueUInt<int64_t> ( OPTION_ID_SPREAD_THRESHOLD, 0 );
 
             if (args.GetOptionCount (OPTION_CURSOR_CACHE_SIZE))
-                g_Params.cursor_cache_size = args.GetOptionValueUInt<size_t> ( OPTION_CURSOR_CACHE_SIZE, 0 );
+                g_Params.cursor_cache_size = 1024*1024 * args.GetOptionValueUInt<size_t> ( OPTION_CURSOR_CACHE_SIZE, 0 );
 
             //std::cout
             //    << "dbPath=" << g_Params.dbPath << std::endl

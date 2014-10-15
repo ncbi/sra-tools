@@ -19,6 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
 
+  <PropertyGroup>
+    <TargetName>latf-load</TargetName> 
+  </PropertyGroup>
+  
   <Import Project=".\exe-project.props" />
   
   <ItemDefinitionGroup>

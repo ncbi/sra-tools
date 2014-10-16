@@ -85,9 +85,12 @@ valgrind_test: $(TEST_BINDIR)/test-fastq-loader
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-runtests: smalltests
+runtests: set_schema smalltests
 
-SMALLRUN = @ export VDB_CONFIG=$(SRCDIR); $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
+set_schema: $(BINDIR)/vdb-config
+	$(BINDIR)/vdb-config -s vdb/schema/paths="$(VDB_INCDIR)"
+
+SMALLRUN = @ $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
 smalltests: $(TEST_TOOLS)
 	-rm -rf $(SRCDIR)/actual
 #   Small tests

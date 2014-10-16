@@ -33,7 +33,7 @@ LD_REF_SYMBOLS="-Wl,-no-whole-archive"
 
 # build command
 DLIB_CMD="$LD -shared"
-EXE_CMD="$LD"
+EXE_CMD="$LD -static-libstdc++"
 
 # versioned output
 if [ "$VERS" = "" ]

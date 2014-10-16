@@ -1,0 +1,4 @@
+latf-load err: data inconsistent while reading document within alignment module - Spot 'BILLIEHOLIDAY': length of original quality does not match sequence
+latf-load warn: The file contained no records that were processed.
+latf-load err: data empty while reading file within alignment module - accession="obj" errors="1" status="failure"
+latf-load err: data empty while reading file within alignment module - load failed

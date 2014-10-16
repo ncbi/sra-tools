@@ -1,0 +1,4 @@
+latf-load err: file="1.3.fastq"
+latf-load err:Invalid quality value (' '=32, position 2): for Phred33, valid range is from 33 to 126.
+latf-load err: format unsupported while parsing file - accession="obj" errors="1" status="failure"
+latf-load err: format unsupported while parsing file - load failed

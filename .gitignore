@@ -2,3 +2,5 @@
 /centos
 /mac
 /Makefile.config.*
+*.o
+*.d

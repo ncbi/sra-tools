@@ -22,9 +22,26 @@
 #
 # ===========================================================================
 
-#TBD
-default all std clean runtests slowtests:
-	@true
-    
-.PHONY: default all std clean runtests slowtests
-    
+by_default: runtests
+
+TOP ?= $(abspath ..)
+MODULE = test
+
+include $(TOP)/build/Makefile.shell
+
+include $(TOP)/build/Makefile.config
+
+#-------------------------------------------------------------------------------
+# default
+#
+SUBDIRS =    \
+	fastq-loader      \
+
+# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
+include $(TOP)/build/Makefile.targets
+
+$(SUBDIRS):
+	@ $(MAKE) -C $@
+
+.PHONY: default $(SUBDIRS)
+

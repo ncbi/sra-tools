@@ -1,0 +1,1 @@
+vdb/schema/paths="$(VDB_INCDIR)/interfaces"

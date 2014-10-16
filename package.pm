@@ -20,8 +20,8 @@ sub REQ { (
               usrpath =>      '$HOME/ngs/ngs-sdk',
               bldpath => '$HOME/ncbi-outdir/ngs-sdk',
               include => 'ngs/itf/Refcount.h',
-              lib => 'libngs-sdk.so',
-              ilib => 'libngs-bind-c++.a',
+              lib     => 'libngs-sdk.$SHLX',
+              ilib    => 'libngs-bind-c++.a',
             },
             { name    => 'ncbi-vdb',
               namew   => 'VDB',
@@ -33,7 +33,7 @@ sub REQ { (
               usrpath =>      '$HOME/ncbi/ncbi-vdb',
               bldpath => '$HOME/ncbi-outdir/ncbi-vdb',
               include => 'klib/rc.h',
-              lib => 'libncbi-vdb.a',
-              ilib => 'libkapp.a',
+              lib     => 'libncbi-vdb.a',
+              ilib    => 'libkapp.a',
         } ) }
 1

@@ -26,16 +26,14 @@
 default: std
 
 TOP ?= $(abspath ../..)
-MODULE = services/fuse
+MODULE = tools/fuse
 
 include $(TOP)/build/Makefile.env
 
 INT_TOOLS =
 
 EXT_TOOLS = \
-	sra-fuser \
 	remote-fuser \
-#	sra-makeidx
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \

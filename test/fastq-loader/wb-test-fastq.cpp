@@ -788,6 +788,12 @@ FIXTURE_TEST_CASE(RunSpotRead_withTail, LoaderFixture)
     REQUIRE(SequenceIsSecond(seq));
 }
 
+FIXTURE_TEST_CASE(RunSpotNothing, LoaderFixture)
+{
+    defaultReadNumber = 1;
+    REQUIRE(CreateFileGetSequence(GetName().c_str(), "@SRR390728.1\n" "GATT\n" "+\n" "!''*\n"));
+}
+
 // Components of Illumina tag lines:
 // @HWUSI-EAS499:1:3:9:1822#0/1"
 // spot-name HWUSI-EAS499:1:3:9:1822    tag line up to and including coordinates

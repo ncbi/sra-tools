@@ -62,6 +62,9 @@ FASTQ_TEST_LIB = \
 $(TEST_BINDIR)/wb-test-fastq: $(FASTQ_TEST_OBJ)
 	$(LP) --exe -o $@ $^ $(FASTQ_TEST_LIB)
     
+wb: $(TEST_BINDIR)/wb-test-fastq
+	$^
+    
 valgrind_wb: $(TEST_BINDIR)/wb-test-fastq
 	valgrind --ncbi $^
     

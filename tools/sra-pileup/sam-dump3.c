@@ -139,7 +139,7 @@ char const *sd_cachereport_usage[]    = { "print report about mate-pair-cache",
 char const *sd_unaligned_only_usage[] = { "output reads for spots with no aligned reads",
                                        NULL };
 
-char const *sd_cg_names_usage[]       = { "prints cg-style spotgroup.spotid fromed names",
+char const *sd_cg_names_usage[]       = { "prints cg-style spotgroup.spotid formed names",
                                        NULL };
 
 char const *sd_cur_cache_usage[]      = { "open cached cursor with this size",

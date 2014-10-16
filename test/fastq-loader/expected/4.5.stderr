@@ -1,0 +1,9 @@
+latf-load warn: file="4.5.fastq"
+latf-load warn:syntax error, unexpected fqASCQUAL, expecting fqBASESEQ or fqCOLORSEQ
+latf-load warn: file="4.5.fastq"
+latf-load warn:syntax error, unexpected fqASCQUAL, expecting fqBASESEQ or fqCOLORSEQ
+latf-load warn: file="4.5.fastq"
+latf-load warn:syntax error, unexpected fqASCQUAL, expecting fqBASESEQ or fqCOLORSEQ
+latf-load err: error excessive while reading file within alignment module - Number of errors 3 exceeds limit of 2: Exiting
+latf-load err: error excessive while reading file within alignment module - accession="obj" errors="3" status="failure"
+latf-load err: error excessive while reading file within alignment module - load failed

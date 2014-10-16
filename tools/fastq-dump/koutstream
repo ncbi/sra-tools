@@ -141,9 +141,9 @@ public :
             if ( __n < __a ) {
                     /*)  Here we are adding string to a buffer
                      (*/
-                traits_type :: copy ( this -> pptr (), __s, __n );
+                traits_type :: copy ( this -> pptr (), __s, ( size_t ) __n );
 
-                this -> pbump ( __n );
+                this -> pbump ( ( int ) __n );
             }
             else {
                     /*) We are not too effective ...
@@ -164,9 +164,9 @@ public :
                     traits_type :: copy (
                                     this -> pbase (),
                                     __s + __q,
-                                    __c
+                                    ( size_t ) __c
                                     );
-                    this -> pbump ( __c );
+                    this -> pbump ( ( int ) __c );
 
                     if ( __sync () == - 1 ) {
                         return 0;

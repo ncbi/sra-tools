@@ -19,11 +19,17 @@
     </ProjectConfiguration>
   </ItemGroup>
 
+  <PropertyGroup>
+    <TargetName>latf-load</TargetName> 
+  </PropertyGroup>
+  
   <Import Project=".\exe-project.props" />
   
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalDependencies>$(VDB_TARGET)bin\ncbi-wvdb-dll.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-wvdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\bz2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\load.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>

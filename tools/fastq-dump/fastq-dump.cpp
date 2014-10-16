@@ -565,7 +565,7 @@ dumpFastA (
         while ( __p < __l ) {
             uint64_t __t = std :: min ( Width, __l - __p );
 
-            kout << std :: string ( __s, __p, __t ) << "\n" ;
+            kout << std :: string ( __s, ( std :: string :: size_type ) __p, ( std :: string :: size_type ) __t ) << "\n" ;
 
             __p += __t;
         }

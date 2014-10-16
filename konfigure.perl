@@ -687,17 +687,15 @@ EndText
         T($F, '@ echo -n "installing \'$(@F)\'... "');
         T($F, '@ if cp $^ $@ && chmod 644 $@;                         \\');
         T($F, '  then                                                 \\');
-      if ($OS eq 'mac') {
         T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
                       . '$(subst $(VERSION_LIBX),$(LIBX),$@) '
                       . '$(subst .$(VERSION_LIBX),-static.$(LIBX),$@); \\');
-      } else {
-        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
-                      . '$(subst $(VERSION_LIBX),$(LIBX),$@);         \\');
-      }
         T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
         T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
                       . '$(subst $(VERSION_LIBX),$(LIBX),$@); \\');
+        T($F, '      ln -s $(subst $(VERSION_LIBX),$(LIBX),$(@F)) ' .
+       '$(INST_LIBDIR)$(BITS)/$(subst .$(VERSION_LIBX),-static.$(LIBX),$(@F));'
+                                                              . ' \\');
         T($F, '      echo success;                                    \\');
         T($F, '  else                                                 \\');
         T($F, '      echo failure;                                    \\');
@@ -715,13 +713,6 @@ EndText
         T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
         T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
                       . '$(subst $(VERSION_SHLX),$(SHLX),$@); \\');
-      if ($OS ne 'mac') {
-        T($F, '      cp -v $(LIBDIR)/$(subst $(VERSION_SHLX),'
-                    . '$(VERSION_LIBX),$(@F)) $(INST_LIBDIR)$(BITS)/; \\');
-        T($F, '      ln -vfs $(subst $(VERSION_SHLX),$(VERSION_LIBX), $(@F)) ' .
-       '$(INST_LIBDIR)$(BITS)/$(subst .$(VERSION_SHLX),-static.\$(LIBX),$(@F));'
-                                                              . ' \\');
-      }
         T($F, '      echo success;                                    \\');
         T($F, '  else                                                 \\');
         T($F, '      echo failure;                                    \\');

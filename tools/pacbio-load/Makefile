@@ -130,7 +130,11 @@ PACBIO_LOAD_LIB = \
 	-lload \
 	-sncbi-wvdb \
 	-lm \
-    -lhdf5
+	-lhdf5 \
+
+ifdef HDF5_LIBDIR
+	PACBIO_LOAD_LIB += $(addprefix -L,$(HDF5_LIBDIR))
+endif
 
 $(BINDIR)/pacbio-load: $(PACBIO_LOAD_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(PACBIO_LOAD_LIB)

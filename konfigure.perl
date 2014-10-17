@@ -322,9 +322,14 @@ if ($OS ne 'win') {
 
 my @dependencies;
 
-#use File::Temp "mktemp";$_=mktemp("123.XXXX");print "$_\n";`touch $_`
-foreach (DEPENDS()) {
-    my ($i, $l) = find_lib($_);
+foreach my $href (DEPENDS()) {
+    $_ = $href->{name};
+    my ($I, $L) = ($href->{Include});
+    if ($OPT{"with-$_-prefix"}) {
+        $I = File::Spec->catdir($OPT{"with-$_-prefix"}, 'include'); 
+        $L = File::Spec->catdir($OPT{"with-$_-prefix"}, 'lib'); 
+    }
+    my ($i, $l) = find_lib($_, $I, $L);
     if (defined $i || $l) {
         my $d = 'HAVE_' . uc($_) . ' = 1';
         push @dependencies, $d;
@@ -343,10 +348,10 @@ foreach (DEPENDS()) {
 }
 
 foreach my $href (@REQ) {
-    $href->{bldpath} =~ s/(\$\w+)/$1/eeg;
+    $href->{bldpath} =~ s/(\$\w+)/$1/eeg if ($href->{bldpath});
     my ($found_itf, $found_lib, $found_ilib);        # found directories
     my %a = %$href;
-    my $is_optional = $a{type} eq 'SI';
+    my $is_optional = optional($a{type});
     my $need_source = $a{type} =~ /S/;
     my $need_build = $a{type} =~ /B/;
     my $need_lib = $a{type} =~ /L/;
@@ -391,7 +396,7 @@ foreach my $href (@REQ) {
             $found_ilib = $fil if (! $found_ilib && $fil);
         }
     }
-    unless ($found_itf || $has_option{sources}) {
+    if (! $found_itf && ! $has_option{sources} && $a{srcpath}) {
         my $try = $a{srcpath};
         ($found_itf) = find_in_dir($try, $inc);
     }
@@ -411,7 +416,7 @@ foreach my $href (@REQ) {
         }
     }
     if (! $has_option{build}) {
-        if ($need_build || ($need_lib && ! $found_lib)) {
+        if (($need_build || ($need_lib && ! $found_lib)) && $a{bldpath}) {
             my $try = $a{bldpath};
             my (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
             $found_lib  = $fl  if (! $found_lib  && $fl);
@@ -984,22 +989,20 @@ sub reverse_build {
 ################################################################################
 
 sub find_lib {
-    my ($l) = @_;
+    my ($n, $i, $l) = @_;
 
-    print "checking for $l library... ";
+    print "checking for $n library... ";
 
     while (1) {
-        my ($i, $library, $log);
+        my ($library, $log);
 
-        if ($l eq 'hdf5') {
+        if ($n eq 'hdf5') {
             $library = '-lhdf5';
             $log = '#include <hdf5.h>            \n main() { H5close     (); }';
-        } elsif ($l eq 'xml2') {
-            $i = '/usr/include/libxml2';
+        } elsif ($n eq 'xml2') {
             $library = '-lxml2';
             $log = '#include <libxml/xmlreader.h>\n main() { xmlInitParser();}';
-        } elsif ($l eq 'magic') {
-            $i = '/usr/include';
+        } elsif ($n eq 'magic') {
             $library = '-lmagic';
             $log = '#include <magic.h>           \n main() { magic_open (0); }';
         } else {
@@ -1007,7 +1010,7 @@ sub find_lib {
             return;
         }
 
-        if ($i && ! -d $i) {
+        if (($i && ! -d $i) || ($l && ! -d $l)) {
             println 'no';
             return;
         }
@@ -1015,7 +1018,8 @@ sub find_lib {
         my $cmd = $log;
         $cmd =~ s/\\n/\n/g;
 
-        my $gcc = "| gcc -xc " . ($i ? "-I$i" : '') . " - $library";
+        my $gcc = "| gcc -xc " . ($i ? "-I$i " : ' ')
+                               . ($l ? "-L$l " : ' ') . "- $library";
         $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
 
         open GCC, $gcc or last;
@@ -1029,8 +1033,7 @@ sub find_lib {
 
         return if (!$ok);
 
-        $i = '' unless ($i);
-        return ($i);
+        return ($i, $l);
     }
 
     println 'cannot run gcc: skipped';
@@ -1053,25 +1056,31 @@ sub check {
     die "No PATH"  unless $PKG{PATH};
     die "No UPATH" unless $PKG{UPATH};
 
-    foreach (DEPENDS()) {}
+    foreach my $href (DEPENDS()) { die "No DEPENDS::name" unless $href->{name} }
 
     foreach my $href (REQ()) {
-        die "No name" unless $href->{name};
+        die "No REQ::name" unless $href->{name};
 
-        die "No $href->{name}:bldpath" unless $href->{bldpath};
-        die "No $href->{name}:ilib"    unless $href->{ilib};
-        die "No $href->{name}:include" unless $href->{include};
-        die "No $href->{name}:lib"     unless $href->{lib};
-        die "No $href->{name}:namew"   unless $href->{namew};
-        die "No $href->{name}:option"  unless $href->{option};
-        die "No $href->{name}:pkgpath" unless $href->{pkgpath};
-        die "No $href->{name}:srcpath" unless $href->{srcpath};
-        die "No $href->{name}:type"    unless $href->{type};
-        die "No $href->{name}:usrpath" unless $href->{usrpath};
+        my $origin = $href->{origin};
+        die  "No $href->{name}:origin"  unless $origin;
+        die  "No $href->{name}:include" unless $href->{include};
+        die  "No $href->{name}:lib"     unless $href->{lib};
+        die  "No $href->{name}:option"  unless $href->{option};
+        die  "No $href->{name}:pkgpath" unless $href->{pkgpath};
+        die  "No $href->{name}:type"    unless $href->{type};
+        die  "No $href->{name}:usrpath" unless $href->{usrpath};
+        if ($origin eq 'I') {
+         die "No $href->{name}:bldpath" unless $href->{bldpath};
+         die "No $href->{name}:ilib"    unless $href->{ilib};
+         die "No $href->{name}:namew"   unless $href->{namew};
+         die "No $href->{name}:srcpath" unless $href->{srcpath};
+        }
     }
 }
 
 ################################################################################
+
+sub optional { $_[0] =~ /^[LS]I$/ }
 
 sub help {
 #  --prefix=PREFIX         install architecture-independent files in PREFIX
@@ -1127,7 +1136,7 @@ EndText
 
     my ($required, $optional);
     foreach my $href (@REQ) {
-        if ($href->{type} eq 'SI') {
+        if (optional($href->{type})) {
             ++$optional;
         } else {
             ++$required;
@@ -1137,7 +1146,7 @@ EndText
     if ($required) {
         print "Required Packages:\n";
         foreach my $href (@REQ) {
-            next if ($href->{type} eq 'SI');
+            next if (optional($href->{type}));
             my %a = %$href;
             if ($a{type} =~ /S/) {
                 println "  --$a{option}=DIR    search for $a{name} package";
@@ -1157,10 +1166,14 @@ EndText
     if ($optional) {
         print "Optional Packages:\n";
         foreach my $href (@REQ) {
-            next unless ($href->{type} eq 'SI');
+            next unless (optional($href->{type}));
             my %a = %$href;
-            println "  --$a{option}=DIR    search for $a{name} package";
-            println "                                source files in DIR";
+            if ($a{option} =~ /-sources$/) {
+                println "  --$a{option}=DIR    search for $a{name} package";
+                println "                                source files in DIR";
+            } else {
+                println "  --$a{option}=DIR    search for $a{name} files in DIR"
+            }
         }
         println;
     }

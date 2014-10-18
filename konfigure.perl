@@ -185,8 +185,7 @@ if ($OPT{arch}) {
     if ($found) {
         $ARCH = $MARCH = $OPT{arch};
         while (1) {
-            open F, ">" . File::Spec->catdir
-                (CONFIG_OUT(), "Makefile.config.$OS.arch") || last;
+            open F, ">Makefile.config.$OS.arch" or last;
             print F "$ARCH\n";
             close F;
             last;

@@ -172,7 +172,7 @@ $BUILD = 'rel' if ($OPT{'without-debug'});
 my $BUILD_TYPE = "release";
 $BUILD_TYPE = "debug" if ( $BUILD eq "dbg" );
 
-#println unless ($AUTORUN);
+$OPT{arch} = $ARCH if (@ARCHITECTURES && ! $OPT{arch});
 
 if ($OPT{arch}) {
     my $found;
@@ -184,6 +184,13 @@ if ($OPT{arch}) {
     }
     if ($found) {
         $ARCH = $MARCH = $OPT{arch};
+        while (1) {
+            open F, ">" . File::Spec->catdir
+                (CONFIG_OUT(), "Makefile.config.$OS.arch") || last;
+            print F "$ARCH\n";
+            close F;
+            last;
+        }
     } else {
         delete $OPT{arch};
     }

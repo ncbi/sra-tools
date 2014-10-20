@@ -197,6 +197,10 @@ namespace AlignCache
             ++ column_index;
             copy_single_int_field <uint8_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
+            // SPOT_GROUP
+            ++ column_index;
+            copy_str_field (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
+
             cur_cache.CommitRow ();
             cur_cache.CloseRow ();
 
@@ -268,7 +272,8 @@ namespace AlignCache
             "MATE_REF_POS"      column_suffix,\
             "SAM_QUALITY"       column_suffix,\
             "ALIGNMENT_COUNT"   column_suffix,\
-            "RD_FILTER"         column_suffix\
+            "RD_FILTER"         column_suffix,\
+            "SPOT_GROUP"        column_suffix\
         }
 
         DECLARE_PA_COLUMNS (ColumnNamesPrimaryAlignment, "");

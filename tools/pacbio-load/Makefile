@@ -54,16 +54,23 @@ endif
 #-------------------------------------------------------------------------------
 # outer targets
 #
-ifeq (win,$(OS))
-all std:
-	@ echo "not building pacbio-load under Windows"
-else
+ifeq (1,$(HAVE_HDF5))
+
 all std: vers-includes
 	@ $(MAKE_CMD) $(TARGDIR)/$@
-endif
 
 $(ALL_TOOLS): vers-includes
 	@ $(MAKE_CMD) $(BINDIR)/$@
+
+else
+
+all std: $(ALL_TOOLS)
+
+$(ALL_TOOLS):
+	@ echo "NOTE - $(@F) cannot be built:"                          \
+	       "It requires our internal library 'libkdf5'"             \
+	       "which requires 'libhdf5' and its development headers."
+endif
 
 .PHONY: all std $(ALL_TOOLS)
 
@@ -123,8 +130,11 @@ PACBIO_LOAD_LIB = \
 	-lload \
 	-sncbi-wvdb \
 	-lm \
-    -lhdf5
+	-lhdf5 \
+
+ifdef HDF5_LIBDIR
+	PACBIO_LOAD_LIB += $(addprefix -L,$(HDF5_LIBDIR))
+endif
 
 $(BINDIR)/pacbio-load: $(PACBIO_LOAD_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(PACBIO_LOAD_LIB)
-

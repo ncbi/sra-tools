@@ -1,0 +1,5 @@
+latf-load err: file="8.1.fastq"
+latf-load err:Inconsistent secondary read number: previously used 3, now seen 2
+latf-load warn: path not found while removing directory within database module - table SEQUENCE failed to drop temporary column 'TMP_KEY_ID'
+latf-load err: format unsupported while parsing file - accession="obj" errors="1" status="failure"
+latf-load err: format unsupported while parsing file - load failed

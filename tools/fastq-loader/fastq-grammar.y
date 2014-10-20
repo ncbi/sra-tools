@@ -140,7 +140,7 @@ inlineRead
 tagLine    
     : nameSpotGroup 
     | nameSpotGroup readNumberOrTail
-    | runSpotRead
+    | runSpotRead 
     ;
     
 nameSpotGroup
@@ -245,6 +245,7 @@ tail
 runSpotRead
     : fqRUNDOTSPOT '.' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
     | fqRUNDOTSPOT '/' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
+    | fqRUNDOTSPOT                  { StopSpotName(pb); }
     | runSpotRead fqWS tail
     | runSpotRead fqWS fqNUMBER 
     | runSpotRead fqWS fqNUMBER tail

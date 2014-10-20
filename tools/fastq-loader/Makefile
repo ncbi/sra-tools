@@ -103,7 +103,10 @@ FASTQ_SRC = \
 	fastq-lex
 
 $(SRCDIR)/fastq-grammar.c $(SRCDIR)/fastq-tokens.h: $(SRCDIR)/fastq-grammar.y
-	$(YACC) -o $(SRCDIR)/fastq-grammar.c --defines=$(SRCDIR)/fastq-tokens.h -v $^
+	bison -o $(SRCDIR)/fastq-grammar.c --defines=$(SRCDIR)/fastq-tokens.h -v $^
+
+$(SRCDIR)/fastq-lex.c: $(SRCDIR)/fastq-lex.l
+	flex -DYY_BUF_SIZE=16777216 -t $< | grep -v '^#line' > $@
 
 FASTQ_OBJ = \
 	$(addsuffix .$(LOBX),$(FASTQ_SRC))

@@ -1,0 +1,120 @@
+     ALIGNMENT_COUNT: 0
+          BASE_COUNT: 144
+      BIO_BASE_COUNT: 144
+      CMP_BASE_COUNT: 144
+        COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
+              CSREAD: 112332022230202..1120022110..03..0..
+              CS_KEY: T
+           CS_NATIVE: false
+      FIXED_SPOT_LEN: 36
+         MAX_SPOT_ID: 4
+         MIN_SPOT_ID: 1
+                NAME: 1
+            PLATFORM: SRA_PLATFORM_UNDEFINED
+PRIMARY_ALIGNMENT_ID: 0
+             QUALITY: 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39, 39
+           RD_FILTER: SRA_READ_FILTER_PASS
+                READ: GTCGCTTCTCGGAAGNGTGAAAGACAANAATNTTNN
+         READ_FILTER: SRA_READ_FILTER_PASS
+            READ_LEN: 36
+            READ_SEG: [0, 36]
+          READ_START: 0
+           READ_TYPE: SRA_READ_TYPE_BIOLOGICAL
+          SIGNAL_LEN: 0
+          SPOT_COUNT: 4
+          SPOT_GROUP: 
+             SPOT_ID: 1
+            SPOT_LEN: 36
+            TRIM_LEN: 36
+          TRIM_START: 0
+
+     ALIGNMENT_COUNT: 0
+          BASE_COUNT: 144
+      BIO_BASE_COUNT: 144
+      CMP_BASE_COUNT: 144
+        COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
+              CSREAD: 122311322021001....32101321......2..
+              CS_KEY: T
+           CS_NATIVE: false
+      FIXED_SPOT_LEN: 36
+         MAX_SPOT_ID: 4
+         MIN_SPOT_ID: 1
+                NAME: 2
+            PLATFORM: SRA_PLATFORM_UNDEFINED
+PRIMARY_ALIGNMENT_ID: 0
+             QUALITY: 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40, 40
+           RD_FILTER: SRA_READ_FILTER_PASS
+                READ: GAGCACGAGGACCCANNNATCAACGACNANNNGANN
+         READ_FILTER: SRA_READ_FILTER_PASS
+            READ_LEN: 36
+            READ_SEG: [0, 36]
+          READ_START: 0
+           READ_TYPE: SRA_READ_TYPE_BIOLOGICAL
+          SIGNAL_LEN: 0
+          SPOT_COUNT: 4
+          SPOT_GROUP: 
+             SPOT_ID: 2
+            SPOT_LEN: 36
+            TRIM_LEN: 36
+          TRIM_START: 0
+
+     ALIGNMENT_COUNT: 0
+          BASE_COUNT: 144
+      BIO_BASE_COUNT: 144
+      CMP_BASE_COUNT: 144
+        COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
+              CSREAD: 312102231132..2..00....12...........
+              CS_KEY: T
+           CS_NATIVE: false
+      FIXED_SPOT_LEN: 36
+         MAX_SPOT_ID: 4
+         MIN_SPOT_ID: 1
+                NAME: 3
+            PLATFORM: SRA_PLATFORM_UNDEFINED
+PRIMARY_ALIGNMENT_ID: 0
+             QUALITY: 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37
+           RD_FILTER: SRA_READ_FILTER_PASS
+                READ: ACTGGAGCACGANAGNCCCNCNACTNANANCNGNNN
+         READ_FILTER: SRA_READ_FILTER_PASS
+            READ_LEN: 36
+            READ_SEG: [0, 36]
+          READ_START: 0
+           READ_TYPE: SRA_READ_TYPE_BIOLOGICAL
+          SIGNAL_LEN: 0
+          SPOT_COUNT: 4
+          SPOT_GROUP: 
+             SPOT_ID: 3
+            SPOT_LEN: 36
+            TRIM_LEN: 36
+          TRIM_START: 0
+
+     ALIGNMENT_COUNT: 0
+          BASE_COUNT: 144
+      BIO_BASE_COUNT: 144
+      CMP_BASE_COUNT: 144
+        COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
+              CSREAD: 221022311322201....30030211......3..
+              CS_KEY: T
+           CS_NATIVE: false
+      FIXED_SPOT_LEN: 36
+         MAX_SPOT_ID: 4
+         MIN_SPOT_ID: 1
+                NAME: 4
+            PLATFORM: SRA_PLATFORM_UNDEFINED
+PRIMARY_ALIGNMENT_ID: 0
+             QUALITY: 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38, 38
+           RD_FILTER: SRA_READ_FILTER_PASS
+                READ: CTGGAGCACGAGAACNCNGCCCGGACANANGNGCNN
+         READ_FILTER: SRA_READ_FILTER_PASS
+            READ_LEN: 36
+            READ_SEG: [0, 36]
+          READ_START: 0
+           READ_TYPE: SRA_READ_TYPE_BIOLOGICAL
+          SIGNAL_LEN: 0
+          SPOT_COUNT: 4
+          SPOT_GROUP: 
+             SPOT_ID: 4
+            SPOT_LEN: 36
+            TRIM_LEN: 36
+          TRIM_START: 0
+

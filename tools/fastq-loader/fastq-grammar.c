@@ -73,6 +73,8 @@
 
 /* Copy the first part of user declarations.  */
 
+/* Line 268 of yacc.c  */
+#line 27 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
   
     #include <sysalloc.h>
     #include <ctype.h>
@@ -100,6 +102,8 @@
     #define IS_PACBIO(pb) ((pb)->defaultReadNumber == -1)
 
 
+/* Line 268 of yacc.c  */
+#line 107 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -154,6 +158,8 @@ typedef int YYSTYPE;
 /* Copy the second part of user declarations.  */
 
 
+/* Line 343 of yacc.c  */
+#line 163 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.c"
 
 #ifdef short
 # undef short
@@ -379,7 +385,7 @@ union yyalloc
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  54
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  102
+#define YYNRULES  103
 /* YYNRULES -- Number of states.  */
 #define YYNSTATES  147
 
@@ -436,8 +442,8 @@ static const yytype_uint16 yyprhs[] =
      168,   172,   173,   177,   178,   180,   181,   185,   186,   190,
      191,   196,   197,   201,   202,   207,   208,   209,   210,   211,
      212,   213,   227,   229,   231,   232,   234,   237,   240,   243,
-     246,   249,   253,   257,   261,   265,   270,   274,   279,   281,
-     284,   287,   291
+     246,   249,   253,   257,   259,   263,   267,   272,   276,   281,
+     283,   286,   289,   293
 };
 
 /* YYRHS -- A `-1'-separated list of the rules' RHS.  */
@@ -468,11 +474,11 @@ static const yytype_int8 yyrhs[] =
       68,     4,    69,    14,    70,    71,    -1,     5,    -1,     4,
       -1,    -1,     5,    -1,    72,     4,    -1,    72,     5,    -1,
       72,    17,    -1,    72,    21,    -1,    72,    22,    -1,     3,
-      18,     4,    -1,     3,    21,     4,    -1,    73,     6,    72,
-      -1,    73,     6,     4,    -1,    73,     6,     4,    72,    -1,
-      75,    31,    76,    -1,    75,    31,     1,    31,    -1,    23,
-      -1,    75,    10,    -1,    77,    31,    -1,    76,    77,    31,
-      -1,    11,    -1
+      18,     4,    -1,     3,    21,     4,    -1,     3,    -1,    73,
+       6,    72,    -1,    73,     6,     4,    -1,    73,     6,     4,
+      72,    -1,    75,    31,    76,    -1,    75,    31,     1,    31,
+      -1,    23,    -1,    75,    10,    -1,    77,    31,    -1,    76,
+      77,    31,    -1,    11,    -1
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
@@ -487,8 +493,8 @@ static const yytype_uint16 yyrline[] =
      180,   182,   182,   184,   188,   189,   189,   191,   191,   193,
      193,   198,   197,   210,   209,   221,   222,   223,   224,   225,
      226,   221,   231,   232,   233,   237,   238,   239,   240,   241,
-     242,   246,   247,   248,   249,   250,   256,   257,   261,   262,
-     266,   267,   270
+     242,   246,   247,   248,   249,   250,   251,   257,   258,   262,
+     263,   267,   268,   271
 };
 #endif
 
@@ -535,8 +541,8 @@ static const yytype_uint8 yyr1[] =
       54,    56,    54,    54,    57,    58,    57,    59,    57,    60,
       57,    62,    61,    63,    61,    65,    66,    67,    68,    69,
       70,    64,    71,    71,    71,    72,    72,    72,    72,    72,
-      72,    73,    73,    73,    73,    73,    74,    74,    75,    75,
-      76,    76,    77
+      72,    73,    73,    73,    73,    73,    73,    74,    74,    75,
+      75,    76,    76,    77
 };
 
 /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
@@ -551,8 +557,8 @@ static const yytype_uint8 yyr2[] =
        3,     0,     3,     0,     1,     0,     3,     0,     3,     0,
        4,     0,     3,     0,     4,     0,     0,     0,     0,     0,
        0,    13,     1,     1,     0,     1,     2,     2,     2,     2,
-       2,     3,     3,     3,     3,     4,     3,     4,     1,     2,
-       2,     3,     1
+       2,     3,     3,     1,     3,     3,     4,     3,     4,     1,
+       2,     2,     3,     1
 };
 
 /* YYDEFACT[STATE-NAME] -- Default reduction number in state STATE-NUM.
@@ -560,18 +566,18 @@ static const yytype_uint8 yyr2[] =
    means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       0,    12,     0,    52,     0,    14,    18,    20,    98,     0,
+       0,    12,     0,    52,     0,    14,    18,    20,    99,     0,
       11,     0,     3,     0,     5,     4,     0,     0,     0,     0,
        0,     1,    13,     2,     0,    58,    57,    56,    53,    55,
-      54,     0,    99,     0,    24,    28,    17,    22,    23,    10,
-       0,    51,    19,    34,    37,    36,    21,     0,    15,     6,
-       0,   102,    96,     0,     0,     0,    26,    30,     0,     0,
-      65,    71,    35,    64,    39,    63,     0,    16,     0,    97,
-       0,   100,    25,    29,     0,     0,    91,    92,     0,     0,
-       0,    69,    73,    43,    41,    47,    63,    59,    38,    94,
-      85,    93,     7,   101,    27,    31,    75,    66,    68,    72,
+      54,     0,   100,     0,    24,    28,    17,    22,    23,    10,
+      93,    51,    19,    34,    37,    36,    21,     0,    15,     6,
+       0,   103,    97,     0,     0,     0,    26,    30,     0,     0,
+      65,    71,    35,    64,    39,    63,     0,    16,     0,    98,
+       0,   101,    25,    29,     0,     0,    91,    92,     0,     0,
+       0,    69,    73,    43,    41,    47,    63,    59,    38,    95,
+      85,    94,     7,   102,    27,    31,    75,    66,    68,    72,
        0,     0,    49,    63,     0,     0,     0,    40,     0,     0,
-      95,    86,    87,    88,    89,    90,     0,     0,    70,    74,
+      96,    86,    87,    88,    89,    90,     0,     0,    70,    74,
        0,    44,    46,    42,    48,    60,    62,    32,    33,     0,
       76,    50,     8,     0,     0,    77,     9,     0,    78,     0,
       79,     0,    80,    84,    83,    82,    81
@@ -1524,116 +1530,162 @@ yyreduce:
     {
         case 2:
 
+/* Line 1806 of yacc.c  */
+#line 77 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 3:
 
+/* Line 1806 of yacc.c  */
+#line 79 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 4:
 
+/* Line 1806 of yacc.c  */
+#line 81 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 5:
 
+/* Line 1806 of yacc.c  */
+#line 83 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { StartSpotName(pb, 0); }
     break;
 
   case 6:
 
+/* Line 1806 of yacc.c  */
+#line 84 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(3) - (3)])); StopSpotName(pb); }
     break;
 
   case 7:
 
+/* Line 1806 of yacc.c  */
+#line 85 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { FASTQScan_inline_sequence(pb); }
     break;
 
   case 8:
 
+/* Line 1806 of yacc.c  */
+#line 87 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { FASTQScan_inline_quality(pb); }
     break;
 
   case 9:
 
+/* Line 1806 of yacc.c  */
+#line 88 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 10:
 
+/* Line 1806 of yacc.c  */
+#line 90 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 11:
 
+/* Line 1806 of yacc.c  */
+#line 92 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { return 0; }
     break;
 
   case 18:
 
+/* Line 1806 of yacc.c  */
+#line 111 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { StartSpotName(pb, 1); }
     break;
 
   case 20:
 
+/* Line 1806 of yacc.c  */
+#line 112 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { StartSpotName(pb, 1); }
     break;
 
   case 22:
 
+/* Line 1806 of yacc.c  */
+#line 116 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { pb->record->seq.is_colorspace = false; }
     break;
 
   case 23:
 
+/* Line 1806 of yacc.c  */
+#line 117 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { pb->record->seq.is_colorspace = true; }
     break;
 
   case 24:
 
+/* Line 1806 of yacc.c  */
+#line 121 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(1) - (1)])); }
     break;
 
   case 26:
 
+/* Line 1806 of yacc.c  */
+#line 123 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(2) - (2)])); }
     break;
 
   case 28:
 
+/* Line 1806 of yacc.c  */
+#line 128 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(1) - (1)])); }
     break;
 
   case 30:
 
+/* Line 1806 of yacc.c  */
+#line 130 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(2) - (2)])); }
     break;
 
   case 32:
 
+/* Line 1806 of yacc.c  */
+#line 135 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(1) - (1)])); pb->record->seq.is_colorspace = false; }
     break;
 
   case 33:
 
+/* Line 1806 of yacc.c  */
+#line 136 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(1) - (1)])); pb->record->seq.is_colorspace = true; }
     break;
 
   case 37:
 
+/* Line 1806 of yacc.c  */
+#line 147 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { StopSpotName(pb); }
     break;
 
   case 39:
 
+/* Line 1806 of yacc.c  */
+#line 149 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); StopSpotName(pb); }
     break;
 
   case 41:
 
+/* Line 1806 of yacc.c  */
+#line 152 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     {   /* another crazy variation by Illumina, this time "_" is used as " /" */
                     GrowSpotName(pb, &(yyvsp[(2) - (3)])); 
                     StopSpotName(pb);
@@ -1643,101 +1695,141 @@ yyreduce:
 
   case 43:
 
+/* Line 1806 of yacc.c  */
+#line 158 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)])); StopSpotName(pb); }
     break;
 
   case 45:
 
+/* Line 1806 of yacc.c  */
+#line 160 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)]));}
     break;
 
   case 47:
 
+/* Line 1806 of yacc.c  */
+#line 162 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)]));}
     break;
 
   case 49:
 
+/* Line 1806 of yacc.c  */
+#line 164 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (4)])); GrowSpotName(pb, &(yyvsp[(3) - (4)])); GrowSpotName(pb, &(yyvsp[(3) - (4)]));}
     break;
 
   case 51:
 
+/* Line 1806 of yacc.c  */
+#line 169 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 52:
 
+/* Line 1806 of yacc.c  */
+#line 170 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 53:
 
+/* Line 1806 of yacc.c  */
+#line 171 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 54:
 
+/* Line 1806 of yacc.c  */
+#line 172 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 55:
 
+/* Line 1806 of yacc.c  */
+#line 173 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 56:
 
+/* Line 1806 of yacc.c  */
+#line 174 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 57:
 
+/* Line 1806 of yacc.c  */
+#line 175 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 58:
 
+/* Line 1806 of yacc.c  */
+#line 176 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 59:
 
+/* Line 1806 of yacc.c  */
+#line 180 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 60:
 
+/* Line 1806 of yacc.c  */
+#line 181 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetSpotGroup(pb, &(yyvsp[(3) - (3)]));  GrowSpotName(pb, &(yyvsp[(3) - (3)])); }
     break;
 
   case 61:
 
+/* Line 1806 of yacc.c  */
+#line 182 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 62:
 
+/* Line 1806 of yacc.c  */
+#line 183 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetSpotGroup(pb, &(yyvsp[(3) - (3)]));  GrowSpotName(pb, &(yyvsp[(3) - (3)])); }
     break;
 
   case 65:
 
+/* Line 1806 of yacc.c  */
+#line 189 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 67:
 
+/* Line 1806 of yacc.c  */
+#line 191 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 69:
 
+/* Line 1806 of yacc.c  */
+#line 193 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 71:
 
+/* Line 1806 of yacc.c  */
+#line 198 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
             if (IS_PACBIO(pb)) pb->spotNameDone = false; 
             GrowSpotName(pb, &(yyvsp[(1) - (1)])); 
@@ -1746,6 +1838,8 @@ yyreduce:
 
   case 72:
 
+/* Line 1806 of yacc.c  */
+#line 203 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { 
             if (!IS_PACBIO(pb)) SetReadNumber(pb, &(yyvsp[(3) - (3)])); 
             GrowSpotName(pb, &(yyvsp[(3) - (3)])); 
@@ -1755,6 +1849,8 @@ yyreduce:
 
   case 73:
 
+/* Line 1806 of yacc.c  */
+#line 210 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { 
             if (IS_PACBIO(pb)) pb->spotNameDone = false; 
             GrowSpotName(pb, &(yyvsp[(2) - (2)])); 
@@ -1763,6 +1859,8 @@ yyreduce:
 
   case 74:
 
+/* Line 1806 of yacc.c  */
+#line 215 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { 
             if (IS_PACBIO(pb)) StopSpotName(pb); 
         }
@@ -1770,91 +1868,134 @@ yyreduce:
 
   case 75:
 
+/* Line 1806 of yacc.c  */
+#line 221 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetReadNumber(pb, &(yyvsp[(1) - (1)])); GrowSpotName(pb, &(yyvsp[(1) - (1)])); StopSpotName(pb); }
     break;
 
   case 76:
 
+/* Line 1806 of yacc.c  */
+#line 222 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(3) - (3)])); }
     break;
 
   case 77:
 
+/* Line 1806 of yacc.c  */
+#line 223 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(5) - (5)])); if ((yyvsp[(5) - (5)]).tokenLength == 1 && TokenTextPtr(pb, &(yyvsp[(5) - (5)]))[0] == 'Y') pb->record->seq.lowQuality = true; }
     break;
 
   case 78:
 
+/* Line 1806 of yacc.c  */
+#line 224 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(7) - (7)])); }
     break;
 
   case 79:
 
+/* Line 1806 of yacc.c  */
+#line 225 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(9) - (9)])); }
     break;
 
   case 80:
 
+/* Line 1806 of yacc.c  */
+#line 226 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(11) - (11)])); }
     break;
 
   case 82:
 
+/* Line 1806 of yacc.c  */
+#line 231 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetSpotGroup(pb, &(yyvsp[(1) - (1)])); GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 83:
 
+/* Line 1806 of yacc.c  */
+#line 232 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetSpotGroup(pb, &(yyvsp[(1) - (1)])); GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 85:
 
+/* Line 1806 of yacc.c  */
+#line 237 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 86:
 
+/* Line 1806 of yacc.c  */
+#line 238 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 87:
 
+/* Line 1806 of yacc.c  */
+#line 239 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 88:
 
+/* Line 1806 of yacc.c  */
+#line 240 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 89:
 
+/* Line 1806 of yacc.c  */
+#line 241 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 90:
 
+/* Line 1806 of yacc.c  */
+#line 242 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 91:
 
+/* Line 1806 of yacc.c  */
+#line 246 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetReadNumber(pb, &(yyvsp[(3) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)])); StopSpotName(pb); }
     break;
 
   case 92:
 
+/* Line 1806 of yacc.c  */
+#line 247 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetReadNumber(pb, &(yyvsp[(3) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)])); StopSpotName(pb); }
     break;
 
-  case 102:
+  case 93:
 
+/* Line 1806 of yacc.c  */
+#line 248 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
+    { StopSpotName(pb); }
+    break;
+
+  case 103:
+
+/* Line 1806 of yacc.c  */
+#line 271 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     {  AddQuality(pb, & (yyvsp[(1) - (1)])); }
     break;
 
 
 
+/* Line 1806 of yacc.c  */
+#line 1999 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2084,6 +2225,8 @@ yyreturn:
 
 
 
+/* Line 2067 of yacc.c  */
+#line 274 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
 
 
 void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)

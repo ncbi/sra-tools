@@ -1405,6 +1405,10 @@ MIXED_BASE_AND_COLOR:
                     CheckLimitAndLogError();
                 }
 #endif
+                else if (((int)GetRCObject(rc)) == ((int)rcData) && GetRCState(rc) == rcNotAvailable) {
+                    (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': sequence was hard clipped", "name=%s", name));
+                    CheckLimitAndLogError();
+                }
                 else if (((int)GetRCObject(rc)) == ((int)rcData)) {
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     /* Data errors may get reset; alignment will be unmapped at any rate */

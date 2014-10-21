@@ -1385,8 +1385,8 @@ MIXED_BASE_AND_COLOR:
             rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen,
                                rna_orient == '+' ? NCBI_align_ro_intron_plus :
                                rna_orient == '-' ? NCBI_align_ro_intron_minus :
-            			       hasCG             ? NCBI_align_ro_complete_genomics :
-                               					   NCBI_align_ro_intron_unknown, &matches);
+            			           hasCG ? NCBI_align_ro_complete_genomics :
+                                                   NCBI_align_ro_intron_unknown, &matches);
             if (rc) {
                 aligned = false;
 
@@ -1398,12 +1398,16 @@ MIXED_BASE_AND_COLOR:
                 if (GetRCState(rc) == rcViolated && GetRCObject(rc) == rcConstraint) {
                     rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
                 }
+#define DATA_INVALID_ERRORS_ARE_DEADLY 1
+#if DATA_INVALID_ERRORS_ARE_DEADLY
                 else if (((int)GetRCObject(rc)) == ((int)rcData) && GetRCState(rc) == rcInvalid) {
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     CheckLimitAndLogError();
                 }
+#endif
                 else if (((int)GetRCObject(rc)) == ((int)rcData)) {
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
+                    /* Data errors may get reset; alignment will be unmapped at any rate */
                     rc = CheckLimitAndLogError();
                 }
                 else {

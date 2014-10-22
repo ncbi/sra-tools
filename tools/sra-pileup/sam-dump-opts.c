@@ -1486,6 +1486,7 @@ rc_t dump_name_legacy( const samdump_opts * opts, const char * name, size_t name
     return rc;
 }
 
+#define USE_KWRT_HANDLER 1
 
 rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual_len, bool reverse )
 {
@@ -1495,18 +1496,26 @@ rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual
 
     size_t size = 0;
     char buffer [ 4096 ];
-
+#if USE_KWRT_HANDLER
+    size_t num_writ;
+    KWrtHandler * kout_msg_handler = KOutHandlerGet ();
+    assert ( kout_msg_handler != NULL );
+#endif
     if ( reverse )
     {
         if ( quantize )
         {
-            for ( i = 0; i < qual_len; ++i )
+            for ( i = qual_len; i > 0; )
             {
-                uint32_t qual = quality[ qual_len - i - 1 ];
+                uint32_t qual = quality[ -- i ];
                 buffer [ size ] = ( opts->qual_quant_matrix[ qual ] + 33 );
                 if ( ++ size == sizeof buffer )
                 {
+#if USE_KWRT_HANDLER
+                    rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
                     rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+#endif
                     if ( rc != 0 )
                         break;
                     size = 0;
@@ -1515,12 +1524,16 @@ rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual
         }
         else
         {
-            for ( i = 0; i < qual_len; ++i )
+            for ( i = qual_len; i > 0; )
             {
-                buffer [ size ] = quality[ qual_len - i - 1 ] + 33;
+                buffer [ size ] = quality[ -- i ] + 33;
                 if ( ++ size == sizeof buffer )
                 {
+#if USE_KWRT_HANDLER
+                    rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
                     rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+#endif
                     if ( rc != 0 )
                         break;
                     size = 0;
@@ -1538,7 +1551,11 @@ rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual
                 buffer [ size ] = opts->qual_quant_matrix[ qual ] + 33;
                 if ( ++ size == sizeof buffer )
                 {
+#if USE_KWRT_HANDLER
+                    rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
                     rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+#endif
                     if ( rc != 0 )
                         break;
                     size = 0;
@@ -1553,7 +1570,11 @@ rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual
                 buffer [ size ] = quality[ i ] + 33;
                 if ( ++ size == sizeof buffer )
                 {
+#if USE_KWRT_HANDLER
+                    rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
                     rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+#endif
                     if ( rc != 0 )
                         break;
                     size = 0;

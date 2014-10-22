@@ -102,8 +102,15 @@ LIBVCF_SRC = \
     vcf-reader \
     vcf-database
     
+# flex/bison should only be invoked manually in an environment ensures the correct versions:
+# bison 2.5, flex 2.5.35
+bison:
+	bison -o $(SRCDIR)/vcf-grammar.c --defines=$(SRCDIR)/vcf-grammar.h -v --no-lines $(SRCDIR)/vcf-grammar.y    
+
+flex:    
+	flex -t $(SRCDIR)/vcf-lex.l | grep -v '^#line' > $(SRCDIR)/vcf-lex.c
+    
 $(SRCDIR)/vcf-grammar.c $(SRCDIR)/vcf-grammar.h: $(SRCDIR)/vcf-grammar.y
-	$(YACC) -o $(SRCDIR)/vcf-grammar.c --defines=$(SRCDIR)/vcf-grammar.h -v $^    
 
 LIBVCF_OBJ = \
 	$(addsuffix .$(LOBX),$(LIBVCF_SRC))

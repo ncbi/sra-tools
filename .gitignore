@@ -4,3 +4,9 @@
 /Makefile.config.*
 *.o
 *.d
+/bin64
+/build/BUILD.*
+/ilib64
+/lib64
+/schema
+/test-bin64

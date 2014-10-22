@@ -1398,13 +1398,17 @@ MIXED_BASE_AND_COLOR:
                 if (GetRCState(rc) == rcViolated && GetRCObject(rc) == rcConstraint) {
                     rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
                 }
-#define DATA_INVALID_ERRORS_ARE_DEADLY 1
+#define DATA_INVALID_ERRORS_ARE_DEADLY 0
 #if DATA_INVALID_ERRORS_ARE_DEADLY
                 else if (((int)GetRCObject(rc)) == ((int)rcData) && GetRCState(rc) == rcInvalid) {
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     CheckLimitAndLogError();
                 }
 #endif
+                else if (((int)GetRCObject(rc)) == ((int)rcData) && GetRCState(rc) == rcNotAvailable) {
+                    (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': sequence was hard clipped", "name=%s", name));
+                    CheckLimitAndLogError();
+                }
                 else if (((int)GetRCObject(rc)) == ((int)rcData)) {
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     /* Data errors may get reset; alignment will be unmapped at any rate */

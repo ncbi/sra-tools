@@ -49,8 +49,8 @@ extern "C" {
 #include <loader/common-writer.h>
 #include <loader/sequence-writer.h>
 #include <loader/alignment-writer.h>
-#include <../../tools/fastq-loader/fastq-reader.h>
-#include <../../tools/fastq-loader/fastq-parse.h>
+#include "../../tools/fastq-loader/fastq-reader.h"
+#include "../../tools/fastq-loader/fastq-parse.h"
 }
 
 using namespace std;
@@ -66,6 +66,7 @@ TEST_SUITE(LoaderFastqTestSuite);
 class TempFileFixture
 {
 public:
+    static const string TempDir;
     static const string SchemaPath;
     static const string DbType;
 
@@ -84,6 +85,8 @@ public:
         if ( VSchemaParseFile( schema, SchemaPath.c_str() ) != 0 )
             FAIL("VSchemaParseFile failed");
         
+        if ( KDirectoryCreateDir_v1 ( wd, 0775, kcmOpen | kcmInit | kcmCreate, TempDir.c_str() ) != 0 )        
+            FAIL("KDirectoryOpenDirUpdate_v1 failed");
     }
     ~TempFileFixture() 
     {
@@ -103,6 +106,10 @@ public:
         if ( wd && ! dbName.empty() )
         {   // sometimes it takes several attempts to remove a non-empty dir
             while (KDirectoryRemove(wd, true, dbName.c_str()) != 0);
+        }
+        if ( wd )
+        {   // sometimes it takes several attempts to remove a non-empty dir
+            while (KDirectoryRemove(wd, true, TempDir.c_str()) != 0);
         }
              
         if ( wd && KDirectoryRelease ( wd ) != 0 )
@@ -138,6 +145,7 @@ public:
     VDatabase* db;
     string dbName;
 };
+const string TempFileFixture::TempDir = "./tmp";
 const string TempFileFixture::SchemaPath = "align/align.vschema";
 const string TempFileFixture::DbType = "NCBI:align:db:alignment_unsorted";
 
@@ -157,7 +165,7 @@ FIXTURE_TEST_CASE(CommonWriterOneFile, TempFileFixture)
     CommonWriterSettings settings;
     memset(&settings, 0, sizeof(settings));
     settings.numfiles = 1;
-    settings.tmpfs = "/tmp";
+    settings.tmpfs = TempDir.c_str();
     
     CommonWriter cw;
     REQUIRE_RC(CommonWriterInit( &cw, mgr, db, &settings ));

@@ -80,8 +80,13 @@ FASTQTEST_LOADER_OBJ = \
 $(TEST_BINDIR)/test-fastq-loader: $(FASTQTEST_LOADER_OBJ)
 	$(LP) --exe -o $@ $^ $(FASTQ_TEST_LIB)
 
-valgrind_test: $(TEST_BINDIR)/test-fastq-loader
-	valgrind --ncbi $^
+tfl: 
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile test-fastq-loader
+	$(TEST_BINDIR)/test-fastq-loader
+
+valgrind_tfl: 
+	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile test-fastq-loader
+	valgrind --ncbi $(TEST_BINDIR)/test-fastq-loader
     
 .PHONY: test-fastq-loader
 

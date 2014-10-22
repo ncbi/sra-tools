@@ -69,6 +69,14 @@ static const CGFileTypeFactory cg_ETypeXX_names[] = {
     { "SV-EVENTS", cg_eFileType_SV_EVENTS, NULL },
     { "VAR-OLPL", cg_eFileType_VAR_OLPL, NULL },
     { "MEI", cg_eFileType_MEI, NULL },    
+    /* from the documentation */
+    { "TUMOR-CNV-DETAILS", cg_eFileType_TUMOR_CNV_DETAILS, NULL },
+    { "DIPLOID-SOMATIC-CNV-SEGMENTS",
+        cg_eFileType_DIPLOID_SOMATIC_CNV_SEGMENTS, NULL },
+    { "COVERAGE-DISTRIBUTION-CODING",
+        cg_eFileType_COVERAGE_DISTRIBUTION_CODING, NULL },
+    { "COVERAGE-BY-GC-CODING", cg_eFileType_COVERAGE_BY_GC_CODING, NULL },
+    { "LIB-SMALL-GAPS-ROLLUP", cg_eFileType_LIB_SMALL_GAPS_ROLLUP, NULL },
 
     { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr_Make },    
 };

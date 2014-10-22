@@ -189,6 +189,7 @@ static rc_t contains_ref_and_alignments( const VDatabase * db, const char * path
             }
             *res = ( has_ref && has_alignment );
         }
+        KNamelistRelease( tables );
     }
     return rc;
 }

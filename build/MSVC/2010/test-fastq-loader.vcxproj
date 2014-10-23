@@ -37,5 +37,9 @@
     <ClCompile Include="..\..\..\tools\fastq-loader\fastq-reader.c" />
     <ClCompile Include="..\..\..\test\fastq-loader\test-fastq-loader.cpp" />
   </ItemGroup>
-  
+
+    <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
+        <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="$(ProjectDir)"/>
+    </Target>
+    
 </Project>

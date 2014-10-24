@@ -79,3 +79,6 @@ LEX = @ true
 
 # build matrix
 COMPILERS = CLANG GCC
+
+# copy without following symlinks
+COPY = cp -R

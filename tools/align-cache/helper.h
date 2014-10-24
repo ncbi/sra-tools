@@ -37,12 +37,11 @@
 #include <klib/printf.h>
 #include <klib/vector.h>
 #include <kapp/args.h>
+#include <kapp/progressbar.h>
 
 #ifndef countof
 #define countof(arr) (sizeof(arr)/sizeof(arr[0]))
 #endif
-
-#include <vector>
 
 #ifdef _WIN32
 #pragma warning (disable:4503)
@@ -50,6 +49,7 @@
 
 #define USING_UINT64_BITMAP 0
 #define MANAGER_WRITABLE 1
+#define DEBUG_PRINT 0
 
 namespace KLib
 {
@@ -323,5 +323,23 @@ namespace KApp
         void Release ();
 
         ::Args* m_pSelf;
+    };
+
+    class CProgressBar
+    {
+    public:
+        CProgressBar ( uint64_t size );
+        CProgressBar ( CProgressBar const& x );
+        CProgressBar& operator= ( CProgressBar const& x );
+        ~CProgressBar ();
+
+        void Append ( uint64_t chunk );
+        void Process ( uint64_t chunk, bool force_report );
+
+    private:
+        void Make ( uint64_t size );
+        void Release ();
+
+        KLoadProgressbar const* m_pSelf;
     };
 }

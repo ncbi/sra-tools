@@ -69,3 +69,6 @@ LEX = @ true
 
 # build matrix
 COMPILERS = GCC # ICC
+
+# copy without following symlinks
+COPY = cp -P

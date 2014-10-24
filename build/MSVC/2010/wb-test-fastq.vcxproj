@@ -38,4 +38,8 @@
     <ClCompile Include="..\..\..\test\fastq-loader\wb-test-fastq.cpp" />
   </ItemGroup>
   
+    <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
+        <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="$(ProjectDir)"/>
+    </Target>  
+    
 </Project>

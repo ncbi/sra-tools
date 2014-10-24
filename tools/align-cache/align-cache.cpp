@@ -75,32 +75,33 @@ namespace AlignCache
         uint32_t const*             pColumnIndexCache;
         size_t const                column_count;
         VDBObjects::CVCursor*       pCursorPACache;
-        size_t                      count;
-        size_t const                total_count;
+        //size_t                      count;
+        //size_t const                total_count;
+        KApp::CProgressBar*         pProgressBar;
     };
 
-    size_t print_percent ( size_t count, size_t total_count )
-    {
-        size_t const total_points = 10000;
-        if ( total_count >= total_points && !(count % (total_count / total_points)) )
-        {
-            size_t points = (size_t)(total_points*count/total_count);
-            std::cout
-                << (100*points/total_points)
-                << "."
-                << ( 1000*points/total_points % 10 )
-                << ( 10000*points/total_points % 10 )
-                << "% ("
-                << count
-                << "/"
-                << total_count
-                << ")"
-                << std::endl;
-            return points;
-        }
-        else
-            return 0;
-    }
+    //size_t print_percent ( size_t count, size_t total_count )
+    //{
+    //    size_t const total_points = 10000;
+    //    if ( total_count >= total_points && !(count % (total_count / total_points)) )
+    //    {
+    //        size_t points = (size_t)(total_points*count/total_count);
+    //        std::cout
+    //            << (100*points/total_points)
+    //            << "."
+    //            << ( 1000*points/total_points % 10 )
+    //            << ( 10000*points/total_points % 10 )
+    //            << "% ("
+    //            << count
+    //            << "/"
+    //            << total_count
+    //            << ")"
+    //            << std::endl;
+    //        return points;
+    //    }
+    //    else
+    //        return 0;
+    //}
 
     template <typename T>
     void copy_single_int_field (
@@ -136,9 +137,11 @@ namespace AlignCache
         int64_t prev_row_id = (int64_t)p->prev_key;
         int64_t row_id = (int64_t)key;
         VDBObjects::CVCursor& cur_cache = *p->pCursorPACache;
+        
+        p->pProgressBar->Process ( 1, false );
 
-        ++p->count;
-        print_percent (p->count, p->total_count);
+        //++p->count;
+        //print_percent (p->count, p->total_count);
 
         // Filling gaps between actually cached rows with zero-length records
         if ( p->prev_key )
@@ -303,7 +306,18 @@ namespace AlignCache
         cursorCache.InitColumnIndex ( ColumnNamesPrimaryAlignmentCache, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignmentCache), true );
         cursorCache.Open ();
 
-        PrimaryAlignmentData data = { 0, &cursorPA, ColumnIndexPrimaryAlignment, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignment), &cursorCache, 0, vect_size };
+        //PrimaryAlignmentData data = { 0, &cursorPA, ColumnIndexPrimaryAlignment, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignment), &cursorCache, 0, vect_size };
+        KApp::CProgressBar progress_bar(vect_size);
+        PrimaryAlignmentData data =
+        {
+            0,
+            &cursorPA,
+            ColumnIndexPrimaryAlignment,
+            ColumnIndexPrimaryAlignmentCache,
+            countof (ColumnNamesPrimaryAlignment),
+            &cursorCache,
+            &progress_bar
+        };
 
         // process each saved primary_alignment_id
         vect.VisitBool ( KVectorCallbackPrimaryAlignment, & data );

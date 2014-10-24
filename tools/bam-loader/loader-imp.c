@@ -575,7 +575,6 @@ rc_t GetKeyID(context_t *const ctx,
             tmpKey = ctx->idCount[f];
             rc = KBTreeEntry(ctx->key2id[f], &tmpKey, wasInserted, name, namelen);
             if (rc == 0) {
-              /*              fprintf(stderr, "GetKeyID: { Key: '%s', Name: '%.*s', id: '%u:%x', new: %s }\n", key, (int)namelen, name, (unsigned)f, (unsigned)tmpKey, *wasInserted ? "true" : "false"); */
                 *rslt = (((uint64_t)f) << 32) | tmpKey;
                 if (*wasInserted)
                     ++ctx->idCount[f];
@@ -1385,7 +1384,7 @@ MIXED_BASE_AND_COLOR:
             rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen,
                                rna_orient == '+' ? NCBI_align_ro_intron_plus :
                                rna_orient == '-' ? NCBI_align_ro_intron_minus :
-            			           hasCG ? NCBI_align_ro_complete_genomics :
+                                           hasCG ? NCBI_align_ro_complete_genomics :
                                                    NCBI_align_ro_intron_unknown, &matches);
             if (rc) {
                 aligned = false;

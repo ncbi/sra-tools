@@ -60,14 +60,18 @@ namespace KLib
         rc_t rc = ::KVectorMake(&m_pSelf);
         if (rc)
             throw Utils::CErrorMsg(rc, "KVectorMake");
+#if DEBUG_PRINT != 0
         printf("Created KVector %p\n", m_pSelf);
+#endif
     }
 
     void CKVector::Release()
     {
         if (m_pSelf)
         {
+#if DEBUG_PRINT != 0
             printf("Releasing KVector %p\n", m_pSelf);
+#endif
             ::KVectorRelease(m_pSelf);
             m_pSelf = NULL;
         }
@@ -217,7 +221,9 @@ namespace VDBObjects
     {
         if (m_pSelf)
         {
+#if DEBUG_PRINT != 0
             printf("Releasing VCursor %p\n", m_pSelf);
+#endif
             ::VCursorRelease(m_pSelf);
             m_pSelf = NULL;
         }
@@ -232,7 +238,9 @@ namespace VDBObjects
         }
         m_pSelf = x.m_pSelf;
         ::VCursorAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
         printf ("CLONING VCursor %p\n", m_pSelf);
+#endif
     }
 
     void CVCursor::Open() const
@@ -355,7 +363,9 @@ namespace VDBObjects
     {
         if (m_pSelf)
         {
+#if DEBUG_PRINT != 0
             printf("Releasing VTable %p\n", m_pSelf);
+#endif
             ::VTableRelease(m_pSelf);
             m_pSelf = NULL;
         }
@@ -370,7 +380,9 @@ namespace VDBObjects
         }
         m_pSelf = x.m_pSelf;
         ::VTableAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
         printf ("CLONING VTable %p\n", m_pSelf);
+#endif
     }
 
     CVCursor CVTable::CreateCursorRead ( size_t cache_size ) const
@@ -380,7 +392,9 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VTableCreateCachedCursorRead (%zu)", cache_size);
 
+#if DEBUG_PRINT != 0
         printf("Created cursor (rd) %p\n", cursor.m_pSelf);
+#endif
         return cursor;
     }
 
@@ -391,7 +405,9 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VTableCreateCursorWrite");
 
+#if DEBUG_PRINT != 0
         printf("Created cursor (wr) %p\n", cursor.m_pSelf);
+#endif
         return cursor;
     }
 
@@ -420,7 +436,9 @@ namespace VDBObjects
     {
         if (m_pSelf)
         {
+#if DEBUG_PRINT != 0
             printf("Releasing VDatabase %p\n", m_pSelf);
+#endif
             ::VDatabaseRelease(m_pSelf);
             m_pSelf = NULL;
         }
@@ -435,7 +453,9 @@ namespace VDBObjects
         }
         m_pSelf = x.m_pSelf;
         ::VDatabaseAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
         printf ("CLONING VDatabase %p\n", m_pSelf);
+#endif
     }
 
     CVTable CVDatabase::OpenTable(char const* pszTableName) const
@@ -445,7 +465,9 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VDatabaseOpenTableRead (%s)", pszTableName);
 
+#if DEBUG_PRINT != 0
         printf("Opened table %p (%s)\n", table.m_pSelf, pszTableName);
+#endif
         return table;
     }
 
@@ -456,7 +478,9 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VDatabaseCreateTable (%s)", pszTableName);
 
+#if DEBUG_PRINT != 0
         printf("Created table %p (%s)\n", table.m_pSelf, pszTableName);
+#endif
         return table;
     }
 
@@ -485,7 +509,9 @@ namespace VDBObjects
     {
         if (m_pSelf)
         {
+#if DEBUG_PRINT != 0
             printf("Releasing VSchema %p\n", m_pSelf);
+#endif
             ::VSchemaRelease ( m_pSelf );
             m_pSelf = NULL;
         }
@@ -500,7 +526,9 @@ namespace VDBObjects
         }
         m_pSelf = x.m_pSelf;
         ::VSchemaAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
         printf ("CLONING VSchema %p\n", m_pSelf);
+#endif
     }
     
     void CVSchema::VSchemaParseFile ( char const* pszFilePath )
@@ -524,7 +552,9 @@ namespace VDBObjects
     {
         if (m_pSelf)
         {
+#if DEBUG_PRINT != 0
             printf("Releasing VDBManager %p\n", m_pSelf);
+#endif
             ::VDBManagerRelease(m_pSelf);
             m_pSelf = NULL;
         }
@@ -541,7 +571,9 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VDBManagerMakeRead");
 
+#if DEBUG_PRINT != 0
         printf("Created VDBManager (rd) %p\n", m_pSelf);
+#endif
     }
 #else
     void CVDBManager::Make()
@@ -558,7 +590,9 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VDBManagerDisablePagemapThread");*/
 
+#if DEBUG_PRINT != 0
         printf("Created VDBManager (wr) %p\n", m_pSelf);
+#endif
     }
 #endif
 
@@ -569,7 +603,9 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VDBManagerOpenDBRead (%s)", pszDBName);
 
+#if DEBUG_PRINT != 0
         printf("Opened database %p (%s)\n", vdb.m_pSelf, pszDBName);
+#endif
         return vdb;
     }
     CVDatabase CVDBManager::CreateDB ( CVSchema const& schema, char const* pszTypeDesc, ::KCreateMode cmode, char const* pszPath )
@@ -579,7 +615,9 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VDBManagerCreateDB (%s)", pszPath);
 
+#if DEBUG_PRINT != 0
         printf("Created database %p (%s)\n", vdb.m_pSelf, pszPath);
+#endif
         return vdb;
     }
 
@@ -590,7 +628,9 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VDBManagerMakeSchema");
 
+#if DEBUG_PRINT != 0
         printf("Created Schema %p\n", schema.m_pSelf);
+#endif
         return schema;
     }
 }
@@ -616,14 +656,18 @@ namespace KApp
         rc_t rc = ::ArgsMakeAndHandle (&m_pSelf, argc, argv, 1, pOptions, option_count);
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsMakeAndHandle");
+#if DEBUG_PRINT != 0
         printf("Created Args %p\n", m_pSelf);
+#endif
     }
 
     void CArgs::Release()
     {
         if (m_pSelf)
         {
+#if DEBUG_PRINT != 0
             printf("Releasing Args %p\n", m_pSelf);
+#endif
             ::ArgsRelease (m_pSelf);
             m_pSelf = NULL;
         }
@@ -672,6 +716,54 @@ namespace KApp
             throw Utils::CErrorMsg(rc, "ArgsOptionValue (%s)", option_name);
 
         return ret;
+    }
+
+////////////////////////////////
+
+    CProgressBar::CProgressBar ( uint64_t size )
+    {
+        Make ( size );
+    }
+
+    CProgressBar::~CProgressBar ()
+    {
+        Release ();
+    }
+
+    void CProgressBar::Make ( uint64_t size )
+    {
+        ::KLogLevelSet ( klogLevelMax );
+        rc_t rc = ::KLoadProgressbar_Make ( &m_pSelf, size );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KLoadProgressbar_Make");
+#if DEBUG_PRINT != 0
+        printf ( "Created ProgressBar %p\n", m_pSelf );
+#endif
+    }
+    void CProgressBar::Release ()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing ProgressBar %p\n", m_pSelf);
+#endif
+            ::KLoadProgressbar_Release ( m_pSelf, true );
+            m_pSelf = NULL;
+        }
+    }
+
+    void CProgressBar::Append ( uint64_t chunk )
+    {
+        rc_t rc = ::KLoadProgressbar_Append ( m_pSelf, chunk );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KLoadProgressbar_Append");
+    }
+
+    void CProgressBar::Process ( uint64_t chunk, bool force_report )
+    {
+        rc_t rc = ::KLoadProgressbar_Process ( m_pSelf, chunk, force_report );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KLoadProgressbar_Process");
     }
 }
 

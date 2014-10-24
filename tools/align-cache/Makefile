@@ -85,8 +85,9 @@ ALIGN_CACHE_OBJ = \
 ALIGN_CACHE_LIB = \
 	-skapp \
 	-sncbi-wvdb \
-	-lxml2 \
-	-lm
+	-sxml2 \
+	-sm \
+	-sload
 
 $(BINDIR)/align-cache: $(ALIGN_CACHE_OBJ)
 	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(ALIGN_CACHE_LIB)

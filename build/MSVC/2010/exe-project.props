@@ -34,7 +34,6 @@
     <TargetExt>.exe</TargetExt>
     <OutDir>$(VDB_TARGET)\bin\</OutDir>
     <IntDir>$(VDB_TARGET)\obj\$(ProjectName)\</IntDir>
-    <TargetName>$(ProjectName)</TargetName>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   

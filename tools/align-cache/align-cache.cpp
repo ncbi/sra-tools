@@ -308,6 +308,7 @@ namespace AlignCache
 
         //PrimaryAlignmentData data = { 0, &cursorPA, ColumnIndexPrimaryAlignment, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignment), &cursorCache, 0, vect_size };
         KApp::CProgressBar progress_bar(vect_size);
+        progress_bar.Process ( 0, true );
         PrimaryAlignmentData data =
         {
             0,

@@ -295,12 +295,12 @@ if ( $TOOLS =~ m/gcc/i )
 elsif ( $TOOLS =~ m/clang/i )
 {
     $CC = "clang -c";
-    $CP = "clang++ -c";
+    $CP = "clang++ -c -mmacosx-version-min=10.6";
     $AR = "ar rc";
     $ARX = "ar x";
     $ARLS = "ar t";
     $LD = "clang";
-    $LP = "clang++";
+    $LP = "clang++ -mmacosx-version-min=10.6";
 
     $DBG = "-g -DDEBUG";
     $OPT = "-O3";

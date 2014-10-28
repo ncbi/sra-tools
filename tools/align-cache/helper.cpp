@@ -618,6 +618,12 @@ namespace VDBObjects
 #if DEBUG_PRINT != 0
         printf("Created database %p (%s)\n", vdb.m_pSelf, pszPath);
 #endif
+        // set creation mode of objects ( tables, columns, etc. ) to
+        // create new or re-initialize existing, plus attach md5 checksums
+        // to all files.
+        // set blob creation mode to record 32-bit CRC within blob
+        // continue to use default page size...
+        rc = VDatabaseColumnCreateParams ( vdb.m_pSelf, kcmInit | kcmMD5, kcsCRC32, 0 );
         return vdb;
     }
 

@@ -63,7 +63,7 @@ my $schema_default_dir = $PKG{SCHEMA_PATH} if ($PKG{SCHEMA_PATH});
 my @REQ = REQ();
 
 my @options = ( "arch=s",
-                "build=s",
+                "build-prefix=s",
                 "clean",
                 "debug",
                 "help",
@@ -1190,7 +1190,7 @@ Build tuning:
   --without-debug
   --arch=name             specify the name of the target architecture
 
-  --build=DIR             generate build output into DIR directory
+  --build-prefix=DIR      generate build output into DIR directory
                           [$OUTDIR]
 
 EndText

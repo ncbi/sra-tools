@@ -299,8 +299,8 @@ namespace AlignCache
         schema.VSchemaParseFile ( schema_path );
         char szCacheDBName[256] = "";
         string_printf (szCacheDBName, countof (szCacheDBName), NULL, "%s_aux.sra", g_Params.dbPath );
-        VDBObjects::CVDatabase dbCache = mgr.CreateDB ( schema, "NCBI:align:db:mate_cache #1", kcmParents | kcmInit, szCacheDBName );
-        VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT", kcmInit );
+        VDBObjects::CVDatabase dbCache = mgr.CreateDB ( schema, "NCBI:align:db:mate_cache #1", kcmParents | kcmInit | kcmMD5, szCacheDBName );
+        VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT", kcmInit | kcmMD5 );
 
         VDBObjects::CVCursor cursorCache = tableCache.CreateCursorWrite ( kcmInsert );
         cursorCache.InitColumnIndex ( ColumnNamesPrimaryAlignmentCache, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignmentCache), true );
@@ -308,7 +308,6 @@ namespace AlignCache
 
         //PrimaryAlignmentData data = { 0, &cursorPA, ColumnIndexPrimaryAlignment, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignment), &cursorCache, 0, vect_size };
         KApp::CProgressBar progress_bar(vect_size);
-        progress_bar.Process ( 0, true );
         PrimaryAlignmentData data =
         {
             0,
@@ -327,6 +326,10 @@ namespace AlignCache
 
     void create_cache_db_impl()
     {
+        // Adding 0% mark at the very beginning of the program
+        KApp::CProgressBar progress_bar(1);
+        progress_bar.Process ( 0, true );
+
         VDBObjects::CVDBManager mgr;
         mgr.Make();
 

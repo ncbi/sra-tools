@@ -328,12 +328,15 @@ if ($OS ne 'win') {
 
 my @dependencies;
 
+my %DEPEND_OPTIONS;
 foreach my $href (DEPENDS()) {
     $_ = $href->{name};
     my ($I, $L) = ($href->{Include});
-    if ($OPT{"with-$_-prefix"}) {
-        $I = File::Spec->catdir($OPT{"with-$_-prefix"}, 'include'); 
-        $L = File::Spec->catdir($OPT{"with-$_-prefix"}, 'lib'); 
+    my $o = "with-$_-prefix";
+    ++$DEPEND_OPTIONS{$o};
+    if ($OPT{$o}) {
+        $I = File::Spec->catdir($OPT{$o}, 'include'); 
+        $L = File::Spec->catdir($OPT{$o}, 'lib');
     }
     my ($i, $l) = find_lib($_, $I, $L);
     if (defined $i || $l) {
@@ -357,6 +360,7 @@ foreach my $href (@REQ) {
     $href->{bldpath} =~ s/(\$\w+)/$1/eeg if ($href->{bldpath});
     my ($found_itf, $found_lib, $found_ilib);        # found directories
     my %a = %$href;
+    next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
     my $is_optional = optional($a{type});
     my $need_source = $a{type} =~ /S/;
     my $need_build = $a{type} =~ /B/;

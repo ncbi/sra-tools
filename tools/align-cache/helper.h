@@ -208,6 +208,7 @@ namespace VDBObjects
         void Release();
         CVTable OpenTable ( char const* pszTableName ) const;
         CVTable CreateTable ( char const* pszTableName, ::KCreateMode cmode );
+        void ColumnCreateParams ( ::KCreateMode cmode, ::KChecksum checksum, size_t pgsize );
 
     private:
         void Clone(CVDatabase const& x);

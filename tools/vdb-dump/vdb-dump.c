@@ -103,6 +103,7 @@ static const char * numelem_usage[] = { "print only element-count", NULL };
 static const char * numelemsum_usage[] = { "sum element-count", NULL };
 static const char * show_blobbing_usage[] = { "show blobbing", NULL };
 static const char * enum_phys_usage[] = { "enumerate physical columns", NULL };
+static const char * enum_readable_usage[] = { "enumerate readable columns", NULL };
 static const char * objtype_usage[] = { "report type of object", NULL };
 static const char * idx_enum_usage[] = { "enumerate all available index", NULL };
 static const char * idx_range_usage[] = { "enumerate values and row-ranges of one index", NULL };
@@ -144,6 +145,7 @@ OptDef DumpOptions[] =
     { OPTION_NUMELEMSUM, ALIAS_NUMELEMSUM, NULL, numelemsum_usage, 1, false, false },
     { OPTION_SHOW_BLOBBING, NULL, NULL, show_blobbing_usage, 1, false, false },
     { OPTION_ENUM_PHYS, NULL, NULL, enum_phys_usage, 1, false, false },
+    { OPTION_ENUM_READABLE, NULL, NULL, enum_readable_usage, 1, false, false },
     { OPTION_OBJVER, ALIAS_OBJVER, NULL, objver_usage, 1, false, false },
     { OPTION_OBJTS, NULL, NULL, objts_usage, 1, false, false },
     { OPTION_OBJTYPE, ALIAS_OBJTYPE, NULL, objtype_usage, 1, false, false },
@@ -218,6 +220,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_NUMELEMSUM, OPTION_NUMELEMSUM, NULL, numelemsum_usage );
     HelpOptionLine ( NULL, OPTION_SHOW_BLOBBING, NULL, show_blobbing_usage );
     HelpOptionLine ( NULL, OPTION_ENUM_PHYS, NULL, enum_phys_usage );
+    HelpOptionLine ( NULL, OPTION_ENUM_READABLE, NULL, enum_readable_usage );
     HelpOptionLine ( NULL, OPTION_IDX_ENUM, NULL, idx_enum_usage );	
     HelpOptionLine ( NULL, OPTION_IDX_RANGE, NULL, idx_range_usage );	
     HelpOptionLine ( NULL, OPTION_CUR_CACHE, NULL, cur_cache_usage );	
@@ -932,6 +935,45 @@ static rc_t vdm_enum_phys_columns( const VTable *my_table )
     return rc;
 }
 
+
+static rc_t vdm_enum_readable_columns( const VTable *my_table )
+{
+    rc_t rc = KOutMsg( "readable columns:\n" );
+    if ( rc == 0 )
+    {
+        KNamelist *readable;
+        rc = VTableListReadableColumns( my_table, &readable );
+        DISP_RC( rc, "VTableListReadableColumns() failed" );
+        if ( rc == 0 )
+        {
+            uint32_t count;
+            rc = KNamelistCount( readable, &count );
+            DISP_RC( rc, "KNamelistCount( readable columns ) failed" );
+            if ( rc == 0 )
+            {
+                if ( count > 0 )
+                {
+                    uint32_t idx;
+                    for ( idx = 0; idx < count && rc == 0; ++idx )
+                    {
+                        const char * name;
+                        rc = KNamelistGet( readable, idx, &name );
+                        DISP_RC( rc, "KNamelistGet( readable columns ) failed" );
+                        if ( rc == 0 )
+                            rc = KOutMsg( "[%.02d] = %s\n", idx, name );
+                    }
+                }
+                else
+                {
+                    rc = KOutMsg( "... list is empty!\n" );
+                }
+            }
+            KNamelistRelease( readable );
+        }
+    }
+    return rc;
+}
+
 /*************************************************************************************
     enum_tab_columns:
     * called by "enum_db_columns()" and "dump_table()" as fkt-pointer
@@ -950,6 +992,10 @@ static rc_t vdm_enum_tab_columns( const p_dump_context ctx, const VTable *my_tab
     if ( ctx->enum_phys )
     {
         rc = vdm_enum_phys_columns( my_table );
+    }
+    else if ( ctx->enum_readable )
+    {
+        rc = vdm_enum_readable_columns( my_table );
     }
     else
     {
@@ -1311,7 +1357,7 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
 static bool enum_col_request( const p_dump_context ctx )
 {
     return ( ctx->column_enum_requested || ctx->column_enum_short || 
-             ctx->show_blobbing || ctx->enum_phys );
+             ctx->show_blobbing || ctx->enum_phys || ctx->enum_readable );
 }
 
 /***************************************************************************

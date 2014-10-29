@@ -484,6 +484,13 @@ namespace VDBObjects
         return table;
     }
 
+    void CVDatabase::ColumnCreateParams ( ::KCreateMode cmode, ::KChecksum checksum, size_t pgsize )
+    {
+        rc_t rc = ::VDatabaseColumnCreateParams ( m_pSelf, cmode, checksum, pgsize );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VDatabaseColumnCreateParams");
+    }
+
 //////////////////////////////////////////////////////////////////////
 
     CVSchema::CVSchema() : m_pSelf (NULL)
@@ -623,7 +630,7 @@ namespace VDBObjects
         // to all files.
         // set blob creation mode to record 32-bit CRC within blob
         // continue to use default page size...
-        rc = VDatabaseColumnCreateParams ( vdb.m_pSelf, kcmInit | kcmMD5, kcsCRC32, 0 );
+        vdb.ColumnCreateParams ( kcmInit | kcmMD5, kcsCRC32, 0 );
         return vdb;
     }
 

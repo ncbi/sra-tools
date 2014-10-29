@@ -299,8 +299,8 @@ namespace AlignCache
         schema.VSchemaParseFile ( schema_path );
         char szCacheDBName[256] = "";
         string_printf (szCacheDBName, countof (szCacheDBName), NULL, "%s_aux.sra", g_Params.dbPath );
-        VDBObjects::CVDatabase dbCache = mgr.CreateDB ( schema, "NCBI:align:db:mate_cache #1", kcmParents | kcmInit, szCacheDBName );
-        VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT", kcmInit );
+        VDBObjects::CVDatabase dbCache = mgr.CreateDB ( schema, "NCBI:align:db:mate_cache #1", kcmParents | kcmInit | kcmMD5, szCacheDBName );
+        VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT", kcmInit | kcmMD5 );
 
         VDBObjects::CVCursor cursorCache = tableCache.CreateCursorWrite ( kcmInsert );
         cursorCache.InitColumnIndex ( ColumnNamesPrimaryAlignmentCache, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignmentCache), true );

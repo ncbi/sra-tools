@@ -35,13 +35,19 @@ if ($directories ne "./") {
 require 'package.pm';
 require 'os-arch.pm';
 
-use Cwd qw (abs_path getcwd);
+use Cwd qw(abs_path getcwd);
 use File::Basename 'fileparse';
 use File::Spec 'catdir';
 use FindBin qw($Bin);
-use Getopt::Long 'GetOptions';
+use Getopt::Long qw(GetOptions GetOptionsFromString);
 
 check();
+
+my $CONFIGURED = '';
+foreach (@ARGV) {
+    $CONFIGURED .= "\t" if ($CONFIGURED);
+    $CONFIGURED .= "'$_'";
+}
 
 my %PKG = PKG();
 
@@ -67,8 +73,8 @@ my @options = ( "arch=s",
                 "clean",
                 "debug",
                 "help",
-#               "output-makefile=s",
                 "prefix=s",
+                "reconfigure",
                 "status",
                 "with-debug",
                 "without-debug" );
@@ -82,6 +88,28 @@ push @options, "shemadir" if ($PKG{SCHEMA_PATH});
 
 my %OPT;
 die "configure: error" unless (GetOptions(\%OPT, @options));
+
+if ($OPT{'reconfigure'}) {
+    my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
+    $CONFIGURED = '';
+    my $MAKEFILE
+        = File::Spec->catdir(CONFIG_OUT(), "$OUT_MAKEFILE.$OS.$ARCH");
+    println "\t\tloading $MAKEFILE" if ($OPT{'debug'});
+    if (-e $MAKEFILE) {
+        open F, $MAKEFILE or die "cannot open $MAKEFILE";
+        foreach (<F>) {
+            chomp;
+            if (/CONFIGURED = (.*)/) {
+                $CONFIGURED = $1;
+                last;
+            }
+        }
+    }
+    undef %OPT;
+    unless (GetOptionsFromString($CONFIGURED, \%OPT, @options)) {
+        die "configure: error";
+    }
+}
 
 if ($OPT{'help'}) {
     help();
@@ -127,6 +155,7 @@ if ($OPT{'help'}) {
     status(1);
     exit(0);
 }
+
 $OPT{'prefix'} = $package_default_prefix unless ($OPT{'prefix'});
 
 my $AUTORUN = $OPT{status};
@@ -161,7 +190,8 @@ println $OSTYPE unless ($AUTORUN);
 
 # initial values
 my $TARGDIR = File::Spec->catdir($OUTDIR, $PACKAGE);
-$TARGDIR = expand($OPT{'build'}) if ($OPT{'build'});
+$TARGDIR = expand($OPT{'build-prefix'}) if ($OPT{'build-prefix'});
+my $BUILD_PREFIX = $TARGDIR;
 
 my $BUILD = 'rel';
 
@@ -486,6 +516,10 @@ if ($OS ne 'win' && ! $OPT{'status'}) {
     print $F <<EndText;
 ### AUTO-GENERATED FILE ###
 
+# configuration command
+
+CONFIGURED = $CONFIGURED
+
 OS_ARCH = \$(shell perl \$(TOP)/os-arch.perl)
 
 # install paths
@@ -617,6 +651,7 @@ MAJMIN  = $MAJMIN
 MAJVERS = $MAJVERS
 
 # output path
+BUILD_PREFIX = $BUILD_PREFIX
 TARGDIR = $TARGDIR
 
 # derived paths
@@ -826,8 +861,11 @@ sub status {
                 $BUILD_TYPE = $1;
             } elsif (/BUILD \?= /) {
                 $BUILD_TYPE = $_ unless ($BUILD_TYPE);
-            }
-            elsif (/TARGDIR = /) {
+            } elsif (/BUILD_PREFIX = /) {
+                $BUILD_PREFIX = $_;
+            } elsif (/CONFIGURED = (.*)/) {
+                $CONFIGURED = $1;
+            } elsif (/TARGDIR = /) {
                 $TARGDIR = $_;
                 println "\t\tgot $_" if ($OPT{'debug'});
             } elsif (/TARGDIR \?= (.+)/) {
@@ -847,6 +885,7 @@ sub status {
     }
 
     println "build type: $BUILD_TYPE";
+    println "build prefix: $BUILD_PREFIX" if ($OS ne 'win');
     println "build output path: $TARGDIR" if ($OS ne 'win');
 
 #   print "prefix: ";    print $OPT{'prefix'} if ($OS ne 'win');    println;
@@ -869,7 +908,7 @@ sub status {
     println "javadir: $OPT{'javadir'}" if ($OPT{'javadir'});
     println "pythondir: $OPT{'pythondir'}" if ($OPT{'pythondir'});
 
-    println;
+    println "command line: $CONFIGURED";
 }
 
 sub expand {
@@ -1213,6 +1252,8 @@ Build tuning:
 EndText
 
     println "Miscellaneous:";
+    println "  --reconfigure           rerun configure ";
+    println "                          using the same command-line arguments";
     if ($^O ne 'MSWin32') {
         println
             "  --status                print current configuration information"

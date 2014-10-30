@@ -1584,8 +1584,13 @@ rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual
     }
 
     if ( rc == 0 && size != 0 )
+    {
+#if USE_KWRT_HANDLER
+        rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
         rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
-
+#endif
+    }
     return rc;
 }
 

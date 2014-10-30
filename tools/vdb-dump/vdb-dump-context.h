@@ -68,6 +68,7 @@ extern "C" {
 #define OPTION_NUMELEMSUM        "numelemsum"
 #define OPTION_SHOW_BLOBBING     "blobbing"
 #define OPTION_ENUM_PHYS         "phys"
+#define OPTION_ENUM_READABLE     "readable"
 #define OPTION_IDX_ENUM          "idx-report"
 #define OPTION_IDX_RANGE         "idx-range"
 #define OPTION_CUR_CACHE         "cur-cache"
@@ -174,6 +175,7 @@ typedef struct dump_context
     bool sum_num_elem;
     bool show_blobbing;
     bool enum_phys;
+    bool enum_readable;
 	bool idx_enum_requested;
 	bool idx_range_requested;
     bool disable_multithreading;

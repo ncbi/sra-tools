@@ -225,9 +225,10 @@ rc_t CC Usage (const Args * args)
         "Encryption key (file password):\n"
         "  The encryption key or file password is handled by configuration. If not yet\n"
         "  set, this program will fail.\n\n"
-        "  You can set the encryption key by running:\n\n"
-        "    perl configuration-assistant.perl\n"
-        "\n");
+        "  Please consult configuration page at\n"
+        "  http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=std or\n"
+        "  https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration\n"        
+        );
 
     HelpVersion (fullpath, KAppVersion());
 

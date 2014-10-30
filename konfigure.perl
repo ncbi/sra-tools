@@ -295,12 +295,12 @@ if ( $TOOLS =~ m/gcc/i )
 elsif ( $TOOLS =~ m/clang/i )
 {
     $CC = "clang -c";
-    $CP = "clang++ -c";
+    $CP = "clang++ -c -mmacosx-version-min=10.6";
     $AR = "ar rc";
     $ARX = "ar x";
     $ARLS = "ar t";
     $LD = "clang";
-    $LP = "clang++";
+    $LP = "clang++ -mmacosx-version-min=10.6";
 
     $DBG = "-g -DDEBUG";
     $OPT = "-O3";
@@ -328,12 +328,15 @@ if ($OS ne 'win') {
 
 my @dependencies;
 
+my %DEPEND_OPTIONS;
 foreach my $href (DEPENDS()) {
     $_ = $href->{name};
     my ($I, $L) = ($href->{Include});
-    if ($OPT{"with-$_-prefix"}) {
-        $I = File::Spec->catdir($OPT{"with-$_-prefix"}, 'include'); 
-        $L = File::Spec->catdir($OPT{"with-$_-prefix"}, 'lib'); 
+    my $o = "with-$_-prefix";
+    ++$DEPEND_OPTIONS{$o};
+    if ($OPT{$o}) {
+        $I = File::Spec->catdir($OPT{$o}, 'include'); 
+        $L = File::Spec->catdir($OPT{$o}, 'lib');
     }
     my ($i, $l) = find_lib($_, $I, $L);
     if (defined $i || $l) {
@@ -357,12 +360,15 @@ foreach my $href (@REQ) {
     $href->{bldpath} =~ s/(\$\w+)/$1/eeg if ($href->{bldpath});
     my ($found_itf, $found_lib, $found_ilib);        # found directories
     my %a = %$href;
+    next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
     my $is_optional = optional($a{type});
+    my $quasi_optional = $a{type} =~ /Q/;
     my $need_source = $a{type} =~ /S/;
     my $need_build = $a{type} =~ /B/;
-    my $need_lib = $a{type} =~ /L/;
+    my $need_lib = $a{type} =~ /L|Q/;
     
     my ($inc, $lib, $ilib) = ($a{include}, $a{lib}); # file names to check
+    $lib = '' unless ($lib);
     $lib =~ s/(\$\w+)/$1/eeg;
 
     if ($need_build) {
@@ -433,6 +439,9 @@ foreach my $href (@REQ) {
     {
         if ($is_optional) {
             println "configure: optional $a{name} package not found: skipped.";
+        } elsif ($quasi_optional && $found_itf && ($need_lib && ! $found_lib)) {
+            println "configure: $a{name} package: "
+                . "found interface files but not libraries.";
         } else {
             if ($OPT{'debug'}) {
                 $_ = "$a{name}: includes: ";
@@ -457,14 +466,14 @@ foreach my $href (@REQ) {
         }
     } else {
         $found_itf = abs_path($found_itf);
-        push(@dependencies, "$a{namew}_INCDIR = $found_itf");
+        push(@dependencies, "$a{aname}_INCDIR = $found_itf");
         if ($found_lib) {
             $found_lib = abs_path($found_lib);
-            push(@dependencies, "$a{namew}_LIBDIR = $found_lib");
+            push(@dependencies, "$a{aname}_LIBDIR = $found_lib");
         }
         if ($ilib && $found_ilib) {
             $found_ilib = abs_path($found_ilib);
-            push(@dependencies, "$a{namew}_ILIBDIR = $found_ilib");
+            push(@dependencies, "$a{aname}_ILIBDIR = $found_ilib");
         }
     }
 }
@@ -768,7 +777,7 @@ EndText
             my $NGS_SDK_PREFIX = '';
             $NGS_SDK_PREFIX = $a{found_itf} if ($a{found_itf});
             if ($a{name} eq 'ngs-sdk') {
-                my $root = "$a{namew}_ROOT";
+                my $root = "$a{aname}_ROOT";
                 print OUT "    <$root>$NGS_SDK_PREFIX\/</$root>\n";
                 last;
             }
@@ -882,34 +891,33 @@ sub expand {
 
 sub find_in_dir {
     my ($dir, $include, $lib, $ilib) = @_;
-    print "\t$dir... " unless ($AUTORUN);
     unless (-d $dir) {
-        println "no" unless ($AUTORUN);
+#       println "no" unless ($AUTORUN);
         println "\t\tnot found $dir" if ($OPT{'debug'});
         return;
     }
-    print "[found] " if ($OPT{'debug'});
+#   print "\t$dir... " unless ($AUTORUN);
+#   print "[found] " if ($OPT{'debug'});
     my ($found_inc, $found_lib, $found_ilib);
-    my $nl = 1;
     if ($include) {
-        print "includes... " unless ($AUTORUN);
+        print "\tincludes... " unless ($AUTORUN);
         if (-e "$dir/$include") {
-            println 'yes' unless ($AUTORUN);
+            println $dir unless ($AUTORUN);
             $found_inc = $dir;
         } elsif (-e "$dir/include/$include") {
-            println 'yes' unless ($AUTORUN);
+            println $dir unless ($AUTORUN);
             $found_inc = "$dir/include";
         } elsif (-e "$dir/interfaces/$include") {
-            println 'yes' unless ($AUTORUN);
+            println $dir unless ($AUTORUN);
             $found_inc = "$dir/interfaces";
         } else {
+            print "$dir: " if ($OPT{'debug'});
             println 'no' unless ($AUTORUN);
         }
-        $nl = 0;
     }
     if ($lib || $ilib) {
-        print "\n\t" if ($nl && !$AUTORUN);
-        print "libraries... " unless ($AUTORUN);
+#       print "\n\t" if ($nl && !$AUTORUN);
+        print "\tlibraries... " unless ($AUTORUN);
         if ($lib) {
             my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
             my $libdir  = File::Spec->catdir($builddir, 'lib');
@@ -923,14 +931,14 @@ sub find_in_dir {
                     my $f = File::Spec->catdir($ilibdir, $ilib);
                     print "\tchecking $f\n\t" if ($OPT{'debug'});
                     if (-e $f) {
-                        println 'yes';
+                        println $ilibdir;
                         $found_ilib = $ilibdir;
                     } else {
                         println 'no' unless ($AUTORUN);
                         return;
                     }
                 } else {
-                    println 'yes';
+                    println $libdir;
                 }
                 ++$found;
             }
@@ -939,7 +947,7 @@ sub find_in_dir {
                 my $f = File::Spec->catdir($libdir, $lib);
                 print "\tchecking $f\n\t" if ($OPT{'debug'});
                 if (-e $f) {
-                    println 'yes';
+                    println $libdir;
                     $found_lib = $libdir;
                     ++$found;
                 }
@@ -957,16 +965,18 @@ sub find_in_dir {
                         my $f = File::Spec->catdir($ilibdir, $ilib);
                         print "\tchecking $f\n\t" if ($OPT{'debug'});
                         if (-e $f) {
-                            println 'yes';
+                            println $ilibdir;
                             $found_ilib = $ilibdir;
                         } else {
                             println 'no' unless ($AUTORUN);
                             return;
                         }
                     } else {
-                        println 'yes';
+                        println $libdir;
                     }
                     ++$found;
+                } else {
+                    println 'no' unless ($AUTORUN);
                 }
             }
         }
@@ -976,7 +986,6 @@ sub find_in_dir {
             println 'no' unless ($AUTORUN);
             undef $found_lib;
         }
-        ++$nl;
     }
     return ($found_inc, $found_lib, $found_ilib);
 }
@@ -1065,21 +1074,29 @@ sub check {
     foreach my $href (DEPENDS()) { die "No DEPENDS::name" unless $href->{name} }
 
     foreach my $href (REQ()) {
-        die "No REQ::name" unless $href->{name};
+        die         "No REQ::name" unless $href->{name};
 
-        my $origin = $href->{origin};
-        die  "No $href->{name}:origin"  unless $origin;
-        die  "No $href->{name}:include" unless $href->{include};
-        die  "No $href->{name}:lib"     unless $href->{lib};
-        die  "No $href->{name}:option"  unless $href->{option};
-        die  "No $href->{name}:pkgpath" unless $href->{pkgpath};
-        die  "No $href->{name}:type"    unless $href->{type};
-        die  "No $href->{name}:usrpath" unless $href->{usrpath};
-        if ($origin eq 'I') {
-         die "No $href->{name}:bldpath" unless $href->{bldpath};
-         die "No $href->{name}:ilib"    unless $href->{ilib};
-         die "No $href->{name}:namew"   unless $href->{namew};
-         die "No $href->{name}:srcpath" unless $href->{srcpath};
+        die         "No $href->{name}:include" unless $href->{include};
+        die         "No $href->{name}:option"  unless $href->{option};
+        die         "No $href->{name}:pkgpath" unless $href->{pkgpath};
+        die         "No $href->{name}:usrpath" unless $href->{usrpath};
+
+        die         "No $href->{name}:type"    unless $href->{type};
+        unless ($href->{type} =~ /I/) {
+            die     "No $href->{name}:lib"     unless $href->{lib};
+        }
+
+        die         "No $href->{name}:origin"  unless $href->{origin};
+        if ($href->{origin} eq 'I') {
+            die     "No $href->{name}:aname"   unless $href->{aname};
+            die     "No $href->{name}:srcpath" unless $href->{srcpath};
+
+            unless ($href->{type} =~ /I/) {
+                die "No $href->{name}:bldpath" unless $href->{bldpath};
+            }
+            if ($href->{type} =~ /B/) {
+                die "No $href->{name}:ilib"    unless $href->{ilib};
+            }
         }
     }
 }

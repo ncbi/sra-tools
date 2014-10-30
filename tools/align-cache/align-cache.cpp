@@ -262,7 +262,7 @@ namespace AlignCache
         return count;
     }
 
-    void CachePrimaryAlignment (VDBObjects::CVDBManager& mgr, VDBObjects::CVDatabase const& vdb, size_t cache_size, KLib::CKVector const& vect, size_t vect_size)
+    void CachePrimaryAlignment (VDBObjects::CVDBManager& mgr, VDBObjects::CVDatabase const& vdb, size_t cache_size, KLib::CKVector const& vect, size_t vect_size, KApp::CProgressBar& progress_bar)
     {
         // Defining the set of columns to be copied from PRIMARY_ALIGNMENT table
         // to the new cache table
@@ -299,16 +299,15 @@ namespace AlignCache
         schema.VSchemaParseFile ( schema_path );
         char szCacheDBName[256] = "";
         string_printf (szCacheDBName, countof (szCacheDBName), NULL, "%s_aux.sra", g_Params.dbPath );
-        VDBObjects::CVDatabase dbCache = mgr.CreateDB ( schema, "NCBI:align:db:mate_cache #1", kcmParents | kcmInit, szCacheDBName );
-        VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT", kcmInit );
+        VDBObjects::CVDatabase dbCache = mgr.CreateDB ( schema, "NCBI:align:db:mate_cache #1", kcmParents | kcmInit | kcmMD5, szCacheDBName );
+        VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT", kcmInit | kcmMD5 );
 
         VDBObjects::CVCursor cursorCache = tableCache.CreateCursorWrite ( kcmInsert );
         cursorCache.InitColumnIndex ( ColumnNamesPrimaryAlignmentCache, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignmentCache), true );
         cursorCache.Open ();
 
         //PrimaryAlignmentData data = { 0, &cursorPA, ColumnIndexPrimaryAlignment, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignment), &cursorCache, 0, vect_size };
-        KApp::CProgressBar progress_bar(vect_size);
-        progress_bar.Process ( 0, true );
+        progress_bar.Append (vect_size);
         PrimaryAlignmentData data =
         {
             0,
@@ -327,6 +326,10 @@ namespace AlignCache
 
     void create_cache_db_impl()
     {
+        // Adding 0% mark at the very beginning of the program
+        KApp::CProgressBar progress_bar(1);
+        progress_bar.Process ( 0, true );
+
         VDBObjects::CVDBManager mgr;
         mgr.Make();
 
@@ -337,7 +340,7 @@ namespace AlignCache
         size_t count = FillKVectorWithAlignIDs ( vdb, g_Params.cursor_cache_size, vect );
 
         // For each id in vect cache the PRIMARY_ALIGNMENT record
-        CachePrimaryAlignment ( mgr, vdb, g_Params.cursor_cache_size, vect, count*2 );
+        CachePrimaryAlignment ( mgr, vdb, g_Params.cursor_cache_size, vect, count*2, progress_bar );
     }
 
 

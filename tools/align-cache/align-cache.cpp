@@ -262,7 +262,7 @@ namespace AlignCache
         return count;
     }
 
-    void CachePrimaryAlignment (VDBObjects::CVDBManager& mgr, VDBObjects::CVDatabase const& vdb, size_t cache_size, KLib::CKVector const& vect, size_t vect_size)
+    void CachePrimaryAlignment (VDBObjects::CVDBManager& mgr, VDBObjects::CVDatabase const& vdb, size_t cache_size, KLib::CKVector const& vect, size_t vect_size, KApp::CProgressBar& progress_bar)
     {
         // Defining the set of columns to be copied from PRIMARY_ALIGNMENT table
         // to the new cache table
@@ -307,7 +307,7 @@ namespace AlignCache
         cursorCache.Open ();
 
         //PrimaryAlignmentData data = { 0, &cursorPA, ColumnIndexPrimaryAlignment, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignment), &cursorCache, 0, vect_size };
-        KApp::CProgressBar progress_bar(vect_size);
+        progress_bar.Append (vect_size);
         PrimaryAlignmentData data =
         {
             0,
@@ -340,7 +340,7 @@ namespace AlignCache
         size_t count = FillKVectorWithAlignIDs ( vdb, g_Params.cursor_cache_size, vect );
 
         // For each id in vect cache the PRIMARY_ALIGNMENT record
-        CachePrimaryAlignment ( mgr, vdb, g_Params.cursor_cache_size, vect, count*2 );
+        CachePrimaryAlignment ( mgr, vdb, g_Params.cursor_cache_size, vect, count*2, progress_bar );
     }
 
 

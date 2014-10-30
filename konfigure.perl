@@ -1048,17 +1048,20 @@ sub find_lib {
     print "checking for $n library... ";
 
     while (1) {
-        my ($library, $log);
+        my ($flags, $library, $log) = ('', '');
 
         if ($n eq 'hdf5') {
             $library = '-lhdf5';
-            $log = '#include <hdf5.h>            \n main() { H5close     (); }';
-        } elsif ($n eq 'xml2') {
-            $library = '-lxml2';
-            $log = '#include <libxml/xmlreader.h>\n main() { xmlInitParser();}';
+            $log = '#include <hdf5.h>            \n main() { H5close    () ; }';
+        } elsif ($n eq 'fuse') {
+            $flags = '-D_FILE_OFFSET_BITS=64';
+            $log = '#include <fuse.h>            \n main() {                 }';
         } elsif ($n eq 'magic') {
             $library = '-lmagic';
             $log = '#include <magic.h>           \n main() { magic_open (0); }';
+        } elsif ($n eq 'xml2') {
+            $library = '-lxml2';
+            $log = '#include <libxml/xmlreader.h>\n main() { xmlInitParser();}';
         } else {
             println 'unknown: skipped';
             return;
@@ -1072,8 +1075,8 @@ sub find_lib {
         my $cmd = $log;
         $cmd =~ s/\\n/\n/g;
 
-        my $gcc = "| gcc -xc " . ($i ? "-I$i " : ' ')
-                               . ($l ? "-L$l " : ' ') . "- $library";
+        my $gcc = "| gcc -xc $flags " . ($i ? "-I$i " : ' ')
+                                      . ($l ? "-L$l " : ' ') . "- $library";
         $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
 
         open GCC, $gcc or last;

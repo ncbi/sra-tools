@@ -9,7 +9,8 @@ sub PKG { ( LNG   => 'C',
             OUT   => 'ncbi-outdir',
             PATH  => '/usr/local/ncbi/sra-tools',
             UPATH =>      '$HOME/ncbi/sra-tools', ) }
-sub DEPENDS      { ( { name => 'hdf5' , },
+sub DEPENDS      { ( { name => 'fuse' , Include => '/usr/include'        , },
+                     { name => 'hdf5' , Include => '/usr/include'        , },
                      { name => 'magic', Include => '/usr/include'        , },
                      { name => 'xml2' , Include => '/usr/include/libxml2', } ) }
 sub REQ { (

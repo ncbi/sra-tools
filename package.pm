@@ -1,6 +1,6 @@
 ################################################################################
 sub PACKAGE      { "sra-tools" }
-sub VERSION      { "2.4.3a" }
+sub VERSION      { "2.4.2-3" }
 sub PACKAGE_TYPE { 'B' }
 sub PACKAGE_NAME { "SRA-TOOLS" }
 sub PACKAGE_NAMW { "SRATOOLS" }
@@ -14,7 +14,7 @@ sub DEPENDS      { ( { name => 'hdf5' , },
                      { name => 'xml2' , Include => '/usr/include/libxml2', } ) }
 sub REQ { (
             { name    => 'ngs-sdk',
-              namew   => 'NGS',
+              aname   => 'NGS',
               option  => 'with-ngs-sdk-prefix',
               origin  => 'I',
               type    => 'L',
@@ -24,10 +24,9 @@ sub REQ { (
               bldpath => '$HOME/ncbi-outdir/ngs-sdk',
               include => 'ngs/itf/Refcount.h',
               lib     => 'libngs-c++.a',
-              ilib    => 'libngs-bind-c++.a',
             },
             { name    => 'ncbi-vdb',
-              namew   => 'VDB',
+              aname   => 'VDB',
               option  => 'with-ncbi-vdb-sources',
               boption => 'with-ncbi-vdb-build',
               origin  => 'I',
@@ -39,8 +38,8 @@ sub REQ { (
               include => 'klib/rc.h',
               lib     => 'libncbi-vdb.a',
               ilib    => 'libkapp.a',
-        },
-        {     name    => 'hdf5',
+            },
+            { name    => 'hdf5',
               option  => 'with-hdf5-prefix',
               origin  => 'E',
               type    => 'LI',

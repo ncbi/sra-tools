@@ -135,8 +135,10 @@ rc_t SetPwd(const char *password, bool no_prompt)
                     "Cannot set the password.\n"));
             }
             else {
-                OUTMSG(("\nCannot set the password. Please run "
-                 "\"perl configuration-assistant.perl\" and try again.\n"));
+                OUTMSG(("\nCannot set the password. Please consult\n"
+                 "configuration page at\n"
+                 "http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=std or\n"
+                 "https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration\n"));
             }
         }
     }
@@ -221,7 +223,7 @@ rc_t run(bool quiet)
 #define SL_OPTION "noprompt"
 #define SL_ALIAS "n"
 static const char *SL_USAGE[]
-    = { "Do not suggest running configuration-assistant", NULL };
+    = { "Do not suggest consulting configuration page at http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=std or https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration", NULL };
 
 OptDef Options[] = { { SL_OPTION, SL_ALIAS, NULL, SL_USAGE, 1, false, false } };
 

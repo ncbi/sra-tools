@@ -628,7 +628,13 @@ size_t CC FASTQ_input(FASTQParseBlock* pb, char* buf, size_t max_size)
     return length;
 }
 
-rc_t CC FastqReaderFileMake( const ReaderFile **reader, const KDirectory* dir, const char* file, uint8_t phredOffset, uint8_t phredMax, int8_t defaultReadNumber)
+rc_t CC FastqReaderFileMake( const ReaderFile **reader, 
+                             const KDirectory* dir, 
+                             const char* file, 
+                             uint8_t phredOffset, 
+                             uint8_t phredMax, 
+                             int8_t defaultReadNumber,
+                             bool ignoreSpotGroups)
 {
     rc_t rc;
     FastqReaderFile* self = (FastqReaderFile*) malloc ( sizeof * self );
@@ -671,6 +677,7 @@ rc_t CC FastqReaderFileMake( const ReaderFile **reader, const KDirectory* dir, c
             */
             self->pb.defaultReadNumber = defaultReadNumber;
             self->pb.secondaryReadNumber = 0;
+            self->pb.ignoreSpotGroups = ignoreSpotGroups;
             
             rc = FASTQScan_yylex_init(& self->pb, false); 
             if (rc == 0)

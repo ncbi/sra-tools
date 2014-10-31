@@ -73,8 +73,6 @@
 
 /* Copy the first part of user declarations.  */
 
-/* Line 268 of yacc.c  */
-#line 27 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
   
     #include <sysalloc.h>
     #include <ctype.h>
@@ -102,8 +100,6 @@
     #define IS_PACBIO(pb) ((pb)->defaultReadNumber == -1)
 
 
-/* Line 268 of yacc.c  */
-#line 107 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.c"
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -158,8 +154,6 @@ typedef int YYSTYPE;
 /* Copy the second part of user declarations.  */
 
 
-/* Line 343 of yacc.c  */
-#line 163 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.c"
 
 #ifdef short
 # undef short
@@ -1530,162 +1524,116 @@ yyreduce:
     {
         case 2:
 
-/* Line 1806 of yacc.c  */
-#line 77 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 3:
 
-/* Line 1806 of yacc.c  */
-#line 79 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 4:
 
-/* Line 1806 of yacc.c  */
-#line 81 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 5:
 
-/* Line 1806 of yacc.c  */
-#line 83 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { StartSpotName(pb, 0); }
     break;
 
   case 6:
 
-/* Line 1806 of yacc.c  */
-#line 84 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(3) - (3)])); StopSpotName(pb); }
     break;
 
   case 7:
 
-/* Line 1806 of yacc.c  */
-#line 85 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { FASTQScan_inline_sequence(pb); }
     break;
 
   case 8:
 
-/* Line 1806 of yacc.c  */
-#line 87 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { FASTQScan_inline_quality(pb); }
     break;
 
   case 9:
 
-/* Line 1806 of yacc.c  */
-#line 88 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 10:
 
-/* Line 1806 of yacc.c  */
-#line 90 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { UNLEX; return 1; }
     break;
 
   case 11:
 
-/* Line 1806 of yacc.c  */
-#line 92 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { return 0; }
     break;
 
   case 18:
 
-/* Line 1806 of yacc.c  */
-#line 111 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { StartSpotName(pb, 1); }
     break;
 
   case 20:
 
-/* Line 1806 of yacc.c  */
-#line 112 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { StartSpotName(pb, 1); }
     break;
 
   case 22:
 
-/* Line 1806 of yacc.c  */
-#line 116 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { pb->record->seq.is_colorspace = false; }
     break;
 
   case 23:
 
-/* Line 1806 of yacc.c  */
-#line 117 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { pb->record->seq.is_colorspace = true; }
     break;
 
   case 24:
 
-/* Line 1806 of yacc.c  */
-#line 121 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(1) - (1)])); }
     break;
 
   case 26:
 
-/* Line 1806 of yacc.c  */
-#line 123 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(2) - (2)])); }
     break;
 
   case 28:
 
-/* Line 1806 of yacc.c  */
-#line 128 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(1) - (1)])); }
     break;
 
   case 30:
 
-/* Line 1806 of yacc.c  */
-#line 130 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(2) - (2)])); }
     break;
 
   case 32:
 
-/* Line 1806 of yacc.c  */
-#line 135 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(1) - (1)])); pb->record->seq.is_colorspace = false; }
     break;
 
   case 33:
 
-/* Line 1806 of yacc.c  */
-#line 136 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetRead(pb, & (yyvsp[(1) - (1)])); pb->record->seq.is_colorspace = true; }
     break;
 
   case 37:
 
-/* Line 1806 of yacc.c  */
-#line 147 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { StopSpotName(pb); }
     break;
 
   case 39:
 
-/* Line 1806 of yacc.c  */
-#line 149 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); StopSpotName(pb); }
     break;
 
   case 41:
 
-/* Line 1806 of yacc.c  */
-#line 152 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     {   /* another crazy variation by Illumina, this time "_" is used as " /" */
                     GrowSpotName(pb, &(yyvsp[(2) - (3)])); 
                     StopSpotName(pb);
@@ -1695,141 +1643,101 @@ yyreduce:
 
   case 43:
 
-/* Line 1806 of yacc.c  */
-#line 158 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)])); StopSpotName(pb); }
     break;
 
   case 45:
 
-/* Line 1806 of yacc.c  */
-#line 160 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)]));}
     break;
 
   case 47:
 
-/* Line 1806 of yacc.c  */
-#line 162 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)]));}
     break;
 
   case 49:
 
-/* Line 1806 of yacc.c  */
-#line 164 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (4)])); GrowSpotName(pb, &(yyvsp[(3) - (4)])); GrowSpotName(pb, &(yyvsp[(3) - (4)]));}
     break;
 
   case 51:
 
-/* Line 1806 of yacc.c  */
-#line 169 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 52:
 
-/* Line 1806 of yacc.c  */
-#line 170 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 53:
 
-/* Line 1806 of yacc.c  */
-#line 171 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 54:
 
-/* Line 1806 of yacc.c  */
-#line 172 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 55:
 
-/* Line 1806 of yacc.c  */
-#line 173 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 56:
 
-/* Line 1806 of yacc.c  */
-#line 174 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 57:
 
-/* Line 1806 of yacc.c  */
-#line 175 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 58:
 
-/* Line 1806 of yacc.c  */
-#line 176 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 59:
 
-/* Line 1806 of yacc.c  */
-#line 180 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 60:
 
-/* Line 1806 of yacc.c  */
-#line 181 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetSpotGroup(pb, &(yyvsp[(3) - (3)]));  GrowSpotName(pb, &(yyvsp[(3) - (3)])); }
     break;
 
   case 61:
 
-/* Line 1806 of yacc.c  */
-#line 182 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 62:
 
-/* Line 1806 of yacc.c  */
-#line 183 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetSpotGroup(pb, &(yyvsp[(3) - (3)]));  GrowSpotName(pb, &(yyvsp[(3) - (3)])); }
     break;
 
   case 65:
 
-/* Line 1806 of yacc.c  */
-#line 189 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 67:
 
-/* Line 1806 of yacc.c  */
-#line 191 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 69:
 
-/* Line 1806 of yacc.c  */
-#line 193 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 71:
 
-/* Line 1806 of yacc.c  */
-#line 198 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
             if (IS_PACBIO(pb)) pb->spotNameDone = false; 
             GrowSpotName(pb, &(yyvsp[(1) - (1)])); 
@@ -1838,8 +1746,6 @@ yyreduce:
 
   case 72:
 
-/* Line 1806 of yacc.c  */
-#line 203 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { 
             if (!IS_PACBIO(pb)) SetReadNumber(pb, &(yyvsp[(3) - (3)])); 
             GrowSpotName(pb, &(yyvsp[(3) - (3)])); 
@@ -1849,8 +1755,6 @@ yyreduce:
 
   case 73:
 
-/* Line 1806 of yacc.c  */
-#line 210 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { 
             if (IS_PACBIO(pb)) pb->spotNameDone = false; 
             GrowSpotName(pb, &(yyvsp[(2) - (2)])); 
@@ -1859,8 +1763,6 @@ yyreduce:
 
   case 74:
 
-/* Line 1806 of yacc.c  */
-#line 215 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { 
             if (IS_PACBIO(pb)) StopSpotName(pb); 
         }
@@ -1868,134 +1770,96 @@ yyreduce:
 
   case 75:
 
-/* Line 1806 of yacc.c  */
-#line 221 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetReadNumber(pb, &(yyvsp[(1) - (1)])); GrowSpotName(pb, &(yyvsp[(1) - (1)])); StopSpotName(pb); }
     break;
 
   case 76:
 
-/* Line 1806 of yacc.c  */
-#line 222 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(3) - (3)])); }
     break;
 
   case 77:
 
-/* Line 1806 of yacc.c  */
-#line 223 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(5) - (5)])); if ((yyvsp[(5) - (5)]).tokenLength == 1 && TokenTextPtr(pb, &(yyvsp[(5) - (5)]))[0] == 'Y') pb->record->seq.lowQuality = true; }
     break;
 
   case 78:
 
-/* Line 1806 of yacc.c  */
-#line 224 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(7) - (7)])); }
     break;
 
   case 79:
 
-/* Line 1806 of yacc.c  */
-#line 225 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(9) - (9)])); }
     break;
 
   case 80:
 
-/* Line 1806 of yacc.c  */
-#line 226 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(11) - (11)])); }
     break;
 
   case 82:
 
-/* Line 1806 of yacc.c  */
-#line 231 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetSpotGroup(pb, &(yyvsp[(1) - (1)])); GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 83:
 
-/* Line 1806 of yacc.c  */
-#line 232 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetSpotGroup(pb, &(yyvsp[(1) - (1)])); GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 85:
 
-/* Line 1806 of yacc.c  */
-#line 237 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(1) - (1)])); }
     break;
 
   case 86:
 
-/* Line 1806 of yacc.c  */
-#line 238 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 87:
 
-/* Line 1806 of yacc.c  */
-#line 239 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 88:
 
-/* Line 1806 of yacc.c  */
-#line 240 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 89:
 
-/* Line 1806 of yacc.c  */
-#line 241 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 90:
 
-/* Line 1806 of yacc.c  */
-#line 242 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { GrowSpotName(pb, &(yyvsp[(2) - (2)])); }
     break;
 
   case 91:
 
-/* Line 1806 of yacc.c  */
-#line 246 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetReadNumber(pb, &(yyvsp[(3) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)])); StopSpotName(pb); }
     break;
 
   case 92:
 
-/* Line 1806 of yacc.c  */
-#line 247 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { SetReadNumber(pb, &(yyvsp[(3) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)])); StopSpotName(pb); }
     break;
 
   case 93:
 
-/* Line 1806 of yacc.c  */
-#line 248 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     { StopSpotName(pb); }
     break;
 
   case 103:
 
-/* Line 1806 of yacc.c  */
-#line 271 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
     {  AddQuality(pb, & (yyvsp[(1) - (1)])); }
     break;
 
 
 
-/* Line 1806 of yacc.c  */
-#line 1999 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.c"
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -2225,8 +2089,6 @@ yyreturn:
 
 
 
-/* Line 2067 of yacc.c  */
-#line 274 "/home/boshkina/devel/sra-tools/tools/fastq-loader/fastq-grammar.y"
 
 
 void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
@@ -2330,10 +2192,13 @@ void StopSpotName(FASTQParseBlock* pb)
 
 void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token)
 {
-    if (token->tokenLength != 1 || TokenTextPtr(pb, token)[0] != '0') /* ignore spot group 0 */
+    if ( ! pb->ignoreSpotGroups )
     {
-        pb->spotGroupOffset = token->tokenStart;    
-        pb->spotGroupLength = token->tokenLength;
+        if (token->tokenLength != 1 || TokenTextPtr(pb, token)[0] != '0') /* ignore spot group 0 */
+        {
+            pb->spotGroupOffset = token->tokenStart;    
+            pb->spotGroupLength = token->tokenLength;
+        }
     }
 }
 

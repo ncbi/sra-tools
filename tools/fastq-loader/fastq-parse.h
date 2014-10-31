@@ -127,6 +127,8 @@ typedef struct FASTQParseBlock
         Always record as 2 */
     uint8_t secondaryReadNumber; 
     
+    bool ignoreSpotGroups;
+    
     bool fatalError;
 } FASTQParseBlock;
 

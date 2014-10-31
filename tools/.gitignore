@@ -1,3 +1,6 @@
 pileupcomp
 avg-qual
 sra-rewrite
+core.*
+gmon.out
+

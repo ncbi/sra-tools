@@ -428,9 +428,10 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
 
     fract_digits = vdb_copy_calc_fract_digits( iter );
     count = 0;
-    while ( num_gen_iterator_next( iter, &row_id, NULL ) )
+    while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
     {
-        rc = Quitting();    /* to be able to cancel the loop by signal */
+        if ( rc == 0 )
+            rc = Quitting();    /* to be able to cancel the loop by signal */
         if ( rc == 0 )
         {
             rc = VCursorSetRowId( src_cursor, row_id );

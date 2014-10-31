@@ -84,6 +84,7 @@ CGLOAD_SRC = \
 	factory-tag-lfr \
 	f1_3 \
 	f1_5 \
+	f1_7 \
 	f2_0 \
 	f2_2 \
 	file \

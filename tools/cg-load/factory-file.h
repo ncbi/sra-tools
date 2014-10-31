@@ -35,6 +35,8 @@ rc_t CGFile13_Make(const struct CGFileType** self,
                    const char* type, const struct CGLoaderFile* file);
 rc_t CGFile15_Make(const struct CGFileType** self,
                    const char* type, const struct CGLoaderFile* file);
+rc_t CGFile17_Make(const struct CGFileType** self,
+                   const char* type, const struct CGLoaderFile* file);
 rc_t CGFile20_Make(const struct CGFileType** self,
                    const char* type, const struct CGLoaderFile* file);
 rc_t CGFile22_Make(const struct CGFileType** self,

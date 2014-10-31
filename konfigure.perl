@@ -1146,7 +1146,7 @@ sub check {
 
 ################################################################################
 
-sub optional { $_[0] =~ /^[LS]I$/ }
+sub optional { $_[0] =~ /O/ }
 
 sub help {
 #  --prefix=PREFIX         install architecture-independent files in PREFIX

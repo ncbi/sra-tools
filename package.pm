@@ -1,6 +1,6 @@
 ################################################################################
 sub PACKAGE      { "sra-tools" }
-sub VERSION      { "2.4.2-3" }
+sub VERSION      { "2.4.2-4" }
 sub PACKAGE_TYPE { 'B' }
 sub PACKAGE_NAME { "SRA-TOOLS" }
 sub PACKAGE_NAMW { "SRATOOLS" }
@@ -9,10 +9,10 @@ sub PKG { ( LNG   => 'C',
             OUT   => 'ncbi-outdir',
             PATH  => '/usr/local/ncbi/sra-tools',
             UPATH =>      '$HOME/ncbi/sra-tools', ) }
-sub DEPENDS      { ( { name => 'fuse' , Include => '/usr/include'        , },
-                     { name => 'hdf5' , Include => '/usr/include'        , },
-                     { name => 'magic', Include => '/usr/include'        , },
-                     { name => 'xml2' , Include => '/usr/include/libxml2', } ) }
+sub DEPENDS { ( { name => 'fuse' , Include => '/usr/include'        , },
+                { name => 'hdf5' , Include => '/usr/include'        , },
+                { name => 'magic', Include => '/usr/include'        , },
+                { name => 'xml2' , Include => '/usr/include/libxml2', } ) }
 sub REQ { (
             { name    => 'ngs-sdk',
               aname   => 'NGS',
@@ -43,10 +43,10 @@ sub REQ { (
             { name    => 'hdf5',
               option  => 'with-hdf5-prefix',
               origin  => 'E',
-              type    => 'LI',
+              type    => 'LIO',
               pkgpath => '/usr',
               usrpath => '$HOME',
               include => 'hdf5.h',
-              lib => 'libhdf5.a',
+              lib     => 'libhdf5.a',
         } ) }
 1

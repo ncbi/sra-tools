@@ -405,7 +405,8 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
 {
     rc_t rc;
     const struct num_gen_iter * iter;
-    uint64_t count, row_id;
+    int64_t row_id;
+    uint64_t count;
     uint32_t percent;
     uint8_t fract_digits;
     p_col_def filter_col_def = NULL;
@@ -427,8 +428,7 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
 
     fract_digits = vdb_copy_calc_fract_digits( iter );
     count = 0;
-    rc = num_gen_iterator_next( iter, &row_id );
-    while ( rc == 0 )
+    while ( num_gen_iterator_next( iter, &row_id, NULL ) )
     {
         rc = Quitting();    /* to be able to cancel the loop by signal */
         if ( rc == 0 )
@@ -469,13 +469,12 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
                                      "row_nr=%lu", row_id ) );
                     }
                 }
-                rc = num_gen_iterator_next( iter, &row_id );
+
                 if ( ctx->show_progress )
                 {
                     if ( num_gen_iterator_percent( iter, fract_digits, &percent ) == 0 )
                         update_progressbar( progress, fract_digits, percent );
                 }
-
             }
         }
     }

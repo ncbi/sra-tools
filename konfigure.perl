@@ -908,7 +908,8 @@ sub status {
     println "javadir: $OPT{'javadir'}" if ($OPT{'javadir'});
     println "pythondir: $OPT{'pythondir'}" if ($OPT{'pythondir'});
 
-    println "configured with: $CONFIGURED";
+    $CONFIGURED =~ s/\t/ /g;
+    println "configured with: \"$CONFIGURED\"";
 }
 
 sub expand {

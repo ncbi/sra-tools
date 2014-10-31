@@ -1,0 +1,66 @@
+CONTENTS
+
+  Public Domain Notice
+  Exceptions (for bundled 3rd-party code)
+  Copyright F.A.Q.
+
+
+==============================================================
+                     PUBLIC DOMAIN NOTICE
+         National Center for Biotechnology Information
+
+With the exception of certain third-party files summarized below, this
+software is a "United States Government Work" under the terms of the
+United States Copyright Act.  It was written as part of the authors'
+official duties as United States Government employees and thus cannot
+be copyrighted.  This software is freely available to the public for
+use. The National Library of Medicine and the U.S. Government have not
+placed any restriction on its use or reproduction.
+
+Although all reasonable efforts have been taken to ensure the accuracy
+and reliability of the software and data, the NLM and the U.S.
+Government do not and cannot warrant the performance or results that
+may be obtained by using this software or data. The NLM and the U.S.
+Government disclaim all warranties, express or implied, including
+warranties of performance, merchantability or fitness for any
+particular purpose.
+
+Please cite the authors in any work or product based on this material.
+
+
+==============================================================
+EXCEPTIONS (in all cases excluding NCBI-written makefiles):
+
+See LICENSE from https://github.com/ncbi/ncbi-vdb
+
+==============================================================
+Copyright F.A.Q.
+
+
+--------------------------------------------------------------
+Q. Our product makes use of the NCBI source code, and we made changes
+   and additions to that version of the NCBI code to better fit it to
+   our needs. Can we copyright the code, and how?
+
+A. You can copyright only the *changes* or the *additions* you made to the
+   NCBI source code. You should identify unambiguously those sections of
+   the code that were modified, e.g. by commenting any changes you made
+   in the code you distribute. Therefore, your license has to make clear
+   to users that your product is a combination of code that is public domain
+   within the U.S. (but may be subject to copyright by the U.S. in foreign
+   countries) and code that has been created or modified by you.
+
+--------------------------------------------------------------
+Q. Can we (re)license all or part of the NCBI source code?
+
+A. No, you cannot license or relicense the source code written by NCBI
+   since you cannot claim any copyright in the software that was developed
+   at NCBI as a 'government work' and consequently is in the public domain
+   within the U.S.
+
+--------------------------------------------------------------
+Q. What if these copyright guidelines are not clear enough or are not
+   applicable to my particular case?
+
+A. Contact us. Send your questions to 'sra-tools@ncbi.nlm.nih.gov'.
+

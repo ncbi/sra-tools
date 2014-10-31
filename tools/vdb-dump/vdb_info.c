@@ -28,6 +28,7 @@
 #include <klib/out.h>
 #include <klib/time.h>
 #include <klib/printf.h>
+#include <klib/num-gen.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -1157,7 +1158,7 @@ static rc_t vdb_info_1( VSchema * schema, dump_format_t format, const VDBManager
 
 
 rc_t vdb_info( Vector * schema_list, dump_format_t format, const VDBManager *mgr,
-               const char * acc_or_path, num_gen * row_generator )
+               const char * acc_or_path, struct num_gen * rows )
 {
     rc_t rc = 0;
     VSchema * schema = NULL;
@@ -1167,32 +1168,42 @@ rc_t vdb_info( Vector * schema_list, dump_format_t format, const VDBManager *mgr
     if ( format == df_sql )
         rc = vdb_info_print_sql_header( acc_or_path );
 
-    if ( row_generator != NULL && vdn_range_defined( row_generator ) )
+    if ( rows != NULL && !num_gen_empty( rows ) )
     {
-        uint64_t id;
-        uint8_t digits = digits_of( vdn_max( row_generator ) );
-
-        vdn_start( row_generator );
-        while ( vdn_next( row_generator, &id ) && rc == 0 )
+        const struct num_gen_iter * iter;
+        rc = num_gen_iterator_make( rows, &iter );
+        if ( rc == 0 )
         {
-            char acc[ 64 ];
-            size_t num_writ;
-            rc_t rc1 = -1;
-            switch ( digits )
+            int64_t max_row;
+            rc = num_gen_iterator_max( iter, &max_row );
+            if ( rc == 0 )
             {
-                case 1 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%lu", acc_or_path, id ); break;
-                case 2 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.02lu", acc_or_path, id ); break;
-                case 3 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.03lu", acc_or_path, id ); break;
-                case 4 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.04lu", acc_or_path, id ); break;
-                case 5 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.05lu", acc_or_path, id ); break;
-                case 6 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.06lu", acc_or_path, id ); break;
-                case 7 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.07lu", acc_or_path, id ); break;
-                case 8 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.08lu", acc_or_path, id ); break;
-                case 9 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.09lu", acc_or_path, id ); break;
-            }
+                int64_t id;
+                uint8_t digits = digits_of( max_row );
 
-            if ( rc1 == 0 )
-                rc = vdb_info_1( schema, format, mgr, acc, acc_or_path );
+                while ( rc == 0 && num_gen_iterator_next( iter, &id, &rc ) )
+                {
+                    char acc[ 64 ];
+                    size_t num_writ;
+                    rc_t rc1 = -1;
+                    switch ( digits )
+                    {
+                        case 1 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%ld", acc_or_path, id ); break;
+                        case 2 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.02ld", acc_or_path, id ); break;
+                        case 3 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.03ld", acc_or_path, id ); break;
+                        case 4 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.04ld", acc_or_path, id ); break;
+                        case 5 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.05ld", acc_or_path, id ); break;
+                        case 6 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.06ld", acc_or_path, id ); break;
+                        case 7 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.07ld", acc_or_path, id ); break;
+                        case 8 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.08ld", acc_or_path, id ); break;
+                        case 9 : rc1 = string_printf ( acc, sizeof acc, &num_writ, "%s%.09ld", acc_or_path, id ); break;
+                    }
+
+                    if ( rc1 == 0 )
+                        rc = vdb_info_1( schema, format, mgr, acc, acc_or_path );
+                }
+            }
+            num_gen_iterator_destroy( iter );
         }
     }
     else

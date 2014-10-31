@@ -26,7 +26,6 @@
 
 #include "vdb-dump-fastq.h"
 #include "vdb-dump-helper.h"
-#include "vdb-dump-num-gen.h"
 
 #include <stdlib.h>
 
@@ -34,6 +33,7 @@
 #include <vdb/vdb-priv.h>
 #include <klib/log.h>
 #include <klib/out.h>
+#include <klib/num-gen.h>
 
 rc_t CC Quitting ( void );
 
@@ -42,7 +42,7 @@ rc_t CC Quitting ( void );
 
 typedef struct fastq_ctx
 {
-    const char *run_name;
+    const char * run_name;
     const VCursor * cursor;
     uint32_t idx_read;
     uint32_t idx_qual;
@@ -58,46 +58,51 @@ static void vdb_fastq_row_error( const char * fmt, rc_t rc, int64_t row_id )
 
 static rc_t vdb_fastq_loop_with_name( const p_dump_context ctx, const fastq_ctx * fctx )
 {
-    rc_t rc = 0;
-    int64_t row_id;
-
-    vdn_start( ctx->row_generator );
-    while ( vdn_next( ctx->row_generator, (uint64_t*)&row_id ) && rc == 0 )
+    const struct num_gen_iter * iter;
+    rc_t rc = num_gen_iterator_make( ctx->rows, &iter );
+    DISP_RC( rc, "num_gen_iterator_make() failed" );
+    if ( rc == 0 )
     {
-        rc = Quitting();
-        if ( rc == 0 )
+        int64_t row_id;
+        while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
         {
-            uint32_t elem_bits, boff, row_len, name_len;
-            const char * data;
-            const char * name;
-
-            rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
-                                        (const void**)&name, &boff, &name_len );
-            if ( rc != 0 )
-                vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
-            else
+            if ( rc == 0 )
+                rc = Quitting();
+            if ( rc == 0 )
             {
-                rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-                                            (const void**)&data, &boff, &row_len );
+                uint32_t elem_bits, boff, row_len, name_len;
+                const char * data;
+                const char * name;
+
+                rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
+                                            (const void**)&name, &boff, &name_len );
                 if ( rc != 0 )
-                    vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
+                    vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
                 else
                 {
-                    rc = KOutMsg( "@%s.%li %.*s length=%u\n%.*s\n",
-                                  fctx->run_name, row_id, name_len, name, row_len, row_len, data );
-                    if ( rc == 0 )
+                    rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
+                                                (const void**)&data, &boff, &row_len );
+                    if ( rc != 0 )
+                        vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
+                    else
                     {
-                        rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_qual, &elem_bits,
-                                                    (const void**)&data, &boff, &row_len );
-                        if ( rc != 0 )
-                            vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), QUALITY ) failed", rc, row_id );
-                        else
-                            rc = KOutMsg( "+%s.%li %.*s length=%u\n%.*s\n",
-                                          fctx->run_name, row_id, name_len, name, row_len, row_len, data );
+                        rc = KOutMsg( "@%s.%li %.*s length=%u\n%.*s\n",
+                                      fctx->run_name, row_id, name_len, name, row_len, row_len, data );
+                        if ( rc == 0 )
+                        {
+                            rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_qual, &elem_bits,
+                                                        (const void**)&data, &boff, &row_len );
+                            if ( rc != 0 )
+                                vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), QUALITY ) failed", rc, row_id );
+                            else
+                                rc = KOutMsg( "+%s.%li %.*s length=%u\n%.*s\n",
+                                              fctx->run_name, row_id, name_len, name, row_len, row_len, data );
+                        }
                     }
                 }
             }
         }
+        num_gen_iterator_destroy( iter );
     }
     return rc;
 }
@@ -105,25 +110,123 @@ static rc_t vdb_fastq_loop_with_name( const p_dump_context ctx, const fastq_ctx 
 
 static rc_t vdb_fasta_loop_with_name( const p_dump_context ctx, const fastq_ctx * fctx )
 {
-    rc_t rc = 0;
-    int64_t row_id;
-
-    vdn_start( ctx->row_generator );
-    while ( vdn_next( ctx->row_generator, (uint64_t*)&row_id ) && rc == 0 )
+    const struct num_gen_iter * iter;
+    rc_t rc = num_gen_iterator_make( ctx->rows, &iter );
+    DISP_RC( rc, "num_gen_iterator_make() failed" );
+    if ( rc == 0 )
     {
-        rc = Quitting();
-        if ( rc == 0 )
+        int64_t row_id;
+        while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
         {
-            uint32_t elem_bits, boff, row_len, name_len;
-            const char * data;
-            const char * name;
-
-            rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
-                                        (const void**)&name, &boff, &name_len );
-            if ( rc != 0 )
-                vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
-            else
+            if ( rc == 0 )
+                rc = Quitting();
+            if ( rc == 0 )
             {
+                uint32_t elem_bits, boff, row_len, name_len;
+                const char * data;
+                const char * name;
+
+                rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
+                                            (const void**)&name, &boff, &name_len );
+                if ( rc != 0 )
+                    vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
+                else
+                {
+                    rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
+                                                (const void**)&data, &boff, &row_len );
+                    if ( rc != 0 )
+                        vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
+                    else
+                    {
+                        uint32_t idx = 0;
+                        int32_t to_print = row_len;
+
+                        rc = KOutMsg( ">%s.%li %.*s length=%u\n",
+                                      fctx->run_name, row_id, name_len, name, row_len );
+                        if ( to_print > ctx->max_line_len )
+                            to_print = ctx->max_line_len;
+                        while ( rc == 0 && to_print > 0 )
+                        {
+                            rc = KOutMsg( "%.*s\n", to_print, &data[ idx ] );
+                            if ( rc == 0 )
+                            {
+                                idx += ctx->max_line_len;
+                                to_print = ( row_len - idx );
+                                if ( to_print > ctx->max_line_len )
+                                    to_print = ctx->max_line_len;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        num_gen_iterator_destroy( iter );
+    }
+    return rc;
+}
+
+
+static rc_t vdb_fastq_loop_without_name( const p_dump_context ctx, const fastq_ctx * fctx )
+{
+    const struct num_gen_iter * iter;
+    rc_t rc = num_gen_iterator_make( ctx->rows, &iter );
+    DISP_RC( rc, "num_gen_iterator_make() failed" );
+    if ( rc == 0 )
+    {
+        int64_t row_id;
+        while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
+        {
+            if ( rc == 0 )
+                rc = Quitting();
+            if ( rc == 0 )
+            {
+                uint32_t elem_bits, boff, row_len;
+                const char * data;
+
+                rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
+                                            (const void**)&data, &boff, &row_len );
+                if ( rc != 0 )
+                    vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
+                else
+                {
+                    rc = KOutMsg( "@%s.%li %li length=%u\n%.*s\n",
+                                  fctx->run_name, row_id, row_id, row_len, row_len, data );
+                    if ( rc == 0 )
+                    {
+                        rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_qual, &elem_bits,
+                                                    (const void**)&data, &boff, &row_len );
+                        if ( rc != 0 )
+                            vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), QUALITY ) failed", rc, row_id );
+                        else
+                            rc = KOutMsg( "+%s.%li %li length=%u\n%.*s\n",
+                                          fctx->run_name, row_id, row_id, row_len, row_len, data );
+                    }
+                }
+            }
+        }
+        num_gen_iterator_destroy( iter );
+    }
+    return rc;
+}
+
+
+static rc_t vdb_fasta_loop_without_name( const p_dump_context ctx, const fastq_ctx * fctx )
+{
+    const struct num_gen_iter * iter;
+    rc_t rc = num_gen_iterator_make( ctx->rows, &iter );
+    DISP_RC( rc, "num_gen_iterator_make() failed" );
+    if ( rc == 0 )
+    {
+        int64_t row_id;
+        while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
+        {
+            if ( rc == 0 )
+                rc = Quitting();
+            if ( rc == 0 )
+            {
+                uint32_t elem_bits, boff, row_len;
+                const char * data;
+
                 rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
                                             (const void**)&data, &boff, &row_len );
                 if ( rc != 0 )
@@ -133,8 +236,8 @@ static rc_t vdb_fasta_loop_with_name( const p_dump_context ctx, const fastq_ctx 
                     uint32_t idx = 0;
                     int32_t to_print = row_len;
 
-                    rc = KOutMsg( ">%s.%li %.*s length=%u\n",
-                                  fctx->run_name, row_id, name_len, name, row_len );
+                    rc = KOutMsg( ">%s.%li %li length=%u\n",
+                                  fctx->run_name, row_id, row_id, row_len );
                     if ( to_print > ctx->max_line_len )
                         to_print = ctx->max_line_len;
                     while ( rc == 0 && to_print > 0 )
@@ -151,90 +254,7 @@ static rc_t vdb_fasta_loop_with_name( const p_dump_context ctx, const fastq_ctx 
                 }
             }
         }
-    }
-    return rc;
-}
-
-
-static rc_t vdb_fastq_loop_without_name( const p_dump_context ctx, const fastq_ctx * fctx )
-{
-    rc_t rc = 0;
-    int64_t row_id;
-
-    vdn_start( ctx->row_generator );
-    while ( vdn_next( ctx->row_generator, (uint64_t*)&row_id ) && rc == 0 )
-    {
-        rc = Quitting();
-        if ( rc == 0 )
-        {
-            uint32_t elem_bits, boff, row_len;
-            const char * data;
-
-            rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-                                        (const void**)&data, &boff, &row_len );
-            if ( rc != 0 )
-                vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
-            else
-            {
-                rc = KOutMsg( "@%s.%li %li length=%u\n%.*s\n",
-                              fctx->run_name, row_id, row_id, row_len, row_len, data );
-                if ( rc == 0 )
-                {
-                    rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_qual, &elem_bits,
-                                                (const void**)&data, &boff, &row_len );
-                    if ( rc != 0 )
-                        vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), QUALITY ) failed", rc, row_id );
-                    else
-                        rc = KOutMsg( "+%s.%li %li length=%u\n%.*s\n",
-                                      fctx->run_name, row_id, row_id, row_len, row_len, data );
-                }
-            }
-        }
-    }
-    return rc;
-}
-
-
-static rc_t vdb_fasta_loop_without_name( const p_dump_context ctx, const fastq_ctx * fctx )
-{
-    rc_t rc = 0;
-    int64_t row_id;
-
-    vdn_start( ctx->row_generator );
-    while ( vdn_next( ctx->row_generator, (uint64_t*)&row_id ) && rc == 0 )
-    {
-        rc = Quitting();
-        if ( rc == 0 )
-        {
-            uint32_t elem_bits, boff, row_len;
-            const char * data;
-
-            rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-                                        (const void**)&data, &boff, &row_len );
-            if ( rc != 0 )
-                vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
-            else
-            {
-                uint32_t idx = 0;
-                int32_t to_print = row_len;
-
-                rc = KOutMsg( ">%s.%li %li length=%u\n",
-                              fctx->run_name, row_id, row_id, row_len );
-                if ( to_print > ctx->max_line_len )
-                    to_print = ctx->max_line_len;
-                while ( rc == 0 && to_print > 0 )
-                {
-                    rc = KOutMsg( "%.*s\n", to_print, &data[ idx ] );
-                    if ( rc == 0 )
-                    {
-                        idx += ctx->max_line_len;
-                        to_print = ( row_len - idx );
-                        if ( to_print > ctx->max_line_len )
-                            to_print = ctx->max_line_len;
-                    }
-                }
-            }
-        }
+        num_gen_iterator_destroy( iter );
     }
     return rc;
 }
@@ -298,17 +318,19 @@ static rc_t vdb_fastq_tbl( const p_dump_context ctx,
         if ( rc == 0 )
         {
             /* if the user did not specify a row-range, take all rows */
-            if ( vdn_range_defined( ctx->row_generator ) == false )
+            if ( ctx->rows == NULL )
             {
-                vdn_set_range( ctx->row_generator, first, count );
+                rc = num_gen_make_from_range( &ctx->rows, first, count );
+                DISP_RC( rc, "num_gen_make_from_range() failed" );
             }
             /* if the user did specify a row-range, check the boundaries */
             else
             {
-                vdn_check_range( ctx->row_generator, first, count );
+                rc = num_gen_trim( ctx->rows, first, count );
+                DISP_RC( rc, "num_gen_trim() failed" );
             }
 
-            if ( vdn_range_defined( ctx->row_generator ) )
+            if ( rc == 0 && !num_gen_empty( ctx->rows ) )
             {
                 if ( ctx->format == df_fastq )
                 {

@@ -31,6 +31,7 @@
 #include <klib/log.h>
 #include <klib/status.h>
 #include <klib/text.h>
+#include <klib/num-gen.h>
 #include <kapp/args.h>
 #include <os-native.h>
 #include <sysalloc.h>
@@ -86,6 +87,7 @@ static void vdco_init_values( p_dump_context ctx )
 	ctx->idx_range = NULL;
 	ctx->output_file = NULL;
 	ctx->output_path = NULL;
+    ctx->rows = NULL;
 
     ctx->print_row_id = true;
     ctx->print_in_hex = false;
@@ -133,8 +135,6 @@ rc_t vdco_init( dump_context **ctx )
         {
             VectorInit( &((*ctx)->schema_list), 0, 5 );
             vdco_init_values( *ctx );
-            rc = vdn_make( &((*ctx)->row_generator) );
-            DISP_RC( rc, "num_gen_make() failed" );
         }
     }
     return rc;
@@ -194,7 +194,11 @@ rc_t vdco_destroy( p_dump_context ctx )
             ctx->output_file = NULL;
         }
 
-        vdn_destroy( ctx->row_generator );
+        if ( ctx->rows != NULL )
+        {
+            num_gen_destroy( ctx->rows );
+            ctx->rows = NULL;
+        }
         free( ctx );
     }
     return rc;
@@ -299,7 +303,15 @@ static rc_t vdco_set_row_range( p_dump_context ctx, const char *src )
         rc = vdco_set_str( (char**)&(ctx->row_range), src );
         DISP_RC( rc, "vdco_set_str() failed" );
         if ( rc == 0 )
-            vdn_parse( ctx->row_generator, src );
+        {
+            if ( ctx->rows != NULL )
+            {
+                num_gen_destroy( ctx->rows );
+                ctx->rows = NULL;
+            }
+            rc = num_gen_make_from_str( &ctx->rows, src );
+            DISP_RC( rc, "num_gen_make_from_str() failed" );
+        }
     }
     return rc;
 }

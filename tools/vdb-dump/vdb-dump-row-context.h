@@ -57,7 +57,7 @@ typedef struct row_context
     p_col_defs col_defs;
     p_dump_context ctx;
     dump_str s_col;
-    uint64_t row_id;
+    int64_t row_id;
     uint32_t col_nr;
     rc_t rc;
 } row_context;

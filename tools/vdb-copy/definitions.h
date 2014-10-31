@@ -43,6 +43,10 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
+#ifndef _h_klib_num_gen_
+#include <klib/num-gen.h>
+#endif
+
 #define DISP_RC(rc,err) (void)((rc == 0) ? 0 : LogErr( klogInt, rc, err ))
 
 #define DISP_RC2(rc,err,succ) \

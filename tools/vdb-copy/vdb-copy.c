@@ -379,7 +379,7 @@ static rc_t vdb_copy_read_row_flags( const p_context ctx,
 }
 
 
-static uint8_t vdb_copy_calc_fract_digits( const num_gen_iter *iter )
+static uint8_t vdb_copy_calc_fract_digits( const struct num_gen_iter *iter )
 {
     uint8_t res = 0;
     uint64_t count;
@@ -404,7 +404,7 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
                                redact_vals * rvals )
 {
     rc_t rc;
-    const num_gen_iter *iter;
+    const struct num_gen_iter * iter;
     uint64_t count, row_id;
     uint32_t percent;
     uint8_t fract_digits;

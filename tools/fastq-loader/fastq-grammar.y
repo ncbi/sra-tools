@@ -374,10 +374,13 @@ void StopSpotName(FASTQParseBlock* pb)
 
 void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token)
 {
-    if (token->tokenLength != 1 || TokenTextPtr(pb, token)[0] != '0') /* ignore spot group 0 */
+    if ( ! pb->ignoreSpotGroups )
     {
-        pb->spotGroupOffset = token->tokenStart;    
-        pb->spotGroupLength = token->tokenLength;
+        if (token->tokenLength != 1 || TokenTextPtr(pb, token)[0] != '0') /* ignore spot group 0 */
+        {
+            pb->spotGroupOffset = token->tokenStart;    
+            pb->spotGroupLength = token->tokenLength;
+        }
     }
 }
 

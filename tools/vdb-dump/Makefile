@@ -85,7 +85,6 @@ clean: stdclean
 #  vdb dump tool
 #
 VDB_DUMP_SRC = \
-	vdb-dump-num-gen \
 	vdb-dump-context \
 	vdb-dump-coldefs \
 	vdb-dump-tools \

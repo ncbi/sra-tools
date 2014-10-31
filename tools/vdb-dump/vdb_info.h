@@ -38,7 +38,7 @@ extern "C" {
 #include <vdb/manager.h>
 
 rc_t vdb_info( Vector * schema_list, dump_format_t format, const VDBManager *mgr,
-               const char * acc_or_path, num_gen * row_generator );
+               const char * acc_or_path, struct num_gen * rows );
 
 #ifdef __cplusplus
 }

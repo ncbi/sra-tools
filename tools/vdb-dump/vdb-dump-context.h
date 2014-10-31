@@ -36,7 +36,7 @@ extern "C" {
 
 #include <kapp/args.h>
 #include <klib/vector.h>
-#include "vdb-dump-num-gen.h"
+#include <klib/num-gen.h>
 #include "vdb-dump-redir.h"
 
 #define OPTION_ROW_ID_ON         "row_id_on"
@@ -142,7 +142,7 @@ typedef struct dump_context
     const char *row_range;
     const char *output_file;
     const char *output_path;
-    num_gen *row_generator;
+    struct num_gen * rows;
     bool print_row_id;
     uint16_t lf_after_row;
     uint16_t max_line_len;

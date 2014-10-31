@@ -42,11 +42,34 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
+ifeq (1,$(HAVE_FUSE))
+
+ifeq (64,$(BITS))
+
 all std: vers-includes
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
 $(ALL_TOOLS): vers-includes
 	@ $(MAKE_CMD) $(BINDIR)/$@
+
+else
+
+all std: $(ALL_TOOLS)
+
+$(ALL_TOOLS):
+	@ echo "NOTE - $(@F) cannot be built: it requires a 64-bit system."
+
+endif
+
+else
+
+all std: $(ALL_TOOLS)
+
+$(ALL_TOOLS):
+	@ echo "NOTE - $(@F) cannot be built: " \
+		"it requires 'fuse' library and its development headers."
+
+endif
 
 .PHONY: all std $(ALL_TOOLS)
 

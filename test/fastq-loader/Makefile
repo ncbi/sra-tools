@@ -189,10 +189,14 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 11.0 0 $(SRCDIR)/input/11.0.1.fasta $(SRCDIR)/input/11.0.2.fasta --quality PHRED_33
     # 2-file fastq, tag line Run.Spot.Read
 	$(SMALLRUN) 11.1 0 $(SRCDIR)/input/11.1.1.fastq $(SRCDIR)/input/11.1.2.fastq --quality PHRED_33
+    # Illumina, ignore barcodes
+	$(SMALLRUN) 12.0 0 $(SRCDIR)/input/12.0.fastq --quality PHRED_33 --ignore-illumina-tags
+    # Illumina, use barcodes as spotgroups
+	$(SMALLRUN) 12.1 0 $(SRCDIR)/input/12.0.fastq --quality PHRED_33 
 	rm -rf $(SRCDIR)/actual
 
 onetest:
 	-#rm -rf $(SRCDIR)/actual
-    # 2-file fasta 
-	$(SMALLRUN) 11.0 0 $(SRCDIR)/input/11.0.1.fasta $(SRCDIR)/input/11.0.2.fasta --quality PHRED_33
+	$(SMALLRUN) 12.0 0 $(SRCDIR)/input/12.0.fastq --quality PHRED_33 --ignore-illumina-tags
+	$(SMALLRUN) 12.1 0 $(SRCDIR)/input/12.0.fastq --quality PHRED_33 
     

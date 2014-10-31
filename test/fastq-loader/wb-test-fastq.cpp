@@ -301,7 +301,8 @@ public:
         name(0), length(0), 
         errorText(0), errorLine(0), column(0), 
         quality(0), qualityOffset(0), qualityType(-1),
-        phredOffset(33), maxPhred(0), defaultReadNumber(0)
+        phredOffset(33), maxPhred(0), defaultReadNumber(0), 
+        ignoreSpotGroups(false)
     {
         if ( KDirectoryNativeDir ( & wd ) != 0 )
             FAIL("KDirectoryNativeDir failed");
@@ -349,7 +350,7 @@ public:
             }
             file=0;
         }
-        return FastqReaderFileMake(&rf, wd, p_filename, phredOffset, maxPhred, defaultReadNumber);
+        return FastqReaderFileMake(&rf, wd, p_filename, phredOffset, maxPhred, defaultReadNumber, ignoreSpotGroups);
     }
     void CreateFileGetRecord(const char* fileName, const char* contents)
     {
@@ -452,6 +453,7 @@ public:
     uint8_t phredOffset;
     uint8_t maxPhred;
     int8_t defaultReadNumber;
+    bool ignoreSpotGroups;
 };
 
 ///////////////////////////////////////////////// FASTQ test cases
@@ -819,6 +821,16 @@ FIXTURE_TEST_CASE(SequenceGetSpotGroupIllumina, LoaderFixture)
     REQUIRE(CreateFileGetSequence(GetName().c_str(), "@1:3:9:1822#CAT/1\n" "GATT\n" "+\n" "!''*\n"));
     REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
     REQUIRE_EQ(string("CAT"), string(name, length));
+    REQUIRE(!SequenceIsSecond(seq));
+    REQUIRE(SequenceIsFirst(seq));
+}
+
+FIXTURE_TEST_CASE(SequenceGetSpotGroupIllumina_Ignored, LoaderFixture)
+{
+    ignoreSpotGroups = true;
+    REQUIRE(CreateFileGetSequence(GetName().c_str(), "@1:3:9:1822#CAT/1\n" "GATT\n" "+\n" "!''*\n"));
+    REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
+    REQUIRE_EQ(string(""), string(name, length));
     REQUIRE(!SequenceIsSecond(seq));
     REQUIRE(SequenceIsFirst(seq));
 }

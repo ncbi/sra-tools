@@ -37,8 +37,8 @@
 
 #include <klib/text.h>
 #include <klib/printf.h>
+#include <klib/num-gen.h>
 
-#include "vdb-dump-num-gen.h"
 #include "vdb-dump-context.h"
 #include "vdb-dump-coldefs.h"
 
@@ -257,7 +257,7 @@ static rc_t vdi_create_dir( const char * path, KDirectory ** dir )
 }
 
 
-static rc_t vdi_dump_column_rows( const char * path, const VCursor *cur, p_col_def col, num_gen * rows )
+static rc_t vdi_dump_column_rows( const char * path, const VCursor *cur, p_col_def col, struct num_gen * rows )
 {
     KDirectory * dir;
 
@@ -269,30 +269,36 @@ static rc_t vdi_dump_column_rows( const char * path, const VCursor *cur, p_col_d
         rc = create_wr_bin_idx( dir, col->name, &wr );
         if ( rc == 0 )
         {
-            uint64_t row_id;
-
-            vdn_start( rows );
-            while ( vdn_next( rows, &row_id ) && rc == 0 )
+            const struct num_gen_iter * iter;
+            rc = num_gen_iterator_make( rows, &iter );
+            if ( rc != 0 )
+                LOGERR( klogInt, rc, "VCursorIdRange() failed" );
+            else
             {
-                rc = Quitting();
-                if ( rc == 0 )
+                int64_t row_id;
+                while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
                 {
-                    const void * base;
-                    uint32_t elem_bits, boff, row_len;
-                    rc = VCursorCellDataDirect ( cur, (int64_t)row_id, col->idx,
-                                                 &elem_bits, &base, &boff, &row_len );
-                    if ( rc != 0 )
+                    rc = Quitting();
+                    if ( rc == 0 )
                     {
-                        PLOGERR( klogInt, ( klogInt, rc,
-                                 "VCursorCellData( col:$(col_name) at row #$(row_nr) ) failed",
-                                 "col_name=%s,row_nr=%lu", col->name, row_id ) );
-                    }
-                    else
-                    {
-                        uint32_t len = ( elem_bits >> 3 ) * row_len;
-                        rc = write_bin_idx( &wr, base, len );
+                        const void * base;
+                        uint32_t elem_bits, boff, row_len;
+                        rc = VCursorCellDataDirect ( cur, row_id, col->idx,
+                                                     &elem_bits, &base, &boff, &row_len );
+                        if ( rc != 0 )
+                        {
+                            PLOGERR( klogInt, ( klogInt, rc,
+                                     "VCursorCellData( col:$(col_name) at row #$(row_nr) ) failed",
+                                     "col_name=%s,row_nr=%ld", col->name, row_id ) );
+                        }
+                        else
+                        {
+                            uint32_t len = ( elem_bits >> 3 ) * row_len;
+                            rc = write_bin_idx( &wr, base, len );
+                        }
                     }
                 }
+                num_gen_iterator_destroy( iter );
             }
 
             if ( rc == 0 && !wr.multi_value )
@@ -318,48 +324,45 @@ static rc_t vdi_dump_column( const p_dump_context ctx, const VCursor *cur, p_col
     }
     else if ( count > 0 )
     {
-        num_gen * rows;
+        struct num_gen * rows = NULL;
 
-        rc = vdn_make( &rows );
-        if ( rc != 0 )
+
+        if ( ctx->row_range == NULL )
         {
-            LOGERR( klogInt, rc, "vdn_make() failed" );
+            /* the user did not give us a row-range, we take all rows of this column... */
+            rc = num_gen_make_from_range( &rows, first, count );
+            if ( rc != 0 )
+                LOGERR( klogInt, rc, "num_gen_make_from_range() failed" );
         }
         else
         {
-            if ( ctx->row_range == NULL )
-            {
-                /* the user did not give us a row-range, we take all rows of this column... */
-                bool success = vdn_set_range( rows, first, count );
-                if ( !success )
-                {
-                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                    LOGERR( klogInt, rc, "vdn_set_range() failed" );
-                }
-            }
+            /* the gave us a row-range, we parse that string and check agains the real row-count... */
+            rc = num_gen_make_from_str( &rows, ctx->row_range );
+            if ( rc != 0 )
+                LOGERR( klogInt, rc, "num_gen_make_from_str() failed" );
             else
             {
-                /* the gave us a row-range, we parse that string and check agains the real row-count... */
-                uint32_t num_ranges = vdn_parse( rows, ctx->row_range );
-                if ( num_ranges < 1 )
-                {
-                    rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
-                    LOGERR( klogInt, rc, "vdn_parse() failed" );
-                }
-                else
-                    vdn_check_range( rows, first, count );
+                rc = num_gen_trim( rows, first, count );
+                if ( rc != 0 )
+                    LOGERR( klogInt, rc, "num_gen_trim() failed" );
             }
+        }
 
-            if ( !vdn_range_defined( rows ) )
+        if ( rc == 0 )
+        {
+            if ( num_gen_empty( rows ) )
             {
                 rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
                 LOGERR( klogInt, rc, "no row-range(s) defined" );
             }
             else
+            {
                 rc = vdi_dump_column_rows( ctx->output_path, cur, col, rows ); /* <---- */
-
-            vdn_destroy( rows );
+            }
         }
+
+        if ( rows != NULL )
+            num_gen_destroy( rows );
     }
     return rc;
 }
@@ -995,7 +998,7 @@ typedef struct alignment
 
 
 /* ----------------------------------------------------------------------------------------------------------- */
-static rc_t vdi_bin_phase_1_row( const p_dump_context ctx, p1_ctx * p1_ctx, uint64_t row_id )
+static rc_t vdi_bin_phase_1_row( const p_dump_context ctx, p1_ctx * p1_ctx, int64_t row_id )
 {
     rc_t rc;
 
@@ -1172,60 +1175,58 @@ static rc_t vdi_bin_phase_1( KDirectory * dir, const p_dump_context ctx )
     rc_t rc = init_p1_ctx( dir, &p1_ctx );
     if ( rc == 0 )
     {
-        num_gen * rows;
+        struct num_gen * rows = NULL;
+        uint64_t row_count = p1_ctx.REF_POS.row_count;
 
-        rc = vdn_make( &rows );
-        if ( rc != 0 )
+        if ( ctx->row_range == NULL )
         {
-            LOGERR( klogInt, rc, "vdn_make() failed" );
+            /* the user did not give us a row-range, we take all rows of this column... */
+            rc = num_gen_make_from_range( &rows, 0, row_count );
+            if ( rc != 0 )
+                LOGERR( klogInt, rc, "num_gen_make_from_range() failed" );
         }
         else
         {
-            uint64_t row_count = p1_ctx.REF_POS.row_count;
-
-            if ( ctx->row_range == NULL )
-            {
-                /* the user did not give us a row-range, we take all rows of this column... */
-                bool success = vdn_set_range( rows, 0, row_count );
-                if ( !success )
-                {
-                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                    LOGERR( klogInt, rc, "vdn_set_range() failed" );
-                }
-            }
+            /* the gave us a row-range, we parse that string and check agains the real row-count... */
+            rc = num_gen_make_from_str( &rows, ctx->row_range );
+            if ( rc != 0 )
+                LOGERR( klogInt, rc, "num_gen_make_from_str() failed" );
             else
             {
-                /* the gave us a row-range, we parse that string and check agains the real row-count... */
-                uint32_t num_ranges = vdn_parse( rows, ctx->row_range );
-                if ( num_ranges < 1 )
-                {
-                    rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
-                    LOGERR( klogInt, rc, "vdn_parse() failed" );
-                }
-                else
-                    vdn_check_range( rows, 0, row_count );
+                rc = num_gen_trim( rows, 0, row_count );
+                if ( rc != 0 )
+                    LOGERR( klogInt, rc, "num_gen_trim() failed" );
             }
+        }
 
-            if ( !vdn_range_defined( rows ) )
-            {
-                rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
-                LOGERR( klogInt, rc, "no row-range(s) defined" );
-            }
+        if ( rc == 0 && num_gen_empty( rows ) )
+        {
+            rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+            LOGERR( klogInt, rc, "no row-range(s) defined" );
+        }
+
+        if ( rc == 0 )
+        {
+            const struct num_gen_iter * iter;
+            rc = num_gen_iterator_make( rows, &iter );
+            if ( rc != 0 )
+                LOGERR( klogInt, rc, "num_gen_iterator_make() failed" );
             else
             {
-                uint64_t row_id;
-
-                vdn_start( rows );
-                while ( vdn_next( rows, &row_id ) && rc == 0 )
+                int64_t row_id;
+                while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
                 {
                     rc = Quitting();
                     if ( rc == 0 )
                         rc = vdi_bin_phase_1_row( ctx, &p1_ctx, row_id );
                 }
+                num_gen_iterator_destroy( iter );
             }
-
-            vdn_destroy( rows );
         }
+
+        if ( rows != NULL )
+            num_gen_destroy( rows );
+
         release_p1_ctx( &p1_ctx );
     }
     return rc;

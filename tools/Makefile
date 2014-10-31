@@ -59,7 +59,8 @@ SUBDIRS =             \
 	copycat           \
 	sra-load          \
 	ccextract         \
-	pacbio-load
+	pacbio-load       \
+	fuse              \
 
 ifneq (win,$(BUILD_OS))
 ifneq (rwin,$(BUILD_OS))

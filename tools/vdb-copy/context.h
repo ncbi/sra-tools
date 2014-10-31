@@ -43,9 +43,10 @@ extern "C" {
 #include "redactval.h"
 #endif
 
+#include <klib/num-gen.h>
+
 #include <kapp/args.h>
 #include "definitions.h"
-#include "num-gen.h"
 
 #define OPTION_TABLE             "table"
 #define OPTION_ROWS              "rows"
@@ -110,7 +111,7 @@ typedef struct context
     const char *table;
     const char *columns;
     const char *excluded_columns;
-    num_gen *row_generator;
+    struct num_gen * row_generator;
     bool usage_requested;
     bool dont_check_accession;
     uint64_t platform_id;

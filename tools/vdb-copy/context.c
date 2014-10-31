@@ -318,9 +318,12 @@ static rc_t context_set_blob_checksum( p_context ctx, const char *src )
 
 static rc_t context_set_row_range( p_context ctx, const char *src )
 {
+    rc_t rc;
     if ( ( ctx == NULL )||( src == NULL ) )
-        return RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
-    return num_gen_parse( ctx->row_generator, src );
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
+    else
+        rc = num_gen_parse( ctx->row_generator, src );
+    return rc;
 }
 
 
@@ -438,7 +441,11 @@ static void context_evaluate_options( const Args *my_args, p_context ctx )
     context_set_columns( ctx, context_get_str_option( my_args, OPTION_COLUMNS ) );
 #endif
     context_set_excluded_columns( ctx, context_get_str_option( my_args, OPTION_EXCLUDED_COLUMNS ) );
-    context_set_row_range( ctx, context_get_str_option( my_args, OPTION_ROWS ) );
+
+    {
+        const char * row_range = context_get_str_option( my_args, OPTION_ROWS );
+        context_set_row_range( ctx, row_range );
+    }
     nlt_make_namelist_from_string( &(ctx->src_schema_list), 
                                    context_get_str_option( my_args, OPTION_SCHEMA ) );
 }

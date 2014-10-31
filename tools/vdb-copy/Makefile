@@ -90,7 +90,6 @@ $(NCBIDIR)/vdb-copy.kfg: $(SRCDIR)/vdb-copy.kfg
 	cp $^ $@
 
 VDB_COPY_SRC = \
-	num-gen \
 	context \
 	helper \
 	coldefs \

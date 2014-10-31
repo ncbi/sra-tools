@@ -38,6 +38,8 @@
 #include <klib/vector.h>
 #include <kapp/args.h>
 #include <kapp/progressbar.h>
+#include <kapp/log-xml.h>
+
 
 #ifndef countof
 #define countof(arr) (sizeof(arr)/sizeof(arr[0]))
@@ -293,10 +295,32 @@ namespace VDBObjects
 
 namespace KApp
 {
+    class CArgs;
+    class CXMLLogger
+    {
+    public:
+        CXMLLogger ( CArgs const& args );
+        CXMLLogger (CXMLLogger const& x);
+        CXMLLogger& operator= (CXMLLogger const& x);
+        ~CXMLLogger ();
+
+        void Make ( CArgs const& args );
+
+    private:
+        void Release ();
+
+        XMLLogger const* m_pSelf;
+    };
+
+/////////////////////////////////////////
+
     class CArgs
     {
     public:
-        CArgs ( int argc, char** argv, ::OptDef* pOptions, size_t option_count );
+        friend void CXMLLogger::Make ( CArgs const& args );
+
+        CArgs ( int argc, char** argv, ::OptDef const* pOptions, size_t option_count );
+        CArgs ( int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2 );
         CArgs ( CArgs const& x );
         CArgs& operator= ( CArgs const& x );
         ~CArgs ();
@@ -320,7 +344,9 @@ namespace KApp
 
     private:
 
-        void MakeAndHandle ( int argc, char** argv, ::OptDef* pOptions, size_t option_count );
+        void MakeAndHandle ( int argc, char** argv, ::OptDef const* pOptions, size_t option_count );
+        // TODO: it's better to make ::ArgsMakeAndHandle be able to take va_list
+        void MakeAndHandle ( int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2 );
         void Release ();
 
         ::Args* m_pSelf;

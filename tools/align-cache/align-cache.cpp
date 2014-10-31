@@ -38,12 +38,14 @@ namespace AlignCache
 {
     struct Params
     {
-        char const* dbPath;
+        char const* dbPathSrc;
+        char const* dbPathDst;
         
         int64_t     id_spread_threshold;
         size_t      cursor_cache_size; 
     } g_Params =
     {
+        "",
         "",
         50000,
 #if _ARCH_BITS == 64
@@ -298,7 +300,7 @@ namespace AlignCache
         VDBObjects::CVSchema schema = mgr.MakeSchema ();
         schema.VSchemaParseFile ( schema_path );
         char szCacheDBName[256] = "";
-        string_printf (szCacheDBName, countof (szCacheDBName), NULL, "%s_aux.sra", g_Params.dbPath );
+        string_printf (szCacheDBName, countof (szCacheDBName), NULL, "%s", g_Params.dbPathDst );
         VDBObjects::CVDatabase dbCache = mgr.CreateDB ( schema, "NCBI:align:db:mate_cache #1", kcmParents | kcmInit | kcmMD5, szCacheDBName );
         VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT", kcmInit | kcmMD5 );
 
@@ -333,7 +335,7 @@ namespace AlignCache
         VDBObjects::CVDBManager mgr;
         mgr.Make();
 
-        VDBObjects::CVDatabase vdb = mgr.OpenDB (g_Params.dbPath);
+        VDBObjects::CVDatabase vdb = mgr.OpenDB (g_Params.dbPathSrc);
 
         // Scan SEQUENCE table to find mate_alignment_ids that have to be cached
         KLib::CKVector vect;
@@ -348,21 +350,17 @@ namespace AlignCache
     {
         try
         {
-            KApp::CArgs args (argc, argv, Options, countof (Options));
+            KApp::CArgs args (argc, argv, Options, countof (Options), ::XMLLogger_Args, ::XMLLogger_ArgsQty);
+            KApp::CXMLLogger xml_logger ( args );
             uint32_t param_count = args.GetParamCount ();
-            if ( param_count < 1 )
+            if ( param_count != 2 )
             {
                 MiniUsage (args.GetArgs());
                 return;
             }
 
-            if ( param_count > 1 )
-            {
-                printf ("Too many database parameters");
-                return;
-            }
-
-            g_Params.dbPath = args.GetParamValue (0);
+            g_Params.dbPathSrc = args.GetParamValue (0);
+            g_Params.dbPathDst = args.GetParamValue (1);
 
             if (args.GetOptionCount (OPTION_ID_SPREAD_THRESHOLD))
                 g_Params.id_spread_threshold = args.GetOptionValueUInt<int64_t> ( OPTION_ID_SPREAD_THRESHOLD, 0 );
@@ -396,14 +394,16 @@ extern "C"
     {
         printf (
         "Usage:\n"
-        "  %s [options] <db-path>\n"
+        "  %s [options] <src-db-path> <new-cache-db-path>\n"
         "\n"
         "Summary:\n"
-        "  Create a cache file for given database PRIMARY_ALIGNMENT table\n"
+        "  Create a cache file for given database <src-db-path>\n"
+        "  PRIMARY_ALIGNMENT table and save it into <new-cache-db-path>\n"
         "\n", progname);
         return 0;
     }
-    const char* param_usage[] = { "Path to the database" };
+    const char* param_usage_src[] = { "Path to the database", NULL };
+    const char* param_usage_dst[] = { "Path to the new cache database to be created", NULL };
     rc_t CC Usage (::Args const* args)
     {
         rc_t rc = 0;
@@ -419,12 +419,14 @@ extern "C"
 
         printf("Parameters:\n");
 
-        HelpParamLine ("db-path", param_usage);
+        HelpParamLine ("src-db-path", param_usage_src);
+        HelpParamLine ("new-cache-db-path", param_usage_dst);
 
         printf ("\nOptions:\n");
 
         HelpOptionLine (AlignCache::ALIAS_ID_SPREAD_THRESHOLD, AlignCache::OPTION_ID_SPREAD_THRESHOLD, "value", AlignCache::USAGE_ID_SPREAD_THRESHOLD);
         HelpOptionLine (NULL, AlignCache::OPTION_CURSOR_CACHE_SIZE, "value in MB", AlignCache::USAGE_CURSOR_CACHE_SIZE);
+        XMLLogger_Usage();
 
         printf ("\n");
 

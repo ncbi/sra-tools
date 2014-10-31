@@ -650,10 +650,16 @@ namespace VDBObjects
 
 namespace KApp
 {
-    CArgs::CArgs (int argc, char** argv, ::OptDef* pOptions, size_t option_count)
+    CArgs::CArgs (int argc, char** argv, ::OptDef const* pOptions, size_t option_count)
         : m_pSelf(NULL)
     {
         MakeAndHandle ( argc, argv, pOptions, option_count );
+    }
+
+    CArgs::CArgs (int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2)
+        : m_pSelf(NULL)
+    {
+        MakeAndHandle ( argc, argv, pOptions1, option_count1, pOptions2, option_count2 );
     }
 
     CArgs::~CArgs()
@@ -661,7 +667,7 @@ namespace KApp
         Release();
     }
 
-    void CArgs::MakeAndHandle (int argc, char** argv, ::OptDef* pOptions, size_t option_count)
+    void CArgs::MakeAndHandle (int argc, char** argv, ::OptDef const* pOptions, size_t option_count)
     {
         if (m_pSelf)
             throw Utils::CErrorMsg (0, "Duplicated call to ArgsMakeAndHandle");
@@ -671,6 +677,18 @@ namespace KApp
             throw Utils::CErrorMsg(rc, "ArgsMakeAndHandle");
 #if DEBUG_PRINT != 0
         printf("Created Args %p\n", m_pSelf);
+#endif
+    }
+    void CArgs::MakeAndHandle ( int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2 )
+    {
+        if (m_pSelf)
+            throw Utils::CErrorMsg (0, "Duplicated call to ArgsMakeAndHandle");
+
+        rc_t rc = ::ArgsMakeAndHandle (&m_pSelf, argc, argv, 2, pOptions1, option_count1, pOptions2, option_count2);
+        if (rc)
+            throw Utils::CErrorMsg(rc, "ArgsMakeAndHandle(2)");
+#if DEBUG_PRINT != 0
+        printf("Created Args(2) %p\n", m_pSelf);
 #endif
     }
 
@@ -777,6 +795,39 @@ namespace KApp
         rc_t rc = ::KLoadProgressbar_Process ( m_pSelf, chunk, force_report );
         if (rc)
             throw Utils::CErrorMsg(rc, "KLoadProgressbar_Process");
+    }
+
+///////////////////////////////////////////
+    CXMLLogger::CXMLLogger ( CArgs const& args )
+    {
+        Make ( args );
+    }
+
+    CXMLLogger::~CXMLLogger ()
+    {
+        Release ();
+    }
+
+    void CXMLLogger::Make ( CArgs const& args )
+    {
+        rc_t rc = ::XMLLogger_Make ( &m_pSelf, NULL, args.m_pSelf );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "XMLLogger_Make");
+#if DEBUG_PRINT != 0
+        printf ( "Created XMLLogger %p\n", m_pSelf );
+#endif
+    }
+
+    void CXMLLogger::Release ()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing XMLLogger %p\n", m_pSelf);
+#endif
+            ::XMLLogger_Release ( m_pSelf );
+            m_pSelf = NULL;
+        }
     }
 }
 

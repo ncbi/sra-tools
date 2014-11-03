@@ -22,27 +22,43 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/vcf-loader
 
-include $(TOP)/build/Makefile.config
+TEST_TOOLS = \
+    test-vcf-loader 
+
+include $(TOP)/build/Makefile.env
+
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean
 
 #-------------------------------------------------------------------------------
-# default
+# white-box test
 #
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
+INCDIRS += -I$(TOP)/tools/vcf-loader
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+VCF_TEST_SRC = \
+	test-vcf-loader
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
+VCF_TEST_OBJ = \
+	$(addsuffix .$(OBJX),$(VCF_TEST_SRC))
 
-.PHONY: default $(SUBDIRS)
+VCF_TEST_LIB = \
+	-skapp \
+	-sktst \
+	-sncbi-wvdb \
+    -svcfloader 
 
+$(TEST_BINDIR)/test-vcf-loader: $(VCF_TEST_OBJ)
+	$(LP) --exe -o $@ $^ $(VCF_TEST_LIB)
+
+valgrind: test-vcf-loader
+	valgrind --ncbi $(TEST_BINDIR)/test-vcf-loader

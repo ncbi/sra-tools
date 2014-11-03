@@ -22,7 +22,6 @@
 #
 # ===========================================================================
 
-#TODO: Windows test project
 #TODO: transfer slowtests/big_loads (see CVS)
 
 default: runtests
@@ -31,16 +30,18 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/fastq-loader
 
-include $(TOP)/build/Makefile.env
-
 TEST_TOOLS = \
 	wb-test-fastq \
     test-fastq-loader 
+
+include $(TOP)/build/Makefile.env
 
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
 .PHONY: $(TEST_TOOLS)
+
+clean: stdclean
 
 #-------------------------------------------------------------------------------
 # white-box test

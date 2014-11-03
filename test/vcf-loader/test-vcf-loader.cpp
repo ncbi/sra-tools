@@ -50,10 +50,10 @@
 #include <memory.h>
 
 extern "C" {
-#include <vcf-grammar.h>
-#include <vcf-parse.h>
-#include <vcf-reader.h>
-#include <vcf-database.h>
+#include "../../tools/vcf-loader/vcf-grammar.h"
+#include "../../tools/vcf-loader/vcf-parse.h"
+#include "../../tools/vcf-loader/vcf-reader.h"
+#include "../../tools/vcf-loader/vcf-database.h"
 }
 
 using namespace std;
@@ -649,7 +649,7 @@ public:
             throw logic_error(string("VcfDatabaseFixture::Teardown: VDatabaseRelease failed"));
         if (VSchemaRelease(m_schema) != 0)
             throw logic_error(string("VcfDatabaseFixture::Teardown: VSchemaRelease failed"));
-        // this remove fails on Windows for unexplained reasons, so ignore the result:
+        // this remove fails on Windows for unexplained reasons ("access denied" to <dbname>/tbl/REFERENCE/col), so ignore the result:
         KDirectoryRemove(wd, true, m_dbName.c_str());
         if (KDirectoryRemove(wd, true, m_cfgName.c_str()) != 0)
             throw logic_error(string("VcfDatabaseFixture::Teardown: KDirectoryRemove(m_cfgName) failed"));

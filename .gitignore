@@ -10,3 +10,4 @@
 /lib64
 /schema
 /test-bin64
+*.db

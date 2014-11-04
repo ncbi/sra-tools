@@ -209,7 +209,7 @@ static bool CC Defline_Builder( SLNode *node, void *data )
             if ( d->values[ n->type ].id != NULL &&
                 ( !d->optional || *d->values[ n->type ].id > 0 ) )
             {
-                x = snprintf( s, sizeof( s ), "%u", *d->values[ n->type ].id );
+                x = snprintf( s, sizeof( s ), "%ld", *d->values[ n->type ].id );
                 if ( x < 0 || x >= sizeof( s ) )
                 {
                     d->rc = RC( rcExe, rcNamelist, rcExecuting, rcBuffer, rcInsufficient );

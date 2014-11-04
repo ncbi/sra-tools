@@ -321,7 +321,7 @@ static rc_t SpotIteratorReadSpotToRedact(SpotIterator* self)
                 }
             }
 
-            sscanf(self->buffer, "%uld", &spot);
+            sscanf(self->buffer, "%ld", &spot);
 
             if (spot == 0) {
                 rc = RC(rcExe, rcFile, rcReading, rcString, rcInvalid);

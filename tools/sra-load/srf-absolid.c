@@ -58,10 +58,10 @@ typedef struct fe_context_t_struct {
     
     struct {
         uint8_t nreads;
-        uint16_t start[ABSOLID_FMT_MAX_NUM_READS];
-        pstring label[ABSOLID_FMT_MAX_NUM_READS];
-        char cs_key[ABSOLID_FMT_MAX_NUM_READS];
-        EAbisolidReadType type[ABSOLID_FMT_MAX_NUM_READS];
+        uint16_t start[ABSOLID_FMT_MAX_NUM_READS+1];
+        pstring label[ABSOLID_FMT_MAX_NUM_READS+1];
+        char cs_key[ABSOLID_FMT_MAX_NUM_READS+1];
+        EAbisolidReadType type[ABSOLID_FMT_MAX_NUM_READS+1];
     } region;
 } fe_context_t;
 
@@ -95,7 +95,7 @@ rc_t fe_new_region(fe_context_t *self, size_t region_count, const region_t regio
         rc = RC(rcSRA, rcFormatter, rcParsing, rcData, rcUnsupported);
         SRALoaderFile_LOG(self->ctx.file, klogErr, rc, "read count $(c)", PLOG_U8(c), self->region.nreads);
     }
-    for(i = 0; rc == 0 && i < self->region.nreads; i++ ) {
+    for(i = 0; rc == 0 && i < self->region.nreads ; i++ ) {
         int j = i * 2 + 1;
         self->region.start[i] = region[j].start;
         if( (rc = set_label_type(region[j].name, &self->region.label[i], &self->region.type[i])) != 0 ) {
@@ -356,6 +356,11 @@ rc_t parse_v1_read(SRF_context *ctx, ZTR_Context *ztr_ctx, const uint8_t *data, 
                             SRALoaderFile_LOG(ctx->file, klogErr, rc, "copying signal", NULL);
                         }
                     } else {
+			 if( fe->region.nreads <= 0 || fe->region.nreads > ABSOLID_FMT_MAX_NUM_READS ) {
+				rc = RC(rcSRA, rcFormatter, rcParsing, rcData, rcUnsupported);
+				SRALoaderFile_LOG(fe->ctx.file, klogErr, rc, "read count $(c)", PLOG_U8(c), fe->region.nreads);
+			 }
+
                         for(i = 0; rc == 0 && i < fe->region.nreads; i++) {
                             pstring* d = NULL;
                             int read_number = AbisolidReadType2ReadNumber[fe->region.type[i]];

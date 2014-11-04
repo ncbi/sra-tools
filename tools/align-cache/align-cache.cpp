@@ -38,21 +38,27 @@ namespace AlignCache
 {
     struct Params
     {
+        // Command line Params:
         char const* dbPathSrc;
         char const* dbPathDst;
         
+        // Command line options
         int64_t     id_spread_threshold;
         size_t      cursor_cache_size; 
+
+        // Internal parameters
+        bool cache_alignment_count;
     } g_Params =
     {
         "",
         "",
         50000,
 #if _ARCH_BITS == 64
-        128UL << 30  // 128 GB
+        128UL << 30,  // 128 GB
 #else
-        1024UL << 20 // 1 GB
+        1024UL << 20, // 1 GB
 #endif
+        true
     };
 
     char const OPTION_ID_SPREAD_THRESHOLD[] = "threshold";
@@ -194,10 +200,6 @@ namespace AlignCache
             ++ column_index;
             copy_str_field (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
 
-            // ALIGNMENT_COUNT
-            ++ column_index;
-            copy_single_int_field <uint8_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
-
             // RD_FILTER
             ++ column_index;
             copy_single_int_field <uint8_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
@@ -205,6 +207,13 @@ namespace AlignCache
             // SPOT_GROUP
             ++ column_index;
             copy_str_field (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
+
+            if ( g_Params.cache_alignment_count )
+            {
+                // ALIGNMENT_COUNT
+                ++ column_index;
+                copy_single_int_field <uint8_t> (cur_pa, cur_cache, row_id, ColIndexPA[column_index], ColIndexCache[column_index] );
+            }
 
             cur_cache.CommitRow ();
             cur_cache.CloseRow ();
@@ -268,6 +277,7 @@ namespace AlignCache
     {
         // Defining the set of columns to be copied from PRIMARY_ALIGNMENT table
         // to the new cache table
+        // ALIGNMENT_COUNT is the optional column, it must be at the end of this array
 #define DECLARE_PA_COLUMNS( arrName, column_suffix ) char const* arrName[] =\
         {\
             "MATE_ALIGN_ID"     column_suffix,\
@@ -276,9 +286,9 @@ namespace AlignCache
             "MATE_REF_NAME"     column_suffix,\
             "MATE_REF_POS"      column_suffix,\
             "SAM_QUALITY"       column_suffix,\
-            "ALIGNMENT_COUNT"   column_suffix,\
             "RD_FILTER"         column_suffix,\
-            "SPOT_GROUP"        column_suffix\
+            "SPOT_GROUP"        column_suffix,\
+            "ALIGNMENT_COUNT"   column_suffix\
         }
 
         DECLARE_PA_COLUMNS (ColumnNamesPrimaryAlignment, "");
@@ -291,8 +301,26 @@ namespace AlignCache
         // Openning cursor to iterate through PRIMARY_ALIGNMENT table
         VDBObjects::CVTable tablePA = vdb.OpenTable("PRIMARY_ALIGNMENT");
         VDBObjects::CVCursor cursorPA = tablePA.CreateCursorRead ( cache_size );
-        cursorPA.InitColumnIndex ( ColumnNamesPrimaryAlignment, ColumnIndexPrimaryAlignment, countof(ColumnNamesPrimaryAlignment), false );
+        cursorPA.PermitPostOpenAdd();
+        cursorPA.InitColumnIndex ( ColumnNamesPrimaryAlignment, ColumnIndexPrimaryAlignment, countof(ColumnNamesPrimaryAlignment) - 1, false );
         cursorPA.Open();
+
+        // Check if we can read ALIGNMENT_COUNT parameter
+        try
+        {
+            cursorPA.InitColumnIndex(
+                ColumnNamesPrimaryAlignment + countof(ColumnNamesPrimaryAlignment) - 1,
+                ColumnIndexPrimaryAlignment + countof(ColumnIndexPrimaryAlignment) - 1,
+                1, false
+            );
+        }
+        catch (Utils::CErrorMsg const& e)
+        {
+            if (e.getRC() == RC ( rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound ) )
+                g_Params.cache_alignment_count = false;
+            else
+                throw;
+        }
 
         // Creating new cache table (with the same name - PRIMARY_ALIGNMENT but in the separate DB file)
         char const schema_path[] = "align/mate-cache.vschema";
@@ -305,7 +333,7 @@ namespace AlignCache
         VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT", kcmInit | kcmMD5 );
 
         VDBObjects::CVCursor cursorCache = tableCache.CreateCursorWrite ( kcmInsert );
-        cursorCache.InitColumnIndex ( ColumnNamesPrimaryAlignmentCache, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignmentCache), true );
+        cursorCache.InitColumnIndex ( ColumnNamesPrimaryAlignmentCache, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignmentCache) - (size_t) (!g_Params.cache_alignment_count), true );
         cursorCache.Open ();
 
         //PrimaryAlignmentData data = { 0, &cursorPA, ColumnIndexPrimaryAlignment, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignment), &cursorCache, 0, vect_size };

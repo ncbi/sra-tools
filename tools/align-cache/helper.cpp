@@ -250,6 +250,13 @@ namespace VDBObjects
             throw Utils::CErrorMsg(rc, "VCursorOpen");
     }
 
+    void CVCursor::PermitPostOpenAdd() const
+    {
+        rc_t rc = ::VCursorPermitPostOpenAdd ( m_pSelf );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VCursorPermitPostOpenAdd");
+    }
+
     void CVCursor::InitColumnIndex(char const* const* ColumnNames, uint32_t* pColumnIndex, size_t nCount, bool set_default)
     {
         for (size_t i = 0; i < nCount; ++i)

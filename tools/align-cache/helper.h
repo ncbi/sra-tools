@@ -253,6 +253,7 @@ namespace VDBObjects
         CVCursor& operator=(CVCursor const& x);
 
         void Release();
+        void PermitPostOpenAdd() const;
         void InitColumnIndex(char const* const* ColumnNames, uint32_t* pColumnIndex, size_t nCount, bool set_default);
         void Open() const;
         void GetIdRange(int64_t& idFirstRow, uint64_t& nRowCount) const;

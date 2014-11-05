@@ -61,6 +61,7 @@ SUBDIRS =             \
 	ccextract         \
 	pacbio-load       \
 	fuse              \
+    vdb-diff          \
 
 ifneq (win,$(BUILD_OS))
 ifneq (rwin,$(BUILD_OS))

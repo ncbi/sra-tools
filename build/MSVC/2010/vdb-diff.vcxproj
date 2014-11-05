@@ -18,24 +18,25 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-
-  <Import Project=".\test-project.props" />
+  
+  <Import Project=".\exe-project.props" />
   
   <ItemDefinitionGroup>
     <Link>
-      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-wvdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(VDB_TARGET)lib\loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(VDB_TARGET)lib\load.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(VDB_TARGET)lib\vcf-loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+	  <AdditionalDependencies>$(VDB_TARGET)lib\bz2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
-  </ItemDefinitionGroup>
+  </ItemDefinitionGroup>  
   
   <ItemGroup>
-    <ClCompile Include="..\..\..\test\vcf-loader\test-vcf-loader.cpp" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\progressbar.c" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\namelist_tools.c" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\coldefs.c" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\vdb-diff.c" />
   </ItemGroup>
 
-    <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
-        <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="$(ProjectDir)"/>
-    </Target>
-    
+  <PropertyGroup Label="Globals">
+  </PropertyGroup>
+
 </Project>

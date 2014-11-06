@@ -38,6 +38,8 @@ LD = @ $(TOP)/build/ld.sh $(OS) $(ARCH) clang \
 	$(STATICSYSLIBS) $(CHECKSUM) --objx $(OBJX) --shlx $(SHLX) --libx $(LIBX) \
 	-MD --srcdir $(SRCDIR) --bindir $(BINDIR) -L$(LIBDIR):$(ILIBDIR):$(NGS_LIBDIR):$(VDB_LIBDIR):$(VDB_ILIBDIR)
 
+LPFLAGS = $(LDFLAGS)
+
 LP = @ $(TOP)/build/ld.sh $(OS) $(ARCH) clang++ \
 	--build $(BUILD) --ldflags "$(LPFLAGS)" $(STATIC) \
 	$(STATICSYSLIBS) $(CHECKSUM) --objx $(OBJX) --shlx $(SHLX) --libx $(LIBX) \

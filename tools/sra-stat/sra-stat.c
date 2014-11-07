@@ -46,15 +46,16 @@
 #include <kfs/directory.h>
 #include <kfs/file.h>
 
-#include <klib/sort.h> /* ksort */
 #include <klib/checksum.h>
 #include <klib/container.h>
-#include <klib/namelist.h>
-#include <klib/printf.h>
-#include <klib/log.h>
-#include <klib/out.h>
 #include <klib/debug.h> /* DBGMSG */
+#include <klib/log.h>
+#include <klib/namelist.h>
+#include <klib/out.h>
+#include <klib/printf.h>
+#include <klib/progressbar.h> /* progressbar */
 #include <klib/rc.h>
+#include <klib/sort.h> /* ksort */
 
 #include <os-native.h> /* strtok_r on Windows */
 
@@ -737,6 +738,7 @@ typedef struct srastat_parms {
     bool printMeta;
     bool quick; /* quick mode: stats from meta */
     bool skip_members; /* not to print spot_group statistics */
+    bool progress;     /* show progress */
     bool skip_alignment; /* not to print alignment info */
     bool print_arcinfo;
     bool statistics; /* calculate average and stdev */
@@ -2496,6 +2498,8 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                     BasesInit(&total->bases_count, tbl);
                 }
                 if (rc == 0) {
+                    uint32_t percent = 0;
+                    struct progressbar *pr = NULL;
                     bool bad_read_filter = false;
                     bool fixedNReads = true;
                     bool fixedReadLength = true;
@@ -2504,10 +2508,17 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
 
                     memset(g_dREAD_LEN, 0, sizeof g_dREAD_LEN);
 
-                    if (start == 0)
-                    {   start = 1; }
-                    if (stop == 0 || pb -> stop > spotid)
-                    {   stop = spotid; }
+                    if ((rc = make_progressbar(&pr, 0)) != 0) {
+                        DISP_RC(rc, "cannot initialize progress bar");
+                        rc = 0;
+                    }
+
+                    if (start == 0) {
+                        start = 1;
+                    }
+                    if (stop == 0 || pb -> stop > spotid) {
+                        stop = spotid;
+                    }
 
                     for (spotid = start; spotid <= stop && rc == 0;
                         ++spotid)
@@ -2523,8 +2534,15 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                         int nreads;
 
                         rc = Quitting();
-                        if (rc)
-                        {   LOGMSG(klogWarn, "Interrupted"); }
+                        if (rc) {
+                            LOGMSG(klogWarn, "Interrupted");
+                        }
+
+                        if (rc == 0 && pb->progress) {
+                            percent
+                                = (spotid - start ) * 100 / (stop + 1 - start);
+                            update_progressbar(pr, percent);
+                        }
 
                         if (rc == 0) {
                             rc = SRAColumnRead(cREAD_LEN, spotid, &base, &boff, &row_bits);
@@ -2768,7 +2786,7 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                         BasesFinalize(&total->bases_count);
                         pb->variableReadLength = !fixedReadLength;
 
-                        /* --- g_totalREAD_LEN[i] is sum(READ_LEN[i]) for all spots --- */
+              /* --- g_totalREAD_LEN[i] is sum(READ_LEN[i]) for all spots --- */
                         if (fixedNReads) {
                             int i = 0;
                             if (stop >= start) {
@@ -2783,6 +2801,17 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                 }
                             }
                         }
+                    }
+                    if (rc == 0 && pb->progress) {
+                        update_progressbar(pr, 100);
+KOutMsg("\r                                                                \r");
+                    }
+                    {
+                        rc_t r2 = destroy_progressbar(pr);
+                        if (r2 != 0) {
+                            DISP_RC(r2, "cannot initialize progress bar");
+                        }
+                        pr = NULL;
                     }
                 }
                 RELEASE(SRAColumn, cSPOT_GROUP);
@@ -2983,33 +3012,47 @@ ver_t CC KAppVersion ( void )
 
 /* Usage
  */
-#define OPTION_ALIGN "alignment"
-#define OPTION_SPT_D "spot-desc"
-#define OPTION_MEMBR "member-stats"
-#define OPTION_META  "meta"
-#define OPTION_QUICK "quick"
-#define OPTION_START "start"
-#define OPTION_STATS "statistics"
-#define OPTION_STOP  "stop"
-#define OPTION_TEST  "test"
-#define OPTION_XML   "xml"
+#define ALIAS_ALIGN    "a"
+#define OPTION_ALIGN   "alignment"
+
+#define ALIAS_ARCINFO  NULL
 #define OPTION_ARCINFO "archive-info"
 
-#define ALIAS_ALIGN "a"
-#define ALIAS_SPT_D "d"
-#define ALIAS_MEMBR NULL
-#define ALIAS_META  "m"
-#define ALIAS_QUICK "q"
-#define ALIAS_START "b"
-#define ALIAS_STATS "s"
-#define ALIAS_STOP  "e"
-#define ALIAS_TEST  "t"
-#define ALIAS_XML   "x"
-#define ALIAS_ARCINFO NULL
+#define ALIAS_START    "b"
+#define OPTION_START   "start"
+
+#define ALIAS_STOP     "e"
+#define OPTION_STOP    "stop"
+
+#define ALIAS_SPT_D    "d"
+#define OPTION_SPT_D   "spot-desc"
+
+#define ALIAS_META     "m"
+#define OPTION_META    "meta"
+
+#define ALIAS_MEMBR    NULL
+#define OPTION_MEMBR   "member-stats"
+
+#define ALIAS_PROGRESS "p"
+#define OPTION_PROGRESS "show_progress"
+
+#define ALIAS_QUICK    "q"
+#define OPTION_QUICK   "quick"
+
+#define ALIAS_STATS    "s"
+#define OPTION_STATS   "statistics"
+
+#define ALIAS_TEST     "t"
+#define OPTION_TEST    "test"
+
+#define ALIAS_XML      "x"
+#define OPTION_XML     "xml"
 
 static const char * align_usage[] = { "print alignment info, default is on", NULL };
 static const char * spt_d_usage[] = { "print table spot descriptor", NULL };
 static const char * membr_usage[] = { "print member stats, default is on", NULL };
+static const char *progress_usage[]
+    = { "show the percentage of completion", NULL };
 static const char * meta_usage[] = { "print load metadata", NULL };
 static const char * start_usage[] = { "starting spot id, default is 1", NULL };
 static const char * stop_usage[] = { "ending spot id, default is max", NULL };
@@ -3021,17 +3064,18 @@ static const char * arcinfo_usage[] = { "output archive info, default is off", N
 
 OptDef Options[] =
 {
-      { OPTION_ALIGN, ALIAS_ALIGN, NULL, align_usage, 1, true , false }
-    , { OPTION_SPT_D, ALIAS_SPT_D, NULL, spt_d_usage, 1, false, false }
-    , { OPTION_MEMBR, ALIAS_MEMBR, NULL, membr_usage, 1, true , false }
-    , { OPTION_ARCINFO, ALIAS_ARCINFO, NULL, arcinfo_usage, 0, false, false }
-    , { OPTION_META,  ALIAS_META,  NULL, meta_usage,  1, false, false }
-    , { OPTION_QUICK, ALIAS_QUICK, NULL, quick_usage, 1, false, false }
-    , { OPTION_START, ALIAS_START, NULL, start_usage, 1, true,  false }
-    , { OPTION_STATS, ALIAS_STATS, NULL, stats_usage, 1, false, false }
-    , { OPTION_STOP,  ALIAS_STOP,  NULL, stop_usage,  1, true,  false }
-    , { OPTION_TEST , ALIAS_TEST , NULL, test_usage,  1, false, false }
-    , { OPTION_XML,   ALIAS_XML,   NULL, xml_usage,   1, false, false }
+      { OPTION_ALIGN   , ALIAS_ALIGN   , NULL, align_usage   , 1, true , false }
+    , { OPTION_SPT_D   , ALIAS_SPT_D   , NULL, spt_d_usage   , 1, false, false }
+    , { OPTION_MEMBR   , ALIAS_MEMBR   , NULL, membr_usage   , 1, true , false }
+    , { OPTION_PROGRESS, ALIAS_PROGRESS, NULL, progress_usage, 1, false, false }
+    , { OPTION_ARCINFO , ALIAS_ARCINFO , NULL, arcinfo_usage , 0, false, false }
+    , { OPTION_META    , ALIAS_META    , NULL, meta_usage    , 1, false, false }
+    , { OPTION_QUICK   , ALIAS_QUICK   , NULL, quick_usage   , 1, false, false }
+    , { OPTION_START   , ALIAS_START   , NULL, start_usage   , 1, true,  false }
+    , { OPTION_STATS   , ALIAS_STATS   , NULL, stats_usage   , 1, false, false }
+    , { OPTION_STOP    , ALIAS_STOP    , NULL, stop_usage    , 1, true,  false }
+    , { OPTION_TEST    , ALIAS_TEST    , NULL, test_usage    , 1, false, false }
+    , { OPTION_XML     , ALIAS_XML     , NULL, xml_usage     , 1, false, false }
 };
 
 rc_t CC UsageSummary (const char * progname)
@@ -3064,18 +3108,23 @@ rc_t CC Usage (const Args * args)
 
     KOutMsg ("Options:\n");
 
-    HelpOptionLine (ALIAS_XML, OPTION_XML, NULL, xml_usage);
-    HelpOptionLine (ALIAS_START, OPTION_START, "row-id", start_usage);
-    HelpOptionLine (ALIAS_STOP, OPTION_STOP, "row-id", stop_usage);
-    HelpOptionLine (ALIAS_META, OPTION_META, NULL, meta_usage);
-    HelpOptionLine (ALIAS_QUICK, OPTION_QUICK, NULL, quick_usage);
-    HelpOptionLine (ALIAS_MEMBR, OPTION_MEMBR, "on | off", membr_usage);
-    HelpOptionLine (ALIAS_ARCINFO, OPTION_ARCINFO, NULL, arcinfo_usage);
-    HelpOptionLine (ALIAS_STATS, OPTION_STATS, NULL, stats_usage);
-    HelpOptionLine (ALIAS_ALIGN, OPTION_ALIGN, "on | off", align_usage);
+    HelpOptionLine(ALIAS_XML     , OPTION_XML     , NULL      , xml_usage);
+    HelpOptionLine(ALIAS_START   , OPTION_START   , "row-id"  , start_usage);
+    HelpOptionLine(ALIAS_STOP    , OPTION_STOP    , "row-id"  , stop_usage);
+    HelpOptionLine(ALIAS_META    , OPTION_META    , NULL      , meta_usage);
+    HelpOptionLine(ALIAS_QUICK   , OPTION_QUICK   , NULL      , quick_usage);
+    HelpOptionLine(ALIAS_MEMBR   , OPTION_MEMBR   , "on | off", membr_usage);
+    HelpOptionLine(ALIAS_ARCINFO , OPTION_ARCINFO , NULL      , arcinfo_usage);
+    HelpOptionLine(ALIAS_STATS   , OPTION_STATS   , NULL      , stats_usage);
+    HelpOptionLine(ALIAS_ALIGN   , OPTION_ALIGN   , "on | off", align_usage);
+    HelpOptionLine(ALIAS_PROGRESS, OPTION_PROGRESS, NULL      , progress_usage);
+
     KOutMsg ("\n");
+
     HelpOptionsStandard ();
+
     HelpVersion (fullpath, KAppVersion());
+
     return rc;
 }
 
@@ -3173,6 +3222,12 @@ rc_t CC KMain ( int argc, char *argv [] )
                     pb.skip_members = true;
                 }
             }
+
+            rc = ArgsOptionCount(args, OPTION_PROGRESS, &pcount);
+            if (rc)
+                break;
+            if (pcount)
+                pb.progress = true;
 
             rc = ArgsOptionCount (args, OPTION_ARCINFO, &pcount);
             if (rc)

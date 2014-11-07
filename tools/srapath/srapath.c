@@ -220,28 +220,28 @@ rc_t CC KMain ( int argc, char *argv [] )
                                         }
                                     }
                                     if (orc == 0 && rc == 0) {
-                                    if (rc != 0) {
-                                        PLOGMSG(klogErr, (klogErr,
-                                            "'$(name)': not found",
-                                            "name=%s", pc));
-                                    }
-                                    else {
-                                        char resolved[PATH_MAX] = "";
-                                        rc = KDirectoryResolvePath(cwd, true,
-                                                                   resolved, sizeof resolved, "%s", pc);
-                                        if (rc == 0) {
-                                            STSMSG(1, ("'%s': found in "
-                                                "the current directory at '%s'",
-                                                pc, resolved));
-                                            OUTMSG (("%s\n", resolved));
+                                        if (rc != 0) {
+                                            PLOGMSG(klogErr, (klogErr,
+                                                              "'$(name)': not found",
+                                                              "name=%s", pc));
                                         }
                                         else {
-                                            STSMSG(1, ("'%s': cannot resolve "
-                                                "in the current directory",
-                                                pc));
-                                            OUTMSG (("./%s\n", pc));
+                                            char resolved[PATH_MAX] = "";
+                                            rc = KDirectoryResolvePath(cwd, true,
+                                                                       resolved, sizeof resolved, "%s", pc);
+                                            if (rc == 0) {
+                                                STSMSG(1, ("'%s': found in "
+                                                           "the current directory at '%s'",
+                                                           pc, resolved));
+                                                OUTMSG (("%s\n", resolved));
+                                            }
+                                            else {
+                                                STSMSG(1, ("'%s': cannot resolve "
+                                                           "in the current directory",
+                                                           pc));
+                                                OUTMSG (("./%s\n", pc));
+                                            }
                                         }
-                                    }
                                     }
                                     KDirectoryRelease(cwd);
                                 }

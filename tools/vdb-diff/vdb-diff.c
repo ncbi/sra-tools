@@ -32,6 +32,7 @@
 #include <klib/out.h>
 #include <klib/log.h>
 #include <klib/num-gen.h>
+#include <klib/progressbar.h>
 
 #include <vdb/manager.h>
 #include <vdb/table.h>
@@ -40,7 +41,6 @@
 
 #include "coldefs.h"
 #include "namelist_tools.h"
-#include "progressbar.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -315,7 +315,7 @@ static rc_t diff_columns_iter( col_defs * defs, const VCursor * cur_1, const VCu
 		uint64_t rows_different = 0;
 		
 		if ( dctx -> show_progress )
-			make_progressbar( &progress );
+			make_progressbar( &progress, 2 );
 	
 		while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
 		{
@@ -422,7 +422,7 @@ static rc_t diff_columns_iter( col_defs * defs, const VCursor * cur_1, const VCu
 				{
 					uint32_t progress_value;
 					if ( num_gen_iterator_percent( iter, 2, &progress_value ) == 0 )
-						update_progressbar( progress, 2, progress_value );
+						update_progressbar( progress, progress_value );
 				}
 				
 			} /* if (!Quitting) */

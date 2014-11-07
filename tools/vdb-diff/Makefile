@@ -85,7 +85,6 @@ clean: stdclean
 #
 
 VDB_DIFF_SRC = \
-	progressbar \
 	namelist_tools \
 	coldefs \
 	vdb-diff

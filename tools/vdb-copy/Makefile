@@ -95,7 +95,6 @@ VDB_COPY_SRC = \
 	coldefs \
 	get_platform \
 	namelist_tools \
-	progressbar \
 	copy_meta \
 	type_matcher \
 	redactval \

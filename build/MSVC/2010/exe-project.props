@@ -45,6 +45,7 @@
       <PreprocessorDefinitions>WINDOWS;__mod_name__=test/$(ProjectName);__file_name__=%(Filename);__file_ext__=c;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4996;4101</DisableSpecificWarnings>
+       <StringPooling>true</StringPooling>
     </ClCompile>
     <Link>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>

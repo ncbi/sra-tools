@@ -36,7 +36,6 @@
     <ClCompile Include="..\..\..\tools\vdb-copy\helper.c" />
     <ClCompile Include="..\..\..\tools\vdb-copy\namelist_tools.c" />
     <ClCompile Include="..\..\..\tools\vdb-copy\num-gen.c" />
-    <ClCompile Include="..\..\..\tools\vdb-copy\progressbar.c" />
     <ClCompile Include="..\..\..\tools\vdb-copy\redactval.c" />
     <ClCompile Include="..\..\..\tools\vdb-copy\type_matcher.c" />
     <ClCompile Include="..\..\..\tools\vdb-copy\vdb-copy.c" />

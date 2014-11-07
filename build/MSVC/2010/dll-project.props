@@ -39,6 +39,7 @@
       <DisableLanguageExtensions>false</DisableLanguageExtensions>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <DisableSpecificWarnings>4996;4101</DisableSpecificWarnings>
+       <StringPooling>true</StringPooling>
       <AdditionalIncludeDirectories>$(NGS_ROOT);$(VDB_ROOT)libs/$(ProjectName)/win;$(VDB_ROOT)libs/$(ProjectName);$(VDB_ROOT)interfaces;$(VDB_ROOT)interfaces/os/win;$(VDB_ROOT)interfaces/cc/vc++;$(VDB_ROOT)interfaces/ext;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NO_KRSRC;WINDOWS;_WIN32_WINNT=0x0502;_WINDOWS;_LIBRARY;__mod_name__=libs/$(ProjectName);__file_name__=%(Filename);__file_ext__=c;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>

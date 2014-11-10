@@ -44,20 +44,25 @@ namespace AlignCache
         
         // Command line options
         int64_t     id_spread_threshold;
-        size_t      cursor_cache_size; 
+        size_t      cursor_cache_size;
+        size_t      min_cache_count;
 
         // Internal parameters
         bool cache_alignment_count;
     } g_Params =
     {
+        // Command line Params:
         "",
         "",
+        // Command line options
         50000,
 #if _ARCH_BITS == 64
         128UL << 30,  // 128 GB
 #else
         1024UL << 20, // 1 GB
 #endif
+        100000,
+        // Internal parameters
         true
     };
 
@@ -69,10 +74,15 @@ namespace AlignCache
     //char const ALIAS_CURSOR_CACHE_SIZE[]  = "c";
     char const* USAGE_CURSOR_CACHE_SIZE[]  = { "the size of the read cursor in Megabytes", NULL };
 
+    char const OPTION_MIN_CACHE_COUNT[] = "min-cache-count";
+    //char const ALIAS_MIN_CACHE_COUNT[]  = "";
+    char const* USAGE_MIN_CACHE_COUNT[]  = { "if the number of primary alignment ids in the src db selected for caching is less than <min-cache-count>, the cache db will not be created at all", NULL };
+
     ::OptDef Options[] =
     {
         { OPTION_ID_SPREAD_THRESHOLD, ALIAS_ID_SPREAD_THRESHOLD, NULL, USAGE_ID_SPREAD_THRESHOLD, 1, true, false },
-        { OPTION_CURSOR_CACHE_SIZE, NULL, NULL, USAGE_CURSOR_CACHE_SIZE, 1, true, false }
+        { OPTION_CURSOR_CACHE_SIZE, NULL, NULL, USAGE_CURSOR_CACHE_SIZE, 1, true, false },
+        { OPTION_MIN_CACHE_COUNT, NULL, NULL, USAGE_MIN_CACHE_COUNT, 1, true, false },
     };
 
     struct PrimaryAlignmentData
@@ -369,8 +379,21 @@ namespace AlignCache
         KLib::CKVector vect;
         size_t count = FillKVectorWithAlignIDs ( vdb, g_Params.cursor_cache_size, vect );
 
-        // For each id in vect cache the PRIMARY_ALIGNMENT record
-        CachePrimaryAlignment ( mgr, vdb, g_Params.cursor_cache_size, vect, count*2, progress_bar );
+        if ( count*2 >= g_Params.min_cache_count )
+        {
+            // For each id in vect cache the PRIMARY_ALIGNMENT record
+            CachePrimaryAlignment ( mgr, vdb, g_Params.cursor_cache_size, vect, count*2, progress_bar );
+        }
+        else
+        {
+            char msg[512] = "";
+            string_printf (msg, countof(msg), NULL,
+                "The cache db will not be created because there is not "
+                "enough records to cache: %zu is found and minimum %zu is required. "
+                "The minimum required number can be changed via %s parameter.",
+                count*2, g_Params.min_cache_count, OPTION_MIN_CACHE_COUNT);
+            printf ("%s\n", msg);
+        }
     }
 
 
@@ -396,10 +419,8 @@ namespace AlignCache
             if (args.GetOptionCount (OPTION_CURSOR_CACHE_SIZE))
                 g_Params.cursor_cache_size = 1024*1024 * args.GetOptionValueUInt<size_t> ( OPTION_CURSOR_CACHE_SIZE, 0 );
 
-            //std::cout
-            //    << "dbPath=" << g_Params.dbPath << std::endl
-            //    << "threshold=" << g_Params.id_spread_threshold << std::endl
-            //    << "cache_size=" << g_Params.cursor_cache_size << std::endl;
+            if (args.GetOptionCount (OPTION_MIN_CACHE_COUNT))
+                g_Params.min_cache_count = args.GetOptionValueUInt <size_t> ( OPTION_MIN_CACHE_COUNT, 0 );
 
             create_cache_db_impl ();
         }
@@ -454,6 +475,7 @@ extern "C"
 
         HelpOptionLine (AlignCache::ALIAS_ID_SPREAD_THRESHOLD, AlignCache::OPTION_ID_SPREAD_THRESHOLD, "value", AlignCache::USAGE_ID_SPREAD_THRESHOLD);
         HelpOptionLine (NULL, AlignCache::OPTION_CURSOR_CACHE_SIZE, "value in MB", AlignCache::USAGE_CURSOR_CACHE_SIZE);
+        HelpOptionLine (NULL, AlignCache::OPTION_MIN_CACHE_COUNT, "count", AlignCache::USAGE_MIN_CACHE_COUNT);
         XMLLogger_Usage();
 
         printf ("\n");

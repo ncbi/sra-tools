@@ -978,7 +978,7 @@ rc_t CC KMain ( int argc, char* argv[] )
     bool to_stdout = false, do_gzip = false, do_bzip2 = false;
     char const* outdir = NULL;
     spotid_t minSpotId = 1;
-    spotid_t maxSpotId = ~0;
+    spotid_t maxSpotId = 0x7FFFFFFFFFFFFFFF; /* 9,223,372,036,854,775,807 max int64_t value !!! ~0 is wrong !!! */
     bool sub_dir = false;
     bool keep_empty = false;
     const char* table_path[10240];

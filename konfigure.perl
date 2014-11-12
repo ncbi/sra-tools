@@ -1075,7 +1075,13 @@ sub find_lib {
             return;
         }
 
-        if (($i && ! -d $i) || ($l && ! -d $l)) {
+        if ($i && ! -d $i) {
+            print "'$i': " if ($OPT{'debug'});
+            println 'no';
+            return;
+        }
+        if ($l && ! -d $l) {
+            print "'$l': " if ($OPT{'debug'});
             println 'no';
             return;
         }
@@ -1126,7 +1132,6 @@ sub check {
     foreach my $href (REQ()) {
         die         "No REQ::name" unless $href->{name};
 
-        die         "No $href->{name}:include" unless $href->{include};
         die         "No $href->{name}:option"  unless $href->{option};
 
         die         "No $href->{name}:type"    unless $href->{type};
@@ -1140,6 +1145,7 @@ sub check {
         if ($href->{origin} eq 'I') {
             die     "No $href->{name}:aname"   unless $href->{aname};
             die     "No $href->{name}:srcpath" unless $href->{srcpath};
+            die     "No $href->{name}:include" unless $href->{include};
 
             unless ($href->{type} =~ /I/) {
                 die "No $href->{name}:bldpath" unless $href->{bldpath};

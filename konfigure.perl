@@ -1264,7 +1264,7 @@ EndText
 
     print <<EndText if (PACKAGE_TYPE() eq 'B');
 Optional Features:
-  --enable-static         build static libraries [default=yes]
+  --enable-static         build static libraries [default=no]
 
 EndText
 

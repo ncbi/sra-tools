@@ -48,5 +48,14 @@ sub REQ { (
               usrpath => '$HOME',
               include => 'hdf5.h',
               lib     => 'libhdf5.a',
+            },
+            { name    => 'xml2',
+              option  => 'with-xml2-prefix',
+              origin  => 'E',
+              type    => 'LIO',
+              pkgpath => '/usr',
+              usrpath => '$HOME',
+              include => 'libxml2/xmlreader.h',
+              lib     => 'libxml2.a',
         } ) }
 1

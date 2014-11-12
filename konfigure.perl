@@ -82,6 +82,8 @@ foreach my $href (@REQ) {
     my %a = %$href;
     push @options, "$a{option}=s";
     push @options, "$a{boption}=s" if ($a{boption});
+
+    $href->{usrpath} = '' unless ($href->{usrpath});
     $href->{usrpath} =~ s/(\$\w+)/$1/eeg;
 }
 push @options, "shemadir" if ($PKG{SCHEMA_PATH});
@@ -365,6 +367,7 @@ foreach my $href (DEPENDS()) {
     my $o = "with-$_-prefix";
     ++$DEPEND_OPTIONS{$o};
     if ($OPT{$o}) {
+        $OPT{$o} = expand($OPT{$o});
         $I = File::Spec->catdir($OPT{$o}, 'include');
         if (/^xml2$/) {
             my $t = File::Spec->catdir($I, 'libxml2');
@@ -1125,12 +1128,12 @@ sub check {
 
         die         "No $href->{name}:include" unless $href->{include};
         die         "No $href->{name}:option"  unless $href->{option};
-        die         "No $href->{name}:pkgpath" unless $href->{pkgpath};
-        die         "No $href->{name}:usrpath" unless $href->{usrpath};
 
         die         "No $href->{name}:type"    unless $href->{type};
         unless ($href->{type} =~ /I/) {
             die     "No $href->{name}:lib"     unless $href->{lib};
+            die     "No $href->{name}:pkgpath" unless $href->{pkgpath};
+            die     "No $href->{name}:usrpath" unless $href->{usrpath};
         }
 
         die         "No $href->{name}:origin"  unless $href->{origin};

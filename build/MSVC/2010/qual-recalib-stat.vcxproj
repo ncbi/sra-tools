@@ -31,8 +31,6 @@
     <ClCompile Include="..\..\..\tools\qual-recalib-stat\columns.c" />
     <ClCompile Include="..\..\..\tools\qual-recalib-stat\context.c" />
     <ClCompile Include="..\..\..\tools\qual-recalib-stat\namelist_tools.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\num-gen.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\progressbar.c" />
     <ClCompile Include="..\..\..\tools\qual-recalib-stat\qual-recalib-stat.c" />
     <ClCompile Include="..\..\..\tools\qual-recalib-stat\reader.c" />
     <ClCompile Include="..\..\..\tools\qual-recalib-stat\ref_exclude.c" />

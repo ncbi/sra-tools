@@ -78,6 +78,7 @@ my @options = ( "arch=s",
                 "status",
                 "with-debug",
                 "without-debug" );
+push @options, 'enable-static' if (PACKAGE_TYPE() eq 'B');
 foreach my $href (@REQ) {
     my %a = %$href;
     push @options, "$a{option}=s";
@@ -551,10 +552,14 @@ EndText
         $MAJVERS_SHLX = '$(SHLX).$(MAJVERS)';
     }
 
+    L($F);
+    L($F, "# build type");
+
+    if ($OPT{'enable-static'}) {
+        L($F, "WANTS_STATIC = 1");
+    }
 
     print $F <<EndText;
-
-# build type
 BUILD = $BUILD
 
 # target OS
@@ -1241,7 +1246,7 @@ EndText
             println;
         }
     }
-    
+
     if ($optional) {
         print "Optional Packages:\n";
         foreach my $href (@REQ) {
@@ -1256,6 +1261,12 @@ EndText
         }
         println;
     }
+
+    print <<EndText if (PACKAGE_TYPE() eq 'B');
+Optional Features:
+  --enable-static         build static libraries [default=yes]
+
+EndText
 
     print <<EndText if ($^O ne 'MSWin32');
 Build tuning:

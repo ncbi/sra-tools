@@ -166,25 +166,25 @@ println $OSTYPE unless ($AUTORUN);
 {
     $OPT{'prefix'} = expand($OPT{'prefix'});
     my $prefix = $OPT{'prefix'};
-    $OPT{'eprefix'} = $prefix unless ($OPT{'eprefix'} || $OS eq 'win');
-    my $eprefix = $OPT{'eprefix'};
-    unless ($OPT{'bindir'} || $OS eq 'win') {
-        $OPT{'bindir'} = File::Spec->catdir($eprefix, 'bin') ;
+    $OPT{eprefix} = $prefix unless ($OPT{eprefix} || $OS eq 'win');
+    my $eprefix = $OPT{eprefix};
+    unless ($OPT{bindir} || $OS eq 'win') {
+        $OPT{bindir} = File::Spec->catdir($eprefix, 'bin') ;
     }
-    unless ($OPT{'libdir'} || $OS eq 'win') {
-        $OPT{'libdir'} = File::Spec->catdir($eprefix, 'lib');
+    unless ($OPT{libdir} || $OS eq 'win') {
+        $OPT{libdir} = File::Spec->catdir($eprefix, 'lib');
     }
-    unless ($OPT{'includedir'} || $OS eq 'win') {
-        $OPT{'includedir'} = File::Spec->catdir($eprefix, 'include');
+    unless ($OPT{includedir} || $OS eq 'win') {
+        $OPT{includedir} = File::Spec->catdir($eprefix, 'include');
     }
-    if ($PKG{LNG} eq 'PYTHON' && ! $OPT{'pythondir'} && $OS ne 'win') {
-        $OPT{'pythondir'} = $eprefix;
+    if ($PKG{LNG} eq 'PYTHON' && ! $OPT{pythondir} && $OS ne 'win') {
+        $OPT{pythondir} = $eprefix;
     }
-    if ($PKG{LNG} eq 'JAVA' && ! $OPT{'javadir'} && $OS ne 'win') {
-        $OPT{'javadir'} = File::Spec->catdir($eprefix, 'jar');
+    if ($PKG{LNG} eq 'JAVA' && ! $OPT{javadir} && $OS ne 'win') {
+        $OPT{javadir} = File::Spec->catdir($eprefix, 'jar');
     }
-    if ($PKG{EXAMP} && ! $OPT{'sharedir'} && $OS ne 'win') {
-        $OPT{'sharedir'} = File::Spec->catdir($eprefix, 'share');
+    if ($PKG{EXAMP} && ! $OPT{sharedir} && $OS ne 'win') {
+        $OPT{sharedir} = File::Spec->catdir($eprefix, 'share');
     }
 }
 
@@ -365,7 +365,11 @@ foreach my $href (DEPENDS()) {
     my $o = "with-$_-prefix";
     ++$DEPEND_OPTIONS{$o};
     if ($OPT{$o}) {
-        $I = File::Spec->catdir($OPT{$o}, 'include'); 
+        $I = File::Spec->catdir($OPT{$o}, 'include');
+        if (/^xml2$/) {
+            my $t = File::Spec->catdir($I, 'libxml2');
+            $I = $t if (-e $t);
+        }
         $L = File::Spec->catdir($OPT{$o}, 'lib');
     }
     my ($i, $l) = find_lib($_, $I, $L);
@@ -1146,7 +1150,7 @@ sub check {
 
 ################################################################################
 
-sub optional { $_[0] =~ /^[LS]I$/ }
+sub optional { $_[0] =~ /O/ }
 
 sub help {
 #  --prefix=PREFIX         install architecture-independent files in PREFIX

@@ -37,9 +37,10 @@
 #include <klib/log.h>
 #include <klib/out.h>
 #include <klib/printf.h>
+#include <klib/num-gen.h>
+#include <klib/progressbar.h>
 
 #include "context.h"
-#include "progressbar.h"
 #include "stat_mod_2.h"
 #include "reader.h"
 #include "writer.h"
@@ -125,13 +126,19 @@ ver_t CC KAppVersion ( void )
 }
 
 
-static uint8_t calc_fract_digits( const num_gen_iter *iter )
+static uint8_t calc_fract_digits( const struct num_gen_iter *iter )
 {
     uint8_t res = 0;
     uint64_t count;
     if ( num_gen_iterator_count( iter, &count ) == 0 )
     {
-        res = progressbar_calc_fract_digits( count );
+		if ( count > 10000 )
+		{
+			if ( count > 100000 )
+				res = 2;
+			else
+				res = 1;
+		}
     }
     return res;
 }
@@ -164,26 +171,26 @@ static rc_t read_loop( statistic * data,
 
         if ( rc == 0 )
         {
-            const num_gen_iter *iter;
+            const struct num_gen_iter *iter;
             rc = num_gen_iterator_make( ctx->row_generator, &iter );
             if ( rc != 0 )
                 LogErr( klogInt, rc, "num_gen_iterator_make() failed\n" );
             else
             {
-                uint64_t row_id;
-                progressbar * progress;
+                int64_t row_id;
+				uint8_t fract_digits = calc_fract_digits( iter );
+                struct progressbar * progress;
 
-                rc = make_progressbar( &progress );
+				
+                rc = make_progressbar( &progress, fract_digits );
                 if ( rc != 0 )
                     LogErr( klogInt, rc, "make_progressbar() failed\n" );
                 else
                 {
-                    uint8_t fract_digits = calc_fract_digits( iter );
                     uint32_t percent;
                     row_input row_data;
 
-                    while ( ( num_gen_iterator_next( iter, &row_id ) == 0 )&&
-                            ( rc == 0 ) )
+                    while ( num_gen_iterator_next( iter, &row_id, &rc ) && rc == 0 )
                     {
                         rc = Quitting();
                         if ( rc == 0 )
@@ -195,9 +202,11 @@ static rc_t read_loop( statistic * data,
                                 rc = extract_statistic_from_row( data, &row_data, row_id );
                             }
                             /* ******************************************** */
-                            if ( ctx->show_progress )
-                                if ( num_gen_iterator_percent( iter, fract_digits, &percent ) == 0 )
-                                    update_progressbar( progress, fract_digits, percent );
+                            if ( ctx->show_progress &&
+                                 num_gen_iterator_percent( iter, fract_digits, &percent ) == 0 )
+							{
+                                    update_progressbar( progress, percent );
+							}
                         }
                     }
                     destroy_progressbar( progress );

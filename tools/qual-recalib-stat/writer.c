@@ -27,6 +27,7 @@
 #include "writer.h"
 
 #include <klib/printf.h>
+#include <klib/progressbar.h>
 #include <kfs/file.h>
 
 #include <sysalloc.h>
@@ -81,11 +82,54 @@ typedef struct writer_ctx
     statistic_writer *writer;
     rc_t rc;
 
-    progressbar *progress;
+    struct progressbar * progress;
     uint64_t entries;
     uint64_t n;
     uint8_t fract_digits;
 } writer_ctx;
+
+
+static uint8_t progressbar_calc_fract_digits( const uint64_t count )
+{
+    uint8_t res = 0;
+    if ( count > 10000 )
+    {
+        if ( count > 100000 )
+            res = 2;
+        else
+            res = 1;
+    }
+    return res;
+}
+
+static uint32_t progressbar_percent( const uint64_t count, const uint64_t value,
+									 const uint8_t fract_digits )
+{
+    uint32_t factor = 100;
+    uint32_t res = 0;
+
+    if ( fract_digits > 0 )
+    {
+        if ( fract_digits > 1 )
+            factor = 10000;
+        else
+            factor = 1000;
+    }
+        
+    if ( count > 0 )
+    {
+        if ( value >= count )
+            res = factor;
+        else
+        {
+            uint64_t temp = value;
+            temp *= factor;
+            temp /= count;
+            res = (uint16_t) temp;
+        }
+    }
+    return res;
+}
 
 
 static bool CC write_cb( stat_row * row, void * data )
@@ -150,7 +194,7 @@ static bool CC write_cb( stat_row * row, void * data )
     if ( ctx->progress != NULL && rc == 0 )
     {
         uint32_t percent = progressbar_percent( ctx->entries, ++( ctx->n ), ctx->fract_digits );
-        update_progressbar( ctx->progress, ctx->fract_digits, percent );
+        update_progressbar( ctx->progress, percent );
     }
 
     return ( rc == 0 );
@@ -169,9 +213,9 @@ static rc_t write_statistic( statistic_writer *writer, statistic *data,
 
     if ( show_progress )
     {
-        make_progressbar( &ctx.progress );
         ctx.entries = data->entries;
         ctx.fract_digits = progressbar_calc_fract_digits( ctx.entries );
+		make_progressbar( &ctx.progress, ctx.fract_digits );
         ctx.n = 0;
     }
 
@@ -204,7 +248,7 @@ typedef struct write_ctx
     uint64_t pos;
     uint64_t lines;
 
-    progressbar *progress;
+    struct progressbar *progress;
     uint64_t entries;
     uint8_t fract_digits;
 } write_ctx;
@@ -236,7 +280,7 @@ static bool CC write_to_file_cb( stat_row * row, void * f_data )
         if ( rc == 0 )
         {
             uint32_t percent = progressbar_percent( wctx->entries, ++wctx->lines, wctx->fract_digits );
-            update_progressbar( wctx->progress, wctx->fract_digits, percent );
+            update_progressbar( wctx->progress, percent );
             wctx->pos += f_writ;
         }
     }
@@ -275,10 +319,10 @@ rc_t write_output_file( KDirectory *dir, statistic * data,
                 if ( written != NULL ) *written = f_writ;
                 wctx.pos += f_writ;
 
-                make_progressbar( &wctx.progress );
                 wctx.entries = data->entries;
                 wctx.fract_digits = progressbar_calc_fract_digits( wctx.entries );
-
+				make_progressbar( &wctx.progress, wctx.fract_digits );
+				
                 foreach_statistic( data, write_to_file_cb, &wctx );
 
                 destroy_progressbar( wctx.progress );

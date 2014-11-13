@@ -1065,13 +1065,14 @@ sub find_lib {
 
         if ($n eq 'hdf5') {
             $library = '-lhdf5';
-            $log = '#include <hdf5.h>            \n main() { H5close    () ; }';
+            $log = '#include <hdf5.h>        \n main() { H5close         (); }';
         } elsif ($n eq 'fuse') {
             $flags = '-D_FILE_OFFSET_BITS=64';
-            $log = '#include <fuse.h>            \n main() {                 }';
+            $library = '-lfuse';
+            $log = '#include <fuse.h>        \n main() { fuse_get_context(); }';
         } elsif ($n eq 'magic') {
             $library = '-lmagic';
-            $log = '#include <magic.h>           \n main() { magic_open (0); }';
+            $log = '#include <magic.h>       \n main() { magic_open     (0); }';
         } elsif ($n eq 'xml2') {
             $library = '-lxml2';
             $log = '#include <libxml/xmlreader.h>\n main() { xmlInitParser();}';
@@ -1090,7 +1091,6 @@ sub find_lib {
             println 'no';
             return;
         }
-
         my $cmd = $log;
         $cmd =~ s/\\n/\n/g;
 

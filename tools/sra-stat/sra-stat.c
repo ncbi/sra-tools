@@ -2809,7 +2809,7 @@ KOutMsg("\r                                                                \r");
                     {
                         rc_t r2 = destroy_progressbar(pr);
                         if (r2 != 0) {
-                            DISP_RC(r2, "cannot initialize progress bar");
+                            DISP_RC(r2, "cannot destroy progress bar");
                         }
                         pr = NULL;
                     }

@@ -78,10 +78,13 @@ my @options = ( "arch=s",
                 "status",
                 "with-debug",
                 "without-debug" );
+push @options, 'enable-static' if (PACKAGE_TYPE() eq 'B');
 foreach my $href (@REQ) {
     my %a = %$href;
     push @options, "$a{option}=s";
     push @options, "$a{boption}=s" if ($a{boption});
+
+    $href->{usrpath} = '' unless ($href->{usrpath});
     $href->{usrpath} =~ s/(\$\w+)/$1/eeg;
 }
 push @options, "shemadir" if ($PKG{SCHEMA_PATH});
@@ -166,25 +169,25 @@ println $OSTYPE unless ($AUTORUN);
 {
     $OPT{'prefix'} = expand($OPT{'prefix'});
     my $prefix = $OPT{'prefix'};
-    $OPT{'eprefix'} = $prefix unless ($OPT{'eprefix'} || $OS eq 'win');
-    my $eprefix = $OPT{'eprefix'};
-    unless ($OPT{'bindir'} || $OS eq 'win') {
-        $OPT{'bindir'} = File::Spec->catdir($eprefix, 'bin') ;
+    $OPT{eprefix} = $prefix unless ($OPT{eprefix} || $OS eq 'win');
+    my $eprefix = $OPT{eprefix};
+    unless ($OPT{bindir} || $OS eq 'win') {
+        $OPT{bindir} = File::Spec->catdir($eprefix, 'bin') ;
     }
-    unless ($OPT{'libdir'} || $OS eq 'win') {
-        $OPT{'libdir'} = File::Spec->catdir($eprefix, 'lib');
+    unless ($OPT{libdir} || $OS eq 'win') {
+        $OPT{libdir} = File::Spec->catdir($eprefix, 'lib');
     }
-    unless ($OPT{'includedir'} || $OS eq 'win') {
-        $OPT{'includedir'} = File::Spec->catdir($eprefix, 'include');
+    unless ($OPT{includedir} || $OS eq 'win') {
+        $OPT{includedir} = File::Spec->catdir($eprefix, 'include');
     }
-    if ($PKG{LNG} eq 'PYTHON' && ! $OPT{'pythondir'} && $OS ne 'win') {
-        $OPT{'pythondir'} = $eprefix;
+    if ($PKG{LNG} eq 'PYTHON' && ! $OPT{pythondir} && $OS ne 'win') {
+        $OPT{pythondir} = $eprefix;
     }
-    if ($PKG{LNG} eq 'JAVA' && ! $OPT{'javadir'} && $OS ne 'win') {
-        $OPT{'javadir'} = File::Spec->catdir($eprefix, 'jar');
+    if ($PKG{LNG} eq 'JAVA' && ! $OPT{javadir} && $OS ne 'win') {
+        $OPT{javadir} = File::Spec->catdir($eprefix, 'jar');
     }
-    if ($PKG{EXAMP} && ! $OPT{'sharedir'} && $OS ne 'win') {
-        $OPT{'sharedir'} = File::Spec->catdir($eprefix, 'share');
+    if ($PKG{EXAMP} && ! $OPT{sharedir} && $OS ne 'win') {
+        $OPT{sharedir} = File::Spec->catdir($eprefix, 'share');
     }
 }
 
@@ -365,7 +368,12 @@ foreach my $href (DEPENDS()) {
     my $o = "with-$_-prefix";
     ++$DEPEND_OPTIONS{$o};
     if ($OPT{$o}) {
-        $I = File::Spec->catdir($OPT{$o}, 'include'); 
+        $OPT{$o} = expand($OPT{$o});
+        $I = File::Spec->catdir($OPT{$o}, 'include');
+        if (/^xml2$/) {
+            my $t = File::Spec->catdir($I, 'libxml2');
+            $I = $t if (-e $t);
+        }
         $L = File::Spec->catdir($OPT{$o}, 'lib');
     }
     my ($i, $l) = find_lib($_, $I, $L);
@@ -544,10 +552,14 @@ EndText
         $MAJVERS_SHLX = '$(SHLX).$(MAJVERS)';
     }
 
+    L($F);
+    L($F, "# build type");
+
+    if ($OPT{'enable-static'}) {
+        L($F, "WANTS_STATIC = 1");
+    }
 
     print $F <<EndText;
-
-# build type
 BUILD = $BUILD
 
 # target OS
@@ -1053,13 +1065,14 @@ sub find_lib {
 
         if ($n eq 'hdf5') {
             $library = '-lhdf5';
-            $log = '#include <hdf5.h>            \n main() { H5close    () ; }';
+            $log = '#include <hdf5.h>        \n main() { H5close         (); }';
         } elsif ($n eq 'fuse') {
             $flags = '-D_FILE_OFFSET_BITS=64';
-            $log = '#include <fuse.h>            \n main() {                 }';
+            $library = '-lfuse';
+            $log = '#include <fuse.h>        \n main() { fuse_get_context(); }';
         } elsif ($n eq 'magic') {
             $library = '-lmagic';
-            $log = '#include <magic.h>           \n main() { magic_open (0); }';
+            $log = '#include <magic.h>       \n main() { magic_open     (0); }';
         } elsif ($n eq 'xml2') {
             $library = '-lxml2';
             $log = '#include <libxml/xmlreader.h>\n main() { xmlInitParser();}';
@@ -1068,11 +1081,16 @@ sub find_lib {
             return;
         }
 
-        if (($i && ! -d $i) || ($l && ! -d $l)) {
+        if ($i && ! -d $i) {
+            print "'$i': " if ($OPT{'debug'});
             println 'no';
             return;
         }
-
+        if ($l && ! -d $l) {
+            print "'$l': " if ($OPT{'debug'});
+            println 'no';
+            return;
+        }
         my $cmd = $log;
         $cmd =~ s/\\n/\n/g;
 
@@ -1119,20 +1137,20 @@ sub check {
     foreach my $href (REQ()) {
         die         "No REQ::name" unless $href->{name};
 
-        die         "No $href->{name}:include" unless $href->{include};
         die         "No $href->{name}:option"  unless $href->{option};
-        die         "No $href->{name}:pkgpath" unless $href->{pkgpath};
-        die         "No $href->{name}:usrpath" unless $href->{usrpath};
 
         die         "No $href->{name}:type"    unless $href->{type};
         unless ($href->{type} =~ /I/) {
             die     "No $href->{name}:lib"     unless $href->{lib};
+            die     "No $href->{name}:pkgpath" unless $href->{pkgpath};
+            die     "No $href->{name}:usrpath" unless $href->{usrpath};
         }
 
         die         "No $href->{name}:origin"  unless $href->{origin};
         if ($href->{origin} eq 'I') {
             die     "No $href->{name}:aname"   unless $href->{aname};
             die     "No $href->{name}:srcpath" unless $href->{srcpath};
+            die     "No $href->{name}:include" unless $href->{include};
 
             unless ($href->{type} =~ /I/) {
                 die "No $href->{name}:bldpath" unless $href->{bldpath};
@@ -1146,7 +1164,7 @@ sub check {
 
 ################################################################################
 
-sub optional { $_[0] =~ /^[LS]I$/ }
+sub optional { $_[0] =~ /O/ }
 
 sub help {
 #  --prefix=PREFIX         install architecture-independent files in PREFIX
@@ -1228,7 +1246,7 @@ EndText
             println;
         }
     }
-    
+
     if ($optional) {
         print "Optional Packages:\n";
         foreach my $href (@REQ) {
@@ -1243,6 +1261,12 @@ EndText
         }
         println;
     }
+
+    print <<EndText if (PACKAGE_TYPE() eq 'B');
+Optional Features:
+  --enable-static         build static executable [default=no]
+
+EndText
 
     print <<EndText if ($^O ne 'MSWin32');
 Build tuning:

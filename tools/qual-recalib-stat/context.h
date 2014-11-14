@@ -34,8 +34,8 @@ extern "C" {
 #include <kapp/args.h>
 #include <klib/namelist.h>
 #include <klib/out.h>
+#include <klib/num-gen.h>
 #include "namelist_tools.h"
-#include "num-gen.h"
 
 #define OPTION_ROWS              "rows"
 #define OPTION_SCHEMA            "schema"
@@ -68,7 +68,7 @@ typedef struct context
     char *output_mode;
     char *exclude_file_path;
     const KNamelist *src_schema_list;
-    num_gen *row_generator;
+    struct num_gen * row_generator;
     bool usage_requested;
     bool show_progress;
     bool info;

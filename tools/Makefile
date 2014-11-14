@@ -36,6 +36,7 @@ include $(TOP)/build/Makefile.config
 #
 SUBDIRS =             \
 	util              \
+	align-cache       \
 	kar               \
 	kqsh              \
 	vdb-dump          \

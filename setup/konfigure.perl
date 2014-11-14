@@ -32,14 +32,16 @@ if ($directories ne "./") {
     exit 1;
 }
 
-require 'package.pm';
-require 'os-arch.pm';
+require 'package.prl';
+require 'os-arch.prl';
 
 use Cwd qw(abs_path getcwd);
 use File::Basename 'fileparse';
 use File::Spec 'catdir';
 use FindBin qw($Bin);
 use Getopt::Long qw(GetOptions GetOptionsFromString);
+
+chdir '..' or die "cannot cd to package root";
 
 check();
 
@@ -53,13 +55,14 @@ my %PKG = PKG();
 
 my $PACKAGE_NAME = PACKAGE_NAME();
 my $OUT_MAKEFILE = 'Makefile.config';
+my $INS_MAKEFILE = 'Makefile.config.install';
 
 my $PACKAGE = PACKAGE();
 
 my $HOME = $ENV{HOME} || $ENV{USERPROFILE}
     || $ENV{LOGDIR} || getcwd || (getpwuid($<))[7] || abs_path('.');
 
-$PKG{UPATH} =~ s/(\$\w+)/$1/eeg;
+$PKG{UPATH} = expand($PKG{UPATH});
 
 my $OUTDIR = File::Spec->catdir($HOME, $PKG{OUT});
 
@@ -77,15 +80,14 @@ my @options = ( "arch=s",
                 "reconfigure",
                 "status",
                 "with-debug",
-                "without-debug" );
+                "without-debug", );
 push @options, 'enable-static' if (PACKAGE_TYPE() eq 'B');
 foreach my $href (@REQ) {
     my %a = %$href;
     push @options, "$a{option}=s";
     push @options, "$a{boption}=s" if ($a{boption});
-
     $href->{usrpath} = '' unless ($href->{usrpath});
-    $href->{usrpath} =~ s/(\$\w+)/$1/eeg;
+    $href->{usrpath} = expand($href->{usrpath});
 }
 push @options, "shemadir" if ($PKG{SCHEMA_PATH});
 
@@ -116,12 +118,12 @@ if ($OPT{'reconfigure'}) {
 
 if ($OPT{'help'}) {
     help();
-    exit(0);
+    exit 0;
 } elsif ($OPT{'clean'}) {
     {
         foreach (glob(CONFIG_OUT() . '/Makefile.config*'),
-            File::Spec->catdir(CONFIG_OUT(), 'user.status'),
-            File::Spec->catdir(CONFIG_OUT(), 'Makefile.userconfig'))
+            File::Spec->catdir(CONFIG_OUT(), 'Makefile.userconfig'),
+            File::Spec->catdir(CONFIG_OUT(), 'user.status'))
         {
             my $f = $_;
             print "removing $f... ";
@@ -153,10 +155,10 @@ if ($OPT{'help'}) {
             }
         }
     }
-    exit(0);
+    exit 0;
 } elsif ($OPT{'status'}) {
     status(1);
-    exit(0);
+    exit 0;
 }
 
 $OPT{'prefix'} = $package_default_prefix unless ($OPT{'prefix'});
@@ -167,33 +169,33 @@ my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
 println $OSTYPE unless ($AUTORUN);
 
 {
-    $OPT{'prefix'} = expand($OPT{'prefix'});
+    $OPT{'prefix'} = expand_path($OPT{'prefix'});
     my $prefix = $OPT{'prefix'};
-    $OPT{eprefix} = $prefix unless ($OPT{eprefix} || $OS eq 'win');
-    my $eprefix = $OPT{eprefix};
-    unless ($OPT{bindir} || $OS eq 'win') {
-        $OPT{bindir} = File::Spec->catdir($eprefix, 'bin') ;
+    $OPT{'eprefix'} = $prefix unless ($OPT{'eprefix'} || $OS eq 'win');
+    my $eprefix = $OPT{'eprefix'};
+    unless ($OPT{'bindir'} || $OS eq 'win') {
+        $OPT{'bindir'} = File::Spec->catdir($eprefix, 'bin') ;
     }
-    unless ($OPT{libdir} || $OS eq 'win') {
-        $OPT{libdir} = File::Spec->catdir($eprefix, 'lib');
+    unless ($OPT{'libdir'} || $OS eq 'win') {
+        $OPT{'libdir'} = File::Spec->catdir($eprefix, 'lib');
     }
-    unless ($OPT{includedir} || $OS eq 'win') {
-        $OPT{includedir} = File::Spec->catdir($eprefix, 'include');
+    unless ($OPT{'includedir'} || $OS eq 'win') {
+        $OPT{'includedir'} = File::Spec->catdir($eprefix, 'include');
     }
-    if ($PKG{LNG} eq 'PYTHON' && ! $OPT{pythondir} && $OS ne 'win') {
-        $OPT{pythondir} = $eprefix;
+    if ($PKG{LNG} eq 'PYTHON' && ! $OPT{'pythondir'} && $OS ne 'win') {
+        $OPT{'pythondir'} = $eprefix;
     }
-    if ($PKG{LNG} eq 'JAVA' && ! $OPT{javadir} && $OS ne 'win') {
-        $OPT{javadir} = File::Spec->catdir($eprefix, 'jar');
+    if ($PKG{LNG} eq 'JAVA' && ! $OPT{'javadir'} && $OS ne 'win') {
+        $OPT{'javadir'} = File::Spec->catdir($eprefix, 'jar');
     }
-    if ($PKG{EXAMP} && ! $OPT{sharedir} && $OS ne 'win') {
-        $OPT{sharedir} = File::Spec->catdir($eprefix, 'share');
+    if ($PKG{EXAMP} && ! $OPT{'sharedir'} && $OS ne 'win') {
+        $OPT{'sharedir'} = File::Spec->catdir($eprefix, 'share');
     }
 }
 
 # initial values
 my $TARGDIR = File::Spec->catdir($OUTDIR, $PACKAGE);
-$TARGDIR = expand($OPT{'build-prefix'}) if ($OPT{'build-prefix'});
+$TARGDIR = expand_path($OPT{'build-prefix'}) if ($OPT{'build-prefix'});
 my $BUILD_PREFIX = $TARGDIR;
 
 my $BUILD = 'rel';
@@ -228,10 +230,8 @@ if ($OPT{arch}) {
     }
 }
 
-$OUT_MAKEFILE .= ".$OS.$ARCH";
-$OUT_MAKEFILE = File::Spec->catdir(CONFIG_OUT(), $OUT_MAKEFILE);
-
-#my $OSTYPE = `uname -s`; chomp $OSTYPE;
+$OUT_MAKEFILE = File::Spec->catdir(CONFIG_OUT(), "$OUT_MAKEFILE.$OS.$ARCH");
+$INS_MAKEFILE = File::Spec->catdir(CONFIG_OUT(), "$INS_MAKEFILE.$OS.$ARCH.prl");
 
 print "checking machine architecture... " unless ($AUTORUN);
 #my $MARCH = `uname -m`; chomp $MARCH;
@@ -368,7 +368,7 @@ foreach my $href (DEPENDS()) {
     my $o = "with-$_-prefix";
     ++$DEPEND_OPTIONS{$o};
     if ($OPT{$o}) {
-        $OPT{$o} = expand($OPT{$o});
+        $OPT{$o} = expand_path($OPT{$o});
         $I = File::Spec->catdir($OPT{$o}, 'include');
         if (/^xml2$/) {
             my $t = File::Spec->catdir($I, 'libxml2');
@@ -395,7 +395,7 @@ foreach my $href (DEPENDS()) {
 }
 
 foreach my $href (@REQ) {
-    $href->{bldpath} =~ s/(\$\w+)/$1/eeg if ($href->{bldpath});
+    $href->{bldpath} = expand($href->{bldpath}) if ($href->{bldpath});
     my ($found_itf, $found_lib, $found_ilib);        # found directories
     my %a = %$href;
     next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
@@ -403,11 +403,12 @@ foreach my $href (@REQ) {
     my $quasi_optional = $a{type} =~ /Q/;
     my $need_source = $a{type} =~ /S/;
     my $need_build = $a{type} =~ /B/;
-    my $need_lib = $a{type} =~ /L|Q/;
+    my $need_lib = $a{type} =~ /L|D/;
+    my $need_itf = ! ($a{type} =~ /D/);
     
     my ($inc, $lib, $ilib) = ($a{include}, $a{lib}); # file names to check
     $lib = '' unless ($lib);
-    $lib =~ s/(\$\w+)/$1/eeg;
+    $lib = expand($lib);
 
     if ($need_build) {
         $ilib = $a{ilib};
@@ -427,7 +428,7 @@ foreach my $href (@REQ) {
     foreach my $option ($a{option}, $a{boption}) {
         next unless ($option);
         if ($OPT{$option}) {
-            my $try = expand($OPT{$option});
+            my $try = expand_path($OPT{$option});
             my ($i, $l, $il) = ($inc, $lib, $ilib);
             if ($option =~ /-build$/) {
                 undef $i;
@@ -473,7 +474,8 @@ foreach my $href (@REQ) {
             $found_ilib = $fil if (! $found_ilib && $fil);
         }
     }
-    if (! $found_itf || ($need_lib && ! $found_lib) || ($ilib && ! $found_ilib))
+    if (($need_itf && ! $found_itf) ||
+        ($need_lib && ! $found_lib) || ($ilib && ! $found_ilib))
     {
         if ($is_optional) {
             println "configure: optional $a{name} package not found: skipped.";
@@ -503,10 +505,20 @@ foreach my $href (@REQ) {
             exit 1;
         }
     } else {
-        $found_itf = abs_path($found_itf);
-        push(@dependencies, "$a{aname}_INCDIR = $found_itf");
+        if ($found_itf) {
+            $found_itf = abs_path($found_itf);
+            push(@dependencies, "$a{aname}_INCDIR = $found_itf");
+        }
         if ($found_lib) {
             $found_lib = abs_path($found_lib);
+            if ($a{aname} eq 'NGS' || $a{aname} eq 'VDB') {
+                if ($OPT{PYTHON_LIB_PATH}) {
+                    $OPT{PYTHON_LIB_PATH} .= ':';
+                } else {
+                    $OPT{PYTHON_LIB_PATH} = '';
+                }
+                $OPT{PYTHON_LIB_PATH} .= $found_lib;
+            }
             push(@dependencies, "$a{aname}_LIBDIR = $found_lib");
         }
         if ($ilib && $found_ilib) {
@@ -515,6 +527,8 @@ foreach my $href (@REQ) {
         }
     }
 }
+
+my ($E_LIBDIR, $VERSION, $MAJVERS, $E_VERSION_LIBX, $E_MAJVERS_LIBX) = ('');
 
 if ($OS ne 'win' && ! $OPT{'status'}) {
     # create Makefile.config
@@ -528,29 +542,37 @@ if ($OS ne 'win' && ! $OPT{'status'}) {
 
 CONFIGURED = $CONFIGURED
 
-OS_ARCH = \$(shell perl \$(TOP)/os-arch.perl)
+OS_ARCH = \$(shell perl \$(TOP)/setup/os-arch.perl)
 
 # install paths
 EndText
 
-    L($F, "INST_BINDIR = $OPT{bindir}"        ) if ($OPT{bindir});
-    L($F, "INST_LIBDIR = $OPT{libdir}"        ) if ($OPT{libdir});
-    L($F, "INST_INCDIR = $OPT{includedir}"    ) if ($OPT{includedir});
+    L($F, "INST_BINDIR = $OPT{'bindir'}"      ) if ($OPT{'bindir'});
+    L($F, "INST_LIBDIR = $OPT{'libdir'}"      ) if ($OPT{'libdir'});
+    L($F, "INST_INCDIR = $OPT{'includedir'}"  ) if ($OPT{'includedir'});
     L($F, "INST_SCHEMADIR = $OPT{'shemadir'}" ) if ($OPT{'shemadir'});
     L($F, "INST_SHAREDIR = $OPT{'sharedir'}"  ) if ($OPT{'sharedir'});
     L($F, "INST_JARDIR = $OPT{'javadir'}"     ) if ($OPT{'javadir'});
     L($F, "INST_PYTHONDIR = $OPT{'pythondir'}") if ($OPT{'pythondir'});
 
-    my ($VERSION_SHLX, $MAJMIN_SHLX, $MAJVERS_SHLX);
+    my ($E_VERSION_SHLX, $VERSION_SHLX,
+        $E_MAJVERS_SHLX , $MAJMIN_SHLX, $MAJVERS_SHLX);
     if ($OSTYPE =~ /darwin/i) {
+        $E_VERSION_SHLX =  '$VERSION.$SHLX';
         $VERSION_SHLX = '$(VERSION).$(SHLX)';
         $MAJMIN_SHLX  = '$(MAJMIN).$(SHLX)';
+        $E_MAJVERS_SHLX = '$MAJVERS.$SHLX';
         $MAJVERS_SHLX = '$(MAJVERS).$(SHLX)';
     } else {
+        $E_VERSION_SHLX =  '$SHLX.$VERSION';
         $VERSION_SHLX = '$(SHLX).$(VERSION)';
         $MAJMIN_SHLX  = '$(SHLX).$(MAJMIN)';
+        $E_MAJVERS_SHLX =  '$SHLX.$MAJVERS';
         $MAJVERS_SHLX = '$(SHLX).$(MAJVERS)';
     }
+
+    $E_VERSION_LIBX = '$LIBX.$VERSION';
+    $E_MAJVERS_LIBX = '$LIBX.$MAJVERS';
 
     L($F);
     L($F, "# build type");
@@ -646,7 +668,7 @@ EndText
 
     # version information
 
-    my ($VERSION, $MAJMIN, $MAJVERS);
+    my $MAJMIN;
 
     if ($FULL_VERSION =~ /(\d+)\.(\d+)\.(\d+)-?\w*\d*/) {
         $VERSION = "$1.$2.$3";
@@ -674,8 +696,10 @@ BINDIR    = \$(TARGDIR)/bin
 EndText
 
     if ($PKG{LNG} eq 'C') {
+        $E_LIBDIR        = '$TARGDIR/lib';
         L($F, 'LIBDIR    = $(TARGDIR)/lib');
     } elsif ($PKG{LNG} eq 'JAVA') {
+        $E_LIBDIR        = '$TARGDIR/jar';
         L($F, 'LIBDIR    = $(TARGDIR)/jar');
     }
 
@@ -803,6 +827,47 @@ EndText
         T($F, '  fi');
     }
     close $F;
+
+    # create Makefile.config.install
+    println "configure: creating '$INS_MAKEFILE'" unless ($AUTORUN);
+    open $F, ">$INS_MAKEFILE" or die "cannot open $INS_MAKEFILE to write";
+
+    $OPT{'javadir' } = '' unless ($OPT{'javadir' });
+    $OPT{'sharedir'} = '' unless ($OPT{'sharedir'});
+
+    print $F "sub CONFIGURE {\n";
+    print $F "    \$_{PACKAGE_NAME } = '$PACKAGE_NAME';\n";
+    print $F "    \$_{VERSION      } = '$VERSION';\n";
+    print $F "    \$_{LNG          } = '$PKG{LNG}';\n";
+    print $F "    \$_{OS           } = '$OS';\n";
+    print $F "    \$_{BITS         } =  $BITS;\n";
+    print $F "    \$_{MAJVERS      } =  $MAJVERS;\n";
+    print $F "    \$_{LPFX         } = '$LPFX';\n";
+    print $F "    \$_{LIBX         } = '$LIBX';\n";
+    print $F "    \$_{MAJVERS_LIBX } = '" . expand($E_MAJVERS_LIBX) . "';\n";
+    print $F "    \$_{VERSION_LIBX } = '" . expand($E_VERSION_LIBX) . "';\n";
+    print $F "    \$_{SHLX         } = '$SHLX';\n";
+    print $F "    \$_{MAJVERS_SHLX } = '" . expand($E_MAJVERS_SHLX) . "';\n";
+    print $F "    \$_{VERSION_SHLX } = '" . expand($E_VERSION_SHLX) . "';\n";
+    print $F "    \$_{INCDIR       } = '" . expand("$Bin/.."      ) . "';\n";
+    if ($PKG{LNG} ne 'PYTHON') {
+        print $F "  \$_{LIBDIR$BITS} = '" . expand($E_LIBDIR      ) . "';\n";
+    } elsif ($OPT{PYTHON_LIB_PATH}) {
+        print $F "  \$_{LIBDIR$BITS} = '$OPT{PYTHON_LIB_PATH}';\n";
+    }
+    print $F "    \$_{OTHER_PREFIX } = '$PKG{UPATH}';\n";
+    print $F "    \$_{PREFIX       } = '$OPT{'prefix'}';\n";
+    print $F "    \$_{INST_INCDIR  } = '$OPT{'includedir'}';\n";
+    print $F "    \$_{INST_LIBDIR  } = '$OPT{'libdir'}';\n";
+    print $F "    \$_{INST_JARDIR  } = '$OPT{'javadir'}';\n";
+    print $F "    \$_{INST_SHAREDIR} = '$OPT{'sharedir'}';\n";
+    print $F "\n";
+    print $F "    \@_\n";
+    print $F "}\n";
+    print $F "\n";
+    print $F "1\n";
+
+    close $F;
 }
 
 if (! $OPT{'status'} ) {
@@ -842,7 +907,7 @@ EndText
         open COUT, ">$out" or die "cannot open $out to write";
         print COUT "### AUTO-GENERATED FILE ###\n";
         print COUT "\n";
-        print COUT "OS_ARCH = \$(shell perl \$(TOP)/os-arch.perl)\n";
+        print COUT "OS_ARCH = \$(shell perl \$(TOP)/setup/os-arch.perl)\n";
         print COUT "include \$(TOP)/$CONFIG_OUT/Makefile.config.\$(OS_ARCH)\n";
         close COUT;
     }
@@ -885,13 +950,13 @@ sub status {
                 println "\t\tgot $_" if ($OPT{'debug'});
             }
             elsif (/INST_INCDIR = (.+)/) {
-                $OPT{includedir} = $1;
+                $OPT{'includedir'} = $1;
             }
             elsif (/INST_BINDIR = (.+)/) {
-                $OPT{bindir} = $1;
+                $OPT{'bindir'} = $1;
             }
             elsif (/INST_LIBDIR = (.+)/) {
-                $OPT{libdir} = $1;
+                $OPT{'libdir'} = $1;
             }
         }
     }
@@ -924,10 +989,20 @@ sub status {
     println "configured with: \"$CONFIGURED\"";
 }
 
-sub expand {
+sub expand { $_[0] =~ s/(\$\w+)/$1/eeg; $_[0]; }
+
+sub expand_path {
     my ($filename) = @_;
     return unless ($filename);
+
     if ($filename =~ /^~/) {
+        if ($filename =~ m|^~([^/]*)|) {
+            if ($1 && ! getpwnam($1)) {
+                print "install: error: bad path: '$filename'\n";
+                exit 1;
+            }
+        }
+
         $filename =~ s{ ^ ~ ( [^/]* ) }
                       { $1
                             ? (getpwnam($1))[7]
@@ -936,6 +1011,7 @@ sub expand {
                               )
                       }ex;
     }
+
     my $a = abs_path($filename);
     $filename = $a if ($a);
     $filename;
@@ -1087,10 +1163,10 @@ sub find_lib {
             return;
         }
         if ($l && ! -d $l) {
-            print "'$l': " if ($OPT{'debug'});
-            println 'no';
+            print "'$l': " if ($OPT{'debug'});            println 'no';
             return;
         }
+
         my $cmd = $log;
         $cmd =~ s/\\n/\n/g;
 
@@ -1149,9 +1225,10 @@ sub check {
         die         "No $href->{name}:origin"  unless $href->{origin};
         if ($href->{origin} eq 'I') {
             die     "No $href->{name}:aname"   unless $href->{aname};
-            die     "No $href->{name}:srcpath" unless $href->{srcpath};
-            die     "No $href->{name}:include" unless $href->{include};
-
+            unless ($href->{type} =~ /D/) {
+                die "No $href->{name}:include" unless $href->{include};
+                die "No $href->{name}:srcpath" unless $href->{srcpath};
+            }
             unless ($href->{type} =~ /I/) {
                 die "No $href->{name}:bldpath" unless $href->{bldpath};
             }
@@ -1201,10 +1278,14 @@ EndText
     
         if (PACKAGE_TYPE() eq 'B') {
             print "\`$package_default_prefix/bin', ";
-        } else {
+        } elsif (PACKAGE_TYPE() eq 'L') {
             print "\`$package_default_prefix/include', ";
         }
-        println "\`$package_default_prefix/lib' etc.";
+        if (PACKAGE_TYPE() eq 'P') {
+            println "\`$package_default_prefix/share' etc.";
+        } else {
+            println "\`$package_default_prefix/lib' etc.";
+        }
 
         print <<EndText;
 You can specify an installation prefix other than \`$package_default_prefix'
@@ -1246,7 +1327,7 @@ EndText
             println;
         }
     }
-
+    
     if ($optional) {
         print "Optional Packages:\n";
         foreach my $href (@REQ) {
@@ -1279,18 +1360,17 @@ Build tuning:
 
 EndText
 
-    println "Miscellaneous:";
-    println "  --reconfigure           rerun configure ";
-    println "                          using the same command-line arguments";
+    println 'Miscellaneous:';
+    println '  --reconfigure           rerun configure';
+    println '                          using the same command-line arguments';
     if ($^O ne 'MSWin32') {
         println
-            "  --status                print current configuration information"
+            '  --status                print current configuration information'
     }
-    println "  --clean                 remove all configuration results";
-    println "  --debug                 print lots of debugging information";
+    println '  --clean                 remove all configuration results';
+    println '  --debug                 print lots of debugging information';
     println;
+    println 'Report bugs to sra-tools@ncbi.nlm.nih.gov';
 }
 
-=pod
 ################################################################################
-=cut

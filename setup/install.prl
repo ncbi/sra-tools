@@ -1,0 +1,3 @@
+sub PACKAGE_NAME { 'NCBI-VDB' }
+sub HAVE        { ( LIBS => 1, ) }
+1

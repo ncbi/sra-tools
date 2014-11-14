@@ -1,7 +1,7 @@
 use strict;
 
 use FindBin qw($Bin);
-require "$Bin/os-arch.pm";
+require "$Bin/os-arch.prl";
 
 my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
 

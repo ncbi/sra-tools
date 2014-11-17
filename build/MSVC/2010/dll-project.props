@@ -10,13 +10,6 @@
   
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <AdditionalIncludeDirectories>$(NGS_ROOT);$(VDB_ROOT)libs/$(ProjectName)/win;$(VDB_ROOT)libs/$(ProjectName);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NO_KRSRC;_LIBRARY;__mod_name__=libs/$(ProjectName);%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-  </ItemDefinitionGroup>
-  
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <Optimization>Disabled</Optimization>

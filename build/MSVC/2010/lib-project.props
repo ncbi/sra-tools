@@ -5,24 +5,10 @@
   <PropertyGroup Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
     <TargetExt>.lib</TargetExt>
-  </PropertyGroup>
-  
-  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
-  
-  <PropertyGroup>
-    <TargetExt>.lib</TargetExt>
     <OutDir>$(VDB_TARGET)\lib\</OutDir>
   </PropertyGroup>
   
-  <ItemDefinitionGroup>
-    <ClCompile>
-      <AdditionalIncludeDirectories>$(NGS_ROOT);$(VDB_ROOT)libs/$(ProjectName)/win;$(VDB_ROOT)libs/$(ProjectName);;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>NO_KRSRC;_LIBRARY;__mod_name__=libs/$(ProjectName);%(PreprocessorDefinitions)</PreprocessorDefinitions>
-    </ClCompile>
-    <Link>
-      <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
-    </Link>
-  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>

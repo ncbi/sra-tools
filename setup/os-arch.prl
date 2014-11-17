@@ -18,6 +18,8 @@ sub OsArch {
             $HOST_OS = 'win';
         } elsif ($UNAME =~ /xMINGW/) {
             $HOST_OS = 'win';
+        } else {
+            $HOST_OS = $UNAME;
         }
         if ($HOST_OS eq 'mac') {
             $MARCH = $HOST_ARCH = MacArch();
@@ -50,7 +52,9 @@ sub OsArch {
                 @ARCHITECTURES = qw(x86_64 i386);
             } elsif ($MARCH =~ /sun4v/) {
                 $HOST_ARCH = 'sparc64';
-		        @ARCHITECTURES = qw(sparc64 sparc32);
+                @ARCHITECTURES = qw(sparc64 sparc32);
+            } else {
+                $HOST_ARCH = $MARCH;
             }
         }
     }

@@ -71,16 +71,19 @@ my $schema_default_dir = $PKG{SCHEMA_PATH} if ($PKG{SCHEMA_PATH});
 
 my @REQ = REQ();
 
-my @options = ( "arch=s",
-                "build-prefix=s",
-                "clean",
-                "debug",
-                "help",
-                "prefix=s",
-                "reconfigure",
-                "status",
-                "with-debug",
-                "without-debug", );
+my @options = ( 'build-prefix=s',
+                'clean',
+                'debug',
+                'help',
+                'prefix=s',
+                'reconfigure',
+                'status',
+                'with-debug',
+                'without-debug', );
+{
+    my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
+    push @options, 'arch=s'    if (@ARCHITECTURES);
+}
 push @options, 'enable-static' if (PACKAGE_TYPE() eq 'B');
 foreach my $href (@REQ) {
     my %a = %$href;
@@ -109,6 +112,9 @@ if ($OPT{'reconfigure'}) {
                 last;
             }
         }
+    } else {
+        print STDERR "configure: error: run ./configure [OPTIONS] first.\n";
+        return 1;
     }
     undef %OPT;
     unless (GetOptionsFromString($CONFIGURED, \%OPT, @options)) {
@@ -167,6 +173,18 @@ my $AUTORUN = $OPT{status};
 print "checking system type... " unless ($AUTORUN);
 my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
 println $OSTYPE unless ($AUTORUN);
+
+unless ($OSTYPE =~ /linux/i || $OSTYPE =~ /darwin/i || $OSTYPE eq 'win') {
+    println "configure: error: unsupported system '$OSTYPE'";
+    exit 1;
+}
+
+print "checking machine architecture... " unless ($AUTORUN);
+println $MARCH unless ($AUTORUN);
+unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i) {
+    println "configure: error: unsupported architecture '$OSTYPE'";
+    exit 1;
+}
 
 {
     $OPT{'prefix'} = expand_path($OPT{'prefix'});
@@ -233,10 +251,6 @@ if ($OPT{arch}) {
 $OUT_MAKEFILE = File::Spec->catdir(CONFIG_OUT(), "$OUT_MAKEFILE.$OS.$ARCH");
 $INS_MAKEFILE = File::Spec->catdir(CONFIG_OUT(), "$INS_MAKEFILE.$OS.$ARCH.prl");
 
-print "checking machine architecture... " unless ($AUTORUN);
-#my $MARCH = `uname -m`; chomp $MARCH;
-println $MARCH unless ($AUTORUN);
-
 my $TOOLS = "";
 $TOOLS = "jdk" if ($PKG{LNG} eq 'JAVA');
 
@@ -250,17 +264,12 @@ print "checking for supported architecture... " unless ($AUTORUN);
 
 my $BITS;
 
-if ( $MARCH =~ m/x86_64/i )
-{
+if ($MARCH =~ /x86_64/i) {
     $BITS = 64;
-}
-elsif ( $MARCH =~ m/i?86/i )
-{
+} elsif ($MARCH =~ /i?86/i) {
     $BITS = 32;
-}
-else
-{
-    die "unrecognized Architecture - " . $ARCH;
+} else {
+    die "unrecognized Architecture '$ARCH'";
 }
 println "$MARCH ($BITS bits) is supported" unless ($AUTORUN);
 
@@ -268,38 +277,28 @@ println "$MARCH ($BITS bits) is supported" unless ($AUTORUN);
 my ($LPFX, $OBJX, $LOBX, $LIBX, $SHLX, $EXEX, $OSINC);
 
 print "checking for supported OS... " unless ($AUTORUN);
-if ( $OSTYPE =~ m/linux/i )
-{
-    $LPFX = "lib";
-    $OBJX = "o";
-    $LOBX = "pic.o";
-    $LIBX = "a";
-    $SHLX = "so";
-    $EXEX = "";
-    $OSINC = "unix";
-    if ( $TOOLS eq "" )
-    {
-        $TOOLS = "gcc";
-    }
-}
-elsif ( $OSTYPE =~ m/darwin/i )
-{
-    $LPFX = "lib";
-    $OBJX = "o";
-    $LOBX = "pic.o";
-    $LIBX = "a";
-    $SHLX = "dylib";
-    $EXEX = "";
-    $OSINC = "unix";
-    if ( $TOOLS eq "" )
-    {
-        $TOOLS = "clang";
-    }
+if ($OSTYPE =~ /linux/i) {
+    $LPFX = 'lib';
+    $OBJX = 'o';
+    $LOBX = 'pic.o';
+    $LIBX = 'a';
+    $SHLX = 'so';
+    $EXEX = '';
+    $OSINC = 'unix';
+    $TOOLS = 'gcc' unless ($TOOLS);
+} elsif ($OSTYPE =~ /darwin/i) {
+    $LPFX = 'lib';
+    $OBJX = 'o';
+    $LOBX = 'pic.o';
+    $LIBX = 'a';
+    $SHLX = 'dylib';
+    $EXEX = '';
+    $OSINC = 'unix';
+    $TOOLS = 'clang' unless ($TOOLS);
 } elsif ($OSTYPE eq 'win') {
-    $TOOLS = "vc++";
-} else
-{
-    die "unrecognized OS - " . $OSTYPE;
+    $TOOLS = 'vc++';
+} else {
+    die "unrecognized OS '$OSTYPE'";
 }
 println "$OSTYPE ($OS) is supported" unless ($AUTORUN);
 
@@ -998,7 +997,7 @@ sub expand_path {
     if ($filename =~ /^~/) {
         if ($filename =~ m|^~([^/]*)|) {
             if ($1 && ! getpwnam($1)) {
-                print "install: error: bad path: '$filename'\n";
+                print "configure: error: bad path: '$filename'\n";
                 exit 1;
             }
         }

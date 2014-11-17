@@ -18,4 +18,43 @@
   
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   
+    <PropertyGroup Label="Configuration">
+        <CharacterSet>Unicode</CharacterSet>
+        <IntDir>$(VDB_TARGET)\obj\$(ProjectName)\</IntDir>
+        <TargetName>$(ProjectName)</TargetName>
+        <LinkIncremental>false</LinkIncremental>
+        <WholeProgramOptimization>false</WholeProgramOptimization>
+    </PropertyGroup>
+  
+    <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
+        <UseDebugLibraries>true</UseDebugLibraries>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
+        <UseDebugLibraries>false</UseDebugLibraries>
+    </PropertyGroup>
+    
+    <ItemDefinitionGroup>
+        <ClCompile>
+            <WarningLevel>Level3</WarningLevel>
+            <CompileAsManaged>false</CompileAsManaged>
+            <MinimalRebuild>true</MinimalRebuild>
+            <DisableLanguageExtensions>false</DisableLanguageExtensions>
+            <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+            <DisableSpecificWarnings>4996;4101</DisableSpecificWarnings>
+            <StringPooling>true</StringPooling>
+
+            <AdditionalIncludeDirectories>$(VDB_ROOT)interfaces;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <AdditionalIncludeDirectories>$(VDB_ROOT)interfaces/os/win;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <AdditionalIncludeDirectories>$(VDB_ROOT)interfaces/cc/vc++;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+            <AdditionalIncludeDirectories>$(VDB_ROOT)interfaces/ext;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+
+            <PreprocessorDefinitions>_WIN32_WINNT=0x0502;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <PreprocessorDefinitions>WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <PreprocessorDefinitions>_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <PreprocessorDefinitions>__file_name__=%(Filename);%(PreprocessorDefinitions)</PreprocessorDefinitions>
+            <PreprocessorDefinitions>__file_ext__=c;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      
+        </ClCompile>
+    </ItemDefinitionGroup>
+     
 </Project>

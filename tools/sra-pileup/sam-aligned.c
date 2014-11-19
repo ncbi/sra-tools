@@ -1551,7 +1551,7 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
         {
 	    { /*** reset previous identification of N to D ***/
 		int i;
-		char *c=cgc_output.p_cigar.ptr;
+		char *c=(char*)cgc_output.p_cigar.ptr;
 		for(i=0;i< cgc_output.p_cigar.len;i++){
 		    if(c[i]=='N') c[i]='D';
 		}

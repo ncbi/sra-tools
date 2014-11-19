@@ -22,8 +22,12 @@ my ($OS, $MAKING);
 }
 
 my %HAVE = HAVE();
-++$HAVE{INCLUDES} if ($HAVE{LIBS});
-++$HAVE{USR_INCLUDES} if ($HAVE{INCLUDES} && PACKAGE_NAME() eq 'NGS-SDK');
+if ($HAVE{LIBS}) {
+    ++$HAVE{INCLUDES};
+    LIBS();
+}
+INCLUDES() if ($HAVE{INCLUDES});
+INCLUDES() if ($HAVE{USR_INCLUDES});
 
 my @bits;
 my @options = ( 'debug', 'examplesdir=s', 'force', 'help',
@@ -38,7 +42,7 @@ if ($HAVE{JAR}) {
 } elsif ($HAVE{PYTHON} && ! $MAKING) {
     ++$HAVE{LIBS};
 }
-if (! $MAKING && $HAVE{JAR} || $HAVE{PYTHON}) {
+if (! $MAKING && ($HAVE{JAR} || $HAVE{PYTHON})) {
     ++$HAVE{TWO_LIBS};
     push @options, 'ngslibdir=s', 'vdblibdir=s';
 }
@@ -68,23 +72,8 @@ if ($#bits > 0) {
 
 prepare();
 
-@_ = CONFIGURE();
-
-foreach (qw(BITS INCDIR INST_INCDIR INST_JARDIR INST_LIBDIR INST_SHAREDIR
-            LIBX LPFX MAJVERS MAJVERS_SHLX OS OTHER_PREFIX
-            PACKAGE_NAME PREFIX SHLX VERSION VERSION_LIBX VERSION_SHLX))
-{
-    unless ($_{$_}) {
-        next if (/^INST_JARDIR$/ && ! $HAVE{JAR});
-        fatal_config("$_ not found");
-    }
-}
-unless ($_{LIBDIR32} || $_{LIBDIR64} || ($HAVE{PYTHON} && $MAKING)) {
-    fatal_config('LIBDIR not found');
-}
- 
 my $LINUX_ROOT;
-++$LINUX_ROOT if (linux_root($_{OS}));
+++$LINUX_ROOT if (linux_root());
 my $ROOT = '';
 if ($OPT{root}) {
     $ROOT = "$ENV{HOME}/" . lc(PACKAGE_NAME()) . "/root";
@@ -97,23 +86,48 @@ my $oldincludedir = "$ROOT/usr/include";
 
 my $EXAMPLES_DIR = "$Bin/../examples";
 
+@_ = CONFIGURE();
+
 if ($OPT{help}) {
     help();
     exit 0;
 }
 
+foreach (qw(BITS INCDIR
+ INST_INCDIR INST_JARDIR INST_LIBDIR INST_NGSLIBDIR INST_SHAREDIR INST_VDBLIBDIR
+ LIBX LPFX MAJVERS MAJVERS_SHLX OS OTHER_PREFIX
+ PACKAGE_NAME PREFIX SHLX VERSION VERSION_LIBX VERSION_SHLX))
+{
+    unless ($_{$_}) {
+        next if (/^INST_JARDIR$/    && ! $HAVE{JAR});
+        next if (/^INST_NGSLIBDIR$/ && ! $HAVE{TWO_LIBS});
+        next if (/^INST_SHAREDIR$/  && ! $HAVE{EXAMPLES});
+        next if (/^INST_VDBLIBDIR$/ && ! $HAVE{TWO_LIBS});
+        fatal_config("$_ not found");
+    }
+}
+unless ($_{LIBDIR32} || $_{LIBDIR64} || ($HAVE{PYTHON} && $MAKING)) {
+    fatal_config('LIBDIR not found');
+}
+ 
 if ($OPT{prefix}) {
     $OPT{prefix} = expand_path($OPT{prefix});
     $_{INST_LIBDIR  } = "$OPT{prefix}/lib";
+    $_{INST_NGSLIBDIR} = $_{INST_VDBLIBDIR} = $_{INST_LIBDIR};
     $_{INST_INCDIR  } = "$OPT{prefix}/include";
     $_{INST_JARDIR  } = "$OPT{prefix}/jar";
     $_{INST_SHAREDIR} = "$OPT{prefix}/share";
 }
-$_{LIB_TARGET   } = expand_path($OPT{libdir       }) if ($OPT{libdir       });
 $_{INST_SHAREDIR} = expand_path($OPT{examplesdir  }) if ($OPT{examplesdir  });
 $_{INST_INCDIR  } = expand_path($OPT{includedir   }) if ($OPT{includedir   });
-$_{INST_JARDIR  } = expand_path($OPT{jardir       }) if ($OPT{jardir   });
+$_{INST_JARDIR  } = expand_path($OPT{jardir       }) if ($OPT{jardir       });
 $oldincludedir    = expand_path($OPT{oldincludedir}) if ($OPT{oldincludedir});
+if ($OPT{libdir}) {
+    $_{INST_NGSLIBDIR} = $_{LIB_TARGET} = expand_path($OPT{libdir}) ;
+    $_{INST_VDBLIBDIR} = $_{LIB_TARGET};
+}
+$_{INST_NGSLIBDIR}= expand_path($OPT{ngslibdir}) if ($OPT{ngslibdir});
+$_{INST_VDBLIBDIR}= expand_path($OPT{vdblibdir}) if ($OPT{vdblibdir});
 
 if ($OPT{'no-create'} && $_{OS} eq 'linux') {
     if ($LINUX_ROOT) {
@@ -160,10 +174,10 @@ foreach (@bits) {
     $bFailure = 0;
 
     if ($OPT{'no-create'}) {
+        print     "includedir : '$_{INST_INCDIR  }'\n" if ($HAVE{INCLUDES  });
         print     "libdir     : '$_{INST_LIBDIR}$_{BITS}'\n" if ($HAVE{LIBS});
-        print     "includedir : '$_{INST_INCDIR  }'\n" if ($HAVE{INCLUDES});
-        print     "jardir     : '$_{INST_JARDIR  }'\n" if ($HAVE{JAR });
-        print     "examplesdir: '$_{INST_SHAREDIR}'\n";
+        print     "jardir     : '$_{INST_JARDIR  }'\n" if ($HAVE{JAR       });
+        print     "examplesdir: '$_{INST_SHAREDIR}'\n" if ($HAVE{EXAMPLES  });;
         if ($LINUX_ROOT) {
             print "oldincludedir: '$oldincludedir'\n"  if ($HAVE{USR_INCLUDES});
         }
@@ -219,9 +233,14 @@ sub copylibs {
 
     my %d;
     if ($HAVE{TWO_LIBS}) {
-        my ($ngs, $vdb);
-        $ngs = expand_path($OPT{ngslibdir}) if ($OPT{ngslibdir});
-        $vdb = expand_path($OPT{vdblibdir}) if ($OPT{vdblibdir});
+        my $ngs = $_{INST_NGSLIBDIR};
+        if ($ngs && ! ($OPT{prefix} && $OPT{libdir} && $OPT{ngslibdir})) {
+            $ngs .= $_{BITS};
+        }
+        my $vdb = $_{INST_VDBLIBDIR};
+        if ($vdb && ! ($OPT{prefix} && $OPT{libdir} && $OPT{vdblibdir})) {
+            $vdb .= $_{BITS};
+        }
         if ($ngs || $vdb) {
             unless ($ngs && $vdb) {
                 $ngs = $d unless ($ngs);
@@ -262,8 +281,7 @@ sub copybldlibs {
 
     my $failures = 0;
 
-    my %LIBRARIES_TO_INSTALL =
-        ('ngs-sdk' => 'SHL', 'ngs-c++' => 'LIB', 'ngs-adapt-c++' => 'LIB');
+    my %LIBRARIES_TO_INSTALL = LIBS();
     foreach (keys %LIBRARIES_TO_INSTALL) {
         print "installing '$_'... ";
 
@@ -427,7 +445,7 @@ sub copydir {
 sub copyincludes {
     print "installing includes to $_{INST_INCDIR}... ";
 
-    my $s = "$_{INCDIR}/ngs";
+    my $s = "$_{INCDIR}/" . INCLUDES();
     unless (-e $s) {
         print "\tfailure\n";
         print "install: error: '$s' is not found.\n";
@@ -438,7 +456,7 @@ sub copyincludes {
         print "\n\t\tmkdir -p $_{INST_INCDIR}" if ($OPT{debug});
         eval { make_path($_{INST_INCDIR}) };
         if ($@) {
-            print "\tfailure\ninstall: error: cannot mkdir $_{INST_INCDIR}";
+            print "\tfailure\ninstall: error: cannot mkdir $_{INST_INCDIR}\n";
             return 1;
         }
     }
@@ -547,7 +565,7 @@ sub copydocs {
         print "mkdir -p $d... ";
         eval { make_path($d) };
         if ($@) {
-            print "failure\ninstall: error: cannot mkdir $d";
+            print "failure\ninstall: error: cannot mkdir $d\n";
             return 1;
         } else {
             print "success\n";
@@ -598,7 +616,7 @@ sub copyexamples {
             print "mkdir -p $d... ";
             eval { make_path($d) };
             if ($@) {
-                print "failure\ninstall: error: cannot mkdir $d";
+                print "failure\ninstall: error: cannot mkdir $d\n";
                 ++$failures;
             } else {
                 print "success\n";
@@ -665,7 +683,7 @@ sub finishinstall {
     if ($HAVE{PYTHON}) {
         chdir "$Bin/.." or die "cannot cd '$Bin/..'";
         my $cmd = "python setup.py install";
-        $cmd .= ' --user' unless (linux_root($_{OS}));
+        $cmd .= ' --user' unless (linux_root());
         print `$cmd`;
         if ($?) {
             ++$failures;
@@ -688,10 +706,10 @@ EndText
                 print "install: error: '$oldincludedir' does not exist\n";
                 ++$failures;
             } else {
-                my $INCLUDE_SYMLINK = "$oldincludedir/ngs";
+                my $INCLUDE_SYMLINK = "$oldincludedir/" . INCLUDES();
                 print "updating $INCLUDE_SYMLINK... ";
                 unlink $INCLUDE_SYMLINK;
-                my $o = "$_{INST_INCDIR}/ngs";
+                my $o = "$_{INST_INCDIR}/" . INCLUDES();
                 unless (symlink $o, $INCLUDE_SYMLINK) {
                     print "failure\n";
                     print "install: error: "
@@ -704,8 +722,7 @@ EndText
         }
 
         my $profile = "$ROOT/etc/profile.d";
-        my $PROFILE_FILE = "$profile/ngs-sdk";
-        $PROFILE_FILE = "$profile/ngs-java" if ($HAVE{JAR});
+        my $PROFILE_FILE = "$profile/" . lc(PACKAGE_NAME());
         unless (-e $profile) {
             print "install: error: '$profile' does not exist\n";
             ++$failures;
@@ -724,12 +741,16 @@ EndText
 if ! echo \$LD_LIBRARY_PATH | /bin/grep -q $_{LIB_TARGET}
 then export LD_LIBRARY_PATH=$_{LIB_TARGET}:\$LD_LIBRARY_PATH
 fi
-export NGS_LIBDIR=$_{LIB_TARGET}
-
 EndText
+                    if (PACKAGE_NAME() eq 'NGS-SDK') {
+                        print F "\nexport NGS_LIBDIR=$_{LIB_TARGET}\n";
+                    } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                        print F "\nexport NGS_BAM_LIBDIR=$_{LIB_TARGET}\n";
+                    }
                 }
                 if ($HAVE{JAR}) {
                     print F <<EndText;
+
 #version $_{VERSION}
 if ! echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
 then export CLASSPATH=$_{JAR_TARGET}:\$CLASSPATH
@@ -756,12 +777,16 @@ EndText
 #version $_{VERSION}
 echo \$LD_LIBRARY_PATH | /bin/grep -q $_{LIB_TARGET}
 if ( \$status ) setenv LD_LIBRARY_PATH $_{LIB_TARGET}:\$LD_LIBRARY_PATH
-setenv NGS_LIBDIR $_{LIB_TARGET}
-
 EndText
-                }
-                if ($HAVE{JAR}) {
+            }
+            if (PACKAGE_NAME() eq 'NGS-SDK') {
+                print F "\nsetenv NGS_LIBDIR $_{LIB_TARGET}\n";
+            } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                print F "\nsetenv NGS_BAM_LIBDIR $_{LIB_TARGET}\n";
+            }
+            if ($HAVE{JAR}) {
                 print F <<EndText;
+
 #version $_{VERSION}
 echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
 if ( \$status ) setenv CLASSPATH $_{JAR_TARGET}:\$CLASSPATH
@@ -780,8 +805,14 @@ EndText
             print "success\n";
 
             if ($HAVE{LIBS}) {
-                print "\nUse \$NGS_LIBDIR in your link commands, e.g.:\n";
-                print "      ld -L\$NGS_LIBDIR -lngs-sdk ...\n";
+                if (PACKAGE_NAME() eq 'NGS-SDK') {
+                    print "\nUse \$NGS_LIBDIR in your link commands, e.g.:\n";
+                    print "      ld -L\$NGS_LIBDIR -lngs-sdk ...\n";
+                } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                    print "\n";
+                    print "Use \$NGS_BAM_LIBDIR in your link commands, e.g.:\n";
+                    print "      ld -L\$NGS_BAM_LIBDIR -lngs-sdk ...\n";
+                }
             }
         }
     } else {
@@ -950,6 +981,8 @@ sub prepare {
     } else {
         my $a = $Config{archname64};
         $_ = lc PACKAGE_NAME();
+        my $root = '';
+        $root = "$ENV{HOME}/" if ($OPT{root});
         my $code = 
             'sub CONFIGURE { ' .
             '   $_{OS           } = $OS; ' .
@@ -961,7 +994,7 @@ sub prepare {
             '   $_{VERSION_LIBX } = "a.1.0.0"; ' .
             '   $_{SHLX         } = "so"; ' .
             '   $_{OTHER_PREFIX } = \'$HOME/ngs/' . $_ . '\'; ' .
-            '   $_{PREFIX       } = "/usr/local/ngs/' . $_ . '"; ' .
+            '   $_{PREFIX       } = "' . "$root/usr/local/ngs/$_" . '"; ' .
             '   $_{INST_INCDIR  } = "$_{PREFIX}/include"; ' .
             '   $_{INST_LIBDIR  } = "$_{PREFIX}/lib"; ' .
             '   $_{INST_JARDIR  } = "$_{PREFIX}/jar"; ' .
@@ -969,7 +1002,11 @@ sub prepare {
             '   $_{INCDIR       } = "$Bin/../include"; ' .
             '   $_{LIBDIR64     } = "$Bin/../lib64"; ' .
             '   $_{LIBDIR32     } = "$Bin/../lib32"; ';
-
+        if ($HAVE{TWO_LIBS}) {
+            $code .=
+               '$_{INST_NGSLIBDIR} = "' . "$root/usr/local/ngs/ngs-sdk/lib\";"
+             . '$_{INST_VDBLIBDIR} = "' . "$root/usr/local/ncbi/ncbi-vdb/lib\";"
+        }
         $code .= ' $_{PACKAGE_NAME} = "' . PACKAGE_NAME() . '"; ';
 
         if (defined $Config{archname64}) {
@@ -992,7 +1029,7 @@ sub prepare {
     }
 }
 
-sub linux_root { $_[0] eq 'linux' && `id -u` == 0 }
+sub linux_root { $^O eq 'linux' && `id -u` == 0 }
 
 sub fatal_config {
     if ($OPT{debug}) {

@@ -10,7 +10,7 @@ use File::Path   "make_path";
 use FindBin    qw($Bin);
 use Getopt::Long "GetOptions";
 
-my ($OS, $MAKING);
+my ($OS, $MAKING, %INSTALLED_LIBS);
 {
     my $file = 'os.prl';
     if (-e $file) {
@@ -26,12 +26,13 @@ if ($HAVE{LIBS}) {
     ++$HAVE{INCLUDES};
     LIBS();
 }
-INCLUDES() if ($HAVE{INCLUDES});
-INCLUDES() if ($HAVE{USR_INCLUDES});
+if ($HAVE{INCLUDES} || $HAVE{USR_INCLUDES}) {
+    die "no INCLUDES" unless INCLUDES();
+}
 
 my @bits;
 my @options = ( 'debug', 'examplesdir=s', 'force', 'help',
-                'includedir=s', 'no-create', 'prefix=s', 'root', );
+                'includedir=s', 'no-create', 'prefix=s', 'root=s', );
 push @options, 'oldincludedir=s' if ($HAVE{USR_INCLUDES});
 if ($HAVE{JAR}) {
     push @options, 'jardir=s';
@@ -70,16 +71,27 @@ if ($#bits > 0) {
     }
 }
 
+$OPT{root} = expand_path($OPT{root}) if ($OPT{root});
+
 prepare();
 
 my $LINUX_ROOT;
 ++$LINUX_ROOT if (linux_root());
 my $ROOT = '';
 if ($OPT{root}) {
-    $ROOT = "$ENV{HOME}/" . lc(PACKAGE_NAME()) . "/root";
+    $ROOT = "$OPT{root}/root";
     ++$LINUX_ROOT;
-    die "no $ROOT/usr/include  " unless (-e "$ROOT/usr/include"  );
-    die "no $ROOT/etc/profile.d" unless (-e "$ROOT/etc/profile.d");
+    foreach ("$ROOT/usr/include", "$ROOT/etc/profile.d") {
+        unless (-e $_) {
+            print "mkdir -p $_ ...";
+            eval { make_path($_) };
+            if ($@) {
+                print "failure: $@\n";
+                exit 1;
+            }
+            print "ok\n";
+        }
+    }
 }
 
 my $oldincludedir = "$ROOT/usr/include";
@@ -231,7 +243,6 @@ sub copylibs {
         return 1;
     }
 
-    my %d;
     if ($HAVE{TWO_LIBS}) {
         my $ngs = $_{INST_NGSLIBDIR};
         if ($ngs && ! ($OPT{prefix} && $OPT{libdir} && $OPT{ngslibdir})) {
@@ -246,14 +257,14 @@ sub copylibs {
                 $ngs = $d unless ($ngs);
                 $vdb = $d unless ($vdb);
             }
-            $d{'ngs-sdk' } = $ngs;
-            $d{'ncbi-vdb'} = $vdb;
+            $INSTALLED_LIBS{'ngs-sdk' } = $ngs;
+            $INSTALLED_LIBS{'ncbi-vdb'} = $vdb;
         }
     }
-    $d{0} = $d unless (%d);
+    $INSTALLED_LIBS{0} = $d unless (%INSTALLED_LIBS);
 
-    foreach (keys %d) {
-        my $d = $d{$_};
+    foreach (keys %INSTALLED_LIBS) {
+        my $d = $INSTALLED_LIBS{$_};
         print "\nchecking $d... ";
         unless (-e $d) {
             print "not found\n";
@@ -270,7 +281,7 @@ sub copylibs {
         }
     }
 
-    return $MAKING ? copybldlibs($s, $d) : copydir($s, %d);
+    return $MAKING ? copybldlibs($s, $d) : copydir($s, %INSTALLED_LIBS);
 }
 
 sub copybldlibs {
@@ -680,6 +691,20 @@ sub finishinstall {
 
     $_{JAR_TARGET} = "$_{INST_JARDIR}/ngs-java.jar";
 
+    my @libs;
+    if (%INSTALLED_LIBS) {
+        my %libs;
+        ++$libs{$INSTALLED_LIBS{$_}} foreach (keys %INSTALLED_LIBS);
+        push @libs, $_ foreach (keys %libs);
+    } else {
+        push @libs, $_{LIB_TARGET};
+    }
+    my $libs;
+    foreach (@libs) {
+        $libs .= ":" if ($libs);
+        $libs .= $_;
+    }
+
     if ($HAVE{PYTHON}) {
         chdir "$Bin/.." or die "cannot cd '$Bin/..'";
         my $cmd = "python setup.py install";
@@ -688,16 +713,16 @@ sub finishinstall {
         if ($?) {
             ++$failures;
         } else {
-            if ($HAVE{LIBS}) {
-                $_ = $_{LIB_TARGET};
+            unless ($libs) {
+                print "internal python failure\n";
+                ++$failures;
             } else {
-                $_ = $_{LIBDIR};
-            }
-            print <<EndText;
-Please add $_ to your LD_LIBRARY_PATH, e.g.:
-      export LD_LIBRARY_PATH=$_:\$LD_LIBRARY_PATH
+                print <<EndText;
+Please add $libs to your LD_LIBRARY_PATH, e.g.:
+      export LD_LIBRARY_PATH=$libs:\$LD_LIBRARY_PATH
 EndText
-      }
+            }
+        }
     } elsif ($LINUX_ROOT) {
         print "\t\tlinux root\n" if ($OPT{debug});
 
@@ -736,21 +761,28 @@ EndText
                 ++$failures;
             } else {
                 if ($HAVE{LIBS}) {
-                    print F <<EndText;
-#version $_{VERSION}
-if ! echo \$LD_LIBRARY_PATH | /bin/grep -q $_{LIB_TARGET}
-then export LD_LIBRARY_PATH=$_{LIB_TARGET}:\$LD_LIBRARY_PATH
+                    unless (@libs) {
+                        print "internal root libraries failure\n";
+                        ++$failures;
+                    } else {
+                        print F "#version $_{VERSION}\n";
+                        foreach (@libs) {
+                            print F <<EndText;
+if ! echo \$LD_LIBRARY_PATH | /bin/grep -q $_
+then export LD_LIBRARY_PATH=$_:\$LD_LIBRARY_PATH
 fi
+
 EndText
-                    if (PACKAGE_NAME() eq 'NGS-SDK') {
-                        print F "\nexport NGS_LIBDIR=$_{LIB_TARGET}\n";
-                    } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
-                        print F "\nexport NGS_BAM_LIBDIR=$_{LIB_TARGET}\n";
+                        }
+                        if (PACKAGE_NAME() eq 'NGS-SDK') {
+                            print F "export NGS_LIBDIR=$_{LIB_TARGET}\n";
+                        } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                            print F "\nexport NGS_BAM_LIBDIR=$_{LIB_TARGET}\n";
+                        }
                     }
                 }
                 if ($HAVE{JAR}) {
                     print F <<EndText;
-
 #version $_{VERSION}
 if ! echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
 then export CLASSPATH=$_{JAR_TARGET}:\$CLASSPATH
@@ -773,20 +805,25 @@ EndText
             ++$failures;
         } else {
             if ($HAVE{LIBS}) {
-                print F <<EndText;
-#version $_{VERSION}
-echo \$LD_LIBRARY_PATH | /bin/grep -q $_{LIB_TARGET}
-if ( \$status ) setenv LD_LIBRARY_PATH $_{LIB_TARGET}:\$LD_LIBRARY_PATH
+                unless ($libs) {
+                    print "internal libraries failure\n";
+                    ++$failures;
+                } else {
+                    print F "#version $_{VERSION}\n";
+                    print F <<EndText;
+echo \$LD_LIBRARY_PATH | /bin/grep -q $libs
+if ( \$status ) setenv LD_LIBRARY_PATH $libs:\$LD_LIBRARY_PATH
+
 EndText
-            }
-            if (PACKAGE_NAME() eq 'NGS-SDK') {
-                print F "\nsetenv NGS_LIBDIR $_{LIB_TARGET}\n";
-            } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
-                print F "\nsetenv NGS_BAM_LIBDIR $_{LIB_TARGET}\n";
+                }
+                if (PACKAGE_NAME() eq 'NGS-SDK') {
+                    print F "setenv NGS_LIBDIR $_{LIB_TARGET}\n";
+                } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                    print F "setenv NGS_BAM_LIBDIR $_{LIB_TARGET}\n";
+                }
             }
             if ($HAVE{JAR}) {
                 print F <<EndText;
-
 #version $_{VERSION}
 echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
 if ( \$status ) setenv CLASSPATH $_{JAR_TARGET}:\$CLASSPATH
@@ -818,14 +855,19 @@ EndText
     } else {
         print "\t\tnot linux root\n" if ($OPT{debug});
         if ($HAVE{LIBS}) {
-            print <<EndText;
+            unless ($libs) {
+                print "internal libraries failure\n";
+                ++$failures;
+            } else {
+                print <<EndText;
 
-Please add $_{LIB_TARGET} to your LD_LIBRARY_PATH, e.g.:
-      export LD_LIBRARY_PATH=$_{LIB_TARGET}:\$LD_LIBRARY_PATH
-Use $_{LIB_TARGET} in your link commands, e.g.:
-      export NGS_LIBDIR=$_{LIB_TARGET}
+Please add $libs to your LD_LIBRARY_PATH, e.g.:
+      export LD_LIBRARY_PATH=$libs:\$LD_LIBRARY_PATH
+Use $libs in your link commands, e.g.:
+      export NGS_LIBDIR=$libs
       ld -L\$NGS_LIBDIR -lngs-sdk ...
 EndText
+            }
         }
         if ($HAVE{JAR}) {
             print <<EndText;
@@ -982,7 +1024,7 @@ sub prepare {
         my $a = $Config{archname64};
         $_ = lc PACKAGE_NAME();
         my $root = '';
-        $root = "$ENV{HOME}/" if ($OPT{root});
+        $root = $OPT{root} if ($OPT{root});
         my $code = 
             'sub CONFIGURE { ' .
             '   $_{OS           } = $OS; ' .

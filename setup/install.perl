@@ -10,13 +10,28 @@ use File::Path   "make_path";
 use FindBin    qw($Bin);
 use Getopt::Long "GetOptions";
 
+my ($OS, $MAKING);
+{
+    my $file = 'os.prl';
+    if (-e $file) {
+        require $file;
+        $OS = OS();
+    } else {
+        ++$MAKING;
+    }
+}
+
 my %HAVE = HAVE();
-++$HAVE{INCLUDES} if ($HAVE{LIBS});
-++$HAVE{USR_INCLUDES} if ($HAVE{INCLUDES} && PACKAGE_NAME() eq 'NGS-SDK');
+if ($HAVE{LIBS}) {
+    ++$HAVE{INCLUDES};
+    LIBS();
+}
+INCLUDES() if ($HAVE{INCLUDES});
+INCLUDES() if ($HAVE{USR_INCLUDES});
 
 my @bits;
-my @options = ('debug', 'examplesdir=s', 'force', 'help',
-               'includedir=s', 'no-create', 'prefix=s');
+my @options = ( 'debug', 'examplesdir=s', 'force', 'help',
+                'includedir=s', 'no-create', 'prefix=s', 'root', );
 push @options, 'oldincludedir=s' if ($HAVE{USR_INCLUDES});
 if ($HAVE{JAR}) {
     push @options, 'jardir=s';
@@ -24,8 +39,12 @@ if ($HAVE{JAR}) {
         ++$HAVE{LIBS};
         $_{JARDIR} = expand_path("$Bin/../jar");
     }
-} elsif ($HAVE{PYTHON} && -e "$Bin/../lib64") {
+} elsif ($HAVE{PYTHON} && ! $MAKING) {
     ++$HAVE{LIBS};
+}
+if (! $MAKING && ($HAVE{JAR} || $HAVE{PYTHON})) {
+    ++$HAVE{TWO_LIBS};
+    push @options, 'ngslibdir=s', 'vdblibdir=s';
 }
 push @options, 'bits=s' => \@bits, 'libdir=s' if ($HAVE{LIBS});
 
@@ -41,68 +60,74 @@ foreach (@bits) {
         exit 1;
     }
 }
-if ($#bits > 0 && $OPT{libdir}) {
-    print "install: error: cannot supply multiple bits arguments "
-        . "when libdir argument is provided\n";
-    exit 1;
-}
-
-my $OS;
-{
-    my $file = 'os.prl';
-    if (-e $file) {
-        require $file;
-        $OS = OS();
-    } else {
-        ++$OPT{making};
+if ($#bits > 0) {
+    foreach (qw(bindir libdir ngslibdir vdblibdir)) {
+        if ($OPT{$_}) {
+            print "install: error: cannot supply multiple bits arguments "
+                . "when $_ argument is provided\n";
+            exit 1;
+        }
     }
 }
 
 prepare();
 
-@_ = CONFIGURE();
-
-foreach (qw(BITS INCDIR INST_INCDIR INST_JARDIR INST_LIBDIR INST_SHAREDIR
-            LIBX LPFX MAJVERS MAJVERS_SHLX OS OTHER_PREFIX
-            PACKAGE_NAME PREFIX SHLX VERSION VERSION_LIBX VERSION_SHLX))
-{
-    unless ($_{$_}) {
-        next if (/^INST_JARDIR$/ && ! $HAVE{JAR});
-        fatal_config("$_ not found");
-    }
-}
-unless ($_{LIBDIR32} || $_{LIBDIR64} || ($HAVE{PYTHON} && $OPT{making})) {
-    fatal_config('LIBDIR not found');
-}
- 
 my $LINUX_ROOT;
-if ($_{OS} eq 'linux' && `id -u` == 0) {
-    ++$LINUX_ROOT;
-}
+++$LINUX_ROOT if (linux_root());
 my $ROOT = '';
-#$ROOT = "$ENV{HOME}/ROOT"; ++$LINUX_ROOT;
+if ($OPT{root}) {
+    $ROOT = "$ENV{HOME}/" . lc(PACKAGE_NAME()) . "/root";
+    ++$LINUX_ROOT;
+    die "no $ROOT/usr/include  " unless (-e "$ROOT/usr/include"  );
+    die "no $ROOT/etc/profile.d" unless (-e "$ROOT/etc/profile.d");
+}
+
 my $oldincludedir = "$ROOT/usr/include";
 
 my $EXAMPLES_DIR = "$Bin/../examples";
+
+@_ = CONFIGURE();
 
 if ($OPT{help}) {
     help();
     exit 0;
 }
 
+foreach (qw(BITS INCDIR
+ INST_INCDIR INST_JARDIR INST_LIBDIR INST_NGSLIBDIR INST_SHAREDIR INST_VDBLIBDIR
+ LIBX LPFX MAJVERS MAJVERS_SHLX OS OTHER_PREFIX
+ PACKAGE_NAME PREFIX SHLX VERSION VERSION_LIBX VERSION_SHLX))
+{
+    unless ($_{$_}) {
+        next if (/^INST_JARDIR$/    && ! $HAVE{JAR});
+        next if (/^INST_NGSLIBDIR$/ && ! $HAVE{TWO_LIBS});
+        next if (/^INST_SHAREDIR$/  && ! $HAVE{EXAMPLES});
+        next if (/^INST_VDBLIBDIR$/ && ! $HAVE{TWO_LIBS});
+        fatal_config("$_ not found");
+    }
+}
+unless ($_{LIBDIR32} || $_{LIBDIR64} || ($HAVE{PYTHON} && $MAKING)) {
+    fatal_config('LIBDIR not found');
+}
+ 
 if ($OPT{prefix}) {
     $OPT{prefix} = expand_path($OPT{prefix});
     $_{INST_LIBDIR  } = "$OPT{prefix}/lib";
+    $_{INST_NGSLIBDIR} = $_{INST_VDBLIBDIR} = $_{INST_LIBDIR};
     $_{INST_INCDIR  } = "$OPT{prefix}/include";
     $_{INST_JARDIR  } = "$OPT{prefix}/jar";
     $_{INST_SHAREDIR} = "$OPT{prefix}/share";
 }
-$_{LIB_TARGET   } = expand_path($OPT{libdir       }) if ($OPT{libdir       });
 $_{INST_SHAREDIR} = expand_path($OPT{examplesdir  }) if ($OPT{examplesdir  });
 $_{INST_INCDIR  } = expand_path($OPT{includedir   }) if ($OPT{includedir   });
-$_{INST_JARDIR  } = expand_path($OPT{jardir       }) if ($OPT{jardir   });
+$_{INST_JARDIR  } = expand_path($OPT{jardir       }) if ($OPT{jardir       });
 $oldincludedir    = expand_path($OPT{oldincludedir}) if ($OPT{oldincludedir});
-$_{JAR_TARGET   } = "$_{INST_JARDIR}/ngs-java.jar";
+if ($OPT{libdir}) {
+    $_{INST_NGSLIBDIR} = $_{LIB_TARGET} = expand_path($OPT{libdir}) ;
+    $_{INST_VDBLIBDIR} = $_{LIB_TARGET};
+}
+$_{INST_NGSLIBDIR}= expand_path($OPT{ngslibdir}) if ($OPT{ngslibdir});
+$_{INST_VDBLIBDIR}= expand_path($OPT{vdblibdir}) if ($OPT{vdblibdir});
 
 if ($OPT{'no-create'} && $_{OS} eq 'linux') {
     if ($LINUX_ROOT) {
@@ -124,6 +149,8 @@ foreach (@bits) {
     print "...\n";
 
     if ($HAVE{LIBS} || $HAVE{PYTHON}) {
+# ($_{LIBDIR} for python points where ngs-sdk and ncbi-vdb dynamic libraries
+# can be found to correctly set up LD_LIBRARY_PATH
         $_{LIBDIR} = $_{"LIBDIR$_{BITS}"};
         unless ($_{LIBDIR}) {
             print "install: error: $_{BITS}-bit version is not available\n\n";
@@ -147,10 +174,10 @@ foreach (@bits) {
     $bFailure = 0;
 
     if ($OPT{'no-create'}) {
+        print     "includedir : '$_{INST_INCDIR  }'\n" if ($HAVE{INCLUDES  });
         print     "libdir     : '$_{INST_LIBDIR}$_{BITS}'\n" if ($HAVE{LIBS});
-        print     "includedir : '$_{INST_INCDIR  }'\n" if ($HAVE{INCLUDES});
-        print     "jardir     : '$_{INST_JARDIR  }'\n" if ($HAVE{JAR });
-        print     "examplesdir: '$_{INST_SHAREDIR}'\n";
+        print     "jardir     : '$_{INST_JARDIR  }'\n" if ($HAVE{JAR       });
+        print     "examplesdir: '$_{INST_SHAREDIR}'\n" if ($HAVE{EXAMPLES  });;
         if ($LINUX_ROOT) {
             print "oldincludedir: '$oldincludedir'\n"  if ($HAVE{USR_INCLUDES});
         }
@@ -173,7 +200,6 @@ foreach (@bits) {
     }
 
     $failures += copyexamples();
-    $File::Copy::Recursive::CPRFComp = 1; # could be reset in copyexamples
     $failures += finishinstall() unless ($failures);
 
     unless ($failures) {
@@ -192,6 +218,8 @@ exit $failures;
 ################################################################################
 
 sub copylibs {
+    die unless ($HAVE{LIBS});
+
     my $s = $_{LIBDIR};
     my $d = $_{LIB_TARGET};
 
@@ -203,32 +231,57 @@ sub copylibs {
         return 1;
     }
 
-    print "\nchecking $d... ";
-    unless (-e $d) {
-        print "not found\n";
-        print "mkdir -p $d... ";
-        eval { make_path($d) };
-        if ($@) {
-            print "failure\ninstall: error: cannot mkdir $d\n";
-            return 1;
-        } else {
-            print "success\n";
+    my %d;
+    if ($HAVE{TWO_LIBS}) {
+        my $ngs = $_{INST_NGSLIBDIR};
+        if ($ngs && ! ($OPT{prefix} && $OPT{libdir} && $OPT{ngslibdir})) {
+            $ngs .= $_{BITS};
         }
-    } else {
-        print "exists\n";
+        my $vdb = $_{INST_VDBLIBDIR};
+        if ($vdb && ! ($OPT{prefix} && $OPT{libdir} && $OPT{vdblibdir})) {
+            $vdb .= $_{BITS};
+        }
+        if ($ngs || $vdb) {
+            unless ($ngs && $vdb) {
+                $ngs = $d unless ($ngs);
+                $vdb = $d unless ($vdb);
+            }
+            $d{'ngs-sdk' } = $ngs;
+            $d{'ncbi-vdb'} = $vdb;
+        }
     }
+    $d{0} = $d unless (%d);
+
+    foreach (keys %d) {
+        my $d = $d{$_};
+        print "\nchecking $d... ";
+        unless (-e $d) {
+            print "not found\n";
+            print "mkdir -p $d... ";
+            eval { make_path($d) };
+            if ($@) {
+                print "failure\ninstall: error: cannot mkdir $d\n";
+                return 1;
+            } else {
+                print "success\n";
+            }
+        } else {
+            print "exists\n";
+        }
+    }
+
+    return $MAKING ? copybldlibs($s, $d) : copydir($s, %d);
+}
+
+sub copybldlibs {
+    my ($s, $d) = @_;
 
     print "\t\tcd $d\n" if ($OPT{debug});
     chdir $d or die "cannot cd $d";
 
-    return $OPT{making} ? copybldlibs() : copydir($_{LIBDIR});
-}
-
-sub copybldlibs {
     my $failures = 0;
 
-    my %LIBRARIES_TO_INSTALL =
-        ('ngs-sdk' => 'SHL', 'ngs-c++' => 'LIB', 'ngs-adapt-c++' => 'LIB');
+    my %LIBRARIES_TO_INSTALL = LIBS();
     foreach (keys %LIBRARIES_TO_INSTALL) {
         print "installing '$_'... ";
 
@@ -244,33 +297,33 @@ sub copybldlibs {
             die "bad library type";
         }
 
-        my $s = "$_{LIBDIR}/$nv";
-        my $d = "$_{LIB_TARGET}/$nv";
+        my $sf = "$s/$nv";
+        my $df = "$d/$nv";
 
-        print "\n\t\t$s -> $d\n\t" if ($OPT{debug});
+        print "\n\t\t$sf -> $df\n\t" if ($OPT{debug});
 
-        unless (-e $s) {
+        unless (-e $sf) {
             print "failure\n";
-            print "install: error: '$s' is not found.\n";
+            print "install: error: '$sf' is not found.\n";
             ++$failures;
             next;
         }
 
-        if ((! $OPT{force}) && (-e $d) && (-M $d < -M $s)) {
+        if ((! $OPT{force}) && (-e $df) && (-M $df < -M $sf)) {
             print "found\n";
         } else {
-            unless (copy($s, $d)) {
+            unless (copy($sf, $df)) {
                 print "failure\n";
-                print "install: error: cannot copy '$s' '$d'.\n";
+                print "install: error: cannot copy '$sf' '$df'.\n";
                 ++$failures;
                 next;
             }
             my $mode = 0644;
             $mode = 0755 if ($lib eq 'dll');
-            printf "\tchmod %o $d\n\t", $mode if ($OPT{debug});
-            unless (chmod($mode, $d)) {
+            printf "\tchmod %o $df\n\t", $mode if ($OPT{debug});
+            unless (chmod($mode, $df)) {
                 print "failure\n";
-                print "install: error: cannot chmod '$d': $!\n";
+                print "install: error: cannot chmod '$df': $!\n";
                 ++$failures;
                 next;
             }
@@ -282,13 +335,13 @@ sub copybldlibs {
             }
         }
     }
-    
+
     return $failures;
 }
 
 sub symlinks {
     my ($nb, $nv, $lib) = @_;
- 
+
     my @l;
     if ($lib eq 'lib') {
         push @l, "$nb-static.$_{LIBX}";
@@ -305,9 +358,9 @@ sub symlinks {
         print "install: error: unknown symlink type '$lib'\n";
         return 1;
     }
- 
+
     my $failures = 0;
- 
+
     for (my $i = 0; $i <= $#l; ++$i) {
         my $file = $l[$i];
         if (-e $file) {
@@ -319,10 +372,10 @@ sub symlinks {
                 next;
             }
         }
- 
+
         my $o = $nv;
         $o = $l[$i + 1] if ($i < $#l);
- 
+
         print "\tln -s $o $file\n\t" if ($OPT{debug});
         unless (symlink $o, $file) {
             print "failure\n";
@@ -336,49 +389,55 @@ sub symlinks {
 }
 
 sub copydir {
-    my ($s) = @_;
+    my ($s, %d) = @_;
 
     my $failures = 0;
 
-    opendir(D, $s) or die "cannot opendir $s: $!";
+    foreach my $pattern(keys %d) {
+        my $d = $d{$pattern};
+        print "\t\tcd $d\n" if ($OPT{debug});
+        chdir $d or die "cannot cd $d";
 
-    while (readdir D) {
-        next if (/^\.{1,2}$/);
+        opendir(D, $s) or die "cannot opendir $s: $!";
 
-        my $n = "$s/$_";
+        while (readdir D) {
+            next if (/^\.{1,2}$/);
+            next if ($pattern && ! /$pattern/);
 
-        if (-l $n) {
-            print "\t\t$_ (symlink)... " if ($OPT{debug});
-            my $l = readlink $n;
-            if ((-e $_) && (!unlink $_)) {
-                print "error: cannot remove $l: $!\n";
-                ++$failures;
-                next;
+            my $n = "$s/$_";
+
+            if (-l $n) {
+                print "\t\t$_ (symlink)... " if ($OPT{debug});
+                my $l = readlink $n;
+                if ((-e $_) && (!unlink $_)) {
+                    print "error: cannot remove $l: $!\n";
+                    ++$failures;
+                    next;
+                }
+                unless (symlink($l, $_)) {
+                    print "error: cannot create symlink from $_ to $l: $!\n";
+                    ++$failures;
+                    next;
+                }
+                print "success\n" if ($OPT{debug});
+            } else {
+                print "\t\t$_... " if ($OPT{debug});
+                if ((-e $_) && (!unlink $_)) {
+                    print "error: cannot remove $_: $!\n";
+                    ++$failures;
+                    next;
+                }
+                unless (copy($n, $_)) {
+                    print "error: cannot copy '$n' to '$_': $!\n";
+                    ++$failures;
+                    next;
+                }
+                print "success\n" if ($OPT{debug});
             }
-            unless (symlink($l, $_)) {
-                print
-                    "error: cannot create symlink from $_ to $l: $!\n";
-                ++$failures;
-                next;
-            }
-            print "success\n" if ($OPT{debug});
-        } else {
-            print "\t\t$_... " if ($OPT{debug});
-            if ((-e $_) && (!unlink $_)) {
-                print "error: cannot remove $_: $!\n";
-                ++$failures;
-                next;
-            }
-            unless (copy($n, $_)) {
-                print "error: cannot copy '$n' to '$_': $!\n";
-                ++$failures;
-                next;
-            }
-            print "success\n" if ($OPT{debug});
         }
-    }
 
-    closedir D;
+        closedir D;
+    }
 
     return $failures;
 }
@@ -386,7 +445,7 @@ sub copydir {
 sub copyincludes {
     print "installing includes to $_{INST_INCDIR}... ";
 
-    my $s = "$_{INCDIR}/ngs";
+    my $s = "$_{INCDIR}/" . INCLUDES();
     unless (-e $s) {
         print "\tfailure\n";
         print "install: error: '$s' is not found.\n";
@@ -397,7 +456,7 @@ sub copyincludes {
         print "\n\t\tmkdir -p $_{INST_INCDIR}" if ($OPT{debug});
         eval { make_path($_{INST_INCDIR}) };
         if ($@) {
-            print "\tfailure\ninstall: error: cannot mkdir $_{INST_INCDIR}";
+            print "\tfailure\ninstall: error: cannot mkdir $_{INST_INCDIR}\n";
             return 1;
         }
     }
@@ -440,13 +499,10 @@ sub copyjars {
         print "exists\n";
     }
 
-    print "\t\tcd $d\n" if ($OPT{debug});
-    chdir $d or die "cannot cd $d";
-
-    return $OPT{making} ? copybldjars($s, $d) : copydir($s);
+    return $MAKING ? copybldjars($s, $d) : copydir($s, 0 => $d);
 }
 
-sub copybldjars{
+sub copybldjars {
     my ($s, $d) = @_;
     my $n = 'ngs-java.jar';
     $s .= "/$n";
@@ -492,7 +548,7 @@ sub copybldjars{
 
 sub copydocs {
     my $s = "$_{JARDIR}/javadoc";
-    $s = expand_path("$Bin/../doc") unless ($OPT{making});
+    $s = expand_path("$Bin/../doc") unless ($MAKING);
     my $d = "$_{INST_SHAREDIR}/doc";
 
     print "installing html documents to $d... ";
@@ -509,7 +565,7 @@ sub copydocs {
         print "mkdir -p $d... ";
         eval { make_path($d) };
         if ($@) {
-            print "failure\ninstall: error: cannot mkdir $d";
+            print "failure\ninstall: error: cannot mkdir $d\n";
             return 1;
         } else {
             print "success\n";
@@ -529,6 +585,8 @@ sub copydocs {
 }
 
 sub copyexamples {
+    my $failures = 0;
+    my $CPRFComp = $File::Copy::Recursive::CPRFComp;
     my $sd = $EXAMPLES_DIR;
     return 0 unless (-e $sd);
 
@@ -543,68 +601,89 @@ sub copyexamples {
     print "installing examples to $d... ";
 
     my $s = $sd;
-    $s = "$sd/examples" if ($HAVE{JAR} && $OPT{making});
+    $s = "$sd/examples" if ($HAVE{JAR} && $MAKING);
 
     unless (-e $s) {
         print "\tfailure\n";
         print "install: error: '$s' is not found.\n";
-        return 1;
+        ++$failures;
     }
 
-    print "\nchecking $d... ";
-    unless (-e $d) {
-        print "not found\n";
-        print "mkdir -p $d... ";
-        eval { make_path($d) };
-        if ($@) {
-            print "failure\ninstall: error: cannot mkdir $d";
-            return 1;
+    unless ($failures) {
+        print "\nchecking $d... ";
+        unless (-e $d) {
+            print "not found\n";
+            print "mkdir -p $d... ";
+            eval { make_path($d) };
+            if ($@) {
+                print "failure\ninstall: error: cannot mkdir $d\n";
+                ++$failures;
+            } else {
+                print "success\n";
+            }
         } else {
-            print "success\n";
+            print "exists\n";
         }
-    } else {
-        print "exists\n";
     }
 
-    print "\t\t$s -> $d\n\t" if ($OPT{debug});
-    unless (dircopy($s, $d)) {
-        print "\tfailure\ninstall: error: cannot copy '$s' to '$d'";
-        return 1;
-    }
-
-    if ($HAVE{JAR} && $OPT{making}) {
-        $sd = "$sd/Makefile";
-        $d = "$d/Makefile";
-        print "\t$sd -> $d\n\t" if ($OPT{debug});
-        unless (-e $sd) {
-            print "\tfailure\n";
-            print "install: error: '$sd' is not found.\n";
-            return 1;
-        }
-        if (-e $d) {
-            unless (unlink $d) {
-                print "failure\n";
-                print "install: error: cannot rm '$d': $!\n";
-                return 1;
+    unless ($failures) {
+        print "\t\t$s -> $d\n\t" if ($OPT{debug});
+        if ($HAVE{JAR} && ! $MAKING) {
+            if (copydir($s, 0 => $d)) {
+                ++$failures;
+            }
+        } else {
+            unless (dircopy($s, $d)) {
+                print "\tfailure\ninstall: error: cannot copy '$s' to '$d'";
+                ++$failures;
             }
         }
-        unless (copy($sd, $d)) {
-            print "error: cannot copy '$sd' to '$d': $!\n";
-            return 1;
-        }
     }
 
-    print "success\n";
-    return 0;
+    unless ($failures) {
+        if ($HAVE{JAR} && $MAKING) {
+            $sd = "$sd/Makefile";
+            $d = "$d/Makefile";
+            print "\t$sd -> $d\n\t" if ($OPT{debug});
+            unless (-e $sd) {
+                print "\tfailure\n";
+                print "install: error: '$sd' is not found.\n";
+                ++$failures;
+            }
+            unless ($failures) {
+                if (-e $d) {
+                unless (unlink $d) {
+                    print "failure\n";
+                    print "install: error: cannot rm '$d': $!\n";
+                    ++$failures;
+                }
+            }
+            unless ($failures) {
+                unless (copy($sd, $d)) {
+                    print "error: cannot copy '$sd' to '$d': $!\n";
+                    ++$failures;
+                }
+            }
+        }
+      }
+    }
+
+    print "success\n" unless ($failures);
+
+    $File::Copy::Recursive::CPRFComp = $CPRFComp;
+
+    return $failures;
 }
 
 sub finishinstall {
     my $failures = 0;
 
+    $_{JAR_TARGET} = "$_{INST_JARDIR}/ngs-java.jar";
+
     if ($HAVE{PYTHON}) {
         chdir "$Bin/.." or die "cannot cd '$Bin/..'";
         my $cmd = "python setup.py install";
-        $cmd .= ' --user' unless ($LINUX_ROOT);
+        $cmd .= ' --user' unless (linux_root());
         print `$cmd`;
         if ($?) {
             ++$failures;
@@ -627,10 +706,10 @@ EndText
                 print "install: error: '$oldincludedir' does not exist\n";
                 ++$failures;
             } else {
-                my $INCLUDE_SYMLINK = "$oldincludedir/ngs";
+                my $INCLUDE_SYMLINK = "$oldincludedir/" . INCLUDES();
                 print "updating $INCLUDE_SYMLINK... ";
                 unlink $INCLUDE_SYMLINK;
-                my $o = "$_{INST_INCDIR}/ngs";
+                my $o = "$_{INST_INCDIR}/" . INCLUDES();
                 unless (symlink $o, $INCLUDE_SYMLINK) {
                     print "failure\n";
                     print "install: error: "
@@ -643,8 +722,7 @@ EndText
         }
 
         my $profile = "$ROOT/etc/profile.d";
-        my $PROFILE_FILE = "$profile/ngs-sdk";
-        $PROFILE_FILE = "$profile/ngs-java" if ($HAVE{JAR});
+        my $PROFILE_FILE = "$profile/" . lc(PACKAGE_NAME());
         unless (-e $profile) {
             print "install: error: '$profile' does not exist\n";
             ++$failures;
@@ -663,10 +741,16 @@ EndText
 if ! echo \$LD_LIBRARY_PATH | /bin/grep -q $_{LIB_TARGET}
 then export LD_LIBRARY_PATH=$_{LIB_TARGET}:\$LD_LIBRARY_PATH
 fi
-export NGS_LIBDIR=$_{LIB_TARGET}
 EndText
-                } else {
+                    if (PACKAGE_NAME() eq 'NGS-SDK') {
+                        print F "\nexport NGS_LIBDIR=$_{LIB_TARGET}\n";
+                    } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                        print F "\nexport NGS_BAM_LIBDIR=$_{LIB_TARGET}\n";
+                    }
+                }
+                if ($HAVE{JAR}) {
                     print F <<EndText;
+
 #version $_{VERSION}
 if ! echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
 then export CLASSPATH=$_{JAR_TARGET}:\$CLASSPATH
@@ -693,10 +777,16 @@ EndText
 #version $_{VERSION}
 echo \$LD_LIBRARY_PATH | /bin/grep -q $_{LIB_TARGET}
 if ( \$status ) setenv LD_LIBRARY_PATH $_{LIB_TARGET}:\$LD_LIBRARY_PATH
-setenv NGS_LIBDIR $_{LIB_TARGET}
 EndText
-            } else {
+            }
+            if (PACKAGE_NAME() eq 'NGS-SDK') {
+                print F "\nsetenv NGS_LIBDIR $_{LIB_TARGET}\n";
+            } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                print F "\nsetenv NGS_BAM_LIBDIR $_{LIB_TARGET}\n";
+            }
+            if ($HAVE{JAR}) {
                 print F <<EndText;
+
 #version $_{VERSION}
 echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
 if ( \$status ) setenv CLASSPATH $_{JAR_TARGET}:\$CLASSPATH
@@ -715,8 +805,14 @@ EndText
             print "success\n";
 
             if ($HAVE{LIBS}) {
-                print "\nUse \$NGS_LIBDIR in your link commands, e.g.:\n";
-                print "      ld -L\$NGS_LIBDIR -lngs-sdk ...\n";
+                if (PACKAGE_NAME() eq 'NGS-SDK') {
+                    print "\nUse \$NGS_LIBDIR in your link commands, e.g.:\n";
+                    print "      ld -L\$NGS_LIBDIR -lngs-sdk ...\n";
+                } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                    print "\n";
+                    print "Use \$NGS_BAM_LIBDIR in your link commands, e.g.:\n";
+                    print "      ld -L\$NGS_BAM_LIBDIR -lngs-sdk ...\n";
+                }
             }
         }
     } else {
@@ -730,7 +826,8 @@ Use $_{LIB_TARGET} in your link commands, e.g.:
       export NGS_LIBDIR=$_{LIB_TARGET}
       ld -L\$NGS_LIBDIR -lngs-sdk ...
 EndText
-        } elsif ($HAVE{JAR}) {
+        }
+        if ($HAVE{JAR}) {
             print <<EndText;
 
 Please add $_{JAR_TARGET} to your CLASSPATH, i.e.:
@@ -783,6 +880,33 @@ Configuration:
   -h, --help              display this help and exit
   -n, --no-create         do not run installation
 
+EndText
+
+    if ($HAVE{TWO_LIBS}) {
+        my $p = lc(PACKAGE_NAME());
+        print "By default, `./install' will install all the files in\n";
+        print "`/usr/local/ngs/$p/jar', " if ($HAVE{JAR});
+        print <<EndText;
+`/usr/local/ngs/$p/share',
+`/usr/local/ngs/ngs-sdk/lib$_{BITS}', `/usr/local/ncbi/ncbi-vdb/lib$_{BITS}'.
+You can spefify other installation directories using the options below.
+
+Fine tuning of the installation directories:
+EndText
+        if ($HAVE{JAR}) {
+            print
+                "  --jardir=DIR         jar files [/usr/local/ngs/$p/jar]\n"
+        }
+        print <<EndText;
+  --ngslibdir=DIR      ngs-sdk libraries [/usr/local/ngs/ngs-sdk/lib$_{BITS}]
+  --vdblibdir=DIR      ncbi-vdb libraries [/usr/local/ncbi/ncbi-vdb/lib$_{BITS}]
+  --examplesdir=DIR    example files [/usr/local/ngs/$p/share]
+
+  --libdir=DIR         install all libraries in the same directory
+  --prefix=DIR         install files in PREFIX/lib$_{BITS}, PREFIX/share etc.
+EndText
+    } else {
+        print <<EndText;
 Installation directories:
   --prefix=PREFIX         install all files in PREFIX
                           [$_{PREFIX}]
@@ -790,45 +914,44 @@ Installation directories:
 By default, `./install' will install all the files in
 EndText
 
-    if ($HAVE{INCLUDES}) {
-        print
-        "`$_{PREFIX}/include', `$_{PREFIX}/lib$_{BITS}' etc.  You can specify\n"
-    } elsif ($HAVE{JAR}) {
-        print
-        "`$_{PREFIX}/jar', `$_{PREFIX}/share' etc.  You can specify\n"
-    } elsif ($OPT{making}) {
-        print "`$_{PREFIX}/share' etc.  You can specify\n"
-    } else {
-        print
-           "`$_{PREFIX}/lib$_{BITS}' `$_{PREFIX}/share' etc.  You can specify\n"
-    }
+        if ($HAVE{INCLUDES}) {
+            print
+"`$_{PREFIX}/include', `$_{PREFIX}/lib$_{BITS}' etc.  You can specify\n"
+        } elsif ($HAVE{JAR}) {
+            print "`$_{PREFIX}/jar', `$_{PREFIX}/share' etc.  You can specify\n"
+        } elsif ($MAKING) {
+            print "`$_{PREFIX}/share' etc.  You can specify\n"
+        } else {
+            print
+"`$_{PREFIX}/lib$_{BITS}' `$_{PREFIX}/share' etc.  You can specify\n"
+        }
 
-    print <<EndText;
+        print <<EndText;
 an installation prefix other than `$_{PREFIX}' using `--prefix',
 for instance `--prefix=$_{OTHER_PREFIX}'.
-
 For better control, use the options below.
 
 Fine tuning of the installation directories:
 EndText
 
-    if ($HAVE{JAR}) {
-        print "  --jardir=DIR            jar files [PREFIX/jar]\n";
-    }
-    if ($HAVE{LIBS}) {
-        print
-        "  --libdir=DIR            object code libraries [PREFIX/lib$_{BITS}]\n"
-    }
-    if ($HAVE{INCLUDES}) {
-        print "  --includedir=DIR        C header files [PREFIX/include]\n";
-    }
-    if ($HAVE{USR_INCLUDES}) {
-        print
-       "  --oldincludedir=DIR     C header files for non-gcc [$oldincludedir]\n"
-    }
+        if ($HAVE{JAR}) {
+            print "  --jardir=DIR            jar files [PREFIX/jar]\n";
+        }
+        if ($HAVE{LIBS}) {
+            print
+"  --libdir=DIR            object code libraries [PREFIX/lib$_{BITS}]\n"
+        }
+        if ($HAVE{INCLUDES}) {
+            print "  --includedir=DIR        C header files [PREFIX/include]\n";
+        }
+        if ($HAVE{USR_INCLUDES}) {
+            print
+"  --oldincludedir=DIR     C header files for non-gcc [$oldincludedir]\n"
+        }
 
-    if (-e $EXAMPLES_DIR) {
-        print "  --examplesdir=DIR       example files [PREFIX/share]\n";
+        if (-e $EXAMPLES_DIR) {
+            print "  --examplesdir=DIR       example files [PREFIX/share]\n";
+        }
     }
 
     if ($HAVE{LIBS}) {
@@ -843,7 +966,7 @@ EndText
 }
 
 sub prepare {
-    if ($OPT{making}) {
+    if ($MAKING) {
         my $os_arch = `perl -w $Bin/os-arch.perl`;
         unless ($os_arch) {
             print "install: error\n";
@@ -858,6 +981,8 @@ sub prepare {
     } else {
         my $a = $Config{archname64};
         $_ = lc PACKAGE_NAME();
+        my $root = '';
+        $root = "$ENV{HOME}/" if ($OPT{root});
         my $code = 
             'sub CONFIGURE { ' .
             '   $_{OS           } = $OS; ' .
@@ -869,7 +994,7 @@ sub prepare {
             '   $_{VERSION_LIBX } = "a.1.0.0"; ' .
             '   $_{SHLX         } = "so"; ' .
             '   $_{OTHER_PREFIX } = \'$HOME/ngs/' . $_ . '\'; ' .
-            '   $_{PREFIX       } = "/usr/local/ngs/' . $_ . '"; ' .
+            '   $_{PREFIX       } = "' . "$root/usr/local/ngs/$_" . '"; ' .
             '   $_{INST_INCDIR  } = "$_{PREFIX}/include"; ' .
             '   $_{INST_LIBDIR  } = "$_{PREFIX}/lib"; ' .
             '   $_{INST_JARDIR  } = "$_{PREFIX}/jar"; ' .
@@ -877,7 +1002,11 @@ sub prepare {
             '   $_{INCDIR       } = "$Bin/../include"; ' .
             '   $_{LIBDIR64     } = "$Bin/../lib64"; ' .
             '   $_{LIBDIR32     } = "$Bin/../lib32"; ';
-
+        if ($HAVE{TWO_LIBS}) {
+            $code .=
+               '$_{INST_NGSLIBDIR} = "' . "$root/usr/local/ngs/ngs-sdk/lib\";"
+             . '$_{INST_VDBLIBDIR} = "' . "$root/usr/local/ncbi/ncbi-vdb/lib\";"
+        }
         $code .= ' $_{PACKAGE_NAME} = "' . PACKAGE_NAME() . '"; ';
 
         if (defined $Config{archname64}) {
@@ -899,6 +1028,8 @@ sub prepare {
         die $@ if ($@);
     }
 }
+
+sub linux_root { $^O eq 'linux' && `id -u` == 0 }
 
 sub fatal_config {
     if ($OPT{debug}) {

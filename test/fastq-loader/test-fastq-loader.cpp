@@ -152,13 +152,13 @@ const string TempFileFixture::DbType = "NCBI:align:db:alignment_unsorted";
 ///////////////////////////////////////////////// FASTQ-based tests for CommonWriter 
 FIXTURE_TEST_CASE(CommonWriterOneFile, TempFileFixture)
 {   // source: SRR006565
-    CreateFile(GetName().c_str(), 
+    CreateFile(GetName(), 
                 "@G15-D_3_1_903_603_0.81\n"
                 "GATTGTAGGGAGTAGGGTACAATACAGTCTGGTCTC\n"
                 "+G15-D_3_1_903_603_0.81\n"
                 "IIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIIII\n");
 
-    dbName = GetName()+".db";
+    dbName = string(GetName())+".db";
     KDirectoryRemove(wd, true, dbName.c_str());
     REQUIRE_RC(VDBManagerCreateDB(mgr, &db, schema, DbType.c_str(), kcmInit + kcmMD5, dbName.c_str()));
 

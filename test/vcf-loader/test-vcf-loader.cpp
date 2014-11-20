@@ -500,8 +500,8 @@ public:
 
 FIXTURE_TEST_CASE(VcfReader_EmptyFile, VcfReaderFixture)
 {
-    REQUIRE_RC(CreateFile(GetName().c_str(), "")); 
-    REQUIRE_RC_FAIL(ParseFile(GetName().c_str())); 
+    REQUIRE_RC(CreateFile(GetName(), "")); 
+    REQUIRE_RC_FAIL(ParseFile(GetName())); 
     REQUIRE_NOT_NULL(messages);
     REQUIRE_EQ(1u, messageCount);
     const char* msg;
@@ -516,7 +516,7 @@ static string StringToSTL(const String& str)
 
 FIXTURE_TEST_CASE(VcfReader_Parse, VcfReaderFixture)
 {   
-    REQUIRE_RC(CreateFile(GetName().c_str(), 
+    REQUIRE_RC(CreateFile(GetName(), 
         // this is taken from the spec:
         //  http://www.1000genomes.org/wiki/analysis/variant-call-format/vcf-variant-call-format-version-42 
         "##fileformat=VCFv4.2\n"
@@ -526,7 +526,7 @@ FIXTURE_TEST_CASE(VcfReader_Parse, VcfReaderFixture)
         "20\t14370\trs6054257\tG\tA\t29\tPASS\tNS=3;DP=14;AF=0.5;DB;H2\n"
         "20\t17330\t.\tT\tA\t3\tq10\tNS=3;DP=11;AF=0.017\n"
         ));
-    REQUIRE_RC(ParseFile(GetName().c_str())); 
+    REQUIRE_RC(ParseFile(GetName())); 
         
     uint32_t count;
     REQUIRE_RC(VcfReaderGetDataLineCount(reader, &count));
@@ -561,12 +561,12 @@ FIXTURE_TEST_CASE(VcfReader_Parse, VcfReaderFixture)
 
 FIXTURE_TEST_CASE(VcfReader_Parse_GenotypeFields, VcfReaderFixture)
 {   
-    REQUIRE_RC(CreateFile(GetName().c_str(), 
+    REQUIRE_RC(CreateFile(GetName(), 
         "##fileformat=VCFv4.2\n"
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
         "20\t14370\trs6054257\tG\tA\t29\tPASS\tNS=3;DP=14;AF=0.5;DB;H2\tblah1\t2blah\tetc...\n"
         ));
-    REQUIRE_RC(ParseFile(GetName().c_str())); 
+    REQUIRE_RC(ParseFile(GetName())); 
         
     const VcfDataLine* line;
     REQUIRE_RC(VcfReaderGetDataLine(reader, 0, &line));
@@ -593,14 +593,14 @@ FIXTURE_TEST_CASE(VcfReader_Parse_GenotypeFields, VcfReaderFixture)
 
 FIXTURE_TEST_CASE(VcfReader_Parse_Errors, VcfReaderFixture)
 {   
-    REQUIRE_RC(CreateFile(GetName().c_str(), 
+    REQUIRE_RC(CreateFile(GetName(), 
         "##fileformat=VCFv4.2\n"
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
         "20\t14370\trs6054257\tG\tA\t1000\tPASS\tNS=3;DP=14;AF=0.5;DB;H2\tblah1\t2blah\tetc...\n"
         "20\t14370\trs6054257\tG\tA\t10\tPASS\n"
         )); // 1. 1000 is too much for a quality
             // 2. not all mandatory fields present
-    REQUIRE_RC_FAIL(ParseFile(GetName().c_str())); 
+    REQUIRE_RC_FAIL(ParseFile(GetName())); 
     REQUIRE_EQ(2u, messageCount);
     const char* msg;
     REQUIRE_RC(VNameListGet ( messages, 0, &msg ));
@@ -751,7 +751,7 @@ FIXTURE_TEST_CASE(VcfDatabaseBasic, VcfDatabaseFixture)
 {
     Setup(GetName());
 
-    REQUIRE_RC(CreateFile(GetName().c_str(), 
+    REQUIRE_RC(CreateFile(GetName(), 
         // this is taken from the spec:
         //  http://www.1000genomes.org/wiki/analysis/variant-call-format/vcf-variant-call-format-version-42 
         "##fileformat=VCFv4.2\n"
@@ -761,7 +761,7 @@ FIXTURE_TEST_CASE(VcfDatabaseBasic, VcfDatabaseFixture)
         "20\t14370\trs6054257\tG\tCCCC\t29\tPASS\tNS=3;DP=14;AF=0.5;DB;H2\n"
         "20\t17330\t.\tT\tA\t3\tq10\tNS=3;DP=11;AF=0.017\n"
         ));
-    REQUIRE_RC(ParseFile(GetName().c_str())); 
+    REQUIRE_RC(ParseFile(GetName())); 
 
     REQUIRE_RC(VcfDatabaseSave(reader, m_cfgName.c_str(), m_db));
 

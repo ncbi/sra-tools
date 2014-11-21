@@ -83,7 +83,7 @@ if ($OPT{root}) {
     ++$LINUX_ROOT;
     foreach ("$ROOT/usr/include", "$ROOT/etc/profile.d") {
         unless (-e $_) {
-            print "mkdir -p $_ ...";
+            print "mkdir -p $_... ";
             eval { make_path($_) };
             if ($@) {
                 print "failure: $@\n";
@@ -527,6 +527,9 @@ sub copybldjars {
     my $nd = "$n.$_{VERSION}";
     print "installing '$n'... ";
 
+    print "\t\tcd $d\n" if ($OPT{debug});
+    chdir $d or die "cannot cd $d";
+
     $d .= "/$nd";
 
     print "\n\t\t$s -> $d\n\t" if ($OPT{debug});
@@ -716,7 +719,7 @@ sub finishinstall {
             unless ($libs) {
                 print "internal python failure\n";
                 ++$failures;
-            } else {
+            } elsif ($HAVE{LIBS}) {
                 print <<EndText;
 Please add $libs to your LD_LIBRARY_PATH, e.g.:
       export LD_LIBRARY_PATH=$libs:\$LD_LIBRARY_PATH
@@ -746,47 +749,101 @@ EndText
             }
         }
 
-        my $profile = "$ROOT/etc/profile.d";
-        my $PROFILE_FILE = "$profile/" . lc(PACKAGE_NAME());
-        unless (-e $profile) {
-            print "install: error: '$profile' does not exist\n";
-            ++$failures;
-        } else {
-            print "updating $PROFILE_FILE.[c]sh... ";
-
-            my $f = "$PROFILE_FILE.sh";
-            if (!open F, ">$f") {
-                print "failure\n";
-                print "install: error: cannot open '$f': $!\n";
+        my $NAME = PACKAGE_NAME();
+        if ($HAVE{JAR}
+            || ($HAVE{LIBS}
+                && ($HAVE{DLLS} || $NAME eq 'NGS-SDK' || $NAME eq 'NGS-BAM')
+               )
+            )
+        {
+            my $profile = "$ROOT/etc/profile.d";
+            my $PROFILE_FILE = "$profile/" . lc(PACKAGE_NAME());
+            unless (-e $profile) {
+                print "install: error: '$profile' does not exist\n";
                 ++$failures;
             } else {
-                if ($HAVE{LIBS}) {
-                    unless (@libs) {
-                        print "internal root libraries failure\n";
-                        ++$failures;
-                    } else {
-                        print F "#version $_{VERSION}\n";
-                        foreach (@libs) {
-                            print F <<EndText;
+                print "updating $PROFILE_FILE.[c]sh... ";
+
+                my $f = "$PROFILE_FILE.sh";
+                if (!open F, ">$f") {
+                    print "failure\n";
+                    print "install: error: cannot open '$f': $!\n";
+                    ++$failures;
+                } else {
+                    print F "#version $_{VERSION}\n\n";
+
+                    if ($HAVE{LIBS}) {
+                        unless (@libs) {
+                            print "internal root libraries failure\n";
+                            ++$failures;
+                        } else {
+                            if ($HAVE{DLLS}) {
+                                foreach (@libs) {
+                                    print F <<EndText;
 if ! echo \$LD_LIBRARY_PATH | /bin/grep -q $_
 then export LD_LIBRARY_PATH=$_:\$LD_LIBRARY_PATH
 fi
 
 EndText
+                                }
+                            }
+                            if ($NAME eq 'NGS-SDK') {
+                                print F "export NGS_LIBDIR=$_{LIB_TARGET}\n";
+                            } elsif ($NAME eq 'NGS-BAM') {
+                                print F
+                                      "\nexport NGS_BAM_LIBDIR=$_{LIB_TARGET}\n"
+                            }
                         }
-                        if (PACKAGE_NAME() eq 'NGS-SDK') {
-                            print F "export NGS_LIBDIR=$_{LIB_TARGET}\n";
-                        } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
-                            print F "\nexport NGS_BAM_LIBDIR=$_{LIB_TARGET}\n";
+                    }
+                    if ($HAVE{JAR}) {
+                        print F <<EndText;
+if ! echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
+then export CLASSPATH=$_{JAR_TARGET}:\$CLASSPATH
+fi
+EndText
+                    }
+                    close F;
+                    unless (chmod(0644, $f)) {
+                        print "failure\n";
+                        print "install: error: cannot chmod '$f': $!\n";
+                        ++$failures;
+                    }
+                }
+            }
+
+            my $f = "$PROFILE_FILE.csh";
+            if (!open F, ">$f") {
+                print "failure\n";
+                print "install: error: cannot open '$f': $!\n";
+                ++$failures;
+            } else {
+                print F "#version $_{VERSION}\n\n";
+
+                if ($HAVE{LIBS}) {
+                    unless (@libs) {
+                        print "internal libraries failure\n";
+                        ++$failures;
+                    } else {
+                        if ($HAVE{DLLS}) {
+                            foreach (@libs) {
+                                print F <<EndText;
+echo \$LD_LIBRARY_PATH | /bin/grep -q $_
+if ( \$status ) setenv LD_LIBRARY_PATH $_:\$LD_LIBRARY_PATH
+
+EndText
+                            }
                         }
+                    }
+                    if (PACKAGE_NAME() eq 'NGS-SDK') {
+                        print F "setenv NGS_LIBDIR $_{LIB_TARGET}\n";
+                    } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                        print F "setenv NGS_BAM_LIBDIR $_{LIB_TARGET}\n";
                     }
                 }
                 if ($HAVE{JAR}) {
                     print F <<EndText;
-#version $_{VERSION}
-if ! echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
-then export CLASSPATH=$_{JAR_TARGET}:\$CLASSPATH
-fi
+echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
+if ( \$status ) setenv CLASSPATH $_{JAR_TARGET}:\$CLASSPATH
 EndText
                 }
                 close F;
@@ -796,51 +853,11 @@ EndText
                     ++$failures;
                 }
             }
-        }
-
-        my $f = "$PROFILE_FILE.csh";
-        if (!open F, ">$f") {
-            print "failure\n";
-            print "install: error: cannot open '$f': $!\n";
-            ++$failures;
-        } else {
-            if ($HAVE{LIBS}) {
-                unless ($libs) {
-                    print "internal libraries failure\n";
-                    ++$failures;
-                } else {
-                    print F "#version $_{VERSION}\n";
-                    print F <<EndText;
-echo \$LD_LIBRARY_PATH | /bin/grep -q $libs
-if ( \$status ) setenv LD_LIBRARY_PATH $libs:\$LD_LIBRARY_PATH
-
-EndText
-                }
-                if (PACKAGE_NAME() eq 'NGS-SDK') {
-                    print F "setenv NGS_LIBDIR $_{LIB_TARGET}\n";
-                } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
-                    print F "setenv NGS_BAM_LIBDIR $_{LIB_TARGET}\n";
-                }
-            }
-            if ($HAVE{JAR}) {
-                print F <<EndText;
-#version $_{VERSION}
-echo \$CLASSPATH | /bin/grep -q $_{JAR_TARGET}
-if ( \$status ) setenv CLASSPATH $_{JAR_TARGET}:\$CLASSPATH
-EndText
-            }
-            close F;
-            unless (chmod(0644, $f)) {
-                print "failure\n";
-                print "install: error: cannot chmod '$f': $!\n";
-                ++$failures;
-            }
-        }
 #	@ #TODO: check version of the files above
+            print "success\n" unless ($failures);
+        }
 
         unless ($failures) {
-            print "success\n";
-
             if ($HAVE{LIBS}) {
                 if (PACKAGE_NAME() eq 'NGS-SDK') {
                     print "\nUse \$NGS_LIBDIR in your link commands, e.g.:\n";
@@ -848,7 +865,7 @@ EndText
                 } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
                     print "\n";
                     print "Use \$NGS_BAM_LIBDIR in your link commands, e.g.:\n";
-                    print "      ld -L\$NGS_BAM_LIBDIR -lngs-sdk ...\n";
+                    print "      ld -L\$NGS_BAM_LIBDIR -lngs-bam ...\n";
                 }
             }
         }
@@ -859,14 +876,20 @@ EndText
                 print "internal libraries failure\n";
                 ++$failures;
             } else {
-                print <<EndText;
-
+                print "\n";
+                print <<EndText if ($HAVE{DLLS});
 Please add $libs to your LD_LIBRARY_PATH, e.g.:
       export LD_LIBRARY_PATH=$libs:\$LD_LIBRARY_PATH
-Use $libs in your link commands, e.g.:
-      export NGS_LIBDIR=$libs
-      ld -L\$NGS_LIBDIR -lngs-sdk ...
 EndText
+                if (PACKAGE_NAME() eq 'NGS-SDK') {
+                    print "Use $libs in your link commands, e.g.:\n"
+                        . "export NGS_LIBDIR=$libs\n"
+                        . "ld -L\$NGS_LIBDIR -lngs-sdk ...\n";
+                } elsif (PACKAGE_NAME() eq 'NGS-BAM') {
+                    print "Use $libs in your link commands, e.g.:\n"
+                        . "export NGS_BAM_LIBDIR=$libs\n"
+                        . "ld -L\$NGS_BAM_LIBDIR -lngs-bam ...\n";
+                }
             }
         }
         if ($HAVE{JAR}) {

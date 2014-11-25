@@ -103,10 +103,10 @@ COPYCAT_OBJ = \
 	$(addsuffix .$(OBJX),$(COPYCAT_SRC))
 
 COPYCAT_LIB = \
-	-lkapp \
+	-skapp \
 	-sncbi-vdb \
-	-lkff \
-	-lmagic
+	-skff \
+	-smagic-static
 
 
 $(BINDIR)/copycat: $(COPYCAT_OBJ)

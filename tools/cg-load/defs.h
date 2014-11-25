@@ -116,7 +116,7 @@ typedef enum CG_EFileType_enum {
     cg_eFileType_COVERAGE_DISTRIBUTION_CODING,
     cg_eFileType_COVERAGE_BY_GC_CODING,
     cg_eFileType_LIB_SMALL_GAPS_ROLLUP,
-    cg_eFileType_DIPLOID_SOMATIC_CNV_DETAILSCORES,
+    cg_eFileType_DIPLOID_SOMATIC_CNV_DETAIL_SCORES,
 
     cg_eFileType_TAG_LFR,
     cg_eFileType_Last

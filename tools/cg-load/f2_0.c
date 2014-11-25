@@ -79,6 +79,14 @@ static const CGFileTypeFactory cg_ETypeXX_names[] = {
     { "LIB-SMALL-GAPS-ROLLUP", cg_eFileType_LIB_SMALL_GAPS_ROLLUP, NULL },
 
     { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr_Make },    
+
+    /* VDB-1383 */
+    { "NONDIPLOID-SOMATIC-CNV-SEGMENTS",
+                cg_eFileType_NONDIPLOID_SOMATIC_CNV_SEGMENTS, NULL },
+    { "NONDIPLOID-SOMATIC-CNV-DETAILS",
+                cg_eFileType_NONDIPLOID_SOMATIC_CNV_DETAILS, NULL },
+    { "DIPLOID-SOMATIC-CNV-DETAIL-SCORES",
+                 cg_eFileType_DIPLOID_SOMATIC_CNV_DETAIL_SCORES, NULL },
 };
 
 rc_t CGFile20_Make(const CGFileType** self,

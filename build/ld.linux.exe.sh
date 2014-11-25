@@ -60,7 +60,12 @@ i*)
 esac
 
 # EXE_CMD was started in tool-specific source
-CMD="$EXE_CMD $LDFLAGS"
+if [ $STATIC -eq 1 ]
+then
+    CMD="$EXE_STATIC_CMD $LDFLAGS"
+else
+    CMD="$EXE_CMD $LDFLAGS"
+fi
 
 # if building a static executable against dynamic libraries
 # the main application will substitute for name lookup

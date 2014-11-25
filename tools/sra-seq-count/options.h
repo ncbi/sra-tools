@@ -33,12 +33,16 @@
 extern "C" {
 #endif
 
+#define SSC_MODE_NORMAL	0
+#define SSC_MODE_DEBUG	1
+
 struct sra_seq_count_options
 {
     const char * sra_accession;
     const char * gtf_file;
     const char * id_attrib;
     const char * feature_type;
+	int output_mode;
 	bool valid;
 };
 

@@ -75,10 +75,10 @@ clean: stdclean
 # Common dumper definitions
 #
 TOOL_LIBS = \
-	-lngs-c++         \
-	-lncbi-ngs-c++    \
-	-lncbi-vdb-static \
-	-lkapp \
+	-skapp	\
+	-sngs-c++ \
+	-sncbi-ngs-c++ \
+	-sncbi-vdb-static
 
 #-------------------------------------------------------------------------------
 # fastq-dump

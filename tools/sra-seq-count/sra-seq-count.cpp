@@ -95,11 +95,19 @@ class feature
 			std::cout << std::endl;
 		}
 
-		void report ( void )
+		void report ( int output_mode )
 		{
 			if ( counter > 0 )
 			{
-				std::cout << feature_id << "\t" << counter << std::endl;
+				if ( output_mode == SSC_MODE_NORMAL )
+				{
+					std::cout << feature_id << "\t" << counter << std::endl;
+				}
+				else
+				{
+					std::cout << ref_name << "." << outer << "(" << feature_ranges.get_count() << ") "
+						<< feature_id << "\t" << counter << std::endl;
+				}
 			}
 		}
 
@@ -383,6 +391,7 @@ class feature_list
 {
 	private :
 		const std::string &ref_name;
+		int output_mode;
 		std::list< feature * > flist;
 
 		void clear( void )
@@ -401,7 +410,8 @@ class feature_list
 		}
 		
 	public :
-		feature_list( const std::string &ref_name_, feature * f ) : ref_name( ref_name_ ) { add( f ); }
+		feature_list( const std::string &ref_name_, int output_mode_, feature * f )
+			: ref_name( ref_name_ ), output_mode( output_mode_ ) { add( f ); }
 		~feature_list( void ) { clear(); }
 
 		bool empty( void ) { return flist.empty(); }
@@ -415,7 +425,7 @@ class feature_list
 				if ( f -> ends_before( al_range ) )
 				{
 					flist.pop_front();
-					f -> report();
+					f -> report( output_mode );
 					done = flist.empty();
 					delete f;
 				}
@@ -477,24 +487,28 @@ class iter_window
 	private :
 		ngs::ReadCollection &run;	
 		gtf_iter &gtf_it;
+		int output_mode;
 		global_counter counter;
 		
-		/* returns the feature of the next reference or NULL if we are done ... */
-		feature * walk_reference( feature * f )
+	public :
+		iter_window( ngs::ReadCollection &run_, gtf_iter &gtf_it_, int output_mode_ )
+			: run( run_ ), gtf_it( gtf_it_ ), output_mode( output_mode_ ) {}
+
+		void walk( void )
 		{
-			feature * res = f;
-			if ( res != NULL )
+			feature * f = gtf_it.next_feature();
+			while ( f != NULL )
 			{
 				/* get the name of the reference of the fist feature in here... */
 				std::string ref_name;
-				res -> get_ref_name( ref_name );
+				f -> get_ref_name( ref_name );
 				try
 				{
 					ngs::Reference ref = run.getReference ( ref_name );
 					try
 					{
 						bool done = false;
-						feature_list flist( ref_name, res );
+						feature_list flist( ref_name, output_mode, f );
 						ngs::AlignmentIterator al_iter = ref.getAlignments( ngs::Alignment::primaryAlignment );
 
 						std::cout << std::endl << "processing ref: " << ref_name << std::endl;
@@ -526,30 +540,20 @@ class iter_window
 							}
 							counter.inc_total_alignments();
 						}
-						res = gtf_it.forward_to_next_ref( ref_name );
+						f = gtf_it.forward_to_next_ref( ref_name );
 					}
 					catch ( ngs::ErrorMsg e )
 					{
 						std::cout << "error in ref " << ref_name << " : " << e.what() << std::endl;
+						f = NULL;
 					}
 				}
 				catch ( ngs::ErrorMsg e )
 				{
-					//std::cout << "error in walk_reference( " << ref_name << " ) " << e.what() << std::endl;
-					res = gtf_it.forward_to_next_ref( ref_name );
+					f = gtf_it.forward_to_next_ref( ref_name );
 				}
+
 			}
-			return res;
-		}
-
-		
-	public :
-		iter_window( ngs::ReadCollection &run_, gtf_iter &gtf_it_ ) : run( run_ ), gtf_it( gtf_it_ ) {}
-
-		void walk( void )
-		{
-			feature * f = gtf_it.next_feature();
-			while ( f != NULL ) f = walk_reference( f );
 			counter.report();
 		}
 };
@@ -571,7 +575,7 @@ int matching( const struct sra_seq_count_options * options )
 		gtf_iter gtf_it( options->gtf_file, id_attr, feature_type );
 		
 		/* create a iterator window that walks both iterators to count alignments for the features */
-		iter_window window( run, gtf_it );
+		iter_window window( run, gtf_it, options->output_mode );
 		
 		/* walk the window... */
 		window.walk();

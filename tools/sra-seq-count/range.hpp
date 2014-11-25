@@ -252,7 +252,8 @@ class ranges
 		}
 		
 		void sort( void ) { range_list.sort( compare_ranges ); }
-
+		long get_count( void ) { return count; }
+		
 		void compare_sample( const ranges &sample, ranges_relation &res ) const
 		{
 			res.clear();

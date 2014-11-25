@@ -41,22 +41,26 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define OPTION_ID_ATTR         "id_attr"
-#define OPTION_FEATURE_TYPE    "feature_type"
+#define OPTION_ID_ATTR         	"id_attr"
+#define OPTION_FEATURE_TYPE    	"feature_type"
+#define OPTION_MODE            	"mode"
 
-#define ALIAS_ID_ATTR          "i"
-#define ALIAS_FEATURE_TYPE     "f"
+#define ALIAS_ID_ATTR          	"i"
+#define ALIAS_FEATURE_TYPE     	"f"
+#define ALIAS_MODE     			"m"
 
 #define DEFAULT_ID_ATTR         "gene_id"
 #define DEFAULT_FEATURE_TYPE    "exon"
 
 static const char * id_attr_usage[] 		= { "id-attr (default gene_id)", NULL };
 static const char * feature_type_usage[] 	= { "feature-type (default exon)", NULL };
+static const char * mode_usage[] 			= { "output-mode (norm, debug)", NULL };
 
 OptDef sra_seq_count_options[] =
 {
-    { OPTION_ID_ATTR, 		ALIAS_ID_ATTR,			NULL, id_attr_usage,		1, false, false },
-    { OPTION_FEATURE_TYPE, 	ALIAS_FEATURE_TYPE, 	NULL, feature_type_usage, 	1, false, false }
+    { OPTION_ID_ATTR, 		ALIAS_ID_ATTR,			NULL, id_attr_usage,		1, true, false },
+    { OPTION_FEATURE_TYPE, 	ALIAS_FEATURE_TYPE, 	NULL, feature_type_usage, 	1, true, false },
+    { OPTION_MODE, 			ALIAS_MODE, 			NULL, mode_usage, 			1, true, false }	
 };
 
 const char UsageDefaultName[] = "sra-seq-count";
@@ -86,12 +90,12 @@ rc_t CC Usage ( const Args * args )
     UsageSummary ( progname );
 
     KOutMsg ( "Options:\n" );
-
     HelpOptionLine ( ALIAS_ID_ATTR,			OPTION_ID_ATTR,			NULL, 		id_attr_usage );
     HelpOptionLine ( ALIAS_FEATURE_TYPE, 	OPTION_FEATURE_TYPE, 	NULL, 		feature_type_usage );
+    HelpOptionLine ( ALIAS_MODE, 			OPTION_MODE, 			NULL, 		mode_usage );
 
+    KOutMsg ( "\n" );	
     HelpOptionsStandard ();
-
     HelpVersion ( fullpath, KAppVersion() );
 
     return rc;
@@ -123,7 +127,20 @@ static rc_t gather_options( const Args * args, struct sra_seq_count_options * op
 	rc = get_str_option( args, OPTION_ID_ATTR, &options->id_attrib, DEFAULT_ID_ATTR );
 	if ( rc == 0 )
 		rc = get_str_option( args, OPTION_FEATURE_TYPE, &options->feature_type, DEFAULT_FEATURE_TYPE );
-
+	if ( rc == 0 )
+	{
+		const char * mode;
+		rc = get_str_option( args, OPTION_MODE, &mode, "norm" );
+		if ( rc == 0 )
+		{
+			if ( mode[ 0 ] == 'd' && mode[ 1 ] == 'e' && mode[ 2 ] == 'b' && mode[ 3 ] == 'u' &&
+				 mode[ 4 ] == 'g' && mode[ 5 ] == 0 )
+			{
+				options -> output_mode = SSC_MODE_DEBUG;
+			}
+		}
+	}
+	
 	if ( rc == 0 )
 	{
 		uint32_t count;
@@ -157,6 +174,15 @@ static rc_t report_options( const struct sra_seq_count_options * options )
 		rc =  KOutMsg( "id-attr      : %s\n", options->id_attrib );
 	if ( rc == 0 )
 		rc =  KOutMsg( "feature-type : %s\n", options->feature_type );
+	if ( rc == 0 )
+	{
+		switch ( options->output_mode )
+		{
+			case SSC_MODE_NORMAL : rc =  KOutMsg( "output-mode  : mormal\n" ); break;
+			case SSC_MODE_DEBUG  : rc =  KOutMsg( "output-mode  : debug\n" ); break;
+			default              : rc =  KOutMsg( "output-mode  : unknown\n" ); break;
+		}
+	}
 	return rc;
 }
 
@@ -164,7 +190,6 @@ static rc_t report_options( const struct sra_seq_count_options * options )
 rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
-	
     rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1,
 								  sra_seq_count_options, 
 								  ( sizeof sra_seq_count_options / sizeof sra_seq_count_options [ 0 ] ) );
@@ -177,11 +202,10 @@ rc_t CC KMain ( int argc, char *argv [] )
 			rc = report_options( &options );
 			if ( rc == 0 )
 			{
-				rc = matching( &options );
+				rc = matching( &options );	/* here we are calling into C++ */
 			}
 		}
         ArgsWhack ( args );
     }
-
     return rc;
 }

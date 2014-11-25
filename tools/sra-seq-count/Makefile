@@ -26,14 +26,17 @@
 default: std
 
 TOP ?= $(abspath ../..)
-
-
 MODULE = tools/sra-seq-count
-
 include $(TOP)/build/Makefile.env
 
+INT_TOOLS = \
+
+EXT_TOOLS = \
+	sra-seq-count
+
 ALL_TOOLS = \
-	sra-seq-count \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
 
 #-------------------------------------------------------------------------------
 # outer targets
@@ -81,8 +84,9 @@ TOOL_LIBS = \
 # fastq-dump
 #
 TOOL_SRC = \
-	sra-seq-count \
-
+	main_fkt \
+	sra-seq-count
+	
 INCDIRS += -I $(TOP)/ngs/ngs-c++
 
 TOOL_OBJ = \

@@ -39,6 +39,7 @@
 #include <list>
 #include <algorithm>
 
+#include "options.h"
 #include "range.hpp"
 
 using namespace seq_ranges;
@@ -554,20 +555,20 @@ class iter_window
 };
 
 
-int matching( const char * acc, const char * gtf )
+int matching( const struct sra_seq_count_options * options )
 {
 	int res = 0;
 	
-	std::string id_attr( "gene_id" );
-	std::string feature_type( "exon" );
+	std::string id_attr( options->id_attrib );
+	std::string feature_type( options->feature_type );
 
 	/* create the ngs-iterator, which delivers references and alignments */
 	try
 	{
-		ngs::ReadCollection run ( ncbi::NGS::openReadCollection( acc ) );
+		ngs::ReadCollection run ( ncbi::NGS::openReadCollection( options->sra_accession ) );
 		
 		/* create the gtf-iterator, which delivers gtf-features */		
-		gtf_iter gtf_it( gtf, id_attr, feature_type );
+		gtf_iter gtf_it( options->gtf_file, id_attr, feature_type );
 		
 		/* create a iterator window that walks both iterators to count alignments for the features */
 		iter_window window( run, gtf_it );
@@ -577,7 +578,7 @@ int matching( const char * acc, const char * gtf )
 	}
 	catch ( ngs::ErrorMsg e )
 	{
-		std::cout << "cannot open " << acc << " because " << e.what() << std::endl;
+		std::cout << "cannot open " << options->sra_accession << " because " << e.what() << std::endl;
 	}
 	return res;
 }
@@ -662,6 +663,7 @@ void rr_test( void )
 	std::cout << rl << std::endl;
 }
 
+/*
 int main( int argc, const char* argv[] )
 {
 	int res = 0;
@@ -679,3 +681,4 @@ int main( int argc, const char* argv[] )
 	
     return res;
 }
+*/

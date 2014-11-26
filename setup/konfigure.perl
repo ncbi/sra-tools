@@ -354,7 +354,7 @@ elsif ( $TOOLS =~ m/jdk/i )
 }
 println "$TOOLS tool chain is supported" unless ($AUTORUN);
 
-if ($OS ne 'win') {
+if ($OS ne 'win' && $PKG{LNG} ne 'JAVA') {
     $TARGDIR = File::Spec->catdir($TARGDIR, $OS, $TOOLS, $ARCH, $BUILD);
 }
 

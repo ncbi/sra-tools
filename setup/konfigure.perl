@@ -530,6 +530,14 @@ foreach my $href (@REQ) {
 my ($E_LIBDIR, $VERSION, $MAJVERS, $E_VERSION_LIBX, $E_MAJVERS_LIBX) = ('');
 
 if ($OS ne 'win' && ! $OPT{'status'}) {
+    if ($OSTYPE =~ /darwin/i && CONFIG_OUT() ne '.') {
+        my $COMP = File::Spec->catdir(CONFIG_OUT(), 'COMP.mac');
+        println "configure: creating '$COMP' ($TOOLS)" unless ($AUTORUN);
+        open F, ">$COMP" or die "cannot open $COMP to write";
+        print F "$TOOLS\n";
+        close F;
+    }
+
     # create Makefile.config
     println "configure: creating '$OUT_MAKEFILE'" unless ($AUTORUN);
     open my $F, ">$OUT_MAKEFILE" or die "cannot open $OUT_MAKEFILE to write";

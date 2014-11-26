@@ -1065,7 +1065,7 @@ static void LOG_CHANGE(unsigned const change)
     ++change_counter[change];
 }
 
-static void Print_Change_Report(void)
+static void PrintChangeReport(void)
 {
     unsigned i;
 
@@ -1079,22 +1079,46 @@ static void Print_Change_Report(void)
     }
 }
 
-static rc_t Record_Change(KMDataNode *const node, char const *what, char const *why, unsigned const count)
+static rc_t RecordChange(KMDataNode *const node,
+                         char const node_name[],
+                         unsigned const node_number,
+                         char const what[],
+                         char const why[],
+                         unsigned const count)
 {
-    return 0;
+    KMDataNode *sub = NULL;
+    rc_t const rc_sub = KMDataNodeOpenNodeUpdate(node, &sub, "%s_%u", node_name, node_number);
+
+    if (rc_sub) return rc_sub;
+    {
+        uint32_t const count_temp = count;
+        rc_t const rc_attr1 = KMDataNodeWriteAttr(sub, "change", what);
+        rc_t const rc_attr2 = KMDataNodeWriteAttr(sub, "reason", why);
+        rc_t const rc_value = KMDataNodeWriteB32(sub, &count_temp);
+        
+        KMDataNodeRelease(sub);
+        if (rc_attr1) return rc_attr1;
+        if (rc_attr2) return rc_attr2;
+        if (rc_value) return rc_value;
+        
+        return 0;
+    }
 }
 
-static rc_t Record_Changes(KMDataNode *const node)
+static rc_t RecordChanges(KMDataNode *const node, char const name[])
 {
-    unsigned i;
+    if (node) {
+        unsigned i;
+        unsigned j = 0;
 
-    for (i = 0; i != NUMBER_OF_CHANGES; ++i) {
-        if (change_counter[i] > 0) {
-            char const *const what = CHANGED[CHANGES[i].what];
-            char const *const why  = REASONS[CHANGES[i].why];
-            rc_t const rc = Record_Change(node, what, why, change_counter[i]);
+        for (i = 0; i != NUMBER_OF_CHANGES; ++i) {
+            if (change_counter[i] > 0) {
+                char const *const what = CHANGED[CHANGES[i].what];
+                char const *const why  = REASONS[CHANGES[i].why];
+                rc_t const rc = RecordChange(node, name, ++j, what, why, change_counter[i]);
 
-            if (rc) return rc;
+                if (rc) return rc;
+            }
         }
     }
     return 0;
@@ -2383,6 +2407,8 @@ rc_t run(char const progName[],
                             rc = rc2;
                         if (rc == 0) {
                             rc = ArchiveBAM(mgr, db, bamFiles, bamFile, seqFiles, seqFile, &has_alignments);
+                            if (rc == 0)
+                                PrintChangeReport();
                             if (rc == 0 && !has_alignments) {
                                 rc = ConvertDatabaseToUnmapped(db);
                             }
@@ -2394,22 +2420,33 @@ rc_t run(char const progName[],
                                 rc = rc2;
 
                             if (rc == 0) {
-                                KMetadata *meta;
-                                KDBManager *kmgr;
+                                KMetadata *meta = NULL;
 
-                                rc = VDBManagerOpenKDBManagerUpdate(mgr, &kmgr);
-                                if (rc == 0) {
-                                    KDatabase *kdb;
+                                {
+                                    KDBManager *kmgr = NULL;
 
-                                    rc = KDBManagerOpenDBUpdate(kmgr, &kdb, "%s", G.outpath);
+                                    rc = VDBManagerOpenKDBManagerUpdate(mgr, &kmgr);
                                     if (rc == 0) {
-                                        rc = KDatabaseOpenMetadataUpdate(kdb, &meta);
-                                        KDatabaseRelease(kdb);
+                                        KDatabase *kdb;
+
+                                        rc = KDBManagerOpenDBUpdate(kmgr, &kdb, "%s", G.outpath);
+                                        if (rc == 0) {
+                                            rc = KDatabaseOpenMetadataUpdate(kdb, &meta);
+                                            KDatabaseRelease(kdb);
+                                        }
+                                        KDBManagerRelease(kmgr);
                                     }
-                                    KDBManagerRelease(kmgr);
                                 }
                                 if (rc == 0) {
                                     rc = WriteLoaderSignature(meta, progName);
+                                    if (rc == 0) {
+                                        KMDataNode *changes = NULL;
+                                        
+                                        rc = KMetadataOpenNodeUpdate(meta, &changes, "CHANGES");
+                                        if (rc == 0)
+                                            RecordChanges(changes, "CHANGE");
+                                        KMDataNodeRelease(changes);
+                                    }
                                     KMetadataRelease(meta);
                                 }
                             }

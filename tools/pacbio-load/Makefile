@@ -128,9 +128,9 @@ PACBIO_LOAD_LIB = \
 	-lkapp \
 	-skdf5 \
 	-lload \
+	-lhdf5 \
 	-sncbi-wvdb \
 	-lm \
-	-lhdf5 \
 
 ifdef HDF5_LIBDIR
 	PACBIO_LOAD_LIB += $(addprefix -L,$(HDF5_LIBDIR))

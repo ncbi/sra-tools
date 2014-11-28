@@ -527,7 +527,9 @@ foreach my $href (@REQ) {
     }
 }
 
-my ($E_LIBDIR, $VERSION, $MAJVERS, $E_VERSION_LIBX, $E_MAJVERS_LIBX) = ('');
+my ($E_BINDIR, $E_LIBDIR, $VERSION, $MAJVERS, $E_VERSION_LIBX, $E_MAJVERS_LIBX,
+                                              $E_VERSION_EXEX, $E_MAJVERS_EXEX)
+    = (''    , '');
 
 if ($OS ne 'win' && ! $OPT{'status'}) {
     if ($OSTYPE =~ /darwin/i && CONFIG_OUT() ne '.') {
@@ -587,6 +589,9 @@ EndText
     if ($OPT{'enable-static'}) {
         L($F, "WANTS_STATIC = 1");
     }
+
+    $E_VERSION_EXEX = '$EXEX.$VERSION';
+    $E_MAJVERS_EXEX = '$LIBX.$MAJVERS';
 
     print $F <<EndText;
 BUILD = $BUILD
@@ -703,6 +708,7 @@ BINDIR    = \$(TARGDIR)/bin
 EndText
 
     if ($PKG{LNG} eq 'C') {
+        $E_BINDIR        = '$TARGDIR/bin';
         $E_LIBDIR        = '$TARGDIR/lib';
         L($F, 'LIBDIR    = $(TARGDIR)/lib');
     } elsif ($PKG{LNG} eq 'JAVA') {
@@ -856,8 +862,11 @@ EndText
     print $F "    \$_{SHLX         } = '$SHLX';\n";
     print $F "    \$_{MAJVERS_SHLX } = '" . expand($E_MAJVERS_SHLX) . "';\n";
     print $F "    \$_{VERSION_SHLX } = '" . expand($E_VERSION_SHLX) . "';\n";
+    print $F "    \$_{VERSION_EXEX } = '" . expand($E_VERSION_EXEX) . "';\n";
+    print $F "    \$_{MAJVERS_EXEX } = '" . expand($E_MAJVERS_EXEX) . "';\n";
     print $F "    \$_{INCDIR       } = '" . expand("$Bin/.."      ) . "';\n";
     if ($PKG{LNG} ne 'PYTHON') {
+        print $F "  \$_{BINDIR$BITS} = '" . expand($E_BINDIR      ) . "';\n";
         print $F "  \$_{LIBDIR$BITS} = '" . expand($E_LIBDIR      ) . "';\n";
     } elsif ($OPT{PYTHON_LIB_PATH}) {
         print $F "  \$_{LIBDIR$BITS} = '$OPT{PYTHON_LIB_PATH}';\n";
@@ -865,6 +874,7 @@ EndText
     print $F "    \$_{OTHER_PREFIX } = '$PKG{UPATH}';\n";
     print $F "    \$_{PREFIX       } = '$OPT{'prefix'}';\n";
     print $F "    \$_{INST_INCDIR  } = '$OPT{'includedir'}';\n";
+    print $F "    \$_{INST_BINDIR  } = '$OPT{'bindir'}';\n";
     print $F "    \$_{INST_LIBDIR  } = '$OPT{'libdir'}';\n";
     print $F "    \$_{INST_JARDIR  } = '$OPT{'javadir'}';\n";
     print $F "    \$_{INST_SHAREDIR} = '$OPT{'sharedir'}';\n";

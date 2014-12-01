@@ -91,7 +91,7 @@ typedef struct SParam_struct
     uint32_t min_mapq;
     uint32_t single_mate;
     uint32_t cluster_size;
-    uint32_t ignore_other_evidence;
+    uint32_t load_other_evidence;
 } SParam;
 
 typedef struct DB_Handle_struct {
@@ -521,7 +521,7 @@ rc_t CC DirVisitor(const KDirectory *dir, uint32_t type, const char *name, void 
                 (rc = FGroupKey_Make(&key, file, d->param)) == 0 ) {
 
                 FGroupMAP* found = (FGroupMAP*)BSTreeFind(d->tree, &key, FGroupMAP_Cmp);
-                if (d->param != NULL && d->param->ignore_other_evidence &&
+                if (d->param != NULL && ! d->param->load_other_evidence &&
                     strstr(buf, "/EVIDENCE") != NULL &&
                     strstr(buf, "/EVIDENCE/") == NULL)
                 {
@@ -905,8 +905,8 @@ ver_t CC KAppVersion( void )
 
 const char* map_usage[] = {"MAP input directory path containing files", NULL};
 const char* asm_usage[] = {"ASM input directory path containing files", NULL};
-const char* ignore_extra_evidence_usage[]
-    = { "ignore extra evidence files", NULL};
+const char* load_extra_evidence_usage[]
+    = { "load extra evidence files", NULL};
 const char* schema_usage[] = {"database schema file name", NULL};
 const char* output_usage[] = {"output database path", NULL};
 const char* force_usage[] = {"force output overwrite", NULL};
@@ -929,7 +929,7 @@ const char* library_usage[] = {"copy extra file/directory into output", NULL};
 enum OptDefIndex {
     eopt_MapInput = 0,
     eopt_AsmInput,
-    eopt_IgnoreExtraEvidence,
+    eopt_LoadExtraEvidence,
     eopt_Schema,
     eopt_RefSeqConfig,
     eopt_RefSeqPath,
@@ -954,8 +954,8 @@ OptDef MainArgs[] =
     /* if you change order in this array, rearrange enum above accordingly! */
     { "map",              "m",  NULL, map_usage,            1, true,  true  },
     { "asm",              "a",  NULL, asm_usage,            1, true,  false },
-    { "ignore-extra-evidence", NULL, NULL,
-                               ignore_extra_evidence_usage, 1, false, false },
+    { "load-extra-evidence", NULL, NULL,
+                                 load_extra_evidence_usage, 1, false, false },
     { "schema",           "s",  NULL, schema_usage,         1, true,  false },
     { "refseq-config",    "k",  NULL, refseqcfg_usage,      1, true,  false },
     { "refseq-path",      "i",  NULL, refseqpath_usage,     1, true,  false },
@@ -1067,10 +1067,10 @@ rc_t CC KMain( int argc, char* argv[] )
 
         }
         else if ((rc = ArgsOptionCount(args,
-            MainArgs[eopt_IgnoreExtraEvidence].name,
-            &params.ignore_other_evidence)) != 0 )
+            MainArgs[eopt_LoadExtraEvidence].name,
+            &params.load_other_evidence)) != 0 )
         {
-            errmsg = MainArgs[eopt_IgnoreExtraEvidence].name;
+            errmsg = MainArgs[eopt_LoadExtraEvidence].name;
 
         }
         else if( (rc = ArgsOptionCount(args, MainArgs[eopt_RefSeqConfig].name, &count)) != 0 || count > 1 ) {

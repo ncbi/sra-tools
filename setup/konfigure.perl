@@ -312,59 +312,62 @@ if ($OSTYPE =~ /linux/i) {
 println "$OSTYPE ($OS) is supported" unless ($AUTORUN);
 
 # tool chain
-my ($CC, $CP, $AR, $ARX, $ARLS, $LD, $LP);
+my ($CPP, $CC, $CP, $AR, $ARX, $ARLS, $LD, $LP);
 my ($JAVAC, $JAVAH, $JAR);
 my ($DBG, $OPT, $PIC, $INC, $MD);
 
 print "checking for supported tool chain... " unless ($AUTORUN);
-if ( $TOOLS =~ m/gcc/i )
-{
-    $CC = "gcc -c";
-    $CP = "g++ -c";
-    $AR = "ar rc";
-    $ARX = "ar x";
-    $ARLS = "ar t";
-    $LD = "gcc";
-    $LP = "g++";
+if ($TOOLS eq 'gcc') {
+    $CPP  = 'g++';
+    $CC   = 'gcc -c';
+    $CP   = "$CPP -c";
+    $AR   = 'ar rc';
+    $ARX  = 'ar x';
+    $ARLS = 'ar t';
+    $LD   = 'gcc';
+    $LP   = $CPP;
 
-    $DBG = "-g -DDEBUG";
-    $OPT = "-O3";
-    $PIC = "-fPIC";
-    $INC = "-I";
-    $MD  = "-MD";
-}
-elsif ( $TOOLS =~ m/clang/i )
-{
-    $CC = "clang -c";
-    $CP = "clang++ -c -mmacosx-version-min=10.6";
-    $AR = "ar rc";
-    $ARX = "ar x";
-    $ARLS = "ar t";
-    $LD = "clang";
-    $LP = "clang++ -mmacosx-version-min=10.6";
+    $DBG = '-g -DDEBUG';
+    $OPT = '-O3';
+    $PIC = '-fPIC';
+    $INC = '-I';
+    $MD  = '-MD';
+} elsif ($TOOLS eq 'clang') {
+    $CPP  = 'clang++';
+    $CC   = 'clang -c';
+    $CP   = "$CPP -c -mmacosx-version-min=10.6";
+    $AR   = 'ar rc';
+    $ARX  = 'ar x';
+    $ARLS = 'ar t';
+    $LD   = 'clang';
+    $LP   = "$CPP -mmacosx-version-min=10.6";
 
-    $DBG = "-g -DDEBUG";
-    $OPT = "-O3";
-    $PIC = "-fPIC";
-    $INC = "-I";
-    $MD  = "-MD";
-}
-elsif ( $TOOLS =~ m/jdk/i )
-{
-    $JAVAC = "javac";
-    $JAVAH = "javah";
-    $JAR   = "jar cf";
+    $DBG = '-g -DDEBUG';
+    $OPT = '-O3';
+    $PIC = '-fPIC';
+    $INC = '-I';
+    $MD  = '-MD';
+} elsif ($TOOLS eq 'jdk') {
+    $JAVAC = 'javac';
+    $JAVAH = 'javah';
+    $JAR   = 'jar cf';
 
-    $DBG = "-g";
+    $DBG = '-g';
 } elsif ($TOOLS eq 'vc++') {
-} else
-{
-    die "unrecognized tool chain - " . $TOOLS;
+} else {
+    die "unrecognized tool chain '$TOOLS'";
 }
 println "$TOOLS tool chain is supported" unless ($AUTORUN);
 
 if ($OS ne 'win' && $PKG{LNG} ne 'JAVA') {
     $TARGDIR = File::Spec->catdir($TARGDIR, $OS, $TOOLS, $ARCH, $BUILD);
+}
+
+if ($CPP) {
+    unless (check_tool($CPP)) {
+        println "configure: error: '$CPP' cannot be found";
+        exit 1;
+    }
 }
 
 my $NO_ARRAY_BOUNDS_WARNING = '';
@@ -1164,23 +1167,37 @@ sub reverse_build {
 ################################################################################
 
 sub check_no_array_bounds {
-    find_lib('-Wno-array-bounds');
+    check_compiler('O', '-Wno-array-bounds');
 }
 
 sub find_lib {
-    my ($n, $i, $l) = @_;
+    check_compiler('L', @_);
+}
 
-    if ($n eq '-Wno-array-bounds') {
-        if ($TOOLS && $TOOLS eq 'gcc') {
+sub check_tool {
+    check_compiler('T', @_);
+}
+
+sub check_compiler {
+    my ($t, $n, $i, $l) = @_;
+    my $tool = $TOOLS;
+
+    if ($t eq 'L') {
+        print "checking for $n library... ";
+    } elsif ($t eq 'O') {
+        if ($tool && $tool eq 'gcc') {
             print "checking if gcc supports $n... ";
         } else {
             return;
         }
+    } elsif ($t eq 'T') {
+        print "checking for $n... ";
+        $tool = $n;
     } else {
-        print "checking for $n library... ";
+        die "Unknown check_compiler option: '$t'";
     }
 
-    unless ($TOOLS) {
+    unless ($tool) {
         println "warning: unknown tool";
         return;
     }
@@ -1188,7 +1205,13 @@ sub find_lib {
     while (1) {
         my ($flags, $library, $log) = ('', '');
 
-        if ($n eq 'hdf5') {
+        if ($t eq 'O') {
+            $flags = $n;
+            $log = '                      int main() {                     }\n'
+        } elsif ($t eq 'T') {
+            $flags = '--help';
+            $log = '                      int main() {                     }\n'
+        } elsif ($n eq 'hdf5') {
             $library = '-lhdf5';
             $log = '#include <hdf5.h>  \n int main() { H5close         (); }\n'
         } elsif ($n eq 'fuse') {
@@ -1202,9 +1225,6 @@ sub find_lib {
             $library = '-lxml2';
             $log = '#include <libxml/xmlreader.h>\n"
                                          "int main() { xmlInitParser  ( ); }\n'
-        } elsif ($n eq '-Wno-array-bounds') {
-            $flags = $n;
-            $log = '                      int main() {                     }\n'
         } else {
             println 'unknown: skipped';
             return;
@@ -1223,9 +1243,9 @@ sub find_lib {
         my $cmd = $log;
         $cmd =~ s/\\n/\n/g;
 
-        my $gcc = "| $TOOLS -xc $flags " . ($i ? "-I$i " : ' ')
+        my $gcc = "| $tool -xc $flags " . ($i ? "-I$i " : ' ')
                                       . ($l ? "-L$l " : ' ') . "- $library";
-        $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
+        $gcc .= ' >/dev/null 2> /dev/null' unless ($OPT{'debug'});
 
         open GCC, $gcc or last;
         print "\n\t\trunning echo -e '$log' $gcc\n" if ($OPT{'debug'});
@@ -1238,7 +1258,7 @@ sub find_lib {
 
         return if (!$ok);
 
-        return 1 if ($n eq '-Wno-array-bounds');
+        return 1 if ($t eq 'O' || $t eq 'T');
 
         return ($i, $l);
     }

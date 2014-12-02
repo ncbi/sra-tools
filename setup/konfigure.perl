@@ -39,7 +39,7 @@ use Cwd qw(abs_path getcwd);
 use File::Basename 'fileparse';
 use File::Spec 'catdir';
 use FindBin qw($Bin);
-use Getopt::Long qw(GetOptions GetOptionsFromString);
+use Getopt::Long "GetOptions";
 
 chdir '..' or die "cannot cd to package root";
 
@@ -98,6 +98,14 @@ my %OPT;
 die "configure: error" unless (GetOptions(\%OPT, @options));
 
 if ($OPT{'reconfigure'}) {
+    unless (eval 'use Getopt::Long qw(GetOptionsFromString); 1') {
+        print <<EndText;
+configure: error: your perl does not support Getopt::Long::GetOptionsFromString
+                  reconfigure option is not avaliable
+EndText
+        exit 1;
+    }
+
     my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
     $CONFIGURED = '';
     my $MAKEFILE
@@ -116,6 +124,7 @@ if ($OPT{'reconfigure'}) {
         print STDERR "configure: error: run ./configure [OPTIONS] first.\n";
         return 1;
     }
+
     undef %OPT;
     unless (GetOptionsFromString($CONFIGURED, \%OPT, @options)) {
         die "configure: error";
@@ -1155,13 +1164,13 @@ sub reverse_build {
 ################################################################################
 
 sub check_no_array_bounds {
-    find_lib('no_array_bounds');
+    find_lib('-Wno-array-bounds');
 }
 
 sub find_lib {
     my ($n, $i, $l) = @_;
 
-    if ($n eq 'no_array_bounds') {
+    if ($n eq '-Wno-array-bounds') {
         if ($TOOLS && $TOOLS eq 'gcc') {
             print "checking if gcc supports $n... ";
         } else {
@@ -1189,12 +1198,12 @@ sub find_lib {
         } elsif ($n eq 'magic') {
             $library = '-lmagic';
             $log = '#include <magic.h>   \n int main() { magic_open     (0); }';
-        } elsif ($n eq 'no_array_bounds') {
-            $flags = '-Wno-array-bounds';
-            $log = '                        int main() {                     }'
         } elsif ($n eq 'xml2') {
             $library = '-lxml2';
             $log = '#include <libxml/xmlreader.h>\nint main(){xmlInitParser();}'
+        } elsif ($n eq '-Wno-array-bounds') {
+            $flags = $n;
+            $log = '                        int main() {                     }'
         } else {
             println 'unknown: skipped';
             return;

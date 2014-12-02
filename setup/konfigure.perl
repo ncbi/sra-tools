@@ -1190,20 +1190,21 @@ sub find_lib {
 
         if ($n eq 'hdf5') {
             $library = '-lhdf5';
-            $log = '#include <hdf5.h>    \n int main() { H5close         (); }';
+            $log = '#include <hdf5.h>  \n int main() { H5close         (); }\n'
         } elsif ($n eq 'fuse') {
             $flags = '-D_FILE_OFFSET_BITS=64';
             $library = '-lfuse';
-            $log = '#include <fuse.h>    \n int main() { fuse_get_context(); }';
+            $log = '#include <fuse.h>  \n int main() { fuse_get_context(); }\n'
         } elsif ($n eq 'magic') {
             $library = '-lmagic';
-            $log = '#include <magic.h>   \n int main() { magic_open     (0); }';
+            $log = '#include <magic.h> \n int main() { magic_open     (0); }\n'
         } elsif ($n eq 'xml2') {
             $library = '-lxml2';
-            $log = '#include <libxml/xmlreader.h>\nint main(){xmlInitParser();}'
+            $log = '#include <libxml/xmlreader.h>\n"
+                                         "int main() { xmlInitParser  ( ); }\n'
         } elsif ($n eq '-Wno-array-bounds') {
             $flags = $n;
-            $log = '                        int main() {                     }'
+            $log = '                      int main() {                     }\n'
         } else {
             println 'unknown: skipped';
             return;

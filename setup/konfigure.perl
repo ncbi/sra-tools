@@ -1238,7 +1238,7 @@ sub find_lib {
 
         return if (!$ok);
 
-        return 1 if ($n eq 'no_array_bounds');
+        return 1 if ($n eq '-Wno-array-bounds');
 
         return ($i, $l);
     }

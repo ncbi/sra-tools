@@ -358,6 +358,11 @@ if ($OS ne 'win' && $PKG{LNG} ne 'JAVA') {
     $TARGDIR = File::Spec->catdir($TARGDIR, $OS, $TOOLS, $ARCH, $BUILD);
 }
 
+my $NO_ARRAY_BOUNDS_WARNING = '';
+if ($TOOLS eq 'gcc' && check_no_array_bounds()) {
+    $NO_ARRAY_BOUNDS_WARNING = '-Wno-array-bounds';
+}
+
 my @dependencies;
 
 my %DEPEND_OPTIONS;
@@ -676,6 +681,7 @@ EndText
     }
 
     L($F, 'CLSPATH = -classpath $(CLSDIR)');
+    L($F, "NO_ARRAY_BOUNDS_WARNING = $NO_ARRAY_BOUNDS_WARNING");
     L($F);
 
     # version information
@@ -1148,27 +1154,47 @@ sub reverse_build {
 
 ################################################################################
 
+sub check_no_array_bounds {
+    find_lib('no_array_bounds');
+}
+
 sub find_lib {
     my ($n, $i, $l) = @_;
 
-    print "checking for $n library... ";
+    if ($n eq 'no_array_bounds') {
+        if ($TOOLS && $TOOLS eq 'gcc') {
+            print "checking if gcc supports $n... ";
+        } else {
+            return;
+        }
+    } else {
+        print "checking for $n library... ";
+    }
+
+    unless ($TOOLS) {
+        println "warning: unknown tool";
+        return;
+    }
 
     while (1) {
         my ($flags, $library, $log) = ('', '');
 
         if ($n eq 'hdf5') {
             $library = '-lhdf5';
-            $log = '#include <hdf5.h>        \n main() { H5close         (); }';
+            $log = '#include <hdf5.h>    \n int main() { H5close         (); }';
         } elsif ($n eq 'fuse') {
             $flags = '-D_FILE_OFFSET_BITS=64';
             $library = '-lfuse';
-            $log = '#include <fuse.h>        \n main() { fuse_get_context(); }';
+            $log = '#include <fuse.h>    \n int main() { fuse_get_context(); }';
         } elsif ($n eq 'magic') {
             $library = '-lmagic';
-            $log = '#include <magic.h>       \n main() { magic_open     (0); }';
+            $log = '#include <magic.h>   \n int main() { magic_open     (0); }';
+        } elsif ($n eq 'no_array_bounds') {
+            $flags = '-Wno-array-bounds';
+            $log = '                        int main() {                     }'
         } elsif ($n eq 'xml2') {
             $library = '-lxml2';
-            $log = '#include <libxml/xmlreader.h>\n main() { xmlInitParser();}';
+            $log = '#include <libxml/xmlreader.h>\nint main(){xmlInitParser();}'
         } else {
             println 'unknown: skipped';
             return;
@@ -1187,7 +1213,7 @@ sub find_lib {
         my $cmd = $log;
         $cmd =~ s/\\n/\n/g;
 
-        my $gcc = "| gcc -xc $flags " . ($i ? "-I$i " : ' ')
+        my $gcc = "| $TOOLS -xc $flags " . ($i ? "-I$i " : ' ')
                                       . ($l ? "-L$l " : ' ') . "- $library";
         $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
 
@@ -1201,6 +1227,8 @@ sub find_lib {
         unlink 'a.out';
 
         return if (!$ok);
+
+        return 1 if ($n eq 'no_array_bounds');
 
         return ($i, $l);
     }
@@ -1366,16 +1394,27 @@ Optional Features:
 
 EndText
 
-    print <<EndText if ($^O ne 'MSWin32');
+    my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
+
+    if ($^O ne 'MSWin32') {
+        print <<EndText;
 Build tuning:
   --with-debug
   --without-debug
-  --arch=name             specify the name of the target architecture
+EndText
+
+        if (@ARCHITECTURES) {
+            print
+"  --arch=name             specify the name of the target architecture\n";
+        }
+
+        print <<EndText;
 
   --build-prefix=DIR      generate build output into DIR directory
                           [$OUTDIR]
 
 EndText
+    }
 
     println 'Miscellaneous:';
     println '  --reconfigure           rerun configure';

@@ -1166,16 +1166,27 @@ sub reverse_build {
 
 ################################################################################
 
+sub check_tool {
+    my ($tool) = @_;
+    print "checking for $tool... ";
+    my $cmd = "$tool --help";
+    print "\n\t\trunning $cmd\n\t" if ($OPT{'debug'});
+    my $out = `$cmd 2>&1`;
+    if ($? == 0) {
+        println "yes";
+        return 1;
+    } else {
+        println "no";
+        return 0;
+    }
+}
+
 sub check_no_array_bounds {
     check_compiler('O', '-Wno-array-bounds');
 }
 
 sub find_lib {
     check_compiler('L', @_);
-}
-
-sub check_tool {
-    check_compiler('T', @_);
 }
 
 sub check_compiler {
@@ -1190,9 +1201,6 @@ sub check_compiler {
         } else {
             return;
         }
-    } elsif ($t eq 'T') {
-        print "checking for $n... ";
-        $tool = $n;
     } else {
         die "Unknown check_compiler option: '$t'";
     }
@@ -1207,9 +1215,6 @@ sub check_compiler {
 
         if ($t eq 'O') {
             $flags = $n;
-            $log = '                      int main() {                     }\n'
-        } elsif ($t eq 'T') {
-            $flags = '--help';
             $log = '                      int main() {                     }\n'
         } elsif ($n eq 'hdf5') {
             $library = '-lhdf5';
@@ -1245,7 +1250,7 @@ sub check_compiler {
 
         my $gcc = "| $tool -xc $flags " . ($i ? "-I$i " : ' ')
                                       . ($l ? "-L$l " : ' ') . "- $library";
-        $gcc .= ' >/dev/null 2> /dev/null' unless ($OPT{'debug'});
+        $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
 
         open GCC, $gcc or last;
         print "\n\t\trunning echo -e '$log' $gcc\n" if ($OPT{'debug'});
@@ -1258,7 +1263,7 @@ sub check_compiler {
 
         return if (!$ok);
 
-        return 1 if ($t eq 'O' || $t eq 'T');
+        return 1 if ($t eq 'O');
 
         return ($i, $l);
     }

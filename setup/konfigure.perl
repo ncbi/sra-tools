@@ -515,12 +515,12 @@ foreach my $href (@REQ) {
                         $found_ilib = $fil if (! $found_ilib && $fil);
                     }
                 }
-                unless ($fl || $fil) {
-                    $try = $a{bldpath};
-                    (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
-                    $found_lib  = $fl  if (! $found_lib  && $fl);
-                    $found_ilib = $fil if (! $found_ilib && $fil);
-                }
+            }
+            unless ($fl || $fil) {
+                my $try = $a{bldpath};
+                (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                $found_lib  = $fl  if (! $found_lib  && $fl);
+                $found_ilib = $fil if (! $found_ilib && $fil);
             }
         }
     }

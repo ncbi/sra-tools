@@ -630,7 +630,7 @@ sub copyincludes {
         }
     }
 
-    if ($out) {
+    if ($out && -f $s) {
         print "\n\t\tcp $s $d\n\t" if ($OPT{debug});
         unless (copy($s, $d)) {
             print "failure\n";

@@ -1197,7 +1197,7 @@ sub check_compiler {
         print "checking for $n library... ";
     } elsif ($t eq 'O') {
         if ($tool && $tool eq 'gcc') {
-            print "checking if gcc supports $n... ";
+            print "checking whether gcc accepts $n... ";
         } else {
             return;
         }

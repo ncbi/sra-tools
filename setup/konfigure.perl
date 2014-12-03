@@ -224,7 +224,12 @@ unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i) {
 
 # initial values
 my $TARGDIR = File::Spec->catdir($OUTDIR, $PACKAGE);
-$TARGDIR = expand_path($OPT{'build-prefix'}) if ($OPT{'build-prefix'});
+if ($OPT{'build-prefix'}) {
+    $TARGDIR = $OPT{'build-prefix'} = expand_path($OPT{'build-prefix'});
+    unless ($TARGDIR =~ /$PACKAGE$/) {
+        $TARGDIR = File::Spec->catdir($TARGDIR, $PACKAGE);
+    }
+}
 my $BUILD_PREFIX = $TARGDIR;
 
 my $BUILD = 'rel';
@@ -460,9 +465,18 @@ foreach my $href (@REQ) {
                 ++$has_option{sources};
             }
             my ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
-            $found_itf  = $fi  if (! $found_itf  && $fi);
-            $found_lib  = $fl  if (! $found_lib  && $fl);
-            $found_ilib = $fil if (! $found_ilib && $fil);
+            if ($fi || $fl || $fil) {
+                $found_itf  = $fi  if (! $found_itf  && $fi);
+                $found_lib  = $fl  if (! $found_lib  && $fl);
+                $found_ilib = $fil if (! $found_ilib && $fil);
+            }
+            elsif (! ($try =~ /$a{name}$/)) {
+                $try = File::Spec->catdir($try, $a{name});
+                ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                $found_itf  = $fi  if (! $found_itf  && $fi);
+                $found_lib  = $fl  if (! $found_lib  && $fl);
+                $found_ilib = $fil if (! $found_ilib && $fil);
+            }
         }
     }
     if (! $found_itf && ! $has_option{sources} && $a{srcpath}) {
@@ -486,10 +500,28 @@ foreach my $href (@REQ) {
     }
     if (! $has_option{build}) {
         if (($need_build || ($need_lib && ! $found_lib)) && $a{bldpath}) {
-            my $try = $a{bldpath};
-            my (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
-            $found_lib  = $fl  if (! $found_lib  && $fl);
-            $found_ilib = $fil if (! $found_ilib && $fil);
+            my ($fl, $fil);
+            if ($OPT{'build-prefix'}) {
+                my $try = $OPT{'build-prefix'};
+                (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                if ($fl || $fil) {
+                    $found_lib  = $fl  if (! $found_lib  && $fl);
+                    $found_ilib = $fil if (! $found_ilib && $fil);
+                } elsif (! ($try =~ /$a{name}$/)) {
+                    $try = File::Spec->catdir($try, $a{name});
+                    (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                    if ($fl || $fil) {
+                        $found_lib  = $fl  if (! $found_lib  && $fl);
+                        $found_ilib = $fil if (! $found_ilib && $fil);
+                    }
+                }
+                unless ($fl || $fil) {
+                    $try = $a{bldpath};
+                    (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                    $found_lib  = $fl  if (! $found_lib  && $fl);
+                    $found_ilib = $fil if (! $found_ilib && $fil);
+                }
+            }
         }
     }
     if (($need_itf && ! $found_itf) ||

@@ -176,6 +176,8 @@ if ($OPT{'help'}) {
     exit 0;
 }
 
+println "Configuring $PACKAGE_NAME package";
+
 $OPT{'prefix'} = $package_default_prefix unless ($OPT{'prefix'});
 
 my $AUTORUN = $OPT{status};

@@ -3118,6 +3118,7 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine(ALIAS_STATS   , OPTION_STATS   , NULL      , stats_usage);
     HelpOptionLine(ALIAS_ALIGN   , OPTION_ALIGN   , "on | off", align_usage);
     HelpOptionLine(ALIAS_PROGRESS, OPTION_PROGRESS, NULL      , progress_usage);
+    XMLLogger_Usage();
 
     KOutMsg ("\n");
 

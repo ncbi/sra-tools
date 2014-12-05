@@ -26,7 +26,9 @@
 
 #include "sra-stat.vers.h"
 
+#include <kapp/log-xml.h> /* XMLLogger */
 #include <kapp/main.h>
+#include <kapp/progressbar.h> /* KLoadProgressbar */
 
 #include <sra/wsradb.h>
 #include <sra/sradb-priv.h>
@@ -53,7 +55,6 @@
 #include <klib/namelist.h>
 #include <klib/out.h>
 #include <klib/printf.h>
-#include <klib/progressbar.h> /* progressbar */
 #include <klib/rc.h>
 #include <klib/sort.h> /* ksort */
 
@@ -82,10 +83,10 @@
 
 #define MAX_NREADS 2*1024
 
-/*********** XMLLogger_Encode : copied from kapp/log-xml.c (-lload) ***********/
+/********** _XMLLogger_Encode : copied from kapp/log-xml.c (-lload) ***********/
 
 static
-rc_t CC XMLLogger_Encode(const char* src,
+rc_t CC _XMLLogger_Encode(const char* src,
     char* aDst, size_t dst_sz, size_t *num_writ)
 {
     rc_t rc = 0;
@@ -177,7 +178,7 @@ static void BAM_HEADER_RG_print_xml(const BAM_HEADER_RG* rg) {
     size_t num_writ = 0;
     assert(rg);
     if (rg->LB) {
-        rc = XMLLogger_Encode(rg->LB, library, sizeof library, &num_writ);
+        rc = _XMLLogger_Encode(rg->LB, library, sizeof library, &num_writ);
         if (rc) {
             l = rg->LB;
             PLOGMSG(klogWarn, (klogWarn, "Library value is too long: "
@@ -187,7 +188,7 @@ static void BAM_HEADER_RG_print_xml(const BAM_HEADER_RG* rg) {
         OUTMSG((" library=\"%s\"", l ? l : ""));
     }
     if (rg->SM) {
-        rc = XMLLogger_Encode(rg->SM, sample, sizeof sample, &num_writ);
+        rc = _XMLLogger_Encode(rg->SM, sample, sizeof sample, &num_writ);
         if (rc) {
             s = rg->SM;
             PLOGMSG(klogWarn, (klogWarn, "Sample value is too long: "
@@ -743,6 +744,8 @@ typedef struct srastat_parms {
     bool print_arcinfo;
     bool statistics; /* calculate average and stdev */
     bool test; /* test stdev */
+
+    const XMLLogger *logger;
 
     spotid_t start, stop;
 
@@ -2485,8 +2488,9 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                 const char* name = PRIMARY_ALIGNMENT_ID;
                 rc = SRATableOpenColumnRead
                     (tbl, &cPRIMARY_ALIGNMENT_ID, name, "I64");
-                if (GetRCState(rc) == rcNotFound)
-                {   rc = 0; }
+                if (GetRCState(rc) == rcNotFound) {
+                    rc = 0;
+                }
                 DISP_RC2(rc, name, "while calling SRATableOpenColumnRead");
             }
             if (rc == 0) {
@@ -2498,8 +2502,7 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                     BasesInit(&total->bases_count, tbl);
                 }
                 if (rc == 0) {
-                    uint32_t percent = 0;
-                    struct progressbar *pr = NULL;
+                    const KLoadProgressbar *pr = NULL;
                     bool bad_read_filter = false;
                     bool fixedNReads = true;
                     bool fixedReadLength = true;
@@ -2507,11 +2510,6 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                     uint32_t g_dREAD_LEN[MAX_NREADS];
 
                     memset(g_dREAD_LEN, 0, sizeof g_dREAD_LEN);
-
-                    if ((rc = make_progressbar(&pr, 0)) != 0) {
-                        DISP_RC(rc, "cannot initialize progress bar");
-                        rc = 0;
-                    }
 
                     if (start == 0) {
                         start = 1;
@@ -2538,10 +2536,16 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                             LOGMSG(klogWarn, "Interrupted");
                         }
 
-                        if (rc == 0 && pb->progress) {
-                            percent
-                                = (spotid - start ) * 100 / (stop + 1 - start);
-                            update_progressbar(pr, percent);
+                        if (rc == 0 && pb->progress && pr == NULL) {
+                            rc = KLoadProgressbar_Make(&pr, stop + 1 - start);
+                            if (rc != 0) {
+                                DISP_RC(rc, "cannot initialize progress bar");
+                                rc = 0;
+                                pr = NULL;
+                            }
+                            else if (stop - start > 99) {
+                                KLoadProgressbar_Process(pr, 0, true);
+                            }
                         }
 
                         if (rc == 0) {
@@ -2779,6 +2783,10 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                     total->filtered_spot_count++;
                                 }
                             }
+
+                            if (rc == 0 && pb->progress) {
+                                KLoadProgressbar_Process(pr, 1, false);
+                            }
                         }
                     } /* for (spotid = start; spotid <= stop && rc == 0; ++spotid) */
 
@@ -2802,15 +2810,8 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                             }
                         }
                     }
-                    if (rc == 0 && pb->progress) {
-                        update_progressbar(pr, 100);
-KOutMsg("\r                                                                \r");
-                    }
-                    {
-                        rc_t r2 = destroy_progressbar(pr);
-                        if (r2 != 0) {
-                            DISP_RC(r2, "cannot destroy progress bar");
-                        }
+                    if (rc == 0) {
+                        KLoadProgressbar_Release(pr, true);
                         pr = NULL;
                     }
                 }
@@ -3062,8 +3063,7 @@ static const char * test_usage[] = { "test READ_LEN average and standard deviati
 static const char * xml_usage[] = { "output as XML, default is text", NULL };
 static const char * arcinfo_usage[] = { "output archive info, default is off", NULL };
 
-OptDef Options[] =
-{
+OptDef Options[] = {
       { OPTION_ALIGN   , ALIAS_ALIGN   , NULL, align_usage   , 1, true , false }
     , { OPTION_SPT_D   , ALIAS_SPT_D   , NULL, spt_d_usage   , 1, false, false }
     , { OPTION_MEMBR   , ALIAS_MEMBR   , NULL, membr_usage   , 1, true , false }
@@ -3153,149 +3153,210 @@ rc_t CC KMain ( int argc, char *argv [] )
     srastat_parms pb;
     memset(&pb, 0, sizeof pb);
 
-    rc = ArgsMakeAndHandle(&args, argc, argv, 1,
-        Options, sizeof Options / sizeof (OptDef));
-    if (rc == 0)
-    {
-        do
-        {
-            uint32_t pcount;
-            const char* pc;
+    rc = ArgsMakeAndHandle(&args, argc, argv, 2, Options,
+        sizeof Options / sizeof(OptDef), XMLLogger_Args, XMLLogger_ArgsQty);
+    if (rc == 0) {
+        do {
+            uint32_t pcount = 0;
+            const char* pc = NULL;
 
-            rc = ArgsOptionCount (args, OPTION_START, &pcount);
-            if (rc)
-                break;
-
-            if (pcount == 1)
             {
-                rc = ArgsOptionValue (args, OPTION_START, 0, &pc);
-                if (rc)
+                rc = ArgsOptionCount (args, OPTION_START, &pcount);
+                if (rc != 0) {
                     break;
+                }
 
-                pb.start = AsciiToU32 (pc, NULL, NULL);
-            }
+                if (pcount == 1) {
+                    rc = ArgsOptionValue (args, OPTION_START, 0, &pc);
+                    if (rc != 0) {
+                        break;
+                    }
 
-            rc = ArgsOptionCount (args, OPTION_STOP, &pcount);
-            if (rc)
-                break;
+                    pb.start = AsciiToU32 (pc, NULL, NULL);
+                }
 
-            if (pcount == 1)
-            {
-                rc = ArgsOptionValue (args, OPTION_STOP, 0, &pc);
-                if (rc)
+
+                rc = ArgsOptionCount (args, OPTION_STOP, &pcount);
+                if (rc != 0) {
                     break;
+                }
 
-                pb.stop = AsciiToU32 (pc, NULL, NULL);
-            }
 
-            rc = ArgsOptionCount (args, OPTION_XML, &pcount);
-            if (rc)
-                break;
+                if (pcount == 1) {
+                    rc = ArgsOptionValue (args, OPTION_STOP, 0, &pc);
+                    if (rc != 0) {
+                        break;
+                    }
 
-            if (pcount)
-                pb.xml = true;
+                    pb.stop = AsciiToU32 (pc, NULL, NULL);
+                }
 
-            rc = ArgsOptionCount (args, OPTION_QUICK, &pcount);
-            if (rc)
-                break;
 
-            if (pcount)
-                pb.quick = true;
-
-            rc = ArgsOptionCount (args, OPTION_META, &pcount);
-            if (rc)
-                break;
-
-            if (pcount)
-                pb.printMeta = true;
-
-            rc = ArgsOptionCount (args, OPTION_MEMBR, &pcount);
-            if (rc)
-                break;
-
-            if (pcount) {
-                const char* v = NULL;
-                rc = ArgsOptionValue (args, OPTION_MEMBR, 0, &v);
-                if (rc)
+                rc = ArgsOptionCount (args, OPTION_XML, &pcount);
+                if (rc != 0) {
                     break;
-                if (!strcmp(v, "off")) {
-                    pb.skip_members = true;
+                }
+
+                if (pcount > 0) {
+                    pb.xml = true;
                 }
             }
 
-            rc = ArgsOptionCount(args, OPTION_PROGRESS, &pcount);
-            if (rc)
-                break;
-            if (pcount)
-                pb.progress = true;
-
-            rc = ArgsOptionCount (args, OPTION_ARCINFO, &pcount);
-            if (rc)
-                break;
-
-            pb.print_arcinfo = pcount > 0;
-
-            rc = ArgsOptionCount (args, OPTION_ALIGN, &pcount);
-            if (rc)
-                break;
-
-            if (pcount) {
-                const char* v = NULL;
-                rc = ArgsOptionValue (args, OPTION_ALIGN, 0, &v);
-                if (rc)
+            {
+                rc = ArgsOptionCount (args, OPTION_QUICK, &pcount);
+                if (rc != 0) {
                     break;
-                if (!strcmp(v, "off")) {
-                    pb.skip_alignment = true;
+                }
+
+                if (pcount > 0) {
+                    pb.quick = true;
+                }
+
+
+                rc = ArgsOptionCount (args, OPTION_META, &pcount);
+                if (rc != 0) {
+                    break;
+                }
+
+                if (pcount > 0) {
+                    pb.printMeta = true;
+                }
+
+
+                rc = ArgsOptionCount (args, OPTION_MEMBR, &pcount);
+                if (rc != 0) {
+                    break;
+                }
+
+                if (pcount > 0) {
+                    const char* v = NULL;
+                    rc = ArgsOptionValue (args, OPTION_MEMBR, 0, &v);
+                    if (rc != 0) {
+                        break;
+                    }
+                    if (!strcmp(v, "off")) {
+                        pb.skip_members = true;
+                    }
                 }
             }
 
-            rc = ArgsOptionCount (args, OPTION_STATS, &pcount);
-            if (rc)
-                break;
+            {
+                rc = ArgsOptionCount(args, OPTION_PROGRESS, &pcount);
+                if (rc != 0) {
+                    break;
+                }
+                if (pcount > 0) {
+                    pb.progress = true;
+                    KLogLevel l = KLogLevelGet();
+                    rc = ArgsOptionCount(args, OPTION_LOG_LEVEL, &pcount);
+                    if (rc == 0) {
+                        if (pcount == 0) {
+                            if (l < klogInfo) {
+                                KLogLevelSet(klogInfo);
+                            }
+                        }
+                        else if (l < klogInfo) {
+                            LOGMSG(klogWarn, "log-level was set: "
+                                "progress will not be shown");
+                        }
+                    }
+                }
 
-            if (pcount)
-                pb.statistics = true;
 
-            rc = ArgsOptionCount (args, OPTION_TEST, &pcount);
-            if (rc)
-                break;
+                rc = ArgsOptionCount (args, OPTION_ARCINFO, &pcount);
+                if (rc != 0) {
+                    break;
+                }
 
-            if (pcount)
-                pb.test = pb.statistics = true;
-
-            rc = ArgsParamCount (args, &pcount);
-            if (rc)
-                break;
-
-            if (pcount == 0) {
-                MiniUsage (args);
-                exit(1);
+                pb.print_arcinfo = pcount > 0;
             }
 
-            rc = ArgsParamValue (args, 0, &pb.table_path);
-            if (rc)
-                break;
+            {
+                rc = ArgsOptionCount (args, OPTION_ALIGN, &pcount);
+                if (rc != 0) {
+                    break;
+                }
 
-            if (pb.statistics && (pb.quick || ! pb.xml)) {
-                KOutMsg("\n--" OPTION_STATS
-                    " option can be used just in XML NON-QUICK mode\n");
-                MiniUsage (args);
-                exit(1);
+                if (pcount > 0) {
+                    const char* v = NULL;
+                    rc = ArgsOptionValue (args, OPTION_ALIGN, 0, &v);
+                    if (rc != 0) {
+                        break;
+                    }
+                    if (!strcmp(v, "off")) {
+                        pb.skip_alignment = true;
+                    }
+                }
+
+
+                rc = ArgsOptionCount (args, OPTION_STATS, &pcount);
+                if (rc != 0) {
+                    break;
+                }
+
+                if (pcount > 0) {
+                    pb.statistics = true;
+                }
+
+
+                rc = ArgsOptionCount (args, OPTION_TEST, &pcount);
+                if (rc != 0) {
+                    break;
+                }
+
+                if (pcount > 0) {
+                    pb.test = pb.statistics = true;
+                }
+            }
+
+            {
+                rc = ArgsParamCount (args, &pcount);
+                if (rc != 0) {
+                    break;
+                }
+
+                if (pcount == 0) {
+                    MiniUsage (args);
+                    exit(1);
+                }
+
+
+                rc = ArgsParamValue (args, 0, &pb.table_path);
+                if (rc != 0) {
+                    break;
+                }
+
+                if (pb.statistics && (pb.quick || ! pb.xml)) {
+                    KOutMsg("\n--" OPTION_STATS
+                        " option can be used just in XML NON-QUICK mode\n");
+                    MiniUsage (args);
+                    exit(1);
+                }
+
+                rc = XMLLogger_Make(&pb.logger, NULL, args);
+                if (rc != 0) {
+                    DISP_RC(rc, "cannot initialize XMLLogger");
+                    rc = 0;
+                }
             }
         } while (0);
     }
 
-    if (rc == 0)
-    {   rc = run(&pb); }
-    else {  DISP_RC(rc, "while processing command line"); }
+    if (rc == 0) {
+        rc = run(&pb);
+    }
+    else {
+        DISP_RC(rc, "while processing command line");
+    }
+
+    XMLLogger_Release(pb.logger);
 
     {
         rc_t rc2 = ArgsWhack(args);
-        if (rc == 0)
-        {   rc = rc2; }
+        if (rc == 0) {
+            rc = rc2;
+        }
     }
 
     return rc;
 }
-
-/* EOF */

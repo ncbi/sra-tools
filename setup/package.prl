@@ -7,6 +7,7 @@ sub PACKAGE_NAMW { "SRATOOLS" }
 sub CONFIG_OUT   { 'build' }
 sub PKG { ( LNG   => 'C',
             OUT   => 'ncbi-outdir',
+            LOCOUT=> '../../OUTDIR',
             PATH  => '/usr/local/ncbi/sra-tools',
             UPATH =>      '$HOME/ncbi/sra-tools', ) }
 sub DEPENDS { ( { name => 'fuse' , Include => '/usr/include'        , },
@@ -23,6 +24,7 @@ sub REQ { (
               pkgpath => '/usr/local/ngs/ngs-sdk',
               usrpath =>      '$HOME/ngs/ngs-sdk',
               bldpath => '$HOME/ncbi-outdir/ngs-sdk',
+              locbldpath=>'$Bin/../../OUTDIR/ngs-sdk',
               include => 'ngs/itf/Refcount.h',
               lib     => 'libngs-c++.a',
             },
@@ -36,6 +38,7 @@ sub REQ { (
               pkgpath => '/usr/local/ncbi/ncbi-vdb',
               usrpath =>      '$HOME/ncbi/ncbi-vdb',
               bldpath => '$HOME/ncbi-outdir/ncbi-vdb',
+              locbldpath=>'$Bin/../../OUTDIR/ncbi-vdb',
               include => 'klib/rc.h',
               lib     => 'libncbi-vdb.a',
               ilib    => 'libkapp.a',

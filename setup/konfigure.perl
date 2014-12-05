@@ -64,8 +64,6 @@ my $HOME = $ENV{HOME} || $ENV{USERPROFILE}
 
 $PKG{UPATH} = expand($PKG{UPATH});
 
-my $OUTDIR = File::Spec->catdir($HOME, $PKG{OUT});
-
 my $package_default_prefix = $PKG{PATH};
 my $schema_default_dir = $PKG{SCHEMA_PATH} if ($PKG{SCHEMA_PATH});
 
@@ -96,6 +94,14 @@ push @options, "shemadir" if ($PKG{SCHEMA_PATH});
 
 my %OPT;
 die "configure: error" unless (GetOptions(\%OPT, @options));
+
+$OPT{'local-build-out'}
+    = -e File::Spec->catdir($ENV{HOME}, 'tmp', 'local-build-out');
+my $OUTDIR = File::Spec->catdir($HOME, $PKG{OUT});
+if ($OPT{'local-build-out'}) {
+    my $o = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
+    $OUTDIR = $o if ($o);
+}
 
 if ($OPT{'reconfigure'}) {
     unless (eval 'use Getopt::Long qw(GetOptionsFromString); 1') {
@@ -418,7 +424,8 @@ foreach my $href (DEPENDS()) {
 }
 
 foreach my $href (@REQ) {
-    $href->{bldpath} = expand($href->{bldpath}) if ($href->{bldpath});
+    $href->{   bldpath} = expand($href->{   bldpath}) if ($href->{   bldpath});
+    $href->{locbldpath} = expand($href->{locbldpath}) if ($href->{locbldpath});
     my ($found_itf, $found_lib, $found_ilib);        # found directories
     my %a = %$href;
     next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
@@ -518,6 +525,7 @@ foreach my $href (@REQ) {
             }
             unless ($fl || $fil) {
                 my $try = $a{bldpath};
+                $try = $a{locbldpath} if ($OPT{'local-build-out'});
                 (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
                 $found_lib  = $fl  if (! $found_lib  && $fl);
                 $found_ilib = $fil if (! $found_ilib && $fil);
@@ -1317,10 +1325,11 @@ sub check {
 
     my %PKG = PKG();
 
-    die "No LNG"   unless $PKG{LNG};
-    die "No OUT"   unless $PKG{OUT};
-    die "No PATH"  unless $PKG{PATH};
-    die "No UPATH" unless $PKG{UPATH};
+    die "No LNG"    unless $PKG{LNG};
+    die "No LOCOUT" unless $PKG{LOCOUT};
+    die "No OUT"    unless $PKG{OUT};
+    die "No PATH"   unless $PKG{PATH};
+    die "No UPATH"  unless $PKG{UPATH};
 
     foreach my $href (DEPENDS()) { die "No DEPENDS::name" unless $href->{name} }
 
@@ -1344,7 +1353,8 @@ sub check {
                 die "No $href->{name}:srcpath" unless $href->{srcpath};
             }
             unless ($href->{type} =~ /I/) {
-                die "No $href->{name}:bldpath" unless $href->{bldpath};
+                die "No $href->{name}:bldpath"    unless $href->{bldpath   };
+                die "No $href->{name}:locbldpath" unless $href->{locbldpath};
             }
             if ($href->{type} =~ /B/) {
                 die "No $href->{name}:ilib"    unless $href->{ilib};

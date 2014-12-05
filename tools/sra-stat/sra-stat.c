@@ -3247,8 +3247,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                     break;
                 }
                 if (pcount > 0) {
-                    pb.progress = true;
                     KLogLevel l = KLogLevelGet();
+                    pb.progress = true;
                     rc = ArgsOptionCount(args, OPTION_LOG_LEVEL, &pcount);
                     if (rc == 0) {
                         if (pcount == 0) {

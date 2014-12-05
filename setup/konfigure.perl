@@ -776,11 +776,13 @@ EndText
         L($F, 'LIBDIR    = $(TARGDIR)/jar');
     }
 
-    print $F <<EndText;
-ILIBDIR   = \$(TARGDIR)/ilib
-OBJDIR    = \$(TARGDIR)/obj/\$(MODPATH)
-CLSDIR    = \$(TARGDIR)/cls
-EndText
+    L($F, 'ILIBDIR   = $(TARGDIR)/ilib');
+    if ($PKG{NOMODPATH}) {
+        L($F, 'OBJDIR    = $(TARGDIR)/obj');
+    } else {
+        L($F, 'OBJDIR    = $(TARGDIR)/obj/$(MODPATH)');
+    }
+    L($F, 'CLSDIR    = $(TARGDIR)/cls');
 
     if ($PKG{LNG} eq 'JAVA') {
         L($F,

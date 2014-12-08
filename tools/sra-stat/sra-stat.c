@@ -1498,12 +1498,16 @@ rc_t get_arc_info(const SRAMgr* mgr, const char* path,
     rc_t rc = 0;
     memset(arc_info, 0, sizeof(*arc_info));
 
-    if( (rc = SRAMgrGetTableModDate(mgr, &arc_info->timestamp, "%s", path)) == 0 ) {
+    if ((rc = SRAMgrGetTableModDate(mgr, &arc_info->timestamp, "%s", path))
+        == 0 )
+    {
         uint32_t i;
         for(i = 0; i < sizeof(arc_info->i) / sizeof(arc_info->i[0]); i++) {
             const KFile* kfile;
             arc_info->i[i].tag = i == 0 ? "sra" : "lite.sra";
-            if( (rc = SRATableMakeSingleFileArchive(tbl, &kfile, i == 1, NULL)) == 0 ) {
+            if ((rc = SRATableMakeSingleFileArchive(tbl, &kfile, i == 1, NULL))
+                == 0 )
+            {
                 MD5State md5;
                 uint64_t pos = 0;
                 uint8_t buffer[256 * 1024];
@@ -1516,7 +1520,9 @@ rc_t get_arc_info(const SRAMgr* mgr, const char* path,
                         pos += num_read;
                     }
                 } while(rc == 0 && num_read != 0);
-                if( rc == 0 && (rc = KFileSize(kfile, &arc_info->i[i].size)) == 0 ) {
+                if (rc == 0 &&
+                    (rc = KFileSize(kfile, &arc_info->i[i].size)) == 0)
+                {
                     uint8_t digest[16];
                     MD5StateFinish(&md5, digest);
                     for(pos = 0, x = 0; rc == 0 && pos < sizeof(digest); pos++) {
@@ -1758,7 +1764,7 @@ rc_t get_load_info(const KMetadata* meta, SraMeta* info)
 
 static
 rc_t readStatsMetaNode(const KMDataNode* parent, const char* parentName,
-                       const char* name, uint64_t* result, bool quick, bool optional)
+    const char* name, uint64_t* result, bool quick, bool optional)
 {
     rc_t rc = 0;
 
@@ -2549,21 +2555,31 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                         }
 
                         if (rc == 0) {
-                            rc = SRAColumnRead(cREAD_LEN, spotid, &base, &boff, &row_bits);
-                            DISP_RC_Read(rc, READ_LEN, spotid, "while calling SRAColumnRead");
+                            rc = SRAColumnRead(cREAD_LEN,
+                                spotid, &base, &boff, &row_bits);
+                            DISP_RC_Read(rc, READ_LEN, spotid,
+                                "while calling SRAColumnRead");
                         }
                         if (rc == 0) {
-                            if (boff & 7)
-                            {   rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
-                            if (row_bits & 7)
-                            {   rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid); }
-                            if ((row_bits >> 3) > sizeof(dREAD_LEN))
-                            {   rc = RC(rcExe, rcColumn, rcReading, rcBuffer, rcInsufficient); }
-                            DISP_RC_Read(rc, READ_LEN, spotid, "after calling SRAColumnRead");
+                            if (boff & 7) {
+                                rc = RC(rcExe, rcColumn, rcReading,
+                                    rcOffset, rcInvalid);
+                            }
+                            if (row_bits & 7) {
+                                rc = RC(rcExe, rcColumn, rcReading,
+                                    rcSize, rcInvalid);
+                            }
+                            if ((row_bits >> 3) > sizeof(dREAD_LEN)) {
+                                rc = RC(rcExe, rcColumn, rcReading,
+                                    rcBuffer, rcInsufficient);
+                            }
+                            DISP_RC_Read(rc, READ_LEN, spotid,
+                                "after calling SRAColumnRead");
                         }
                         if (rc == 0) {
                             int i, bio_len, bio_count, bad_cnt, filt_cnt;
-                            memcpy(dREAD_LEN, ((const char*)base) + (boff>>3), row_bits>>3);
+                            memcpy(dREAD_LEN,
+                                ((const char*)base) + (boff>>3), row_bits >> 3);
                             nreads = (row_bits >> 3) / sizeof(*dREAD_LEN);
                             if (spotid == start) {
                                 g_nreads = nreads;
@@ -2577,100 +2593,161 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                             }
 
                             if (rc == 0) {
-                                rc = SRAColumnRead(cREAD_TYPE, spotid, &base, &boff, &row_bits);
-                                DISP_RC_Read(rc, READ_TYPE, spotid, "while calling SRAColumnRead");
+                                rc = SRAColumnRead(cREAD_TYPE,
+                                    spotid, &base, &boff, &row_bits);
+                                DISP_RC_Read(rc, READ_TYPE, spotid,
+                                    "while calling SRAColumnRead");
                                 if (rc == 0) {
-                                    if (boff & 7)
-                                    {   rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
-                                    if (row_bits & 7)
-                                    {   rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid); }
-                                    if ((row_bits >> 3) > sizeof(dREAD_TYPE))
-                                    {   rc = RC(rcExe, rcColumn, rcReading, rcBuffer, rcInsufficient); }
-                                    if ((row_bits >> 3) !=  nreads)
-                                    {   rc = RC(rcExe, rcColumn, rcReading, rcData, rcIncorrect); }
-                                    DISP_RC_Read(rc, READ_TYPE, spotid, "after calling SRAColumnRead");
+                                    if (boff & 7) {
+                                        rc = RC(rcExe, rcColumn, rcReading,
+                                            rcOffset, rcInvalid);
+                                    }
+                                    if (row_bits & 7) {
+                                        rc = RC(rcExe, rcColumn, rcReading,
+                                            rcSize, rcInvalid);
+                                    }
+                                    if ((row_bits >> 3) > sizeof(dREAD_TYPE)) {
+                                        rc = RC(rcExe, rcColumn, rcReading,
+                                            rcBuffer, rcInsufficient);
+                                    }
+                                    if ((row_bits >> 3) !=  nreads) {
+                                        rc = RC(rcExe, rcColumn, rcReading,
+                                            rcData, rcIncorrect);
+                                    }
+                                    DISP_RC_Read(rc, READ_TYPE, spotid,
+                                        "after calling SRAColumnRead");
                                 }
                             }
                             if (rc == 0) {
-                                memcpy(dREAD_TYPE, ((const char*)base) + (boff >> 3), row_bits >> 3);
+                                memcpy(dREAD_TYPE,
+                                    ((const char*)base) + (boff >> 3),
+                                    row_bits >> 3);
                                 if (cSPOT_GROUP) {
-                                    rc = SRAColumnRead(cSPOT_GROUP, spotid, &base, &boff, &row_bits);
-                                    DISP_RC_Read(rc, SPOT_GROUP, spotid, "while calling SRAColumnRead");
+                                    rc = SRAColumnRead(cSPOT_GROUP,
+                                        spotid, &base, &boff, &row_bits);
+                                    DISP_RC_Read(rc, SPOT_GROUP, spotid,
+                                        "while calling SRAColumnRead");
                                     if (rc == 0) {
                                         if (row_bits > 0) {
-                                            if (boff & 7)
-                                            {   rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
-                                            if (row_bits & 7)
-                                            {   rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid); }
-                                            if ((row_bits >> 3) > sizeof(dSPOT_GROUP))
-                                            {   rc = RC(rcExe, rcColumn, rcReading, rcBuffer, rcInsufficient); }
-                                            DISP_RC_Read(rc, SPOT_GROUP, spotid, "after calling SRAColumnRead");
+                                            if (boff & 7) {
+                                                rc = RC(rcExe, rcColumn,
+                                                    rcReading,
+                                                    rcOffset, rcInvalid);
+                                            }
+                                            if (row_bits & 7) {
+                                                rc = RC(rcExe, rcColumn,
+                                                    rcReading,
+                                                    rcSize, rcInvalid); }
+                                            if ((row_bits >> 3)
+                                                > sizeof(dSPOT_GROUP))
+                                            {
+                                                rc = RC(rcExe, rcColumn,
+                                                    rcReading,
+                                                    rcBuffer, rcInsufficient);
+                                            }
+                                            DISP_RC_Read(rc, SPOT_GROUP, spotid,
+                                                "after calling SRAColumnRead");
                                             if (rc == 0) {
                                                 int n = row_bits >> 3;
-                                                memcpy(dSPOT_GROUP,((const char*)base) + (boff>>3),row_bits>>3);
+                                                memcpy(dSPOT_GROUP,
+                                                  ((const char*)base)+(boff>>3),
+                                                  row_bits>>3);
                                                 dSPOT_GROUP[n]='\0';
                                                 if (n > 1 ||
                                                     (n == 1 && dSPOT_GROUP[0]))
-                                                {   pb -> hasSPOT_GROUP = 1; }
+                                                {
+                                                    pb -> hasSPOT_GROUP = 1;
+                                                }
                                             }
                                         }
-                                        else {  dSPOT_GROUP[0]='\0'; }
-                                    } else { break; }
+                                        else {
+                                            dSPOT_GROUP[0]='\0';
+                                        }
+                                    }
+                                    else {
+                                        break;
+                                    }
                                 }
                             }
                             if (rc == 0) {
                                 uint64_t cmp_len = 0; /* CMP_READ */
                                 if (cRD_FILTER) {
-                                    rc = SRAColumnRead(cRD_FILTER, spotid, &base, &boff, &row_bits);
-                                    DISP_RC_Read(rc, RD_FILTER, spotid, "while calling SRAColumnRead");
+                                    rc = SRAColumnRead(cRD_FILTER,
+                                        spotid, &base, &boff, &row_bits);
+                                    DISP_RC_Read(rc, RD_FILTER, spotid,
+                                        "while calling SRAColumnRead");
                                     if (rc == 0) {
                                         int size = row_bits >> 3;
-                                        if (boff & 7)
-                                        {   rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
-                                        if (row_bits & 7)
-                                        {   rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid); }
-                                        if (size > sizeof dRD_FILTER)
-                                        {   rc = RC(rcExe, rcColumn, rcReading, rcBuffer, rcInsufficient); }
-                                        DISP_RC_Read(rc, RD_FILTER, spotid, "after calling SRAColumnRead");
+                                        if (boff & 7) {
+                                            rc = RC(rcExe, rcColumn, rcReading,
+                                                rcOffset, rcInvalid); }
+                                        if (row_bits & 7) {
+                                            rc = RC(rcExe, rcColumn, rcReading,
+                                                rcSize, rcInvalid);
+                                        }
+                                        if (size > sizeof dRD_FILTER) {
+                                            rc = RC(rcExe, rcColumn, rcReading,
+                                                rcBuffer, rcInsufficient);
+                                        }
+                                        DISP_RC_Read(rc, RD_FILTER, spotid,
+                                            "after calling SRAColumnRead");
                                         if (rc == 0) {
-                                            memcpy(dRD_FILTER,((const char*)base) + (boff>>3), size);
+                                            memcpy(dRD_FILTER,
+                                                ((const char*)base) + (boff>>3),
+                                                size);
                                             if (size < nreads) {
-                                                /* RD_FILTER is expected to have nreads elements */
+                             /* RD_FILTER is expected to have nreads elements */
                                                 if (size == 1) {
-                                                    /* fill all RD_FILTER elements with RD_FILTER[0] */
+                             /* fill all RD_FILTER elements with RD_FILTER[0] */
                                                     int i = 0;
-                                                    for (i = 1; i < nreads; ++i) {
+                                                    for (i = 1; i < nreads; ++i)
+                                                    {
                                                         memcpy(dRD_FILTER + i,
-                                                            ((const char*)base) + (boff>>3), 1);
+                                                  ((const char*)base)+(boff>>3),
+                                                  1);
                                                     }
                                                     if (!bad_read_filter) {
                                                         bad_read_filter = true;
-                                                        PLOGMSG(klogWarn, (klogWarn, "RD_FILTER column"
-                                                            " size is 1 but it is expected to be $(n)",
+                                                        PLOGMSG(klogWarn,
+                                                            (klogWarn,
+             "RD_FILTER column size is 1 but it is expected to be $(n)",
                                                             "n=%d", nreads));
                                                     }
                                                 }
-                                                else { /* something really bad with RD_FILTER column:
-                                                          let's pretend it does not exist */
+                                                else {
+                                  /* something really bad with RD_FILTER column:
+                                     let's pretend it does not exist */
                                                     cRD_FILTER = NULL;
                                                     bad_read_filter = true;
-                                                    PLOGMSG(klogWarn, (klogWarn, "RD_FILTER column size"
-                                                        " is $(real) but it is expected to be $(exp)",
-                                                        "real=%d,exp=%d", size, nreads));
+                                                    PLOGMSG(klogWarn,
+                                                        (klogWarn,
+             "RD_FILTER column size is $(real) but it is expected to be $(exp)",
+                                                        "real=%d,exp=%d",
+                                                        size, nreads));
                                                 }
                                             }
                                         }
-                                    } else { break; }
+                                    }
+                                    else {
+                                        break;
+                                    }
                                 }
 
                                 if (cPRIMARY_ALIGNMENT_ID) {
-                                    rc = SRAColumnRead(cPRIMARY_ALIGNMENT_ID, spotid, &base, &boff, &row_bits);
-                                    DISP_RC_Read(rc, PRIMARY_ALIGNMENT_ID, spotid, "while calling SRAColumnRead");
-                                    if (boff & 7)
-                                    {   rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
-                                    if (row_bits & 7)
-                                    {   rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid); }
-                                    DISP_RC_Read(rc, PRIMARY_ALIGNMENT_ID, spotid, "after calling calling SRAColumnRead");
+                                    rc = SRAColumnRead(cPRIMARY_ALIGNMENT_ID,
+                                        spotid, &base, &boff, &row_bits);
+                                    DISP_RC_Read(rc, PRIMARY_ALIGNMENT_ID,
+                                        spotid, "while calling SRAColumnRead");
+                                    if (boff & 7) {
+                                        rc = RC(rcExe, rcColumn, rcReading,
+                                            rcOffset, rcInvalid); }
+                                    if (row_bits & 7) {
+                                        rc = RC(rcExe, rcColumn, rcReading,
+                                            rcSize, rcInvalid);
+                                    }
+                                    DISP_RC_Read(rc, PRIMARY_ALIGNMENT_ID,
+                                        spotid,
+                                        "after calling calling SRAColumnRead");
                                     if (rc == 0) {
                                         int i = 0;
                                         const int64_t* pii = base;
@@ -2683,27 +2760,30 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                     }
                                 }
 /*                              if (cCMP_READ) {
-                                    rc = SRAColumnRead(cCMP_READ, spotid, &base, &boff, &row_bits);
-                                    DISP_RC_Read(rc, CMP_READ, spotid, "while calling SRAColumnRead");
-                                    if (boff & 7)
-                                    {   rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
-                                    if (row_bits & 7)
-                                    {   rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid); }
-                                    DISP_RC_Read(rc, CMP_READ, spotid, "after calling calling SRAColumnRead");
-                                    if (rc == 0)
-                                    {   assert(cmp_len == row_bits >> 3); }
-                                } */
+      rc = SRAColumnRead(cCMP_READ, spotid, &base, &boff, &row_bits);
+      DISP_RC_Read(rc, CMP_READ, spotid, "while calling SRAColumnRead");
+      if (boff & 7)
+      {   rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
+      if (row_bits & 7)
+      {   rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid); }
+      DISP_RC_Read(rc, CMP_READ, spotid, "after calling calling SRAColumnRead");
+      if (rc == 0)
+      {   assert(cmp_len == row_bits >> 3); }
+                                               } */
 
-                                ss = (SraStats*)BSTreeFind(tr, dSPOT_GROUP, srastats_cmp);
+                                ss = (SraStats*)BSTreeFind
+                                    (tr, dSPOT_GROUP, srastats_cmp);
                                 if (ss == NULL) {
                                     ss = calloc(1, sizeof(*ss));
                                     if (ss == NULL) {
-                                        rc = RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
+                                        rc = RC(rcExe, rcStorage, rcAllocating,
+                                            rcMemory, rcExhausted);
                                         break;
                                     }
                                     else {
                                         strcpy(ss->spot_group, dSPOT_GROUP);
-                                        BSTreeInsert(tr, (BSTNode*)ss, srastats_sort);
+                                        BSTreeInsert
+                                            (tr, (BSTNode*)ss, srastats_sort);
                                     }
                                 }
                                 ++ss->spot_count;
@@ -2717,7 +2797,10 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                 if (pb->statistics) {
                                     SraStatsTotalAdd(total, dREAD_LEN, nreads);
                                 }
-                                for (bio_len = bio_count = i = bad_cnt = filt_cnt = 0; (i < nreads) && (rc == 0); i++) {
+                                for (bio_len = bio_count = i = bad_cnt
+                                        = filt_cnt = 0;
+                                    (i < nreads) && (rc == 0); i++)
+                                {
                                     if (dREAD_LEN[i] > 0) {
                                         g_totalREAD_LEN[i] += dREAD_LEN[i];
                                         ++g_nonZeroLenReads[i];
@@ -2725,14 +2808,17 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                     if (spotid == start) {
                                         g_dREAD_LEN[i] = dREAD_LEN[i];
                                     }
-                                    else if (g_dREAD_LEN[i] != dREAD_LEN[i])
-                                    {   fixedReadLength = false; }
+                                    else if (g_dREAD_LEN[i] != dREAD_LEN[i]) {
+                                        fixedReadLength = false;
+                                    }
 
                                     if (dREAD_LEN[i] > 0) {
                                         bool biological = false;
                                         ss->total_len += dREAD_LEN[i];
                                         total->BASE_COUNT += dREAD_LEN[i];
-                                        if ((dREAD_TYPE[i] & SRA_READ_TYPE_BIOLOGICAL) != 0) {
+                                        if ((dREAD_TYPE[i]
+                                            & SRA_READ_TYPE_BIOLOGICAL) != 0)
+                                        {
                                             biological = true;
                                             bio_len += dREAD_LEN[i];
                                             bio_count++;
@@ -2744,23 +2830,31 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                                 case SRA_READ_FILTER_REJECT:
                                                 case SRA_READ_FILTER_CRITERIA:
                                                     if (biological) {
-                                                        ss->bad_bio_len += dREAD_LEN[i];
-                                                        total->bad_bio_len += dREAD_LEN[i];
+                                                        ss->bad_bio_len
+                                                            += dREAD_LEN[i];
+                                                        total->bad_bio_len
+                                                            += dREAD_LEN[i];
                                                     }
                                                     bad_cnt++;
                                                     break;
                                                 case SRA_READ_FILTER_REDACTED:
                                                     if (biological) {
-                                                        ss->filtered_bio_len += dREAD_LEN[i];
-                                                        total->filtered_bio_len += dREAD_LEN[i];
+                                                        ss->filtered_bio_len
+                                                            += dREAD_LEN[i];
+                                                        total->filtered_bio_len
+                                                            += dREAD_LEN[i];
                                                     }
                                                     filt_cnt++;
                                                     break;
                                                 default:
-                                                    rc = RC(rcExe, rcColumn, rcReading, rcData, rcUnexpected);
-                                                    PLOGERR(klogInt, (klogInt, rc,
-                                                        "spot=$(spot), read=$(read), READ_FILTER=$(val)", "spot=%lu,read=%d,val=%d",
-                                                        spotid, i, dRD_FILTER[i]));
+                                                    rc = RC(rcExe, rcColumn,
+                                                        rcReading,
+                                                        rcData, rcUnexpected);
+                                                    PLOGERR(klogInt,
+                                                        (klogInt, rc,
+    "spot=$(spot), read=$(read), READ_FILTER=$(val)", "spot=%lu,read=%d,val=%d",
+                                                        spotid, i,
+                                                        dRD_FILTER[i]));
                                                     break;
                                             }
                                         }
@@ -2788,7 +2882,8 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                 KLoadProgressbar_Process(pr, 1, false);
                             }
                         }
-                    } /* for (spotid = start; spotid <= stop && rc == 0; ++spotid) */
+                    } /* for (spotid = start; spotid <= stop && rc == 0;
+                              ++spotid) */
 
                     if (rc == 0) {
                         BasesFinalize(&total->bases_count);
@@ -3049,19 +3144,25 @@ ver_t CC KAppVersion ( void )
 #define ALIAS_XML      "x"
 #define OPTION_XML     "xml"
 
-static const char * align_usage[] = { "print alignment info, default is on", NULL };
+static const char * align_usage[] = { "print alignment info, default is on"
+                                                                   , NULL };
 static const char * spt_d_usage[] = { "print table spot descriptor", NULL };
-static const char * membr_usage[] = { "print member stats, default is on", NULL };
-static const char *progress_usage[]
-    = { "show the percentage of completion", NULL };
+static const char * membr_usage[] = { "print member stats, default is on"
+                                                          , NULL };
+static const char *progress_usage[] = { "show the percentage of completion"
+                                                          , NULL };
 static const char * meta_usage[] = { "print load metadata", NULL };
 static const char * start_usage[] = { "starting spot id, default is 1", NULL };
 static const char * stop_usage[] = { "ending spot id, default is max", NULL };
-static const char * stats_usage[] = { "calculate READ_LEN average and standard deviation", NULL };
-static const char * quick_usage[] = { "quick mode: get statistics from metadata;", "do not scan the table", NULL };
-static const char * test_usage[] = { "test READ_LEN average and standard deviation calculation", NULL };
+static const char * stats_usage[] = {
+       "calculate READ_LEN average and standard deviation", NULL };
+static const char * quick_usage[] = {
+   "quick mode: get statistics from metadata;", "do not scan the table", NULL };
+static const char * test_usage[] = {
+   "test READ_LEN average and standard deviation calculation", NULL };
 static const char * xml_usage[] = { "output as XML, default is text", NULL };
-static const char * arcinfo_usage[] = { "output archive info, default is off", NULL };
+static const char * arcinfo_usage[] = { "output archive info, default is off"
+                                                                    , NULL };
 
 OptDef Options[] = {
       { OPTION_ALIGN   , ALIAS_ALIGN   , NULL, align_usage   , 1, true , false }

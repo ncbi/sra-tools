@@ -1521,16 +1521,21 @@ EndText
     }
 
     println 'Miscellaneous:';
-    println '  --reconfigure           rerun configure';
+    println '  --reconfigure           rerun `configure\'';
     println '                          using the same command-line arguments';
     if ($^O ne 'MSWin32') {
         println
             '  --status                print current configuration information'
     }
-    println '  --clean                 remove all configuration results';
-    println '  --debug                 print lots of debugging information';
-    println;
-    println 'Report bugs to sra-tools@ncbi.nlm.nih.gov';
+    print <<EndText;
+  --clean                 remove all configuration results
+  --debug                 print lots of debugging information
+
+If `configure' was arleady run running `configure' without options
+will rerun `configure' using the same command-line arguments.
+
+Report bugs to sra-tools\@ncbi.nlm.nih.gov
+EndText
 }
 
 ################################################################################

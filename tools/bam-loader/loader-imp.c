@@ -801,26 +801,54 @@ static uint8_t GetMapQ(BAMAlignment const *rec)
     return mapQ;
 }
 
-static void EditAlignedQualities(uint8_t qual[], bool const hasMismatch[], unsigned readlen)
+static bool EditAlignedQualities(uint8_t qual[], bool const hasMismatch[], unsigned readlen)
 {
     unsigned i;
+    bool changed = false;
 
     for (i = 0; i < readlen; ++i) {
-        uint8_t const q = hasMismatch[i] ? G.alignedQualValue : qual[i];
-
-        qual[i] = q;
+        uint8_t const q_0 = qual[i];
+        uint8_t const q_1= hasMismatch[i] ? G.alignedQualValue : q_0;
+        
+        if (q_0 != q_1) {
+            changed = true;
+            break;
+        }
     }
+    if (!changed)
+        return false;
+    for (i = 0; i < readlen; ++i) {
+        uint8_t const q_0 = qual[i];
+        uint8_t const q_1= hasMismatch[i] ? G.alignedQualValue : q_0;
+
+        qual[i] = q_1;
+    }
+    return true;
 }
 
-static void EditUnalignedQualities(uint8_t qual[], bool const hasMismatch[], unsigned readlen)
+static bool EditUnalignedQualities(uint8_t qual[], bool const hasMismatch[], unsigned readlen)
 {
     unsigned i;
+    bool changed = false;
 
     for (i = 0; i < readlen; ++i) {
-        uint8_t const q = (qual[i] & 0x7F) | (hasMismatch[i] ? 0x80 : 0);
-
-        qual[i] = q;
+        uint8_t const q_0 = qual[i];
+        uint8_t const q_1 = (q_0 & 0x7F) | (hasMismatch[i] ? 0x80 : 0);
+        
+        if (q_0 != q_1) {
+            changed = true;
+            break;
+        }
     }
+    if (!changed)
+        return false;
+    for (i = 0; i < readlen; ++i) {
+        uint8_t const q_0 = qual[i];
+        uint8_t const q_1 = (q_0 & 0x7F) | (hasMismatch[i] ? 0x80 : 0);
+
+        qual[i] = q_1;
+    }
+    return true;
 }
 
 static bool platform_cmp(char const platform[], char const test[])
@@ -948,6 +976,183 @@ rc_t LogDupConflict(char const readName[])
                                  "name=%s", readName));
     return rc;
 }
+
+static char const *const CHANGED[] = {
+    "FLAG changed",
+    "QUAL changed",
+    "SEQ changed",
+    "record made unaligned",
+    "record made unfragmented",
+    "mate alignment lost",
+    "record discarded"
+};
+
+static char const *const REASONS[] = {
+/* FLAG changed */
+    "0x400 and 0x200 both set",
+    "conflicting PCR Dup flags",
+    "primary alignment already exists",
+    "was already recorded as unaligned",
+/* QUAL changed */
+    "original quality used",
+    "unaligned colorspace",
+    "aligned bases",
+    "unaligned bases",
+    "reversed",
+/* unaligned */
+    "low MAPQ",
+    "low match count",
+    "missing alignment info",
+    "missing reference position",
+    "invalid alignment info",
+    "invalid reference position",
+    "invalid reference",
+    "unaligned reference",
+    "unknown reference",
+    "hard-clipped colorspace",
+/* unfragmented */
+    "missing fragment info",
+    "too many fragments",
+/* mate info lost */
+    "invalid mate reference",
+    "missing mate alignment info",
+    "unknown mate reference",
+/* discarded */
+    "conflicting PCR duplicate",
+    "conflicting fragment info",
+    "reference is skipped"
+};
+
+static struct {
+    unsigned what, why;
+} const CHANGES[] = {
+    {0,  0},
+    {0,  1},
+    {0,  2},
+    {0,  3},
+    {1,  4},
+    {1,  5},
+    {1,  6},
+    {1,  7},
+    {1,  8},
+    {2,  8},
+    {3,  9},
+    {3, 10},
+    {3, 11},
+    {3, 12},
+    {3, 13},
+    {3, 14},
+    {3, 15},
+    {3, 16},
+    {3, 17},
+    {3, 18},
+    {4, 19},
+    {4, 20},
+    {5, 21},
+    {5, 22},
+    {5, 23},
+    {6, 24},
+    {6, 25},
+    {6, 26},
+    {6, 17}
+};
+
+#define NUMBER_OF_CHANGES ((unsigned)(sizeof(CHANGES)/sizeof(CHANGES[0])))
+static unsigned change_counter[NUMBER_OF_CHANGES];
+
+static void LOG_CHANGE(unsigned const change)
+{
+    ++change_counter[change];
+}
+
+static void PrintChangeReport(void)
+{
+    unsigned i;
+
+    for (i = 0; i != NUMBER_OF_CHANGES; ++i) {
+        if (change_counter[i] > 0) {
+            char const *const what = CHANGED[CHANGES[i].what];
+            char const *const why  = REASONS[CHANGES[i].why];
+
+            PLOGMSG(klogInfo, (klogInfo, "$(what) $(times) times because $(reason)", "what=%s,reason=%s,times=%u", what, why, change_counter[i]));
+        }
+    }
+}
+
+static rc_t RecordChange(KMDataNode *const node,
+                         char const node_name[],
+                         unsigned const node_number,
+                         char const what[],
+                         char const why[],
+                         unsigned const count)
+{
+    KMDataNode *sub = NULL;
+    rc_t const rc_sub = KMDataNodeOpenNodeUpdate(node, &sub, "%s_%u", node_name, node_number);
+
+    if (rc_sub) return rc_sub;
+    {
+        uint32_t const count_temp = count;
+        rc_t const rc_attr1 = KMDataNodeWriteAttr(sub, "change", what);
+        rc_t const rc_attr2 = KMDataNodeWriteAttr(sub, "reason", why);
+        rc_t const rc_value = KMDataNodeWriteB32(sub, &count_temp);
+        
+        KMDataNodeRelease(sub);
+        if (rc_attr1) return rc_attr1;
+        if (rc_attr2) return rc_attr2;
+        if (rc_value) return rc_value;
+        
+        return 0;
+    }
+}
+
+static rc_t RecordChanges(KMDataNode *const node, char const name[])
+{
+    if (node) {
+        unsigned i;
+        unsigned j = 0;
+
+        for (i = 0; i != NUMBER_OF_CHANGES; ++i) {
+            if (change_counter[i] > 0) {
+                char const *const what = CHANGED[CHANGES[i].what];
+                char const *const why  = REASONS[CHANGES[i].why];
+                rc_t const rc = RecordChange(node, name, ++j, what, why, change_counter[i]);
+
+                if (rc) return rc;
+            }
+        }
+    }
+    return 0;
+}
+
+#define FLAG_CHANGED_400_AND_200   do { LOG_CHANGE( 0); } while(0)
+#define FLAG_CHANGED_PCR_DUP       do { LOG_CHANGE( 1); } while(0)
+#define FLAG_CHANGED_PRIMARY_DUP   do { LOG_CHANGE( 2); } while(0)
+#define FLAG_CHANGED_WAS_UNALIGNED do { LOG_CHANGE( 3); } while(0)
+#define QUAL_CHANGED_OQ            do { LOG_CHANGE( 4); } while(0)
+#define QUAL_CHANGED_UNALIGNED_CS  do { LOG_CHANGE( 5); } while(0)
+#define QUAL_CHANGED_ALIGNED_EDIT  do { LOG_CHANGE( 6); } while(0)
+#define QUAL_CHANGED_UNALIGN_EDIT  do { LOG_CHANGE( 7); } while(0)
+#define QUAL_CHANGED_REVERSED      do { LOG_CHANGE( 8); } while(0)
+#define SEQ__CHANGED_REV_COMP      do { LOG_CHANGE( 9); } while(0)
+#define UNALIGNED_LOW_MAPQ         do { LOG_CHANGE(10); } while(0)
+#define UNALIGNED_LOW_MATCH_COUNT  do { LOG_CHANGE(11); } while(0)
+#define UNALIGNED_MISSING_INFO     do { LOG_CHANGE(12); } while(0)
+#define UNALIGNED_MISSING_REF_POS  do { LOG_CHANGE(13); } while(0)
+#define UNALIGNED_INVALID_INFO     do { LOG_CHANGE(14); } while(0)
+#define UNALIGNED_INVALID_REF_POS  do { LOG_CHANGE(15); } while(0)
+#define UNALIGNED_INVALID_REF      do { LOG_CHANGE(16); } while(0)
+#define UNALIGNED_UNALIGNED_REF    do { LOG_CHANGE(17); } while(0)
+#define UNALIGNED_UNKNOWN_REF      do { LOG_CHANGE(18); } while(0)
+#define UNALIGNED_HARD_CLIPPED_CS  do { LOG_CHANGE(19); } while(0)
+#define UNFRAGMENT_MISSING_INFO    do { LOG_CHANGE(20); } while(0)
+#define UNFRAGMENT_TOO_MANY        do { LOG_CHANGE(21); } while(0)
+#define MATE_INFO_LOST_INVALID     do { LOG_CHANGE(22); } while(0)
+#define MATE_INFO_LOST_MISSING     do { LOG_CHANGE(23); } while(0)
+#define MATE_INFO_LOST_UNKNOWN_REF do { LOG_CHANGE(24); } while(0)
+#define DISCARD_PCR_DUP            do { LOG_CHANGE(25); } while(0)
+#define DISCARD_BAD_FRAGMENT_INFO  do { LOG_CHANGE(26); } while(0)
+#define DISCARD_SKIP_REFERENCE     do { LOG_CHANGE(27); } while(0)
+#define DISCARD_UNKNOWN_REFERENCE  do { LOG_CHANGE(28); } while(0)
 
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                        Reference *ref, Sequence *seq, Alignment *align,
@@ -1165,6 +1370,7 @@ MIXED_BASE_AND_COLOR:
             if (qoffset) {
                 for (i = 0; i != readlen; ++i)
                     qual[i] = squal[i] - qoffset;
+                QUAL_CHANGED_OQ;
             }
             else
                 memcpy(qual, squal, readlen);
@@ -1207,10 +1413,17 @@ MIXED_BASE_AND_COLOR:
         if (G.noSecondary && !isPrimary)
             goto LOOP_END;
         originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;/*BAM*/
-        aligned = originally_aligned && (AR_MAPQ(data) >= G.minMapQual);
-
-        if (isColorSpace && readlen == 0)   /* detect hard clipped colorspace   */
-            aligned = false;                /* reads and make unaligned         */
+        aligned = originally_aligned;
+        if (originally_aligned && AR_MAPQ(data) < G.minMapQual) {
+            aligned = false;
+            UNALIGNED_LOW_MAPQ;
+        }
+        if (aligned && isColorSpace && readlen == 0) {
+            /* detect hard clipped colorspace   */
+            /* reads and make unaligned         */
+            aligned = false;
+            UNALIGNED_HARD_CLIPPED_CS;
+        }
 
         if (aligned && align == NULL) {
             rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
@@ -1221,10 +1434,13 @@ MIXED_BASE_AND_COLOR:
             BAMAlignmentGetPosition(rec, &rpos);/*BAM*/
             BAMAlignmentGetRefSeqId(rec, &refSeqId);/*BAM*/
             if (rpos >= 0 && refSeqId >= 0) {
-                if (refSeqId == skipRefSeqID)
+                if (refSeqId == skipRefSeqID) {
+                    DISCARD_SKIP_REFERENCE;
                     goto LOOP_END;
+                }
                 if (refSeqId == unmapRefSeqId) {
                     aligned = false;
+                    UNALIGNED_UNALIGNED_REF;
                     break;
                 }
                 unmapRefSeqId = -1;
@@ -1236,6 +1452,7 @@ MIXED_BASE_AND_COLOR:
                     rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
                     rc = CheckLimitAndLogError();
+                    DISCARD_UNKNOWN_REFERENCE;
                     goto LOOP_END;
                 }
                 else {
@@ -1244,6 +1461,7 @@ MIXED_BASE_AND_COLOR:
                     if (G.refFilter && strcmp(G.refFilter, refSeq->name) != 0) {
                         (void)PLOGMSG(klogInfo, (klogInfo, "Skipping Reference '$(name)'", "name=%s", refSeq->name));
                         skipRefSeqID = refSeqId;
+                        DISCARD_SKIP_REFERENCE;
                         goto LOOP_END;
                     }
 
@@ -1253,6 +1471,7 @@ MIXED_BASE_AND_COLOR:
                         if (shouldUnmap) {
                             aligned = false;
                             unmapRefSeqId = refSeqId;
+                            UNALIGNED_UNALIGNED_REF;
                         }
                         break;
                     }
@@ -1263,25 +1482,30 @@ MIXED_BASE_AND_COLOR:
                     }
                     else if (!G.limit2config)
                         (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)': Spot '$(sname)' refers to an unknown Reference '$(rname)'", "file=%s,rname=%s,sname=%s", bamFile, refSeq->name, name));
-                    if (G.limit2config)
+                    if (G.limit2config) {
                         rc = 0;
+                        UNALIGNED_UNKNOWN_REF;
+                    }
                     goto LOOP_END;
                 }
             }
             else if (refSeqId < 0) {
                 (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' was marked aligned, but reference id = $(id) is invalid", "name=%.*s,id=%i", namelen, name, refSeqId));
                 if ((rc = CheckLimitAndLogError()) != 0) goto LOOP_END;
+                UNALIGNED_INVALID_REF;
             }
             else {
                 (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' was marked aligned, but reference position = $(pos) is invalid", "name=%.*s,pos=%i", namelen, name, rpos));
                 if ((rc = CheckLimitAndLogError()) != 0) goto LOOP_END;
+                UNALIGNED_INVALID_REF_POS;
             }
 
             aligned = false;
         }
-        if (!aligned && (G.refFilter != NULL || G.limit2config))
+        if (!aligned && (G.refFilter != NULL || G.limit2config)) {
+            assert("this shouldn't happen");
             goto LOOP_END;
-
+        }
         rc = GetKeyID(ctx, &keyId, &wasInserted, spotGroup, name, namelen);
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
@@ -1311,12 +1535,14 @@ MIXED_BASE_AND_COLOR:
                     (void)LOGMSG(klogWarn, "Spots without fragment info have been encountered");
                     warned |= 1;
                 }
+                UNFRAGMENT_MISSING_INFO;
                 break;
             case 3:
                 if ((warned & 2) == 0) {
                     (void)LOGMSG(klogWarn, "Spots with more than two fragments have been encountered");
                     warned |= 2;
                 }
+                UNFRAGMENT_TOO_MANY;
                 break;
             }
         }
@@ -1330,16 +1556,24 @@ MIXED_BASE_AND_COLOR:
             value->platform = GetINSDCPlatform(bam, spotGroup);
         }
         else {
-            if (!G.acceptBadDups && value->pcr_dup != ((flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1)) {/*BAM*/
+            int const o_pcr_dup = value->pcr_dup;
+            int const n_pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
+            
+            if (!G.acceptBadDups && o_pcr_dup != n_pcr_dup) {
                 rc = LogDupConflict(name);
-                goto LOOP_END; /* TODO: is this correct? */
+                DISCARD_PCR_DUP;
+                goto LOOP_END;
             }
-            value->pcr_dup &= (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;/*BAM*/
+            value->pcr_dup = o_pcr_dup & n_pcr_dup;
+            if (o_pcr_dup != (o_pcr_dup & n_pcr_dup)) {
+                FLAG_CHANGED_PCR_DUP;
+            }
             if (mated && value->unmated) {
                 (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                          "Spot '$(name)', which was first seen without mate info, now has mate info",
                                          "name=%s", name));
                 rc = CheckLimitAndLogError();
+                DISCARD_BAD_FRAGMENT_INFO;
                 goto LOOP_END;
             }
             else if (!mated && !value->unmated) {
@@ -1347,6 +1581,7 @@ MIXED_BASE_AND_COLOR:
                                          "Spot '$(name)', which was first seen with mate info, now has no mate info",
                                          "name=%s", name));
                 rc = CheckLimitAndLogError();
+                DISCARD_BAD_FRAGMENT_INFO;
                 goto LOOP_END;
             }
         }
@@ -1356,19 +1591,25 @@ MIXED_BASE_AND_COLOR:
         if (isPrimary) {
             switch (AR_READNO(data)) {
             case 1:
-                if (CTX_VALUE_GET_P_ID(*value, 0) != 0)
+                if (CTX_VALUE_GET_P_ID(*value, 0) != 0) {
                     isPrimary = false;
+                    FLAG_CHANGED_PRIMARY_DUP;
+                }
                 else if (aligned && value->unaligned_1) {
                     (void)PLOGMSG(klogWarn, (klogWarn, "Read 1 of spot '$(name)', which was unmapped, is now being mapped at position $(pos) on reference '$(ref)'; this alignment will be considered as secondary", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     isPrimary = false;
+                    FLAG_CHANGED_WAS_UNALIGNED;
                 }
                 break;
             case 2:
-                if (CTX_VALUE_GET_P_ID(*value, 1) != 0)
+                if (CTX_VALUE_GET_P_ID(*value, 1) != 0) {
                     isPrimary = false;
+                    FLAG_CHANGED_PRIMARY_DUP;
+                }
                 else if (aligned && value->unaligned_2) {
                     (void)PLOGMSG(klogWarn, (klogWarn, "Read 2 of spot '$(name)', which was unmapped, is now being mapped at position $(pos) on reference '$(ref)'; this alignment will be considered as secondary", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     isPrimary = false;
+                    FLAG_CHANGED_WAS_UNALIGNED;
                 }
                 break;
             default:
@@ -1396,10 +1637,12 @@ MIXED_BASE_AND_COLOR:
                 }
                 if (GetRCState(rc) == rcViolated && GetRCObject(rc) == rcConstraint) {
                     rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
+                    UNALIGNED_LOW_MATCH_COUNT;
                 }
 #define DATA_INVALID_ERRORS_ARE_DEADLY 0
 #if DATA_INVALID_ERRORS_ARE_DEADLY
                 else if (((int)GetRCObject(rc)) == ((int)rcData) && GetRCState(rc) == rcInvalid) {
+                    UNALIGNED_INVALID_INFO;
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     CheckLimitAndLogError();
                 }
@@ -1409,11 +1652,13 @@ MIXED_BASE_AND_COLOR:
                     CheckLimitAndLogError();
                 }
                 else if (((int)GetRCObject(rc)) == ((int)rcData)) {
+                    UNALIGNED_INVALID_INFO;
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     /* Data errors may get reset; alignment will be unmapped at any rate */
                     rc = CheckLimitAndLogError();
                 }
                 else {
+                    UNALIGNED_INVALID_REF_POS;
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': error reading reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
                     rc = CheckLimitAndLogError();
                 }
@@ -1436,6 +1681,7 @@ MIXED_BASE_AND_COLOR:
                 if (qoffset) {
                     unsigned i;
 
+                    QUAL_CHANGED_UNALIGNED_CS;
                     for (i = 0; i < csSeqLen; ++i)
                         qual[i] = squal[i] - qoffset;
                 }
@@ -1446,8 +1692,12 @@ MIXED_BASE_AND_COLOR:
         }
 
         if (aligned) {
-            if (G.editAlignedQual ) EditAlignedQualities  (qual, AR_HAS_MISMATCH(data), readlen);
-            if (G.keepMismatchQual) EditUnalignedQualities(qual, AR_HAS_MISMATCH(data), readlen);
+            if (G.editAlignedQual && EditAlignedQualities  (qual, AR_HAS_MISMATCH(data), readlen)) {
+                QUAL_CHANGED_ALIGNED_EDIT;
+            }
+            if (G.keepMismatchQual && EditUnalignedQualities(qual, AR_HAS_MISMATCH(data), readlen)) {
+                QUAL_CHANGED_UNALIGN_EDIT;
+            }
         }
         else if (isPrimary) {
             switch (AR_READNO(data)) {
@@ -1524,12 +1774,18 @@ MIXED_BASE_AND_COLOR:
                         goto LOOP_END;
                     }
                     {{
+                        int const revcmp = (isColorSpace && !aligned) ? 0 : fi.orientation;
                         uint8_t *dst = (uint8_t*) fragBuf.base;
+                        
+                        if (revcmp) {
+                            QUAL_CHANGED_REVERSED;
+                            SEQ__CHANGED_REV_COMP;
+                        }
                         memcpy(dst,&fi,sizeof(fi));
                         dst += sizeof(fi);
-                        COPY_READ((char *)dst, seqDNA, fi.readlen, (isColorSpace && !aligned) ? 0 : fi.orientation);
+                        COPY_READ((char *)dst, seqDNA, fi.readlen, revcmp);
                         dst += fi.readlen;
-                        COPY_QUAL(dst, qual, fi.readlen, (isColorSpace && !aligned) ? 0 : fi.orientation);
+                        COPY_QUAL(dst, qual, fi.readlen, revcmp);
                         dst += fi.readlen;
                         memcpy(dst,spotGroup,fi.sglen);
                     }}
@@ -1592,9 +1848,16 @@ MIXED_BASE_AND_COLOR:
                         src += fip->readlen;
 
                         srec.orientation[read2] = AR_REF_ORIENT(data);
-                        COPY_READ(srec.seq + srec.readStart[read2], seqDNA, srec.readLen[read2], (isColorSpace && !aligned) ? 0 : srec.orientation[read2]);
-                        COPY_QUAL(srec.qual + srec.readStart[read2], qual, srec.readLen[read2],  (isColorSpace && !aligned) ? 0 : srec.orientation[read2]);
-
+                        {
+                            int const revcmp = (isColorSpace && !aligned) ? 0 : srec.orientation[read2];
+                            
+                            if (revcmp) {
+                                QUAL_CHANGED_REVERSED;
+                                SEQ__CHANGED_REV_COMP;
+                            }
+                            COPY_READ(srec.seq + srec.readStart[read2], seqDNA, srec.readLen[read2], revcmp);
+                            COPY_QUAL(srec.qual + srec.readStart[read2], qual, srec.readLen[read2],  revcmp);
+                        }
                         srec.keyId = keyId;
                         srec.is_bad[read2] = (flags & BAMFlags_IsLowQuality) != 0;
                         srec.aligned[read2] = aligned;
@@ -1604,10 +1867,12 @@ MIXED_BASE_AND_COLOR:
                         srec.spotGroup = spotGroup;
                         srec.spotGroupLen = strlen(spotGroup);
                         if (value->pcr_dup && (srec.is_bad[0] || srec.is_bad[1])) {
+                            FLAG_CHANGED_400_AND_200;
                             filterFlagConflictRecords++;
-                            if(filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT){
+                            if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
                                 (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
-                            } else if(filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT){
+                            }
+                            else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
                                 (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
                             }
                         }
@@ -1635,7 +1900,7 @@ MIXED_BASE_AND_COLOR:
             if (!isPrimary && aligned) {
                 int32_t bam_mrid;
                 int64_t mpos;
-                int64_t mrid;
+                int64_t mrid = 0;
                 int64_t tlen;
 
                 BAMAlignmentGetMatePosition(rec, &mpos);/*BAM*/
@@ -1655,10 +1920,16 @@ MIXED_BASE_AND_COLOR:
                         }
                         else {
                             (void)PLOGERR(klogWarn, (klogWarn, rc_temp, "Failed to get refID for $(name)", "name=%s", mref->name));
-                            mrid = 0;
+                            MATE_INFO_LOST_UNKNOWN_REF;
                         }
                         data.mate_ref_id = mrid;
                     }
+                    else {
+                        MATE_INFO_LOST_INVALID;
+                    }
+                }
+                else if (mpos >= 0 || bam_mrid >= 0 || tlen != 0) {
+                    MATE_INFO_LOST_MISSING;
                 }
             }
         }
@@ -1677,21 +1948,30 @@ MIXED_BASE_AND_COLOR:
             srec.is_bad[0] = (flags & BAMFlags_IsLowQuality) != 0;
             srec.orientation[0] = AR_REF_ORIENT(data);
             srec.cskey[0] = cskey;
-            COPY_READ(srec.seq  + srec.readStart[0], seqDNA, readlen, (isColorSpace && !aligned) ? 0 : srec.orientation[0]);
-            COPY_QUAL(srec.qual + srec.readStart[0], qual, readlen, (isColorSpace && !aligned) ? 0 : srec.orientation[0]);
+            {
+                int const revcmp = (isColorSpace && !aligned) ? 0 : srec.orientation[0];
+                
+                if (revcmp) {
+                    QUAL_CHANGED_REVERSED;
+                    SEQ__CHANGED_REV_COMP;
+                }
+                COPY_READ(srec.seq  + srec.readStart[0], seqDNA, readlen, revcmp);
+                COPY_QUAL(srec.qual + srec.readStart[0],   qual, readlen, revcmp);
+            }
 
             srec.keyId = keyId;
 
             srec.spotGroup = spotGroup;
             srec.spotGroupLen = strlen(spotGroup);
             if (value->pcr_dup && srec.is_bad[0]) {
+                FLAG_CHANGED_400_AND_200;
                 filterFlagConflictRecords++;
                 if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
                     (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
                 }
                 else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
                     (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
-		}
+                }
             }
             rc = SequenceWriteRecord(seq, &srec, isColorSpace, value->pcr_dup, value->platform);
             if (rc) {
@@ -2127,6 +2407,8 @@ rc_t run(char const progName[],
                             rc = rc2;
                         if (rc == 0) {
                             rc = ArchiveBAM(mgr, db, bamFiles, bamFile, seqFiles, seqFile, &has_alignments);
+                            if (rc == 0)
+                                PrintChangeReport();
                             if (rc == 0 && !has_alignments) {
                                 rc = ConvertDatabaseToUnmapped(db);
                             }
@@ -2138,22 +2420,33 @@ rc_t run(char const progName[],
                                 rc = rc2;
 
                             if (rc == 0) {
-                                KMetadata *meta;
-                                KDBManager *kmgr;
+                                KMetadata *meta = NULL;
 
-                                rc = VDBManagerOpenKDBManagerUpdate(mgr, &kmgr);
-                                if (rc == 0) {
-                                    KDatabase *kdb;
+                                {
+                                    KDBManager *kmgr = NULL;
 
-                                    rc = KDBManagerOpenDBUpdate(kmgr, &kdb, "%s", G.outpath);
+                                    rc = VDBManagerOpenKDBManagerUpdate(mgr, &kmgr);
                                     if (rc == 0) {
-                                        rc = KDatabaseOpenMetadataUpdate(kdb, &meta);
-                                        KDatabaseRelease(kdb);
+                                        KDatabase *kdb;
+
+                                        rc = KDBManagerOpenDBUpdate(kmgr, &kdb, "%s", G.outpath);
+                                        if (rc == 0) {
+                                            rc = KDatabaseOpenMetadataUpdate(kdb, &meta);
+                                            KDatabaseRelease(kdb);
+                                        }
+                                        KDBManagerRelease(kmgr);
                                     }
-                                    KDBManagerRelease(kmgr);
                                 }
                                 if (rc == 0) {
                                     rc = WriteLoaderSignature(meta, progName);
+                                    if (rc == 0) {
+                                        KMDataNode *changes = NULL;
+                                        
+                                        rc = KMetadataOpenNodeUpdate(meta, &changes, "CHANGES");
+                                        if (rc == 0)
+                                            RecordChanges(changes, "CHANGE");
+                                        KMDataNodeRelease(changes);
+                                    }
                                     KMetadataRelease(meta);
                                 }
                             }

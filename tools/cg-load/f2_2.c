@@ -84,7 +84,7 @@ static const CGFileTypeFactory cg_ETypeXX_names[] = {
     { "LIB-SMALL-GAPS-ROLLUP", cg_eFileType_LIB_SMALL_GAPS_ROLLUP, NULL },
     /* from Cancer Sequencing Service Data File Formats file test */
     { "DIPLOID-SOMATIC-CNV-DETAILSCORES",
-                cg_eFileType_DIPLOID_SOMATIC_CNV_DETAILSCORES, NULL },
+                cg_eFileType_DIPLOID_SOMATIC_CNV_DETAIL_SCORES, NULL },
 
     { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr_Make },    
 };

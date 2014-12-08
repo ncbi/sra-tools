@@ -8,7 +8,7 @@ my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
 my $res = "$OS.$ARCH";
 
 if (@ARCHITECTURES) {
-    my $name = "$Bin/Makefile.config.$OS.arch";
+    my $name = "$Bin/../Makefile.config.$OS.arch";
     if (-e $name) {
         while (1) {
             open F, $name or last;

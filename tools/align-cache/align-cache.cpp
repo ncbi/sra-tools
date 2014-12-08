@@ -148,8 +148,16 @@ namespace AlignCache
         curTo.Write ( column_index_to, val, item_count );
     }
 
+
     rc_t KVectorCallbackPrimaryAlignment ( uint64_t key, bool value, void *user_data )
     {
+        if ( ::Quitting() )
+        {
+            printf("Interrupted\n");
+            //LOGMSG(klogWarn, "Interrupted");
+            return 1;
+        }
+
         assert ( value );
         PrimaryAlignmentData* p = (PrimaryAlignmentData*)user_data;
         int64_t prev_row_id = (int64_t)p->prev_key;
@@ -276,6 +284,13 @@ namespace AlignCache
 
         for (; (uint64_t)idRow < nRowCount; ++idRow )
         {
+            if ( ::Quitting() )
+            {
+                printf("Interrupted\n");
+                //LOGMSG(klogWarn, "Interrupted");
+                return 0;
+            }
+
             if ( ProcessSequenceRow (idRow, cursor, vect, ColumnIndexSequence[0]) )
                 ++count;
         }
@@ -386,13 +401,16 @@ namespace AlignCache
         }
         else
         {
-            char msg[512] = "";
-            string_printf (msg, countof(msg), NULL,
-                "The cache db will not be created because there is not "
-                "enough records to cache: %zu is found and minimum %zu is required. "
-                "The minimum required number can be changed via %s parameter.",
-                count*2, g_Params.min_cache_count, OPTION_MIN_CACHE_COUNT);
-            printf ("%s\n", msg);
+            if ( ::Quitting() == 0 )
+            {
+                char msg[512] = "";
+                string_printf (msg, countof(msg), NULL,
+                    "The cache db will not be created because there is not "
+                    "enough records to cache: %zu is found and minimum %zu is required. "
+                    "The minimum required number can be changed via %s parameter.",
+                    count*2, g_Params.min_cache_count, OPTION_MIN_CACHE_COUNT);
+                printf ("%s\n", msg);
+            }
         }
     }
 

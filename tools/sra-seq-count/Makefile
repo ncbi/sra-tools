@@ -1,4 +1,4 @@
-# ==============================================================================
+# ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
 #               National Center for Biotechnology Information
@@ -26,13 +26,13 @@
 default: std
 
 TOP ?= $(abspath ../..)
-MODULE = tools/copycat
-
+MODULE = tools/sra-seq-count
 include $(TOP)/build/Makefile.env
 
-INT_TOOLS =
+INT_TOOLS = \
 
-EXT_TOOLS = copycat
+EXT_TOOLS = \
+	sra-seq-count
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -41,23 +41,11 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-ifeq (1,$(HAVE_MAGIC))
-
 all std: vers-includes
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
 $(ALL_TOOLS): vers-includes
 	@ $(MAKE_CMD) $(BINDIR)/$@
-
-else
-
-all std: $(ALL_TOOLS)
-
-$(ALL_TOOLS):
-	@ echo "NOTE - $(@F) cannot be built:"                          \
-	       "It requires our internal library 'libkff'"              \
-	       "which requires 'libmagic' and its development headers."
-endif
 
 .PHONY: all std $(ALL_TOOLS)
 
@@ -84,30 +72,25 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# copycat
-#  Copy files from one directory to another while cataloging the contents.
-#  XML files can be redirected as well.
+# Common dumper definitions
 #
-COPYCAT_SRC = \
-	copycat \
-	ccfileformat \
-	cccat \
-	cctree \
-	cctree-dump \
-	cctar  \
-	ccsra \
-	ccsubchunk \
-	ccfile
+TOOL_LIBS = \
+	-skapp	\
+	-sngs-c++ \
+	-sncbi-ngs-c++ \
+	-sncbi-vdb-static
 
-COPYCAT_OBJ = \
-	$(addsuffix .$(OBJX),$(COPYCAT_SRC))
+#-------------------------------------------------------------------------------
+# fastq-dump
+#
+TOOL_SRC = \
+	main_fkt \
+	sra-seq-count
+	
+INCDIRS += -I $(TOP)/ngs/ngs-c++
 
-COPYCAT_LIB = \
-	-skapp \
-	-sncbi-vdb \
-	-skff \
-	-smagic-static
+TOOL_OBJ = \
+	$(addsuffix .$(OBJX),$(TOOL_SRC))
 
-
-$(BINDIR)/copycat: $(COPYCAT_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(COPYCAT_LIB)
+$(BINDIR)/sra-seq-count: $(TOOL_OBJ)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(TOOL_LIBS)

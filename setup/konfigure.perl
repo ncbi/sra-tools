@@ -45,10 +45,14 @@ chdir '..' or die "cannot cd to package root";
 
 check();
 
-my $CONFIGURED = '';
-foreach (@ARGV) {
-    $CONFIGURED .= "\t" if ($CONFIGURED);
-    $CONFIGURED .= "'$_'";
+my ($CONFIGURED, $RECONFIGURE) = ('');
+if (@ARGV) {
+    foreach (@ARGV) {
+        $CONFIGURED .= "\t" if ($CONFIGURED);
+        $CONFIGURED .= "'$_'";
+    }
+} elsif (-f 'reconfigure') {
+    ++$RECONFIGURE;
 }
 
 my %PKG = PKG();
@@ -94,6 +98,7 @@ push @options, "shemadir" if ($PKG{SCHEMA_PATH});
 
 my %OPT;
 die "configure: error" unless (GetOptions(\%OPT, @options));
+++$OPT{'reconfigure'} if ($RECONFIGURE);
 
 $OPT{'local-build-out'}
     = -e File::Spec->catdir($ENV{HOME}, 'tmp', 'local-build-out');
@@ -111,7 +116,16 @@ configure: error: your perl does not support Getopt::Long::GetOptionsFromString
 EndText
         exit 1;
     }
-
+    println "reconfiguring...";
+    open F, 'reconfigure' or die 'cannot open reconfigure';
+    $_ = <F>;
+    chomp;
+    unless (m|^\./configure\s*(.*)$|) {
+        println 'configure: error: cannot reconfigure';
+        println 'run "./configure --clean" then run "./configure [OPTIONS]"';
+        exit 1;
+    }
+#pod
     my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
     $CONFIGURED = '';
     my $MAKEFILE
@@ -130,11 +144,12 @@ EndText
         print STDERR "configure: error: run ./configure [OPTIONS] first.\n";
         return 1;
     }
+#cut
 
+    println "running \"./configure $1\"...";
     undef %OPT;
-    unless (GetOptionsFromString($CONFIGURED, \%OPT, @options)) {
-        die "configure: error";
-    }
+    die "configure: error" unless (GetOptionsFromString($1, \%OPT, @options));
+    ++$OPT{reconfigure};
 }
 
 if ($OPT{'help'}) {
@@ -142,7 +157,7 @@ if ($OPT{'help'}) {
     exit 0;
 } elsif ($OPT{'clean'}) {
     {
-        foreach (glob(CONFIG_OUT() . '/Makefile.config*'),
+        foreach ('reconfigure', glob(CONFIG_OUT() . '/Makefile.config*'),
             File::Spec->catdir(CONFIG_OUT(), 'Makefile.userconfig'),
             File::Spec->catdir(CONFIG_OUT(), 'user.status'))
         {
@@ -990,6 +1005,14 @@ EndText
         print COUT "include \$(TOP)/$CONFIG_OUT/Makefile.config.\$(OS_ARCH)\n";
         close COUT;
     }
+}
+
+unless ($OPT{'reconfigure'}) {
+    println "configure: creating 'reconfigure'" unless ($AUTORUN);
+    $CONFIGURED =~ s/\t/ /g;
+    open my $F, '>reconfigure' or die 'cannot open reconfigure to write';
+    print $F "./configure $CONFIGURED\n";
+    close $F;
 }
 
 status() if ($OS ne 'win');

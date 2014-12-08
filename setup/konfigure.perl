@@ -112,7 +112,8 @@ if ($OPT{'reconfigure'}) {
     unless (eval 'use Getopt::Long qw(GetOptionsFromString); 1') {
         print <<EndText;
 configure: error: your perl does not support Getopt::Long::GetOptionsFromString
-                  reconfigure option is not avaliable
+                  reconfigure option is not avaliable.
+Run "sh ./reconfigure" instead.
 EndText
         exit 1;
     }

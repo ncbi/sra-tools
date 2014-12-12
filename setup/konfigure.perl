@@ -45,6 +45,8 @@ chdir '..' or die "cannot cd to package root";
 
 check();
 
+$LOCAL_BUILD_OUT = -e File::Spec->catdir($ENV{HOME}, 'tmp', 'local-build-out');
+
 my ($CONFIGURED, $RECONFIGURE) = ('');
 if (@ARGV) {
     foreach (@ARGV) {
@@ -52,7 +54,7 @@ if (@ARGV) {
         $CONFIGURED .= "'$_'";
     }
 } elsif (-f 'reconfigure') {
-    ++$RECONFIGURE;
+    ++$RECONFIGURE unless ($LOCAL_BUILD_OUT);
 }
 
 my %PKG = PKG();
@@ -100,14 +102,6 @@ my %OPT;
 die "configure: error" unless (GetOptions(\%OPT, @options));
 ++$OPT{'reconfigure'} if ($RECONFIGURE);
 
-$OPT{'local-build-out'}
-    = -e File::Spec->catdir($ENV{HOME}, 'tmp', 'local-build-out');
-my $OUTDIR = File::Spec->catdir($HOME, $PKG{OUT});
-if ($OPT{'local-build-out'}) {
-    my $o = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
-    $OUTDIR = $o if ($o);
-}
-
 if ($OPT{'reconfigure'}) {
     unless (eval 'use Getopt::Long qw(GetOptionsFromString); 1') {
         print <<EndText;
@@ -126,31 +120,18 @@ EndText
         println 'run "./configure --clean" then run "./configure [OPTIONS]"';
         exit 1;
     }
-#pod
-    my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
-    $CONFIGURED = '';
-    my $MAKEFILE
-        = File::Spec->catdir(CONFIG_OUT(), "$OUT_MAKEFILE.$OS.$ARCH");
-    println "\t\tloading $MAKEFILE" if ($OPT{'debug'});
-    if (-e $MAKEFILE) {
-        open F, $MAKEFILE or die "cannot open $MAKEFILE";
-        foreach (<F>) {
-            chomp;
-            if (/CONFIGURED = (.*)/) {
-                $CONFIGURED = $1;
-                last;
-            }
-        }
-    } else {
-        print STDERR "configure: error: run ./configure [OPTIONS] first.\n";
-        return 1;
-    }
-#cut
 
     println "running \"./configure $1\"...";
     undef %OPT;
     die "configure: error" unless (GetOptionsFromString($1, \%OPT, @options));
     ++$OPT{reconfigure};
+}
+
+$OPT{'local-build-out'} = $LOCAL_BUILD_OUT;
+my $OUTDIR = File::Spec->catdir($HOME, $PKG{OUT});
+if ($OPT{'local-build-out'}) {
+    my $o = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
+    $OUTDIR = $o if ($o);
 }
 
 if ($OPT{'help'}) {

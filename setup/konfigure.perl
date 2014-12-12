@@ -45,7 +45,8 @@ chdir '..' or die "cannot cd to package root";
 
 check();
 
-$LOCAL_BUILD_OUT = -e File::Spec->catdir($ENV{HOME}, 'tmp', 'local-build-out');
+my $LOCAL_BUILD_OUT
+    = -e File::Spec->catdir($ENV{HOME}, 'tmp', 'local-build-out');
 
 my ($CONFIGURED, $RECONFIGURE) = ('');
 if (@ARGV) {

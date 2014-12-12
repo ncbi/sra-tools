@@ -160,11 +160,11 @@ FIXTURE_TEST_CASE(SequenceQuality, FastqScanFixture)
 
 FIXTURE_TEST_CASE(QualityOnly, FastqScanFixture)
 {   
-    InitScan(">8\n" "!**'\n", 0, true);
+    InitScan(">8\n" "\x7F!**'\n", 0, true);
     REQUIRE_TOKEN('>'); 
     REQUIRE_TOKEN_TEXT(fqNUMBER, "8"); 
     REQUIRE_TOKEN(fqENDLINE); 
-    REQUIRE_TOKEN_TEXT(fqASCQUAL, "!**'"); 
+    REQUIRE_TOKEN_TEXT(fqASCQUAL, "\x7F!**'"); 
     REQUIRE_TOKEN(fqENDLINE); 
     REQUIRE_TOKEN(0); 
 }

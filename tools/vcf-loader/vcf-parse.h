@@ -27,7 +27,8 @@
 #ifndef _h_vcf_parse_
 #define _h_vcf_parse_
 
-#include <klib/defs.h>
+#include <stdbool.h>
+#include <stdlib.h>
 
 typedef struct VCFToken
 { 
@@ -70,7 +71,7 @@ typedef struct VCFParseBlock
   
 } VCFParseBlock;
 
-extern rc_t VCFScan_yylex_init(VCFParseBlock* context, bool debug);
+extern bool VCFScan_yylex_init(VCFParseBlock* context, bool debug); /* false - out of memory */
 extern void VCFScan_yylex_destroy(VCFParseBlock* context);
 
 extern void VCF_set_lineno (int line_number, void* scanner);

@@ -1,0 +1,93 @@
+
+This is a summary of parsing rules for fastq files, as implemented in the latf-load tool.
+
+I. Notation
+
+The parsing rules are specified using a variant of Backus-Naur Form notation (BNF). The conventions are:
+
+    Token names are specified in capital letters. Tokens are defined in section II.
+    Names of non-terminals are specified in lowercase. Non-terminals are defined in section III.
+    { A }   means "A repeated 0 or more times"
+    [ A ]   means "optional A" 
+    A | B   means "A or B"
+    ( )     parentheses are used to group items
+    
+II. Tokens
+
+The following tokens are used in the grammar description.
+
+    ALPHANUM    - a sequence of (Latin) letters and decimal digits or dashes, beginning with a letter
+    NUMBER      - a sequence of decimal digits
+    WS          - a sequence of white space characters (spaces or tabs)
+    EOL         - an end of line character (not considered a white space)
+    COORDS      - a sequence of 4 decimal numbers, each preceded by ':', e.g. :8:2:342:540
+    RUNDOTSPOT  - a special identifier representing a spot inside a run, in the format [SDE]RR{digits}.{digits}. An example would be "DRR000123.12"
+    BASES       - a sequence of characters representing bases in text notation. Valid characters are A, C, G, T, a, c, g, t, N, n.
+    CSBASES     - a sequence of characters representing bases in colorspace notation. The first character has to be one of A, C, G, T, a, c, g, t.
+                  The remaining characters have to be '1', '2', '3', or '.'
+    QUAL        - a sequence of characters representing qualities. The range of valid characters is determined by quality encoding 
+                  specified by the command line option --quality, 33-126 for PHRED_33 or 64-127 for PHRED_64, inclusive.
+
+In addition, grammar rules use literal tokens in apostrophes, e.g. ':'
+    
+III. Parsing rules
+
+1.  Input file
+
+    input: 
+        { readLines [ qualityLines ] } |
+        { qualityLines } |
+        { name COORDS ':' ( BASES | CSBASES ) ':' QUAL EOL }
+    
+Normally, an input file consists of a sequence of reads, each occupying multiple lines which identify read and contain its bases, with or without qualities. 
+It is possible to have a file with only qualities specified for every read; in that case the loader must also be given a file with corresponding bases.
+
+An alternative is an "inline" format which has name, bases and qualities of each read on a single line.
+
+
+2.  Read 
+
+    readLines : ( '@' | '>' ) ( nameSpotGroup [ readNumberOrTail ] | runSpotRead ) EOL read   
+
+    read : baseRead | csRead 
+    
+    baseRead : BASES EOL { BASES EOL }
+     
+    csRead : CSBASES EOL { CSBASES EOL }
+    
+    qualityLines: '+' { fqTOKEN } EOL quality 
+
+    quality: QUAL EOL { QUAL EOL }
+    
+A read in a fastq file is identified by its tag line. Tag line is followed by bases in text or colorspace format. 
+
+An optional quality specification may follow. The quality specification starts with '+' and its own tag line, which is
+expected to match the tag line of the textually preceding read, although it is not enforced by latf-load. 
+
+3. Tag line
+
+    nameSpotGroup : name [ COORDS [ ':' ] ] spotGroup | 
+                    name COORDS [ ':' ] [ '.' ] name | 
+                    name COORDS '_' [ casava1_8 ]
+        
+    name : ( ALPHANUM | NUMBER ) { '_' | '-' | '.' | ':' | ALPHANUM | NUMBER }
+
+    spotGroup : '#' ( NUMBER | ALPHANUM )
+        
+    readNumberOrTail : ( readNumber | WS [ casava1_8 ] | WS tail ) { WS tail }
+
+    readNumber : '/' NUMBER { '/' name }
+        
+    casava1_8 : NUMBER ':' ALPHANUM ':' NUMBER ':' ( ALPHANUM | NUMBER )
+        
+    tail : ALPHANUM { NUMBER | ALPHANUM | '_' | '/' | '=' )
+       
+    runSpotRead : RUNDOTSPOT [ ( '.' | '/' ) NUMBER ] { tail | NUMBER }
+        
+The purpose of the tag line is  to identify a read. The components of a tag line may represent run name (possibly including coordinates), spot group, read number, and some additional information which may be of no concern to latf-load. 
+Tag lines come in a multitude of variations on the basic fastq format, somewhat loosely defined in e.g. http://en.wikipedia.org/wiki/FASTQ_format
+Parsing rules for the tag line in latf-load have been designed to recognize major variations of the basic tag line format and 
+evolved based on format variations encountered in real life submissions.
+
+
+

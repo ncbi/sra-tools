@@ -583,8 +583,8 @@ static yyconst flex_int32_t yy_rule_can_match_eol[18] =
 
 static yyconst flex_int16_t yy_rule_linenum[17] =
     {   0,
-       76,   77,   79,   81,   83,   84,   85,   89,   93,   94,
-       99,  100,  101,  102,  103,  106
+       73,   74,   76,   78,   80,   81,   82,   86,   90,   91,
+       96,   97,   98,   99,  100,  103
     } ;
 
 /* The intent behind this definition is that it'll catch
@@ -619,9 +619,6 @@ static yyconst flex_int16_t yy_rule_linenum[17] =
 * ===========================================================================
 *
 */
-    #include <klib/rc.h>
-    #include <klib/text.h>
-    
 	#include "vcf-parse.h"
 	#include "vcf-grammar.h"    
 
@@ -2502,11 +2499,12 @@ void VCF_free (void * ptr , yyscan_t yyscanner)
 
 
 
-rc_t CC VCFScan_yylex_init(VCFParseBlock* sb, bool debug)
+bool VCFScan_yylex_init(VCFParseBlock* sb, bool debug)
 {
 	if (VCF_lex_init_extra(sb,&sb->scanner) != 0)
 	{
-		return RC ( rcKFG, rcMgr, rcParsing, rcMemory, rcExhausted );
+        return false;
+		/*return RC ( rcKFG, rcMgr, rcParsing, rcMemory, rcExhausted );*/
 	}		
 
     sb->offset = 0;
@@ -2516,10 +2514,10 @@ rc_t CC VCFScan_yylex_init(VCFParseBlock* sb, bool debug)
     
 	VCF_set_debug(debug ? 1 : 0,sb->scanner);
 
-	return 0;
+	return true;
 }
 
-void CC VCFScan_yylex_destroy(VCFParseBlock* sb)
+void VCFScan_yylex_destroy(VCFParseBlock* sb)
 {
 	if (sb->scanner)
 	{

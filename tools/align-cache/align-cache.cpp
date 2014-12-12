@@ -57,7 +57,7 @@ namespace AlignCache
         // Command line options
         50000,
 #if _ARCH_BITS == 64
-        128UL << 30,  // 128 GB
+        16UL << 30,  // 16 GB
 #else
         1024UL << 20, // 1 GB
 #endif

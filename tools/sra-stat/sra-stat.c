@@ -26,37 +26,47 @@
 
 #include "sra-stat.vers.h"
 
+#include "sra-stat.h" /* VTableMakeSingleFileArchive_ */
+
+#include <insdc/sra.h> /* SRA_READ_TYPE_BIOLOGICAL */
+
 #include <kapp/log-xml.h> /* XMLLogger */
 #include <kapp/main.h>
 #include <kapp/progressbar.h> /* KLoadProgressbar */
 
-#include <sra/wsradb.h>
-#include <sra/sradb-priv.h>
-#include <sra/types.h>
-
-#include <vdb/dependencies.h> /* VDBDependencies */
-#include <vdb/database.h> /* VDatabaseRelease */
-#include <vdb/table.h> /* VTableRelease */
-#include <vdb/cursor.h> /* VCursor */
-
 #include <kdb/database.h> /* KDatabase */
-#include <kdb/table.h>
+#include <kdb/kdb-priv.h>
+#include <kdb/manager.h> /* KDBManager */
 #include <kdb/meta.h> /* KMetadata */
 #include <kdb/namelist.h> /* KMDataNodeListChild */
-#include <kdb/kdb-priv.h>
+#include <kdb/table.h>
 
-#include <kfs/directory.h>
-#include <kfs/file.h>
+#include <kfs/directory.h> /* KDirectory */
+#include <kfs/file.h> /* KFile */
 
 #include <klib/checksum.h>
 #include <klib/container.h>
 #include <klib/debug.h> /* DBGMSG */
-#include <klib/log.h>
+#include <klib/log.h> /* LOGERR */
 #include <klib/namelist.h>
 #include <klib/out.h>
 #include <klib/printf.h>
 #include <klib/rc.h>
 #include <klib/sort.h> /* ksort */
+
+#include <sra/sraschema.h> /* VDBManagerMakeSRASchema */
+
+#include <vdb/cursor.h> /* VCursor */
+#include <vdb/database.h> /* VDatabaseRelease */
+#include <vdb/dependencies.h> /* VDBDependencies */
+#include <vdb/manager.h> /* VDBManager */
+#include <vdb/schema.h> /* VSchema */
+#include <vdb/table.h> /* VTableRelease */
+#include <vdb/vdb-priv.h> /* VDBManagerGetKDBManagerRead */
+
+#include <vfs/manager.h> /* VFSManager */
+#include <vfs/path.h> /* VPath */
+#include <vfs/resolver.h> /* VResolver */
 
 #include <os-native.h> /* strtok_r on Windows */
 
@@ -66,7 +76,7 @@
 #include <string.h>
 #include <time.h>
 
-#include <stdio.h> /* stderr */
+/* #include <stdio.h> */ /* stderr */
 
 #define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
 
@@ -154,21 +164,28 @@ rc_t BAM_HEADER_RG_copy(BAM_HEADER_RG* dest, const BAM_HEADER_RG* src)
 {
     assert(dest && !dest->ID && !dest->LB && !dest->SM
         && src  &&  src ->ID &&  src ->LB &&  src ->SM);
+
     dest->ID = strdup(src->ID);
     dest->LB = strdup(src->LB);
     dest->SM = strdup(src->SM);
+
     if (!dest->ID || !dest->LB || !dest->SM) {
         return RC(rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted);
     }
+
     return 0;
 }
+
 static void BAM_HEADER_RG_free(BAM_HEADER_RG* rg) {
     assert(rg);
+
     free(rg->ID);
     free(rg->LB);
     free(rg->SM);
+
     rg->ID = rg->LB = rg->SM = NULL;
 }
+
 static void BAM_HEADER_RG_print_xml(const BAM_HEADER_RG* rg) {
     rc_t rc = 0;
     char library[1024] = "";
@@ -176,28 +193,34 @@ static void BAM_HEADER_RG_print_xml(const BAM_HEADER_RG* rg) {
     char* l = library;
     char* s = sample;
     size_t num_writ = 0;
+
     assert(rg);
+
     if (rg->LB) {
         rc = _XMLLogger_Encode(rg->LB, library, sizeof library, &num_writ);
-        if (rc) {
+        if (rc != 0) {
             l = rg->LB;
             PLOGMSG(klogWarn, (klogWarn, "Library value is too long: "
                 "XML-safe conversion was disabled for @RG\tID:$(ID)\tLB:$(LB)"
                 "ID=%s,LB=%s", rg->ID, rg->LB));
         }
+
         OUTMSG((" library=\"%s\"", l ? l : ""));
     }
+
     if (rg->SM) {
         rc = _XMLLogger_Encode(rg->SM, sample, sizeof sample, &num_writ);
-        if (rc) {
+        if (rc != 0) {
             s = rg->SM;
             PLOGMSG(klogWarn, (klogWarn, "Sample value is too long: "
                 "XML-safe conversion was disabled for @RG\tID:$(ID)\tSM:$(SM)"
                 "ID=%s,SM=%s", rg->ID, rg->SM));
         }
+
         OUTMSG((" sample=\"%s\"" , s ? s : ""));
     }
 }
+
 typedef struct SraStats {
     BSTNode n;
     char     spot_group[1024]; /* SPOT_GROUP Column */
@@ -231,7 +254,8 @@ typedef struct Statistics2 {
     double diff_sq_sum;
 } Statistics2;
 static
-void Statistics2Init(Statistics2* self, double sum, spotid_t count) {
+void Statistics2Init(Statistics2* self, double sum, int64_t  count)
+{
     assert(self);
 
     if (count) {
@@ -250,8 +274,7 @@ static void Statistics2Add(Statistics2* self, double value) {
     self->diff_sq_sum += diff * diff;
 }
 
-static
-void Statistics2Print(const Statistics2* selfs,
+static void Statistics2Print(const Statistics2* selfs,
     uint32_t nreads, const char* indent,
 
      /* the same as in <Statistics: just to make <Statistics> and <Statistics2>
@@ -286,117 +309,145 @@ void Statistics2Print(const Statistics2* selfs,
 typedef struct {
     uint64_t cnt[5];
     bool CS_NATIVE;
-    const SRAColumn *col;
+    const VCursor   *curs;
+    uint32_t         idx;
+
     bool finalized;
 } Bases;
-static
-void BasesInit(Bases *self, const SRATable *tbl)
-{
+static rc_t BasesInit(Bases *self, const VTable *vtbl) {
     rc_t rc = 0;
-    const char name[] = "CS_NATIVE";
-    const SRAColumn *col = NULL;
-    const void *base = NULL;
-    bitsz_t boff = ~0;
-    bitsz_t row_bits = ~0;
 
     assert(self);
     memset(self, 0, sizeof *self);
-    self->CS_NATIVE = true;
-
-    rc = SRATableOpenColumnRead(tbl, &col, name, NULL);
-    if (rc != 0) {
-        PLOGERR(klogInt, (klogErr, rc,
-            "while SRATableOpenColumnRead($(name))", "name=%s", name));
-    }
 
     if (rc == 0) {
-        rc = SRAColumnRead(col, 1, &base, &boff, &row_bits);
-        if (rc != 0) {
-            PLOGERR(klogInt, (klogErr, rc,
-                "while SRAColumnRead($(name))", "name=%s", name));
-        }
-        if (boff != 0 || row_bits != 8) {
-            rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
-            PLOGERR(klogInt, (klogErr, rc,
-                "invalid boff or row_bits while SRAColumnRead($(name))",
-                "name=%s", name));
-        }
-    }
+        const char name[] = "CS_NATIVE";
+        const void *base = NULL;
 
-    if (rc == 0) {
-        self->CS_NATIVE = *((bool*)base);
-    }
+        const VCursor *curs = NULL;
+        uint32_t idx = 0;
 
-    RELEASE(SRAColumn, col);
+        self->CS_NATIVE = true;
+
+        rc = VTableCreateCursorRead(vtbl, &curs);
+        DISP_RC(rc, "Cannot VTableCreateCursorRead");
+
+        if (rc == 0) {
+            rc = VCursorAddColumn(curs, &idx, "%s", name);
+            DISP_RC(rc, "Cannot VCursorAddColumn(CS_NATIVE)");
+        }
+
+        if (rc == 0) {
+            rc = VCursorOpen(curs);
+            DISP_RC(rc, "Cannot VCursorOpen(CS_NATIVE)");
+        }
+
+        if (rc == 0) {
+            bitsz_t boff = ~0;
+            bitsz_t row_bits = ~0;
+
+            uint32_t elem_bits = 0, elem_off = 0, elem_cnt = 0;
+            rc = VCursorCellDataDirect(curs, 1, idx,
+                &elem_bits, &base, &elem_off, &elem_cnt);
+            boff     = elem_off * elem_bits;
+            row_bits = elem_cnt * elem_bits;
+
+            if (boff != 0 || row_bits != 8) {
+                rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
+                PLOGERR(klogInt, (klogErr, rc, "invalid boff or row_bits "
+                    "while VCursorCellDataDirect($(name))", "name=%s", name));
+            }
+        }
+
+        if (rc == 0) {
+            self->CS_NATIVE = *((bool*)base);
+        }
+
+        RELEASE(VCursor, curs);
+    }
 
     {
         const char *name = self->CS_NATIVE ? "CSREAD" : "READ";
         const char *datatype
             = self->CS_NATIVE ? "INSDC:x2cs:bin" : "INSDC:x2na:bin";
-        rc = SRATableOpenColumnRead(tbl, &self->col, name, datatype);
-        if (rc != 0) {
-            PLOGERR(klogInt, (klogErr, rc,
-                "while SRATableOpenColumnRead($(name), $(type))",
-                "name=%s,type=%s", name, datatype));
+        rc = VTableCreateCursorRead(vtbl, &self->curs);
+        DISP_RC(rc, "Cannot VTableCreateCursorRead");
+        if (rc == 0) {
+            rc = VCursorAddColumn(self->curs,
+                &self->idx, "(%s)%s", datatype, name);
+            if (rc != 0) {
+                PLOGERR(klogInt, (klogInt, rc,
+                    "Cannot VCursorAddColumn(($(type)),$(name)",
+                    "type=%s,name=%s", datatype, name));
+            }
+        }
+        if (rc == 0) {
+            rc = VCursorOpen(self->curs);
+            if (rc != 0) {
+                PLOGERR(klogInt, (klogInt, rc,
+                    "Cannot VCursorOpen(($(type)),$(name)))",
+                    "type=%s,name=%s", datatype, name));
+            }
         }
     }
+
+    return rc;
 }
 
-static
-void BasesFinalize(Bases *self)
-{
+static void BasesFinalize(Bases *self) {
     assert(self);
 
-    if (self->col == NULL) {
+    if (self->curs == NULL) {
         LOGMSG(klogInfo, "Bases statistics will not be printed : "
-            "READ column was not opened during BasesFinalize()");
+            "READ cursor was not opened during BasesFinalize()");
         return;
     }
 
     self->finalized = true;
 }
 
-static
-rc_t BasesRelease(Bases *self)
-{
+static rc_t BasesRelease(Bases *self) {
     rc_t rc = 0;
 
     assert(self);
 
-    RELEASE(SRAColumn, self->col);
+    RELEASE(VCursor  , self->curs);
 
     return rc;
 }
 
-static
-void BasesAdd(Bases *self, spotid_t spotid)
-{
+static void BasesAdd(Bases *self, int64_t spotid) {
     rc_t rc = 0;
     const void *base = NULL;
-    bitsz_t boff = ~0;
     bitsz_t row_bits = ~0;
     bitsz_t i = ~0;
     const unsigned char *bases = NULL;
 
     assert(self);
 
-    if (self->col == NULL) {
+    if (self->curs == NULL) {
         return;
     }
 
-    rc = SRAColumnRead(self->col, spotid, &base, &boff, &row_bits);
-    if (rc != 0) {
-        PLOGERR(klogInt, (klogErr, rc,
-            "while SRAColumnRead(READ, $(type))",
-            "type=%s", self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE"));
-        BasesRelease(self);
-        return;
+    {
+        uint32_t elem_bits = 0, elem_off = 0, elem_cnt = 0;
+        rc = VCursorCellDataDirect(self->curs, spotid, self->idx,
+            &elem_bits, &base, &elem_off, &elem_cnt);
+        if (rc != 0) {
+            PLOGERR(klogInt, (klogErr, rc,
+                "while VCursorCellDataDirect(READ, $(type))",
+                "type=%s", self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE"));
+            BasesRelease(self);
+            return;
+        }
+
+        row_bits = elem_cnt * elem_bits;
     }
 
     if ((row_bits % 8) != 0) {
         rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
         PLOGERR(klogInt, (klogErr, rc, "Invalid row_bits '$(row_bits) "
-            "while SRAColumnRead(READ, $(type), spotid=$(spotid))",
+            "while VCursorCellDataDirect(READ, $(type), spotid=$(spotid))",
             "row_bits=%lu,type=%s,spotid=%lu",
             row_bits, self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE", spotid));
         BasesRelease(self);
@@ -410,8 +461,8 @@ void BasesAdd(Bases *self, spotid_t spotid)
         if (base > 4) {
             rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
             PLOGERR(klogInt, (klogErr, rc,
-                "Invalid READ column value '$(base) "
-                "while SRAColumnRead($(type), spotid=$(spotid), index=$(i))",
+                "Invalid READ column value '$(base) while VCursorCellDataDirect"
+                "($(type), spotid=$(spotid), index=$(i))",
                 "base=%d,type=%s,spotid=%lu,index=%lu",
                 base, self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE",
                 spotid, i));
@@ -452,10 +503,12 @@ static rc_t BasesPrint(const Bases *self,
 
     OUTMSG(("%s<%s cs_native=\"%s\" count=\"%lu\">\n",
         indent, tag, self->CS_NATIVE ? "true" : "false", base_count));
+
     for (i = 0; i < 5; ++i) {
         OUTMSG(("%s  <Base value=\"%c\" count=\"%lu\"/>\n",
             indent, name[i], self->cnt[i]));
     }
+
     OUTMSG(("%s</%s>\n", indent, tag));
 
     return rc;
@@ -635,8 +688,7 @@ void print_double_or_int(const char* name, double val, bool variable) {
     }
 }
 
-static
-void StatisticsPrint(const Statistics* selfs,
+static void StatisticsPrint(const Statistics* selfs,
     uint32_t nreads, const char* indent)
 {
     int i = ~0;
@@ -657,6 +709,7 @@ void StatisticsPrint(const Statistics* selfs,
         OUTMSG(("/>\n"));
     }
 }
+
 static rc_t StatisticsDiff(const Statistics* ss,
     const Statistics2* ss2, uint32_t nreads)
 {
@@ -703,9 +756,8 @@ static rc_t StatisticsDiff(const Statistics* ss,
     return rc;
 }
 
-static
-rc_t SraStatsTotalPrintStatistics(const SraStatsTotal* self,
-    const char* indent, bool test)
+static rc_t SraStatsTotalPrintStatistics(
+    const SraStatsTotal* self, const char* indent, bool test)
 {
     rc_t rc = 0;
 
@@ -747,7 +799,7 @@ typedef struct srastat_parms {
 
     const XMLLogger *logger;
 
-    spotid_t start, stop;
+    int64_t  start, stop;
 
     bool hasSPOT_GROUP;
     bool variableReadLength;
@@ -836,9 +888,7 @@ typedef struct Ctx {
     QualityStats quality;
     TableCounts tables;
 } Ctx;
-
 typedef rc_t (CC * RG_callback)(const BAM_HEADER_RG* rg, const void* data);
-
 static
 rc_t CC meta_RG_callback(const BAM_HEADER_RG* rg, const void* data)
 {
@@ -871,9 +921,7 @@ rc_t CC meta_RG_callback(const BAM_HEADER_RG* rg, const void* data)
     return rc;
 }
 
-static
-int CC srastats_cmp ( const void *item, const BSTNode *n )
-{
+static int CC srastats_cmp(const void *item, const BSTNode *n) {
     const char *sg = item;
     const SraStats *ss = ( const SraStats* ) n;
 
@@ -902,24 +950,22 @@ rc_t CC tree_RG_callback(const BAM_HEADER_RG* rg, const void* data)
     return rc;
 }
 
-static
-int CC QualityCmp(const void* s1, const void* s2, void *data) {
+static int CC QualityCmp(const void* s1, const void* s2, void *data) {
     const Quality* q1 = s1;
     const Quality* q2 = s2;
     assert(q1 && q2);
     return q1->value < q2->value ? -1 : q1->value == q2->value ? 0 : 1;
 }
 
-static
-int CC CountsCmp(const void* v1, const void* v2, void *data) {
+static int CC CountsCmp(const void* v1, const void* v2, void *data) {
     const Counts* e1 = v1;
     const Counts* e2 = v2;
     assert(e1 && e2 && e1->tableName && e2->tableName);
     return strcmp(e1->tableName, e2->tableName);
 }
 
-static
-rc_t QualityParse(Quality* self, const KMDataNode* node, const char* name)
+static rc_t QualityParse(Quality* self,
+    const KMDataNode* node, const char* name)
 {
     rc_t rc = 0;
     const char start[] = "PHRED_";
@@ -955,8 +1001,7 @@ rc_t QualityParse(Quality* self, const KMDataNode* node, const char* name)
     return rc;
 }
 
-static
-rc_t QualityStatsRead1(QualityStats* self,
+static rc_t QualityStatsRead1(QualityStats* self,
     const KMDataNode* parent, const char* name)
 {
     const KMDataNode* node = NULL;
@@ -1001,9 +1046,7 @@ rc_t QualityStatsRead1(QualityStats* self,
     return rc;
 }
 
-static
-rc_t QualityStatsRead(QualityStats* self, const KMetadata* meta)
-{
+static rc_t QualityStatsRead(QualityStats* self, const KMetadata* meta) {
     rc_t rc = 0;
     const char name[] = "STATS/QUALITY";
     const KMDataNode* node = NULL;
@@ -1047,7 +1090,9 @@ rc_t QualityStatsRead(QualityStats* self, const KMetadata* meta)
         }
         RELEASE(KNamelist, names);
     }
+
     RELEASE(KMDataNode, node);
+
     return 0;
 }
 
@@ -1491,23 +1536,70 @@ rc_t CC fileSizeVisitor(const KDirectory* dir,
     return rc;
 }
 
-static
-rc_t get_arc_info(const SRAMgr* mgr, const char* path,
-    const SRATable* tbl, ArcInfo* arc_info)
+static rc_t GetTableModDate(const VDBManager *mgr,
+    KTime_t *mtime, const char *spec)
+{
+    VFSManager *vfs = NULL;
+    VResolver  *resolver = NULL;
+    VPath *accession = NULL;
+    const VPath *tblpath = NULL;
+    const KDBManager *kmgr = NULL;
+    char aPath[4096] = "";
+    const char *path = aPath;
+    rc_t rc = VFSManagerMake(&vfs);
+    DISP_RC(rc, "VFSManagerMake");
+    assert(mtime);
+    *mtime = 0;
+    if (rc == 0) {
+        rc = VFSManagerGetResolver(vfs, &resolver);
+        DISP_RC(rc, "VFSManagerGetResolver");
+    }
+    if (rc == 0) {
+        rc = VFSManagerMakePath(vfs, &accession, spec);
+        DISP_RC(rc, "VFSManagerMakePath");
+    }
+    if (rc == 0) {
+        assert(accession);
+        if (VPathIsAccessionOrOID(accession)) {
+            rc = VResolverLocal(resolver, accession, &tblpath);
+            DISP_RC(rc, "VResolverLocal");
+            if (rc == 0) {
+                //size_t size;
+                rc = VPathReadPath(tblpath, aPath, sizeof aPath, NULL);//& size)
+                path = aPath;
+            }
+        }
+        else {
+            path = spec;
+        }
+    }
+    if (rc == 0) {
+        rc = VDBManagerGetKDBManagerRead(mgr, &kmgr);
+        DISP_RC(rc, "VDBManagerGetKDBManagerRead");
+    }
+    if (rc == 0) {
+        rc = KDBManagerGetTableModDate(kmgr, mtime, "%s", path);
+    }
+    RELEASE(KDBManager, kmgr);
+    RELEASE(VPath, tblpath);
+    RELEASE(VPath, accession);
+    RELEASE(VResolver, resolver);
+    RELEASE(VFSManager, vfs);
+    return rc;
+}
+
+static rc_t get_arc_info(const char *path, ArcInfo *arc_info,
+    const VDBManager *vmgr, const VTable *vtbl)
 {
     rc_t rc = 0;
     memset(arc_info, 0, sizeof(*arc_info));
 
-    if ((rc = SRAMgrGetTableModDate(mgr, &arc_info->timestamp, "%s", path))
-        == 0 )
-    {
+    if ((rc = GetTableModDate(vmgr, &arc_info->timestamp, path)) == 0 ) {
         uint32_t i;
         for(i = 0; i < sizeof(arc_info->i) / sizeof(arc_info->i[0]); i++) {
             const KFile* kfile;
             arc_info->i[i].tag = i == 0 ? "sra" : "lite.sra";
-            if ((rc = SRATableMakeSingleFileArchive(tbl, &kfile, i == 1, NULL))
-                == 0 )
-            {
+            if ((rc = VTableMakeSingleFileArchive(vtbl, &kfile, i == 1)) == 0) {
                 MD5State md5;
                 uint64_t pos = 0;
                 uint8_t buffer[256 * 1024];
@@ -1518,6 +1610,10 @@ rc_t get_arc_info(const SRAMgr* mgr, const char* path,
                     if( (rc = KFileRead(kfile, pos, buffer, sizeof(buffer), &num_read)) == 0 ) {
                         MD5StateAppend(&md5, buffer, num_read);
                         pos += num_read;
+                    }
+                    rc = Quitting();
+                    if (rc != 0) {
+                        LOGMSG(klogWarn, "Interrupted");
                     }
                 } while(rc == 0 && num_read != 0);
                 if (rc == 0 &&
@@ -1537,19 +1633,16 @@ rc_t get_arc_info(const SRAMgr* mgr, const char* path,
     return rc;
 }
 
-static
-rc_t get_size(const SRATable* tbl, SraSizeStats* sizes)
-{
+static rc_t get_size( SraSizeStats* sizes, const VTable *vtbl) {
     rc_t rc = 0;
 
     const KDatabase* kDb = NULL;
     const KTable* kTbl = NULL;
     const KDirectory* dir = NULL;
 
-    assert(tbl && sizes);
-
-    rc = SRATableGetKTableRead(tbl, &kTbl);
-    DISP_RC(rc, "while calling SRATableGetKTableRead");
+    assert(vtbl && sizes);
+    rc = VTableOpenKTableRead(vtbl, &kTbl);
+    DISP_RC(rc, "while calling VTableOpenKTableRead");
 
     if (rc == 0) {
         rc = KTableOpenParentRead(kTbl, &kDb);
@@ -2421,11 +2514,17 @@ int CC srastats_sort ( const BSTNode *item, const BSTNode *n )
     return srastats_cmp(ss->spot_group,n);
 }
 
-static
-rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
-    BSTree* tr, SraStatsTotal* total)
+static bool columnUndefined(rc_t rc) {
+    return rc == SILENT_RC(rcVDB, rcCursor, rcOpening , rcColumn, rcUndefined)
+        || rc == SILENT_RC(rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound );
+}
+
+static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
+    SraStatsTotal* total, const VTable *vtbl)
 {
     rc_t rc = 0;
+
+    const VCursor *curs = NULL;
 
 /*  const char CMP_READ  [] = "CMP_READ"; */
     const char PRIMARY_ALIGNMENT_ID[] = "PRIMARY_ALIGNMENT_ID";
@@ -2434,16 +2533,16 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
     const char READ_TYPE [] = "READ_TYPE";
     const char SPOT_GROUP[] = "SPOT_GROUP";
 
-/*  const SRAColumn* cCMP_READ = NULL; */
-    const SRAColumn* cPRIMARY_ALIGNMENT_ID = NULL;
-    const SRAColumn* cRD_FILTER = NULL;
-    const SRAColumn* cREAD_LEN = NULL;
-    const SRAColumn* cREAD_TYPE = NULL;
-    const SRAColumn* cSPOT_GROUP = NULL;
+    uint32_t idxPRIMARY_ALIGNMENT_ID = 0;
+    uint32_t idxRD_FILTER = 0;
+    uint32_t idxREAD_LEN = 0;
+    uint32_t idxREAD_TYPE = 0;
+    uint32_t idxSPOT_GROUP = 0;
 
     int g_nreads = 0;
-    spotid_t n_spots = 0;
-    spotid_t start = pb->start, stop = pb->stop;
+    int64_t  n_spots = 0;
+    int64_t start = 0;
+    int64_t stop  = 0;
 
     /* filled with dREAD_LEN[i] for (spotid == start);
        used to check fixedReadLength */
@@ -2452,35 +2551,51 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
     memset(g_totalREAD_LEN, 0, sizeof g_totalREAD_LEN);
     memset(g_nonZeroLenReads, 0, sizeof g_nonZeroLenReads);
 
-    assert(pb && tbl && tr && total);
+    rc = VTableCreateCursorRead(vtbl, &curs);
+    DISP_RC(rc, "Cannot VTableCreateCursorRead");
+
+    if (rc == 0) {
+        rc = VCursorPermitPostOpenAdd(curs);
+        DISP_RC(rc, "Cannot VCursorPermitPostOpenAdd");
+    }
+
+    if (rc == 0) {
+        rc = VCursorOpen(curs);
+        DISP_RC(rc, "Cannot VCursorOpen");
+    }
+
+    assert(pb && vtbl && tr && total);
 
     if (rc == 0) {
         const char* name = READ_LEN;
-        rc = SRATableOpenColumnRead(tbl, &cREAD_LEN, name, vdb_uint32_t);
-        DISP_RC2(rc, name, "while calling SRATableOpenColumnRead");
+        rc = VCursorAddColumn(curs, &idxREAD_LEN, "%s", name);
+        DISP_RC2(rc, name, "while calling VCursorAddColumn");
     }
     if (rc == 0) {
         const char* name = READ_TYPE;
-        rc = SRATableOpenColumnRead(tbl, &cREAD_TYPE, name, sra_read_type_t);
-        DISP_RC2(rc, name, "while calling SRATableOpenColumnRead");
+        rc = VCursorAddColumn(curs, &idxREAD_TYPE, "%s", name);
+        DISP_RC2(rc, name, "while calling VCursorAddColumn");
     }
 
     if (rc == 0) {
         {
             const char* name = SPOT_GROUP;
-            rc = SRATableOpenColumnRead(tbl, &cSPOT_GROUP, name, vdb_ascii_t);
-            if (GetRCState(rc) == rcNotFound)
-            {   rc = 0; }
-            DISP_RC2(rc, name, "while calling SRATableOpenColumnRead");
+            rc = VCursorAddColumn(curs, &idxSPOT_GROUP, "%s", name);
+            if (columnUndefined(rc)) {
+                idxSPOT_GROUP = 0;
+                rc = 0;
+            }
+            DISP_RC2(rc, name, "while calling VCursorAddColumn");
         }
         if (rc == 0) {
             if (rc == 0) {
                 const char* name = RD_FILTER;
-                rc = SRATableOpenColumnRead
-                    (tbl, &cRD_FILTER, name, sra_read_filter_t);
-                if (GetRCState(rc) == rcNotFound)
-                {   rc = 0; }
-                DISP_RC2(rc, name, "while calling SRATableOpenColumnRead");
+                rc = VCursorAddColumn(curs, &idxRD_FILTER, "%s", name);
+                if (columnUndefined(rc)) {
+                    idxRD_FILTER = 0;
+                    rc = 0;
+                }
+                DISP_RC2(rc, name, "while calling VCursorAddColumn");
             }
 /*          if (rc == 0) {
                 const char* name = CMP_READ;
@@ -2492,20 +2607,23 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
             } */
             if (rc == 0) {
                 const char* name = PRIMARY_ALIGNMENT_ID;
-                rc = SRATableOpenColumnRead
-                    (tbl, &cPRIMARY_ALIGNMENT_ID, name, "I64");
-                if (GetRCState(rc) == rcNotFound) {
+                rc = VCursorAddColumn(curs, &idxPRIMARY_ALIGNMENT_ID,
+                    "%s", name);
+                if (columnUndefined(rc)) {
+                    idxPRIMARY_ALIGNMENT_ID = 0;
                     rc = 0;
                 }
-                DISP_RC2(rc, name, "while calling SRATableOpenColumnRead");
+                DISP_RC2(rc, name, "while calling VCursorAddColumn");
             }
             if (rc == 0) {
-                spotid_t spotid;
+                int64_t first = 0;
+                uint64_t count = 0;
+                int64_t spotid;
                 pb->hasSPOT_GROUP = 0;
-                rc = SRATableMaxSpotId(tbl, &spotid);
-                DISP_RC(rc, "failed to read max spot id");
+                rc = VCursorIdRange(curs, 0, &first, &count);
+                DISP_RC(rc, "VCursorIdRange() failed");
                 if (rc == 0) {
-                    BasesInit(&total->bases_count, tbl);
+                    rc = BasesInit(&total->bases_count, vtbl);
                 }
                 if (rc == 0) {
                     const KLoadProgressbar *pr = NULL;
@@ -2517,16 +2635,27 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
 
                     memset(g_dREAD_LEN, 0, sizeof g_dREAD_LEN);
 
-                    if (start == 0) {
-                        start = 1;
+                    if (pb->start > 0) {
+                        start = pb->start;
+                        if (start < first) {
+                            start = first;
+                        }
                     }
-                    if (stop == 0 || pb -> stop > spotid) {
-                        stop = spotid;
+                    else {
+                        start = first;
                     }
 
-                    for (spotid = start; spotid <= stop && rc == 0;
-                        ++spotid)
-                    {
+                    if (pb->stop > 0) {
+                        stop = pb->stop;
+                        if (stop > first + count) {
+                            stop = first + count;
+                        }
+                    }
+                    else {
+                        stop = first + count;
+                    }
+
+                    for (spotid = start; spotid < stop && rc == 0; ++spotid) {
                         SraStats* ss;
                         uint32_t dREAD_LEN  [MAX_NREADS];
                         uint8_t  dREAD_TYPE [MAX_NREADS];
@@ -2538,7 +2667,7 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                         int nreads;
 
                         rc = Quitting();
-                        if (rc) {
+                        if (rc != 0) {
                             LOGMSG(klogWarn, "Interrupted");
                         }
 
@@ -2555,10 +2684,10 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                         }
 
                         if (rc == 0) {
-                            rc = SRAColumnRead(cREAD_LEN,
-                                spotid, &base, &boff, &row_bits);
+                            rc = VCursorColumnRead(curs, spotid,
+                                idxREAD_LEN, &base, &boff, &row_bits);
                             DISP_RC_Read(rc, READ_LEN, spotid,
-                                "while calling SRAColumnRead");
+                                "while calling VCursorColumnRead");
                         }
                         if (rc == 0) {
                             if (boff & 7) {
@@ -2574,7 +2703,7 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                     rcBuffer, rcInsufficient);
                             }
                             DISP_RC_Read(rc, READ_LEN, spotid,
-                                "after calling SRAColumnRead");
+                                "after calling VCursorColumnRead");
                         }
                         if (rc == 0) {
                             int i, bio_len, bio_count, bad_cnt, filt_cnt;
@@ -2593,10 +2722,10 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                             }
 
                             if (rc == 0) {
-                                rc = SRAColumnRead(cREAD_TYPE,
-                                    spotid, &base, &boff, &row_bits);
+                                rc = VCursorColumnRead(curs, spotid,
+                                    idxREAD_TYPE, &base, &boff, &row_bits);
                                 DISP_RC_Read(rc, READ_TYPE, spotid,
-                                    "while calling SRAColumnRead");
+                                    "while calling VCursorColumnRead");
                                 if (rc == 0) {
                                     if (boff & 7) {
                                         rc = RC(rcExe, rcColumn, rcReading,
@@ -2615,18 +2744,18 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                             rcData, rcIncorrect);
                                     }
                                     DISP_RC_Read(rc, READ_TYPE, spotid,
-                                        "after calling SRAColumnRead");
+                                        "after calling VCursorColumnRead");
                                 }
                             }
                             if (rc == 0) {
                                 memcpy(dREAD_TYPE,
                                     ((const char*)base) + (boff >> 3),
                                     row_bits >> 3);
-                                if (cSPOT_GROUP) {
-                                    rc = SRAColumnRead(cSPOT_GROUP,
-                                        spotid, &base, &boff, &row_bits);
+                                if (idxSPOT_GROUP != 0) {
+                                    rc = VCursorColumnRead(curs, spotid,
+                                        idxSPOT_GROUP, &base, &boff, &row_bits);
                                     DISP_RC_Read(rc, SPOT_GROUP, spotid,
-                                        "while calling SRAColumnRead");
+                                        "while calling VCursorColumnRead");
                                     if (rc == 0) {
                                         if (row_bits > 0) {
                                             if (boff & 7) {
@@ -2646,7 +2775,8 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                                     rcBuffer, rcInsufficient);
                                             }
                                             DISP_RC_Read(rc, SPOT_GROUP, spotid,
-                                                "after calling SRAColumnRead");
+                                               "after calling VCursorColumnRead"
+                                               );
                                             if (rc == 0) {
                                                 int n = row_bits >> 3;
                                                 memcpy(dSPOT_GROUP,
@@ -2671,11 +2801,11 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                             }
                             if (rc == 0) {
                                 uint64_t cmp_len = 0; /* CMP_READ */
-                                if (cRD_FILTER) {
-                                    rc = SRAColumnRead(cRD_FILTER,
-                                        spotid, &base, &boff, &row_bits);
+                                if (idxRD_FILTER != 0) {
+                                    rc = VCursorColumnRead(curs, spotid,
+                                        idxRD_FILTER, &base, &boff, &row_bits);
                                     DISP_RC_Read(rc, RD_FILTER, spotid,
-                                        "while calling SRAColumnRead");
+                                        "while calling VCursorColumnRead");
                                     if (rc == 0) {
                                         int size = row_bits >> 3;
                                         if (boff & 7) {
@@ -2690,7 +2820,7 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                                 rcBuffer, rcInsufficient);
                                         }
                                         DISP_RC_Read(rc, RD_FILTER, spotid,
-                                            "after calling SRAColumnRead");
+                                            "after calling VCursorColumnRead");
                                         if (rc == 0) {
                                             memcpy(dRD_FILTER,
                                                 ((const char*)base) + (boff>>3),
@@ -2700,13 +2830,16 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                                 if (size == 1) {
                              /* fill all RD_FILTER elements with RD_FILTER[0] */
                                                     int i = 0;
-                                                    for (i = 1; i < nreads; ++i)
+                                                    for (i = 1; i < nreads;
+                                                        ++i)
                                                     {
                                                         memcpy(dRD_FILTER + i,
                                                   ((const char*)base)+(boff>>3),
                                                   1);
                                                     }
-                                                    if (!bad_read_filter) {
+                                                    if
+                                                     (!bad_read_filter)
+                                                    {
                                                         bad_read_filter = true;
                                                         PLOGMSG(klogWarn,
                                                             (klogWarn,
@@ -2717,7 +2850,7 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                                 else {
                                   /* something really bad with RD_FILTER column:
                                      let's pretend it does not exist */
-                                                    cRD_FILTER = NULL;
+                                                    idxRD_FILTER = 0;
                                                     bad_read_filter = true;
                                                     PLOGMSG(klogWarn,
                                                         (klogWarn,
@@ -2732,12 +2865,13 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                         break;
                                     }
                                 }
-
-                                if (cPRIMARY_ALIGNMENT_ID) {
-                                    rc = SRAColumnRead(cPRIMARY_ALIGNMENT_ID,
-                                        spotid, &base, &boff, &row_bits);
+                                if (idxPRIMARY_ALIGNMENT_ID != 0) {
+                                    rc = VCursorColumnRead(curs, spotid,
+                                        idxPRIMARY_ALIGNMENT_ID,
+                                        &base, &boff, &row_bits);
                                     DISP_RC_Read(rc, PRIMARY_ALIGNMENT_ID,
-                                        spotid, "while calling SRAColumnRead");
+                                        spotid,
+                                        "while calling VCursorColumnRead");
                                     if (boff & 7) {
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcOffset, rcInvalid); }
@@ -2746,8 +2880,9 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                             rcSize, rcInvalid);
                                     }
                                     DISP_RC_Read(rc, PRIMARY_ALIGNMENT_ID,
-                                        spotid,
-                                        "after calling calling SRAColumnRead");
+                                       spotid,
+                                       "after calling calling VCursorColumnRead"
+                                       );
                                     if (rc == 0) {
                                         int i = 0;
                                         const int64_t* pii = base;
@@ -2823,7 +2958,7 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                                             bio_len += dREAD_LEN[i];
                                             bio_count++;
                                         }
-                                        if (cRD_FILTER) {
+                                        if (idxRD_FILTER != 0) {
                                             switch (dRD_FILTER[i]) {
                                                 case SRA_READ_FILTER_PASS:
                                                     break;
@@ -2893,7 +3028,7 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                         if (fixedNReads) {
                             int i = 0;
                             if (stop >= start) {
-                                n_spots = stop - start + 1;
+                                n_spots = stop - start;
                             }
                             if (n_spots > 0) {
                                 for (i = 0; i < g_nreads && rc == 0; ++i) {
@@ -2910,19 +3045,17 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
                         pr = NULL;
                     }
                 }
-                RELEASE(SRAColumn, cSPOT_GROUP);
             }
         }
     }
 
-    RELEASE(SRAColumn, cPRIMARY_ALIGNMENT_ID);
-    RELEASE(SRAColumn, cRD_FILTER);
-    RELEASE(SRAColumn, cREAD_TYPE);
-    RELEASE(SRAColumn, cREAD_LEN);
+    RELEASE(VCursor, curs);
 
-    if (pb->test) {
+    if (pb->test && rc == 0) {
+        uint32_t idx = 0;
         int i = 0;
-        spotid_t spotid = 0;
+        int64_t spotid = 0;
+
         double average[MAX_NREADS];
         double diff_sq[MAX_NREADS];
         SraStatsTotalStatistics2Init(total,
@@ -2931,19 +3064,32 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
         for (i = 0; i < g_nreads; ++i) {
             average[i] = (double)g_totalREAD_LEN[i] / n_spots;
         }
+
+        rc = VTableCreateCursorRead(vtbl, &curs);
+        DISP_RC(rc, "Cannot VTableCreateCursorRead");
+
         if (rc == 0) {
             const char* name = READ_LEN;
-            rc = SRATableOpenColumnRead(tbl, &cREAD_LEN, name, vdb_uint32_t);
-            DISP_RC2(rc, name, "while calling SRATableOpenColumnRead");
+            rc = VCursorAddColumn(curs, &idx, "%s", name);
+            DISP_RC(rc, "Cannot VCursorAddColumn(READ_LEN)");
+            if (rc == 0) {
+                rc = VCursorOpen(curs);
+                if (rc != 0) {
+                    PLOGERR(klogInt, (klogInt,
+                        rc, "Cannot VCursorOpen($(name))", "name=%s", name));
+                }
+            }
         }
-        for (spotid = start; spotid <= stop && rc == 0; ++spotid) {
+
+        for (spotid = start; spotid < stop && rc == 0; ++spotid) {
             uint32_t dREAD_LEN[MAX_NREADS];
             const void* base;
             bitsz_t boff, row_bits;
             if (rc == 0) {
-                rc = SRAColumnRead(cREAD_LEN, spotid, &base, &boff, &row_bits);
+                rc = VCursorColumnRead(curs, spotid,
+                    idx, &base, &boff, &row_bits);
                 DISP_RC_Read(rc, READ_LEN, spotid,
-                    "while calling SRAColumnRead");
+                    "while calling VCursorColumnRead");
             }
             if (rc == 0) {
                 memcpy(dREAD_LEN, ((const char*)base) + (boff>>3), row_bits>>3);
@@ -2954,7 +3100,7 @@ rc_t sra_stat(srastat_parms* pb, const SRATable* tbl,
             }
             SraStatsTotalAdd2(total, dREAD_LEN);
         }
-        RELEASE(SRAColumn, cREAD_LEN);
+        RELEASE(VCursor, curs);
     }
 
     return rc;
@@ -2974,32 +3120,54 @@ static
 rc_t run(srastat_parms* pb)
 {
     rc_t rc = 0;
-    const SRAMgr* mgr = NULL;
+    const VDBManager* vmgr = NULL;
 
     assert(pb && pb->table_path);
 
-    rc = SRAMgrMakeRead(&mgr);
-
+    rc = VDBManagerMakeRead(&vmgr, NULL);
     if (rc != 0) {
-        LOGERR(klogInt, rc, "failed to open SRAMgr");
+        LOGERR(klogInt, rc, "failed to open VDBManager");
     }
     else {
         SraSizeStats sizes;
         ArcInfo arc_info;
         SraMeta info;
-        const SRATable* tbl = NULL;
+        const VTable* vtbl = NULL;
 
-        rc = SRAMgrOpenTableRead(mgr, &tbl, "%s", pb->table_path);
+        VSchema *schema = NULL;
+
+        rc = VDBManagerMakeSRASchema(vmgr, &schema);
         if (rc != 0) {
-            PLOGERR(klogInt, (klogInt, rc,
-                "'$(spec)'", "spec=%s", pb->table_path));
+            LOGERR(klogInt, rc, "cannot VDBManagerMakeSRASchema");
         }
-        else {
+        if (rc == 0) {
+            rc = VDBManagerOpenTableRead(vmgr, &vtbl,
+                schema, "%s", pb->table_path);
+            if (rc != 0 && GetRCObject(rc) == (enum RCObject)rcTable
+                        && GetRCState (rc) == rcIncorrect)
+            {
+                const char altname[] = "SEQUENCE";
+                const VDatabase *db = NULL;
+                rc_t rc2 = VDBManagerOpenDBRead(vmgr,
+                    &db, schema, pb->table_path);
+                if (rc2 == 0) {
+                    rc2 = VDatabaseOpenTableRead(db, &vtbl, "%s", altname);
+                    if (rc2 == 0) {
+                        rc = 0;
+                    }
+                }
+                VDatabaseRelease ( db );
+            }
+            if (rc != 0) {
+                PLOGERR(klogInt, (klogInt, rc,
+                    "'$(spec)'", "spec=%s", pb->table_path));
+            }
+        }
+        if (rc == 0) {
             MetaDataStats stats;
             SraStatsTotal total;
             const KTable* ktbl = NULL;
             const KMetadata* meta = NULL;
-            const VTable* vtbl = NULL;
             const VDatabase* db = NULL;
 
             BSTree tr;
@@ -3010,16 +3178,11 @@ rc_t run(srastat_parms* pb)
 
             memset(&total, 0, sizeof total);
 
-            rc = SRATableGetKTableRead(tbl, &ktbl);
-            DISP_RC(rc, "While calling SRATableGetKTableRead");
+            rc = VTableOpenKTableRead(vtbl, &ktbl);
+            DISP_RC(rc, "While calling VTableOpenKTableRead");
             if (rc == 0) {
                 rc = KTableOpenMetadataRead(ktbl, &meta);
                 DISP_RC(rc, "While calling KTableOpenMetadataRead");
-            }
-            if (rc == 0) {
-                rc = SRATableGetVTableRead(tbl, &vtbl);
-                DISP_RC2(rc, pb->table_path,
-                    "while calling SRATableGetVTableRead");
             }
             if (rc == 0) {
                 rc = VTableOpenParentRead(vtbl, &db);
@@ -3037,24 +3200,29 @@ rc_t run(srastat_parms* pb)
                 }
                 rc = 0;
             }
-            if (rc == 0)
-            {   rc = get_size(tbl, &sizes); }
-            if (rc == 0 && pb->printMeta)
-            {   rc = get_load_info(meta, &info); }
-            if (rc == 0 && !pb->quick)
-            {   rc = sra_stat(pb, tbl, &tr, &total); }
+            if (rc == 0) {
+                rc = get_size(&sizes, vtbl);
+            }
+            if (rc == 0 && pb->printMeta) {
+                rc = get_load_info(meta, &info);
+            }
+            if (rc == 0 && !pb->quick) {
+                rc = sra_stat(pb, &tr, &total, vtbl);
+            }
             if (rc == 0 && pb->print_arcinfo ) {
-                rc = get_arc_info(mgr, pb->table_path, tbl, &arc_info);
+                rc = get_arc_info(pb->table_path, &arc_info, vmgr, vtbl);
             }
             if (rc == 0) {
                 rc = QualityStatsRead(&ctx.quality, meta);
-                if (rc == 0)
-                {   QualityStatsSort(&ctx.quality); }
+                if (rc == 0) {
+                    QualityStatsSort(&ctx.quality);
+                }
             }
             if (rc == 0) {
                 rc = TableCountsRead(&ctx.tables, db);
-                if (rc == 0)
-                {   TableCountsSort(&ctx.tables); }
+                if (rc == 0) {
+                    TableCountsSort(&ctx.tables);
+                }
             }
             if (rc == 0) {
                 ctx.db = db;
@@ -3070,7 +3238,6 @@ rc_t run(srastat_parms* pb)
             BSTreeWhack(&tr, bst_whack_free, NULL);
             SraStatsTotalFree(&total);
             RELEASE(VDatabase, db);
-            RELEASE(VTable, vtbl);
             RELEASE(KTable, ktbl);
             {
                 int i; 
@@ -3086,10 +3253,11 @@ rc_t run(srastat_parms* pb)
             CtxRelease(&ctx);
             RELEASE(KMetadata, meta);
         }
-        RELEASE(SRATable, tbl);
+        RELEASE(VSchema, schema);
+        RELEASE(VTable, vtbl);
     }
 
-    RELEASE(SRAMgr, mgr);
+    RELEASE(VDBManager, vmgr);
 
     return rc;
 }
@@ -3106,8 +3274,7 @@ ver_t CC KAppVersion ( void )
 }
 
 
-/* Usage
- */
+/* Usage */
 #define ALIAS_ALIGN    "a"
 #define OPTION_ALIGN   "alignment"
 

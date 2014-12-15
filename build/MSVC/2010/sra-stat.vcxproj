@@ -29,6 +29,7 @@
   </ItemDefinitionGroup>
   
   <ItemGroup>
+    <ClCompile Include="..\..\..\tools\sra-stat\sra.c" />
     <ClCompile Include="..\..\..\tools\sra-stat\sra-stat.c" />
   </ItemGroup>
   

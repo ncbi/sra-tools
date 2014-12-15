@@ -1239,11 +1239,11 @@ static rc_t _VFSManagerSystem2PosixPath(const VFSManager *self,
     return rc;
 }
 
-static rc_t ImportNgc(KConfig *cfg, Params *prm, const char **newRepoParentPath)
+static rc_t ImportNgc(KConfig *cfg, Params *prm,
+    const char **newRepoParentPath)
 {
     VFSManager *vmgr = NULL;
     rc_t rc = VFSManagerMake(&vmgr);
-    char ngcPath[PATH_MAX] = "";
     KDirectory *dir = NULL;
     const KFile *src = NULL;
     const KNgcObj *ngc = NULL;
@@ -1253,13 +1253,10 @@ static rc_t ImportNgc(KConfig *cfg, Params *prm, const char **newRepoParentPath)
 
     assert(prm);
     if (rc == 0) {
-        rc = _VFSManagerSystem2PosixPath(vmgr, prm->ngc, ngcPath);
-    }
-    if (rc == 0) {
         rc = KDirectoryNativeDir(&dir);
     }
     if (rc == 0) {
-        rc = KDirectoryOpenFileRead(dir, &src, "%s", ngcPath);
+        rc = KDirectoryOpenFileRead(dir, &src, "%s", prm->ngc);
     }
     RELEASE(KDirectory, dir);
     if (rc == 0) {
@@ -1360,7 +1357,9 @@ rc_t CC KMain(int argc, char* argv[]) {
                 rc = KConfigCommit(cfg);
             }
             if (rc == 0) {
+                const char *ngc = prm.ngc;
 #if WINDOWS
+                char ngcPath[PATH_MAX] = "";
                 KDirectory *wd = NULL;
                 char system[MAX_PATH] = "";
                 rc_t rc = KDirectoryNativeDir(&wd);
@@ -1370,11 +1369,16 @@ rc_t CC KMain(int argc, char* argv[]) {
                     if (rc == 0) {
                         newRepoParentPath = system;
                     }
+                    rc = KDirectoryPosixStringToSystemString(wd,
+                        ngcPath, sizeof ngcPath, "%s", prm.ngc);
+                    if (rc == 0) {
+                        ngc = ngcPath;
+                    }
                 }
 #endif          
                 OUTMSG((
                     "%s was imported\nThe new protected repository is: %s\n",
-                    prm.ngc, newRepoParentPath));
+                    ngc, newRepoParentPath));
             }
         }
         else if (prm.modeSetNode) {

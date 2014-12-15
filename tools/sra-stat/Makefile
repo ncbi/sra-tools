@@ -33,7 +33,7 @@ include $(TOP)/build/Makefile.env
 INT_TOOLS =
 
 EXT_TOOLS = \
-	sra-stat
+	sra-stat \
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -77,7 +77,8 @@ clean: stdclean
 #  sra statistics
 #
 SRASTAT_SRC = \
-	sra-stat
+	sra \
+	sra-stat \
 
 SRASTAT_OBJ = \
 	$(addsuffix .$(OBJX),$(SRASTAT_SRC))
@@ -86,7 +87,7 @@ SRASTAT_LIB = \
 	-lkapp \
 	-sncbi-vdb \
 	-sload \
-	-lm
+	-lm \
 
 $(BINDIR)/sra-stat: $(SRASTAT_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SRASTAT_LIB)

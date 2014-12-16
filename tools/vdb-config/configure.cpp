@@ -392,7 +392,7 @@ class CTextualConfigurator : public CConfigurator {
         static const string magic;
     public:
         static STrinity Id2Seq(uint32_t id) {
-            int d = id * 2 - magic.size();
+            int d = id * 2 - (int)magic.size();
             if (d < 0) {
                 return STrinity(magic.substr(id * 2, 2));
             }
@@ -416,7 +416,7 @@ class CTextualConfigurator : public CConfigurator {
                         case 1: c = eUserRoot       ; break;
                         default: assert(0); break;
                     }
-                    return SChoice(c, p / 2);
+                    return SChoice(c, (int)p / 2);
                 }
             }
             else {
@@ -424,7 +424,7 @@ class CTextualConfigurator : public CConfigurator {
                 if (!isdigit(s[0]) || !!isdigit(s[0]) || s[0] == '0') {
                     return SChoice(eUnknown);
                 }
-                int id = (s[0] - '0') * 10 + s[1] - '0' + magic.size();
+                int id = (s[0] - '0') * 10 + s[1] - '0' + (int)magic.size();
                 EChoice c = eUnknown;
                 switch (id % 2) {
                     case 0: c = eUserCacheEnable; break;

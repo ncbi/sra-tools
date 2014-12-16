@@ -154,11 +154,12 @@ OptDef Options[] =
 rc_t CC UsageSummary (const char * progname) {
     return KOutMsg (
         "Usage:\n"
-        "  %s [options] [<query> ...]\n"
+        "  %s [options] [<query> ...]\n\n"
+        "  %s [options] --import <ngc-file> [<workspace directory path>]\n"
         "\n"
         "Summary:\n"
         "  Manage VDB configuration\n"
-        "\n", progname);
+        , progname, progname);
 }
 
 rc_t CC Usage(const Args* args) { 
@@ -189,8 +190,6 @@ rc_t CC Usage(const Args* args) {
     HelpOptionLine (ALIAS_CFG, OPTION_CFG, NULL, USAGE_CFG);
     HelpOptionLine (ALIAS_CFM, OPTION_CFM, "mode", USAGE_CFM);
     HelpOptionLine (ALIAS_FIX, OPTION_FIX, NULL, USAGE_FIX);
-    KOutMsg ("\n");
-    HelpOptionLine (ALIAS_IMP, OPTION_IMP, "ngc-file", USAGE_IMP);
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_OUT, OPTION_OUT, "x | n", USAGE_OUT);
     KOutMsg ("\n");
@@ -1269,7 +1268,6 @@ static rc_t ImportNgc(KConfig *cfg, Params *prm,
         rc = KNgcObjGetProjectId(ngc, &id);
         if (rc == 0) {
             rc = ParamsGetNextParam(prm, &root);
-            root = NULL; // TODO: we cannot accept repo default path from cmd ln
             if (rc != 0 || root == NULL) {
                 char home[PATH_MAX] = "";
                 rc = KConfig_Get_Default_User_Path(cfg,
@@ -1322,7 +1320,7 @@ static rc_t ImportNgc(KConfig *cfg, Params *prm,
         uint32_t result_flags = 0;
         assert(root);
         rc = KRepositoryMgrImportNgcObj(rmgr, ngc, root,
-            INP_CREATE_REPOSITORY, &result_flags);
+            INP_CREATE_REPOSITORY | INP_UPDATE_ROOT, &result_flags);
     }
     *newRepoParentPath = root;
     RELEASE(KNgcObj, ngc);
@@ -1357,12 +1355,14 @@ rc_t CC KMain(int argc, char* argv[]) {
                 rc = KConfigCommit(cfg);
             }
             if (rc == 0) {
-                const char *ngc = prm.ngc;
 #if WINDOWS
                 char ngcPath[PATH_MAX] = "";
-                KDirectory *wd = NULL;
                 char system[MAX_PATH] = "";
+#endif          
+                KDirectory *wd = NULL;
+                const char *ngc = prm.ngc;
                 rc_t rc = KDirectoryNativeDir(&wd);
+#if WINDOWS
                 if (rc == 0) {
                     rc = KDirectoryPosixStringToSystemString(wd,
                         system, sizeof system, "%s", newRepoParentPath);
@@ -1376,9 +1376,20 @@ rc_t CC KMain(int argc, char* argv[]) {
                     }
                 }
 #endif          
+                if (wd) {
+                    if (KDirectoryPathType(wd, newRepoParentPath)
+                        == kptNotFound)
+                    {
+                        KDirectoryCreateDir(wd, 0775,
+                            kcmCreate | kcmParents, newRepoParentPath);
+                    }
+                }
+
                 OUTMSG((
                     "%s was imported\nThe new protected repository is: %s\n",
                     ngc, newRepoParentPath));
+
+                RELEASE(KDirectory, wd);
             }
         }
         else if (prm.modeSetNode) {

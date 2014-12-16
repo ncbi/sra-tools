@@ -127,6 +127,7 @@ DumpArgs :: __customInit ()
         TheOpt . setNeedValue ( true );
         TheOpt . setRequired ( false );
         TheOpt . setHlp ( "Minimum spot id" );
+        TheOpt . setMaxCount ( 1 );
 
         addOpt ( TheOpt );
     }
@@ -594,7 +595,7 @@ run ( const DumpArgs & TheArgs )
     int64_t maxSpot = TheArgs . maxSpotId ();
 
     if ( minSpot == 0 ) {
-        minSpot = RCol . getReadCount ();
+        minSpot = 1;
     }
 
     if ( maxSpot == 0 ) {

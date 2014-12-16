@@ -609,7 +609,7 @@ static rc_t on_report_cache_file( visit_ctx * obj )
             }
             else
             {
-                used_size = file_size * ( completeness / 100 );
+                used_size = file_size * (uint64_t)( completeness / 100 );
                 data->used_file_size += used_size;
             }
         }

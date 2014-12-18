@@ -1311,7 +1311,6 @@ static rc_t DoImportNgc(KConfig *cfg, Params *prm,
     if (rc == 0) {
         rc = KDirectoryOpenFileRead(dir, &src, "%s", prm->ngc);
     }
-    RELEASE(KDirectory, dir);
     if (rc == 0) {
         rc = KNgcObjMakeFromFile(&ngc, src);
     }
@@ -1321,8 +1320,15 @@ static rc_t DoImportNgc(KConfig *cfg, Params *prm,
         uint32_t id = 0;
         rc = KNgcObjGetProjectId(ngc, &id);
         if (rc == 0) {
-            rc = ParamsGetNextParam(prm, &root);
-            if (rc != 0 || root == NULL) {
+            const char *p = NULL;
+            rc = ParamsGetNextParam(prm, &p);
+            if (rc == 0 && p != NULL) {
+                rc = KDirectoryResolvePath(dir, true, buffer, sizeof buffer, p);
+                if (rc == 0) {
+                    root = buffer;
+                }
+            }
+            else {
                 rc = DefaultPepoLocation(cfg, id, buffer, sizeof buffer);
                 if (rc == 0) {
                     root = buffer;
@@ -1330,6 +1336,7 @@ static rc_t DoImportNgc(KConfig *cfg, Params *prm,
             }
         }
     }
+    RELEASE(KDirectory, dir);
     if (rc == 0) {
         rc = KConfigMakeRepositoryMgrUpdate(cfg, &rmgr);
     }

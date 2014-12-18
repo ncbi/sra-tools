@@ -1086,7 +1086,7 @@ static rc_t MainDownload(Resolved *self, Main *main) {
     if (rc == 0) {
         STSMSG(STS_DBG, ("creating %s", lock));
         rc = KDirectoryCreateFile(main->dir, &flock,
-                                  false, 0664, kcmInit | kcmParents, "%s", lock);
+            false, 0664, kcmInit | kcmParents, "%s", lock);
         DISP_RC2(rc, "Cannot OpenFileWrite", lock);
     }
 
@@ -1584,7 +1584,9 @@ static rc_t ItemDownload(Item *item) {
                 self->path = self->local.str->addr;
             }
         }
-        else if (!_StringIsFasp(self->remote, NULL) && item->main->noHttp) {
+        else if (!_StringIsFasp(self->remote, NULL)
+            && item->main->noHttp)
+        {
             rc = RC(rcExe, rcFile, rcCopying, rcFile, rcNotFound);
             PLOGERR(klogErr, (klogErr, rc,
                 "cannot download '$(name)' using requested transport",
@@ -1600,8 +1602,8 @@ static rc_t ItemDownload(Item *item) {
                     self->path = self->cache->addr;
                 }
             }
-            else if (rc !=
-                SILENT_RC(rcExe, rcProcess, rcExecuting, rcProcess, rcCanceled))
+            else if (rc != SILENT_RC(rcExe,
+                rcProcess, rcExecuting, rcProcess, rcCanceled))
             {
                 STSMSG(STS_TOP, ("%d) failed to download %s", n, self->name));
             }

@@ -32,7 +32,12 @@ LD_ALL_SYMBOLS=""
 LD_REF_SYMBOLS=""
 
 # the Mac is set up for cross-compilation
-LD="$LD -Wl,-arch,$ARCH"
+if [ "$ARCH" = "fat86" ] 
+then
+    LD="$LD -Wl,-arch_multiple"
+else
+    LD="$LD -Wl,-arch,$ARCH"
+fi
 
 # build command
 DLIB_CMD="$LD -dynamiclib"

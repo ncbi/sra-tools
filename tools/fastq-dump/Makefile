@@ -33,7 +33,7 @@ MODULE = tools/fastq-dump
 include $(TOP)/build/Makefile.env
 
 ALL_TOOLS = \
-	fastq-dump \
+	fastq-dump-new \
 
 #-------------------------------------------------------------------------------
 # outer targets
@@ -90,5 +90,5 @@ INCDIRS += -I $(TOP)/ngs/ngs-c++
 FASTQ_DUMP_OBJ = \
 	$(addsuffix .$(OBJX),$(FASTQ_DUMP_SRC))
 
-$(BINDIR)/fastq-dump: $(FASTQ_DUMP_OBJ)
+$(BINDIR)/fastq-dump-new: $(FASTQ_DUMP_OBJ)
 	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(DUMP_LIBS)

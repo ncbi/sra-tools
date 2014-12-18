@@ -58,7 +58,11 @@ endif
 ifeq (64,$(BITS))
 	CARCH = -m64
 else
-	CARCH = -m32
+ifeq (32_64,$(BITS))
+    CARCH = -arch i386 -arch x86_64  
+else    
+    CARCH = -m32
+endif 
 endif
 
 ifeq (prof, $(BUILD))

@@ -118,16 +118,30 @@ class CConfigurator : CNoncopyable {
                 if (len == 0) {
                     noUser = true;
                 }
-                else if (len == 1) {
-                    const KRepository *repo = static_cast<const KRepository*>
-                        (VectorGet(&repositories, 0));
-                    if (repo != NULL) {
-                        char buffer[PATH_MAX] = "";
-                        size_t size = 0;
-                        rc =
-                            KRepositoryName(repo, buffer, sizeof buffer, &size);
-                        if (rc == 0) {
-                            rc = 0;
+                else {
+                    uint32_t i = 0;
+                    noUser = true;
+                    for (i = 0; i < len; ++i) {
+                        const KRepository *repo
+                            = static_cast<const KRepository*>
+                                (VectorGet(&repositories, i));
+                        if (repo != NULL) {
+                            char buffer[PATH_MAX] = "";
+                            size_t size = 0;
+                            rc = KRepositoryName(repo,
+                                buffer, sizeof buffer, &size);
+                            if (rc == 0) {
+                                const char p[] = "public";
+                                if (strcase_cmp(p, sizeof p - 1, buffer,
+                                    size, sizeof buffer) == 0)
+                                {
+                                    noUser = false;
+                                }
+                                if (fix) {
+                                    rc = m_Cfg.CreateUserRepository
+                                        (buffer, fix);
+                                }
+                            }
                         }
                     }
                     rc = 0;
@@ -140,10 +154,7 @@ class CConfigurator : CNoncopyable {
                 noUser = true;
             }
             if (noUser) {
-                rc = m_Cfg.CreateUserRepositories();
-            }
-            else if (fix) {
-                rc = m_Cfg.CreateUserRepositories(fix);
+                rc = m_Cfg.CreateUserRepository();
             }
         }
         RELEASE(KRepositoryMgr, mgr);

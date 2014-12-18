@@ -1,6 +1,8 @@
 #include "util.hpp" // CStdIn
 #include <klib/printf.h> /* string_printf */
 
+#include <sstream> // ostringstream
+
 #include <climits> /* PATH_MAX */
 #ifndef PATH_MAX
 #define PATH_MAX 4096
@@ -343,7 +345,10 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     return rc;
 }
 
-rc_t CKConfig::CreateUserRepositories(bool fix) {
+rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
+    if (repoName.size() == 0) {
+        repoName = "public";
+    }
     CString cRoot(ReadString("/repository/user/default-path"));
     string root;
     if (cRoot.Empty()) {
@@ -353,55 +358,53 @@ rc_t CKConfig::CreateUserRepositories(bool fix) {
         root = cRoot.GetString();
     }
 
-    string name("/repository/user/main/public/root");
+    std::ostringstream s;
+    s << "/repository/user/" << (repoName == "public" ? "main" : "protected")
+        << "/" << repoName;
+    string repoNode(s.str());
+    string name(repoNode + "/root");
     bool toFix = true;
     if (fix) {
         toFix = !NodeExists(name);
     }
     rc_t rc = 0;
     if (toFix) {
-        rc = UpdateNode(name.c_str(), (root + "/public").c_str());
+        rc = UpdateNode(name, (root + "/public").c_str());
     }
 
-    rc_t r2 = UpdateNode("/repository/user/main/public/apps/file/volumes/flat",
-        "files");
+    rc_t r2 = UpdateNode(repoNode + "/apps/file/volumes/flat", "files");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }
 
-    r2 = UpdateNode(
-        "/repository/user/main/public/apps/nakmer/volumes/nakmerFlat",
-        "nannot");
+    r2 = UpdateNode(repoNode + "/apps/sra/volumes/sraFlat", "sra");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }
 
-    r2 = UpdateNode(
-        "/repository/user/main/public/apps/nakmer/volumes/nannotFlat",
-        "nannot");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
+    if (repoName == "public") {
+        r2 = UpdateNode(repoNode + "/apps/nakmer/volumes/nakmerFlat", "nannot");
+        if (r2 != 0 && rc == 0) {
+            rc = r2;
+        }
+
+        r2 = UpdateNode(repoNode + "/apps/nakmer/volumes/nannotFlat", "nannot");
+        if (r2 != 0 && rc == 0) {
+            rc = r2;
+        }
+
+        r2 = UpdateNode(repoNode + "/apps/refseq/volumes/refseq", "refseq");
+        if (r2 != 0 && rc == 0) {
+            rc = r2;
+        }
+
+        r2 = UpdateNode(repoNode + "/apps/wgs/volumes/wgsFlat", "wgs");
+        if (r2 != 0 && rc == 0) {
+            rc = r2;
+        }
     }
 
-    r2 = UpdateNode("/repository/user/main/public/apps/refseq/volumes/refseq",
-        "refseq");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode("/repository/user/main/public/apps/sra/volumes/sraFlat",
-        "sra");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode("/repository/user/main/public/apps/wgs/volumes/wgsFlat",
-        "wgs");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode("/repository/user/main/public/cache-enabled", "true");
+    r2 = UpdateNode(repoNode + "/cache-enabled", "true");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }

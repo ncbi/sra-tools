@@ -282,8 +282,11 @@ public:
     rc_t UpdateNode(bool verbose, const char *value, const char *name, ...);
     rc_t UpdateNode(const char *path, const char *buffer,
         bool verbose = false, size_t size = ~0);
+    rc_t UpdateNode(const std::string &path, const char *buffer) {
+        return UpdateNode(path.c_str(), buffer);
+    }
     rc_t CreateRemoteRepositories(bool fix = false);
-    rc_t CreateUserRepositories(bool fix = false);
+    rc_t CreateUserRepository(std::string name = "", bool fix = false);
     const String* ReadString(const char *path) const;
 };
 

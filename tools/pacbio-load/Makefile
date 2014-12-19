@@ -125,12 +125,12 @@ PACBIO_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(PACBIO_LOAD_SRC))
 
 PACBIO_LOAD_LIB = \
-	-lkapp \
+	-skapp \
 	-skdf5 \
-	-lload \
-	-lhdf5 \
+	-sload \
+	-shdf5 \
 	-sncbi-wvdb \
-	-lm \
+	-sm \
 
 ifdef HDF5_LIBDIR
 	PACBIO_LOAD_LIB += $(addprefix -L,$(HDF5_LIBDIR))

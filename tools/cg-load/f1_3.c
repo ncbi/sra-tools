@@ -59,6 +59,7 @@ static const CGFileTypeFactory cg_ETypeXX_names[] = {
     { "TUMOR_CNV_SEGMENTS", cg_eFileType_TUMOR_CNV_SEGMENTS, NULL },
     { "CNV_DETAILS_SCORES", cg_eFileType_CNV_DETAILS_SCORES, NULL },
     { "CNV-DETAIL-SCORES", cg_eFileType_CNV_DETAILS_SCORES, NULL },
+    { "CNV_DETAIL_SCORES", cg_eFileType_CNV_DETAILS_SCORES, NULL }, /*VDB-1404*/
     { "TUMOR_DETAILS_SCORES", cg_eFileType_TUMOR_DETAILS_SCORES, NULL },
     { "JUNCTIONS", cg_eFileType_JUNCTIONS, NULL },
     { "JUNCTION-DNBS", cg_eFileType_JUNCTION_DNBS, NULL },

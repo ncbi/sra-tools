@@ -3,6 +3,7 @@
 *.o
 /bin64
 /build/BUILD.*
+/build/COMP.mac
 /centos
 /ilib64
 /lib64

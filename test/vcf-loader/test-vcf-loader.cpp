@@ -729,10 +729,11 @@ FIXTURE_TEST_CASE(VcfDatabase_GetReference, VcfDatabaseFixture)
     Setup(GetName());
     const ReferenceMgr* refMgr;
     REQUIRE_RC(ReferenceMgr_Make(&refMgr, m_db, m_vdbMgr, 0, m_cfgName.c_str(), NULL, 0, 0, 0));
-    const ReferenceSeq* seq;
+    const ReferenceSeq* seq = NULL;
+#ifdef VDB_1415
     bool dummy = false;
     REQUIRE_RC(ReferenceMgr_GetSeq(refMgr, &seq, "20", &dummy));
-    
+
     INSDC_coord_zero coord = 14370;
     int64_t ref_id;
     INSDC_coord_zero ref_start;
@@ -741,6 +742,7 @@ FIXTURE_TEST_CASE(VcfDatabase_GetReference, VcfDatabaseFixture)
     REQUIRE_EQ(ref_id, (int64_t)(1 + coord / basesPerRow));
     REQUIRE_EQ(ref_start, (INSDC_coord_zero)(coord % basesPerRow));
     REQUIRE_EQ(global_ref_start, (uint64_t)coord);
+#endif
 
     REQUIRE_RC(ReferenceSeq_Release(seq));
     REQUIRE_RC(ReferenceMgr_Release(refMgr, true, NULL, false, NULL));
@@ -768,7 +770,7 @@ FIXTURE_TEST_CASE(VcfDatabaseBasic, VcfDatabaseFixture)
     // verify
     const VTable *tbl;
     REQUIRE_RC(VDBManagerOpenTableRead(m_vdbMgr, &tbl, m_schema, (m_dbName+"/tbl/VARIANT").c_str()));
-    VCursor *cur;
+    VCursor *cur = NULL;
     REQUIRE_RC(VTableCreateCursorRead( tbl, (const VCursor**)&cur ));
     
     uint32_t ref_id_idx, position_idx, length_idx, sequence_idx;
@@ -777,8 +779,9 @@ FIXTURE_TEST_CASE(VcfDatabaseBasic, VcfDatabaseFixture)
     REQUIRE_RC(VCursorAddColumn( cur, &length_idx, "length" ));
     REQUIRE_RC(VCursorAddColumn( cur, &sequence_idx, "sequence" ));    
     
+#ifdef VDB_1415
     REQUIRE_RC(VCursorOpen( cur ));
-    
+
     char buf[256];
     uint32_t row_len;
     const uint32_t elemBits = 8;
@@ -819,6 +822,7 @@ FIXTURE_TEST_CASE(VcfDatabaseBasic, VcfDatabaseFixture)
 
     rowId = 3;
     REQUIRE_RC_FAIL(VCursorReadDirect(cur, rowId, 1, elemBits, buf, sizeof(buf), &row_len ));    
+#endif
     
     REQUIRE_RC(VCursorRelease(cur));
     REQUIRE_RC(VTableRelease(tbl));

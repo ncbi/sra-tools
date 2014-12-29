@@ -45,7 +45,8 @@ public:
         std::string SEQID;
         std::string SEQID_LINE;
         char const *data;
-        unsigned datasize;
+        unsigned length;
+        bool hadErrors;
     };
 
     std::vector<Sequence const> sequences;

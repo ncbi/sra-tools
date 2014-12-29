@@ -28,6 +28,7 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <cctype>
 
 /*
  * Fasta files:
@@ -42,6 +43,7 @@ struct tmpSequence {
     std::string SEQID_LINE;
     size_t data_start;
     unsigned data_size;
+    bool hadErrors;
 };
 
 static std::string const whitespace(" \t");
@@ -57,6 +59,113 @@ static std::string const getline(std::istream &is)
         line.erase(lineend + 1);
 
     return line;
+}
+
+static bool cleanCopyFastaSequence(char *const dst,
+                                   char const *const src,
+                                   unsigned const len,
+                                   unsigned &actlen)
+{
+    bool hadErrors = false;
+    unsigned i;
+    unsigned j;
+
+    for (i = j = 0; i < len; ++i) {
+        int const ch = src[i]; // .ACMGRSVTWYHKDBN and lower case
+        int CH;
+
+        if (ch == ' ' || ch == '\t')
+            continue;
+
+        switch (ch) {
+        case 'A':
+        case 'a':
+            CH = 'A'
+            break;
+            
+        case 'C':
+        case 'c':
+            CH = 'C'
+            break;
+            
+        case 'M':
+        case 'm':
+            CH = 'M'
+            break;
+            
+        case 'G':
+        case 'g':
+            CH = 'G'
+            break;
+            
+        case 'R':
+        case 'r':
+            CH = 'R'
+            break;
+            
+        case 'S':
+        case 's':
+            CH = 'S'
+            break;
+            
+        case 'V':
+        case 'v':
+            CH = 'V'
+            break;
+            
+        case 'T':
+        case 't':
+            CH = 'T'
+            break;
+            
+        case 'W':
+        case 'w':
+            CH = 'W'
+            break;
+            
+        case 'Y':
+        case 'y':
+            CH = 'Y'
+            break;
+            
+        case 'H':
+        case 'h':
+            CH = 'H'
+            break;
+            
+        case 'K':
+        case 'k':
+            CH = 'K'
+            break;
+            
+        case 'D':
+        case 'd':
+            CH = 'D'
+            break;
+            
+        case 'B':
+        case 'b':
+            CH = 'B'
+            break;
+            
+        case '.':
+            CH = '.'
+            break;
+                
+        default:
+            hadErrors = true;
+        case 'N':
+        case 'n':
+        case 'X':
+        case 'x':
+            CH = 'N';
+            break;
+        }
+        dst[j++] = CH;
+    }
+    actlen = j;
+
+    return hadErrors;
 }
 
 static bool readFile(std::istream &is,
@@ -107,9 +216,10 @@ static bool readFile(std::istream &is,
                         if (!tmp) throw std::bad_alloc();
                         data = reinterpret_cast<char *>(tmp);
                     }
-                    memcpy(data + size, line.data() + start, len);
-                    size += len;
-                    sequence.data_size += len;
+                    unsigned actlen;
+                    sequence.hadErrors |= cleanCopyFastaSequence(data + size, line.data() + start, len, actlen);
+                    size += actlen;
+                    sequence.data_size += actlen;
                     break;
                 }
             case 0:
@@ -125,6 +235,7 @@ static bool readFile(std::istream &is,
                         sequence.SEQID = std::string(line, seqidstart, seqidend - seqidstart);
                         sequence.data_start = size;
                         sequence.data_size = 0;
+                        sequence.hadErrors = false;
                         ++st;
                         break;
                     }
@@ -135,7 +246,7 @@ static bool readFile(std::istream &is,
     }
 }
 
-FastaFile::FastaFile(std::istream &is)
+FastaFile::FastaFile(std::istream &is) : data(nullptr)
 {
     std::vector<tmpSequence> tmp;
     size_t limit = 1024u * 1024u;
@@ -153,13 +264,13 @@ FastaFile::FastaFile(std::istream &is)
             seq.SEQID = i->SEQID;
             seq.SEQID_LINE = i->SEQID_LINE;
             seq.data = data + i->data_start;
-            seq.datasize = i->data_size;
+            seq.length = i->data_size;
+            seq.hadErrors = i->hadErrors;
 
             sequences.push_back(seq);
         }
     }
     else {
-        this->data = nullptr;
         free(data);
     }
 }

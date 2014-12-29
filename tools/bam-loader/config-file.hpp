@@ -45,13 +45,21 @@ public:
         std::string SEQID;
         std::string EXTRA;
     };
+    struct Unparsed {
+        unsigned lineno;
+        std::string line;
+    };
     
     std::vector<Line const> lines;
+    std::vector<Unparsed const> unparsed;
+    std::string msg;
 
     ~ConfigFile() {}
+    
+    void printDescription(std::ostream &, bool detail = false) const;
 
-    static ConfigFile const load(std::istream &is) {
+    static ConfigFile load(std::istream &is) {
         return ConfigFile(is);
     }
-    static ConfigFile const load(std::string const &filename);
+    static ConfigFile load(std::string const &filename);
 };

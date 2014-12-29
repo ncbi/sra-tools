@@ -28,6 +28,8 @@
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <cctype>
+#include <sstream>
 
 /*
  * Config file:
@@ -38,58 +40,156 @@
  *      extra (optional)
  */
 
-static bool ConfigFile_Line_read(std::istream &is, ConfigFile::Line &line) {
-    static char const whitespace[] = " \t";
-    std::string fline;
+/// reads a line with leading and trailing whitespace trimmed;
+/// ignores lines consisting entirely of whitespace;
+static std::string const getline(std::istream &is)
+{
+    std::string line("");
+    auto ws = true;
+    size_t len = 0;
+    
+    for ( ; ; ) {
+        auto const ch = is.get();
+        if (ch < 0)
+            break;
+        if (ws && isspace(ch))
+            continue;
+        
+        if (ch == '\n' || ch == '\r')
+            break;
+        
+        ws = false;
+        line.push_back(ch);
+        if (!isspace(ch))
+            len = line.size();
+    }
+    line.erase(len);
+    
+    return line;
+}
 
-    std::getline(is, fline); if (fline.size() == 0) return false;
+template <typename T>
+struct Range {
+    T start, end;
+    
+    Range(T const init) : start(init), end(init) {}
+    T const size() const {
+        return start < end ? (end - start) : 0;
+    }
+};
 
-    size_t const nameend = fline.find_first_of(whitespace);
-    if (nameend == std::string::npos) return false;
+struct Parse {
+    Range<std::string::size_type> name;
+    Range<std::string::size_type> seqid;
+    Range<std::string::size_type> extra;
+    
+    Parse()
+    : name(std::string::npos)
+    , seqid(std::string::npos)
+    , extra(std::string::npos)
+    {}
+    bool good() const {
+        return name.size() > 0 && seqid.size() > 0;
+    }
+};
 
-    size_t const seqidstart = fline.find_first_not_of(whitespace, nameend);
-    if (seqidstart == std::string::npos) return false;
+static Parse parseLine(std::string const &in) {
+    static std::string const whitespace(" \t");
+    Parse rslt;
 
-    line.NAME = std::string(fline, 0, nameend);
+    if (in[0] != '#') {
+        rslt.name.start = 0;
 
-    size_t const seqidend = fline.find_first_of(whitespace, seqidstart);
-    line.SEQID = std::string(fline, seqidstart, seqidend);
-
-    if (seqidend != std::string::npos) {
-        size_t const extrastart = fline.find_first_not_of(whitespace, seqidend);
-        if (extrastart != std::string::npos) {
-            line.EXTRA = std::string(fline, extrastart);
+        rslt.name.end = in.find_first_of(whitespace);
+        if (rslt.name.end != std::string::npos) {
+            rslt.seqid.start = in.find_first_not_of(whitespace, rslt.name.end);
+            if (rslt.seqid.start != std::string::npos) {
+                rslt.seqid.end = in.find_first_of(whitespace, rslt.seqid.start);
+                if (rslt.seqid.end == std::string::npos)
+                    rslt.seqid.end = in.size();
+                else {
+                    rslt.extra.start = in.find_first_not_of(whitespace, rslt.seqid.end);
+                    rslt.extra.end = in.size();
+                }
+            }
         }
     }
-    return true;
+    
+    return rslt;
+}
+
+static ConfigFile::Line makeLine(std::string const &in, Parse const &parse) {
+    ConfigFile::Line rslt;
+    
+    rslt.NAME = in.substr(parse.name.start, parse.name.size());
+    rslt.SEQID = in.substr(parse.seqid.start, parse.seqid.size());
+    if (parse.extra.size() > 0)
+        rslt.EXTRA = in.substr(parse.extra.start, parse.extra.size());
+    else
+        rslt.EXTRA = "";
+    
+    return rslt;
+}
+
+static ConfigFile::Unparsed makeUnparsed(unsigned const lineno, std::string const &line) {
+    ConfigFile::Unparsed rslt;
+    
+    rslt.lineno = lineno;
+    rslt.line = line;
+    
+    return rslt;
 }
 
 ConfigFile::ConfigFile(std::istream &is) {
-    for ( ; ; ) {
-        Line line;
-
-        if (ConfigFile_Line_read(is, line))
-            lines.push_back(line);
-        else
+    unsigned lineno = 0;
+    
+    while (is.good()) {
+        auto const in = getline(is);
+        if (in.size() == 0) {
             break;
+        }
+        ++lineno;
+
+        auto const parse = parseLine(in);
+        if (parse.good())
+            lines.push_back(makeLine(in, parse));
+        else
+            unparsed.push_back(makeUnparsed(lineno, in));
     }
+    if (is.eof())
+        msg = "no errors";
+    else
+        msg = "error reading input";
+    
+    std::ostringstream oss;
+    oss << msg << "; lines read: " << lineno;
+    msg = oss.str();
 }
 
-ConfigFile const ConfigFile::load(std::string const &filename) {
+ConfigFile ConfigFile::load(std::string const &filename) {
     std::ifstream ifs(filename);
 
     return ifs.is_open() ? ConfigFile::load(ifs) : ConfigFile();
 }
 
+void ConfigFile::printDescription(std::ostream &os, bool const detail) const {
+    os << "Loaded " << lines.size() << " records" << std::endl;
+    if (detail) {
+        for (auto i = lines.begin(); i != lines.end(); ++i)
+            os << i->NAME << '\t' << i->SEQID << '\t' << i->EXTRA << std::endl;
+    }
+    os << "Unparsed lines: " << unparsed.size() << std::endl;
+    if (detail) {
+        for (auto i = unparsed.begin(); i != unparsed.end(); ++i)
+            os << i->lineno << '\t' << i->line << std::endl;
+    }
+    os << msg << std::endl;
+}
+
 #ifdef TESTING
 int main(int argc, char *argv[]) {
-    if (argc > 1) {
-        auto config = ConfigFile::load(argv[1]);
-
-        std::cout << "Loaded " << config.lines.size() << " lines" << std::endl;
-        for (auto i = config.lines.begin(); i != config.lines.end(); ++i) {
-            std::cout << i->NAME << '\t' << i->SEQID << '\t' << i->EXTRA << std::endl;
-        }
-    }
+    auto const config = argc > 1 ? ConfigFile::load(argv[1]) : ConfigFile::load(std::cin);
+    
+    config.printDescription(std::cout, true);
 }
 #endif

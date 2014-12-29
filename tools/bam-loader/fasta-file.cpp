@@ -46,124 +46,69 @@ struct tmpSequence {
     bool hadErrors;
 };
 
-static std::string const whitespace(" \t");
-
+/// reads a line with leading and trailing whitespace trimmed;
+/// ignores lines consisting entirely of whitespace;
 static std::string const getline(std::istream &is)
 {
     std::string line("");
-
-    std::getline(is, line);
-
-    auto const lineend = line.find_last_not_of(whitespace);
-    if (lineend != std::string::npos)
-        line.erase(lineend + 1);
-
+    auto ws = true;
+    size_t len = 0;
+    
+    for ( ; ; ) {
+        auto const ch = is.get();
+        if (ch < 0)
+            break;
+        if (ws && isspace(ch))
+            continue;
+        
+        if (ch == '\n' || ch == '\r')
+            break;
+        
+        ws = false;
+        line.push_back(ch);
+        if (!isspace(ch))
+            len = line.size();
+    }
+    line.erase(len);
+    
     return line;
 }
 
 static bool cleanCopyFastaSequence(char *const dst,
                                    char const *const src,
-                                   unsigned const len,
-                                   unsigned &actlen)
+                                   unsigned const len)
 {
-    bool hadErrors = false;
-    unsigned i;
-    unsigned j;
+    static char const tr[] = {
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ','.',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ','A','B','C','D',' ',' ','G','H',' ',' ','K',' ','M','N',' ',
+        ' ',' ','R','S','T',' ','V','W','N','Y',' ',' ',' ',' ',' ',' ',
+        ' ','A','B','C','D',' ',' ','G','H',' ',' ','K',' ','M','N',' ',
+        ' ',' ','R','S','T',' ','V','W','N','Y',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+        ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
+    };
 
-    for (i = j = 0; i < len; ++i) {
+    auto hadErrors = false;
+
+    for (unsigned i = 0; i < len; ++i) {
         int const ch = src[i]; // .ACMGRSVTWYHKDBN and lower case
-        int CH;
 
-        if (ch == ' ' || ch == '\t')
-            continue;
-
-        switch (ch) {
-        case 'A':
-        case 'a':
-            CH = 'A'
-            break;
-            
-        case 'C':
-        case 'c':
-            CH = 'C'
-            break;
-            
-        case 'M':
-        case 'm':
-            CH = 'M'
-            break;
-            
-        case 'G':
-        case 'g':
-            CH = 'G'
-            break;
-            
-        case 'R':
-        case 'r':
-            CH = 'R'
-            break;
-            
-        case 'S':
-        case 's':
-            CH = 'S'
-            break;
-            
-        case 'V':
-        case 'v':
-            CH = 'V'
-            break;
-            
-        case 'T':
-        case 't':
-            CH = 'T'
-            break;
-            
-        case 'W':
-        case 'w':
-            CH = 'W'
-            break;
-            
-        case 'Y':
-        case 'y':
-            CH = 'Y'
-            break;
-            
-        case 'H':
-        case 'h':
-            CH = 'H'
-            break;
-            
-        case 'K':
-        case 'k':
-            CH = 'K'
-            break;
-            
-        case 'D':
-        case 'd':
-            CH = 'D'
-            break;
-            
-        case 'B':
-        case 'b':
-            CH = 'B'
-            break;
-            
-        case '.':
-            CH = '.'
-            break;
-                
-        default:
+        if (ch != ' ')
+            dst[i] = ch;
+        else {
+            dst[i] = 'N';
             hadErrors = true;
-        case 'N':
-        case 'n':
-        case 'X':
-        case 'x':
-            CH = 'N';
-            break;
         }
-        dst[j++] = CH;
     }
-    actlen = j;
 
     return hadErrors;
 }
@@ -175,14 +120,12 @@ static bool readFile(std::istream &is,
                      std::vector<tmpSequence> &sequences
                      )
 {
+    static std::string const whitespace("\t ");
     tmpSequence sequence;
     auto st = 0;
 
     for ( ; ; ) {
         auto line = getline(is);
-
-        if (line.size() == 0 && is.good())
-            continue;
 
         switch (st) {
             case 1:
@@ -208,18 +151,16 @@ static bool readFile(std::istream &is,
                     auto const len = line.size() - start;
 
                     if (size + len > limit) {
-                        do {
-                            limit <<= 1;
-                        } while (size + len > limit);
+                        do { limit <<= 1; } while (size + len > limit);
                         auto const tmp = realloc(reinterpret_cast<void *>(data), limit);
 
                         if (!tmp) throw std::bad_alloc();
                         data = reinterpret_cast<char *>(tmp);
                     }
-                    unsigned actlen;
-                    sequence.hadErrors |= cleanCopyFastaSequence(data + size, line.data() + start, len, actlen);
-                    size += actlen;
-                    sequence.data_size += actlen;
+
+                    sequence.hadErrors |= cleanCopyFastaSequence(data + size, line.data() + start, len);
+                    size += len;
+                    sequence.data_size += len;
                     break;
                 }
             case 0:
@@ -253,7 +194,9 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
     size_t size = 0;
     auto data = reinterpret_cast<char *>(malloc(limit));
 
-    if (!data) throw std::bad_alloc();
+    if (!data)
+        throw std::bad_alloc();
+    
     if (readFile(is, data, size, limit, tmp) && is.eof()) {
         this->data = realloc(reinterpret_cast<void *>(data), size);
         if (!this->data) throw std::bad_alloc();
@@ -275,7 +218,7 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
     }
 }
 
-FastaFile const FastaFile::load(std::string const filename)
+FastaFile FastaFile::load(std::string const filename)
 {
     std::ifstream ifs(filename);
 
@@ -283,18 +226,32 @@ FastaFile const FastaFile::load(std::string const filename)
 }
 
 #ifdef TESTING
+void wait(std::string const &msg = "Waiting") {
+    std::string s;
+    
+    std::cout << msg << "... [Press enter]" << std::endl;
+    std::getline(std::cin, s);
+}
+
+void test(std::string const &filename) {
+    auto const test = FastaFile::load(filename);
+    
+    std::cout << "Loaded " << test.sequences.size() << " sequences" << std::endl;
+    
+    size_t total = 0;
+    for (auto i = test.sequences.begin(); i != test.sequences.end(); ++i)
+        total += i->length;
+    
+    std::cout << "Loaded " << total << " bases" << std::endl;
+    
+//    wait("Run leaks");
+}
+
 int main(int argc, char *argv[])
 {
     if (argc > 1) {
-        auto test = FastaFile::load(argv[1]);
-
-        std::cout << "Loaded " << test.sequences.size() << " sequences" << std::endl;
-
-        size_t total = 0;
-        for (auto i = test.sequences.begin(); i != test.sequences.end(); ++i)
-            total += i->datasize;
-
-        std::cout << "Loaded " << total << " bases" << std::endl;
+        test(argv[1]);
     }
+//    wait("Run leaks again");
 }
 #endif

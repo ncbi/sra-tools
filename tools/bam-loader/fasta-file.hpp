@@ -46,15 +46,18 @@ public:
         std::string SEQID_LINE;
         char const *data;
         unsigned length;
-        bool hadErrors;
+        bool hadErrors; // erroneous base values are replaced with N
     };
 
     std::vector<Sequence const> sequences;
 
-    ~FastaFile() { free(data); }
+    ~FastaFile() {
+        free(data);
+        data = nullptr;
+    }
 
-    static FastaFile const load(std::istream &is) {
+    static FastaFile load(std::istream &is) {
         return FastaFile(is);
     }
-    static FastaFile const load(std::string const filename);
+    static FastaFile load(std::string const filename);
 };

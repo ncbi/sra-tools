@@ -90,13 +90,11 @@ $(NCBIDIR)/vdb-copy.kfg: $(SRCDIR)/vdb-copy.kfg
 	cp $^ $@
 
 VDB_COPY_SRC = \
-	num-gen \
 	context \
 	helper \
 	coldefs \
 	get_platform \
 	namelist_tools \
-	progressbar \
 	copy_meta \
 	type_matcher \
 	redactval \

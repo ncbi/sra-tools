@@ -34,40 +34,35 @@ include $(TOP)/build/Makefile.config
 #-------------------------------------------------------------------------------
 # default
 #
-SUBDIRS = \
-	util \
-	kar \
-	kqsh \
-	vdb-dump \
-	sra-dump \
-	sra-pileup \
-	bam-loader \
-	fastq-loader \
-	srapath \
-	sra-stat \
-	vdb-copy \
-	rd-filter-redact \
-	vdb-config \
-	align-info \
+SUBDIRS =             \
+	util              \
+	align-cache       \
+	kar               \
+	kqsh              \
+	vdb-dump          \
+	sra-dump          \
+	sra-pileup        \
+	bam-loader        \
+	fastq-loader      \
+	srapath           \
+	sra-stat          \
+	vdb-copy          \
+	rd-filter-redact  \
+	vdb-config        \
+	align-info        \
 	qual-recalib-stat \
-	prefetch \
-	vdb-decrypt \
-	vdb-validate \
-	sra-sort \
-	cache-mgr \
-	vcf-loader
-
-ifeq (1,$(HAVE_MAGIC))
-	SUBDIRS += copycat
-endif    
-
-ifeq (1,$(HAVE_XML2))
-	SUBDIRS += sra-load ccextract
-endif    
-
-ifeq (1,$(HAVE_HDF5))
-	SUBDIRS += pacbio-load
-endif
+	prefetch          \
+	vdb-decrypt       \
+	vdb-validate      \
+	sra-sort          \
+	cache-mgr         \
+	vcf-loader        \
+	copycat           \
+	sra-load          \
+	ccextract         \
+	pacbio-load       \
+	fuse              \
+    vdb-diff          \
 
 ifneq (win,$(BUILD_OS))
 ifneq (rwin,$(BUILD_OS))

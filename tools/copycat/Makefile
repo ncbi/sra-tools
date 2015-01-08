@@ -32,12 +32,7 @@ include $(TOP)/build/Makefile.env
 
 INT_TOOLS =
 
-EXT_TOOLS = 
-
-ifeq (linux,$(OS))
-	EXT_TOOLS += copycat
-endif
-
+EXT_TOOLS = copycat
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -46,11 +41,23 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
+ifeq (1,$(HAVE_MAGIC))
+
 all std: vers-includes
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
 $(ALL_TOOLS): vers-includes
 	@ $(MAKE_CMD) $(BINDIR)/$@
+
+else
+
+all std: $(ALL_TOOLS)
+
+$(ALL_TOOLS):
+	@ echo "NOTE - $(@F) cannot be built:"                          \
+	       "It requires our internal library 'libkff'"              \
+	       "which requires 'libmagic' and its development headers."
+endif
 
 .PHONY: all std $(ALL_TOOLS)
 
@@ -96,14 +103,11 @@ COPYCAT_OBJ = \
 	$(addsuffix .$(OBJX),$(COPYCAT_SRC))
 
 COPYCAT_LIB = \
-	-lkapp \
+	-skapp \
 	-sncbi-vdb \
-	-lkff \
-	-lmagic
+	-skff \
+	-smagic-static
 
 
 $(BINDIR)/copycat: $(COPYCAT_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(COPYCAT_LIB)
-
-
-

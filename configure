@@ -33,13 +33,13 @@ if [ -z "$CURDIR" ]
     exit 1
 fi
 
-if [ "$FILENAME" != configure -a ! -s konfigure.perl ]
+if [ "$FILENAME" != configure -a ! -s setup/konfigure.perl ]
     then
     echo configure: error: configure should be run as ./configure
 else
     perl -v > /dev/null 2>&1 || { echo "checking for perl... no"; \
         echo >&2 "configure: error: perl not found."; exit 1; }
 
-    cd $CURDIR
-    perl -w ./konfigure.perl $@
+    cd $CURDIR/setup
+    perl -w konfigure.perl "$@"
 fi

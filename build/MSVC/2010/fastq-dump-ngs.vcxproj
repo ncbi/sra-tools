@@ -24,10 +24,9 @@
   <ItemDefinitionGroup>
     <Link>
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(VDB_TARGET)lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(VDB_TARGET)lib\bz2.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\ngs-c++.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(NGS_TARGET)bin\libngs-sdk.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(NGS_TARGET)lib\libngs-bind-c++.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(NGS_TARGET)lib\libngs-disp.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>  
   

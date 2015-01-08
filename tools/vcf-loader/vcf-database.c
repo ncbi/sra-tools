@@ -101,12 +101,14 @@ rc_t SaveVariants( const VcfReader* reader, const char configPath[], VDatabase* 
                                     const ReferenceSeq* seq;
                                     #define MAX_CHROMOSOME_NAME_LENGTH 1024
                                     char chromName[MAX_CHROMOSOME_NAME_LENGTH];
+                                    bool shouldUnmap = false;
                                     string_copy(chromName, sizeof(chromName), line->chromosome.addr, line->chromosome.size);
-                                    rc = (ReferenceMgr_GetSeq(refMgr, &seq, chromName));
+                                    rc = (ReferenceMgr_GetSeq(refMgr, &seq, chromName, &shouldUnmap));
                                     if (rc == 0)
                                     {
                                         int64_t ref_id;
                                         INSDC_coord_zero ref_start;
+                                        assert(shouldUnmap == false);
                                         rc = ReferenceSeq_TranslateOffset_int(seq, line->position, &ref_id, &ref_start, NULL);
                                         if (rc == 0)
                                         {

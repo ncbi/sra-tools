@@ -36,6 +36,7 @@
 #include <ostream>
 
 #include <klib/out.h>
+#include <klib/text.h>
 
 /*)))
  ///    Something weird. That class will throw exception if any
@@ -57,6 +58,14 @@ extern "C" {
 }
 #endif /* _DO_ALWAYS_THROW_EXCEPTION */
 
+/*\
+|*| That address is responsible for buffered/unbuffered basic_koutbuf
+|*| Uncomment if You does not need buffering on the basic_koutbuf level
+\*/
+
+/*\
+#define _DO_USE_UNBUFFERED_KOUTBUF
+\*/
 
 /*))))
  <<<<   Lurics:
@@ -79,6 +88,7 @@ namespace ngs {
 /*))
  // Buffer
 ((*/
+
 template < typename _CharT, typename _Traits >
 class basic_koutbuf
     : public std :: basic_streambuf < _CharT, _Traits > {
@@ -96,7 +106,14 @@ public :
 
 protected :
 
+        /*\ This is not only change 
+        \*/
+#ifdef _DO_USE_UNBUFFERED_KOUTBUF
+    static const std :: streamsize _cM_buffer_size = 256;
+#else /* _DO_USE_UNBUFFERED_KOUTBUF */
     static const std :: streamsize _cM_buffer_size = 4096 * 32;
+#endif /* _DO_USE_UNBUFFERED_KOUTBUF */
+
     char_type * _M_char;
 
 public :
@@ -106,7 +123,7 @@ public :
         : __streambuf_type ()
         , _M_char ( allocator_type () . allocate ( _cM_buffer_size ) )
         {
-            this -> setbuf ( _M_char, sizeof ( _M_char ) - 1 );
+            this -> setbuf ( _M_char, _cM_buffer_size );
             __setp ();
         };
 
@@ -134,10 +151,20 @@ public :
             _M_char = NULL;
         };
 
+#ifdef _DO_USE_UNBUFFERED_KOUTBUF
+    std :: streamsize xsputn ( const char_type * __s, std :: streamsize __n )
+        {
+            if ( __sync () == - 1 ) {
+                return 0;
+            }
+
+            return __koutmsg ( __s, __n );
+        };
+#else /* _DO_USE_UNBUFFERED_KOUTBUF */
     std :: streamsize xsputn ( const char_type * __s, std :: streamsize __n )
         {
             std :: streamsize __a = this -> epptr () - this -> pptr ();
-
+			
             if ( __n < __a ) {
                     /*)  Here we are adding string to a buffer
                      (*/
@@ -180,25 +207,43 @@ public :
                  (*/
             return __n;
         };
+#endif /* _DO_USE_UNBUFFERED_KOUTBUF */
 
-    virtual int sync ()
+    int sync ()
         {
             return __sync ();
         };
 
 protected :
 
-        int __sync ()
+    int __sync ()
         {
             int __ret = 0;
 
-            if ( this -> pbase () < this -> pptr () ) {
-                    /*) KOurMsg is working with null terminated
-                     (*/
-                * ( this -> pptr () ) = 0;
+            std :: streamsize __l = this -> pptr () - this -> pbase ();
 
-                rc_t __rc = KOutMsg ( "%s", this -> pbase () );
+            if ( 0 < __l ) {
+                __ret = __koutmsg ( this -> pbase (), __l );
+
+                    /*\
+                    |*| Don't really know if we shoud check result here
+                    \*/
+                __setp ();
+            }
+
+            return __ret;
+        };
+
+    int __koutmsg ( const char_type * __s, std :: streamsize __n )
+        {
+            if ( 0 < __n ) {
+                :: String __t;
+
+                StringInit ( ( & __t ), __s, __n, __n );
+
+                rc_t __rc = KOutMsg ( "%S", & __t );
                 if ( __rc != 0 ) {
+
 #ifdef _DO_ALWAYS_THROW_EXCEPTION
 
                     /* That was requested by Kurt: I shoud throw
@@ -211,22 +256,20 @@ protected :
                     throw ErrorMsg ( __m );
 #else
 
-                    __ret = - 1;
+                    __n = - 1;
 #endif /* _DO_ALWAYS_THROW_EXCEPTION */
                 }
-
-                __setp ();
             }
 
-            return __ret;
+            return __n;
         };
 
-        void __setp ()
+    void __setp ()
         {
                 /*) the only valid method to set _M_out_cur to zero
                  /  also, one char reserved for a zero
                 (*/
-            this -> setp ( _M_char, _M_char + sizeof ( _M_char ) - 1 );
+            this -> setp ( _M_char, _M_char + _cM_buffer_size );
         };
 
 };  /* class basic_koutbuf */

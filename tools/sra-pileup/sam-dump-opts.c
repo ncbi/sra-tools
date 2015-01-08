@@ -1486,29 +1486,58 @@ rc_t dump_name_legacy( const samdump_opts * opts, const char * name, size_t name
     return rc;
 }
 
+#define USE_KWRT_HANDLER 1
 
 rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual_len, bool reverse )
 {
+    uint32_t i;
     rc_t rc = 0;
     bool quantize = ( opts->qual_quant != NULL );
-    uint32_t i;
+
+    size_t size = 0;
+    char buffer [ 4096 ];
+#if USE_KWRT_HANDLER
+    size_t num_writ;
+    KWrtHandler * kout_msg_handler = KOutHandlerGet ();
+    assert ( kout_msg_handler != NULL );
+#endif
     if ( reverse )
     {
         if ( quantize )
         {
-            for ( i = 0; i < qual_len && rc == 0; ++i )
+            for ( i = qual_len; i > 0; )
             {
-                uint32_t qual = quality[ qual_len - i - 1 ];
-                char newValue = ( opts->qual_quant_matrix[ qual ] + 33 );
-                rc = KOutMsg( "%c", newValue );
+                uint32_t qual = quality[ -- i ];
+                buffer [ size ] = ( opts->qual_quant_matrix[ qual ] + 33 );
+                if ( ++ size == sizeof buffer )
+                {
+#if USE_KWRT_HANDLER
+                    rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
+                    rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+#endif
+                    if ( rc != 0 )
+                        break;
+                    size = 0;
+                }
             }
         }
         else
         {
-            for ( i = 0; i < qual_len && rc == 0; ++i )
+            for ( i = qual_len; i > 0; )
             {
-                char qual = quality[ qual_len - i - 1 ] + 33;
-                rc = KOutMsg( "%c", qual );
+                buffer [ size ] = quality[ -- i ] + 33;
+                if ( ++ size == sizeof buffer )
+                {
+#if USE_KWRT_HANDLER
+                    rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
+                    rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+#endif
+                    if ( rc != 0 )
+                        break;
+                    size = 0;
+                }
             }
         }
     }
@@ -1516,11 +1545,21 @@ rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual
     {
         if ( quantize )
         {
-            for ( i = 0; i < qual_len && rc == 0; ++i )
+            for ( i = 0; i < qual_len; ++i )
             {
                 uint32_t qual = quality[ i ];
-                char newValue = opts->qual_quant_matrix[ qual ] + 33;
-                rc = KOutMsg( "%c", newValue );
+                buffer [ size ] = opts->qual_quant_matrix[ qual ] + 33;
+                if ( ++ size == sizeof buffer )
+                {
+#if USE_KWRT_HANDLER
+                    rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
+                    rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+#endif
+                    if ( rc != 0 )
+                        break;
+                    size = 0;
+                }
             }
 
         }
@@ -1528,10 +1567,29 @@ rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual
         {
             for ( i = 0; i < qual_len && rc == 0; ++i )
             {
-                char qual = quality[ i ] + 33;
-                rc = KOutMsg( "%c", qual );
+                buffer [ size ] = quality[ i ] + 33;
+                if ( ++ size == sizeof buffer )
+                {
+#if USE_KWRT_HANDLER
+                    rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
+                    rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+#endif
+                    if ( rc != 0 )
+                        break;
+                    size = 0;
+                }
             }
         }
+    }
+
+    if ( rc == 0 && size != 0 )
+    {
+#if USE_KWRT_HANDLER
+        rc = ( * kout_msg_handler -> writer ) ( kout_msg_handler -> data, buffer, size, & num_writ );
+#else
+        rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+#endif
     }
     return rc;
 }
@@ -1539,9 +1597,13 @@ rc_t dump_quality( const samdump_opts * opts, char const *quality, uint32_t qual
 
 rc_t dump_quality_33( const samdump_opts * opts, char const *quality, uint32_t qual_len, bool reverse )
 {
+    uint32_t i;
     rc_t rc = 0;
     bool quantize = ( opts->qual_quant != NULL );
-    uint32_t i;
+
+    size_t size = 0;
+    char buffer [ 4096 ];
+
     if ( reverse )
     {
         if ( quantize )
@@ -1549,16 +1611,28 @@ rc_t dump_quality_33( const samdump_opts * opts, char const *quality, uint32_t q
             for ( i = 0; i < qual_len && rc == 0; ++i )
             {
                 uint32_t qual = quality[ qual_len - i - 1 ] - 33;
-                char newValue = ( opts->qual_quant_matrix[ qual ] + 33 );
-                rc = KOutMsg( "%c", newValue );
+                buffer [ size ] = ( opts->qual_quant_matrix[ qual ] + 33 );
+                if ( ++ size == sizeof buffer )
+                {
+                    rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+                    if ( rc != 0 )
+                        break;
+                    size = 0;
+                }
             }
         }
         else
         {
             for ( i = 0; i < qual_len && rc == 0; ++i )
             {
-                char qual = quality[ qual_len - i - 1 ];
-                rc = KOutMsg( "%c", qual );
+                buffer [ size ] = quality[ qual_len - i - 1 ];
+                if ( ++ size == sizeof buffer )
+                {
+                    rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+                    if ( rc != 0 )
+                        break;
+                    size = 0;
+                }
             }
         }
     }
@@ -1569,8 +1643,14 @@ rc_t dump_quality_33( const samdump_opts * opts, char const *quality, uint32_t q
             for ( i = 0; i < qual_len && rc == 0; ++i )
             {
                 uint32_t qual = quality[ i ] - 33;
-                char newValue = opts->qual_quant_matrix[ qual ] + 33;
-                rc = KOutMsg( "%c", newValue );
+                buffer [ size ] = opts->qual_quant_matrix[ qual ] + 33;
+                if ( ++ size == sizeof buffer )
+                {
+                    rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+                    if ( rc != 0 )
+                        break;
+                    size = 0;
+                }
             }
 
         }
@@ -1579,7 +1659,9 @@ rc_t dump_quality_33( const samdump_opts * opts, char const *quality, uint32_t q
             rc = KOutMsg( "%.*s", qual_len, quality );
         }
     }
+
+    if ( rc == 0 && size != 0 )
+        rc = KOutMsg( "%.*s", ( uint32_t ) size, buffer );
+
     return rc;
 }
-
-

@@ -25,9 +25,6 @@
 */
  
 %{ 
-    #include <klib/rc.h>
-    #include <klib/text.h>
-    
 	#include "vcf-parse.h"
 	#include "vcf-grammar.h"    
 
@@ -107,11 +104,12 @@ alphanum    [A-Za-z0-9\-_]+
 
 %%    
 
-rc_t CC VCFScan_yylex_init(VCFParseBlock* sb, bool debug)
+bool VCFScan_yylex_init(VCFParseBlock* sb, bool debug)
 {
 	if (yylex_init_extra(sb, &sb->scanner) != 0)
 	{
-		return RC ( rcKFG, rcMgr, rcParsing, rcMemory, rcExhausted );
+        return false;
+		/*return RC ( rcKFG, rcMgr, rcParsing, rcMemory, rcExhausted );*/
 	}		
 
     sb->offset = 0;
@@ -121,10 +119,10 @@ rc_t CC VCFScan_yylex_init(VCFParseBlock* sb, bool debug)
     
 	yyset_debug(debug ? 1 : 0, sb->scanner);
 
-	return 0;
+	return true;
 }
 
-void CC VCFScan_yylex_destroy(VCFParseBlock* sb)
+void VCFScan_yylex_destroy(VCFParseBlock* sb)
 {
 	if (sb->scanner)
 	{

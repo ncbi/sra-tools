@@ -1,0 +1,38 @@
+sub PACKAGE_NAME { 'SRA-TOOLS' }
+sub HAVE        { ( BINS => 1, CONFIG => 1,) }
+sub CONFIG_OUT  {  'build' }
+sub BINS     { qw (abi-dump
+                   abi-load
+                   align-info
+                   bam-load
+                   cache-mgr
+                   cg-load
+                   fastq-dump
+                   fastq-load
+                   helicos-load
+                   illumina-dump
+                   illumina-load
+                   kar
+                   kdbmeta
+                   latf-load
+                   prefetch
+                   rcexplain
+                   sam-dump
+                   sff-dump
+                   sff-load
+                   sra-pileup
+                   sra-sort
+                   sra-stat
+                   srapath
+                   srf-load
+                   test-sra
+                   vdb-config
+                   vdb-copy
+                   vdb-decrypt
+                   vdb-dump
+                   vdb-encrypt
+                   vdb-lock
+                   vdb-passwd
+                   vdb-unlock
+                   vdb-validate ) }
+1

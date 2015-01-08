@@ -31,12 +31,12 @@
 #include "helper.h"
 #include "coldefs.h"
 #include "get_platform.h"
-#include "progressbar.h"
 #include "copy_meta.h"
 #include "type_matcher.h"
 #include "redactval.h"
 
 #include <kapp/main.h>
+#include <klib/progressbar.h>
 #include <sysalloc.h>
 
 /*
@@ -379,24 +379,6 @@ static rc_t vdb_copy_read_row_flags( const p_context ctx,
 }
 
 
-static uint8_t vdb_copy_calc_fract_digits( const num_gen_iter *iter )
-{
-    uint8_t res = 0;
-    uint64_t count;
-    if ( num_gen_iterator_count( iter, &count ) == 0 )
-    {
-        if ( count > 10000 )
-        {
-            if ( count > 100000 )
-                res = 2;
-            else
-                res = 1;
-        }
-    }
-    return res;
-}
-
-
 static rc_t vdb_copy_row_loop( const p_context ctx,
                                const VCursor * src_cursor,
                                VCursor * dst_cursor,
@@ -404,13 +386,13 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
                                redact_vals * rvals )
 {
     rc_t rc;
-    const num_gen_iter *iter;
-    uint64_t count, row_id;
+    const struct num_gen_iter * iter;
+    int64_t row_id;
+    uint64_t count;
     uint32_t percent;
-    uint8_t fract_digits;
     p_col_def filter_col_def = NULL;
     redact_buffer rbuf;
-    progressbar * progress;
+    struct progressbar * progress = NULL;
 
     if ( columns->filter_idx != -1 )
         filter_col_def = col_defs_get( columns, columns->filter_idx );
@@ -418,19 +400,18 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
     rc = num_gen_iterator_make( ctx->row_generator, &iter );
     if ( rc != 0 ) return rc;
 
-    rc = make_progressbar( &progress );
+    rc = make_progressbar( &progress, 2 );
     DISP_RC( rc, "vdb_copy_row_loop:make_progressbar() failed" );
     if ( rc != 0 ) return rc;
 
     redact_buf_init( &rbuf );
     col_defs_find_redact_vals( columns, rvals );
-
-    fract_digits = vdb_copy_calc_fract_digits( iter );
+	
     count = 0;
-    rc = num_gen_iterator_next( iter, &row_id );
-    while ( rc == 0 )
+    while ( rc == 0 && num_gen_iterator_next( iter, &row_id, &rc ) )
     {
-        rc = Quitting();    /* to be able to cancel the loop by signal */
+        if ( rc == 0 )
+            rc = Quitting();    /* to be able to cancel the loop by signal */
         if ( rc == 0 )
         {
             rc = VCursorSetRowId( src_cursor, row_id );
@@ -469,13 +450,12 @@ static rc_t vdb_copy_row_loop( const p_context ctx,
                                      "row_nr=%lu", row_id ) );
                     }
                 }
-                rc = num_gen_iterator_next( iter, &row_id );
+
                 if ( ctx->show_progress )
                 {
-                    if ( num_gen_iterator_percent( iter, fract_digits, &percent ) == 0 )
-                        update_progressbar( progress, fract_digits, percent );
+                    if ( num_gen_iterator_percent( iter, 2, &percent ) == 0 )
+                        update_progressbar( progress, percent );
                 }
-
             }
         }
     }

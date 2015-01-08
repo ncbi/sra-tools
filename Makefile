@@ -128,7 +128,7 @@ $(REPORTS):
 # configuration help
 #
 help configure:
-	@ echo "Before initial build, run 'make OUTDIR=<dir> out' from"
+	@ echo "Before initial build, run './configure --build-prefix=<out>' from"
 	@ echo "the project root to set the output directory of your builds."
 	@ echo
 	@ echo "To select a compiler, run 'make <comp>' where"

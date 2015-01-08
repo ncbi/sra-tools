@@ -616,6 +616,13 @@ static rc_t add_table_pl_iter( const samdump_opts * const opts,
         if ( rc == 0 )
         {
             rc = PlacementSetIteratorAddPlacementIterator ( set_iter, pl_iter );
+            /* if the iterator-set was not able to take ownership of the new iterator
+               we have to release the iterator right here! */
+            if ( rc != 0 )
+                PlacementIteratorRelease( pl_iter );
+
+            /* if the new iterator has actually no placements inside, the call
+               to PlacementSetIteratorAddPlacementIterator() returned rcDone, which is OK - we continue... */
             if ( GetRCState( rc ) == rcDone ) { rc = 0; }
         }
     }
@@ -1544,7 +1551,7 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
         {
 	    { /*** reset previous identification of N to D ***/
 		int i;
-		char *c=cgc_output.p_cigar.ptr;
+		char *c=(char*)cgc_output.p_cigar.ptr;
 		for(i=0;i< cgc_output.p_cigar.len;i++){
 		    if(c[i]=='N') c[i]='D';
 		}

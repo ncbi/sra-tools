@@ -102,8 +102,13 @@ FASTQ_SRC = \
 	fastq-grammar \
 	fastq-lex
 
-$(SRCDIR)/fastq-grammar.c $(SRCDIR)/fastq-tokens.h: $(SRCDIR)/fastq-grammar.y
-	$(YACC) -o $(SRCDIR)/fastq-grammar.c --defines=$(SRCDIR)/fastq-tokens.h -v $^
+# flex/bison should only be invoked manually in an environment ensures the correct versions:
+# bison 2.5, flex 2.5.35
+bison:
+	bison -o $(SRCDIR)/fastq-grammar.c --defines=$(SRCDIR)/fastq-tokens.h -v --no-lines $(SRCDIR)/fastq-grammar.y
+
+flex:    
+	flex -DYY_BUF_SIZE=16777216 -t $(SRCDIR)/fastq-lex.l | grep -v '^#line' > $(SRCDIR)/fastq-lex.c
 
 FASTQ_OBJ = \
 	$(addsuffix .$(LOBX),$(FASTQ_SRC))

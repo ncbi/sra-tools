@@ -1678,7 +1678,7 @@ yyreturn:
 
 
 
-void CC VCF_error(struct VCFParseBlock* pb, const char* msg)
+void VCF_error(struct VCFParseBlock* pb, const char* msg)
 {
     if (pb && pb->error)
         pb->error(pb, msg);

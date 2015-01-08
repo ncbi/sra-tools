@@ -60,7 +60,12 @@ i*)
 esac
 
 # EXE_CMD was started in tool-specific source
-CMD="$EXE_CMD $LDFLAGS"
+if [ $STATIC -eq 1 ]
+then
+    CMD="$EXE_STATIC_CMD $LDFLAGS"
+else
+    CMD="$EXE_CMD $LDFLAGS"
+fi
 
 # if building a static executable against dynamic libraries
 # the main application will substitute for name lookup
@@ -289,19 +294,22 @@ then
 fi
 
 # add in xml
-grep HAVE_XML2 ${BUILD_DIR}/Makefile.config.linux.$ARCH
-if [ $? -eq 0 ]
+if grep -q HAVE_XML2 ${BUILD_DIR}/Makefile.config.linux.$ARCH > /dev/null
+then
+    if grep -q XML2_LIBDIR ${BUILD_DIR}/Makefile.config.linux.$ARCH > /dev/null
     then
+        XMLLIBDIR="-Wl,-Bstatic -L$(grep XML2_LIBDIR ${BUILD_DIR}/Makefile.config.linux.$ARCH | perl -e'while(<>){if(/XML2_LIBDIR = (.+)/){print $1}}')"
+    fi
     if [ $HAVE_XML -ne 0 ]
     then
-        CMD="$CMD -lxml2"
+        CMD="$CMD $XMLLIBDIR -lxml2"
     fi
 fi
 
 # add in math library
 if [ $HAVE_M -ne 0 ]
 then
-    CMD="$CMD -lm"
+    CMD="$CMD -Wl,-Bdynamic -lm"
 fi
 
 # produce shared library

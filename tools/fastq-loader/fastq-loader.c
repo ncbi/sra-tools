@@ -48,7 +48,8 @@ extern rc_t run(char const argv0[],
                 unsigned countReads, 
                 const char* reads[],
                 uint8_t qualityOffset,
-                const int8_t defaultReadNumbers[]);
+                const int8_t defaultReadNumbers[], 
+                bool ignoreSpotGroups);
 
 /* MARK: Arguments and Usage */
 static char const option_input[] = "input";
@@ -62,6 +63,7 @@ static char const option_platform[] = "platform";
 static char const option_quality[] = "quality";
 static char const option_read[] = "read";
 static char const option_max_err_pct[] = "max-err-pct";
+static char const option_ignore_illumina_tags[] = "ignore-illumina-tags";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -74,6 +76,7 @@ static char const option_max_err_pct[] = "max-err-pct";
 #define OPTION_QUALITY option_quality
 #define OPTION_READ option_read
 #define OPTION_MAX_ERR_PCT option_max_err_pct
+#define OPTION_IGNORE_ILLUMINA_TAGS option_ignore_illumina_tags
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -155,18 +158,26 @@ char const * use_max_err_pct[] =
     NULL
 };
 
+static
+char const * use_ignore_illumina_tags[] = 
+{
+    "ignore barcodes contained in Illumina-formatted names",
+    NULL
+};
+
 OptDef Options[] = 
 {
-    /* order here is same as in param array below!!! */               /* max#,  needs param, required */
-    { OPTION_OUTPUT,        ALIAS_OUTPUT,           NULL, output_usage,     1,  true,        true },
-    { OPTION_TMPFS,         ALIAS_TMPFS,            NULL, tmpfs_usage,      1,  true,        false },
-    { OPTION_QCOMP,         ALIAS_QCOMP,            NULL, qcomp_usage,      1,  true,        false },
-    { OPTION_CACHE_SIZE,    NULL,                   NULL, cache_size_usage, 1,  true,        false },
-    { OPTION_MAX_REC_COUNT, NULL,                   NULL, mrc_usage,        1,  true,        false },
-    { OPTION_MAX_ERR_COUNT, ALIAS_MAX_ERR_COUNT,    NULL, mec_usage,        1,  true,        false },
-    { OPTION_PLATFORM,      ALIAS_PLATFORM,         NULL, use_platform,     1,  true,        false },
-    { OPTION_QUALITY,       ALIAS_QUALITY,          NULL, use_quality,      1,  true,        true },
-    { OPTION_MAX_ERR_PCT,   NULL,                   NULL, use_max_err_pct,  1,  true,        false },
+    /* order here is same as in param array below!!! */                                 /* max#,  needs param, required */
+    { OPTION_OUTPUT,                ALIAS_OUTPUT,           NULL, output_usage,             1,  true,        true },
+    { OPTION_TMPFS,                 ALIAS_TMPFS,            NULL, tmpfs_usage,              1,  true,        false },
+    { OPTION_QCOMP,                 ALIAS_QCOMP,            NULL, qcomp_usage,              1,  true,        false },
+    { OPTION_CACHE_SIZE,            NULL,                   NULL, cache_size_usage,         1,  true,        false },
+    { OPTION_MAX_REC_COUNT,         NULL,                   NULL, mrc_usage,                1,  true,        false },
+    { OPTION_MAX_ERR_COUNT,         ALIAS_MAX_ERR_COUNT,    NULL, mec_usage,                1,  true,        false },
+    { OPTION_PLATFORM,              ALIAS_PLATFORM,         NULL, use_platform,             1,  true,        false },
+    { OPTION_QUALITY,               ALIAS_QUALITY,          NULL, use_quality,              1,  true,        true },
+    { OPTION_MAX_ERR_PCT,           NULL,                   NULL, use_max_err_pct,          1,  true,        false },
+    { OPTION_IGNORE_ILLUMINA_TAGS,  NULL,                   NULL, use_ignore_illumina_tags, 1,  false,       false },
 /*    { OPTION_READ,          ALIAS_READ,             NULL, use_read,         0,  true,        false },*/
 };
 
@@ -179,6 +190,7 @@ const char* OptHelpParam[] =
     "mbytes",
     "count",
     "count",
+    NULL,
     NULL,
     NULL,
     NULL,
@@ -291,6 +303,7 @@ rc_t CC KMain (int argc, char * argv[])
     char *dummy;
     const XMLLogger* xml_logger = NULL;
     uint8_t qualityOffset;
+    bool ignoreSpotGroups;
     
     memset(&G, 0, sizeof(G));
     
@@ -469,6 +482,11 @@ rc_t CC KMain (int argc, char * argv[])
         else
             qualityOffset = 0;
             
+        rc = ArgsOptionCount (args, OPTION_IGNORE_ILLUMINA_TAGS, &pcount);
+        if (rc)
+            break;
+        ignoreSpotGroups = pcount > 0;
+        
         rc = ArgsParamCount (args, &pcount);
         if (rc) break;
         if (pcount == 0)
@@ -519,7 +537,7 @@ rc_t CC KMain (int argc, char * argv[])
         else
             break;
         
-        rc = run(argv[0], &G, pcount, (char const **)files, qualityOffset, defaultReadNumbers);
+        rc = run(argv[0], &G, pcount, (char const **)files, qualityOffset, defaultReadNumbers, ignoreSpotGroups);
         break;
     }
     free(name_buffer);

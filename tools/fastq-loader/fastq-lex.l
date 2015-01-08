@@ -82,7 +82,7 @@ base [ACGTacgtNn.]
 cskey [ACGTacgt]
 color   [0-3.]
 
-ascqual   [\x0E-\x1F \x21-\x7E]+
+ascqual   [\x0E-\x1F \x21-\x7F]+
 
 %%
 

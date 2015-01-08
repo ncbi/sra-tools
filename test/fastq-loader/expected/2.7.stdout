@@ -1,0 +1,31 @@
+     ALIGNMENT_COUNT: 0
+          BASE_COUNT: 33
+      BIO_BASE_COUNT: 33
+      CMP_BASE_COUNT: 33
+        COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
+              CSREAD: 301212321010213302323201331023331
+              CS_KEY: T
+           CS_NATIVE: false
+      FIXED_SPOT_LEN: 33
+         MAX_SPOT_ID: 1
+         MIN_SPOT_ID: 1
+                NAME: 1
+            PLATFORM: SRA_PLATFORM_UNDEFINED
+PRIMARY_ALIGNMENT_ID: 0
+             QUALITY: 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37, 37
+           RD_FILTER: SRA_READ_FILTER_PASS
+                READ: AACTGATCAACCTGCGGATCGAACGCAAGCGCA
+         READ_FILTER: SRA_READ_FILTER_PASS
+            READ_LEN: 33
+            READ_SEG: [0, 33]
+          READ_START: 0
+           READ_TYPE: SRA_READ_TYPE_BIOLOGICAL
+          SIGNAL_LEN: 0
+          SPOT_COUNT: 1
+          SPOT_GROUP: 
+             SPOT_ID: 1
+            SPOT_LEN: 33
+          TMP_KEY_ID: 0
+            TRIM_LEN: 33
+          TRIM_START: 0
+

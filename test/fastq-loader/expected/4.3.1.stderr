@@ -1,0 +1,14 @@
+Usage:
+	latf-load [options] <fastq-file> ...
+
+Summary:
+	Load FASTQ formatted data files
+
+Example:
+	latf-load -p 454 -o SRZ123456 123456-1.fastq 123456-2.fastq
+
+
+Use option --help for more information.
+
+latf-load err: param incorrect while accessing argument list within application support module - accession="obj" errors="0" status="failure"
+latf-load err: param incorrect while accessing argument list within application support module - load failed

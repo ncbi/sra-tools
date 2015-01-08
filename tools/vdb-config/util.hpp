@@ -105,7 +105,7 @@ public:
         }
 
         String s;
-        StringInit(&s, buffer, bsize, bsize + 1);
+        StringInit(&s, buffer, bsize, (uint32_t)bsize + 1);
 
         return StringEqual(m_Self, &s);
     }

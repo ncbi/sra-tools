@@ -36,7 +36,7 @@ extern "C" {
 
 #include <kapp/args.h>
 #include <klib/vector.h>
-#include "vdb-dump-num-gen.h"
+#include <klib/num-gen.h>
 #include "vdb-dump-redir.h"
 
 #define OPTION_ROW_ID_ON         "row_id_on"
@@ -68,6 +68,7 @@ extern "C" {
 #define OPTION_NUMELEMSUM        "numelemsum"
 #define OPTION_SHOW_BLOBBING     "blobbing"
 #define OPTION_ENUM_PHYS         "phys"
+#define OPTION_ENUM_READABLE     "readable"
 #define OPTION_IDX_ENUM          "idx-report"
 #define OPTION_IDX_RANGE         "idx-range"
 #define OPTION_CUR_CACHE         "cur-cache"
@@ -118,6 +119,7 @@ typedef enum dump_format_t
     df_xml,
     df_json,
     df_piped,
+    df_sra_dump,
     df_tab,
     df_fastq,
     df_fasta,
@@ -140,7 +142,7 @@ typedef struct dump_context
     const char *row_range;
     const char *output_file;
     const char *output_path;
-    num_gen *row_generator;
+    struct num_gen * rows;
     bool print_row_id;
     uint16_t lf_after_row;
     uint16_t max_line_len;
@@ -173,6 +175,7 @@ typedef struct dump_context
     bool sum_num_elem;
     bool show_blobbing;
     bool enum_phys;
+    bool enum_readable;
 	bool idx_enum_requested;
 	bool idx_range_requested;
     bool disable_multithreading;

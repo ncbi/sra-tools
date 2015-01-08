@@ -150,6 +150,8 @@ static const char * merge_usage[]           = { "If adjacent slices are closer t
                                                 "they are merged and a skiplist is created. ", 
                                                 "a value of zero disables the feature, default is 10000", NULL };
 
+static const char * no_qual_usage[]         = { "omit qualities", NULL };
+
 static const char * func_ref_usage[]        = { "list references", NULL };
 static const char * func_ref_ex_usage[]     = { "list references + coverage", NULL };
 static const char * func_count_usage[]      = { "sort pileup with counters", NULL };
@@ -367,7 +369,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_SEQNAME, OPTION_SEQNAME, NULL, seqname_usage );
     HelpOptionLine ( NULL, OPTION_MIN_M, NULL, min_m_usage );
     HelpOptionLine ( NULL, OPTION_MERGE, NULL, merge_usage );
-    
+    HelpOptionLine ( ALIAS_NOQUAL, OPTION_NOQUAL, NULL, no_qual_usage );
+
     HelpOptionLine ( NULL, "function ref",      NULL, func_ref_usage );
     HelpOptionLine ( NULL, "function ref-ex",   NULL, func_ref_ex_usage );
     HelpOptionLine ( NULL, "function count",    NULL, func_count_usage );

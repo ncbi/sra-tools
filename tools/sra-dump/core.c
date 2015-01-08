@@ -36,7 +36,6 @@
 
 #include <klib/container.h>
 #include <klib/log.h>
-#include <klib/misc.h> /* SetHttpTries */
 #include <klib/report.h> /* ReportInit */
 #include <klib/out.h>
 #include <klib/status.h>
@@ -687,7 +686,6 @@ static const SRADumperFmt_Arg KMainArgs[] =
                                                   "Current/default is warn", NULL } },
     { "v",   "verbose",         NULL,           { "Increase the verbosity level of the program",
                                                    "Use multiple times for more verbosity", NULL } },
-    { NULL,   TRIES_OPTION,     TRIES_ARGUMENT, { TRIES_HELP, NULL } },
     { NULL, OPTION_REPORT,     NULL,           { "Control program execution environment report generation (if implemented).",
                                                    "One of (never|error|always). Default is error", NULL } },
 #if _DEBUGGING
@@ -978,7 +976,7 @@ rc_t CC KMain ( int argc, char* argv[] )
     bool to_stdout = false, do_gzip = false, do_bzip2 = false;
     char const* outdir = NULL;
     spotid_t minSpotId = 1;
-    spotid_t maxSpotId = ~0;
+    spotid_t maxSpotId = 0x7FFFFFFFFFFFFFFF; /* 9,223,372,036,854,775,807 max int64_t value !!! ~0 is wrong !!! */
     bool sub_dir = false;
     bool keep_empty = false;
     const char* table_path[10240];
@@ -1069,11 +1067,6 @@ rc_t CC KMain ( int argc, char* argv[] )
                 PLOGERR( klogErr, ( klogErr, rc, "log level $(lvl)", PLOG_S( lvl ), arg ) );
                 goto Catch;
             }
-        }
-        else if
-            (SRADumper_GetArg(&fmt, NULL, TRIES_OPTION, &i, argc, argv, &arg ))
-        {
-            SetHttpTries(AsciiToU32(arg, NULL, NULL));
         }
         else if ( SRADumper_GetArg( &fmt, NULL, "disable-multithreading", &i, argc, argv, NULL ) )
         {

@@ -183,11 +183,15 @@ static rc_t bam_header(const VDatabase* db) {
                     }
                     else {
                         rc = KMDataNodeReadCString(node, buffer, bsize, &size);
-                        if (rc == 0)
-                        {   break; }
-                        else if (i == 0 && GetRCObject(rc) == rcBuffer
-                                        && GetRCState(rc) == rcInsufficient)
-                        {   rc = 0; }
+                        if (rc == 0) {
+                            break;
+                        }
+                        else if (i == 0
+                            && GetRCObject(rc) == (enum RCObject)rcBuffer
+                            && GetRCState (rc) ==          rcInsufficient)
+                        {
+                            rc = 0;
+                        }
                     }
                     DISP_RC2(rc, path, "while calling KMDataNodeReadCString");
                 }

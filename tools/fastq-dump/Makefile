@@ -33,7 +33,7 @@ MODULE = tools/fastq-dump
 include $(TOP)/build/Makefile.env
 
 ALL_TOOLS = \
-	fastq-dump \
+	fastq-dump-new \
 
 #-------------------------------------------------------------------------------
 # outer targets
@@ -72,22 +72,10 @@ clean: stdclean
 # Common dumper definitions
 #
 DUMP_LIBS = \
-	-lngs-c++-ncbi \
-	-lngs-sdk-ncbi \
-	-lncbi-vdb \
-	-lkapp
-
-DUMP_LIBS = \
-	-L$(LIBDIR)       \
-	-L$(VDB_LIBDIR)   \
-	~/ngs-sdk/x86_64/lib  \
 	-lngs-c++         \
 	-lncbi-ngs-c++    \
 	-lncbi-vdb-static \
 	-lkapp \
-	-lpthread         \
-	-ldl              \
-	-lm
 
 #-------------------------------------------------------------------------------
 # fastq-dump
@@ -102,5 +90,5 @@ INCDIRS += -I $(TOP)/ngs/ngs-c++
 FASTQ_DUMP_OBJ = \
 	$(addsuffix .$(OBJX),$(FASTQ_DUMP_SRC))
 
-$(BINDIR)/fastq-dump: $(FASTQ_DUMP_OBJ)
+$(BINDIR)/fastq-dump-new: $(FASTQ_DUMP_OBJ)
 	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(DUMP_LIBS)

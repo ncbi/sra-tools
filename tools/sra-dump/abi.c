@@ -158,8 +158,8 @@ rc_t Absolid2BioFilterFactory_Make(const SRASplitterFactory** cself, const char*
 typedef struct AbsolidLabelerFilter_struct {
     const AbsolidReader* reader;
     bool is_platform_cs_native;
-    SRASplitter_Keys keys[7];
-    size_t key_sz[7];
+    SRASplitter_Keys keys[8];
+    size_t key_sz[8];
 } AbsolidLabelerFilter;
 
 static

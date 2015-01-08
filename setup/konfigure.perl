@@ -1,0 +1,1524 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+use strict;
+
+sub println  { print @_; print "\n" }
+
+my ($filename, $directories, $suffix) = fileparse($0);
+if ($directories ne "./") {
+    println "configure: error: $filename should be run as ./$filename";
+    exit 1;
+}
+
+require 'package.prl';
+require 'os-arch.prl';
+
+use Cwd qw(abs_path getcwd);
+use File::Basename 'fileparse';
+use File::Spec 'catdir';
+use FindBin qw($Bin);
+use Getopt::Long "GetOptions";
+
+chdir '..' or die "cannot cd to package root";
+
+check();
+
+my $LOCAL_BUILD_OUT
+    = -e File::Spec->catdir($ENV{HOME}, 'tmp', 'local-build-out');
+
+my ($CONFIGURED, $RECONFIGURE) = ('');
+if (@ARGV) {
+    foreach (@ARGV) {
+        $CONFIGURED .= "\t" if ($CONFIGURED);
+        $CONFIGURED .= "'$_'";
+    }
+} elsif (-f 'reconfigure') {
+    ++$RECONFIGURE unless ($LOCAL_BUILD_OUT);
+}
+
+my %PKG = PKG();
+
+my $PACKAGE_NAME = PACKAGE_NAME();
+my $OUT_MAKEFILE = 'Makefile.config';
+my $INS_MAKEFILE = 'Makefile.config.install';
+
+my $PACKAGE = PACKAGE();
+
+my $HOME = $ENV{HOME} || $ENV{USERPROFILE}
+    || $ENV{LOGDIR} || getcwd || (getpwuid($<))[7] || abs_path('.');
+
+$PKG{UPATH} = expand($PKG{UPATH});
+
+my $package_default_prefix = $PKG{PATH};
+my $schema_default_dir = $PKG{SCHEMA_PATH} if ($PKG{SCHEMA_PATH});
+
+my @REQ = REQ();
+
+my @options = ( 'build-prefix=s',
+                'clean',
+                'debug',
+                'help',
+                'prefix=s',
+                'reconfigure',
+                'status',
+                'with-debug',
+                'without-debug', );
+{
+    my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
+    push @options, 'arch=s'    if (@ARCHITECTURES);
+}
+push @options, 'enable-static' if (PACKAGE_TYPE() eq 'B');
+foreach my $href (@REQ) {
+    my %a = %$href;
+    push @options, "$a{option}=s";
+    push @options, "$a{boption}=s" if ($a{boption});
+    $href->{usrpath} = '' unless ($href->{usrpath});
+    $href->{usrpath} = expand($href->{usrpath});
+}
+push @options, "shemadir" if ($PKG{SCHEMA_PATH});
+
+my %OPT;
+die "configure: error" unless (GetOptions(\%OPT, @options));
+++$OPT{'reconfigure'} if ($RECONFIGURE);
+
+if ($OPT{'reconfigure'}) {
+    unless (eval 'use Getopt::Long qw(GetOptionsFromString); 1') {
+        print <<EndText;
+configure: error: your perl does not support Getopt::Long::GetOptionsFromString
+                  reconfigure option is not avaliable.
+Run "sh ./reconfigure" instead.
+EndText
+        exit 1;
+    }
+    println "reconfiguring...";
+    open F, 'reconfigure' or die 'cannot open reconfigure';
+    $_ = <F>;
+    chomp;
+    unless (m|^\./configure\s*(.*)$|) {
+        println 'configure: error: cannot reconfigure';
+        println 'run "./configure --clean" then run "./configure [OPTIONS]"';
+        exit 1;
+    }
+
+    println "running \"./configure $1\"...";
+    undef %OPT;
+    die "configure: error" unless (GetOptionsFromString($1, \%OPT, @options));
+    ++$OPT{reconfigure};
+}
+
+$OPT{'local-build-out'} = $LOCAL_BUILD_OUT;
+my $OUTDIR = File::Spec->catdir($HOME, $PKG{OUT});
+if ($OPT{'local-build-out'}) {
+    my $o = expand_path(File::Spec->catdir($Bin, $PKG{LOCOUT}));
+    $OUTDIR = $o if ($o);
+}
+
+if ($OPT{'help'}) {
+    help();
+    exit 0;
+} elsif ($OPT{'clean'}) {
+    {
+        foreach ('reconfigure', glob(CONFIG_OUT() . '/Makefile.config*'),
+            File::Spec->catdir(CONFIG_OUT(), 'Makefile.userconfig'),
+            File::Spec->catdir(CONFIG_OUT(), 'user.status'))
+        {
+            my $f = $_;
+            print "removing $f... ";
+            if (-e $f) {
+                if (unlink $f) {
+                    println "ok";
+                } else {
+                    println "failed";
+                }
+            } else {
+                println "not found";
+            }
+        }
+    }
+    if (CONFIG_OUT() ne '.') {
+        foreach
+            (glob('Makefile.config*'), 'user.status', 'Makefile.userconfig')
+        {
+            my $f = $_;
+            print "removing $f... ";
+            if (-e $f) {
+                if (unlink $f) {
+                    println "ok";
+                } else {
+                    println "failed";
+                }
+            } else {
+                println "not found";
+            }
+        }
+    }
+    exit 0;
+} elsif ($OPT{'status'}) {
+    status(1);
+    exit 0;
+}
+
+println "Configuring $PACKAGE_NAME package";
+
+$OPT{'prefix'} = $package_default_prefix unless ($OPT{'prefix'});
+
+my $AUTORUN = $OPT{status};
+print "checking system type... " unless ($AUTORUN);
+my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
+println $OSTYPE unless ($AUTORUN);
+
+unless ($OSTYPE =~ /linux/i || $OSTYPE =~ /darwin/i || $OSTYPE eq 'win') {
+    println "configure: error: unsupported system '$OSTYPE'";
+    exit 1;
+}
+
+print "checking machine architecture... " unless ($AUTORUN);
+println $MARCH unless ($AUTORUN);
+unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i) {
+    println "configure: error: unsupported architecture '$OSTYPE'";
+    exit 1;
+}
+
+{
+    $OPT{'prefix'} = expand_path($OPT{'prefix'});
+    my $prefix = $OPT{'prefix'};
+    $OPT{'eprefix'} = $prefix unless ($OPT{'eprefix'} || $OS eq 'win');
+    my $eprefix = $OPT{'eprefix'};
+    unless ($OPT{'bindir'} || $OS eq 'win') {
+        $OPT{'bindir'} = File::Spec->catdir($eprefix, 'bin') ;
+    }
+    unless ($OPT{'libdir'} || $OS eq 'win') {
+        $OPT{'libdir'} = File::Spec->catdir($eprefix, 'lib');
+    }
+    unless ($OPT{'includedir'} || $OS eq 'win') {
+        $OPT{'includedir'} = File::Spec->catdir($eprefix, 'include');
+    }
+    if ($PKG{LNG} eq 'PYTHON' && ! $OPT{'pythondir'} && $OS ne 'win') {
+        $OPT{'pythondir'} = $eprefix;
+    }
+    if ($PKG{LNG} eq 'JAVA' && ! $OPT{'javadir'} && $OS ne 'win') {
+        $OPT{'javadir'} = File::Spec->catdir($eprefix, 'jar');
+    }
+    if ($PKG{EXAMP} && ! $OPT{'sharedir'} && $OS ne 'win') {
+        $OPT{'sharedir'} = File::Spec->catdir($eprefix, 'share');
+    }
+}
+
+# initial values
+my $TARGDIR = File::Spec->catdir($OUTDIR, $PACKAGE);
+if ($OPT{'build-prefix'}) {
+    $TARGDIR = $OPT{'build-prefix'} = expand_path($OPT{'build-prefix'});
+    unless ($TARGDIR =~ /$PACKAGE$/) {
+        $TARGDIR = File::Spec->catdir($TARGDIR, $PACKAGE);
+    }
+}
+my $BUILD_PREFIX = $TARGDIR;
+
+my $BUILD = 'rel';
+
+# parse command line
+$BUILD = 'dbg' if ($OPT{'with-debug'});
+$BUILD = 'rel' if ($OPT{'without-debug'});
+
+my $BUILD_TYPE = "release";
+$BUILD_TYPE = "debug" if ( $BUILD eq "dbg" );
+
+$OPT{arch} = $ARCH if (@ARCHITECTURES && ! $OPT{arch});
+
+if ($OPT{arch}) {
+    my $found;
+    foreach (@ARCHITECTURES) {
+        if ($_ eq $OPT{arch}) {
+            ++$found;
+            last;
+        }
+    }
+    if ($found) {
+        $ARCH = $MARCH = $OPT{arch};
+        while (1) {
+            open F, ">Makefile.config.$OS.arch" or last;
+            print F "$ARCH\n";
+            close F;
+            last;
+        }
+    } else {
+        delete $OPT{arch};
+    }
+}
+
+$OUT_MAKEFILE = File::Spec->catdir(CONFIG_OUT(), "$OUT_MAKEFILE.$OS.$ARCH");
+$INS_MAKEFILE = File::Spec->catdir(CONFIG_OUT(), "$INS_MAKEFILE.$OS.$ARCH.prl");
+
+my $TOOLS = "";
+$TOOLS = "jdk" if ($PKG{LNG} eq 'JAVA');
+
+print "checking $PACKAGE_NAME version... " unless ($AUTORUN);
+my $FULL_VERSION = VERSION();
+println $FULL_VERSION unless ($AUTORUN);
+
+# determine architecture
+
+print "checking for supported architecture... " unless ($AUTORUN);
+
+my $BITS;
+
+if ($MARCH =~ /x86_64/i) {
+    $BITS = 64;
+} elsif ($MARCH =~ /i?86/i) {
+    $BITS = 32;
+} else {
+    die "unrecognized Architecture '$ARCH'";
+}
+println "$MARCH ($BITS bits) is supported" unless ($AUTORUN);
+
+# determine OS and related norms
+my ($LPFX, $OBJX, $LOBX, $LIBX, $SHLX, $EXEX, $OSINC);
+
+print "checking for supported OS... " unless ($AUTORUN);
+if ($OSTYPE =~ /linux/i) {
+    $LPFX = 'lib';
+    $OBJX = 'o';
+    $LOBX = 'pic.o';
+    $LIBX = 'a';
+    $SHLX = 'so';
+    $EXEX = '';
+    $OSINC = 'unix';
+    $TOOLS = 'gcc' unless ($TOOLS);
+} elsif ($OSTYPE =~ /darwin/i) {
+    $LPFX = 'lib';
+    $OBJX = 'o';
+    $LOBX = 'pic.o';
+    $LIBX = 'a';
+    $SHLX = 'dylib';
+    $EXEX = '';
+    $OSINC = 'unix';
+    $TOOLS = 'clang' unless ($TOOLS);
+} elsif ($OSTYPE eq 'win') {
+    $TOOLS = 'vc++';
+} else {
+    die "unrecognized OS '$OSTYPE'";
+}
+println "$OSTYPE ($OS) is supported" unless ($AUTORUN);
+
+# tool chain
+my ($CPP, $CC, $CP, $AR, $ARX, $ARLS, $LD, $LP);
+my ($JAVAC, $JAVAH, $JAR);
+my ($DBG, $OPT, $PIC, $INC, $MD);
+
+print "checking for supported tool chain... " unless ($AUTORUN);
+if ($TOOLS eq 'gcc') {
+    $CPP  = 'g++';
+    $CC   = 'gcc -c';
+    $CP   = "$CPP -c";
+    $AR   = 'ar rc';
+    $ARX  = 'ar x';
+    $ARLS = 'ar t';
+    $LD   = 'gcc';
+    $LP   = $CPP;
+
+    $DBG = '-g -DDEBUG';
+    $OPT = '-O3';
+    $PIC = '-fPIC';
+    $INC = '-I';
+    $MD  = '-MD';
+} elsif ($TOOLS eq 'clang') {
+    $CPP  = 'clang++';
+    $CC   = 'clang -c';
+    $CP   = "$CPP -c -mmacosx-version-min=10.6";
+    $AR   = 'ar rc';
+    $ARX  = 'ar x';
+    $ARLS = 'ar t';
+    $LD   = 'clang';
+    $LP   = "$CPP -mmacosx-version-min=10.6";
+
+    $DBG = '-g -DDEBUG';
+    $OPT = '-O3';
+    $PIC = '-fPIC';
+    $INC = '-I';
+    $MD  = '-MD';
+} elsif ($TOOLS eq 'jdk') {
+    $JAVAC = 'javac';
+    $JAVAH = 'javah';
+    $JAR   = 'jar cf';
+
+    $DBG = '-g';
+} elsif ($TOOLS eq 'vc++') {
+} else {
+    die "unrecognized tool chain '$TOOLS'";
+}
+println "$TOOLS tool chain is supported" unless ($AUTORUN);
+
+if ($OS ne 'win' && $PKG{LNG} ne 'JAVA') {
+    $TARGDIR = File::Spec->catdir($TARGDIR, $OS, $TOOLS, $ARCH, $BUILD);
+}
+
+if ($CPP) {
+    unless (check_tool($CPP)) {
+        println "configure: error: '$CPP' cannot be found";
+        exit 1;
+    }
+}
+
+my $NO_ARRAY_BOUNDS_WARNING = '';
+if ($TOOLS eq 'gcc' && check_no_array_bounds()) {
+    $NO_ARRAY_BOUNDS_WARNING = '-Wno-array-bounds';
+}
+
+my @dependencies;
+
+my %DEPEND_OPTIONS;
+foreach my $href (DEPENDS()) {
+    $_ = $href->{name};
+    my ($I, $L) = ($href->{Include});
+    my $o = "with-$_-prefix";
+    ++$DEPEND_OPTIONS{$o};
+    if ($OPT{$o}) {
+        $OPT{$o} = expand_path($OPT{$o});
+        $I = File::Spec->catdir($OPT{$o}, 'include');
+        if (/^xml2$/) {
+            my $t = File::Spec->catdir($I, 'libxml2');
+            $I = $t if (-e $t);
+        }
+        $L = File::Spec->catdir($OPT{$o}, 'lib');
+    }
+    my ($i, $l) = find_lib($_, $I, $L);
+    if (defined $i || $l) {
+        my $d = 'HAVE_' . uc($_) . ' = 1';
+        push @dependencies, $d;
+        println "\t\t$d" if ($OPT{'debug'});
+    }
+    if ($i) {
+        my $d = uc($_) . "_INCDIR = $i";
+        push @dependencies, $d;
+        println "\t\t$d" if ($OPT{'debug'});
+    }
+    if ($l) {
+        my $d = uc($_) . "_LIBDIR = $l";
+        push @dependencies, $d;
+        println "\t\t$d" if ($OPT{'debug'});
+    }
+}
+
+foreach my $href (@REQ) {
+    $href->{   bldpath} = expand($href->{   bldpath}) if ($href->{   bldpath});
+    $href->{locbldpath} = expand($href->{locbldpath}) if ($href->{locbldpath});
+    my ($found_itf, $found_lib, $found_ilib);        # found directories
+    my %a = %$href;
+    next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
+    my $is_optional = optional($a{type});
+    my $quasi_optional = $a{type} =~ /Q/;
+    my $need_source = $a{type} =~ /S/;
+    my $need_build = $a{type} =~ /B/;
+    my $need_lib = $a{type} =~ /L|D/;
+    my $need_itf = ! ($a{type} =~ /D/);
+    
+    my ($inc, $lib, $ilib) = ($a{include}, $a{lib}); # file names to check
+    $lib = '' unless ($lib);
+    $lib = expand($lib);
+
+    if ($need_build) {
+        $ilib = $a{ilib};
+        ++$need_lib;
+    }
+    unless ($AUTORUN) {
+        if ($need_source && $need_build) {
+            println
+               "checking for $a{name} package source files and build results..."
+        } elsif ($need_source) {
+            println "checking for $a{name} package source files...";
+        } else {
+            println "checking for $a{name} package...";
+        }
+    }
+    my %has_option;
+    foreach my $option ($a{option}, $a{boption}) {
+        next unless ($option);
+        if ($OPT{$option}) {
+            my $try = expand_path($OPT{$option});
+            my ($i, $l, $il) = ($inc, $lib, $ilib);
+            if ($option =~ /-build$/) {
+                undef $i;
+                ++$has_option{build};
+            } elsif ($option =~ /-prefix$/) {
+                undef $il;
+                ++$has_option{prefix};
+            } elsif ($option =~ /-sources$/) {
+                undef $l;
+                undef $il;
+                ++$has_option{sources};
+            }
+            my ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+            if ($fi || $fl || $fil) {
+                $found_itf  = $fi  if (! $found_itf  && $fi);
+                $found_lib  = $fl  if (! $found_lib  && $fl);
+                $found_ilib = $fil if (! $found_ilib && $fil);
+            }
+            elsif (! ($try =~ /$a{name}$/)) {
+                $try = File::Spec->catdir($try, $a{name});
+                ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                $found_itf  = $fi  if (! $found_itf  && $fi);
+                $found_lib  = $fl  if (! $found_lib  && $fl);
+                $found_ilib = $fil if (! $found_ilib && $fil);
+            }
+        }
+    }
+    if (! $found_itf && ! $has_option{sources} && $a{srcpath}) {
+        my $try = $a{srcpath};
+        ($found_itf) = find_in_dir($try, $inc);
+    }
+    if (! $has_option{prefix}) {
+        if (! $found_itf || ($need_lib && ! $found_lib)) {
+            my $try = $a{pkgpath};
+            my ($fi, $fl) = find_in_dir($try, $inc, $lib);
+            $found_itf  = $fi  if (! $found_itf  && $fi);
+            $found_lib  = $fl  if (! $found_lib  && $fl);
+        }
+
+        if (! $found_itf || ($need_lib && ! $found_lib)) {
+            my $try = $a{usrpath};
+            my ($fi, $fl) = find_in_dir($try, $inc, $lib);
+            $found_itf  = $fi  if (! $found_itf  && $fi);
+            $found_lib  = $fl  if (! $found_lib  && $fl);
+        }
+    }
+    if (! $has_option{build}) {
+        if (($need_build || ($need_lib && ! $found_lib)) && $a{bldpath}) {
+            my ($fl, $fil);
+            if ($OPT{'build-prefix'}) {
+                my $try = $OPT{'build-prefix'};
+                (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                if ($fl || $fil) {
+                    $found_lib  = $fl  if (! $found_lib  && $fl);
+                    $found_ilib = $fil if (! $found_ilib && $fil);
+                } elsif (! ($try =~ /$a{name}$/)) {
+                    $try = File::Spec->catdir($try, $a{name});
+                    (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                    if ($fl || $fil) {
+                        $found_lib  = $fl  if (! $found_lib  && $fl);
+                        $found_ilib = $fil if (! $found_ilib && $fil);
+                    }
+                }
+            }
+            unless ($fl || $fil) {
+                my $try = $a{bldpath};
+                $try = $a{locbldpath} if ($OPT{'local-build-out'});
+                (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                $found_lib  = $fl  if (! $found_lib  && $fl);
+                $found_ilib = $fil if (! $found_ilib && $fil);
+            }
+        }
+    }
+    if (($need_itf && ! $found_itf) ||
+        ($need_lib && ! $found_lib) || ($ilib && ! $found_ilib))
+    {
+        if ($is_optional) {
+            println "configure: optional $a{name} package not found: skipped.";
+        } elsif ($quasi_optional && $found_itf && ($need_lib && ! $found_lib)) {
+            println "configure: $a{name} package: "
+                . "found interface files but not libraries.";
+        } else {
+            if ($OPT{'debug'}) {
+                $_ = "$a{name}: includes: ";
+                $found_itf = '' unless $found_itf;
+                $_ .= $found_itf;
+                unless ($need_lib) {
+                    $_ .= "; libs: not needed";
+                } else {
+                    $found_lib = '' unless $found_lib;
+                    $_ .= "; libs: " . $found_lib;
+                }
+                unless ($ilib) {
+                    $_ .= "; ilibs: not needed";
+                } else {
+                    $found_ilib = '' unless $found_ilib;
+                    $_ .= "; ilibs: " . $found_ilib;
+                }
+                println "\t\t$_";
+            }
+            println "configure: error: required $a{name} package not found.";
+            exit 1;
+        }
+    } else {
+        if ($found_itf) {
+            $found_itf = abs_path($found_itf);
+            push(@dependencies, "$a{aname}_INCDIR = $found_itf");
+        }
+        if ($found_lib) {
+            $found_lib = abs_path($found_lib);
+            if ($a{aname} eq 'NGS' || $a{aname} eq 'VDB') {
+                if ($OPT{PYTHON_LIB_PATH}) {
+                    $OPT{PYTHON_LIB_PATH} .= ':';
+                } else {
+                    $OPT{PYTHON_LIB_PATH} = '';
+                }
+                $OPT{PYTHON_LIB_PATH} .= $found_lib;
+            }
+            push(@dependencies, "$a{aname}_LIBDIR = $found_lib");
+        }
+        if ($ilib && $found_ilib) {
+            $found_ilib = abs_path($found_ilib);
+            push(@dependencies, "$a{aname}_ILIBDIR = $found_ilib");
+        }
+    }
+}
+
+my ($E_BINDIR, $E_LIBDIR, $VERSION, $MAJVERS, $E_VERSION_LIBX, $E_MAJVERS_LIBX,
+                                              $E_VERSION_EXEX, $E_MAJVERS_EXEX)
+    = (''    , '');
+
+if ($OS ne 'win' && ! $OPT{'status'}) {
+    if ($OSTYPE =~ /darwin/i && CONFIG_OUT() ne '.') {
+        my $COMP = File::Spec->catdir(CONFIG_OUT(), 'COMP.mac');
+        println "configure: creating '$COMP' ($TOOLS)" unless ($AUTORUN);
+        open F, ">$COMP" or die "cannot open $COMP to write";
+        print F "$TOOLS\n";
+        close F;
+    }
+
+    # create Makefile.config
+    println "configure: creating '$OUT_MAKEFILE'" unless ($AUTORUN);
+    open my $F, ">$OUT_MAKEFILE" or die "cannot open $OUT_MAKEFILE to write";
+
+    print $F <<EndText;
+### AUTO-GENERATED FILE ###
+
+# configuration command
+
+CONFIGURED = $CONFIGURED
+
+OS_ARCH = \$(shell perl \$(TOP)/setup/os-arch.perl)
+
+# install paths
+EndText
+
+    L($F, "INST_BINDIR = $OPT{'bindir'}"      ) if ($OPT{'bindir'});
+    L($F, "INST_LIBDIR = $OPT{'libdir'}"      ) if ($OPT{'libdir'});
+    L($F, "INST_INCDIR = $OPT{'includedir'}"  ) if ($OPT{'includedir'});
+    L($F, "INST_SCHEMADIR = $OPT{'shemadir'}" ) if ($OPT{'shemadir'});
+    L($F, "INST_SHAREDIR = $OPT{'sharedir'}"  ) if ($OPT{'sharedir'});
+    L($F, "INST_JARDIR = $OPT{'javadir'}"     ) if ($OPT{'javadir'});
+    L($F, "INST_PYTHONDIR = $OPT{'pythondir'}") if ($OPT{'pythondir'});
+
+    my ($E_VERSION_SHLX, $VERSION_SHLX,
+        $E_MAJVERS_SHLX , $MAJMIN_SHLX, $MAJVERS_SHLX);
+    if ($OSTYPE =~ /darwin/i) {
+        $E_VERSION_SHLX =  '$VERSION.$SHLX';
+        $VERSION_SHLX = '$(VERSION).$(SHLX)';
+        $MAJMIN_SHLX  = '$(MAJMIN).$(SHLX)';
+        $E_MAJVERS_SHLX = '$MAJVERS.$SHLX';
+        $MAJVERS_SHLX = '$(MAJVERS).$(SHLX)';
+    } else {
+        $E_VERSION_SHLX =  '$SHLX.$VERSION';
+        $VERSION_SHLX = '$(SHLX).$(VERSION)';
+        $MAJMIN_SHLX  = '$(SHLX).$(MAJMIN)';
+        $E_MAJVERS_SHLX =  '$SHLX.$MAJVERS';
+        $MAJVERS_SHLX = '$(SHLX).$(MAJVERS)';
+    }
+
+    $E_VERSION_LIBX = '$LIBX.$VERSION';
+    $E_MAJVERS_LIBX = '$LIBX.$MAJVERS';
+
+    L($F);
+    L($F, "# build type");
+
+    if ($OPT{'enable-static'}) {
+        L($F, "WANTS_STATIC = 1");
+    }
+
+    $E_VERSION_EXEX = '$EXEX.$VERSION';
+    $E_MAJVERS_EXEX = '$LIBX.$MAJVERS';
+
+    print $F <<EndText;
+BUILD = $BUILD
+
+# target OS
+OS    = $OS
+OSINC = $OSINC
+
+# prefix string for system libraries
+LPFX = $LPFX
+
+# suffix strings for system libraries
+LIBX = $LIBX
+VERSION_LIBX = \$(LIBX).\$(VERSION)
+MAJMIN_LIBX  = \$(LIBX).\$(MAJMIN)
+MAJVERS_LIBX = \$(LIBX).\$(MAJVERS)
+
+SHLX = $SHLX
+VERSION_SHLX = $VERSION_SHLX
+MAJMIN_SHLX  = $MAJMIN_SHLX
+MAJVERS_SHLX = $MAJVERS_SHLX
+
+# suffix strings for system object files
+OBJX = $OBJX
+LOBX = $LOBX
+
+# suffix string for system executable
+EXEX = $EXEX
+VERSION_EXEX = \$(EXEX).\$(VERSION)
+MAJMIN_EXEX  = \$(EXEX).\$(MAJMIN)
+MAJVERS_EXEX = \$(EXEX).\$(MAJVERS)
+
+# system architecture and wordsize
+ARCH = $ARCH
+EndText
+
+    L($F, "# ARCH = $ARCH ( $MARCH )") if ($ARCH ne $MARCH);
+
+    print $F <<EndText;
+BITS = $BITS
+
+# tools
+EndText
+
+    L($F, "CC    = $CC"   ) if ($CC);
+    L($F, "CP    = $CP"   ) if ($CP);
+    L($F, "AR    = $AR"   ) if ($AR);
+    L($F, "ARX   = $ARX"  ) if ($ARX);
+    L($F, "ARLS  = $ARLS" ) if ($ARLS);
+    L($F, "LD    = $LD"   ) if ($LD);
+    L($F, "LP    = $LP"   ) if ($LP);
+    L($F, "JAVAC = $JAVAC") if ($JAVAC);
+    L($F, "JAVAH = $JAVAH") if ($JAVAH);
+    L($F, "JAR   = $JAR"  ) if ($JAR);
+    L($F);
+
+    L($F, '# tool options');
+    if ($BUILD eq "dbg") {
+        L($F, "DBG     = $DBG");
+        L($F, "OPT     = ");
+    } else {
+        L($F, "DBG     = -DNDEBUG") if ($PKG{LNG} eq 'C');
+        L($F, "OPT     = $OPT"    ) if ($OPT);
+    }
+    L($F, "PIC     = $PIC") if ($PIC);
+    if ($PKG{LNG} eq 'C') {
+        if ($TOOLS =~ /clang/i) {
+   L($F, 'SONAME  = -install_name ' .
+               '$(INST_LIBDIR)$(BITS)/$(subst $(VERSION),$(MAJVERS),$(@F)) \\');
+   L($F, '    -compatibility_version $(MAJMIN) -current_version $(VERSION) \\');
+   L($F, '    -flat_namespace -undefined suppress');
+        } else {
+      L($F, 'SONAME = -Wl,-soname=$(subst $(VERSION),$(MAJVERS),$(@F))');
+     }
+     L($F, "SRCINC  = $INC. $INC\$(SRCDIR)");
+    } elsif ($PKG{LNG} eq 'JAVA') {
+        L($F, 'SRCINC  = -sourcepath $(INCPATHS)');
+    }
+    L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP)") if ($PIC);
+    if ($PKG{LNG} eq 'C') {
+        L($F, "CFLAGS  = \$(DBG) \$(OPT) \$(INCDIRS) $MD");
+    }
+
+    L($F, 'CLSPATH = -classpath $(CLSDIR)');
+    L($F, "NO_ARRAY_BOUNDS_WARNING = $NO_ARRAY_BOUNDS_WARNING");
+    L($F);
+
+    # version information
+
+    my $MAJMIN;
+
+    if ($FULL_VERSION =~ /(\d+)\.(\d+)\.(\d+)-?\w*\d*/) {
+        $VERSION = "$1.$2.$3";
+        $MAJMIN = "$1.$2";
+        $MAJVERS = $1;
+    } else {
+        die $VERSION;
+    }
+
+    print $F <<EndText;
+# $PACKAGE_NAME and library version
+VERSION = $VERSION
+MAJMIN  = $MAJMIN
+MAJVERS = $MAJVERS
+
+# output path
+BUILD_PREFIX = $BUILD_PREFIX
+TARGDIR = $TARGDIR
+
+# derived paths
+MODPATH  ?= \$(subst \$(TOP)/,,\$(CURDIR))
+SRCDIR   ?= \$(TOP)/\$(MODPATH)
+MAKEFILE ?= \$(abspath \$(firstword \$(MAKEFILE_LIST)))
+BINDIR    = \$(TARGDIR)/bin
+EndText
+
+    if ($PKG{LNG} eq 'C') {
+        $E_BINDIR        = '$TARGDIR/bin';
+        $E_LIBDIR        = '$TARGDIR/lib';
+        L($F, 'LIBDIR    = $(TARGDIR)/lib');
+    } elsif ($PKG{LNG} eq 'JAVA') {
+        $E_LIBDIR        = '$TARGDIR/jar';
+        L($F, 'LIBDIR    = $(TARGDIR)/jar');
+    }
+
+    L($F, 'ILIBDIR   = $(TARGDIR)/ilib');
+    if ($PKG{NOMODPATH}) {
+        L($F, 'OBJDIR    = $(TARGDIR)/obj');
+    } else {
+        L($F, 'OBJDIR    = $(TARGDIR)/obj/$(MODPATH)');
+    }
+    L($F, 'CLSDIR    = $(TARGDIR)/cls');
+
+    if ($PKG{LNG} eq 'JAVA') {
+        L($F,
+            "INCPATHS = \$(SRCDIR):\$(SRCDIR)/itf:\$(TOP)/gov/nih/nlm/ncbi/ngs")
+    }
+
+    print $F <<EndText;
+
+# exports
+export TOP
+export MODPATH
+export SRCDIR
+export MAKEFILE
+
+# auto-compilation rules
+EndText
+
+    if ($PKG{LNG} eq 'C') {
+        L($F, '$(OBJDIR)/%.$(OBJX): %.c');
+        T($F, '$(CC) -o $@ $< $(CFLAGS)');
+        L($F, '$(OBJDIR)/%.$(LOBX): %.c');
+        T($F, '$(CC) -o $@ $< $(PIC) $(CFLAGS)');
+    }
+    L($F, '$(OBJDIR)/%.$(OBJX): %.cpp');
+    T($F, '$(CP) -o $@ $< $(CFLAGS)');
+    L($F, '$(OBJDIR)/%.$(LOBX): %.cpp');
+    T($F, '$(CP) -o $@ $< $(PIC) $(CFLAGS)');
+    L($F);
+
+    # this is part of Makefile
+    L($F, 'VPATH = $(SRCDIR)');
+    L($F);
+
+    # we know how to find jni headers
+    if ($PKG{LNG} eq 'JAVA' and $OPT{'with-ngs-sdk-src'}) {
+        L($F, "JNIPATH = $OPT{'with-ngs-sdk-src'}/language/java");
+    }
+
+    L($F, '# directory rules');
+    if ($PKG{LNG} eq 'C') {
+        L($F, '$(BINDIR) $(LIBDIR) $(ILIBDIR) '
+            . '$(OBJDIR) $(INST_LIBDIR) $(INST_LIBDIR)$(BITS):');
+        T($F, 'mkdir -p $@');
+    } elsif ($PKG{LNG} eq 'JAVA') {
+        # test if we have jni header path
+        L($F, '$(LIBDIR) $(CLSDIR) $(INST_JARDIR):');
+        T($F, 'mkdir -p $@');
+    }
+    L($F);
+
+    L($F, '# not real targets');
+    L($F, '.PHONY: default clean install all std $(TARGETS)');
+    L($F);
+
+    L($F, '# dependencies');
+    if ($PKG{LNG} eq 'C') {
+        L($F, 'include $(wildcard $(OBJDIR)/*.d)');
+    } elsif ($PKG{LNG} eq 'JAVA') {
+        L($F, 'include $(wildcard $(CLSDIR)/*.d)');
+    }
+    L($F, $_) foreach (@dependencies);
+    L($F);
+
+    if ($OS eq 'linux' || $OS eq 'mac') {
+        L($F, '# installation rules');
+        L($F,
+        '$(INST_LIBDIR)$(BITS)/%.$(VERSION_LIBX): $(LIBDIR)/%.$(VERSION_LIBX)');
+        T($F, '@ echo -n "installing \'$(@F)\'... "');
+        T($F, '@ if cp $^ $@ && chmod 644 $@;                         \\');
+        T($F, '  then                                                 \\');
+        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
+                      . '$(subst $(VERSION_LIBX),$(LIBX),$@) '
+                      . '$(subst .$(VERSION_LIBX),-static.$(LIBX),$@); \\');
+        T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
+        T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
+                      . '$(subst $(VERSION_LIBX),$(LIBX),$@); \\');
+        T($F, '      ln -s $(subst $(VERSION_LIBX),$(LIBX),$(@F)) ' .
+       '$(INST_LIBDIR)$(BITS)/$(subst .$(VERSION_LIBX),-static.$(LIBX),$(@F));'
+                                                              . ' \\');
+        T($F, '      echo success;                                    \\');
+        T($F, '  else                                                 \\');
+        T($F, '      echo failure;                                    \\');
+        T($F, '      false;                                           \\');
+        T($F, '  fi');
+        L($F);
+
+        L($F,
+        '$(INST_LIBDIR)$(BITS)/%.$(VERSION_SHLX): $(LIBDIR)/%.$(VERSION_SHLX)');
+        T($F, '@ echo -n "installing \'$(@F)\'... "');
+        T($F, '@ if cp $^ $@ && chmod 755 $@;                         \\');
+        T($F, '  then                                                 \\');
+        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
+                      . '$(subst $(VERSION_SHLX),$(SHLX),$@);    \\');
+        T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
+        T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
+                      . '$(subst $(VERSION_SHLX),$(SHLX),$@); \\');
+        T($F, '      echo success;                                    \\');
+        T($F, '  else                                                 \\');
+        T($F, '      echo failure;                                    \\');
+        T($F, '      false;                                           \\');
+        T($F, '  fi');
+        L($F);
+
+        L($F, '$(INST_BINDIR)/%$(VERSION_EXEX): $(BINDIR)/%$(VERSION_EXEX)');
+        T($F, '@ echo -n "installing \'$(@F)\'... "');
+        T($F, '@ if cp $^ $@ && chmod 755 $@;                         \\');
+        T($F, '  then                                                 \\');
+        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
+                      . '$(subst $(VERSION_EXEX),$(EXEX),$@);     \\');
+        T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
+        T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
+                      . '$(subst $(VERSION_EXEX),$(EXEX),$@); \\');
+        T($F, '      echo success;                                    \\');
+        T($F, '  else                                                 \\');
+        T($F, '      echo failure;                                    \\');
+        T($F, '      false;                                           \\');
+        T($F, '  fi');
+    }
+    close $F;
+
+    # create Makefile.config.install
+    println "configure: creating '$INS_MAKEFILE'" unless ($AUTORUN);
+    open $F, ">$INS_MAKEFILE" or die "cannot open $INS_MAKEFILE to write";
+
+    $OPT{'javadir' } = '' unless ($OPT{'javadir' });
+    $OPT{'sharedir'} = '' unless ($OPT{'sharedir'});
+
+    print $F "sub CONFIGURE {\n";
+    print $F "    \$_{PACKAGE_NAME } = '$PACKAGE_NAME';\n";
+    print $F "    \$_{VERSION      } = '$VERSION';\n";
+    print $F "    \$_{LNG          } = '$PKG{LNG}';\n";
+    print $F "    \$_{OS           } = '$OS';\n";
+    print $F "    \$_{BITS         } =  $BITS;\n";
+    print $F "    \$_{MAJVERS      } =  $MAJVERS;\n";
+    print $F "    \$_{LPFX         } = '$LPFX';\n";
+    print $F "    \$_{LIBX         } = '$LIBX';\n";
+    print $F "    \$_{MAJVERS_LIBX } = '" . expand($E_MAJVERS_LIBX) . "';\n";
+    print $F "    \$_{VERSION_LIBX } = '" . expand($E_VERSION_LIBX) . "';\n";
+    print $F "    \$_{SHLX         } = '$SHLX';\n";
+    print $F "    \$_{MAJVERS_SHLX } = '" . expand($E_MAJVERS_SHLX) . "';\n";
+    print $F "    \$_{VERSION_SHLX } = '" . expand($E_VERSION_SHLX) . "';\n";
+    print $F "    \$_{VERSION_EXEX } = '" . expand($E_VERSION_EXEX) . "';\n";
+    print $F "    \$_{MAJVERS_EXEX } = '" . expand($E_MAJVERS_EXEX) . "';\n";
+    print $F "    \$_{INCDIR       } = '" . expand("$Bin/.."      ) . "';\n";
+    if ($PKG{LNG} ne 'PYTHON') {
+        print $F "  \$_{BINDIR$BITS} = '" . expand($E_BINDIR      ) . "';\n";
+        print $F "  \$_{LIBDIR$BITS} = '" . expand($E_LIBDIR      ) . "';\n";
+    } elsif ($OPT{PYTHON_LIB_PATH}) {
+        print $F "  \$_{LIBDIR$BITS} = '$OPT{PYTHON_LIB_PATH}';\n";
+    }
+    print $F "    \$_{OTHER_PREFIX } = '$PKG{UPATH}';\n";
+    print $F "    \$_{PREFIX       } = '$OPT{'prefix'}';\n";
+    print $F "    \$_{INST_INCDIR  } = '$OPT{'includedir'}';\n";
+    print $F "    \$_{INST_BINDIR  } = '$OPT{'bindir'}';\n";
+    print $F "    \$_{INST_LIBDIR  } = '$OPT{'libdir'}';\n";
+    print $F "    \$_{INST_JARDIR  } = '$OPT{'javadir'}';\n";
+    print $F "    \$_{INST_SHAREDIR} = '$OPT{'sharedir'}';\n";
+    print $F "\n";
+    print $F "    \@_\n";
+    print $F "}\n";
+    print $F "\n";
+    print $F "1\n";
+
+    close $F;
+}
+
+if (! $OPT{'status'} ) {
+    if ($OS eq 'win') {
+        my $OUT = File::Spec->catdir(CONFIG_OUT(), 'Makefile.config.win');
+        println "configure: creating '$OUT'";
+        open OUT, ">$OUT" or die "cannot open $OUT to write";
+        my $name = PACKAGE_NAMW();
+        my $outdir = $name . '_OUTDIR';
+        my $root = $name . '_ROOT';
+
+        print OUT <<EndText;
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">  
+  <PropertyGroup Label="Globals">
+    <$outdir>$TARGDIR/\</$outdir>
+EndText
+        foreach my $href (@REQ) {
+            my %a = %$href;
+            my $NGS_SDK_PREFIX = '';
+            $NGS_SDK_PREFIX = $a{found_itf} if ($a{found_itf});
+            if ($a{name} eq 'ngs-sdk') {
+                my $root = "$a{aname}_ROOT";
+                print OUT "    <$root>$NGS_SDK_PREFIX\/</$root>\n";
+                last;
+            }
+        }
+        print OUT <<EndText;
+    <$root>$Bin/\</$root>
+  </PropertyGroup>
+</Project>
+EndText
+        close OUT;
+    } else {
+        println "configure: creating 'Makefile.config'" unless ($AUTORUN);
+        my $CONFIG_OUT = CONFIG_OUT();
+        my $out = File::Spec->catdir($CONFIG_OUT, 'Makefile.config');
+        open COUT, ">$out" or die "cannot open $out to write";
+        print COUT "### AUTO-GENERATED FILE ###\n";
+        print COUT "\n";
+        print COUT "OS_ARCH = \$(shell perl \$(TOP)/setup/os-arch.perl)\n";
+        print COUT "include \$(TOP)/$CONFIG_OUT/Makefile.config.\$(OS_ARCH)\n";
+        close COUT;
+    }
+}
+
+unless ($OPT{'reconfigure'}) {
+    println "configure: creating 'reconfigure'" unless ($AUTORUN);
+    $CONFIGURED =~ s/\t/ /g;
+    open my $F, '>reconfigure' or die 'cannot open reconfigure to write';
+    print $F "./configure $CONFIGURED\n";
+    close $F;
+}
+
+status() if ($OS ne 'win');
+
+unlink 'a.out';
+
+sub L { $_[1] = '' unless ($_[1]); print { $_[0] }   "$_[1]\n" }
+sub T {                            print { $_[0] } "\t$_[1]\n" }
+
+sub status {
+    my ($load) = @_;
+    if ($load) {
+        ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
+        my $MAKEFILE
+            = File::Spec->catdir(CONFIG_OUT(), "$OUT_MAKEFILE.$OS.$ARCH");
+        println "\t\tloading $MAKEFILE" if ($OPT{'debug'});
+        unless (-e $MAKEFILE) {
+            print STDERR "configure: error: run ./configure [OPTIONS] first.\n";
+            exit 1;
+        }
+        open F, $MAKEFILE or die "cannot open $MAKEFILE";
+        foreach (<F>) {
+            chomp;
+            if (/BUILD = (.+)/) {
+                $BUILD_TYPE = $1;
+            } elsif (/BUILD \?= /) {
+                $BUILD_TYPE = $_ unless ($BUILD_TYPE);
+            } elsif (/BUILD_PREFIX = /) {
+                $BUILD_PREFIX = $_;
+            } elsif (/CONFIGURED = (.*)/) {
+                $CONFIGURED = $1;
+            } elsif (/TARGDIR = /) {
+                $TARGDIR = $_;
+                println "\t\tgot $_" if ($OPT{'debug'});
+            } elsif (/TARGDIR \?= (.+)/) {
+                $TARGDIR = $1 unless ($TARGDIR);
+                println "\t\tgot $_" if ($OPT{'debug'});
+            }
+            elsif (/INST_INCDIR = (.+)/) {
+                $OPT{'includedir'} = $1;
+            }
+            elsif (/INST_BINDIR = (.+)/) {
+                $OPT{'bindir'} = $1;
+            }
+            elsif (/INST_LIBDIR = (.+)/) {
+                $OPT{'libdir'} = $1;
+            }
+        }
+    }
+
+    println "build type: $BUILD_TYPE";
+    println "build prefix: $BUILD_PREFIX" if ($OS ne 'win');
+    println "build output path: $TARGDIR" if ($OS ne 'win');
+
+#   print "prefix: ";    print $OPT{'prefix'} if ($OS ne 'win');    println;
+#   print "eprefix: ";    print $OPT{'eprefix'} if ($OPT{'eprefix'});   println;
+
+    print "includedir: ";
+    print $OPT{'includedir'} if ($OPT{'includedir'});
+    println;
+
+    print "bindir: ";
+    print $OPT{'bindir'} if ($OPT{'bindir'});
+    println;
+
+    print "libdir: ";
+    print $OPT{'libdir'} if ($OPT{'libdir'});
+    println;
+
+    println "schemadir: $OPT{'shemadir'}" if ($OPT{'shemadir'});
+    println "sharedir: $OPT{'sharedir'}" if ($OPT{'sharedir'});
+    println "javadir: $OPT{'javadir'}" if ($OPT{'javadir'});
+    println "pythondir: $OPT{'pythondir'}" if ($OPT{'pythondir'});
+
+    $CONFIGURED =~ s/\t/ /g;
+    println "configured with: \"$CONFIGURED\"";
+}
+
+sub expand { $_[0] =~ s/(\$\w+)/$1/eeg; $_[0]; }
+
+sub expand_path {
+    my ($filename) = @_;
+    return unless ($filename);
+
+    if ($filename =~ /^~/) {
+        if ($filename =~ m|^~([^/]*)|) {
+            if ($1 && ! getpwnam($1)) {
+                print "configure: error: bad path: '$filename'\n";
+                exit 1;
+            }
+        }
+
+        $filename =~ s{ ^ ~ ( [^/]* ) }
+                      { $1
+                            ? (getpwnam($1))[7]
+                            : ( $ENV{HOME} || $ENV{USERPROFILE} || $ENV{LOGDIR}
+                                || (getpwuid($<))[7]
+                              )
+                      }ex;
+    }
+
+    my $a = abs_path($filename);
+    $filename = $a if ($a);
+    $filename;
+}
+
+sub find_in_dir {
+    my ($dir, $include, $lib, $ilib) = @_;
+    unless (-d $dir) {
+#       println "no" unless ($AUTORUN);
+        println "\t\tnot found $dir" if ($OPT{'debug'});
+        return;
+    }
+#   print "\t$dir... " unless ($AUTORUN);
+#   print "[found] " if ($OPT{'debug'});
+    my ($found_inc, $found_lib, $found_ilib);
+    if ($include) {
+        print "\tincludes... " unless ($AUTORUN);
+        if (-e "$dir/$include") {
+            println $dir unless ($AUTORUN);
+            $found_inc = $dir;
+        } elsif (-e "$dir/include/$include") {
+            println $dir unless ($AUTORUN);
+            $found_inc = "$dir/include";
+        } elsif (-e "$dir/interfaces/$include") {
+            println $dir unless ($AUTORUN);
+            $found_inc = "$dir/interfaces";
+        } else {
+            print "$dir: " if ($OPT{'debug'});
+            println 'no' unless ($AUTORUN);
+        }
+    }
+    if ($lib || $ilib) {
+#       print "\n\t" if ($nl && !$AUTORUN);
+        print "\tlibraries... " unless ($AUTORUN);
+        if ($lib) {
+            my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
+            my $libdir  = File::Spec->catdir($builddir, 'lib');
+            my $ilibdir = File::Spec->catdir($builddir, 'ilib');
+            my $f = File::Spec->catdir($libdir, $lib);
+            print "\n\t\tchecking $f\n\t" if ($OPT{'debug'});
+            my $found;
+            if (-e $f) {
+                $found_lib = $libdir;
+                if ($ilib) {
+                    my $f = File::Spec->catdir($ilibdir, $ilib);
+                    print "\tchecking $f\n\t" if ($OPT{'debug'});
+                    if (-e $f) {
+                        println $ilibdir;
+                        $found_ilib = $ilibdir;
+                    } else {
+                        println 'no' unless ($AUTORUN);
+                        return;
+                    }
+                } else {
+                    println $libdir;
+                }
+                ++$found;
+            }
+            if (! $found) {
+                my $libdir = File::Spec->catdir($dir, 'lib' . $BITS);
+                my $f = File::Spec->catdir($libdir, $lib);
+                print "\tchecking $f\n\t" if ($OPT{'debug'});
+                if (-e $f) {
+                    println $libdir;
+                    $found_lib = $libdir;
+                    ++$found;
+                }
+            }
+            if (! $found) {
+                my $builddir = File::Spec->catdir
+                    ($dir, $OS, $TOOLS, $ARCH, reverse_build($BUILD));
+                my $libdir  = File::Spec->catdir($builddir, 'lib');
+                my $ilibdir = File::Spec->catdir($builddir, 'ilib');
+                my $f = File::Spec->catdir($libdir, $lib);
+                print "\tchecking $f\n\t" if ($OPT{'debug'});
+                if (-e $f) {
+                    $found_lib = $libdir;
+                    if ($ilib) {
+                        my $f = File::Spec->catdir($ilibdir, $ilib);
+                        print "\tchecking $f\n\t" if ($OPT{'debug'});
+                        if (-e $f) {
+                            println $ilibdir;
+                            $found_ilib = $ilibdir;
+                        } else {
+                            println 'no' unless ($AUTORUN);
+                            return;
+                        }
+                    } else {
+                        println $libdir;
+                    }
+                    ++$found;
+                } else {
+                    println 'no' unless ($AUTORUN);
+                }
+            }
+        }
+        if ($found_lib && $ilib && ! $found_ilib) {
+            println "\n\t\tfound $found_lib but no ilib/" if ($OPT{'debug'});
+            print "\t" if ($OPT{'debug'});
+            println 'no' unless ($AUTORUN);
+            undef $found_lib;
+        }
+    }
+    return ($found_inc, $found_lib, $found_ilib);
+}
+
+sub reverse_build {
+    ($_) = @_;
+    if ($_ eq 'rel') {
+        return 'dbg';
+    } elsif ($_ eq 'dbg') {
+        return 'rel';
+    } else {
+        die $_;
+    }
+}
+
+################################################################################
+
+sub check_tool {
+    my ($tool) = @_;
+    print "checking for $tool... ";
+    my $cmd = "$tool --help";
+    print "\n\t\trunning $cmd\n\t" if ($OPT{'debug'});
+    my $out = `$cmd 2>&1`;
+    if ($? == 0) {
+        println "yes";
+        return 1;
+    } else {
+        println "no";
+        return 0;
+    }
+}
+
+sub check_no_array_bounds {
+    check_compiler('O', '-Wno-array-bounds');
+}
+
+sub find_lib {
+    check_compiler('L', @_);
+}
+
+sub check_compiler {
+    my ($t, $n, $i, $l) = @_;
+    my $tool = $TOOLS;
+
+    if ($t eq 'L') {
+        print "checking for $n library... ";
+    } elsif ($t eq 'O') {
+        if ($tool && $tool eq 'gcc') {
+            print "checking whether gcc accepts $n... ";
+        } else {
+            return;
+        }
+    } else {
+        die "Unknown check_compiler option: '$t'";
+    }
+
+    unless ($tool) {
+        println "warning: unknown tool";
+        return;
+    }
+
+    while (1) {
+        my ($flags, $library, $log) = ('', '');
+
+        if ($t eq 'O') {
+            $flags = $n;
+            $log = '                      int main() {                     }\n'
+        } elsif ($n eq 'hdf5') {
+            $library = '-lhdf5';
+            $log = '#include <hdf5.h>  \n int main() { H5close         (); }\n'
+        } elsif ($n eq 'fuse') {
+            $flags = '-D_FILE_OFFSET_BITS=64';
+            $library = '-lfuse';
+            $log = '#include <fuse.h>  \n int main() { fuse_get_context(); }\n'
+        } elsif ($n eq 'magic') {
+            $library = '-lmagic';
+            $log = '#include <magic.h> \n int main() { magic_open     (0); }\n'
+        } elsif ($n eq 'xml2') {
+            $library = '-lxml2';
+            $log = '#include <libxml/xmlreader.h>\n' .
+                                         'int main() { xmlInitParser  ( ); }\n'
+        } else {
+            println 'unknown: skipped';
+            return;
+        }
+
+        if ($i && ! -d $i) {
+            print "'$i': " if ($OPT{'debug'});
+            println 'no';
+            return;
+        }
+        if ($l && ! -d $l) {
+            print "'$l': " if ($OPT{'debug'});            println 'no';
+            return;
+        }
+
+        my $cmd = $log;
+        $cmd =~ s/\\n/\n/g;
+
+        my $gcc = "| $tool -xc $flags " . ($i ? "-I$i " : ' ')
+                                      . ($l ? "-L$l " : ' ') . "- $library";
+        $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
+
+        open GCC, $gcc or last;
+        print "\n\t\trunning echo -e '$log' $gcc\n" if ($OPT{'debug'});
+        print GCC "$cmd" or last;
+        my $ok = close GCC;
+        print "\t" if ($OPT{'debug'});
+        println $ok ? 'yes' : 'no';
+
+        unlink 'a.out';
+
+        return if (!$ok);
+
+        return 1 if ($t eq 'O');
+
+        return ($i, $l);
+    }
+
+    println 'cannot run gcc: skipped';
+}
+
+################################################################################
+
+sub check {
+    die "No CONFIG_OUT"   unless CONFIG_OUT();
+    die "No PACKAGE"      unless PACKAGE();
+    die "No PACKAGE_NAME" unless PACKAGE_NAME();
+    die "No PACKAGE_NAMW" unless PACKAGE_NAMW();
+    die "No PACKAGE_TYPE" unless PACKAGE_TYPE();
+    die "No VERSION"      unless VERSION();
+
+    my %PKG = PKG();
+
+    die "No LNG"    unless $PKG{LNG};
+    die "No LOCOUT" unless $PKG{LOCOUT};
+    die "No OUT"    unless $PKG{OUT};
+    die "No PATH"   unless $PKG{PATH};
+    die "No UPATH"  unless $PKG{UPATH};
+
+    foreach my $href (DEPENDS()) { die "No DEPENDS::name" unless $href->{name} }
+
+    foreach my $href (REQ()) {
+        die         "No REQ::name" unless $href->{name};
+
+        die         "No $href->{name}:option"  unless $href->{option};
+
+        die         "No $href->{name}:type"    unless $href->{type};
+        unless ($href->{type} =~ /I/) {
+            die     "No $href->{name}:lib"     unless $href->{lib};
+            die     "No $href->{name}:pkgpath" unless $href->{pkgpath};
+            die     "No $href->{name}:usrpath" unless $href->{usrpath};
+        }
+
+        die         "No $href->{name}:origin"  unless $href->{origin};
+        if ($href->{origin} eq 'I') {
+            die     "No $href->{name}:aname"   unless $href->{aname};
+            unless ($href->{type} =~ /D/) {
+                die "No $href->{name}:include" unless $href->{include};
+                die "No $href->{name}:srcpath" unless $href->{srcpath};
+            }
+            unless ($href->{type} =~ /I/) {
+                die "No $href->{name}:bldpath"    unless $href->{bldpath   };
+                die "No $href->{name}:locbldpath" unless $href->{locbldpath};
+            }
+            if ($href->{type} =~ /B/) {
+                die "No $href->{name}:ilib"    unless $href->{ilib};
+            }
+        }
+    }
+}
+
+################################################################################
+
+sub optional { $_[0] =~ /O/ }
+
+sub help {
+#  --prefix=PREFIX         install architecture-independent files in PREFIX
+    print <<EndText;
+`configure' configures $PACKAGE_NAME to adapt to many kinds of systems.
+
+Usage: ./configure [OPTION]...
+
+Defaults for the options are specified in brackets.
+
+Configuration:
+  -h, --help              display this help and exit
+
+EndText
+
+    if ($^O ne 'MSWin32') {
+        print <<EndText;
+Installation directories:
+  --prefix=PREFIX         install all files in PREFIX
+                          [$package_default_prefix]
+
+EndText
+
+        my $other_prefix = $PKG{UPATH};
+        if ($PACKAGE eq 'sra-tools' && 0) {
+            print <<EndText;
+  --shemadir=DIR          install schema files in DIR
+                          [$schema_default_dir]
+
+EndText
+        }
+
+        print "By default, \`make install' will install all the files in\n";
+    
+        if (PACKAGE_TYPE() eq 'B') {
+            print "\`$package_default_prefix/bin', ";
+        } elsif (PACKAGE_TYPE() eq 'L') {
+            print "\`$package_default_prefix/include', ";
+        }
+        if (PACKAGE_TYPE() eq 'P') {
+            println "\`$package_default_prefix/share' etc.";
+        } else {
+            println "\`$package_default_prefix/lib' etc.";
+        }
+
+        print <<EndText;
+You can specify an installation prefix other than \`$package_default_prefix'
+using \`--prefix', for instance \`--prefix=$other_prefix'.
+EndText
+    }
+
+    print <<EndText;
+
+For better control, use the options below.
+
+EndText
+
+    my ($required, $optional);
+    foreach my $href (@REQ) {
+        if (optional($href->{type})) {
+            ++$optional;
+        } else {
+            ++$required;
+        }
+    }
+
+    if ($required) {
+        print "Required Packages:\n";
+        foreach my $href (@REQ) {
+            next if (optional($href->{type}));
+            my %a = %$href;
+            if ($a{type} =~ /S/) {
+                println "  --$a{option}=DIR    search for $a{name} package";
+                println "                                 source files in DIR";
+            } else {
+                println
+                    "  --$a{option}=DIR      search for $a{name} package in DIR"
+            }
+            if ($a{boption}) {
+                println "  --$a{boption}=DIR      search for $a{name} package";
+                println "                                 build output in DIR";
+            }
+            println;
+        }
+    }
+    
+    if ($optional) {
+        print "Optional Packages:\n";
+        foreach my $href (@REQ) {
+            next unless (optional($href->{type}));
+            my %a = %$href;
+            if ($a{option} =~ /-sources$/) {
+                println "  --$a{option}=DIR    search for $a{name} package";
+                println "                                source files in DIR";
+            } else {
+                println "  --$a{option}=DIR    search for $a{name} files in DIR"
+            }
+        }
+        println;
+    }
+
+    print <<EndText if (PACKAGE_TYPE() eq 'B');
+Optional Features:
+  --enable-static         build static executable [default=no]
+
+EndText
+
+    my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
+
+    if ($^O ne 'MSWin32') {
+        print <<EndText;
+Build tuning:
+  --with-debug
+  --without-debug
+EndText
+
+        if (@ARCHITECTURES) {
+            print
+"  --arch=name             specify the name of the target architecture\n";
+        }
+
+        print <<EndText;
+
+  --build-prefix=DIR      generate build output into DIR directory
+                          [$OUTDIR]
+
+EndText
+    }
+
+    println 'Miscellaneous:';
+    println '  --reconfigure           rerun `configure\'';
+    println '                          using the same command-line arguments';
+    if ($^O ne 'MSWin32') {
+        println
+            '  --status                print current configuration information'
+    }
+    print <<EndText;
+  --clean                 remove all configuration results
+  --debug                 print lots of debugging information
+
+If `configure' was arleady run running `configure' without options
+will rerun `configure' using the same command-line arguments.
+
+Report bugs to sra-tools\@ncbi.nlm.nih.gov
+EndText
+}
+
+################################################################################

@@ -41,7 +41,6 @@ extern "C" {
 #include <vdb/database.h>
 #include "columns.h"
 #include "stat_mod_2.h"
-#include "progressbar.h"
 
 #define WIDX_SPOT_GROUP      0
 #define WIDX_KMER            1

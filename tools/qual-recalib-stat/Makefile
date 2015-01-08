@@ -77,8 +77,6 @@ clean: stdclean
 #
 Q_RECAL_STAT_SRC = \
 	namelist_tools \
-	progressbar \
-	num-gen \
 	context \
 	columns \
 	ref_exclude \

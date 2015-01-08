@@ -36,12 +36,14 @@ PP = gcc -E $(CFLAGS)
 LD = @ $(TOP)/build/ld.sh $(OS) $(ARCH) clang \
 	--build $(BUILD) --ldflags "$(LDFLAGS)" $(STATIC) \
 	$(STATICSYSLIBS) $(CHECKSUM) --objx $(OBJX) --shlx $(SHLX) --libx $(LIBX) \
-	-MD --srcdir $(SRCDIR) --bindir $(BINDIR) -L$(LIBDIR):$(ILIBDIR)
+	-MD --srcdir $(SRCDIR) --bindir $(BINDIR) -L$(LIBDIR):$(ILIBDIR):$(NGS_LIBDIR):$(VDB_LIBDIR):$(VDB_ILIBDIR)
+
+LPFLAGS = $(LDFLAGS)
 
 LP = @ $(TOP)/build/ld.sh $(OS) $(ARCH) clang++ \
-	--build $(BUILD) --ldflags "$(LDFLAGS)" $(STATIC) \
+	--build $(BUILD) --ldflags "$(LPFLAGS)" $(STATIC) \
 	$(STATICSYSLIBS) $(CHECKSUM) --objx $(OBJX) --shlx $(SHLX) --libx $(LIBX) \
-	-MD --srcdir $(SRCDIR) --bindir $(BINDIR) -L$(LIBDIR):$(ILIBDIR)
+	-MD --srcdir $(SRCDIR) --bindir $(BINDIR) -L$(LIBDIR):$(ILIBDIR):$(NGS_LIBDIR):$(VDB_LIBDIR):$(VDB_ILIBDIR)
 
 # tool options
 WARN = -Wall -Wno-variadic-macros -Wno-long-long # -Wconversion

@@ -353,7 +353,7 @@ typedef struct IlluminaWriterSpot_struct {
     pstring noise;
     pstring intensity;
     pstring signal;
-    SRAReadFilter filter[ILLUMINAWRITER_MAX_NUM_READS];
+    SRAReadFilter filter[ILLUMINAWRITER_MAX_NUM_READS+1];
 } IlluminaWriterSpot;
 
 static

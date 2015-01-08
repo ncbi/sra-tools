@@ -379,7 +379,7 @@ union yyalloc
 /* YYNNTS -- Number of nonterminals.  */
 #define YYNNTS  54
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  102
+#define YYNRULES  103
 /* YYNRULES -- Number of states.  */
 #define YYNSTATES  147
 
@@ -436,8 +436,8 @@ static const yytype_uint16 yyprhs[] =
      168,   172,   173,   177,   178,   180,   181,   185,   186,   190,
      191,   196,   197,   201,   202,   207,   208,   209,   210,   211,
      212,   213,   227,   229,   231,   232,   234,   237,   240,   243,
-     246,   249,   253,   257,   261,   265,   270,   274,   279,   281,
-     284,   287,   291
+     246,   249,   253,   257,   259,   263,   267,   272,   276,   281,
+     283,   286,   289,   293
 };
 
 /* YYRHS -- A `-1'-separated list of the rules' RHS.  */
@@ -468,11 +468,11 @@ static const yytype_int8 yyrhs[] =
       68,     4,    69,    14,    70,    71,    -1,     5,    -1,     4,
       -1,    -1,     5,    -1,    72,     4,    -1,    72,     5,    -1,
       72,    17,    -1,    72,    21,    -1,    72,    22,    -1,     3,
-      18,     4,    -1,     3,    21,     4,    -1,    73,     6,    72,
-      -1,    73,     6,     4,    -1,    73,     6,     4,    72,    -1,
-      75,    31,    76,    -1,    75,    31,     1,    31,    -1,    23,
-      -1,    75,    10,    -1,    77,    31,    -1,    76,    77,    31,
-      -1,    11,    -1
+      18,     4,    -1,     3,    21,     4,    -1,     3,    -1,    73,
+       6,    72,    -1,    73,     6,     4,    -1,    73,     6,     4,
+      72,    -1,    75,    31,    76,    -1,    75,    31,     1,    31,
+      -1,    23,    -1,    75,    10,    -1,    77,    31,    -1,    76,
+      77,    31,    -1,    11,    -1
 };
 
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
@@ -487,8 +487,8 @@ static const yytype_uint16 yyrline[] =
      180,   182,   182,   184,   188,   189,   189,   191,   191,   193,
      193,   198,   197,   210,   209,   221,   222,   223,   224,   225,
      226,   221,   231,   232,   233,   237,   238,   239,   240,   241,
-     242,   246,   247,   248,   249,   250,   256,   257,   261,   262,
-     266,   267,   270
+     242,   246,   247,   248,   249,   250,   251,   257,   258,   262,
+     263,   267,   268,   271
 };
 #endif
 
@@ -535,8 +535,8 @@ static const yytype_uint8 yyr1[] =
       54,    56,    54,    54,    57,    58,    57,    59,    57,    60,
       57,    62,    61,    63,    61,    65,    66,    67,    68,    69,
       70,    64,    71,    71,    71,    72,    72,    72,    72,    72,
-      72,    73,    73,    73,    73,    73,    74,    74,    75,    75,
-      76,    76,    77
+      72,    73,    73,    73,    73,    73,    73,    74,    74,    75,
+      75,    76,    76,    77
 };
 
 /* YYR2[YYN] -- Number of symbols composing right hand side of rule YYN.  */
@@ -551,8 +551,8 @@ static const yytype_uint8 yyr2[] =
        3,     0,     3,     0,     1,     0,     3,     0,     3,     0,
        4,     0,     3,     0,     4,     0,     0,     0,     0,     0,
        0,    13,     1,     1,     0,     1,     2,     2,     2,     2,
-       2,     3,     3,     3,     3,     4,     3,     4,     1,     2,
-       2,     3,     1
+       2,     3,     3,     1,     3,     3,     4,     3,     4,     1,
+       2,     2,     3,     1
 };
 
 /* YYDEFACT[STATE-NAME] -- Default reduction number in state STATE-NUM.
@@ -560,18 +560,18 @@ static const yytype_uint8 yyr2[] =
    means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       0,    12,     0,    52,     0,    14,    18,    20,    98,     0,
+       0,    12,     0,    52,     0,    14,    18,    20,    99,     0,
       11,     0,     3,     0,     5,     4,     0,     0,     0,     0,
        0,     1,    13,     2,     0,    58,    57,    56,    53,    55,
-      54,     0,    99,     0,    24,    28,    17,    22,    23,    10,
-       0,    51,    19,    34,    37,    36,    21,     0,    15,     6,
-       0,   102,    96,     0,     0,     0,    26,    30,     0,     0,
-      65,    71,    35,    64,    39,    63,     0,    16,     0,    97,
-       0,   100,    25,    29,     0,     0,    91,    92,     0,     0,
-       0,    69,    73,    43,    41,    47,    63,    59,    38,    94,
-      85,    93,     7,   101,    27,    31,    75,    66,    68,    72,
+      54,     0,   100,     0,    24,    28,    17,    22,    23,    10,
+      93,    51,    19,    34,    37,    36,    21,     0,    15,     6,
+       0,   103,    97,     0,     0,     0,    26,    30,     0,     0,
+      65,    71,    35,    64,    39,    63,     0,    16,     0,    98,
+       0,   101,    25,    29,     0,     0,    91,    92,     0,     0,
+       0,    69,    73,    43,    41,    47,    63,    59,    38,    95,
+      85,    94,     7,   102,    27,    31,    75,    66,    68,    72,
        0,     0,    49,    63,     0,     0,     0,    40,     0,     0,
-      95,    86,    87,    88,    89,    90,     0,     0,    70,    74,
+      96,    86,    87,    88,    89,    90,     0,     0,    70,    74,
        0,    44,    46,    42,    48,    60,    62,    32,    33,     0,
       76,    50,     8,     0,     0,    77,     9,     0,    78,     0,
       79,     0,    80,    84,    83,    82,    81
@@ -1848,7 +1848,12 @@ yyreduce:
     { SetReadNumber(pb, &(yyvsp[(3) - (3)])); GrowSpotName(pb, &(yyvsp[(3) - (3)])); StopSpotName(pb); }
     break;
 
-  case 102:
+  case 93:
+
+    { StopSpotName(pb); }
+    break;
+
+  case 103:
 
     {  AddQuality(pb, & (yyvsp[(1) - (1)])); }
     break;
@@ -2187,10 +2192,13 @@ void StopSpotName(FASTQParseBlock* pb)
 
 void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token)
 {
-    if (token->tokenLength != 1 || TokenTextPtr(pb, token)[0] != '0') /* ignore spot group 0 */
+    if ( ! pb->ignoreSpotGroups )
     {
-        pb->spotGroupOffset = token->tokenStart;    
-        pb->spotGroupLength = token->tokenLength;
+        if (token->tokenLength != 1 || TokenTextPtr(pb, token)[0] != '0') /* ignore spot group 0 */
+        {
+            pb->spotGroupOffset = token->tokenStart;    
+            pb->spotGroupLength = token->tokenLength;
+        }
     }
 }
 

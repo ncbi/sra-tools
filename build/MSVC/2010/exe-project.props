@@ -2,56 +2,21 @@
 
   <Import Project="vdb-common.props" />
   
-  <ItemDefinitionGroup>
-    <Link>
-      <AdditionalDependencies>$(VDB_TARGET)lib\kapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>
-  
   <PropertyGroup Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
-    <CharacterSet>Unicode</CharacterSet>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <UseDebugLibraries>false</UseDebugLibraries>
-  </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
-    <WholeProgramOptimization>true</WholeProgramOptimization>
-    <UseDebugLibraries>false</UseDebugLibraries>
+    <TargetExt>.exe</TargetExt>
+    <OutDir>$(VDB_TARGET)\bin\</OutDir>
   </PropertyGroup>
   
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   
-  <ImportGroup Label="ExtensionSettings">
-  </ImportGroup>
-  <ImportGroup Label="PropertySheets">
-    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
-  </ImportGroup>
-  <PropertyGroup Label="UserMacros" />
-  
-  <PropertyGroup>
-    <TargetExt>.exe</TargetExt>
-    <OutDir>$(VDB_TARGET)\bin\</OutDir>
-    <IntDir>$(VDB_TARGET)\obj\$(ProjectName)\</IntDir>
-    <TargetName>$(ProjectName)</TargetName>
-    <LinkIncremental>false</LinkIncremental>
-  </PropertyGroup>
-  
   <ItemDefinitionGroup>
-    <ClCompile>
-      <WarningLevel>Level3</WarningLevel>
-      <CompileAsManaged>false</CompileAsManaged>
-      <MinimalRebuild>true</MinimalRebuild>
-      <DisableLanguageExtensions>false</DisableLanguageExtensions>
-      <AdditionalIncludeDirectories>$(NGS_ROOT);$(VDB_ROOT)libs/$(ProjectName)/win;$(VDB_ROOT)libs/$(ProjectName);$(VDB_ROOT)interfaces;$(VDB_ROOT)interfaces/os/win;$(VDB_ROOT)interfaces/cc/vc++;$(VDB_ROOT)interfaces/ext;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>WINDOWS;__mod_name__=test/$(ProjectName);__file_name__=%(Filename);__file_ext__=c;%(PreprocessorDefinitions)</PreprocessorDefinitions>
-      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <DisableSpecificWarnings>4996;4101</DisableSpecificWarnings>
-    </ClCompile>
     <Link>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
       <AdditionalDependencies>Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\kapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\bz2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>del $(TargetDir)$(TargetName).lib
@@ -62,7 +27,7 @@ del $(TargetDir)$(TargetName).exp</Command>
   <ItemDefinitionGroup Condition="'$(Configuration)'=='Debug'">
     <ClCompile>
       <Optimization>Disabled</Optimization>
-      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PreprocessorDefinitions>_DEBUGGING;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>
@@ -74,7 +39,7 @@ del $(TargetDir)$(TargetName).exp</Command>
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
     <Link>

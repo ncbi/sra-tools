@@ -24,8 +24,6 @@
   <ItemDefinitionGroup>
     <Link>
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(VDB_TARGET)lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
-	  <AdditionalDependencies>$(VDB_TARGET)lib\bz2.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>  
   
@@ -37,7 +35,6 @@
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-filter.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-formats.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-helper.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-num-gen.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-print.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-redir.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-str.c" />

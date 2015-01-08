@@ -427,7 +427,7 @@ static yyconst flex_int32_t yy_ec[256] =
 
         8,    8,   15,    8,    8,    8,    8,    8,    8,   17,
         8,    8,    8,    8,    8,   15,    8,    8,    8,    8,
-        8,    8,    5,    5,    5,    5,    1,    1,    1,    1,
+        8,    8,    5,    5,    5,    5,    5,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
         1,    1,    1,    1,    1,    1,    1,    1,    1,    1,
@@ -648,6 +648,15 @@ goto find_rule; \
     
 #define YY_NO_UNISTD_H 1
 /*%option debug*/
+
+
+
+
+
+
+
+
+
 
 /* there are more: =ACMGRSVTWYHKDBN. plus lowercase */
 
@@ -910,6 +919,9 @@ YY_DECL
 	register int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
+
+
+
     yylval = yylval_param;
 
 	if ( !yyg->yy_init )
@@ -1048,6 +1060,7 @@ YY_RULE_SETUP
 { BEGIN QTAG_LINE; return yytext[0]; }
 	YY_BREAK
 
+
 case 4:
 YY_RULE_SETUP
 { return fqCOORDS; }
@@ -1089,6 +1102,7 @@ YY_RULE_SETUP
 { BEGIN IN_SEQUENCE; ENDLINE; } 
 	YY_BREAK
 
+
 case 13:
 /* rule 13 can match eol */
 YY_RULE_SETUP
@@ -1112,6 +1126,8 @@ YY_RULE_SETUP
 { BEGIN 0; return fqUNRECOGNIZED; }
 	YY_BREAK
 
+
+
 case 17:
 YY_RULE_SETUP
 { BEGIN 0; return fqBASESEQ; }
@@ -1120,6 +1136,8 @@ case 18:
 YY_RULE_SETUP
 { BEGIN 0; return fqCOLORSEQ; }
 	YY_BREAK
+
+
 
 case 19:
 *yy_cp = yyg->yy_hold_char; /* undo effects of setting up yytext */
@@ -1134,10 +1152,14 @@ YY_RULE_SETUP
 { BEGIN IN_QUALITY; ENDLINE }
 	YY_BREAK
 
+
+
 case 21:
 YY_RULE_SETUP
 { } 
 	YY_BREAK
+
+
 
 case 22:
 /* rule 22 can match eol */
@@ -1159,6 +1181,8 @@ case 24:
 YY_RULE_SETUP
 { return yytext[0]; }
 	YY_BREAK
+
+
 
 case 25:
 /* rule 25 can match eol */
@@ -2382,6 +2406,9 @@ void FASTQ_free (void * ptr , yyscan_t yyscanner)
 }
 
 #define YYTABLES_NAME "yytables"
+
+
+
 
 rc_t CC FASTQScan_yylex_init(FASTQParseBlock* sb, bool debug)
 {

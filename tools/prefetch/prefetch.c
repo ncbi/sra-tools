@@ -1427,9 +1427,9 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
 }
 
 /* Resolved: resolve locations */
-static rc_t ItemInitResolved(Item *self, VResolver *resolver,
-    KDirectory *dir, bool ascp, const KRepositoryMgr *repoMgr,
-    const KConfig *cfg, const VFSManager *vfs, KNSManager *kns, size_t minSize, size_t maxSize)
+static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
+    bool ascp, const KRepositoryMgr *repoMgr, const KConfig *cfg,
+    const VFSManager *vfs, KNSManager *kns, size_t minSize, size_t maxSize)
 {
     Resolved *resolved = NULL;
     rc_t rc = 0;

@@ -37,6 +37,7 @@ INT_TOOLS = \
 	sortreadtest \
 	pacbio-correct \
 	crc32sum \
+	samview \
 
 EXT_TOOLS = \
 	rcexplain \
@@ -273,6 +274,25 @@ CRC32SUM_LIB = \
 
 $(BINDIR)/crc32sum: $(CRC32SUM_OBJ)
 	$(LD) --exe -o $@ $^ $(CRC32SUM_LIB)
+
+
+#-------------------------------------------------------------------------------
+# samview
+#  for testing bam/sam code
+#
+SAMVIEW_SRC = \
+	samview
+
+SAMVIEW_OBJ = \
+	$(addsuffix .$(OBJX),$(SAMVIEW_SRC))
+
+SAMVIEW_LIB = \
+	-lkapp \
+	-sncbi-vdb \
+
+
+$(BINDIR)/samview: $(SAMVIEW_OBJ)
+	$(LD) --exe -o $@ $^ $(SAMVIEW_LIB)
 
 
 #----------------------------------------------------------------

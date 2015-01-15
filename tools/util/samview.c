@@ -50,8 +50,9 @@ void samview(char const file[])
         while ((rc = BAMFileRead2(bam, &rec)) == 0) {
             size_t actsize = 0;
 
-            BAMAlignmentFormatSAM(rec, &actsize, sizeof(buffer), buffer);
-            
+            if (BAMAlignmentFormatSAM(rec, &actsize, sizeof(buffer), buffer) != 0)
+	        break;
+            fwrite(buffer, 1, actsize, stdout);
             BAMAlignmentRelease(rec);
         }
         BAMFileRelease(bam);

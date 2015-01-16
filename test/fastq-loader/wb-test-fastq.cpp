@@ -1138,20 +1138,27 @@ FIXTURE_TEST_CASE(Illumina_Underscore, LoaderFixture)
     REQUIRE_EQ(string("DG7PMJN1:293:D12THACXX:2:1101:1161:1968"), string(name, length));
     REQUIRE(SequenceIsSecond(seq));
 }
-
 #if SHOW_UNIMPLEMENTED
 FIXTURE_TEST_CASE(Illumina_IdentifierAtFront, LoaderFixture)
 {
-FASTQ_debug = 1;
+BisonDebugOn();
     REQUIRE(CreateFileGetSequence(GetName(), 
         "@QSEQ161.65 DBV2SVN1:1:1101:1474:2213#0/1\n"
         "AGAGTTTGAT\n"
     ));
     REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
     REQUIRE_EQ(string("DBV2SVN1:1:1101:1474:2213"), string(name, length));
-FASTQ_debug = 0;    
 }
-//TODO: @ QSEQ161 EAS139:136:FC706VJ:2:2104:15343:197393 1:Y:18:ATCACG
+
+FIXTURE_TEST_CASE(Illumina_SpaceAndIdentifierAtFront, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@ QSEQ161 EAS139:136:FC706VJ:2:2104:15343:197393 1:Y:18:ATCACG\n"
+        "AGAGTTTGAT\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("EAS139:136:FC706VJ:2:2104:15343:197393"), string(name, length));
+}
 #endif
 
 FIXTURE_TEST_CASE(PacbioError, LoaderFixture)
@@ -1206,15 +1213,15 @@ FIXTURE_TEST_CASE(NoColonAtTheEnd_Error, LoaderFixture)
 
 //TODO:
 
-// FIXTURE_TEST_CASE(MissingRead, LoaderFixture)
-// { // source: SRR529889
-    // REQUIRE(CreateFileGetSequence(GetName(), 
-        // "@GG3IVWD03HIDOA length=3 xy=2962_2600 region=3 run=R_2010_05_11_11_15_22_\n"
-        // "AAT\n"
-        // "+\n"
-        // "111\n"
-    // ));
-// }
+FIXTURE_TEST_CASE ( MissingRead, LoaderFixture )
+{ // source: SRR529889
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@GG3IVWD03HIDOA length=3 xy=2962_2600 region=3 run=R_2010_05_11_11_15_22_\n"
+        "AAT\n"
+        "+\n"
+        "111\n"
+    ));
+}
 
 // FIXTURE_TEST_CASE(Pacbio, LoaderFixture)
 // { 

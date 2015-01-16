@@ -1139,6 +1139,21 @@ FIXTURE_TEST_CASE(Illumina_Underscore, LoaderFixture)
     REQUIRE(SequenceIsSecond(seq));
 }
 
+#if SHOW_UNIMPLEMENTED
+FIXTURE_TEST_CASE(Illumina_IdentifierAtFront, LoaderFixture)
+{
+FASTQ_debug = 1;
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@QSEQ161.65 DBV2SVN1:1:1101:1474:2213#0/1\n"
+        "AGAGTTTGAT\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("DBV2SVN1:1:1101:1474:2213"), string(name, length));
+FASTQ_debug = 0;    
+}
+//TODO: @ QSEQ161 EAS139:136:FC706VJ:2:2104:15343:197393 1:Y:18:ATCACG
+#endif
+
 FIXTURE_TEST_CASE(PacbioError, LoaderFixture)
 {
     maxPhred = 33 + 73;
@@ -1158,6 +1173,8 @@ FIXTURE_TEST_CASE(NotPairedRead_Error, LoaderFixture)
         "TACA\n"
     ));
     REQUIRE(SequenceIsFirst(seq));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("HWI-ST226:170:AB075UABXX:3:1101:10089:7031"), string(name, length));
 }
 
 FIXTURE_TEST_CASE(NoFragmentInfo_Error, LoaderFixture)
@@ -1171,6 +1188,19 @@ FIXTURE_TEST_CASE(NoFragmentInfo_Error, LoaderFixture)
     ));
     REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
     REQUIRE_EQ(string("m130727_021351_42150_c100538232550000001823086511101336_s1_p0/283/0_9315"), string(name, length));
+}
+
+FIXTURE_TEST_CASE(NoColonAtTheEnd_Error, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@HET-141-007:154:C391TACXX:6:2316:3220:70828 1:N:0\n"
+        "AACA\n"
+        "+\n"
+        "$.%0\n"
+    ));
+    REQUIRE(SequenceIsFirst(seq));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("HET-141-007:154:C391TACXX:6:2316:3220:70828"), string(name, length));
 }
 
 

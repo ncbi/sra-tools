@@ -216,23 +216,23 @@ readNumber
             if (IS_PACBIO(pb)) StopSpotName(pb); 
         }
     ;
-    
+
 casava1_8
     : fqNUMBER          { SetReadNumber(pb, &$1); GrowSpotName(pb, &$1); StopSpotName(pb); }
      ':'                { GrowSpotName(pb, &$3); }
      fqALPHANUM         { GrowSpotName(pb, &$5); if ($5.tokenLength == 1 && TokenTextPtr(pb, &$5)[0] == 'Y') pb->record->seq.lowQuality = true; }
      ':'                { GrowSpotName(pb, &$7); }
      fqNUMBER           { GrowSpotName(pb, &$9); }
-     ':'                { GrowSpotName(pb, &$11); } 
      indexSequence
     ;
-     
+
 indexSequence
-    : fqALPHANUM        { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); } 
-    | fqNUMBER          { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); } 
+    : ':' fqALPHANUM        { GrowSpotName(pb, &$1); SetSpotGroup(pb, &$2); GrowSpotName(pb, &$2); } 
+    | ':' fqNUMBER          { GrowSpotName(pb, &$1); SetSpotGroup(pb, &$2); GrowSpotName(pb, &$2); } 
+    | ':'                   { GrowSpotName(pb, &$1); }
     |
     ;
-    
+
 tail
     : fqALPHANUM        { GrowSpotName(pb, &$1); }
     | tail fqNUMBER          { GrowSpotName(pb, &$2); }
@@ -241,7 +241,7 @@ tail
     | tail '/'               { GrowSpotName(pb, &$2); }
     | tail '='               { GrowSpotName(pb, &$2); }
     ;
-   
+
 runSpotRead
     : fqRUNDOTSPOT '.' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
     | fqRUNDOTSPOT '/' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }

@@ -26,6 +26,7 @@
 
 #include <kapp/args.h>
 #include <kapp/main.h>
+#include <klib/log.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -57,6 +58,7 @@ void samview(char const file[])
         }
         BAMFileRelease(bam);
     }
+    LOGERR(klogWarn, rc, "Final RC");
 }
 
 rc_t CC UsageSummary(char const *name)

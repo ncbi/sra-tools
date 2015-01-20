@@ -36,7 +36,7 @@
 #define CG_LANE (8)
 
 #define CG_READS_NREADS (2)
-#define CG_READS_SPOT_LEN (70)
+#define CG_READS15_SPOT_LEN (70)
 #define CG_READS_NGAPS (3)
 #define CG_MAPPINGS_MAX (2048)
 #define CG_EVDNC_PLOIDY (3)

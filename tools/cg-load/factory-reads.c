@@ -95,6 +95,7 @@ rc_t CC CGReads15_Header(const CGReads15* cself, const char* buf, const size_t l
     return rc;
 }
 
+
 static
 rc_t CGReads15_GetAssemblyId(const CGReads15* cself, const CGFIELD_ASSEMBLY_ID_TYPE** assembly_id)
 {
@@ -132,62 +133,73 @@ rc_t CGReads15_GetBatchFileNumber(const CGReads15* cself, const CGFIELD_BATCH_FI
     return 0;
 }
 
-static
-rc_t CC CGReads15_Read(const CGReads15* cself, TReadsData* data)
-{
+
+static rc_t CC CGReads15_Read(const CGReads15* cself, TReadsData* data) {
     rc_t rc = 0;
 
-    if( cself->start_rowid == 0 ) {
+    if (cself->start_rowid == 0) {
         ((CGReads15*)cself)->start_rowid = data->rowid;
     }
     CG_LINE_START(cself->file, b, len, p);
-    if( b == NULL || len == 0) {
+    if (b == NULL || len == 0) {
         rc = RC(rcRuntime, rcFile, rcReading, rcData, rcDone);
         break;
     }
     /*DEBUG_MSG(10, ("reads: '%.*s'\n", len, b));*/
     CG_LINE_NEXT_FIELD(b, len, p);
-    if( (rc = str2u16(b, p - b, &data->flags)) != 0 ) {
-    } else if( data->flags > 10 ) {
+    if ((rc = str2u16(b, p - b, &data->flags)) != 0) {
+    }
+    else if (data->flags > 10) {
         rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
-    } else if( (data->flags & 0x03) == 3 || (data->flags & 0x07) == 7 ) {
+    }
+    else if ((data->flags & 0x03) == 3 || (data->flags & 0x07) == 7) {
         rc = RC(rcRuntime, rcFile, rcReading, rcData, rcInvalid);
     }
     CG_LINE_NEXT_FIELD(b, len, p);
     data->seq.sequence.elements = p - b;
-    if( data->seq.sequence.elements != CG_READS_SPOT_LEN ) {
+    if (data->seq.sequence.elements != CG_READS15_SPOT_LEN) {
         rc = RC(rcRuntime, rcFile, rcReading, rcData, rcInvalid);
-    } else {
-        rc = str2buf(b, data->seq.sequence.elements, data->read, sizeof(data->read));
+    }
+    else {
+        rc = str2buf(b, data->seq.sequence.elements,
+            data->read, sizeof(data->read));
         /* clear cache, set in algnment writer */
         data->reverse[0] = '\0';
-        data->reverse[CG_READS_SPOT_LEN / 2] = '\0';
+        data->reverse[CG_READS15_SPOT_LEN / 2] = '\0';
     }
     CG_LINE_LAST_FIELD(b, len, p);
     data->seq.quality.elements = p - b;
-    if( data->seq.quality.elements != CG_READS_SPOT_LEN ) {
+    if (data->seq.quality.elements != CG_READS15_SPOT_LEN) {
         rc = RC(rcRuntime, rcFile, rcReading, rcData, rcInvalid);
-    } else {
-        rc = str2buf(b, data->seq.quality.elements, data->qual, sizeof(data->qual));
     }
-    if( cself->records == 0 ) {
+    else {
+        rc = str2buf(b, data->seq.quality.elements,
+            data->qual, sizeof(data->qual));
+    }
+/*  data->seq.spot_len = CG_READS15_SPOT_LEN; */
+
+    if (cself->records == 0) {
         size_t w;
         
 #if 0
-        rc = string_printf(((CGReads15*)cself)->spot_group, sizeof(cself->spot_group), &w, "%s:%s:%s:%04u",
-                           cself->assembly_id, cself->slide, cself->lane, cself->batch_file_number);
+    rc = string_printf(((CGReads15*)cself)->spot_group,
+        sizeof(cself->spot_group), &w, "%s:%s:%s:%04u", cself->assembly_id,
+        cself->slide, cself->lane, cself->batch_file_number);
 #else
-        rc = string_printf(((CGReads15*)cself)->spot_group, sizeof(cself->spot_group), &w, "%s-%s",
-                           cself->slide, cself->lane);
+        rc = string_printf(((CGReads15*)cself)->spot_group,
+            sizeof(cself->spot_group), &w, "%s-%s", cself->slide, cself->lane);
 #endif
         data->seq.spot_group.buffer = cself->spot_group;
         data->seq.spot_group.elements = w;
     }
     ((CGReads15*)cself)->records++;
-    DEBUG_MSG(10, ("reads:  %u\t'%s'\t'%s'\n", data->flags, data->read, data->qual));
+    DEBUG_MSG(10,
+        ("reads:  %u\t'%s'\t'%s'\n", data->flags, data->read, data->qual));
     CG_LINE_END();
+
     return rc;
 }
+
 
 static
 rc_t CGReads15_GetStartRow(const CGReads15* cself, int64_t* rowid)
@@ -226,7 +238,9 @@ static const CGFileType_vt CGReads15_vt =
     CGReads15_Release
 };
 
-rc_t CC CGReads15_Make(const CGFileType** cself, const CGLoaderFile* file)
+
+static rc_t CC CGReads_Make(const CGFileType** cself,
+    const CGLoaderFile* file, const CGFileType_vt *vt)
 {
     rc_t rc = 0;
     CGReads15* obj = NULL;
@@ -241,7 +255,7 @@ rc_t CC CGReads15_Make(const CGFileType** cself, const CGLoaderFile* file)
         } else {
             obj->file = file;
             obj->dad.type = cg_eFileType_READS;
-            obj->dad.vt = &CGReads15_vt;
+            obj->dad.vt = vt;
         }
     }
     if( rc == 0 ) {
@@ -250,6 +264,11 @@ rc_t CC CGReads15_Make(const CGFileType** cself, const CGLoaderFile* file)
         CGReads15_Release(obj, NULL);
     }
     return rc;
+}
+
+rc_t CC CGReads15_Make(const CGFileType** cself, const CGLoaderFile* file)
+{
+    return CGReads_Make(cself, file, &CGReads15_vt);
 }
 
 rc_t CC CGReads13_Make(const CGFileType** self, const CGLoaderFile* file)

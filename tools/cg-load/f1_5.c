@@ -66,7 +66,7 @@ static const CGFileTypeFactory cg_ETypeXX_names[] = {
     /* undocumented */
     { "VAR-OLPL", cg_eFileType_VAR_OLPL, NULL },
     
-    { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr_Make },    
+    { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr15_Make },    
 };
 
 rc_t CGFile15_Make(const CGFileType** self,

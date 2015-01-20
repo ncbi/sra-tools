@@ -78,7 +78,7 @@ static const CGFileTypeFactory cg_ETypeXX_names[] = {
     { "COVERAGE-BY-GC-CODING", cg_eFileType_COVERAGE_BY_GC_CODING, NULL },
     { "LIB-SMALL-GAPS-ROLLUP", cg_eFileType_LIB_SMALL_GAPS_ROLLUP, NULL },
 
-    { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr_Make },    
+    { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr15_Make },    
 
     /* VDB-1383 */
     { "NONDIPLOID-SOMATIC-CNV-SEGMENTS",

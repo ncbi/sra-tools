@@ -1171,7 +1171,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     SequenceRecord srec;
     char spotGroup[512];
     size_t namelen;
-    unsigned progress = 0;
+    float progress = 0.0;
     unsigned warned = 0;
     long     fcountBoth=0;
     long     fcountOne=0;
@@ -1270,10 +1270,14 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
             break;
         }
         ++recordsRead;
-        if ((unsigned)(BAMFileGetProportionalPosition(bam) * 100.0) > progress) {
-            unsigned new_value = BAMFileGetProportionalPosition(bam) * 100.0;
-            KLoadProgressbar_Process(ctx->progress[0], new_value - progress, false);
-            progress = new_value;
+        
+        {
+            float const new_value = BAMFileGetProportionalPosition(bam) * 100.0;
+            float const delta = new_value - progress;
+            if (delta > 1.0) {
+                KLoadProgressbar_Process(ctx->progress[0], delta, false);
+                progress = new_value;
+            }
         }
 
 

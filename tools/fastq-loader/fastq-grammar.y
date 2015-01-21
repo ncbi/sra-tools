@@ -141,8 +141,11 @@ inlineRead
  /*************** tag line rules *****************/
 tagLine    
     : nameSpotGroup 
-    | nameSpotGroup readNumberOrTail
-    | runSpotRead 
+    | nameSpotGroup readNumber
+    | nameSpotGroup readNumber fqWS { GrowSpotName(pb, &$2); FASTQScan_skip_to_eol(pb); } 
+    | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); } casava1_8 { FASTQScan_skip_to_eol(pb); }
+    | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
+    | runSpotRead { FASTQScan_skip_to_eol(pb); }
     ;
     
 nameSpotGroup
@@ -187,15 +190,6 @@ spotGroup
         fqALPHANUM  { SetSpotGroup(pb, &$3); }    
     ;
     
-readNumberOrTail
-    : readNumber
-    | fqWS  { GrowSpotName(pb, &$1); }    
-        casava1_8
-    | fqWS  { GrowSpotName(pb, &$1); }  
-        tail
-    | readNumberOrTail fqWS { GrowSpotName(pb, &$2); } tail
-    ;
-
 readNumber
     : '/'       
         {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
@@ -230,28 +224,25 @@ casava1_8
     ;
 
 indexSequence
-    : ':' fqALPHANUM        { GrowSpotName(pb, &$1); SetSpotGroup(pb, &$2); GrowSpotName(pb, &$2); } 
+/*    : ':' fqALPHANUM        { GrowSpotName(pb, &$1); SetSpotGroup(pb, &$2); GrowSpotName(pb, &$2); } 
     | ':' fqNUMBER          { GrowSpotName(pb, &$1); SetSpotGroup(pb, &$2); GrowSpotName(pb, &$2); } 
     | ':'                   { GrowSpotName(pb, &$1); }
     |
+    ;*/
+    :  ':' { GrowSpotName(pb, &$1); FASTQScan_inline_sequence(pb); } index
+    |
     ;
-
-tail
-    : fqALPHANUM        { GrowSpotName(pb, &$1); }
-    | tail fqNUMBER          { GrowSpotName(pb, &$2); }
-    | tail fqALPHANUM        { GrowSpotName(pb, &$2); }
-    | tail '_'               { GrowSpotName(pb, &$2); }
-    | tail '/'               { GrowSpotName(pb, &$2); }
-    | tail '='               { GrowSpotName(pb, &$2); }
+    
+index
+    : fqBASESEQ { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); }
+    | fqNUMBER  { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); }
+    |
     ;
 
 runSpotRead
     : fqRUNDOTSPOT '.' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
     | fqRUNDOTSPOT '/' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
     | fqRUNDOTSPOT                  { StopSpotName(pb); }
-    | runSpotRead fqWS tail
-    | runSpotRead fqWS fqNUMBER 
-    | runSpotRead fqWS fqNUMBER tail
     ;
     
  /*************** quality rules *****************/

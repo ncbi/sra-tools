@@ -46,11 +46,11 @@ typedef struct CGWriterAlgn_match_struct {
     /* filled out by ReferenceMgr_Compress */
     INSDC_coord_zero read_start;
     INSDC_coord_len read_len;
-    bool has_ref_offset[CG_READS_SPOT_LEN];
-    int32_t ref_offset[CG_READS_SPOT_LEN];
-    uint8_t ref_offset_type[CG_READS_SPOT_LEN];
-    bool has_mismatch[CG_READS_SPOT_LEN];
-    char mismatch[CG_READS_SPOT_LEN];
+    bool has_ref_offset[CG_READS15_SPOT_LEN];
+    int32_t ref_offset[CG_READS15_SPOT_LEN];
+    uint8_t ref_offset_type[CG_READS15_SPOT_LEN];
+    bool has_mismatch[CG_READS15_SPOT_LEN];
+    char mismatch[CG_READS15_SPOT_LEN];
     int64_t ref_id;
     INSDC_coord_zero ref_start;
     /* fill oud here */
@@ -197,13 +197,13 @@ rc_t CGWriterAlgn_Save(CGWriterAlgn *const self,
         uint32_t* cigar, g;
         uint32_t left_cigar[] = { 5 << 4, 0, 10 << 4, 0, 10 << 4, 0, 10 << 4 };
         uint32_t right_cigar[] = { 10 << 4, 0, 10 << 4, 0, 10 << 4, 0, 5 << 4 };
-        const uint32_t read_len = CG_READS_SPOT_LEN / 2;
+        const uint32_t read_len = CG_READS15_SPOT_LEN / 2;
         const char* read;
 
         if (match->seq_read_id == 2) {
             read = &((const char*)(rd->seq.sequence.buffer))[read_len];
             cigar = right_cigar;
-            g = CG_READS_SPOT_LEN / 2;
+            g = CG_READS15_SPOT_LEN / 2;
         }
         else {
             read = rd->seq.sequence.buffer;
@@ -623,7 +623,11 @@ rc_t CGWriterAlgn_Write(const CGWriterAlgn* cself, TReadsData* read)
 {
     assert(cself != NULL);
     assert(read != NULL);
-    assert(read->seq.sequence.buffer != NULL && read->seq.sequence.elements == CG_READS_SPOT_LEN);
+    assert(read->seq.sequence.buffer != NULL
+        && read->seq.sequence.elements == CG_READS15_SPOT_LEN);
+/*      && read->seq.sequence.elements == read->seq.spot_len
+        && (read->seq.sequence.elements == CG_READS15_SPOT_LEN ||
+            read->seq.sequence.elements == CG_READS25_SPOT_LEN)); */
     
     memset(read->prim_algn_id, 0, sizeof(read->prim_algn_id));
     memset(read->align_count, 0, sizeof(read->align_count));

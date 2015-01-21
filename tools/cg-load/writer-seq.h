@@ -33,11 +33,11 @@
 
 typedef struct TReadsData_struct {
     uint16_t flags;
-    char read[CG_READS_SPOT_LEN + 1];
-    char qual[CG_READS_SPOT_LEN + 1];
+    char read[CG_READS15_SPOT_LEN + 1];
+    char qual[CG_READS15_SPOT_LEN + 1];
 
     /* reverse read cache by half-dnb */
-    INSDC_dna_text reverse[CG_READS_SPOT_LEN];
+    INSDC_dna_text reverse[CG_READS15_SPOT_LEN];
 
     TableWriterSeqData seq;
     int64_t rowid;

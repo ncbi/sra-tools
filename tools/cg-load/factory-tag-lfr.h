@@ -26,12 +26,14 @@
 #ifndef _tools_cg_load_factory_tag_lfr_h_
 #define _tools_cg_load_factory_tag_lfr_h_
 
+
 #include <klib/defs.h>
 
 struct CGFileType;
 struct CGLoaderFile;
 
-rc_t CC CGTagLfr_Make(const struct CGFileType** self,
+rc_t CC CGTagLfr15_Make(const struct CGFileType** self,
                       const struct CGLoaderFile* file);
+
 
 #endif /* _tools_cg_load_factory_tag_lfr_h_ */

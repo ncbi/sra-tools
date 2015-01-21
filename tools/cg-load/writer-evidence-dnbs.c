@@ -180,8 +180,8 @@ rc_t CGWriterEvdDnbs_Write(const CGWriterEvdDnbs* cself, const TEvidenceInterval
             continue;
         } else {
             const char* read;
-            char reversed[CG_READS_SPOT_LEN];
-            uint32_t read_len = CG_READS_SPOT_LEN / 2;
+            char reversed[CG_READS15_SPOT_LEN];
+            uint32_t read_len = CG_READS15_SPOT_LEN / 2;
 
             if( cself->data.dnbs[i].side == 'L' ) {
                 self->match.seq_read_id = 1;

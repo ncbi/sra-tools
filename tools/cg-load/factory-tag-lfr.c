@@ -58,8 +58,9 @@ struct CGTagLfr {
     CGFIELD_WELL_ID wellId;
 };
 
-static
-rc_t CC CGTagLfr_Header(const CGTagLfr* cself, const char* buf, const size_t len)
+
+static rc_t CC CGTagLfr15_Header(const CGTagLfr* cself,
+    const char* buf, const size_t len)
 {
     rc_t rc = 0;
     size_t slen;
@@ -96,8 +97,9 @@ rc_t CC CGTagLfr_Header(const CGTagLfr* cself, const char* buf, const size_t len
     return rc;
 }
 
-static
-rc_t CGTagLfr_GetAssemblyId(const CGTagLfr* cself, const CGFIELD_ASSEMBLY_ID_TYPE** assembly_id)
+
+static rc_t CGTagLfr15_GetAssemblyId(const CGTagLfr* cself,
+    const CGFIELD_ASSEMBLY_ID_TYPE** assembly_id)
 {
     if( cself->assembly_id[0] == '\0' ) {
         return RC(rcRuntime, rcFile, rcReading, rcFormat, rcInvalid);
@@ -106,8 +108,8 @@ rc_t CGTagLfr_GetAssemblyId(const CGTagLfr* cself, const CGFIELD_ASSEMBLY_ID_TYP
     return 0;
 }
 
-static
-rc_t CGTagLfr_GetSlide(const CGTagLfr* cself, const CGFIELD_SLIDE_TYPE** slide)
+static rc_t CGTagLfr15_GetSlide(const CGTagLfr* cself,
+    const CGFIELD_SLIDE_TYPE** slide)
 {
     if( cself->slide[0] == '\0' ) {
         return RC(rcRuntime, rcFile, rcReading, rcFormat, rcInvalid);
@@ -116,8 +118,8 @@ rc_t CGTagLfr_GetSlide(const CGTagLfr* cself, const CGFIELD_SLIDE_TYPE** slide)
     return 0;
 }
 
-static
-rc_t CGTagLfr_GetLane(const CGTagLfr* cself, const CGFIELD_LANE_TYPE** lane)
+static rc_t CGTagLfr15_GetLane(const CGTagLfr* cself,
+    const CGFIELD_LANE_TYPE** lane)
 {
     if( cself->lane[0] == '\0' ) {
         return RC(rcRuntime, rcFile, rcReading, rcFormat, rcInvalid);
@@ -126,22 +128,22 @@ rc_t CGTagLfr_GetLane(const CGTagLfr* cself, const CGFIELD_LANE_TYPE** lane)
     return 0;
 }
 
-static
-rc_t CGTagLfr_GetBatchFileNumber(const CGTagLfr* cself, const CGFIELD_BATCH_FILE_NUMBER_TYPE** batch_file_number)
+static rc_t CGTagLfr15_GetBatchFileNumber(const CGTagLfr* cself,
+    const CGFIELD_BATCH_FILE_NUMBER_TYPE** batch_file_number)
 {
     *batch_file_number = &cself->batch_file_number;
     return 0;
 }
 
-static
-rc_t CGTagLfr_GetStartRow(const CGTagLfr* cself, int64_t* rowid)
+static rc_t CGTagLfr15_GetStartRow(
+    const CGTagLfr* cself, int64_t* rowid)
 {
     *rowid = cself->start_rowid;
     return 0;
 }
 
-static
-rc_t CC CGTagLfr_GetTagLfr(const CGFILETYPE_IMPL* cself, TReadsData* data)
+static rc_t CC CGTagLfr15_GetTagLfr(
+    const CGFILETYPE_IMPL* cself, TReadsData* data)
 {
     rc_t rc = 0;
     uint16_t wellScore = 0;
@@ -204,7 +206,7 @@ rc_t CC CGTagLfr_GetTagLfr(const CGFILETYPE_IMPL* cself, TReadsData* data)
 }
 
 static
-void CC CGTagLfr_Release(const CGTagLfr* cself, uint64_t* records)
+void CC CGTagLfr15_Release(const CGTagLfr* cself, uint64_t* records)
 {
     if( cself != NULL ) {
         CGTagLfr* self = (CGTagLfr*)cself;
@@ -215,25 +217,27 @@ void CC CGTagLfr_Release(const CGTagLfr* cself, uint64_t* records)
     }
 }
 
-static const CGFileType_vt CGTagLfr_vt =
+static const CGFileType_vt CGTagLfr15_vt =
 {
-    CGTagLfr_Header,
+    CGTagLfr15_Header,
     NULL,
-    CGTagLfr_GetStartRow,
-    NULL,
-    NULL,
-    NULL,
-    CGTagLfr_GetTagLfr, /* tag_lfr */
-    CGTagLfr_GetAssemblyId,
-    CGTagLfr_GetSlide,
-    CGTagLfr_GetLane,
-    CGTagLfr_GetBatchFileNumber,
+    CGTagLfr15_GetStartRow,
     NULL,
     NULL,
-    CGTagLfr_Release
+    NULL,
+    CGTagLfr15_GetTagLfr, /* tag_lfr */
+    CGTagLfr15_GetAssemblyId,
+    CGTagLfr15_GetSlide,
+    CGTagLfr15_GetLane,
+    CGTagLfr15_GetBatchFileNumber,
+    NULL,
+    NULL,
+    CGTagLfr15_Release
 };
 
-rc_t CC CGTagLfr_Make(const CGFileType** cself, const CGLoaderFile* file)
+
+static rc_t CC CGTagLfr_Make(const CGFileType **cself,
+    const CGLoaderFile *file, const CGFileType_vt *vt)
 {
     rc_t rc = 0;
     CGTagLfr* obj = NULL;
@@ -248,14 +252,19 @@ rc_t CC CGTagLfr_Make(const CGFileType** cself, const CGLoaderFile* file)
         } else {
             obj->file = file;
             obj->dad.type = cg_eFileType_TAG_LFR;
-            obj->dad.vt = &CGTagLfr_vt;
+            obj->dad.vt = vt;
         }
     }
     if( rc == 0 ) {
         *cself = &obj->dad;
     } else {
-        CGTagLfr_Release(obj, NULL);
+        CGTagLfr15_Release(obj, NULL);
     }
     return rc;
 }
 
+rc_t CC CGTagLfr15_Make(const CGFileType **cself,
+    const CGLoaderFile *file)
+{
+    return CGTagLfr_Make(cself, file, &CGTagLfr15_vt);
+}

@@ -510,7 +510,6 @@ void FASTQ_ParseBlockInit ( FASTQParseBlock* pb )
     pb->readLength = 0;
     pb->qualityOffset = 0;
     pb->qualityLength = 0;
-    pb->ignoreSpotGroups = false;
 }
 
 rc_t FastqReaderFileGetRecord ( const FastqReaderFile *f, const Record** result )

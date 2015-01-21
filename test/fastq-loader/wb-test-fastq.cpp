@@ -265,6 +265,7 @@ public:
         pb.maxPhred = 33+73;
         pb.defaultReadNumber = 9;
         pb.secondaryReadNumber = 0;
+        pb.ignoreSpotGroups = false;
         
         if (FASTQScan_yylex_init(& pb, traceLex) != 0)
             FAIL("ParserFixture::ParserFixture: FASTQScan_yylex_init failed");

@@ -71,6 +71,7 @@
 %x IN_QUALITY
 %x INLINE_SEQUENCE
 %x INLINE_QUALITY
+%x SKIP_TO_EOL
 
 ws          [ \t]+
 digits      [0-9]+
@@ -117,6 +118,8 @@ ascqual   [\x0E-\x1F \x21-\x7F]+
 {
     {base}+                     { BEGIN 0; return fqBASESEQ; }
     {cskey}{color}+             { BEGIN 0; return fqCOLORSEQ; }
+    {digits}                    { BEGIN 0; return fqNUMBER; }
+    {eol}                       { BEGIN 0; ENDLINE; }
 }
 
 <QTAG_LINE>
@@ -150,6 +153,12 @@ ascqual   [\x0E-\x1F \x21-\x7F]+
     .                           { return yytext[0]; }
 }
 
+<SKIP_TO_EOL>
+{
+    .*{eol}                     { BEGIN 0; ENDLINE; }
+    .*                          { BEGIN 0; return fqENDOFTEXT; }
+}
+    
 {eol}                           { ENDLINE; }
 
 %%    
@@ -194,6 +203,15 @@ void CC FASTQScan_inline_quality(FASTQParseBlock* pb)
 {
     yy_pop_state(pb->scanner);
     yy_push_state(INLINE_QUALITY, pb->scanner);
+}
+
+void CC FASTQScan_skip_to_eol(FASTQParseBlock* pb)
+{
+    struct yyguts_t* yyg = (struct yyguts_t*)pb->scanner;
+    if ( yytext[0] != '\n' && yytext[0] != '\r' ) /* not at an EOL already */
+    {
+        yy_push_state(SKIP_TO_EOL, pb->scanner);
+    }
 }
 
 void CC FASTQ_unlex(FASTQParseBlock* pb, FASTQToken* token)

@@ -40,11 +40,15 @@
 
     static void AddQuality(FASTQParseBlock* pb, const FASTQToken* token);
     static void SetReadNumber(FASTQParseBlock* pb, const FASTQToken* token);
+    static void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token);
+    static void SetRead(FASTQParseBlock* pb, const FASTQToken* token);
+    
     static void StartSpotName(FASTQParseBlock* pb, size_t offset);
     static void GrowSpotName(FASTQParseBlock* pb, const FASTQToken* token);
     static void StopSpotName(FASTQParseBlock* pb);
-    static void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token);
-    static void SetRead(FASTQParseBlock* pb, const FASTQToken* token);
+    static void RestartSpotName(FASTQParseBlock* pb);
+    static void SaveSpotName(FASTQParseBlock* pb);
+    static void RevertSpotName(FASTQParseBlock* pb);
 
     #define UNLEX do { if (yychar != YYEMPTY && yychar != YYEOF) FASTQ_unlex(pb, & yylval); } while (0)
     
@@ -80,8 +84,8 @@ sequence /* have to return the lookahead symbol before returning since it belong
     
     | qualityLines              { UNLEX; return 1; } 
     
-    | name                      { StartSpotName(pb, 0); }
-        fqCOORDS                { GrowSpotName(pb, &$3); StopSpotName(pb); }
+    | name                      
+        fqCOORDS                { GrowSpotName(pb, &$2); StopSpotName(pb); }
         ':'                     { FASTQScan_inline_sequence(pb); } 
         inlineRead              
         ':'                     { FASTQScan_inline_quality(pb); } 
@@ -109,6 +113,7 @@ readLines
 
 header 
     : '@' { StartSpotName(pb, 1); } tagLine
+    | '@' fqWS { StartSpotName(pb, 1 + $2.tokenLength); } tagLine
     | '>' { StartSpotName(pb, 1); } tagLine
     ;
 
@@ -139,30 +144,48 @@ inlineRead
  /*************** tag line rules *****************/
 tagLine    
     : nameSpotGroup 
-    | nameSpotGroup readNumberOrTail
-    | runSpotRead 
+    | nameSpotGroup readNumber
+    | nameSpotGroup readNumber fqWS { FASTQScan_skip_to_eol(pb); } 
+    | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } casava1_8 { FASTQScan_skip_to_eol(pb); }
+    | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
+    | runSpotRead { FASTQScan_skip_to_eol(pb); }
+    | name readNumber
+    | name readNumber fqWS  { FASTQScan_skip_to_eol(pb); } 
+    | name 
     ;
     
 nameSpotGroup
-    : name { StopSpotName(pb); } 
-        spotGroup 
-    | name fqCOORDS         { GrowSpotName(pb, &$2); StopSpotName(pb); }                                               
-        spotGroup
+    : nameWithCoords 
+    | nameWithCoords spotGroup
+    | name { StopSpotName(pb); } spotGroup 
+    | nameWS nameWithCoords             /* nameWS ignored */
+    | nameWS nameWithCoords spotGroup   /* nameWS ignored */
+    | nameWS fqALPHANUM '='  { RevertSpotName(pb); FASTQScan_skip_to_eol(pb); }
+    ;
+    
+nameWS
+    : name fqWS 
+    {   /* 'name' without coordinates attached will be ignored if followed by a name with coordinates (see the previous production).
+           however, if not followed, this will be the spot name, so we need to save the 'name's coordinates in case 
+           we need to revert to them later (see call to RevertSpotName() above) */
+        SaveSpotName(pb); 
+        GrowSpotName(pb, &$2); /* need to account for white space but it is not part of the spot name */
+        RestartSpotName(pb); /* clean up for the potential nameWithCoords to start here */
+    } 
+
+nameWithCoords    
+    : name fqCOORDS { GrowSpotName(pb, &$2); StopSpotName(pb); } 
     | name fqCOORDS '_' 
-                {   /* another crazy variation by Illumina, this time "_" is used as " /" */
+                {   /* another variation by Illumina, this time "_" is used as " /" */
                     GrowSpotName(pb, &$2); 
                     StopSpotName(pb);
                     GrowSpotName(pb, &$3);
                 }    
                 casava1_8
-    | name fqCOORDS ':'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3); StopSpotName(pb); }                          
-        spotGroup  
-    | name fqCOORDS ':'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3);}                          
-        name
-    | name fqCOORDS '.'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3);}                          
-        name
-    | name fqCOORDS ':' '.' { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3); GrowSpotName(pb, &$3);}    
-        name
+    | name fqCOORDS ':'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3);} name
+    | name fqCOORDS '.'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3);} name
+    | name fqCOORDS ':' '.' { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3); GrowSpotName(pb, &$4);} name
+    | name fqCOORDS ':'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3); StopSpotName(pb); } 
     ;
     
 name
@@ -177,22 +200,12 @@ name
     ;
 
 spotGroup
-    : '#'           { GrowSpotName(pb, &$1); }
-        fqNUMBER    { SetSpotGroup(pb, &$3);  GrowSpotName(pb, &$3); }
-    | '#'           { GrowSpotName(pb, &$1); }    
-        fqALPHANUM  { SetSpotGroup(pb, &$3);  GrowSpotName(pb, &$3); }    
-    |
+    : '#'           { StopSpotName(pb); }
+        fqNUMBER    { SetSpotGroup(pb, &$3); }
+    | '#'           { StopSpotName(pb); }    
+        fqALPHANUM  { SetSpotGroup(pb, &$3); }    
     ;
     
-readNumberOrTail
-    : readNumber
-    | fqWS  { GrowSpotName(pb, &$1); }    
-        casava1_8
-    | fqWS  { GrowSpotName(pb, &$1); }  
-        tail
-    | readNumberOrTail fqWS { GrowSpotName(pb, &$2); } tail
-    ;
-
 readNumber
     : '/'       
         {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
@@ -227,28 +240,20 @@ casava1_8
     ;
 
 indexSequence
-    : ':' fqALPHANUM        { GrowSpotName(pb, &$1); SetSpotGroup(pb, &$2); GrowSpotName(pb, &$2); } 
-    | ':' fqNUMBER          { GrowSpotName(pb, &$1); SetSpotGroup(pb, &$2); GrowSpotName(pb, &$2); } 
-    | ':'                   { GrowSpotName(pb, &$1); }
+    :  ':' { GrowSpotName(pb, &$1); FASTQScan_inline_sequence(pb); } index
     |
     ;
-
-tail
-    : fqALPHANUM        { GrowSpotName(pb, &$1); }
-    | tail fqNUMBER          { GrowSpotName(pb, &$2); }
-    | tail fqALPHANUM        { GrowSpotName(pb, &$2); }
-    | tail '_'               { GrowSpotName(pb, &$2); }
-    | tail '/'               { GrowSpotName(pb, &$2); }
-    | tail '='               { GrowSpotName(pb, &$2); }
+    
+index
+    : fqBASESEQ { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); }
+    | fqNUMBER  { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); }
+    |
     ;
 
 runSpotRead
     : fqRUNDOTSPOT '.' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
     | fqRUNDOTSPOT '/' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
     | fqRUNDOTSPOT                  { StopSpotName(pb); }
-    | runSpotRead fqWS tail
-    | runSpotRead fqWS fqNUMBER 
-    | runSpotRead fqWS fqNUMBER tail
     ;
     
  /*************** quality rules *****************/
@@ -360,11 +365,33 @@ void SetReadNumber(FASTQParseBlock* pb, const FASTQToken* token)
 void StartSpotName(FASTQParseBlock* pb, size_t offset)
 {
     pb->spotNameOffset = offset;
+    pb->spotNameLength = 0;
 }
+
+void SaveSpotName(FASTQParseBlock* pb)
+{
+    pb->spotNameOffset_saved = pb->spotNameOffset;
+    pb->spotNameLength_saved = pb->spotNameLength;
+}    
+
+void RestartSpotName(FASTQParseBlock* pb)
+{
+    pb->spotNameOffset += pb->spotNameLength;
+    pb->spotNameLength = 0;
+}
+
+void RevertSpotName(FASTQParseBlock* pb)
+{
+    pb->spotNameOffset = pb->spotNameOffset_saved;
+    pb->spotNameLength = pb->spotNameLength_saved;
+}
+
 void GrowSpotName(FASTQParseBlock* pb, const FASTQToken* token)
 {
     if (!pb->spotNameDone)
+    {
         pb->spotNameLength += token->tokenLength;
+    }
 }
 
 void StopSpotName(FASTQParseBlock* pb)

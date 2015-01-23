@@ -109,6 +109,8 @@ typedef struct FASTQParseBlock
     /* all offsets are into record->source */
     size_t spotNameOffset; 
     size_t spotNameLength; 
+    size_t spotNameOffset_saved; /* sometimes needed to revert to older values */
+    size_t spotNameLength_saved; 
     bool spotNameDone;
     size_t spotGroupOffset;
     size_t spotGroupLength;
@@ -138,6 +140,7 @@ extern void FASTQScan_yylex_destroy(FASTQParseBlock* context);
 /* explicit FLEX state control for bison*/
 extern void FASTQScan_inline_sequence(FASTQParseBlock* pb);
 extern void FASTQScan_inline_quality(FASTQParseBlock* pb);
+extern void FASTQScan_skip_to_eol(FASTQParseBlock* pb); /*the next token will be EOL or EOF*/
 
 extern void FASTQ_set_lineno (int line_number, void* scanner);
 

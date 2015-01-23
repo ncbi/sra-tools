@@ -107,8 +107,12 @@ FASTQ_SRC = \
 bison:
 	bison -o $(SRCDIR)/fastq-grammar.c --defines=$(SRCDIR)/fastq-tokens.h -v --no-lines $(SRCDIR)/fastq-grammar.y
 
+ifeq (dbg,$(BUILD))
+    FLEX_DEBUG = -d
+endif    
+
 flex:    
-	flex -DYY_BUF_SIZE=16777216 -t $(SRCDIR)/fastq-lex.l | grep -v '^#line' > $(SRCDIR)/fastq-lex.c
+	flex $(FLEX_DEBUG) -DYY_BUF_SIZE=16777216 -t $(SRCDIR)/fastq-lex.l | grep -v '^#line' > $(SRCDIR)/fastq-lex.c
 
 FASTQ_OBJ = \
 	$(addsuffix .$(LOBX),$(FASTQ_SRC))

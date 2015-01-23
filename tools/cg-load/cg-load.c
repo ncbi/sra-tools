@@ -42,6 +42,7 @@
 
 #include <klib/out.h> /* OUTMSG */
 #include <klib/printf.h> /* string_printf */
+#include <klib/status.h> /* STSMSG */
 
 #include <vdb/schema.h> /* VDBManagerMakeSchema */
 

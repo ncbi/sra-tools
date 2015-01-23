@@ -47,7 +47,7 @@ clean:
 	rm -f $(ACCESSION)*
 
 diff-vs-wget: clean
-	kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat
+	$(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat
 	wget $(URL)
 	diff $(ACCESSION).sra ./$(ACCESSION).dat
 	diff $(ACCESSION).sra ./$(ACCESSION).cachetee

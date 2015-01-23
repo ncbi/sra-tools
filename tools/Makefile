@@ -63,6 +63,7 @@ SUBDIRS =             \
 	pacbio-load       \
 	fuse              \
     vdb-diff          \
+    kget              \
 
 ifneq (win,$(BUILD_OS))
 ifneq (rwin,$(BUILD_OS))

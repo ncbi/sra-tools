@@ -110,8 +110,8 @@ rc_t SequenceWriteRecord(Sequence *self,
         int const len = rec->readLen[i];
         int const start = rec->readStart[i];
         int const type = len == 0 ? SRA_READ_TYPE_TECHNICAL : SRA_READ_TYPE_BIOLOGICAL;
-        int const dir = rec->orientation[i] ? SRA_READ_TYPE_REVERSE ? SRA_READ_TYPE_FORWARD;
-        int const filter = isDup ? SRA_READ_FILTER_CRITERIA ? rec->is_bad[i] ? SRA_READ_FILTER_REJECT : SRA_READ_FILTER_PASS;
+        int const dir = len == 0 ? 0 : rec->orientation[i] ? SRA_READ_TYPE_REVERSE : SRA_READ_TYPE_FORWARD;
+        int const filter = isDup ? SRA_READ_FILTER_CRITERIA : rec->is_bad[i] ? SRA_READ_FILTER_REJECT : SRA_READ_FILTER_PASS;
 
         alcnt[i] = count;
         readLen[i] = len;

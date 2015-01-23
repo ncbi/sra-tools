@@ -1148,6 +1148,20 @@ FIXTURE_TEST_CASE(PacbioNoReadNumbers, LoaderFixture)
     REQUIRE(!SequenceIsSecond(seq));
 }
 
+FIXTURE_TEST_CASE(PacbioWsCcs, LoaderFixture)
+{
+    maxPhred = 33 + 73;
+    defaultReadNumber = -1;
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2 ccs\n"
+        "AGAGTTTGAT\n"
+        "+m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2 ccs\n"
+        "LLhf>>>>[[\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2"), string(name, length));
+}
+
 FIXTURE_TEST_CASE(Illumina_Underscore, LoaderFixture)
 {
     REQUIRE(CreateFileGetSequence(GetName(), 
@@ -1158,7 +1172,7 @@ FIXTURE_TEST_CASE(Illumina_Underscore, LoaderFixture)
     REQUIRE_EQ(string("DG7PMJN1:293:D12THACXX:2:1101:1161:1968"), string(name, length));
     REQUIRE(SequenceIsSecond(seq));
 }
-#if SHOW_UNIMPLEMENTED
+
 FIXTURE_TEST_CASE(Illumina_IdentifierAtFront, LoaderFixture)
 {
     REQUIRE(CreateFileGetSequence(GetName(), 
@@ -1178,7 +1192,6 @@ FIXTURE_TEST_CASE(Illumina_SpaceAndIdentifierAtFront, LoaderFixture)
     REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
     REQUIRE_EQ(string("EAS139:136:FC706VJ:2:2104:15343:197393"), string(name, length));
 }
-#endif
 
 FIXTURE_TEST_CASE(PacbioError, LoaderFixture)
 {
@@ -1237,6 +1250,8 @@ FIXTURE_TEST_CASE ( MissingRead, LoaderFixture )
         "+\n"
         "111\n"
     ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("GG3IVWD03HIDOA"), string(name, length));
 }
 
 // FIXTURE_TEST_CASE(Pacbio, LoaderFixture)

@@ -109,6 +109,8 @@ typedef struct FASTQParseBlock
     /* all offsets are into record->source */
     size_t spotNameOffset; 
     size_t spotNameLength; 
+    size_t spotNameOffset_saved; /* sometimes needed to revert to older values */
+    size_t spotNameLength_saved; 
     bool spotNameDone;
     size_t spotGroupOffset;
     size_t spotGroupLength;

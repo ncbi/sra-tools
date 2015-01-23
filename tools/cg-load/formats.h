@@ -1,3 +1,6 @@
+#ifndef _tools_cg_load_formats_h_
+#define _tools_cg_load_formats_h_
+
 /*===========================================================================
 *
 *                            PUBLIC DOMAIN NOTICE
@@ -23,24 +26,16 @@
 * ===========================================================================
 *
 */
-#ifndef _tools_cg_load_factory_evidence_dnbs_h_
-#define _tools_cg_load_factory_evidence_dnbs_h_
-
-#include <klib/defs.h>
-
-struct CGFileType;
-struct CGLoaderFile;
-
-rc_t CC CGEvidenceDnbs13_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
-rc_t CC CGEvidenceDnbs15_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
-rc_t CC CGEvidenceDnbs20_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
-rc_t CC CGEvidenceDnbs22_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
-rc_t CC CGEvidenceDnbs25_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
 
 
-#endif /* _tools_cg_load_factory_evidence_dnbs_h_ */
+#include <stdint.h> /* uint32_t */
+
+
+/* CG native format files have some changes since version 2.5 */
+
+
+uint32_t get_cg_reads_ngaps(uint32_t reads_format);
+uint32_t get_cg_read_len   (uint32_t reads_format);
+
+
+#endif /* _tools_cg_load_formats_h_ */

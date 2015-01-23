@@ -38,8 +38,10 @@ const INSDC_SRA_platform_id DFTL_platform = SRA_PLATFORM_COMPLETE_GENOMICS;
 const char DFTL_label[] = "LeftRight";
 const INSDC_coord_zero DFTL_label_start[CG_READS_NREADS] = {0, 4};
 const INSDC_coord_len DFTL_label_len[CG_READS_NREADS] =    {4, 5};
-const INSDC_coord_zero DFTL_read_start[CG_READS_NREADS] =  {0, 35};
-const INSDC_coord_len DFTL_read_len[CG_READS_NREADS] =    {35, 35};
+
+INSDC_coord_zero DFTL_read_start[CG_READS_NREADS] =  {0, 35};
+INSDC_coord_len  DFTL_read_len  [CG_READS_NREADS] = {35, 35};
+
 const INSDC_SRA_read_filter DFTL_read_filter[CG_READS_NREADS] =  {SRA_READ_FILTER_PASS, SRA_READ_FILTER_PASS};
 
 struct CGWriterSeq {
@@ -47,10 +49,15 @@ struct CGWriterSeq {
     TReadsData data;
 };
 
-rc_t CGWriterSeq_Make(const CGWriterSeq** cself, TReadsData** data, VDatabase* db, const uint32_t options, const char* quality_quantization)
+rc_t CGWriterSeq_Make(const CGWriterSeq** cself,
+    TReadsData** data, VDatabase* db, const uint32_t options,
+    const char* quality_quantization, uint32_t read_len)
 {
     rc_t rc = 0;
     CGWriterSeq* self;
+
+    assert(read_len == CG_READS15_SPOT_LEN / 2
+        || read_len == CG_READS25_SPOT_LEN / 2);
 
     if( cself == NULL || db == NULL ) {
         return RC(rcExe, rcFormatter, rcConstructing, rcParam, rcNull);
@@ -64,7 +71,16 @@ rc_t CGWriterSeq_Make(const CGWriterSeq** cself, TReadsData** data, VDatabase* d
         p.elements = 1;
         if( (rc = TableWriterSeq_Make(&self->base, db, options | ewseq_co_AlignData | ewseq_co_SpotGroup, quality_quantization)) != 0 ) {
             LOGERR(klogErr, rc, "sequence table");
-        } else if( (rc = TableWriteSeq_WriteDefault(self->base, ewseq_cn_PLATFORM, &p)) == 0 ) {
+        }
+        else if ((rc =
+            TableWriteSeq_WriteDefault(self->base, ewseq_cn_PLATFORM, &p)) == 0)
+        {
+            int i = 0;
+            for (i = 0; i < CG_READS_NREADS; ++i) {
+                DFTL_read_len[i] = read_len;
+            }
+            DFTL_read_start[1] = read_len;
+
             /* attach data pointer to data */
             self->data.seq.nreads = CG_READS_NREADS;
             self->data.seq.alignment_count.buffer = self->data.align_count;

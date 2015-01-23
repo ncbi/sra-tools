@@ -39,5 +39,8 @@ rc_t CGEvidenceIntervals20_Make(const struct CGFileType** self,
                                 const struct CGLoaderFile* file);
 rc_t CGEvidenceIntervals22_Make(const struct CGFileType** self,
                                 const struct CGLoaderFile* file);
+rc_t CGEvidenceIntervals25_Make(const struct CGFileType** self,
+                                const struct CGLoaderFile* file);
+
 
 #endif /* _tools_cg_load_factory_evidence_intervals_h_ */

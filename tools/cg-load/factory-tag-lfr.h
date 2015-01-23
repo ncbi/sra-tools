@@ -34,6 +34,8 @@ struct CGLoaderFile;
 
 rc_t CC CGTagLfr15_Make(const struct CGFileType** self,
                       const struct CGLoaderFile* file);
+rc_t CC CGTagLfr25_Make(const struct CGFileType** self,
+                      const struct CGLoaderFile* file);
 
 
 #endif /* _tools_cg_load_factory_tag_lfr_h_ */

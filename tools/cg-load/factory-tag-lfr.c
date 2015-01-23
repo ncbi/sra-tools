@@ -97,6 +97,86 @@ static rc_t CC CGTagLfr15_Header(const CGTagLfr* cself,
     return rc;
 }
 
+static rc_t CC CGTagLfr25_Header(const CGTagLfr* cself,
+    const char* buf, const size_t len)
+{
+    rc_t rc = 0;
+    size_t slen;
+    CGTagLfr* self = (CGTagLfr*)cself;
+
+    /* from SRA-2617 files */
+    if      (strncmp("APPROVAL\t", buf, slen = 9) == 0) {
+    }
+    else if (strncmp("TITLE\t", buf, slen = 6) == 0) {
+    }
+    else if (strncmp("ADDRESS\t", buf, slen = 8) == 0) {
+    }
+
+    /* From Table 1: Header Metadata Present in all Data Files */
+    else if (strncmp("CUSTOMER_SAMPLE_ID\t", buf, slen = 19) == 0) {
+    }
+    else if (strncmp("SAMPLE_SOURCE\t", buf, slen = 14) == 0) {
+    }
+    else if (strncmp("REPORTED_GENDER\t", buf, slen = 16) == 0) {
+    }
+    else if (strncmp("CALLED_GENDER\t", buf, slen = 14) == 0) {
+    }
+    else if (strncmp("TUMOR_STATUS\t", buf, slen = 13) == 0) {
+    }
+    else if (strncmp("LIBRARY_TYPE\t", buf, slen = 13) == 0) {
+    }
+    else if (strncmp("LIBRARY_SOURCE\t", buf, slen = 13) == 0) {
+    }
+
+    else if (strncmp("ASSEMBLY_ID\t", buf, slen = 12) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->assembly_id, sizeof(self->assembly_id));
+    }
+    else if (strncmp("BATCH_FILE_NUMBER\t", buf, slen = 18) == 0) {
+        rc = str2u32(&buf[slen], len - slen, &self->batch_file_number);
+        if (self->batch_file_number < 1) {
+            rc = RC(rcRuntime, rcFile, rcConstructing, rcItem, rcOutofrange);
+        }
+    }
+    else if (strncmp("BATCH_OFFSET\t", buf, slen = 13) == 0) {
+        rc = str2u64(&buf[slen], len - slen, &self->batch_offset);
+    }
+    else if (strncmp("FIELD_SIZE\t", buf, slen = 11) == 0) {
+        rc = str2u32(&buf[slen], len - slen, &self->field_size);
+    }
+    else if (strncmp("GENERATED_AT\t", buf, slen = 13) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->generated_at, sizeof(self->generated_at));
+    }
+    else if (strncmp("GENERATED_BY\t", buf, slen = 13) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->generated_by, sizeof(self->generated_by));
+    }
+    else if (strncmp("LANE\t", buf, slen = 5) == 0) {
+        rc = str2buf(&buf[slen], len - slen, self->lane, sizeof(self->lane));
+    }
+    else if (strncmp("LIBRARY\t", buf, slen = 8) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->library, sizeof(self->library));
+    }
+    else if (strncmp("SAMPLE\t", buf, slen = 7) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->sample, sizeof(self->sample));
+    }
+    else if (strncmp("SLIDE\t", buf, slen = 6) == 0) {
+        rc = str2buf(&buf[slen], len - slen, self->slide, sizeof(self->slide));
+    }
+    else if (strncmp("SOFTWARE_VERSION\t", buf, slen = 17) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->software_version, sizeof(self->software_version));
+    }
+    else {
+        rc = RC(rcRuntime, rcFile, rcConstructing, rcName, rcUnrecognized);
+    }
+
+    return rc;
+}
+
 
 static rc_t CGTagLfr15_GetAssemblyId(const CGTagLfr* cself,
     const CGFIELD_ASSEMBLY_ID_TYPE** assembly_id)
@@ -235,6 +315,23 @@ static const CGFileType_vt CGTagLfr15_vt =
     CGTagLfr15_Release
 };
 
+static const CGFileType_vt CGTagLfr25_vt =
+{
+    CGTagLfr25_Header,
+    NULL,
+    CGTagLfr15_GetStartRow,
+    NULL,
+    NULL,
+    NULL,
+    CGTagLfr15_GetTagLfr, /* tag_lfr */
+    CGTagLfr15_GetAssemblyId,
+    CGTagLfr15_GetSlide,
+    CGTagLfr15_GetLane,
+    CGTagLfr15_GetBatchFileNumber,
+    NULL,
+    NULL,
+    CGTagLfr15_Release
+};
 
 static rc_t CC CGTagLfr_Make(const CGFileType **cself,
     const CGLoaderFile *file, const CGFileType_vt *vt)
@@ -267,4 +364,10 @@ rc_t CC CGTagLfr15_Make(const CGFileType **cself,
     const CGLoaderFile *file)
 {
     return CGTagLfr_Make(cself, file, &CGTagLfr15_vt);
+}
+
+rc_t CC CGTagLfr25_Make(const CGFileType **cself,
+    const CGLoaderFile *file)
+{
+    return CGTagLfr_Make(cself, file, &CGTagLfr25_vt);
 }

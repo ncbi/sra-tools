@@ -106,15 +106,18 @@ rc_t SequenceWriteRecord(Sequence *self,
     }
     
     for (i = 0; i != nreads; ++i) {
-        alcnt[i] = rec->aligned[i] ? 1 : 0;
-        readLen[i] = rec->readLen[i];
-        readStart[i] = rec->readStart[i];
-        readType[i] = SRA_READ_TYPE_BIOLOGICAL | (rec->orientation[i] ?
-                                                  SRA_READ_TYPE_REVERSE:
-                                                  SRA_READ_TYPE_FORWARD
-                                                  );
-        readFilter[i] = isDup ? SRA_READ_FILTER_CRITERIA
-                      : rec->is_bad[i] ? SRA_READ_FILTER_REJECT : SRA_READ_FILTER_PASS;
+        int const count = rec->aligned[i] ? 1 : 0;
+        int const len = rec->readLen[i];
+        int const start = rec->readStart[i];
+        int const type = len == 0 ? SRA_READ_TYPE_TECHNICAL : SRA_READ_TYPE_BIOLOGICAL;
+        int const dir = rec->orientation[i] ? SRA_READ_TYPE_REVERSE ? SRA_READ_TYPE_FORWARD;
+        int const filter = isDup ? SRA_READ_FILTER_CRITERIA ? rec->is_bad[i] ? SRA_READ_FILTER_REJECT : SRA_READ_FILTER_PASS;
+
+        alcnt[i] = count;
+        readLen[i] = len;
+        readStart[i] = start;
+        readType[i] = type | dir;
+        readFilter[i] = filter;
     }
 
     memset(&data, 0, sizeof(data));

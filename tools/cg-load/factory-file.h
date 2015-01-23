@@ -41,5 +41,7 @@ rc_t CGFile20_Make(const struct CGFileType** self,
                    const char* type, const struct CGLoaderFile* file);
 rc_t CGFile22_Make(const struct CGFileType** self,
                    const char* type, const struct CGLoaderFile* file);
+rc_t CGFile25_Make(const struct CGFileType** self,
+                   const char* type, const struct CGLoaderFile* file);
 
 #endif /* _tools_cg_load_factory_file_h_ */

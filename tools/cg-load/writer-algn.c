@@ -23,24 +23,24 @@
 * ===========================================================================
 *
 */
-#include <klib/log.h>
+
+
+#include "debug.h" /* DEBUG_MSG */
+#include "formats.h" /* get_cg_reads_ngaps */
+#include "defs.h" /* cg_eRightHalfDnbMap */
+#include "writer-algn.h" /* CGWriterAlgn */
+
+#include <align/align.h> /* NCBI_align_ro_complete_genomics */
+#include <align/dna-reverse-cmpl.h> /* DNAReverseCompliment */
+
+#include <klib/log.h> /* PLOGERR */
 #include <klib/rc.h>
-#include <klib/printf.h>
-#include <klib/sort.h>
-#include <kfs/file.h>
-#include <insdc/insdc.h>
-#include <align/dna-reverse-cmpl.h>
-#include <align/align.h>
+#include <klib/sort.h> /* ksort */
 
-#include "defs.h"
-#include "writer-algn.h"
-#include "debug.h"
-
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <math.h>
 #include <assert.h>
+#include <math.h> /* pow */
+#include <string.h> /* strcmp */
+
 
 typedef struct CGWriterAlgn_match_struct {
     /* filled out by ReferenceMgr_Compress */
@@ -194,16 +194,42 @@ rc_t CGWriterAlgn_Save(CGWriterAlgn *const self,
     if( !map->saved ) {
         CGWriterAlgn_match *const match = &self->match[mate];
         TableWriterAlgnData *const algn = &self->algn[mate];
-        uint32_t* cigar, g;
-        uint32_t left_cigar[] = { 5 << 4, 0, 10 << 4, 0, 10 << 4, 0, 10 << 4 };
-        uint32_t right_cigar[] = { 10 << 4, 0, 10 << 4, 0, 10 << 4, 0, 5 << 4 };
-        const uint32_t read_len = CG_READS15_SPOT_LEN / 2;
-        const char* read;
+
+        uint32_t g = 0;
+
+        uint32_t* cigar = NULL;
+        uint32_t left_cigar15 []={  5 << 4, 0, 10 << 4, 0, 10 << 4, 0,10 << 4 };
+        uint32_t right_cigar15[]={ 10 << 4, 0, 10 << 4, 0, 10 << 4, 0, 5 << 4 };
+        uint32_t left_cigar25 []={ 10 << 4, 0, 10 << 4, 0, 10 << 4, 0, 0 };
+        uint32_t right_cigar25[]={ 10 << 4, 0, 10 << 4, 0, 10 << 4, 0, 0 };
+        uint32_t *left_cigar  = NULL;
+        uint32_t *right_cigar = NULL;
+        uint32_t cg_reads_ngaps = 0;
+
+        const char *read = NULL;
+        uint32_t read_len = 0;
+
+        assert(rd);
+
+        cg_reads_ngaps = get_cg_reads_ngaps(rd->reads_format);
+
+        read_len = rd->seq.spot_len / 2;
+        if (cg_reads_ngaps == 3) {
+            left_cigar  = left_cigar15;
+            right_cigar = right_cigar15;
+        }
+        else if (cg_reads_ngaps == 2) {
+            left_cigar  = left_cigar25;
+            right_cigar = right_cigar25;
+        }
+        else {
+            assert(0);
+        }
 
         if (match->seq_read_id == 2) {
             read = &((const char*)(rd->seq.sequence.buffer))[read_len];
             cigar = right_cigar;
-            g = CG_READS15_SPOT_LEN / 2;
+            g = read_len;
         }
         else {
             read = rd->seq.sequence.buffer;
@@ -220,7 +246,7 @@ rc_t CGWriterAlgn_Save(CGWriterAlgn *const self,
             read = &rd->reverse[g];
             cigar = (cigar == left_cigar) ? right_cigar : left_cigar;
         }
-        for(g = 0; g < CG_READS_NGAPS; g++) {
+        for(g = 0; g < cg_reads_ngaps; g++) {
             if( map->gap[g] > 0 ) {
                 cigar[g * 2 + 1] = (map->gap[g] << 4) | 3; /* 'xN' */
             } else if( map->gap[g] < 0 ) {
@@ -256,6 +282,7 @@ rc_t CGWriterAlgn_Save(CGWriterAlgn *const self,
             map->saved = true;
         }
     }
+
     return rc;
 }
 
@@ -417,6 +444,7 @@ int clustering_sort_cb(void const *const A, void const *const B, void *const ctx
     TMappingsData_map const *const a = &data->map[ia];
     TMappingsData_map const *const b = &data->map[ib];
     int res;
+    unsigned j = 0;
     
 	res = (int)(a->flags & cg_eRightHalfDnbMap) - (int)(b->flags & cg_eRightHalfDnbMap); /**** separate by DNP side ***/
 	if (res) return res;
@@ -433,9 +461,13 @@ int clustering_sort_cb(void const *const A, void const *const B, void *const ctx
     
 	res = (int)a->weight - (int)b->weight; /*** has  higher score **/
 	if (res) return -res;
-    
-	res = (int)(a->gap[0] + a->gap[1] + a->gap[2])
-    - (int)(b->gap[0] + b->gap[1] + b->gap[2]); /** has lower projection on the reference **/
+
+    res = 0;
+    assert(data->cg_reads_ngaps);
+    for (j = 0; j != data->cg_reads_ngaps; ++j) {
+        res += (int)(a->gap[j]) - (int)(b->gap[j]);
+    } /** has lower projection on the reference **/
+
     return res;
 }
 
@@ -517,11 +549,16 @@ rc_t CGWriterAlgn_Write_int(CGWriterAlgn *const self, TReadsData *const read)
         unsigned i;
         unsigned countLeft  = 0;
         unsigned countRight = 0;
-        
+
+        assert(read);
+
+        data->cg_reads_ngaps = get_cg_reads_ngaps(read->reads_format);
+        assert(data->cg_reads_ngaps);
+
         for (i = 0; i != N; ++i) {
             char const *const refname = data->map[i].chr;
             unsigned j;
-            INSDC_coord_len reflen = 35;
+            INSDC_coord_len reflen = read->seq.spot_len / 2;
             ReferenceSeq const *rseq;
             bool shouldUnmap = false;
             
@@ -537,8 +574,9 @@ rc_t CGWriterAlgn_Write_int(CGWriterAlgn *const self, TReadsData *const read)
             assert(rc == 0);
             ReferenceSeq_Release(rseq);
             
-            for (j = 0; j != CG_READS_NGAPS; ++j)
+            for (j = 0; j != data->cg_reads_ngaps; ++j) {
                 reflen += data->map[i].gap[j];
+            }
             
             self->match[i].seq_spot_id = read->rowid;
             self->match[i].mapq = data->map[i].weight - 33;
@@ -624,10 +662,9 @@ rc_t CGWriterAlgn_Write(const CGWriterAlgn* cself, TReadsData* read)
     assert(cself != NULL);
     assert(read != NULL);
     assert(read->seq.sequence.buffer != NULL
-        && read->seq.sequence.elements == CG_READS15_SPOT_LEN);
-/*      && read->seq.sequence.elements == read->seq.spot_len
+        && read->seq.sequence.elements == read->seq.spot_len
         && (read->seq.sequence.elements == CG_READS15_SPOT_LEN ||
-            read->seq.sequence.elements == CG_READS25_SPOT_LEN)); */
+            read->seq.sequence.elements == CG_READS25_SPOT_LEN));
     
     memset(read->prim_algn_id, 0, sizeof(read->prim_algn_id));
     memset(read->align_count, 0, sizeof(read->align_count));

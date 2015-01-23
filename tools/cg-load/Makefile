@@ -87,12 +87,14 @@ CGLOAD_SRC = \
 	f1_7 \
 	f2_0 \
 	f2_2 \
+	f2_5 \
 	file \
 	file-version-factory \
+	formats \
 	writer-algn \
 	writer-evidence-dnbs \
 	writer-evidence-intervals \
-	writer-seq
+	writer-seq \
 
 CGLOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(CGLOAD_SRC))

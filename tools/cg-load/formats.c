@@ -23,24 +23,32 @@
 * ===========================================================================
 *
 */
-#ifndef _tools_cg_load_factory_evidence_dnbs_h_
-#define _tools_cg_load_factory_evidence_dnbs_h_
-
-#include <klib/defs.h>
-
-struct CGFileType;
-struct CGLoaderFile;
-
-rc_t CC CGEvidenceDnbs13_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
-rc_t CC CGEvidenceDnbs15_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
-rc_t CC CGEvidenceDnbs20_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
-rc_t CC CGEvidenceDnbs22_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
-rc_t CC CGEvidenceDnbs25_Make(const struct CGFileType** self,
-                              const struct CGLoaderFile* file);
 
 
-#endif /* _tools_cg_load_factory_evidence_dnbs_h_ */
+#include "defs.h" /* CG_FORMAT_2_5 */
+#include "formats.h" /* get_cg_reads_ngaps */
+
+#include <assert.h>
+
+
+/* CG native format files have some changes since version 2.5 */
+
+
+uint32_t get_cg_reads_ngaps(uint32_t reads_format) {
+    assert(reads_format);
+
+    return reads_format < CG_FORMAT_2_5 ? 3 : 2;
+}
+
+/* IN FORMAT VERSION 2.5 SPOT LENGTH WAS CHANGES FROM 70 to 60 */
+uint32_t get_cg_read_len(uint32_t reads_format) {
+    uint32_t spot_len = CG_READS15_SPOT_LEN;
+
+    assert(reads_format);
+
+    if (reads_format >= CG_FORMAT_2_5) {
+        spot_len = CG_READS25_SPOT_LEN;
+    }
+
+    return spot_len / 2;
+}

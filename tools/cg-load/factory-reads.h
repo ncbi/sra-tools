@@ -39,5 +39,8 @@ rc_t CC CGReads20_Make(const struct CGFileType** self,
                        const struct CGLoaderFile* file);
 rc_t CC CGReads22_Make(const struct CGFileType** self,
                        const struct CGLoaderFile* file);
+rc_t CC CGReads25_Make(const struct CGFileType** self,
+                       const struct CGLoaderFile* file);
+
 
 #endif /* _tools_cg_load_factory_reads_h_ */

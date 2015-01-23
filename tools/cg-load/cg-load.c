@@ -1218,6 +1218,9 @@ rc_t CC KMain( int argc, char* argv[] )
                 }
             } while( false );
             KDirectoryRelease( params.input_dir );
+
+            free(params.refFiles);
+            params.refFiles = NULL;
         }
     }
     /* find accession as last part of path for internal XML logging */

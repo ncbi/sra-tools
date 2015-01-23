@@ -1566,7 +1566,7 @@ EndText
   --clean                 remove all configuration results
   --debug                 print lots of debugging information
 
-If `configure' was arleady run running `configure' without options
+If `configure' was already run running `configure' without options
 will rerun `configure' using the same command-line arguments.
 
 Report bugs to sra-tools\@ncbi.nlm.nih.gov

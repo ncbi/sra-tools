@@ -23,45 +23,35 @@
 * ===========================================================================
 *
 */
-#include <klib/container.h>
-#include <klib/log.h>
-#include <klib/out.h>
-#include <klib/status.h>
-#include <klib/rc.h>
-#include <klib/text.h>
-#include <klib/printf.h>
-#include <kfs/directory.h>
-#include <kfs/arc.h>
-#include <kfs/tar.h>
-#include <kfs/file.h>
-#include <kdb/manager.h>
-#include <kdb/meta.h>
-#include <kapp/main.h>
-#include <kapp/args.h>
-#include <kapp/loader-meta.h>
-#include <vdb/manager.h>
-#include <vdb/schema.h>
-#include <vdb/database.h>
-#include <vdb/table.h>
-#include <insdc/insdc.h>
-#include <align/writer-reference.h>
-#include <kapp/log-xml.h>
 
-#include "debug.h"
-#include "cg-load.vers.h"
-#include "file.h"
-#include "writer-seq.h"
-#include "writer-algn.h"
-#include "writer-evidence-intervals.h"
 
-#include <os-native.h>
-#include <sysalloc.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-#include <limits.h>
+#include "cg-load.vers.h" /* CG_LOAD_VERS */
+#include "debug.h" /* DEBUG_MSG */
+#include "file.h" /* FGroupMAP_LoadReads */
+#include "formats.h" /* get_cg_reads_ngaps */
+
+#include <kapp/log-xml.h> /* XMLLogger */
+#include <kapp/loader-meta.h> /* KLoaderMeta_Write */
+#include <kapp/main.h> /* KAppVersion */
+
+#include <kdb/manager.h> /* kptDatabase */
+#include <kdb/meta.h> /* KMetadata */
+
+#include <kfs/arc.h> /* KDirectoryOpenArcDirRead */
+#include <kfs/tar.h> /* KArcParseTAR */
+
+#include <klib/out.h> /* OUTMSG */
+#include <klib/printf.h> /* string_printf */
+#include <klib/status.h> /* STSMSG */
+
+#include <vdb/schema.h> /* VDBManagerMakeSchema */
+
+#include <sysalloc.h> /* malloc */
+
 #include <assert.h>
+#include <errno.h>
+
+//#include <os-native.h>
 
 typedef struct SParam_struct
 {
@@ -92,6 +82,8 @@ typedef struct SParam_struct
     uint32_t single_mate;
     uint32_t cluster_size;
     uint32_t load_other_evidence;
+
+    uint32_t read_len;
 } SParam;
 
 typedef struct DB_Handle_struct {
@@ -140,8 +132,12 @@ rc_t DB_Init(const SParam* p, DB_Handle* h)
         LOGERR(klogErr, rc, "failed to create alignment writer");
 
     }
-    else if( (rc = CGWriterSeq_Make(&h->wseq, &h->reads, h->db, (p->force_readw ? ewseq_co_SaveRead : 0) |
-                                      (p->no_spot_group ? 0 : ewseq_co_SpotGroup), p->qual_quant)) != 0 ) {
+    else if ((rc = CGWriterSeq_Make(&h->wseq, &h->reads, h->db,
+            (p->force_readw ? ewseq_co_SaveRead : 0) |
+                (p->no_spot_group ? 0 : ewseq_co_SpotGroup), p->qual_quant,
+            p->read_len))
+        != 0)
+    {
         LOGERR(klogErr, rc, "failed to create sequence writer");
 
     } else if( p->asm_path && (rc = CGWriterEvdInt_Make(&h->wev_int, &h->ev_int, h->db, h->rmgr, 0)) != 0 ) {
@@ -499,6 +495,7 @@ typedef struct DirVisit_Data_Struct {
     const SParam* param;
     BSTree* tree;
     const KDirectory* dir;
+    uint32_t format_version;
 } DirVisit_Data;
 
 /* you cannot addref to this dir object cause it's created on stack silently */
@@ -507,6 +504,8 @@ rc_t CC DirVisitor(const KDirectory *dir, uint32_t type, const char *name, void 
 {
     rc_t rc = 0;
     DirVisit_Data* d = (DirVisit_Data*)data;
+
+    assert(d);
 
     if( (type & ~kptAlias) == kptFile ) {
         if (strcmp(&name[strlen(name) - 4], ".tsv") == 0 ||
@@ -518,34 +517,55 @@ rc_t CC DirVisitor(const KDirectory *dir, uint32_t type, const char *name, void 
             FGroupKey key;
             if( (rc = KDirectoryResolvePath(dir, true, buf, sizeof(buf), "%s", name)) == 0 &&
                 (rc = CGLoaderFile_Make(&file, d->dir, buf, NULL, !d->param->no_read_ahead)) == 0 &&
-                (rc = FGroupKey_Make(&key, file, d->param)) == 0 ) {
-
+                (rc = FGroupKey_Make(&key, file, d->param)) == 0 )
+            {
                 FGroupMAP* found = (FGroupMAP*)BSTreeFind(d->tree, &key, FGroupMAP_Cmp);
-                if (d->param != NULL && ! d->param->load_other_evidence &&
-                    strstr(buf, "/EVIDENCE") != NULL &&
-                    strstr(buf, "/EVIDENCE/") == NULL)
+
+                assert(file && file->cg_file);
+                if (file->cg_file->type == cg_eFileType_READS ||
+                    file->cg_file->type == cg_eFileType_MAPPINGS)
                 {
-                    DEBUG_MSG(5, ("file %s recognized as %s: ignored\n",
-                        name, buf));
-                    rc = CGLoaderFile_Release(file, true);
-                    file = NULL;
+                    if (d->format_version == 0) {
+                        d->format_version = file->cg_file->format_version;
+                    }
+                    else if (d->format_version != file->cg_file->format_version)
+                    {
+                        rc = RC(rcExe, rcFile, rcInserting,
+                            rcData, rcInconsistent);
+                        PLOGERR(klogErr, (klogErr, rc, "READS or MAPPINGS "
+                            "format_version mismatch: $(o) vs. $(n)",
+                            "o=%d,n=%d",
+                            d->format_version, file->cg_file->format_version));
+                    }
                 }
-                else {
-                    DEBUG_MSG(5, ("file %s recognized as %s\n", name, buf));
-                    if (found != NULL) {
-                        rc = FGroupMAP_Set(found, file);
+
+                if (rc == 0) {
+                    if (d->param != NULL && ! d->param->load_other_evidence &&
+                        strstr(buf, "/EVIDENCE") != NULL &&
+                        strstr(buf, "/EVIDENCE/") == NULL)
+                    {
+                        DEBUG_MSG(5, ("file %s recognized as %s: ignored\n",
+                            name, buf));
+                        rc = CGLoaderFile_Release(file, true);
+                        file = NULL;
                     }
                     else {
-                        FGroupMAP* x = calloc(1, sizeof(*x));
-                        if (x == NULL) {
-                            rc = RC(rcExe,
-                                rcFile, rcInserting, rcMemory, rcExhausted);
+                        DEBUG_MSG(5, ("file %s recognized as %s\n", name, buf));
+                        if (found != NULL) {
+                            rc = FGroupMAP_Set(found, file);
                         }
                         else {
-                            memcpy(&x->key, &key, sizeof(key));
-                            if ((rc = FGroupMAP_Set(x, file)) == 0) {
-                                rc = BSTreeInsertUnique(d->tree,
-                                    &x->dad, NULL, FGroupMAP_Sort);
+                            FGroupMAP* x = calloc(1, sizeof(*x));
+                            if (x == NULL) {
+                                rc = RC(rcExe,
+                                    rcFile, rcInserting, rcMemory, rcExhausted);
+                            }
+                            else {
+                                memcpy(&x->key, &key, sizeof(key));
+                                if ((rc = FGroupMAP_Set(x, file)) == 0) {
+                                    rc = BSTreeInsertUnique(d->tree,
+                                        &x->dad, NULL, FGroupMAP_Sort);
+                                }
                             }
                         }
                     }
@@ -801,6 +821,7 @@ static rc_t Load( SParam* param )
         dv.param = param;
         dv.tree = &slides;
         dv.dir = param->map_dir;
+        dv.format_version = 0;
         rc = KDirectoryVisit( param->map_dir, true, DirVisitor, &dv, NULL );
         if ( rc == 0 )
         {
@@ -814,6 +835,11 @@ static rc_t Load( SParam* param )
                     rc = KDirectoryVisit( param->asm_dir, true, DirVisitor, &dv, NULL );
                 }
             }
+
+            if (rc == 0) {
+                param->read_len = get_cg_read_len(dv.format_version);
+            }
+
             if ( rc == 0 )
             {
                 /* SHOULD HAVE A BSTreeEmpty FUNCTION OR SOMETHING...
@@ -1192,6 +1218,9 @@ rc_t CC KMain( int argc, char* argv[] )
                 }
             } while( false );
             KDirectoryRelease( params.input_dir );
+
+            free(params.refFiles);
+            params.refFiles = NULL;
         }
     }
     /* find accession as last part of path for internal XML logging */

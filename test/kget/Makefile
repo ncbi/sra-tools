@@ -22,28 +22,35 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/ngs-pileup
 
-include $(TOP)/build/Makefile.config
+TEST_TOOLS = \
+
+include $(TOP)/build/Makefile.env
+
+.PHONY: $(TEST_TOOLS)
 
 #-------------------------------------------------------------------------------
-# default
+# slowtests: match output vs wget
 #
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-    kget            \
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+slowtests: diff-vs-wget
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
+ACCESSION = SRR072810
+URL = http://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByRun/sra/SRR/SRR072/SRR072810/SRR072810.sra
 
-.PHONY: default $(SUBDIRS)
+clean:
+	rm -f $(ACCESSION)*
 
+diff-vs-wget: clean
+	$(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat
+	wget $(URL)
+	diff $(ACCESSION).sra ./$(ACCESSION).dat
+	diff $(ACCESSION).sra ./$(ACCESSION).cachetee
+	rm -f $(ACCESSION)*
+
+.PHONY: 

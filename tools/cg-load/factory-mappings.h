@@ -39,5 +39,8 @@ rc_t CC CGMappings20_Make(const struct CGFileType** self,
                           const struct CGLoaderFile* file);
 rc_t CC CGMappings22_Make(const struct CGFileType** self,
                           const struct CGLoaderFile* file);
+rc_t CC CGMappings25_Make(const struct CGFileType** self,
+                          const struct CGLoaderFile* file);
+
 
 #endif /* _tools_cg_load_factory_mappings_h_ */

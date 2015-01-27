@@ -32,6 +32,8 @@
 #include <align/writer-sequence.h>
 
 typedef struct TReadsData_struct {
+    uint32_t reads_format;
+
     uint16_t flags;
     char read[CG_READS15_SPOT_LEN + 1];
     char qual[CG_READS15_SPOT_LEN + 1];
@@ -49,7 +51,9 @@ typedef struct TReadsData_struct {
 
 typedef struct CGWriterSeq CGWriterSeq;
 
-rc_t CGWriterSeq_Make(const CGWriterSeq** cself, TReadsData** data, VDatabase* db, const uint32_t options, const char* quality_quantization);
+rc_t CGWriterSeq_Make(const CGWriterSeq** cself,
+    TReadsData** data, VDatabase* db, const uint32_t options,
+    const char* quality_quantization, uint32_t read_len);
 
 rc_t CGWriterSeq_Whack(const CGWriterSeq* cself, bool commit, uint64_t* rows);
 

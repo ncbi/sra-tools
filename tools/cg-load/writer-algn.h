@@ -40,7 +40,7 @@ typedef struct TMappingsData_map_struct {
     uint16_t flags;
     char chr[CG_CHROMOSOME_NAME];
     INSDC_coord_zero offset;
-    int16_t gap[CG_READS_NGAPS];
+    int16_t gap[CG_READS15_NGAPS];
     uint8_t weight;
     uint32_t mate;
 } TMappingsData_map;
@@ -48,6 +48,7 @@ typedef struct TMappingsData_map_struct {
 typedef struct TMappingsData_struct {
     uint16_t map_qty;
     TMappingsData_map map[CG_MAPPINGS_MAX];
+    uint32_t cg_reads_ngaps;
 } TMappingsData;
 
 typedef struct CGWriterAlgn CGWriterAlgn;

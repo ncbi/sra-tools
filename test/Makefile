@@ -37,7 +37,9 @@ include $(TOP)/build/Makefile.config
 SUBDIRS =    \
 	fastq-loader    \
 	vcf-loader      \
-    kget            \
+    
+#pending fixes    
+#    kget            \
 
 # common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
 include $(TOP)/build/Makefile.targets

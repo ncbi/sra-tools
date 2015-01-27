@@ -50,7 +50,7 @@ diff-vs-wget: clean
 	$(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat
 	wget $(URL)
 	diff $(ACCESSION).sra ./$(ACCESSION).dat
-	diff $(ACCESSION).sra ./$(ACCESSION).cachetee
+	#diff $(ACCESSION).sra ./$(ACCESSION).cachetee
 	rm -f $(ACCESSION)*
 
 .PHONY: 

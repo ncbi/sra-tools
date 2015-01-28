@@ -39,7 +39,7 @@
 #include <kfs/file.h>
 #include <kfs/buffile.h>
 #include <kfs/cacheteefile.h>
-#include <kfs/big_block_reader.h>
+//#include <kfs/big_block_reader.h>
 
 #include <kns/manager.h>
 #include <kns/kns-mgr-priv.h>
@@ -466,8 +466,8 @@ static rc_t make_remote_file( struct KNSManager * kns_mgr, const KFile ** src, f
         if ( ctx->buffer_size > 0 )
         {
             /* there is no cache_location! just wrap the remote file in a buffer */
-			rc = KBigBlockReaderMake ( &temp_file, *src, ctx->buffer_size );
-            /*rc = KBufFileMakeRead ( & temp_file, *src, ctx->buffer_size ); */
+			/* rc = KBigBlockReaderMake ( &temp_file, *src, ctx->buffer_size ); */
+            rc = KBufFileMakeRead ( & temp_file, *src, ctx->buffer_size );
 			if ( rc == 0 )
 			{
 				KOutMsg( "remote-file wrapped in new big-block-reader of size %d\n", ctx->buffer_size );

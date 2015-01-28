@@ -562,9 +562,10 @@ static rc_t check_cache_complete( KDirectory *dir, fetch_ctx *ctx )
             else
             {
                 float percent = 0;
-                rc = GetCacheCompleteness( f, &percent );
+				uint64_t bytes_cached;
+                rc = GetCacheCompleteness( f, &percent, &bytes_cached );
                 if ( rc == 0 )
-                    KOutMsg( "the file is %f%% complete\n", percent );
+                    KOutMsg( "the file is %f%% complete ( %lu bytes are cached )\n", percent, bytes_cached );
             }
         }
         KFileRelease( f );

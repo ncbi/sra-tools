@@ -771,7 +771,13 @@ EndText
     } elsif ($PKG{LNG} eq 'JAVA') {
         L($F, 'SRCINC  = -sourcepath $(INCPATHS)');
     }
-    L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP)") if ($PIC);
+    if ($PIC) {
+        if (PACKAGE_NAMW() eq 'NGS') {
+   L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP) $INC\$(TOP)/ngs/\$(OSINC)/\$(ARCH)")
+        } else {
+   L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP)")
+        }
+    }
     if ($PKG{LNG} eq 'C') {
         L($F, "CFLAGS  = \$(DBG) \$(OPT) \$(INCDIRS) $MD");
     }
@@ -1040,6 +1046,8 @@ unless ($OPT{'reconfigure'}) {
     open my $F, '>reconfigure' or die 'cannot open reconfigure to write';
     print $F "./configure $CONFIGURED\n";
     close $F;
+   # my $perm = (stat $fh)[2] & 07777;
+#   print "==================================================== $perm\n";
 }
 
 status() if ($OS ne 'win');

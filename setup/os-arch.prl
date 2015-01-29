@@ -1,5 +1,7 @@
 sub OsArch {
-    my ($UNAME, $HOST_OS, $HOST_ARCH, $MARCH, @ARCHITECTURES);
+    my ($UNAME, $HOST_OS, $HOST_ARCH,
+        $MARCH, # machine hardware name returned by uname -m
+        @ARCHITECTURES);
     if ($^O eq 'MSWin32') {
         $UNAME = $HOST_OS = 'win';
         $HOST_ARCH = $MARCH = 'x86_64';
@@ -23,7 +25,7 @@ sub OsArch {
         }
         if ($HOST_OS eq 'mac') {
             $MARCH = $HOST_ARCH = MacArch();
-            @ARCHITECTURES = qw(x86_64 i386) if ($MARCH eq 'x86_64');
+            @ARCHITECTURES = qw(x86_64 i386 fat86) if ($MARCH eq 'x86_64');
         } else {
             $MARCH = `uname -m`;
             chomp $MARCH;

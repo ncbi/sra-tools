@@ -287,10 +287,10 @@ my $BITS;
 
 if ($MARCH =~ /x86_64/i) {
     $BITS = 64;
-} elsif ($MARCH =~ /i?86/i) {
-    $BITS = 32;
 } elsif ($MARCH eq 'fat86') {
     $BITS = '32_64';
+} elsif ($MARCH =~ /i?86/i) {
+    $BITS = 32;
 } else {
     die "unrecognized Architecture '$ARCH'";
 }

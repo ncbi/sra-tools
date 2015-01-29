@@ -98,6 +98,7 @@ extern "C" {
 #define OPT_RNA_SPLICE_LOG "rna-splice-log"
 #define OPT_NO_MT       "disable-multithreading"
 #define OPT_TIMING      "timing"
+#define OPT_MD_FLAG     "with-md-flag"
 
 typedef struct range
 {
@@ -262,6 +263,8 @@ typedef struct samdump_opts
     /* option to disable multi-threading */
     bool no_mt;
     
+	bool with_md_flag;
+	
     uint8_t qual_quant_matrix[ 256 ];
 } samdump_opts;
 

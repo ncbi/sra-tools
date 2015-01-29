@@ -63,6 +63,7 @@ static const char * clear_usage[]   = { "clear cache", NULL };
 static const char * enable_usage[]  = { "enable repository [user/site/rem]", NULL };
 static const char * disable_usage[] = { "disable repository [user/site/rem]", NULL };
 static const char * detail_usage[]  = { "show detailed report", NULL };
+static const char * tstzero_usage[] = { "test for zero blocks", NULL };
 static const char * urname_usage[]  = { "restrict to this user-repository", NULL };
 static const char * max_rem_usage[] = { "remove until reached that many bytes", NULL };
 static const char * rem_dir_usage[] = { "remove directories, not only files", NULL };
@@ -97,12 +98,15 @@ static const char * rem_dir_usage[] = { "remove directories, not only files", NU
 #define OPTION_REMDIR   "remove-dirs"
 #define ALIAS_REMDIR    "i"
 
+#define OPTION_TSTZERO  "test-zero"
+#define ALIAS_TSTZERO   "z"
 
 OptDef ToolOptions[] =
 {
     { OPTION_CREPORT,   ALIAS_CREPORT,  NULL,   report_usage,   1,  false,  false },
     { OPTION_RREPORT,   ALIAS_RREPORT,  NULL,   rreport_usage,  1,  false,  false },
     { OPTION_DETAIL,    ALIAS_DETAIL,   NULL,   detail_usage,   1,  false,  false },
+    { OPTION_TSTZERO,   ALIAS_TSTZERO,  NULL,   tstzero_usage,  1,  false,  false },	
     { OPTION_UNLOCK,    ALIAS_UNLOCK,   NULL,   unlock_usage,   1,  false,  false },
     { OPTION_CLEAR,     ALIAS_CLEAR,    NULL,   clear_usage,    1,  false,  false },
     { OPTION_MAXREM,    ALIAS_MAXREM,   NULL,   max_rem_usage,  1,  true,   false },
@@ -208,6 +212,7 @@ typedef struct tool_options
     KRepCategory category;
 
     bool detailed;
+	bool tstzero;
     bool remove_dirs;
 } tool_options;
 
@@ -393,6 +398,7 @@ static rc_t get_tool_options( Args * args, tool_options * options )
 
     options->main_function = tf_unknown;
     options->detailed = get_bool_option( args, OPTION_DETAIL );
+	options->tstzero = get_bool_option( args, OPTION_TSTZERO );
     options->remove_dirs = get_bool_option( args, OPTION_REMDIR );
 
     if ( get_bool_option( args, OPTION_CREPORT ) )
@@ -576,8 +582,12 @@ typedef struct report_data
 static rc_t on_report_cache_file( visit_ctx * obj )
 {
     rc_t rc = 0;
-    uint64_t file_size = 0, used_size = 0;
+    uint64_t file_size = 0;
+	uint64_t used_size = 0;
+	uint64_t checked_blocks = 0;
+	uint64_t empty_blocks = 0;
     float completeness = 0.0;
+	
     bool locked = false;
     report_data * data = obj->data;
 
@@ -601,18 +611,29 @@ static rc_t on_report_cache_file( visit_ctx * obj )
         }
         else
         {
-            rc = GetCacheCompleteness( f, &completeness );
+            rc = GetCacheCompleteness( f, &completeness, &used_size );
             if ( rc != 0 )
             {
                 PLOGERR( klogErr, ( klogErr, rc,
                          "GetCacheCompleteness( $(path) ) failed in $(func)", "path=%s,func=%s", obj->path, __func__ ) );
             }
             else
-            {
-                used_size = file_size * (uint64_t)( completeness / 100 );
-                data->used_file_size += used_size;
-            }
-        }
+			{
+				data->used_file_size += used_size;
+			}
+			
+			if ( rc == 0 && obj->options->tstzero )
+			{
+				rc = Has_Cache_Zero_Blocks( f,  &checked_blocks, &empty_blocks );	
+				if ( rc != 0 )
+				{
+					PLOGERR( klogErr, ( klogErr, rc,
+							 "Has_Cache_Zero_Blocks( $(path) ) failed in $(func)", "path=%s,func=%s", obj->path, __func__ ) );
+				}
+			}
+			
+			KFileRelease( f );
+		}
     }
     if ( rc == 0 )
     {
@@ -629,6 +650,13 @@ static rc_t on_report_cache_file( visit_ctx * obj )
             rc = KOutMsg( "%s complete by %.02f %% [%,u of %,u]bytes\n",
                           obj->path, completeness, used_size, file_size );
     }
+	
+    if ( rc == 0 && obj->options->tstzero )
+	{
+		rc = KOutMsg( "%s has %lu blocks set in bitmap where %lu are empty\n",
+                          obj->path, checked_blocks, empty_blocks );
+	}
+	
     return rc;
 }
 

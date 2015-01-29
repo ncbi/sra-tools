@@ -33,15 +33,21 @@
 #include <klib/log.h>
 #include <klib/text.h>
 #include <klib/rc.h>
+#include <klib/time.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
+#include <kfs/buffile.h>
 #include <kfs/cacheteefile.h>
+//#include <kfs/big_block_reader.h>
 
 #include <kns/manager.h>
 #include <kns/kns-mgr-priv.h>
 #include <kns/http.h>
 
+#include <kproc/timeout.h>
+
+#include <os-native.h>
 #include <sysalloc.h>
 
 #include <stdio.h>
@@ -118,6 +124,18 @@ static const char * progress_usage[]   = { "show progress", NULL };
 #define OPTION_RELIABLE "reliable"
 static const char * reliable_usage[]   = { "use reliable version of http-file", NULL };
 
+#define OPTION_BUFFER "buffer"
+#define ALIAS_BUFFER  "u"
+static const char * buffer_usage[]   = { "wrap remote file into KBufFile with this buffer-size", NULL };
+
+#define OPTION_SLEEP "sleep"
+#define ALIAS_SLEEP  "i"
+static const char * sleep_usage[]   = { "sleep inbetween requests by this amount of ms", NULL };
+
+#define OPTION_TIMEOUT "timeout"
+#define ALIAS_TIMEOUT "m"
+static const char * timeout_usage[]   = { "use timed read with tis amount of ms as timeout", NULL };
+
 OptDef MyOptions[] =
 {
 /*    name            alias         fkt   usage-txt,      cnt, needs value, required */
@@ -128,7 +146,10 @@ OptDef MyOptions[] =
     { OPTION_RAND,    ALIAS_RAND,    NULL, random_usage,   1,   false,       false },
     { OPTION_REP,     ALIAS_REP,     NULL, repeat_usage,   1,   false,       false },
     { OPTION_CREPORT, ALIAS_CREPORT, NULL, creport_usage,  1,   false,       false },
+    { OPTION_BUFFER,  ALIAS_BUFFER,  NULL, buffer_usage,   1,   true,        false },
     { OPTION_CLUSTER, ALIAS_CLUSTER, NULL, cluster_usage,  1,   true,        false },
+    { OPTION_SLEEP,   ALIAS_SLEEP,   NULL, sleep_usage,  	1,   true,        false },	
+    { OPTION_TIMEOUT, ALIAS_TIMEOUT, NULL, timeout_usage, 	1,   true,        false },
     { OPTION_LOG,     NULL,          NULL, log_usage,      1,   true,        false },
     { OPTION_COMPLETE,NULL,          NULL, complete_usage, 1,   false,       false },
     { OPTION_TRUNC,   NULL,          NULL, truncate_usage, 1,   false,       false },
@@ -186,6 +207,9 @@ typedef struct fetch_ctx
     size_t blocksize;
     size_t cluster;
     size_t start, count;
+	size_t buffer_size;
+	size_t sleep_time;
+	size_t timeout_time;	
     bool verbose;
     bool show_filesize;
     bool random;
@@ -200,29 +224,58 @@ typedef struct fetch_ctx
 } fetch_ctx;
 
 
+static rc_t src_2_dst( const KFile *src, KFile *dst, char * buffer,
+					   uint64_t pos, size_t * num_read, fetch_ctx * ctx )
+{
+	rc_t rc;
+	size_t n_transfer = ( ctx->count == 0 ? ctx->blocksize : ctx->count );
+	
+	if ( ctx->timeout_time == 0 )
+		rc = KFileReadAll ( src, pos, buffer, n_transfer, num_read );
+	else
+	{
+		timeout_t tm;
+		rc = TimeoutInit ( &tm, ctx->timeout_time );
+		if ( rc == 0 )
+			rc = KFileTimedReadAll ( src, pos, buffer, n_transfer, num_read, &tm );
+	}
+	if ( rc == 0 && *num_read > 0 )
+	{
+		size_t num_writ;
+		rc = KFileWriteAll ( dst, pos, buffer, *num_read, &num_writ );
+	}
+	return rc;
+}
+
+
 static rc_t block_loop_in_order( const KFile *src, KFile *dst, char * buffer, 
-                                 uint64_t *bytes_copied, fetch_ctx * ctx )
+                                 uint64_t * bytes_copied, fetch_ctx * ctx )
 {
     rc_t rc = 0;
     uint64_t pos = 0;
+	uint32_t blocks = 0;
     size_t num_read = 1;
     KOutMsg( "copy-mode : linear read/write\n" );
     while ( rc == 0 && num_read > 0 )
     {
-        rc = KFileReadAll ( src, pos, buffer, ctx->blocksize, &num_read );
-        if ( rc == 0 && num_read > 0 )
-        {
-            size_t num_writ;
-            rc = KFileWriteAll ( dst, pos, buffer, num_read, &num_writ );
-            pos += num_read;
-            if ( ctx->show_progress )
-                KOutMsg( "." );
-        }
+		rc = src_2_dst( src, dst, buffer, pos, &num_read, ctx );
+		if ( rc == 0 ) pos += num_read;
+		if ( ctx->show_progress && ( ( blocks & 0x0F ) == 0 ) ) KOutMsg( "." );
+		blocks++;
+		if ( ctx->sleep_time > 0 ) KSleepMs( ctx->sleep_time );
     }
     *bytes_copied = pos;
-    if ( ctx->show_progress )
-        KOutMsg( "\n" );
+    if ( ctx->show_progress ) KOutMsg( "\n" );
+	KOutMsg( "%d blocks a %d bytes\n", blocks, ctx->blocksize );
     return rc;
+}
+
+
+
+static uint32_t randr( uint32_t min, uint32_t max )
+{
+       double scaled = ( ( double )rand() / RAND_MAX );
+       return ( ( max - min + 1 ) * scaled ) + min;
 }
 
 
@@ -232,48 +285,46 @@ static rc_t block_loop_random( const KFile *src, KFile *dst, char * buffer,
     uint64_t src_size;
     rc_t rc = KFileSize ( src, &src_size );
     KOutMsg( "copy-mode : random blocks\n" );
-    *bytes_copied = 0;
     if ( rc == 0 )
     {
         rc = KFileSetSize ( dst, src_size );
         if ( rc == 0 )
         {
             uint32_t block_count = ( src_size / ctx->blocksize ) + 1;
-            char * block_vector = malloc( block_count );
+            uint32_t * block_vector = malloc( block_count * ( sizeof * block_vector ) );
             if ( block_vector != NULL )
             {
-                uint32_t loop_count = 0;
-                while( ( rc == 0 ) &&
-                       ( *bytes_copied < src_size ) &&
-                       ( loop_count < ( 5 * block_count ) ) )
-                {
-                    uint32_t random_block = ( rand() % block_count );
-                    if ( ctx->with_repeats || block_vector[ random_block ] == 0 )
-                    {
-                        size_t num_read;
-                        uint64_t pos = ctx->blocksize;
-                        pos *= random_block;
+                uint32_t loop;
+				
+				/* fill the block_vector with ascending numbers */
+				for ( loop = 0; loop < block_count; loop++ )
+					block_vector[ loop ] = loop;
+				
+				/* randomize them */
+				for ( loop = 0; loop < block_count; loop++ )
+				{
+					uint32_t src_idx = randr( 0, block_count - 1 );
+					uint32_t dst_idx = randr( 0, block_count - 1 );
+					/* swap it... */
+					uint32_t tmp = block_vector[ dst_idx ];
+					block_vector[ dst_idx ] = block_vector[ src_idx ];
+					block_vector[ src_idx ] = tmp;
+				}
 
-                        KOutMsg( "random_block = %u at pos %lu\n", random_block, pos );
+				for ( loop = 0; rc == 0 && loop < block_count; loop++ )
+				{
+					size_t num_read;
+					uint64_t pos = ctx->blocksize;
+					pos *= block_vector[ loop ];
+					rc = src_2_dst( src, dst, buffer, pos, &num_read, ctx );
+					if ( rc == 0 ) *bytes_copied += num_read;
+					if ( ctx->show_progress && ( ( loop & 0x0F ) == 0 ) ) KOutMsg( "." );
+					if ( ctx->sleep_time > 0 ) KSleepMs( ctx->sleep_time );
 
-                        rc = KFileReadAll ( src, pos, buffer, ctx->blocksize, &num_read );
-                        if ( rc == 0 )
-                        {
-                            size_t num_writ;
-                            rc = KFileWriteAll ( dst, pos, buffer, num_read, &num_writ );
-
-                            if ( block_vector[ random_block ] == 0 )
-                            {
-                                block_vector[ random_block ] = 1;
-                                *bytes_copied += num_read;
-                            }
-                            KOutMsg( "%u bytes copied in block %u ( %lu of %lu )\n\n", 
-                                     num_writ, random_block, *bytes_copied, src_size );
-                        }
-                    }
-                    ++loop_count;
-                }
+				}
                 free( block_vector );
+				if ( ctx->show_progress ) KOutMsg( "\n" );
+				KOutMsg( "%d blocks a %d bytes\n", loop, ctx->blocksize );
             }
         }
     }
@@ -297,29 +348,15 @@ static rc_t copy_file( const KFile * src, KFile * dst, fetch_ctx * ctx )
         if ( ctx->count == 0 )
         {
             if ( ctx->random )
-            {
                 rc = block_loop_random( src, dst, buffer, &bytes_copied, ctx );
-            }
             else
-			{
                 rc = block_loop_in_order( src, dst, buffer, &bytes_copied, ctx );
-			}
         }
         else
         {
             size_t num_read;
-            rc = KFileReadAll ( src, ctx->start, buffer, ctx->count, &num_read );
-			if ( rc != 0 )
-			{
-				(void)LOGERR( klogInt, rc, "KFileReadAll() failed" );				
-			}
-            else
-            {
-                size_t num_writ;
-                rc = KFileWriteAll ( dst, ctx->start, buffer, num_read, &num_writ );
-                if ( rc == 0 )
-                    bytes_copied = num_writ;
-            }
+			rc = src_2_dst( src, dst, buffer, ctx->start, &num_read, ctx );
+			if ( rc == 0 ) bytes_copied = num_read;
         }
         KOutMsg( "%lu bytes copied\n", bytes_copied );
         free( buffer );
@@ -339,11 +376,19 @@ static rc_t fetch_cached( KDirectory *dir, const KFile *src, KFile *dst, fetch_c
     if ( rc == 0 )
     {
         const KFile *tee; /* this is the file that forks persistent_content with remote */
-
+		size_t cache_tee_block = 0; /* ctx->blocksize; */
+		size_t cache_tee_cluster = 1;
+		
         KOutMsg( "persistent cache created\n" );
 
-        rc = KDirectoryMakeCacheTee ( dir, &tee, src, log_file, 0, ctx->cluster, 
-                                      ctx->report_cache, ctx->cache_file );
+        rc = KDirectoryMakeCacheTee ( dir,					/* the KDirectory for the the sparse-file */
+									  &tee,					/* the newly created cache-tee-file */
+									  src,					/* the file that we are wrapping ( usually the remote http-file ) */
+									  log_file, 			/* an optional log-file */
+									  cache_tee_block,		/* how big one block in the cache-tee-file will be */
+									  cache_tee_cluster,	/* how many blocks will be in a cluster */
+									  ctx->report_cache,	/* if we want to see any reporting in stdout from this file */
+									  ctx->cache_file );	/* the sparse-file we use write to */
         if ( rc == 0 )
         {
             KOutMsg( "cache tee created\n" );
@@ -414,6 +459,22 @@ static rc_t make_remote_file( struct KNSManager * kns_mgr, const KFile ** src, f
 			(void)LOGERR( klogInt, rc, "KNSManagerMakeReliableHttpFile() failed" );
 		else
 			(void)LOGERR( klogInt, rc, "KNSManagerMakeHttpFile() failed" );
+	}
+	else
+	{
+        const KFile * temp_file;
+        if ( ctx->buffer_size > 0 )
+        {
+            /* there is no cache_location! just wrap the remote file in a buffer */
+			/* rc = KBigBlockReaderMake ( &temp_file, *src, ctx->buffer_size ); */
+            rc = KBufFileMakeRead ( & temp_file, *src, ctx->buffer_size );
+			if ( rc == 0 )
+			{
+				KOutMsg( "remote-file wrapped in new big-block-reader of size %d\n", ctx->buffer_size );
+				KFileRelease ( *src );
+				*src = temp_file;
+			}
+        }
 	}
 	return rc;
 }
@@ -501,9 +562,10 @@ static rc_t check_cache_complete( KDirectory *dir, fetch_ctx *ctx )
             else
             {
                 float percent = 0;
-                rc = GetCacheCompleteness( f, &percent );
+				uint64_t bytes_cached;
+                rc = GetCacheCompleteness( f, &percent, &bytes_cached );
                 if ( rc == 0 )
-                    KOutMsg( "the file is %f%% complete\n", percent );
+                    KOutMsg( "the file is %f%% complete ( %lu bytes are cached )\n", percent, bytes_cached );
             }
         }
         KFileRelease( f );
@@ -594,6 +656,9 @@ rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
     if ( rc == 0 ) rc = get_bool( args, OPTION_CREPORT, &ctx->report_cache );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_BLOCK, &ctx->blocksize, ( 32 * 1024 ) );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_CLUSTER, &ctx->cluster, 1 );
+	if ( rc == 0 ) rc = get_size_t( args, OPTION_BUFFER, &ctx->buffer_size, 0 );
+	if ( rc == 0 ) rc = get_size_t( args, OPTION_SLEEP, &ctx->sleep_time, 0 );
+	if ( rc == 0 ) rc = get_size_t( args, OPTION_TIMEOUT, &ctx->timeout_time, 0 );
     if ( rc == 0 ) rc = get_str( args, OPTION_LOG, &ctx->log_file );
     if ( rc == 0 ) rc = get_bool( args, OPTION_COMPLETE, &ctx->check_cache_complete );
     if ( rc == 0 ) rc = get_bool( args, OPTION_TRUNC, &ctx->truncate_cache );

@@ -263,6 +263,7 @@ if ($OPT{arch}) {
             close F;
             last;
         }
+        println "build architecture: $ARCH" unless ($AUTORUN);
     } else {
         delete $OPT{arch};
     }
@@ -288,6 +289,8 @@ if ($MARCH =~ /x86_64/i) {
     $BITS = 64;
 } elsif ($MARCH =~ /i?86/i) {
     $BITS = 32;
+} elsif ($MARCH eq 'fat86') {
+    $BITS = '32_64';
 } else {
     die "unrecognized Architecture '$ARCH'";
 }
@@ -323,7 +326,7 @@ if ($OSTYPE =~ /linux/i) {
 println "$OSTYPE ($OS) is supported" unless ($AUTORUN);
 
 # tool chain
-my ($CPP, $CC, $CP, $AR, $ARX, $ARLS, $LD, $LP);
+my ($CPP, $CC, $CP, $AR, $ARX, $ARLS, $LD, $LP, $MAKE_MANIFEST);
 my ($JAVAC, $JAVAH, $JAR);
 my ($DBG, $OPT, $PIC, $INC, $MD);
 
@@ -347,7 +350,12 @@ if ($TOOLS eq 'gcc') {
     $CPP  = 'clang++';
     $CC   = 'clang -c';
     $CP   = "$CPP -c -mmacosx-version-min=10.6";
-    $AR   = 'ar rc';
+    if ($BITS eq '32_64') {
+        $MAKE_MANIFEST = '( echo "$^" > $@/manifest )';
+        $AR = 'libtool -static -o';
+    } else {
+        $AR = 'ar rc';
+    }
     $ARX  = 'ar x';
     $ARLS = 'ar t';
     $LD   = 'clang';

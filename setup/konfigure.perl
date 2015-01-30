@@ -350,19 +350,22 @@ if ($TOOLS eq 'gcc') {
     $CPP  = 'clang++';
     $CC   = 'clang -c';
     $CP   = "$CPP -c -mmacosx-version-min=10.6";
-    if ($BITS eq '32_64') {
-        $MAKE_MANIFEST = '( echo "$^" > $@/manifest )';
-        $AR = 'libtool -static -o';
+    if ($BITS ne '32_64') {
+        $AR            = 'ar rc';
+        $LD            = 'clang';
+        $LP            = "$CPP -mmacosx-version-min=10.6";
+        $OPT           = '-O3';
     } else {
-        $AR = 'ar rc';
+        $AR            = 'libtool -static -o';
+        $LD            = 'clang -Wl,-arch_multiple';
+        $LP            = "$CPP -mmacosx-version-min=10.6 -Wl,-arch_multiple";
+        $OPT           = '-O3 -arch i386 -arch x86_64';
+        $MAKE_MANIFEST = '( echo "$^" > $@/manifest )';
     }
     $ARX  = 'ar x';
     $ARLS = 'ar t';
-    $LD   = 'clang';
-    $LP   = "$CPP -mmacosx-version-min=10.6";
 
     $DBG = '-g -DDEBUG';
-    $OPT = '-O3';
     $PIC = '-fPIC';
     $INC = '-I';
     $MD  = '-MD';
@@ -718,7 +721,7 @@ VERSION_LIBX = \$(LIBX).\$(VERSION)
 MAJMIN_LIBX  = \$(LIBX).\$(MAJMIN)
 MAJVERS_LIBX = \$(LIBX).\$(MAJVERS)
 
-SHLX = $SHLX
+SHLX         = $SHLX
 VERSION_SHLX = $VERSION_SHLX
 MAJMIN_SHLX  = $MAJMIN_SHLX
 MAJVERS_SHLX = $MAJVERS_SHLX
@@ -728,7 +731,7 @@ OBJX = $OBJX
 LOBX = $LOBX
 
 # suffix string for system executable
-EXEX = $EXEX
+EXEX         = $EXEX
 VERSION_EXEX = \$(EXEX).\$(VERSION)
 MAJMIN_EXEX  = \$(EXEX).\$(MAJMIN)
 MAJVERS_EXEX = \$(EXEX).\$(MAJVERS)
@@ -745,16 +748,17 @@ BITS = $BITS
 # tools
 EndText
 
-    L($F, "CC    = $CC"   ) if ($CC);
-    L($F, "CP    = $CP"   ) if ($CP);
-    L($F, "AR    = $AR"   ) if ($AR);
-    L($F, "ARX   = $ARX"  ) if ($ARX);
-    L($F, "ARLS  = $ARLS" ) if ($ARLS);
-    L($F, "LD    = $LD"   ) if ($LD);
-    L($F, "LP    = $LP"   ) if ($LP);
-    L($F, "JAVAC = $JAVAC") if ($JAVAC);
-    L($F, "JAVAH = $JAVAH") if ($JAVAH);
-    L($F, "JAR   = $JAR"  ) if ($JAR);
+    L($F, "CC            = $CC"           ) if ($CC);
+    L($F, "CP            = $CP"           ) if ($CP);
+    L($F, "AR            = $AR"           ) if ($AR);
+    L($F, "ARX           = $ARX"          ) if ($ARX);
+    L($F, "ARLS          = $ARLS"         ) if ($ARLS);
+    L($F, "LD            = $LD"           ) if ($LD);
+    L($F, "LP            = $LP"           ) if ($LP);
+    L($F, "JAVAC         = $JAVAC"        ) if ($JAVAC);
+    L($F, "JAVAH         = $JAVAH"        ) if ($JAVAH);
+    L($F, "JAR           = $JAR"          ) if ($JAR);
+    L($F, "MAKE_MANIFEST = $MAKE_MANIFEST") if ($MAKE_MANIFEST);
     L($F);
 
     L($F, '# tool options');

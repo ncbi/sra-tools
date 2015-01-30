@@ -355,21 +355,23 @@ if ($TOOLS eq 'gcc') {
         $LD            = 'clang';
         $LP            = "$CPP -mmacosx-version-min=10.6";
         if ($BITS == 32) {
+            $DBG       = '-g -DDEBUG -arch i386';
             $OPT       = '-O3 -arch i386';
         } else {
+            $DBG       = '-g -DDEBUG';
             $OPT       = '-O3';
         }
     } else {
         $AR            = 'libtool -static -o';
         $LD            = 'clang -Wl,-arch_multiple';
         $LP            = "$CPP -mmacosx-version-min=10.6 -Wl,-arch_multiple";
+        $DBG           = '-g -DDEBUG -arch i386 -arch x86_64';
         $OPT           = '-O3 -arch i386 -arch x86_64';
         $MAKE_MANIFEST = '( echo "$^" > $@/manifest )';
     }
     $ARX  = 'ar x';
     $ARLS = 'ar t';
 
-    $DBG = '-g -DDEBUG';
     $PIC = '-fPIC';
     $INC = '-I';
     $MD  = '-MD';

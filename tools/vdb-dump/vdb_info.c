@@ -33,6 +33,9 @@
 #include <kfs/directory.h>
 #include <kfs/file.h>
 
+#include <kns/manager.h>
+#include <kns/http.h>
+
 #include <kdb/manager.h>
 #include <kdb/meta.h>
 
@@ -89,6 +92,7 @@ typedef struct vdb_info_data
     const char * s_platform;
 
     char path[ 1024 ];
+	char cache[ 1024 ];
     char schema_name[ 1024 ];
 
     vdb_info_event formatter;
@@ -96,7 +100,10 @@ typedef struct vdb_info_data
     vdb_info_event update;
 
     vdb_info_date ts;
-    
+
+	float cache_percent;
+	uint64_t bytes_in_cache;
+
     uint64_t seq_rows;
     uint64_t ref_rows;
     uint64_t prim_rows;
@@ -488,22 +495,44 @@ static const char * get_path_type( const VDBManager *mgr, const char * acc_or_pa
 }
 
 
-static uint64_t get_file_size( const char * path )
+static rc_t make_remote_file( const KFile ** f, const char * url )
+{
+	KNSManager * kns_mgr;
+	rc_t rc = KNSManagerMake ( & kns_mgr );
+	*f = NULL;	
+	if ( rc == 0 )
+	{
+		rc = KNSManagerMakeHttpFile ( kns_mgr, f, NULL, 0x01010000, "%s", url );
+		KNSManagerRelease ( kns_mgr );
+	}
+	return rc;
+}
+
+
+static rc_t make_local_file( const KFile ** f, const char * path )
+{
+	KDirectory * dir;
+	rc_t rc = KDirectoryNativeDir( &dir );
+	*f = NULL;
+	if ( rc == 0 )
+	{
+		rc = KDirectoryOpenFileRead( dir, f, "%s", path );
+		KDirectoryRelease( dir );
+	}
+	return rc;
+}
+
+
+static uint64_t get_file_size( const char * path, bool remotely )
 {
     uint64_t res = 0;
-    KDirectory * dir;
-    rc_t rc = KDirectoryNativeDir( &dir );
-    if ( rc == 0 )
-    {
-        const KFile * f;
-        rc = KDirectoryOpenFileRead( dir, &f, "%s", path );
-        if ( rc == 0 )
-        {
-            KFileSize ( f, &res );
-            KFileRelease( f );
-        }
-        KDirectoryRelease( dir );
-    }
+	const KFile * f;
+	rc_t rc = ( remotely ) ? make_remote_file( &f, path ) : make_local_file( &f, path );
+	if ( rc == 0 )
+	{
+		KFileSize ( f, &res );
+		KFileRelease( f );
+	}
     return res;
 }
 
@@ -883,30 +912,52 @@ static rc_t vdb_info_print_dflt_event( vdb_info_event * event, const char *prefi
 static rc_t vdb_info_print_dflt( vdb_info_data * data )
 {
     rc_t rc= KOutMsg( "acc    : %s\n", data->acc );
+
     if ( rc == 0 && data->path[ 0 ] != 0 )
         rc = KOutMsg( "path   : %s\n", data->path );
-    if ( rc == 0 && data->file_size != 0 )
+
+	if ( rc == 0 && data->file_size != 0 )
         rc = KOutMsg( "size   : %,lu\n", data->file_size );
-    if ( rc == 0 && data->s_path_type[ 0 ] != 0 )
+
+	if ( rc == 0 && data->cache[ 0 ] != 0 )
+	{
+        rc = KOutMsg( "cache  : %s\n", data->cache );
+		if ( rc == 0 )
+			rc = KOutMsg( "percent: %f\n", data->cache_percent );
+		if ( rc == 0 )
+			rc = KOutMsg( "bytes  : %,lu\n", data->bytes_in_cache );
+	}
+	
+    if ( rc == 0 && data->s_path_type[ 0 ] != 0 )	
         rc = KOutMsg( "type   : %s\n", data->s_path_type );
-    if ( rc == 0 && data->s_platform[ 0 ] != 0 )
+
+	if ( rc == 0 && data->s_platform[ 0 ] != 0 )
         rc = KOutMsg( "platf  : %s\n", data->s_platform );
+
     if ( rc == 0 && data->seq_rows != 0 )
         rc = KOutMsg( "SEQ    : %,lu\n", data->seq_rows );
+
     if ( rc == 0 && data->ref_rows != 0 )
         rc = KOutMsg( "REF    : %,lu\n", data->ref_rows );
+
     if ( rc == 0 && data->prim_rows != 0 )
         rc = KOutMsg( "PRIM   : %,lu\n", data->prim_rows );
+
     if ( rc == 0 && data->sec_rows != 0 )
         rc = KOutMsg( "SEC    : %,lu\n", data->sec_rows );
+
     if ( rc == 0 && data->ev_rows != 0 )
         rc = KOutMsg( "EVID   : %,lu\n", data->ev_rows );
+
     if ( rc == 0 && data->ev_int_rows != 0 )
         rc = KOutMsg( "EVINT  : %,lu\n", data->ev_int_rows );
+
     if ( rc == 0 && data->consensus_rows != 0 )
         rc = KOutMsg( "CONS   : %,lu\n", data->consensus_rows );
+
     if ( rc == 0 && data->passes_rows != 0 )
         rc = KOutMsg( "PASS   : %,lu\n", data->passes_rows );
+
     if ( rc == 0 && data->metrics_rows != 0 )
         rc = KOutMsg( "METR   : %,lu\n", data->metrics_rows );
 
@@ -1138,10 +1189,27 @@ static rc_t vdb_info_1( VSchema * schema, dump_format_t format, const VDBManager
             case 'T' : vdb_info_tab( &data, schema, mgr ); break;
         }
 
-        rc1 = resolve_accession( acc_or_path, data.path, sizeof data.path, false );
+		/* try to resolve the path locally */
+        rc1 = resolve_accession( acc_or_path, data.path, sizeof data.path, false ); /* vdb-dump-helper.c */
         if ( rc1 == 0 )
-            data.file_size = get_file_size( data.path );
-
+            data.file_size = get_file_size( data.path, false );
+		else
+		{
+			/* try to resolve the path remotely */
+			rc1 = resolve_accession( acc_or_path, data.path, sizeof data.path, true ); /* vdb-dump-helper.c */
+			if ( rc1 == 0 )
+			{
+				data.file_size = get_file_size( data.path, true );
+				/* try to find out the cache-file */
+				rc1 = resolve_cache( acc_or_path, data.cache, sizeof data.cache ); /* vdb-dump-helper.c */
+				if ( rc1 == 0 )
+				{
+					/* try to find out cache completeness */
+					check_cache_comleteness( data.cache, &data.cache_percent, &data.bytes_in_cache );
+				}
+			}
+		}
+		
         switch ( format )
         {
             case df_xml  : rc = vdb_info_print_xml( &data ); break;

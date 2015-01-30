@@ -24,10 +24,13 @@
 *
 */
 
-#include <kfs/directory.h>
 #include <klib/log.h>
 #include <klib/rc.h>
 #include <klib/text.h>
+
+#include <kfs/directory.h>
+#include <kfs/file.h>
+#include <kfs/cacheteefile.h>
 
 #include <vdb/manager.h>
 #include <vdb/database.h>
@@ -447,4 +450,80 @@ rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, boo
         dst[ l - 9 ] = 0;
     }
     return rc;
+}
+
+
+rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
+{
+    VFSManager * vfs_mgr;
+    rc_t rc = VFSManagerMake( &vfs_mgr );
+    dst[ 0 ] = 0;
+    if ( rc == 0 )
+    {
+        VResolver * resolver;
+        rc = VFSManagerGetResolver( vfs_mgr, &resolver );
+        if ( rc == 0 )
+        {
+            VPath * vpath;
+            rc = VFSManagerMakePath( vfs_mgr, &vpath, "ncbi-acc:%s", accession );
+            if ( rc == 0 )
+            {
+                const VPath * local = NULL;
+                const VPath * remote = NULL;
+				const VPath * cache = NULL;
+				rc = VResolverQuery ( resolver, eProtocolHttp, vpath, &local, &remote, &cache );
+                if ( rc == 0 && cache != NULL )
+                {
+                    const String * path;
+					rc = VPathMakeString( cache, &path );
+
+                    if ( rc == 0 && path != NULL )
+                    {
+                        string_copy ( dst, dst_size, path->addr, path->size );
+                        dst[ path->size ] = 0;
+                        StringWhack ( path );
+                    }
+
+                    if ( local != NULL )
+                        VPathRelease ( local );
+                    if ( remote != NULL )
+                        VPathRelease ( remote );
+                    if ( remote != NULL )
+                        VPathRelease ( cache );
+                }
+                VPathRelease ( vpath );
+            }
+            VResolverRelease( resolver );
+        }
+        VFSManagerRelease ( vfs_mgr );
+    }
+    return rc;
+}
+
+
+rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache )
+{
+	KDirectory * dir;
+	rc_t rc = KDirectoryNativeDir( &dir );
+	if ( rc == 0 )
+	{
+		const KFile * f = NULL;
+		rc = KDirectoryOpenFileRead( dir, &f, "%s.cache", path );
+		if ( rc == 0 )
+		{
+			rc = GetCacheCompleteness( f, percent, bytes_in_cache );
+		}
+		else
+		{
+			rc = KDirectoryOpenFileRead( dir, &f, "%s", path );
+			if ( rc == 0 )
+			{
+				( * percent ) = 100.0;
+				rc = KFileSize ( f, bytes_in_cache );
+			}
+		}
+		if ( f != NULL ) KFileRelease( f );
+		KDirectoryRelease( dir );
+	}
+	return rc;
 }

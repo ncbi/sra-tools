@@ -328,7 +328,7 @@ println "$OSTYPE ($OS) is supported" unless ($AUTORUN);
 # tool chain
 my ($CPP, $CC, $CP, $AR, $ARX, $ARLS, $LD, $LP, $MAKE_MANIFEST);
 my ($JAVAC, $JAVAH, $JAR);
-my ($DBG, $OPT, $PIC, $INC, $MD);
+my ($ARCH_FL, $DBG, $OPT, $PIC, $INC, $MD) = ('');
 
 print "checking for supported tool chain... " unless ($AUTORUN);
 if ($TOOLS eq 'gcc') {
@@ -349,29 +349,26 @@ if ($TOOLS eq 'gcc') {
 } elsif ($TOOLS eq 'clang') {
     $CPP  = 'clang++';
     $CC   = 'clang -c';
-    $CP   = "$CPP -c -mmacosx-version-min=10.6";
+    my $versionMin = '-mmacosx-version-min=10.6';
+    $CP   = "$CPP -c $versionMin";
     if ($BITS ne '32_64') {
-        $AR            = 'ar rc';
-        $LD            = 'clang';
-        $LP            = "$CPP -mmacosx-version-min=10.6";
-        if ($BITS == 32) {
-            $DBG       = '-g -DDEBUG -arch i386';
-            $OPT       = '-O3 -arch i386';
-        } else {
-            $DBG       = '-g -DDEBUG';
-            $OPT       = '-O3';
-        }
+        $ARCH_FL = '-arch i386' if ($BITS == 32);
+        $OPT = '-O3';
+        $AR      = 'ar rc';
+        $LD      = "clang $ARCH_FL";
+        $LP      = "$CPP $versionMin $ARCH_FL";
     } else {
-        $AR            = 'libtool -static -o';
-        $LD            = 'clang -Wl,-arch_multiple';
-        $LP            = "$CPP -mmacosx-version-min=10.6 -Wl,-arch_multiple";
-        $DBG           = '-g -DDEBUG -arch i386 -arch x86_64';
-        $OPT           = '-O3 -arch i386 -arch x86_64';
         $MAKE_MANIFEST = '( echo "$^" > $@/manifest )';
+        $ARCH_FL       = '-arch i386 -arch x86_64';
+        $OPT    = '-O3';
+        $AR     = 'libtool -static -o';
+        $LD     = "clang -Wl,-arch_multiple $ARCH_FL";
+        $LP     = "$CPP $versionMin -Wl,-arch_multiple $ARCH_FL";
     }
     $ARX  = 'ar x';
     $ARLS = 'ar t';
 
+    $DBG = '-g -DDEBUG';
     $PIC = '-fPIC';
     $INC = '-I';
     $MD  = '-MD';
@@ -804,7 +801,7 @@ EndText
         }
     }
     if ($PKG{LNG} eq 'C') {
-        L($F, "CFLAGS  = \$(DBG) \$(OPT) \$(INCDIRS) $MD");
+        L($F, "CFLAGS  = \$(DBG) \$(OPT) \$(INCDIRS) $MD $ARCH_FL");
     }
 
     L($F, 'CLSPATH = -classpath $(CLSDIR)');

@@ -354,7 +354,11 @@ if ($TOOLS eq 'gcc') {
         $AR            = 'ar rc';
         $LD            = 'clang';
         $LP            = "$CPP -mmacosx-version-min=10.6";
-        $OPT           = '-O3';
+        if ($BITS == 32) {
+            $OPT       = '-O3 -arch i386';
+        } else {
+            $OPT       = '-O3';
+        }
     } else {
         $AR            = 'libtool -static -o';
         $LD            = 'clang -Wl,-arch_multiple';
@@ -538,7 +542,8 @@ foreach my $href (@REQ) {
                 if ($OPT{'build-prefix'}) {
                     my $try = $OPT{'build-prefix'};
                     if ($tolib) {
-                        (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                        (undef, $fl, $fil)
+                            = find_in_dir($try, undef, $lib, $ilib);
                         if ($fl || $fil) {
                             $found_lib  = $fl  if (! $found_lib  && $fl);
                             $found_ilib = $fil if (! $found_ilib && $fil);
@@ -552,7 +557,8 @@ foreach my $href (@REQ) {
                     if (! ($try =~ /$a{name}$/)) {
                         $try = File::Spec->catdir($try, $a{name});
                         if ($tolib && ! $found) {
-                            (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                            (undef, $fl, $fil)
+                                = find_in_dir($try, undef, $lib, $ilib);
                             if ($fl || $fil) {
                                 $found_lib  = $fl  if (! $found_lib  && $fl);
                                 $found_ilib = $fil if (! $found_ilib && $fil);
@@ -569,7 +575,8 @@ foreach my $href (@REQ) {
                     my $try = $a{bldpath};
                     $try = $a{locbldpath} if ($OPT{'local-build-out'});
                     if ($tolib && ! $found) {
-                        (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
+                        (undef, $fl, $fil)
+                            = find_in_dir($try, undef, $lib, $ilib);
                         $found_lib  = $fl  if (! $found_lib  && $fl);
                         $found_ilib = $fil if (! $found_ilib && $fil);
                     }
@@ -785,9 +792,13 @@ EndText
     }
     if ($PIC) {
         if (PACKAGE_NAMW() eq 'NGS') {
-   L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP) $INC\$(TOP)/ngs/\$(OSINC)/\$(ARCH)")
+            L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP) "
+                .        "$INC\$(TOP)/ngs/\$(OSINC)/\$(ARCH)")
+        } elsif (PACKAGE_NAMW() eq 'NGS_BAM') {
+            L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP) "
+                . "$INC\$(NGS_INCDIR)/ngs/\$(OSINC)/\$(ARCH)")
         } else {
-   L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP)")
+            L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP)")
         }
     }
     if ($PKG{LNG} eq 'C') {

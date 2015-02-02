@@ -27,7 +27,7 @@ cache is configurable, as is whether the download is automatic or manual.
 
 For additional information on using, configuring, and building the toolkit,
 please visit our [wiki](https://github.com/ncbi/sra-tools/wiki)
-or our web site at [NCBI](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc&f=std)
+or our web site at [NCBI](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc)
 
 
 SRA Toolkit Development Team

@@ -69,7 +69,7 @@ public:
             free(pb.record);
         }
     }
-    void InitScan(const char* p_input, size_t length = 0, bool trace=false)
+    void InitScan(const char* p_input, bool trace=false)
     {
         input = p_input;
         FASTQScan_yylex_init(&pb, trace);
@@ -123,7 +123,7 @@ FIXTURE_TEST_CASE(EmptyInput, FastqScanFixture)
     InitScan("");
     REQUIRE_EQUAL(Scan(), 0);
 }
-#define REQUIRE_TOKEN(tok)              REQUIRE_EQUAL(Scan(), (int)tok);
+#define REQUIRE_TOKEN(tok)              REQUIRE_EQUAL((int)tok, Scan());
 #define REQUIRE_TOKEN_TEXT(tok, text)   REQUIRE_TOKEN(tok); REQUIRE_EQ(tokenText, string(text));
 
 #define REQUIRE_TOKEN_COORD(tok, text, line, col)  \
@@ -133,7 +133,7 @@ FIXTURE_TEST_CASE(EmptyInput, FastqScanFixture)
 
 FIXTURE_TEST_CASE(TagLine1, FastqScanFixture)
 {   
-    InitScan("@HWUSI-EAS499_1:1:3:9:1822\n", 0, true);
+    InitScan("@HWUSI-EAS499_1:1:3:9:1822\n");
     REQUIRE_TOKEN('@');
     REQUIRE_TOKEN_COORD(fqALPHANUM, "HWUSI-EAS499", 1, 2);
     REQUIRE_TOKEN('_');
@@ -145,7 +145,7 @@ FIXTURE_TEST_CASE(TagLine1, FastqScanFixture)
 
 FIXTURE_TEST_CASE(SequenceQuality, FastqScanFixture)
 {   
-    InitScan("@8\n" "GATC\n" "+8:1:46:673\n" "!**'\n", 0, true);
+    InitScan("@8\n" "GATC\n" "+8:1:46:673\n" "!**'\n");
     REQUIRE_TOKEN('@');
     REQUIRE_TOKEN_TEXT(fqNUMBER, "8"); 
     REQUIRE_TOKEN(fqENDLINE); 
@@ -160,7 +160,7 @@ FIXTURE_TEST_CASE(SequenceQuality, FastqScanFixture)
 
 FIXTURE_TEST_CASE(QualityOnly, FastqScanFixture)
 {   
-    InitScan(">8\n" "\x7F!**'\n", 0, true);
+    InitScan(">8\n" "\x7F!**'\n");
     REQUIRE_TOKEN('>'); 
     REQUIRE_TOKEN_TEXT(fqNUMBER, "8"); 
     REQUIRE_TOKEN(fqENDLINE); 
@@ -171,7 +171,7 @@ FIXTURE_TEST_CASE(QualityOnly, FastqScanFixture)
 
 FIXTURE_TEST_CASE(NoEOL_InQuality, FastqScanFixture)
 {   
-    InitScan("@8\n" "GATC\n" "+\n" "!**'", 0, true);
+    InitScan("@8\n" "GATC\n" "+\n" "!**'");
     REQUIRE_TOKEN('@');
     REQUIRE_TOKEN_TEXT(fqNUMBER, "8"); 
     REQUIRE_TOKEN(fqENDLINE); 
@@ -187,7 +187,7 @@ FIXTURE_TEST_CASE(NoEOL_InQuality, FastqScanFixture)
 
 FIXTURE_TEST_CASE(CRnoLF, FastqScanFixture)
 {   
-    InitScan("@8\r", 0, true);
+    InitScan("@8\r", 0);
     REQUIRE_TOKEN('@');
     REQUIRE_TOKEN_TEXT(fqNUMBER, "8"); 
     REQUIRE_TOKEN(fqENDLINE); 
@@ -195,7 +195,7 @@ FIXTURE_TEST_CASE(CRnoLF, FastqScanFixture)
 
 FIXTURE_TEST_CASE(CommaSeparatedQuality3, FastqScanFixture)
 {   
-    InitScan("@8\n" "GATC\n" "+\n" "0047044004,046,,4000,04444000,--,6-\n", 0, true);
+    InitScan("@8\n" "GATC\n" "+\n" "0047044004,046,,4000,04444000,--,6-\n");
     REQUIRE_TOKEN('@');
     REQUIRE_TOKEN_TEXT(fqNUMBER, "8"); 
     REQUIRE_TOKEN(fqENDLINE); 
@@ -213,6 +213,28 @@ FIXTURE_TEST_CASE(WsBeforeEol, FastqScanFixture)
 {   
     InitScan("@ \n");
     REQUIRE_TOKEN('@');
+    REQUIRE_TOKEN(fqENDLINE); 
+    REQUIRE_EQUAL(Scan(), 0);
+}
+
+FIXTURE_TEST_CASE(SkipToEol, FastqScanFixture)
+{   
+    InitScan("@ kjalkjaldkj \nGATC\n");
+    REQUIRE_TOKEN('@');
+    FASTQScan_skip_to_eol(&pb);
+    REQUIRE_TOKEN(fqENDLINE); 
+    REQUIRE_TOKEN_TEXT(fqBASESEQ, "GATC"); // back to normal
+    REQUIRE_TOKEN(fqENDLINE); 
+    REQUIRE_EQUAL(Scan(), 0);
+}
+
+FIXTURE_TEST_CASE(InlineBaseSequence, FastqScanFixture)
+{   
+    InitScan("@:GATC.NNNN\n");
+    REQUIRE_TOKEN('@');
+    REQUIRE_TOKEN(':');
+    FASTQScan_inline_sequence(&pb);
+    REQUIRE_TOKEN_TEXT(fqBASESEQ, "GATC.NNNN");
     REQUIRE_TOKEN(fqENDLINE); 
     REQUIRE_EQUAL(Scan(), 0);
 }
@@ -235,7 +257,7 @@ public:
         }    
     }
     
-    bool Parse()
+    bool Parse(bool traceLex = false)
     {
         pb.self = this;
         pb.input = Input;    
@@ -243,8 +265,9 @@ public:
         pb.maxPhred = 33+73;
         pb.defaultReadNumber = 9;
         pb.secondaryReadNumber = 0;
+        pb.ignoreSpotGroups = false;
         
-        if (FASTQScan_yylex_init(& pb, true) != 0)
+        if (FASTQScan_yylex_init(& pb, traceLex) != 0)
             FAIL("ParserFixture::ParserFixture: FASTQScan_yylex_init failed");
     
         pb.record = (FastqRecord*)calloc(1, sizeof(FastqRecord));
@@ -578,12 +601,12 @@ FIXTURE_TEST_CASE(RecoveryFromErrorInQuality, LoaderFixture)
 FIXTURE_TEST_CASE(ErrorLineNumber, LoaderFixture)
 {
     CreateFileGetRecord(GetName(), 
-        "@HWI-ST959:56:D0AW4ACXX:8:2108:6958:112042 1:Y:0:#\n"
+        "@HWI-ST959:56:D0AW4ACXX:8:2108:6958:112042 1:Y:0#\n"
         "ATT\n");
     REQUIRE(GetRejected());
     REQUIRE_EQ(SyntaxError, string (errorText).substr(0, SyntaxError.size()));
     REQUIRE_EQ(errorLine, (uint64_t)1); 
-    REQUIRE_EQ(column, (uint64_t)50);
+    REQUIRE_EQ(column, (uint64_t)49);
 }
 
 
@@ -994,8 +1017,6 @@ FIXTURE_TEST_CASE(IlluminaCasava_1_8_SpotGroupNumber, LoaderFixture)
     REQUIRE_EQ(string("1"), string(name, length));
 }
 
-#if 0
-//this looks like a future change request
 FIXTURE_TEST_CASE(IlluminaCasava_1_8_SpotGroup_MoreMadness, LoaderFixture)
 { // source: SRR1106612
     REQUIRE(CreateFileGetSequence(GetName(), 
@@ -1008,7 +1029,6 @@ FIXTURE_TEST_CASE(IlluminaCasava_1_8_SpotGroup_MoreMadness, LoaderFixture)
     REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
     REQUIRE_EQ(string("NNNNNN.GGTCCA.AAAA"), string(name, length));
 }
-#endif
 
 FIXTURE_TEST_CASE(IlluminaCasava_1_8_EmptyTag, LoaderFixture)
 { 
@@ -1128,6 +1148,20 @@ FIXTURE_TEST_CASE(PacbioNoReadNumbers, LoaderFixture)
     REQUIRE(!SequenceIsSecond(seq));
 }
 
+FIXTURE_TEST_CASE(PacbioWsCcs, LoaderFixture)
+{
+    maxPhred = 33 + 73;
+    defaultReadNumber = -1;
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2 ccs\n"
+        "AGAGTTTGAT\n"
+        "+m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2 ccs\n"
+        "LLhf>>>>[[\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2"), string(name, length));
+}
+
 FIXTURE_TEST_CASE(Illumina_Underscore, LoaderFixture)
 {
     REQUIRE(CreateFileGetSequence(GetName(), 
@@ -1137,6 +1171,26 @@ FIXTURE_TEST_CASE(Illumina_Underscore, LoaderFixture)
     REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
     REQUIRE_EQ(string("DG7PMJN1:293:D12THACXX:2:1101:1161:1968"), string(name, length));
     REQUIRE(SequenceIsSecond(seq));
+}
+
+FIXTURE_TEST_CASE(Illumina_IdentifierAtFront, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@QSEQ161.65 DBV2SVN1:1:1101:1474:2213#0/1\n"
+        "AGAGTTTGAT\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("DBV2SVN1:1:1101:1474:2213"), string(name, length));
+}
+
+FIXTURE_TEST_CASE(Illumina_SpaceAndIdentifierAtFront, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@ QSEQ161 EAS139:136:FC706VJ:2:2104:15343:197393 1:Y:18:ATCACG\n"
+        "AGAGTTTGAT\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("EAS139:136:FC706VJ:2:2104:15343:197393"), string(name, length));
 }
 
 FIXTURE_TEST_CASE(PacbioError, LoaderFixture)
@@ -1158,6 +1212,8 @@ FIXTURE_TEST_CASE(NotPairedRead_Error, LoaderFixture)
         "TACA\n"
     ));
     REQUIRE(SequenceIsFirst(seq));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("HWI-ST226:170:AB075UABXX:3:1101:10089:7031"), string(name, length));
 }
 
 FIXTURE_TEST_CASE(NoFragmentInfo_Error, LoaderFixture)
@@ -1173,18 +1229,30 @@ FIXTURE_TEST_CASE(NoFragmentInfo_Error, LoaderFixture)
     REQUIRE_EQ(string("m130727_021351_42150_c100538232550000001823086511101336_s1_p0/283/0_9315"), string(name, length));
 }
 
+FIXTURE_TEST_CASE(NoColonAtTheEnd_Error, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@HET-141-007:154:C391TACXX:6:2316:3220:70828 1:N:0\n"
+        "AACA\n"
+        "+\n"
+        "$.%0\n"
+    ));
+    REQUIRE(SequenceIsFirst(seq));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("HET-141-007:154:C391TACXX:6:2316:3220:70828"), string(name, length));
+}
 
-//TODO:
-
-// FIXTURE_TEST_CASE(MissingRead, LoaderFixture)
-// { // source: SRR529889
-    // REQUIRE(CreateFileGetSequence(GetName(), 
-        // "@GG3IVWD03HIDOA length=3 xy=2962_2600 region=3 run=R_2010_05_11_11_15_22_\n"
-        // "AAT\n"
-        // "+\n"
-        // "111\n"
-    // ));
-// }
+FIXTURE_TEST_CASE ( MissingRead, LoaderFixture )
+{ // source: SRR529889
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@GG3IVWD03HIDOA length=3 xy=2962_2600 region=3 run=R_2010_05_11_11_15_22_\n"
+        "AAT\n"
+        "+\n"
+        "111\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("GG3IVWD03HIDOA"), string(name, length));
+}
 
 // FIXTURE_TEST_CASE(Pacbio, LoaderFixture)
 // { 

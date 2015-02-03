@@ -39,5 +39,8 @@ rc_t CC CGEvidenceDnbs20_Make(const struct CGFileType** self,
                               const struct CGLoaderFile* file);
 rc_t CC CGEvidenceDnbs22_Make(const struct CGFileType** self,
                               const struct CGLoaderFile* file);
+rc_t CC CGEvidenceDnbs25_Make(const struct CGFileType** self,
+                              const struct CGLoaderFile* file);
+
 
 #endif /* _tools_cg_load_factory_evidence_dnbs_h_ */

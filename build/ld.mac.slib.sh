@@ -40,35 +40,7 @@ SELF_NAME="$(basename $0)"
 source "${0%slib.sh}cmn.sh"
 
 # initialize command
-CMD="ar -rc"
-
-# function to convert an archive into individual object files
-convert-static ()
-{
-    # list members
-    local path="$1"
-    local mbrs="$(ar -t $path | grep -v '__.SYMDEF SORTED')"
-
-    # unpack archive into temporary directory
-    mkdir -p ld-tmp
-    if ! cd ld-tmp
-    then
-        echo "$SELF_NAME: failed to cd to ld-tmp"
-        exit 5
-    fi
-    ar -x "$path"
-
-    # rename and add to source files list
-    local m=
-    for m in $mbrs
-    do
-        mv $m $LIBNAME-$m
-        CMD="$CMD ld-tmp/$LIBNAME-$m"
-    done
-
-    # return to prior location
-    cd - > /dev/null
-}
+CMD="libtool -static -o "
 
 # versioned output
 if [ "$VERS" = "" ]
@@ -105,9 +77,8 @@ then
                 # add it to dependencies
                 DEPS="$DEPS $LIBPATH"
 
-                # convert to individual object files
-                convert-static "$LIBPATH" || exit $?
-
+                # simply add the library to the link line - libtool handles static libraries correctly
+                CMD="$CMD $LIBPATH"
             fi
             ;;
 

@@ -1,5 +1,33 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
+
 #include "util.hpp" // CStdIn
 #include <klib/printf.h> /* string_printf */
+
+#include <sstream> // ostringstream
 
 #include <climits> /* PATH_MAX */
 #ifndef PATH_MAX
@@ -290,7 +318,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     }
 
     r2 = UpdateNode(
-        "/repository/remote/aux/NCBI/apps/nakmer/volumes/fuseNANNOT",
+        "/repository/remote/aux/NCBI/apps/nannot/volumes/fuseNANNOT",
         "sadb");
     if (r2 != 0 && rc == 0) {
         rc = r2;
@@ -343,7 +371,10 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     return rc;
 }
 
-rc_t CKConfig::CreateUserRepositories(bool fix) {
+rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
+    if (repoName.size() == 0) {
+        repoName = "public";
+    }
     CString cRoot(ReadString("/repository/user/default-path"));
     string root;
     if (cRoot.Empty()) {
@@ -353,55 +384,53 @@ rc_t CKConfig::CreateUserRepositories(bool fix) {
         root = cRoot.GetString();
     }
 
-    string name("/repository/user/main/public/root");
+    std::ostringstream s;
+    s << "/repository/user/" << (repoName == "public" ? "main" : "protected")
+        << "/" << repoName;
+    string repoNode(s.str());
+    string name(repoNode + "/root");
     bool toFix = true;
     if (fix) {
         toFix = !NodeExists(name);
     }
     rc_t rc = 0;
     if (toFix) {
-        rc = UpdateNode(name.c_str(), (root + "/public").c_str());
+        rc = UpdateNode(name, (root + "/public").c_str());
     }
 
-    rc_t r2 = UpdateNode("/repository/user/main/public/apps/file/volumes/flat",
-        "files");
+    rc_t r2 = UpdateNode(repoNode + "/apps/file/volumes/flat", "files");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }
 
-    r2 = UpdateNode(
-        "/repository/user/main/public/apps/nakmer/volumes/nakmerFlat",
-        "nannot");
+    r2 = UpdateNode(repoNode + "/apps/sra/volumes/sraFlat", "sra");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }
 
-    r2 = UpdateNode(
-        "/repository/user/main/public/apps/nakmer/volumes/nannotFlat",
-        "nannot");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
+    if (repoName == "public") {
+        r2 = UpdateNode(repoNode + "/apps/nakmer/volumes/nakmerFlat", "nannot");
+        if (r2 != 0 && rc == 0) {
+            rc = r2;
+        }
+
+        r2 = UpdateNode(repoNode + "/apps/nannot/volumes/nannotFlat", "nannot");
+        if (r2 != 0 && rc == 0) {
+            rc = r2;
+        }
+
+        r2 = UpdateNode(repoNode + "/apps/refseq/volumes/refseq", "refseq");
+        if (r2 != 0 && rc == 0) {
+            rc = r2;
+        }
+
+        r2 = UpdateNode(repoNode + "/apps/wgs/volumes/wgsFlat", "wgs");
+        if (r2 != 0 && rc == 0) {
+            rc = r2;
+        }
     }
 
-    r2 = UpdateNode("/repository/user/main/public/apps/refseq/volumes/refseq",
-        "refseq");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode("/repository/user/main/public/apps/sra/volumes/sraFlat",
-        "sra");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode("/repository/user/main/public/apps/wgs/volumes/wgsFlat",
-        "wgs");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode("/repository/user/main/public/cache-enabled", "true");
+    r2 = UpdateNode(repoNode + "/cache-enabled", "true");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }

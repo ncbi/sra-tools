@@ -97,6 +97,81 @@ rc_t CC CGMappings15_Header(const CGMappings15* cself, const char* buf, const si
     return rc;
 }
 
+static rc_t CC CGMappings25_Header(const CGMappings15* cself,
+    const char* buf, const size_t len)
+{
+    rc_t rc = 0;
+    size_t slen = 0;
+    CGMappings15* self = (CGMappings15*)cself;
+
+    /* from SRA-2617 files */
+    if      (strncmp("APPROVAL\t", buf, slen = 9) == 0) {
+    }
+    else if (strncmp("TITLE\t", buf, slen = 6) == 0) {
+    }
+    else if (strncmp("ADDRESS\t", buf, slen = 8) == 0) {
+    }
+
+    /* From Table 1: Header Metadata Present in all Data Files */
+    else if (strncmp("CUSTOMER_SAMPLE_ID\t", buf, slen = 19) == 0) {
+    }
+    else if (strncmp("SAMPLE_SOURCE\t", buf, slen = 14) == 0) {
+    }
+    else if (strncmp("REPORTED_GENDER\t", buf, slen = 16) == 0) {
+    }
+    else if (strncmp("CALLED_GENDER\t", buf, slen = 14) == 0) {
+    }
+    else if (strncmp("TUMOR_STATUS\t", buf, slen = 13) == 0) {
+    }
+    else if (strncmp("LIBRARY_TYPE\t", buf, slen = 13) == 0) {
+    }
+    else if (strncmp("LIBRARY_SOURCE\t", buf, slen = 13) == 0) {
+    }
+
+    else if (strncmp("ASSEMBLY_ID\t", buf, slen = 12) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->assembly_id, sizeof(self->assembly_id));
+    }
+    else if (strncmp("BATCH_FILE_NUMBER\t", buf, slen = 18) == 0) {
+        rc = str2u32(&buf[slen], len - slen, &self->batch_file_number);
+        if (self->batch_file_number < 1 ) {
+            rc = RC(rcRuntime, rcFile, rcConstructing, rcItem, rcOutofrange);
+        }
+    }
+    else if (strncmp("GENERATED_AT\t", buf, slen = 13) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->generated_at, sizeof(self->generated_at));
+    }
+    else if (strncmp("GENERATED_BY\t", buf, slen = 13) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->generated_by, sizeof(self->generated_by));
+    }
+    else if (strncmp("LANE\t", buf, slen = 5) == 0) {
+        rc = str2buf(&buf[slen], len - slen, self->lane, sizeof(self->lane));
+    }
+    else if (strncmp("LIBRARY\t", buf, slen = 8) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->library, sizeof(self->library));
+    }
+    else if (strncmp("SAMPLE\t", buf, slen = 7) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->sample, sizeof(self->sample));
+    }
+    else if (strncmp("SLIDE\t", buf, slen = 6) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->slide, sizeof(self->slide));
+    }
+    else if (strncmp("SOFTWARE_VERSION\t", buf, slen = 17) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->software_version, sizeof(self->software_version));
+    }
+    else {
+        rc = RC(rcRuntime, rcFile, rcConstructing, rcName, rcUnrecognized);
+    }
+
+    return rc;
+}
+
 static
 rc_t CGMappings15_GetAssemblyId(const CGMappings15* cself, const CGFIELD_ASSEMBLY_ID_TYPE** assembly_id)
 {
@@ -248,6 +323,103 @@ rc_t CC CGMappings22_Read(const CGMappings15* cself, TMappingsData* data)
         DEBUG_MSG(10, ("mappings %4u:  %u\t'%s'\t%u\t%i\t%i\t%i\t%c\t%u\t%c\n",
             data->map_qty - 1, m->flags, m->chr, m->offset,
             m->gap[0], m->gap[1], m->gap[2], m->weight, m->mate, armWeight));
+        armWeight += 0; /* shut up used variable warning in release build */
+        CG_LINE_END();
+    } while( rc == 0 && !(m->flags & cg_eLastDNBRecord) );
+    if (rc == 0) {
+        unsigned i;
+        unsigned const n = data->map_qty;
+        
+        for (i = 0; i != n && rc == 0; ++i) {
+            unsigned const mate = data->map[i].mate;
+            
+            if (mate > n)
+                data->map[i].mate = n;
+        }
+    }
+    return rc;
+}
+
+static rc_t CC CGMappings25_Read(
+    const CGMappings15 *cself, TMappingsData *data)
+{
+    rc_t rc = 0;
+    TMappingsData_map* m = NULL;
+
+    assert(cself);
+
+    data->map_qty = 0;
+    do {
+        char tmp[2];
+        char armWeight = '\0';
+        CG_LINE_START(cself->file, b, len, p);
+        if( b == NULL || len == 0 ) {
+            rc = RC(rcRuntime, rcFile, rcReading, rcData, rcInsufficient);
+            break;
+        }
+        m = &data->map[data->map_qty];
+        m->saved = false;
+        /*DEBUG_MSG(10, ("mappings %4u: '%.*s'\n", data->map_qty, len, b));*/
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2u16(b, p - b, &m->flags);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, m->chr, sizeof(m->chr));
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2i32(b, p - b, &m->offset);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2i16(b, p - b, &m->gap[0]);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2i16(b, p - b, &m->gap[1]);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2i16(b, p - b, &m->gap[2]);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, tmp, sizeof(tmp));
+        if( tmp[0] < 33 || tmp[0] > 126 ) {
+            rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+        }
+        m->weight = tmp[0];
+        CG_LINE_NEXT_FIELD(b, len, p);
+        if( (rc = str2u32(b, p - b, &m->mate)) != 0 ) {
+        } else if( m->flags > 7 ) {
+            rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+        } else if( ++data->map_qty >= CG_MAPPINGS_MAX ) {
+            rc = RC(rcRuntime, rcFile, rcReading, rcBuffer, rcInsufficient);
+        }
+        CG_LINE_LAST_FIELD(b, len, p);
+        rc = str2buf(b, p - b, tmp, sizeof(tmp));
+        if (rc == 0 && (tmp[0] < 33 || tmp[0] > 126)) {
+            rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+        }
+        armWeight = tmp[0]; /* ignore armWeight */
+        ((CGMappings15*)cself)->records++;
+        DEBUG_MSG(10, ("mappings %4u:  %u\t'%s'\t%u\t%i\t%i\t%i\t%c\t%u\t%c\n",
+            data->map_qty - 1, m->flags, m->chr, m->offset,
+            m->gap[0], m->gap[1], m->gap[2], m->weight, m->mate, armWeight));
+        armWeight += 0; /* shut up used variable warning in release build */
+
+        if (rc == 0) {
+            assert(m->gap[2] == 0);
+            if (m->gap[2] != 0) {
+                rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+            }
+            if (m->flags & cg_eRevDnbStrand) {
+                assert(m->gap[0] == -1);
+                if (m->gap[0] != -1) {
+                    rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+                }
+            }
+            else {
+                assert(m->gap[1] == -1);
+                if (m->gap[1] != -1) {
+                    rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+                }
+            }
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Bad gap value in mapping file (File format >= v2.5)");
+            }
+        }
+
         CG_LINE_END();
     } while( rc == 0 && !(m->flags & cg_eLastDNBRecord) );
     if (rc == 0) {
@@ -300,6 +472,23 @@ static const CGFileType_vt CGMappings22_vt =
     CGMappings15_Release
 };
 
+static const CGFileType_vt CGMappings25_vt = {
+    CGMappings25_Header,
+    NULL,
+    NULL,
+    CGMappings25_Read,
+    NULL,
+    NULL,
+    NULL, /* tag_lfr */
+    CGMappings15_GetAssemblyId,
+    CGMappings15_GetSlide,
+    CGMappings15_GetLane,
+    CGMappings15_GetBatchFileNumber,
+    NULL,
+    NULL,
+    CGMappings15_Release
+};
+
 static
 rc_t CC CGMappings_Make(const CGFileType** cself,
     const CGLoaderFile* file, const CGFileType_vt* vt)
@@ -338,3 +527,8 @@ rc_t CC CGMappings20_Make(const CGFileType** self, const CGLoaderFile* file)
 
 rc_t CC CGMappings22_Make(const CGFileType** self, const CGLoaderFile* file)
 {   return CGMappings_Make(self, file, &CGMappings22_vt); }
+
+rc_t CC CGMappings25_Make(const CGFileType **self, const CGLoaderFile *file)
+{
+    return CGMappings_Make(self, file, &CGMappings25_vt);
+}

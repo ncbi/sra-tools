@@ -806,6 +806,9 @@ static rc_t gather_flag_options( Args * args, samdump_opts * opts )
     /* do we disable multi-threading */    
     rc = get_bool_option( args, OPT_NO_MT, &opts->no_mt );
     
+    /* do we have to generate the MD-flag */ 
+    rc = get_bool_option( args, OPT_MD_FLAG, &opts->with_md_flag );
+	
     /* forcing to use the legacy code in case of Evidence-Dnb was requested */
     if ( rc == 0 )
     {
@@ -1334,8 +1337,9 @@ void report_options( const samdump_opts * opts )
     KOutMsg( "rna-splice-level      : %u\n",  opts->rna_splice_level );
     KOutMsg( "rna-splice-log        : %s\n",  opts->rna_splice_log_file );
 
-    KOutMsg( "multithreading        : %s\n",  opts->no_mt ? "NO" : "YES" );    
-
+    KOutMsg( "multithreading        : %s\n",  opts->no_mt ? "NO" : "YES" );  
+    KOutMsg( "with-MD-flag          : %s\n",  opts->with_md_flag ? "NO" : "YES" );
+	
 #if _DEBUGGING
     if ( opts->timing_file != NULL )
         KOutMsg( "timing-file           : '%s'\n",  opts->timing_file );

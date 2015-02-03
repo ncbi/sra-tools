@@ -86,7 +86,7 @@ static const CGFileTypeFactory cg_ETypeXX_names[] = {
     { "DIPLOID-SOMATIC-CNV-DETAILSCORES",
                 cg_eFileType_DIPLOID_SOMATIC_CNV_DETAIL_SCORES, NULL },
 
-    { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr_Make },    
+    { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr15_Make },    
 };
 
 rc_t CGFile22_Make(const CGFileType** self,

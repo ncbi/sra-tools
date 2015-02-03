@@ -28,7 +28,7 @@
 #include "factory-mappings.h"           /* CGMappings15_Make */
 #include "factory-evidence-intervals.h" /* CGEvidenceIntervals15_Make */
 #include "factory-evidence-dnbs.h"      /* CGEvidenceDnbs15_Make */
-#include "factory-tag-lfr.h"            /* CGTagLfr_Make */
+#include "factory-tag-lfr.h"            /* CGTagLfr15_Make */
 
 
 #include "file.h" /* CGFileType */
@@ -84,7 +84,7 @@ static const CGFileTypeFactory cg_ETypeXX_names[] = {
     /* undocumented */
     { "VAR-OLPL", cg_eFileType_VAR_OLPL, NULL },
     
-    { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr_Make },    
+    { "TAG_LFR", cg_eFileType_TAG_LFR, CGTagLfr15_Make },    
 };
 
 

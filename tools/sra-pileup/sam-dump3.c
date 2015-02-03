@@ -163,8 +163,9 @@ char const *rna_splicel_usage[]       = { "level of rna-splicing detection (0,1,
 
 char const *rna_splice_log_usage[]    = { "file, into which rna-splice events are written", NULL };
 
-char const *no_mt_usage[]             = { "disable multithreading", NULL };                                       
+char const *no_mt_usage[]             = { "disable multithreading", NULL };
 
+char const *with_md_flag_usage[]      = { "print MD-flag", NULL };
                                       
 OptDef SamDumpArgs[] =
 {
@@ -208,6 +209,7 @@ OptDef SamDumpArgs[] =
     { OPT_RNA_SPLICEL,  NULL, NULL, rna_splicel_usage,       0, true,  false },  /* level of rna-splicing detection */
     { OPT_RNA_SPLICE_LOG,  NULL, NULL, rna_splice_log_usage, 0, true,  false },  /* filename to log rna-splice events into */
     { OPT_NO_MT,        NULL, NULL, no_mt_usage,              0, false, false },   /* force new code-path */    
+    { OPT_MD_FLAG,		NULL, NULL, with_md_flag_usage,       0, false, false },    /* print the MD-flag */	
     { OPT_DUMP_MODE,    NULL, NULL, NULL,                    0, true,  false },  /* how to produce aligned reads if no regions given */
     { OPT_CIGAR_TEST,   NULL, NULL, NULL,                    0, true,  false },  /* test cg-treatment of cigar string */
     { OPT_LEGACY,       NULL, NULL, NULL,                    0, false, false },  /* force legacy code-path */
@@ -256,7 +258,8 @@ char const *sd_usage_params[] =
     NULL,                       /* detect rna-splicing in sequence */
     NULL,                       /* level of rna-splicing detection */
     NULL,                       /* file to log rna-splice-events into */
-    NULL,                       /* no-mt */    
+    NULL,                       /* no-mt */
+    NULL,                       /* with-md-flag */	
     NULL,                       /* dump_mode */
     NULL,                       /* cigar test */
     NULL,                       /* force legacy code path */

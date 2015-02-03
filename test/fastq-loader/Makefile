@@ -63,8 +63,8 @@ FASTQ_TEST_LIB = \
 $(TEST_BINDIR)/wb-test-fastq: $(FASTQ_TEST_OBJ)
 	$(LP) --exe -o $@ $^ $(FASTQ_TEST_LIB)
     
-wb: $(TEST_BINDIR)/wb-test-fastq
-	$^
+wb: wb-test-fastq
+	$(TEST_BINDIR)/wb-test-fastq  2>&1
     
 valgrind_wb: $(TEST_BINDIR)/wb-test-fastq
 	valgrind --ncbi $^
@@ -197,7 +197,6 @@ smalltests: $(TEST_TOOLS)
 	rm -rf $(SRCDIR)/actual
 
 onetest:
-	-#rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 12.0 0 $(SRCDIR)/input/12.0.fastq --quality PHRED_33 --ignore-illumina-tags
-	$(SMALLRUN) 12.1 0 $(SRCDIR)/input/12.0.fastq --quality PHRED_33 
+	rm -rf $(SRCDIR)/actual
+	$(SMALLRUN) 7.3 0 $(SRCDIR)/input/7.3.fastq --platform=PACBIO --quality PHRED_33
     

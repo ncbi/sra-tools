@@ -1,0 +1,6 @@
+{
+   vt_cache
+   Memcheck:Leak
+   fun:calloc
+   fun:_ZN3ngs7Resolve*
+}

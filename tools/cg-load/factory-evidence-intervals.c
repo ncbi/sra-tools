@@ -75,6 +75,68 @@ rc_t CC CGEvidenceIntervals15_Header(const CGEvidenceIntervals15* cself, const c
     return rc;
 }
 
+static rc_t CC CGEvidenceIntervals25_Header(const CGEvidenceIntervals15* cself,
+    const char* buf, const size_t len)
+{
+    rc_t rc = 0;
+    size_t slen = 0;
+    CGEvidenceIntervals15* self = (CGEvidenceIntervals15*)cself;
+
+    /* from SRA-2617 files */
+    if      (strncmp("APPROVAL\t", buf, slen = 9) == 0) {
+    }
+    else if (strncmp("TITLE\t", buf, slen = 6) == 0) {
+    }
+    else if (strncmp("ADDRESS\t", buf, slen = 8) == 0) {
+    }
+
+    /* From Table 1: Header Metadata Present in all Data Files */
+    else if (strncmp("CUSTOMER_SAMPLE_ID\t", buf, slen = 19) == 0) {
+    }
+    else if (strncmp("SAMPLE_SOURCE\t", buf, slen = 14) == 0) {
+    }
+    else if (strncmp("REPORTED_GENDER\t", buf, slen = 16) == 0) {
+    }
+    else if (strncmp("CALLED_GENDER\t", buf, slen = 14) == 0) {
+    }
+    else if (strncmp("TUMOR_STATUS\t", buf, slen = 13) == 0) {
+    }
+    else if (strncmp("LIBRARY_TYPE\t", buf, slen = 13) == 0) {
+    }
+    else if (strncmp("LIBRARY_SOURCE\t", buf, slen = 13) == 0) {
+    }
+
+    else if (strncmp("ASSEMBLY_ID\t", buf, slen = 12) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->assembly_id, sizeof(self->assembly_id));
+    }
+    else if (strncmp("CHROMOSOME\t", buf, slen = 11) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->chromosome, sizeof(self->chromosome));
+    }
+    else if (strncmp("GENERATED_AT\t", buf, slen = 13) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->generated_at, sizeof(self->generated_at));
+    }
+    else if (strncmp("GENERATED_BY\t", buf, slen = 13) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->generated_by, sizeof(self->generated_by));
+    }
+    else if (strncmp("SAMPLE\t", buf, slen = 7) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->sample, sizeof(self->sample));
+    }
+    else if (strncmp("SOFTWARE_VERSION\t", buf, slen = 17) == 0) {
+        rc = str2buf(&buf[slen], len - slen,
+            self->software_version, sizeof(self->software_version));
+    }
+    else {
+        rc = RC(rcRuntime, rcFile, rcConstructing, rcName, rcUnrecognized);
+    }
+
+    return rc;
+}
+
 static
 rc_t CGEvidenceIntervals15_GetAssemblyId(const CGEvidenceIntervals15* cself, const CGFIELD_ASSEMBLY_ID_TYPE** assembly_id)
 {
@@ -262,6 +324,23 @@ static const CGFileType_vt CGEvidenceIntervals20_vt =
     CGEvidenceIntervals15_Release
 };
 
+static const CGFileType_vt CGEvidenceIntervals25_vt = {
+    CGEvidenceIntervals25_Header,
+    NULL,
+    NULL,
+    NULL,
+    CGEvidenceIntervals20_Read,
+    NULL,
+    NULL, /* tag_lfr */
+    CGEvidenceIntervals15_GetAssemblyId,
+    NULL,
+    NULL,
+    NULL,
+    CGEvidenceIntervals15_GetSample,
+    CGEvidenceIntervals15_GetChromosome,
+    CGEvidenceIntervals15_Release
+};
+
 static
 rc_t CGEvidenceIntervals_Make(const CGFileType** cself, const CGLoaderFile* file, const CGFileType_vt* vt)
 {
@@ -306,3 +385,9 @@ rc_t CGEvidenceIntervals20_Make(const CGFileType** self,
 rc_t CGEvidenceIntervals22_Make(const CGFileType** self,
     const CGLoaderFile* file)
 {   return CGEvidenceIntervals20_Make(self, file); }
+
+rc_t CGEvidenceIntervals25_Make(const CGFileType **self,
+    const CGLoaderFile *file)
+{
+    return CGEvidenceIntervals_Make(self, file, &CGEvidenceIntervals25_vt);
+}

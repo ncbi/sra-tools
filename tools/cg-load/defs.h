@@ -26,6 +26,13 @@
 #ifndef _tools_cg_load_defs_h_
 #define _tools_cg_load_defs_h_
 
+
+#include <stdint.h> /* uint64_t */
+
+
+#define CG_FORMAT_2_5 0x02050000
+
+
 /* buffers and sizes */
 
 /*
@@ -36,8 +43,13 @@
 #define CG_LANE (8)
 
 #define CG_READS_NREADS (2)
-#define CG_READS_SPOT_LEN (70)
-#define CG_READS_NGAPS (3)
+
+#define CG_READS15_SPOT_LEN 70
+#define CG_READS25_SPOT_LEN 60
+
+#define CG_READS15_NGAPS 3
+#define CG_READS25_NGAPS 2
+
 #define CG_MAPPINGS_MAX (2048)
 #define CG_EVDNC_PLOIDY (3)
 #define CG_EVDNC_INTERVALID_LEN (32)

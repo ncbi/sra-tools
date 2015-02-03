@@ -263,6 +263,7 @@ if ($OPT{arch}) {
             close F;
             last;
         }
+        println "build architecture: $ARCH" unless ($AUTORUN);
     } else {
         delete $OPT{arch};
     }
@@ -286,6 +287,8 @@ my $BITS;
 
 if ($MARCH =~ /x86_64/i) {
     $BITS = 64;
+} elsif ($MARCH eq 'fat86') {
+    $BITS = '32_64';
 } elsif ($MARCH =~ /i?86/i) {
     $BITS = 32;
 } else {
@@ -323,9 +326,9 @@ if ($OSTYPE =~ /linux/i) {
 println "$OSTYPE ($OS) is supported" unless ($AUTORUN);
 
 # tool chain
-my ($CPP, $CC, $CP, $AR, $ARX, $ARLS, $LD, $LP);
+my ($CPP, $CC, $CP, $AR, $ARX, $ARLS, $LD, $LP, $MAKE_MANIFEST);
 my ($JAVAC, $JAVAH, $JAR);
-my ($DBG, $OPT, $PIC, $INC, $MD);
+my ($ARCH_FL, $DBG, $OPT, $PIC, $INC, $MD) = ('');
 
 print "checking for supported tool chain... " unless ($AUTORUN);
 if ($TOOLS eq 'gcc') {
@@ -346,15 +349,26 @@ if ($TOOLS eq 'gcc') {
 } elsif ($TOOLS eq 'clang') {
     $CPP  = 'clang++';
     $CC   = 'clang -c';
-    $CP   = "$CPP -c -mmacosx-version-min=10.6";
-    $AR   = 'ar rc';
+    my $versionMin = '-mmacosx-version-min=10.6';
+    $CP   = "$CPP -c $versionMin";
+    if ($BITS ne '32_64') {
+        $ARCH_FL = '-arch i386' if ($BITS == 32);
+        $OPT = '-O3';
+        $AR      = 'ar rc';
+        $LD      = "clang $ARCH_FL";
+        $LP      = "$CPP $versionMin $ARCH_FL";
+    } else {
+        $MAKE_MANIFEST = '( echo "$^" > $@/manifest )';
+        $ARCH_FL       = '-arch i386 -arch x86_64';
+        $OPT    = '-O3';
+        $AR     = 'libtool -static -o';
+        $LD     = "clang -Wl,-arch_multiple $ARCH_FL";
+        $LP     = "$CPP $versionMin -Wl,-arch_multiple $ARCH_FL";
+    }
     $ARX  = 'ar x';
     $ARLS = 'ar t';
-    $LD   = 'clang';
-    $LP   = "$CPP -mmacosx-version-min=10.6";
 
     $DBG = '-g -DDEBUG';
-    $OPT = '-O3';
     $PIC = '-fPIC';
     $INC = '-I';
     $MD  = '-MD';
@@ -424,7 +438,7 @@ foreach my $href (DEPENDS()) {
 foreach my $href (@REQ) {
     $href->{   bldpath} = expand($href->{   bldpath}) if ($href->{   bldpath});
     $href->{locbldpath} = expand($href->{locbldpath}) if ($href->{locbldpath});
-    my ($found_itf, $found_lib, $found_ilib);        # found directories
+    my ($found_itf, $found_lib, $found_ilib, $found_jar);   # found directories
     my %a = %$href;
     next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
     my $is_optional = optional($a{type});
@@ -432,7 +446,8 @@ foreach my $href (@REQ) {
     my $need_source = $a{type} =~ /S/;
     my $need_build = $a{type} =~ /B/;
     my $need_lib = $a{type} =~ /L|D/;
-    my $need_itf = ! ($a{type} =~ /D/);
+    my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /J/);
+    my $need_jar = $a{type} =~ /J/;
     
     my ($inc, $lib, $ilib) = ($a{include}, $a{lib}); # file names to check
     $lib = '' unless ($lib);
@@ -453,10 +468,17 @@ foreach my $href (@REQ) {
         }
     }
     my %has_option;
+    my $tolib = $need_itf || $need_lib;
+    my $tojar = $need_jar;
     foreach my $option ($a{option}, $a{boption}) {
         next unless ($option);
         if ($OPT{$option}) {
             my $try = expand_path($OPT{$option});
+            if ($tojar && ! $found_jar && -f $try) {
+                println "\tjar... $try" unless ($AUTORUN);
+                $found_jar = $try;
+            }
+            next unless ($tolib);
             my ($i, $l, $il) = ($inc, $lib, $ilib);
             if ($option =~ /-build$/) {
                 undef $i;
@@ -474,8 +496,7 @@ foreach my $href (@REQ) {
                 $found_itf  = $fi  if (! $found_itf  && $fi);
                 $found_lib  = $fl  if (! $found_lib  && $fl);
                 $found_ilib = $fil if (! $found_ilib && $fil);
-            }
-            elsif (! ($try =~ /$a{name}$/)) {
+            } elsif (! ($try =~ /$a{name}$/)) {
                 $try = File::Spec->catdir($try, $a{name});
                 ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
                 $found_itf  = $fi  if (! $found_itf  && $fi);
@@ -489,49 +510,85 @@ foreach my $href (@REQ) {
         ($found_itf) = find_in_dir($try, $inc);
     }
     if (! $has_option{prefix}) {
-        if (! $found_itf || ($need_lib && ! $found_lib)) {
-            my $try = $a{pkgpath};
+        my $try = $a{pkgpath};
+        if (($need_itf && ! $found_itf) || ($need_lib && ! $found_lib)) {
             my ($fi, $fl) = find_in_dir($try, $inc, $lib);
             $found_itf  = $fi  if (! $found_itf  && $fi);
             $found_lib  = $fl  if (! $found_lib  && $fl);
         }
 
-        if (! $found_itf || ($need_lib && ! $found_lib)) {
-            my $try = $a{usrpath};
+        if ($need_jar && ! $found_jar) {
+            (undef, $found_jar) = find_in_dir($try, undef, undef, undef, $lib);
+        }
+
+        $try = $a{usrpath};
+        if (($need_itf && ! $found_itf) || ($need_lib && ! $found_lib)) {
             my ($fi, $fl) = find_in_dir($try, $inc, $lib);
             $found_itf  = $fi  if (! $found_itf  && $fi);
             $found_lib  = $fl  if (! $found_lib  && $fl);
         }
+
+        if ($need_jar && ! $found_jar) {
+            (undef, $found_jar) = find_in_dir($try, undef, undef, undef, $lib);
+        }
     }
     if (! $has_option{build}) {
-        if (($need_build || ($need_lib && ! $found_lib)) && $a{bldpath}) {
-            my ($fl, $fil);
-            if ($OPT{'build-prefix'}) {
-                my $try = $OPT{'build-prefix'};
-                (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
-                if ($fl || $fil) {
-                    $found_lib  = $fl  if (! $found_lib  && $fl);
-                    $found_ilib = $fil if (! $found_ilib && $fil);
-                } elsif (! ($try =~ /$a{name}$/)) {
-                    $try = File::Spec->catdir($try, $a{name});
-                    (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
-                    if ($fl || $fil) {
+        if ($a{bldpath}) {
+            my $tolib = $need_build || ($need_lib && ! $found_lib);
+            my $tojar = $need_jar && ! $found_jar;
+            if ($tolib || $tojar) {
+                my ($fl, $fil, $found);
+                if ($OPT{'build-prefix'}) {
+                    my $try = $OPT{'build-prefix'};
+                    if ($tolib) {
+                        (undef, $fl, $fil)
+                            = find_in_dir($try, undef, $lib, $ilib);
+                        if ($fl || $fil) {
+                            $found_lib  = $fl  if (! $found_lib  && $fl);
+                            $found_ilib = $fil if (! $found_ilib && $fil);
+                            ++$found;
+                        }
+                    }
+                    if ($tojar) {
+                        (undef, $found_jar)
+                            = find_in_dir($try, undef, undef, undef, $lib);
+                    }
+                    if (! ($try =~ /$a{name}$/)) {
+                        $try = File::Spec->catdir($try, $a{name});
+                        if ($tolib && ! $found) {
+                            (undef, $fl, $fil)
+                                = find_in_dir($try, undef, $lib, $ilib);
+                            if ($fl || $fil) {
+                                $found_lib  = $fl  if (! $found_lib  && $fl);
+                                $found_ilib = $fil if (! $found_ilib && $fil);
+                                ++$found;
+                            }
+                        }
+                        if ($need_jar && ! $found_jar) {
+                            (undef, $found_jar)
+                                = find_in_dir($try, undef, undef, undef, $lib);
+                        }
+                    }
+                }
+                unless ($found || $fl || $fil) {
+                    my $try = $a{bldpath};
+                    $try = $a{locbldpath} if ($OPT{'local-build-out'});
+                    if ($tolib && ! $found) {
+                        (undef, $fl, $fil)
+                            = find_in_dir($try, undef, $lib, $ilib);
                         $found_lib  = $fl  if (! $found_lib  && $fl);
                         $found_ilib = $fil if (! $found_ilib && $fil);
                     }
+                    if ($need_jar && ! $found_jar) {
+                        (undef, $found_jar)
+                            = find_in_dir($try, undef, undef, undef, $lib);
+                    }
                 }
-            }
-            unless ($fl || $fil) {
-                my $try = $a{bldpath};
-                $try = $a{locbldpath} if ($OPT{'local-build-out'});
-                (undef, $fl, $fil) = find_in_dir($try, undef, $lib, $ilib);
-                $found_lib  = $fl  if (! $found_lib  && $fl);
-                $found_ilib = $fil if (! $found_ilib && $fil);
             }
         }
     }
-    if (($need_itf && ! $found_itf) ||
-        ($need_lib && ! $found_lib) || ($ilib && ! $found_ilib))
+    if (($need_itf && ! $found_itf) || ($need_lib && ! $found_lib) ||
+        ($need_jar && ! $found_jar) || ($ilib && ! $found_ilib))
     {
         if ($is_optional) {
             println "configure: optional $a{name} package not found: skipped.";
@@ -580,6 +637,10 @@ foreach my $href (@REQ) {
         if ($ilib && $found_ilib) {
             $found_ilib = abs_path($found_ilib);
             push(@dependencies, "$a{aname}_ILIBDIR = $found_ilib");
+        }
+        if ($found_jar) {
+            $found_jar = abs_path($found_jar);
+            push(@dependencies, "$a{aname}_JAR = $found_jar");
         }
     }
 }
@@ -666,7 +727,7 @@ VERSION_LIBX = \$(LIBX).\$(VERSION)
 MAJMIN_LIBX  = \$(LIBX).\$(MAJMIN)
 MAJVERS_LIBX = \$(LIBX).\$(MAJVERS)
 
-SHLX = $SHLX
+SHLX         = $SHLX
 VERSION_SHLX = $VERSION_SHLX
 MAJMIN_SHLX  = $MAJMIN_SHLX
 MAJVERS_SHLX = $MAJVERS_SHLX
@@ -676,7 +737,7 @@ OBJX = $OBJX
 LOBX = $LOBX
 
 # suffix string for system executable
-EXEX = $EXEX
+EXEX         = $EXEX
 VERSION_EXEX = \$(EXEX).\$(VERSION)
 MAJMIN_EXEX  = \$(EXEX).\$(MAJMIN)
 MAJVERS_EXEX = \$(EXEX).\$(MAJVERS)
@@ -693,16 +754,17 @@ BITS = $BITS
 # tools
 EndText
 
-    L($F, "CC    = $CC"   ) if ($CC);
-    L($F, "CP    = $CP"   ) if ($CP);
-    L($F, "AR    = $AR"   ) if ($AR);
-    L($F, "ARX   = $ARX"  ) if ($ARX);
-    L($F, "ARLS  = $ARLS" ) if ($ARLS);
-    L($F, "LD    = $LD"   ) if ($LD);
-    L($F, "LP    = $LP"   ) if ($LP);
-    L($F, "JAVAC = $JAVAC") if ($JAVAC);
-    L($F, "JAVAH = $JAVAH") if ($JAVAH);
-    L($F, "JAR   = $JAR"  ) if ($JAR);
+    L($F, "CC            = $CC"           ) if ($CC);
+    L($F, "CP            = $CP"           ) if ($CP);
+    L($F, "AR            = $AR"           ) if ($AR);
+    L($F, "ARX           = $ARX"          ) if ($ARX);
+    L($F, "ARLS          = $ARLS"         ) if ($ARLS);
+    L($F, "LD            = $LD"           ) if ($LD);
+    L($F, "LP            = $LP"           ) if ($LP);
+    L($F, "JAVAC         = $JAVAC"        ) if ($JAVAC);
+    L($F, "JAVAH         = $JAVAH"        ) if ($JAVAH);
+    L($F, "JAR           = $JAR"          ) if ($JAR);
+    L($F, "MAKE_MANIFEST = $MAKE_MANIFEST") if ($MAKE_MANIFEST);
     L($F);
 
     L($F, '# tool options');
@@ -727,9 +789,19 @@ EndText
     } elsif ($PKG{LNG} eq 'JAVA') {
         L($F, 'SRCINC  = -sourcepath $(INCPATHS)');
     }
-    L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP)") if ($PIC);
+    if ($PIC) {
+        if (PACKAGE_NAMW() eq 'NGS') {
+            L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP) "
+                .        "$INC\$(TOP)/ngs/\$(OSINC)/\$(ARCH)")
+        } elsif (PACKAGE_NAMW() eq 'NGS_BAM') {
+            L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP) "
+                . "$INC\$(NGS_INCDIR)/ngs/\$(OSINC)/\$(ARCH)")
+        } else {
+            L($F, "INCDIRS = \$(SRCINC) $INC\$(TOP)")
+        }
+    }
     if ($PKG{LNG} eq 'C') {
-        L($F, "CFLAGS  = \$(DBG) \$(OPT) \$(INCDIRS) $MD");
+        L($F, "CFLAGS  = \$(DBG) \$(OPT) \$(INCDIRS) $MD $ARCH_FL");
     }
 
     L($F, 'CLSPATH = -classpath $(CLSDIR)');
@@ -996,6 +1068,8 @@ unless ($OPT{'reconfigure'}) {
     open my $F, '>reconfigure' or die 'cannot open reconfigure to write';
     print $F "./configure $CONFIGURED\n";
     close $F;
+   # my $perm = (stat $fh)[2] & 07777;
+#   print "==================================================== $perm\n";
 }
 
 status() if ($OS ne 'win');
@@ -1103,7 +1177,7 @@ sub expand_path {
 }
 
 sub find_in_dir {
-    my ($dir, $include, $lib, $ilib) = @_;
+    my ($dir, $include, $lib, $ilib, $jar) = @_;
     unless (-d $dir) {
 #       println "no" unless ($AUTORUN);
         println "\t\tnot found $dir" if ($OPT{'debug'});
@@ -1198,6 +1272,14 @@ sub find_in_dir {
             print "\t" if ($OPT{'debug'});
             println 'no' unless ($AUTORUN);
             undef $found_lib;
+        }
+    }
+    if ($jar) {
+        print "\tjar... " unless ($AUTORUN);
+        my $try = "$dir/jar/$jar";
+        if (-e "$try") {
+            println $try unless ($AUTORUN);
+            $found_lib = $try;
         }
     }
     return ($found_inc, $found_lib, $found_ilib);
@@ -1356,7 +1438,7 @@ sub check {
         die         "No $href->{name}:origin"  unless $href->{origin};
         if ($href->{origin} eq 'I') {
             die     "No $href->{name}:aname"   unless $href->{aname};
-            unless ($href->{type} =~ /D/) {
+            unless ($href->{type} =~ /D/ || $href->{type} =~ /J/) {
                 die "No $href->{name}:include" unless $href->{include};
                 die "No $href->{name}:srcpath" unless $href->{srcpath};
             }
@@ -1514,7 +1596,7 @@ EndText
   --clean                 remove all configuration results
   --debug                 print lots of debugging information
 
-If `configure' was arleady run running `configure' without options
+If `configure' was already run running `configure' without options
 will rerun `configure' using the same command-line arguments.
 
 Report bugs to sra-tools\@ncbi.nlm.nih.gov

@@ -49,6 +49,8 @@ rc_t CGLoaderFile_CreateCGFile(CGLoaderFile* self,
             return CGFile20_Make(&self->cg_file, TYPE, self);
         case 0x02020000:
             return CGFile22_Make(&self->cg_file, TYPE, self);
+        case 0x02050000:
+            return CGFile25_Make(&self->cg_file, TYPE, self);
         default: {
             const char* name = NULL;
             rc_t rc = CGLoaderFile_Filename(self, &name);

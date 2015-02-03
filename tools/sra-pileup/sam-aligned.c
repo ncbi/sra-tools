@@ -1736,6 +1736,14 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
         }
     }
 
+	/* OPT SAM_FIELD: MD	reports Mismatches and Deletions */
+	if ( rc == 0 && opts->with_md_flag )
+	{
+		/* what we need to compute the MD-flag:
+			HAS_MISMATCH/HAS_MISMATCH_LEN:		
+		*/
+	}
+	
     if ( rc == 0 )
         rc = KOutMsg( "\n" );
 

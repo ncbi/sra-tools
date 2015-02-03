@@ -1137,10 +1137,7 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", Path );
                                     Directory,
                                     & TeeFile,
                                     HttpFile,
-                                    NULL,   /* logger */
                                     _HttpBlockSize, /* blocksize */
-                                    1,      /* cluster */
-                                    false,  /* report */
                                     Path
                                     );
                 if ( RCt == 0 ) {

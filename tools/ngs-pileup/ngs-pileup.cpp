@@ -57,9 +57,10 @@ struct NGS_Pileup::TargetReference
         
             if ( total_depth > 0 )
             {
-                out << canonicalName << "\t" 
-                    << ( pos + 1 ) << "\t" // convert to 1-based position to emulate samtools
-                    << total_depth << std :: endl;
+                out << canonicalName
+                    << '\t' << ( pos + 1 ) // convert to 1-based position to emulate samtools
+                    << '\t' << total_depth
+                    << std :: endl;
             }
         }
     }

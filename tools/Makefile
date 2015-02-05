@@ -64,6 +64,7 @@ SUBDIRS =             \
 	fuse              \
     vdb-diff          \
     kget              \
+    ngs-pileup        \
 
 ifneq (win,$(BUILD_OS))
 ifneq (rwin,$(BUILD_OS))

@@ -60,13 +60,20 @@ eval "$CMD"
 if [ "$?" != "0" ] ; then
     echo "SRA pileup failed. Command executed:"
     echo $CMD
-    exit 4
+    cat $TEMPDIR/sra.stderr
+    exit 2
 fi    
 cut -f 1,2,4 $TEMPDIR/sra.stdout.tmp >$TEMPDIR/sra.stdout 
    
 CMD="$NGS_PILEUP $CMDLINE 1>$TEMPDIR/ngs.stdout 2>$TEMPDIR/ngs.stderr"
 printf "ngs... "
-eval "$CMD" || exit 3
+eval "$CMD"
+if [ "$?" != "0" ] ; then
+    echo "NGS pileup failed. Command executed:"
+    echo $CMD
+    cat $TEMPDIR/ngs.stderr
+    exit 3
+fi    
 
 printf "diff... "
 diff $TEMPDIR/sra.stdout $TEMPDIR/ngs.stdout >$TEMPDIR/diff

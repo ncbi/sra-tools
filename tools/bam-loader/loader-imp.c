@@ -1253,19 +1253,24 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         bool originally_aligned;
         bool isPrimary;
         uint32_t opCount;
-        bool hasCG;
+        bool hasCG = false;
         uint64_t ti = 0;
         uint32_t csSeqLen = 0;
 
         rc = BAMFileRead2(bam, &rec);
         if (rc) {
-            if (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound)
+            if (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound) {
+                (void)PLOGMSG(klogInfo, (klogInfo, "EOF '$(file)'; read $(read); processed $(proc)", "file=%s,read=%lu,proc=%lu", bamFile, (unsigned long)recordsRead, (unsigned long)recordsProcessed));
                 rc = 0;
+            }
             else if (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcEmpty) {
                 ++recordsRead;
                 (void)PLOGERR(klogWarn, (klogWarn, rc, "File '$(file)'; record $(recno)", "file=%s,recno=%lu", bamFile, recordsRead));
                 rc = CheckLimitAndLogError();
                 goto LOOP_END;
+            }
+            else {
+                (void)PLOGERR(klogInfo, (klogInfo, rc, "Error '$(file)'; read $(read); processed $(proc)", "file=%s,read=%lu,proc=%lu", bamFile, (unsigned long)recordsRead, (unsigned long)recordsProcessed));
             }
             break;
         }
@@ -1297,8 +1302,13 @@ MIXED_BASE_AND_COLOR:
             else
                 isNotColorSpace = true;
         }
-        hasCG = BAMAlignmentHasCGData(rec);/*BAM*/
-        if (hasCG) {
+        rc = BAMAlignmentCGReadLength(rec, &readlen);/*BAM*/
+        if (rc != 0 && GetRCState(rc) != rcNotFound) {
+            (void)LOGERR(klogErr, rc, "Invalid CG data");
+            goto LOOP_END;
+        }
+        if (rc == 0) {
+            hasCG = true;
             BAMAlignmentGetCigarCount(rec, &opCount);/*BAM*/
             rc = KDataBufferResize(&cigBuf, opCount * 2 + 5);
             if (rc) {
@@ -1306,7 +1316,7 @@ MIXED_BASE_AND_COLOR:
                 goto LOOP_END;
             }
 
-            rc = AlignmentRecordInit(&data, readlen = 35);
+            rc = AlignmentRecordInit(&data, readlen);
             if (rc == 0)
                 rc = KDataBufferResize(&buf, readlen);
             if (rc) {
@@ -1380,9 +1390,10 @@ MIXED_BASE_AND_COLOR:
                 memcpy(qual, squal, readlen);
         }
         if (hasCG) {
-            rc = BAMAlignmentGetCGSeqQual(rec, seqDNA, qual);/*BAM*/
-            if (rc == 0)
+            rc = BAMAlignmentGetCGSeqQual(rec, seqDNA, qual);
+            if (rc == 0) {
                 rc = BAMAlignmentGetCGCigar(rec, cigBuf.base, cigBuf.elem_count, &opCount);/*BAM*/
+            }
             if (rc) {
                 (void)LOGERR(klogErr, rc, "Failed to read CG data");
                 goto LOOP_END;

@@ -22,19 +22,24 @@
 *
 * ===========================================================================
 */
-#include <klib/log.h>
-#include <klib/rc.h>
-#include <klib/printf.h>
+
+
+#include "debug.h"
+#include "factory-cmn.h"
+#include "factory-mappings.h"
 
 typedef struct CGMappings15 CGMappings15;
 #define CGFILETYPE_IMPL CGMappings15
 #include "file.h"
-#include "factory-cmn.h"
-#include "factory-mappings.h"
-#include "debug.h"
 
-#include <string.h>
+#include <klib/printf.h>
+#include <klib/rc.h>
+
+#include <sysalloc.h>
+
 #include <stdlib.h>
+#include <string.h>
+
 
 struct CGMappings15 {
     CGFileType dad;

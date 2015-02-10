@@ -26,12 +26,19 @@
 #ifndef _tools_cg_load_writer_evidence_dnbs_h_
 #define _tools_cg_load_writer_evidence_dnbs_h_
 
-#include <insdc/insdc.h>
-#include <vdb/database.h>
-#include <sra/sradb.h>
 
 #include "defs.h"
 #include "factory-cmn.h"
+
+#include <insdc/insdc.h>
+
+#include <sra/sradb.h>
+
+#include <vdb/database.h>
+
+
+struct ReferenceMgr;
+
 
 typedef struct TEvidenceDnbsData_dnb_struct {
 
@@ -62,6 +69,7 @@ typedef struct TEvidenceDnbsData_dnb_struct {
     size_t read_len;
     /*char qual[CG_EVDNC_SPOT_LEN];
     */
+    CGFIELD_WELL_ID wellId;
 } TEvidenceDnbsData_dnb;
 
 typedef struct TEvidenceDnbsData {
@@ -76,8 +84,9 @@ typedef struct CGWriterEvdDnbs CGWriterEvdDnbs;
 
 struct TEvidenceIntervalsData;
 
-rc_t CGWriterEvdDnbs_Make(const CGWriterEvdDnbs** cself, TEvidenceDnbsData** data,
-                          VDatabase* db, const ReferenceMgr* rmgr, const uint32_t options);
+rc_t CGWriterEvdDnbs_Make(const CGWriterEvdDnbs **cself,
+    TEvidenceDnbsData **data, VDatabase *db, const struct ReferenceMgr *rmgr,
+    const uint32_t options, uint32_t read_len);
 
 rc_t CGWriterEvdDnbs_Whack(const CGWriterEvdDnbs* cself, bool commit, uint64_t* rows);
 

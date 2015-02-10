@@ -22,22 +22,29 @@
 *
 * ===========================================================================
 */
+
+
+#include "debug.h"
+#include "defs.h"
+#include "factory-file.h"
+#include "file.h"
+
+#include <kapp/loader-file.h>
+
+#include <kfs/directory.h>
+
 #include <klib/log.h>
 #include <klib/rc.h>
 #include <klib/status.h>
-#include <kfs/directory.h>
-#include <kapp/loader-file.h>
+
 #include <strtol.h>
+#include <sysalloc.h>
 
-#include "defs.h"
-#include "file.h"
-#include "factory-file.h"
-#include "debug.h"
-
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+
 
 rc_t CGLoaderFile_IsEof(const CGLoaderFile* cself, bool* eof)
 {
@@ -60,17 +67,20 @@ rc_t CGLoaderFile_Line(const CGLoaderFile* cself, uint64_t* line)
 }
 
 
-rc_t CGLoaderFile_Readline(const CGLoaderFile* cself, const void** buffer, size_t* length)
+rc_t CGLoaderFile_Readline(const CGLoaderFile* cself,
+    const void** buffer, size_t* length)
 {
     return KLoaderFile_Readline(cself ? cself->file : NULL, buffer, length);
 }
 
-rc_t CGLoaderFile_Filename(const CGLoaderFile* cself, const char** name)
+rc_t CGLoaderFile_Filename(
+    const CGLoaderFile* cself, const char** name)
 {
     return KLoaderFile_Name(cself ? cself->file : NULL, name);
 }
 
-rc_t CGLoaderFile_LOG(const CGLoaderFile* cself, KLogLevel lvl, rc_t rc, const char *msg, const char *fmt, ...)
+rc_t CGLoaderFile_LOG(const CGLoaderFile* cself, KLogLevel lvl,
+    rc_t rc, const char *msg, const char *fmt, ...)
 {
     if( cself != NULL ) {
         va_list args;
@@ -103,9 +113,7 @@ rc_t CGLoaderFile_Release(const CGLoaderFile* cself, bool ignored)
     return rc;
 }
 
-static
-rc_t parse_version(const char* buf, size_t len, uint32_t* v)
-{
+static rc_t parse_version(const char* buf, size_t len, uint32_t* v) {
     rc_t rc = 0;
     int i = 0;
     int64_t q;
@@ -132,6 +140,78 @@ rc_t parse_version(const char* buf, size_t len, uint32_t* v)
 }
 
 static
+rc_t _CGLoaderFileParseLibraryType(const CGLoaderFile *self,
+    const char *buf, size_t len, uint32_t *t)
+{
+    char libraryType[64] = "";
+    rc_t rc = str2buf(buf, len, libraryType, sizeof(libraryType));
+    if (rc != 0) {
+        return rc;
+    }
+    assert(t);
+    /* From Standard Sequencing Service Data File Formats. File format v2.5 */
+    switch (libraryType[0]) {
+        case 'P': {
+            const char n[] = "PureLFR" ; /* From File format v2.5  */
+            const char s[] = "Pure LFR"; /* From submission in SRA-2617 */
+            if (string_cmp(n, sizeof n - 1, libraryType,
+                    string_measure(libraryType, NULL), sizeof n - 1) == 0
+              ||string_cmp(s, sizeof s - 1, libraryType,
+                    string_measure(libraryType, NULL), sizeof s - 1) == 0)
+            {
+                *t = cg_eLibraryType_PureLFR;
+            }
+            else {
+                rc = RC(rcRuntime, rcFile, rcConstructing,
+                    rcData, rcUnrecognized);
+            }
+            break;
+        }
+        case 'M': {
+            const char l[] = "Mixed-LFR";
+            const char s[] = "Mixed-STD";
+            if (string_cmp(l, sizeof l - 1, libraryType,
+                string_measure(libraryType, NULL), sizeof l - 1) == 0)
+            {
+                *t = cg_eLibraryType_MixedLFR;
+            }
+            else if (string_cmp(s, sizeof s - 1, libraryType,
+                string_measure(libraryType, NULL), sizeof s - 1) == 0)
+            {
+                *t = cg_eLibraryType_MixedSTD;
+            }
+            else {
+                rc = RC(rcRuntime, rcFile, rcConstructing,
+                    rcData, rcUnrecognized);
+            }
+            break;
+        }
+        case 'S': {
+            const char a[] = "Standard";
+            if (string_cmp(a, sizeof a - 1, libraryType,
+                string_measure(libraryType, NULL), sizeof a - 1) == 0)
+            {
+                *t = cg_eLibraryType_Standard;
+            }
+            else {
+                rc = RC(rcRuntime, rcFile, rcConstructing,
+                    rcData, rcUnrecognized);
+            }
+            break;
+        }
+        default:
+            rc = RC(rcRuntime, rcFile, rcConstructing,
+                rcData, rcUnrecognized);
+            break;
+    }
+    if (rc != 0) {
+        CGLoaderFile_LOG(self, klogErr, rc,
+            "unexpected LIBRARY_TYPE value <$(t)>", "t=%s", libraryType);
+    }
+    return rc;
+}
+
+static
 rc_t CGLoaderFile_header(const CGLoaderFile* cself)
 {
     rc_t rc = 0;
@@ -141,10 +221,13 @@ rc_t CGLoaderFile_header(const CGLoaderFile* cself)
         const char* buf;
         size_t len;
         uint32_t fver = 0;
-        char type[64];
+        char type[64] = "";
+        uint32_t libraryType = cg_eLibraryType_Unknown;
 
         do {
-            if( (rc = CGLoaderFile_Readline(self, (const void**)&buf, &len)) == 0 ) {
+            if ((rc = CGLoaderFile_Readline(self, (const void**)&buf, &len))
+                == 0)
+            {
                 if( buf == NULL ) {
                     rc = RC(rcRuntime, rcFile, rcConstructing, rcData, rcTooShort);
                 } else if( len == 0 ) {
@@ -152,33 +235,47 @@ rc_t CGLoaderFile_header(const CGLoaderFile* cself)
                 } else if( buf[0] == '>' ) {
                     /* start of records */
                     break;
-                } else if( buf[0] == '#' ) {
+                }
+                else if( buf[0] == '#' ) {
                     len--; buf++;
-                    if( strncmp("FORMAT_VERSION\t", buf, 15) == 0 ) {
+                    if      (strncmp("FORMAT_VERSION\t", buf, 15) == 0) {
                         rc = parse_version(&buf[15], len - 15, &fver);
-                    } else if( strncmp("TYPE\t", buf, 5) == 0 ) {
+                    }
+                    else if (strncmp("LIBRARY_TYPE\t", buf, 13) == 0) {
+                        rc = _CGLoaderFileParseLibraryType(cself,
+                            &buf[13], len - 13, &libraryType);
+                    }
+                    else if (strncmp("TYPE\t", buf, 5) == 0) {
                         rc = str2buf(&buf[5], len - 5, type, sizeof(type));
                     }
-                } else {
-                    rc = RC(rcRuntime, rcFile, rcConstructing, rcData, rcUnrecognized);
+                }
+                else {
+                    rc = RC(rcRuntime, rcFile, rcConstructing,
+                        rcData, rcUnrecognized);
                 }
             }
-        } while( rc == 0 && self->cg_file == NULL );
-        if( rc == 0 ) {
+        } while (rc == 0 && self->cg_file == NULL);
+
+        if (rc == 0) {
             rc = CGLoaderFile_CreateCGFile(self, fver, type);
 
             if( rc == 0 ) {
                 CGFileType* f = (CGFileType*)self->cg_file;
                 f->format_version = fver;
-                if( f->type == cg_eFileType_Unknown || !f->vt || !f->vt->header ) {
-                    rc = RC(rcRuntime, rcFile, rcConstructing, rcInterface, rcIncomplete);
+                f->libraryType    = libraryType;
+
+                if (f->type == cg_eFileType_Unknown ||
+                    !f->vt || !f->vt->header)
+                {
+                    rc = RC(rcRuntime, rcFile, rcConstructing,
+                        rcInterface, rcIncomplete);
                 }
             }
             if( rc == 0 ) {
                 /* we need to restart file for loading all header by sub class */
                 KLoaderFile_Reset(self->file);
             }
-            while( rc == 0 ) {
+            while (rc == 0) {
                 if( (rc = CGLoaderFile_Readline(self, (const void**)&buf, &len)) == 0 ) {
                     if( buf == NULL ) {
                         rc = RC(rcRuntime, rcFile, rcConstructing, rcData, rcTooShort);

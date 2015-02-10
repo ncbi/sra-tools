@@ -23,28 +23,35 @@
 * ===========================================================================
 *
 */
-#include <klib/log.h>
-#include <klib/rc.h>
-#include <klib/container.h>
-#include <kfs/file.h>
-#include <insdc/insdc.h>
-#include <vdb/database.h>
-#include <vdb/table.h>
-#include <align/writer-alignment.h>
-#include <align/dna-reverse-cmpl.h>
-#include <align/align.h>
 
 #include "debug.h"
 #include "defs.h"
-#include "writer-evidence-intervals.h"
 #include "writer-evidence-dnbs.h"
+#include "writer-evidence-intervals.h"
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <errno.h>
-#include <ctype.h>
+#include <align/align.h>
+#include <align/dna-reverse-cmpl.h>
+#include <align/writer-alignment.h>
+
+#include <insdc/insdc.h>
+
+#include <kfs/file.h>
+
+#include <klib/container.h>
+#include <klib/log.h>
+#include <klib/rc.h>
+
+#include <vdb/database.h>
+#include <vdb/table.h>
+
+#include <sysalloc.h>
+
 #include <assert.h>
+#include <ctype.h>
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 typedef struct CGWriterEvdDnb_match_struct {
 
@@ -78,10 +85,12 @@ struct CGWriterEvdDnbs {
     TEvidenceDnbsData data;
 
     uint64_t bad_allele_index;
+    uint32_t read_len;
 };
 
-rc_t CGWriterEvdDnbs_Make(const CGWriterEvdDnbs** cself, TEvidenceDnbsData** data,
-                          VDatabase* db, const ReferenceMgr* rmgr, const uint32_t options)
+rc_t CGWriterEvdDnbs_Make(const CGWriterEvdDnbs **cself,
+    TEvidenceDnbsData **data, VDatabase *db, const ReferenceMgr *rmgr,
+    const uint32_t options, uint32_t read_len)
 {
     rc_t rc = 0;
     CGWriterEvdDnbs* self;
@@ -120,6 +129,9 @@ rc_t CGWriterEvdDnbs_Make(const CGWriterEvdDnbs** cself, TEvidenceDnbsData** dat
 
             /* set to 1st row for evidence_interval to collect ids */
             self->data.last_rowid = 1;
+
+            self->read_len = read_len;
+
             *data = &self->data;
         }
     }
@@ -178,10 +190,14 @@ rc_t CGWriterEvdDnbs_Write(const CGWriterEvdDnbs* cself, const TEvidenceInterval
             DEBUG_MSG(3, ("bad allele_index for interval %s %s[%hu]\n", cself->data.dnbs[i].chr, cself->data.interval_id, i + 1));
             self->bad_allele_index++;
             continue;
-        } else {
-            const char* read;
-            char reversed[CG_READS15_SPOT_LEN];
-            uint32_t read_len = CG_READS15_SPOT_LEN / 2;
+        }
+        else {
+            const char *read = NULL;
+            char reversed[CG_READS15_SPOT_LEN] = "";
+            uint32_t read_len = cself->read_len;
+
+            assert(read_len == CG_READS15_SPOT_LEN / 2
+                || read_len == CG_READS25_SPOT_LEN / 2);
 
             if( cself->data.dnbs[i].side == 'L' ) {
                 self->match.seq_read_id = 1;

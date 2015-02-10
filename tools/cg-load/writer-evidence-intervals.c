@@ -23,23 +23,28 @@
 * ===========================================================================
 *
 */
-#include <klib/log.h>
-#include <klib/rc.h>
-#include <klib/printf.h>
-#include <kfs/file.h>
-#include <vdb/table.h>
+
+#include "debug.h"
+#include "defs.h"
+#include "file.h"
+#include "writer-evidence-dnbs.h"
+#include "writer-evidence-intervals.h"
+
 #include <align/align.h>
 
-#include "defs.h"
-#include "writer-evidence-intervals.h"
-#include "writer-evidence-dnbs.h"
-#include "debug.h"
-#include "file.h"
+#include <kfs/file.h>
+#include <klib/log.h>
+#include <klib/printf.h>
+#include <klib/rc.h>
 
+#include <vdb/table.h>
+
+#include <sysalloc.h>
+
+#include <assert.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
-#include <assert.h>
 
 typedef struct CGWriterEvdInt_match_struct {
 

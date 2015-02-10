@@ -22,20 +22,23 @@
 *
 * ===========================================================================
 */
-#include <klib/log.h>
-#include <klib/rc.h>
-#include <klib/printf.h>
+
+#include "debug.h"
+#include "factory-cmn.h"
+#include "factory-reads.h"
 
 typedef struct CGReads15 CGReads15;
 #define CGFILETYPE_IMPL CGReads15
 #include "file.h"
-#include "factory-cmn.h"
-#include "factory-reads.h"
-#include "debug.h"
+
+#include <klib/printf.h>
+#include <klib/rc.h>
+
+#include <os-native.h>
+#include <sysalloc.h>
 
 #include <stdlib.h>
 #include <string.h>
-#include <os-native.h>
 
 struct CGReads15 {
     CGFileType dad;

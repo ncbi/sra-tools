@@ -88,6 +88,8 @@ typedef uint16_t CGFIELD_NUMBER_LEVELS_TYPE;
 typedef uint16_t CGFIELD_MEAN_LEVEL_X_TYPE;
 typedef uint16_t CGFIELD_WELL_ID;
 
+/******************************************************************************/
+
 typedef enum CG_EFileType_enum {
     cg_eFileType_Unknown = 0,
     cg_eFileType_READS = 1,
@@ -134,12 +136,13 @@ typedef enum CG_EFileType_enum {
     cg_eFileType_Last
 } CG_EFileType;
 
-typedef enum CG_EReadsFlags_enum {
-    cg_eLeftHalfDnbNoMatches = 0x01,
-    cg_eLeftHalfDnbMapOverflow = 0x02,
-    cg_eRightHalfDnbNoMatches = 0x04,
-    cg_eRightHalfDnbMapOverflow = 0x08
-} CG_EReadsFlags;
+typedef enum {
+    cg_eLibraryType_Unknown,
+    cg_eLibraryType_PureLFR,
+    cg_eLibraryType_MixedLFR,
+    cg_eLibraryType_MixedSTD,
+    cg_eLibraryType_Standard,
+} CG_ELibraryType;
 
 typedef enum CG_EMappingsFlags_enum {
     cg_eLastDNBRecord = 0x01,
@@ -148,5 +151,13 @@ typedef enum CG_EMappingsFlags_enum {
     cg_eFwdDnbStrand = 0x00,
     cg_eRevDnbStrand = 0x04
 } CG_EMappingsFlags;
+
+typedef enum CG_EReadsFlags_enum {
+    cg_eLeftHalfDnbNoMatches = 0x01,
+    cg_eLeftHalfDnbMapOverflow = 0x02,
+    cg_eRightHalfDnbNoMatches = 0x04,
+    cg_eRightHalfDnbMapOverflow = 0x08
+} CG_EReadsFlags;
+
 
 #endif /* _tools_cg_load_defs_h_ */

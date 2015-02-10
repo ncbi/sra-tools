@@ -22,16 +22,19 @@
 *
 * ===========================================================================
 */
-#include <klib/log.h>
-#include <klib/rc.h>
-#include <klib/printf.h>
+
+#include "debug.h"
+#include "factory-cmn.h"
+#include "factory-evidence-intervals.h"
 
 typedef struct CGEvidenceIntervals15 CGEvidenceIntervals15;
 #define CGFILETYPE_IMPL CGEvidenceIntervals15
 #include "file.h"
-#include "factory-cmn.h"
-#include "factory-evidence-intervals.h"
-#include "debug.h"
+
+#include <klib/printf.h>
+#include <klib/rc.h>
+
+#include <sysalloc.h>
 
 #include <assert.h>
 #include <stdlib.h>

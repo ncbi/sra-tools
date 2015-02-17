@@ -54,6 +54,7 @@
 #include <kdb/manager.h> /* kptDatabase */
 
 #include <kfs/directory.h> /* KDirectory */
+#include <kfs/extendable-ramfile.h> /* KExtendableRamFileMake */
 #include <kfs/file.h> /* KFile */
 
 #include <klib/data-buffer.h> /* KDataBuffer */
@@ -169,6 +170,7 @@ rc_t CC Usage(const Args *args) {
         "  f - print ascp information\n"
         "  F - print verbose ascp information\n"
         "  t - print object types\n");
+//      "  k - print curl info\n"
     if (rc == 0 && rc2 != 0) {
         rc = rc2;
     }
@@ -1411,8 +1413,6 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
             rc = rc2;
         }
 
-        RELEASE(VPath, remote);
-
         rc2 = MainResolveRemote(self, resolver, name, acc, &remote, remoteSz,
             true);
         if (rc2 != 0 && rc == 0) {
@@ -2002,7 +2002,6 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
         OUTMSG(("</%s>\n", root));
     }
 
-    va_end(args);
     return rc;
 }
 
@@ -2208,6 +2207,35 @@ rc_t CC KMain(int argc, char *argv[]) {
     }
 
     if (rc == 0) {
+        KFile *f = NULL;
+        rc = KExtendableRamFileMake(&f);
+        if (rc == 0) {
+            rc = KConfigToFile(prms.cfg, f);
+        }
+        if (rc == 0) {
+            size_t s = 0;
+            rc = KFileSize(f, &s);
+            char *buffer = NULL;
+            if (rc == 0 && s > 0) {
+                buffer = calloc(1, s);
+                if (buffer == NULL) {
+                    rc = 1;
+                }
+            }
+            size_t w = 1, p = 0;
+            for (p = 0; w > 0 && rc == 0; p += w) {
+                rc = KFileRead(f, p, buffer, s, &w);
+                if (rc == 0 && w > 0) {
+                    OUTMSG(("%.*s", w, buffer));
+                }
+            }
+            free(buffer);
+        }
+        RELEASE(KFile, f);
+        return rc;
+    }
+
+    if (rc == 0) {
         const char root[] = "Test-sra";
         rc = ArgsOptionCount(args, OPTION_OUT, &pcount);
         if (rc) {
@@ -2254,6 +2282,12 @@ rc_t CC KMain(int argc, char *argv[]) {
         if (MainHasTest(&prms, eAscp)) {
             MainPrintAscp(&prms);
         }
+
+#if 0
+        if (MainHasTest(&prms, eCurl)) {
+            PrintCurl(prms.full, prms.xml);
+        }
+#endif
 
         if (!prms.full) {
             rc_t rc2 = MainQuickCheck(&prms);

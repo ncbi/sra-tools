@@ -673,7 +673,7 @@ static rc_t init_dbcc(KDirectory const *dir, char const name[], bool is_file,
         *names = NULL;
     }
     else {
-        *nodes = malloc(nobj * sizeof(**nodes) + namesz);
+        *nodes = calloc(1, nobj * sizeof(**nodes) + namesz);
         if (nodes)
             *names = (char *)&(*nodes)[nobj];
         else
@@ -1668,8 +1668,14 @@ static rc_t verify_database_align(VDatabase const *db,
             if (rc) break;
         }
         rc = dbric_align(name, pri, seq, ref);
+
+        RELEASE(VTable, ref);
+        RELEASE(VTable, seq);
+        RELEASE(VTable, pri);
+
         break;
     }
+
     return rc;
 }
 

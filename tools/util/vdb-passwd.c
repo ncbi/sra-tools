@@ -47,7 +47,7 @@
 
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
-
+#if 0
 /******************************************************************************/
 static
 rc_t SetPwd(const char *password, bool no_prompt)
@@ -219,7 +219,7 @@ rc_t run(bool quiet)
 
     return rc;
 }
-
+#endif
 #define SL_OPTION "noprompt"
 #define SL_ALIAS "n"
 static const char *SL_USAGE[]
@@ -250,7 +250,7 @@ rc_t CC Usage(const Args *args) {
 }
 
 ver_t CC KAppVersion(void) { return VDB_PASSWD_VERS; }
-
+#if 0
 rc_t CC KMain(int argc, char *argv[]) {
     Args *args;
     rc_t rc; /*, orc; */
@@ -275,4 +275,34 @@ rc_t CC KMain(int argc, char *argv[]) {
     }
 
     return rc;
+}
+#endif
+rc_t CC KMain(int argc, char *argv[]) {
+    OUTMSG((
+"WARNING: vdb-passwd IS OBSOLETE AND SHOULD NOT BE USED.\n"
+"\n"
+"\n"
+"To access dbGaP data you need:\n"
+"\n"
+"- Make sure you have the latest version of SRA Toolkit installed:\n"
+"https://github.com/ncbi/sra-tools/wiki/Downloads\n"
+"\n"
+"- Have permission to access controlled-access data for a dbGaP project;\n"
+"\n"
+"- Get dbGaP repository key (ngc file);\n"
+"\n"
+"- Import the dbGaP repository key to SRA Toolkit.\n"
+"  It will set up the project's workspace directoty.\n"
+"\n"
+"- Change directory to the project's workspace.\n"
+"\n"
+"Now you should be able to work with encrypted data.\n"
+"The SRA Toolkit will work with encrypted SRA data files,\n"
+"there is no need to decrypt the read data.\n"
+"\n"
+"The complete instructions are:\n"
+"http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=dbgap_use\n"
+"\n"
+"Send questions/bug reports to sra-tools@ncbi.nlm.nih.gov\n"));
+    return RC(rcExe, rcProcess, rcExecuting, rcProcess, rcUnsupported);
 }

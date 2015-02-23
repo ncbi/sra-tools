@@ -18,8 +18,8 @@ pairs between sequence data and the segment it aligns to.  The process to
 restore original data, for example as FastQ, requires fast access to the
 reference sequences that the original data was aligned to.  NCBI recommends that
 SRA users dedicate local disk space to store references downloaded from the NCBI
-SRA site.  As of Fall 2014, the complete collection of these reference sequences
-is 66 GB.  While it isn't usually necessary to download the entirety of the
+SRA site.  As of February 2015, the complete collection of these reference sequences
+is 98 GB.  While it isn't usually necessary to download the entirety of the
 reference sequences, this should give you an idea of the scale of the storage
 requirement.  By default, the Toolkit will download missing reference sequences
 on demand and cache them in the user's home directory.  The location of this

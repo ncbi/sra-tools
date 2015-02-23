@@ -82,6 +82,8 @@ rc_t vdh_print_col_info( dump_context *ctx,
                          const VSchema *my_schema );
 
 rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely );
+rc_t resolve_cache( const char * accession, char * dst, size_t dst_size );
+rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache );
 
 #ifdef __cplusplus
 }

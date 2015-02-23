@@ -30,22 +30,6 @@ Contact: sra-tools@ncbi.nlm.nih.gov
 SRA Tools web site: http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc
 Download page: https://github.com/ncbi/sra-tools/wiki/Downloads
 
-This release contains improvements in the area of networking. A bug in our
-networking code was introduced recently that allowed HTTP server connection
-resets to go undetected, which manifested itself as a "corrupt blob" error.
-What was happening was that the download-on-demand code was properly detecting a
-dropped connection, but failing to report it to consuming code. The latter in
-turn saw blobs of invalid data, and correctly reported that they were corrupt.
-
-The most common manifestation of this problem was with fastq-dump, which seemed
-to encounter a corrupt blob error after dumping some number of reads. The
-reported problem was correct. However, the source of the error was not a corrupt
-download, but instead was the result of dropped connections with the HTTP
-server.
-
-This release corrects the problem with unreported cases of dropped connections,
-and so restores the expected behavior.
-
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 

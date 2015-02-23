@@ -51,8 +51,6 @@
 #include <assert.h>
 #include <errno.h>
 
-//#include <os-native.h>
-
 typedef struct SParam_struct
 {
     const char* argv0;
@@ -142,10 +140,14 @@ rc_t DB_Init(const SParam* p, DB_Handle* h)
 
     } else if( p->asm_path && (rc = CGWriterEvdInt_Make(&h->wev_int, &h->ev_int, h->db, h->rmgr, 0)) != 0 ) {
         LOGERR(klogErr, rc, "failed to create evidence intervals writer");
-
-    } else if( p->asm_path && (rc = CGWriterEvdDnbs_Make(&h->wev_dnb, &h->ev_dnb, h->db, h->rmgr, 0)) != 0 ) {
+    }
+    else if (p->asm_path
+        && (rc = CGWriterEvdDnbs_Make
+            (&h->wev_dnb, &h->ev_dnb, h->db, h->rmgr, 0, p->read_len)) != 0)
+    {
         LOGERR(klogErr, rc, "failed to create evidence dnbs writer");
-    } else {
+    }
+    else {
         const char** r = p->refFiles;
         while( rc == 0 && *r != NULL ) {
             if( (rc = ReferenceMgr_FastaPath(h->rmgr, *r++)) != 0 ) {
@@ -331,12 +333,13 @@ void FGroupMAP_CloseFiles(FGroupMAP *g)
     CGLoaderFile_Close(g->align);
 }
 
-static
-void CC FGroupMAP_Whack( BSTNode *node, void *data )
-{
+static void CC FGroupMAP_Whack(BSTNode *node, void *data) {
     FGroupMAP* n = (FGroupMAP*)node;
-    CGLoaderFile_Release(n->seq, false);
-    CGLoaderFile_Release(n->align, false);
+
+    CGLoaderFile_Release(n->seq   , false);
+    CGLoaderFile_Release(n->align , false);
+    CGLoaderFile_Release(n->tagLfr, false);
+
     free(node);
 }
 

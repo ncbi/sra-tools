@@ -53,6 +53,10 @@
 #define PATH_MAX 4096
 #endif
 
+#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
+    if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
+
+
 /* Version  EXTERN
  *  return 4-part version code: 0xMMmmrrrr, where
  *      MM = major release
@@ -166,7 +170,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                                     "failed to retrieve parameter value");
                         else
                         {
-                            const VPath * upath;
+                            const VPath * upath = NULL;
                             rc = VFSManagerMakePath ( mgr, (VPath**)&upath, "%s", pc);
                             if (rc == 0)
                             {
@@ -246,6 +250,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                                     KDirectoryRelease(cwd);
                                 }
                             }
+
+                            RELEASE(VPath, upath);
                         }
                     }
                     VResolverRelease (resolver);

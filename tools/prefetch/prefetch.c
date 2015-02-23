@@ -1008,18 +1008,28 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *main,
 {
     const char *src = NULL;
     AscpOptions opt;
+
     assert(self && self->remote && self->remote->addr
         && main && main->ascp && main->asperaKey);
+
     memset(&opt, 0, sizeof opt);
+
     if (!_StringIsFasp(self->remote, &src)) {
         return RC(rcExe, rcFile, rcCopying, rcSchema, rcInvalid);
     }
-    opt.target_rate
-        = main->ascpMaxRate == NULL ? NULL : main->ascpMaxRate->addr;
+
+    if (main->ascpMaxRate != NULL) {
+        size_t sz = string_copy(opt.target_rate, sizeof opt.target_rate,
+            main->ascpMaxRate->addr, main->ascpMaxRate->size);
+        if (sz < sizeof opt.target_rate) {
+            return RC(rcExe, rcFile, rcCopying, rcBuffer, rcInsufficient);
+        }
+    }
     opt.name = self->name;
     opt.src_size = self->remoteSz;
     opt.heartbeat = main->heartbeat;
     opt.quitting = Quitting;
+
     return aspera_get(main->ascp, main->asperaKey, src, to, &opt);
 }
 

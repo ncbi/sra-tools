@@ -362,8 +362,8 @@ if ($TOOLS eq 'gcc') {
         $ARCH_FL       = '-arch i386 -arch x86_64';
         $OPT    = '-O3';
         $AR     = 'libtool -static -o';
-        $LD     = "clang -Wl,-arch_multiple $ARCH_FL";
-        $LP     = "$CPP $versionMin -Wl,-arch_multiple $ARCH_FL";
+        $LD     = "clang -Wl,-arch_multiple $ARCH_FL -Wl,-all_load";
+        $LP     = "$CPP $versionMin -Wl,-arch_multiple $ARCH_FL -Wl,-all_load";
     }
     $ARX  = 'ar x';
     $ARLS = 'ar t';

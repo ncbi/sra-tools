@@ -91,7 +91,8 @@ FIXTURE_TEST_CASE ( SingleReference_ByCommonName, NGSPileupFixture )
     ps . AddInput ( "ERR247027" ); 
     ps . AddReference ( "Pf3D7_13" );  
     string expectedStart = "AL844509.2\t1212494\t1"; //TODO: expand when pileup prints out more data
-    REQUIRE_EQ ( expectedStart, Run () . substr ( 0, expectedStart . length () ) );
+    string actual = Run ();
+    REQUIRE_EQ ( expectedStart, actual . substr ( 0, expectedStart . length () ) );
 }
 
 FIXTURE_TEST_CASE ( SingleReference_ByCanonicalName, NGSPileupFixture )
@@ -139,6 +140,13 @@ FIXTURE_TEST_CASE ( MultipleInputs, NGSPileupFixture )
     string res = Run();
     REQUIRE_EQ ( expectedStart, res . substr ( 0, expectedStart . length () ) );
     REQUIRE_NE ( string :: npos, res. find ( "2424446" ) ); // one of the positions from ERR334777
+}
+
+FIXTURE_TEST_CASE ( AllReferencses, NGSPileupFixture )
+{
+    ps . AddInput ( "SRR341578" ); 
+    string expectedStart = "NC_011748.1\t1\t1"; 
+    REQUIRE_EQ ( expectedStart, Run () . substr ( 0, expectedStart . length () ) );
 }
 
 //TODO: multiple input overlapping

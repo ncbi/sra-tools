@@ -253,6 +253,7 @@ typedef struct CGFileType_vt_struct {
 struct CGFileType {
     uint32_t format_version;
     CG_EFileType type;
+    CG_ELibraryType libraryType;
     const CGFileType_vt* vt;
 };
 

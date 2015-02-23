@@ -99,13 +99,6 @@ static const char * repeat_usage[]     = { "request blocks with repeats if in ra
 #define ALIAS_CREPORT  "p"
 static const char * creport_usage[]    = { "report cache usage", NULL };
 
-#define OPTION_CLUSTER "cluster"
-#define ALIAS_CLUSTER  "t"
-static const char * cluster_usage[]    = { "used cluster-size in KCacheTeeFile", NULL };
-
-#define OPTION_LOG "log"
-static const char * log_usage[]        = { "file to write log into in case of KCacheTeeFile", NULL };
-
 #define OPTION_COMPLETE "complete"
 static const char * complete_usage[]   = { "check if 1st parameter is a complete", NULL };
 
@@ -147,10 +140,8 @@ OptDef MyOptions[] =
     { OPTION_REP,     ALIAS_REP,     NULL, repeat_usage,   1,   false,       false },
     { OPTION_CREPORT, ALIAS_CREPORT, NULL, creport_usage,  1,   false,       false },
     { OPTION_BUFFER,  ALIAS_BUFFER,  NULL, buffer_usage,   1,   true,        false },
-    { OPTION_CLUSTER, ALIAS_CLUSTER, NULL, cluster_usage,  1,   true,        false },
     { OPTION_SLEEP,   ALIAS_SLEEP,   NULL, sleep_usage,  	1,   true,        false },	
     { OPTION_TIMEOUT, ALIAS_TIMEOUT, NULL, timeout_usage, 	1,   true,        false },
-    { OPTION_LOG,     NULL,          NULL, log_usage,      1,   true,        false },
     { OPTION_COMPLETE,NULL,          NULL, complete_usage, 1,   false,       false },
     { OPTION_TRUNC,   NULL,          NULL, truncate_usage, 1,   false,       false },
     { OPTION_START,   NULL,          NULL, start_usage,    1,   true,        false },
@@ -203,9 +194,7 @@ typedef struct fetch_ctx
     const char *url;
     const char *destination;
     const char *cache_file;
-    const char *log_file;
     size_t blocksize;
-    size_t cluster;
     size_t start, count;
 	size_t buffer_size;
 	size_t sleep_time;
@@ -368,36 +357,22 @@ static rc_t copy_file( const KFile * src, KFile * dst, fetch_ctx * ctx )
 static rc_t fetch_cached( KDirectory *dir, const KFile *src, KFile *dst, fetch_ctx *ctx )
 {
     rc_t rc = 0;
-    KFile *log_file = NULL;    /* into this file the log is written */
+	const KFile *tee; /* this is the file that forks persistent_content with remote */
+	size_t cache_tee_block = 0; /* ctx->blocksize; */
+	
+	KOutMsg( "persistent cache created\n" );
 
-    if ( ctx->log_file != NULL )
-        rc = KDirectoryCreateFile ( dir, &log_file, false, 0664, kcmOpen, ctx->log_file );
-
-    if ( rc == 0 )
-    {
-        const KFile *tee; /* this is the file that forks persistent_content with remote */
-		size_t cache_tee_block = 0; /* ctx->blocksize; */
-		size_t cache_tee_cluster = 1;
-		
-        KOutMsg( "persistent cache created\n" );
-
-        rc = KDirectoryMakeCacheTee ( dir,					/* the KDirectory for the the sparse-file */
-									  &tee,					/* the newly created cache-tee-file */
-									  src,					/* the file that we are wrapping ( usually the remote http-file ) */
-									  log_file, 			/* an optional log-file */
-									  cache_tee_block,		/* how big one block in the cache-tee-file will be */
-									  cache_tee_cluster,	/* how many blocks will be in a cluster */
-									  ctx->report_cache,	/* if we want to see any reporting in stdout from this file */
-									  ctx->cache_file );	/* the sparse-file we use write to */
-        if ( rc == 0 )
-        {
-            KOutMsg( "cache tee created\n" );
-            rc = copy_file( tee, dst, ctx );
-            KFileRelease( tee );
-        }
-    }
-    KFileRelease( log_file );
-
+	rc = KDirectoryMakeCacheTee ( dir,					/* the KDirectory for the the sparse-file */
+								  &tee,					/* the newly created cache-tee-file */
+								  src,					/* the file that we are wrapping ( usually the remote http-file ) */
+								  cache_tee_block,		/* how big one block in the cache-tee-file will be */
+								  ctx->cache_file );	/* the sparse-file we use write to */
+	if ( rc == 0 )
+	{
+		KOutMsg( "cache tee created\n" );
+		rc = copy_file( tee, dst, ctx );
+		KFileRelease( tee );
+	}
     return rc;
 }
 
@@ -552,7 +527,7 @@ static rc_t check_cache_complete( KDirectory *dir, fetch_ctx *ctx )
     if ( rc == 0 )
     {
         bool is_complete;
-        rc = IsCacheFileComplete( f, &is_complete, false );
+        rc = IsCacheFileComplete( f, &is_complete );
         if ( rc != 0 )
             KOutMsg( "error performing IsCacheFileComplete() %R\n", rc );
         else
@@ -655,11 +630,9 @@ rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
     if ( rc == 0 ) rc = get_bool( args, OPTION_REP, &ctx->with_repeats );
     if ( rc == 0 ) rc = get_bool( args, OPTION_CREPORT, &ctx->report_cache );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_BLOCK, &ctx->blocksize, ( 32 * 1024 ) );
-    if ( rc == 0 ) rc = get_size_t( args, OPTION_CLUSTER, &ctx->cluster, 1 );
 	if ( rc == 0 ) rc = get_size_t( args, OPTION_BUFFER, &ctx->buffer_size, 0 );
 	if ( rc == 0 ) rc = get_size_t( args, OPTION_SLEEP, &ctx->sleep_time, 0 );
 	if ( rc == 0 ) rc = get_size_t( args, OPTION_TIMEOUT, &ctx->timeout_time, 0 );
-    if ( rc == 0 ) rc = get_str( args, OPTION_LOG, &ctx->log_file );
     if ( rc == 0 ) rc = get_bool( args, OPTION_COMPLETE, &ctx->check_cache_complete );
     if ( rc == 0 ) rc = get_bool( args, OPTION_TRUNC, &ctx->truncate_cache );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_START, &ctx->start, 0 );

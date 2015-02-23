@@ -26,8 +26,8 @@
 
 
 #include "debug.h" /* DEBUG_MSG */
-#include "formats.h" /* get_cg_reads_ngaps */
 #include "defs.h" /* cg_eRightHalfDnbMap */
+#include "formats.h" /* get_cg_reads_ngaps */
 #include "writer-algn.h" /* CGWriterAlgn */
 
 #include <align/align.h> /* NCBI_align_ro_complete_genomics */
@@ -36,6 +36,8 @@
 #include <klib/log.h> /* PLOGERR */
 #include <klib/rc.h>
 #include <klib/sort.h> /* ksort */
+
+#include <sysalloc.h>
 
 #include <assert.h>
 #include <math.h> /* pow */

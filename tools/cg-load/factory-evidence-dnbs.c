@@ -22,20 +22,24 @@
 *
 * ===========================================================================
 */
-#include <klib/log.h>
-#include <klib/rc.h>
-#include <klib/printf.h>
+
+#include "debug.h"
+
+#include "factory-cmn.h"
+#include "factory-evidence-dnbs.h"
 
 typedef struct CGEvidenceDnbs15 CGEvidenceDnbs15;
 #define CGFILETYPE_IMPL CGEvidenceDnbs15
 #include "file.h"
-#include "factory-cmn.h"
-#include "factory-evidence-dnbs.h"
-#include "debug.h"
+
+#include <klib/printf.h>
+#include <klib/rc.h>
+
+#include <sysalloc.h>
 
 #include <assert.h>
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
 struct CGEvidenceDnbs15 {
     CGFileType dad;
@@ -178,8 +182,9 @@ rc_t CGEvidenceDnbs15_GetChromosome(const CGEvidenceDnbs15* cself, const CGFIELD
     return 0;
 }
 
-static
-rc_t CC CGEvidenceDnbs_Read(const CGEvidenceDnbs15* cself, const char* interval_id, TEvidenceDnbsData* data, int score_allele_num)
+static rc_t CC CGEvidenceDnbs_Read(
+    const CGEvidenceDnbs15* cself, const char* interval_id,
+    TEvidenceDnbsData* data, int score_allele_num)
 {
     rc_t rc = 0;
     TEvidenceDnbsData_dnb* m = NULL;
@@ -329,6 +334,189 @@ rc_t CC CGEvidenceDnbs_Read(const CGEvidenceDnbs15* cself, const char* interval_
     return rc;
 }
 
+static rc_t CC CGEvidenceDnbs25_Read(const CGEvidenceDnbs15 *cself,
+     const char *interval_id, TEvidenceDnbsData *data)
+{
+    const int score_allele_num = 4;
+    rc_t rc = 0;
+    TEvidenceDnbsData_dnb* m = NULL;
+    static TEvidenceDnbsData_dnb next_rec;
+    static char next_interval_id[32] = "";
+
+    /* local copy of unused TEvidenceDnbsData_dnb struct elements */
+    char reference_alignment[CG_EVDNC_ALLELE_CIGAR_LEN];
+    INSDC_coord_zero mate_offset_in_reference;
+    char mate_reference_alignment[CG_EVDNC_ALLELE_CIGAR_LEN];
+    uint16_t score_allele[4] = {0, 0, 0, 0}; /* v >= 2.0 has ScoreAllele[0-3] */
+    char qual[CG_EVDNC_SPOT_LEN];
+
+    bool lfr = false;
+    assert(cself->file->cg_file);
+    lfr = cself->file->cg_file->libraryType == cg_eLibraryType_PureLFR;
+
+    strcpy(data->interval_id, interval_id);
+    data->qty = 0;
+    /* already read one rec for this interval_id */
+    if( next_interval_id[0] != '\0' ) {
+        if( strcmp(next_interval_id, interval_id) != 0 ) {
+            /* nothing todo since next interval id is different */
+            return rc;
+        }
+        m = &data->dnbs[data->qty++];
+        memcpy(m, &next_rec, sizeof(next_rec));
+        DEBUG_MSG(10, ("%3u evidenceDnbs: '%s'\t'%s'\t'%s'\t'%s'\t%u\t%lu\t%hu\t%c\t%c\t%i\t'%.*s'"
+                        "\t%i\tnot_used\t0\tnot_used\t%c\t0\t0\t0\t'%.*s'\t'--'\n",
+            data->qty, next_interval_id, m->chr, m->slide, m->lane, m->file_num_in_lane,
+            m->dnb_offset_in_lane_file, m->allele_index, m->side, m->strand, m->offset_in_allele,
+            m->allele_alignment_length, m->allele_alignment, m->offset_in_reference,
+            m->mapping_quality, m->read_len, m->read));
+    }
+    do {
+        int i = 0;
+        char tmp[2];
+        CG_LINE_START(cself->file, b, len, p);
+        if( b == NULL || len == 0 ) {
+            next_interval_id[0] = '\0';
+            break; /* EOF */
+        }
+        if( data->qty >= data->max_qty ) {
+            TEvidenceDnbsData_dnb* x;
+            data->max_qty += 100;
+            x = realloc(data->dnbs, sizeof(*(data->dnbs)) * data->max_qty);
+            if( x == NULL ) {
+                rc = RC(rcRuntime, rcFile, rcReading, rcMemory, rcExhausted);
+                break;
+            }
+            data->dnbs = x;
+        }
+        m = &data->dnbs[data->qty++];
+
+        /*DEBUG_MSG(10, ("%2hu evidenceDnbs: '%.*s'\n", data->qty, len, b));*/
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, next_interval_id, sizeof(next_interval_id));
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, m->chr, sizeof(m->chr));
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, m->slide, sizeof(m->slide));
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, m->lane, sizeof(m->lane));
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2u32(b, p - b, &m->file_num_in_lane);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2u64(b, p - b, &m->dnb_offset_in_lane_file);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2u16(b, p - b, &m->allele_index);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, tmp, sizeof(tmp));
+        if( tmp[0] != 'L' && tmp[0] != 'R' ) {
+            rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+        }
+        m->side = tmp[0];
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, tmp, sizeof(tmp));
+        if( tmp[0] != '+' && tmp[0] != '-' ) {
+            rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+        }
+        m->strand = tmp[0];
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2i32(b, p - b, &m->offset_in_allele);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, m->allele_alignment, sizeof(m->allele_alignment));
+        m->allele_alignment_length = p - b;
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2i32(b, p - b, &m->offset_in_reference);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, reference_alignment, sizeof(reference_alignment));
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2i32(b, p - b, &mate_offset_in_reference);
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, mate_reference_alignment, sizeof(mate_reference_alignment));
+        CG_LINE_NEXT_FIELD(b, len, p);
+        rc = str2buf(b, p - b, tmp, sizeof(tmp));
+        if( tmp[0] < 33 || tmp[0] > 126 ) {
+            rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+        }
+        m->mapping_quality = tmp[0];
+        for (i = 0; i < score_allele_num; ++i) {
+            CG_LINE_NEXT_FIELD(b, len, p);
+            rc = str2u16(b, p - b, &score_allele[i]);
+	        if (rc != 0) {
+		        score_allele[i] = 0;
+		        rc = 0;
+	        }
+        }
+        CG_LINE_NEXT_FIELD(b, len, p);
+        m->read_len = p - b;
+        rc = str2buf(b, m->read_len, m->read, sizeof(m->read));
+
+        /* Scores */
+        if (lfr) {
+            CG_LINE_NEXT_FIELD(b, len, p);
+        }
+        else {
+            CG_LINE_LAST_FIELD(b, len, p);
+        }
+        if (m->read_len != p - b) {
+            rc = RC(rcRuntime, rcFile, rcReading, rcData, rcInconsistent);
+        }
+        else {
+            rc = str2buf(b, p - b, qual, sizeof(qual));
+        }
+
+        if (lfr) {
+         /* Standard Sequencing Service Data File Formats (File format v2.5)
+            states that Scores is the last column in evidenceDnbs file
+            but in 2.5 submission mentioned in SRA-2617
+            there are additionally wellId and wellScore columns.
+            #LIBRARY_TYPE is Pure LFR for this submission. */
+
+            /* wellId */
+            CG_LINE_NEXT_FIELD(b, len, p);
+            rc = str2u16(b, p - b, &m->wellId);
+            if (rc == 0 && (m->wellId < 0 || m->wellId > 384)) {
+                rc = RC(rcRuntime, rcFile, rcReading, rcData, rcOutofrange);
+            }
+
+            /* wellScore */
+            CG_LINE_LAST_FIELD(b, len, p);
+        }
+
+        ((CGEvidenceDnbs15*)cself)->records++;
+        if( strcmp(next_interval_id, data->interval_id) != 0 ) {
+            if (score_allele_num == 3) {
+              DEBUG_MSG(10, ("%3u evidenceDnbs: '%s'\t'%s'\t'%s'\t'%s'\t%u\t%lu\t%hu\t%c\t%c\t%i\t'%.*s'"
+                            "\t%i\t'%s'\t%i\t'%s'\t%c\t%hu\t%hu\t%hu\t'%.*s'\t'%s'\n",
+                data->qty, next_interval_id, m->chr, m->slide, m->lane, m->file_num_in_lane,
+                m->dnb_offset_in_lane_file, m->allele_index, m->side, m->strand, m->offset_in_allele,
+                m->allele_alignment_length, m->allele_alignment, m->offset_in_reference,
+                reference_alignment, mate_offset_in_reference, mate_reference_alignment,
+                m->mapping_quality, score_allele[0], score_allele[1], score_allele[2], m->read_len, m->read, qual));
+            }
+            else if (score_allele_num == 4) {
+              DEBUG_MSG(10, ("%3u evidenceDnbs: '%s'\t'%s'\t'%s'\t'%s'\t%u\t%lu\t%hu\t%c\t%c\t%i\t'%.*s'"
+                            "\t%i\t'%s'\t%i\t'%s'\t%c\t%hu\t%hu\t%hu\t%hu\t'%.*s'\t'%s'\n",
+                data->qty, next_interval_id, m->chr, m->slide, m->lane, m->file_num_in_lane,
+                m->dnb_offset_in_lane_file, m->allele_index, m->side, m->strand, m->offset_in_allele,
+                m->allele_alignment_length, m->allele_alignment, m->offset_in_reference,
+                reference_alignment, mate_offset_in_reference, mate_reference_alignment,
+                m->mapping_quality, score_allele[0], score_allele[1], score_allele[2], score_allele[3], m->read_len, m->read, qual));
+            }
+            else { assert(0); }
+        }
+        CG_LINE_END();
+        if( next_interval_id[0] == '\0' ) {
+            break;
+        }
+        if( strcmp(next_interval_id, data->interval_id) != 0 ) {
+            /* next record is from next interval, remeber it and stop */
+            memcpy(&next_rec, m, sizeof(next_rec));
+            data->qty--;
+            break;
+        }
+    } while( rc == 0 );
+    return rc;
+}
+
 static
 rc_t CC CGEvidenceDnbs15_Read(const CGEvidenceDnbs15* self, const char* interval_id, TEvidenceDnbsData* data)
 {   return CGEvidenceDnbs_Read(self, interval_id, data, 3); }
@@ -379,7 +567,7 @@ static const CGFileType_vt CGEvidenceDnbs25_vt = {
     NULL,
     NULL,
     NULL,
-    CGEvidenceDnbs20_Read,
+    CGEvidenceDnbs25_Read,
     NULL, /* tag_lfr */
     CGEvidenceDnbs15_GetAssemblyId,
     NULL,

@@ -27,8 +27,9 @@
 
 typedef struct CGIgnored CGIgnored;
 #define CGFILETYPE_IMPL CGIgnored
-
 #include "file.h" /* CGLoaderFile */
+
+#include <sysalloc.h>
 
 #include <assert.h>
 

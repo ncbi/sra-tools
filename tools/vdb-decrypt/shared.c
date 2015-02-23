@@ -494,7 +494,7 @@ rc_t FileInPlace (KDirectory * cwd, const char * leaf, bool try_rename)
                     z = string_size (leaf);
 
                     /* vdb-decrypt and vdb-encrypt both ignore repository cache files. */
-                    irc = GetCacheTruncatedSize (infile, &ignored, true);
+                    irc = GetCacheTruncatedSize (infile, &ignored);
                     if (irc == 0)
                         STSMSG (1, ("skipping cache download file %s", leaf));
                     else if ((fz == 0) &&

@@ -23,16 +23,20 @@
 * ===========================================================================
 *
 */
-#include <klib/log.h>
-#include <klib/rc.h>
-#include <insdc/insdc.h>
 
 #include "debug.h"
 #include "defs.h"
 #include "writer-seq.h"
 
-#include <stdlib.h>
+#include <insdc/insdc.h>
+
+#include <klib/log.h>
+#include <klib/rc.h>
+
+#include <sysalloc.h>
+
 #include <assert.h>
+#include <stdlib.h>
 
 const INSDC_SRA_platform_id DFTL_platform = SRA_PLATFORM_COMPLETE_GENOMICS;
 const char DFTL_label[] = "LeftRight";

@@ -50,6 +50,7 @@ struct NGS_Pileup::TargetReference
                 if ( ! i -> nextPileup () )
                 {
                     /*TODO: make sure that this is the first pileup in the container and all other pileups are finished too */
+std::cout << "Stopped at pos=" << pos << std::endl;        
                     break;
                 }
                 total_depth += i -> getPileupDepth ();
@@ -57,9 +58,10 @@ struct NGS_Pileup::TargetReference
         
             if ( total_depth > 0 )
             {
-                out << canonicalName << "\t" 
-                    << ( pos + 1 ) << "\t" // convert to 1-based position to emulate samtools
-                    << total_depth << std :: endl;
+                out << canonicalName
+                    << '\t' << ( pos + 1 ) // convert to 1-based position to emulate samtools
+                    << '\t' << total_depth
+                    << std :: endl;
             }
         }
     }
@@ -72,8 +74,8 @@ public :
     {
         ngs :: PileupIterator pileups = ref . getPileups ( ngs :: Alignment :: all );
         
+        // find the container of iterators for this reference 
         std :: string name = ref . getCanonicalName ();
-        // find and insert
         for ( iterator i = begin(); i != end (); ++ i )
         {
             if ( i -> canonicalName == name )
@@ -82,7 +84,7 @@ public :
                 return;
             }
         }
-        // not found - add new 
+        // not found - add new reference
         TargetReference newRef;
         newRef . canonicalName = name;
         newRef . length = ref . getLength ();
@@ -123,9 +125,12 @@ NGS_Pileup::Run () const
         ngs :: ReferenceIterator refIt = col . getReferences ();
         while ( refIt . nextReference () )
         {
+            // all references are requested, or the one we are looking at is requested
             if ( m_settings . references . empty () || FindReference ( m_settings . references, refIt ) )
             {
-                references . AddReference ( refIt );
+                /* need to create a Reference object that is not attached to the iterator, so as
+                    it is not invalidated on the next call to refIt.NextReference() */
+                references . AddReference ( col . getReference ( refIt. getCommonName () ) );
             }
         }
     }

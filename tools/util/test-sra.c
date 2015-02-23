@@ -169,7 +169,6 @@ rc_t CC Usage(const Args *args) {
         "  f - print ascp information\n"
         "  F - print verbose ascp information\n"
         "  t - print object types\n");
-//      "  k - print curl info\n"
     if (rc == 0 && rc2 != 0) {
         rc = rc2;
     }
@@ -1412,6 +1411,8 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
             rc = rc2;
         }
 
+        RELEASE(VPath, remote);
+
         rc2 = MainResolveRemote(self, resolver, name, acc, &remote, remoteSz,
             true);
         if (rc2 != 0 && rc == 0) {
@@ -2001,6 +2002,7 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
         OUTMSG(("</%s>\n", root));
     }
 
+    va_end(args);
     return rc;
 }
 
@@ -2252,12 +2254,6 @@ rc_t CC KMain(int argc, char *argv[]) {
         if (MainHasTest(&prms, eAscp)) {
             MainPrintAscp(&prms);
         }
-
-#if 0
-        if (MainHasTest(&prms, eCurl)) {
-            PrintCurl(prms.full, prms.xml);
-        }
-#endif
 
         if (!prms.full) {
             rc_t rc2 = MainQuickCheck(&prms);

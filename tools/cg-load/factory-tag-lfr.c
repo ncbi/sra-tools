@@ -22,20 +22,23 @@
 *
 * ===========================================================================
 */
-#include <klib/log.h>
-#include <klib/rc.h>
-#include <klib/printf.h>
+
+#include "debug.h"
+#include "factory-cmn.h"
+#include "factory-tag-lfr.h"
 
 typedef struct CGTagLfr CGTagLfr;
 #define CGFILETYPE_IMPL CGTagLfr
 #include "file.h"
-#include "factory-cmn.h"
-#include "factory-tag-lfr.h"
-#include "debug.h"
+
+#include <klib/printf.h>
+#include <klib/rc.h>
+
+#include <os-native.h>
+#include <sysalloc.h>
 
 #include <stdlib.h>
 #include <string.h>
-#include <os-native.h>
 
 struct CGTagLfr {
     CGFileType dad;

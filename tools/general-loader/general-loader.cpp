@@ -321,7 +321,7 @@ GeneralLoader::MakeCursors ()
             return rc;
         }
 
-        m_columnToCursor . push_back ( ColumnToCursor :: value_type ( cursorIdx, columnIdx ) );
+        m_columnToCursor . push_back ( ColumnToCursor :: value_type ( ( uint32_t ) cursorIdx, columnIdx ) );
     }
     return 0;
 }

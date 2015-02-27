@@ -165,8 +165,8 @@ private:
         uint32_t end_marker = 0;
         
         m_md . str_size = Pad ( m_md . str_size, Alignment ); 
-        m_md . md_size = MetadataSize();
-        m_md . num_columns = m_columns . size ();
+        m_md . md_size = ( uint32_t ) MetadataSize();
+        m_md . num_columns = ( uint32_t ) m_columns . size ();
         
         size_t bufSize = sizeof m_header + MetadataSize() + DataSize() + sizeof ( end_marker ); 
         m_buffer = new char [ bufSize ];
@@ -177,8 +177,7 @@ private:
         writePtr += sizeof m_header;
         
         // metadata, fixed portion
-        m_md . md_size = MetadataSize();
-        m_md . num_columns = m_columns . size ();
+        m_md . num_columns = ( uint32_t ) m_columns . size ();
         memcpy ( writePtr, & m_md, sizeof m_md);
         writePtr += sizeof m_md;
         
@@ -230,10 +229,10 @@ private:
             {
                 return ret;
             }
-            ret += it -> size () + 1;
+            ret += ( uint32_t ) it -> size () + 1;
         }
         m_strings . push_back ( p_str );
-        m_md . str_size = ret + p_str . size () + 1;
+        m_md . str_size = ret + ( uint32_t ) p_str . size () + 1;
         
         return ret;
     }

@@ -22,32 +22,41 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/general-loader
 
-include $(TOP)/build/Makefile.config
+TEST_TOOLS = \
+    test-general-loader
+
+include $(TOP)/build/Makefile.env
+
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean
 
 #-------------------------------------------------------------------------------
-# default
+# test-ngs-pileup
 #
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-    kget            \
-    general-loader  \
+TEST_GEN_LOAD_SRC = \
+	test-general-loader
 
-# under construction    
-#    ngs-pileup      \
+TEST_GEN_LOAD_OBJ = \
+	$(addsuffix .$(OBJX),$(TEST_GEN_LOAD_SRC))
+    
+TEST_GEN_LOAD_LIB =   \
+	-sncbi-wvdb-static   \
+	-skapp              \
+    -sktst              \
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+$(TEST_BINDIR)/test-general-loader: $(TEST_GEN_LOAD_OBJ)
+	$(LP) --exe -o $@ $^ $(TEST_GEN_LOAD_LIB)
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
+vg_gen_load: test-general-loader
+	valgrind --ncbi $(TEST_BINDIR)/test-general-loader 
+    

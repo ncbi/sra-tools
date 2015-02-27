@@ -22,69 +22,65 @@
 #
 # ===========================================================================
 
-by_default: default
 
-TOP ?= $(abspath ..)
-MODULE = tools
+default: std
 
-include $(TOP)/build/Makefile.shell
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.config
+MODULE = tools/general-loader
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =             \
-	util              \
-	align-cache       \
-	kar               \
-	kqsh              \
-	vdb-dump          \
-	sra-dump          \
-	sra-pileup        \
-	bam-loader        \
-	fastq-loader      \
-	srapath           \
-	sra-stat          \
-	vdb-copy          \
-	rd-filter-redact  \
-	vdb-config        \
-	align-info        \
-	qual-recalib-stat \
-	prefetch          \
-	vdb-decrypt       \
-	vdb-validate      \
-	sra-sort          \
-	cache-mgr         \
-	vcf-loader        \
-	copycat           \
-	sra-load          \
-	ccextract         \
-	pacbio-load       \
-	fuse              \
-    vdb-diff          \
-    kget              \
-    ngs-pileup        \
-    general-loader    \
+include $(TOP)/build/Makefile.env
 
-ifneq (win,$(BUILD_OS))
-ifneq (rwin,$(BUILD_OS))
-	SUBDIRS += cg-load
-endif
-endif
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS) 
+ALL_TOOLS = \
+	general-loader \
 
 #-------------------------------------------------------------------------------
-# pass-through
+# outer targets
 #
-out debug profile release GCC ICC VC++:
-	@ $(MAKE) TOP=$(TOP) -f $(TOP)/build/Makefile.env $@
+all std: vers-includes
+	@ $(MAKE_CMD) $(TARGDIR)/std
 
-.PHONY: out debug profile release GCC ICC VC++
+$(ALL_TOOLS): vers-includes
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
+
+#-------------------------------------------------------------------------------
+# std
+#
+$(TARGDIR)/std: \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/std
+
+#-------------------------------------------------------------------------------
+# vers-includes
+#
+$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/vers-includes
+
+#-------------------------------------------------------------------------------
+# clean
+#
+clean: stdclean
+
+.PHONY: clean
+
+#-------------------------------------------------------------------------------
+# general-loader
+#
+GEN_LOAD_SRC = \
+    general-loader \
+	main \
+
+GEN_LOAD_OBJ = \
+	$(addsuffix .$(OBJX),$(GEN_LOAD_SRC))
+
+GEN_LOAD_LIBS = \
+	-sncbi-wvdb-static \
+	-skapp \
+    
+$(BINDIR)/general-loader: $(GEN_LOAD_OBJ)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(GEN_LOAD_LIBS)
+

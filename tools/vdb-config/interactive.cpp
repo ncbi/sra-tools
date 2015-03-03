@@ -673,6 +673,7 @@ bool vdbconf_controller::import_this_ngc_into_this_location( Dlg &dlg,
         {
             m.commit();
             update_view( dlg );
+            m.mkdir(ngc);
         }
     }
     else if ( result_flags == 0 )

@@ -74,7 +74,14 @@ class CConfigurator : CNoncopyable {
             const string name("/repository/user/default-path");
             CString node(m_Cfg.ReadString(name.c_str()));
             if (node.Empty()) {
-/* this rc is ignored */ m_Cfg.UpdateNode(name.c_str(), "$(HOME)/ncbi");
+                CString home(m_Cfg.ReadString("HOME"));
+                if (!home.Empty()) {
+/* this rc is ignored */ m_Cfg.UpdateNode(name.c_str(),
+                    (home.GetString() + "/ncbi").c_str());
+                }
+                else {
+                    m_Cfg.UpdateNode(name.c_str(), "$(HOME)/ncbi");
+                }
             }
         }
         rc_t rc = 0;

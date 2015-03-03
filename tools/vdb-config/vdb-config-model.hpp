@@ -353,21 +353,26 @@ class vdbconf_model
         }
 
         // ----------------------------------------------------------------
-        bool import_ngc( const std::string &native_location, const KNgcObj *ngc, uint32_t permissions, uint32_t * result_flags )
+        bool import_ngc( const std::string &native_location,
+            const KNgcObj *ngc, uint32_t permissions, uint32_t * result_flags )
         {
             bool res = false;
+
             if ( _config_valid )
             {
                 KRepositoryMgr * repo_mgr;
                 rc_t rc = KConfigMakeRepositoryMgrUpdate ( _config, &repo_mgr );
                 if ( rc == 0 )
                 {
-                    std::string location = native_to_internal( native_location );
-                    rc = KRepositoryMgrImportNgcObj( repo_mgr, ngc, location.c_str(), permissions, result_flags );
+                    std::string location = native_to_internal( native_location);
+
+                    rc = KRepositoryMgrImportNgcObj( repo_mgr, ngc,
+                        location.c_str(), permissions, result_flags );
                     res = ( rc == 0 );
                     KRepositoryMgrRelease( repo_mgr );
                 }
             }
+
             return res;
         }
 
@@ -388,16 +393,35 @@ class vdbconf_model
             return res;
         }
 
-		bool does_path_exist( std::string &path )
-		{
-			bool res = false;
-			if ( _dir != NULL )
-			{
-				KPathType type = KDirectoryPathType( _dir, path.c_str() );
-				res = ( ( type & ~kptAlias ) == kptDir );
-			}
-			return res;
-		}
+        bool mkdir(const KNgcObj *ngc) {
+            uint32_t id = 0;
+            if (!get_id_of_ngc_obj(ngc, &id)) {
+                return false;
+            }
+
+            const std::string root(get_repo_location(id));
+            if (root.size() == 0) {
+                return false;
+            }
+
+            if (KDirectoryPathType(_dir, root.c_str()) != kptNotFound) {
+                return false;
+            }
+
+            return KDirectoryCreateDir(_dir, 0775,
+                kcmCreate | kcmParents, root.c_str()) == 0;
+        }
+
+        bool does_path_exist( std::string &path )
+        {
+            bool res = false;
+            if ( _dir != NULL )
+            {
+                KPathType type = KDirectoryPathType( _dir, path.c_str() );
+                res = ( ( type & ~kptAlias ) == kptDir );
+            }
+            return res;
+        }
 
         bool reload( void )
         {

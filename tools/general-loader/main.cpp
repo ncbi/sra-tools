@@ -41,6 +41,8 @@
 #include <klib/rc.h>
 #include <klib/log.h>
 
+#include <kns/stream.h>
+
 rc_t UsageSummary (char const * progname)
 {
     return KOutMsg (
@@ -97,7 +99,14 @@ rc_t CC KMain (int argc, char * argv[])
             }
             else
             { 
-                /* do it */
+                const KStream *std_in;
+                rc = KStreamMakeStdIn ( & std_in );
+                if ( rc == 0 )
+                {
+                    GeneralLoader loader ( *std_in );
+                    rc = loader . Run();
+                    KStreamRelease ( std_in );
+                }
             }
         }
     }

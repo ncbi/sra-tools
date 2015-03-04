@@ -40,11 +40,61 @@
 
 using namespace std;
 
-GeneralLoader::GeneralLoader ( const struct KStream& p_input )
+///////////// GeneralLoader::Reader
+
+GeneralLoader::Reader::Reader( const struct KStream& p_input )
 :   m_input ( p_input ),
-    m_columns (0),
-    m_strings(0),
-    m_db(0)
+    m_buffer ( 0 ),
+    m_bufSize ( 0 ),
+    m_readCount ( 0 )
+{
+}
+
+GeneralLoader::Reader::~Reader()
+{
+    free ( m_buffer );
+}
+
+rc_t 
+GeneralLoader::Reader::Read( void * p_buffer, size_t p_size )
+{
+    m_readCount += p_size;
+    return KStreamReadExactly ( & m_input, p_buffer, p_size );
+}
+
+rc_t 
+GeneralLoader::Reader::Read( size_t p_size )
+{
+    if ( p_size > m_bufSize )
+    {
+        m_buffer = realloc ( m_buffer, p_size );
+        if ( m_buffer == 0 )
+        {
+            m_bufSize = 0;
+            m_readCount = 0;
+            return RC ( rcExe, rcFile, rcReading, rcMemory, rcExhausted );
+        }
+    }
+    m_readCount += p_size;
+    return KStreamReadExactly ( & m_input, m_buffer, p_size );
+}
+
+void 
+GeneralLoader::Reader::Align( uint8_t p_bytes )
+{
+    if ( m_readCount % p_bytes != 0 )
+    {
+        Read ( p_bytes - m_readCount % p_bytes );
+    }
+}
+
+
+///////////// GeneralLoader
+
+GeneralLoader::GeneralLoader ( const struct KStream& p_input )
+:   m_reader ( p_input ),
+    m_headerNames ( 0 ),
+    m_db ( 0 )
 {
 }
 
@@ -56,17 +106,20 @@ GeneralLoader::~GeneralLoader ()
 void
 GeneralLoader::Reset()
 {
-    free ( m_columns );
-    m_columns = 0;
-    free ( m_strings );
-    m_strings = 0;
+    m_tables . clear();
+    m_columns . clear ();
     
     for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
     {
-        VCursorRelease ( it -> second );
+        VCursorRelease ( *it );
     }
+    m_cursors . clear();
     
     VDatabaseRelease ( m_db );
+    m_db = 0;
+    
+    free ( m_headerNames );
+    m_headerNames = 0;
 }
 
 rc_t 
@@ -77,19 +130,10 @@ GeneralLoader::Run()
     rc_t rc = ReadHeader ();
     if ( rc != 0 ) return rc; 
     
-    rc = ReadMetadata ();
-    if ( rc != 0 ) return rc; 
-    
-    rc = ReadColumns ();
-    if ( rc != 0 ) return rc; 
-    
-    rc = ReadStringTable ();
-    if ( rc != 0 ) return rc; 
-    
     rc = MakeDatabase ();
     if ( rc != 0 ) return rc; 
     
-    rc = MakeCursors ();
+    rc = ReadMetadata ();
     if ( rc != 0 ) return rc; 
     
     rc = OpenCursors ();
@@ -100,47 +144,53 @@ GeneralLoader::Run()
     
     return rc;
 }
- 
+
 rc_t 
 GeneralLoader::ReadHeader ()
 {
-    Header header;
-    size_t num_read;
-    rc_t rc = KStreamRead ( & m_input, & header, sizeof header, & num_read );
+    rc_t rc = m_reader . Read ( & m_header, sizeof m_header );
     if ( rc == 0 )
     { 
-        if ( num_read == sizeof header )
+        if ( strncmp ( m_header . signature, GeneralLoaderSignatureString, sizeof ( m_header . signature ) ) != 0 )
         {
-            if ( strncmp ( header . signature, GeneralLoaderSignatureString, sizeof ( header . signature ) ) != 0 )
+            rc = RC ( rcExe, rcFile, rcReading, rcHeader, rcCorrupt );
+        }
+        else 
+        {
+            switch ( m_header . endian )
             {
-                rc = RC ( rcExe, rcFile, rcReading, rcHeader, rcCorrupt );
-            }
-            else 
-            {
-                switch ( header . endian )
+            case 1:
+                if ( m_header . version != 1 )
                 {
-                case 1:
-                    if ( header . version != 1 )
-                    {
-                        rc = RC ( rcExe, rcFile, rcReading, rcHeader, rcBadVersion );
-                    }
-                    else
-                    {
-                        rc = 0;
-                    }
-                    break;
-                case 0x10000000:
-                    rc = RC ( rcExe, rcFile, rcReading, rcFormat, rcUnsupported );
-                    break;
-                default:
-                    rc = RC ( rcExe, rcFile, rcReading, rcFormat, rcInvalid );
-                    break;
+                    rc = RC ( rcExe, rcFile, rcReading, rcHeader, rcBadVersion );
                 }
+                else
+                {
+                    rc = 0;
+                }
+                break;
+            case 0x10000000:
+                rc = RC ( rcExe, rcFile, rcReading, rcFormat, rcUnsupported );
+                //TODO: apply byte order correction before checking the version number
+                break;
+            default:
+                rc = RC ( rcExe, rcFile, rcReading, rcFormat, rcInvalid );
+                break;
             }
+        }
+    }
+    
+    if ( rc == 0 )
+    {   
+        size_t size = m_header . remote_db_name_size + 1 + m_header . schema_file_name_size + 1 + m_header . schema_spec_size + 1;
+        m_headerNames = ( char * ) malloc ( size );
+        if ( m_headerNames != 0 )
+        {
+            rc = m_reader . Read ( m_headerNames, size );
         }
         else
         {
-            rc = RC ( rcExe, rcFile, rcReading, rcFile, rcInsufficient );
+            rc = RC ( rcExe, rcFile, rcReading, rcMemory, rcExhausted );
         }
     }
     return rc;
@@ -149,78 +199,106 @@ GeneralLoader::ReadHeader ()
 rc_t 
 GeneralLoader :: ReadMetadata ()
 {
-    size_t num_read;
-    rc_t rc = KStreamRead ( & m_input, & m_md, sizeof m_md, & num_read );
-    if ( rc != 0 ) 
-    {
-        return rc;
+    rc_t rc;
+    do 
+    { 
+        m_reader . Align ();
+        
+        Evt_hdr evt_header;
+        rc = m_reader . Read ( & evt_header, sizeof ( evt_header ) );    
+        if ( rc != 0 )
+        {
+            break;
+        }
+        
+        switch ( evt_header . evt )
+        {
+        case evt_open_stream:
+            return 0; // end of metadata
+        case evt_end_stream:
+            // premature end of stream
+            rc = RC ( rcExe, rcFile, rcReading, rcTransfer, rcCanceled );
+            break;
+        case evt_new_table:
+            {   
+                if ( m_tables . find ( evt_header . id ) == m_tables . end() )
+                {
+                    uint32_t table_name_size;
+                    rc = m_reader . Read ( & table_name_size, sizeof ( table_name_size ) );
+                    if ( rc == 0 )
+                    {
+                        rc = m_reader . Read ( table_name_size + 1 );
+                        if ( rc == 0 )
+                        {
+                            rc = MakeCursor ( ( char * ) m_reader . GetBuffer() );
+                            if ( rc == 0 )
+                            {
+                                m_tables [ evt_header . id ] = m_cursors . size() - 1;
+                            }
+                        }
+                        
+                    }
+                }
+                else
+                {
+                    rc = RC ( rcExe, rcFile, rcReading, rcTable, rcExists );
+                }
+                break;
+            }
+        case evt_new_column:
+            {   
+                uint32_t table_id;
+                rc = m_reader . Read ( & table_id , sizeof ( table_id ) );
+                if ( rc == 0 )
+                {
+                    TableIdToCursor::const_iterator table = m_tables . find ( table_id );
+                    if ( table != m_tables . end() )
+                    {
+                        if ( m_columns . find ( evt_header . id ) == m_columns . end () )
+                        {
+                            uint32_t col_name_size;
+                            rc = m_reader . Read ( & col_name_size, sizeof ( col_name_size ) );
+                            if ( rc == 0 )
+                            {
+                                rc = m_reader . Read ( col_name_size + 1 );
+                                if ( rc == 0 )
+                                {
+                                    uint32_t cursorIdx = table -> second;
+                                    uint32_t columnIdx;
+                                    rc = VCursorAddColumn ( m_cursors [ cursorIdx ], 
+                                                            & columnIdx, 
+                                                            "%s", 
+                                                            ( const char * ) m_reader . GetBuffer () );
+                                    if ( rc == 0  )
+                                    {
+                                        m_columns [ evt_header . id ] = ColumnToCursor :: mapped_type ( cursorIdx, columnIdx );
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            rc = RC ( rcExe, rcFile, rcReading, rcColumn, rcExists );
+                        }
+                    }
+                    else
+                    {
+                        rc = RC ( rcExe, rcFile, rcReading, rcTable, rcInvalid );
+                    }
+                }
+                break;
+            }
+        case evt_cell_default:
+        case evt_cell_data:
+        case evt_table_commit:
+        default:
+            rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
+            break;
+        }
     }
-    if ( num_read != sizeof m_md )
-    {
-        return RC ( rcExe, rcFile, rcReading, rcMetadata, rcCorrupt );
-    }
-    return 0;
-}
-
-rc_t 
-GeneralLoader :: ReadColumns ()
-{
-    size_t columnsSize = m_md . num_columns * sizeof ( Column );
-    if ( m_md . md_size != sizeof ( m_md ) + columnsSize + m_md . str_size )
-    {
-        return RC ( rcExe, rcFile, rcReading, rcMetadata, rcInvalid );
-    }
-
-    if ( columnsSize == 0 )
-    {   // no columns: weird but valid ?
-        return 0;
-    }
+    while ( rc == 0 );
     
-    m_columns = ( Column * ) malloc ( columnsSize );
-    if ( m_columns == 0 ) 
-    {
-        return RC ( rcExe, rcFile, rcReading, rcMemory, rcExhausted );
-    }
-    
-    size_t num_read;
-    rc_t rc = KStreamRead ( & m_input, m_columns, columnsSize, & num_read );
-    if ( rc != 0 ) 
-    {
-        return rc;
-    }    
-    if ( num_read != columnsSize )
-    {
-        return RC ( rcExe, rcFile, rcReading, rcMetadata, rcIncomplete );
-    }
-    return 0;
-}
-
-rc_t 
-GeneralLoader::ReadStringTable()
-{    
-    if ( m_md . str_size == 0 )
-    {
-        return RC ( rcExe, rcFile, rcReading, rcMetadata, rcInvalid );
-    }
-    
-    m_strings = ( char * ) malloc ( m_md . str_size );
-    if ( m_strings == 0 ) 
-    {
-        return RC ( rcExe, rcFile, rcReading, rcMemory, rcExhausted );
-    }
-    
-    size_t num_read;
-    rc_t rc = KStreamRead ( & m_input, m_strings, m_md . str_size, & num_read );
-    if ( rc != 0 ) 
-    {
-        return rc;
-    }    
-    if ( num_read != m_md . str_size )
-    {
-        return RC ( rcExe, rcFile, rcReading, rcMetadata, rcIncomplete );
-    }
-    
-    return 0;
+    return rc;
 }
 
 rc_t 
@@ -234,16 +312,20 @@ GeneralLoader::MakeDatabase ()
         rc = VDBManagerMakeSchema ( mgr, & schema );
         if ( rc  == 0 )
         {
-            rc = VSchemaParseFile(schema, "%s", & m_strings [ m_md . schema_file_offset ] );
+            const char * schemaFile = & m_headerNames [ m_header . remote_db_name_size + 1 ];
+            rc = VSchemaParseFile(schema, "%s", schemaFile );
             if ( rc  == 0 )
             {
+                const char * schemaSpec = & m_headerNames [ m_header . remote_db_name_size + 1 + 
+                                                            m_header . schema_file_name_size + 1 ];
+                const char * databaseName = & m_headerNames [ 0 ];
                 rc = VDBManagerCreateDB ( mgr, 
                                           & m_db, 
                                           schema, 
-                                          & m_strings [ m_md . schema_offset ], 
+                                          schemaSpec, 
                                           kcmInit + kcmMD5, 
                                           "%s", 
-                                          & m_strings [ m_md . database_name_offset ] );
+                                          databaseName );
                 if ( rc == 0 )
                 {
                     rc_t rc2 = VSchemaRelease ( schema );
@@ -263,7 +345,7 @@ GeneralLoader::MakeDatabase ()
 }
 
 rc_t 
-GeneralLoader::MakeCursor ( const char * p_tableName )
+GeneralLoader::MakeCursor ( const char* p_tableName )
 {   // new cursor means new table
     VTable* table;
     rc_t rc = VDatabaseCreateTable ( m_db, & table, p_tableName, kcmCreate | kcmMD5, "%s", p_tableName );
@@ -273,7 +355,7 @@ GeneralLoader::MakeCursor ( const char * p_tableName )
         rc = VTableCreateCursorWrite ( table, & cursor, kcmInsert );
         if ( rc == 0 )
         {
-            m_cursors . push_back ( Cursors::value_type ( string ( p_tableName ), cursor ));
+            m_cursors . push_back ( cursor );
         }
         rc_t rc2 = VTableRelease ( table );
         if ( rc == 0 )
@@ -285,58 +367,16 @@ GeneralLoader::MakeCursor ( const char * p_tableName )
 }
 
 rc_t 
-GeneralLoader::MakeCursors ()
-{
-    rc_t rc;
-    for ( uint32_t i = 0; i < m_md . num_columns; ++i )
-    {
-        //TODO: verify offsets
-        string tableName    = & m_strings [ m_columns [ i ] . table_name_offset ];
-        string columnName   = & m_strings [ m_columns [ i ] . column_name_offset ];
-        size_t cursorIdx;
-        for ( cursorIdx = 0; cursorIdx != m_cursors . size(); ++ cursorIdx )
-        {
-            if ( m_cursors [ cursorIdx ] . first == tableName )
-            {
-                break;
-            }
-        }
-        
-        if ( cursorIdx == m_cursors . size() ) 
-        {   
-            rc = MakeCursor ( tableName . c_str() );
-            if ( rc != 0 )
-            {
-                return rc;
-            }
-            cursorIdx = m_cursors . size () - 1;
-        }
-        
-        // add the column ( OK if already exists )
-        uint32_t columnIdx;
-        rc = VCursorAddColumn ( m_cursors [ cursorIdx ] . second, & columnIdx, "%s", columnName . c_str() );
-        if ( rc != 0 && 
-            ( ( int ) GetRCObject( rc ) != rcColumn || GetRCState ( rc ) != rcExists ) )
-        {
-            return rc;
-        }
-
-        m_columnToCursor . push_back ( ColumnToCursor :: value_type ( ( uint32_t ) cursorIdx, columnIdx ) );
-    }
-    return 0;
-}
-
-rc_t 
 GeneralLoader::OpenCursors ()
 {
     for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
     {
-        rc_t rc = VCursorOpen ( it -> second );
+        rc_t rc = VCursorOpen ( *it  );
         if ( rc != 0 )
         {
             return rc;
         }
-        rc = VCursorOpenRow ( it -> second );
+        rc = VCursorOpenRow ( *it );
         if ( rc != 0 )
         {
             return rc;
@@ -348,35 +388,127 @@ GeneralLoader::OpenCursors ()
 rc_t 
 GeneralLoader::ReadData ()
 {
-    uint32_t stream_id;
-    size_t num_read;
-    rc_t rc = KStreamRead ( & m_input, & stream_id, sizeof stream_id, & num_read );
-    if ( rc == 0 )
+    rc_t rc;
+    do 
     { 
-        if ( num_read == sizeof stream_id )
+        m_reader . Align ();
+        
+        Evt_hdr evt_header;
+        rc = m_reader . Read ( & evt_header, sizeof ( evt_header ) );    
+        if ( rc != 0 )
         {
-            if ( stream_id == 0 )
-            {   // end marker
-                for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
+            break;
+        }
+        
+        switch ( evt_header . evt )
+        {
+        case evt_end_stream:
+            for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
+            {
+                rc = VCursorCloseRow ( *it );
+                if ( rc != 0 )
                 {
-                    rc_t rc = VCursorCloseRow ( it -> second );
-                    if ( rc != 0 )
-                    {
-                        return rc;
-                    }
-                    // VCursorRelease will be called from Reset() (e.g. invoked from the destructor)
+                    break;
+                }
+                rc = VCursorCommit ( *it );
+                if ( rc != 0 )
+                {
+                    break;
                 }
             }
-            else
-            {   // TBD
-                rc = RC ( rcExe, rcFile, rcReading, rcData, rcInvalid );
+            return rc; // end of input
+            
+        case evt_cell_default:
+            {
+                ColumnToCursor::iterator curIt = m_columns . find ( evt_header . id );
+                if ( curIt != m_columns . end () )
+                {
+                    uint32_t elem_bits;
+                    rc = m_reader . Read ( & elem_bits, sizeof ( elem_bits ) );    
+                    if ( rc == 0 )
+                    {
+                        uint32_t elem_count;
+                        rc = m_reader . Read ( & elem_count, sizeof ( elem_count ) );   
+                        if ( rc == 0 )
+                        {
+                            rc = m_reader . Read ( ( elem_bits * elem_count + 7 ) / 8 );   
+                            if ( rc == 0 )
+                            {
+                                VCursor * cursor = m_cursors [ curIt -> second . first ];
+                                uint32_t colIdx = curIt -> second . second;
+                                rc = VCursorDefault ( cursor, colIdx, elem_bits, m_reader . GetBuffer(), 0, elem_count );
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    rc = RC ( rcExe, rcFile, rcReading, rcColumn, rcNotFound );
+                }
             }
-        }
-        else
-        {
-            rc = RC ( rcExe, rcFile, rcReading, rcData, rcInsufficient );
+            break;
+        case evt_cell_data:
+            {
+                ColumnToCursor::iterator curIt = m_columns . find ( evt_header . id );
+                if ( curIt != m_columns . end () )
+                {
+                    uint32_t elem_bits;
+                    rc = m_reader . Read ( & elem_bits, sizeof ( elem_bits ) );    
+                    if ( rc == 0 )
+                    {
+                        uint32_t elem_count;
+                        rc = m_reader . Read ( & elem_count, sizeof ( elem_count ) );   
+                        if ( rc == 0 )
+                        {
+                            rc = m_reader . Read ( ( elem_bits * elem_count + 7 ) / 8 );   
+                            if ( rc == 0 )
+                            {
+                                VCursor * cursor = m_cursors [ curIt -> second . first ];
+                                uint32_t colIdx = curIt -> second . second;
+                                rc = VCursorWrite ( cursor, colIdx, elem_bits, m_reader . GetBuffer(), 0, elem_count );
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    rc = RC ( rcExe, rcFile, rcReading, rcColumn, rcNotFound );
+                }
+            }
+            break;
+        case evt_table_commit:
+            {
+                TableIdToCursor::const_iterator table = m_tables . find ( evt_header . id );
+                if ( table != m_tables . end() )
+                {
+                    VCursor * cursor = m_cursors [ table -> second ];
+                    rc = VCursorCommitRow ( cursor );
+                    if ( rc == 0 )
+                    {
+                        rc = VCursorCloseRow ( cursor );
+                        if ( rc == 0 )
+                        {
+                            rc = VCursorOpenRow ( cursor );
+                        }
+                    }
+                }
+                else
+                {
+                    rc = RC ( rcExe, rcFile, rcReading, rcTable, rcNotFound );
+                }
+            }
+            break;
+            
+        case evt_open_stream:
+        case evt_new_table:
+        case evt_new_column:
+        default:
+            rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
+            break;
         }
     }
+    while ( rc == 0 );
+    
     return rc;
 }
 

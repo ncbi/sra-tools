@@ -27,6 +27,7 @@
 #include "general-loader.hpp"
 
 #include <klib/rc.h>
+#include <klib/log.h>
 
 #include <kns/stream.h>
 
@@ -240,12 +241,15 @@ GeneralLoader :: ReadMetadata ()
         switch ( evt_header . evt )
         {
         case evt_open_stream:
+            LogMsg ( klogInfo, "general-loader event: Open-Stream" );
             return 0; // end of metadata
         case evt_end_stream:
+            LogMsg ( klogErr, "unexpected general-loader event: End-Stream" );
             // premature end of stream
             rc = RC ( rcExe, rcFile, rcReading, rcTransfer, rcCanceled );
             break;
         case evt_new_table:
+            pLogMsg ( klogInfo, "general-loader event: New-Table, id=$(i)", "i=%u", evt_header . id );
             {   
                 if ( m_tables . find ( evt_header . id ) == m_tables . end() )
                 {
@@ -272,6 +276,7 @@ GeneralLoader :: ReadMetadata ()
                 break;
             }
         case evt_new_column:
+            pLogMsg ( klogInfo, "general-loader event: New-Column, id=$(i)", "i=%u", evt_header . id );
             {   
                 uint32_t table_id;
                 rc = m_reader . Read ( & table_id , sizeof ( table_id ) );
@@ -298,6 +303,10 @@ GeneralLoader :: ReadMetadata ()
                                     if ( rc == 0  )
                                     {
                                         m_columns [ evt_header . id ] = ColumnToCursor :: mapped_type ( cursorIdx, columnIdx );
+                                        pLogMsg ( klogInfo, 
+                                                  "general-loader: tableId = $(t), added column '$(c)', columnIdx = $(i)", 
+                                                  "t=%u,c=%s,i=%u",  
+                                                  table_id, ( const char * ) m_reader . GetBuffer (), columnIdx );
                                     }
                                 }
                             }
@@ -315,9 +324,19 @@ GeneralLoader :: ReadMetadata ()
                 break;
             }
         case evt_cell_default:
+            LogMsg ( klogErr, "unexpected general-loader event: Cell-Default");
+            rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
+            break;
         case evt_cell_data:
+            LogMsg ( klogErr, "unexpected general-loader event: Cell-Data");
+            rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
+            break;
         case evt_next_row:
+            LogMsg ( klogErr, "unexpected general-loader event: Next-Row");
+            rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
+            break;
         default:
+            pLogMsg ( klogErr, "unexpected general-loader event: $(e)", "e=%u", evt_header . evt );
             rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
             break;
         }
@@ -354,6 +373,11 @@ GeneralLoader::MakeDatabase ()
                                           databaseName );
                 if ( rc == 0 )
                 {
+                    pLogMsg ( klogInfo, 
+                              "general-loader: Database created, schema='$(s)', spec='$(p)', database='$(d)'", 
+                              "s=%s,p=%s,d=%s", 
+                              schemaFile, schemaSpec, databaseName );
+                
                     rc_t rc2 = VSchemaRelease ( schema );
                     if ( rc == 0 )
                         rc = rc2;
@@ -429,6 +453,7 @@ GeneralLoader::ReadData ()
         switch ( evt_header . evt )
         {
         case evt_end_stream:
+            LogMsg ( klogInfo, "general-loader event: End-Stream" );
             for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
             {
                 rc = VCursorCloseRow ( *it );
@@ -458,6 +483,7 @@ GeneralLoader::ReadData ()
             return rc; // end of input
             
         case evt_cell_default:
+            pLogMsg ( klogInfo, "general-loader event: Cell-Default, id=$(i)", "i=%u", evt_header . id );
             {
                 ColumnToCursor::iterator curIt = m_columns . find ( evt_header . id );
                 if ( curIt != m_columns . end () )
@@ -476,6 +502,10 @@ GeneralLoader::ReadData ()
                                 VCursor * cursor = m_cursors [ curIt -> second . first ];
                                 uint32_t colIdx = curIt -> second . second;
                                 rc = VCursorDefault ( cursor, colIdx, elem_bits, m_reader . GetBuffer(), 0, elem_count );
+                                pLogMsg ( klogInfo,     
+                                          "general-loader: columnIdx = $(i), default value's size=$(s) bits", 
+                                          "i=%u,s=%u", 
+                                           colIdx, elem_bits * elem_count );
                             }
                         }
                     }
@@ -487,6 +517,7 @@ GeneralLoader::ReadData ()
             }
             break;
         case evt_cell_data:
+            pLogMsg ( klogInfo, "general-loader event: Cell-Data, id=$(i)", "i=%u", evt_header . id );
             {
                 ColumnToCursor::iterator curIt = m_columns . find ( evt_header . id );
                 if ( curIt != m_columns . end () )
@@ -505,6 +536,10 @@ GeneralLoader::ReadData ()
                                 VCursor * cursor = m_cursors [ curIt -> second . first ];
                                 uint32_t colIdx = curIt -> second . second;
                                 rc = VCursorWrite ( cursor, colIdx, elem_bits, m_reader . GetBuffer(), 0, elem_count );
+                                pLogMsg ( klogInfo,     
+                                          "general-loader: columnIdx = $(i), value's size=$(s) bits", 
+                                          "i=%u,s=%u", 
+                                           colIdx, elem_bits * elem_count );
                             }
                         }
                     }
@@ -516,6 +551,7 @@ GeneralLoader::ReadData ()
             }
             break;
         case evt_next_row:
+            pLogMsg ( klogInfo, "general-loader event: Next-Row, id=$(i)", "i=%u", evt_header . id );
             {
                 TableIdToCursor::const_iterator table = m_tables . find ( evt_header . id );
                 if ( table != m_tables . end() )
@@ -539,9 +575,19 @@ GeneralLoader::ReadData ()
             break;
             
         case evt_open_stream:
+            LogMsg ( klogErr, "unexpected general-loader event: Open-Stream");
+            rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
+            break;
         case evt_new_table:
+            LogMsg ( klogErr, "unexpected general-loader event: New-Table");
+            rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
+            break;
         case evt_new_column:
+            LogMsg ( klogErr, "unexpected general-loader event: New-Column");
+            rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
+            break;
         default:
+            pLogMsg ( klogErr, "unexpected general-loader event: $(e)", "e=%u", evt_header . evt );
             rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
             break;
         }

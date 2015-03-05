@@ -35,6 +35,7 @@
 #include "../../tools/general-loader/general-loader.cpp"
 
 #include <klib/printf.h>
+#include <klib/debug.h>
 
 #include <kns/adapt.h>
 
@@ -45,6 +46,7 @@
 #include <cstring>
 #include <stdexcept> 
 #include <map>
+#include <fstream>
 
 using namespace std;
 using namespace ncbi::NK;
@@ -141,9 +143,20 @@ public:
         m_events . push_back ( Event ( GeneralLoader :: evt_cell_data, p_columnId, 8, p_value . size(), p_value . c_str() ) );
     }
 
-    void TableCommitEvent ( TableId p_id )
+    void CellDataEvent ( ColumnId p_columnId, uint32_t p_value )
+    {
+        m_events . push_back ( Event ( GeneralLoader :: evt_cell_data, p_columnId, 8 * sizeof p_value, 1, &p_value ) );
+    }
+
+    void NextRowEvent ( TableId p_id )
     {
         m_events . push_back ( Event ( GeneralLoader :: evt_next_row, p_id ) );
+    }
+    
+    // use this to capture stream contents to be used in cmdline tests
+    void SaveBuffer( const char* p_filename )
+    {
+        ofstream ( p_filename ) . write ( m_buffer, m_bufSize );
     }
     
 private:    
@@ -460,6 +473,26 @@ public:
          return string ( buf, num_read );
     }
     
+    uint32_t GetValueU32 ( const char* p_table, const char* p_column, uint64_t p_row )
+    {
+        OpenCursor( p_table, p_column ); 
+        if ( VCursorSetRowId ( m_cursor, p_row ) ) 
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorSetRowId failed");
+        
+        if ( VCursorOpenRow ( m_cursor ) != 0 )
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorOpenRow failed");
+            
+        uint32_t ret;
+        uint32_t num_read;
+        if ( VCursorRead ( m_cursor, 1, 8 * sizeof ret, &ret, 1, &num_read ) != 0 )
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");
+        
+        if ( VCursorCloseRow ( m_cursor ) != 0 )
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorCloseRow failed");
+
+         return ret;
+    }
+    
     TestSource      m_source;
     VDatabase *     m_db;
     const VCursor * m_cursor;
@@ -632,7 +665,6 @@ FIXTURE_TEST_CASE ( NoData, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    // validate the database
     OpenCursor( tableName, columnName ); 
     uint64_t count;
     REQUIRE_RC ( VCursorIdRange ( m_cursor, 1, NULL, &count ) );
@@ -669,7 +701,6 @@ FIXTURE_TEST_CASE ( WriteNoCommit, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    // validate the database
     OpenCursor( tableName, columnName ); 
     uint64_t count;
     REQUIRE_RC ( VCursorIdRange ( m_cursor, 1, NULL, &count ) );
@@ -682,7 +713,7 @@ FIXTURE_TEST_CASE ( CommitBadTableId, GeneralLoaderFixture )
     const char* tableName = "REFERENCE";
     m_source . NewTableEvent ( 1, tableName ); 
     m_source . OpenStreamEvent();
-    m_source . TableCommitEvent ( /*bad*/2 );
+    m_source . NextRowEvent ( /*bad*/2 );
     m_source . CloseStreamEvent();
     
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcTable, rcNotFound ) ) );
@@ -699,7 +730,7 @@ FIXTURE_TEST_CASE ( OneColumnOneCellOneChunk, GeneralLoaderFixture )
     m_source . OpenStreamEvent();
     string value = "a single character string cell";
     m_source . CellDataEvent( 1, value );
-    m_source . TableCommitEvent ( 1 );
+    m_source . NextRowEvent ( 1 );
     m_source . CloseStreamEvent();
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
@@ -722,7 +753,7 @@ FIXTURE_TEST_CASE ( OneColumnOneCellManyChunks, GeneralLoaderFixture )
     m_source . CellDataEvent( 1, value2 );
     string value3 = "third!!!";
     m_source . CellDataEvent( 1, value3 );
-    m_source . TableCommitEvent ( 1 );
+    m_source . NextRowEvent ( 1 );
     m_source . CloseStreamEvent();
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
@@ -742,19 +773,128 @@ FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite, GeneralLoaderFixture )
     string value = "this be my default";
     m_source . CellDefaultEvent( 1, value );
     // no WriteEvent
-    m_source . TableCommitEvent ( 1 );
+    m_source . NextRowEvent ( 1 );
     m_source . CloseStreamEvent();
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    // validate the database
     REQUIRE_EQ ( value, GetValue ( tableName, columnName, 1 ) ); 
 }
 
+FIXTURE_TEST_CASE ( OneColumnDefaultOverwite, GeneralLoaderFixture )
+{   
+    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    const char* tableName = "REFERENCE";
+    const char* columnName = "SPOT_GROUP";
+    
+    m_source . NewTableEvent ( 1, tableName ); 
+    m_source . NewColumnEvent ( 1, 1, columnName );
+    m_source . OpenStreamEvent();
+    string valueDflt = "this be my default";
+    m_source . CellDefaultEvent( 1, valueDflt );
+    string value = "not the default";
+    m_source . CellDataEvent( 1, value );
+    m_source . NextRowEvent ( 1 );
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value, GetValue ( tableName, columnName, 1 ) ); 
+}
+
+FIXTURE_TEST_CASE ( OneColumnChangeDefault, GeneralLoaderFixture )
+{   
+    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    const char* tableName = "REFERENCE";
+    const char* columnName = "SPOT_GROUP";
+    
+    m_source . NewTableEvent ( 1, tableName ); 
+    m_source . NewColumnEvent ( 1, 1, columnName );
+    m_source . OpenStreamEvent();
+    
+    string value1 = "this be my first default";
+    m_source . CellDefaultEvent( 1, value1 );
+    m_source . NextRowEvent ( 1 );
+    
+    string value2 = "and this be my second default";
+    m_source . CellDefaultEvent( 1, value2 );
+    m_source . NextRowEvent ( 1 );
+    
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value1, GetValue ( tableName, columnName, 1 ) ); 
+    REQUIRE_EQ ( value2, GetValue ( tableName, columnName, 2 ) ); 
+}
+
+FIXTURE_TEST_CASE ( OneColumnDataAndDefaultsMixed, GeneralLoaderFixture )
+{   
+    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    const char* tableName = "REFERENCE";
+    const char* columnName = "SPOT_GROUP";
+    
+    m_source . NewTableEvent ( 1, tableName ); 
+    m_source . NewColumnEvent ( 1, 1, columnName );
+    m_source . OpenStreamEvent();
+    
+    string value1 = "first value";
+    m_source . CellDataEvent( 1, value1 );
+    m_source . NextRowEvent ( 1 );
+    
+    string default1 = "first default";
+    m_source . CellDefaultEvent( 1, default1 );
+    m_source . NextRowEvent ( 1 );
+    m_source . NextRowEvent ( 1 );
+    
+    string value2 = "second value";
+    m_source . CellDefaultEvent( 1, value2 );
+    m_source . NextRowEvent ( 1 );
+    
+    string default2 = "second default";
+    m_source . CellDefaultEvent( 1, default2 );
+    m_source . NextRowEvent ( 1 );
+    
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value1,    GetValue ( tableName, columnName, 1 ) ); 
+    REQUIRE_EQ ( default1,  GetValue ( tableName, columnName, 2 ) ); 
+    REQUIRE_EQ ( default1,  GetValue ( tableName, columnName, 3 ) ); 
+    REQUIRE_EQ ( value2,    GetValue ( tableName, columnName, 4 ) ); 
+    REQUIRE_EQ ( default2,  GetValue ( tableName, columnName, 5 ) ); 
+}
+
+FIXTURE_TEST_CASE ( TwoColumnsFullRow, GeneralLoaderFixture )
+{   
+    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    const char* tableName = "REFERENCE";
+    const char* columnName1 = "SPOT_GROUP";
+    const char* columnName2 = "MAX_SEQ_LEN";
+    
+    m_source . NewTableEvent ( 1, tableName ); 
+    m_source . NewColumnEvent ( 1, 1, columnName1 );
+    m_source . NewColumnEvent ( 2, 1, columnName2 );
+    m_source . OpenStreamEvent();
+    
+    string value1 = "value1";
+    m_source . CellDataEvent( 1, value1 );
+    uint32_t value2 = 12345;
+    m_source . CellDataEvent( 2, value2 );
+    m_source . NextRowEvent ( 1 );
+    
+    m_source . CloseStreamEvent();
+    
+    KDbgSetModConds ( DBG_VDB, DBG_FLAG ( DBG_VDB_MTCURSOR ), DBG_FLAG ( DBG_VDB_MTCURSOR ) );    
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value1,    GetValue ( tableName, columnName1, 1 ) ); 
+    REQUIRE_EQ ( value2,    GetValueU32 ( tableName, columnName2, 1 ) ); 
+}
+
 //TODO:
-//  one table, one column, set-default, write (not a default), commit, close
-//  one table, one column, set-default, (no write), commit, set-default (different), (no write),  commit, close
-//  one table, one column, write a chunk, set-default, write another chunk, commit, (no write), commit, close
 //
 //  one table, multiple columns, write all cells, commit, close
 //  one table, multiple columns, write some cells, commit, error (no defaults)
@@ -789,6 +929,7 @@ const char UsageDefaultName[] = "test-general-loader";
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
+    KLogLevelSet ( klogFatal );
     rc_t rc=GeneralLoaderTestSuite(argc, argv);
     return rc;
 }

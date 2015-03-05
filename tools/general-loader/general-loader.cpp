@@ -466,7 +466,11 @@ GeneralLoader::ReadData ()
                         rc = VCursorOpenParentUpdate ( *it, &table );
                         if ( rc == 0 )
                         {
-                            rc = VTableReindex ( table );
+                            rc = VCursorRelease ( *it );
+                            if ( rc == 0 )
+                            {
+                                rc = VTableReindex ( table );
+                            }
                         }
                         rc_t rc2 = VTableRelease ( table );
                         if ( rc == 0 )
@@ -480,6 +484,7 @@ GeneralLoader::ReadData ()
                     break;
                 }
             }
+            m_cursors . clear ();
             return rc; // end of input
             
         case evt_cell_default:

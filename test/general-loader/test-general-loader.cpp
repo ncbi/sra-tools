@@ -143,7 +143,7 @@ public:
 
     void TableCommitEvent ( TableId p_id )
     {
-        m_events . push_back ( Event ( GeneralLoader :: evt_table_commit, p_id ) );
+        m_events . push_back ( Event ( GeneralLoader :: evt_next_row, p_id ) );
     }
     
 private:    
@@ -230,7 +230,7 @@ private:
                     Write ( it -> m_val . data(), it -> m_val . size() );
                     break;
                 }
-            case GeneralLoader :: evt_table_commit:
+            case GeneralLoader :: evt_next_row:
                 {
                     GeneralLoader :: Evt_hdr hdr;
                     hdr . evt   = it -> m_event;
@@ -369,6 +369,19 @@ public:
         return ret;
     }
     
+    bool DatabaseExists ()
+    {
+        if ( m_source . GetDatabaseName() . empty ()  )
+        {
+            return false;
+        }
+        KDirectory* wd;
+        KDirectoryNativeDir ( & wd );
+        bool ret = KDirectoryPathType_v1 ( wd, m_source . GetDatabaseName() . c_str() ) != kptNotFound;
+        KDirectoryRelease ( wd );
+        return ret;
+    }
+    
     void RemoveDatabase()
     {
         CloseDatabase();
@@ -497,6 +510,7 @@ FIXTURE_TEST_CASE ( TruncatedMetadata , GeneralLoaderFixture )
     m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
     REQUIRE ( Run ( m_source . MakeTruncatedSource ( sizeof ( GeneralLoader :: Header ) + 8 ), 
               SILENT_RC ( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
@@ -504,6 +518,7 @@ FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
     m_source . SetNames ( "this file should not exist", "someSchemaName", "database" );
     m_source . OpenStreamEvent ();
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcFS, rcDirectory, rcOpening, rcPath, rcNotFound ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadSchemaName, GeneralLoaderFixture )
@@ -511,6 +526,7 @@ FIXTURE_TEST_CASE ( BadSchemaName, GeneralLoaderFixture )
     m_source . SetNames ( "align/align.vschema", "bad schema name", "database" );
     m_source . OpenStreamEvent ();
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadDatabaseName, GeneralLoaderFixture )
@@ -518,6 +534,7 @@ FIXTURE_TEST_CASE ( BadDatabaseName, GeneralLoaderFixture )
     m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", "" );
     m_source . OpenStreamEvent ();
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcDB, rcMgr, rcCreating, rcPath, rcIncorrect ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadTableName, GeneralLoaderFixture )
@@ -525,6 +542,7 @@ FIXTURE_TEST_CASE ( BadTableName, GeneralLoaderFixture )
     m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
     m_source . NewTableEvent ( 1, "nosuchtable" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcDatabase, rcCreating, rcSchema, rcNotFound ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( DuplicateTableId, GeneralLoaderFixture )
@@ -533,6 +551,7 @@ FIXTURE_TEST_CASE ( DuplicateTableId, GeneralLoaderFixture )
     m_source . NewTableEvent ( 1, "REFERENCE" );
     m_source . NewTableEvent ( 1, "SEQUENCE" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcTable, rcExists ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadColumnName, GeneralLoaderFixture )
@@ -541,6 +560,7 @@ FIXTURE_TEST_CASE ( BadColumnName, GeneralLoaderFixture )
     m_source . NewTableEvent ( 1, "REFERENCE" );
     m_source . NewColumnEvent ( 1, 1, "nosuchcolumn" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadTableId, GeneralLoaderFixture )
@@ -549,6 +569,7 @@ FIXTURE_TEST_CASE ( BadTableId, GeneralLoaderFixture )
     m_source . NewTableEvent ( 1, "REFERENCE" );
     m_source . NewColumnEvent ( 1, 2, "SPOT_GROUP" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcTable, rcInvalid ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( DuplicateColumnName, GeneralLoaderFixture )
@@ -558,6 +579,7 @@ FIXTURE_TEST_CASE ( DuplicateColumnName, GeneralLoaderFixture )
     m_source . NewColumnEvent ( 1, 1, "SPOT_GROUP" );
     m_source . NewColumnEvent ( 2, 1, "SPOT_GROUP" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcCursor, rcUpdating, rcColumn, rcExists ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( DuplicateColumnId, GeneralLoaderFixture )
@@ -567,12 +589,14 @@ FIXTURE_TEST_CASE ( DuplicateColumnId, GeneralLoaderFixture )
     m_source . NewColumnEvent ( 1, 1, "SPOT_GROUP" );
     m_source . NewColumnEvent ( 1, 1, "NAME" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcColumn, rcExists ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( NoOpenStreamEvent, GeneralLoaderFixture )
 {   
     m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( NoCloseStreamEvent, GeneralLoaderFixture )
@@ -580,6 +604,7 @@ FIXTURE_TEST_CASE ( NoCloseStreamEvent, GeneralLoaderFixture )
     m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
     m_source . OpenStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete ) ) );
+    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( NoColumns, GeneralLoaderFixture )
@@ -589,7 +614,8 @@ FIXTURE_TEST_CASE ( NoColumns, GeneralLoaderFixture )
     m_source . CloseStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    // make sure database exists
+    // make sure database exists and is valid
+    REQUIRE ( DatabaseExists() );
     OpenDatabase (); // did not throw => opened successfully
 }
 

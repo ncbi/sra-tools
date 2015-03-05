@@ -114,12 +114,30 @@ GeneralLoader::Reset()
         VCursorRelease ( *it );
     }
     m_cursors . clear();
-    
-    VDatabaseRelease ( m_db );
+
+    if ( m_db != 0 )
+    {
+        VDatabaseRelease ( m_db );
+    }
     m_db = 0;
     
     free ( m_headerNames );
     m_headerNames = 0;
+}
+
+void 
+GeneralLoader::CleanUp()
+{   // remove the database
+    if ( m_headerNames != 0 )
+    {
+        string dbName ( & m_headerNames [ 0 ] );
+        Reset();
+        
+        KDirectory* wd;
+        KDirectoryNativeDir ( & wd );
+        KDirectoryRemove ( wd, true, dbName. c_str () );
+        KDirectoryRelease ( wd );
+    }
 }
 
 rc_t 
@@ -128,19 +146,27 @@ GeneralLoader::Run()
     Reset();
     
     rc_t rc = ReadHeader ();
-    if ( rc != 0 ) return rc; 
+    if ( rc == 0 ) 
+    {
+        rc = MakeDatabase ();
+        if ( rc == 0 )
+        {
+            rc = ReadMetadata ();
+            if ( rc == 0 ) 
+            {
+                rc = OpenCursors ();
+                if ( rc == 0 )
+                {
+                    rc = ReadData ();
+                }
+            }
+        }
+    }
     
-    rc = MakeDatabase ();
-    if ( rc != 0 ) return rc; 
-    
-    rc = ReadMetadata ();
-    if ( rc != 0 ) return rc; 
-    
-    rc = OpenCursors ();
-    if ( rc != 0 ) return rc; 
-    
-    rc = ReadData ();
-    if ( rc != 0 ) return rc; 
+    if ( rc != 0 )
+    {
+        CleanUp();
+    }
     
     return rc;
 }
@@ -183,7 +209,7 @@ GeneralLoader::ReadHeader ()
     if ( rc == 0 )
     {   
         size_t size = m_header . remote_db_name_size + 1 + m_header . schema_file_name_size + 1 + m_header . schema_spec_size + 1;
-        m_headerNames = ( char * ) malloc ( size );
+        m_headerNames = ( char * ) calloc ( 1, size );
         if ( m_headerNames != 0 )
         {
             rc = m_reader . Read ( m_headerNames, size );
@@ -290,7 +316,7 @@ GeneralLoader :: ReadMetadata ()
             }
         case evt_cell_default:
         case evt_cell_data:
-        case evt_table_commit:
+        case evt_next_row:
         default:
             rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
             break;
@@ -406,11 +432,24 @@ GeneralLoader::ReadData ()
             for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
             {
                 rc = VCursorCloseRow ( *it );
-                if ( rc != 0 )
+                if ( rc == 0 )
                 {
-                    break;
+                    rc = VCursorCommit ( *it );
+                    if ( rc == 0 )
+                    {
+                        struct VTable* table;
+                        rc = VCursorOpenParentUpdate ( *it, &table );
+                        if ( rc == 0 )
+                        {
+                            rc = VTableReindex ( table );
+                        }
+                        rc_t rc2 = VTableRelease ( table );
+                        if ( rc == 0 )
+                        {
+                            rc = rc2;
+                        }
+                    }
                 }
-                rc = VCursorCommit ( *it );
                 if ( rc != 0 )
                 {
                     break;
@@ -476,7 +515,7 @@ GeneralLoader::ReadData ()
                 }
             }
             break;
-        case evt_table_commit:
+        case evt_next_row:
             {
                 TableIdToCursor::const_iterator table = m_tables . find ( evt_header . id );
                 if ( table != m_tables . end() )

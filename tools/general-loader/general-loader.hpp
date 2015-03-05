@@ -63,7 +63,7 @@ public:
         evt_open_stream,
         evt_cell_default, 
         evt_cell_data, 
-        evt_table_commit 
+        evt_next_row 
     };
     
     struct Table_hdr
@@ -126,6 +126,7 @@ private:
     rc_t MakeCursors ();
     rc_t OpenCursors ();
     rc_t ReadData ();
+    void CleanUp ();
     
     class Reader
     {

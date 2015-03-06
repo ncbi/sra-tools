@@ -137,13 +137,16 @@ public:
     {
         m_events . push_back ( Event ( GeneralLoader :: evt_cell_default, p_columnId, 8, p_value . size(), p_value . c_str() ) );
     }
-    
-    void CellDataEvent ( ColumnId p_columnId, const string& p_value )
+    void CellDefaultEvent ( ColumnId p_columnId, uint32_t p_value )
     {
-        m_events . push_back ( Event ( GeneralLoader :: evt_cell_data, p_columnId, 8, p_value . size(), p_value . c_str() ) );
+        m_events . push_back ( Event ( GeneralLoader :: evt_cell_default, p_columnId, 8 * sizeof p_value, 1, &p_value ) );
     }
-
-    void CellDataEvent ( ColumnId p_columnId, uint32_t p_value )
+    void CellDefaultEvent ( ColumnId p_columnId, bool p_value )
+    {
+        m_events . push_back ( Event ( GeneralLoader :: evt_cell_default, p_columnId, 8, 1, &p_value ) );
+    }
+    
+    template < typename T > void CellDataEvent ( ColumnId p_columnId, T p_value )
     {
         m_events . push_back ( Event ( GeneralLoader :: evt_cell_data, p_columnId, 8 * sizeof p_value, 1, &p_value ) );
     }
@@ -156,7 +159,7 @@ public:
     // use this to capture stream contents to be used in cmdline tests
     void SaveBuffer( const char* p_filename )
     {
-        ofstream ( p_filename ) . write ( m_buffer, m_bufSize );
+        ofstream ( p_filename ) . write ( m_buffer, m_bufSize ); 
     }
     
 private:    
@@ -339,6 +342,11 @@ private:
     size_t  m_bufSize;
 };
 
+template<> void TestSource::CellDataEvent ( ColumnId p_columnId, string p_value )
+{
+    m_events . push_back ( Event ( GeneralLoader :: evt_cell_data, p_columnId, 8, p_value . size(), p_value . c_str() ) );
+}
+
 class GeneralLoaderFixture
 {
 public:
@@ -453,27 +461,7 @@ public:
             throw logic_error(string ( "GeneralLoaderFixture::OpenCursor(" ) + p_table + "): VTableRelease failed");
     }
     
-    std::string GetValue ( const char* p_table, const char* p_column, uint64_t p_row )
-    {
-        OpenCursor( p_table, p_column ); 
-        if ( VCursorSetRowId ( m_cursor, p_row ) ) 
-            throw logic_error("GeneralLoaderFixture::GetValue(): VCursorSetRowId failed");
-        
-        if ( VCursorOpenRow ( m_cursor ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValue(): VCursorOpenRow failed");
-            
-        char buf[1024];
-        uint32_t num_read;
-        if ( VCursorRead ( m_cursor, 1, 8, &buf, sizeof buf, &num_read ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValue(): VCursorRead failed");
-        
-        if ( VCursorCloseRow ( m_cursor ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValue(): VCursorCloseRow failed");
-
-         return string ( buf, num_read );
-    }
-    
-    uint32_t GetValueU32 ( const char* p_table, const char* p_column, uint64_t p_row )
+    template < typename T > T GetValue ( const char* p_table, const char* p_column, uint64_t p_row )
     {
         OpenCursor( p_table, p_column ); 
         if ( VCursorSetRowId ( m_cursor, p_row ) ) 
@@ -482,7 +470,7 @@ public:
         if ( VCursorOpenRow ( m_cursor ) != 0 )
             throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorOpenRow failed");
             
-        uint32_t ret;
+        T ret;
         uint32_t num_read;
         if ( VCursorRead ( m_cursor, 1, 8 * sizeof ret, &ret, 1, &num_read ) != 0 )
             throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");
@@ -493,11 +481,54 @@ public:
          return ret;
     }
     
+    
+    void SetUpStream( const char* p_dbName )
+    {
+        m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", p_dbName );
+    }
+    
+    void SetUpStream_OneTable( const char* p_dbName, const char* p_tableName )
+    {
+        SetUpStream( p_dbName );
+        m_source . NewTableEvent ( 1, p_tableName ); 
+    }
+    void OpenStream_OneTableOneColumn ( const char* p_dbName, const char* p_tableName, const char* p_columnName )
+    {
+        SetUpStream_OneTable( p_dbName, p_tableName ); 
+        m_source . NewColumnEvent ( 1, 1, p_columnName );
+        m_source . OpenStreamEvent();
+    }
+
     TestSource      m_source;
     VDatabase *     m_db;
     const VCursor * m_cursor;
 };    
 
+template<> std::string GeneralLoaderFixture::GetValue ( const char* p_table, const char* p_column, uint64_t p_row )
+{
+    OpenCursor( p_table, p_column ); 
+    if ( VCursorSetRowId ( m_cursor, p_row ) ) 
+        throw logic_error("GeneralLoaderFixture::GetValue(): VCursorSetRowId failed");
+    
+    if ( VCursorOpenRow ( m_cursor ) != 0 )
+        throw logic_error("GeneralLoaderFixture::GetValue(): VCursorOpenRow failed");
+        
+    char buf[1024];
+    uint32_t num_read;
+    if ( VCursorRead ( m_cursor, 1, 8, &buf, sizeof buf, &num_read ) != 0 )
+        throw logic_error("GeneralLoaderFixture::GetValue(): VCursorRead failed");
+    
+    if ( VCursorCloseRow ( m_cursor ) != 0 )
+        throw logic_error("GeneralLoaderFixture::GetValue(): VCursorCloseRow failed");
+
+     return string ( buf, num_read );
+}
+
+
+
+const char* tableName = "REFERENCE";
+const char* columnName = "SPOT_GROUP";
+  
 FIXTURE_TEST_CASE ( EmptyInput, GeneralLoaderFixture )
 {
     const struct KFile * input;
@@ -540,7 +571,7 @@ FIXTURE_TEST_CASE ( LaterVersion, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( TruncatedMetadata , GeneralLoaderFixture )
 {   // not enough data to read the fixed part of the metadata 
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    SetUpStream ( GetName() );
     REQUIRE ( Run ( m_source . MakeTruncatedSource ( sizeof ( GeneralLoader :: Header ) + 8 ), 
               SILENT_RC ( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete ) ) );
     REQUIRE ( ! DatabaseExists() );
@@ -564,7 +595,7 @@ FIXTURE_TEST_CASE ( BadSchemaName, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( BadDatabaseName, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", "" );
+    SetUpStream ( "" );
     m_source . OpenStreamEvent ();
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcDB, rcMgr, rcCreating, rcPath, rcIncorrect ) ) );
     REQUIRE ( ! DatabaseExists() );
@@ -572,24 +603,23 @@ FIXTURE_TEST_CASE ( BadDatabaseName, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( BadTableName, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    m_source . NewTableEvent ( 1, "nosuchtable" );
+    SetUpStream_OneTable ( GetName(), "nosuchtable" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcDatabase, rcCreating, rcSchema, rcNotFound ) ) );
     REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( DuplicateTableId, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    SetUpStream ( GetName() );
     m_source . NewTableEvent ( 1, "REFERENCE" );
-    m_source . NewTableEvent ( 1, "SEQUENCE" );
+    m_source . NewTableEvent ( 1, "SEQUENCE" ); // same Id
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcTable, rcExists ) ) );
     REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadColumnName, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    SetUpStream ( GetName() );
     m_source . NewTableEvent ( 1, "REFERENCE" );
     m_source . NewColumnEvent ( 1, 1, "nosuchcolumn" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound ) ) );
@@ -598,7 +628,7 @@ FIXTURE_TEST_CASE ( BadColumnName, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( BadTableId, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    SetUpStream ( GetName() );
     m_source . NewTableEvent ( 1, "REFERENCE" );
     m_source . NewColumnEvent ( 1, 2, "SPOT_GROUP" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcTable, rcInvalid ) ) );
@@ -607,8 +637,7 @@ FIXTURE_TEST_CASE ( BadTableId, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( DuplicateColumnName, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    m_source . NewTableEvent ( 1, "REFERENCE" );
+    SetUpStream_OneTable ( GetName(), "REFERENCE" );
     m_source . NewColumnEvent ( 1, 1, "SPOT_GROUP" );
     m_source . NewColumnEvent ( 2, 1, "SPOT_GROUP" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcCursor, rcUpdating, rcColumn, rcExists ) ) );
@@ -617,8 +646,7 @@ FIXTURE_TEST_CASE ( DuplicateColumnName, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( DuplicateColumnId, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    m_source . NewTableEvent ( 1, "REFERENCE" );
+    SetUpStream_OneTable ( GetName(), "REFERENCE" );
     m_source . NewColumnEvent ( 1, 1, "SPOT_GROUP" );
     m_source . NewColumnEvent ( 1, 1, "NAME" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcColumn, rcExists ) ) );
@@ -627,14 +655,14 @@ FIXTURE_TEST_CASE ( DuplicateColumnId, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( NoOpenStreamEvent, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    SetUpStream ( GetName() );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete ) ) );
     REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( NoCloseStreamEvent, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    SetUpStream ( GetName() );
     m_source . OpenStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete ) ) );
     REQUIRE ( ! DatabaseExists() );
@@ -642,7 +670,7 @@ FIXTURE_TEST_CASE ( NoCloseStreamEvent, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( NoColumns, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
+    SetUpStream ( GetName() );
     m_source . OpenStreamEvent();
     m_source . CloseStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
@@ -654,10 +682,7 @@ FIXTURE_TEST_CASE ( NoColumns, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( NoData, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    const char* columnName = "SPOT_GROUP";
-    
+    SetUpStream ( GetName() );
     m_source . NewTableEvent ( 2, tableName ); // ids do not have to consecutive
     m_source . NewColumnEvent ( 300, 2, columnName );   
     m_source . OpenStreamEvent();
@@ -673,13 +698,8 @@ FIXTURE_TEST_CASE ( NoData, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( Chunk_BadColumnId, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    const char* columnName = "SPOT_GROUP";
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName );
     
-    m_source . NewTableEvent ( 1, tableName );
-    m_source . NewColumnEvent ( 1, 1, columnName );
-    m_source . OpenStreamEvent();
     m_source . CellDataEvent( /*bad*/2, string() );
     m_source . CloseStreamEvent();
     
@@ -688,13 +708,8 @@ FIXTURE_TEST_CASE ( Chunk_BadColumnId, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( WriteNoCommit, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    const char* columnName = "SPOT_GROUP";
-    
-    m_source . NewTableEvent ( 1, tableName ); 
-    m_source . NewColumnEvent ( 1, 1, columnName );
-    m_source . OpenStreamEvent();
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName );
+
     string value = "a single character string cell";
     m_source . CellDataEvent( 1, value );
     m_source . CloseStreamEvent();
@@ -709,10 +724,8 @@ FIXTURE_TEST_CASE ( WriteNoCommit, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( CommitBadTableId, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    m_source . NewTableEvent ( 1, tableName ); 
-    m_source . OpenStreamEvent();
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName );
+
     m_source . NextRowEvent ( /*bad*/2 );
     m_source . CloseStreamEvent();
     
@@ -721,13 +734,8 @@ FIXTURE_TEST_CASE ( CommitBadTableId, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( OneColumnOneCellOneChunk, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    const char* columnName = "SPOT_GROUP";
-    
-    m_source . NewTableEvent ( 1, tableName ); 
-    m_source . NewColumnEvent ( 1, 1, columnName );
-    m_source . OpenStreamEvent();
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName );
+
     string value = "a single character string cell";
     m_source . CellDataEvent( 1, value );
     m_source . NextRowEvent ( 1 );
@@ -735,18 +743,13 @@ FIXTURE_TEST_CASE ( OneColumnOneCellOneChunk, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    REQUIRE_EQ ( value, GetValue ( tableName, columnName, 1 ) ); 
+    REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
 }
 
 FIXTURE_TEST_CASE ( OneColumnOneCellManyChunks, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    const char* columnName = "SPOT_GROUP";
-    
-    m_source . NewTableEvent ( 1, tableName ); 
-    m_source . NewColumnEvent ( 1, 1, columnName );
-    m_source . OpenStreamEvent();
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName );
+
     string value1 = "first";
     m_source . CellDataEvent( 1, value1 );
     string value2 = "second!";
@@ -758,18 +761,13 @@ FIXTURE_TEST_CASE ( OneColumnOneCellManyChunks, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    REQUIRE_EQ ( value1 + value2 + value3, GetValue ( tableName, columnName, 1 ) ); 
+    REQUIRE_EQ ( value1 + value2 + value3, GetValue<string> ( tableName, columnName, 1 ) ); 
 }
 
 FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    const char* columnName = "SPOT_GROUP";
-    
-    m_source . NewTableEvent ( 1, tableName ); 
-    m_source . NewColumnEvent ( 1, 1, columnName );
-    m_source . OpenStreamEvent();
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName );
+
     string value = "this be my default";
     m_source . CellDefaultEvent( 1, value );
     // no WriteEvent
@@ -778,18 +776,13 @@ FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    REQUIRE_EQ ( value, GetValue ( tableName, columnName, 1 ) ); 
+    REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
 }
 
 FIXTURE_TEST_CASE ( OneColumnDefaultOverwite, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    const char* columnName = "SPOT_GROUP";
-    
-    m_source . NewTableEvent ( 1, tableName ); 
-    m_source . NewColumnEvent ( 1, 1, columnName );
-    m_source . OpenStreamEvent();
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName );
+
     string valueDflt = "this be my default";
     m_source . CellDefaultEvent( 1, valueDflt );
     string value = "not the default";
@@ -799,18 +792,12 @@ FIXTURE_TEST_CASE ( OneColumnDefaultOverwite, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    REQUIRE_EQ ( value, GetValue ( tableName, columnName, 1 ) ); 
+    REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
 }
 
 FIXTURE_TEST_CASE ( OneColumnChangeDefault, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    const char* columnName = "SPOT_GROUP";
-    
-    m_source . NewTableEvent ( 1, tableName ); 
-    m_source . NewColumnEvent ( 1, 1, columnName );
-    m_source . OpenStreamEvent();
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName );
     
     string value1 = "this be my first default";
     m_source . CellDefaultEvent( 1, value1 );
@@ -824,19 +811,13 @@ FIXTURE_TEST_CASE ( OneColumnChangeDefault, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    REQUIRE_EQ ( value1, GetValue ( tableName, columnName, 1 ) ); 
-    REQUIRE_EQ ( value2, GetValue ( tableName, columnName, 2 ) ); 
+    REQUIRE_EQ ( value1, GetValue<string> ( tableName, columnName, 1 ) ); 
+    REQUIRE_EQ ( value2, GetValue<string> ( tableName, columnName, 2 ) ); 
 }
 
 FIXTURE_TEST_CASE ( OneColumnDataAndDefaultsMixed, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
-    const char* columnName = "SPOT_GROUP";
-    
-    m_source . NewTableEvent ( 1, tableName ); 
-    m_source . NewColumnEvent ( 1, 1, columnName );
-    m_source . OpenStreamEvent();
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName );
     
     string value1 = "first value";
     m_source . CellDataEvent( 1, value1 );
@@ -859,21 +840,19 @@ FIXTURE_TEST_CASE ( OneColumnDataAndDefaultsMixed, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    REQUIRE_EQ ( value1,    GetValue ( tableName, columnName, 1 ) ); 
-    REQUIRE_EQ ( default1,  GetValue ( tableName, columnName, 2 ) ); 
-    REQUIRE_EQ ( default1,  GetValue ( tableName, columnName, 3 ) ); 
-    REQUIRE_EQ ( value2,    GetValue ( tableName, columnName, 4 ) ); 
-    REQUIRE_EQ ( default2,  GetValue ( tableName, columnName, 5 ) ); 
+    REQUIRE_EQ ( value1,    GetValue<string> ( tableName, columnName, 1 ) ); 
+    REQUIRE_EQ ( default1,  GetValue<string> ( tableName, columnName, 2 ) ); 
+    REQUIRE_EQ ( default1,  GetValue<string> ( tableName, columnName, 3 ) ); 
+    REQUIRE_EQ ( value2,    GetValue<string> ( tableName, columnName, 4 ) ); 
+    REQUIRE_EQ ( default2,  GetValue<string> ( tableName, columnName, 5 ) ); 
 }
 
 FIXTURE_TEST_CASE ( TwoColumnsFullRow, GeneralLoaderFixture )
 {   
-    m_source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", GetName() );
-    const char* tableName = "REFERENCE";
+    SetUpStream_OneTable ( GetName(), tableName );
+
     const char* columnName1 = "SPOT_GROUP";
     const char* columnName2 = "MAX_SEQ_LEN";
-    
-    m_source . NewTableEvent ( 1, tableName ); 
     m_source . NewColumnEvent ( 1, 1, columnName1 );
     m_source . NewColumnEvent ( 2, 1, columnName2 );
     m_source . OpenStreamEvent();
@@ -886,22 +865,145 @@ FIXTURE_TEST_CASE ( TwoColumnsFullRow, GeneralLoaderFixture )
     
     m_source . CloseStreamEvent();
     
-    //KDbgSetModConds ( DBG_VDB, DBG_FLAG ( DBG_VDB_MTCURSOR ), DBG_FLAG ( DBG_VDB_MTCURSOR ) );    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value1,    GetValue<string>    ( tableName, columnName1, 1 ) ); 
+    REQUIRE_EQ ( value2,    GetValue<uint32_t>  ( tableName, columnName2, 1 ) ); 
+}
+
+FIXTURE_TEST_CASE ( TwoColumnsIncompleteRow, GeneralLoaderFixture )
+{   
+    SetUpStream_OneTable ( GetName(), tableName );
+
+    const char* columnName1 = "SPOT_GROUP";
+    const char* columnName2 = "MAX_SEQ_LEN";
+    m_source . NewColumnEvent ( 1, 1, columnName1 );
+    m_source . NewColumnEvent ( 2, 1, columnName2 );
+    m_source . OpenStreamEvent();
+    
+    string value1 = "value1";
+    m_source . CellDataEvent( 1, value1 );
+    // no CellData for column 2
+    m_source . NextRowEvent ( 1 );
+    
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcColumn, rcClosing, rcRow, rcIncomplete) ) );
+}
+
+FIXTURE_TEST_CASE ( TwoColumnsPartialRowWithDefaults, GeneralLoaderFixture )
+{   
+    SetUpStream_OneTable ( GetName(), tableName );
+
+    const char* columnName1 = "SPOT_GROUP";
+    const char* columnName2 = "MAX_SEQ_LEN";
+    m_source . NewColumnEvent ( 1, 1, columnName1 );
+    m_source . NewColumnEvent ( 2, 1, columnName2 );
+    m_source . OpenStreamEvent();
+    
+    string value1 = "value1";
+    m_source . CellDataEvent( 1, value1 );
+    uint32_t value2 = 12345;
+    m_source . CellDefaultEvent( 2, value2 );
+    // no Data Event for column2
+    m_source . NextRowEvent ( 1 );
+    
+    m_source . CloseStreamEvent();
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
-    REQUIRE_EQ ( value1,    GetValue ( tableName, columnName1, 1 ) ); 
-    REQUIRE_EQ ( value2,    GetValueU32 ( tableName, columnName2, 1 ) ); 
+    REQUIRE_EQ ( value1,    GetValue<string>    ( tableName, columnName1, 1 ) ); 
+    REQUIRE_EQ ( value2,    GetValue<uint32_t>  ( tableName, columnName2, 1 ) ); 
 }
 
-//TODO:
-//
-//  one table, multiple columns, write all cells, commit, close
-//  one table, multiple columns, write some cells, commit, error (no defaults)
-//  one table, multiple columns, set defaults for some cells, write others, commit, close
-//  one table, multiple columns, set defaults for some cells, write others (some overwrite defaults), commit, close
-//
-//  multiple tables, multiple columns, write all cells, commit, write all cells, commit, close
+FIXTURE_TEST_CASE ( TwoColumnsPartialRowWithDefaultsAndOverride, GeneralLoaderFixture )
+{   
+    SetUpStream_OneTable ( GetName(), tableName );
+
+    const char* columnName1 = "SPOT_GROUP";
+    const char* columnName2 = "MAX_SEQ_LEN";
+    const char* columnName3 = "CIRCULAR";
+    m_source . NewColumnEvent ( 1, 1, columnName1 );
+    m_source . NewColumnEvent ( 2, 1, columnName2 );
+    m_source . NewColumnEvent ( 3, 1, columnName3 );
+    m_source . OpenStreamEvent();
+    
+    string value1 = "value1";
+    m_source . CellDataEvent( 1, value1 );
+    uint32_t value2 = 12345;
+    m_source . CellDefaultEvent( 2, value2 );
+    m_source . CellDefaultEvent( 3, false );
+    bool value3 = true;
+    m_source . CellDataEvent( 3, true ); // override default
+    m_source . NextRowEvent ( 1 );
+    
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value1,    GetValue<string>    ( tableName, columnName1, 1 ) );       // explicit
+    REQUIRE_EQ ( value2,    GetValue<uint32_t>  ( tableName, columnName2, 1 ) );    // default
+    REQUIRE_EQ ( value3,    GetValue<bool>      ( tableName, columnName3, 1 ) );   // not the default
+}
+
+FIXTURE_TEST_CASE ( MultipleTables_Multiple_Columns_MultipleRows, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    
+    const char* table1 = "REFERENCE";
+    const char* table1column1 = "SPOT_GROUP";           // ascii
+    const char* table1column2 = "MAX_SEQ_LEN";          // u32
+    m_source . NewTableEvent ( 1, table1 );
+    m_source . NewColumnEvent ( 1, 1, table1column1 );
+    m_source . NewColumnEvent ( 2, 1, table1column2 );
+
+    const char* table2 = "SEQUENCE";
+    const char* table2column1 = "PRIMARY_ALIGNMENT_ID"; // i64
+    const char* table2column2 = "ALIGNMENT_COUNT";      // u8
+    m_source . NewTableEvent ( 2, table2 );
+    m_source . NewColumnEvent ( 3, 2, table2column1 );
+    m_source . NewColumnEvent ( 4, 2, table2column2 );
+    
+    m_source . OpenStreamEvent();
+    
+        string t1c1v1 = "t1c1v1";
+        m_source . CellDataEvent( 1, t1c1v1 );
+        uint32_t t1c2v1 = 121;
+        m_source . CellDataEvent( 2, t1c2v1 );
+        m_source . NextRowEvent ( 1 );
+
+        int64_t t2c1v1 = 211;
+        m_source . CellDataEvent( 3, t2c1v1 );
+        uint8_t t2c2v1 = 221;
+        m_source . CellDataEvent( 4, t2c2v1 );
+    m_source . NextRowEvent ( 2 );
+    
+        string t1c1v2 = "t1c1v2";
+        m_source . CellDataEvent( 1, t1c1v2 );
+        uint32_t t1c2v2 = 122;
+        m_source . CellDataEvent( 2, t1c2v2 );
+        m_source . NextRowEvent ( 1 );
+
+        int64_t t2c1v2 = 212;
+        m_source . CellDataEvent( 3, t2c1v2 );
+        uint8_t t2c2v2 = 222;
+        m_source . CellDataEvent( 4, t2c2v2 );
+    m_source . NextRowEvent ( 2 );
+    
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( t1c1v1,    GetValue<string>    ( table1, table1column1, 1 ) );      
+    REQUIRE_EQ ( t1c2v1,    GetValue<uint32_t>  ( table1, table1column2, 1 ) );   
+    REQUIRE_EQ ( t2c1v1,    GetValue<int64_t>   ( table2, table2column1, 1 ) );      
+    REQUIRE_EQ ( t2c2v1,    GetValue<uint8_t>   ( table2, table2column2, 1 ) );   
+    
+    REQUIRE_EQ ( t1c1v2,    GetValue<string>    ( table1, table1column1, 2 ) );      
+    REQUIRE_EQ ( t1c2v2,    GetValue<uint32_t>  ( table1, table1column2, 2 ) );   
+    REQUIRE_EQ ( t2c1v2,    GetValue<int64_t>   ( table2, table2column1, 2 ) );      
+    REQUIRE_EQ ( t2c2v2,    GetValue<uint8_t>   ( table2, table2column2, 2 ) );   
+}
 
 //////////////////////////////////////////// Main
 extern "C"

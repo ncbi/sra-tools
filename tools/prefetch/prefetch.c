@@ -1889,8 +1889,18 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
             STSMSG(STS_TOP, ("'%s' has no remote vdbcache", self->desc));
             rc = 0;
         }
+        else if
+            (rc == SILENT_RC(rcNS, rcFile, rcOpening, rcFile, rcUnauthorized))
+        {
+            STSMSG(STS_DBG, (
+                "Access to '%s's vdbcahe file is forbidden or it does not exist"
+                , self->desc));
+            *exists = false;
+            STSMSG(STS_TOP, ("'%s' has no remote vdbcache", self->desc));
+            rc = 0;
+        }
         else {
-            DISP_RC2(rc, "Failed to check %s's vdbcache", self->desc);
+            DISP_RC2(rc, "Failed to check vdbcache", self->desc);
         }
     }
     RELEASE(VPath, cremote);

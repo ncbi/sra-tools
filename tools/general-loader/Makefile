@@ -31,6 +31,9 @@ MODULE = tools/general-loader
 
 include $(TOP)/build/Makefile.env
 
+ALL_LIBS = \
+	general-writer
+
 ALL_TOOLS = \
 	general-loader \
 
@@ -49,6 +52,7 @@ $(ALL_TOOLS): vers-includes
 # std
 #
 $(TARGDIR)/std: \
+	$(addprefix $(LIBDIR)/,$(ALL_LIBS)) \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
@@ -68,6 +72,20 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
+# general-writer
+#
+$(LIBDIR)/general-writer: $(LIBDIR)/general-writer.$(LIBX)
+
+GEN_WRITER_SRC = \
+    general-writer
+
+GEN_WRITER_OBJ = \
+	$(addsuffix .$(LOBX),$(GEN_WRITER_SRC))
+
+$(LIBDIR)/general-writer.$(LIBX): $(GEN_WRITER_OBJ)
+	$(LD) --slib --vers $(SRCDIR) -o $@ $^
+
+#-------------------------------------------------------------------------------
 # general-loader
 #
 GEN_LOAD_SRC = \
@@ -80,7 +98,7 @@ GEN_LOAD_OBJ = \
 GEN_LOAD_LIBS = \
 	-sncbi-wvdb-static \
 	-skapp \
-    
+
 $(BINDIR)/general-loader: $(GEN_LOAD_OBJ)
 	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(GEN_LOAD_LIBS)
 

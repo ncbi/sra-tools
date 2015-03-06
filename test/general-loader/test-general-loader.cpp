@@ -886,7 +886,7 @@ FIXTURE_TEST_CASE ( TwoColumnsFullRow, GeneralLoaderFixture )
     
     m_source . CloseStreamEvent();
     
-    KDbgSetModConds ( DBG_VDB, DBG_FLAG ( DBG_VDB_MTCURSOR ), DBG_FLAG ( DBG_VDB_MTCURSOR ) );    
+    //KDbgSetModConds ( DBG_VDB, DBG_FLAG ( DBG_VDB_MTCURSOR ), DBG_FLAG ( DBG_VDB_MTCURSOR ) );    
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     

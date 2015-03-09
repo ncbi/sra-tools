@@ -1842,6 +1842,7 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
     Item *self, char *remotePath, size_t remotePathLen, bool *exists)
 {
     rc_t rc = 0;
+    size_t len = 0;
     Resolved *resolved = NULL;
     VPath *cremote = NULL;
     assert(self && self->main && exists);
@@ -1865,7 +1866,6 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
         }
         return rc;
     }
-    size_t len = 0;
     rc = VPathReadUri(cremote, remotePath, remotePathLen, &len);
     if (rc == 0) {
         RELEASE(KFile, resolved->file);

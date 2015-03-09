@@ -2092,6 +2092,7 @@ static rc_t ItemDownloadVdbcache(Item *item) {
         return 0;
     }
     {
+        bool cacheExists = false;
         if (resolved->existing) {
             /* resolved->path.str is a local file path */
             rc = MainDetectVdbcacheCachePath(item->main,
@@ -2105,7 +2106,7 @@ static rc_t ItemDownloadVdbcache(Item *item) {
         /* check vdbcache file cache location and its existence */
         rc = MainDetectVdbcacheCachePath(item->main,
             resolved->cache, NULL, &cache);
-        bool cacheExists = (VDBManagerPathType(item->main->mgr, "%S", cache)
+        cacheExists = (VDBManagerPathType(item->main->mgr, "%S", cache)
             & ~kptAlias) != kptNotFound;
         STSMSG(STS_DBG, ("'%S' %sexist%s", cache,
             cacheExists ? "" : "does not ", cacheExists ? "s" : ""));

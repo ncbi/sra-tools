@@ -74,7 +74,7 @@ clean: stdclean
 #-------------------------------------------------------------------------------
 # general-writer
 #
-$(LIBDIR)/general-writer: $(LIBDIR)/general-writer.$(LIBX)
+$(LIBDIR)/general-writer: $(LIBDIR)/$(LPFX)general-writer.$(LIBX)
 
 GEN_WRITER_SRC = \
     general-writer
@@ -82,7 +82,7 @@ GEN_WRITER_SRC = \
 GEN_WRITER_OBJ = \
 	$(addsuffix .$(LOBX),$(GEN_WRITER_SRC))
 
-$(LIBDIR)/general-writer.$(LIBX): $(GEN_WRITER_OBJ)
+$(LIBDIR)/$(LPFX)general-writer.$(LIBX): $(GEN_WRITER_OBJ)
 	$(LD) --slib --vers $(SRCDIR) -o $@ $^
 
 #-------------------------------------------------------------------------------

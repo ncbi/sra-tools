@@ -1989,19 +1989,21 @@ static bool MainNeedDownload(const Main *self, const String *local,
         if (rc != 0) {
             return true;
         }
-        const KFile *f = NULL;
-        rc = KDirectoryOpenFileRead(self->dir, &f, "%S", local);
-        if (rc != 0) {
-            DISP_RC2(rc, "KDirectoryOpenFileRead", local->addr);
-            return true;
-        }
-        rc = KFileSize(f, &sLocal);
-        if (rc != 0) {
-            DISP_RC2(rc, "KFileSize", local->addr);
-        }
-        RELEASE(KFile, f);
-        if (rc != 0) {
-            return true;
+        {
+            const KFile *f = NULL;
+            rc = KDirectoryOpenFileRead(self->dir, &f, "%S", local);
+            if (rc != 0) {
+                DISP_RC2(rc, "KDirectoryOpenFileRead", local->addr);
+                return true;
+            }
+            rc = KFileSize(f, &sLocal);
+            if (rc != 0) {
+                DISP_RC2(rc, "KFileSize", local->addr);
+            }
+            RELEASE(KFile, f);
+            if (rc != 0) {
+                return true;
+            }
         }
         if (sLocal == *remoteSz) {
             STSMSG(STS_INFO, ("%S (%,lu) is found", local, sLocal));

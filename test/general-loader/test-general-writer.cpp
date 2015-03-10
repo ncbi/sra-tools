@@ -139,6 +139,14 @@ namespace ncbi
                 
                 // found valid data, write line and go to next column
                 int elem_count = strlen ( ( const char * ) buffer );
+
+                // ensure there are no new lines at the end of the string
+                for ( int j = elem_count - 1; j >= 0; -- j )
+                {
+                    if ( buffer [ j ] == '\n' )
+                        -- elem_count;
+                }
+
                 gw -> write ( stream_ids [ i ], 8, buffer, elem_count );
                 validColumn = true;
             }
@@ -158,13 +166,13 @@ namespace ncbi
         
         try
         {
-            std :: cout << "Attempting add table after endStream" << std :: endl;            
+            std :: cerr << "Attempting add table after endStream" << std :: endl;            
             gw -> addTable ( "table1" );
         }
         catch ( const char x [] )
         {
-            std :: cout << x << std :: endl;
-            std :: cout << "addTable correctly failed" << std :: endl;
+            std :: cerr << x << std :: endl;
+            std :: cerr << "addTable correctly failed" << std :: endl;
         }
     }
 
@@ -179,25 +187,25 @@ namespace ncbi
                 column_names [ i ] = columns [ i ];
 
             gw = testCreateGw ( outfile, schema_path );
-            std :: cout << "CreateGw Success" << std :: endl;
-            std :: cout << "---------------------------------" << std :: endl;
+            std :: cerr << "CreateGw Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
             
             int table_id = testAddTable ( gw );
-            std :: cout << "addTable Success" << std :: endl;
-            std :: cout << "---------------------------------" << std :: endl;
+            std :: cerr << "addTable Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
 
             int stream_ids [ column_count ];
             testAddColumn ( gw, table_id, column_names, column_count, stream_ids ); 
-            std :: cout << "addColumn Success" << std :: endl;
-            std :: cout << "---------------------------------" << std :: endl;
+            std :: cerr << "addColumn Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
 
             testWrite ( gw, table_id, stream_ids, column_count, column_names );
-            std :: cout << "write Success" << std :: endl;
-            std :: cout << "---------------------------------" << std :: endl;
+            std :: cerr << "write Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
 
             testEndStream ( gw );
-            std :: cout << "endStream Success" << std :: endl;
-            std :: cout << "---------------------------------" << std :: endl;
+            std :: cerr << "endStream Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
 
         }
         catch ( ... )
@@ -258,7 +266,7 @@ int main ( int argc, char * argv [] )
         
         if ( num_columns == 0 )
         {
-            const char * columns [ 2 ] = { "./column01", "./column02" };
+            const char * columns [ 2 ] = { "column01", "column02" };
             ncbi :: runTest ( 2, columns, outfile, schema_path );
         }
         else

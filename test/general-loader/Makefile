@@ -29,8 +29,11 @@ TOP ?= $(abspath ../..)
 MODULE = test/general-loader
 
 TEST_TOOLS = \
-    test-general-loader \
-    test-general-writer
+    test-general-loader
+
+ALL_TOOLS = \
+	$(TEST_TOOLS) \
+	test-general-writer
 
 include $(TOP)/build/Makefile.env
 
@@ -49,7 +52,7 @@ TEST_GEN_LOAD_SRC = \
 
 TEST_GEN_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(TEST_GEN_LOAD_SRC))
-    
+
 TEST_GEN_LOAD_LIB =   \
 	-sncbi-wvdb-static   \
 	-skapp              \
@@ -59,8 +62,7 @@ $(TEST_BINDIR)/test-general-loader: $(TEST_GEN_LOAD_OBJ)
 	$(LP) --exe -o $@ $^ $(TEST_GEN_LOAD_LIB)
 
 vg_gen_load: test-general-loader
-	valgrind --ncbi $(TEST_BINDIR)/test-general-loader 
-    
+	valgrind --ncbi $(TEST_BINDIR)/test-general-loader
 
 #-------------------------------------------------------------------------------
 # test-general-writer
@@ -70,7 +72,7 @@ TEST_GEN_WRITE_SRC = \
 
 TEST_GEN_WRITE_OBJ = \
 	$(addsuffix .$(OBJX),$(TEST_GEN_WRITE_SRC))
-    
+
 TEST_GEN_WRITE_LIB =   \
     -L$(LIBDIR) \
     -sgeneral-writer
@@ -80,5 +82,14 @@ $(TEST_BINDIR)/test-general-writer: $(TEST_GEN_WRITE_OBJ)
 	$(LP) --exe -o $@ $^ $(TEST_GEN_WRITE_LIB)
 
 vg_gen_write: test-general-writer
-	valgrind --ncbi $(TEST_BINDIR)/test-general-writer 
-    
+	valgrind --ncbi $(TEST_BINDIR)/test-general-writer -o gen-write-out
+	rm -f gen-write-out
+
+
+runtests: $(TEST_BINDIR)/test-general-writer piped-load-tests
+
+piped-load-tests: $(TEST_TOOLS)
+	$(TEST_BINDIR)/test-general-writer | $(BINDIR)/general-loader
+	$(BINDIR)/vdb-dump -T table1 remote_db
+	rm -rf remote_db
+

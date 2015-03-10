@@ -90,3 +90,6 @@ runtests: $(TEST_BINDIR)/test-general-writer piped-load-tests
 
 piped-load-tests: $(TEST_TOOLS)
 	$(TEST_BINDIR)/test-general-writer | $(BINDIR)/general-loader
+	$(BINDIR)/vdb-dump -T table1 remote_db
+	rm -rf remote_db
+

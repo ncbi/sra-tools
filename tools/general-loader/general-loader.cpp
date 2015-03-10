@@ -260,6 +260,7 @@ GeneralLoader :: ReadMetadata ()
                         rc = m_reader . Read ( table_name_size + 1 );
                         if ( rc == 0 )
                         {
+                            pLogMsg ( klogInfo, "general-loader: adding table '$(c)'", "c=%s", ( const char * ) m_reader . GetBuffer () );
                             rc = MakeCursor ( ( char * ) m_reader . GetBuffer() );
                             if ( rc == 0 )
                             {
@@ -294,6 +295,7 @@ GeneralLoader :: ReadMetadata ()
                                 rc = m_reader . Read ( col_name_size + 1 );
                                 if ( rc == 0 )
                                 {
+                                    pLogMsg ( klogInfo, "general-loader: adding column '$(c)'", "c=%s", ( const char * ) m_reader . GetBuffer () );
                                     uint32_t cursorIdx = table -> second;
                                     uint32_t columnIdx;
                                     rc = VCursorAddColumn ( m_cursors [ cursorIdx ], 

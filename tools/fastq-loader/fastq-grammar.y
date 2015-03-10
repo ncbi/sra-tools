@@ -145,7 +145,12 @@ inlineRead
 tagLine    
     : nameSpotGroup 
     | nameSpotGroup readNumber
+    
+    | nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence
+    
+    | nameSpotGroup readNumber fqWS fqALPHANUM { FASTQScan_skip_to_eol(pb); } 
     | nameSpotGroup readNumber fqWS { FASTQScan_skip_to_eol(pb); } 
+    
     | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } casava1_8 { FASTQScan_skip_to_eol(pb); }
     | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
     | runSpotRead { FASTQScan_skip_to_eol(pb); }

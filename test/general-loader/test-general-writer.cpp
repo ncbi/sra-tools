@@ -139,6 +139,14 @@ namespace ncbi
                 
                 // found valid data, write line and go to next column
                 int elem_count = strlen ( ( const char * ) buffer );
+
+                // ensure there are no new lines at the end of the string
+                for ( int j = elem_count - 1; j >= 0; -- j )
+                {
+                    if ( buffer [ j ] == '\n' )
+                        -- elem_count;
+                }
+
                 gw -> write ( stream_ids [ i ], 8, buffer, elem_count );
                 validColumn = true;
             }

@@ -36,11 +36,13 @@
 extern "C" {
 #endif
 
-/* values used in validating quality lines */
-#define MIN_PHRED_33 33
-#define MAX_PHRED_33 126
-#define MIN_PHRED_64 64
-#define MAX_PHRED_64 127
+enum FASTQQualityFormat
+{
+    FASTQunknown,
+    FASTQphred33,
+    FASTQphred64,
+    FASTQlogodds
+};
 
 struct FastqSequence
 {
@@ -66,7 +68,8 @@ struct FastqSequence
     bool is_colorspace;
     
     String  quality;
-    uint8_t qualityOffset;
+    uint8_t qualityFormat; 
+    uint8_t qualityAsciiOffset;
     
     bool lowQuality;
 };
@@ -91,37 +94,15 @@ typedef struct FASTQToken
 /* obtain a pointer to the token's text */
 #define TokenTextPtr(pb, token) ((const char*)((pb)->record->source.base) + (token)->tokenStart)
 
-
 typedef struct FASTQParseBlock
 {
     void* self;
     size_t (CC *input)(struct FASTQParseBlock* sb, char* buf, size_t max_size);
-    uint8_t phredOffset;
-    uint8_t maxPhred;
     
-    void* scanner;
-    size_t length; /* input characters consumed for the current record */
-    FASTQToken* lastToken;
-    struct FastqRecord* record;
-    size_t column;
-
-    /* temporaries for bison */
-    /* all offsets are into record->source */
-    size_t spotNameOffset; 
-    size_t spotNameLength; 
-    size_t spotNameOffset_saved; /* sometimes needed to revert to older values */
-    size_t spotNameLength_saved; 
-    bool spotNameDone;
-    size_t spotGroupOffset;
-    size_t spotGroupLength;
-    size_t readOffset;
-    size_t readLength;
-    size_t qualityOffset;
-    size_t qualityLength;
-
-    size_t expectedQualityLines;
-    
-    int8_t defaultReadNumber; /* -1: never assign read numbers */
+    /* inputs for the parser */
+    size_t  expectedQualityLines;
+    uint8_t qualityFormat; /* see enum FASTQQualityFormat above */
+    int8_t  defaultReadNumber; /* -1: never assign read numbers */
 
     /*  Secondary (>1) read number observed previously (usually 2, sometimes 3). 
         Once one is seen, do not allow any other values in the same input file. 
@@ -130,6 +111,30 @@ typedef struct FASTQParseBlock
     uint8_t secondaryReadNumber; 
     
     bool ignoreSpotGroups;
+    
+    /* temporaries and outputs for the parser */
+    void* scanner;
+    size_t length; /* input characters consumed for the current record */
+    FASTQToken* lastToken;
+    struct FastqRecord* record;
+    size_t column;
+
+    /* all offsets are into record->source */
+    size_t spotNameOffset; 
+    size_t spotNameLength; 
+    size_t spotNameOffset_saved; /* sometimes needed to revert to older values */
+    size_t spotNameLength_saved; 
+    bool spotNameDone;
+    
+    size_t spotGroupOffset;
+    size_t spotGroupLength;
+    
+    size_t readOffset;
+    size_t readLength;
+    
+    size_t qualityOffset;
+    size_t qualityLength;
+    uint8_t qualityAsciiOffset; 
     
     bool fatalError;
 } FASTQParseBlock;

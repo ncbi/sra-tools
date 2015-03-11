@@ -43,11 +43,13 @@
 #include <kapp/log-xml.h>
 #include <align/writer-refseq.h>
 
+#include "fastq-parse.h"
+
 extern rc_t run(char const argv0[], 
                 struct CommonWriterSettings* G,
                 unsigned countReads, 
                 const char* reads[],
-                uint8_t qualityOffset,
+                enum FASTQQualityFormat qualityFormat,
                 const int8_t defaultReadNumbers[], 
                 bool ignoreSpotGroups);
 
@@ -302,7 +304,7 @@ rc_t CC KMain (int argc, char * argv[])
     char const *value;
     char *dummy;
     const XMLLogger* xml_logger = NULL;
-    uint8_t qualityOffset;
+    enum FASTQQualityFormat qualityFormat;
     bool ignoreSpotGroups;
     
     memset(&G, 0, sizeof(G));
@@ -468,9 +470,11 @@ rc_t CC KMain (int argc, char * argv[])
             if (rc)
                 break;
             if (strcmp(value, "PHRED_33") == 0)
-                qualityOffset = 33;
+                qualityFormat = FASTQphred33;
             else if (strcmp(value, "PHRED_64") == 0)
-                qualityOffset = 64;
+                qualityFormat = FASTQphred64;
+            else if (strcmp(value, "LOGODDS") == 0)
+                qualityFormat = FASTQlogodds;
             else
             {
                 rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcIncorrect);
@@ -480,7 +484,7 @@ rc_t CC KMain (int argc, char * argv[])
             }
         }
         else
-            qualityOffset = 0;
+            qualityFormat = 0;
             
         rc = ArgsOptionCount (args, OPTION_IGNORE_ILLUMINA_TAGS, &pcount);
         if (rc)
@@ -537,7 +541,7 @@ rc_t CC KMain (int argc, char * argv[])
         else
             break;
         
-        rc = run(argv[0], &G, pcount, (char const **)files, qualityOffset, defaultReadNumbers, ignoreSpotGroups);
+        rc = run(argv[0], &G, pcount, (char const **)files, qualityFormat, defaultReadNumbers, ignoreSpotGroups);
         break;
     }
     free(name_buffer);

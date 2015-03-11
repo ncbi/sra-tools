@@ -222,7 +222,7 @@ FastqSequenceInit(FastqSequence* self)
     StringInit(&self->read, 0, 0, 0);
     self->is_colorspace = false;
     StringInit(&self->quality, 0, 0, 0);
-    self->qualityOffset = 0;
+    self->qualityAsciiOffset = 0;
     self->lowQuality = false;
 
     return 0;
@@ -321,14 +321,21 @@ static rc_t FastqSequenceGetQuality ( const FastqSequence *self, const int8_t **
             return RC(rcAlign, rcRow, rcReading, rcData, rcInconsistent);
             
         *quality = (const int8_t *)self->quality.addr;
-        *offset = self->qualityOffset;
+        *offset = self->qualityAsciiOffset;
     }
     else
     {
         *quality = NULL;
         *offset = 0;
     }
-    *qualType = QT_Phred;
+    if ( self->qualityFormat == FASTQlogodds )
+    {
+        *qualType = QT_LogOdds;
+    }
+    else
+    {
+        *qualType = QT_Phred;
+    }
     return 0;
 }
 
@@ -391,7 +398,7 @@ static rc_t FastqSequenceGetCSQuality ( const FastqSequence *self, const int8_t 
     if ( self->quality.size != 0 && self->is_colorspace )
     {
         *quality = (const int8_t *)self->quality.addr + 1;
-        *offset = self->qualityOffset;
+        *offset = self->qualityAsciiOffset;
     }
     else
     {
@@ -567,7 +574,8 @@ rc_t FastqReaderFileGetRecord ( const FastqReaderFile *f, const Record** result 
     StringInit( & self->pb.record->seq.spotgroup,   (const char*)self->pb.record->source.base + self->pb.spotGroupOffset,   self->pb.spotGroupLength, (uint32_t)self->pb.spotGroupLength);
     StringInit( & self->pb.record->seq.read,        (const char*)self->pb.record->source.base + self->pb.readOffset,        self->pb.readLength, (uint32_t)self->pb.readLength); 
     StringInit( & self->pb.record->seq.quality,     (const char*)self->pb.record->source.base + self->pb.qualityOffset,     self->pb.qualityLength, (uint32_t)self->pb.qualityLength); 
-    self->pb.record->seq.qualityOffset = self->pb.phredOffset;
+    self->pb.record->seq.qualityFormat = self->pb.qualityFormat;
+    self->pb.record->seq.qualityAsciiOffset = self->pb.qualityAsciiOffset;
     
     if (self->pb.record->seq.readnumber == 0)
         self->pb.record->seq.readnumber = self->pb.defaultReadNumber;
@@ -631,8 +639,7 @@ size_t CC FASTQ_input(FASTQParseBlock* pb, char* buf, size_t max_size)
 rc_t CC FastqReaderFileMake( const ReaderFile **reader, 
                              const KDirectory* dir, 
                              const char* file, 
-                             uint8_t phredOffset, 
-                             uint8_t phredMax, 
+                             enum FASTQQualityFormat qualityFormat, 
                              int8_t defaultReadNumber,
                              bool ignoreSpotGroups)
 {
@@ -660,21 +667,8 @@ rc_t CC FastqReaderFileMake( const ReaderFile **reader,
         if (rc == 0)
         {
             self->pb.self = self;
-            self->pb.input = FASTQ_input;    
-            self->pb.phredOffset = phredOffset;
-            self->pb.maxPhred = phredMax;
-            /* TODO: 
-                if phredOffset is 0, 
-                    guess based on the raw values on the first quality line:
-                        if all values are above MAX_PHRED_33, phredOffset = 64
-                        if all values are in MIN_PHRED_33..MAX_PHRED_33, phredOffset = 33
-                        if any value is below MIN_PHRED_33, abort
-                    if the guess is 33 and proven wrong (a raw quality value >MAX_PHRED_33 is encountered and no values below MIN_PHRED_64 ever seen)
-                        reopen the file, 
-                        phredOffset = 64
-                        try to parse again
-                        if a value below MIN_PHRED_64 seen, abort 
-            */
+            self->pb.input = FASTQ_input;   
+            self->pb.qualityFormat = qualityFormat;
             self->pb.defaultReadNumber = defaultReadNumber;
             self->pb.secondaryReadNumber = 0;
             self->pb.ignoreSpotGroups = ignoreSpotGroups;
@@ -711,3 +705,5 @@ rc_t FastqReaderFileGetReferenceInfo ( const READERFILE_IMPL *self, const Refere
     *result = NULL;
     return 0;
 }
+
+

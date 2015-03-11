@@ -66,8 +66,8 @@ $(TEST_BINDIR)/wb-test-fastq: $(FASTQ_TEST_OBJ)
 wb: wb-test-fastq
 	$(TEST_BINDIR)/wb-test-fastq  2>&1
     
-valgrind_wb: $(TEST_BINDIR)/wb-test-fastq
-	valgrind --ncbi $^
+valgrind_wb: wb-test-fastq
+	valgrind --ncbi $(TEST_BINDIR)/wb-test-fastq
     
 #-------------------------------------------------------------------------------
 # test-fastqtest-loader
@@ -104,13 +104,15 @@ smalltests: $(TEST_TOOLS)
 	-rm -rf $(SRCDIR)/actual
 #   Small tests
 #   Input:
-#       Quality encoding: phred ascii/decimal
+#       Quality encoding: phred/logodds, ascii/decimal
 #           1.1 phred 33 
 	$(SMALLRUN) 1.1 0 $(SRCDIR)/input/1.1.fastq --quality PHRED_33
 #           1.2 phred 64 
 	$(SMALLRUN) 1.2 0 $(SRCDIR)/input/1.2.fastq --quality PHRED_64
 #           1.3 phred 33, decimal qualities
 	$(SMALLRUN) 1.3 3 $(SRCDIR)/input/1.3.fastq --quality PHRED_33
+#           1.4 logodds 64
+	$(SMALLRUN) 1.4 0 $(SRCDIR)/input/1.4.fastq --quality LOGODDS
 #       
 #       Single input file
 #           2.1 reads only, basespace
@@ -193,10 +195,12 @@ smalltests: $(TEST_TOOLS)
     # Illumina, ignore barcodes
 	$(SMALLRUN) 12.0 0 $(SRCDIR)/input/12.0.fastq --quality PHRED_33 --ignore-illumina-tags
     # Illumina, use barcodes as spotgroups
-	$(SMALLRUN) 12.1 0 $(SRCDIR)/input/12.0.fastq --quality PHRED_33 
+	$(SMALLRUN) 12.1 0 $(SRCDIR)/input/12.1.fastq --quality PHRED_33 
+    # Illumina, use barcodes as spotgroups, alternative format
+	$(SMALLRUN) 12.2 0 $(SRCDIR)/input/12.2.fastq --quality PHRED_33 
 	rm -rf $(SRCDIR)/actual
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 7.3 0 $(SRCDIR)/input/7.3.fastq --platform=PACBIO --quality PHRED_33
+	$(SMALLRUN) 1.4 0 $(SRCDIR)/input/1.4.fastq --quality LOGODDS
     

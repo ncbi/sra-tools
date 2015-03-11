@@ -31,6 +31,8 @@
 #include <klib/defs.h>
 #endif
 
+#include "fastq-parse.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -44,8 +46,7 @@ struct ReaderFile;
 rc_t CC FastqReaderFileMake( const struct ReaderFile **self, 
                              const struct KDirectory* dir, 
                              const char* file, 
-                             uint8_t phredOffset, 
-                             uint8_t phredMax, 
+                             enum FASTQQualityFormat qualityFormat, 
                              int8_t defaultReadNumber, 
                              bool ignoreSpotGroups);
 

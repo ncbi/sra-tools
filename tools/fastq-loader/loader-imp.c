@@ -58,7 +58,7 @@ rc_t AcrhiveFASTQ(CommonWriterSettings* G,
                 VDatabase *db,
                 unsigned seqFiles, 
                 char const *seqFile[], 
-                uint8_t qualityOffset, 
+                enum FASTQQualityFormat qualityFormat,
                 const int8_t defaultReadNumbers[],
                 bool ignoreSpotGroups)
 {
@@ -81,9 +81,9 @@ rc_t AcrhiveFASTQ(CommonWriterSettings* G,
     for (i = 0; i < seqFiles; ++i) {
         const ReaderFile *reader;
         if (G->platform == SRA_PLATFORM_PACBIO_SMRT)  
-            rc = FastqReaderFileMake(&reader, dir, seqFile[i], 33, 33 + 93, -1, ignoreSpotGroups); 
+            rc = FastqReaderFileMake(&reader, dir, seqFile[i], FASTQphred33, -1, ignoreSpotGroups); 
         else
-            rc = FastqReaderFileMake(&reader, dir, seqFile[i], qualityOffset, 0, defaultReadNumbers[i], ignoreSpotGroups);
+            rc = FastqReaderFileMake(&reader, dir, seqFile[i], qualityFormat, defaultReadNumbers[i], ignoreSpotGroups);
         
         if (rc == 0) 
         {

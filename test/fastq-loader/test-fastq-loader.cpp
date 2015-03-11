@@ -134,7 +134,7 @@ public:
             }
             file=0;
         }
-        return FastqReaderFileMake(&rf, wd, p_filename, 33, 0, 0, false);
+        return FastqReaderFileMake(&rf, wd, p_filename, FASTQphred33, 0, false);
     }
 
     KDirectory* wd;

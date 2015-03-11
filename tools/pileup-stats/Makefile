@@ -22,69 +22,73 @@
 #
 # ===========================================================================
 
-by_default: default
 
-TOP ?= $(abspath ..)
-MODULE = tools
+default: std
 
-include $(TOP)/build/Makefile.shell
+TOP ?= $(abspath ../..)
+MODULE = tools/pileup-stats
 
-include $(TOP)/build/Makefile.config
+include $(TOP)/build/Makefile.env
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =             \
-	util              \
-	align-cache       \
-	kar               \
-	kqsh              \
-	vdb-dump          \
-	sra-dump          \
-	sra-pileup        \
-	bam-loader        \
-	fastq-loader      \
-	srapath           \
-	sra-stat          \
-	vdb-copy          \
-	rd-filter-redact  \
-	vdb-config        \
-	align-info        \
-	qual-recalib-stat \
-	prefetch          \
-	vdb-decrypt       \
-	vdb-validate      \
-	sra-sort          \
-	cache-mgr         \
-	vcf-loader        \
-	copycat           \
-	sra-load          \
-	ccextract         \
-	pacbio-load       \
-	fuse              \
-    vdb-diff          \
-    kget              \
-    ngs-pileup        \
-    general-loader    \
+INT_TOOLS =
 
-ifneq (win,$(BUILD_OS))
-ifneq (rwin,$(BUILD_OS))
-	SUBDIRS += cg-load pileup-stats
-endif
-endif
+EXT_TOOLS = \
+	pileup-stats
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS) 
+ALL_TOOLS = \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
 
 #-------------------------------------------------------------------------------
-# pass-through
+# outer targets
 #
-out debug profile release GCC ICC VC++:
-	@ $(MAKE) TOP=$(TOP) -f $(TOP)/build/Makefile.env $@
+all std: vers-includes
+	@ $(MAKE_CMD) $(TARGDIR)/std
 
-.PHONY: out debug profile release GCC ICC VC++
+$(ALL_TOOLS): vers-includes
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
+
+#-------------------------------------------------------------------------------
+# std
+#
+$(TARGDIR)/std: \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/std
+
+#-------------------------------------------------------------------------------
+# vers-includes
+#
+$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/vers-includes
+
+#-------------------------------------------------------------------------------
+# clean
+#
+clean: stdclean
+
+.PHONY: clean
+
+#-------------------------------------------------------------------------------
+# pileup-stats
+#
+PILEUP_STATS_SRC = \
+	pileup-stats
+
+PILEUP_STATS_OBJ = \
+	$(addsuffix .$(OBJX),$(PILEUP_STATS_SRC))
+
+PILEUP_STATS_LIB =    \
+	-L$(LIBDIR)       \
+	-sgeneral-writer  \
+	-skapp            \
+	-sngs-c++         \
+	-sncbi-ngs-c++    \
+	-sncbi-vdb
+
+
+$(BINDIR)/pileup-stats: $(PILEUP_STATS_OBJ)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(PILEUP_STATS_LIB)

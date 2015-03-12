@@ -142,7 +142,7 @@ char const * use_platform[] =
 static
 char const * use_quality[] = 
 {
-    "Quality encoding (PHRED_33, PHRED_64)",
+    "Quality encoding (PHRED_33, PHRED_64, LOGODDS)",
     NULL
 };
 

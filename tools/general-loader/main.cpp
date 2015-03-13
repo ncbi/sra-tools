@@ -53,16 +53,28 @@ char const * include_paths_usage[] =
     NULL
 };
 
+static char const option_schemas[] = "schema";
+#define OPTION_SCHEMAS option_schemas
+#define ALIAS_SCHEMAS  "S"
+static
+char const * schemas_usage[] = 
+{
+    "Schema file to use. Can specify multiple files separated by ':'.",
+    NULL
+};
+
 OptDef Options[] = 
 {
     /* order here is same as in param array below!!! */                 
                                                                       /* max#,  needs param, required */
-    { OPTION_INCLUDE_PATHS, ALIAS_INCLUDE_PATHS, NULL, include_paths_usage, 0,  true,        false },
+    { OPTION_INCLUDE_PATHS, ALIAS_INCLUDE_PATHS,    NULL, include_paths_usage,  0,  true,        false },
+    { OPTION_SCHEMAS,       ALIAS_SCHEMAS,          NULL, schemas_usage,        0,  true,        false },
 };
 
 const char* OptHelpParam[] =
 {
     /* order here is same as in OptDef array above!!! */
+    "path(s)",
     "path(s)",
 };
 
@@ -154,6 +166,21 @@ rc_t CC KMain (int argc, char * argv[])
                                 break;
                             }
                             loader . AddSchemaIncludePath ( value );
+                        }
+                    }
+                    
+                    rc = ArgsOptionCount (args, OPTION_SCHEMAS, &pcount);
+                    if ( rc != 0 )
+                    {
+                        for ( uint32_t i = 0 ; i < pcount; ++i )
+                        {
+                            const char* value;
+                            rc = ArgsOptionValue (args, OPTION_SCHEMAS, i, &value);
+                            if ( rc != 0 )
+                            {
+                                break;
+                            }
+                            loader . AddSchemaFile( value );
                         }
                     }
                     

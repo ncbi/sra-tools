@@ -613,7 +613,7 @@ FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
 {   
     m_source . SetNames ( "this file should not exist", "someSchemaName", "database" );
     m_source . OpenStreamEvent ();
-    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcFS, rcDirectory, rcOpening, rcPath, rcNotFound ) ) );
+    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
     REQUIRE ( ! DatabaseExists() );
 }
 
@@ -1146,6 +1146,107 @@ FIXTURE_TEST_CASE ( AdditionalSchemaIncludePaths_Multiple, GeneralLoaderFixture 
 
     remove ( schemaIncludeFile . c_str() );
     remove ( schemaFile . c_str() );
+}
+
+FIXTURE_TEST_CASE ( AdditionalSchemaFiles_Single, GeneralLoaderFixture )
+{   
+    string schemaPath = "schema";
+    string schemaFile = schemaPath + "/" + GetName() + ".vschema";
+    { 
+        string schemaText = 
+            "table table1 #1.0.0\n"
+            "{\n"
+            "    column ascii column1;\n"
+            "};\n"
+            "database database1 #1\n"
+            "{\n"
+            "    table table1 #1 TABLE1;\n"
+            "};\n"
+        ;
+        ofstream out( schemaFile . c_str() );
+        out << schemaText;
+    }
+    
+    string dbFile = string ( GetName() ) + ".db";
+    // here we do not specify a schema but it's OK as long as we add a good schema later
+    m_source . SetNames ( "", "database1", dbFile );
+    
+    const char* table1 = "TABLE1";
+    const char* column1 = "column1";
+    m_source . NewTableEvent ( 1, table1 );
+    m_source . NewColumnEvent ( 1, 1, column1 );
+    m_source . OpenStreamEvent();
+    
+    string t1c1v1 = "t1c1v1";
+    m_source . CellDataEvent( 1, t1c1v1 );
+    m_source . NextRowEvent ( 1 );
+    m_source . CloseStreamEvent();
+    
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> AddSchemaFile ( schemaFile );
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_EQ ( t1c1v1, GetValue<string> ( table1, column1, 1 ) );    
+
+    remove ( schemaFile . c_str() );
+}
+
+FIXTURE_TEST_CASE ( AdditionalSchemaFiles_Multiple, GeneralLoaderFixture )
+{   
+    string schemaPath = "schema";
+    string schemaFile1 = schemaPath + "/" + GetName() + "1.vschema";
+    { 
+        string schemaText = 
+            "table table1 #1.0.0\n"
+            "{\n"
+            "    column ascii column1;\n"
+            "};\n"
+        ;
+        ofstream out( schemaFile1 . c_str() );
+        out << schemaText;
+    }
+    string schemaFile2 = schemaPath + "/" + GetName() + "2.vschema";
+    {  // this file uses table 1 defined in schemaFile1
+        string schemaText = 
+            "database database1 #1\n"
+            "{\n"
+            "    table table1 #1 TABLE1;\n"
+            "};\n"
+        ;
+        ofstream out( schemaFile2 . c_str() );
+        out << schemaText;
+    }
+    
+    string dbFile = string ( GetName() ) + ".db";
+    
+    // here we specify a schema that does not exist but it's OK as long as we add a good schema later
+    m_source . SetNames ( "doesnotexist", "database1", dbFile ); 
+    
+    const char* table1 = "TABLE1";
+    const char* column1 = "column1";
+    m_source . NewTableEvent ( 1, table1 );
+    m_source . NewColumnEvent ( 1, 1, column1 );
+    m_source . OpenStreamEvent();
+    
+    string t1c1v1 = "t1c1v1";
+    m_source . CellDataEvent( 1, t1c1v1 );
+    m_source . NextRowEvent ( 1 );
+    m_source . CloseStreamEvent();
+    
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> AddSchemaFile ( schemaFile1 + ":garbage.vschema:" + schemaFile2 ); // some are good
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_EQ ( t1c1v1, GetValue<string> ( table1, column1, 1 ) );    
+
+    remove ( schemaFile1 . c_str() );
+    remove ( schemaFile2 . c_str() );
 }
 
 //////////////////////////////////////////// Main

@@ -103,12 +103,16 @@ public:
     ~GeneralLoader ();
     
     void AddSchemaIncludePath( const std::string& p_path );
+    void AddSchemaFile( const std::string& p_file );
     
     rc_t Run ();
     
     void Reset();
     
 private:
+    GeneralLoader(const GeneralLoader&);
+    GeneralLoader& operator = ( const GeneralLoader&);
+
     // Active cursors
     typedef std::vector < struct VCursor * > Cursors;
 
@@ -131,6 +135,8 @@ private:
     rc_t OpenCursors ();
     rc_t ReadData ();
     void CleanUp ();
+    static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
+    
     
     class Reader
     {
@@ -161,6 +167,7 @@ private:
     char*   m_headerNames;
     
     Paths               m_includePaths;
+    Paths               m_schemas;
     struct VDatabase*   m_db;
     Cursors             m_cursors;
     TableIdToCursor     m_tables;

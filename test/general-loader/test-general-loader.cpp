@@ -81,9 +81,9 @@ public:
     
     void SetNames ( const std:: string& p_schemaFile, const std:: string& p_schemaSpec, const std:: string& p_databaseName )
     {
-        m_header . remote_db_name_size      = p_databaseName . size();
-        m_header . schema_file_name_size    = p_schemaFile . size();
-        m_header . schema_spec_size         = p_schemaSpec . size();
+        m_header . remote_db_name_size      = ( uint32_t ) p_databaseName . size();
+        m_header . schema_file_name_size    = ( uint32_t ) p_schemaFile . size();
+        m_header . schema_spec_size         = ( uint32_t ) p_schemaSpec . size();
         
         m_database      = p_databaseName;
         m_schemaFile    = p_schemaFile;
@@ -136,7 +136,7 @@ public:
     
     void CellDefaultEvent ( ColumnId p_columnId, const string& p_value )
     {
-        m_events . push_back ( Event ( GeneralLoader :: evt_cell_default, p_columnId, 8, p_value . size(), p_value . c_str() ) );
+        m_events . push_back ( Event ( GeneralLoader :: evt_cell_default, p_columnId, 8, ( uint32_t ) p_value . size(), p_value . c_str() ) );
     }
     void CellDefaultEvent ( ColumnId p_columnId, uint32_t p_value )
     {
@@ -219,7 +219,7 @@ private:
                     GeneralLoader ::  Table_hdr hdr;
                     hdr . evt   = it -> m_event;
                     hdr . id    = it -> m_id1;
-                    hdr . table_name_size = it -> m_str . size ();
+                    hdr . table_name_size = ( uint32_t ) it -> m_str . size ();
                     Write ( & hdr, sizeof hdr );
                     Write ( it -> m_str . c_str (), it -> m_str . size () + 1 );
                     break;
@@ -230,7 +230,7 @@ private:
                     hdr . evt               = it -> m_event;
                     hdr . id                = it -> m_id1;
                     hdr . table_id          = it -> m_id2;
-                    hdr . column_name_size  = it -> m_str . size ();
+                    hdr . column_name_size  = ( uint32_t ) it -> m_str . size ();
                     Write ( & hdr, sizeof hdr );
                     Write ( it -> m_str . c_str (), it -> m_str . size () + 1 );
                     break;
@@ -345,7 +345,7 @@ private:
 
 template<> void TestSource::CellDataEvent ( ColumnId p_columnId, string p_value )
 {
-    m_events . push_back ( Event ( GeneralLoader :: evt_cell_data, p_columnId, 8, p_value . size(), p_value . c_str() ) );
+    m_events . push_back ( Event ( GeneralLoader :: evt_cell_data, p_columnId, 8, ( uint32_t ) p_value . size(), p_value . c_str() ) );
 }
 
 class GeneralLoaderFixture

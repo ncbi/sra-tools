@@ -32,7 +32,7 @@
   </ItemGroup>
 
     <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
-        <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="$(ProjectDir)"/>
+        <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="..\..\..\test\general-loader\"/>
     </Target>
     
 </Project>

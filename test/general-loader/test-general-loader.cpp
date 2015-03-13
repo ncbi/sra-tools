@@ -362,13 +362,13 @@ public:
         RemoveDatabase();
     }
     
-    GeneralLoader MakeLoader ( const struct KFile * p_input )
+    GeneralLoader* MakeLoader ( const struct KFile * p_input )
     {
         struct KStream * inStream;
         if ( KStreamFromKFilePair ( & inStream, p_input, 0 ) != 0 )
             throw logic_error("GeneralLoaderFixture::Run KStreamFromKFilePair failed");
             
-        GeneralLoader ret ( * inStream );
+        GeneralLoader* ret = new GeneralLoader ( * inStream );
         
         if ( KStreamRelease ( inStream)  != 0 )
             throw logic_error("GeneralLoaderFixture::MakeLoader: KStreamRelease failed");
@@ -1080,9 +1080,10 @@ FIXTURE_TEST_CASE ( AdditionalSchemaIncludePaths_Single, GeneralLoaderFixture )
     m_source . CloseStreamEvent();
     
     {   
-        GeneralLoader gl = MakeLoader ( m_source . MakeSource () );
-        gl . AddSchemaIncludePath ( schemaPath ); 
-        REQUIRE ( RunLoader ( gl, 0 ) );
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> AddSchemaIncludePath ( schemaPath ); 
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
     } // make sure loader is destroyed (= db closed) before we reopen the database for verification
     
     REQUIRE_EQ ( t1c1v1, GetValue<string> ( table1, column1, 1 ) );    
@@ -1134,10 +1135,11 @@ FIXTURE_TEST_CASE ( AdditionalSchemaIncludePaths_Multiple, GeneralLoaderFixture 
     m_source . CloseStreamEvent();
     
     {   
-        GeneralLoader gl = MakeLoader ( m_source . MakeSource () );
-        gl . AddSchemaIncludePath ( "path1" ); 
-        gl . AddSchemaIncludePath ( string ( "path2:" ) + schemaPath + ":path3" ); 
-        REQUIRE ( RunLoader ( gl, 0 ) );
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> AddSchemaIncludePath ( "path1" ); 
+        gl -> AddSchemaIncludePath ( string ( "path2:" ) + schemaPath + ":path3" ); 
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
     } // make sure loader is destroyed (= db closed) before we reopen the database for verification
     
     REQUIRE_EQ ( t1c1v1, GetValue<string> ( table1, column1, 1 ) );    

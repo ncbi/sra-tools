@@ -280,7 +280,7 @@ GeneralLoader :: ReadMetadata ()
                             rc = MakeCursor ( ( char * ) m_reader . GetBuffer() );
                             if ( rc == 0 )
                             {
-                                m_tables [ evt_header . id ] = m_cursors . size() - 1;
+                                m_tables [ evt_header . id ] = ( uint32_t ) m_cursors . size() - 1;
                             }
                         }
                         
@@ -381,7 +381,7 @@ GeneralLoader::MakeDatabase ()
                           "s=%s", 
                           it -> c_str() );
             }
-            else if ( GetRCObject ( rc ) == (RCObject)rcPath && GetRCState ( rc ) == rcNotFound )
+            else if ( GetRCObject ( rc ) == (RCObject)rcPath )
             {
                 pLogMsg ( klogInfo, 
                           "general-loader: Schema include path not found: '$(s)'", 

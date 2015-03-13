@@ -37,7 +37,7 @@ ALL_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
-$(TEST_TOOLS): makedirs
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
 .PHONY: $(TEST_TOOLS)
@@ -61,6 +61,9 @@ TEST_GEN_LOAD_LIB =   \
 $(TEST_BINDIR)/test-general-loader: $(TEST_GEN_LOAD_OBJ)
 	$(LP) --exe -o $@ $^ $(TEST_GEN_LOAD_LIB)
 
+gen_load: test-general-loader
+	$(TEST_BINDIR)/test-general-loader
+    
 vg_gen_load: test-general-loader
 	valgrind --ncbi $(TEST_BINDIR)/test-general-loader
 
@@ -86,9 +89,9 @@ vg_gen_write: test-general-writer
 	rm -f gen-write-out
 
 
-runtests: $(TEST_BINDIR)/test-general-writer piped-load-tests
+runtests: test-general-writer piped-load-tests
 
-piped-load-tests: $(TEST_TOOLS)
+piped-load-tests: $(ALL_TOOLS)
 	$(TEST_BINDIR)/test-general-writer | $(BINDIR)/general-loader
 	$(BINDIR)/vdb-dump -T table1 remote_db
 	rm -rf remote_db

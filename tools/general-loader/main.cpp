@@ -43,6 +43,29 @@
 
 #include <kns/stream.h>
 
+static char const option_include_paths[] = "include";
+#define OPTION_INCLUDE_PATHS option_include_paths
+#define ALIAS_INCLUDE_PATHS  "I"
+static
+char const * include_paths_usage[] = 
+{
+    "Additional directories to search for schema include files. Can specify multiple paths separated by ':'.",
+    NULL
+};
+
+OptDef Options[] = 
+{
+    /* order here is same as in param array below!!! */                 
+                                                                      /* max#,  needs param, required */
+    { OPTION_INCLUDE_PATHS, ALIAS_INCLUDE_PATHS, NULL, include_paths_usage, 0,  true,        false },
+};
+
+const char* OptHelpParam[] =
+{
+    /* order here is same as in OptDef array above!!! */
+    "path(s)",
+};
+
 rc_t UsageSummary (char const * progname)
 {
     return KOutMsg (
@@ -71,6 +94,20 @@ rc_t CC Usage (const Args * args)
         progname = fullpath = UsageDefaultName;
 
     UsageSummary (progname);
+    
+    const size_t argsQty = sizeof(Options) / sizeof(Options[0]);
+    for(size_t i = 0; i < argsQty; i++ ) {
+        if( Options[i].required && Options[i].help[0] != NULL ) {
+            HelpOptionLine(Options[i].aliases, Options[i].name, OptHelpParam[i], Options[i].help);
+        }
+    }
+    OUTMSG(("\nOptions:\n"));
+    for(size_t i = 0; i < argsQty; i++ ) {
+        if( !Options[i].required && Options[i].help[0] != NULL ) {
+            HelpOptionLine(Options[i].aliases, Options[i].name, OptHelpParam[i], Options[i].help);
+        }
+    }
+    
     HelpOptionsStandard ();
     HelpVersion (fullpath, KAppVersion());
     return rc;
@@ -85,7 +122,7 @@ rc_t CC KMain (int argc, char * argv[])
 {
     Args * args;
     uint32_t pcount;
-    rc_t rc = ArgsMakeAndHandle (&args, argc, argv, 0);
+    rc_t rc = ArgsMakeAndHandle (&args, argc, argv, 1, Options, sizeof Options / sizeof (OptDef));
 
     if ( rc == 0 )
     {
@@ -104,7 +141,26 @@ rc_t CC KMain (int argc, char * argv[])
                 if ( rc == 0 )
                 {
                     GeneralLoader loader ( *std_in );
-                    rc = loader . Run();
+                    
+                    rc = ArgsOptionCount (args, OPTION_INCLUDE_PATHS, &pcount);
+                    if ( rc != 0 )
+                    {
+                        for ( uint32_t i = 0 ; i < pcount; ++i )
+                        {
+                            const char* value;
+                            rc = ArgsOptionValue (args, OPTION_INCLUDE_PATHS, i, &value);
+                            if ( rc != 0 )
+                            {
+                                break;
+                            }
+                            loader . AddSchemaIncludePath ( value );
+                        }
+                    }
+                    
+                    if ( rc == 0 )
+                    {
+                        rc = loader . Run();
+                    }
                     KStreamRelease ( std_in );
                 }
             }

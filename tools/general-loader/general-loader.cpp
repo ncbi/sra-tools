@@ -49,10 +49,12 @@ GeneralLoader::Reader::Reader( const struct KStream& p_input )
     m_bufSize ( 0 ),
     m_readCount ( 0 )
 {
+    KStreamAddRef ( & m_input );
 }
 
 GeneralLoader::Reader::~Reader()
 {
+    KStreamRelease ( & m_input );
     free ( m_buffer );
 }
 
@@ -102,6 +104,32 @@ GeneralLoader::GeneralLoader ( const struct KStream& p_input )
 GeneralLoader::~GeneralLoader ()
 {
     Reset();
+}
+
+void
+GeneralLoader::SplitAndAdd( Paths& p_paths, const std::string& p_path )
+{
+    size_t startPos = 0;
+    size_t colonPos = p_path . find ( ':', startPos );
+    while ( colonPos != string::npos )
+    {
+        p_paths . push_back ( p_path . substr ( startPos, colonPos - startPos ) );
+        startPos = colonPos + 1;
+        colonPos = p_path . find ( ':', startPos );    
+    }
+    p_paths . push_back ( p_path . substr ( startPos ) );
+}
+
+void 
+GeneralLoader::AddSchemaIncludePath( const std::string& p_path )
+{
+    SplitAndAdd ( m_includePaths, p_path );
+}
+
+void 
+GeneralLoader::AddSchemaFile( const std::string& p_path )
+{
+    SplitAndAdd ( m_schemas, p_path );
 }
 
 void
@@ -264,7 +292,7 @@ GeneralLoader :: ReadMetadata ()
                             rc = MakeCursor ( ( char * ) m_reader . GetBuffer() );
                             if ( rc == 0 )
                             {
-                                m_tables [ evt_header . id ] = m_cursors . size() - 1;
+                                m_tables [ evt_header . id ] = ( uint32_t ) m_cursors . size() - 1;
                             }
                         }
                         
@@ -355,14 +383,88 @@ GeneralLoader::MakeDatabase ()
     rc_t rc = VDBManagerMakeUpdate ( & mgr, NULL );
     if ( rc == 0 )
     {
+        for ( Paths::const_iterator it = m_includePaths . begin(); it != m_includePaths . end(); ++it )
+        {   
+            rc = VDBManagerAddSchemaIncludePath ( mgr, "%s", it -> c_str() );
+            if ( rc == 0 )
+            {
+                pLogMsg ( klogInfo, 
+                          "general-loader: Added schema include path '$(s)'", 
+                          "s=%s", 
+                          it -> c_str() );
+            }
+            else if ( GetRCObject ( rc ) == (RCObject)rcPath )
+            {
+                pLogMsg ( klogInfo, 
+                          "general-loader: Schema include path not found: '$(s)'", 
+                          "s=%s", 
+                          it -> c_str() );
+                rc = 0;
+            }
+            else
+            {
+                VDBManagerRelease ( mgr );
+                return rc;
+            }
+        }
         VSchema* schema;
         rc = VDBManagerMakeSchema ( mgr, & schema );
         if ( rc  == 0 )
         {
             const char * schemaFile = & m_headerNames [ m_header . remote_db_name_size + 1 ];
-            rc = VSchemaParseFile(schema, "%s", schemaFile );
+            if ( string_size ( schemaFile ) > 0 )
+            {
+                rc = VSchemaParseFile(schema, "%s", schemaFile );
+                if ( rc == 0 )
+                {
+                    pLogMsg ( klogInfo, 
+                              "general-loader: Added schema file '$(s)'", 
+                              "s=%s", 
+                              schemaFile );
+                }
+                else if ( GetRCObject ( rc ) == (RCObject)rcPath && GetRCState ( rc ) == rcNotFound )
+                {
+                    pLogMsg ( klogInfo, 
+                              "general-loader: Schema file not found: '$(s)'", 
+                              "s=%s", 
+                              schemaFile );
+                    rc = 0;
+                }
+                else
+                {
+                    VSchemaRelease ( schema );
+                    VDBManagerRelease ( mgr );
+                    return rc;
+                }
+            }
             if ( rc  == 0 )
             {
+                for ( Paths::const_iterator it = m_schemas. begin(); it != m_schemas . end(); ++it )
+                {   
+                    rc = VSchemaParseFile ( schema, "%s", it -> c_str() );
+                    if ( rc == 0 )
+                    {
+                        pLogMsg ( klogInfo, 
+                                  "general-loader: Added schema file '$(s)'", 
+                                  "s=%s", 
+                                  it -> c_str() );
+                    }
+                    else if ( GetRCObject ( rc ) == (RCObject)rcPath && GetRCState ( rc ) == rcNotFound )
+                    {
+                        pLogMsg ( klogInfo, 
+                                  "general-loader: Schema file not found: '$(s)'", 
+                                  "s=%s", 
+                                  it -> c_str() );
+                        rc = 0;
+                    }
+                    else
+                    {
+                        VSchemaRelease ( schema );
+                        VDBManagerRelease ( mgr );
+                        return rc;
+                    }
+                }
+            
                 const char * schemaSpec = & m_headerNames [ m_header . remote_db_name_size + 1 + 
                                                             m_header . schema_file_name_size + 1 ];
                 const char * databaseName = & m_headerNames [ 0 ];

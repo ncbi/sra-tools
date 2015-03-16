@@ -102,11 +102,17 @@ public:
     GeneralLoader ( const struct KStream& p_input );
     ~GeneralLoader ();
     
+    void AddSchemaIncludePath( const std::string& p_path );
+    void AddSchemaFile( const std::string& p_file );
+    
     rc_t Run ();
     
     void Reset();
     
 private:
+    GeneralLoader(const GeneralLoader&);
+    GeneralLoader& operator = ( const GeneralLoader&);
+
     // Active cursors
     typedef std::vector < struct VCursor * > Cursors;
 
@@ -118,6 +124,8 @@ private:
     // value_type::first    : index into Cursors
     // value_type::second   : colIdx in the VCursor
     typedef std::map < uint32_t, std::pair < uint32_t, uint32_t > > ColumnToCursor; 
+    
+    typedef std::vector < std::string > Paths;
 
     rc_t ReadHeader ();
     rc_t ReadMetadata ();
@@ -127,6 +135,8 @@ private:
     rc_t OpenCursors ();
     rc_t ReadData ();
     void CleanUp ();
+    static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
+    
     
     class Reader
     {
@@ -156,6 +166,8 @@ private:
     Header  m_header;
     char*   m_headerNames;
     
+    Paths               m_includePaths;
+    Paths               m_schemas;
     struct VDatabase*   m_db;
     Cursors             m_cursors;
     TableIdToCursor     m_tables;

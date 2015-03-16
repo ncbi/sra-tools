@@ -47,6 +47,7 @@
 #include <stdexcept> 
 #include <map>
 #include <fstream>
+#include <cstdio>
 
 using namespace std;
 using namespace ncbi::NK;
@@ -80,9 +81,9 @@ public:
     
     void SetNames ( const std:: string& p_schemaFile, const std:: string& p_schemaSpec, const std:: string& p_databaseName )
     {
-        m_header . remote_db_name_size      = p_databaseName . size();
-        m_header . schema_file_name_size    = p_schemaFile . size();
-        m_header . schema_spec_size         = p_schemaSpec . size();
+        m_header . remote_db_name_size      = ( uint32_t ) p_databaseName . size();
+        m_header . schema_file_name_size    = ( uint32_t ) p_schemaFile . size();
+        m_header . schema_spec_size         = ( uint32_t ) p_schemaSpec . size();
         
         m_database      = p_databaseName;
         m_schemaFile    = p_schemaFile;
@@ -135,7 +136,7 @@ public:
     
     void CellDefaultEvent ( ColumnId p_columnId, const string& p_value )
     {
-        m_events . push_back ( Event ( GeneralLoader :: evt_cell_default, p_columnId, 8, p_value . size(), p_value . c_str() ) );
+        m_events . push_back ( Event ( GeneralLoader :: evt_cell_default, p_columnId, 8, ( uint32_t ) p_value . size(), p_value . c_str() ) );
     }
     void CellDefaultEvent ( ColumnId p_columnId, uint32_t p_value )
     {
@@ -218,7 +219,7 @@ private:
                     GeneralLoader ::  Table_hdr hdr;
                     hdr . evt   = it -> m_event;
                     hdr . id    = it -> m_id1;
-                    hdr . table_name_size = it -> m_str . size ();
+                    hdr . table_name_size = ( uint32_t ) it -> m_str . size ();
                     Write ( & hdr, sizeof hdr );
                     Write ( it -> m_str . c_str (), it -> m_str . size () + 1 );
                     break;
@@ -229,7 +230,7 @@ private:
                     hdr . evt               = it -> m_event;
                     hdr . id                = it -> m_id1;
                     hdr . table_id          = it -> m_id2;
-                    hdr . column_name_size  = it -> m_str . size ();
+                    hdr . column_name_size  = ( uint32_t ) it -> m_str . size ();
                     Write ( & hdr, sizeof hdr );
                     Write ( it -> m_str . c_str (), it -> m_str . size () + 1 );
                     break;
@@ -344,7 +345,7 @@ private:
 
 template<> void TestSource::CellDataEvent ( ColumnId p_columnId, string p_value )
 {
-    m_events . push_back ( Event ( GeneralLoader :: evt_cell_data, p_columnId, 8, p_value . size(), p_value . c_str() ) );
+    m_events . push_back ( Event ( GeneralLoader :: evt_cell_data, p_columnId, 8, ( uint32_t ) p_value . size(), p_value . c_str() ) );
 }
 
 class GeneralLoaderFixture
@@ -352,12 +353,42 @@ class GeneralLoaderFixture
 public:
     GeneralLoaderFixture()
     :   m_db ( 0 ),
-        m_cursor ( 0 )
+        m_cursor ( 0 ),
+        m_keepDatabase ( false )
     {
     }
     ~GeneralLoaderFixture()
     {
         RemoveDatabase();
+    }
+    
+    GeneralLoader* MakeLoader ( const struct KFile * p_input )
+    {
+        struct KStream * inStream;
+        if ( KStreamFromKFilePair ( & inStream, p_input, 0 ) != 0 )
+            throw logic_error("GeneralLoaderFixture::Run KStreamFromKFilePair failed");
+            
+        GeneralLoader* ret = new GeneralLoader ( * inStream );
+        
+        if ( KStreamRelease ( inStream)  != 0 )
+            throw logic_error("GeneralLoaderFixture::MakeLoader: KStreamRelease failed");
+        if ( KFileRelease ( p_input)  != 0 )
+            throw logic_error("GeneralLoaderFixture::Run: KFileRelease failed");
+            
+        return ret;
+    }
+    bool RunLoader ( GeneralLoader& p_loader, rc_t p_rc )
+    {
+        rc_t rc = p_loader.Run();
+        if ( rc == p_rc )
+        {
+            return true;
+        }
+        
+        char buf[1024];
+        string_printf ( buf, sizeof buf, NULL, "Expected rc='%R', actual='%R'", p_rc, rc );
+        cerr << buf << endl;
+        return false;
     }
     
     bool Run ( const struct KFile * p_input, rc_t p_rc )
@@ -406,7 +437,7 @@ public:
     void RemoveDatabase()
     {
         CloseDatabase();
-        if ( ! m_source . GetDatabaseName() . empty ()  )
+        if ( ! m_source . GetDatabaseName() . empty () && ! m_keepDatabase )
         {
             KDirectory* wd;
             KDirectoryNativeDir ( & wd );
@@ -422,7 +453,7 @@ public:
         VDBManager * vdb;
         if ( VDBManagerMakeUpdate ( & vdb, NULL ) != 0 )
             throw logic_error("GeneralLoaderFixture::OpenDatabase(" + m_source . GetDatabaseName() + "): VDBManagerMakeUpdate failed");
-            
+           
         if ( VDBManagerOpenDBUpdate ( vdb, &m_db, NULL, m_source . GetDatabaseName() . c_str() ) != 0 )
             throw logic_error("GeneralLoaderFixture::OpenDatabase(" + m_source . GetDatabaseName() + "): VDBManagerOpenDBUpdate failed");
         
@@ -502,6 +533,7 @@ public:
     TestSource      m_source;
     VDatabase *     m_db;
     const VCursor * m_cursor;
+    bool            m_keepDatabase;
 };    
 
 template<> std::string GeneralLoaderFixture::GetValue ( const char* p_table, const char* p_column, uint64_t p_row )
@@ -581,7 +613,7 @@ FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
 {   
     m_source . SetNames ( "this file should not exist", "someSchemaName", "database" );
     m_source . OpenStreamEvent ();
-    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcFS, rcDirectory, rcOpening, rcPath, rcNotFound ) ) );
+    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
     REQUIRE ( ! DatabaseExists() );
 }
 
@@ -970,7 +1002,7 @@ FIXTURE_TEST_CASE ( MultipleTables_Multiple_Columns_MultipleRows, GeneralLoaderF
         m_source . CellDataEvent( 1, t1c1v1 );
         uint32_t t1c2v1 = 121;
         m_source . CellDataEvent( 2, t1c2v1 );
-        m_source . NextRowEvent ( 1 );
+    m_source . NextRowEvent ( 1 );
 
         int64_t t2c1v1 = 211;
         m_source . CellDataEvent( 3, t2c1v1 );
@@ -982,7 +1014,7 @@ FIXTURE_TEST_CASE ( MultipleTables_Multiple_Columns_MultipleRows, GeneralLoaderF
         m_source . CellDataEvent( 1, t1c1v2 );
         uint32_t t1c2v2 = 122;
         m_source . CellDataEvent( 2, t1c2v2 );
-        m_source . NextRowEvent ( 1 );
+    m_source . NextRowEvent ( 1 );
 
         int64_t t2c1v2 = 212;
         m_source . CellDataEvent( 3, t2c1v2 );
@@ -1003,6 +1035,218 @@ FIXTURE_TEST_CASE ( MultipleTables_Multiple_Columns_MultipleRows, GeneralLoaderF
     REQUIRE_EQ ( t1c2v2,    GetValue<uint32_t>  ( table1, table1column2, 2 ) );   
     REQUIRE_EQ ( t2c1v2,    GetValue<int64_t>   ( table2, table2column1, 2 ) );      
     REQUIRE_EQ ( t2c2v2,    GetValue<uint8_t>   ( table2, table2column2, 2 ) );   
+}
+
+FIXTURE_TEST_CASE ( AdditionalSchemaIncludePaths_Single, GeneralLoaderFixture )
+{   
+    string schemaPath = "schema";
+    string includeName = string ( GetName() ) + ".inc.vschema";
+    string schemaIncludeFile = schemaPath + "/" + includeName;
+    { 
+        ofstream out ( schemaIncludeFile . c_str() );
+        out << 
+            "table table1 #1.0.0\n"
+            "{\n"
+            "    column ascii column1;\n"
+            "};\n"
+        ;
+    }
+    
+    string schemaFile = string ( GetName() ) + ".vschema";
+    { 
+        string schemaText = 
+            string ( "include '" ) + includeName + "';\n"
+            "database database1 #1\n"
+            "{\n"
+            "    table table1 #1 TABLE1;\n"
+            "};\n"
+        ;
+        ofstream out( schemaFile . c_str() );
+        out << schemaText;
+    }
+    
+    string dbFile = string ( GetName() ) + ".db";
+    m_source . SetNames ( schemaFile, "database1", dbFile );
+    
+    const char* table1 = "TABLE1";
+    const char* column1 = "column1";
+    m_source . NewTableEvent ( 1, table1 );
+    m_source . NewColumnEvent ( 1, 1, column1 );
+    m_source . OpenStreamEvent();
+    
+    string t1c1v1 = "t1c1v1";
+    m_source . CellDataEvent( 1, t1c1v1 );
+    m_source . NextRowEvent ( 1 );
+    m_source . CloseStreamEvent();
+    
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> AddSchemaIncludePath ( schemaPath ); 
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_EQ ( t1c1v1, GetValue<string> ( table1, column1, 1 ) );    
+
+    remove ( schemaIncludeFile . c_str() );
+    remove ( schemaFile . c_str() );
+}
+
+FIXTURE_TEST_CASE ( AdditionalSchemaIncludePaths_Multiple, GeneralLoaderFixture )
+{   
+    string schemaPath = "schema";
+    string includeName = string ( GetName() ) + ".inc.vschema";
+    string schemaIncludeFile = schemaPath + "/" + includeName;
+    { 
+        ofstream out ( schemaIncludeFile . c_str() );
+        out << 
+            "table table1 #1.0.0\n"
+            "{\n"
+            "    column ascii column1;\n"
+            "};\n"
+        ;
+    }
+    
+    string schemaFile = string ( GetName() ) + ".vschema";
+    { 
+        string schemaText = 
+            string ( "include '" ) + includeName + "';\n"
+            "database database1 #1\n"
+            "{\n"
+            "    table table1 #1 TABLE1;\n"
+            "};\n"
+        ;
+        ofstream out( schemaFile . c_str() );
+        out << schemaText;
+    }
+    
+    string dbFile = string ( GetName() ) + ".db";
+    m_source . SetNames ( schemaFile, "database1", dbFile );
+    
+    const char* table1 = "TABLE1";
+    const char* column1 = "column1";
+    m_source . NewTableEvent ( 1, table1 );
+    m_source . NewColumnEvent ( 1, 1, column1 );
+    m_source . OpenStreamEvent();
+    
+    string t1c1v1 = "t1c1v1";
+    m_source . CellDataEvent( 1, t1c1v1 );
+    m_source . NextRowEvent ( 1 );
+    m_source . CloseStreamEvent();
+    
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> AddSchemaIncludePath ( "path1" ); 
+        gl -> AddSchemaIncludePath ( string ( "path2:" ) + schemaPath + ":path3" ); 
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_EQ ( t1c1v1, GetValue<string> ( table1, column1, 1 ) );    
+
+    remove ( schemaIncludeFile . c_str() );
+    remove ( schemaFile . c_str() );
+}
+
+FIXTURE_TEST_CASE ( AdditionalSchemaFiles_Single, GeneralLoaderFixture )
+{   
+    string schemaPath = "schema";
+    string schemaFile = schemaPath + "/" + GetName() + ".vschema";
+    { 
+        string schemaText = 
+            "table table1 #1.0.0\n"
+            "{\n"
+            "    column ascii column1;\n"
+            "};\n"
+            "database database1 #1\n"
+            "{\n"
+            "    table table1 #1 TABLE1;\n"
+            "};\n"
+        ;
+        ofstream out( schemaFile . c_str() );
+        out << schemaText;
+    }
+    
+    string dbFile = string ( GetName() ) + ".db";
+    // here we do not specify a schema but it's OK as long as we add a good schema later
+    m_source . SetNames ( "", "database1", dbFile );
+    
+    const char* table1 = "TABLE1";
+    const char* column1 = "column1";
+    m_source . NewTableEvent ( 1, table1 );
+    m_source . NewColumnEvent ( 1, 1, column1 );
+    m_source . OpenStreamEvent();
+    
+    string t1c1v1 = "t1c1v1";
+    m_source . CellDataEvent( 1, t1c1v1 );
+    m_source . NextRowEvent ( 1 );
+    m_source . CloseStreamEvent();
+    
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> AddSchemaFile ( schemaFile );
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_EQ ( t1c1v1, GetValue<string> ( table1, column1, 1 ) );    
+
+    remove ( schemaFile . c_str() );
+}
+
+FIXTURE_TEST_CASE ( AdditionalSchemaFiles_Multiple, GeneralLoaderFixture )
+{   
+    string schemaPath = "schema";
+    string schemaFile1 = schemaPath + "/" + GetName() + "1.vschema";
+    { 
+        string schemaText = 
+            "table table1 #1.0.0\n"
+            "{\n"
+            "    column ascii column1;\n"
+            "};\n"
+        ;
+        ofstream out( schemaFile1 . c_str() );
+        out << schemaText;
+    }
+    string schemaFile2 = schemaPath + "/" + GetName() + "2.vschema";
+    {  // this file uses table 1 defined in schemaFile1
+        string schemaText = 
+            "database database1 #1\n"
+            "{\n"
+            "    table table1 #1 TABLE1;\n"
+            "};\n"
+        ;
+        ofstream out( schemaFile2 . c_str() );
+        out << schemaText;
+    }
+    
+    string dbFile = string ( GetName() ) + ".db";
+    
+    // here we specify a schema that does not exist but it's OK as long as we add a good schema later
+    m_source . SetNames ( "doesnotexist", "database1", dbFile ); 
+    
+    const char* table1 = "TABLE1";
+    const char* column1 = "column1";
+    m_source . NewTableEvent ( 1, table1 );
+    m_source . NewColumnEvent ( 1, 1, column1 );
+    m_source . OpenStreamEvent();
+    
+    string t1c1v1 = "t1c1v1";
+    m_source . CellDataEvent( 1, t1c1v1 );
+    m_source . NextRowEvent ( 1 );
+    m_source . CloseStreamEvent();
+    
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> AddSchemaFile ( schemaFile1 + ":garbage.vschema:" + schemaFile2 ); // some are good
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_EQ ( t1c1v1, GetValue<string> ( table1, column1, 1 ) );    
+
+    remove ( schemaFile1 . c_str() );
+    remove ( schemaFile2 . c_str() );
 }
 
 //////////////////////////////////////////// Main

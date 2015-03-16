@@ -68,7 +68,7 @@ namespace ncbi
     static int column_id [ num_columns ];
 #endif
 
-    static uint32_t depth_cutoff;               // do not output if depth <= this value
+    static uint32_t depth_cutoff = 1;               // do not output if depth <= this value
 
     static
     void run (
@@ -221,7 +221,7 @@ namespace ncbi
 #endif
 
     static
-    void run ( const char * spec )
+    void run ( const char * spec, const char *outfile, const char *_remote_db )
     {
         std :: cerr << "# Opening run '" << spec << "'\n";
         ReadCollection obj = ncbi :: NGS :: openReadCollection ( spec );
@@ -229,31 +229,52 @@ namespace ncbi
 
 #if USE_GENERAL_LOADER
         std :: cerr << "# Preparing pipe to stdout\n";
-        std :: string remote_db = runName + ".pileup_stat";
-        GeneralWriter out ( 1, remote_db, "align/pileup-stats.vschema", "NCBI:pileup:db:pileup_stats #1" );
-        prepareOutput ( out, runName );
-#endif
+        std :: string remote_db;
+        if ( _remote_db == NULL )
+            remote_db = runName + ".pileup_stat";
+        else
+            remote_db = _remote_db;
 
-        std :: cerr << "# Accessing all references\n";
-        ReferenceIterator ref = obj . getReferences ();
+        GeneralWriter *outp = ( outfile == NULL ) ? 
+            new GeneralWriter ( 1, remote_db, "align/pileup-stats.vschema", "NCBI:pileup:db:pileup_stats #1" ) :
+            new GeneralWriter ( outfile, remote_db, "align/pileup-stats.vschema", "NCBI:pileup:db:pileup_stats #1" );
 
-        while ( ref . nextReference () )
+        try
         {
-            String refName = ref . getCanonicalName ();
+            GeneralWriter &out = *outp;
 
-            std :: cerr << "# Processing reference '" << refName << "'\n";
-#if USE_GENERAL_LOADER
-            out . columnDefault ( column_id [ col_REFERENCE_SPEC ], 8, refName . data (), refName . size () );
+            prepareOutput ( out, runName );
 #endif
-
-            std :: cerr << "# Accessing all pileups\n";
-            PileupIterator pileup = ref . getPileups ( Alignment :: all );
+            std :: cerr << "# Accessing all references\n";
+            ReferenceIterator ref = obj . getReferences ();
+            
+            while ( ref . nextReference () )
+            {
+                String refName = ref . getCanonicalName ();
+                
+                std :: cerr << "# Processing reference '" << refName << "'\n";
 #if USE_GENERAL_LOADER
-            run ( out, runName, refName, pileup );
+                out . columnDefault ( column_id [ col_REFERENCE_SPEC ], 8, refName . data (), refName . size () );
+#endif
+                
+                std :: cerr << "# Accessing all pileups\n";
+                PileupIterator pileup = ref . getPileups ( Alignment :: all );
+#if USE_GENERAL_LOADER
+                run ( out, runName, refName, pileup );
 #else
-            run ( runName, refName, pileup );
+                run ( runName, refName, pileup );
 #endif
+            }
+
+#if USE_GENERAL_LOADER
         }
+        catch ( ... )
+        {
+            delete outp;
+            throw;
+        }
+        delete outp;
+#endif
     }
 }
 
@@ -269,19 +290,151 @@ extern "C"
         return 0;
     }
 
+    static 
+    const char * getArg ( int & i, int argc, char * argv [] )
+    {
+        
+        if ( ++ i == argc )
+            throw "Missing argument";
+        
+        return argv [ i ];
+    }
+
+    static
+    const char * findArg ( const char*  &arg, int & i, int argc, char * argv [] )
+    {
+        if ( arg [ 1 ] != 0 )
+        {
+            const char * next = arg + 1;
+            arg = "\0";
+            return next;
+        }
+
+        return getArg ( i, argc, argv );
+    }
+
+    static void handle_help ( const char *appName )
+    {
+        const char *appLeaf = strrchr ( appName, '/' );
+        if ( appLeaf ++ == 0 )
+            appLeaf = appName;
+
+        ver_t vers = KAppVersion ();
+
+        std :: cout
+            << '\n'
+            << "Usage:\n"
+            << "  " << appLeaf << " [options] <accession>"
+#if ! USE_GENERAL_LOADER
+            << " [<accession> ...]"
+#endif
+            << "\n\n"
+            << "Options:\n"
+            << "  -o|--output-file                 file for output\n"
+#if USE_GENERAL_LOADER
+            << "                                   (default pipe to stdout)\n"
+#endif
+#if USE_GENERAL_LOADER
+            << "  -r|--remote-db                   name of remote database to create\n"
+            << "                                   (default <accession>.pileup_stat)\n"
+#endif
+            << "  -x|--depth-cutoff                cutoff for depth <= value (default 1)\n"
+            << "  -h|--help                        output brief explanation of the program\n"
+            << '\n'
+            << appName << " : "
+            << ( vers >> 24 )
+            << '.'
+            << ( ( vers >> 16 ) & 0xFF )
+            << '.'
+            << ( vers & 0xFFFF )
+            << '\n'
+            << '\n'
+            ;
+    }
+
+    static void CC handle_error ( const char *arg, void *message )
+    {
+        throw ( const char * ) message;
+    }
+
     rc_t CC KMain ( int argc, char *argv [] )
     {
         rc_t rc = -1;
 
         try
         {
-#if USE_GENERAL_LOADER
-            if ( argc > 2 )
-                throw "only one run may be processed at a time";
-#endif
+            int num_runs = 0;
+            const char *outfile = NULL;
+            const char *remote_db = NULL;
+
             for ( int i = 1; i < argc; ++ i )
             {
-                ncbi :: run ( argv [ i ] );
+                const char * arg = argv [ i ];
+                if ( arg [ 0 ] != '-' )
+                {
+                    // have an input run
+                    argv [ ++ num_runs ] = ( char* ) arg;
+                }
+                else do switch ( ( ++ arg ) [ 0 ] )
+                {
+                case 'o':
+                    outfile = findArg ( arg, i, argc, argv );
+                    break;
+#if USE_GENERAL_LOADER
+                case 'r':
+                    remote_db = findArg ( arg, i, argc, argv );
+                    break;
+#endif
+                case 'x':
+                    ncbi :: depth_cutoff = AsciiToU32 ( findArg ( arg, i, argc, argv ), 
+                                                        handle_error, ( void * ) "Invalid depth cutoff" );
+                case 'h':
+                case '?':
+                    handle_help ( argv [ 0 ] );
+                    return 0;
+                case '-':
+                    ++ arg;
+                    if ( strcmp ( arg, "output-file" ) == 0 )
+                    {
+                        outfile = getArg ( i, argc, argv );
+                    }
+#if USE_GENERAL_LOADER
+                    else if ( strcmp ( arg, "remote-db" ) == 0 )
+                    {
+                        remote_db = getArg ( i, argc, argv );
+                    }
+#endif
+                    else if ( strcmp ( arg, "depth-cutoff" ) == 0 )
+                    {
+                        ncbi :: depth_cutoff = AsciiToU32 ( getArg ( i, argc, argv ), 
+                                                            handle_error, ( void * ) "Invalid depth cutoff" );
+                    }
+                    else if ( strcmp ( arg, "help" ) == 0 )
+                    {
+                        handle_help ( argv [ 0 ] );
+                        return 0;
+                    }
+                    else
+                    {
+                        throw "Invalid Argument";
+                    }
+
+                    arg = "\0";
+
+                    break;
+                default:
+                    throw "Invalid argument";
+                }
+                while ( arg [ 1 ] != 0 );
+            }
+
+#if USE_GENERAL_LOADER
+            if ( num_runs > 1 )
+                throw "only one run may be processed at a time";
+#endif
+            for ( int i = 1; i <= num_runs; ++ i )
+            {
+                ncbi :: run ( argv [ i ], outfile, remote_db );
             }
 
             rc = 0;

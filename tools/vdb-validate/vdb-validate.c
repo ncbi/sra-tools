@@ -2217,7 +2217,7 @@ static OptDef options [] =
   , { "index-only"   ,NULL           , NULL, USAGE_IND_ONLY, 1, false, false }
 
     /* obsolete options for backward compatibility */
-  , { OPTION_md5     , ALIAS_md5     , NULL, USAGE_MD5     , 1, false, false }
+  , { OPTION_md5     , ALIAS_md5     , NULL, USAGE_MD5     , 1, true , false }
   , { OPTION_blob_crc, ALIAS_blob_crc, NULL, USAGE_BLOB_CRC, 1, false, false }
   , { OPTION_ref_int , ALIAS_ref_int , NULL, USAGE_REF_INT , 1, false, false }
 };
@@ -2297,44 +2297,7 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
     pb->consist_check = false;
     ref_int_check = pb -> blob_crc
         = pb -> md5_chk_explicit = md5_required = true;
-/*
-  {
-    rc = ArgsOptionCount(args, OPTION_MD5, &cnt);
-    if (rc != 0) {
-        LOGERR(klogErr, rc, "Failure to get '" OPTION_MD5 "' argument");
-        return rc;
-    }
-    if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_MD5, 0, &dummy);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_MD5 "' argument");
-            return rc;
-        }
-        assert(dummy && dummy[0]);
-        if (dummy[0] == 'n') {
-            pb -> md5_chk_explicit = md5_required = false;
-        }
-    }
-  }
-*/{
-    rc = ArgsOptionCount( args, OPTION_BLOB_CRC, &cnt);
-    if (rc != 0) {
-        LOGERR(klogErr, rc, "Failure to get '" OPTION_BLOB_CRC "' argument");
-        return rc;
-    }
-    if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_BLOB_CRC, 0, &dummy);
-        if (rc != 0) {
-            LOGERR(klogErr, rc,
-                "Failure to get '" OPTION_BLOB_CRC "' argument");
-            return rc;
-        }
-        assert(dummy && dummy[0]);
-        if (dummy[0] == 'n') {
-            pb -> blob_crc = false;
-        }
-    }
-  }
+
   {
     rc = ArgsOptionCount(args, OPTION_CNS_CHK, &cnt);
     if (rc != 0) {
@@ -2401,6 +2364,43 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
         return rc;
     if ( cnt != 0 )
         s_IndexOnly = pb -> blob_crc = true;
+  }
+  {
+    rc = ArgsOptionCount( args, OPTION_BLOB_CRC, &cnt);
+    if (rc != 0) {
+        LOGERR(klogErr, rc, "Failure to get '" OPTION_BLOB_CRC "' argument");
+        return rc;
+    }
+    if (cnt != 0) {
+        rc = ArgsOptionValue(args, OPTION_BLOB_CRC, 0, &dummy);
+        if (rc != 0) {
+            LOGERR(klogErr, rc,
+                "Failure to get '" OPTION_BLOB_CRC "' argument");
+            return rc;
+        }
+        assert(dummy && dummy[0]);
+        if (dummy[0] == 'n') {
+            pb -> blob_crc = false;
+        }
+    }
+  }
+  {
+    rc = ArgsOptionCount(args, OPTION_md5, &cnt);
+    if (rc != 0) {
+        LOGERR(klogErr, rc, "Failure to get '" OPTION_md5 "' argument");
+        return rc;
+    }
+    if (cnt != 0) {
+        rc = ArgsOptionValue(args, OPTION_md5, 0, &dummy);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" OPTION_md5 "' argument");
+            return rc;
+        }
+        assert(dummy && dummy[0]);
+        if (dummy[0] == 'n') {
+            pb -> md5_chk = pb -> md5_chk_explicit = md5_required = false;
+        }
+    }
   }
 
     if ( pb -> blob_crc || pb -> index_chk )

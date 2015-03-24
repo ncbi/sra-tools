@@ -431,7 +431,7 @@ void PoslenColWriterWriteStatic ( PoslenColWriter *self, const ctx_t *ctx,
                         SYSTEM_ERROR ( rc, "VCursorCommit failed for column '%s'", self -> full_spec );
                     else if ( count > 1 )
                     {
-                        uint64_t cnt = (count < 0x20000000U ) ? count : 0x20000000U;
+                        uint64_t cnt = (count < 0x10000000U ) ? count : 0x10000000U;
                         rc = VCursorRepeatRow ( self -> curs, cnt - 1 );
                         if ( rc != 0 )
                             SYSTEM_ERROR ( rc, "VCursorRepeatRow failed for column '%s'", self -> full_spec );

@@ -99,12 +99,13 @@ piped-load-tests: $(ALL_TOOLS)
 #-------------------------------------------------------------------------------
 # general-loader tool tests
 #
-#runtests: tool-tests
+runtests: tool-tests
 
 makeinputs: makeinputs.cpp
 	# generate numbered input streams for tool tests
 	$(CXX) makeinputs.cpp -o makeinputs -I$(INCDIRS)
 
 tool-tests: makeinputs
-	mkdir -p inputs && ./makeinputs
-	$(SRCDIR)/runtestcase.sh $(BINDIR) 1 
+	mkdir -p input && ./makeinputs && rm ./makeinputs
+	$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1 -L info
+    

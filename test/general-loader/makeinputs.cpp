@@ -39,7 +39,7 @@ make_1()
 {   
     TestSource source;
     
-    source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", "1.db" );
+    source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", "actual/1/db" );
     source . NewTableEvent ( 1, tableName ); 
     source . NewColumnEvent ( 1, 1, columnName );
     source . OpenStreamEvent();
@@ -51,6 +51,7 @@ make_1()
     string default1 = "first default";
     source . CellDefaultEvent( 1, default1 );
     source . NextRowEvent ( 1 );
+    
     source . NextRowEvent ( 1 );
     
     string value2 = "second value";
@@ -62,7 +63,7 @@ make_1()
     source . NextRowEvent ( 1 );
     
     source . CloseStreamEvent();
-    
+    source . FillBuffer();
     source . SaveBuffer ("input/1.gl");
 }
 

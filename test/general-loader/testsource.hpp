@@ -184,6 +184,7 @@ private:
         Write ( m_schemaSpec . c_str(), m_header . schema_spec_size + 1 );
     }
 
+public:
     void FillBuffer()
     {
         MakeHeader();

@@ -96,3 +96,15 @@ piped-load-tests: $(ALL_TOOLS)
 	$(BINDIR)/vdb-dump -T table1 remote_db
 	rm -rf remote_db
 
+#-------------------------------------------------------------------------------
+# general-loader tool tests
+#
+#runtests: tool-tests
+
+makeinputs: makeinputs.cpp
+	# generate numbered input streams for tool tests
+	$(CXX) makeinputs.cpp -o makeinputs -I$(INCDIRS)
+
+tool-tests: makeinputs
+	mkdir -p inputs && ./makeinputs
+	$(SRCDIR)/runtestcase.sh $(BINDIR) 1 

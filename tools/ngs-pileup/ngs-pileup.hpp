@@ -42,19 +42,44 @@ class NGS_Pileup
 public:
     struct Settings
     {
+        struct ReferenceSlice
+        {
+            ReferenceSlice( const std::string& p_name ) /* entire reference */
+            :   m_name ( p_name ), 
+                m_firstPos ( 0 ),
+                m_lastPos ( 0 ),
+                m_full ( true )
+            {
+            }
+            ReferenceSlice( const std::string& p_name, 
+                            int64_t p_firstPos, 
+                            int64_t p_lastPos )
+            :   m_name ( p_name ), 
+                m_firstPos ( p_firstPos ),
+                m_lastPos ( p_lastPos ),
+                m_full ( false )
+            {
+            }
+            
+            std::string m_name;
+            int64_t     m_firstPos; 
+            int64_t     m_lastPos;
+            bool        m_full;
+        };
+        
+        void AddInput ( const std::string& accession ) { inputs . push_back ( accession ); }
+        void AddReference ( const std::string& commonOrCanonicalName );
+        void AddReferenceSlice ( const std::string& commonOrCanonicalName, 
+                                 int64_t firstPos, 
+                                 int64_t lastPos );
+                                 
+                                 
         typedef std::vector < std::string > Inputs;
-        typedef std::vector < std::string > References;
+        typedef std::vector < ReferenceSlice > References;
         
         Inputs inputs;
         std::ostream* output;
         References references;
-        
-        void AddInput ( const std::string& accession ) { inputs . push_back ( accession ); }
-        void AddReference ( const std::string& commonOrCanonicalName ) { references . push_back ( commonOrCanonicalName ); }
-        void AddReferenceSlice ( const std::string& commonOrCanonicalName, int64_t start, uint64_t length ) 
-        { 
-            references . push_back ( commonOrCanonicalName ); 
-        }
     };
     
 public:

@@ -1286,6 +1286,30 @@ FIXTURE_TEST_CASE ( MissingRead, LoaderFixture )
     REQUIRE_EQ(string("GG3IVWD03HIDOA"), string(name, length));
 }
 
+FIXTURE_TEST_CASE ( UnexpectedEOLreported, LoaderFixture )
+{ // source: SRR1915965
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@HWI-ST1106:381:D1CDRACXX:8:1101:10000:110594\t2\n"
+        "AACA\n+\n$.%0\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("HWI-ST1106:381:D1CDRACXX:8:1101:10000:110594"), string(name, length));
+    REQUIRE(SequenceIsSecond(seq));
+}
+
+FIXTURE_TEST_CASE ( AnotherUnexpectedEOLreported, LoaderFixture )
+{ // source: SRR1686805 
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@HWI-ST225:626:C2Y82ACXX:3:1304:7988:75799_2\n"
+        "AACA\n+\n$.%0\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("HWI-ST225:626:C2Y82ACXX:3:1304:7988:75799"), string(name, length));
+    REQUIRE(SequenceIsSecond(seq));
+}
+
+
+
 // FIXTURE_TEST_CASE(Pacbio, LoaderFixture)
 // { 
     // REQUIRE(CreateFileGetSequence(GetName(), 

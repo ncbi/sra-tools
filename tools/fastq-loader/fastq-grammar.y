@@ -237,6 +237,7 @@ readNumber
 
 casava1_8
     : fqNUMBER          { SetReadNumber(pb, &$1); GrowSpotName(pb, &$1); StopSpotName(pb); }
+    | fqNUMBER          { SetReadNumber(pb, &$1); GrowSpotName(pb, &$1); StopSpotName(pb); }
      ':'                { GrowSpotName(pb, &$3); }
      fqALPHANUM         { GrowSpotName(pb, &$5); if ($5.tokenLength == 1 && TokenTextPtr(pb, &$5)[0] == 'Y') pb->record->seq.lowQuality = true; }
      ':'                { GrowSpotName(pb, &$7); }

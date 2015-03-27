@@ -36,6 +36,11 @@
 #define USE_GENERAL_LOADER 1
 #define RECORD_REF_BASE 0
 
+#if _DEBUGGING
+#define SINGLE_REFERENCE 0
+#define NO_PILEUP_EVENTS 0
+#endif
+
 #include "../general-loader/general-writer.hpp"
 
 #include "pileup-stats.vers.h"
@@ -92,6 +97,9 @@ namespace ncbi
             case 'N': continue;
             }
 
+#if NO_PILEUP_EVENTS
+            ( void ) ref_base_idx;
+#else
             uint32_t depth = pileup . getPileupDepth ();
             if ( depth > depth_cutoff )
             {
@@ -190,6 +198,8 @@ namespace ncbi
 #endif
                 }
             }
+#endif // NO_PILEUP_EVENTS
+
         }
     }
 
@@ -221,7 +231,7 @@ namespace ncbi
 #endif
 
     static
-    void run ( const char * spec, const char *outfile, const char *_remote_db )
+    void run ( const char * spec, const char *outfile, const char *_remote_db, Alignment :: AlignmentCategory cat )
     {
         std :: cerr << "# Opening run '" << spec << "'\n";
         ReadCollection obj = ncbi :: NGS :: openReadCollection ( spec );
@@ -258,11 +268,14 @@ namespace ncbi
 #endif
                 
                 std :: cerr << "# Accessing all pileups\n";
-                PileupIterator pileup = ref . getPileups ( Alignment :: all );
+                PileupIterator pileup = ref . getPileups ( cat );
 #if USE_GENERAL_LOADER
                 run ( out, runName, refName, pileup );
 #else
                 run ( runName, refName, pileup );
+#endif
+#if SINGLE_REFERENCE
+                break;
 #endif
             }
 
@@ -339,6 +352,8 @@ extern "C"
             << "                                   (default <accession>.pileup_stat)\n"
 #endif
             << "  -x|--depth-cutoff                cutoff for depth <= value (default 1)\n"
+            << "  -a|--align-category              the types of alignments to pile up:\n"
+            << "                                   { primary, secondary, all } (default all)\n"
             << "  -h|--help                        output brief explanation of the program\n"
             << '\n'
             << appName << " : "
@@ -360,6 +375,7 @@ extern "C"
     rc_t CC KMain ( int argc, char *argv [] )
     {
         rc_t rc = -1;
+        Alignment :: AlignmentCategory cat = Alignment :: all;
 
         try
         {
@@ -387,7 +403,25 @@ extern "C"
 #endif
                 case 'x':
                     ncbi :: depth_cutoff = AsciiToU32 ( findArg ( arg, i, argc, argv ), 
-                                                        handle_error, ( void * ) "Invalid depth cutoff" );
+                        handle_error, ( void * ) "Invalid depth cutoff" );
+                    break;
+                case 'a':
+                {
+                    const char * atype = findArg ( arg, i, argc, argv );
+                    if ( strcmp ( atype, "all" ) == 0 )
+                        cat = Alignment :: all;
+                    else if ( strcmp ( atype, "primary" ) == 0 ||
+                              strcmp ( atype, "primaryAlignment" ) == 0 )
+                        cat = Alignment :: primaryAlignment;
+                    else if ( strcmp ( atype, "secondary" ) == 0 ||
+                              strcmp ( atype, "secondaryAlignment" ) == 0 )
+                        cat = Alignment :: secondaryAlignment;
+                    else
+                    {
+                        throw "Invalid alignment category";
+                    }
+                    break;
+                }
                 case 'h':
                 case '?':
                     handle_help ( argv [ 0 ] );
@@ -407,7 +441,23 @@ extern "C"
                     else if ( strcmp ( arg, "depth-cutoff" ) == 0 )
                     {
                         ncbi :: depth_cutoff = AsciiToU32 ( getArg ( i, argc, argv ), 
-                                                            handle_error, ( void * ) "Invalid depth cutoff" );
+                            handle_error, ( void * ) "Invalid depth cutoff" );
+                    }
+                    else if ( strcmp ( arg, "align-category" ) == 0 )
+                    {
+                        const char * atype = getArg ( i, argc, argv );
+                        if ( strcmp ( atype, "all" ) == 0 )
+                            cat = Alignment :: all;
+                        else if ( strcmp ( atype, "primary" ) == 0 ||
+                                  strcmp ( atype, "primaryAlignment" ) == 0 )
+                            cat = Alignment :: primaryAlignment;
+                        else if ( strcmp ( atype, "secondary" ) == 0 ||
+                                  strcmp ( atype, "secondaryAlignment" ) == 0 )
+                            cat = Alignment :: secondaryAlignment;
+                        else
+                        {
+                            throw "Invalid alignment category";
+                        }
                     }
                     else if ( strcmp ( arg, "help" ) == 0 )
                     {
@@ -434,7 +484,7 @@ extern "C"
 #endif
             for ( int i = 1; i <= num_runs; ++ i )
             {
-                ncbi :: run ( argv [ i ], outfile, remote_db );
+                ncbi :: run ( argv [ i ], outfile, remote_db, cat );
             }
 
             rc = 0;

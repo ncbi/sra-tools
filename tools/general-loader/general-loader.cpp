@@ -610,11 +610,11 @@ GeneralLoader::ReadData ()
                             {
                                 VCursor * cursor = m_cursors [ curIt -> second . first ];
                                 uint32_t colIdx = curIt -> second . second;
-                                rc = VCursorDefault ( cursor, colIdx, elem_bits, m_reader . GetBuffer(), 0, elem_count );
                                 pLogMsg ( klogInfo,     
                                           "general-loader: columnIdx = $(i), default value's size=$(s) bits", 
                                           "i=%u,s=%u", 
                                            colIdx, elem_bits * elem_count );
+                                rc = VCursorDefault ( cursor, colIdx, elem_bits, m_reader . GetBuffer(), 0, elem_count );
                             }
                         }
                     }
@@ -635,20 +635,30 @@ GeneralLoader::ReadData ()
                     rc = m_reader . Read ( & elem_bits, sizeof ( elem_bits ) );    
                     if ( rc == 0 )
                     {
-                        uint32_t elem_count;
-                        rc = m_reader . Read ( & elem_count, sizeof ( elem_count ) );   
-                        if ( rc == 0 )
+                        if ( elem_bits == 0 )
                         {
-                            rc = m_reader . Read ( ( elem_bits * elem_count + 7 ) / 8 );   
+                            pLogMsg ( klogWarn,     
+                                      "general-loader: Cell-Data, id=$(i), invalid value for elem_bits: $(s). Cell is ignored", 
+                                      "i=%u,s=%u", 
+                                       evt_header . id, elem_bits );
+                        }
+                        else
+                        {
+                            uint32_t elem_count;
+                            rc = m_reader . Read ( & elem_count, sizeof ( elem_count ) );   
                             if ( rc == 0 )
                             {
-                                VCursor * cursor = m_cursors [ curIt -> second . first ];
-                                uint32_t colIdx = curIt -> second . second;
-                                rc = VCursorWrite ( cursor, colIdx, elem_bits, m_reader . GetBuffer(), 0, elem_count );
-                                pLogMsg ( klogInfo,     
-                                          "general-loader: columnIdx = $(i), value's size=$(s) bits", 
-                                          "i=%u,s=%u", 
-                                           colIdx, elem_bits * elem_count );
+                                rc = m_reader . Read ( ( elem_bits * elem_count + 7 ) / 8 );   
+                                if ( rc == 0 )
+                                {
+                                    VCursor * cursor = m_cursors [ curIt -> second . first ];
+                                    uint32_t colIdx = curIt -> second . second;
+                                    pLogMsg ( klogInfo,     
+                                              "general-loader: columnIdx = $(i), value's size=$(s) bits", 
+                                              "i=%u,s=%u", 
+                                               colIdx, elem_bits * elem_count );
+                                    rc = VCursorWrite ( cursor, colIdx, elem_bits, m_reader . GetBuffer(), 0, elem_count );
+                                }
                             }
                         }
                     }

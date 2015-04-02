@@ -49,7 +49,7 @@ std::string vdbconf_model::native_to_internal( const std::string &s ) const
     if ( rc == 0 )
     {
         size_t written;
-        char buffer[ 4096 ];
+        char buffer[ PATH_MAX ];
         rc = VPathReadPath ( temp_v_path, buffer, sizeof buffer, &written );
         if ( rc == 0 )
             res.assign( buffer, written );
@@ -66,13 +66,25 @@ std::string vdbconf_model::internal_to_native( const std::string &s ) const
     if ( rc == 0 )
     {
         size_t written;
-        char buffer[ 4096 ];
+        char buffer[ PATH_MAX ];
         rc = VPathReadSysPath ( temp_v_path, buffer, sizeof buffer, &written );
         if ( rc == 0 )
             res.assign( buffer, written );
         VPathRelease ( temp_v_path );
     }
     return res;
+}
+
+
+std::string vdbconf_model::get_http_proxy_path( void ) const {
+    char buffer[ PATH_MAX ] = "";
+    rc_t rc = KConfig_Get_Http_Proxy_Path(_config, buffer, sizeof buffer, NULL);
+    if (rc == 0) {
+        return buffer;
+    }
+    else {
+        return "";
+    }
 }
 
 

@@ -108,6 +108,24 @@ class vdbconf_model
         bool get_config_changed( void ) const { return _config_changed; }
 
         // ----------------------------------------------------------------
+
+        bool is_http_proxy_enabled( void ) const {
+            bool enabled = true;
+            KConfig_Get_Http_Proxy_Enabled(_config, &enabled, true);
+            return enabled;
+        }
+
+        void set_http_proxy_enabled( bool enabled ) const {
+            KConfig_Set_Http_Proxy_Enabled(_config, enabled);
+        }
+
+        std::string get_http_proxy_path( void ) const;
+
+        void set_http_proxy_path(const std::string &path) const {
+            KConfig_Set_Http_Proxy_Path(_config, path.c_str());
+        }
+
+        // ----------------------------------------------------------------
         bool is_remote_enabled( void ) const
         {
             bool res = false;

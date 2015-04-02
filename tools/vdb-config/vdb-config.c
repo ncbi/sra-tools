@@ -57,6 +57,7 @@
 #include <os-native.h> /* SHLX */
 
 #include <assert.h>
+#include <ctype.h> /* tolower */
 #include <errno.h>
 #include <stdio.h> /* scanf */
 #include <stdlib.h> /* getenv */
@@ -125,6 +126,15 @@ static const char* USAGE_OUT[] = { "output type: one of (x n), "
 #define OPTION_PCF   "cfg"
 static const char* USAGE_PCF[] = { "print current configuration", NULL };
 
+#define ALIAS_PRD    NULL
+#define OPTION_PRD   "proxy-disable"
+static const char* USAGE_PRD[] = { "enable/disable using HTTP proxy", NULL };
+
+#define ALIAS_PRX    NULL
+#define OPTION_PRX   "proxy"
+static const char* USAGE_PRX[]
+    = { "set HTTP proxy server configuration", NULL };
+
 #define ALIAS_ROOT   NULL
 #define OPTION_ROOT  "root"
 static const char* USAGE_ROOT[] =
@@ -147,6 +157,8 @@ OptDef Options[] =
     , { OPTION_MOD, ALIAS_MOD, NULL, USAGE_MOD, 1, false, false }
     , { OPTION_OUT, ALIAS_OUT, NULL, USAGE_OUT, 1, true , false }
     , { OPTION_PCF, ALIAS_PCF, NULL, USAGE_PCF, 1, false, false }
+    , { OPTION_PRD, ALIAS_PRD, NULL, USAGE_PRD, 1, true , false }
+    , { OPTION_PRX, ALIAS_PRX, NULL, USAGE_PRX, 1, true , false }
     , { OPTION_SET, ALIAS_SET, NULL, USAGE_SET, 1, true , false }
     , { OPTION_ROOT,ALIAS_ROOT,NULL, USAGE_ROOT,1, false, false }
 };
@@ -189,9 +201,13 @@ rc_t CC Usage(const Args* args) {
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_CFG, OPTION_CFG, NULL, USAGE_CFG);
     HelpOptionLine (ALIAS_CFM, OPTION_CFM, "mode", USAGE_CFM);
+    KOutMsg ("\n");
     HelpOptionLine (ALIAS_FIX, OPTION_FIX, NULL, USAGE_FIX);
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_OUT, OPTION_OUT, "x | n", USAGE_OUT);
+    KOutMsg ("\n");
+    HelpOptionLine (ALIAS_PRX, OPTION_PRX, "uri[:port]", USAGE_PRX);
+    HelpOptionLine (ALIAS_PRD, OPTION_PRD, "yes | no", USAGE_PRD);
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_ROOT,OPTION_ROOT,NULL, USAGE_ROOT);
 
@@ -341,9 +357,9 @@ typedef struct Params {
 
     bool xml;
 
-    const char* setValue;
+    const char *setValue;
 
-    const char* ngc;
+    const char *ngc;
 
     bool modeSetNode;
     bool modeConfigure;
@@ -357,6 +373,13 @@ typedef struct Params {
     bool modeRoot;
 
     bool showMultiple;
+
+    enum {
+        eUndefined,
+        eNo,
+        eYes
+    } proxyDisabled;
+    const char *proxy;
 } Params;
 static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
     rc_t rc = 0;
@@ -425,20 +448,20 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             LOGERR(klogErr, rc, "Failure to get '" OPTION_FIL "' argument");
             break;
         }
-        if (pcount) {
+        if (pcount > 0) {
             prm->modeShowFiles = true;
             ++count;
         }
     }
     {   // OPTION_IMP
         rc = ArgsOptionCount(args, OPTION_IMP, &pcount);
-        if (rc) {
+        if (rc != 0) {
             LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
             break;
         }
-        if (pcount) {
+        if (pcount > 0) {
             rc = ArgsOptionValue(args, OPTION_IMP, 0, &prm->ngc);
-            if (rc) {
+            if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
                 break;
             }
@@ -484,9 +507,44 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             }
         }
     }
+    {   // OPTION_PRD
+        rc = ArgsOptionCount(args, OPTION_PRD, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" OPTION_PRD "' argument");
+            break;
+        }
+        if (pcount > 0) {
+            const char *dummy = NULL;
+            rc = ArgsOptionValue(args, OPTION_PRD, 0, &dummy);
+            if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_PRD "' argument");
+                break;
+            }
+            if (tolower(dummy[0]) == 'y') {
+                prm->proxyDisabled = eYes;
+            }
+            else if (tolower(dummy[0]) == 'n') {
+                prm->proxyDisabled = eNo;
+            }
+        }
+    }
+    {   // OPTION_PRX
+        rc = ArgsOptionCount(args, OPTION_PRX, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" OPTION_PRX "' argument");
+            break;
+        }
+        if (pcount > 0) {
+            rc = ArgsOptionValue(args, OPTION_PRX, 0, &prm->proxy);
+            if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_PRX "' argument");
+                break;
+            }
+        }
+    }
     {   // OPTION_DIR
         rc = ArgsOptionCount(args, OPTION_DIR, &pcount);
-        if (rc) {
+        if (rc != 0) {
             LOGERR(klogErr, rc, "Failure to get '" OPTION_DIR "' argument");
             break;
         }
@@ -620,7 +678,8 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
               && !prm->modeShowCfg && ! prm->modeShowLoadPath
               && !prm->modeShowEnv && !prm->modeShowFiles
               && !prm->modeShowModules && !prm->modeCreate
-              && !prm->modeSetNode && !prm->ngc))
+              && !prm->modeSetNode && prm->ngc == NULL
+              && prm->proxy == NULL && prm->proxyDisabled == eUndefined))
             /* show all by default */
         {
             prm->modeShowCfg = prm->modeShowEnv = prm->modeShowFiles = true;
@@ -995,6 +1054,62 @@ static rc_t SetNode(KConfig* cfg, const Params* prm) {
     name = NULL;
 
     RELEASE(KConfigNode, node);
+    return rc;
+}
+
+static rc_t SetProxy(KConfig *cfg, const Params *prm) {
+    rc_t rc = 0;
+
+    bool disabled = false;
+    bool set = false;
+    bool disableSet = false;
+
+    assert(prm);
+
+    switch (prm->proxyDisabled) {
+        case eNo:
+            disabled = false;
+            break;
+        case eYes:
+            disabled = true;
+            break;
+        default:
+            break;
+    }
+
+    if (prm->proxy != NULL) {
+        rc = KConfig_Set_Http_Proxy_Path(cfg, prm->proxy);
+        set = true;
+
+        if (rc == 0 && prm->proxyDisabled == eUndefined) {
+            rc = KConfig_Set_Http_Proxy_Enabled(cfg, true);
+        }
+    }
+
+    if (prm->proxyDisabled != eUndefined) {
+        rc_t r2 = KConfig_Set_Http_Proxy_Enabled(cfg, ! disabled);
+        disableSet = true;
+        if (r2 != 0 && rc == 0) {
+            rc = r2;
+        }
+    }
+
+    if (rc == 0) {
+        rc = KConfigCommit(cfg);
+        DISP_RC(rc, "while calling KConfigCommit");
+    }
+    if (rc == 0) {
+        if (set) {
+            OUTMSG(("Use HTTP proxy server configuration '%s'\n", prm->proxy));
+        }
+        if (disableSet) {
+            OUTMSG(("HTTP proxy was %s\n", disabled ? "disabled" : "enabled"));
+        }
+    }
+    else {
+        LOGERR(klogErr, rc, "Failed to update HTTP proxy configuration");
+    }
+
     return rc;
 }
 
@@ -1443,6 +1558,12 @@ rc_t CC KMain(int argc, char* argv[]) {
         }
         else if (prm.modeSetNode) {
             rc_t rc3 = SetNode(cfg, &prm);
+            if (rc3 != 0 && rc == 0) {
+                rc = rc3;
+            }
+        }
+        if (prm.proxy != NULL || prm.proxyDisabled != eUndefined) {
+            rc_t rc3 = SetProxy(cfg, &prm);
             if (rc3 != 0 && rc == 0) {
                 rc = rc3;
             }

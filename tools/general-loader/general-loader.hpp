@@ -154,11 +154,13 @@ private:
         
         void Align( uint8_t p_bytes = 4 );
         
+        uint64_t GetReadCount() { return m_readCount; }
+        
     private:
         const struct KStream& m_input;
         void* m_buffer;
         size_t m_bufSize;
-        size_t m_readCount;
+        uint64_t m_readCount;
     };
     
     Reader m_reader;

@@ -631,6 +631,7 @@ GeneralLoader::ReadData ()
                 ColumnToCursor::iterator curIt = m_columns . find ( evt_header . id );
                 if ( curIt != m_columns . end () )
                 {
+                    uint64_t offset = m_reader . GetReadCount();
                     uint32_t elem_bits;
                     rc = m_reader . Read ( & elem_bits, sizeof ( elem_bits ) );    
                     if ( rc == 0 )
@@ -638,9 +639,9 @@ GeneralLoader::ReadData ()
                         if ( elem_bits == 0 )
                         {
                             pLogMsg ( klogWarn,     
-                                      "general-loader: Cell-Data, id=$(i), invalid value for elem_bits: $(s). Cell is ignored", 
-                                      "i=%u,s=%u", 
-                                       evt_header . id, elem_bits );
+                                      "general-loader: Offset $(o): Cell-Data, id=$(i), invalid value for elem_bits: $(s). Cell is ignored", 
+                                      "o=%lu,i=%u,s=%u", 
+                                       offset, evt_header . id, elem_bits );
                         }
                         else
                         {

@@ -115,14 +115,16 @@ class vdbconf_model
             return enabled;
         }
 
-        void set_http_proxy_enabled( bool enabled ) const {
+        void set_http_proxy_enabled( bool enabled ) {
             KConfig_Set_Http_Proxy_Enabled(_config, enabled);
+			_config_changed = true;
         }
 
         std::string get_http_proxy_path( void ) const;
 
-        void set_http_proxy_path(const std::string &path) const {
+        void set_http_proxy_path(const std::string &path) {
             KConfig_Set_Http_Proxy_Path(_config, path.c_str());
+			_config_changed = true;
         }
 
         // ----------------------------------------------------------------

@@ -459,7 +459,7 @@ foreach my $href (@REQ) {
     my $need_lib = $a{type} =~ /L|D/;
     my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /J/);
     my $need_jar = $a{type} =~ /J/;
-    
+
     my ($inc, $lib, $ilib) = ($a{include}, $a{lib}); # file names to check
     $lib = '' unless ($lib);
     $lib = expand($lib);
@@ -936,14 +936,14 @@ EndText
         T($F, '@ echo -n "installing \'$(@F)\'... "');
         T($F, '@ if cp $^ $@ && chmod 644 $@;                         \\');
         T($F, '  then                                                 \\');
-        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
-                      . '$(subst $(VERSION_LIBX),$(LIBX),$@) '
-                      . '$(subst .$(VERSION_LIBX),-static.$(LIBX),$@); \\');
-        T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
-        T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
-                      . '$(subst $(VERSION_LIBX),$(LIBX),$@); \\');
-        T($F, '      ln -s $(subst $(VERSION_LIBX),$(LIBX),$(@F)) ' .
-       '$(INST_LIBDIR)$(BITS)/$(subst .$(VERSION_LIBX),-static.$(LIBX),$(@F));'
+        T($F, '      rm -f $(patsubst %$(VERSION),%$(MAJVERS),$@) '
+                      . '$(patsubst %$(VERSION_LIBX),%$(LIBX),$@) '
+                      . '$(patsubst %.$(VERSION_LIBX),%-static.$(LIBX),$@); \\');
+        T($F, '      ln -s $(@F) $(patsubst %$(VERSION),%$(MAJVERS),$@);   \\');
+        T($F, '      ln -s $(patsubst %$(VERSION),%$(MAJVERS),$(@F)) '
+                      . '$(patsubst %$(VERSION_LIBX),%$(LIBX),$@); \\');
+        T($F, '      ln -s $(patsubst %$(VERSION_LIBX),%$(LIBX),$(@F)) ' .
+       '$(INST_LIBDIR)$(BITS)/$(patsubst %.$(VERSION_LIBX),%-static.$(LIBX),$(@F));'
                                                               . ' \\');
         T($F, '      echo success;                                    \\');
         T($F, '  else                                                 \\');
@@ -957,11 +957,11 @@ EndText
         T($F, '@ echo -n "installing \'$(@F)\'... "');
         T($F, '@ if cp $^ $@ && chmod 755 $@;                         \\');
         T($F, '  then                                                 \\');
-        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
-                      . '$(subst $(VERSION_SHLX),$(SHLX),$@);    \\');
-        T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
-        T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
-                      . '$(subst $(VERSION_SHLX),$(SHLX),$@); \\');
+        T($F, '      rm -f $(patsubst %$(VERSION),%$(MAJVERS),$@) '
+                      . '$(patsubst %$(VERSION_SHLX),%$(SHLX),$@);    \\');
+        T($F, '      ln -s $(@F) $(patsubst %$(VERSION),%$(MAJVERS),$@);   \\');
+        T($F, '      ln -s $(patsubst %$(VERSION),%$(MAJVERS),$(@F)) '
+                      . '$(patsubst %$(VERSION_SHLX),%$(SHLX),$@); \\');
         T($F, '      echo success;                                    \\');
         T($F, '  else                                                 \\');
         T($F, '      echo failure;                                    \\');
@@ -973,11 +973,11 @@ EndText
         T($F, '@ echo -n "installing \'$(@F)\'... "');
         T($F, '@ if cp $^ $@ && chmod 755 $@;                         \\');
         T($F, '  then                                                 \\');
-        T($F, '      rm -f $(subst $(VERSION),$(MAJVERS),$@) '
-                      . '$(subst $(VERSION_EXEX),$(EXEX),$@);     \\');
-        T($F, '      ln -s $(@F) $(subst $(VERSION),$(MAJVERS),$@);   \\');
-        T($F, '      ln -s $(subst $(VERSION),$(MAJVERS),$(@F)) '
-                      . '$(subst $(VERSION_EXEX),$(EXEX),$@); \\');
+        T($F, '      rm -f $(patsubst %$(VERSION),%$(MAJVERS),$@) '
+                      . '$(patsubst %$(VERSION_EXEX),%$(EXEX),$@);     \\');
+        T($F, '      ln -s $(@F) $(patsubst %$(VERSION),%$(MAJVERS),$@);   \\');
+        T($F, '      ln -s $(patsubst %$(VERSION),%$(MAJVERS),$(@F)) '
+                      . '$(patsubst %$(VERSION_EXEX),%$(EXEX),$@); \\');
         T($F, '      echo success;                                    \\');
         T($F, '  else                                                 \\');
         T($F, '      echo failure;                                    \\');
@@ -1042,7 +1042,7 @@ if (! $OPT{'status'} ) {
         my $root = $name . '_ROOT';
 
         print OUT <<EndText;
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">  
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
     <$outdir>$TARGDIR/\</$outdir>
 EndText
@@ -1512,7 +1512,7 @@ EndText
         }
 
         print "By default, \`make install' will install all the files in\n";
-    
+
         if (PACKAGE_TYPE() eq 'B') {
             print "\`$package_default_prefix/bin', ";
         } elsif (PACKAGE_TYPE() eq 'L') {
@@ -1564,7 +1564,7 @@ EndText
             println;
         }
     }
-    
+
     if ($optional) {
         print "Optional Packages:\n";
         foreach my $href (@REQ) {

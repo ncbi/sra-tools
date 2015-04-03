@@ -549,6 +549,9 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
             DISP_RC2(rc, "VPathGetPath(VResolverCache)", name);
         }
         if (rc == 0) {
+            if (*cache != NULL) {
+                free((void*)*cache);
+            }
             rc = StringCopy(cache, &path_str);
             DISP_RC2(rc, "StringCopy(VResolverCache)", name);
         }
@@ -572,7 +575,9 @@ static rc_t VPathStrFini(VPathStr *self) {
     return rc;
 }
 
-static rc_t VPathStrInitStr(VPathStr *self, const char *str, size_t len) {
+static
+rc_t VPathStrInitStr(VPathStr *self, const char *str, size_t len)
+{
     String s;
     assert(self);
     if (len == 0) {
@@ -1250,12 +1255,16 @@ static rc_t MainDependenciesList(const Main *self,
 static rc_t ItemRelease(Item *self) {
     rc_t rc = 0;
 
-    assert(self);
+    if (self == NULL) {
+        return 0;
+    }
 
     rc = ResolvedFini(&self->resolved);
     RELEASE(KartItem, self->item);
 
     memset(self, 0, sizeof *self);
+
+    free(self);
 
     return rc;
 }
@@ -3122,9 +3131,8 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
                         }
                     }
                 }
-                else {
-                    RELEASE(Item, item);
-                }
+
+                RELEASE(Item, item);
             }
 
             if (type == eRunTypeList) {

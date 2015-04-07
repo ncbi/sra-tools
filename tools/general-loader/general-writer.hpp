@@ -60,6 +60,9 @@ namespace ncbi
         // generate an event
         void nextRow ( int table_id );
 
+        // indicate some sort of exception
+        void logError ( const std :: string & msg );
+
         // generates an end event
         // puts object into state that will reject any further transmissions
         void endStream ();
@@ -100,45 +103,48 @@ namespace ncbi
 
         enum evt_id
         {
-            evt_end_stream,
+            evt_end_stream = 1,
             evt_new_table,
             evt_new_column,
             evt_open_stream,
             evt_cell_default, 
             evt_cell_data, 
-            evt_next_row 
-        };
-
-        struct table_hdr
-        {
-            uint32_t id : 24;
-            uint32_t evt : 8;
-            uint32_t table_name_size;
-            // uint32_t data [ ( ( table_name_size + 1 ) + 3 ) / 4 ];
-        };
-
-        struct column_hdr
-        {
-            uint32_t id : 24;
-            uint32_t evt : 8;
-            uint32_t table_id;
-            uint32_t column_name_size;
-            // uint32_t data [ ( ( column_name_size + 1 ) + 3 ) / 4 ];
-        };
-
-        struct cell_hdr
-        {
-            uint32_t id : 24;
-            uint32_t evt : 8;
-            uint32_t elem_bits;
-            uint32_t elem_count;
-            // uint32_t data [ ( elem_bits * elem_count + 31 ) / 32 ];
+            evt_next_row,
+            evt_errmsg
         };
 
         struct evt_hdr
         {
             uint32_t id : 24;
             uint32_t evt : 8;
+        };
+
+        void write_event ( const evt_hdr * evt, size_t evt_size );
+
+        struct table_hdr : evt_hdr
+        {
+            uint32_t table_name_size;
+            // uint32_t data [ ( ( table_name_size + 1 ) + 3 ) / 4 ];
+        };
+
+        struct column_hdr : evt_hdr
+        {
+            uint32_t table_id;
+            uint32_t column_name_size;
+            // uint32_t data [ ( ( column_name_size + 1 ) + 3 ) / 4 ];
+        };
+
+        struct cell_hdr : evt_hdr
+        {
+            uint32_t elem_bits;
+            uint32_t elem_count;
+            // uint32_t data [ ( elem_bits * elem_count + 31 ) / 32 ];
+        };
+
+        struct errmsg_hdr : evt_hdr
+        {
+            uint32_t msg_size;
+            // uint32_t data [ ( ( msg_size + 1 ) + 3 ) / 4 ];
         };
 
         struct int_stream
@@ -161,6 +167,9 @@ namespace ncbi
 
         std :: vector < int_stream > streams;
         std :: vector < std :: string > table_names;
+
+        uint64_t evt_count;
+        uint64_t byte_count;
 
         int out_fd;
         bool isOpen;

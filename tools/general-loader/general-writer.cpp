@@ -28,10 +28,13 @@
 
 #include <iterator>
 #include <cstdlib>
+#include <iomanip>
 #include <unistd.h>
 
 #include <assert.h>
 #include <string.h>
+
+#define PROGRESS_EVENT 0
 
 namespace ncbi
 {
@@ -63,7 +66,7 @@ namespace ncbi
             hdr.table_name_size = table_name.size();
 
             // write header        
-            internal_write ( ( const char * ) &hdr, sizeof hdr );
+            write_event ( &hdr, sizeof hdr );
 
             // write out string data - NOT NUL TERMINATED!!
             internal_write ( table_name.data(), hdr.table_name_size );
@@ -112,7 +115,7 @@ namespace ncbi
             hdr.column_name_size = column_name.size ();
 
             // write header        
-            internal_write ( ( const char * ) &hdr, sizeof hdr );
+            write_event ( &hdr, sizeof hdr );
 
             // write out string data - NOT NUL TERMINATED!!
             internal_write ( column_name.data (), hdr.column_name_size );
@@ -146,7 +149,7 @@ namespace ncbi
             hdr.evt = evt_open_stream;
 
             // write header        
-            internal_write ( ( const char * ) &hdr, sizeof hdr );
+            write_event ( &hdr, sizeof hdr );
         }
     }
 
@@ -181,7 +184,7 @@ namespace ncbi
 
         size_t num_bytes = ( size_t ) ( ( uint64_t ) elem_bits * elem_count + 7 ) / 8;
         
-        internal_write ( ( const char * ) &chunk, sizeof chunk );
+        write_event ( &chunk, sizeof chunk );
         internal_write ( ( const char * ) data, num_bytes );
         
         if ( num_bytes % 4 != 0 )
@@ -189,7 +192,6 @@ namespace ncbi
             static char zeros [ 4 ];
             internal_write ( zeros, 4 - num_bytes % 4 );
         }
-
     }
 
     void GeneralWriter :: write ( int stream_id, uint32_t elem_bits, const void *data, uint32_t elem_count )
@@ -222,7 +224,7 @@ namespace ncbi
 
         size_t num_bytes = ( size_t ) ( ( uint64_t ) elem_bits * elem_count + 7 ) / 8;
         
-        internal_write ( ( const char * ) &chunk, sizeof chunk );
+        write_event ( &chunk, sizeof chunk );
         internal_write ( ( const char * ) data, num_bytes );
         
         if ( num_bytes % 4 != 0 )
@@ -230,7 +232,6 @@ namespace ncbi
             static char zeros [ 4 ];
             internal_write ( zeros, 4 - num_bytes % 4 );
         }
-
     }
 
     void GeneralWriter :: nextRow ( int table_id )
@@ -251,7 +252,29 @@ namespace ncbi
         hdr.id = table_id;
         hdr.evt = evt_next_row;
 
-        internal_write ( ( const char * ) &hdr, sizeof hdr );
+        write_event ( &hdr, sizeof hdr );
+    }
+
+    void GeneralWriter :: logError ( const std :: string & msg )
+    {
+        if ( isClosed )
+        {
+            errmsg_hdr hdr;
+
+            hdr . id = 0;
+            hdr . evt = evt_errmsg;
+            hdr . msg_size = msg . size ();
+
+            // write header        
+            write_event ( &hdr, sizeof hdr );
+
+            // write out string data - NOT NUL TERMINATED!!
+            internal_write ( msg.data (), hdr.msg_size );
+
+            // force a NUL termination by writing 1..4 NUL bytes
+            static char zeros [ 4 ];
+            internal_write ( zeros, 4 - hdr.msg_size % 4 );
+        }
     }
 
     void GeneralWriter :: endStream ()
@@ -263,7 +286,7 @@ namespace ncbi
             hdr.id = 0;
             hdr.evt = evt_end_stream;
 
-            internal_write ( ( const char * ) &hdr, sizeof hdr );
+            write_event ( &hdr, sizeof hdr );
 
             isClosed = true;
         }
@@ -279,12 +302,13 @@ namespace ncbi
     , remote_db ( remote_db )
     , schema_file_name ( schema_file_name )
     , schema_db_spec ( schema_db_spec )
+    , evt_count ( 0 )
+    , byte_count ( 0 )
     , out_fd ( -1 )
     , isOpen ( false )
     , isClosed ( false )
     {
         writeHeader ();
-
     }
 
     
@@ -296,6 +320,8 @@ namespace ncbi
     : remote_db ( remote_db )
     , schema_file_name ( schema_file_name )
     , schema_db_spec ( schema_db_spec )
+    , evt_count ( 0 )
+    , byte_count ( 0 )
     , out_fd ( _out_fd )
     , isOpen ( false )
     , isClosed ( false )
@@ -306,7 +332,8 @@ namespace ncbi
     GeneralWriter :: ~GeneralWriter ()
     {
         endStream ();
-        out.flush ();
+        if ( out_fd < 0 )
+            out.flush ();
     }
 
     bool GeneralWriter :: int_stream :: operator < ( const int_stream &s ) const
@@ -335,7 +362,7 @@ namespace ncbi
         hdr.schema_file_name_size = schema_file_name.size ();
         hdr.schema_db_spec_size = schema_db_spec.size ();
 
-        internal_write ( ( const char * ) &hdr, sizeof hdr );
+        internal_write ( &hdr, sizeof hdr );
         internal_write ( remote_db.c_str (), hdr.remote_db_name_size + 1 );
         internal_write ( schema_file_name.c_str (), hdr.schema_file_name_size + 1 );
         internal_write ( schema_db_spec.c_str (), hdr.schema_db_spec_size + 1 );
@@ -350,22 +377,44 @@ namespace ncbi
 
     }
 
-    void GeneralWriter :: internal_write ( const void *data, size_t num_bytes )
+    void GeneralWriter :: internal_write ( const void * data, size_t num_bytes )
     {
         if ( out_fd < 0 )
+        {
             out.write ( ( const char * ) data, num_bytes );
+            byte_count += num_bytes;
+        }
         else
         {
-            for ( size_t total = 0; total < num_bytes; )
+            size_t total;
+            const uint8_t * p = ( const uint8_t * ) data;
+            for ( total = 0; total < num_bytes; )
             {
-                ssize_t num_writ = :: write ( out_fd, ( void * ) & ( ( char * ) data ) [ total ], num_bytes - total );
+                ssize_t num_writ = :: write ( out_fd, & p [ total ], num_bytes - total );
                 if ( num_writ < 0 )
                     throw "Error writing to fd";
                 if ( num_writ == 0 )
                     throw "Transfer incomplete writing to fd";
                 total += num_writ;
             }
+            byte_count += total;
         }
+    }
+
+    void GeneralWriter :: write_event ( const evt_hdr * evt, size_t evt_size )
+    {
+#if PROGRESS_EVENT
+        uint64_t ec = evt_count;
+        if ( ( ec % 10000 ) == 0 )
+        {
+            if ( ( ec % 500000 ) == 0 )
+                std :: cerr << "\n%  [" << std :: setw ( 12 ) << byte_count << "] " << std :: setw ( 9 ) << ec + 1 << ' ';
+            std :: cerr << '.';
+        }
+#endif
+        ++ evt_count;
+
+        internal_write ( evt, evt_size );
     }
 
 }

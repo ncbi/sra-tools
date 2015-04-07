@@ -101,7 +101,7 @@ $(LIBDIR)/$(LPFX)general-writer.$(LIBX): $(GEN_WRITER_OBJ)
 #
 
 $(TEST_BINDIR)/gw-dumper: $(SRCDIR)/gw-dumper.cpp
-	c++ -o $@ $^ -I$(SRCDIR)
+	c++ -o $@ $^ -I$(SRCDIR) -I$(VDB_INCDIR)/os/$(OS)
 
 
 #-------------------------------------------------------------------------------

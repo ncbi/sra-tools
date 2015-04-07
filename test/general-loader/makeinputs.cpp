@@ -67,9 +67,27 @@ make_1()
     source . SaveBuffer ("input/1.gl");
 }
 
+void
+make_2()
+{   
+    TestSource source;
+    
+    source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", "actual/2/db" );
+    source . NewTableEvent ( 1, tableName ); 
+    source . NewColumnEvent ( 1, 1, columnName );
+    source . OpenStreamEvent();
+    
+    source . ErrorMessageEvent( "something is wrong" );
+    
+    source . CloseStreamEvent();
+    source . FillBuffer();
+    source . SaveBuffer ("input/2.gl");
+}
+
 int main()
 {
     make_1();
+    make_2();
     
     return 0;
 }

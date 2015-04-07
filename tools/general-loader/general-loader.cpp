@@ -693,7 +693,28 @@ GeneralLoader::ReadData ()
                 }
             }
             break;
+        case evt_errmsg:
+            pLogMsg ( klogInfo, "general-loader event: Error-Message, id=$(i)", "i=%u", evt_header . id );
+            {   
+                uint32_t message_size;
+                rc = m_reader . Read ( & message_size, sizeof ( message_size ) );
+                if ( rc == 0 )
+                {
+                    rc = m_reader . Read ( message_size + 1 );
+                    if ( rc == 0 )
+                    {
+                        pLogMsg ( klogErr, 
+                                  "general-loader event: Error-Message [$(s)] = \"$(t)\"",
+                                  "s=%u,t=%s", 
+                                  message_size,  
+                                  ( const char * ) m_reader . GetBuffer () );
+                        rc = RC ( rcExe, rcFile, rcReading, rcError, rcExists );
+                    }
+                }
+            }
+            break;
             
+        /* events not expected here */
         case evt_open_stream:
             LogMsg ( klogErr, "unexpected general-loader event: Open-Stream");
             rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );

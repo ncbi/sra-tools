@@ -145,6 +145,11 @@ public:
         m_events . push_back ( Event ( GeneralLoader :: evt_next_row, p_id ) );
     }
     
+    void ErrorMessageEvent ( const std :: string& p_msg )
+    {
+        m_events . push_back ( Event ( GeneralLoader :: evt_errmsg, 0, p_msg . c_str () ) );
+    }
+    
     // use this to capture stream contents to be used in cmdline tests
     void SaveBuffer( const char* p_filename )
     {
@@ -242,6 +247,16 @@ public:
                     hdr . evt   = it -> m_event;
                     hdr . id    = it -> m_id1;
                     Write ( & hdr, sizeof hdr );
+                    break;
+                }
+            case GeneralLoader :: evt_errmsg :
+                {
+                    GeneralLoader ::  ErrMsg_hdr hdr;
+                    hdr . evt   = it -> m_event;
+                    hdr . id    = it -> m_id1;
+                    hdr . msg_size = it -> m_str . size ();
+                    Write ( & hdr, sizeof hdr );
+                    Write ( it -> m_str . c_str (), it -> m_str . size () + 1 );
                     break;
                 }
             default:

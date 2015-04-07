@@ -422,7 +422,7 @@ FIXTURE_TEST_CASE ( NoColumns, GeneralLoaderFixture )
 FIXTURE_TEST_CASE ( NoData, GeneralLoaderFixture )
 {   
     SetUpStream ( GetName() );
-    m_source . NewTableEvent ( 2, tableName ); // ids do not have to consecutive
+    m_source . NewTableEvent ( 2, tableName ); // ids do not have to be consecutive
     m_source . NewColumnEvent ( 300, 2, columnName );   
     m_source . OpenStreamEvent();
     m_source . CloseStreamEvent();
@@ -954,6 +954,18 @@ FIXTURE_TEST_CASE ( AdditionalSchemaFiles_Multiple, GeneralLoaderFixture )
 
     remove ( schemaFile1 . c_str() );
     remove ( schemaFile2 . c_str() );
+}
+
+FIXTURE_TEST_CASE ( ErrorMessage, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . NewTableEvent ( 2, tableName ); 
+    m_source . NewColumnEvent ( 300, 2, columnName );   
+    m_source . OpenStreamEvent();
+    m_source . ErrorMessageEvent ( "error message" );
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), RC ( rcExe, rcFile, rcReading, rcError, rcExists ) ) );
 }
 
 //////////////////////////////////////////// Main

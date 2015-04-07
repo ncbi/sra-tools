@@ -27,7 +27,8 @@
 # $1 - path to sra-tools executables (general-loader, vdb-dump)
 # $2 - work directory (expected results under expected/, actual results and temporaries created under actual/)
 # $3 - test case ID (expect a file input/$3.gl to exist)
-# $4, $5, ... - command line options for general-loader
+# $4 - expected return coode
+# $5, $6, ... - command line options for general-loader
 #
 # return codes:
 # 0 - passed
@@ -39,16 +40,15 @@
 BINDIR=$1
 WORKDIR=$2
 CASEID=$3
-shift 3
+RC=$4
+shift 4
 CMDLINE=$*
-
-RC=0
 
 DUMP="$BINDIR/vdb-dump"
 LOAD="$BINDIR/general-loader"
 TEMPDIR=$WORKDIR/actual/$CASEID
 
-echo "running $CASEID"
+echo "running test case $CASEID"
 
 mkdir -p $TEMPDIR
 rm -rf $TEMPDIR/*
@@ -74,7 +74,19 @@ if [ "$rc" == "0" ] ; then
     eval $CMD || exit 3
     diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
+else    
+    # remove timestamps
+    sed -i -e 's/^....-..-..T..:..:.. //g' $TEMPDIR/load.stderr
+    # remove pathnames
+    sed -i -e 's=/.*/==g' $TEMPDIR/load.stderr
+    # remove source locations
+    sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $TEMPDIR/load.stderr
+    # remove version number
+    sed -i -e 's=latf-load\(\.[0-9]*\)*=latf-load=g' $TEMPDIR/load.stderr
+    diff $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
+    rc="$?"
 fi
+
 if [ "$rc" != "0" ] ; then
     cat $TEMPDIR/diff
     echo "command executed:"

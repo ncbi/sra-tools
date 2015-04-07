@@ -99,6 +99,14 @@ public:
         uint32_t evt : 8;
     };
     
+    struct ErrMsg_hdr
+    {
+        uint32_t id : 24;
+        uint32_t evt : 8; // always 0
+        uint32_t msg_size;
+        // uint32_t data [ ( ( msg_size + 1 ) + 3 ) / 4 ];
+    };
+    
 public:
     GeneralLoader ( const struct KStream& p_input );
     ~GeneralLoader ();

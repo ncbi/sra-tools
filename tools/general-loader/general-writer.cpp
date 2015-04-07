@@ -60,9 +60,7 @@ namespace ncbi
             table_names.push_back ( table_name );
 
             
-            table_hdr hdr;
-            hdr.id = id;
-            hdr.evt = evt_new_table;
+            table_hdr hdr ( id, evt_new_table );
             hdr.table_name_size = table_name.size();
 
             // write header        
@@ -108,9 +106,7 @@ namespace ncbi
             streams.push_back ( stream );
 
             // TBD - write new column stream event to stream
-            column_hdr hdr;
-            hdr.id = id;
-            hdr.evt = evt_new_column;
+            column_hdr hdr ( id, evt_new_column );
             hdr.table_id = table_id;
             hdr.column_name_size = column_name.size ();
 
@@ -144,9 +140,7 @@ namespace ncbi
 
             isOpen = true;        
 
-            evt_hdr hdr;
-            hdr.id = 0;
-            hdr.evt = evt_open_stream;
+            evt_hdr hdr ( 0, evt_open_stream );
 
             // write header        
             write_event ( &hdr, sizeof hdr );
@@ -173,12 +167,10 @@ namespace ncbi
         if ( data == 0 )
             throw "Invalid data ptr";
         
-        cell_hdr chunk;
+        cell_hdr chunk ( stream_id, evt_cell_default );
         
         assert ( stream_id <= 0x00FFFFFF );
 
-        chunk.id = stream_id;
-        chunk.evt = evt_cell_default;
         chunk.elem_bits = elem_bits;
         chunk.elem_count = elem_count;
 
@@ -213,12 +205,10 @@ namespace ncbi
         if ( data == 0 )
             throw "Invalid data ptr";
         
-        cell_hdr chunk;
+        cell_hdr chunk ( stream_id, evt_cell_data );
         
         assert ( stream_id <= 0x00FFFFFF );
 
-        chunk.id = stream_id;
-        chunk.evt = evt_cell_data;
         chunk.elem_bits = elem_bits;
         chunk.elem_count = elem_count;
 
@@ -245,12 +235,9 @@ namespace ncbi
         if ( table_id < 0 || ( size_t ) table_id > table_names.size () )
             throw "Invalid table id";
 
-        evt_hdr hdr;
+        evt_hdr hdr ( table_id, evt_next_row );
 
         assert ( table_id <= 0x00FFFFFF );
-
-        hdr.id = table_id;
-        hdr.evt = evt_next_row;
 
         write_event ( &hdr, sizeof hdr );
     }
@@ -259,10 +246,8 @@ namespace ncbi
     {
         if ( isClosed )
         {
-            errmsg_hdr hdr;
+            errmsg_hdr hdr ( 0, evt_errmsg );
 
-            hdr . id = 0;
-            hdr . evt = evt_errmsg;
             hdr . msg_size = msg . size ();
 
             // write header        
@@ -281,10 +266,7 @@ namespace ncbi
     {
         if ( ! isClosed )
         {
-            evt_hdr hdr;
-
-            hdr.id = 0;
-            hdr.evt = evt_end_stream;
+            evt_hdr hdr ( 0, evt_end_stream );
 
             write_event ( &hdr, sizeof hdr );
 
@@ -355,9 +337,9 @@ namespace ncbi
     void GeneralWriter :: writeHeader ()
     {
         header hdr;
-        memcpy ( hdr.signature, "NCBIgnld", sizeof hdr.signature ); // replace with constant
-        hdr.endian = 1;         // replace "1" with a constant from include file
-        hdr.version = 1;        // replace with constant from current version
+        memcpy ( hdr.signature, GW_SIGNATURE, sizeof hdr.signature );
+        hdr.endian = GW_GOOD_ENDIAN;
+        hdr.version = GW_CURRENT_VERSION;
         hdr.remote_db_name_size = remote_db.size ();
         hdr.schema_file_name_size = schema_file_name.size ();
         hdr.schema_db_spec_size = schema_db_spec.size ();

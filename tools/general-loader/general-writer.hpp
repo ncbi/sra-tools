@@ -27,6 +27,10 @@
 #ifndef _hpp_general_writer_
 #define _hpp_general_writer_
 
+#ifndef _h_general_writer_
+#include "general-writer.h"
+#endif
+
 #include <iostream>
 #include <string>
 #include <stdint.h>
@@ -85,67 +89,18 @@ namespace ncbi
 
     private:
 
+        typedef gw_header header;
+        typedef gw_table_hdr table_hdr;
+        typedef gw_column_hdr column_hdr;
+        typedef gw_cell_hdr cell_hdr;
+        typedef gw_errmsg_hdr errmsg_hdr;
+        typedef gw_evt_id evt_id;
+        typedef gw_evt_hdr evt_hdr;
+
         void writeHeader ();
         void internal_write ( const void *data, size_t num_bytes );
 
-        struct header
-        {
-            char signature [ 8 ];   // 8 characters to identify file type
-            uint32_t endian;        // an internally known pattern to identify endian
-            uint32_t version;          // a single-integer version number
-
-            uint32_t remote_db_name_size;
-            uint32_t schema_file_name_size;
-            uint32_t schema_db_spec_size;
-            // string data follows: 3 strings plus 1 NUL byte for each, 4-byte aligned
-            // uint32_t data [ ( ( remote_db_name_size + schema_file_name_size + schema_spec_size + 3 ) + 3 ) / 4 ];
-        };
-
-        enum evt_id
-        {
-            evt_end_stream = 1,
-            evt_new_table,
-            evt_new_column,
-            evt_open_stream,
-            evt_cell_default, 
-            evt_cell_data, 
-            evt_next_row,
-            evt_errmsg
-        };
-
-        struct evt_hdr
-        {
-            uint32_t id : 24;
-            uint32_t evt : 8;
-        };
-
         void write_event ( const evt_hdr * evt, size_t evt_size );
-
-        struct table_hdr : evt_hdr
-        {
-            uint32_t table_name_size;
-            // uint32_t data [ ( ( table_name_size + 1 ) + 3 ) / 4 ];
-        };
-
-        struct column_hdr : evt_hdr
-        {
-            uint32_t table_id;
-            uint32_t column_name_size;
-            // uint32_t data [ ( ( column_name_size + 1 ) + 3 ) / 4 ];
-        };
-
-        struct cell_hdr : evt_hdr
-        {
-            uint32_t elem_bits;
-            uint32_t elem_count;
-            // uint32_t data [ ( elem_bits * elem_count + 31 ) / 32 ];
-        };
-
-        struct errmsg_hdr : evt_hdr
-        {
-            uint32_t msg_size;
-            // uint32_t data [ ( ( msg_size + 1 ) + 3 ) / 4 ];
-        };
 
         struct int_stream
         {

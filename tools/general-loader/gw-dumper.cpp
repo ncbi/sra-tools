@@ -1,4 +1,30 @@
+/*===========================================================================
+*
+*                            PUBLIC DOMAIN NOTICE
+*               National Center for Biotechnology Information
+*
+*  This software/database is a "United States Government Work" under the
+*  terms of the United States Copyright Act.  It was written as part of
+*  the author's official duties as a United States Government employee and
+*  thus cannot be copyrighted.  This software/database is freely available
+*  to the public for use. The National Library of Medicine and the U.S.
+*  Government have not placed any restriction on its use or reproduction.
+*
+*  Although all reasonable efforts have been taken to ensure the accuracy
+*  and reliability of the software and data, the NLM and the U.S.
+*  Government do not and cannot warrant the performance or results that
+*  may be obtained by using this software or data. The NLM and the U.S.
+*  Government disclaim all warranties, express or implied, including
+*  warranties of performance, merchantability or fitness for any particular
+*  purpose.
+*
+*  Please cite the author in any work or product based on this material.
+*
+* ===========================================================================
+*
+*/
 
+#include "general-writer.h"
 #include <iostream>
 #include <vector>
 
@@ -21,70 +47,13 @@ namespace gw_dump
     typedef std :: pair < uint32_t, std :: string > col_entry;
     static std :: vector < col_entry > col_entries;
 
-    struct header
-    {
-        char signature [ 8 ];   // 8 characters to identify file type
-        uint32_t endian;        // an internally known pattern to identify endian
-        uint32_t version;          // a single-integer version number
-
-        uint32_t remote_db_name_size;
-        uint32_t schema_file_name_size;
-        uint32_t schema_db_spec_size;
-        // string data follows: 3 strings plus 1 NUL byte for each, 4-byte aligned
-        // uint32_t data [ ( ( remote_db_name_size + schema_file_name_size + schema_spec_size + 3 ) + 3 ) / 4 ];
-    };
-
-    enum evt_id
-    {
-        evt_end_stream = 1,
-        evt_new_table,
-        evt_new_column,
-        evt_open_stream,
-        evt_cell_default, 
-        evt_cell_data, 
-        evt_next_row,
-        evt_errmsg
-    };
-
-    struct table_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t table_name_size;
-        // uint32_t data [ ( ( table_name_size + 1 ) + 3 ) / 4 ];
-    };
-
-    struct column_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t table_id;
-        uint32_t column_name_size;
-        // uint32_t data [ ( ( column_name_size + 1 ) + 3 ) / 4 ];
-    };
-
-    struct cell_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t elem_bits;
-        uint32_t elem_count;
-        // uint32_t data [ ( elem_bits * elem_count + 31 ) / 32 ];
-    };
-
-    struct errmsg_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t msg_size;
-        // uint32_t data [ ( ( msg_size + 1 ) + 3 ) / 4 ];
-    };
-
-    struct evt_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-    };
+    typedef gw_header header;
+    typedef gw_table_hdr table_hdr;
+    typedef gw_column_hdr column_hdr;
+    typedef gw_cell_hdr cell_hdr;
+    typedef gw_errmsg_hdr errmsg_hdr;
+    typedef gw_evt_id evt_id;
+    typedef gw_evt_hdr evt_hdr;
 
     static
     size_t readFILE ( void * buffer, size_t elem_size, size_t elem_count, FILE * in )
@@ -97,7 +66,7 @@ namespace gw_dump
     static
     void check_errmsg ( const errmsg_hdr & eh )
     {
-        if ( eh . id != 0 )
+        if ( eh . id () != 0 )
             throw "bad error-message id ( should be 0 )";
         if ( eh . msg_size == 0 )
             throw "empty error message";
@@ -106,9 +75,7 @@ namespace gw_dump
     static
     void dump_errmsg ( FILE * in, const evt_hdr & e )
     {
-        errmsg_hdr eh;
-        eh . id = e . id;
-        eh . evt = e . evt;
+        errmsg_hdr eh ( e );
 
         size_t num_read = readFILE ( & eh . msg_size, sizeof eh - sizeof ( evt_hdr ), 1, in );
         if ( num_read != 1 )
@@ -141,9 +108,9 @@ namespace gw_dump
     static
     void check_next_row ( const evt_hdr & eh )
     {
-        if ( eh . id == 0 )
+        if ( eh . id () == 0 )
             throw "bad table id within next-row event (null)";
-        if ( eh . id > tbl_names . size () )
+        if ( eh . id () > tbl_names . size () )
             throw "bad table id within next-row event";
     }
 
@@ -156,7 +123,7 @@ namespace gw_dump
         {
             std :: cout
                 << event_num << ": next-row\n"
-                << "  table_id = " << eh . id << " ( \"" << tbl_names [ eh . id - 1 ] << "\" )\n"
+                << "  table_id = " << eh . id () << " ( \"" << tbl_names [ eh . id () - 1 ] << "\" )\n"
                 ;
         }
     }
@@ -164,9 +131,9 @@ namespace gw_dump
     static
     void check_cell_event ( const cell_hdr & eh )
     {
-        if ( eh . id == 0 )
+        if ( eh . id () == 0 )
             throw "bad cell event id (null)";
-        if ( eh . id > col_entries . size () )
+        if ( eh . id () > col_entries . size () )
             throw "bad cell event id";
         if ( eh . elem_bits == 0 )
             throw "elem_bits 0 within cell-event";
@@ -177,9 +144,7 @@ namespace gw_dump
     static
     void dump_cell_event ( FILE * in, const evt_hdr & e, const char * type )
     {
-        cell_hdr eh;
-        eh . id = e . id;
-        eh . evt = e . evt;
+        cell_hdr eh ( e );
 
         size_t num_read = readFILE ( & eh . elem_bits, sizeof eh - sizeof ( evt_hdr ), 1, in );
         if ( num_read != 1 )
@@ -198,12 +163,12 @@ namespace gw_dump
 
         if ( display )
         {
-            const col_entry & entry = col_entries [ eh . id - 1 ];
+            const col_entry & entry = col_entries [ eh . id () - 1 ];
             const std :: string & tbl_name = tbl_names [ entry . first - 1 ];
 
             std :: cout
                 << event_num << ": cell-" << type << '\n'
-                << "  stream_id = " << eh . id << " ( " << tbl_name << " . " << entry . second << " )\n"
+                << "  stream_id = " << eh . id () << " ( " << tbl_name << " . " << entry . second << " )\n"
                 << "  elem_bits = " << eh . elem_bits << '\n'
                 << "  elem_count = " << eh . elem_count << '\n'
                 ;
@@ -215,7 +180,7 @@ namespace gw_dump
     static
     void check_open_stream ( const evt_hdr & eh )
     {
-        if ( eh . id != 0 )
+        if ( eh . id () != 0 )
             throw "non-zero id within open-stream event";
     }
 
@@ -235,11 +200,11 @@ namespace gw_dump
     static
     void check_new_column ( const column_hdr & eh )
     {
-        if ( eh . id == 0 )
+        if ( eh . id () == 0 )
             throw "bad column/stream id";
-        if ( ( size_t ) eh . id <= col_entries . size () )
+        if ( ( size_t ) eh . id () <= col_entries . size () )
             throw "column id already specified";
-        if ( ( size_t ) eh . id - 1 > col_entries . size () )
+        if ( ( size_t ) eh . id () - 1 > col_entries . size () )
             throw "column id out of order";
         if ( eh . table_id == 0 )
             throw "bad column table-id (null)";
@@ -252,9 +217,7 @@ namespace gw_dump
     static
     void dump_new_column ( FILE * in, const evt_hdr & e )
     {
-        column_hdr eh;
-        eh . id = e . id;
-        eh . evt = e . evt;
+        column_hdr eh ( e );
 
         size_t num_read = readFILE ( & eh . table_id, sizeof eh - sizeof ( evt_hdr ), 1, in );
         if ( num_read != 1 )
@@ -290,11 +253,11 @@ namespace gw_dump
     static
     void check_new_table ( const table_hdr & eh )
     {
-        if ( eh . id == 0 )
+        if ( eh . id () == 0 )
             throw "bad table id";
-        if ( ( size_t ) eh . id <= tbl_names . size () )
+        if ( ( size_t ) eh . id () <= tbl_names . size () )
             throw "table id already specified";
-        if ( ( size_t ) eh . id - 1 > tbl_names . size () )
+        if ( ( size_t ) eh . id () - 1 > tbl_names . size () )
             throw "table id out of order";
         if ( eh . table_name_size == 0 )
             throw "empty table name";
@@ -303,9 +266,7 @@ namespace gw_dump
     static
     void dump_new_table ( FILE * in, const evt_hdr & e )
     {
-        table_hdr eh;
-        eh . id = e . id;
-        eh . evt = e . evt;
+        table_hdr eh ( e );
 
         size_t num_read = readFILE ( & eh . table_name_size, sizeof eh - sizeof ( evt_hdr ), 1, in );
         if ( num_read != 1 )
@@ -340,7 +301,7 @@ namespace gw_dump
     static
     void check_end_stream ( const evt_hdr & eh )
     {
-        if ( eh . id != 0 )
+        if ( eh . id () != 0 )
             throw "non-zero id within end-stream event";
     }
 
@@ -365,7 +326,7 @@ namespace gw_dump
         else if ( end_event == event_num )
             display = false;
 
-        evt_hdr e;
+        evt_hdr e ( 0, evt_bad_event );
         size_t num_read = readFILE ( & e, sizeof e, 1, in );
         if ( num_read != 1 )
         {
@@ -375,9 +336,9 @@ namespace gw_dump
 
             throw "failed to read event";
         }
-        switch ( e . evt )
+        switch ( e . evt () )
         {
-        case 0:
+        case evt_bad_event:
             throw "illegal event id - possibly block of zeros";
         case evt_end_stream:
             return dump_end_stream ( in, e );

@@ -83,6 +83,7 @@ PILEUP_STATS_OBJ = \
 
 PILEUP_STATS_LIB =    \
 	-L$(LIBDIR)       \
+	-L$(NGS_LIBDIR)   \
 	-sgeneral-writer  \
 	-skapp            \
 	-sngs-c++         \

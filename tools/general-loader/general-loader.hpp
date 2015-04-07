@@ -57,13 +57,14 @@ public:
     
     enum Evt_id
     {
-        evt_end_stream,
+        evt_end_stream = 1,
         evt_new_table,
         evt_new_column,
         evt_open_stream,
         evt_cell_default, 
         evt_cell_data, 
-        evt_next_row 
+        evt_next_row,
+        evt_errmsg
     };
     
     struct Table_hdr

@@ -51,6 +51,7 @@
 
 #include <iostream>
 #include <string.h>
+#include <ctype.h>
 
 using namespace ngs;
 
@@ -112,12 +113,13 @@ namespace ncbi
 
             uint32_t ref_base_idx = 0;
             char ref_base = pileup . getReferenceBase ();
-            switch ( ref_base )
+            switch ( toupper ( ref_base ) )
             {
+            case 'A': break;
             case 'C': ref_base_idx = 1; break;
             case 'G': ref_base_idx = 2; break;
             case 'T': ref_base_idx = 3; break;
-            case 'N': continue;
+            default: continue;
             }
 
             uint32_t depth = pileup . getPileupDepth ();
@@ -162,12 +164,13 @@ namespace ncbi
                     case PileupEvent :: mismatch:
                         mismatch = pileup . getAlignmentBase ();
                         mismatch_idx = 0;
-                        switch ( mismatch )
+                        switch ( toupper ( mismatch ) )
                         {
+                        case 'A': break;
                         case 'C': mismatch_idx = 1; break;
                         case 'G': mismatch_idx = 2; break;
                         case 'T': mismatch_idx = 3; break;
-                        case 'N':
+                        default:
                             // treat N by removing this event from depth
                             -- depth;
                             goto handle_N_in_mismatch;

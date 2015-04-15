@@ -76,6 +76,7 @@ namespace ncbi
 #if USE_GENERAL_LOADER
     static int table_id;
     static int column_id [ num_columns ];
+    static uint8_t integer_column_flag_bits;
 #endif
 
     static uint32_t depth_cutoff = 1;               // do not output if depth <= this value
@@ -249,6 +250,7 @@ namespace ncbi
         // add table
         table_id = out . addTable ( "STATS" );
 
+#if GW_CURRENT_VERSION == 1
         // add each column
         column_id [ col_RUN_NAME ] = out . addColumn ( table_id, "RUN_NAME" );
         column_id [ col_REFERENCE_SPEC ] = out . addColumn ( table_id, "REFERENCE_SPEC" );
@@ -260,6 +262,19 @@ namespace ncbi
         column_id [ col_MISMATCH_COUNTS ] = out . addColumn ( table_id, "MISMATCH_COUNTS" );
         column_id [ col_INSERTION_COUNTS ] = out . addColumn ( table_id, "INSERTION_COUNTS" );
         column_id [ col_DELETION_COUNT ] = out . addColumn ( table_id, "DELETION_COUNT" );
+#else
+        // add each column
+        column_id [ col_RUN_NAME ] = out . addColumn ( table_id, "RUN_NAME", 8 );
+        column_id [ col_REFERENCE_SPEC ] = out . addColumn ( table_id, "REFERENCE_SPEC", 8 );
+        column_id [ col_REF_POS ] = out . addColumn ( table_id, "REF_POS", 64, integer_column_flag_bits );
+#if RECORD_REF_BASE
+        column_id [ col_REF_BASE ] = out . addColumn ( table_id, "REF_BASE", 8 );
+#endif
+        column_id [ col_DEPTH ] = out . addColumn ( table_id, "DEPTH", 32, integer_column_flag_bits );
+        column_id [ col_MISMATCH_COUNTS ] = out . addColumn ( table_id, "MISMATCH_COUNTS", 32, integer_column_flag_bits );
+        column_id [ col_INSERTION_COUNTS ] = out . addColumn ( table_id, "INSERTION_COUNTS", 32, integer_column_flag_bits );
+        column_id [ col_DELETION_COUNT ] = out . addColumn ( table_id, "DELETION_COUNT", 32, integer_column_flag_bits );
+#endif
 
         // open the stream
         out . open ();
@@ -277,7 +292,9 @@ namespace ncbi
         String runName = obj . getName ();
 
 #if USE_GENERAL_LOADER
-        std :: cerr << "# Preparing pipe to stdout\n";
+        std :: cerr << "# Preparing version " << GW_CURRENT_VERSION << " pipe to stdout\n";
+        if ( ( integer_column_flag_bits & 1 ) != 0 )
+            std :: cerr << "#   USING INTEGER PACKING\n";
         std :: string remote_db;
         if ( _remote_db == NULL )
             remote_db = runName + ".pileup_stat";
@@ -413,6 +430,9 @@ extern "C"
             << "  -x|--depth-cutoff                cutoff for depth <= value (default 1)\n"
             << "  -a|--align-category              the types of alignments to pile up:\n"
             << "                                   { primary, secondary, all } (default all)\n"
+#if USE_GENERAL_LOADER && GW_CURRENT_VERSION >= 2
+            << "  -P|--pack-integer                pack integers in output pipe - uses less bandwidth\n"
+#endif
             << "  -h|--help                        output brief explanation of the program\n"
             << "  -v|--verbose                     increase the verbosity of the program.\n"
             << "                                   use multiple times for more verbosity.\n"
@@ -483,6 +503,11 @@ extern "C"
                     }
                     break;
                 }
+#if USE_GENERAL_LOADER && GW_CURRENT_VERSION >= 2
+                case 'P':
+                    ncbi :: integer_column_flag_bits = 1;
+                    break;
+#endif
                 case 'v':
                     ++ ncbi :: verbosity;
                     break;
@@ -522,6 +547,16 @@ extern "C"
                         {
                             throw "Invalid alignment category";
                         }
+                    }
+#if USE_GENERAL_LOADER && GW_CURRENT_VERSION >= 2
+                    else if ( strcmp ( arg, "pack-integer" ) == 0 )
+                    {
+                        ncbi :: integer_column_flag_bits = 1;
+                    }
+#endif
+                    else if ( strcmp ( arg, "verbose" ) == 0 )
+                    {
+                        ++ ncbi :: verbosity;
                     }
                     else if ( strcmp ( arg, "help" ) == 0 )
                     {

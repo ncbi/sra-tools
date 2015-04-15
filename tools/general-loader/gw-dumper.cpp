@@ -24,7 +24,7 @@
 *
 */
 
-#include "general-writer.h"
+#include "general-writer.hpp"
 #include <iostream>
 #include <vector>
 
@@ -44,16 +44,32 @@ namespace gw_dump
     static uint64_t foffset;
 
     static std :: vector < std :: string > tbl_names;
-    typedef std :: pair < uint32_t, std :: string > col_entry;
-    static std :: vector < col_entry > col_entries;
+    struct col_entry
+    {
+        col_entry ( uint32_t _table_id, const std :: string & name )
+            : table_id ( _table_id )
+            , spec ( name )
+            , elem_bits ( 0 )
+            , flag_bits ( 0 )
+        {
+        }
 
-    typedef gw_header header;
-    typedef gw_table_hdr table_hdr;
-    typedef gw_column_hdr column_hdr;
-    typedef gw_cell_hdr cell_hdr;
-    typedef gw_errmsg_hdr errmsg_hdr;
-    typedef gw_evt_id evt_id;
-    typedef gw_evt_hdr evt_hdr;
+        col_entry ( uint32_t _table_id, const std :: string & name, uint32_t _elem_bits, uint8_t _flag_bits )
+            : table_id ( _table_id )
+            , spec ( name )
+            , elem_bits ( _elem_bits )
+            , flag_bits ( _flag_bits )
+        {
+        }
+
+        ~ col_entry () {}
+
+        uint32_t table_id;
+        std :: string spec;
+        uint32_t elem_bits;
+        uint8_t flag_bits;
+    };
+    static std :: vector < col_entry > col_entries;
 
     static
     size_t readFILE ( void * buffer, size_t elem_size, size_t elem_count, FILE * in )
@@ -63,8 +79,10 @@ namespace gw_dump
         return num_read;
     }
 
+    // version 1
+
     static
-    void check_errmsg ( const errmsg_hdr & eh )
+    void check_errmsg ( const gw_errmsg_hdr_v1 & eh )
     {
         if ( eh . id () != 0 )
             throw "bad error-message id ( should be 0 )";
@@ -73,11 +91,11 @@ namespace gw_dump
     }
 
     static
-    void dump_errmsg ( FILE * in, const evt_hdr & e )
+    void dump_errmsg ( FILE * in, const gw_evt_hdr_v1 & e )
     {
-        errmsg_hdr eh ( e );
+        gw_errmsg_hdr_v1 eh ( e );
 
-        size_t num_read = readFILE ( & eh . msg_size, sizeof eh - sizeof ( evt_hdr ), 1, in );
+        size_t num_read = readFILE ( & eh . msg_size, sizeof eh - sizeof ( gw_evt_hdr_v1 ), 1, in );
         if ( num_read != 1 )
             throw "failed to read error-message event";
 
@@ -106,7 +124,7 @@ namespace gw_dump
     }
 
     static
-    void check_next_row ( const evt_hdr & eh )
+    void check_next_row ( const gw_evt_hdr_v1 & eh )
     {
         if ( eh . id () == 0 )
             throw "bad table id within next-row event (null)";
@@ -115,7 +133,7 @@ namespace gw_dump
     }
 
     static
-    void dump_next_row ( FILE * in, const evt_hdr & eh )
+    void dump_next_row ( FILE * in, const gw_evt_hdr_v1 & eh )
     {
         check_next_row ( eh );
 
@@ -129,7 +147,7 @@ namespace gw_dump
     }
 
     static
-    void check_cell_event ( const cell_hdr & eh )
+    void check_cell_event ( const gw_cell_hdr_v1 & eh )
     {
         if ( eh . id () == 0 )
             throw "bad cell event id (null)";
@@ -142,11 +160,11 @@ namespace gw_dump
     }
 
     static
-    void dump_cell_event ( FILE * in, const evt_hdr & e, const char * type )
+    void dump_cell_event ( FILE * in, const gw_evt_hdr_v1 & e, const char * type )
     {
-        cell_hdr eh ( e );
+        gw_cell_hdr_v1 eh ( e );
 
-        size_t num_read = readFILE ( & eh . elem_bits, sizeof eh - sizeof ( evt_hdr ), 1, in );
+        size_t num_read = readFILE ( & eh . elem_bits, sizeof eh - sizeof ( gw_evt_hdr_v1 ), 1, in );
         if ( num_read != 1 )
             throw "failed to read cell event";
 
@@ -164,11 +182,11 @@ namespace gw_dump
         if ( display )
         {
             const col_entry & entry = col_entries [ eh . id () - 1 ];
-            const std :: string & tbl_name = tbl_names [ entry . first - 1 ];
+            const std :: string & tbl_name = tbl_names [ entry . table_id - 1 ];
 
             std :: cout
                 << event_num << ": cell-" << type << '\n'
-                << "  stream_id = " << eh . id () << " ( " << tbl_name << " . " << entry . second << " )\n"
+                << "  stream_id = " << eh . id () << " ( " << tbl_name << " . " << entry . spec << " )\n"
                 << "  elem_bits = " << eh . elem_bits << '\n'
                 << "  elem_count = " << eh . elem_count << '\n'
                 ;
@@ -178,14 +196,14 @@ namespace gw_dump
     }
 
     static
-    void check_open_stream ( const evt_hdr & eh )
+    void check_open_stream ( const gw_evt_hdr_v1 & eh )
     {
         if ( eh . id () != 0 )
             throw "non-zero id within open-stream event";
     }
 
     static
-    void dump_open_stream ( FILE * in, const evt_hdr & eh )
+    void dump_open_stream ( FILE * in, const gw_evt_hdr_v1 & eh )
     {
         check_open_stream ( eh );
 
@@ -198,7 +216,7 @@ namespace gw_dump
     }
 
     static
-    void check_new_column ( const column_hdr & eh )
+    void check_new_column ( const gw_column_hdr_v1 & eh )
     {
         if ( eh . id () == 0 )
             throw "bad column/stream id";
@@ -215,11 +233,11 @@ namespace gw_dump
     }
 
     static
-    void dump_new_column ( FILE * in, const evt_hdr & e )
+    void dump_new_column ( FILE * in, const gw_evt_hdr_v1 & e )
     {
-        column_hdr eh ( e );
+        gw_column_hdr_v1 eh ( e );
 
-        size_t num_read = readFILE ( & eh . table_id, sizeof eh - sizeof ( evt_hdr ), 1, in );
+        size_t num_read = readFILE ( & eh . table_id, sizeof eh - sizeof ( gw_evt_hdr_v1 ), 1, in );
         if ( num_read != 1 )
             throw "failed to read new-column event";
 
@@ -251,7 +269,7 @@ namespace gw_dump
     }
 
     static
-    void check_new_table ( const table_hdr & eh )
+    void check_new_table ( const gw_table_hdr_v1 & eh )
     {
         if ( eh . id () == 0 )
             throw "bad table id";
@@ -264,11 +282,11 @@ namespace gw_dump
     }
 
     static
-    void dump_new_table ( FILE * in, const evt_hdr & e )
+    void dump_new_table ( FILE * in, const gw_evt_hdr_v1 & e )
     {
-        table_hdr eh ( e );
+        gw_table_hdr_v1 eh ( e );
 
-        size_t num_read = readFILE ( & eh . table_name_size, sizeof eh - sizeof ( evt_hdr ), 1, in );
+        size_t num_read = readFILE ( & eh . table_name_size, sizeof eh - sizeof ( gw_evt_hdr_v1 ), 1, in );
         if ( num_read != 1 )
             throw "failed to read new-table event";
 
@@ -299,14 +317,14 @@ namespace gw_dump
     }
 
     static
-    void check_end_stream ( const evt_hdr & eh )
+    void check_end_stream ( const gw_evt_hdr_v1 & eh )
     {
         if ( eh . id () != 0 )
             throw "non-zero id within end-stream event";
     }
 
     static
-    bool dump_end_stream ( FILE * in, const evt_hdr & eh )
+    bool dump_end_stream ( FILE * in, const gw_evt_hdr_v1 & eh )
     {
         check_end_stream ( eh );
         if ( display )
@@ -319,14 +337,14 @@ namespace gw_dump
     }
 
     static
-    bool dump_event ( FILE * in )
+    bool dump_v1_event ( FILE * in )
     {
         if ( jump_event == event_num )
             display = true;
         else if ( end_event == event_num )
             display = false;
 
-        evt_hdr e ( 0, evt_bad_event );
+        gw_evt_hdr_v1 e ( 0, evt_bad_event );
         size_t num_read = readFILE ( & e, sizeof e, 1, in );
         if ( num_read != 1 )
         {
@@ -369,22 +387,450 @@ namespace gw_dump
         return true;
     }
 
-    static
-    void check_header ( const header & hdr )
-    {
-        if ( memcmp ( hdr . signature, "NCBIgnld", 8 ) != 0 )
-            throw "bad header signature";
-        if ( hdr . endian != 1 )
-        {
-            if ( bswap_32 ( hdr . endian ) != 1 )
-                throw "bad header byte order";
-            throw "reversed header byte order";
-        }
-        if ( hdr . version < 1 )
-            throw "bad header version";
-        if ( hdr . version > 1 )
-            throw "unknown header version";
+    // version 2
 
+    static
+    void check_errmsg ( const gw_string_hdr_U8_v2 & eh )
+    {
+    }
+
+    static
+    void dump_errmsg ( FILE * in, const gw_evt_hdr_v2 & e )
+    {
+        gw_string_hdr_U8_v2 eh ( e );
+
+        size_t num_read = readFILE ( & eh . string_size, sizeof eh - sizeof ( gw_evt_hdr_v2 ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read error-message event";
+
+        check_errmsg ( eh );
+
+        size_t string_size = eh . size () + 1;
+        char * string_buffer = new char [ string_size ];
+        num_read = readFILE ( string_buffer, sizeof string_buffer [ 0 ], string_size, in );
+        if ( num_read != string_size )
+        {
+            delete [] string_buffer;
+            throw "failed to read error-message";
+        }
+        if ( string_buffer [ string_size - 1 ] != 0 )
+        {
+            delete [] string_buffer;
+            throw "string is not NUL-terminated";
+        }
+
+        if ( display )
+        {
+            const char * msg = string_buffer;
+
+            std :: cout
+                << event_num << ": error-message\n"
+                << "  msg [ " << eh . size () << " ] = \"" << msg << "\"\n"
+                ;
+        }
+
+        delete [] string_buffer;
+    }
+
+    static
+    void check_next_row ( const gw_evt_hdr_v2 & eh )
+    {
+        if ( eh . id () > tbl_names . size () )
+            throw "bad table id within next-row event";
+    }
+
+    static
+    void dump_next_row ( FILE * in, const gw_evt_hdr_v2 & eh )
+    {
+        check_next_row ( eh );
+
+        if ( display )
+        {
+            std :: cout
+                << event_num << ": next-row\n"
+                << "  table_id = " << eh . id () << " ( \"" << tbl_names [ eh . id () - 1 ] << "\" )\n"
+                ;
+        }
+    }
+
+    static
+    void check_cell_event ( const gw_data_hdr_U8_v2 & eh )
+    {
+        if ( eh . id () > col_entries . size () )
+            throw "bad cell event id";
+    }
+
+    static
+    void dump_cell_event ( FILE * in, const gw_evt_hdr_v2 & e, const char * type )
+    {
+        gw_data_hdr_U8_v2 eh ( e );
+
+        size_t num_read = readFILE ( & eh . data_size, sizeof eh - sizeof ( gw_evt_hdr_v2 ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read cell event";
+
+        check_cell_event ( eh );
+
+        size_t data_size = eh . size ();
+        char * data_buffer = new char [ data_size ];
+        num_read = readFILE ( data_buffer, sizeof data_buffer [ 0 ], data_size, in );
+        if ( num_read != data_size )
+        {
+            delete [] data_buffer;
+            throw "failed to read cell data";
+        }
+
+        if ( display )
+        {
+            const col_entry & entry = col_entries [ eh . id () - 1 ];
+            const std :: string & tbl_name = tbl_names [ entry . table_id - 1 ];
+
+            std :: cout
+                << event_num << ": cell-" << type << '\n'
+                << "  stream_id = " << eh . id () << " ( " << tbl_name << " . " << entry . spec << " )\n"
+                << "  elem_bits = " << entry . elem_bits << '\n'
+                << "  elem_count = " << data_size * 8 / entry . elem_bits << " ( " << data_size << " bytes )\n"
+                ;
+        }
+
+        delete [] data_buffer;
+    }
+
+    static
+    void check_cell2_event ( const gw_data_hdr_U16_v2 & eh )
+    {
+        if ( eh . id () > col_entries . size () )
+            throw "bad cell event id";
+    }
+
+    static
+    void dump_cell2_event ( FILE * in, const gw_evt_hdr_v2 & e, const char * type )
+    {
+        gw_data_hdr_U16_v2 eh ( e );
+
+        size_t num_read = readFILE ( & eh . data_size, sizeof eh - sizeof ( gw_evt_hdr_v2 ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read cell event";
+
+        check_cell_event ( eh );
+
+        size_t data_size = eh . size ();
+        char * data_buffer = new char [ data_size ];
+        num_read = readFILE ( data_buffer, sizeof data_buffer [ 0 ], data_size, in );
+        if ( num_read != data_size )
+        {
+            delete [] data_buffer;
+            throw "failed to read cell data";
+        }
+
+        if ( display )
+        {
+            const col_entry & entry = col_entries [ eh . id () - 1 ];
+            const std :: string & tbl_name = tbl_names [ entry . table_id - 1 ];
+
+            std :: cout
+                << event_num << ": cell-" << type << '\n'
+                << "  stream_id = " << eh . id () << " ( " << tbl_name << " . " << entry . spec << " )\n"
+                << "  elem_bits = " << entry . elem_bits << '\n'
+                << "  elem_count = " << data_size * 8 / entry . elem_bits << " ( " << data_size << " bytes )\n"
+                ;
+        }
+
+        delete [] data_buffer;
+    }
+
+    static
+    void check_open_stream ( const gw_evt_hdr_v2 & eh )
+    {
+    }
+
+    static
+    void dump_open_stream ( FILE * in, const gw_evt_hdr_v2 & eh )
+    {
+        check_open_stream ( eh );
+
+        if ( display )
+        {
+            std :: cout
+                << event_num << ": open-stream\n"
+                ;
+        }
+    }
+
+    static
+    void check_new_column ( const gw_column_hdr_v2 & eh )
+    {
+        if ( ( size_t ) eh . id () <= col_entries . size () )
+            throw "column id already specified";
+        if ( ( size_t ) eh . id () - 1 > col_entries . size () )
+            throw "column id out of order";
+        if ( eh . table () > tbl_names . size () )
+            throw "bad column table-id";
+        if ( eh . elem_bits == 0 )
+            throw "bad elem_bits";
+        if ( ( eh . flag_bits & 0xFE ) != 0 )
+            throw "uninitialized flag_bits";
+    }
+
+    static
+    void dump_new_column ( FILE * in, const gw_evt_hdr_v2 & e )
+    {
+        gw_column_hdr_v2 eh ( e );
+
+        size_t num_read = readFILE ( & eh . table_id, sizeof eh - sizeof ( gw_evt_hdr_v2 ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read new-column event";
+
+        check_new_column ( eh );
+
+        size_t string_size = eh . size () + 1;
+        char * string_buffer = new char [ string_size ];
+        num_read = readFILE ( string_buffer, sizeof string_buffer [ 0 ], string_size, in );
+        if ( num_read != string_size )
+        {
+            delete [] string_buffer;
+            throw "failed to read column name";
+        }
+        if ( string_buffer [ string_size - 1 ] != 0 )
+        {
+            delete [] string_buffer;
+            throw "string is not NUL-terminated";
+        }
+
+        const char * column_name = ( const char * ) string_buffer;
+        std :: string name ( column_name );
+        col_entries . push_back ( col_entry ( eh . table (), name, eh . elem_bits, eh . flag_bits ) );
+
+        if ( display )
+        {
+            std :: cout
+                << event_num << ": new-column\n"
+                << "  table_id = " << eh . table () << " ( \"" << tbl_names [ eh . table () - 1 ] << "\" )\n"
+                << "  column_name [ " << eh . size () << " ] = \"" << column_name << "\"\n"
+                ;
+        }
+
+        delete [] string_buffer;
+    }
+
+    static
+    void check_new_table ( const gw_string_hdr_U8_v2 & eh )
+    {
+        if ( ( size_t ) eh . id () <= tbl_names . size () )
+            throw "table id already specified";
+        if ( ( size_t ) eh . id () - 1 > tbl_names . size () )
+            throw "table id out of order";
+    }
+
+    static
+    void dump_new_table ( FILE * in, const gw_evt_hdr_v2 & e )
+    {
+        gw_string_hdr_U8_v2 eh ( e );
+
+        size_t num_read = readFILE ( & eh . string_size, sizeof eh - sizeof ( gw_evt_hdr_v2 ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read new-table event";
+
+        check_new_table ( eh );
+
+        size_t string_size = eh . size () + 1;
+        char * string_buffer = new char [ string_size ];
+        num_read = readFILE ( string_buffer, sizeof string_buffer [ 0 ], string_size, in );
+        if ( num_read != string_size )
+        {
+            delete [] string_buffer;
+            throw "failed to read table name";
+        }
+        if ( string_buffer [ string_size - 1 ] != 0 )
+        {
+            delete [] string_buffer;
+            throw "string is not NUL-terminated";
+        }
+
+        const char * table_name = ( const char * ) string_buffer;
+        std :: string name ( table_name );
+        tbl_names . push_back ( name );
+
+        if ( display )
+        {
+            std :: cout
+                << event_num << ": new-table\n"
+                << "  table_name [ " << eh . size () << " ] = \"" << table_name << "\"\n"
+                ;
+        }
+
+        delete [] string_buffer;
+    }
+
+    static
+    void check_end_stream ( const gw_evt_hdr_v2 & eh )
+    {
+    }
+
+    static
+    bool dump_end_stream ( FILE * in, const gw_evt_hdr_v2 & eh )
+    {
+        check_end_stream ( eh );
+        if ( display )
+        {
+            std :: cout
+                << "END\n"
+                ;
+        }
+        return false;
+    }
+
+    static
+    void check_use_schema ( const gw_string2_hdr_U16_v2 & eh )
+    {
+    }
+
+    static
+    void dump_use_schema ( FILE * in, const gw_evt_hdr_v2 & e )
+    {
+        gw_string2_hdr_U16_v2 eh ( e );
+
+        size_t num_read = readFILE ( & eh . string1_size, sizeof eh - sizeof ( gw_evt_hdr_v2 ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read use-schema event";
+
+        check_use_schema ( eh );
+
+        size_t string_size = eh . size1 () + 1 + eh . size2 () + 1;
+        char * string_buffer = new char [ string_size ];
+        num_read = readFILE ( string_buffer, sizeof string_buffer [ 0 ], string_size, in );
+        if ( num_read != string_size )
+        {
+            delete [] string_buffer;
+            throw "failed to read use-schema string";
+        }
+        if ( string_buffer [ eh . size1 () ] != 0 || string_buffer [ string_size - 1 ] != 0 )
+        {
+            delete [] string_buffer;
+            throw "string is not NUL-terminated";
+        }
+
+        if ( display )
+        {
+            const char * schema_file_name = string_buffer;
+            const char * schema_db_spec = & string_buffer [ eh . size1 () + 1 ];
+            std :: cout
+                << event_num << ": use-schema\n"
+                << "  schema_file_name [ " << eh . size1 () << " ] = \"" << schema_file_name << "\"\n"
+                << "  schema_db_spec [ " << eh . size2 () << " ] = \"" << schema_db_spec << "\"\n"
+                ;
+        }
+
+        delete [] string_buffer;
+    }
+
+    static
+    void check_remote_path ( const gw_string_hdr_U16_v2 & eh )
+    {
+    }
+
+    static
+    void dump_remote_path ( FILE * in, const gw_evt_hdr_v2 & e )
+    {
+        gw_string_hdr_U16_v2 eh ( e );
+
+        size_t num_read = readFILE ( & eh . string_size, sizeof eh - sizeof ( gw_evt_hdr_v2 ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read remote-path event";
+
+        check_remote_path ( eh );
+
+        size_t string_size = eh . size () + 1;
+        char * string_buffer = new char [ string_size ];
+        num_read = readFILE ( string_buffer, sizeof string_buffer [ 0 ], string_size, in );
+        if ( num_read != string_size )
+        {
+            delete [] string_buffer;
+            throw "failed to read table name";
+        }
+        if ( string_buffer [ string_size - 1 ] != 0 )
+        {
+            delete [] string_buffer;
+            throw "string is not NUL-terminated";
+        }
+
+        if ( display )
+        {
+            std :: cout
+                << event_num << ": remote-path\n"
+                << "  remote_db_name [ " << eh . size () << " ] = \"" << string_buffer << "\"\n"
+                ;
+        }
+
+        delete [] string_buffer;
+    }
+
+    static
+    bool dump_v2_event ( FILE * in )
+    {
+        if ( jump_event == event_num )
+            display = true;
+        else if ( end_event == event_num )
+            display = false;
+
+        gw_evt_hdr_v2 e ( 0, evt_bad_event );
+        size_t num_read = readFILE ( & e, sizeof e, 1, in );
+        if ( num_read != 1 )
+        {
+            int ch = fgetc ( in );
+            if ( ch == EOF )
+                throw "EOF before end-stream";
+
+            throw "failed to read event";
+        }
+        switch ( e . evt () )
+        {
+        case evt_bad_event:
+            throw "illegal event id - possibly block of zeros";
+        case evt_end_stream:
+            return dump_end_stream ( in, e );
+        case evt_new_table:
+            dump_new_table ( in, e );
+            break;
+        case evt_new_column:
+            dump_new_column ( in, e );
+            break;
+        case evt_open_stream:
+            dump_open_stream ( in, e );
+            break;
+        case evt_cell_default:
+            dump_cell_event ( in, e, "default" );
+            break;
+        case evt_cell_data:
+            dump_cell_event ( in, e, "data" );
+            break;
+        case evt_next_row:
+            dump_next_row ( in, e );
+            break;
+        case evt_errmsg:
+            dump_errmsg ( in, e );
+            break;
+        case evt_remote_path:
+            dump_remote_path ( in, e );
+            break;
+        case evt_use_schema:
+            dump_use_schema ( in, e );
+            break;
+        case evt_cell2_default:
+            dump_cell2_event ( in, e, "default" );
+            break;
+        case evt_cell2_data:
+            dump_cell2_event ( in, e, "data" );
+            break;
+        default:
+            throw "unrecognized event id";
+        }
+        return true;
+    }
+
+    static
+    void check_v1_header ( const gw_header_v1 & hdr )
+    {
         if ( hdr . remote_db_name_size == 0 )
             throw "empty remote_db_name";
         if ( hdr . schema_file_name_size == 0 )
@@ -394,20 +840,21 @@ namespace gw_dump
     }
 
     static
-    void dump_header ( FILE * in )
+    void dump_v1_header ( FILE * in, const gw_header & dad )
     {
-        header hdr;
-        size_t num_read = readFILE ( & hdr, sizeof hdr, 1, in );
-        if ( num_read != 1 )
-            throw "failed to read header";
+        gw_header_v1 hdr ( dad );
 
-        check_header ( hdr );
+        size_t num_read = readFILE ( & hdr . remote_db_name_size, sizeof hdr - sizeof ( gw_header ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read v1 header";
+
+        check_v1_header ( hdr );
 
         size_t data_size_uint32
             = ( ( hdr . remote_db_name_size
-                + hdr . schema_file_name_size
-                + hdr . schema_db_spec_size
-                + 3 ) + 3 ) / 4;
+                  + hdr . schema_file_name_size
+                  + hdr . schema_db_spec_size
+                  + 3 ) + 3 ) / 4;
 
         uint32_t * string_buffer = new uint32_t [ data_size_uint32 ];
         num_read = readFILE ( string_buffer, sizeof string_buffer [ 0 ], data_size_uint32, in );
@@ -434,15 +881,84 @@ namespace gw_dump
     }
 
     static
+    void check_v2_header ( const gw_header_v2 & hdr )
+    {
+        if ( hdr . hdr_size != sizeof ( gw_header_v2 ) )
+            throw "bad header size";
+    }
+
+    static
+    void dump_v2_header ( FILE * in, const gw_header & dad )
+    {
+        gw_header_v2 hdr ( dad );
+
+        size_t num_read = readFILE ( & hdr . hdr_size, sizeof hdr - sizeof ( gw_header ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read v2 header";
+
+        check_v2_header ( hdr );
+
+        if ( display )
+        {
+            std :: cout
+                << "header: version " << hdr . version << '\n'
+                << "  hdr_size = " << hdr . hdr_size << '\n'
+                ;
+        }
+    }
+
+    static
+    void check_header ( const gw_header & hdr )
+    {
+        if ( memcmp ( hdr . signature, "NCBIgnld", 8 ) != 0 )
+            throw "bad header signature";
+        if ( hdr . endian != 1 )
+        {
+            if ( bswap_32 ( hdr . endian ) != 1 )
+                throw "bad header byte order";
+            throw "reversed header byte order";
+        }
+        if ( hdr . version < 1 )
+            throw "bad header version";
+        if ( hdr . version > 2 )
+            throw "unknown header version";
+    }
+
+    static
+    uint32_t dump_header ( FILE * in )
+    {
+        gw_header hdr;
+        size_t num_read = readFILE ( & hdr, sizeof hdr, 1, in );
+        if ( num_read != 1 )
+            throw "failed to read header";
+
+        check_header ( hdr );
+
+        if ( hdr . version == 1 )
+            dump_v1_header ( in, hdr );
+        else
+            dump_v2_header ( in, hdr );
+        return hdr . version;
+    }
+
+    static
     void dump ( FILE * in )
     {
         foffset = 0;
 
-        dump_header ( in );
+        uint32_t version = dump_header ( in );
 
         event_num = 1;
-        while ( dump_event ( in ) )
-            ++ event_num;
+        if ( version == 1 )
+        {
+            while ( dump_v1_event ( in ) )
+                ++ event_num;
+        }
+        else
+        {
+            while ( dump_v2_event ( in ) )
+                ++ event_num;
+        }
 
         int ch = fgetc ( in );
         if ( ch != EOF )

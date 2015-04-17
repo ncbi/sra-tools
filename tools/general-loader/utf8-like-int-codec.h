@@ -4,11 +4,7 @@
 #define def_utf8_like_int_codec
 
 #include <stdint.h>
-
-#ifndef _WIN32
-#include <stdlib.h> /* size_t */
-#endif
-
+#include <stdlib.h> /* size_t on linux */
 
 enum
 {

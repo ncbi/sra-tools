@@ -1,9 +1,5 @@
 /* utf8-like-int-codec.c */
 
-#include <stdlib.h>
-#include <stdint.h>
-#include <assert.h>
-
 #include "utf8-like-int-codec.h"
 
 #define NOT_ENCODED_SEQUENCE 0xFFu

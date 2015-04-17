@@ -1204,17 +1204,32 @@ static rc_t MainDownload(Resolved *self, Main *main) {
     return rc;
 }
 
+static rc_t _VDBManagerSetDbGapCtx(const VDBManager *self, VResolver *resolver)
+{
+    if (resolver == NULL) {
+        return 0;
+    }
+
+    return VDBManagerSetResolver(self, resolver);
+}
+
 static rc_t MainDependenciesList(const Main *self,
-    const String *str, const VDBDependencies **deps)
+    const Resolved *resolved, const VDBDependencies **deps)
 {
     rc_t rc = 0;
     bool isDb = true;
     const VDatabase *db = NULL;
     const char *path = NULL;
+    const String *str = NULL;
 
-    assert(self && str && str->addr && deps);
+    assert(self && resolved && deps);
+
+    str = resolved->path.str;
+    assert(str && str->addr);
 
     path = str->addr;
+
+    rc = _VDBManagerSetDbGapCtx(self->mgr, resolved->resolver);
 
     STSMSG(STS_DBG, ("Listing '%S's dependencies...", str));
 
@@ -1730,7 +1745,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
     resolved = &item->resolved;
 
     if (resolved->path.str != NULL) {
-        rc = MainDependenciesList(item->main, resolved->path.str, &deps);
+        rc = MainDependenciesList(item->main, resolved, &deps);
     }
 
     /* resolve dependencies (refseqs) */
@@ -2054,10 +2069,10 @@ static rc_t ItemDownloadVdbcache(Item *item) {
         }
         RELEASE(VDatabase, db);
         if (csra) {
-            STSMSG(STS_INFO, ("'%s' is cSRA", item->desc));
+            STSMSG(STS_INFO, ("'%s' is cSRA", resolved->name));
         }
         else {
-            STSMSG(STS_INFO, ("'%s' is not cSRA", item->desc));
+            STSMSG(STS_INFO, ("'%s' is not cSRA", resolved->name));
         }
         if (!csra) {
             return 0;
@@ -2077,8 +2092,14 @@ static rc_t ItemDownloadVdbcache(Item *item) {
             }
             assert(!rc && resolved->resolver);
         }
-        checkRemote
-            = ResolvedResetLocalFileAccession(resolved, item->main, item->desc);
+        {
+            const char *path = item->desc;
+            if (path == NULL && resolved->path.str != NULL) {
+                path = resolved->path.str->addr;
+            }
+            checkRemote
+                = ResolvedResetLocalFileAccession(resolved, item->main, path);
+        }
         if (checkRemote) {
             rc_t rc2 = VPathStrFini(&resolved->remote);
             if (rc == 0 && rc2 != 0) {

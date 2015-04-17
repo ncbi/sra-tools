@@ -34,8 +34,15 @@ include $(TOP)/build/Makefile.env
 ALL_LIBS = \
 	general-writer
 
-ALL_TOOLS = \
-	general-loader \
+INT_TOOLS = \
+	gw-dumper
+
+EXT_TOOLS = \
+	general-loader
+
+ALL_TOOLS =      \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
 
 #-------------------------------------------------------------------------------
 # outer targets
@@ -43,7 +50,10 @@ ALL_TOOLS = \
 all std: vers-includes
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(INT_TOOLS): vers-includes
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+$(EXT_TOOLS): vers-includes
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -53,7 +63,8 @@ $(ALL_TOOLS): vers-includes
 #
 $(TARGDIR)/std: \
 	$(addprefix $(LIBDIR)/,$(ALL_LIBS)) \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+	$(addprefix $(TEST_BINDIR)/,$(INT_TOOLS)) \
+	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
 .PHONY: $(TARGDIR)/std
 
@@ -77,13 +88,21 @@ clean: stdclean
 $(LIBDIR)/general-writer: $(LIBDIR)/$(LPFX)general-writer.$(LIBX)
 
 GEN_WRITER_SRC = \
-    general-writer
+    general-writer utf8-like-int-codec
 
 GEN_WRITER_OBJ = \
 	$(addsuffix .$(LOBX),$(GEN_WRITER_SRC))
 
 $(LIBDIR)/$(LPFX)general-writer.$(LIBX): $(GEN_WRITER_OBJ)
 	$(LD) --slib --vers $(SRCDIR) -o $@ $^
+
+#-------------------------------------------------------------------------------
+# gw-dumper
+#
+
+$(TEST_BINDIR)/gw-dumper: $(SRCDIR)/gw-dumper.cpp
+	c++ $(DBG) -o $@ $^ -I$(SRCDIR) -I$(VDB_INCDIR)/os/$(OS)
+
 
 #-------------------------------------------------------------------------------
 # general-loader

@@ -82,7 +82,7 @@ sequence /* have to return the lookahead symbol before returning since it belong
     
     | readLines                 { UNLEX; return 1; }
     
-    | qualityLines              { UNLEX; return 1; } 
+/*    | qualityLines              { UNLEX; return 1; } */
     
     | name                      
         fqCOORDS                { GrowSpotName(pb, &$2); StopSpotName(pb); }
@@ -109,6 +109,7 @@ readLines
     : header  endline  read   
     | header  endline error endline
     | error   endline  read 
+    | error endline
     ;
 
 header 
@@ -209,6 +210,7 @@ spotGroup
         fqNUMBER    { SetSpotGroup(pb, &$3); }
     | '#'           { StopSpotName(pb); }    
         fqALPHANUM  { SetSpotGroup(pb, &$3); }    
+    | '#'           { StopSpotName(pb); }    
     ;
     
 readNumber
@@ -257,9 +259,9 @@ index
     ;
 
 runSpotRead
-    : fqRUNDOTSPOT '.' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
-    | fqRUNDOTSPOT '/' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
-    | fqRUNDOTSPOT                  { StopSpotName(pb); }
+    : fqRUNDOTSPOT '.' fqNUMBER     { GrowSpotName(pb, &$1); StopSpotName(pb); SetReadNumber(pb, &$3); }
+    | fqRUNDOTSPOT '/' fqNUMBER     { GrowSpotName(pb, &$1); StopSpotName(pb); SetReadNumber(pb, &$3); }
+    | fqRUNDOTSPOT                  { GrowSpotName(pb, &$1); StopSpotName(pb); }
     ;
     
  /*************** quality rules *****************/

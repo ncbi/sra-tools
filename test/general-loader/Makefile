@@ -102,10 +102,13 @@ piped-load-tests: $(ALL_TOOLS)
 runtests: tool-tests
 
 makeinputs: makeinputs.cpp
-	# generate numbered input streams for tool tests
-	$(CXX) makeinputs.cpp -o makeinputs -I$(INCDIRS)
+	@# generate numbered input streams for tool tests
+	@$(CXX) makeinputs.cpp -o makeinputs -I$(INCDIRS)
 
 tool-tests: makeinputs
-	mkdir -p input && ./makeinputs && rm ./makeinputs
-	$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1 -L info
-    
+	@mkdir -p input && ./makeinputs && rm ./makeinputs
+	@# basic 
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1 0
+	@# error message event
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2 3
+	@rm -f input/*.gl    

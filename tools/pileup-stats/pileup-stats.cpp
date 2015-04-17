@@ -32,13 +32,17 @@
 #include <ngs/PileupEvent.hpp>
 
 #include <kapp/main.h>
+#include <iomanip>
 
 #define USE_GENERAL_LOADER 1
 #define RECORD_REF_BASE 0
 
 #if _DEBUGGING
 #define SINGLE_REFERENCE 0
+#define SLICE_START      0
+#define SLICE_WIDTH      0
 #define NO_PILEUP_EVENTS 0
+#define MIN_REPORT_DEPTH 20000
 #endif
 
 #include "../general-loader/general-writer.hpp"
@@ -47,6 +51,7 @@
 
 #include <iostream>
 #include <string.h>
+#include <ctype.h>
 
 using namespace ngs;
 
@@ -71,9 +76,12 @@ namespace ncbi
 #if USE_GENERAL_LOADER
     static int table_id;
     static int column_id [ num_columns ];
+    static uint8_t integer_column_flag_bits;
 #endif
 
     static uint32_t depth_cutoff = 1;               // do not output if depth <= this value
+
+    static uint32_t verbosity;
 
     static
     void run (
@@ -87,20 +95,51 @@ namespace ncbi
             if ( ref_zpos < 0 )
                 ref_zpos = pileup . getReferencePosition ();
 
+            switch ( verbosity )
+            {
+            case 0:
+                break;
+            case 1:
+                if ( ( ref_zpos % 1000000 ) == 0 )
+                    std :: cerr << "#  " << std :: setw ( 9 ) << ref_zpos << '\n';
+                break;
+            default:
+                if ( ( ref_zpos % 5000 ) == 0 )
+                {
+                    if ( ( ref_zpos % 500000 ) == 0 )
+                        std :: cerr << "\n#  " << std :: setw ( 9 ) << ref_zpos << ' ';
+                    std :: cerr << '.';
+                }
+            }
+
             uint32_t ref_base_idx = 0;
             char ref_base = pileup . getReferenceBase ();
-            switch ( ref_base )
+            switch ( toupper ( ref_base ) )
             {
+            case 'A': break;
             case 'C': ref_base_idx = 1; break;
             case 'G': ref_base_idx = 2; break;
             case 'T': ref_base_idx = 3; break;
-            case 'N': continue;
+            default: continue;
             }
 
+            uint32_t depth = pileup . getPileupDepth ();
 #if NO_PILEUP_EVENTS
             ( void ) ref_base_idx;
+#if ! USE_GENERAL_LOADER
+            if ( depth > MIN_REPORT_DEPTH )
+            {
+                std :: cout
+                    << runName
+                    << '\t' << refName
+                    << '\t' << ref_zpos + 1
+                    << '\t' << ref_base
+                    << '\t' << depth
+                    << '\n'
+                    ;
+            }
+#endif
 #else
-            uint32_t depth = pileup . getPileupDepth ();
             if ( depth > depth_cutoff )
             {
                 uint32_t mismatch_counts [ 3 ];
@@ -126,12 +165,13 @@ namespace ncbi
                     case PileupEvent :: mismatch:
                         mismatch = pileup . getAlignmentBase ();
                         mismatch_idx = 0;
-                        switch ( mismatch )
+                        switch ( toupper ( mismatch ) )
                         {
+                        case 'A': break;
                         case 'C': mismatch_idx = 1; break;
                         case 'G': mismatch_idx = 2; break;
                         case 'T': mismatch_idx = 3; break;
-                        case 'N':
+                        default:
                             // treat N by removing this event from depth
                             -- depth;
                             goto handle_N_in_mismatch;
@@ -210,6 +250,7 @@ namespace ncbi
         // add table
         table_id = out . addTable ( "STATS" );
 
+#if GW_CURRENT_VERSION == 1
         // add each column
         column_id [ col_RUN_NAME ] = out . addColumn ( table_id, "RUN_NAME" );
         column_id [ col_REFERENCE_SPEC ] = out . addColumn ( table_id, "REFERENCE_SPEC" );
@@ -221,6 +262,19 @@ namespace ncbi
         column_id [ col_MISMATCH_COUNTS ] = out . addColumn ( table_id, "MISMATCH_COUNTS" );
         column_id [ col_INSERTION_COUNTS ] = out . addColumn ( table_id, "INSERTION_COUNTS" );
         column_id [ col_DELETION_COUNT ] = out . addColumn ( table_id, "DELETION_COUNT" );
+#else
+        // add each column
+        column_id [ col_RUN_NAME ] = out . addColumn ( table_id, "RUN_NAME", 8 );
+        column_id [ col_REFERENCE_SPEC ] = out . addColumn ( table_id, "REFERENCE_SPEC", 8 );
+        column_id [ col_REF_POS ] = out . addColumn ( table_id, "REF_POS", 64, integer_column_flag_bits );
+#if RECORD_REF_BASE
+        column_id [ col_REF_BASE ] = out . addColumn ( table_id, "REF_BASE", 8 );
+#endif
+        column_id [ col_DEPTH ] = out . addColumn ( table_id, "DEPTH", 32, integer_column_flag_bits );
+        column_id [ col_MISMATCH_COUNTS ] = out . addColumn ( table_id, "MISMATCH_COUNTS", 32, integer_column_flag_bits );
+        column_id [ col_INSERTION_COUNTS ] = out . addColumn ( table_id, "INSERTION_COUNTS", 32, integer_column_flag_bits );
+        column_id [ col_DELETION_COUNT ] = out . addColumn ( table_id, "DELETION_COUNT", 32, integer_column_flag_bits );
+#endif
 
         // open the stream
         out . open ();
@@ -238,7 +292,9 @@ namespace ncbi
         String runName = obj . getName ();
 
 #if USE_GENERAL_LOADER
-        std :: cerr << "# Preparing pipe to stdout\n";
+        std :: cerr << "# Preparing version " << GW_CURRENT_VERSION << " pipe to stdout\n";
+        if ( ( integer_column_flag_bits & 1 ) != 0 )
+            std :: cerr << "#   USING INTEGER PACKING\n";
         std :: string remote_db;
         if ( _remote_db == NULL )
             remote_db = runName + ".pileup_stat";
@@ -266,14 +322,21 @@ namespace ncbi
 #if USE_GENERAL_LOADER
                 out . columnDefault ( column_id [ col_REFERENCE_SPEC ], 8, refName . data (), refName . size () );
 #endif
-                
+
+#if SLICE_WIDTH
+                std :: cerr << "# Accessing " << SLICE_WIDTH << " pileups starting at " << SLICE_START << "\n";
+                PileupIterator pileup = ref . getPileupSlice ( SLICE_START, SLICE_WIDTH, cat );
+#else
                 std :: cerr << "# Accessing all pileups\n";
                 PileupIterator pileup = ref . getPileups ( cat );
+#endif
 #if USE_GENERAL_LOADER
                 run ( out, runName, refName, pileup );
 #else
                 run ( runName, refName, pileup );
 #endif
+                if ( verbosity > 1 )
+                    std :: cerr << '\n';
 #if SINGLE_REFERENCE
                 break;
 #endif
@@ -281,8 +344,21 @@ namespace ncbi
 
 #if USE_GENERAL_LOADER
         }
+        catch ( ErrorMsg & x )
+        {
+            outp -> logError ( x . what () );
+            delete outp;
+            throw;
+        }
+        catch ( const char x [] )
+        {
+            outp -> logError ( x );
+            delete outp;
+            throw;
+        }
         catch ( ... )
         {
+            outp -> logError ( "unknown exception" );
             delete outp;
             throw;
         }
@@ -354,7 +430,12 @@ extern "C"
             << "  -x|--depth-cutoff                cutoff for depth <= value (default 1)\n"
             << "  -a|--align-category              the types of alignments to pile up:\n"
             << "                                   { primary, secondary, all } (default all)\n"
+#if USE_GENERAL_LOADER && GW_CURRENT_VERSION >= 2
+            << "  -P|--pack-integer                pack integers in output pipe - uses less bandwidth\n"
+#endif
             << "  -h|--help                        output brief explanation of the program\n"
+            << "  -v|--verbose                     increase the verbosity of the program.\n"
+            << "                                   use multiple times for more verbosity.\n"
             << '\n'
             << appName << " : "
             << ( vers >> 24 )
@@ -422,6 +503,14 @@ extern "C"
                     }
                     break;
                 }
+#if USE_GENERAL_LOADER && GW_CURRENT_VERSION >= 2
+                case 'P':
+                    ncbi :: integer_column_flag_bits = 1;
+                    break;
+#endif
+                case 'v':
+                    ++ ncbi :: verbosity;
+                    break;
                 case 'h':
                 case '?':
                     handle_help ( argv [ 0 ] );
@@ -458,6 +547,16 @@ extern "C"
                         {
                             throw "Invalid alignment category";
                         }
+                    }
+#if USE_GENERAL_LOADER && GW_CURRENT_VERSION >= 2
+                    else if ( strcmp ( arg, "pack-integer" ) == 0 )
+                    {
+                        ncbi :: integer_column_flag_bits = 1;
+                    }
+#endif
+                    else if ( strcmp ( arg, "verbose" ) == 0 )
+                    {
+                        ++ ncbi :: verbosity;
                     }
                     else if ( strcmp ( arg, "help" ) == 0 )
                     {

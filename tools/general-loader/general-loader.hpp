@@ -57,13 +57,14 @@ public:
     
     enum Evt_id
     {
-        evt_end_stream,
+        evt_end_stream = 1,
         evt_new_table,
         evt_new_column,
         evt_open_stream,
         evt_cell_default, 
         evt_cell_data, 
-        evt_next_row 
+        evt_next_row,
+        evt_errmsg
     };
     
     struct Table_hdr
@@ -96,6 +97,14 @@ public:
     {   // used for "open-stream" and "end-of-stream" events
         uint32_t id : 24;
         uint32_t evt : 8;
+    };
+    
+    struct ErrMsg_hdr
+    {
+        uint32_t id : 24;
+        uint32_t evt : 8; // always 0
+        uint32_t msg_size;
+        // uint32_t data [ ( ( msg_size + 1 ) + 3 ) / 4 ];
     };
     
 public:

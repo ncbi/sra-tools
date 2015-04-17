@@ -88,7 +88,7 @@ clean: stdclean
 $(LIBDIR)/general-writer: $(LIBDIR)/$(LPFX)general-writer.$(LIBX)
 
 GEN_WRITER_SRC = \
-    general-writer
+    general-writer utf8-like-int-codec
 
 GEN_WRITER_OBJ = \
 	$(addsuffix .$(LOBX),$(GEN_WRITER_SRC))

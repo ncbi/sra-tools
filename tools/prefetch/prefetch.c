@@ -1221,6 +1221,7 @@ static rc_t MainDependenciesList(const Main *self,
     const VDatabase *db = NULL;
     const char *path = NULL;
     const String *str = NULL;
+    KPathType type = kptNotFound;
 
     assert(self && resolved && deps);
 
@@ -1233,9 +1234,15 @@ static rc_t MainDependenciesList(const Main *self,
 
     STSMSG(STS_DBG, ("Listing '%S's dependencies...", str));
 
-    if ((VDBManagerPathType(self->mgr, "%s", path) & ~kptAlias) != kptDatabase)
-    {
-        STSMSG(STS_DBG, ("...'%S' is not a database", str));
+    type = VDBManagerPathType(self->mgr, "%s", path) & ~kptAlias;
+    if (type != kptDatabase) {
+        if (type == kptTable) {
+            STSMSG(STS_DBG, ("...'%S' is a table", str));
+        }
+        else {
+            STSMSG(STS_DBG,
+                ("...'%S' is not recognized as a database or a table", str));
+        }
         return 0;
     }
 
@@ -1318,6 +1325,29 @@ static char* ItemName(const Item *self) {
     }
 }
 
+static
+rc_t _KartItemToVPath(const KartItem *self, const VFSManager *vfs, VPath **path)
+{
+    uint64_t oid = 0;
+    rc_t rc = KartItemItemIdNumber(self, &oid);
+    if (rc == 0) {
+        rc = VFSManagerMakeOidPath(vfs, path, (uint32_t)oid);
+    }
+    else {
+        char path_str[PATH_MAX] = "";
+        const String *accession = NULL;
+        rc = KartItemAccession(self, &accession);
+        if (rc == 0) {
+            rc =
+                string_printf(path_str, sizeof path_str, NULL, "%S", accession);
+        }
+        if (rc == 0) {
+            rc = VFSManagerMakePath(vfs, path, path_str);
+        }
+    }
+    return rc;
+}
+
 static rc_t _ItemSetResolverAndAssessionInResolved(Item *item,
     VResolver *resolver, const KConfig *cfg, const KRepositoryMgr *repoMgr,
     const VFSManager *vfs)
@@ -1340,15 +1370,14 @@ static rc_t _ItemSetResolverAndAssessionInResolved(Item *item,
         }
     }
     else {
-        uint64_t oid = 0;
         rc = KartItemProjIdNumber(item->item, &resolved->project);
         if (rc != 0) {
             DISP_RC(rc, "KartItemProjIdNumber");
             return rc;
         }
-        rc = KartItemItemIdNumber(item->item, &oid);
+        rc = _KartItemToVPath(item->item, vfs, &resolved->accession);
         if (rc != 0) {
-            DISP_RC(rc, "KartItemItemIdNumber");
+            DISP_RC(rc, "invalid kart file row");
             return rc;
         }
         else {
@@ -1369,14 +1398,6 @@ static rc_t _ItemSetResolverAndAssessionInResolved(Item *item,
                     resolved->project));
             }
             RELEASE(KRepository, p_protected);
-        }
-        if (rc == 0) {
-            rc =
-                VFSManagerMakeOidPath(vfs, &resolved->accession, (uint32_t)oid);
-            if (rc != 0) {
-                DISP_RC(rc, "VFSManagerMakeOidPath");
-                return rc;
-            }
         }
     }
 
@@ -1494,39 +1515,40 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 {
     Resolved *resolved = NULL;
     rc_t rc = 0;
-    KPathType type = kptNotFound;
     VRemoteProtocols protocols = ascp ? eProtocolFaspHttp : eProtocolHttp;
 
     assert(self);
 
     resolved = &self->resolved;
     resolved->name = ItemName(self);
-    
+
     assert(resolved->type != eRunTypeUnknown);
 
-    type = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
-    if (type == kptFile || type == kptDir) {
-        rc = VPathStrInitStr(&resolved->path, self->desc, 0);
-        resolved->existing = true;
-        if (resolved->type != eRunTypeDownload) {
-            uint64_t s = -1;
-            const KFile *f = NULL;
-            rc = KDirectoryOpenFileRead(dir, &f, "%s", self->desc);
-            if (rc == 0) {
-                rc = KFileSize(f, &s);
-            }
-            if (s != -1) {
-                resolved->remoteSz = s;
+    if (self->desc != NULL) { /* object name is specified (not kart item) */
+        KPathType type = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
+        if (type == kptFile || type == kptDir) {
+            rc = VPathStrInitStr(&resolved->path, self->desc, 0);
+            resolved->existing = true;
+            if (resolved->type != eRunTypeDownload) {
+                uint64_t s = -1;
+                const KFile *f = NULL;
+                rc = KDirectoryOpenFileRead(dir, &f, "%s", self->desc);
+                if (rc == 0) {
+                    rc = KFileSize(f, &s);
+                }
+                if (s != -1) {
+                    resolved->remoteSz = s;
+                }
+                else {
+                    OUTMSG(("%s\tunknown\n", self->desc));
+                }
+                RELEASE(KFile, f);
             }
             else {
-                OUTMSG(("%s\tunknown\n", self->desc));
+                STSMSG(STS_TOP, ("'%s' is a local non-kart file", self->desc));
             }
-            RELEASE(KFile, f);
+            return 0;
         }
-        else {
-            STSMSG(STS_TOP, ("'%s' is a local non-kart file", self->desc));
-        }
-        return 0;
     }
 
     rc = _ItemResolveResolved(resolver, protocols, self,
@@ -1577,7 +1599,9 @@ static rc_t ItemResolve(Item *item, int32_t row) {
     assert(self->type);
 
     ++n;
-    if (row > 0 && item->desc == NULL) {
+    if (row > 0 &&
+        item->desc == NULL) /* desc is NULL for kart items */
+    {
         n = row;
     }
 
@@ -1609,7 +1633,7 @@ static rc_t ItemDownload(Item *item) {
     if (rc == 0) {
         bool skip = false;
 
-        if (self->existing) {
+        if (self->existing) { /* the path is a path to an existing local file */
             rc = VPathStrInitStr(&self->path, item->desc, 0);
             return rc;
         }
@@ -1686,10 +1710,10 @@ static rc_t ItemPrintSized(const Item *self, int32_t row, size_t size) {
     const String *name = NULL;
     const String *itemDesc = NULL;
     assert(self && row);
-    if (self->desc != NULL) {
+    if (self->desc != NULL) { /* object */
         OUTMSG(("%d\t%s\t%,zuB\n", row, self->desc, size));
     }
-    else {
+    else {                    /* kart item */
         if (rc == 0) {
             rc = KartItemProjId(self->item, &projId);
         }
@@ -1744,6 +1768,8 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
     resolved = &item->resolved;
 
+    assert(resolved);
+
     if (resolved->path.str != NULL) {
         rc = MainDependenciesList(item->main, resolved, &deps);
     }
@@ -1752,12 +1778,12 @@ static rc_t ItemDownloadDependencies(Item *item) {
     if (rc == 0 && deps != NULL) {
         rc = VDBDependenciesCount(deps, &count);
         if (rc == 0) {
-            STSMSG(STS_TOP, ("'%s' has %d%s dependenc%s",
-                item->desc, count, item->main->check_all ? "" : " unresolved",
+            STSMSG(STS_TOP, ("'%s' has %d%s dependenc%s", resolved->name,
+                count, item->main->check_all ? "" : " unresolved",
                 count == 1 ? "y" : "ies"));
         }
         else {
-            DISP_RC2(rc, "Failed to check %s's dependencies", item->desc);
+            DISP_RC2(rc, "Failed to check %s's dependencies", resolved->name);
         }
     }
 
@@ -1767,7 +1793,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
         if (rc == 0) {
             rc = VDBDependenciesLocal(deps, &local, i);
-            DISP_RC2(rc, "VDBDependenciesLocal", item->desc);
+            DISP_RC2(rc, "VDBDependenciesLocal", resolved->name);
             if (local) {
                 continue;
             }
@@ -1775,7 +1801,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
         if (rc == 0) {
             rc = VDBDependenciesSeqId(deps, &seq_id, i);
-            DISP_RC2(rc, "VDBDependenciesSeqId", item->desc);
+            DISP_RC2(rc, "VDBDependenciesSeqId", resolved->name);
         }
 
         if (rc == 0) {
@@ -1871,6 +1897,7 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
     VPath *cremote = NULL;
     assert(self && self->main && exists);
     resolved = &self->resolved;
+    assert(resolved);
     *exists = false;
     if (resolved->remote.path == NULL) {
 #define TODO 1
@@ -1900,7 +1927,7 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
                 *query = '\0';
             }
             STSMSG(STS_DBG, ("'%s' exists", remotePath));
-            STSMSG(STS_TOP, ("'%s' has remote vdbcache", self->desc));
+            STSMSG(STS_TOP, ("'%s' has remote vdbcache", resolved->name));
             *exists = true;
             rc = VPathStrInitStr(&resolved->remote, remotePath, len);
             DISP_RC2(rc, "StringCopy(Remote.vdbcache)", remotePath);
@@ -1910,7 +1937,7 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
         else if (rc == SILENT_RC(rcNS, rcFile, rcOpening, rcFile, rcNotFound)) {
             STSMSG(STS_DBG, ("'%s' does not exist", remotePath));
             *exists = false;
-            STSMSG(STS_TOP, ("'%s' has no remote vdbcache", self->desc));
+            STSMSG(STS_TOP, ("'%s' has no remote vdbcache", resolved->name));
             rc = 0;
         }
         else if
@@ -1918,13 +1945,13 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
         {
             STSMSG(STS_DBG, (
                 "Access to '%s's vdbcahe file is forbidden or it does not exist"
-                , self->desc));
+                , resolved->name));
             *exists = false;
-            STSMSG(STS_TOP, ("'%s' has no remote vdbcache", self->desc));
+            STSMSG(STS_TOP, ("'%s' has no remote vdbcache", resolved->name));
             rc = 0;
         }
         else {
-            DISP_RC2(rc, "Failed to check vdbcache", self->desc);
+            DISP_RC2(rc, "Failed to check vdbcache", resolved->name);
         }
     }
     RELEASE(VPath, cremote);
@@ -2062,20 +2089,31 @@ static rc_t ItemDownloadVdbcache(Item *item) {
     {
         bool csra = false;
         const VDatabase *db = NULL;
-        rc_t rc = VDBManagerOpenDBRead(item->main->mgr,
-            &db, NULL, "%S", resolved->path.str);
-        if (rc == 0) {
-            csra = VDatabaseIsCSRA(db);
+        KPathType type = VDBManagerPathType
+            (item->main->mgr, "%S", resolved->path.str) & ~kptAlias;
+        if (type == kptTable) {
+            STSMSG(STS_INFO, ("'%S' is a table", resolved->path.str));
         }
-        RELEASE(VDatabase, db);
-        if (csra) {
-            STSMSG(STS_INFO, ("'%s' is cSRA", resolved->name));
+        else if (type != kptDatabase) {
+            STSMSG(STS_INFO, ("'%S' is not recognized as a database or a table",
+                resolved->path.str));
         }
         else {
-            STSMSG(STS_INFO, ("'%s' is not cSRA", resolved->name));
-        }
-        if (!csra) {
-            return 0;
+            rc_t rc = VDBManagerOpenDBRead(item->main->mgr,
+                &db, NULL, "%S", resolved->path.str);
+            if (rc == 0) {
+                csra = VDatabaseIsCSRA(db);
+            }
+            RELEASE(VDatabase, db);
+            if (csra) {
+                STSMSG(STS_INFO, ("'%s' is cSRA", resolved->name));
+            }
+            else {
+                STSMSG(STS_INFO, ("'%s' is not cSRA", resolved->name));
+            }
+            if (!csra) {
+                return 0;
+            }
         }
     }
     if (resolved->remote.str == NULL ||

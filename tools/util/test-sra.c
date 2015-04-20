@@ -44,6 +44,7 @@
 #include <vdb/report.h> /* ReportSetVDBManager */
 #include <vdb/schema.h> /* VSchemaRelease */
 #include <vdb/table.h> /* VDBManagerOpenTableRead */
+#include <vdb/vdb-priv.h> /* VDBManagerSetResolver */
 
 #include <kns/ascp.h> /* ascp_locate */
 #include <kns/http.h>
@@ -108,7 +109,10 @@ typedef struct {
     KConfig *cfg;
     KDirectory *dir;
     KNSManager *knsMgr;
+
     const VDBManager *mgr;
+    uint32_t projectId;
+
     VFSManager *vMgr;
     const KRepositoryMgr *repoMgr;
     VResolver *resolver;
@@ -389,6 +393,24 @@ static rc_t MainInitObjects(Main *self) {
 
     if (rc == 0) {
         rc = KConfigMakeRepositoryMgrRead(self->cfg, &self->repoMgr);
+        if (rc == 0) {
+             bool has_project_id = self->projectId != 0;
+             if (has_project_id) {
+                const KRepository *repository = NULL;
+                rc = KRepositoryMgrGetProtectedRepository(
+                    self->repoMgr, self->projectId, &repository);
+                if (rc == 0) {
+                    VResolver *resolver = NULL;
+                    rc = KRepositoryMakeResolver(
+                        repository, &resolver, self->cfg);
+                    if (rc == 0) {
+                         rc = VDBManagerSetResolver(self->mgr, resolver);
+                    }
+                    RELEASE(VResolver, resolver);
+                }
+                RELEASE(KRepository, repository);
+             }
+        }
     }
 
     if (rc == 0) {
@@ -2127,6 +2149,10 @@ static const char* USAGE_NO_RFS[]
 #define ALIAS_NO_VDB  "N"
 static const char* USAGE_NO_VDB[] = { "do not call VDBManagerPathType", NULL };
 
+#define OPTION_PRJ "p"
+#define ALIAS_PRJ  "project-id"
+static const char* USAGE_PRJ[] = { "set project context", NULL };
+
 #define OPTION_REC "recursive"
 #define ALIAS_REC  "R"
 static const char* USAGE_REC[] = { "check object type recursively", NULL };
@@ -2141,8 +2167,9 @@ OptDef Options[] = {                             /* needs_value, required */
     { OPTION_NO_RFS, NULL        , NULL, USAGE_NO_RFS, 1, false, false },
     { OPTION_NO_VDB, ALIAS_NO_VDB, NULL, USAGE_NO_VDB, 1, false, false },
     { OPTION_OUT   , ALIAS_OUT   , NULL, USAGE_OUT   , 1, true , false },
+    { OPTION_PRJ   , ALIAS_PRJ   , NULL, USAGE_PRJ   , 1, true , false },
     { OPTION_QUICK , ALIAS_QUICK , NULL, USAGE_QUICK , 1, false, false },
-    { OPTION_REC   , ALIAS_REC   , NULL, USAGE_REC   , 1, false, false }
+    { OPTION_REC   , ALIAS_REC   , NULL, USAGE_REC   , 1, false, false },
 };
 
 rc_t CC KMain(int argc, char *argv[]) {
@@ -2169,6 +2196,26 @@ rc_t CC KMain(int argc, char *argv[]) {
         else {
             if (pcount > 0) {
                 prms.allowCaching = true;
+            }
+        }
+    }
+
+    if (rc == 0) {
+        rc = ArgsOptionCount(args, OPTION_PRJ, &pcount);
+        if (rc) {
+            LOGERR(klogErr, rc, "Failure to get '" OPTION_PRJ "' argument");
+        }
+        else {
+            if (pcount > 0) {
+                const char *dummy = NULL;
+                rc = ArgsOptionValue(args, OPTION_PRJ, 0, &dummy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_PRJ "' argument");
+                }
+                else {
+                    prms.projectId = AsciiToU32(dummy, NULL, NULL);
+                }
             }
         }
     }
@@ -2215,9 +2262,9 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
         else {
             if (pcount > 0) {
-                const char* dummy = NULL;
+                const char *dummy = NULL;
                 rc = ArgsOptionValue(args, OPTION_OUT, 0, &dummy);
-                if (rc) {
+                if (rc != 0) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_OUT "' argument");
                 }

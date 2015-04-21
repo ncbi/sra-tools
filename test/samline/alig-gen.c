@@ -332,7 +332,7 @@ static char * produce_sam( const gen_context * gctx, const alignment * alig, con
 				last = !first;
 				r_pos = other->refpos;
 			}
-			
+
 			size_t num_writ;
 			string_printf ( res, l, &num_writ,
 							"%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s",
@@ -467,7 +467,7 @@ static void generate_alignment( const gen_context * gctx )
 	{
 		const char * refname = gctx->alig[ 0 ].refname;
 		int bases_in_ref = gctx->alig[ 0 ].bases_in_ref;
-		KOutMsg( "@HDVN:1.3\n" );
+		KOutMsg( "@HD\tVN:1.3\n" );
 		KOutMsg( "@SQ\tSN:%s\tAS:%s\tLN:%d\n", refname, refname, bases_in_ref );
 	}
 

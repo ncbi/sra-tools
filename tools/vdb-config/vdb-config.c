@@ -278,6 +278,7 @@ static rc_t KConfigNodePrintChildNames(bool xml, const KConfigNode* self,
     bool hasData = false;
     const KConfigNode* node = NULL;
     KNamelist* names = NULL;
+    bool beginsWithNumberinXml = false;
     assert(self && name);
 
     if (rc == 0)
@@ -289,19 +290,30 @@ static rc_t KConfigNodePrintChildNames(bool xml, const KConfigNode* self,
  /* VDB_CONGIG_OUTMSG(("\n%s = \"%.*s\"\n\n", aFullpath, num_read, buffer)); */
         }
     }
-    if (rc == 0)
-    {   rc = KConfigNodeListChild(node, &names); }
+    if (rc == 0) {
+        rc = KConfigNodeListChild(node, &names);
+    }
     if (rc == 0) {
         rc = KNamelistCount(names, &count);
         hasChildren = count;
     }
 
     Indent(xml, indent);
-    VDB_CONGIG_OUTMSG(("<%s", name));
-    if (!hasChildren && !hasData)
-    {   VDB_CONGIG_OUTMSG(("/>\n")); }
-    else
-    {   VDB_CONGIG_OUTMSG((">")); }
+    if (xml) {
+        beginsWithNumberinXml = isdigit(name[0]);
+        if (! beginsWithNumberinXml) {
+            VDB_CONGIG_OUTMSG(("<%s", name));
+        }
+        else {
+            /* XML node names cannot start with a number */
+            VDB_CONGIG_OUTMSG(("<_%s", name));
+        }
+    }
+    if (!hasChildren && !hasData) {
+        VDB_CONGIG_OUTMSG(("/>\n"));
+    }
+    else {   VDB_CONGIG_OUTMSG((">"));
+    }
     if (hasData) {
         if (xml) {
             _printNodeData(name, buffer, num_read);
@@ -343,7 +355,14 @@ static rc_t KConfigNodePrintChildNames(bool xml, const KConfigNode* self,
     if (hasChildren)
     {   Indent(xml, indent); }
     if (hasChildren || hasData)
-    {   VDB_CONGIG_OUTMSG(("</%s>\n",name)); }
+    {
+        if (! beginsWithNumberinXml) {
+            VDB_CONGIG_OUTMSG(("</%s>\n",name));
+        }
+        else {
+            VDB_CONGIG_OUTMSG(("</_%s>\n",name));
+        }
+    }
 
     RELEASE(KNamelist, names);
     RELEASE(KConfigNode, node);

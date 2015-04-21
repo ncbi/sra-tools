@@ -265,6 +265,7 @@ char * produce_read( const cigar_opt * cigar, const char * ref_bases, const char
 							}
 							cigar = cigar->next;
 						}
+						res[ dst_idx ] = 0;
 					}
 				}
 			}

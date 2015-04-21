@@ -24,54 +24,17 @@
  *
  */
 
-#ifndef _h_align_bam_
-#define _h_align_bam_
-
-#ifndef _h_align_extern_
-#include <align/extern.h>
-#endif
-
-#ifndef _h_klib_defs_
-#include <klib/defs.h>
-#endif
-
-#include <stdarg.h>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
 /*--------------------------------------------------------------------------
- * forwards
+ * BAM_Alignment
  */
-struct KDirectory;
-struct KFile;
-struct VPath;
-struct AlignAccessDB;
-struct AlignAccessAlignmentEnumerator;
-
-
-/*--------------------------------------------------------------------------
- * BAMAlignment
- */
-typedef struct BAMAlignment BAMAlignment;
+typedef struct BAM_Alignment BAM_Alignment;
 
     
-/* GetBAMAlignment
- *  get property
- *
- * Release with BAMAlignmentRelease.
- */
-ALIGN_EXTERN rc_t CC AlignAccessAlignmentEnumeratorGetBAMAlignment
-    ( const struct AlignAccessAlignmentEnumerator *self, const BAMAlignment **result );
-
-
 /* AddRef
  * Release
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentAddRef ( const BAMAlignment *self );
-ALIGN_EXTERN rc_t CC BAMAlignmentRelease ( const BAMAlignment *self );
+rc_t BAM_AlignmentAddRef ( const BAM_Alignment *self );
+rc_t BAM_AlignmentRelease ( const BAM_Alignment *self );
 
 
 /* GetReadLength
@@ -80,7 +43,7 @@ ALIGN_EXTERN rc_t CC BAMAlignmentRelease ( const BAMAlignment *self );
  *
  *  "length" [ OUT ] - length in bases of query sequence and quality
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetReadLength ( const BAMAlignment *self, uint32_t *length );
+rc_t BAM_AlignmentGetReadLength ( const BAM_Alignment *self, uint32_t *length );
 
 
 /* GetSequence
@@ -89,7 +52,7 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetReadLength ( const BAMAlignment *self, uint3
  *
  *  "sequence" [ OUT ] - pointer to a buffer of at least ReadLength bytes
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetSequence ( const BAMAlignment *self, char *sequence );
+rc_t BAM_AlignmentGetSequence ( const BAM_Alignment *self, char *sequence );
 
 /* GetSequence2
  *  get the sequence data [0..ReadLength)
@@ -99,7 +62,7 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetSequence ( const BAMAlignment *self, char *s
  *
  *  "start" [ IN ] and "stop" [ IN ] - zero-based coordinates, half-closed interval
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetSequence2 ( const BAMAlignment *self, char *sequence, uint32_t start, uint32_t stop);
+rc_t BAM_AlignmentGetSequence2 ( const BAM_Alignment *self, char *sequence, uint32_t start, uint32_t stop);
 
     
 /* GetQuality
@@ -107,36 +70,36 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetSequence2 ( const BAMAlignment *self, char *
  *  values are unsigned with 0xFF == missing
  *
  *  "quality" [ OUT ] - return param for quality sequence
- *   held internally, validity is guaranteed for the life of the BAMAlignment
+ *   held internally, validity is guaranteed for the life of the BAM_Alignment
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetQuality ( const BAMAlignment *self, const uint8_t **quality );
+rc_t BAM_AlignmentGetQuality ( const BAM_Alignment *self, const uint8_t **quality );
 
 /* GetQuality2
  *  get the raw quality data [0..ReadLength) from OQ if possible else from QUAL
  *  values are unsigned with 0xFF == missing
  *
  *  "quality" [ OUT ] - return param for quality sequence
- *   held internally, validity is guaranteed for the life of the BAMAlignment
+ *   held internally, validity is guaranteed for the life of the BAM_Alignment
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetQuality2(const BAMAlignment *self, const uint8_t **quality, uint8_t *offset);
+rc_t BAM_AlignmentGetQuality2(const BAM_Alignment *self, const uint8_t **quality, uint8_t *offset);
 
 /* GetRefSeqId
  *  get id of reference sequence
- *  pass result into BAMFileGetRefSeqById to get the Reference Sequence record
+ *  pass result into BAM_FileGetRefSeqById to get the Reference Sequence record
  *
  *  "refSeqId" [ OUT ] - zero-based id of reference sequence
  *   returns -1 if set as invalid within BAM ( rc may be zero )
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetRefSeqId ( const BAMAlignment *self, int32_t *refSeqId );
+rc_t BAM_AlignmentGetRefSeqId ( const BAM_Alignment *self, int32_t *refSeqId );
 
 /* GetMateRefSeqId
  *  get id of mate's reference sequence
- *  pass result into BAMFileGetRefSeqById to get the Reference Sequence record
+ *  pass result into BAM_FileGetRefSeqById to get the Reference Sequence record
  *
  *  "refSeqId" [ OUT ] - zero-based id of reference sequence
  *   returns -1 if invalid
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetMateRefSeqId ( const BAMAlignment *self, int32_t *refSeqId );
+rc_t BAM_AlignmentGetMateRefSeqId ( const BAM_Alignment *self, int32_t *refSeqId );
 
 
 /* GetPosition
@@ -147,7 +110,7 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetMateRefSeqId ( const BAMAlignment *self, int
  *  "pos" [ OUT ] - zero-based position on reference sequence
  *  returns -1 if invalid
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetPosition ( const BAMAlignment *self, int64_t *pos );
+rc_t BAM_AlignmentGetPosition ( const BAM_Alignment *self, int64_t *pos );
     
 /* GetPosition2
  *  get the aligned start position on the ref. seq.
@@ -161,7 +124,7 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetPosition ( const BAMAlignment *self, int64_t
  *  "length" [ OUT ] - length of alignment on reference sequence
  *  returns 0 if invalid
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetPosition2 ( const BAMAlignment *self, int64_t *pos, uint32_t *length );
+rc_t BAM_AlignmentGetPosition2 ( const BAM_Alignment *self, int64_t *pos, uint32_t *length );
     
 
 /* GetMatePosition
@@ -170,23 +133,23 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetPosition2 ( const BAMAlignment *self, int64_
  *  "pos" [ OUT ] - zero-based position on reference sequence
  *  returns -1 if invalid
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetMatePosition ( const BAMAlignment *self, int64_t *pos );
+rc_t BAM_AlignmentGetMatePosition ( const BAM_Alignment *self, int64_t *pos );
 
 
 /* IsMapped
  *  is the alignment mapped to something
  */
-ALIGN_EXTERN bool CC BAMAlignmentIsMapped ( const BAMAlignment *self );
+bool BAM_AlignmentIsMapped ( const BAM_Alignment *self );
 
 
 /* GetReadGroupName
  *  get the name of the read group (i.e. accession)
- *  pass result into BAMFileGetReadGroupByName to get the Read Group record
+ *  pass result into BAM_FileGetReadGroupByName to get the Read Group record
  *
  *  "name" [ OUT ] - return param for NUL-terminated read group name
- *   held internally, validity is guaranteed for the life of the BAMAlignment
+ *   held internally, validity is guaranteed for the life of the BAM_Alignment
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetReadGroupName ( const BAMAlignment *self, const char **name );
+rc_t BAM_AlignmentGetReadGroupName ( const BAM_Alignment *self, const char **name );
 
 
 /* GetReadName
@@ -195,13 +158,13 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetReadGroupName ( const BAMAlignment *self, co
  *  get the read name and length in bytes
  *
  *  "name" [ OUT ] - return param for NUL-terminated read name
- *   held internally, validity is guaranteed for the life of the BAMAlignment
+ *   held internally, validity is guaranteed for the life of the BAM_Alignment
  *
  *  "length" [ OUT ] - return the number of bytes in "name"
  *   excluding terminating NUL.
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetReadName ( const BAMAlignment *self, const char **name );
-ALIGN_EXTERN rc_t CC BAMAlignmentGetReadName2 ( const BAMAlignment *self, const char **name, size_t *length );
+rc_t BAM_AlignmentGetReadName ( const BAM_Alignment *self, const char **name );
+rc_t BAM_AlignmentGetReadName2 ( const BAM_Alignment *self, const char **name, size_t *length );
     
     
 /* GetReadName3
@@ -209,35 +172,35 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetReadName2 ( const BAMAlignment *self, const 
  *  applies fixups to name
  *
  *  "name" [ OUT ] - return param for read name
- *   held internally, validity is guaranteed for the life of the BAMAlignment
+ *   held internally, validity is guaranteed for the life of the BAM_Alignment
  *
  *  "length" [ OUT ] - return the number of bytes in "name"
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetReadName3 ( const BAMAlignment *self, const char **name, size_t *length );
+rc_t BAM_AlignmentGetReadName3 ( const BAM_Alignment *self, const char **name, size_t *length );
 
 /* HasColorSpace
  *  Does the alignment have colorspace info
  */
-ALIGN_EXTERN bool CC BAMAlignmentHasColorSpace ( const BAMAlignment *self );
+bool BAM_AlignmentHasColorSpace ( const BAM_Alignment *self );
 
 /* GetCSKey
  *  get the colorspace key
  *
  *  "cskey" [ OUT ] - return param 
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetCSKey ( const BAMAlignment *self, char cskey[1] );
+rc_t BAM_AlignmentGetCSKey ( const BAM_Alignment *self, char cskey[1] );
 
-ALIGN_EXTERN rc_t CC BAMAlignmentGetCSSeqLen ( const BAMAlignment *self, uint32_t *seqLen );
+rc_t BAM_AlignmentGetCSSeqLen ( const BAM_Alignment *self, uint32_t *seqLen );
 /* GetCSSequence
  *  get the colorspace sequence data [0..seqLen)
  *  caller provides buffer of seqLen bytes
  *
  *  "csseq" [ OUT ] - pointer to a buffer of at least seqLen bytes
- *  "seqLen" [ IN ] - length of sequence from BAMAlignmentGetCSSeqLen
+ *  "seqLen" [ IN ] - length of sequence from BAM_AlignmentGetCSSeqLen
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetCSSequence ( const BAMAlignment *self, char *csseq, uint32_t seqLen );
+rc_t BAM_AlignmentGetCSSequence ( const BAM_Alignment *self, char *csseq, uint32_t seqLen );
 
-ALIGN_EXTERN rc_t CC BAMAlignmentGetCSQuality(BAMAlignment const *cself, uint8_t const **quality, uint8_t *offset);
+rc_t BAM_AlignmentGetCSQuality(BAM_Alignment const *cself, uint8_t const **quality, uint8_t *offset);
 
 
 /* GetFlags
@@ -272,7 +235,7 @@ enum BAMFlags
     BAMFlags_IsDuplicate	= (1 << BAMFlags_bit_IsDuplicate)
 };
 
-ALIGN_EXTERN rc_t CC BAMAlignmentGetFlags ( const BAMAlignment *self, uint16_t *flags );
+rc_t BAM_AlignmentGetFlags ( const BAM_Alignment *self, uint16_t *flags );
 
 
 /* GetMapQuality
@@ -280,7 +243,7 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetFlags ( const BAMAlignment *self, uint16_t *
  *
  *  "qual" [ OUT ] - return param for quality score
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetMapQuality ( const BAMAlignment *self, uint8_t *qual );
+rc_t BAM_AlignmentGetMapQuality ( const BAM_Alignment *self, uint8_t *qual );
 
 
 /* GetAlignmentDetail
@@ -312,8 +275,8 @@ enum BAMCigarTypes
     ct_Overlap  = 'B' /* Complete Genomics extension */
 };
 
-typedef struct BAMAlignmentDetail BAMAlignmentDetail;
-struct BAMAlignmentDetail
+typedef struct BAM_AlignmentDetail BAM_AlignmentDetail;
+struct BAM_AlignmentDetail
 {
     int64_t refSeq_pos; /* position on refSeq where this alignment region starts or -1 if NA */
     int32_t read_pos;   /* position on read where this alignment region starts or -1 if NA */
@@ -321,8 +284,8 @@ struct BAMAlignmentDetail
     BAMCigarType type;  /* type of alignment */
 };
 
-ALIGN_EXTERN rc_t CC BAMAlignmentGetAlignmentDetail ( const BAMAlignment *self,
-    BAMAlignmentDetail *rslt, uint32_t count, uint32_t *actual,
+rc_t BAM_AlignmentGetAlignmentDetail ( const BAM_Alignment *self,
+    BAM_AlignmentDetail *rslt, uint32_t count, uint32_t *actual,
     int32_t *firstMatch, int32_t *lastMatch );
 
 
@@ -332,15 +295,15 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetAlignmentDetail ( const BAMAlignment *self,
  *
  *  "n" [ OUT ] - return param for cigar count
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetCigarCount ( const BAMAlignment *self, uint32_t *n );
+rc_t BAM_AlignmentGetCigarCount ( const BAM_Alignment *self, uint32_t *n );
 
 
-ALIGN_EXTERN rc_t CC BAMAlignmentGetRawCigar(const BAMAlignment *cself, uint32_t const **rslt, uint32_t *length);
+rc_t BAM_AlignmentGetRawCigar(const BAM_Alignment *cself, uint32_t const **rslt, uint32_t *length);
 
 /* GetCigar
  *  get CIGAR element n [0..GetCigarCount)
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetCigar ( const BAMAlignment *self,
+rc_t BAM_AlignmentGetCigar ( const BAM_Alignment *self,
     uint32_t n, BAMCigarType *type, uint32_t *length );
 
 
@@ -349,9 +312,9 @@ ALIGN_EXTERN rc_t CC BAMAlignmentGetCigar ( const BAMAlignment *self,
  *
  *  "size" [ OUT ] - >0 for first in pair, <0 for second
  */
-ALIGN_EXTERN rc_t CC BAMAlignmentGetInsertSize ( const BAMAlignment *self, int64_t *size );
+rc_t BAM_AlignmentGetInsertSize ( const BAM_Alignment *self, int64_t *size );
 
-ALIGN_EXTERN rc_t CC BAMAlignmentFormatSAM(const BAMAlignment *self,
+rc_t BAM_AlignmentFormatSAM(const BAM_Alignment *self,
                                            size_t *actsize,
                                            size_t maxsize,
                                            char *buffer);
@@ -387,7 +350,7 @@ enum BAMOptDataValueTypes
 #define OPT_TAG_Y "Y?" /* end user data */
 #define OPT_TAG_Z "Z?" /* end user data */
 
-#define OPT_TAG_ReadGroup   "RG" /* Read Group; same as BAMAlignmentGetReadGroupName */
+#define OPT_TAG_ReadGroup   "RG" /* Read Group; same as BAM_AlignmentGetReadGroupName */
 #define OPT_TAG_Library     "LB" /* LIbrary; also BAMReadGroup */
 #define OPT_TAG_Unit        "PU" /* Platform specific Unit; also BAMReadGroup */
 #define OPT_TAG_Program     "PG" /* Alignment software name */
@@ -441,44 +404,41 @@ struct BAMOptData
 
 typedef struct BAMOptData BAMOptData;
 
-typedef rc_t ( CC * BAMOptionalDataFunction )
+typedef rc_t ( * BAMOptionalDataFunction )
     ( void *ctx, const char tag[2], const BAMOptData *value );
 
-ALIGN_EXTERN rc_t CC BAMAlignmentOptDataForEach
-    ( const BAMAlignment *self, void *ctx, BAMOptionalDataFunction callback );
+rc_t BAM_AlignmentOptDataForEach
+    ( const BAM_Alignment *self, void *ctx, BAMOptionalDataFunction callback );
 
     
-ALIGN_EXTERN bool CC BAMAlignmentHasCGData(BAMAlignment const *self);
+bool BAM_AlignmentHasCGData(BAM_Alignment const *self);
 
-ALIGN_EXTERN
-rc_t CC BAMAlignmentCGReadLength(BAMAlignment const *self, uint32_t *readlen);
+rc_t BAM_AlignmentCGReadLength(BAM_Alignment const *self, uint32_t *readlen);
 
-ALIGN_EXTERN
-rc_t CC BAMAlignmentGetCGSeqQual(BAMAlignment const *self,
+rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
                                  char sequence[],
                                  uint8_t quality[]);
 
-ALIGN_EXTERN
-rc_t CC BAMAlignmentGetCGCigar(BAMAlignment const *self,
+rc_t BAM_AlignmentGetCGCigar(BAM_Alignment const *self,
                                uint32_t *cigar,
                                uint32_t cig_max,
                                uint32_t *cig_act);
     
-ALIGN_EXTERN rc_t BAMAlignmentGetTI(BAMAlignment const *self, uint64_t *ti);
+rc_t BAM_AlignmentGetTI(BAM_Alignment const *self, uint64_t *ti);
 
 /* strand = '+', '-', or ' ' */
-ALIGN_EXTERN rc_t BAMAlignmentGetRNAStrand(BAMAlignment const *self, uint8_t *strand);
+rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *self, uint8_t *strand);
 
-ALIGN_EXTERN rc_t BAMAlignmentGetCGAlignGroup(BAMAlignment const *self,
+rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
                                               char buffer[],
                                               size_t max_size,
                                               size_t *act_size);
     
     
 /*--------------------------------------------------------------------------
- * BAMFile
+ * BAM_File
  */
-typedef struct BAMFile BAMFile;
+typedef struct BAM_File BAM_File;
 
 typedef struct BAMRefSeq BAMRefSeq;
 struct BAMRefSeq
@@ -515,7 +475,7 @@ struct BAMReadGroup
  * in the decompressed block at which a record starts.  This is the
  * way that positions are represented in BAM indices.
  */
-typedef uint64_t BAMFilePosition;
+typedef uint64_t BAM_FilePosition;
 
 
 /* Make
@@ -523,9 +483,9 @@ typedef uint64_t BAMFilePosition;
  *
  *  "path" [ IN ] - NUL terminated string or format
  */
-ALIGN_EXTERN rc_t CC BAMFileMake ( const BAMFile **result, const char *path, ... );
+rc_t BAM_FileMake ( const BAM_File **result, const char *path, ... );
 
-ALIGN_EXTERN rc_t CC BAMFileMakeWithHeader ( const BAMFile **result,
+rc_t BAM_FileMakeWithHeader ( const BAM_File **result,
                                             char const headerText[],
                                             char const path[], ... );
 
@@ -536,9 +496,9 @@ ALIGN_EXTERN rc_t CC BAMFileMakeWithHeader ( const BAMFile **result,
  *
  *  "path" [ IN ] - NUL terminated string or format
  */
-ALIGN_EXTERN rc_t CC BAMFileMakeWithDir ( const BAMFile **result,
+rc_t BAM_FileMakeWithDir ( const BAM_File **result,
     struct KDirectory const *dir, const char *path, ... );
-ALIGN_EXTERN rc_t CC BAMFileVMakeWithDir ( const BAMFile **result,
+rc_t BAM_FileVMakeWithDir ( const BAM_File **result,
     struct KDirectory const *dir, const char *path, va_list args );
 
 /* Make
@@ -546,30 +506,14 @@ ALIGN_EXTERN rc_t CC BAMFileVMakeWithDir ( const BAMFile **result,
  *
  *  "file" [ IN ] - an open KFile
  */
-ALIGN_EXTERN rc_t CC BAMFileMakeWithKFile(const BAMFile **result,
+rc_t BAM_FileMakeWithKFile(const BAM_File **result,
     struct KFile const *file);
-
-/* Make
- *  open the BAM file specified by file
- *
- *  "file" [ IN ] - an open KFile
- */
-ALIGN_EXTERN rc_t CC BAMFileMakeWithVPath(const BAMFile **result,
-    struct VPath const *path);
-
-/* ExportBAMFile
- *  export the BAMFile object in use by the AlignAccessDB, if any
- *  must be released via BAMFileRelease
- */
-ALIGN_EXTERN rc_t CC AlignAccessDBExportBAMFile ( struct AlignAccessDB const *self,
-    const BAMFile **result );
-
 
 /* AddRef
  * Release
  */
-ALIGN_EXTERN rc_t CC BAMFileAddRef ( const BAMFile *self );
-ALIGN_EXTERN rc_t CC BAMFileRelease ( const BAMFile *self );
+rc_t BAM_FileAddRef ( const BAM_File *self );
+rc_t BAM_FileRelease ( const BAM_File *self );
 
 
 /* GetPosition
@@ -579,7 +523,7 @@ ALIGN_EXTERN rc_t CC BAMFileRelease ( const BAMFile *self );
  *
  *  "pos" [ OUT ] - return parameter for position
  */
-ALIGN_EXTERN rc_t CC BAMFileGetPosition ( const BAMFile *self, BAMFilePosition *pos );
+rc_t BAM_FileGetPosition ( const BAM_File *self, BAM_FilePosition *pos );
 
 
 /* GetProportionalPosition
@@ -588,26 +532,26 @@ ALIGN_EXTERN rc_t CC BAMFileGetPosition ( const BAMFile *self, BAMFilePosition *
  *
  * NB - does not return rc_t
  */
-ALIGN_EXTERN float CC BAMFileGetProportionalPosition ( const BAMFile *self );
+float BAM_FileGetProportionalPosition ( const BAM_File *self );
 
 
 /* Read
  *  read an aligment
  *
- *  "result" [ OUT ] - return param for BAMAlignment object
- *   must be released with BAMAlignmentRelease
+ *  "result" [ OUT ] - return param for BAM_Alignment object
+ *   must be released with BAM_AlignmentRelease
  *
  *  returns RC(..., ..., ..., rcRow, rcNotFound) at end
  */
-ALIGN_EXTERN rc_t CC BAMFileRead ( const BAMFile *self, const BAMAlignment **result );
+rc_t BAM_FileRead ( const BAM_File *self, const BAM_Alignment **result );
 
     
 /* Read
  *  read an aligment
  *
- *  "result" [ OUT ] - return param for BAMAlignment object
- *   must be released with BAMAlignmentRelease, is invalidated or contents
- *   change on next call to BAMFileRead2. Unlike with BAMFileRead, no attempt is
+ *  "result" [ OUT ] - return param for BAM_Alignment object
+ *   must be released with BAM_AlignmentRelease, is invalidated or contents
+ *   change on next call to BAM_FileRead2. Unlike with BAM_FileRead, no attempt is
  *   made to preserve this object.
  *
  *  returns:
@@ -617,20 +561,20 @@ ALIGN_EXTERN rc_t CC BAMFileRead ( const BAMFile *self, const BAMAlignment **res
  *
  *  tries to use static buffers and will log messages about parsing errors
  */
-ALIGN_EXTERN rc_t CC BAMFileRead2 ( const BAMFile *self, const BAMAlignment **result );
+rc_t BAM_FileRead2 ( const BAM_File *self, const BAM_Alignment **result );
 
 
 /* Rewind
  *  reset the position back to the first aligment in the file
  */
-ALIGN_EXTERN rc_t CC BAMFileRewind ( const BAMFile *self );
+rc_t BAM_FileRewind ( const BAM_File *self );
 
 
 /* SetPosition
  *  set the position to a particular alignment
  *  pass in the values from GetPosition
  */
-ALIGN_EXTERN rc_t CC BAMFileSetPosition ( const BAMFile *self, const BAMFilePosition *pos );
+rc_t BAM_FileSetPosition ( const BAM_File *self, const BAM_FilePosition *pos );
 
 
 /* GetRefSeqCount
@@ -638,23 +582,23 @@ ALIGN_EXTERN rc_t CC BAMFileSetPosition ( const BAMFile *self, const BAMFilePosi
  *  this is not necessarily the number of Reference Sequences referenced
  *  by the alignments
  */
-ALIGN_EXTERN rc_t CC BAMFileGetRefSeqCount ( const BAMFile *self, uint32_t *count );
+rc_t BAM_FileGetRefSeqCount ( const BAM_File *self, uint32_t *count );
 
 
 /* GetRefSeq
  *  get the n'th Ref. Seq. where n is [0..RefSeqCount)
- *  the resulting pointer is static-like; it is freed when the BAMFile is.
- *  IOW, it is good for precisely at long as the BAMFile is.
+ *  the resulting pointer is static-like; it is freed when the BAM_File is.
+ *  IOW, it is good for precisely at long as the BAM_File is.
  */
-ALIGN_EXTERN rc_t CC BAMFileGetRefSeq ( const BAMFile *self, uint32_t n, const BAMRefSeq **result );
+rc_t BAM_FileGetRefSeq ( const BAM_File *self, uint32_t n, const BAMRefSeq **result );
 
 
 /* GetRefSeqById
  *  get a Ref. Seq. by its id
- *  the resulting pointer is static-like; it is freed when the BAMFile is.
- *  IOW, it is good for precisely at long as the BAMFile is.
+ *  the resulting pointer is static-like; it is freed when the BAM_File is.
+ *  IOW, it is good for precisely at long as the BAM_File is.
  */
-ALIGN_EXTERN rc_t CC BAMFileGetRefSeqById ( const BAMFile *self, int32_t id, const BAMRefSeq **result );
+rc_t BAM_FileGetRefSeqById ( const BAM_File *self, int32_t id, const BAMRefSeq **result );
 
 
 /* GetReadGroupCount
@@ -662,175 +606,27 @@ ALIGN_EXTERN rc_t CC BAMFileGetRefSeqById ( const BAMFile *self, int32_t id, con
  *  this is not necessarily the number of Read Groups referenced
  *  by the alignments
  */
-ALIGN_EXTERN rc_t CC BAMFileGetReadGroupCount ( const BAMFile *self, uint32_t *count );
+rc_t BAM_FileGetReadGroupCount ( const BAM_File *self, uint32_t *count );
 
 /* GetReadGroup
  *  get the n'th Read Group where n is [0..ReadGroupCount)
- *  the resulting pointer is static-like; it is freed when the BAMFile is.
- *  IOW, it is good for precisely at long as the BAMFile is.
+ *  the resulting pointer is static-like; it is freed when the BAM_File is.
+ *  IOW, it is good for precisely at long as the BAM_File is.
  */
-ALIGN_EXTERN rc_t CC BAMFileGetReadGroup ( const BAMFile *self, unsigned n, const BAMReadGroup **result );
+rc_t BAM_FileGetReadGroup ( const BAM_File *self, unsigned n, const BAMReadGroup **result );
     
 /* GetHeaderText
  *  get the text of the BAM header file
- *  the resulting pointer is static-like; it is freed when the BAMFile is.
- *  IOW, it is good for precisely at long as the BAMFile is.
+ *  the resulting pointer is static-like; it is freed when the BAM_File is.
+ *  IOW, it is good for precisely at long as the BAM_File is.
  */
-ALIGN_EXTERN rc_t CC BAMFileGetHeaderText(BAMFile const *cself, char const **header, size_t *header_len);
+rc_t BAM_FileGetHeaderText(BAM_File const *cself, char const **header, size_t *header_len);
     
 
 /* GetReadGroupByName
  *  get a Read Group by its name
- *  the resulting pointer is static-like; it is freed when the BAMFile is.
- *  IOW, it is good for precisely at long as the BAMFile is.
+ *  the resulting pointer is static-like; it is freed when the BAM_File is.
+ *  IOW, it is good for precisely at long as the BAM_File is.
  */
-ALIGN_EXTERN rc_t CC BAMFileGetReadGroupByName ( const BAMFile *self,
+rc_t BAM_FileGetReadGroupByName ( const BAM_File *self,
     const char *name, const BAMReadGroup **result );
-
-
-/* OpenIndex
- *  takes a simple path...
- */
-ALIGN_EXTERN rc_t CC BAMFileOpenIndex ( const BAMFile *self, const char *path );
-
-ALIGN_EXTERN rc_t CC BAMFileOpenIndexWithVPath ( const BAMFile *self, struct VPath const *path );
-
-/* IsIndexed
- *  returns true if true
- */
-ALIGN_EXTERN bool CC BAMFileIsIndexed ( const BAMFile *self );
-
-
-/* IndexHasRefSeqId
- */
-ALIGN_EXTERN bool CC BAMFileIndexHasRefSeqId ( const BAMFile *self, uint32_t refSeqId );
-
-/* Seek
- *  seeks a half-open zero-based interval on a particular reference
- *  rcSelf, rcIncomplete
- */
-ALIGN_EXTERN rc_t CC BAMFileSeek ( const BAMFile *self, uint32_t refSeqId, uint64_t alignStart, uint64_t alignEnd );
-
-typedef uint32_t BAMValidateOption;
-enum BAMValidateOptions {
-    /* this is the minimum level of BAM file validation; just walks the compressed block headers */
-    bvo_BlockHeaders        = 1,
-    
-    /* decompresses each block */
-    bvo_BlockCompression    = 2,
-    
-    /* within each block, walks the records without examining the contents */
-    bvo_BlockStructure      = 3,
-    
-    /* within each record, validate the structure vis-a-vis the record size */
-    bvo_RecordStructure     = 4,
-    
-    /* verify that the extra fields a parsable */
-    bvo_ExtraFields         = 8,
-    
-    /* confirm that no alignment starts before the alignment preceeding it */
-    bvo_Sorted              = 16,
-    
-    /* verify that flags are consistent with itself and the other fields in the record
-     * NB. can not verify secondary alignment flag 0x100
-     */
-    bvo_FlagsConsistency    = 32,
-    
-    /* verify CIGAR against sequence length */
-    bvo_CIGARConsistency    = 64,
-    
-    /* verify that bin number corresponds to position and alignment length */
-    bvo_BinConsistency      = 128,
-    
-    /* verify that mapQ is consistent with flags and refSeqID */
-    bvo_MapQuality          = 256,
-    
-    /* verify Quality values >= 33 */
-    bvo_QualityValues       = 512,
-    
-    /* verify that sequence length != 0 */
-    bvo_MissingSequence     = 1024,
-    
-    /* verify that Quality values != 255 */
-    bvo_MissingQuality      = 2048,
-    
-    /* compute flagstats */
-    bvo_FlagsStats          = 4096,
-    
-    /* verify that index is parsable
-     * NB. this can be done without a BAM file
-     */
-    bvo_IndexStructure      = 1 << 16,
-    
-    /* verify that the file offsets in the index are valid for the given BAM file
-     * NB. does not cause decompression of the BAM file but will cause referenced
-     * block headers to be validated
-     */
-    bvo_IndexOffsets1       = 2 << 16,
-    
-    /* in addition to verifying that the file offsets in the index are valid for
-     * the given BAM file, verify that the record offsets with the blocks are valid.
-     * NB. will cause referenced blocks to be decompressed and structurally validated.
-     */
-    bvo_IndexOffsets2       = 3 << 16,
-    
-    /* verify that index's reference number and bin number agree with the
-     * referenced record
-     */
-    bvo_IndexBins           = 4 << 16,
-    
-    bvo_IndexOptions        = 7 << 16
-};
-
-typedef struct BAMValidateStats BAMValidateStats;
-typedef struct BAMValidateStatsRow BAMValidateStatsRow;
-
-struct BAMValidateStatsRow {
-    uint64_t good;
-    uint64_t warning;
-    uint64_t error;
-};
-
-struct BAMValidateStats {
-    uint64_t bamFileSize;
-    uint64_t bamFilePosition;
-    uint64_t baiFileSize;
-    uint64_t baiFilePosition;
-    BAMValidateStatsRow blockHeaders;
-    BAMValidateStatsRow blockCompression;
-    BAMValidateStatsRow blockStructure;
-    BAMValidateStatsRow recordStructure;
-    BAMValidateStatsRow extraFields;
-    BAMValidateStatsRow inOrder;
-    BAMValidateStatsRow flags[16];
-    BAMValidateStatsRow CIGAR;
-    BAMValidateStatsRow bin;
-    BAMValidateStatsRow quality;
-    BAMValidateStatsRow hasSequence;
-    BAMValidateStatsRow hasQuality;
-    BAMValidateStatsRow indexFileOffset;
-    BAMValidateStatsRow indexBlockOffset;
-    BAMValidateStatsRow indexBin;
-    bool bamHeaderIsGood;
-    bool bamHeaderIsBad;
-    bool indexStructureIsGood;
-    bool indexStructureIsBad;
-};
-
-typedef rc_t (CC *BAMValidateCallback)(void *ctx, rc_t result, const BAMValidateStats *stats);
-
-/* Validate
- */
-ALIGN_EXTERN rc_t CC BAMValidate ( struct VPath const *bam,
-                                   struct VPath const *bai,
-                                   BAMValidateOption options,
-                                   BAMValidateCallback callback,
-                                   void *callbackContext
-                                  );
-
-
-#ifdef __cplusplus
-}
-#endif
-
-#endif /* _h_align_bam_ */

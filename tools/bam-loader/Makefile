@@ -83,6 +83,7 @@ clean: stdclean
 #
 BAMLOAD_SRC = \
 	bam-loader \
+	bam \
 	alignment-writer \
 	reference-writer \
 	sequence-writer \

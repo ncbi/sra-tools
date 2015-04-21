@@ -77,8 +77,7 @@
 #include <limits.h>
 #include <time.h>
 
-#include <align/bam.h>
-
+#include "bam.h"
 #include "Globals.h"
 #include "sequence-writer.h"
 #include "reference-writer.h"
@@ -720,9 +719,9 @@ void COPY_READ(INSDC_dna_text D[], INSDC_dna_text const S[], unsigned const L, b
         memcpy(D, S, L);
 }
 
-static rc_t OpenBAM(const BAMFile **bam, VDatabase *db, const char bamFile[])
+static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
 {
-    rc_t rc = BAMFileMakeWithHeader(bam, G.headerText, "%s", bamFile);
+    rc_t rc = BAM_FileMakeWithHeader(bam, G.headerText, "%s", bamFile);
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "Failed to open '$(file)'", "file=%s", bamFile));
     }
@@ -739,7 +738,7 @@ static rc_t OpenBAM(const BAMFile **bam, VDatabase *db, const char bamFile[])
                 char const *header;
                 size_t size;
 
-                rc = BAMFileGetHeaderText(*bam, &header, &size);
+                rc = BAM_FileGetHeaderText(*bam, &header, &size);
                 if (rc == 0) {
                     rc = KMDataNodeWrite(node, header, size);
                 }
@@ -751,17 +750,17 @@ static rc_t OpenBAM(const BAMFile **bam, VDatabase *db, const char bamFile[])
     return rc;
 }
 
-static rc_t VerifyReferences(BAMFile const *bam, Reference const *ref)
+static rc_t VerifyReferences(BAM_File const *bam, Reference const *ref)
 {
     rc_t rc = 0;
     uint32_t n;
     unsigned i;
 
-    BAMFileGetRefSeqCount(bam, &n);
+    BAM_FileGetRefSeqCount(bam, &n);
     for (i = 0; i != n; ++i) {
         BAMRefSeq const *refSeq;
 
-        BAMFileGetRefSeq(bam, i, &refSeq);
+        BAM_FileGetRefSeq(bam, i, &refSeq);
         if (G.refFilter && strcmp(refSeq->name, G.refFilter) != 0)
             continue;
 
@@ -793,11 +792,11 @@ static rc_t VerifyReferences(BAMFile const *bam, Reference const *ref)
     return 0;
 }
 
-static uint8_t GetMapQ(BAMAlignment const *rec)
+static uint8_t GetMapQ(BAM_Alignment const *rec)
 {
     uint8_t mapQ;
 
-    BAMAlignmentGetMapQuality(rec, &mapQ);
+    BAM_AlignmentGetMapQuality(rec, &mapQ);
     return mapQ;
 }
 
@@ -868,11 +867,11 @@ static bool platform_cmp(char const platform[], char const test[])
 }
 
 static
-INSDC_SRA_platform_id GetINSDCPlatform(BAMFile const *bam, char const name[]) {
+INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
     if (name) {
         BAMReadGroup const *rg;
 
-        BAMFileGetReadGroupByName(bam, name, &rg);
+        BAM_FileGetReadGroupByName(bam, name, &rg);
         if (rg && rg->platform) {
             switch (toupper(rg->platform[0])) {
             case 'C':
@@ -1158,8 +1157,8 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                        Reference *ref, Sequence *seq, Alignment *align,
                        bool *had_alignments, bool *had_sequences)
 {
-    const BAMFile *bam;
-    const BAMAlignment *rec;
+    const BAM_File *bam;
+    const BAM_Alignment *rec;
     KDataBuffer buf;
     KDataBuffer fragBuf;
     KDataBuffer cigBuf;
@@ -1195,7 +1194,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     if (!G.noVerifyReferences && ref != NULL) {
         rc = VerifyReferences(bam, ref);
         if (G.onlyVerifyReferences) {
-            BAMFileRelease(bam);
+            BAM_FileRelease(bam);
             return rc;
         }
     }
@@ -1203,7 +1202,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         uint32_t rgcount;
         unsigned rgi;
 
-        BAMFileGetReadGroupCount(bam, &rgcount);
+        BAM_FileGetReadGroupCount(bam, &rgcount);
         if (rgcount > (sizeof(ctx->key2id)/sizeof(ctx->key2id[0]) - 1))
             ctx->key2id_max = 1;
         else
@@ -1212,7 +1211,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         for (rgi = 0; rgi != rgcount; ++rgi) {
             BAMReadGroup const *rg;
 
-            BAMFileGetReadGroup(bam, rgi, &rg);
+            BAM_FileGetReadGroup(bam, rgi, &rg);
             if (rg && rg->platform && platform_cmp(rg->platform, "CAPILLARY")) {
                 G.hasTI = true;
                 break;
@@ -1257,7 +1256,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         uint64_t ti = 0;
         uint32_t csSeqLen = 0;
 
-        rc = BAMFileRead2(bam, &rec);
+        rc = BAM_FileRead2(bam, &rec);
         if (rc) {
             if (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound) {
                 (void)PLOGMSG(klogInfo, (klogInfo, "EOF '$(file)'; read $(read); processed $(proc)", "file=%s,read=%lu,proc=%lu", bamFile, (unsigned long)recordsRead, (unsigned long)recordsProcessed));
@@ -1277,7 +1276,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         ++recordsRead;
         
         {
-            float const new_value = BAMFileGetProportionalPosition(bam) * 100.0;
+            float const new_value = BAM_FileGetProportionalPosition(bam) * 100.0;
             float const delta = new_value - progress;
             if (delta > 1.0) {
                 KLoadProgressbar_Process(ctx->progress[0], delta, false);
@@ -1288,7 +1287,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
 
         /**************************************************************/
         if (!G.noColorSpace) {
-            if (BAMAlignmentHasColorSpace(rec)) {/*BAM*/
+            if (BAM_AlignmentHasColorSpace(rec)) {/*BAM*/
                 if (isNotColorSpace) {
 MIXED_BASE_AND_COLOR:
                     rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
@@ -1302,14 +1301,14 @@ MIXED_BASE_AND_COLOR:
             else
                 isNotColorSpace = true;
         }
-        rc = BAMAlignmentCGReadLength(rec, &readlen);/*BAM*/
+        rc = BAM_AlignmentCGReadLength(rec, &readlen);/*BAM*/
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
             (void)LOGERR(klogErr, rc, "Invalid CG data");
             goto LOOP_END;
         }
         if (rc == 0) {
             hasCG = true;
-            BAMAlignmentGetCigarCount(rec, &opCount);/*BAM*/
+            BAM_AlignmentGetCigarCount(rec, &opCount);/*BAM*/
             rc = KDataBufferResize(&cigBuf, opCount * 2 + 5);
             if (rc) {
                 (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
@@ -1330,7 +1329,7 @@ MIXED_BASE_AND_COLOR:
         else {
             uint32_t const *tmp;
 
-            BAMAlignmentGetRawCigar(rec, &tmp, &opCount);/*BAM*/
+            BAM_AlignmentGetRawCigar(rec, &tmp, &opCount);/*BAM*/
             rc = KDataBufferResize(&cigBuf, opCount);
             if (rc) {
                 (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
@@ -1338,9 +1337,9 @@ MIXED_BASE_AND_COLOR:
             }
             memcpy(cigBuf.base, tmp, opCount * sizeof(uint32_t));
 
-            BAMAlignmentGetReadLength(rec, &readlen);/*BAM*/
+            BAM_AlignmentGetReadLength(rec, &readlen);/*BAM*/
             if (isColorSpace) {
-                BAMAlignmentGetCSSeqLen(rec, &csSeqLen);
+                BAM_AlignmentGetCSSeqLen(rec, &csSeqLen);
                 if (readlen > csSeqLen) {
                     rc = RC(rcAlign, rcRow, rcReading, rcData, rcInconsistent);
                     (void)LOGERR(klogErr, rc, "Sequence length and CS Sequence length are inconsistent");
@@ -1363,12 +1362,12 @@ MIXED_BASE_AND_COLOR:
             seqDNA = buf.base;
             qual = (uint8_t *)&seqDNA[readlen | csSeqLen];
         }
-        BAMAlignmentGetReadName2(rec, &name, &namelen);/*BAM*/
-        BAMAlignmentGetSequence(rec, seqDNA);/*BAM*/
+        BAM_AlignmentGetReadName2(rec, &name, &namelen);/*BAM*/
+        BAM_AlignmentGetSequence(rec, seqDNA);/*BAM*/
         if (G.useQUAL) {
             uint8_t const *squal;
 
-            BAMAlignmentGetQuality(rec, &squal);/*BAM*/
+            BAM_AlignmentGetQuality(rec, &squal);/*BAM*/
             memcpy(qual, squal, readlen);
         }
         else {
@@ -1376,7 +1375,7 @@ MIXED_BASE_AND_COLOR:
             uint8_t qoffset = 0;
             unsigned i;
 
-            rc = BAMAlignmentGetQuality2(rec, &squal, &qoffset);/*BAM*/
+            rc = BAM_AlignmentGetQuality2(rec, &squal, &qoffset);/*BAM*/
             if (rc) {
                 (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(name)': length of original quality does not match sequence", "name=%s", name));
                 goto LOOP_END;
@@ -1390,9 +1389,9 @@ MIXED_BASE_AND_COLOR:
                 memcpy(qual, squal, readlen);
         }
         if (hasCG) {
-            rc = BAMAlignmentGetCGSeqQual(rec, seqDNA, qual);
+            rc = BAM_AlignmentGetCGSeqQual(rec, seqDNA, qual);
             if (rc == 0) {
-                rc = BAMAlignmentGetCGCigar(rec, cigBuf.base, cigBuf.elem_count, &opCount);/*BAM*/
+                rc = BAM_AlignmentGetCGCigar(rec, cigBuf.base, cigBuf.elem_count, &opCount);/*BAM*/
             }
             if (rc) {
                 (void)LOGERR(klogErr, rc, "Failed to read CG data");
@@ -1400,24 +1399,24 @@ MIXED_BASE_AND_COLOR:
             }
         }
         if (G.hasTI) {
-            rc = BAMAlignmentGetTI(rec, &ti);/*BAM*/
+            rc = BAM_AlignmentGetTI(rec, &ti);/*BAM*/
             if (rc)
                 ti = 0;
             rc = 0;
         }
         data.data.align_group.buffer = alignGroup;
-        if (BAMAlignmentGetCGAlignGroup(rec, alignGroup, sizeof(alignGroup), &alignGroupLen) == 0)/*BAM*/
+        if (BAM_AlignmentGetCGAlignGroup(rec, alignGroup, sizeof(alignGroup), &alignGroupLen) == 0)/*BAM*/
             data.data.align_group.elements = alignGroupLen;
         else
             data.data.align_group.elements = 0;
 
         AR_MAPQ(data) = GetMapQ(rec);
-        BAMAlignmentGetFlags(rec, &flags);/*BAM*/
-        BAMAlignmentGetReadName2(rec, &name, &namelen);/*BAM*/
+        BAM_AlignmentGetFlags(rec, &flags);/*BAM*/
+        BAM_AlignmentGetReadName2(rec, &name, &namelen);/*BAM*/
         {{
             char const *rgname;
 
-            BAMAlignmentGetReadGroupName(rec, &rgname);/*BAM*/
+            BAM_AlignmentGetReadGroupName(rec, &rgname);/*BAM*/
             if (rgname)
                 strcpy(spotGroup, rgname);
             else
@@ -1446,8 +1445,8 @@ MIXED_BASE_AND_COLOR:
             goto LOOP_END;
         }
         while (aligned) {
-            BAMAlignmentGetPosition(rec, &rpos);/*BAM*/
-            BAMAlignmentGetRefSeqId(rec, &refSeqId);/*BAM*/
+            BAM_AlignmentGetPosition(rec, &rpos);/*BAM*/
+            BAM_AlignmentGetRefSeqId(rec, &refSeqId);/*BAM*/
             if (rpos >= 0 && refSeqId >= 0) {
                 if (refSeqId == skipRefSeqID) {
                     DISCARD_SKIP_REFERENCE;
@@ -1462,7 +1461,7 @@ MIXED_BASE_AND_COLOR:
                 if (refSeqId == lastRefSeqId)
                     break;
                 refSeq = NULL;
-                BAMFileGetRefSeqById(bam, refSeqId, &refSeq);/*BAM*/
+                BAM_FileGetRefSeqById(bam, refSeqId, &refSeq);/*BAM*/
                 if (refSeq == NULL) {
                     rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
@@ -1636,7 +1635,7 @@ MIXED_BASE_AND_COLOR:
             uint32_t matches = 0;
             uint8_t rna_orient = ' ';
 
-            BAMAlignmentGetRNAStrand(rec, &rna_orient);
+            BAM_AlignmentGetRNAStrand(rec, &rna_orient);
             rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen,
                                rna_orient == '+' ? NCBI_align_ro_intron_plus :
                                rna_orient == '-' ? NCBI_align_ro_intron_minus :
@@ -1682,13 +1681,13 @@ MIXED_BASE_AND_COLOR:
         }
         if (isColorSpace) {
             /* must be after ReferenceRead */
-            BAMAlignmentGetCSKey(rec, &cskey);/*BAM*/
-            BAMAlignmentGetCSSequence(rec, seqDNA, csSeqLen);/*BAM*/
+            BAM_AlignmentGetCSKey(rec, &cskey);/*BAM*/
+            BAM_AlignmentGetCSSequence(rec, seqDNA, csSeqLen);/*BAM*/
             if (!aligned && !G.useQUAL) {
                 uint8_t const *squal;
                 uint8_t qoffset = 0;
 
-                rc = BAMAlignmentGetCSQuality(rec, &squal, &qoffset);/*BAM*/
+                rc = BAM_AlignmentGetCSQuality(rec, &squal, &qoffset);/*BAM*/
                 if (rc) {
                     (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(name)': length of colorspace quality does not match sequence", "name=%s", name));
                     goto LOOP_END;
@@ -1772,8 +1771,8 @@ MIXED_BASE_AND_COLOR:
                 fi.is_bad = (flags & BAMFlags_IsLowQuality) != 0;/*BAM*/
                 sz = sizeof(fi) + 2*fi.readlen + fi.sglen;
                 if (align) {
-                    BAMAlignmentGetMateRefSeqId(rec, &mate_refSeqId);/*BAM*/
-                    BAMAlignmentGetMatePosition(rec, &pnext);/*BAM*/
+                    BAM_AlignmentGetMateRefSeqId(rec, &mate_refSeqId);/*BAM*/
+                    BAM_AlignmentGetMatePosition(rec, &pnext);/*BAM*/
                 }
                 if(align && mate_refSeqId == refSeqId && pnext > 0 && pnext!=rpos /*** weird case in some bams**/){
                     rc = MemBankAlloc(ctx->frags, &value->fragmentId, sz, 0, false);
@@ -1934,14 +1933,14 @@ MIXED_BASE_AND_COLOR:
                 int64_t mrid = 0;
                 int64_t tlen;
 
-                BAMAlignmentGetMatePosition(rec, &mpos);/*BAM*/
-                BAMAlignmentGetMateRefSeqId(rec, &bam_mrid);/*BAM*/
-                BAMAlignmentGetInsertSize(rec, &tlen);/*BAM*/
+                BAM_AlignmentGetMatePosition(rec, &mpos);/*BAM*/
+                BAM_AlignmentGetMateRefSeqId(rec, &bam_mrid);/*BAM*/
+                BAM_AlignmentGetInsertSize(rec, &tlen);/*BAM*/
 
                 if (mpos >= 0 && bam_mrid >= 0 && tlen != 0) {
                     BAMRefSeq const *mref;/*BAM*/
 
-                    BAMFileGetRefSeq(bam, bam_mrid, &mref);/*BAM*/
+                    BAM_FileGetRefSeq(bam, bam_mrid, &mref);/*BAM*/
                     if (mref) {
                         rc_t rc_temp = ReferenceGet1stRow(ref, &mrid, mref->name);
                         if (rc_temp == 0) {
@@ -2041,7 +2040,7 @@ MIXED_BASE_AND_COLOR:
         /**************************************************************/
 
     LOOP_END:
-        BAMAlignmentRelease(rec);
+        BAM_AlignmentRelease(rec);
         ++reccount;
         if (G.maxAlignCount > 0 && reccount >= G.maxAlignCount)
             break;
@@ -2057,7 +2056,7 @@ MIXED_BASE_AND_COLOR:
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
-    BAMFileRelease(bam);
+    BAM_FileRelease(bam);
     MMArrayLock(ctx->id2value);
     KDataBufferWhack(&buf);
     KDataBufferWhack(&fragBuf);

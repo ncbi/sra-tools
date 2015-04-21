@@ -1625,6 +1625,7 @@ rc_t BAM_FileRelease(const BAM_File *cself) {
     
     if (cself != NULL) {
         BAM_FileWhack(self);
+        free(self);
     }
     return 0;
 }

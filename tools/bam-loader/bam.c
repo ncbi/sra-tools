@@ -2083,7 +2083,6 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment const *rslt[], bool co
                     y->storage = storage;
 
                 y->parent = self;
-                BAM_FileAddRef(self);
                 rslt[0] = y;
 
                 if (BAM_AlignmentIsEmpty(y))
@@ -2795,7 +2794,6 @@ static rc_t BAM_AlignmentWhack(BAM_Alignment *self)
     if (self->parent->bufLocker == self)
         self->parent->bufLocker = NULL;
     if (self != self->parent->nocopy) {
-        BAM_FileRelease(self->parent);
         free(self->storage);
         free(self);
     }

@@ -322,15 +322,15 @@ static char * produce_sam( const gen_context * gctx, const alignment * alig, con
 		
 			int first = 0;
 			int last = 0;
-			const char * r_next;
+			const char * r_next = "*";
+			uint32_t r_pos = 0;
 			
-			if ( other->refname == NULL || other->refpos == 0 )
-				r_next = "*";
-			else
+			if ( other != NULL && other->refname != NULL && other->refpos == 0 )
 			{
 				r_next = other->refname;
 				first = ( alig->refpos < other->refpos );
 				last = !first;
+				r_pos = other->refpos;
 			}
 			
 			size_t num_writ;
@@ -343,7 +343,7 @@ static char * produce_sam( const gen_context * gctx, const alignment * alig, con
 							alig->mapq,
 							cig_str,
 							r_next,
-							other->refpos,
+							r_pos,
 							gctx->tlen,
 							alig->read,
 							quality );
@@ -508,6 +508,8 @@ static void release_alig( alignment * alig )
 
 static void read_context( Args * args, gen_context * gctx )
 {
+	alignment *alig0, *alig1;
+
 	gctx->qname 	= get_str_option( args, OPTION_QNAME, 		0, 	DFLT_QNAME );
 	gctx->insbases	= get_str_option( args, OPTION_INSBASES,	0,	DFLT_INSBASES );
 	gctx->flags		= get_uint32_option( args, OPTION_FLAGS, 	0,	0 );
@@ -517,15 +519,16 @@ static void read_context( Args * args, gen_context * gctx )
 	
 	read_alig_context( args, gctx, &gctx->alig[ 0 ], 0 );
 	read_alig_context( args, gctx, &gctx->alig[ 1 ], 1 );
-	alignment * alig0 = &gctx->alig[ 0 ];
-	alignment * alig1 = &gctx->alig[ 1 ];
+
+	alig0 = &gctx->alig[ 0 ];
+	alig1 = &gctx->alig[ 1 ];
 	if ( gctx->alig[ 1 ].refpos > 0 )
 	{
 		if ( gctx->alig[ 1 ].refname == NULL )
 			gctx->alig[ 1 ].refname = gctx->alig[ 0 ].refname;
-		/* we have a pair */
+
 		uint32_t end = alig1->refpos + alig1->reflen;
-		gctx->tlen = end - alig0->refpos;
+		gctx->tlen = ( end - alig0->refpos );
 		
 		alig0->refbases = read_refbases( alig0->refname, alig0->refpos, alig0->reflen, &alig0->bases_in_ref );
 		alig1->refbases = read_refbases( alig1->refname, alig1->refpos, alig1->reflen, &alig1->bases_in_ref );
@@ -538,8 +541,7 @@ static void read_context( Args * args, gen_context * gctx )
 	}
 	else
 	{
-		/* we have a single */
-		alig0->refbases = read_refbases( alig0->refbases, alig0->refpos, alig0->reflen, &alig0->bases_in_ref );
+		alig0->refbases = read_refbases( alig0->refname, alig0->refpos, alig0->reflen, &alig0->bases_in_ref );
 		alig1->refbases = NULL;
 		alig1->bases_in_ref	= 0;
 		

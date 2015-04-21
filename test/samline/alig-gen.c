@@ -325,7 +325,7 @@ static char * produce_sam( const gen_context * gctx, const alignment * alig, con
 			const char * r_next = "*";
 			uint32_t r_pos = 0;
 			
-			if ( other != NULL && other->refname != NULL && other->refpos == 0 )
+			if ( other != NULL && other->refname != NULL && other->refpos != 0 )
 			{
 				r_next = other->refname;
 				first = ( alig->refpos < other->refpos );
@@ -522,6 +522,7 @@ static void read_context( Args * args, gen_context * gctx )
 
 	alig0 = &gctx->alig[ 0 ];
 	alig1 = &gctx->alig[ 1 ];
+	
 	if ( gctx->alig[ 1 ].refpos > 0 )
 	{
 		if ( gctx->alig[ 1 ].refname == NULL )

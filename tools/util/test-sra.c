@@ -2149,8 +2149,8 @@ static const char* USAGE_NO_RFS[]
 #define ALIAS_NO_VDB  "N"
 static const char* USAGE_NO_VDB[] = { "do not call VDBManagerPathType", NULL };
 
-#define OPTION_PRJ "p"
-#define ALIAS_PRJ  "project-id"
+#define OPTION_PRJ "project-id"
+#define ALIAS_PRJ  "p"
 static const char* USAGE_PRJ[] = { "set project context", NULL };
 
 #define OPTION_REC "recursive"

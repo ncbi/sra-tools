@@ -169,6 +169,10 @@ namespace ncbi
         uint64_t evt_count;
         uint64_t byte_count;
 
+#if GW_CURRENT_VERSION >= 2
+        uint8_t * packing_buffer;
+#endif
+
         int out_fd;
 
         enum stream_state

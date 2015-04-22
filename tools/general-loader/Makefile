@@ -88,7 +88,8 @@ clean: stdclean
 $(LIBDIR)/general-writer: $(LIBDIR)/$(LPFX)general-writer.$(LIBX)
 
 GEN_WRITER_SRC = \
-    general-writer utf8-like-int-codec
+    general-writer \
+	utf8-like-int-codec
 
 GEN_WRITER_OBJ = \
 	$(addsuffix .$(LOBX),$(GEN_WRITER_SRC))
@@ -100,7 +101,7 @@ $(LIBDIR)/$(LPFX)general-writer.$(LIBX): $(GEN_WRITER_OBJ)
 # gw-dumper
 #
 
-$(TEST_BINDIR)/gw-dumper: $(SRCDIR)/gw-dumper.cpp
+$(TEST_BINDIR)/gw-dumper: $(SRCDIR)/gw-dumper.cpp $(SRCDIR)/utf8-like-int-codec.c
 	c++ $(DBG) -o $@ $^ -I$(SRCDIR) -I$(VDB_INCDIR)/os/$(OS)
 
 

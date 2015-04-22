@@ -148,6 +148,9 @@ namespace ncbi
                 memset ( ins_counts, 0, sizeof ins_counts );
                 uint32_t del_cnt = 0;
 
+                bool have_mismatch = false;
+                bool have_inserts = false;
+
                 char mismatch;
                 uint32_t mismatch_idx;
 
@@ -159,7 +162,10 @@ namespace ncbi
                     case PileupEvent :: match:
                     handle_N_in_mismatch:
                         if ( ( et & PileupEvent :: insertion ) != 0 )
+                        {
                             ++ ins_counts [ ref_base_idx ];
+                            have_inserts = true;
+                        }
                         break;
 
                     case PileupEvent :: mismatch:
@@ -192,6 +198,8 @@ namespace ncbi
                         ++ mismatch_counts [ mismatch_idx ];
                         if ( ( et & PileupEvent :: insertion ) != 0 )
                             ++ ins_counts [ mismatch_idx ];
+
+                        have_mismatch = true;
                         break;
 
                     case PileupEvent :: deletion:
@@ -203,21 +211,24 @@ namespace ncbi
                     }
                 }
 
+#if USE_GENERAL_LOADER
+                // don't have to write RUN_NAME or REFERENCE_SPEC
+                int64_t ref_pos = ref_zpos + 1;
+                out . write ( column_id [ col_REF_POS ], sizeof ref_pos * 8, & ref_pos, 1 );
+#endif
                 if ( depth > depth_cutoff )
                 {
 #if USE_GENERAL_LOADER
-                    // don't have to write RUN_NAME or REFERENCE_SPEC
-                    int64_t ref_pos = ref_zpos + 1;
-                    out . write ( column_id [ col_REF_POS ], sizeof ref_pos * 8, & ref_pos, 1 );
 #if RECORD_REF_BASE
                     out . write ( column_id [ col_REF_BASE ], sizeof ref_base * 8, & ref_base, 1 );
 #endif
                     out . write ( column_id [ col_DEPTH ], sizeof depth * 8, & depth, 1 );
-                    out . write ( column_id [ col_MISMATCH_COUNTS ], sizeof mismatch_counts [ 0 ] * 8, mismatch_counts, 3 );
-                    out . write ( column_id [ col_INSERTION_COUNTS ], sizeof ins_counts [ 0 ] * 8, ins_counts, 4 );
-                    out . write ( column_id [ col_DELETION_COUNT ], sizeof del_cnt * 8, & del_cnt, 1 );
-
-                    out . nextRow ( table_id );
+                    if ( have_mismatch )
+                        out . write ( column_id [ col_MISMATCH_COUNTS ], sizeof mismatch_counts [ 0 ] * 8, mismatch_counts, 3 );
+                    if ( have_inserts )
+                        out . write ( column_id [ col_INSERTION_COUNTS ], sizeof ins_counts [ 0 ] * 8, ins_counts, 4 );
+                    if ( del_cnt != 0 )
+                        out . write ( column_id [ col_DELETION_COUNT ], sizeof del_cnt * 8, & del_cnt, 1 );
 #else
                     std :: cout
                         << runName
@@ -237,6 +248,10 @@ namespace ncbi
                         ;
 #endif
                 }
+
+#if USE_GENERAL_LOADER
+                out . nextRow ( table_id );
+#endif
             }
 #endif // NO_PILEUP_EVENTS
 
@@ -281,6 +296,10 @@ namespace ncbi
 
         // set default values
         out . columnDefault ( column_id [ col_RUN_NAME ], 8, runName . data (), runName . size () );
+        out . columnDefault ( column_id [ col_DEPTH ], 32, "", 0 );
+        out . columnDefault ( column_id [ col_MISMATCH_COUNTS ], 32, "", 0 );
+        out . columnDefault ( column_id [ col_INSERTION_COUNTS ], 32, "", 0 );
+        out . columnDefault ( column_id [ col_DELETION_COUNT ], 32, "", 0 );
     }
 #endif
 

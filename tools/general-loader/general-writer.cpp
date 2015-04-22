@@ -25,6 +25,7 @@
 */
 
 #include "general-writer.hpp"
+#include "utf8-like-int-codec.h"
 
 #include <iterator>
 #include <cstdlib>
@@ -199,6 +200,21 @@ namespace ncbi
 #if GW_CURRENT_VERSION == 1
         int_stream stream ( table_id, column_name );
 #else
+        // even if the caller wants us to use integer compaction,
+        // it must be with a size we know how to use
+        if ( ( flag_bits & 1 ) != 0 )
+        {
+            switch ( elem_bits )
+            {
+            case 16:
+            case 32:
+            case 64:
+                break;
+            default:
+                flag_bits ^= 1;
+            }
+        }
+
         int_stream stream ( table_id, column_name, elem_bits, flag_bits );
 #endif
 
@@ -344,6 +360,82 @@ namespace ncbi
 #endif
     }
 
+    template < class T >
+    int encode_int ( T val, uint8_t * start, uint8_t * end );
+
+    template <>
+    int encode_int < uint16_t > ( uint16_t val, uint8_t * start, uint8_t * end )
+    {
+        int ret = encode_uint16 ( val, start, end );
+        if ( ret > 0 )
+        {
+            uint16_t val2;
+            int ret2 = decode_uint16 ( start, start + ret, & val2 );
+            assert ( ret == ret2 && val == val2 );
+        }
+        return ret;
+    }
+
+    template <>
+    int encode_int < uint32_t > ( uint32_t val, uint8_t * start, uint8_t * end )
+    {
+        int ret = encode_uint32 ( val, start, end );
+        if ( ret > 0 )
+        {
+            uint32_t val2;
+            int ret2 = decode_uint32 ( start, start + ret, & val2 );
+            assert ( ret == ret2 && val == val2 );
+        }
+        return ret;
+    }
+
+    template <>
+    int encode_int < uint64_t > ( uint64_t val, uint8_t * start, uint8_t * end )
+    {
+        int ret = encode_uint64 ( val, start, end );
+        if ( ret > 0 )
+        {
+            uint64_t val2;
+            int ret2 = decode_uint64 ( start, start + ret, & val2 );
+            assert ( ret == ret2 && val == val2 );
+        }
+        return ret;
+    }
+
+    struct encode_result { uint32_t num_elems, num_bytes; };
+
+    const size_t bsize = 0x10000;
+
+    template < class T > static
+    encode_result encode_buffer ( uint8_t * buffer, const void * data, uint32_t first, uint32_t elem_count )
+    {
+        uint8_t * start = buffer;
+        uint8_t * end = buffer + bsize;
+        const T * input = ( const T * ) data;
+
+        uint32_t i;
+        for ( i = first; i < elem_count; ++ i )
+        {
+            int num_writ = encode_int < T > ( input [ i ], start, end );
+            if ( num_writ <= 0 )
+            {
+                if ( num_writ < 0 )
+                    throw "error encoding integer data";
+                break;
+            }
+            start += num_writ;
+        }
+
+        if ( start == buffer )
+            throw "INTERNAL ERROR: no data to encode";
+
+        encode_result rslt;
+        rslt . num_elems = i;
+        rslt . num_bytes = start - buffer;
+
+        return rslt;
+    }
+
     void GeneralWriter :: write ( int stream_id, uint32_t elem_bits, const void *data, uint32_t elem_count )
     {
         switch ( state )
@@ -366,8 +458,12 @@ namespace ncbi
             throw "Invalid data ptr";
 
 #if GW_CURRENT_VERSION >= 2
-        if ( elem_bits != streams [ stream_id - 1 ] . elem_bits )
+        const int_stream & s = streams [ stream_id - 1 ];
+
+        if ( elem_bits != s . elem_bits )
             throw "Invalid elem_bits";
+
+        bool compact_int = ( s . flag_bits & 1 ) != 0;
 #endif
         
 #if GW_CURRENT_VERSION == 1
@@ -390,30 +486,76 @@ namespace ncbi
         }
 #else
         const uint8_t * dp = ( const uint8_t * ) data;
-        size_t num_bytes = ( ( size_t ) elem_bits * elem_count + 7 ) / 8;
-        while ( num_bytes >= 0x10000 )
-        {
-            gw_data_hdr_U16_v2 chunk ( stream_id, evt_cell2_data );
-            chunk . data_size = 0xFFFF;
-            write_event ( &chunk, sizeof chunk );
-            internal_write ( dp, 0x10000 );
-            num_bytes -= 0x10000;
-            dp += 0x10000;
-        }
 
-        if ( num_bytes <= 256 )
+        if ( compact_int )
         {
-            gw_data_hdr_U8_v2 chunk ( stream_id, evt_cell_data );
-            chunk . data_size = ( uint8_t ) ( num_bytes - 1 );
-            write_event ( &chunk, sizeof chunk );
+            uint32_t elem;
+            encode_result rslt;
+            encode_result ( * encode ) ( uint8_t * buffer, const void * data, uint32_t first, uint32_t elem_count );
+
+            switch ( elem_bits )
+            {
+            case 16:
+                encode = encode_buffer < uint16_t >;
+                break;
+            case 32:
+                encode = encode_buffer < uint32_t >;
+                break;
+            case 64:
+                encode = encode_buffer < uint64_t >;
+                break;
+            default:
+                throw "INTERNAL ERROR: corrupt element bits";
+            }
+
+            for ( elem = 0; elem < elem_count; elem = rslt . num_elems )
+            {
+                rslt = ( * encode ) ( packing_buffer, data, elem, elem_count );
+                if ( rslt . num_bytes <= 256 )
+                {
+                    assert ( rslt . num_bytes != 0 );
+                    gw_data_hdr_U8_v2 chunk ( stream_id, evt_cell_data );
+                    chunk . data_size = ( uint8_t ) ( rslt . num_bytes - 1 );
+                    write_event ( &chunk, sizeof chunk );
+                }
+                else
+                {
+                    gw_data_hdr_U16_v2 chunk ( stream_id, evt_cell2_data );
+                    chunk . data_size = ( uint16_t ) ( rslt . num_bytes - 1 );
+                    write_event ( &chunk, sizeof chunk );
+                }
+                internal_write ( packing_buffer, rslt . num_bytes );
+            }
         }
         else
         {
-            gw_data_hdr_U16_v2 chunk ( stream_id, evt_cell2_data );
-            chunk . data_size = ( uint16_t ) ( num_bytes - 1 );
-            write_event ( &chunk, sizeof chunk );
+            size_t num_bytes = ( ( size_t ) elem_bits * elem_count + 7 ) / 8;
+
+            while ( num_bytes >= 0x10000 )
+            {
+                gw_data_hdr_U16_v2 chunk ( stream_id, evt_cell2_data );
+                chunk . data_size = 0xFFFF;
+                write_event ( &chunk, sizeof chunk );
+                internal_write ( dp, 0x10000 );
+                num_bytes -= 0x10000;
+                dp += 0x10000;
+            }
+
+            if ( num_bytes <= 256 )
+            {
+                gw_data_hdr_U8_v2 chunk ( stream_id, evt_cell_data );
+                chunk . data_size = ( uint8_t ) ( num_bytes - 1 );
+                write_event ( &chunk, sizeof chunk );
+            }
+            else
+            {
+                gw_data_hdr_U16_v2 chunk ( stream_id, evt_cell2_data );
+                chunk . data_size = ( uint16_t ) ( num_bytes - 1 );
+                write_event ( &chunk, sizeof chunk );
+            }
+            
+            internal_write ( data, num_bytes );
         }
-        internal_write ( data, num_bytes );
 #endif
     }
 
@@ -519,12 +661,16 @@ namespace ncbi
 #endif
         , evt_count ( 0 )
         , byte_count ( 0 )
+#if GW_CURRENT_VERSION >= 2
+        , packing_buffer ( 0 )
+#endif
         , out_fd ( -1 )
         , state ( uninitialized )
     {
         writeHeader ();
 
 #if GW_CURRENT_VERSION >= 2
+        packing_buffer = new uint8_t [ bsize ];
         setRemotePath ( remote_db );
         useSchema ( schema_file_name, schema_db_spec );
 #endif
@@ -544,12 +690,16 @@ namespace ncbi
 #endif
           evt_count ( 0 )
         , byte_count ( 0 )
+#if GW_CURRENT_VERSION >= 2
+        , packing_buffer ( 0 )
+#endif
         , out_fd ( _out_fd )
         , state ( uninitialized )
     {
         writeHeader ();
 
 #if GW_CURRENT_VERSION >= 2
+        packing_buffer = new uint8_t [ bsize ];
         setRemotePath ( remote_db );
         useSchema ( schema_file_name, schema_db_spec );
 #endif
@@ -560,6 +710,9 @@ namespace ncbi
         endStream ();
         if ( out_fd < 0 )
             out.flush ();
+#if GW_CURRENT_VERSION >= 2
+        delete [] packing_buffer;
+#endif
     }
 
     bool GeneralWriter :: int_stream :: operator < ( const int_stream &s ) const

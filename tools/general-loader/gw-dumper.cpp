@@ -25,6 +25,7 @@
 */
 
 #include "general-writer.hpp"
+#include "utf8-like-int-codec.h"
 #include <iostream>
 #include <vector>
 
@@ -460,6 +461,58 @@ namespace gw_dump
             throw "bad cell event id";
     }
 
+    template < class T >
+    int decode_int ( const uint8_t * start, const uint8_t * end, T * decoded );
+
+    template <>
+    int decode_int < uint16_t > ( const uint8_t * start, const uint8_t * end, uint16_t * decoded )
+    {
+        return decode_uint16 ( start, end, decoded );
+    }
+
+    template <>
+    int decode_int < uint32_t > ( const uint8_t * start, const uint8_t * end, uint32_t * decoded )
+    {
+        return decode_uint32 ( start, end, decoded );
+    }
+
+    template <>
+    int decode_int < uint64_t > ( const uint8_t * start, const uint8_t * end, uint64_t * decoded )
+    {
+        return decode_uint64 ( start, end, decoded );
+    }
+
+    template < class T > static
+    size_t check_int_packing ( const uint8_t * data_buffer, size_t data_size )
+    {
+        const uint8_t * start = data_buffer;
+        const uint8_t * end = data_buffer + data_size;
+
+        size_t unpacked_size;
+        for ( unpacked_size = 0; start < end; unpacked_size += sizeof ( T ) )
+        {
+            T decoded;
+            int num_read = decode_int < T > ( start, end, & decoded );
+            if ( num_read <= 0 )
+            {
+                switch ( num_read )
+                {
+                case CODEC_INSUFFICIENT_BUFFER:
+                    throw "truncated data in packed integer buffer";
+                case CODEC_INVALID_FORMAT:
+                    throw "corrupt data in packed integer buffer";
+                case CODEC_UNKNOWN_ERROR:
+                    throw "unknown error in packed integer buffer";
+                default:
+                    throw "INTERNAL ERROR: decode_uintXX returned invalid error code";
+                }
+            }
+            start += num_read;
+        }
+
+        return unpacked_size;
+    }
+
     static
     void dump_cell_event ( FILE * in, const gw_evt_hdr_v2 & e, const char * type )
     {
@@ -472,7 +525,7 @@ namespace gw_dump
         check_cell_event ( eh );
 
         size_t data_size = eh . size ();
-        char * data_buffer = new char [ data_size ];
+        uint8_t * data_buffer = new uint8_t [ data_size ];
         num_read = readFILE ( data_buffer, sizeof data_buffer [ 0 ], data_size, in );
         if ( num_read != data_size )
         {
@@ -480,17 +533,50 @@ namespace gw_dump
             throw "failed to read cell data";
         }
 
+        bool packed_int = false;
+        size_t unpacked_size = data_size;
+        const col_entry & entry = col_entries [ eh . id () - 1 ];
+        if ( ( entry . flag_bits & 1 ) != 0 )
+        {
+            packed_int = true;
+            switch ( entry . elem_bits )
+            {
+            case 16:
+                unpacked_size = check_int_packing < uint16_t > ( data_buffer, data_size );
+                break;
+            case 32:
+                unpacked_size = check_int_packing < uint32_t > ( data_buffer, data_size );
+                break;
+            case 64:
+                unpacked_size = check_int_packing < uint64_t > ( data_buffer, data_size );
+                break;
+            default:
+                throw "bad element size for packed integer";
+            }
+        }
+
         if ( display )
         {
-            const col_entry & entry = col_entries [ eh . id () - 1 ];
             const std :: string & tbl_name = tbl_names [ entry . table_id - 1 ];
 
             std :: cout
                 << event_num << ": cell-" << type << '\n'
                 << "  stream_id = " << eh . id () << " ( " << tbl_name << " . " << entry . spec << " )\n"
                 << "  elem_bits = " << entry . elem_bits << '\n'
-                << "  elem_count = " << data_size * 8 / entry . elem_bits << " ( " << data_size << " bytes )\n"
                 ;
+            if ( packed_int )
+            {
+                std :: cout
+                    << "  elem_count = " << unpacked_size * 8 / entry . elem_bits
+                    << " ( " << unpacked_size << " bytes, " << data_size << " packed )\n"
+                    ;
+            }
+            else
+            {
+                std :: cout
+                    << "  elem_count = " << data_size * 8 / entry . elem_bits << " ( " << data_size << " bytes )\n"
+                    ;
+            }
         }
 
         delete [] data_buffer;

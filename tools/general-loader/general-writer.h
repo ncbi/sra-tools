@@ -54,7 +54,7 @@ enum gw_evt_id
 #define GW_SIGNATURE "NCBIgnld"
 #define GW_GOOD_ENDIAN 1
 #define GW_REVERSE_ENDIAN ( 1 << 24 )
-#define GW_CURRENT_VERSION 1
+#define GW_CURRENT_VERSION 2
 
 
 /*----------------------------------------------------------------------

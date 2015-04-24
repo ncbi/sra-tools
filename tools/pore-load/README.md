@@ -1,7 +1,7 @@
 ### This tool relies on the following external python modules:
 -  `h5py`
 -  `poretools` -> https://github.com/arq5x/poretools
--  `GeneralWriter` which will be part of ngs
+-  `GeneralWriter` which will be part of ngs, but is tempararily included here
 
 And `h5py` relies on `hdf5`. `python` will need to be able to locate the `hdf5` library at the time that the `h5py` module is loaded, for example, by setting LD_LIBRARY_PATH:
 ```

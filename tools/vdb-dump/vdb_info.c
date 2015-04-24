@@ -94,7 +94,8 @@ typedef struct vdb_info_data
     char path[ 1024 ];
 	char cache[ 1024 ];
     char schema_name[ 1024 ];
-
+	char species[ 1024 ];
+	
     vdb_info_event formatter;
     vdb_info_event loader;
     vdb_info_event update;
@@ -341,32 +342,99 @@ static void split_date( vdb_info_date * d )
 }
 
 /* ----------------------------------------------------------------------------- */
+static bool has_col( const VTable * tab, const char * colname )
+{
+	bool res = false;
+	struct KNamelist * columns;
+	rc_t rc = VTableListReadableColumns( tab, &columns );
+	if ( rc == 0 )
+	{
+		uint32_t count;
+		rc = KNamelistCount( columns, &count );
+		if ( rc == 0 && count > 0 )
+		{
+			uint32_t idx;
+			size_t colname_size = string_size( colname );
+			for ( idx = 0; idx < count && rc == 0 && !res; ++idx )
+			{
+				const char * a_name;
+				rc = KNamelistGet ( columns, idx, &a_name );
+				if ( rc == 0 )
+				{
+					size_t a_name_size = string_size( a_name );
+					uint32_t max_chars = ( uint32_t )colname_size;
+					if ( a_name_size > max_chars ) max_chars = ( uint32_t )a_name_size;
+					int cmp = strcase_cmp ( colname, colname_size,
+											a_name, a_name_size,
+											max_chars );
+					res = ( cmp == 0 );
+				}
+			}
+		}
+		KNamelistRelease( columns );
+	}
+	return res;
+}
 
 static const char * get_platform( const VTable * tab )
 {
     const char * res = PT_NONE;
-    const VCursor * cur;
-    rc_t rc = VTableCreateCursorRead( tab, &cur );
-    if ( rc == 0 )
-    {
-        uint32_t idx;
-        rc = VCursorAddColumn( cur, &idx, "PLATFORM" );
-        if ( rc == 0 )
-        {
-            rc = VCursorOpen( cur );
-            if ( rc == 0 )
-            {
-                const uint8_t * pf;
-                rc = VCursorCellDataDirect( cur, 1, idx, NULL, (const void**)&pf, NULL, NULL );
-                if ( rc == 0 )
-                {
-                    res = vdcd_get_platform_txt( *pf );
-                }
-            }
-        }
-        VCursorRelease( cur );
-    }
+	if ( has_col( tab, "PLATFORM" ) )
+	{
+		const VCursor * cur;
+		rc_t rc = VTableCreateCursorRead( tab, &cur );
+		if ( rc == 0 )
+		{
+			uint32_t idx;
+			rc = VCursorAddColumn( cur, &idx, "PLATFORM" );
+			if ( rc == 0 )
+			{
+				rc = VCursorOpen( cur );
+				if ( rc == 0 )
+				{
+					const uint8_t * pf;
+					rc = VCursorCellDataDirect( cur, 1, idx, NULL, (const void**)&pf, NULL, NULL );
+					if ( rc == 0 )
+					{
+						res = vdcd_get_platform_txt( *pf );
+					}
+				}
+			}
+			VCursorRelease( cur );
+		}
+	}
     return res;
+}
+
+
+static void get_string_cell( char * buffer, size_t buffer_size, const VTable * tab, int64_t row, const char * column )
+{
+	if ( has_col( tab, column ) )
+	{
+		const VCursor * cur;
+		rc_t rc = VTableCreateCursorRead( tab, &cur );
+		if ( rc == 0 )
+		{
+			uint32_t idx;
+			rc = VCursorAddColumn( cur, &idx, column );
+			if ( rc == 0 )
+			{
+				rc = VCursorOpen( cur );
+				if ( rc == 0 )
+				{
+					const char * src;
+					uint32_t row_len;
+					rc = VCursorCellDataDirect( cur, row, idx, NULL, (const void**)&src, NULL, &row_len );
+					if ( rc == 0 )
+					{
+						size_t num_writ;
+						string_printf( buffer, buffer_size, &num_writ, "%.*s", row_len, src );
+					}
+				}
+			}
+			VCursorRelease( cur );
+		}
+	}
 }
 
 
@@ -547,6 +615,7 @@ static rc_t vdb_info_tab( vdb_info_data * data, VSchema * schema, const VDBManag
 
         data->s_platform = get_platform( tab );
         data->seq_rows = get_rowcount( tab );
+		get_string_cell( data->species, sizeof data->species, tab, 1, "DEF_LINE" );
 
         rc = VTableOpenMetadataRead ( tab, &meta );
         if ( rc == 0 )
@@ -575,6 +644,29 @@ static uint64_t get_tab_row_count( const VDatabase * db, const char * table_name
 }
 
 
+static void get_species( char * buffer, size_t buffer_size, const VDatabase * db, const VDBManager *mgr )
+{
+    const VTable * tab;
+    rc_t rc = VDatabaseOpenTableRead( db, &tab, "REFERENCE" );
+    if ( rc == 0 )
+    {
+		char seq_id[ 1024 ];
+		
+		seq_id[ 0 ] = 0;
+		get_string_cell( seq_id, sizeof seq_id, tab, 1, "SEQ_ID" );
+		VTableRelease( tab );
+		if ( seq_id[ 0 ] != 0 )
+		{
+			rc = VDBManagerOpenTableRead( mgr, &tab, NULL, "%s", seq_id );
+			if ( rc == 0 )
+			{
+				get_string_cell( buffer, buffer_size, tab, 1, "DEF_LINE" );
+				VTableRelease( tab );	
+			}
+		}
+    }
+}
+
 static rc_t vdb_info_db( vdb_info_data * data, VSchema * schema, const VDBManager *mgr )
 {
     const VDatabase * db;
@@ -601,6 +693,9 @@ static rc_t vdb_info_db( vdb_info_data * data, VSchema * schema, const VDBManage
         data->passes_rows       = get_tab_row_count( db, "PASSES" );
         data->metrics_rows      = get_tab_row_count( db, "ZMW_METRICS" );
 
+		if ( data->ref_rows > 0 )
+			get_species( data->species, sizeof data->species, db, mgr );
+		
         rc = VDatabaseOpenMetadataRead ( db, &meta );
         if ( rc == 0 )
         {
@@ -707,6 +802,9 @@ static rc_t vdb_info_print_xml( vdb_info_data * data )
             rc = KOutMsg( "<MINUTE>%.02d</MINUTE>\n", data->ts.minute );
     }
 
+	if ( rc == 0 && data->species[ 0 ] != 0 )
+		rc = vdb_info_print_xml_s( "SPECIES", data->species );
+	
     if ( rc == 0 )
         rc = vdb_info_print_xml_event( "FORMATTER", &data->formatter );
     if ( rc == 0 )
@@ -811,6 +909,9 @@ static rc_t vdb_info_print_json( vdb_info_data * data )
             rc = KOutMsg( "\"MINUTE\":%d,\n", data->ts.minute );
     }
 
+	if ( rc == 0 && data->species[ 0 ] != 0 )
+		rc = vdb_info_print_json_s( "SPECIES", data->species );
+	
     if ( rc == 0 )
         rc = vdb_info_print_json_event( "FORMATTER", &data->formatter );
     if ( rc == 0 )
@@ -867,6 +968,14 @@ static rc_t vdb_info_print_sep( vdb_info_data * data, const char sep )
                       data->ts.month, sep, data->ts.day, sep, data->ts.year, sep,
                       data->ts.hour, sep, data->ts.minute, sep );
 
+    if ( rc == 0 )
+	{
+		if ( data->species[ 0 ] != 0 )
+			rc = KOutMsg( "%s%c", data->species, sep );
+		else
+			rc = KOutMsg( "-%c", sep );
+	}
+		
     if ( rc == 0 )
         rc = vdb_info_print_sep_event( &data->formatter, sep, false );
     if ( rc == 0 )
@@ -969,6 +1078,9 @@ static rc_t vdb_info_print_dflt( vdb_info_data * data )
                       data->ts.timestamp, data->ts.month, data->ts.day, data->ts.year,
                       data->ts.hour, data->ts.minute );
 
+    if ( rc == 0 && data->species[ 0 ] != 0 )
+        rc = KOutMsg( "SPECIES: %s\n", data->species );
+		
     if ( rc == 0 )
         vdb_info_print_dflt_event( &data->formatter, "FMT" );
     if ( rc == 0 )

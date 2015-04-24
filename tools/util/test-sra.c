@@ -1343,6 +1343,29 @@ static rc_t MainResolveQuery(const Main *self, const VResolver *resolver,
     return rc;
 }
 
+static rc_t _KartItemToVPath(const KartItem *self,
+    const VFSManager *vfs, VPath **path)
+{
+    uint64_t oid = 0;
+    rc_t rc = KartItemItemIdNumber(self, &oid);
+    if (rc == 0) {
+        rc = VFSManagerMakeOidPath(vfs, path, (uint32_t)oid);
+    }
+    else {
+        char path_str[PATH_MAX] = "";
+        const String *accession = NULL;
+        rc = KartItemAccession(self, &accession);
+        if (rc == 0) {
+            rc =
+                string_printf(path_str, sizeof path_str, NULL, "%S", accession);
+        }
+        if (rc == 0) {
+            rc = VFSManagerMakePath(vfs, path, path_str);
+        }
+    }
+    return rc;
+}
+
 static rc_t MainResolve(const Main *self, const KartItem *item,
     const char *name, int64_t *localSz, int64_t *remoteSz, bool refseqCtx)
 {
@@ -1373,7 +1396,6 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
         }
         else {
             const KRepository *p_protected = NULL;
-            uint64_t oid = 0;
             uint64_t project = 0;
             if (rc == 0) {
                 rc = KartItemProjIdNumber(item, &project);
@@ -1382,15 +1404,9 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
                 }
             }
             if (rc == 0) {
-                rc = KartItemItemIdNumber(item, &oid);
+                rc = _KartItemToVPath(item, self->vMgr, &acc);
                 if (rc != 0) {
-                    OUTMSG(("KartItemItemIdNumber = %R\n", rc));
-                }
-            }
-            if (rc == 0) {
-                rc = VFSManagerMakeOidPath(self->vMgr, &acc, (uint32_t)oid);
-                if (rc != 0) {
-                    OUTMSG(("VFSManagerMakePath(%d) = %R\n", oid, rc));
+                    OUTMSG(("Invalid kart file row: %R\n", rc));
                 }
             }
             if (rc == 0) {

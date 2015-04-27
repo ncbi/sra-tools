@@ -29,6 +29,7 @@
 #include <klib/time.h>
 #include <klib/printf.h>
 #include <klib/num-gen.h>
+#include <klib/text.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -361,12 +362,13 @@ static bool has_col( const VTable * tab, const char * colname )
 				rc = KNamelistGet ( columns, idx, &a_name );
 				if ( rc == 0 )
 				{
+					int cmp;
 					size_t a_name_size = string_size( a_name );
 					uint32_t max_chars = ( uint32_t )colname_size;
 					if ( a_name_size > max_chars ) max_chars = ( uint32_t )a_name_size;
-					int cmp = strcase_cmp ( colname, colname_size,
-											a_name, a_name_size,
-											max_chars );
+					cmp = strcase_cmp ( colname, colname_size,
+										a_name, a_name_size,
+										max_chars );
 					res = ( cmp == 0 );
 				}
 			}

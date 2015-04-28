@@ -1428,10 +1428,18 @@ MIXED_BASE_AND_COLOR:
             goto LOOP_END;
         originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;/*BAM*/
         aligned = originally_aligned;
+#if 0
         if (originally_aligned && AR_MAPQ(data) < G.minMapQual) {
             aligned = false;
             UNALIGNED_LOW_MAPQ;
         }
+#else
+        /* min-mapq now only applies to secondary alignment to match cg-load
+         * see [SRA-2778] in JIRA
+         */
+        if (!isPrimary && AR_MAPQ(data) < G.minMapQual)
+            goto LOOP_END;
+#endif
         if (aligned && isColorSpace && readlen == 0) {
             /* detect hard clipped colorspace   */
             /* reads and make unaligned         */

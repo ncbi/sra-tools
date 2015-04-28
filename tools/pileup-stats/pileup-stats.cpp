@@ -74,7 +74,7 @@ namespace ncbi
     };
 
 #if USE_GENERAL_LOADER
-    static int table_id;
+    static int tbl_id;
     static int column_id [ num_columns ];
     static uint8_t integer_column_flag_bits;
 #endif
@@ -250,7 +250,7 @@ namespace ncbi
                 }
 
 #if USE_GENERAL_LOADER
-                out . nextRow ( table_id );
+                out . nextRow ( tbl_id );
 #endif
             }
 #endif // NO_PILEUP_EVENTS
@@ -263,33 +263,19 @@ namespace ncbi
     void prepareOutput ( GeneralWriter & out, const String & runName )
     {
         // add table
-        table_id = out . addTable ( "STATS" );
+        tbl_id = out . addTable ( "STATS" );
 
-#if GW_CURRENT_VERSION == 1
         // add each column
-        column_id [ col_RUN_NAME ] = out . addColumn ( table_id, "RUN_NAME" );
-        column_id [ col_REFERENCE_SPEC ] = out . addColumn ( table_id, "REFERENCE_SPEC" );
-        column_id [ col_REF_POS ] = out . addColumn ( table_id, "REF_POS" );
+        column_id [ col_RUN_NAME ] = out . addColumn ( tbl_id, "RUN_NAME", 8 );
+        column_id [ col_REFERENCE_SPEC ] = out . addColumn ( tbl_id, "REFERENCE_SPEC", 8 );
+        column_id [ col_REF_POS ] = out . addColumn ( tbl_id, "REF_POS", 64, integer_column_flag_bits );
 #if RECORD_REF_BASE
-        column_id [ col_REF_BASE ] = out . addColumn ( table_id, "REF_BASE" );
+        column_id [ col_REF_BASE ] = out . addColumn ( tbl_id, "REF_BASE", 8 );
 #endif
-        column_id [ col_DEPTH ] = out . addColumn ( table_id, "DEPTH" );
-        column_id [ col_MISMATCH_COUNTS ] = out . addColumn ( table_id, "MISMATCH_COUNTS" );
-        column_id [ col_INSERTION_COUNTS ] = out . addColumn ( table_id, "INSERTION_COUNTS" );
-        column_id [ col_DELETION_COUNT ] = out . addColumn ( table_id, "DELETION_COUNT" );
-#else
-        // add each column
-        column_id [ col_RUN_NAME ] = out . addColumn ( table_id, "RUN_NAME", 8 );
-        column_id [ col_REFERENCE_SPEC ] = out . addColumn ( table_id, "REFERENCE_SPEC", 8 );
-        column_id [ col_REF_POS ] = out . addColumn ( table_id, "REF_POS", 64, integer_column_flag_bits );
-#if RECORD_REF_BASE
-        column_id [ col_REF_BASE ] = out . addColumn ( table_id, "REF_BASE", 8 );
-#endif
-        column_id [ col_DEPTH ] = out . addColumn ( table_id, "DEPTH", 32, integer_column_flag_bits );
-        column_id [ col_MISMATCH_COUNTS ] = out . addColumn ( table_id, "MISMATCH_COUNTS", 32, integer_column_flag_bits );
-        column_id [ col_INSERTION_COUNTS ] = out . addColumn ( table_id, "INSERTION_COUNTS", 32, integer_column_flag_bits );
-        column_id [ col_DELETION_COUNT ] = out . addColumn ( table_id, "DELETION_COUNT", 32, integer_column_flag_bits );
-#endif
+        column_id [ col_DEPTH ] = out . addColumn ( tbl_id, "DEPTH", 32, integer_column_flag_bits );
+        column_id [ col_MISMATCH_COUNTS ] = out . addColumn ( tbl_id, "MISMATCH_COUNTS", 32, integer_column_flag_bits );
+        column_id [ col_INSERTION_COUNTS ] = out . addColumn ( tbl_id, "INSERTION_COUNTS", 32, integer_column_flag_bits );
+        column_id [ col_DELETION_COUNT ] = out . addColumn ( tbl_id, "DELETION_COUNT", 32, integer_column_flag_bits );
 
         // open the stream
         out . open ();
@@ -321,12 +307,17 @@ namespace ncbi
             remote_db = _remote_db;
 
         GeneralWriter *outp = ( outfile == NULL ) ? 
-            new GeneralWriter ( 1, remote_db, "align/pileup-stats.vschema", "NCBI:pileup:db:pileup_stats #1" ) :
-            new GeneralWriter ( outfile, remote_db, "align/pileup-stats.vschema", "NCBI:pileup:db:pileup_stats #1" );
+            new GeneralWriter ( 1 ) : new GeneralWriter ( outfile );
 
         try
         {
             GeneralWriter &out = *outp;
+
+            // add remote db event
+            out . setRemotePath ( remote_db );
+
+            // use schema
+            out . useSchema ( "align/pileup-stats.vschema", "NCBI:pileup:db:pileup_stats #1" );
 
             prepareOutput ( out, runName );
 #endif
@@ -449,7 +440,7 @@ extern "C"
             << "  -x|--depth-cutoff                cutoff for depth <= value (default 1)\n"
             << "  -a|--align-category              the types of alignments to pile up:\n"
             << "                                   { primary, secondary, all } (default all)\n"
-#if USE_GENERAL_LOADER && GW_CURRENT_VERSION >= 2
+#if USE_GENERAL_LOADER
             << "  -P|--pack-integer                pack integers in output pipe - uses less bandwidth\n"
 #endif
             << "  -h|--help                        output brief explanation of the program\n"
@@ -522,7 +513,7 @@ extern "C"
                     }
                     break;
                 }
-#if USE_GENERAL_LOADER && GW_CURRENT_VERSION >= 2
+#if USE_GENERAL_LOADER
                 case 'P':
                     ncbi :: integer_column_flag_bits = 1;
                     break;
@@ -567,7 +558,7 @@ extern "C"
                             throw "Invalid alignment category";
                         }
                     }
-#if USE_GENERAL_LOADER && GW_CURRENT_VERSION >= 2
+#if USE_GENERAL_LOADER
                     else if ( strcmp ( arg, "pack-integer" ) == 0 )
                     {
                         ncbi :: integer_column_flag_bits = 1;

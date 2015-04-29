@@ -484,6 +484,9 @@ namespace ncbi
     inline uint32_t elem_bits ( const :: gw_column_evt_v1 & self )
     { return self . elem_bits; }
 
+    inline uint8_t flag_bits ( const :: gw_column_evt_v1 & self )
+    { return 0; }
+
     inline size_t name_size ( const :: gw_column_evt_v1 & self )
     { return self . name_sz; }
 
@@ -612,6 +615,9 @@ namespace ncbi
 
     inline uint32_t elem_bits ( const :: gwp_column_evt_v1 & self )
     { return ( uint32_t ) self . elem_bits + 1; }
+
+    inline uint8_t flag_bits ( const :: gwp_column_evt_v1 & self )
+    { return self . flag_bits; }
 
     inline size_t name_size ( const :: gwp_column_evt_v1 & self )
     { return ( size_t ) self . name_sz + 1; }

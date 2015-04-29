@@ -378,14 +378,14 @@ namespace gw_dump
             if ( packed_int )
             {
                 std :: cout
-                    << "  elem_count = " << unpacked_size * 8 / entry . elem_bits
+                    << "  elem_count = " << ( unpacked_size * 8 ) / entry . elem_bits
                     << " ( " << unpacked_size << " bytes, " << data_size << " packed )\n"
                     ;
             }
             else
             {
                 std :: cout
-                    << "  elem_count = " << data_size * 8 / entry . elem_bits << " ( " << data_size << " bytes )\n"
+                    << "  elem_count = " << ( data_size * 8 ) / entry . elem_bits << " ( " << data_size << " bytes )\n"
                     ;
             }
         }
@@ -523,7 +523,7 @@ namespace gw_dump
 
         char * string_buffer = read_colname ( eh, in );
         std :: string name ( string_buffer, name_size ( eh ) );
-        col_entries . push_back ( col_entry ( table_id ( eh ), name, elem_bits ( eh ) ) );
+        col_entries . push_back ( col_entry ( table_id ( eh ), name, elem_bits ( eh ), flag_bits ( eh ) ) );
 
         if ( display )
         {

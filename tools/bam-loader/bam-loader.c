@@ -150,7 +150,7 @@ char const * config_usage[] =
 static
 char const * min_mapq_usage[] = 
 {
-    "Minimum mapping quality to be considered an alignment.",
+    "Filter secondary alignments by minimum mapping quality.",
     NULL
 };
 

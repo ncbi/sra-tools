@@ -33,9 +33,13 @@
 #include <vector>
 #include <map>
 
+#include "general-writer.h"
+
 struct KStream;
 struct VCursor;
 struct VDatabase;
+struct VDBManager;
+struct VSchema;
 
 #define GeneralLoaderSignatureString "NCBIgnld"
 
@@ -43,20 +47,10 @@ class GeneralLoader
 {
 public:
     
-    struct Header
-    {
-        char        signature[8];   // 8 characters to identify file type                    
-        uint32_t    endian;         // an internally known pattern to identify endian                  
-        uint32_t    version;        // a single-integer version number                     
-        uint32_t    remote_db_name_size;
-        uint32_t    schema_file_name_size;
-        uint32_t    schema_spec_size;
-        // string data follows: 3 strings plus 1 NUL byte for each, 4-byte aligned
-        // uint32_t data [ ( ( remote_db_name_size + schema_file_name_size + schema_spec_size + 3 ) + 3 ) / 4 ];
-    };
+    typedef struct gw_header_v1 Header;
     
-    enum Evt_id
-    {
+    typedef enum gw_evt_id Evt_id;
+/*    {
         evt_end_stream = 1,
         evt_new_table,
         evt_new_column,
@@ -65,7 +59,7 @@ public:
         evt_cell_data, 
         evt_next_row,
         evt_errmsg
-    };
+    };*/
     
     struct Table_hdr
     {
@@ -129,21 +123,32 @@ private:
     // value_type : index into Cursors
     typedef std::map < uint32_t, uint32_t > TableIdToCursor; 
     
+    typedef struct 
+    {
+        uint32_t cursorIdx;     // index into Cursors
+        uint32_t columnIdx;     // index in the VCursor
+        uint32_t elemBits;
+    } Column;
+    
     // From column id to VCursor.
     // value_type::first    : index into Cursors
     // value_type::second   : colIdx in the VCursor
-    typedef std::map < uint32_t, std::pair < uint32_t, uint32_t > > ColumnToCursor; 
+    typedef std::map < uint32_t, Column > Columns; 
     
     typedef std::vector < std::string > Paths;
 
     rc_t ReadHeader ();
-    rc_t ReadMetadata ();
-    rc_t MakeDatabase ();
-    rc_t MakeCursor ( const char*  p_table );
+    rc_t ReadEvents ();
+    void CleanUp ();
+    
+    rc_t MakeSchema ( const std :: string& p_file, const std :: string& p_name );
+    rc_t MakeDatabase ( const std :: string& p_databaseName );
+    
+    rc_t MakeCursor ( const std :: string& p_table );
     rc_t MakeCursors ();
     rc_t OpenCursors ();
-    rc_t ReadData ();
-    void CleanUp ();
+    rc_t CloseCursors ();
+    
     static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
     
     
@@ -174,15 +179,19 @@ private:
     
     Reader m_reader;
     
-    Header  m_header;
-    char*   m_headerNames;
+    Header          m_header;
+    std::string     m_databaseName;
+    std::string     m_schemaName;
     
     Paths               m_includePaths;
     Paths               m_schemas;
+    struct VDBManager*  m_mgr;
+    struct VSchema*     m_schema;
     struct VDatabase*   m_db;
+    
     Cursors             m_cursors;
     TableIdToCursor     m_tables;
-    ColumnToCursor      m_columns;
+    Columns             m_columns;
 };
 
 #endif

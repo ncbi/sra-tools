@@ -33,7 +33,8 @@ TEST_TOOLS = \
 
 ALL_TOOLS = \
 	$(TEST_TOOLS) \
-	test-general-writer
+    
+#	test-general-writer
 
 include $(TOP)/build/Makefile.env
 
@@ -89,11 +90,11 @@ vg_gen_write: test-general-writer
 	rm -f gen-write-out
 
 
-runtests: test-general-writer piped-load-tests
+runtests:$(TEST_TOOLS) piped-load-tests
 
 piped-load-tests: $(ALL_TOOLS)
-	$(TEST_BINDIR)/test-general-writer | $(BINDIR)/general-loader
-	$(BINDIR)/vdb-dump -T table1 remote_db
+	-$(TEST_BINDIR)/test-general-writer | $(BINDIR)/general-loader -L=info
+	-$(BINDIR)/vdb-dump -T table1 remote_db
 	rm -rf remote_db
 
 #-------------------------------------------------------------------------------

@@ -35,7 +35,9 @@
 #include <iomanip>
 
 #define USE_GENERAL_LOADER 1
-#define RECORD_REF_BASE 0
+#define RECORD_REF_BASE    0
+#define RECORD_REF_POS     1
+#define RECORD_MATCH_COUNT 1
 
 #if _DEBUGGING
 #define SINGLE_REFERENCE 0
@@ -61,7 +63,9 @@ namespace ncbi
     {
         col_RUN_NAME,
         col_REFERENCE_SPEC,
+#if RECORD_REF_POS
         col_REF_POS,
+#endif
 #if RECORD_REF_BASE
         col_REF_BASE,
 #endif
@@ -140,17 +144,25 @@ namespace ncbi
             }
 #endif
 #else
+
+#if RECORD_MATCH_COUNT
+            uint32_t mismatch_counts [ 4 ];
+#else
+            uint32_t mismatch_counts [ 3 ];
+#endif
+            memset ( mismatch_counts, 0, sizeof mismatch_counts );
+
+            uint32_t ins_counts [ 4 ];
+            memset ( ins_counts, 0, sizeof ins_counts );
+
+            uint32_t del_cnt = 0;
+
+            bool have_mismatch = false;
+            bool have_inserts = false;
+
+
             if ( depth > depth_cutoff )
             {
-                uint32_t mismatch_counts [ 3 ];
-                memset ( mismatch_counts, 0, sizeof mismatch_counts );
-                uint32_t ins_counts [ 4 ];
-                memset ( ins_counts, 0, sizeof ins_counts );
-                uint32_t del_cnt = 0;
-
-                bool have_mismatch = false;
-                bool have_inserts = false;
-
                 char mismatch;
                 uint32_t mismatch_idx;
 
@@ -160,6 +172,10 @@ namespace ncbi
                     switch ( et & 7 )
                     {
                     case PileupEvent :: match:
+#if RECORD_MATCH_COUNT
+                        ++ mismatch_counts [ ref_base_idx ];
+                        have_mismatch = true;
+#endif
                     handle_N_in_mismatch:
                         if ( ( et & PileupEvent :: insertion ) != 0 )
                         {
@@ -189,15 +205,17 @@ namespace ncbi
                         // first, assert that mismatch_idx cannot be ref_base_idx
                         assert ( mismatch_idx != ref_base_idx );
 
+                        // count insertions
+                        if ( ( et & PileupEvent :: insertion ) != 0 )
+                            ++ ins_counts [ mismatch_idx ];
+#if ! RECORD_MATCH_COUNT
                         // since we know the mimatch range is sparse,
                         // reduce it by 1 to make it dense
                         if ( mismatch_idx > ref_base_idx )
                             -- mismatch_idx;
-
+#endif
                         // count the mismatches
                         ++ mismatch_counts [ mismatch_idx ];
-                        if ( ( et & PileupEvent :: insertion ) != 0 )
-                            ++ ins_counts [ mismatch_idx ];
 
                         have_mismatch = true;
                         break;
@@ -210,49 +228,51 @@ namespace ncbi
                         break;
                     }
                 }
+            }
 
 #if USE_GENERAL_LOADER
-                // don't have to write RUN_NAME or REFERENCE_SPEC
-                int64_t ref_pos = ref_zpos + 1;
-                out . write ( column_id [ col_REF_POS ], sizeof ref_pos * 8, & ref_pos, 1 );
+            // don't have to write RUN_NAME or REFERENCE_SPEC
+            int64_t ref_pos = ref_zpos + 1;
+#if RECORD_REF_POS
+            out . write ( column_id [ col_REF_POS ], sizeof ref_pos * 8, & ref_pos, 1 );
 #endif
-                if ( depth > depth_cutoff )
-                {
+#endif
+            if ( depth > depth_cutoff )
+            {
 #if USE_GENERAL_LOADER
 #if RECORD_REF_BASE
-                    out . write ( column_id [ col_REF_BASE ], sizeof ref_base * 8, & ref_base, 1 );
+                out . write ( column_id [ col_REF_BASE ], sizeof ref_base * 8, & ref_base, 1 );
 #endif
-                    out . write ( column_id [ col_DEPTH ], sizeof depth * 8, & depth, 1 );
-                    if ( have_mismatch )
-                        out . write ( column_id [ col_MISMATCH_COUNTS ], sizeof mismatch_counts [ 0 ] * 8, mismatch_counts, 3 );
-                    if ( have_inserts )
-                        out . write ( column_id [ col_INSERTION_COUNTS ], sizeof ins_counts [ 0 ] * 8, ins_counts, 4 );
-                    if ( del_cnt != 0 )
-                        out . write ( column_id [ col_DELETION_COUNT ], sizeof del_cnt * 8, & del_cnt, 1 );
+                out . write ( column_id [ col_DEPTH ], sizeof depth * 8, & depth, 1 );
+                if ( have_mismatch )
+                    out . write ( column_id [ col_MISMATCH_COUNTS ], sizeof mismatch_counts [ 0 ] * 8, mismatch_counts, 3 );
+                if ( have_inserts )
+                    out . write ( column_id [ col_INSERTION_COUNTS ], sizeof ins_counts [ 0 ] * 8, ins_counts, 4 );
+                if ( del_cnt != 0 )
+                    out . write ( column_id [ col_DELETION_COUNT ], sizeof del_cnt * 8, & del_cnt, 1 );
 #else
-                    std :: cout
-                        << runName
-                        << '\t' << refName
-                        << '\t' << ref_zpos + 1
-                        << '\t' << ref_base
-                        << '\t' << depth
-                        << "\t{" << mismatch_counts [ 0 ]
-                        << ',' << mismatch_counts [ 1 ]
-                        << ',' << mismatch_counts [ 2 ]
-                        << "}\t{" << ins_counts [ 0 ]
-                        << ',' << ins_counts [ 1 ]
-                        << ',' << ins_counts [ 2 ]
-                        << ',' << ins_counts [ 3 ]
-                        << "}\t" << del_cnt
-                        << '\n'
-                        ;
-#endif
-                }
-
-#if USE_GENERAL_LOADER
-                out . nextRow ( tbl_id );
+                std :: cout
+                    << runName
+                    << '\t' << refName
+                    << '\t' << ref_zpos + 1
+                    << '\t' << ref_base
+                    << '\t' << depth
+                    << "\t{" << mismatch_counts [ 0 ]
+                    << ',' << mismatch_counts [ 1 ]
+                    << ',' << mismatch_counts [ 2 ]
+                    << "}\t{" << ins_counts [ 0 ]
+                    << ',' << ins_counts [ 1 ]
+                    << ',' << ins_counts [ 2 ]
+                    << ',' << ins_counts [ 3 ]
+                    << "}\t" << del_cnt
+                    << '\n'
+                    ;
 #endif
             }
+
+#if USE_GENERAL_LOADER
+            out . nextRow ( tbl_id );
+#endif
 #endif // NO_PILEUP_EVENTS
 
         }
@@ -268,7 +288,9 @@ namespace ncbi
         // add each column
         column_id [ col_RUN_NAME ] = out . addColumn ( tbl_id, "RUN_NAME", 8 );
         column_id [ col_REFERENCE_SPEC ] = out . addColumn ( tbl_id, "REFERENCE_SPEC", 8 );
+#if RECORD_REF_POS
         column_id [ col_REF_POS ] = out . addColumn ( tbl_id, "REF_POS", 64, integer_column_flag_bits );
+#endif
 #if RECORD_REF_BASE
         column_id [ col_REF_BASE ] = out . addColumn ( tbl_id, "REF_BASE", 8 );
 #endif

@@ -31,21 +31,44 @@
 extern "C" {
 #endif
 
+struct cigar_t;
+
+struct cigar_t * make_cigar_t( const char * cigar_str );
+void free_cigar_t( struct cigar_t * c );
+
+int cigar_t_reflen( const struct cigar_t * c );
+int cigar_t_readlen( const struct cigar_t * c );
+int cigar_t_inslen( const struct cigar_t * c );
+
+size_t cigar_t_string( char * buffer, size_t buf_len, const struct cigar_t * c );
+
+struct cigar_t * merge_cigar_t( const struct cigar_t * c );
+
+size_t md_tag( char * buffer, size_t buf_len,
+			   const struct cigar_t * c, const char * read, const char * reference );
+
+void debug_cigar_t( const struct cigar_t * c );
+
+size_t cigar_t_2_read( char * buffer, size_t buf_len,
+					   const struct cigar_t * c, const char * ref_bases, const char * ins_bases );
+
+/*
 typedef struct cigar_opt
 {
 	char op;
-	uint32_t count;
+	int count;
 	struct cigar_opt * next;
 } cigar_opt;
 
 cigar_opt * parse_cigar( const char * cigar );
 void free_cigar( cigar_opt * cigar );
-uint32_t calc_reflen( const cigar_opt * cigar );
-uint32_t calc_readlen( const cigar_opt * cigar );
-uint32_t calc_inslen( const cigar_opt * cigar );
+int calc_reflen( const cigar_opt * cigar );
+int calc_readlen( const cigar_opt * cigar );
+int calc_inslen( const cigar_opt * cigar );
 char * to_string( const cigar_opt * cigar );
 cigar_opt * merge_match_and_mismatch( const cigar_opt * cigar );
 char * produce_read( const cigar_opt * cigar, const char * ref_bases, const char * ins_bases );
+*/
 
 #ifdef __cplusplus
 }

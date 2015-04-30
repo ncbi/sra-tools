@@ -70,6 +70,7 @@ static const char * ref_usage[]			= { "return only refbases (set cigar to 100M f
 static const char * flags_usage[]		= { "decode decimal flags-value", NULL };
 static const char * header_usage[]		= { "produce header", NULL };
 static const char * config_usage[]		= { "procuce config-file", NULL };
+static const char * mdtag_usage[]		= { "procuce md-tag", NULL };
 
 #define OPTION_REFNAME		"refname"
 #define OPTION_REFPOS		"refpos"
@@ -87,6 +88,7 @@ static const char * config_usage[]		= { "procuce config-file", NULL };
 #define OPTION_FLAGS		"flags"
 #define OPTION_HEADER		"header"
 #define OPTION_CONFIG		"config"
+#define OPTION_MDTAG		"mdtag"
 
 #define ALIAS_REFNAME		"r"
 #define ALIAS_REFPOS		"p"
@@ -104,6 +106,7 @@ static const char * config_usage[]		= { "procuce config-file", NULL };
 #define ALIAS_FLAGS			"l"
 #define ALIAS_HEADER		"d"
 #define ALIAS_CONFIG		"n"
+#define ALIAS_MDTAG			"t"
 
 OptDef Options[] =
 {
@@ -122,7 +125,8 @@ OptDef Options[] =
     { OPTION_REF, 		ALIAS_REF,		NULL, ref_usage,		1,	false, 	false },
     { OPTION_FLAGS, 	ALIAS_FLAGS,	NULL, flags_usage,		1,	true, 	false },
     { OPTION_HEADER, 	ALIAS_HEADER,	NULL, header_usage,	1,	false, 	false },
-    { OPTION_CONFIG, 	ALIAS_CONFIG,	NULL, config_usage,	1,	true, 	false }	
+    { OPTION_CONFIG, 	ALIAS_CONFIG,	NULL, config_usage,	1,	true, 	false },
+    { OPTION_MDTAG, 	ALIAS_MDTAG,	NULL, mdtag_usage,		1,	false, 	false }		
 };
 
 const char UsageDefaultName[] = "samline";
@@ -212,14 +216,14 @@ typedef struct alignment
 	const char * refname;
 	const char * cigar_str;
 	const char * refbases;
-	const char * read;
-	const char * sam;
+	char read[ 4096 ];
+	char sam[ 4096 ];
 	
 	int reverse, secondary, bad, dup, prop;
 
 	uint32_t refpos, mapq, bases_in_ref, reflen;	
 	
-	cigar_opt * cigar;	
+	struct cigar_t * cigar;
 } alignment;
 
 typedef struct gen_context
@@ -243,34 +247,33 @@ static rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t
 }
 
 
-static char * random_string( const char * char_set, size_t length )
+static size_t random_string( char * buffer, size_t buflen, const char * char_set, size_t length )
 {
-	char * res = malloc( length + 1 );
-	if ( res != NULL )
+	size_t res = 0;
+	if ( buffer != NULL && buflen > 0 )
 	{
 		const char dflt_charset[] = "0123456789"
 									"abcdefghijklmnopqrstuvwxyz"
 									"ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 		const char * cs = ( char_set == NULL ) ? dflt_charset : char_set;
 		size_t charset_len = strlen( cs ) - 1;
-		size_t dst_idx = 0;
-		while ( dst_idx < length )
+		while ( res < length && res < ( buflen - 1 ) )
 		{
 			size_t rand_idx = ( double ) rand() / RAND_MAX * charset_len;
-			res[ dst_idx++ ] = cs[ rand_idx ];
+			buffer[ res++ ] = cs[ rand_idx ];
 		}
-		res[ dst_idx++ ] = 0;
+		buffer[ res ] = 0;
 	}
 	return res;
 }
 
 
-static char * random_quality( size_t length )
+static size_t random_quality( char * buffer, size_t buflen, size_t length )
 {
 	const char qualities[] = "!\"#$%&'()*+,-./0123456789:;<=>?"
 							 "@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_"
 							 "`abcdefghijklmnopqrstuvwxyz{|}~";
-	return random_string( qualities, length );
+	return random_string( buffer, buflen, qualities, length );
 }
 
 static uint32_t sam_flags( const alignment * alig, const alignment * other, int first, int last )
@@ -291,66 +294,48 @@ static uint32_t sam_flags( const alignment * alig, const alignment * other, int 
 }
 
 
-static char * produce_merged_cigar( const cigar_opt * cigar )
+static size_t produce_sam( char * buffer, size_t buflen,
+						   const gen_context * gctx, const alignment * alig, const alignment * other )
 {
-	char * res = NULL;
-	cigar_opt * temp = merge_match_and_mismatch( cigar );
-	if ( temp != NULL )
+	size_t res = 0;
+	if ( buffer != NULL ) buffer[ 0 ] = 0;
+	
+	if ( buffer != NULL && gctx != NULL && alig != NULL )
 	{
-		res = to_string( temp );
-		free_cigar( temp );
-	}
-	return res;
-}
+		char merged_cigar_str[ 4096 ];
+		char quality[ 4096 ];
+		int first = 0;
+		int last = 0;
+		const char * r_next = "*";
+		uint32_t r_pos = 0;
+		struct cigar_t * merged_cigar = merge_cigar_t( alig->cigar );
 
-static char * produce_sam( const gen_context * gctx, const alignment * alig, const alignment * other )
-{
-	char * res = NULL;
-	if ( gctx != NULL && alig != NULL )
-	{
-		size_t l_qname   = gctx->qname != NULL ? strlen( gctx->qname ) : 10;
-		size_t l_refname = alig->refname != NULL ? strlen( alig->refname ) : 10;
-		size_t l_read 	 = alig->read != NULL ? strlen( alig->read ) : 10;
-		size_t l_cigar	 = alig->cigar_str != NULL ? strlen( alig->cigar_str ) : 10;
+		random_quality( quality, sizeof quality, cigar_t_readlen( merged_cigar ) )	;
+		cigar_t_string( merged_cigar_str, sizeof merged_cigar_str, merged_cigar );
 		
-		size_t l = l_qname + ( 2 * l_refname ) + ( 2 * l_read ) + l_cigar + 100;
-		res = malloc( l );
-		if ( res != NULL )
+		if ( other != NULL && other->refname != NULL && other->refpos != 0 )
 		{
-			const char * cig_str = produce_merged_cigar( alig->cigar );
-			const char * quality = random_quality( l_read );
-		
-			int first = 0;
-			int last = 0;
-			const char * r_next = "*";
-			uint32_t r_pos = 0;
-			
-			if ( other != NULL && other->refname != NULL && other->refpos != 0 )
-			{
-				r_next = other->refname;
-				first = ( alig->refpos < other->refpos );
-				last = !first;
-				r_pos = other->refpos;
-			}
-
-			size_t num_writ;
-			string_printf ( res, l, &num_writ,
-							"%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s",
-							gctx->qname,
-							sam_flags( alig, other, first, last ),
-							alig->refname,
-							alig->refpos,
-							alig->mapq,
-							cig_str,
-							r_next,
-							r_pos,
-							gctx->tlen,
-							alig->read,
-							quality );
-
-			if ( cig_str != NULL )	free( ( void * )cig_str );
-			if ( quality != NULL )	free( ( void * )quality );
+			r_next = other->refname;
+			first = ( alig->refpos < other->refpos );
+			last = !first;
+			r_pos = other->refpos;
 		}
+
+		string_printf ( buffer, buflen, &res,
+						"%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s",
+						gctx->qname,
+						sam_flags( alig, other, first, last ),
+						alig->refname,
+						alig->refpos,
+						alig->mapq,
+						merged_cigar_str,
+						r_next,
+						r_pos,
+						gctx->tlen,
+						alig->read,
+						quality );
+
+		free_cigar_t( merged_cigar );
 	}
 	return res;
 }
@@ -367,8 +352,8 @@ static void show_alig_details( const alignment * alig )
 	KOutMsg ( "DUPLICATE: %s\n", alig->dup ? "YES" : "NO" );
 	KOutMsg ( "PROPERLY : %s\n", alig->prop ? "YES" : "NO" );
 	KOutMsg ( "REFLEN   : %d\n", alig->reflen );
-	KOutMsg ( "READLEN  : %d\n", calc_readlen( alig->cigar ) );	
-	KOutMsg ( "INSLEN   : %d\n", calc_inslen( alig->cigar ) );
+	KOutMsg ( "READLEN  : %d\n", cigar_t_readlen( alig->cigar ) );	
+	KOutMsg ( "INSLEN   : %d\n", cigar_t_inslen( alig->cigar ) );
 	KOutMsg ( "REFBASES : %s\n", alig->refbases );
 	KOutMsg ( "READ     : %s\n", alig->read );
 	KOutMsg ( "SAM      : %s\n", alig->sam );
@@ -392,6 +377,35 @@ static void show_details( const gen_context * gctx )
 		show_alig_details( &gctx->alig[ 0 ] );
 }
 
+
+static void show_mdtag( const gen_context * gctx )
+{
+	struct cigar_t * cigar;
+	
+	KOutMsg ( "calculating MD-TAG:\n" );
+	KOutMsg ( "READ     : %s\n", gctx->alig[0].read );
+	KOutMsg ( "REFBASES : %s\n", gctx->alig[0].refbases );
+
+	cigar = make_cigar_t( gctx->alig[0].cigar_str );
+	if ( cigar != NULL )
+	{
+		struct cigar_t *merged_cigar = merge_cigar_t( cigar );
+		if ( merged_cigar != NULL )
+		{
+			char merged_cigar_str[ 4096 ];
+			char the_tag[ 4096 ];
+			
+			cigar_t_string( merged_cigar_str, sizeof merged_cigar_str, merged_cigar );
+			md_tag( the_tag, sizeof the_tag, merged_cigar, gctx->alig[0].read, gctx->alig[0].refbases );
+				
+			KOutMsg ( "CIGAR    : %s\n", merged_cigar_str );
+			KOutMsg ( "MD-TAG   : %s\n", the_tag );
+				
+			free_cigar_t( merged_cigar );
+		}
+		free_cigar_t( cigar );
+	}
+}
 
 static void explain_flags( const uint32_t flags )
 {
@@ -494,16 +508,14 @@ static void read_alig_context( Args * args, gen_context * gctx, alignment * alig
 	alig->prop		= get_uint32_option( args, OPTION_PROP,		idx,	0 );
 	
 	/* precalculate values need in all functions */
-	alig->cigar		= parse_cigar( alig->cigar_str );
-	alig->reflen	= calc_reflen( alig->cigar );
+	alig->cigar		= make_cigar_t( alig->cigar_str );
+	alig->reflen	= cigar_t_reflen( alig->cigar );
 }
 
 static void release_alig( alignment * alig )
 {
 	if ( alig->refbases != NULL ) free( ( void* ) alig->refbases );
-	if ( alig->read != NULL ) free( ( void* ) alig->read );
-	if ( alig->sam != NULL ) free( ( void* ) alig->sam );
-	free_cigar( alig->cigar );
+	free_cigar_t( alig->cigar );
 }
 
 static void read_context( Args * args, gen_context * gctx )
@@ -534,11 +546,11 @@ static void read_context( Args * args, gen_context * gctx )
 		alig0->refbases = read_refbases( alig0->refname, alig0->refpos, alig0->reflen, &alig0->bases_in_ref );
 		alig1->refbases = read_refbases( alig1->refname, alig1->refpos, alig1->reflen, &alig1->bases_in_ref );
 
-		alig0->read		= produce_read( alig0->cigar, alig0->refbases, gctx->insbases );
-		alig1->read		= produce_read( alig1->cigar, alig1->refbases, gctx->insbases );
+		cigar_t_2_read( alig0->read, sizeof alig0->read, alig0->cigar, alig0->refbases, gctx->insbases );
+		cigar_t_2_read( alig1->read, sizeof alig1->read, alig1->cigar, alig1->refbases, gctx->insbases );
 		
-		alig0->sam = produce_sam( gctx, alig0, alig1 );
-		alig1->sam = produce_sam( gctx, alig1, alig0 )	;
+		produce_sam( alig0->sam, sizeof alig0->sam, gctx, alig0, alig1 );
+		produce_sam( alig1->sam, sizeof alig1->sam, gctx, alig1, alig0 )	;
 	}
 	else
 	{
@@ -546,11 +558,11 @@ static void read_context( Args * args, gen_context * gctx )
 		alig1->refbases = NULL;
 		alig1->bases_in_ref	= 0;
 		
-		alig0->read		= produce_read( alig0->cigar, alig0->refbases, gctx->insbases );
-		alig1->read		= NULL;
+		cigar_t_2_read( alig0->read, sizeof alig0->read, alig0->cigar, alig0->refbases, gctx->insbases );
+		alig1->read[ 0 ] = 0;
 		
-		alig0->sam = produce_sam( gctx, alig0, alig1 );
-		alig1->sam = NULL;
+		produce_sam( alig0->sam, sizeof alig0->sam, gctx, alig0, alig1 );
+		alig1->sam[ 0 ] = 0;
 	}
 }
 
@@ -573,6 +585,8 @@ rc_t CC KMain( int argc, char *argv [] )
 				show_details( &gctx );
 			else if ( get_bool_option( args, OPTION_REF ) )
 				KOutMsg ( "%s\n", gctx.alig[ 0 ].refbases );
+			else if ( get_bool_option( args, OPTION_MDTAG ) )
+				show_mdtag( &gctx );
 			else if ( gctx.flags > 0 )
 				explain_flags( gctx.flags );
 			else

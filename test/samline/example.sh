@@ -14,9 +14,9 @@ produce_SAM()
 	SAMLINE_BINARY="samline"
 	REFNAME="NC_011752.1"
 	REFPOS1=1000
-	REFPOS2=6000
+	REFPOS2=3500
 	CIGAR1="30MAAA20M"
-	CIGAR2="100M"
+	CIGAR2="50M2D10M"
 	execute "$SAMLINE_BINARY -r $REFNAME -p $REFPOS1 -p $REFPOS2 -c $CIGAR1 -c $CIGAR2 -n $1 -d > $2"
 }
 
@@ -34,6 +34,13 @@ load_BAM_to_CSRA()
 	execute "$BAMLOAD_BINARY -L 3 -o $3 -k $1 -E0 -Q0 $2"
 }
 
+# call: load_SAM_to_CSRA "$CONFIG" "$SAMFILE" "$TEMP_DIR"
+load_SAM_to_CSRA()
+{
+	BAMLOAD_BINARY="bam-load"
+	execute "cat $2 | $BAMLOAD_BINARY -L 3 -o $3 -k $1 -E0 -Q0 /dev/stdin"
+}
+
 # call: kar_CSRA "$FINAL_CSRA" "$TEMP_DIR"
 kar_CSRA()
 {
@@ -47,12 +54,10 @@ CONFIG="temp.kfg"
 TEMP_DIR="temp_csra"
 FINAL_CSRA="test.csra"
 
-#print vdb-dump to show success
-SHOW_RESULT="vdb-dump $OUTFILE --info"
-
 produce_SAM "$CONFIG" "$SAMFILE"
-convert_SAM_to_BAM "$SAMFILE" "$BAMFILE"
-load_BAM_to_CSRA "$CONFIG" "$BAMFILE" "$TEMP_DIR"
+#convert_SAM_to_BAM "$SAMFILE" "$BAMFILE"
+#load_BAM_to_CSRA "$CONFIG" "$BAMFILE" "$TEMP_DIR"
+load_SAM_to_CSRA "$CONFIG" "$SAMFILE" "$TEMP_DIR"
 kar_CSRA "$FINAL_CSRA" "$TEMP_DIR"
 
 execute "rm -rf $TEMP_DIR $SAMFILE $BAMFILE $CONFIG"

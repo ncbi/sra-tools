@@ -3200,7 +3200,7 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
                 }
             }
             else if (type == eRunTypeGetSize) {
-                OUTMSG(("\nDownloading the files\n\n", realArg));
+                OUTMSG(("\nDownloading the files...\n\n", realArg));
                 BSTreeForEach(&trKrt, false, bstKrtDownload, NULL);
             }
         }

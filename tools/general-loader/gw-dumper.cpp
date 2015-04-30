@@ -216,6 +216,40 @@ namespace gw_dump
     }
 
 
+    /* check_repeat_row
+     */
+    template < class T > static
+    void check_repeat_row ( const T & eh )
+    {
+        if ( id ( eh ) == 0 )
+            throw "bad table id within repeat-row event (null)";
+        if ( id ( eh ) > tbl_names . size () )
+            throw "bad table id within repeat-row event";
+    }
+
+    /* dump_repeat_row
+     */
+    template < class D, class T > static
+    void dump_repeat_row ( FILE * in, const D & e )
+    {
+        T eh;
+        init ( eh, e );
+
+        size_t num_read = readFILE ( eh . repeat, sizeof eh - sizeof ( D ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read repeat-row event";
+
+        check_repeat_row ( eh );
+
+        if ( display )
+        {
+            std :: cout
+                << event_num << ": repeat-row\n"
+                << "  table_id = " << table_id ( eh ) << " ( \"" << tbl_names [ table_id ( eh ) - 1 ] << "\" )\n"
+                << "  repeat = " << get_repeat ( eh ) << '\n'
+                ;
+        }
+    }
 
 
     /* check_next_row

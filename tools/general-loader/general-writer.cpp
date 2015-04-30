@@ -252,6 +252,7 @@ namespace ncbi
             new_state = opened;
             break;
         case opened:
+        case mid_row:
             return;
         default:
             throw "state violation opening stream";
@@ -272,6 +273,7 @@ namespace ncbi
         switch ( state )
         {
         case opened:
+        case mid_row:
             break;
         default:
             throw "state violation setting column default";
@@ -394,6 +396,7 @@ namespace ncbi
         switch ( state )
         {
         case opened:
+        case mid_row:
             break;
         default:
             throw "state violation writing column data";
@@ -493,6 +496,8 @@ namespace ncbi
             
             internal_write ( data, num_bytes );
         }
+
+        state = mid_row;
     }
 
     void GeneralWriter :: nextRow ( int table_id )
@@ -500,6 +505,7 @@ namespace ncbi
         switch ( state )
         {
         case opened:
+        case mid_row:
             break;
         default:
             throw "state violation advancing to next row";
@@ -511,6 +517,27 @@ namespace ncbi
         gwp_evt_hdr hdr;
         init ( hdr, table_id, evt_next_row );
         write_event ( & hdr, sizeof hdr );
+        state = opened;
+    }
+
+
+    void GeneralWriter :: repeatRow ( uint32_t table_id, uint64_t repeat_count )
+    {
+        switch ( state )
+        {
+        case opened:
+            break;
+        default:
+            throw "state violation repeating last row";
+        }
+
+        if ( table_id < 0 || ( size_t ) table_id > table_names.size () )
+            throw "Invalid table id";
+
+        gwp_repeat_evt_v1 hdr;
+        init ( hdr, table_id, evt_repeat_row );
+        set_repeat ( hdr, repeat_count );
+        write_event ( & hdr . dad, sizeof hdr );
     }
 
     void GeneralWriter :: logError ( const std :: string & msg )
@@ -524,6 +551,7 @@ namespace ncbi
         case have_table:
         case have_column:
         case opened:
+        case mid_row:
         case error:
             break;
         default:
@@ -553,6 +581,7 @@ namespace ncbi
         case have_table:
         case have_column:
         case opened:
+        case mid_row:
         case error:
             break;
         default:

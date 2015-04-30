@@ -30,6 +30,10 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
+#include <string.h>
+#endif
+
 
 /*----------------------------------------------------------------------
  * event codes
@@ -51,6 +55,7 @@ enum gw_evt_id
     evt_cell_default,                     /* set/reset cell default val  */
     evt_cell_data,                        /* write/append data cell      */
     evt_next_row,                         /* move to next row in table   */
+    evt_repeat_row,                       /* repeat the last row N times */
 
     evt_errmsg2,
     evt_remote_path2,
@@ -244,6 +249,14 @@ struct gw_data_evt_v1
     char align [ 0..3 ];   * ( ( 4 - sizeof data % 4 ) % 4 ) zeros            */
 };
 
+/* gw_repeat_evt_v1
+ */
+struct gw_repeat_evt_v1
+{
+    gw_evt_hdr_v1 dad;    /* common header : id = column id                   */
+    uint32_t repeat[ 2 ]; /* repeat count                                     */
+};
+
 
 /*----------------------------------------------------------------------
  * packed events
@@ -319,6 +332,14 @@ struct gwp_data_evt_v1
     gwp_evt_hdr_v1 dad;   /* common header : id = column id                   */
     uint8_t sz;           /* the size - 1 of data in bytes                    */
  /* uint8_t data [ sz+1 ]; * event data.                                      */
+};
+
+/* gwp_repeat_evt_v1
+ */
+struct gwp_repeat_evt_v1
+{
+    gwp_evt_hdr_v1 dad;   /* common header : id = column id                   */
+    uint16_t repeat[ 4 ]; /* repeat count                                     */
 };
 
 
@@ -522,6 +543,31 @@ namespace ncbi
         self . elem_count = elem_count;
     }
 
+    // gw_repeat_evt_v1
+    inline void init ( :: gw_repeat_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+    }
+
+    inline void init ( :: gw_repeat_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+    }
+
+    inline uint64_t get_repeat ( const :: gw_repeat_evt_v1 & self )
+    {
+        uint64_t repeat;
+        memcpy ( & repeat, & self . repeat, sizeof repeat );
+        return repeat;
+    }
+
+    inline void set_repeat ( :: gw_repeat_evt_v1 & self, uint64_t repeat )
+    {
+        memcpy ( & self . repeat, & repeat, sizeof self . repeat );
+    }
+
     ////////// packed events //////////
 
     // gwp_evt_hdr
@@ -658,6 +704,32 @@ namespace ncbi
 
     inline void set_size ( :: gwp_data_evt_v1 & self, size_t bytes )
     { set_string_size ( self . sz, bytes ); }
+
+
+    // gwp_repeat_evt_v1
+    inline void init ( :: gwp_repeat_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+    }
+
+    inline void init ( :: gwp_repeat_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+    }
+
+    inline uint64_t get_repeat ( const :: gwp_repeat_evt_v1 & self )
+    {
+        uint64_t repeat;
+        memcpy ( & repeat, & self . repeat, sizeof repeat );
+        return repeat;
+    }
+
+    inline void set_repeat ( :: gwp_repeat_evt_v1 & self, uint64_t repeat )
+    {
+        memcpy ( & self . repeat, & repeat, sizeof self . repeat );
+    }
 
 
     // recording string size

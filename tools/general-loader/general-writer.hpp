@@ -88,6 +88,9 @@ namespace ncbi
         // generate an event
         void nextRow ( int table_id );
 
+        // repeat the last row written
+        void repeatRow ( uint32_t table_id, uint64_t repeat_count );
+
         // indicate some sort of exception
         void logError ( const std :: string & msg );
 
@@ -145,6 +148,7 @@ namespace ncbi
             have_table,
             have_column,
             opened,
+            mid_row,
             closed,
             error
         };

@@ -1709,10 +1709,10 @@ rc_t MainDepend(const Main *self, const char *name, bool missing)
             if (MainHasTest(self, eResolve) && seqId != NULL) {
                 int64_t remoteSz = 0;
                 OUTMSG(("%s", eol));
-                rc2 = MainResolve(self, NULL, seqId, NULL, &remoteSz, true);
-                if (rc == 0 && rc2 != 0) {
-                    rc = rc2;
-                }
+
+     /* ignore returned value :
+        resolver's errors are detected but not reported as test-sra's failure */
+                MainResolve(self, NULL, seqId, NULL, &remoteSz, true);
             }
 
             if (self->xml) {
@@ -1869,22 +1869,62 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
     size_t num_writ = 0;
     char arg[PATH_MAX] = "";
 
+    const char *eol = NULL;
+
     va_list args;
     va_start(args, aArg);
 
     assert(self);
+
+    eol = self->xml ? "<br/>\n" : "\n";
 
     if (self->xml) {
         OUTMSG(("<%s>\n", root));
     }
 
     if (item != NULL) {
+        rc_t rc = 0;
+        uint64_t project = 0;
+        uint64_t oid = 0;
+
         type = kptKartITEM;
+
+        rc = KartItemProjIdNumber(item, &project);
+        if (rc != 0) {
+            OUTMSG(("KartItemProjectIdNumber = %R\n", rc));
+        }
+        else {
+            OUTMSG(("%d\n", project));
+        }
+        rc = KartItemItemIdNumber(item, &oid);
+        if (rc == 0) {
+            if (self->xml) {
+                const char root[] = "id";
+                OUTMSG(("<%s>%d</%s>\n", root, oid, root));
+            }
+            else {
+                OUTMSG(("id: %d\n", oid));
+            }
+        }
+        else {
+            const String *accession = NULL;
+            rc = KartItemAccession(item, &accession);
+            if (rc == 0) {
+                if (self->xml) {
+                    const char root[] = "acc";
+                    OUTMSG(("<%s>%S</%s>\n", root, accession, root));
+                }
+                else {
+                    OUTMSG(("acc: %S\n", accession));
+                }
+            }
+            else {
+                OUTMSG(("KartItemIdNumber &| Accession = %R\n", rc));
+            }
+        }
     }
 
     else {
-        const char *eol = self->xml ? "<br/>\n" : "\n";
-
         rc = string_vprintf(arg, sizeof arg, &num_writ, aArg, args);
         if (rc != 0) {
             OUTMSG(("string_vprintf(%s)=%R%s", aArg, rc, eol));
@@ -1901,6 +1941,9 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
         if (MainHasTest(self, eType)) {
             OUTMSG((" "));
             rc = MainReport(self, arg, &directSz, &type, &alias);
+        }
+        else {
+            type = KDirectoryPathType(self->dir, "%s", arg);
         }
         OUTMSG(("%s", eol));
 
@@ -1934,6 +1977,10 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
         }
         for (i = 0; i < count && rc == 0; ++i) {
             const char *name = NULL;
+            rc = Quitting();
+            if (rc != 0) {
+                break;
+            }
             rc = KNamelistGet(list, i, &name);
             if (rc != 0) {
                 OUTMSG(("KNamelistGet(KDirectoryList(%s), %d)=%R ",
@@ -1963,6 +2010,13 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
             while (true) {
                 rc_t rc2 = 0;
                 RELEASE(KartItem, item);
+                rc2 = Quitting();
+                if (rc2 != 0) {
+                    if (rce == 0) {
+                        rce = rc2;
+                    }
+                    break;
+                }
                 rc2 = KartMakeNextItem(kart, &item);
                 if (rc2 != 0) {
                     OUTMSG(("KartMakeNextItem = %R\n", rc2));
@@ -1984,11 +2038,9 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
         }
         else {
             if (MainHasTest(self, eResolve)) {
-                rc_t rc2 = MainResolve(self, item, arg, &localSz, &remoteSz,
-                    false);
-                if (rc == 0 && rc2 != 0) {
-                    rc = rc2;
-                }
+     /* ignore returned value :
+        resolver's errors are detected but not reported as test-sra's failure */
+                MainResolve(self, item, arg, &localSz, &remoteSz, false);
             }
 
             if (item == NULL) {
@@ -2371,7 +2423,13 @@ rc_t CC KMain(int argc, char *argv[]) {
             const char *name = NULL;
             rc3 = ArgsParamValue(args, i, &name);
             if (rc3 == 0) {
-                rc_t rc2 = 0;
+                rc_t rc2 = Quitting();
+                if (rc2 != 0) {
+                    if (rc == 0 && rc2 != 0) {
+                        rc = rc2;
+                    }
+                    break;
+                }
                 ReportResetObject(name);
                 rc2 = MainExec(&prms, NULL, name);
                 if (rc == 0 && rc2 != 0) {

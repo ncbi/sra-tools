@@ -907,7 +907,7 @@ EndText
                 my $o = includes_out();
                 if ($o) {
                     eval { INCLUDES_OUT(); };
-                    if (@_) {
+                    if ($@) {
                         print "install: cannot find INCLUDES_OUT\n";
                         ++$failures;
                     } else {

@@ -39,9 +39,11 @@ make_1()
 {   
     TestSource source;
     
-    source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", "actual/1/db" );
+    source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
+    source . DatabaseEvent ( "actual/1/db" );
+    
     source . NewTableEvent ( 1, tableName ); 
-    source . NewColumnEvent ( 1, 1, columnName );
+    source . NewColumnEvent ( 1, 1, columnName, 8 );
     source . OpenStreamEvent();
     
     string value1 = "first value";
@@ -72,9 +74,11 @@ make_2()
 {   
     TestSource source;
     
-    source . SetNames ( "align/align.vschema", "NCBI:align:db:alignment_sorted", "actual/2/db" );
+    source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
+    source . DatabaseEvent ( "actual/2/db" );
+    
     source . NewTableEvent ( 1, tableName ); 
-    source . NewColumnEvent ( 1, 1, columnName );
+    source . NewColumnEvent ( 1, 1, columnName, 8 );
     source . OpenStreamEvent();
     
     source . ErrorMessageEvent( "something is wrong" );

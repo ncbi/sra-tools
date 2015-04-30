@@ -30,25 +30,41 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#ifdef __cplusplus
+#include <string.h>
+#endif
+
+
+/*----------------------------------------------------------------------
+ * event codes
+ */
+
 enum gw_evt_id
 {
     evt_bad_event,
 
-    /* version 1 events */
-    evt_end_stream,
-    evt_new_table,
-    evt_new_column,
-    evt_open_stream,
-    evt_cell_default, 
-    evt_cell_data, 
-    evt_next_row,
-    evt_errmsg,
+    evt_errmsg,                           /* convey processing error msg */
+    evt_end_stream,                       /* cleanly terminates a stream */
 
-    /* version 2 events */
-    evt_remote_path,
-    evt_use_schema,
-    evt_cell2_default,
-    evt_cell2_data
+    evt_remote_path,                      /* sets remote output path     */
+    evt_use_schema,                       /* conveys schema usage        */
+    evt_new_table,                        /* create a new table          */
+    evt_new_column,                       /* create a new column in tbl  */
+    evt_open_stream,                      /* open stream for data flow   */
+
+    evt_cell_default,                     /* set/reset cell default val  */
+    evt_cell_data,                        /* write/append data cell      */
+    evt_next_row,                         /* move to next row in table   */
+    evt_repeat_row,                       /* repeat the last row N times */
+
+    evt_errmsg2,
+    evt_remote_path2,
+    evt_use_schema2,
+    evt_new_table2,
+    evt_cell_default2,                    /* packed default <= 64K bytes */
+    evt_cell_data2,                       /* packed data <= 64K bytes    */
+
+    evt_max_id                            /* must be last                */
 };
 
 #define GW_SIGNATURE "NCBIgnld"
@@ -57,261 +73,740 @@ enum gw_evt_id
 #define GW_CURRENT_VERSION 1
 
 
-/*----------------------------------------------------------------------
+/********************************
+ * DESCRIPTION OF STREAM EVENTS *
+ ********************************
+
+ *. BYTE ORDER
+    All binary data are in origination-host-native byte order.
+    The originating host indicates its byte order in the stream header.
+    Two byte-orders are supported: little-endian and big-endian.
+
+ *. PACKING
+    The preferred mode of operation for reduction of network bandwidth
+    is "packed". In this mode, the event structures use single-byte members
+    whenever possible, and there is no word alignment within the stream.
+    In addition, events with integer data can utilize a packing algorithm
+    to reduce the bandwidth consumed when the values are typically small
+    with regard to the stated type.
+
+    Packed mode is useful from C and C++ where there is ample support
+    from the language itself. Non-packed mode is more natural for languages
+    such as Python and Java and uses word-size members within structs and
+    does not perform any integer data packing.
+
+    NB - packed mode makes use of knowing that zero-length items
+    are invalid and should not be sent, and so stores length-1 wherever
+    a length is required, thus giving a range of 1..256 rather than
+    0..255 for a single byte. The same is true for ids.
+
+ 1. STREAM HEADER
+    The stream starts with a header appropriate for the protocol
+    version in use. For version 1, use a "gw_header_v1".
+
+    Every stream header must have the standard "gw_header" as its
+    base definition. This portion presents an 8-character signature
+    to identify the type of stream, followed immediately by an integer
+    indicating originating-host byte order. The receiver must verify that
+    this value is either GW_GOOD_ENDIAN or GW_REVERSE_ENDIAN; any other
+    value means the stream is either not of this protocol or corrupt.
+    A value of GW_REVERSE_ENDIAN implies that the receiver must perform
+    byte-swapping on all word values within all events and their data.
+    This is likely to be a nearly untenable task by any but the
+    general-loader, where the latter has access to type information.
+
+    The value presented for version must be >= 1 and <= GW_CURRENT_VERSION.
+    A value of 0 must be rejected as not conforming to protocol while a
+    value > GW_CURRENT_VERSION cannot be processed.
+
+    The v1 value for "packing" currently allows for two values: 0 and 1,
+    where 0 means that no packing will be used and 1 indicates packed
+    events will be used. This affects how all subsequent events are to
+    be sent and received.
+
+ 2. SET REMOTE PATH [ OPTIONAL ]
+    In the not-packed case, use "gw_1string_evt".
+      GW_SET_ID_EVT ( & evt.dad, 0, evt_remote_path );
+      evt.sz = strlen ( path );
+    follow with the bytes in path
+      write ( path, strlen ( path ) );
+    end with 0..3 bytes of value 0 to realign stream to 4-byte boundary.
+
+    In the packed case where strlen ( path ) <= 256, use "gwp_1string_evt".
+      GWP_SET_ID_EVT ( & evt.dad, 0, evt_remote_path );
+      evt.sz = strlen ( path ) - 1;
+    follow with the bytes in path
+      write ( path, strlen ( path ) );
+
+    In the packed case where strlen ( path ) > 0x100 but <= 0x10000, use "gwp_1string_evt_U16"
+      GWP_SET_ID_EVT ( & evt.dad, 0, evt_remote_path2 );
+      evt.sz = strlen ( path ) - 1;
+    follow with the bytes in path
+      write ( path, strlen ( path ) );
+
+  MORE TO COME...
+
+ */
+
+
+/*======================================================================
  * version 1
  */
 
-#define GW_HDR_MBRS                                                            \
-    char signature [ 8 ]; /* 8 characters to identify file type */             \
-    uint32_t endian;      /* an internally known pattern to identify endian */ \
-    uint32_t version;     /* a single-integer version number */
-    
+/* gw_header
+ *  common to all versions
+ */
 struct gw_header
 {
-#ifdef __cplusplus
-    inline gw_header ( uint32_t vers = 0 );
-    inline gw_header ( const gw_header & hdr );
-#endif
-
-    GW_HDR_MBRS
+    char signature [ 8 ]; /* = GW_SIGNATURE                                     */
+    uint32_t endian;      /* = GW_GOOD_ENDIAN or GW_REVERSE_ENDIAN              */
+    uint32_t version;     /* 0 < version <= GW_CURRENT_VERSION                  */
+    uint32_t hdr_size;    /* the size of the entire header, including alignment */
 };
 
-/* more defines to create inheritance in C++,
-   and simulate it in C structures. */
-#ifdef __cplusplus
-#define GW_HDR_PARENT : gw_header
-#undef GW_HDR_MBRS
-#define GW_HDR_MBRS
-#else
-#define GW_HDR_PARENT
-#endif
-
-struct gw_header_v1 GW_HDR_PARENT
+/* gw_header_v1
+ *  v1 header
+ */
+struct gw_header_v1
 {
-#ifdef __cplusplus
-    inline gw_header_v1 ();
-    inline gw_header_v1 ( const gw_header & hdr );
-#endif
-
-    GW_HDR_MBRS
-
-    uint32_t remote_db_name_size;
-    uint32_t schema_file_name_size;
-    uint32_t schema_db_spec_size;
-    /* string data follows: 3 strings plus 1 NUL byte for each, 4-byte aligned
-     uint32_t data [ ( ( remote_db_name_size + schema_file_name_size + schema_spec_size + 3 ) + 3 ) / 4 ]; */
+    gw_header dad;
+    uint32_t packing;     /* 0 = no packing, 1 = byte packing */
 };
 
-/* ugly define to simulate inheritance in C */
-#define GW_EVT_HDR_MBR uint32_t id_evt;
-struct gw_evt_hdr_v1
-{
-#ifdef __cplusplus
-    inline uint32_t id () const;
-    inline gw_evt_id evt () const;
-    inline gw_evt_hdr_v1 ( uint32_t id, gw_evt_id evt );
-    inline gw_evt_hdr_v1 ( const gw_evt_hdr_v1 & hdr );
-#endif
-
-    GW_EVT_HDR_MBR
-};
-
-/* more defines to create inheritance in C++,
-   and simulate it in C structures. */
-#ifdef __cplusplus
-#define GW_EVT_HDR_PARENT : gw_evt_hdr_v1
-#undef GW_EVT_HDR_MBR
-#define GW_EVT_HDR_MBR
-#else
-#define GW_EVT_HDR_PARENT
-#endif
-
-struct gw_table_hdr_v1 GW_EVT_HDR_PARENT
-{
-#ifdef __cplusplus
-    inline gw_table_hdr_v1 ( uint32_t id, gw_evt_id evt );
-    inline gw_table_hdr_v1 ( const gw_evt_hdr_v1 & hdr );
-#endif
-    GW_EVT_HDR_MBR
-    uint32_t table_name_size;
-    /* uint32_t data [ ( ( table_name_size + 1 ) + 3 ) / 4 ]; */
-};
-
-struct gw_column_hdr_v1 GW_EVT_HDR_PARENT
-{
-#ifdef __cplusplus
-    inline gw_column_hdr_v1 ( uint32_t id, gw_evt_id evt );
-    inline gw_column_hdr_v1 ( const gw_evt_hdr_v1 & hdr );
-#endif
-    GW_EVT_HDR_MBR
-    uint32_t table_id;
-    uint32_t column_name_size;
-    /* uint32_t data [ ( ( column_name_size + 1 ) + 3 ) / 4 ]; */
-};
-
-struct gw_cell_hdr_v1 GW_EVT_HDR_PARENT
-{
-#ifdef __cplusplus
-    inline gw_cell_hdr_v1 ( uint32_t id, gw_evt_id evt );
-    inline gw_cell_hdr_v1 ( const gw_evt_hdr_v1 & hdr );
-#endif
-    GW_EVT_HDR_MBR
-    uint32_t elem_bits;
-    uint32_t elem_count;
-    /* uint32_t data [ ( elem_bits * elem_count + 31 ) / 32 ]; */
-};
-
-struct gw_errmsg_hdr_v1 GW_EVT_HDR_PARENT
-{
-#ifdef __cplusplus
-    inline gw_errmsg_hdr_v1 ( uint32_t id, gw_evt_id evt );
-    inline gw_errmsg_hdr_v1 ( const gw_evt_hdr_v1 & hdr );
-#endif
-    GW_EVT_HDR_MBR
-    uint32_t msg_size;
-    /* uint32_t data [ ( ( msg_size + 1 ) + 3 ) / 4 ]; */
-};
 
 /*----------------------------------------------------------------------
- * version 2
+ * full-size ( not packed ) events
  */
 
-struct gw_header_v2 GW_HDR_PARENT
+/* gw_evt_hdr
+ *  common header to not-packed v1 events
+ *
+ *  used as-is for events:
+ *    { evt_end_stream, evt_open_stream, evt_next_row }
+ */
+struct gw_evt_hdr_v1
 {
-#ifdef __cplusplus
-    inline gw_header_v2 ();
-    inline gw_header_v2 ( const gw_header & hdr );
-#endif
-
-    GW_HDR_MBRS
-
-    uint32_t hdr_size;         /* the size of the entire header, including alignment */
+    uint32_t id_evt;      /* bits 0..23 = id, bits 24..31 = event code */
 };
 
-#undef GW_EVT_HDR_MBR
-#define GW_EVT_HDR_MBR \
-    uint8_t _evt;      \
-    uint8_t _id;
-
-struct gw_evt_hdr_v2
+/* gw_1string_evt_v1
+ *  event to convey a single string of information
+ *
+ *  used for events:
+ *    { evt_errmsg, evt_remote_path, evt_new_table }
+ */
+struct gw_1string_evt_v1
 {
-#ifdef __cplusplus
-    inline uint32_t id () const;
-    inline gw_evt_id evt () const;
-    inline gw_evt_hdr_v2 ( uint32_t id, gw_evt_id evt );
-    inline gw_evt_hdr_v2 ( const gw_evt_hdr_v2 & hdr );
-#endif
-
-    GW_EVT_HDR_MBR
+    gw_evt_hdr_v1 dad;    /* common header : id = 0 or new table id > 0       */
+    uint32_t sz;          /* size of string in bytes - NO trailing NUL byte   */
+ /* char str [ sz ];       * string data.                                     *
+    char align [ 0..3 ];   * ( ( 4 - sizeof str % 4 ) % 4 ) zeros to align    */
 };
 
-/* more defines to create inheritance in C++,
-   and simulate it in C structures. */
-#undef GW_EVT_HDR_PARENT
-#ifdef __cplusplus
-#define GW_EVT_HDR_PARENT : gw_evt_hdr_v2
-#undef GW_EVT_HDR_MBR
-#define GW_EVT_HDR_MBR
-#else
-#define GW_EVT_HDR_PARENT
-#endif
-
-struct gw_string_hdr_U8_v2 GW_EVT_HDR_PARENT
+/* gw_2string_evt
+ *  event used to send a pair of strings
+ *
+ *  used for events:
+ *    { evt_use_schema }
+ */
+struct gw_2string_evt_v1
 {
-#ifdef __cplusplus
-    inline size_t size () const;
-    inline gw_string_hdr_U8_v2 ( uint32_t id, gw_evt_id evt );
-    inline gw_string_hdr_U8_v2 ( const gw_evt_hdr_v2 & hdr );
-#endif
-
-    GW_EVT_HDR_MBR
-    uint8_t string_size;
-    /* char data [ string_size + 1 ]; */
+    gw_evt_hdr_v1 dad;    /* common header : id = 0                           */
+    uint32_t sz1;         /* size of string 1 in bytes, NO trailing NUL byte  */
+    uint32_t sz2;         /* size of string 2 in bytes, NO trailing NUL byte  */
+ /* char str [ sz1+sz2 ];  * string data.                                     *
+    char align [ 0..3 ];   * ( ( 4 - sizeof str % 4 ) % 4 ) zeros             */
 };
 
-struct gw_string_hdr_U16_v2 GW_EVT_HDR_PARENT
+/* gw_column_evt
+ *  event used to create a new column
+ *
+ *  used for events:
+ *    { evt_new_column }
+ */
+struct gw_column_evt_v1
 {
-#ifdef __cplusplus
-    inline size_t size () const;
-    inline gw_string_hdr_U16_v2 ( uint32_t id, gw_evt_id evt );
-    inline gw_string_hdr_U16_v2 ( const gw_evt_hdr_v2 & hdr );
-#endif
-
-    GW_EVT_HDR_MBR
-    uint16_t string_size;
-    /* char data [ string_size + 1 ]; */
+    gw_evt_hdr_v1 dad;    /* common header : id = new column id > 0           */
+    uint32_t table_id;    /* id of column's table                             */
+    uint32_t elem_bits;   /* the size of each element in data type            */
+    uint32_t name_sz;     /* the size in bytes of column "name" ( spec )      */
+ /* char name [ name_sz ]; * the column name/spec.                            *
+    char align [ 0..3 ];   * ( ( 4 - sizeof name % 4 ) % 4 ) zeros            */
 };
 
-struct gw_string2_hdr_U8_v2 GW_EVT_HDR_PARENT
+/* gw_data_evt
+ *  event used to transfer cell data
+ *
+ *  used for events:
+ *    { evt_cell_default, evt_cell_data }
+ */
+struct gw_data_evt_v1
 {
-#ifdef __cplusplus
-    inline size_t size1 () const;
-    inline size_t size2 () const;
-    inline gw_string2_hdr_U8_v2 ( uint32_t id, gw_evt_id evt );
-    inline gw_string2_hdr_U8_v2 ( const gw_evt_hdr_v2 & hdr );
-#endif
-
-    GW_EVT_HDR_MBR
-    uint8_t string1_size;
-    uint8_t string2_size;
-    /* char data [ string1_size + 1 + string2_size + 1 ]; */
+    gw_evt_hdr_v1 dad;    /* common header : id = column id                   */
+    uint32_t elem_count;  /* the number of elements in data                   */
+ /* uint8_t data [ x ];    * event data. actual size is:                      *
+                           * ( ( elem_count * col . elem_bits ) + 7 ) / 8     *
+    char align [ 0..3 ];   * ( ( 4 - sizeof data % 4 ) % 4 ) zeros            */
 };
 
-struct gw_string2_hdr_U16_v2 GW_EVT_HDR_PARENT
+/* gw_repeat_evt_v1
+ */
+struct gw_repeat_evt_v1
 {
-#ifdef __cplusplus
-    inline size_t size1 () const;
-    inline size_t size2 () const;
-    inline gw_string2_hdr_U16_v2 ( uint32_t id, gw_evt_id evt );
-    inline gw_string2_hdr_U16_v2 ( const gw_evt_hdr_v2 & hdr );
-#endif
-
-    GW_EVT_HDR_MBR
-    uint16_t string1_size;
-    uint16_t string2_size;
-    /* char data [ string1_size + 1 + string2_size + 1 ]; */
+    gw_evt_hdr_v1 dad;    /* common header : id = column id                   */
+    uint32_t repeat[ 2 ]; /* repeat count                                     */
 };
 
-struct gw_column_hdr_v2 GW_EVT_HDR_PARENT
-{
-#ifdef __cplusplus
-    inline uint32_t table () const;
-    inline size_t size () const;
-    inline gw_column_hdr_v2 ( uint32_t id, gw_evt_id evt );
-    inline gw_column_hdr_v2 ( const gw_evt_hdr_v2 & hdr );
-#endif
 
-    GW_EVT_HDR_MBR
-    uint8_t table_id;
-    uint8_t elem_bits;
-    uint8_t flag_bits;                  /* 1 = integer packing */
-    uint8_t column_name_size;
+/*----------------------------------------------------------------------
+ * packed events
+ *   used for C/C++ level operations
+ */
+
+/* gwp_evt_hdr
+ *  common header to packed v1 events
+ *
+ *  given that id 0 is illegal, this structure does not allocate a
+ *  code for it, but rather stores all ids as id-1, i.e. 1..256 => 0..255.
+ *
+ *  used as-is for events:
+ *    { evt_end_stream, evt_open_stream, evt_next_row }
+ */
+struct gwp_evt_hdr_v1
+{
+    uint8_t _evt;         /* event code from enum              */
+    uint8_t _id;          /* ids 1..256 represented as 0..255  */
 };
 
-struct gw_data_hdr_U8_v2 GW_EVT_HDR_PARENT
+/* gwp_1string_evt
+ *  event to convey a single string of information
+ *
+ *  used for events:
+ *    { evt_errmsg, evt_remote_path, evt_new_table }
+ */
+struct gwp_1string_evt_v1
 {
-#ifdef __cplusplus
-    inline size_t size () const;
-    inline gw_data_hdr_U8_v2 ( uint32_t id, gw_evt_id evt );
-    inline gw_data_hdr_U8_v2 ( const gw_evt_hdr_v2 & hdr );
-#endif
-
-    GW_EVT_HDR_MBR
-    uint8_t data_size;                  /* = data_size - 1, i.e. "0" means 1 byte */
-    /* uint8_t data [ string_size ]; */
+    gwp_evt_hdr_v1 dad;   /* common header : id = 0 or new table id > 0       */
+    uint8_t sz;           /* size of string - 1 in bytes - NO trailing NUL    */
+ /* char str [ sz+1 ];     * string data                                      */
 };
 
-struct gw_data_hdr_U16_v2 GW_EVT_HDR_PARENT
+/* gwp_2string_evt
+ *  event used to send a pair of strings
+ *
+ *  used for events:
+ *    { evt_use_schema }
+ */
+struct gwp_2string_evt_v1
 {
+    gwp_evt_hdr_v1 dad;   /* common header : id = 0                           */
+    uint8_t sz1;          /* size of string 1 - 1 in bytes, NO trailing NUL   */
+    uint8_t sz2;          /* size of string 2 - 1 in bytes, NO trailing NUL   */
+ /* char str[ sz1+sz2+2 ]; * string data.                                     */
+};
+
+/* gwp_column_evt
+ *  event used to create a new column
+ *
+ *  used for events:
+ *    { evt_new_column }
+ */
+struct gwp_column_evt_v1
+{
+    gwp_evt_hdr_v1 dad;   /* common header : id = new column id > 0           */
+    uint8_t table_id;     /* id - 1 of column's table                         */
+    uint8_t elem_bits;    /* the size - 1 of each element in data type        */
+    uint8_t flag_bits;    /* bit[0] = 1 means uses integer element packing    */
+    uint8_t name_sz;      /* the size - 1 in bytes of column "name" ( spec )  */
+ /* char name [ name_sz+1 ]; the column name/spec.                            */
+};
+
+/* gwp_data_evt
+ *  event used to transfer cell data
+ *
+ *  used for events:
+ *    { evt_cell_default, evt_cell_data }
+ */
+struct gwp_data_evt_v1
+{
+    gwp_evt_hdr_v1 dad;   /* common header : id = column id                   */
+    uint8_t sz;           /* the size - 1 of data in bytes                    */
+ /* uint8_t data [ sz+1 ]; * event data.                                      */
+};
+
+/* gwp_repeat_evt_v1
+ */
+struct gwp_repeat_evt_v1
+{
+    gwp_evt_hdr_v1 dad;   /* common header : id = column id                   */
+    uint16_t repeat[ 4 ]; /* repeat count                                     */
+};
+
+
+/* SPECIAL VERSIONS WITH 16-BIT SIZE FIELDS */
+
+/* gwp_1string_evt_U16
+ *  event to convey a single string of information
+ *
+ *  used for events:
+ *    { evt_errmsg2, evt_remote_path2, evt_new_table2 }
+ *
+ *  ...whenever size of string > 256
+ */
+struct gwp_1string_evt_U16_v1
+{
+    gwp_evt_hdr_v1 dad;   /* common header : id = 0 or new table id > 0       */
+    uint16_t sz;          /* size of string - 1 in bytes - NO trailing NUL    */
+ /* char str [ sz+1 ];     * string data.                                     */
+};
+
+/* gwp_2string_evt_U16
+ *  event used to send a pair of strings
+ *
+ *  used for events:
+ *    { evt_use_schema2 }
+ *
+ *  ...whenever size of any string > 256
+ */
+struct gwp_2string_evt_U16_v1
+{
+    gwp_evt_hdr_v1 dad;   /* common header : id = 0                           */
+    uint8_t sz1;          /* size of string 1 - 1 in bytes, NO trailing NUL   */
+    uint8_t sz2;          /* size of string 2 - 1 in bytes, NO trailing NUL   */
+ /* char str[ sz1+sz2+2 ]; * string data.                                     */
+};
+
+
+/* gwp_data_evt_16
+ *  event used to transfer cell data
+ *
+ *  used for events:
+ *    { evt_cell_default2, evt_cell_data2 }
+ */
+struct gwp_data_evt_U16_v1
+{
+    gwp_evt_hdr_v1 dad;   /* common header : id = column id                   */
+    uint8_t sz;           /* the size - 1 of data in bytes                    */
+ /* uint8_t data [ sz+1 ]; * event data.                                      */
+};
+
+
 #ifdef __cplusplus
-    inline size_t size () const;
-    inline gw_data_hdr_U16_v2 ( uint32_t id, gw_evt_id evt );
-    inline gw_data_hdr_U16_v2 ( const gw_evt_hdr_v2 & hdr );
+/*======================================================================
+ * support for C++
+ */
+
+#include <string.h>
+#include <assert.h>
+
+namespace ncbi
+{
+    // gw_header
+    inline void init ( :: gw_header & hdr )
+    {
+        memcpy ( hdr . signature, GW_SIGNATURE, sizeof hdr . signature );
+        hdr . endian = GW_GOOD_ENDIAN;
+        hdr . version = GW_CURRENT_VERSION;
+        hdr . hdr_size = sizeof ( :: gw_header );
+    }
+
+    inline void init ( :: gw_header & hdr, size_t hdr_size )
+    { init ( hdr ); hdr . hdr_size = hdr_size; }
+
+    // gw_header_v1
+    inline void init ( :: gw_header_v1 & hdr )
+    { init ( hdr . dad, sizeof ( :: gw_header_v1 ) ); hdr . packing = 1; }
+
+    inline void init ( :: gw_header_v1 & hdr, const :: gw_header & dad )
+    { hdr . dad = dad; hdr . packing = 0; }
+
+
+
+    // gw_evt_hdr
+    inline void init ( :: gw_evt_hdr_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        assert ( id < 0x1000000 );
+        assert ( evt != evt_bad_event );
+        assert ( evt < evt_max_id );
+
+        hdr . id_evt = ( id & 0xFFFFFF ) | ( ( uint32_t ) evt << 24 );
+    }
+
+    inline uint32_t id ( const :: gw_evt_hdr_v1 & self )
+    { return self . id_evt & 0xFFFFFF; }
+
+    inline gw_evt_id evt ( const :: gw_evt_hdr_v1 & self )
+    { return ( gw_evt_id ) ( self . id_evt >> 24 ); }
+
+
+    // recording string size
+    inline void set_string_size ( uint32_t & sz, size_t bytes )
+    {
+        assert ( bytes != 0 );
+        assert ( ( bytes >> 32 ) == 0 );
+        sz = ( uint32_t ) bytes;
+    }
+
+    // gw_1string_evt
+    inline void init ( :: gw_1string_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    { init ( hdr . dad, id, evt ); hdr . sz = 0; }
+
+    inline void init ( :: gw_1string_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
+    { hdr . dad = dad; hdr . sz = 0; }
+
+    inline size_t size ( const :: gw_1string_evt_v1 & self )
+    { return self . sz; }
+
+    inline void set_size ( :: gw_1string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz, bytes ); }
+
+
+    // gw_2string_evt
+    inline void init ( :: gw_2string_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz1 = hdr . sz2 = 0;
+    }
+
+    inline void init ( :: gw_2string_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz1 = hdr . sz2 = 0;
+    }
+
+    inline size_t size1 ( const gw_2string_evt_v1 & self )
+    { return self . sz1; }
+
+    inline size_t size2 ( const gw_2string_evt_v1 & self )
+    { return self . sz2; }
+
+    inline void set_size1 ( :: gw_2string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz1, bytes ); }
+
+    inline void set_size2 ( :: gw_2string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz2, bytes ); }
+
+    // gw_column_evt
+    inline void init ( :: gw_column_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . table_id = hdr . elem_bits = hdr . name_sz = 0;
+    }
+
+    inline void init ( :: gw_column_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . table_id = hdr . elem_bits = hdr . name_sz = 0;
+    }
+
+    inline uint32_t table_id ( const :: gw_column_evt_v1 & self )
+    { return self . table_id; }
+
+    inline uint32_t elem_bits ( const :: gw_column_evt_v1 & self )
+    { return self . elem_bits; }
+
+    inline uint8_t flag_bits ( const :: gw_column_evt_v1 & self )
+    { return 0; }
+
+    inline size_t name_size ( const :: gw_column_evt_v1 & self )
+    { return self . name_sz; }
+
+    inline void set_table_id ( :: gw_column_evt_v1 & self, uint32_t table_id )
+    {
+        assert ( table_id != 0 );
+        self . table_id = table_id;
+    }
+
+    inline void set_elem_bits ( :: gw_column_evt_v1 & self, uint32_t elem_bits )
+    {
+        assert ( elem_bits != 0 );
+        self . elem_bits = elem_bits;
+    }
+
+    inline void set_name_size ( :: gw_column_evt_v1 & self, size_t name_size )
+    { set_string_size ( self . name_sz, name_size ); }
+
+
+    // gw_data_evt
+    inline void init ( :: gw_data_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    { init ( hdr . dad, id, evt ); hdr . elem_count = 0; }
+
+    inline void init ( :: gw_data_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
+    { hdr . dad = dad; hdr . elem_count = 0; }
+
+    inline uint32_t elem_count ( const :: gw_data_evt_v1 & self )
+    { return self . elem_count; }
+
+    inline void set_elem_count ( :: gw_data_evt_v1 & self, uint32_t elem_count )
+    {
+        assert ( elem_count != 0 );
+        self . elem_count = elem_count;
+    }
+
+    // gw_repeat_evt_v1
+    inline void init ( :: gw_repeat_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+    }
+
+    inline void init ( :: gw_repeat_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+    }
+
+    inline uint64_t get_repeat ( const :: gw_repeat_evt_v1 & self )
+    {
+        uint64_t repeat;
+        memcpy ( & repeat, & self . repeat, sizeof repeat );
+        return repeat;
+    }
+
+    inline void set_repeat ( :: gw_repeat_evt_v1 & self, uint64_t repeat )
+    {
+        memcpy ( & self . repeat, & repeat, sizeof self . repeat );
+    }
+
+    ////////// packed events //////////
+
+    // gwp_evt_hdr
+    inline void init ( :: gwp_evt_hdr_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        // allow zero, but treat as 256
+        assert ( id <= 0x100 );
+        assert ( evt != evt_bad_event );
+        assert ( evt < evt_max_id );
+
+        hdr . _evt = ( uint8_t ) evt;
+        hdr . _id = ( uint8_t ) ( id - 1 );
+    }
+
+    inline uint32_t id ( const :: gwp_evt_hdr_v1 & self )
+    { return ( uint32_t ) self . _id + 1; }
+
+    inline gw_evt_id evt ( const :: gwp_evt_hdr_v1 & self )
+    { return ( gw_evt_id ) self . _evt; }
+
+
+    // recording string size
+    inline void set_string_size ( uint8_t & sz, size_t bytes )
+    {
+        assert ( bytes != 0 );
+        assert ( bytes <= 0x100 );
+        sz = ( uint8_t ) ( bytes - 1 );
+    }
+
+    // gwp_1string_evt
+    inline void init ( :: gwp_1string_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz = 0;
+    }
+
+    inline void init ( :: gwp_1string_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz = 0;
+    }
+
+    inline size_t size ( const :: gwp_1string_evt_v1 & self )
+    { return ( size_t ) self . sz + 1; }
+
+    inline void set_size ( :: gwp_1string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz, bytes ); }
+
+
+    // gwp_2string_evt
+    inline void init ( :: gwp_2string_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz1 = hdr . sz2 = 0;
+    }
+
+    inline void init ( :: gwp_2string_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz1 = hdr . sz2 = 0;
+    }
+
+    inline size_t size1 ( const gwp_2string_evt_v1 & self )
+    { return ( size_t ) self . sz1 + 1; }
+
+    inline size_t size2 ( const gwp_2string_evt_v1 & self )
+    { return ( size_t ) self . sz2 + 1; }
+
+    inline void set_size1 ( :: gwp_2string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz1, bytes ); }
+
+    inline void set_size2 ( :: gwp_2string_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz2, bytes ); }
+
+
+    // gwp_column_evt
+    inline void init ( :: gwp_column_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . table_id = hdr . elem_bits = hdr . name_sz = 0;
+    }
+
+    inline void init ( :: gwp_column_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . table_id = hdr . elem_bits = hdr . name_sz = 0;
+    }
+
+    inline uint32_t table_id ( const :: gwp_column_evt_v1 & self )
+    { return ( uint32_t ) self . table_id + 1; }
+
+    inline uint32_t elem_bits ( const :: gwp_column_evt_v1 & self )
+    { return ( uint32_t ) self . elem_bits + 1; }
+
+    inline uint8_t flag_bits ( const :: gwp_column_evt_v1 & self )
+    { return self . flag_bits; }
+
+    inline size_t name_size ( const :: gwp_column_evt_v1 & self )
+    { return ( size_t ) self . name_sz + 1; }
+
+    inline void set_table_id ( :: gwp_column_evt_v1 & self, uint32_t table_id )
+    {
+        assert ( table_id != 0 );
+        assert ( table_id <= 0x100 );
+        self . table_id = ( uint8_t ) ( table_id - 1 );
+    }
+
+    inline void set_elem_bits ( :: gwp_column_evt_v1 & self, uint32_t elem_bits )
+    {
+        assert ( elem_bits != 0 );
+        assert ( elem_bits <= 0x100 );
+        self . elem_bits = ( uint8_t ) ( elem_bits - 1 );
+    }
+
+    inline void set_name_size ( :: gwp_column_evt_v1 & self, size_t name_size )
+    { set_string_size ( self . name_sz, name_size ); }
+
+
+    // gwp_data_evt
+    inline void init ( :: gwp_data_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz = 0;
+    }
+
+    inline void init ( :: gwp_data_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz = 0;
+    }
+
+    inline uint32_t size ( const :: gwp_data_evt_v1 & self )
+    { return ( uint32_t ) self . sz + 1; }
+
+    inline void set_size ( :: gwp_data_evt_v1 & self, size_t bytes )
+    { set_string_size ( self . sz, bytes ); }
+
+
+    // gwp_repeat_evt_v1
+    inline void init ( :: gwp_repeat_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+    }
+
+    inline void init ( :: gwp_repeat_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+    }
+
+    inline uint64_t get_repeat ( const :: gwp_repeat_evt_v1 & self )
+    {
+        uint64_t repeat;
+        memcpy ( & repeat, & self . repeat, sizeof repeat );
+        return repeat;
+    }
+
+    inline void set_repeat ( :: gwp_repeat_evt_v1 & self, uint64_t repeat )
+    {
+        memcpy ( & self . repeat, & repeat, sizeof self . repeat );
+    }
+
+
+    // recording string size
+    inline void set_string_size ( uint16_t & sz, size_t bytes )
+    {
+        assert ( bytes != 0 );
+        assert ( bytes <= 0x10000 );
+        sz = ( uint16_t ) ( bytes - 1 );
+    }
+
+    // gwp_1string_evt_U16
+    inline void init ( :: gwp_1string_evt_U16_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz = 0;
+    }
+
+    inline void init ( :: gwp_1string_evt_U16_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz = 0;
+    }
+
+    inline size_t size ( const :: gwp_1string_evt_U16_v1 & self )
+    { return ( size_t ) self . sz + 1; }
+
+    inline void set_size ( :: gwp_1string_evt_U16_v1 & self, size_t bytes )
+    { set_string_size ( self . sz, bytes ); }
+
+
+    // gwp_2string_evt
+    inline void init ( :: gwp_2string_evt_U16_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz1 = hdr . sz2 = 0;
+    }
+
+    inline void init ( :: gwp_2string_evt_U16_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz1 = hdr . sz2 = 0;
+    }
+
+    inline size_t size1 ( const gwp_2string_evt_U16_v1 & self )
+    { return ( size_t ) self . sz1 + 1; }
+
+    inline size_t size2 ( const gwp_2string_evt_U16_v1 & self )
+    { return ( size_t ) self . sz2 + 1; }
+
+    inline void set_size1 ( :: gwp_2string_evt_U16_v1 & self, size_t bytes )
+    { set_string_size ( self . sz1, bytes ); }
+
+    inline void set_size2 ( :: gwp_2string_evt_U16_v1 & self, size_t bytes )
+    { set_string_size ( self . sz2, bytes ); }
+
+
+    // gwp_data_evt
+    inline void init ( :: gwp_data_evt_U16_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . sz = 0;
+    }
+
+    inline void init ( :: gwp_data_evt_U16_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . sz = 0;
+    }
+
+    inline uint32_t size ( const :: gwp_data_evt_U16_v1 & self )
+    { return ( uint32_t ) self . sz + 1; }
+
+    inline void set_size ( :: gwp_data_evt_U16_v1 & self, size_t bytes )
+    { set_string_size ( self . sz, bytes ); }
+
+}
 #endif
 
-    GW_EVT_HDR_MBR
-    uint16_t data_size;                 /* = data_size - 1, i.e. "0" means 1 byte */
-    /* uint8_t data [ string_size ]; */
-};
 
 #endif /*_h_general_writer_*/

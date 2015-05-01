@@ -216,37 +216,37 @@ namespace gw_dump
     }
 
 
-    /* check_repeat_row
+    /* check_move_ahead
      */
     template < class T > static
-    void check_repeat_row ( const T & eh )
+    void check_move_ahead ( const T & eh )
     {
-        if ( id ( eh ) == 0 )
-            throw "bad table id within repeat-row event (null)";
-        if ( id ( eh ) > tbl_names . size () )
-            throw "bad table id within repeat-row event";
+        if ( id ( eh . dad ) == 0 )
+            throw "bad table id within move-ahead event (null)";
+        if ( id ( eh . dad ) > tbl_names . size () )
+            throw "bad table id within move-ahead event";
     }
 
-    /* dump_repeat_row
+    /* dump_move_ahead
      */
     template < class D, class T > static
-    void dump_repeat_row ( FILE * in, const D & e )
+    void dump_move_ahead ( FILE * in, const D & e )
     {
         T eh;
         init ( eh, e );
 
-        size_t num_read = readFILE ( eh . repeat, sizeof eh - sizeof ( D ), 1, in );
+        size_t num_read = readFILE ( eh . nrows, sizeof eh - sizeof ( D ), 1, in );
         if ( num_read != 1 )
-            throw "failed to read repeat-row event";
+            throw "failed to read move-ahead event";
 
-        check_repeat_row ( eh );
+        check_move_ahead ( eh );
 
         if ( display )
         {
             std :: cout
-                << event_num << ": repeat-row\n"
-                << "  table_id = " << table_id ( eh ) << " ( \"" << tbl_names [ table_id ( eh ) - 1 ] << "\" )\n"
-                << "  repeat = " << get_repeat ( eh ) << '\n'
+                << event_num << ": move-ahead\n"
+                << "  table_id = " << id ( eh . dad ) << " ( \"" << tbl_names [ id ( eh . dad ) - 1 ] << "\" )\n"
+                << "  nrows = " << get_nrows ( eh ) << '\n'
                 ;
         }
     }
@@ -863,6 +863,9 @@ namespace gw_dump
         case evt_next_row:
             dump_next_row ( in, e );
             break;
+        case evt_move_ahead:
+            dump_move_ahead < gw_evt_hdr_v1, gw_move_ahead_evt_v1 > ( in, e );
+            break;
         case evt_errmsg2:
         case evt_remote_path2:
         case evt_use_schema2:
@@ -931,6 +934,9 @@ namespace gw_dump
             break;
         case evt_next_row:
             dump_next_row ( in, e );
+            break;
+        case evt_move_ahead:
+            dump_move_ahead < gwp_evt_hdr_v1, gwp_move_ahead_evt_v1 > ( in, e );
             break;
         case evt_errmsg2:
             dump_errmsg < gwp_evt_hdr_v1, gwp_1string_evt_U16_v1 > ( in, e );

@@ -371,8 +371,8 @@ struct gwp_1string_evt_U16_v1
 struct gwp_2string_evt_U16_v1
 {
     gwp_evt_hdr_v1 dad;   /* common header : id = 0                           */
-    uint8_t sz1;          /* size of string 1 - 1 in bytes, NO trailing NUL   */
-    uint8_t sz2;          /* size of string 2 - 1 in bytes, NO trailing NUL   */
+    uint16_t sz1;         /* size of string 1 - 1 in bytes, NO trailing NUL   */
+    uint16_t sz2;         /* size of string 2 - 1 in bytes, NO trailing NUL   */
  /* char str[ sz1+sz2+2 ]; * string data.                                     */
 };
 
@@ -386,7 +386,7 @@ struct gwp_2string_evt_U16_v1
 struct gwp_data_evt_U16_v1
 {
     gwp_evt_hdr_v1 dad;   /* common header : id = column id                   */
-    uint8_t sz;           /* the size - 1 of data in bytes                    */
+    uint16_t sz;          /* the size - 1 of data in bytes                    */
  /* uint8_t data [ sz+1 ]; * event data.                                      */
 };
 

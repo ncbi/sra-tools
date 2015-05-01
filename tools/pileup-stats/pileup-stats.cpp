@@ -36,7 +36,6 @@
 
 #define USE_GENERAL_LOADER 1
 #define RECORD_REF_BASE    0
-#define RECORD_REF_POS     1
 #define RECORD_MATCH_COUNT 1
 
 #if _DEBUGGING
@@ -63,9 +62,7 @@ namespace ncbi
     {
         col_RUN_NAME,
         col_REFERENCE_SPEC,
-#if RECORD_REF_POS
-        col_REF_POS,
-#endif
+        col_REF_POS_TRANS,
 #if RECORD_REF_BASE
         col_REF_BASE,
 #endif
@@ -81,11 +78,14 @@ namespace ncbi
     static int tbl_id;
     static int column_id [ num_columns ];
     static uint8_t integer_column_flag_bits;
+    static int64_t zrow_id;
 #endif
 
     static uint32_t depth_cutoff = 1;               // do not output if depth <= this value
 
     static uint32_t verbosity;
+
+    const bool need_write_true = false;
 
     static
     void run (
@@ -94,10 +94,20 @@ namespace ncbi
 #endif
         const String & runName, const String & refName, PileupIterator & pileup )
     {
+        int64_t last_writ = 0;
+        bool need_write = false;
+
         for ( int64_t ref_zpos = -1; pileup . nextPileup (); ++ ref_zpos )
         {
             if ( ref_zpos < 0 )
-                ref_zpos = pileup . getReferencePosition ();
+            {
+                last_writ = ref_zpos = pileup . getReferencePosition ();
+#if USE_GENERAL_LOADER
+                int64_t ref_pos_trans = ref_zpos - zrow_id;
+                out . columnDefault ( column_id [ col_REF_POS_TRANS ], 64, & ref_pos_trans, 1 );
+                need_write = need_write_true;
+#endif
+            }
 
             switch ( verbosity )
             {
@@ -124,7 +134,16 @@ namespace ncbi
             case 'C': ref_base_idx = 1; break;
             case 'G': ref_base_idx = 2; break;
             case 'T': ref_base_idx = 3; break;
-            default: continue;
+            default:
+                if ( need_write )
+                {
+#if USE_GENERAL_LOADER
+                    out . nextRow ( tbl_id );
+                    last_writ = ref_zpos + 1;
+#endif
+                    need_write = false;
+                }
+                continue;
             }
 
             uint32_t depth = pileup . getPileupDepth ();
@@ -230,16 +249,11 @@ namespace ncbi
                 }
             }
 
-#if USE_GENERAL_LOADER
-            // don't have to write RUN_NAME or REFERENCE_SPEC
-            int64_t ref_pos = ref_zpos + 1;
-#if RECORD_REF_POS
-            out . write ( column_id [ col_REF_POS ], sizeof ref_pos * 8, & ref_pos, 1 );
-#endif
-#endif
             if ( depth > depth_cutoff )
             {
 #if USE_GENERAL_LOADER
+                if ( ref_zpos > last_writ )
+                    out . moveAhead ( tbl_id, ref_zpos - last_writ );
 #if RECORD_REF_BASE
                 out . write ( column_id [ col_REF_BASE ], sizeof ref_base * 8, & ref_base, 1 );
 #endif
@@ -250,6 +264,7 @@ namespace ncbi
                     out . write ( column_id [ col_INSERTION_COUNTS ], sizeof ins_counts [ 0 ] * 8, ins_counts, 4 );
                 if ( del_cnt != 0 )
                     out . write ( column_id [ col_DELETION_COUNT ], sizeof del_cnt * 8, & del_cnt, 1 );
+                out . nextRow ( tbl_id );
 #else
                 std :: cout
                     << runName
@@ -268,11 +283,16 @@ namespace ncbi
                     << '\n'
                     ;
 #endif
+                last_writ = ref_zpos + 1;
+            }
+            else if ( need_write )
+            {
+#if USE_GENERAL_LOADER
+                out . nextRow ( tbl_id );
+#endif
+                need_write = false;
             }
 
-#if USE_GENERAL_LOADER
-            out . nextRow ( tbl_id );
-#endif
 #endif // NO_PILEUP_EVENTS
 
         }
@@ -288,9 +308,7 @@ namespace ncbi
         // add each column
         column_id [ col_RUN_NAME ] = out . addColumn ( tbl_id, "RUN_NAME", 8 );
         column_id [ col_REFERENCE_SPEC ] = out . addColumn ( tbl_id, "REFERENCE_SPEC", 8 );
-#if RECORD_REF_POS
-        column_id [ col_REF_POS ] = out . addColumn ( tbl_id, "REF_POS", 64, integer_column_flag_bits );
-#endif
+        column_id [ col_REF_POS_TRANS ] = out . addColumn ( tbl_id, "REF_POS_TRANS", 64, 0 );
 #if RECORD_REF_BASE
         column_id [ col_REF_BASE ] = out . addColumn ( tbl_id, "REF_BASE", 8 );
 #endif

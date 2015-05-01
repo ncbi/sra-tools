@@ -49,7 +49,8 @@ clean: stdclean
 # test-general-loader
 #
 TEST_GEN_LOAD_SRC = \
-	test-general-loader
+	test-general-loader \
+    testsource
 
 TEST_GEN_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(TEST_GEN_LOAD_SRC))

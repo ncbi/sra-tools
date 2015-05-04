@@ -52,24 +52,6 @@ void debug_cigar_t( const struct cigar_t * c );
 size_t cigar_t_2_read( char * buffer, size_t buf_len,
 					   const struct cigar_t * c, const char * ref_bases, const char * ins_bases );
 
-/*
-typedef struct cigar_opt
-{
-	char op;
-	int count;
-	struct cigar_opt * next;
-} cigar_opt;
-
-cigar_opt * parse_cigar( const char * cigar );
-void free_cigar( cigar_opt * cigar );
-int calc_reflen( const cigar_opt * cigar );
-int calc_readlen( const cigar_opt * cigar );
-int calc_inslen( const cigar_opt * cigar );
-char * to_string( const cigar_opt * cigar );
-cigar_opt * merge_match_and_mismatch( const cigar_opt * cigar );
-char * produce_read( const cigar_opt * cigar, const char * ref_bases, const char * ins_bases );
-*/
-
 #ifdef __cplusplus
 }
 #endif

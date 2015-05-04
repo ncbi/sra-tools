@@ -46,60 +46,8 @@ struct VSchema;
 class GeneralLoader
 {
 public:
-    
     typedef struct gw_header_v1 Header;
-    
     typedef enum gw_evt_id Evt_id;
-/*    {
-        evt_end_stream = 1,
-        evt_new_table,
-        evt_new_column,
-        evt_open_stream,
-        evt_cell_default, 
-        evt_cell_data, 
-        evt_next_row,
-        evt_errmsg
-    };*/
-    
-    struct Table_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t table_name_size;
-        // uint32_t data [ ( ( table_name_size + 1 ) + 3 ) / 4 ];
-    };
-
-    struct Column_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t table_id;
-        uint32_t column_name_size;
-        // uint32_t data [ ( ( column_name_size + 1 ) + 3 ) / 4 ];
-    };
-    
-    struct Cell_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t elem_bits;
-        uint32_t elem_count;
-        // uint32_t data [ ( elem_bits * elem_count + 31 ) / 32 ];
-    };
-    
-    struct Evt_hdr
-    {   // used for "open-stream" and "end-of-stream" events
-        uint32_t id : 24;
-        uint32_t evt : 8;
-    };
-    
-    struct ErrMsg_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8; // always 0
-        uint32_t msg_size;
-        // uint32_t data [ ( ( msg_size + 1 ) + 3 ) / 4 ];
-    };
     
 public:
     GeneralLoader ( const struct KStream& p_input );
@@ -138,13 +86,28 @@ private:
     typedef std::vector < std::string > Paths;
 
     rc_t ReadHeader ();
-    rc_t ReadEvents ();
+    rc_t ReadUnpackedEvents ();
+    rc_t ReadPackedEvents ();
+    
+    // read and handle individual events
+    rc_t Handle_UseSchema ( const std :: string& p_file, const std :: string& p_name );
+    rc_t Handle_RemotePath ( const std :: string& p_path );
+    rc_t Handle_NewTable ( uint32_t p_tableId, const std :: string& p_tableName );
+    rc_t Handle_NewColumn ( uint32_t p_columnId, 
+                            uint32_t p_tableId, 
+                            uint32_t p_elemBits, 
+                            uint8_t p_flags, 
+                            const std :: string& p_columnName );
+    rc_t Handle_CellData ( uint32_t p_columnId );
+    rc_t Handle_CellData_Packed ( uint32_t p_columnId );
+    rc_t Handle_CellDefault ( uint32_t p_columnId );
+    rc_t Handle_CellDefault_Packed ( uint32_t p_columnId );
+    rc_t HandleNextRow ( uint32_t p_tableId );
+    rc_t Handle_MoveAhead ( uint32_t p_tableId, uint64_t p_count );
+    rc_t Handle_ErrorMessage ( const std :: string& p_text );
+    
     void CleanUp ();
     
-    rc_t MakeSchema ( const std :: string& p_file, const std :: string& p_name );
-    rc_t MakeDatabase ( const std :: string& p_databaseName );
-    
-    rc_t MakeCursor ( const std :: string& p_table );
     rc_t MakeCursors ();
     rc_t OpenCursors ();
     rc_t CloseCursors ();

@@ -41,7 +41,7 @@ struct VDatabase;
 struct VDBManager;
 struct VSchema;
 
-#define GeneralLoaderSignatureString "NCBIgnld"
+#define GeneralLoaderSignatureString GW_SIGNATURE
 
 class GeneralLoader
 {
@@ -71,12 +71,13 @@ private:
     // value_type : index into Cursors
     typedef std::map < uint32_t, uint32_t > TableIdToCursor; 
     
-    typedef struct 
+    struct Column
     {
         uint32_t cursorIdx;     // index into Cursors
         uint32_t columnIdx;     // index in the VCursor
         uint32_t elemBits;
-    } Column;
+        uint32_t flagBits;
+    };
     
     // From column id to VCursor.
     // value_type::first    : index into Cursors

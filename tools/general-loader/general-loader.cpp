@@ -774,11 +774,12 @@ GeneralLoader::Handle_NewColumn ( uint32_t p_columnId, uint32_t p_tableId, uint3
                 col . cursorIdx = cursor_idx;
                 col . columnIdx = column_idx;
                 col . elemBits  = p_elemBits;
+                col . flagBits = p_flagBits;
                 m_columns [ p_columnId ] = col;
                 pLogMsg ( klogInfo, 
-                          "general-loader: tableId = $(t), added column '$(c)', columnIdx = $(i1), elemBits = $(i2)",  
-                          "t=%u,c=%s,i1=%u,i2=%u",  
-                          p_tableId, p_columnName . c_str(), column_idx, p_elemBits );
+                          "general-loader: tableId = $(t), added column '$(c)', columnIdx = $(i1), elemBits = $(i2), flagBits = $(i3)",  
+                          "t=%u,c=%s,i1=%u,i2=%u,i3=%u",  
+                          p_tableId, p_columnName . c_str(), col.columnIdx, col.elemBits, col.flagBits );
             }
         }
         else

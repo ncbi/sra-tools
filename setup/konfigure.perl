@@ -587,12 +587,8 @@ foreach my $href (@REQ) {
                     if ($tolib && ! $found) {
                         (undef, $fl, $fil)
                             = find_in_dir($try, undef, $lib, $ilib);
-                        my $resetLib = ! $found_lib;
-                        if (! $found_ilib && $fil) {
-                            $found_ilib = $fil;
-                            ++$resetLib;
-                        }
-                        $found_lib  = $fl  if ($resetLib && $fl);
+                        $found_lib  = $fl  if (! $found_lib  && $fl);
+                        $found_ilib = $fil if (! $found_ilib && $fil);
                     }
                     if ($need_jar && ! $found_jar) {
                         (undef, $found_jar)
@@ -636,7 +632,6 @@ foreach my $href (@REQ) {
         if ($found_itf) {
             $found_itf = abs_path($found_itf);
             push(@dependencies, "$a{aname}_INCDIR = $found_itf");
-            println "includes: $found_itf";
         }
         if ($found_lib) {
             $found_lib = abs_path($found_lib);
@@ -649,17 +644,14 @@ foreach my $href (@REQ) {
                 $OPT{PYTHON_LIB_PATH} .= $found_lib;
             }
             push(@dependencies, "$a{aname}_LIBDIR = $found_lib");
-            println "libraries: $found_lib";
         }
         if ($ilib && $found_ilib) {
             $found_ilib = abs_path($found_ilib);
             push(@dependencies, "$a{aname}_ILIBDIR = $found_ilib");
-            println "libraries: $found_ilib";
         }
         if ($found_jar) {
             $found_jar = abs_path($found_jar);
             push(@dependencies, "$a{aname}_JAR = $found_jar");
-            println "jar: $found_jar";
         }
     }
 }
@@ -1171,8 +1163,8 @@ sub status {
     println "javadir: $OPT{'javadir'}" if ($OPT{'javadir'});
     println "pythondir: $OPT{'pythondir'}" if ($OPT{'pythondir'});
 
-    println "CC = $CC";
-    println "CPP = $CPP";
+    println "CC = $CC"   if ($CC );
+    println "CPP = $CPP" if ($CPP);
     println "LDFLAGS = $LDFLAGS" if ($LDFLAGS);
 
     $CONFIGURED =~ s/\t/ /g;

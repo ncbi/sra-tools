@@ -90,7 +90,7 @@ typedef enum {
     eResolve = 2,
     eDependMissing = 4,
     eDependAll = 8,
-/*  eCurl = 16, */
+    eNetwork = 16,
     eVersion = 32,
     eNewVersion = 64,
     eOpenTable = 128,
@@ -123,6 +123,7 @@ typedef struct {
     bool noRfs;
     bool full;
     bool xml;
+    bool network;
 
     bool allowCaching;
     VResolverEnableState cacheState;
@@ -172,7 +173,8 @@ rc_t CC Usage(const Args *args) {
         "  n - print NCBI error report\n"
         "  f - print ascp information\n"
         "  F - print verbose ascp information\n"
-        "  t - print object types\n");
+        "  t - print object types\n"
+        "  N - run network test\n");
     if (rc == 0 && rc2 != 0) {
         rc = rc2;
     }
@@ -889,6 +891,35 @@ static rc_t _VDBManagerReport(const VDBManager *self,
     return _KDBPathTypePrint("", *type, " ");
 }
 
+static rc_t _VDBManagerReportRemote(const VDBManager *self, const char *name)
+{
+    bool notFound = false;
+    const VDatabase *db = NULL;
+    const VTable *tbl = NULL;
+    rc_t rc = VDBManagerOpenDBRead(self, &db, NULL, name);
+    if (rc == 0) {
+        RELEASE(VDatabase, db);
+        return _KDBPathTypePrint("", kptDatabase, " ");
+    }
+    else if (GetRCState(rc) == rcNotFound) {
+        notFound = true;
+    }
+    rc = VDBManagerOpenTableRead(self,  &tbl, NULL,name);
+    if (rc == 0) {
+        RELEASE(VTable, tbl);
+        return _KDBPathTypePrint("", kptTable, " ");
+    }
+    else if (GetRCState(rc) == rcNotFound) {
+        notFound = true;
+    }
+    if (notFound) {
+        return OUTMSG(("NotFound "));
+    }
+    else {
+        return OUTMSG(("Unknown "));
+    }
+}
+
 static
 rc_t _KDirectoryFileHeaderReport(const KDirectory *self, const char *path)
 {
@@ -940,6 +971,20 @@ static rc_t MainReport(const Main *self,
 
     if (type != NULL && *type == kptFile) {
         _KDirectoryFileHeaderReport(self->dir, name);
+    }
+
+    return rc;
+}
+
+static rc_t MainReportRemote(const Main *self, const char *name, int64_t size) {
+    rc_t rc = 0;
+
+    assert(self);
+
+    OUTMSG(("%,lu ", size));
+
+    if (!self->noVDBManagerPathType) {
+        _VDBManagerReportRemote(self->mgr, name);
     }
 
     return rc;
@@ -1072,7 +1117,8 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
                             OUTMSG(("KFileSize(%s)=%R ", name, rc));
                         }
                         else {
-                            OUTMSG(("%,lu ", sz));
+                            MainReportRemote(self, fPath, sz);
+                            //OUTMSG(("%,lu ", sz));
                             *size = sz;
                         }
                     }
@@ -1186,7 +1232,7 @@ static rc_t MainResolveRemote(const Main *self, VResolver *resolver,
             }
         }
     }
-        
+
     rc = MainPathReport(self,
         rc, *remote, ePathRemote, name, NULL, size, fasp, f);
     RELEASE(KFile, f);
@@ -1437,6 +1483,8 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
         if (rc2 != 0 && rc == 0) {
             rc = rc2;
         }
+
+        rc = VDBManagerSetResolver(self->mgr, resolver);
 
         rc2 = MainResolveRemote(self, resolver, name, acc, &remote, remoteSz,
             false);

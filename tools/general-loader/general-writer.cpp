@@ -282,10 +282,10 @@ namespace ncbi
         if ( stream_id > ( int ) streams.size () )
             throw "Stream_id is out of bounds";
 
-        if ( elem_bits == 0 || elem_count == 0 )
+        if ( elem_bits == 0 )
             return;
         
-        if ( data == 0 )
+        if ( data == 0 && elem_count != 0 )
             throw "Invalid data ptr";
 
         if ( elem_bits != streams [ stream_id - 1 ] . elem_bits )

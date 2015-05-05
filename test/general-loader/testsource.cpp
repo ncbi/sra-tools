@@ -30,6 +30,8 @@
 
 #include "testsource.hpp"
 
+#include "../../tools/general-loader/general-loader.hpp"
+
 #include <kfs/ramfile.h>
 
 #include <sysalloc.h>
@@ -196,10 +198,20 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
 void    
 TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
 {
-    Pad ();
     switch ( p_event . m_event )
     {
     case evt_use_schema:
+        if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString && p_event . m_str2 . size () <= GeneralLoader :: MaxPackedString )
+        {   
+            gwp_2string_evt_v1 hdr;
+            init ( hdr, p_event . m_id1, evt_use_schema );
+        
+            set_size1 ( hdr, p_event . m_str1 . size() );
+            set_size2 ( hdr, p_event . m_str2 . size() );
+
+            Write ( & hdr, sizeof hdr ); 
+        }
+        else
         {   
             gwp_2string_evt_U16_v1 hdr;
             init ( hdr, p_event . m_id1, evt_use_schema2 );
@@ -208,45 +220,64 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             set_size2 ( hdr, p_event . m_str2 . size() );
 
             Write ( & hdr, sizeof hdr ); 
-            Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
-            Write ( p_event . m_str2 . c_str(), p_event . m_str2 . size() ); 
         }
+        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
+        Write ( p_event . m_str2 . c_str(), p_event . m_str2 . size() ); 
         break;
         
     //TODO: the following 3 cases are almost identical - refactor
     case evt_remote_path:
+        if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString )
         {   
+            gwp_1string_evt_v1 hdr;
+            init ( hdr, p_event . m_id1, evt_remote_path );
+            set_size ( hdr, p_event . m_str1 . size () );
+            Write ( & hdr, sizeof hdr ); 
+        }
+        else
+        {
             gwp_1string_evt_U16_v1 hdr;
             init ( hdr, p_event . m_id1, evt_remote_path2 );
             set_size ( hdr, p_event . m_str1 . size () );
-            
             Write ( & hdr, sizeof hdr ); 
-            Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
         }
+        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
         break;
     case evt_new_table:
+        if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString )
         {   
+            gwp_1string_evt_v1 hdr;
+            init ( hdr, p_event . m_id1, evt_new_table );
+            set_size ( hdr, p_event . m_str1 . size () );
+            Write ( & hdr, sizeof hdr ); 
+        }
+        else
+        {
             gwp_1string_evt_U16_v1 hdr;
             init ( hdr, p_event . m_id1, evt_new_table2 );
             set_size ( hdr, p_event . m_str1 . size () );
-            
             Write ( & hdr, sizeof hdr ); 
-            Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
         }
+        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
         break;
     case evt_errmsg:
+        if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString )
         {   
+            gwp_1string_evt_v1 hdr;
+            init ( hdr, p_event . m_id1, evt_errmsg );
+            set_size ( hdr, p_event . m_str1 . size () );
+            Write ( & hdr, sizeof hdr ); 
+        }
+        else
+        {
             gwp_1string_evt_U16_v1 hdr;
             init ( hdr, p_event . m_id1, evt_errmsg2 );
             set_size ( hdr, p_event . m_str1 . size () );
-            
             Write ( & hdr, sizeof hdr ); 
-            Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
         }
+        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
         break;
 
-        
-        
     case evt_new_column :
         {
             gwp_column_evt_v1 hdr;
@@ -270,6 +301,16 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
         break;
 
     case evt_cell_data :
+        if ( p_event . m_val . size () <= GeneralLoader :: MaxPackedString )
+        {
+            gwp_data_evt_v1 hdr;
+            init ( hdr, p_event . m_id1, evt_cell_data );
+            // in the packed message, we specify the number of bytes in the cell
+            set_size ( hdr, p_event . m_val . size() ); 
+            
+            Write ( & hdr, sizeof hdr );
+        }
+        else
         {
             gwp_data_evt_U16_v1 hdr;
             init ( hdr, p_event . m_id1, evt_cell_data2 );
@@ -277,10 +318,20 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             set_size ( hdr, p_event . m_val . size() ); 
             
             Write ( & hdr, sizeof hdr );
-            Write ( p_event . m_val . data(), p_event . m_val . size() );
         }
+        Write ( p_event . m_val . data(), p_event . m_val . size() );
         break;
     case evt_cell_default :
+        if ( p_event . m_val . size () <= GeneralLoader :: MaxPackedString )
+        {
+            gwp_data_evt_v1 hdr;
+            init ( hdr, p_event . m_id1, evt_cell_default ); //TODO: this is the only difference from evt_cell_data - refactor
+            // in the packed message, we specify the number of bytes in the cell
+            set_size ( hdr, p_event . m_val . size() ); 
+            
+            Write ( & hdr, sizeof hdr );
+        }
+        else
         {
             gwp_data_evt_U16_v1 hdr;
             init ( hdr, p_event . m_id1, evt_cell_default2 ); //TODO: this is the only difference from evt_cell_data - refactor
@@ -288,8 +339,8 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             set_size ( hdr, p_event . m_val . size() ); 
             
             Write ( & hdr, sizeof hdr );
-            Write ( p_event . m_val . data(), p_event . m_val . size() );
         }
+        Write ( p_event . m_val . data(), p_event . m_val . size() );
         break;
         
     case evt_next_row:

@@ -29,12 +29,12 @@ TOP ?= $(abspath ../..)
 MODULE = test/general-loader
 
 TEST_TOOLS = \
-    test-general-loader
+    test-general-loader \
+	test-general-writer
 
 ALL_TOOLS = \
 	$(TEST_TOOLS) \
     
-#	test-general-writer
 
 include $(TOP)/build/Makefile.env
 

@@ -325,12 +325,28 @@ FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
 }
 
-//TODO: force evt_use_schema2 (one of strings in SchemaEvent longer than 256)
+FIXTURE_TEST_CASE ( BadSchemaFileName_Long, GeneralLoaderFixture )
+{   
+    m_source . SchemaEvent ( string ( GeneralLoader :: MaxPackedString + 1, 'x' ), "someSchemaName" );
+    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
+}
 
 FIXTURE_TEST_CASE ( BadSchemaName, GeneralLoaderFixture )
 {   
     m_source . SchemaEvent ( "align/align.vschema", "bad schema name" );
     m_source . DatabaseEvent ( GetName() );
+    m_source . OpenStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
+    REQUIRE ( ! DatabaseExists() );
+}
+
+FIXTURE_TEST_CASE ( BadSchemaName_Long, GeneralLoaderFixture )
+{   
+    m_source . SchemaEvent ( "align/align.vschema", string ( GeneralLoader :: MaxPackedString + 1, 'x' ) );
+    m_source . DatabaseEvent ( GetName() );
+    m_source . OpenStreamEvent();
+    
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
     REQUIRE ( ! DatabaseExists() );
 }
@@ -339,7 +355,20 @@ FIXTURE_TEST_CASE ( BadTableName, GeneralLoaderFixture )
 {   
     SetUpStream ( GetName() );
     m_source . NewTableEvent ( 1, "nosuchtable" );
+    m_source . OpenStreamEvent();
+
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcDatabase, rcCreating, rcSchema, rcNotFound ) ) );
+    REQUIRE ( ! DatabaseExists() );
+}
+
+FIXTURE_TEST_CASE ( BadTableName_Long, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . NewTableEvent ( 1, string ( GeneralLoader :: MaxPackedString + 1, 'x' ) );
+    m_source . OpenStreamEvent();
+
+    // the expected return code is different here due to VDB's internal limitation on 256 characters in a table name 
+    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcDB,rcDirectory,rcResolving,rcPath,rcExcessive ) ) ); 
     REQUIRE ( ! DatabaseExists() );
 }
 
@@ -481,6 +510,20 @@ FIXTURE_TEST_CASE ( OneColumnOneCellOneChunk, GeneralLoaderFixture )
     REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
 }
 
+FIXTURE_TEST_CASE ( OneColumnOneCellOneChunk_Long, GeneralLoaderFixture )
+{   
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
+
+    string value ( GeneralLoader :: MaxPackedString + 1, 'x' );
+    m_source . CellDataEvent( DefaultColumnId, value );
+    m_source . NextRowEvent ( DefaultTableId );
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
+}
+
 FIXTURE_TEST_CASE ( OneColumnOneCellManyChunks, GeneralLoaderFixture )
 {   
     OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
@@ -504,6 +547,21 @@ FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite, GeneralLoaderFixture )
     OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
 
     string value = "this be my default";
+    m_source . CellDefaultEvent( DefaultColumnId, value );
+    // no WriteEvent
+    m_source . NextRowEvent ( DefaultTableId  );
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
+}
+
+FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite_Long, GeneralLoaderFixture )
+{   
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
+
+    string value ( GeneralLoader :: MaxPackedString + 1, 'x' );
     m_source . CellDefaultEvent( DefaultColumnId, value );
     // no WriteEvent
     m_source . NextRowEvent ( DefaultTableId  );
@@ -980,6 +1038,18 @@ FIXTURE_TEST_CASE ( ErrorMessage, GeneralLoaderFixture )
     m_source . NewColumnEvent ( DefaultColumnId, DefaultTableId, columnName, 8 );   
     m_source . OpenStreamEvent();
     m_source . ErrorMessageEvent ( "error message" );
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), RC ( rcExe, rcFile, rcReading, rcError, rcExists ) ) );
+}
+
+FIXTURE_TEST_CASE ( ErrorMessage_Long, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . NewTableEvent ( DefaultTableId, tableName ); 
+    m_source . NewColumnEvent ( DefaultColumnId, DefaultTableId, columnName, 8 );   
+    m_source . OpenStreamEvent();
+    m_source . ErrorMessageEvent ( string ( 257, 'x' ) );
     m_source . CloseStreamEvent();
     
     REQUIRE ( Run ( m_source . MakeSource (), RC ( rcExe, rcFile, rcReading, rcError, rcExists ) ) );

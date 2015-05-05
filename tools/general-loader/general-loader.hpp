@@ -46,8 +46,7 @@ struct VSchema;
 class GeneralLoader
 {
 public:
-    typedef struct gw_header_v1 Header;
-    typedef enum gw_evt_id Evt_id;
+    static const uint32_t MaxPackedString = 256;
     
 public:
     GeneralLoader ( const struct KStream& p_input );
@@ -63,6 +62,9 @@ public:
 private:
     GeneralLoader(const GeneralLoader&);
     GeneralLoader& operator = ( const GeneralLoader&);
+    
+    typedef struct gw_header_v1 Header;
+    typedef enum gw_evt_id Evt_id;
 
     // Active cursors
     typedef std::vector < struct VCursor * > Cursors;
@@ -99,19 +101,18 @@ private:
                             uint32_t p_elemBits, 
                             uint8_t p_flags, 
                             const std :: string& p_columnName );
-    rc_t Handle_CellData ( uint32_t p_columnId );
-    rc_t Handle_CellData_Packed ( uint32_t p_columnId );
-    rc_t Handle_CellDefault ( uint32_t p_columnId );
-    rc_t Handle_CellDefault_Packed ( uint32_t p_columnId );
+    rc_t Handle_CellData ( uint32_t p_columnId, uint32_t p_elemCount );
+    rc_t Handle_CellData_Packed ( uint32_t p_columnId, uint16_t p_dataSize );
+    rc_t Handle_CellDefault ( uint32_t p_columnId, uint32_t p_elemCount );
+    rc_t Handle_CellDefault_Packed ( uint32_t p_columnId, uint16_t p_dataSize );
     rc_t HandleNextRow ( uint32_t p_tableId );
     rc_t Handle_MoveAhead ( uint32_t p_tableId, uint64_t p_count );
     rc_t Handle_ErrorMessage ( const std :: string& p_text );
+    rc_t Handle_OpenStream ();
+    rc_t Handle_CloseStream ();
     
+    rc_t MakeDatabase ();
     void CleanUp ();
-    
-    rc_t MakeCursors ();
-    rc_t OpenCursors ();
-    rc_t CloseCursors ();
     
     static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
     
@@ -140,6 +141,8 @@ private:
         size_t m_bufSize;
         uint64_t m_readCount;
     };
+    
+    template <typename TEvent> rc_t ReadEvent ( TEvent& p_event );
     
     Reader m_reader;
     

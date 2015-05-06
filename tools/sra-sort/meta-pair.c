@@ -209,7 +209,7 @@ void copy_meta_node_value ( const KMDataNode *src, const ctx_t *ctx, KMDataNode 
     FUNC_ENTRY ( ctx );
 
     rc_t rc;
-    char buff [ 4096 ];
+    char buff [ 32*1024 ];
     size_t num_read, remaining;
 
     rc = KMDataNodeRead ( src, 0, buff, sizeof buff, & num_read, & remaining );
@@ -249,7 +249,7 @@ void copy_meta_node_attr ( const KMDataNode *src, const ctx_t *ctx, KMDataNode *
 
     rc_t rc;
     size_t num_read;
-    char buff [ 4096 ];
+    char buff [ 32*1024 ];
 
     rc = KMDataNodeReadAttr ( src, name, buff, sizeof buff, & num_read );
     if ( rc != 0 )
@@ -293,7 +293,7 @@ const char *filter_node_name ( const char *name, size_t nsize, const char **excl
 
 static
 void copy_meta_node ( const KMDataNode *src, const ctx_t *ctx, KMDataNode *dst,
-    char path [ 4096 ], size_t psize, const char *owner_spec, const char **exclude )
+    char path [ 32*1024 ], size_t psize, const char *owner_spec, const char **exclude )
 {
     FUNC_ENTRY ( ctx );
 
@@ -341,7 +341,7 @@ void copy_meta_node ( const KMDataNode *src, const ctx_t *ctx, KMDataNode *dst,
                         rc = KNamelistCount ( names, & count );
                         if ( rc != 0 )
                             INTERNAL_ERROR ( rc, "KNamelistCount failed" );
-                        else if ( psize + 1 == 4096 )
+                        else if ( psize + 1 == 32*1024 )
                         {
                             rc = RC ( rcExe, rcNode, rcCopying, rcBuffer, rcInsufficient );
                             ERROR ( rc, "metadata path too long" );
@@ -369,7 +369,7 @@ void copy_meta_node ( const KMDataNode *src, const ctx_t *ctx, KMDataNode *dst,
                                 }
 
                                 nsize = string_size ( name );
-                                if ( psize + nsize + 1 >= 4096 )
+                                if ( psize + nsize + 1 >= 32*1024 )
                                 {
                                     WARN ( "skipping node '%.*s/%s' - path too long", ( uint32_t ) psize, path, name );
                                     continue;
@@ -429,7 +429,7 @@ void MetaPairCopy ( MetaPair *self, const ctx_t *ctx, const char *owner_spec, co
     FUNC_ENTRY ( ctx );
 
     rc_t rc;
-    char path [ 4096 ];
+    char path [ 32*1024 ];
     const KMDataNode *src;
 
     STATUS ( 3, "copying '%s' metadata", owner_spec );

@@ -261,8 +261,7 @@ public:
     {
         pb.self = this;
         pb.input = Input;    
-        pb.phredOffset = 33;
-        pb.maxPhred = 33+73;
+        pb.qualityFormat = FASTQphred33;
         pb.defaultReadNumber = 9;
         pb.secondaryReadNumber = 0;
         pb.ignoreSpotGroups = false;
@@ -323,8 +322,8 @@ public:
         read(0), readLength(0), 
         name(0), length(0), 
         errorText(0), errorLine(0), column(0), 
-        quality(0), qualityOffset(0), qualityType(-1),
-        phredOffset(33), maxPhred(0), defaultReadNumber(0), 
+        quality(0), qualityAsciiOffset(0), qualityType(-1),
+        qualityFormat(FASTQphred33), defaultReadNumber(0), 
         ignoreSpotGroups(false)
     {
         if ( KDirectoryNativeDir ( & wd ) != 0 )
@@ -373,7 +372,7 @@ public:
             }
             file=0;
         }
-        return FastqReaderFileMake(&rf, wd, p_filename, phredOffset, maxPhred, defaultReadNumber, ignoreSpotGroups);
+        return FastqReaderFileMake(&rf, wd, p_filename, qualityFormat, defaultReadNumber, ignoreSpotGroups);
     }
     void CreateFileGetRecord(const char* fileName, const char* contents)
     {
@@ -470,11 +469,10 @@ public:
     const void* errorData;
 
     const int8_t* quality;
-    uint8_t qualityOffset;
+    uint8_t qualityAsciiOffset;
     int qualityType;
 
-    uint8_t phredOffset;
-    uint8_t maxPhred;
+    enum FASTQQualityFormat qualityFormat;
     int8_t defaultReadNumber;
     bool ignoreSpotGroups;
 };
@@ -699,32 +697,47 @@ FIXTURE_TEST_CASE(TestSequenceGetRead2, LoaderFixture)
 
 FIXTURE_TEST_CASE(SequenceGetQuality33, LoaderFixture)
 {
-    phredOffset = 33;
+    qualityFormat = FASTQphred33;
     
     REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "GATT\n" "+\n" "!''*\n" ));
     
-    REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityOffset, &qualityType));
+    REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityAsciiOffset, &qualityType));
     REQUIRE_NOT_NULL(quality);
     uint32_t l;
     REQUIRE_RC(SequenceGetReadLength(seq, &l));
-    REQUIRE_EQ(qualityOffset, (uint8_t)phredOffset);
+    REQUIRE_EQ(qualityAsciiOffset, (uint8_t)33);
     REQUIRE_EQ(qualityType, (int)QT_Phred);
     REQUIRE_EQ(quality[0],  (int8_t)'!');
 }
 
 FIXTURE_TEST_CASE(SequenceGetQuality64, LoaderFixture)
 {
-    phredOffset = 64;
+    qualityFormat = FASTQphred64;
     
     REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "GATT\n" "+\n" "BBCC\n" ));
     
-    REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityOffset, &qualityType));
+    REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityAsciiOffset, &qualityType));
     REQUIRE_NOT_NULL(quality);
     uint32_t l;
     REQUIRE_RC(SequenceGetReadLength(seq, &l));
-    REQUIRE_EQ(qualityOffset, (uint8_t)phredOffset);
+    REQUIRE_EQ(qualityAsciiOffset, (uint8_t)64);
     REQUIRE_EQ(qualityType, (int)QT_Phred);
     REQUIRE_EQ(quality[0],  (int8_t)'B');
+}
+
+FIXTURE_TEST_CASE(SequenceGetQualityLogOdds, LoaderFixture)
+{
+    qualityFormat = FASTQlogodds;
+    
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "GATT\n" "+\n" ";>@H\n" ));
+    
+    REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityAsciiOffset, &qualityType));
+    REQUIRE_NOT_NULL(quality);
+    uint32_t l;
+    REQUIRE_RC(SequenceGetReadLength(seq, &l));
+    REQUIRE_EQ(qualityAsciiOffset, (uint8_t)64);
+    REQUIRE_EQ(qualityType, (int)QT_LogOdds);
+    REQUIRE_EQ(quality[0],  (int8_t)';');
 }
 
 FIXTURE_TEST_CASE(SequenceBaseSpace, LoaderFixture)
@@ -755,10 +768,10 @@ FIXTURE_TEST_CASE(SequenceColorSpace, LoaderFixture)
     REQUIRE_RC(SequenceGetCSRead(seq, read));
     REQUIRE_EQ(string(read, l), string("123"));
     
-    REQUIRE_RC(SequenceGetCSQuality(seq, &quality, &qualityOffset, &qualityType));
+    REQUIRE_RC(SequenceGetCSQuality(seq, &quality, &qualityAsciiOffset, &qualityType));
     REQUIRE_NOT_NULL(quality);
     REQUIRE_EQ(qualityType, (int)QT_Phred);
-    REQUIRE_EQ(qualityOffset,   (uint8_t)phredOffset);
+    REQUIRE_EQ(qualityAsciiOffset,   (uint8_t)33);
     REQUIRE_EQ(quality[0],  (int8_t)'\'');
     REQUIRE_EQ(quality[1],  (int8_t)'\'');
     REQUIRE_EQ(quality[2],  (int8_t)'*' );
@@ -886,6 +899,16 @@ FIXTURE_TEST_CASE(SequenceGetSpotGroup_Zero, LoaderFixture)
     REQUIRE(!SequenceIsFirst(seq));
 }
 
+FIXTURE_TEST_CASE(SequenceGetSpotGroupBarcode, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@HWI-ST1234:33:D1019ACXX:2:1101:1415:2223/1 1:N:0:ATCACG\nATCG\n"));
+    REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
+    REQUIRE_EQ(string("ATCACG"), string(name, length));
+    REQUIRE(!SequenceIsSecond(seq));
+    REQUIRE(SequenceIsFirst(seq));
+}
+
+
 #define TEST_PAIRED(line, paired)\
     REQUIRE(CreateFileGetSequence(GetName(), line "\n" "GATT\n" "+\n" "!''*\n"));\
     if (paired)\
@@ -908,7 +931,7 @@ FIXTURE_TEST_CASE(SequenceGetSpotNameOneLine, LoaderFixture)
 
 FIXTURE_TEST_CASE(SequenceGetNameNumeric, LoaderFixture)
 {   // source: SRR094419
-    phredOffset = 64;
+    qualityFormat = FASTQphred64;
     REQUIRE(CreateFileGetSequence(GetName(), 
         "@741:6:1:1204:10747/1\n"
         "GTCGTTGTCCCGCTCCTCATATTCNNNNNNNNNNNN\n"
@@ -943,17 +966,17 @@ FIXTURE_TEST_CASE(OneLineRead, LoaderFixture)
 FIXTURE_TEST_CASE(ForcePhredOffset, LoaderFixture)
 {   // quality line looks like it may be Phred64, but we know we are dealing with Phred33 
 // source: SRR014126
-    phredOffset = 33;
+    qualityFormat = FASTQphred33;
     CreateFileGetSequence(GetName(), 
         "@R16:8:1:19:1012#0/2\n"
         "TTAAATGACTCTTTAAAAAACACAACATACATTGATATATTTATTCCTAGATATTTGCTTATAAGACTCTAATCA\n"
         "+\n"
         "BCCBBBACBBCCCCBCCCCCCCCCCBCBCCCABBBBBBCCBBCBBCCBBCBCCCABBCAAABC@CCCAB@CBACC\n"
     );
-    REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityOffset, &qualityType));
+    REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityAsciiOffset, &qualityType));
     REQUIRE_NOT_NULL(quality);
     REQUIRE_EQ(qualityType, (int)QT_Phred);
-    REQUIRE_EQ(qualityOffset,  (uint8_t)33);
+    REQUIRE_EQ(qualityAsciiOffset,  (uint8_t)33);
     REQUIRE_EQ(quality[0],    (int8_t)'B');
 }
 
@@ -1110,7 +1133,7 @@ FIXTURE_TEST_CASE(GtStartsReadOnly, LoaderFixture)
 FIXTURE_TEST_CASE(Quality33TooLow, LoaderFixture)
 {   // negative qualities are not allowed for Phred33
 // source: SRR016872
-    phredOffset = 33;
+    qualityFormat = FASTQphred33;
     CreateFileGetRecord(GetName(), 
             "@HWI-EAS102_1_30LWPAAXX:5:1:1792:566\n"
             "GAAACCCCCTATTAGANNNNCNNNNCNATCATGTCA\n"
@@ -1124,12 +1147,25 @@ FIXTURE_TEST_CASE(Quality33TooLow, LoaderFixture)
 FIXTURE_TEST_CASE(Quality64TooLow, LoaderFixture)
 {   // negative qualities are not allowed for Phred64
 // source: SRR016872
-    phredOffset = 64;
+    qualityFormat = FASTQphred64;
     CreateFileGetRecord(GetName(), 
             "@HWI-EAS102_1_30LWPAAXX:5:1:1511:102\n"
             "GGGGTTAGTGGCAGGGGGGGGGTCTCGGGGGGGGGG\n" 
             "+HWI-EAS102_1_30LWPAAXX:5:1:1511:102\n"
             "IIIIIIIIIIIIIIIIII;IIIIIIIIIIIIIIIII\n"
+        );
+    REQUIRE(GetRejected());
+    REQUIRE(fatal);
+}
+
+FIXTURE_TEST_CASE(QualityLogoddsTooLow, LoaderFixture)
+{   // qualities under 59 are not allowed for LogOdds
+    qualityFormat = FASTQlogodds;
+    CreateFileGetRecord(GetName(), 
+            "@HWI-EAS102_1_30LWPAAXX:5:1:1511:102\n"
+            "GGGGTTAGTGGCAGGGGGGGGGTCTCGGGGGGGGGG\n" 
+            "+HWI-EAS102_1_30LWPAAXX:5:1:1511:102\n"
+            "I:IIIIIIIIIIIIIIII;IIIIIIIIIIIIIIIII\n" // ':' = 58
         );
     REQUIRE(GetRejected());
     REQUIRE(fatal);
@@ -1150,8 +1186,6 @@ FIXTURE_TEST_CASE(DecimalQualityRejected, LoaderFixture)
 ////////////////// detecting alternative formats
 FIXTURE_TEST_CASE(PacbioRaw, LoaderFixture)
 {
-    maxPhred = 33 + 73;
-    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(), 
         "@m121205_055009_42163_c100416332550000001523041801151327_s1_p0/19\n"
         "AGAGTTTGAT\n"
@@ -1163,7 +1197,6 @@ FIXTURE_TEST_CASE(PacbioRaw, LoaderFixture)
 }
 FIXTURE_TEST_CASE(PacbioCcs, LoaderFixture)
 {
-    maxPhred = 33 + 73;
     defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(), 
         "@m121205_055009_42163_c100416332550000001523041801151327_s1_p0/19/ccs\n"
@@ -1177,7 +1210,6 @@ FIXTURE_TEST_CASE(PacbioCcs, LoaderFixture)
 
 FIXTURE_TEST_CASE(PacbioNoReadNumbers, LoaderFixture)
 {
-    maxPhred = 33 + 73;
     defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(), 
         "@m121205_055009_42163_c100416332550000001523041801151327_s1_p0/1\n"
@@ -1191,8 +1223,6 @@ FIXTURE_TEST_CASE(PacbioNoReadNumbers, LoaderFixture)
 
 FIXTURE_TEST_CASE(PacbioWsCcs, LoaderFixture)
 {
-    maxPhred = 33 + 73;
-    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(), 
         "@m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2 ccs\n"
         "AGAGTTTGAT\n"
@@ -1205,8 +1235,6 @@ FIXTURE_TEST_CASE(PacbioWsCcs, LoaderFixture)
 
 FIXTURE_TEST_CASE(PacbioError, LoaderFixture)
 {
-    maxPhred = 33 + 73;
-    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(), 
         "@m130727_021351_42150_c100538232550000001823086511101336_s1_p0/53/0_106\n"
         "TTTTTCCAAAAAAGGAGACGTAAACATTTCTTAACTTGCCAGCACTCTAATTCCAAAATCAAGTCGCATTTCTGACATTGCGGTAAGATTGTGCAATATCATATCT\n"
@@ -1258,6 +1286,30 @@ FIXTURE_TEST_CASE ( MissingRead, LoaderFixture )
     REQUIRE_EQ(string("GG3IVWD03HIDOA"), string(name, length));
 }
 
+FIXTURE_TEST_CASE ( UnexpectedEOLreported, LoaderFixture )
+{ // source: SRR1915965
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@HWI-ST1106:381:D1CDRACXX:8:1101:10000:110594\t2\n"
+        "AACA\n+\n$.%0\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("HWI-ST1106:381:D1CDRACXX:8:1101:10000:110594"), string(name, length));
+    REQUIRE(SequenceIsSecond(seq));
+}
+
+FIXTURE_TEST_CASE ( AnotherUnexpectedEOLreported, LoaderFixture )
+{ // source: SRR1686805 
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@HWI-ST225:626:C2Y82ACXX:3:1304:7988:75799_2\n"
+        "AACA\n+\n$.%0\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("HWI-ST225:626:C2Y82ACXX:3:1304:7988:75799"), string(name, length));
+    REQUIRE(SequenceIsSecond(seq));
+}
+
+
+
 // FIXTURE_TEST_CASE(Pacbio, LoaderFixture)
 // { 
     // REQUIRE(CreateFileGetSequence(GetName(), 
@@ -1275,10 +1327,10 @@ FIXTURE_TEST_CASE ( MissingRead, LoaderFixture )
     // REQUIRE_RC(SequenceGetRead(seq, read));
     // REQUIRE_EQ(string(read, readLength), string("CTGCTTCTCCTGCTCTTCCTACTGTCCTCTCCCTGCTGTCGCTTCGCCCCTCGGTGGAGGCCGCGTTTGAGCGGCCGGTGTCCGCTGC"));
 
-    // REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityOffset, &qualityType));
+    // REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityAsciiOffset, &qualityType));
     // REQUIRE_NOT_NULL(quality);
     // REQUIRE_EQ(qualityType, (int)QT_Phred);
-    // REQUIRE_EQ((unsigned int)qualityOffset,  (unsigned int)phredOffset);
+    // REQUIRE_EQ((unsigned int)qualityAsciiOffset,  (unsigned int)phredOffset);
     // REQUIRE_EQ(quality[0],  (int8_t)'+');
     // REQUIRE_EQ(quality[87], (int8_t)'\'');
 // }

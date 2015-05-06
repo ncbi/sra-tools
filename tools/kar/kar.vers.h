@@ -1,1 +1,1 @@
-#define KAR_VERS 0x02040005
+#define KAR_VERS 0x02050000

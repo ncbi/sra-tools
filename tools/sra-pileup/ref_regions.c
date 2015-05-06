@@ -213,7 +213,7 @@ static void parse_definition( const char *s, char * name, size_t len,
     if ( n > 0 )
     {
         size_t i, st, dst = 0;
-        char tmp[ 32 ];
+        char tmp[ 4096 ];
         st = RR_NAME;
         for ( i = 0; i < n; ++i )
         {
@@ -393,7 +393,7 @@ rc_t add_region( BSTree * regions, const char * name, const uint64_t start, cons
 rc_t parse_and_add_region( BSTree * regions, const char * s )
 {
     uint64_t start, end;
-    char name[ 64 ];
+    char name[ 4096 ];
     parse_definition( s, name, sizeof name, &start, &end );
     if ( name[ 0 ] == 0 )
         return RC( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );

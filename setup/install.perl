@@ -228,7 +228,7 @@ foreach (@bits) {
         $File::Copy::Recursive::CPRFComp = 1;
     }
 
-    $failures += copyexamples();
+    $failures += copyexamples() if ($HAVE{EXAMPLES});
     $failures += finishinstall() unless ($failures);
 
     unless ($failures) {
@@ -770,6 +770,11 @@ sub copyexamples {
     return 0 unless (-e $sd);
 
     my $d = $_{INST_SHAREDIR};
+    unless ($d) {
+        print "install: error: cannot install examples\n";
+        return 0;
+    }
+
     if ($HAVE{JAR}) {
         $d .= '/examples-java';
     } elsif ($HAVE{PYTHON}) {
@@ -902,7 +907,7 @@ EndText
                 my $o = includes_out();
                 if ($o) {
                     eval { INCLUDES_OUT(); };
-                    if (@_) {
+                    if ($@) {
                         print "install: cannot find INCLUDES_OUT\n";
                         ++$failures;
                     } else {

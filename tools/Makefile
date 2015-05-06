@@ -65,10 +65,11 @@ SUBDIRS =             \
     vdb-diff          \
     kget              \
     ngs-pileup        \
+    general-loader    \
 
 ifneq (win,$(BUILD_OS))
 ifneq (rwin,$(BUILD_OS))
-	SUBDIRS += cg-load
+	SUBDIRS += cg-load pileup-stats
 endif
 endif
 

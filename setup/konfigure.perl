@@ -180,6 +180,12 @@ if ($OPT{'help'}) {
     exit 0;
 }
 
+foreach (@ARGV) {
+    @_ = split('=');
+    next if ($#_ != 1);
+    $OPT{$_[0]} = $_[1] if ($_[0] eq 'CXX' || $_[0] eq 'LDFLAGS');
+}
+
 println "Configuring $PACKAGE_NAME package";
 
 $OPT{'prefix'} = $package_default_prefix unless ($OPT{'prefix'});
@@ -323,22 +329,27 @@ if ($OSTYPE =~ /linux/i) {
 } else {
     die "unrecognized OS '$OSTYPE'";
 }
+
 println "$OSTYPE ($OS) is supported" unless ($AUTORUN);
 
 # tool chain
 my ($CPP, $CC, $CP, $AR, $ARX, $ARLS, $LD, $LP, $MAKE_MANIFEST);
 my ($JAVAC, $JAVAH, $JAR);
-my ($ARCH_FL, $DBG, $OPT, $PIC, $INC, $MD) = ('');
+my ($ARCH_FL, $DBG, $OPT, $PIC, $INC, $MD, $LDFLAGS) = ('');
 
 print "checking for supported tool chain... " unless ($AUTORUN);
-if ($TOOLS eq 'gcc') {
-    $CPP  = 'g++';
-    $CC   = 'gcc -c';
+
+$CPP     = $OPT{CXX    } if ($OPT{CXX    });
+$LDFLAGS = $OPT{LDFLAGS} if ($OPT{LDFLAGS});
+
+if ($TOOLS =~ /gcc$/) {
+    $CPP  = 'g++' unless ($CPP);
+    $CC   = "$TOOLS -c";
     $CP   = "$CPP -c";
     $AR   = 'ar rc';
     $ARX  = 'ar x';
     $ARLS = 'ar t';
-    $LD   = 'gcc';
+    $LD   = $TOOLS;
     $LP   = $CPP;
 
     $DBG = '-g -DDEBUG';
@@ -347,7 +358,7 @@ if ($TOOLS eq 'gcc') {
     $INC = '-I';
     $MD  = '-MD';
 } elsif ($TOOLS eq 'clang') {
-    $CPP  = 'clang++';
+    $CPP  = 'clang++' unless ($CPP);
     $CC   = 'clang -c';
     my $versionMin = '-mmacosx-version-min=10.6';
     $CP   = "$CPP -c $versionMin";
@@ -396,7 +407,7 @@ if ($CPP) {
 }
 
 my $NO_ARRAY_BOUNDS_WARNING = '';
-if ($TOOLS eq 'gcc' && check_no_array_bounds()) {
+if ($TOOLS =~ /gcc$/ && check_no_array_bounds()) {
     $NO_ARRAY_BOUNDS_WARNING = '-Wno-array-bounds';
 }
 
@@ -576,8 +587,12 @@ foreach my $href (@REQ) {
                     if ($tolib && ! $found) {
                         (undef, $fl, $fil)
                             = find_in_dir($try, undef, $lib, $ilib);
-                        $found_lib  = $fl  if (! $found_lib  && $fl);
-                        $found_ilib = $fil if (! $found_ilib && $fil);
+                        my $resetLib = ! $found_lib;
+                        if (! $found_ilib && $fil) {
+                            $found_ilib = $fil;
+                            ++$resetLib;
+                        }
+                        $found_lib  = $fl  if ($resetLib && $fl);
                     }
                     if ($need_jar && ! $found_jar) {
                         (undef, $found_jar)
@@ -621,6 +636,7 @@ foreach my $href (@REQ) {
         if ($found_itf) {
             $found_itf = abs_path($found_itf);
             push(@dependencies, "$a{aname}_INCDIR = $found_itf");
+            println "includes: $found_itf";
         }
         if ($found_lib) {
             $found_lib = abs_path($found_lib);
@@ -633,14 +649,17 @@ foreach my $href (@REQ) {
                 $OPT{PYTHON_LIB_PATH} .= $found_lib;
             }
             push(@dependencies, "$a{aname}_LIBDIR = $found_lib");
+            println "libraries: $found_lib";
         }
         if ($ilib && $found_ilib) {
             $found_ilib = abs_path($found_ilib);
             push(@dependencies, "$a{aname}_ILIBDIR = $found_ilib");
+            println "ilibraries: $found_ilib";
         }
         if ($found_jar) {
             $found_jar = abs_path($found_jar);
             push(@dependencies, "$a{aname}_JAR = $found_jar");
+            println "jar: $found_jar";
         }
     }
 }
@@ -755,6 +774,7 @@ BITS = $BITS
 EndText
 
     L($F, "CC            = $CC"           ) if ($CC);
+    L($F, "CPP           = $CPP"          ) if ($CPP);
     L($F, "CP            = $CP"           ) if ($CP);
     L($F, "AR            = $AR"           ) if ($AR);
     L($F, "ARX           = $ARX"          ) if ($ARX);
@@ -803,6 +823,7 @@ EndText
     if ($PKG{LNG} eq 'C') {
         L($F, "CFLAGS  = \$(DBG) \$(OPT) \$(INCDIRS) $MD $ARCH_FL");
     }
+    L($F, "LDFLAGS = $LDFLAGS") if ($LDFLAGS);
 
     L($F, 'CLSPATH = -classpath $(CLSDIR)');
     L($F, "NO_ARRAY_BOUNDS_WARNING = $NO_ARRAY_BOUNDS_WARNING");
@@ -1099,8 +1120,14 @@ sub status {
                 $BUILD_TYPE = $_ unless ($BUILD_TYPE);
             } elsif (/BUILD_PREFIX = /) {
                 $BUILD_PREFIX = $_;
+            } elsif (/^CC += (.+)/) {
+                $CC = $1;
             } elsif (/CONFIGURED = (.*)/) {
                 $CONFIGURED = $1;
+            } elsif (/CPP += (.+)/) {
+                $CPP = $1;
+            } elsif (/LDFLAGS += (.+)/) {
+                $LDFLAGS = $1;
             } elsif (/TARGDIR = /) {
                 $TARGDIR = $_;
                 println "\t\tgot $_" if ($OPT{'debug'});
@@ -1143,6 +1170,10 @@ sub status {
     println "sharedir: $OPT{'sharedir'}" if ($OPT{'sharedir'});
     println "javadir: $OPT{'javadir'}" if ($OPT{'javadir'});
     println "pythondir: $OPT{'pythondir'}" if ($OPT{'pythondir'});
+
+    println "CC = $CC"   if ($CC );
+    println "CPP = $CPP" if ($CPP);
+    println "LDFLAGS = $LDFLAGS" if ($LDFLAGS);
 
     $CONFIGURED =~ s/\t/ /g;
     println "configured with: \"$CONFIGURED\"";
@@ -1328,8 +1359,8 @@ sub check_compiler {
     if ($t eq 'L') {
         print "checking for $n library... ";
     } elsif ($t eq 'O') {
-        if ($tool && $tool eq 'gcc') {
-            print "checking whether gcc accepts $n... ";
+        if ($tool && $tool =~ /gcc$/) {
+            print "checking whether $tool accepts $n... ";
         } else {
             return;
         }
@@ -1400,7 +1431,7 @@ sub check_compiler {
         return ($i, $l);
     }
 
-    println 'cannot run gcc: skipped';
+    println "cannot run $tool: skipped";
 }
 
 ################################################################################

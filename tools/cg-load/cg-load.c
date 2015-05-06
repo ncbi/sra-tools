@@ -166,39 +166,58 @@ rc_t DB_Fini(const SParam* p, DB_Handle* h, bool drop)
     /* THIS FUNCTION MAKES NO ATTEMPT TO PRESERVE INITIAL ERROR CODES
        EACH SUCCESSIVE ERROR OVERWRITES THE PREVIOUS CODE */
     if( h != NULL ) {
+        PLOGMSG(klogInfo, (klogInfo, "DB_Fini was called with drop=$(drop)",
+            "drop=%s", drop ? "true" : "false"));
+
         PLOGMSG(klogInfo, (klogInfo, "Fini SEQUENCE", "severity=status"));
-        if( (rc2 = CGWriterSeq_Whack(h->wseq, !drop, NULL)) != 0 && !drop ) {
-            drop = true;
-            rc = rc2;
+        if( (rc2 = CGWriterSeq_Whack(h->wseq, !drop, NULL)) != 0) {
+            LOGERR(klogErr, rc2, "Failed SEQUENCE release");
+            if (!drop) {
+                drop = true;
+                rc = rc2;
+            }
         }
         h->wseq = NULL;
         h->reads = NULL;
         PLOGMSG(klogInfo, (klogInfo, "Fini (PRI&SEC)_ALIGNMENT", "severity=status"));
-        if( (rc2 = CGWriterAlgn_Whack(h->walgn, !drop, NULL, NULL)) != 0 && !drop ) {
-            drop = true;
-            rc = rc2;
+        if( (rc2 = CGWriterAlgn_Whack(h->walgn, !drop, NULL, NULL)) != 0) {
+            LOGERR(klogErr, rc2, "Failed (PRI&SEC)_ALIGNMENT release");
+            if (!drop) {
+                drop = true;
+                rc = rc2;
+            }
         }
         h->walgn = NULL;
         h->mappings = NULL;
         PLOGMSG(klogInfo, (klogInfo, "Fini EVIDENCE_INTERVAL", "severity=status"));
-        if( (rc2 = CGWriterEvdInt_Whack(h->wev_int, !drop, NULL)) != 0 && !drop ) {
-            drop = true;
-            rc = rc2;
+        if( (rc2 = CGWriterEvdInt_Whack(h->wev_int, !drop, NULL)) != 0) {
+            LOGERR(klogErr, rc2, "Failed EVIDENCE_INTERVAL release");
+            if (!drop) {
+                drop = true;
+                rc = rc2;
+            }
         }
         h->wev_int = NULL;
         h->ev_int = NULL;
         PLOGMSG(klogInfo, (klogInfo, "Fini EVIDENCE_ALIGNMENT", "severity=status"));
-        if( (rc2 = CGWriterEvdDnbs_Whack(h->wev_dnb, !drop, NULL)) != 0 && !drop ) {
-            drop = true;
-            rc = rc2;
+        if( (rc2 = CGWriterEvdDnbs_Whack(h->wev_dnb, !drop, NULL)) != 0) {
+            LOGERR(klogErr, rc2, "Failed EVIDENCE_ALIGNMENT release");
+            if (!drop) {
+                drop = true;
+                rc = rc2;
+            }
         }
         h->wev_dnb = NULL;
         h->ev_dnb = NULL;
         PLOGMSG(klogInfo, (klogInfo, "Fini calculating reference coverage", "severity=status"));
-        if( (rc2 = ReferenceMgr_Release(h->rmgr, !drop, NULL, drop ? false : true, Quitting)) != 0 && !drop ) {
-            drop = true;
-            rc = rc2;
-	    LOGERR(klogErr, rc, "Failed calculating reference coverage");
+        if( (rc2 = ReferenceMgr_Release
+            (h->rmgr, !drop, NULL, drop ? false : true, Quitting)) != 0)
+        {
+            LOGERR(klogErr, rc2, "Failed calculating reference coverage");
+            if (!drop) {
+                drop = true;
+                rc = rc2;
+            }
         }
         h->rmgr = NULL;
         if( rc == 0 )
@@ -215,17 +234,17 @@ rc_t DB_Fini(const SParam* p, DB_Handle* h, bool drop)
                 KMetadataRelease(meta);
             }
         }
-        PLOGMSG(klogInfo, (klogInfo, "Fini VDatabaseRelease", "severity=status"));
+        PLOGERR(klogInfo, (klogInfo, rc, "Fini VDatabaseRelease", "severity=status"));
         VDatabaseRelease(h->db);
         h->db = NULL;
         VSchemaRelease(h->schema);
         h->schema = NULL;
         if( drop || rc != 0 ) {
             rc2 = VDBManagerDrop(h->mgr, kptDatabase, "%s", p->out);
-            if( GetRCState(rc2) == rcNotFound ) {
-                /* WHAT WOULD BE THE POINT OF RESETTING "rc" TO ZERO? */
+            /*if( GetRCState(rc2) == rcNotFound ) {
+                // WHAT WOULD BE THE POINT OF RESETTING "rc" TO ZERO?
                 rc = 0;
-            } else if( rc2 != 0 ) {
+            } else*/ if( rc2 != 0 ) {
                 if ( rc == 0 )
                     rc = rc2;
                 PLOGERR(klogErr, (klogErr, rc2, "cannot drop db at '$(path)'", PLOG_S(path), p->out));
@@ -331,6 +350,7 @@ void FGroupMAP_CloseFiles(FGroupMAP *g)
 {
     CGLoaderFile_Close(g->seq);
     CGLoaderFile_Close(g->align);
+    CGLoaderFile_Close(g->tagLfr);
 }
 
 static void CC FGroupMAP_Whack(BSTNode *node, void *data) {

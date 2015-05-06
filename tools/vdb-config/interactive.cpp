@@ -55,8 +55,9 @@ using namespace tui;
 #define CB_COLOR_BG		KTUI_c_cyan
 #define BTN_COLOR_BG	KTUI_c_cyan
 
-#define TOP_H			7
+#define TOP_H			9
 #define SRC_W		    36
+#define PROXY_EN_W		15
 #define SAVE_W		    14
 #define EXIT_W		    14
 #define WKSP_NAME_W		32
@@ -65,6 +66,8 @@ using namespace tui;
 #define CB_TXT_REMOTE	            "Enable Remote Access (1)"
 #define CB_TXT_CACHE   	            "Enable Local File Caching (2)"
 #define CB_TXT_SITE   	            "Use Site Installation (3)"
+#define CB_TXT_PROXY        		"Use Proxy"
+
 #define BTN_TXT_IMPORT_NGC 			"Import Repository Key (4)"
 #define BTN_TXT_DFLT_IMPORT_PATH	"Set Default Import Path (5)"
 #define B_SAVE_TXT                  "Save (6)"
@@ -82,6 +85,8 @@ using namespace tui;
 #define FOCUS_TXT_CB_REMOTE         "Press SPACE | ENTER to enable/disable access to the servers at NCBI"
 #define FOCUS_TXT_CB_CACHED         "Press SPACE | ENTER to enable/disable caching"
 #define FOCUS_TXT_CB_SITE           "Press SPACE | ENTER to enable/disable access to site repositories"
+#define FOCUS_TXT_CB_PROXY          "Press SPACE | ENTER to enable/disable http proxy"
+#define FOCUS_TXT_B_PROXY			"Press SPACE | ENTER to edit proxy"
 #define FOCUS_TXT_B_PUBLIC_LOC      "Press SPACE | ENTER to change location of public data"
 #define FOCUS_TXT_B_IMPORT_NGC      "Press SPACE | ENTER to import a dbGaP project"
 #define FOCUS_TXT_B_USR_DFLT_PATH   "Press SPACE | ENTER to change default repository location"
@@ -99,23 +104,26 @@ using namespace tui;
 #define ID_CB_REMOTE                104
 #define ID_CB_CACHED                105
 #define ID_CB_SITE                  106
+#define ID_CB_PROXY          		107
+#define ID_B_PROXY          		108
+#define ID_L_PROXY          		109
 
-#define ID_B_IMPORT_NGC             107
-#define ID_B_USR_DFLT_PATH          108
+#define ID_B_IMPORT_NGC             120
+#define ID_B_USR_DFLT_PATH          121
 
-#define ID_L_WKSP_NAME              109
-#define ID_L_WKSP_LOC               110
+#define ID_L_WKSP_NAME              122
+#define ID_L_WKSP_LOC               123
 
-#define ID_L_PUBLIC                 111
-#define ID_B_PUBLIC_LOC             112
-#define ID_L_PUBLIC_LOC             113
+#define ID_L_PUBLIC                 123
+#define ID_B_PUBLIC_LOC             124
+#define ID_L_PUBLIC_LOC             125
 
-#define ID_B_SAVE                   114
-#define ID_B_EXIT                   115
-#define ID_B_RELOAD                 116
-#define ID_B_FACT_DFLT              117
+#define ID_B_SAVE                   126
+#define ID_B_EXIT                   127
+#define ID_B_RELOAD                 128
+#define ID_B_FACT_DFLT              129
 
-#define ID_L_NUMBER_EXPLAIN         118
+#define ID_L_NUMBER_EXPLAIN         130
 
 #define ID_L_PROT                   200
 #define ID_L_PROT_LOC               300
@@ -163,7 +171,11 @@ class vdbconf_view : public Dlg
         Tui_Rect remote_cb_rect( Tui_Rect const &r ) const { return h1_w_rect( r, 1, 1, SRC_W ); }
         Tui_Rect cache_cb_rect( Tui_Rect const &r ) const { return h1_w_rect( r, 1, 3, SRC_W ); }
         Tui_Rect site_cb_rect( Tui_Rect const &r ) const { return h1_w_rect( r, 1, 5, SRC_W ); }
-
+        Tui_Rect proxy_cb_rect( Tui_Rect const &r ) const { return h1_w_rect( r, 1, 7, PROXY_EN_W ); }
+        Tui_Rect proxy_btn_rect( Tui_Rect const &r ) const { return h1_w_rect( r, PROXY_EN_W + 2, 7, WKSP_B_LOC_W ); }
+        Tui_Rect proxy_lb_rect( Tui_Rect const &r ) const
+		{ return h1_w_rect( r, PROXY_EN_W + 3 + WKSP_B_LOC_W, 7, r.get_w() - ( PROXY_EN_W + 4 + WKSP_B_LOC_W ) ); }
+		
         Tui_Rect import_ngc_rect( Tui_Rect const &r ) const { return h1_w_rect( r, 1, 1, WKSP_NAME_W ); }
         Tui_Rect usr_dflt_path_rect( Tui_Rect const &r ) const { return h1_w_rect( r, WKSP_NAME_W + 2, 1, WKSP_NAME_W + 3 ); }
 
@@ -267,6 +279,9 @@ void vdbconf_view::populate_top_left( Tui_Rect const &r, bool resize )
 	setup_checkbox( cache_cb_rect( r ), resize, ID_CB_CACHED, CB_TXT_CACHE, priv_model.is_global_cache_enabled() );
 	if ( priv_model.does_site_repo_exist() )
 		setup_checkbox( site_cb_rect( r ), resize, ID_CB_SITE, CB_TXT_SITE, priv_model.is_site_enabled() );
+	setup_checkbox( proxy_cb_rect( r ), resize, ID_CB_PROXY, CB_TXT_PROXY, priv_model.is_http_proxy_enabled() );
+	setup_button( proxy_btn_rect( r ), resize, ID_B_PROXY, BTN_TXT_CHANGE );
+	setup_label( proxy_lb_rect( r ), resize, ID_L_PROXY, priv_model.get_http_proxy_path().c_str() );
 }
 
 
@@ -510,6 +525,8 @@ class vdbconf_controller : public Dlg_Runner
         bool toggle_site( Dlg &dlg );
         bool toggle_cached( Dlg &dlg );
 
+		bool change_proxy( Dlg &dlg );
+		
         bool on_set_location_error( Dlg &dlg, ESetRootState s );
         bool on_pick_public_location( Dlg &dlg );
 
@@ -673,6 +690,7 @@ bool vdbconf_controller::import_this_ngc_into_this_location( Dlg &dlg,
         {
             m.commit();
             update_view( dlg );
+            m.mkdir(ngc);
         }
     }
     else if ( result_flags == 0 )
@@ -831,6 +849,18 @@ bool vdbconf_controller::on_change_dflt_import_path( Dlg &dlg )
 }
 
 
+bool vdbconf_controller::change_proxy( Dlg &dlg )
+{
+	std::string proxy = priv_model.get_http_proxy_path();
+	bool res = vdbconf_input( dlg, Tui_Rect( 5, 5, 100, 6 ), "change proxy", proxy );
+	if ( res )
+	{
+		priv_model.set_http_proxy_path( proxy.c_str() );
+		dlg.SetWidgetCaption( ID_L_PROXY, proxy );
+	}
+	return res;
+}
+
 bool vdbconf_controller::on_set_location_error( Dlg &dlg, ESetRootState s )
 {
     bool result = false;
@@ -976,6 +1006,9 @@ bool vdbconf_controller::on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
                              res = true;
                              break;
 
+		case ID_CB_PROXY  : m.set_http_proxy_enabled( dev.get_value_1() == 1 ); res = true; break;
+		case ID_B_PROXY   : res = change_proxy( dlg ); break;
+		
         case ID_B_PUBLIC_LOC : res = on_pick_public_location( dlg ); break;
 
         case ID_B_IMPORT_NGC : res = on_import_ngc( dlg ); break;
@@ -1010,6 +1043,9 @@ bool vdbconf_controller::on_focused( Dlg &dlg, uint32_t widget_id )
         case ID_CB_REMOTE       : status_txt( dlg, FOCUS_TXT_CB_REMOTE ); break;
         case ID_CB_CACHED       : status_txt( dlg, FOCUS_TXT_CB_CACHED ); break;
         case ID_CB_SITE         : status_txt( dlg, FOCUS_TXT_CB_SITE ); break;
+		case ID_CB_PROXY        : status_txt( dlg, FOCUS_TXT_CB_PROXY ); break;
+		case ID_B_PROXY         : status_txt( dlg, FOCUS_TXT_B_PROXY ); break;
+		
         case ID_B_PUBLIC_LOC    : status_txt( dlg, FOCUS_TXT_B_PUBLIC_LOC ); break;
         case ID_B_IMPORT_NGC    : status_txt( dlg, FOCUS_TXT_B_IMPORT_NGC ); break;
         case ID_B_USR_DFLT_PATH : status_txt( dlg, FOCUS_TXT_B_USR_DFLT_PATH ); break;

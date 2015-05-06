@@ -103,7 +103,6 @@ FIXTURE_TEST_CASE ( SingleReference_ByCanonicalName, NGSPileupFixture )
     REQUIRE_EQ ( expectedStart, Run () . substr ( 0, expectedStart . length () ) );
 }
 
-#if SHOW_UNIMPLEMENTED
 FIXTURE_TEST_CASE ( SingleReference_Slice, NGSPileupFixture )
 {
     ps . AddInput ( "ERR247027" ); 
@@ -114,8 +113,8 @@ FIXTURE_TEST_CASE ( SingleReference_Slice, NGSPileupFixture )
         //TODO: expand when pileup prints out more data
     REQUIRE_EQ ( expected, Run () );
 }
-#endif
 
+#if 0
 FIXTURE_TEST_CASE ( MultipleReferences, NGSPileupFixture )
 {   
     ps . AddInput ( "SRR1068024" ); // 38 references
@@ -150,7 +149,7 @@ FIXTURE_TEST_CASE ( AllReferencses, NGSPileupFixture )
 }
 
 //TODO: multiple input overlapping
-
+#endif
 //////////////////////////////////////////// Main
 extern "C"
 {

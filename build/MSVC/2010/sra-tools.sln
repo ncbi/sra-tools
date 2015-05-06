@@ -69,6 +69,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "illumina-dump", "illumina-d
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-diff", "vdb-diff.vcxproj", "{62498891-78FD-3715-B581-D280F24613DF}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "general-loader", "general-loader.vcxproj", "{11356540-C8F0-44B9-B6BA-01C87443A1CF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -349,6 +351,14 @@ Global
 		{62498891-78FD-3715-B581-D280F24613DF}.Release|Win32.Build.0 = Release|Win32
 		{62498891-78FD-3715-B581-D280F24613DF}.Release|x64.ActiveCfg = Release|x64
 		{62498891-78FD-3715-B581-D280F24613DF}.Release|x64.Build.0 = Release|x64
+		{11356540-C8F0-44B9-B6BA-01C87443A1CF}.Debug|Win32.ActiveCfg = Debug|Win32
+		{11356540-C8F0-44B9-B6BA-01C87443A1CF}.Debug|Win32.Build.0 = Debug|Win32
+		{11356540-C8F0-44B9-B6BA-01C87443A1CF}.Debug|x64.ActiveCfg = Debug|x64
+		{11356540-C8F0-44B9-B6BA-01C87443A1CF}.Debug|x64.Build.0 = Debug|x64
+		{11356540-C8F0-44B9-B6BA-01C87443A1CF}.Release|Win32.ActiveCfg = Release|Win32
+		{11356540-C8F0-44B9-B6BA-01C87443A1CF}.Release|Win32.Build.0 = Release|Win32
+		{11356540-C8F0-44B9-B6BA-01C87443A1CF}.Release|x64.ActiveCfg = Release|x64
+		{11356540-C8F0-44B9-B6BA-01C87443A1CF}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

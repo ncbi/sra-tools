@@ -74,13 +74,14 @@ diff-vs-sra-pileup:
 	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 3.0 ERR334733                # ILLUMINA
 	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 4.0 SRR1068006
 	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 5.0 SRR619510                # ABSOLID REF_ROWS=36172
-	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 6.0 SRR1251988               # SEC_ROWS=198
+	-@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 6.0 SRR1251988               # SEC_ROWS=198
 	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 7.0 SRR1186012               # ION_TORRENT
-	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 8.1 SRR556739 -r chrY # COMPLETE_GENOMICS
-	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 8.2 SRR556739 -r chrM # COMPLETE_GENOMICS, circular reference
+	-@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 8.1 SRR556739 -r chrY # COMPLETE_GENOMICS
+	-@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 8.2 SRR556739 -r chrM # COMPLETE_GENOMICS, circular reference
+	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 9.0 SRR341578 -r NC_011752.1         #:19900-20022
 
 onediff:
-	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 9.0 SRR341578 -r NC_011752.1         #:19900-20022
+	@ ./runtestcase.sh $(BINDIR) $(SRCDIR) 9.1 SRR341578 -r NC_011752.1:19900-20022
 
 #alignment selection:
 #TODO: multiple references in one accession

@@ -82,7 +82,7 @@ sequence /* have to return the lookahead symbol before returning since it belong
     
     | readLines                 { UNLEX; return 1; }
     
-    | qualityLines              { UNLEX; return 1; } 
+/*    | qualityLines              { UNLEX; return 1; } */
     
     | name                      
         fqCOORDS                { GrowSpotName(pb, &$2); StopSpotName(pb); }
@@ -109,6 +109,7 @@ readLines
     : header  endline  read   
     | header  endline error endline
     | error   endline  read 
+    | error endline
     ;
 
 header 
@@ -145,7 +146,12 @@ inlineRead
 tagLine    
     : nameSpotGroup 
     | nameSpotGroup readNumber
+    
+    | nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence
+    
+    | nameSpotGroup readNumber fqWS fqALPHANUM { FASTQScan_skip_to_eol(pb); } 
     | nameSpotGroup readNumber fqWS { FASTQScan_skip_to_eol(pb); } 
+    
     | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } casava1_8 { FASTQScan_skip_to_eol(pb); }
     | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
     | runSpotRead { FASTQScan_skip_to_eol(pb); }
@@ -204,6 +210,7 @@ spotGroup
         fqNUMBER    { SetSpotGroup(pb, &$3); }
     | '#'           { StopSpotName(pb); }    
         fqALPHANUM  { SetSpotGroup(pb, &$3); }    
+    | '#'           { StopSpotName(pb); }    
     ;
     
 readNumber
@@ -232,6 +239,7 @@ readNumber
 
 casava1_8
     : fqNUMBER          { SetReadNumber(pb, &$1); GrowSpotName(pb, &$1); StopSpotName(pb); }
+    | fqNUMBER          { SetReadNumber(pb, &$1); GrowSpotName(pb, &$1); StopSpotName(pb); }
      ':'                { GrowSpotName(pb, &$3); }
      fqALPHANUM         { GrowSpotName(pb, &$5); if ($5.tokenLength == 1 && TokenTextPtr(pb, &$5)[0] == 'Y') pb->record->seq.lowQuality = true; }
      ':'                { GrowSpotName(pb, &$7); }
@@ -251,9 +259,9 @@ index
     ;
 
 runSpotRead
-    : fqRUNDOTSPOT '.' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
-    | fqRUNDOTSPOT '/' fqNUMBER     { SetReadNumber(pb, &$3); GrowSpotName(pb, &$3); StopSpotName(pb); }
-    | fqRUNDOTSPOT                  { StopSpotName(pb); }
+    : fqRUNDOTSPOT '.' fqNUMBER     { GrowSpotName(pb, &$1); StopSpotName(pb); SetReadNumber(pb, &$3); }
+    | fqRUNDOTSPOT '/' fqNUMBER     { GrowSpotName(pb, &$1); StopSpotName(pb); SetReadNumber(pb, &$3); }
+    | fqRUNDOTSPOT                  { GrowSpotName(pb, &$1); StopSpotName(pb); }
     ;
     
  /*************** quality rules *****************/
@@ -278,32 +286,83 @@ qualityLine
 
 %%
 
+/* values used in validating quality lines */
+#define MIN_PHRED_33    33
+#define MAX_PHRED_33    126
+#define MIN_PHRED_64    64
+#define MAX_PHRED_64    127
+#define MIN_LOGODDS     59   
+#define MAX_LOGODDS     126   
+
 void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
 {
-    if (pb->phredOffset != 0)
+    uint8_t floor;
+    uint8_t ceiling;
+    const char* format;
+    switch ( pb->qualityFormat )
     {
-        uint8_t floor   = pb->phredOffset == 33 ? MIN_PHRED_33 : MIN_PHRED_64;
-        uint8_t ceiling = pb->maxPhred == 0 ? (pb->phredOffset == 33 ? MAX_PHRED_33 : MAX_PHRED_64) : pb->maxPhred;
+    case FASTQphred33:
+        floor   = MIN_PHRED_33;
+        ceiling = MAX_PHRED_33;
+        format = "Phred33";
+        pb -> qualityAsciiOffset = 33;
+        break;
+    case FASTQphred64:
+        floor   = MIN_PHRED_64;
+        ceiling = MAX_PHRED_64;
+        format = "Phred64";
+        pb -> qualityAsciiOffset = 64;
+        break;
+    case FASTQlogodds:
+        floor   = MIN_LOGODDS;
+        ceiling = MAX_LOGODDS;
+        format = "Logodds";
+        pb -> qualityAsciiOffset = 64;
+        break;
+    default:
+        /* TODO: 
+            if qualityAsciiOffset is 0, 
+                guess based on the raw values on the first quality line:
+                    if all values are above MAX_PHRED_33, qualityAsciiOffset = 64
+                    if all values are in MIN_PHRED_33..MAX_PHRED_33, qualityAsciiOffset = 33
+                    if any value is below MIN_PHRED_33, abort
+                if the guess is 33 and proven wrong (a raw quality value >MAX_PHRED_33 is encountered and no values below MIN_PHRED_64 ever seen)
+                    reopen the file, 
+                    qualityAsciiOffset = 64
+                    try to parse again
+                    if a value below MIN_PHRED_64 seen, abort 
+        */
+        {
+            char buf[200];
+            sprintf ( buf, "Invalid quality format: %d.", pb->qualityFormat );
+            pb->fatalError = true;
+            yyerror(pb, buf);
+            return;
+        }
+    }
+    
+    {   /* make sure all qualities fall into the required range */
         unsigned int i;
         for (i=0; i < token->tokenLength; ++i)
         {
-            char buf[200];
-			char ch = TokenTextPtr(pb, token)[i];
+            char ch = TokenTextPtr(pb, token)[i];
             if (ch < floor || ch > ceiling)
             {
-                sprintf(buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.", 
-                                                         ch,
-														 ch,
-														 i,
-                                                         pb->phredOffset == 33 ? "Phred33": "Phred64", 
-                                                         floor, 
-                                                         ceiling);
+                char buf[200];
+                sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.", 
+                                                        ch,
+                                                        ch,
+                                                        i,
+                                                        format, 
+                                                        floor, 
+                                                        ceiling);
                 pb->fatalError = true;
                 yyerror(pb, buf);
                 return;
             }
         }
     }
+    
     if (pb->qualityLength == 0)
     {
         pb->qualityOffset = token->tokenStart;

@@ -44,6 +44,7 @@
 #include <vdb/report.h> /* ReportSetVDBManager */
 #include <vdb/schema.h> /* VSchemaRelease */
 #include <vdb/table.h> /* VDBManagerOpenTableRead */
+#include <vdb/vdb-priv.h> /* VDBManagerSetResolver */
 
 #include <kns/ascp.h> /* ascp_locate */
 #include <kns/http.h>
@@ -89,7 +90,7 @@ typedef enum {
     eResolve = 2,
     eDependMissing = 4,
     eDependAll = 8,
-/*  eCurl = 16, */
+    eNetwork = 16,
     eVersion = 32,
     eNewVersion = 64,
     eOpenTable = 128,
@@ -108,7 +109,10 @@ typedef struct {
     KConfig *cfg;
     KDirectory *dir;
     KNSManager *knsMgr;
+
     const VDBManager *mgr;
+    uint32_t projectId;
+
     VFSManager *vMgr;
     const KRepositoryMgr *repoMgr;
     VResolver *resolver;
@@ -119,6 +123,7 @@ typedef struct {
     bool noRfs;
     bool full;
     bool xml;
+    bool network;
 
     bool allowCaching;
     VResolverEnableState cacheState;
@@ -168,7 +173,8 @@ rc_t CC Usage(const Args *args) {
         "  n - print NCBI error report\n"
         "  f - print ascp information\n"
         "  F - print verbose ascp information\n"
-        "  t - print object types\n");
+        "  t - print object types\n"
+        "  N - run network test\n");
     if (rc == 0 && rc2 != 0) {
         rc = rc2;
     }
@@ -389,6 +395,24 @@ static rc_t MainInitObjects(Main *self) {
 
     if (rc == 0) {
         rc = KConfigMakeRepositoryMgrRead(self->cfg, &self->repoMgr);
+        if (rc == 0) {
+             bool has_project_id = self->projectId != 0;
+             if (has_project_id) {
+                const KRepository *repository = NULL;
+                rc = KRepositoryMgrGetProtectedRepository(
+                    self->repoMgr, self->projectId, &repository);
+                if (rc == 0) {
+                    VResolver *resolver = NULL;
+                    rc = KRepositoryMakeResolver(
+                        repository, &resolver, self->cfg);
+                    if (rc == 0) {
+                         rc = VDBManagerSetResolver(self->mgr, resolver);
+                    }
+                    RELEASE(VResolver, resolver);
+                }
+                RELEASE(KRepository, repository);
+             }
+        }
     }
 
     if (rc == 0) {
@@ -867,6 +891,35 @@ static rc_t _VDBManagerReport(const VDBManager *self,
     return _KDBPathTypePrint("", *type, " ");
 }
 
+static rc_t _VDBManagerReportRemote(const VDBManager *self, const char *name)
+{
+    bool notFound = false;
+    const VDatabase *db = NULL;
+    const VTable *tbl = NULL;
+    rc_t rc = VDBManagerOpenDBRead(self, &db, NULL, name);
+    if (rc == 0) {
+        RELEASE(VDatabase, db);
+        return _KDBPathTypePrint("", kptDatabase, " ");
+    }
+    else if (GetRCState(rc) == rcNotFound) {
+        notFound = true;
+    }
+    rc = VDBManagerOpenTableRead(self,  &tbl, NULL,name);
+    if (rc == 0) {
+        RELEASE(VTable, tbl);
+        return _KDBPathTypePrint("", kptTable, " ");
+    }
+    else if (GetRCState(rc) == rcNotFound) {
+        notFound = true;
+    }
+    if (notFound) {
+        return OUTMSG(("NotFound "));
+    }
+    else {
+        return OUTMSG(("Unknown "));
+    }
+}
+
 static
 rc_t _KDirectoryFileHeaderReport(const KDirectory *self, const char *path)
 {
@@ -918,6 +971,20 @@ static rc_t MainReport(const Main *self,
 
     if (type != NULL && *type == kptFile) {
         _KDirectoryFileHeaderReport(self->dir, name);
+    }
+
+    return rc;
+}
+
+static rc_t MainReportRemote(const Main *self, const char *name, int64_t size) {
+    rc_t rc = 0;
+
+    assert(self);
+
+    OUTMSG(("%,lu ", size));
+
+    if (!self->noVDBManagerPathType) {
+        _VDBManagerReportRemote(self->mgr, name);
     }
 
     return rc;
@@ -1050,7 +1117,8 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
                             OUTMSG(("KFileSize(%s)=%R ", name, rc));
                         }
                         else {
-                            OUTMSG(("%,lu ", sz));
+                            MainReportRemote(self, fPath, sz);
+                            //OUTMSG(("%,lu ", sz));
                             *size = sz;
                         }
                     }
@@ -1164,7 +1232,7 @@ static rc_t MainResolveRemote(const Main *self, VResolver *resolver,
             }
         }
     }
-        
+
     rc = MainPathReport(self,
         rc, *remote, ePathRemote, name, NULL, size, fasp, f);
     RELEASE(KFile, f);
@@ -1321,6 +1389,29 @@ static rc_t MainResolveQuery(const Main *self, const VResolver *resolver,
     return rc;
 }
 
+static rc_t _KartItemToVPath(const KartItem *self,
+    const VFSManager *vfs, VPath **path)
+{
+    uint64_t oid = 0;
+    rc_t rc = KartItemItemIdNumber(self, &oid);
+    if (rc == 0) {
+        rc = VFSManagerMakeOidPath(vfs, path, (uint32_t)oid);
+    }
+    else {
+        char path_str[PATH_MAX] = "";
+        const String *accession = NULL;
+        rc = KartItemAccession(self, &accession);
+        if (rc == 0) {
+            rc =
+                string_printf(path_str, sizeof path_str, NULL, "%S", accession);
+        }
+        if (rc == 0) {
+            rc = VFSManagerMakePath(vfs, path, path_str);
+        }
+    }
+    return rc;
+}
+
 static rc_t MainResolve(const Main *self, const KartItem *item,
     const char *name, int64_t *localSz, int64_t *remoteSz, bool refseqCtx)
 {
@@ -1351,7 +1442,6 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
         }
         else {
             const KRepository *p_protected = NULL;
-            uint64_t oid = 0;
             uint64_t project = 0;
             if (rc == 0) {
                 rc = KartItemProjIdNumber(item, &project);
@@ -1360,15 +1450,9 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
                 }
             }
             if (rc == 0) {
-                rc = KartItemItemIdNumber(item, &oid);
+                rc = _KartItemToVPath(item, self->vMgr, &acc);
                 if (rc != 0) {
-                    OUTMSG(("KartItemItemIdNumber = %R\n", rc));
-                }
-            }
-            if (rc == 0) {
-                rc = VFSManagerMakeOidPath(self->vMgr, &acc, (uint32_t)oid);
-                if (rc != 0) {
-                    OUTMSG(("VFSManagerMakePath(%d) = %R\n", oid, rc));
+                    OUTMSG(("Invalid kart file row: %R\n", rc));
                 }
             }
             if (rc == 0) {
@@ -1399,6 +1483,8 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
         if (rc2 != 0 && rc == 0) {
             rc = rc2;
         }
+
+        rc = VDBManagerSetResolver(self->mgr, resolver);
 
         rc2 = MainResolveRemote(self, resolver, name, acc, &remote, remoteSz,
             false);
@@ -1671,10 +1757,10 @@ rc_t MainDepend(const Main *self, const char *name, bool missing)
             if (MainHasTest(self, eResolve) && seqId != NULL) {
                 int64_t remoteSz = 0;
                 OUTMSG(("%s", eol));
-                rc2 = MainResolve(self, NULL, seqId, NULL, &remoteSz, true);
-                if (rc == 0 && rc2 != 0) {
-                    rc = rc2;
-                }
+
+     /* ignore returned value :
+        resolver's errors are detected but not reported as test-sra's failure */
+                MainResolve(self, NULL, seqId, NULL, &remoteSz, true);
             }
 
             if (self->xml) {
@@ -1831,22 +1917,62 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
     size_t num_writ = 0;
     char arg[PATH_MAX] = "";
 
+    const char *eol = NULL;
+
     va_list args;
     va_start(args, aArg);
 
     assert(self);
+
+    eol = self->xml ? "<br/>\n" : "\n";
 
     if (self->xml) {
         OUTMSG(("<%s>\n", root));
     }
 
     if (item != NULL) {
+        rc_t rc = 0;
+        uint64_t project = 0;
+        uint64_t oid = 0;
+
         type = kptKartITEM;
+
+        rc = KartItemProjIdNumber(item, &project);
+        if (rc != 0) {
+            OUTMSG(("KartItemProjectIdNumber = %R\n", rc));
+        }
+        else {
+            OUTMSG(("%d\n", project));
+        }
+        rc = KartItemItemIdNumber(item, &oid);
+        if (rc == 0) {
+            if (self->xml) {
+                const char root[] = "id";
+                OUTMSG(("<%s>%d</%s>\n", root, oid, root));
+            }
+            else {
+                OUTMSG(("id: %d\n", oid));
+            }
+        }
+        else {
+            const String *accession = NULL;
+            rc = KartItemAccession(item, &accession);
+            if (rc == 0) {
+                if (self->xml) {
+                    const char root[] = "acc";
+                    OUTMSG(("<%s>%S</%s>\n", root, accession, root));
+                }
+                else {
+                    OUTMSG(("acc: %S\n", accession));
+                }
+            }
+            else {
+                OUTMSG(("KartItemIdNumber &| Accession = %R\n", rc));
+            }
+        }
     }
 
     else {
-        const char *eol = self->xml ? "<br/>\n" : "\n";
-
         rc = string_vprintf(arg, sizeof arg, &num_writ, aArg, args);
         if (rc != 0) {
             OUTMSG(("string_vprintf(%s)=%R%s", aArg, rc, eol));
@@ -1863,6 +1989,9 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
         if (MainHasTest(self, eType)) {
             OUTMSG((" "));
             rc = MainReport(self, arg, &directSz, &type, &alias);
+        }
+        else {
+            type = KDirectoryPathType(self->dir, "%s", arg);
         }
         OUTMSG(("%s", eol));
 
@@ -1896,6 +2025,10 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
         }
         for (i = 0; i < count && rc == 0; ++i) {
             const char *name = NULL;
+            rc = Quitting();
+            if (rc != 0) {
+                break;
+            }
             rc = KNamelistGet(list, i, &name);
             if (rc != 0) {
                 OUTMSG(("KNamelistGet(KDirectoryList(%s), %d)=%R ",
@@ -1925,6 +2058,13 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
             while (true) {
                 rc_t rc2 = 0;
                 RELEASE(KartItem, item);
+                rc2 = Quitting();
+                if (rc2 != 0) {
+                    if (rce == 0) {
+                        rce = rc2;
+                    }
+                    break;
+                }
                 rc2 = KartMakeNextItem(kart, &item);
                 if (rc2 != 0) {
                     OUTMSG(("KartMakeNextItem = %R\n", rc2));
@@ -1946,11 +2086,9 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
         }
         else {
             if (MainHasTest(self, eResolve)) {
-                rc_t rc2 = MainResolve(self, item, arg, &localSz, &remoteSz,
-                    false);
-                if (rc == 0 && rc2 != 0) {
-                    rc = rc2;
-                }
+     /* ignore returned value :
+        resolver's errors are detected but not reported as test-sra's failure */
+                MainResolve(self, item, arg, &localSz, &remoteSz, false);
             }
 
             if (item == NULL) {
@@ -2127,6 +2265,10 @@ static const char* USAGE_NO_RFS[]
 #define ALIAS_NO_VDB  "N"
 static const char* USAGE_NO_VDB[] = { "do not call VDBManagerPathType", NULL };
 
+#define OPTION_PRJ "project-id"
+#define ALIAS_PRJ  "p"
+static const char* USAGE_PRJ[] = { "set project context", NULL };
+
 #define OPTION_REC "recursive"
 #define ALIAS_REC  "R"
 static const char* USAGE_REC[] = { "check object type recursively", NULL };
@@ -2141,8 +2283,9 @@ OptDef Options[] = {                             /* needs_value, required */
     { OPTION_NO_RFS, NULL        , NULL, USAGE_NO_RFS, 1, false, false },
     { OPTION_NO_VDB, ALIAS_NO_VDB, NULL, USAGE_NO_VDB, 1, false, false },
     { OPTION_OUT   , ALIAS_OUT   , NULL, USAGE_OUT   , 1, true , false },
+    { OPTION_PRJ   , ALIAS_PRJ   , NULL, USAGE_PRJ   , 1, true , false },
     { OPTION_QUICK , ALIAS_QUICK , NULL, USAGE_QUICK , 1, false, false },
-    { OPTION_REC   , ALIAS_REC   , NULL, USAGE_REC   , 1, false, false }
+    { OPTION_REC   , ALIAS_REC   , NULL, USAGE_REC   , 1, false, false },
 };
 
 rc_t CC KMain(int argc, char *argv[]) {
@@ -2169,6 +2312,26 @@ rc_t CC KMain(int argc, char *argv[]) {
         else {
             if (pcount > 0) {
                 prms.allowCaching = true;
+            }
+        }
+    }
+
+    if (rc == 0) {
+        rc = ArgsOptionCount(args, OPTION_PRJ, &pcount);
+        if (rc) {
+            LOGERR(klogErr, rc, "Failure to get '" OPTION_PRJ "' argument");
+        }
+        else {
+            if (pcount > 0) {
+                const char *dummy = NULL;
+                rc = ArgsOptionValue(args, OPTION_PRJ, 0, &dummy);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_PRJ "' argument");
+                }
+                else {
+                    prms.projectId = AsciiToU32(dummy, NULL, NULL);
+                }
             }
         }
     }
@@ -2215,9 +2378,9 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
         else {
             if (pcount > 0) {
-                const char* dummy = NULL;
+                const char *dummy = NULL;
                 rc = ArgsOptionValue(args, OPTION_OUT, 0, &dummy);
-                if (rc) {
+                if (rc != 0) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_OUT "' argument");
                 }
@@ -2308,7 +2471,13 @@ rc_t CC KMain(int argc, char *argv[]) {
             const char *name = NULL;
             rc3 = ArgsParamValue(args, i, &name);
             if (rc3 == 0) {
-                rc_t rc2 = 0;
+                rc_t rc2 = Quitting();
+                if (rc2 != 0) {
+                    if (rc == 0 && rc2 != 0) {
+                        rc = rc2;
+                    }
+                    break;
+                }
                 ReportResetObject(name);
                 rc2 = MainExec(&prms, NULL, name);
                 if (rc == 0 && rc2 != 0) {

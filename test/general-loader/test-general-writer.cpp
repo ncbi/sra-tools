@@ -38,24 +38,26 @@ namespace ncbi
     
     GeneralWriter * testCreateGw ( const char * out_path, const char * schema_path )
     {
+        GeneralWriter * ret;
         if ( out_path == 0 )
         {
             // use stdout
-            return new GeneralWriter ( 1,
-                                      std :: string ( "remote_db" ),
-                                      schema_path,
-                                      std :: string ( "general_writer:test:db" ) );
+            ret = new GeneralWriter ( 1 );
+        }
+        else
+        {   
+            // use a file
+            ret = new GeneralWriter ( out_path );
         }
         
-        // use a file
-        return new GeneralWriter ( out_path,
-                               std :: string ( "remote_db" ),
-                               schema_path,
-                               std :: string ( "general_writer:test:db" ) );
+        ret -> setRemotePath ( schema_path );
+        ret -> useSchema ( schema_path, std :: string ( "general_writer:test:db" ) );
+        
+        return ret;
     }
 
     int testAddTable ( GeneralWriter *gw )
-    {
+    {  
         return gw -> addTable ( std :: string ( "table1" ) );
     }
 
@@ -64,7 +66,7 @@ namespace ncbi
         for ( int i = 0; i < column_count; ++ i )
         {
             const char *name = column_names [ i ];
-            stream_ids [ i ] = gw -> addColumn ( table_id, name );
+            stream_ids [ i ] = gw -> addColumn ( table_id, name, 8 ); // all columns are ascii for now
         }
     }
 
@@ -189,6 +191,8 @@ namespace ncbi
             gw = testCreateGw ( outfile, schema_path );
             std :: cerr << "CreateGw Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
+            
+            
             
             int table_id = testAddTable ( gw );
             std :: cerr << "addTable Success" << std :: endl;

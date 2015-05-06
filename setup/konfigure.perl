@@ -654,7 +654,7 @@ foreach my $href (@REQ) {
         if ($ilib && $found_ilib) {
             $found_ilib = abs_path($found_ilib);
             push(@dependencies, "$a{aname}_ILIBDIR = $found_ilib");
-            println "libraries: $found_ilib";
+            println "ilibraries: $found_ilib";
         }
         if ($found_jar) {
             $found_jar = abs_path($found_jar);
@@ -1171,8 +1171,8 @@ sub status {
     println "javadir: $OPT{'javadir'}" if ($OPT{'javadir'});
     println "pythondir: $OPT{'pythondir'}" if ($OPT{'pythondir'});
 
-    println "CC = $CC";
-    println "CPP = $CPP";
+    println "CC = $CC"   if ($CC );
+    println "CPP = $CPP" if ($CPP);
     println "LDFLAGS = $LDFLAGS" if ($LDFLAGS);
 
     $CONFIGURED =~ s/\t/ /g;

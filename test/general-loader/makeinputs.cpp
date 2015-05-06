@@ -65,7 +65,6 @@ make_1()
     source . NextRowEvent ( 1 );
     
     source . CloseStreamEvent();
-    source . FillBuffer();
     source . SaveBuffer ("input/1.gl");
 }
 
@@ -84,7 +83,6 @@ make_2()
     source . ErrorMessageEvent( "something is wrong" );
     
     source . CloseStreamEvent();
-    source . FillBuffer();
     source . SaveBuffer ("input/2.gl");
 }
 

@@ -29,12 +29,12 @@ TOP ?= $(abspath ../..)
 MODULE = test/general-loader
 
 TEST_TOOLS = \
-    test-general-loader
+    test-general-loader \
+	test-general-writer
 
 ALL_TOOLS = \
 	$(TEST_TOOLS) \
     
-#	test-general-writer
 
 include $(TOP)/build/Makefile.env
 
@@ -49,7 +49,8 @@ clean: stdclean
 # test-general-loader
 #
 TEST_GEN_LOAD_SRC = \
-	test-general-loader
+	test-general-loader \
+    testsource
 
 TEST_GEN_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(TEST_GEN_LOAD_SRC))
@@ -90,7 +91,7 @@ vg_gen_write: test-general-writer
 	rm -f gen-write-out
 
 
-runtests:$(TEST_TOOLS) piped-load-tests
+runtests:$(TEST_TOOLS) #piped-load-tests
 
 piped-load-tests: $(ALL_TOOLS)
 	-$(TEST_BINDIR)/test-general-writer | $(BINDIR)/general-loader -L=info
@@ -100,11 +101,11 @@ piped-load-tests: $(ALL_TOOLS)
 #-------------------------------------------------------------------------------
 # general-loader tool tests
 #
-runtests: tool-tests
+#runtests: tool-tests
 
 makeinputs: makeinputs.cpp
 	@# generate numbered input streams for tool tests
-	@$(CXX) makeinputs.cpp -o makeinputs -I$(INCDIRS)
+	@$(CXX) makeinputs.cpp testsource.cpp -o makeinputs -I$(INCDIRS) 
 
 tool-tests: makeinputs
 	@mkdir -p input && ./makeinputs && rm ./makeinputs

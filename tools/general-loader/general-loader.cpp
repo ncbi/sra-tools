@@ -283,8 +283,8 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t schema_file_size = ncbi :: size1 ( evt );
-                    uint32_t schema_name_size = ncbi :: size2 ( evt );
+                    size_t schema_file_size = ncbi :: size1 ( evt );
+                    size_t schema_name_size = ncbi :: size2 ( evt );
                     rc = m_reader . Read ( schema_file_size + schema_name_size );
                     if ( rc == 0 )
                     {
@@ -303,7 +303,7 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t database_name_size = ncbi :: size ( evt );
+                    size_t database_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( database_name_size );
                     if ( rc == 0 )
                     {
@@ -322,7 +322,7 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t table_name_size = ncbi :: size ( evt );
+                    size_t table_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( table_name_size );
                     if ( rc == 0 )
                     {
@@ -341,7 +341,7 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t col_name_size  = ncbi :: name_size ( evt );
+                    size_t col_name_size  = ncbi :: name_size ( evt );
                     rc = m_reader . Read ( col_name_size );
                     if ( rc == 0 )
                     {
@@ -424,7 +424,7 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t message_size = ncbi :: size ( evt );
+                    size_t message_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( message_size );
                     if ( rc == 0 )
                     {
@@ -468,8 +468,8 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint16_t schema_file_size = ncbi :: size1 ( evt );
-                    uint16_t schema_name_size = ncbi :: size2 ( evt );
+                    size_t schema_file_size = ncbi :: size1 ( evt );
+                    size_t schema_name_size = ncbi :: size2 ( evt );
                             
                     rc = m_reader . Read ( schema_file_size + schema_name_size );
                     if ( rc == 0 )
@@ -489,8 +489,8 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint16_t schema_file_size = ncbi :: size1 ( evt );
-                    uint16_t schema_name_size = ncbi :: size2 ( evt );
+                    size_t schema_file_size = ncbi :: size1 ( evt );
+                    size_t schema_name_size = ncbi :: size2 ( evt );
                             
                     rc = m_reader . Read ( schema_file_size + schema_name_size );
                     if ( rc == 0 )
@@ -510,7 +510,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint16_t database_name_size = ncbi :: size ( evt );
+                    size_t database_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( database_name_size );
                     if ( rc == 0 )
                     {
@@ -527,7 +527,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint16_t database_name_size = ncbi :: size ( evt );
+                    size_t database_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( database_name_size );
                     if ( rc == 0 )
                     {
@@ -546,7 +546,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t table_name_size = ncbi :: size ( evt );
+                    size_t table_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( table_name_size );
                     if ( rc == 0 )
                     {
@@ -564,7 +564,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t table_name_size = ncbi :: size ( evt );
+                    size_t table_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( table_name_size );
                     if ( rc == 0 )
                     {
@@ -583,7 +583,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t col_name_size  = ncbi :: name_size ( evt );
+                    size_t col_name_size  = ncbi :: name_size ( evt );
                     rc = m_reader . Read ( col_name_size );
                     if ( rc == 0 )
                     {
@@ -692,7 +692,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t message_size = ncbi :: size ( evt );
+                    size_t message_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( message_size );
                     if ( rc == 0 )
                     {
@@ -710,7 +710,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t message_size = ncbi :: size ( evt );
+                    size_t message_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( message_size );
                     if ( rc == 0 )
                     {

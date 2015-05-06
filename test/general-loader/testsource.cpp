@@ -444,13 +444,13 @@ TestSource::MoveAheadEvent ( TableId p_id, uint64_t p_count )
 
 template<> void TestSource::CellDataEvent ( ColumnId p_columnId, string p_value )
 {
-    m_buffer -> Write ( Event ( evt_cell_data, p_columnId, p_value . size(), p_value . size(), p_value . c_str() ) );
+    m_buffer -> Write ( Event ( evt_cell_data, p_columnId, ( uint32_t ) p_value . size(), ( uint32_t ) p_value . size(), p_value . c_str() ) );
 }
 
 void 
 TestSource::CellDefaultEvent ( ColumnId p_columnId, const string& p_value )
 {
-    m_buffer -> Write ( Event ( evt_cell_default, p_columnId, p_value . size(), p_value . size(), p_value . c_str() ) );
+    m_buffer -> Write ( Event ( evt_cell_default, p_columnId, ( uint32_t ) p_value . size(), ( uint32_t ) p_value . size(), p_value . c_str() ) );
 }
 
 void 

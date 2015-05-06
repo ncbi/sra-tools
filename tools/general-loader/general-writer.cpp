@@ -292,25 +292,34 @@ namespace ncbi
             throw "Invalid elem_bits";
 
         size_t num_bytes = ( ( size_t ) elem_bits * elem_count + 7 ) / 8;
-        if ( num_bytes <= 256 )
+        if ( num_bytes == 0 )
         {
-            gwp_data_evt chunk;
-            init ( chunk, stream_id, evt_cell_default );
-            set_size ( chunk, num_bytes );
-            write_event ( & chunk . dad, sizeof chunk );
-        }
-        else if ( num_bytes <= 0x10000 )
-        {
-            gwp_data_evt_U16 chunk;
-            init ( chunk, stream_id, evt_cell_default2 );
-            set_size ( chunk, num_bytes );
-            write_event ( & chunk . dad, sizeof chunk );
+            gwp_evt_hdr_v1 eh;
+            init ( eh, stream_id, evt_empty_default );
+            write_event ( & eh, sizeof eh );
         }
         else
         {
-            throw "default cell-data exceeds maximum";
+            if ( num_bytes <= 256 )
+            {
+                gwp_data_evt chunk;
+                init ( chunk, stream_id, evt_cell_default );
+                set_size ( chunk, num_bytes );
+                write_event ( & chunk . dad, sizeof chunk );
+            }
+            else if ( num_bytes <= 0x10000 )
+            {
+                gwp_data_evt_U16 chunk;
+                init ( chunk, stream_id, evt_cell_default2 );
+                set_size ( chunk, num_bytes );
+                write_event ( & chunk . dad, sizeof chunk );
+            }
+            else
+            {
+                throw "default cell-data exceeds maximum";
+            }
+            internal_write ( data, num_bytes );
         }
-        internal_write ( data, num_bytes );
     }
 
     template < class T >

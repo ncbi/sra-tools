@@ -1,2 +1,2 @@
-general-loader.0.0.1 err: general-loader event: Error-Message [18] = "something is wrong"
+general-loader.0.0.1 err: general-loader: error "something is wrong"
 general-loader.0.0.1 err: error exists while reading file - load failed

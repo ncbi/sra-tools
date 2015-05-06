@@ -174,6 +174,7 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
         break;
         
     case evt_next_row:
+    case evt_empty_default :
         {
             gw_evt_hdr_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
@@ -344,6 +345,7 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
         break;
         
     case evt_next_row:
+    case evt_empty_default :
         {
             gwp_evt_hdr_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
@@ -450,7 +452,11 @@ template<> void TestSource::CellDataEvent ( ColumnId p_columnId, string p_value 
 void 
 TestSource::CellDefaultEvent ( ColumnId p_columnId, const string& p_value )
 {
-    m_buffer -> Write ( Event ( evt_cell_default, p_columnId, ( uint32_t ) p_value . size(), ( uint32_t ) p_value . size(), p_value . c_str() ) );
+    m_buffer -> Write ( Event ( p_value . size() == 0 ? evt_empty_default : evt_cell_default,
+                                p_columnId, 
+                                ( uint32_t ) p_value . size(), 
+                                ( uint32_t ) p_value . size(), 
+                                p_value . c_str() ) );
 }
 
 void 

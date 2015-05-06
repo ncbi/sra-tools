@@ -101,11 +101,11 @@ piped-load-tests: $(ALL_TOOLS)
 #-------------------------------------------------------------------------------
 # general-loader tool tests
 #
-#runtests: tool-tests
+runtests: tool-tests
 
 makeinputs: makeinputs.cpp
 	@# generate numbered input streams for tool tests
-	@$(CXX) makeinputs.cpp testsource.cpp -o makeinputs -I$(INCDIRS) 
+	$(CXX) makeinputs.cpp testsource.cpp -o makeinputs -I$(INCDIRS) -L$(VDB_LIBDIR) -lncbi-vdb-static
 
 tool-tests: makeinputs
 	@mkdir -p input && ./makeinputs && rm ./makeinputs
@@ -114,3 +114,12 @@ tool-tests: makeinputs
 	@# error message event
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2 3
 	@rm -f input/*.gl    
+    
+#-------------------------------------------------------------------------------
+# general-loader tool tests
+#
+slowtests: piped-dump
+
+piped-dump: $(BINDIR)/pileup-stats test-general-loader
+	$(BINDIR)/pileup-stats SRR833576 | $(BINDIR)/general-loader #-L=info
+

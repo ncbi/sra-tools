@@ -557,6 +557,21 @@ FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite, GeneralLoaderFixture )
     REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
 }
 
+FIXTURE_TEST_CASE ( OneColumnEmptyDefault, GeneralLoaderFixture )
+{   
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
+
+    string value;
+    m_source . CellDefaultEvent( DefaultColumnId, value );
+    // no WriteEvent
+    m_source . NextRowEvent ( DefaultTableId  );
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
+}
+
 FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite_Long, GeneralLoaderFixture )
 {   
     OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );

@@ -63,7 +63,7 @@ static const char * clear_usage[]   = { "clear cache", NULL };
 static const char * enable_usage[]  = { "enable repository [user/site/rem]", NULL };
 static const char * disable_usage[] = { "disable repository [user/site/rem]", NULL };
 static const char * detail_usage[]  = { "show detailed report", NULL };
-static const char * tstzero_usage[] = { "test for zero blocks", NULL };
+static const char * tstzero_usage[] = { "test for zero blocks (for report function)", NULL };
 static const char * urname_usage[]  = { "restrict to this user-repository", NULL };
 static const char * max_rem_usage[] = { "remove until reached that many bytes", NULL };
 static const char * rem_dir_usage[] = { "remove directories, not only files", NULL };
@@ -611,7 +611,7 @@ static rc_t on_report_cache_file( visit_ctx * obj )
         }
         else
         {
-            rc = GetCacheCompleteness( f, &completeness, &used_size );
+            rc = GetCacheCompleteness( f, &completeness, &used_size ); /* libs/kfs/cacheteefile.c */
             if ( rc != 0 )
             {
                 PLOGERR( klogErr, ( klogErr, rc,
@@ -624,7 +624,7 @@ static rc_t on_report_cache_file( visit_ctx * obj )
 			
 			if ( rc == 0 && obj->options->tstzero )
 			{
-				rc = Has_Cache_Zero_Blocks( f,  &checked_blocks, &empty_blocks );	
+				rc = Has_Cache_Zero_Blocks( f, &checked_blocks, &empty_blocks ); /* libs/kfs/cacheteefile.c */
 				if ( rc != 0 )
 				{
 					PLOGERR( klogErr, ( klogErr, rc,

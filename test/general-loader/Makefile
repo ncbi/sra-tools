@@ -118,7 +118,7 @@ tool-tests: makeinputs
 #-------------------------------------------------------------------------------
 # general-loader tool tests
 #
-slowtests: piped-dump
+slowtests: #piped-dump
 
 piped-dump: $(BINDIR)/pileup-stats test-general-loader
 	$(BINDIR)/pileup-stats SRR833576 | $(BINDIR)/general-loader #-L=info

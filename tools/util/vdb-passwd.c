@@ -292,7 +292,7 @@ rc_t CC KMain(int argc, char *argv[]) {
 "- Get dbGaP repository key (ngc file);\n"
 "\n"
 "- Import the dbGaP repository key to SRA Toolkit.\n"
-"  It will set up the project's workspace directoty.\n"
+"  It will set up the project's workspace directory.\n"
 "\n"
 "- Change directory to the project's workspace.\n"
 "\n"

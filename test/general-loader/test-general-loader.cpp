@@ -198,7 +198,7 @@ public:
     void OpenStream_OneTableOneColumn ( const char* p_dbName, const char* p_tableName, const char* p_columnName, size_t p_elemBits )
     {   
         SetUpStream_OneTable( p_dbName, p_tableName ); 
-        m_source . NewColumnEvent ( DefaultColumnId, DefaultTableId, p_columnName, p_elemBits );
+        m_source . NewColumnEvent ( DefaultColumnId, DefaultTableId, p_columnName, ( uint32_t ) p_elemBits );
         m_source . OpenStreamEvent();
     }
     
@@ -547,6 +547,21 @@ FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite, GeneralLoaderFixture )
     OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
 
     string value = "this be my default";
+    m_source . CellDefaultEvent( DefaultColumnId, value );
+    // no WriteEvent
+    m_source . NextRowEvent ( DefaultTableId  );
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
+}
+
+FIXTURE_TEST_CASE ( OneColumnEmptyDefault, GeneralLoaderFixture )
+{   
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
+
+    string value;
     m_source . CellDefaultEvent( DefaultColumnId, value );
     // no WriteEvent
     m_source . NextRowEvent ( DefaultTableId  );

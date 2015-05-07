@@ -61,7 +61,10 @@ GeneralLoader::Reader::~Reader()
 rc_t 
 GeneralLoader::Reader::Read( void * p_buffer, size_t p_size )
 {
-    pLogMsg ( klogInfo, "general-loader: reading $(s) bytes", "s=%u", ( unsigned int ) p_size );
+    pLogMsg ( klogInfo, 
+             "general-loader: reading $(s) bytes, offset=$(o)", 
+             "s=%u,o=%lu", 
+             ( unsigned int ) p_size, (unsigned long ) m_readCount );
 
     m_readCount += p_size;
     return KStreamReadExactly ( & m_input, p_buffer, p_size );
@@ -283,8 +286,8 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t schema_file_size = ncbi :: size1 ( evt );
-                    uint32_t schema_name_size = ncbi :: size2 ( evt );
+                    size_t schema_file_size = ncbi :: size1 ( evt );
+                    size_t schema_name_size = ncbi :: size2 ( evt );
                     rc = m_reader . Read ( schema_file_size + schema_name_size );
                     if ( rc == 0 )
                     {
@@ -303,7 +306,7 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t database_name_size = ncbi :: size ( evt );
+                    size_t database_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( database_name_size );
                     if ( rc == 0 )
                     {
@@ -322,7 +325,7 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t table_name_size = ncbi :: size ( evt );
+                    size_t table_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( table_name_size );
                     if ( rc == 0 )
                     {
@@ -341,7 +344,7 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t col_name_size  = ncbi :: name_size ( evt );
+                    size_t col_name_size  = ncbi :: name_size ( evt );
                     rc = m_reader . Read ( col_name_size );
                     if ( rc == 0 )
                     {
@@ -372,7 +375,7 @@ GeneralLoader :: ReadUnpackedEvents()
         case evt_cell_default: 
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "general-loader event: Cell-Data, id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogInfo, "general-loader event: Cell-Default, id=$(i)", "i=%u", columnId );
                 
                 gw_data_evt_v1 evt;
                 rc = ReadEvent ( evt );
@@ -380,6 +383,14 @@ GeneralLoader :: ReadUnpackedEvents()
                 {
                     rc = Handle_CellDefault ( columnId, ncbi :: elem_count ( evt ) );
                 }
+            }
+            break;
+            
+        case evt_empty_default: 
+            {
+                uint32_t columnId = ncbi :: id ( evt_header );
+                pLogMsg ( klogInfo, "general-loader event: Cell-EmptyDefault, id=$(i)", "i=%u", columnId );
+                rc = Handle_CellDefault ( columnId, 0 );
             }
             break;
             
@@ -424,7 +435,7 @@ GeneralLoader :: ReadUnpackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t message_size = ncbi :: size ( evt );
+                    size_t message_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( message_size );
                     if ( rc == 0 )
                     {
@@ -435,7 +446,10 @@ GeneralLoader :: ReadUnpackedEvents()
             break;
             
         default:
-            pLogMsg ( klogErr, "unexpected general-loader event: $(e)", "e=%i", ( int ) ncbi :: evt ( evt_header ) );
+            pLogMsg ( klogErr, 
+                      "unexpected general-loader event at $(o): $(e)", 
+                      "o=%lu,e=%i", 
+                      ( unsigned long ) m_reader . GetReadCount(), ( int ) ncbi :: evt ( evt_header ) );
             rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
             break;
         }
@@ -468,8 +482,8 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint16_t schema_file_size = ncbi :: size1 ( evt );
-                    uint16_t schema_name_size = ncbi :: size2 ( evt );
+                    size_t schema_file_size = ncbi :: size1 ( evt );
+                    size_t schema_name_size = ncbi :: size2 ( evt );
                             
                     rc = m_reader . Read ( schema_file_size + schema_name_size );
                     if ( rc == 0 )
@@ -489,8 +503,8 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint16_t schema_file_size = ncbi :: size1 ( evt );
-                    uint16_t schema_name_size = ncbi :: size2 ( evt );
+                    size_t schema_file_size = ncbi :: size1 ( evt );
+                    size_t schema_name_size = ncbi :: size2 ( evt );
                             
                     rc = m_reader . Read ( schema_file_size + schema_name_size );
                     if ( rc == 0 )
@@ -510,7 +524,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint16_t database_name_size = ncbi :: size ( evt );
+                    size_t database_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( database_name_size );
                     if ( rc == 0 )
                     {
@@ -527,7 +541,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint16_t database_name_size = ncbi :: size ( evt );
+                    size_t database_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( database_name_size );
                     if ( rc == 0 )
                     {
@@ -546,7 +560,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t table_name_size = ncbi :: size ( evt );
+                    size_t table_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( table_name_size );
                     if ( rc == 0 )
                     {
@@ -564,7 +578,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t table_name_size = ncbi :: size ( evt );
+                    size_t table_name_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( table_name_size );
                     if ( rc == 0 )
                     {
@@ -583,7 +597,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t col_name_size  = ncbi :: name_size ( evt );
+                    size_t col_name_size  = ncbi :: name_size ( evt );
                     rc = m_reader . Read ( col_name_size );
                     if ( rc == 0 )
                     {
@@ -662,6 +676,14 @@ GeneralLoader :: ReadPackedEvents()
             }
             break;
             
+        case evt_empty_default: 
+            {
+                uint32_t columnId = ncbi :: id ( evt_header );
+                pLogMsg ( klogInfo, "general-loader event: Cell-EmptyDefault (packed), id=$(i)", "i=%u", columnId );
+                rc = Handle_CellDefault_Packed ( columnId, 0 );
+            }
+            break;
+            
         case evt_next_row:
             {
                 uint32_t tableId = ncbi :: id ( evt_header );
@@ -692,7 +714,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t message_size = ncbi :: size ( evt );
+                    size_t message_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( message_size );
                     if ( rc == 0 )
                     {
@@ -710,7 +732,7 @@ GeneralLoader :: ReadPackedEvents()
                 rc = ReadEvent ( evt );
                 if ( rc == 0 )
                 {
-                    uint32_t message_size = ncbi :: size ( evt );
+                    size_t message_size = ncbi :: size ( evt );
                     rc = m_reader . Read ( message_size );
                     if ( rc == 0 )
                     {
@@ -721,7 +743,10 @@ GeneralLoader :: ReadPackedEvents()
             break;
 
         default:
-            pLogMsg ( klogErr, "unexpected general-loader event: $(e)", "e=%i", ( int ) ncbi :: evt ( evt_header ) );
+            pLogMsg ( klogErr, 
+                      "unexpected general-loader event at $(o): $(e)", 
+                      "o=%lu,e=%i", 
+                      ( unsigned long ) m_reader . GetReadCount(), ( int ) ncbi :: evt ( evt_header ) );
             rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
             break;
         }

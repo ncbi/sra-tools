@@ -309,6 +309,38 @@ namespace gw_dump
         }
     }
 
+    /* check_empty_default
+     */
+    template < class T > static
+    void check_empty_default ( const T & eh )
+    {
+        if ( id ( eh ) == 0 )
+            throw "bad cell event id (null)";
+        if ( id ( eh ) > col_entries . size () )
+            throw "bad cell event id";
+    }
+
+    /* dump_empty_default
+     */
+    template < class T > static
+    void dump_empty_default ( FILE * in, const T & eh )
+    {
+        check_empty_default ( eh );
+
+        if ( display )
+        {
+            const col_entry & entry = col_entries [ id ( eh ) - 1 ];
+            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . name;
+
+            std :: cout
+                << event_num << ": cell-default\n"
+                << "  stream_id = " << id ( eh ) << " ( " << tbl_name << " . " << entry . spec << " )\n"
+                << "  elem_bits = " << entry . elem_bits << '\n'
+                << "  elem_count = 0 ( empty )\n"
+                ;
+        }
+    }
+
 
     /* check_cell_event
      *  all:
@@ -903,6 +935,9 @@ namespace gw_dump
         case evt_cell_default2:
         case evt_cell_data2:
             throw "packed event id within non-packed stream";
+        case evt_empty_default:
+            dump_empty_default < gw_evt_hdr_v1 > ( in, e );
+            break;
         default:
             throw "unrecognized event id";
         }
@@ -985,6 +1020,9 @@ namespace gw_dump
             break;
         case evt_cell_data2:
             dump_cell_event < gwp_evt_hdr_v1, gwp_data_evt_U16_v1 > ( in, e, "data" );
+            break;
+        case evt_empty_default:
+            dump_empty_default < gwp_evt_hdr_v1 > ( in, e );
             break;
         default:
             throw "unrecognized event id";

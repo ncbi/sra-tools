@@ -63,6 +63,7 @@ enum gw_evt_id
     evt_new_table2,
     evt_cell_default2,                    /* packed default <= 64K bytes */
     evt_cell_data2,                       /* packed data <= 64K bytes    */
+    evt_empty_default,                    /* set cell default to empty   */
 
     evt_max_id                            /* must be last                */
 };

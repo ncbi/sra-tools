@@ -112,6 +112,11 @@ class vdbconf_model
         bool is_http_proxy_enabled( void ) const {
             bool enabled = true;
             KConfig_Get_Http_Proxy_Enabled(_config, &enabled, true);
+			if ( enabled )
+			{
+				std::string path = get_http_proxy_path();
+				if ( path.empty() ) enabled = false;
+			}
             return enabled;
         }
 

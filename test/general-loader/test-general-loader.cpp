@@ -56,6 +56,19 @@ using namespace ncbi::NK;
 
 TEST_SUITE(GeneralLoaderTestSuite);
 
+const string ScratchDir = "./db/";
+
+static
+void
+ClearScratchDir ()
+{
+    KDirectory* wd;
+    KDirectoryNativeDir ( & wd );
+    KDirectoryClearDir ( wd, true, ScratchDir . c_str() );        
+    KDirectoryRelease ( wd );
+}
+
+
 class GeneralLoaderFixture
 {
 public:
@@ -66,8 +79,10 @@ public:
     GeneralLoaderFixture()
     :   m_db ( 0 ),
         m_cursor ( 0 ),
-        m_keepDatabase ( false )
+        m_wd ( 0 )
     {
+        if ( KDirectoryNativeDir ( & m_wd ) != 0 )
+            throw logic_error("GeneralLoaderFixture::ctor KDirectoryNativeDir failed");
     }
     ~GeneralLoaderFixture()
     {
@@ -134,28 +149,12 @@ public:
         return ret;
     }
 
-    bool DatabaseExists ()
-    {
-        if ( m_source . GetDatabaseName() . empty ()  )
-        {
-            return false;
-        }
-        KDirectory* wd;
-        KDirectoryNativeDir ( & wd );
-        bool ret = KDirectoryPathType_v1 ( wd, m_source . GetDatabaseName() . c_str() ) != kptNotFound;
-        KDirectoryRelease ( wd );
-        return ret;
-    }
-    
     void RemoveDatabase()
     {
         CloseDatabase();
-        if ( ! m_source . GetDatabaseName() . empty () && ! m_keepDatabase )
+        if ( ! m_source . GetDatabaseName() . empty () )
         {
-            KDirectory* wd;
-            KDirectoryNativeDir ( & wd );
-            KDirectoryRemove ( wd, true, m_source . GetDatabaseName() . c_str() );
-            KDirectoryRelease ( wd );
+            KDirectoryRemove ( m_wd, true, m_source . GetDatabaseName() . c_str() );
         }
     }
     
@@ -185,10 +184,15 @@ public:
         }
     }
     
-    void SetUpStream( const char* p_dbName )
+    void SetUpStream( const char* p_dbName, const string& p_schema = "align/align.vschema", const string& p_schemaName = "NCBI:align:db:alignment_sorted" )
     {
-        m_source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
-        m_source . DatabaseEvent ( p_dbName );
+        m_source . SchemaEvent ( p_schema, p_schemaName );
+        string dbName = ScratchDir + p_dbName;
+        if ( m_source.packed )
+        {
+            dbName += "-packed";
+        }
+        m_source . DatabaseEvent ( dbName );
     }
     void SetUpStream_OneTable( const char* p_dbName, const char* p_tableName )
     {  
@@ -251,7 +255,7 @@ public:
     TestSource      m_source;
     VDatabase *     m_db;
     const VCursor * m_cursor;
-    bool            m_keepDatabase;
+    KDirectory*     m_wd;
 };    
 
 template<> std::string GeneralLoaderFixture::GetValue ( const char* p_table, const char* p_column, uint64_t p_row )
@@ -333,22 +337,18 @@ FIXTURE_TEST_CASE ( BadSchemaFileName_Long, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( BadSchemaName, GeneralLoaderFixture )
 {   
-    m_source . SchemaEvent ( "align/align.vschema", "bad schema name" );
-    m_source . DatabaseEvent ( GetName() );
+    SetUpStream ( GetName(), "align/align.vschema", "bad schema name" );
     m_source . OpenStreamEvent();
     
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadSchemaName_Long, GeneralLoaderFixture )
 {   
-    m_source . SchemaEvent ( "align/align.vschema", string ( GeneralLoader :: MaxPackedString + 1, 'x' ) );
-    m_source . DatabaseEvent ( GetName() );
+    SetUpStream ( GetName(), "align/align.vschema", string ( GeneralLoader :: MaxPackedString + 1, 'x' ) );
     m_source . OpenStreamEvent();
     
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadTableName, GeneralLoaderFixture )
@@ -358,7 +358,6 @@ FIXTURE_TEST_CASE ( BadTableName, GeneralLoaderFixture )
     m_source . OpenStreamEvent();
 
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcDatabase, rcCreating, rcSchema, rcNotFound ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadTableName_Long, GeneralLoaderFixture )
@@ -369,7 +368,6 @@ FIXTURE_TEST_CASE ( BadTableName_Long, GeneralLoaderFixture )
 
     // the expected return code is different here due to VDB's internal limitation on 256 characters in a table name 
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcDB,rcDirectory,rcResolving,rcPath,rcExcessive ) ) ); 
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( DuplicateTableId, GeneralLoaderFixture )
@@ -378,7 +376,6 @@ FIXTURE_TEST_CASE ( DuplicateTableId, GeneralLoaderFixture )
     m_source . NewTableEvent ( 1, "REFERENCE" );
     m_source . NewTableEvent ( 1, "SEQUENCE" ); // same Id
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcTable, rcExists ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadColumnName, GeneralLoaderFixture )
@@ -387,7 +384,6 @@ FIXTURE_TEST_CASE ( BadColumnName, GeneralLoaderFixture )
     m_source . NewTableEvent ( DefaultTableId, "REFERENCE" );
     m_source . NewColumnEvent ( 1, DefaultTableId, "nosuchcolumn", 8 );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( BadTableId, GeneralLoaderFixture )
@@ -396,7 +392,6 @@ FIXTURE_TEST_CASE ( BadTableId, GeneralLoaderFixture )
     m_source . NewTableEvent ( 1, "REFERENCE" );
     m_source . NewColumnEvent ( 1, 2, "SPOT_GROUP", 8 );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcTable, rcInvalid ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( DuplicateColumnName, GeneralLoaderFixture )
@@ -405,7 +400,6 @@ FIXTURE_TEST_CASE ( DuplicateColumnName, GeneralLoaderFixture )
     m_source . NewColumnEvent ( 1, DefaultTableId, "SPOT_GROUP", 8 );
     m_source . NewColumnEvent ( 2, DefaultTableId, "SPOT_GROUP", 8 );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcCursor, rcUpdating, rcColumn, rcExists ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( DuplicateColumnId, GeneralLoaderFixture )
@@ -414,14 +408,12 @@ FIXTURE_TEST_CASE ( DuplicateColumnId, GeneralLoaderFixture )
     m_source . NewColumnEvent ( 1, DefaultTableId, "SPOT_GROUP", 8 );
     m_source . NewColumnEvent ( 1, DefaultTableId, "NAME", 8 );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcColumn, rcExists ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( NoOpenStreamEvent, GeneralLoaderFixture )
 {   
     SetUpStream ( GetName() );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( NoCloseStreamEvent, GeneralLoaderFixture )
@@ -429,7 +421,6 @@ FIXTURE_TEST_CASE ( NoCloseStreamEvent, GeneralLoaderFixture )
     SetUpStream ( GetName() );
     m_source . OpenStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcNS, rcFile, rcReading, rcTransfer, rcIncomplete ) ) );
-    REQUIRE ( ! DatabaseExists() );
 }
 
 FIXTURE_TEST_CASE ( NoColumns, GeneralLoaderFixture )
@@ -440,7 +431,6 @@ FIXTURE_TEST_CASE ( NoColumns, GeneralLoaderFixture )
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
     // make sure database exists and is valid
-    REQUIRE ( DatabaseExists() );
     OpenDatabase (); // did not throw => opened successfully
 }
 
@@ -547,21 +537,6 @@ FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite, GeneralLoaderFixture )
     OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
 
     string value = "this be my default";
-    m_source . CellDefaultEvent( DefaultColumnId, value );
-    // no WriteEvent
-    m_source . NextRowEvent ( DefaultTableId  );
-    m_source . CloseStreamEvent();
-    
-    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
-    
-    REQUIRE_EQ ( value, GetValue<string> ( tableName, columnName, 1 ) ); 
-}
-
-FIXTURE_TEST_CASE ( OneColumnEmptyDefault, GeneralLoaderFixture )
-{   
-    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
-
-    string value;
     m_source . CellDefaultEvent( DefaultColumnId, value );
     // no WriteEvent
     m_source . NextRowEvent ( DefaultTableId  );
@@ -856,10 +831,8 @@ FIXTURE_TEST_CASE ( AdditionalSchemaIncludePaths_Single, GeneralLoaderFixture )
         ofstream out( schemaFile . c_str() );
         out << schemaText;
     }
-    
-    string dbFile = string ( GetName() ) + ".db";
-    m_source . SchemaEvent ( schemaFile, "database1" );
-    m_source . DatabaseEvent ( dbFile );
+
+    SetUpStream ( GetName(), schemaFile, "database1" );
     
     const char* table1 = "TABLE1";
     const char* column1 = "column1";
@@ -913,10 +886,7 @@ FIXTURE_TEST_CASE ( AdditionalSchemaIncludePaths_Multiple, GeneralLoaderFixture 
         out << schemaText;
     }
     
-    string dbFile = string ( GetName() ) + ".db";
-    m_source . SchemaEvent ( schemaFile, "database1" );
-    m_source . DatabaseEvent ( dbFile );
-
+    SetUpStream ( GetName(), schemaFile, "database1" );
    
     const char* table1 = "TABLE1";
     const char* column1 = "column1";
@@ -962,10 +932,8 @@ FIXTURE_TEST_CASE ( AdditionalSchemaFiles_Single, GeneralLoaderFixture )
         out << schemaText;
     }
     
-    string dbFile = string ( GetName() ) + ".db";
     // here we specify a schema that does not exist but it's OK as long as we add a good schema later
-    m_source . SchemaEvent ( "does not exist", "database1" );
-    m_source . DatabaseEvent ( dbFile );
+    SetUpStream ( GetName(), "does not exist", "database1" );
     
     const char* table1 = "TABLE1";
     const char* column1 = "column1";
@@ -1096,16 +1064,23 @@ const char UsageDefaultName[] = "test-general-loader";
 rc_t CC KMain ( int argc, char *argv [] )
 {
     KConfigDisableUserSettings();
-    
+
+    ClearScratchDir();
+
     TestSource::packed = false;
     cerr << "Unpacked protocol: ";
     rc_t rc = GeneralLoaderTestSuite(argc, argv);
     if ( rc == 0 )
     {
+        ClearScratchDir();
+
         TestSource::packed = true;
         cerr << "Packed protocol: ";
         rc = GeneralLoaderTestSuite(argc, argv);
     }
+
+    ClearScratchDir();
+
     return rc;
 }
 

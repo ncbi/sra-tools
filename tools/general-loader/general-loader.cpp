@@ -1114,6 +1114,7 @@ rc_t
 GeneralLoader::Handle_CloseStream ()
 {
     rc_t rc = 0;
+    rc_t rc2 = 0;
     for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
     {
         rc = VCursorCloseRow ( *it );
@@ -1132,7 +1133,7 @@ GeneralLoader::Handle_CloseStream ()
                         rc = VTableReindex ( table );
                     }
                 }
-                rc_t rc2 = VTableRelease ( table );
+                rc2 = VTableRelease ( table );
                 if ( rc == 0 )
                 {
                     rc = rc2;
@@ -1145,6 +1146,14 @@ GeneralLoader::Handle_CloseStream ()
         }
     }
     m_cursors . clear ();
+
+    rc2 = VDatabaseRelease ( m_db );
+    if ( rc == 0 )
+    {
+        rc = rc2;
+    }
+    m_db = 0;
+
     return rc;
 }
 

@@ -297,6 +297,23 @@ static struct s_reference_info s_reference_info_make(unsigned const name, unsign
     return rslt;
 }
 
+static unsigned GetLastOffset(Reference const *const self)
+{
+    if (self->last_id < self->ref_info.elem_count) {
+        struct s_reference_info const *const refInfoBase = self->ref_info.base;
+        return refInfoBase[self->last_id].lastOffset;
+    }
+    return 0;
+}
+
+static void SetLastOffset(Reference *const self, unsigned const newValue)
+{
+    if (self->last_id < self->ref_info.elem_count) {
+        struct s_reference_info *const refInfoBase = self->ref_info.base;
+        refInfoBase[self->last_id].lastOffset = newValue;
+    }
+}
+
 rc_t ReferenceSetFile(Reference *self, const char id[],
                       uint64_t length, uint8_t const md5[16],
                       bool *shouldUnmap)
@@ -351,7 +368,6 @@ rc_t ReferenceSetFile(Reference *self, const char id[],
     self->last_id = at;
     self->curPos = self->endPos = 0;
     self->length = (unsigned)length;
-    self->lastOffset = 0;
     KDataBufferResize(&self->pri_overlap, 0);
     KDataBufferResize(&self->sec_overlap, 0);
 
@@ -505,7 +521,7 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
     if (!G.acceptNoMatch && data->data.ref_len == 0)
         return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
     
-    if (!self->out_of_order && pos < self->lastOffset) {
+    if (!self->out_of_order && pos < GetLastOffset(self)) {
         return Unsorted(self);
     }
     if (!self->out_of_order) {
@@ -513,7 +529,7 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
         unsigned nmatch;
         unsigned indels;
 
-        self->lastOffset = data->data.effective_offset;
+        SetLastOffset(self, data->data.effective_offset);
         GetCounts(data, seqLen, &nmatch, &nmis, &indels);
         *matches = nmatch;
         

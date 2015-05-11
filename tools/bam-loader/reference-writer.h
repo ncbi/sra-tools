@@ -38,7 +38,6 @@ typedef struct s_reference {
     const ReferenceMgr *mgr;
     const ReferenceSeq *rseq;
     int64_t lastRefId;
-    int32_t lastOffset;
     unsigned curPos;
     unsigned endPos;
     unsigned length;

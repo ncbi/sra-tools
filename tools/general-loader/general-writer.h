@@ -444,7 +444,7 @@ namespace ncbi
     inline void set_string_size ( uint32_t & sz, size_t bytes )
     {
         assert ( bytes != 0 );
-        assert ( ( bytes >> 32 ) == 0 );
+        assert ( sizeof bytes == 4 || ( bytes >> 32 ) == 0 );
         sz = ( uint32_t ) bytes;
     }
 

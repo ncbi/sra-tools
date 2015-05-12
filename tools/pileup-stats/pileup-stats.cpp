@@ -78,8 +78,8 @@ namespace ncbi
     static int tbl_id;
     static int column_id [ num_columns ];
     static uint8_t integer_column_flag_bits;
-    static int64_t zrow_id;
 #endif
+    static int64_t zrow_id;
 
     static uint32_t depth_cutoff = 1;               // do not output if depth <= this value
 
@@ -94,10 +94,10 @@ namespace ncbi
 #endif
         const String & runName, const String & refName, PileupIterator & pileup )
     {
-        int64_t last_writ = 0;
+        int64_t ref_zpos, last_writ = 0;
         bool need_write = false;
 
-        for ( int64_t ref_zpos = -1; pileup . nextPileup (); ++ ref_zpos )
+        for ( ref_zpos = -1; pileup . nextPileup (); ++ ref_zpos, ++ zrow_id )
         {
             if ( ref_zpos < 0 )
             {
@@ -259,7 +259,7 @@ namespace ncbi
 #endif
                 out . write ( column_id [ col_DEPTH ], sizeof depth * 8, & depth, 1 );
                 if ( have_mismatch )
-                    out . write ( column_id [ col_MISMATCH_COUNTS ], sizeof mismatch_counts [ 0 ] * 8, mismatch_counts, 3 );
+                    out . write ( column_id [ col_MISMATCH_COUNTS ], sizeof mismatch_counts [ 0 ] * 8, mismatch_counts, 3 + RECORD_MATCH_COUNT );
                 if ( have_inserts )
                     out . write ( column_id [ col_INSERTION_COUNTS ], sizeof ins_counts [ 0 ] * 8, ins_counts, 4 );
                 if ( del_cnt != 0 )
@@ -296,6 +296,10 @@ namespace ncbi
 #endif // NO_PILEUP_EVENTS
 
         }
+#if USE_GENERAL_LOADER
+        if ( ref_zpos > last_writ )
+            out . moveAhead ( tbl_id, ref_zpos - last_writ );
+#endif
     }
 
 #if USE_GENERAL_LOADER

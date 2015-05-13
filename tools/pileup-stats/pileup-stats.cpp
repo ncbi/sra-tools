@@ -192,7 +192,6 @@ namespace ncbi
                     {
                     case PileupEvent :: match:
 #if RECORD_MATCH_COUNT
-                        ++ mismatch_counts [ ref_base_idx ];
                         have_mismatch = true;
 #endif
                     handle_N_in_mismatch:

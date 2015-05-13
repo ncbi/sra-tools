@@ -105,27 +105,34 @@ static void free_range( struct reference_range * self )
 
 static int cmp_range( const struct reference_range * a, const struct reference_range * b )
 {
-
-    int64_t res = ( a->start - b->start );
-    if ( res == 0 )
-        res = ( a->end - b->end );
-    if ( res < 0 )
-        return -1;
-    else if ( res >  0 )
-        return 1;
-    else return 0;
+	if ( a != NULL && b != NULL )
+	{
+		int64_t res = ( a->start - b->start );
+		if ( res == 0 )
+			res = ( a->end - b->end );
+		if ( res < 0 )
+			return -1;
+		else if ( res >  0 )
+			return 1;
+		else return 0;
+	}
+	return 1;
 }
 
 
 static bool range_overlapp( const struct reference_range * a, const struct reference_range * b )
 {
-    return ( !( ( b->end < a->start ) || ( b->start > a->end ) ) );
+	if ( a != NULL && b != NULL )
+	    return ( !( ( b->end < a->start ) || ( b->start > a->end ) ) );
+	return false;
 }
 
 
 static uint64_t range_distance( const struct reference_range * a, const struct reference_range * b )
 {
-    return ( b->start - a->end );
+	if ( a != NULL && b != NULL )
+		return ( b->start - a->end );
+	return 0;
 }
 
 /* =========================================================================================== */
@@ -617,12 +624,18 @@ struct skiplist
 static bool reference_region_has_skip_ranges( const struct reference_region * r )
 {
     bool res = false;
-    uint32_t i, n = VectorLength( &r->ranges );
-    for ( i = 0; i < n && !res; ++i )
-    {
-        const struct reference_range * rr = VectorGet ( &( r->ranges ), i );
-        if ( VectorLength( &rr->skip ) > 0 ) res = true;
-    }
+	if ( r != NULL )
+	{
+		uint32_t i, n = VectorLength( &r->ranges );
+		for ( i = 0; i < n && !res; ++i )
+		{
+			const struct reference_range * rr = VectorGet ( &( r->ranges ), i );
+			if ( rr != NULL )
+			{
+				if ( VectorLength( &rr->skip ) > 0 ) res = true;
+			}
+		}
+	}
     return res;
 }
 
@@ -748,8 +761,11 @@ void skiplist_enter_ref( struct skiplist * list, const char * name )
         {
             struct skiplist_ref_node * cur_node = ( struct skiplist_ref_node * )BSTreeFind ( &( list->nodes ), name, pchar_vs_srn_cmp );
             list->current = cur_node;
-            cur_node->current_id = 0;
-            cur_node->current_skip_range = VectorGet ( &( cur_node->skip_ranges ), 0 );
+			if ( cur_node != NULL )
+			{
+				cur_node->current_id = 0;
+				cur_node->current_skip_range = VectorGet ( &( cur_node->skip_ranges ), 0 );
+			}
         }
     }
 }

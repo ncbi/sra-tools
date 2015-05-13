@@ -593,6 +593,8 @@ namespace ncbi
         write_event ( & hdr, sizeof hdr );
 
         state = closed;
+
+        flush ();
     }
 
     
@@ -602,6 +604,9 @@ namespace ncbi
         , evt_count ( 0 )
         , byte_count ( 0 )
         , packing_buffer ( 0 )
+        , output_buffer ( 0 )
+        , output_bsize ( 0 )
+        , output_marker ( 0 )
         , out_fd ( -1 )
         , state ( uninitialized )
     {
@@ -611,25 +616,36 @@ namespace ncbi
 
     
     // Constructors
-    GeneralWriter :: GeneralWriter ( int _out_fd )
+    GeneralWriter :: GeneralWriter ( int _out_fd, size_t buffer_size )
         : evt_count ( 0 )
         , byte_count ( 0 )
         , packing_buffer ( 0 )
+        , output_buffer ( 0 )
+        , output_bsize ( buffer_size )
+        , output_marker ( 0 )
         , out_fd ( _out_fd )
         , state ( uninitialized )
     {
         packing_buffer = new uint8_t [ bsize ];
+        output_buffer = new uint8_t [ buffer_size ];
         writeHeader ();
     }
     
     GeneralWriter :: ~GeneralWriter ()
     {
-        endStream ();
+        try
+        {
+            endStream ();
+        }
+        catch ( ... )
+        {
+        }
 
-        if ( out_fd < 0 )
-            out.flush ();
-
+        delete [] output_buffer;
         delete [] packing_buffer;
+
+        output_bsize = output_marker = 0;
+        output_buffer = packing_buffer = 0;
     }
 
     bool GeneralWriter :: int_stream :: operator < ( const int_stream &s ) const
@@ -658,6 +674,26 @@ namespace ncbi
 
     }
 
+    void GeneralWriter :: flush ()
+    {
+        if ( out_fd < 0 )
+            out . flush ();
+        else
+        {
+            ssize_t num_writ;
+            for ( size_t total = 0; total < output_marker; total += num_writ )
+            {
+                num_writ = :: write ( out_fd, & output_buffer [ total ], output_marker - total );
+                if ( num_writ < 0 )
+                    throw "Error writing to fd";
+                if ( num_writ == 0 )
+                    throw "Transfer incomplete writing to fd";
+            }
+
+            output_marker = 0;
+        }
+    }
+
     void GeneralWriter :: internal_write ( const void * data, size_t num_bytes )
     {
         if ( out_fd < 0 )
@@ -671,13 +707,23 @@ namespace ncbi
             const uint8_t * p = ( const uint8_t * ) data;
             for ( total = 0; total < num_bytes; )
             {
-                ssize_t num_writ = :: write ( out_fd, & p [ total ], num_bytes - total );
-                if ( num_writ < 0 )
-                    throw "Error writing to fd";
-                if ( num_writ == 0 )
-                    throw "Transfer incomplete writing to fd";
-                total += num_writ;
+                size_t avail = output_bsize - output_marker;
+                if ( avail == 0 )
+                {
+                    flush ();
+                    avail = output_bsize - output_marker;
+                }
+
+                size_t to_write = num_bytes - total;
+                if ( to_write > avail )
+                    to_write = avail;
+
+                assert ( to_write != 0 );
+                memcpy ( & output_buffer [ output_marker ], & p [ total ], to_write );
+                output_marker += to_write;
+                total += to_write;
             }
+
             byte_count += total;
         }
     }

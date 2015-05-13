@@ -100,7 +100,7 @@ namespace ncbi
 
         // out_fd writes to an open file descriptor ( generally stdout )
         // out_path initializes output stream for writing to a file
-        GeneralWriter ( int out_fd );
+        GeneralWriter ( int out_fd, size_t buffer_size = 32 * 1024 );
         GeneralWriter ( const std :: string & out_path );
 
         // output stream is flushed and closed
@@ -111,6 +111,7 @@ namespace ncbi
         void writeHeader ();
         void internal_write ( const void *data, size_t num_bytes );
         void write_event ( const gwp_evt_hdr * evt, size_t evt_size );
+        void flush ();
 
         struct int_stream
         {
@@ -135,6 +136,10 @@ namespace ncbi
         uint64_t byte_count;
 
         uint8_t * packing_buffer;
+
+        uint8_t * output_buffer;
+        size_t output_bsize;
+        size_t output_marker;
 
         int out_fd;
 

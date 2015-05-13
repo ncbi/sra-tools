@@ -198,6 +198,7 @@ typedef struct {
     const char *ascp;
     const char *asperaKey;
     String *ascpMaxRate;
+    const char *ascpParams; /* do not free! */
 
 #ifdef _DEBUGGING
     const char *textkart;
@@ -1042,13 +1043,17 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *main,
         return RC(rcExe, rcFile, rcCopying, rcSchema, rcInvalid);
     }
 
-    if (main->ascpMaxRate != NULL) {
+    if (main->ascpParams != NULL) {
+        opt.ascp_options = main->ascpParams;
+    }
+    else if (main->ascpMaxRate != NULL) {
         size_t sz = string_copy(opt.target_rate, sizeof opt.target_rate,
             main->ascpMaxRate->addr, main->ascpMaxRate->size);
         if (sz < sizeof opt.target_rate) {
             return RC(rcExe, rcFile, rcCopying, rcBuffer, rcInsufficient);
         }
     }
+
     opt.name = self->name;
     opt.src_size = self->remoteSz;
     opt.heartbeat = main->heartbeat;
@@ -2396,6 +2401,11 @@ static size_t _sizeFromString(const char *val) {
 static const char* ASCP_USAGE[] =
 { "path to ascp program and private key file (asperaweb_id_dsa.putty)", NULL };
 
+#define ASCP_PAR_OPTION "ascp-options"
+#define ASCP_PAR_ALIAS  NULL
+static const char* ASCP_PAR_USAGE[] =
+{ "arbitrary options to pass to ascp command line", NULL };
+
 #define CHECK_ALL_OPTION "check-all"
 #define CHECK_ALL_ALIAS  "c"
 static const char* CHECK_ALL_USAGE[] = { "double-check all refseqs", NULL };
@@ -2481,6 +2491,7 @@ static OptDef Options[] = {
    ,{ SIZE_OPTION     , SIZE_ALIAS     , NULL, SIZE_USAGE  , 1, true ,false }
    ,{ ORDR_OPTION     , ORDR_ALIAS     , NULL, ORDR_USAGE  , 1, true ,false }
    ,{ ASCP_OPTION     , ASCP_ALIAS     , NULL, ASCP_USAGE  , 1, true ,false }
+   ,{ ASCP_PAR_OPTION , ASCP_PAR_ALIAS , NULL, ASCP_PAR_USAGE, 1, true ,false }
    ,{ HBEAT_OPTION    , HBEAT_ALIAS    , NULL, HBEAT_USAGE , 1, true, false }
    ,{ FAIL_ASCP_OPTION, FAIL_ASCP_ALIAS, NULL, FAIL_ASCP_USAGE, 1, false, false}
 #ifdef _DEBUGGING
@@ -2627,6 +2638,23 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
                     self->asperaKey = string_dup_measure(sep + 1, NULL);
                     self->ascpChecked = true;
                 }
+            }
+        }
+
+/* ASCP_PAR_OPTION */
+        rc = ArgsOptionCount(self->args, ASCP_PAR_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr,
+                rc, "Failure to get '" ASCP_PAR_OPTION "' argument");
+            break;
+        }
+        if (pcount > 0) {
+            rc = ArgsOptionValue(self->args,
+                ASCP_PAR_OPTION, 0, &self->ascpParams);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" ASCP_PAR_OPTION "' argument value");
+                break;
             }
         }
 
@@ -2865,6 +2893,9 @@ rc_t CC Usage(const Args *args) {
             {
                 param = "size";
             }
+        }
+        else if (strcmp(Options[i].name, ASCP_PAR_OPTION) == 0) {
+            param = "value";
         }
 #ifdef _DEBUGGING
         else if (strcmp(Options[i].name, TEXTKART_OPTION) == 0) {

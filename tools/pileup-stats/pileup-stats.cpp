@@ -38,6 +38,8 @@
 #define RECORD_REF_BASE    0
 #define RECORD_MATCH_COUNT 1
 
+#define DFLT_BUFFER_SIZE ( 32 * 1024 )
+
 #if _DEBUGGING
 #define SINGLE_REFERENCE 0
 #define SLICE_START      0
@@ -333,7 +335,7 @@ namespace ncbi
 #endif
 
     static
-    void run ( const char * spec, const char *outfile, const char *_remote_db, Alignment :: AlignmentCategory cat )
+    void run ( const char * spec, const char *outfile, const char *_remote_db, size_t buffer_size, Alignment :: AlignmentCategory cat )
     {
         std :: cerr << "# Opening run '" << spec << "'\n";
         ReadCollection obj = ncbi :: NGS :: openReadCollection ( spec );
@@ -350,7 +352,7 @@ namespace ncbi
             remote_db = _remote_db;
 
         GeneralWriter *outp = ( outfile == NULL ) ? 
-            new GeneralWriter ( 1 ) : new GeneralWriter ( outfile );
+            new GeneralWriter ( 1, buffer_size ) : new GeneralWriter ( outfile );
 
         try
         {
@@ -484,6 +486,7 @@ extern "C"
             << "  -a|--align-category              the types of alignments to pile up:\n"
             << "                                   { primary, secondary, all } (default all)\n"
 #if USE_GENERAL_LOADER
+            << "  --buffer-size bytes              size of output pipe buffer - default " << DFLT_BUFFER_SIZE/1024 << "K bytes\n"
             << "  -P|--pack-integer                pack integers in output pipe - uses less bandwidth\n"
 #endif
             << "  -h|--help                        output brief explanation of the program\n"
@@ -510,7 +513,7 @@ extern "C"
     {
         rc_t rc = -1;
         Alignment :: AlignmentCategory cat = Alignment :: all;
-
+        size_t buffer_size = DFLT_BUFFER_SIZE;
         try
         {
             int num_runs = 0;
@@ -579,6 +582,17 @@ extern "C"
                     {
                         remote_db = getArg ( i, argc, argv );
                     }
+                    else if ( strcmp ( arg, "buffer-size" ) == 0 )
+                    {
+                        const char * str = getArg ( i, argc, argv );
+
+                        char * end;
+                        long new_buffer_size = strtol ( str, & end, 0 );
+                        if ( new_buffer_size < 0 || str == ( const char * ) end || end [ 0 ] != 0 )
+                            throw "Invalid buffer argument";
+
+                        buffer_size = new_buffer_size;
+                    }
 #endif
                     else if ( strcmp ( arg, "depth-cutoff" ) == 0 )
                     {
@@ -636,7 +650,7 @@ extern "C"
 #endif
             for ( int i = 1; i <= num_runs; ++ i )
             {
-                ncbi :: run ( argv [ i ], outfile, remote_db, cat );
+                ncbi :: run ( argv [ i ], outfile, remote_db, buffer_size, cat );
             }
 
             rc = 0;

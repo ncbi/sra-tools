@@ -121,5 +121,5 @@ tool-tests: makeinputs
 slowtests: #piped-dump
 
 piped-dump: $(BINDIR)/pileup-stats test-general-loader
-	$(BINDIR)/pileup-stats SRR833576 | $(BINDIR)/general-loader #-L=info
+	$(BINDIR)/pileup-stats SRR1063272 | $(BINDIR)/general-loader #-L=info
 

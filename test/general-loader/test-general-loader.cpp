@@ -50,6 +50,7 @@
 #include "testsource.hpp"
 
 #include "../../tools/general-loader/general-loader.cpp"
+#include "../../tools/general-loader/utf8-like-int-codec.c"
 
 using namespace std;
 using namespace ncbi::NK;
@@ -88,6 +89,7 @@ public:
     {
         RemoveDatabase();
         KLogLevelSet ( klogFatal );
+        KDirectoryRelease ( m_wd );
     }
     
     GeneralLoader* MakeLoader ( const struct KFile * p_input )
@@ -237,7 +239,7 @@ public:
             
         T ret;
         uint32_t num_read;
-        if ( VCursorRead ( m_cursor, 1, 8 * sizeof ret, &ret, 1, &num_read ) != 0 )
+        if ( VCursorRead ( m_cursor, 1, 8 * sizeof ( T ), &ret, 1, &num_read ) != 0 )
             throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");
         
         if ( VCursorCloseRow ( m_cursor ) != 0 )
@@ -245,12 +247,37 @@ public:
 
          return ret;
     }
+
+    template < typename T > T GetValueWithIndex ( const char* p_table, const char* p_column, uint64_t p_row, size_t p_count, size_t p_index )
+    {
+        OpenCursor( p_table, p_column ); 
+        if ( VCursorSetRowId ( m_cursor, p_row ) ) 
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorSetRowId failed");
+        
+        if ( VCursorOpenRow ( m_cursor ) != 0 )
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorOpenRow failed");
+            
+        T ret [ p_count ];
+        uint32_t num_read;
+        if ( VCursorRead ( m_cursor, 1, 8 * sizeof ( T ), &ret, p_count, &num_read ) != 0 )
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");
+        
+        if ( VCursorCloseRow ( m_cursor ) != 0 )
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorCloseRow failed");
+
+         return ret [  p_index ];
+    }
     
     void FullLog() 
     {     
         KLogLevelSet ( klogInfo );
     }
-
+    
+    void CreateFile ( const string& p_name, const string& p_content )
+    {
+        ofstream out( p_name . c_str() );
+        out << p_content;
+    }
     
     TestSource      m_source;
     VDatabase *     m_db;
@@ -532,6 +559,158 @@ FIXTURE_TEST_CASE ( OneColumnOneCellManyChunks, GeneralLoaderFixture )
     REQUIRE_EQ ( value1 + value2 + value3, GetValue<string> ( tableName, columnName, 1 ) ); 
 }
 
+FIXTURE_TEST_CASE ( IntegerCompaction, GeneralLoaderFixture )
+{   
+    if ( ! TestSource::packed )
+        return; // integer compaction is used in packed mode only
+        
+    string schemaFile = string ( GetName() ) + ".vschema";
+    string schemaText = 
+            "table table1 #1.0.0\n"
+            "{\n"
+            "    column U16 column16;\n"
+            "    column U32 column32;\n"
+            "    column U64 column64;\n"
+            "};\n"
+            "database database1 #1\n"
+            "{\n"
+            "    table table1 #1 TABLE1;\n"
+            "};\n"
+        ;
+    CreateFile ( schemaFile, schemaText ); 
+    SetUpStream ( GetName(), schemaFile, "database1" );
+   
+    const char* table1 = "TABLE1";
+    m_source . NewTableEvent ( DefaultTableId, table1 );
+    
+    // these values will not be compacted ( adds 1 byte overhead )
+    const uint32_t Column16Id = 16; const uint16_t u16value = 0x3456;
+    const uint32_t Column32Id = 32; const uint32_t u32value = 0x789abcde;
+    const uint32_t Column64Id = 64; const uint64_t u64value = 0xfedcba9876543210;
+    m_source . NewColumnEvent ( Column16Id, DefaultTableId, "column16", 16, true );
+    m_source . NewColumnEvent ( Column32Id, DefaultTableId, "column32", 32, true );
+    m_source . NewColumnEvent ( Column64Id, DefaultTableId, "column64", 64, true );
+    
+    m_source . OpenStreamEvent();
+    
+    uint8_t buf[128];
+    
+    int bytes = encode_uint16 ( u16value, buf, buf + sizeof buf );
+    REQUIRE_EQ ( 3, bytes );
+    m_source . CellDataEventRaw ( Column16Id, 1, buf, bytes );
+    
+    bytes = encode_uint32 ( u32value, buf, buf + sizeof buf );
+    REQUIRE_EQ ( 5, bytes );
+    m_source . CellDataEventRaw ( Column32Id, 1, buf, bytes );
+    
+    bytes = encode_uint64 ( u64value, buf, buf + sizeof buf );
+    REQUIRE_EQ ( 9, bytes );
+    m_source . CellDataEventRaw ( Column64Id, 1, buf, bytes );
+    
+    m_source . NextRowEvent ( DefaultTableId  );
+    m_source . CloseStreamEvent();
+    
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_EQ ( u16value, GetValue<uint16_t> ( table1, "column16", 1 ) );    
+    REQUIRE_EQ ( u32value, GetValue<uint32_t> ( table1, "column32", 1 ) );    
+    REQUIRE_EQ ( u64value, GetValue<uint64_t> ( table1, "column64", 1 ) );    
+
+    remove ( schemaFile . c_str() );
+}
+
+FIXTURE_TEST_CASE ( IntegerCompaction_MultipleValues, GeneralLoaderFixture )
+{   
+    if ( ! TestSource::packed )
+        return; // integer compaction is used in packed mode only
+        
+    string schemaFile = string ( GetName() ) + ".vschema";
+    string schemaText = 
+            "table table1 #1.0.0\n"
+            "{\n"
+            "    column U16 column16;\n"
+            "    column U32 column32;\n"
+            "    column U64 column64;\n"
+            "};\n"
+            "database database1 #1\n"
+            "{\n"
+            "    table table1 #1 TABLE1;\n"
+            "};\n"
+        ;
+    CreateFile ( schemaFile, schemaText ); 
+    SetUpStream ( GetName(), schemaFile, "database1" );
+   
+    const char* table1 = "TABLE1";
+    m_source . NewTableEvent ( DefaultTableId, table1 );
+
+    // induce maximum compaction ( 1 byte per value <= 0x7F )
+    const uint32_t Column16Id = 16; const uint16_t u16value1 = 0x0001;              const uint16_t u16value2 = 0x0002;
+    const uint32_t Column32Id = 32; const uint32_t u32value1 = 0x00000003;          const uint32_t u32value2 = 0x00000004;
+    const uint32_t Column64Id = 64; const uint64_t u64value1 = 0x0000000000000006;  const uint64_t u64value2 = 0x0000000000000007;
+    
+    m_source . NewColumnEvent ( Column16Id, DefaultTableId, "column16", 16, true );
+    m_source . NewColumnEvent ( Column32Id, DefaultTableId, "column32", 32, true );
+    m_source . NewColumnEvent ( Column64Id, DefaultTableId, "column64", 64, true );
+    
+    m_source . OpenStreamEvent();
+    
+    uint8_t buf[128];
+
+    {
+        int bytesTotal = 0;
+        int bytes = encode_uint16 ( u16value1, buf, buf + sizeof buf );
+        bytesTotal += bytes;
+        bytes = encode_uint16 ( u16value2, buf + bytesTotal, buf + sizeof buf );
+        bytesTotal += bytes;
+        REQUIRE_EQ ( 2, bytesTotal );
+        m_source . CellDataEventRaw ( Column16Id, 2, buf, bytesTotal );
+    }
+    
+    {
+        int bytesTotal = 0;
+        int bytes = encode_uint32 ( u32value1, buf, buf + sizeof buf );
+        bytesTotal += bytes;
+        bytes = encode_uint32 ( u32value2, buf + bytesTotal, buf + sizeof buf );
+        bytesTotal += bytes;
+        REQUIRE_EQ ( 2, bytesTotal );
+        m_source . CellDataEventRaw ( Column32Id, 2, buf, bytesTotal );
+    }
+    
+    {
+        int bytesTotal = 0;
+        int bytes = encode_uint64 ( u64value1, buf, buf + sizeof buf );
+        bytesTotal += bytes;
+        bytes = encode_uint64 ( u64value2, buf + bytesTotal, buf + sizeof buf );
+        bytesTotal += bytes;
+        REQUIRE_EQ ( 2, bytesTotal );
+        m_source . CellDataEventRaw ( Column64Id, 2, buf, bytesTotal );
+    }
+    
+    m_source . NextRowEvent ( DefaultTableId  );
+    m_source . CloseStreamEvent();
+    
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_EQ ( u16value1, GetValueWithIndex<uint16_t> ( table1, "column16", 1, 2, 0 ) );    
+    REQUIRE_EQ ( u16value2, GetValueWithIndex<uint16_t> ( table1, "column16", 1, 2, 1 ) );    
+    REQUIRE_EQ ( u32value1, GetValueWithIndex<uint32_t> ( table1, "column32", 1, 2, 0 ) );    
+    REQUIRE_EQ ( u32value2, GetValueWithIndex<uint32_t> ( table1, "column32", 1, 2, 1 ) );    
+    REQUIRE_EQ ( u64value1, GetValueWithIndex<uint64_t> ( table1, "column64", 1, 2, 0 ) );    
+    REQUIRE_EQ ( u64value2, GetValueWithIndex<uint64_t> ( table1, "column64", 1, 2, 1 ) );    
+
+    remove ( schemaFile . c_str() );
+}
+
+// default values
+
 FIXTURE_TEST_CASE ( OneColumnDefaultNoWrite, GeneralLoaderFixture )
 {   
     OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
@@ -809,28 +988,9 @@ FIXTURE_TEST_CASE ( AdditionalSchemaIncludePaths_Single, GeneralLoaderFixture )
     string schemaPath = "schema";
     string includeName = string ( GetName() ) + ".inc.vschema";
     string schemaIncludeFile = schemaPath + "/" + includeName;
-    { 
-        ofstream out ( schemaIncludeFile . c_str() );
-        out << 
-            "table table1 #1.0.0\n"
-            "{\n"
-            "    column ascii column1;\n"
-            "};\n"
-        ;
-    }
-    
+    CreateFile ( schemaIncludeFile, "table table1 #1.0.0 { column ascii column1; };" ); 
     string schemaFile = string ( GetName() ) + ".vschema";
-    { 
-        string schemaText = 
-            string ( "include '" ) + includeName + "';\n"
-            "database database1 #1\n"
-            "{\n"
-            "    table table1 #1 TABLE1;\n"
-            "};\n"
-        ;
-        ofstream out( schemaFile . c_str() );
-        out << schemaText;
-    }
+    CreateFile ( schemaFile, string ( "include '" ) + includeName + "'; database database1 #1 { table table1 #1 TABLE1; } ;" ); 
 
     SetUpStream ( GetName(), schemaFile, "database1" );
     
@@ -863,28 +1023,9 @@ FIXTURE_TEST_CASE ( AdditionalSchemaIncludePaths_Multiple, GeneralLoaderFixture 
     string schemaPath = "schema";
     string includeName = string ( GetName() ) + ".inc.vschema";
     string schemaIncludeFile = schemaPath + "/" + includeName;
-    { 
-        ofstream out ( schemaIncludeFile . c_str() );
-        out << 
-            "table table1 #1.0.0\n"
-            "{\n"
-            "    column ascii column1;\n"
-            "};\n"
-        ;
-    }
-    
+    CreateFile ( schemaIncludeFile, "table table1 #1.0.0 { column ascii column1; };" ); 
     string schemaFile = string ( GetName() ) + ".vschema";
-    { 
-        string schemaText = 
-            string ( "include '" ) + includeName + "';\n"
-            "database database1 #1\n"
-            "{\n"
-            "    table table1 #1 TABLE1;\n"
-            "};\n"
-        ;
-        ofstream out( schemaFile . c_str() );
-        out << schemaText;
-    }
+    CreateFile ( schemaFile, string ( "include '" ) + includeName + "'; database database1 #1 { table table1 #1 TABLE1; } ;" ); 
     
     SetUpStream ( GetName(), schemaFile, "database1" );
    
@@ -917,20 +1058,7 @@ FIXTURE_TEST_CASE ( AdditionalSchemaFiles_Single, GeneralLoaderFixture )
 {   
     string schemaPath = "schema";
     string schemaFile = schemaPath + "/" + GetName() + ".vschema";
-    { 
-        string schemaText = 
-            "table table1 #1.0.0\n"
-            "{\n"
-            "    column ascii column1;\n"
-            "};\n"
-            "database database1 #1\n"
-            "{\n"
-            "    table table1 #1 TABLE1;\n"
-            "};\n"
-        ;
-        ofstream out( schemaFile . c_str() );
-        out << schemaText;
-    }
+    CreateFile ( schemaFile, "table table1 #1.0.0 { column ascii column1; }; database database1 #1 { table table1 #1 TABLE1; };" ); 
     
     // here we specify a schema that does not exist but it's OK as long as we add a good schema later
     SetUpStream ( GetName(), "does not exist", "database1" );
@@ -962,27 +1090,9 @@ FIXTURE_TEST_CASE ( AdditionalSchemaFiles_Multiple, GeneralLoaderFixture )
 {   
     string schemaPath = "schema";
     string schemaFile1 = schemaPath + "/" + GetName() + "1.vschema";
-    { 
-        string schemaText = 
-            "table table1 #1.0.0\n"
-            "{\n"
-            "    column ascii column1;\n"
-            "};\n"
-        ;
-        ofstream out( schemaFile1 . c_str() );
-        out << schemaText;
-    }
+    CreateFile ( schemaFile1, "table table1 #1.0.0 { column ascii column1; };" ); 
     string schemaFile2 = schemaPath + "/" + GetName() + "2.vschema";
-    {  // this file uses table 1 defined in schemaFile1
-        string schemaText = 
-            "database database1 #1\n"
-            "{\n"
-            "    table table1 #1 TABLE1;\n"
-            "};\n"
-        ;
-        ofstream out( schemaFile2 . c_str() );
-        out << schemaText;
-    }
+    CreateFile ( schemaFile2, "database database1 #1 { table table1 #1 TABLE1; };" ); // this file uses table1 defined in schemaFile1
     
     string dbFile = string ( GetName() ) + ".db";
     

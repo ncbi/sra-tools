@@ -37,6 +37,8 @@
 #include <vdb/cursor.h>
 #include <vdb/table.h>
 
+#include "utf8-like-int-codec.h"
+
 #include <cstring>
 
 using namespace std;
@@ -922,7 +924,7 @@ GeneralLoader::Handle_NewColumn ( uint32_t p_columnId, uint32_t p_tableId, uint3
                 col . cursorIdx = cursor_idx;
                 col . columnIdx = column_idx;
                 col . elemBits  = p_elemBits;
-                col . flagBits = p_flagBits;
+                col . flagBits  = p_flagBits;
                 m_columns [ p_columnId ] = col;
                 pLogMsg ( klogInfo, 
                           "general-loader: tableId = $(t), added column '$(c)', columnIdx = $(i1), elemBits = $(i2), flagBits = $(i3)",  
@@ -1002,29 +1004,153 @@ GeneralLoader::Handle_CellDefault ( uint32_t p_columnId, uint32_t p_elemCount )
     return rc;
 }
 
+rc_t
+GeneralLoader::Unpack16 ( uint16_t p_dataSize )
+{
+    m_unpackingBuf . clear();
+    const uint8_t* buf_begin = reinterpret_cast<const uint8_t*> ( m_reader . GetBuffer() );
+    const uint8_t* buf_end   = buf_begin + p_dataSize;
+    while ( buf_begin < buf_end )
+    {
+        uint16_t ret_decoded;
+        int numRead = decode_uint16 ( buf_begin, buf_end, &ret_decoded );
+        if ( numRead <= 0 )
+        {
+            pLogMsg ( klogInfo, "general-loader: decode_uintXX() returned $(i)", "i=%i", numRead );
+            return RC ( rcExe, rcFile, rcReading, rcData, rcCorrupt );
+        }
+        
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 0 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 1 ] );
+        
+        buf_begin += numRead;
+    }
+    
+    return 0;
+}
+
+rc_t
+GeneralLoader::Unpack32 ( uint16_t p_dataSize )
+{
+    m_unpackingBuf . clear();
+    const uint8_t* buf_begin = reinterpret_cast<const uint8_t*> ( m_reader . GetBuffer() );
+    const uint8_t* buf_end   = buf_begin + p_dataSize;
+    while ( buf_begin < buf_end )
+    {
+        uint32_t ret_decoded;
+        int numRead = decode_uint32 ( buf_begin, buf_end, &ret_decoded );
+        if ( numRead <= 0 )
+        {
+            pLogMsg ( klogInfo, "general-loader: decode_uintXX() returned $(i)", "i=%i", numRead );
+            return RC ( rcExe, rcFile, rcReading, rcData, rcCorrupt );
+        }
+        
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 0 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 1 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 2 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 3 ] );
+        
+        buf_begin += numRead;
+    }
+    
+    return 0;
+}
+
+rc_t
+GeneralLoader::Unpack64 ( uint16_t p_dataSize )
+{
+    m_unpackingBuf . clear();
+    const uint8_t* buf_begin = reinterpret_cast<const uint8_t*> ( m_reader . GetBuffer() );
+    const uint8_t* buf_end   = buf_begin + p_dataSize;
+    while ( buf_begin < buf_end )
+    {
+        uint64_t ret_decoded;
+        int numRead = decode_uint64 ( buf_begin, buf_end, &ret_decoded );
+        if ( numRead <= 0 )
+        {
+            pLogMsg ( klogInfo, "general-loader: decode_uintXX() returned $(i)", "i=%i", numRead );
+            return RC ( rcExe, rcFile, rcReading, rcData, rcCorrupt );
+        }
+        
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 0 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 1 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 2 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 3 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 4 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 5 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 6 ] );
+        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 7 ] );
+        
+        buf_begin += numRead;
+    }
+    
+    return 0;
+}
+
 rc_t 
 GeneralLoader::Handle_CellData_Packed ( uint32_t p_columnId, uint16_t p_dataSize )
 {
-    pLogMsg ( klogInfo, "general-loader event: Cell-Data(Packed), id=$(i)", "i=%u", p_columnId );
-    
     rc_t rc = 0;
     Columns::const_iterator curIt = m_columns . find ( p_columnId );
     if ( curIt != m_columns . end () )
     {
         const Column& col = curIt -> second;
-        pLogMsg ( klogInfo,     
-                  "general-loader: columnIdx = $(i), elem size=$(s) bits, elem count=$(c)",
-                  "i=%u,s=%u,c=%u", 
-                  col . columnIdx, col . elemBits, p_dataSize * 8 / col . elemBits );
-        rc = m_reader . Read ( p_dataSize );   
-        if ( rc == 0 )
+        if ( ( col . flagBits & 1 ) != 0 )
         {
-            rc = VCursorWrite ( m_cursors [ col . cursorIdx ], 
-                                col . columnIdx, 
-                                col . elemBits, 
-                                m_reader . GetBuffer(), 
-                                0, 
-                                p_dataSize * 8 / col . elemBits );
+            pLogMsg ( klogInfo,     
+                    "general-loader: columnIdx = $(i), elem size=$(s) bits, compressed bytes=$(c)",
+                    "i=%u,s=%u,c=%u", 
+                    col . columnIdx, col . elemBits, p_dataSize );
+            // reserve enough for the best-packed case, when each element is represented with 1 byte
+            m_unpackingBuf . reserve ( col . elemBits / 8 * p_dataSize );
+            rc = m_reader . Read ( p_dataSize );   
+            if ( rc == 0 )
+            {
+                switch ( col . elemBits )
+                {
+                case 16: 
+                    rc = Unpack16 ( p_dataSize );
+                    break;
+                case 32:
+                    rc = Unpack32 ( p_dataSize );
+                    break;
+                case 64:
+                    rc = Unpack64 ( p_dataSize );
+                    break;
+                default:
+                    LogMsg ( klogInfo, "general-loader: bad element size for packed integer" );
+                    rc = RC ( rcExe, rcFile, rcReading, rcData, rcInvalid );
+                }
+            }
+
+            if ( rc == 0 )
+            {
+                rc = VCursorWrite ( m_cursors [ col . cursorIdx ], 
+                                    col . columnIdx, 
+                                    col . elemBits, 
+                                    m_unpackingBuf . data(), 
+                                    0, 
+                                    m_unpackingBuf . size () * 8 / col . elemBits );
+            }
+        }
+        else
+        {
+            pLogMsg ( klogInfo,     
+                    "general-loader: columnIdx = $(i), elem size=$(s) bits, elem count=$(c)",
+                    "i=%u,s=%u,c=%u", 
+                    col . columnIdx, col . elemBits, p_dataSize  * 8 / col . elemBits );
+        
+            rc = m_reader . Read ( p_dataSize );   
+        
+            if ( rc == 0 )
+            {
+                rc = VCursorWrite ( m_cursors [ col . cursorIdx ], 
+                                    col . columnIdx, 
+                                    col . elemBits, 
+                                    m_reader . GetBuffer(), 
+                                    0, 
+                                    p_dataSize * 8 / col . elemBits );
+            }
         }
     }
     else
@@ -1036,9 +1162,7 @@ GeneralLoader::Handle_CellData_Packed ( uint32_t p_columnId, uint16_t p_dataSize
 
 rc_t 
 GeneralLoader::Handle_CellDefault_Packed ( uint32_t p_columnId, uint16_t p_dataSize )
-{   //TODO: this and Handle_CellData_Packed are almost identical - refactor
-    pLogMsg ( klogInfo, "general-loader event: Cell-Data(Packed), id=$(i)", "i=%u", p_columnId );
-    
+{   
     rc_t rc = 0;
     Columns::const_iterator curIt = m_columns . find ( p_columnId );
     if ( curIt != m_columns . end () )

@@ -66,7 +66,7 @@ public:
     void SchemaEvent ( const std::string& p_schemaFile, const std::string& p_schemaName );
     void DatabaseEvent ( const std::string& p_databaseName );
     void NewTableEvent ( TableId p_id, const std::string& p_table );
-    void NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, const std::string& p_column, uint32_t p_elemBits );
+    void NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, const std::string& p_column, uint32_t p_elemBits, bool p_compresssed = false );
     void OpenStreamEvent ();
     void CloseStreamEvent ();
     void NextRowEvent ( TableId p_id );
@@ -80,9 +80,14 @@ public:
     {
         m_buffer -> Write ( Event ( evt_cell_data, p_columnId, 1, sizeof p_value, (const void*)&p_value ) );
     }   // see below for specialization for std::string (follows the class definition)
-    
+   
     // use this to capture stream contents to be used in cmdline tests
     void SaveBuffer ( const char* p_filename ) const;
+    
+    void CellDataEventRaw ( ColumnId p_columnId, size_t p_elemCount, const void* p_value, size_t p_size )
+    {
+        m_buffer -> Write ( Event ( evt_cell_data, p_columnId, p_elemCount, p_size, p_value ) );
+    }   
 
 private:    
     struct Event 
@@ -90,7 +95,7 @@ private:
         Event ( gw_evt_id p_event );
         Event ( gw_evt_id p_event, uint32_t p_id1 );
         Event ( gw_evt_id p_event, uint32_t p_id1, uint64_t p_uint64 );
-        Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str, uint32_t p_uint1 = 0 );
+        Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str, uint32_t p_uint32, uint8_t p_uint8 );
         Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1 );
         Event ( gw_evt_id p_event, const std::string& p_str1 );
         Event ( gw_evt_id p_event, const std::string& p_str1, const std::string& p_str2 );
@@ -101,8 +106,11 @@ private:
         gw_evt_id               m_event;
         uint32_t                m_id1;
         uint32_t                m_id2;
-        uint32_t                m_uint;
+        
+        uint8_t                 m_uint8;
+        uint32_t                m_uint32;
         uint64_t                m_uint64;
+        
         std :: string           m_str1;
         std :: string           m_str2;
         std :: vector < char >  m_val;

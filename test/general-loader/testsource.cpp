@@ -144,7 +144,7 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
             gw_column_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
             set_table_id ( hdr, p_event . m_id2 );
-            set_elem_bits ( hdr, p_event . m_uint );
+            set_elem_bits ( hdr, p_event . m_uint32 );
             set_name_size ( hdr, p_event . m_str1 . size () );
             
             Write ( & hdr, sizeof hdr );
@@ -166,7 +166,7 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
         {
             gw_data_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
-            set_elem_count ( hdr, p_event . m_uint );
+            set_elem_count ( hdr, p_event . m_uint32 );
             
             Write ( & hdr, sizeof hdr );
             Write ( p_event . m_val . data(), p_event . m_val . size() );
@@ -284,7 +284,8 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             gwp_column_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
             set_table_id ( hdr, p_event . m_id2 );
-            set_elem_bits ( hdr, p_event . m_uint );
+            set_elem_bits ( hdr, p_event . m_uint32 );
+            hdr . flag_bits = p_event . m_uint8;
             set_name_size ( hdr, p_event . m_str1 . size () );
             
             Write ( & hdr, sizeof hdr );
@@ -414,10 +415,9 @@ TestSource::NewTableEvent ( TableId p_id, const std::string& p_table )
 }
 
 void 
-TestSource::NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, const std::string& p_column, uint32_t p_elemBits )
+TestSource::NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, const std::string& p_column, uint32_t p_elemBits, bool p_compresssed )
 {
-    m_buffer -> Write ( Event ( evt_new_column, p_columnId, p_tableId, p_column, p_elemBits ) );
-    //TODO: support integer compaction
+    m_buffer -> Write ( Event ( evt_new_column, p_columnId, p_tableId, p_column, p_elemBits, p_compresssed ? 1 : 0 ) );
 }
     
 void 
@@ -487,7 +487,8 @@ TestSource::Event::Event ( gw_evt_id p_event )
 :   m_event ( p_event ),
     m_id1 ( 0 ),
     m_id2 ( 0 ),
-    m_uint ( 0 ),
+    m_uint8 ( 0 ),
+    m_uint32 ( 0 ),
     m_uint64 ( 0 )
 {
 }
@@ -496,7 +497,8 @@ TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1 )
 :   m_event ( p_event ),
     m_id1 ( p_id1 ),
     m_id2 ( 0 ),
-    m_uint ( 0 ),
+    m_uint8 ( 0 ),
+    m_uint32 ( 0 ),
     m_uint64 ( 0 )
 {
 }
@@ -505,16 +507,18 @@ TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint64_t p_uint64 
 :   m_event ( p_event ),
     m_id1 ( p_id1 ),
     m_id2 ( 0 ),
-    m_uint ( 0 ),
+    m_uint8 ( 0 ),
+    m_uint32 ( 0 ),
     m_uint64 ( p_uint64 )
 {
 }
 
-TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str, uint32_t p_uint1 )
+TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str, uint32_t p_uint32, uint8_t p_uint8 )
 :   m_event ( p_event ),
     m_id1 ( p_id1 ),
     m_id2 ( p_id2 ),
-    m_uint ( p_uint1 ),
+    m_uint8 ( p_uint8 ),
+    m_uint32 ( p_uint32 ),
     m_uint64 ( 0 ),
     m_str1 ( p_str )
 {
@@ -524,7 +528,8 @@ TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id, const std::string& 
 :   m_event ( p_event ),
     m_id1 ( p_id ),
     m_id2 ( 0 ),
-    m_uint ( 0 ),
+    m_uint8 ( 0 ),
+    m_uint32 ( 0 ),
     m_uint64 ( 0 ),
     m_str1 ( p_str1 )
 {
@@ -534,7 +539,8 @@ TestSource::Event::Event ( gw_evt_id p_event, const std::string& p_str1 )
 :   m_event ( p_event ),
     m_id1 ( 0 ),
     m_id2 ( 0 ),
-    m_uint ( 0 ),
+    m_uint8 ( 0 ),
+    m_uint32 ( 0 ),
     m_uint64 ( 0 ),
     m_str1 ( p_str1 )
 {
@@ -544,7 +550,8 @@ TestSource::Event::Event ( gw_evt_id p_event, const std::string& p_str1, const s
 :   m_event ( p_event ),
     m_id1 ( 0 ),
     m_id2 ( 0 ),
-    m_uint ( 0 ),
+    m_uint8 ( 0 ),
+    m_uint32 ( 0 ),
     m_uint64 ( 0 ),
     m_str1 ( p_str1 ),
     m_str2 ( p_str2 )
@@ -555,7 +562,7 @@ TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_elem_co
 :   m_event ( p_event ),
     m_id1 ( p_id1 ),
     m_id2 ( 0 ),
-    m_uint ( p_elem_count ),
+    m_uint32 ( p_elem_count ),
     m_uint64 ( 0 )
 {
     const char* v = ( const char* ) p_val;

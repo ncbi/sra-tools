@@ -111,6 +111,10 @@ private:
     rc_t Handle_OpenStream ();
     rc_t Handle_CloseStream ();
     
+    rc_t Unpack16 ( uint16_t p_dataSize );
+    rc_t Unpack32 ( uint16_t p_dataSize );
+    rc_t Unpack64 ( uint16_t p_dataSize );
+    
     rc_t MakeDatabase ();
     void CleanUp ();
     
@@ -159,6 +163,8 @@ private:
     Cursors             m_cursors;
     TableIdToCursor     m_tables;
     Columns             m_columns;
+    
+    std::vector<uint8_t> m_unpackingBuf;
 };
 
 #endif

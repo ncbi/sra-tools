@@ -257,7 +257,9 @@ public:
         if ( VCursorOpenRow ( m_cursor ) != 0 )
             throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorOpenRow failed");
             
-        T ret [ p_count ];
+        assert(1024 >= p_count);
+        T ret [ 1024 ];
+
         uint32_t num_read;
         if ( VCursorRead ( m_cursor, 1, 8 * sizeof ( T ), &ret, p_count, &num_read ) != 0 )
             throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");

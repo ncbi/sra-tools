@@ -2006,9 +2006,11 @@ static rc_t _KartPrintNumbered(const Kart *self, bool xml) {
     if (xml) {
         OUTMSG(("  <%s numbered=\"true\">\n", root));
     }
-    rc_t rc = KartPrintNumbered(self);
-    if (rc != 0) {
-        OUTMSG(("KartPrint = %R\n", rc));
+    {
+        rc_t rc = KartPrintNumbered(self);
+        if (rc != 0) {
+            OUTMSG(("KartPrint = %R\n", rc));
+        }
     }
     if (xml) {
         OUTMSG(("  </%s>\n", root));

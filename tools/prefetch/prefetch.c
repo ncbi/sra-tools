@@ -2416,7 +2416,7 @@ static const char* FORCE_USAGE[] = {
     "force object download - one of: no, yes, all.",
     "no [default]: skip download if the object if found and complete;",
     "yes: download it even if it is found and is complete;", "all: ignore lock "
-    "files (stale locks or it is beeing downloaded by another process: "
+    "files (stale locks or it is being downloaded by another process: "
     "use at your own risk!)", NULL };
 
 #define FAIL_ASCP_OPTION "FAIL-ASCP"

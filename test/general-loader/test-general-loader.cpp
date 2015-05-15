@@ -50,6 +50,8 @@
 #include "testsource.hpp"
 
 #include "../../tools/general-loader/general-loader.cpp"
+#include "../../tools/general-loader/database-loader.cpp"
+#include "../../tools/general-loader/protocol-parser.cpp"
 #include "../../tools/general-loader/utf8-like-int-codec.c"
 
 using namespace std;
@@ -561,7 +563,7 @@ FIXTURE_TEST_CASE ( OneColumnOneCellManyChunks, GeneralLoaderFixture )
     REQUIRE_EQ ( value1 + value2 + value3, GetValue<string> ( tableName, columnName, 1 ) ); 
 }
 
-FIXTURE_TEST_CASE ( IntegerCompaction, GeneralLoaderFixture )
+FIXTURE_TEST_CASE ( IntegerCompression, GeneralLoaderFixture )
 {   
     if ( ! TestSource::packed )
         return; // integer compaction is used in packed mode only
@@ -625,11 +627,11 @@ FIXTURE_TEST_CASE ( IntegerCompaction, GeneralLoaderFixture )
     remove ( schemaFile . c_str() );
 }
 
-FIXTURE_TEST_CASE ( IntegerCompaction_MultipleValues, GeneralLoaderFixture )
+FIXTURE_TEST_CASE ( IntegerCompression_MultipleValues, GeneralLoaderFixture )
 {   
     if ( ! TestSource::packed )
         return; // integer compaction is used in packed mode only
-        
+
     string schemaFile = string ( GetName() ) + ".vschema";
     string schemaText = 
             "table table1 #1.0.0\n"

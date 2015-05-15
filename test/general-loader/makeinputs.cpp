@@ -35,12 +35,13 @@ const char* tableName = "REFERENCE";
 const char* columnName = "SPOT_GROUP";
   
 void
-make_1()
+make_1( const string& p_caseId, bool p_packed )
 {   
     TestSource source;
+    TestSource::packed = p_packed;
     
     source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
-    source . DatabaseEvent ( "actual/1/db" );
+    source . DatabaseEvent ( string ( "actual/" ) + p_caseId + "/db" );
     
     source . NewTableEvent ( 1, tableName ); 
     source . NewColumnEvent ( 1, 1, columnName, 8 );
@@ -65,16 +66,18 @@ make_1()
     source . NextRowEvent ( 1 );
     
     source . CloseStreamEvent();
-    source . SaveBuffer ("input/1.gl");
+    string filename = string ( "input/" ) + p_caseId + ".gl";
+    source . SaveBuffer ( filename . c_str ()  );
 }
 
 void
-make_2()
+make_2( const string& p_caseId, bool p_packed )
 {   
     TestSource source;
+    TestSource::packed = p_packed;
     
     source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
-    source . DatabaseEvent ( "actual/2/db" );
+    source . DatabaseEvent ( string ( "actual/" ) + p_caseId + "/db" );
     
     source . NewTableEvent ( 1, tableName ); 
     source . NewColumnEvent ( 1, 1, columnName, 8 );
@@ -83,13 +86,16 @@ make_2()
     source . ErrorMessageEvent( "something is wrong" );
     
     source . CloseStreamEvent();
-    source . SaveBuffer ("input/2.gl");
+    string filename = string ( "input/" ) + p_caseId + ".gl";
+    source . SaveBuffer ( filename . c_str ()  );
 }
 
 int main()
 {
-    make_1();
-    make_2();
+    make_1( "1", false );
+    make_1( "1packed", true );
+    make_2( "2", false );
+    make_2( "2packed", true );
     
     return 0;
 }

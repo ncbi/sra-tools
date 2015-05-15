@@ -57,70 +57,12 @@ public:
     
     rc_t Run ();
     
-    void Reset();
-    
 private:
-    GeneralLoader(const GeneralLoader&);
-    GeneralLoader& operator = ( const GeneralLoader&);
-    
-    typedef struct gw_header_v1 Header;
-    typedef enum gw_evt_id Evt_id;
 
-    // Active cursors
-    typedef std::vector < struct VCursor * > Cursors;
-
-    // from table id to VCursor
-    // value_type : index into Cursors
-    typedef std::map < uint32_t, uint32_t > TableIdToCursor; 
-    
-    struct Column
-    {
-        uint32_t cursorIdx;     // index into Cursors
-        uint32_t columnIdx;     // index in the VCursor
-        uint32_t elemBits;
-        uint32_t flagBits;
-    };
-    
-    // From column id to VCursor.
-    // value_type::first    : index into Cursors
-    // value_type::second   : colIdx in the VCursor
-    typedef std::map < uint32_t, Column > Columns; 
-    
     typedef std::vector < std::string > Paths;
 
-    rc_t ReadHeader ();
-    rc_t ReadUnpackedEvents ();
-    rc_t ReadPackedEvents ();
-    
-    // read and handle individual events
-    rc_t Handle_UseSchema ( const std :: string& p_file, const std :: string& p_name );
-    rc_t Handle_RemotePath ( const std :: string& p_path );
-    rc_t Handle_NewTable ( uint32_t p_tableId, const std :: string& p_tableName );
-    rc_t Handle_NewColumn ( uint32_t p_columnId, 
-                            uint32_t p_tableId, 
-                            uint32_t p_elemBits, 
-                            uint8_t p_flags, 
-                            const std :: string& p_columnName );
-    rc_t Handle_CellData ( uint32_t p_columnId, uint32_t p_elemCount );
-    rc_t Handle_CellData_Packed ( uint32_t p_columnId, uint16_t p_dataSize );
-    rc_t Handle_CellDefault ( uint32_t p_columnId, uint32_t p_elemCount );
-    rc_t Handle_CellDefault_Packed ( uint32_t p_columnId, uint16_t p_dataSize );
-    rc_t HandleNextRow ( uint32_t p_tableId );
-    rc_t Handle_MoveAhead ( uint32_t p_tableId, uint64_t p_count );
-    rc_t Handle_ErrorMessage ( const std :: string& p_text );
-    rc_t Handle_OpenStream ();
-    rc_t Handle_CloseStream ();
-    
-    rc_t Unpack16 ( uint16_t p_dataSize );
-    rc_t Unpack32 ( uint16_t p_dataSize );
-    rc_t Unpack64 ( uint16_t p_dataSize );
-    
-    rc_t MakeDatabase ();
-    void CleanUp ();
-    
-    static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
-    
-    
+private:    
+
     class Reader
     {
     public:
@@ -146,25 +88,118 @@ private:
         uint64_t m_readCount;
     };
     
-    template <typename TEvent> rc_t ReadEvent ( TEvent& p_event );
+    class DatabaseLoader
+    {
+    public:
+        struct Column
+        {
+            uint32_t cursorIdx;     // index into Cursors
+            uint32_t columnIdx;     // index in the VCursor
+            uint32_t elemBits;
+            uint32_t flagBits;
+            
+            bool IsCompressed () const { return ( flagBits & 1 ) == 1; }
+        };
+
+    public:
+        DatabaseLoader ( const Paths& p_includePaths, const Paths& p_schemas );
+        ~DatabaseLoader();
     
-    Reader m_reader;
+        rc_t UseSchema ( const std :: string& p_file, const std :: string& p_name );
+        rc_t RemotePath ( const std :: string& p_path );
+        rc_t NewTable ( uint32_t p_tableId, const std :: string& p_tableName );
+        rc_t NewColumn ( uint32_t p_columnId, 
+                         uint32_t p_tableId, 
+                         uint32_t p_elemBits, 
+                         uint8_t p_flags, 
+                         const std :: string& p_columnName );
+        rc_t CellData    ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
+        rc_t CellDefault ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
+        rc_t NextRow ( uint32_t p_tableId );
+        rc_t MoveAhead ( uint32_t p_tableId, uint64_t p_count );
+        rc_t ErrorMessage ( const std :: string& p_text );
+        rc_t OpenStream ();
+        rc_t CloseStream ();
+        
+        const std :: string& GetDatabaseName() const { return m_databaseName; }
+        const Column* GetColumn ( uint32_t p_columnId ) const; 
+        
+    private:
+        // Active cursors
+        typedef std::vector < struct VCursor * > Cursors;
+
+        // from table id to VCursor
+        // value_type : index into Cursors
+        typedef std::map < uint32_t, uint32_t > TableIdToCursor; 
+        
+        // From column id to VCursor.
+        // value_type::first    : index into Cursors
+        // value_type::second   : colIdx in the VCursor
+        typedef std::map < uint32_t, Column > Columns; 
+        
+    private:
+        rc_t MakeDatabase ();
+        rc_t CursorWrite   ( const struct Column& p_col, const void* p_data, size_t p_size );
+        rc_t CursorDefault ( const struct Column& p_col, const void* p_data, size_t p_size );
+
+    private:
+        Paths                   m_includePaths;
+        Paths                   m_schemas;
     
-    Header          m_header;
-    std::string     m_databaseName;
-    std::string     m_schemaName;
+        std::string             m_databaseName;
+        std::string             m_schemaName;
     
-    Paths               m_includePaths;
-    Paths               m_schemas;
-    struct VDBManager*  m_mgr;
-    struct VSchema*     m_schema;
-    struct VDatabase*   m_db;
+        Cursors                 m_cursors;
+        TableIdToCursor         m_tables;
+        Columns                 m_columns;
+        
+        struct VDBManager*      m_mgr;
+        struct VSchema*         m_schema;
+        struct VDatabase*       m_db;    
+    };
+
+    class ProtocolParser
+    {
+    public:
+        virtual rc_t ParseEvents ( Reader&, DatabaseLoader& ) = 0;
+        
+    protected:
+        template <typename TEvent> rc_t ReadEvent ( Reader& p_reader, TEvent& p_event );
+    };
     
-    Cursors             m_cursors;
-    TableIdToCursor     m_tables;
-    Columns             m_columns;
+    class UnpackedProtocolParser : public ProtocolParser
+    {
+    public:
+        virtual rc_t ParseEvents ( Reader&, DatabaseLoader& );
+    };
     
-    std::vector<uint8_t> m_unpackingBuf;
+    class PackedProtocolParser : public ProtocolParser
+    {
+    public:
+        virtual rc_t ParseEvents ( Reader&, DatabaseLoader& );
+        
+    private:
+        // read p_dataSize bytes and use one of the decoder functions in utf8-like-int-codec.h to unpack a sequence of integer values, 
+        // stored in m_unpackingBuf as a collection of bytes
+        template < typename T_uintXX > rc_t UnpackUint ( Reader& p_reader, uint16_t p_dataSize, int ( * p_decode ) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded ) );
+        
+        std::vector<uint8_t>    m_unpackingBuf;
+    };
+    
+private:    
+    GeneralLoader(const GeneralLoader&);
+    GeneralLoader& operator = ( const GeneralLoader&);
+    
+    rc_t ReadHeader ( bool& p_packed );
+    
+    void CleanUp ();
+    
+    static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
+    
+private:    
+    Reader                  m_reader;
+    Paths                   m_includePaths;
+    Paths                   m_schemas;
 };
 
 #endif

@@ -110,6 +110,8 @@ $(TEST_BINDIR)/gw-dumper: $(SRCDIR)/gw-dumper.cpp $(SRCDIR)/utf8-like-int-codec.
 #
 GEN_LOAD_SRC = \
     general-loader \
+    protocol-parser \
+    database-loader \
 	utf8-like-int-codec \
 	main \
 

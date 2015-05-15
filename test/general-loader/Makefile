@@ -109,10 +109,14 @@ makeinputs: makeinputs.cpp
 
 tool-tests: makeinputs
 	@mkdir -p input && ./makeinputs && rm ./makeinputs
-	@# basic 
+	@# basic, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1 0
-	@# error message event
+	@# basic, packed
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1packed 0
+	@# error message event, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2 3
+	@# error message event, packed
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2packed 3
 	@rm -f input/*.gl    
     
 #-------------------------------------------------------------------------------

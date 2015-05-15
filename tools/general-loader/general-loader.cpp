@@ -105,16 +105,12 @@ GeneralLoader::Reader::Align( uint8_t p_bytes )
 ///////////// GeneralLoader
 
 GeneralLoader::GeneralLoader ( const struct KStream& p_input )
-:   m_reader ( p_input ),
-    m_mgr ( 0 ),
-    m_schema ( 0 ),
-    m_db ( 0 )
+:   m_reader ( p_input )
 {
 }
 
 GeneralLoader::~GeneralLoader ()
 {
-    Reset();
 }
 
 void
@@ -143,86 +139,55 @@ GeneralLoader::AddSchemaFile( const string& p_path )
     SplitAndAdd ( m_schemas, p_path );
 }
 
-void
-GeneralLoader::Reset()
-{
-    m_tables . clear();
-    m_columns . clear ();
-    
-    for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
-    {
-        VCursorRelease ( *it );
-    }
-    m_cursors . clear();
-
-    if ( m_db != 0 )
-    {
-        VDatabaseRelease ( m_db );
-        m_db = 0;
-    }
-    
-    if ( m_schema != 0 )
-    {
-        VSchemaRelease ( m_schema );
-        m_schema = 0;
-    }
-    
-    if ( m_mgr != 0 )
-    {
-        VDBManagerRelease ( m_mgr );
-        m_mgr = 0;
-    }
-}
-
-void 
-GeneralLoader::CleanUp()
-{   // remove the database
-    if ( ! m_databaseName . empty () )
-    {
-        Reset();
-        
-        KDirectory* wd;
-        KDirectoryNativeDir ( & wd );
-        KDirectoryRemove ( wd, true, m_databaseName. c_str () );
-        KDirectoryRelease ( wd );
-    }
-}
-
 rc_t 
 GeneralLoader::Run()
 {
-    Reset();
-    
-    rc_t rc = ReadHeader ();
+    bool packed;
+    rc_t rc = ReadHeader ( packed );
     if ( rc == 0 ) 
     {
-        rc = m_header . packing ? ReadPackedEvents () : ReadUnpackedEvents ();
-    }
+        DatabaseLoader loader ( m_includePaths, m_schemas );
+        if ( packed )
+        {
+            PackedProtocolParser p;
+            rc = p . ParseEvents ( m_reader, loader);
+        }
+        else
+        {
+            UnpackedProtocolParser p;
+            rc = p . ParseEvents ( m_reader, loader);
+        }
     
-    if ( rc != 0 )
-    {
-        CleanUp();
+        if ( rc != 0 && ! loader . GetDatabaseName() . empty () )
+        {
+            KDirectory* wd;
+            KDirectoryNativeDir ( & wd );
+            KDirectoryRemove ( wd, true, loader . GetDatabaseName() . c_str () );
+            KDirectoryRelease ( wd );
+        }
     }
     
     return rc;
 }
 
 rc_t 
-GeneralLoader::ReadHeader ()
+GeneralLoader::ReadHeader ( bool& p_packed )
 {
-    rc_t rc = m_reader . Read ( & m_header, sizeof m_header );
+    struct gw_header_v1 header;
+
+    rc_t rc = m_reader . Read ( & header, sizeof header );
     if ( rc == 0 )
     { 
-        if ( strncmp ( m_header . dad . signature, GeneralLoaderSignatureString, sizeof ( m_header . dad . signature ) ) != 0 )
+        if ( strncmp ( header . dad . signature, GeneralLoaderSignatureString, sizeof ( header . dad . signature ) ) != 0 )
         {
             rc = RC ( rcExe, rcFile, rcReading, rcHeader, rcCorrupt );
         }
         else 
         {
-            switch ( m_header . dad . endian )
+            switch ( header . dad . endian )
             {
             case GW_GOOD_ENDIAN:
-                if ( m_header . dad . version != GW_CURRENT_VERSION )
+                if ( header . dad . version != GW_CURRENT_VERSION )
                 {
                     rc = RC ( rcExe, rcFile, rcReading, rcHeader, rcBadVersion );
                 }
@@ -243,28 +208,34 @@ GeneralLoader::ReadHeader ()
         }
     }
     
-    if ( rc == 0 && m_header . dad . hdr_size > sizeof m_header ) 
+    if ( rc == 0 && header . dad . hdr_size > sizeof header ) 
     {   
-        rc = m_reader . Read ( m_header . dad . hdr_size - sizeof m_header );
+        rc = m_reader . Read ( header . dad . hdr_size - sizeof header );
     }
+    
+    if ( rc == 0 )
+    {
+        p_packed = header. packing;
+    }
+    
     return rc;
 }
-
+#if 0
 template <typename TEvent> 
 rc_t 
-GeneralLoader :: ReadEvent ( TEvent& p_event )
+GeneralLoader :: ReadEvent ( Reader& p_reader, TEvent& p_event )
 {   // read the part of p_event that is outside of p_event.dad (event header)
     if ( sizeof p_event > sizeof p_event . dad )
     {
         char * start = (char*) & p_event . dad;
         start += sizeof p_event . dad;
-        return m_reader . Read ( start, sizeof p_event - sizeof p_event . dad );
+        return p_reader . Read ( start, sizeof p_event - sizeof p_event . dad );
     }
     return 0;
 };
 
 rc_t
-GeneralLoader :: ReadUnpackedEvents()
+GeneralLoader :: ReadUnpackedEvents( Reader& p_reader )
 {
     rc_t rc;
     do 
@@ -272,7 +243,7 @@ GeneralLoader :: ReadUnpackedEvents()
         m_reader . Align (); 
         
         struct gw_evt_hdr_v1 evt_header;
-        rc = m_reader . Read ( & evt_header, sizeof ( evt_header ) );    
+        rc = p_reader . Read ( & evt_header, sizeof ( evt_header ) );    
         if ( rc != 0 )
         {
             break;
@@ -285,16 +256,16 @@ GeneralLoader :: ReadUnpackedEvents()
                 LogMsg ( klogInfo, "general-loader event: Use-Schema" );
                 
                 gw_2string_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t schema_file_size = ncbi :: size1 ( evt );
                     size_t schema_name_size = ncbi :: size2 ( evt );
-                    rc = m_reader . Read ( schema_file_size + schema_name_size );
+                    rc = p_reader . Read ( schema_file_size + schema_name_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_UseSchema ( string ( ( const char * ) m_reader . GetBuffer (), schema_file_size ), 
-                                                string ( ( const char * ) m_reader . GetBuffer () + schema_file_size, schema_name_size ) );
+                        rc = Handle_UseSchema ( string ( ( const char * ) p_reader . GetBuffer (), schema_file_size ), 
+                                                string ( ( const char * ) p_reader . GetBuffer () + schema_file_size, schema_name_size ) );
                     }
                 }
             }
@@ -305,14 +276,14 @@ GeneralLoader :: ReadUnpackedEvents()
                 LogMsg ( klogInfo, "general-loader event: Remote-Path" );
                 
                 gw_1string_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t database_name_size = ncbi :: size ( evt );
-                    rc = m_reader . Read ( database_name_size );
+                    rc = p_reader . Read ( database_name_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_RemotePath ( string ( ( const char * ) m_reader . GetBuffer (), database_name_size ) );
+                        rc = Handle_RemotePath ( string ( ( const char * ) p_reader . GetBuffer (), database_name_size ) );
                     }
                 }
             }
@@ -324,14 +295,14 @@ GeneralLoader :: ReadUnpackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: New-Table, id=$(i)", "i=%u", tableId );
                 
                 gw_1string_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t table_name_size = ncbi :: size ( evt );
-                    rc = m_reader . Read ( table_name_size );
+                    rc = p_reader . Read ( table_name_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_NewTable ( tableId, string ( ( const char * ) m_reader . GetBuffer (), table_name_size ) );
+                        rc = Handle_NewTable ( tableId, string ( ( const char * ) p_reader . GetBuffer (), table_name_size ) );
                     }
                 }
             }  
@@ -343,18 +314,18 @@ GeneralLoader :: ReadUnpackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: New-Column, id=$(i)", "i=%u", columnId );
     
                 gw_column_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t col_name_size  = ncbi :: name_size ( evt );
-                    rc = m_reader . Read ( col_name_size );
+                    rc = p_reader . Read ( col_name_size );
                     if ( rc == 0 )
                     {
                         rc = Handle_NewColumn ( columnId, 
                                                 ncbi :: table_id ( evt ), 
                                                 ncbi :: elem_bits ( evt ), 
                                                 ncbi :: flag_bits ( evt ),
-                                                string ( ( const char * ) m_reader . GetBuffer (), col_name_size ) );
+                                                string ( ( const char * ) p_reader . GetBuffer (), col_name_size ) );
                     }
                 }
             }
@@ -366,10 +337,10 @@ GeneralLoader :: ReadUnpackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: Cell-Data, id=$(i)", "i=%u", columnId );
                 
                 gw_data_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
-                    rc = Handle_CellData ( columnId, ncbi :: elem_count ( evt ) );
+                    rc = Handle_CellData ( p_reader, columnId, ncbi :: elem_count ( evt ) );
                 }
             }
             break;
@@ -380,10 +351,10 @@ GeneralLoader :: ReadUnpackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: Cell-Default, id=$(i)", "i=%u", columnId );
                 
                 gw_data_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
-                    rc = Handle_CellDefault ( columnId, ncbi :: elem_count ( evt ) );
+                    rc = Handle_CellDefault ( p_reader, columnId, ncbi :: elem_count ( evt ) );
                 }
             }
             break;
@@ -392,15 +363,13 @@ GeneralLoader :: ReadUnpackedEvents()
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
                 pLogMsg ( klogInfo, "general-loader event: Cell-EmptyDefault, id=$(i)", "i=%u", columnId );
-                rc = Handle_CellDefault ( columnId, 0 );
+                rc = Handle_CellDefault ( p_reader, columnId, 0 );
             }
             break;
             
         case evt_open_stream:
-            {
-                LogMsg ( klogInfo, "general-loader event: Open-Stream" );
-                rc = Handle_OpenStream ();
-            }
+            LogMsg ( klogInfo, "general-loader event: Open-Stream" );
+            rc = Handle_OpenStream ();
             break; 
             
         case evt_end_stream:
@@ -421,7 +390,7 @@ GeneralLoader :: ReadUnpackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: Move-Ahead, id=$(i)", "i=%u", tableId );
     
                 gw_move_ahead_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     rc = Handle_MoveAhead ( tableId, ncbi :: get_nrows ( evt ) );
@@ -434,14 +403,14 @@ GeneralLoader :: ReadUnpackedEvents()
                 LogMsg ( klogInfo, "general-loader event: Error-Message" );
                 
                 gw_1string_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t message_size = ncbi :: size ( evt );
-                    rc = m_reader . Read ( message_size );
+                    rc = p_reader . Read ( message_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_ErrorMessage ( string ( ( const char * ) m_reader . GetBuffer (), message_size ) );
+                        rc = Handle_ErrorMessage ( string ( ( const char * ) p_reader . GetBuffer (), message_size ) );
                     }
                 }
             }
@@ -451,7 +420,7 @@ GeneralLoader :: ReadUnpackedEvents()
             pLogMsg ( klogErr, 
                       "unexpected general-loader event at $(o): $(e)", 
                       "o=%lu,e=%i", 
-                      ( unsigned long ) m_reader . GetReadCount(), ( int ) ncbi :: evt ( evt_header ) );
+                      ( unsigned long ) p_reader . GetReadCount(), ( int ) ncbi :: evt ( evt_header ) );
             rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
             break;
         }
@@ -462,13 +431,13 @@ GeneralLoader :: ReadUnpackedEvents()
 }
 
 rc_t 
-GeneralLoader :: ReadPackedEvents()
+GeneralLoader :: ReadPackedEvents( Reader& p_reader )
 {
     rc_t rc;
     do 
     { 
         struct gwp_evt_hdr_v1 evt_header;
-        rc = m_reader . Read ( & evt_header, sizeof ( evt_header ) );    
+        rc = p_reader . Read ( & evt_header, sizeof ( evt_header ) );    
         if ( rc != 0 )
         {
             break;
@@ -481,17 +450,17 @@ GeneralLoader :: ReadPackedEvents()
                 LogMsg ( klogInfo, "general-loader event: Use-Schema (packed)" );
                 
                 gwp_2string_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t schema_file_size = ncbi :: size1 ( evt );
                     size_t schema_name_size = ncbi :: size2 ( evt );
                             
-                    rc = m_reader . Read ( schema_file_size + schema_name_size );
+                    rc = p_reader . Read ( schema_file_size + schema_name_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_UseSchema ( string ( ( const char * ) m_reader . GetBuffer (), schema_file_size ), 
-                                                string ( ( const char * ) m_reader . GetBuffer () + schema_file_size, schema_name_size ) );
+                        rc = Handle_UseSchema ( string ( ( const char * ) p_reader . GetBuffer (), schema_file_size ), 
+                                                string ( ( const char * ) p_reader . GetBuffer () + schema_file_size, schema_name_size ) );
                     }
                 }
             }
@@ -502,17 +471,17 @@ GeneralLoader :: ReadPackedEvents()
                 LogMsg ( klogInfo, "general-loader event: Use-Schema2" );
                 
                 gwp_2string_evt_U16_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t schema_file_size = ncbi :: size1 ( evt );
                     size_t schema_name_size = ncbi :: size2 ( evt );
                             
-                    rc = m_reader . Read ( schema_file_size + schema_name_size );
+                    rc = p_reader . Read ( schema_file_size + schema_name_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_UseSchema ( string ( ( const char * ) m_reader . GetBuffer (), schema_file_size ), 
-                                                string ( ( const char * ) m_reader . GetBuffer () + schema_file_size, schema_name_size ) );
+                        rc = Handle_UseSchema ( string ( ( const char * ) p_reader . GetBuffer (), schema_file_size ), 
+                                                string ( ( const char * ) p_reader . GetBuffer () + schema_file_size, schema_name_size ) );
                     }
                 }
             }
@@ -523,14 +492,14 @@ GeneralLoader :: ReadPackedEvents()
                 LogMsg ( klogInfo, "general-loader event: Remote-Path (packed)" );
                 
                 gwp_1string_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t database_name_size = ncbi :: size ( evt );
-                    rc = m_reader . Read ( database_name_size );
+                    rc = p_reader . Read ( database_name_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_RemotePath ( string ( ( const char * ) m_reader . GetBuffer (), database_name_size ) );
+                        rc = Handle_RemotePath ( string ( ( const char * ) p_reader . GetBuffer (), database_name_size ) );
                     }
                 }
             }
@@ -540,14 +509,14 @@ GeneralLoader :: ReadPackedEvents()
                 LogMsg ( klogInfo, "general-loader event: Remote-Path2" );
                 
                 gwp_1string_evt_U16_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t database_name_size = ncbi :: size ( evt );
-                    rc = m_reader . Read ( database_name_size );
+                    rc = p_reader . Read ( database_name_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_RemotePath ( string ( ( const char * ) m_reader . GetBuffer (), database_name_size ) );
+                        rc = Handle_RemotePath ( string ( ( const char * ) p_reader . GetBuffer (), database_name_size ) );
                     }
                 }
             }
@@ -559,14 +528,14 @@ GeneralLoader :: ReadPackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: New-Table (packed), id=$(i)", "i=%u", tableId );
                 
                 gwp_1string_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t table_name_size = ncbi :: size ( evt );
-                    rc = m_reader . Read ( table_name_size );
+                    rc = p_reader . Read ( table_name_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_NewTable ( tableId, string ( ( const char * ) m_reader . GetBuffer (), table_name_size ) );
+                        rc = Handle_NewTable ( tableId, string ( ( const char * ) p_reader . GetBuffer (), table_name_size ) );
                     }
                 }
             }  
@@ -577,14 +546,14 @@ GeneralLoader :: ReadPackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: New-Table2, id=$(i)", "i=%u", tableId );
                 
                 gwp_1string_evt_U16_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t table_name_size = ncbi :: size ( evt );
-                    rc = m_reader . Read ( table_name_size );
+                    rc = p_reader . Read ( table_name_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_NewTable ( tableId, string ( ( const char * ) m_reader . GetBuffer (), table_name_size ) );
+                        rc = Handle_NewTable ( tableId, string ( ( const char * ) p_reader . GetBuffer (), table_name_size ) );
                     }
                 }
             }  
@@ -596,18 +565,18 @@ GeneralLoader :: ReadPackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: New-Column (packed), id=$(i)", "i=%u", columnId );
     
                 gwp_column_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t col_name_size  = ncbi :: name_size ( evt );
-                    rc = m_reader . Read ( col_name_size );
+                    rc = p_reader . Read ( col_name_size );
                     if ( rc == 0 )
                     {
                         rc = Handle_NewColumn ( columnId, 
                                                 ncbi :: table_id ( evt ), 
                                                 ncbi :: elem_bits ( evt ), 
                                                 ncbi :: flag_bits ( evt ),
-                                                string ( ( const char * ) m_reader . GetBuffer (), col_name_size ) );
+                                                string ( ( const char * ) p_reader . GetBuffer (), col_name_size ) );
                     }
                 }
             }
@@ -628,10 +597,10 @@ GeneralLoader :: ReadPackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: Cell-Data (packed), id=$(i)", "i=%u", columnId );
                 
                 gwp_data_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
-                    rc = Handle_CellData_Packed ( columnId, ncbi :: size ( evt ) );
+                    rc = Handle_CellData_Packed ( p_reader, columnId, ncbi :: size ( evt ) );
                 }
             }
             break;
@@ -642,10 +611,10 @@ GeneralLoader :: ReadPackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: Cell-Data2, id=$(i)", "i=%u", columnId );
                 
                 gwp_data_evt_U16_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
-                    rc = Handle_CellData_Packed ( columnId, ncbi :: size ( evt ) );
+                    rc = Handle_CellData_Packed ( p_reader, columnId, ncbi :: size ( evt ) );
                 }
             }
             break;
@@ -656,10 +625,10 @@ GeneralLoader :: ReadPackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: Cell-Default (packed), id=$(i)", "i=%u", columnId );
                 
                 gwp_data_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
-                    rc = Handle_CellDefault_Packed ( columnId, ncbi :: size ( evt ) );
+                    rc = Handle_CellDefault_Packed ( p_reader, columnId, ncbi :: size ( evt ) );
                 }
             }
             break;
@@ -670,10 +639,10 @@ GeneralLoader :: ReadPackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: Cell-Default2, id=$(i)", "i=%u", columnId );
                 
                 gwp_data_evt_U16_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
-                    rc = Handle_CellDefault_Packed ( columnId, ncbi :: size ( evt ) );
+                    rc = Handle_CellDefault_Packed ( p_reader, columnId, ncbi :: size ( evt ) );
                 }
             }
             break;
@@ -682,7 +651,7 @@ GeneralLoader :: ReadPackedEvents()
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
                 pLogMsg ( klogInfo, "general-loader event: Cell-EmptyDefault (packed), id=$(i)", "i=%u", columnId );
-                rc = Handle_CellDefault_Packed ( columnId, 0 );
+                rc = Handle_CellDefault_Packed ( p_reader, columnId, 0 );
             }
             break;
             
@@ -700,7 +669,7 @@ GeneralLoader :: ReadPackedEvents()
                 pLogMsg ( klogInfo, "general-loader event: Move-Ahead (packed), id=$(i)", "i=%u", tableId );
     
                 gwp_move_ahead_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     rc = Handle_MoveAhead ( tableId, ncbi :: get_nrows ( evt ) );
@@ -713,14 +682,14 @@ GeneralLoader :: ReadPackedEvents()
                 LogMsg ( klogInfo, "general-loader event: Error-Message (packed)" );
                 
                 gwp_1string_evt_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t message_size = ncbi :: size ( evt );
-                    rc = m_reader . Read ( message_size );
+                    rc = p_reader . Read ( message_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_ErrorMessage ( string ( ( const char * ) m_reader . GetBuffer (), message_size ) );
+                        rc = Handle_ErrorMessage ( string ( ( const char * ) p_reader . GetBuffer (), message_size ) );
                     }
                 }
             }
@@ -731,14 +700,14 @@ GeneralLoader :: ReadPackedEvents()
                 LogMsg ( klogInfo, "general-loader event: Error-Message2" );
                 
                 gwp_1string_evt_U16_v1 evt;
-                rc = ReadEvent ( evt );
+                rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
                     size_t message_size = ncbi :: size ( evt );
-                    rc = m_reader . Read ( message_size );
+                    rc = p_reader . Read ( message_size );
                     if ( rc == 0 )
                     {
-                        rc = Handle_ErrorMessage ( string ( ( const char * ) m_reader . GetBuffer (), message_size ) );
+                        rc = Handle_ErrorMessage ( string ( ( const char * ) p_reader . GetBuffer (), message_size ) );
                     }
                 }
             }
@@ -748,7 +717,7 @@ GeneralLoader :: ReadPackedEvents()
             pLogMsg ( klogErr, 
                       "unexpected general-loader event at $(o): $(e)", 
                       "o=%lu,e=%i", 
-                      ( unsigned long ) m_reader . GetReadCount(), ( int ) ncbi :: evt ( evt_header ) );
+                      ( unsigned long ) p_reader . GetReadCount(), ( int ) ncbi :: evt ( evt_header ) );
             rc = RC ( rcExe, rcFile, rcReading, rcData, rcUnexpected );
             break;
         }
@@ -945,7 +914,29 @@ GeneralLoader::Handle_NewColumn ( uint32_t p_columnId, uint32_t p_tableId, uint3
 }
 
 rc_t 
-GeneralLoader::Handle_CellData ( uint32_t p_columnId, uint32_t p_elemCount )
+GeneralLoader::CursorWrite ( const struct Column& p_col, const void* p_data, size_t p_size )
+{
+    return VCursorWrite ( m_cursors [ p_col . cursorIdx ], 
+                          p_col . columnIdx, 
+                          p_col . elemBits, 
+                          p_data, 
+                          0, 
+                          p_size );
+}
+
+rc_t 
+GeneralLoader::CursorDefault ( const struct Column& p_col, const void* p_data, size_t p_size )
+{
+    return VCursorDefault ( m_cursors [ p_col . cursorIdx ], 
+                            p_col . columnIdx, 
+                            p_col . elemBits, 
+                            p_data, 
+                            0, 
+                            p_size );
+}
+
+rc_t 
+GeneralLoader::Handle_CellData (  Reader& p_reader, uint32_t p_columnId, uint32_t p_elemCount )
 {
     rc_t rc = 0;
     Columns::const_iterator curIt = m_columns . find ( p_columnId );
@@ -956,15 +947,10 @@ GeneralLoader::Handle_CellData ( uint32_t p_columnId, uint32_t p_elemCount )
                   "general-loader: columnIdx = $(i), elem size=$(s) bits, elem count=$(c)",
                   "i=%u,s=%u,c=%u", 
                   col . columnIdx, col . elemBits, p_elemCount );
-        rc = m_reader . Read ( ( col . elemBits * p_elemCount + 7 ) / 8 );   
+        rc = p_reader . Read ( ( col . elemBits * p_elemCount + 7 ) / 8 );   
         if ( rc == 0 )
         {
-            rc = VCursorWrite ( m_cursors [ col . cursorIdx ], 
-                                col . columnIdx, 
-                                col . elemBits, 
-                                m_reader . GetBuffer(), 
-                                0, 
-                                p_elemCount );
+            rc = CursorWrite ( col, p_reader . GetBuffer(), p_elemCount );
         }
     }
     else
@@ -975,7 +961,7 @@ GeneralLoader::Handle_CellData ( uint32_t p_columnId, uint32_t p_elemCount )
 }
 
 rc_t 
-GeneralLoader::Handle_CellDefault ( uint32_t p_columnId, uint32_t p_elemCount )
+GeneralLoader::Handle_CellDefault (  Reader& p_reader, uint32_t p_columnId, uint32_t p_elemCount )
 {   //TODO: this and Handle_CellData are almost identical - refactor
     rc_t rc = 0;
     Columns::const_iterator curIt = m_columns . find ( p_columnId );
@@ -986,15 +972,10 @@ GeneralLoader::Handle_CellDefault ( uint32_t p_columnId, uint32_t p_elemCount )
                   "general-loader: columnIdx = $(i), elem size=$(s) bits, elem count=$(c)",
                   "i=%u,s=%u,c=%u", 
                   col . columnIdx, col . elemBits, p_elemCount );
-        rc = m_reader . Read ( ( col . elemBits * p_elemCount + 7 ) / 8 );   
+        rc = p_reader . Read ( ( col . elemBits * p_elemCount + 7 ) / 8 );   
         if ( rc == 0 )
         {
-            rc = VCursorDefault ( m_cursors [ col . cursorIdx ], 
-                                  col . columnIdx, 
-                                  col . elemBits, 
-                                  m_reader . GetBuffer(), 
-                                  0, 
-                                  p_elemCount );
+            rc = CursorDefault ( col, p_reader . GetBuffer(), p_elemCount );
         }
     }
     else
@@ -1004,82 +985,30 @@ GeneralLoader::Handle_CellDefault ( uint32_t p_columnId, uint32_t p_elemCount )
     return rc;
 }
 
-rc_t
-GeneralLoader::Unpack16 ( uint16_t p_dataSize )
+template < typename T_uintXX > 
+rc_t 
+GeneralLoader::UnpackUint (  Reader& p_reader, uint16_t p_dataSize, int (*p_decode) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded )  )
 {
     m_unpackingBuf . clear();
-    const uint8_t* buf_begin = reinterpret_cast<const uint8_t*> ( m_reader . GetBuffer() );
-    const uint8_t* buf_end   = buf_begin + p_dataSize;
-    while ( buf_begin < buf_end )
-    {
-        uint16_t ret_decoded;
-        int numRead = decode_uint16 ( buf_begin, buf_end, &ret_decoded );
-        if ( numRead <= 0 )
-        {
-            pLogMsg ( klogInfo, "general-loader: decode_uintXX() returned $(i)", "i=%i", numRead );
-            return RC ( rcExe, rcFile, rcReading, rcData, rcCorrupt );
-        }
-        
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 0 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 1 ] );
-        
-        buf_begin += numRead;
-    }
+    // reserve enough for the best-packed case, when each element is represented with 1 byte
+    m_unpackingBuf . reserve ( sizeof ( T_uintXX ) * p_dataSize );
     
-    return 0;
-}
-
-rc_t
-GeneralLoader::Unpack32 ( uint16_t p_dataSize )
-{
-    m_unpackingBuf . clear();
-    const uint8_t* buf_begin = reinterpret_cast<const uint8_t*> ( m_reader . GetBuffer() );
+    const uint8_t* buf_begin = reinterpret_cast<const uint8_t*> ( p_reader . GetBuffer() );
     const uint8_t* buf_end   = buf_begin + p_dataSize;
     while ( buf_begin < buf_end )
     {
-        uint32_t ret_decoded;
-        int numRead = decode_uint32 ( buf_begin, buf_end, &ret_decoded );
+        T_uintXX ret_decoded;
+        int numRead = p_decode ( buf_begin, buf_end, &ret_decoded );
         if ( numRead <= 0 )
         {
             pLogMsg ( klogInfo, "general-loader: decode_uintXX() returned $(i)", "i=%i", numRead );
             return RC ( rcExe, rcFile, rcReading, rcData, rcCorrupt );
         }
-        
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 0 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 1 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 2 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 3 ] );
-        
-        buf_begin += numRead;
-    }
-    
-    return 0;
-}
 
-rc_t
-GeneralLoader::Unpack64 ( uint16_t p_dataSize )
-{
-    m_unpackingBuf . clear();
-    const uint8_t* buf_begin = reinterpret_cast<const uint8_t*> ( m_reader . GetBuffer() );
-    const uint8_t* buf_end   = buf_begin + p_dataSize;
-    while ( buf_begin < buf_end )
-    {
-        uint64_t ret_decoded;
-        int numRead = decode_uint64 ( buf_begin, buf_end, &ret_decoded );
-        if ( numRead <= 0 )
+        for ( size_t i = 0; i < sizeof ( T_uintXX ); ++i )
         {
-            pLogMsg ( klogInfo, "general-loader: decode_uintXX() returned $(i)", "i=%i", numRead );
-            return RC ( rcExe, rcFile, rcReading, rcData, rcCorrupt );
+            m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ i ] );
         }
-        
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 0 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 1 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 2 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 3 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 4 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 5 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 6 ] );
-        m_unpackingBuf . push_back ( reinterpret_cast<const uint8_t*> ( & ret_decoded ) [ 7 ] );
         
         buf_begin += numRead;
     }
@@ -1088,7 +1017,7 @@ GeneralLoader::Unpack64 ( uint16_t p_dataSize )
 }
 
 rc_t 
-GeneralLoader::Handle_CellData_Packed ( uint32_t p_columnId, uint16_t p_dataSize )
+GeneralLoader::Handle_CellData_Packed ( Reader& p_reader, uint32_t p_columnId, uint16_t p_dataSize )
 {
     rc_t rc = 0;
     Columns::const_iterator curIt = m_columns . find ( p_columnId );
@@ -1101,36 +1030,29 @@ GeneralLoader::Handle_CellData_Packed ( uint32_t p_columnId, uint16_t p_dataSize
                     "general-loader: columnIdx = $(i), elem size=$(s) bits, compressed bytes=$(c)",
                     "i=%u,s=%u,c=%u", 
                     col . columnIdx, col . elemBits, p_dataSize );
-            // reserve enough for the best-packed case, when each element is represented with 1 byte
-            m_unpackingBuf . reserve ( col . elemBits / 8 * p_dataSize );
-            rc = m_reader . Read ( p_dataSize );   
+            rc = p_reader . Read ( p_dataSize );   
             if ( rc == 0 )
             {
                 switch ( col . elemBits )
                 {
                 case 16: 
-                    rc = Unpack16 ( p_dataSize );
+                    rc = UnpackUint ( p_reader, p_dataSize, decode_uint16 );
                     break;
                 case 32:
-                    rc = Unpack32 ( p_dataSize );
+                    rc = UnpackUint ( p_reader, p_dataSize, decode_uint32 );
                     break;
                 case 64:
-                    rc = Unpack64 ( p_dataSize );
+                    rc = UnpackUint ( p_reader, p_dataSize, decode_uint64 );
                     break;
                 default:
                     LogMsg ( klogInfo, "general-loader: bad element size for packed integer" );
                     rc = RC ( rcExe, rcFile, rcReading, rcData, rcInvalid );
+                    break;
                 }
-            }
-
-            if ( rc == 0 )
-            {
-                rc = VCursorWrite ( m_cursors [ col . cursorIdx ], 
-                                    col . columnIdx, 
-                                    col . elemBits, 
-                                    m_unpackingBuf . data(), 
-                                    0, 
-                                    m_unpackingBuf . size () * 8 / col . elemBits );
+                if ( rc == 0 )
+                {
+                    rc = CursorWrite ( col, m_unpackingBuf . data(), m_unpackingBuf . size () * 8 / col . elemBits );
+                }
             }
         }
         else
@@ -1140,16 +1062,10 @@ GeneralLoader::Handle_CellData_Packed ( uint32_t p_columnId, uint16_t p_dataSize
                     "i=%u,s=%u,c=%u", 
                     col . columnIdx, col . elemBits, p_dataSize  * 8 / col . elemBits );
         
-            rc = m_reader . Read ( p_dataSize );   
-        
+            rc = p_reader . Read ( p_dataSize );   
             if ( rc == 0 )
             {
-                rc = VCursorWrite ( m_cursors [ col . cursorIdx ], 
-                                    col . columnIdx, 
-                                    col . elemBits, 
-                                    m_reader . GetBuffer(), 
-                                    0, 
-                                    p_dataSize * 8 / col . elemBits );
+                rc = CursorWrite ( col, p_reader . GetBuffer(), p_dataSize * 8 / col . elemBits );
             }
         }
     }
@@ -1161,7 +1077,7 @@ GeneralLoader::Handle_CellData_Packed ( uint32_t p_columnId, uint16_t p_dataSize
 }
 
 rc_t 
-GeneralLoader::Handle_CellDefault_Packed ( uint32_t p_columnId, uint16_t p_dataSize )
+GeneralLoader::Handle_CellDefault_Packed ( Reader& p_reader, uint32_t p_columnId, uint16_t p_dataSize )
 {   
     rc_t rc = 0;
     Columns::const_iterator curIt = m_columns . find ( p_columnId );
@@ -1172,15 +1088,10 @@ GeneralLoader::Handle_CellDefault_Packed ( uint32_t p_columnId, uint16_t p_dataS
                   "general-loader: columnIdx = $(i), elem size=$(s) bits, elem count=$(c)",
                   "i=%u,s=%u,c=%u", 
                   col . columnIdx, col . elemBits, p_dataSize * 8 / col . elemBits );
-        rc = m_reader . Read ( p_dataSize );   
+        rc = p_reader . Read ( p_dataSize );   
         if ( rc == 0 )
         {
-            rc = VCursorDefault( m_cursors [ col . cursorIdx ], 
-                                col . columnIdx, 
-                                col . elemBits, 
-                                m_reader . GetBuffer(), 
-                                0, 
-                                p_dataSize * 8 / col . elemBits );
+            rc = CursorDefault( col, p_reader . GetBuffer(), p_dataSize * 8 / col . elemBits );
         }
     }
     else
@@ -1346,3 +1257,5 @@ GeneralLoader::Handle_ErrorMessage ( const string & p_text )
     pLogMsg ( klogErr, "general-loader: error \"$(t)\"", "t=%s", p_text . c_str () );
     return RC ( rcExe, rcFile, rcReading, rcError, rcExists );
 }
+
+#endif

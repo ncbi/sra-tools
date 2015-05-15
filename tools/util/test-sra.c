@@ -1905,6 +1905,117 @@ static rc_t PrintCurl(bool full, bool xml) {
 
 #define kptKartITEM (kptAlias - 1)
 
+static rc_t _KartItemPrint(const KartItem *self, bool xml) {
+    const char root[] = "KartRow";
+    const String *elem = NULL;
+    if (xml) {
+        OUTMSG(("  <%s>\n", root));
+    }
+    {
+        const char root[] = "ProjId";
+        rc_t rc = KartItemProjId(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    {
+        const char root[] = "ItemId";
+        rc_t rc = KartItemItemId(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    {
+        const char root[] = "Accession";
+        rc_t rc = KartItemAccession(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    {
+        const char root[] = "Name";
+        rc_t rc = KartItemName(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    {
+        const char root[] = "ItemDesc";
+        rc_t rc = KartItemItemDesc(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    if (xml) {
+        OUTMSG(("  </%s>\n", root));
+    }
+    return 0;
+}
+
+/*static rc_t _KartPrint(const Kart *self, bool xml) {
+    const char root[] = "Kart";
+    if (xml) {
+        OUTMSG(("  <%s>\n", root));
+    }
+    rc_t rc = KartPrint(self);
+    if (rc != 0) {
+        OUTMSG(("KartPrint = %R\n", rc));
+    }
+    if (xml) {
+        OUTMSG(("  </%s>\n", root));
+    }
+    return 0;
+}
+static rc_t _KartPrintSized(const Kart *self, bool xml) {
+    return 0;
+}
+*/
+
+static rc_t _KartPrintNumbered(const Kart *self, bool xml) {
+    const char root[] = "Kart";
+    if (xml) {
+        OUTMSG(("  <%s numbered=\"true\">\n", root));
+    }
+    rc_t rc = KartPrintNumbered(self);
+    if (rc != 0) {
+        OUTMSG(("KartPrint = %R\n", rc));
+    }
+    if (xml) {
+        OUTMSG(("  </%s>\n", root));
+    }
+    return 0;
+}
+
 static
 rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
 {
@@ -1935,45 +2046,9 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
     }
 
     if (item != NULL) {
-        rc_t rc = 0;
-        uint64_t project = 0;
-        uint64_t oid = 0;
-
         type = kptKartITEM;
 
-        rc = KartItemProjIdNumber(item, &project);
-        if (rc != 0) {
-            OUTMSG(("KartItemProjectIdNumber = %R\n", rc));
-        }
-        else {
-            OUTMSG(("%d\n", project));
-        }
-        rc = KartItemItemIdNumber(item, &oid);
-        if (rc == 0) {
-            if (self->xml) {
-                const char root[] = "id";
-                OUTMSG(("<%s>%d</%s>\n", root, oid, root));
-            }
-            else {
-                OUTMSG(("id: %d\n", oid));
-            }
-        }
-        else {
-            const String *accession = NULL;
-            rc = KartItemAccession(item, &accession);
-            if (rc == 0) {
-                if (self->xml) {
-                    const char root[] = "acc";
-                    OUTMSG(("<%s>%S</%s>\n", root, accession, root));
-                }
-                else {
-                    OUTMSG(("acc: %S\n", accession));
-                }
-            }
-            else {
-                OUTMSG(("KartItemIdNumber &| Accession = %R\n", rc));
-            }
-        }
+        _KartItemPrint(item, self->xml);
     }
 
     else {
@@ -2085,6 +2160,15 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
                     rce = rc2;
                 }
             }
+            if (true) {
+                _KartPrintNumbered(kart, self->xml);
+            }
+            /*if (true) {
+                _KartPrint(kart, self->xml);
+            }
+            if (true) {
+                _KartPrintSized(kart, self->xml);
+            }*/
             KartRelease(kart);
             kart = NULL;
         }

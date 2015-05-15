@@ -29,6 +29,7 @@
 #include <klib/rc.h>
 #include <klib/log.h>
 
+#include "general-writer.h"
 #include "utf8-like-int-codec.h"
 
 using namespace std;
@@ -276,7 +277,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
 
 template < typename T_uintXX > 
 rc_t 
-GeneralLoader :: PackedProtocolParser :: UnpackUint (  Reader& p_reader, uint16_t p_dataSize, int (*p_decode) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded )  )
+GeneralLoader :: PackedProtocolParser :: UncompressInt (  Reader& p_reader, uint16_t p_dataSize, int (*p_decode) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded )  )
 {
     m_unpackingBuf . clear();
     // reserve enough for the best-packed case, when each element is represented with 1 byte
@@ -305,6 +306,51 @@ GeneralLoader :: PackedProtocolParser :: UnpackUint (  Reader& p_reader, uint16_
     return 0;
 }
 
+rc_t
+GeneralLoader :: PackedProtocolParser :: ParseData ( Reader& p_reader, DatabaseLoader& p_dbLoader, uint32_t p_columnId, uint32_t p_dataSize )
+{
+    rc_t rc = 0;
+    const DatabaseLoader :: Column* col = p_dbLoader . GetColumn ( p_columnId );
+    if ( col != 0 )
+    {
+        rc = p_reader . Read ( p_dataSize );   
+        if ( rc == 0 )
+        {
+            if ( col -> IsCompressed () )
+            {
+                switch ( col -> elemBits )
+                {
+                case 16: 
+                    rc = UncompressInt ( p_reader, p_dataSize, decode_uint16 );
+                    break;
+                case 32:
+                    rc = UncompressInt ( p_reader, p_dataSize, decode_uint32 );
+                    break;
+                case 64:
+                    rc = UncompressInt ( p_reader, p_dataSize, decode_uint64 );
+                    break;
+                default:
+                    LogMsg ( klogInfo, "protocol-parser: bad element size for packed integer" );
+                    rc = RC ( rcExe, rcFile, rcReading, rcData, rcInvalid );
+                    break;
+                }
+                if ( rc == 0 )
+                {
+                    rc = p_dbLoader . CellData ( p_columnId, m_unpackingBuf . data(), m_unpackingBuf . size() * 8 / col -> elemBits );
+                }
+            }
+            else
+            {
+                rc = p_dbLoader . CellData ( p_columnId, p_reader. GetBuffer (), p_dataSize * 8 / col -> elemBits );
+            }
+        }
+    }
+    else
+    {
+        rc = RC ( rcExe, rcFile, rcReading, rcColumn, rcNotFound );
+    }
+    return rc;
+}
 
 rc_t 
 GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, DatabaseLoader& p_dbLoader )
@@ -476,46 +522,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
                 rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
                 {
-                    const DatabaseLoader :: Column* col = p_dbLoader . GetColumn ( columnId );
-                    if ( col != 0 )
-                    {
-                        size_t dataSize = ncbi :: size ( evt );
-                        rc = p_reader . Read ( dataSize );   
-                        if ( rc == 0 )
-                        {
-                            if ( col -> IsCompressed () )
-                            {
-                                switch ( col -> elemBits )
-                                {
-                                case 16: 
-                                    rc = UnpackUint ( p_reader, dataSize, decode_uint16 );
-                                    break;
-                                case 32:
-                                    rc = UnpackUint ( p_reader, dataSize, decode_uint32 );
-                                    break;
-                                case 64:
-                                    rc = UnpackUint ( p_reader, dataSize, decode_uint64 );
-                                    break;
-                                default:
-                                    LogMsg ( klogInfo, "protocol-parser: bad element size for packed integer" );
-                                    rc = RC ( rcExe, rcFile, rcReading, rcData, rcInvalid );
-                                    break;
-                                }
-                                if ( rc == 0 )
-                                {
-                                    rc = p_dbLoader . CellData ( columnId, m_unpackingBuf . data(), m_unpackingBuf . size() * 8 / col -> elemBits );
-                                }
-                            }
-                            else
-                            {
-                                rc = p_dbLoader . CellData ( columnId, p_reader. GetBuffer (), dataSize * 8 / col -> elemBits );
-                            }
-                        }
-                    }
-                    else
-                    {
-                        rc = RC ( rcExe, rcFile, rcReading, rcColumn, rcNotFound );
-                    }
+                    rc = ParseData ( p_reader, p_dbLoader, columnId, ncbi :: size ( evt ) );
                 }
             }
             break;
@@ -528,47 +535,8 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
                 gwp_data_evt_U16_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
                 if ( rc == 0 )
-                {   // same code as above - refactor
-                    const DatabaseLoader :: Column* col = p_dbLoader . GetColumn ( columnId );
-                    if ( col != 0 )
-                    {
-                        size_t dataSize = ncbi :: size ( evt );
-                        rc = p_reader . Read ( dataSize );   
-                        if ( rc == 0 )
-                        {
-                            if ( col -> IsCompressed () )
-                            {
-                                switch ( col -> elemBits )
-                                {
-                                case 16: 
-                                    rc = UnpackUint ( p_reader, dataSize, decode_uint16 );
-                                    break;
-                                case 32:
-                                    rc = UnpackUint ( p_reader, dataSize, decode_uint32 );
-                                    break;
-                                case 64:
-                                    rc = UnpackUint ( p_reader, dataSize, decode_uint64 );
-                                    break;
-                                default:
-                                    LogMsg ( klogInfo, "protocol-parser: bad element size for packed integer" );
-                                    rc = RC ( rcExe, rcFile, rcReading, rcData, rcInvalid );
-                                    break;
-                                }
-                                if ( rc == 0 )
-                                {
-                                    rc = p_dbLoader . CellData ( columnId, m_unpackingBuf . data(), m_unpackingBuf . size() * 8 / col -> elemBits );
-                                }
-                            }
-                            else
-                            {
-                                rc = p_dbLoader . CellData ( columnId, p_reader. GetBuffer (), dataSize * 8 / col -> elemBits );
-                            }
-                        }
-                    }
-                    else
-                    {
-                        rc = RC ( rcExe, rcFile, rcReading, rcColumn, rcNotFound );
-                    }
+                {   
+                    rc = ParseData ( p_reader, p_dbLoader, columnId, ncbi :: size ( evt ) );
                 }
             }
             break;

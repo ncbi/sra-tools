@@ -116,6 +116,7 @@ typedef struct {
     VFSManager *vMgr;
     const KRepositoryMgr *repoMgr;
     VResolver *resolver;
+    VSchema *schema;
 
     TTest tests;
     bool recursive;
@@ -437,6 +438,12 @@ static rc_t MainInitObjects(Main *self) {
         rc = VFSManagerMakeResolver(self->vMgr, &self->resolver, self->cfg);
     }
 
+    if (rc == 0) {
+        rc = VDBManagerMakeSRASchema(self->mgr, &self->schema);
+        if (rc != 0) {
+            OUTMSG(("VDBManagerMakeSRASchema() = %R\n", rc));
+        }
+    }
 
     RELEASE(VResolver, resolver);
 
@@ -891,12 +898,13 @@ static rc_t _VDBManagerReport(const VDBManager *self,
     return _KDBPathTypePrint("", *type, " ");
 }
 
-static rc_t _VDBManagerReportRemote(const VDBManager *self, const char *name)
+static rc_t _VDBManagerReportRemote
+    (const VDBManager *self, const char *name, const VSchema *schema)
 {
     bool notFound = false;
     const VDatabase *db = NULL;
     const VTable *tbl = NULL;
-    rc_t rc = VDBManagerOpenDBRead(self, &db, NULL, name);
+    rc_t rc = VDBManagerOpenDBRead(self, &db, schema, name);
     if (rc == 0) {
         RELEASE(VDatabase, db);
         return _KDBPathTypePrint("", kptDatabase, " ");
@@ -904,7 +912,7 @@ static rc_t _VDBManagerReportRemote(const VDBManager *self, const char *name)
     else if (GetRCState(rc) == rcNotFound) {
         notFound = true;
     }
-    rc = VDBManagerOpenTableRead(self,  &tbl, NULL,name);
+    rc = VDBManagerOpenTableRead(self,  &tbl, schema, name);
     if (rc == 0) {
         RELEASE(VTable, tbl);
         return _KDBPathTypePrint("", kptTable, " ");
@@ -984,7 +992,7 @@ static rc_t MainReportRemote(const Main *self, const char *name, int64_t size) {
     OUTMSG(("%,lu ", size));
 
     if (!self->noVDBManagerPathType) {
-        _VDBManagerReportRemote(self->mgr, name);
+        _VDBManagerReportRemote(self->mgr, name, self->schema);
     }
 
     return rc;
@@ -994,21 +1002,16 @@ static rc_t MainOpenAs(const Main *self, const char *name, bool isDb) {
     rc_t rc = 0;
     const VTable *tbl = NULL;
     const VDatabase *db = NULL;
-    VSchema *schema = NULL;
+
     assert(self);
 
-    rc = VDBManagerMakeSRASchema(self->mgr, &schema);
-    if (rc != 0) {
-        OUTMSG(("VDBManagerMakeSRASchema() = %R\n", rc));
-    }
-
     if (isDb) {
-        rc = VDBManagerOpenDBRead(self->mgr, &db, schema, "%s", name);
+        rc = VDBManagerOpenDBRead(self->mgr, &db, self->schema, "%s", name);
         ReportResetDatabase(name, db);
         OUTMSG(("VDBManagerOpenDBRead(%s) = ", name));
     }
     else {
-        rc = VDBManagerOpenTableRead(self->mgr, &tbl, schema, "%s", name);
+        rc = VDBManagerOpenTableRead(self->mgr, &tbl, self->schema, "%s", name);
         ReportResetTable(name, tbl);
         OUTMSG(("VDBManagerOpenTableRead(%s) = ", name));
     }
@@ -1020,7 +1023,6 @@ static rc_t MainOpenAs(const Main *self, const char *name, bool isDb) {
     }
     RELEASE(VDatabase, db);
     RELEASE(VTable, tbl);
-    RELEASE(VSchema, schema);
     return rc;
 }
 
@@ -1477,14 +1479,16 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
     }
 
     if (rc == 0) {
+        rc_t rc2 = 0;
+
         const VPath* remote = NULL;
 
-        rc_t rc2 = MainResolveLocal(self, resolver, name, acc, localSz);
+        rc = VDBManagerSetResolver(self->mgr, resolver);
+
+        rc2 = MainResolveLocal(self, resolver, name, acc, localSz);
         if (rc2 != 0 && rc == 0) {
             rc = rc2;
         }
-
-        rc = VDBManagerSetResolver(self->mgr, resolver);
 
         rc2 = MainResolveRemote(self, resolver, name, acc, &remote, remoteSz,
             false);
@@ -1552,7 +1556,7 @@ rc_t MainDepend(const Main *self, const char *name, bool missing)
     }
 
     if (rc == 0) {
-        rc = VDBManagerOpenDBRead(self->mgr, &db, NULL, "%s", name);
+        rc = VDBManagerOpenDBRead(self->mgr, &db, self->schema, "%s", name);
         if (rc != 0) {
             if (rc == SILENT_RC(rcVFS,rcMgr,rcOpening,rcDirectory,rcNotFound)) {
                 return 0;
@@ -2241,6 +2245,7 @@ static rc_t MainFini(Main *self) {
     RELEASE(VFSManager, self->vMgr);
     RELEASE(VDBManager, self->mgr);
     RELEASE(KDirectory, self->dir);
+    RELEASE(VSchema, self->schema);
 
     return rc;
 }

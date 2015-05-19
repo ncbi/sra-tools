@@ -2219,6 +2219,7 @@ static rc_t ItemDownloadVdbcache(Item *item) {
 static rc_t ItemPostDownload(Item *item, int32_t row) {
     rc_t rc = 0;
     Resolved *resolved = NULL;
+    KPathType type = kptNotFound;
     assert(item);
     resolved = &item->resolved;
     if (resolved->type == eRunTypeList) {
@@ -2230,6 +2231,27 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
     else if (resolved->undersized) {
         item->main->undersized = true;
     }
+
+    if (resolved->path.str != NULL) {
+        assert(item->main);
+        rc = _VDBManagerSetDbGapCtx(item->main->mgr, resolved->resolver);
+        type = VDBManagerPathType
+            (item->main->mgr, "%s", resolved->path.str->addr) & ~kptAlias;
+        if (type != kptDatabase) {
+            if (type == kptTable) {
+                 STSMSG(STS_DBG, ("...'%S' is a table", resolved->path.str));
+            }
+            else {
+                 STSMSG(STS_DBG, ("...'%S' is not recognized "
+                     "as a database or a table", resolved->path.str));
+            }
+            return rc;
+         }
+        else {
+            STSMSG(STS_DBG, ("...'%S' is a database", resolved->path.str));
+        }
+    }
+
     rc = ItemDownloadDependencies(item);
     if (true) {
         rc_t rc2 = Quitting();

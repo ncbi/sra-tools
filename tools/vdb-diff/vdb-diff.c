@@ -35,9 +35,12 @@
 #include <klib/progressbar.h>
 
 #include <vdb/manager.h>
+#include <vdb/schema.h>
 #include <vdb/table.h>
 #include <vdb/cursor.h>
 #include <vdb/database.h>
+
+#include <sra/sraschema.h>
 
 #include "coldefs.h"
 #include "namelist_tools.h"
@@ -858,51 +861,61 @@ static rc_t perform_diff( struct diff_ctx * dctx )
 		}
 		else
 		{
-			const VDatabase * db_1;
-			/* try to open it as a database */
-			rc = VDBManagerOpenDBRead ( vdb_mgr, &db_1, NULL, "%s", dctx -> src1 );
-			if ( rc == 0 )
+			VSchema * vdb_schema = NULL;
+			rc = VDBManagerMakeSRASchema( vdb_mgr, &vdb_schema );
+			if ( rc != 0 )
 			{
-				const VDatabase * db_2;
-				rc = VDBManagerOpenDBRead ( vdb_mgr, &db_2, NULL, "%s", dctx -> src2 );
-				if ( rc == 0 )
-				{
-					/* ******************************************** */
-					rc = perform_database_diff( db_1, db_2, dctx );
-					/* ******************************************** */
-					VDatabaseRelease( db_2 );
-				}
-				else
-				{
-					LOGERR ( klogInt, rc, "accession #1 opened as database, but accession #2 cannot be opened as database" );
-				}
-				VDatabaseRelease( db_1 );
+				LOGERR ( klogInt, rc, "VDBManagerMakeSRASchema() failed" );
 			}
 			else
 			{
-				const VTable * tab_1;
-				rc = VDBManagerOpenTableRead( vdb_mgr, &tab_1, NULL, "%s", dctx -> src1 );
+				const VDatabase * db_1;
+				/* try to open it as a database */
+				rc = VDBManagerOpenDBRead ( vdb_mgr, &db_1, vdb_schema, "%s", dctx -> src1 );
 				if ( rc == 0 )
 				{
-					const VTable * tab_2;
-					rc = VDBManagerOpenTableRead( vdb_mgr, &tab_2, NULL, "%s", dctx -> src2 );
+					const VDatabase * db_2;
+					rc = VDBManagerOpenDBRead ( vdb_mgr, &db_2, vdb_schema, "%s", dctx -> src2 );
 					if ( rc == 0 )
 					{
 						/* ******************************************** */
-						rc = perform_table_diff( tab_1, tab_2, dctx );
+						rc = perform_database_diff( db_1, db_2, dctx );
 						/* ******************************************** */
-						VTableRelease( tab_2 );
+						VDatabaseRelease( db_2 );
 					}
 					else
 					{
-						LOGERR ( klogInt, rc, "accession #1 opened as table, but accession #2 cannot be opened as table" );
+						LOGERR ( klogInt, rc, "accession #1 opened as database, but accession #2 cannot be opened as database" );
 					}
-					VTableRelease( tab_1 );
+					VDatabaseRelease( db_1 );
 				}
 				else
 				{
-					LOGERR ( klogInt, rc, "accession #1 cannot be opened as table or database" );
+					const VTable * tab_1;
+					rc = VDBManagerOpenTableRead( vdb_mgr, &tab_1, vdb_schema, "%s", dctx -> src1 );
+					if ( rc == 0 )
+					{
+						const VTable * tab_2;
+						rc = VDBManagerOpenTableRead( vdb_mgr, &tab_2, vdb_schema, "%s", dctx -> src2 );
+						if ( rc == 0 )
+						{
+							/* ******************************************** */
+							rc = perform_table_diff( tab_1, tab_2, dctx );
+							/* ******************************************** */
+							VTableRelease( tab_2 );
+						}
+						else
+						{
+							LOGERR ( klogInt, rc, "accession #1 opened as table, but accession #2 cannot be opened as table" );
+						}
+						VTableRelease( tab_1 );
+					}
+					else
+					{
+						LOGERR ( klogInt, rc, "accession #1 cannot be opened as table or database" );
+					}
 				}
+				VSchemaRelease( vdb_schema );
 			}
 			VDBManagerRelease( vdb_mgr );
 		}

@@ -247,7 +247,27 @@ public:
         if ( VCursorCloseRow ( m_cursor ) != 0 )
             throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorCloseRow failed");
 
-         return ret;
+        return ret;
+    }
+    
+    template < typename T > bool IsNullValue ( const char* p_table, const char* p_column, uint64_t p_row )
+    {
+        OpenCursor( p_table, p_column ); 
+        if ( VCursorSetRowId ( m_cursor, p_row ) ) 
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorSetRowId failed");
+        
+        if ( VCursorOpenRow ( m_cursor ) != 0 )
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorOpenRow failed");
+            
+        T ret;
+        uint32_t num_read;
+        if ( VCursorRead ( m_cursor, 1, 8 * sizeof ( T ), &ret, 1, &num_read ) != 0 )
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");
+            
+        if ( VCursorCloseRow ( m_cursor ) != 0 )
+            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorCloseRow failed");
+
+        return num_read == 0;
     }
 
     template < typename T > T GetValueWithIndex ( const char* p_table, const char* p_column, uint64_t p_row, size_t p_count, size_t p_index )
@@ -926,6 +946,42 @@ FIXTURE_TEST_CASE ( TwoColumnsPartialRowWithDefaultsAndOverride, GeneralLoaderFi
     REQUIRE_EQ ( value1,    GetValue<string>    ( tableName, columnName1, 1 ) );       // explicit
     REQUIRE_EQ ( value2,    GetValue<uint32_t>  ( tableName, columnName2, 1 ) );    // default
     REQUIRE_EQ ( value3,    GetValue<bool>      ( tableName, columnName3, 1 ) );   // not the default
+}
+
+FIXTURE_TEST_CASE ( EmptyDefault_String, GeneralLoaderFixture )
+{   
+    SetUpStream_OneTable ( GetName(), tableName );
+
+    const char* columnName1 = "SPOT_GROUP";
+    m_source . NewColumnEvent ( 1, DefaultTableId, columnName1, 8 );
+    m_source . OpenStreamEvent();
+    
+    m_source . CellEmptyDefaultEvent( 1 );
+    m_source . NextRowEvent ( DefaultTableId  );
+    
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE_EQ ( string(), GetValue<string> ( tableName, columnName1, 1 ) );
+}
+
+FIXTURE_TEST_CASE ( EmptyDefault_Int, GeneralLoaderFixture )
+{   
+    SetUpStream_OneTable ( GetName(), tableName );
+
+    const char* columnName1 = "MAX_SEQ_LEN";
+    m_source . NewColumnEvent ( 1, DefaultTableId, columnName1, 32 );
+    m_source . OpenStreamEvent();
+    
+    m_source . CellEmptyDefaultEvent( 1 );
+    m_source . NextRowEvent ( DefaultTableId  );
+    
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    REQUIRE ( IsNullValue<uint32_t> ( tableName, columnName1, 1 ) );
 }
 
 FIXTURE_TEST_CASE ( MultipleTables_Multiple_Columns_MultipleRows, GeneralLoaderFixture )

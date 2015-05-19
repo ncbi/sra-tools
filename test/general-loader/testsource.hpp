@@ -74,6 +74,7 @@ public:
     void CellDefaultEvent ( ColumnId p_columnId, const std :: string& p_value );
     void CellDefaultEvent ( ColumnId p_columnId, uint32_t p_value );
     void CellDefaultEvent ( ColumnId p_columnId, bool p_value );
+    void CellEmptyDefaultEvent ( ColumnId p_columnId );
     void ErrorMessageEvent ( const std :: string& p_msg );
     
     template < typename T > void CellDataEvent ( ColumnId p_columnId, T p_value )

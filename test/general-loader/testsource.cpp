@@ -460,6 +460,12 @@ TestSource::CellDefaultEvent ( ColumnId p_columnId, const string& p_value )
 }
 
 void 
+TestSource::CellEmptyDefaultEvent ( ColumnId p_columnId )
+{
+    m_buffer -> Write ( Event ( evt_empty_default, p_columnId, 0, 0, 0 ) );
+}
+
+void 
 TestSource::CellDefaultEvent ( ColumnId p_columnId, uint32_t p_value )
 {
     m_buffer -> Write ( Event ( evt_cell_default, p_columnId, 1,  sizeof p_value, (const void*)&p_value ) );

@@ -37,6 +37,7 @@
 #define USE_GENERAL_LOADER 1
 #define RECORD_REF_BASE    0
 #define RECORD_MATCH_COUNT 1
+#define QUANTIZE_VALUES    1
 
 #define DFLT_BUFFER_SIZE ( 32 * 1024 )
 
@@ -49,6 +50,7 @@
 #endif
 
 #include "../general-loader/general-writer.hpp"
+#include <arch-impl.h>
 
 #include "pileup-stats.vers.h"
 
@@ -88,6 +90,38 @@ namespace ncbi
     static uint32_t verbosity;
 
     const bool need_write_true = false;
+
+#if QUANTIZE_VALUES
+    inline
+    uint32_t filter_significant_bits ( uint32_t val, uint32_t num_significant_bits )
+    {
+        if ( val != 0 )
+        {
+            // we find the most significant bit in value
+            // which will be 0..31 for non-zero values
+            // from which we subtract the number of significant bits
+            // being retained ( - 1 to account for 0-based index )
+            //
+            // e.g.:
+            //  val = 0x31, num_significant_bits = 4
+            //  uint32_msbit ( val ) => 5, meaning the most significant bit is 5,
+            //  which says there are 6 significant bits in total. we only want to
+            //  keep 4, however.
+            //  mask_index = 5 - ( 4 - 1 ) => 2
+            //  0xFFFFFFFF << mask_index => 0xFFFFFFFC
+            //  val then becomes 0x30
+            int mask_index = uint32_msbit ( val ) - ( int ) ( num_significant_bits - 1 );
+            if ( mask_index > 0 )
+            {
+                // this is a positive quantity
+                assert ( mask_index <= 31 );
+                val = val & ( 0xFFFFFFFF << mask_index );
+            }
+        }
+
+        return val;
+    }
+#endif
 
     static
     void run (
@@ -252,6 +286,48 @@ namespace ncbi
 
             if ( depth > depth_cutoff )
             {
+#if QUANTIZE_VALUES
+                int i;
+
+                const uint32_t event_cutoff = 1;
+                const uint32_t num_significant_bits = 4;
+
+                if ( del_cnt <= event_cutoff )
+                    del_cnt = 0;
+
+                have_mismatch = false;
+                for ( i = 0; i < 3 + RECORD_MATCH_COUNT; ++ i )
+                {
+                    if ( mismatch_counts [ i ] <= event_cutoff )
+                        mismatch_counts [ i ] = 0;
+                    else
+                        have_mismatch = true;
+                }
+
+                have_inserts = false;
+                for ( i = 0; i < 4; ++ i )
+                {
+                    if ( ins_counts [ i ] <= event_cutoff )
+                        ins_counts [ i ] = 0;
+                    else
+                        have_inserts = true;
+                }
+
+                if ( num_significant_bits != 0 /*&& !have_mismatch && !have_inserts && !del_cnt*/)
+                {
+                    depth = filter_significant_bits ( depth, num_significant_bits );
+#if 1
+                    del_cnt = filter_significant_bits ( del_cnt, num_significant_bits );
+                    for ( i = 0; i < 3 + RECORD_MATCH_COUNT; ++ i ) 
+                        mismatch_counts [ i ] = filter_significant_bits ( mismatch_counts [ i ], num_significant_bits );
+                    for ( i = 0; i < 4; ++ i )
+                        ins_counts [ i ] = filter_significant_bits ( ins_counts [ i ], num_significant_bits );
+#endif
+                }
+
+#endif // QUANTIZE_VALUES
+                        
+                   
 #if USE_GENERAL_LOADER
                 if ( ref_zpos > last_writ )
                     out . moveAhead ( tbl_id, ref_zpos - last_writ );

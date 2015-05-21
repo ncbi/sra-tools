@@ -12,21 +12,58 @@ def _paddedFormat(fmt):
     return fmt
 
 
+def _makeHeader():
+    fmt = "8s 4I"
+    size = struct.calcsize(fmt)
+    return struct.pack(fmt, "NCBIgnld".encode('ascii'), 1, 1, size, 0)
+
+
+def _makeSimpleEvent(eid):
+    """ used for { evt_end_stream, evt_open_stream, evt_next_row } """
+    return struct.pack("I", eid)
+
+
+def _make1StringEvent(eid, str1):
+    """ used for { evt_errmsg, evt_remote_path, evt_new_table } """
+    fmt = _paddedFormat("I 1I {}s".format(len(str1)))
+    return struct.pack(fmt, eid, len(str1), str1)
+
+
+def _make2StringEvent(eid, str1, str2):
+    """ used for { evt_use_schema } """
+    fmt = _paddedFormat("I 2I {}s {}s".format(len(str1), len(str2)))
+    return struct.pack(fmt, eid, len(str1), len(str2), str1, str2)
+
+
+def _makeColumnEvent(colid, tblid, bits, name):
+    """ used for { evt_new_column } """
+    fmt = _paddedFormat("I 3I {}s".format(len(name)))
+    return struct.pack(fmt, colid, tblid, bits, len(name), name)
+
+
+def _makeDataEvent(colid, count):
+    """ used for { evt_cell_default, evt_cell_data } """
+    return struct.pack("2I", colid, count)
+
+
 class GeneralWriter:
-
-    GW_SIGNATURE        = "NCBIgnld".encode('ascii')
-    GW_GOOD_ENDIAN      = 1
-    GW_CURRENT_VERSION  = 1
-
+    # pylint: disable=too-few-public-methods
+    
     evt_bad_event       = 0
-    evt_end_stream      = (1 << 24) + evt_bad_event
-    evt_new_table       = (1 << 24) + evt_end_stream
+    
+    evt_errmsg          = (1 << 24) + evt_bad_event
+    evt_end_stream      = (1 << 24) + evt_errmsg
+    
+    evt_remote_path     = (1 << 24) + evt_end_stream
+    evt_use_schema      = (1 << 24) + evt_remote_path
+    evt_new_table       = (1 << 24) + evt_use_schema
     evt_new_column      = (1 << 24) + evt_new_table
     evt_open_stream     = (1 << 24) + evt_new_column
+
     evt_cell_default    = (1 << 24) + evt_open_stream
     evt_cell_data       = (1 << 24) + evt_cell_default
     evt_next_row        = (1 << 24) + evt_cell_data
-    evt_errmsg          = (1 << 24) + evt_next_row
+
 
     def write(self, spec):
         tableId = -1
@@ -38,69 +75,62 @@ class GeneralWriter:
                 except:
                     pass
                 try:
-                    self._writeColumnData(c['_columnId'], c['elem_bits'], len(data), data)
+                    self._writeColumnData(c['_columnId'], len(data), data)
                 except:
                     sys.stderr.write("failed to write column #{}\n".format(c['_columnId']))
                     raise
             tableId = c['_tableId']
         self._writeNextRow(tableId)
 
-   
-    def _writeHeader(self):
-        fmt = _paddedFormat("8s 5I %ds %ds %ds" % (
-            len(self.remoteDb) + 1,
-            len(self.schemaFileName) + 1,
-            len(self.schemaDbSpec) + 1))
-        data = struct.pack(fmt,
-            self.GW_SIGNATURE,
-            self.GW_GOOD_ENDIAN,
-            self.GW_CURRENT_VERSION,
-            len(self.remoteDb),
-            len(self.schemaFileName),
-            len(self.schemaDbSpec),
-            self.remoteDb,
-            self.schemaFileName,
-            self.schemaDbSpec)
-        os.write(sys.stdout.fileno(), data)
+    @classmethod
+    def _writeHeader(cls, remoteDb, schemaFileName, schemaDbSpec):
+        os.write(sys.stdout.fileno(), _makeHeader())
+        os.write(sys.stdout.fileno(), _make1StringEvent(cls.evt_remote_path, remoteDb))
+        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_use_schema, schemaFileName, schemaDbSpec))
 
 
-    def _writeEndStream(self):
-        os.write(sys.stdout.fileno(), struct.pack("I", self.evt_end_stream))
+    @classmethod
+    def _writeEndStream(cls):
+        os.write(sys.stdout.fileno(), _makeSimpleEvent(cls.evt_end_stream))
 
 
-    def _writeNewTable(self, tableId, table):
-        fmt = _paddedFormat("I I %ds" % (len(table) + 1))
-        os.write(sys.stdout.fileno(), struct.pack(fmt, tableId + self.evt_new_table, len(table), table))
+    @classmethod
+    def _writeNewTable(cls, tableId, table):
+        os.write(sys.stdout.fileno(), _make1StringEvent(cls.evt_new_table + tableId, table))
 
 
-    def _writeNewColumn(self, columnId, tableId, column):
-        fmt = _paddedFormat("I I I %ds" % (len(column) + 1))
-        os.write(sys.stdout.fileno(), struct.pack(fmt, columnId + self.evt_new_column, tableId, len(column), column))
+    @classmethod
+    def _writeNewColumn(cls, columnId, tableId, bits, column):
+        os.write(sys.stdout.fileno(), _makeColumnEvent(cls.evt_new_column + columnId, tableId, bits, column))
 
 
-    def _writeOpenStream(self):
-        os.write(sys.stdout.fileno(), struct.pack("I", self.evt_open_stream))
+    @classmethod
+    def _writeOpenStream(cls):
+        os.write(sys.stdout.fileno(), _makeSimpleEvent(cls.evt_open_stream))
         
     
-    def _writeColumnDefault(self, columnId, bits, count, data):
-        l = os.write(sys.stdout.fileno(), struct.pack("I I I", columnId + self.evt_cell_default, bits, count))
+    @classmethod
+    def _writeColumnDefault(cls, colId, count, data):
+        l = os.write(sys.stdout.fileno(), _makeDataEvent(cls.evt_cell_default + colId, count))
         l = (l + os.write(sys.stdout.fileno(), data)) % 4
         if l != 0:
             os.write(sys.stdout.fileno(), struct.pack("%dx" % (4 - l)))
 
 
-    def _writeColumnData(self, columnId, bits, count, data):
-        l = os.write(sys.stdout.fileno(), struct.pack("I I I", columnId + self.evt_cell_data, bits, count))
+    @classmethod
+    def _writeColumnData(cls, colId, count, data):
+        l = os.write(sys.stdout.fileno(), _makeDataEvent(cls.evt_cell_data + colId, count))
         l = (l + os.write(sys.stdout.fileno(), data)) % 4
         if l != 0:
             os.write(sys.stdout.fileno(), struct.pack("%dx" % (4 - l)))
 
 
-    def _writeNextRow(self, tableId):
-        os.write(sys.stdout.fileno(), struct.pack("I", tableId + self.evt_next_row))
+    @classmethod
+    def _writeNextRow(cls, tableId):
+        os.write(sys.stdout.fileno(), _makeSimpleEvent(cls.evt_next_row + tableId))
         
     
-    def __init__(self, writer, fileName, schemaFileName, schemaDbSpec, tbl):
+    def __init__(self, fileName, schemaFileName, schemaDbSpec, tbl):
         """ Construct a General Writer object
     
             writer may be None if no actual output is desired
@@ -113,38 +143,37 @@ class GeneralWriter:
             schemaDbSpec is a string with the schema name of the database that will be created
         """
         
-        self.remoteDb = fileName.encode('utf-8')
-        self.schemaFileName = schemaFileName.encode('utf-8')
-        self.schemaDbSpec = schemaDbSpec.encode('ascii')
-
-        self._writeHeader()
+        GeneralWriter._writeHeader(fileName.encode('utf-8')
+            , schemaFileName.encode('utf-8')
+            , schemaDbSpec.encode('ascii'))
 
         tableId = 0
         columnId = 0
         for t in tbl:
             tableId = tableId + 1
-            self._writeNewTable(tableId, t.encode('ascii'))
+            GeneralWriter._writeNewTable(tableId, t.encode('ascii'))
             cols = tbl[t]
             for c in cols:
                 columnId = columnId + 1
                 cols[c]['_tableId'] = tableId
                 cols[c]['_columnId'] = columnId
                 expression = cols[c]['expression'] if 'expression' in cols[c] else c
-                self._writeNewColumn(columnId, tableId, expression.encode('ascii'))
+                bits = cols[c]['elem_bits']
+                GeneralWriter._writeNewColumn(columnId, tableId, bits, expression.encode('ascii'))
 
-        self._writeOpenStream()
+        GeneralWriter._writeOpenStream()
         for t in tbl.values():
             for c in t.values():
                 if 'default' in c:
                     try:
-                        self._writeColumnDefault(c['_columnId'], c['elem_bits'], len(c['default']), c['default'])
+                        GeneralWriter._writeColumnDefault(c['_columnId'], len(c['default']), c['default'])
                     except:
                         sys.stderr.write("failed to set default for %s\n" % c)
                         raise
 
 
     def __del__(self):
-        try: self._writeEndStream()
+        try: GeneralWriter._writeEndStream()
         except: pass
 
 
@@ -209,7 +238,7 @@ if __name__ == "__main__":
             }
         },
     }
-    gw = GeneralWriter(None, sys.argv[1], sys.argv[2], sys.argv[3], spec)
+    gw = GeneralWriter(sys.argv[1], sys.argv[2], sys.argv[3], spec)
     
     spec['SEQUENCE']['READ_LENGTH']['data'] = array.array('I', [ 1, 2 ])
     gw.write(spec['SEQUENCE'])

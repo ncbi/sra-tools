@@ -25,6 +25,7 @@
 */
 
 #include "test-sra-priv.h" /* PrintOS */
+#include "test-sra.vers.h" /* TEST_SRA_VERS */
 
 #include <kapp/main.h> /* KMain */
 
@@ -129,7 +130,7 @@ typedef struct {
     bool allowCaching;
     VResolverEnableState cacheState;
 } Main;
-uint32_t CC KAppVersion(void) { return 0; }
+uint32_t CC KAppVersion(void) { return TEST_SRA_VERS; }
 
 const char UsageDefaultName[] = "test-sra";
 
@@ -1060,10 +1061,10 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
             OUTMSG(("Local:\t\t  "));
             break;
         case ePathRemote:
-            OUTMSG(("Remote %s:\t  ", fasp ? "fasp" : "http"));
+            OUTMSG(("Remote %s:\t  ", fasp ? "FaspHttp" : "HttpFasp"));
             break;
         case ePathCache:
-            OUTMSG(("Cache %s:\t  ", fasp ? "fasp" : "http"));
+            OUTMSG(("Cache %s:\t  ", fasp ? "FaspHttp" : "HttpFasp"));
             if (remote == NULL) {
                 OUTMSG(("skipped%s", eol));
                 return rc;
@@ -1158,7 +1159,7 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
             }
 
             if (rc == 0) {
-                OUTMSG(("Cache.cache %s: ", fasp ? "fasp" : "http"));
+                OUTMSG(("Cache.cache %s: ", fasp ? "FaspHttp" : "HttpFasp"));
                 OUTMSG(("%s ", cachecache));
                 rc = MainReport(self, cachecache, NULL, NULL, NULL);
                 OUTMSG(("%s", eol));

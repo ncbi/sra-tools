@@ -126,6 +126,11 @@ tbl = {
             'expression': '(INSDC:coord:len)READ_LEN',
             'elem_bits': 32,
         },
+        'READ_TYPE': {
+            'expression': '(U8)READ_TYPE',
+            'elem_bits': 8,
+            'default': array.array('B', [0, 0])
+        },
     },
     'CONSENSUS': {
         'READ': {
@@ -149,6 +154,19 @@ tbl = {
         'HIGH_QUALITY': {
             'expression': 'HIGH_QUALITY',
             'elem_bits': 8,
+        },
+        'READ_START': {
+            'expression': '(INSDC:coord:zero)READ_START',
+            'elem_bits': 32,
+        },
+        'READ_LENGTH': {
+            'expression': '(INSDC:coord:len)READ_LEN',
+            'elem_bits': 32,
+        },
+        'READ_TYPE': {
+            'expression': '(U8)READ_TYPE',
+            'elem_bits': 8,
+            'default': array.array('B', [0])
         },
     }
 }
@@ -198,6 +216,8 @@ class FastQData:
             dst = tbl['CONSENSUS']
             dst['HIGH_QUALITY']['data'] = array.array('b',
                 [ 1 if self.isHighQuality else 0 ])
+            dst['READ_START' ]['data'] = array.array('I', [0])
+            dst['READ_LENGTH']['data'] = array.array('I', [len(self.sequence)])
         else:
             dst['READ_START' ]['data'] = array.array('I',
                 [ 0, self.readLength[0] ])

@@ -180,6 +180,7 @@ typedef struct dump_context
 	bool idx_range_requested;
     bool disable_multithreading;
     bool print_info;
+	bool table_defined;
 } dump_context;
 typedef dump_context* p_dump_context;
 

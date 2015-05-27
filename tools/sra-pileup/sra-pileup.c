@@ -39,6 +39,7 @@
 #include "pileup_counters.h"
 #include "pileup_index.h"
 #include "pileup_varcount.h"
+#include "pileup_indels.h"
 #include "pileup_stat.h"
 #include "pileup_v2.h"
 
@@ -112,6 +113,7 @@
 #define FUNC_TEST       "test"
 #define FUNC_VARCOUNT   "varcount"
 #define FUNC_DELETES    "deletes"
+#define FUNC_INDELS     "indels"
 
 enum
 {
@@ -125,7 +127,8 @@ enum
     sra_pileup_index = 7,
     sra_pileup_test = 8,
     sra_pileup_varcount = 9,
-    sra_pileup_deletes = 10
+    sra_pileup_deletes = 10,
+	sra_pileup_indels = 11
 };
 
 static const char * minmapq_usage[]         = { "Minimum mapq-value, ", 
@@ -158,6 +161,7 @@ static const char * func_count_usage[]      = { "sort pileup with counters", NUL
 static const char * func_stat_usage[]       = { "strand/tlen statistic", NULL };
 static const char * func_mismatch_usage[]   = { "only lines with mismatch", NULL };
 static const char * func_index_usage[]      = { "list deletion counts", NULL };
+static const char * func_indels_usage[]     = { "list only inserts/deletions", NULL };
 
 static const char * func_varcount_usage[]   = { "variation counters: ", 
                                                 "ref-name, ref-pos, ref-base, coverage, ",
@@ -321,7 +325,8 @@ static rc_t get_pileup_options( Args * args, pileup_options *opts )
                 opts->function = sra_pileup_varcount;
             else if ( cmp_pchar( fkt, FUNC_DELETES ) == 0 )
                 opts->function = sra_pileup_deletes;
-
+            else if ( cmp_pchar( fkt, FUNC_INDELS ) == 0 )
+                opts->function = sra_pileup_indels;
         }
     }
     return rc;
@@ -379,7 +384,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL, "function index",    NULL, func_index_usage );
     HelpOptionLine ( NULL, "function varcount", NULL, func_varcount_usage );
     HelpOptionLine ( NULL, "function deletes",  NULL, func_deletes_usage );
-
+    HelpOptionLine ( NULL, "function indels",   NULL, func_indels_usage );
+	
     KOutMsg ( "\nGrouping of accessions into artificial spotgroups:\n" );
     KOutMsg ( "  sra-pileup SRRXXXXXX=a SRRYYYYYY=b SRRZZZZZZ=a\n\n" );
 
@@ -1446,15 +1452,15 @@ static rc_t pileup_main( Args * args, pileup_options *options )
             case sra_pileup_samtools    : options->read_tlen = false;
                                           break;
                                           
-            case sra_pileup_mismatch    :  options->omit_qualities = true;
+            case sra_pileup_mismatch    : options->omit_qualities = true;
                                           options->read_tlen = false;
                                           break;
 
-            case sra_pileup_index      :  options->omit_qualities = true;
+            case sra_pileup_index      : options->omit_qualities = true;
                                           options->read_tlen = false;
                                           break;
 
-            case sra_pileup_varcount   :  options->omit_qualities = true;
+            case sra_pileup_varcount   : options->omit_qualities = true;
                                           options->read_tlen = false;
                                           break;
         }
@@ -1494,6 +1500,7 @@ static rc_t pileup_main( Args * args, pileup_options *options )
             case sra_pileup_mismatch    : rc = walk_mismatches( arg_ctx.ref_iter, options ); break;
             case sra_pileup_index       : rc = walk_index( arg_ctx.ref_iter, options ); break;
             case sra_pileup_varcount    : rc = walk_varcount( arg_ctx.ref_iter, options ); break;
+			case sra_pileup_indels      : rc = walk_indels( arg_ctx.ref_iter, options ); break;
             default :  rc = walk_ref_iter( arg_ctx.ref_iter, options ); break;
         }
         /* ============================================== */

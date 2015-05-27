@@ -99,6 +99,7 @@ TOOL_SRC = \
 	walk_debug \
 	pileup_counters \
 	pileup_index \
+	pileup_indels \
 	pileup_varcount \
 	pileup_stat \
 	pileup_v2 \

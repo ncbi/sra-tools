@@ -296,6 +296,8 @@ rc_t CC KMain(int argc, char *argv[]) {
 "\n"
 "- Change directory to the project's workspace.\n"
 "\n"
+"N.B. MAKE SURE YOU DO NOT HAVE A VDB_PWFILE ENVIRONMENT VARIABLE SET !!!\n"
+"\n"
 "Now you should be able to work with encrypted data.\n"
 "The SRA Toolkit will work with encrypted SRA data files,\n"
 "there is no need to decrypt the read data.\n"

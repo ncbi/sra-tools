@@ -915,7 +915,7 @@ rc_t CheckLimitAndLogError(void)
 {
     ++G.errCount;
     if (G.maxErrCount > 0 && G.errCount > G.maxErrCount) {
-        (void)PLOGERR(klogErr, (klogErr, RC(rcAlign, rcFile, rcReading, rcError, rcExcessive), "Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%u,max=%u", G.errCount, G.maxErrCount));
+        (void)PLOGERR(klogErr, (klogErr, SILENT_RC(rcAlign, rcFile, rcReading, rcError, rcExcessive), "Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%u,max=%u", G.errCount, G.maxErrCount));
         return RC(rcAlign, rcFile, rcReading, rcError, rcExcessive);
     }
     return 0;
@@ -965,12 +965,12 @@ rc_t LogDupConflict(char const readName[])
     if (rc) {
         (void)PLOGMSG(klogInfo, (klogInfo, "This is the last warning; this class of warning occurred $(occurred) times",
                                  "occurred=%u", count));
-        (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+        (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                  "Spot '$(name)' is both a duplicate and NOT a duplicate!",
                                  "name=%s", readName));
     }
     else if (G.maxWarnCount_DupConflict == 0 || count < G.maxWarnCount_DupConflict)
-        (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+        (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                  "Spot '$(name)' is both a duplicate and NOT a duplicate!",
                                  "name=%s", readName));
     return rc;
@@ -1476,7 +1476,7 @@ MIXED_BASE_AND_COLOR:
                 refSeq = NULL;
                 BAM_FileGetRefSeqById(bam, refSeqId, &refSeq);/*BAM*/
                 if (refSeq == NULL) {
-                    rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
+                    rc = SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
                     rc = CheckLimitAndLogError();
                     DISCARD_UNKNOWN_REFERENCE;
@@ -1600,7 +1600,7 @@ MIXED_BASE_AND_COLOR:
                 FLAG_CHANGED_PCR_DUP;
             }
             if (mated && value->unmated) {
-                (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+                (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                          "Spot '$(name)', which was first seen without mate info, now has mate info",
                                          "name=%s", name));
                 rc = CheckLimitAndLogError();
@@ -1608,7 +1608,7 @@ MIXED_BASE_AND_COLOR:
                 goto LOOP_END;
             }
             else if (!mated && !value->unmated) {
-                (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+                (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                          "Spot '$(name)', which was first seen with mate info, now has no mate info",
                                          "name=%s", name));
                 rc = CheckLimitAndLogError();

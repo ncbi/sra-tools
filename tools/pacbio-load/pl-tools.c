@@ -432,13 +432,21 @@ rc_t add_columns( VCursor * cursor, uint32_t count, int32_t exclude_this,
 bool check_table_count( af_data *tab, const char * name,
                         const uint64_t expected )
 {
-    bool res = ( tab->extents[ 0 ] == expected );
-    if ( !res )
-    {
-        rc_t rc = RC( rcExe, rcNoTarg, rcAllocating, rcParam, rcInvalid );
-        PLOGERR( klogErr, ( klogErr, rc, "'$(name)'.count != expected",
-                            "name=%s", name ) );
-    }
+	bool res = ( tab->extents != NULL );
+	if ( res )
+	{
+		res = ( tab->extents[ 0 ] == expected );
+		if ( !res )
+		{
+			rc_t rc = RC( rcExe, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+			PLOGERR( klogErr, ( klogErr, rc, "'$(name)'.count != expected",
+								"name=%s", name ) );
+		}
+	}
+	else
+	{
+		PLOGMSG( klogWarn, ( klogWarn, "Table ... '$(name)' not found", "name=%s", name ) );
+	}
     return res;
 }
 

@@ -61,17 +61,26 @@ static bool check_Consensus_totalcount( BaseCalls_cmn *tab, const uint64_t expec
 {
     bool res = check_table_count( &tab->Basecall, "Basecall", expected );
     if ( res )
-        res = check_table_count( &tab->DeletionQV, "DeletionQV", expected );
-    if ( res )
-        res = check_table_count( &tab->DeletionTag, "DeletionTag", expected );
-    if ( res )
-        res = check_table_count( &tab->InsertionQV, "InsertionQV", expected );
-    if ( res )
         res = check_table_count( &tab->QualityValue, "QualityValue", expected );
-    if ( res )
-        res = check_table_count( &tab->SubstitutionQV, "SubstitutionQV", expected );
-    if ( res )
-        res = check_table_count( &tab->SubstitutionTag, "SubstitutionTag", expected );
+
+	if ( res )
+	{
+		if ( tab->DeletionQV.extents != NULL )
+			res = check_table_count( &tab->DeletionQV, "DeletionQV", expected );
+
+		if ( tab->DeletionTag.extents != NULL )
+			res = check_table_count( &tab->DeletionTag, "DeletionTag", expected );
+
+		if ( tab->InsertionQV.extents != NULL )
+			res = check_table_count( &tab->InsertionQV, "InsertionQV", expected );
+
+		if ( tab->SubstitutionQV.extents != NULL )
+			res = check_table_count( &tab->SubstitutionQV, "SubstitutionQV", expected );
+
+		if ( tab->SubstitutionTag.extents != NULL )
+			res = check_table_count( &tab->SubstitutionTag, "SubstitutionTag", expected );
+	}
+
     return res;
 }
 
@@ -112,6 +121,8 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
                                        const uint32_t *col_idx, zmw_row * spot )
 {
     rc_t rc = 0;
+	uint32_t column_idx, dummy_src;
+	
     /* we make a buffer to store NumEvent 8-bit-values
       (that is so far the biggest value we have to read per DNA-BASE) */
     char * buffer = malloc( spot->NumEvent );
@@ -129,27 +140,67 @@ static rc_t consensus_load_spot_bases( VCursor *cursor, BaseCalls_cmn *tab,
         rc = transfer_bits( cursor, col_idx[ consensus_tab_QUALITY ],
             &tab->QualityValue, buffer, spot->offset, spot->NumEvent,
             QUALITY_VALUE_BITSIZE, "consensus.QualityValue" );
+			
     if ( rc == 0 )
-        rc = transfer_bits( cursor, col_idx[ consensus_tab_INSERTION_QV ],
-            &tab->InsertionQV, buffer, spot->offset, spot->NumEvent,
-            INSERTION_QV_BITSIZE, "consensus.InsertionQV" );
+	{
+		column_idx = col_idx[ consensus_tab_INSERTION_QV ];
+		if ( tab->InsertionQV.extents != NULL )
+			rc = transfer_bits( cursor, column_idx,
+				&tab->InsertionQV, buffer, spot->offset, spot->NumEvent,
+				INSERTION_QV_BITSIZE, "consensus.InsertionQV" );
+		else
+			rc = vdb_write_value( cursor, column_idx,
+					&dummy_src, INSERTION_QV_BITSIZE, 0, "consensus.InsertionQV" );
+	}
+	
     if ( rc == 0 )
-        rc = transfer_bits( cursor, col_idx[ consensus_tab_DELETION_QV ],
-            &tab->DeletionQV, buffer, spot->offset, spot->NumEvent,
-            DELETION_QV_BITSIZE, "consensus.DeletionQV" );
+	{
+		column_idx = col_idx[ consensus_tab_DELETION_QV ];
+		if ( tab->DeletionQV.extents != NULL )
+			rc = transfer_bits( cursor, column_idx,
+				&tab->DeletionQV, buffer, spot->offset, spot->NumEvent,
+				DELETION_QV_BITSIZE, "consensus.DeletionQV" );
+		else
+			rc = vdb_write_value( cursor, column_idx,
+				   &dummy_src, DELETION_QV_BITSIZE, 0, "consensus.DeletionQV" );
+	}
+	
     if ( rc == 0 )
-        rc = transfer_bits( cursor, col_idx[ consensus_tab_DELETION_TAG ],
-            &tab->DeletionTag, buffer, spot->offset, spot->NumEvent,
-            DELETION_TAG_BITSIZE, "consensus.DeletionTag" );
+	{
+		column_idx = col_idx[ consensus_tab_DELETION_TAG ];
+		if ( tab->DeletionTag.extents != NULL )
+			rc = transfer_bits( cursor, column_idx,
+				&tab->DeletionTag, buffer, spot->offset, spot->NumEvent,
+				DELETION_TAG_BITSIZE, "consensus.DeletionTag" );
+		else
+			rc = vdb_write_value( cursor, column_idx,
+				   &dummy_src, DELETION_TAG_BITSIZE, 0, "consensus.DeletionTag" );
+	}
+	
     if ( rc == 0 )
-        rc = transfer_bits( cursor, col_idx[ consensus_tab_SUBSTITUTION_QV ],
-            &tab->SubstitutionQV, buffer, spot->offset, spot->NumEvent,
-            SUBSTITUTION_QV_BITZISE, "consensus.SubstitutionQV" );
+	{
+		column_idx = col_idx[ consensus_tab_SUBSTITUTION_QV ];
+		if ( tab->SubstitutionQV.extents != NULL )
+			rc = transfer_bits( cursor, column_idx,
+				&tab->SubstitutionQV, buffer, spot->offset, spot->NumEvent,
+				SUBSTITUTION_QV_BITZISE, "consensus.SubstitutionQV" );
+		else
+			rc = vdb_write_value( cursor, column_idx,
+					&dummy_src, SUBSTITUTION_QV_BITZISE, 0, "consensus.SubstitutionQV" );
+	}
+	
     if ( rc == 0 )
-        rc = transfer_bits( cursor, col_idx[ consensus_tab_SUBSTITUTION_TAG ],
-            &tab->SubstitutionTag, buffer, spot->offset, spot->NumEvent,
-            SUBSTITUTION_TAG_BITSIZE, "consensus.SubstitutionTag" );
-
+	{
+		column_idx = col_idx[ consensus_tab_SUBSTITUTION_TAG ];
+		if ( tab->SubstitutionTag.extents != NULL )
+			rc = transfer_bits( cursor, column_idx,
+				&tab->SubstitutionTag, buffer, spot->offset, spot->NumEvent,
+				SUBSTITUTION_TAG_BITSIZE, "consensus.SubstitutionTag" );
+		else
+			rc = vdb_write_value( cursor, column_idx,
+				   &dummy_src, SUBSTITUTION_TAG_BITSIZE, 0, "consensus.SubstitutionTag" );
+	}
+	
     if ( buffer != NULL )
         free( buffer );
     return rc;
@@ -160,64 +211,68 @@ static rc_t consensus_load_spot( VCursor *cursor, const uint32_t *col_idx,
                                  region_type_mapping *mapping, zmw_row * spot, 
                                  void * data )
 {
-    BaseCalls_cmn *tab = (BaseCalls_cmn *)data;
-    rc_t rc = VCursorOpenRow( cursor );
-    if ( rc != 0 )
-        PLOGERR( klogErr, ( klogErr, rc, "cannot open consensus-row on spot# $(spotnr)",
-                            "spotnr=%u", spot->spot_nr ) );
+	rc_t rc = 0;
+	if ( spot->NumEvent > 0 )
+	{
+		BaseCalls_cmn *tab = (BaseCalls_cmn *)data;
+		rc = VCursorOpenRow( cursor );
+		if ( rc != 0 )
+			PLOGERR( klogErr, ( klogErr, rc, "cannot open consensus-row on spot# $(spotnr)",
+								"spotnr=%u", spot->spot_nr ) );
 
-    if ( rc == 0 )
-        rc = vdb_write_uint32( cursor, col_idx[ consensus_tab_HOLE_NUMBER ],
-                               spot->HoleNumber, "consensus.HOLE_NUMBER" );
-    if ( rc == 0 )
-        rc = vdb_write_uint8( cursor, col_idx[ consensus_tab_HOLE_STATUS ],
-                              spot->HoleStatus, "consensus.HOLE_STATUS" );
-    if ( rc == 0 )
-        rc = vdb_write_value( cursor, col_idx[ consensus_tab_HOLE_XY ],
-                              &spot->HoleXY, HOLE_XY_BITSIZE, 2, "consensus.HOLE_XY" );
+		if ( rc == 0 )
+			rc = vdb_write_uint32( cursor, col_idx[ consensus_tab_HOLE_NUMBER ],
+								   spot->HoleNumber, "consensus.HOLE_NUMBER" );
+		if ( rc == 0 )
+			rc = vdb_write_uint8( cursor, col_idx[ consensus_tab_HOLE_STATUS ],
+								  spot->HoleStatus, "consensus.HOLE_STATUS" );
+		if ( rc == 0 )
+			rc = vdb_write_value( cursor, col_idx[ consensus_tab_HOLE_XY ],
+								  &spot->HoleXY, HOLE_XY_BITSIZE, 2, "consensus.HOLE_XY" );
 
-    /* has to be read ... from "PulseData/ConsensusBaesCalls/Passes/NumPasses" */
-    if ( rc == 0 )
-        rc = vdb_write_uint32( cursor, col_idx[ consensus_tab_NUM_PASSES ],
-                               spot->NumPasses, "consensus.NUM_PASSES" );
+		/* has to be read ... from "PulseData/ConsensusBaesCalls/Passes/NumPasses" */
+		if ( rc == 0 )
+			rc = vdb_write_uint32( cursor, col_idx[ consensus_tab_NUM_PASSES ],
+								   spot->NumPasses, "consensus.NUM_PASSES" );
 
-    if ( rc == 0 )
-    {
-        if ( spot->NumEvent > 0 )
-            rc = consensus_load_spot_bases( cursor, tab, col_idx, spot );
-        else
-            rc = consensus_load_zero_bases( cursor, col_idx );
-    }
+		if ( rc == 0 )
+		{
+			if ( spot->NumEvent > 0 )
+				rc = consensus_load_spot_bases( cursor, tab, col_idx, spot );
+			else
+				rc = consensus_load_zero_bases( cursor, col_idx );
+		}
 
-    if ( rc == 0 )
-        rc = vdb_write_uint8( cursor, col_idx[ consensus_tab_NREADS ],
-                              1, "consensus.NREADS" );
-    if ( rc == 0 )
-        rc = vdb_write_uint32( cursor, col_idx[ consensus_tab_READ_START ],
-                               0, "consensus.READ_START" );
-    if ( rc == 0 )
-        rc = vdb_write_uint32( cursor, col_idx[ consensus_tab_READ_LEN ],
-                               spot->NumEvent, "consensus.READ_LEN" );
-    if ( rc == 0 )
-        rc = vdb_write_uint8( cursor, col_idx[ consensus_tab_READ_TYPE ],
-                              SRA_READ_TYPE_BIOLOGICAL, "consensus.READ_TYPE" );
+		if ( rc == 0 )
+			rc = vdb_write_uint8( cursor, col_idx[ consensus_tab_NREADS ],
+								  1, "consensus.NREADS" );
+		if ( rc == 0 )
+			rc = vdb_write_uint32( cursor, col_idx[ consensus_tab_READ_START ],
+								   0, "consensus.READ_START" );
+		if ( rc == 0 )
+			rc = vdb_write_uint32( cursor, col_idx[ consensus_tab_READ_LEN ],
+								   spot->NumEvent, "consensus.READ_LEN" );
+		if ( rc == 0 )
+			rc = vdb_write_uint8( cursor, col_idx[ consensus_tab_READ_TYPE ],
+								  SRA_READ_TYPE_BIOLOGICAL, "consensus.READ_TYPE" );
 
-    if ( rc == 0 )
-    {
-        rc = VCursorCommitRow( cursor );
-        if ( rc != 0 )
-            PLOGERR( klogErr, ( klogErr, rc, "cannot commit consensus-row on spot# $(spotnr)",
-                                "spotnr=%u", spot->spot_nr ) );
-    }
+		if ( rc == 0 )
+		{
+			rc = VCursorCommitRow( cursor );
+			if ( rc != 0 )
+				PLOGERR( klogErr, ( klogErr, rc, "cannot commit consensus-row on spot# $(spotnr)",
+									"spotnr=%u", spot->spot_nr ) );
+		}
 
-    if ( rc == 0 )
-    {
-        rc = VCursorCloseRow( cursor );
-        if ( rc != 0 )
-            PLOGERR( klogErr, ( klogErr, rc, "cannot close consensus-row on spot# $(spotnr)",
-                                "spotnr=%u", spot->spot_nr ) );
+		if ( rc == 0 )
+		{
+			rc = VCursorCloseRow( cursor );
+			if ( rc != 0 )
+				PLOGERR( klogErr, ( klogErr, rc, "cannot close consensus-row on spot# $(spotnr)",
+									"spotnr=%u", spot->spot_nr ) );
 
-    }
+		}
+	}
     return rc;
 }
 
@@ -267,11 +322,15 @@ static rc_t consensus_loader( ld_context *lctx, KDirectory * hdf5_src, VCursor *
                 KLogLevelSet( tmp_lvl );
 
                 if ( check_Consensus_totalcount( &ConsensusTab, total_bases ) )
+				{
                     rc = zmw_for_each( &ConsensusTab.zmw, &lctx->xml_progress, cursor,
                                        lctx->with_progress, col_idx, NULL,
                                        true, consensus_load_spot, &ConsensusTab );
+				}
                 else
+				{
                     rc = RC( rcExe, rcNoTarg, rcAllocating, rcParam, rcInvalid );
+				}
                 close_BaseCalls_cmn( &ConsensusTab );
             }
         }

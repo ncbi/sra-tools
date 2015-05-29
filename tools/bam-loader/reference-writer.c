@@ -68,6 +68,7 @@ struct overlap_s {
 
 struct s_reference_info {
     unsigned name;          /* offset of start of name in ref_names */
+    unsigned id;
     unsigned lastOffset;
 };
 
@@ -287,12 +288,13 @@ static unsigned bsearch_name(char const qry[], char const names[],
     return f;
 }
 
-static struct s_reference_info s_reference_info_make(unsigned const name, unsigned const offset)
+static struct s_reference_info s_reference_info_make(unsigned const name, unsigned const id)
 {
     struct s_reference_info rslt;
     
     rslt.name = name;
-    rslt.lastOffset = offset;
+    rslt.id = id;
+    rslt.lastOffset = 0;
     
     return rslt;
 }
@@ -314,37 +316,48 @@ static void SetLastOffset(Reference *const self, unsigned const newValue)
     }
 }
 
-rc_t ReferenceSetFile(Reference *self, const char id[],
-                      uint64_t length, uint8_t const md5[16],
-                      bool *shouldUnmap)
+rc_t ReferenceSetFile(Reference *const self, char const id[],
+                      uint64_t const length, uint8_t const md5[16],
+                      bool *const shouldUnmap,
+                      bool *const wasRenamed)
 {
     ReferenceSeq const *rseq;
     int found = 0;
     unsigned at = 0;
-    
+    char const *actid = id;
+
+    if (!G.allowMultiMapping) {
+        assert(actid != NULL);
+    }
     if (self->last_id < self->ref_info.elem_count) {
         struct s_reference_info const *const refInfoBase = self->ref_info.base;
         struct s_reference_info const refInfo = refInfoBase[self->last_id];
         char const *const nameBase = self->ref_names.base;
-        char const *const lastName = nameBase + refInfo.name;
+        char const *const last = nameBase + refInfo.id;
         
-        if (str__equal(id, lastName))
+        if (str__equal(id, last)) {
             return 0;
-
-        at = bsearch_name(id, nameBase, self->ref_info.elem_count, refInfoBase, &found);
+        }
     }
 
     BAIL_ON_FAIL(FlushBuffers(self, self->length, true, true));
-    BAIL_ON_FAIL(ReferenceMgr_GetSeq(self->mgr, &rseq, id, shouldUnmap));
+    BAIL_ON_FAIL(ReferenceMgr_GetSeq(self->mgr, &rseq, id, shouldUnmap, G.allowMultiMapping, wasRenamed));
     
     if (self->rseq)
         ReferenceSeq_Release(self->rseq);
     self->rseq = rseq;
-    
+
+    if (*wasRenamed)
+        ReferenceSeq_GetID(rseq, &actid);
+
+    at = bsearch_name(actid, self->ref_names.base, self->ref_info.elem_count, self->ref_info.base, &found);
     if (!found) {
-        unsigned const len = str__len(id);
-        struct s_reference_info const new_elem = s_reference_info_make(self->ref_names.elem_count, 0);
-        rc_t const rc = KDataBufferResize(&self->ref_names, new_elem.name + len + 1);
+        unsigned const len1 = str__len(actid);
+        unsigned const len2 = str__len(id);
+        unsigned const name_at = self->ref_names.elem_count;
+        unsigned const id_at = *wasRenamed ? (name_at + len1 + 1) : name_at;
+        struct s_reference_info const new_elem = s_reference_info_make(name_at, id_at);
+        rc_t const rc = KDataBufferResize(&self->ref_names, name_at + len1 + 1 + (*wasRenamed ? (len2 + 1) : 0));
         
         if (rc)
             return rc;
@@ -356,11 +369,16 @@ rc_t ReferenceSetFile(Reference *self, const char id[],
             if (rc)
                 return rc;
             
-            memmove(((char *)self->ref_names.base) + new_elem.name, id, len + 1);
+            memmove(((char *)self->ref_names.base) + name_at, actid, len1 + 1);
+            if (*wasRenamed)
+                memmove(((char *)self->ref_names.base) + id_at, id, len2 + 1);
+            
             memmove(refInfoBase + at + 1, refInfoBase + at, (count - at) * sizeof(*refInfoBase));
             refInfoBase[at] = new_elem;
         }
         (void)PLOGMSG(klogInfo, (klogInfo, "Processing Reference '$(id)'", "id=%s", id));
+        if (*wasRenamed)
+            (void)PLOGMSG(klogInfo, (klogInfo, "Reference '$(id)' was renamed to '$(actid)'", "id=%s,actid=%s", id, *actid));
     }
     else if (!self->out_of_order)
         Unsorted(self);
@@ -374,16 +392,21 @@ rc_t ReferenceSetFile(Reference *self, const char id[],
     return 0;
 }
 
-rc_t ReferenceVerify(Reference const *self, char const id[], uint64_t length, uint8_t const md5[16])
+rc_t ReferenceVerify(Reference const *const self,
+                     char const id[],
+                     uint64_t const length,
+                     uint8_t const md5[16])
 {
-    return ReferenceMgr_Verify(self->mgr, id, (unsigned)length, md5);
+    bool wasRenamed = false;
+    return ReferenceMgr_Verify(self->mgr, id, (unsigned)length, md5, G.allowMultiMapping, &wasRenamed);
 }
 
 rc_t ReferenceGet1stRow(Reference const *self, int64_t *refID, char const refName[])
 {
     ReferenceSeq const *rseq;
     bool shouldUnmap = false;
-    rc_t rc = ReferenceMgr_GetSeq(self->mgr, &rseq, refName, &shouldUnmap);
+    bool wasRenamed = false;
+    rc_t rc = ReferenceMgr_GetSeq(self->mgr, &rseq, refName, &shouldUnmap, G.allowMultiMapping, &wasRenamed);
 
     if( rc == 0 ) {
         rc = ReferenceSeq_Get1stRow(rseq, refID);

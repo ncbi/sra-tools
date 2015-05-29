@@ -585,6 +585,7 @@ rc_t CC KMain (int argc, char * argv[])
 #endif
     G.maxErrCount = 1000;
     G.minMatchCount = 10;
+    G.allowMultiMapping = true;
     
     set_pid();
 

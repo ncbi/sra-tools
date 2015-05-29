@@ -983,43 +983,46 @@ static char const *const CHANGED[] = {
     "record made unaligned",
     "record made unfragmented",
     "mate alignment lost",
-    "record discarded"
+    "record discarded",
+    "reference name changed"
 };
 
 static char const *const REASONS[] = {
 /* FLAG changed */
-    "0x400 and 0x200 both set",
-    "conflicting PCR Dup flags",
-    "primary alignment already exists",
-    "was already recorded as unaligned",
+    "0x400 and 0x200 both set",                 /*  0 */
+    "conflicting PCR Dup flags",                /*  1 */
+    "primary alignment already exists",         /*  2 */
+    "was already recorded as unaligned",        /*  3 */
 /* QUAL changed */
-    "original quality used",
-    "unaligned colorspace",
-    "aligned bases",
-    "unaligned bases",
-    "reversed",
+    "original quality used",                    /*  4 */
+    "unaligned colorspace",                     /*  5 */
+    "aligned bases",                            /*  6 */
+    "unaligned bases",                          /*  7 */
+    "reversed",                                 /*  8 */
 /* unaligned */
-    "low MAPQ",
-    "low match count",
-    "missing alignment info",
-    "missing reference position",
-    "invalid alignment info",
-    "invalid reference position",
-    "invalid reference",
-    "unaligned reference",
-    "unknown reference",
-    "hard-clipped colorspace",
+    "low MAPQ",                                 /*  9 */
+    "low match count",                          /* 10 */
+    "missing alignment info",                   /* 11 */
+    "missing reference position",               /* 12 */
+    "invalid alignment info",                   /* 13 */
+    "invalid reference position",               /* 14 */
+    "invalid reference",                        /* 15 */
+    "unaligned reference",                      /* 16 */
+    "unknown reference",                        /* 17 */
+    "hard-clipped colorspace",                  /* 18 */
 /* unfragmented */
-    "missing fragment info",
-    "too many fragments",
+    "missing fragment info",                    /* 19 */
+    "too many fragments",                       /* 20 */
 /* mate info lost */
-    "invalid mate reference",
-    "missing mate alignment info",
-    "unknown mate reference",
+    "invalid mate reference",                   /* 21 */
+    "missing mate alignment info",              /* 22 */
+    "unknown mate reference",                   /* 23 */
 /* discarded */
-    "conflicting PCR duplicate",
-    "conflicting fragment info",
-    "reference is skipped"
+    "conflicting PCR duplicate",                /* 24 */
+    "conflicting fragment info",                /* 25 */
+    "reference is skipped"                      /* 26 */
+/* reference name changed */
+    "reference was named more than once"        /* 27 */
 };
 
 static struct {
@@ -1053,7 +1056,8 @@ static struct {
     {6, 24},
     {6, 25},
     {6, 26},
-    {6, 17}
+    {6, 17},
+    {7, 27},
 };
 
 #define NUMBER_OF_CHANGES ((unsigned)(sizeof(CHANGES)/sizeof(CHANGES[0])))
@@ -1152,6 +1156,7 @@ static rc_t RecordChanges(KMDataNode *const node, char const name[])
 #define DISCARD_BAD_FRAGMENT_INFO  do { LOG_CHANGE(26); } while(0)
 #define DISCARD_SKIP_REFERENCE     do { LOG_CHANGE(27); } while(0)
 #define DISCARD_UNKNOWN_REFERENCE  do { LOG_CHANGE(28); } while(0)
+#define RENAMED_REFERENCE          do { LOG_CHANGE(29); } while(0)
 
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                        Reference *ref, Sequence *seq, Alignment *align,
@@ -1201,7 +1206,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     if (ctx->key2id_max == 0) {
         uint32_t rgcount;
         unsigned rgi;
-
+        
         BAM_FileGetReadGroupCount(bam, &rgcount);
         if (rgcount > (sizeof(ctx->key2id)/sizeof(ctx->key2id[0]) - 1))
             ctx->key2id_max = 1;
@@ -1479,6 +1484,7 @@ MIXED_BASE_AND_COLOR:
                 }
                 else {
                     bool shouldUnmap = false;
+                    bool wasRenamed = false;
 
                     if (G.refFilter && strcmp(G.refFilter, refSeq->name) != 0) {
                         (void)PLOGMSG(klogInfo, (klogInfo, "Skipping Reference '$(name)'", "name=%s", refSeq->name));
@@ -1487,13 +1493,16 @@ MIXED_BASE_AND_COLOR:
                         goto LOOP_END;
                     }
 
-                    rc = ReferenceSetFile(ref, refSeq->name, refSeq->length, refSeq->checksum, &shouldUnmap);
+                    rc = ReferenceSetFile(ref, refSeq->name, refSeq->length, refSeq->checksum, &shouldUnmap, &wasRenamed);
                     if (rc == 0) {
                         lastRefSeqId = refSeqId;
                         if (shouldUnmap) {
                             aligned = false;
                             unmapRefSeqId = refSeqId;
                             UNALIGNED_UNALIGNED_REF;
+                        }
+                        if (wasRenamed) {
+                            RENAMED_REFERENCE;
                         }
                         break;
                     }

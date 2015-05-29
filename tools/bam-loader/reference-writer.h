@@ -57,7 +57,10 @@ typedef struct s_reference {
 } Reference;
 
 rc_t ReferenceInit(Reference *self, const VDBManager *mgr, VDatabase *db);
-rc_t ReferenceSetFile(Reference *self, const char *id, uint64_t length, uint8_t const md5[16], bool *shouldUnmap);
+rc_t ReferenceSetFile(Reference *self, char const id[],
+                      uint64_t length, uint8_t const md5[16],
+                      bool *shouldUnmap,
+                      bool *wasRenamed);
 rc_t ReferenceVerify(Reference const *self, char const id[], uint64_t length, uint8_t const md5[16]);
 rc_t ReferenceGet1stRow(Reference const *self, int64_t *refID, char const refName[]);
 rc_t ReferenceAddAlignId(Reference *self,

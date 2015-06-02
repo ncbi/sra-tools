@@ -207,12 +207,20 @@ rc_t walk_0( walk_data * data, walk_funcs * funcs )
                 }
                 else
                 {
-                    if ( funcs->on_enter_ref != NULL )
-                        rc = funcs->on_enter_ref( data );
-                    if ( rc == 0 )
-                        rc = walk_ref_window( data, funcs );
-                    if ( rc == 0 && funcs->on_exit_ref != NULL )
-                        rc = funcs->on_exit_ref( data );
+					rc = ReferenceObj_SeqLength( data->ref_obj, &data->ref_len );
+					if ( rc != 0 )
+                    {
+                        LOGERR( klogInt, rc, "ReferenceObj_SeqLength() failed" );
+                    }
+					else
+					{
+						if ( funcs->on_enter_ref != NULL )
+							rc = funcs->on_enter_ref( data );
+						if ( rc == 0 )
+							rc = walk_ref_window( data, funcs );
+						if ( rc == 0 && funcs->on_exit_ref != NULL )
+							rc = funcs->on_exit_ref( data );
+					}
                 }
             }
         }

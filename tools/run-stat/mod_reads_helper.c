@@ -521,7 +521,7 @@ void calculate_base_probability( p_reads_data data )
 }
 
 
-int CC kmer_sort_callback( const void *p1, const void *p2, void * data )
+int64_t CC kmer_sort_callback( const void *p1, const void *p2, void * data )
 {
     p_reads_data rdata = data;
     int16_t idx1 = *( int16_t * ) p1;

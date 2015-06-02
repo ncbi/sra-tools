@@ -275,7 +275,7 @@ typedef struct SRAListNode_FindData_struct {
 } SRAListNode_FindData;
 
 static
-int SRAListNode_Cmp(const SRAListNode_FindData* l, const SRAListNode* r)
+int64_t SRAListNode_Cmp(const SRAListNode_FindData* l, const SRAListNode* r)
 {
     int d = strcmp(l->accession, r->accession);
     if( d == 0 && l->path != r->path ) {
@@ -291,13 +291,13 @@ int SRAListNode_Cmp(const SRAListNode_FindData* l, const SRAListNode* r)
 }
 
 static
-int SRAListNode_Find(const void* item, const BSTNode* node)
+int64_t SRAListNode_Find(const void* item, const BSTNode* node)
 {
     return SRAListNode_Cmp((SRAListNode_FindData*)item, (SRAListNode*)node);
 }
 
 static
-int SRAListNode_Sort(const BSTNode *item, const BSTNode *node)
+int64_t SRAListNode_Sort(const BSTNode *item, const BSTNode *node)
 {
     SRAListNode* i = (SRAListNode*)item;
     SRAListNode_FindData data;

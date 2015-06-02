@@ -51,7 +51,7 @@ typedef struct sg_entry
 } sg_entry;
 
 
-static int CC String_entry_cmp ( const void * item, const BSTNode * n )
+static int64_t CC String_entry_cmp ( const void * item, const BSTNode * n )
 {
     const String * name = ( const String * ) item;
     const sg_entry * sg = ( const sg_entry * ) n;
@@ -59,7 +59,7 @@ static int CC String_entry_cmp ( const void * item, const BSTNode * n )
 }
 
 
-static int CC entry_entry_cmp ( const BSTNode * item, const BSTNode * n )
+static int64_t CC entry_entry_cmp ( const BSTNode * item, const BSTNode * n )
 {
     const sg_entry * sg1 = ( const sg_entry * ) item;
     const sg_entry * sg2 = ( const sg_entry * ) n;

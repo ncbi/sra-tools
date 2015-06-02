@@ -605,7 +605,7 @@ void CC SRASplitter_Child_Whack(BSTNode* node, void* data)
 }
 
 static
-int CC SRASplitter_Child_Cmp(const BSTNode* item, const BSTNode* node)
+int64_t CC SRASplitter_Child_Cmp(const BSTNode* item, const BSTNode* node)
 {
     const SRASplitter_Child* i = (const SRASplitter_Child*)item;
     const SRASplitter_Child* n = (const SRASplitter_Child*)node;
@@ -613,7 +613,7 @@ int CC SRASplitter_Child_Cmp(const BSTNode* item, const BSTNode* node)
 }
 
 static
-int CC SRASplitter_Child_Find(const void* item, const BSTNode* node)
+int64_t CC SRASplitter_Child_Find(const void* item, const BSTNode* node)
 {
     const char* key = (const char*)item;
     const SRASplitter_Child* n = (const SRASplitter_Child*)node;

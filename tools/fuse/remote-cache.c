@@ -874,7 +874,8 @@ _RCacheEntryMake (
 /*))
  //  Comparator: common case
 ((*/
-int CC
+static
+int64_t CC
 _RcUrLcMp ( const char * Url1, const char * Url2 )
 {
     if ( Url1 == NULL || Url2 == NULL ) {
@@ -893,7 +894,8 @@ _RcUrLcMp ( const char * Url1, const char * Url2 )
 /*))
  //  Comparator: we suppose that 'item' is an Url
 ((*/
-int CC
+static
+int64_t CC
 _RcEnTrYcMp ( const void * item, const BSTNode * node )
 {
     return _RcUrLcMp (
@@ -907,7 +909,8 @@ _RcEnTrYcMp ( const void * item, const BSTNode * node )
 /*))
  //  Sorter for BSTreeInsert
 ((*/
-int CC
+static
+int64_t CC
 _RcNoDeCmP ( const BSTNode * node1, const BSTNode * node2 )
 {
     return _RcUrLcMp (

@@ -63,7 +63,7 @@ struct IdPosLen
 
 #if USE_OLD_KSORT
 static
-int CC IdPosLenCmpPos ( const void *a, const void *b, void *data )
+int64_t CC IdPosLenCmpPos ( const void *a, const void *b, void *data )
 {
     const IdPosLen *ap = a;
     const IdPosLen *bp = b;
@@ -72,20 +72,17 @@ int CC IdPosLenCmpPos ( const void *a, const void *b, void *data )
         return -1;
     if ( ap -> poslen > bp -> poslen )
         return 1;
-    if ( ap -> id < bp -> id )
-        return -1;
-    return ap -> id > bp -> id;
+
+    return ap -> id - bp -> id;
 }
 
 static
-int CC cmp_int64_t ( const void *a, const void *b, void *data )
+int64_t CC cmp_int64_t ( const void *a, const void *b, void *data )
 {
     const int64_t *ap = a;
     const int64_t *bp = b;
 
-    if ( * ap < * bp )
-        return -1;
-    return * ap > * bp;
+    return * ap - * bp;
 }
 #else
 

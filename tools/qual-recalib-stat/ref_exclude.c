@@ -63,7 +63,7 @@ static void CC whack_trans_node( BSTNode *n, void *data )
 }
 
 
-static int CC trans_node_find( const void *item, const BSTNode *n )
+static int64_t CC trans_node_find( const void *item, const BSTNode *n )
 {
     trans_node * node = ( trans_node * ) n;
     return StringCompare ( ( String * ) item, &node->chromosome );
@@ -130,7 +130,7 @@ static const char * translations[ N_TRANS_NODES ] =
 };
 
 
-static int CC trans_node_sort( const BSTNode *item, const BSTNode *n )
+static int64_t CC trans_node_sort( const BSTNode *item, const BSTNode *n )
 {
     trans_node * rn1 = ( trans_node* ) item;
     trans_node * rn2 = ( trans_node* ) n;
@@ -432,7 +432,7 @@ static void CC whack_ref_node( BSTNode *n, void *data )
 }
 
 
-static int CC ref_node_find( const void *item, const BSTNode *n )
+static int64_t CC ref_node_find( const void *item, const BSTNode *n )
 {
     ref_node * node = ( ref_node * ) n;
     return StringCompare ( ( String * ) item, node->name );
@@ -485,7 +485,7 @@ rc_t make_ref_exclude( ref_exclude *exclude, KDirectory *dir,
 }
 
 
-static int CC ref_node_sort( const BSTNode *item, const BSTNode *n )
+static int64_t CC ref_node_sort( const BSTNode *item, const BSTNode *n )
 {
     ref_node * rn1 = ( ref_node* ) item;
     ref_node * rn2 = ( ref_node* ) n;

@@ -560,7 +560,7 @@ static int opt_tag_cmp(char const a[2], char const b[2])
     return d0 ? d0 : ((int)a[1] - (int)b[1]);
 }
 
-static int OptTag_sort(void const *A, void const *B, void *ctx)
+static int64_t OptTag_sort(void const *A, void const *B, void *ctx)
 {
     BAM_Alignment const *const self = ctx;
     unsigned const a_off = ((struct offset_size_s const *)A)->offset;
@@ -569,7 +569,7 @@ static int OptTag_sort(void const *A, void const *B, void *ctx)
     char const *const b = (char const *)&self->data->raw[b_off];
     int const diff = opt_tag_cmp(a, b);
     
-    return diff ? diff : (int)(a - b);
+    return diff ? (int64_t)diff : (int64_t)a - (int64_t)b;
 }
 
 static unsigned tag_findfirst(BAM_Alignment const *const self, char const tag[2])
@@ -1093,7 +1093,7 @@ static bool ParseHeader(BAM_File *self, char hdata[], size_t hlen) {
     return true;
 }
 
-static int comp_ReadGroup(const void *A, const void *B, void *ignored) {
+static int64_t comp_ReadGroup(const void *A, const void *B, void *ignored) {
     BAMReadGroup const *const a = A;
     BAMReadGroup const *const b = B;
 
@@ -1116,7 +1116,7 @@ static int comp_ReadGroup(const void *A, const void *B, void *ignored) {
     return strcmp(a->name, b->name);
 }
 
-static int comp_RefSeqName(const void *A, const void *B, void *ignored) {
+static int64_t comp_RefSeqName(const void *A, const void *B, void *ignored) {
     BAMRefSeq const *const a = A;
     BAMRefSeq const *const b = B;
     
@@ -1137,7 +1137,7 @@ static int comp_RefSeqName(const void *A, const void *B, void *ignored) {
         return -1;
     {
         int const cmp = strcmp(a->name, b->name);
-        return cmp == 0 ? a->id - b->id : cmp;
+        return cmp == 0 ? (int64_t)a->id - (int64_t)b->id : cmp;
     }
 }
 

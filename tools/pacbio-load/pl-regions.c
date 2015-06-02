@@ -137,7 +137,7 @@ void rgn_free( regions *rgn )
 
 
 static
-int CC rgn_sort_callback( const void *p1, const void *p2, void * data )
+int64_t CC rgn_sort_callback( const void *p1, const void *p2, void * data )
 {
     regions *rgn = ( regions * ) data;
     int32_t idx1 = *( int32_t * ) p1;
@@ -249,7 +249,7 @@ static rc_t rgn_get_or_make( Vector * stock, region ** r )
 }
 
 
-static int CC rgn_sort_by_start( const void *item, const void *n )
+static int64_t CC rgn_sort_by_start( const void *item, const void *n )
 {
     region * v1 = ( region * )item;
     region * v2 = ( region * )n;

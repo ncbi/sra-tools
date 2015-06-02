@@ -921,7 +921,7 @@ rc_t CC meta_RG_callback(const BAM_HEADER_RG* rg, const void* data)
     return rc;
 }
 
-static int CC srastats_cmp(const void *item, const BSTNode *n) {
+static int64_t CC srastats_cmp(const void *item, const BSTNode *n) {
     const char *sg = item;
     const SraStats *ss = ( const SraStats* ) n;
 
@@ -950,14 +950,14 @@ rc_t CC tree_RG_callback(const BAM_HEADER_RG* rg, const void* data)
     return rc;
 }
 
-static int CC QualityCmp(const void* s1, const void* s2, void *data) {
+static int64_t CC QualityCmp(const void* s1, const void* s2, void *data) {
     const Quality* q1 = s1;
     const Quality* q2 = s2;
     assert(q1 && q2);
-    return q1->value < q2->value ? -1 : q1->value == q2->value ? 0 : 1;
+    return (int64_t)q1->value - (int64_t)q2->value;
 }
 
-static int CC CountsCmp(const void* v1, const void* v2, void *data) {
+static int64_t CC CountsCmp(const void* v1, const void* v2, void *data) {
     const Counts* e1 = v1;
     const Counts* e2 = v2;
     assert(e1 && e2 && e1->tableName && e2->tableName);
@@ -2508,7 +2508,7 @@ void CC bst_whack_free ( BSTNode *n, void *ignore )
 }
 
 static 
-int CC srastats_sort ( const BSTNode *item, const BSTNode *n )
+int64_t CC srastats_sort ( const BSTNode *item, const BSTNode *n )
 {
     const SraStats *ss = ( const SraStats* ) item;
     return srastats_cmp(ss->spot_group,n);

@@ -60,7 +60,7 @@ rc_t make_sg_lookup( struct sg_lookup ** self )
 }
 
 
-static int CC String_sg_cmp ( const void * item, const BSTNode * n )
+static int64_t CC String_sg_cmp ( const void * item, const BSTNode * n )
 {
     const String * name = ( const String * ) item;
     const sg * sg_item = ( const sg * ) n;
@@ -68,7 +68,7 @@ static int CC String_sg_cmp ( const void * item, const BSTNode * n )
 }
 
 
-static int CC sg_sg_cmp ( const BSTNode * item, const BSTNode * n )
+static int64_t CC sg_sg_cmp ( const BSTNode * item, const BSTNode * n )
 {
     const sg * sg1 = ( const sg * ) item;
     const sg * sg2 = ( const sg * ) n;

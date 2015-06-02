@@ -744,12 +744,15 @@ typedef struct id_pair_s {
     int64_t second;
 } id_pair_t;
 
-static int CC id_pair_cmp(void const *A, void const *B, void *ignored)
+static int64_t CC id_pair_cmp(void const *A, void const *B, void *ignored)
 {
     id_pair_t const *a = A;
     id_pair_t const *b = B;
-    
-    return a->first < b->first ? -1 : a->first == b->first ? a->second < b->second ? -1 : a->second == b->second ? 0 : 1 : 1;
+
+    if ( a->first != b->first )
+        return a->first - b->first;
+
+    return a->second - b->second;
 }
 
 static rc_t ric_align_ref_and_align(char const dbname[],

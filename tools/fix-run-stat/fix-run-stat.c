@@ -77,12 +77,12 @@ static rc_t AppCtxDestroy(rc_t rc, AppCtx* ctx) {
     RELEASE(SRAMgr, ctx->s_mgr);
     return rc;
 }
-static int CC MetaMemberCmp(const void *item, const BSTNode *n) {
+static int64_t CC MetaMemberCmp(const void *item, const BSTNode *n) {
     const char *key = item;
     const MetaMember *a = ( const MetaMember* ) n;
     return strcmp(key, a->member_name);
 }
-static int CC MetaMemberSort(const BSTNode *item, const BSTNode *n) {
+static int64_t CC MetaMemberSort(const BSTNode *item, const BSTNode *n) {
     const MetaMember *a = (const MetaMember*) item;
     return MetaMemberCmp(a->member_name, n);
 }

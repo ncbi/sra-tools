@@ -894,6 +894,14 @@ INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
                 if (platform_cmp(rg->platform, "LS454"))
                     return SRA_PLATFORM_454;
                 break;
+            case 'N':
+                if (platform_cmp(name, "NANOPORE"))
+                    return SRA_PLATFORM_OXFORD_NANOPORE;
+                break;
+            case 'O':
+                if (platform_cmp(name, "OXFORD_NANOPORE"))
+                    return SRA_PLATFORM_OXFORD_NANOPORE;
+                break;
             case 'P':
                 if (platform_cmp(rg->platform, "PACBIO"))
                     return SRA_PLATFORM_PACBIO_SMRT;
@@ -901,6 +909,8 @@ INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
             case 'S':
                 if (platform_cmp(rg->platform, "SOLID"))
                     return SRA_PLATFORM_ABSOLID;
+                if (platform_cmp(name, "SANGER"))
+                    return SRA_PLATFORM_SANGER;
                 break;
             default:
                 break;

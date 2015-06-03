@@ -878,7 +878,7 @@ INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
                 if (platform_cmp(rg->platform, "COMPLETE GENOMICS"))
                     return SRA_PLATFORM_COMPLETE_GENOMICS;
                 if (platform_cmp(rg->platform, "CAPILLARY"))
-                    return SRA_PLATFORM_SANGER;
+                    return SRA_PLATFORM_CAPILLARY;
                 break;
             case 'H':
                 if (platform_cmp(rg->platform, "HELICOS"))
@@ -910,7 +910,7 @@ INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
                 if (platform_cmp(rg->platform, "SOLID"))
                     return SRA_PLATFORM_ABSOLID;
                 if (platform_cmp(name, "SANGER"))
-                    return SRA_PLATFORM_SANGER;
+                    return SRA_PLATFORM_CAPILLARY;
                 break;
             default:
                 break;

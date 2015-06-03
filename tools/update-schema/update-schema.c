@@ -68,7 +68,7 @@ ver_t CC KAppVersion(void) { return VDB_UPDATE_SCHEMA_VERS; }
 static const char* platf_usage[] = { "Platform: LS454 | ILLUMINA | HELICOS",
     " | ABI_SOLID | COMPLETE_GENOMICS", " | PACBIO_SMRT | ION_TORRENT", NULL };
 #if ! WINDOWS
-#warning "add support for SANGER and OXFORD_NANOPORE"
+#warning "add support for CAPILLARY and OXFORD_NANOPORE"
 #endif
 #define OPTION_SCHEMA "schema"
 #define ALIAS_SCHEMA  "s"

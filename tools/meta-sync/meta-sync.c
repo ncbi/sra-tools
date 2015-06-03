@@ -216,7 +216,7 @@ static PlatfromStrEnum platforms[] = {
     , { SRA_PLATFORM_ILLUMINA         , "ILLUMINA"          }
     , { SRA_PLATFORM_PACBIO_SMRT      , "PACBIO_SMRT"       }
 #if ! WINDOWS
-#warning "add support for SANGER and OXFORD_NANOPORE"
+#warning "add support for CAPILLARY and OXFORD_NANOPORE"
 #endif
 };
 TYPE_STR_CONVERT(Platform, INSDC_SRA_platform_id, platforms)

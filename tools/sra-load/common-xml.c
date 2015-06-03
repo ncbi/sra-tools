@@ -667,7 +667,7 @@ rc_t PlatformXML_Make(const PlatformXML** cself, const KXMLNode* node, uint32_t*
                             platform->id = SRA_PLATFORM_COMPLETE_GENOMICS;
                         }
 #if ! WINDOWS
-#warning "add support for SANGER and OXFORD_NANOPORE"
+#warning "add support for CAPILLARY and OXFORD_NANOPORE"
 #endif
                         if( rc != 0 || platform->id == SRA_PLATFORM_UNDEFINED ) {
                             rc = rc ? rc : RC(rcExe, rcFormatter, rcConstructing, rcId, rcUnrecognized);
@@ -717,7 +717,7 @@ void PlatformXML_Whack(const PlatformXML* cself)
             case SRA_PLATFORM_UNDEFINED:
                 break;
 #if ! WINDOWS
-#warning "add support for SANGER and OXFORD_NANOPORE"
+#warning "add support for CAPILLARY and OXFORD_NANOPORE"
 #endif
         }
         free(self);

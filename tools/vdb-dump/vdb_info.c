@@ -85,6 +85,16 @@ typedef struct vdb_info_event
     vdb_info_date run_date;
 } vdb_info_event;
 
+typedef struct vdb_info_bam_hdr
+{
+	bool present;
+	size_t hdr_bytes;
+	uint32_t total_lines;
+	uint32_t HD_lines;
+	uint32_t SQ_lines;
+	uint32_t RG_lines;
+	uint32_t PG_lines;
+} vdb_info_bam_hdr;
 
 typedef struct vdb_info_data
 {
@@ -103,6 +113,8 @@ typedef struct vdb_info_data
 
     vdb_info_date ts;
 
+	vdb_info_bam_hdr bam_hdr;
+	
 	float cache_percent;
 	uint64_t bytes_in_cache;
 
@@ -511,6 +523,96 @@ static void get_meta_event( const KMetadata * meta, const char * node_path, vdb_
     }
 }
 
+static size_t get_node_size( const KMDataNode * node )
+{
+	char buffer[ 10 ];
+	size_t num_read, remaining, res = 0;
+	rc_t rc = KMDataNodeRead( node, 0, buffer, sizeof( buffer ), &num_read, &remaining );
+	if ( rc == 0 ) res = num_read + remaining;
+	return res;
+}
+
+static bool is_newline( const char c ) { return ( c == 0x0A || c == 0x0D ); }
+
+static void inspect_line( vdb_info_bam_hdr * bam_hdr, char * line, size_t len )
+{
+	bam_hdr->total_lines++;
+	if ( len > 3 && line[ 0 ] == '@' )
+	{
+		switch( line[ 1 ] )
+		{
+			case 'H'	: if ( line[ 2 ] == 'D' ) bam_hdr->HD_lines++; break;
+			case 'S'	: if ( line[ 2 ] == 'Q' ) bam_hdr->SQ_lines++; break;
+			case 'R'	: if ( line[ 2 ] == 'G' ) bam_hdr->RG_lines++; break;
+			case 'P'	: if ( line[ 2 ] == 'G' ) bam_hdr->PG_lines++; break;
+		}
+	}
+}
+
+static void parse_buffer( vdb_info_bam_hdr * bam_hdr, char * buffer, size_t len )
+{
+	char * line;
+	size_t idx, line_len, state = 0;
+	for ( idx = 0; idx < len; ++idx )
+	{
+		switch( state )
+		{
+			case 0 :	if ( is_newline( buffer[ idx ] ) ) /* init */
+							state = 2;
+						else
+						{
+							line = &( buffer[ idx ] );
+							line_len = 1;
+							state = 1;
+						}
+						break;
+					  
+			case 1 :	if ( is_newline( buffer[ idx ] ) ) /* content */
+						{
+							inspect_line( bam_hdr, line, line_len );
+							state = 2;
+						}
+						else
+							line_len++;
+						break;
+
+			case 2 :   if ( !is_newline( buffer[ idx ] ) ) /* newline */
+						{
+							line = &( buffer[ idx ] );
+							line_len = 1;
+							state = 1;
+						}
+						break;
+		}
+	}
+}
+
+static void get_meta_bam_hdr( vdb_info_bam_hdr * bam_hdr, const KMetadata * meta )
+{
+    const KMDataNode * node;
+    rc_t rc = KMetadataOpenNodeRead ( meta, &node, "BAM_HEADER" );
+	bam_hdr -> present = ( rc == 0 );
+    if ( bam_hdr -> present )
+    {
+		bam_hdr->hdr_bytes = get_node_size( node );
+		if ( bam_hdr->hdr_bytes > 0 )
+		{
+			char * buffer = malloc( bam_hdr->hdr_bytes );
+			if ( buffer != NULL )
+			{
+				size_t num_read, remaining;
+				rc = KMDataNodeRead( node, 0, buffer, bam_hdr->hdr_bytes, &num_read, &remaining );
+				if ( rc == 0 )
+				{
+					parse_buffer( bam_hdr, buffer, bam_hdr->hdr_bytes );
+				}
+				free( buffer );
+			}
+		}
+		KMDataNodeRelease ( node );
+	}
+}
+
 static void get_meta_info( vdb_info_data * data, const KMetadata * meta )
 {
     const KMDataNode * node;
@@ -544,6 +646,7 @@ static void get_meta_info( vdb_info_data * data, const KMetadata * meta )
     get_meta_event( meta, "SOFTWARE/formatter", &data->formatter );
     get_meta_event( meta, "SOFTWARE/loader", &data->loader );
     get_meta_event( meta, "SOFTWARE/update", &data->update );
+	get_meta_bam_hdr( &data->bam_hdr, meta );
 }
 
 
@@ -984,6 +1087,7 @@ static rc_t vdb_info_print_sep( vdb_info_data * data, const char sep )
         rc = vdb_info_print_sep_event( &data->loader, sep, false );
     if ( rc == 0 )
         rc = vdb_info_print_sep_event( &data->update, sep, true );
+		
     if ( rc == 0 )
         rc = KOutMsg( "\n" );
 
@@ -1090,6 +1194,19 @@ static rc_t vdb_info_print_dflt( vdb_info_data * data )
     if ( rc == 0 )
         vdb_info_print_dflt_event( &data->update, "UPD" );
 
+	if ( rc == 0 && data->bam_hdr.present )
+	{
+		rc = KOutMsg( "BAMHDR : %d bytes / %d lines\n", data->bam_hdr.hdr_bytes, data->bam_hdr.total_lines );
+		if ( rc == 0 && data->bam_hdr.HD_lines > 0 )
+			rc = KOutMsg( "BAMHDR : %d HD-lines\n", data->bam_hdr.HD_lines );
+		if ( rc == 0 && data->bam_hdr.SQ_lines > 0 )
+			rc = KOutMsg( "BAMHDR : %d SQ-lines\n", data->bam_hdr.SQ_lines );
+		if ( rc == 0 && data->bam_hdr.RG_lines > 0 )
+			rc = KOutMsg( "BAMHDR : %d RG-lines\n", data->bam_hdr.RG_lines );
+		if ( rc == 0 && data->bam_hdr.PG_lines > 0 )
+			rc = KOutMsg( "BAMHDR : %d PG-lines\n", data->bam_hdr.PG_lines );
+	}
+	
     return rc;
 }
 

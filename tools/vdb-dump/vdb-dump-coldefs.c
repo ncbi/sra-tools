@@ -109,6 +109,9 @@ const char *vdcd_get_platform_txt( const uint32_t id )
         CASE ( SRA_PLATFORM_PACBIO_SMRT );
         CASE ( SRA_PLATFORM_ION_TORRENT );
         CASE ( SRA_PLATFORM_SANGER );
+#if ! WINDOWS
+#warning "add support for OXFORD_NANOPORE"
+#endif
     }
 #undef CASE
 

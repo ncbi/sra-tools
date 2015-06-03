@@ -208,14 +208,13 @@ rc_t SequenceUpdateAlignData(Sequence *self, int64_t rowId, unsigned nreads,
 
 void SequenceWhack(Sequence *self, bool commit) {
     uint64_t dummyRows;
-    rc_t rc;
     
     VDatabaseRelease(self->db);
     
     if (self->tbl == NULL)
         return;
     
-    rc = TableWriterSeq_Whack(self->tbl, commit, &dummyRows);
+    (void)TableWriterSeq_Whack(self->tbl, commit, &dummyRows);
 }
 
 /* MARK: SequenceRecord Object */

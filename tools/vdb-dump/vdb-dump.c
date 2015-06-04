@@ -159,7 +159,8 @@ OptDef DumpOptions[] =
     { OPTION_BZIP2, NULL, NULL, bzip2_usage, 1, false, false },
     { OPTION_OUT_BUF_SIZE, NULL, NULL, outbuf_size_usage, 1, true, false },
     { OPTION_NO_MULTITHREAD, NULL, NULL, disable_mt_usage, 1, false, false },
-    { OPTION_INFO, NULL, NULL, info_usage, 1, false, false }
+    { OPTION_INFO, NULL, NULL, info_usage, 1, false, false },
+    { OPTION_DIFF, NULL, NULL, NULL, 1, false, false }
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -1833,6 +1834,34 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
 }
 
 
+static rc_t diff_files( Args * args )
+{
+	uint32_t count;
+	rc_t rc = ArgsParamCount( args, &count );
+	DISP_RC( rc, "ArgsParamCount() failed" );
+	if ( rc == 0 )
+	{
+		if ( count != 2 )
+			KOutMsg( "this function needs exactly 2 files to diff\n" );
+		else
+		{
+			const char * f1;
+			rc = ArgsParamValue( args, 0, &f1 );
+			DISP_RC( rc, "ArgsParamValue( 0 ) failed" );
+			if ( rc == 0 )
+			{
+				const char * f2;
+				rc = ArgsParamValue( args, 1, &f2 );
+				DISP_RC( rc, "ArgsParamValue( 1 ) failed" );
+				if ( rc == 0 )
+					rc = vds_diff( f1, f2 ); /* in vdb-dump-str.c */
+			}
+		}
+	}
+	return rc;
+}
+
+
 /***************************************************************************
     Main:
     * create the dump-context
@@ -1860,7 +1889,7 @@ rc_t CC KMain ( int argc, char *argv [] )
     if ( rc == 0 )
         rc = ArgsMakeAndHandle (&args, argc, argv, 1,
             DumpOptions, sizeof DumpOptions / sizeof DumpOptions [ 0 ] );
-    if (rc == 0)
+    if ( rc == 0 )
     {
         dump_context *ctx;
 
@@ -1883,8 +1912,11 @@ rc_t CC KMain ( int argc, char *argv [] )
                 {
                     if ( ctx->phase > 0 )
                         rc = vdi_bin_phase( ctx, args );
-                    else
+                    else if ( ctx->diff )
+						rc = diff_files( args );
+					else
                         rc = vdm_main( ctx, args );
+						
                     release_out_redir( &redir ); /* vdb-dump-redir.c */
                 }
             }

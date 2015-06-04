@@ -88,6 +88,8 @@ rc_t vds_2_csv( p_dump_str s );
 rc_t vds_enclose_string( p_dump_str s, const char c_left, const char c_right );
 rc_t vds_escape( p_dump_str s, const char to_escape, const char escape_char );
 
+rc_t vds_diff( const char * f1, const char * f2 );
+
 #ifdef __cplusplus
 }
 #endif

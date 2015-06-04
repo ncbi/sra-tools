@@ -27,6 +27,11 @@
 #include "vdb-dump-str.h"
 #include <klib/text.h>
 #include <klib/printf.h>
+#include <klib/out.h>
+
+#include <kfs/directory.h>
+#include <kfs/file.h>
+
 #include <sysalloc.h>
 
 #include <stdlib.h>
@@ -367,4 +372,115 @@ rc_t vds_2_csv( p_dump_str s )
         rc = vds_enclose_string( s, '"', '"' );
     }
     return rc;
+}
+
+/* ========================================================================================= */
+
+static void clear_recorded_errors( void )
+{
+	rc_t rc;
+	const char * filename;
+	const char * funcname;
+	uint32_t line_nr;
+	while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
+	{
+	}
+}
+
+static rc_t vds_read_line( const KFile * f, uint64_t * pos, size_t * len, char * buffer, size_t buflen )
+{
+	size_t num_read;
+	rc_t rc = KFileRead( f, *pos, buffer, buflen, &num_read );
+	if ( rc == 0 && num_read > 0 )
+	{
+		char * nl = string_chr ( buffer, num_read, '\n' );
+		char * cr = string_chr ( buffer, num_read, '\r' );
+		if ( nl != NULL )
+		{
+			if ( cr != NULL )
+			{
+				if ( nl < cr )
+					*len = ( nl - buffer );
+				else
+					*len = ( cr - buffer );	
+			}
+			else
+				*len = ( nl - buffer );
+		}
+		else if ( cr != NULL )
+		{
+			*len = ( cr - buffer );
+		}
+		else 
+			*len = 0;
+		*pos += ( *len + 1 );
+	}
+	return rc;
+}
+
+static rc_t vds_print_diff( const char * buffer1, const char * buffer2, size_t len1, size_t len2 )
+{
+	String S1, S2;
+	
+	StringInit( &S1, buffer1, len1, len1 );
+	StringInit( &S2, buffer2, len2, len2 );
+	rc_t rc = KOutMsg( "\n[A] %S\n", &S1 );
+	if ( rc == 0 )
+		rc = KOutMsg( "[B] %S\n", &S2 );
+	return rc;
+}
+
+static rc_t vds_diff_files( const KFile * f1, const KFile * f2 )
+{
+	rc_t rc = 0;
+	char buffer1[ 2048 ];
+	char buffer2[ 2048 ];
+	uint64_t pos1 = 0;
+	uint64_t pos2 = 0;
+	size_t len1, len2;
+
+	do
+	{
+		len1 = len2 = 0;
+		rc = vds_read_line( f1, &pos1, &len1, buffer1, sizeof buffer1 );
+		if ( rc == 0 )
+			rc = vds_read_line( f2, &pos2, &len2, buffer2, sizeof buffer2 );
+		if ( rc == 0 && ( len1 > 0 || len2 > 0 ) )
+			rc = vds_print_diff( buffer1, buffer2, len1, len2 );
+		
+	} while( rc == 0 && ( len1 > 0 || len2 > 0 ) );
+	return rc;
+}
+
+
+rc_t vds_diff( const char * f1, const char * f2 )
+{
+    KDirectory * dir;
+    rc_t rc = KDirectoryNativeDir( &dir );
+    if ( rc != 0 )
+		KOutMsg( "KDirectoryNativeDir() failed\n" );
+    else
+    {
+		const KFile * kf1;
+		rc = KDirectoryOpenFileRead ( dir, &kf1, "%s", f1 );
+		if ( rc != 0 )
+			KOutMsg( "cannot open file '%s'\n", f1 );
+		else
+		{
+			const KFile * kf2;
+			rc = KDirectoryOpenFileRead ( dir, &kf2, "%s", f2 );
+			if ( rc != 0 )
+				KOutMsg( "cannot open file '%s'\n", f2 );
+			else
+			{
+				rc = vds_diff_files( kf1, kf2 );
+				KFileRelease( kf2 );
+			}
+			KFileRelease( kf1 );
+		}
+		KDirectoryRelease( dir );
+	}
+	clear_recorded_errors();
+	
+	return rc;
 }

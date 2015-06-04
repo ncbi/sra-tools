@@ -555,7 +555,8 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->idx_enum_requested = vdco_get_bool_option( my_args, OPTION_IDX_ENUM, false );
     ctx->disable_multithreading = vdco_get_bool_option( my_args, OPTION_NO_MULTITHREAD, false );
     ctx->print_info = vdco_get_bool_option( my_args, OPTION_INFO, false );
-
+    ctx->diff = vdco_get_bool_option( my_args, OPTION_DIFF, false );
+	
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );
     ctx->output_buffer_size = vdco_get_size_t_option( my_args, OPTION_OUT_BUF_SIZE, DEF_OPTION_OUT_BUF_SIZE );
     

@@ -1313,16 +1313,16 @@ static rc_t ReadHeaders(BAM_File *self,
     }
     hlen = i32;
     DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BAM), ("BAM Header text size: %u\n", hlen));
-    if (hlen) {
-        htxt = malloc(hlen + 1);
-        if (htxt == NULL) {
-            rc = RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
-            goto BAILOUT;
-        }
-        
-        rc = BAM_FileReadn(self, hlen, (uint8_t *)htxt); if (rc) goto BAILOUT;
-        htxt[hlen] = '\0';
+
+    htxt = malloc(hlen + 1);
+    if (htxt == NULL) {
+        rc = RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
+        goto BAILOUT;
     }
+    
+    rc = BAM_FileReadn(self, hlen, (uint8_t *)htxt); if (rc) goto BAILOUT;
+    htxt[hlen] = '\0';
+
     rc = BAM_FileReadI32(self, &i32); if (rc) goto BAILOUT;
     if (i32 < 0) {
         rc = RC(rcAlign, rcFile, rcReading, rcHeader, rcInvalid);

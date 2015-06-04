@@ -420,11 +420,12 @@ static rc_t vds_read_line( const KFile * f, uint64_t * pos, size_t * len, char *
 
 static rc_t vds_print_diff( const char * buffer1, const char * buffer2, size_t len1, size_t len2 )
 {
+	rc_t rc;
 	String S1, S2;
 	
 	StringInit( &S1, buffer1, len1, len1 );
 	StringInit( &S2, buffer2, len2, len2 );
-	rc_t rc = KOutMsg( "\n[A] %S\n", &S1 );
+	rc = KOutMsg( "\n[A] %S\n", &S1 );
 	if ( rc == 0 )
 		rc = KOutMsg( "[B] %S\n", &S2 );
 	return rc;
@@ -432,7 +433,7 @@ static rc_t vds_print_diff( const char * buffer1, const char * buffer2, size_t l
 
 static rc_t vds_diff_files( const KFile * f1, const KFile * f2 )
 {
-	rc_t rc = 0;
+	rc_t rc;
 	char buffer1[ 2048 ];
 	char buffer2[ 2048 ];
 	uint64_t pos1 = 0;

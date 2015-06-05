@@ -324,7 +324,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
         rc = r2;
     }
 
-    r2 = UpdateNode("/repository/remote/aux/NCBI/apps/sra/volumes/refseq",
+    r2 = UpdateNode("/repository/remote/aux/NCBI/apps/refseq/volumes/refseq",
         "refseq");
     if (r2 != 0 && rc == 0) {
         rc = r2;
@@ -336,7 +336,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
         rc = r2;
     }
 
-    r2 = UpdateNode("/repository/remote/aux/NCBI/apps/sra/volumes/fuseWGS",
+    r2 = UpdateNode("/repository/remote/aux/NCBI/apps/wgs/volumes/fuseWGS",
         "wgs");
     if (r2 != 0 && rc == 0) {
         rc = r2;

@@ -72,16 +72,16 @@ import poretools
 import GeneralWriter
 
 
-def which(file):
+def which(f):
     for path in os.environ["PATH"].split(":"):
-        if os.path.exists(path + "/" + file):
-                return os.path.join(path, file)
+        if os.path.exists(path + "/" + f):
+            return os.path.join(path, f)
     return None
 
-workDir = tempfile.mkdtemp(suffix = '.tmp', prefix='pore-load.', dir=tmpdir)
+workDir = tempfile.mkdtemp(suffix='.tmp', prefix='pore-load.', dir=tmpdir)
 if outdir == None:
-   outdir = workDir + '/pore-load.out'
-   removeWorkDir = False
+    outdir = workDir + '/pore-load.out'
+    removeWorkDir = False
 
 sys.stderr.write("Info: writing '{}'\n".format(outdir))
 sys.stderr.write("Info: using '{}' for work space\n".format(workDir))
@@ -115,6 +115,7 @@ tbl = {
             'elem_bits': 32,
         },
         'READ_NO': {
+            'expression': 'READ_NUMBER',
             'elem_bits': 32,
         },
         'READ_START': {
@@ -122,8 +123,13 @@ tbl = {
             'elem_bits': 32,
         },
         'READ_LENGTH': {
-            'expression': '(INSDC:coord:len)READ_LENGTH',
+            'expression': '(INSDC:coord:len)READ_LEN',
             'elem_bits': 32,
+        },
+        'READ_TYPE': {
+            'expression': '(U8)READ_TYPE',
+            'elem_bits': 8,
+            'default': array.array('B', [0, 0])
         },
     },
     'CONSENSUS': {
@@ -142,17 +148,31 @@ tbl = {
             'elem_bits': 32,
         },
         'READ_NO': {
+            'expression': 'READ_NUMBER',
             'elem_bits': 32,
         },
         'HIGH_QUALITY': {
             'expression': 'HIGH_QUALITY',
             'elem_bits': 8,
         },
+        'READ_START': {
+            'expression': '(INSDC:coord:zero)READ_START',
+            'elem_bits': 32,
+        },
+        'READ_LENGTH': {
+            'expression': '(INSDC:coord:len)READ_LEN',
+            'elem_bits': 32,
+        },
+        'READ_TYPE': {
+            'expression': '(U8)READ_TYPE',
+            'elem_bits': 8,
+            'default': array.array('B', [0])
+        },
     }
 }
 
-gw = GeneralWriter.GeneralWriter(sys.stdout
-    , outdir
+gw = GeneralWriter.GeneralWriter(
+      outdir
     , 'sra/nanopore.vschema'
     , 'NCBI:SRA:Nanopore:db'
     , tbl)
@@ -162,9 +182,29 @@ processCounter = 0
 processStart = None
 
 class FastQData:
-    def __init__(self, source):
-        self.is2D = False
+    """ To hold FastQ data """
+    
+    # pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-arguments
+    # what an idiotic warning
+    
+    def __init__(self, source
+        , readLength
+        , sequence
+        , quality
+        , channel
+        , readno
+        , is2D
+        , isHighQuality
+        ):
+        self.is2D = is2D
         self.source = source
+        self.readLength = readLength
+        self.sequence = sequence
+        self.quality = quality
+        self.channel = channel
+        self.readno = readno
+        self.isHighQuality = isHighQuality
     
     def write(self):
         """ Write FASTQ data to the General Writer
@@ -176,6 +216,8 @@ class FastQData:
             dst = tbl['CONSENSUS']
             dst['HIGH_QUALITY']['data'] = array.array('b',
                 [ 1 if self.isHighQuality else 0 ])
+            dst['READ_START' ]['data'] = array.array('I', [0])
+            dst['READ_LENGTH']['data'] = array.array('I', [len(self.sequence)])
         else:
             dst['READ_START' ]['data'] = array.array('I',
                 [ 0, self.readLength[0] ])
@@ -195,42 +237,40 @@ class FastQData:
         gw.write(dst)
 
 
-def ReadFast5Data(fname):
-    """ Read the FASTQ data from the fast5 file
+    @classmethod
+    def ReadFast5Data(cls, fname):
+        """ Read the FASTQ data from the fast5 file
 
-        This is segregated into its own function in order to catch errors
-        that poretools itself doesn't catch, e.g. malformed HDF5
-    """
-    f5 = poretools.Fast5File(fname)
-    try:
-        rslt = FastQData(fname)
-        rslt.channel = f5.get_channel_number()
-        rslt.readno = f5.get_read_number()
-    
-        if f5.has_2D():
-            twoD = f5.get_fastqs("2D")[0]
-            rslt.is2D = True
-            rslt.sequence = twoD.seq
-            rslt.quality = twoD.qual
-            rslt.isHighQuality = f5.is_high_quality()
-        else:
-            fwd = f5.get_fastqs("fwd")[0]
-            rev = f5.get_fastqs("rev")[0]
-            rslt.readLength = array.array('I', [ len(fwd.seq) if fwd != None else 0, len(rev.seq) if rev != None else 0 ])
-            rslt.sequence = (fwd.seq  if fwd != None else '') + (rev.seq  if rev != None else '')
-            rslt.quality  = (fwd.qual if fwd != None else '') + (rev.qual if rev != None else '')
+            This is segregated into its own function in order to catch errors
+            that poretools itself doesn't catch, e.g. malformed HDF5
+        """
+        f5 = poretools.Fast5File(fname)
+        try:
+            channel = f5.get_channel_number()
+            readno = f5.get_read_number()
 
-        if rslt.sequence != '':
-            return rslt
-        else:
+            if f5.has_2D():
+                twoD = f5.get_fastqs("2D")[0]
+                return FastQData(fname, None, twoD.seq, twoD.qual
+                    , channel, readno, True, f5.is_high_quality())
+            else:
+                fwd = f5.get_fastqs("fwd")[0]
+                rev = f5.get_fastqs("rev")[0]
+                if fwd != None or rev != None:
+                    return FastQData(fname
+                        , array.array('I', [ len(fwd.seq) if fwd != None else 0, len(rev.seq) if rev != None else 0 ])
+                        , (fwd.seq  if fwd != None else '') + (rev.seq  if rev != None else '')
+                        , (fwd.qual if fwd != None else '') + (rev.qual if rev != None else '')
+                        , channel, readno, False, None)
+                        
             return None
-    except:
-        sys.stderr.write("Error: reading '{}'\n".format(os.path.basename(fname)))
-        if __debug__:
-            traceback.print_exc()
-        return None
-    finally:
-        f5.close()
+        except:
+            sys.stderr.write("Error: reading '{}'\n".format(os.path.basename(fname)))
+            if __debug__:
+                traceback.print_exc()
+            return None
+        finally:
+            f5.close()
 
 
 def ProcessFast5(fname):
@@ -238,10 +278,9 @@ def ProcessFast5(fname):
 
         Write it to the General Writer
     """
-    data = ReadFast5Data(fname)
+    data = FastQData.ReadFast5Data(fname)
     if data:
         data.write()
-        data = None
         return True
     else:
         return False
@@ -260,14 +299,14 @@ def isHDF5(fname):
     except IOError:
         return False
 
-nextReport = (lastReport + showProgress) if showProgress > 0 else None
+nextReport = (time.clock() + showProgress) if showProgress > 0 else None
 
-def ExtractAndProcess(file, source):
+def ExtractAndProcess(f, source):
     """ Extract file to the working directory and process it
     """
     fname = os.path.join(workDir, source)
     with open(fname, 'wb') as output:
-        output.write(file.read())
+        output.write(f.read())
 
     keep = False
     if not isHDF5(fname):
@@ -297,45 +336,50 @@ def ProcessTar(tar):
     global processStart
     processStart = time.clock()
     
-    for file in tar:
-        if file.name.endswith('.fast5'):
-            input = tar.extractfile(file)
+    for f in tar:
+        if f.name.endswith('.fast5'):
+            i = tar.extractfile(f)
             try:
-                ExtractAndProcess(input, os.path.basename(file.name))
+                ExtractAndProcess(i, os.path.basename(f.name))
             finally:
-                input.close()
+                i.close()
     
     elapsed = time.clock() - processStart
     sys.stderr.write("Progress: processed {} spots in {} secs, {} per sec.\n".
         format(processCounter, elapsed, processCounter/elapsed))
 
 
-if len(files) == 0:
-    sys.stderr.write("Info: processing stdin\n")
-    with tarfile.open(mode='r|', fileobj=sys.stdin) as tar:
-        ProcessTar(tar)
-
-for file in files:
-    sys.stderr.write("Info: processing {}\n".format(file))
-    if gzcat == None:
-        with tarfile.open(file) as tar:
+def main():
+    if len(files) == 0:
+        sys.stderr.write("Info: processing stdin\n")
+        with tarfile.open(mode='r|', fileobj=sys.stdin) as tar:
             ProcessTar(tar)
-    else:
-        p = subprocess.Popen([gzcat, file], stdout=subprocess.PIPE)
-        with tarfile.open(mode='r|', fileobj=p.stdout) as tar:
-            ProcessTar(tar)
-        p.stdout.close()
-        p.wait()
 
+    for f in files:
+        sys.stderr.write("Info: processing {}\n".format(f))
+        if gzcat == None:
+            with tarfile.open(f) as tar:
+                ProcessTar(tar)
+        else:
+            p = subprocess.Popen([gzcat, f], stdout=subprocess.PIPE)
+            with tarfile.open(mode='r|', fileobj=p.stdout) as tar:
+                ProcessTar(tar)
+            p.stdout.close()
+            p.wait()
+
+def cleanup():
+    rmd = removeWorkDir
+    if len(notRemoved) != 0:
+        rmd = False
+        sys.stderr.write("Info: these files caused errors and were not removed "
+            "from the work space to aid in debugging:\n"
+            )
+        for f in notRemoved:
+            sys.stderr.write("Info:\t{}\n".format(f))
+
+    if rmd:
+        os.rmdir(workDir)
+
+main()
 gw = None # close stream and flush
-
-if len(notRemoved) != 0:
-    removeWorkDir = False
-    sys.stderr.write("Info: these files caused errors and were not removed "
-        "from the work space to aid in debugging:\n"
-        )
-    for file in notRemoved:
-        sys.stderr.write("Info:\t{}\n".format(file))
-
-if removeWorkDir:
-    os.rmdir(workDir)
+cleanup()

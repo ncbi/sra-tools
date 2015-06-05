@@ -91,7 +91,7 @@ static const char * dna_bases_usage[] = { "print dna-bases", NULL };
 static const char * max_line_len_usage[] = { "limits line length", NULL };
 static const char * line_indent_usage[] = { "indents the line", NULL };
 static const char * filter_usage[] = { "filters lines", NULL };
-static const char * format_usage[] = { "dump format (csv,xml,json,piped,tab,fastq,fasta,bin)", NULL };
+static const char * format_usage[] = { "dump format (csv,xml,json,piped,tab,sra-dump,fastq,fasta,bin)", NULL };
 static const char * id_range_usage[] = { "prints id-range", NULL };
 static const char * without_sra_usage[] = { "without sra-type-translation", NULL };
 static const char * without_accession_usage[] = { "without accession-test", NULL };
@@ -705,9 +705,24 @@ static rc_t vdm_dump_tab_schema( const p_dump_context ctx,
     DISP_RC( rc, "VTableOpenSchema() failed" );
     if ( rc == 0 )
     {
-        const char * decl = ctx->columns;
-        rc = VSchemaDump( my_schema, sdmPrint, decl,
-                          vdm_schema_dump_flush, stdout );
+		if ( ctx->columns == NULL )
+		{
+			/* the user did not ask to inspect a specific object, we look for
+			   the Typespec of the table... */
+			char buffer[ 4096 ];
+			rc = VTableTypespec ( my_table, buffer, sizeof buffer );
+			DISP_RC( rc, "VTableTypespec() failed" );
+			if ( rc == 0 )
+				rc = VSchemaDump( my_schema, sdmPrint, buffer,
+								  vdm_schema_dump_flush, stdout );
+		
+		}
+		else
+		{
+			/* the user did ask to inspect a specific object */
+			rc = VSchemaDump( my_schema, sdmPrint, ctx->columns,
+							  vdm_schema_dump_flush, stdout );
+		}
         DISP_RC( rc, "VSchemaDump() failed" );
         VSchemaRelease( my_schema );
     }
@@ -727,14 +742,48 @@ my_database [IN] ... open database needed for vdb-calls
 static rc_t vdm_dump_db_schema( const p_dump_context ctx,
                                 const VDatabase *my_database )
 {
-    const VTable *my_table;
-    rc_t rc = VDatabaseOpenTableRead( my_database, &my_table, "%s", ctx->table );
-    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
-    if ( rc == 0 )
-    {
-        rc = vdm_dump_tab_schema( ctx, my_table );
-        VTableRelease( my_table );
-    }
+	rc_t rc = 0;
+	if ( ctx->table_defined )
+	{
+		/* the user has given a database as object, but asks to inspect a given table */
+		const VTable *my_table;
+		rc = VDatabaseOpenTableRead( my_database, &my_table, "%s", ctx->table );
+		DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+		if ( rc == 0 )
+		{
+			rc = vdm_dump_tab_schema( ctx, my_table );
+			VTableRelease( my_table );
+		}
+	}
+	else
+	{
+		/* the user has given a database as object, but did not ask for a specific table */
+		const VSchema * my_schema;
+		rc = VDatabaseOpenSchema( my_database, &my_schema );
+		DISP_RC( rc, "VDatabaseOpenSchema() failed" );
+		if ( rc == 0 )
+		{
+			if ( ctx->columns == NULL )
+			{
+				/* the used did not ask to inspect a specifiy object, we look for
+				   the Typespec of the database... */
+				char buffer[ 4096 ];
+				rc = VDatabaseTypespec ( my_database, buffer, sizeof buffer );
+				DISP_RC( rc, "VDatabaseTypespec() failed" );
+				if ( rc == 0 )
+					rc = VSchemaDump( my_schema, sdmPrint, buffer,
+									  vdm_schema_dump_flush, stdout );
+			}
+			else
+			{
+				/* the user did ask to inspect a specific object */
+				rc = VSchemaDump( my_schema, sdmPrint, ctx->columns,
+								  vdm_schema_dump_flush, stdout );
+			}
+			DISP_RC( rc, "VSchemaDump() failed" );
+			VSchemaRelease( my_schema );
+		}
+	}
     return rc;
 }
 

@@ -115,6 +115,7 @@ static void vdco_init_values( p_dump_context ctx )
 	ctx->idx_enum_requested = false;
 	ctx->idx_range_requested = false;
     ctx->disable_multithreading = false;
+	ctx->table_defined = false;
 }
 
 rc_t vdco_init( dump_context **ctx )
@@ -566,6 +567,8 @@ static void vdco_evaluate_options( const Args *my_args,
         ctx->compress_mode = orm_uncompressed;
 	
     vdco_set_table( ctx, vdco_get_str_option( my_args, OPTION_TABLE ) );
+	ctx->table_defined = ( ctx->table != NULL );
+	
     vdco_set_columns( ctx, vdco_get_str_option( my_args, OPTION_COLUMNS ) );
     vdco_set_excluded_columns( ctx, vdco_get_str_option( my_args, OPTION_EXCLUDED_COLUMNS ) );
     vdco_set_row_range( ctx, vdco_get_str_option( my_args, OPTION_ROWS ) );

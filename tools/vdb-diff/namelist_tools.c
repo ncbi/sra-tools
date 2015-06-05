@@ -245,6 +245,37 @@ rc_t nlt_copy_namelist( const KNamelist *src, const KNamelist ** dst )
 }
 
 
+rc_t nlt_build_intersect( const KNamelist *nl1, const KNamelist *nl2, const KNamelist ** dst )
+{
+    VNamelist *v_names;
+    rc_t rc = VNamelistMake ( &v_names, 5 );
+	if ( rc == 0 )
+	{
+		/* loop through nl1: if a entry is found in nl2 -> add it to dst */
+		uint32_t count;
+		rc = KNamelistCount( nl1, &count );
+		if ( rc == 0 )
+		{
+            uint32_t idx;
+            for ( idx = 0; idx < count && rc == 0; ++idx )
+            {
+                const char *s;
+                rc = KNamelistGet( nl1, idx, &s );
+				if ( rc == 0 && s != NULL )
+				{
+					if ( nlt_is_name_in_namelist( nl2, s ) )
+						rc = VNamelistAppend ( v_names, s );
+				}
+			}
+		}
+		if ( rc == 0 )
+			rc = VNamelistToConstNamelist ( v_names, dst );
+        VNamelistRelease( v_names );
+
+	}
+	return rc;	
+}
+
 bool nlt_namelist_is_sub_set_in_full_set( const KNamelist * sub_set, const KNamelist * full_set )
 {
 	bool res = false;

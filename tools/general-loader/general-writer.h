@@ -55,7 +55,7 @@ enum gw_evt_id
     evt_cell_default,                     /* set/reset cell default val  */
     evt_cell_data,                        /* write/append data cell      */
     evt_next_row,                         /* move to next row in table   */
-    evt_repeat_row,                       /* repeat the last row N times */
+    evt_move_ahead,                       /* move ahead by N rows        */
 
     evt_errmsg2,
     evt_remote_path2,
@@ -63,6 +63,7 @@ enum gw_evt_id
     evt_new_table2,
     evt_cell_default2,                    /* packed default <= 64K bytes */
     evt_cell_data2,                       /* packed data <= 64K bytes    */
+    evt_empty_default,                    /* set cell default to empty   */
 
     evt_max_id                            /* must be last                */
 };
@@ -249,12 +250,12 @@ struct gw_data_evt_v1
     char align [ 0..3 ];   * ( ( 4 - sizeof data % 4 ) % 4 ) zeros            */
 };
 
-/* gw_repeat_evt_v1
+/* gw_move_ahead_evt_v1
  */
-struct gw_repeat_evt_v1
+struct gw_move_ahead_evt_v1
 {
     gw_evt_hdr_v1 dad;    /* common header : id = column id                   */
-    uint32_t repeat[ 2 ]; /* repeat count                                     */
+    uint32_t nrows [ 2 ]; /* the number of rows to move ahead                 */
 };
 
 
@@ -334,12 +335,12 @@ struct gwp_data_evt_v1
  /* uint8_t data [ sz+1 ]; * event data.                                      */
 };
 
-/* gwp_repeat_evt_v1
+/* gwp_move_ahead_evt_v1
  */
-struct gwp_repeat_evt_v1
+struct gwp_move_ahead_evt_v1
 {
     gwp_evt_hdr_v1 dad;   /* common header : id = column id                   */
-    uint16_t repeat[ 4 ]; /* repeat count                                     */
+    uint16_t nrows [ 4 ]; /* the number of rows to move ahead                 */
 };
 
 
@@ -371,8 +372,8 @@ struct gwp_1string_evt_U16_v1
 struct gwp_2string_evt_U16_v1
 {
     gwp_evt_hdr_v1 dad;   /* common header : id = 0                           */
-    uint8_t sz1;          /* size of string 1 - 1 in bytes, NO trailing NUL   */
-    uint8_t sz2;          /* size of string 2 - 1 in bytes, NO trailing NUL   */
+    uint16_t sz1;         /* size of string 1 - 1 in bytes, NO trailing NUL   */
+    uint16_t sz2;         /* size of string 2 - 1 in bytes, NO trailing NUL   */
  /* char str[ sz1+sz2+2 ]; * string data.                                     */
 };
 
@@ -386,7 +387,7 @@ struct gwp_2string_evt_U16_v1
 struct gwp_data_evt_U16_v1
 {
     gwp_evt_hdr_v1 dad;   /* common header : id = column id                   */
-    uint8_t sz;           /* the size - 1 of data in bytes                    */
+    uint16_t sz;          /* the size - 1 of data in bytes                    */
  /* uint8_t data [ sz+1 ]; * event data.                                      */
 };
 
@@ -443,7 +444,7 @@ namespace ncbi
     inline void set_string_size ( uint32_t & sz, size_t bytes )
     {
         assert ( bytes != 0 );
-        assert ( ( bytes >> 32 ) == 0 );
+        assert ( sizeof bytes == 4 || ( bytes >> 32 ) == 0 );
         sz = ( uint32_t ) bytes;
     }
 
@@ -543,29 +544,29 @@ namespace ncbi
         self . elem_count = elem_count;
     }
 
-    // gw_repeat_evt_v1
-    inline void init ( :: gw_repeat_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    // gw_move_ahead_evt_v1
+    inline void init ( :: gw_move_ahead_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
     {
         init ( hdr . dad, id, evt );
-        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+        memset ( & hdr . nrows, 0, sizeof hdr . nrows );
     }
 
-    inline void init ( :: gw_repeat_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
+    inline void init ( :: gw_move_ahead_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
-        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+        memset ( & hdr . nrows, 0, sizeof hdr . nrows );
     }
 
-    inline uint64_t get_repeat ( const :: gw_repeat_evt_v1 & self )
+    inline uint64_t get_nrows ( const :: gw_move_ahead_evt_v1 & self )
     {
-        uint64_t repeat;
-        memcpy ( & repeat, & self . repeat, sizeof repeat );
-        return repeat;
+        uint64_t nrows;
+        memcpy ( & nrows, & self . nrows, sizeof nrows );
+        return nrows;
     }
 
-    inline void set_repeat ( :: gw_repeat_evt_v1 & self, uint64_t repeat )
+    inline void set_nrows ( :: gw_move_ahead_evt_v1 & self, uint64_t nrows )
     {
-        memcpy ( & self . repeat, & repeat, sizeof self . repeat );
+        memcpy ( & self . nrows, & nrows, sizeof self . nrows );
     }
 
     ////////// packed events //////////
@@ -706,29 +707,29 @@ namespace ncbi
     { set_string_size ( self . sz, bytes ); }
 
 
-    // gwp_repeat_evt_v1
-    inline void init ( :: gwp_repeat_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    // gwp_move_ahead_evt_v1
+    inline void init ( :: gwp_move_ahead_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
     {
         init ( hdr . dad, id, evt );
-        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+        memset ( & hdr . nrows, 0, sizeof hdr . nrows );
     }
 
-    inline void init ( :: gwp_repeat_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    inline void init ( :: gwp_move_ahead_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
     {
         hdr . dad = dad;
-        memset ( & hdr . repeat, 0, sizeof hdr . repeat );
+        memset ( & hdr . nrows, 0, sizeof hdr . nrows );
     }
 
-    inline uint64_t get_repeat ( const :: gwp_repeat_evt_v1 & self )
+    inline uint64_t get_nrows ( const :: gwp_move_ahead_evt_v1 & self )
     {
-        uint64_t repeat;
-        memcpy ( & repeat, & self . repeat, sizeof repeat );
-        return repeat;
+        uint64_t nrows;
+        memcpy ( & nrows, & self . nrows, sizeof nrows );
+        return nrows;
     }
 
-    inline void set_repeat ( :: gwp_repeat_evt_v1 & self, uint64_t repeat )
+    inline void set_nrows ( :: gwp_move_ahead_evt_v1 & self, uint64_t nrows )
     {
-        memcpy ( & self . repeat, & repeat, sizeof self . repeat );
+        memcpy ( & self . nrows, & nrows, sizeof self . nrows );
     }
 
 

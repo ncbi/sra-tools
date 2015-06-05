@@ -7,4 +7,4 @@
 ```
 LD_LIBRARY_PATH=/usr/local/hdf5/1.8.10/lib python -O pore-load.py --tmpdir=/dev/shm --output=foo test-files/Ecoli_R7_NONI.tgz
 ```
-Furthermore, to do anything useful, the output of this tool needs to be sent to `gw-loader`, which is part of `sra-tools`.
+Furthermore, to do anything useful, the output of this tool needs to be sent to `general-loader`, which is part of `sra-tools`.

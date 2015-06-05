@@ -38,10 +38,11 @@ typedef struct s_reference {
     const ReferenceMgr *mgr;
     const ReferenceSeq *rseq;
     int64_t lastRefId;
-    int32_t lastOffset;
     unsigned curPos;
     unsigned endPos;
     unsigned length;
+    unsigned last_id;            /* == ref_info.elem_count if no last id */
+
     KDataBuffer coverage;
     KDataBuffer mismatches;
     KDataBuffer indels;
@@ -49,8 +50,10 @@ typedef struct s_reference {
     KDataBuffer sec_align;
     KDataBuffer pri_overlap;
     KDataBuffer sec_overlap;
+    KDataBuffer ref_names;
+    KDataBuffer ref_info;
+
     bool out_of_order;
-    char last_id[256];
 } Reference;
 
 rc_t ReferenceInit(Reference *self, const VDBManager *mgr, VDatabase *db);

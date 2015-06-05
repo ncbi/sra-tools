@@ -1301,28 +1301,40 @@ static rc_t ShowFiles(const KConfig* cfg, const Params* prm) {
     uint32_t count = 0;
     KNamelist* names = NULL;
     rc = KConfigListIncluded(cfg, &names);
-    if (rc == 0)
-    {   rc = KNamelistCount(names, &count); }
+    if (rc == 0) {
+        rc = KNamelistCount(names, &count);
+    }
     if (rc == 0) {
         uint32_t i = 0;
 
         if (prm->showMultiple) {
-            OUTMSG(("<!-- Configuration files -->\n"));
+            if (prm->xml) {
+                OUTMSG(("<ConfigurationFiles>\n"));
+            }
+            else {
+                OUTMSG(("<!-- Configuration files -->\n"));
+            }
             hasAny = true;
         }
 
         for (i = 0; i < count && rc == 0; ++i) {
             const char* name = NULL;
-            if (rc == 0)
-            {   rc = KNamelistGet(names, i, &name); }
+            if (rc == 0) {
+                rc = KNamelistGet(names, i, &name);
+            }
             if (rc == 0) {
                 OUTMSG(("%s\n", name));
                 hasAny = true;
             }
         }
     }
-    if (rc == 0 && hasAny)
-    {   OUTMSG(("\n")); }
+    if (prm->showMultiple && prm->xml) {
+        OUTMSG(("</ConfigurationFiles>"));
+    }
+
+    if (rc == 0 && hasAny) {
+        OUTMSG(("\n"));
+    }
 
     RELEASE(KNamelist, names);
 
@@ -1340,7 +1352,12 @@ static void ShowEnv(const Params* prm) {
     int i = 0;
 
     if (prm->showMultiple) {
-        OUTMSG(("<!-- Environment -->\n"));
+        if (prm->xml) {
+            OUTMSG(("<Environment>\n"));
+        }
+        else {
+            OUTMSG(("<!-- Environment -->\n"));
+        }
         hasAny = true;
     }
 
@@ -1350,6 +1367,9 @@ static void ShowEnv(const Params* prm) {
             OUTMSG(("%s=%s\n", env_list [ i ], eval));
             hasAny = true;
         }
+    }
+    if (prm->showMultiple && prm->xml) {
+        OUTMSG(("</Environment>"));
     }
     if (hasAny) {
         OUTMSG(("\n"));
@@ -1568,6 +1588,10 @@ rc_t CC KMain(int argc, char* argv[]) {
         DISP_RC(rc, "while calling KConfigMake");
     }
 
+    if (rc == 0 && prm.showMultiple && prm.xml) {
+        OUTMSG(("<VdbConfig>\n"));
+    }
+
     if (rc == 0) {
         if (prm.modeConfigure) {
             rc = configure(prm.configureMode);
@@ -1615,6 +1639,10 @@ rc_t CC KMain(int argc, char* argv[]) {
 
     if (prm.modeShowEnv) {
         ShowEnv(&prm);
+    }
+
+    if (rc == 0 && prm.showMultiple && prm.xml) {
+        OUTMSG(("</VdbConfig>\n"));
     }
 
     RELEASE(KConfig, cfg);

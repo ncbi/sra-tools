@@ -35,9 +35,12 @@
 #include <klib/progressbar.h>
 
 #include <vdb/manager.h>
+#include <vdb/schema.h>
 #include <vdb/table.h>
 #include <vdb/cursor.h>
 #include <vdb/database.h>
+
+#include <sra/sraschema.h>
 
 #include "coldefs.h"
 #include "namelist_tools.h"
@@ -61,19 +64,29 @@
 #define OPTION_MAXERR       "maxerr"
 #define ALIAS_MAXERR        "e"
 
+#define OPTION_INTERSECT    "intersect"
+#define ALIAS_INTERSECT     "i"
+
+#define OPTION_EXCLUDE      "exclude"
+#define ALIAS_EXCLUDE       "x"
+
 static const char * rows_usage[] = { "set of rows to be comparend (default = all)", NULL };
 static const char * columns_usage[] = { "set of columns to be compared (default = all)", NULL };
 static const char * table_usage[] = { "name of table (in case of database ) to be compared", NULL };
 static const char * progress_usage[] = { "show progress in percent", NULL };
 static const char * maxerr_usage[] = { "max errors im comparing (default = 1)", NULL };
+static const char * intersect_usage[] = { "intersect column-set from both runs", NULL };
+static const char * exclude_usage[] = { "exclude these columns from comapring", NULL };
 
 OptDef MyOptions[] =
 {
-    { OPTION_ROWS, 		ALIAS_ROWS, 	NULL, 	rows_usage, 	1, 	true, 	false },
-	{ OPTION_COLUMNS, 	ALIAS_COLUMNS, 	NULL, 	columns_usage, 	1, 	true, 	false },
-	{ OPTION_TABLE, 	ALIAS_TABLE, 	NULL, 	table_usage, 	1, 	true, 	false },
-	{ OPTION_PROGRESS, 	ALIAS_PROGRESS,	NULL, 	progress_usage,	1, 	false, 	false },
-	{ OPTION_MAXERR, 	ALIAS_MAXERR,	NULL, 	maxerr_usage,	1, 	true, 	false }	
+    { OPTION_ROWS, 			ALIAS_ROWS, 		NULL, 	rows_usage, 		1, 	true, 	false },
+	{ OPTION_COLUMNS, 		ALIAS_COLUMNS, 		NULL, 	columns_usage, 		1, 	true, 	false },
+	{ OPTION_TABLE, 		ALIAS_TABLE, 		NULL, 	table_usage, 		1, 	true, 	false },
+	{ OPTION_PROGRESS, 		ALIAS_PROGRESS,		NULL, 	progress_usage,		1, 	false, 	false },
+	{ OPTION_MAXERR, 		ALIAS_MAXERR,		NULL, 	maxerr_usage,		1, 	true, 	false },
+	{ OPTION_INTERSECT,		ALIAS_INTERSECT,	NULL, 	intersect_usage,	1, 	false, 	false },
+	{ OPTION_EXCLUDE,		ALIAS_EXCLUDE,		NULL, 	exclude_usage,		1, 	true, 	false }		
 };
 
 
@@ -111,6 +124,8 @@ rc_t CC Usage ( const Args * args )
 	HelpOptionLine ( ALIAS_TABLE, 		OPTION_TABLE, 		"table-name",	table_usage );
 	HelpOptionLine ( ALIAS_PROGRESS, 	OPTION_PROGRESS,	NULL,			progress_usage );
 	HelpOptionLine ( ALIAS_MAXERR, 		OPTION_MAXERR,	    "max value",	maxerr_usage );
+	HelpOptionLine ( ALIAS_INTERSECT, 	OPTION_INTERSECT,   NULL,			intersect_usage );
+	HelpOptionLine ( ALIAS_EXCLUDE, 	OPTION_EXCLUDE,   	"column-set",	exclude_usage );
 	
     HelpOptionsStandard ();
     HelpVersion ( fullpath, KAppVersion() );
@@ -136,11 +151,13 @@ struct diff_ctx
     const char * src1;
     const char * src2;
 	const char * columns;
+	const char * excluded;
 	const char * table;
 	
     struct num_gen * rows;
 	uint32_t max_err;
 	bool show_progress;
+	bool intersect;
 };
 
 
@@ -149,10 +166,12 @@ static void init_diff_ctx( struct diff_ctx * dctx )
     dctx -> src1 = NULL;
     dctx -> src2 = NULL;
 	dctx -> columns = NULL;
+	dctx -> excluded = NULL;	
 	dctx -> table = NULL;
 	
     dctx -> rows = NULL;
 	dctx -> show_progress = false;
+	dctx -> intersect = false;
 }
 
 
@@ -254,9 +273,14 @@ static rc_t gather_diff_ctx( struct diff_ctx * dctx, Args * args )
 				LOGERR ( klogInt, rc, "num_gen_make_from_str() failed" );
 			}
 		}
-		
+	}
+	
+	if ( rc == 0 )
+	{
 		dctx -> columns = get_str_option( args, OPTION_COLUMNS );
+		dctx -> excluded = get_str_option( args, OPTION_EXCLUDE );		
 		dctx -> show_progress = get_bool_option( args, OPTION_PROGRESS, false );
+		dctx -> intersect = get_bool_option( args, OPTION_INTERSECT, false );
 		dctx -> max_err = get_uint32t_option( args, OPTION_MAXERR, 1 );
     }
 
@@ -285,10 +309,14 @@ static rc_t report_diff_ctx( struct diff_ctx * dctx )
 		
 	if ( rc == 0 && dctx -> columns != NULL )
 		rc = KOutMsg( "- columns : %s\n", dctx -> columns );
+	if ( rc == 0 && dctx -> excluded != NULL )
+		rc = KOutMsg( "- exclude : %s\n", dctx -> excluded );
 	if ( rc == 0 && dctx -> table != NULL )
 		rc = KOutMsg( "- table : %s\n", dctx -> table );
 	if ( rc == 0 )
 		rc = KOutMsg( "- progress : %s\n", dctx -> show_progress ? "show" : "hide" );
+	if ( rc == 0 )
+		rc = KOutMsg( "- intersect: %s\n", dctx -> intersect ? "yes" : "no" );
 	if ( rc == 0 )
 		rc = KOutMsg( "- max err : %u\n", dctx -> max_err );
 
@@ -593,7 +621,7 @@ static rc_t diff_columns( col_defs * defs, const VTable * tab_1, const VTable * 
 }
 
 
-static rc_t compare_2_namelists( const KNamelist * cols_1, const KNamelist * cols_2, const KNamelist ** cols_to_diff )
+static rc_t compare_2_namelists( const KNamelist * cols_1, const KNamelist * cols_2, const KNamelist ** cols_to_diff, bool intersect )
 {
 	uint32_t count_1;
 	rc_t rc = KNamelistCount( cols_1, &count_1 );
@@ -611,11 +639,22 @@ static rc_t compare_2_namelists( const KNamelist * cols_1, const KNamelist * col
 		}
 		else if ( count_1 != count_2 )
 		{
-			rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
-			PLOGERR( klogInt, ( klogInt, rc,
-					 "the accessions have not the same number of columns! ( $(count1) != $(count2) )\n",
-					 "count1=%u,count2=%u", count_1, count_2 ) );
-			*cols_to_diff = NULL;
+			if ( intersect )
+			{
+				rc = nlt_build_intersect( cols_1, cols_2, cols_to_diff );
+				if ( rc != 0 )
+				{
+					LOGERR ( klogInt, rc, "nlt_build_intersect() failed" );	
+				}
+			}
+			else
+			{
+				rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
+				PLOGERR( klogInt, ( klogInt, rc,
+						 "the accessions have not the same number of columns! ( $(count1) != $(count2) )\n",
+						 "count1=%u,count2=%u", count_1, count_2 ) );
+				*cols_to_diff = NULL;
+			}
 		}
 		else
 		{
@@ -631,8 +670,19 @@ static rc_t compare_2_namelists( const KNamelist * cols_1, const KNamelist * col
 			}
 			else
 			{
-				rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
-				KOutMsg( "the 2 accessions have not the same set of columns! ( %u found in both )\n", found_in_both );	
+				if ( intersect )
+				{
+					rc = nlt_build_intersect( cols_1, cols_2, cols_to_diff );
+					if ( rc != 0 )
+					{
+						LOGERR ( klogInt, rc, "nlt_build_intersect() failed" );	
+					}
+				}
+				else
+				{
+					rc = RC( rcExe, rcNoTarg, rcResolving, rcParam, rcInvalid );
+					KOutMsg( "the 2 accessions have not the same set of columns! ( %u found in both )\n", found_in_both );
+				}
 			}
 		}
 	}
@@ -701,10 +751,18 @@ static rc_t perform_table_diff( const VTable * tab_1, const VTable * tab_2, stru
 				const KNamelist * cols_to_diff;
 				
 				if ( dctx -> columns == NULL )
-					rc = compare_2_namelists( cols_1, cols_2, &cols_to_diff );
+					rc = compare_2_namelists( cols_1, cols_2, &cols_to_diff, dctx -> intersect );
 				else
 					rc = extract_columns_from_2_namelists( cols_1, cols_2, dctx -> columns, &cols_to_diff );
 
+				if ( rc == 0 && dctx -> excluded != NULL )
+				{
+					const KNamelist * temp;
+					rc = nlt_remove_strings_from_namelist( cols_to_diff, &temp, dctx -> excluded );
+					KNamelistRelease( cols_to_diff );
+					cols_to_diff = temp;
+				}
+				
 				if ( rc == 0 )
 				{
 					rc = col_defs_fill( defs, cols_to_diff );
@@ -858,51 +916,61 @@ static rc_t perform_diff( struct diff_ctx * dctx )
 		}
 		else
 		{
-			const VDatabase * db_1;
-			/* try to open it as a database */
-			rc = VDBManagerOpenDBRead ( vdb_mgr, &db_1, NULL, "%s", dctx -> src1 );
-			if ( rc == 0 )
+			VSchema * vdb_schema = NULL;
+			rc = VDBManagerMakeSRASchema( vdb_mgr, &vdb_schema );
+			if ( rc != 0 )
 			{
-				const VDatabase * db_2;
-				rc = VDBManagerOpenDBRead ( vdb_mgr, &db_2, NULL, "%s", dctx -> src2 );
-				if ( rc == 0 )
-				{
-					/* ******************************************** */
-					rc = perform_database_diff( db_1, db_2, dctx );
-					/* ******************************************** */
-					VDatabaseRelease( db_2 );
-				}
-				else
-				{
-					LOGERR ( klogInt, rc, "accession #1 opened as database, but accession #2 cannot be opened as database" );
-				}
-				VDatabaseRelease( db_1 );
+				LOGERR ( klogInt, rc, "VDBManagerMakeSRASchema() failed" );
 			}
 			else
 			{
-				const VTable * tab_1;
-				rc = VDBManagerOpenTableRead( vdb_mgr, &tab_1, NULL, "%s", dctx -> src1 );
+				const VDatabase * db_1;
+				/* try to open it as a database */
+				rc = VDBManagerOpenDBRead ( vdb_mgr, &db_1, vdb_schema, "%s", dctx -> src1 );
 				if ( rc == 0 )
 				{
-					const VTable * tab_2;
-					rc = VDBManagerOpenTableRead( vdb_mgr, &tab_2, NULL, "%s", dctx -> src2 );
+					const VDatabase * db_2;
+					rc = VDBManagerOpenDBRead ( vdb_mgr, &db_2, vdb_schema, "%s", dctx -> src2 );
 					if ( rc == 0 )
 					{
 						/* ******************************************** */
-						rc = perform_table_diff( tab_1, tab_2, dctx );
+						rc = perform_database_diff( db_1, db_2, dctx );
 						/* ******************************************** */
-						VTableRelease( tab_2 );
+						VDatabaseRelease( db_2 );
 					}
 					else
 					{
-						LOGERR ( klogInt, rc, "accession #1 opened as table, but accession #2 cannot be opened as table" );
+						LOGERR ( klogInt, rc, "accession #1 opened as database, but accession #2 cannot be opened as database" );
 					}
-					VTableRelease( tab_1 );
+					VDatabaseRelease( db_1 );
 				}
 				else
 				{
-					LOGERR ( klogInt, rc, "accession #1 cannot be opened as table or database" );
+					const VTable * tab_1;
+					rc = VDBManagerOpenTableRead( vdb_mgr, &tab_1, vdb_schema, "%s", dctx -> src1 );
+					if ( rc == 0 )
+					{
+						const VTable * tab_2;
+						rc = VDBManagerOpenTableRead( vdb_mgr, &tab_2, vdb_schema, "%s", dctx -> src2 );
+						if ( rc == 0 )
+						{
+							/* ******************************************** */
+							rc = perform_table_diff( tab_1, tab_2, dctx );
+							/* ******************************************** */
+							VTableRelease( tab_2 );
+						}
+						else
+						{
+							LOGERR ( klogInt, rc, "accession #1 opened as table, but accession #2 cannot be opened as table" );
+						}
+						VTableRelease( tab_1 );
+					}
+					else
+					{
+						LOGERR ( klogInt, rc, "accession #1 cannot be opened as table or database" );
+					}
 				}
+				VSchemaRelease( vdb_schema );
 			}
 			VDBManagerRelease( vdb_mgr );
 		}

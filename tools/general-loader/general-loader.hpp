@@ -33,73 +33,18 @@
 #include <vector>
 #include <map>
 
-#include "general-writer.h"
-
 struct KStream;
 struct VCursor;
 struct VDatabase;
 struct VDBManager;
 struct VSchema;
 
-#define GeneralLoaderSignatureString "NCBIgnld"
+#define GeneralLoaderSignatureString GW_SIGNATURE
 
 class GeneralLoader
 {
 public:
-    
-    typedef struct gw_header_v1 Header;
-    
-    typedef enum gw_evt_id Evt_id;
-/*    {
-        evt_end_stream = 1,
-        evt_new_table,
-        evt_new_column,
-        evt_open_stream,
-        evt_cell_default, 
-        evt_cell_data, 
-        evt_next_row,
-        evt_errmsg
-    };*/
-    
-    struct Table_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t table_name_size;
-        // uint32_t data [ ( ( table_name_size + 1 ) + 3 ) / 4 ];
-    };
-
-    struct Column_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t table_id;
-        uint32_t column_name_size;
-        // uint32_t data [ ( ( column_name_size + 1 ) + 3 ) / 4 ];
-    };
-    
-    struct Cell_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8;
-        uint32_t elem_bits;
-        uint32_t elem_count;
-        // uint32_t data [ ( elem_bits * elem_count + 31 ) / 32 ];
-    };
-    
-    struct Evt_hdr
-    {   // used for "open-stream" and "end-of-stream" events
-        uint32_t id : 24;
-        uint32_t evt : 8;
-    };
-    
-    struct ErrMsg_hdr
-    {
-        uint32_t id : 24;
-        uint32_t evt : 8; // always 0
-        uint32_t msg_size;
-        // uint32_t data [ ( ( msg_size + 1 ) + 3 ) / 4 ];
-    };
+    static const uint32_t MaxPackedString = 256;
     
 public:
     GeneralLoader ( const struct KStream& p_input );
@@ -110,48 +55,12 @@ public:
     
     rc_t Run ();
     
-    void Reset();
-    
 private:
-    GeneralLoader(const GeneralLoader&);
-    GeneralLoader& operator = ( const GeneralLoader&);
 
-    // Active cursors
-    typedef std::vector < struct VCursor * > Cursors;
-
-    // from table id to VCursor
-    // value_type : index into Cursors
-    typedef std::map < uint32_t, uint32_t > TableIdToCursor; 
-    
-    typedef struct 
-    {
-        uint32_t cursorIdx;     // index into Cursors
-        uint32_t columnIdx;     // index in the VCursor
-        uint32_t elemBits;
-    } Column;
-    
-    // From column id to VCursor.
-    // value_type::first    : index into Cursors
-    // value_type::second   : colIdx in the VCursor
-    typedef std::map < uint32_t, Column > Columns; 
-    
     typedef std::vector < std::string > Paths;
 
-    rc_t ReadHeader ();
-    rc_t ReadEvents ();
-    void CleanUp ();
-    
-    rc_t MakeSchema ( const std :: string& p_file, const std :: string& p_name );
-    rc_t MakeDatabase ( const std :: string& p_databaseName );
-    
-    rc_t MakeCursor ( const std :: string& p_table );
-    rc_t MakeCursors ();
-    rc_t OpenCursors ();
-    rc_t CloseCursors ();
-    
-    static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
-    
-    
+private:    
+
     class Reader
     {
     public:
@@ -177,21 +86,120 @@ private:
         uint64_t m_readCount;
     };
     
-    Reader m_reader;
+    class DatabaseLoader
+    {
+    public:
+        struct Column
+        {
+            uint32_t cursorIdx;     // index into Cursors
+            uint32_t columnIdx;     // index in the VCursor
+            uint32_t elemBits;
+            uint32_t flagBits;
+            
+            bool IsCompressed () const { return ( flagBits & 1 ) == 1; }
+        };
+
+    public:
+        DatabaseLoader ( const Paths& p_includePaths, const Paths& p_schemas );
+        ~DatabaseLoader();
     
-    Header          m_header;
-    std::string     m_databaseName;
-    std::string     m_schemaName;
+        rc_t UseSchema ( const std :: string& p_file, const std :: string& p_name );
+        rc_t RemotePath ( const std :: string& p_path );
+        rc_t NewTable ( uint32_t p_tableId, const std :: string& p_tableName );
+        rc_t NewColumn ( uint32_t p_columnId, 
+                         uint32_t p_tableId, 
+                         uint32_t p_elemBits, 
+                         uint8_t p_flags, 
+                         const std :: string& p_columnName );
+        rc_t CellData    ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
+        rc_t CellDefault ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
+        rc_t NextRow ( uint32_t p_tableId );
+        rc_t MoveAhead ( uint32_t p_tableId, uint64_t p_count );
+        rc_t ErrorMessage ( const std :: string& p_text );
+        rc_t OpenStream ();
+        rc_t CloseStream ();
+        
+        const std :: string& GetDatabaseName() const { return m_databaseName; }
+        const Column* GetColumn ( uint32_t p_columnId ) const; 
+        
+    private:
+        // Active cursors
+        typedef std::vector < struct VCursor * > Cursors;
+
+        // from table id to VCursor
+        // value_type : index into Cursors
+        typedef std::map < uint32_t, uint32_t > TableIdToCursor; 
+        
+        // From column id to VCursor.
+        // value_type::first    : index into Cursors
+        // value_type::second   : colIdx in the VCursor
+        typedef std::map < uint32_t, Column > Columns; 
+        
+    private:
+        rc_t MakeDatabase ();
+        rc_t CursorWrite   ( const struct Column& p_col, const void* p_data, size_t p_size );
+        rc_t CursorDefault ( const struct Column& p_col, const void* p_data, size_t p_size );
+
+    private:
+        Paths                   m_includePaths;
+        Paths                   m_schemas;
     
-    Paths               m_includePaths;
-    Paths               m_schemas;
-    struct VDBManager*  m_mgr;
-    struct VSchema*     m_schema;
-    struct VDatabase*   m_db;
+        std::string             m_databaseName;
+        std::string             m_schemaName;
     
-    Cursors             m_cursors;
-    TableIdToCursor     m_tables;
-    Columns             m_columns;
+        Cursors                 m_cursors;
+        TableIdToCursor         m_tables;
+        Columns                 m_columns;
+        
+        struct VDBManager*      m_mgr;
+        struct VSchema*         m_schema;
+        struct VDatabase*       m_db;    
+    };
+
+    class ProtocolParser
+    {
+    public:
+        virtual rc_t ParseEvents ( Reader&, DatabaseLoader& ) = 0;
+        
+    protected:
+        template <typename TEvent> rc_t ReadEvent ( Reader& p_reader, TEvent& p_event );
+    };
+    
+    class UnpackedProtocolParser : public ProtocolParser
+    {
+    public:
+        virtual rc_t ParseEvents ( Reader&, DatabaseLoader& );
+    };
+    
+    class PackedProtocolParser : public ProtocolParser
+    {
+    public:
+        virtual rc_t ParseEvents ( Reader&, DatabaseLoader& );
+        
+    private:
+        // read p_dataSize bytes and use one of the decoder functions in utf8-like-int-codec.h to unpack a sequence of integer values, 
+        // stored in m_unpackingBuf as a collection of bytes
+        template < typename T_uintXX > rc_t UncompressInt ( Reader& p_reader, uint16_t p_dataSize, int ( * p_decode ) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded ) );
+        
+        rc_t ParseData ( Reader& p_reader, DatabaseLoader& p_dbLoader, uint32_t p_columnId, uint32_t p_dataSize );
+        
+        std::vector<uint8_t>    m_unpackingBuf;
+    };
+    
+private:    
+    GeneralLoader(const GeneralLoader&);
+    GeneralLoader& operator = ( const GeneralLoader&);
+    
+    rc_t ReadHeader ( bool& p_packed );
+    
+    void CleanUp ();
+    
+    static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
+    
+private:    
+    Reader                  m_reader;
+    Paths                   m_includePaths;
+    Paths                   m_schemas;
 };
 
 #endif

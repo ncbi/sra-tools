@@ -66,6 +66,11 @@ struct overlap_s {
     uint32_t max; /* maximum end pos of any alignment that starts before this chunk and ends in this chunk */
 };
 
+struct s_reference_info {
+    unsigned name;          /* offset of start of name in ref_names */
+    unsigned lastOffset;
+};
+
 extern void ReferenceMgr_DumpConfig(ReferenceMgr const *const self);
 
 rc_t ReferenceInit(Reference *self, const VDBManager *mgr, VDatabase *db)
@@ -79,6 +84,8 @@ rc_t ReferenceInit(Reference *self, const VDBManager *mgr, VDatabase *db)
     self->coverage.elem_bits = self->mismatches.elem_bits = self->indels.elem_bits = 32;
     self->pri_align.elem_bits = self->sec_align.elem_bits = 64;
     self->pri_overlap.elem_bits = self->sec_overlap.elem_bits = sizeof(struct overlap_s) * 8;
+    self->ref_names.elem_bits = 8;
+    self->ref_info.elem_bits = 8 * sizeof(struct s_reference_info);
     
     rc = ReferenceMgr_Make(&self->mgr, db, mgr, ewrefmgr_co_Coverage,
                            G.refXRefPath, G.inpath,
@@ -213,40 +220,157 @@ static rc_t FlushBuffers(Reference *self, unsigned upto, bool full, bool final)
     return 0;
 }
 
+static int str__cmp(char const A[], char const B[])
+{
+    unsigned i;
+    
+    for (i = 0; ; ++i) {
+        int const a = A[i];
+        int const b = B[i];
+        
+        if (a != b)
+            return a - b;
+        if (a == 0)
+            return 0;
+    }
+}
+
+static int str__equal(char const A[], char const B[])
+{
+    unsigned i;
+    
+    for (i = 0; ; ++i) {
+        int const a = A[i];
+        int const b = B[i];
+        
+        if (a != b)
+            return 0;
+        if (a == 0)
+            return 1;
+    }
+}
+
+static unsigned str__len(char const A[])
+{
+    unsigned i;
+    
+    for (i = 0; ; ++i) {
+        int const a = A[i];
+        
+        if (a == 0)
+            return i;
+    }
+}
+
+static unsigned bsearch_name(char const qry[], char const names[],
+                             unsigned const count,
+                             struct s_reference_info const refInfo[],
+                             int found[])
+{
+    unsigned f = 0;
+    unsigned e = count;
+    
+    while (f < e) {
+        unsigned const m = f + ((e - f) >> 1);
+        char const *const name = &names[refInfo[m].name];
+        int const diff = str__cmp(qry, name);
+        
+        if (diff < 0)
+            e = m;
+        else if (diff > 0)
+            f = m + 1;
+        else {
+            found[0] = 1;
+            return m;
+        }
+    }
+    return f;
+}
+
+static struct s_reference_info s_reference_info_make(unsigned const name, unsigned const offset)
+{
+    struct s_reference_info rslt;
+    
+    rslt.name = name;
+    rslt.lastOffset = offset;
+    
+    return rslt;
+}
+
+static unsigned GetLastOffset(Reference const *const self)
+{
+    if (self->last_id < self->ref_info.elem_count) {
+        struct s_reference_info const *const refInfoBase = self->ref_info.base;
+        return refInfoBase[self->last_id].lastOffset;
+    }
+    return 0;
+}
+
+static void SetLastOffset(Reference *const self, unsigned const newValue)
+{
+    if (self->last_id < self->ref_info.elem_count) {
+        struct s_reference_info *const refInfoBase = self->ref_info.base;
+        refInfoBase[self->last_id].lastOffset = newValue;
+    }
+}
+
 rc_t ReferenceSetFile(Reference *self, const char id[],
                       uint64_t length, uint8_t const md5[16],
                       bool *shouldUnmap)
 {
     ReferenceSeq const *rseq;
-    unsigned n;
+    int found = 0;
+    unsigned at = 0;
     
-    for (n = 0; ; ++n) {
-        if (self->last_id[n] != id[n])
-            break;
-        if (self->last_id[n] == 0 && id[n] == 0)
+    if (self->last_id < self->ref_info.elem_count) {
+        struct s_reference_info const *const refInfoBase = self->ref_info.base;
+        struct s_reference_info const refInfo = refInfoBase[self->last_id];
+        char const *const nameBase = self->ref_names.base;
+        char const *const lastName = nameBase + refInfo.name;
+        
+        if (str__equal(id, lastName))
             return 0;
+
+        at = bsearch_name(id, nameBase, self->ref_info.elem_count, refInfoBase, &found);
     }
-    while (id[n])
-        ++n;
-    if (n >= sizeof(self->last_id))
-        return RC(rcApp, rcTable, rcAccessing, rcParam, rcTooLong);
-    
+
     BAIL_ON_FAIL(FlushBuffers(self, self->length, true, true));
     BAIL_ON_FAIL(ReferenceMgr_GetSeq(self->mgr, &rseq, id, shouldUnmap));
-
+    
     if (self->rseq)
         ReferenceSeq_Release(self->rseq);
     self->rseq = rseq;
     
-    memcpy(self->last_id, id, n + 1);
+    if (!found) {
+        unsigned const len = str__len(id);
+        struct s_reference_info const new_elem = s_reference_info_make(self->ref_names.elem_count, 0);
+        rc_t const rc = KDataBufferResize(&self->ref_names, new_elem.name + len + 1);
+        
+        if (rc)
+            return rc;
+        else {
+            unsigned const count = (unsigned)self->ref_info.elem_count;
+            rc_t const rc = KDataBufferResize(&self->ref_info, count + 1);
+            struct s_reference_info *const refInfoBase = self->ref_info.base;
+            
+            if (rc)
+                return rc;
+            
+            memmove(((char *)self->ref_names.base) + new_elem.name, id, len + 1);
+            memmove(refInfoBase + at + 1, refInfoBase + at, (count - at) * sizeof(*refInfoBase));
+            refInfoBase[at] = new_elem;
+        }
+        (void)PLOGMSG(klogInfo, (klogInfo, "Processing Reference '$(id)'", "id=%s", id));
+    }
+    else if (!self->out_of_order)
+        Unsorted(self);
+        
+    self->last_id = at;
     self->curPos = self->endPos = 0;
     self->length = (unsigned)length;
-    self->lastOffset = 0;
     KDataBufferResize(&self->pri_overlap, 0);
     KDataBufferResize(&self->sec_overlap, 0);
 
-    if(!self->out_of_order) (void)PLOGMSG(klogInfo, (klogInfo, "Processing Reference '$(id)'", "id=%s", id));
-    
     return 0;
 }
 
@@ -397,7 +521,7 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
     if (!G.acceptNoMatch && data->data.ref_len == 0)
         return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
     
-    if (!self->out_of_order && pos < self->lastOffset) {
+    if (!self->out_of_order && pos < GetLastOffset(self)) {
         return Unsorted(self);
     }
     if (!self->out_of_order) {
@@ -405,7 +529,7 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
         unsigned nmatch;
         unsigned indels;
 
-        self->lastOffset = data->data.effective_offset;
+        SetLastOffset(self, data->data.effective_offset);
         GetCounts(data, seqLen, &nmatch, &nmis, &indels);
         *matches = nmatch;
         
@@ -459,6 +583,8 @@ rc_t ReferenceWhack(Reference *self, bool commit)
         KDataBufferWhack(&self->coverage);
         KDataBufferWhack(&self->pri_overlap);
         KDataBufferWhack(&self->sec_overlap);
+        KDataBufferWhack(&self->ref_names);
+        KDataBufferWhack(&self->ref_info);
         if (self->rseq)
             rc = ReferenceSeq_Release(self->rseq);
         if (self->out_of_order) {

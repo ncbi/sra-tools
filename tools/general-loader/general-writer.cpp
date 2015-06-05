@@ -252,7 +252,6 @@ namespace ncbi
             new_state = opened;
             break;
         case opened:
-        case mid_row:
             return;
         default:
             throw "state violation opening stream";
@@ -273,7 +272,6 @@ namespace ncbi
         switch ( state )
         {
         case opened:
-        case mid_row:
             break;
         default:
             throw "state violation setting column default";
@@ -284,35 +282,44 @@ namespace ncbi
         if ( stream_id > ( int ) streams.size () )
             throw "Stream_id is out of bounds";
 
-        if ( elem_bits == 0 || elem_count == 0 )
+        if ( elem_bits == 0 )
             return;
         
-        if ( data == 0 )
+        if ( data == 0 && elem_count != 0 )
             throw "Invalid data ptr";
 
         if ( elem_bits != streams [ stream_id - 1 ] . elem_bits )
             throw "Invalid elem_bits";
 
         size_t num_bytes = ( ( size_t ) elem_bits * elem_count + 7 ) / 8;
-        if ( num_bytes <= 256 )
+        if ( num_bytes == 0 )
         {
-            gwp_data_evt chunk;
-            init ( chunk, stream_id, evt_cell_default );
-            set_size ( chunk, num_bytes );
-            write_event ( & chunk . dad, sizeof chunk );
-        }
-        else if ( num_bytes <= 0x10000 )
-        {
-            gwp_data_evt_U16 chunk;
-            init ( chunk, stream_id, evt_cell_default2 );
-            set_size ( chunk, num_bytes );
-            write_event ( & chunk . dad, sizeof chunk );
+            gwp_evt_hdr_v1 eh;
+            init ( eh, stream_id, evt_empty_default );
+            write_event ( & eh, sizeof eh );
         }
         else
         {
-            throw "default cell-data exceeds maximum";
+            if ( num_bytes <= 256 )
+            {
+                gwp_data_evt chunk;
+                init ( chunk, stream_id, evt_cell_default );
+                set_size ( chunk, num_bytes );
+                write_event ( & chunk . dad, sizeof chunk );
+            }
+            else if ( num_bytes <= 0x10000 )
+            {
+                gwp_data_evt_U16 chunk;
+                init ( chunk, stream_id, evt_cell_default2 );
+                set_size ( chunk, num_bytes );
+                write_event ( & chunk . dad, sizeof chunk );
+            }
+            else
+            {
+                throw "default cell-data exceeds maximum";
+            }
+            internal_write ( data, num_bytes );
         }
-        internal_write ( data, num_bytes );
     }
 
     template < class T >
@@ -396,7 +403,6 @@ namespace ncbi
         switch ( state )
         {
         case opened:
-        case mid_row:
             break;
         default:
             throw "state violation writing column data";
@@ -496,8 +502,6 @@ namespace ncbi
             
             internal_write ( data, num_bytes );
         }
-
-        state = mid_row;
     }
 
     void GeneralWriter :: nextRow ( int table_id )
@@ -505,7 +509,6 @@ namespace ncbi
         switch ( state )
         {
         case opened:
-        case mid_row:
             break;
         default:
             throw "state violation advancing to next row";
@@ -517,26 +520,25 @@ namespace ncbi
         gwp_evt_hdr hdr;
         init ( hdr, table_id, evt_next_row );
         write_event ( & hdr, sizeof hdr );
-        state = opened;
     }
 
 
-    void GeneralWriter :: repeatRow ( uint32_t table_id, uint64_t repeat_count )
+    void GeneralWriter :: moveAhead ( int table_id, uint64_t nrows )
     {
         switch ( state )
         {
         case opened:
             break;
         default:
-            throw "state violation repeating last row";
+            throw "state violation moving ahead nrows";
         }
 
         if ( table_id < 0 || ( size_t ) table_id > table_names.size () )
             throw "Invalid table id";
 
-        gwp_repeat_evt_v1 hdr;
-        init ( hdr, table_id, evt_repeat_row );
-        set_repeat ( hdr, repeat_count );
+        gwp_move_ahead_evt_v1 hdr;
+        init ( hdr, table_id, evt_move_ahead );
+        set_nrows ( hdr, nrows );
         write_event ( & hdr . dad, sizeof hdr );
     }
 
@@ -551,7 +553,6 @@ namespace ncbi
         case have_table:
         case have_column:
         case opened:
-        case mid_row:
         case error:
             break;
         default:
@@ -581,7 +582,6 @@ namespace ncbi
         case have_table:
         case have_column:
         case opened:
-        case mid_row:
         case error:
             break;
         default:
@@ -593,6 +593,8 @@ namespace ncbi
         write_event ( & hdr, sizeof hdr );
 
         state = closed;
+
+        flush ();
     }
 
     
@@ -602,6 +604,9 @@ namespace ncbi
         , evt_count ( 0 )
         , byte_count ( 0 )
         , packing_buffer ( 0 )
+        , output_buffer ( 0 )
+        , output_bsize ( 0 )
+        , output_marker ( 0 )
         , out_fd ( -1 )
         , state ( uninitialized )
     {
@@ -611,25 +616,36 @@ namespace ncbi
 
     
     // Constructors
-    GeneralWriter :: GeneralWriter ( int _out_fd )
+    GeneralWriter :: GeneralWriter ( int _out_fd, size_t buffer_size )
         : evt_count ( 0 )
         , byte_count ( 0 )
         , packing_buffer ( 0 )
+        , output_buffer ( 0 )
+        , output_bsize ( buffer_size )
+        , output_marker ( 0 )
         , out_fd ( _out_fd )
         , state ( uninitialized )
     {
         packing_buffer = new uint8_t [ bsize ];
+        output_buffer = new uint8_t [ buffer_size ];
         writeHeader ();
     }
     
     GeneralWriter :: ~GeneralWriter ()
     {
-        endStream ();
+        try
+        {
+            endStream ();
+        }
+        catch ( ... )
+        {
+        }
 
-        if ( out_fd < 0 )
-            out.flush ();
-
+        delete [] output_buffer;
         delete [] packing_buffer;
+
+        output_bsize = output_marker = 0;
+        output_buffer = packing_buffer = 0;
     }
 
     bool GeneralWriter :: int_stream :: operator < ( const int_stream &s ) const
@@ -658,6 +674,26 @@ namespace ncbi
 
     }
 
+    void GeneralWriter :: flush ()
+    {
+        if ( out_fd < 0 )
+            out . flush ();
+        else
+        {
+            ssize_t num_writ;
+            for ( size_t total = 0; total < output_marker; total += num_writ )
+            {
+                num_writ = :: write ( out_fd, & output_buffer [ total ], output_marker - total );
+                if ( num_writ < 0 )
+                    throw "Error writing to fd";
+                if ( num_writ == 0 )
+                    throw "Transfer incomplete writing to fd";
+            }
+
+            output_marker = 0;
+        }
+    }
+
     void GeneralWriter :: internal_write ( const void * data, size_t num_bytes )
     {
         if ( out_fd < 0 )
@@ -671,13 +707,23 @@ namespace ncbi
             const uint8_t * p = ( const uint8_t * ) data;
             for ( total = 0; total < num_bytes; )
             {
-                ssize_t num_writ = :: write ( out_fd, & p [ total ], num_bytes - total );
-                if ( num_writ < 0 )
-                    throw "Error writing to fd";
-                if ( num_writ == 0 )
-                    throw "Transfer incomplete writing to fd";
-                total += num_writ;
+                size_t avail = output_bsize - output_marker;
+                if ( avail == 0 )
+                {
+                    flush ();
+                    avail = output_bsize - output_marker;
+                }
+
+                size_t to_write = num_bytes - total;
+                if ( to_write > avail )
+                    to_write = avail;
+
+                assert ( to_write != 0 );
+                memcpy ( & output_buffer [ output_marker ], & p [ total ], to_write );
+                output_marker += to_write;
+                total += to_write;
             }
+
             byte_count += total;
         }
     }

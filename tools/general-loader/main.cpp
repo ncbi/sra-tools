@@ -152,41 +152,47 @@ rc_t CC KMain (int argc, char * argv[])
                 rc = KStreamMakeStdIn ( & std_in );
                 if ( rc == 0 )
                 {
-                    GeneralLoader loader ( *std_in );
-                    
-                    rc = ArgsOptionCount (args, OPTION_INCLUDE_PATHS, &pcount);
-                    if ( rc != 0 )
-                    {
-                        for ( uint32_t i = 0 ; i < pcount; ++i )
-                        {
-                            const char* value;
-                            rc = ArgsOptionValue (args, OPTION_INCLUDE_PATHS, i, &value);
-                            if ( rc != 0 )
-                            {
-                                break;
-                            }
-                            loader . AddSchemaIncludePath ( value );
-                        }
-                    }
-                    
-                    rc = ArgsOptionCount (args, OPTION_SCHEMAS, &pcount);
-                    if ( rc != 0 )
-                    {
-                        for ( uint32_t i = 0 ; i < pcount; ++i )
-                        {
-                            const char* value;
-                            rc = ArgsOptionValue (args, OPTION_SCHEMAS, i, &value);
-                            if ( rc != 0 )
-                            {
-                                break;
-                            }
-                            loader . AddSchemaFile( value );
-                        }
-                    }
-                    
+                    KStream* buffered;
+                    rc = KStreamMakeBuffered ( &buffered, std_in, 0 /*input-only*/, 0 /*use default size*/ );
                     if ( rc == 0 )
                     {
-                        rc = loader . Run();
+                        GeneralLoader loader ( *std_in );
+                        
+                        rc = ArgsOptionCount (args, OPTION_INCLUDE_PATHS, &pcount);
+                        if ( rc != 0 )
+                        {
+                            for ( uint32_t i = 0 ; i < pcount; ++i )
+                            {
+                                const char* value;
+                                rc = ArgsOptionValue (args, OPTION_INCLUDE_PATHS, i, &value);
+                                if ( rc != 0 )
+                                {
+                                    break;
+                                }
+                                loader . AddSchemaIncludePath ( value );
+                            }
+                        }
+                        
+                        rc = ArgsOptionCount (args, OPTION_SCHEMAS, &pcount);
+                        if ( rc != 0 )
+                        {
+                            for ( uint32_t i = 0 ; i < pcount; ++i )
+                            {
+                                const char* value;
+                                rc = ArgsOptionValue (args, OPTION_SCHEMAS, i, &value);
+                                if ( rc != 0 )
+                                {
+                                    break;
+                                }
+                                loader . AddSchemaFile( value );
+                            }
+                        }
+                        
+                        if ( rc == 0 )
+                        {
+                            rc = loader . Run();
+                        }
+                        KStreamRelease ( buffered );
                     }
                     KStreamRelease ( std_in );
                 }

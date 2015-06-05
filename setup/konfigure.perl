@@ -945,13 +945,13 @@ EndText
         T($F, '@ if cp $^ $@ && chmod 644 $@;                         \\');
         T($F, '  then                                                 \\');
         T($F, '      rm -f $(patsubst %$(VERSION),%$(MAJVERS),$@) '
-                      . '$(patsubst %$(VERSION_LIBX),%$(LIBX),$@) '
-                      . '$(patsubst %.$(VERSION_LIBX),%-static.$(LIBX),$@); \\');
+                     . '$(patsubst %$(VERSION_LIBX),%$(LIBX),$@) '
+                     . '$(patsubst %.$(VERSION_LIBX),%-static.$(LIBX),$@); \\');
         T($F, '      ln -s $(@F) $(patsubst %$(VERSION),%$(MAJVERS),$@);   \\');
         T($F, '      ln -s $(patsubst %$(VERSION),%$(MAJVERS),$(@F)) '
                       . '$(patsubst %$(VERSION_LIBX),%$(LIBX),$@); \\');
         T($F, '      ln -s $(patsubst %$(VERSION_LIBX),%$(LIBX),$(@F)) ' .
-       '$(INST_LIBDIR)$(BITS)/$(patsubst %.$(VERSION_LIBX),%-static.$(LIBX),$(@F));'
+   '$(INST_LIBDIR)$(BITS)/$(patsubst %.$(VERSION_LIBX),%-static.$(LIBX),$(@F));'
                                                               . ' \\');
         T($F, '      echo success;                                    \\');
         T($F, '  else                                                 \\');
@@ -965,10 +965,19 @@ EndText
         T($F, '@ echo -n "installing \'$(@F)\'... "');
         T($F, '@ if cp $^ $@ && chmod 755 $@;                         \\');
         T($F, '  then                                                 \\');
-        T($F, '      rm -f $(patsubst %$(VERSION),%$(MAJVERS),$@) '
+        if ($OS ne 'mac') {
+          T($F, '      rm -f $(patsubst %$(VERSION),%$(MAJVERS),$@) '
                       . '$(patsubst %$(VERSION_SHLX),%$(SHLX),$@);    \\');
-        T($F, '      ln -s $(@F) $(patsubst %$(VERSION),%$(MAJVERS),$@);   \\');
-        T($F, '      ln -s $(patsubst %$(VERSION),%$(MAJVERS),$(@F)) '
+        }
+        if ($OS eq 'linux') {
+          T($F, '      ln -s $(@F) $(patsubst %$(VERSION),%$(MAJVERS),$@); \\');
+        } elsif ($OS eq 'mac') {
+          T($F, '      ln -sf $(@F) '
+                   . '$(patsubst %$(VERSION_SHLX),%$(MAJVERS).$(SHLX),$@); \\');
+        } else {
+          die;
+        }
+        T($F, '      ln -sf $(patsubst %$(VERSION),%$(MAJVERS),$(@F)) '
                       . '$(patsubst %$(VERSION_SHLX),%$(SHLX),$@); \\');
         T($F, '      echo success;                                    \\');
         T($F, '  else                                                 \\');

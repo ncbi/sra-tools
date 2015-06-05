@@ -25,12 +25,18 @@
 */
 
 #include "test-sra-priv.h" /* PrintOS */
+#include "test-sra.vers.h" /* TEST_SRA_VERS */
 
 #include <kapp/main.h> /* KMain */
 
 #include <kfg/config.h> /* KConfig */
 #include <kfg/kart.h> /* Kart */
 #include <kfg/repository.h> /* KRepositoryMgr */
+
+#include <klib/time.h> /* KTimeMsStamp */
+
+#include <kns/endpoint.h> /* KEndPoint */
+#include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequest */
 
 #include <vfs/manager.h> /* VFSManager */
 #include <vfs/path.h> /* VPath */
@@ -104,7 +110,7 @@ typedef enum {
     eNoTestArg = 32768
 } Type;
 typedef uint16_t TTest;
-static const char TESTS[] = "crdDksSoOtnufFa";
+static const char TESTS[] = "crdDwsSoOtnufFa";
 typedef struct {
     KConfig *cfg;
     KDirectory *dir;
@@ -116,6 +122,7 @@ typedef struct {
     VFSManager *vMgr;
     const KRepositoryMgr *repoMgr;
     VResolver *resolver;
+    VSchema *schema;
 
     TTest tests;
     bool recursive;
@@ -128,7 +135,7 @@ typedef struct {
     bool allowCaching;
     VResolverEnableState cacheState;
 } Main;
-uint32_t CC KAppVersion(void) { return 0; }
+uint32_t CC KAppVersion(void) { return TEST_SRA_VERS; }
 
 const char UsageDefaultName[] = "test-sra";
 
@@ -174,7 +181,7 @@ rc_t CC Usage(const Args *args) {
         "  f - print ascp information\n"
         "  F - print verbose ascp information\n"
         "  t - print object types\n"
-        "  N - run network test\n");
+        "  w - run network test\n");
     if (rc == 0 && rc2 != 0) {
         rc = rc2;
     }
@@ -437,6 +444,12 @@ static rc_t MainInitObjects(Main *self) {
         rc = VFSManagerMakeResolver(self->vMgr, &self->resolver, self->cfg);
     }
 
+    if (rc == 0) {
+        rc = VDBManagerMakeSRASchema(self->mgr, &self->schema);
+        if (rc != 0) {
+            OUTMSG(("VDBManagerMakeSRASchema() = %R\n", rc));
+        }
+    }
 
     RELEASE(VResolver, resolver);
 
@@ -891,12 +904,13 @@ static rc_t _VDBManagerReport(const VDBManager *self,
     return _KDBPathTypePrint("", *type, " ");
 }
 
-static rc_t _VDBManagerReportRemote(const VDBManager *self, const char *name)
+static rc_t _VDBManagerReportRemote
+    (const VDBManager *self, const char *name, const VSchema *schema)
 {
     bool notFound = false;
     const VDatabase *db = NULL;
     const VTable *tbl = NULL;
-    rc_t rc = VDBManagerOpenDBRead(self, &db, NULL, name);
+    rc_t rc = VDBManagerOpenDBRead(self, &db, schema, name);
     if (rc == 0) {
         RELEASE(VDatabase, db);
         return _KDBPathTypePrint("", kptDatabase, " ");
@@ -904,7 +918,7 @@ static rc_t _VDBManagerReportRemote(const VDBManager *self, const char *name)
     else if (GetRCState(rc) == rcNotFound) {
         notFound = true;
     }
-    rc = VDBManagerOpenTableRead(self,  &tbl, NULL,name);
+    rc = VDBManagerOpenTableRead(self,  &tbl, schema, name);
     if (rc == 0) {
         RELEASE(VTable, tbl);
         return _KDBPathTypePrint("", kptTable, " ");
@@ -984,7 +998,7 @@ static rc_t MainReportRemote(const Main *self, const char *name, int64_t size) {
     OUTMSG(("%,lu ", size));
 
     if (!self->noVDBManagerPathType) {
-        _VDBManagerReportRemote(self->mgr, name);
+        _VDBManagerReportRemote(self->mgr, name, self->schema);
     }
 
     return rc;
@@ -994,21 +1008,16 @@ static rc_t MainOpenAs(const Main *self, const char *name, bool isDb) {
     rc_t rc = 0;
     const VTable *tbl = NULL;
     const VDatabase *db = NULL;
-    VSchema *schema = NULL;
+
     assert(self);
 
-    rc = VDBManagerMakeSRASchema(self->mgr, &schema);
-    if (rc != 0) {
-        OUTMSG(("VDBManagerMakeSRASchema() = %R\n", rc));
-    }
-
     if (isDb) {
-        rc = VDBManagerOpenDBRead(self->mgr, &db, schema, "%s", name);
+        rc = VDBManagerOpenDBRead(self->mgr, &db, self->schema, "%s", name);
         ReportResetDatabase(name, db);
         OUTMSG(("VDBManagerOpenDBRead(%s) = ", name));
     }
     else {
-        rc = VDBManagerOpenTableRead(self->mgr, &tbl, schema, "%s", name);
+        rc = VDBManagerOpenTableRead(self->mgr, &tbl, self->schema, "%s", name);
         ReportResetTable(name, tbl);
         OUTMSG(("VDBManagerOpenTableRead(%s) = ", name));
     }
@@ -1020,7 +1029,6 @@ static rc_t MainOpenAs(const Main *self, const char *name, bool isDb) {
     }
     RELEASE(VDatabase, db);
     RELEASE(VTable, tbl);
-    RELEASE(VSchema, schema);
     return rc;
 }
 
@@ -1058,10 +1066,10 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
             OUTMSG(("Local:\t\t  "));
             break;
         case ePathRemote:
-            OUTMSG(("Remote %s:\t  ", fasp ? "fasp" : "http"));
+            OUTMSG(("Remote %s:\t  ", fasp ? "FaspHttp" : "HttpFasp"));
             break;
         case ePathCache:
-            OUTMSG(("Cache %s:\t  ", fasp ? "fasp" : "http"));
+            OUTMSG(("Cache %s:\t  ", fasp ? "FaspHttp" : "HttpFasp"));
             if (remote == NULL) {
                 OUTMSG(("skipped%s", eol));
                 return rc;
@@ -1156,7 +1164,7 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
             }
 
             if (rc == 0) {
-                OUTMSG(("Cache.cache %s: ", fasp ? "fasp" : "http"));
+                OUTMSG(("Cache.cache %s: ", fasp ? "FaspHttp" : "HttpFasp"));
                 OUTMSG(("%s ", cachecache));
                 rc = MainReport(self, cachecache, NULL, NULL, NULL);
                 OUTMSG(("%s", eol));
@@ -1477,14 +1485,16 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
     }
 
     if (rc == 0) {
+        rc_t rc2 = 0;
+
         const VPath* remote = NULL;
 
-        rc_t rc2 = MainResolveLocal(self, resolver, name, acc, localSz);
+        rc = VDBManagerSetResolver(self->mgr, resolver);
+
+        rc2 = MainResolveLocal(self, resolver, name, acc, localSz);
         if (rc2 != 0 && rc == 0) {
             rc = rc2;
         }
-
-        rc = VDBManagerSetResolver(self->mgr, resolver);
 
         rc2 = MainResolveRemote(self, resolver, name, acc, &remote, remoteSz,
             false);
@@ -1529,6 +1539,7 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
     if (self->xml) {
         OUTMSG(("</%s>\n", root));
     }
+    OUTMSG(("\n"));
 
     return rc;
 }
@@ -1552,7 +1563,7 @@ rc_t MainDepend(const Main *self, const char *name, bool missing)
     }
 
     if (rc == 0) {
-        rc = VDBManagerOpenDBRead(self->mgr, &db, NULL, "%s", name);
+        rc = VDBManagerOpenDBRead(self->mgr, &db, self->schema, "%s", name);
         if (rc != 0) {
             if (rc == SILENT_RC(rcVFS,rcMgr,rcOpening,rcDirectory,rcNotFound)) {
                 return 0;
@@ -1901,6 +1912,409 @@ static rc_t PrintCurl(bool full, bool xml) {
 
 #define kptKartITEM (kptAlias - 1)
 
+static rc_t _KartItemPrint(const KartItem *self, bool xml) {
+    const char root[] = "KartRow";
+    const String *elem = NULL;
+    if (xml) {
+        OUTMSG(("  <%s>\n", root));
+    }
+    {
+        const char root[] = "ProjId";
+        rc_t rc = KartItemProjId(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    {
+        const char root[] = "ItemId";
+        rc_t rc = KartItemItemId(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    {
+        const char root[] = "Accession";
+        rc_t rc = KartItemAccession(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    {
+        const char root[] = "Name";
+        rc_t rc = KartItemName(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    {
+        const char root[] = "ItemDesc";
+        rc_t rc = KartItemItemDesc(self, &elem);
+        if (rc != 0) {
+            OUTMSG(("KartItem%s = %R\n", root, rc));
+        }
+        else if (xml) {
+            OUTMSG(("    <%s>%S</%s>\n", root, elem, root));
+        }
+        else {
+            OUTMSG(("%s: %S\n", root, elem));
+        }
+    }
+    if (xml) {
+        OUTMSG(("  </%s>\n", root));
+    }
+    return 0;
+}
+
+/*static rc_t _KartPrint(const Kart *self, bool xml) {
+    const char root[] = "Kart";
+    if (xml) {
+        OUTMSG(("  <%s>\n", root));
+    }
+    rc_t rc = KartPrint(self);
+    if (rc != 0) {
+        OUTMSG(("KartPrint = %R\n", rc));
+    }
+    if (xml) {
+        OUTMSG(("  </%s>\n", root));
+    }
+    return 0;
+}
+static rc_t _KartPrintSized(const Kart *self, bool xml) {
+    return 0;
+}
+*/
+
+static rc_t _KartPrintNumbered(const Kart *self, bool xml) {
+    const char root[] = "Kart";
+    if (xml) {
+        OUTMSG(("  <%s numbered=\"true\">\n", root));
+    }
+    {
+        rc_t rc = KartPrintNumbered(self);
+        if (rc != 0) {
+            OUTMSG(("KartPrint = %R\n", rc));
+        }
+    }
+    if (xml) {
+        OUTMSG(("  </%s>\n", root));
+    }
+    return 0;
+}
+
+
+static rc_t ipv4_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
+{
+	uint32_t b[4];
+	b[0] = ( ep->u.ipv4.addr & 0xFF000000 ) >> 24;
+	b[1] = ( ep->u.ipv4.addr & 0xFF0000 ) >> 16;
+	b[2] = ( ep->u.ipv4.addr & 0xFF00 ) >> 8;
+	b[3] = ( ep->u.ipv4.addr & 0xFF );
+	return string_printf( buffer, buflen, NULL, "ipv4: %d.%d.%d.%d : %d",
+						   b[0], b[1], b[2], b[3], ep->u.ipv4.port );
+}
+
+static rc_t ipv6_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
+{
+	uint32_t b[8];
+	b[0] = ( ep->u.ipv6.addr[ 0  ] << 8 ) | ep->u.ipv6.addr[ 1  ];
+	b[1] = ( ep->u.ipv6.addr[ 2  ] << 8 ) | ep->u.ipv6.addr[ 3  ];
+	b[2] = ( ep->u.ipv6.addr[ 4  ] << 8 ) | ep->u.ipv6.addr[ 5  ];
+	b[3] = ( ep->u.ipv6.addr[ 6  ] << 8 ) | ep->u.ipv6.addr[ 7  ];
+	b[4] = ( ep->u.ipv6.addr[ 8  ] << 8 ) | ep->u.ipv6.addr[ 9  ];
+	b[5] = ( ep->u.ipv6.addr[ 10 ] << 8 ) | ep->u.ipv6.addr[ 11 ];
+	b[6] = ( ep->u.ipv6.addr[ 12 ] << 8 ) | ep->u.ipv6.addr[ 13 ];
+	b[7] = ( ep->u.ipv6.addr[ 14 ] << 8 ) | ep->u.ipv6.addr[ 15 ];
+	return string_printf( buffer, buflen, NULL,
+        "ipv6: %.04X:%.04X:%.04X:%.04X:%.04X:%.04X:%.04X:%.04X: :%d", 
+		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], ep->u.ipv6.port );
+}
+
+static rc_t ipc_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
+{
+	return string_printf( buffer, buflen, NULL, "ipc: %s", ep->u.ipc_name );
+}
+
+static rc_t endpoint_to_string( char * buffer, size_t buflen, KEndPoint * ep )
+{
+	rc_t rc;
+	switch( ep->type )
+	{
+		case epIPV4 : rc = ipv4_endpoint_to_string( buffer, buflen, ep ); break;
+		case epIPV6 : rc = ipv6_endpoint_to_string( buffer, buflen, ep ); break;
+		case epIPC  : rc = ipc_endpoint_to_string( buffer, buflen, ep ); break;
+		default     : rc = string_printf( buffer, buflen, NULL,
+                          "unknown endpoint-tyep %d", ep->type ); break;
+	}
+	return rc;
+}
+
+static rc_t perfrom_dns_test(const Main *self, const char *eol) {
+    rc_t rc = 0;
+    const char domain[] = "www.ncbi.nlm.nih.gov";
+    const uint16_t port = 80;
+	KEndPoint ep;
+    String s_domain;
+    KTimeMs_t time = 0;
+	KTimeMs_t start_time = KTimeMsStamp();
+    assert(self);
+    StringInitCString(&s_domain, domain);
+    rc = KNSManagerInitDNSEndpoint(self->knsMgr, &ep, &s_domain, port);
+    time = KTimeMsStamp() - start_time;
+    if (rc != 0) {
+        OUTMSG
+            (("KNSManagerInitDNSEndpoint(%s, %d)=%R%s", domain, port, rc, eol));
+    }
+    else {
+        const char root[] = "DnsEndpoint";//"www.ncbi.nlm.nih.gov", 80
+        char s_endpoint[1024] = "";
+        rc = endpoint_to_string(s_endpoint, sizeof s_endpoint, &ep);
+        if (self->xml) {
+            OUTMSG(("  <%s "
+                "domain=\"%s\" port=\"%d\" address=\"%s\" time=\"%d ms\"/>\n",
+                root, domain, port, s_endpoint, time));
+        }
+        else {
+            OUTMSG((
+                "%s domain=\"%s\" port=\"%d\" address=\"%s\" time=\"%d ms\"",
+                root, domain, port, s_endpoint, time));
+        }
+    }
+    return rc;
+}
+
+static rc_t read_stream_into_databuffer(
+    KStream *stream, KDataBuffer *databuffer)
+{
+	rc_t rc;
+	
+	size_t total = 0;
+	KDataBufferMakeBytes( databuffer, 4096 );
+	while ( 1 )
+	{
+		size_t num_read;
+		uint8_t * base;
+		uint64_t avail = databuffer->elem_count - total;
+		if ( avail < 256 )
+		{
+			rc = KDataBufferResize( databuffer, databuffer->elem_count + 4096 );
+			if ( rc != 0 )
+			{
+				LogErr( klogErr, rc, "CGI: KDataBufferResize failed" );
+				break;
+			}
+		}
+		
+		base = databuffer->base;
+		rc = KStreamRead(stream, &base[total],
+            (size_t) databuffer->elem_count - total, &num_read);
+		if ( rc != 0 )
+		{
+			/* TBD - look more closely at rc */
+			if ( num_read > 0 )
+			{
+				LogErr( klogErr, rc, "CGI: KStreamRead failed" );
+				rc = 0;
+			}
+			else
+				break;
+		}
+
+		if ( num_read == 0 )
+			break;
+
+		total += num_read;
+	}
+
+	if ( rc == 0 )
+		databuffer->elem_count = total;
+	return rc;
+}
+
+static rc_t call_cgi(const Main *self, const char *cgi_url,
+    uint32_t ver_major, uint32_t ver_minor, const char *protocol,
+    const char *acc, KDataBuffer *databuffer, const char *eol)
+{
+	KHttpRequest *req = NULL;
+    rc_t rc = 0;
+    assert(self);
+    rc = KNSManagerMakeReliableClientRequest
+        (self->knsMgr, &req, 0x01000000, NULL, cgi_url);
+    if (rc != 0) {
+        OUTMSG(
+            ("KNSManagerMakeReliableClientRequest(%s)=%R%s", cgi_url, rc, eol));
+    }
+    else {
+        const char param[] = "version";
+        rc = KHttpRequestAddPostParam
+            (req, "%s=%u.%u", param, ver_major, ver_minor);
+        if (rc != 0) {
+            OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
+        }
+    }
+    if (rc == 0) {
+        const char param[] = "accept-proto";
+		rc = KHttpRequestAddPostParam( req, "%s=%s", param, protocol);
+        if (rc != 0) {
+            OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
+        }
+    }
+    if (rc == 0) {
+        KHttpResult *rslt = NULL;
+        rc = KHttpRequestPOST(req, &rslt);
+        if (rc != 0) {
+            OUTMSG(("KHttpRequestPOST(%s)=%R%s", cgi_url, rc, eol));
+        }
+        else {
+            const char root[] = "StatusCode";
+            uint32_t code = 0;
+            rc = KHttpResultStatus(rslt, &code, NULL, 0, NULL);
+            if (rc != 0) {
+                OUTMSG(("KHttpResultStatus(%s)=%R%s", cgi_url, rc, eol));
+            }
+            else if (code != 200) {
+                if (self->xml) {
+                    OUTMSG(("    <%s>%d</%s>\n", root, code, root));
+                }
+                else {
+                    OUTMSG(("%s=%d\n", root, code));
+                }
+            }
+            else {
+                KStream *response = NULL;
+                rc = KHttpResultGetInputStream(rslt, &response);
+                if (rc != 0) {
+                    OUTMSG(("KHttpResultGetInputStream(%s)=%R%s",
+                        cgi_url, rc, eol));
+                }
+                else {
+                    rc = read_stream_into_databuffer(response, databuffer);
+                }
+                RELEASE(KStream, response);
+            }
+        }
+
+        RELEASE(KHttpResult, rslt);
+    }
+    RELEASE(KHttpRequest, req);
+    return rc;
+}
+
+static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
+{
+    rc_t rc = 0;
+    const char root[] = "Cgi";
+    KDataBuffer databuffer;
+    KTimeMs_t start_time = KTimeMsStamp();
+    if (acc == NULL) {
+        return 0;
+    }
+    assert(self);
+    memset(&databuffer, 0, sizeof databuffer);
+    if (self->xml) {
+        OUTMSG(("  <%s>\n", root));
+    }
+    rc = call_cgi(self, "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi",
+        1, 1, "http", acc, &databuffer, eol);
+    if (self->xml) {
+        OUTMSG(("  </%s>\n", root));
+    }
+    return rc;
+}
+
+static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
+{
+    const char root[] = "Network";
+    assert(self);
+    if (self->xml) {
+        OUTMSG(("<%s>\n", root));
+    }
+    {
+        const char root[] = "HttpProxy";
+        bool enabled = KNSManagerGetHTTPProxyEnabled(self->knsMgr);
+        if (!enabled) {
+            if (self->xml) {
+                OUTMSG(("  <%s enabled=\"false\">\n", root));
+            }
+            else {
+                OUTMSG(("HTTPProxyEnabled=\"false\"\n", root));
+            }
+        }
+        else {
+            if (self->xml) {
+                OUTMSG(("  <%s enabled=\"true\">\n", root));
+            }
+            else {
+                OUTMSG(("HTTPProxyEnabled=\"true\"\n", root));
+            }
+        }
+        {
+            const String *proxy = NULL;
+            rc_t rc = KNSManagerGetHTTPProxyPath(self->knsMgr, &proxy);
+            if (rc != 0) {
+                OUTMSG(("KNSManagerGetHTTPProxyPath()=%R%s", rc, eol));
+            }
+            else {
+                const char root[] = "Path";
+                if (self->xml) {
+                    OUTMSG(("    <%s>%S</%s>\n", root, proxy, root));
+                }
+                else {
+                    OUTMSG(("HTTPProxyPath=\"%S\"\n", proxy));
+                }
+            }
+        }
+        if (self->xml) {
+            OUTMSG(("  </%s>\n", root));
+        }
+    }
+    {
+		const char *user_agent = NULL;
+        rc_t rc = KNSManagerGetUserAgent(&user_agent);
+        if (rc != 0) {
+            OUTMSG(("KNSManagerGetUserAgent()=%R%s", rc, eol));
+        }
+        else {
+            const char root[] = "UserAgent";
+            if (self->xml) {
+                OUTMSG(("  <%s>%s</%s>\n", root, user_agent, root));
+            }
+            else {
+                OUTMSG(("UserAgent=\"%s\"\n", user_agent));
+            }
+        }
+    }
+    perfrom_dns_test(self, eol);
+    perform_cgi_test(self, eol, arg);
+    if (self->xml) {
+        OUTMSG(("</%s>\n", root));
+    }
+    return 0;
+}
+
 static
 rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
 {
@@ -1931,45 +2345,9 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
     }
 
     if (item != NULL) {
-        rc_t rc = 0;
-        uint64_t project = 0;
-        uint64_t oid = 0;
-
         type = kptKartITEM;
 
-        rc = KartItemProjIdNumber(item, &project);
-        if (rc != 0) {
-            OUTMSG(("KartItemProjectIdNumber = %R\n", rc));
-        }
-        else {
-            OUTMSG(("%d\n", project));
-        }
-        rc = KartItemItemIdNumber(item, &oid);
-        if (rc == 0) {
-            if (self->xml) {
-                const char root[] = "id";
-                OUTMSG(("<%s>%d</%s>\n", root, oid, root));
-            }
-            else {
-                OUTMSG(("id: %d\n", oid));
-            }
-        }
-        else {
-            const String *accession = NULL;
-            rc = KartItemAccession(item, &accession);
-            if (rc == 0) {
-                if (self->xml) {
-                    const char root[] = "acc";
-                    OUTMSG(("<%s>%S</%s>\n", root, accession, root));
-                }
-                else {
-                    OUTMSG(("acc: %S\n", accession));
-                }
-            }
-            else {
-                OUTMSG(("KartItemIdNumber &| Accession = %R\n", rc));
-            }
-        }
+        _KartItemPrint(item, self->xml);
     }
 
     else {
@@ -2081,6 +2459,15 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
                     rce = rc2;
                 }
             }
+            if (true) {
+                _KartPrintNumbered(kart, self->xml);
+            }
+            /*if (true) {
+                _KartPrint(kart, self->xml);
+            }
+            if (true) {
+                _KartPrintSized(kart, self->xml);
+            }*/
             KartRelease(kart);
             kart = NULL;
         }
@@ -2089,6 +2476,10 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
      /* ignore returned value :
         resolver's errors are detected but not reported as test-sra's failure */
                 MainResolve(self, item, arg, &localSz, &remoteSz, false);
+            }
+
+            if (MainHasTest(self, eNetwork)) {
+                MainNetwotk(self, arg, eol);
             }
 
             if (item == NULL) {
@@ -2241,6 +2632,7 @@ static rc_t MainFini(Main *self) {
     RELEASE(VFSManager, self->vMgr);
     RELEASE(VDBManager, self->mgr);
     RELEASE(KDirectory, self->dir);
+    RELEASE(VSchema, self->schema);
 
     return rc;
 }

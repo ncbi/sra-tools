@@ -36,8 +36,10 @@
 
 #define USE_GENERAL_LOADER 1
 #define RECORD_REF_BASE    0
-#define RECORD_REF_POS     1
 #define RECORD_MATCH_COUNT 1
+#define QUANTIZE_VALUES    1
+
+#define DFLT_BUFFER_SIZE ( 32 * 1024 )
 
 #if _DEBUGGING
 #define SINGLE_REFERENCE 0
@@ -48,6 +50,7 @@
 #endif
 
 #include "../general-loader/general-writer.hpp"
+#include <arch-impl.h>
 
 #include "pileup-stats.vers.h"
 
@@ -63,9 +66,7 @@ namespace ncbi
     {
         col_RUN_NAME,
         col_REFERENCE_SPEC,
-#if RECORD_REF_POS
-        col_REF_POS,
-#endif
+        col_REF_POS_TRANS,
 #if RECORD_REF_BASE
         col_REF_BASE,
 #endif
@@ -82,10 +83,45 @@ namespace ncbi
     static int column_id [ num_columns ];
     static uint8_t integer_column_flag_bits;
 #endif
+    static int64_t zrow_id;
 
     static uint32_t depth_cutoff = 1;               // do not output if depth <= this value
 
     static uint32_t verbosity;
+
+    const bool need_write_true = false;
+
+#if QUANTIZE_VALUES
+    inline
+    uint32_t filter_significant_bits ( uint32_t val, uint32_t num_significant_bits )
+    {
+        if ( val != 0 )
+        {
+            // we find the most significant bit in value
+            // which will be 0..31 for non-zero values
+            // from which we subtract the number of significant bits
+            // being retained ( - 1 to account for 0-based index )
+            //
+            // e.g.:
+            //  val = 0x31, num_significant_bits = 4
+            //  uint32_msbit ( val ) => 5, meaning the most significant bit is 5,
+            //  which says there are 6 significant bits in total. we only want to
+            //  keep 4, however.
+            //  mask_index = 5 - ( 4 - 1 ) => 2
+            //  0xFFFFFFFF << mask_index => 0xFFFFFFFC
+            //  val then becomes 0x30
+            int mask_index = uint32_msbit ( val ) - ( int ) ( num_significant_bits - 1 );
+            if ( mask_index > 0 )
+            {
+                // this is a positive quantity
+                assert ( mask_index <= 31 );
+                val = val & ( 0xFFFFFFFF << mask_index );
+            }
+        }
+
+        return val;
+    }
+#endif
 
     static
     void run (
@@ -94,10 +130,20 @@ namespace ncbi
 #endif
         const String & runName, const String & refName, PileupIterator & pileup )
     {
-        for ( int64_t ref_zpos = -1; pileup . nextPileup (); ++ ref_zpos )
+        int64_t ref_zpos, last_writ = 0;
+        bool need_write = false;
+
+        for ( ref_zpos = -1; pileup . nextPileup (); ++ ref_zpos, ++ zrow_id )
         {
             if ( ref_zpos < 0 )
-                ref_zpos = pileup . getReferencePosition ();
+            {
+                last_writ = ref_zpos = pileup . getReferencePosition ();
+#if USE_GENERAL_LOADER
+                int64_t ref_pos_trans = ref_zpos - zrow_id;
+                out . columnDefault ( column_id [ col_REF_POS_TRANS ], 64, & ref_pos_trans, 1 );
+                need_write = need_write_true;
+#endif
+            }
 
             switch ( verbosity )
             {
@@ -124,7 +170,16 @@ namespace ncbi
             case 'C': ref_base_idx = 1; break;
             case 'G': ref_base_idx = 2; break;
             case 'T': ref_base_idx = 3; break;
-            default: continue;
+            default:
+                if ( need_write )
+                {
+#if USE_GENERAL_LOADER
+                    out . nextRow ( tbl_id );
+                    last_writ = ref_zpos + 1;
+#endif
+                    need_write = false;
+                }
+                continue;
             }
 
             uint32_t depth = pileup . getPileupDepth ();
@@ -173,7 +228,6 @@ namespace ncbi
                     {
                     case PileupEvent :: match:
 #if RECORD_MATCH_COUNT
-                        ++ mismatch_counts [ ref_base_idx ];
                         have_mismatch = true;
 #endif
                     handle_N_in_mismatch:
@@ -230,26 +284,64 @@ namespace ncbi
                 }
             }
 
-#if USE_GENERAL_LOADER
-            // don't have to write RUN_NAME or REFERENCE_SPEC
-            int64_t ref_pos = ref_zpos + 1;
-#if RECORD_REF_POS
-            out . write ( column_id [ col_REF_POS ], sizeof ref_pos * 8, & ref_pos, 1 );
-#endif
-#endif
             if ( depth > depth_cutoff )
             {
+#if QUANTIZE_VALUES
+                int i;
+
+                const uint32_t event_cutoff = 1;
+                const uint32_t num_significant_bits = 4;
+
+                if ( del_cnt <= event_cutoff )
+                    del_cnt = 0;
+
+                have_mismatch = false;
+                for ( i = 0; i < 3 + RECORD_MATCH_COUNT; ++ i )
+                {
+                    if ( mismatch_counts [ i ] <= event_cutoff )
+                        mismatch_counts [ i ] = 0;
+                    else
+                        have_mismatch = true;
+                }
+
+                have_inserts = false;
+                for ( i = 0; i < 4; ++ i )
+                {
+                    if ( ins_counts [ i ] <= event_cutoff )
+                        ins_counts [ i ] = 0;
+                    else
+                        have_inserts = true;
+                }
+
+                if ( num_significant_bits != 0 /*&& !have_mismatch && !have_inserts && !del_cnt*/)
+                {
+                    depth = filter_significant_bits ( depth, num_significant_bits );
+#if 1
+                    del_cnt = filter_significant_bits ( del_cnt, num_significant_bits );
+                    for ( i = 0; i < 3 + RECORD_MATCH_COUNT; ++ i ) 
+                        mismatch_counts [ i ] = filter_significant_bits ( mismatch_counts [ i ], num_significant_bits );
+                    for ( i = 0; i < 4; ++ i )
+                        ins_counts [ i ] = filter_significant_bits ( ins_counts [ i ], num_significant_bits );
+#endif
+                }
+
+#endif // QUANTIZE_VALUES
+                        
+                   
 #if USE_GENERAL_LOADER
+                if ( ref_zpos > last_writ )
+                    out . moveAhead ( tbl_id, ref_zpos - last_writ );
 #if RECORD_REF_BASE
                 out . write ( column_id [ col_REF_BASE ], sizeof ref_base * 8, & ref_base, 1 );
 #endif
                 out . write ( column_id [ col_DEPTH ], sizeof depth * 8, & depth, 1 );
                 if ( have_mismatch )
-                    out . write ( column_id [ col_MISMATCH_COUNTS ], sizeof mismatch_counts [ 0 ] * 8, mismatch_counts, 3 );
+                    out . write ( column_id [ col_MISMATCH_COUNTS ], sizeof mismatch_counts [ 0 ] * 8, mismatch_counts, 3 + RECORD_MATCH_COUNT );
                 if ( have_inserts )
                     out . write ( column_id [ col_INSERTION_COUNTS ], sizeof ins_counts [ 0 ] * 8, ins_counts, 4 );
                 if ( del_cnt != 0 )
                     out . write ( column_id [ col_DELETION_COUNT ], sizeof del_cnt * 8, & del_cnt, 1 );
+                out . nextRow ( tbl_id );
 #else
                 std :: cout
                     << runName
@@ -268,14 +360,23 @@ namespace ncbi
                     << '\n'
                     ;
 #endif
+                last_writ = ref_zpos + 1;
+            }
+            else if ( need_write )
+            {
+#if USE_GENERAL_LOADER
+                out . nextRow ( tbl_id );
+#endif
+                need_write = false;
             }
 
-#if USE_GENERAL_LOADER
-            out . nextRow ( tbl_id );
-#endif
 #endif // NO_PILEUP_EVENTS
 
         }
+#if USE_GENERAL_LOADER
+        if ( ref_zpos > last_writ )
+            out . moveAhead ( tbl_id, ref_zpos - last_writ );
+#endif
     }
 
 #if USE_GENERAL_LOADER
@@ -288,9 +389,7 @@ namespace ncbi
         // add each column
         column_id [ col_RUN_NAME ] = out . addColumn ( tbl_id, "RUN_NAME", 8 );
         column_id [ col_REFERENCE_SPEC ] = out . addColumn ( tbl_id, "REFERENCE_SPEC", 8 );
-#if RECORD_REF_POS
-        column_id [ col_REF_POS ] = out . addColumn ( tbl_id, "REF_POS", 64, integer_column_flag_bits );
-#endif
+        column_id [ col_REF_POS_TRANS ] = out . addColumn ( tbl_id, "REF_POS_TRANS", 64, 0 );
 #if RECORD_REF_BASE
         column_id [ col_REF_BASE ] = out . addColumn ( tbl_id, "REF_BASE", 8 );
 #endif
@@ -312,7 +411,7 @@ namespace ncbi
 #endif
 
     static
-    void run ( const char * spec, const char *outfile, const char *_remote_db, Alignment :: AlignmentCategory cat )
+    void run ( const char * spec, const char *outfile, const char *_remote_db, size_t buffer_size, Alignment :: AlignmentCategory cat )
     {
         std :: cerr << "# Opening run '" << spec << "'\n";
         ReadCollection obj = ncbi :: NGS :: openReadCollection ( spec );
@@ -329,7 +428,7 @@ namespace ncbi
             remote_db = _remote_db;
 
         GeneralWriter *outp = ( outfile == NULL ) ? 
-            new GeneralWriter ( 1 ) : new GeneralWriter ( outfile );
+            new GeneralWriter ( 1, buffer_size ) : new GeneralWriter ( outfile );
 
         try
         {
@@ -463,6 +562,7 @@ extern "C"
             << "  -a|--align-category              the types of alignments to pile up:\n"
             << "                                   { primary, secondary, all } (default all)\n"
 #if USE_GENERAL_LOADER
+            << "  --buffer-size bytes              size of output pipe buffer - default " << DFLT_BUFFER_SIZE/1024 << "K bytes\n"
             << "  -P|--pack-integer                pack integers in output pipe - uses less bandwidth\n"
 #endif
             << "  -h|--help                        output brief explanation of the program\n"
@@ -489,7 +589,7 @@ extern "C"
     {
         rc_t rc = -1;
         Alignment :: AlignmentCategory cat = Alignment :: all;
-
+        size_t buffer_size = DFLT_BUFFER_SIZE;
         try
         {
             int num_runs = 0;
@@ -558,6 +658,17 @@ extern "C"
                     {
                         remote_db = getArg ( i, argc, argv );
                     }
+                    else if ( strcmp ( arg, "buffer-size" ) == 0 )
+                    {
+                        const char * str = getArg ( i, argc, argv );
+
+                        char * end;
+                        long new_buffer_size = strtol ( str, & end, 0 );
+                        if ( new_buffer_size < 0 || str == ( const char * ) end || end [ 0 ] != 0 )
+                            throw "Invalid buffer argument";
+
+                        buffer_size = new_buffer_size;
+                    }
 #endif
                     else if ( strcmp ( arg, "depth-cutoff" ) == 0 )
                     {
@@ -615,7 +726,7 @@ extern "C"
 #endif
             for ( int i = 1; i <= num_runs; ++ i )
             {
-                ncbi :: run ( argv [ i ], outfile, remote_db, cat );
+                ncbi :: run ( argv [ i ], outfile, remote_db, buffer_size, cat );
             }
 
             rc = 0;

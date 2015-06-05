@@ -46,7 +46,21 @@ namespace gw_dump
     static uint64_t end_event;
     static uint64_t foffset;
 
-    static std :: vector < std :: string > tbl_names;
+    struct tbl_entry
+    {
+        tbl_entry ( const std :: string & _name )
+            : row_id ( 1 )
+            , name ( _name )
+        {
+        }
+
+        int64_t row_id;
+        std :: string name;
+    };
+
+    static std :: vector < tbl_entry > tbl_entries;
+
+
     struct col_entry
     {
         col_entry ( uint32_t _table_id, const std :: string & name, uint32_t _elem_bits, uint8_t _flag_bits = 0 )
@@ -216,37 +230,44 @@ namespace gw_dump
     }
 
 
-    /* check_repeat_row
+    /* check_move_ahead
      */
     template < class T > static
-    void check_repeat_row ( const T & eh )
+    void check_move_ahead ( const T & eh )
     {
-        if ( id ( eh ) == 0 )
-            throw "bad table id within repeat-row event (null)";
-        if ( id ( eh ) > tbl_names . size () )
-            throw "bad table id within repeat-row event";
+        if ( id ( eh . dad ) == 0 )
+            throw "bad table id within move-ahead event (null)";
+        if ( id ( eh . dad ) > tbl_entries . size () )
+            throw "bad table id within move-ahead event";
     }
 
-    /* dump_repeat_row
+    /* dump_move_ahead
      */
     template < class D, class T > static
-    void dump_repeat_row ( FILE * in, const D & e )
+    void dump_move_ahead ( FILE * in, const D & e )
     {
         T eh;
         init ( eh, e );
 
-        size_t num_read = readFILE ( eh . repeat, sizeof eh - sizeof ( D ), 1, in );
+        size_t num_read = readFILE ( eh . nrows, sizeof eh - sizeof ( D ), 1, in );
         if ( num_read != 1 )
-            throw "failed to read repeat-row event";
+            throw "failed to read move-ahead event";
 
-        check_repeat_row ( eh );
+        check_move_ahead ( eh );
+
+        // advance row-id
+        tbl_entry & te = tbl_entries [ id ( eh . dad ) - 1 ];
+        te . row_id += get_nrows ( eh );
 
         if ( display )
         {
+            const std :: string & tbl_name = te . name;
+
             std :: cout
-                << event_num << ": repeat-row\n"
-                << "  table_id = " << table_id ( eh ) << " ( \"" << tbl_names [ table_id ( eh ) - 1 ] << "\" )\n"
-                << "  repeat = " << get_repeat ( eh ) << '\n'
+                << event_num << ": move-ahead\n"
+                << "  table_id = " << id ( eh . dad ) << " ( \"" << tbl_name << "\" )\n"
+                << "  nrows = " << get_nrows ( eh ) << '\n'
+                << "  row_id = " << te . row_id << '\n'
                 ;
         }
     }
@@ -261,7 +282,7 @@ namespace gw_dump
     {
         if ( id ( eh ) == 0 )
             throw "bad table id within next-row event (null)";
-        if ( id ( eh ) > tbl_names . size () )
+        if ( id ( eh ) > tbl_entries . size () )
             throw "bad table id within next-row event";
     }
 
@@ -272,11 +293,50 @@ namespace gw_dump
     {
         check_next_row ( eh );
 
+        // advance row-id
+        tbl_entry & te = tbl_entries [ id ( eh ) - 1 ];
+        ++ te . row_id;
+
         if ( display )
         {
+            const std :: string & tbl_name = te . name;
+
             std :: cout
                 << event_num << ": next-row\n"
-                << "  table_id = " << id ( eh ) << " ( \"" << tbl_names [ id ( eh ) - 1 ] << "\" )\n"
+                << "  table_id = " << id ( eh ) << " ( \"" << tbl_name << "\" )\n"
+                << "  row_id = " << te . row_id << '\n'
+                ;
+        }
+    }
+
+    /* check_empty_default
+     */
+    template < class T > static
+    void check_empty_default ( const T & eh )
+    {
+        if ( id ( eh ) == 0 )
+            throw "bad cell event id (null)";
+        if ( id ( eh ) > col_entries . size () )
+            throw "bad cell event id";
+    }
+
+    /* dump_empty_default
+     */
+    template < class T > static
+    void dump_empty_default ( FILE * in, const T & eh )
+    {
+        check_empty_default ( eh );
+
+        if ( display )
+        {
+            const col_entry & entry = col_entries [ id ( eh ) - 1 ];
+            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . name;
+
+            std :: cout
+                << event_num << ": cell-default\n"
+                << "  stream_id = " << id ( eh ) << " ( " << tbl_name << " . " << entry . spec << " )\n"
+                << "  elem_bits = " << entry . elem_bits << '\n'
+                << "  elem_count = 0 ( empty )\n"
                 ;
         }
     }
@@ -402,7 +462,7 @@ namespace gw_dump
 
         if ( display )
         {
-            const std :: string & tbl_name = tbl_names [ entry . table_id - 1 ];
+            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . name;
 
             std :: cout
                 << event_num << ": cell-" << type << '\n'
@@ -452,7 +512,7 @@ namespace gw_dump
 
         if ( display )
         {
-            const std :: string & tbl_name = tbl_names [ entry . table_id - 1 ];
+            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . name;
 
             std :: cout
                 << event_num << ": cell-" << type << '\n'
@@ -516,7 +576,7 @@ namespace gw_dump
             throw "column id out of order";
         if ( table_id ( eh ) == 0 )
             throw "bad column table-id (null)";
-        if ( table_id ( eh ) > tbl_names . size () )
+        if ( table_id ( eh ) > tbl_entries . size () )
             throw "bad column table-id";
         if ( name_size ( eh ) == 0 )
             throw "empty column name";
@@ -531,7 +591,7 @@ namespace gw_dump
             throw "column id out of order";
         if ( table_id ( eh ) == 0 )
             throw "bad column table-id (null)";
-        if ( table_id ( eh ) > tbl_names . size () )
+        if ( table_id ( eh ) > tbl_entries . size () )
             throw "bad column table-id";
         if ( name_size ( eh ) == 0 )
             throw "empty column name";
@@ -561,9 +621,11 @@ namespace gw_dump
 
         if ( display )
         {
+            const std :: string & tbl_name = tbl_entries [ table_id ( eh ) - 1 ] . name;
+
             std :: cout
                 << event_num << ": new-column\n"
-                << "  table_id = " << table_id ( eh ) << " ( \"" << tbl_names [ table_id ( eh ) - 1 ] << "\" )\n"
+                << "  table_id = " << table_id ( eh ) << " ( \"" << tbl_name << "\" )\n"
                 << "  column_name [ " << name_size ( eh ) << " ] = \"" << name << "\"\n"
                 ;
         }
@@ -581,9 +643,9 @@ namespace gw_dump
     {
         if ( id ( eh . dad ) == 0 )
             throw "bad table id";
-        if ( ( size_t ) id ( eh . dad ) <= tbl_names . size () )
+        if ( ( size_t ) id ( eh . dad ) <= tbl_entries . size () )
             throw "table id already specified";
-        if ( ( size_t ) id ( eh . dad ) - 1 > tbl_names . size () )
+        if ( ( size_t ) id ( eh . dad ) - 1 > tbl_entries . size () )
             throw "table id out of order";
         if ( size ( eh ) == 0 )
             throw "empty table name";
@@ -605,7 +667,7 @@ namespace gw_dump
 
         char * string_buffer = read_1string ( eh, in );
         std :: string name ( string_buffer, size ( eh ) );
-        tbl_names . push_back ( name );
+        tbl_entries . push_back ( tbl_entry ( name ) );
 
         if ( display )
         {
@@ -863,6 +925,9 @@ namespace gw_dump
         case evt_next_row:
             dump_next_row ( in, e );
             break;
+        case evt_move_ahead:
+            dump_move_ahead < gw_evt_hdr_v1, gw_move_ahead_evt_v1 > ( in, e );
+            break;
         case evt_errmsg2:
         case evt_remote_path2:
         case evt_use_schema2:
@@ -870,6 +935,9 @@ namespace gw_dump
         case evt_cell_default2:
         case evt_cell_data2:
             throw "packed event id within non-packed stream";
+        case evt_empty_default:
+            dump_empty_default < gw_evt_hdr_v1 > ( in, e );
+            break;
         default:
             throw "unrecognized event id";
         }
@@ -932,6 +1000,9 @@ namespace gw_dump
         case evt_next_row:
             dump_next_row ( in, e );
             break;
+        case evt_move_ahead:
+            dump_move_ahead < gwp_evt_hdr_v1, gwp_move_ahead_evt_v1 > ( in, e );
+            break;
         case evt_errmsg2:
             dump_errmsg < gwp_evt_hdr_v1, gwp_1string_evt_U16_v1 > ( in, e );
             break;
@@ -949,6 +1020,9 @@ namespace gw_dump
             break;
         case evt_cell_data2:
             dump_cell_event < gwp_evt_hdr_v1, gwp_data_evt_U16_v1 > ( in, e, "data" );
+            break;
+        case evt_empty_default:
+            dump_empty_default < gwp_evt_hdr_v1 > ( in, e );
             break;
         default:
             throw "unrecognized event id";

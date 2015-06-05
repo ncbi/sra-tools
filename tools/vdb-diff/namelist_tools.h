@@ -48,6 +48,8 @@ bool nlt_compare_namelists( const KNamelist *nl1, const KNamelist *nl2, uint32_t
 
 rc_t nlt_copy_namelist( const KNamelist *src, const KNamelist ** dst );
 
+rc_t nlt_build_intersect( const KNamelist *nl1, const KNamelist *nl2, const KNamelist ** dst );
+
 bool nlt_namelist_is_sub_set_in_full_set( const KNamelist * sub_set, const KNamelist * full_set );
 
 #ifdef __cplusplus

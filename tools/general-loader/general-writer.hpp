@@ -85,11 +85,11 @@ namespace ncbi
         // may be repeated as often as necessary to complete a single cell's data
         void write ( int stream_id, uint32_t elem_bits, const void *data, uint32_t elem_count );
 
-        // generate an event
+        // commit and close current row, move to next row
         void nextRow ( int table_id );
 
-        // repeat the last row written
-        void repeatRow ( uint32_t table_id, uint64_t repeat_count );
+        // commit and close current row, move ahead by nrows
+        void moveAhead ( int table_id, uint64_t nrows );
 
         // indicate some sort of exception
         void logError ( const std :: string & msg );
@@ -100,7 +100,7 @@ namespace ncbi
 
         // out_fd writes to an open file descriptor ( generally stdout )
         // out_path initializes output stream for writing to a file
-        GeneralWriter ( int out_fd );
+        GeneralWriter ( int out_fd, size_t buffer_size = 32 * 1024 );
         GeneralWriter ( const std :: string & out_path );
 
         // output stream is flushed and closed
@@ -111,6 +111,7 @@ namespace ncbi
         void writeHeader ();
         void internal_write ( const void *data, size_t num_bytes );
         void write_event ( const gwp_evt_hdr * evt, size_t evt_size );
+        void flush ();
 
         struct int_stream
         {
@@ -136,6 +137,10 @@ namespace ncbi
 
         uint8_t * packing_buffer;
 
+        uint8_t * output_buffer;
+        size_t output_bsize;
+        size_t output_marker;
+
         int out_fd;
 
         enum stream_state
@@ -148,7 +153,6 @@ namespace ncbi
             have_table,
             have_column,
             opened,
-            mid_row,
             closed,
             error
         };

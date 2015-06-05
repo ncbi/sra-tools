@@ -29,12 +29,12 @@ TOP ?= $(abspath ../..)
 MODULE = test/general-loader
 
 TEST_TOOLS = \
-    test-general-loader
+    test-general-loader \
+	test-general-writer
 
 ALL_TOOLS = \
 	$(TEST_TOOLS) \
     
-#	test-general-writer
 
 include $(TOP)/build/Makefile.env
 
@@ -49,7 +49,8 @@ clean: stdclean
 # test-general-loader
 #
 TEST_GEN_LOAD_SRC = \
-	test-general-loader
+	test-general-loader \
+    testsource
 
 TEST_GEN_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(TEST_GEN_LOAD_SRC))
@@ -90,7 +91,7 @@ vg_gen_write: test-general-writer
 	rm -f gen-write-out
 
 
-runtests:$(TEST_TOOLS) piped-load-tests
+runtests:$(TEST_TOOLS) #piped-load-tests
 
 piped-load-tests: $(ALL_TOOLS)
 	-$(TEST_BINDIR)/test-general-writer | $(BINDIR)/general-loader -L=info
@@ -104,12 +105,25 @@ runtests: tool-tests
 
 makeinputs: makeinputs.cpp
 	@# generate numbered input streams for tool tests
-	@$(CXX) makeinputs.cpp -o makeinputs -I$(INCDIRS)
+	$(CXX) makeinputs.cpp testsource.cpp -o makeinputs -I$(INCDIRS) -L$(VDB_LIBDIR) -lncbi-vdb-static
 
 tool-tests: makeinputs
 	@mkdir -p input && ./makeinputs && rm ./makeinputs
-	@# basic 
+	@# basic, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1 0
-	@# error message event
+	@# basic, packed
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1packed 0
+	@# error message event, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2 3
+	@# error message event, packed
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2packed 3
 	@rm -f input/*.gl    
+    
+#-------------------------------------------------------------------------------
+# general-loader tool tests
+#
+slowtests: #piped-dump
+
+piped-dump: $(BINDIR)/pileup-stats test-general-loader
+	$(BINDIR)/pileup-stats SRR1063272 | $(BINDIR)/general-loader #-L=info
+

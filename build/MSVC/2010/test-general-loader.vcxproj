@@ -29,6 +29,7 @@
   
   <ItemGroup>
     <ClCompile Include="..\..\..\test\general-loader\test-general-loader.cpp" />
+    <ClCompile Include="..\..\..\test\general-loader\testsource.cpp" />
   </ItemGroup>
 
     <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">

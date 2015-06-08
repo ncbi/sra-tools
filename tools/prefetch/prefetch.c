@@ -590,7 +590,7 @@ rc_t VPathStrInitStr(VPathStr *self, const char *str, size_t len)
 }
 
 /********** TreeNode **********/
-static int CC bstCmp(const void *item, const BSTNode *n) {
+static int64_t CC bstCmp(const void *item, const BSTNode *n) {
     const char* path = item;
     const TreeNode* sn = (const TreeNode*) n;
 
@@ -599,7 +599,7 @@ static int CC bstCmp(const void *item, const BSTNode *n) {
     return strcmp(path, sn->path);
 }
 
-static int CC bstSort(const BSTNode* item, const BSTNode* n) {
+static int64_t CC bstSort(const BSTNode* item, const BSTNode* n) {
     const TreeNode* sn = (const TreeNode*) item;
 
     return bstCmp(sn->path, n);
@@ -2960,13 +2960,18 @@ static void CC bstKrtWhack(BSTNode *n, void *ignore) {
     free(sn);
 }
 
-static int CC bstKrtSort(const BSTNode *item, const BSTNode *n) {
+static int64_t CC bstKrtSort(const BSTNode *item, const BSTNode *n) {
     const KartTreeNode *sn1 = (const KartTreeNode*)item;
     const KartTreeNode *sn2 = (const KartTreeNode*)n;
 
     assert(sn1 && sn2 && sn1->i && sn2->i);
 
-    return sn1->i->resolved.remoteSz > sn2->i->resolved.remoteSz;
+    if (sn1->i->resolved.remoteSz < sn2->i->resolved.remoteSz)
+        return -1;
+    else if (sn1->i->resolved.remoteSz > sn2->i->resolved.remoteSz)
+        return 1;
+
+    return 0;
 }
 
 static void CC bstKrtDownload(BSTNode *n, void *data) {

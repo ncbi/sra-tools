@@ -922,7 +922,7 @@ typedef struct ReadGroup
 } ReadGroup;
 
 
-static int CC ReadGroup_sort( BSTNode const *item, BSTNode const *node )
+static int64_t CC ReadGroup_sort( BSTNode const *item, BSTNode const *node )
 {
     return strcmp( ( ( ReadGroup const * )item )->name, ( ( ReadGroup const * ) node )->name );
 }

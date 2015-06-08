@@ -62,13 +62,13 @@ static rc_t CC walk_varcount_exit_ref_pos( walk_data * data )
         C ... ref-base
         D ... coverage
 
-        E ... A ( match or mismatch )
-        F ... C ( match or mismatch )
-        G ... G ( match or mismatch )
-        H ... T ( match or mismatch )
+        E ... A ( if mismatch )
+        F ... C ( if mismatch )
+        G ... G ( if mismatch )
+        H ... T ( if mismatch )
 
         I ... total deletes
-        J ... total insertes
+        J ... total inserts
 
         K ... inserts after A
         L ... inserts after C

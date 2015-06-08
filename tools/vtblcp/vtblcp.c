@@ -259,25 +259,21 @@ void CC stype_id_whack ( BSTNode *n, void *ignore )
 }
 
 static
-int CC stype_id_cmp ( const void *item, const BSTNode *n )
+int64_t CC stype_id_cmp ( const void *item, const BSTNode *n )
 {
     const VTypedecl *a = item;
     const stype_id *b = ( const stype_id* ) n;
 
-    if ( a -> type_id < b -> type_id )
-        return -1;
-    return a -> type_id > b -> type_id;
+    return (int64_t) a -> type_id - (int64_t) b -> type_id;
 }
 
 static
-int CC stype_id_sort ( const BSTNode *item, const BSTNode *n )
+int64_t CC stype_id_sort ( const BSTNode *item, const BSTNode *n )
 {
     const stype_id *a = ( const stype_id* ) item;
     const stype_id *b = ( const stype_id* ) n;
 
-    if ( a -> type_id < b -> type_id )
-        return -1;
-    return a -> type_id > b -> type_id;
+    return (int64_t) a -> type_id - (int64_t) b -> type_id;
 }
 
 static

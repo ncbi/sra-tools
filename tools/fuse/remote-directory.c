@@ -53,7 +53,7 @@ typedef struct DirNodeChild_struct {
 
 
 static
-int DirNodeChild_FindByName(const void *item, const BSTNode *node)
+int64_t DirNodeChild_FindByName(const void *item, const BSTNode *node)
 {
     return strcmp((const char*)item, ((const DirNodeChild*)node)->child->name);
 }
@@ -119,7 +119,7 @@ rc_t DirectoryNode_Unlock(const DirectoryNode* cself)
 
 static
 rc_t DirectoryNode_IsChild(const DirectoryNode* cself, const char* subpath, const FSNode** node,
-                           int (*finder)(const void *item, const BSTNode *node))
+                           int64_t (*finder)(const void *item, const BSTNode *node))
 {
     DirNodeChild* n = (DirNodeChild*)BSTreeFind(&cself->children, subpath, finder);
     if( n != NULL ) {

@@ -206,7 +206,7 @@ static rc_t bam_header(const VDatabase* db) {
     return rc;
 }
 
-static int CC sort_callback(const void* p1, const void* p2, void* data) {
+static int64_t CC sort_callback(const void* p1, const void* p2, void* data) {
     int i1 = *(int*) p1;
     int i2 = *(int*) p2;
     return i1 - i2;

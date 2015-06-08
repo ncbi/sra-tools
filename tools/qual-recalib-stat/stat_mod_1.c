@@ -156,7 +156,7 @@ static spotgrp * make_spotgrp( const char *src, const size_t len )
 }
 
 
-static int CC spotgroup_find( const void *item, const BSTNode *n )
+static int64_t CC spotgroup_find( const void *item, const BSTNode *n )
 {
     spotgrp * sg = ( spotgrp* ) n;
     return StringCompare ( ( String* ) item, sg->name );
@@ -265,7 +265,7 @@ static rc_t spotgroup_enter_values( spotgrp * spotgroup,
 }
 
 
-static int CC spotgroup_sort( const BSTNode *item, const BSTNode *n )
+static int64_t CC spotgroup_sort( const BSTNode *item, const BSTNode *n )
 {
     spotgrp * sg1 = ( spotgrp* ) item;
     spotgrp * sg2 = ( spotgrp* ) n;

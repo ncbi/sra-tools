@@ -79,7 +79,7 @@ namespace ncbi
 
         // generates a chunk of cell data
         // MUST be entire default value in one event
-        void  columnDefault ( int stream_id, uint32_t elem_bits, const void *data, uint32_t elem_count );
+        void columnDefault ( int stream_id, uint32_t elem_bits, const void *data, uint32_t elem_count );
 
         // generate a chunk of cell data
         // may be repeated as often as necessary to complete a single cell's data

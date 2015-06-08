@@ -438,17 +438,17 @@ bool check_in_cluster(TMappingsData_map const *const a, TMappingsData_map const 
 }
 
 static
-int clustering_sort_cb(void const *const A, void const *const B, void *const ctx)
+int64_t clustering_sort_cb(void const *const A, void const *const B, void *const ctx)
 {
     TMappingsData const *const data = (TMappingsData const *)ctx;
     unsigned const ia = *(unsigned const *)A;
     unsigned const ib = *(unsigned const *)B;
     TMappingsData_map const *const a = &data->map[ia];
     TMappingsData_map const *const b = &data->map[ib];
-    int res;
+    int64_t res;
     unsigned j = 0;
     
-	res = (int)(a->flags & cg_eRightHalfDnbMap) - (int)(b->flags & cg_eRightHalfDnbMap); /**** separate by DNP side ***/
+	res = (int64_t)(a->flags & cg_eRightHalfDnbMap) - (int64_t)(b->flags & cg_eRightHalfDnbMap); /**** separate by DNP side ***/
 	if (res) return res;
     
     res = strcmp(a->chr, b->chr); /* same chromosome ? **/
@@ -458,16 +458,16 @@ int clustering_sort_cb(void const *const A, void const *const B, void *const ctx
 	if (res) return res;
     
 	/**cluster is defined here; now pick the winner **/
-	res = (int)a->saved - (int)b->saved; /*** if already saved **/
+	res = (int64_t)a->saved - (int64_t)b->saved; /*** if already saved **/
 	if (res) return -res;
     
-	res = (int)a->weight - (int)b->weight; /*** has  higher score **/
+	res = (int64_t)a->weight - (int64_t)b->weight; /*** has  higher score **/
 	if (res) return -res;
 
     res = 0;
     assert(data->cg_reads_ngaps);
     for (j = 0; j != data->cg_reads_ngaps; ++j) {
-        res += (int)(a->gap[j]) - (int)(b->gap[j]);
+        res += (int64_t)(a->gap[j]) - (int64_t)(b->gap[j]);
     } /** has lower projection on the reference **/
 
     return res;
@@ -563,10 +563,11 @@ rc_t CGWriterAlgn_Write_int(CGWriterAlgn *const self, TReadsData *const read)
             INSDC_coord_len reflen = read->seq.spot_len / 2;
             ReferenceSeq const *rseq;
             bool shouldUnmap = false;
+            bool wasRenamed = false;
             
             memset(&self->match[i], 0, sizeof(self->match[i]));
             
-            rc = ReferenceMgr_GetSeq(self->rmgr, &rseq, refname, &shouldUnmap);
+            rc = ReferenceMgr_GetSeq(self->rmgr, &rseq, refname, &shouldUnmap, true, &wasRenamed);
             if (rc) {
                 (void)PLOGERR(klogErr, (klogErr, rc, "Failed accessing Reference '$(ref)'", "ref=%s", refname));
                 break;

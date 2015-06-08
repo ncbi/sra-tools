@@ -288,11 +288,11 @@ void CC extnode_whack (BSTNode * n, void * data)
 /*  ----------------------------------------------------------------------
  */
 static
-int CC extnode_sort (const BSTNode * item, const BSTNode * n)
+int64_t CC extnode_sort (const BSTNode * item, const BSTNode * n)
 {
     const extnode * l;
     const extnode * r;
-    int       ii;
+    int64_t       ii;
 
     l = (const extnode *)item;
     r = (const extnode *)n;

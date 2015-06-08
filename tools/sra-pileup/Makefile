@@ -153,6 +153,7 @@ SAMDUMP3_SRC = \
 	read_fkt \
 	sam-aligned \
 	sam-unaligned \
+	md_flag \
 	cg_tools \
 	sam-dump \
 	sam-dump3

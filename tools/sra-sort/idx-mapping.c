@@ -39,14 +39,12 @@ FILE_ENTRY ( idx-mapping );
 
 #if USE_OLD_KSORT
 
-int CC IdxMappingCmpOld ( const void *a, const void *b, void *data )
+int64_t CC IdxMappingCmpOld ( const void *a, const void *b, void *data )
 {
     const IdxMapping *ap = a;
     const IdxMapping *bp = b;
 
-    if ( ap -> old_id < bp -> old_id )
-        return -1;
-    return ap -> old_id > bp -> old_id;
+    return ap -> old_id - bp -> old_id;
 }
 
 int CC IdxMappingCmpNew ( const void *a, const void *b, void *data )
@@ -54,9 +52,7 @@ int CC IdxMappingCmpNew ( const void *a, const void *b, void *data )
     const IdxMapping *ap = a;
     const IdxMapping *bp = b;
 
-    if ( ap -> new_id < bp -> new_id )
-        return -1;
-    return ap -> new_id > bp -> new_id;
+    return ap -> new_id - bp -> new_id;
 }
 
 #else /* USE_OLD_KSORT */

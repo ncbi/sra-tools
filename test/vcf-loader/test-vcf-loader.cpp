@@ -730,8 +730,9 @@ FIXTURE_TEST_CASE(VcfDatabase_GetReference, VcfDatabaseFixture)
     const ReferenceMgr* refMgr;
     REQUIRE_RC(ReferenceMgr_Make(&refMgr, m_db, m_vdbMgr, 0, m_cfgName.c_str(), NULL, 0, 0, 0));
     const ReferenceSeq* seq;
-    bool dummy = false;
-    REQUIRE_RC(ReferenceMgr_GetSeq(refMgr, &seq, "20", &dummy));
+    bool dummy1 = false;
+    bool dummy2 = false;
+    REQUIRE_RC(ReferenceMgr_GetSeq(refMgr, &seq, "20", &dummy1, false, &dummy2));
     
     INSDC_coord_zero coord = 14370;
     int64_t ref_id;

@@ -80,6 +80,7 @@ extern "C" {
 #define OPTION_OUT_BUF_SIZE      "output-buffer-size"
 #define OPTION_NO_MULTITHREAD    "disable-multithreading"
 #define OPTION_INFO              "info"
+#define OPTION_DIFF              "diff"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -181,6 +182,7 @@ typedef struct dump_context
     bool disable_multithreading;
     bool print_info;
 	bool table_defined;
+	bool diff;
 } dump_context;
 typedef dump_context* p_dump_context;
 

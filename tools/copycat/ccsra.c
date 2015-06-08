@@ -881,7 +881,7 @@ void CC list_item_whack (void * item, void * data)
     free (item);
 }
 static
-int CC list_item_cmp (const void * item, const void * n)
+int64_t CC list_item_cmp (const void * item, const void * n)
 {
     const list_item * l = item;
     const list_item * r = n;

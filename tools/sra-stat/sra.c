@@ -269,7 +269,7 @@ void CC to_nv (void * _item, void * _data)
 }
 
 static
-int CC sfa_path_cmp ( const void **_a, const void **_b, void * ignored )
+int64_t CC sfa_path_cmp ( const void **_a, const void **_b, void * ignored )
 {
     const reorder_t * a = *_a;
     const reorder_t * b = *_b;

@@ -47,11 +47,11 @@ void KeyRingDataWhack ( KeyRingData* self )
     BSTreeWhack ( & self->objects, ObjectWhack, NULL );
 }
 
-int CC FindProject ( const void *item, const BSTNode *n )
+static int64_t CC FindProject ( const void *item, const BSTNode *n )
 {
     return StringCompare((const String*)item, ((const Project*)n)->name);
 }
-int CC SortProjects ( const BSTNode *item, const BSTNode *n )
+static int64 CC SortProjects ( const BSTNode *item, const BSTNode *n )
 {
     return StringCompare(((const Project*)item)->name, ((const Project*)n)->name);
 }
@@ -214,11 +214,11 @@ void ObjectWhack ( BSTNode *n, void *data )
     free(self);
 }
 
-int CC FindObject( const void *item, const BSTNode *n )
+static int64_t CC FindObject( const void *item, const BSTNode *n )
 {
     return StringCompare((const String*)item, ((const Object*)n)->name);
 }
-int CC SortObjects( const BSTNode *item, const BSTNode *n )
+static int64_t CC SortObjects( const BSTNode *item, const BSTNode *n )
 {
     return StringCompare(((const Project*)item)->name, ((const Object*)n)->name);
 }

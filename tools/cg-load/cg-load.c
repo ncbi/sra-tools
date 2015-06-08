@@ -364,19 +364,19 @@ static void CC FGroupMAP_Whack(BSTNode *node, void *data) {
 }
 
 static
-int CC FGroupMAP_Cmp( const void *item, const BSTNode *node )
+int64_t CC FGroupMAP_Cmp( const void *item, const BSTNode *node )
 {
     const FGroupKey* i = (const FGroupKey*)item;
     const FGroupMAP* n = (const FGroupMAP*)node;
 
-    int r = strcmp(i->assembly_id, n->key.assembly_id);
+    int64_t r = strcmp(i->assembly_id, n->key.assembly_id);
     if( r == 0 ) {
         if( i->type == n->key.type ) {
             switch( i->type ) {
                 case cg_eFileType_READS:
                     if( (r = strcmp(i->u.map.slide, n->key.u.map.slide)) == 0 ) {
                         if( (r = strcmp(i->u.map.lane, n->key.u.map.lane)) == 0 ) {
-                            r = *(i->u.map.batch_file_number) - *(n->key.u.map.batch_file_number);
+                            r = (int64_t)(*(i->u.map.batch_file_number)) - (int64_t)(*(n->key.u.map.batch_file_number));
                         }
                     }
                     break;
@@ -397,7 +397,7 @@ int CC FGroupMAP_Cmp( const void *item, const BSTNode *node )
 }
 
 static
-int CC FGroupMAP_Sort( const BSTNode *item, const BSTNode *n )
+int64_t CC FGroupMAP_Sort( const BSTNode *item, const BSTNode *n )
 {
     return FGroupMAP_Cmp(&((const FGroupMAP*)item)->key, n);
 }

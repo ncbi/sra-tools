@@ -78,7 +78,7 @@ void CC PoolMember_Whack(BSTNode* node, void* data)
 }
 
 static
-int CC PoolMember_StrCmp(const char* s1, const char* s2)
+int64_t CC PoolMember_StrCmp(const char* s1, const char* s2)
 {
     if( s1 == NULL && s2 == NULL ) {
         return 0;
@@ -91,7 +91,7 @@ int CC PoolMember_StrCmp(const char* s1, const char* s2)
 }
 
 static
-int CC PoolMember_Cmp(const BSTNode* item, const BSTNode* node)
+int64_t CC PoolMember_Cmp(const BSTNode* item, const BSTNode* node)
 {
     const PoolMember* i = (const PoolMember*)item;
     const PoolMember* n = (const PoolMember*)node;
@@ -100,7 +100,7 @@ int CC PoolMember_Cmp(const BSTNode* item, const BSTNode* node)
 }
 
 static
-int CC PoolMember_FindByName(const void* item, const BSTNode* node)
+int64_t CC PoolMember_FindByName(const void* item, const BSTNode* node)
 {
     const char* name = (const char*)item;
     const PoolMember* n = (const PoolMember*)node;

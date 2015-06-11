@@ -22,33 +22,47 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/vschema
 
-include $(TOP)/build/Makefile.config
+include $(TOP)/build/Makefile.env
+
+clean: stdclean
 
 #-------------------------------------------------------------------------------
-# default
+# bio-end schema tests
 #
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-    kget            \
-    general-loader  \
-    vschema \
+runtests: bio-end-tests
 
-# under construction    
-#    ngs-pileup      \
+#-------------------------------------------------------------------------------
+# test-bio-end
+#
+TEST_BIO_END_MAKEINPUTS_SRC = \
+	bio-end/makeinputs
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+TEST_BIO_END_MAKEINPUTS_OBJ = \
+	$(addsuffix .$(OBJX),$(TEST_BIO_END_MAKEINPUTS_SRC))
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
+TEST_BIO_END_MAKEINPUTS_LIB =   \
+	-L$(LIBDIR) \
+	-sgeneral-writer
 
-.PHONY: default $(SUBDIRS)
+
+bio-end-makeinputs: $(TEST_BIO_END_MAKEINPUTS_OBJ)
+	$(LP) --exe -o ./bio-end-makeinputs $^ $(TEST_BIO_END_MAKEINPUTS_LIB)
+	@rm bio-end-makeinputs.exe.d $(TEST_BIO_END_MAKEINPUTS_OBJ)
+
+bio-end-tests: bio-end-makeinputs
+	@mkdir -p $(SRCDIR)/bio-end/input && ./bio-end-makeinputs && rm ./bio-end-makeinputs
+	@# test cases
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/bio-end bio-end excl-1 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/bio-end bio-end excl-2 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/bio-end bio-end excl-3 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/bio-end bio-end excl-4 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/bio-end bio-end incl-1 0
+	@rm -f $(SRCDIR)/bio-end/input/*.gl
+	@echo "bio-end tests executed successfuly"
 

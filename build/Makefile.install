@@ -87,8 +87,11 @@ installexes:
 	@ $(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.install $(TOOLS_TO_INSTALL)
 
 $(TOOLS_TO_INSTALL):
-	@ echo "Installing $@..."
-	@ $(COPY) $(BINDIR)/$@$(EXEX) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR)
+	@ printf "Installing $@..."
+	@ # ignore missing tools
+	@ - ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
+      $(COPY) $(BINDIR)/$@$(EXEX) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \
+      echo "done"
     
 ifeq (linux, $(OS))
     ifeq (0, $(shell id -u))

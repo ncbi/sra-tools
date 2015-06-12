@@ -87,7 +87,7 @@ tbl = {
             'elem_bits': 8,
         },
         'QUALITY': {
-            'expression': '(INSDC:quality:phred)QUALITY',
+            'expression': '(INSDC:quality:text:phred_33)QUALITY',
             'elem_bits': 8,
         },
         'SPOT_GROUP': {
@@ -120,7 +120,7 @@ tbl = {
             'elem_bits': 8,
         },
         'QUALITY': {
-            'expression': '(INSDC:quality:phred)QUALITY',
+            'expression': '(INSDC:quality:text:phred_33)QUALITY',
             'elem_bits': 8,
         },
         'SPOT_GROUP': {

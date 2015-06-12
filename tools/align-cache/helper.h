@@ -209,7 +209,7 @@ namespace VDBObjects
 
         void Release();
         CVTable OpenTable ( char const* pszTableName ) const;
-        CVTable CreateTable ( char const* pszTableName, ::KCreateMode cmode );
+        CVTable CreateTable ( char const* pszTableName );
         void ColumnCreateParams ( ::KCreateMode cmode, ::KChecksum checksum, size_t pgsize );
 
     private:
@@ -223,7 +223,7 @@ namespace VDBObjects
     {
     public:
         friend CVTable CVDatabase::OpenTable(char const* pszTableName) const;
-        friend CVTable CVDatabase::CreateTable ( char const* pszTableName, ::KCreateMode cmode );
+        friend CVTable CVDatabase::CreateTable ( char const* pszTableName );
 
         CVTable();
         ~CVTable();

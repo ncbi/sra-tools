@@ -111,7 +111,7 @@ tbl = {
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
             'elem_bits': 8,
-            'default': array.array('B', [0, 0])
+            'default': array.array('B', [1, 1])
         },
     },
     'CONSENSUS': {
@@ -149,7 +149,7 @@ tbl = {
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
             'elem_bits': 8,
-            'default': array.array('B', [0])
+            'default': array.array('B', [1])
         },
     }
 }

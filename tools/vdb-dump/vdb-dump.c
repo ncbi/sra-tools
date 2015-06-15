@@ -94,7 +94,6 @@ static const char * filter_usage[] = { "filters lines", NULL };
 static const char * format_usage[] = { "dump format (csv,xml,json,piped,tab,sra-dump,fastq,fasta,bin)", NULL };
 static const char * id_range_usage[] = { "prints id-range", NULL };
 static const char * without_sra_usage[] = { "without sra-type-translation", NULL };
-static const char * without_accession_usage[] = { "without accession-test", NULL };
 static const char * excluded_columns_usage[] = { "exclude these columns", NULL };
 static const char * boolean_usage[] = { "defines how boolean's are printed (1,T)", NULL };
 static const char * objver_usage[] = { "request vdb-version", NULL };
@@ -138,7 +137,6 @@ OptDef DumpOptions[] =
     { OPTION_FORMAT, ALIAS_FORMAT, NULL, format_usage, 1, true, false },
     { OPTION_ID_RANGE, ALIAS_ID_RANGE, NULL, id_range_usage, 1, false, false },
     { OPTION_WITHOUT_SRA, ALIAS_WITHOUT_SRA, NULL, without_sra_usage, 1, false, false },
-    { OPTION_WITHOUT_ACCESSION, ALIAS_WITHOUT_ACCESSION, NULL, without_accession_usage, 1, false, false },
     { OPTION_EXCLUDED_COLUMNS, ALIAS_EXCLUDED_COLUMNS, NULL, excluded_columns_usage, 1, true, false },
     { OPTION_BOOLEAN, ALIAS_BOOLEAN, NULL, boolean_usage, 1, true, false },
     { OPTION_NUMELEM, ALIAS_NUMELEM, NULL, numelem_usage, 1, false, false },
@@ -211,7 +209,6 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_FORMAT, OPTION_FORMAT, "format", format_usage );
     HelpOptionLine ( ALIAS_ID_RANGE, OPTION_ID_RANGE, NULL, id_range_usage );
     HelpOptionLine ( ALIAS_WITHOUT_SRA, OPTION_WITHOUT_SRA, NULL, without_sra_usage );
-    HelpOptionLine ( ALIAS_WITHOUT_ACCESSION, OPTION_WITHOUT_ACCESSION, NULL, without_accession_usage );
     HelpOptionLine ( ALIAS_EXCLUDED_COLUMNS, OPTION_EXCLUDED_COLUMNS, NULL, excluded_columns_usage );
     HelpOptionLine ( ALIAS_BOOLEAN, OPTION_BOOLEAN, NULL, boolean_usage );
     HelpOptionLine ( ALIAS_OBJVER, OPTION_OBJVER, NULL, objver_usage );
@@ -1178,8 +1175,13 @@ static rc_t vdm_print_tab_id_range( const p_dump_context ctx, const VTable *my_t
                         uint64_t count;
 
                         uint32_t idx = 0;
-                        vdcd_get_first_none_static_column_idx( my_col_defs, my_cursor, &idx );
-
+						
+                        /* calling with idx = 0 means: let the cursor find out the min/max values of
+						   all open columns...
+						   
+						vdcd_get_first_none_static_column_idx( my_col_defs, my_cursor, &idx );
+						*/
+						
                         rc = VCursorIdRange( my_cursor, idx, &first, &count );
                         DISP_RC( rc, "VCursorIdRange() failed" );
                         if ( rc == 0 )

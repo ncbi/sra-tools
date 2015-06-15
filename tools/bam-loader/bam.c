@@ -569,7 +569,12 @@ static int64_t OptTag_sort(void const *A, void const *B, void *ctx)
     char const *const b = (char const *)&self->data->raw[b_off];
     int const diff = opt_tag_cmp(a, b);
     
-    return diff ? (int64_t)diff : (int64_t)a - (int64_t)b;
+    if ( diff != 0 )
+        return diff;
+    else if ( a < b )
+        return -1;
+    else
+        return a > b;
 }
 
 static unsigned tag_findfirst(BAM_Alignment const *const self, char const tag[2])
@@ -1137,7 +1142,7 @@ static int64_t comp_RefSeqName(const void *A, const void *B, void *ignored) {
         return -1;
     {
         int const cmp = strcmp(a->name, b->name);
-        return cmp == 0 ? (int64_t)a->id - (int64_t)b->id : cmp;
+        return cmp != 0 ? cmp : (int64_t)a->id - (int64_t)b->id;
     }
 }
 

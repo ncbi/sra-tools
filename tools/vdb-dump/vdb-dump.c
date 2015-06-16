@@ -612,29 +612,36 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *my_ta
                             DISP_RC( rc, "VCursorIdRange() failed" );
                             if ( rc == 0 )
                             {
-                                if ( ctx->rows == NULL )
+                                if ( count == 0 )
                                 {
-                                    /* if the user did not specify a row-range, take all rows */
-                                    rc = num_gen_make_from_range( &ctx->rows, first, count );
-                                    DISP_RC( rc, "num_gen_make_from_range() failed" );
+                                    KOutMsg( "this table is empty\n" );
                                 }
                                 else
                                 {
-                                    /* if the user did specify a row-range, check the boundaries */
-                                    rc = num_gen_trim( ctx->rows, first, count );
-                                    DISP_RC( rc, "num_gen_trim() failed" );
-                                }
-
-                                if ( rc == 0 )
-                                {
-                                    if ( num_gen_empty( ctx->rows ) )
+                                    if ( ctx->rows == NULL )
                                     {
-                                        rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                                        /* if the user did not specify a row-range, take all rows */
+                                        rc = num_gen_make_from_range( &ctx->rows, first, count );
+                                        DISP_RC( rc, "num_gen_make_from_range() failed" );
                                     }
                                     else
                                     {
-                                        r_ctx.ctx = ctx;
-                                        rc = vdm_dump_rows( &r_ctx ); /* <--- */
+                                        /* if the user did specify a row-range, check the boundaries */
+                                        rc = num_gen_trim( ctx->rows, first, count );
+                                        DISP_RC( rc, "num_gen_trim() failed" );
+                                    }
+
+                                    if ( rc == 0 )
+                                    {
+                                        if ( num_gen_empty( ctx->rows ) )
+                                        {
+                                            rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                                        }
+                                        else
+                                        {
+                                            r_ctx.ctx = ctx;
+                                            rc = vdm_dump_rows( &r_ctx ); /* <--- */
+                                        }
                                     }
                                 }
                             }
@@ -1655,14 +1662,10 @@ static rc_t vdb_main_one_obj_by_pathtype( const p_dump_context ctx,
     /* types defined in <kdb/manager.h> */
     switch ( path_type )
     {
-    case kptDatabase    :   rc = vdm_dump_database( ctx, mgr );
-                            DISP_RC( rc, "dump_database() failed" );
-                            break;
+    case kptDatabase    :   rc = vdm_dump_database( ctx, mgr ); break;
 
     case kptPrereleaseTbl:
-    case kptTable       :   rc = vdm_dump_table( ctx, mgr );
-                            DISP_RC( rc, "dump_table() failed" );
-                            break;
+    case kptTable       :   rc = vdm_dump_table( ctx, mgr ); break;
 
     default             :   rc = RC( rcVDB, rcNoTarg, rcConstructing, rcItem, rcNotFound );
                             PLOGERR( klogInt, ( klogInt, rc,
@@ -1685,12 +1688,10 @@ static rc_t vdb_main_one_obj_by_probing( const p_dump_context ctx,
     if ( vdh_is_path_database( mgr, ctx->path, &(ctx->schema_list) ) )
     {
         rc = vdm_dump_database( ctx, mgr );
-        DISP_RC( rc, "dump_database() failed" );
     }
     else if ( vdh_is_path_table( mgr, ctx->path, &(ctx->schema_list) ) )
     {
         rc = vdm_dump_table( ctx, mgr );
-        DISP_RC( rc, "dump_table() failed" );
     }
     else
     {

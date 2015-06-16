@@ -162,7 +162,7 @@ public:
         }
     }
     
-    void OpenDatabase()
+    void OpenDatabase( const char* p_dbNameOverride = 0 )
     {
         CloseDatabase();
         
@@ -170,7 +170,7 @@ public:
         if ( VDBManagerMakeUpdate ( & vdb, NULL ) != 0 )
             throw logic_error("GeneralLoaderFixture::OpenDatabase(" + m_source . GetDatabaseName() + "): VDBManagerMakeUpdate failed");
            
-        if ( VDBManagerOpenDBUpdate ( vdb, &m_db, NULL, m_source . GetDatabaseName() . c_str() ) != 0 )
+        if ( VDBManagerOpenDBUpdate ( vdb, &m_db, NULL, p_dbNameOverride != 0 ? p_dbNameOverride : m_source . GetDatabaseName() . c_str() ) != 0 )
             throw logic_error("GeneralLoaderFixture::OpenDatabase(" + m_source . GetDatabaseName() + "): VDBManagerOpenDBUpdate failed");
         
         if ( VDBManagerRelease ( vdb ) != 0 )
@@ -1207,6 +1207,29 @@ FIXTURE_TEST_CASE ( ErrorMessage_Long, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), RC ( rcExe, rcFile, rcReading, rcError, rcExists ) ) );
 }
+
+FIXTURE_TEST_CASE ( TargetOverride, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+
+    string newTarget = string ( GetName() ) + "_override";
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> SetTargetOverride ( newTarget );
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_THROW ( OpenDatabase() );       // the db from the instruction stream was not created
+    OpenDatabase ( newTarget . c_str() );   // did not throw => overridden target db opened successfully
+    
+    // clean up
+    CloseDatabase();
+    KDirectoryRemove ( m_wd, true, newTarget . c_str() );
+}
+
 
 //////////////////////////////////////////// Main
 extern "C"

@@ -51,10 +51,11 @@ TEMPDIR=$WORKDIR/actual/$CASEID
 echo "running test case $CASEID"
 
 mkdir -p $TEMPDIR
-rm -rf $TEMPDIR/*
 if [ "$?" != "0" ] ; then
+    echo "cannot create "
     exit 1
 fi
+rm -rf $TEMPDIR/*
 
 CMD="cat input/$CASEID.gl | $LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 #echo $CMD

@@ -103,27 +103,39 @@ piped-load-tests: $(ALL_TOOLS)
 #
 runtests: tool-tests
 
-makeinputs: makeinputs.cpp
+$(TEST_BINDIR)/makeinputs: makeinputs.cpp
 	@# generate numbered input streams for tool tests
-	$(CXX) makeinputs.cpp testsource.cpp -o makeinputs -I$(INCDIRS) -L$(VDB_LIBDIR) -lncbi-vdb-static
+	$(CXX) makeinputs.cpp testsource.cpp -o $(TEST_BINDIR)/makeinputs -I$(INCDIRS) -L$(VDB_LIBDIR) -lncbi-vdb-static
 
-tool-tests: makeinputs
-	@mkdir -p input && ./makeinputs && rm ./makeinputs
+tool-tests: $(TEST_BINDIR)/makeinputs
+	@mkdir -p input && $(TEST_BINDIR)/makeinputs && rm $(TEST_BINDIR)/makeinputs
+	@#    
 	@# basic, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1 0
+	@#    
 	@# basic, packed
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1packed 0
+	@#    
+	@# target db override 
+	@# use 1.gl which specifies the target as actual/1/db, and override that to where the script expects to see the result
+	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1override 0 --target actual/1override/db 
+	@# same with the storthand option
+	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1override 0 -T actual/1override/db 
+	@#    
 	@# error message event, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2 3
+	@#    
 	@# error message event, packed
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2packed 3
-	@rm -f input/*.gl    
-    
+	@#    
+	@rm -rf input/*.gl actual/*
+
 #-------------------------------------------------------------------------------
 # general-loader tool tests
 #
 slowtests: #piped-dump
 
 piped-dump: $(BINDIR)/pileup-stats test-general-loader
-	$(BINDIR)/pileup-stats SRR1063272 | $(BINDIR)/general-loader #-L=info
+	#$(BINDIR)/pileup-stats SRR1063272 | $(BINDIR)/general-loader #-L=info
+	$(BINDIR)/pileup-stats SRR1232302 | $(BINDIR)/general-loader -L=info
 

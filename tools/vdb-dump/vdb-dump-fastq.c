@@ -317,41 +317,48 @@ static rc_t vdb_fastq_tbl( const p_dump_context ctx,
         DISP_RC( rc, "VCursorIdRange() failed" );
         if ( rc == 0 )
         {
-            /* if the user did not specify a row-range, take all rows */
-            if ( ctx->rows == NULL )
+            if ( count == 0 )
             {
-                rc = num_gen_make_from_range( &ctx->rows, first, count );
-                DISP_RC( rc, "num_gen_make_from_range() failed" );
+                KOutMsg( "this table is empty\n" );
             }
-            /* if the user did specify a row-range, check the boundaries */
             else
             {
-                rc = num_gen_trim( ctx->rows, first, count );
-                DISP_RC( rc, "num_gen_trim() failed" );
-            }
+                /* if the user did not specify a row-range, take all rows */
+                if ( ctx->rows == NULL )
+                {
+                    rc = num_gen_make_from_range( &ctx->rows, first, count );
+                    DISP_RC( rc, "num_gen_make_from_range() failed" );
+                }
+                /* if the user did specify a row-range, check the boundaries */
+                else
+                {
+                    rc = num_gen_trim( ctx->rows, first, count );
+                    DISP_RC( rc, "num_gen_trim() failed" );
+                }
 
-            if ( rc == 0 && !num_gen_empty( ctx->rows ) )
-            {
-                if ( ctx->format == df_fastq )
+                if ( rc == 0 && !num_gen_empty( ctx->rows ) )
                 {
-                    if ( fctx->idx_name == INVALID_COLUMN)
-                        rc = vdb_fastq_loop_without_name( ctx, fctx ); /* <--- */
-                    else
-                        rc = vdb_fastq_loop_with_name( ctx, fctx ); /* <--- */
+                    if ( ctx->format == df_fastq )
+                    {
+                        if ( fctx->idx_name == INVALID_COLUMN)
+                            rc = vdb_fastq_loop_without_name( ctx, fctx ); /* <--- */
+                        else
+                            rc = vdb_fastq_loop_with_name( ctx, fctx ); /* <--- */
+                    }
+                    else if ( ctx->format == df_fasta )
+                    {
+                        if ( ctx->max_line_len == 0 )
+                            ctx->max_line_len = DEF_FASTA_LEN;
+                        if ( fctx->idx_name == INVALID_COLUMN)
+                            rc = vdb_fasta_loop_without_name( ctx, fctx ); /* <--- */
+                        else
+                            rc = vdb_fasta_loop_with_name( ctx, fctx ); /* <--- */
+                    }
                 }
-                else if ( ctx->format == df_fasta )
+                else
                 {
-                    if ( ctx->max_line_len == 0 )
-                        ctx->max_line_len = DEF_FASTA_LEN;
-                    if ( fctx->idx_name == INVALID_COLUMN)
-                        rc = vdb_fasta_loop_without_name( ctx, fctx ); /* <--- */
-                    else
-                        rc = vdb_fasta_loop_with_name( ctx, fctx ); /* <--- */
+                    rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
                 }
-            }
-            else
-            {
-                rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
             }
         }
         VCursorRelease( fctx->cursor );

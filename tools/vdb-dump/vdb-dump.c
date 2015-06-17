@@ -666,14 +666,81 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *my_ta
 ctx         [IN] ... contains path, tablename, columns, row-range etc.
 my_database [IN] ... open database needed for vdb-calls
 *************************************************************************************/
+static rc_t vdm_walk_sections( const VDatabase * base_db, const VDatabase ** sub_db,
+                               const VNamelist * sections, uint32_t count )
+{
+    rc_t rc = 0;
+    const VDatabase * parent_db = base_db;
+    if ( count == 0 )
+    {
+        rc = VDatabaseAddRef ( parent_db );
+        DISP_RC( rc, "VDatabaseAddRef() failed" );
+    }
+    else
+    {
+        uint32_t idx;
+        for ( idx = 0; rc == 0 && idx < count; ++idx )
+        {
+            const char * dbname;
+            rc = VNameListGet ( sections, idx, &dbname );
+            DISP_RC( rc, "VNameListGet() failed" );
+            if ( rc == 0 )
+            {
+                const VDatabase * temp;
+                rc = VDatabaseOpenDBRead ( parent_db, &temp, "%s", dbname );
+                DISP_RC( rc, "VDatabaseOpenDBRead() failed" );
+                if ( rc == 0 && idx > 0 )
+                {
+                    rc = VDatabaseRelease ( parent_db );
+                    DISP_RC( rc, "VDatabaseRelease() failed" );
+                }
+                if ( rc == 0 )
+                    parent_db = temp;
+            }
+        }
+    }
+    
+    if ( rc == 0 ) *sub_db = parent_db;
+    return rc;
+}
+
+static rc_t vdm_open_table_by_path( const VDatabase * db, const char * path, const VTable ** tab )
+{
+    VNamelist * sections;
+    rc_t rc = vds_path_to_sections( path, '.', &sections );
+    DISP_RC( rc, "vds_path_to_sections() failed" );
+    if ( rc == 0 )
+    {
+        uint32_t count;
+        rc = VNameListCount ( sections, &count );
+        DISP_RC( rc, "VNameListCount() failed" );
+        if ( rc == 0 && count > 0 )
+        {
+            const VDatabase * sub_db;
+            rc = vdm_walk_sections( db, &sub_db, sections, count - 1 );
+            if ( rc == 0 )
+            {
+                const char * tabname;
+                rc = VNameListGet ( sections, count - 1, &tabname );
+                DISP_RC( rc, "VNameListGet() failed" );
+                if ( rc == 0 )
+                {
+                    rc = VDatabaseOpenTableRead( sub_db, tab, "%s", tabname );
+                    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+                }
+                VDatabaseRelease ( sub_db );
+            }
+        }
+        VNamelistRelease ( sections );
+    }
+    return rc;
+}
+
 static rc_t vdm_dump_opened_database( const p_dump_context ctx,
                                       const VDatabase *my_database )
 {
-    rc_t rc;
     const VTable *my_table;
-
-    rc = VDatabaseOpenTableRead( my_database, &my_table, "%s", ctx->table );
-    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_dump_opened_table( ctx, my_table );
@@ -752,8 +819,7 @@ static rc_t vdm_dump_db_schema( const p_dump_context ctx,
 	{
 		/* the user has given a database as object, but asks to inspect a given table */
 		const VTable *my_table;
-		rc = VDatabaseOpenTableRead( my_database, &my_table, "%s", ctx->table );
-		DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+        rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
 		if ( rc == 0 )
 		{
 			rc = vdm_dump_tab_schema( ctx, my_table );
@@ -801,37 +867,90 @@ static rc_t vdm_dump_db_schema( const p_dump_context ctx,
 ctx         [IN] ... contains path, tablename, columns, row-range etc.
 my_database [IN] ... open database needed for vdb-calls
 *************************************************************************************/
-static rc_t vdm_enum_tables( const p_dump_context ctx,
-                             const VDatabase *my_database )
+static rc_t vdm_enum_sub_dbs_and_tabs( const VDatabase * db, uint32_t indent );
+
+static rc_t vdm_report_tab_or_db( const VDatabase * db, const KNamelist * list,
+                                  const char * prefix, uint32_t indent )
 {
-    rc_t rc = KOutMsg( "enumerating the tables of database '%s'\n", ctx->path );
+    uint32_t n;
+    rc_t rc = KNamelistCount( list, &n );
+    DISP_RC( rc, "KNamelistCount() failed" );
     if ( rc == 0 )
     {
-        KNamelist *tbl_names;
-        rc = VDatabaseListTbl( my_database, &tbl_names );
-        DISP_RC( rc, "VDatabaseListTbl() failed" );
-        if ( rc == 0 )
+        uint32_t i;
+        for ( i = 0; i < n && rc == 0; ++i )
         {
-            uint32_t n;
-            rc = KNamelistCount( tbl_names, &n );
-            DISP_RC( rc, "KNamelistCount() failed" );
+            const char * entry;
+            rc = KNamelistGet( list, i, &entry );
+            DISP_RC( rc, "KNamelistGet() failed" );
             if ( rc == 0 )
             {
-                uint32_t i;
-                for ( i = 0; i < n && rc == 0; ++i )
+                rc = KOutMsg( "%*s : %s\n", indent + 3, prefix, entry );
+                if ( rc == 0 && db != NULL )
                 {
-                    const char *tbl_name;
-                    rc = KNamelistGet( tbl_names, i, &tbl_name );
-                    DISP_RC( rc, "KNamelistGet() failed" );
+                    const VDatabase * sub_db;
+                    rc = VDatabaseOpenDBRead ( db, &sub_db, entry );
+                    DISP_RC( rc, "VDatabaseOpenDBRead() failed" );
                     if ( rc == 0 )
-                        rc = KOutMsg( "tbl #%u: %s\n", i+1, tbl_name );
+                    {
+                        rc = vdm_enum_sub_dbs_and_tabs( sub_db, indent + 3 ); /* recursion here... */
+                        VDatabaseRelease( sub_db );
+                    }
                 }
             }
-            KNamelistRelease( tbl_names );
         }
     }
     return rc;
 }
+
+static rc_t vdm_enum_tabs_of_db( const VDatabase * db, uint32_t indent )
+{
+    KNamelist *tbl_names;
+    rc_t rc = VDatabaseListTbl( db, &tbl_names );
+    if ( rc == 0 )
+    {
+        rc = vdm_report_tab_or_db( NULL, tbl_names, "tbl", indent );
+        KNamelistRelease( tbl_names );
+    }
+    else
+    {
+        rc = 0;
+    }
+    return rc;
+}
+
+static rc_t vdm_enum_sub_dbs_of_db( const VDatabase * db, uint32_t indent )
+{
+    KNamelist *db_names;
+    rc_t rc = VDatabaseListDB( db, &db_names );
+    if ( rc == 0 )
+    {
+        rc = vdm_report_tab_or_db( db, db_names, "db ", indent );
+        KNamelistRelease( db_names );
+    }
+    else
+    {
+        rc = 0;
+    }
+    return rc;
+}
+
+static rc_t vdm_enum_sub_dbs_and_tabs( const VDatabase * db, uint32_t indent )
+{
+    rc_t rc = vdm_enum_sub_dbs_of_db( db, indent );
+    if ( rc == 0 )
+        rc = vdm_enum_tabs_of_db( db, indent );
+    return rc;
+}
+
+static rc_t vdm_enum_tables( const p_dump_context ctx, const VDatabase * db )
+{
+    rc_t rc = KOutMsg( "enumerating the tables of database '%s'\n", ctx->path );
+    if ( rc == 0 )
+        rc = vdm_enum_sub_dbs_and_tabs( db, 0 );
+    return rc;
+}
+
 
 typedef struct col_info_context
 {
@@ -1139,11 +1258,8 @@ my_database [IN] ... open database needed for vdb-calls
 *************************************************************************************/
 static rc_t vdm_enum_db_columns( const p_dump_context ctx, const VDatabase *my_database )
 {
-    rc_t rc;
     const VTable *my_table;
-
-    rc = VDatabaseOpenTableRead( my_database, &my_table, "%s", ctx->table );
-    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );    
     if ( rc == 0 )
     {
         rc = vdm_enum_tab_columns( ctx, my_table );
@@ -1215,11 +1331,8 @@ my_database [IN] ... open database needed for vdb-calls
 *************************************************************************************/
 static rc_t vdm_print_db_id_range( const p_dump_context ctx, const VDatabase *my_database )
 {
-    rc_t rc;
     const VTable *my_table;
-
-    rc = VDatabaseOpenTableRead( my_database, &my_table, "%s", ctx->table );
-    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_print_tab_id_range( ctx, my_table );
@@ -1319,11 +1432,8 @@ static rc_t vdm_enum_tab_index( const p_dump_context ctx, const VTable *my_table
 
 static rc_t vdm_enum_db_index( const p_dump_context ctx, const VDatabase *my_database )
 {
-    rc_t rc;
     const VTable *my_table;
-
-    rc = VDatabaseOpenTableRead( my_database, &my_table, "%s", ctx->table );
-    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_enum_tab_index( ctx, my_table );
@@ -1371,11 +1481,8 @@ static rc_t vdm_range_tab_index( const p_dump_context ctx, const VTable *my_tabl
 
 static rc_t vdm_range_db_index( const p_dump_context ctx, const VDatabase *my_database )
 {
-    rc_t rc;
     const VTable *my_table;
-
-    rc = VDatabaseOpenTableRead( my_database, &my_table, "%s", ctx->table );
-    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_range_tab_index( ctx, my_table );

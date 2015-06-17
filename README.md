@@ -2,7 +2,7 @@
 
 ### Contact:
 email: sra-tools@ncbi.nlm.nih.gov
-or visit the [SRA Tools web site](http://www.ncbi.nlm.nih.gov/Traces/sra/?view=toolkit_doc)
+or visit the [SRA Tools web site](http://ncbi.github.io/sra-tools) - UPDATED
 
 ### Download
 Visit our [download page](https://github.com/ncbi/sra-tools/wiki/Downloads) for pre-built binaries.

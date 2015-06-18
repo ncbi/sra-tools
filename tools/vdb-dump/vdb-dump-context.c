@@ -107,7 +107,6 @@ static void vdco_init_values( p_dump_context ctx )
     ctx->column_enum_short = false;
     ctx->id_range_requested = false;
     ctx->without_sra_types = false;
-    ctx->dont_check_accession = false;
     ctx->print_num_elem = false;
     ctx->objver_requested = false;
     ctx->objts_requested = false;
@@ -546,7 +545,6 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->id_range_requested = vdco_get_bool_option( my_args, OPTION_ID_RANGE, false );
     vdco_set_format( ctx, vdco_get_str_option( my_args, OPTION_FORMAT ) );
     ctx->without_sra_types = vdco_get_bool_option( my_args, OPTION_WITHOUT_SRA, false );
-    ctx->dont_check_accession = vdco_get_bool_option( my_args, OPTION_WITHOUT_ACCESSION, false );
     ctx->print_num_elem = vdco_get_bool_option( my_args, OPTION_NUMELEM, false );
     ctx->sum_num_elem = vdco_get_bool_option( my_args, OPTION_NUMELEMSUM, false );
     ctx->show_blobbing = vdco_get_bool_option( my_args, OPTION_SHOW_BLOBBING, false );

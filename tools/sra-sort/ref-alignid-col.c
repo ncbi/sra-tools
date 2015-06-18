@@ -73,7 +73,7 @@ int64_t CC IdPosLenCmpPos ( const void *a, const void *b, void *data )
     if ( ap -> poslen > bp -> poslen )
         return 1;
 
-    return ap -> id - bp -> id;
+    return ap -> id < bp -> id ? -1 : ap -> id > bp -> id;
 }
 
 static
@@ -82,7 +82,7 @@ int64_t CC cmp_int64_t ( const void *a, const void *b, void *data )
     const int64_t *ap = a;
     const int64_t *bp = b;
 
-    return * ap - * bp;
+    return * ap < * bp ? -1 : * ap > * bp;
 }
 #else
 

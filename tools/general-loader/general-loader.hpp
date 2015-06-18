@@ -52,6 +52,7 @@ public:
     
     void AddSchemaIncludePath( const std::string& p_path );
     void AddSchemaFile( const std::string& p_file );
+    void SetTargetOverride( const std::string& p_path );
     
     rc_t Run ();
     
@@ -100,7 +101,7 @@ private:
         };
 
     public:
-        DatabaseLoader ( const Paths& p_includePaths, const Paths& p_schemas );
+        DatabaseLoader ( const Paths& p_includePaths, const Paths& p_schemas, const std::string& p_dbNameOverride = std::string() );
         ~DatabaseLoader();
     
         rc_t UseSchema ( const std :: string& p_file, const std :: string& p_name );
@@ -154,6 +155,8 @@ private:
         struct VDBManager*      m_mgr;
         struct VSchema*         m_schema;
         struct VDatabase*       m_db;    
+        
+        bool                    m_databaseNameOverridden;
     };
 
     class ProtocolParser
@@ -200,6 +203,7 @@ private:
     Reader                  m_reader;
     Paths                   m_includePaths;
     Paths                   m_schemas;
+    std::string             m_targetOverride;
 };
 
 #endif

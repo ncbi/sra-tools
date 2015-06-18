@@ -749,10 +749,14 @@ static int64_t CC id_pair_cmp(void const *A, void const *B, void *ignored)
     id_pair_t const *a = A;
     id_pair_t const *b = B;
 
-    if ( a->first != b->first )
-        return a->first - b->first;
-
-    return a->second - b->second;
+    if ( a->first < b->first )
+        return -1;
+    else if ( a->first > b->first )
+        return 1;
+    else if ( a->second < b->second )
+        return -1;
+    else
+        return a->second > b->second
 }
 
 static rc_t ric_align_ref_and_align(char const dbname[],

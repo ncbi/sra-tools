@@ -478,12 +478,13 @@ namespace VDBObjects
         return table;
     }
 
-    CVTable CVDatabase::CreateTable ( char const* pszTableName, ::KCreateMode cmode )
+    CVTable CVDatabase::CreateTable ( char const* pszTableName )
     {
         CVTable table;
-        rc_t rc = ::VDatabaseCreateTable ( m_pSelf, & table.m_pSelf, pszTableName, cmode, pszTableName );
+        //rc_t rc = ::VDatabaseCreateTableDefault ( m_pSelf, & table.m_pSelf, pszTableName, pszTableName );
+        rc_t rc = ::VDatabaseCreateTableByMask ( m_pSelf, & table.m_pSelf, pszTableName, 0, 0, pszTableName );
         if (rc)
-            throw Utils::CErrorMsg(rc, "VDatabaseCreateTable (%s)", pszTableName);
+            throw Utils::CErrorMsg(rc, "VDatabaseCreateTableDefault (%s)", pszTableName);
 
 #if DEBUG_PRINT != 0
         printf("Created table %p (%s)\n", table.m_pSelf, pszTableName);

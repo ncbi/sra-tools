@@ -76,7 +76,11 @@ class GeneralLoaderFixture
 {
 public:
     static const uint32_t DefaultTableId = 100;
+    
     static const uint32_t DefaultColumnId = 1;
+    static const uint32_t Column16Id = 16; 
+    static const uint32_t Column32Id = 32; 
+    static const uint32_t Column64Id = 64; 
 
 public:
     GeneralLoaderFixture()
@@ -92,6 +96,10 @@ public:
         RemoveDatabase();
         KLogLevelSet ( klogFatal );
         KDirectoryRelease ( m_wd );
+        if ( ! m_tempSchemaFile . empty() )
+        {
+            remove ( m_tempSchemaFile . c_str() );
+        }
     }
     
     GeneralLoader* MakeLoader ( const struct KFile * p_input )
@@ -162,7 +170,7 @@ public:
         }
     }
     
-    void OpenDatabase()
+    void OpenDatabase( const char* p_dbNameOverride = 0 )
     {
         CloseDatabase();
         
@@ -170,7 +178,7 @@ public:
         if ( VDBManagerMakeUpdate ( & vdb, NULL ) != 0 )
             throw logic_error("GeneralLoaderFixture::OpenDatabase(" + m_source . GetDatabaseName() + "): VDBManagerMakeUpdate failed");
            
-        if ( VDBManagerOpenDBUpdate ( vdb, &m_db, NULL, m_source . GetDatabaseName() . c_str() ) != 0 )
+        if ( VDBManagerOpenDBUpdate ( vdb, &m_db, NULL, p_dbNameOverride != 0 ? p_dbNameOverride : m_source . GetDatabaseName() . c_str() ) != 0 )
             throw logic_error("GeneralLoaderFixture::OpenDatabase(" + m_source . GetDatabaseName() + "): VDBManagerOpenDBUpdate failed");
         
         if ( VDBManagerRelease ( vdb ) != 0 )
@@ -208,6 +216,36 @@ public:
         SetUpStream_OneTable( p_dbName, p_tableName ); 
         m_source . NewColumnEvent ( DefaultColumnId, DefaultTableId, p_columnName, ( uint32_t ) p_elemBits );
         m_source . OpenStreamEvent();
+    }
+
+    bool SetUpForIntergerCompression( const char* p_dbName )
+    {
+        if ( ! TestSource::packed )
+            return false; // integer compaction is used in packed mode only
+            
+        m_tempSchemaFile = string ( p_dbName ) + ".vschema";
+        string schemaText = 
+                "table table1 #1.0.0\n"
+                "{\n"
+                "    column U16 column16;\n"
+                "    column U32 column32;\n"
+                "    column U64 column64;\n"
+                "};\n"
+                "database database1 #1\n"
+                "{\n"
+                "    table table1 #1 TABLE1;\n"
+                "};\n"
+            ;
+        CreateFile ( m_tempSchemaFile, schemaText ); 
+        SetUpStream ( p_dbName, m_tempSchemaFile, "database1" );
+       
+        m_source . NewTableEvent ( DefaultTableId, "TABLE1" );
+        
+        m_source . NewColumnEvent ( Column16Id, DefaultTableId, "column16", 16, true );
+        m_source . NewColumnEvent ( Column32Id, DefaultTableId, "column32", 32, true );
+        m_source . NewColumnEvent ( Column64Id, DefaultTableId, "column64", 64, true );
+        
+        return true;
     }
     
     void OpenCursor( const char* p_table, const char* p_column )
@@ -307,6 +345,7 @@ public:
     VDatabase *     m_db;
     const VCursor * m_cursor;
     KDirectory*     m_wd;
+    string          m_tempSchemaFile;
 };    
 
 template<> std::string GeneralLoaderFixture::GetValue ( const char* p_table, const char* p_column, uint64_t p_row )
@@ -583,38 +622,18 @@ FIXTURE_TEST_CASE ( OneColumnOneCellManyChunks, GeneralLoaderFixture )
     REQUIRE_EQ ( value1 + value2 + value3, GetValue<string> ( tableName, columnName, 1 ) ); 
 }
 
-FIXTURE_TEST_CASE ( IntegerCompression, GeneralLoaderFixture )
+FIXTURE_TEST_CASE ( IntegerCompression_MinimumCompression, GeneralLoaderFixture )
 {   
-    if ( ! TestSource::packed )
-        return; // integer compaction is used in packed mode only
+    if ( ! SetUpForIntergerCompression ( GetName() ) )
+    {
+        return;
+    }
         
-    string schemaFile = string ( GetName() ) + ".vschema";
-    string schemaText = 
-            "table table1 #1.0.0\n"
-            "{\n"
-            "    column U16 column16;\n"
-            "    column U32 column32;\n"
-            "    column U64 column64;\n"
-            "};\n"
-            "database database1 #1\n"
-            "{\n"
-            "    table table1 #1 TABLE1;\n"
-            "};\n"
-        ;
-    CreateFile ( schemaFile, schemaText ); 
-    SetUpStream ( GetName(), schemaFile, "database1" );
-   
-    const char* table1 = "TABLE1";
-    m_source . NewTableEvent ( DefaultTableId, table1 );
-    
-    // these values will not be compacted ( adds 1 byte overhead )
-    const uint32_t Column16Id = 16; const uint16_t u16value = 0x3456;
-    const uint32_t Column32Id = 32; const uint32_t u32value = 0x789abcde;
-    const uint32_t Column64Id = 64; const uint64_t u64value = 0xfedcba9876543210;
-    m_source . NewColumnEvent ( Column16Id, DefaultTableId, "column16", 16, true );
-    m_source . NewColumnEvent ( Column32Id, DefaultTableId, "column32", 32, true );
-    m_source . NewColumnEvent ( Column64Id, DefaultTableId, "column64", 64, true );
-    
+    // no compression ( adds 1 byte per value )
+    const uint16_t u16value = 0x3456;
+    const uint32_t u32value = 0x789abcde;
+    const uint64_t u64value = 0x0F0F0F0F0F0F0F0FLL;
+
     m_source . OpenStreamEvent();
     
     uint8_t buf[128];
@@ -640,45 +659,63 @@ FIXTURE_TEST_CASE ( IntegerCompression, GeneralLoaderFixture )
         delete gl;
     } // make sure loader is destroyed (= db closed) before we reopen the database for verification
     
-    REQUIRE_EQ ( u16value, GetValue<uint16_t> ( table1, "column16", 1 ) );    
-    REQUIRE_EQ ( u32value, GetValue<uint32_t> ( table1, "column32", 1 ) );    
-    REQUIRE_EQ ( u64value, GetValue<uint64_t> ( table1, "column64", 1 ) );    
+    REQUIRE_EQ ( u16value, GetValue<uint16_t> ( "TABLE1", "column16", 1 ) );    
+    REQUIRE_EQ ( u32value, GetValue<uint32_t> ( "TABLE1", "column32", 1 ) );    
+    REQUIRE_EQ ( u64value, GetValue<uint64_t> ( "TABLE1", "column64", 1 ) );    
+}
 
-    remove ( schemaFile . c_str() );
+FIXTURE_TEST_CASE ( IntegerCompression_MaximumCompression, GeneralLoaderFixture )
+{   
+    if ( ! SetUpForIntergerCompression ( GetName() ) )
+    {
+        return;
+    }
+    // induce maximum compression ( 1 byte per value <= 0x7F )
+    const uint16_t u16value = 0;
+    const uint32_t u32value = 2;
+    const uint64_t u64value = 0x7F;
+
+    m_source . OpenStreamEvent();
+    
+    uint8_t buf[128];
+    
+    int bytes = encode_uint16 ( u16value, buf, buf + sizeof buf );
+    REQUIRE_EQ ( 1, bytes );
+    m_source . CellDataEventRaw ( Column16Id, 1, buf, bytes );
+    
+    bytes = encode_uint32 ( u32value, buf, buf + sizeof buf );
+    REQUIRE_EQ ( 1, bytes );
+    m_source . CellDataEventRaw ( Column32Id, 1, buf, bytes );
+    
+    bytes = encode_uint64 ( u64value, buf, buf + sizeof buf );
+    REQUIRE_EQ ( 1, bytes );
+    m_source . CellDataEventRaw ( Column64Id, 1, buf, bytes );
+    
+    m_source . NextRowEvent ( DefaultTableId  );
+    m_source . CloseStreamEvent();
+    
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_EQ ( u16value, GetValue<uint16_t> ( "TABLE1", "column16", 1 ) );    
+    REQUIRE_EQ ( u32value, GetValue<uint32_t> ( "TABLE1", "column32", 1 ) );    
+    REQUIRE_EQ ( u64value, GetValue<uint64_t> ( "TABLE1", "column64", 1 ) );    
 }
 
 FIXTURE_TEST_CASE ( IntegerCompression_MultipleValues, GeneralLoaderFixture )
 {   
-    if ( ! TestSource::packed )
-        return; // integer compaction is used in packed mode only
+    if ( ! SetUpForIntergerCompression ( GetName() ) )
+    {
+        return;
+    }
 
-    string schemaFile = string ( GetName() ) + ".vschema";
-    string schemaText = 
-            "table table1 #1.0.0\n"
-            "{\n"
-            "    column U16 column16;\n"
-            "    column U32 column32;\n"
-            "    column U64 column64;\n"
-            "};\n"
-            "database database1 #1\n"
-            "{\n"
-            "    table table1 #1 TABLE1;\n"
-            "};\n"
-        ;
-    CreateFile ( schemaFile, schemaText ); 
-    SetUpStream ( GetName(), schemaFile, "database1" );
-   
-    const char* table1 = "TABLE1";
-    m_source . NewTableEvent ( DefaultTableId, table1 );
-
-    // induce maximum compaction ( 1 byte per value <= 0x7F )
-    const uint32_t Column16Id = 16; const uint16_t u16value1 = 0x0001;              const uint16_t u16value2 = 0x0002;
-    const uint32_t Column32Id = 32; const uint32_t u32value1 = 0x00000003;          const uint32_t u32value2 = 0x00000004;
-    const uint32_t Column64Id = 64; const uint64_t u64value1 = 0x0000000000000006;  const uint64_t u64value2 = 0x0000000000000007;
-    
-    m_source . NewColumnEvent ( Column16Id, DefaultTableId, "column16", 16, true );
-    m_source . NewColumnEvent ( Column32Id, DefaultTableId, "column32", 32, true );
-    m_source . NewColumnEvent ( Column64Id, DefaultTableId, "column64", 64, true );
+    // induce maximum compression ( 1 byte per value <= 0x7F )
+    const uint16_t u16value1 = 0x0001;              const uint16_t u16value2 = 0x0002;
+    const uint32_t u32value1 = 0x00000003;          const uint32_t u32value2 = 0x00000004;
+    const uint64_t u64value1 = 0x0000000000000006;  const uint64_t u64value2 = 0x0000000000000007;
     
     m_source . OpenStreamEvent();
     
@@ -723,14 +760,12 @@ FIXTURE_TEST_CASE ( IntegerCompression_MultipleValues, GeneralLoaderFixture )
         delete gl;
     } // make sure loader is destroyed (= db closed) before we reopen the database for verification
     
-    REQUIRE_EQ ( u16value1, GetValueWithIndex<uint16_t> ( table1, "column16", 1, 2, 0 ) );    
-    REQUIRE_EQ ( u16value2, GetValueWithIndex<uint16_t> ( table1, "column16", 1, 2, 1 ) );    
-    REQUIRE_EQ ( u32value1, GetValueWithIndex<uint32_t> ( table1, "column32", 1, 2, 0 ) );    
-    REQUIRE_EQ ( u32value2, GetValueWithIndex<uint32_t> ( table1, "column32", 1, 2, 1 ) );    
-    REQUIRE_EQ ( u64value1, GetValueWithIndex<uint64_t> ( table1, "column64", 1, 2, 0 ) );    
-    REQUIRE_EQ ( u64value2, GetValueWithIndex<uint64_t> ( table1, "column64", 1, 2, 1 ) );    
-
-    remove ( schemaFile . c_str() );
+    REQUIRE_EQ ( u16value1, GetValueWithIndex<uint16_t> ( "TABLE1", "column16", 1, 2, 0 ) );    
+    REQUIRE_EQ ( u16value2, GetValueWithIndex<uint16_t> ( "TABLE1", "column16", 1, 2, 1 ) );    
+    REQUIRE_EQ ( u32value1, GetValueWithIndex<uint32_t> ( "TABLE1", "column32", 1, 2, 0 ) );    
+    REQUIRE_EQ ( u32value2, GetValueWithIndex<uint32_t> ( "TABLE1", "column32", 1, 2, 1 ) );    
+    REQUIRE_EQ ( u64value1, GetValueWithIndex<uint64_t> ( "TABLE1", "column64", 1, 2, 0 ) );    
+    REQUIRE_EQ ( u64value2, GetValueWithIndex<uint64_t> ( "TABLE1", "column64", 1, 2, 1 ) );    
 }
 
 // default values
@@ -1207,6 +1242,29 @@ FIXTURE_TEST_CASE ( ErrorMessage_Long, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), RC ( rcExe, rcFile, rcReading, rcError, rcExists ) ) );
 }
+
+FIXTURE_TEST_CASE ( TargetOverride, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+
+    string newTarget = string ( GetName() ) + "_override";
+    {   
+        GeneralLoader* gl = MakeLoader ( m_source . MakeSource () );
+        gl -> SetTargetOverride ( newTarget );
+        REQUIRE ( RunLoader ( *gl, 0 ) );
+        delete gl;
+    } // make sure loader is destroyed (= db closed) before we reopen the database for verification
+    
+    REQUIRE_THROW ( OpenDatabase() );       // the db from the instruction stream was not created
+    OpenDatabase ( newTarget . c_str() );   // did not throw => overridden target db opened successfully
+    
+    // clean up
+    CloseDatabase();
+    KDirectoryRemove ( m_wd, true, newTarget . c_str() );
+}
+
 
 //////////////////////////////////////////// Main
 extern "C"

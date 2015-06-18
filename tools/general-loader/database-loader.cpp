@@ -41,12 +41,14 @@ using namespace std;
 
 ///////////// GeneralLoader::DatabaseLoader
 
-GeneralLoader :: DatabaseLoader :: DatabaseLoader ( const Paths& p_includePaths, const Paths& p_schemas )
+GeneralLoader :: DatabaseLoader :: DatabaseLoader ( const Paths& p_includePaths, const Paths& p_schemas, const std::string& p_dbNameOverride )
 :   m_includePaths ( p_includePaths ),
     m_schemas ( p_schemas ),
+    m_databaseName ( p_dbNameOverride ), // if specified, overrides the database path coming in from the stream
     m_mgr ( 0 ),
     m_schema ( 0 ),
-    m_db ( 0 )
+    m_db ( 0 ),
+    m_databaseNameOverridden ( ! m_databaseName.empty() ) 
 {
 }
 
@@ -194,8 +196,18 @@ GeneralLoader :: DatabaseLoader :: UseSchema ( const string& p_file, const strin
 rc_t 
 GeneralLoader :: DatabaseLoader :: RemotePath ( const string& p_path )
 {
-    pLogMsg ( klogInfo, "database-loader: remote  path '$(s1)'", "s1=%s", p_path . c_str () );
-    m_databaseName = p_path;
+    if ( m_databaseNameOverridden )
+    {
+        pLogMsg ( klogInfo, 
+                  "database-loader: remote  path '$(s1)' ignored, overridden to '$(s2)'", 
+                  "s1=%s,s2=%s", 
+                  p_path . c_str (), m_databaseName . c_str () );
+    }
+    else
+    {
+        pLogMsg ( klogInfo, "database-loader: remote  path '$(s1)'", "s1=%s", p_path . c_str () );
+        m_databaseName = p_path;
+    }
     return 0;
 }
 

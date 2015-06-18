@@ -87,7 +87,7 @@ tbl = {
             'elem_bits': 8,
         },
         'QUALITY': {
-            'expression': '(INSDC:quality:phred)QUALITY',
+            'expression': '(INSDC:quality:text:phred_33)QUALITY',
             'elem_bits': 8,
         },
         'SPOT_GROUP': {
@@ -111,7 +111,7 @@ tbl = {
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
             'elem_bits': 8,
-            'default': array.array('B', [0, 0])
+            'default': array.array('B', [1, 1])
         },
     },
     'CONSENSUS': {
@@ -120,7 +120,7 @@ tbl = {
             'elem_bits': 8,
         },
         'QUALITY': {
-            'expression': '(INSDC:quality:phred)QUALITY',
+            'expression': '(INSDC:quality:text:phred_33)QUALITY',
             'elem_bits': 8,
         },
         'SPOT_GROUP': {
@@ -149,7 +149,7 @@ tbl = {
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
             'elem_bits': 8,
-            'default': array.array('B', [0])
+            'default': array.array('B', [1])
         },
     }
 }

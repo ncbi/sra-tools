@@ -101,7 +101,10 @@ piped-load-tests: $(ALL_TOOLS)
 #-------------------------------------------------------------------------------
 # general-loader tool tests
 #
-runtests: tool-tests
+runtests: setup tool-tests 
+
+setup:
+	@ mkdir db
 
 $(TEST_BINDIR)/makeinputs: makeinputs.cpp
 	@# generate numbered input streams for tool tests

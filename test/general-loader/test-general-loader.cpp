@@ -308,7 +308,7 @@ public:
         return num_read == 0;
     }
 
-    template < typename T > T GetValueWithIndex ( const char* p_table, const char* p_column, uint64_t p_row, size_t p_count, size_t p_index )
+    template < typename T > T GetValueWithIndex ( const char* p_table, const char* p_column, uint64_t p_row, uint32_t p_count, size_t p_index )
     {
         OpenCursor( p_table, p_column ); 
         if ( VCursorSetRowId ( m_cursor, p_row ) ) 
@@ -321,7 +321,7 @@ public:
         T ret [ 1024 ];
 
         uint32_t num_read;
-        if ( VCursorRead ( m_cursor, 1, 8 * sizeof ( T ), &ret, p_count, &num_read ) != 0 )
+        if ( VCursorRead ( m_cursor, 1, (uint32_t) ( 8 * sizeof ( T ) ), &ret, p_count, &num_read ) != 0 )
             throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");
         
         if ( VCursorCloseRow ( m_cursor ) != 0 )

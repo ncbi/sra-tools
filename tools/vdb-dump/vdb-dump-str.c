@@ -28,6 +28,7 @@
 #include <klib/text.h>
 #include <klib/printf.h>
 #include <klib/out.h>
+#include <klib/namelist.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -370,6 +371,48 @@ rc_t vds_2_csv( p_dump_str s )
     if ( (rc == 0 )&&( ( has_quotes )||( has_comma ) ) )
     {
         rc = vds_enclose_string( s, '"', '"' );
+    }
+    return rc;
+}
+
+
+/* ========================================================================================= */
+static rc_t vds_add_to_sections( const char * path, uint32_t start, uint32_t len, VNamelist * sections )
+{
+    String S;
+    StringInit( &S, &( path[ start ] ), len, len );
+    return VNamelistAppendString ( sections, &S );
+}
+
+rc_t vds_path_to_sections( const char * path, char delim, VNamelist ** sections )
+{
+    rc_t rc = 0;
+    if ( path == NULL || sections == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcInserting, rcParam, rcNull );
+    else
+    {
+        rc = VNamelistMake ( sections, 5 );
+        if ( rc == 0 )
+        {
+            uint32_t idx = 0, start = 0, len = 0;
+            while( rc== 0 && path[ idx ] != 0 )
+            {
+                if ( path[ idx ] == delim )
+                {
+                    if ( len > 0 )
+                        rc = vds_add_to_sections( path, start, len, *sections );
+                    start = idx + 1;
+                    len = 0;
+                }
+                else
+                {
+                    len++;
+                }
+                idx++;
+            }
+            if ( rc == 0 && len > 0 )
+                rc = vds_add_to_sections( path, start, len, *sections );
+        }
     }
     return rc;
 }

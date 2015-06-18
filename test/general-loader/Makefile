@@ -101,7 +101,10 @@ piped-load-tests: $(ALL_TOOLS)
 #-------------------------------------------------------------------------------
 # general-loader tool tests
 #
-runtests: tool-tests
+runtests: setup tool-tests 
+
+setup:
+	@ mkdir db
 
 $(TEST_BINDIR)/makeinputs: makeinputs.cpp
 	@# generate numbered input streams for tool tests
@@ -128,7 +131,21 @@ tool-tests: $(TEST_BINDIR)/makeinputs
 	@# error message event, packed
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2packed 3
 	@#    
+	@# empty default values
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 3 0
+	@#    
+	@# move ahead event
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 4 0
+	@#    
+	@# integer compression
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 5 0 -L=info
+	@#    
 	@rm -rf input/*.gl actual/*
+
+one-tool: $(TEST_BINDIR)/makeinputs
+	@mkdir -p input && $(TEST_BINDIR)/makeinputs && rm $(TEST_BINDIR)/makeinputs
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 5 0 -L=info
+
 
 #-------------------------------------------------------------------------------
 # general-loader tool tests

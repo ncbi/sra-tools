@@ -85,7 +85,7 @@ public:
     // use this to capture stream contents to be used in cmdline tests
     void SaveBuffer ( const char* p_filename ) const;
     
-    void CellDataEventRaw ( ColumnId p_columnId, size_t p_elemCount, const void* p_value, size_t p_size )
+    void CellDataEventRaw ( ColumnId p_columnId, uint32_t p_elemCount, const void* p_value, uint32_t p_size )
     {
         m_buffer -> Write ( Event ( evt_cell_data, p_columnId, p_elemCount, p_size, p_value ) );
     }   

@@ -209,7 +209,7 @@ GeneralLoader::ReadHeader ( bool& p_packed )
     
     if ( rc == 0 )
     {
-        p_packed = header. packing;
+        p_packed = header. packing != 0;
     }
     
     return rc;

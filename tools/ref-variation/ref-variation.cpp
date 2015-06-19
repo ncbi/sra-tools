@@ -65,6 +65,7 @@ namespace RefVariation
 
     void run ()
     {
+        std::cout << "ref-variation is under construction..." << std::endl;
     }
 }
 

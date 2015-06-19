@@ -532,7 +532,7 @@ int64_t CC kmer_sort_callback( const void *p1, const void *p2, void * data )
         return 1;
     if ( k1->observed_vs_expected > k2->observed_vs_expected )
         return -1;
-    return ( idx1 - idx2 );
+    return (int64_t) idx1 - (int64_t) idx2;
 }
 
 

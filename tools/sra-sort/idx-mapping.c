@@ -47,7 +47,7 @@ int64_t CC IdxMappingCmpOld ( const void *a, const void *b, void *data )
     return ap -> old_id < bp -> old_id ? -1 : ap -> old_id > bp -> old_id;
 }
 
-int CC IdxMappingCmpNew ( const void *a, const void *b, void *data )
+int64_t CC IdxMappingCmpNew ( const void *a, const void *b, void *data )
 {
     const IdxMapping *ap = a;
     const IdxMapping *bp = b;

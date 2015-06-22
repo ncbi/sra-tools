@@ -481,7 +481,7 @@ rc_t TarFileList_Size(const TarFileList* cself, uint64_t* file_sz)
 }
 
 static
-int TarFileList_Sort(const BSTNode *item, const BSTNode *node)
+int64_t TarFileList_Sort(const BSTNode *item, const BSTNode *node)
 {
     const TarEntry* i = (const TarEntry*)item;
     const TarEntry* n = (const TarEntry*)node;
@@ -528,7 +528,7 @@ rc_t TarFileList_Open(const TarFileList* cself)
 }
 
 static
-int TarFileList_Find(const void *item, const BSTNode *node)
+int64_t TarFileList_Find(const void *item, const BSTNode *node)
 {
     uint64_t pos = *(uint64_t*)item;
     const TarEntry* n = (const TarEntry*)node;

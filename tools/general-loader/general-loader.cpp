@@ -107,6 +107,12 @@ GeneralLoader::~GeneralLoader ()
 {
 }
 
+void 
+GeneralLoader::SetTargetOverride( const std::string& p_path )
+{
+    m_targetOverride = p_path;
+}
+
 void
 GeneralLoader::SplitAndAdd( Paths& p_paths, const string& p_path )
 {
@@ -140,16 +146,16 @@ GeneralLoader::Run()
     rc_t rc = ReadHeader ( packed );
     if ( rc == 0 ) 
     {
-        DatabaseLoader loader ( m_includePaths, m_schemas );
+        DatabaseLoader loader ( m_includePaths, m_schemas, m_targetOverride );
         if ( packed )
         {
             PackedProtocolParser p;
-            rc = p . ParseEvents ( m_reader, loader);
+            rc = p . ParseEvents ( m_reader, loader );
         }
         else
         {
             UnpackedProtocolParser p;
-            rc = p . ParseEvents ( m_reader, loader);
+            rc = p . ParseEvents ( m_reader, loader );
         }
     
         if ( rc != 0 && ! loader . GetDatabaseName() . empty () )
@@ -209,7 +215,7 @@ GeneralLoader::ReadHeader ( bool& p_packed )
     
     if ( rc == 0 )
     {
-        p_packed = header. packing;
+        p_packed = header. packing != 0;
     }
     
     return rc;

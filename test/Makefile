@@ -39,6 +39,7 @@ SUBDIRS =    \
 	vcf-loader      \
     kget            \
     general-loader  \
+    vschema \
 
 # under construction    
 #    ngs-pileup      \

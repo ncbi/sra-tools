@@ -80,6 +80,7 @@ static char const option_ref_file[] = "ref-file";
 static char const option_TI[] = "TI";
 static char const option_max_warn_dup_flag[] = "max-warning-dup-flag";
 static char const option_accept_hard_clip[] = "accept-hard-clip";
+static char const option_allow_multi_map[] = "allow-multi-map";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -102,6 +103,7 @@ static char const option_accept_hard_clip[] = "accept-hard-clip";
 #define OPTION_TI option_TI
 #define OPTION_MAX_WARN_DUP_FLAG option_max_warn_dup_flag
 #define OPTION_ACCEPT_HARD_CLIP option_accept_hard_clip
+#define OPTION_ALLOW_MULTI_MAP option_allow_multi_map
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -329,6 +331,14 @@ char const * use_accept_hard_clip[] =
     NULL
 };
 
+static
+char const * use_allow_multi_map[] =
+{
+    "allow the same reference to be mapped to multiple names in the input files",
+    "(default is disallow, old behaviors was to allow it)",
+    NULL
+};
+
 OptDef Options[] = 
 {
     /* order here is same as in param array below!!! */
@@ -361,7 +371,8 @@ OptDef Options[] =
     { OPTION_REF_FILE, ALIAS_REF_FILE, NULL, use_ref_file, 0, true, false },
     { OPTION_TI, NULL, NULL, use_TI, 1, false, false },
     { OPTION_MAX_WARN_DUP_FLAG, NULL, NULL, use_max_dup_warnings, 1, true, false },
-    { OPTION_ACCEPT_HARD_CLIP, NULL, NULL, use_accept_hard_clip, 1, false, false }
+    { OPTION_ACCEPT_HARD_CLIP, NULL, NULL, use_accept_hard_clip, 1, false, false },
+    { OPTION_ALLOW_MULTI_MAP, NULL, NULL, use_allow_multi_map, 1, false, false }
 };
 
 const char* OptHelpParam[] =
@@ -396,7 +407,8 @@ const char* OptHelpParam[] =
     "path-to-file",		/* reference fasta file */
     NULL,				/* use XT->TI */
     "count",			/* max. duplicate warning count */
-    NULL				/* allow hard clipping */
+    NULL,				/* allow hard clipping */
+    NULL				/* allow multimapping */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -866,6 +878,11 @@ rc_t CC KMain (int argc, char * argv[])
         if (rc)
             break;
         G.acceptHardClip = pcount > 0;
+        
+        rc = ArgsOptionCount (args, OPTION_ALLOW_MULTI_MAP, &pcount);
+        if (rc)
+            break;
+        G.allowMultiMapping = pcount > 0;
         
         rc = ArgsOptionCount (args, OPTION_NOMATCH_LOG, &pcount);
         if (rc)

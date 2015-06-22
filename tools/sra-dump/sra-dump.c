@@ -498,25 +498,21 @@ void CC basetype_whack ( BSTNode *n, void *ignore )
 }
 
 static
-int CC basetype_cmp ( const void *item, const BSTNode *n )
+int64_t CC basetype_cmp ( const void *item, const BSTNode *n )
 {
     const VTypedecl *td = item;
     const basetype *bt = ( const basetype* ) n;
 
-    if ( td -> type_id < bt -> type_id )
-        return -1;
-    return td -> type_id - bt -> type_id;
+    return (int64_t) td -> type_id - (int64_t) bt -> type_id;
 }
 
 static
-int CC basetype_sort ( const BSTNode *item, const BSTNode *n )
+int64_t CC basetype_sort ( const BSTNode *item, const BSTNode *n )
 {
     const basetype *td = ( const basetype* ) item;
     const basetype *bt = ( const basetype* ) n;
 
-    if ( td -> type_id < bt -> type_id )
-        return -1;
-    return td -> type_id - bt -> type_id;
+    return (int64_t) td -> type_id - (int64_t) bt -> type_id;
 }
 
 static

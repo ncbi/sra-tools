@@ -588,15 +588,15 @@ static rc_t matcher_make_type_matrix( matcher* self )
 }
 
 
-static int CC matcher_match_cb( const void ** p1, const void ** p2, void *data )
+static int64_t CC matcher_match_cb( const void ** p1, const void ** p2, void *data )
 {
-    int res = 0;
+    int64_t res = 0;
     const p_mpair pair_1 = (p_mpair)(*p1);
     const p_mpair pair_2 = (p_mpair)(*p2);
     if ( pair_1 == NULL || pair_2 == NULL )
         return res;
     /* first we order by compatibility */
-    res = ( pair_1->compatible ) - ( pair_2->compatible );
+    res = (int64_t)( pair_1->compatible ) - (int64_t)( pair_2->compatible );
     if ( res == 0 )
     {
         /* second we order by lossy-ness, lowest value first */
@@ -604,14 +604,14 @@ static int CC matcher_match_cb( const void ** p1, const void ** p2, void *data )
         if ( res == 0 )
         {
             /* if the lossy-ness is the same, we order by distance */
-            res = ( pair_1->distance ) - ( pair_2->distance );
+            res = (int64_t)( pair_1->distance ) - (int64_t)( pair_2->distance );
             if ( res == 0 )
             {
                 /* if the distance is the same, we order by default-value */
-                res = ( pair_1->src->dflt ) - ( pair_2->src->dflt );
+                res = (int64_t)( pair_1->src->dflt ) - (int64_t)( pair_2->src->dflt );
                 if ( res == 0 )
                     /* if there is not default-value, we use the org. order */
-                    res = ( pair_1->src->order ) - ( pair_2->src->order );
+                    res = (int64_t)( pair_1->src->order ) - (int64_t)( pair_2->src->order );
             }
         }
     }

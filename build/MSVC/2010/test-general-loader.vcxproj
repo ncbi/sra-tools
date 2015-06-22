@@ -33,6 +33,7 @@
   </ItemGroup>
 
     <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
+        <MakeDir Directories="..\..\..\test\general-loader\db"/>    
         <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="..\..\..\test\general-loader\"/>
     </Target>
     

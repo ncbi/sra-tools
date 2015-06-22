@@ -74,19 +74,14 @@ struct index_t {
 	uint16_t i, len;
 };
 
-static int idx_cmp(const void *A, const void *B, void * ignored) {
+static int64_t idx_cmp(const void *A, const void *B, void * ignored) {
 	const struct index_t *a = A;
 	const struct index_t *b = B;
 	
-	if (a->len < b->len)
-		return -1;
-	if (a->len > b->len)
-		return 1;
-	if (a->i < b->i)
-		return -1;
-	if (a->i > b->i)
-		return 1;
-	return 0;
+    if ( a->len != b->len )
+        return (int64_t)a->len - (int64_t)b->len;
+
+    return (int64_t)a->i - (int64_t)b->i;
 }
 
 #if 0

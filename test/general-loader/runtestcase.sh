@@ -27,7 +27,7 @@
 # $1 - path to sra-tools executables (general-loader, vdb-dump)
 # $2 - work directory (expected results under expected/, actual results and temporaries created under actual/)
 # $3 - test case ID (expect a file input/$3.gl to exist)
-# $4 - expected return coode
+# $4 - expected return code
 # $5, $6, ... - command line options for general-loader
 #
 # return codes:
@@ -51,10 +51,11 @@ TEMPDIR=$WORKDIR/actual/$CASEID
 echo "running test case $CASEID"
 
 mkdir -p $TEMPDIR
-rm -rf $TEMPDIR/*
 if [ "$?" != "0" ] ; then
+    echo "cannot create "
     exit 1
 fi
+rm -rf $TEMPDIR/*
 
 CMD="cat input/$CASEID.gl | $LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 #echo $CMD
@@ -71,7 +72,7 @@ fi
 if [ "$rc" == "0" ] ; then
     CMD="$DUMP $TEMPDIR/db 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
-    eval $CMD || exit 3
+    eval $CMD || ( echo "$CMD" && exit 3 )
     diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
 else    

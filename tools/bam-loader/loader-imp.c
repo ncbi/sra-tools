@@ -878,7 +878,7 @@ INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
                 if (platform_cmp(rg->platform, "COMPLETE GENOMICS"))
                     return SRA_PLATFORM_COMPLETE_GENOMICS;
                 if (platform_cmp(rg->platform, "CAPILLARY"))
-                    return SRA_PLATFORM_SANGER;
+                    return SRA_PLATFORM_CAPILLARY;
                 break;
             case 'H':
                 if (platform_cmp(rg->platform, "HELICOS"))
@@ -894,6 +894,14 @@ INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
                 if (platform_cmp(rg->platform, "LS454"))
                     return SRA_PLATFORM_454;
                 break;
+            case 'N':
+                if (platform_cmp(name, "NANOPORE"))
+                    return SRA_PLATFORM_OXFORD_NANOPORE;
+                break;
+            case 'O':
+                if (platform_cmp(name, "OXFORD_NANOPORE"))
+                    return SRA_PLATFORM_OXFORD_NANOPORE;
+                break;
             case 'P':
                 if (platform_cmp(rg->platform, "PACBIO"))
                     return SRA_PLATFORM_PACBIO_SMRT;
@@ -901,6 +909,8 @@ INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
             case 'S':
                 if (platform_cmp(rg->platform, "SOLID"))
                     return SRA_PLATFORM_ABSOLID;
+                if (platform_cmp(name, "SANGER"))
+                    return SRA_PLATFORM_CAPILLARY;
                 break;
             default:
                 break;
@@ -915,7 +925,7 @@ rc_t CheckLimitAndLogError(void)
 {
     ++G.errCount;
     if (G.maxErrCount > 0 && G.errCount > G.maxErrCount) {
-        (void)PLOGERR(klogErr, (klogErr, RC(rcAlign, rcFile, rcReading, rcError, rcExcessive), "Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%u,max=%u", G.errCount, G.maxErrCount));
+        (void)PLOGERR(klogErr, (klogErr, SILENT_RC(rcAlign, rcFile, rcReading, rcError, rcExcessive), "Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%u,max=%u", G.errCount, G.maxErrCount));
         return RC(rcAlign, rcFile, rcReading, rcError, rcExcessive);
     }
     return 0;
@@ -965,12 +975,12 @@ rc_t LogDupConflict(char const readName[])
     if (rc) {
         (void)PLOGMSG(klogInfo, (klogInfo, "This is the last warning; this class of warning occurred $(occurred) times",
                                  "occurred=%u", count));
-        (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+        (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                  "Spot '$(name)' is both a duplicate and NOT a duplicate!",
                                  "name=%s", readName));
     }
     else if (G.maxWarnCount_DupConflict == 0 || count < G.maxWarnCount_DupConflict)
-        (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+        (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                  "Spot '$(name)' is both a duplicate and NOT a duplicate!",
                                  "name=%s", readName));
     return rc;
@@ -983,43 +993,46 @@ static char const *const CHANGED[] = {
     "record made unaligned",
     "record made unfragmented",
     "mate alignment lost",
-    "record discarded"
+    "record discarded",
+    "reference name changed"
 };
 
 static char const *const REASONS[] = {
 /* FLAG changed */
-    "0x400 and 0x200 both set",
-    "conflicting PCR Dup flags",
-    "primary alignment already exists",
-    "was already recorded as unaligned",
+    "0x400 and 0x200 both set",                 /*  0 */
+    "conflicting PCR Dup flags",                /*  1 */
+    "primary alignment already exists",         /*  2 */
+    "was already recorded as unaligned",        /*  3 */
 /* QUAL changed */
-    "original quality used",
-    "unaligned colorspace",
-    "aligned bases",
-    "unaligned bases",
-    "reversed",
+    "original quality used",                    /*  4 */
+    "unaligned colorspace",                     /*  5 */
+    "aligned bases",                            /*  6 */
+    "unaligned bases",                          /*  7 */
+    "reversed",                                 /*  8 */
 /* unaligned */
-    "low MAPQ",
-    "low match count",
-    "missing alignment info",
-    "missing reference position",
-    "invalid alignment info",
-    "invalid reference position",
-    "invalid reference",
-    "unaligned reference",
-    "unknown reference",
-    "hard-clipped colorspace",
+    "low MAPQ",                                 /*  9 */
+    "low match count",                          /* 10 */
+    "missing alignment info",                   /* 11 */
+    "missing reference position",               /* 12 */
+    "invalid alignment info",                   /* 13 */
+    "invalid reference position",               /* 14 */
+    "invalid reference",                        /* 15 */
+    "unaligned reference",                      /* 16 */
+    "unknown reference",                        /* 17 */
+    "hard-clipped colorspace",                  /* 18 */
 /* unfragmented */
-    "missing fragment info",
-    "too many fragments",
+    "missing fragment info",                    /* 19 */
+    "too many fragments",                       /* 20 */
 /* mate info lost */
-    "invalid mate reference",
-    "missing mate alignment info",
-    "unknown mate reference",
+    "invalid mate reference",                   /* 21 */
+    "missing mate alignment info",              /* 22 */
+    "unknown mate reference",                   /* 23 */
 /* discarded */
-    "conflicting PCR duplicate",
-    "conflicting fragment info",
-    "reference is skipped"
+    "conflicting PCR duplicate",                /* 24 */
+    "conflicting fragment info",                /* 25 */
+    "reference is skipped"                      /* 26 */
+/* reference name changed */
+    "reference was named more than once"        /* 27 */
 };
 
 static struct {
@@ -1053,7 +1066,8 @@ static struct {
     {6, 24},
     {6, 25},
     {6, 26},
-    {6, 17}
+    {6, 17},
+    {7, 27},
 };
 
 #define NUMBER_OF_CHANGES ((unsigned)(sizeof(CHANGES)/sizeof(CHANGES[0])))
@@ -1152,6 +1166,7 @@ static rc_t RecordChanges(KMDataNode *const node, char const name[])
 #define DISCARD_BAD_FRAGMENT_INFO  do { LOG_CHANGE(26); } while(0)
 #define DISCARD_SKIP_REFERENCE     do { LOG_CHANGE(27); } while(0)
 #define DISCARD_UNKNOWN_REFERENCE  do { LOG_CHANGE(28); } while(0)
+#define RENAMED_REFERENCE          do { LOG_CHANGE(29); } while(0)
 
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                        Reference *ref, Sequence *seq, Alignment *align,
@@ -1201,7 +1216,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     if (ctx->key2id_max == 0) {
         uint32_t rgcount;
         unsigned rgi;
-
+        
         BAM_FileGetReadGroupCount(bam, &rgcount);
         if (rgcount > (sizeof(ctx->key2id)/sizeof(ctx->key2id[0]) - 1))
             ctx->key2id_max = 1;
@@ -1471,7 +1486,7 @@ MIXED_BASE_AND_COLOR:
                 refSeq = NULL;
                 BAM_FileGetRefSeqById(bam, refSeqId, &refSeq);/*BAM*/
                 if (refSeq == NULL) {
-                    rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
+                    rc = SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
                     rc = CheckLimitAndLogError();
                     DISCARD_UNKNOWN_REFERENCE;
@@ -1479,6 +1494,7 @@ MIXED_BASE_AND_COLOR:
                 }
                 else {
                     bool shouldUnmap = false;
+                    bool wasRenamed = false;
 
                     if (G.refFilter && strcmp(G.refFilter, refSeq->name) != 0) {
                         (void)PLOGMSG(klogInfo, (klogInfo, "Skipping Reference '$(name)'", "name=%s", refSeq->name));
@@ -1487,13 +1503,16 @@ MIXED_BASE_AND_COLOR:
                         goto LOOP_END;
                     }
 
-                    rc = ReferenceSetFile(ref, refSeq->name, refSeq->length, refSeq->checksum, &shouldUnmap);
+                    rc = ReferenceSetFile(ref, refSeq->name, refSeq->length, refSeq->checksum, &shouldUnmap, &wasRenamed);
                     if (rc == 0) {
                         lastRefSeqId = refSeqId;
                         if (shouldUnmap) {
                             aligned = false;
                             unmapRefSeqId = refSeqId;
                             UNALIGNED_UNALIGNED_REF;
+                        }
+                        if (wasRenamed) {
+                            RENAMED_REFERENCE;
                         }
                         break;
                     }
@@ -1591,7 +1610,7 @@ MIXED_BASE_AND_COLOR:
                 FLAG_CHANGED_PCR_DUP;
             }
             if (mated && value->unmated) {
-                (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+                (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                          "Spot '$(name)', which was first seen without mate info, now has mate info",
                                          "name=%s", name));
                 rc = CheckLimitAndLogError();
@@ -1599,7 +1618,7 @@ MIXED_BASE_AND_COLOR:
                 goto LOOP_END;
             }
             else if (!mated && !value->unmated) {
-                (void)PLOGERR(klogWarn, (klogWarn, RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+                (void)PLOGERR(klogWarn, (klogWarn, SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                          "Spot '$(name)', which was first seen with mate info, now has no mate info",
                                          "name=%s", name));
                 rc = CheckLimitAndLogError();

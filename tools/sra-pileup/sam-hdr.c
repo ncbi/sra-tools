@@ -141,7 +141,7 @@ static void free_seq_id_tree( BSTree * tree )
 }
 
 
-static int CC seq_id_node_vs_pchar_wrapper( const void *item, const BSTNode *n )
+static int64_t CC seq_id_node_vs_pchar_wrapper( const void *item, const BSTNode *n )
 {
     const seq_id_node * node = ( const seq_id_node * )n;
     return cmp_pchar_0( (const char *)item, node->seq_id );
@@ -154,7 +154,7 @@ static seq_id_node * find_seq_id_node( BSTree * tree, const char * key )
 }
 
 
-static int CC node_vs_node_wrapper( const BSTNode *item, const BSTNode *n )
+static int64_t CC node_vs_node_wrapper( const BSTNode *item, const BSTNode *n )
 {
    const seq_id_node * a = ( const seq_id_node * )item;
    const seq_id_node * b = ( const seq_id_node * )n;

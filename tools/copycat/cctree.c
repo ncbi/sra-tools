@@ -297,7 +297,7 @@ rc_t CCNameMake ( CCName **np, KTime_t mtime, CCName *dad,
  * Sort
  */
 static
-int CCNameCmp ( const void *item, const BSTNode *n )
+int64_t CCNameCmp ( const void *item, const BSTNode *n )
 {
     const String *a = item;
     const CCName *b = ( const CCName* ) n;
@@ -305,11 +305,11 @@ int CCNameCmp ( const void *item, const BSTNode *n )
 }
 
 static
-int CCNameSort ( const BSTNode *item, const BSTNode *n )
+int64_t CCNameSort ( const BSTNode *item, const BSTNode *n )
 {
     const CCName *a = ( const CCName* ) item;
     const CCName *b = ( const CCName* ) n;
-    int cmp = StringCompare ( & a -> name, & b -> name );
+    int64_t cmp = StringCompare ( & a -> name, & b -> name );
     if (cmp != 0)
         return cmp;
 #if 0

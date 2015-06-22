@@ -1056,20 +1056,24 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
     bool fasp, const KFile *fRemote)
 {
     const char *eol = "\n";
+    const char *bol = "";
 
     assert(self);
 
-    eol = self->xml ? "<br/>\n" : "\n";
+    if (self->xml) {
+        eol = "<br/>\n";
+        bol = "      ";
+    }
 
     switch (type) {
         case ePathLocal:
-            OUTMSG(("Local:\t\t  "));
+            OUTMSG(("%sLocal:\t\t  ", bol));
             break;
         case ePathRemote:
-            OUTMSG(("Remote %s:\t  ", fasp ? "FaspHttp" : "HttpFasp"));
+            OUTMSG(("%sRemote %s:\t  ", bol, fasp ? "FaspHttp" : "HttpFasp"));
             break;
         case ePathCache:
-            OUTMSG(("Cache %s:\t  ", fasp ? "FaspHttp" : "HttpFasp"));
+            OUTMSG(("%sCache %s:\t  ", bol, fasp ? "FaspHttp" : "HttpFasp"));
             if (remote == NULL) {
                 OUTMSG(("skipped%s", eol));
                 return rc;
@@ -1126,7 +1130,6 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
                         }
                         else {
                             MainReportRemote(self, fPath, sz);
-                            //OUTMSG(("%,lu ", sz));
                             *size = sz;
                         }
                     }
@@ -1164,7 +1167,8 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
             }
 
             if (rc == 0) {
-                OUTMSG(("Cache.cache %s: ", fasp ? "FaspHttp" : "HttpFasp"));
+                OUTMSG((
+                    "%sCache.cache %s: ", bol, fasp ? "FaspHttp" : "HttpFasp"));
                 OUTMSG(("%s ", cachecache));
                 rc = MainReport(self, cachecache, NULL, NULL, NULL);
                 OUTMSG(("%s", eol));
@@ -1187,8 +1191,6 @@ static rc_t MainResolveLocal(const Main *self, const VResolver *resolver,
     if (resolver == NULL) {
         resolver = self->resolver;
     }
-/*
-    OUTMSG(("Local: "));*/
 
     rc = VResolverLocal(resolver, acc, &local);
     rc = MainPathReport(self,
@@ -1292,6 +1294,7 @@ static rc_t VResolverQueryByType(const Main *self, const VResolver *resolver,
     bool fasp, VRemoteProtocols protocols, EQueryType type)
 {
     const char *eol = "\n";
+    const char *bol = "";
 
     rc_t rc = 0;
 
@@ -1304,7 +1307,10 @@ static rc_t VResolverQueryByType(const Main *self, const VResolver *resolver,
 
     assert(self);
 
-    eol = self->xml ? "<br/>\n" : "\n";
+    if (self->xml) {
+        eol = "<br/>\n";
+        bol = "      ";
+    }
 
     switch (type) {
         case eQueryLocal:
@@ -1328,8 +1334,8 @@ static rc_t VResolverQueryByType(const Main *self, const VResolver *resolver,
     }
 
     rc = VResolverQuery(resolver, protocols, query, pLocal, pRemote, pCache);
-    OUTMSG(("\nVResolverQuery(%s, %s, local%s, remote%s, cache%s)= %R%s",
-        name, protocols == eProtocolHttp ? "Http" : "FaspHttp", 
+    OUTMSG(("%sVResolverQuery(%s, %s, local%s, remote%s, cache%s)= %R%s",
+        bol, name, protocols == eProtocolHttp ? "Http" : "FaspHttp", 
         pLocal == NULL ? "=NULL" : "", pRemote == NULL ? "=NULL" : "",
         pCache == NULL ? "=NULL" : "", rc, eol));
     if (rc == 0) {
@@ -1342,10 +1348,12 @@ static rc_t VResolverQueryByType(const Main *self, const VResolver *resolver,
                 rc, remote, ePathRemote, name, NULL, NULL, fasp, NULL);
         }
         if (cache != NULL) {
-/*          rc2 =*/ MainPathReport(self,
+            MainPathReport(self,
                 rc, cache, ePathCache, name, remote, NULL, fasp, NULL);
         }
     }
+
+    OUTMSG(("\n"));
 
     RELEASE(VPath, local);
     RELEASE(VPath, remote);
@@ -1361,8 +1369,11 @@ static rc_t VResolverQueryByType(const Main *self, const VResolver *resolver,
 static rc_t MainResolveQuery(const Main *self, const VResolver *resolver,
     const char *name, const VPath *query, bool fasp)
 {
+    const char root[] = "Timer";
     rc_t rc = 0;
     rc_t rc2 = 0;
+    KTimeMs_t time = 0;
+    KTimeMs_t start_time = 0;
 
     VRemoteProtocols protocols = eProtocolHttp;
     if (fasp) {
@@ -1382,6 +1393,14 @@ static rc_t MainResolveQuery(const Main *self, const VResolver *resolver,
         rc = rc2;
     }
 
+    if (self->xml) {
+        OUTMSG(("    <%s>\n", root));
+    }
+    else {
+        OUTMSG(("time started...\n"));
+    }
+    start_time = KTimeMsStamp();
+
     rc2 = VResolverQueryByType(self, resolver, name, query, fasp, protocols,
         eQueryLocal);
     if (rc2 != 0 && rc == 0) {
@@ -1392,6 +1411,17 @@ static rc_t MainResolveQuery(const Main *self, const VResolver *resolver,
         eQueryRemote);
     if (rc2 != 0 && rc == 0) {
         rc = rc2;
+    }
+
+/* TODO check vdbcache */
+
+    time = KTimeMsStamp() - start_time;
+    if (self->xml) {
+        OUTMSG(("      <Time time=\"%d ms\"/>\n", time));
+        OUTMSG(("    </%s>\n", root));
+    }
+    else {
+        OUTMSG(("...elapsed time=\"%d ms\"\n\n", time));
     }
 
     return rc;
@@ -1419,6 +1449,8 @@ static rc_t _KartItemToVPath(const KartItem *self,
     }
     return rc;
 }
+
+static rc_t perform_read_test(void) { return 0; }
 
 static rc_t MainResolve(const Main *self, const KartItem *item,
     const char *name, int64_t *localSz, int64_t *remoteSz, bool refseqCtx)
@@ -1485,9 +1517,30 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
     }
 
     if (rc == 0) {
+        const String *id = NULL;
+        const char root[] = "Query";
         rc_t rc2 = 0;
 
         const VPath* remote = NULL;
+
+        const char *attr = name;
+        if (attr == NULL) {
+            rc2 = KartItemItemId(item, &id);
+            if (rc2 != 0) {
+                OUTMSG(("KartItemItemId = %R\n", rc2));
+                rc2 = 0;
+                attr = "Accession";
+            }
+        }
+
+        if (self->xml) {
+            if (attr != NULL) {
+                OUTMSG(("  <%s name=\"%s\">\n", root, attr));
+            }
+            else {
+                OUTMSG(("  <%s name=\"%S\">\n", root, id));
+            }
+        }
 
         rc = VDBManagerSetResolver(self->mgr, resolver);
 
@@ -1520,6 +1573,8 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
             rc = rc2;
         }
 
+        OUTMSG(("\n"));
+
         rc2 = MainResolveQuery(self, resolver, name, acc, false);
         if (rc2 != 0 && rc == 0) {
             rc = rc2;
@@ -1531,6 +1586,14 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
         }
 
         RELEASE(VPath, remote);
+
+        if (MainHasTest(self, eNetwork)) {
+            perform_read_test();
+        }
+
+        if (self->xml) {
+            OUTMSG(("  </%s>\n", root));
+        }
     }
 
     RELEASE(VPath, acc); 
@@ -1539,7 +1602,6 @@ static rc_t MainResolve(const Main *self, const KartItem *item,
     if (self->xml) {
         OUTMSG(("</%s>\n", root));
     }
-    OUTMSG(("\n"));
 
     return rc;
 }
@@ -2089,7 +2151,7 @@ static rc_t perfrom_dns_test(const Main *self, const char *eol) {
             (("KNSManagerInitDNSEndpoint(%s, %d)=%R%s", domain, port, rc, eol));
     }
     else {
-        const char root[] = "DnsEndpoint";//"www.ncbi.nlm.nih.gov", 80
+        const char root[] = "DnsEndpoint";/*"www.ncbi.nlm.nih.gov", 80*/
         char s_endpoint[1024] = "";
         rc = endpoint_to_string(s_endpoint, sizeof s_endpoint, &ep);
         if (self->xml) {
@@ -2099,7 +2161,7 @@ static rc_t perfrom_dns_test(const Main *self, const char *eol) {
         }
         else {
             OUTMSG((
-                "%s domain=\"%s\" port=\"%d\" address=\"%s\" time=\"%d ms\"",
+                "%s domain=\"%s\" port=\"%d\" address=\"%s\" time=\"%d ms\"\n",
                 root, domain, port, s_endpoint, time));
         }
     }
@@ -2167,10 +2229,9 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
         OUTMSG(
             ("KNSManagerMakeReliableClientRequest(%s)=%R%s", cgi_url, rc, eol));
     }
-    else {
-        const char param[] = "version";
-        rc = KHttpRequestAddPostParam
-            (req, "%s=%u.%u", param, ver_major, ver_minor);
+    if (rc == 0) {
+        const char param[] = "acc";
+		rc = KHttpRequestAddPostParam( req, "%s=%s", param, acc);
         if (rc != 0) {
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
@@ -2178,6 +2239,14 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     if (rc == 0) {
         const char param[] = "accept-proto";
 		rc = KHttpRequestAddPostParam( req, "%s=%s", param, protocol);
+        if (rc != 0) {
+            OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
+        }
+    }
+    if (rc == 0) {
+        const char param[] = "version";
+        rc = KHttpRequestAddPostParam
+            (req, "%s=%u.%u", param, ver_major, ver_minor);
         if (rc != 0) {
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
@@ -2202,6 +2271,7 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
                 else {
                     OUTMSG(("%s=%d\n", root, code));
                 }
+                rc = RC(rcNS, rcFile, rcReading, rcFile, rcInvalid);
             }
             else {
                 KStream *response = NULL;
@@ -2237,8 +2307,33 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
     if (self->xml) {
         OUTMSG(("  <%s>\n", root));
     }
-    rc = call_cgi(self, "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi",
-        1, 1, "http", acc, &databuffer, eol);
+    {
+        KTimeMs_t time = 0;
+        const char root[] = "Response";
+        rc = call_cgi(self, "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi"
+            , 1, 1, "http", acc, &databuffer, eol);
+        time = KTimeMsStamp() - start_time;
+        if (rc == 0) {
+            const char *start = databuffer.base;
+            size_t size = KDataBufferBytes(&databuffer);
+            if (self->xml) {
+                OUTMSG(("    <%s time=\"%d ms\">%.*s</%s>\n",
+                    root, time, size, start, root));
+            }
+            else {
+                OUTMSG(("%s = \"%.*s\"  time=\"%d ms\"\n",
+                    root, size, start, time));
+            }
+        }
+        else {/*
+            if (self->xml) {
+                //OUTMSG(("    <%s/>\n", root, size, start, root));
+            }
+            else {
+                //OUTMSG(("%s = '%.*s'\n", root, size, start));
+            }*/
+        }
+    }
     if (self->xml) {
         OUTMSG(("  </%s>\n", root));
     }
@@ -2374,16 +2469,10 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
         OUTMSG(("%s", eol));
 
         if (MainHasTest(self, eOpenTable)) {
-            rc_t rc2 = MainOpenAs(self, arg, false);
-            if (rce == 0 && rc2 != 0) {
-                rce = rc2;
-            }
+            MainOpenAs(self, arg, false);
         }
         if (MainHasTest(self, eOpenDB)) {
-            rc_t rc2 = MainOpenAs(self, arg, true);
-            if (rce == 0 && rc2 != 0) {
-                rce = rc2;
-            }
+            MainOpenAs(self, arg, true);
         }
     }
 
@@ -2482,7 +2571,7 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
                 MainNetwotk(self, arg, eol);
             }
 
-            if (item == NULL) {
+            if (item == NULL) { /* TODO || kartitem & database */
                 if (type == kptDatabase || type == kptNotFound) {
                     if (MainHasTest(self, eDependMissing)) {
                         rc_t rc2 = MainDepend(self, arg, true);
@@ -2519,7 +2608,6 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
                 OUTMSG(("\n"));
             }
 
-            OUTMSG(("\n"));
         }
     }
 
@@ -2858,7 +2946,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         if (rc == 0) {
             rc = ArgsParamCount(args, &pcount);
         }
-
+/* TODO if pcount == 0 && there are no test type options use a small run as name[0]*/
         for (i = 0; i < pcount; ++i) {
             const char *name = NULL;
             rc3 = ArgsParamValue(args, i, &name);
@@ -2903,8 +2991,6 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
     }
     free(argv2);
-
-    OUTMSG(("\n"));
 
     return rc;
 }

@@ -45,8 +45,8 @@ struct IdxMapping
 #if USE_OLD_KSORT
 
 /* ksort callbacks */
-int CC IdxMappingCmpOld ( const void *a, const void *b, void *data );
-int CC IdxMappingCmpNew ( const void *a, const void *b, void *data );
+int64_t CC IdxMappingCmpOld ( const void *a, const void *b, void *data );
+int64_t CC IdxMappingCmpNew ( const void *a, const void *b, void *data );
 
 #else
 

@@ -355,7 +355,7 @@ namespace AlignCache
         char szCacheDBName[256] = "";
         string_printf (szCacheDBName, countof (szCacheDBName), NULL, "%s", g_Params.dbPathDst );
         VDBObjects::CVDatabase dbCache = mgr.CreateDB ( schema, "NCBI:align:db:mate_cache #1", kcmParents | kcmInit | kcmMD5, szCacheDBName );
-        VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT", kcmInit | kcmMD5 );
+        VDBObjects::CVTable tableCache = dbCache.CreateTable ( "PRIMARY_ALIGNMENT" );
 
         VDBObjects::CVCursor cursorCache = tableCache.CreateCursorWrite ( kcmInsert );
         cursorCache.InitColumnIndex ( ColumnNamesPrimaryAlignmentCache, ColumnIndexPrimaryAlignmentCache, countof (ColumnNamesPrimaryAlignmentCache) - (size_t) (!g_Params.cache_alignment_count), true );

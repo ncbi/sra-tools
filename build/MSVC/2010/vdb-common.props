@@ -21,11 +21,14 @@
     <PropertyGroup Label="Configuration">
         <CharacterSet>Unicode</CharacterSet>
         <IntDir>$(VDB_TARGET)\obj\$(ProjectName)\</IntDir>
-        <TargetName>$(ProjectName)</TargetName>
         <LinkIncremental>false</LinkIncremental>
         <WholeProgramOptimization>false</WholeProgramOptimization>
     </PropertyGroup>
   
+    <PropertyGroup Label="Configuration" Condition="'$(TargetName)'==''" >
+        <TargetName>$(ProjectName)</TargetName>
+    </PropertyGroup>
+    
     <PropertyGroup Condition="'$(Configuration)'=='Debug'" Label="Configuration">
         <UseDebugLibraries>true</UseDebugLibraries>
     </PropertyGroup>

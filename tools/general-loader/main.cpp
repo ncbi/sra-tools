@@ -34,6 +34,8 @@
 #include <stdlib.h>
 #include <limits.h>
 
+#include <iostream>
+
 #include <kapp/main.h>
 #include <kapp/args.h>
 
@@ -63,12 +65,23 @@ char const * schemas_usage[] =
     NULL
 };
 
+static char const option_target[] = "target";
+#define OPTION_TARGET option_target
+#define ALIAS_TARGET  "T"
+static
+char const * target_usage[] = 
+{
+    "Database file to create. Overrides any remote path specifications coming from the input stream",
+    NULL
+};
+
 OptDef Options[] = 
 {
     /* order here is same as in param array below!!! */                 
-                                                                      /* max#,  needs param, required */
+                                                                          /* max#,  needs param, required */
     { OPTION_INCLUDE_PATHS, ALIAS_INCLUDE_PATHS,    NULL, include_paths_usage,  0,  true,        false },
     { OPTION_SCHEMAS,       ALIAS_SCHEMAS,          NULL, schemas_usage,        0,  true,        false },
+    { OPTION_TARGET,        ALIAS_TARGET,           NULL, target_usage,         1,  true,        false },
 };
 
 const char* OptHelpParam[] =
@@ -76,6 +89,7 @@ const char* OptHelpParam[] =
     /* order here is same as in OptDef array above!!! */
     "path(s)",
     "path(s)",
+    "path",
 };
 
 rc_t UsageSummary (char const * progname)
@@ -156,10 +170,10 @@ rc_t CC KMain (int argc, char * argv[])
                     rc = KStreamMakeBuffered ( &buffered, std_in, 0 /*input-only*/, 0 /*use default size*/ );
                     if ( rc == 0 )
                     {
-                        GeneralLoader loader ( *std_in );
+                        GeneralLoader loader ( *buffered );
                         
                         rc = ArgsOptionCount (args, OPTION_INCLUDE_PATHS, &pcount);
-                        if ( rc != 0 )
+                        if ( rc == 0 )
                         {
                             for ( uint32_t i = 0 ; i < pcount; ++i )
                             {
@@ -174,7 +188,7 @@ rc_t CC KMain (int argc, char * argv[])
                         }
                         
                         rc = ArgsOptionCount (args, OPTION_SCHEMAS, &pcount);
-                        if ( rc != 0 )
+                        if ( rc == 0 )
                         {
                             for ( uint32_t i = 0 ; i < pcount; ++i )
                             {
@@ -185,6 +199,17 @@ rc_t CC KMain (int argc, char * argv[])
                                     break;
                                 }
                                 loader . AddSchemaFile( value );
+                            }
+                        }
+                        
+                        rc = ArgsOptionCount (args, OPTION_TARGET, &pcount);
+                        if ( rc == 0 && pcount == 1 )
+                        {
+                            const char* value;
+                            rc = ArgsOptionValue (args, OPTION_TARGET, 0, &value);
+                            if ( rc == 0 )
+                            {
+                                loader . SetTargetOverride ( value );
                             }
                         }
                         

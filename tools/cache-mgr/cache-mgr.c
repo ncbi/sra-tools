@@ -644,10 +644,10 @@ static rc_t on_report_cache_file( visit_ctx * obj )
     if ( rc == 0 && obj->options->detailed )
     {
         if ( locked )
-            rc = KOutMsg( "%s complete by %.02f %% [%,u of %,u]bytes locked\n",
+            rc = KOutMsg( "%s complete by %.02f %% [%,lu of %,lu]bytes locked\n",
                           obj->path, completeness, used_size, file_size );
         else
-            rc = KOutMsg( "%s complete by %.02f %% [%,u of %,u]bytes\n",
+            rc = KOutMsg( "%s complete by %.02f %% [%,lu of %,lu]bytes\n",
                           obj->path, completeness, used_size, file_size );
     }
 	
@@ -679,7 +679,7 @@ static rc_t on_report_full_file( visit_ctx * obj )
         data->file_size += file_size;
         data->used_file_size += file_size;
         if ( obj->options->detailed )
-            rc = KOutMsg( "%s complete file of %,u bytes\n", obj->path, file_size );
+            rc = KOutMsg( "%s complete file of %,lu bytes\n", obj->path, file_size );
     }
     return rc;
 }
@@ -728,9 +728,9 @@ static rc_t perform_report( visit_ctx * octx )
     if ( rc == 0 )
         rc = KOutMsg( "%,u complete file(s)\n", data.full_count );
     if ( rc == 0 )
-        rc = KOutMsg( "%,u bytes in cached files\n", data.file_size );
+        rc = KOutMsg( "%,lu bytes in cached files\n", data.file_size );
     if ( rc == 0 )
-        rc = KOutMsg( "%,u bytes used in cached files\n", data.used_file_size );
+        rc = KOutMsg( "%,lu bytes used in cached files\n", data.used_file_size );
     if ( rc == 0 )
         rc = KOutMsg( "%,u lock files\n", data.lock_count );
 
@@ -981,7 +981,7 @@ static rc_t on_clear_path( visit_ctx * obj )
             else
             {
                 if ( obj->options->detailed )
-                    rc = KOutMsg( "FILE: '%s' removed (%,u bytes)\n", obj->path, file_size );
+                    rc = KOutMsg( "FILE: '%s' removed (%,lu bytes)\n", obj->path, file_size );
                 data->removed_files++;
                 data->removed_size += file_size;
                 if ( obj->options->max_remove > 0 && data->removed_size >= obj->options->max_remove )
@@ -1016,7 +1016,7 @@ static rc_t perform_clear( visit_ctx * octx )
     if ( rc == 0 )
         rc = KOutMsg( "%,u directories removed\n", data.removed_directories );
     if ( rc == 0 )
-        rc = KOutMsg( "%,u bytes removed\n", data.removed_size );
+        rc = KOutMsg( "%,lu bytes removed\n", data.removed_size );
 
     return rc;
 }

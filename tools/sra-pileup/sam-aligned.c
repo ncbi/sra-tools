@@ -34,6 +34,7 @@
 #include "cg_tools.h"
 #include "rna_splice_log.h"
 #include "sam-aligned.h"
+#include "md_flag.h"
 
 const char * PRIM_TABLE = "PRIMARY_ALIGNMENT";
 const char * SEC_TABLE = "SECONDARY_ALIGNMENT";
@@ -1549,13 +1550,15 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
 
         if ( opts->rna_splicing )
         {
-	    { /*** reset previous identification of N to D ***/
-		int i;
-		char *c=(char*)cgc_output.p_cigar.ptr;
-		for(i=0;i< cgc_output.p_cigar.len;i++){
-		    if(c[i]=='N') c[i]='D';
-		}
-	    }
+			{ /*** reset previous identification of N to D ***/
+				int i;
+				char *c = ( char * )cgc_output.p_cigar.ptr;
+				for( i = 0; i < cgc_output.p_cigar.len; i++ )
+				{
+					if ( c[ i ] == 'N' ) c[ i ] = 'D';
+				}
+			}
+			
             /* discover which cigar-operations could be a RNA-splice ( it is a D-operation with min length of 10 ) */
             rc = discover_rna_splicing_candidates( cgc_output.p_cigar.len, cgc_output.p_cigar.ptr, 10, &candidates ); /* cg_tools.c */
             if ( rc == 0 && candidates.count > 0 )
@@ -1739,9 +1742,21 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
 	/* OPT SAM_FIELD: MD	reports Mismatches and Deletions */
 	if ( rc == 0 && opts->with_md_flag )
 	{
-		/* what we need to compute the MD-flag:
-			HAS_MISMATCH/HAS_MISMATCH_LEN:		
-		*/
+		uint8_t * alig_ref = malloc( rec->len );
+		if ( alig_ref == NULL )
+			rc = RC( rcExe, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
+		else
+		{
+			INSDC_coord_len ref_len;
+			rc = ReferenceObj_Read( rec->ref, pos, rec->len, alig_ref, &ref_len );
+			if ( rc == 0 )
+			{
+				rc = kout_md_tag_from_cigar_string( cgc_output.p_cigar.ptr, cgc_output.p_cigar.len,	/* cigar */
+						cgc_output.p_read.ptr, cgc_output.p_read.len,									/* read */
+						alig_ref, ref_len );															/* reference */
+			}
+			free( alig_ref );
+		}
 	}
 	
     if ( rc == 0 )

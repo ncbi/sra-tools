@@ -88,11 +88,11 @@ static p_num_gen_node num_gen_make_node( const uint64_t start, const uint64_t co
 
 
 /* helper callback to compare 2 nodes, lets VectorInsert create a sorted vector */
-static int CC num_gen_insert_helper( const void* item1, const void* item2 )
+static int64_t CC num_gen_insert_helper( const void* item1, const void* item2 )
 {
     const p_num_gen_node node1 = ( p_num_gen_node )item1;
     const p_num_gen_node node2 = ( p_num_gen_node )item2;
-    int res = 0;
+    int64_t res = 0;
     if ( node1->start == node2->start )
     {
         if ( node1->count < node2->count )

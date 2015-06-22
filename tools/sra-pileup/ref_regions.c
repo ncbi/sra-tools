@@ -103,20 +103,22 @@ static void free_range( struct reference_range * self )
     free( self );
 }
 
-static int cmp_range( const struct reference_range * a, const struct reference_range * b )
+static int64_t cmp_range( const struct reference_range * a, const struct reference_range * b )
 {
 	if ( a != NULL && b != NULL )
 	{
-		int64_t res = ( a->start - b->start );
-		if ( res == 0 )
-			res = ( a->end - b->end );
-		if ( res < 0 )
-			return -1;
-		else if ( res >  0 )
-			return 1;
-		else return 0;
+        if ( a->start < b->start )
+            return -1;
+        else if ( a->start > b->start )
+            return 1;
+        else if ( a->end < b->end )
+            return -1;
+        else if ( a->end > b->end )
+            return 1;
+        else
+            return 0;
 	}
-	return 1;
+	return 1; /* question from ukrainch: so, cmp_range cannot be used for sorting? */
 }
 
 
@@ -157,7 +159,7 @@ static struct reference_region * make_reference_region( const char *name )
 }
 
 
-static int CC cmp_range_wrapper( const void *item, const void *n )
+static int64_t CC cmp_range_wrapper( const void *item, const void *n )
 {   return cmp_range( item, n ); }
 
 
@@ -353,7 +355,7 @@ static void merge_close_ranges_and_create_filter( struct reference_region * self
 
 /* =========================================================================================== */
 
-static int CC reference_vs_pchar_wrapper( const void *item, const BSTNode *n )
+static int64_t CC reference_vs_pchar_wrapper( const void *item, const BSTNode *n )
 {
     const struct reference_region * r = ( const struct reference_region * )n;
     return cmp_pchar( (const char *)item, r->name );
@@ -364,7 +366,7 @@ static struct reference_region * find_reference_region( BSTree * regions, const 
     return ( struct reference_region * ) BSTreeFind ( regions, name, reference_vs_pchar_wrapper );
 }
 
-static int CC ref_vs_ref_wrapper( const BSTNode *item, const BSTNode *n )
+static int64_t CC ref_vs_ref_wrapper( const BSTNode *item, const BSTNode *n )
 {
    const struct reference_region * a = ( const struct reference_region * )item;
    const struct reference_region * b = ( const struct reference_region * )n;
@@ -674,7 +676,7 @@ static struct skiplist_ref_node * make_skiplist_ref_node( const struct reference
 
 
 /* helper call back for BSTreeInsert into skiplist->nodes */
-static int CC srn_vs_srn_wrapper( const BSTNode *item, const BSTNode *n )
+static int64_t CC srn_vs_srn_wrapper( const BSTNode *item, const BSTNode *n )
 {
    const struct skiplist_ref_node * a = ( const struct skiplist_ref_node * )item;
    const struct skiplist_ref_node * b = ( const struct skiplist_ref_node * )n;
@@ -742,7 +744,7 @@ void skiplist_release( struct skiplist * list )
 }
 
 
-static int CC pchar_vs_srn_cmp( const void * item, const BSTNode * n )
+static int64_t CC pchar_vs_srn_cmp( const void * item, const BSTNode * n )
 {
    const char * name = item;
    const struct skiplist_ref_node * b = ( const struct skiplist_ref_node * )n;

@@ -28,24 +28,25 @@
 #include "4na_ascii.h"
 
 #include <klib/out.h>
+#include <klib/printf.h>
 
 static rc_t CC walk_debug_enter_ref( walk_data * data )
-{   return KOutMsg( "ENTER REF '%s' ( %u.%u )\n", data->ref_name, data->ref_start, data->ref_len );   }
+{   return KOutMsg( "ENTER REF '%s' ( start:%,u / len:%,u )\n", data->ref_name, data->ref_start, data->ref_len );   }
 
 static rc_t CC walk_debug_exit_ref( walk_data * data )
-{   return KOutMsg( "EXIT  REF '%s' ( %u.%u )\n", data->ref_name, data->ref_start, data->ref_len );   }
+{   return KOutMsg( "EXIT  REF '%s' ( start: %,u / len:%,u )\n", data->ref_name, data->ref_start, data->ref_len );   }
 
 static rc_t CC walk_debug_enter_ref_window( walk_data * data )
-{   return KOutMsg( "  ENTER REF-WINDOW ( %u.%u )\n", data->ref_window_start, data->ref_window_len );   }
+{   return KOutMsg( "  ENTER REF-WINDOW ( start: %,u / len:%,u )\n", data->ref_window_start, data->ref_window_len );   }
 
 static rc_t CC walk_debug_exit_ref_window( walk_data * data )
-{   return KOutMsg( "  EXIT  REF-WINDOW ( %u.%u )\n", data->ref_window_start, data->ref_window_len );   }
+{   return KOutMsg( "  EXIT  REF-WINDOW ( start: %,u / len:%,u )\n", data->ref_window_start, data->ref_window_len );   }
 
 static rc_t CC walk_debug_enter_ref_pos( walk_data * data )
-{   return KOutMsg( "    ENTER REF-POS ( %u / d=%u / '%c' )\n", data->ref_pos, data->depth, _4na_to_ascii( data->ref_base, false ) );   }
+{   return KOutMsg( "    ENTER REF-POS ( %u / depth=%u / '%c' )\n", data->ref_pos, data->depth, _4na_to_ascii( data->ref_base, false ) );   }
 
 static rc_t CC walk_debug_exit_ref_pos( walk_data * data )
-{   return KOutMsg( "    EXIT  REF-POS ( %u / d=%u / '%c' )\n", data->ref_pos, data->depth, _4na_to_ascii( data->ref_base, false ) );   }
+{   return KOutMsg( "    EXIT  REF-POS ( %u / depth=%u / '%c' )\n", data->ref_pos, data->depth, _4na_to_ascii( data->ref_base, false ) );   }
 
 static rc_t CC walk_debug_enter_sg( walk_data * data )
 {   return KOutMsg( "      ENTER SPOTGROUP '%s'\n", data->spotgroup );   }
@@ -55,8 +56,66 @@ static rc_t CC walk_debug_exit_sg( walk_data * data )
 
 static rc_t CC walk_debug_placement( walk_data * data )
 {
-    char c = ( data->xrec->reverse ? 'R' : 'F' );
-    return KOutMsg( "        PLACEMENT #%lu %c ( TLEN %i )\n", data->rec->id, c, data->xrec->tlen );
+	int32_t state = data->state;
+	bool m = ( ( state & align_iter_match ) == align_iter_match );
+
+    rc_t rc = KOutMsg( "        #%.08lu %c %c %c ",
+						data->rec->id,
+						( data->xrec->reverse ? 'R' : 'F' ),
+						_4na_to_ascii( data->state, data->xrec->reverse ),
+						( m ? 'M' : '!' ) );
+	if ( rc == 0 )
+	{
+		if ( ( state & align_iter_first ) == align_iter_first )
+		{
+			char c = data->rec->mapq + 33;
+			if ( c > '~' ) { c = '~'; }
+			if ( c < 33 ) { c = 33; }
+			rc = KOutMsg( "^%c ", c );
+		}
+		else if ( ( state & align_iter_last ) == align_iter_last )	
+		{
+			rc = KOutMsg( "$ " );
+		}
+	}
+
+	if ( rc == 0 && ( ( state & align_iter_skip ) == align_iter_skip ) )
+	{
+		rc = KOutMsg( "%c ", ( data->xrec->reverse ? '<' : '>' ) );
+	}
+
+    if ( rc == 0 && ( ( state & align_iter_insert ) == align_iter_insert ) )
+    {
+		const INSDC_4na_bin *bases;
+        uint32_t i, n = ReferenceIteratorBasesInserted ( data -> ref_iter, &bases );
+		if ( bases != NULL )
+		{
+			char temp[ 4096 ];
+			if ( n > sizeof temp ) n = sizeof temp;
+			for ( i = 0; i < n; ++i ) temp[ i ] = _4na_to_ascii( bases[ i ], data->xrec->reverse );
+			rc = KOutMsg( "+%u{%.*s} ", n, n, temp );
+		}
+    }
+	
+    if ( rc == 0 && ( ( state & align_iter_delete ) == align_iter_delete ) )
+    {
+        INSDC_coord_zero ref_pos;
+		const INSDC_4na_bin *bases;
+        uint32_t i, n = ReferenceIteratorBasesDeleted ( data -> ref_iter, &ref_pos, &bases );
+        if ( bases != NULL )
+        {
+			char temp[ 4096 ];
+			if ( n > sizeof temp ) n = sizeof temp;
+			for ( i = 0; i < n; ++i ) temp[ i ] = _4na_to_ascii( bases[ i ], data->xrec->reverse );
+			rc = KOutMsg( "-%u{%.*s} ", n, n, temp );
+            free( (void *) bases );
+        }
+    }
+	
+	if ( rc == 0 )
+		rc = KOutMsg( "( TLEN %,i )\n",	data->xrec->tlen );
+		
+	return rc;
 }
 
 

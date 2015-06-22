@@ -72,12 +72,6 @@ import poretools
 import GeneralWriter
 
 
-def which(f):
-    for path in os.environ["PATH"].split(":"):
-        if os.path.exists(path + "/" + f):
-            return os.path.join(path, f)
-    return None
-
 workDir = tempfile.mkdtemp(suffix='.tmp', prefix='pore-load.', dir=tmpdir)
 if outdir == None:
     outdir = workDir + '/pore-load.out'
@@ -86,18 +80,6 @@ if outdir == None:
 sys.stderr.write("Info: writing '{}'\n".format(outdir))
 sys.stderr.write("Info: using '{}' for work space\n".format(workDir))
 
-# check for gzcat or zcat
-
-if gzcat == None:
-    gzcat = which('gzcat')
-
-if gzcat == None:
-    gzcat = which('zcat') # gnu-ish
-
-if gzcat and not os.path.exists(gzcat):
-    gzcat = None
-
-
 tbl = {
     'SEQUENCE': {
         'READ': {
@@ -105,7 +87,7 @@ tbl = {
             'elem_bits': 8,
         },
         'QUALITY': {
-            'expression': '(INSDC:quality:phred)QUALITY',
+            'expression': '(INSDC:quality:text:phred_33)QUALITY',
             'elem_bits': 8,
         },
         'SPOT_GROUP': {
@@ -129,7 +111,7 @@ tbl = {
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
             'elem_bits': 8,
-            'default': array.array('B', [0, 0])
+            'default': array.array('B', [1, 1])
         },
     },
     'CONSENSUS': {
@@ -138,7 +120,7 @@ tbl = {
             'elem_bits': 8,
         },
         'QUALITY': {
-            'expression': '(INSDC:quality:phred)QUALITY',
+            'expression': '(INSDC:quality:text:phred_33)QUALITY',
             'elem_bits': 8,
         },
         'SPOT_GROUP': {
@@ -158,6 +140,7 @@ tbl = {
         'READ_START': {
             'expression': '(INSDC:coord:zero)READ_START',
             'elem_bits': 32,
+            'default': array.array('I', [0])
         },
         'READ_LENGTH': {
             'expression': '(INSDC:coord:len)READ_LEN',
@@ -166,7 +149,7 @@ tbl = {
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
             'elem_bits': 8,
-            'default': array.array('B', [0])
+            'default': array.array('B', [1])
         },
     }
 }
@@ -177,9 +160,6 @@ gw = GeneralWriter.GeneralWriter(
     , 'NCBI:SRA:Nanopore:db'
     , tbl)
 
-notRemoved = [] # because of errors
-processCounter = 0
-processStart = None
 
 class FastQData:
     """ To hold FastQ data """
@@ -216,7 +196,6 @@ class FastQData:
             dst = tbl['CONSENSUS']
             dst['HIGH_QUALITY']['data'] = array.array('b',
                 [ 1 if self.isHighQuality else 0 ])
-            dst['READ_START' ]['data'] = array.array('I', [0])
             dst['READ_LENGTH']['data'] = array.array('I', [len(self.sequence)])
         else:
             dst['READ_START' ]['data'] = array.array('I',
@@ -225,8 +204,8 @@ class FastQData:
         
         dst['READ'   ]['data'] = self.sequence.encode('ascii')
         dst['QUALITY']['data'] = self.quality.encode('ascii')
-        dst['CHANNEL']['data'] = array.array('I', [ self.channel ])
-        dst['READ_NO']['data'] = array.array('I', [ self.readno ])
+        dst['CHANNEL']['data'] = array.array('I', [self.channel])
+        dst['READ_NO']['data'] = array.array('I', [self.readno])
         spotGroup = os.path.basename(self.source)
         try:
             at = spotGroup.rindex("_ch{}_".format(self.channel))
@@ -246,8 +225,8 @@ class FastQData:
         """
         f5 = poretools.Fast5File(fname)
         try:
-            channel = f5.get_channel_number()
-            readno = f5.get_read_number()
+            channel = int(f5.get_channel_number())
+            readno = int(f5.get_read_number())
 
             if f5.has_2D():
                 twoD = f5.get_fastqs("2D")[0]
@@ -299,7 +278,8 @@ def isHDF5(fname):
     except IOError:
         return False
 
-nextReport = (time.clock() + showProgress) if showProgress > 0 else None
+
+notRemoved = [] # because of errors
 
 def ExtractAndProcess(f, source):
     """ Extract file to the working directory and process it
@@ -320,22 +300,17 @@ def ExtractAndProcess(f, source):
     else:
         os.remove(fname)
     
-    global processCounter
-    global nextReport
-    
-    processCounter = processCounter + 1
-    if nextReport and time.clock() >= nextReport:
-        nextReport = nextReport + showProgress
-        sys.stderr.write("Progress: processed {} spots; {} per sec.\n".
-            format(processCounter, processCounter/(time.clock() - processStart)))
 
+processCounter = 0
+processStart = time.clock()
+nextReport = (processStart + showProgress) if showProgress > 0 else None
 
 def ProcessTar(tar):
     """ Extract and process all fast5 files
     """
-    global processStart
-    processStart = time.clock()
-    
+    global processCounter
+    global nextReport
+
     for f in tar:
         if f.name.endswith('.fast5'):
             i = tar.extractfile(f)
@@ -343,13 +318,35 @@ def ProcessTar(tar):
                 ExtractAndProcess(i, os.path.basename(f.name))
             finally:
                 i.close()
+
+            processCounter = processCounter + 1
+            now = time.clock()
+            if nextReport and now >= nextReport:
+                nextReport = nextReport + showProgress
+                sys.stderr.write("Progress: processed {} spots; {} per sec.\n".
+                    format(processCounter, processCounter/(now - processStart)))
     
     elapsed = time.clock() - processStart
     sys.stderr.write("Progress: processed {} spots in {} secs, {} per sec.\n".
         format(processCounter, elapsed, processCounter/elapsed))
 
 
+def which(f):
+    for path in os.environ["PATH"].split(":"):
+        if os.path.exists(path + "/" + f):
+            return os.path.join(path, f)
+    return None
+
+
 def main():
+    # check for gzcat or zcat
+
+    gzcat = which('gzcat')
+    if gzcat == None:
+        gzcat = which('zcat') # gnu-ish
+    if gzcat and not os.path.exists(gzcat):
+        gzcat = None
+
     if len(files) == 0:
         sys.stderr.write("Info: processing stdin\n")
         with tarfile.open(mode='r|', fileobj=sys.stdin) as tar:
@@ -367,6 +364,7 @@ def main():
             p.stdout.close()
             p.wait()
 
+
 def cleanup():
     rmd = removeWorkDir
     if len(notRemoved) != 0:
@@ -379,6 +377,7 @@ def cleanup():
 
     if rmd:
         os.rmdir(workDir)
+
 
 main()
 gw = None # close stream and flush

@@ -260,7 +260,7 @@ static rc_t pnamesNodeMake (pnamesNode ** pself, const char * path)
     return 0;
 }
 
-static int CC pnameFindCmp (const void * _item, const BSTNode *_n)
+static int64_t CC pnameFindCmp (const void * _item, const BSTNode *_n)
 {
     const char * item = _item;
     const pnamesNode * n = (const pnamesNode *)_n;
@@ -283,7 +283,7 @@ static int CC pnameFindCmp (const void * _item, const BSTNode *_n)
     return (strcmp (item, n->name));
 }
 
-static int CC pnamesInsertCmp (const BSTNode * _item, const BSTNode *_n)
+static int64_t CC pnamesInsertCmp (const BSTNode * _item, const BSTNode *_n)
 {
     const pnamesNode * item = (const pnamesNode *)_item;
     const pnamesNode * n = (const pnamesNode *)_n;
@@ -361,7 +361,7 @@ static KSRAFileAlignment get_alignment (const char * str)
 }
 
 static
-int CC sort_cmp (const void ** l, const void ** r, void * data)
+int64_t CC sort_cmp (const void ** l, const void ** r, void * data)
 {
 /*  KDirectory * d; */
     uint64_t lz, rz;

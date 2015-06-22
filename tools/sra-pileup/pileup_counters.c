@@ -92,7 +92,7 @@ typedef struct find_fragment_ctx
 } find_fragment_ctx;
 
 
-static int CC cmp_fragment_vs_find_ctx( const void *item, const BSTNode *n )
+static int64_t CC cmp_fragment_vs_find_ctx( const void *item, const BSTNode *n )
 {
     const indel_fragment * fragment = ( const indel_fragment * )n;
     const find_fragment_ctx * fctx = ( const find_fragment_ctx * )item;
@@ -100,7 +100,7 @@ static int CC cmp_fragment_vs_find_ctx( const void *item, const BSTNode *n )
 }
 
 
-static int CC cmp_fragment_vs_fragment( const BSTNode *item, const BSTNode *n )
+static int64_t CC cmp_fragment_vs_fragment( const BSTNode *item, const BSTNode *n )
 {
     const indel_fragment * f1 = ( const indel_fragment * )item;
     const indel_fragment * f2 = ( const indel_fragment * )n;

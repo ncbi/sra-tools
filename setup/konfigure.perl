@@ -122,9 +122,11 @@ EndText
         exit 1;
     }
 
-    println "running \"./configure $1\"...";
+    my $ARG = $1;
+    println "running \"./configure $ARG\"...";
     undef %OPT;
-    die "configure: error" unless (GetOptionsFromString($1, \%OPT, @options));
+    die "configure: error" unless (GetOptionsFromString($ARG, \%OPT, @options));
+    $CONFIGURED = $ARG if ($#ARGV == -1 && $RECONFIGURE);
     ++$OPT{reconfigure};
 }
 

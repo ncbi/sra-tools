@@ -74,11 +74,6 @@ TOOLS_TO_INSTALL = \
 #    blastn_vdb      \
 #    tblastn_vdb     \
 
-TOOLS_WITH_PREFIX   = $(addprefix  $(BINDIR)/, $(TOOLS_TO_INSTALL))
-TOOLS_WITH_EXEX     = $(addsuffix $(EXEX),          $(TOOLS_WITH_PREFIX))
-TOOLS_WITH_VERSION  = $(addsuffix $(VERSION_EXEX),  $(TOOLS_WITH_PREFIX))
-TOOLS_WITH_MAJVERS  = $(addsuffix $(MAJVERS_EXEX),  $(TOOLS_WITH_PREFIX))
-
 #fake root for debugging
 #uncomment this line and change the test for root ( see under install: ) to succeed:
 #ROOT = ~/root
@@ -87,11 +82,17 @@ EXE_TARGET = $(INST_BINDIR)
 PROFILE_FILE = $(ROOT)/etc/profile.d/sra-tools
 
 installexes: 
-	@ echo "Installing executables to $(INST_BINDIR)"
+	@ echo "Installing executables to $(INST_BINDIR)/..."
 	@ mkdir -p $(INST_BINDIR) 
-	@ # some projects may not be built due to missing 3-party dependencies, ignore cp's complaints:
-	@ -$(COPY) $(TOOLS_WITH_EXEX) $(TOOLS_WITH_VERSION) $(TOOLS_WITH_MAJVERS) $(INST_BINDIR)
+	@ $(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.install $(TOOLS_TO_INSTALL)
 
+$(TOOLS_TO_INSTALL):
+	@ printf "Installing $@..."
+	@ # ignore missing tools
+	@ - ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
+      $(COPY) $(BINDIR)/$@$(EXEX) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \
+      echo "done"
+    
 ifeq (linux, $(OS))
     ifeq (0, $(shell id -u))
         LINUX_ROOT = true
@@ -125,4 +126,20 @@ else
 	@ cp $(TOP)/tools/vdb-copy/vdb-copy.kfg $(INST_BINDIR)/ncbi/
 endif
 
-.PHONY: install installexes
+#-------------------------------------------------------------------------------
+# uninstall
+# 
+
+TO_UNINSTALL = $(addsuffix *,$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_INSTALL)))
+TO_UNINSTALL_AS_ROOT = $(ROOT)/etc/ncbi/vdb-copy.kfg $(PROFILE_FILE).sh $(PROFILE_FILE).csh
+
+uninstall:
+	@ echo "Uninstalling sra-tools from $(INST_BINDIR)..."
+	rm -rf $(TO_UNINSTALL)
+ifeq (true, $(LINUX_ROOT))
+	@ echo "Uninstalling $(TO_UNINSTALL_AS_ROOT) ..."
+	@ rm -rf $(TO_UNINSTALL_AS_ROOT)
+endif
+	@ echo "done."
+
+.PHONY: install installexes uninstall

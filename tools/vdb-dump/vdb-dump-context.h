@@ -58,7 +58,6 @@ extern "C" {
 #define OPTION_FORMAT            "format"
 #define OPTION_ID_RANGE          "id_range"
 #define OPTION_WITHOUT_SRA       "without_sra"
-#define OPTION_WITHOUT_ACCESSION "without_accession"
 #define OPTION_EXCLUDED_COLUMNS  "exclude"
 #define OPTION_BOOLEAN           "boolean"
 #define OPTION_OBJVER            "obj_version"
@@ -80,6 +79,7 @@ extern "C" {
 #define OPTION_OUT_BUF_SIZE      "output-buffer-size"
 #define OPTION_NO_MULTITHREAD    "disable-multithreading"
 #define OPTION_INFO              "info"
+#define OPTION_DIFF              "diff"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -100,7 +100,6 @@ extern "C" {
 #define ALIAS_FORMAT            "f"
 #define ALIAS_ID_RANGE          "r"
 #define ALIAS_WITHOUT_SRA       "n"
-#define ALIAS_WITHOUT_ACCESSION "a"
 #define ALIAS_EXCLUDED_COLUMNS  "x"
 #define ALIAS_BOOLEAN           "b"
 #define ALIAS_OBJVER            "j"
@@ -167,7 +166,6 @@ typedef struct dump_context
     bool column_enum_short;
     bool id_range_requested;
     bool without_sra_types;
-    bool dont_check_accession;
     bool objver_requested;
     bool objts_requested;
     bool objtype_requested;
@@ -181,6 +179,7 @@ typedef struct dump_context
     bool disable_multithreading;
     bool print_info;
 	bool table_defined;
+	bool diff;
 } dump_context;
 typedef dump_context* p_dump_context;
 

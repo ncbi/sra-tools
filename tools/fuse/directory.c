@@ -53,19 +53,19 @@ typedef struct DirNodeChild_struct {
 } DirNodeChild;
 
 static
-int DirNodeChild_Sort(const BSTNode *item, const BSTNode *node)
+int64_t DirNodeChild_Sort(const BSTNode *item, const BSTNode *node)
 {
     return strcmp(((const DirNodeChild*)item)->child->name, ((const DirNodeChild*)node)->child->name);
 }
 
 static
-int DirNodeChild_FindByName(const void *item, const BSTNode *node)
+int64_t DirNodeChild_FindByName(const void *item, const BSTNode *node)
 {
     return strcmp((const char*)item, ((const DirNodeChild*)node)->child->name);
 }
 
 static
-int DirNodeChild_FindBySrc(const void *item, const BSTNode *node)
+int64_t DirNodeChild_FindBySrc(const void *item, const BSTNode *node)
 {
     return strcmp((const char*)item, ((const DirNodeChild*)node)->name);
 }
@@ -142,7 +142,7 @@ rc_t DirectoryNode_Unlock(const DirectoryNode* cself)
 
 static
 rc_t DirectoryNode_IsChild(const DirectoryNode* cself, const char* subpath, const FSNode** node,
-                           int (*finder)(const void *item, const BSTNode *node))
+                           int64_t (*finder)(const void *item, const BSTNode *node))
 {
     DirNodeChild* n = (DirNodeChild*)BSTreeFind(&cself->children, subpath, finder);
     if( n != NULL ) {

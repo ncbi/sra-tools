@@ -300,7 +300,7 @@ const char * pathtype_2_pchar( int path_type )
     return res;
 }
 
-static int CC String_lane_cmp ( const void * item, const BSTNode * n )
+static int64_t CC String_lane_cmp ( const void * item, const BSTNode * n )
 {
     const String * spot_group = ( const String * ) item;
     const lane * sg_lane = ( const lane * ) n;
@@ -308,7 +308,7 @@ static int CC String_lane_cmp ( const void * item, const BSTNode * n )
 }
 
 
-static int CC lane_lane_cmp ( const BSTNode * item, const BSTNode * n )
+static int64_t CC lane_lane_cmp ( const BSTNode * item, const BSTNode * n )
 {
     const lane * lane1 = ( const lane * ) item;
     const lane * lane2 = ( const lane * ) n;

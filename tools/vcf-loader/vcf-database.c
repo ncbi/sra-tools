@@ -102,8 +102,9 @@ rc_t SaveVariants( const VcfReader* reader, const char configPath[], VDatabase* 
                                     #define MAX_CHROMOSOME_NAME_LENGTH 1024
                                     char chromName[MAX_CHROMOSOME_NAME_LENGTH];
                                     bool shouldUnmap = false;
+                                    bool wasRenamed = false;
                                     string_copy(chromName, sizeof(chromName), line->chromosome.addr, line->chromosome.size);
-                                    rc = (ReferenceMgr_GetSeq(refMgr, &seq, chromName, &shouldUnmap));
+                                    rc = (ReferenceMgr_GetSeq(refMgr, &seq, chromName, &shouldUnmap, true, &wasRenamed));
                                     if (rc == 0)
                                     {
                                         int64_t ref_id;

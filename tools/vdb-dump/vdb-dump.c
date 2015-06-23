@@ -704,6 +704,20 @@ static rc_t vdm_walk_sections( const VDatabase * base_db, const VDatabase ** sub
     return rc;
 }
 
+
+static rc_t vdm_check_table_empty( const VTable * tab )
+{
+    bool empty;
+    rc_t rc = VTableIsEmpty( tab, &empty );
+    DISP_RC( rc, "VTableIsEmpty() failed" );
+    if ( rc == 0 && empty )
+    {
+        KOutMsg( "the requested table is empty!\n" );
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTable, rcEmpty );
+    }
+    return rc;
+}
+
 static rc_t vdm_open_table_by_path( const VDatabase * db, const char * path, const VTable ** tab )
 {
     VNamelist * sections;
@@ -727,6 +741,15 @@ static rc_t vdm_open_table_by_path( const VDatabase * db, const char * path, con
                 {
                     rc = VDatabaseOpenTableRead( sub_db, tab, "%s", tabname );
                     DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+                    if ( rc == 0 )
+                    {
+                        rc = vdm_check_table_empty( *tab );
+                        if ( rc != 0 )
+                        {
+                            VTableRelease( *tab );
+                            tab = NULL;
+                        }
+                    }
                 }
                 VDatabaseRelease ( sub_db );
             }
@@ -1524,7 +1547,9 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
     if ( rc == 0 )
     {
-        rc = tab_fkt( ctx, my_table ); /* fkt-pointer is called */
+        rc = vdm_check_table_empty( my_table );
+        if ( rc == 0 )
+            rc = tab_fkt( ctx, my_table ); /* fkt-pointer is called */
         VTableRelease( my_table );
     }
 

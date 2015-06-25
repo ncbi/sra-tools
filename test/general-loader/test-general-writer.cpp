@@ -36,7 +36,7 @@
 namespace ncbi
 {
     
-    GeneralWriter * testCreateGw ( const char * out_path, const char * schema_path )
+    GeneralWriter * testCreateGw ( const char * out_path, const char * schema_path, const char * software_name, const char * version )
     {
         GeneralWriter * ret;
         if ( out_path == 0 )
@@ -52,6 +52,7 @@ namespace ncbi
         
         ret -> setRemotePath ( schema_path );
         ret -> useSchema ( schema_path, std :: string ( "general_writer:test:db" ) );
+        ret -> setSoftwareName ( software_name, version );
         
         return ret;
     }
@@ -188,12 +189,10 @@ namespace ncbi
             for ( int i = 0; i < column_count ; ++ i )
                 column_names [ i ] = columns [ i ];
 
-            gw = testCreateGw ( outfile, schema_path );
+            gw = testCreateGw ( outfile, schema_path, "softwarename", "2" );
             std :: cerr << "CreateGw Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
-            
-            
-            
+                        
             int table_id = testAddTable ( gw );
             std :: cerr << "addTable Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;

@@ -187,7 +187,7 @@ GeneralLoader::ReadHeader ( bool& p_packed )
             switch ( header . dad . endian )
             {
             case GW_GOOD_ENDIAN:
-                if ( header . dad . version != GW_CURRENT_VERSION )
+                if ( header . dad . version > GW_CURRENT_VERSION ) /* > comparison so it can read multiple versions */
                 {
                     rc = RC ( rcExe, rcFile, rcReading, rcHeader, rcBadVersion );
                 }

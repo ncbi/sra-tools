@@ -114,6 +114,7 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
     switch ( p_event . m_event )
     {
     case evt_use_schema:
+    case evt_software_name:
         {   
             gw_2string_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
@@ -202,10 +203,11 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
     switch ( p_event . m_event )
     {
     case evt_use_schema:
+    case evt_software_name:
         if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString && p_event . m_str2 . size () <= GeneralLoader :: MaxPackedString )
         {   
             gwp_2string_evt_v1 hdr;
-            init ( hdr, p_event . m_id1, evt_use_schema );
+            init ( hdr, p_event . m_id1, p_event . m_event );
         
             set_size1 ( hdr, p_event . m_str1 . size() );
             set_size2 ( hdr, p_event . m_str2 . size() );
@@ -406,6 +408,12 @@ TestSource::DatabaseEvent ( const std::string& p_databaseName )
 {
     m_buffer -> Write ( Event ( evt_remote_path, p_databaseName ) );
     m_database = p_databaseName;
+}
+
+void 
+TestSource::SoftwareNameEvent ( const std::string& p_softwareName, const std::string& p_version )
+{
+    m_buffer -> Write ( Event ( evt_software_name, p_softwareName, p_version ) );
 }
 
 void 

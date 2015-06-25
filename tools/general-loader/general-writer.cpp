@@ -40,7 +40,7 @@
 namespace ncbi
 {
 
-#if GW_CURRENT_VERSION == 1
+#if GW_CURRENT_VERSION <= 2
     typedef :: gwp_1string_evt_v1 gwp_1string_evt;
     typedef :: gwp_2string_evt_v1 gwp_2string_evt;
     typedef :: gwp_column_evt_v1 gwp_column_evt;
@@ -64,6 +64,12 @@ namespace ncbi
             break;
         case schema_sent:
             new_state = remote_name_and_schema_sent;
+            break;
+        case software_name_sent:
+            new_state = remote_name_and_software_name_sent;
+            break;
+        case schema_and_software_name_sent:
+            new_state = remote_name_schema_and_software_name_sent;
             break;
         default:
             throw "state violation setting remote path";
@@ -96,6 +102,12 @@ namespace ncbi
         case remote_name_sent:
             new_state = remote_name_and_schema_sent;
             break;
+        case software_name_sent:
+            new_state = schema_and_software_name_sent;
+            break;
+        case remote_name_and_software_name_sent:
+            new_state = remote_name_schema_and_software_name_sent;
+            break;
         default:
             throw "state violation using schema";
         }
@@ -119,6 +131,48 @@ namespace ncbi
         state = new_state;
     }
 
+    void GeneralWriter :: setSoftwareName ( const std :: string & name,
+                                            const std :: string & version )
+    {
+        stream_state new_state = uninitialized;
+
+        switch ( state )
+        {
+        case header_written:
+            new_state = software_name_sent;
+            break;
+        case remote_name_sent:
+            new_state = remote_name_and_software_name_sent;
+            break;
+        case schema_sent:
+            new_state = schema_and_software_name_sent;
+            break;
+        case remote_name_and_schema_sent:
+            new_state = remote_name_schema_and_software_name_sent;
+            break;
+        default:
+            throw "state violation using schema";
+        }
+
+        size_t str1_size = name . size ();
+        if ( str1_size > 0x100 )
+            throw "name too long";
+
+        size_t str2_size = version . size ();
+        if ( str2_size > 0x100 )
+            throw "version too long";
+
+        gwp_2string_evt_v1 hdr;
+        init ( hdr, 0, evt_software_name );
+        set_size1 ( hdr, str1_size );
+        set_size2 ( hdr, str2_size );
+        write_event ( & hdr . dad, sizeof hdr );
+        internal_write ( name . data (), str1_size );
+        internal_write ( version . data (), str2_size );
+
+        state = new_state;        
+    }
+
     int GeneralWriter :: addTable ( const std :: string &table_name )
     {        
         stream_state new_state = uninitialized;
@@ -127,6 +181,7 @@ namespace ncbi
         {
         case schema_sent:
         case remote_name_and_schema_sent:
+        case remote_name_schema_and_software_name_sent:
             new_state = have_table;
             break;
         case have_table:
@@ -549,7 +604,11 @@ namespace ncbi
         case header_written:
         case remote_name_sent:
         case schema_sent:
+        case software_name_sent:
         case remote_name_and_schema_sent:
+        case remote_name_and_software_name_sent:
+        case schema_and_software_name_sent:
+        case remote_name_schema_and_software_name_sent:
         case have_table:
         case have_column:
         case opened:
@@ -578,7 +637,11 @@ namespace ncbi
         case header_written:
         case remote_name_sent:
         case schema_sent:
+        case software_name_sent:
         case remote_name_and_schema_sent:
+        case remote_name_and_software_name_sent:
+        case schema_and_software_name_sent:
+        case remote_name_schema_and_software_name_sent:
         case have_table:
         case have_column:
         case opened:

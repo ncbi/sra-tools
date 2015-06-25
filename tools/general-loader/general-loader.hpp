@@ -106,6 +106,7 @@ private:
     
         rc_t UseSchema ( const std :: string& p_file, const std :: string& p_name );
         rc_t RemotePath ( const std :: string& p_path );
+        rc_t SoftwareName ( const std :: string& p_name, const std :: string& p_version );
         rc_t NewTable ( uint32_t p_tableId, const std :: string& p_tableName );
         rc_t NewColumn ( uint32_t p_columnId, 
                          uint32_t p_tableId, 

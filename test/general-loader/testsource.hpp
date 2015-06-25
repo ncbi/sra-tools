@@ -65,8 +65,10 @@ public:
     
     void SchemaEvent ( const std::string& p_schemaFile, const std::string& p_schemaName );
     void DatabaseEvent ( const std::string& p_databaseName );
+    void SoftwareNameEvent ( const std::string& p_softwareName, const std::string& p_version );
     void NewTableEvent ( TableId p_id, const std::string& p_table );
-    void NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, const std::string& p_column, uint32_t p_elemBits, bool p_compresssed = false );
+    void NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, 
+                          const std::string& p_column, uint32_t p_elemBits, bool p_compresssed = false );
     void OpenStreamEvent ();
     void CloseStreamEvent ();
     void NextRowEvent ( TableId p_id );

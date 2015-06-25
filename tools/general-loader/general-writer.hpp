@@ -42,7 +42,7 @@
 
 namespace ncbi
 {
-#if GW_CURRENT_VERSION == 1
+#if GW_CURRENT_VERSION <= 2
     typedef :: gwp_evt_hdr_v1 gwp_evt_hdr;
 #else
 #error "unrecognized GW version"
@@ -54,6 +54,9 @@ namespace ncbi
 
         // ask the general-loader to use this when naming its output
         void setRemotePath ( const std :: string & remote_db );
+
+        void setSoftwareName ( const std :: string & name,
+                               const std :: string & version );
 
         // tell the general-loader to use this pre-defined schema
         void useSchema ( const std :: string & schema_file_name,
@@ -149,7 +152,11 @@ namespace ncbi
             header_written,
             remote_name_sent,
             schema_sent,
+            software_name_sent,
             remote_name_and_schema_sent,
+            remote_name_and_software_name_sent,
+            schema_and_software_name_sent,
+            remote_name_schema_and_software_name_sent,
             have_table,
             have_column,
             opened,

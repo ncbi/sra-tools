@@ -211,6 +211,14 @@ GeneralLoader :: DatabaseLoader :: RemotePath ( const string& p_path )
     return 0;
 }
 
+rc_t
+GeneralLoader :: DatabaseLoader :: SoftwareName ( const string& p_name, const string& p_version )
+{
+    rc_t rc = 0;
+#warning "Fill out with call to set metadata or record for later"
+    return rc;
+}
+
 rc_t 
 GeneralLoader :: DatabaseLoader :: NewTable ( uint32_t p_tableId, const string& p_tableName )
 {   

@@ -407,11 +407,12 @@ FIXTURE_TEST_CASE ( ReverseEndianness, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( LaterVersion, GeneralLoaderFixture )
 {
-    TestSource ts ( GeneralLoaderSignatureString, 1, 2 );
+    TestSource ts ( GeneralLoaderSignatureString, GW_GOOD_ENDIAN, GW_CURRENT_VERSION + 1 );
     REQUIRE ( Run ( ts . MakeSource (), SILENT_RC ( rcExe, rcFile, rcReading, rcHeader, rcBadVersion ) ) );
 }
 
 //TODO: MakeTruncatedSource (stop in the middle of an event)
+
 
 FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
 {   
@@ -523,6 +524,18 @@ FIXTURE_TEST_CASE ( NoColumns, GeneralLoaderFixture )
     // make sure database exists and is valid
     OpenDatabase (); // did not throw => opened successfully
 }
+
+//Not likely the best place to put this test 
+//Testing integration of software name and version input
+FIXTURE_TEST_CASE ( SoftwareName, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . SoftwareNameEvent ( "softwarename", "2" );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
+
 
 FIXTURE_TEST_CASE ( NoData, GeneralLoaderFixture )
 {   

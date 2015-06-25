@@ -65,13 +65,16 @@ enum gw_evt_id
     evt_cell_data2,                       /* packed data <= 64K bytes    */
     evt_empty_default,                    /* set cell default to empty   */
 
+    /* BEGIN VERSION 2 MESSAGES */
+    evt_software_name,                    /* sets software name          */
+
     evt_max_id                            /* must be last                */
 };
 
 #define GW_SIGNATURE "NCBIgnld"
 #define GW_GOOD_ENDIAN 1
 #define GW_REVERSE_ENDIAN ( 1 << 24 )
-#define GW_CURRENT_VERSION 1
+#define GW_CURRENT_VERSION 2
 
 
 /********************************

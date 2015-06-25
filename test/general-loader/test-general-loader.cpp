@@ -1291,10 +1291,18 @@ const char UsageDefaultName[] = "test-general-loader";
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
+cout<<"cout 0"<<endl;
+cerr<<"cerr 0"<<endl;
     TestEnv::verbosity = LogLevel::e_all;
+cout<<"cout 1"<<endl;
+cerr<<"cerr 1"<<endl;
     KConfigDisableUserSettings();
+cout<<"cout 2"<<endl;
+cerr<<"cerr 2"<<endl;
 
     ClearScratchDir();
+cout<<"cout 3"<<endl;
+cerr<<"cerr 3"<<endl;
 
     TestSource::packed = false;
     cerr << "Unpacked protocol: ";

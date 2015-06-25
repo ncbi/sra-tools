@@ -215,7 +215,7 @@ rc_t
 GeneralLoader :: DatabaseLoader :: SoftwareName ( const string& p_name, const string& p_version )
 {
     rc_t rc = 0;
-#warning "Fill out with call to set metadata or record for later"
+#pragma message ( "Fill out with call to set metadata or record for later" )
     return rc;
 }
 

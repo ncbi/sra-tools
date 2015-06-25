@@ -1,4 +1,4 @@
-# ===========================================================================
+# ==============================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
 #               National Center for Biotechnology Information
@@ -26,44 +26,42 @@
 default: std
 
 TOP ?= $(abspath ../..)
-
-MODULE = tools/general-loader
+MODULE = tools/update-schema
 
 include $(TOP)/build/Makefile.env
 
-ALL_LIBS = \
-	general-writer
-
-INT_TOOLS = \
-	gw-dumper
+INT_TOOLS =
 
 EXT_TOOLS = \
-	general-loader
+	vdb-update-schema
 
-ALL_TOOLS =      \
+ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 # outer targets
 #
 all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(INT_TOOLS): vers-includes
-	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
-
-$(EXT_TOOLS): vers-includes
+$(ALL_TOOLS): vers-includes
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
 
 #-------------------------------------------------------------------------------
+# all
+#
+$(TARGDIR)/all: \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/all
+
+#-------------------------------------------------------------------------------
 # std
 #
 $(TARGDIR)/std: \
-	$(addprefix $(LIBDIR)/,$(ALL_LIBS)) \
-	$(addprefix $(TEST_BINDIR)/,$(INT_TOOLS)) \
 	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
 .PHONY: $(TARGDIR)/std
@@ -83,45 +81,22 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# general-writer
+# update-schema
 #
-$(LIBDIR)/general-writer: $(LIBDIR)/$(LPFX)general-writer.$(LIBX)
+UPDATE_SCHEMA_SRC = \
+	update-schema \
 
-GEN_WRITER_SRC = \
-    general-writer \
-	utf8-like-int-codec
+UPDATE_SCHEMA_OBJ = \
+	$(addsuffix .$(OBJX),$(UPDATE_SCHEMA_SRC))
 
-GEN_WRITER_OBJ = \
-	$(addsuffix .$(LOBX),$(GEN_WRITER_SRC))
+UPDATE_SCHEMA_LIB = \
+	-lkapp \
+	-lncbi-wvdb \
+    
+update-schema.vers.h: update-schema.vers
+	$(TOP)/build/make-vers-inc.sh UPDATE_SCHEMA_VERS $^ > $@
 
-$(LIBDIR)/$(LPFX)general-writer.$(LIBX): $(GEN_WRITER_OBJ)
-	$(LD) --slib --vers $(SRCDIR) -o $@ $^
+$(BINDIR)/vdb-update-schema: $(UPDATE_SCHEMA_OBJ)
+	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(UPDATE_SCHEMA_LIB)
 
 #-------------------------------------------------------------------------------
-# gw-dumper
-#
-
-$(TEST_BINDIR)/gw-dumper: $(SRCDIR)/gw-dumper.cpp $(SRCDIR)/utf8-like-int-codec.c
-	c++ $(DBG) -o $@ $^ -I$(SRCDIR) -I$(VDB_INCDIR)/os/$(OS) 
-
-
-#-------------------------------------------------------------------------------
-# general-loader
-#
-GEN_LOAD_SRC = \
-    general-loader \
-    protocol-parser \
-    database-loader \
-	utf8-like-int-codec \
-	main \
-
-GEN_LOAD_OBJ = \
-	$(addsuffix .$(OBJX),$(GEN_LOAD_SRC))
-
-GEN_LOAD_LIBS = \
-	-sncbi-wvdb-static \
-	-skapp \
-
-$(BINDIR)/general-loader: $(GEN_LOAD_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(GEN_LOAD_LIBS)
-

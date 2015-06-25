@@ -1660,7 +1660,7 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
             if ( !table_defined )
                 table_defined = vdh_take_1st_table_from_db( ctx, my_database );
         }
-        if ( table_defined )
+        if ( table_defined || ctx->table_enum_requested )
         {
             rc = db_fkt( ctx, my_database ); /* fkt-pointer is called */
         }

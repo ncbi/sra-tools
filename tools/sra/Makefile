@@ -26,44 +26,42 @@
 default: std
 
 TOP ?= $(abspath ../..)
-
-MODULE = tools/general-loader
+MODULE = tools/sra
 
 include $(TOP)/build/Makefile.env
 
-ALL_LIBS = \
-	general-writer
-
 INT_TOOLS = \
-	gw-dumper
 
 EXT_TOOLS = \
-	general-loader
+	table-vers
 
-ALL_TOOLS =      \
+ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
-#-------------------------------------------------------------------------------
+#------------------------------------------------------------------------------
 # outer targets
 #
 all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(INT_TOOLS): vers-includes
-	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
-
-$(EXT_TOOLS): vers-includes
+$(ALL_TOOLS): vers-includes
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
 
 #-------------------------------------------------------------------------------
+# all
+#
+$(TARGDIR)/all: \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/all
+
+#-------------------------------------------------------------------------------
 # std
 #
 $(TARGDIR)/std: \
-	$(addprefix $(LIBDIR)/,$(ALL_LIBS)) \
-	$(addprefix $(TEST_BINDIR)/,$(INT_TOOLS)) \
 	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
 .PHONY: $(TARGDIR)/std
@@ -83,45 +81,29 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# general-writer
+# table-vers
 #
-$(LIBDIR)/general-writer: $(LIBDIR)/$(LPFX)general-writer.$(LIBX)
+TABLE_VERS_SRC = \
+	table-vers
 
-GEN_WRITER_SRC = \
-    general-writer \
-	utf8-like-int-codec
+TABLE_VERS_OBJ = \
+	$(addsuffix .$(OBJX),$(TABLE_VERS_SRC))
 
-GEN_WRITER_OBJ = \
-	$(addsuffix .$(LOBX),$(GEN_WRITER_SRC))
+TABLE_VERS_LIB = \
+	-dvxf \
+	-lvdb \
+	-lkdb \
+	-lvfs \
+	-lkapp \
+	-lkfg \
+	-lkfs \
+	-lkrypto \
+	-lklib \
+	-lm
 
-$(LIBDIR)/$(LPFX)general-writer.$(LIBX): $(GEN_WRITER_OBJ)
-	$(LD) --slib --vers $(SRCDIR) -o $@ $^
+table-vers.vers.h: table-vers.vers
+	$(TOP)/build/make-vers-inc.sh TABLE_VERS_VERS $^ > $@
 
-#-------------------------------------------------------------------------------
-# gw-dumper
-#
-
-$(TEST_BINDIR)/gw-dumper: $(SRCDIR)/gw-dumper.cpp $(SRCDIR)/utf8-like-int-codec.c
-	c++ $(DBG) -o $@ $^ -I$(SRCDIR) -I$(VDB_INCDIR)/os/$(OS) 
-
-
-#-------------------------------------------------------------------------------
-# general-loader
-#
-GEN_LOAD_SRC = \
-    general-loader \
-    protocol-parser \
-    database-loader \
-	utf8-like-int-codec \
-	main \
-
-GEN_LOAD_OBJ = \
-	$(addsuffix .$(OBJX),$(GEN_LOAD_SRC))
-
-GEN_LOAD_LIBS = \
-	-sncbi-wvdb-static \
-	-skapp \
-
-$(BINDIR)/general-loader: $(GEN_LOAD_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(GEN_LOAD_LIBS)
+$(BINDIR)/table-vers: $(TABLE_VERS_OBJ)
+	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(TABLE_VERS_LIB)
 

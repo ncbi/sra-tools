@@ -1291,6 +1291,7 @@ const char UsageDefaultName[] = "test-general-loader";
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
+    TestEnv::verbosity = LogLevel::e_all;
     KConfigDisableUserSettings();
 
     ClearScratchDir();

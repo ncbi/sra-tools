@@ -612,36 +612,35 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *my_ta
                             DISP_RC( rc, "VCursorIdRange() failed" );
                             if ( rc == 0 )
                             {
-                                if ( count == 0 )
+                                if ( ctx->rows == NULL )
                                 {
-                                    KOutMsg( "this table is empty\n" );
+                                    /* if the user did not specify a row-range, take all rows */
+                                    rc = num_gen_make_from_range( &ctx->rows, first, count );
+                                    DISP_RC( rc, "num_gen_make_from_range() failed" );
                                 }
                                 else
                                 {
-                                    if ( ctx->rows == NULL )
+                                    /* if the user did specify a row-range, check the boundaries */
+                                    if ( count > 0 )
                                     {
-                                        /* if the user did not specify a row-range, take all rows */
-                                        rc = num_gen_make_from_range( &ctx->rows, first, count );
-                                        DISP_RC( rc, "num_gen_make_from_range() failed" );
-                                    }
-                                    else
-                                    {
-                                        /* if the user did specify a row-range, check the boundaries */
+                                        /* trim only if the row-range is not zero, otherwise
+                                           we will not get data if the user specified only static columns
+                                           because they report a row-range of zero! */
                                         rc = num_gen_trim( ctx->rows, first, count );
                                         DISP_RC( rc, "num_gen_trim() failed" );
                                     }
+                                }
 
-                                    if ( rc == 0 )
+                                if ( rc == 0 )
+                                {
+                                    if ( num_gen_empty( ctx->rows ) )
                                     {
-                                        if ( num_gen_empty( ctx->rows ) )
-                                        {
-                                            rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
-                                        }
-                                        else
-                                        {
-                                            r_ctx.ctx = ctx;
-                                            rc = vdm_dump_rows( &r_ctx ); /* <--- */
-                                        }
+                                        rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                                    }
+                                    else
+                                    {
+                                        r_ctx.ctx = ctx;
+                                        rc = vdm_dump_rows( &r_ctx ); /* <--- */
                                     }
                                 }
                             }

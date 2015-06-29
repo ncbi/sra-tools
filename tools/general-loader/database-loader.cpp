@@ -274,14 +274,6 @@ GeneralLoader :: DatabaseLoader :: SoftwareName ( const string& p_name, const st
     return 0;
 }
 
-rc_t
-GeneralLoader :: DatabaseLoader :: MetadataNode ( const string& p_metadata_node, const string& p_value )
-{
-    rc_t rc = 0;
-#pragma message ( "Fill out with call to set metadata or record for later" )
-    return rc;
-}
-
 rc_t 
 GeneralLoader :: DatabaseLoader :: NewTable ( uint32_t p_tableId, const string& p_tableName )
 {   
@@ -358,6 +350,14 @@ GeneralLoader :: DatabaseLoader :: NewColumn ( uint32_t p_columnId, uint32_t p_t
     {
         rc = RC ( rcExe, rcFile, rcReading, rcTable, rcInvalid );
     }
+    return rc;
+}
+
+rc_t
+GeneralLoader :: DatabaseLoader :: MetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
+{
+    rc_t rc = 0;
+#warning "Fill out with call to set metadata or record for later"
     return rc;
 }
 

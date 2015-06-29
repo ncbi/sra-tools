@@ -58,9 +58,6 @@ namespace ncbi
         void setSoftwareName ( const std :: string & name,
                                const std :: string & version );
 
-        void setMetadataNode ( const std :: string & node_path,
-                               const std :: string & value );
-
         // tell the general-loader to use this pre-defined schema
         void useSchema ( const std :: string & schema_file_name,
                          const std :: string & schema_db_spec );
@@ -82,6 +79,13 @@ namespace ncbi
         // set GeneralWriter to open state
         // write out open_stream event header
         void open ();
+
+        // add or set metadata on a specific object
+        // where obj_id == 0 => outer database, and
+        // any other positive id means the database, table or column
+        void setMetadataNode ( int obj_id,
+                               const std :: string & node_path,
+                               const std :: string & value );
 
         // generates a chunk of cell data
         // MUST be entire default value in one event

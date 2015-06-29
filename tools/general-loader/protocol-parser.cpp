@@ -128,7 +128,8 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
 
         case evt_metadata_node:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Metadata-Node" );
+                uint32_t objId = ncbi :: id ( evt_header );
+                pLogMsg ( klogInfo, "protocol-parser event: Metadata-Node, id=$(i)", "i=%u", objId );
                 
                 gw_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -139,7 +140,8 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
                     rc = p_reader . Read ( node_size + value_size );
                     if ( rc == 0 )
                     {
-                        rc = p_dbLoader . MetadataNode ( string ( ( const char * ) p_reader . GetBuffer (), node_size ), 
+                        rc = p_dbLoader . MetadataNode ( objId,
+                                                         string ( ( const char * ) p_reader . GetBuffer (), node_size ), 
                                                          string ( ( const char * ) p_reader . GetBuffer () + node_size, value_size ) );
                     }
                 }
@@ -507,7 +509,8 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
 
         case evt_metadata_node:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Metadata-Node (packed)" );
+                uint32_t objId = ncbi :: id ( evt_header );
+                pLogMsg ( klogInfo, "protocol-parser event: Metadata-Node (packed), id=$(i)", "i=%u", objId );
                 
                 gwp_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -518,7 +521,8 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
                     rc = p_reader . Read ( node_size + value_size );
                     if ( rc == 0 )
                     {
-                        rc = p_dbLoader . MetadataNode ( string ( ( const char * ) p_reader . GetBuffer (), node_size ), 
+                        rc = p_dbLoader . MetadataNode ( objId,
+                                                         string ( ( const char * ) p_reader . GetBuffer (), node_size ), 
                                                          string ( ( const char * ) p_reader . GetBuffer () + node_size, value_size ) );
                     }
                 }

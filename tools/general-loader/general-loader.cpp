@@ -98,8 +98,9 @@ GeneralLoader::Reader::Align( uint8_t p_bytes )
 
 ///////////// GeneralLoader
 
-GeneralLoader::GeneralLoader ( const struct KStream& p_input )
-:   m_reader ( p_input )
+GeneralLoader::GeneralLoader ( const std::string& p_programName, const struct KStream& p_input )
+:   m_programName ( p_programName ),
+    m_reader ( p_input )
 {
 }
 
@@ -146,7 +147,7 @@ GeneralLoader::Run()
     rc_t rc = ReadHeader ( packed );
     if ( rc == 0 ) 
     {
-        DatabaseLoader loader ( m_includePaths, m_schemas, m_targetOverride );
+        DatabaseLoader loader ( m_programName, m_includePaths, m_schemas, m_targetOverride );
         if ( packed )
         {
             PackedProtocolParser p;

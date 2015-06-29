@@ -170,7 +170,7 @@ rc_t CC KMain (int argc, char * argv[])
                     rc = KStreamMakeBuffered ( &buffered, std_in, 0 /*input-only*/, 0 /*use default size*/ );
                     if ( rc == 0 )
                     {
-                        GeneralLoader loader ( *buffered );
+                        GeneralLoader loader ( argv[0], *buffered );
                         
                         rc = ArgsOptionCount (args, OPTION_INCLUDE_PATHS, &pcount);
                         if ( rc == 0 )

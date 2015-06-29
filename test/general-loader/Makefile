@@ -56,7 +56,8 @@ TEST_GEN_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(TEST_GEN_LOAD_SRC))
 
 TEST_GEN_LOAD_LIB =   \
-	-sncbi-wvdb-static   \
+	-sncbi-wvdb-static  \
+    -sload              \
 	-skapp              \
     -sktst              \
 

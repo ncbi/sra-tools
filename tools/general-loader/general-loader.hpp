@@ -47,7 +47,7 @@ public:
     static const uint32_t MaxPackedString = 256;
     
 public:
-    GeneralLoader ( const struct KStream& p_input );
+    GeneralLoader ( const std :: string& p_programName, const struct KStream& p_input );
     ~GeneralLoader ();
     
     void AddSchemaIncludePath( const std::string& p_path );
@@ -101,12 +101,12 @@ private:
         };
 
     public:
-        DatabaseLoader ( const Paths& p_includePaths, const Paths& p_schemas, const std::string& p_dbNameOverride = std::string() );
+        DatabaseLoader ( const std :: string& p_programName, const Paths& p_includePaths, const Paths& p_schemas, const std::string& p_dbNameOverride = std::string() );
         ~DatabaseLoader();
     
         rc_t UseSchema ( const std :: string& p_file, const std :: string& p_name );
         rc_t RemotePath ( const std :: string& p_path );
-        rc_t SoftwareName ( const std :: string& p_name, const std :: string& p_version );
+        rc_t SoftwareName ( const std :: string& p_softwareName, const std :: string& p_version );
         rc_t NewTable ( uint32_t p_tableId, const std :: string& p_tableName );
         rc_t NewColumn ( uint32_t p_columnId, 
                          uint32_t p_tableId, 
@@ -146,8 +146,12 @@ private:
         Paths                   m_includePaths;
         Paths                   m_schemas;
     
-        std::string             m_databaseName;
-        std::string             m_schemaName;
+        std :: string           m_programName;
+        std :: string           m_databaseName;
+        std :: string           m_schemaName;
+        
+        std :: string           m_softwareName;
+        ver_t                   m_softwareVersion;
     
         Cursors                 m_cursors;
         TableIdToCursor         m_tables;
@@ -201,6 +205,7 @@ private:
     static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
     
 private:    
+    std::string             m_programName;
     Reader                  m_reader;
     Paths                   m_includePaths;
     Paths                   m_schemas;

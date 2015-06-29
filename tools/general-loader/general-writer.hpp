@@ -58,6 +58,9 @@ namespace ncbi
         void setSoftwareName ( const std :: string & name,
                                const std :: string & version );
 
+        void setMetadataNode ( const std :: string & node_path,
+                               const std :: string & value );
+
         // tell the general-loader to use this pre-defined schema
         void useSchema ( const std :: string & schema_file_name,
                          const std :: string & schema_db_spec );

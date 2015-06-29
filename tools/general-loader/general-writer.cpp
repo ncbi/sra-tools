@@ -173,6 +173,49 @@ namespace ncbi
         state = new_state;        
     }
 
+    void GeneralWriter :: setMetadataNode ( const std :: string & node_path,
+                                            const std :: string & value )
+    {
+        switch ( state )
+        {
+        case opened:
+            break;
+        default:
+            throw "state violation setting column default";
+        }
+
+        size_t str1_size = node_path . size ();
+        if ( str1_size > 0x10000 )
+            throw "node_path too long";
+
+        size_t str2_size = value . size ();
+        if ( str2_size > 0x10000 )
+            throw "value too long";
+
+        if ( str1_size <= 0x100 && str2_size <= 0x100 )
+        {
+            // use 8-bit sizes
+            gwp_2string_evt_v1 hdr;
+            init ( hdr, 0, evt_metadata_node );
+            set_size1 ( hdr, str1_size );
+            set_size2 ( hdr, str2_size );
+            write_event ( & hdr . dad, sizeof hdr );
+        }
+        else
+        {
+            // use 16-bit sizes
+            gwp_2string_evt_U16_v1 hdr;
+            init ( hdr, 0, evt_metadata_node2 );
+            set_size1 ( hdr, str1_size );
+            set_size2 ( hdr, str2_size );
+            write_event ( & hdr . dad, sizeof hdr );
+        }
+
+        internal_write ( node_path . data (), str1_size );
+        internal_write ( value . data (), str2_size );
+    }
+
+
     int GeneralWriter :: addTable ( const std :: string &table_name )
     {        
         stream_state new_state = uninitialized;

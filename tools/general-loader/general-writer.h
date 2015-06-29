@@ -67,6 +67,8 @@ enum gw_evt_id
 
     /* BEGIN VERSION 2 MESSAGES */
     evt_software_name,                    /* sets software name          */
+    evt_metadata_node,                    /* uses gw(p)_2string_evt_v1   */
+    evt_metadata_node2,                   /* uses gwp_2string_evt_U16    */
 
     evt_max_id                            /* must be last                */
 };

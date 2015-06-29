@@ -32,6 +32,7 @@
 #include <ngs/PileupEvent.hpp>
 
 #include <kapp/main.h>
+#include <klib/printf.h>
 #include <iomanip>
 
 #define DFLT_BUFFER_SIZE ( 32 * 1024 )
@@ -306,6 +307,15 @@ namespace ncbi
     }
 
     static
+    void set_software ( GeneralWriter & out )
+    {
+        char vers_str [ 64 ];
+        ver_t version = KAppVersion ();
+        string_printf ( vers_str, sizeof vers_str, NULL, "%V", version );
+        out . setSoftwareName ( "pileup-stats", vers_str );
+    }
+
+    static
     void run ( const char * spec, const char *outfile, const char *_remote_db, size_t buffer_size, Alignment :: AlignmentCategory cat )
     {
         if ( verbosity > 0 )
@@ -331,6 +341,9 @@ namespace ncbi
         try
         {
             GeneralWriter &out = *outp;
+
+            // set software node
+            set_software ( out );
 
             // add remote db event
             out . setRemotePath ( remote_db );

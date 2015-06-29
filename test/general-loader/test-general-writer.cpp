@@ -71,6 +71,7 @@ namespace ncbi
         }
     }
 
+
     void testOpen ( GeneralWriter *gw )
     {
         gw -> open ();
@@ -163,6 +164,11 @@ namespace ncbi
         free ( columns );
     }
 
+    void testAddMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
+    {
+        gw -> setMetadataNode ( node, value );
+    }
+
     void testEndStream ( GeneralWriter *gw )
     {
         gw -> endStream ();
@@ -204,6 +210,10 @@ namespace ncbi
 
             testWrite ( gw, table_id, stream_ids, column_count, column_names );
             std :: cerr << "write Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+
+            testAddMetadataNode ( gw, "metadata_node", "01a2b3c4d" );
+            std :: cerr << "setMetadataNode Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
 
             testEndStream ( gw );

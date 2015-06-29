@@ -536,6 +536,14 @@ FIXTURE_TEST_CASE ( SoftwareName, GeneralLoaderFixture )
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
 }
 
+FIXTURE_TEST_CASE ( MetadataNode, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . MetadataNodeEvent ( "metadatanode", "1a2b3c4d" );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
 
 FIXTURE_TEST_CASE ( NoData, GeneralLoaderFixture )
 {   

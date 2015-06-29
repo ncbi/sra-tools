@@ -115,6 +115,7 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
     {
     case evt_use_schema:
     case evt_software_name:
+    case evt_metadata_node:
         {   
             gw_2string_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
@@ -204,6 +205,7 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
     {
     case evt_use_schema:
     case evt_software_name:
+    case evt_metadata_node:
         if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString && p_event . m_str2 . size () <= GeneralLoader :: MaxPackedString )
         {   
             gwp_2string_evt_v1 hdr;
@@ -414,6 +416,12 @@ void
 TestSource::SoftwareNameEvent ( const std::string& p_softwareName, const std::string& p_version )
 {
     m_buffer -> Write ( Event ( evt_software_name, p_softwareName, p_version ) );
+}
+
+void
+TestSource::MetadataNodeEvent ( const std::string& p_metadataNode, const std::string& p_value )
+{
+    m_buffer -> Write ( Event ( evt_metadata_node, p_metadataNode, p_value ) );
 }
 
 void 

@@ -357,7 +357,7 @@ rc_t
 GeneralLoader :: DatabaseLoader :: MetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
     rc_t rc = 0;
-#warning "Fill out with call to set metadata or record for later"
+#pragma message (  "Fill out with call to set metadata or record for later" )
     return rc;
 }
 

@@ -166,7 +166,7 @@ namespace ncbi
 
     void testAddMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
     {
-        gw -> setMetadataNode ( node, value );
+        gw -> setMetadataNode ( 0, node, value );
     }
 
     void testEndStream ( GeneralWriter *gw )

@@ -56,7 +56,7 @@ namespace RefVariation
         // command line options
         char const* accession;
         char const* ref_name;
-        int64_t ref_pos_ins;
+        int64_t ref_pos_var;
         char const* query;
         int verbosity;
 
@@ -367,30 +367,34 @@ namespace RefVariation
 
     // get_ref_slice returns reference slice of sufficient length for Smith-Waterman algorithm
     ngs::String get_ref_slice ( ngs::Reference const& ref,
-                                int64_t ref_pos_ins,
-                                int64_t ins_bases_length)
+                                int64_t ref_pos_var, // reported variation position on the reference
+                                int64_t var_len,     // the length of the reported variation
+                                int64_t add_ref_len  // the length of the prefix and suffix to
+                                                     // add to the variation to avoid ambiguous indels
+                                                     // at the very start/end
+                              )
     {
-        int64_t safe_half_length = ins_bases_length / 2 + 1;
+        int64_t safe_half_length = ( var_len + add_ref_len ) / 2 + 1;
 
-        int64_t ref_start = (ref_pos_ins - safe_half_length) >= 0 ?
-                            (ref_pos_ins - safe_half_length) : 0;
+        int64_t ref_start = (ref_pos_var - safe_half_length) >= 0 ?
+                            (ref_pos_var - safe_half_length) : 0;
 
         return ref.getReferenceBases ( ref_start, safe_half_length * 2 );
     }
 
     // make_query returns the query for Smith-Waterman algorithm as follows:
-    // <1st half of reference slice> + <insertion bases> + <2nd half of the reference slice>
+    // <1st half of reference slice> + <variation> + <2nd half of the reference slice>
     // reference slice must be of sufficient length - get_ref_slice() retruns it
     ngs::String make_query ( ngs::String const& ref_slice,
-                             char const* ins_bases, size_t ins_bases_length)
+                             char const* variation, size_t var_len)
     {
-        assert ( ref_slice.size() >= 2 * ( ins_bases_length / 2 + 1 ) );
+        assert ( ref_slice.size() >= 2 * ( var_len / 2 + 1 ) );
 
         ngs::String ret;
-        ret.reserve ( ref_slice.size() + ins_bases_length );
+        ret.reserve ( ref_slice.size() + var_len );
 
         ret.append ( ref_slice.begin(), ref_slice.begin() + ref_slice.size()/2 );
-        ret.append ( ins_bases, ins_bases + ins_bases_length );
+        ret.append ( variation, variation + var_len );
         ret.append ( ref_slice.begin() + ref_slice.size()/2, ref_slice.end() );
 
         return ret;
@@ -438,9 +442,62 @@ namespace RefVariation
                );
     }
 
-    void analyse_run ( ngs::String const& ref_slice, char const* ins_bases, size_t ins_bases_length )
+    ngs::String find_full_variation_region ( ngs::Reference const& ref, char const* variation, size_t var_len )
     {
-        ngs::String query = make_query ( ref_slice, ins_bases, ins_bases_length );
+        int64_t additional_len = 0;
+        while ( true )
+        {
+            ngs::String ref_slice = get_ref_slice ( ref, g_Params.ref_pos_var, var_len, additional_len );
+            ngs::String query = make_query ( ref_slice, variation, var_len );
+
+            std::cout
+                << "Looking for query \"" << query
+                << "\" at the reference around pos=" << g_Params.ref_pos_var
+                << ": \"" << ref_slice << "\"..." << std::endl;
+            // building sw-matrix for chosen reference slice and sequence
+
+            size_t COLUMNS = ref_slice.size() + 1;
+            size_t ROWS = query.size() + 1;
+            std::vector<int> matrix( ROWS * COLUMNS );
+
+            calculate_similarity_matrix<false> ( query.c_str(), query.size(), ref_slice.c_str(), ref_slice.size(), &matrix[0] );
+            //print_matrix<reverse> (&matrix[0], ref_slice.c_str(), ref_slice.size(), query.c_str(), query.size());
+            int row_start, col_start, row_end, col_end;
+            sw_find_indel_box ( & matrix[0], ROWS, COLUMNS, &row_start, &row_end, &col_start, &col_end );
+
+
+            calculate_similarity_matrix<true> ( query.c_str(), query.size(), ref_slice.c_str(), ref_slice.size(), &matrix[0] );
+            int row_start_rev, col_start_rev, row_end_rev, col_end_rev;
+            sw_find_indel_box ( & matrix[0], ROWS, COLUMNS, &row_start_rev, &row_end_rev, &col_start_rev, &col_end_rev );
+
+            CStringIterator<false> ref_slice_iterator(ref_slice.c_str(), ref_slice.size());
+            CStringIterator<false> query_iterator(query.c_str(), query.size());
+
+            row_start = min ( (int)query.size() - row_end_rev - 1, row_start );
+            row_end   = max ( (int)query.size() - row_start_rev - 1, row_end );
+            col_start = min ( (int)ref_slice.size() - col_end_rev - 1, col_start );
+            col_end   = max ( (int)ref_slice.size() - col_start_rev - 1, col_end );
+
+            printf ("indel box found: (%d, %d) - (%d, %d)\n", row_start, col_start, row_end, col_end );
+
+            print_indel ( "reference", ref_slice.c_str(), ref_slice.size(), col_start, col_end );
+            print_indel ( "query    ", query.c_str(), query.size(), row_start, row_end );
+
+            if ( col_start == -1 || col_end == (int64_t)ref_slice.size() )
+            {
+                std::cout << "expanding the window..." << std::endl;
+                additional_len += 2;
+            }
+            else
+            {
+                return query.substr( row_start + 1, row_end - row_start - 1 );
+            }
+        }
+    }
+
+    void analyse_run ( ngs::String const& ref_slice, char const* variation, size_t var_len )
+    {
+        ngs::String query = make_query ( ref_slice, variation, var_len );
 
         std::cout
             << "ref_slice: "
@@ -483,7 +540,7 @@ namespace RefVariation
         ngs::ReadCollection run = ncbi::NGS::openReadCollection ("SRR341578");
         ngs::Reference ref = run.getReference ( /*"gi|218511148|ref|*/ref_name );
 
-        ngs::String ref_slice = get_ref_slice ( ref, pos, 2 );
+        ngs::String ref_slice = get_ref_slice ( ref, pos, 2, 0 );
 
         std::cout << "Reference around pos=" << pos << ": " << ref_slice << std::endl;
 
@@ -505,7 +562,7 @@ namespace RefVariation
             {
                 ngs::ReadCollection r = ncbi::NGS::openReadCollection ( db_names[i] );
                 ngs::Reference rr = r.getReference ( ref_name );
-                ngs::String ref_slice_cur = get_ref_slice ( rr, pos, 2 );
+                ngs::String ref_slice_cur = get_ref_slice ( rr, pos, 2, 0 );
 
                 if ( ref_slice_cur ==  ref_slice )
                 {
@@ -550,11 +607,15 @@ namespace RefVariation
         ngs::Reference ref = run.getReference ( g_Params.ref_name );
         int64_t query_len = strlen(g_Params.query);
 
-        ngs::String ref_slice = get_ref_slice ( ref, g_Params.ref_pos_ins, query_len );
+        ngs::String full_var = find_full_variation_region ( ref, g_Params.query, query_len );
 
-        std::cout << "Reference around pos=" << g_Params.ref_pos_ins << ": " << ref_slice << std::endl;
+        std::cout << "Found full variation region: " << full_var << std::endl;
 
-        analyse_run( ref_slice, g_Params.query, query_len );
+        //ngs::String ref_slice = get_ref_slice ( ref, g_Params.ref_pos_var, query_len, 0 );
+
+        //std::cout << "Reference around pos=" << g_Params.ref_pos_var << ": " << ref_slice << std::endl;
+
+        //analyse_run( ref_slice, g_Params.query, query_len );
     }
 }
 
@@ -659,7 +720,6 @@ extern "C"
         rc_t rc = -1;
         try
         {
-            size_t num_runs = 0;
             /* parse command line arguments */
             if ( argc < 3 )
                 UsageSummary ( argv[0] );
@@ -679,7 +739,7 @@ extern "C"
                     RefVariation::g_Params.ref_name = findArg ( arg, i, argc, argv );
                     break;
                 case 'p':
-                    RefVariation::g_Params.ref_pos_ins = AsciiToI64 ( findArg ( arg, i, argc, argv ), 
+                    RefVariation::g_Params.ref_pos_var = AsciiToI64 ( findArg ( arg, i, argc, argv ), 
                         handle_error, ( void * ) "Invalid reference position" );
                     break;
                 case 'q':
@@ -704,7 +764,7 @@ extern "C"
                     }
                     else if ( strcmp ( arg, "position" ) == 0 )
                     {
-                        RefVariation::g_Params.ref_pos_ins = AsciiToI64 ( getArg ( i, argc, argv ), 
+                        RefVariation::g_Params.ref_pos_var = AsciiToI64 ( getArg ( i, argc, argv ), 
                             handle_error, ( void * ) "Invalid reference position" );
                     }
                     else if ( strcmp ( arg, "query" ) == 0 )

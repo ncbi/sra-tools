@@ -913,7 +913,7 @@ rc_t Start (KDirectory * cwd, const char * src, const char * dst)
         return rc;
     }
 
-    stype = KDirectoryPathType (cwd, "%s", spath);
+    stype = KDirectoryPathType (cwd, "%s", spath) & ~ kptAlias;
 
     switch (stype)
     {
@@ -1025,7 +1025,7 @@ rc_t Start (KDirectory * cwd, const char * src, const char * dst)
             LOGERR (klogErr, rc, "can't resolve destination");
             return rc;
         }
-        dtype = KDirectoryPathType (cwd, "%s", dpath);
+        dtype = KDirectoryPathType (cwd, "%s", dpath) & ~ kptAlias;
         switch (dtype)
         {
         default:

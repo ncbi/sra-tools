@@ -575,22 +575,7 @@ namespace VDBObjects
         }
     }
 
-#if MANGER_WRITABLE != 0
-    void CVDBManager::Make()
-    {
-        assert(m_pSelf == NULL);
-        if (m_pSelf)
-            throw Utils::CErrorMsg(0, "Double call to VDBManagerMakeRead");
-
-        rc_t rc = ::VDBManagerMakeRead(const_cast<VDBManager const**>(&m_pSelf), NULL);
-        if (rc)
-            throw Utils::CErrorMsg(rc, "VDBManagerMakeRead");
-
-#if DEBUG_PRINT != 0
-        printf("Created VDBManager (rd) %p\n", m_pSelf);
-#endif
-    }
-#else
+#if MANAGER_WRITABLE != 0
     void CVDBManager::Make()
     {
         assert(m_pSelf == NULL);
@@ -609,6 +594,21 @@ namespace VDBObjects
         printf("Created VDBManager (wr) %p\n", m_pSelf);
 #endif
     }
+#else
+    void CVDBManager::Make()
+    {
+        assert(m_pSelf == NULL);
+        if (m_pSelf)
+            throw Utils::CErrorMsg(0, "Double call to VDBManagerMakeRead");
+
+        rc_t rc = ::VDBManagerMakeRead(const_cast<VDBManager const**>(&m_pSelf), NULL);
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VDBManagerMakeRead");
+
+#if DEBUG_PRINT != 0
+        printf("Created VDBManager (rd) %p\n", m_pSelf);
+#endif
+    }
 #endif
 
     CVDatabase CVDBManager::OpenDB(char const* pszDBName) const
@@ -623,6 +623,7 @@ namespace VDBObjects
 #endif
         return vdb;
     }
+#if MANAGER_WRITABLE != 0
     CVDatabase CVDBManager::CreateDB ( CVSchema const& schema, char const* pszTypeDesc, ::KCreateMode cmode, char const* pszPath )
     {
         CVDatabase vdb;
@@ -641,6 +642,7 @@ namespace VDBObjects
         vdb.ColumnCreateParams ( kcmInit | kcmMD5, kcsCRC32, 0 );
         return vdb;
     }
+#endif
 
     CVSchema CVDBManager::MakeSchema () const
     {

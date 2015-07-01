@@ -324,8 +324,8 @@ namespace RefVariation
 
                     if (prev_indel)
                     {
-                        *ret_row_start = i;
-                        *ret_col_start = j;
+                        *ret_row_start = (int)i;
+                        *ret_col_start = (int)j;
                     }
                     prev_indel = false;
                 }
@@ -333,8 +333,8 @@ namespace RefVariation
                 {
                     if ( *ret_row_end == -1 )
                     {
-                        *ret_row_end = i;
-                        *ret_col_end = j;
+                        *ret_row_end = (int)i;
+                        *ret_col_end = (int)j;
                     }
                     --j;
                     prev_indel = true;
@@ -343,8 +343,8 @@ namespace RefVariation
                 {
                     if ( *ret_row_end == -1 )
                     {
-                        *ret_row_end = i;
-                        *ret_col_end = j;
+                        *ret_row_end = (int)i;
+                        *ret_col_end = (int)j;
                     }
                     --i;
                     prev_indel = true;
@@ -354,7 +354,7 @@ namespace RefVariation
             {
                 if ( *ret_row_end == -1 )
                 {
-                    *ret_row_end = i;
+                    *ret_row_end = (int)i;
                     *ret_col_end = 0;
                 }
                 *ret_row_start = 0;
@@ -366,7 +366,7 @@ namespace RefVariation
                 if ( *ret_row_end == -1 )
                 {
                     *ret_row_end = 0;
-                    *ret_col_end = j;
+                    *ret_col_end = (int)j;
                 }
                 *ret_row_start = 0;
                 *ret_col_start = 0;

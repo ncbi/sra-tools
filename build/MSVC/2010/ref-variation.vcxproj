@@ -22,13 +22,13 @@
   <ItemDefinitionGroup>
     <Link>
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(VDB_TARGET)lib\ngs-c++.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(NGS_TARGET)lib\libngs-bind-c++.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(NGS_TARGET)lib\libngs-disp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\load.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\tools\ref-variation\ref-variation.cpp" />
+    <ClCompile Include="..\..\..\tools\ref-variation\helper.cpp" />
+    <ClInclude Include="..\..\..\tools\ref-variation\helper.h" />
     <ClInclude Include="..\..\..\tools\ref-variation\ref-variation.vers.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">

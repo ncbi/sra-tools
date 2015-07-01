@@ -24,10 +24,8 @@
 *
 */
 
-#include <ngs/ncbi/NGS.hpp>
-#include <ngs/ReadCollection.hpp>
-#include <ngs/Reference.hpp>
-#include <kapp/main.h>
+#include "ref-variation.vers.h"
+#include "helper.h"
 
 #include <iostream>
 #include <string.h>
@@ -35,7 +33,8 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include "ref-variation.vers.h"
+#include <kapp/main.h>
+#include <klib/rc.h>
 
 #ifndef min
 #define min(x,y) ((y) < (x) ? (y) : (x))
@@ -54,8 +53,7 @@ namespace RefVariation
         // command line params
 
         // command line options
-        char const* accession;
-        char const* ref_name;
+        char const* ref_acc;
         int64_t ref_pos_var;
         char const* query;
         int verbosity;
@@ -63,10 +61,32 @@ namespace RefVariation
     } g_Params =
     {
         "",
-        "",
         -1,
         "",
         0
+    };
+    char const OPTION_REFERENCE_ACC[] = "reference-accession";
+    char const ALIAS_REFERENCE_ACC[]  = "r";
+    char const* USAGE_REFERENCE_ACC[] = { "look for the variation in this reference", NULL };
+
+    char const OPTION_REF_POS[] = "position";
+    char const ALIAS_REF_POS[]  = "p";
+    char const* USAGE_REF_POS[] = { "look for the variation at this position on the reference", NULL };
+
+    char const OPTION_QUERY[] = "query";
+    char const ALIAS_QUERY[]  = "q";
+    char const* USAGE_QUERY[] = { "query to find in the given reference", NULL };
+
+    char const OPTION_VERBOSITY[] = "verbose";
+    char const ALIAS_VERBOSITY[]  = "v";
+    char const* USAGE_VERBOSITY[] = { "increase the verbosity of the program. use multiple times for more verbosity.", NULL };
+
+    ::OptDef Options[] =
+    {
+        { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true },
+        { OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true },
+        { OPTION_QUERY,         ALIAS_QUERY,     NULL, USAGE_QUERY,         1, true, true }
+        //{ OPTION_VERBOSITY,     ALIAS_VERBOSITY,     NULL, USAGE_VERBOSITY,     0, false, false }
     };
 
     unsigned char const map_char_to_4na [256] =
@@ -364,42 +384,6 @@ namespace RefVariation
 
         }
     }
-
-    // get_ref_slice returns reference slice of sufficient length for Smith-Waterman algorithm
-    ngs::String get_ref_slice ( ngs::Reference const& ref,
-                                int64_t ref_pos_var, // reported variation position on the reference
-                                int64_t var_len,     // the length of the reported variation
-                                int64_t add_ref_len  // the length of the prefix and suffix to
-                                                     // add to the variation to avoid ambiguous indels
-                                                     // at the very start/end
-                              )
-    {
-        int64_t safe_half_length = ( var_len + add_ref_len ) / 2 + 1;
-
-        int64_t ref_start = (ref_pos_var - safe_half_length) >= 0 ?
-                            (ref_pos_var - safe_half_length) : 0;
-
-        return ref.getReferenceBases ( ref_start, safe_half_length * 2 );
-    }
-
-    // make_query returns the query for Smith-Waterman algorithm as follows:
-    // <1st half of reference slice> + <variation> + <2nd half of the reference slice>
-    // reference slice must be of sufficient length - get_ref_slice() retruns it
-    ngs::String make_query ( ngs::String const& ref_slice,
-                             char const* variation, size_t var_len)
-    {
-        assert ( ref_slice.size() >= 2 * ( var_len / 2 + 1 ) );
-
-        ngs::String ret;
-        ret.reserve ( ref_slice.size() + var_len );
-
-        ret.append ( ref_slice.begin(), ref_slice.begin() + ref_slice.size()/2 );
-        ret.append ( variation, variation + var_len );
-        ret.append ( ref_slice.begin() + ref_slice.size()/2, ref_slice.end() );
-
-        return ret;
-    }
-
     template <bool reverse> void print_matrix ( int const* matrix,
                                                 char const* ref_slice, size_t ref_slice_size,
                                                 char const* query, size_t query_size)
@@ -442,59 +426,7 @@ namespace RefVariation
                );
     }
 
-    ngs::String find_full_variation_region ( ngs::Reference const& ref, char const* variation, size_t var_len )
-    {
-        int64_t additional_len = 0;
-        while ( true )
-        {
-            ngs::String ref_slice = get_ref_slice ( ref, g_Params.ref_pos_var, var_len, additional_len );
-            ngs::String query = make_query ( ref_slice, variation, var_len );
-
-            std::cout
-                << "Looking for query \"" << query
-                << "\" at the reference around pos=" << g_Params.ref_pos_var
-                << ": \"" << ref_slice << "\"..." << std::endl;
-            // building sw-matrix for chosen reference slice and sequence
-
-            size_t COLUMNS = ref_slice.size() + 1;
-            size_t ROWS = query.size() + 1;
-            std::vector<int> matrix( ROWS * COLUMNS );
-
-            calculate_similarity_matrix<false> ( query.c_str(), query.size(), ref_slice.c_str(), ref_slice.size(), &matrix[0] );
-            //print_matrix<reverse> (&matrix[0], ref_slice.c_str(), ref_slice.size(), query.c_str(), query.size());
-            int row_start, col_start, row_end, col_end;
-            sw_find_indel_box ( & matrix[0], ROWS, COLUMNS, &row_start, &row_end, &col_start, &col_end );
-
-
-            calculate_similarity_matrix<true> ( query.c_str(), query.size(), ref_slice.c_str(), ref_slice.size(), &matrix[0] );
-            int row_start_rev, col_start_rev, row_end_rev, col_end_rev;
-            sw_find_indel_box ( & matrix[0], ROWS, COLUMNS, &row_start_rev, &row_end_rev, &col_start_rev, &col_end_rev );
-
-            CStringIterator<false> ref_slice_iterator(ref_slice.c_str(), ref_slice.size());
-            CStringIterator<false> query_iterator(query.c_str(), query.size());
-
-            row_start = min ( (int)query.size() - row_end_rev - 1, row_start );
-            row_end   = max ( (int)query.size() - row_start_rev - 1, row_end );
-            col_start = min ( (int)ref_slice.size() - col_end_rev - 1, col_start );
-            col_end   = max ( (int)ref_slice.size() - col_start_rev - 1, col_end );
-
-            printf ("indel box found: (%d, %d) - (%d, %d)\n", row_start, col_start, row_end, col_end );
-
-            print_indel ( "reference", ref_slice.c_str(), ref_slice.size(), col_start, col_end );
-            print_indel ( "query    ", query.c_str(), query.size(), row_start, row_end );
-
-            if ( col_start == -1 || col_end == (int64_t)ref_slice.size() )
-            {
-                std::cout << "expanding the window..." << std::endl;
-                additional_len += 2;
-            }
-            else
-            {
-                return query.substr( row_start + 1, row_end - row_start - 1 );
-            }
-        }
-    }
-
+#if 0
     void analyse_run ( ngs::String const& ref_slice, char const* variation, size_t var_len )
     {
         ngs::String query = make_query ( ref_slice, variation, var_len );
@@ -617,10 +549,261 @@ namespace RefVariation
 
         //analyse_run( ref_slice, g_Params.query, query_len );
     }
+#endif
+
+    enum ColumnNameIndices
+    {
+        idx_SEQ_LEN,
+        idx_SEQ_START,
+        idx_MAX_SEQ_LEN,
+        idx_TOTAL_SEQ_LEN,
+        idx_READ
+    };
+    char const* g_ColumnNames[] =
+    {
+        "SEQ_LEN",
+        "SEQ_START", // 1-based
+        "MAX_SEQ_LEN",
+        "TOTAL_SEQ_LEN",
+        "READ"
+    };
+    uint32_t g_ColumnIndex [ countof (g_ColumnNames) ];
+
+
+    std::string get_ref_slice_int ( VDBObjects::CVCursor const& cursor,
+                                int64_t ref_start,
+                                int64_t ref_end,
+                                uint32_t max_seq_len
+                              )
+    {
+        int64_t ref_start_id = ref_start / max_seq_len + 1;
+        int64_t ref_start_chunk_pos = ref_start % max_seq_len;
+
+        int64_t ref_end_id = ref_end / max_seq_len + 1;
+        int64_t ref_end_chunk_pos = ref_end % max_seq_len;
+
+        std::string ret;
+
+        for ( int64_t id = ref_start_id; id <= ref_end_id; ++id )
+        {
+            int64_t chunk_pos_start = id == ref_start_id ?
+                        ref_start_chunk_pos : 0;
+            int64_t chunk_pos_end = id == ref_end_id ?
+                        ref_end_chunk_pos : max_seq_len - 1;
+
+            char const* pREAD;
+            uint32_t count =  cursor.CellDataDirect ( id, g_ColumnIndex[idx_READ], & pREAD );
+            assert (count > ref_end_chunk_pos);
+            (void)count;
+
+            ret.append (pREAD + chunk_pos_start, pREAD + chunk_pos_end + 1);
+        }
+
+        return ret;
+    }
+
+    std::string get_ref_slice ( VDBObjects::CVCursor const& cursor,
+                                int64_t ref_pos_var, // reported variation position on the reference
+                                int64_t var_len,     // the length of the reported variation
+                                int64_t slice_expand_left,
+                                int64_t slice_expand_right,
+                                int64_t* ref_slice_start, // returned value
+                                int64_t* ref_slice_end    // returned value, inclusive
+                              )
+    {
+        int64_t idRow = 0;
+        uint64_t nRowCount = 0;
+        //size_t count = 0;
+
+        cursor.GetIdRange (idRow, nRowCount);
+
+        std::cout
+            << "idRow=" <<  idRow << std::endl
+            << "nRowCount=" << nRowCount << std::endl;
+
+        uint32_t max_seq_len;
+        uint64_t total_seq_len;
+        cursor.ReadItems ( idRow, g_ColumnIndex[idx_MAX_SEQ_LEN], & max_seq_len, 1 );
+        cursor.ReadItems ( idRow, g_ColumnIndex[idx_TOTAL_SEQ_LEN], & total_seq_len, 1 );
+
+        printf ("%s=%u\n", g_ColumnNames[idx_MAX_SEQ_LEN], max_seq_len);
+        printf ("%s=%lu\n", g_ColumnNames[idx_TOTAL_SEQ_LEN], total_seq_len);
+
+        if ( (uint64_t) g_Params.ref_pos_var > total_seq_len )
+            throw Utils::CErrorMsg ("reference position (%ld) is greater than total sequence length (%ud)",
+                                    g_Params.ref_pos_var, total_seq_len);
+
+        int64_t var_half_len = var_len / 2 + 1;
+
+        int64_t ref_start = ref_pos_var - var_half_len - slice_expand_left >= 0 ?
+                            ref_pos_var - var_half_len - slice_expand_left : 0;
+        int64_t ref_end = (uint64_t)(ref_pos_var + var_half_len + slice_expand_right - 1) < total_seq_len ?
+                          ref_pos_var + var_half_len + slice_expand_right - 1 : total_seq_len - 1;
+
+        std::string ret = get_ref_slice_int ( cursor, ref_start, ref_end, max_seq_len );
+
+        if ( ref_slice_start != NULL )
+            *ref_slice_start = ref_start;
+        if ( ref_slice_end != NULL )
+            *ref_slice_end = ref_end;
+
+        return ret;
+    }
+
+    // now it works for pure insertions (no mismatches/deletions)
+    std::string make_query ( std::string const& ref_slice,
+                             char const* variation, size_t var_len,
+                             int64_t var_start_pos_adj // ref_pos adjusted to the beginning of ref_slice (in the simplest case - the middle of ref_slice)
+                           )
+    {
+        assert ( ref_slice.size() >= 2 * ( var_len / 2 + 1 ) ); // maybe more complicated assert is needed to check left and right parts separately
+
+        std::string ret;
+        ret.reserve ( ref_slice.size() + var_len );
+
+        ret.append ( ref_slice.begin(), ref_slice.begin() + var_start_pos_adj );
+        ret.append ( variation, variation + var_len );
+        ret.append ( ref_slice.begin() + var_start_pos_adj, ref_slice.end() );
+
+        return ret;
+    }
+
+    std::string find_variation_region_impl ()
+    {
+        printf("ref: %s\npos=%ld\nquery=%s\nverbosity=%d\n",
+            g_Params.ref_acc, g_Params.ref_pos_var, g_Params.query, g_Params.verbosity);
+
+        VDBObjects::CVDBManager mgr;
+        mgr.Make();
+
+        VDBObjects::CVTable table = mgr.OpenTable ( g_Params.ref_acc );
+        VDBObjects::CVCursor cursor = table.CreateCursorRead ();
+
+        cursor.InitColumnIndex (g_ColumnNames, g_ColumnIndex, countof(g_ColumnNames));
+        cursor.Open();
+
+        int64_t var_len = strlen (g_Params.query);
+        int64_t slice_start = -1, slice_end = -1;
+        int64_t add_l =0, add_r = 0;
+
+        while ( true )
+        {
+            int64_t new_slice_start, new_slice_end;
+            std::string ref_slice = get_ref_slice (cursor, g_Params.ref_pos_var, var_len, add_l, add_r, & new_slice_start, & new_slice_end );
+            std::string query = make_query ( ref_slice, g_Params.query, var_len, g_Params.ref_pos_var - new_slice_start );
+
+            std::cout
+                << "Looking for query \"" << query
+                << "\" at the reference around pos=" << g_Params.ref_pos_var
+                << ": \"" << ref_slice << "\"..." << std::endl;
+            // building sw-matrix for chosen reference slice and sequence
+
+            size_t COLUMNS = ref_slice.size() + 1;
+            size_t ROWS = query.size() + 1;
+            std::vector<int> matrix( ROWS * COLUMNS );
+
+            calculate_similarity_matrix<false> ( query.c_str(), query.size(), ref_slice.c_str(), ref_slice.size(), &matrix[0] );
+            //print_matrix<reverse> (&matrix[0], ref_slice.c_str(), ref_slice.size(), query.c_str(), query.size());
+            int row_start, col_start, row_end, col_end;
+            sw_find_indel_box ( & matrix[0], ROWS, COLUMNS, &row_start, &row_end, &col_start, &col_end );
+
+
+            calculate_similarity_matrix<true> ( query.c_str(), query.size(), ref_slice.c_str(), ref_slice.size(), &matrix[0] );
+            int row_start_rev, col_start_rev, row_end_rev, col_end_rev;
+            sw_find_indel_box ( & matrix[0], ROWS, COLUMNS, &row_start_rev, &row_end_rev, &col_start_rev, &col_end_rev );
+
+            CStringIterator<false> ref_slice_iterator(ref_slice.c_str(), ref_slice.size());
+            CStringIterator<false> query_iterator(query.c_str(), query.size());
+
+            row_start = min ( (int)query.size() - row_end_rev - 1, row_start );
+            row_end   = max ( (int)query.size() - row_start_rev - 1, row_end );
+            col_start = min ( (int)ref_slice.size() - col_end_rev - 1, col_start );
+            col_end   = max ( (int)ref_slice.size() - col_start_rev - 1, col_end );
+
+            printf ("indel box found: (%d, %d) - (%d, %d)\n", row_start, col_start, row_end, col_end );
+
+            print_indel ( "reference", ref_slice.c_str(), ref_slice.size(), col_start, col_end );
+            print_indel ( "query    ", query.c_str(), query.size(), row_start, row_end );
+
+            bool cont = false;
+
+            if ( col_start == -1)
+            {
+                if ( slice_start != -1 && new_slice_start == slice_start )
+                {
+                    std::cout << "cannot expand to the left anymore" <<std::endl;
+                }
+                else
+                {
+                    std::cout << "expanding the window to the left..." << std::endl;
+                    add_l += 2;
+                    cont = true;
+                }
+            }
+            if ( col_end == (int64_t)ref_slice.size() )
+            {
+                if ( slice_end != -1 && new_slice_end == slice_end )
+                {
+                    std::cout << "cannot expand to the right anymore" <<std::endl;
+                }
+                else
+                {
+                    std::cout << "expanding the window to the right..." << std::endl;
+                    add_r += 2;
+                    cont = true;
+                }
+            }
+
+            if ( !cont )
+                return query.substr( row_start + 1, row_end - row_start - 1 );
+
+            slice_start = new_slice_start;
+            slice_end = new_slice_end;
+        }
+
+        //printf ("Reference slice [%ld, %ld]: %s\n", slice_start, slice_end, ref_slice.c_str() );
+
+    } 
+
+    void find_variation_region (int argc, char** argv)
+    {
+        try
+        {
+            KApp::CArgs args (argc, argv, Options, countof (Options));
+            uint32_t param_count = args.GetParamCount ();
+            if ( param_count != 0 )
+            {
+                MiniUsage (args.GetArgs());
+                return;
+            }
+
+            // Actually GetOptionCount check is not needed here since
+            // CArgs checks that exactly 1 option is required
+
+            if (args.GetOptionCount (OPTION_REFERENCE_ACC) == 1)
+                g_Params.ref_acc = args.GetOptionValue ( OPTION_REFERENCE_ACC, 0 );
+
+            if (args.GetOptionCount (OPTION_REF_POS) == 1)
+                g_Params.ref_pos_var = args.GetOptionValueInt<int64_t> ( OPTION_REF_POS, 0 );
+
+            if (args.GetOptionCount (OPTION_QUERY) == 1)
+                g_Params.query = args.GetOptionValue ( OPTION_QUERY, 0 );
+
+            g_Params.verbosity = (int)args.GetOptionCount (OPTION_VERBOSITY);
+
+            std::string full_var = find_variation_region_impl ();
+            std::cout << "Full variation: " << full_var << std::endl;
+        }
+        catch (...)
+        {
+            Utils::HandleException ();
+        }
+    }
 }
 
 extern "C"
 {
+    const char UsageDefaultName[] = "ref-variation";
     ver_t CC KAppVersion ()
     {
         return REF_VARIATION_VERS;
@@ -630,7 +813,7 @@ extern "C"
     {
         printf (
         "Usage example:\n"
-        "  %s -s <accession> -p <position on reference> -q <query to look for> -r <reference name>\n"
+        "  %s -r <reference accession> -p <position on reference> -q <query to look for>\n"
         "\n"
         "Summary:\n"
         "  Find a possible indel window\n"
@@ -640,83 +823,38 @@ extern "C"
 
     rc_t CC Usage ( struct Args const * args )
     {
-        return 0;
-    }
+        rc_t rc = 0;
+        const char* progname = UsageDefaultName;
+        const char* fullpath = UsageDefaultName;
 
-    static 
-    const char * getArg ( int & i, int argc, char * argv [] )
-    {
-        
-        if ( ++ i == argc )
-            throw "Missing argument";
-        
-        return argv [ i ];
-    }
+        if (args == NULL)
+            rc = RC(rcExe, rcArgv, rcAccessing, rcSelf, rcNull);
+        else
+            rc = ArgsProgram(args, &fullpath, &progname);
 
-    static
-    const char * findArg ( const char*  &arg, int & i, int argc, char * argv [] )
-    {
-        if ( arg [ 1 ] != 0 )
-        {
-            const char * next = arg + 1;
-            arg = "\0";
-            return next;
-        }
+        UsageSummary (progname);
 
-        return getArg ( i, argc, argv );
-    }
+        printf ("\nOptions:\n");
 
-    static void handle_help ( const char *appName )
-    {
-        const char *appLeaf = strrchr ( appName, '/' );
-        if ( appLeaf ++ == 0 )
-            appLeaf = appName;
+        HelpOptionLine (RefVariation::ALIAS_REFERENCE_ACC, RefVariation::OPTION_REFERENCE_ACC, "acc", RefVariation::USAGE_REFERENCE_ACC);
+        HelpOptionLine (RefVariation::ALIAS_REF_POS, RefVariation::OPTION_REF_POS, "value", RefVariation::USAGE_REF_POS);
+        HelpOptionLine (RefVariation::ALIAS_QUERY, RefVariation::OPTION_QUERY, "string", RefVariation::USAGE_QUERY);
+        //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
 
-        ver_t vers = KAppVersion ();
+        printf ("\n");
 
-        /* TODO: add actual help info */
-        std :: cout
-            << '\n'
-            << "Usage:\n"
-            << "  " << appLeaf << " [options]"
-            << "\n\n"
-            << "Options:\n"
-            << "  -s|--source-accession            search for the query in this db\n"
-            << "  -r|--reference-name              look for the query against this reference\n"
-            << "  -p|--position                    look for the query at this position on reference\n"
-            << "  -q|--query                       query to find in given db on given reference\n"
-            << "  -h|--help                        output brief explanation of the program\n"
-            << "  -v|--verbose                     increase the verbosity of the program.\n"
-            << "                                   use multiple times for more verbosity.\n"
-            << '\n'
-            << appName << " : "
-            << ( vers >> 24 )
-            << '.'
-            << ( ( vers >> 16 ) & 0xFF )
-            << '.'
-            << ( vers & 0xFFFF )
-            << '\n'
-            << '\n'
-            ;
-    }
+        HelpOptionsStandard ();
 
-    static void CC handle_error ( const char *arg, void *message )
-    {
-        throw ( const char * ) message;
-    }
+        HelpVersion (fullpath, KAppVersion());
 
-    static void check_value ( char const* str, char const* name )
-    {
-        if (str == NULL || str[0] == '\0')
-        {
-            std::string err = name;
-            err += "  has not been specified";
-            throw err.c_str();
-        }
+        return rc;
     }
 
     rc_t CC KMain ( int argc, char *argv [] )
     {
+        RefVariation::find_variation_region ( argc, argv );
+        return 0;
+#if 0
         rc_t rc = -1;
         try
         {
@@ -834,5 +972,6 @@ extern "C"
         }
 
         return rc;
+#endif
     }
 }

@@ -50,7 +50,7 @@
 #endif
 
 #define USING_UINT64_BITMAP 0
-#define MANAGER_WRITABLE 1
+#define MANAGER_WRITABLE 0
 #define DEBUG_PRINT 0
 
 namespace KLib
@@ -80,6 +80,7 @@ namespace Utils
     {
     public:
         CErrorMsg(rc_t rc, char const* fmt_str, ...);
+        CErrorMsg(char const* fmt_str, ...);
 
         rc_t getRC() const;
         virtual char const* what() const throw();
@@ -165,7 +166,10 @@ namespace VDBObjects
         void Make();
         void Release();
         CVDatabase OpenDB ( char const* pszDBName ) const;
+        CVTable OpenTable(char const* pszPath) const;
+#if MANAGER_WRITABLE != 0
         CVDatabase CreateDB ( CVSchema const& schema, char const* pszTypeDesc, ::KCreateMode cmode, char const* pszPath );
+#endif
         CVSchema MakeSchema () const;
 
     private:
@@ -178,7 +182,9 @@ namespace VDBObjects
     {
     public:
         friend CVSchema CVDBManager::MakeSchema () const;
+#if MANAGER_WRITABLE != 0
         friend CVDatabase CVDBManager::CreateDB ( CVSchema const& schema, char const* pszTypeDesc, ::KCreateMode cmode, char const* pszPath );
+#endif
 
         CVSchema();
         ~CVSchema();
@@ -200,7 +206,9 @@ namespace VDBObjects
     {
     public:
         friend CVDatabase CVDBManager::OpenDB ( char const* pszDBName ) const;
+#if MANAGER_WRITABLE != 0
         friend CVDatabase CVDBManager::CreateDB ( CVSchema const& schema, char const* pszTypeDesc, ::KCreateMode cmode, char const* pszPath );
+#endif
 
         CVDatabase();
         ~CVDatabase();
@@ -209,8 +217,10 @@ namespace VDBObjects
 
         void Release();
         CVTable OpenTable ( char const* pszTableName ) const;
+#if MANAGER_WRITABLE != 0
         CVTable CreateTable ( char const* pszTableName );
         void ColumnCreateParams ( ::KCreateMode cmode, ::KChecksum checksum, size_t pgsize );
+#endif
 
     private:
         void Clone(CVDatabase const& x);
@@ -223,7 +233,10 @@ namespace VDBObjects
     {
     public:
         friend CVTable CVDatabase::OpenTable(char const* pszTableName) const;
+        friend CVTable CVDBManager::OpenTable(char const* pszPath) const;
+#if MANAGER_WRITABLE != 0
         friend CVTable CVDatabase::CreateTable ( char const* pszTableName );
+#endif
 
         CVTable();
         ~CVTable();
@@ -232,7 +245,10 @@ namespace VDBObjects
 
         void Release();
         CVCursor CreateCursorRead ( size_t cache_size ) const;
+        CVCursor CreateCursorRead ( ) const;
+#if MANAGER_WRITABLE != 0
         CVCursor CreateCursorWrite ( ::KCreateMode mode );
+#endif
 
     private:
         void Clone(CVTable const& x);
@@ -244,8 +260,11 @@ namespace VDBObjects
     class CVCursor
     {
     public:
+        friend CVCursor CVTable::CreateCursorRead ( ) const;
         friend CVCursor CVTable::CreateCursorRead ( size_t cache_size ) const;
+#if MANAGER_WRITABLE != 0
         friend CVCursor CVTable::CreateCursorWrite (::KCreateMode mode);
+#endif
 
         CVCursor();
         ~CVCursor();
@@ -275,6 +294,17 @@ namespace VDBObjects
             return nItemsRead;
         }
 
+        template <typename T> uint32_t CellDataDirect (int64_t idRow, uint32_t idxCol, T const** pBuf) const
+        {
+            uint32_t nItemsRead = 0;
+
+            rc_t rc = ::VCursorCellDataDirect (m_pSelf, idRow, idxCol, NULL, reinterpret_cast<void const**>(pBuf), 0, &nItemsRead);
+            if (rc)
+                throw Utils::CErrorMsg(rc, "VCursorCellDataDirect: row_id=%ld, idxCol=%u", idRow, idxCol);
+
+            return nItemsRead;
+        }
+
         template <typename T> void Write (uint32_t idxCol, T const* pBuf, uint64_t count)
         {
             rc_t rc = ::VCursorWrite ( m_pSelf, idxCol, 8 * sizeof(T), pBuf, 0, count );
@@ -285,10 +315,12 @@ namespace VDBObjects
         int64_t GetRowId () const;
         void SetRowId (int64_t row_id) const;
         void OpenRow () const;
+#if MANAGER_WRITABLE != 0
         void CommitRow ();
         void RepeatRow ( uint64_t count );
-        void CloseRow () const;
         void Commit ();
+#endif
+        void CloseRow () const;
 
     private:
         void Clone(CVCursor const& x);

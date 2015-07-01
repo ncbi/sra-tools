@@ -76,18 +76,17 @@ clean: stdclean
 # ref-variation
 #
 REF_VARIATION_SRC = \
-	ref-variation
+	ref-variation \
+	helper
 
 REF_VARIATION_OBJ = \
 	$(addsuffix .$(OBJX),$(REF_VARIATION_SRC))
 
 REF_VARIATION_LIB =   \
-	-L$(LIBDIR)       \
-	-L$(NGS_LIBDIR)   \
-	-skapp            \
-	-sngs-c++         \
-	-sncbi-ngs-c++    \
-	-sncbi-vdb
+	-skapp \
+	-sncbi-vdb \
+	-sm \
+	-sload
 
 
 $(BINDIR)/ref-variation: $(REF_VARIATION_OBJ)

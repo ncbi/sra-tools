@@ -25,10 +25,11 @@
 #echo "$0 $*"
 
 # $1 - path to sra-tools executables (general-loader, vdb-dump)
-# $2 - work directory (expected results under expected/, actual results and temporaries created under actual/)
-# $3 - test case ID (expect a file input/$3.gl to exist)
-# $4 - expected return code
-# $5, $6, ... - command line options for general-loader
+# $2 - name of the dumper executable (vdb-dump, kdbmeta etc.)
+# $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
+# $4 - test case ID (expect a file input/$3.gl to exist)
+# $5 - expected return code
+# $6, $7, ... - command line options for general-loader
 #
 # return codes:
 # 0 - passed
@@ -38,13 +39,14 @@
 # 4 - outputs differ
 
 BINDIR=$1
-WORKDIR=$2
-CASEID=$3
-RC=$4
-shift 4
+DUMPER=$2
+WORKDIR=$3
+CASEID=$4
+RC=$5
+shift 5
 CMDLINE=$*
 
-DUMP="$BINDIR/vdb-dump"
+DUMP="$BINDIR/$DUMPER"
 LOAD="$BINDIR/general-loader"
 TEMPDIR=$WORKDIR/actual/$CASEID
 
@@ -73,6 +75,10 @@ if [ "$rc" == "0" ] ; then
     CMD="$DUMP $TEMPDIR/db 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
     eval $CMD || ( echo "$CMD" && exit 3 )
+    
+    # remove timestamps from metadata
+    sed -i -e 's/<timestamp>.*<\/timestamp>/<timestamp\/>/g' $TEMPDIR/dump.stdout
+    
     diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
 else    

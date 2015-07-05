@@ -34,6 +34,13 @@
 #include <stdio.h>
 #include <stdint.h>
 
+#ifdef _WIN32
+#include <intrin.h>
+#ifndef __builtin_popcount
+#define __builtin_popcount __popcnt
+#endif
+#endif
+
 #include <kapp/main.h>
 #include <klib/rc.h>
 
@@ -118,39 +125,7 @@ namespace RefVariation
         //return (bits2na & bits4na) != 0 ? 2 : -1;
 
         unsigned char popcnt4na;
-        // TODO: optimize, maybe using _popcnt
-        switch ( bits4na )
-        {
-        case 1:
-        case 2:
-        case 4:
-        case 8:
-            popcnt4na = 1;
-            break;
-        case 7:
-        case 11:
-        case 13:
-        case 14:
-            popcnt4na = 3;
-            break;
-        case 15:
-            popcnt4na = 4;
-            break;
-        case 0:
-            popcnt4na = 0;
-            break;
-        //case 3:
-        //case 5:
-        //case 6:
-        //case 9:
-        //case 10:
-        //case 12:
-        //    popcnt4na = 2;
-        //    break;
-        default:
-            popcnt4na = 2;
-            break;
-        }
+        popcnt4na = (unsigned char) __builtin_popcount ( bits4na );
 
         return (bits2na & bits4na) != 0 ? 12 / popcnt4na : -6;
     }
@@ -453,6 +428,7 @@ namespace RefVariation
         int64_t ref_end_chunk_pos = ref_end % max_seq_len;
 
         std::string ret;
+        ret.reserve( ref_end - ref_start + 2 );
 
         for ( int64_t id = ref_start_id; id <= ref_end_id; ++id )
         {
@@ -724,10 +700,10 @@ extern "C"
 
     rc_t CC KMain ( int argc, char *argv [] )
     {
-        // command line examples:
-        //  -r NC_011752.1 -p 2018 -q CA
-        //  -r NC_011752.1 -p 2020 -q CA
-        //  -r NC_011752.1 -p 5000 -q CA
+        /* command line examples:
+          -r NC_011752.1 -p 2018 -q CA
+          -r NC_011752.1 -p 2020 -q CA
+          -r NC_011752.1 -p 5000 -q CA*/
 
         RefVariation::find_variation_region ( argc, argv );
         return 0;

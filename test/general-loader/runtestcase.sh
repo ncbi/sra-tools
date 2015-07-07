@@ -76,8 +76,9 @@ if [ "$rc" == "0" ] ; then
     #echo $CMD
     eval $CMD || ( echo "$CMD" && exit 3 )
     
-    # remove timestamps from metadata
+    # remove timestamps, date from metadata
     sed -i -e 's/<timestamp>.*<\/timestamp>/<timestamp\/>/g' $TEMPDIR/dump.stdout
+    sed -i -e 's/date=".*" name/date="" name/g' $TEMPDIR/dump.stdout
     
     diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"

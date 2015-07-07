@@ -26,8 +26,9 @@
 
 // helper.h
 #include <exception>
-
 #include <string.h>
+
+#include <stdint.h>
 
 #include <vdb/manager.h>
 #include <vdb/schema.h>
@@ -129,7 +130,19 @@ namespace Utils
         return ret;
     }
 
-    void HandleException (); // This function must be called inside catch block only
+    enum ErrorHandlerCode
+    {
+        rcUnknown     = -2,
+        rcErrorStdExc = -1,
+        rcInvalid     = -99
+        // value > 0 means rc_t returned from a VDB-function
+        // zero shall not be returned
+    };
+
+    // This function must be called inside catch block only
+    // if bSilent == true then produce no output, only return ErrorHandlerCode
+    // pErrDesc and sizeErrDesc - the buffer to write error description to (NULL - OK)
+    int64_t HandleException ( bool bSilent, char* pErrDesc, size_t sizeErrDesc );
 }
 
 namespace VDBObjects

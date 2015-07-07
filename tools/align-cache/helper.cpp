@@ -861,8 +861,7 @@ namespace Utils
         return m_szDescr;
     }
 
-
-    void HandleException ()
+    int64_t HandleException ( bool bSilent, char* pErrDesc, size_t sizeErrDesc )
     {
         try
         {
@@ -870,20 +869,62 @@ namespace Utils
         }
         catch (Utils::CErrorMsg const& e)
         {
-            char szBufErr[512] = "";
+            char szBufErr[512];
+            if ( pErrDesc == NULL )
+            {
+                pErrDesc = szBufErr;
+                sizeErrDesc = countof(szBufErr);
+            }
             size_t rc = e.getRC();
-            rc_t res = string_printf(szBufErr, countof(szBufErr), NULL, "ERROR: %s failed with error 0x%08x (%u) [%R]", e.what(), rc, rc, rc);
+            rc_t res;
+            if (rc != 0)
+                res = string_printf(pErrDesc, sizeErrDesc, NULL, "%s failed with code 0x%08x (%u) [%R]", e.what(), rc, rc, rc);
+            else
+                res = string_printf(pErrDesc, sizeErrDesc, NULL, "%s", e.what());
             if (res == rcBuffer || res == rcInsufficient)
-                szBufErr[countof(szBufErr) - 1] = '\0';
-            printf("%s\n", szBufErr);
+                pErrDesc [sizeErrDesc - 1] = '\0';
+
+            if ( ! bSilent )
+                LOGMSG ( klogErr, pErrDesc );
+
+            return rc;
         }
         catch (std::exception const& e)
         {
-            printf("std::exception: %s\n", e.what());
+            char szBufErr[512];
+            if ( pErrDesc == NULL )
+            {
+                pErrDesc = szBufErr;
+                sizeErrDesc = countof(szBufErr);
+            }
+            rc_t res = string_printf(pErrDesc, sizeErrDesc, NULL, "std::exception: %s", e.what());
+            if (res == rcBuffer || res == rcInsufficient)
+                pErrDesc [sizeErrDesc - 1] = '\0';
+
+            if ( ! bSilent )
+                LOGMSG ( klogErr, pErrDesc );
+
+            return Utils::rcErrorStdExc;
         }
         catch (...)
         {
-            printf("Unexpected exception occured\n");
+            char szBufErr[512];
+            if ( pErrDesc == NULL )
+            {
+                pErrDesc = szBufErr;
+                sizeErrDesc = countof(szBufErr);
+            }
+            rc_t res = string_printf(pErrDesc, sizeErrDesc, NULL, "Unexpected exception occured");
+            if (res == rcBuffer || res == rcInsufficient)
+                pErrDesc [sizeErrDesc - 1] = '\0';
+            
+            if ( ! bSilent )
+                LOGMSG ( klogErr, pErrDesc );
+
+            return Utils::rcUnknown;
         }
+
+        assert ( false );
+        return Utils::rcInvalid; // this shall never be reached
     }
 }

@@ -41,13 +41,24 @@ then
     WORKDIR="./temp"
 fi
 
+TOOLS="abi-dump abi-load align-info bam-load blastn_vdb cache-mgr cg-load fastq-dump fastq-load helicos-load illumina-dump \
+illumina-load kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump sff-load sra-kar sra-pileup \
+sra-sort sra-stat srapath srf-load tblastn_vdb test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock \
+vdb-unlock vdb-validate"
+
+# vdb-passwd is obsolete but still in the package
+
+
 case $(uname) in
 Linux)
     #TODO: detect Ubuntu
     OS=centos_linux64
+    TAR=tar
+    TOOLS="$TOOLS pacbio-load remote-fuser"
     ;;
 Darwin)
     OS=mac64
+    TAR=/usr/bin/tar
     ;;
 esac
 
@@ -57,18 +68,11 @@ mkdir -p $WORKDIR
 cd $WORKDIR
 wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/$TARGET.tar.gz || exit 1
 gunzip -f $TARGET.tar.gz || exit 2
-tar tf $TARGET.tar | head -n 1
-PACKAGE=$(tar tf $TARGET.tar | head -n 1)
+PACKAGE=$($TAR tf $TARGET.tar | head -n 1)
 rm -rf $PACKAGE
-tar xf $TARGET.tar || exit 3
+$TAR xvf $TARGET.tar || exit 3
 
-TOOLS="abi-dump abi-load align-info bam-load blastn_vdb cache-mgr cg-load fastq-dump fastq-load helicos-load illumina-dump \
-illumina-load kar kdbmeta latf-load pacbio-load prefetch rcexplain remote-fuser sam-dump sff-dump sff-load sra-kar sra-pileup \
-sra-sort sra-stat srapath srf-load tblastn_vdb test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock \
-vdb-unlock vdb-validate"
-
-# vdb-passwd is obsolete but still in the package
-
+FAILED=""
 for tool in $TOOLS 
 do
     echo $tool
@@ -76,9 +80,15 @@ do
     if [ "$?" != "0" ]
     then
         echo "$(pwd)/$PACKAGE/bin/$tool failed" 
-        exit 4
+        FAILED="$FAILED $tool" 
     fi
 done
+
+if [ "$FAILED" != "" ]
+then
+    echo "The following tools failed: $FAILED"
+    exit 4
+fi
 
 cd -
 rm -rf $WORKDIR

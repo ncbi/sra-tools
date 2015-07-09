@@ -32,7 +32,9 @@ set TOOLS=abi-dump align-info blastn_vdb cache-mgr fastq-dump illumina-dump kar 
 
 :: vdb-passwd is obsolete but still in the package
 
-powershell -Command wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-win64.zip -Outfile sratoolkit.current-win64.zip || exit /b 1
+:: this is done from TeamCity
+:: powershell -Command wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-win64.zip -Outfile sratoolkit.current-win64.zip || exit /b 1
+
 jar xf sratoolkit.current-win64.zip || exit /b 2
 
 cd sratoolkit.2.5.2-win64\bin

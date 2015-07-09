@@ -28,19 +28,23 @@ Setlocal EnableDelayedExpansion
 
 set TOOLS=abi-dump align-info blastn_vdb cache-mgr fastq-dump illumina-dump kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump ^
           sra-kar sra-pileup sra-stat srapath tblastn_vdb test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock ^
-          vdb-unlock vdb-validate  
+          vdb-unlock vdb-validate   
 
 :: vdb-passwd is obsolete but still in the package
 
-powershell -Command wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-win64.zip -Outfile sratoolkit.current-win64.zip
-jar xf sratoolkit.current-win64.zip
+powershell -Command wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-win64.zip -Outfile sratoolkit.current-win64.zip || exit /b 1
+jar xf sratoolkit.current-win64.zip || exit /b 2
 
-cd sratoolkit.2.5.2-win64/bin
+cd sratoolkit.2.5.2-win64\bin
 
 set FAILED=
 
 for %%t in ( %TOOLS% ) do ( echo | set /p=%%t & %%t -h >NUL & ( if errorlevel 1 ( echo | set /p=failed! & set FAILED=!FAILED! %%t ) ) & echo. )
 
-if "%FAILED%" NEQ "" ( echo. & echo FAILED: %FAILED% )
+if "%FAILED%" NEQ "" ( echo. & echo FAILED: %FAILED% & exit /b 3 )
 
-exit /b
+cd ..\..
+rmdir /S /Q sratoolkit.2.5.2-win64
+del /Q sratoolkit.current-win64.zip
+
+exit /b 0

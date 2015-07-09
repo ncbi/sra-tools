@@ -48,17 +48,14 @@ vdb-unlock vdb-validate"
 
 # vdb-passwd is obsolete but still in the package
 
-
 case $(uname) in
 Linux)
     #TODO: detect Ubuntu
     OS=centos_linux64
-    TAR=tar
     TOOLS="$TOOLS pacbio-load remote-fuser"
     ;;
 Darwin)
     OS=mac64
-    TAR=/usr/bin/tar
     ;;
 esac
 
@@ -68,9 +65,9 @@ mkdir -p $WORKDIR
 cd $WORKDIR
 wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/$TARGET.tar.gz || exit 1
 gunzip -f $TARGET.tar.gz || exit 2
-PACKAGE=$($TAR tf $TARGET.tar | head -n 1)
+PACKAGE=$(tar tf $TARGET.tar | head -n 1)
 rm -rf $PACKAGE
-$TAR xvf $TARGET.tar || exit 3
+tar xvf $TARGET.tar || exit 3
 
 FAILED=""
 for tool in $TOOLS 

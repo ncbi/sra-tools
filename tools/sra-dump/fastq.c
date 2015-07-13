@@ -3731,7 +3731,7 @@ rc_t SRADumper_Init( SRADumperFmt* fmt )
             {"I", "readids", NULL, {"Append read id after spot id as 'accession.spot.readid' on defline", NULL}}, /* H_readids = 12 */
             {NULL, "helicos", NULL, {"Helicos style defline", NULL}}, /* H_helicos = 13 */
             {NULL, "defline-seq", "fmt", {"Defline format specification for sequence.", NULL}}, /* H_defline_seq = 14 */
-            {NULL, "defline-qual", "fmt", {"Defline format specification for quailty.", /* H_defline_qual = 15 */
+            {NULL, "defline-qual", "fmt", {"Defline format specification for quality.", /* H_defline_qual = 15 */
                               "<fmt> is a string of characters and/or variables. The variables can be one of:",
                               "$ac - accession, $si - spot id, $sn - spot name, $sg - spot group (barcode),",
                               "$sl - spot length in bases, $ri - read number, $rn - read name, $rl - read length in bases.",

@@ -29,11 +29,16 @@
 #include <klib/rc.h>
 #include <klib/log.h>
 
+#include <kdb/meta.h>
+
 #include <vdb/manager.h>
 #include <vdb/schema.h>
 #include <vdb/database.h>
 #include <vdb/cursor.h>
 #include <vdb/table.h>
+
+#include <kapp/loader-meta.h>
+#include <kapp/main.h>
 
 #include <algorithm>
 
@@ -41,10 +46,15 @@ using namespace std;
 
 ///////////// GeneralLoader::DatabaseLoader
 
-GeneralLoader :: DatabaseLoader :: DatabaseLoader ( const Paths& p_includePaths, const Paths& p_schemas, const std::string& p_dbNameOverride )
+GeneralLoader :: DatabaseLoader :: DatabaseLoader ( const std::string&  p_programName, 
+                                                    const Paths&        p_includePaths, 
+                                                    const Paths&        p_schemas, 
+                                                    const std::string&  p_dbNameOverride )
 :   m_includePaths ( p_includePaths ),
     m_schemas ( p_schemas ),
+    m_programName ( p_programName ),
     m_databaseName ( p_dbNameOverride ), // if specified, overrides the database path coming in from the stream
+    m_softwareVersion ( 0 ),
     m_mgr ( 0 ),
     m_schema ( 0 ),
     m_db ( 0 ),
@@ -211,12 +221,57 @@ GeneralLoader :: DatabaseLoader :: RemotePath ( const string& p_path )
     return 0;
 }
 
+static 
+void 
+check_vers_component ( const char * vers, const char * end, long num, unsigned long max, char term )
+{
+    if ( vers == end )
+        throw "bad version";
+    if ( * end != 0 && * end != term )
+        throw "bad version";
+    if ( num < 0 || (unsigned long)num > max )
+        throw "bad version";
+}
+
+static 
+ver_t 
+string2ver_t ( const char * vers )
+{
+    ver_t ret = 0;
+    char * end;
+    long num = strtol ( vers, & end, 10 );
+    check_vers_component ( vers, end, num, 255, '.' );
+    if ( * end == '.' )
+    {
+        ret = num << 24;
+        vers = end + 1;
+        num = strtol ( vers, & end, 10 );
+        check_vers_component ( vers, end, num, 255, '.' );
+        if ( * end == '.' )
+        {
+            ret |= num << 16;
+            vers = end + 1;
+            num = strtol ( vers, & end, 10 );
+            check_vers_component ( vers, end, num, 0xFFFF, 0 );
+            ret |= num;
+        }
+    }
+    return ret;
+}
+
 rc_t
 GeneralLoader :: DatabaseLoader :: SoftwareName ( const string& p_name, const string& p_version )
 {
-    rc_t rc = 0;
-#pragma message ( "Fill out with call to set metadata or record for later" )
-    return rc;
+    try
+    {   
+        m_softwareVersion = string2ver_t ( p_version.c_str() );
+    }
+    catch (...)
+    {
+        return RC ( rcExe, rcDatabase, rcCreating, rcMessage, rcBadVersion );
+    }
+    m_softwareName = p_name;
+    return 0;
 }
 
 rc_t 
@@ -298,6 +353,14 @@ GeneralLoader :: DatabaseLoader :: NewColumn ( uint32_t p_columnId, uint32_t p_t
     return rc;
 }
 
+rc_t
+GeneralLoader :: DatabaseLoader :: MetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
+{
+    rc_t rc = 0;
+#pragma message (  "Fill out with call to set metadata or record for later" )
+    return rc;
+}
+
 rc_t 
 GeneralLoader :: DatabaseLoader :: CursorWrite ( const struct Column& p_col, const void* p_data, size_t p_size )
 {
@@ -365,17 +428,40 @@ GeneralLoader :: DatabaseLoader :: CellDefault ( uint32_t p_columnId, const void
 rc_t 
 GeneralLoader :: DatabaseLoader :: MakeDatabase()
 {
+    rc_t rc = 0;
     if ( m_db == 0 )
     {
-        return VDBManagerCreateDB ( m_mgr, 
-                                    & m_db, 
-                                    m_schema, 
-                                    m_schemaName . c_str (), 
-                                    kcmInit + kcmMD5, 
-                                    "%s", 
-                                    m_databaseName . c_str () );
+        rc = VDBManagerCreateDB ( m_mgr, 
+                                  & m_db, 
+                                  m_schema, 
+                                  m_schemaName . c_str (), 
+                                  kcmInit + kcmMD5, 
+                                  "%s", 
+                                  m_databaseName . c_str () );
+        if ( rc == 0 )
+        {
+            struct KMetadata* meta;
+            rc = VDatabaseOpenMetadataUpdate ( m_db, &meta );
+            if ( rc == 0 )
+            {
+                KMDataNode *node;
+                rc = KMetadataOpenNodeUpdate ( meta, &node, "/" );
+            
+                if (rc == 0) 
+                {
+                    rc = KLoaderMeta_WriteWithVersion ( node, m_programName.c_str(), __DATE__, KAppVersion(), m_softwareName.c_str(), m_softwareVersion );
+                    KMDataNodeRelease(node);
+                }
+                
+                rc_t rc2 = KMetadataRelease ( meta );
+                if ( rc == 0 )
+                {
+                    rc = rc2;
+                }
+            }
+        }
     }
-    return 0;
+    return rc;
 }
 
 rc_t 

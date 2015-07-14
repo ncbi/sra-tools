@@ -41,13 +41,6 @@ using namespace ncbi::NK;
 
 TEST_SUITE(NgsPileupTestSuite);
 
-#define REQUIRE_THROW(code) \
-    do {   \
-        bool threw = false; \
-        try { code; } catch(...) { threw = true; } \
-        if (!threw) FAIL("expected exception not thrown"); \
-    } while (0)
-
 class NGSPileupFixture
 {
 public:

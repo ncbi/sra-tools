@@ -126,6 +126,28 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             }
             break;
 
+        case evt_metadata_node:
+            {
+                uint32_t objId = ncbi :: id ( evt_header );
+                pLogMsg ( klogInfo, "protocol-parser event: Metadata-Node, id=$(i)", "i=%u", objId );
+                
+                gw_2string_evt_v1 evt;
+                rc = ReadEvent ( p_reader, evt );
+                if ( rc == 0 )
+                {
+                    size_t node_size = ncbi :: size1 ( evt );
+                    size_t value_size = ncbi :: size2 ( evt );
+                    rc = p_reader . Read ( node_size + value_size );
+                    if ( rc == 0 )
+                    {
+                        rc = p_dbLoader . MetadataNode ( objId,
+                                                         string ( ( const char * ) p_reader . GetBuffer (), node_size ), 
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size, value_size ) );
+                    }
+                }
+            }
+            break;
+
         case evt_new_table:
             {
                 uint32_t tableId = ncbi :: id ( evt_header );
@@ -480,6 +502,28 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
                     {
                         rc = p_dbLoader . SoftwareName ( string ( ( const char * ) p_reader . GetBuffer (), name_size ), 
                                                          string ( ( const char * ) p_reader . GetBuffer () + name_size, version_size ) );
+                    }
+                }
+            }
+            break;
+
+        case evt_metadata_node:
+            {
+                uint32_t objId = ncbi :: id ( evt_header );
+                pLogMsg ( klogInfo, "protocol-parser event: Metadata-Node (packed), id=$(i)", "i=%u", objId );
+                
+                gwp_2string_evt_v1 evt;
+                rc = ReadEvent ( p_reader, evt );
+                if ( rc == 0 )
+                {
+                    size_t node_size = ncbi :: size1 ( evt );
+                    size_t value_size = ncbi :: size2 ( evt );
+                    rc = p_reader . Read ( node_size + value_size );
+                    if ( rc == 0 )
+                    {
+                        rc = p_dbLoader . MetadataNode ( objId,
+                                                         string ( ( const char * ) p_reader . GetBuffer (), node_size ), 
+                                                         string ( ( const char * ) p_reader . GetBuffer () + node_size, value_size ) );
                     }
                 }
             }

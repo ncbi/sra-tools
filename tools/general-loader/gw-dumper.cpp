@@ -737,6 +737,95 @@ namespace gw_dump
         whack_2string ( eh, string_buffer );
     }
 
+    /* check_software_name
+     *  non-packed:
+     *    id == 0
+     *  all:
+     *    length ( schema-path ) != 0
+     *    length ( schema-spec ) != 0
+     */
+
+    void check_vers_component ( const char * vers, const char * end, long num, unsigned long max, char term )
+    {
+        if ( vers == end )
+            throw "bad version";
+        if ( * end != 0 && * end != term )
+            throw "bad version";
+        if ( num < 0 || num > max )
+            throw "bad version";
+    }
+
+    void check_vers ( const char * vers )
+    {
+        char * end;
+        long num = strtol ( vers, & end, 10 );
+        check_vers_component ( vers, end, num, 255, '.' );
+        if ( * end == '.' )
+        {
+            vers = end + 1;
+            num = strtol ( vers, & end, 10 );
+            check_vers_component ( vers, end, num, 255, '.' );
+            if ( * end == '.' )
+            {
+                vers = end + 1;
+                num = strtol ( vers, & end, 10 );
+                check_vers_component ( vers, end, num, 0xFFFF, 0 );
+            }
+        }
+    }
+
+    template < class T > static
+    void check_software_name ( const T & eh )
+    {
+        if ( size1 ( eh ) == 0 )
+            throw "empty software name";
+        if ( size2 ( eh ) == 0 )
+            throw "empty version";
+    }
+
+    template < >
+    void check_software_name < gw_2string_evt_v1 > ( const gw_2string_evt_v1 & eh )
+    {
+        if ( id ( eh . dad ) != 0 )
+            throw "non-zero table id";
+        if ( size1 ( eh ) == 0 )
+            throw "empty software name";
+        if ( size2 ( eh ) == 0 )
+            throw "empty version";
+    }
+
+    /* dump_software_name
+     */
+    template < class D, class T > static
+    void dump_software_name ( FILE * in, const D & e )
+    {
+        T eh;
+        init ( eh, e );
+
+        size_t num_read = readFILE ( & eh . sz1, sizeof eh - sizeof ( D ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read software_name event";
+
+        check_software_name ( eh );
+
+        char * string_buffer = read_2string ( eh, in );
+        std :: string software_name ( string_buffer, size1 ( eh ) );
+        std :: string version ( & string_buffer [ size1 ( eh ) ], size2 ( eh ) );
+
+        check_vers ( version . c_str () );
+
+        if ( display )
+        {
+            std :: cout
+                << event_num << ": software-name\n"
+                << "  software_name [ " << size1 ( eh ) << " ] = \"" << software_name << "\"\n"
+                << "  version [ " << size2 ( eh ) << " ] = \"" << version << "\"\n"
+                ;
+        }
+
+        whack_2string ( eh, string_buffer );
+    }
+
     /* check_remote_path
      *  non-packed:
      *    id == 0
@@ -938,6 +1027,11 @@ namespace gw_dump
         case evt_empty_default:
             dump_empty_default < gw_evt_hdr_v1 > ( in, e );
             break;
+
+            // add in new message handlers for version 2
+        case evt_software_name:
+            dump_software_name < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e );
+            break;
         default:
             throw "unrecognized event id";
         }
@@ -1024,6 +1118,11 @@ namespace gw_dump
         case evt_empty_default:
             dump_empty_default < gwp_evt_hdr_v1 > ( in, e );
             break;
+
+            // add in new message handlers for version 2
+        case evt_software_name:
+            dump_software_name < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            break;
         default:
             throw "unrecognized event id";
         }
@@ -1092,6 +1191,7 @@ namespace gw_dump
         switch ( hdr . version )
         {
         case 1:
+        case 2:
             dump_v1_header ( in, hdr, packed );
             break;
         default:
@@ -1112,6 +1212,7 @@ namespace gw_dump
         switch ( version )
         {
         case 1:
+        case 2:
 
             if ( packed )
             {

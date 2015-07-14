@@ -161,6 +161,23 @@ make_5( const string& p_caseId )
     source . SaveBuffer ( filename . c_str ()  );
 }
 
+void
+make_6( const string& p_caseId )
+{   // Software identification string
+    TestSource source;
+    
+    source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
+    source . DatabaseEvent ( string ( "actual/" ) + p_caseId + "/db" );
+    
+    source . SoftwareNameEvent ( string ( "some software" ), string ( "9.8.7654" ) );
+    
+    source . OpenStreamEvent();
+    source . CloseStreamEvent();
+    
+    string filename = string ( "input/" ) + p_caseId + ".gl";
+    source . SaveBuffer ( filename . c_str ()  );
+}
+
 int main()
 {
     make_1( "1", false );
@@ -170,6 +187,7 @@ int main()
     make_3( "3" );
     make_4( "4" );
     make_5( "5" );
+    make_6( "6" );
     
     return 0;
 }

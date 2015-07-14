@@ -80,6 +80,13 @@ namespace ncbi
         // write out open_stream event header
         void open ();
 
+        // add or set metadata on a specific object
+        // where obj_id == 0 => outer database, and
+        // any other positive id means the database, table or column
+        void setMetadataNode ( int obj_id,
+                               const std :: string & node_path,
+                               const std :: string & value );
+
         // generates a chunk of cell data
         // MUST be entire default value in one event
         void columnDefault ( int stream_id, uint32_t elem_bits, const void *data, uint32_t elem_count );

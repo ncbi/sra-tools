@@ -120,6 +120,7 @@ GEN_LOAD_OBJ = \
 
 GEN_LOAD_LIBS = \
 	-sncbi-wvdb-static \
+	-sload \
 	-skapp \
 
 $(BINDIR)/general-loader: $(GEN_LOAD_OBJ)

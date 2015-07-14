@@ -256,7 +256,7 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VCursorPermitPostOpenAdd");
     }
-
+#if MANAGER_WRITABLE != 0
     void CVCursor::InitColumnIndex(char const* const* ColumnNames, uint32_t* pColumnIndex, size_t nCount, bool set_default)
     {
         for (size_t i = 0; i < nCount; ++i)
@@ -284,6 +284,17 @@ namespace VDBObjects
             }
         }
     }
+#else
+    void CVCursor::InitColumnIndex(char const* const* ColumnNames, uint32_t* pColumnIndex, size_t nCount)
+    {
+        for (size_t i = 0; i < nCount; ++i)
+        {
+            rc_t rc = ::VCursorAddColumn(m_pSelf, & pColumnIndex[i], ColumnNames[i] );
+            if (rc)
+                throw Utils::CErrorMsg(rc, "VCursorAddColumn - [%s]", ColumnNames[i]);
+        }
+    }
+#endif
 
     void CVCursor::GetIdRange(int64_t& idFirstRow, uint64_t& nRowCount) const
     {
@@ -316,6 +327,7 @@ namespace VDBObjects
             throw Utils::CErrorMsg(rc, "VCursorOpenRow");
     }
 
+#if MANAGER_WRITABLE != 0
     void CVCursor::CommitRow ()
     {
         rc_t rc = ::VCursorCommitRow ( m_pSelf );
@@ -329,19 +341,18 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VCursorRepeatRow (%lu)", count);
     }
-
-    void CVCursor::CloseRow () const
-    {
-        rc_t rc = ::VCursorCloseRow ( m_pSelf );
-        if (rc)
-            throw Utils::CErrorMsg(rc, "VCursorCloseRow");
-    }
-
     void CVCursor::Commit ()
     {
         rc_t rc = ::VCursorCommit ( m_pSelf );
         if (rc)
             throw Utils::CErrorMsg(rc, "VCursorCommit");
+    }
+#endif
+    void CVCursor::CloseRow () const
+    {
+        rc_t rc = ::VCursorCloseRow ( m_pSelf );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VCursorCloseRow");
     }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -392,6 +403,19 @@ namespace VDBObjects
 #endif
     }
 
+    CVCursor CVTable::CreateCursorRead ( ) const
+    {
+        CVCursor cursor;
+        rc_t rc = ::VTableCreateCursorRead(m_pSelf, const_cast<VCursor const**>(& cursor.m_pSelf));
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VTableCreateCursorRead");
+
+#if DEBUG_PRINT != 0
+        printf("Created cursor (rd) %p\n", cursor.m_pSelf);
+#endif
+        return cursor;
+    }
+
     CVCursor CVTable::CreateCursorRead ( size_t cache_size ) const
     {
         CVCursor cursor;
@@ -400,11 +424,12 @@ namespace VDBObjects
             throw Utils::CErrorMsg(rc, "VTableCreateCachedCursorRead (%zu)", cache_size);
 
 #if DEBUG_PRINT != 0
-        printf("Created cursor (rd) %p\n", cursor.m_pSelf);
+        printf("Created cached cursor (rd) %p\n", cursor.m_pSelf);
 #endif
         return cursor;
     }
 
+#if MANAGER_WRITABLE != 0
     CVCursor CVTable::CreateCursorWrite (::KCreateMode mode)
     {
         CVCursor cursor;
@@ -417,7 +442,7 @@ namespace VDBObjects
 #endif
         return cursor;
     }
-
+#endif
 //////////////////////////////////////////////////////////////////////
 
     CVDatabase::CVDatabase() : m_pSelf(NULL)
@@ -478,6 +503,7 @@ namespace VDBObjects
         return table;
     }
 
+#if MANAGER_WRITABLE != 0
     CVTable CVDatabase::CreateTable ( char const* pszTableName )
     {
         CVTable table;
@@ -498,6 +524,7 @@ namespace VDBObjects
         if (rc)
             throw Utils::CErrorMsg(rc, "VDatabaseColumnCreateParams");
     }
+#endif
 
 //////////////////////////////////////////////////////////////////////
 
@@ -575,7 +602,7 @@ namespace VDBObjects
         }
     }
 
-#if MANAGER_WRITABLE != 0
+#if MANGER_WRITABLE != 0
     void CVDBManager::Make()
     {
         assert(m_pSelf == NULL);
@@ -623,6 +650,20 @@ namespace VDBObjects
 #endif
         return vdb;
     }
+
+    CVTable CVDBManager::OpenTable(char const* pszPath) const
+    {
+        CVTable table;
+        rc_t rc = ::VDBManagerOpenTableRead(m_pSelf, const_cast<VTable const**>(& table.m_pSelf), NULL, pszPath);
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VDBManagerOpenTableRead (%s)", pszPath);
+
+#if DEBUG_PRINT != 0
+        printf("Opened table directly from manager %p (%s)\n", vdb.m_pSelf, pszDBName);
+#endif
+        return table;
+    }
+
 #if MANAGER_WRITABLE != 0
     CVDatabase CVDBManager::CreateDB ( CVSchema const& schema, char const* pszTypeDesc, ::KCreateMode cmode, char const* pszPath )
     {
@@ -634,6 +675,7 @@ namespace VDBObjects
 #if DEBUG_PRINT != 0
         printf("Created database %p (%s)\n", vdb.m_pSelf, pszPath);
 #endif
+
         // set creation mode of objects ( tables, columns, etc. ) to
         // create new or re-initialize existing, plus attach md5 checksums
         // to all files.
@@ -852,6 +894,15 @@ namespace Utils
         va_end(args);
     }
 
+    CErrorMsg::CErrorMsg(char const* fmt_str, ...)
+        : m_rc(0)
+    {
+        va_list args;
+        va_start(args, fmt_str);
+        string_vprintf (m_szDescr, countof(m_szDescr), NULL, fmt_str, args);
+        va_end(args);
+    }
+
     rc_t CErrorMsg::getRC() const
     {
         return m_rc;
@@ -861,7 +912,8 @@ namespace Utils
         return m_szDescr;
     }
 
-    int64_t HandleException ( bool bSilent, char* pErrDesc, size_t sizeErrDesc )
+
+    void HandleException ()
     {
         try
         {
@@ -869,62 +921,24 @@ namespace Utils
         }
         catch (Utils::CErrorMsg const& e)
         {
-            char szBufErr[512];
-            if ( pErrDesc == NULL )
-            {
-                pErrDesc = szBufErr;
-                sizeErrDesc = countof(szBufErr);
-            }
+            char szBufErr[512] = "";
             size_t rc = e.getRC();
             rc_t res;
             if (rc != 0)
-                res = string_printf(pErrDesc, sizeErrDesc, NULL, "%s failed with code 0x%08x (%u) [%R]", e.what(), rc, rc, rc);
+                res = string_printf(szBufErr, countof(szBufErr), NULL, "ERROR: %s failed with error 0x%08x (%u) [%R]", e.what(), rc, rc, rc);
             else
-                res = string_printf(pErrDesc, sizeErrDesc, NULL, "%s", e.what());
+                res = string_printf(szBufErr, countof(szBufErr), NULL, "ERROR: %s", e.what());
             if (res == rcBuffer || res == rcInsufficient)
-                pErrDesc [sizeErrDesc - 1] = '\0';
-
-            if ( ! bSilent )
-                LOGMSG ( klogErr, pErrDesc );
-
-            return rc;
+                szBufErr[countof(szBufErr) - 1] = '\0';
+            printf("%s\n", szBufErr);
         }
         catch (std::exception const& e)
         {
-            char szBufErr[512];
-            if ( pErrDesc == NULL )
-            {
-                pErrDesc = szBufErr;
-                sizeErrDesc = countof(szBufErr);
-            }
-            rc_t res = string_printf(pErrDesc, sizeErrDesc, NULL, "std::exception: %s", e.what());
-            if (res == rcBuffer || res == rcInsufficient)
-                pErrDesc [sizeErrDesc - 1] = '\0';
-
-            if ( ! bSilent )
-                LOGMSG ( klogErr, pErrDesc );
-
-            return Utils::rcErrorStdExc;
+            printf("std::exception: %s\n", e.what());
         }
         catch (...)
         {
-            char szBufErr[512];
-            if ( pErrDesc == NULL )
-            {
-                pErrDesc = szBufErr;
-                sizeErrDesc = countof(szBufErr);
-            }
-            rc_t res = string_printf(pErrDesc, sizeErrDesc, NULL, "Unexpected exception occured");
-            if (res == rcBuffer || res == rcInsufficient)
-                pErrDesc [sizeErrDesc - 1] = '\0';
-            
-            if ( ! bSilent )
-                LOGMSG ( klogErr, pErrDesc );
-
-            return Utils::rcUnknown;
+            printf("Unexpected exception occured\n");
         }
-
-        assert ( false );
-        return Utils::rcInvalid; // this shall never be reached
     }
 }

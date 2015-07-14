@@ -66,6 +66,7 @@ public:
     void SchemaEvent ( const std::string& p_schemaFile, const std::string& p_schemaName );
     void DatabaseEvent ( const std::string& p_databaseName );
     void SoftwareNameEvent ( const std::string& p_softwareName, const std::string& p_version );
+    void MetadataNodeEvent ( const std::string& p_metadataNode, const std::string& p_value );
     void NewTableEvent ( TableId p_id, const std::string& p_table );
     void NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, 
                           const std::string& p_column, uint32_t p_elemBits, bool p_compresssed = false );

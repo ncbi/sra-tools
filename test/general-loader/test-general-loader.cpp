@@ -28,6 +28,11 @@
 * Unit tests for General Loader
 */
 
+#include "../../tools/general-loader/general-loader.cpp"
+#include "../../tools/general-loader/database-loader.cpp"
+#include "../../tools/general-loader/protocol-parser.cpp"
+#include "../../tools/general-loader/utf8-like-int-codec.c"
+
 #include <ktst/unit_test.hpp> 
 
 #include <sysalloc.h>
@@ -48,11 +53,6 @@
 #include <cstdio>
 
 #include "testsource.hpp"
-
-#include "../../tools/general-loader/general-loader.cpp"
-#include "../../tools/general-loader/database-loader.cpp"
-#include "../../tools/general-loader/protocol-parser.cpp"
-#include "../../tools/general-loader/utf8-like-int-codec.c"
 
 using namespace std;
 using namespace ncbi::NK;
@@ -81,6 +81,8 @@ public:
     static const uint32_t Column16Id = 16; 
     static const uint32_t Column32Id = 32; 
     static const uint32_t Column64Id = 64; 
+    
+    static std::string argv0;
 
 public:
     GeneralLoaderFixture()
@@ -88,8 +90,7 @@ public:
         m_cursor ( 0 ),
         m_wd ( 0 )
     {
-        if ( KDirectoryNativeDir ( & m_wd ) != 0 )
-            throw logic_error("GeneralLoaderFixture::ctor KDirectoryNativeDir failed");
+        THROW_ON_RC ( KDirectoryNativeDir ( & m_wd ) );
     }
     ~GeneralLoaderFixture()
     {
@@ -105,15 +106,12 @@ public:
     GeneralLoader* MakeLoader ( const struct KFile * p_input )
     {
         struct KStream * inStream;
-        if ( KStreamFromKFilePair ( & inStream, p_input, 0 ) != 0 )
-            throw logic_error("GeneralLoaderFixture::Run KStreamFromKFilePair failed");
+        THROW_ON_RC ( KStreamFromKFilePair ( & inStream, p_input, 0 ) );
             
-        GeneralLoader* ret = new GeneralLoader ( * inStream );
+        GeneralLoader* ret = new GeneralLoader ( argv0, * inStream );
         
-        if ( KStreamRelease ( inStream)  != 0 )
-            throw logic_error("GeneralLoaderFixture::MakeLoader: KStreamRelease failed");
-        if ( KFileRelease ( p_input)  != 0 )
-            throw logic_error("GeneralLoaderFixture::Run: KFileRelease failed");
+        THROW_ON_RC ( KStreamRelease ( inStream ) );
+        THROW_ON_RC ( KFileRelease ( p_input ) );
             
         return ret;
     }
@@ -133,11 +131,10 @@ public:
     
     bool Run ( const struct KFile * p_input, rc_t p_rc )
     {
-        struct KStream * inStream;
-        if ( KStreamFromKFilePair ( & inStream, p_input, 0 ) != 0 )
-            throw logic_error("GeneralLoaderFixture::Run KStreamFromKFilePair failed");
+        struct KStream* inStream;
+        THROW_ON_RC ( KStreamFromKFilePair ( & inStream, p_input, 0 ) );
             
-        GeneralLoader gl ( * inStream );
+        GeneralLoader gl ( argv0, *inStream );
         rc_t rc = gl.Run();
         bool ret;
         if ( rc == p_rc )
@@ -152,11 +149,8 @@ public:
             ret = false;
         }
         
-        if ( KStreamRelease ( inStream)  != 0 )
-            throw logic_error("GeneralLoaderFixture::Run: KStreamRelease failed");
-            
-        if ( KFileRelease ( p_input)  != 0 )
-            throw logic_error("GeneralLoaderFixture::Run: KFileRelease failed");
+        THROW_ON_RC ( KStreamRelease ( inStream ) );
+        THROW_ON_RC ( KFileRelease ( p_input ) );
             
         return ret;
     }
@@ -175,24 +169,31 @@ public:
         CloseDatabase();
         
         VDBManager * vdb;
-        if ( VDBManagerMakeUpdate ( & vdb, NULL ) != 0 )
-            throw logic_error("GeneralLoaderFixture::OpenDatabase(" + m_source . GetDatabaseName() + "): VDBManagerMakeUpdate failed");
-           
-        if ( VDBManagerOpenDBUpdate ( vdb, &m_db, NULL, p_dbNameOverride != 0 ? p_dbNameOverride : m_source . GetDatabaseName() . c_str() ) != 0 )
-            throw logic_error("GeneralLoaderFixture::OpenDatabase(" + m_source . GetDatabaseName() + "): VDBManagerOpenDBUpdate failed");
+        THROW_ON_RC ( VDBManagerMakeUpdate ( & vdb, NULL ) );
+
+        try 
+        {
+            THROW_ON_RC ( VDBManagerOpenDBUpdate ( vdb, &m_db, NULL, p_dbNameOverride != 0 ? p_dbNameOverride : m_source . GetDatabaseName() . c_str() ) );
+        }
+        catch(...)
+        {
+            VDBManagerRelease ( vdb );
+            throw;
+        }
         
-        if ( VDBManagerRelease ( vdb ) != 0 )
-            throw logic_error("GeneralLoaderFixture::OpenDatabase(" + m_source . GetDatabaseName() + "): VDBManagerRelease failed");
+        THROW_ON_RC ( VDBManagerRelease ( vdb ) );
     }
     void CloseDatabase()
     {
         if ( m_db != 0 )
         {
             VDatabaseRelease ( m_db );
+            m_db = 0;
         }
         if ( m_cursor != 0 )
         {
             VCursorRelease ( m_cursor );
+            m_cursor = 0;
         }
     }
     
@@ -252,82 +253,54 @@ public:
     {
         OpenDatabase();
         const VTable * tbl;
-        if ( VDatabaseOpenTableRead ( m_db, &tbl, p_table ) != 0 )
-            throw logic_error(string ( "GeneralLoaderFixture::OpenCursor(" ) + p_table + "): VDatabaseOpenTableRead failed");
-        if ( VTableCreateCursorRead ( tbl, & m_cursor ) != 0 )
-            throw logic_error(string ( "GeneralLoaderFixture::OpenCursor(" ) + p_table + "): VTableCreateCursorRead failed");
+        THROW_ON_RC ( VDatabaseOpenTableRead ( m_db, &tbl, p_table ) );
+        THROW_ON_RC ( VTableCreateCursorRead ( tbl, & m_cursor ) );
         
         uint32_t idx;
-        if ( VCursorAddColumn ( m_cursor, &idx, p_column ) != 0 ) 
-            throw logic_error(string ( "GeneralLoaderFixture::OpenCursor(" ) + p_column + "): VCursorAddColumn failed");
-        
-        if ( VCursorOpen ( m_cursor ) != 0 )
-            throw logic_error(string ( "GeneralLoaderFixture::OpenCursor(" ) + p_table + "): VCursorOpen failed");
-        
-        if ( VTableRelease ( tbl ) != 0 )
-            throw logic_error(string ( "GeneralLoaderFixture::OpenCursor(" ) + p_table + "): VTableRelease failed");
+        THROW_ON_RC ( VCursorAddColumn ( m_cursor, &idx, p_column ) );
+        THROW_ON_RC ( VCursorOpen ( m_cursor ) );
+        THROW_ON_RC ( VTableRelease ( tbl ) );
     }
     
     template < typename T > T GetValue ( const char* p_table, const char* p_column, uint64_t p_row )
     {
         OpenCursor( p_table, p_column ); 
-        if ( VCursorSetRowId ( m_cursor, p_row ) ) 
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorSetRowId failed");
-        
-        if ( VCursorOpenRow ( m_cursor ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorOpenRow failed");
+        THROW_ON_RC ( VCursorSetRowId ( m_cursor, p_row ) );
+        THROW_ON_RC ( VCursorOpenRow ( m_cursor ) );
             
         T ret;
         uint32_t num_read;
-        if ( VCursorRead ( m_cursor, 1, 8 * sizeof ( T ), &ret, 1, &num_read ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");
-        
-        if ( VCursorCloseRow ( m_cursor ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorCloseRow failed");
-
+        THROW_ON_RC ( VCursorRead ( m_cursor, 1, 8 * sizeof ( T ), &ret, 1, &num_read ) );
+        THROW_ON_RC ( VCursorCloseRow ( m_cursor ) );
         return ret;
     }
     
     template < typename T > bool IsNullValue ( const char* p_table, const char* p_column, uint64_t p_row )
     {
         OpenCursor( p_table, p_column ); 
-        if ( VCursorSetRowId ( m_cursor, p_row ) ) 
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorSetRowId failed");
-        
-        if ( VCursorOpenRow ( m_cursor ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorOpenRow failed");
+        THROW_ON_RC ( VCursorSetRowId ( m_cursor, p_row ) );
+        THROW_ON_RC ( VCursorOpenRow ( m_cursor ) );
             
         T ret;
         uint32_t num_read;
-        if ( VCursorRead ( m_cursor, 1, 8 * sizeof ( T ), &ret, 1, &num_read ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");
-            
-        if ( VCursorCloseRow ( m_cursor ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorCloseRow failed");
-
+        THROW_ON_RC ( VCursorRead ( m_cursor, 1, 8 * sizeof ( T ), &ret, 1, &num_read ) );
+        THROW_ON_RC ( VCursorCloseRow ( m_cursor ) );
         return num_read == 0;
     }
 
     template < typename T > T GetValueWithIndex ( const char* p_table, const char* p_column, uint64_t p_row, uint32_t p_count, size_t p_index )
     {
         OpenCursor( p_table, p_column ); 
-        if ( VCursorSetRowId ( m_cursor, p_row ) ) 
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorSetRowId failed");
-        
-        if ( VCursorOpenRow ( m_cursor ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorOpenRow failed");
+        THROW_ON_RC ( VCursorSetRowId ( m_cursor, p_row ) );
+        THROW_ON_RC ( VCursorOpenRow ( m_cursor ) );
             
         assert(1024 >= p_count);
         T ret [ 1024 ];
 
         uint32_t num_read;
-        if ( VCursorRead ( m_cursor, 1, (uint32_t) ( 8 * sizeof ( T ) ), &ret, p_count, &num_read ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorRead failed");
-        
-        if ( VCursorCloseRow ( m_cursor ) != 0 )
-            throw logic_error("GeneralLoaderFixture::GetValueU32(): VCursorCloseRow failed");
-
-         return ret [  p_index ];
+        THROW_ON_RC ( VCursorRead ( m_cursor, 1, (uint32_t) ( 8 * sizeof ( T ) ), &ret, p_count, &num_read ) );
+        THROW_ON_RC ( VCursorCloseRow ( m_cursor ) );
+        return ret [  p_index ];
     }
     
     void FullLog() 
@@ -340,6 +313,22 @@ public:
         ofstream out( p_name . c_str() );
         out << p_content;
     }
+
+    std::string GetMetadata ( const std::string& p_node, const std::string& p_attr )
+    {
+        const KMetadata *meta;
+        THROW_ON_RC ( VDatabaseOpenMetadataRead ( m_db, &meta ) );
+    
+        const KMDataNode *node;
+        THROW_ON_RC ( KMetadataOpenNodeRead ( meta, &node, p_node.c_str() ) );
+            
+        size_t num_read;
+        char attr [ 256 ];
+        THROW_ON_RC ( KMDataNodeReadAttr ( node, p_attr.c_str(), attr, sizeof attr, & num_read ) );
+        THROW_ON_RC ( KMDataNodeRelease ( node ) );
+        THROW_ON_RC ( KMetadataRelease ( meta ) );
+        return string ( attr, num_read );
+    }
     
     TestSource      m_source;
     VDatabase *     m_db;
@@ -351,26 +340,21 @@ public:
 template<> std::string GeneralLoaderFixture::GetValue ( const char* p_table, const char* p_column, uint64_t p_row )
 {
     OpenCursor( p_table, p_column ); 
-    if ( VCursorSetRowId ( m_cursor, p_row ) ) 
-        throw logic_error("GeneralLoaderFixture::GetValue(): VCursorSetRowId failed");
-    
-    if ( VCursorOpenRow ( m_cursor ) != 0 )
-        throw logic_error("GeneralLoaderFixture::GetValue(): VCursorOpenRow failed");
+    THROW_ON_RC ( VCursorSetRowId ( m_cursor, p_row ) );
+    THROW_ON_RC ( VCursorOpenRow ( m_cursor ) );
         
     char buf[1024];
     uint32_t num_read;
-    if ( VCursorRead ( m_cursor, 1, 8, &buf, sizeof buf, &num_read ) != 0 )
-        throw logic_error("GeneralLoaderFixture::GetValue(): VCursorRead failed");
-    
-    if ( VCursorCloseRow ( m_cursor ) != 0 )
-        throw logic_error("GeneralLoaderFixture::GetValue(): VCursorCloseRow failed");
-
-     return string ( buf, num_read );
+    THROW_ON_RC ( VCursorRead ( m_cursor, 1, 8, &buf, sizeof buf, &num_read ) );
+    THROW_ON_RC ( VCursorCloseRow ( m_cursor ) );
+    return string ( buf, num_read );
 }
 
+std::string GeneralLoaderFixture :: argv0;
+  
 const char* tableName = "REFERENCE";
 const char* columnName = "SPOT_GROUP";
-  
+
 FIXTURE_TEST_CASE ( EmptyInput, GeneralLoaderFixture )
 {
     const struct KFile * input;
@@ -525,17 +509,63 @@ FIXTURE_TEST_CASE ( NoColumns, GeneralLoaderFixture )
     OpenDatabase (); // did not throw => opened successfully
 }
 
-//Not likely the best place to put this test 
 //Testing integration of software name and version input
 FIXTURE_TEST_CASE ( SoftwareName, GeneralLoaderFixture )
 {   
     SetUpStream ( GetName() );
-    m_source . SoftwareNameEvent ( "softwarename", "2" );
+    const string SoftwareName = "softwarename";
+    const string Version = "2.1.1";
+    m_source . SoftwareNameEvent ( SoftwareName, Version );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    // validate metadata
+    OpenDatabase (); 
+    REQUIRE_EQ ( SoftwareName,  GetMetadata ( "SOFTWARE/formatter", "name" ) );
+    REQUIRE_EQ ( Version,       GetMetadata ( "SOFTWARE/formatter", "vers" ) );
+
+    // extract the program name from path the same way it's done in ncbi-vdb/libs/kapp/loader-meta.c:KLoaderMeta_Write
+    {
+        const char* tool_name = strrchr(argv0.c_str(), '/');
+        const char* r = strrchr(argv0.c_str(), '\\');
+        if( tool_name != NULL && r != NULL && tool_name < r ) {
+            tool_name = r;
+        }
+        if( tool_name++ == NULL) {
+            tool_name = argv0.c_str();
+        }
+    
+        REQUIRE_EQ ( string ( tool_name ), GetMetadata ( "SOFTWARE/loader", "name" ) );
+    }
+    
+    REQUIRE_EQ ( string ( __DATE__), GetMetadata ( "SOFTWARE/loader", "date" ) );
+    {
+        char buf[265];
+        string_printf ( buf, sizeof buf, NULL, "%V", KAppVersion() ); // same format as in ncbi-vdb/libs/kapp/loader-meta.c:MakeVersion()
+        REQUIRE_EQ ( string ( buf ), GetMetadata ( "SOFTWARE/loader", "vers" ) );
+    }
+}
+
+FIXTURE_TEST_CASE ( SoftwareName_BadVersion, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    const string SoftwareName = "softwarename";
+    const string Version = "2.1..1"; // improperly formatted
+    m_source . SoftwareNameEvent ( SoftwareName, Version );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcDatabase, rcCreating, rcMessage, rcBadVersion ) ) );
+}    
+
+FIXTURE_TEST_CASE ( MetadataNode, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . MetadataNodeEvent ( "metadatanode", "1a2b3c4d" );
     m_source . OpenStreamEvent();
     m_source . CloseStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
 }
-
 
 FIXTURE_TEST_CASE ( NoData, GeneralLoaderFixture )
 {   
@@ -1304,18 +1334,12 @@ const char UsageDefaultName[] = "test-general-loader";
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
-cout<<"cout 0"<<endl;
-cerr<<"cerr 0"<<endl;
-    TestEnv::verbosity = LogLevel::e_all;
-cout<<"cout 1"<<endl;
-cerr<<"cerr 1"<<endl;
+//    TestEnv::verbosity = LogLevel::e_all;
     KConfigDisableUserSettings();
-cout<<"cout 2"<<endl;
-cerr<<"cerr 2"<<endl;
-
+    
     ClearScratchDir();
-cout<<"cout 3"<<endl;
-cerr<<"cerr 3"<<endl;
+    
+    GeneralLoaderFixture :: argv0 = argv[0];
 
     TestSource::packed = false;
     cerr << "Unpacked protocol: ";

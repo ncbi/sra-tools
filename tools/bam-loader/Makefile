@@ -31,8 +31,7 @@ MODULE = tools/bam-loader
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	bam-load \
-	bam-load.3
+	bam-load 
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -79,7 +78,7 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# bam-load.2.*
+# bam-load
 #
 BAMLOAD_SRC = \
 	bam-loader \
@@ -101,25 +100,4 @@ BAMLOAD_LIB = \
 
 $(BINDIR)/bam-load: $(BAMLOAD_OBJ)
 	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(BAMLOAD_LIB)
-
-#-------------------------------------------------------------------------------
-# bam-load.3
-#
-BAMLOAD3_SRC = \
-	bam-loader3 \
-	bam-reader \
-	loader-imp3
-
-BAMLOAD3_OBJ = \
-	$(addsuffix .$(OBJX),$(BAMLOAD3_SRC))
-
-BAMLOAD3_LIB = \
-	-lkapp \
-	-lloader \
-	-lload \
-	-sncbi-wvdb \
-	-lm
-
-$(BINDIR)/bam-load.3: $(BAMLOAD3_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/bam-load.3.vers -o $@ $^ $(BAMLOAD3_LIB)
 

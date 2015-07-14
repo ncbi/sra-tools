@@ -26,11 +26,10 @@ echo on
 Setlocal
 Setlocal EnableDelayedExpansion
 
-set TOOLS=abi-dump blastn_vdb cache-mgr fastq-dump illumina-dump kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump ^
+set TOOLS=abi-dump align-info blastn_vdb cache-mgr fastq-dump illumina-dump kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump ^
           sra-kar sra-pileup sra-stat srapath tblastn_vdb test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock ^
           vdb-unlock vdb-validate   
 
-:: align-info throws a crash dialog, disable for now
 :: vdb-passwd is obsolete but still in the package
 
 set FAILED=

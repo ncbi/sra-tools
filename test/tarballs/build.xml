@@ -5,6 +5,7 @@
     <property name="targetname" value="current-win64" />
     
     <target name="tarballs">
+        <delete dir="${workdir}"/>
         <mkdir dir="${workdir}"/>
         <get src="${url}/${sourcename}" dest="${workdir}/${sourcename}" />
         <unzip src="${workdir}/${sourcename}" dest="${workdir}" />
@@ -15,7 +16,7 @@
         
         <echo message="Target directory is ${workdir}/${targetname}"/>
         
-        <exec executable="cmd">
+        <exec executable="cmd" failonerror="true" >
             <arg value="/c"/>
             <arg value="test-tarballs.bat"/>
             <arg value="${workdir}\${targetname}\bin"/>

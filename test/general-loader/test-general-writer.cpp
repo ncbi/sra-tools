@@ -71,6 +71,15 @@ namespace ncbi
         }
     }
 
+    void testDBAddDatabase ( GeneralWriter *gw, const char *mbr_name, const char *db_name, uint8_t create_mode )
+    {
+        gw -> dbAddDatabase ( 0, mbr_name, db_name, create_mode );
+    }
+
+    void testDBAddTable ( GeneralWriter *gw, const char *mbr_name, const char *table_name, uint8_t create_mode )
+    {
+        gw -> dbAddDatabase ( 0, mbr_name, table_name, create_mode );
+    }
 
     void testOpen ( GeneralWriter *gw )
     {
@@ -164,9 +173,19 @@ namespace ncbi
         free ( columns );
     }
 
-    void testAddMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
+    void testAddDBMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
     {
-        gw -> setMetadataNode ( 0, node, value );
+        gw -> setDBMetadataNode ( 0, node, value );
+    }
+
+    void testAddTblMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
+    {
+        gw -> setTblMetadataNode ( 0, node, value );
+    }
+
+    void testAddColMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
+    {
+        gw -> setColMetadataNode ( 0, node, value );
     }
 
     void testEndStream ( GeneralWriter *gw )
@@ -208,12 +227,26 @@ namespace ncbi
             std :: cerr << "addColumn Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
 
+            testDBAddDatabase ( gw, "member_name", "db_name", 1 );
+            std :: cerr << "dbAddDatabase Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+
+            testDBAddTable ( gw, "member_name", "table_name", 1 );
+            std :: cerr << "dbAddTable Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+
             testWrite ( gw, table_id, stream_ids, column_count, column_names );
             std :: cerr << "write Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
 
-            testAddMetadataNode ( gw, "metadata_node", "01a2b3c4d" );
-            std :: cerr << "setMetadataNode Success" << std :: endl;
+            testAddDBMetadataNode ( gw, "db_metadata_node", "01a2b3c4d" );
+            std :: cerr << "setDBMetadataNode Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+            testAddTblMetadataNode ( gw, "tbl_metadata_node", "01a2b3c4d" );
+            std :: cerr << "setTblMetadataNode Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+            testAddColMetadataNode ( gw, "col_metadata_node", "01a2b3c4d" );
+            std :: cerr << "setColMetadataNode Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
 
             testEndStream ( gw );

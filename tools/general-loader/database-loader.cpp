@@ -354,7 +354,39 @@ GeneralLoader :: DatabaseLoader :: NewColumn ( uint32_t p_columnId, uint32_t p_t
 }
 
 rc_t
-GeneralLoader :: DatabaseLoader :: MetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
+GeneralLoader :: DatabaseLoader :: AddMbrDB ( uint32_t p_objId, uint32_t p_mbr_sz, uint32_t p_name_sz, uint8_t p_create_mode )
+{
+    rc_t rc = 0;
+#pragma message (  "Fill out with call to set AddMbrDb" )
+    return rc;
+}
+
+rc_t
+GeneralLoader :: DatabaseLoader :: AddMbrTbl ( uint32_t p_objId, uint32_t p_mbr_sz, uint32_t p_name_sz, uint8_t p_create_mode )
+{
+    rc_t rc = 0;
+#pragma message (  "Fill out with call to set AddMbrTbl" )
+    return rc;
+}
+
+rc_t
+GeneralLoader :: DatabaseLoader :: DBMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
+{
+    rc_t rc = 0;
+#pragma message (  "Fill out with call to set metadata or record for later" )
+    return rc;
+}
+
+rc_t
+GeneralLoader :: DatabaseLoader :: TblMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
+{
+    rc_t rc = 0;
+#pragma message (  "Fill out with call to set metadata or record for later" )
+    return rc;
+}
+
+rc_t
+GeneralLoader :: DatabaseLoader :: ColMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
     rc_t rc = 0;
 #pragma message (  "Fill out with call to set metadata or record for later" )

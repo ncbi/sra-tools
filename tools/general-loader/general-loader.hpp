@@ -113,7 +113,11 @@ private:
                          uint32_t p_elemBits, 
                          uint8_t p_flags, 
                          const std :: string& p_columnName );
-        rc_t MetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
+        rc_t DBMetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
+        rc_t TblMetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
+        rc_t ColMetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
+        rc_t AddMbrDB ( uint32_t p_objId, uint32_t p_mbr_sz, uint32_t p_name_sz, uint8_t p_create_mode );
+        rc_t AddMbrTbl ( uint32_t p_objId, uint32_t p_mbr_sz, uint32_t p_name_sz, uint8_t p_create_mode );
         rc_t CellData    ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
         rc_t CellDefault ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
         rc_t NextRow ( uint32_t p_tableId );

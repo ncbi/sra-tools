@@ -34,6 +34,7 @@
 
 #include <vdb/vdb-priv.h>
 #include <klib/rc.h>
+#include <search/grep.h>
 
 #ifdef _WIN32
 #pragma warning (disable:4503)
@@ -940,5 +941,31 @@ namespace Utils
         {
             printf("Unexpected exception occured\n");
         }
+    }
+}
+
+namespace KSearch
+{
+    void FindRefVariationBounds (
+            char const* ref_slice, size_t ref_slice_size,
+            char const* query, size_t query_size,
+            size_t* ref_start, size_t* ref_len,
+            size_t* query_start, size_t* query_len
+        )
+    {
+        rc_t rc = ::FindRefVariationBounds ( ref_slice, ref_slice_size,
+            query, query_size, ref_start, ref_len, query_start, query_len );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "FindRefVariationBounds");
+    }
+    void FindRefVariationBounds (
+            std::string const& ref_slice,
+            std::string const& query,
+            size_t& ref_start, size_t& ref_len,
+            size_t& query_start, size_t& query_len
+        )
+    {
+        FindRefVariationBounds ( ref_slice.c_str(), ref_slice.size(),
+            query.c_str(), query.size(), &ref_start, &ref_len, &query_start, &query_len );
     }
 }

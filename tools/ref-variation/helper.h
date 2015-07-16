@@ -27,6 +27,7 @@
 // helper.h
 #include <exception>
 
+#include <string>
 #include <string.h>
 
 #include <vdb/manager.h>
@@ -406,4 +407,20 @@ namespace KApp
 
         KLoadProgressbar const* m_pSelf;
     };
+}
+
+namespace KSearch
+{
+    void FindRefVariationBounds (
+            char const* ref_slice, size_t ref_slice_size,
+            char const* query, size_t query_size,
+            size_t* ref_start, size_t* ref_len,
+            size_t* query_start, size_t* query_len
+        );
+    void FindRefVariationBounds (
+            std::string const& ref_slice,
+            std::string const& query,
+            size_t& ref_start, size_t& ref_len,
+            size_t& query_start, size_t& query_len
+        );
 }

@@ -67,8 +67,15 @@ enum gw_evt_id
 
     /* BEGIN VERSION 2 MESSAGES */
     evt_software_name,                    /* sets software name          */
-    evt_metadata_node,                    /* uses gw(p)_2string_evt_v1   */
-    evt_metadata_node2,                   /* uses gwp_2string_evt_U16    */
+    evt_db_metadata_node,                    /* uses gw(p)_2string_evt_v1   */
+    evt_tbl_metadata_node,
+    evt_col_metadata_node,
+    evt_db_metadata_node2,                   /* uses gwp_2string_evt_U16    */
+    evt_tbl_metadata_node2,
+    evt_col_metadata_node2,
+
+    evt_add_mbr_db,
+    evt_add_mbr_tbl,
 
     evt_max_id                            /* must be last                */
 };
@@ -263,6 +270,14 @@ struct gw_move_ahead_evt_v1
     uint32_t nrows [ 2 ]; /* the number of rows to move ahead                 */
 };
 
+struct gw_add_mbr_evt_v1
+{
+    gw_evt_hdr_v1 dad;
+    uint32_t db_id;
+    uint32_t mbr_sz;
+    uint32_t name_sz;
+    uint8_t create_mode;
+};
 
 /*----------------------------------------------------------------------
  * packed events
@@ -396,6 +411,14 @@ struct gwp_data_evt_U16_v1
  /* uint8_t data [ sz+1 ]; * event data.                                      */
 };
 
+struct gwp_add_mbr_evt_v1
+{
+    gwp_evt_hdr_v1 dad;
+    uint8_t db_id;
+    uint8_t mbr_sz;
+    uint8_t name_sz;
+    uint8_t create_mode;
+};
 
 #ifdef __cplusplus
 /*======================================================================
@@ -573,6 +596,53 @@ namespace ncbi
     {
         memcpy ( & self . nrows, & nrows, sizeof self . nrows );
     }
+
+    // gw_add_mbr_evt
+    inline void init ( :: gw_add_mbr_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . db_id = hdr . mbr_sz = hdr . name_sz = hdr . create_mode = 0;
+    }
+
+    inline void init ( :: gw_add_mbr_evt_v1 & hdr, const :: gw_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . db_id = hdr . mbr_sz = hdr . name_sz = hdr . create_mode = 0;
+    }
+
+    inline uint32_t db_id ( const gw_add_mbr_evt_v1 & self )
+    { return self . db_id; }
+
+    inline void set_db_id ( :: gw_add_mbr_evt_v1 & self, uint8_t db_id )
+    {
+        assert ( db_id >= 0 );
+        self . db_id = db_id;
+    }
+
+    inline size_t size1 ( const gw_add_mbr_evt_v1 & self )
+    { return self . mbr_sz; }
+
+    inline size_t size2 ( const gw_add_mbr_evt_v1 & self )
+    { return self . name_sz; }
+
+    inline void set_size1 ( :: gw_add_mbr_evt_v1 & self, size_t bytes )
+    {
+        set_string_size ( self . mbr_sz, bytes );
+    }
+
+    inline void set_size2 ( :: gw_add_mbr_evt_v1 & self, size_t bytes )
+    {
+        set_string_size ( self . name_sz, bytes );
+    }
+
+    inline uint8_t create_mode ( const gw_add_mbr_evt_v1 & self )
+    { return self . create_mode; }
+
+    inline void set_create_mode ( :: gw_add_mbr_evt_v1 & self, uint8_t mode )
+    {
+        self . create_mode = mode;
+    }
+
 
     ////////// packed events //////////
 
@@ -810,6 +880,54 @@ namespace ncbi
 
     inline void set_size ( :: gwp_data_evt_U16_v1 & self, size_t bytes )
     { set_string_size ( self . sz, bytes ); }
+
+
+    // gwp_add_mbr_evt
+    inline void init ( :: gwp_add_mbr_evt_v1 & hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . db_id = hdr . mbr_sz = hdr . name_sz = hdr . create_mode = 0;
+    }
+
+    inline void init ( :: gwp_add_mbr_evt_v1 & hdr, const :: gwp_evt_hdr_v1 & dad )
+    {
+        hdr . dad = dad;
+        hdr . db_id = hdr . mbr_sz = hdr . name_sz = hdr . create_mode = 0;
+    }
+
+    inline uint8_t db_id ( const gwp_add_mbr_evt_v1 & self )
+    { return self . db_id; }
+
+
+    inline void set_db_id ( :: gwp_add_mbr_evt_v1 & self, uint8_t db_id )
+    {
+        assert ( db_id >= 0 );
+        self . db_id = db_id;
+    }
+
+    inline size_t size1 ( const gwp_add_mbr_evt_v1 & self )
+    { return ( size_t ) self . mbr_sz + 1; }
+
+    inline size_t size2 ( const gwp_add_mbr_evt_v1 & self )
+    { return ( size_t ) self . name_sz + 1; }
+
+    inline void set_size1 ( :: gwp_add_mbr_evt_v1 & self, size_t bytes )
+    {
+        set_string_size ( self . mbr_sz, bytes );
+    }
+
+    inline void set_size2 ( :: gwp_add_mbr_evt_v1 & self, size_t bytes )
+    {
+        set_string_size ( self . name_sz, bytes );
+    }
+
+    inline uint8_t create_mode ( const gwp_add_mbr_evt_v1 & self )
+    { return self . create_mode; }
+
+    inline void set_create_mode ( :: gwp_add_mbr_evt_v1 & self, uint8_t mode )
+    {
+        self . create_mode = mode;
+    }
 
 }
 #endif

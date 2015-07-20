@@ -50,8 +50,7 @@ vdb-unlock vdb-validate"
 
 case $(uname) in
 Linux)
-    #TODO: detect Ubuntu
-    OS=centos_linux64
+    python -mplatform | grep Ubuntu && OS=ubuntu64 || OS=centos_linux64
     TOOLS="$TOOLS pacbio-load remote-fuser"
     ;;
 Darwin)

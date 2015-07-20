@@ -22,7 +22,7 @@
 ::
 :: ===========================================================================
 
-echo off
+echo on
 Setlocal
 Setlocal EnableDelayedExpansion
 
@@ -32,21 +32,9 @@ set TOOLS=abi-dump align-info blastn_vdb cache-mgr fastq-dump illumina-dump kar 
 
 :: vdb-passwd is obsolete but still in the package
 
-:: this is done from TeamCity
-:: powershell -Command wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-win64.zip -Outfile sratoolkit.current-win64.zip || exit /b 1
-
-jar xf sratoolkit.current-win64.zip || exit /b 2
-
-cd sratoolkit.2.5.2-win64\bin
-
 set FAILED=
 
-for %%t in ( %TOOLS% ) do ( echo | set /p=%%t & %%t -h >NUL & ( if errorlevel 1 ( echo | set /p=failed! & set FAILED=!FAILED! %%t ) ) & echo. )
+for %%t in ( %TOOLS% ) do ( echo | set /p=%%t & %1\%%t -h >NUL & ( if errorlevel 1 ( echo | set /p=failed! & set FAILED=!FAILED! %%t ) ) & echo. )
 
-if "%FAILED%" NEQ "" ( echo. & echo FAILED: %FAILED% & exit /b 3 )
+if "%FAILED%" NEQ "" ( echo. & echo FAILED: %FAILED% & exit /b 1 )
 
-cd ..\..
-rmdir /S /Q sratoolkit.2.5.2-win64
-del /Q sratoolkit.current-win64.zip
-
-exit /b 0

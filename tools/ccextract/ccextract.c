@@ -111,13 +111,15 @@ static
 const char * first_usage[] = 
 {
     "The path to a archive file ",
+    NULL
 };
 
 static
 const char * second_usage[] = 
 {
     "A file by path or ID to extract",
-    "If none are given all files are extracted"
+    "If none are given all files are extracted",
+    NULL
 };
 
 rc_t CC Usage (const Args * args)

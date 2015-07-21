@@ -558,10 +558,46 @@ FIXTURE_TEST_CASE ( SoftwareName_BadVersion, GeneralLoaderFixture )
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcExe, rcDatabase, rcCreating, rcMessage, rcBadVersion ) ) );
 }    
 
-FIXTURE_TEST_CASE ( MetadataNode, GeneralLoaderFixture )
+FIXTURE_TEST_CASE ( DBAddDatabase, GeneralLoaderFixture )
 {   
     SetUpStream ( GetName() );
-    m_source . MetadataNodeEvent ( "metadatanode", "1a2b3c4d" );
+    m_source . DBAddDatabaseEvent ( 0, "mbrname", "dbname", 1 );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
+
+FIXTURE_TEST_CASE ( DBAddTable, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . DBAddTableEvent ( 0, "mbrname", "tblname", 1 );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
+
+FIXTURE_TEST_CASE ( DBMetadataNode, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . DBMetadataNodeEvent ( "dbmetadatanode", "1a2b3c4d" );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
+
+FIXTURE_TEST_CASE ( TblMetadataNode, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . TblMetadataNodeEvent ( "tblmetadatanode", "1a2b3c4d" );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
+
+FIXTURE_TEST_CASE ( ColMetadataNode, GeneralLoaderFixture )
+{   
+    SetUpStream ( GetName() );
+    m_source . ColMetadataNodeEvent ( "colmetadatanode", "1a2b3c4d" );
     m_source . OpenStreamEvent();
     m_source . CloseStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );

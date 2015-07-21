@@ -112,7 +112,7 @@ rc_t CC UsageSummary (const char * progname) {
         "\n", progname);
  }
 
-static const char* param_usage[] = { "Path to the database" };
+static const char* param_usage[] = { "Path to the database", NULL };
 
 rc_t CC Usage(const Args* args) { 
     rc_t rc = 0 ;

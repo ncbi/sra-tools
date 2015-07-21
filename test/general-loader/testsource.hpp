@@ -66,10 +66,16 @@ public:
     void SchemaEvent ( const std::string& p_schemaFile, const std::string& p_schemaName );
     void DatabaseEvent ( const std::string& p_databaseName );
     void SoftwareNameEvent ( const std::string& p_softwareName, const std::string& p_version );
-    void MetadataNodeEvent ( const std::string& p_metadataNode, const std::string& p_value );
+    void DBMetadataNodeEvent ( const std::string& p_metadataNode, const std::string& p_value );
+    void TblMetadataNodeEvent ( const std::string& p_metadataNode, const std::string& p_value );
+    void ColMetadataNodeEvent ( const std::string& p_metadataNode, const std::string& p_value );
     void NewTableEvent ( TableId p_id, const std::string& p_table );
     void NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, 
                           const std::string& p_column, uint32_t p_elemBits, bool p_compresssed = false );
+    void DBAddDatabaseEvent ( int p_db_id, const std :: string &p_mbr_name, 
+                              const std :: string &p_db_name, uint8_t p_create_mode );
+    void DBAddTableEvent ( int p_db_id, const std :: string &p_mbr_name, 
+                           const std :: string &p_table_name, uint8_t p_create_mode );
     void OpenStreamEvent ();
     void CloseStreamEvent ();
     void NextRowEvent ( TableId p_id );
@@ -104,6 +110,7 @@ private:
         Event ( gw_evt_id p_event, const std::string& p_str1 );
         Event ( gw_evt_id p_event, const std::string& p_str1, const std::string& p_str2 );
         Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_elem_count, uint32_t p_val_bytes, const void* p_val );
+        Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1, const std::string& p_str2, uint8_t p_uint8 );
         
         ~Event();
         

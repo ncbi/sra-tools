@@ -1482,30 +1482,30 @@ rc_t copycat_add_crc (const  copycat_pb * ppb)
                 orc = KFileRelease (pb.df);
                 if (orc)
                 {
-                    LOGERR (klogErr, orc, "Error closing out crc calculator");
-                    /* an error her implies an error in the copy so report it */
+                    LOGERR (klogErr, orc, "Failed to close out crc calculator");
+                    /* an error here implies an error in the copy so report it */
                     rc = orc;
                 }
             }
             /* if there were no errors, read the CRC from formatter.
                this must be done AFTER releasing the CRC file,
                or nothing will ever get written */
-            if ( orc == 0 )
+            if ( rc == 0 )
             {
                 bool bin;
                 orc = KCRC32SumFmtFind ( fmt, ppb->name, &pb.node->crc32, &bin );
                 if (orc)
                     PLOGERR (klogWarn,
                              (klogWarn, orc,
-                              "Error in obtaining the CRC for '$(path)'",
+                              "Failed to obtain the CRC for '$(path)'",
                               "path=%s", pb.name));
-                /* an error her isn't an error in copy */
+                /* an error here isn't an error in copy */
             }
         }
         /* dump the formatter, but not fnull */
         orc = KCRC32SumFmtRelease ( fmt );
         if (orc)
-            LOGERR (klogWarn, orc, "Error closing off CRC storage");
+            LOGERR (klogWarn, orc, "Failed to close off CRC storage");
         /* this error we do not need to track */
         if (rc == 0)
             rc = orc;

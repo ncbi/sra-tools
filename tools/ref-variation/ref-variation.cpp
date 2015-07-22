@@ -81,11 +81,17 @@ namespace RefVariation
 
     void print_indel (char const* name, char const* text, size_t text_size, size_t indel_start, size_t indel_len)
     {
-        printf ( "%s: %.*s[%.*s]%.*s\n",
+        int prefix_count = indel_start < 5 ? indel_start : 5;
+        int suffix_count = (text_size - (indel_start + indel_len)) < 5 ?
+                (text_size - (indel_start + indel_len)) : 5;
+
+        printf ( "%s: %s%.*s[%.*s]%.*s%s\n",
                     name,
-                    (int)indel_start, text,
+                    indel_start < 5 ? "" : "...",
+                    prefix_count, text + indel_start - prefix_count, //(int)indel_start, text,
                     (int)indel_len, text + indel_start,
-                    (int)(text_size - (indel_start + indel_len)), text + indel_start + indel_len
+                    suffix_count, text + indel_start + indel_len, //(int)(text_size - (indel_start + indel_len)), text + indel_start + indel_len
+                    (text_size - (indel_start + indel_len)) > 5 ? "..." : ""
                );
     }
 
@@ -107,7 +113,7 @@ namespace RefVariation
     };
     uint32_t g_ColumnIndex [ countof (g_ColumnNames) ];
 
-
+#if 0
     std::string get_ref_slice_int (
                             VDBObjects::CVCursor const& cursor,
                             int64_t ref_start,
@@ -199,8 +205,16 @@ namespace RefVariation
 
         return ret;
     }
+#endif
+    std::string get_ref_chunk ( int64_t ref_row_id, VDBObjects::CVCursor const& cursor )
+    {
+        char const* pREAD;
+        uint32_t count =  cursor.CellDataDirect ( ref_row_id, g_ColumnIndex[idx_READ], & pREAD );
+        return std::string ( pREAD, count );
+    }
 
-    std::string find_variation_region_impl ()
+
+    void find_variation_region_impl ()
     {
         VDBObjects::CVDBManager mgr;
         mgr.Make();
@@ -211,6 +225,88 @@ namespace RefVariation
         cursor.InitColumnIndex (g_ColumnNames, g_ColumnIndex, countof(g_ColumnNames));
         cursor.Open();
 
+        int64_t id_first = 0;
+        uint64_t row_count = 0;
+
+        cursor.GetIdRange (id_first, row_count);
+
+        uint32_t max_seq_len;
+        uint64_t total_seq_len;
+        cursor.ReadItems ( id_first, g_ColumnIndex[idx_MAX_SEQ_LEN], & max_seq_len, 1 );
+        cursor.ReadItems ( id_first, g_ColumnIndex[idx_TOTAL_SEQ_LEN], & total_seq_len, 1 );
+
+        if ( (uint64_t) g_Params.ref_pos_var > total_seq_len )
+        {
+            throw Utils::CErrorMsg ("reference position (%ld) is greater than total sequence length (%ud)",
+                                    g_Params.ref_pos_var, total_seq_len);
+        }
+
+        int64_t var_len = strlen (g_Params.query);
+
+        std::string ref;
+        ref.reserve( max_seq_len + 1);
+        int64_t id = g_Params.ref_pos_var / max_seq_len + id_first;
+        size_t ref_pos_adj = g_Params.ref_pos_var % max_seq_len;
+
+        int64_t id_start = id, id_end = id;
+
+        ref = get_ref_chunk ( id, cursor );
+        size_t ref_start, ref_len;
+        while ( true )
+        {
+            KSearch::FindRefVariationRegionAscii ( ref, ref_pos_adj,
+                        g_Params.query, var_len, ref_start, ref_len );
+
+            std::cout
+                << "id_start=" << id_start
+                << ", id_end=" << id_end
+                << ", ref_pos_adj=" << ref_pos_adj
+                << std::endl;
+            std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
+            print_indel ( "reference", ref.c_str(), ref.size(), ref_start, ref_len );
+
+            bool cont = false;
+            if ( ref_start == 0 && id > id_first )
+            {
+                --id_start;
+                ref_pos_adj += max_seq_len;
+
+                char const* pREAD;
+                uint32_t count_read =  cursor.CellDataDirect ( id_start, g_ColumnIndex[idx_READ], & pREAD );
+                ref.insert( 0, pREAD, count_read );
+                //ref.insert( 0, get_ref_chunk ( id_start, cursor ).c_str() );
+
+                cont = true;
+                std::cout
+                    << "extending to the left, id_start == " << id_start
+                    << "; adjusting ref_pos to " << ref_pos_adj << std::endl;
+
+            }
+            if ( ref_start + ref_len == ref.size() && id_end < id_first + (int64_t)row_count - 1 )
+            {
+                ++id_end;
+
+                char const* pREAD;
+                uint32_t count_read =  cursor.CellDataDirect ( id_end, g_ColumnIndex[idx_READ], & pREAD );
+                ref.append ( pREAD, count_read );
+//                ref.append ( get_ref_chunk ( id_end, cursor ) );
+
+                cont = true;
+                std::cout
+                    << "extending to the right, id_end == " << id_end << std::endl;
+
+            }
+            if ( !cont )
+                break;
+        }
+
+        // adjust ref_start to absolute zero-based value
+        if ( id_start > id_first )
+            ref_start += max_seq_len * ( id_start - id_first );
+        
+
+#if 0
+        {
         int64_t var_len = strlen (g_Params.query);
         int64_t slice_start = -1, slice_end = -1;
         int64_t add_l = 0, add_r = 0;
@@ -228,12 +324,12 @@ namespace RefVariation
                 << ": \"" << ref_slice << "\"..." << std::endl;
 
             size_t ref_start, ref_len, query_start, query_len;
-            KSearch::FindRefVariationBounds ( ref_slice, query, ref_start, ref_len, query_start, query_len );
+            KSearch::FindRefVariationRegionAscii ( ref_slice, g_Params.ref_pos_var - new_slice_start, g_Params.query, var_len, ref_start, ref_len );
             
             printf ("indel box found lib: ref: (%lu, %lu), query: (%lu, %lu)\n",
                 ref_start, ref_len, query_start, query_len );
             print_indel ( "reference", ref_slice.c_str(), ref_slice.size(), ref_start, ref_len );
-            print_indel ( "query    ", query.c_str(), query.size(), query_start, query_len );
+            //print_indel ( "query    ", query.c_str(), query.size(), query_start, query_len );
 
             bool cont = false;
 
@@ -261,12 +357,13 @@ namespace RefVariation
             }
 
             if ( !cont )
-                return query.substr( query_start, query_len );
+                break;
 
             slice_start = new_slice_start;
             slice_end = new_slice_end;
         }
-
+        }
+#endif
         //printf ("Reference slice [%ld, %ld]: %s\n", slice_start, slice_end, ref_slice.c_str() );
 
     } 
@@ -297,9 +394,8 @@ namespace RefVariation
 
             g_Params.verbosity = (int)args.GetOptionCount (OPTION_VERBOSITY);
 
-            std::string full_var = find_variation_region_impl ();
+            find_variation_region_impl ();
 
-            std::cout << "Full variation: " << full_var << std::endl;
         }
         catch (...)
         {

@@ -946,26 +946,26 @@ namespace Utils
 
 namespace KSearch
 {
-    void FindRefVariationBounds (
-            char const* ref_slice, size_t ref_slice_size,
-            char const* query, size_t query_size,
-            size_t* ref_start, size_t* ref_len,
-            size_t* query_start, size_t* query_len
+    void FindRefVariationRegionAscii (
+            char const* ref, size_t ref_size, size_t ref_pos_var,
+            char const* variation, size_t variation_size,
+            size_t* p_ref_start, size_t* p_ref_len
         )
     {
-        rc_t rc = ::FindRefVariationBounds ( ref_slice, ref_slice_size,
-            query, query_size, ref_start, ref_len, query_start, query_len );
+        rc_t rc = ::FindRefVariationRegionAscii ( ref, ref_size, ref_pos_var,
+            variation, variation_size, p_ref_start, p_ref_len );
+            
         if (rc)
-            throw Utils::CErrorMsg(rc, "FindRefVariationBounds");
+            throw Utils::CErrorMsg(rc, "FindRefVariationRegionAscii");
     }
-    void FindRefVariationBounds (
-            std::string const& ref_slice,
-            std::string const& query,
-            size_t& ref_start, size_t& ref_len,
-            size_t& query_start, size_t& query_len
+
+    void FindRefVariationRegionAscii (
+            std::string const& ref, size_t ref_pos_var,
+            char const* variation, size_t variation_size,
+            size_t& ref_start, size_t& ref_len
         )
     {
-        FindRefVariationBounds ( ref_slice.c_str(), ref_slice.size(),
-            query.c_str(), query.size(), &ref_start, &ref_len, &query_start, &query_len );
+        FindRefVariationRegionAscii ( ref.c_str(), ref.size(), ref_pos_var,
+            variation, variation_size, & ref_start, & ref_len );
     }
 }

@@ -24,19 +24,21 @@
 # ===========================================================================
 
 #
-#   Download and test SRA Toolkit tarballs
+#  Download and test SRA Toolkit tarballs (see VDB-1345)
+#  Errors are reported to the specified email
 #
-# $1 - work directory
+# Parameters:
+# $1 - working dir (will contain a copy of the latest md5sum.txt file)
 #
 # return codes:
-# 0 - passed
+# 0 - tests passed
 # 1 - wget failed
 # 2 - gunzip failed
 # 3 - tar failed
 # 4 - one of the tools failed
 
 WORKDIR=$1
-if [ "$WORKDIR" == "" ]
+if [ "${WORKDIR}" == "" ]
 then
     WORKDIR="./temp"
 fi
@@ -51,43 +53,45 @@ vdb-unlock vdb-validate"
 case $(uname) in
 Linux)
     python -mplatform | grep Ubuntu && OS=ubuntu64 || OS=centos_linux64
-    TOOLS="$TOOLS pacbio-load remote-fuser"
+    TOOLS="${TOOLS} pacbio-load remote-fuser"
     ;;
 Darwin)
     OS=mac64
     ;;
 esac
 
-TARGET=sratoolkit.current-$OS
+TARBALLS_URL=http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
+TARGET=sratoolkit.current-${OS}
 
-mkdir -p $WORKDIR
-cd $WORKDIR
-wget http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/$TARGET.tar.gz || exit 1
-gunzip -f $TARGET.tar.gz || exit 2
-PACKAGE=$(tar tf $TARGET.tar | head -n 1)
-rm -rf $PACKAGE
-tar xvf $TARGET.tar || exit 3
+mkdir -p ${WORKDIR}
+cd ${WORKDIR}
+
+wget -nv ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
+gunzip -f ${TARGET}.tar.gz || exit 2
+PACKAGE=$(tar tf ${TARGET}.tar | head -n 1)
+rm -rf ${PACKAGE}
+tar xvf ${TARGET}.tar || exit 3
 
 FAILED=""
-for tool in $TOOLS 
+for tool in ${TOOLS} 
 do
     echo $tool
-    $PACKAGE/bin/$tool -h >/dev/null 
+    ${PACKAGE}/bin/$tool -h 
     if [ "$?" != "0" ]
     then
-        echo "$(pwd)/$PACKAGE/bin/$tool failed" 
-        FAILED="$FAILED $tool" 
+        echo "$(pwd)/${PACKAGE}/bin/$tool failed" 
+        FAILED="${FAILED} $tool" 
     fi
 done
 
-if [ "$FAILED" != "" ]
+if [ "${FAILED}" != "" ]
 then
-    echo "The following tools failed: $FAILED"
+    echo "The following tools failed: ${FAILED}"
     exit 4
 fi
 
+rm -rf ${PACKAGE} ${TARGET}.tar
 cd -
-rm -rf $WORKDIR
 
 
 

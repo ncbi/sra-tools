@@ -413,13 +413,13 @@ namespace KSearch
 {
     void FindRefVariationRegionAscii (
             char const* ref, size_t ref_size, size_t ref_pos_var,
-            char const* variation, size_t variation_size,
+            char const* variation, size_t variation_size, size_t var_len_on_ref,
             size_t* p_ref_start, size_t* p_ref_len
         );
 
     void FindRefVariationRegionAscii (
             std::string const& ref, size_t ref_pos_var,
-            char const* variation, size_t variation_size,
+            char const* variation, size_t variation_size, size_t var_len_on_ref,
             size_t& ref_start, size_t& ref_len
         );
 }

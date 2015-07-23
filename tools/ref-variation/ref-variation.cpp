@@ -255,7 +255,7 @@ namespace RefVariation
         while ( true )
         {
             KSearch::FindRefVariationRegionAscii ( ref, ref_pos_adj,
-                        g_Params.query, var_len, ref_start, ref_len );
+                        g_Params.query, var_len, 0, ref_start, ref_len );
 
             std::cout
                 << "id_start=" << id_start

@@ -704,6 +704,18 @@ static rc_t vdm_walk_sections( const VDatabase * base_db, const VDatabase ** sub
 }
 
 
+static void vdm_clear_recorded_errors( void )
+{
+	rc_t rc;
+	const char * filename;
+	const char * funcname;
+	uint32_t line_nr;
+	while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
+	{
+	}
+}
+
+
 static rc_t vdm_check_table_empty( const VTable * tab )
 {
     bool empty;
@@ -711,6 +723,7 @@ static rc_t vdm_check_table_empty( const VTable * tab )
     DISP_RC( rc, "VTableIsEmpty() failed" );
     if ( rc == 0 && empty )
     {
+		vdm_clear_recorded_errors();
         KOutMsg( "the requested table is empty!\n" );
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTable, rcEmpty );
     }

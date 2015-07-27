@@ -158,6 +158,8 @@ gw = GeneralWriter.GeneralWriter(
       outdir
     , 'sra/nanopore.vschema'
     , 'NCBI:SRA:Nanopore:db'
+    , 'pore-load.py'
+    , '1.0.0'
     , tbl)
 
 
@@ -244,7 +246,9 @@ class FastQData:
                         
             return None
         except:
-            sys.stderr.write("Error: reading '{}'\n".format(os.path.basename(fname)))
+            errMsg = "Error: reading '{}'".format(os.path.basename(fname))
+            gw.errorMessage(errMsg)
+            sys.stderr.write(errMsg+"\n")
             if __debug__:
                 traceback.print_exc()
             return None
@@ -290,8 +294,9 @@ def ExtractAndProcess(f, source):
 
     keep = False
     if not isHDF5(fname):
-        sys.stderr.write("Warning: skipping '{}': not an HDF5 file.\n".
-            format(source))
+        errMsg = "Warning: skipping '{}': not an HDF5 file.".format(source)
+        gw.errorMessage(errMsg)
+        sys.stderr.write(errMsg+"\n")
     elif not ProcessFast5(fname):
         keep = __debug__
     

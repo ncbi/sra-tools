@@ -15,7 +15,7 @@ def _paddedFormat(fmt):
 def _makeHeader():
     fmt = "8s 4I"
     size = struct.calcsize(fmt)
-    return struct.pack(fmt, "NCBIgnld".encode('ascii'), 1, 1, size, 0)
+    return struct.pack(fmt, "NCBIgnld".encode('ascii'), 1, 2, size, 0)
 
 
 def _makeSimpleEvent(eid):
@@ -24,13 +24,13 @@ def _makeSimpleEvent(eid):
 
 
 def _make1StringEvent(eid, str1):
-    """ used for { evt_errmsg, evt_remote_path, evt_new_table } """
+    """ used for { evt_errmsg, evt_remote_path, evt_new_table, evt_software_name } """
     fmt = _paddedFormat("I 1I {}s".format(len(str1)))
     return struct.pack(fmt, eid, len(str1), str1)
 
 
 def _make2StringEvent(eid, str1, str2):
-    """ used for { evt_use_schema } """
+    """ used for { evt_use_schema, evt_metadata_node } """
     fmt = _paddedFormat("I 2I {}s {}s".format(len(str1), len(str2)))
     return struct.pack(fmt, eid, len(str1), len(str2), str1, str2)
 
@@ -64,6 +64,24 @@ class GeneralWriter:
     evt_cell_data       = (1 << 24) + evt_cell_default
     evt_next_row        = (1 << 24) + evt_cell_data
 
+    evt_move_ahead      = (1 << 24) + evt_next_row      # this one is not used here
+    evt_errmsg2         = (1 << 24) + evt_move_ahead    # this one is not used here
+    evt_remote_path2    = (1 << 24) + evt_errmsg2       # this one is not used here
+    evt_use_schema2     = (1 << 24) + evt_remote_path2  # this one is not used here
+    evt_new_table2      = (1 << 24) + evt_use_schema2   # this one is not used here
+    evt_cell_default2   = (1 << 24) + evt_new_table2    # this one is not used here
+    evt_cell_data2      = (1 << 24) + evt_cell_default2 # this one is not used here
+    evt_empty_default   = (1 << 24) + evt_cell_data2    # this one is not used here
+    
+    # BEGIN VERSION 2 MESSAGES
+    evt_software_name   = (1 << 24) + evt_empty_default
+    evt_metadata_node   = (1 << 24) + evt_software_name
+    evt_metadata_node2  = (1 << 24) + evt_metadata_node # this one is not used here
+
+
+    def errorMessage(self, message):
+        os.write(sys.stdout.fileno(), _make1StringEvent(cls.evt_errmsg, message.encode('utf-8')))
+
 
     def write(self, spec):
         tableId = -1
@@ -82,11 +100,17 @@ class GeneralWriter:
             tableId = c['_tableId']
         self._writeNextRow(tableId)
 
+
     @classmethod
     def _writeHeader(cls, remoteDb, schemaFileName, schemaDbSpec):
         os.write(sys.stdout.fileno(), _makeHeader())
         os.write(sys.stdout.fileno(), _make1StringEvent(cls.evt_remote_path, remoteDb))
         os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_use_schema, schemaFileName, schemaDbSpec))
+    
+    
+    @classmethod
+    def _writeSoftwareName(cls, name, version): # name is any string, version is like "2.1.5"
+        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_software_name, name, version))
 
 
     @classmethod
@@ -130,7 +154,7 @@ class GeneralWriter:
         os.write(sys.stdout.fileno(), _makeSimpleEvent(cls.evt_next_row + tableId))
         
     
-    def __init__(self, fileName, schemaFileName, schemaDbSpec, tbl):
+    def __init__(self, fileName, schemaFileName, schemaDbSpec, softwareName, versionString, tbl):
         """ Construct a General Writer object
     
             writer may be None if no actual output is desired
@@ -141,11 +165,17 @@ class GeneralWriter:
             schemaFileName is a string with the path to the file containing the schema
 
             schemaDbSpec is a string with the schema name of the database that will be created
+            
+            softwareName is a string
+            
+            versionString is a three-part number like "2.1.5"
         """
         
         GeneralWriter._writeHeader(fileName.encode('utf-8')
             , schemaFileName.encode('utf-8')
             , schemaDbSpec.encode('ascii'))
+        
+        GeneralWriter._writeSoftwareName(softwareName.encode('utf-8'), versionString.encode('ascii'))
 
         tableId = 0
         columnId = 0

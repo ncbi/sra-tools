@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-vcf-loader", "test-vcf
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-general-loader", "test-general-loader.vcxproj", "{A4DE6CC9-77BF-25A7-5178-C5D3E9239C1A}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-align-info", "test-align-info.vcxproj", "{327CAB1F-34B3-B220-4439-28C0A1F06851}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -49,6 +51,14 @@ Global
 		{A4DE6CC9-77BF-25A7-5178-C5D3E9239C1A}.Release|Win32.Build.0 = Release|Win32
 		{A4DE6CC9-77BF-25A7-5178-C5D3E9239C1A}.Release|x64.ActiveCfg = Release|x64
 		{A4DE6CC9-77BF-25A7-5178-C5D3E9239C1A}.Release|x64.Build.0 = Release|x64
+		{327CAB1F-34B3-B220-4439-28C0A1F06851}.Debug|Win32.ActiveCfg = Debug|Win32
+		{327CAB1F-34B3-B220-4439-28C0A1F06851}.Debug|Win32.Build.0 = Debug|Win32
+		{327CAB1F-34B3-B220-4439-28C0A1F06851}.Debug|x64.ActiveCfg = Debug|x64
+		{327CAB1F-34B3-B220-4439-28C0A1F06851}.Debug|x64.Build.0 = Debug|x64
+		{327CAB1F-34B3-B220-4439-28C0A1F06851}.Release|Win32.ActiveCfg = Release|Win32
+		{327CAB1F-34B3-B220-4439-28C0A1F06851}.Release|Win32.Build.0 = Release|Win32
+		{327CAB1F-34B3-B220-4439-28C0A1F06851}.Release|x64.ActiveCfg = Release|x64
+		{327CAB1F-34B3-B220-4439-28C0A1F06851}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -115,6 +115,8 @@ static void vdco_init_values( p_dump_context ctx )
 	ctx->idx_range_requested = false;
     ctx->disable_multithreading = false;
 	ctx->table_defined = false;
+	ctx->diff = false;
+	ctx->show_spotgroups = false;
 }
 
 rc_t vdco_init( dump_context **ctx )
@@ -554,6 +556,7 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->disable_multithreading = vdco_get_bool_option( my_args, OPTION_NO_MULTITHREAD, false );
     ctx->print_info = vdco_get_bool_option( my_args, OPTION_INFO, false );
     ctx->diff = vdco_get_bool_option( my_args, OPTION_DIFF, false );
+	ctx->show_spotgroups = vdco_get_bool_option( my_args, OPTION_SPOTGROUPS, false );
 	
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );
     ctx->output_buffer_size = vdco_get_size_t_option( my_args, OPTION_OUT_BUF_SIZE, DEF_OPTION_OUT_BUF_SIZE );

@@ -38,6 +38,7 @@
 #include <kdb/column.h>
 #include <kdb/manager.h>
 #include <kdb/namelist.h>
+#include <kdb/meta.h>
 
 #include <kfs/directory.h>
 #include <kns/manager.h>
@@ -114,6 +115,7 @@ static const char * bzip2_usage[] = { "compress output using bzip2", NULL };
 static const char * outbuf_size_usage[] = { "size of output-buffer, 0...none", NULL };
 static const char * disable_mt_usage[] = { "disable multithreading", NULL };
 static const char * info_usage[] = { "print info about run", NULL };
+static const char * spotgroup_usage[] = { "show spotgroups", NULL };
 
 OptDef DumpOptions[] =
 {
@@ -158,7 +160,8 @@ OptDef DumpOptions[] =
     { OPTION_OUT_BUF_SIZE, NULL, NULL, outbuf_size_usage, 1, true, false },
     { OPTION_NO_MULTITHREAD, NULL, NULL, disable_mt_usage, 1, false, false },
     { OPTION_INFO, NULL, NULL, info_usage, 1, false, false },
-    { OPTION_DIFF, NULL, NULL, NULL, 1, false, false }
+    { OPTION_DIFF, NULL, NULL, NULL, 1, false, false },
+	{ OPTION_SPOTGROUPS, NULL, NULL, spotgroup_usage, 1, false, false },
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -229,7 +232,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL, OPTION_OUT_BUF_SIZE, NULL, outbuf_size_usage );
     HelpOptionLine ( NULL, OPTION_NO_MULTITHREAD, NULL, disable_mt_usage );
     HelpOptionLine ( NULL, OPTION_INFO, NULL, info_usage );
-
+    HelpOptionLine ( NULL, OPTION_SPOTGROUPS, NULL, spotgroup_usage );
+	
     HelpOptionsStandard ();
 
     HelpVersion ( fullpath, KAppVersion() );
@@ -1527,6 +1531,77 @@ static rc_t vdm_range_db_index( const p_dump_context ctx, const VDatabase *my_da
 }
 
 
+/* ************************************************************************************ */
+static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_table )
+{
+	const KMetadata * meta = NULL;
+	rc_t rc = VTableOpenMetadataRead( my_table, &meta );
+	DISP_RC( rc, "VTableOpenMetadataRead() failed" );
+	if ( rc == 0 )
+	{
+		const KMDataNode * spot_group_node;
+		rc = KMetadataOpenNodeRead( meta, &spot_group_node, "STATS/SPOT_GROUP" );
+		DISP_RC( rc, "KMetadataOpenNodeRead( STATS/SPOT_GROUP ) failed" );
+		if ( rc == 0 )
+		{
+			KNamelist * spot_groups;
+			rc = KMDataNodeListChildren( spot_group_node, &spot_groups );
+			DISP_RC( rc, "KMDataNodeListChildren() failed" );
+			if ( rc == 0 )
+			{
+				uint32_t count;
+				rc = KNamelistCount( spot_groups, &count );
+				if ( rc == 0 && count > 0 )
+				{
+					uint32_t i;
+					for ( i = 0; i < count && rc == 0; ++i )
+					{
+						const char * name = NULL;
+						rc = KNamelistGet( spot_groups, i, &name );
+						if ( rc == 0 && name != NULL )
+						{
+							const KMDataNode * spot_count_node;
+							rc = KMDataNodeOpenNodeRead( spot_group_node, &spot_count_node, "%s/SPOT_COUNT", name );
+							DISP_RC( rc, "KMDataNodeOpenNodeRead() failed" );
+							if ( rc == 0 )
+							{
+								uint64_t spot_count = 0;
+								rc = KMDataNodeReadAsU64( spot_count_node, &spot_count );
+								if ( rc == 0 )
+								{
+									if ( spot_count > 0 )
+										rc = KOutMsg( "%s\t%,lu\n", name, spot_count );
+								
+								}
+								else
+									vdm_clear_recorded_errors();
+
+								KMDataNodeRelease( spot_count_node );
+							}
+						}
+					}
+				}
+				KNamelistRelease( spot_groups );
+			}
+			KMDataNodeRelease( spot_group_node );
+		}
+		KMetadataRelease ( meta );
+	}
+	return rc;
+}
+
+static rc_t vdm_show_db_spotgroups( const p_dump_context ctx, const VDatabase *my_database )
+{
+    const VTable *my_table;
+    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+    if ( rc == 0 )
+    {
+        rc = vdm_show_tab_spotgroups( ctx, my_table );
+        VTableRelease( my_table );
+    }
+    return rc;
+}
+
 
 typedef rc_t (*db_tab_t)( const p_dump_context ctx, const VTable *a_tab );
 
@@ -1621,6 +1696,10 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *my_manag
     {
         rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_range_tab_index );
     }
+	else if ( ctx->show_spotgroups )
+	{
+		rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spotgroups );
+	}
     else
     {
         rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_opened_table );
@@ -1729,6 +1808,10 @@ static rc_t vdm_dump_database( const p_dump_context ctx, const VDBManager *my_ma
     else if ( ctx->idx_range_requested )
     {
         rc = vdm_dump_db_fkt( ctx, my_manager, vdm_range_db_index );
+    }
+    else if ( ctx->show_spotgroups )
+    {
+        rc = vdm_dump_db_fkt( ctx, my_manager, vdm_show_db_spotgroups );
     }
     else
     {

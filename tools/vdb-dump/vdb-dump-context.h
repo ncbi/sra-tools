@@ -80,6 +80,7 @@ extern "C" {
 #define OPTION_NO_MULTITHREAD    "disable-multithreading"
 #define OPTION_INFO              "info"
 #define OPTION_DIFF              "diff"
+#define OPTION_SPOTGROUPS        "spotgroups"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -180,6 +181,7 @@ typedef struct dump_context
     bool print_info;
 	bool table_defined;
 	bool diff;
+	bool show_spotgroups;
 } dump_context;
 typedef dump_context* p_dump_context;
 

@@ -74,130 +74,14 @@ printf ( "    DONE [ Sleeping %d seconds ]\n", Sec );
 
 }
 
-static
-void
-Mukashi ( const char * Path, const struct XFSTree * Tree )
-{
-    rc_t RCt;
-    const struct XFSNode * Node;
-
-    // printf ( "Mukashi Mukashi [%s]\n", Path );
-
-    RCt = XFSTreeFindNode ( Tree, Path, & Node );
-    if ( RCt == 0 ) {
-        char BB [ 1024 ];
-
-        printf ( "FOUND : [%s] [0x%p]\n", Path, ( void * ) Node );
-
-        XFSNodeDescribe ( Node, BB, sizeof ( BB ) );
-        printf ( "      : [0x%p][%s]\n", ( void * ) Node, BB );
-
-        XFSNodeRelease ( Node );
-    }
-    else {
-        printf ( "NOT FOUND : [%s] [0x%p]\n", Path, ( void * ) Node );
-    }
-}   /* Mukashi () */
-
-#include <xfs/perm.h>
-void
-JitsuWa ( const char * String )
-{
-    const struct XFSPerm * Perm;
-    char BB [ 100 ];
-
-    if ( String == NULL ) {
-        printf ( "ERROR : PERM MISSED\n" );
-        return;
-    }
-
-    printf ( "PERM [%s]\n", String );
-
-    if ( XFSPermMake ( String, & Perm ) == 0 ) {
-
-        XFSPermToString ( Perm, BB, sizeof ( BB ) );
-
-        printf ( "     [%s]\n", BB );
-
-        XFSPermDispose ( Perm );
-    }
-    else {
-        printf ( "ERROR : BAD PERM [%s]\n", String );
-    }
-}   /* JitsuWa () */
-
 XFS_EXTERN rc_t CC XFS_InitAll_MHR ( const char * ConfigFile );
 XFS_EXTERN rc_t CC XFS_DisposeAll_MHR ();
-
-#include <xfs/path.h>
-static
-void
-Naosu (const char * P)
-{
-    const struct XFSPath * Path;
-    char B [ 1024 ];
-    uint32_t llp, Q;
-
-    XFSPathMake ( P, & Path );
-    Q = XFSPathCount ( Path );
-
-    printf ( "Path [%s] length %d \n", P, Q );
-
-    for ( llp = 0; llp < Q; llp ++ ) {
-        printf ( " %d : [%s]\n", llp, XFSPathGet ( Path, llp ) );
-
-        XFSPathTo ( Path, llp, B, sizeof ( B ) );
-        printf ( "    TO : [%s]\n", B );
-
-        XFSPathFrom ( Path, llp, B, sizeof ( B ) );
-        printf ( "    FR : [%s]\n", B );
-
-    }
-
-    XFSPathDispose ( Path );
-}   /* Naosu () */
-
-static 
-rc_t 
-KWrit ( const char * fname )
-{
-    rc_t RCt;
-    struct KFile * File;
-    struct KDirectory * Dir;
-    size_t NWr;
-    static const char * JJ = "leprocosm";
-
-    printf ( "Writing [%s]\n", fname );
-
-
-    RCt = 0;
-    File = NULL;
-    Dir = NULL;
-    NWr = 0;
-
-    RCt = KDirectoryNativeDir ( & Dir );
-    if ( RCt == 0 ) {
-
-        RCt = KDirectoryCreateFile ( Dir, & File, false, 0644, kcmCreate, fname );
-        if ( RCt == 0 ) {
-            RCt = KFileWrite ( File, 0, JJ, sizeof ( JJ ), & NWr );
-
-            KFileRelease ( File );
-        }
-
-        KDirectoryRelease ( Dir );
-    }
-
-    printf ( "Writing [%s][R=%d]\n", fname, RCt );
-    KOutMsg ( "Writing [%s][R=%R]\n", fname, RCt );
-
-    return RCt;
-}   /* KWrit () */
 
 static
 rc_t run (
         const char * MountPoint,
-        const char * ConfigPoint
+        const char * ConfigPoint,
+        bool Daemonize
 )
 {
     rc_t RCt;
@@ -205,39 +89,13 @@ rc_t run (
     struct XFSTree * TheTree;
     struct XFSControl * TheControl;
 
-/*
-    Naosu ( "/g/kkk" );
-    Naosu ( "/g/kkk/qqq" );
-    return 0;
-*/
-
-/*  Testing permissions
-
-    JitsuWa ( "rwxrw---x" );
-    JitsuWa ( "---------" );
-    JitsuWa ( "r-xr-xrwx user:group" );
-    JitsuWa ( "r-xr-xrwx user:group:other" );
-    JitsuWa ( "r-xr-xrwx user::other" );
-    JitsuWa ( "r-xr-xrwx ::other" );
-
-    if ( true ) return 1;
-
-*/
-
     RCt = 0;
 
     OUTMSG ( ( "<<--- run()\n" ) );
 
     XFS_InitAll_MHR ( ConfigPoint );
 
-/*
-    RCt = XFSModelMake ( & TheModel, NULL, NULL );
-*/
     RCt = XFSModelMake ( & TheModel, ConfigPoint, NULL );
-
-/*
-    XFSModelDDump ( TheModel );
-*/
 
     printf ( "HA(XFSModelMake)[RC=%d]\n", RCt );
 
@@ -245,20 +103,6 @@ rc_t run (
         RCt = XFSTreeMake ( TheModel, & TheTree );
 
         printf ( "HA(XFSTreeMake)[RC=%d]\n", RCt );
-
-/*
-    Mukashi ( "/root", TheTree );
-    Mukashi ( "/workspaces", TheTree );
-    Mukashi ( "/workspaces/folder", TheTree );
-    Mukashi ( "/workspaces/felder", TheTree );
-    Mukashi ( "/workspaces/", TheTree );
-    Mukashi ( "/", TheTree );
-    Mukashi ( "/WORKSPACES", TheTree );
-    Mukashi ( "/WORKSPACES/", TheTree );
-    Mukashi ( "/WORKSPACES/FS", TheTree );
-    Mukashi ( "/WORKSPACES/WS", TheTree );
-*/
-
 
         if ( RCt == 0 ) {
             printf ( "HA(XFSControlMake)[RC=%d]\n", RCt );
@@ -271,24 +115,15 @@ rc_t run (
                 XFSControlSetMountPoint ( TheControl, MountPoint );
                 XFSControlSetLabel ( TheControl, "Olaffsen" );
 
+                if ( ! Daemonize ) {
+                    XFSControlSetArg ( TheControl, "-f", "-f" );
+                }
+
                 printf ( "HA(XFSStart)\n" );
                 RCt = XFSStart ( TheControl );
 
                 printf ( "HE(XFSStart)[RC=%d]\n", RCt );
                 if ( RCt == 0 ) {
-
-                    SLEPOY ( 10 );
-
-// int u = 1 / 0; /* Kinda drop the transport */
-
-//TT            SLEPOY ( 10 );
-// KWrit ( "/home/iskhakov/PRODUCTION/MPoint/WORKSPACES/DIR/Loho.txt" );
-// LOOP KWrit ( "/r/WORKSPACES/DIR/kkk/Loho.txt" );
-// SLEPOY ( 10 );
-// SLEPOY ( 50 );
-SLEPOY ( 30 );
-// SLEPOY ( 200 );
-
                     printf ( "HA(XFSStop)\n" );
                     RCt = XFSStop ( TheControl );
                     printf ( "HE(XFSStop)[RC=%d]\n", RCt );
@@ -321,18 +156,21 @@ ver_t CC KAppVersion(void) { return DEMO_VERS; }
 char Proga[333];
 char MontP[333];
 char ConfP[333];
+bool DaemO = false;
 
 #define MONTP_TAG   "-m"
 #define CONFP_TAG   "-c"
+#define DAEMO_TAG   "-d"
 
 static
 void
 RightUsage()
 {
     printf("\ndbGaP mount tool demo program. Will mount and show content of cart files\n");
-    printf("\nUsage: %s %s mount_point %s config_file\n\n\
+    printf("\nUsage: %s [-d] %s mount_point %s config_file\n\n\
 Where:\n\
-    mount_point  - point to mount\n\
+    -d          - daemonize process\n\
+    mount_point - point to mount\n\
     config_file - point to config\n\n\
 \n\n", Proga, MONTP_TAG, CONFP_TAG);
 }   /* RightUsage() */
@@ -357,6 +195,11 @@ ParseArgs ( int argc, char ** argv )
 
     for ( llp = 1; llp < argc; llp ++ ) {
         const char *Arg = * ( argv + llp );
+
+        if ( strcmp ( Arg, DAEMO_TAG ) == 0 ) {
+            DaemO = true;
+            continue;
+        }
 
         if ( strcmp ( Arg, MONTP_TAG ) == 0 ) {
             if ( llp + 1 >= argc ) {
@@ -394,6 +237,10 @@ ParseArgs ( int argc, char ** argv )
         return false;
     }
 
+    if ( DaemO ) {
+        printf ( "Daemonize\n" );
+    }
+
     return true;
 }   /* ParseArgs() */
 
@@ -410,5 +257,5 @@ rc_t CC KMain(int argc, char *argv[]) {
         return 1;
     }
 
-    return run ( MontP, ConfP );
+    return run ( MontP, ConfP, DaemO );
 }

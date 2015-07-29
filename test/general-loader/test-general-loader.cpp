@@ -219,7 +219,7 @@ public:
         m_source . OpenStreamEvent();
     }
 
-    bool SetUpForIntergerCompression( const char* p_dbName )
+    bool SetUpForIntegerCompression( const char* p_dbName )
     {
         if ( ! TestSource::packed )
             return false; // integer compaction is used in packed mode only
@@ -594,14 +594,28 @@ FIXTURE_TEST_CASE ( TblMetadataNode, GeneralLoaderFixture )
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
 }
 
+#if SHOW_UNIMPLEMENTED
 FIXTURE_TEST_CASE ( ColMetadataNode, GeneralLoaderFixture )
 {   
     SetUpStream ( GetName() );
-    m_source . ColMetadataNodeEvent ( "colmetadatanode", "1a2b3c4d" );
+    const string NodeName   = "colmetadatanode";
+    const string NodeValue  = "1a2b3c4d";
+    
+    m_source . ColMetadataNodeEvent ( NodeName, NodeValue ); 
+
     m_source . OpenStreamEvent();
     m_source . CloseStreamEvent();
+    
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    // validate metadata
+    OpenDatabase (); 
+    REQUIRE_EQ ( NodeValue,  GetMetadata ( "/", NodeName ) );
 }
+#endif
+//TODO: attach metadata to the top level database
+//TODO: attach metadata to a nested database
+//TODO: attach metadata to a table
 
 FIXTURE_TEST_CASE ( NoData, GeneralLoaderFixture )
 {   
@@ -703,10 +717,8 @@ FIXTURE_TEST_CASE ( OneColumnOneCellManyChunks, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( IntegerCompression_MinimumCompression, GeneralLoaderFixture )
 {   
-    if ( ! SetUpForIntergerCompression ( GetName() ) )
-    {
+    if ( ! SetUpForIntegerCompression ( GetName() ) )
         return;
-    }
         
     // no compression ( adds 1 byte per value )
     const uint16_t u16value = 0x3456;
@@ -745,10 +757,9 @@ FIXTURE_TEST_CASE ( IntegerCompression_MinimumCompression, GeneralLoaderFixture 
 
 FIXTURE_TEST_CASE ( IntegerCompression_MaximumCompression, GeneralLoaderFixture )
 {   
-    if ( ! SetUpForIntergerCompression ( GetName() ) )
-    {
+    if ( ! SetUpForIntegerCompression ( GetName() ) )
         return;
-    }
+        
     // induce maximum compression ( 1 byte per value <= 0x7F )
     const uint16_t u16value = 0;
     const uint32_t u32value = 2;
@@ -786,10 +797,8 @@ FIXTURE_TEST_CASE ( IntegerCompression_MaximumCompression, GeneralLoaderFixture 
 
 FIXTURE_TEST_CASE ( IntegerCompression_MultipleValues, GeneralLoaderFixture )
 {   
-    if ( ! SetUpForIntergerCompression ( GetName() ) )
-    {
+    if ( ! SetUpForIntegerCompression ( GetName() ) )
         return;
-    }
 
     // induce maximum compression ( 1 byte per value <= 0x7F )
     const uint16_t u16value1 = 0x0001;              const uint16_t u16value2 = 0x0002;
@@ -1300,9 +1309,7 @@ FIXTURE_TEST_CASE ( AdditionalSchemaFiles_Multiple, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( ErrorMessage, GeneralLoaderFixture )
 {   
-    SetUpStream ( GetName() );
-    m_source . NewTableEvent ( DefaultTableId, tableName ); 
-    m_source . NewColumnEvent ( DefaultColumnId, DefaultTableId, columnName, 8 );   
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
     m_source . OpenStreamEvent();
     m_source . ErrorMessageEvent ( "error message" );
     m_source . CloseStreamEvent();
@@ -1312,9 +1319,7 @@ FIXTURE_TEST_CASE ( ErrorMessage, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( ErrorMessage_Long, GeneralLoaderFixture )
 {   
-    SetUpStream ( GetName() );
-    m_source . NewTableEvent ( DefaultTableId, tableName ); 
-    m_source . NewColumnEvent ( DefaultColumnId, DefaultTableId, columnName, 8 );   
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
     m_source . OpenStreamEvent();
     m_source . ErrorMessageEvent ( string ( 257, 'x' ) );
     m_source . CloseStreamEvent();

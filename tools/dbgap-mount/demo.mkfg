@@ -6,13 +6,13 @@ root/children="project,workspace,data"
 
 project/label="Project"
 project/type="kart-collection"
-project/source="/home/iskhakov/TBH/H"
+project/source="/panfs/pan1/trace_work/iskhakov/Tests/dbGaP/data/Project"
 project/security="r-xr-xr-x"
 
 workspace/label="EncryptedWorkspace"
 workspace/type="workspace"
-workspace/security="rwxr-xr-x"
-workspace/source="/home/iskhakov/PRODUCTION/ENC"
+workspace/security="rwxrwxr-x"
+workspace/source="/panfs/pan1/trace_work/iskhakov/Tests/dbGaP/data/ENC"
 workspace/password="aaa"
 workspace/enctype="AES128"
 

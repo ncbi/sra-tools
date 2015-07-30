@@ -644,6 +644,18 @@ TestSource::Event::Event ( gw_evt_id p_event, const std::string& p_str1, const s
 {
 }
 
+TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id, const std::string& p_str1, const std::string& p_str2 )
+:   m_event ( p_event ),
+    m_id1 ( p_id ),
+    m_id2 ( 0 ),
+    m_uint8 ( 0 ),
+    m_uint32 ( 0 ),
+    m_uint64 ( 0 ),
+    m_str1 ( p_str1 ),
+    m_str2 ( p_str2 )
+{
+}
+
 TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_elem_count, uint32_t p_val_bytes, const void* p_val )
 :   m_event ( p_event ),
     m_id1 ( p_id1 ),

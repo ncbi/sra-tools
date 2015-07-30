@@ -262,6 +262,7 @@ string2ver_t ( const char * vers )
 rc_t
 GeneralLoader :: DatabaseLoader :: SoftwareName ( const string& p_name, const string& p_version )
 {
+    pLogMsg ( klogInfo, "database-loader: SoftwareName '$(n)', version '$(v)'", "n=%s,v=%s", p_name . c_str(), p_version . c_str() );
     try
     {   
         m_softwareVersion = string2ver_t ( p_version.c_str() );
@@ -389,7 +390,10 @@ rc_t
 GeneralLoader :: DatabaseLoader :: ColMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
     rc_t rc = 0;
-#pragma message (  "Fill out with call to set metadata or record for later" )
+    pLogMsg ( klogInfo, 
+              "database-loader: adding metadata node '$(n)=$(v)' to object $(i)", 
+              "n=%s,v=%s,i=$u", 
+              p_metadata_node . c_str(), p_value.c_str(), p_objId );
     return rc;
 }
 

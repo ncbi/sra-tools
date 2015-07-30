@@ -48,6 +48,7 @@ class TestSource
 public:
     typedef uint32_t TableId;
     typedef uint32_t ColumnId;
+    typedef uint32_t ObjectId;
     
 public:
     static bool packed;
@@ -109,6 +110,7 @@ private:
         Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1 );
         Event ( gw_evt_id p_event, const std::string& p_str1 );
         Event ( gw_evt_id p_event, const std::string& p_str1, const std::string& p_str2 );
+        Event ( gw_evt_id p_event, uint32_t p_id, const std::string& p_str1, const std::string& p_str2 );
         Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_elem_count, uint32_t p_val_bytes, const void* p_val );
         Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1, const std::string& p_str2, uint8_t p_uint8 );
         

@@ -104,7 +104,7 @@ piped-load-tests: $(ALL_TOOLS)
 runtests: setup tool-tests 
 
 setup:
-	@ mkdir db
+	@ mkdir -p db
 
 $(TEST_BINDIR)/makeinputs: makeinputs.cpp
 	@# generate numbered input streams for tool tests

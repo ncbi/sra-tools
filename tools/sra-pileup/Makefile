@@ -149,6 +149,7 @@ SAMDUMP3_SRC = \
 	sam-dump-opts \
 	out_redir \
 	sam-hdr \
+	sam-hdr1 \
 	matecache \
 	read_fkt \
 	sam-aligned \

@@ -638,7 +638,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         }
         while(pcount-- > 0) {
-            rc = ArgsOptionValue(args, OPTION_REF_FILE, pcount, &G.refFiles[pcount]);
+            rc = ArgsOptionValue(args, OPTION_REF_FILE, pcount, (const void **)&G.refFiles[pcount]);
             if (rc)
                 break;
         }
@@ -648,7 +648,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_TMPFS, 0, &G.tmpfs);
+            rc = ArgsOptionValue (args, OPTION_TMPFS, 0, (const void **)&G.tmpfs);
             if (rc)
                 break;
         }
@@ -665,7 +665,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_INPUT, 0, &G.inpath);
+            rc = ArgsOptionValue (args, OPTION_INPUT, 0, (const void **)&G.inpath);
             if (rc)
                 break;
         }
@@ -682,7 +682,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, option_ref_filter, 0, &G.refFilter);
+            rc = ArgsOptionValue (args, option_ref_filter, 0, (const void **)&G.refFilter);
             if (rc)
                 break;
         }
@@ -699,7 +699,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_CONFIG, 0, &G.refXRefPath);
+            rc = ArgsOptionValue (args, OPTION_CONFIG, 0, (const void **)&G.refXRefPath);
             if (rc)
                 break;
         }
@@ -716,7 +716,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_OUTPUT, 0, &G.outpath);
+            rc = ArgsOptionValue (args, OPTION_OUTPUT, 0, (const void **)&G.outpath);
             if (rc)
                 break;
         }
@@ -739,7 +739,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MINMAPQ, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_MINMAPQ, 0, (const void **)&value);
             if (rc)
                 break;
             G.minMapQual = strtoul(value, &dummy, 0);
@@ -750,7 +750,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_QCOMP, 0, &G.QualQuantizer);
+            rc = ArgsOptionValue (args, OPTION_QCOMP, 0, (const void **)&G.QualQuantizer);
             if (rc)
                 break;
         }
@@ -760,7 +760,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, option_edit_aligned_qual, 0, &value);
+            rc = ArgsOptionValue (args, option_edit_aligned_qual, 0, (const void **)&value);
             if (rc)
                 break;
             G.alignedQualValue = strtoul(value, &dummy, 0);
@@ -778,7 +778,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_CACHE_SIZE, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_CACHE_SIZE, 0, (const void **)&value);
             if (rc)
                 break;
             G.cache_size = strtoul(value, &dummy, 0) * 1024UL * 1024UL;
@@ -795,7 +795,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MAX_WARN_DUP_FLAG, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_MAX_WARN_DUP_FLAG, 0, (const void **)&value);
             if (rc)
                 break;
             G.maxWarnCount_DupConflict = strtoul(value, &dummy, 0);
@@ -816,7 +816,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MAX_REC_COUNT, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_MAX_REC_COUNT, 0, (const void **)&value);
             if (rc)
                 break;
             G.maxAlignCount = strtoul(value, &dummy, 0);
@@ -827,7 +827,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MAX_ERR_COUNT, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_MAX_ERR_COUNT, 0, (const void **)&value);
             if (rc)
                 break;
             G.maxErrCount = strtoul(value, &dummy, 0);
@@ -838,7 +838,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MIN_MATCH, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_MIN_MATCH, 0, (const void **)&value);
             if (rc)
                 break;
             G.minMatchCount = strtoul(value, &dummy, 0);
@@ -891,7 +891,7 @@ rc_t CC KMain (int argc, char * argv[])
         {
             KDirectory *dir;
             
-            rc = ArgsOptionValue (args, OPTION_NOMATCH_LOG, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_NOMATCH_LOG, 0, (const void **)&value);
             if (rc) break;
             rc = KDirectoryNativeDir(&dir);
             if (rc) break;
@@ -904,7 +904,7 @@ rc_t CC KMain (int argc, char * argv[])
         if (rc)
             break;
         if (pcount == 1) {
-            rc = ArgsOptionValue (args, OPTION_HEADER, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_HEADER, 0, (const void **)&value);
             if (rc) break;
             rc = LoadHeader(&G.headerText, value, G.inpath);
             if (rc) break;
@@ -929,7 +929,7 @@ rc_t CC KMain (int argc, char * argv[])
             unsigned i;
             
             for (i = 0; i < pcount; ++i) {
-                rc = ArgsParamValue(args, i, &value);
+                rc = ArgsParamValue(args, i, (const void **)&value);
                 if (rc) break;
                 need += strlen(value) + 1;
             }
@@ -945,7 +945,7 @@ rc_t CC KMain (int argc, char * argv[])
             unsigned i;
             
             for (i = 0; i < pcount; ++i) {
-                rc = ArgsOptionValue(args, OPTION_UNALIGNED, i, &value);
+                rc = ArgsOptionValue(args, OPTION_UNALIGNED, i, (const void **)&value);
                 if (rc) break;
                 need += strlen(value) + 1;
             }
@@ -964,7 +964,7 @@ rc_t CC KMain (int argc, char * argv[])
             unsigned i;
             
             for (i = 0; i < pcount; ++i) {
-                rc = ArgsOptionValue(args, OPTION_UNALIGNED, i, &value);
+                rc = ArgsOptionValue(args, OPTION_UNALIGNED, i, (const void **)&value);
                 if (rc) break;
                 
                 unalgnd[n_unalgnd++] = name_buffer + next_name;
@@ -982,7 +982,7 @@ rc_t CC KMain (int argc, char * argv[])
             unsigned i;
             
             for (i = 0; i < pcount; ++i) {
-                rc = ArgsParamValue(args, i, &value);
+                rc = ArgsParamValue(args, i, (const void **)&value);
                 if (rc) break;
                 
                 aligned[n_aligned++] = name_buffer + next_name;

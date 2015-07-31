@@ -188,7 +188,7 @@ static const char * get_str_option( const Args * args, const char * name, uint32
     if ( ( rc == 0 )&&( count > idx ) )
 	{
 		const char * res = NULL;
-        ArgsOptionValue( args, name, idx, &res );
+        ArgsOptionValue( args, name, idx, (const void **)&res );
 		return res;
 	}
 	else

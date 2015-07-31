@@ -1158,7 +1158,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 break;
             }
             if (pcount) {
-                rc = ArgsOptionValue (args, OPTION_TABLE, 0, &table_arg);
+                rc = ArgsOptionValue (args, OPTION_TABLE, 0, (const void **)&table_arg);
                 if (rc) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_TABLE "' argument");
@@ -1173,7 +1173,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             }
             if (pcount) {
                 const char* dummy = NULL;
-                rc = ArgsOptionValue (args, OPTION_OUT, 0, &dummy);
+                rc = ArgsOptionValue (args, OPTION_OUT, 0, (const void **)&dummy);
                 if (rc) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_OUT "' argument");
@@ -1214,7 +1214,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 else
                 {
                     /* get target */
-                    rc = ArgsParamValue (args, 0, &pc);
+                    rc = ArgsParamValue (args, 0, (const void **)&pc);
                     if (rc)
                         LOGERR (klogInt, rc, "Unable to read target parameter");
                     else
@@ -1310,11 +1310,11 @@ rc_t CC KMain ( int argc, char *argv [] )
                             }
                             else for (ix = 1; ix < pcount; ++ix)
                             {
-                                rc = ArgsParamValue (args, ix, &pc);
+                                rc = ArgsParamValue (args, ix, (const void **)&pc);
                                 if (rc)
                                     break;
 
-                                rc = ArgsParamValue (args, ix, &pc);
+                                rc = ArgsParamValue (args, ix, (const void **)&pc);
                                 if (rc)
                                     break;
                                     

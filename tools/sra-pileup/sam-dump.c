@@ -4350,7 +4350,7 @@ static unsigned GetOptValU( Args const *const args, char const *const argname,
 {
     unsigned y = defval;
     char const *valstr;
-    rc_t rc = ArgsOptionValue( args, argname, 0, &valstr );
+    rc_t rc = ArgsOptionValue( args, argname, 0, (const void **)&valstr );
     
     if ( rc == 0 )
     {
@@ -4380,7 +4380,7 @@ static rc_t GetComments( Args const *const args, struct params_s *const parms, u
         
         for ( i = 0; i < n; ++i )
         {
-            rc_t const rc = ArgsOptionValue( args, DumpArgs[ earg_comment ].name, i, &parms->comments[ i ] );
+            rc_t const rc = ArgsOptionValue( args, DumpArgs[ earg_comment ].name, i, (const void **)&parms->comments[ i ] );
             if ( rc != 0 )
             {
                 free( ( void * )parms->comments );
@@ -4454,7 +4454,7 @@ static rc_t GetDistance( Args const *const args, struct params_s *const parms, u
             int from = 0;
             int to = 0;
 
-            rc = ArgsOptionValue( args, DumpArgs[earg_distance].name, i, &valstr );
+            rc = ArgsOptionValue( args, DumpArgs[earg_distance].name, i, (const void **)&valstr );
             if ( rc != 0 )
                 break;
             if ( strcasecmp( valstr, "unknown" ) == 0 )
@@ -4516,7 +4516,7 @@ static rc_t GetRegion( Args const *const args, struct params_s *const parms, uns
 
 	    memset(&r,0,sizeof(r));
             
-            rc = ArgsOptionValue( args, DumpArgs[ earg_region ].name, i, &valstr );
+            rc = ArgsOptionValue( args, DumpArgs[ earg_region ].name, i, (const void **)&valstr );
             if ( rc != 0 ) break;
             
             sep = strchr( valstr, ':' );
@@ -4642,7 +4642,7 @@ static rc_t GetQualQuant( Args const *const args, struct params_s *const parms )
 {
     char const *valstr;
     int i;
-    rc_t rc = ArgsOptionValue( args, DumpArgs[ earg_QualQuant ].name, 0, &valstr );
+    rc_t rc = ArgsOptionValue( args, DumpArgs[ earg_QualQuant ].name, 0, (const void **)&valstr );
     
     if ( rc == 0 && strcmp( valstr, "0" ) != 0 )
         parms->quantizeQual = QualityQuantizerInitMatrix( parms->qualQuant, valstr );
@@ -4828,7 +4828,7 @@ rc_t CC SAM_Dump_Main( int argc, char* argv[] )
                     {
                         char const *arg;
                         
-                        rc = ArgsParamValue( args, i, &arg );
+                        rc = ArgsParamValue( args, i, (const void **)&arg );
                         if ( rc != 0 ) break;
                         rc = ProcessPath( mgr, arg );
 #if _ARCH_BITS < 64

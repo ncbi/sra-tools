@@ -196,7 +196,7 @@ static const char * get_str_option( const Args *args, const char * option_name )
 	}
 	else if ( count > 0 )
 	{
-		rc = ArgsOptionValue( args, option_name, 0, &res );
+		rc = ArgsOptionValue( args, option_name, 0, (const void **)&res );
 		if ( rc != 0 )
 		{
 			LOGERR ( klogInt, rc, "ArgsOptionValue( 0 ) failed" );
@@ -247,14 +247,14 @@ static rc_t gather_diff_ctx( struct diff_ctx * dctx, Args * args )
     }
     else
     {
-        rc = ArgsParamValue( args, 0, &dctx->src1 );
+        rc = ArgsParamValue( args, 0, (const void **)&dctx->src1 );
         if ( rc != 0 )
 		{
 			LOGERR ( klogInt, rc, "ArgsParamValue( 1 ) failed" );
 		}
         else
         {
-            rc = ArgsParamValue( args, 1, &dctx->src2 );
+            rc = ArgsParamValue( args, 1, (const void **)&dctx->src2 );
             if ( rc != 0 )
 			{
 				LOGERR ( klogInt, rc, "ArgsParamValue( 2 ) failed" );

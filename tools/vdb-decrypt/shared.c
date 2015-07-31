@@ -1240,7 +1240,7 @@ rc_t CommonMain (Args * args)
              * letting comp put src in register
              * only if it wants
              */
-            rc = ArgsParamValue (args, 0, &dst);
+            rc = ArgsParamValue (args, 0, (const void **)&dst);
             if (rc)
                 LOGERR (klogInt, rc, "Failure to fetch "
                         "source parameter");
@@ -1254,7 +1254,7 @@ rc_t CommonMain (Args * args)
 
                 else
                 {
-                    rc = ArgsParamValue (args, 1, &dst);
+                    rc = ArgsParamValue (args, 1, (const void **)&dst);
                     if (rc)
                         LOGERR (klogInt, rc, "Failure to fetch "
                                 "destination parameter");

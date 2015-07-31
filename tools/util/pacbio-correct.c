@@ -206,7 +206,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 for ( idx = 0; idx < count && rc == 0; ++idx )
                 {
                     const char *obj;
-                    rc = ArgsParamValue( args, idx, &obj );
+                    rc = ArgsParamValue( args, idx, (const void **)&obj );
                     if ( rc != 0 )
                         LOGERR( klogErr, rc, "error reading commandline-parameter" );
                     else

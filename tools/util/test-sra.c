@@ -2804,7 +2804,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         else {
             if (pcount > 0) {
                 const char *dummy = NULL;
-                rc = ArgsOptionValue(args, OPTION_PRJ, 0, &dummy);
+                rc = ArgsOptionValue(args, OPTION_PRJ, 0, (const void **)&dummy);
                 if (rc != 0) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_PRJ "' argument");
@@ -2859,7 +2859,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         else {
             if (pcount > 0) {
                 const char *dummy = NULL;
-                rc = ArgsOptionValue(args, OPTION_OUT, 0, &dummy);
+                rc = ArgsOptionValue(args, OPTION_OUT, 0, (const void **)&dummy);
                 if (rc != 0) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_OUT "' argument");
@@ -2949,7 +2949,7 @@ rc_t CC KMain(int argc, char *argv[]) {
 /* TODO if pcount == 0 && there are no test type options use a small run as name[0]*/
         for (i = 0; i < pcount; ++i) {
             const char *name = NULL;
-            rc3 = ArgsParamValue(args, i, &name);
+            rc3 = ArgsParamValue(args, i, (const void **)&name);
             if (rc3 == 0) {
                 rc_t rc2 = Quitting();
                 if (rc2 != 0) {

@@ -125,7 +125,7 @@ static rc_t CmdLineInit(const Args* args, CmdLine* cmdArgs)
             break;
         }
         else if (pcount == 1) {
-            rc = ArgsOptionValue(args, OPTION_OUTPUT, 0, &outType);
+            rc = ArgsOptionValue(args, OPTION_OUTPUT, 0, (const void **)&outType);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure retrieving output type");
                 break;
@@ -161,7 +161,7 @@ static rc_t CmdLineInit(const Args* args, CmdLine* cmdArgs)
             LOGERR(klogErr, rc, "Too many table parameters");
             break;
         }
-        rc = ArgsParamValue(args, 0, &cmdArgs->table);
+        rc = ArgsParamValue(args, 0, (const void **)&cmdArgs->table);
         if (rc) {
             LOGERR(klogErr, rc, "Failure retrieving table name");
             break;

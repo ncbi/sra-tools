@@ -796,7 +796,7 @@ static rc_t CmdLineInit(const Args* args, CmdLine* cmdArgs)
             LOGERR(klogErr, rc, "Too many file parameters");
             break;
         }
-        rc = ArgsOptionValue (args, OPTION_FILE, 0, &cmdArgs->file);
+        rc = ArgsOptionValue (args, OPTION_FILE, 0, (const void **)&cmdArgs->file);
         if (rc) {
             LOGERR(klogErr, rc, "Failure retrieving file name");
             break;
@@ -818,7 +818,7 @@ static rc_t CmdLineInit(const Args* args, CmdLine* cmdArgs)
             LOGERR(klogErr, rc, "Too many table parameters");
             break;
         }
-        rc = ArgsParamValue(args, 0, &cmdArgs->table);
+        rc = ArgsParamValue(args, 0, (const void **)&cmdArgs->table);
         if (rc) {
             LOGERR(klogErr, rc, "Failure retrieving table name");
             break;

@@ -1254,7 +1254,7 @@ rc_t vdi_bin_phase( const p_dump_context ctx, Args * args )
     else
     {
         const char *bin_path = NULL;
-        rc = ArgsParamValue( args, 0, &bin_path );
+        rc = ArgsParamValue( args, 0, (const void **)&bin_path );
         if ( rc != 0 )
         {
             LOGERR( klogInt, rc, "ArgsParamValue() failed" );

@@ -210,7 +210,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                     for (ix = 0; ix < num_paths; ix++)
                     {
 
-                        rc = ArgsOptionValue (args, OPTION_LOAD, ix, &path);
+                        rc = ArgsOptionValue (args, OPTION_LOAD, ix, (const void **)&path);
                         if (rc)
                         {
                             LOGERR (klogInt, rc, "failed to access a path option");
@@ -239,7 +239,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                         /* test it */
                         for (ix = 0; ix < num_libs; ++ ix )
                         {
-                            rc = ArgsParamValue (args, ix, &path);
+                            rc = ArgsParamValue (args, ix, (const void **)&path);
                             if (rc)
                                 break;
 

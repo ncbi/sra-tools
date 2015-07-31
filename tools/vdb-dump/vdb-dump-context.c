@@ -446,7 +446,7 @@ static uint16_t vdco_get_uint16_option( const Args *my_args,
     if ( ( rc == 0 )&&( count > 0 ) )
     {
         const char *s;
-        rc = ArgsOptionValue( my_args, name, 0,  &s );
+        rc = ArgsOptionValue( my_args, name, 0,  (const void **)&s );
         DISP_RC( rc, "ArgsOptionValue() failed" );
         if ( rc == 0 ) res = atoi( s );
     }
@@ -465,7 +465,7 @@ static size_t vdco_get_size_t_option( const Args *my_args,
     if ( ( rc == 0 )&&( count > 0 ) )
     {
         const char *s;
-        rc = ArgsOptionValue( my_args, name, 0,  &s );
+        rc = ArgsOptionValue( my_args, name, 0,  (const void **)&s );
         DISP_RC( rc, "ArgsOptionValue() failed" );
         if ( rc == 0 )
         {
@@ -486,7 +486,7 @@ static const char* vdco_get_str_option( const Args *my_args,
     DISP_RC( rc, "ArgsOptionCount() failed" );
     if ( ( rc == 0 )&&( count > 0 ) )
     {
-        rc = ArgsOptionValue( my_args, name, 0, &res );
+        rc = ArgsOptionValue( my_args, name, 0, (const void **)&res );
         DISP_RC( rc, "ArgsOptionValue() failed" );
     }
     return res;
@@ -503,7 +503,7 @@ void vdco_set_schemas( const Args *my_args, p_dump_context ctx )
         for ( i=0; i<count; ++i )
         {
             const char* txt = NULL;
-            rc = ArgsOptionValue( my_args, OPTION_SCHEMA, i, &txt );
+            rc = ArgsOptionValue( my_args, OPTION_SCHEMA, i, (const void **)&txt );
             DISP_RC( rc, "ArgsOptionValue() failed" );
             if ( ( rc == 0 )&&( txt != NULL ) )
             {

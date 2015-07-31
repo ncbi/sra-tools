@@ -317,14 +317,14 @@ rc_t CC KMain ( int argc, char *argv[] )
                 break;
             }
         
-            rc = ArgsParamValue (args, 0, &pb.file_path);
+            rc = ArgsParamValue (args, 0, (const void **)&pb.file_path);
             if (rc)
             {
                 LOGERR (klogInt,rc, "Failed to get file path");
                 break;
             }
 
-            rc = ArgsParamValue (args, 1, &pb.table_path);
+            rc = ArgsParamValue (args, 1, (const void **)&pb.table_path);
             if (rc)
             {
                 LOGERR (klogInt,rc, "Failed to get table path");
@@ -332,7 +332,7 @@ rc_t CC KMain ( int argc, char *argv[] )
             }
             if (pb.schema_path == NULL)
             {
-                rc = ArgsParamValue (args, 2, &pb.schema_path);
+                rc = ArgsParamValue (args, 2, (const void **)&pb.schema_path);
                 if (rc)
                 {
                     LOGERR (klogInt,rc, "Failed to get schema path");

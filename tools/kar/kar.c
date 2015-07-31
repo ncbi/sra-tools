@@ -1361,7 +1361,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 break;
             for (ix = 0; ix < pcount; ++ix)
             {
-                rc = ArgsParamValue (args, ix, &pc);
+                rc = ArgsParamValue (args, ix, (const void **)&pc);
                 if (rc)
                     break;
                 rc = pnamesInsert (pc);
@@ -1381,7 +1381,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 pc = NULL;
             else
             {
-                rc = ArgsOptionValue (args, OPTION_ALIGN, 0, &pc);
+                rc = ArgsOptionValue (args, OPTION_ALIGN, 0, (const void **)&pc);
                 if (rc)
                     break;
             }
@@ -1412,7 +1412,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 break;
             if (pcount)
             {
-                rc = ArgsOptionValue (args, OPTION_DIRECTORY, 0, &directory);
+                rc = ArgsOptionValue (args, OPTION_DIRECTORY, 0, (const void **)&directory);
                 if (rc)
                     break;
 
@@ -1425,7 +1425,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 break;
             if (pcount)
             {
-                rc = ArgsOptionValue (args, OPTION_CREATE, 0, &archive);
+                rc = ArgsOptionValue (args, OPTION_CREATE, 0, (const void **)&archive);
 
                 if (rc)
                     break;
@@ -1440,7 +1440,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if (mode == OM_NONE)
                 {
                     mode = OM_TEST;
-                    rc = ArgsOptionValue (args, OPTION_TEST, 0, &archive);
+                    rc = ArgsOptionValue (args, OPTION_TEST, 0, (const void **)&archive);
                     if (rc)
                         break;
                 }
@@ -1456,7 +1456,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if (mode == OM_NONE)
                 {
                     mode = OM_TEST;
-                    rc = ArgsOptionValue (args, OPTION_LIST, 0, &archive);
+                    rc = ArgsOptionValue (args, OPTION_LIST, 0, (const void **)&archive);
                     if (rc)
                         break;
                 }
@@ -1472,7 +1472,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if (mode == OM_NONE)
                 {
                     mode = OM_EXTRACT;
-                    rc = ArgsOptionValue (args, OPTION_EXTRACT, 0, &archive);
+                    rc = ArgsOptionValue (args, OPTION_EXTRACT, 0, (const void **)&archive);
                     if (rc)
                         break;
                 }

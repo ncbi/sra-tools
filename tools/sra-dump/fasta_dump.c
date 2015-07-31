@@ -151,7 +151,7 @@ static rc_t get_str_option( const Args *args, const char *name, const char ** re
     {
         if ( count > 0 )
         {
-            rc = ArgsOptionValue( args, name, 0, res );
+            rc = ArgsOptionValue( args, name, 0, (const void **)res );
             if ( rc != 0 )
             {
                 LOGERR( klogInt, rc, "ArgsOptionValue() failed" );
@@ -560,7 +560,7 @@ static rc_t foreach_refname( Args * args, fasta_options *opts, fasta_ctx *ctx, c
                 for ( i = 0; i < count && rc == 0; ++i )
                 {
                     const char * refname;
-                    rc = ArgsOptionValue( args, OPTION_REFNAME, 0, &refname );
+                    rc = ArgsOptionValue( args, OPTION_REFNAME, 0, (const void **)&refname );
                     if ( rc != 0 )
                     {
                         LOGERR( klogInt, rc, "ArgsOptionValue( REFNAME ) failed" );
@@ -601,7 +601,7 @@ static rc_t foreach_argument( Args * args, fasta_options *opts, fasta_ctx *ctx )
             for ( idx = 0; idx < count && rc == 0; ++idx )
             {
                 const char *param = NULL;
-                rc = ArgsParamValue( args, idx, &param );
+                rc = ArgsParamValue( args, idx, (const void **)&param );
                 if ( rc != 0 )
                     LOGERR( klogInt, rc, "ArgsParamvalue() failed" );
                 else

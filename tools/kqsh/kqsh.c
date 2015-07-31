@@ -423,7 +423,7 @@ rc_t kqsh_main ( int argc, char *argv [] )
         /* add each path in order */
         for ( ix = 0; ix < pcount; ++ ix )
         {
-            rc = ArgsOptionValue ( args, OPTION_LIBPATH, ix, & pc );
+            rc = ArgsOptionValue ( args, OPTION_LIBPATH, ix, (const void **)& pc );
             if ( rc != 0 )
             {
                 PLOGERR ( klogInt, ( klogInt, rc, "failed to retrieve '$(option)' option value [ $(idx) ]", "option=" OPTION_LIBPATH ",idx=%u", ix ) );

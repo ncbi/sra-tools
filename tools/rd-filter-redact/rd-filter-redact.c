@@ -1277,7 +1277,7 @@ rc_t KMain(int argc, char* argv[])
             LOGERR (klogFatal, rc, "Too many table parameters");
             break;
         }
-        rc = ArgsOptionValue (args, OPTION_TABLE, 0, &sargs.table);
+        rc = ArgsOptionValue (args, OPTION_TABLE, 0, (const void **)&sargs.table);
         if (rc)
         {
             LOGERR (klogFatal, rc, "Failure retrieving table name");
@@ -1303,7 +1303,7 @@ rc_t KMain(int argc, char* argv[])
             LOGERR (klogFatal, rc, "Too many file parameters");
             break;
         }
-        rc = ArgsOptionValue (args, OPTION_FILE, 0, &context.file_path);
+        rc = ArgsOptionValue (args, OPTION_FILE, 0, (const void **)&context.file_path);
         if (rc)
         {
             LOGERR (klogFatal, rc, "Failure retrieving file name");
@@ -1330,7 +1330,7 @@ rc_t KMain(int argc, char* argv[])
             LOGERR (klogFatal, rc, "Too many schema parameters");
             break;
         }
-        rc = ArgsOptionValue (args, OPTION_SCHEMA, 0, &context.schema_path);
+        rc = ArgsOptionValue (args, OPTION_SCHEMA, 0, (const void **)&context.schema_path);
         if (rc)
         {
             LOGERR (klogFatal, rc, "Failure retrieving schema name");

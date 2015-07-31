@@ -212,7 +212,7 @@ static rc_t get_str_option( const Args *args, const char *name, const char ** re
     {
         if ( count > 0 )
         {
-            rc = ArgsOptionValue( args, name, 0, res );
+            rc = ArgsOptionValue( args, name, 0, (const void **)res );
             if ( rc != 0 )
             {
                 LOGERR( klogInt, rc, "ArgsOptionValue() failed" );

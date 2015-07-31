@@ -556,7 +556,7 @@ rc_t run (Args * args)
             break;
         }
 
-        rc = ArgsParamValue (args, 0, &outname);
+        rc = ArgsParamValue (args, 0, (const void **)&outname);
         if (rc)
             break;
 
@@ -576,7 +576,7 @@ rc_t run (Args * args)
             for (ix = 1; ix < pcount; ++ix)
             {
                 
-                rc = ArgsParamValue (args, ix, &source);
+                rc = ArgsParamValue (args, ix, (const void **)&source);
                 if (rc)
                     break;
 
@@ -617,7 +617,7 @@ rc_t run (Args * args)
                 break;
             }
 
-            rc = ArgsParamValue (args, 1, &source);
+            rc = ArgsParamValue (args, 1, (const void **)&source);
             if (rc)
                 break;
 
@@ -641,7 +641,7 @@ rc_t run (Args * args)
                 break;
             }
 
-            rc = ArgsParamValue (args, 1, &source);
+            rc = ArgsParamValue (args, 1, (const void **)&source);
             if (rc)
                 break;
 

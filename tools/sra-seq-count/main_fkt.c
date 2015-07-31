@@ -112,7 +112,7 @@ static rc_t get_str_option( const Args * args, const char * option_name, const c
     uint32_t count;
     rc_t rc = ArgsOptionCount( args, option_name, &count );
     if ( ( rc == 0 )&&( count > 0 ) )
-        rc = ArgsOptionValue( args, option_name, 0, dst );
+        rc = ArgsOptionValue( args, option_name, 0, (const void **)dst );
 	else
 		(*dst) = string_dup_measure ( default_value, NULL );
     return rc;
@@ -149,9 +149,9 @@ static rc_t gather_options( const Args * args, struct sra_seq_count_options * op
 		{
 			if ( count == 2 )
 			{
-				rc = ArgsParamValue( args, 0, &options->sra_accession );
+				rc = ArgsParamValue( args, 0, (const void **)&options->sra_accession );
 				if ( rc == 0 )
-					rc = ArgsParamValue( args, 1, &options->gtf_file );
+					rc = ArgsParamValue( args, 1, (const void **)&options->gtf_file );
 				if ( rc == 0 )
 					options -> valid = true;
 			}

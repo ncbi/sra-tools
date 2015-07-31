@@ -847,13 +847,13 @@ rc_t KMain(int argc, char *argv[])
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_BlockSize].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_BlockSize].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_BlockSize].name, 0, &blksz)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_BlockSize].name, 0, (const void **)&blksz)) != 0 ) {
             errmsg = MainArgs[eopt_BlockSize].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_Accession].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_Accession].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_Accession].name, 0, &g_accession)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_Accession].name, 0, (const void **)&g_accession)) != 0 ) {
             errmsg = MainArgs[eopt_Accession].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_DumpIndex].name, &dump)) != 0 ) {
@@ -880,7 +880,7 @@ rc_t KMain(int argc, char *argv[])
                 }
                 g_file_block_sz = val;
             }
-            if( (rc = ArgsParamValue(args, 0, &table_dir)) != 0 ) {
+            if( (rc = ArgsParamValue(args, 0, (const void **)&table_dir)) != 0 ) {
                 errmsg = "table";
                 break;
             }

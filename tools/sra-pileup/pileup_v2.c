@@ -102,7 +102,7 @@ static rc_t pileup_test( Args * args, pileup_options *options )
         for ( idx = 0; idx < count && rc == 0; ++idx )
         {
             const char * src = NULL;
-            rc = ArgsParamValue( args, idx, &src );
+            rc = ArgsParamValue( args, idx, (const void **)&src );
             if ( rc == 0 && src != NULL )
                 rc = ref_walker_add_source( walker, src );
         }
@@ -113,7 +113,7 @@ static rc_t pileup_test( Args * args, pileup_options *options )
             for ( idx = 0; idx < count && rc == 0; ++idx )
             {
                 const char * s = NULL;
-                rc = ArgsOptionValue( args, OPTION_REF, idx, &s );
+                rc = ArgsOptionValue( args, OPTION_REF, idx, (const void **)&s );
                 if ( rc == 0 && s != NULL )
                     rc = ref_walker_parse_and_add_range( walker, s );
             }
@@ -297,7 +297,7 @@ rc_t pileup_v2( Args * args, pileup_options *options )
         for ( idx = 0; idx < count && rc == 0; ++idx )
         {
             const char * src = NULL;
-            rc = ArgsParamValue( args, idx, &src );
+            rc = ArgsParamValue( args, idx, (const void **)&src );
             if ( rc == 0 && src != NULL )
                 rc = ref_walker_add_source( walker, src );
         }
@@ -309,7 +309,7 @@ rc_t pileup_v2( Args * args, pileup_options *options )
             for ( idx = 0; idx < count && rc == 0; ++idx )
             {
                 const char * s = NULL;
-                rc = ArgsOptionValue( args, OPTION_REF, idx, &s );
+                rc = ArgsOptionValue( args, OPTION_REF, idx, (const void **)&s );
                 if ( rc == 0 && s != NULL )
                     rc = ref_walker_parse_and_add_range( walker, s );
             }

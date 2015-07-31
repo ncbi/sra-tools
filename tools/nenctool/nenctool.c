@@ -422,13 +422,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                 {
                     const char * src;
 
-                    rc = ArgsParamValue (args, 0, &src);
+                    rc = ArgsParamValue (args, 0, (const void **)&src);
                     if (rc)
                         LOGERR (klogInt, rc, "failed to get source parameter");
                     else
                     {
                         const char * dst;
-                        rc = ArgsParamValue (args, 1, &dst);
+                        rc = ArgsParamValue (args, 1, (const void **)&dst);
                         if (rc)
                             LOGERR (klogInt, rc, "failed to get destination parameter");
                         else

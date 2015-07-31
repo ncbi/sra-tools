@@ -974,7 +974,7 @@ rc_t KMain ( int argc, char *argv [] )
                 break;
             if (pcount)
             {
-                rc = ArgsOptionValue (args, OPTION_CACHE, 0, &cache);
+                rc = ArgsOptionValue (args, OPTION_CACHE, 0, (const void **)&cache);
                 if (rc)
                     break;
             }
@@ -986,7 +986,7 @@ rc_t KMain ( int argc, char *argv [] )
                 break;
             if (pcount)
             {
-                rc = ArgsOptionValue (args, OPTION_DEST, 0, &dest);
+                rc = ArgsOptionValue (args, OPTION_DEST, 0, (const void **)&dest);
                 if (rc)
                     break;
             }
@@ -1000,7 +1000,7 @@ rc_t KMain ( int argc, char *argv [] )
                 break;
             if (pcount)
             {
-                rc = ArgsOptionValue (args, OPTION_EXTRACT, 0, &extract);
+                rc = ArgsOptionValue (args, OPTION_EXTRACT, 0, (const void **)&extract);
                 if (rc)
                     break;
             }
@@ -1024,7 +1024,7 @@ rc_t KMain ( int argc, char *argv [] )
             rc = ArgsOptionCount (args, OPTION_XMLBASE, &pcount);
             if (pcount == 1)
             {
-                rc = ArgsOptionValue (args, OPTION_XMLBASE, 0, &xml_base);
+                rc = ArgsOptionValue (args, OPTION_XMLBASE, 0, (const void **)&xml_base);
                 if (rc)
                     break;
 
@@ -1043,7 +1043,7 @@ rc_t KMain ( int argc, char *argv [] )
                 char * end;
                 uint32_t val;
 
-                rc = ArgsOptionValue (args, OPTION_INBLOCK, 0, &start);
+                rc = ArgsOptionValue (args, OPTION_INBLOCK, 0, (const void **)&start);
                 if (rc)
                     break;
 
@@ -1064,7 +1064,7 @@ rc_t KMain ( int argc, char *argv [] )
                 char * end;
                 uint32_t val;
 
-                rc = ArgsOptionValue (args, OPTION_OUTBLOCK, 0, &start);
+                rc = ArgsOptionValue (args, OPTION_OUTBLOCK, 0, (const void **)&start);
                 if (rc)
                     break;
 
@@ -1127,7 +1127,7 @@ rc_t KMain ( int argc, char *argv [] )
                 VPath * kp;
                 const char * pc;
 
-                rc = ArgsParamValue (args, ix, &pc);
+                rc = ArgsParamValue (args, ix, (const void **)&pc);
                 if (rc)
                 {
                     LOGERR (klogFatal, rc, "unable to extract path parameter");

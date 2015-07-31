@@ -508,7 +508,6 @@ static bool parse_hdr_line( hdr_line * hl, const char * line )
 		{
 			switch ( line[ i ] )
 			{
-				case ' '  :
 				case '\t' :		if ( tl > 0 )
 								{
 									StringInit( &hl->tags[ hl->n_tags ].value, &line[ start ], tl, tl );

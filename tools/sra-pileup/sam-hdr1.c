@@ -98,6 +98,7 @@ static void process_line( headers * h, const char * line, size_t len )
 	}
 }
 
+
 static rc_t process_lines( headers * h, VNamelist * content, const char * identifier )
 {
 	uint32_t i, count;
@@ -552,7 +553,8 @@ static rc_t print_hdr_line( char * buffer, size_t buflen, const hdr_line * hl )
 		for ( i = 0; i < hl->n_tags && rc == 0; ++i )
 		{
 			total_writ += num_writ;
-			rc = string_printf( &buffer[ total_writ ], buflen - total_writ, &num_writ,
+			if ( buflen > total_writ )
+				rc = string_printf( &buffer[ total_writ ], buflen - total_writ, &num_writ,
 								"\t%S:%S", &hl->tags[ i ].key, &hl->tags[ i ].value );
 		}
 	}

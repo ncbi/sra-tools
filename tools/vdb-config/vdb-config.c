@@ -28,6 +28,7 @@
 #include "configure.h"
 
 #include <kapp/main.h>
+#include <kapp/args-conv.h>
 
 #include <vdb/vdb-priv.h> /* VDBManagerListExternalSchemaModules */
 #include <vdb/manager.h> /* VDBManager */
@@ -144,23 +145,46 @@ static const char* USAGE_ROOT[] =
 #define OPTION_SET   "set"
 static const char* USAGE_SET[] = { "set configuration node value", NULL };
 
+rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * arg, size_t arg_len, void ** result, WhackParamFnP * whack)
+{
+    rc_t rc;
+    uint32_t imp_count;
+    
+    rc = ArgsOptionCount(args, OPTION_IMP, &imp_count);
+    if (rc != 0)
+        return rc;
+    
+    // first parameter is a directory only if OPTION_IMP is present; otherwise it is a query
+    if (imp_count > 0)
+    {
+        return ArgsConvFilepath(args, arg_index, arg, arg_len, result, whack);
+    }
+    
+    return ArgsConvDefault(args, arg_index, arg, arg_len, result, whack);
+}
+
 OptDef Options[] =
-{                                         /* needs_value, required */
-      { OPTION_ALL, ALIAS_ALL, NULL, USAGE_ALL, 1, false, false }
-    , { OPTION_CFG, ALIAS_CFG, NULL, USAGE_CFG, 1, false, false }
-    , { OPTION_CFM, ALIAS_CFM, NULL, USAGE_CFM, 1, true , false }
-    , { OPTION_DIR, ALIAS_DIR, NULL, USAGE_DIR, 1, false, false }
-    , { OPTION_ENV, ALIAS_ENV, NULL, USAGE_ENV, 1, false, false }
-    , { OPTION_FIL, ALIAS_FIL, NULL, USAGE_FIL, 1, false, false }
-    , { OPTION_FIX, ALIAS_FIX, NULL, USAGE_FIX, 1, false, false }
-    , { OPTION_IMP, ALIAS_IMP, NULL, USAGE_IMP, 1, true , false }
-    , { OPTION_MOD, ALIAS_MOD, NULL, USAGE_MOD, 1, false, false }
-    , { OPTION_OUT, ALIAS_OUT, NULL, USAGE_OUT, 1, true , false }
-    , { OPTION_PCF, ALIAS_PCF, NULL, USAGE_PCF, 1, false, false }
-    , { OPTION_PRD, ALIAS_PRD, NULL, USAGE_PRD, 1, true , false }
-    , { OPTION_PRX, ALIAS_PRX, NULL, USAGE_PRX, 1, true , false }
-    , { OPTION_SET, ALIAS_SET, NULL, USAGE_SET, 1, true , false }
-    , { OPTION_ROOT,ALIAS_ROOT,NULL, USAGE_ROOT,1, false, false }
+{                                         /* needs_value, required, converter */
+      { OPTION_ALL, ALIAS_ALL, NULL, USAGE_ALL, 1, false, false, NULL }
+    , { OPTION_CFG, ALIAS_CFG, NULL, USAGE_CFG, 1, false, false, NULL }
+    , { OPTION_CFM, ALIAS_CFM, NULL, USAGE_CFM, 1, true , false, NULL }
+    , { OPTION_DIR, ALIAS_DIR, NULL, USAGE_DIR, 1, false, false, NULL }
+    , { OPTION_ENV, ALIAS_ENV, NULL, USAGE_ENV, 1, false, false, NULL }
+    , { OPTION_FIL, ALIAS_FIL, NULL, USAGE_FIL, 1, false, false, NULL }
+    , { OPTION_FIX, ALIAS_FIX, NULL, USAGE_FIX, 1, false, false, NULL }
+    , { OPTION_IMP, ALIAS_IMP, NULL, USAGE_IMP, 1, true , false, ArgsConvFilepath }
+    , { OPTION_MOD, ALIAS_MOD, NULL, USAGE_MOD, 1, false, false, NULL }
+    , { OPTION_OUT, ALIAS_OUT, NULL, USAGE_OUT, 1, true , false, NULL }
+    , { OPTION_PCF, ALIAS_PCF, NULL, USAGE_PCF, 1, false, false, NULL }
+    , { OPTION_PRD, ALIAS_PRD, NULL, USAGE_PRD, 1, true , false, NULL }
+    , { OPTION_PRX, ALIAS_PRX, NULL, USAGE_PRX, 1, true , false, NULL }
+    , { OPTION_SET, ALIAS_SET, NULL, USAGE_SET, 1, true , false, NULL }
+    , { OPTION_ROOT,ALIAS_ROOT,NULL, USAGE_ROOT,1, false, false, NULL }
+};
+
+ParamDef Parameters[] =
+{
+    { WorkspaceDirPathConv }
 };
 
 rc_t CC UsageSummary (const char * progname) {
@@ -427,12 +451,30 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
     args = prm->args;
     do {
         uint32_t pcount = 0;
-        rc = ArgsMakeAndHandle(&args, argc, argv, 1,
-            Options, sizeof Options / sizeof (OptDef));
+        rc = ArgsMakeStandardOptions(&args);
         if (rc) {
-            LOGERR(klogErr, rc, "While calling ArgsMakeAndHandle");
+            LOGERR(klogErr, rc, "While calling ArgsMake");
             break;
         }
+        
+        rc = ArgsAddOptionArray(args, Options, sizeof Options / sizeof Options[0]);
+        if (rc) {
+            LOGERR(klogErr, rc, "While calling ArgsAddOptionsArray");
+            break;
+        }
+        
+        rc = ArgsAddParamArray(args, Parameters, sizeof Parameters / sizeof Parameters[0]);
+        if (rc) {
+            LOGERR(klogErr, rc, "While calling ArgsAddParamsArray");
+            break;
+        }
+        
+        rc = ArgsParse(args, argc, argv);
+        if (rc) {
+            LOGERR(klogErr, rc, "Failed to parse arguments");
+            break;
+        }
+        
         prm->args = args;
         rc = ArgsParamCount(args, &prm->argsParamCnt);
         if (rc) {
@@ -453,7 +495,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
         }
         if (pcount) {
             const char* dummy = NULL;
-            rc = ArgsOptionValue(args, OPTION_OUT, 0, &dummy);
+            rc = ArgsOptionValue(args, OPTION_OUT, 0, (const void **)&dummy);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
                 break;
@@ -497,7 +539,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             break;
         }
         if (pcount > 0) {
-            rc = ArgsOptionValue(args, OPTION_IMP, 0, &prm->ngc);
+            rc = ArgsOptionValue(args, OPTION_IMP, 0, (const void **)&prm->ngc);
             if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
                 break;
@@ -552,7 +594,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
         }
         if (pcount > 0) {
             const char *dummy = NULL;
-            rc = ArgsOptionValue(args, OPTION_PRD, 0, &dummy);
+            rc = ArgsOptionValue(args, OPTION_PRD, 0, (const void **)&dummy);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_PRD "' argument");
                 break;
@@ -572,7 +614,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             break;
         }
         if (pcount > 0) {
-            rc = ArgsOptionValue(args, OPTION_PRX, 0, &prm->proxy);
+            rc = ArgsOptionValue(args, OPTION_PRX, 0, (const void **)&prm->proxy);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_PRX "' argument");
                 break;
@@ -607,7 +649,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             break;
         }
         if (pcount) {
-            rc = ArgsOptionValue(args, OPTION_SET, 0, &prm->setValue);
+            rc = ArgsOptionValue(args, OPTION_SET, 0, (const void **)&prm->setValue);
             if (rc == 0) {
                 const char* p = strchr(prm->setValue, '=');
                 if (p == NULL || *(p + 1) == '\0') {
@@ -651,7 +693,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
 
 #else
             const char* dummy = NULL;
-            rc = ArgsOptionValue(args, OPTION_CFG, 0, &dummy);
+            rc = ArgsOptionValue(args, OPTION_CFG, 0, (const void **)&dummy);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_CFG "' argument");
                 break;
@@ -679,7 +721,7 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
         if (pcount) {
             const char* dummy = NULL;
             size_t dummy_len;
-            rc = ArgsOptionValue(args, OPTION_CFM, 0, &dummy);
+            rc = ArgsOptionValue(args, OPTION_CFM, 0, (const void **)&dummy);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
                 break;
@@ -737,7 +779,7 @@ static rc_t ParamsGetNextParam(Params* prm, const char** param) {
     assert(prm && param);
     *param = NULL;
     if (prm->argsParamIdx < prm->argsParamCnt) {
-        rc = ArgsParamValue(prm->args, prm->argsParamIdx++, param);
+        rc = ArgsParamValue(prm->args, prm->argsParamIdx++, (const void **)param);
         if (rc)
         {   LOGERR(klogErr, rc, "Failure retrieving query"); }
     }

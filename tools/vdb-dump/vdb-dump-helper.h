@@ -62,7 +62,8 @@ rc_t vdh_show_manager_version( const VDBManager *my_manager );
 
 rc_t vdh_parse_schema( const VDBManager *my_manager,
                        VSchema **new_schema,
-                       Vector *schema_list );
+                       Vector *schema_list,
+					   bool with_sra_schema );
 
 bool vdh_is_path_table( const VDBManager *my_manager, const char *path,
                         Vector *schema_list );

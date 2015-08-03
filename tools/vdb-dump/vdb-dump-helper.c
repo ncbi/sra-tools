@@ -81,9 +81,10 @@ static void CC vdh_parse_1_schema( void *item, void *data )
 
 rc_t vdh_parse_schema( const VDBManager *my_manager,
                        VSchema **new_schema,
-                       Vector *schema_list )
+                       Vector *schema_list,
+					   bool with_sra_schema )
 {
-    rc_t rc;
+    rc_t rc = 0;
 
     if ( my_manager == NULL )
     {
@@ -94,16 +95,24 @@ rc_t vdh_parse_schema( const VDBManager *my_manager,
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     }
 
-    rc = VDBManagerMakeSRASchema( my_manager, new_schema );
-    DISP_RC( rc, "VDBManagerMakeSRASchema() failed" );
-
+	*new_schema = NULL;
+	
+	if ( with_sra_schema )
+	{
+		rc = VDBManagerMakeSRASchema( my_manager, new_schema );
+		DISP_RC( rc, "VDBManagerMakeSRASchema() failed" );
+	}
+	
     if ( ( rc == 0 )&&( schema_list != NULL ) )
     {
-        VectorForEach( schema_list, false, vdh_parse_1_schema, *new_schema );
+		if ( *new_schema == NULL )
+		{
+			rc = VDBManagerMakeSchema( my_manager, new_schema );
+			DISP_RC( rc, "VDBManagerMakeSchema() failed" );
+		}
+		if ( rc == 0 )
+			VectorForEach( schema_list, false, vdh_parse_1_schema, *new_schema );
     }
-
-/*    rc = VDBManagerMakeSchema( my_manager, new_schema );
-    display_rescode( rc, "failed to make a schema", NULL ); */
     return rc;
 }
 
@@ -118,7 +127,7 @@ bool vdh_is_path_table( const VDBManager *my_manager, const char *path,
     VSchema *my_schema = NULL;
     rc_t rc;
 
-    rc = vdh_parse_schema( my_manager, &my_schema, schema_list );
+    rc = vdh_parse_schema( my_manager, &my_schema, schema_list, false );
     DISP_RC( rc, "helper_parse_schema() failed" );
 
     rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", path );
@@ -185,7 +194,7 @@ bool vdh_is_path_database( const VDBManager *my_manager, const char *path,
     VSchema *my_schema = NULL;
     rc_t rc;
 
-    rc = vdh_parse_schema( my_manager, &my_schema, schema_list );
+    rc = vdh_parse_schema( my_manager, &my_schema, schema_list, false );
     DISP_RC( rc, "helper_parse_schema() failed" );
 
     rc = VDBManagerOpenDBRead( my_manager, &my_database, my_schema, "%s", path );

@@ -375,7 +375,7 @@ static rc_t vdb_fastq_table( const p_dump_context ctx,
     VSchema * schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( mgr, &schema, &(ctx->schema_list) );
+    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), false );
 
     rc = VDBManagerOpenTableRead( mgr, &tbl, schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
@@ -384,7 +384,9 @@ static rc_t vdb_fastq_table( const p_dump_context ctx,
         rc = vdb_fastq_tbl( ctx, tbl, fctx );
         VTableRelease( tbl );
     }
-    VSchemaRelease( schema );
+	
+	if ( schema != NULL )
+		VSchemaRelease( schema );
 
     return rc;
 }
@@ -398,7 +400,7 @@ static rc_t vdb_fastq_database( const p_dump_context ctx,
     VSchema *schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( mgr, &schema, &(ctx->schema_list) );
+    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), false );
 
     rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
@@ -428,7 +430,8 @@ static rc_t vdb_fastq_database( const p_dump_context ctx,
         VDatabaseRelease( db );
     }
 
-    VSchemaRelease( schema );
+	if ( schema != NULL )
+		VSchemaRelease( schema );
     return rc;
 }
 

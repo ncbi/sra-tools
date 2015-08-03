@@ -375,7 +375,7 @@ static rc_t vdb_fastq_table( const p_dump_context ctx,
     VSchema * schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), false );
+    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), ctx->force_sra_schema );
 
     rc = VDBManagerOpenTableRead( mgr, &tbl, schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
@@ -400,7 +400,7 @@ static rc_t vdb_fastq_database( const p_dump_context ctx,
     VSchema *schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), false );
+    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), ctx->force_sra_schema );
 
     rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenDBRead() failed" );

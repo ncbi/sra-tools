@@ -2033,7 +2033,7 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                         for ( idx = 0; idx < count && rc == 0; ++idx )
                         {
                             const char *value = NULL;
-                            rc = ArgsParamValue( args, idx, &value );
+                            rc = ArgsParamValue( args, idx, (const void **)&value );
                             DISP_RC( rc, "ArgsParamValue() failed" );
                             if ( rc == 0 )
                             {
@@ -2079,12 +2079,12 @@ static rc_t diff_files( Args * args )
 		else
 		{
 			const char * f1;
-			rc = ArgsParamValue( args, 0, &f1 );
+			rc = ArgsParamValue( args, 0, (const void **)&f1 );
 			DISP_RC( rc, "ArgsParamValue( 0 ) failed" );
 			if ( rc == 0 )
 			{
 				const char * f2;
-				rc = ArgsParamValue( args, 1, &f2 );
+				rc = ArgsParamValue( args, 1, (const void **)&f2 );
 				DISP_RC( rc, "ArgsParamValue( 1 ) failed" );
 				if ( rc == 0 )
 					rc = vds_diff( f1, f2 ); /* in vdb-dump-str.c */

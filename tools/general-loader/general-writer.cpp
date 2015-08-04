@@ -474,7 +474,7 @@ namespace ncbi
         }
 
         if ( obj_id < ID_LOWER_LIMIT || obj_id > ID_UPPER_LIMIT )
-            throw "obj_id outside of valid range"
+            throw "obj_id outside of valid range";
 
         size_t str1_size = node_path . size ();
         if ( str1_size > STRING_LIMIT_16 )
@@ -520,7 +520,7 @@ namespace ncbi
         }
 
         if ( obj_id < ID_LOWER_LIMIT || obj_id > ID_UPPER_LIMIT )
-            throw "obj_id outside of valid range"
+            throw "obj_id outside of valid range";
 
         size_t str1_size = node_path . size ();
         if ( str1_size > STRING_LIMIT_16 )
@@ -566,7 +566,7 @@ namespace ncbi
         }
 
         if ( obj_id < ID_LOWER_LIMIT || obj_id > ID_UPPER_LIMIT )
-            throw "obj_id outside of valid range"
+            throw "obj_id outside of valid range";
 
         size_t str1_size = node_path . size ();
         if ( str1_size > STRING_LIMIT_16 )

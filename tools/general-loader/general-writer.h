@@ -85,6 +85,11 @@ enum gw_evt_id
 #define GW_REVERSE_ENDIAN ( 1 << 24 )
 #define GW_CURRENT_VERSION 2
 
+//These are not to change
+#define STRING_LIMIT_8 0x100
+#define STRING_LIMIT_16 0x10000
+#define ID_LOWER_LIMIT 0
+#define ID_UPPER_LIMIT 255
 
 /********************************
  * DESCRIPTION OF STREAM EVENTS *

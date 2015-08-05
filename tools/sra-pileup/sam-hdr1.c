@@ -506,6 +506,7 @@ static bool parse_hdr_line( hdr_line * hl, const char * line )
 	hl->n_tags = 0;
 	if ( res )
 	{
+		uint32_t colons = 0;
 		StringInit( &hl->line_key, &line[ 1 ], 2, 2 );
 		for( i = start; i < len; ++i )
 		{
@@ -518,14 +519,21 @@ static bool parse_hdr_line( hdr_line * hl, const char * line )
 									tl = 0;
 								}
 								start = i + 1;
+								colons = 0;
 								break;
 
-				case ':'  :		if ( tl > 0 )
+				case ':'  :		if ( colons == 0 )
 								{
-									StringInit( &hl->tags[ hl->n_tags ].key, &line[ start ], tl, tl );
-									tl = 0;
+									if ( tl > 0 )
+									{
+										StringInit( &hl->tags[ hl->n_tags ].key, &line[ start ], tl, tl );
+										tl = 0;
+									}
+									start = i + 1;
 								}
-								start = i + 1;
+								else
+									tl++;
+								colons++;
 								break;
 				
 				default : 		tl++;

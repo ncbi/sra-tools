@@ -40,6 +40,7 @@ typedef struct headers
 	VNamelist * SQ_Lines;
 	VNamelist * RG_Lines;
 	VNamelist * Other_Lines;
+	VNamelist * HD_Lines;
 } headers;
 
 
@@ -55,6 +56,7 @@ static void release_lines( VNamelist ** lines )
 
 static void release_headers( headers * h )
 {
+	release_lines( &h->HD_Lines );
 	release_lines( &h->Other_Lines );
 	release_lines( &h->RG_Lines );
 	release_lines( &h->SQ_Lines );
@@ -73,6 +75,8 @@ static rc_t init_headers( headers * h, uint32_t blocksize )
 		rc = VNamelistMake( &h->RG_Lines, blocksize );
 	if ( rc == 0 )
 		rc = VNamelistMake( &h->Other_Lines, blocksize );
+	if ( rc == 0 )
+		rc = VNamelistMake( &h->HD_Lines, blocksize );
 
 	if ( rc != 0 )
 		release_headers( h );
@@ -90,9 +94,7 @@ static void process_line( headers * h, const char * line, size_t len )
 		else if ( line[ 1 ] == 'R' && line[ 2 ] == 'G' )
 			VNamelistAppend( h->RG_Lines, line );
 		else if ( line[ 1 ] == 'H' && line[ 2 ] == 'D' )
-		{
-			/* we do not store @HD lines */
-		}
+			VNamelistAppend( h->HD_Lines, line );
 		else
 			VNamelistAppend( h->Other_Lines, line );
 	}
@@ -743,6 +745,24 @@ static rc_t collect_from_src_and_files( headers * h, input_files * ifs, const ch
 }
 
 
+static rc_t print_HD_line( const VNamelist * lines )
+{
+	uint32_t count;
+	rc_t rc = VNameListCount( lines, &count );
+	if ( rc == 0 && count > 0 )
+	{
+		const char * line = NULL;
+		rc = VNameListGet( lines, 0, &line );
+		if ( rc == 0 && line != NULL )
+			rc = KOutMsg( "%s\n", line );
+		else
+			rc = KOutMsg( "@HD\tVN:1.2\tSO:coordinate\n" );
+	}
+	else
+		rc = KOutMsg( "@HD\tVN:1.2\tSO:coordinate\n" );
+	return rc;
+}
+
 static rc_t print_callback( const char * line, void * context ) { return KOutMsg( "%s\n", line ); }
 
 rc_t print_headers_1( const samdump_opts * opts, input_files * ifs )
@@ -772,7 +792,7 @@ rc_t print_headers_1( const samdump_opts * opts, input_files * ifs )
 		
 		/* print ... */
 		if ( rc == 0 )
-			rc = KOutMsg( "@HD\tVN:1.2\tSO:coordinate\n" );
+			rc = print_HD_line( h.HD_Lines );
 		if ( rc == 0 )
 			rc = for_each_line( h.SQ_Lines, print_callback, NULL );
 		if ( rc == 0 )

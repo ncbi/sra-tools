@@ -411,9 +411,9 @@ namespace AlignCache
                     count*2, g_Params.min_cache_count, OPTION_MIN_CACHE_COUNT
                     ));
             }
-            return 0; // TODO: or something else? https://jira.ncbi.nlm.nih.gov/browse/VDB-1340?focusedCommentId=3904639&page=com.atlassian.jira.plugin.system.issuetabpanels:comment-tabpanel#comment-3904639
         }
 
+        mgr.Release (); // should not be necessary - destructor should do job
         return 0;
     }
 

@@ -116,6 +116,7 @@ static const char * outbuf_size_usage[] = { "size of output-buffer, 0...none", N
 static const char * disable_mt_usage[] = { "disable multithreading", NULL };
 static const char * info_usage[] = { "print info about run", NULL };
 static const char * spotgroup_usage[] = { "show spotgroups", NULL };
+static const char * sraschema_usage[] = { "force use of dflt. sra-schema", NULL };
 
 OptDef DumpOptions[] =
 {
@@ -162,6 +163,7 @@ OptDef DumpOptions[] =
     { OPTION_INFO, NULL, NULL, info_usage, 1, false, false },
     { OPTION_DIFF, NULL, NULL, NULL, 1, false, false },
 	{ OPTION_SPOTGROUPS, NULL, NULL, spotgroup_usage, 1, false, false },
+	{ OPTION_SRASCHEMA, NULL, NULL, sraschema_usage, 1, false, false }	
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -233,6 +235,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL, OPTION_NO_MULTITHREAD, NULL, disable_mt_usage );
     HelpOptionLine ( NULL, OPTION_INFO, NULL, info_usage );
     HelpOptionLine ( NULL, OPTION_SPOTGROUPS, NULL, spotgroup_usage );
+    HelpOptionLine ( NULL, OPTION_SRASCHEMA, NULL, sraschema_usage );
 	
     HelpOptionsStandard ();
 
@@ -1628,7 +1631,7 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     VSchema *my_schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list) );
+    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), ctx->force_sra_schema );
 
     rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
@@ -1738,7 +1741,7 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
     VSchema *my_schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list) );
+    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), ctx->force_sra_schema );
 
     rc = VDBManagerOpenDBRead( my_manager, &my_database, my_schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
@@ -2030,7 +2033,7 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                         for ( idx = 0; idx < count && rc == 0; ++idx )
                         {
                             const char *value = NULL;
-                            rc = ArgsParamValue( args, idx, &value );
+                            rc = ArgsParamValue( args, idx, (const void **)&value );
                             DISP_RC( rc, "ArgsParamValue() failed" );
                             if ( rc == 0 )
                             {
@@ -2076,12 +2079,12 @@ static rc_t diff_files( Args * args )
 		else
 		{
 			const char * f1;
-			rc = ArgsParamValue( args, 0, &f1 );
+			rc = ArgsParamValue( args, 0, (const void **)&f1 );
 			DISP_RC( rc, "ArgsParamValue( 0 ) failed" );
 			if ( rc == 0 )
 			{
 				const char * f2;
-				rc = ArgsParamValue( args, 1, &f2 );
+				rc = ArgsParamValue( args, 1, (const void **)&f2 );
 				DISP_RC( rc, "ArgsParamValue( 1 ) failed" );
 				if ( rc == 0 )
 					rc = vds_diff( f1, f2 ); /* in vdb-dump-str.c */

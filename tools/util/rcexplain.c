@@ -119,7 +119,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                 for (ix = 0; ix < pcount; ++ix)
                 {
-                    rc = ArgsParamValue (args, ix, &pc);
+                    rc = ArgsParamValue (args, ix, (const void **)&pc);
                     if (rc)
                         break;
 

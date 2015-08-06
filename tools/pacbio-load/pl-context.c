@@ -59,7 +59,7 @@ static rc_t ctx_get_params( const Args * args, context *ctx )
         else for ( idx = 0; idx < count; ++idx )
         {
             const char *parameter = NULL;
-            rc = ArgsParamValue( args, idx, &parameter );
+            rc = ArgsParamValue( args, idx, (const void **)&parameter );
             if ( rc != 0 )
                 LOGERR( klogErr, rc, "error reading commandline-parameter" );
             else
@@ -86,7 +86,7 @@ static const char* ctx_get_str( const Args *args, const char *name, const char *
     uint32_t count = 0;
     if ( ArgsOptionCount( args, name, &count ) == 0 && count > 0 )
     {
-        if ( ArgsOptionValue( args, name, 0, &res ) != 0 )
+        if ( ArgsOptionValue( args, name, 0, (const void **)&res ) != 0 )
             res = def;
     }
     return res;

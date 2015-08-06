@@ -117,6 +117,7 @@ static void vdco_init_values( p_dump_context ctx )
 	ctx->table_defined = false;
 	ctx->diff = false;
 	ctx->show_spotgroups = false;
+	ctx->force_sra_schema = false;
 }
 
 rc_t vdco_init( dump_context **ctx )
@@ -446,7 +447,7 @@ static uint16_t vdco_get_uint16_option( const Args *my_args,
     if ( ( rc == 0 )&&( count > 0 ) )
     {
         const char *s;
-        rc = ArgsOptionValue( my_args, name, 0,  &s );
+        rc = ArgsOptionValue( my_args, name, 0, (const void **)&s );
         DISP_RC( rc, "ArgsOptionValue() failed" );
         if ( rc == 0 ) res = atoi( s );
     }
@@ -465,7 +466,7 @@ static size_t vdco_get_size_t_option( const Args *my_args,
     if ( ( rc == 0 )&&( count > 0 ) )
     {
         const char *s;
-        rc = ArgsOptionValue( my_args, name, 0,  &s );
+        rc = ArgsOptionValue( my_args, name, 0, (const void **)&s );
         DISP_RC( rc, "ArgsOptionValue() failed" );
         if ( rc == 0 )
         {
@@ -486,7 +487,7 @@ static const char* vdco_get_str_option( const Args *my_args,
     DISP_RC( rc, "ArgsOptionCount() failed" );
     if ( ( rc == 0 )&&( count > 0 ) )
     {
-        rc = ArgsOptionValue( my_args, name, 0, &res );
+        rc = ArgsOptionValue( my_args, name, 0, (const void**)&res );
         DISP_RC( rc, "ArgsOptionValue() failed" );
     }
     return res;
@@ -503,7 +504,7 @@ void vdco_set_schemas( const Args *my_args, p_dump_context ctx )
         for ( i=0; i<count; ++i )
         {
             const char* txt = NULL;
-            rc = ArgsOptionValue( my_args, OPTION_SCHEMA, i, &txt );
+            rc = ArgsOptionValue( my_args, OPTION_SCHEMA, i, (const void**)&txt );
             DISP_RC( rc, "ArgsOptionValue() failed" );
             if ( ( rc == 0 )&&( txt != NULL ) )
             {
@@ -557,6 +558,7 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->print_info = vdco_get_bool_option( my_args, OPTION_INFO, false );
     ctx->diff = vdco_get_bool_option( my_args, OPTION_DIFF, false );
 	ctx->show_spotgroups = vdco_get_bool_option( my_args, OPTION_SPOTGROUPS, false );
+	ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );
 	
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );
     ctx->output_buffer_size = vdco_get_size_t_option( my_args, OPTION_OUT_BUF_SIZE, DEF_OPTION_OUT_BUF_SIZE );

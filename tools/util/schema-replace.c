@@ -132,7 +132,7 @@ static const char* get_str_option( const Args *my_args,
     rc_t rc = ArgsOptionCount( my_args, name, &count );
     if ( ( rc == 0 )&&( count > 0 ) )
     {
-        rc = ArgsOptionValue( my_args, name, 0, &res );
+        rc = ArgsOptionValue( my_args, name, 0, (const void **)&res );
     }
     return res;
 }
@@ -226,7 +226,7 @@ static rc_t process_files( p_ctx ctx, Args * args )
         for ( idx = 0; idx < count && rc == 0; ++idx )
         {
             const char *csra = NULL;
-            rc = ArgsParamValue( args, idx, &csra );
+            rc = ArgsParamValue( args, idx, (const void **)&csra );
             if ( rc == 0 )
             {
                 OUTMSG(( "\nprocessing: %s\n", csra ));

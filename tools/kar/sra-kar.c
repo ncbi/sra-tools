@@ -349,7 +349,7 @@ rc_t CC Usage (const Args * args)
                 break;
             }
 
-            rc = ArgsParamValue (args, 0, &pb.src_path);
+            rc = ArgsParamValue (args, 0, (const void **)&pb.src_path);
             if (rc)
             {
                 KOutMsg ("failure to get source path/name\n");
@@ -377,7 +377,7 @@ rc_t CC Usage (const Args * args)
             }
             else
             {
-                rc = ArgsParamValue (args, 1, &pb.dst_path);
+                rc = ArgsParamValue (args, 1, (const void **)&pb.dst_path);
                 if (rc)
                 {
                     LOGERR (klogInt, rc, "failure to get destination path");

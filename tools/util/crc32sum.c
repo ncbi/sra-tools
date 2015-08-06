@@ -252,7 +252,7 @@ rc_t CC KMain (int argc, char * argv [])
                     const char *fname;
                     FILE *in;
 
-                    rc = ArgsParamValue (args, i, &fname);
+                    rc = ArgsParamValue (args, i, (const void **)&fname);
 
                     in = fopen ( fname, bin ? "rb" : "r" );
 

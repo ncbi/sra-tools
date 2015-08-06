@@ -217,7 +217,7 @@ const char *ArgsGetOptStr ( Args *self, const ctx_t *ctx, const char *optname, u
     rc = ArgsOptionCount ( self, optname, count );
     if ( rc == 0 && * count != 0 )
     {
-        rc = ArgsOptionValue ( self, optname, 0, & val );
+        rc = ArgsOptionValue ( self, optname, 0, (const void **)& val );
         if ( rc != 0 )
             INTERNAL_ERROR ( rc, "failed to retrieve '%s' parameter", optname );
     }
@@ -239,7 +239,7 @@ uint64_t ArgsGetOptU64 ( Args *self, const ctx_t *ctx, const char *optname, uint
     if ( rc == 0 && * count != 0 )
     {
         const char *str;
-        rc = ArgsOptionValue ( self, optname, 0, & str );
+        rc = ArgsOptionValue ( self, optname, 0, (const void **)& str );
         if ( rc != 0 )
             INTERNAL_ERROR ( rc, "failed to retrieve '%s' parameter", optname );
         else
@@ -586,7 +586,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                                 {
                                     /* check type of last parameter */
                                     const char *dst;
-                                    rc = ArgsParamValue ( args, count - 1, & dst );
+                                    rc = ArgsParamValue ( args, count - 1, (const void **)& dst );
                                     if ( rc != 0 )
                                         ERROR ( rc, "ArgsParamValue [ %u ] failed", count - 1 );
                                     else
@@ -644,7 +644,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                                                 
                                                 for ( issue_divider_line = false, i = 0; i < count - 1; issue_divider_line = true, ++ i )
                                                 {
-                                                    rc = ArgsParamValue ( args, i, & tp . src_path );
+                                                    rc = ArgsParamValue ( args, i, (const void **)& tp . src_path );
                                                     if ( rc != 0 )
                                                         ERROR ( rc, "ArgParamValue [ %u ] failed", i );
                                                     else
@@ -700,7 +700,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                                             else
                                             {
                                                 tp . dst_path = dst;
-                                                rc = ArgsParamValue ( args, 0, & tp . src_path );
+                                                rc = ArgsParamValue ( args, 0, (const void **)& tp . src_path );
                                                 if ( rc != 0 )
                                                     ERROR ( rc, "ArgParamValue [ 0 ] failed" );
                                                 else

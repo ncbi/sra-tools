@@ -473,15 +473,18 @@ namespace ncbi
             throw "state violation setting column default";
         }
 
+        if ( obj_id < ID_LOWER_LIMIT || obj_id > ID_UPPER_LIMIT )
+            throw "obj_id outside of valid range";
+
         size_t str1_size = node_path . size ();
-        if ( str1_size > 0x10000 )
+        if ( str1_size > STRING_LIMIT_16 )
             throw "DB_path too long";
 
         size_t str2_size = value . size ();
-        if ( str2_size > 0x10000 )
+        if ( str2_size > STRING_LIMIT_16 )
             throw "value too long";
 
-        if ( str1_size <= 0x100 && str2_size <= 0x100 )
+        if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 )
         {
             // use 8-bit sizes
             gwp_2string_evt_v1 hdr;
@@ -516,15 +519,18 @@ namespace ncbi
             throw "state violation setting column default";
         }
 
+        if ( obj_id < ID_LOWER_LIMIT || obj_id > ID_UPPER_LIMIT )
+            throw "obj_id outside of valid range";
+
         size_t str1_size = node_path . size ();
-        if ( str1_size > 0x10000 )
+        if ( str1_size > STRING_LIMIT_16 )
             throw "tbl_path too long";
 
         size_t str2_size = value . size ();
-        if ( str2_size > 0x10000 )
+        if ( str2_size > STRING_LIMIT_16 )
             throw "value too long";
 
-        if ( str1_size <= 0x100 && str2_size <= 0x100 )
+        if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 )
         {
             // use 8-bit sizes
             gwp_2string_evt_v1 hdr;
@@ -559,15 +565,18 @@ namespace ncbi
             throw "state violation setting column default";
         }
 
+        if ( obj_id < ID_LOWER_LIMIT || obj_id > ID_UPPER_LIMIT )
+            throw "obj_id outside of valid range";
+
         size_t str1_size = node_path . size ();
-        if ( str1_size > 0x10000 )
-            throw "col_path too long";
+        if ( str1_size > STRING_LIMIT_16 )
+            throw "tbl_path too long";
 
         size_t str2_size = value . size ();
-        if ( str2_size > 0x10000 )
+        if ( str2_size > STRING_LIMIT_16 )
             throw "value too long";
 
-        if ( str1_size <= 0x100 && str2_size <= 0x100 )
+        if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 )
         {
             // use 8-bit sizes
             gwp_2string_evt_v1 hdr;

@@ -486,11 +486,11 @@ rc_t CC KMain (int argc, char *argv [])
                 break;
             }
 
-            rc = ArgsParamValue (args, 0, &G.txtpath);
+            rc = ArgsParamValue (args, 0, (const void **)&G.txtpath);
             if (rc)
                 break;
 
-            rc = ArgsParamValue (args, 1, &G.colpath);
+            rc = ArgsParamValue (args, 1, (const void **)&G.colpath);
             if (rc)
                 break;
 
@@ -504,7 +504,7 @@ rc_t CC KMain (int argc, char *argv [])
             {
                 const char * pc;
 
-                rc = ArgsOptionValue (args, OPTION_BEGIN, 0, &pc);
+                rc = ArgsOptionValue (args, OPTION_BEGIN, 0, (const void **)&pc);
                 if (rc)
                     break;
 
@@ -525,7 +525,7 @@ rc_t CC KMain (int argc, char *argv [])
             {
                 const char * pc;
 
-                rc = ArgsOptionValue (args, OPTION_END, 0, &pc);
+                rc = ArgsOptionValue (args, OPTION_END, 0, (const void **)&pc);
                 if (rc)
                     break;
 

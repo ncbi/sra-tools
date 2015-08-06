@@ -124,7 +124,7 @@ static rc_t get_str_option( const Args *args, const char *name, const char ** re
     {
         if ( count > 0 )
         {
-            rc = ArgsOptionValue( args, name, 0, res );
+            rc = ArgsOptionValue( args, name, 0, (const void **)res );
             if ( rc != 0 )
             {
                 LOGERR( klogInt, rc, "ArgsOptionValue() failed" );
@@ -259,7 +259,7 @@ rc_t init_ref_regions( BSTree * tree, Args * args )
         for ( i = 0; i < count && rc == 0; ++i )
         {
             const char * s;
-            rc = ArgsOptionValue( args, OPTION_REF, i, &s );
+            rc = ArgsOptionValue( args, OPTION_REF, i, (const void **)&s );
             if ( rc != 0 )
                 LOGERR( klogInt, rc, "ArgsOptionValue() failed" );
             else
@@ -499,7 +499,7 @@ rc_t foreach_argument( Args * args, KDirectory *dir, bool div_by_spotgrp, bool *
         for ( idx = 0; idx < count && rc == 0; ++idx )
         {
             const char *param = NULL;
-            rc = ArgsParamValue( args, idx, &param );
+            rc = ArgsParamValue( args, idx, (const void **)&param );
             if ( rc != 0 )
             {
                 LOGERR( klogInt, rc, "ArgsParamvalue() failed" );

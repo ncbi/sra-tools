@@ -448,7 +448,7 @@ rc_t HandleParams (VFSManager * mgr, Args * args, uint32_t pcount)
     {
         const char * pc;
 
-        rc = ArgsParamValue (args, ix, &pc);
+        rc = ArgsParamValue (args, ix, (const void **)&pc);
         if (rc)
             PLOGERR (klogErr, 
                      (klogErr, rc, "failed to retrieve "
@@ -547,7 +547,7 @@ rc_t HandleOptions (Args * args)
                             {
                                 const char * pc;
 
-                                rc = ArgsParamValue (args, 0, &pc);
+                                rc = ArgsParamValue (args, 0, (const void **)&pc);
                                 if (rc)
                                     LOGERR (0, rc, "unable to retrieve file parameter");
 

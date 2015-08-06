@@ -148,7 +148,7 @@ static rc_t CmdArgsInit(int argc, char** argv, CmdArgs* cmdArgs)
             LOGERR(klogErr, rc, "Too many run parameters");
             break;
         }
-        rc = ArgsOptionValue (args, OPTION_RUN, 0, &cmdArgs->run);
+        rc = ArgsOptionValue (args, OPTION_RUN, 0, (const void **)&cmdArgs->run);
         if (rc) {
             LOGERR(klogErr, rc, "Failure retrieving run name");
             break;
@@ -169,7 +169,7 @@ static rc_t CmdArgsInit(int argc, char** argv, CmdArgs* cmdArgs)
         if (pcount == 1) {
             uint8_t p = SRA_PLATFORM_UNDEFINED;
             const char* arg = NULL;
-            rc = ArgsOptionValue(args, OPTION_PLATF, 0, &arg);
+            rc = ArgsOptionValue(args, OPTION_PLATF, 0, (const void **)&arg);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure retrieving platform");
                 break;
@@ -212,7 +212,7 @@ static rc_t CmdArgsInit(int argc, char** argv, CmdArgs* cmdArgs)
             break;
         }
         else if (pcount == 1) {
-            rc = ArgsOptionValue(args, OPTION_SCHEMA, 0, &cmdArgs->schema);
+            rc = ArgsOptionValue(args, OPTION_SCHEMA, 0, (const void **)&cmdArgs->schema);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure retrieving schema");
                 break;
@@ -255,7 +255,7 @@ static rc_t CmdArgsGetNextParam(CmdArgs* args, const char** param)
     *param = NULL;
     if (args->i >= args->count) /* no more parameters to give :( */
     {   return rc; }
-    rc = ArgsParamValue(args->args, args->i, param);
+    rc = ArgsParamValue(args->args, args->i, (const void **)param);
     if (rc) {
         PLOGERR(klogInt, (klogInt, rc,
             "while calling ArgsParamValue($(i))", "i=%d", args->i));

@@ -288,7 +288,7 @@ static KRepCategory get_repo_select( const Args * args, const char * name )
     else if ( count > 0 )
     {
         const char * s = NULL;
-        rc = ArgsOptionValue( args, name, 0, &s );
+        rc = ArgsOptionValue( args, name, 0, (const void **)&s );
         if ( rc == 0 && s != NULL )
         {
             if ( string_cmp_1 ( s, "user" ) )
@@ -315,7 +315,7 @@ static rc_t get_user_repo_name( const Args * args, const char ** name )
     else if ( count > 0 )
     {
         const char * s = NULL;
-        rc = ArgsOptionValue( args, OPTION_URNAME, 0, &s );
+        rc = ArgsOptionValue( args, OPTION_URNAME, 0, (const void **)&s );
         if ( rc != 0 )
         {
             PLOGERR( klogErr, ( klogErr, rc,
@@ -340,7 +340,7 @@ static rc_t get_max_remove( const Args * args, uint64_t * max_rem )
     else if ( count > 0 )
     {
         const char * s = NULL;
-        rc = ArgsOptionValue( args, OPTION_MAXREM, 0, &s );
+        rc = ArgsOptionValue( args, OPTION_MAXREM, 0, (const void **)&s );
         if ( rc != 0 )
         {
             PLOGERR( klogErr, ( klogErr, rc,
@@ -385,7 +385,7 @@ static rc_t get_tool_options( Args * args, tool_options * options )
         for ( idx = 0; idx < count && rc == 0; ++idx )
         {
             const char *value = NULL;
-            rc = ArgsParamValue( args, idx, &value );
+            rc = ArgsParamValue( args, idx, (const void **)&value );
             if ( rc != 0 )
             {
                 PLOGERR( klogErr, ( klogErr, rc,

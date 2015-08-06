@@ -34,6 +34,7 @@
 #include "sam-dump-opts.h"
 #include "inputfiles.h"
 #include "sam-hdr.h"
+#include "sam-hdr1.h"
 #include "matecache.h"
 #include "cg_tools.h"
 #include "out_redir.h"
@@ -400,7 +401,7 @@ static rc_t print_samdump( const samdump_opts * const opts )
                                  ( opts->header_mode != hm_none )   &&
                                  !opts->dump_unaligned_only ) 
                             /* ------------------------------------------------------ */
-                                rc = print_headers( opts, ifs ); /* sam-hdr.c */
+                                rc = print_headers_1( opts, ifs ); /* sam-hdr.c */
                             /* ------------------------------------------------------ */
 
 

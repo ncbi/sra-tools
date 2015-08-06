@@ -164,7 +164,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                     for ( ix = 0; ix < acount; ++ ix )
                     {
                         const char * pc;
-                        rc = ArgsParamValue (args, ix, &pc );
+                        rc = ArgsParamValue (args, ix, (const void **)&pc );
                         if (rc)
                             LOGERR (klogInt, rc,
                                     "failed to retrieve parameter value");

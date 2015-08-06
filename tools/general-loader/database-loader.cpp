@@ -30,12 +30,14 @@
 #include <klib/log.h>
 
 #include <kdb/meta.h>
+#include <kdb/table.h>
 
 #include <vdb/manager.h>
 #include <vdb/schema.h>
 #include <vdb/database.h>
 #include <vdb/cursor.h>
 #include <vdb/table.h>
+#include <vdb/vdb-priv.h>
 
 #include <kapp/loader-meta.h>
 #include <kapp/main.h>
@@ -57,9 +59,9 @@ GeneralLoader :: DatabaseLoader :: DatabaseLoader ( const std::string&  p_progra
     m_softwareVersion ( 0 ),
     m_mgr ( 0 ),
     m_schema ( 0 ),
-    m_db ( 0 ),
     m_databaseNameOverridden ( ! m_databaseName.empty() ) 
 {
+    m_databases . insert ( Databases :: value_type ( 0, 0 ) ); // reserve root database
 }
 
 GeneralLoader :: DatabaseLoader :: ~DatabaseLoader ()
@@ -71,12 +73,10 @@ GeneralLoader :: DatabaseLoader :: ~DatabaseLoader ()
     {
         VCursorRelease ( *it );
     }
-    m_cursors . clear();
 
-    if ( m_db != 0 )
+    for ( Databases::iterator it = m_databases . begin(); it != m_databases . end(); ++it )
     {
-        VDatabaseRelease ( m_db );
-        m_db = 0;
+        VDatabaseRelease ( it -> second );
     }
     
     if ( m_schema != 0 )
@@ -278,37 +278,7 @@ GeneralLoader :: DatabaseLoader :: SoftwareName ( const string& p_name, const st
 rc_t 
 GeneralLoader :: DatabaseLoader :: NewTable ( uint32_t p_tableId, const string& p_tableName )
 {   
-    rc_t rc = 0;
-    if ( m_tables . find ( p_tableId ) == m_tables . end() )
-    {
-        VTable* table;
-        rc = MakeDatabase();
-        if ( rc == 0 )
-        {
-            rc = VDatabaseCreateTable ( m_db, & table, p_tableName . c_str (), kcmCreate | kcmMD5, "%s", p_tableName . c_str ());
-            if ( rc == 0 )
-            {
-                VCursor* cursor;
-                rc = VTableCreateCursorWrite ( table, & cursor, kcmInsert );
-                if ( rc == 0 )
-                {
-                    m_cursors . push_back ( cursor );
-                    m_tables [ p_tableId ] = ( uint32_t ) m_cursors . size() - 1;
-                }
-                rc_t rc2 = VTableRelease ( table );
-                if ( rc == 0 )
-                {
-                    rc = rc2;
-                }
-            }
-        }
-    }
-    else
-    {
-        rc = RC ( rcExe, rcFile, rcReading, rcTable, rcExists );
-    }
-
-    return rc;
+    return AddMbrTbl ( p_tableId, 0, p_tableName, p_tableName, kcmCreate | kcmMD5 );
 }
 
 rc_t 
@@ -317,12 +287,12 @@ GeneralLoader :: DatabaseLoader :: NewColumn ( uint32_t p_columnId, uint32_t p_t
     pLogMsg ( klogInfo, "database-loader: adding column '$(c)'", "c=%s", p_columnName . c_str() );
     
     rc_t rc = 0;
-    TableIdToCursor::const_iterator table = m_tables . find ( p_tableId );
+    Tables::const_iterator table = m_tables . find ( p_tableId );
     if ( table != m_tables . end() )
     {
         if ( m_columns . find ( p_columnId ) == m_columns . end () )
         {
-            uint32_t cursor_idx = table -> second;
+            uint32_t cursor_idx = table -> second . cursorIdx;
             uint32_t column_idx;
             rc = VCursorAddColumn ( m_cursors [ cursor_idx ], 
                                     & column_idx, 
@@ -331,6 +301,8 @@ GeneralLoader :: DatabaseLoader :: NewColumn ( uint32_t p_columnId, uint32_t p_t
             if ( rc == 0  )
             {
                 Column col;
+                col . name      = p_columnName;
+                col . tableId   = p_tableId;
                 col . cursorIdx = cursor_idx;
                 col . columnIdx = column_idx;
                 col . elemBits  = p_elemBits;
@@ -355,45 +327,268 @@ GeneralLoader :: DatabaseLoader :: NewColumn ( uint32_t p_columnId, uint32_t p_t
 }
 
 rc_t
-GeneralLoader :: DatabaseLoader :: AddMbrDB ( uint32_t p_objId, uint32_t p_mbr_sz, uint32_t p_name_sz, uint8_t p_create_mode )
+GeneralLoader :: DatabaseLoader :: AddMbrDB ( uint32_t p_objId, uint32_t p_parentId, const std :: string &p_mbrName, const std :: string &p_dbName, uint8_t p_createMode )
 {
-    rc_t rc = 0;
-#pragma message (  "Fill out with call to set AddMbrDb" )
+    pLogMsg ( klogInfo, 
+              "database-loader: adding database id=$(i) parent=$(p) mbrName='$(m)' dbName='$(n)' mode=$(d)", 
+              "m=%s,n=%s,i=%u,p=%u,d=%u", 
+              p_objId, p_parentId, p_mbrName . c_str(), p_dbName . c_str (), ( unsigned int ) p_createMode );
+    
+    rc_t rc = MakeDatabase ( p_parentId );
+    if ( rc == 0 )
+    {
+        Databases :: const_iterator dad = m_databases . find ( p_parentId );
+        assert ( dad != m_databases . end () );
+        
+        if ( m_databases . find ( p_objId ) == m_databases . end () )
+        {
+            VDatabase *db;
+            rc = VDatabaseCreateDB ( dad -> second, & db, p_mbrName . c_str(), p_createMode, "%s", p_dbName . c_str () );
+            if ( rc == 0 )
+            {
+                m_databases . insert ( Databases :: value_type ( p_objId, db ) );
+                m_dbParents . insert ( DatabaseToParent :: value_type ( p_objId, p_parentId ) );
+            }
+        }
+        else
+        {
+            rc = RC ( rcExe, rcFile, rcReading, rcDatabase, rcExists );
+        }
+    }
+    
     return rc;
 }
 
 rc_t
-GeneralLoader :: DatabaseLoader :: AddMbrTbl ( uint32_t p_objId, uint32_t p_mbr_sz, uint32_t p_name_sz, uint8_t p_create_mode )
+GeneralLoader :: DatabaseLoader :: AddMbrTbl ( uint32_t p_tblId, uint32_t p_dbId, const std :: string &p_mbrName, const std :: string &p_tblName, uint8_t p_createMode )
 {
+    pLogMsg ( klogInfo, 
+              "database-loader: adding table id=$(i) parent=$(p) mbrName='$(m)' dbName='$(n)' mode=$(d)", 
+              "m=%s,n=%s,i=%u,p=%u,d=%u", 
+              p_mbrName . c_str(), p_tblName . c_str (), p_tblId, p_dbId, ( unsigned int ) p_createMode );
+
     rc_t rc = 0;
-#pragma message (  "Fill out with call to set AddMbrTbl" )
+    if ( m_tables . find ( p_tblId ) == m_tables . end() )
+    {
+        VTable* table;
+        rc = MakeDatabase ( p_dbId ); 
+        if ( rc == 0 )
+        {
+            Databases::iterator it = m_databases . find ( p_dbId ); 
+            if ( it != m_databases . end() )
+            {
+                rc = VDatabaseCreateTable ( it -> second , & table, p_mbrName . c_str (), p_createMode, "%s", p_tblName . c_str ());
+                if ( rc == 0 )
+                {
+                    VCursor* cursor;
+                    rc = VTableCreateCursorWrite ( table, & cursor, kcmInsert );
+                    if ( rc == 0 )
+                    {
+                        m_cursors . push_back ( cursor );
+                        Table t;
+                        t . name = p_tblName;
+                        t . databaseId = p_dbId;
+                        t . cursorIdx = ( uint32_t ) m_cursors . size() - 1;
+                        m_tables [ p_tblId ] = t;
+                    }
+                    rc_t rc2 = VTableRelease ( table );
+                    if ( rc == 0 )
+                    {
+                        rc = rc2;
+                    }
+                }
+            }
+            else
+            {
+                rc = RC ( rcExe, rcFile, rcReading, rcDatabase, rcNotFound );
+            }
+        }
+    }
+    else
+    {
+        rc = RC ( rcExe, rcFile, rcReading, rcTable, rcExists );
+    }
+
+    return rc;
+}
+
+static 
+rc_t WriteMetadata ( KMetadata* p_meta, const string& p_metadata_node, const string& p_value )
+{
+    KMDataNode* node;
+    rc_t rc = KMetadataOpenNodeUpdate ( p_meta, & node, p_metadata_node . c_str () );
+    if ( rc == 0 )
+    {
+        rc = KMDataNodeWrite ( node, p_value . c_str (), p_value . size () );
+    
+        rc_t rc2 = KMDataNodeRelease ( node );
+        if ( rc == 0 )
+        {
+            rc = rc2;
+        }
+    }
     return rc;
 }
 
 rc_t
 GeneralLoader :: DatabaseLoader :: DBMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
+    pLogMsg ( klogInfo, 
+              "database-loader: adding metadata node '$(n)=$(v)' to database $(i)", 
+              "n=%s,v=%s,i=%u", 
+              p_metadata_node . c_str(), p_value.c_str(), p_objId );
+              
     rc_t rc = 0;
-#pragma message (  "Fill out with call to set metadata or record for later" )
+    Databases::iterator it = m_databases . find ( p_objId ); 
+    if ( it != m_databases . end() )
+    {
+        struct KMetadata* meta;
+        rc = VDatabaseOpenMetadataUpdate ( it -> second, & meta );
+        if ( rc == 0 )
+        {
+            rc = WriteMetadata ( meta,p_metadata_node, p_value );
+            rc_t rc2 = KMetadataRelease ( meta );
+            if ( rc == 0 )
+            {
+                rc = rc2;
+            }
+        }
+    }
+    else
+    {
+        rc = RC ( rcExe, rcFile, rcReading, rcDatabase, rcNotFound );
+    }
+    
     return rc;
 }
 
 rc_t
 GeneralLoader :: DatabaseLoader :: TblMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
+    pLogMsg ( klogInfo, 
+              "database-loader: adding metadata node '$(n)=$(v)' to table $(i)", 
+              "n=%s,v=%s,i=%u", 
+              p_metadata_node . c_str(), p_value.c_str(), p_objId );
+              
     rc_t rc = 0;
-#pragma message (  "Fill out with call to set metadata or record for later" )
+    Tables::iterator it = m_tables . find ( p_objId ); 
+    if ( it != m_tables . end() )
+    {
+        struct VTable* tbl;
+        assert ( m_cursors [ it -> second . cursorIdx ] );
+        rc = VCursorOpenParentUpdate ( m_cursors [ it -> second . cursorIdx ], &tbl );
+        if ( rc == 0 )
+        {
+            struct KMetadata* meta;
+            rc = VTableOpenMetadataUpdate ( tbl, & meta );
+            if ( rc == 0 )
+            {
+                rc = WriteMetadata ( meta,p_metadata_node, p_value );
+                rc_t rc2 = KMetadataRelease ( meta );
+                if ( rc == 0 )
+                {
+                    rc = rc2;
+                }
+            }
+            rc_t rc2 = VTableRelease ( tbl );
+            if ( rc == 0 )
+            {
+                rc = rc2;
+            }
+        }
+    }
+    else
+    {
+        rc = RC ( rcExe, rcFile, rcReading, rcTable, rcNotFound );
+    }
+    
     return rc;
 }
 
 rc_t
 GeneralLoader :: DatabaseLoader :: ColMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
-    rc_t rc = 0;
     pLogMsg ( klogInfo, 
-              "database-loader: adding metadata node '$(n)=$(v)' to object $(i)", 
-              "n=%s,v=%s,i=$u", 
+              "database-loader: adding metadata node '$(n)=$(v)' to column $(i)", 
+              "n=%s,v=%s,i=%u", 
               p_metadata_node . c_str(), p_value.c_str(), p_objId );
+    
+    rc_t rc = 0;
+    Columns::iterator it = m_columns . find ( p_objId ); 
+    if ( it != m_columns . end() )
+    {
+        it -> second . metadata [ p_metadata_node ] = p_value;
+    }
+    else
+    {
+        rc = RC ( rcExe, rcFile, rcReading, rcColumn, rcNotFound );
+    }
+    
+    return rc;
+}
+
+rc_t
+GeneralLoader :: DatabaseLoader :: SaveColumnMetadata ( const Column& p_col )
+{
+    if ( p_col . metadata . size () == 0 )
+    {
+        return 0;
+    }
+    
+    assert ( m_tables . find ( p_col . tableId ) != m_tables.end() );
+    const Table& t = m_tables [ p_col . tableId ];
+    
+    assert ( m_databases . find ( t . databaseId ) != m_databases.end() );
+    assert ( m_databases . find ( t . databaseId ) -> second != 0 );
+    
+    VTable* table;
+    rc_t rc = VDatabaseOpenTableUpdate ( m_databases [ t . databaseId ], & table, t . name . c_str () );   
+    if ( rc == 0 )
+    {
+        KTable* ktbl;
+        rc = VTableOpenKTableUpdate ( table, & ktbl );
+        if ( rc == 0 )
+        {
+            KColumn* col;
+            rc = KTableOpenColumnUpdate ( ktbl, & col, p_col . name . c_str () );
+            if ( rc == 0 )
+            {   
+                KMetadata *meta;
+                rc = KColumnOpenMetadataUpdate ( col, &meta );
+                if ( rc == 0 )
+                {
+                    for ( Column :: Metadata :: const_iterator it = p_col . metadata . begin(); it != p_col . metadata . end(); ++ it )
+                    {
+                        rc = WriteMetadata ( meta, it -> first . c_str (), it -> second . c_str () );
+                        if ( rc != 0 )
+                        {
+                            break;
+                        }
+                    }
+                    rc_t rc2 = KMetadataRelease ( meta );
+                    if ( rc == 0 )
+                    {
+                        rc = rc2;
+                    }
+                }
+                rc_t rc2 = KColumnRelease ( col );
+                if ( rc == 0 )
+                {
+                    rc = rc2;
+                }
+            }
+            rc_t rc2 = KTableRelease ( ktbl );
+            if ( rc == 0 )
+            {
+                rc = rc2;
+            }
+        }
+        rc_t rc2 = VTableRelease ( table );
+        if ( rc == 0 )
+        {
+            rc = rc2;
+        }
+    }
     return rc;
 }
 
@@ -462,40 +657,50 @@ GeneralLoader :: DatabaseLoader :: CellDefault ( uint32_t p_columnId, const void
 }
 
 rc_t 
-GeneralLoader :: DatabaseLoader :: MakeDatabase()
+GeneralLoader :: DatabaseLoader :: MakeDatabase( uint32_t p_id )
 {
     rc_t rc = 0;
-    if ( m_db == 0 )
+
+    Databases::iterator it = m_databases . find ( p_id ); 
+    if ( it != m_databases . end() )
     {
-        rc = VDBManagerCreateDB ( m_mgr, 
-                                  & m_db, 
-                                  m_schema, 
-                                  m_schemaName . c_str (), 
-                                  kcmInit + kcmMD5, 
-                                  "%s", 
-                                  m_databaseName . c_str () );
-        if ( rc == 0 )
+        VDatabase*& db = it -> second;
+        if ( db == 0 ) // only create once
         {
-            struct KMetadata* meta;
-            rc = VDatabaseOpenMetadataUpdate ( m_db, &meta );
-            if ( rc == 0 )
-            {
-                KMDataNode *node;
-                rc = KMetadataOpenNodeUpdate ( meta, &node, "/" );
-            
-                if (rc == 0) 
-                {
-                    rc = KLoaderMeta_WriteWithVersion ( node, m_programName.c_str(), __DATE__, KAppVersion(), m_softwareName.c_str(), m_softwareVersion );
-                    KMDataNodeRelease(node);
-                }
-                
-                rc_t rc2 = KMetadataRelease ( meta );
+            rc = VDBManagerCreateDB ( m_mgr, 
+                                      & db, 
+                                      m_schema, 
+                                      m_schemaName . c_str (), 
+                                      kcmInit + kcmMD5, 
+                                      "%s", 
+                                      m_databaseName . c_str () );
+            if ( rc == 0 && p_id == 0 )
+            {   // populate the root database's metadata
+                struct KMetadata* meta;
+                rc = VDatabaseOpenMetadataUpdate ( db, &meta );
                 if ( rc == 0 )
                 {
-                    rc = rc2;
+                    KMDataNode *node;
+                    rc = KMetadataOpenNodeUpdate ( meta, &node, "/" );
+                
+                    if (rc == 0) 
+                    {
+                        rc = KLoaderMeta_WriteWithVersion ( node, m_programName.c_str(), __DATE__, KAppVersion(), m_softwareName.c_str(), m_softwareVersion );
+                        KMDataNodeRelease(node);
+                    }
+                    
+                    rc_t rc2 = KMetadataRelease ( meta );
+                    if ( rc == 0 )
+                    {
+                        rc = rc2;
+                    }
                 }
             }
         }
+    }
+    else
+    {
+        rc = RC ( rcExe, rcFile, rcReading, rcDatabase, rcNotFound );
     }
     return rc;
 }
@@ -508,7 +713,7 @@ GeneralLoader :: DatabaseLoader :: OpenStream ()
               "s=%s,d=%s", 
               m_schemaName . c_str (), m_databaseName . c_str () );
               
-    rc_t rc = MakeDatabase ();
+    rc_t rc = MakeDatabase ( 0 );
     if ( rc == 0 )
     {
         for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
@@ -533,6 +738,7 @@ GeneralLoader :: DatabaseLoader :: CloseStream ()
 {
     rc_t rc = 0;
     rc_t rc2 = 0;
+    
     for ( Cursors::iterator it = m_cursors . begin(); it != m_cursors . end(); ++it )
     {
         rc = VCursorCloseRow ( *it );
@@ -564,13 +770,22 @@ GeneralLoader :: DatabaseLoader :: CloseStream ()
         }
     }
     m_cursors . clear ();
-
-    rc2 = VDatabaseRelease ( m_db );
-    if ( rc == 0 )
+    
+    // save column-level metadata collected from ColMetadata events
+    for ( Columns::iterator it = m_columns. begin(); it != m_columns. end(); ++it )
     {
-        rc = rc2;
+        rc = SaveColumnMetadata ( it -> second );
+        if ( rc != 0 )
+        {
+            break;
+        }
     }
-    m_db = 0;
+    
+    for ( Databases::iterator it = m_databases . begin(); it != m_databases . end(); ++it )
+    {
+        VDatabaseRelease ( it -> second );
+    }
+    m_databases . clear();
 
     return rc;
 }
@@ -579,10 +794,10 @@ rc_t
 GeneralLoader :: DatabaseLoader :: NextRow ( uint32_t p_tableId )
 {
     rc_t rc = 0;
-    TableIdToCursor::const_iterator table = m_tables . find ( p_tableId );
+    Tables::const_iterator table = m_tables . find ( p_tableId );
     if ( table != m_tables . end() )
     {
-        VCursor * cursor = m_cursors [ table -> second ];
+        VCursor * cursor = m_cursors [ table -> second . cursorIdx ];
         rc = VCursorCommitRow ( cursor );
         if ( rc == 0 )
         {
@@ -604,10 +819,10 @@ rc_t
 GeneralLoader :: DatabaseLoader :: MoveAhead ( uint32_t p_tableId, uint64_t p_count )
 {
     rc_t rc = 0;
-    TableIdToCursor::const_iterator table = m_tables . find ( p_tableId );
+    Tables::const_iterator table = m_tables . find ( p_tableId );
     if ( table != m_tables . end() )
     {
-        VCursor * cursor = m_cursors [ table -> second ];
+        VCursor * cursor = m_cursors [ table -> second . cursorIdx ];
         for ( uint64_t i = 0; i < p_count; ++i )
         {   // for now, simulate proper handling (this will commit the current row and insert count-1 empty rows)
             rc = VCursorCommitRow ( cursor );

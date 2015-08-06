@@ -46,6 +46,10 @@
 #include <kfs/file.h>
 #include <kfs/ramfile.h>
 
+#include <kdb/table.h>
+
+#include <vdb/vdb-priv.h>
+
 #include <cstring>
 #include <stdexcept> 
 #include <map>
@@ -314,7 +318,7 @@ public:
         out << p_content;
     }
 
-    std::string GetMetadata ( const std::string& p_node, const std::string& p_attr )
+    std::string GetDbMetadataAttr ( const std::string& p_node, const std::string& p_attr )
     {
         const KMetadata *meta;
         THROW_ON_RC ( VDatabaseOpenMetadataRead ( m_db, &meta ) );
@@ -328,6 +332,29 @@ public:
         THROW_ON_RC ( KMDataNodeRelease ( node ) );
         THROW_ON_RC ( KMetadataRelease ( meta ) );
         return string ( attr, num_read );
+    }
+    
+    std::string GetMetadata ( const KMetadata* p_meta, const std::string& p_node )
+    {
+        const KMDataNode *node;
+        THROW_ON_RC ( KMetadataOpenNodeRead ( p_meta, &node, p_node.c_str() ) );
+            
+        size_t num_read;
+        char buf[ 256 ];
+        
+        THROW_ON_RC ( KMDataNodeReadCString ( node, buf, sizeof buf, &num_read ) );
+        
+        THROW_ON_RC ( KMDataNodeRelease ( node ) );
+        return string ( buf, num_read );
+        
+    }
+    std::string GetDbMetadata ( VDatabase* p_db, const std::string& p_node )
+    {
+        const KMetadata *meta;
+        THROW_ON_RC ( VDatabaseOpenMetadataRead ( p_db, &meta ) );
+        string ret = GetMetadata ( meta, p_node );
+        THROW_ON_RC ( KMetadataRelease ( meta ) );
+        return ret;
     }
     
     TestSource      m_source;
@@ -522,8 +549,8 @@ FIXTURE_TEST_CASE ( SoftwareName, GeneralLoaderFixture )
     
     // validate metadata
     OpenDatabase (); 
-    REQUIRE_EQ ( SoftwareName,  GetMetadata ( "SOFTWARE/formatter", "name" ) );
-    REQUIRE_EQ ( Version,       GetMetadata ( "SOFTWARE/formatter", "vers" ) );
+    REQUIRE_EQ ( SoftwareName,  GetDbMetadataAttr ( "SOFTWARE/formatter", "name" ) );
+    REQUIRE_EQ ( Version,       GetDbMetadataAttr ( "SOFTWARE/formatter", "vers" ) );
 
     // extract the program name from path the same way it's done in ncbi-vdb/libs/kapp/loader-meta.c:KLoaderMeta_Write
     {
@@ -536,14 +563,14 @@ FIXTURE_TEST_CASE ( SoftwareName, GeneralLoaderFixture )
             tool_name = argv0.c_str();
         }
     
-        REQUIRE_EQ ( string ( tool_name ), GetMetadata ( "SOFTWARE/loader", "name" ) );
+        REQUIRE_EQ ( string ( tool_name ), GetDbMetadataAttr ( "SOFTWARE/loader", "name" ) );
     }
     
-    REQUIRE_EQ ( string ( __DATE__), GetMetadata ( "SOFTWARE/loader", "date" ) );
+    REQUIRE_EQ ( string ( __DATE__), GetDbMetadataAttr ( "SOFTWARE/loader", "date" ) );
     {
         char buf[265];
         string_printf ( buf, sizeof buf, NULL, "%V", KAppVersion() ); // same format as in ncbi-vdb/libs/kapp/loader-meta.c:MakeVersion()
-        REQUIRE_EQ ( string ( buf ), GetMetadata ( "SOFTWARE/loader", "vers" ) );
+        REQUIRE_EQ ( string ( buf ), GetDbMetadataAttr ( "SOFTWARE/loader", "vers" ) );
     }
 }
 
@@ -560,62 +587,260 @@ FIXTURE_TEST_CASE ( SoftwareName_BadVersion, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( DBAddDatabase, GeneralLoaderFixture )
 {   
-    SetUpStream ( GetName() );
-    m_source . DBAddDatabaseEvent ( 0, "mbrname", "dbname", 1 );
+    string schemaFile = ScratchDir + GetName() + ".vschema";
+    CreateFile ( schemaFile, 
+                 string ( 
+                    "table table1 #1.0.0 { column ascii column1; };"
+                    "database database0 #1 { table table1 #1 TABLE1; } ;" 
+                    "database root_database #1 { database database0 #1 SUBDB; } ;" 
+                 )
+    ); 
+    
+    SetUpStream ( GetName(), schemaFile, "root_database");
+    
+    m_source . DBAddDatabaseEvent ( 1, 0, "SUBDB", "subdb", kcmCreate );
     m_source . OpenStreamEvent();
     m_source . CloseStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    // validate database 
+    OpenDatabase (); 
+    VDatabase * subDb;
+    REQUIRE_RC ( VDatabaseOpenDBUpdate ( m_db, & subDb, "subdb" ) );
+    REQUIRE_RC ( VDatabaseRelease ( subDb ) );
+}
+
+FIXTURE_TEST_CASE ( DBAddSubDatabase, GeneralLoaderFixture )
+{   
+    string schemaFile = ScratchDir + GetName() + ".vschema";
+    CreateFile ( schemaFile, 
+                 string ( 
+                    "table table1 #1.0.0 { column ascii column1; };"
+                    "database database0 #1 { table table1 #1 TABLE1; } ;" 
+                    "database database1 #1 { database database0 #1 SUBSUBDB; } ;" 
+                    "database root_database #1 { database database1 #1 SUBDB; } ;" 
+                 )
+    ); 
+    
+    SetUpStream ( GetName(), schemaFile, "root_database");
+    
+    m_source . DBAddDatabaseEvent ( 1, 0, "SUBDB", "subdb", kcmCreate );
+    m_source . DBAddDatabaseEvent ( 2, 1, "SUBSUBDB", "subsubdb", kcmCreate );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    // validate database 
+    OpenDatabase (); 
+    VDatabase * subDb;
+    REQUIRE_RC ( VDatabaseOpenDBUpdate ( m_db, & subDb, "subdb" ) );
+    VDatabase * subSubDb;
+    REQUIRE_RC ( VDatabaseOpenDBUpdate ( subDb, & subSubDb, "subsubdb" ) );
+    REQUIRE_RC ( VDatabaseRelease ( subSubDb ) );
+    REQUIRE_RC ( VDatabaseRelease ( subDb ) );
 }
 
 FIXTURE_TEST_CASE ( DBAddTable, GeneralLoaderFixture )
 {   
-    SetUpStream ( GetName() );
-    m_source . DBAddTableEvent ( 0, "mbrname", "tblname", 1 );
+    string schemaFile = ScratchDir + GetName() + ".vschema";
+    CreateFile ( schemaFile, 
+                 string ( 
+                    "table table1 #1.0.0 { column ascii column1; };"
+                    "database root_database #1 { table table1 #1 TABLE1; } ;" 
+                 )
+    ); 
+    
+    SetUpStream ( GetName(), schemaFile, "root_database");
+    
+    m_source . DBAddTableEvent ( 1, 0, "TABLE1", "tbl", kcmCreate );
     m_source . OpenStreamEvent();
     m_source . CloseStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    // validate database 
+    OpenDatabase (); 
+    const VTable *tbl;
+    REQUIRE_RC ( VDatabaseOpenTableRead ( m_db, & tbl, "tbl" ) );
+    REQUIRE_RC ( VTableRelease ( tbl ) );
+}
+
+FIXTURE_TEST_CASE ( DBAddTableToSubDb, GeneralLoaderFixture )
+{   
+    string schemaFile = ScratchDir + GetName() + ".vschema";
+    CreateFile ( schemaFile, 
+                 string ( 
+                    "table table1 #1.0.0 { column ascii column1; };"
+                    "database database0 #1 { table table1 #1 TABLE1; } ;" 
+                    "database root_database #1 { database database0 #1 SUBDB; } ;" 
+                 )
+    ); 
+    
+    SetUpStream ( GetName(), schemaFile, "root_database");
+    
+    m_source . DBAddDatabaseEvent ( 2, 0, "SUBDB", "subdb", kcmCreate );
+    m_source . DBAddTableEvent ( 1, 2, "TABLE1", "tbl", kcmCreate );
+    m_source . OpenStreamEvent();
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    // validate database 
+    OpenDatabase (); 
+    {
+        VDatabase * subDb;
+        REQUIRE_RC ( VDatabaseOpenDBUpdate ( m_db, & subDb, "subdb" ) );
+        const VTable *tbl;
+        //FAIL("see VDB-1617");
+        //REQUIRE_RC ( VDatabaseOpenTableRead ( subDb, & tbl, "tbl" ) );
+        //REQUIRE_RC ( VTableRelease ( tbl ) );
+        REQUIRE_RC ( VDatabaseRelease ( subDb ) );
+    }
 }
 
 FIXTURE_TEST_CASE ( DBMetadataNode, GeneralLoaderFixture )
 {   
     SetUpStream ( GetName() );
-    m_source . DBMetadataNodeEvent ( "dbmetadatanode", "1a2b3c4d" );
+    const string key = "dbmetadatanode";
+    const string value = "1a2b3c4d";
     m_source . OpenStreamEvent();
+    m_source . DBMetadataNodeEvent ( 0, key, value );
     m_source . CloseStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    OpenDatabase (); 
+    REQUIRE_EQ ( value, GetDbMetadata( m_db, key ) );
+}
+
+FIXTURE_TEST_CASE ( SubDBMetadataNode, GeneralLoaderFixture )
+{   
+    string schemaFile = ScratchDir + GetName() + ".vschema";
+    CreateFile ( schemaFile, 
+                 string ( 
+                    "table table1 #1.0.0 { column ascii column1; };"
+                    "database database0 #1 { table table1 #1 TABLE1; } ;" 
+                    "database root_database #1 { database database0 #1 SUBDB; } ;" 
+                 )
+    ); 
+    const uint32_t subDbId = 2;
+    const string key = "subdbmetadatanode";
+    const string value = "1a2b3c4dsub";
+    
+    SetUpStream ( GetName(), schemaFile, "root_database");
+    
+    m_source . DBAddDatabaseEvent ( subDbId, 0, "SUBDB", "subdb", kcmCreate );
+    m_source . DBAddTableEvent ( 1, subDbId, "TABLE1", "tbl", kcmCreate );
+    m_source . OpenStreamEvent();
+    m_source . DBMetadataNodeEvent ( subDbId, key, value );
+    m_source . CloseStreamEvent();
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    OpenDatabase (); 
+    {
+        VDatabase * subDb;
+        REQUIRE_RC ( VDatabaseOpenDBUpdate ( m_db, & subDb, "subdb" ) );
+        REQUIRE_EQ ( value, GetDbMetadata( subDb, key ) );
+        REQUIRE_RC ( VDatabaseRelease ( subDb ) );
+    }
 }
 
 FIXTURE_TEST_CASE ( TblMetadataNode, GeneralLoaderFixture )
 {   
-    SetUpStream ( GetName() );
-    m_source . TblMetadataNodeEvent ( "tblmetadatanode", "1a2b3c4d" );
+    string schemaFile = ScratchDir + GetName() + ".vschema";
+    CreateFile ( schemaFile, 
+                 string ( 
+                    "table table1 #1.0.0 { column ascii column1; };"
+                    "database root_database #1 { table table1 #1 TABLE1; } ;" 
+                 )
+    ); 
+    
+    const char* tblName = "tbl";
+    const uint32_t tblId = 2;
+    const string key = "tblmetadatanode";
+    const string value = "tbl1a2b3c4d";
+    
+    SetUpStream ( GetName(), schemaFile, "root_database");
+    
+    m_source . DBAddTableEvent ( tblId, 0, "TABLE1", tblName, kcmCreate );
+    
     m_source . OpenStreamEvent();
+    m_source . TblMetadataNodeEvent ( tblId, key, value);
     m_source . CloseStreamEvent();
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+    
+    // validate database 
+    OpenDatabase (); 
+    {
+        const VTable *tbl;
+        REQUIRE_RC ( VDatabaseOpenTableRead ( m_db, & tbl, tblName ) );
+        
+        {
+            const KMetadata *meta;
+            REQUIRE_RC ( VTableOpenMetadataRead ( tbl, &meta ) );
+            REQUIRE_EQ ( value, GetMetadata ( meta,  key) );
+            REQUIRE_RC ( KMetadataRelease ( meta ) );
+        }
+        REQUIRE_RC ( VTableRelease ( tbl ) );
+    }
 }
 
-#if SHOW_UNIMPLEMENTED
 FIXTURE_TEST_CASE ( ColMetadataNode, GeneralLoaderFixture )
 {   
-    SetUpStream ( GetName() );
+    string schemaFile = ScratchDir + GetName() + ".vschema";
+    CreateFile ( schemaFile, 
+                 string ( 
+                    "table table1 #1.0.0 { column ascii column1; };"
+                    "database root_database #1 { table table1 #1 TABLE1; } ;" 
+                 )
+    ); 
+
+    const char* tblName = "tbl";
+    const uint32_t tblId = 2;
+    const char* colName = "column1";
+    const uint32_t colId = 5;
     const string NodeName   = "colmetadatanode";
     const string NodeValue  = "1a2b3c4d";
     
-    m_source . ColMetadataNodeEvent ( NodeName, NodeValue ); 
+    SetUpStream ( GetName(), schemaFile, "root_database");
+    
+    m_source . DBAddTableEvent ( tblId, 0, "TABLE1", tblName, kcmCreate );
+    m_source . NewColumnEvent ( colId, tblId, colName, 8 );
 
     m_source . OpenStreamEvent();
+    m_source . ColMetadataNodeEvent ( colId, NodeName, NodeValue ); 
+    // need at least 2 rows with different value in order for the column to become physical, otherwise column's metadata will not be stored
+    m_source . CellDataEvent( colId, string("blah1") ); 
+    m_source . NextRowEvent ( tblId );
+    m_source . CellDataEvent( colId, string("brh2") ); 
+    m_source . NextRowEvent ( tblId );
     m_source . CloseStreamEvent();
-    
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
     
     // validate metadata
     OpenDatabase (); 
-    REQUIRE_EQ ( NodeValue,  GetMetadata ( "/", NodeName ) );
+    {
+        const VTable *tbl;
+        REQUIRE_RC ( VDatabaseOpenTableRead ( m_db, & tbl, tblName ) );
+        
+        {
+            const KTable* ktbl;
+            REQUIRE_RC ( VTableOpenKTableRead ( tbl, & ktbl ) );
+            {
+                const KColumn* col;
+                REQUIRE_RC ( KTableOpenColumnRead ( ktbl, & col, colName ) );
+                {   
+                    const KMetadata *meta;
+                    REQUIRE_RC ( KColumnOpenMetadataRead ( col, &meta ) );
+                    
+                    REQUIRE_EQ ( NodeValue, GetMetadata ( meta, NodeName ) );
+                    
+                    REQUIRE_RC ( KMetadataRelease ( meta ) );
+                }
+                REQUIRE_RC ( KColumnRelease ( col ) );
+            }
+            REQUIRE_RC ( KTableRelease ( ktbl ) );
+        }
+        REQUIRE_RC ( VTableRelease ( tbl ) );
+    }
 }
-#endif
-//TODO: attach metadata to the top level database
-//TODO: attach metadata to a nested database
-//TODO: attach metadata to a table
 
 FIXTURE_TEST_CASE ( NoData, GeneralLoaderFixture )
 {   
@@ -1348,7 +1573,6 @@ FIXTURE_TEST_CASE ( TargetOverride, GeneralLoaderFixture )
     CloseDatabase();
     KDirectoryRemove ( m_wd, true, newTarget . c_str() );
 }
-
 
 //////////////////////////////////////////// Main
 extern "C"

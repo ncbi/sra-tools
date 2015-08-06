@@ -243,13 +243,18 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
+                size_t parent_id = ncbi :: db_id ( evt );
                 size_t db_mbr_size = ncbi :: size1 ( evt );
                 size_t db_name_size = ncbi :: size2 ( evt );
                 uint8_t create_mode = ncbi :: create_mode ( evt );
                 rc = p_reader . Read ( db_mbr_size + db_name_size );
                 if ( rc == 0 )
                 {
-                    rc = p_dbLoader . AddMbrDB ( db_id, db_mbr_size, db_name_size, create_mode );
+                    rc = p_dbLoader . AddMbrDB ( db_id, 
+                                                 parent_id,
+                                                 string ( ( const char * ) p_reader . GetBuffer (), db_mbr_size ), 
+                                                 string ( ( const char * ) p_reader . GetBuffer () + db_mbr_size, db_name_size ), 
+                                                 create_mode );
                 }
             }
         }
@@ -257,20 +262,25 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
 
         case evt_add_mbr_tbl:
         {
-            uint32_t db_id = ncbi :: id ( evt_header );
-            pLogMsg ( klogInfo, "protocol-parser event: Add-Mbr-Table, id=$(i)", "i=%u", db_id );
+            uint32_t db_tbl_id = ncbi :: id ( evt_header );
+            pLogMsg ( klogInfo, "protocol-parser event: Add-Mbr-Table, id=$(i)", "i=%u", db_tbl_id );
             
             gw_add_mbr_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
+                size_t parent_id = ncbi :: db_id ( evt );
                 size_t db_mbr_size = ncbi :: size1 ( evt );
                 size_t db_name_size = ncbi :: size2 ( evt );
                 uint8_t create_mode = ncbi :: create_mode ( evt );
                 rc = p_reader . Read ( db_mbr_size + db_name_size );
                 if ( rc == 0 )
                 {
-                    rc = p_dbLoader . AddMbrTbl ( db_id, db_mbr_size, db_name_size, create_mode );
+                    rc = p_dbLoader . AddMbrTbl ( db_tbl_id, 
+                                                  parent_id,
+                                                  string ( ( const char * ) p_reader . GetBuffer (), db_mbr_size ), 
+                                                  string ( ( const char * ) p_reader . GetBuffer () + db_mbr_size, db_name_size ), 
+                                                  create_mode );
                 }
             }
         }
@@ -596,6 +606,10 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_db_metadata_node:
             {
                 uint32_t objId = ncbi :: id ( evt_header );
+                if ( objId == 256 ) // a special case for the root database; same as 0
+                {
+                    objId = 0;
+                }
                 pLogMsg ( klogInfo, "protocol-parser event: Metadata-Node (packed), id=$(i)", "i=%u", objId );
                 
                 gwp_2string_evt_v1 evt;
@@ -728,13 +742,18 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
+                size_t parent_id = ncbi :: db_id ( evt );
                 size_t db_mbr_size = ncbi :: size1 ( evt );
                 size_t db_name_size = ncbi :: size2 ( evt );
                 uint8_t create_mode = ncbi :: create_mode ( evt );
                 rc = p_reader . Read ( db_mbr_size + db_name_size );
                 if ( rc == 0 )
                 {
-                    rc = p_dbLoader . AddMbrDB ( db_id, db_mbr_size, db_name_size, create_mode );
+                    rc = p_dbLoader . AddMbrDB ( db_id, 
+                                                 parent_id,
+                                                 string ( ( const char * ) p_reader . GetBuffer (), db_mbr_size ), 
+                                                 string ( ( const char * ) p_reader . GetBuffer () + db_mbr_size, db_name_size ), 
+                                                 create_mode );
                 }
             }
         }
@@ -742,20 +761,25 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
 
         case evt_add_mbr_tbl:
         {
-            uint32_t db_id = ncbi :: id ( evt_header );
-            pLogMsg ( klogInfo, "protocol-parser event: Add-Mbr-Table ( packed ), id=$(i)", "i=%u", db_id );
+            uint32_t db_tbl_id = ncbi :: id ( evt_header );
+            pLogMsg ( klogInfo, "protocol-parser event: Add-Mbr-Table ( packed ), id=$(i)", "i=%u", db_tbl_id );
             
             gwp_add_mbr_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
+                size_t parent_id = ncbi :: db_id ( evt );
                 size_t db_mbr_size = ncbi :: size1 ( evt );
                 size_t db_name_size = ncbi :: size2 ( evt );
                 uint8_t create_mode = ncbi :: create_mode ( evt );
                 rc = p_reader . Read ( db_mbr_size + db_name_size );
                 if ( rc == 0 )
                 {
-                    rc = p_dbLoader . AddMbrTbl ( db_id, db_mbr_size, db_name_size, create_mode );
+                    rc = p_dbLoader . AddMbrTbl ( db_tbl_id,
+                                                  parent_id,
+                                                  string ( ( const char * ) p_reader . GetBuffer (), db_mbr_size ), 
+                                                  string ( ( const char * ) p_reader . GetBuffer () + db_mbr_size, db_name_size ), 
+                                                  create_mode );
                 }
             }
         }

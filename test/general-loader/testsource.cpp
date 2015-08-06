@@ -459,21 +459,21 @@ TestSource::SoftwareNameEvent ( const std::string& p_softwareName, const std::st
 }
 
 void
-TestSource::DBMetadataNodeEvent ( const std::string& p_metadataNode, const std::string& p_value )
+TestSource::DBMetadataNodeEvent ( ObjectId p_id, const std::string& p_metadataNode, const std::string& p_value )
 {
-    m_buffer -> Write ( Event ( evt_db_metadata_node, p_metadataNode, p_value ) );
+    m_buffer -> Write ( Event ( evt_db_metadata_node, p_id, p_metadataNode, p_value ) );
 }
 
 void
-TestSource::TblMetadataNodeEvent ( const std::string& p_metadataNode, const std::string& p_value )
+TestSource::TblMetadataNodeEvent ( TableId p_id, const std::string& p_metadataNode, const std::string& p_value )
 {
-    m_buffer -> Write ( Event ( evt_tbl_metadata_node, p_metadataNode, p_value ) );
+    m_buffer -> Write ( Event ( evt_tbl_metadata_node, p_id, p_metadataNode, p_value ) );
 }
 
 void
-TestSource::ColMetadataNodeEvent ( const std::string& p_metadataNode, const std::string& p_value )
+TestSource::ColMetadataNodeEvent ( ColumnId p_id, const std::string& p_metadataNode, const std::string& p_value )
 {
-    m_buffer -> Write ( Event ( evt_col_metadata_node, p_metadataNode, p_value ) );
+    m_buffer -> Write ( Event ( evt_col_metadata_node, p_id, p_metadataNode, p_value ) );
 }
 
 void 
@@ -489,15 +489,15 @@ TestSource::NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, const std::
 }
 
 void
-TestSource::DBAddDatabaseEvent ( int p_db_id, const std :: string &p_mbr_name, const std :: string &p_db_name, uint8_t p_create_mode )
+TestSource::DBAddDatabaseEvent ( int p_db_id, int p_parent_id, const std :: string &p_mbr_name, const std :: string &p_db_name, uint8_t p_create_mode )
 {
-    m_buffer -> Write ( Event ( evt_add_mbr_db, p_db_id, p_mbr_name, p_db_name, p_create_mode ) );
+    m_buffer -> Write ( Event ( evt_add_mbr_db, p_db_id, p_parent_id, p_mbr_name, p_db_name, p_create_mode ) );
 }
 
 void
-TestSource::DBAddTableEvent ( int p_db_id, const std :: string &p_mbr_name, const  std :: string &p_table_name, uint8_t p_create_mode )
+TestSource::DBAddTableEvent ( int p_tbl_id, int p_db_id, const std :: string &p_mbr_name, const  std :: string &p_table_name, uint8_t p_create_mode )
 {
-    m_buffer -> Write ( Event ( evt_add_mbr_tbl, p_db_id, p_mbr_name, p_table_name, p_create_mode ) );
+    m_buffer -> Write ( Event ( evt_add_mbr_tbl, p_tbl_id, p_db_id, p_mbr_name, p_table_name, p_create_mode ) );
 }
     
 void 
@@ -674,6 +674,18 @@ TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, const std::string&
 :   m_event ( p_event ),
     m_id1 ( p_id1 ),
     m_id2 ( 0 ),
+    m_uint8 ( p_uint8 ),
+    m_uint32 ( 0 ),
+    m_uint64 ( 0 ),
+    m_str1 ( p_str1 ),
+    m_str2 ( p_str2 )
+{
+}
+
+TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str1, const std::string& p_str2, uint8_t p_uint8 )
+:   m_event ( p_event ),
+    m_id1 ( p_id1 ),
+    m_id2 ( p_id2 ),
     m_uint8 ( p_uint8 ),
     m_uint32 ( 0 ),
     m_uint64 ( 0 ),

@@ -178,7 +178,7 @@ rc_t CC KMain (int argc, char * argv[])
                             for ( uint32_t i = 0 ; i < pcount; ++i )
                             {
                                 const char* value;
-                                rc = ArgsOptionValue (args, OPTION_INCLUDE_PATHS, i, &value);
+                                rc = ArgsOptionValue (args, OPTION_INCLUDE_PATHS, i, (const void**)&value);
                                 if ( rc != 0 )
                                 {
                                     break;
@@ -193,7 +193,7 @@ rc_t CC KMain (int argc, char * argv[])
                             for ( uint32_t i = 0 ; i < pcount; ++i )
                             {
                                 const char* value;
-                                rc = ArgsOptionValue (args, OPTION_SCHEMAS, i, &value);
+                                rc = ArgsOptionValue (args, OPTION_SCHEMAS, i, (const void**)&value);
                                 if ( rc != 0 )
                                 {
                                     break;
@@ -206,7 +206,7 @@ rc_t CC KMain (int argc, char * argv[])
                         if ( rc == 0 && pcount == 1 )
                         {
                             const char* value;
-                            rc = ArgsOptionValue (args, OPTION_TARGET, 0, &value);
+                            rc = ArgsOptionValue (args, OPTION_TARGET, 0, (const void**)&value);
                             if ( rc == 0 )
                             {
                                 loader . SetTargetOverride ( value );

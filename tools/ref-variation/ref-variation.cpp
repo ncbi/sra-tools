@@ -46,6 +46,7 @@ namespace RefVariation
         char const* ref_acc;
         int64_t ref_pos_var;
         char const* query;
+        size_t var_len_on_ref;
         int verbosity;
 
     } g_Params =
@@ -53,6 +54,7 @@ namespace RefVariation
         "",
         -1,
         "",
+        0,
         0
     };
     char const OPTION_REFERENCE_ACC[] = "reference-accession";
@@ -65,7 +67,11 @@ namespace RefVariation
 
     char const OPTION_QUERY[] = "query";
     char const ALIAS_QUERY[]  = "q";
-    char const* USAGE_QUERY[] = { "query to find in the given reference", NULL };
+    char const* USAGE_QUERY[] = { "query to find in the given reference (empty string - deletion)", NULL };
+
+    char const OPTION_VAR_LEN_ON_REF[] = "variation-length";
+    char const ALIAS_VAR_LEN_ON_REF[]  = "l";
+    char const* USAGE_VAR_LEN_ON_REF[] = { "the length of the variation on the reference (0 - insertion)", NULL };
 
     char const OPTION_VERBOSITY[] = "verbose";
     char const ALIAS_VERBOSITY[]  = "v";
@@ -75,7 +81,8 @@ namespace RefVariation
     {
         { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true },
         { OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true },
-        { OPTION_QUERY,         ALIAS_QUERY,     NULL, USAGE_QUERY,         1, true, true }
+        { OPTION_QUERY,         ALIAS_QUERY,         NULL, USAGE_QUERY,         1, true, true },
+        { OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true }
         //{ OPTION_VERBOSITY,     ALIAS_VERBOSITY,     NULL, USAGE_VERBOSITY,     0, false, false }
     };
 
@@ -255,7 +262,7 @@ namespace RefVariation
         while ( true )
         {
             KSearch::FindRefVariationRegionAscii ( ref, ref_pos_adj,
-                        g_Params.query, var_len, 0, ref_start, ref_len );
+                g_Params.query, var_len, g_Params.var_len_on_ref, ref_start, ref_len );
 
             std::cout
                 << "id_start=" << id_start
@@ -392,6 +399,9 @@ namespace RefVariation
             if (args.GetOptionCount (OPTION_QUERY) == 1)
                 g_Params.query = args.GetOptionValue ( OPTION_QUERY, 0 );
 
+            if (args.GetOptionCount (OPTION_VAR_LEN_ON_REF) == 1)
+                g_Params.var_len_on_ref = args.GetOptionValueUInt<size_t>( OPTION_VAR_LEN_ON_REF, 0 );
+
             g_Params.verbosity = (int)args.GetOptionCount (OPTION_VERBOSITY);
 
             find_variation_region_impl ();
@@ -416,7 +426,7 @@ extern "C"
     {
         printf (
         "Usage example:\n"
-        "  %s -r <reference accession> -p <position on reference> -q <query to look for>\n"
+        "  %s -r <reference accession> -p <position on reference> -q <query to look for> -l 0\n"
         "\n"
         "Summary:\n"
         "  Find a possible indel window\n"

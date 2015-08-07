@@ -61,7 +61,7 @@ GeneralLoader :: DatabaseLoader :: DatabaseLoader ( const std::string&  p_progra
     m_schema ( 0 ),
     m_databaseNameOverridden ( ! m_databaseName.empty() ) 
 {
-    m_databases . insert ( Databases :: value_type ( 0, 0 ) ); // reserve root database
+    m_databases . insert ( Databases :: value_type ( 0, (VDatabase*)0 ) ); // reserve root database
 }
 
 GeneralLoader :: DatabaseLoader :: ~DatabaseLoader ()

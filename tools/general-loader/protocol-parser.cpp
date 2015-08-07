@@ -243,7 +243,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
-                size_t parent_id = ncbi :: db_id ( evt );
+                uint32_t parent_id = ncbi :: db_id ( evt );
                 size_t db_mbr_size = ncbi :: size1 ( evt );
                 size_t db_name_size = ncbi :: size2 ( evt );
                 uint8_t create_mode = ncbi :: create_mode ( evt );
@@ -269,7 +269,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
-                size_t parent_id = ncbi :: db_id ( evt );
+                uint32_t parent_id = ncbi :: db_id ( evt );
                 size_t db_mbr_size = ncbi :: size1 ( evt );
                 size_t db_name_size = ncbi :: size2 ( evt );
                 uint8_t create_mode = ncbi :: create_mode ( evt );
@@ -742,7 +742,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
-                size_t parent_id = ncbi :: db_id ( evt );
+                uint32_t parent_id = ncbi :: db_id ( evt );
                 size_t db_mbr_size = ncbi :: size1 ( evt );
                 size_t db_name_size = ncbi :: size2 ( evt );
                 uint8_t create_mode = ncbi :: create_mode ( evt );
@@ -768,7 +768,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
-                size_t parent_id = ncbi :: db_id ( evt );
+                uint32_t parent_id = ncbi :: db_id ( evt );
                 size_t db_mbr_size = ncbi :: size1 ( evt );
                 size_t db_name_size = ncbi :: size2 ( evt );
                 uint8_t create_mode = ncbi :: create_mode ( evt );

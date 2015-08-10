@@ -100,6 +100,8 @@
 #define OPTION_MIN_M   "minmismatch"
 #define OPTION_MERGE   "merge-dist"
 
+#define OPTION_DEPTH_PER_SPOTGRP	"depth-per-spotgroup"
+
 #define OPTION_FUNC    "function"
 #define ALIAS_FUNC     NULL
 
@@ -145,6 +147,8 @@ static const char * showid_usage[]          = { "Shows alignment-id for every ba
 
 static const char * spotgrp_usage[]         = { "divide by spotgroups", NULL };
 
+static const char * dpgrp_usage[]         	= { "print depth per spotgroup", NULL };
+
 static const char * seqname_usage[]         = { "use original seq-name", NULL };
 
 static const char * min_m_usage[]           = { "min percent of mismatches used in function mismatch, default is 5%", NULL };
@@ -175,17 +179,18 @@ static const char * func_usage[]            = { "alternative functionality", NUL
 
 OptDef MyOptions[] =
 {
-    /*name,           alias,         hfkt, usage-help,    maxcount, needs value, required */
-    { OPTION_MINMAPQ, ALIAS_MINMAPQ, NULL, minmapq_usage, 1,        true,        false },
-    { OPTION_DUPS,    ALIAS_DUPS,    NULL, dups_usage,    1,        true,        false },
-    { OPTION_NOQUAL,  ALIAS_NOQUAL,  NULL, noqual_usage,  1,        false,       false },
-    { OPTION_NOSKIP,  ALIAS_NOSKIP,  NULL, noskip_usage,  1,        false,       false },
-    { OPTION_SHOWID,  ALIAS_SHOWID,  NULL, showid_usage,  1,        false,       false },
-    { OPTION_SPOTGRP, ALIAS_SPOTGRP, NULL, spotgrp_usage, 1,        false,       false },
-    { OPTION_SEQNAME, ALIAS_SEQNAME, NULL, seqname_usage, 1,        false,       false },
-    { OPTION_MIN_M,   NULL,          NULL, min_m_usage,   1,        true,        false },
-    { OPTION_MERGE,   NULL,          NULL, merge_usage,   1,        true,        false },
-    { OPTION_FUNC,    ALIAS_FUNC,    NULL, func_usage,    1,        true,        false }
+    /*name,           	alias,         	hfkt,	usage-help,		maxcount, needs value, required */
+    { OPTION_MINMAPQ,	ALIAS_MINMAPQ,	NULL,	minmapq_usage,	1,        true,        false },
+    { OPTION_DUPS,		ALIAS_DUPS,		NULL,	dups_usage,		1,        true,        false },
+    { OPTION_NOQUAL,	ALIAS_NOQUAL,	NULL,	noqual_usage,	1,        false,       false },
+    { OPTION_NOSKIP,	ALIAS_NOSKIP,	NULL,	noskip_usage,	1,        false,       false },
+    { OPTION_SHOWID,	ALIAS_SHOWID,	NULL,	showid_usage,	1,        false,       false },
+    { OPTION_SPOTGRP,	ALIAS_SPOTGRP,	NULL,	spotgrp_usage,	1,        false,       false },
+	{ OPTION_DEPTH_PER_SPOTGRP, NULL,	NULL,	dpgrp_usage,	1,        false,       false },
+    { OPTION_SEQNAME,	ALIAS_SEQNAME,	NULL,	seqname_usage,	1,        false,       false },
+    { OPTION_MIN_M,		NULL,			NULL,	min_m_usage,	1,        true,        false },
+    { OPTION_MERGE,		NULL,			NULL,	merge_usage,	1,        true,        false },
+    { OPTION_FUNC,		ALIAS_FUNC,		NULL,	func_usage,		1,        true,        false }
 };
 
 /* =========================================================================================== */
@@ -297,6 +302,9 @@ static rc_t get_pileup_options( Args * args, pileup_options *opts )
         rc = get_bool_option( args, OPTION_SPOTGRP, &opts->div_by_spotgrp, false );
 
     if ( rc == 0 )
+        rc = get_bool_option( args, OPTION_DEPTH_PER_SPOTGRP, &opts->depth_per_spotgrp, false );
+		
+    if ( rc == 0 )
         rc = get_bool_option( args, OPTION_SEQNAME, &opts->use_seq_name, false );
 
     if ( rc == 0 )
@@ -370,7 +378,8 @@ rc_t CC Usage ( const Args * args )
     print_common_helplines();
     HelpOptionLine ( ALIAS_MINMAPQ, OPTION_MINMAPQ, "min. mapq", minmapq_usage );
     HelpOptionLine ( ALIAS_DUPS, OPTION_DUPS, "dup-mode", dups_usage );
-    HelpOptionLine ( ALIAS_SPOTGRP, OPTION_SPOTGRP, "spotgroups-modes", spotgrp_usage );
+    HelpOptionLine ( ALIAS_SPOTGRP, OPTION_SPOTGRP, NULL, spotgrp_usage );
+    HelpOptionLine ( NULL, OPTION_DEPTH_PER_SPOTGRP, NULL, dpgrp_usage );	
     HelpOptionLine ( ALIAS_SEQNAME, OPTION_SEQNAME, NULL, seqname_usage );
     HelpOptionLine ( NULL, OPTION_MIN_M, NULL, min_m_usage );
     HelpOptionLine ( NULL, OPTION_MERGE, NULL, merge_usage );
@@ -727,21 +736,29 @@ static rc_t walk_ref_position( ReferenceIterator *ref_iter,
 
 static rc_t walk_alignments( ReferenceIterator *ref_iter,
                              struct dyn_string *line,
+							 struct dyn_string *events,
                              struct dyn_string *qualities,
                              pileup_options *options )
 {
     uint32_t depth = 0;
     rc_t rc;
+	
+	reset_dyn_string( events );
     do
     {
         const PlacementRecord *rec;
         rc = ReferenceIteratorNextPlacement ( ref_iter, &rec );
         if ( rc == 0 )
-            rc = walk_ref_position( ref_iter, rec, line, dyn_string_char( qualities, depth++ ), options );
+            rc = walk_ref_position( ref_iter, rec, events, dyn_string_char( qualities, depth++ ), options );
         if ( rc == 0 )
             rc = Quitting();
     } while ( rc == 0 );
 
+	if ( options->depth_per_spotgrp )
+		print_2_dyn_string( line, "%d\t", depth );
+
+	add_dyn_string_2_dyn_string( line, events );
+	
     if ( !options->omit_qualities )
     {
         uint32_t i;
@@ -760,17 +777,19 @@ static rc_t walk_alignments( ReferenceIterator *ref_iter,
 
 static rc_t walk_spot_groups( ReferenceIterator *ref_iter,
                               struct dyn_string *line,
+							  struct dyn_string *events,
                               struct dyn_string *qualities,
                               pileup_options *options )
 {
     rc_t rc;
+	reset_dyn_string( events );
     do
     {
         rc = ReferenceIteratorNextSpotGroup ( ref_iter, NULL, NULL );
         if ( rc == 0 )
             add_char_2_dyn_string( line, '\t' );
         if ( rc == 0 )
-            rc = walk_alignments( ref_iter, line, qualities, options );
+            rc = walk_alignments( ref_iter, line, events, qualities, options );
     } while ( rc == 0 );
 
     if ( GetRCState( rc ) == rcDone ) { rc = 0; }
@@ -781,6 +800,7 @@ static rc_t walk_spot_groups( ReferenceIterator *ref_iter,
 static rc_t walk_position( ReferenceIterator *ref_iter,
                            const char * refname,
                            struct dyn_string *line,
+						   struct dyn_string *events,
                            struct dyn_string *qualities,
                            pileup_options *options )
 {
@@ -804,26 +824,35 @@ static rc_t walk_position( ReferenceIterator *ref_iter,
             rc = expand_dyn_string( line, ( 5 * depth ) + 100 );
             if ( rc == 0 )
             {
-                rc = expand_dyn_string( qualities, depth + 100 );
-                if ( rc == 0 )
-                {
-                    char c = _4na_to_ascii( base, false );
+				rc = expand_dyn_string( events, ( 5 * depth ) + 100 );
+				if ( rc == 0 )
+				{
+					rc = expand_dyn_string( qualities, depth + 100 );
+					if ( rc == 0 )
+					{
+						char c = _4na_to_ascii( base, false );
 
-                    reset_dyn_string( line );
-                    rc = print_2_dyn_string( line, "%s\t%u\t%c\t%u", refname, pos + 1, c, depth );
-                    if ( rc == 0 )
-                    {
-                        if ( depth > 0 )
-                            rc = walk_spot_groups( ref_iter, line, qualities, options );
+						reset_dyn_string( line );
+					
+						if ( options->depth_per_spotgrp )
+							rc = print_2_dyn_string( line, "%s\t%u\t%c", refname, pos + 1, c );
+						else
+							rc = print_2_dyn_string( line, "%s\t%u\t%c\t%u", refname, pos + 1, c, depth );
+							
+						if ( rc == 0 )
+						{
+							if ( depth > 0 )
+								rc = walk_spot_groups( ref_iter, line, events, qualities, options );
 
-                        /* only one KOutMsg() per line... */
-                        if ( rc == 0 )
-                            rc = KOutMsg( "%s\n", dyn_string_char( line, 0 ) );
+							/* only one KOutMsg() per line... */
+							if ( rc == 0 )
+								rc = KOutMsg( "%s\n", dyn_string_char( line, 0 ) );
 
-                        if ( GetRCState( rc ) == rcDone )
-                            rc = 0;
-                    }
-                }
+							if ( GetRCState( rc ) == rcDone )
+								rc = 0;
+						}
+					}
+				}
             }
         }
     } 
@@ -834,6 +863,7 @@ static rc_t walk_position( ReferenceIterator *ref_iter,
 static rc_t walk_reference_window( ReferenceIterator *ref_iter,
                                    const char * refname,
                                    struct dyn_string *line,
+								   struct dyn_string *events,
                                    struct dyn_string *qualities,
                                    pileup_options *options )
 {
@@ -850,7 +880,7 @@ static rc_t walk_reference_window( ReferenceIterator *ref_iter,
         }
         else
         {
-            rc = walk_position( ref_iter, refname, line, qualities, options );
+            rc = walk_position( ref_iter, refname, line, events, qualities, options );
         }
         if ( rc == 0 )
         {
@@ -870,31 +900,37 @@ static rc_t walk_reference( ReferenceIterator *ref_iter,
     rc_t rc = allocated_dyn_string ( &line, 4096 );
     if ( rc == 0 )
     {
-        struct dyn_string * qualities;
-        rc = allocated_dyn_string ( &qualities, 4096 );
-        if ( rc == 0 )
-        {
-            while ( rc == 0 )
-            {
-                rc = Quitting ();
-                if ( rc == 0 )
-                {
-                    INSDC_coord_zero first_pos;
-                    INSDC_coord_len len;
-                    rc = ReferenceIteratorNextWindow ( ref_iter, &first_pos, &len );
-                    if ( rc != 0 )
-                    {
-                        if ( GetRCState( rc ) != rcDone )
-                        {
-                            LOGERR( klogInt, rc, "ReferenceIteratorNextWindow() failed" );
-                        }
-                    }
-                    else
-                        rc = walk_reference_window( ref_iter, refname, line, qualities, options );
-                }
-            }
-            free_dyn_string ( qualities );
-        }
+		struct dyn_string * events;
+		rc_t rc = allocated_dyn_string ( &events, 4096 );
+		if ( rc == 0 )
+		{
+			struct dyn_string * qualities;
+			rc = allocated_dyn_string ( &qualities, 4096 );
+			if ( rc == 0 )
+			{
+				while ( rc == 0 )
+				{
+					rc = Quitting ();
+					if ( rc == 0 )
+					{
+						INSDC_coord_zero first_pos;
+						INSDC_coord_len len;
+						rc = ReferenceIteratorNextWindow ( ref_iter, &first_pos, &len );
+						if ( rc != 0 )
+						{
+							if ( GetRCState( rc ) != rcDone )
+							{
+								LOGERR( klogInt, rc, "ReferenceIteratorNextWindow() failed" );
+							}
+						}
+						else
+							rc = walk_reference_window( ref_iter, refname, line, events, qualities, options );
+					}
+				}
+				free_dyn_string ( qualities );
+			}
+			free_dyn_string( events );
+		}
         free_dyn_string ( line );
     }
     if ( GetRCState( rc ) == rcDone ) rc = 0;

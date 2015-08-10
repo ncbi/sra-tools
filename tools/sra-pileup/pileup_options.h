@@ -43,6 +43,7 @@ typedef struct pileup_options
     bool no_skip;
     bool show_id;
     bool div_by_spotgrp;
+	bool depth_per_spotgrp;
     bool use_seq_name;
     uint32_t minmapq;
     uint32_t min_mismatch;

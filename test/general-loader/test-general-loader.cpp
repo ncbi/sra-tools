@@ -459,7 +459,7 @@ FIXTURE_TEST_CASE ( BadTableName, GeneralLoaderFixture )
     m_source . NewTableEvent ( 1, "nosuchtable" );
     m_source . OpenStreamEvent();
 
-    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcDatabase, rcCreating, rcSchema, rcNotFound ) ) );
+    REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
 }
 
 FIXTURE_TEST_CASE ( BadTableName_Long, GeneralLoaderFixture )

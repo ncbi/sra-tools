@@ -802,7 +802,7 @@ FIXTURE_TEST_CASE ( ColMetadataNode, GeneralLoaderFixture )
     
     SetUpStream ( GetName(), schemaFile, "root_database");
     
-    m_source . DBAddTableEvent ( tblId, 0, "TABLE1", tblName, kcmCreate );
+    m_source . DBAddTableEvent ( tblId, 0, "TABLE1", tblName, kcmCreate | kcmMD5 );
     m_source . NewColumnEvent ( colId, tblId, colName, 8 );
 
     m_source . OpenStreamEvent();

@@ -771,13 +771,15 @@ GeneralLoader :: DatabaseLoader :: CloseStream ()
     }
     m_cursors . clear ();
     
-    // save column-level metadata collected from ColMetadata events
-    for ( Columns::iterator it = m_columns. begin(); it != m_columns. end(); ++it )
-    {
-        rc = SaveColumnMetadata ( it -> second );
-        if ( rc != 0 )
+    if ( rc == 0 )
+    {   // save column-level metadata collected from ColMetadata events
+        for ( Columns::iterator it = m_columns. begin(); it != m_columns. end(); ++it )
         {
-            break;
+            rc = SaveColumnMetadata ( it -> second );
+            if ( rc != 0 )
+            {
+                break;
+            }
         }
     }
     

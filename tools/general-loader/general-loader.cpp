@@ -60,7 +60,7 @@ GeneralLoader::Reader::Read( void * p_buffer, size_t p_size )
     pLogMsg ( klogInfo, 
              "general-loader: reading $(s) bytes, offset=$(o)", 
              "s=%u,o=%lu", 
-             ( unsigned int ) p_size, (unsigned long ) m_readCount );
+             ( unsigned int ) p_size, m_readCount );
 
     m_readCount += p_size;
     return KStreamReadExactly ( & m_input, p_buffer, p_size );

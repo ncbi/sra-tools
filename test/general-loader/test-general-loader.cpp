@@ -141,7 +141,8 @@ public:
         GeneralLoader gl ( argv0, *inStream );
         rc_t rc = gl.Run();
         bool ret;
-        if ( rc == p_rc )
+        if ( GetRCObject ( rc ) == GetRCObject ( p_rc ) && 
+             GetRCState ( rc ) == GetRCState ( p_rc ) )
         {
             ret = true;
         }

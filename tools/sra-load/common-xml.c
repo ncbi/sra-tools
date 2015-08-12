@@ -443,7 +443,7 @@ rc_t parse_EXPECTED_BASECALL_TABLE(const KXMLNode* READ_SPEC, ReadSpecXML_read* 
             }
         } else {
             rc = RC(rcExe, rcFormatter, rcConstructing, rcData, rcIncomplete);
-            LOGERR(klogErr, rc, "need at leaset one BASECALL element");
+            LOGERR(klogErr, rc, "need at least one BASECALL element");
         }
         KXMLNodesetRelease(BASECALLS);
     } else {

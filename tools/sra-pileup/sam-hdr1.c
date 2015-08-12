@@ -339,7 +339,7 @@ static rc_t collect_from_spotgroup_stats( headers * h, const KMDataNode * node, 
 								char name_attr[ 2048 ];
 								char buffer[ 2048 ];
 								size_t num_writ;
-								rc = KMDataNodeReadAttr( spot_group_node, "name", name_attr, sizeof name_attr, NULL );
+								rc = KMDataNodeReadAttr( spot_group_node, "name", name_attr, sizeof name_attr, &num_writ );
 								rc = string_printf( buffer, sizeof buffer, &num_writ,
 											"@RG\tID:%s", rc == 0 ? name_attr : name );
 								if ( rc == 0 )

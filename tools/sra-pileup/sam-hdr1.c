@@ -318,7 +318,7 @@ static rc_t collect_from_spotgroup_stats( headers * h, const KMDataNode * node, 
 		uint32_t i;
 		for ( i = 0; i < count && rc == 0; ++i )
 		{
-			const char * name = NULL;
+			const char * name = NULL; /* this is the name of the node !!!NOT!!! the name of the spotgroup! */
 			rc = KNamelistGet( spot_groups, i, &name );
 			if ( rc == 0 && name != NULL )
 			{
@@ -332,11 +332,20 @@ static rc_t collect_from_spotgroup_stats( headers * h, const KMDataNode * node, 
 					{
 						if ( spot_count > 0 )
 						{
-							char buffer[ 2048 ];
-							size_t num_writ;
-							rc = string_printf( buffer, sizeof buffer, &num_writ, "@RG\tID:%s", name );
+							const KMDataNode * spot_group_node;
+							rc = KMDataNodeOpenNodeRead( node, &spot_group_node, name );			
 							if ( rc == 0 )
-								process_line( h, buffer, num_writ );
+							{
+								char name_attr[ 2048 ];
+								char buffer[ 2048 ];
+								size_t num_writ;
+								rc = KMDataNodeReadAttr( spot_group_node, "name", name_attr, sizeof name_attr, NULL );
+								rc = string_printf( buffer, sizeof buffer, &num_writ,
+											"@RG\tID:%s", rc == 0 ? name_attr : name );
+								if ( rc == 0 )
+									process_line( h, buffer, num_writ );
+								KMDataNodeRelease( spot_group_node );				
+							}
 						}
 					}
 					else

@@ -78,9 +78,67 @@ XFS_EXTERN rc_t CC XFS_InitAll_MHR ( const char * ConfigFile );
 XFS_EXTERN rc_t CC XFS_DisposeAll_MHR ();
 
 static
+rc_t 
+MakeModel (
+            struct XFSModel ** Model,
+            const char * ProjectId,
+            const char * Karts,
+            bool ReadOnly
+)
+{
+    rc_t RCt;
+    struct XFSModel * Mod;
+    struct XFSModelNode * ModNod;
+
+    RCt = 0;
+    Mod = NULL;
+
+    RCt = XFSModelFromScratch ( & Mod, NULL );
+    if ( RCt == 0 ) {
+        RCt = XFSModelAddRootNode ( Mod, "dbgap-project" );
+        if ( RCt == 0 ) {
+            ModNod = ( struct XFSModelNode * ) XFSModelRootNode ( Mod );
+            if ( ModNod == NULL ) {
+                RCt = XFS_RC ( rcInvalid );
+            }
+            else {
+                RCt = XFSModelNodeSetProperty (
+                                            ModNod,
+                                            XFS_MODEL_KARTFILES,
+                                            Karts
+                                            );
+                if ( RCt == 0 ) {
+                    RCt = XFSModelNodeSetProperty (
+                                            ModNod,
+                                            XFS_MODEL_MODE,
+                                            ( ReadOnly ? "RO" : "RW" )
+                                            );
+                    if ( RCt == 0 ) {
+                        RCt = XFSModelNodeSetProperty (
+                                                ModNod,
+                                                XFS_MODEL_PROJECTID,
+                                                ProjectId
+                                                );
+                        if ( RCt == 0 ) {
+                            * Model = Mod;
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+
+    return RCt;
+}
+
+
+static
 rc_t run (
+        const char * ProjectId,
         const char * MountPoint,
-        const char * ConfigPoint,
+        const char * Karts,
+        bool ReadOnly,
         bool Daemonize
 )
 {
@@ -90,12 +148,15 @@ rc_t run (
     struct XFSControl * TheControl;
 
     RCt = 0;
+    TheModel = NULL;
+    TheTree = NULL;
+    TheControl = NULL;
 
     OUTMSG ( ( "<<--- run()\n" ) );
 
-    XFS_InitAll_MHR ( ConfigPoint );
+    XFS_InitAll_MHR ( NULL );
 
-    RCt = XFSModelMake ( & TheModel, ConfigPoint, NULL );
+    RCt = MakeModel ( & TheModel, ProjectId, Karts, ReadOnly );
 
     printf ( "HA(XFSModelMake)[RC=%d]\n", RCt );
 
@@ -153,26 +214,32 @@ ver_t CC KAppVersion(void) { return DEMO_VERS; }
 /*  Here I will temporarily parce arguments, and will attach
  *  toolkit ones later ... test program :)
  */
-char Proga[333];
-char MontP[333];
-char ConfP[333];
-bool DaemO = false;
+char ProgramName[333];
+char ProjectId [33];
+int ProjectIdInt = 0;
+char MountPoint[333];
+char KartFiles[333];
+bool ReadOnly = true;
+bool Daemonize = false;
 
-#define MONTP_TAG   "-m"
-#define CONFP_TAG   "-c"
-#define DAEMO_TAG   "-d"
+#define RO_TAG   "ro"
+#define RW_TAG   "rw"
+#define DM_TAG   "-d"
 
 static
 void
 RightUsage()
 {
     printf("\ndbGaP mount tool demo program. Will mount and show content of cart files\n");
-    printf("\nUsage: %s [-d] %s mount_point %s config_file\n\n\
+    printf("\nUsage: %s [%s|%s] [%s] project_id [ mount_point [ kart_file ... ] ]\n\n\
 Where:\n\
-    -d          - daemonize process\n\
+    project_id - usually integer greater that zero and less than twelve\n\
+    %s - mount in read only mode\n\
+    %s - mount in read-write mode\n\
+    %s - run mounter as daemon\n\
     mount_point - point to mount\n\
-    config_file - point to config\n\n\
-\n\n", Proga, MONTP_TAG, CONFP_TAG);
+    kart_file - kart file to mount\n\n\
+\n\n", ProgramName, RO_TAG, RW_TAG, DM_TAG, RO_TAG, RW_TAG, DM_TAG );
 }   /* RightUsage() */
 
 static
@@ -180,10 +247,22 @@ bool
 ParseArgs ( int argc, char ** argv )
 {
     const char * PPU;
+    const char * Arg;
     int llp;
 
-    MontP[0] = ConfP[0] = 0;
+    Arg = NULL;
+    llp = 0;
+    * ProgramName = 0;
+    * ProjectId = 0;
+    ProjectIdInt = 0;
+    * MountPoint = 0;
+    * KartFiles = 0;
 
+    ReadOnly = true;
+    Daemonize = false;
+
+        /* Herer wer arer extractingr programr namer
+         */
     PPU = strrchr ( * argv, '/' );
     if ( PPU == NULL ) {
         PPU = * argv;
@@ -191,55 +270,89 @@ ParseArgs ( int argc, char ** argv )
     else {
         PPU ++;
     }
-    strcpy ( Proga, PPU );
+    strcpy ( ProgramName, PPU );
 
-    for ( llp = 1; llp < argc; llp ++ ) {
-        const char *Arg = * ( argv + llp );
+        /* Herer shouldr ber atr leastr oner argumentr - projectr idr
+         */
+    if ( argc <= 2 ) {
+        printf ( "ERROR : too few arguments\n" );
+        return false;
+    }
 
-        if ( strcmp ( Arg, DAEMO_TAG ) == 0 ) {
-            DaemO = true;
-            continue;
-        }
+    llp = 1;
+    Arg = * ( argv + llp );
 
-        if ( strcmp ( Arg, MONTP_TAG ) == 0 ) {
-            if ( llp + 1 >= argc ) {
-                printf ( "ERROR : value expected after '%s'\n", Arg );
-                return false;
-            }
+        /* firstr paramr couldr ber "ro|rw" orr "-d"
+         */
+    if ( strcmp ( Arg, RO_TAG ) == 0 ) {
+        ReadOnly = true;
+
+        llp ++;
+    }
+    else {
+        if ( strcmp ( Arg, RW_TAG ) == 0 ) {
+            ReadOnly = false;
+
             llp ++;
-
-            strcpy ( MontP, * ( argv + llp ) );
-            continue;
         }
+    }
 
-        if ( strcmp ( Arg, CONFP_TAG ) == 0 ) {
-            if ( llp + 1 >= argc ) {
-                printf ( "ERROR : value expected after '%s'\n", Arg );
-                return false;
-            }
-            llp ++;
+        /* secondr paramr "-d" orr projectr idr
+         */
+    if ( argc <= llp ) {
+        printf ( "ERROR : too few arguments\n" );
+        return false;
+    }
+    Arg = * ( argv + llp );
+    if ( strcmp ( Arg, DM_TAG ) == 0 ) {
+        Daemonize = true;
 
-            strcpy ( ConfP, * ( argv + llp ) );
-            continue;
+        llp ++;
+    }
+
+        /* andr nowr itr isr projectr idr
+         */
+    if ( argc <= llp ) {
+        printf ( "ERROR : too few arguments\n" );
+        return false;
+    }
+    Arg = * ( argv + llp );
+    strcpy ( ProjectId, Arg );
+        /* checkr thatr integerr
+         */
+    ProjectIdInt = atol ( ProjectId );
+    if ( ProjectIdInt <= 0 ) {
+        printf ( "ERROR : invalid project_id '%s'\n", ProjectId );
+        return false;
+    }
+    llp ++;
+
+
+        /* mountr pointr ifr existsr
+         */
+    if ( llp < argc ) {
+        Arg = * ( argv + llp );
+        strcpy ( MountPoint, Arg );
+        llp ++;
+    }
+
+        /* herer wer arer collectr cartsr
+         */
+
+    for ( ; llp < argc; llp ++ ) {
+        Arg = * ( argv + llp );
+
+        strcat ( KartFiles, Arg );
+
+        if ( llp < argc - 1 ) {
+            strcat ( KartFiles, "," );
         }
-
-        printf ( "ERROR : Invalid argument '%s'\n", Arg );
-        return false;
     }
 
-    if ( strlen ( MontP ) == 0 ) {
-        printf ( "ERROR : Mount point is not defined\n" );
-        return false;
-    }
+    printf ( "PrI [%d]\n", ProjectIdInt );
+    printf ( "MnP [%s]\n", MountPoint );
+    printf ( "KrF [%s]\n", KartFiles );
 
-    if ( strlen ( ConfP ) == 0 ) {
-        printf ( "ERROR : Config file is not defined\n" );
-        return false;
-    }
-
-    if ( DaemO ) {
-        printf ( "Daemonize\n" );
-    }
 
     return true;
 }   /* ParseArgs() */
@@ -251,11 +364,16 @@ rc_t CC Usage ( const Args * args ) { return 0; }
 
 rc_t CC KMain(int argc, char *argv[]) {
 
-
     if ( ! ParseArgs ( argc, argv ) ) {
         RightUsage();
         return 1;
     }
 
-    return run ( MontP, ConfP, DaemO );
+    return run (
+                ProjectId,
+                MountPoint,
+                KartFiles,
+                ReadOnly,
+                Daemonize
+                );
 }

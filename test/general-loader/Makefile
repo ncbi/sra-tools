@@ -132,17 +132,26 @@ tool-tests: $(TEST_BINDIR)/makeinputs
 	@# error message event, packed
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2packed 3
 	@#    
-	@# empty default values
+	@# empty default values, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 3 0
 	@#    
-	@# move ahead event
+	@# empty default values, packed
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 3packed 0
+	@#    
+	@# move ahead event, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 4 0
 	@#    
-	@# integer compression
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 5 0 -L=info
+	@# move ahead event, packed
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 4packed 0
 	@#    
-	@# software name in the metadata   
+	@# integer compression (packed only)
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 5packed 0 -L=info
+	@#    
+	@# software name in the metadata, unpacked   
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 -L=info
+	@#    
+	@# software name in the metadata, packed   
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6packed 0 -L=info
 	@#    
 	@rm -rf input/*.gl actual/*
 

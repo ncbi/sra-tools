@@ -83,11 +83,13 @@ REF_VARIATION_OBJ = \
 	$(addsuffix .$(OBJX),$(REF_VARIATION_SRC))
 
 REF_VARIATION_LIB =   \
-	-skapp \
-	-sncbi-vdb \
-	-sm \
+	-sncbi-ngs-c++    \
+	-sncbi-vdb-static \
+	-sngs-c++         \
+	-skapp            \
+	-sncbi-vdb        \
+	-sm               \
 	-sload
-
 
 $(BINDIR)/ref-variation: $(REF_VARIATION_OBJ)
 	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(REF_VARIATION_LIB)

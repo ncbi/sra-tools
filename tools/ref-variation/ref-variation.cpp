@@ -24,7 +24,11 @@
 *
 */
 
+#define IMPLEMENT_IN_NGS 1
+#define SECRET_OPTION 0
+
 #include "ref-variation.vers.h"
+
 #include "helper.h"
 
 #include <iostream>
@@ -35,6 +39,11 @@
 
 #include <kapp/main.h>
 #include <klib/rc.h>
+
+#if IMPLEMENT_IN_NGS != 0 || SECRET_OPTION != 0
+#include <ngs/ncbi/NGS.hpp>
+#include <ngs/ReferenceSequence.hpp>
+#endif
 
 namespace RefVariation
 {
@@ -57,6 +66,12 @@ namespace RefVariation
         0,
         0
     };
+
+#if SECRET_OPTION != 0
+    char const OPTION_SECRET[] = "alt-ctrl-shift-f12";
+    char const* USAGE_SECRET[] = { "activate secret mode", NULL };
+#endif
+
     char const OPTION_REFERENCE_ACC[] = "reference-accession";
     char const ALIAS_REFERENCE_ACC[]  = "r";
     char const* USAGE_REFERENCE_ACC[] = { "look for the variation in this reference", NULL };
@@ -83,7 +98,10 @@ namespace RefVariation
         { OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true },
         { OPTION_QUERY,         ALIAS_QUERY,         NULL, USAGE_QUERY,         1, true, true },
         { OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true }
-        //{ OPTION_VERBOSITY,     ALIAS_VERBOSITY,     NULL, USAGE_VERBOSITY,     0, false, false }
+#if SECRET_OPTION != 0
+        ,{ OPTION_SECRET,        NULL,                NULL, USAGE_SECRET,        1, true, false }
+#endif
+        //,{ OPTION_VERBOSITY,     ALIAS_VERBOSITY,     NULL, USAGE_VERBOSITY,     0, false, false }
     };
 
     void print_indel (char const* name, char const* text, size_t text_size, size_t indel_start, size_t indel_len)
@@ -102,6 +120,7 @@ namespace RefVariation
                );
     }
 
+#if SECRET_OPTION != 0 || IMPLEMENT_IN_NGS == 0
     enum ColumnNameIndices
     {
 //        idx_SEQ_LEN,
@@ -119,6 +138,7 @@ namespace RefVariation
         "READ"
     };
     uint32_t g_ColumnIndex [ countof (g_ColumnNames) ];
+#endif
 
 #if 0
     std::string get_ref_slice_int (
@@ -213,6 +233,27 @@ namespace RefVariation
         return ret;
     }
 #endif
+
+
+#if IMPLEMENT_IN_NGS != 0
+
+    void find_variation_region_impl ()
+    {
+        ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
+
+        int64_t var_len = strlen (g_Params.query);
+        ngs::String ref = ref_seq.getReferenceBases( 0 );
+
+        size_t ref_start, ref_len;
+
+        KSearch::FindRefVariationRegionAscii ( ref, g_Params.ref_pos_var,
+            g_Params.query, var_len, g_Params.var_len_on_ref, ref_start, ref_len );
+        
+        std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
+        print_indel ( "reference", ref.c_str(), ref.size(), ref_start, ref_len );
+    }
+
+#else // VDB implementation
     std::string get_ref_chunk ( int64_t ref_row_id, VDBObjects::CVCursor const& cursor )
     {
         char const* pREAD;
@@ -371,9 +412,166 @@ namespace RefVariation
         }
         }
 #endif
-        //printf ("Reference slice [%ld, %ld]: %s\n", slice_start, slice_end, ref_slice.c_str() );
 
-    } 
+    }
+#endif
+
+#if SECRET_OPTION != 0 || IMPLEMENT_IN_NGS == 0
+    void get_ref_bases ( int64_t offset, uint64_t len, std::string & ret,
+        VDBObjects::CVCursor const& cursor,
+        int64_t id_first, uint64_t row_count,
+        uint32_t max_seq_len, uint64_t total_seq_len
+        )
+    {
+        if ( offset + len > total_seq_len )
+            len = total_seq_len - offset;
+
+        ret.clear();
+        if ( ret.capacity() < len )
+            ret.reserve ( ret.capacity() * 2 );
+
+        int64_t id_start = offset / max_seq_len + id_first;
+        int64_t id_end = (offset + len - 1) / max_seq_len + id_first;
+        if ( id_start == id_end ) // optimizing: have a separate branch for single-row slice
+        {
+            char const* pREAD;
+            cursor.CellDataDirect ( id_start, g_ColumnIndex[idx_READ], & pREAD );
+            int64_t offset_adj = offset % max_seq_len;
+            ret.assign( pREAD + offset_adj, len );
+        }
+        else // multi-row reference slice
+        {
+            // first id
+            char const* pREAD;
+            uint32_t count_read =  cursor.CellDataDirect ( id_start, g_ColumnIndex[idx_READ], & pREAD );
+            int64_t offset_adj = offset % max_seq_len;
+            ret.assign( pREAD + offset_adj, count_read - offset_adj );
+
+            // intermediate id (full max_seq_len chunks)
+            for (int64_t id = id_start + 1; id < id_end; ++id )
+            {
+                count_read = cursor.CellDataDirect ( id, g_ColumnIndex[idx_READ], & pREAD );
+                ret.append ( pREAD, count_read );
+            }
+
+            // last id
+            count_read =  cursor.CellDataDirect ( id_end, g_ColumnIndex[idx_READ], & pREAD );
+            ret.append( pREAD, len - ret.length() );
+        }
+    }
+
+#endif
+
+#if SECRET_OPTION != 0
+    void test_ngs ()
+    {
+        std::cout << "Starting NGS test..." << std::endl;
+        ngs::ReferenceSequence ref = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
+
+        uint64_t len = 1;
+        int64_t offset = ref.getLength()/2 - len;
+        std::string slice;
+        for ( ; offset >= 0; --offset, len += 2 )
+        {
+            slice = ref.getReferenceBases( offset, len );
+            // making something that prevents the optimizer from eliminating the code
+            if ( slice.length() != len )
+                std::cout << "slice.length() != len" << std::endl;
+        }
+        std::cout << "NGS test has SUCCEEDED" << std::endl;
+    }
+
+    void test_vdb ()
+    {
+        std::cout << "Starting VDB test..." << std::endl;
+
+        VDBObjects::CVDBManager mgr;
+        mgr.Make();
+
+        VDBObjects::CVTable table = mgr.OpenTable ( g_Params.ref_acc );
+        VDBObjects::CVCursor cursor = table.CreateCursorRead ();
+
+        cursor.InitColumnIndex (g_ColumnNames, g_ColumnIndex, countof(g_ColumnNames));
+        cursor.Open();
+
+        int64_t id_first = 0;
+        uint64_t row_count = 0;
+
+        cursor.GetIdRange (id_first, row_count);
+
+        uint32_t max_seq_len;
+        uint64_t total_seq_len;
+        cursor.ReadItems ( id_first, g_ColumnIndex[idx_MAX_SEQ_LEN], & max_seq_len, 1 );
+        cursor.ReadItems ( id_first, g_ColumnIndex[idx_TOTAL_SEQ_LEN], & total_seq_len, 1 );
+
+        uint64_t len = 1;
+        int64_t offset = total_seq_len/2 - len;
+        std::string slice;
+        int64_t offset_increment = 1;
+        for ( ; offset >= 0; offset -= offset_increment, len += 2 * offset_increment )
+        {
+            get_ref_bases ( offset, len, slice, cursor, id_first, row_count, max_seq_len, total_seq_len );
+            // making something that prevents the optimizer from eliminating the code
+            if ( slice.length() != len )
+                std::cout << "slice.length() != len" << std::endl;
+        }
+        std::cout << "VDB test has SUCCEEDED" << std::endl;
+
+    }
+
+    void test_correctness ()
+    {
+        std::cout << "Running correctness test..." << std::endl;
+        ngs::ReferenceSequence ref_ngs = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
+
+        VDBObjects::CVDBManager mgr;
+        mgr.Make();
+
+        VDBObjects::CVTable table = mgr.OpenTable ( g_Params.ref_acc );
+        VDBObjects::CVCursor cursor = table.CreateCursorRead ();
+
+        cursor.InitColumnIndex (g_ColumnNames, g_ColumnIndex, countof(g_ColumnNames));
+        cursor.Open();
+
+        int64_t id_first = 0;
+        uint64_t row_count = 0;
+
+        cursor.GetIdRange (id_first, row_count);
+
+        uint32_t max_seq_len;
+        uint64_t total_seq_len;
+        cursor.ReadItems ( id_first, g_ColumnIndex[idx_MAX_SEQ_LEN], & max_seq_len, 1 );
+        cursor.ReadItems ( id_first, g_ColumnIndex[idx_TOTAL_SEQ_LEN], & total_seq_len, 1 );
+
+        if ( ref_ngs.getLength() != total_seq_len )
+        {
+            std::cout
+                << "Correctness test FAILED: length discrepancy: ngs="
+                << ref_ngs.getLength() << ", vdb=" << total_seq_len << std::endl;
+            return;
+        }
+
+        uint64_t len = 1;
+        int64_t offset = total_seq_len/2 - len;
+        std::string slice_vdb;
+        for ( ; offset >= 0; --offset, len += 2 )
+        {
+            ngs::String slice_ngs = ref_ngs.getReferenceBases( offset, len );
+            get_ref_bases ( offset, len, slice_vdb, cursor, id_first, row_count, max_seq_len, total_seq_len );
+
+            if (slice_ngs != slice_vdb)
+            {
+                std::cout
+                    << "Correctness test FAILED: slice discrepancy at "
+                    "offset=" << offset << ", length=" << len << std::endl
+                    << "ngs=" << slice_ngs << std::endl
+                    << "vdb=" << slice_vdb << std::endl;
+                return;
+            }
+        }
+        std::cout << "Correctness test has SUCCEEDED" << std::endl;
+    }
+#endif
 
     void find_variation_region (int argc, char** argv)
     {
@@ -404,9 +602,43 @@ namespace RefVariation
 
             g_Params.verbosity = (int)args.GetOptionCount (OPTION_VERBOSITY);
 
-            find_variation_region_impl ();
+#if SECRET_OPTION != 0
+            if ( args.GetOptionCount (OPTION_SECRET) > 0 )
+            {
+                std::cout << "Running ref-variation in secret mode" << std::endl;
+
+                switch ( args.GetOptionValueInt<int> (OPTION_SECRET, 0) )
+                {
+                case 1:
+                    test_correctness ();
+                    break;
+                case 2:
+                    test_ngs ();
+                    break;
+                case 3:
+                    test_vdb ();
+                    break;
+                default:
+                    std::cout
+                        << "specify value for this option:" << std::endl
+                        << "1 - run correctness test" << std::endl
+                        << "2 - run ngs performance test" << std::endl
+                        << "3 - run vdb performance test" << std::endl;
+                }
+            }
+            else
+#endif
+            {
+                find_variation_region_impl ();
+            }
 
         }
+#if IMPLEMENT_IN_NGS != 0 || SECRET_OPTION != 0
+        catch ( ngs::ErrorMsg const& e )
+        {
+            std::cout << "ngs::ErrorMsg: " << e.what() << std::endl;
+        }
+#endif
         catch (...)
         {
             Utils::HandleException ();
@@ -453,6 +685,9 @@ extern "C"
         HelpOptionLine (RefVariation::ALIAS_REF_POS, RefVariation::OPTION_REF_POS, "value", RefVariation::USAGE_REF_POS);
         HelpOptionLine (RefVariation::ALIAS_QUERY, RefVariation::OPTION_QUERY, "string", RefVariation::USAGE_QUERY);
         //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
+#if SECRET_OPTION != 0
+        HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);
+#endif
 
         printf ("\n");
 
@@ -466,9 +701,9 @@ extern "C"
     rc_t CC KMain ( int argc, char *argv [] )
     {
         /* command line examples:
-          -r NC_011752.1 -p 2018 -q CA
-          -r NC_011752.1 -p 2020 -q CA
-          -r NC_011752.1 -p 5000 -q CA*/
+          -r NC_011752.1 -p 2018 --query CA -l 0
+          -r NC_011752.1 -p 2020 --query CA -l 0
+          -r NC_011752.1 -p 5000 --query CA -l 0 */
 
         RefVariation::find_variation_region ( argc, argv );
         return 0;

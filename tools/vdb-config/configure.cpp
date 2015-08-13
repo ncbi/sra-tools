@@ -180,7 +180,7 @@ class CConfigurator : CNoncopyable {
             const string name("/tools/ascp/max_rate");
             CString node(m_Cfg.ReadString(name.c_str()));
             if (node.Empty()) {
-                rc = m_Cfg.UpdateNode(name.c_str(), "800m");
+                rc = m_Cfg.UpdateNode(name.c_str(), "1000m");
             }
         }
         if (rc == 0) {

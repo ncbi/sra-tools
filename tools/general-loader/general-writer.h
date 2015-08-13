@@ -445,7 +445,10 @@ namespace ncbi
     }
 
     inline void init ( :: gw_header & hdr, size_t hdr_size )
-    { init ( hdr ); hdr . hdr_size = hdr_size; }
+    {
+        init ( hdr );
+        hdr . hdr_size = ( uint32_t ) hdr_size;
+    }
 
     // gw_header_v1
     inline void init ( :: gw_header_v1 & hdr )

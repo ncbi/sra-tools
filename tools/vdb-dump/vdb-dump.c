@@ -1542,13 +1542,13 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_
 	DISP_RC( rc, "VTableOpenMetadataRead() failed" );
 	if ( rc == 0 )
 	{
-		const KMDataNode * spot_group_node;
-		rc = KMetadataOpenNodeRead( meta, &spot_group_node, "STATS/SPOT_GROUP" );
+		const KMDataNode * spot_groups_node;
+		rc = KMetadataOpenNodeRead( meta, &spot_groups_node, "STATS/SPOT_GROUP" );
 		DISP_RC( rc, "KMetadataOpenNodeRead( STATS/SPOT_GROUP ) failed" );
 		if ( rc == 0 )
 		{
 			KNamelist * spot_groups;
-			rc = KMDataNodeListChildren( spot_group_node, &spot_groups );
+			rc = KMDataNodeListChildren( spot_groups_node, &spot_groups );
 			DISP_RC( rc, "KMDataNodeListChildren() failed" );
 			if ( rc == 0 )
 			{
@@ -1564,7 +1564,7 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_
 						if ( rc == 0 && name != NULL )
 						{
 							const KMDataNode * spot_count_node;
-							rc = KMDataNodeOpenNodeRead( spot_group_node, &spot_count_node, "%s/SPOT_COUNT", name );
+							rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_count_node, "%s/SPOT_COUNT", name );
 							DISP_RC( rc, "KMDataNodeOpenNodeRead() failed" );
 							if ( rc == 0 )
 							{
@@ -1573,8 +1573,19 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_
 								if ( rc == 0 )
 								{
 									if ( spot_count > 0 )
-										rc = KOutMsg( "%s\t%,lu\n", name, spot_count );
-								
+									{
+										const KMDataNode * spot_group_node;
+										rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_group_node, name );			
+										if ( rc == 0 )
+										{
+											char name_attr[ 2048 ];
+											size_t num_writ;
+											rc = KMDataNodeReadAttr( spot_group_node, "name", name_attr, sizeof name_attr, &num_writ );
+											rc = KOutMsg( "%s\t%,lu\n", rc == 0 ? name_attr : name, spot_count );
+											KMDataNodeRelease( spot_group_node );				
+										}
+
+									}
 								}
 								else
 									vdm_clear_recorded_errors();
@@ -1586,7 +1597,7 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_
 				}
 				KNamelistRelease( spot_groups );
 			}
-			KMDataNodeRelease( spot_group_node );
+			KMDataNodeRelease( spot_groups_node );
 		}
 		KMetadataRelease ( meta );
 	}

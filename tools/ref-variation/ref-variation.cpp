@@ -82,7 +82,7 @@ namespace RefVariation
 
     char const OPTION_QUERY[] = "query";
     char const ALIAS_QUERY[]  = "q";
-    char const* USAGE_QUERY[] = { "query to find in the given reference (empty string - deletion)", NULL };
+    char const* USAGE_QUERY[] = { "query to find in the given reference (\"-\" is treated as empty string - deletion)", NULL };
 
     char const OPTION_VAR_LEN_ON_REF[] = "variation-length";
     char const ALIAS_VAR_LEN_ON_REF[]  = "l";
@@ -237,11 +237,76 @@ namespace RefVariation
 
 #if IMPLEMENT_IN_NGS != 0
 
-    void find_variation_region_impl ()
+            int64_t ref_pos_var;
+        char const* query;
+        size_t var_len_on_ref;
+
+
+    ngs::String compose_query_adjusted (ngs::String const& ref,
+        size_t ref_start, size_t ref_len,
+        char const* query, size_t query_len, int64_t ref_pos_var, size_t var_len_on_ref)
+    {
+        ngs::String ret;
+        ret.reserve (ref_len + query_len - var_len_on_ref); // TODO: not always correct
+
+        char const* query_adj = query;
+        size_t query_len_adj = query_len;
+
+        if ( (size_t)ref_pos_var > ref_start )
+            ret.assign ( ref.c_str() + ref_start, (size_t)ref_pos_var - ref_start );
+        else if ( (size_t)ref_pos_var < ref_start )
+        {
+            query_adj += ref_start - ref_pos_var;
+            query_len_adj -= ref_start - ref_pos_var;
+        }
+
+        if ( (int64_t)ret.length() > (int64_t)ref_len - (int64_t)var_len_on_ref )
+            query_len_adj -= ret.length() - (ref_len - var_len_on_ref);
+
+        if ( query_len_adj > 0 )
+            ret.append ( query_adj, query_len_adj );
+
+        if ( (int64_t)(ref_len - ((size_t)ref_pos_var - ref_start) - var_len_on_ref) > 0 )
+        {
+            ret.append ( ref.c_str() + (size_t)ref_pos_var + var_len_on_ref,
+                ref_len - ((size_t)ref_pos_var - ref_start) - var_len_on_ref );
+        }
+
+        return ret;
+    }
+
+    void find_alignments ( KApp::CArgs const& args, char const* ref_name, size_t ref_pos, char const* query, size_t query_len )
+    {
+        size_t param_count = args.GetParamCount();
+        
+        std::cout << param_count << " database" << (param_count == 1 ? "" : "s")
+            << " to search for" << std::endl;
+
+        for ( size_t i = 0; i < param_count; ++i)
+        {
+            char const* acc = args.GetParamValue( i );
+            ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
+
+            ngs::Reference reference = run.getReference( ref_name );
+            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_pos, query_len, ngs::Alignment::all );
+
+
+            while ( ai.nextAlignment() )
+            {
+                ngs::String id = ai.getAlignmentId ().toString();
+                std::cout << "id=" << id
+                    << ": "
+                    << ai.getFragmentBases( ref_pos - ai.getAlignmentPosition(), query_len ).toString()
+                    << std::endl;
+            }
+        }
+    }
+
+    void find_variation_region_impl (KApp::CArgs const& args)
     {
         ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
 
-        int64_t var_len = strlen (g_Params.query);
+        size_t var_len = strlen (g_Params.query);
         ngs::String ref = ref_seq.getReferenceBases( 0 );
 
         size_t ref_start, ref_len;
@@ -251,6 +316,13 @@ namespace RefVariation
         
         std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
         print_indel ( "reference", ref.c_str(), ref.size(), ref_start, ref_len );
+
+        ngs::String var_query = compose_query_adjusted ( ref, ref_start, ref_len,
+            g_Params.query, var_len, g_Params.ref_pos_var, g_Params.var_len_on_ref );
+
+        std::cout << "var_query=" << var_query << std::endl;
+
+        find_alignments (args, g_Params.ref_acc, ref_start, var_query.c_str(), var_query.length());
     }
 
 #else // VDB implementation
@@ -262,7 +334,7 @@ namespace RefVariation
     }
 
 
-    void find_variation_region_impl ()
+    void find_variation_region_impl (KApp::CArgs const& args)
     {
         VDBObjects::CVDBManager mgr;
         mgr.Make();
@@ -578,12 +650,12 @@ namespace RefVariation
         try
         {
             KApp::CArgs args (argc, argv, Options, countof (Options));
-            uint32_t param_count = args.GetParamCount ();
+            /*uint32_t param_count = args.GetParamCount ();
             if ( param_count != 0 )
             {
                 MiniUsage (args.GetArgs());
                 return;
-            }
+            }*/
 
             // Actually GetOptionCount check is not needed here since
             // CArgs checks that exactly 1 option is required
@@ -595,7 +667,12 @@ namespace RefVariation
                 g_Params.ref_pos_var = args.GetOptionValueInt<int64_t> ( OPTION_REF_POS, 0 );
 
             if (args.GetOptionCount (OPTION_QUERY) == 1)
+            {
                 g_Params.query = args.GetOptionValue ( OPTION_QUERY, 0 );
+                // TODO: maybe CArgs should allow for empty option value
+                if (g_Params.query [0] == '-' && g_Params.query [1] == '\0' )
+                    g_Params.query = "";
+            }
 
             if (args.GetOptionCount (OPTION_VAR_LEN_ON_REF) == 1)
                 g_Params.var_len_on_ref = args.GetOptionValueUInt<size_t>( OPTION_VAR_LEN_ON_REF, 0 );
@@ -629,7 +706,7 @@ namespace RefVariation
             else
 #endif
             {
-                find_variation_region_impl ();
+                find_variation_region_impl (args);
             }
 
         }

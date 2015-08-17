@@ -444,3 +444,16 @@ size_t md_tag( char * buffer, size_t buf_len,
 	}
 	return res;
 }
+
+size_t md_tag_from_cigar_string( char * buffer, size_t buf_len,
+								 const char * cigar_str, const char * read, const char * reference )
+{
+	size_t res = 0;
+	struct cigar_t * cigar = make_cigar_t( cigar_str );
+	if ( cigar != NULL )
+	{
+		res = md_tag( buffer, buf_len, cigar, read, reference );
+		free_cigar_t( cigar );
+	}
+	return res;
+}

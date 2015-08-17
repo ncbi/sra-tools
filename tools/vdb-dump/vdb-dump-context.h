@@ -82,6 +82,7 @@ extern "C" {
 #define OPTION_DIFF              "diff"
 #define OPTION_SPOTGROUPS        "spotgroups"
 #define OPTION_SRASCHEMA         "sraschema"
+#define OPTION_INTERACTIVE       "interactive"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -184,6 +185,7 @@ typedef struct dump_context
 	bool diff;
 	bool show_spotgroups;
 	bool force_sra_schema;
+	bool interactive;
 } dump_context;
 typedef dump_context* p_dump_context;
 

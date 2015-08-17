@@ -76,94 +76,95 @@
 #include "vdb-dump-bin.h"
 #include "vdb_info.h"
 
-static const char * row_id_on_usage[] = { "print row id", NULL };
-static const char * line_feed_usage[] = { "line-feed's inbetween rows", NULL };
-static const char * colname_off_usage[] = { "do not print column-names", NULL };
-static const char * in_hex_usage[] = { "print numbers in hex", NULL };
-static const char * table_usage[] = { "table-name", NULL };
-static const char * rows_usage[] = { "rows (default = all)", NULL };
-static const char * columns_usage[] = { "columns (default = all)", NULL };
-static const char * schema_usage[] = { "schema-name", NULL };
-static const char * schema_dump_usage[] = { "dumps the schema",  NULL };
-static const char * table_enum_usage[] = { "enumerates tables",  NULL };
-static const char * column_enum_usage[] = { "enumerates columns in extended form", NULL };
-static const char * column_short_usage[] = { "enumerates columns in short form", NULL };
-static const char * dna_bases_usage[] = { "print dna-bases", NULL };
-static const char * max_line_len_usage[] = { "limits line length", NULL };
-static const char * line_indent_usage[] = { "indents the line", NULL };
-static const char * filter_usage[] = { "filters lines", NULL };
-static const char * format_usage[] = { "dump format (csv,xml,json,piped,tab,sra-dump,fastq,fasta,bin)", NULL };
-static const char * id_range_usage[] = { "prints id-range", NULL };
-static const char * without_sra_usage[] = { "without sra-type-translation", NULL };
-static const char * excluded_columns_usage[] = { "exclude these columns", NULL };
-static const char * boolean_usage[] = { "defines how boolean's are printed (1,T)", NULL };
-static const char * objver_usage[] = { "request vdb-version", NULL };
-static const char * objts_usage[] = { "request object modification date", NULL };
-static const char * numelem_usage[] = { "print only element-count", NULL };
-static const char * numelemsum_usage[] = { "sum element-count", NULL };
-static const char * show_blobbing_usage[] = { "show blobbing", NULL };
-static const char * enum_phys_usage[] = { "enumerate physical columns", NULL };
-static const char * enum_readable_usage[] = { "enumerate readable columns", NULL };
-static const char * objtype_usage[] = { "report type of object", NULL };
-static const char * idx_enum_usage[] = { "enumerate all available index", NULL };
-static const char * idx_range_usage[] = { "enumerate values and row-ranges of one index", NULL };
-static const char * cur_cache_usage[] = { "size of cursor cache", NULL };
-static const char * out_file_usage[] = { "write output to this file", NULL };
-static const char * out_path_usage[] = { "write output to this directory", NULL };
-static const char * gzip_usage[] = { "compress output using gzip", NULL };
-static const char * bzip2_usage[] = { "compress output using bzip2", NULL };
-static const char * outbuf_size_usage[] = { "size of output-buffer, 0...none", NULL };
-static const char * disable_mt_usage[] = { "disable multithreading", NULL };
-static const char * info_usage[] = { "print info about run", NULL };
-static const char * spotgroup_usage[] = { "show spotgroups", NULL };
-static const char * sraschema_usage[] = { "force use of dflt. sra-schema", NULL };
+static const char * row_id_on_usage[] 			= { "print row id", NULL };
+static const char * line_feed_usage[] 			= { "line-feed's inbetween rows", NULL };
+static const char * colname_off_usage[] 		= { "do not print column-names", NULL };
+static const char * in_hex_usage[] 				= { "print numbers in hex", NULL };
+static const char * table_usage[] 				= { "table-name", NULL };
+static const char * rows_usage[] 				= { "rows (default = all)", NULL };
+static const char * columns_usage[] 			= { "columns (default = all)", NULL };
+static const char * schema_usage[] 				= { "schema-name", NULL };
+static const char * schema_dump_usage[] 		= { "dumps the schema",  NULL };
+static const char * table_enum_usage[] 			= { "enumerates tables",  NULL };
+static const char * column_enum_usage[] 		= { "enumerates columns in extended form", NULL };
+static const char * column_short_usage[] 		= { "enumerates columns in short form", NULL };
+static const char * dna_bases_usage[] 			= { "print dna-bases", NULL };
+static const char * max_line_len_usage[] 		= { "limits line length", NULL };
+static const char * line_indent_usage[] 		= { "indents the line", NULL };
+static const char * filter_usage[] 				= { "filters lines", NULL };
+static const char * format_usage[] 				= { "dump format (csv,xml,json,piped,tab,sra-dump,fastq,fasta,bin)", NULL };
+static const char * id_range_usage[]			= { "prints id-range", NULL };
+static const char * without_sra_usage[] 		= { "without sra-type-translation", NULL };
+static const char * excluded_columns_usage[] 	= { "exclude these columns", NULL };
+static const char * boolean_usage[] 			= { "defines how boolean's are printed (1,T)", NULL };
+static const char * objver_usage[] 				= { "request vdb-version", NULL };
+static const char * objts_usage[] 				= { "request object modification date", NULL };
+static const char * numelem_usage[] 			= { "print only element-count", NULL };
+static const char * numelemsum_usage[] 			= { "sum element-count", NULL };
+static const char * show_blobbing_usage[] 		= { "show blobbing", NULL };
+static const char * enum_phys_usage[] 			= { "enumerate physical columns", NULL };
+static const char * enum_readable_usage[]		= { "enumerate readable columns", NULL };
+static const char * objtype_usage[] 			= { "report type of object", NULL };
+static const char * idx_enum_usage[] 			= { "enumerate all available index", NULL };
+static const char * idx_range_usage[] 			= { "enumerate values and row-ranges of one index", NULL };
+static const char * cur_cache_usage[] 			= { "size of cursor cache", NULL };
+static const char * out_file_usage[] 			= { "write output to this file", NULL };
+static const char * out_path_usage[] 			= { "write output to this directory", NULL };
+static const char * gzip_usage[] 				= { "compress output using gzip", NULL };
+static const char * bzip2_usage[] 				= { "compress output using bzip2", NULL };
+static const char * outbuf_size_usage[] 		= { "size of output-buffer, 0...none", NULL };
+static const char * disable_mt_usage[] 			= { "disable multithreading", NULL };
+static const char * info_usage[] 				= { "print info about run", NULL };
+static const char * spotgroup_usage[] 			= { "show spotgroups", NULL };
+static const char * sraschema_usage[] 			= { "force use of dflt. sra-schema", NULL };
 
 OptDef DumpOptions[] =
 {
-    { OPTION_ROW_ID_ON, ALIAS_ROW_ID_ON, NULL, row_id_on_usage, 1, false, false },
-    { OPTION_LINE_FEED, ALIAS_LINE_FEED, NULL, line_feed_usage, 1, true, false },
-    { OPTION_COLNAME_OFF, ALIAS_COLNAME_OFF, NULL, colname_off_usage, 1, false, false },
-    { OPTION_IN_HEX, ALIAS_IN_HEX, NULL, in_hex_usage, 1, false, false },
-    { OPTION_TABLE, ALIAS_TABLE, NULL, table_usage, 1, true, false },
-    { OPTION_ROWS, ALIAS_ROWS, NULL, rows_usage, 1, true, false },
-    { OPTION_COLUMNS, ALIAS_COLUMNS, NULL, columns_usage, 1, true, false },
+    { OPTION_ROW_ID_ON,			ALIAS_ROW_ID_ON,		NULL, row_id_on_usage,			1, false,	false },
+    { OPTION_LINE_FEED,			ALIAS_LINE_FEED,		NULL, line_feed_usage,			1, true,	false },
+    { OPTION_COLNAME_OFF,		ALIAS_COLNAME_OFF,		NULL, colname_off_usage,		1, false,	false },
+    { OPTION_IN_HEX,			ALIAS_IN_HEX,			NULL, in_hex_usage,			1, false,	false },
+    { OPTION_TABLE,				ALIAS_TABLE,			NULL, table_usage,				1, true,	false },
+    { OPTION_ROWS,				ALIAS_ROWS,				NULL, rows_usage,				1, true,	false },
+    { OPTION_COLUMNS,			ALIAS_COLUMNS,			NULL, columns_usage,			1, true,	false },
 /* limit of 5 schemas? */
-    { OPTION_SCHEMA, ALIAS_SCHEMA, NULL, schema_usage, 5, true, false },
-    { OPTION_SCHEMA_DUMP, ALIAS_SCHEMA_DUMP, NULL, schema_dump_usage, 1, false, false },
-    { OPTION_TABLE_ENUM, ALIAS_TABLE_ENUM, NULL, table_enum_usage, 1, false, false },
-    { OPTION_COLUMN_ENUM, ALIAS_COLUMN_ENUM, NULL, column_enum_usage, 1, false, false },
-    { OPTION_COLUMN_SHORT, ALIAS_COLUMN_SHORT, NULL, column_short_usage, 1, false, false },
-    { OPTION_DNA_BASES, ALIAS_DNA_BASES, NULL, dna_bases_usage, 1, false, false },
-    { OPTION_MAX_LINE_LEN, ALIAS_MAX_LINE_LEN, NULL, max_line_len_usage, 1, true, false },
-    { OPTION_LINE_INDENT, ALIAS_LINE_INDENT, NULL, line_indent_usage, 1, true, false },
-    { OPTION_FILTER, ALIAS_FILTER, NULL, filter_usage, 1, true, false },
-    { OPTION_FORMAT, ALIAS_FORMAT, NULL, format_usage, 1, true, false },
-    { OPTION_ID_RANGE, ALIAS_ID_RANGE, NULL, id_range_usage, 1, false, false },
-    { OPTION_WITHOUT_SRA, ALIAS_WITHOUT_SRA, NULL, without_sra_usage, 1, false, false },
-    { OPTION_EXCLUDED_COLUMNS, ALIAS_EXCLUDED_COLUMNS, NULL, excluded_columns_usage, 1, true, false },
-    { OPTION_BOOLEAN, ALIAS_BOOLEAN, NULL, boolean_usage, 1, true, false },
-    { OPTION_NUMELEM, ALIAS_NUMELEM, NULL, numelem_usage, 1, false, false },
-    { OPTION_NUMELEMSUM, ALIAS_NUMELEMSUM, NULL, numelemsum_usage, 1, false, false },
-    { OPTION_SHOW_BLOBBING, NULL, NULL, show_blobbing_usage, 1, false, false },
-    { OPTION_ENUM_PHYS, NULL, NULL, enum_phys_usage, 1, false, false },
-    { OPTION_ENUM_READABLE, NULL, NULL, enum_readable_usage, 1, false, false },
-    { OPTION_OBJVER, ALIAS_OBJVER, NULL, objver_usage, 1, false, false },
-    { OPTION_OBJTS, NULL, NULL, objts_usage, 1, false, false },
-    { OPTION_OBJTYPE, ALIAS_OBJTYPE, NULL, objtype_usage, 1, false, false },
-    { OPTION_IDX_ENUM, NULL, NULL, idx_enum_usage, 1, false, false },
-    { OPTION_IDX_RANGE, NULL, NULL, idx_range_usage, 1, true, false },
-    { OPTION_CUR_CACHE, NULL, NULL, cur_cache_usage, 1, true, false },
-    { OPTION_OUT_FILE, NULL, NULL, out_file_usage, 1, true, false },
-    { OPTION_OUT_PATH, NULL, NULL, out_path_usage, 1, true, false },
-    { OPTION_PHASE, NULL, NULL, NULL, 1, true, false },
-    { OPTION_GZIP, NULL, NULL, gzip_usage, 1, false, false },
-    { OPTION_BZIP2, NULL, NULL, bzip2_usage, 1, false, false },
-    { OPTION_OUT_BUF_SIZE, NULL, NULL, outbuf_size_usage, 1, true, false },
-    { OPTION_NO_MULTITHREAD, NULL, NULL, disable_mt_usage, 1, false, false },
-    { OPTION_INFO, NULL, NULL, info_usage, 1, false, false },
-    { OPTION_DIFF, NULL, NULL, NULL, 1, false, false },
-	{ OPTION_SPOTGROUPS, NULL, NULL, spotgroup_usage, 1, false, false },
-	{ OPTION_SRASCHEMA, NULL, NULL, sraschema_usage, 1, false, false }	
+    { OPTION_SCHEMA,			ALIAS_SCHEMA,			NULL, schema_usage,			5, true,	false },
+    { OPTION_SCHEMA_DUMP,		ALIAS_SCHEMA_DUMP,		NULL, schema_dump_usage,		1, false,	false },
+    { OPTION_TABLE_ENUM,		ALIAS_TABLE_ENUM,		NULL, table_enum_usage,		1, false,	false },
+    { OPTION_COLUMN_ENUM,		ALIAS_COLUMN_ENUM,		NULL, column_enum_usage,		1, false,	false },
+    { OPTION_COLUMN_SHORT,		ALIAS_COLUMN_SHORT,		NULL, column_short_usage,		1, false,	false },
+    { OPTION_DNA_BASES,			ALIAS_DNA_BASES,		NULL, dna_bases_usage,			1, false,	false },
+    { OPTION_MAX_LINE_LEN,		ALIAS_MAX_LINE_LEN,		NULL, max_line_len_usage,		1, true,	false },
+    { OPTION_LINE_INDENT,		ALIAS_LINE_INDENT,		NULL, line_indent_usage,		1, true,	false },
+    { OPTION_FILTER,			ALIAS_FILTER,			NULL, filter_usage,			1, true,	false },
+    { OPTION_FORMAT,			ALIAS_FORMAT,			NULL, format_usage,			1, true,	false },
+    { OPTION_ID_RANGE,			ALIAS_ID_RANGE,			NULL, id_range_usage,			1, false,	false },
+    { OPTION_WITHOUT_SRA,		ALIAS_WITHOUT_SRA,		NULL, without_sra_usage,		1, false,	false },
+    { OPTION_EXCLUDED_COLUMNS,	ALIAS_EXCLUDED_COLUMNS,	NULL, excluded_columns_usage,	1, true,	false },
+    { OPTION_BOOLEAN,			ALIAS_BOOLEAN,			NULL, boolean_usage, 			1, true, 	false },
+    { OPTION_NUMELEM,			ALIAS_NUMELEM,			NULL, numelem_usage, 			1, false, 	false },
+    { OPTION_NUMELEMSUM,		ALIAS_NUMELEMSUM,		NULL, numelemsum_usage, 		1, false, 	false },
+    { OPTION_SHOW_BLOBBING,		NULL,					NULL, show_blobbing_usage, 	1, false, 	false },
+    { OPTION_ENUM_PHYS,			NULL,					NULL, enum_phys_usage, 		1, false, 	false },
+    { OPTION_ENUM_READABLE,		NULL,					NULL, enum_readable_usage, 	1, false, 	false },
+    { OPTION_OBJVER,			ALIAS_OBJVER,			NULL, objver_usage, 			1, false, 	false },
+    { OPTION_OBJTS,				NULL,					NULL, objts_usage, 			1, false, 	false },
+    { OPTION_OBJTYPE,			ALIAS_OBJTYPE,			NULL, objtype_usage, 			1, false, 	false },
+    { OPTION_IDX_ENUM,			NULL,					NULL, idx_enum_usage, 			1, false, 	false },
+    { OPTION_IDX_RANGE,			NULL,					NULL, idx_range_usage, 		1, true,	false },
+    { OPTION_CUR_CACHE,			NULL,					NULL, cur_cache_usage,			1, true,	false },
+    { OPTION_OUT_FILE,			NULL,					NULL, out_file_usage, 			1, true,	false },
+    { OPTION_OUT_PATH,			NULL,					NULL, out_path_usage,			1, true,	false },
+    { OPTION_PHASE,				NULL,					NULL, NULL,					1, true,	false },
+    { OPTION_GZIP,				NULL,					NULL, gzip_usage,				1, false,	false },
+    { OPTION_BZIP2,				NULL,					NULL, bzip2_usage,				1, false,	false },
+    { OPTION_OUT_BUF_SIZE,		NULL,					NULL, outbuf_size_usage,		1, true,	false },
+    { OPTION_NO_MULTITHREAD,	NULL,					NULL, disable_mt_usage,		1, false,	false },
+    { OPTION_INFO,				NULL,					NULL, info_usage,				1, false,	false },
+    { OPTION_DIFF,				NULL,					NULL, NULL, 					1, false,	false },
+	{ OPTION_SPOTGROUPS,		NULL,					NULL, spotgroup_usage,			1, false,	false },
+	{ OPTION_SRASCHEMA,			NULL,					NULL, sraschema_usage,			1, false,	false },
+	{ OPTION_INTERACTIVE,		NULL,					NULL, NULL,					1, false,	false },
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -196,46 +197,46 @@ rc_t CC Usage ( const Args * args )
 
     KOutMsg ( "Options:\n" );
 
-    HelpOptionLine ( ALIAS_ROW_ID_ON, OPTION_ROW_ID_ON, NULL, row_id_on_usage );
-    HelpOptionLine ( ALIAS_LINE_FEED, OPTION_LINE_FEED, "line_feed", line_feed_usage );
-    HelpOptionLine ( ALIAS_COLNAME_OFF, OPTION_COLNAME_OFF, NULL, colname_off_usage );
-    HelpOptionLine ( ALIAS_IN_HEX, OPTION_IN_HEX, NULL, in_hex_usage );
-    HelpOptionLine ( ALIAS_TABLE, OPTION_TABLE, "table", table_usage );
-    HelpOptionLine ( ALIAS_ROWS, OPTION_ROWS, "rows", rows_usage );
-    HelpOptionLine ( ALIAS_COLUMNS, OPTION_COLUMNS, "columns", columns_usage );
-    HelpOptionLine ( ALIAS_SCHEMA, OPTION_SCHEMA, "schema", schema_usage );
-    HelpOptionLine ( ALIAS_SCHEMA_DUMP, OPTION_SCHEMA_DUMP, NULL, schema_dump_usage );
-    HelpOptionLine ( ALIAS_TABLE_ENUM, OPTION_TABLE_ENUM, NULL, table_enum_usage );
-    HelpOptionLine ( ALIAS_COLUMN_ENUM, OPTION_COLUMN_ENUM, NULL, column_enum_usage );
-    HelpOptionLine ( ALIAS_COLUMN_SHORT, OPTION_COLUMN_SHORT, NULL, column_short_usage );
-    HelpOptionLine ( ALIAS_DNA_BASES, OPTION_DNA_BASES, "dna_bases", dna_bases_usage );
-    HelpOptionLine ( ALIAS_MAX_LINE_LEN, OPTION_MAX_LINE_LEN, "max_length", max_line_len_usage );
-    HelpOptionLine ( ALIAS_LINE_INDENT, OPTION_LINE_INDENT, "indent_width", line_indent_usage );
-    HelpOptionLine ( ALIAS_FORMAT, OPTION_FORMAT, "format", format_usage );
-    HelpOptionLine ( ALIAS_ID_RANGE, OPTION_ID_RANGE, NULL, id_range_usage );
-    HelpOptionLine ( ALIAS_WITHOUT_SRA, OPTION_WITHOUT_SRA, NULL, without_sra_usage );
-    HelpOptionLine ( ALIAS_EXCLUDED_COLUMNS, OPTION_EXCLUDED_COLUMNS, NULL, excluded_columns_usage );
-    HelpOptionLine ( ALIAS_BOOLEAN, OPTION_BOOLEAN, NULL, boolean_usage );
-    HelpOptionLine ( ALIAS_OBJVER, OPTION_OBJVER, NULL, objver_usage );
-    HelpOptionLine ( NULL, OPTION_OBJTS, NULL, objts_usage );
-    HelpOptionLine ( ALIAS_OBJTYPE, OPTION_OBJTYPE, NULL, objtype_usage );
-    HelpOptionLine ( ALIAS_NUMELEM, OPTION_NUMELEM, NULL, numelem_usage );
-    HelpOptionLine ( ALIAS_NUMELEMSUM, OPTION_NUMELEMSUM, NULL, numelemsum_usage );
-    HelpOptionLine ( NULL, OPTION_SHOW_BLOBBING, NULL, show_blobbing_usage );
-    HelpOptionLine ( NULL, OPTION_ENUM_PHYS, NULL, enum_phys_usage );
-    HelpOptionLine ( NULL, OPTION_ENUM_READABLE, NULL, enum_readable_usage );
-    HelpOptionLine ( NULL, OPTION_IDX_ENUM, NULL, idx_enum_usage );	
-    HelpOptionLine ( NULL, OPTION_IDX_RANGE, NULL, idx_range_usage );	
-    HelpOptionLine ( NULL, OPTION_CUR_CACHE, NULL, cur_cache_usage );	
-    HelpOptionLine ( NULL, OPTION_OUT_FILE, NULL, out_file_usage );
-    HelpOptionLine ( NULL, OPTION_OUT_PATH, NULL, out_path_usage );
-    HelpOptionLine ( NULL, OPTION_GZIP, NULL, gzip_usage );
-    HelpOptionLine ( NULL, OPTION_BZIP2, NULL, bzip2_usage );
-    HelpOptionLine ( NULL, OPTION_OUT_BUF_SIZE, NULL, outbuf_size_usage );
-    HelpOptionLine ( NULL, OPTION_NO_MULTITHREAD, NULL, disable_mt_usage );
-    HelpOptionLine ( NULL, OPTION_INFO, NULL, info_usage );
-    HelpOptionLine ( NULL, OPTION_SPOTGROUPS, NULL, spotgroup_usage );
-    HelpOptionLine ( NULL, OPTION_SRASCHEMA, NULL, sraschema_usage );
+    HelpOptionLine ( ALIAS_ROW_ID_ON,		OPTION_ROW_ID_ON,		NULL,				row_id_on_usage );
+    HelpOptionLine ( ALIAS_LINE_FEED,		OPTION_LINE_FEED,		"line_feed",		line_feed_usage );
+    HelpOptionLine ( ALIAS_COLNAME_OFF,		OPTION_COLNAME_OFF,		NULL,				colname_off_usage );
+    HelpOptionLine ( ALIAS_IN_HEX,			OPTION_IN_HEX,			NULL,				in_hex_usage );
+    HelpOptionLine ( ALIAS_TABLE,			OPTION_TABLE,			"table",			table_usage );
+    HelpOptionLine ( ALIAS_ROWS,			OPTION_ROWS,			"rows",				rows_usage );
+    HelpOptionLine ( ALIAS_COLUMNS,			OPTION_COLUMNS,			"columns",			columns_usage );
+    HelpOptionLine ( ALIAS_SCHEMA,			OPTION_SCHEMA,			"schema",			schema_usage );
+    HelpOptionLine ( ALIAS_SCHEMA_DUMP,		OPTION_SCHEMA_DUMP,		NULL,				schema_dump_usage );
+    HelpOptionLine ( ALIAS_TABLE_ENUM,		OPTION_TABLE_ENUM,		NULL,				table_enum_usage );
+    HelpOptionLine ( ALIAS_COLUMN_ENUM,		OPTION_COLUMN_ENUM,		NULL,				column_enum_usage );
+    HelpOptionLine ( ALIAS_COLUMN_SHORT,	OPTION_COLUMN_SHORT,	NULL,				column_short_usage );
+    HelpOptionLine ( ALIAS_DNA_BASES,		OPTION_DNA_BASES,		"dna_bases",		dna_bases_usage );
+    HelpOptionLine ( ALIAS_MAX_LINE_LEN,	OPTION_MAX_LINE_LEN,	"max_length",		max_line_len_usage );
+    HelpOptionLine ( ALIAS_LINE_INDENT,		OPTION_LINE_INDENT,		"indent_width",		line_indent_usage );
+    HelpOptionLine ( ALIAS_FORMAT,			OPTION_FORMAT,			"format",			format_usage );
+    HelpOptionLine ( ALIAS_ID_RANGE,		OPTION_ID_RANGE,		NULL,				id_range_usage );
+    HelpOptionLine ( ALIAS_WITHOUT_SRA,		OPTION_WITHOUT_SRA,		NULL, 				without_sra_usage );
+    HelpOptionLine ( ALIAS_EXCLUDED_COLUMNS,OPTION_EXCLUDED_COLUMNS,NULL, 				excluded_columns_usage );
+    HelpOptionLine ( ALIAS_BOOLEAN,			OPTION_BOOLEAN,			NULL, 				boolean_usage );
+    HelpOptionLine ( ALIAS_OBJVER,			OPTION_OBJVER,			NULL, 				objver_usage );
+    HelpOptionLine ( NULL,					OPTION_OBJTS,			NULL, 				objts_usage );
+    HelpOptionLine ( ALIAS_OBJTYPE,			OPTION_OBJTYPE,			NULL, 				objtype_usage );
+    HelpOptionLine ( ALIAS_NUMELEM,			OPTION_NUMELEM,			NULL, 				numelem_usage );
+    HelpOptionLine ( ALIAS_NUMELEMSUM,		OPTION_NUMELEMSUM,		NULL,				numelemsum_usage );
+    HelpOptionLine ( NULL,					OPTION_SHOW_BLOBBING,	NULL,				show_blobbing_usage );
+    HelpOptionLine ( NULL,					OPTION_ENUM_PHYS,		NULL,				enum_phys_usage );
+    HelpOptionLine ( NULL,					OPTION_ENUM_READABLE,	NULL,				enum_readable_usage );
+    HelpOptionLine ( NULL,					OPTION_IDX_ENUM,		NULL,				idx_enum_usage );	
+    HelpOptionLine ( NULL,					OPTION_IDX_RANGE,		NULL,				idx_range_usage );	
+    HelpOptionLine ( NULL,					OPTION_CUR_CACHE,		NULL,				cur_cache_usage );	
+    HelpOptionLine ( NULL,					OPTION_OUT_FILE,		NULL,				out_file_usage );
+    HelpOptionLine ( NULL,					OPTION_OUT_PATH,		NULL,				out_path_usage );
+    HelpOptionLine ( NULL,					OPTION_GZIP,			NULL,				gzip_usage );
+    HelpOptionLine ( NULL, 				OPTION_BZIP2,			NULL,				bzip2_usage );
+    HelpOptionLine ( NULL, 				OPTION_OUT_BUF_SIZE,	NULL,				outbuf_size_usage );
+    HelpOptionLine ( NULL, 				OPTION_NO_MULTITHREAD,	NULL,				disable_mt_usage );
+    HelpOptionLine ( NULL,					OPTION_INFO,			NULL,				info_usage );
+    HelpOptionLine ( NULL, 				OPTION_SPOTGROUPS,		NULL,				spotgroup_usage );
+    HelpOptionLine ( NULL, 				OPTION_SRASCHEMA,		NULL,				sraschema_usage );
 	
     HelpOptionsStandard ();
 

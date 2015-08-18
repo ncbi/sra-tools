@@ -44,10 +44,21 @@
 #define OPTION_ID_ATTR         	"id_attr"
 #define OPTION_FEATURE_TYPE    	"feature_type"
 #define OPTION_MODE            	"mode"
+#define OPTION_REF_TRANS       	"translation"
+#define OPTION_MAX_GENES       	"max-genes"
+#define OPTION_FUNCTION       	"func"
+#define OPTION_COMPARE       	"compare"
+#define OPTION_REFERENCES      	"refs"
+#define OPTION_MAPQ      		"mapq"
 
 #define ALIAS_ID_ATTR          	"i"
 #define ALIAS_FEATURE_TYPE     	"f"
 #define ALIAS_MODE     			"m"
+#define ALIAS_REF_TRANS       	"t"
+#define ALIAS_MAX_GENES       	"x"
+#define ALIAS_COMPARE       	"c"
+#define ALIAS_REFERENCES       	"r"
+#define ALIAS_MAPQ       		"q"
 
 #define DEFAULT_ID_ATTR         "gene_id"
 #define DEFAULT_FEATURE_TYPE    "exon"
@@ -55,12 +66,24 @@
 static const char * id_attr_usage[] 		= { "id-attr (default gene_id)", NULL };
 static const char * feature_type_usage[] 	= { "feature-type (default exon)", NULL };
 static const char * mode_usage[] 			= { "output-mode (norm, debug)", NULL };
+static const char * ref_trans_usage[] 		= { "translation of ref-names(file)", NULL };
+static const char * max_genes_usage[] 		= { "max. number of genes", NULL };
+static const char * func_usage[] 			= { "alternative functions (ref)", NULL };
+static const char * compare_usage[] 		= { "compare-mode (1,2,...)", NULL };
+static const char * references_usage[] 		= { "restrict to these references (chr3,chr5)", NULL };
+static const char * mapq_usage[] 			= { "min. mapq-value", NULL };
 
 OptDef sra_seq_count_options[] =
 {
     { OPTION_ID_ATTR, 		ALIAS_ID_ATTR,			NULL, id_attr_usage,		1, true, false },
     { OPTION_FEATURE_TYPE, 	ALIAS_FEATURE_TYPE, 	NULL, feature_type_usage, 	1, true, false },
-    { OPTION_MODE, 			ALIAS_MODE, 			NULL, mode_usage, 			1, true, false }	
+    { OPTION_MODE, 			ALIAS_MODE, 			NULL, mode_usage, 			1, true, false },
+    { OPTION_REF_TRANS,		ALIAS_REF_TRANS, 		NULL, ref_trans_usage,		1, true, false },
+    { OPTION_MAX_GENES,		ALIAS_MAX_GENES, 		NULL, max_genes_usage,		1, true, false },
+    { OPTION_FUNCTION,		NULL, 					NULL, func_usage,			1, true, false },
+    { OPTION_COMPARE,		ALIAS_COMPARE, 			NULL, compare_usage,		1, true, false },
+    { OPTION_REFERENCES,	ALIAS_REFERENCES, 		NULL, references_usage,	1, true, false },
+    { OPTION_MAPQ,			ALIAS_MAPQ, 			NULL, mapq_usage,			1, true, false }
 };
 
 const char UsageDefaultName[] = "sra-seq-count";
@@ -93,7 +116,10 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_ID_ATTR,			OPTION_ID_ATTR,			NULL, 		id_attr_usage );
     HelpOptionLine ( ALIAS_FEATURE_TYPE, 	OPTION_FEATURE_TYPE, 	NULL, 		feature_type_usage );
     HelpOptionLine ( ALIAS_MODE, 			OPTION_MODE, 			NULL, 		mode_usage );
-
+    HelpOptionLine ( ALIAS_REF_TRANS,		OPTION_REF_TRANS,		NULL, 		ref_trans_usage );
+    HelpOptionLine ( ALIAS_COMPARE,			OPTION_COMPARE,			NULL, 		compare_usage );
+    HelpOptionLine ( ALIAS_REFERENCES,		OPTION_REFERENCES,		NULL, 		references_usage );
+	
     KOutMsg ( "\n" );	
     HelpOptionsStandard ();
     HelpVersion ( fullpath, KAppVersion() );
@@ -112,10 +138,40 @@ static rc_t get_str_option( const Args * args, const char * option_name, const c
     uint32_t count;
     rc_t rc = ArgsOptionCount( args, option_name, &count );
     if ( ( rc == 0 )&&( count > 0 ) )
-        rc = ArgsOptionValue( args, option_name, 0, (const void **)dst );
+	{
+		const void *v;
+        rc = ArgsOptionValue( args, option_name, 0, &v );
+		if ( rc == 0 ) *dst = ( const char * )v;
+	}
 	else
-		(*dst) = string_dup_measure ( default_value, NULL );
+	{
+		if ( default_value != NULL )
+			(*dst) = string_dup_measure ( default_value, NULL );
+		else
+			(*dst) = NULL;
+	}
     return rc;
+}
+
+
+static rc_t get_bool_option( const Args * args, const char * option_name, bool * dst )
+{
+    uint32_t count;
+    rc_t rc = ArgsOptionCount( args, option_name, &count );
+    *dst = ( ( rc == 0 )&&( count > 0 ) );
+	return rc;
+}
+
+
+static rc_t get_int_option( const Args * args, const char * option_name, int * dst )
+{
+	const char * s_value = NULL;
+	rc_t rc = get_str_option( args, option_name, &s_value, NULL );
+    if ( rc == 0 && s_value != NULL )
+		*dst = atoi( s_value );
+	else
+		*dst = 0;
+	return rc;
 }
 
 
@@ -127,6 +183,24 @@ static rc_t gather_options( const Args * args, struct sra_seq_count_options * op
 	rc = get_str_option( args, OPTION_ID_ATTR, &options->id_attrib, DEFAULT_ID_ATTR );
 	if ( rc == 0 )
 		rc = get_str_option( args, OPTION_FEATURE_TYPE, &options->feature_type, DEFAULT_FEATURE_TYPE );
+	if ( rc == 0 )
+		rc = get_str_option( args, OPTION_REF_TRANS, &options->ref_trans, NULL );
+	if ( rc == 0 )
+		rc = get_str_option( args, OPTION_REFERENCES, &options->refs, NULL );
+	if ( rc == 0 )
+		rc = get_int_option( args, OPTION_MAPQ, &options->mapq );
+	if ( rc == 0 )
+	{
+		const char * s;
+		rc = get_str_option( args, OPTION_MAX_GENES, &s, "0" );
+		if ( rc ==  0 )
+			options->max_genes = atoi( s );
+	}
+	if ( rc == 0 )
+		rc = get_str_option( args, OPTION_FUNCTION, &options->function, NULL );
+	if ( rc == 0 )
+		rc = get_bool_option( args, OPTION_QUIET, &options->silent );
+	
 	if ( rc == 0 )
 	{
 		const char * mode;
@@ -149,9 +223,15 @@ static rc_t gather_options( const Args * args, struct sra_seq_count_options * op
 		{
 			if ( count == 2 )
 			{
-				rc = ArgsParamValue( args, 0, (const void **)&options->sra_accession );
+				const void * v;
+				rc = ArgsParamValue( args, 0, &v );
 				if ( rc == 0 )
-					rc = ArgsParamValue( args, 1, (const void **)&options->gtf_file );
+				{
+					options->sra_accession = ( const char * )v;
+					rc = ArgsParamValue( args, 1, &v );
+					if ( rc == 0 )
+						options->gtf_file = ( const char * )v;
+				}
 				if ( rc == 0 )
 					options -> valid = true;
 			}
@@ -167,13 +247,22 @@ static rc_t gather_options( const Args * args, struct sra_seq_count_options * op
 
 static rc_t report_options( const struct sra_seq_count_options * options )
 {
-	rc_t rc = KOutMsg( "accession    : %s\n", options->sra_accession );
+	rc_t rc = KOutMsg( "\naccession    : %s\n", options->sra_accession );
 	if ( rc == 0 )
 		rc =  KOutMsg( "gtf-file     : %s\n", options->gtf_file );
 	if ( rc == 0 )
 		rc =  KOutMsg( "id-attr      : %s\n", options->id_attrib );
 	if ( rc == 0 )
 		rc =  KOutMsg( "feature-type : %s\n", options->feature_type );
+	if ( rc == 0 )
+		rc =  KOutMsg( "mapq         : %d\n", options->mapq );
+	if ( rc == 0 )
+	{
+		if ( options->refs == NULL )
+			rc =  KOutMsg( "references   : process all references found in the accession\n" );
+		else
+			rc =  KOutMsg( "references   : restrict to %s\n", options->refs );
+	}
 	if ( rc == 0 )
 	{
 		switch ( options->output_mode )
@@ -182,6 +271,65 @@ static rc_t report_options( const struct sra_seq_count_options * options )
 			case SSC_MODE_DEBUG  : rc =  KOutMsg( "output-mode  : debug\n" ); break;
 			default              : rc =  KOutMsg( "output-mode  : unknown\n" ); break;
 		}
+	}
+	if ( rc == 0 )
+	{
+		if ( options->ref_trans != NULL )
+			rc =  KOutMsg( "translation  : %s\n", options->ref_trans );
+		else
+			rc =  KOutMsg( "translation  : none\n" );
+	}
+	if ( rc == 0 && options->max_genes > 0 )
+		rc =  KOutMsg( "max genes    : %d\n", options->max_genes );
+	
+	return rc;
+}
+
+
+static rc_t main_function( const struct sra_seq_count_options * options )
+{
+	rc_t rc = 0;
+	if ( !options->silent )
+		rc = report_options( options );
+	if ( rc == 0 )
+		rc = perform_seq_counting_2( options );	/* here we are calling into C++ */
+	return rc;
+}
+
+
+static rc_t report_refs_function( const struct sra_seq_count_options * options )
+{
+	list_gtf_refs( options );
+	list_acc_refs( options );
+	return 0;
+}
+
+
+static rc_t perform_test( const struct sra_seq_count_options * options )
+{
+	/* index_gtf( &options ); */
+	token_tests( options );
+	return 0;
+}
+
+static rc_t perform_sorted_test( const struct sra_seq_count_options * options )
+{
+	rc_t rc = KOutMsg( "testing gtf file and accession for being sorted\n" );
+	
+	if ( rc == 0 )
+	{
+		if ( is_gtf_sorted( options ) )
+			rc = KOutMsg( "gtf file is sorted!\n" );
+		else
+			rc = KOutMsg( "gtf is not sorted!\n" );
+	}
+	
+	if ( rc == 0 )
+	{
+		if ( is_acc_sorted( options ) )
+			rc =  KOutMsg( "accession is sorted!\n" );
+		else
+			rc =  KOutMsg( "accession is not sorted!\n" );		
 	}
 	return rc;
 }
@@ -199,10 +347,24 @@ rc_t CC KMain ( int argc, char *argv [] )
 		rc = gather_options( args, &options );
 		if ( rc == 0 && options.valid )
 		{
-			rc = report_options( &options );
-			if ( rc == 0 )
+			if ( options.function == NULL )
+				rc = main_function( &options );
+			else
 			{
-				rc = matching( &options );	/* here we are calling into C++ */
+				switch ( options.function[ 0 ] )
+				{
+					/* "ref" or "Ref" ... report reference-names... */
+					case 'R' : 	;
+					case 'r' : rc = report_refs_function( &options ); break;
+
+					/* "test" or "Test" ... perform range tests... */
+					case 'T' : ;
+					case 't' : rc = perform_test( &options ); break;
+
+					/* "sorted" or "Sorted" ... perform sorted test... */
+					case 'S' : ;
+					case 's' : rc = perform_sorted_test( &options ); break;
+				}
 			}
 		}
         ArgsWhack ( args );

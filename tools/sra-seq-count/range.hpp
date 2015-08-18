@@ -28,6 +28,7 @@
 #define _hpp_seq_ranges_
 
 #include <list>
+#include <string>
 
 namespace seq_ranges {
 
@@ -80,12 +81,6 @@ class range
 		range( void ) : start( 0 ), end( 0 ) { }
 		range( long start_, long end_ ) : start( start_ ), end( end_ ) { }
 		range( const range &other ) : start( other.start ), end( other.end ) { }
-		
-		range( const std::string &start_, const std::string &end_ ) : start( 0 ), end( 0 )
-		{
-			bool valid = ( convert_value( start_, start ) && convert_value( end_, end ) );
-			if ( !valid ) set( 0, 0 );
-		}
 
 		range& operator= ( const range &other )
 		{
@@ -97,15 +92,6 @@ class range
 
 		void set( long start_, long end_ ) { start = start_; end = end_; }
 
-		static bool convert_value( const std::string value_, long &value )
-		{
-			bool res = true;
-			std::istringstream ( value_ ) >> value;
-			if ( value < 1 )
-				res = false;
-			return res;
-		}
-		
 		/* does this range end before the other range starts ? */
 		bool ends_before( const range &other ) const { return ( end < other.start ); }
 
@@ -130,6 +116,11 @@ class range
 		bool merge( const range &other )
 		{
 			bool res = intersect( other );
+			if ( !res )
+			{
+				res = ( ( other.start == ( end + 1 ) ) ||
+						( start == ( other.end + 1 ) ) );
+			}
 			if ( res ) include( other );
 			return res;
 		}
@@ -199,12 +190,12 @@ bool compare_ranges ( const range * first, const range * second )
 
 struct ranges_relation
 {
-	bool has_inside;
-	bool has_partial;
+	int inside;
+	int partial;
 
-	void clear( void ) { has_inside = has_partial = false; }
+	void clear( void ) { inside = partial = 0; }
 	
-	void print( std::ostream &stream ) const { stream << "inside: " << has_inside << ", partial: " << has_partial; }
+	void print( std::ostream &stream ) const { stream << "inside: " << inside << ", partial: " << partial; }
 	
 	friend std::ostream& operator<< ( std::ostream &stream, const ranges_relation &other )
 	{
@@ -219,9 +210,35 @@ class ranges
 	private :
 		std::list< range * > range_list;
 		long count;
+
+		void from_cigar( long start, const std::string &cigar )
+		{
+			std::string cnt( "" );
+			long ofs( 0 );
+			for ( std::string::const_iterator it = cigar.begin();
+				  it != cigar.end(); ++it )
+			{
+				const char c = *it;
+				if ( c >= '0' && c <= '9' )
+					cnt += c;
+				else
+				{
+					long n = atoi( cnt.c_str() );
+					range r( start + ofs, start + ofs + n - 1 );
+					switch ( c )
+					{
+						case 'N' : merge( r ); ofs += n; break;
+						case 'M' : merge( r ); ofs += n; break;
+						case 'D' : ofs += n; break;
+					}
+					cnt.clear();
+				}
+			}
+		}
 		
 	public :
 		ranges( void ) : count( 0 ) {}
+		ranges( long start, const std::string &cigar ) : count( 0 ) { from_cigar( start, cigar ); }
 		~ranges( void ) { clear(); }
 		
 		void clear( void )
@@ -237,7 +254,8 @@ class ranges
 		
 		void add( range * r ){ if ( r != NULL ) { range_list.push_back( r ); count++; } }
 		void add( const range &r ){ add( new range( r ) ); }
-
+		void add( long start, long end ){ add( new range( start, end ) ); }
+		
 		void merge( const range &r1 )
 		{
 			bool merged = false;
@@ -254,7 +272,30 @@ class ranges
 		void sort( void ) { range_list.sort( compare_ranges ); }
 		long get_count( void ) { return count; }
 		
-		void compare_sample( const ranges &sample, ranges_relation &res ) const
+		bool compare_vs_range( const range &sample, ranges_relation &res, bool full_compare ) const
+		{
+			bool done = false;
+			std::list< range * >::const_iterator pattern_it;
+			for ( pattern_it = range_list.begin(); pattern_it != range_list.end() && !done; ++pattern_it )	
+			{
+				const range * pattern_range( *pattern_it );
+				enum e_range_relation rr = pattern_range -> range_relation( sample );
+				switch( rr )
+				{
+					case rr_before 	: break;
+					case rr_begin	: res.partial++; break;
+					case rr_span	: res.partial++; break;
+					case rr_inside 	: res.inside++; break;
+					case rr_end		: res.partial++; break;
+					case rr_after	: break;
+				}
+				if ( !full_compare )
+					done = ( res.partial > 0 && res.inside > 0 );
+			}
+			return done;
+		}
+		
+		void compare_vs_ranges( const ranges &sample, ranges_relation &res, bool full_compare ) const
 		{
 			res.clear();
 			bool done = false;
@@ -264,22 +305,7 @@ class ranges
 			for ( sample_it = sample.range_list.begin(); sample_it != sample.range_list.end() && !done; ++sample_it )
 			{
 				const range * sample_range = *sample_it;
-				std::list< range * >::const_iterator pattern_it;
-				for ( pattern_it = range_list.begin(); pattern_it != range_list.end() && !done; ++pattern_it )	
-				{
-					const range * pattern_range( *pattern_it );
-					enum e_range_relation rr = pattern_range -> range_relation( *sample_range );
-					switch( rr )
-					{
-						case rr_before 	: break;
-						case rr_begin	: res.has_partial = true; break;
-						case rr_span	: res.has_partial = true; break;
-						case rr_inside 	: res.has_inside = true; break;
-						case rr_end		: res.has_partial = true; break;
-						case rr_after	: break;
-					}
-					done = ( res.has_partial && res.has_inside );
-				}
+				done = compare_vs_range( *sample_range, res, full_compare );
 			}
 		}
 		

@@ -78,16 +78,21 @@ TOOL_LIBS = \
 	-skapp	\
 	-sngs-c++ \
 	-sncbi-ngs-c++ \
-	-sncbi-vdb-static
+	-sncbi-vdb-static	
 
 #-------------------------------------------------------------------------------
 # fastq-dump
 #
 TOOL_SRC = \
-	main_fkt \
-	sra-seq-count
+	str_set \
+	str_2_str_map \
+	str_2_u64_map \
+	str_2_strset_map \
+	u64_2_feature_map \
+	sra-seq-count \
+	main_fkt
 	
-INCDIRS += -I $(TOP)/ngs/ngs-c++
+#INCDIRS += -I $(TOP)/ngs/ngs-c++
 
 TOOL_OBJ = \
 	$(addsuffix .$(OBJX),$(TOOL_SRC))

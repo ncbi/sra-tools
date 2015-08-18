@@ -36,17 +36,40 @@ extern "C" {
 #define SSC_MODE_NORMAL	0
 #define SSC_MODE_DEBUG	1
 
+#define SSC_COMPARE_FT_OUTER_VS_ALIGN_OUTER		0
+#define SSC_COMPARE_FT_RANGES_VS_ALIGN_OUTER	1
+#define SSC_COMPARE_FT_RANGES_VS_ALIGN_RANGES	2
+
 struct sra_seq_count_options
 {
     const char * sra_accession;
     const char * gtf_file;
     const char * id_attrib;
     const char * feature_type;
+	const char * ref_trans;
+	const char * function;
+	const char * refs;
+	int max_genes;
 	int output_mode;
+	int compare_mode;
+	int mapq;
 	bool valid;
+	bool silent;
 };
 
-int matching( const struct sra_seq_count_options * options );
+/* the main/default function */
+int perform_seq_counting_1( const struct sra_seq_count_options * options );
+int perform_seq_counting_2( const struct sra_seq_count_options * options );
+
+/* alternativie function : list the reference-names in the gtf file... */
+void list_gtf_refs( const struct sra_seq_count_options * options );
+void list_acc_refs( const struct sra_seq_count_options * options );
+
+bool is_gtf_sorted( const struct sra_seq_count_options * options );
+bool is_acc_sorted( const struct sra_seq_count_options * options );
+
+void token_tests( const struct sra_seq_count_options * options );
+void index_gtf( const struct sra_seq_count_options * options );
 
 #ifdef __cplusplus
 }

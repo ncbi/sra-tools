@@ -930,7 +930,12 @@ extern "C"
         /* command line examples:
           -r NC_011752.1 -p 2018 --query CA -l 0
           -r NC_011752.1 -p 2020 --query CA -l 0
-          -r NC_011752.1 -p 5000 --query CA -l 0 */
+          -r NC_011752.1 -p 5000 --query CA -l 0
+       
+       find insertion:
+          ref-variation -r NC_000013.10 -p 100635036 --query 'ACC' -l 0 /netmnt/traces04/sra33/SRZ/000793/SRR793062/SRR793062.pileup /netmnt/traces04/sra33/SRZ/000795/SRR795251/SRR795251.pileup
+          
+       */
 
         RefVariation::find_variation_region ( argc, argv );
         return 0;

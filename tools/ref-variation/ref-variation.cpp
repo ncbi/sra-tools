@@ -33,9 +33,11 @@
 
 #include <iostream>
 #include <string.h>
-#include <string>
 #include <stdio.h>
 #include <stdint.h>
+
+#include <string>
+#include <vector>
 
 #include <kapp/main.h>
 #include <klib/rc.h>
@@ -237,11 +239,6 @@ namespace RefVariation
 
 #if IMPLEMENT_IN_NGS != 0
 
-            int64_t ref_pos_var;
-        char const* query;
-        size_t var_len_on_ref;
-
-
     ngs::String compose_query_adjusted (ngs::String const& ref,
         size_t ref_start, size_t ref_len,
         char const* query, size_t query_len, int64_t ref_pos_var, size_t var_len_on_ref)
@@ -275,28 +272,181 @@ namespace RefVariation
         return ret;
     }
 
-    void find_alignments ( KApp::CArgs const& args, char const* ref_name, size_t ref_pos, char const* query, size_t query_len )
+    enum PileupColumnNameIndices
+    {
+        idx_DELETION_COUNT,
+        idx_DEPTH,
+        idx_INSERTION_COUNTS,
+        idx_MISMATCH_COUNTS,
+        idx_REFERENCE_SPEC,
+        idx_REF_POS,
+        idx_RUN_NAME
+    };
+    char const* g_PileupColumnNames[] =
+    {
+        "DELETION_COUNT",
+        "DEPTH",
+        "INSERTION_COUNTS",
+        "MISMATCH_COUNTS",
+        "REFERENCE_SPEC",
+        "REF_POS",
+        "RUN_NAME"
+    };
+    uint32_t g_PileupColumnIndex [ countof (g_PileupColumnNames) ];
+
+
+    bool filter_pileup_db ( char const* acc, char const* ref_name,
+                size_t ref_pos, char const* query, size_t query_len,
+                std::vector <std::string>& vec)
+    {
+        std::cout << "Processing " << acc << "... ";// << std::endl;
+
+        VDBObjects::CVDBManager mgr;
+        mgr.Make();
+
+        try
+        {
+        VDBObjects::CVDatabase db = mgr.OpenDB ( acc );
+        VDBObjects::CVTable table = db.OpenTable ( "STATS" );
+        VDBObjects::CVCursor cursor = table.CreateCursorRead ();
+
+        cursor.InitColumnIndex (g_PileupColumnNames, g_PileupColumnIndex, countof(g_PileupColumnNames));
+        cursor.Open();
+
+        int64_t id_first = 0;
+        uint64_t row_count = 0;
+
+        cursor.GetIdRange (id_first, row_count);
+
+        // Find Reference beginning
+
+#if REF_LINEAR_SEARCH != 0
+        //int64_t ref_pos_;
+        //uint32_t depth;
+        //uint32_t count;
+        char ref_spec[64];
+        int64_t ref_id_start = -1;
+        int64_t row_id;
+        for ( row_id = id_first; row_id < id_first + (int64_t)row_count; ++ row_id )
+        {
+            uint32_t count = cursor.ReadItems ( row_id, g_PileupColumnIndex[idx_REFERENCE_SPEC], ref_spec, countof(ref_spec)-1 );
+            assert (count < countof(ref_spec));
+            ref_spec [count] = '\0';
+
+            if ( strcmp (ref_spec, ref_name) == 0 && ref_id_start == -1 )
+            {
+                ref_id_start = row_id;
+                break;
+            }
+        }
+        if ( row_id == id_first + (int64_t)row_count )
+            return false;
+
+#else
+        KDBObjects::CKTable ktbl = table.OpenKTableRead();
+        KDBObjects::CKIndex kindex = ktbl.OpenIndexRead("ref_spec");
+
+        int64_t ref_id_start;
+        uint64_t id_count;
+
+        bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
+        std::cout
+            << (found ? "" : " not") << " found " << ref_name << " row_id=" << ref_id_start
+            << ", id_count=" << id_count << " "; // <<  std::endl;
+        if ( !found )
+        {
+            std::cout << std::endl;
+            return false;
+        }
+
+#endif
+
+
+        // check depth > 0 for every position of the region
+        for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + query_len ); ++pos )
+        {
+            if ( pos + ref_id_start >= id_first + (int64_t)row_count )
+            {
+                std::cout << "OUT OF BOUNDS! filtering out" << std::endl;
+                return false; // went beyond the end of db, probably, it's a bug in db
+            }
+            uint32_t depth;
+            uint32_t count = cursor.ReadItems ( pos + ref_id_start, g_PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
+
+            if ( count == 0 || depth == 0 )
+            {
+                std::cout << "depth=0 at the ref_pos=" << pos
+                    << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
+                return false;
+            }
+        }
+
+        char run_name[64];
+        uint32_t count = cursor.ReadItems ( id_first, g_PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
+        assert (count < countof(run_name));
+        run_name [count] = '\0';
+
+
+        std::cout << run_name << " is suspicious" << std::endl;
+        char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
+
+        vec.push_back ( std::string(p) );
+
+        return true;
+        }
+        catch ( Utils::CErrorMsg const& e )
+        {
+            if ( e.getRC() == SILENT_RC(rcDB,rcMgr,rcOpening,rcDatabase,rcIncorrect))
+            {
+                std::cout
+                    << "BAD db, filtering out" << std::endl;
+                return false;
+            }
+            else
+                throw;
+        }
+    }
+
+    std::vector <std::string> get_acc_list (KApp::CArgs const& args, char const* ref_name, size_t ref_pos, char const* query, size_t query_len)
     {
         size_t param_count = args.GetParamCount();
         
-        std::cout << param_count << " database" << (param_count == 1 ? "" : "s")
+        std::cout << param_count << " pileup database" << (param_count == 1 ? "" : "s")
             << " to search for" << std::endl;
+
+        std::vector <std::string> vec_acc;
 
         for ( size_t i = 0; i < param_count; ++i)
         {
             char const* acc = args.GetParamValue( i );
+            filter_pileup_db ( acc, ref_name, ref_pos, query, query_len, vec_acc );
+        }
+        
+        return vec_acc;
+    }
+
+    void find_alignments ( KApp::CArgs const& args, char const* ref_name, size_t ref_pos, char const* query, size_t query_len )
+    {
+        std::vector <std::string> vec_acc = get_acc_list ( args, ref_name, ref_pos, query, query_len );
+
+        std::cout << "Looking for \""  << query << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
+        for ( std::vector <std::string>::const_iterator cit = vec_acc.begin(); cit != vec_acc.end(); ++cit )
+        {
+            std::string const& acc = (*cit);
             ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
 
             ngs::Reference reference = run.getReference( ref_name );
             ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_pos, query_len, ngs::Alignment::all );
 
-
             while ( ai.nextAlignment() )
             {
                 ngs::String id = ai.getAlignmentId ().toString();
+                ngs::String bases = ai.getFragmentBases( ref_pos - ai.getAlignmentPosition(), query_len ).toString();
+                bool match = strncmp (query, bases.c_str(), query_len) == 0;
                 std::cout << "id=" << id
                     << ": "
-                    << ai.getFragmentBases( ref_pos - ai.getAlignmentPosition(), query_len ).toString()
+                    << bases
+                    << (match ? " MATCH!" : "")
                     << std::endl;
             }
         }

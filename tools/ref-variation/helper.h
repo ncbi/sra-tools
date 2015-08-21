@@ -41,6 +41,9 @@
 #include <kapp/progressbar.h>
 #include <kapp/log-xml.h>
 
+#include <vdb/vdb-priv.h>
+#include <kdb/index.h>
+
 
 #ifndef countof
 #define countof(arr) (sizeof(arr)/sizeof(arr[0]))
@@ -132,6 +135,11 @@ namespace Utils
     }
 
     void HandleException (); // This function must be called inside catch block only
+}
+
+namespace KDBObjects
+{
+    class CKTable;
 }
 
 namespace VDBObjects
@@ -247,6 +255,8 @@ namespace VDBObjects
         void Release();
         CVCursor CreateCursorRead ( size_t cache_size ) const;
         CVCursor CreateCursorRead ( ) const;
+        KDBObjects::CKTable OpenKTableRead () const;
+
 #if MANAGER_WRITABLE != 0
         CVCursor CreateCursorWrite ( ::KCreateMode mode );
 #endif
@@ -328,6 +338,54 @@ namespace VDBObjects
         ::VCursor* m_pSelf;
     };
 }
+
+namespace KDBObjects
+{
+//////////////////////////////////////////////////////////////
+    class CKIndex;
+
+    class CKTable
+    {
+    public:
+        friend CKTable VDBObjects::CVTable::OpenKTableRead () const;
+
+        CKTable();
+        ~CKTable();
+        CKTable(CKTable const& x);
+        CKTable& operator=(CKTable const& x);
+
+        void Release();
+
+        CKIndex OpenIndexRead(char const* name) const;
+
+    private:
+        void Clone(CKTable const& x);
+        ::KTable* m_pSelf;
+    };
+
+    class CKIndex
+    {
+    public:
+        friend CKIndex CKTable::OpenIndexRead(char const* name) const;
+
+        CKIndex();
+        ~CKIndex();
+        CKIndex(CKIndex const& x);
+        CKIndex& operator=(CKIndex const& x);
+
+        // returns false if not found
+        bool FindText(const char *key, int64_t *start_id, uint64_t *id_count,
+            int (CC * custom_cmp)(const void *item, struct PBSTNode const *n, void *data ),
+            void *data) const;
+
+        void Release();
+
+    private:
+        void Clone(CKIndex const& x);
+        ::KIndex* m_pSelf;
+    };
+}
+
 
 ///////////////////////
 

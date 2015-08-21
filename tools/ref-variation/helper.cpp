@@ -36,6 +36,8 @@
 #include <klib/rc.h>
 #include <search/grep.h>
 
+#include <kdb/table.h>
+
 #ifdef _WIN32
 #pragma warning (disable:4503)
 #endif
@@ -444,6 +446,19 @@ namespace VDBObjects
         return cursor;
     }
 #endif
+
+    KDBObjects::CKTable CVTable::OpenKTableRead () const
+    {
+        KDBObjects::CKTable obj;
+        rc_t rc = ::VTableOpenKTableRead(m_pSelf, const_cast<KTable const**>(& obj.m_pSelf));
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VTableOpenKTableRead");
+
+#if DEBUG_PRINT != 0
+        printf("Opened KTable %p\n", obj.m_pSelf);
+#endif
+        return obj;
+    }
 //////////////////////////////////////////////////////////////////////
 
     CVDatabase::CVDatabase() : m_pSelf(NULL)
@@ -700,6 +715,125 @@ namespace VDBObjects
         return schema;
     }
 }
+
+namespace KDBObjects
+{
+//////////////////////////////////////////////////////////////
+    CKIndex::CKIndex() : m_pSelf(NULL)
+    {
+    }
+    
+    CKIndex::~CKIndex()
+    {
+        Release();
+    }
+
+    CKIndex::CKIndex(CKIndex const& x)
+    {
+        Clone(x);
+    }
+
+    CKIndex& CKIndex::operator=(CKIndex const& x)
+    {
+        Clone(x);
+        return *this;
+    }
+
+    void CKIndex::Release()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing KIndex %p\n", m_pSelf);
+#endif
+            ::KIndexRelease(m_pSelf);
+            m_pSelf = NULL;
+        }
+    }
+
+    void CKIndex::Clone(CKIndex const& x)
+    {
+        m_pSelf = x.m_pSelf;
+        ::KIndexAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
+        printf ("CLONING KIndex %p\n", m_pSelf);
+#endif
+    }
+
+    // returns false if not found
+    bool CKIndex::FindText(const char *key, int64_t *start_id, uint64_t *id_count,
+        int (CC * custom_cmp)(const void *item, struct PBSTNode const *n, void *data ),
+        void *data) const
+    {
+            rc_t rc = ::KIndexFindText(m_pSelf, key, start_id, id_count, NULL, NULL );
+            if (rc == SILENT_RC(rcDB,rcIndex,rcSelecting,rcString,rcNotFound))
+                return false;
+            else if (rc)
+                throw Utils::CErrorMsg(rc, "KIndexFindText: key=%s", key);
+            else
+                return true;
+    }
+
+
+//////////////////////////////////////////////////////////////
+    CKTable::CKTable() : m_pSelf(NULL)
+    {
+    }
+    
+    CKTable::~CKTable()
+    {
+        Release();
+    }
+
+    CKTable::CKTable(CKTable const& x)
+    {
+        Clone(x);
+    }
+
+    CKTable& CKTable::operator=(CKTable const& x)
+    {
+        Clone(x);
+        return *this;
+    }
+
+    void CKTable::Release()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing KTable %p\n", m_pSelf);
+#endif
+            ::KTableRelease(m_pSelf);
+            m_pSelf = NULL;
+        }
+    }
+
+    void CKTable::Clone(CKTable const& x)
+    {
+        m_pSelf = x.m_pSelf;
+        ::KTableAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
+        printf ("CLONING KTable %p\n", m_pSelf);
+#endif
+    }
+
+    CKIndex CKTable::OpenIndexRead(char const* name) const
+    {
+        KDBObjects::CKIndex obj;
+        rc_t rc = ::KTableOpenIndexRead(m_pSelf, const_cast<KIndex const**>(& obj.m_pSelf), name);
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KTableOpenIndexRead(%s)", name);
+
+#if DEBUG_PRINT != 0
+        printf("Opened KIndex(%s) %p\n", name, obj.m_pSelf);
+#endif
+        return obj;
+    }
+
+
+//////////////////////////////////////////////////////////////
+}
+
 
 namespace KApp
 {
@@ -959,6 +1093,8 @@ namespace KSearch
             throw Utils::CErrorMsg(rc, "FindRefVariationRegionAscii");
     }
 
+    // TODO: use pointers for return parameters, parameters returned by pointers should be
+    // in the beginning
     void FindRefVariationRegionAscii (
             std::string const& ref, size_t ref_pos_var,
             char const* variation, size_t variation_size, size_t var_len_on_ref,

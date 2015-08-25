@@ -452,27 +452,81 @@ namespace RefVariation
         }
     }
 
+    void finish_find_variation_region_impl ( KApp::CArgs const & args, size_t var_len,
+        const ngs::String & ref, size_t bases_start, size_t ref_start, size_t ref_len )
+    {
+        std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
+        assert ( ref_start >= bases_start );
+        print_indel ( "reference", ref.c_str(), ref.size(), ref_start - bases_start, ref_len );
+
+        ngs::String var_query = compose_query_adjusted ( ref, ref_start - bases_start, ref_len,
+            g_Params.query, var_len, g_Params.ref_pos_var - bases_start, g_Params.var_len_on_ref );
+
+        std::cout << "var_query=" << var_query << std::endl;
+
+        find_alignments (args, g_Params.ref_acc, ref_start, var_query.c_str(), var_query.length());
+    }
+
     void find_variation_region_impl (KApp::CArgs const& args)
     {
         ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
 
         size_t var_len = strlen (g_Params.query);
-        ngs::String ref = ref_seq.getReferenceBases( 0 );
+
+        size_t bases_start = g_Params.ref_pos_var > 1000 ? g_Params.ref_pos_var - 1000 : 0;
+        ngs::StringRef ref1 = ref_seq.getReferenceChunk ( bases_start );
 
         size_t ref_start, ref_len;
 
-        KSearch::FindRefVariationRegionAscii ( ref, g_Params.ref_pos_var,
-            g_Params.query, var_len, g_Params.var_len_on_ref, ref_start, ref_len );
-        
-        std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
-        print_indel ( "reference", ref.c_str(), ref.size(), ref_start, ref_len );
+        bool failed = true;
+        if ( bases_start + ref1 . size () >= g_Params.ref_pos_var + 1000 )
+        {
+            failed = false;
+            try
+            {
+                KSearch::FindRefVariationRegionAscii ( ref1.data(), ref1.size(), g_Params.ref_pos_var - bases_start,
+                    g_Params.query, var_len, g_Params.var_len_on_ref, & ref_start, & ref_len );
+                ref_start += bases_start;
+            }
+            catch ( ... )
+            {
+                failed = true;
+            }
+        }
 
-        ngs::String var_query = compose_query_adjusted ( ref, ref_start, ref_len,
-            g_Params.query, var_len, g_Params.ref_pos_var, g_Params.var_len_on_ref );
+        if ( ! failed )
+        {
+            finish_find_variation_region_impl ( args, var_len, ref1.toString (), bases_start, ref_start, ref_len );
+        }
 
-        std::cout << "var_query=" << var_query << std::endl;
+        else
+        {
+            failed = false;
+            ngs::String ref2;
 
-        find_alignments (args, g_Params.ref_acc, ref_start, var_query.c_str(), var_query.length());
+            try
+            {
+                bases_start = g_Params.ref_pos_var > 5000 ? g_Params.ref_pos_var - 5000 : 0;
+                ref2 = ref_seq.getReferenceBases( bases_start, 15000 );
+                KSearch::FindRefVariationRegionAscii ( ref2.data(), ref2.size(), g_Params.ref_pos_var - bases_start,
+                    g_Params.query, var_len, g_Params.var_len_on_ref, & ref_start, & ref_len );
+                ref_start += bases_start;
+            }
+            catch ( ... )
+            {
+                failed = true;
+            }
+
+            if ( failed )
+            {
+                bases_start = 0;
+                ref2 = ref_seq.getReferenceBases( 0 );
+                KSearch::FindRefVariationRegionAscii ( ref2.data(), ref2.size(), g_Params.ref_pos_var,
+                    g_Params.query, var_len, g_Params.var_len_on_ref, & ref_start, & ref_len );
+            }
+
+            finish_find_variation_region_impl ( args, var_len, ref2, bases_start, ref_start, ref_len );
+        }
     }
 
 #else // VDB implementation

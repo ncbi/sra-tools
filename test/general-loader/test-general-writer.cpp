@@ -67,7 +67,7 @@ namespace ncbi
         for ( int i = 0; i < column_count; ++ i )
         {
             const char *name = column_names [ i ];
-            stream_ids [ i ] = gw -> addColumn ( table_id, name, 8 ); // all columns are ascii for now
+            stream_ids [ i ] = gw -> addColumn ( table_id, name, 8, 0 ); // all columns are ascii for now
         }
     }
 
@@ -180,12 +180,12 @@ namespace ncbi
 
     void testAddTblMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
     {
-        gw -> setTblMetadataNode ( 0, node, value );
+        gw -> setTblMetadataNode ( 1, node, value );
     }
 
     void testAddColMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
     {
-        gw -> setColMetadataNode ( 0, node, value );
+        gw -> setColMetadataNode ( 1, node, value );
     }
 
     void testEndStream ( GeneralWriter *gw )

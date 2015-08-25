@@ -331,7 +331,7 @@ namespace ncbi
         // prediction this is the index
         int id = ( int ) dbs.size() + 1;
         if ( id > 256 )
-            throw "maximum number of tables exceeded";
+            throw "maximum number of databases exceeded";
 
         // make sure we never record a table name twice under the same db
         std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result = 
@@ -465,16 +465,9 @@ namespace ncbi
                                             const std :: string & node_path,
                                             const std :: string & value )
     {
-        switch ( state )
-        {
-        case opened:
-            break;
-        default:
-            throw "state violation setting column default";
-        }
-
-        if ( obj_id < ID_LOWER_LIMIT || obj_id > ID_UPPER_LIMIT )
-            throw "obj_id outside of valid range";
+        // zero ( 0 ) is a valid db_id
+        if ( obj_id < 0 || ( size_t ) obj_id > dbs.size () )
+            throw "Invalid database id";
 
         size_t str1_size = node_path . size ();
         if ( str1_size > STRING_LIMIT_16 )
@@ -511,16 +504,8 @@ namespace ncbi
                                             const std :: string & node_path,
                                             const std :: string & value )
     {
-        switch ( state )
-        {
-        case opened:
-            break;
-        default:
-            throw "state violation setting column default";
-        }
-
-        if ( obj_id < ID_LOWER_LIMIT || obj_id > ID_UPPER_LIMIT )
-            throw "obj_id outside of valid range";
+        if ( obj_id <= 0 || ( size_t ) obj_id > tables.size () )
+            throw "Invalid table id";
 
         size_t str1_size = node_path . size ();
         if ( str1_size > STRING_LIMIT_16 )
@@ -557,16 +542,8 @@ namespace ncbi
                                             const std :: string & node_path,
                                             const std :: string & value )
     {
-        switch ( state )
-        {
-        case opened:
-            break;
-        default:
-            throw "state violation setting column default";
-        }
-
-        if ( obj_id < ID_LOWER_LIMIT || obj_id > ID_UPPER_LIMIT )
-            throw "obj_id outside of valid range";
+        if ( obj_id <= 0 || ( size_t ) obj_id > streams.size () )
+            throw "Invalid column id";
 
         size_t str1_size = node_path . size ();
         if ( str1_size > STRING_LIMIT_16 )

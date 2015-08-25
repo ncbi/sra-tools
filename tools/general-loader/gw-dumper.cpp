@@ -26,6 +26,9 @@
 
 #include "general-writer.h"
 #include "utf8-like-int-codec.h"
+
+#include <kfs/defs.h>
+
 #include <iostream>
 #include <vector>
 
@@ -50,15 +53,40 @@ namespace gw_dump
     {
         tbl_entry ( const std :: string & _name )
             : row_id ( 1 )
-            , name ( _name )
+            , member_name ( _name )
+            , tbl_name ( _name )
+        {
+        }
+
+        tbl_entry ( const std :: string & _member_name, const std :: string & _tbl_name )
+            : row_id ( 1 )
+            , member_name ( _member_name )
+            , tbl_name ( _tbl_name )
         {
         }
 
         int64_t row_id;
-        std :: string name;
+        std :: string member_name;
+        std :: string tbl_name;
     };
 
     static std :: vector < tbl_entry > tbl_entries;
+
+    struct db_entry
+    {
+        db_entry ( const std :: string & _member_name, const std :: string & _db_name )
+            : row_id ( 1 )
+            , member_name ( _member_name )
+            , db_name ( _db_name )
+        {
+        }
+
+        int64_t row_id;
+        std :: string member_name;
+        std :: string db_name;
+    };
+
+    static std :: vector < db_entry > db_entries;
 
 
     struct col_entry
@@ -261,7 +289,7 @@ namespace gw_dump
 
         if ( display )
         {
-            const std :: string & tbl_name = te . name;
+            const std :: string & tbl_name = te . tbl_name;
 
             std :: cout
                 << event_num << ": move-ahead\n"
@@ -299,7 +327,7 @@ namespace gw_dump
 
         if ( display )
         {
-            const std :: string & tbl_name = te . name;
+            const std :: string & tbl_name = te . tbl_name;
 
             std :: cout
                 << event_num << ": next-row\n"
@@ -330,7 +358,7 @@ namespace gw_dump
         if ( display )
         {
             const col_entry & entry = col_entries [ id ( eh ) - 1 ];
-            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . name;
+            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . tbl_name;
 
             std :: cout
                 << event_num << ": cell-default\n"
@@ -462,7 +490,7 @@ namespace gw_dump
 
         if ( display )
         {
-            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . name;
+            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . tbl_name;
 
             std :: cout
                 << event_num << ": cell-" << type << '\n'
@@ -512,7 +540,7 @@ namespace gw_dump
 
         if ( display )
         {
-            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . name;
+            const std :: string & tbl_name = tbl_entries [ entry . table_id - 1 ] . tbl_name;
 
             std :: cout
                 << event_num << ": cell-" << type << '\n'
@@ -621,7 +649,7 @@ namespace gw_dump
 
         if ( display )
         {
-            const std :: string & tbl_name = tbl_entries [ table_id ( eh ) - 1 ] . name;
+            const std :: string & tbl_name = tbl_entries [ table_id ( eh ) - 1 ] . tbl_name;
 
             std :: cout
                 << event_num << ": new-column\n"
@@ -824,6 +852,171 @@ namespace gw_dump
         }
 
         whack_2string ( eh, string_buffer );
+    }
+
+    /* check_metadata_node
+     *
+     */
+    template < class T > static
+    void check_metadata_node ( const T & eh )
+    {
+        if ( size1 ( eh ) == 0 )
+            throw "empty metadata node";
+        if ( size2 ( eh ) == 0 )
+            throw "empty value";
+    }
+
+    template <>
+    void check_metadata_node < gw_2string_evt_v1 > ( const gw_2string_evt_v1 & eh )
+    {
+        if ( id ( eh . dad ) != 0 )
+            throw "non-zero table id";
+        if ( size1 ( eh ) == 0 )
+            throw "empty metadata node";
+        if ( size2 ( eh ) == 0 )
+            throw "empty value";
+    }
+
+    /* dump_metadata_node
+     */
+    template < class D, class T > static
+    void dump_metadata_node ( FILE * in, const D & e )
+    {        
+        T eh;
+        init ( eh, e );
+
+        size_t num_read = readFILE ( & eh . sz1, sizeof eh - sizeof ( D ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read metadata_node event";
+
+        check_metadata_node ( eh );
+
+        char *string_buffer = read_2string ( eh, in );
+        std :: string node_path ( string_buffer, size1 ( eh ) );
+        std :: string value ( & string_buffer [ size1 ( eh ) ], size2 ( eh ) );
+
+        if ( display )
+        {
+            std :: cout 
+                << event_num << ": metadata-node\n"
+                << "  metadata_node [ " << size1 ( eh ) << " ] = \"" << node_path << "\"\n"
+                << "  value [ " << size2 ( eh ) << " ] = \"" << value << "\"\n";
+        }
+    }
+
+    /* check_add_mbr
+     *
+     */
+    template < class T > static
+    void check_add_mbr ( const T & eh )
+    {
+        if ( db_id ( eh ) < 0 || db_id ( eh ) > db_entries . size () )
+             throw "invalid database id";
+        if ( size1 ( eh ) == 0 )
+            throw "empty member node";
+        if ( size2 ( eh ) == 0 )
+            throw "empty value";
+        switch ( create_mode ( eh ) & kcmValueMask )
+        {
+            // only allowed mode values
+            // or throw an exception
+        case kcmOpen:
+        case kcmInit:
+        case kcmCreate:
+            break;
+        default:
+            throw "invalid create mode";
+        }
+        if ( ( create_mode ( eh ) & ( kcmBitMask & ~ kcmMD5 & ~ kcmParents ) ) != 0 )
+            throw "invalid create mode";
+    }
+
+    template <>
+    void check_add_mbr < gw_add_mbr_evt_v1 > ( const gw_add_mbr_evt_v1 & eh )
+    {
+        if ( id ( eh . dad ) != 0 )
+            throw "non-zero table id";
+        if ( db_id ( eh ) < 0 || db_id ( eh ) > db_entries . size () )
+             throw "invalid database id";
+        if ( size1 ( eh ) == 0 )
+            throw "empty member name";
+        if ( size2 ( eh ) == 0 )
+            throw "empty db/tbl name";
+        switch ( create_mode ( eh ) & kcmValueMask )
+        {
+            // only allowed mode values
+            // or throw an exception
+        case kcmOpen:
+        case kcmInit:
+        case kcmCreate:
+            break;
+        default:
+            throw "invalid create mode";
+        }
+        if ( ( create_mode ( eh ) & ( kcmBitMask & ~ kcmMD5 & ~ kcmParents ) ) != 0 )
+            throw "invalid create mode";
+    }
+
+    /* dump_add_mbr
+     */
+    template < class D, class T > static
+    void dump_add_mbr ( FILE * in, const D & e )
+    {        
+        T eh;
+        init ( eh, e );
+
+        size_t num_read = readFILE ( & eh . db_id, sizeof eh - sizeof ( D ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read add_mbr event";
+
+        check_add_mbr ( eh );
+
+        uint32_t dbid = db_id ( eh );
+        char *string_buffer = read_2string ( eh, in );
+        std :: string member_name ( string_buffer, size1 ( eh ) );
+        std :: string db_tbl_name ( & string_buffer [ size1 ( eh ) ], size2 ( eh ) );
+        uint8_t cmode = create_mode ( eh ); 
+
+        switch ( evt ( eh . dad ) )
+        {
+        case evt_add_mbr_db:
+            db_entries . push_back ( db_entry ( member_name, db_tbl_name ) );
+            break;
+        case evt_add_mbr_tbl:
+            tbl_entries . push_back ( tbl_entry ( member_name, db_tbl_name ) );
+            break;
+        default:
+            throw "logic error";
+        }
+
+        if ( display )
+        {
+            std :: cout 
+                << event_num << ": add-member\n"
+                << "  db_id [ " << dbid << " ]\n"
+                << "  add_mbr  [ " << size1 ( eh ) << " ] = \"" << member_name << "\"\n"
+                << "  db/tbl  [ " << size2 ( eh ) << " ] = \"" << db_tbl_name << "\"\n"
+                << "  create_mode  [ "
+                << ( uint32_t ) cmode
+                << " ] ( ";
+            switch ( cmode & kcmValueMask )
+            {
+            case kcmOpen:
+                std :: cout << "kcmOpen";
+                break;
+            case kcmInit:
+                std :: cout << "kcmInit";
+                break;
+            case kcmCreate:
+                std :: cout << "kcmCreate";
+                break;
+            }
+            if ( ( cmode & kcmParents ) != 0 )
+                std :: cout << ", kcmParents";
+            if ( ( cmode & kcmMD5 ) != 0 )
+                std :: cout << ", kcmMD5";
+            std :: cout << " )\n";
+        }
     }
 
     /* check_remote_path
@@ -1032,6 +1225,26 @@ namespace gw_dump
         case evt_software_name:
             dump_software_name < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e );
             break;
+        case evt_db_metadata_node:
+            dump_metadata_node < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e );
+            break;
+        case evt_tbl_metadata_node:
+            dump_metadata_node < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e );
+            break;
+        case evt_col_metadata_node:
+            dump_metadata_node < gw_evt_hdr_v1, gw_2string_evt_v1 > ( in, e );
+            break;
+        case evt_db_metadata_node2:
+        case evt_tbl_metadata_node2:
+        case evt_col_metadata_node2:
+            throw "packed event id within non-packed stream";
+        case evt_add_mbr_db:
+            dump_add_mbr < gw_evt_hdr_v1, gw_add_mbr_evt_v1 > ( in, e );
+            break;
+        case evt_add_mbr_tbl:
+            dump_add_mbr < gw_evt_hdr_v1, gw_add_mbr_evt_v1 > ( in, e );
+            break;
+
         default:
             throw "unrecognized event id";
         }
@@ -1123,8 +1336,33 @@ namespace gw_dump
         case evt_software_name:
             dump_software_name < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
             break;
+        case evt_db_metadata_node:
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            break;
+        case evt_tbl_metadata_node:
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            break;
+        case evt_col_metadata_node:
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            break;
+        case evt_db_metadata_node2:
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            break;
+        case evt_tbl_metadata_node2:
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            break;
+        case evt_col_metadata_node2:
+            dump_metadata_node < gwp_evt_hdr_v1, gwp_2string_evt_v1 > ( in, e );
+            break;
+        case evt_add_mbr_db:
+            dump_add_mbr < gwp_evt_hdr_v1, gwp_add_mbr_evt_v1 > ( in, e );
+            break;
+        case evt_add_mbr_tbl:
+            dump_add_mbr < gwp_evt_hdr_v1, gwp_add_mbr_evt_v1 > ( in, e );
+            break;
+
         default:
-            throw "unrecognized event id";
+            throw "unrecognized packed event id";
         }
         return true;
     }

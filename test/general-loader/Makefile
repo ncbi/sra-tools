@@ -30,13 +30,15 @@ MODULE = test/general-loader
 
 TEST_TOOLS = \
     test-general-loader \
-	test-general-writer
+	test-general-writer \
+	test-gw-dumper
 
 ALL_TOOLS = \
 	$(TEST_TOOLS) \
-    
 
 include $(TOP)/build/Makefile.env
+
+INCDIRS += -I$(TOP)/tools/general-loader
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
@@ -66,7 +68,7 @@ $(TEST_BINDIR)/test-general-loader: $(TEST_GEN_LOAD_OBJ)
 
 gen_load: test-general-loader
 	$(TEST_BINDIR)/test-general-loader
-    
+
 vg_gen_load: test-general-loader
 	valgrind --ncbi $(TEST_BINDIR)/test-general-loader
 
@@ -98,6 +100,27 @@ piped-load-tests: $(ALL_TOOLS)
 	-$(TEST_BINDIR)/test-general-writer | $(BINDIR)/general-loader -L=info
 	-$(BINDIR)/vdb-dump -T table1 remote_db
 	rm -rf remote_db
+
+#-------------------------------------------------------------------------------
+# test-gw-dumper
+#
+TEST_GW_DUMP_SRC = \
+	test-gw-dumper
+
+TEST_GW_DUMP_OBJ = \
+	$(addsuffix .$(OBJX),$(TEST_GW_DUMP_SRC))
+
+TEST_GW_DUMP_LIB =   \
+	-sgeneral-writer  \
+
+$(TEST_BINDIR)/test-gw-dumper: $(TEST_GW_DUMP_OBJ)
+	$(LP) --exe -o $@ $^ $(TEST_GW_DUMP_LIB)
+
+gw_dump: test-gw-dumper
+	$(TEST_BINDIR)/$^
+
+vg_gw_dump: test-gw-dumper
+	valgrind --ncbi $(TEST_BINDIR)/test-gw-dumper
 
 #-------------------------------------------------------------------------------
 # general-loader tool tests

@@ -1086,7 +1086,7 @@ namespace KSearch
             size_t* p_ref_start, size_t* p_ref_len
         )
     {
-        rc_t rc = ::FindRefVariationRegionAscii ( ref, ref_size, ref_pos_var,
+        rc_t rc = ::FindRefVariationRegionIUPAC ( ref, ref_size, ref_pos_var,
             variation, variation_size, var_len_on_ref, p_ref_start, p_ref_len );
             
         if (rc)

@@ -512,27 +512,33 @@ rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
 
 rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache )
 {
-	KDirectory * dir;
-	rc_t rc = KDirectoryNativeDir( &dir );
-	if ( rc == 0 )
+	rc_t rc = 0;
+	if ( percent != NULL )	{ ( * percent ) = 0.0; }
+	if ( bytes_in_cache != NULL ) { ( * bytes_in_cache ) = 0; }
+	if ( path != NULL && path[ 0 ] != 0 )
 	{
-		const KFile * f = NULL;
-		rc = KDirectoryOpenFileRead( dir, &f, "%s.cache", path );
+		KDirectory * dir;
+		rc_t rc = KDirectoryNativeDir( &dir );
 		if ( rc == 0 )
 		{
-			rc = GetCacheCompleteness( f, percent, bytes_in_cache );
-		}
-		else
-		{
-			rc = KDirectoryOpenFileRead( dir, &f, "%s", path );
+			const KFile * f = NULL;
+			rc = KDirectoryOpenFileRead( dir, &f, "%s.cache", path );
 			if ( rc == 0 )
 			{
-				( * percent ) = 100.0;
-				rc = KFileSize ( f, bytes_in_cache );
+				rc = GetCacheCompleteness( f, percent, bytes_in_cache );
 			}
+			else
+			{
+				rc = KDirectoryOpenFileRead( dir, &f, "%s", path );
+				if ( rc == 0 )
+				{
+					if ( percent != NULL )	( * percent ) = 100.0;
+					if ( bytes_in_cache != NULL ) rc = KFileSize ( f, bytes_in_cache );
+				}
+			}
+			if ( f != NULL ) KFileRelease( f );
+			KDirectoryRelease( dir );
 		}
-		if ( f != NULL ) KFileRelease( f );
-		KDirectoryRelease( dir );
 	}
 	return rc;
 }

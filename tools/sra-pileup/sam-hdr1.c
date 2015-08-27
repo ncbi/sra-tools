@@ -37,8 +37,12 @@
 
 typedef struct headers
 {
-	VNamelist * SQ_Lines;
-	VNamelist * RG_Lines;
+	VNamelist * SQ_Lines_1;
+	VNamelist * SQ_Lines_2;
+	
+	VNamelist * RG_Lines_1;
+	VNamelist * RG_Lines_2;
+	
 	VNamelist * Other_Lines;
 	VNamelist * HD_Lines;
 } headers;
@@ -58,21 +62,30 @@ static void release_headers( headers * h )
 {
 	release_lines( &h->HD_Lines );
 	release_lines( &h->Other_Lines );
-	release_lines( &h->RG_Lines );
-	release_lines( &h->SQ_Lines );
+	release_lines( &h->RG_Lines_1 );
+	release_lines( &h->RG_Lines_2 );	
+	release_lines( &h->SQ_Lines_1 );
+	release_lines( &h->SQ_Lines_2 );	
 }
 
 
 static rc_t init_headers( headers * h, uint32_t blocksize )
 {
 	rc_t rc;
-	h->SQ_Lines = NULL;
-	h->RG_Lines = NULL;
+	h->SQ_Lines_1 = NULL;
+	h->SQ_Lines_2 = NULL;	
+	h->RG_Lines_1 = NULL;
+	h->RG_Lines_2 = NULL;
 	h->Other_Lines = NULL;
+	h->HD_Lines = NULL;
 	
-	rc = VNamelistMake( &h->SQ_Lines, blocksize );
+	rc = VNamelistMake( &h->SQ_Lines_1, blocksize );
 	if ( rc == 0 )
-		rc = VNamelistMake( &h->RG_Lines, blocksize );
+		rc = VNamelistMake( &h->SQ_Lines_2, blocksize );
+	if ( rc == 0 )
+		rc = VNamelistMake( &h->RG_Lines_1, blocksize );
+	if ( rc == 0 )
+		rc = VNamelistMake( &h->RG_Lines_2, blocksize );
 	if ( rc == 0 )
 		rc = VNamelistMake( &h->Other_Lines, blocksize );
 	if ( rc == 0 )
@@ -85,14 +98,24 @@ static rc_t init_headers( headers * h, uint32_t blocksize )
 }
 
 
-static void process_line( headers * h, const char * line, size_t len )
+static void process_line( headers * h, int idx, const char * line, size_t len )
 {
 	if ( len > 3 && line[ 0 ] == '@' )
 	{
 		if ( line[ 1 ] == 'S' && line[ 2 ] == 'Q' )
-			VNamelistAppend( h->SQ_Lines, line );
+		{
+			if ( idx == 1 )
+				VNamelistAppend( h->SQ_Lines_1, line );
+			else
+				VNamelistAppend( h->SQ_Lines_2, line );			
+		}
 		else if ( line[ 1 ] == 'R' && line[ 2 ] == 'G' )
-			VNamelistAppend( h->RG_Lines, line );
+		{
+			if ( idx == 1 )
+				VNamelistAppend( h->RG_Lines_1, line );
+			else
+				VNamelistAppend( h->RG_Lines_2, line );
+		}
 		else if ( line[ 1 ] == 'H' && line[ 2 ] == 'D' )
 			VNamelistAppend( h->HD_Lines, line );
 		else
@@ -101,7 +124,7 @@ static void process_line( headers * h, const char * line, size_t len )
 }
 
 
-static rc_t process_lines( headers * h, VNamelist * content, const char * identifier )
+static rc_t process_lines( headers * h, int idx, VNamelist * content, const char * identifier )
 {
 	uint32_t i, count;
 	rc_t rc = VNameListCount( content, &count );
@@ -120,7 +143,7 @@ static rc_t process_lines( headers * h, VNamelist * content, const char * identi
 				(void)PLOGERR( klogErr, ( klogErr, rc, "cant get line #$(t) from content", "t=%u", i ) );
 			}
 			else
-				process_line( h, line, string_measure( line, NULL ) );
+				process_line( h, idx, line, string_measure( line, NULL ) );
 		}
 	}
 	return rc;
@@ -264,7 +287,7 @@ static rc_t Load_Namelist_From_Node( VNamelist * nl, const KMDataNode * node )
 }
 
 
-static rc_t collect_from_BAM_HEADER( headers * h, input_files * ifs )
+static rc_t collect_from_BAM_HEADER( headers * h, int hdr_idx, input_files * ifs )
 {
 	rc_t rc = 0;
 	if ( ifs->database_count > 0 )
@@ -293,7 +316,7 @@ static rc_t collect_from_BAM_HEADER( headers * h, input_files * ifs )
 						{
 							rc = Load_Namelist_From_Node( content, node );
 							if ( rc == 0 )
-								rc = process_lines( h, content, id->path );
+								rc = process_lines( h, hdr_idx, content, id->path );
 							VNamelistRelease( content );
 						}
 						KMDataNodeRelease( node );
@@ -309,7 +332,7 @@ static rc_t collect_from_BAM_HEADER( headers * h, input_files * ifs )
 }
 
 
-static rc_t collect_from_spotgroup_stats( headers * h, const KMDataNode * node, const KNamelist * spot_groups )
+static rc_t collect_from_spotgroup_stats( headers * h, int hdr_idx, const KMDataNode * node, const KNamelist * spot_groups )
 {
 	uint32_t count;
 	rc_t rc = KNamelistCount( spot_groups, &count );
@@ -343,7 +366,7 @@ static rc_t collect_from_spotgroup_stats( headers * h, const KMDataNode * node, 
 								rc = string_printf( buffer, sizeof buffer, &num_writ,
 											"@RG\tID:%s", rc == 0 ? name_attr : name );
 								if ( rc == 0 )
-									process_line( h, buffer, num_writ );
+									process_line( h, hdr_idx, buffer, num_writ );
 								KMDataNodeRelease( spot_group_node );				
 							}
 						}
@@ -359,7 +382,7 @@ static rc_t collect_from_spotgroup_stats( headers * h, const KMDataNode * node, 
 }
 
 
-static rc_t collect_from_stats( headers * h, input_files * ifs )
+static rc_t collect_from_stats( headers * h, int hdr_idx, input_files * ifs )
 {
 	rc_t rc = 0;
 	if ( ifs->database_count > 0 )
@@ -386,7 +409,7 @@ static rc_t collect_from_stats( headers * h, input_files * ifs )
 							rc = KMDataNodeListChildren( node, &spot_groups );
 							if ( rc == 0 )
 							{
-								rc = collect_from_spotgroup_stats( h, node, spot_groups );
+								rc = collect_from_spotgroup_stats( h, hdr_idx, node, spot_groups );
 								KNamelistRelease( spot_groups );
 							}
 							KMDataNodeRelease( node );
@@ -402,7 +425,7 @@ static rc_t collect_from_stats( headers * h, input_files * ifs )
 }
 
 
-static rc_t collect_from_file( headers * h, const char * filename )
+static rc_t collect_from_file( headers * h, int hdr_idx, const char * filename )
 {
     KDirectory * dir;
     rc_t rc = KDirectoryNativeDir ( &dir );
@@ -434,7 +457,7 @@ static rc_t collect_from_file( headers * h, const char * filename )
                     (void)PLOGERR( klogErr, ( klogErr, rc, "cant load file '$(t)' into container", "t=%s", filename ) );
                 }
                 else
-					rc = process_lines( h, content, filename );
+					rc = process_lines( h, hdr_idx, content, filename );
                 VNamelistRelease( content );
             }
             KFileRelease ( f );
@@ -445,7 +468,7 @@ static rc_t collect_from_file( headers * h, const char * filename )
 }
 
 
-static rc_t collect_from_references( headers * h, input_files * ifs )
+static rc_t collect_from_references( headers * h, int hdr_idx, input_files * ifs )
 {
     rc_t rc = 0;
     uint32_t i;
@@ -481,7 +504,7 @@ static rc_t collect_from_references( headers * h, input_files * ifs )
 									size_t num_writ;
 									rc = string_printf( buffer, sizeof buffer, &num_writ, "@SQ\tSN:%s\tLN:%lu", name, seq_len );
 									if ( rc == 0 )
-										process_line( h, buffer, num_writ );
+										process_line( h, hdr_idx, buffer, num_writ );
                                 }
 							}
                         }
@@ -606,6 +629,7 @@ static bool sam_hdr_id( const hdr_line * hl1, const hdr_line * hl2 )
 }
 
 
+#if 0
 static void copy_hdr_line( const hdr_line * src, hdr_line * dst )
 {
 	if ( src != NULL && dst != NULL )
@@ -619,6 +643,8 @@ static void copy_hdr_line( const hdr_line * src, hdr_line * dst )
 		dst->n_tags = src->n_tags;
 	}
 }
+#endif
+
 
 static bool has_tag( const String * tag_id, hdr_line * dst )
 {
@@ -667,32 +693,39 @@ static rc_t for_each_line( const VNamelist * src,
 }
 
 
-typedef struct parse_context
+static rc_t merge_callback_2( const char * line, void * context )
 {
-	VNamelist * dst;
-	hdr_line last_line;
-} parse_context;
-
-
-static rc_t parse_callback( const char * line, void * context )
-{
-	rc_t rc = 0;
-	parse_context * pc = context;
+	hdr_line * h_parent = context;
 	hdr_line h;
 	if ( parse_hdr_line( &h, line ) )
 	{
-		if ( sam_hdr_id( &h, &pc->last_line ) )
+		if ( sam_hdr_id( h_parent, &h ) )
 		{
 			/* merge the tags! */
-			merge_hdr_line( &h, &pc->last_line );
+			merge_hdr_line( h_parent, &h );
 		}
-		else
-		{
-			/* put the previous header-line into the destionation list 
-			   and set the current one into it's place */
-			rc = append_hdr_line( pc->dst, &pc->last_line );
-			copy_hdr_line( &h, &pc->last_line );
-		}
+	}
+	return 0;
+}
+
+
+typedef struct merge_ctx
+{
+	VNamelist * dst;
+	VNamelist * other;
+} merge_ctx;
+
+
+static rc_t merge_callback_1( const char * line, void * context )
+{
+	rc_t rc = 0;
+	merge_ctx * mc = context;
+	hdr_line h;
+	if ( parse_hdr_line( &h, line ) )
+	{
+		rc = for_each_line( mc->other, merge_callback_2, &h );
+		if ( rc == 0 )
+			rc = append_hdr_line( mc->dst, &h );
 	}
 	return rc;
 }
@@ -700,24 +733,20 @@ static rc_t parse_callback( const char * line, void * context )
 
 /* SQ-lines have to be uniue by the SN-tag */
 /* RG-lines have to be uniue by the ID-tag */
-static rc_t merge_lines( VNamelist ** lines )
+static rc_t merge_lines( VNamelist ** lines_1, VNamelist * lines_2 )
 {
 	rc_t rc;
-	parse_context pc;
-	memset( &pc, 0, sizeof pc );
-	rc = VNamelistMake( &pc.dst, 25 );
+	merge_ctx mc;
+	memset( &mc, 0, sizeof mc );
+	rc = VNamelistMake( &mc.dst, 25 );
 	if ( rc == 0 )
 	{
-		VNamelistReorder( *lines, true );
-		rc = for_each_line( *lines, parse_callback, &pc );
+		mc.other = lines_2;
+		rc = for_each_line( *lines_1, merge_callback_1, &mc );
 		if ( rc == 0 )
 		{
-			rc = append_hdr_line( pc.dst, &pc.last_line );
-			if ( rc == 0 )
-			{
-				VNamelistRelease( *lines );
-				*lines = pc.dst;
-			}
+			VNamelistRelease( *lines_1 );
+			*lines_1 = mc.dst;
 		}
 	}
 	return rc;
@@ -727,18 +756,18 @@ static rc_t merge_lines( VNamelist ** lines )
 static rc_t collect_from_bam_hdr( headers * h, input_files * ifs )
 {
 	uint32_t count;
-	rc_t rc = collect_from_BAM_HEADER( h, ifs );
+	rc_t rc = collect_from_BAM_HEADER( h, 1, ifs );
 	if ( rc == 0 )
 	{
-		rc = VNameListCount( h->SQ_Lines, &count );
+		rc = VNameListCount( h->SQ_Lines_1, &count );
 		if ( rc == 0 && count == 0 )
-			rc = collect_from_references( h, ifs );	
+			rc = collect_from_references( h, 1, ifs );	
 	}
 	if ( rc == 0 )
 	{
-		rc = VNameListCount( h->RG_Lines, &count );
+		rc = VNameListCount( h->RG_Lines_1, &count );
 		if ( rc == 0 && count == 0 )
-			rc = collect_from_stats( h, ifs );	
+			rc = collect_from_stats( h, 1, ifs );	
 	}
 	return rc;
 }
@@ -746,9 +775,9 @@ static rc_t collect_from_bam_hdr( headers * h, input_files * ifs )
 
 static rc_t collect_by_recalc( headers * h, input_files * ifs )
 {
-	rc_t rc = collect_from_references( h, ifs );
+	rc_t rc = collect_from_references( h, 1, ifs );
 	if ( rc == 0 )
-		rc = collect_from_stats( h, ifs );
+		rc = collect_from_stats( h, 1, ifs );
 	return rc;
 }
 
@@ -757,7 +786,7 @@ static rc_t collect_from_src_and_files( headers * h, input_files * ifs, const ch
 {
 	rc_t rc = collect_from_bam_hdr( h, ifs );
 	if ( rc == 0 && filename != NULL )
-		rc = collect_from_file( h, filename );
+		rc = collect_from_file( h, 2, filename );
 	return rc;
 }
 
@@ -803,17 +832,18 @@ rc_t print_headers_1( const samdump_opts * opts, input_files * ifs )
 		
 		/* merge ... */
 		if ( rc == 0 )
-			rc = merge_lines( &h.SQ_Lines );
+			rc = merge_lines( &h.SQ_Lines_1, h.SQ_Lines_2 );
 		if ( rc == 0 )
-			rc = merge_lines( &h.RG_Lines );
+			rc = merge_lines( &h.RG_Lines_1, h.RG_Lines_2 );
+
 		
 		/* print ... */
 		if ( rc == 0 )
 			rc = print_HD_line( h.HD_Lines );
 		if ( rc == 0 )
-			rc = for_each_line( h.SQ_Lines, print_callback, NULL );
+			rc = for_each_line( h.SQ_Lines_1, print_callback, NULL );
 		if ( rc == 0 )
-			rc = for_each_line( h.RG_Lines, print_callback, NULL );
+			rc = for_each_line( h.RG_Lines_1, print_callback, NULL );
 		if ( rc == 0 )
 			rc = for_each_line( h.Other_Lines, print_callback, NULL );
 		

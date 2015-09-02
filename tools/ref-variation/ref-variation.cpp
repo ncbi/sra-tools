@@ -249,16 +249,27 @@ namespace RefVariation
         char const* query_adj = query;
         size_t query_len_adj = query_len;
 
+        //size_t ref_len
+
         if ( (size_t)ref_pos_var > ref_start )
+        {
+            // if extended window starts to the left from initial reported variation start
+            // then include preceding bases into adjusted variation
             ret.assign ( ref.c_str() + ref_start, (size_t)ref_pos_var - ref_start );
+        }
         else if ( (size_t)ref_pos_var < ref_start )
         {
+            // the real window of ambiguity actually starts to the right from
+            // the reported variation start
+            // let's not to include the left unambigous part into
+            // adjusted variation (?)
+
             query_adj += ref_start - ref_pos_var;
             query_len_adj -= ref_start - ref_pos_var;
         }
 
-        if ( (int64_t)ret.length() > (int64_t)ref_len - (int64_t)var_len_on_ref )
-            query_len_adj -= ret.length() - (ref_len - var_len_on_ref);
+        //if ( (int64_t)ret.length() > (int64_t)ref_len - (int64_t)var_len_on_ref )
+        //    query_len_adj -= ret.length() - (ref_len - var_len_on_ref);
 
         if ( query_len_adj > 0 )
             ret.append ( query_adj, query_len_adj );
@@ -464,6 +475,26 @@ namespace RefVariation
 
         std::cout << "var_query=" << var_query << std::endl;
 
+        std::cout
+            << "Input variation spec: "
+            << g_Params.ref_acc << ":"
+            << g_Params.ref_pos_var << ":"
+            << g_Params.var_len_on_ref << ":"
+            << g_Params.query
+            << std::endl;
+
+        size_t ver_len_on_ref_adj = g_Params.var_len_on_ref;
+        if ( (int64_t)ref_start > g_Params.ref_pos_var )
+            ver_len_on_ref_adj -= ref_start - g_Params.ref_pos_var;
+
+        std::cout
+            << "Adjusted variation spec: "
+            << g_Params.ref_acc << ":"
+            << ref_start << ":"
+            << ver_len_on_ref_adj << ":"
+            << var_query
+            << std::endl;
+
         find_alignments (args, g_Params.ref_acc, ref_start, var_query.c_str(), var_query.length());
     }
 
@@ -479,7 +510,7 @@ namespace RefVariation
         size_t ref_start, ref_len;
 
         bool failed = true;
-        if ( bases_start + ref1 . size () >= g_Params.ref_pos_var + 1000 )
+        if ( bases_start + ref1 . size () >= (size_t)g_Params.ref_pos_var + 1000 )
         {
             failed = false;
             try
@@ -939,7 +970,7 @@ extern "C"
     {
         printf (
         "Usage example:\n"
-        "  %s -r <reference accession> -p <position on reference> -q <query to look for> -l 0\n"
+        "  %s -r <reference accession> -p <position on reference> -q <query to look for> -l 0 [<parameters>]\n"
         "\n"
         "Summary:\n"
         "  Find a possible indel window\n"
@@ -960,17 +991,19 @@ extern "C"
 
         UsageSummary (progname);
 
+
+        printf ("\nParameters: optional space-separated list of pileup stats in which the query will be looked for\n\n");
+
         printf ("\nOptions:\n");
 
         HelpOptionLine (RefVariation::ALIAS_REFERENCE_ACC, RefVariation::OPTION_REFERENCE_ACC, "acc", RefVariation::USAGE_REFERENCE_ACC);
         HelpOptionLine (RefVariation::ALIAS_REF_POS, RefVariation::OPTION_REF_POS, "value", RefVariation::USAGE_REF_POS);
         HelpOptionLine (RefVariation::ALIAS_QUERY, RefVariation::OPTION_QUERY, "string", RefVariation::USAGE_QUERY);
+        HelpOptionLine (RefVariation::ALIAS_VAR_LEN_ON_REF, RefVariation::OPTION_VAR_LEN_ON_REF, "value", RefVariation::USAGE_VAR_LEN_ON_REF);
         //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
 #if SECRET_OPTION != 0
         HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);
 #endif
-
-        printf ("\n");
 
         HelpOptionsStandard ();
 

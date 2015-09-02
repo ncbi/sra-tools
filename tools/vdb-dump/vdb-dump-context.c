@@ -312,7 +312,7 @@ static rc_t vdco_set_row_range( p_dump_context ctx, const char *src )
                 num_gen_destroy( ctx->rows );
                 ctx->rows = NULL;
             }
-            rc = num_gen_make_from_str( &ctx->rows, src );
+            rc = num_gen_make_from_str_sorted( &ctx->rows, src, ctx->merge_ranges );
             DISP_RC( rc, "num_gen_make_from_str() failed" );
         }
     }
@@ -559,6 +559,7 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->diff = vdco_get_bool_option( my_args, OPTION_DIFF, false );
 	ctx->show_spotgroups = vdco_get_bool_option( my_args, OPTION_SPOTGROUPS, false );
 	ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );
+	ctx->merge_ranges = vdco_get_bool_option( my_args, OPTION_MERGE_RANGES, false );
 	
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );
     ctx->output_buffer_size = vdco_get_size_t_option( my_args, OPTION_OUT_BUF_SIZE, DEF_OPTION_OUT_BUF_SIZE );

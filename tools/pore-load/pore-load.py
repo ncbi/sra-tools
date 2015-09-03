@@ -337,9 +337,10 @@ def ProcessTar(tar):
 
 
 def which(f):
-    for path in os.environ["PATH"].split(":"):
-        if os.path.exists(path + "/" + f):
-            return os.path.join(path, f)
+    PATH = os.environ["PATH"].split(":")
+    for fullname in map((lambda p: os.path.join(p, f)), PATH):
+        if os.path.exists(fullname):
+            return fullname
     return None
 
 

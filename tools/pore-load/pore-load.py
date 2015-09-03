@@ -246,7 +246,7 @@ class FastQData:
                         
             return None
         except:
-            errMsg = "Error: reading '{}'".format(os.path.basename(fname))
+            errMsg = "pore-tools reported an unspecific error while reading '{}'".format(os.path.basename(fname))
             gw.errorMessage(errMsg)
             sys.stderr.write(errMsg+"\n")
             if __debug__:

@@ -38,6 +38,7 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
+#include <kapp/log-xml.h>
 
 #include <klib/out.h>
 #include <klib/rc.h>

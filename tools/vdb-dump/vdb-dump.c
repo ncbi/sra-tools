@@ -1696,7 +1696,8 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *my_manag
     else if ( ctx->table_enum_requested )
     {
         KOutMsg( "cannot enum tables of a table-object\n" );
-        rc = RC ( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );
+		vdm_clear_recorded_errors();
+        rc = 0;
     }
     else if ( enum_col_request( ctx ) )
     {

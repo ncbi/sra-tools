@@ -26,10 +26,6 @@
 The tool 'vdb-config' can be used to inspect or change the configuration
 of the sra-toolkit.
 
-DISCLAIMER: This is pre-release (alpha) software. Some features are not
-yet fully functional in version 2.4.0 - this will be fixed in the next
-release.
-
 When called without any parameters the tool reports the current configuration
 in xml-format. No changes are made.
 

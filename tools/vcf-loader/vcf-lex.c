@@ -438,7 +438,7 @@ static void yy_fatal_error (yyconst char msg[] ,yyscan_t yyscanner );
 #define YY_DO_BEFORE_ACTION \
 	yyg->yytext_ptr = yy_bp; \
 /* %% [2.0] code to fiddle yytext and yyleng for yymore() goes here \ */\
-	yyleng = (size_t) (yy_cp - yy_bp); \
+	yyleng = (int) ((size_t) (yy_cp - yy_bp)); \
 	yyg->yy_hold_char = *yy_cp; \
 	*yy_cp = '\0'; \
 /* %% [3.0] code to copy yytext_ptr to yytext[] goes here, if %array \ */\
@@ -640,7 +640,7 @@ static yyconst flex_int16_t yy_rule_linenum[17] =
         return vcfENDLINE;
 
     #define YY_INPUT(buf, result, max_size) \
-        result = yyextra->input(yyextra, buf, max_size)
+        result = (int) yyextra->input(yyextra, buf, max_size)
 
     #define ECHO
 
@@ -1381,7 +1381,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	else
 		{
 			int num_to_read =
-			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
+			   (int) YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
 			{ /* Not enough room in the buffer - grow it. */
@@ -1394,7 +1394,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			if ( b->yy_is_our_buffer )
 				{
-				int new_size = b->yy_buf_size * 2;
+				int new_size = (int) b->yy_buf_size * 2;
 
 				if ( new_size <= 0 )
 					b->yy_buf_size += b->yy_buf_size / 8;
@@ -1415,7 +1415,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 			yyg->yy_c_buf_p = &b->yy_ch_buf[yy_c_buf_p_offset];
 
-			num_to_read = YY_CURRENT_BUFFER_LVALUE->yy_buf_size -
+			num_to_read = (int) YY_CURRENT_BUFFER_LVALUE->yy_buf_size -
 						number_to_move - 1;
 
 			}
@@ -1569,7 +1569,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 		yy_cp += (int) (dest - source);
 		yy_bp += (int) (dest - source);
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars =
-			yyg->yy_n_chars = YY_CURRENT_BUFFER_LVALUE->yy_buf_size;
+			yyg->yy_n_chars = (int) YY_CURRENT_BUFFER_LVALUE->yy_buf_size;
 
 		if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
 			YY_FATAL_ERROR( "flex scanner push-back overflow" );
@@ -1968,7 +1968,7 @@ static void VCF_ensure_buffer_stack (yyscan_t yyscanner)
 /* %if-c++-only */
 /* %endif */
 {
-	int num_to_alloc;
+	size_t num_to_alloc;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
 	if (!yyg->yy_buffer_stack) {
@@ -2036,7 +2036,7 @@ YY_BUFFER_STATE VCF__scan_buffer  (char * base, yy_size_t  size , yyscan_t yysca
 	b->yy_buf_pos = b->yy_ch_buf = base;
 	b->yy_is_our_buffer = 0;
 	b->yy_input_file = 0;
-	b->yy_n_chars = b->yy_buf_size;
+	b->yy_n_chars = (int) b->yy_buf_size;
 	b->yy_is_interactive = 0;
 	b->yy_at_bol = 1;
 	b->yy_fill_buffer = 0;
@@ -2060,7 +2060,7 @@ YY_BUFFER_STATE VCF__scan_buffer  (char * base, yy_size_t  size , yyscan_t yysca
 YY_BUFFER_STATE VCF__scan_string (yyconst char * yystr , yyscan_t yyscanner)
 {
     
-	return VCF__scan_bytes(yystr,strlen(yystr) ,yyscanner);
+	return VCF__scan_bytes(yystr, (int)strlen(yystr), yyscanner);
 }
 /* %endif */
 

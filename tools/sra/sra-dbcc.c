@@ -193,7 +193,7 @@ typedef struct CheckMD5_Data_struct {
 } CheckMD5_Data;
 
 static
-int64_t CC CheckMD5Node_Cmp( const BSTNode *item, const BSTNode *n )
+int CC CheckMD5Node_Cmp( const BSTNode *item, const BSTNode *n )
 {
     return strcmp(((CheckMD5Node*)item)->file, ((CheckMD5Node*)n)->file);
 }

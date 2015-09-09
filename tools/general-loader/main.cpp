@@ -38,6 +38,7 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
+#include <kapp/log-xml.h>
 
 #include <klib/out.h>
 #include <klib/rc.h>
@@ -148,78 +149,85 @@ rc_t CC KMain (int argc, char * argv[])
 {
     Args * args;
     uint32_t pcount;
-    rc_t rc = ArgsMakeAndHandle (&args, argc, argv, 1, Options, sizeof Options / sizeof (OptDef));
+    const XMLLogger* xml_logger = NULL;
+    rc_t rc = ArgsMakeAndHandle (&args, argc, argv, 2
+                                 , Options, sizeof Options / sizeof (OptDef)
+                                 , XMLLogger_Args, XMLLogger_ArgsQty);
 
     if ( rc == 0 )
     {
-        rc = ArgsParamCount (args, &pcount);
-        if ( rc == 0 )
+        rc = XMLLogger_Make(&xml_logger, NULL, args);
+        if (rc == 0)
         {
-            if ( pcount != 0 )
+            rc = ArgsParamCount (args, &pcount);
+            if ( rc == 0 )
             {
-                rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcExcessive);
-                MiniUsage (args);
-            }
-            else
-            { 
-                const KStream *std_in;
-                rc = KStreamMakeStdIn ( & std_in );
-                if ( rc == 0 )
+                if ( pcount != 0 )
                 {
-                    KStream* buffered;
-                    rc = KStreamMakeBuffered ( &buffered, std_in, 0 /*input-only*/, 0 /*use default size*/ );
+                    rc = RC(rcApp, rcArgv, rcAccessing, rcParam, rcExcessive);
+                    MiniUsage (args);
+                }
+                else
+                { 
+                    const KStream *std_in;
+                    rc = KStreamMakeStdIn ( & std_in );
                     if ( rc == 0 )
                     {
-                        GeneralLoader loader ( *buffered );
-                        
-                        rc = ArgsOptionCount (args, OPTION_INCLUDE_PATHS, &pcount);
+                        KStream* buffered;
+                        rc = KStreamMakeBuffered ( &buffered, std_in, 0 /*input-only*/, 0 /*use default size*/ );
                         if ( rc == 0 )
                         {
-                            for ( uint32_t i = 0 ; i < pcount; ++i )
-                            {
-                                const char* value;
-                                rc = ArgsOptionValue (args, OPTION_INCLUDE_PATHS, i, &value);
-                                if ( rc != 0 )
-                                {
-                                    break;
-                                }
-                                loader . AddSchemaIncludePath ( value );
-                            }
-                        }
-                        
-                        rc = ArgsOptionCount (args, OPTION_SCHEMAS, &pcount);
-                        if ( rc == 0 )
-                        {
-                            for ( uint32_t i = 0 ; i < pcount; ++i )
-                            {
-                                const char* value;
-                                rc = ArgsOptionValue (args, OPTION_SCHEMAS, i, &value);
-                                if ( rc != 0 )
-                                {
-                                    break;
-                                }
-                                loader . AddSchemaFile( value );
-                            }
-                        }
-                        
-                        rc = ArgsOptionCount (args, OPTION_TARGET, &pcount);
-                        if ( rc == 0 && pcount == 1 )
-                        {
-                            const char* value;
-                            rc = ArgsOptionValue (args, OPTION_TARGET, 0, &value);
+                            GeneralLoader loader ( argv[0], *buffered );
+                            
+                            rc = ArgsOptionCount (args, OPTION_INCLUDE_PATHS, &pcount);
                             if ( rc == 0 )
                             {
-                                loader . SetTargetOverride ( value );
+                                for ( uint32_t i = 0 ; i < pcount; ++i )
+                                {
+                                    const char* value;
+                                    rc = ArgsOptionValue (args, OPTION_INCLUDE_PATHS, i, reinterpret_cast<const void **>(&value));
+                                    if ( rc != 0 )
+                                    {
+                                        break;
+                                    }
+                                    loader . AddSchemaIncludePath ( value );
+                                }
                             }
+                            
+                            rc = ArgsOptionCount (args, OPTION_SCHEMAS, &pcount);
+                            if ( rc == 0 )
+                            {
+                                for ( uint32_t i = 0 ; i < pcount; ++i )
+                                {
+                                    const char* value;
+                                    rc = ArgsOptionValue (args, OPTION_SCHEMAS, i, reinterpret_cast<const void **>(&value));
+                                    if ( rc != 0 )
+                                    {
+                                        break;
+                                    }
+                                    loader . AddSchemaFile( value );
+                                }
+                            }
+                            
+                            rc = ArgsOptionCount (args, OPTION_TARGET, &pcount);
+                            if ( rc == 0 && pcount == 1 )
+                            {
+                                const char* value;
+                                rc = ArgsOptionValue (args, OPTION_TARGET, 0, reinterpret_cast<const void **>(&value));
+                                if ( rc == 0 )
+                                {
+                                    loader . SetTargetOverride ( value );
+                                }
+                            }
+                            
+                            if ( rc == 0 )
+                            {
+                                rc = loader . Run();
+                            }
+                            KStreamRelease ( buffered );
                         }
-                        
-                        if ( rc == 0 )
-                        {
-                            rc = loader . Run();
-                        }
-                        KStreamRelease ( buffered );
+                        KStreamRelease ( std_in );
                     }
-                    KStreamRelease ( std_in );
                 }
             }
         }
@@ -231,5 +239,6 @@ rc_t CC KMain (int argc, char * argv[])
     }
     
     ArgsWhack(args);
+    XMLLogger_Release(xml_logger);
     return rc;
 }

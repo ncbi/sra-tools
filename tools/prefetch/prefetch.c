@@ -2546,7 +2546,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
 
         if (pcount > 0) {
             const char *val = NULL;
-            rc = ArgsOptionValue(self->args, FORCE_OPTION, 0, &val);
+            rc = ArgsOptionValue(self->args, FORCE_OPTION, 0, (const void **)&val);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" FORCE_OPTION "' argument value");
@@ -2637,7 +2637,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         }
         if (pcount > 0) {
             const char *val = NULL;
-            rc = ArgsOptionValue(self->args, ASCP_OPTION, 0, &val);
+            rc = ArgsOptionValue(self->args, ASCP_OPTION, 0, (const void **)&val);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" ASCP_OPTION "' argument value");
@@ -2672,7 +2672,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         }
         if (pcount > 0) {
             rc = ArgsOptionValue(self->args,
-                ASCP_PAR_OPTION, 0, &self->ascpParams);
+                ASCP_PAR_OPTION, 0, (const void **)&self->ascpParams);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" ASCP_PAR_OPTION "' argument value");
@@ -2701,7 +2701,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         if (pcount > 0) {
             double f;
             const char *val = NULL;
-            rc = ArgsOptionValue(self->args, HBEAT_OPTION, 0, &val);
+            rc = ArgsOptionValue(self->args, HBEAT_OPTION, 0, (const void **)&val);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" HBEAT_OPTION "' argument value");
@@ -2720,7 +2720,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
 
         if (pcount > 0) {
             const char *val = NULL;
-            rc = ArgsOptionValue(self->args, ORDR_OPTION, 0, &val);
+            rc = ArgsOptionValue(self->args, ORDR_OPTION, 0, (const void **)&val);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" ORDR_OPTION "' argument value");
@@ -2742,7 +2742,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             break;
         }
         if (pcount > 0) {
-            rc = ArgsOptionValue(self->args, ROWS_OPTION, 0, &self->rows);
+            rc = ArgsOptionValue(self->args, ROWS_OPTION, 0, (const void **)&self->rows);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" ROWS_OPTION "' argument value");
@@ -2760,7 +2760,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
                 break;
             }
             if (pcount > 0) {
-                rc = ArgsOptionValue(self->args, MINSZ_OPTION, 0, &val);
+                rc = ArgsOptionValue(self->args, MINSZ_OPTION, 0, (const void **)&val);
                 if (rc != 0) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" MINSZ_OPTION "' argument value");
@@ -2780,7 +2780,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
                 break;
             }
             if (pcount > 0) {
-                rc = ArgsOptionValue(self->args, SIZE_OPTION, 0, &val);
+                rc = ArgsOptionValue(self->args, SIZE_OPTION, 0, (const void **)&val);
                 if (rc != 0) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" SIZE_OPTION "' argument value");
@@ -2810,7 +2810,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
 
         if (pcount > 0) {
             const char *val = NULL;
-            rc = ArgsOptionValue(self->args, TRANS_OPTION, 0, &val);
+            rc = ArgsOptionValue(self->args, TRANS_OPTION, 0, (const void **)&val);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" TRANS_OPTION "' argument value");
@@ -2836,7 +2836,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
 
         if (pcount > 0) {
             const char *val = NULL;
-            rc = ArgsOptionValue(self->args, TEXTKART_OPTION, 0, &val);
+            rc = ArgsOptionValue(self->args, TEXTKART_OPTION, 0, (const void **)&val);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" TEXTKART_OPTION "' argument value");
@@ -3314,7 +3314,7 @@ rc_t CC KMain(int argc, char *argv[]) {
 
         for (i = 0; i < pcount; ++i) {
             const char *obj = NULL;
-            rc_t rc2 = ArgsParamValue(pars.args, i, &obj);
+            rc_t rc2 = ArgsParamValue(pars.args, i, (const void **)&obj);
             DISP_RC(rc2, "ArgsParamValue");
             if (rc2 == 0) {
                 rc2 = MainRun(&pars, obj, obj);

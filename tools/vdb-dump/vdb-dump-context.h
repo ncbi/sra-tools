@@ -80,6 +80,9 @@ extern "C" {
 #define OPTION_NO_MULTITHREAD    "disable-multithreading"
 #define OPTION_INFO              "info"
 #define OPTION_DIFF              "diff"
+#define OPTION_SPOTGROUPS        "spotgroups"
+#define OPTION_SRASCHEMA         "sraschema"
+#define OPTION_MERGE_RANGES      "merge-ranges"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -180,6 +183,9 @@ typedef struct dump_context
     bool print_info;
 	bool table_defined;
 	bool diff;
+	bool show_spotgroups;
+	bool force_sra_schema;
+	bool merge_ranges;
 } dump_context;
 typedef dump_context* p_dump_context;
 

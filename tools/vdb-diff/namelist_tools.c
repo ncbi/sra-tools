@@ -72,7 +72,8 @@ int nlt_strcmp( const char* s1, const char* s2 )
 {
     size_t n1 = string_size ( s1 );
     size_t n2 = string_size ( s2 );
-    return string_cmp ( s1, n1, s2, n2, ( n1 < n2 ) ? n2 : n1 );
+    return string_cmp
+        ( s1, n1, s2, n2, ( n1 < n2 ) ? ( uint32_t ) n2 : ( uint32_t ) n1 );
 }
 
 

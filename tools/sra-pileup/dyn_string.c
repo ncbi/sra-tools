@@ -136,6 +136,26 @@ rc_t add_string_2_dyn_string( struct dyn_string *self, const char * s )
 }
 
 
+rc_t add_dyn_string_2_dyn_string( struct dyn_string *self, struct dyn_string *other )
+{
+    rc_t rc = 0;
+    size_t size = other->data_len;
+	if ( size > 0 )
+	{
+		/* does nothing if self->data_len + size + 1 < self->allocated */
+		rc = expand_dyn_string( self, self->data_len + size + 1 );
+		if ( rc == 0 )
+		{
+			string_copy ( &(self->data[ self->data_len ]), self->allocated, other->data, size );
+			self->data_len += size;
+			self->data[ self->data_len ] = 0;
+		}
+	}
+    return rc;
+
+}
+
+
 rc_t print_2_dyn_string( struct dyn_string * self, const char *fmt, ... )
 {
     rc_t rc = 0;

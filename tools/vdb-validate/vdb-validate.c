@@ -2305,7 +2305,7 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
         return rc;
     }
     if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_CNS_CHK, 0, &dummy);
+        rc = ArgsOptionValue(args, OPTION_CNS_CHK, 0, (const void **)&dummy);
         if (rc != 0) {
             LOGERR(klogErr, rc,
                 "Failure to get '" OPTION_CNS_CHK "' argument");
@@ -2330,7 +2330,7 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
         return rc;
     }
     if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_REF_INT, 0, &dummy);
+        rc = ArgsOptionValue(args, OPTION_REF_INT, 0, (const void **)&dummy);
         if (rc != 0) {
             LOGERR(klogErr, rc,
                 "Failure to get '" OPTION_REF_INT "' argument");
@@ -2372,7 +2372,7 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
         return rc;
     }
     if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_BLOB_CRC, 0, &dummy);
+        rc = ArgsOptionValue(args, OPTION_BLOB_CRC, 0, (const void **)&dummy);
         if (rc != 0) {
             LOGERR(klogErr, rc,
                 "Failure to get '" OPTION_BLOB_CRC "' argument");
@@ -2391,7 +2391,7 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
         return rc;
     }
     if (cnt != 0) {
-        rc = ArgsOptionValue(args, OPTION_md5, 0, &dummy);
+        rc = ArgsOptionValue(args, OPTION_md5, 0, (const void **)&dummy);
         if (rc != 0) {
             LOGERR(klogErr, rc, "Failure to get '" OPTION_md5 "' argument");
             return rc;
@@ -2505,7 +2505,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                         {
                             rc_t rc2;
                             const char *path;
-                            rc = ArgsParamValue ( args, i, & path );
+                            rc = ArgsParamValue ( args, i, (const void **)& path );
                             if ( rc != 0 )
                             {
                                 LOGERR ( klogErr, rc, "Failed to extract command line options" );

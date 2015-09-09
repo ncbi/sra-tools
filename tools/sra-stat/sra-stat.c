@@ -3436,7 +3436,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 }
 
                 if (pcount == 1) {
-                    rc = ArgsOptionValue (args, OPTION_START, 0, &pc);
+                    rc = ArgsOptionValue (args, OPTION_START, 0, (const void **)&pc);
                     if (rc != 0) {
                         break;
                     }
@@ -3452,7 +3452,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
 
                 if (pcount == 1) {
-                    rc = ArgsOptionValue (args, OPTION_STOP, 0, &pc);
+                    rc = ArgsOptionValue (args, OPTION_STOP, 0, (const void **)&pc);
                     if (rc != 0) {
                         break;
                     }
@@ -3499,7 +3499,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                 if (pcount > 0) {
                     const char* v = NULL;
-                    rc = ArgsOptionValue (args, OPTION_MEMBR, 0, &v);
+                    rc = ArgsOptionValue (args, OPTION_MEMBR, 0, (const void **)&v);
                     if (rc != 0) {
                         break;
                     }
@@ -3548,7 +3548,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                 if (pcount > 0) {
                     const char* v = NULL;
-                    rc = ArgsOptionValue (args, OPTION_ALIGN, 0, &v);
+                    rc = ArgsOptionValue (args, OPTION_ALIGN, 0, (const void **)&v);
                     if (rc != 0) {
                         break;
                     }
@@ -3590,7 +3590,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 }
 
 
-                rc = ArgsParamValue (args, 0, &pb.table_path);
+                rc = ArgsParamValue (args, 0, (const void **)&pb.table_path);
                 if (rc != 0) {
                     break;
                 }

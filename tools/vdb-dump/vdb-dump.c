@@ -38,6 +38,7 @@
 #include <kdb/column.h>
 #include <kdb/manager.h>
 #include <kdb/namelist.h>
+#include <kdb/meta.h>
 
 #include <kfs/directory.h>
 #include <kns/manager.h>
@@ -114,6 +115,9 @@ static const char * bzip2_usage[] = { "compress output using bzip2", NULL };
 static const char * outbuf_size_usage[] = { "size of output-buffer, 0...none", NULL };
 static const char * disable_mt_usage[] = { "disable multithreading", NULL };
 static const char * info_usage[] = { "print info about run", NULL };
+static const char * spotgroup_usage[] = { "show spotgroups", NULL };
+static const char * sraschema_usage[] = { "force use of dflt. sra-schema", NULL };
+static const char * merge_ranges_usage[] = { "merge and sort row-ranges", NULL };
 
 OptDef DumpOptions[] =
 {
@@ -158,7 +162,11 @@ OptDef DumpOptions[] =
     { OPTION_OUT_BUF_SIZE, NULL, NULL, outbuf_size_usage, 1, true, false },
     { OPTION_NO_MULTITHREAD, NULL, NULL, disable_mt_usage, 1, false, false },
     { OPTION_INFO, NULL, NULL, info_usage, 1, false, false },
-    { OPTION_DIFF, NULL, NULL, NULL, 1, false, false }
+    { OPTION_DIFF, NULL, NULL, NULL, 1, false, false },
+	{ OPTION_SPOTGROUPS, NULL, NULL, spotgroup_usage, 1, false, false },
+	{ OPTION_SRASCHEMA, NULL, NULL, sraschema_usage, 1, false, false },
+	{ OPTION_MERGE_RANGES, NULL, NULL, merge_ranges_usage, 1, false, false },
+	
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -229,7 +237,10 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL, OPTION_OUT_BUF_SIZE, NULL, outbuf_size_usage );
     HelpOptionLine ( NULL, OPTION_NO_MULTITHREAD, NULL, disable_mt_usage );
     HelpOptionLine ( NULL, OPTION_INFO, NULL, info_usage );
-
+    HelpOptionLine ( NULL, OPTION_SPOTGROUPS, NULL, spotgroup_usage );
+    HelpOptionLine ( NULL, OPTION_SRASCHEMA, NULL, sraschema_usage );
+    HelpOptionLine ( NULL, OPTION_MERGE_RANGES, NULL, merge_ranges_usage );
+	
     HelpOptionsStandard ();
 
     HelpVersion ( fullpath, KAppVersion() );
@@ -612,36 +623,35 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *my_ta
                             DISP_RC( rc, "VCursorIdRange() failed" );
                             if ( rc == 0 )
                             {
-                                if ( count == 0 )
+                                if ( ctx->rows == NULL )
                                 {
-                                    KOutMsg( "this table is empty\n" );
+                                    /* if the user did not specify a row-range, take all rows */
+                                    rc = num_gen_make_from_range( &ctx->rows, first, count );
+                                    DISP_RC( rc, "num_gen_make_from_range() failed" );
                                 }
                                 else
                                 {
-                                    if ( ctx->rows == NULL )
+                                    /* if the user did specify a row-range, check the boundaries */
+                                    if ( count > 0 )
                                     {
-                                        /* if the user did not specify a row-range, take all rows */
-                                        rc = num_gen_make_from_range( &ctx->rows, first, count );
-                                        DISP_RC( rc, "num_gen_make_from_range() failed" );
-                                    }
-                                    else
-                                    {
-                                        /* if the user did specify a row-range, check the boundaries */
+                                        /* trim only if the row-range is not zero, otherwise
+                                           we will not get data if the user specified only static columns
+                                           because they report a row-range of zero! */
                                         rc = num_gen_trim( ctx->rows, first, count );
                                         DISP_RC( rc, "num_gen_trim() failed" );
                                     }
+                                }
 
-                                    if ( rc == 0 )
+                                if ( rc == 0 )
+                                {
+                                    if ( num_gen_empty( ctx->rows ) )
                                     {
-                                        if ( num_gen_empty( ctx->rows ) )
-                                        {
-                                            rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
-                                        }
-                                        else
-                                        {
-                                            r_ctx.ctx = ctx;
-                                            rc = vdm_dump_rows( &r_ctx ); /* <--- */
-                                        }
+                                        rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                                    }
+                                    else
+                                    {
+                                        r_ctx.ctx = ctx;
+                                        rc = vdm_dump_rows( &r_ctx ); /* <--- */
                                     }
                                 }
                             }
@@ -704,6 +714,33 @@ static rc_t vdm_walk_sections( const VDatabase * base_db, const VDatabase ** sub
     return rc;
 }
 
+
+static void vdm_clear_recorded_errors( void )
+{
+	rc_t rc;
+	const char * filename;
+	const char * funcname;
+	uint32_t line_nr;
+	while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
+	{
+	}
+}
+
+
+static rc_t vdm_check_table_empty( const VTable * tab )
+{
+    bool empty;
+    rc_t rc = VTableIsEmpty( tab, &empty );
+    DISP_RC( rc, "VTableIsEmpty() failed" );
+    if ( rc == 0 && empty )
+    {
+		vdm_clear_recorded_errors();
+        KOutMsg( "the requested table is empty!\n" );
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTable, rcEmpty );
+    }
+    return rc;
+}
+
 static rc_t vdm_open_table_by_path( const VDatabase * db, const char * path, const VTable ** tab )
 {
     VNamelist * sections;
@@ -727,6 +764,15 @@ static rc_t vdm_open_table_by_path( const VDatabase * db, const char * path, con
                 {
                     rc = VDatabaseOpenTableRead( sub_db, tab, "%s", tabname );
                     DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+                    if ( rc == 0 )
+                    {
+                        rc = vdm_check_table_empty( *tab );
+                        if ( rc != 0 )
+                        {
+                            VTableRelease( *tab );
+                            tab = NULL;
+                        }
+                    }
                 }
                 VDatabaseRelease ( sub_db );
             }
@@ -1492,6 +1538,88 @@ static rc_t vdm_range_db_index( const p_dump_context ctx, const VDatabase *my_da
 }
 
 
+/* ************************************************************************************ */
+static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_table )
+{
+	const KMetadata * meta = NULL;
+	rc_t rc = VTableOpenMetadataRead( my_table, &meta );
+	DISP_RC( rc, "VTableOpenMetadataRead() failed" );
+	if ( rc == 0 )
+	{
+		const KMDataNode * spot_groups_node;
+		rc = KMetadataOpenNodeRead( meta, &spot_groups_node, "STATS/SPOT_GROUP" );
+		DISP_RC( rc, "KMetadataOpenNodeRead( STATS/SPOT_GROUP ) failed" );
+		if ( rc == 0 )
+		{
+			KNamelist * spot_groups;
+			rc = KMDataNodeListChildren( spot_groups_node, &spot_groups );
+			DISP_RC( rc, "KMDataNodeListChildren() failed" );
+			if ( rc == 0 )
+			{
+				uint32_t count;
+				rc = KNamelistCount( spot_groups, &count );
+				if ( rc == 0 && count > 0 )
+				{
+					uint32_t i;
+					for ( i = 0; i < count && rc == 0; ++i )
+					{
+						const char * name = NULL;
+						rc = KNamelistGet( spot_groups, i, &name );
+						if ( rc == 0 && name != NULL )
+						{
+							const KMDataNode * spot_count_node;
+							rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_count_node, "%s/SPOT_COUNT", name );
+							DISP_RC( rc, "KMDataNodeOpenNodeRead() failed" );
+							if ( rc == 0 )
+							{
+								uint64_t spot_count = 0;
+								rc = KMDataNodeReadAsU64( spot_count_node, &spot_count );
+								if ( rc == 0 )
+								{
+									if ( spot_count > 0 )
+									{
+										const KMDataNode * spot_group_node;
+										rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_group_node, name );			
+										if ( rc == 0 )
+										{
+											char name_attr[ 2048 ];
+											size_t num_writ;
+											rc = KMDataNodeReadAttr( spot_group_node, "name", name_attr, sizeof name_attr, &num_writ );
+											rc = KOutMsg( "%s\t%,lu\n", rc == 0 ? name_attr : name, spot_count );
+											KMDataNodeRelease( spot_group_node );				
+										}
+
+									}
+								}
+								else
+									vdm_clear_recorded_errors();
+
+								KMDataNodeRelease( spot_count_node );
+							}
+						}
+					}
+				}
+				KNamelistRelease( spot_groups );
+			}
+			KMDataNodeRelease( spot_groups_node );
+		}
+		KMetadataRelease ( meta );
+	}
+	return rc;
+}
+
+static rc_t vdm_show_db_spotgroups( const p_dump_context ctx, const VDatabase *my_database )
+{
+    const VTable *my_table;
+    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+    if ( rc == 0 )
+    {
+        rc = vdm_show_tab_spotgroups( ctx, my_table );
+        VTableRelease( my_table );
+    }
+    return rc;
+}
+
 
 typedef rc_t (*db_tab_t)( const p_dump_context ctx, const VTable *a_tab );
 
@@ -1518,13 +1646,15 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     VSchema *my_schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list) );
+    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), ctx->force_sra_schema );
 
     rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
     if ( rc == 0 )
     {
-        rc = tab_fkt( ctx, my_table ); /* fkt-pointer is called */
+        rc = vdm_check_table_empty( my_table );
+        if ( rc == 0 )
+            rc = tab_fkt( ctx, my_table ); /* fkt-pointer is called */
         VTableRelease( my_table );
     }
 
@@ -1566,7 +1696,8 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *my_manag
     else if ( ctx->table_enum_requested )
     {
         KOutMsg( "cannot enum tables of a table-object\n" );
-        rc = RC ( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );
+		vdm_clear_recorded_errors();
+        rc = 0;
     }
     else if ( enum_col_request( ctx ) )
     {
@@ -1584,6 +1715,10 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *my_manag
     {
         rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_range_tab_index );
     }
+	else if ( ctx->show_spotgroups )
+	{
+		rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spotgroups );
+	}
     else
     {
         rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_opened_table );
@@ -1622,7 +1757,7 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
     VSchema *my_schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list) );
+    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), ctx->force_sra_schema );
 
     rc = VDBManagerOpenDBRead( my_manager, &my_database, my_schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
@@ -1635,7 +1770,7 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
             if ( !table_defined )
                 table_defined = vdh_take_1st_table_from_db( ctx, my_database );
         }
-        if ( table_defined )
+        if ( table_defined || ctx->table_enum_requested )
         {
             rc = db_fkt( ctx, my_database ); /* fkt-pointer is called */
         }
@@ -1692,6 +1827,10 @@ static rc_t vdm_dump_database( const p_dump_context ctx, const VDBManager *my_ma
     else if ( ctx->idx_range_requested )
     {
         rc = vdm_dump_db_fkt( ctx, my_manager, vdm_range_db_index );
+    }
+    else if ( ctx->show_spotgroups )
+    {
+        rc = vdm_dump_db_fkt( ctx, my_manager, vdm_show_db_spotgroups );
     }
     else
     {
@@ -1910,7 +2049,7 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                         for ( idx = 0; idx < count && rc == 0; ++idx )
                         {
                             const char *value = NULL;
-                            rc = ArgsParamValue( args, idx, &value );
+                            rc = ArgsParamValue( args, idx, (const void **)&value );
                             DISP_RC( rc, "ArgsParamValue() failed" );
                             if ( rc == 0 )
                             {
@@ -1956,12 +2095,12 @@ static rc_t diff_files( Args * args )
 		else
 		{
 			const char * f1;
-			rc = ArgsParamValue( args, 0, &f1 );
+			rc = ArgsParamValue( args, 0, (const void **)&f1 );
 			DISP_RC( rc, "ArgsParamValue( 0 ) failed" );
 			if ( rc == 0 )
 			{
 				const char * f2;
-				rc = ArgsParamValue( args, 1, &f2 );
+				rc = ArgsParamValue( args, 1, (const void **)&f2 );
 				DISP_RC( rc, "ArgsParamValue( 1 ) failed" );
 				if ( rc == 0 )
 					rc = vds_diff( f1, f2 ); /* in vdb-dump-str.c */

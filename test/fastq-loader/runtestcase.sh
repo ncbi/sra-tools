@@ -71,7 +71,15 @@ if [ "$rc" != "$RC" ] ; then
 fi
 
 if [ "$rc" == "0" ] ; then
-    $DUMP $TEMPDIR/obj 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr || exit 3
+    CMD="$DUMP $TEMPDIR/obj 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
+    eval $CMD
+    rc="$?"
+    if [ "$rc" != "0" ] ; then
+        echo "command executed:"
+        echo $CMD
+        cat $TEMPDIR/dump.stderr
+        exit 3
+    fi
     diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
 else # load failed as expected

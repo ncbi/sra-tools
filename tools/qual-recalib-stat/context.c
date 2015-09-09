@@ -204,7 +204,7 @@ static rc_t context_evaluate_arguments( const Args *my_args, p_context ctx )
     for ( idx = 0; idx < count && rc == 0; ++idx )
     {
         const char *value = NULL;
-        rc = ArgsParamValue( my_args, idx, &value );
+        rc = ArgsParamValue( my_args, idx, (const void **)&value );
         if ( rc != 0 )
         {
             OUTMSG(( "ArgsParamValue() failed %R\n", rc ));
@@ -245,7 +245,7 @@ static const char* context_get_str_option( const Args *my_args,
     rc_t rc = ArgsOptionCount( my_args, name, &count );
     if ( ( rc == 0 )&&( count > 0 ) )
     {
-        rc = ArgsOptionValue( my_args, name, 0, &res );
+        rc = ArgsOptionValue( my_args, name, 0, (const void **)&res );
     }
     return res;
 }
@@ -260,7 +260,7 @@ static uint32_t context_get_int_option( const Args *my_args,
     if ( ( rc == 0 )&&( count > 0 ) )
     {
         const char *s;
-        rc = ArgsOptionValue( my_args, name, 0,  &s );
+        rc = ArgsOptionValue( my_args, name, 0,  (const void **)&s );
         if ( rc == 0 ) res = atoi( s );
     }
     return res;

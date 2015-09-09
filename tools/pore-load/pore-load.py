@@ -158,6 +158,8 @@ gw = GeneralWriter.GeneralWriter(
       outdir
     , 'sra/nanopore.vschema'
     , 'NCBI:SRA:Nanopore:db'
+    , 'pore-load.py'
+    , '1.0.0'
     , tbl)
 
 
@@ -244,7 +246,9 @@ class FastQData:
                         
             return None
         except:
-            sys.stderr.write("Error: reading '{}'\n".format(os.path.basename(fname)))
+            errMsg = "pore-tools reported an unspecific error while reading '{}'".format(os.path.basename(fname))
+            gw.errorMessage(errMsg)
+            sys.stderr.write(errMsg+"\n")
             if __debug__:
                 traceback.print_exc()
             return None
@@ -290,8 +294,9 @@ def ExtractAndProcess(f, source):
 
     keep = False
     if not isHDF5(fname):
-        sys.stderr.write("Warning: skipping '{}': not an HDF5 file.\n".
-            format(source))
+        errMsg = "Warning: skipping '{}': not an HDF5 file.".format(source)
+        gw.errorMessage(errMsg)
+        sys.stderr.write(errMsg+"\n")
     elif not ProcessFast5(fname):
         keep = __debug__
     
@@ -332,9 +337,10 @@ def ProcessTar(tar):
 
 
 def which(f):
-    for path in os.environ["PATH"].split(":"):
-        if os.path.exists(path + "/" + f):
-            return os.path.join(path, f)
+    PATH = os.environ["PATH"].split(":")
+    for fullname in map((lambda p: os.path.join(p, f)), PATH):
+        if os.path.exists(fullname):
+            return fullname
     return None
 
 

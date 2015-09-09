@@ -114,6 +114,10 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
     switch ( p_event . m_event )
     {
     case evt_use_schema:
+    case evt_software_name:
+    case evt_db_metadata_node:
+    case evt_tbl_metadata_node:
+    case evt_col_metadata_node:
         {   
             gw_2string_evt_v1 hdr;
             init ( hdr, p_event . m_id1, p_event . m_event );
@@ -152,6 +156,24 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
         }
         break;
         
+    case evt_add_mbr_db:
+    case evt_add_mbr_tbl:
+    {
+        gw_add_mbr_evt_v1 hdr;
+        init ( hdr, p_event . m_id1, p_event . m_event );
+
+        set_db_id ( hdr, p_event . m_id2 );
+        set_size1 ( hdr, p_event . m_str1 . size() );
+        set_size2 ( hdr, p_event . m_str2 . size() );
+        set_create_mode ( hdr, p_event . m_uint8 );
+            
+        Write ( & hdr, sizeof hdr );
+        Write ( p_event . m_str1 . data (), p_event . m_str1 . size () );
+        Write ( p_event . m_str2 . data (), p_event . m_str2 . size () );
+        
+    }
+    break;
+
     case evt_open_stream:
     case evt_end_stream:
         {
@@ -202,10 +224,14 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
     switch ( p_event . m_event )
     {
     case evt_use_schema:
+    case evt_software_name:
+    case evt_db_metadata_node:
+    case evt_tbl_metadata_node:
+    case evt_col_metadata_node:
         if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString && p_event . m_str2 . size () <= GeneralLoader :: MaxPackedString )
         {   
             gwp_2string_evt_v1 hdr;
-            init ( hdr, p_event . m_id1, evt_use_schema );
+            init ( hdr, p_event . m_id1, p_event . m_event );
         
             set_size1 ( hdr, p_event . m_str1 . size() );
             set_size2 ( hdr, p_event . m_str2 . size() );
@@ -292,6 +318,24 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
             Write ( p_event . m_str1 . c_str (), p_event . m_str1 . size () );
         }
         break;
+
+    case evt_add_mbr_db:
+    case evt_add_mbr_tbl:
+    {
+        gwp_add_mbr_evt_v1 hdr;
+        init ( hdr, p_event . m_id1, p_event . m_event );
+
+        set_db_id ( hdr, p_event . m_id2 );
+        set_size1 ( hdr, p_event . m_str1 . size() );
+        set_size2 ( hdr, p_event . m_str2 . size() );
+        set_create_mode ( hdr, p_event . m_uint8 );
+            
+        Write ( & hdr, sizeof hdr );
+        Write ( p_event . m_str1 . data (), p_event . m_str1 . size () );
+        Write ( p_event . m_str2 . data (), p_event . m_str2 . size () );
+        
+    }
+    break;
         
     case evt_open_stream:
     case evt_end_stream:
@@ -409,6 +453,30 @@ TestSource::DatabaseEvent ( const std::string& p_databaseName )
 }
 
 void 
+TestSource::SoftwareNameEvent ( const std::string& p_softwareName, const std::string& p_version )
+{
+    m_buffer -> Write ( Event ( evt_software_name, p_softwareName, p_version ) );
+}
+
+void
+TestSource::DBMetadataNodeEvent ( ObjectId p_id, const std::string& p_metadataNode, const std::string& p_value )
+{
+    m_buffer -> Write ( Event ( evt_db_metadata_node, p_id, p_metadataNode, p_value ) );
+}
+
+void
+TestSource::TblMetadataNodeEvent ( TableId p_id, const std::string& p_metadataNode, const std::string& p_value )
+{
+    m_buffer -> Write ( Event ( evt_tbl_metadata_node, p_id, p_metadataNode, p_value ) );
+}
+
+void
+TestSource::ColMetadataNodeEvent ( ColumnId p_id, const std::string& p_metadataNode, const std::string& p_value )
+{
+    m_buffer -> Write ( Event ( evt_col_metadata_node, p_id, p_metadataNode, p_value ) );
+}
+
+void 
 TestSource::NewTableEvent ( TableId p_id, const std::string& p_table )
 {
     m_buffer -> Write ( Event ( evt_new_table, p_id, p_table ) );
@@ -418,6 +486,18 @@ void
 TestSource::NewColumnEvent ( ColumnId p_columnId, TableId p_tableId, const std::string& p_column, uint32_t p_elemBits, bool p_compresssed )
 {
     m_buffer -> Write ( Event ( evt_new_column, p_columnId, p_tableId, p_column, p_elemBits, p_compresssed ? 1 : 0 ) );
+}
+
+void
+TestSource::DBAddDatabaseEvent ( int p_db_id, int p_parent_id, const std :: string &p_mbr_name, const std :: string &p_db_name, uint8_t p_create_mode )
+{
+    m_buffer -> Write ( Event ( evt_add_mbr_db, p_db_id, p_parent_id, p_mbr_name, p_db_name, p_create_mode ) );
+}
+
+void
+TestSource::DBAddTableEvent ( int p_tbl_id, int p_db_id, const std :: string &p_mbr_name, const  std :: string &p_table_name, uint8_t p_create_mode )
+{
+    m_buffer -> Write ( Event ( evt_add_mbr_tbl, p_tbl_id, p_db_id, p_mbr_name, p_table_name, p_create_mode ) );
 }
     
 void 
@@ -564,6 +644,18 @@ TestSource::Event::Event ( gw_evt_id p_event, const std::string& p_str1, const s
 {
 }
 
+TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id, const std::string& p_str1, const std::string& p_str2 )
+:   m_event ( p_event ),
+    m_id1 ( p_id ),
+    m_id2 ( 0 ),
+    m_uint8 ( 0 ),
+    m_uint32 ( 0 ),
+    m_uint64 ( 0 ),
+    m_str1 ( p_str1 ),
+    m_str2 ( p_str2 )
+{
+}
+
 TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_elem_count, uint32_t p_val_bytes, const void* p_val )
 :   m_event ( p_event ),
     m_id1 ( p_id1 ),
@@ -577,6 +669,31 @@ TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_elem_co
         m_val . push_back ( v [ i ] );
     }
 }
+
+TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1, const std::string& p_str2, uint8_t p_uint8 )
+:   m_event ( p_event ),
+    m_id1 ( p_id1 ),
+    m_id2 ( 0 ),
+    m_uint8 ( p_uint8 ),
+    m_uint32 ( 0 ),
+    m_uint64 ( 0 ),
+    m_str1 ( p_str1 ),
+    m_str2 ( p_str2 )
+{
+}
+
+TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str1, const std::string& p_str2, uint8_t p_uint8 )
+:   m_event ( p_event ),
+    m_id1 ( p_id1 ),
+    m_id2 ( p_id2 ),
+    m_uint8 ( p_uint8 ),
+    m_uint32 ( 0 ),
+    m_uint64 ( 0 ),
+    m_str1 ( p_str1 ),
+    m_str2 ( p_str2 )
+{
+}
+
 
 TestSource::Event::~Event()
 {

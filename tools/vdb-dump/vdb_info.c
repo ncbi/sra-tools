@@ -1462,7 +1462,7 @@ rc_t vdb_info( Vector * schema_list, dump_format_t format, const VDBManager *mgr
     rc_t rc = 0;
     VSchema * schema = NULL;
 
-    vdh_parse_schema( mgr, &schema, schema_list );
+    vdh_parse_schema( mgr, &schema, schema_list, false );
 
     if ( format == df_sql )
         rc = vdb_info_print_sql_header( acc_or_path );

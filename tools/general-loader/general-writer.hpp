@@ -42,7 +42,7 @@
 
 namespace ncbi
 {
-#if GW_CURRENT_VERSION == 1
+#if GW_CURRENT_VERSION <= 2
     typedef :: gwp_evt_hdr_v1 gwp_evt_hdr;
 #else
 #error "unrecognized GW version"
@@ -54,6 +54,9 @@ namespace ncbi
 
         // ask the general-loader to use this when naming its output
         void setRemotePath ( const std :: string & remote_db );
+
+        void setSoftwareName ( const std :: string & name,
+                               const std :: string & version );
 
         // tell the general-loader to use this pre-defined schema
         void useSchema ( const std :: string & schema_file_name,
@@ -72,10 +75,29 @@ namespace ncbi
         inline int addIntegerColumn ( int table_id, const std :: string &column_name, uint32_t elem_bits )
         { return addColumn ( table_id, column_name, elem_bits, 1 ); }
 
+        int dbAddDatabase ( int db_id, const std :: string &mbr_name, 
+                             const std :: string &db_name, uint8_t create_mode );
+
+        int dbAddTable ( int db_id, const std :: string &mbr_name, 
+                             const std :: string &tbl_name, uint8_t create_mode );
+
         // ensure there are atleast one table and one column
         // set GeneralWriter to open state
         // write out open_stream event header
         void open ();
+
+        // add or set metadata on a specific object
+        // where obj_id == 0 => outer database, and
+        // any other positive id means the database, table or column
+        void setDBMetadataNode ( int obj_id,
+                               const std :: string & node_path,
+                               const std :: string & value );
+        void setTblMetadataNode ( int obj_id,
+                               const std :: string & node_path,
+                               const std :: string & value );
+        void setColMetadataNode ( int obj_id,
+                               const std :: string & node_path,
+                               const std :: string & value );
 
         // generates a chunk of cell data
         // MUST be entire default value in one event
@@ -124,13 +146,24 @@ namespace ncbi
             uint8_t flag_bits;
         };
 
+        struct int_dbtbl
+        {
+            bool operator < ( const int_dbtbl &db ) const;
+            int_dbtbl ( int db_id, const std :: string &obj_name );
+
+            int db_id;
+            std :: string obj_name;
+        };
+
         std :: ofstream out;
 
-        std :: map < std :: string, int > table_name_idx;
+        std :: map < int_dbtbl, int > db_name_idx;
+        std :: map < int_dbtbl, int > table_name_idx;
         std :: map < int_stream, int > column_name_idx;
 
         std :: vector < int_stream > streams;
-        std :: vector < std :: string > table_names;
+        std :: vector < int_dbtbl > tables;
+        std :: vector < int_dbtbl > dbs;
 
         uint64_t evt_count;
         uint64_t byte_count;
@@ -149,7 +182,11 @@ namespace ncbi
             header_written,
             remote_name_sent,
             schema_sent,
+            software_name_sent,
             remote_name_and_schema_sent,
+            remote_name_and_software_name_sent,
+            schema_and_software_name_sent,
+            remote_name_schema_and_software_name_sent,
             have_table,
             have_column,
             opened,

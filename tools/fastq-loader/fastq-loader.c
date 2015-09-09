@@ -344,7 +344,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_TMPFS, 0, &G.tmpfs);
+            rc = ArgsOptionValue (args, OPTION_TMPFS, 0, (const void **)&G.tmpfs);
             if (rc)
                 break;
         }
@@ -361,7 +361,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_OUTPUT, 0, &G.outpath);
+            rc = ArgsOptionValue (args, OPTION_OUTPUT, 0, (const void **)&G.outpath);
             if (rc)
                 break;
         }
@@ -384,7 +384,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_QCOMP, 0, &G.QualQuantizer);
+            rc = ArgsOptionValue (args, OPTION_QCOMP, 0, (const void **)&G.QualQuantizer);
             if (rc)
                 break;
         }
@@ -394,7 +394,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_CACHE_SIZE, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_CACHE_SIZE, 0, (const void **)&value);
             if (rc)
                 break;
             G.cache_size = strtoul(value, &dummy, 0) * 1024UL * 1024UL;
@@ -413,7 +413,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MAX_REC_COUNT, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_MAX_REC_COUNT, 0, (const void **)&value);
             if (rc)
                 break;
             G.maxAlignCount = strtoul(value, &dummy, 0);
@@ -424,7 +424,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MAX_ERR_COUNT, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_MAX_ERR_COUNT, 0, (const void **)&value);
             if (rc)
                 break;
             G.maxErrCount = strtoul(value, &dummy, 0);
@@ -435,7 +435,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MAX_ERR_PCT, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_MAX_ERR_PCT, 0, (const void **)&value);
             if (rc)
                 break;
             G.maxErrPct = strtoul(value, &dummy, 0);
@@ -446,7 +446,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_PLATFORM, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_PLATFORM, 0, (const void **)&value);
             if (rc)
                 break;
             G.platform = PlatformToId(value);
@@ -466,7 +466,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_QUALITY, 0, &value);
+            rc = ArgsOptionValue (args, OPTION_QUALITY, 0, (const void **)&value);
             if (rc)
                 break;
             if (strcmp(value, "PHRED_33") == 0)
@@ -510,7 +510,7 @@ rc_t CC KMain (int argc, char * argv[])
             unsigned i;
             
             for (i = 0; i < pcount; ++i) {
-                rc = ArgsParamValue(args, i, &value);
+                rc = ArgsParamValue(args, i, (const void **)&value);
                 if (rc) break;
                 need += strlen(value) + 1;
             }
@@ -528,7 +528,7 @@ rc_t CC KMain (int argc, char * argv[])
             unsigned i;
             
             for (i = 0; i < pcount; ++i) {
-                rc = ArgsParamValue(args, i, &value);
+                rc = ArgsParamValue(args, i, (const void **)&value);
                 if (rc) break;
 
                 defaultReadNumbers[i] = 0;

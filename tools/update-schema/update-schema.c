@@ -66,7 +66,7 @@ ver_t CC KAppVersion(void) { return VDB_UPDATE_SCHEMA_VERS; }
 #define OPTION_PLATF "platform"
 #define ALIAS_PLATF  "p"
 static const char* platf_usage[] = { "Platform: LS454 | ILLUMINA | HELICOS",
-    " | ABI_SOLID | COMPLETE_GENOMICS", " | PACBIO_SMRT | ION_TORRENT | CAPILLARY | OXFORD_NANOPORE", NULL };
+    " | ABI_SOLID | COMPLETE_GENOMICS", " | PACBIO_SMRT | ION_TORRENT", NULL };
 #define OPTION_SCHEMA "schema"
 #define ALIAS_SCHEMA  "s"
 static const char* schema_usage[] = { "Schema", NULL };
@@ -148,7 +148,7 @@ static rc_t CmdArgsInit(int argc, char** argv, CmdArgs* cmdArgs)
             LOGERR(klogErr, rc, "Too many run parameters");
             break;
         }
-        rc = ArgsOptionValue (args, OPTION_RUN, 0, &cmdArgs->run);
+        rc = ArgsOptionValue (args, OPTION_RUN, 0, (const void **)&cmdArgs->run);
         if (rc) {
             LOGERR(klogErr, rc, "Failure retrieving run name");
             break;
@@ -169,12 +169,12 @@ static rc_t CmdArgsInit(int argc, char** argv, CmdArgs* cmdArgs)
         if (pcount == 1) {
             uint8_t p = SRA_PLATFORM_UNDEFINED;
             const char* arg = NULL;
-            rc = ArgsOptionValue(args, OPTION_PLATF, 0, &arg);
+            rc = ArgsOptionValue(args, OPTION_PLATF, 0, (const void **)&arg);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure retrieving platform");
                 break;
             }
-            if (!strcmp(arg, "454"))
+            if      (!strcmp(arg, "454"))
             {   p = SRA_PLATFORM_454; }
             else if (!strcmp(arg, "LS454"))
             {   p = SRA_PLATFORM_454; }
@@ -190,11 +190,6 @@ static rc_t CmdArgsInit(int argc, char** argv, CmdArgs* cmdArgs)
             {   p = SRA_PLATFORM_PACBIO_SMRT; }
             else if (!strcmp(arg, "ION_TORRENT"))
             {   p = SRA_PLATFORM_ION_TORRENT; }
-            else if (!strcmp(arg, "CAPILLARY"))
-            {   p = SRA_PLATFORM_CAPILLARY; }
-            else if (!strcmp(arg, "OXFORD_NANOPORE"))
-            {   p = SRA_PLATFORM_OXFORD_NANOPORE; }
-			
             else {
                 rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
                 PLOGERR(klogInt, (klogInt, rc, "Invalid platform: $(name)",
@@ -217,7 +212,7 @@ static rc_t CmdArgsInit(int argc, char** argv, CmdArgs* cmdArgs)
             break;
         }
         else if (pcount == 1) {
-            rc = ArgsOptionValue(args, OPTION_SCHEMA, 0, &cmdArgs->schema);
+            rc = ArgsOptionValue(args, OPTION_SCHEMA, 0, (const void **)&cmdArgs->schema);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure retrieving schema");
                 break;
@@ -260,7 +255,7 @@ static rc_t CmdArgsGetNextParam(CmdArgs* args, const char** param)
     *param = NULL;
     if (args->i >= args->count) /* no more parameters to give :( */
     {   return rc; }
-    rc = ArgsParamValue(args->args, args->i, param);
+    rc = ArgsParamValue(args->args, args->i, (const void **)param);
     if (rc) {
         PLOGERR(klogInt, (klogInt, rc,
             "while calling ArgsParamValue($(i))", "i=%d", args->i));

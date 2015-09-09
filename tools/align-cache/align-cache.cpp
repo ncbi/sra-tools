@@ -32,6 +32,7 @@
 
 #include <kapp/main.h>
 #include <klib/rc.h>
+#include <klib/log.h>
 
 
 namespace AlignCache
@@ -153,8 +154,7 @@ namespace AlignCache
     {
         if ( ::Quitting() )
         {
-            printf("Interrupted\n");
-            //LOGMSG(klogWarn, "Interrupted");
+            LOGMSG ( klogWarn, "Interrupted" );
             return 1;
         }
 
@@ -286,8 +286,7 @@ namespace AlignCache
         {
             if ( ::Quitting() )
             {
-                printf("Interrupted\n");
-                //LOGMSG(klogWarn, "Interrupted");
+                LOGMSG ( klogWarn, "Interrupted" );
                 return 0;
             }
 
@@ -379,7 +378,7 @@ namespace AlignCache
         cursorCache.Commit ();
     }
 
-    void create_cache_db_impl()
+    int create_cache_db_impl()
     {
         // Adding 0% mark at the very beginning of the program
         KApp::CProgressBar progress_bar(1);
@@ -403,19 +402,65 @@ namespace AlignCache
         {
             if ( ::Quitting() == 0 )
             {
-                char msg[512] = "";
-                string_printf (msg, countof(msg), NULL,
+                PLOGMSG ( klogWarn,
+                    ( klogWarn, 
                     "The cache db will not be created because there is not "
-                    "enough records to cache: %zu is found and minimum %zu is required. "
-                    "The minimum required number can be changed via %s parameter.",
-                    count*2, g_Params.min_cache_count, OPTION_MIN_CACHE_COUNT);
-                printf ("%s\n", msg);
+                    "enough records to cache: $(COUNT) is found and minimum $(MIN_COUNT) is required. "
+                    "The minimum required number can be changed via $(OPTION_MIN_CACHE_COUNT) parameter.",
+                    "COUNT=%zu,MIN_COUNT=%zu,OPTION_MIN_CACHE_COUNT=%s",
+                    count*2, g_Params.min_cache_count, OPTION_MIN_CACHE_COUNT
+                    ));
             }
+        }
+
+        mgr.Release (); // should not be necessary - destructor should do job
+        return 0;
+    }
+
+    // interpret exception processed by Utils::HandleException:
+    // filter out some errors like invalid db - users don't want to
+    // see such errors as actual errors
+    int InterpretException ( int64_t rcCodeUtil, bool bSilent, char const* szErrDesc )
+    {
+        if ( rcCodeUtil == Utils::rcUnknown ||
+             rcCodeUtil == Utils::rcErrorStdExc ||
+             rcCodeUtil == Utils::rcInvalid)
+        {
+            if ( ! bSilent )
+                LOGMSG ( klogErr, szErrDesc );
+
+            return 3;
+        }
+        else if (rcCodeUtil == SILENT_RC( rcDB,rcMgr,rcOpening,rcDatabase,rcIncorrect ) ||
+            rcCodeUtil == SILENT_RC( rcVFS,rcTree,rcResolving,rcPath,rcNotFound ))
+        {
+            if ( ! bSilent )
+                LOGMSG ( klogWarn, szErrDesc );
+            return 0;
+        }
+        else
+        {
+            if ( ! bSilent )
+                LOGMSG ( klogErr, szErrDesc );
+            return 3;
         }
     }
 
+    int create_cache_db_impl_safe ()
+    {
+        try
+        {
+            return create_cache_db_impl ();
+        }
+        catch (...)
+        {
+            char szErrDesc [512];
+            int64_t rc = Utils::HandleException ( true, szErrDesc, countof(szErrDesc) );
+            return InterpretException ( rc, false, szErrDesc );
+        }
+    }
 
-    void create_cache_db (int argc, char** argv)
+    int create_cache_db (int argc, char** argv)
     {
         try
         {
@@ -425,7 +470,7 @@ namespace AlignCache
             if ( param_count != 2 )
             {
                 MiniUsage (args.GetArgs());
-                return;
+                return 0;
             }
 
             g_Params.dbPathSrc = args.GetParamValue (0);
@@ -440,11 +485,11 @@ namespace AlignCache
             if (args.GetOptionCount (OPTION_MIN_CACHE_COUNT))
                 g_Params.min_cache_count = args.GetOptionValueUInt <size_t> ( OPTION_MIN_CACHE_COUNT, 0 );
 
-            create_cache_db_impl ();
+            return create_cache_db_impl_safe ();
         }
-        catch (...)
+        catch (...) // here we handle only exceptions in CArgs or CXMLLogger
         {
-            Utils::HandleException ();
+            return Utils::HandleException ( false, NULL, 0 );
         }
     }
 }
@@ -507,7 +552,6 @@ extern "C"
 
     rc_t CC KMain(int argc, char* argv[])
     {
-        AlignCache::create_cache_db (argc, argv);
-        return 0;
+        return AlignCache::create_cache_db (argc, argv);
     }
 }

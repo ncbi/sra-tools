@@ -30,13 +30,15 @@ MODULE = test/general-loader
 
 TEST_TOOLS = \
     test-general-loader \
-	test-general-writer
+	test-general-writer \
+	test-gw-dumper
 
 ALL_TOOLS = \
 	$(TEST_TOOLS) \
-    
 
 include $(TOP)/build/Makefile.env
+
+INCDIRS += -I$(TOP)/tools/general-loader
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
@@ -56,7 +58,8 @@ TEST_GEN_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(TEST_GEN_LOAD_SRC))
 
 TEST_GEN_LOAD_LIB =   \
-	-sncbi-wvdb-static   \
+	-sncbi-wvdb-static  \
+    -sload              \
 	-skapp              \
     -sktst              \
 
@@ -65,7 +68,7 @@ $(TEST_BINDIR)/test-general-loader: $(TEST_GEN_LOAD_OBJ)
 
 gen_load: test-general-loader
 	$(TEST_BINDIR)/test-general-loader
-    
+
 vg_gen_load: test-general-loader
 	valgrind --ncbi $(TEST_BINDIR)/test-general-loader
 
@@ -99,6 +102,27 @@ piped-load-tests: $(ALL_TOOLS)
 	rm -rf remote_db
 
 #-------------------------------------------------------------------------------
+# test-gw-dumper
+#
+TEST_GW_DUMP_SRC = \
+	test-gw-dumper
+
+TEST_GW_DUMP_OBJ = \
+	$(addsuffix .$(OBJX),$(TEST_GW_DUMP_SRC))
+
+TEST_GW_DUMP_LIB =   \
+	-sgeneral-writer  \
+
+$(TEST_BINDIR)/test-gw-dumper: $(TEST_GW_DUMP_OBJ)
+	$(LP) --exe -o $@ $^ $(TEST_GW_DUMP_LIB)
+
+gw_dump: test-gw-dumper
+	$(TEST_BINDIR)/$^
+
+vg_gw_dump: test-gw-dumper
+	valgrind --ncbi $(TEST_BINDIR)/test-gw-dumper
+
+#-------------------------------------------------------------------------------
 # general-loader tool tests
 #
 runtests: setup tool-tests 
@@ -114,37 +138,49 @@ tool-tests: $(TEST_BINDIR)/makeinputs
 	@mkdir -p input && $(TEST_BINDIR)/makeinputs && rm $(TEST_BINDIR)/makeinputs
 	@#    
 	@# basic, unpacked
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1 0
 	@#    
 	@# basic, packed
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1packed 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1packed 0
 	@#    
 	@# target db override 
 	@# use 1.gl which specifies the target as actual/1/db, and override that to where the script expects to see the result
-	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1override 0 --target actual/1override/db 
+	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 --target actual/1override/db 
 	@# same with the storthand option
-	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 1override 0 -T actual/1override/db 
+	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 -T actual/1override/db 
 	@#    
 	@# error message event, unpacked
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2 3
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2 3
 	@#    
 	@# error message event, packed
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 2packed 3
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2packed 3
 	@#    
-	@# empty default values
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 3 0
+	@# empty default values, unpacked
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 3 0
 	@#    
-	@# move ahead event
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 4 0
+	@# empty default values, packed
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 3packed 0
 	@#    
-	@# integer compression
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 5 0 -L=info
+	@# move ahead event, unpacked
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 4 0
+	@#    
+	@# move ahead event, packed
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 4packed 0
+	@#    
+	@# integer compression (packed only)
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 5packed 0 -L=info
+	@#    
+	@# software name in the metadata, unpacked   
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 -L=info
+	@#    
+	@# software name in the metadata, packed   
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6packed 0 -L=info
 	@#    
 	@rm -rf input/*.gl actual/*
 
 one-tool: $(TEST_BINDIR)/makeinputs
 	@mkdir -p input && $(TEST_BINDIR)/makeinputs && rm $(TEST_BINDIR)/makeinputs
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR) 5 0 -L=info
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 -L=info
 
 
 #-------------------------------------------------------------------------------

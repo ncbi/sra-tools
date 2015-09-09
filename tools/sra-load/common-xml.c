@@ -443,7 +443,7 @@ rc_t parse_EXPECTED_BASECALL_TABLE(const KXMLNode* READ_SPEC, ReadSpecXML_read* 
             }
         } else {
             rc = RC(rcExe, rcFormatter, rcConstructing, rcData, rcIncomplete);
-            LOGERR(klogErr, rc, "need at leaset one BASECALL element");
+            LOGERR(klogErr, rc, "need at least one BASECALL element");
         }
         KXMLNodesetRelease(BASECALLS);
     } else {
@@ -665,10 +665,12 @@ rc_t PlatformXML_Make(const PlatformXML** cself, const KXMLNode* node, uint32_t*
                             platform->id = SRA_PLATFORM_PACBIO_SMRT;
                         } else if( strcmp(name, "COMPLETE_GENOMICS") == 0 ) {
                             platform->id = SRA_PLATFORM_COMPLETE_GENOMICS;
+                        } else if( strcmp(name, "CAPILLARY") == 0 ) {
+                            platform->id = SRA_PLATFORM_CAPILLARY;
+                        } else if( strcmp(name, "OXFORD_NANOPORE") == 0 ) {
+                            platform->id = SRA_PLATFORM_OXFORD_NANOPORE;
                         }
-#if ! WINDOWS
-#warning "add support for CAPILLARY and OXFORD_NANOPORE"
-#endif
+                        
                         if( rc != 0 || platform->id == SRA_PLATFORM_UNDEFINED ) {
                             rc = rc ? rc : RC(rcExe, rcFormatter, rcConstructing, rcId, rcUnrecognized);
                             PLOGERR(klogErr, (klogErr, rc, "PLATFORM '$(n)'", PLOG_S(n), name));
@@ -714,11 +716,12 @@ void PlatformXML_Whack(const PlatformXML* cself)
                 break;
             case SRA_PLATFORM_COMPLETE_GENOMICS:
                 break;
+            case SRA_PLATFORM_CAPILLARY:
+                break;
+            case SRA_PLATFORM_OXFORD_NANOPORE:
+                break;
             case SRA_PLATFORM_UNDEFINED:
                 break;
-#if ! WINDOWS
-#warning "add support for CAPILLARY and OXFORD_NANOPORE"
-#endif
         }
         free(self);
     }

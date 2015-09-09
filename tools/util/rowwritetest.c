@@ -381,7 +381,7 @@ rc_t CC KMain ( int argc, char *argv[] )
             {
                 const char * pc;
 
-                ArgsOptionValue (args, OPTION_TABLE, 0, &pc);
+                ArgsOptionValue (args, OPTION_TABLE, 0, (const void **)&pc);
                 strncpy (tablePath, pc, sizeof (tablePath));
             }
 
@@ -416,7 +416,7 @@ rc_t CC KMain ( int argc, char *argv[] )
                 {
                     const char * pc;
 
-                    rc = ArgsOptionValue (args, OPTION_ROW, 0, &pc);
+                    rc = ArgsOptionValue (args, OPTION_ROW, 0, (const void **)&pc);
                     if (rc)
                         break;
 

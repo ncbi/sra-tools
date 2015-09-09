@@ -102,7 +102,7 @@ $(LIBDIR)/$(LPFX)general-writer.$(LIBX): $(GEN_WRITER_OBJ)
 #
 
 $(TEST_BINDIR)/gw-dumper: $(SRCDIR)/gw-dumper.cpp $(SRCDIR)/utf8-like-int-codec.c
-	c++ $(DBG) -o $@ $^ -I$(SRCDIR) -I$(VDB_INCDIR)/os/$(OS) -MD
+	c++ $(DBG) -o $@ $^ -I$(SRCDIR) -I$(VDB_INCDIR)/os/$(OS) -I$(VDB_INCDIR)
 
 
 #-------------------------------------------------------------------------------
@@ -120,6 +120,7 @@ GEN_LOAD_OBJ = \
 
 GEN_LOAD_LIBS = \
 	-sncbi-wvdb-static \
+	-sload \
 	-skapp \
 
 $(BINDIR)/general-loader: $(GEN_LOAD_OBJ)

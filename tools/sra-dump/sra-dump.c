@@ -946,7 +946,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             {
                 const char * pc;
 
-                rc = ArgsOptionValue (args, OPTION_START, 0, &pc);
+                rc = ArgsOptionValue (args, OPTION_START, 0, (const void **)&pc);
                 if (rc)
                     break;
 
@@ -961,7 +961,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             {
                 const char * pc;
 
-                rc = ArgsOptionValue (args, OPTION_STOP, 0, &pc);
+                rc = ArgsOptionValue (args, OPTION_STOP, 0, (const void **)&pc);
                 if (rc)
                     break;
 
@@ -979,7 +979,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 exit(EXIT_FAILURE);
             }
 
-            rc = ArgsParamValue (args, 0, &pb.src_path);
+            rc = ArgsParamValue (args, 0, (const void **)&pb.src_path);
             if (rc)
                 break;
 
@@ -1000,7 +1000,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 ppc = pb.columns;
                 for (ix = 1; ix < pcount; ix++)
                 {
-                    rc = ArgsParamValue (args, ix, ppc);
+                    rc = ArgsParamValue (args, ix, (const void **)ppc);
                     if (rc)
                         break;
                     ppc++;

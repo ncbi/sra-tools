@@ -107,6 +107,7 @@ static
 const char * first_usage[] = 
 {
     "The path to a file either in native format",
+    NULL
 };
 
 static
@@ -118,7 +119,8 @@ const char * second_usage[] =
     "where 'enc' or 'encrypt' means the file is encrypted",
     "and 'pwfile=<path>' points to a file to get the password",
     "or 'pwfd=<fd>' refers to a file descriptor from which to",
-    "read a password."
+    "read a password.",
+    NULL
 };
 
 rc_t CC Usage (const Args * args)
@@ -437,7 +439,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 {
                     const char * value;
 
-                    rc = ArgsOptionValue (args, OPTION_CIPHER, 0, &value);
+                    rc = ArgsOptionValue (args, OPTION_CIPHER, 0, (const void **)&value);
                     if (rc)
                         LOGERR (klogInt, rc, "failed to examine cipher value");
                     else
@@ -474,13 +476,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                         {
                             const char * src;
 
-                            rc = ArgsParamValue (args, 0, &src);
+                            rc = ArgsParamValue (args, 0, (const void **)&src);
                             if (rc)
                                 LOGERR (klogInt, rc, "failed to get source parameter");
                             else
                             {
                                 const char * dst;
-                                rc = ArgsParamValue (args, 1, &dst);
+                                rc = ArgsParamValue (args, 1, (const void **)&dst);
                                 if (rc)
                                     LOGERR (klogInt, rc, "failed to get destination parameter");
                                 else

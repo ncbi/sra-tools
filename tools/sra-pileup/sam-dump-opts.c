@@ -569,7 +569,7 @@ static rc_t gather_region_options( Args * args, samdump_opts * opts )
         for ( i = 0; i < count && rc == 0; ++i )
         {
             const char * s;
-            rc = ArgsOptionValue( args, OPT_REGION, i, &s );
+            rc = ArgsOptionValue( args, OPT_REGION, i, (const void **)&s );
             if ( rc != 0 )
             {
                 (void)PLOGERR( klogErr, ( klogErr, rc, "error retrieving comandline option '$(t)'", "t=%s", OPT_REGION ) );
@@ -603,7 +603,7 @@ static rc_t gather_matepair_distances( Args * args, samdump_opts * opts )
         for ( i = 0; i < count && rc == 0; ++i )
         {
             const char * s;
-            rc = ArgsOptionValue( args, OPT_MATE_DIST, i, &s );
+            rc = ArgsOptionValue( args, OPT_MATE_DIST, i, (const void **)&s );
             if ( rc != 0 )
             {
                 (void)PLOGERR( klogErr, ( klogErr, rc, "error retrieving comandline option '$(t)'", "t=%s", OPT_MATE_DIST ) );
@@ -839,7 +839,7 @@ static rc_t get_str_option( Args * args, const char * name, const char ** s )
     }
     else if ( count > 0 )
     {
-        rc = ArgsOptionValue( args, name, 0, s );
+        rc = ArgsOptionValue( args, name, 0, (const void **)s );
         if ( rc != 0 )
         {
             (void)PLOGERR( klogErr, ( klogErr, rc, "error retrieving comandline option '$(t)'", "t=%s", name ) );
@@ -1016,7 +1016,7 @@ static rc_t gather_string_options( Args * args, samdump_opts * opts )
             for ( i = 0; i < count && rc == 0; ++i )
             {
                 const char * src;
-                rc = ArgsOptionValue( args, OPT_HDR_COMMENT, i, &src );
+                rc = ArgsOptionValue( args, OPT_HDR_COMMENT, i, (const void **)&src );
                 if ( rc != 0 )
                 {
                     (void)PLOGERR( klogErr, ( klogErr, rc, "error retrieving comandline option '$(t)' #$(n)", 
@@ -1050,7 +1050,7 @@ static rc_t gather_string_options( Args * args, samdump_opts * opts )
             for ( i = 0; i < count && rc == 0; ++i )
             {
                 const char * src;
-                rc = ArgsParamValue( args, i, &src );
+                rc = ArgsParamValue( args, i, (const void **)&src );
                 if ( rc != 0 )
                 {
                     (void)PLOGERR( klogErr, ( klogErr, rc, "error retrieving comandline param #$(n)", 

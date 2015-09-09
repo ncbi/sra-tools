@@ -1088,30 +1088,30 @@ rc_t CC KMain( int argc, char* argv[] )
         uint32_t count;
         if( (rc = ArgsParamCount (args, &count)) != 0 || count != 0 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
-            ArgsParamValue(args, 0, &errmsg);
+            ArgsParamValue(args, 0, (const void **)&errmsg);
         
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_Output].name, &count)) != 0 || count != 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, count ? rcExcessive : rcInsufficient);
             errmsg = MainArgs[eopt_Output].name;
-        } else if( (rc = ArgsOptionValue(args, MainArgs[eopt_Output].name, 0, &params.out)) != 0 ) {
+        } else if( (rc = ArgsOptionValue(args, MainArgs[eopt_Output].name, 0, (const void **)&params.out)) != 0 ) {
             errmsg = MainArgs[eopt_Output].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_MapInput].name, &count)) != 0 || count != 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, count ? rcExcessive : rcInsufficient);
             errmsg = MainArgs[eopt_MapInput].name;
-        } else if( (rc = ArgsOptionValue(args, MainArgs[eopt_MapInput].name, 0, &params.map_path)) != 0 ) {
+        } else if( (rc = ArgsOptionValue(args, MainArgs[eopt_MapInput].name, 0, (const void **)&params.map_path)) != 0 ) {
             errmsg = MainArgs[eopt_MapInput].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_Schema].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, count ? rcExcessive : rcInsufficient);
             errmsg = MainArgs[eopt_Schema].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_Schema].name, 0, &params.schema)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_Schema].name, 0, (const void **)&params.schema)) != 0 ) {
             errmsg = MainArgs[eopt_Schema].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_AsmInput].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_AsmInput].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_AsmInput].name, 0, &params.asm_path)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_AsmInput].name, 0, (const void **)&params.asm_path)) != 0 ) {
             errmsg = MainArgs[eopt_AsmInput].name;
 
         }
@@ -1125,25 +1125,25 @@ rc_t CC KMain( int argc, char* argv[] )
         else if( (rc = ArgsOptionCount(args, MainArgs[eopt_RefSeqConfig].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_RefSeqConfig].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_RefSeqConfig].name, 0, &params.refseqcfg)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_RefSeqConfig].name, 0, (const void **)&params.refseqcfg)) != 0 ) {
             errmsg = MainArgs[eopt_RefSeqConfig].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_RefSeqPath].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_RefSeqPath].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_RefSeqPath].name, 0, &params.refseqpath)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_RefSeqPath].name, 0, (const void **)&params.refseqpath)) != 0 ) {
             errmsg = MainArgs[eopt_RefSeqPath].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_Library].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_Library].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_Library].name, 0, &params.library)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_Library].name, 0, (const void **)&params.library)) != 0 ) {
             errmsg = MainArgs[eopt_Library].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_RefSeqChunk].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_RefSeqChunk].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_RefSeqChunk].name, 0, &refseq_chunk)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_RefSeqChunk].name, 0, (const void **)&refseq_chunk)) != 0 ) {
             errmsg = MainArgs[eopt_RefSeqChunk].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_Force].name, &params.force)) != 0 ) {
@@ -1167,18 +1167,18 @@ rc_t CC KMain( int argc, char* argv[] )
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_QualQuantization].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_QualQuantization].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_QualQuantization].name, 0, &params.qual_quant)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_QualQuantization].name, 0, (const void **)&params.qual_quant)) != 0 ) {
             errmsg = MainArgs[eopt_QualQuantization].name;
 
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_MinMapQ].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_MinMapQ].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_MinMapQ].name, 0, &min_mapq)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_MinMapQ].name, 0, (const void **)&min_mapq)) != 0 ) {
             errmsg = MainArgs[eopt_MinMapQ].name;
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_ClusterSize].name, &count)) != 0 || count > 1 ) {
             rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
             errmsg = MainArgs[eopt_ClusterSize].name;
-        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_ClusterSize].name, 0, &cluster_size)) != 0 ) {
+        } else if( count > 0 && (rc = ArgsOptionValue(args, MainArgs[eopt_ClusterSize].name, 0, (const void **)&cluster_size)) != 0 ) {
             errmsg = MainArgs[eopt_ClusterSize].name;
         } else if( (rc = ArgsOptionCount(args, MainArgs[eopt_SingleMate].name, &params.single_mate)) != 0 ) {
             errmsg = MainArgs[eopt_SingleMate].name;
@@ -1198,7 +1198,7 @@ rc_t CC KMain( int argc, char* argv[] )
                         break;
                     }
                     while(rc == 0 && count-- > 0) {
-                        rc = ArgsOptionValue(args, MainArgs[eopt_RefFile].name, count, &params.refFiles[count]);
+                        rc = ArgsOptionValue(args, MainArgs[eopt_RefFile].name, count, (const void **)&params.refFiles[count]);
                     }
                 }
 

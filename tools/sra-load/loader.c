@@ -167,31 +167,31 @@ rc_t TArgsParse(TArgs *args, int argc, char *argv[])
     /* no parameters accepted */
     if( (rc = ArgsParamCount(args->args, &count)) != 0 || count != 0 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcUnexpected);
-        ArgsParamValue(args->args, 0, &errmsg);
+        ArgsParamValue(args->args, 0, (const void **)&errmsg);
 
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_RunXML].name, &count)) != 0 || count != 1 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, count ? rcExcessive : rcInsufficient);
         errmsg = TArgsDef[targs_RunXML].name;
-    } else if( (rc = ArgsOptionValue(args->args, TArgsDef[targs_RunXML].name, 0, &args->_runXmlPath)) != 0 ) {
+    } else if( (rc = ArgsOptionValue(args->args, TArgsDef[targs_RunXML].name, 0, (const void **)&args->_runXmlPath)) != 0 ) {
         errmsg = TArgsDef[targs_RunXML].name;
 
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_ExperimentXML].name, &count)) != 0 || count != 1 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, count ? rcExcessive : rcInsufficient);
         errmsg = TArgsDef[targs_ExperimentXML].name;
-    } else if( (rc = ArgsOptionValue(args->args, TArgsDef[targs_ExperimentXML].name, 0, &args->_experimentXmlPath)) != 0 ) {
+    } else if( (rc = ArgsOptionValue(args->args, TArgsDef[targs_ExperimentXML].name, 0, (const void **)&args->_experimentXmlPath)) != 0 ) {
         errmsg = TArgsDef[targs_ExperimentXML].name;
 
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_Target].name, &count)) != 0 || count != 1 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, count ? rcExcessive : rcInsufficient);
         errmsg = TArgsDef[targs_Target].name;
-    } else if( (rc = ArgsOptionValue(args->args, TArgsDef[targs_Target].name, 0, &args->_target)) != 0 ) {
+    } else if( (rc = ArgsOptionValue(args->args, TArgsDef[targs_Target].name, 0, (const void **)&args->_target)) != 0 ) {
         errmsg = TArgsDef[targs_Target].name;
 
     /* optional */
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_InputPath].name, &count)) != 0 || count > 1 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
         errmsg = TArgsDef[targs_InputPath].name;
-    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_InputPath].name, 0, &args->_input_path)) != 0 ) {
+    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_InputPath].name, 0, (const void **)&args->_input_path)) != 0 ) {
         errmsg = TArgsDef[targs_InputPath].name;
 
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_InputUnpacked].name, &args->_input_unpacked)) != 0 ) {
@@ -206,31 +206,31 @@ rc_t TArgsParse(TArgs *args, int argc, char *argv[])
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_SpotsNumber].name, &count)) != 0 || count > 1 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
         errmsg = TArgsDef[targs_SpotsNumber].name;
-    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_SpotsNumber].name, 0, &spot_qty)) != 0 ) {
+    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_SpotsNumber].name, 0, (const void **)&spot_qty)) != 0 ) {
         errmsg = TArgsDef[targs_SpotsNumber].name;
 
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_BadSpotsNumber].name, &count)) != 0 || count > 1 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
         errmsg = TArgsDef[targs_BadSpotsNumber].name;
-    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_BadSpotsNumber].name, 0, &bad_spots)) != 0 ) {
+    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_BadSpotsNumber].name, 0, (const void **)&bad_spots)) != 0 ) {
         errmsg = TArgsDef[targs_BadSpotsNumber].name;
 
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_BadSpotPercentage].name, &count)) != 0 || count > 1 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
         errmsg = TArgsDef[targs_BadSpotPercentage].name;
-    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_BadSpotPercentage].name, 0, &bad_percent)) != 0 ) {
+    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_BadSpotPercentage].name, 0, (const void **)&bad_percent)) != 0 ) {
         errmsg = TArgsDef[targs_BadSpotPercentage].name;
 
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_ExpectedXML].name, &count)) != 0 || count > 1 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
         errmsg = TArgsDef[targs_ExpectedXML].name;
-    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_ExpectedXML].name, 0, &args->_expectedXmlPath)) != 0 ) {
+    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_ExpectedXML].name, 0, (const void **)&args->_expectedXmlPath)) != 0 ) {
         errmsg = TArgsDef[targs_ExpectedXML].name;
 
     } else if( (rc = ArgsOptionCount(args->args, TArgsDef[targs_Intensities].name, &count)) != 0 || count > 1 ) {
         rc = rc ? rc : RC(rcExe, rcArgv, rcParsing, rcParam, rcExcessive);
         errmsg = TArgsDef[targs_Intensities].name;
-    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_Intensities].name, 0, &intense)) != 0 ) {
+    } else if( count > 0 && (rc = ArgsOptionValue(args->args, TArgsDef[targs_Intensities].name, 0, (const void **)&intense)) != 0 ) {
         errmsg = TArgsDef[targs_Intensities].name;
     }
     while( rc == 0 ) {
@@ -951,7 +951,7 @@ rc_t KMain(int argc, char *argv[])
                 uint32_t j;
                 for(j = 0; j < qty; j++) {
                     const char* v;
-                    if( ArgsOptionValue(args->args, "+", j, &v) == 0 ) {
+                    if( ArgsOptionValue(args->args, "+", j, (const void **)&v) == 0 ) {
                         eargs[i++] = "-+";
                         eargs[i++] = v;
                     }
@@ -961,7 +961,7 @@ rc_t KMain(int argc, char *argv[])
                 uint32_t j;
                 for(j = 0; j < qty; j++) {
                     const char* v;
-                    if( ArgsOptionValue(args->args, "debug", j, &v) == 0 ) {
+                    if( ArgsOptionValue(args->args, "debug", j, (const void **)&v) == 0 ) {
                         eargs[i++] = "-+";
                         eargs[i++] = v;
                     }
@@ -973,7 +973,7 @@ rc_t KMain(int argc, char *argv[])
                 if( XMLLogger_Args[j].aliases != NULL &&
                     ArgsOptionCount(args->args, XMLLogger_Args[j].aliases, &qty) == 0 &&
                     qty > 0 &&
-                    ArgsOptionValue(args->args, XMLLogger_Args[j].aliases, 0, &v) == 0 ) {
+                    ArgsOptionValue(args->args, XMLLogger_Args[j].aliases, 0, (const void **)&v) == 0 ) {
                         eargs[i++] = &extra[x];
                         extra[x++] = '-';
                         extra[x++] = '-';
@@ -983,7 +983,7 @@ rc_t KMain(int argc, char *argv[])
                 } else if( XMLLogger_Args[j].name != NULL &&
                            ArgsOptionCount(args->args, XMLLogger_Args[j].name, &qty) == 0 &&
                            qty > 0 &&
-                           ArgsOptionValue(args->args, XMLLogger_Args[j].name, 0, &v) == 0 ) {
+                           ArgsOptionValue(args->args, XMLLogger_Args[j].name, 0, (const void **)&v) == 0 ) {
                         eargs[i++] = &extra[x];
                         extra[x++] = '-';
                         extra[x++] = '-';

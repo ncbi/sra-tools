@@ -913,7 +913,7 @@ rc_t Start (KDirectory * cwd, const char * src, const char * dst)
         return rc;
     }
 
-    stype = KDirectoryPathType (cwd, "%s", spath);
+    stype = KDirectoryPathType (cwd, "%s", spath) & ~ kptAlias;
 
     switch (stype)
     {
@@ -1025,7 +1025,7 @@ rc_t Start (KDirectory * cwd, const char * src, const char * dst)
             LOGERR (klogErr, rc, "can't resolve destination");
             return rc;
         }
-        dtype = KDirectoryPathType (cwd, "%s", dpath);
+        dtype = KDirectoryPathType (cwd, "%s", dpath) & ~ kptAlias;
         switch (dtype)
         {
         default:
@@ -1240,7 +1240,7 @@ rc_t CommonMain (Args * args)
              * letting comp put src in register
              * only if it wants
              */
-            rc = ArgsParamValue (args, 0, &dst);
+            rc = ArgsParamValue (args, 0, (const void **)&dst);
             if (rc)
                 LOGERR (klogInt, rc, "Failure to fetch "
                         "source parameter");
@@ -1254,7 +1254,7 @@ rc_t CommonMain (Args * args)
 
                 else
                 {
-                    rc = ArgsParamValue (args, 1, &dst);
+                    rc = ArgsParamValue (args, 1, (const void **)&dst);
                     if (rc)
                         LOGERR (klogInt, rc, "Failure to fetch "
                                 "destination parameter");

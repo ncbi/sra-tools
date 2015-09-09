@@ -575,22 +575,7 @@ namespace VDBObjects
         }
     }
 
-#if MANGER_WRITABLE != 0
-    void CVDBManager::Make()
-    {
-        assert(m_pSelf == NULL);
-        if (m_pSelf)
-            throw Utils::CErrorMsg(0, "Double call to VDBManagerMakeRead");
-
-        rc_t rc = ::VDBManagerMakeRead(const_cast<VDBManager const**>(&m_pSelf), NULL);
-        if (rc)
-            throw Utils::CErrorMsg(rc, "VDBManagerMakeRead");
-
-#if DEBUG_PRINT != 0
-        printf("Created VDBManager (rd) %p\n", m_pSelf);
-#endif
-    }
-#else
+#if MANAGER_WRITABLE != 0
     void CVDBManager::Make()
     {
         assert(m_pSelf == NULL);
@@ -609,6 +594,21 @@ namespace VDBObjects
         printf("Created VDBManager (wr) %p\n", m_pSelf);
 #endif
     }
+#else
+    void CVDBManager::Make()
+    {
+        assert(m_pSelf == NULL);
+        if (m_pSelf)
+            throw Utils::CErrorMsg(0, "Double call to VDBManagerMakeRead");
+
+        rc_t rc = ::VDBManagerMakeRead(const_cast<VDBManager const**>(&m_pSelf), NULL);
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VDBManagerMakeRead");
+
+#if DEBUG_PRINT != 0
+        printf("Created VDBManager (rd) %p\n", m_pSelf);
+#endif
+    }
 #endif
 
     CVDatabase CVDBManager::OpenDB(char const* pszDBName) const
@@ -623,6 +623,7 @@ namespace VDBObjects
 #endif
         return vdb;
     }
+#if MANAGER_WRITABLE != 0
     CVDatabase CVDBManager::CreateDB ( CVSchema const& schema, char const* pszTypeDesc, ::KCreateMode cmode, char const* pszPath )
     {
         CVDatabase vdb;
@@ -641,6 +642,7 @@ namespace VDBObjects
         vdb.ColumnCreateParams ( kcmInit | kcmMD5, kcsCRC32, 0 );
         return vdb;
     }
+#endif
 
     CVSchema CVDBManager::MakeSchema () const
     {
@@ -730,7 +732,7 @@ namespace KApp
     char const* CArgs::GetParamValue ( uint32_t iteration ) const
     {
         char const* ret = NULL;
-        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, &ret );
+        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, reinterpret_cast<const void **>(&ret) );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsParamValue");
 
@@ -750,7 +752,7 @@ namespace KApp
     char const* CArgs::GetOptionValue ( char const* option_name, uint32_t iteration ) const
     {
         char const* ret = NULL;
-        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, &ret );
+        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, reinterpret_cast<const void**>(&ret) );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsOptionValue (%s)", option_name);
 
@@ -859,8 +861,7 @@ namespace Utils
         return m_szDescr;
     }
 
-
-    void HandleException ()
+    int64_t HandleException ( bool bSilent, char* pErrDesc, size_t sizeErrDesc )
     {
         try
         {
@@ -868,20 +869,62 @@ namespace Utils
         }
         catch (Utils::CErrorMsg const& e)
         {
-            char szBufErr[512] = "";
+            char szBufErr[512];
+            if ( pErrDesc == NULL )
+            {
+                pErrDesc = szBufErr;
+                sizeErrDesc = countof(szBufErr);
+            }
             size_t rc = e.getRC();
-            rc_t res = string_printf(szBufErr, countof(szBufErr), NULL, "ERROR: %s failed with error 0x%08x (%u) [%R]", e.what(), rc, rc, rc);
+            rc_t res;
+            if (rc != 0)
+                res = string_printf(pErrDesc, sizeErrDesc, NULL, "%s failed with code 0x%08x (%u) [%R]", e.what(), rc, rc, rc);
+            else
+                res = string_printf(pErrDesc, sizeErrDesc, NULL, "%s", e.what());
             if (res == rcBuffer || res == rcInsufficient)
-                szBufErr[countof(szBufErr) - 1] = '\0';
-            printf("%s\n", szBufErr);
+                pErrDesc [sizeErrDesc - 1] = '\0';
+
+            if ( ! bSilent )
+                LOGMSG ( klogErr, pErrDesc );
+
+            return rc;
         }
         catch (std::exception const& e)
         {
-            printf("std::exception: %s\n", e.what());
+            char szBufErr[512];
+            if ( pErrDesc == NULL )
+            {
+                pErrDesc = szBufErr;
+                sizeErrDesc = countof(szBufErr);
+            }
+            rc_t res = string_printf(pErrDesc, sizeErrDesc, NULL, "std::exception: %s", e.what());
+            if (res == rcBuffer || res == rcInsufficient)
+                pErrDesc [sizeErrDesc - 1] = '\0';
+
+            if ( ! bSilent )
+                LOGMSG ( klogErr, pErrDesc );
+
+            return Utils::rcErrorStdExc;
         }
         catch (...)
         {
-            printf("Unexpected exception occured\n");
+            char szBufErr[512];
+            if ( pErrDesc == NULL )
+            {
+                pErrDesc = szBufErr;
+                sizeErrDesc = countof(szBufErr);
+            }
+            rc_t res = string_printf(pErrDesc, sizeErrDesc, NULL, "Unexpected exception occured");
+            if (res == rcBuffer || res == rcInsufficient)
+                pErrDesc [sizeErrDesc - 1] = '\0';
+            
+            if ( ! bSilent )
+                LOGMSG ( klogErr, pErrDesc );
+
+            return Utils::rcUnknown;
         }
+
+        assert ( false );
+        return Utils::rcInvalid; // this shall never be reached
     }
 }

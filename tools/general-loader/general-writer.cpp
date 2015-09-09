@@ -40,7 +40,7 @@
 namespace ncbi
 {
 
-#if GW_CURRENT_VERSION == 1
+#if GW_CURRENT_VERSION <= 2
     typedef :: gwp_1string_evt_v1 gwp_1string_evt;
     typedef :: gwp_2string_evt_v1 gwp_2string_evt;
     typedef :: gwp_column_evt_v1 gwp_column_evt;
@@ -64,6 +64,12 @@ namespace ncbi
             break;
         case schema_sent:
             new_state = remote_name_and_schema_sent;
+            break;
+        case software_name_sent:
+            new_state = remote_name_and_software_name_sent;
+            break;
+        case schema_and_software_name_sent:
+            new_state = remote_name_schema_and_software_name_sent;
             break;
         default:
             throw "state violation setting remote path";
@@ -96,6 +102,12 @@ namespace ncbi
         case remote_name_sent:
             new_state = remote_name_and_schema_sent;
             break;
+        case software_name_sent:
+            new_state = schema_and_software_name_sent;
+            break;
+        case remote_name_and_software_name_sent:
+            new_state = remote_name_schema_and_software_name_sent;
+            break;
         default:
             throw "state violation using schema";
         }
@@ -119,6 +131,49 @@ namespace ncbi
         state = new_state;
     }
 
+    void GeneralWriter :: setSoftwareName ( const std :: string & name,
+                                            const std :: string & version )
+    {
+        stream_state new_state = uninitialized;
+
+        switch ( state )
+        {
+        case header_written:
+            new_state = software_name_sent;
+            break;
+        case remote_name_sent:
+            new_state = remote_name_and_software_name_sent;
+            break;
+        case schema_sent:
+            new_state = schema_and_software_name_sent;
+            break;
+        case remote_name_and_schema_sent:
+            new_state = remote_name_schema_and_software_name_sent;
+            break;
+        default:
+            throw "state violation using schema";
+        }
+
+        size_t str1_size = name . size ();
+        if ( str1_size > 0x100 )
+            throw "name too long";
+
+        size_t str2_size = version . size ();
+        if ( str2_size > 0x100 )
+            throw "version too long";
+
+        gwp_2string_evt_v1 hdr;
+        init ( hdr, 0, evt_software_name );
+        set_size1 ( hdr, str1_size );
+        set_size2 ( hdr, str2_size );
+        write_event ( & hdr . dad, sizeof hdr );
+        internal_write ( name . data (), str1_size );
+        internal_write ( version . data (), str2_size );
+
+        state = new_state;        
+    }
+
+
     int GeneralWriter :: addTable ( const std :: string &table_name )
     {        
         stream_state new_state = uninitialized;
@@ -127,6 +182,7 @@ namespace ncbi
         {
         case schema_sent:
         case remote_name_and_schema_sent:
+        case remote_name_schema_and_software_name_sent:
             new_state = have_table;
             break;
         case have_table:
@@ -136,20 +192,25 @@ namespace ncbi
         default:
             throw "state violation adding table";
         }
-        
+
+        // create a pair between the outer db id ( 0 ) and this table name
+        // this pair will act as an unique key of tables, whereas table_name
+        // itself can be repeated if multiple databases are in use
+        int_dbtbl tbl ( 0, table_name );
+
         // prediction this is the index
-        int id = ( int ) table_names.size() + 1;
+        int id = ( int ) tables.size() + 1;
         if ( id > 256 )
             throw "maximum number of tables exceeded";
 
-        // make sure we never record a table name twice
-        std :: pair < std :: map < std :: string, int > :: iterator, bool > result = 
-            table_name_idx.insert ( std :: pair < std :: string, int > ( table_name, id ) );
+        // make sure we never record a table name twice under the same db
+        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result = 
+            table_name_idx.insert ( std :: pair < int_dbtbl, int > ( tbl, id ) );
         
         // if first time
         if ( result.second )
         {
-            table_names.push_back ( table_name );
+            tables.push_back ( tbl );
 
             size_t str_size = table_name . size ();
             if ( str_size > 0x10000 )
@@ -183,7 +244,7 @@ namespace ncbi
             throw "state violation adding column";
         }
         
-        if ( table_id <= 0 || ( size_t ) table_id > table_names.size () )
+        if ( table_id <= 0 || ( size_t ) table_id > tables.size () )
             throw "Invalid table id";
         
         // the thing to insert into map
@@ -240,6 +301,140 @@ namespace ncbi
         // 1 based stream id
         return result.first->second;
     }
+
+    int GeneralWriter :: dbAddDatabase ( int db_id, const std :: string &mbr_name, 
+                                          const std :: string &db_name, uint8_t create_mode )
+    {
+        stream_state new_state = uninitialized;
+
+        switch ( state )
+        {
+        case schema_sent:
+        case remote_name_and_schema_sent:
+        case remote_name_schema_and_software_name_sent:
+            new_state = have_table;
+            break;
+        case have_table:
+        case have_column:
+            new_state = state;
+            break;
+        default:
+            throw "state violation adding db";
+        }
+        
+        // zero ( 0 ) is a valid db_id
+        if ( db_id < 0 || ( size_t ) db_id > dbs.size () )
+            throw "Invalid database id";
+
+        int_dbtbl db ( db_id, db_name );
+
+        // prediction this is the index
+        int id = ( int ) dbs.size() + 1;
+        if ( id > 256 )
+            throw "maximum number of databases exceeded";
+
+        // make sure we never record a table name twice under the same db
+        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result = 
+            db_name_idx.insert ( std :: pair < int_dbtbl, int > ( db, id ) );
+        
+        // if first time
+        if ( result.second )
+        {
+            dbs.push_back ( db );
+
+            size_t str_size = mbr_name . size ();
+            if ( str_size > 0x100 )
+                throw "maximum member name length exceeded";
+
+            str_size = db_name . size ();
+            if ( str_size > 0x100 )
+                throw "maximum db name length exceeded";
+
+            gwp_add_mbr_evt_v1 hdr;
+            init ( hdr, id, evt_add_mbr_db );
+            set_db_id ( hdr, db_id );
+            set_size1 ( hdr, mbr_name.size () );
+            set_size2 ( hdr, db_name.size () );
+            set_create_mode ( hdr, create_mode );            
+            write_event ( & hdr . dad, sizeof hdr );
+            internal_write ( mbr_name.data (), mbr_name.size () );
+            internal_write ( db_name.data (), db_name.size () );
+
+            state = new_state;
+        }
+        
+        // 1 based db id
+        return result.first->second;
+    }
+    
+    int GeneralWriter :: dbAddTable ( int db_id, const std :: string &mbr_name, 
+                                       const std :: string &table_name, uint8_t create_mode )
+    {
+        stream_state new_state = uninitialized;
+
+        switch ( state )
+        {
+        case schema_sent:
+        case remote_name_and_schema_sent:
+        case remote_name_schema_and_software_name_sent:
+            new_state = have_table;
+            break;
+        case have_table:
+        case have_column:
+            new_state = state;
+            break;
+        default:
+            throw "state violation adding db_table";
+        }
+        
+        // zero ( 0 ) is a valid db_id
+        if ( db_id < 0 || ( size_t ) db_id > dbs.size () )
+            throw "Invalid database id";
+
+        // create a pair between the outer db id ( 0 ) and this table name
+        // this pair will act as an unique key of tables, whereas table_name
+        // itself can be repeated if multiple databases are in use
+        int_dbtbl tbl ( db_id, table_name );
+
+        // prediction this is the index
+        int id = ( int ) tables.size() + 1;
+        if ( id > 256 )
+            throw "maximum number of tables exceeded";
+
+        // make sure we never record a table name twice under the same db
+        std :: pair < std :: map < int_dbtbl, int > :: iterator, bool > result = 
+            table_name_idx.insert ( std :: pair < int_dbtbl, int > ( tbl, id ) );
+        
+        // if first time
+        if ( result.second )
+        {
+            tables.push_back ( tbl );
+
+            size_t str_size = mbr_name . size ();
+            if ( str_size > 0x100 )
+                throw "maximum member name length exceeded";
+
+            str_size = table_name . size ();
+            if ( str_size > 0x100 )
+                throw "maximum table name length exceeded";
+
+            gwp_add_mbr_evt_v1 hdr;
+            init ( hdr, id, evt_add_mbr_tbl );
+            set_db_id ( hdr, db_id );
+            set_size1 ( hdr, mbr_name.size () );
+            set_size2 ( hdr, table_name.size () );
+            set_create_mode ( hdr, create_mode );
+            write_event ( & hdr . dad, sizeof hdr );
+            internal_write ( mbr_name.data (), mbr_name.size () );
+            internal_write ( table_name.data (), table_name.size () );
+
+            state = new_state;
+        }
+        
+        // 1 based table id
+        return result.first->second;
+    }
+
  
     
     void GeneralWriter :: open ()
@@ -264,6 +459,121 @@ namespace ncbi
         write_event ( & hdr, sizeof hdr );
 
         state = new_state;
+    }
+
+    void GeneralWriter :: setDBMetadataNode ( int obj_id,
+                                            const std :: string & node_path,
+                                            const std :: string & value )
+    {
+        // zero ( 0 ) is a valid db_id
+        if ( obj_id < 0 || ( size_t ) obj_id > dbs.size () )
+            throw "Invalid database id";
+
+        size_t str1_size = node_path . size ();
+        if ( str1_size > STRING_LIMIT_16 )
+            throw "DB_path too long";
+
+        size_t str2_size = value . size ();
+        if ( str2_size > STRING_LIMIT_16 )
+            throw "value too long";
+
+        if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 )
+        {
+            // use 8-bit sizes
+            gwp_2string_evt_v1 hdr;
+            init ( hdr, obj_id, evt_db_metadata_node );
+            set_size1 ( hdr, str1_size );
+            set_size2 ( hdr, str2_size );
+            write_event ( & hdr . dad, sizeof hdr );
+        }
+        else
+        {
+            // use 16-bit sizes
+            gwp_2string_evt_U16_v1 hdr;
+            init ( hdr, obj_id, evt_db_metadata_node2 );
+            set_size1 ( hdr, str1_size );
+            set_size2 ( hdr, str2_size );
+            write_event ( & hdr . dad, sizeof hdr );
+        }
+
+        internal_write ( node_path . data (), str1_size );
+        internal_write ( value . data (), str2_size );
+    }
+
+    void GeneralWriter :: setTblMetadataNode ( int obj_id,
+                                            const std :: string & node_path,
+                                            const std :: string & value )
+    {
+        if ( obj_id <= 0 || ( size_t ) obj_id > tables.size () )
+            throw "Invalid table id";
+
+        size_t str1_size = node_path . size ();
+        if ( str1_size > STRING_LIMIT_16 )
+            throw "tbl_path too long";
+
+        size_t str2_size = value . size ();
+        if ( str2_size > STRING_LIMIT_16 )
+            throw "value too long";
+
+        if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 )
+        {
+            // use 8-bit sizes
+            gwp_2string_evt_v1 hdr;
+            init ( hdr, obj_id, evt_tbl_metadata_node );
+            set_size1 ( hdr, str1_size );
+            set_size2 ( hdr, str2_size );
+            write_event ( & hdr . dad, sizeof hdr );
+        }
+        else
+        {
+            // use 16-bit sizes
+            gwp_2string_evt_U16_v1 hdr;
+            init ( hdr, obj_id, evt_tbl_metadata_node2 );
+            set_size1 ( hdr, str1_size );
+            set_size2 ( hdr, str2_size );
+            write_event ( & hdr . dad, sizeof hdr );
+        }
+
+        internal_write ( node_path . data (), str1_size );
+        internal_write ( value . data (), str2_size );
+
+    }
+    void GeneralWriter :: setColMetadataNode ( int obj_id,
+                                            const std :: string & node_path,
+                                            const std :: string & value )
+    {
+        if ( obj_id <= 0 || ( size_t ) obj_id > streams.size () )
+            throw "Invalid column id";
+
+        size_t str1_size = node_path . size ();
+        if ( str1_size > STRING_LIMIT_16 )
+            throw "tbl_path too long";
+
+        size_t str2_size = value . size ();
+        if ( str2_size > STRING_LIMIT_16 )
+            throw "value too long";
+
+        if ( str1_size <= STRING_LIMIT_8 && str2_size <= STRING_LIMIT_8 )
+        {
+            // use 8-bit sizes
+            gwp_2string_evt_v1 hdr;
+            init ( hdr, obj_id, evt_col_metadata_node );
+            set_size1 ( hdr, str1_size );
+            set_size2 ( hdr, str2_size );
+            write_event ( & hdr . dad, sizeof hdr );
+        }
+        else
+        {
+            // use 16-bit sizes
+            gwp_2string_evt_U16_v1 hdr;
+            init ( hdr, obj_id, evt_col_metadata_node2 );
+            set_size1 ( hdr, str1_size );
+            set_size2 ( hdr, str2_size );
+            write_event ( & hdr . dad, sizeof hdr );
+        }
+
+        internal_write ( node_path . data (), str1_size );
+        internal_write ( value . data (), str2_size );
     }
 
     
@@ -514,7 +824,7 @@ namespace ncbi
             throw "state violation advancing to next row";
         }
 
-        if ( table_id < 0 || ( size_t ) table_id > table_names.size () )
+        if ( table_id < 0 || ( size_t ) table_id > tables.size () )
             throw "Invalid table id";
 
         gwp_evt_hdr hdr;
@@ -533,7 +843,7 @@ namespace ncbi
             throw "state violation moving ahead nrows";
         }
 
-        if ( table_id < 0 || ( size_t ) table_id > table_names.size () )
+        if ( table_id < 0 || ( size_t ) table_id > tables.size () )
             throw "Invalid table id";
 
         gwp_move_ahead_evt_v1 hdr;
@@ -549,7 +859,11 @@ namespace ncbi
         case header_written:
         case remote_name_sent:
         case schema_sent:
+        case software_name_sent:
         case remote_name_and_schema_sent:
+        case remote_name_and_software_name_sent:
+        case schema_and_software_name_sent:
+        case remote_name_schema_and_software_name_sent:
         case have_table:
         case have_column:
         case opened:
@@ -578,7 +892,11 @@ namespace ncbi
         case header_written:
         case remote_name_sent:
         case schema_sent:
+        case software_name_sent:
         case remote_name_and_schema_sent:
+        case remote_name_and_software_name_sent:
+        case schema_and_software_name_sent:
+        case remote_name_schema_and_software_name_sent:
         case have_table:
         case have_column:
         case opened:
@@ -660,6 +978,19 @@ namespace ncbi
         , column_name ( _column_name )
         , elem_bits ( _elem_bits )
         , flag_bits ( _flag_bits )
+    {
+    }
+
+    bool GeneralWriter :: int_dbtbl :: operator < ( const int_dbtbl &db ) const
+    {
+        if ( db_id != db.db_id )
+            return db_id < db.db_id;
+        return obj_name.compare ( db.obj_name ) < 0;
+    }
+
+    GeneralWriter :: int_dbtbl :: int_dbtbl ( int _db_id, const std :: string &_obj_name )
+        : db_id ( _db_id )
+        , obj_name ( _obj_name )
     {
     }
 

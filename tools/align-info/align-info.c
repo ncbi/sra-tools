@@ -112,7 +112,7 @@ rc_t CC UsageSummary (const char * progname) {
         "\n", progname);
  }
 
-static const char* param_usage[] = { "Path to the database" };
+static const char* param_usage[] = { "Path to the database", NULL };
 
 rc_t CC Usage(const Args* args) { 
     rc_t rc = 0 ;
@@ -514,7 +514,7 @@ rc_t CC KMain(int argc, char* argv[]) {
             LOGERR(klogErr, rc, "Too many database parameters");
             break;
         }
-        rc = ArgsParamValue(args, 0, &prm.dbPath);
+        rc = ArgsParamValue(args, 0, (const void **)&prm.dbPath);
         if (rc) {
             LOGERR(klogErr, rc, "Failure retrieving database name");
             break;

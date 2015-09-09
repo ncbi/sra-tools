@@ -81,9 +81,9 @@ NGS_PILEUP_OBJ = \
 	$(addsuffix .$(OBJX),$(NGS_PILEUP_SRC))
 
 NGS_PILEUP_LIBS = \
-	-sngs-c++         \
 	-sncbi-ngs-c++    \
 	-sncbi-vdb-static \
+	-sngs-c++         \
 	-skapp \
     
 $(BINDIR)/ngs-pileup: $(NGS_PILEUP_OBJ)

@@ -111,13 +111,15 @@ static
 const char * first_usage[] = 
 {
     "The path to a archive file ",
+    NULL
 };
 
 static
 const char * second_usage[] = 
 {
     "A file by path or ID to extract",
-    "If none are given all files are extracted"
+    "If none are given all files are extracted",
+    NULL
 };
 
 rc_t CC Usage (const Args * args)
@@ -1175,7 +1177,7 @@ rc_t KMain ( int argc, char *argv [] )
             }
             if (pcount)
             {
-                rc = ArgsOptionValue (args, OPTION_XML, 0, &options.xmlstr);
+                rc = ArgsOptionValue (args, OPTION_XML, 0, (const void **)&options.xmlstr);
                 if (rc)
                 {
                     LOGERR (klogFatal, rc, "failed to get XML value");
@@ -1198,7 +1200,7 @@ rc_t KMain ( int argc, char *argv [] )
             }
             if (pcount)
             {
-                rc = ArgsOptionValue (args, OPTION_DIR, 0, &options.dirstr);
+                rc = ArgsOptionValue (args, OPTION_DIR, 0, (const void **)&options.dirstr);
                 if (rc)
                 {
                     LOGERR (klogFatal, rc, "failed to get directory value");
@@ -1235,7 +1237,7 @@ rc_t KMain ( int argc, char *argv [] )
                 VectorInit (&options.pathstr, 0, block);
             }
 
-            rc = ArgsParamValue (args, 0, &options.arcstr);
+            rc = ArgsParamValue (args, 0, (const void **)&options.arcstr);
             if (rc)
                 LOGERR (klogFatal, rc, "failed to retrieve archive parameter");
             else
@@ -1252,7 +1254,7 @@ rc_t KMain ( int argc, char *argv [] )
 
                     for (ix = 1; ix < pcount; ++ix)
                     {
-                        rc = ArgsParamValue (args, ix, &pc);
+                        rc = ArgsParamValue (args, ix, (const void **)&pc);
                         if (rc)
                         {
                             PLOGERR (klogFatal, 

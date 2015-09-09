@@ -47,7 +47,7 @@ public:
     static const uint32_t MaxPackedString = 256;
     
 public:
-    GeneralLoader ( const struct KStream& p_input );
+    GeneralLoader ( const std :: string& p_programName, const struct KStream& p_input );
     ~GeneralLoader ();
     
     void AddSchemaIncludePath( const std::string& p_path );
@@ -90,28 +90,50 @@ private:
     class DatabaseLoader
     {
     public:
+        struct Table
+        {
+            std :: string name;
+            uint32_t databaseId; // key into Databases
+            uint32_t cursorIdx;   
+        };
+        
         struct Column
         {
+            std :: string name;
+            
+            uint32_t tableId;       // key into Tables
             uint32_t cursorIdx;     // index into Cursors
             uint32_t columnIdx;     // index in the VCursor
             uint32_t elemBits;
             uint32_t flagBits;
             
+            typedef std :: map < std :: string, std :: string > Metadata;
+            Metadata metadata;
+            
             bool IsCompressed () const { return ( flagBits & 1 ) == 1; }
         };
 
     public:
-        DatabaseLoader ( const Paths& p_includePaths, const Paths& p_schemas, const std::string& p_dbNameOverride = std::string() );
+        DatabaseLoader ( const std :: string& p_programName, const Paths& p_includePaths, const Paths& p_schemas, const std::string& p_dbNameOverride = std::string() );
         ~DatabaseLoader();
     
         rc_t UseSchema ( const std :: string& p_file, const std :: string& p_name );
         rc_t RemotePath ( const std :: string& p_path );
+        rc_t SoftwareName ( const std :: string& p_softwareName, const std :: string& p_version );
         rc_t NewTable ( uint32_t p_tableId, const std :: string& p_tableName );
         rc_t NewColumn ( uint32_t p_columnId, 
                          uint32_t p_tableId, 
                          uint32_t p_elemBits, 
                          uint8_t p_flags, 
                          const std :: string& p_columnName );
+                         
+        rc_t DBMetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
+        rc_t TblMetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
+        rc_t ColMetadataNode ( uint32_t p_objId, const std :: string& p_metadata_node, const std :: string& p_value );
+        
+        rc_t AddMbrDB ( uint32_t p_objId, uint32_t p_parentId, const std :: string &mbr_name, const std :: string &db_name, uint8_t p_create_mode );
+        rc_t AddMbrTbl ( uint32_t p_objId, uint32_t p_parentId, const std :: string &mbr_name, const std :: string &db_name, uint8_t p_create_mode );
+        
         rc_t CellData    ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
         rc_t CellDefault ( uint32_t p_columnId, const void* p_data, size_t p_elemCount );
         rc_t NextRow ( uint32_t p_tableId );
@@ -124,37 +146,46 @@ private:
         const Column* GetColumn ( uint32_t p_columnId ) const; 
         
     private:
-        // Active cursors
+        // Active Cursors
         typedef std::vector < struct VCursor * > Cursors;
-
-        // from table id to VCursor
-        // value_type : index into Cursors
-        typedef std::map < uint32_t, uint32_t > TableIdToCursor; 
         
-        // From column id to VCursor.
-        // value_type::first    : index into Cursors
-        // value_type::second   : colIdx in the VCursor
+        // from TableId to Table
+        typedef std::map < uint32_t, Table > Tables; 
+        
+        // from ColumnId to Column
         typedef std::map < uint32_t, Column > Columns; 
         
+        // From database id to VDatabase. id == 0 for the root database.
+        typedef std::map < uint32_t, VDatabase* > Databases; 
+        
+        // From database id to parent database id 
+        typedef std::map < uint32_t, uint32_t > DatabaseToParent; 
+        
     private:
-        rc_t MakeDatabase ();
-        rc_t CursorWrite   ( const struct Column& p_col, const void* p_data, size_t p_size );
-        rc_t CursorDefault ( const struct Column& p_col, const void* p_data, size_t p_size );
+        rc_t MakeDatabase ( uint32_t p_id );
+        rc_t CursorWrite   ( const Column& p_col, const void* p_data, size_t p_size );
+        rc_t CursorDefault ( const Column& p_col, const void* p_data, size_t p_size );
+        rc_t SaveColumnMetadata ( const Column& p_col );
 
     private:
         Paths                   m_includePaths;
         Paths                   m_schemas;
     
-        std::string             m_databaseName;
-        std::string             m_schemaName;
+        std :: string           m_programName;
+        std :: string           m_databaseName;
+        std :: string           m_schemaName;
+        
+        std :: string           m_softwareName;
+        ver_t                   m_softwareVersion;
     
         Cursors                 m_cursors;
-        TableIdToCursor         m_tables;
+        Tables                  m_tables;
         Columns                 m_columns;
+        Databases               m_databases;    
+        DatabaseToParent        m_dbParents;    
         
         struct VDBManager*      m_mgr;
         struct VSchema*         m_schema;
-        struct VDatabase*       m_db;    
         
         bool                    m_databaseNameOverridden;
     };
@@ -200,6 +231,7 @@ private:
     static void SplitAndAdd( Paths& p_paths, const std::string& p_path );
     
 private:    
+    std::string             m_programName;
     Reader                  m_reader;
     Paths                   m_includePaths;
     Paths                   m_schemas;

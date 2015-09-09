@@ -60,7 +60,7 @@ GeneralLoader::Reader::Read( void * p_buffer, size_t p_size )
     pLogMsg ( klogInfo, 
              "general-loader: reading $(s) bytes, offset=$(o)", 
              "s=%u,o=%lu", 
-             ( unsigned int ) p_size, (unsigned long ) m_readCount );
+             ( unsigned int ) p_size, m_readCount );
 
     m_readCount += p_size;
     return KStreamReadExactly ( & m_input, p_buffer, p_size );
@@ -98,8 +98,9 @@ GeneralLoader::Reader::Align( uint8_t p_bytes )
 
 ///////////// GeneralLoader
 
-GeneralLoader::GeneralLoader ( const struct KStream& p_input )
-:   m_reader ( p_input )
+GeneralLoader::GeneralLoader ( const std::string& p_programName, const struct KStream& p_input )
+:   m_programName ( p_programName ),
+    m_reader ( p_input )
 {
 }
 
@@ -146,7 +147,7 @@ GeneralLoader::Run()
     rc_t rc = ReadHeader ( packed );
     if ( rc == 0 ) 
     {
-        DatabaseLoader loader ( m_includePaths, m_schemas, m_targetOverride );
+        DatabaseLoader loader ( m_programName, m_includePaths, m_schemas, m_targetOverride );
         if ( packed )
         {
             PackedProtocolParser p;
@@ -187,7 +188,7 @@ GeneralLoader::ReadHeader ( bool& p_packed )
             switch ( header . dad . endian )
             {
             case GW_GOOD_ENDIAN:
-                if ( header . dad . version != GW_CURRENT_VERSION )
+                if ( header . dad . version > GW_CURRENT_VERSION ) /* > comparison so it can read multiple versions */
                 {
                     rc = RC ( rcExe, rcFile, rcReading, rcHeader, rcBadVersion );
                 }

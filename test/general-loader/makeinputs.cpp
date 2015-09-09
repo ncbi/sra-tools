@@ -37,15 +37,40 @@ const char* tableName = "REFERENCE";
 const char* asciiColumnName = "SPOT_GROUP";
 const char* i64ColumnName = "PRIMARY_ALIGNMENT_IDS";
 const char* u32ColumnName = "SPOT_ID";
+
+
+static
+string
+DatabasePath ( const string& p_caseId, bool p_packed )
+{
+    string caseId = p_caseId;
+    if ( p_packed )
+    {
+        caseId += "packed";
+    }
+    return string ( "actual/" ) + caseId + "/db";
+}
   
+static
+string
+OutputPath ( const string& p_caseId, bool p_packed )
+{
+    string caseId = p_caseId;
+    if ( p_packed )
+    {
+        caseId += "packed";
+    }
+    return string ( "input/" ) + caseId + ".gl";
+}
+
 void
-make_1( const string& p_caseId, bool p_packed )
-{   // One table, one column, default values changed mid-data
+OneTableOneColumnWithDefaults( const string& p_caseId, bool p_packed )
+{   // default values changed mid-data
     TestSource source;
     TestSource::packed = p_packed;
     
     source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
-    source . DatabaseEvent ( string ( "actual/" ) + p_caseId + "/db" );
+    source . DatabaseEvent ( DatabasePath ( p_caseId, p_packed ) );
     
     source . NewTableEvent ( 1, tableName ); 
     source . NewColumnEvent ( 1, 1, asciiColumnName, 8 );
@@ -70,18 +95,17 @@ make_1( const string& p_caseId, bool p_packed )
     source . NextRowEvent ( 1 );
     
     source . CloseStreamEvent();
-    string filename = string ( "input/" ) + p_caseId + ".gl";
-    source . SaveBuffer ( filename . c_str ()  );
+    source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
 }
 
 void
-make_2( const string& p_caseId, bool p_packed )
-{   // Error message
+ErrorMessage( const string& p_caseId, bool p_packed )
+{   
     TestSource source;
     TestSource::packed = p_packed;
     
     source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
-    source . DatabaseEvent ( string ( "actual/" ) + p_caseId + "/db" );
+    source . DatabaseEvent ( DatabasePath ( p_caseId, p_packed ) );
     
     source . NewTableEvent ( 1, tableName ); 
     source . NewColumnEvent ( 1, 1, asciiColumnName, 8 );
@@ -90,17 +114,17 @@ make_2( const string& p_caseId, bool p_packed )
     source . ErrorMessageEvent( "something is wrong" );
     
     source . CloseStreamEvent();
-    string filename = string ( "input/" ) + p_caseId + ".gl";
-    source . SaveBuffer ( filename . c_str ()  );
+    source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
 }
 
 void
-make_3( const string& p_caseId )
-{   // Empty default value
+EmptyDefaultValue( const string& p_caseId, bool p_packed )
+{   
     TestSource source;
+    TestSource::packed = p_packed;
     
     source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
-    source . DatabaseEvent ( string ( "actual/" ) + p_caseId + "/db" );
+    source . DatabaseEvent ( DatabasePath ( p_caseId, p_packed ) );
     
     source . NewTableEvent ( 1, tableName ); 
     source . NewColumnEvent ( 1, 1, i64ColumnName, 64 );
@@ -110,17 +134,17 @@ make_3( const string& p_caseId )
     source . NextRowEvent ( 1 );
     
     source . CloseStreamEvent();
-    string filename = string ( "input/" ) + p_caseId + ".gl";
-    source . SaveBuffer ( filename . c_str ()  );
+    source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
 }
 
 void
-make_4( const string& p_caseId )
-{   // Move Ahead event
+MoveAhead( const string& p_caseId, bool p_packed )
+{   
     TestSource source;
+    TestSource::packed = p_packed;
     
     source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
-    source . DatabaseEvent ( string ( "actual/" ) + p_caseId + "/db" );
+    source . DatabaseEvent ( DatabasePath ( p_caseId, p_packed ) );
     
     source . NewTableEvent ( 1, tableName ); 
     source . NewColumnEvent ( 1, 1, i64ColumnName, 64 );
@@ -134,18 +158,22 @@ make_4( const string& p_caseId )
     
     // expected: 5 empty cells, 100, 4 empty cells
     source . CloseStreamEvent();
-    string filename = string ( "input/" ) + p_caseId + ".gl";
-    source . SaveBuffer ( filename . c_str ()  );
+    source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
 }
 
 void
-make_5( const string& p_caseId )
-{   // Integer compression (packed mode only)
+IntegerCompression( const string& p_caseId, bool p_packed )
+{   
+    if ( !p_packed )
+    {   // Integer compression is used in packed mode only
+        return;
+    }
+    
     TestSource source;
     TestSource::packed = true;
     
     source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
-    source . DatabaseEvent ( string ( "actual/" ) + p_caseId + "/db" );
+    source . DatabaseEvent ( DatabasePath ( p_caseId, p_packed ) );
     
     source . NewTableEvent ( 1, tableName ); 
     source . NewColumnEvent ( 1, 1, i64ColumnName, 64, true );
@@ -157,19 +185,42 @@ make_5( const string& p_caseId )
     source . NextRowEvent ( 1 );
     
     source . CloseStreamEvent();
-    string filename = string ( "input/" ) + p_caseId + ".gl";
-    source . SaveBuffer ( filename . c_str ()  );
+    source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
+}
+
+void
+SoftwareIdString( const string& p_caseId, bool p_packed )
+{   // Software identification string in metadata
+    TestSource source;
+    TestSource::packed = true;
+    
+    source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
+    source . DatabaseEvent ( DatabasePath ( p_caseId, p_packed ) );
+    
+    source . SoftwareNameEvent ( string ( "some software" ), string ( "9.8.7654" ) );
+    
+    source . OpenStreamEvent();
+    source . CloseStreamEvent();
+    
+    source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
 }
 
 int main()
 {
-    make_1( "1", false );
-    make_1( "1packed", true );
-    make_2( "2", false );
-    make_2( "2packed", true );
-    make_3( "3" );
-    make_4( "4" );
-    make_5( "5" );
+    for (bool packed = false; ; packed = true )
+    {
+        OneTableOneColumnWithDefaults( "1", packed );
+        ErrorMessage( "2", packed );
+        EmptyDefaultValue( "3", packed );
+        MoveAhead( "4", packed );
+        IntegerCompression( "5", packed );
+        SoftwareIdString( "6", packed );
+        
+        if ( packed )
+        {
+            break;
+        }
+    }
     
     return 0;
 }

@@ -41,6 +41,7 @@
     <ClCompile Include="..\..\..\tools\sra-pileup\sam-dump.c" />
     <ClCompile Include="..\..\..\tools\sra-pileup\sam-dump3.c" />
     <ClCompile Include="..\..\..\tools\sra-pileup\sam-hdr.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\sam-hdr1.c" />	
     <ClCompile Include="..\..\..\tools\sra-pileup\sam-unaligned.c" />
   </ItemGroup>
   

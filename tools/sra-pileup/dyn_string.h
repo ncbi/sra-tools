@@ -43,6 +43,7 @@ rc_t expand_dyn_string( struct dyn_string *self, size_t new_size );
 rc_t add_char_2_dyn_string( struct dyn_string *self, const char c );
 char * dyn_string_char( struct dyn_string *self, uint32_t idx );
 rc_t add_string_2_dyn_string( struct dyn_string *self, const char * s );
+rc_t add_dyn_string_2_dyn_string( struct dyn_string *self, struct dyn_string *other );
 rc_t print_2_dyn_string( struct dyn_string * self, const char *fmt, ... );
 rc_t print_dyn_string( struct dyn_string * self );
 size_t dyn_string_len( struct dyn_string * self );

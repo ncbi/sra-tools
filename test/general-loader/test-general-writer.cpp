@@ -36,7 +36,7 @@
 namespace ncbi
 {
     
-    GeneralWriter * testCreateGw ( const char * out_path, const char * schema_path )
+    GeneralWriter * testCreateGw ( const char * out_path, const char * schema_path, const char * software_name, const char * version )
     {
         GeneralWriter * ret;
         if ( out_path == 0 )
@@ -52,6 +52,7 @@ namespace ncbi
         
         ret -> setRemotePath ( schema_path );
         ret -> useSchema ( schema_path, std :: string ( "general_writer:test:db" ) );
+        ret -> setSoftwareName ( software_name, version );
         
         return ret;
     }
@@ -66,8 +67,18 @@ namespace ncbi
         for ( int i = 0; i < column_count; ++ i )
         {
             const char *name = column_names [ i ];
-            stream_ids [ i ] = gw -> addColumn ( table_id, name, 8 ); // all columns are ascii for now
+            stream_ids [ i ] = gw -> addColumn ( table_id, name, 8, 0 ); // all columns are ascii for now
         }
+    }
+
+    void testDBAddDatabase ( GeneralWriter *gw, const char *mbr_name, const char *db_name, uint8_t create_mode )
+    {
+        gw -> dbAddDatabase ( 0, mbr_name, db_name, create_mode );
+    }
+
+    void testDBAddTable ( GeneralWriter *gw, const char *mbr_name, const char *table_name, uint8_t create_mode )
+    {
+        gw -> dbAddDatabase ( 0, mbr_name, table_name, create_mode );
     }
 
     void testOpen ( GeneralWriter *gw )
@@ -162,6 +173,21 @@ namespace ncbi
         free ( columns );
     }
 
+    void testAddDBMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
+    {
+        gw -> setDBMetadataNode ( 0, node, value );
+    }
+
+    void testAddTblMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
+    {
+        gw -> setTblMetadataNode ( 1, node, value );
+    }
+
+    void testAddColMetadataNode ( GeneralWriter *gw, const char * node, const char *value )
+    {
+        gw -> setColMetadataNode ( 1, node, value );
+    }
+
     void testEndStream ( GeneralWriter *gw )
     {
         gw -> endStream ();
@@ -188,12 +214,10 @@ namespace ncbi
             for ( int i = 0; i < column_count ; ++ i )
                 column_names [ i ] = columns [ i ];
 
-            gw = testCreateGw ( outfile, schema_path );
+            gw = testCreateGw ( outfile, schema_path, "softwarename", "2" );
             std :: cerr << "CreateGw Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
-            
-            
-            
+                        
             int table_id = testAddTable ( gw );
             std :: cerr << "addTable Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
@@ -203,8 +227,26 @@ namespace ncbi
             std :: cerr << "addColumn Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
 
+            testDBAddDatabase ( gw, "member_name", "db_name", 1 );
+            std :: cerr << "dbAddDatabase Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+
+            testDBAddTable ( gw, "member_name", "table_name", 1 );
+            std :: cerr << "dbAddTable Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+
             testWrite ( gw, table_id, stream_ids, column_count, column_names );
             std :: cerr << "write Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+
+            testAddDBMetadataNode ( gw, "db_metadata_node", "01a2b3c4d" );
+            std :: cerr << "setDBMetadataNode Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+            testAddTblMetadataNode ( gw, "tbl_metadata_node", "01a2b3c4d" );
+            std :: cerr << "setTblMetadataNode Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+            testAddColMetadataNode ( gw, "col_metadata_node", "01a2b3c4d" );
+            std :: cerr << "setColMetadataNode Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
 
             testEndStream ( gw );

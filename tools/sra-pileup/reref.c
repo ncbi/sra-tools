@@ -529,7 +529,7 @@ rc_t report_on_reference( Args * args, bool extended )
                     for ( idx = 0; idx < count && rc == 0; ++idx )
                     {
                         const char *param = NULL;
-                        rc = ArgsParamValue( args, idx, &param );
+                        rc = ArgsParamValue( args, idx, (const void **)&param );
                         if ( rc != 0 )
                         {
                             LOGERR( klogInt, rc, "ArgsParamvalue() failed" );

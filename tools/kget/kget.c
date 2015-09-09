@@ -585,7 +585,7 @@ rc_t get_str( Args * args, const char *option, const char ** value )
     rc_t rc = ArgsOptionCount( args, option, &count );
     *value = NULL;
     if ( rc == 0 && count > 0 )
-        rc = ArgsOptionValue( args, option, 0, value );
+        rc = ArgsOptionValue( args, option, 0, (const void **)value );
     return rc;
 }
 
@@ -613,11 +613,11 @@ rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
     rc = ArgsParamCount( args, &count );
     if ( rc == 0 && count > 0 )
     {
-        rc = ArgsParamValue( args, 0, &ctx->url );
+        rc = ArgsParamValue( args, 0, (const void **)&ctx->url );
         if ( rc == 0 )
         {
             if ( count > 1 )
-                rc = ArgsParamValue( args, 1, &ctx->destination );
+                rc = ArgsParamValue( args, 1, (const void **)&ctx->destination );
             else
                 ctx->destination = NULL;
         }

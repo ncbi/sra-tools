@@ -85,10 +85,10 @@ PILEUP_STATS_LIB =    \
 	-L$(LIBDIR)       \
 	-L$(NGS_LIBDIR)   \
 	-sgeneral-writer  \
-	-skapp            \
-	-sngs-c++         \
 	-sncbi-ngs-c++    \
-	-sncbi-vdb
+	-sncbi-vdb-static \
+	-sngs-c++         \
+	-skapp \
 
 
 $(BINDIR)/pileup-stats: $(PILEUP_STATS_OBJ)

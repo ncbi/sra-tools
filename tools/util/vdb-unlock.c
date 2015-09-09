@@ -111,7 +111,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             else
             {
                 const char *target;
-                rc = ArgsParamValue ( args, 0, & target );
+                rc = ArgsParamValue ( args, 0, (const void **)& target );
                 if ( rc != 0 )
                     LogErr ( klogInt, rc, "failed to obtain param value" );
                 else

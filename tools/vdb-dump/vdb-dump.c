@@ -116,7 +116,7 @@ static const char * outbuf_size_usage[] = { "size of output-buffer, 0...none", N
 static const char * disable_mt_usage[] = { "disable multithreading", NULL };
 static const char * info_usage[] = { "print info about run", NULL };
 static const char * spotgroup_usage[] = { "show spotgroups", NULL };
-static const char * sraschema_usage[] = { "force use of dflt. sra-schema", NULL };
+/*static const char * sraschema_usage[] = { "force use of dflt. sra-schema", NULL }; */
 static const char * merge_ranges_usage[] = { "merge and sort row-ranges", NULL };
 
 OptDef DumpOptions[] =
@@ -164,8 +164,8 @@ OptDef DumpOptions[] =
     { OPTION_INFO, NULL, NULL, info_usage, 1, false, false },
     { OPTION_DIFF, NULL, NULL, NULL, 1, false, false },
 	{ OPTION_SPOTGROUPS, NULL, NULL, spotgroup_usage, 1, false, false },
-	{ OPTION_SRASCHEMA, NULL, NULL, sraschema_usage, 1, false, false },
-	{ OPTION_MERGE_RANGES, NULL, NULL, merge_ranges_usage, 1, false, false },
+	/*{ OPTION_SRASCHEMA, NULL, NULL, sraschema_usage, 1, false, false }, */
+	{ OPTION_MERGE_RANGES, NULL, NULL, merge_ranges_usage, 1, false, false }
 	
 };
 
@@ -238,7 +238,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL, OPTION_NO_MULTITHREAD, NULL, disable_mt_usage );
     HelpOptionLine ( NULL, OPTION_INFO, NULL, info_usage );
     HelpOptionLine ( NULL, OPTION_SPOTGROUPS, NULL, spotgroup_usage );
-    HelpOptionLine ( NULL, OPTION_SRASCHEMA, NULL, sraschema_usage );
+    /* HelpOptionLine ( NULL, OPTION_SRASCHEMA, NULL, sraschema_usage ); */
     HelpOptionLine ( NULL, OPTION_MERGE_RANGES, NULL, merge_ranges_usage );
 	
     HelpOptionsStandard ();
@@ -1646,7 +1646,7 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     VSchema *my_schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), ctx->force_sra_schema );
+    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /*ctx->force_sra_schema*/ );
 
     rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
@@ -1757,7 +1757,7 @@ static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
     VSchema *my_schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), ctx->force_sra_schema );
+    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
 
     rc = VDBManagerOpenDBRead( my_manager, &my_database, my_schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenDBRead() failed" );

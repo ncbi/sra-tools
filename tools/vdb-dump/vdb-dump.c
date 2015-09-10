@@ -2060,8 +2060,9 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                                 }
                                 else switch( ctx->format )
                                 {
-                                    case df_fastq : ;
-                                    case df_fasta : vdf_main( ctx, mgr, value ); break;
+                                    case df_fastq  : ;
+                                    case df_fasta  : ;
+                                    case df_fasta1 : vdf_main( ctx, mgr, value ); break;									
                                     default : rc = vdm_main_one_obj( ctx, mgr, value ); break;
                                 }
                             }

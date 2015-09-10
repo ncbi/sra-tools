@@ -125,6 +125,7 @@ typedef enum dump_format_t
     df_tab,
     df_fastq,
     df_fasta,
+    df_fasta1,	
     df_bin,
     df_sql
 } dump_format_t;

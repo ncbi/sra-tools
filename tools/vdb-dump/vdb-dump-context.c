@@ -117,7 +117,7 @@ static void vdco_init_values( p_dump_context ctx )
 	ctx->table_defined = false;
 	ctx->diff = false;
 	ctx->show_spotgroups = false;
-	ctx->force_sra_schema = false;
+	/*ctx->force_sra_schema = false;*/
 }
 
 rc_t vdco_init( dump_context **ctx )
@@ -558,7 +558,7 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->print_info = vdco_get_bool_option( my_args, OPTION_INFO, false );
     ctx->diff = vdco_get_bool_option( my_args, OPTION_DIFF, false );
 	ctx->show_spotgroups = vdco_get_bool_option( my_args, OPTION_SPOTGROUPS, false );
-	ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );
+	/*ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );*/
 	ctx->merge_ranges = vdco_get_bool_option( my_args, OPTION_MERGE_RANGES, false );
 	
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );

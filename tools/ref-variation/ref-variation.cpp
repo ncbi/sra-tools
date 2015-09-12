@@ -108,9 +108,9 @@ namespace RefVariation
 
     void print_indel (char const* name, char const* text, size_t text_size, size_t indel_start, size_t indel_len)
     {
-        int prefix_count = indel_start < 5 ? indel_start : 5;
-        int suffix_count = (text_size - (indel_start + indel_len)) < 5 ?
-                (text_size - (indel_start + indel_len)) : 5;
+        int prefix_count = (int)(indel_start < 5 ? indel_start : 5);
+        int suffix_count = (int)((text_size - (indel_start + indel_len)) < 5 ?
+                (text_size - (indel_start + indel_len)) : 5);
 
         printf ( "%s: %s%.*s[%.*s]%.*s%s\n",
                     name,
@@ -427,7 +427,7 @@ namespace RefVariation
 
         std::vector <std::string> vec_acc;
 
-        for ( size_t i = 0; i < param_count; ++i)
+        for ( uint32_t i = 0; i < param_count; ++i)
         {
             char const* acc = args.GetParamValue( i );
             filter_pileup_db ( acc, ref_name, ref_pos, query, query_len, vec_acc );
@@ -878,6 +878,41 @@ namespace RefVariation
         }
         std::cout << "Correctness test has SUCCEEDED" << std::endl;
     }
+
+    void test_getReferenceProjectionRange()
+    {
+        std::cout << "Starting getReferenceProjectionRange test..." << std::endl;
+        ngs::ReadCollection read_coll = ncbi::NGS::openReadCollection( "SRR1597772" );
+        int64_t ref_pos = 11601;
+        uint64_t stop = ref_pos + 92;
+
+        ngs::Reference ref = read_coll.getReference( "CM000663.1" );
+        ngs::Alignment align = read_coll.getAlignment("SRR1597772.PA.6");
+
+        ngs::String ref_str = ref.getReferenceBases( ref_pos, stop - ref_pos );
+        ngs::StringRef align_str = align.getFragmentBases();
+
+        std::cout
+            << "ref: " << ref_str << std::endl
+            << "seq: " << align_str << std::endl;
+
+        for ( ; ref_pos < (int64_t)stop; ++ ref_pos )
+        {
+            ngs::String ref_base = ref.getReferenceBases( ref_pos, 1 );
+            uint64_t range = align.getReferencePositionProjectionRange ( ref_pos );
+            uint32_t align_pos = range >> 32;
+            uint32_t range_len = range & 0xFFFFFFFF;
+
+            std::cout
+                << ref_pos << " "
+                << ref_base
+                << " (" << (int32_t)align_pos << ", " << range_len << ") "
+                << align.getFragmentBases( align_pos, range_len == 0 ? 1 : range_len )
+                << std::endl;
+        }
+
+        std::cout << "getReferenceProjectionRange test has SUCCEEDED" << std::endl;
+    }
 #endif
 
     void find_variation_region (int argc, char** argv)
@@ -930,12 +965,16 @@ namespace RefVariation
                 case 3:
                     test_vdb ();
                     break;
+                case 4:
+                    test_getReferenceProjectionRange ();
+                    break;
                 default:
                     std::cout
                         << "specify value for this option:" << std::endl
                         << "1 - run correctness test" << std::endl
                         << "2 - run ngs performance test" << std::endl
-                        << "3 - run vdb performance test" << std::endl;
+                        << "3 - run vdb performance test" << std::endl
+                        << "4 - run getReferencePositionProjectionRange test" << std::endl;
                 }
             }
             else

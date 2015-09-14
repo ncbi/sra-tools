@@ -45,6 +45,7 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
+#include <kapp/args-conv.h>
 
 #include <klib/container.h>
 #include <klib/vector.h>
@@ -167,6 +168,27 @@ OptDef DumpOptions[] =
 	/*{ OPTION_SRASCHEMA, NULL, NULL, sraschema_usage, 1, false, false }, */
 	{ OPTION_MERGE_RANGES, NULL, NULL, merge_ranges_usage, 1, false, false }
 	
+};
+
+ParamDef ParamOptions [] =
+{
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath },
+    { ArgsConvFilepath }
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -2137,8 +2159,11 @@ rc_t CC KMain ( int argc, char *argv [] )
 
     rc = KOutHandlerSet ( write_to_FILE, stdout );
     if ( rc == 0 )
-        rc = ArgsMakeAndHandle (&args, argc, argv, 1,
-            DumpOptions, sizeof DumpOptions / sizeof DumpOptions [ 0 ] );
+    {
+        rc = ArgsMakeAndHandle2 (&args, argc, argv,
+            ParamOptions, sizeof ParamOptions / sizeof ParamOptions [ 0 ],
+            1, DumpOptions, sizeof DumpOptions / sizeof DumpOptions [ 0 ] );
+    }
     if ( rc == 0 )
     {
         dump_context *ctx;

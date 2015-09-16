@@ -418,7 +418,13 @@ static rc_t vdb_prepare_cursor( const p_dump_context ctx, const VTable * tbl, fa
         else
             fctx->idx_qual = INVALID_COLUMN;
         if ( rc == 0 )
-            rc = VCursorAddColumn( fctx->cursor, &fctx->idx_name, "(ascii)NAME" );
+		{
+			if ( ctx->format == df_fasta2 )
+				rc = VCursorAddColumn( fctx->cursor, &fctx->idx_name, "(ascii)SEQ_ID" );
+			else
+				rc = VCursorAddColumn( fctx->cursor, &fctx->idx_name, "(ascii)NAME" );
+			
+		}
         if ( rc == 0 )
             rc = VCursorPermitPostOpenAdd ( fctx->cursor );
         if ( rc == 0 )

@@ -390,7 +390,9 @@ static bool vdco_set_format( p_dump_context ctx, const char *src )
         ctx->format = df_fasta;
     else if ( strcmp( src, "fasta1" ) == 0 )
         ctx->format = df_fasta1;
-    else if ( strcmp( src, "bin" ) == 0 )
+    else if ( strcmp( src, "fasta2" ) == 0 )
+        ctx->format = df_fasta2;
+	else if ( strcmp( src, "bin" ) == 0 )
         ctx->format = df_bin;
     else if ( strcmp( src, "sql" ) == 0 )
         ctx->format = df_sql;

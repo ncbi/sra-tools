@@ -672,6 +672,7 @@ static rc_t vdb_fasta2_loop( const p_dump_context ctx, const fastq_ctx * fctx )
 				}
 			}
 		}
+		rc = KOutMsg( "\n" );
 	}
     return rc;
 }

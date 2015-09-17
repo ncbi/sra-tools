@@ -2062,6 +2062,7 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                                 else switch( ctx->format )
                                 {
                                     case df_fastq  : ;
+                                    case df_fastq1 : ;									
                                     case df_fasta  : ;
                                     case df_fasta1 : ;
                                     case df_fasta2 : vdf_main( ctx, mgr, value ); break;

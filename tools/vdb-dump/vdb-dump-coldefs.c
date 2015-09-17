@@ -420,6 +420,45 @@ uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *my_ta
 }
 
 
+bool vdcd_table_has_column( const VTable *my_table, const char * to_find )
+{
+	bool res = false;
+	if ( my_table != NULL && to_find != NULL )
+	{
+		size_t to_find_len = string_size( to_find );
+		if ( to_find_len > 0 )
+		{
+			KNamelist * names;
+			rc_t rc = VTableListCol( my_table, &names );
+			DISP_RC( rc, "VTableListCol() failed" );
+			if ( rc == 0 )
+			{
+				uint32_t n;
+				rc = KNamelistCount( names, &n );
+				DISP_RC( rc, "KNamelistCount() failed" );
+				if ( rc == 0 )
+				{
+					uint32_t i;
+					for ( i = 0; i < n && rc == 0 && !res; ++i )
+					{
+						const char * col_name;
+						rc = KNamelistGet( names, i, &col_name );
+						DISP_RC( rc, "KNamelistGet() failed" );
+						if ( rc == 0 )
+						{
+							size_t col_name_len = string_size( col_name );
+							if ( col_name_len == to_find_len )
+								res = ( string_cmp( to_find, to_find_len, col_name, col_name_len, col_name_len ) == 0 );
+						}
+					}
+				}
+				KNamelistRelease( names );
+			}
+		}
+	}
+	return res;
+}
+
 uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *my_table )
 {
     uint32_t found = 0;
@@ -439,7 +478,7 @@ uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *my_table )
             if ( rc == 0 )
             {
                 uint32_t i;
-                for ( i = 0; i < n && rc ==0; ++i )
+                for ( i = 0; i < n && rc == 0; ++i )
                 {
                     const char *col_name;
                     rc = KNamelistGet( names, i, &col_name );

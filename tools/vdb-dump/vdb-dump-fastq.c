@@ -28,7 +28,6 @@
 #include "vdb-dump-helper.h"
 
 #include <stdlib.h>
-#include <stdio.h>
 
 #include <kdb/manager.h>
 #include <vdb/vdb-priv.h>
@@ -109,6 +108,32 @@ static rc_t vdb_fastq_loop_with_name( const p_dump_context ctx, const fastq_ctx 
 }
 
 
+static rc_t print_bases( const char * bases, uint32_t num_bases, uint32_t max_line_len )
+{
+	rc_t rc;
+	if ( max_line_len == 0 )
+		rc = KOutMsg( "%.*s\n", num_bases, bases );
+	else
+	{
+		uint32_t idx = 0, to_print = num_bases;
+		rc = 0;
+		while ( rc == 0 && idx < num_bases )
+		{
+			if ( to_print > max_line_len )
+				to_print = max_line_len;
+
+			rc = KOutMsg( "%.*s\n", to_print, &bases[ idx ] );
+			if ( rc == 0 )
+			{
+				idx += to_print;
+				to_print = ( num_bases - idx );
+			}
+		}
+	}
+	return rc;
+}
+
+
 static rc_t vdb_fasta_loop_with_name( const p_dump_context ctx, const fastq_ctx * fctx )
 {
     const struct num_gen_iter * iter;
@@ -123,7 +148,7 @@ static rc_t vdb_fasta_loop_with_name( const p_dump_context ctx, const fastq_ctx 
                 rc = Quitting();
             if ( rc == 0 )
             {
-                uint32_t elem_bits, boff, row_len, name_len;
+                uint32_t elem_bits, boff, name_len;
                 const char * name;
 
                 rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
@@ -132,32 +157,17 @@ static rc_t vdb_fasta_loop_with_name( const p_dump_context ctx, const fastq_ctx 
                     vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
                 else
                 {
-					const char * data;
+					const char * bases;
+					uint32_t num_bases;
                     rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-                                                (const void**)&data, &boff, &row_len );
+                                                (const void**)&bases, &boff, &num_bases );
                     if ( rc != 0 )
                         vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
                     else
                     {
-                        uint32_t idx = 0;
-                        int32_t to_print = row_len;
-
-						printf( ">%s.%li %.*s length=%u\n", fctx->run_name, row_id, name_len, name, row_len );
-						//rc = KOutMsg( ">%s.%li %.*s length=%u\n", fctx->run_name, row_id, name_len, name, row_len );
-                        if ( to_print > ctx->max_line_len )
-                            to_print = ctx->max_line_len;
-                        while ( rc == 0 && to_print > 0 )
-                        {
-							printf( "%.*s\n", to_print, &data[ idx ] );
-                            rc = KOutMsg( "%.*s\n", to_print, &data[ idx ] );
-                            if ( rc == 0 )
-                            {
-                                idx += ctx->max_line_len;
-                                to_print = ( row_len - idx );
-                                if ( to_print > ctx->max_line_len )
-                                    to_print = ctx->max_line_len;
-                            }
-                        }
+						rc = KOutMsg( ">%s.%li %.*s length=%u\n", fctx->run_name, row_id, name_len, name, num_bases );
+						if ( rc == 0 )
+							rc = print_bases( bases, num_bases, ctx->max_line_len );
                     }
                 }
             }
@@ -226,33 +236,18 @@ static rc_t vdb_fasta_loop_without_name( const p_dump_context ctx, const fastq_c
                 rc = Quitting();
             if ( rc == 0 )
             {
-                uint32_t elem_bits, boff, row_len;
-                const char * data;
+                uint32_t elem_bits, boff, num_bases;
+                const char * bases;
 
                 rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-                                            (const void**)&data, &boff, &row_len );
+                                            (const void**)&bases, &boff, &num_bases );
                 if ( rc != 0 )
                     vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
                 else
                 {
-                    uint32_t idx = 0;
-                    int32_t to_print = row_len;
-
-					rc = KOutMsg( ">%s.%li %li length=%u\n", fctx->run_name, row_id, row_id, row_len );
-					
-                    if ( to_print > ctx->max_line_len )
-                        to_print = ctx->max_line_len;
-                    while ( rc == 0 && to_print > 0 )
-                    {
-                        rc = KOutMsg( "%.*s\n", to_print, &data[ idx ] );
-                        if ( rc == 0 )
-                        {
-                            idx += ctx->max_line_len;
-                            to_print = ( row_len - idx );
-                            if ( to_print > ctx->max_line_len )
-                                to_print = ctx->max_line_len;
-                        }
-                    }
+					rc = KOutMsg( ">%s.%li %li length=%u\n", fctx->run_name, row_id, row_id, num_bases );
+					if ( rc == 0 )
+						rc = print_bases( bases, num_bases, ctx->max_line_len );
                 }
             }
         }

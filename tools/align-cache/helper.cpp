@@ -213,6 +213,9 @@ namespace VDBObjects
 
     CVCursor& CVCursor::operator=(CVCursor const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -231,11 +234,6 @@ namespace VDBObjects
 
     void CVCursor::Clone(CVCursor const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VCursorAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -362,6 +360,9 @@ namespace VDBObjects
 
     CVTable& CVTable::operator=(CVTable const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -380,11 +381,6 @@ namespace VDBObjects
 
     void CVTable::Clone(CVTable const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VTableAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -435,6 +431,9 @@ namespace VDBObjects
 
     CVDatabase& CVDatabase::operator=(CVDatabase const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -453,11 +452,6 @@ namespace VDBObjects
 
     void CVDatabase::Clone(CVDatabase const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VDatabaseAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0

@@ -216,6 +216,9 @@ namespace VDBObjects
 
     CVCursor& CVCursor::operator=(CVCursor const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -234,11 +237,6 @@ namespace VDBObjects
 
     void CVCursor::Clone(CVCursor const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VCursorAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -376,6 +374,9 @@ namespace VDBObjects
 
     CVTable& CVTable::operator=(CVTable const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -394,11 +395,6 @@ namespace VDBObjects
 
     void CVTable::Clone(CVTable const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VTableAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -476,6 +472,9 @@ namespace VDBObjects
 
     CVDatabase& CVDatabase::operator=(CVDatabase const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -494,11 +493,6 @@ namespace VDBObjects
 
     void CVDatabase::Clone(CVDatabase const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VDatabaseAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -577,11 +571,9 @@ namespace VDBObjects
 
     void CVSchema::Clone ( CVSchema const& x )
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
+        if (m_pSelf)
             Release();
-        }
+
         m_pSelf = x.m_pSelf;
         ::VSchemaAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -735,6 +727,9 @@ namespace KDBObjects
 
     CKIndex& CKIndex::operator=(CKIndex const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -792,6 +787,9 @@ namespace KDBObjects
 
     CKTable& CKTable::operator=(CKTable const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -1080,6 +1078,7 @@ namespace Utils
 
 namespace KSearch
 {
+#if 0 // turning off old code
     void FindRefVariationRegionAscii (
             char const* ref, size_t ref_size, size_t ref_pos_var,
             char const* variation, size_t variation_size, size_t var_len_on_ref,
@@ -1103,5 +1102,94 @@ namespace KSearch
     {
         FindRefVariationRegionAscii ( ref.c_str(), ref.size(), ref_pos_var,
             variation, variation_size, var_len_on_ref, & ref_start, & ref_len );
+    }
+#endif
+
+////////////////////////////////////////////////
+
+    CVRefVariation::CVRefVariation() : m_pSelf(NULL)
+    {}
+
+    CVRefVariation::~CVRefVariation()
+    {
+        Release();
+    }
+
+    CVRefVariation::CVRefVariation(CVRefVariation const& x)
+    {
+        Clone(x);
+    }
+
+    CVRefVariation& CVRefVariation::operator=(CVRefVariation const& x)
+    {
+        if (m_pSelf)
+            Release();
+
+        Clone(x);
+        return *this;
+    }
+
+    void CVRefVariation::Release()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing VRefVariation %p\n", m_pSelf);
+#endif
+            ::VRefVariationIUPACRelease(m_pSelf);
+            m_pSelf = NULL;
+        }
+    }
+
+    void CVRefVariation::Clone(CVRefVariation const& x)
+    {
+        m_pSelf = x.m_pSelf;
+        ::VRefVariationIUPACAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
+        printf ("CLONING VRefVariation %p\n", m_pSelf);
+#endif
+    }
+    char const* CVRefVariation::GetVariation() const
+    {
+        if ( m_pSelf == NULL )
+            return "";
+        return ::VRefVariationIUPACGetVariation ( m_pSelf );
+    }
+
+    size_t CVRefVariation::GetVarStart() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetVarStart ( m_pSelf );
+    }
+
+    size_t CVRefVariation::GetVarSize() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetVarSize ( m_pSelf );
+    }
+
+    size_t CVRefVariation::GetVarLenOnRef() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetVarLenOnRef ( m_pSelf );
+    }
+
+    CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+            size_t ref_pos_var, char const* variation, size_t variation_size,
+            size_t var_len_on_ref)
+    {
+        CVRefVariation obj;
+        rc_t rc = ::VRefVariationIUPACMake (& obj.m_pSelf,
+            ref, ref_size, ref_pos_var, variation, variation_size, var_len_on_ref);
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VRefVariationIUPACMake");
+
+#if DEBUG_PRINT != 0
+        printf("Created RefVariation (rd) %p\n", obj.m_pSelf);
+#endif
+        return obj;
     }
 }

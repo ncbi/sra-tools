@@ -227,7 +227,7 @@ static rc_t vdb_fastq1_frag( fastq_spot * spot, int64_t row_id, const fastq_ctx 
 		uint32_t idx, frag, ofs;
 		for ( idx = 0, frag = 1, ofs = 0; rc == 0 && idx < spot->num_rd_start; ++idx )
 		{
-			if ( spot->rd_type[ idx ] == READ_TYPE_BIOLOGICAL &&
+			if ( ( ( spot->rd_type[ idx ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL ) &&
 			     spot->rd_filter[ idx ] == READ_FILTER_PASS &&
 				 spot->rd_len[ idx ] > 0 )
 			{

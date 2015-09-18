@@ -49,13 +49,15 @@ typedef struct fastq_ctx
 	const VTable * tbl;
     const VCursor * cursor;
 	const struct num_gen_iter * row_iter;
+	dump_format_t format;
+	size_t cur_cache_size;
+	uint32_t max_line_len;
     uint32_t idx_read;
     uint32_t idx_qual;
     uint32_t idx_name;
 	uint32_t idx_read_start;
 	uint32_t idx_read_len;
 	uint32_t idx_read_type;
-	uint32_t idx_read_filter;
 } fastq_ctx;
 
 
@@ -69,19 +71,21 @@ static char * vdb_fastq_extract_run_name( const char * acc_or_path )
 }
 
 
-static void init_fastq_ctx( fastq_ctx * fctx, const char * acc_or_path )
+static void init_fastq_ctx( const p_dump_context ctx, fastq_ctx * fctx, const char * acc_or_path )
 {
 	fctx->run_name = vdb_fastq_extract_run_name( acc_or_path );
 	fctx->tbl      = NULL;	
 	fctx->cursor   = NULL;
 	fctx->row_iter = NULL;
+	fctx->max_line_len = ctx->max_line_len;
+	fctx->format   = ctx->format;
+	fctx->cur_cache_size = ctx->cur_cache_size;
 	fctx->idx_read = INVALID_COLUMN;
 	fctx->idx_qual = INVALID_COLUMN;
 	fctx->idx_name = INVALID_COLUMN;
 	fctx->idx_read_start  = INVALID_COLUMN;
 	fctx->idx_read_len    = INVALID_COLUMN;
 	fctx->idx_read_type   = INVALID_COLUMN;
-	fctx->idx_read_filter = INVALID_COLUMN;
 }
 
 
@@ -126,50 +130,46 @@ static rc_t prepare_column( fastq_ctx * fctx, KNamelist * col_names, uint32_t * 
 	{
 		rc = VCursorAddColumn( fctx->cursor, col_idx, col_spec );
 		if ( rc != 0 )
+		{
+			*col_idx = INVALID_COLUMN;
 			PLOGERR( klogInt, ( klogInt, rc, "VCurosrAddColumn( '$(col)' ) failed", "col=%s", col_spec ) );
+		}
 	}
 	return rc;
 }
 
 
-static rc_t vdb_prepare_cursor( const p_dump_context ctx, fastq_ctx * fctx )
+static rc_t vdb_prepare_cursor( fastq_ctx * fctx )
 {
 	KNamelist * col_names;
 	rc_t rc = VTableListCol( fctx->tbl, &col_names );
 	DISP_RC( rc, "VTableListCol() failed" );
 	if ( rc == 0 )
 	{
-		rc = VTableCreateCachedCursorRead( fctx->tbl, &fctx->cursor, ctx->cur_cache_size );
+		rc = VTableCreateCachedCursorRead( fctx->tbl, &fctx->cursor, fctx->cur_cache_size );
 		DISP_RC( rc, "VTableCreateCursorRead( fasta/fastq ) failed" );
 		if ( rc == 0 )
 			rc = prepare_column( fctx, col_names, &fctx->idx_read, "READ", "(INSDC:dna:text)READ" );
 	
-		if ( rc == 0 && ( ctx->format == df_fastq || ctx->format == df_fastq1 ) )
+		if ( rc == 0 && ( fctx->format == df_fastq || fctx->format == df_fastq1 ) )
 			rc = prepare_column( fctx, col_names, &fctx->idx_qual, "QUALITY", "(INSDC:quality:text:phred_33)QUALITY" );
 		
 		if ( rc == 0 )
 		{
-			if ( ctx->format == df_fasta2 )
-			{
+			if ( fctx->format == df_fasta2 )
 				rc = prepare_column( fctx, col_names, &fctx->idx_name, "SEQ_ID", "(ascii)SEQ_ID" );
-				if ( fctx->idx_name == INVALID_COLUMN )
-					rc = prepare_column( fctx, col_names, &fctx->idx_name, "NAME", "(ascii)NAME" );
-			}
-			else
+			if ( rc == 0 && fctx->idx_name == INVALID_COLUMN )
 				rc = prepare_column( fctx, col_names, &fctx->idx_name, "NAME", "(ascii)NAME" );
 		}
 
-		if ( rc == 0 && ctx->format == df_fastq1 )
+		if ( rc == 0 )
 			rc = prepare_column( fctx, col_names, &fctx->idx_read_start, "READ_START", "(INSDC:coord:zero)READ_START" );
 
-		if ( rc == 0 && ctx->format == df_fastq1 )
+		if ( rc == 0 )
 			rc = prepare_column( fctx, col_names, &fctx->idx_read_len, "READ_LEN", "(INSDC:coord:len)READ_LEN" );
 
-		if ( rc == 0 && ctx->format == df_fastq1 )
+		if ( rc == 0 )
 			rc = prepare_column( fctx, col_names, &fctx->idx_read_type, "READ_TYPE", "(INSDC:SRA:xread_type)READ_TYPE" );
-
-		if ( rc == 0 && ctx->format == df_fastq1 )
-			rc = prepare_column( fctx, col_names, &fctx->idx_read_filter, "READ_FILTER", "(INSDC:SRA:read_filter)READ_FILTER" );
 
 		if ( rc == 0 )
 		{
@@ -190,14 +190,12 @@ typedef struct fastq_spot
 	const uint32_t * rd_start;
 	const uint32_t * rd_len;
 	const uint8_t * rd_type;
-	const uint8_t * rd_filter;
 	uint32_t name_len;
 	uint32_t num_bases;
 	uint32_t num_qual;
 	uint32_t num_rd_start;
 	uint32_t num_rd_len;
 	uint32_t num_rd_type;
-	uint32_t num_rd_filter;
 } fastq_spot;
 
 
@@ -212,15 +210,14 @@ static rc_t vdb_fastq1_frag( fastq_spot * spot, int64_t row_id, const fastq_ctx 
 					"row=%li,n_bases=%d,n_qual=%d", row_id, spot->num_bases, spot->num_qual ) );
 	}
 	else if ( spot->num_rd_start != spot->num_rd_len ||
-			   spot->num_rd_start != spot->num_rd_type ||
-			   spot->num_rd_start != spot->num_rd_filter )
+			   spot->num_rd_start != spot->num_rd_type )
 	{
 		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
 		PLOGERR( klogInt,
 				 ( klogInt, rc, 
-				   "invalid spot #$(row): #READ_START=$(rd_start), #READ_LEN=$(rd_len), #READ_TYPE=$(rd_type), #READ_FILTER=$(rd_filter) ",
-				   "row=%li,rd_start=%d,rd_len=%d,rd_type=%d,rd_filter=%d",
-				   row_id, spot->num_rd_start, spot->num_rd_len, spot->num_rd_type, spot->num_rd_filter ) );
+				   "invalid spot #$(row): #READ_START=$(rd_start), #READ_LEN=$(rd_len), #READ_TYPE=$(rd_type)",
+				   "row=%li,rd_start=%d,rd_len=%d,rd_type=%d",
+				   row_id, spot->num_rd_start, spot->num_rd_len, spot->num_rd_type ) );
 	}
 	else
 	{
@@ -228,7 +225,6 @@ static rc_t vdb_fastq1_frag( fastq_spot * spot, int64_t row_id, const fastq_ctx 
 		for ( idx = 0, frag = 1, ofs = 0; rc == 0 && idx < spot->num_rd_start; ++idx )
 		{
 			if ( ( ( spot->rd_type[ idx ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL ) &&
-			     spot->rd_filter[ idx ] == READ_FILTER_PASS &&
 				 spot->rd_len[ idx ] > 0 )
 			{
 				rc = KOutMsg( "@%s.%li.%d %.*s length=%u\n%.*s\n+%s.%li.%d %.*s length=%u\n%.*s\n",
@@ -245,13 +241,68 @@ static rc_t vdb_fastq1_frag( fastq_spot * spot, int64_t row_id, const fastq_ctx 
 	return rc;
 }
 
-static rc_t vdb_fastq1_loop( const p_dump_context ctx, const fastq_ctx * fctx )
+
+static rc_t read_spot( const fastq_ctx * fctx, int64_t row_id, fastq_spot * spot )
+{
+	rc_t rc = 0;
+	uint32_t elem_bits, boff;
+	if ( fctx->idx_name != INVALID_COLUMN )
+	{
+		rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
+									(const void**)&spot->name, &boff, &spot->name_len );
+		if ( rc != 0 )
+			vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
+	}
+
+	if ( rc == 0 && fctx->idx_read != INVALID_COLUMN )
+	{
+		rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
+									(const void**)&spot->bases, &boff, &spot->num_bases );
+		if ( rc != 0 )
+			vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
+	}
+	
+	if ( rc == 0 && fctx->idx_qual != INVALID_COLUMN )
+	{
+		rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_qual, &elem_bits,
+									(const void**)&spot->qual, &boff, &spot->num_qual );
+		if ( rc != 0 )
+			vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), QUALITY ) failed", rc, row_id );
+	}
+
+	if ( rc == 0 && fctx->idx_read_start != INVALID_COLUMN )
+	{
+		rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read_start, &elem_bits,
+									(const void**)&spot->rd_start, &boff, &spot->num_rd_start );
+		if ( rc != 0 )
+			vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ_START ) failed", rc, row_id );
+	}
+	
+	if ( rc == 0 && fctx->idx_read_len != INVALID_COLUMN )
+	{
+		rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read_len, &elem_bits,
+									(const void**)&spot->rd_len, &boff, &spot->num_rd_len );
+		if ( rc != 0 )
+			vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ_LEN ) failed", rc, row_id );
+	}
+
+	if ( rc == 0 && fctx->idx_read_type != INVALID_COLUMN )
+	{
+		rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read_type, &elem_bits,
+									(const void**)&spot->rd_type, &boff, &spot->num_rd_type );
+		if ( rc != 0 )
+			vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ_TYPE ) failed", rc, row_id );
+	}
+	
+	return rc;
+}
+
+static rc_t vdb_fastq1_loop( const fastq_ctx * fctx )
 {
 	rc_t rc;
 	if ( fctx->idx_read == INVALID_COLUMN || fctx->idx_name == INVALID_COLUMN ||
 	     fctx->idx_qual == INVALID_COLUMN || fctx->idx_read_start == INVALID_COLUMN ||
-		 fctx->idx_read_len == INVALID_COLUMN || fctx->idx_read_type == INVALID_COLUMN ||
-		 fctx->idx_read_filter == INVALID_COLUMN )
+		 fctx->idx_read_len == INVALID_COLUMN || fctx->idx_read_type == INVALID_COLUMN )
 	{
 		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
 		DISP_RC( rc, "cannot generate fasta-format, at least one of these columns not found: READ, NAME, QUALITY, READ_START, READ_LEN, READ_TYPE, READ_FILTER" );
@@ -265,57 +316,10 @@ static rc_t vdb_fastq1_loop( const p_dump_context ctx, const fastq_ctx * fctx )
 				rc = Quitting();
 			if ( rc == 0 )
 			{
-				uint32_t elem_bits, boff;
 				fastq_spot spot;
-				
-				rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
-											(const void**)&spot.name, &boff, &spot.name_len );
-				if ( rc != 0 )
-					vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
-				else
-				{
-					rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-												(const void**)&spot.bases, &boff, &spot.num_bases );
-					if ( rc != 0 )
-						vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
-					else
-					{
-						rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_qual, &elem_bits,
-													(const void**)&spot.qual, &boff, &spot.num_qual );
-						if ( rc != 0 )
-							vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), QUALITY ) failed", rc, row_id );
-						else
-						{
-							rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read_start, &elem_bits,
-														(const void**)&spot.rd_start, &boff, &spot.num_rd_start );
-							if ( rc != 0 )
-								vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ_START ) failed", rc, row_id );
-							else
-							{
-								rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read_len, &elem_bits,
-															(const void**)&spot.rd_len, &boff, &spot.num_rd_len );
-								if ( rc != 0 )
-									vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ_LEN ) failed", rc, row_id );
-								else
-								{
-									rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read_type, &elem_bits,
-																(const void**)&spot.rd_type, &boff, &spot.num_rd_type );
-									if ( rc != 0 )
-										vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ_TYPE ) failed", rc, row_id );
-									else
-									{
-										rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read_filter, &elem_bits,
-																	(const void**)&spot.rd_filter, &boff, &spot.num_rd_filter );
-										if ( rc != 0 )
-											vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ_FILTER ) failed", rc, row_id );
-										else
-											rc = vdb_fastq1_frag( &spot, row_id, fctx );
-									}
-								}
-							}
-						}
-					}
-				}
+				rc = read_spot( fctx, row_id, &spot );
+				if ( rc == 0 )
+					rc = vdb_fastq1_frag( &spot, row_id, fctx );
 			}
 		}
 	}
@@ -323,13 +327,13 @@ static rc_t vdb_fastq1_loop( const p_dump_context ctx, const fastq_ctx * fctx )
 }
 
 
-static rc_t vdb_fastq_loop_with_name( const p_dump_context ctx, const fastq_ctx * fctx )
+static rc_t vdb_fastq_loop( const fastq_ctx * fctx )
 {
 	rc_t rc;
-	if ( fctx->idx_read == INVALID_COLUMN || fctx->idx_name == INVALID_COLUMN || fctx->idx_qual == INVALID_COLUMN )
+	if ( fctx->idx_read == INVALID_COLUMN || fctx->idx_qual == INVALID_COLUMN )
 	{
 		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
-		DISP_RC( rc, "cannot generate fasta-format: READ, NAME and/or QUALITY column not found" );
+		DISP_RC( rc, "cannot generate fasta-format: READ and/or QUALITY column not found" );
 	}
 	else
 	{
@@ -340,35 +344,23 @@ static rc_t vdb_fastq_loop_with_name( const p_dump_context ctx, const fastq_ctx 
 				rc = Quitting();
 			if ( rc == 0 )
 			{
-				uint32_t elem_bits, boff, row_len, name_len;
-				const char * data;
-				const char * name;
-
-				rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
-											(const void**)&name, &boff, &name_len );
-				if ( rc != 0 )
-					vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
-				else
+				fastq_spot spot;
+				rc = read_spot( fctx, row_id, &spot );
+				if ( rc == 0 )
 				{
-					rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-												(const void**)&data, &boff, &row_len );
-					if ( rc != 0 )
-						vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
+					if ( fctx->idx_name != INVALID_COLUMN )
+						rc = KOutMsg( "@%s.%li %.*s length=%u\n%.*s\n+%s.%li %.*s length=%u\n%.*s\n",
+									fctx->run_name, row_id, spot.name_len, spot.name, spot.num_bases,
+									spot.num_bases, spot.bases,
+									fctx->run_name, row_id, spot.name_len, spot.name, spot.num_qual,
+									spot.num_qual, spot.qual );
 					else
-					{
-						rc = KOutMsg( "@%s.%li %.*s length=%u\n%.*s\n",
-									  fctx->run_name, row_id, name_len, name, row_len, row_len, data );
-						if ( rc == 0 )
-						{
-							rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_qual, &elem_bits,
-														(const void**)&data, &boff, &row_len );
-							if ( rc != 0 )
-								vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), QUALITY ) failed", rc, row_id );
-							else
-								rc = KOutMsg( "+%s.%li %.*s length=%u\n%.*s\n",
-											  fctx->run_name, row_id, name_len, name, row_len, row_len, data );
-						}
-					}
+					
+						rc = KOutMsg( "@%s.%li %li length=%u\n%.*s\n+%s.%li %li length=%u\n%.*s\n",
+									fctx->run_name, row_id, row_id, spot.num_bases,
+									spot.num_bases, spot.bases,
+									fctx->run_name, row_id, row_id, spot.num_bases,
+									spot.num_qual, spot.qual );
 				}
 			}
 		}
@@ -403,99 +395,7 @@ static rc_t print_bases( const char * bases, uint32_t num_bases, uint32_t max_li
 }
 
 
-static rc_t vdb_fasta_loop_with_name( const p_dump_context ctx, const fastq_ctx * fctx )
-{
-	rc_t rc;
-	if ( fctx->idx_read == INVALID_COLUMN || fctx->idx_name == INVALID_COLUMN )
-	{
-		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
-		DISP_RC( rc, "cannot generate fasta-format: READ and/or NAME column not found" );
-	}
-	else
-	{
-		int64_t row_id;
-		while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
-		{
-			if ( rc == 0 )
-				rc = Quitting();
-			if ( rc == 0 )
-			{
-				uint32_t elem_bits, boff, name_len;
-				const char * name;
-
-				rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
-											(const void**)&name, &boff, &name_len );
-				if ( rc != 0 )
-					vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
-				else
-				{
-					const char * bases;
-					uint32_t num_bases;
-					rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-												(const void**)&bases, &boff, &num_bases );
-					if ( rc != 0 )
-						vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
-					else
-					{
-						rc = KOutMsg( ">%s.%li %.*s length=%u\n", fctx->run_name, row_id, name_len, name, num_bases );
-						if ( rc == 0 )
-							rc = print_bases( bases, num_bases, ctx->max_line_len );
-					}
-				}
-			}
-		}
-	}
-    return rc;
-}
-
-
-static rc_t vdb_fastq_loop_without_name( const p_dump_context ctx, const fastq_ctx * fctx )
-{
-	rc_t rc;
-	if ( fctx->idx_read == INVALID_COLUMN || fctx->idx_qual == INVALID_COLUMN )
-	{
-		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
-		DISP_RC( rc, "cannot generate fasta-format: READ and/or QUALITY column not found" );
-	}
-	else
-	{
-		int64_t row_id;
-		while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
-		{
-			if ( rc == 0 )
-				rc = Quitting();
-			if ( rc == 0 )
-			{
-				uint32_t elem_bits, boff, row_len;
-				const char * data;
-
-				rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-											(const void**)&data, &boff, &row_len );
-				if ( rc != 0 )
-					vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
-				else
-				{
-					rc = KOutMsg( "@%s.%li %li length=%u\n%.*s\n",
-								  fctx->run_name, row_id, row_id, row_len, row_len, data );
-					if ( rc == 0 )
-					{
-						rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_qual, &elem_bits,
-													(const void**)&data, &boff, &row_len );
-						if ( rc != 0 )
-							vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), QUALITY ) failed", rc, row_id );
-						else
-							rc = KOutMsg( "+%s.%li %li length=%u\n%.*s\n",
-										  fctx->run_name, row_id, row_id, row_len, row_len, data );
-					}
-				}
-			}
-		}
-	}
-    return rc;
-}
-
-
-static rc_t vdb_fasta_loop_without_name( const p_dump_context ctx, const fastq_ctx * fctx )
+static rc_t vdb_fasta_loop( const fastq_ctx * fctx )
 {
 	rc_t rc;
 	if ( fctx->idx_read == INVALID_COLUMN )
@@ -512,18 +412,18 @@ static rc_t vdb_fasta_loop_without_name( const p_dump_context ctx, const fastq_c
 				rc = Quitting();
 			if ( rc == 0 )
 			{
-				uint32_t elem_bits, boff, num_bases;
-				const char * bases;
-
-				rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-											(const void**)&bases, &boff, &num_bases );
-				if ( rc != 0 )
-					vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
-				else
+				fastq_spot spot;
+				rc = read_spot( fctx, row_id, &spot );
+				if ( rc == 0 )
 				{
-					rc = KOutMsg( ">%s.%li %li length=%u\n", fctx->run_name, row_id, row_id, num_bases );
+					if ( fctx->idx_name != INVALID_COLUMN )
+						rc = KOutMsg( ">%s.%li %.*s length=%u\n",
+								fctx->run_name, row_id, spot.name_len, spot.name, spot.num_bases );
+					else
+						rc = KOutMsg( ">%s.%li %li length=%u\n", fctx->run_name, row_id, row_id, spot.num_bases );
+						
 					if ( rc == 0 )
-						rc = print_bases( bases, num_bases, ctx->max_line_len );
+						rc = print_bases( spot.bases, spot.num_bases, fctx->max_line_len );
 				}
 			}
 		}
@@ -571,7 +471,8 @@ static rc_t vdb_fasta_accumulated( const char * bases, uint32_t num_bases,
 	return rc;
 }
 
-static rc_t vdb_fasta1_loop( const p_dump_context ctx, const fastq_ctx * fctx )
+
+static rc_t vdb_fasta1_loop( const fastq_ctx * fctx )
 {
 	rc_t rc;
 	if ( fctx->idx_read == INVALID_COLUMN )
@@ -582,7 +483,7 @@ static rc_t vdb_fasta1_loop( const p_dump_context ctx, const fastq_ctx * fctx )
 	else
 	{
 		int64_t row_id;
-		int32_t chars_left_on_line = ctx->max_line_len;
+		int32_t chars_left_on_line = fctx->max_line_len;
 		
 		rc = KOutMsg( ">%s\n", fctx->run_name );
 		while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
@@ -591,15 +492,10 @@ static rc_t vdb_fasta1_loop( const p_dump_context ctx, const fastq_ctx * fctx )
 				rc = Quitting();
 			if ( rc == 0 )
 			{
-				uint32_t elem_bits, boff, num_bases;
-				const char * bases;
-
-				rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-											(const void**)&bases, &boff, &num_bases );
-				if ( rc != 0 )
-					vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
-				else
-					rc = vdb_fasta_accumulated( bases, num_bases, &chars_left_on_line, ctx->max_line_len );
+				fastq_spot spot;
+				rc = read_spot( fctx, row_id, &spot );
+				if ( rc == 0 )
+					rc = vdb_fasta_accumulated( spot.bases, spot.num_bases, &chars_left_on_line, fctx->max_line_len );
 			}
 		}
 		rc = KOutMsg( "\n" );
@@ -608,7 +504,7 @@ static rc_t vdb_fasta1_loop( const p_dump_context ctx, const fastq_ctx * fctx )
 }
 
 
-static rc_t vdb_fasta2_loop( const p_dump_context ctx, const fastq_ctx * fctx )
+static rc_t vdb_fasta2_loop( const fastq_ctx * fctx )
 {
 	rc_t rc = 0;
 	if ( fctx->idx_name == INVALID_COLUMN || fctx->idx_read == INVALID_COLUMN )
@@ -621,7 +517,7 @@ static rc_t vdb_fasta2_loop( const p_dump_context ctx, const fastq_ctx * fctx )
 		char last_name[ 1024 ];
 		size_t last_name_len = 0;
 		int64_t row_id;
-		int32_t chars_left_on_line = ctx->max_line_len;
+		int32_t chars_left_on_line = fctx->max_line_len;
 		
 		while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
 		{
@@ -629,46 +525,32 @@ static rc_t vdb_fasta2_loop( const p_dump_context ctx, const fastq_ctx * fctx )
 				rc = Quitting();
 			if ( rc == 0 )
 			{
-				uint32_t elem_bits, boff, name_len;
-				const char * name;
-
-				rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_name, &elem_bits,
-											(const void**)&name, &boff, &name_len );
-				if ( rc != 0 )
-					vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), NAME ) failed", rc, row_id );
-				else
+				fastq_spot spot;
+				rc = read_spot( fctx, row_id, &spot );
+				if ( rc == 0 )
 				{
 					bool print_ref_name = ( last_name_len == 0 );
 					if ( !print_ref_name )
 					{
-						print_ref_name = ( last_name_len != name_len );
+						print_ref_name = ( last_name_len != spot.name_len );
 						if ( !print_ref_name )
-							print_ref_name = ( string_cmp( last_name, last_name_len, name, name_len, name_len ) != 0 );
+							print_ref_name = ( string_cmp( last_name, last_name_len, spot.name, spot.name_len, spot.name_len ) != 0 );
 					}
 					
 					if ( print_ref_name )
 					{
-						if ( chars_left_on_line == ctx->max_line_len )
-							rc = KOutMsg( ">%.*s\n", name_len, name );
+						if ( chars_left_on_line == fctx->max_line_len )
+							rc = KOutMsg( ">%.*s\n", spot.name_len, spot.name );
 						else
 						{
-							rc = KOutMsg( "\n>%.*s\n", name_len, name );
-							chars_left_on_line = ctx->max_line_len;
+							rc = KOutMsg( "\n>%.*s\n", spot.name_len, spot.name );
+							chars_left_on_line = fctx->max_line_len;
 						}
-						last_name_len = string_copy ( last_name, sizeof last_name, name, name_len );
+						last_name_len = string_copy ( last_name, sizeof last_name, spot.name, spot.name_len );
 					}
 					
 					if ( rc == 0 )
-					{
-						const char * bases;
-						uint32_t num_bases;
-						rc = VCursorCellDataDirect( fctx->cursor, row_id, fctx->idx_read, &elem_bits,
-													(const void**)&bases, &boff, &num_bases );
-						if ( rc != 0 )
-							vdb_fastq_row_error( "VCursorCellDataDirect( row#$(row_nr), READ ) failed", rc, row_id );
-						else
-							rc = vdb_fasta_accumulated( bases, num_bases, &chars_left_on_line, ctx->max_line_len );
-					}
+						rc = vdb_fasta_accumulated( spot.bases, spot.num_bases, &chars_left_on_line, fctx->max_line_len );
 				}
 			}
 		}
@@ -680,12 +562,13 @@ static rc_t vdb_fasta2_loop( const p_dump_context ctx, const fastq_ctx * fctx )
 
 static rc_t vdb_fastq_tbl( const p_dump_context ctx, fastq_ctx * fctx )
 {
-    rc_t rc = vdb_prepare_cursor( ctx, fctx );
+    rc_t rc = vdb_prepare_cursor( fctx );
     DISP_RC( rc, "the table lacks READ and/or QUALITY column" );
     if ( rc == 0 )
     {
         int64_t  first;
         uint64_t count;
+		/* READ is the colum we have in all cases... */
         rc = VCursorIdRange( fctx->cursor, fctx->idx_read, &first, &count );
         DISP_RC( rc, "VCursorIdRange() failed" );
         if ( rc == 0 )
@@ -715,33 +598,29 @@ static rc_t vdb_fastq_tbl( const p_dump_context ctx, fastq_ctx * fctx )
 					DISP_RC( rc, "num_gen_iterator_make() failed" );
 					if ( rc == 0 )
 					{
-						switch( ctx->format )
-						{
-							case df_fastq : if ( fctx->idx_name == INVALID_COLUMN )
-												rc = vdb_fastq_loop_without_name( ctx, fctx ); /* <--- */
-											 else
-												rc = vdb_fastq_loop_with_name( ctx, fctx ); /* <--- */
-											 break;
-
-							case df_fastq1 : rc = vdb_fastq1_loop( ctx, fctx ); /* <--- */
-											  break;
-											 
-							case df_fasta : if ( ctx->max_line_len == 0 )
-												ctx->max_line_len = DEF_FASTA_LEN;
-											 if ( fctx->idx_name == INVALID_COLUMN )
-												rc = vdb_fasta_loop_without_name( ctx, fctx ); /* <--- */
-											 else
-												rc = vdb_fasta_loop_with_name( ctx, fctx ); /* <--- */
-											 break;
+						if ( fctx->max_line_len == 0 )
+							fctx->max_line_len = DEF_FASTA_LEN;
 							
-							case df_fasta1 : if ( ctx->max_line_len == 0 )
-												ctx->max_line_len = DEF_FASTA_LEN;
-											  rc = vdb_fasta1_loop( ctx, fctx ); /* <--- */
+						switch( fctx->format )
+						{
+							/* one FASTQ-record ( 4 liner ) per READ/SPOT */
+							case df_fastq : rc = vdb_fastq_loop( fctx ); /* <--- */
 											 break;
 
-							case df_fasta2 : if ( ctx->max_line_len == 0 )
-												ctx->max_line_len = DEF_FASTA_LEN;
-											  rc = vdb_fasta2_loop( ctx, fctx ); /* <--- */
+							/* one FASTQ-record ( 4 liner ) per FRAGMENT/ALIGNMENT */
+							case df_fastq1 : rc = vdb_fastq1_loop( fctx ); /* <--- */
+											  break;
+
+							/* one FASTA-record ( 2 liner ) per READ/SPOT */
+							case df_fasta :  rc = vdb_fasta_loop( fctx ); /* <--- */
+											 break;
+
+							 /* one FASTA-record ( many lines ) for the whole accession ( REFSEQ-accession )  */
+							case df_fasta1 : rc = vdb_fasta1_loop( fctx ); /* <--- */
+											 break;
+
+							 /* one FASTA-record ( many lines ) for each REFERENCE used in a cSRA-database  */
+							case df_fasta2 : rc = vdb_fasta2_loop( fctx ); /* <--- */
 											 break;
 
 							default : break;
@@ -891,7 +770,7 @@ rc_t vdf_main( const p_dump_context ctx, const VDBManager * mgr, const char * ac
 {
     rc_t rc = 0;
     fastq_ctx fctx;
-	init_fastq_ctx( &fctx, acc_or_path );
+	init_fastq_ctx( ctx, &fctx, acc_or_path );
     ctx->path = string_dup_measure ( acc_or_path, NULL );
 	
     if ( USE_PATHTYPE_TO_DETECT_DB_OR_TAB ) /* in vdb-dump-context.h */

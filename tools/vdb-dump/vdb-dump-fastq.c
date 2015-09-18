@@ -199,49 +199,6 @@ typedef struct fastq_spot
 } fastq_spot;
 
 
-static rc_t vdb_fastq1_frag( fastq_spot * spot, int64_t row_id, const fastq_ctx * fctx )
-{
-	rc_t rc = 0;
-	if ( spot->num_bases != spot->num_qual )
-	{
-		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
-		PLOGERR( klogInt,
-				 ( klogInt, rc, "invalid spot #$(row): bases.len( $(n_bases) ) != qual.len( $(n_qual)",
-					"row=%li,n_bases=%d,n_qual=%d", row_id, spot->num_bases, spot->num_qual ) );
-	}
-	else if ( spot->num_rd_start != spot->num_rd_len ||
-			   spot->num_rd_start != spot->num_rd_type )
-	{
-		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
-		PLOGERR( klogInt,
-				 ( klogInt, rc, 
-				   "invalid spot #$(row): #READ_START=$(rd_start), #READ_LEN=$(rd_len), #READ_TYPE=$(rd_type)",
-				   "row=%li,rd_start=%d,rd_len=%d,rd_type=%d",
-				   row_id, spot->num_rd_start, spot->num_rd_len, spot->num_rd_type ) );
-	}
-	else
-	{
-		uint32_t idx, frag, ofs;
-		for ( idx = 0, frag = 1, ofs = 0; rc == 0 && idx < spot->num_rd_start; ++idx )
-		{
-			if ( ( ( spot->rd_type[ idx ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL ) &&
-				 spot->rd_len[ idx ] > 0 )
-			{
-				rc = KOutMsg( "@%s.%li.%d %.*s length=%u\n%.*s\n+%s.%li.%d %.*s length=%u\n%.*s\n",
-							  fctx->run_name, row_id, frag, spot->name_len, spot->name, spot->rd_len[ idx ],
-							  spot->rd_len[ idx ], &( spot->bases[ ofs ] ),
-							  fctx->run_name, row_id, frag, spot->name_len, spot->name, spot->rd_len[ idx ],
-							  spot->rd_len[ idx ], &( spot->qual[ ofs ] )
-							  );
-				frag++;
-			}
-			ofs += spot->rd_len[ idx ];
-		}
-	}
-	return rc;
-}
-
-
 static rc_t read_spot( const fastq_ctx * fctx, int64_t row_id, fastq_spot * spot )
 {
 	rc_t rc = 0;
@@ -297,46 +254,104 @@ static rc_t read_spot( const fastq_ctx * fctx, int64_t row_id, fastq_spot * spot
 	return rc;
 }
 
-static rc_t vdb_fastq1_loop( const fastq_ctx * fctx )
+
+static rc_t vdb_fastq1_frag_type_checked( fastq_spot * spot, int64_t row_id, const fastq_ctx * fctx )
 {
-	rc_t rc;
-	if ( fctx->idx_read == INVALID_COLUMN || fctx->idx_name == INVALID_COLUMN ||
-	     fctx->idx_qual == INVALID_COLUMN || fctx->idx_read_start == INVALID_COLUMN ||
-		 fctx->idx_read_len == INVALID_COLUMN || fctx->idx_read_type == INVALID_COLUMN )
+	rc_t rc = 0;
+	if ( spot->num_bases != spot->num_qual )
 	{
 		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
-		DISP_RC( rc, "cannot generate fasta-format, at least one of these columns not found: READ, NAME, QUALITY, READ_START, READ_LEN, READ_TYPE, READ_FILTER" );
+		PLOGERR( klogInt,
+				 ( klogInt, rc, "invalid spot #$(row): bases.len( $(n_bases) ) != qual.len( $(n_qual)",
+					"row=%li,n_bases=%d,n_qual=%d", row_id, spot->num_bases, spot->num_qual ) );
+	}
+	else if ( spot->num_rd_start != spot->num_rd_len ||
+			   spot->num_rd_start != spot->num_rd_type )
+	{
+		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
+		PLOGERR( klogInt,
+				 ( klogInt, rc, 
+				   "invalid spot #$(row): #READ_START=$(rd_start), #READ_LEN=$(rd_len), #READ_TYPE=$(rd_type)",
+				   "row=%li,rd_start=%d,rd_len=%d,rd_type=%d",
+				   row_id, spot->num_rd_start, spot->num_rd_len, spot->num_rd_type ) );
 	}
 	else
 	{
-		int64_t row_id;
-		while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
+		uint32_t idx, frag, ofs;
+		for ( idx = 0, frag = 1, ofs = 0; rc == 0 && idx < spot->num_rd_start; ++idx )
 		{
-			if ( rc == 0 )
-				rc = Quitting();
-			if ( rc == 0 )
+			if ( ( ( spot->rd_type[ idx ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL ) &&
+				 spot->rd_len[ idx ] > 0 )
 			{
-				fastq_spot spot;
-				rc = read_spot( fctx, row_id, &spot );
-				if ( rc == 0 )
-					rc = vdb_fastq1_frag( &spot, row_id, fctx );
+				rc = KOutMsg( "@%s.%li.%d %.*s length=%u\n%.*s\n+%s.%li.%d %.*s length=%u\n%.*s\n",
+							  fctx->run_name, row_id, frag, spot->name_len, spot->name, spot->rd_len[ idx ],
+							  spot->rd_len[ idx ], &( spot->bases[ ofs ] ),
+							  fctx->run_name, row_id, frag, spot->name_len, spot->name, spot->rd_len[ idx ],
+							  spot->rd_len[ idx ], &( spot->qual[ ofs ] )
+							  );
+				frag++;
 			}
+			ofs += spot->rd_len[ idx ];
 		}
 	}
 	return rc;
 }
 
 
-static rc_t vdb_fastq_loop( const fastq_ctx * fctx )
+static rc_t vdb_fastq1_frag_not_type_checked( fastq_spot * spot, int64_t row_id, const fastq_ctx * fctx )
 {
-	rc_t rc;
-	if ( fctx->idx_read == INVALID_COLUMN || fctx->idx_qual == INVALID_COLUMN )
+	rc_t rc = 0;
+	if ( spot->num_bases != spot->num_qual )
 	{
 		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
-		DISP_RC( rc, "cannot generate fasta-format: READ and/or QUALITY column not found" );
+		PLOGERR( klogInt,
+				 ( klogInt, rc, "invalid spot #$(row): bases.len( $(n_bases) ) != qual.len( $(n_qual)",
+					"row=%li,n_bases=%d,n_qual=%d", row_id, spot->num_bases, spot->num_qual ) );
+	}
+	else if ( spot->num_rd_start != spot->num_rd_len )
+	{
+		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
+		PLOGERR( klogInt,
+				 ( klogInt, rc, 
+				   "invalid spot #$(row): #READ_START=$(rd_start), #READ_LEN=$(rd_len)",
+				   "row=%li,rd_start=%d,rd_len=%d",
+				   row_id, spot->num_rd_start, spot->num_rd_len ) );
 	}
 	else
 	{
+		uint32_t idx, frag, ofs;
+		for ( idx = 0, frag = 1, ofs = 0; rc == 0 && idx < spot->num_rd_start; ++idx )
+		{
+			if ( spot->rd_len[ idx ] > 0 )
+			{
+				rc = KOutMsg( "@%s.%li.%d %.*s length=%u\n%.*s\n+%s.%li.%d %.*s length=%u\n%.*s\n",
+							  fctx->run_name, row_id, frag, spot->name_len, spot->name, spot->rd_len[ idx ],
+							  spot->rd_len[ idx ], &( spot->bases[ ofs ] ),
+							  fctx->run_name, row_id, frag, spot->name_len, spot->name, spot->rd_len[ idx ],
+							  spot->rd_len[ idx ], &( spot->qual[ ofs ] )
+							  );
+				frag++;
+			}
+			ofs += spot->rd_len[ idx ];
+		}
+	}
+	return rc;
+}
+
+
+static rc_t vdb_fastq1_loop( const fastq_ctx * fctx )
+{
+	rc_t rc = 0;
+	if ( fctx->idx_read == INVALID_COLUMN || fctx->idx_name == INVALID_COLUMN ||
+	     fctx->idx_qual == INVALID_COLUMN || fctx->idx_read_start == INVALID_COLUMN ||
+		 fctx->idx_read_len == INVALID_COLUMN )
+	{
+		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
+		DISP_RC( rc, "cannot generate fasta-format, at least one of these columns not found: READ, NAME, QUALITY, READ_START, READ_LEN" );
+	}
+	else
+	{
+		bool has_type = ( fctx->idx_read_type == INVALID_COLUMN );
 		int64_t row_id;
 		while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
 		{
@@ -348,7 +363,41 @@ static rc_t vdb_fastq_loop( const fastq_ctx * fctx )
 				rc = read_spot( fctx, row_id, &spot );
 				if ( rc == 0 )
 				{
-					if ( fctx->idx_name != INVALID_COLUMN )
+					if ( has_type )
+						rc = vdb_fastq1_frag_type_checked( &spot, row_id, fctx );
+					else
+						rc = vdb_fastq1_frag_not_type_checked( &spot, row_id, fctx );
+				}
+			}
+		}
+	}
+	return rc;
+}
+
+
+static rc_t vdb_fastq_loop( const fastq_ctx * fctx )
+{
+	rc_t rc = 0;
+	if ( fctx->idx_read == INVALID_COLUMN || fctx->idx_qual == INVALID_COLUMN )
+	{
+		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
+		DISP_RC( rc, "cannot generate fasta-format: READ and/or QUALITY column not found" );
+	}
+	else
+	{
+		bool has_name = ( fctx->idx_name != INVALID_COLUMN );
+		int64_t row_id;
+		while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
+		{
+			if ( rc == 0 )
+				rc = Quitting();
+			if ( rc == 0 )
+			{
+				fastq_spot spot;
+				rc = read_spot( fctx, row_id, &spot );
+				if ( rc == 0 )
+				{
+					if ( has_name )
 						rc = KOutMsg( "@%s.%li %.*s length=%u\n%.*s\n+%s.%li %.*s length=%u\n%.*s\n",
 									fctx->run_name, row_id, spot.name_len, spot.name, spot.num_bases,
 									spot.num_bases, spot.bases,
@@ -395,38 +444,142 @@ static rc_t print_bases( const char * bases, uint32_t num_bases, uint32_t max_li
 }
 
 
+static rc_t vdb_fasta_frag_type_checked_loop( const fastq_ctx * fctx )
+{
+	rc_t rc = 0;
+	bool has_name = ( fctx->idx_name != INVALID_COLUMN );
+	int64_t row_id;
+	while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
+	{
+		if ( rc == 0 )
+			rc = Quitting();
+		if ( rc == 0 )
+		{
+			fastq_spot spot;
+			rc = read_spot( fctx, row_id, &spot );
+			if ( rc == 0 )
+			{
+				uint32_t idx, frag, ofs;
+				for ( idx = 0, frag = 1, ofs = 0; rc == 0 && idx < spot.num_rd_start; ++idx )
+				{
+					uint32_t frag_len = spot.rd_len[ idx ];
+					if ( frag_len > 0 &&
+					     ( ( spot.rd_type[ idx ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL ) )
+					{
+						if ( has_name )
+							rc = KOutMsg( ">%s.%li.%d %.*s length=%u\n",
+									fctx->run_name, row_id, frag, spot.name_len, spot.name, frag_len );
+						else
+							rc = KOutMsg( ">%s.%li.%d %li length=%u\n",
+									fctx->run_name, row_id, frag, row_id, frag_len );
+					
+						if ( rc == 0 )
+							rc = print_bases( &( spot.bases[ ofs ] ), frag_len, fctx->max_line_len );
+
+						frag++;
+					}
+					ofs += frag_len;
+				}
+			}
+		}
+	}
+	return rc;
+}
+
+
+static rc_t vdb_fasta_frag_no_type_check_loop( const fastq_ctx * fctx )
+{
+	rc_t rc = 0;
+	bool has_name = ( fctx->idx_name != INVALID_COLUMN );
+	int64_t row_id;
+	while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
+	{
+		if ( rc == 0 )
+			rc = Quitting();
+		if ( rc == 0 )
+		{
+			fastq_spot spot;
+			rc = read_spot( fctx, row_id, &spot );
+			if ( rc == 0 )
+			{
+				uint32_t idx, frag, ofs;
+				for ( idx = 0, frag = 1, ofs = 0; rc == 0 && idx < spot.num_rd_start; ++idx )
+				{
+					uint32_t frag_len = spot.rd_len[ idx ];
+					if ( frag_len > 0 )
+					{
+						if ( has_name )
+							rc = KOutMsg( ">%s.%li.%d %.*s length=%u\n",
+									fctx->run_name, row_id, frag, spot.name_len, spot.name, frag_len );
+						else
+							rc = KOutMsg( ">%s.%li.%d %li length=%u\n",
+									fctx->run_name, row_id, frag, row_id, frag_len );
+					
+						if ( rc == 0 )
+							rc = print_bases( &( spot.bases[ ofs ] ), frag_len, fctx->max_line_len );
+
+						frag++;
+					}
+					ofs += frag_len;
+				}
+			}
+		}
+	}
+	return rc;
+}
+
+
+static rc_t vdb_fasta_spot_loop( const fastq_ctx * fctx )
+{
+	rc_t rc = 0;
+	bool has_name = ( fctx->idx_name != INVALID_COLUMN );
+	int64_t row_id;
+	while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
+	{
+		if ( rc == 0 )
+			rc = Quitting();
+		if ( rc == 0 )
+		{
+			fastq_spot spot;
+			rc = read_spot( fctx, row_id, &spot );
+			if ( rc == 0 )
+			{
+				if ( has_name )
+					rc = KOutMsg( ">%s.%li %.*s length=%u\n",
+							fctx->run_name, row_id, spot.name_len, spot.name, spot.num_bases );
+				else
+					rc = KOutMsg( ">%s.%li %li length=%u\n", fctx->run_name, row_id, row_id, spot.num_bases );
+					
+				if ( rc == 0 )
+					rc = print_bases( spot.bases, spot.num_bases, fctx->max_line_len );
+			}
+		}
+	}
+	return rc;
+}
+
 static rc_t vdb_fasta_loop( const fastq_ctx * fctx )
 {
-	rc_t rc;
+	rc_t rc = 0;
 	if ( fctx->idx_read == INVALID_COLUMN )
 	{
+		/* we actually only need a READ-column, everything else name/splitting etc. is optional... */
 		rc = RC( rcExe, rcNoTarg, rcConstructing, rcNoObj, rcInvalid );
 		DISP_RC( rc, "cannot generate fasta-format: READ column not found" );
 	}
 	else
 	{
-		int64_t row_id;
-		while ( rc == 0 && num_gen_iterator_next( fctx->row_iter, &row_id, &rc ) )
+		bool can_split = ( fctx->idx_read_start != INVALID_COLUMN && fctx->idx_read_len != INVALID_COLUMN );
+		if ( can_split )
 		{
-			if ( rc == 0 )
-				rc = Quitting();
-			if ( rc == 0 )
-			{
-				fastq_spot spot;
-				rc = read_spot( fctx, row_id, &spot );
-				if ( rc == 0 )
-				{
-					if ( fctx->idx_name != INVALID_COLUMN )
-						rc = KOutMsg( ">%s.%li %.*s length=%u\n",
-								fctx->run_name, row_id, spot.name_len, spot.name, spot.num_bases );
-					else
-						rc = KOutMsg( ">%s.%li %li length=%u\n", fctx->run_name, row_id, row_id, spot.num_bases );
-						
-					if ( rc == 0 )
-						rc = print_bases( spot.bases, spot.num_bases, fctx->max_line_len );
-				}
-			}
+			bool has_type = ( fctx->idx_read_type != INVALID_COLUMN );
+			if ( has_type )
+				rc = vdb_fasta_frag_type_checked_loop( fctx );
+			else
+				rc = vdb_fasta_frag_no_type_check_loop( fctx );
 		}
+		else
+			rc = vdb_fasta_spot_loop( fctx );
 	}
     return rc;
 }

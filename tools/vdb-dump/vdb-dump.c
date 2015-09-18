@@ -93,7 +93,7 @@ static const char * dna_bases_usage[] = { "print dna-bases", NULL };
 static const char * max_line_len_usage[] = { "limits line length", NULL };
 static const char * line_indent_usage[] = { "indents the line", NULL };
 static const char * filter_usage[] = { "filters lines", NULL };
-static const char * format_usage[] = { "dump format (csv,xml,json,piped,tab,sra-dump,fastq,fasta,bin)", NULL };
+static const char * format_usage[] = { "output format:", NULL };
 static const char * id_range_usage[] = { "prints id-range", NULL };
 static const char * without_sra_usage[] = { "without sra-type-translation", NULL };
 static const char * excluded_columns_usage[] = { "exclude these columns", NULL };
@@ -216,6 +216,18 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_MAX_LINE_LEN, OPTION_MAX_LINE_LEN, "max_length", max_line_len_usage );
     HelpOptionLine ( ALIAS_LINE_INDENT, OPTION_LINE_INDENT, "indent_width", line_indent_usage );
     HelpOptionLine ( ALIAS_FORMAT, OPTION_FORMAT, "format", format_usage );
+	
+	KOutMsg( "      csv ..... comma separated values on one line\n" );
+	KOutMsg( "      xml ..... xml-style without complete xml-frame\n" );
+	KOutMsg( "      json .... json-style\n" );
+	KOutMsg( "      piped ... 1 line per cell: row-id, column-name: value\n" );
+	KOutMsg( "      tab ..... 1 line per row: tab-separated values only\n" );
+	KOutMsg( "      fastq ... FASTQ( 4 lines ) for each row\n" );
+	KOutMsg( "      fastq1 .. FASTQ( 4 lines ) for each fragment\n" );	
+	KOutMsg( "      fasta ... FASTA( 2 lines ) for each fragment if possible\n" );
+	KOutMsg( "      fasta1 .. one FASTA-record for the whole accession (REFSEQ)\n" );
+	KOutMsg( "      fasta2 .. one FASTA-record for each REFERENCE in cSRA\n\n" );
+	
     HelpOptionLine ( ALIAS_ID_RANGE, OPTION_ID_RANGE, NULL, id_range_usage );
     HelpOptionLine ( ALIAS_WITHOUT_SRA, OPTION_WITHOUT_SRA, NULL, without_sra_usage );
     HelpOptionLine ( ALIAS_EXCLUDED_COLUMNS, OPTION_EXCLUDED_COLUMNS, NULL, excluded_columns_usage );

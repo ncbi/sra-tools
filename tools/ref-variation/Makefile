@@ -75,6 +75,9 @@ clean: stdclean
 #-------------------------------------------------------------------------------
 # ref-variation
 #
+
+CPFLAGS += -std=c++11 -pthread 
+
 REF_VARIATION_SRC = \
 	ref-variation \
 	helper

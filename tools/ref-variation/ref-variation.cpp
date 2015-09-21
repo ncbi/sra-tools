@@ -39,7 +39,7 @@
 #include <string>
 #include <vector>
 
-#if __GNUG__ // TODO: switch to VS2013 and newer clang
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
 #include <thread>
 #include <mutex>
 #else
@@ -432,7 +432,7 @@ namespace RefVariation
         }
     }
 
-#if __GNUG__ // TODO: switch to VS2013 and newer clang
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
     bool filter_pileup_db_mt ( char const* acc, char const* ref_name,
                 size_t ref_pos, char const* query, size_t query_len,
                 std::vector <std::string>& vec,
@@ -560,7 +560,7 @@ namespace RefVariation
         return vec_acc;
     }
 
-#if __GNUG__ // TODO: switch to VS2013 and newer clang
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
     std::vector <std::string> get_acc_list_mt (KApp::CArgs const& args,
         char const* ref_name, size_t ref_pos, char const* query, size_t query_len,
         std::mutex* lock_cout, size_t param_start, size_t param_count, size_t thread_num )
@@ -647,7 +647,7 @@ namespace RefVariation
         }
     }
 
-#if __GNUG__ // TODO: switch to VS2013 and newer clang
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
     void find_alignments_mt ( KApp::CArgs const* pargs, size_t param_start, size_t param_count,
         char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
         std::mutex* lock_cout, size_t thread_num )
@@ -844,7 +844,7 @@ namespace RefVariation
         size_t param_count = args.GetParamCount();
         size_t thread_count = g_Params.thread_count;
 
-#if __GNUG__ // TODO: switch to VS2013 and newer clang
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
         if ( thread_count == 1 || param_count < thread_count * 10 )
             find_alignments (args, g_Params.ref_acc, obj, bases_start);
         else

@@ -89,6 +89,7 @@ my @options = ( 'build-prefix=s',
     my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
     push @options, 'arch=s'    if (@ARCHITECTURES);
 }
+push @options, 'source=s' if ($PKG{LNG} eq 'JAVA');
 push @options, 'enable-static' if (PACKAGE_TYPE() eq 'B');
 foreach my $href (@REQ) {
     my %a = %$href;
@@ -387,6 +388,9 @@ if ($TOOLS =~ /gcc$/) {
     $MD  = '-MD';
 } elsif ($TOOLS eq 'jdk') {
     $JAVAC = 'javac';
+    if ($OPT{source}) {
+        $JAVAC .= ' -target ' . $OPT{source} . ' -source ' . $OPT{source};
+    }
     $JAVAH = 'javah';
     $JAR   = 'jar cf';
 
@@ -1652,19 +1656,30 @@ EndText
     my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
 
     if ($^O ne 'MSWin32') {
-        print <<EndText;
-Build tuning:
+        print "Build tuning:\n";
+        if ($PKG{LNG} ne 'JAVA') {
+            print <<EndText;
   --with-debug
   --without-debug
 EndText
+        }
 
         if (@ARCHITECTURES) {
             print
 "  --arch=name             specify the name of the target architecture\n";
         }
 
-        print <<EndText;
+        if ($PKG{LNG} eq 'JAVA') {
+            print <<EndText;
+  --source=release        provide source compatibility with specified release,
+                          generate class files for specified VM version.
+                          e.g. `--source=1.6'
+EndText
+        } else {
+            print "\n";
+        }
 
+        print <<EndText;
   --build-prefix=DIR      generate build output into DIR directory
                           [$OUTDIR]
 

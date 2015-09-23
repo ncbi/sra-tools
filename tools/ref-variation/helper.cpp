@@ -1153,7 +1153,25 @@ namespace KSearch
     {
         if ( m_pSelf == NULL )
             return "";
-        return ::VRefVariationIUPACGetVariation ( m_pSelf );
+        char const* ret = ::VRefVariationIUPACGetVariation ( m_pSelf );
+        return ret == NULL ? "" : ret;
+    }
+
+    char const* CVRefVariation::GetQueryForPureDeletion( char* buf, size_t buf_size ) const
+    {
+        assert ( GetVarSize() == 0 );
+        assert ( GetVarLenOnRef() > 0 );
+        assert ( buf_size < 3 );
+        char const* ref_chunk = ::VRefVariationIUPACGetRefChunk ( m_pSelf );
+        size_t ref_chunk_size = ::VRefVariationIUPACGetRefChunkSize ( m_pSelf );
+        (void)ref_chunk_size;
+
+        assert ( GetVarStart() > 0 && GetVarStart() + GetVarLenOnRef() < ref_chunk_size - 1 );
+        buf [0] = ref_chunk [ GetVarStart() - 1 ];
+        buf [1] = ref_chunk [ GetVarStart() + GetVarLenOnRef() ];
+        buf [2] = '\0';
+
+        return buf;
     }
 
     size_t CVRefVariation::GetVarStart() const

@@ -603,22 +603,39 @@ namespace RefVariation
         size_t ref_start = bases_start + obj.GetVarStart();
         std::vector <std::string> vec_acc = get_acc_list ( args, ref_name, obj, bases_start );
 
+        char query_del[3];
+
+        char const* variation;
+        size_t var_size;
+        if ( obj.GetVarSize() == 0 && obj.GetVarLenOnRef() > 0 )
+        {
+            variation = obj.GetQueryForPureDeletion( query_del, sizeof query_del );
+            var_size = 2;
+            -- ref_start;
+        }
+        else
+        {
+            variation = obj.GetVariation();
+            var_size = obj.GetVarSize();
+        }
+
+
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
-            std::cout << "Looking for \""  << obj.GetVariation() << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
+            std::cout << "Looking for \""  << variation << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
         for ( std::vector <std::string>::const_iterator cit = vec_acc.begin(); cit != vec_acc.end(); ++cit )
         {
             std::string const& acc = (*cit);
             ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
 
             ngs::Reference reference = run.getReference( ref_name );
-            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, obj.GetVarSize(), ngs::Alignment::all );
+            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
 
             while ( ai.nextAlignment() )
             {
                 ngs::String id = ai.getAlignmentId ().toString();
                 int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-                ngs::String bases = ai.getFragmentBases( align_pos, obj.GetVarSize() ).toString();
-                bool match = strncmp (obj.GetVariation(), bases.c_str(), obj.GetVarSize()) == 0;
+                ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
+                bool match = strncmp (variation, bases.c_str(), var_size) == 0;
                 if ( match )
                 {
                     RunMatchInfo& info = mapMatches [acc];
@@ -661,12 +678,28 @@ namespace RefVariation
 
             std::vector <std::string> vec_acc = get_acc_list_mt ( args, ref_name, obj, bases_start, lock_cout, param_start, param_count, thread_num );
 
+            char query_del[3];
+
+            char const* variation;
+            size_t var_size;
+            if ( obj.GetVarSize() == 0 && obj.GetVarLenOnRef() > 0 )
+            {
+                variation = obj.GetQueryForPureDeletion( query_del, sizeof query_del );
+                var_size = 2;
+                -- ref_start;
+            }
+            else
+            {
+                variation = obj.GetVariation();
+                var_size = obj.GetVarSize();
+            }
+
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
                 std::lock_guard<std::mutex> l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
-                    << "Looking for \""  << obj.GetVariation() << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
+                    << "Looking for \""  << variation << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
             }
             for ( std::vector <std::string>::const_iterator cit = vec_acc.begin(); cit != vec_acc.end(); ++cit )
             {
@@ -674,14 +707,14 @@ namespace RefVariation
                 ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
 
                 ngs::Reference reference = run.getReference( ref_name );
-                ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, obj.GetVarSize(), ngs::Alignment::all );
+                ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
 
                 while ( ai.nextAlignment() )
                 {
                     ngs::String id = ai.getAlignmentId ().toString();
                     int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-                    ngs::String bases = ai.getFragmentBases( align_pos, obj.GetVarSize() ).toString();
-                    bool match = strncmp (obj.GetVariation(), bases.c_str(), obj.GetVarSize()) == 0;
+                    ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
+                    bool match = strncmp (variation, bases.c_str(), var_size) == 0;
                     if ( match )
                     {
                         std::lock_guard<std::mutex> l(*lock_map);
@@ -1232,10 +1265,10 @@ extern "C"
        find insertion:
           ref-variation -r NC_000013.10 -p 100635036 --query 'ACC' -l 0 /netmnt/traces04/sra33/SRZ/000793/SRR793062/SRR793062.pileup /netmnt/traces04/sra33/SRZ/000795/SRR795251/SRR795251.pileup
 
-       windows example: -r NC_000002.11 -p 73613068 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR618508.pileup
+       windows example: -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR618508.pileup
 
        -r NC_000002.11 -p 73613071 --query "C" -l 1
-          
+       -vv -t 16 -r NC_000007.13 -p 117292900 --query "-" -l 4          
        */
 
         RefVariation::find_variation_region ( argc, argv );

@@ -500,6 +500,7 @@ namespace KSearch
         void Release();
 
         char const* GetVariation() const;
+        char const* GetQueryForPureDeletion( char* buf, size_t buf_size ) const;
         size_t GetVarStart() const;
         size_t GetVarSize() const;
         size_t GetVarLenOnRef() const;

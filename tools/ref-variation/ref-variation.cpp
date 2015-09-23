@@ -103,7 +103,7 @@ namespace RefVariation
 
     char const OPTION_QUERY[] = "query";
     char const ALIAS_QUERY[]  = "q";
-    char const* USAGE_QUERY[] = { "query to find in the given reference (\"-\" is treated as empty string - deletion)", NULL };
+    char const* USAGE_QUERY[] = { "query to find in the given reference (\"-\" is treated as an empty string, or deletion)", NULL };
 
     char const OPTION_VAR_LEN_ON_REF[] = "variation-length";
     char const ALIAS_VAR_LEN_ON_REF[]  = "l";

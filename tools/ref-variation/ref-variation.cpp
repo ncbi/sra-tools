@@ -24,7 +24,6 @@
 *
 */
 
-#define IMPLEMENT_IN_NGS 1
 #define SECRET_OPTION 0
 
 #include "ref-variation.vers.h"
@@ -38,6 +37,7 @@
 
 #include <string>
 #include <vector>
+#include <map>
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
 #include <thread>
@@ -48,10 +48,8 @@
 #include <kapp/main.h>
 #include <klib/rc.h>
 
-#if IMPLEMENT_IN_NGS != 0 || SECRET_OPTION != 0
 #include <ngs/ncbi/NGS.hpp>
 #include <ngs/ReferenceSequence.hpp>
-#endif
 
 namespace RefVariation
 {
@@ -75,6 +73,19 @@ namespace RefVariation
         0,
         0,
         1
+    };
+
+    enum
+    {
+        VERBOSITY_DEFAULT           = 0,
+        VERBOSITY_PRINT_VAR_SPEC    = 1,
+        VERBOSITY_SOME_DETAILS      = 2,
+        VERBOSITY_MORE_DETAILS      = 3
+    };
+
+    struct RunMatchInfo
+    {
+        size_t coverage; // the number of matched alignments
     };
 
 #if SECRET_OPTION != 0
@@ -135,7 +146,7 @@ namespace RefVariation
                );
     }
 
-#if SECRET_OPTION != 0 || IMPLEMENT_IN_NGS == 0
+#if SECRET_OPTION != 0
     enum ColumnNameIndices
     {
 //        idx_SEQ_LEN,
@@ -153,149 +164,6 @@ namespace RefVariation
         "READ"
     };
     uint32_t g_ColumnIndex [ countof (g_ColumnNames) ];
-#endif
-
-#if 0
-    std::string get_ref_slice_int (
-                            VDBObjects::CVCursor const& cursor,
-                            int64_t ref_start,
-                            int64_t ref_end,
-                            uint32_t max_seq_len
-                           )
-    {
-        int64_t ref_start_id = ref_start / max_seq_len + 1;
-        int64_t ref_start_chunk_pos = ref_start % max_seq_len;
-
-        int64_t ref_end_id = ref_end / max_seq_len + 1;
-        int64_t ref_end_chunk_pos = ref_end % max_seq_len;
-
-        std::string ret;
-        ret.reserve( ref_end - ref_start + 2 );
-
-        for ( int64_t id = ref_start_id; id <= ref_end_id; ++id )
-        {
-            int64_t chunk_pos_start = id == ref_start_id ?
-                        ref_start_chunk_pos : 0;
-            int64_t chunk_pos_end = id == ref_end_id ?
-                        ref_end_chunk_pos : max_seq_len - 1;
-
-            char const* pREAD;
-            uint32_t count =  cursor.CellDataDirect ( id, g_ColumnIndex[idx_READ], & pREAD );
-            assert (count > ref_end_chunk_pos);
-            (void)count;
-
-            ret.append (pREAD + chunk_pos_start, pREAD + chunk_pos_end + 1);
-        }
-
-        return ret;
-    }
-
-    std::string get_ref_slice ( VDBObjects::CVCursor const& cursor,
-                                int64_t ref_pos_var, // reported variation position on the reference
-                                int64_t var_len,     // the length of the reported variation
-                                int64_t slice_expand_left,
-                                int64_t slice_expand_right,
-                                int64_t* ref_slice_start, // returned value
-                                int64_t* ref_slice_end    // returned value, inclusive
-                              )
-    {
-        int64_t idRow = 0;
-        uint64_t nRowCount = 0;
-
-        cursor.GetIdRange (idRow, nRowCount);
-
-        uint32_t max_seq_len;
-        uint64_t total_seq_len;
-        cursor.ReadItems ( idRow, g_ColumnIndex[idx_MAX_SEQ_LEN], & max_seq_len, 1 );
-        cursor.ReadItems ( idRow, g_ColumnIndex[idx_TOTAL_SEQ_LEN], & total_seq_len, 1 );
-
-        if ( (uint64_t) g_Params.ref_pos_var > total_seq_len )
-        {
-            throw Utils::CErrorMsg ("reference position (%ld) is greater than total sequence length (%ud)",
-                                    g_Params.ref_pos_var, total_seq_len);
-        }
-
-        int64_t var_half_len = var_len / 2 + 1;
-
-        int64_t ref_start = ref_pos_var - var_half_len - slice_expand_left >= 0 ?
-                            ref_pos_var - var_half_len - slice_expand_left : 0;
-        int64_t ref_end = (uint64_t)(ref_pos_var + var_half_len + slice_expand_right - 1) < total_seq_len ?
-                          ref_pos_var + var_half_len + slice_expand_right - 1 : total_seq_len - 1;
-
-        std::string ret = get_ref_slice_int ( cursor, ref_start, ref_end, max_seq_len );
-
-        if ( ref_slice_start != NULL )
-            *ref_slice_start = ref_start;
-        if ( ref_slice_end != NULL )
-            *ref_slice_end = ref_end;
-
-        return ret;
-    }
-
-    // now it works for pure insertions (no mismatches/deletions)
-    std::string make_query ( std::string const& ref_slice,
-                             char const* variation, size_t var_len,
-                             int64_t var_start_pos_adj // ref_pos adjusted to the beginning of ref_slice (in the simplest case - the middle of ref_slice)
-                           )
-    {
-        std::string ret;
-        ret.reserve ( ref_slice.size() + var_len );
-
-        ret.append ( ref_slice.begin(), ref_slice.begin() + var_start_pos_adj );
-        ret.append ( variation, variation + var_len );
-        ret.append ( ref_slice.begin() + var_start_pos_adj, ref_slice.end() );
-
-        return ret;
-    }
-#endif
-
-
-#if IMPLEMENT_IN_NGS != 0
-
-#if 0 // turning off old code
-    ngs::String compose_query_adjusted (ngs::String const& ref,
-        size_t ref_start, size_t ref_len,
-        char const* query, size_t query_len, int64_t ref_pos_var, size_t var_len_on_ref)
-    {
-        ngs::String ret;
-        ret.reserve (ref_len + query_len - var_len_on_ref); // TODO: not always correct
-
-        char const* query_adj = query;
-        size_t query_len_adj = query_len;
-
-        //size_t ref_len
-
-        if ( (size_t)ref_pos_var > ref_start )
-        {
-            // if extended window starts to the left from initial reported variation start
-            // then include preceding bases into adjusted variation
-            ret.assign ( ref.c_str() + ref_start, (size_t)ref_pos_var - ref_start );
-        }
-        else if ( (size_t)ref_pos_var < ref_start )
-        {
-            // the real window of ambiguity actually starts to the right from
-            // the reported variation start
-            // let's not to include the left unambigous part into
-            // adjusted variation (?)
-
-            query_adj += ref_start - ref_pos_var;
-            query_len_adj -= ref_start - ref_pos_var;
-        }
-
-        //if ( (int64_t)ret.length() > (int64_t)ref_len - (int64_t)var_len_on_ref )
-        //    query_len_adj -= ret.length() - (ref_len - var_len_on_ref);
-
-        if ( query_len_adj > 0 )
-            ret.append ( query_adj, query_len_adj );
-
-        if ( (int64_t)(ref_len - ((size_t)ref_pos_var - ref_start) - var_len_on_ref) > 0 )
-        {
-            ret.append ( ref.c_str() + (size_t)ref_pos_var + var_len_on_ref,
-                ref_len - ((size_t)ref_pos_var - ref_start) - var_len_on_ref );
-        }
-
-        return ret;
-    }
 #endif
 
     enum PileupColumnNameIndices
@@ -319,112 +187,196 @@ namespace RefVariation
         "RUN_NAME"
     };
 
+    uint32_t base2na_to_index ( char const ch )
+    {
+        switch ( ch )
+        {
+        case 'A':
+        case 'a':
+            return 0;
+        case 'C':
+        case 'c':
+            return 1;
+        case 'G':
+        case 'g':
+            return 2;
+        case 'T':
+        case 't':
+            return 3;
+        default:
+            assert ( false );
+            return (uint32_t) -1;
+        }
+    }
+
     bool filter_pileup_db ( char const* acc, char const* ref_name,
-                size_t ref_pos, char const* query, size_t query_len,
+                KSearch::CVRefVariation const& obj, size_t bases_start,
                 std::vector <std::string>& vec)
     {
-        //std::cout << "Processing " << acc << "... ";// << std::endl;
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+            std::cout << "Processing " << acc << "... ";// << std::endl;
 
+        size_t ref_pos = bases_start + obj.GetVarStart();
         VDBObjects::CVDBManager mgr;
         mgr.Make();
 
         try
         {
-        VDBObjects::CVDatabase db = mgr.OpenDB ( acc );
-        VDBObjects::CVTable table = db.OpenTable ( "STATS" );
-        VDBObjects::CVCursor cursor = table.CreateCursorRead ();
+            VDBObjects::CVDatabase db = mgr.OpenDB ( acc );
+            VDBObjects::CVTable table = db.OpenTable ( "STATS" );
+            VDBObjects::CVCursor cursor = table.CreateCursorRead ();
 
-        uint32_t PileupColumnIndex [ countof (g_PileupColumnNames) ];
-        cursor.InitColumnIndex (g_PileupColumnNames, PileupColumnIndex, countof(g_PileupColumnNames));
-        cursor.Open();
+            uint32_t PileupColumnIndex [ countof (g_PileupColumnNames) ];
+            cursor.InitColumnIndex (g_PileupColumnNames, PileupColumnIndex, countof(g_PileupColumnNames));
+            cursor.Open();
 
-        int64_t id_first = 0;
-        uint64_t row_count = 0;
+            int64_t id_first = 0;
+            uint64_t row_count = 0;
 
-        cursor.GetIdRange (id_first, row_count);
+            cursor.GetIdRange (id_first, row_count);
 
-        // Find Reference beginning
+            // Find Reference beginning
 
 #if REF_LINEAR_SEARCH != 0
-        //int64_t ref_pos_;
-        //uint32_t depth;
-        //uint32_t count;
-        char ref_spec[64];
-        int64_t ref_id_start = -1;
-        int64_t row_id;
-        for ( row_id = id_first; row_id < id_first + (int64_t)row_count; ++ row_id )
-        {
-            uint32_t count = cursor.ReadItems ( row_id, PileupColumnIndex[idx_REFERENCE_SPEC], ref_spec, countof(ref_spec)-1 );
-            assert (count < countof(ref_spec));
-            ref_spec [count] = '\0';
-
-            if ( strcmp (ref_spec, ref_name) == 0 && ref_id_start == -1 )
+            //int64_t ref_pos_;
+            //uint32_t depth;
+            //uint32_t count;
+            char ref_spec[64];
+            int64_t ref_id_start = -1;
+            int64_t row_id;
+            for ( row_id = id_first; row_id < id_first + (int64_t)row_count; ++ row_id )
             {
-                ref_id_start = row_id;
-                break;
+                uint32_t count = cursor.ReadItems ( row_id, PileupColumnIndex[idx_REFERENCE_SPEC], ref_spec, countof(ref_spec)-1 );
+                assert (count < countof(ref_spec));
+                ref_spec [count] = '\0';
+
+                if ( strcmp (ref_spec, ref_name) == 0 && ref_id_start == -1 )
+                {
+                    ref_id_start = row_id;
+                    break;
+                }
             }
-        }
-        if ( row_id == id_first + (int64_t)row_count )
-            return false;
+            if ( row_id == id_first + (int64_t)row_count )
+                return false;
 
 #else
-        KDBObjects::CKTable ktbl = table.OpenKTableRead();
-        KDBObjects::CKIndex kindex = ktbl.OpenIndexRead("ref_spec");
+            KDBObjects::CKTable ktbl = table.OpenKTableRead();
+            KDBObjects::CKIndex kindex = ktbl.OpenIndexRead("ref_spec");
 
-        int64_t ref_id_start;
-        uint64_t id_count;
+            int64_t ref_id_start;
+            uint64_t id_count;
 
-        bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
-        //std::cout
-        //    << (found ? "" : " not") << " found " << ref_name << " row_id=" << ref_id_start
-        //    << ", id_count=" << id_count << " "; // <<  std::endl;
-        if ( !found )
-        {
-            //std::cout << std::endl;
-            return false;
-        }
-
-#endif
-
-
-        // check depth > 0 for every position of the region
-        for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + query_len ); ++pos )
-        {
-            if ( pos + ref_id_start >= id_first + (int64_t)row_count )
+            bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             {
-                std::cout << "OUT OF BOUNDS! filtering out" << std::endl;
-                return false; // went beyond the end of db, probably, it's a bug in db
+                std::cout
+                    << (found ? "" : " not") << " found " << ref_name << " row_id=" << ref_id_start
+                    << ", id_count=" << id_count << " "; // <<  std::endl;
             }
-            uint32_t depth;
-            uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
-
-            if ( count == 0 || depth == 0 )
+            if ( !found )
             {
-                //std::cout << "depth=0 at the ref_pos=" << pos
-                //    << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                    std::cout << std::endl;
                 return false;
             }
-        }
 
-        char run_name[64];
-        uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
-        assert (count < countof(run_name));
-        run_name [count] = '\0';
+#endif
+        
+            int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
+            //int64_t indel_check_cnt = indel_cnt > 0 ? indel_cnt : -indel_cnt;
 
+            // check depth > 0 for every position of the region
+            for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + obj.GetVarLenOnRef() ); ++pos )
+            {
+                if ( pos + ref_id_start >= id_first + (int64_t)row_count )
+                {
+                    if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                        std::cout << "OUT OF BOUNDS! filtering out" << std::endl;
+                    return false; // went beyond the end of db, probably, it's a bug in db
+                }
 
-        std::cout << run_name << " is suspicious" << std::endl;
-        char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
+#if 0 // this optimization doesn't work
+                if ( indel_cnt < 0 ) // look for deletions
+                {
+                    uint32_t deletion;
+                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DELETION_COUNT], & deletion, sizeof deletion );
 
-        vec.push_back ( std::string(p) );
+                    assert ( count == 0 || count == 1 );
 
-        return true;
+                    if ( count == 1 && deletion > 0 )
+                    {
+                        -- indel_check_cnt;
+                        if (indel_check_cnt == 0)
+                            break;
+                    }
+                }
+                else if ( indel_cnt > 0 ) // look for insertions
+                {
+                    uint32_t insertion[4];
+                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_INSERTION_COUNTS], & insertion, sizeof insertion );
+
+                    assert ( count == 0 || count == 4 );
+
+                    if ( count != 0 )
+                    {
+                        uint32_t cnt = insertion [base2na_to_index (obj.GetVariation()[pos - ref_pos])];
+                        if ( cnt > 0 )
+                        {
+                            -- indel_check_cnt;
+                            if (indel_check_cnt == 0)
+                                break;
+                        }
+                    }
+                }
+                else // pure mismatch
+#endif
+                if ( indel_cnt == 0 ) // pure mismatch optimization
+                {
+                    uint32_t mismatch[4];
+                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], & mismatch, sizeof mismatch );
+
+                    assert ( count == 0 || count == 4 );
+
+                    if ( count == 0 ||
+                        mismatch [base2na_to_index (obj.GetVariation()[pos - ref_pos])] == 0 )
+                    {
+                        return false;
+                    }
+                }
+
+                uint32_t depth;
+                uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
+
+                if ( count == 0 || depth == 0 )
+                {
+                    if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                    {
+                        std::cout << "depth=0 at the ref_pos=" << pos
+                            << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
+                    }
+                    return false;
+                }
+            }
+
+            char run_name[64];
+            uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
+            assert (count < countof(run_name));
+            run_name [count] = '\0';
+
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+                std::cout << run_name << " is suspicious" << std::endl;
+            char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
+
+            vec.push_back ( std::string(p) );
+
+            return true;
         }
         catch ( Utils::CErrorMsg const& e )
         {
             if ( e.getRC() == SILENT_RC(rcDB,rcMgr,rcOpening,rcDatabase,rcIncorrect))
             {
-                //std::cout
-                //    << "BAD db, filtering out" << std::endl;
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                    std::cout << "BAD db, filtering out" << std::endl;
                 return false;
             }
             else
@@ -434,104 +386,136 @@ namespace RefVariation
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
     bool filter_pileup_db_mt ( char const* acc, char const* ref_name,
-                size_t ref_pos, char const* query, size_t query_len,
+                KSearch::CVRefVariation const& obj, size_t bases_start,
                 std::vector <std::string>& vec,
                 std::mutex* lock_cout, size_t thread_num)
     {
-        //std::cout << "Processing " << acc << "... ";// << std::endl;
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+        {
+            std::lock_guard<std::mutex> l(*lock_cout);
+            std::cout
+                << "[" << thread_num << "] "
+                << "Processing " << acc << "... " << std::endl;
+        }
+
+        size_t ref_pos = bases_start + obj.GetVarStart();
 
         VDBObjects::CVDBManager mgr;
         mgr.Make();
 
         try
         {
-        VDBObjects::CVDatabase db = mgr.OpenDB ( acc );
-        VDBObjects::CVTable table = db.OpenTable ( "STATS" );
-        VDBObjects::CVCursor cursor = table.CreateCursorRead ();
+            VDBObjects::CVDatabase db = mgr.OpenDB ( acc );
+            VDBObjects::CVTable table = db.OpenTable ( "STATS" );
+            VDBObjects::CVCursor cursor = table.CreateCursorRead ();
 
-        uint32_t PileupColumnIndex [ countof (g_PileupColumnNames) ];
-        cursor.InitColumnIndex (g_PileupColumnNames, PileupColumnIndex, countof(g_PileupColumnNames));
-        if (PileupColumnIndex[idx_DEPTH] == 0)
-        {
+            uint32_t PileupColumnIndex [ countof (g_PileupColumnNames) ];
+            cursor.InitColumnIndex (g_PileupColumnNames, PileupColumnIndex, countof(g_PileupColumnNames));
 
-                std::lock_guard<std::mutex> l(*lock_cout);
-                std::cout
-                    << "[" << thread_num << "] "
-                    << "PileupColumnIndex[idx_DEPTH]==" << PileupColumnIndex[idx_DEPTH]
-                    << std::endl;
-        }
+            cursor.Open();
 
-        cursor.Open();
+            int64_t id_first = 0;
+            uint64_t row_count = 0;
 
-        int64_t id_first = 0;
-        uint64_t row_count = 0;
+            cursor.GetIdRange (id_first, row_count);
 
-        cursor.GetIdRange (id_first, row_count);
+            // Find Reference beginning
 
-        // Find Reference beginning
+            KDBObjects::CKTable ktbl = table.OpenKTableRead();
+            KDBObjects::CKIndex kindex = ktbl.OpenIndexRead("ref_spec");
 
-        KDBObjects::CKTable ktbl = table.OpenKTableRead();
-        KDBObjects::CKIndex kindex = ktbl.OpenIndexRead("ref_spec");
+            int64_t ref_id_start;
+            uint64_t id_count;
 
-        int64_t ref_id_start;
-        uint64_t id_count;
-
-        bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
-        //std::cout
-        //    << (found ? "" : " not") << " found " << ref_name << " row_id=" << ref_id_start
-        //    << ", id_count=" << id_count << " "; // <<  std::endl;
-        if ( !found )
-        {
-            //std::cout << std::endl;
-            return false;
-        }
-
-        // check depth > 0 for every position of the region
-        for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + query_len ); ++pos )
-        {
-            if ( pos + ref_id_start >= id_first + (int64_t)row_count )
+            bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             {
                 std::lock_guard<std::mutex> l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
-                    << "OUT OF BOUNDS! filtering out" << std::endl;
-                return false; // went beyond the end of db, probably, it's a bug in db
+                    << (found ? "" : "not") << "found " << ref_name << " row_id=" << ref_id_start
+                    << ", id_count=" << id_count << " " <<  std::endl;
             }
-            uint32_t depth;
-            uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
-
-            if ( count == 0 || depth == 0 )
-            {
-                //std::cout << "depth=0 at the ref_pos=" << pos
-                //    << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
+            if ( !found )
                 return false;
+
+            int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
+
+            // check depth > 0 for every position of the region
+            for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + obj.GetVarLenOnRef() ); ++pos )
+            {
+                if ( pos + ref_id_start >= id_first + (int64_t)row_count )
+                {
+                    if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                    {
+                        std::lock_guard<std::mutex> l(*lock_cout);
+                        std::cout
+                            << "[" << thread_num << "] "
+                            << "OUT OF BOUNDS! filtering out" << std::endl;
+                    }
+                    return false; // went beyond the end of db, probably, it's a bug in db
+                }
+
+                if ( indel_cnt == 0 ) // pure mismatch optimization
+                {
+                    uint32_t mismatch[4];
+                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], & mismatch, sizeof mismatch );
+
+                    assert ( count == 0 || count == 4 );
+
+                    if ( count == 0 ||
+                        mismatch [base2na_to_index (obj.GetVariation()[pos - ref_pos])] == 0 )
+                    {
+                        return false;
+                    }
+                }
+
+                uint32_t depth;
+                uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
+
+                if ( count == 0 || depth == 0 )
+                {
+                    if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                    {
+                        std::lock_guard<std::mutex> l(*lock_cout);
+                        std::cout
+                            << "[" << thread_num << "] "
+                            << "depth=0 at the ref_pos=" << pos
+                            << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
+                    }
+                    return false;
+                }
             }
-        }
 
-        char run_name[64];
-        uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
-        assert (count < countof(run_name));
-        run_name [count] = '\0';
+            char run_name[64];
+            uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
+            assert (count < countof(run_name));
+            run_name [count] = '\0';
 
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+            {
+                std::lock_guard<std::mutex> l(*lock_cout);
+                std::cout
+                    << "[" << thread_num << "] "
+                    << run_name << " is suspicious" << std::endl;
+            }
+            char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
 
-        {
-            std::lock_guard<std::mutex> l(*lock_cout);
-            std::cout
-                << "[" << thread_num << "] "
-                << run_name << " is suspicious" << std::endl;
-        }
-        char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
+            vec.push_back ( std::string(p) );
 
-        vec.push_back ( std::string(p) );
-
-        return true;
+            return true;
         }
         catch ( Utils::CErrorMsg const& e )
         {
             if ( e.getRC() == SILENT_RC(rcDB,rcMgr,rcOpening,rcDatabase,rcIncorrect))
             {
-                //std::cout
-                //    << "BAD db, filtering out" << std::endl;
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                {
+                    std::lock_guard<std::mutex> l(*lock_cout);
+                    std::cout
+                        << "[" << thread_num << "] "
+                        << "BAD db, filtering out" << std::endl;
+                }
                 return false;
             }
             else
@@ -540,21 +524,33 @@ namespace RefVariation
     }
 #endif
 
-    std::vector <std::string> get_acc_list (KApp::CArgs const& args, char const* ref_name, size_t ref_pos, char const* query, size_t query_len)
+    std::vector <std::string> get_acc_list (KApp::CArgs const& args,
+        char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start)
     {
         size_t param_count = args.GetParamCount();
-        
-        std::cout << param_count << " pileup database" << (param_count == 1 ? "" : "s")
-            << " to search for" << std::endl;
+        size_t ref_pos = bases_start + obj.GetVarStart();
 
-        std::cout << "ref_pos=" << ref_pos << ", query_len=" << query_len << std::endl;
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+        {
+            std::cout << param_count << " pileup database" << (param_count == 1 ? "" : "s")
+                << " to search for" << std::endl;
+        }
+
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+        {
+            std::cout
+                << "ref_pos=" << ref_pos
+                << ", query_len=" << obj.GetVarSize()
+                << ", query_len_on_ref=" << obj.GetVarLenOnRef()
+                << std::endl;
+        }
 
         std::vector <std::string> vec_acc;
 
         for ( uint32_t i = 0; i < param_count; ++i)
         {
             char const* acc = args.GetParamValue( i );
-            filter_pileup_db ( acc, ref_name, ref_pos, query, query_len, vec_acc );
+            filter_pileup_db ( acc, ref_name, obj, bases_start, vec_acc );
         }
         
         return vec_acc;
@@ -562,19 +558,30 @@ namespace RefVariation
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
     std::vector <std::string> get_acc_list_mt (KApp::CArgs const& args,
-        char const* ref_name, size_t ref_pos, char const* query, size_t query_len,
+        char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
         std::mutex* lock_cout, size_t param_start, size_t param_count, size_t thread_num )
     {
+        size_t ref_pos = bases_start + obj.GetVarStart();
         {
-            std::lock_guard<std::mutex> l(*lock_cout);
-            std::cout
-                << "[" << thread_num << "] "
-                << param_count << " pileup database" << (param_count == 1 ? "" : "s")
-                << " to search for" << std::endl;
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+            {
+                std::lock_guard<std::mutex> l(*lock_cout);
+                std::cout
+                    << "[" << thread_num << "] "
+                    << param_count << " pileup database" << (param_count == 1 ? "" : "s")
+                    << " to search for" << std::endl;
+            }
 
-            std::cout
-                << "[" << thread_num << "] "
-                << "ref_pos=" << ref_pos << ", query_len=" << query_len << std::endl;
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+            {
+                std::lock_guard<std::mutex> l(*lock_cout);
+                std::cout
+                    << "[" << thread_num << "] "
+                    << "ref_pos=" << ref_pos
+                    << ", query_len=" << obj.GetVarSize()
+                    << ", query_len_on_ref=" << obj.GetVarLenOnRef()
+                    << std::endl;
+            }
         }
 
         std::vector <std::string> vec_acc;
@@ -582,48 +589,22 @@ namespace RefVariation
         for ( uint32_t i = 0; i < param_count; ++i)
         {
             char const* acc = args.GetParamValue( i + param_start );
-            filter_pileup_db_mt ( acc, ref_name, ref_pos, query, query_len, vec_acc, lock_cout, thread_num );
+            filter_pileup_db_mt ( acc, ref_name, obj, bases_start, vec_acc, lock_cout, thread_num );
         }
         
         return vec_acc;
     }
 #endif
 
-#if 0
-    void find_alignments ( KApp::CArgs const& args, char const* ref_name, size_t ref_pos, char const* query, size_t query_len )
-    {
-        std::vector <std::string> vec_acc = get_acc_list ( args, ref_name, ref_pos, query, query_len );
-
-        std::cout << "Looking for \""  << query << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
-        for ( std::vector <std::string>::const_iterator cit = vec_acc.begin(); cit != vec_acc.end(); ++cit )
-        {
-            std::string const& acc = (*cit);
-            ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
-
-            ngs::Reference reference = run.getReference( ref_name );
-            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_pos, query_len, ngs::Alignment::all );
-
-            while ( ai.nextAlignment() )
-            {
-                ngs::String id = ai.getAlignmentId ().toString();
-                ngs::String bases = ai.getFragmentBases( ref_pos - ai.getAlignmentPosition(), query_len ).toString();
-                bool match = strncmp (query, bases.c_str(), query_len) == 0;
-                std::cout << "id=" << id
-                    << ": "
-                    << bases
-                    << (match ? " MATCH!" : "")
-                    << std::endl;
-            }
-        }
-    }
-#endif
-
-    void find_alignments ( KApp::CArgs const& args, char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start )
+    void find_alignments ( KApp::CArgs const& args,
+        char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
+        std::map <std::string, RunMatchInfo>& mapMatches)
     {
         size_t ref_start = bases_start + obj.GetVarStart();
-        std::vector <std::string> vec_acc = get_acc_list ( args, ref_name, ref_start, obj.GetVariation(), obj.GetVarSize() );
+        std::vector <std::string> vec_acc = get_acc_list ( args, ref_name, obj, bases_start );
 
-        std::cout << "Looking for \""  << obj.GetVariation() << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+            std::cout << "Looking for \""  << obj.GetVariation() << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
         for ( std::vector <std::string>::const_iterator cit = vec_acc.begin(); cit != vec_acc.end(); ++cit )
         {
             std::string const& acc = (*cit);
@@ -638,62 +619,14 @@ namespace RefVariation
                 int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
                 ngs::String bases = ai.getFragmentBases( align_pos, obj.GetVarSize() ).toString();
                 bool match = strncmp (obj.GetVariation(), bases.c_str(), obj.GetVarSize()) == 0;
-                std::cout << "id=" << id
-                    << ": "
-                    << bases
-                    << (match ? " MATCH!" : "")
-                    << std::endl;
-            }
-        }
-    }
-
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
-    void find_alignments_mt ( KApp::CArgs const* pargs, size_t param_start, size_t param_count,
-        char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
-        std::mutex* lock_cout, size_t thread_num )
-    {
-        try
-        {
-        KApp::CArgs const& args = *pargs;
-        KSearch::CVRefVariation const& obj = *pobj;
-        size_t ref_start = bases_start + obj.GetVarStart();
-
-        {
-            std::lock_guard<std::mutex> l(*lock_cout);
-            std::cout
-                << "[" << thread_num << "] "
-                << "Processing parameters from " << param_start + 1
-                << " to " << param_start + param_count << " inclusively"
-                << std::endl;
-        }
-
-        std::vector <std::string> vec_acc = get_acc_list_mt ( args, ref_name, ref_start, obj.GetVariation(), obj.GetVarSize(), lock_cout, param_start, param_count, thread_num );
-
-        {
-            std::lock_guard<std::mutex> l(*lock_cout);
-            std::cout
-                << "[" << thread_num << "] "
-                << "Looking for \""  << obj.GetVariation() << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
-        }
-        for ( std::vector <std::string>::const_iterator cit = vec_acc.begin(); cit != vec_acc.end(); ++cit )
-        {
-            std::string const& acc = (*cit);
-            ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
-
-            ngs::Reference reference = run.getReference( ref_name );
-            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, obj.GetVarSize(), ngs::Alignment::all );
-
-            while ( ai.nextAlignment() )
-            {
-                ngs::String id = ai.getAlignmentId ().toString();
-                int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-                ngs::String bases = ai.getFragmentBases( align_pos, obj.GetVarSize() ).toString();
-                bool match = strncmp (obj.GetVariation(), bases.c_str(), obj.GetVarSize()) == 0;
+                if ( match )
                 {
-                    std::lock_guard<std::mutex> l(*lock_cout);
-                    std::cout
-                        << "[" << thread_num << "] "
-                        << "id=" << id
+                    RunMatchInfo& info = mapMatches [acc];
+                    ++ info.coverage;
+                }
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+                {
+                    std::cout << "id=" << id
                         << ": "
                         << bases
                         << (match ? " MATCH!" : "")
@@ -701,82 +634,87 @@ namespace RefVariation
                 }
             }
         }
+    }
+
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
+    void find_alignments_mt ( KApp::CArgs const* pargs, size_t param_start, size_t param_count,
+        char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
+        std::map <std::string, RunMatchInfo>* pmapMatches,
+        std::mutex* lock_cout, size_t thread_num, std::mutex* lock_map )
+    {
+        try
+        {
+            KApp::CArgs const& args = *pargs;
+            KSearch::CVRefVariation const& obj = *pobj;
+            size_t ref_start = bases_start + obj.GetVarStart();
+            std::map <std::string, RunMatchInfo>& mapMatches = *pmapMatches;
+
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+            {
+                std::lock_guard<std::mutex> l(*lock_cout);
+                std::cout
+                    << "[" << thread_num << "] "
+                    << "Processing parameters from " << param_start + 1
+                    << " to " << param_start + param_count << " inclusively"
+                    << std::endl;
+            }
+
+            std::vector <std::string> vec_acc = get_acc_list_mt ( args, ref_name, obj, bases_start, lock_cout, param_start, param_count, thread_num );
+
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+            {
+                std::lock_guard<std::mutex> l(*lock_cout);
+                std::cout
+                    << "[" << thread_num << "] "
+                    << "Looking for \""  << obj.GetVariation() << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
+            }
+            for ( std::vector <std::string>::const_iterator cit = vec_acc.begin(); cit != vec_acc.end(); ++cit )
+            {
+                std::string const& acc = (*cit);
+                ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
+
+                ngs::Reference reference = run.getReference( ref_name );
+                ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, obj.GetVarSize(), ngs::Alignment::all );
+
+                while ( ai.nextAlignment() )
+                {
+                    ngs::String id = ai.getAlignmentId ().toString();
+                    int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
+                    ngs::String bases = ai.getFragmentBases( align_pos, obj.GetVarSize() ).toString();
+                    bool match = strncmp (obj.GetVariation(), bases.c_str(), obj.GetVarSize()) == 0;
+                    if ( match )
+                    {
+                        std::lock_guard<std::mutex> l(*lock_map);
+                        RunMatchInfo& info = mapMatches [acc];
+                        ++ info.coverage;
+                    }
+                
+                    if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+                    {
+                        std::lock_guard<std::mutex> l(*lock_cout);
+                        std::cout
+                            << "[" << thread_num << "] "
+                            << "id=" << id
+                            << ": "
+                            << bases
+                            << (match ? " MATCH!" : "")
+                            << std::endl;
+                    }
+                }
+            }
         }
         catch ( ngs::ErrorMsg const& e )
         {
-            std::cout << "ngs::ErrorMsg: " << e.what() << std::endl;
+            std::lock_guard<std::mutex> l(*lock_cout); // reuse cout mutex
+            std::cerr
+                << "[" << thread_num << "] "
+                << "ngs::ErrorMsg: " << e.what() << std::endl;
         }
         catch (...)
         {
+            std::lock_guard<std::mutex> l(*lock_cout); // reuse cout mutex
             Utils::HandleException ();
         }
-    }
-#endif
-
-#if 0 // turning off old code
-    void finish_find_variation_region_impl ( KApp::CArgs const & args, size_t var_len,
-        const ngs::String & ref, size_t bases_start, size_t ref_start, size_t ref_len,
-        KSearch::CVRefVariation const& obj )
-    {
-        std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
-        assert ( ref_start >= bases_start );
-        print_indel ( "reference", ref.c_str(), ref.size(), ref_start - bases_start, ref_len );
-
-        ngs::String var_query = compose_query_adjusted ( ref, ref_start - bases_start, ref_len,
-            g_Params.query, var_len, g_Params.ref_pos_var - bases_start, g_Params.var_len_on_ref );
-
-        std::cout << "var_query=" << var_query << std::endl;
-        std::cout << "new_query=" << obj.GetVariation() << std::endl;
-
-        std::cout
-            << "Input variation spec: "
-            << g_Params.ref_acc << ":"
-            << g_Params.ref_pos_var << ":"
-            << g_Params.var_len_on_ref << ":"
-            << g_Params.query
-            << std::endl;
-
-        size_t var_len_on_ref_adj = g_Params.var_len_on_ref;
-        if ( (int64_t)ref_start > g_Params.ref_pos_var )
-            var_len_on_ref_adj -= ref_start - g_Params.ref_pos_var;
-
-        std::cout
-            << "Adjusted variation spec: "
-            << g_Params.ref_acc << ":"
-            << ref_start << ":"
-            << var_len_on_ref_adj << ":"
-            << var_query
-            << std::endl;
-
-        std::cout
-            << "Adjusted variation spec NEW: "
-            << g_Params.ref_acc << ":"
-            << obj.GetVarStart() + bases_start << ":"
-            << obj.GetVarLenOnRef() << ":"
-            << obj.GetVariation()
-            << std::endl;
-
-        find_alignments (args, g_Params.ref_acc, ref_start, var_query.c_str(), var_query.length());
-        find_alignments_obj (args, g_Params.ref_acc, obj, bases_start);
-    }
-
-    void debug_init_obj (KSearch::CVRefVariation& obj,
-            char const* ref, size_t ref_size,
-            size_t ref_pos_var, char const* variation, size_t variation_size,
-            size_t var_len_on_ref,
-            size_t ref_start, size_t ref_len )
-    {
-        obj = KSearch::VRefVariationIUPACMake ( ref, ref_size, ref_pos_var,
-            variation, variation_size, var_len_on_ref );
-
-        std::cout
-            << "DEBUG: "
-            << "(ref_start, ref_len)=("
-            << ref_start << ", " << ref_len << ")" << std::endl;
-        std::cout
-            << "DEBUG: "
-            << "(obj.var_start, obj.var_len)=("
-            << obj.GetVarStart() << ", " << obj.GetVarSize() << ")" << std::endl;
     }
 #endif
 
@@ -815,47 +753,60 @@ namespace RefVariation
     {
         size_t ref_start = obj.GetVarStart() + bases_start;
         size_t ref_len = obj.GetVarLenOnRef();
-        std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
-        print_indel ( "reference", ref_slice, ref_slice_size, obj.GetVarStart(), ref_len );
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+        {
+            std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
+            print_indel ( "reference", ref_slice, ref_slice_size, obj.GetVarStart(), ref_len );
 
-        std::cout << "var_query=" << obj.GetVariation() << std::endl;
+            std::cout << "var_query=" << obj.GetVariation() << std::endl;
+        }
 
-        std::cout
-            << "Input variation spec   : "
-            << g_Params.ref_acc << ":"
-            << g_Params.ref_pos_var << ":"
-            << g_Params.var_len_on_ref << ":"
-            << g_Params.query
-            << std::endl;
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
+        {
+            std::cout
+                << "Input variation spec   : "
+                << g_Params.ref_acc << ":"
+                << g_Params.ref_pos_var << ":"
+                << g_Params.var_len_on_ref << ":"
+                << g_Params.query
+                << std::endl;
+        }
 
         size_t var_len_on_ref_adj = obj.GetVarLenOnRef();
         if ( (int64_t)ref_start > g_Params.ref_pos_var )
             var_len_on_ref_adj -= ref_start - g_Params.ref_pos_var;
 
-        std::cout
-            << "Adjusted variation spec: "
-            << g_Params.ref_acc << ":"
-            << obj.GetVarStart() + bases_start << ":"
-            << obj.GetVarLenOnRef() << ":"
-            << obj.GetVariation()
-            << std::endl;
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
+        {
+            std::cout
+                << "Adjusted variation spec: "
+                << g_Params.ref_acc << ":"
+                << obj.GetVarStart() + bases_start << ":"
+                << obj.GetVarLenOnRef() << ":"
+                << obj.GetVariation()
+                << std::endl;
+        }
 
         // Split further processing into multiple threads if there too many params
         size_t param_count = args.GetParamCount();
         size_t thread_count = g_Params.thread_count;
+        std::map <std::string, RunMatchInfo> mapMatches;
 
 #if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
         if ( thread_count == 1 || param_count < thread_count * 10 )
-            find_alignments (args, g_Params.ref_acc, obj, bases_start);
+            find_alignments (args, g_Params.ref_acc, obj, bases_start, mapMatches);
         else
         {
             // split
-
-            std::cout
-                << "Splitting " << param_count
-                << " jobs into " << thread_count << " threads..." << std::endl;
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+            {
+                std::cout
+                    << "Splitting " << param_count
+                    << " jobs into " << thread_count << " threads..." << std::endl;
+            }
 
             std::mutex mutex_cout;
+            std::mutex mutex_map;
 
             std::vector<std::thread> vec_threads;
             size_t param_chunk_size = param_count / thread_count;
@@ -866,8 +817,8 @@ namespace RefVariation
                 vec_threads.push_back(
                     std::thread( find_alignments_mt,
                                     & args, i * param_chunk_size, current_chunk_size,
-                                    g_Params.ref_acc, & obj, bases_start,
-                                    & mutex_cout, i + 1
+                                    g_Params.ref_acc, & obj, bases_start, & mapMatches,
+                                    & mutex_cout, i + 1, & mutex_map
                                ));
             }
 
@@ -875,11 +826,21 @@ namespace RefVariation
                 th.join();
         }
 #else
-        std::cout
-            << "Current ref-variation version is compiled without multithreading"
-            << std::endl;
-        find_alignments (args, g_Params.ref_acc, obj, bases_start);
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+        {
+            std::cout
+                << "Current ref-variation version is compiled without multithreading"
+                << std::endl;
+        }
+        find_alignments (args, g_Params.ref_acc, obj, bases_start, mapMatches);
 #endif
+
+        for ( std::map <std::string, RunMatchInfo>::const_iterator cit = mapMatches.begin(); cit != mapMatches.end(); ++cit  )
+        {
+            std::string const& acc = (*cit).first;
+            RunMatchInfo const& info = (*cit).second;
+            std::cout << acc << '\t' << info.coverage << std::endl;
+        }
     }
 
     void find_variation_region_impl (KApp::CArgs const& args)
@@ -907,24 +868,6 @@ namespace RefVariation
                 g_Params.query, var_len, g_Params.var_len_on_ref,
                 chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
 
-            //obj = KSearch::VRefVariationIUPACMake (
-            //    ref_chunk.data(), ref_chunk.size(),
-            //    ref_pos_in_slice, g_Params.query, var_len, g_Params.var_len_on_ref );
-
-            //if ( obj.GetVarStart() == 0 && chunk_no > 0 )
-            //{
-            //    cont = true;
-            //    --chunk_no_start;
-            //    ref_pos_in_slice += chunk_size;
-            //    bases_start -= chunk_size;
-            //}
-            //if (obj.GetVarStart() + obj.GetVarLenOnRef() == ref_chunk.size() &&
-            //    chunk_no_end < chunk_no_last )
-            //{
-            //    cont = true;
-            //    ++chunk_no_end;
-            //}
-
             if ( !cont )
             {
                 finish_find_variation_region ( args, var_len,
@@ -949,185 +892,10 @@ namespace RefVariation
 
             finish_find_variation_region ( args, var_len,
                 ref_slice.c_str(), ref_slice.size(), bases_start, obj);
-            }
-
-    }
-
-#if 0
-    void find_variation_region_impl (KApp::CArgs const& args)
-    {
-        ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
-
-        size_t var_len = strlen (g_Params.query);
-
-        size_t bases_start = g_Params.ref_pos_var > 1000 ? g_Params.ref_pos_var - 1000 : 0;
-        ngs::StringRef ref1 = ref_seq.getReferenceChunk ( bases_start );
-
-        size_t ref_start, ref_len;
-
-        bool failed = true;
-        KSearch::CVRefVariation obj;
-        if ( bases_start + ref1 . size () >= (size_t)g_Params.ref_pos_var + 1000 )
-        {
-            failed = false;
-            try
-            {
-                KSearch::FindRefVariationRegionAscii ( ref1.data(), ref1.size(), g_Params.ref_pos_var - bases_start,
-                    g_Params.query, var_len, g_Params.var_len_on_ref, & ref_start, & ref_len );
-                ref_start += bases_start;
-                
-                debug_init_obj ( obj, ref1.data(), ref1.size(), g_Params.ref_pos_var - bases_start,
-                    g_Params.query, var_len, g_Params.var_len_on_ref, ref_start - bases_start, ref_len );
-            }
-            catch ( ... )
-            {
-                failed = true;
-            }
-        }
-
-        if ( ! failed )
-        {
-            finish_find_variation_region_impl ( args, var_len, ref1.toString (), bases_start, ref_start, ref_len, obj );
-        }
-
-        else
-        {
-            failed = false;
-            ngs::String ref2;
-
-            try
-            {
-                bases_start = g_Params.ref_pos_var > 5000 ? g_Params.ref_pos_var - 5000 : 0;
-                ref2 = ref_seq.getReferenceBases( bases_start, 15000 );
-                KSearch::FindRefVariationRegionAscii ( ref2.data(), ref2.size(), g_Params.ref_pos_var - bases_start,
-                    g_Params.query, var_len, g_Params.var_len_on_ref, & ref_start, & ref_len );
-                ref_start += bases_start;
-
-                debug_init_obj ( obj, ref2.data(), ref2.size(), g_Params.ref_pos_var - bases_start,
-                    g_Params.query, var_len, g_Params.var_len_on_ref, ref_start - bases_start, ref_len );
-            }
-            catch ( ... )
-            {
-                failed = true;
-            }
-
-            if ( failed )
-            {
-                bases_start = 0;
-                ref2 = ref_seq.getReferenceBases( 0 );
-                KSearch::FindRefVariationRegionAscii ( ref2.data(), ref2.size(), g_Params.ref_pos_var,
-                    g_Params.query, var_len, g_Params.var_len_on_ref, & ref_start, & ref_len );
-
-                debug_init_obj ( obj, ref2.data(), ref2.size(), g_Params.ref_pos_var,
-                    g_Params.query, var_len, g_Params.var_len_on_ref, ref_start, ref_len );
-            }
-
-            finish_find_variation_region_impl ( args, var_len, ref2, bases_start, ref_start, ref_len, obj );
         }
     }
-#endif
-#else // VDB implementation
-    std::string get_ref_chunk ( int64_t ref_row_id, VDBObjects::CVCursor const& cursor )
-    {
-        char const* pREAD;
-        uint32_t count =  cursor.CellDataDirect ( ref_row_id, g_ColumnIndex[idx_READ], & pREAD );
-        return std::string ( pREAD, count );
-    }
 
-
-    void find_variation_region_impl (KApp::CArgs const& args)
-    {
-        VDBObjects::CVDBManager mgr;
-        mgr.Make();
-
-        VDBObjects::CVTable table = mgr.OpenTable ( g_Params.ref_acc );
-        VDBObjects::CVCursor cursor = table.CreateCursorRead ();
-
-        cursor.InitColumnIndex (g_ColumnNames, g_ColumnIndex, countof(g_ColumnNames));
-        cursor.Open();
-
-        int64_t id_first = 0;
-        uint64_t row_count = 0;
-
-        cursor.GetIdRange (id_first, row_count);
-
-        uint32_t max_seq_len;
-        uint64_t total_seq_len;
-        cursor.ReadItems ( id_first, g_ColumnIndex[idx_MAX_SEQ_LEN], & max_seq_len, 1 );
-        cursor.ReadItems ( id_first, g_ColumnIndex[idx_TOTAL_SEQ_LEN], & total_seq_len, 1 );
-
-        if ( (uint64_t) g_Params.ref_pos_var > total_seq_len )
-        {
-            throw Utils::CErrorMsg ("reference position (%ld) is greater than total sequence length (%ud)",
-                                    g_Params.ref_pos_var, total_seq_len);
-        }
-
-        int64_t var_len = strlen (g_Params.query);
-
-        std::string ref;
-        ref.reserve( max_seq_len + 1);
-        int64_t id = g_Params.ref_pos_var / max_seq_len + id_first;
-        size_t ref_pos_adj = g_Params.ref_pos_var % max_seq_len;
-
-        int64_t id_start = id, id_end = id;
-
-        ref = get_ref_chunk ( id, cursor );
-        size_t ref_start, ref_len;
-        while ( true )
-        {
-            KSearch::FindRefVariationRegionAscii ( ref, ref_pos_adj,
-                g_Params.query, var_len, g_Params.var_len_on_ref, ref_start, ref_len );
-
-            std::cout
-                << "id_start=" << id_start
-                << ", id_end=" << id_end
-                << ", ref_pos_adj=" << ref_pos_adj
-                << std::endl;
-            std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
-            print_indel ( "reference", ref.c_str(), ref.size(), ref_start, ref_len );
-
-            bool cont = false;
-            if ( ref_start == 0 && id > id_first )
-            {
-                --id_start;
-                ref_pos_adj += max_seq_len;
-
-                char const* pREAD;
-                uint32_t count_read =  cursor.CellDataDirect ( id_start, g_ColumnIndex[idx_READ], & pREAD );
-                ref.insert( 0, pREAD, count_read );
-                //ref.insert( 0, get_ref_chunk ( id_start, cursor ).c_str() );
-
-                cont = true;
-                std::cout
-                    << "extending to the left, id_start == " << id_start
-                    << "; adjusting ref_pos to " << ref_pos_adj << std::endl;
-
-            }
-            if ( ref_start + ref_len == ref.size() && id_end < id_first + (int64_t)row_count - 1 )
-            {
-                ++id_end;
-
-                char const* pREAD;
-                uint32_t count_read =  cursor.CellDataDirect ( id_end, g_ColumnIndex[idx_READ], & pREAD );
-                ref.append ( pREAD, count_read );
-//                ref.append ( get_ref_chunk ( id_end, cursor ) );
-
-                cont = true;
-                std::cout
-                    << "extending to the right, id_end == " << id_end << std::endl;
-
-            }
-            if ( !cont )
-                break;
-        }
-
-        // adjust ref_start to absolute zero-based value
-        if ( id_start > id_first )
-            ref_start += max_seq_len * ( id_start - id_first );
-    }
-#endif
-
-#if SECRET_OPTION != 0 || IMPLEMENT_IN_NGS == 0
+#if SECRET_OPTION != 0
     void get_ref_bases ( int64_t offset, uint64_t len, std::string & ret,
         VDBObjects::CVCursor const& cursor,
         int64_t id_first, uint64_t row_count,
@@ -1171,9 +939,6 @@ namespace RefVariation
         }
     }
 
-#endif
-
-#if SECRET_OPTION != 0
     void test_ngs ()
     {
         std::cout << "Starting NGS test..." << std::endl;
@@ -1391,12 +1156,10 @@ namespace RefVariation
             }
 
         }
-#if IMPLEMENT_IN_NGS != 0 || SECRET_OPTION != 0
         catch ( ngs::ErrorMsg const& e )
         {
-            std::cout << "ngs::ErrorMsg: " << e.what() << std::endl;
+            std::cerr << "ngs::ErrorMsg: " << e.what() << std::endl;
         }
-#endif
         catch (...)
         {
             Utils::HandleException ();
@@ -1470,6 +1233,8 @@ extern "C"
           ref-variation -r NC_000013.10 -p 100635036 --query 'ACC' -l 0 /netmnt/traces04/sra33/SRZ/000793/SRR793062/SRR793062.pileup /netmnt/traces04/sra33/SRZ/000795/SRR795251/SRR795251.pileup
 
        windows example: -r NC_000002.11 -p 73613068 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR618508.pileup
+
+       -r NC_000002.11 -p 73613071 --query "C" -l 1
           
        */
 

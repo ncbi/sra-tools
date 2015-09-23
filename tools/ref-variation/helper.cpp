@@ -1063,15 +1063,15 @@ namespace Utils
                 res = string_printf(szBufErr, countof(szBufErr), NULL, "ERROR: %s", e.what());
             if (res == rcBuffer || res == rcInsufficient)
                 szBufErr[countof(szBufErr) - 1] = '\0';
-            printf("%s\n", szBufErr);
+            fprintf(stderr, "%s\n", szBufErr);
         }
         catch (std::exception const& e)
         {
-            printf("std::exception: %s\n", e.what());
+            fprintf(stderr, "std::exception: %s\n", e.what());
         }
         catch (...)
         {
-            printf("Unexpected exception occured\n");
+            fprintf(stderr, "Unexpected exception occured\n");
         }
     }
 }

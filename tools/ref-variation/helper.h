@@ -467,8 +467,11 @@ namespace KApp
     };
 }
 
+struct VRefVariation;
+
 namespace KSearch
 {
+#if 0 // turning off old code
     void FindRefVariationRegionAscii (
             char const* ref, size_t ref_size, size_t ref_pos_var,
             char const* variation, size_t variation_size, size_t var_len_on_ref,
@@ -480,4 +483,34 @@ namespace KSearch
             char const* variation, size_t variation_size, size_t var_len_on_ref,
             size_t& ref_start, size_t& ref_len
         );
+#endif
+
+    class CVRefVariation
+    {
+    public:
+        friend CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+            size_t ref_pos_var, char const* variation, size_t variation_size,
+            size_t var_len_on_ref);
+
+        CVRefVariation();
+        ~CVRefVariation();
+        CVRefVariation(CVRefVariation const& x);
+        CVRefVariation& operator=(CVRefVariation const& x);
+
+        void Release();
+
+        char const* GetVariation() const;
+        size_t GetVarStart() const;
+        size_t GetVarSize() const;
+        size_t GetVarLenOnRef() const;
+
+    private:
+        void Clone(CVRefVariation const& x);
+        ::VRefVariation* m_pSelf;
+    };
+
+    CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+            size_t ref_pos_var, char const* variation, size_t variation_size,
+            size_t var_len_on_ref);
+
 }

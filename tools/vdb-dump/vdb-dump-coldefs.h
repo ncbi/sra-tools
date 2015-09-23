@@ -91,6 +91,7 @@ void vdcd_destroy( col_defs* defs );
 
 uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *my_table );
 uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *my_table );
+bool vdcd_table_has_column( const VTable *my_table, const char * to_find );
 bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *my_table );
 uint32_t vdcd_add_to_cursor( col_defs* defs, const VCursor *my_cursor );
 void vdcd_reset_content( col_defs* defs );

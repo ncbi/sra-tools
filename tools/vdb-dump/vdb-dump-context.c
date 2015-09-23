@@ -386,7 +386,9 @@ static bool vdco_set_format( p_dump_context ctx, const char *src )
         ctx->format = df_tab;
     else if ( strcmp( src, "fastq" ) == 0 )
         ctx->format = df_fastq;
-    else if ( strcmp( src, "fasta" ) == 0 )
+    else if ( strcmp( src, "fastq1" ) == 0 )
+        ctx->format = df_fastq1;
+	else if ( strcmp( src, "fasta" ) == 0 )
         ctx->format = df_fasta;
     else if ( strcmp( src, "fasta1" ) == 0 )
         ctx->format = df_fasta1;

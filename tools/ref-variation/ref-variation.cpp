@@ -39,6 +39,12 @@
 #include <string>
 #include <vector>
 
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
+#include <thread>
+#include <mutex>
+#else
+#endif
+
 #include <kapp/main.h>
 #include <klib/rc.h>
 
@@ -59,6 +65,7 @@ namespace RefVariation
         char const* query;
         size_t var_len_on_ref;
         int verbosity;
+        size_t thread_count;
 
     } g_Params =
     {
@@ -66,7 +73,8 @@ namespace RefVariation
         -1,
         "",
         0,
-        0
+        0,
+        1
     };
 
 #if SECRET_OPTION != 0
@@ -94,12 +102,17 @@ namespace RefVariation
     char const ALIAS_VERBOSITY[]  = "v";
     char const* USAGE_VERBOSITY[] = { "increase the verbosity of the program. use multiple times for more verbosity.", NULL };
 
+    char const OPTION_THREADS[] = "threads";
+    char const ALIAS_THREADS[]  = "t";
+    char const* USAGE_THREADS[] = { "the number of threads to run", NULL };
+
     ::OptDef Options[] =
     {
         { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true },
         { OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true },
         { OPTION_QUERY,         ALIAS_QUERY,         NULL, USAGE_QUERY,         1, true, true },
-        { OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true }
+        { OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true },
+        { OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false }
 #if SECRET_OPTION != 0
         ,{ OPTION_SECRET,        NULL,                NULL, USAGE_SECRET,        1, true, false }
 #endif
@@ -239,6 +252,7 @@ namespace RefVariation
 
 #if IMPLEMENT_IN_NGS != 0
 
+#if 0 // turning off old code
     ngs::String compose_query_adjusted (ngs::String const& ref,
         size_t ref_start, size_t ref_len,
         char const* query, size_t query_len, int64_t ref_pos_var, size_t var_len_on_ref)
@@ -282,6 +296,7 @@ namespace RefVariation
 
         return ret;
     }
+#endif
 
     enum PileupColumnNameIndices
     {
@@ -303,14 +318,12 @@ namespace RefVariation
         "REF_POS",
         "RUN_NAME"
     };
-    uint32_t g_PileupColumnIndex [ countof (g_PileupColumnNames) ];
-
 
     bool filter_pileup_db ( char const* acc, char const* ref_name,
                 size_t ref_pos, char const* query, size_t query_len,
                 std::vector <std::string>& vec)
     {
-        std::cout << "Processing " << acc << "... ";// << std::endl;
+        //std::cout << "Processing " << acc << "... ";// << std::endl;
 
         VDBObjects::CVDBManager mgr;
         mgr.Make();
@@ -321,7 +334,8 @@ namespace RefVariation
         VDBObjects::CVTable table = db.OpenTable ( "STATS" );
         VDBObjects::CVCursor cursor = table.CreateCursorRead ();
 
-        cursor.InitColumnIndex (g_PileupColumnNames, g_PileupColumnIndex, countof(g_PileupColumnNames));
+        uint32_t PileupColumnIndex [ countof (g_PileupColumnNames) ];
+        cursor.InitColumnIndex (g_PileupColumnNames, PileupColumnIndex, countof(g_PileupColumnNames));
         cursor.Open();
 
         int64_t id_first = 0;
@@ -340,7 +354,7 @@ namespace RefVariation
         int64_t row_id;
         for ( row_id = id_first; row_id < id_first + (int64_t)row_count; ++ row_id )
         {
-            uint32_t count = cursor.ReadItems ( row_id, g_PileupColumnIndex[idx_REFERENCE_SPEC], ref_spec, countof(ref_spec)-1 );
+            uint32_t count = cursor.ReadItems ( row_id, PileupColumnIndex[idx_REFERENCE_SPEC], ref_spec, countof(ref_spec)-1 );
             assert (count < countof(ref_spec));
             ref_spec [count] = '\0';
 
@@ -361,12 +375,12 @@ namespace RefVariation
         uint64_t id_count;
 
         bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
-        std::cout
-            << (found ? "" : " not") << " found " << ref_name << " row_id=" << ref_id_start
-            << ", id_count=" << id_count << " "; // <<  std::endl;
+        //std::cout
+        //    << (found ? "" : " not") << " found " << ref_name << " row_id=" << ref_id_start
+        //    << ", id_count=" << id_count << " "; // <<  std::endl;
         if ( !found )
         {
-            std::cout << std::endl;
+            //std::cout << std::endl;
             return false;
         }
 
@@ -382,18 +396,18 @@ namespace RefVariation
                 return false; // went beyond the end of db, probably, it's a bug in db
             }
             uint32_t depth;
-            uint32_t count = cursor.ReadItems ( pos + ref_id_start, g_PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
+            uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
 
             if ( count == 0 || depth == 0 )
             {
-                std::cout << "depth=0 at the ref_pos=" << pos
-                    << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
+                //std::cout << "depth=0 at the ref_pos=" << pos
+                //    << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
                 return false;
             }
         }
 
         char run_name[64];
-        uint32_t count = cursor.ReadItems ( id_first, g_PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
+        uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
         assert (count < countof(run_name));
         run_name [count] = '\0';
 
@@ -409,8 +423,8 @@ namespace RefVariation
         {
             if ( e.getRC() == SILENT_RC(rcDB,rcMgr,rcOpening,rcDatabase,rcIncorrect))
             {
-                std::cout
-                    << "BAD db, filtering out" << std::endl;
+                //std::cout
+                //    << "BAD db, filtering out" << std::endl;
                 return false;
             }
             else
@@ -418,12 +432,122 @@ namespace RefVariation
         }
     }
 
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
+    bool filter_pileup_db_mt ( char const* acc, char const* ref_name,
+                size_t ref_pos, char const* query, size_t query_len,
+                std::vector <std::string>& vec,
+                std::mutex* lock_cout, size_t thread_num)
+    {
+        //std::cout << "Processing " << acc << "... ";// << std::endl;
+
+        VDBObjects::CVDBManager mgr;
+        mgr.Make();
+
+        try
+        {
+        VDBObjects::CVDatabase db = mgr.OpenDB ( acc );
+        VDBObjects::CVTable table = db.OpenTable ( "STATS" );
+        VDBObjects::CVCursor cursor = table.CreateCursorRead ();
+
+        uint32_t PileupColumnIndex [ countof (g_PileupColumnNames) ];
+        cursor.InitColumnIndex (g_PileupColumnNames, PileupColumnIndex, countof(g_PileupColumnNames));
+        if (PileupColumnIndex[idx_DEPTH] == 0)
+        {
+
+                std::lock_guard<std::mutex> l(*lock_cout);
+                std::cout
+                    << "[" << thread_num << "] "
+                    << "PileupColumnIndex[idx_DEPTH]==" << PileupColumnIndex[idx_DEPTH]
+                    << std::endl;
+        }
+
+        cursor.Open();
+
+        int64_t id_first = 0;
+        uint64_t row_count = 0;
+
+        cursor.GetIdRange (id_first, row_count);
+
+        // Find Reference beginning
+
+        KDBObjects::CKTable ktbl = table.OpenKTableRead();
+        KDBObjects::CKIndex kindex = ktbl.OpenIndexRead("ref_spec");
+
+        int64_t ref_id_start;
+        uint64_t id_count;
+
+        bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
+        //std::cout
+        //    << (found ? "" : " not") << " found " << ref_name << " row_id=" << ref_id_start
+        //    << ", id_count=" << id_count << " "; // <<  std::endl;
+        if ( !found )
+        {
+            //std::cout << std::endl;
+            return false;
+        }
+
+        // check depth > 0 for every position of the region
+        for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + query_len ); ++pos )
+        {
+            if ( pos + ref_id_start >= id_first + (int64_t)row_count )
+            {
+                std::lock_guard<std::mutex> l(*lock_cout);
+                std::cout
+                    << "[" << thread_num << "] "
+                    << "OUT OF BOUNDS! filtering out" << std::endl;
+                return false; // went beyond the end of db, probably, it's a bug in db
+            }
+            uint32_t depth;
+            uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
+
+            if ( count == 0 || depth == 0 )
+            {
+                //std::cout << "depth=0 at the ref_pos=" << pos
+                //    << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
+                return false;
+            }
+        }
+
+        char run_name[64];
+        uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
+        assert (count < countof(run_name));
+        run_name [count] = '\0';
+
+
+        {
+            std::lock_guard<std::mutex> l(*lock_cout);
+            std::cout
+                << "[" << thread_num << "] "
+                << run_name << " is suspicious" << std::endl;
+        }
+        char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
+
+        vec.push_back ( std::string(p) );
+
+        return true;
+        }
+        catch ( Utils::CErrorMsg const& e )
+        {
+            if ( e.getRC() == SILENT_RC(rcDB,rcMgr,rcOpening,rcDatabase,rcIncorrect))
+            {
+                //std::cout
+                //    << "BAD db, filtering out" << std::endl;
+                return false;
+            }
+            else
+                throw;
+        }
+    }
+#endif
+
     std::vector <std::string> get_acc_list (KApp::CArgs const& args, char const* ref_name, size_t ref_pos, char const* query, size_t query_len)
     {
         size_t param_count = args.GetParamCount();
         
         std::cout << param_count << " pileup database" << (param_count == 1 ? "" : "s")
             << " to search for" << std::endl;
+
+        std::cout << "ref_pos=" << ref_pos << ", query_len=" << query_len << std::endl;
 
         std::vector <std::string> vec_acc;
 
@@ -436,6 +560,36 @@ namespace RefVariation
         return vec_acc;
     }
 
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
+    std::vector <std::string> get_acc_list_mt (KApp::CArgs const& args,
+        char const* ref_name, size_t ref_pos, char const* query, size_t query_len,
+        std::mutex* lock_cout, size_t param_start, size_t param_count, size_t thread_num )
+    {
+        {
+            std::lock_guard<std::mutex> l(*lock_cout);
+            std::cout
+                << "[" << thread_num << "] "
+                << param_count << " pileup database" << (param_count == 1 ? "" : "s")
+                << " to search for" << std::endl;
+
+            std::cout
+                << "[" << thread_num << "] "
+                << "ref_pos=" << ref_pos << ", query_len=" << query_len << std::endl;
+        }
+
+        std::vector <std::string> vec_acc;
+
+        for ( uint32_t i = 0; i < param_count; ++i)
+        {
+            char const* acc = args.GetParamValue( i + param_start );
+            filter_pileup_db_mt ( acc, ref_name, ref_pos, query, query_len, vec_acc, lock_cout, thread_num );
+        }
+        
+        return vec_acc;
+    }
+#endif
+
+#if 0
     void find_alignments ( KApp::CArgs const& args, char const* ref_name, size_t ref_pos, char const* query, size_t query_len )
     {
         std::vector <std::string> vec_acc = get_acc_list ( args, ref_name, ref_pos, query, query_len );
@@ -462,9 +616,107 @@ namespace RefVariation
             }
         }
     }
+#endif
 
+    void find_alignments ( KApp::CArgs const& args, char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start )
+    {
+        size_t ref_start = bases_start + obj.GetVarStart();
+        std::vector <std::string> vec_acc = get_acc_list ( args, ref_name, ref_start, obj.GetVariation(), obj.GetVarSize() );
+
+        std::cout << "Looking for \""  << obj.GetVariation() << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
+        for ( std::vector <std::string>::const_iterator cit = vec_acc.begin(); cit != vec_acc.end(); ++cit )
+        {
+            std::string const& acc = (*cit);
+            ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
+
+            ngs::Reference reference = run.getReference( ref_name );
+            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, obj.GetVarSize(), ngs::Alignment::all );
+
+            while ( ai.nextAlignment() )
+            {
+                ngs::String id = ai.getAlignmentId ().toString();
+                int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
+                ngs::String bases = ai.getFragmentBases( align_pos, obj.GetVarSize() ).toString();
+                bool match = strncmp (obj.GetVariation(), bases.c_str(), obj.GetVarSize()) == 0;
+                std::cout << "id=" << id
+                    << ": "
+                    << bases
+                    << (match ? " MATCH!" : "")
+                    << std::endl;
+            }
+        }
+    }
+
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
+    void find_alignments_mt ( KApp::CArgs const* pargs, size_t param_start, size_t param_count,
+        char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
+        std::mutex* lock_cout, size_t thread_num )
+    {
+        try
+        {
+        KApp::CArgs const& args = *pargs;
+        KSearch::CVRefVariation const& obj = *pobj;
+        size_t ref_start = bases_start + obj.GetVarStart();
+
+        {
+            std::lock_guard<std::mutex> l(*lock_cout);
+            std::cout
+                << "[" << thread_num << "] "
+                << "Processing parameters from " << param_start + 1
+                << " to " << param_start + param_count << " inclusively"
+                << std::endl;
+        }
+
+        std::vector <std::string> vec_acc = get_acc_list_mt ( args, ref_name, ref_start, obj.GetVariation(), obj.GetVarSize(), lock_cout, param_start, param_count, thread_num );
+
+        {
+            std::lock_guard<std::mutex> l(*lock_cout);
+            std::cout
+                << "[" << thread_num << "] "
+                << "Looking for \""  << obj.GetVariation() << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
+        }
+        for ( std::vector <std::string>::const_iterator cit = vec_acc.begin(); cit != vec_acc.end(); ++cit )
+        {
+            std::string const& acc = (*cit);
+            ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
+
+            ngs::Reference reference = run.getReference( ref_name );
+            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, obj.GetVarSize(), ngs::Alignment::all );
+
+            while ( ai.nextAlignment() )
+            {
+                ngs::String id = ai.getAlignmentId ().toString();
+                int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
+                ngs::String bases = ai.getFragmentBases( align_pos, obj.GetVarSize() ).toString();
+                bool match = strncmp (obj.GetVariation(), bases.c_str(), obj.GetVarSize()) == 0;
+                {
+                    std::lock_guard<std::mutex> l(*lock_cout);
+                    std::cout
+                        << "[" << thread_num << "] "
+                        << "id=" << id
+                        << ": "
+                        << bases
+                        << (match ? " MATCH!" : "")
+                        << std::endl;
+                }
+            }
+        }
+        }
+        catch ( ngs::ErrorMsg const& e )
+        {
+            std::cout << "ngs::ErrorMsg: " << e.what() << std::endl;
+        }
+        catch (...)
+        {
+            Utils::HandleException ();
+        }
+    }
+#endif
+
+#if 0 // turning off old code
     void finish_find_variation_region_impl ( KApp::CArgs const & args, size_t var_len,
-        const ngs::String & ref, size_t bases_start, size_t ref_start, size_t ref_len )
+        const ngs::String & ref, size_t bases_start, size_t ref_start, size_t ref_len,
+        KSearch::CVRefVariation const& obj )
     {
         std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
         assert ( ref_start >= bases_start );
@@ -474,6 +726,7 @@ namespace RefVariation
             g_Params.query, var_len, g_Params.ref_pos_var - bases_start, g_Params.var_len_on_ref );
 
         std::cout << "var_query=" << var_query << std::endl;
+        std::cout << "new_query=" << obj.GetVariation() << std::endl;
 
         std::cout
             << "Input variation spec: "
@@ -483,21 +736,224 @@ namespace RefVariation
             << g_Params.query
             << std::endl;
 
-        size_t ver_len_on_ref_adj = g_Params.var_len_on_ref;
+        size_t var_len_on_ref_adj = g_Params.var_len_on_ref;
         if ( (int64_t)ref_start > g_Params.ref_pos_var )
-            ver_len_on_ref_adj -= ref_start - g_Params.ref_pos_var;
+            var_len_on_ref_adj -= ref_start - g_Params.ref_pos_var;
 
         std::cout
             << "Adjusted variation spec: "
             << g_Params.ref_acc << ":"
             << ref_start << ":"
-            << ver_len_on_ref_adj << ":"
+            << var_len_on_ref_adj << ":"
             << var_query
             << std::endl;
 
+        std::cout
+            << "Adjusted variation spec NEW: "
+            << g_Params.ref_acc << ":"
+            << obj.GetVarStart() + bases_start << ":"
+            << obj.GetVarLenOnRef() << ":"
+            << obj.GetVariation()
+            << std::endl;
+
         find_alignments (args, g_Params.ref_acc, ref_start, var_query.c_str(), var_query.length());
+        find_alignments_obj (args, g_Params.ref_acc, obj, bases_start);
     }
 
+    void debug_init_obj (KSearch::CVRefVariation& obj,
+            char const* ref, size_t ref_size,
+            size_t ref_pos_var, char const* variation, size_t variation_size,
+            size_t var_len_on_ref,
+            size_t ref_start, size_t ref_len )
+    {
+        obj = KSearch::VRefVariationIUPACMake ( ref, ref_size, ref_pos_var,
+            variation, variation_size, var_len_on_ref );
+
+        std::cout
+            << "DEBUG: "
+            << "(ref_start, ref_len)=("
+            << ref_start << ", " << ref_len << ")" << std::endl;
+        std::cout
+            << "DEBUG: "
+            << "(obj.var_start, obj.var_len)=("
+            << obj.GetVarStart() << ", " << obj.GetVarSize() << ")" << std::endl;
+    }
+#endif
+
+    bool find_variation_core_step (KSearch::CVRefVariation& obj,
+        char const* ref_slice, size_t ref_slice_size,
+        size_t& ref_pos_in_slice,
+        char const* var, size_t var_len, size_t var_len_on_ref,
+        size_t chunk_size, size_t chunk_no_last,
+        size_t& bases_start, size_t& chunk_no_start, size_t& chunk_no_end)
+    {
+        bool cont = false;
+        obj = KSearch::VRefVariationIUPACMake (
+            ref_slice, ref_slice_size,
+            ref_pos_in_slice, var, var_len, var_len_on_ref );
+
+        if ( obj.GetVarStart() == 0 && chunk_no_start > 0 )
+        {
+            cont = true;
+            --chunk_no_start;
+            ref_pos_in_slice += chunk_size;
+            bases_start -= chunk_size;
+        }
+        if (obj.GetVarStart() + obj.GetVarLenOnRef() == ref_slice_size &&
+            chunk_no_end < chunk_no_last )
+        {
+            cont = true;
+            ++chunk_no_end;
+        }
+
+        return cont;
+    }
+
+    void finish_find_variation_region ( KApp::CArgs const & args, size_t var_len,
+        char const* ref_slice, size_t ref_slice_size, size_t bases_start,
+        KSearch::CVRefVariation const& obj )
+    {
+        size_t ref_start = obj.GetVarStart() + bases_start;
+        size_t ref_len = obj.GetVarLenOnRef();
+        std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
+        print_indel ( "reference", ref_slice, ref_slice_size, obj.GetVarStart(), ref_len );
+
+        std::cout << "var_query=" << obj.GetVariation() << std::endl;
+
+        std::cout
+            << "Input variation spec   : "
+            << g_Params.ref_acc << ":"
+            << g_Params.ref_pos_var << ":"
+            << g_Params.var_len_on_ref << ":"
+            << g_Params.query
+            << std::endl;
+
+        size_t var_len_on_ref_adj = obj.GetVarLenOnRef();
+        if ( (int64_t)ref_start > g_Params.ref_pos_var )
+            var_len_on_ref_adj -= ref_start - g_Params.ref_pos_var;
+
+        std::cout
+            << "Adjusted variation spec: "
+            << g_Params.ref_acc << ":"
+            << obj.GetVarStart() + bases_start << ":"
+            << obj.GetVarLenOnRef() << ":"
+            << obj.GetVariation()
+            << std::endl;
+
+        // Split further processing into multiple threads if there too many params
+        size_t param_count = args.GetParamCount();
+        size_t thread_count = g_Params.thread_count;
+
+#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
+        if ( thread_count == 1 || param_count < thread_count * 10 )
+            find_alignments (args, g_Params.ref_acc, obj, bases_start);
+        else
+        {
+            // split
+
+            std::cout
+                << "Splitting " << param_count
+                << " jobs into " << thread_count << " threads..." << std::endl;
+
+            std::mutex mutex_cout;
+
+            std::vector<std::thread> vec_threads;
+            size_t param_chunk_size = param_count / thread_count;
+            for (size_t i = 0; i < thread_count; ++i)
+            {
+                size_t current_chunk_size = i == thread_count - 1 ?
+                    param_chunk_size + param_count % thread_count : param_chunk_size;
+                vec_threads.push_back(
+                    std::thread( find_alignments_mt,
+                                    & args, i * param_chunk_size, current_chunk_size,
+                                    g_Params.ref_acc, & obj, bases_start,
+                                    & mutex_cout, i + 1
+                               ));
+            }
+
+            for (std::thread& th : vec_threads)
+                th.join();
+        }
+#else
+        std::cout
+            << "Current ref-variation version is compiled without multithreading"
+            << std::endl;
+        find_alignments (args, g_Params.ref_acc, obj, bases_start);
+#endif
+    }
+
+    void find_variation_region_impl (KApp::CArgs const& args)
+    {
+        ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
+
+        size_t var_len = strlen (g_Params.query);
+
+        size_t chunk_size = 5000; // TODO: add the method Reference[Sequence].getChunkSize() to the API
+        size_t chunk_no = g_Params.ref_pos_var / chunk_size;
+        size_t ref_pos_in_slice = g_Params.ref_pos_var % chunk_size;
+        size_t bases_start = chunk_no * chunk_size;
+        size_t chunk_no_last = ref_seq.getLength() / chunk_size;
+
+        KSearch::CVRefVariation obj;
+        bool cont = false;
+        size_t chunk_no_start = chunk_no, chunk_no_end = chunk_no;
+
+        // optimization: first look into the current chunk only (using ngs::StringRef)
+        {
+            ngs::StringRef ref_chunk = ref_seq.getReferenceChunk ( bases_start );
+            
+            cont = find_variation_core_step ( obj,
+                ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
+                g_Params.query, var_len, g_Params.var_len_on_ref,
+                chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
+
+            //obj = KSearch::VRefVariationIUPACMake (
+            //    ref_chunk.data(), ref_chunk.size(),
+            //    ref_pos_in_slice, g_Params.query, var_len, g_Params.var_len_on_ref );
+
+            //if ( obj.GetVarStart() == 0 && chunk_no > 0 )
+            //{
+            //    cont = true;
+            //    --chunk_no_start;
+            //    ref_pos_in_slice += chunk_size;
+            //    bases_start -= chunk_size;
+            //}
+            //if (obj.GetVarStart() + obj.GetVarLenOnRef() == ref_chunk.size() &&
+            //    chunk_no_end < chunk_no_last )
+            //{
+            //    cont = true;
+            //    ++chunk_no_end;
+            //}
+
+            if ( !cont )
+            {
+                finish_find_variation_region ( args, var_len,
+                    ref_chunk.data(), ref_chunk.size(), bases_start, obj);
+            }
+        }
+
+        // general case - expanding ref_slice to multiple chunks
+        if ( cont )
+        {
+            ngs::String ref_slice;
+            while ( cont )
+            {
+                ref_slice = ref_seq.getReferenceBases (
+                    bases_start, (chunk_no_end - chunk_no_start + 1)*chunk_size );
+
+                cont = find_variation_core_step ( obj,
+                    ref_slice.c_str(), ref_slice.size(), ref_pos_in_slice,
+                    g_Params.query, var_len, g_Params.var_len_on_ref,
+                    chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
+            }
+
+            finish_find_variation_region ( args, var_len,
+                ref_slice.c_str(), ref_slice.size(), bases_start, obj);
+            }
+
+    }
+
+#if 0
     void find_variation_region_impl (KApp::CArgs const& args)
     {
         ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
@@ -510,6 +966,7 @@ namespace RefVariation
         size_t ref_start, ref_len;
 
         bool failed = true;
+        KSearch::CVRefVariation obj;
         if ( bases_start + ref1 . size () >= (size_t)g_Params.ref_pos_var + 1000 )
         {
             failed = false;
@@ -518,6 +975,9 @@ namespace RefVariation
                 KSearch::FindRefVariationRegionAscii ( ref1.data(), ref1.size(), g_Params.ref_pos_var - bases_start,
                     g_Params.query, var_len, g_Params.var_len_on_ref, & ref_start, & ref_len );
                 ref_start += bases_start;
+                
+                debug_init_obj ( obj, ref1.data(), ref1.size(), g_Params.ref_pos_var - bases_start,
+                    g_Params.query, var_len, g_Params.var_len_on_ref, ref_start - bases_start, ref_len );
             }
             catch ( ... )
             {
@@ -527,7 +987,7 @@ namespace RefVariation
 
         if ( ! failed )
         {
-            finish_find_variation_region_impl ( args, var_len, ref1.toString (), bases_start, ref_start, ref_len );
+            finish_find_variation_region_impl ( args, var_len, ref1.toString (), bases_start, ref_start, ref_len, obj );
         }
 
         else
@@ -542,6 +1002,9 @@ namespace RefVariation
                 KSearch::FindRefVariationRegionAscii ( ref2.data(), ref2.size(), g_Params.ref_pos_var - bases_start,
                     g_Params.query, var_len, g_Params.var_len_on_ref, & ref_start, & ref_len );
                 ref_start += bases_start;
+
+                debug_init_obj ( obj, ref2.data(), ref2.size(), g_Params.ref_pos_var - bases_start,
+                    g_Params.query, var_len, g_Params.var_len_on_ref, ref_start - bases_start, ref_len );
             }
             catch ( ... )
             {
@@ -554,12 +1017,15 @@ namespace RefVariation
                 ref2 = ref_seq.getReferenceBases( 0 );
                 KSearch::FindRefVariationRegionAscii ( ref2.data(), ref2.size(), g_Params.ref_pos_var,
                     g_Params.query, var_len, g_Params.var_len_on_ref, & ref_start, & ref_len );
+
+                debug_init_obj ( obj, ref2.data(), ref2.size(), g_Params.ref_pos_var,
+                    g_Params.query, var_len, g_Params.var_len_on_ref, ref_start, ref_len );
             }
 
-            finish_find_variation_region_impl ( args, var_len, ref2, bases_start, ref_start, ref_len );
+            finish_find_variation_region_impl ( args, var_len, ref2, bases_start, ref_start, ref_len, obj );
         }
     }
-
+#endif
 #else // VDB implementation
     std::string get_ref_chunk ( int64_t ref_row_id, VDBObjects::CVCursor const& cursor )
     {
@@ -658,68 +1124,6 @@ namespace RefVariation
         // adjust ref_start to absolute zero-based value
         if ( id_start > id_first )
             ref_start += max_seq_len * ( id_start - id_first );
-        
-
-#if 0
-        {
-        int64_t var_len = strlen (g_Params.query);
-        int64_t slice_start = -1, slice_end = -1;
-        int64_t add_l = 0, add_r = 0;
-
-        while ( true )
-        {
-            int64_t new_slice_start, new_slice_end;
-            std::string ref_slice = get_ref_slice (cursor, g_Params.ref_pos_var, var_len, add_l, add_r, & new_slice_start, & new_slice_end );
-            std::string query = make_query ( ref_slice, g_Params.query, var_len, g_Params.ref_pos_var - new_slice_start );
-
-            std::cout
-                << "Looking for query \"" << query
-                << "\" at the reference around pos=" << g_Params.ref_pos_var
-                << " [" << new_slice_start << ", " << new_slice_end << "]"
-                << ": \"" << ref_slice << "\"..." << std::endl;
-
-            size_t ref_start, ref_len, query_start, query_len;
-            KSearch::FindRefVariationRegionAscii ( ref_slice, g_Params.ref_pos_var - new_slice_start, g_Params.query, var_len, ref_start, ref_len );
-            
-            printf ("indel box found lib: ref: (%lu, %lu), query: (%lu, %lu)\n",
-                ref_start, ref_len, query_start, query_len );
-            print_indel ( "reference", ref_slice.c_str(), ref_slice.size(), ref_start, ref_len );
-            //print_indel ( "query    ", query.c_str(), query.size(), query_start, query_len );
-
-            bool cont = false;
-
-            if ( ref_start == 0)
-            {
-                if ( slice_start != -1 && new_slice_start == slice_start )
-                    std::cout << "cannot expand to the left anymore" <<std::endl;
-                else
-                {
-                    std::cout << "expanding the window to the left..." << std::endl;
-                    add_l += 2;
-                    cont = true;
-                }
-            }
-            if ( ref_start + ref_len == ref_slice.size() )
-            {
-                if ( slice_end != -1 && new_slice_end == slice_end )
-                    std::cout << "cannot expand to the right anymore" <<std::endl;
-                else
-                {
-                    std::cout << "expanding the window to the right..." << std::endl;
-                    add_r += 2;
-                    cont = true;
-                }
-            }
-
-            if ( !cont )
-                break;
-
-            slice_start = new_slice_start;
-            slice_end = new_slice_end;
-        }
-        }
-#endif
-
     }
 #endif
 
@@ -947,6 +1351,9 @@ namespace RefVariation
             if (args.GetOptionCount (OPTION_VAR_LEN_ON_REF) == 1)
                 g_Params.var_len_on_ref = args.GetOptionValueUInt<size_t>( OPTION_VAR_LEN_ON_REF, 0 );
 
+            if (args.GetOptionCount (OPTION_THREADS) == 1)
+                g_Params.thread_count = args.GetOptionValueUInt<size_t>( OPTION_THREADS, 0 );
+
             g_Params.verbosity = (int)args.GetOptionCount (OPTION_VERBOSITY);
 
 #if SECRET_OPTION != 0
@@ -1039,6 +1446,7 @@ extern "C"
         HelpOptionLine (RefVariation::ALIAS_REF_POS, RefVariation::OPTION_REF_POS, "value", RefVariation::USAGE_REF_POS);
         HelpOptionLine (RefVariation::ALIAS_QUERY, RefVariation::OPTION_QUERY, "string", RefVariation::USAGE_QUERY);
         HelpOptionLine (RefVariation::ALIAS_VAR_LEN_ON_REF, RefVariation::OPTION_VAR_LEN_ON_REF, "value", RefVariation::USAGE_VAR_LEN_ON_REF);
+        HelpOptionLine (RefVariation::ALIAS_THREADS, RefVariation::OPTION_THREADS, "value", RefVariation::USAGE_THREADS);
         //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
 #if SECRET_OPTION != 0
         HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);
@@ -1060,6 +1468,8 @@ extern "C"
        
        find insertion:
           ref-variation -r NC_000013.10 -p 100635036 --query 'ACC' -l 0 /netmnt/traces04/sra33/SRZ/000793/SRR793062/SRR793062.pileup /netmnt/traces04/sra33/SRZ/000795/SRR795251/SRR795251.pileup
+
+       windows example: -r NC_000002.11 -p 73613068 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR618508.pileup
           
        */
 

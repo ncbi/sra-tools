@@ -107,7 +107,7 @@ namespace RefVariation
 
     char const OPTION_VAR_LEN_ON_REF[] = "variation-length";
     char const ALIAS_VAR_LEN_ON_REF[]  = "l";
-    char const* USAGE_VAR_LEN_ON_REF[] = { "the length of the variation on the reference (0 - insertion)", NULL };
+    char const* USAGE_VAR_LEN_ON_REF[] = { "the length of the variation on the reference (0 means pure insertion)", NULL };
 
     char const OPTION_VERBOSITY[] = "verbose";
     char const ALIAS_VERBOSITY[]  = "v";

@@ -3,6 +3,7 @@
 *.d
 *.db
 *.o
+*.pyc
 /bin64
 /build/BUILD.*
 /build/COMP.mac

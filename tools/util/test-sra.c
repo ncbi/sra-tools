@@ -2743,8 +2743,6 @@ rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
     }
     if (rc == 0) {
         rc = _KHttpRequestPOST(req, &result, &total);
-        KHttpResult *rslt = NULL;
-        rc = KHttpRequestPOST(req, &rslt);
     }
 
     if (rc == 0) {

@@ -130,6 +130,9 @@ def main():
     build[1]["object"] = loadFiles(build[1]["files"])
     remap = build[0]["object"].remap(build[1]["object"])
 
+    gw.writeTableMetadata(tbl['SOURCE'], "BuildName", build[0]["name"])
+    gw.writeTableMetadata(tbl['RESULT'], "BuildName", build[1]["name"])
+
     writeAGP(build[0]["object"].flattened(), tbl["SOURCE"])
     writeAGP(build[1]["object"].flattened(), tbl["RESULT"])
     writeAGP(remap, tbl["REMAP"])

@@ -32,6 +32,8 @@ Note: There must be two builds specified
 import sys
 import traceback
 from AGP import AGP
+from GeneralWriter import GeneralWriter
+from array import array
 
 usage = "Usage: {} -help | [ -output=<name of output object> -name=<build name> <AGP files> -name=<build name> <AGP files> ]\n".format(sys.argv[0])
 build = []
@@ -78,15 +80,66 @@ def loadFiles(list):
         agp.loadFile(f)
     return agp
 
+def assemblyTblDef():
+    return {
+        'SEQID': {
+            'elem_bits': 8,
+        },
+        'START': {
+            'elem_bits': 32,
+        },
+        'LENGTH': {
+            'elem_bits': 32,
+        },
+        'COMPONENT': {
+            'elem_bits': 8,
+        },
+        'OFFSET': {
+            'elem_bits': 32,
+        },
+        'REVERSED': {
+            'elem_bits': 8,
+        },
+    }
+
+tbl = {
+    'SOURCE': assemblyTblDef(),
+    'RESULT': assemblyTblDef(),
+    'REMAP': assemblyTblDef(),
+}
+
+gw = GeneralWriter(  output
+                   , 'agp.vschema'
+                   , 'NCBI:refseq:db:remap'
+                   , 'agp-load.py'
+                   , '1.0.0'
+                   , tbl)
+
+def writeAGP(listOfAGP, tbl):
+    for r in listOfAGP:
+        tbl['SEQID'    ]['data'] = str(r[0]).encode('ascii')
+        tbl['START'    ]['data'] = array('I', [int(r[1])])
+        tbl['LENGTH'   ]['data'] = array('I', [int(r[2] - r[1])])
+        tbl['COMPONENT']['data'] = str(r[5]).encode('ascii')
+        tbl['OFFSET'   ]['data'] = array('I', [int(r[6])])
+        tbl['REVERSED' ]['data'] = array('b', [1 if r[8] < 0 else 0])
+        gw.write(tbl)
 
 def main():
     build[0]["object"] = loadFiles(build[0]["files"])
     build[1]["object"] = loadFiles(build[1]["files"])
     remap = build[0]["object"].remap(build[1]["object"])
 
+    gw.writeTableMetadata(tbl['SOURCE'], "BuildName", build[0]["name"])
+    gw.writeTableMetadata(tbl['RESULT'], "BuildName", build[1]["name"])
+
+    writeAGP(build[0]["object"].flattened(), tbl["SOURCE"])
+    writeAGP(build[1]["object"].flattened(), tbl["RESULT"])
+    writeAGP(remap, tbl["REMAP"])
+
 def cleanup():
     pass
 
 main()
-#print(build)
+gw = None
 cleanup()

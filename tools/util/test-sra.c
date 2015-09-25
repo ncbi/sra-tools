@@ -33,6 +33,8 @@
 #include <kfg/kart.h> /* Kart */
 #include <kfg/repository.h> /* KRepositoryMgr */
 
+#include <kfs/dyload.h> /* KDyld */
+
 #include <klib/time.h> /* KTimeMsStamp */
 
 #include <kns/endpoint.h> /* KEndPoint */
@@ -91,26 +93,26 @@ VFS_EXTERN rc_t CC VResolverProtocols ( VResolver * self,
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
 
 typedef enum {
-    eCfg = 1,
-/*  eType = 2, */
-    eResolve = 2,
-    eDependMissing = 4,
-    eDependAll = 8,
-    eNetwork = 16,
-    eVersion = 32,
-    eNewVersion = 64,
-    eOpenTable = 128,
-    eOpenDB = 256,
-    eType = 512,
-    eNcbiReport = 1024,
-    eOS = 2048,
-    eAscp = 4096,
+    eCfg            = 1,
+    eResolve        = 2,
+    eDependMissing  = 4,
+    eDependAll      = 8,
+    eNetwork       = 16,
+    eVersion       = 32,
+    eNewVersion    = 64,
+    eOpenTable    = 128,
+    eOpenDB       = 256,
+    eType         = 512,
+    eNcbiReport  = 1024,
+    eOS          = 2048,
+    eAscp        = 4096,
     eAscpVerbose = 8192,
-    eAll = 16384,
-    eNoTestArg = 32768
+    eNgs        = 16384,
+    eAll        = 32768,
+    eNoTestArg  = 65536,
 } Type;
 typedef uint16_t TTest;
-static const char TESTS[] = "crdDwsSoOtnufFa";
+static const char TESTS[] = "crdDwsSoOtnufFga";
 typedef struct {
     KConfig *cfg;
     KDirectory *dir;
@@ -553,13 +555,15 @@ static rc_t MainCallCgiImpl(const Main *self,
                         uint64_t avail = result . elem_count - total;
                         if ( avail < 256 )
                         {
-                            rc = KDataBufferResize ( & result, result . elem_count + 4096 );
+                            rc = KDataBufferResize
+                                (&result, result.elem_count + 4096);
                             if ( rc != 0 )
                                 break;
                         }
 
                         base = result . base;
-                        rc = KStreamRead ( response, & base [ total ], result . elem_count - total, & num_read );
+                        rc = KStreamRead(response, &base[total],
+                            result.elem_count - total, &num_read);
                         if ( rc != 0 )
                         {
                             if ( num_read > 0 )
@@ -2644,6 +2648,295 @@ rc_t _SraReleaseVersionPrint(const SraReleaseVersion *self, rc_t rc, bool xml,
     return rc;
 }
 
+static rc_t _KDyldLoadLib(KDyld *self, char *name, size_t sz,
+    const char *path, bool xml, int indent)
+{
+    rc_t rc = 0;
+    KDylib *lib = NULL;
+    rc = KDyldLoadLib(self, &lib, "%.*s", sz, path);
+    if (rc == 0) {
+        rc = OUTMSG(("LOADED %.*s\n", sz, path));
+    }
+    else {
+        rc = OUTMSG(("NOT LOADED %.*s\n", sz, path));
+    }
+    RELEASE(KDylib, lib);
+    return rc;
+}
+
+static
+rc_t _KHttpRequestPOST(KHttpRequest *self, KDataBuffer *result, size_t *total) {
+    rc_t rc = 0;
+    KHttpResult *rslt = NULL;
+    assert(result && total);
+    memset(result, 0, sizeof *result);
+    *total = 0;
+    rc = KHttpRequestPOST(self, &rslt);
+    if (rc == 0) {
+        uint32_t code = 0;
+        size_t msg_size = 0;
+        char msg_buff[256] = "";
+        rc = KHttpResultStatus(rslt,
+            &code, msg_buff, sizeof msg_buff, &msg_size);
+        if (rc == 0 && code == 200) {
+            KStream *response = NULL;
+            rc = KHttpResultGetInputStream( rslt, &response);
+            if (rc == 0) {
+                size_t num_read = 0;
+                KDataBufferMakeBytes(result, 4096);
+                while (true) {
+                    uint8_t *base = NULL;
+                    uint64_t avail = result->elem_count - *total;
+                    if (avail < 256) {
+                        rc = KDataBufferResize
+                            (result, result->elem_count + 4096);
+                        if (rc != 0) {
+                            break;
+                        }
+                    }
+                    base = result->base;
+                    rc = KStreamRead(response, &base[*total],
+                        result->elem_count - *total, &num_read);
+                    if (rc != 0) {
+                        if (num_read > 0) {
+                            rc = 0;
+                        }
+                        else {
+                            break;
+                        }
+                    }
+                    if (num_read == 0) {
+                        break;
+                    }
+                    *total += num_read;
+                }
+                RELEASE(KStream, response);
+            }
+        }
+    }
+    RELEASE(KHttpResult, rslt);
+    return rc;
+}
+
+static
+rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
+{
+    rc_t rc = 0;
+
+    KHttpRequest *req = NULL;
+    KDataBuffer result;
+
+    size_t total = 0;
+
+    assert(self && buffer && sz);
+
+    buffer[0] = '\0';
+
+    rc = KNSManagerMakeRequest(self->knsMgr, &req, 0x01000000, NULL,
+        "http://trace.ncbi.nlm.nih.gov/Traces/sratoolkit/sratoolkit.cgi");
+
+    if (rc == 0) {
+        rc = KHttpRequestAddPostParam(req, "cmd=vers");
+    }
+    if (rc == 0) {
+        rc = KHttpRequestAddPostParam(req, "libname=%s", name);
+    }
+    if (rc == 0) {
+        rc = _KHttpRequestPOST(req, &result, &total);
+        KHttpResult *rslt = NULL;
+        rc = KHttpRequestPOST(req, &rslt);
+    }
+
+    if (rc == 0) {
+        const char *start = (const void*)(result.base);
+        if (total > 0) {
+            if (*(start + total) != '\0') {
+                rc = RC(rcExe, rcString, rcParsing, rcString, rcUnexpected);
+            }
+            else if (*(start + total - 1) != '\n') {
+                rc = RC(rcExe, rcString, rcParsing, rcString, rcUnexpected);
+            }
+            else {
+                string_copy(buffer, sz, start, total - 1);
+            }
+        }
+    }
+
+    KDataBufferWhack(&result);
+    RELEASE(KHttpRequest, req);
+
+    return rc;
+}
+
+static rc_t _MainPrintNgsInfo(const Main* self) {
+    rc_t rc = 0;
+    const char root[] = "Ngs";
+    KDyld *l = NULL;
+    assert(self);
+    if (self->xml) {
+        OUTMSG(("  <%s>\n", root));
+    }
+    {
+        const char root[] = "Latest";
+        char v[512];
+        if (self->xml) {
+            OUTMSG(("    <%s>\n", root));
+        }
+        {
+            const char name[] = "ncbi-vdb";
+            _MainPost(self, name, v, sizeof v);
+            if (self->xml) {
+                OUTMSG(("      <%s version=\"%s\"/>\n", name, v));
+            }
+            else {
+                OUTMSG(("%s latest version=\"%s\"\n", name, v));
+            }
+        }
+        {
+            const char name[] = "ngs-sdk";
+            _MainPost(self, name, v, sizeof v);
+            if (self->xml) {
+                OUTMSG(("      <%s version=\"%s\"/>\n", name, v));
+            }
+            else {
+                OUTMSG(("%s latest version=\"%s\"\n", name, v));
+                OUTMSG(("\n"));
+            }
+        }
+        if (self->xml) {
+            OUTMSG(("    </%s>\n", root));
+        }
+    }
+    rc = KDyldMake(&l);
+    {
+        String *result = NULL;
+        rc = KConfigReadString(self->cfg, "NCBI_HOME", &result);
+        if (rc == 0) {
+            bool found = false;
+            const KFile *f = NULL;
+            char *buffer = NULL;
+            char *ps = NULL;
+            size_t ls = 0;
+            char *pv = NULL;
+            size_t lv = 0;
+            assert(result);
+            rc = KDirectoryOpenFileRead
+                (self->dir, &f, "%s/LibManager.properties", result->addr);
+            if (rc == 0) {
+                uint64_t size = 0;
+                rc = KFileSize(f, &size);
+                if (rc == 0) {
+                    buffer = malloc(size + 1);
+                    if (buffer == NULL) {
+                        rc = RC(rcExe, rcData, rcAllocating,
+                            rcMemory, rcExhausted);
+                    }
+                    else {
+                        size_t num_read = 0;
+                        rc = KFileRead(f, 0, buffer, size + 1, &num_read);
+                        if (rc == 0) {
+                            assert(num_read <= size);
+                            buffer[num_read] = '\0';
+                            found = true;
+#if _ARCH_BITS == 32
+                            const char* sneed = "/dll/ngs-sdk/32/loaded/path=";
+                            const char* vneed = "/dll/ncbi-vdb/32/loaded/path=";
+#else
+                            const char* sneed = "/dll/ngs-sdk/64/loaded/path=";
+                            const char* vneed = "/dll/ncbi-vdb/64/loaded/path=";
+#endif
+                            ps = strstr(buffer, sneed);
+                            if (ps != NULL) {
+                                ps += strlen(sneed);
+                            }
+                            if (ps != NULL) {
+                                const char *e = strchr(ps, '\n');
+                                if (e != NULL) {
+                                    ls = e - ps;
+                                }
+                            }
+
+                            pv = strstr(buffer, vneed);
+                            if (pv != NULL) {
+                                pv += strlen(vneed);
+                            }
+                            if (pv != NULL) {
+                                const char *e = strchr(pv, '\n');
+                                if (e != NULL) {
+                                    lv = e - pv;
+                                }
+                            }
+                        }
+                    }
+                }
+                RELEASE(KFile, f);
+            }
+            if (self->xml) {
+                if (found) {
+                    OUTMSG(("    <LibManager>\n"
+                            "      <Properties>\n%s"
+                            "      </Properties>\n", buffer));
+                    if (ls != 0) {
+                        OUTMSG(("      <ngs-sdk>\n"
+                                "        <Path>%.*s</Path>\n", ls, ps));
+                        _KDyldLoadLib(l, "ngs-sdk", ls, ps, self->xml, 8);
+                        OUTMSG(("      </ngs-sdk>\n"));
+                    }
+                    if (lv != 0) {
+                        OUTMSG(("      <ncbi-vdb>\n"
+                                "        <Path>%.*s</Path>\n", lv, pv));
+                        _KDyldLoadLib(l, "ncbi-vdb", ls, ps, self->xml, 8);
+                        OUTMSG(("      </ncbi-vdb>\n"));
+                    }
+                    OUTMSG(("    </LibManager>\n"));
+                }
+                else {
+                    OUTMSG(("    <LibManager.properties/>\n"));
+                }
+            }
+            else {
+                OUTMSG(("LibManager.properties=\n"));
+                if (found) {
+                    OUTMSG(("%s\n", buffer));
+                    if (ls != 0) {
+                        OUTMSG(("LibManager.ngs-sdk='%.*s'\n", ls, ps));
+                    }
+                    if (lv != 0) {
+                        OUTMSG(("LibManager.ngs-sdk='%.*s'\n", lv, pv));
+                    }
+                }
+            }
+            free(buffer);
+            buffer = NULL;
+            free(result);
+            result = NULL;
+        }
+    }
+    {
+        const char root[] = "ncbi-vdb";
+        if (self->xml) {
+            OUTMSG(("    <%s>\n", root));
+        }
+        if (self->xml) {
+            OUTMSG(("    </%s>\n", root));
+        }
+    }
+    {
+        const char root[] = "ngs-sdk";
+        if (self->xml) {
+            OUTMSG(("    <%s>\n", root));
+        }
+        if (self->xml) {
+            OUTMSG(("    </%s>\n", root));
+        }
+    }
+    if (self->xml) {
+        OUTMSG(("  </%s>\n", root));
+    }
+    RELEASE(KDyld, l);
+    return rc;
+}
+
 static rc_t MainPrintVersion(Main *self) {
     const char root[] = "Version";
 
@@ -2664,7 +2957,7 @@ static rc_t MainPrintVersion(Main *self) {
     memset(&version, 0, sizeof version);
     memset(&newVersion, 0, sizeof newVersion);
     if (self->xml) {
-        OUTMSG(("<%s>\n", root));
+        OUTMSG(("  <%s>\n", root));
     }
     rc = SraReleaseVersionGet(&version);
     rc = _SraReleaseVersionPrint(&version, rc, self->xml,
@@ -2683,7 +2976,7 @@ static rc_t MainPrintVersion(Main *self) {
         if (rc == 0) {
             if (isNew > 0) {
                 OUTMSG((
-           "New version of SRA Toolkit is available for download from\n"
+           "A new version of SRA Toolkit is available for download from\n"
            "\"http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\".\n"
                 ));
             }
@@ -2699,7 +2992,7 @@ static rc_t MainPrintVersion(Main *self) {
     }
 
     if (self->xml) {
-        OUTMSG(("</%s>\n", root));
+        OUTMSG(("  </%s>\n", root));
     }
     else if (self->full) {
         OUTMSG(("\n"));
@@ -2859,7 +3152,8 @@ rc_t CC KMain(int argc, char *argv[]) {
         else {
             if (pcount > 0) {
                 const char *dummy = NULL;
-                rc = ArgsOptionValue(args, OPTION_OUT, 0, (const void **)&dummy);
+                rc =
+                    ArgsOptionValue(args, OPTION_OUT, 0, (const void **)&dummy);
                 if (rc != 0) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_OUT "' argument");
@@ -2879,6 +3173,10 @@ rc_t CC KMain(int argc, char *argv[]) {
 
         if (prms.xml) {
             OUTMSG(("<%s>\n", root));
+        }
+
+        if (MainHasTest(&prms, eNgs)) {
+            _MainPrintNgsInfo(&prms);
         }
 
         MainPrintVersion(&prms);

@@ -75,8 +75,9 @@ class GeneralWriter:
     
     # BEGIN VERSION 2 MESSAGES
     evt_software_name   = (1 << 24) + evt_empty_default
-    evt_metadata_node   = (1 << 24) + evt_software_name
-    evt_metadata_node2  = (1 << 24) + evt_metadata_node # this one is not used here
+    evt_mdata_node_db   = (1 << 24) + evt_software_name
+    evt_mdata_node_tbl  = (1 << 24) + evt_mdata_node_db
+    evt_mdata_node_col  = (1 << 24) + evt_mdata_node_tbl
 
 
     def errorMessage(self, message):
@@ -84,8 +85,11 @@ class GeneralWriter:
 
 
     def write(self, spec):
-        tableId = -1
-        for c in spec.values():
+        tableId = spec['_tableId']
+        for k in spec:
+            if k.startswith('_'):
+                continue
+            c = spec[k]
             if 'data' in c:
                 data = c['data']
                 try:
@@ -97,7 +101,6 @@ class GeneralWriter:
                 except:
                     sys.stderr.write("failed to write column #{}\n".format(c['_columnId']))
                     raise
-            tableId = c['_tableId']
         self._writeNextRow(tableId)
 
 
@@ -142,6 +145,21 @@ class GeneralWriter:
 
 
     @classmethod
+    def _writeDbMetadata(cls, dbId, nodeName, nodeValue):
+        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_mdata_node_db + dbId, nodeName, nodeValue))
+    
+    
+    @classmethod
+    def _writeTableMetadata(cls, tblId, nodeName, nodeValue):
+        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_mdata_node_tbl + tblId, nodeName, nodeValue))
+    
+    
+    @classmethod
+    def _writeColumnMetadata(cls, colId, nodeName, nodeValue):
+        os.write(sys.stdout.fileno(), _make2StringEvent(cls.evt_mdata_node_col + colId, nodeName, nodeValue))
+    
+    
+    @classmethod
     def _writeColumnData(cls, colId, count, data):
         l = os.write(sys.stdout.fileno(), _makeDataEvent(cls.evt_cell_data + colId, count))
         l = (l + os.write(sys.stdout.fileno(), data)) % 4
@@ -152,8 +170,21 @@ class GeneralWriter:
     @classmethod
     def _writeNextRow(cls, tableId):
         os.write(sys.stdout.fileno(), _makeSimpleEvent(cls.evt_next_row + tableId))
-        
-    
+
+
+    def writeDbMetadata(self, nodeName, nodeValue):
+        """ this only supports writing to the default database """
+        GeneralWriter._writeDbMetadata(0, nodeName.encode('ascii'), nodeValue.encode('utf-8'))
+
+
+    def writeTableMetadata(self, table, nodeName, nodeValue):
+        GeneralWriter._writeTableMetadata(table['_tableId'], nodeName.encode('ascii'), nodeValue.encode('utf-8'))
+
+
+    def writeColumnMetadata(self, column, nodeName, nodeValue):
+        GeneralWriter._writeColumnMetadata(column['_columnId'], nodeName.encode('ascii'), nodeValue.encode('utf-8'))
+
+
     def __init__(self, fileName, schemaFileName, schemaDbSpec, softwareName, versionString, tbl):
         """ Construct a General Writer object
     
@@ -180,26 +211,29 @@ class GeneralWriter:
         tableId = 0
         columnId = 0
         for t in tbl:
-            tableId = tableId + 1
+            tableId += 1
             GeneralWriter._writeNewTable(tableId, t.encode('ascii'))
             cols = tbl[t]
             for c in cols:
                 columnId = columnId + 1
-                cols[c]['_tableId'] = tableId
                 cols[c]['_columnId'] = columnId
                 expression = cols[c]['expression'] if 'expression' in cols[c] else c
                 bits = cols[c]['elem_bits']
                 GeneralWriter._writeNewColumn(columnId, tableId, bits, expression.encode('ascii'))
+            tbl[t]['_tableId'] = tableId
 
         GeneralWriter._writeOpenStream()
         for t in tbl.values():
             for c in t.values():
-                if 'default' in c:
-                    try:
-                        GeneralWriter._writeColumnDefault(c['_columnId'], len(c['default']), c['default'])
-                    except:
-                        sys.stderr.write("failed to set default for %s\n" % c)
-                        raise
+                try:
+                    if 'default' in c:
+                        try:
+                            GeneralWriter._writeColumnDefault(c['_columnId'], len(c['default']), c['default'])
+                        except:
+                            sys.stderr.write("failed to set default for %s\n" % c)
+                            raise
+                except TypeError:
+                    pass
 
 
     def __del__(self):

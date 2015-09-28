@@ -2743,8 +2743,6 @@ rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
     }
     if (rc == 0) {
         rc = _KHttpRequestPOST(req, &result, &total);
-        KHttpResult *rslt = NULL;
-        rc = KHttpRequestPOST(req, &rslt);
     }
 
     if (rc == 0) {
@@ -2835,9 +2833,6 @@ static rc_t _MainPrintNgsInfo(const Main* self) {
                         size_t num_read = 0;
                         rc = KFileRead(f, 0, buffer, size + 1, &num_read);
                         if (rc == 0) {
-                            assert(num_read <= size);
-                            buffer[num_read] = '\0';
-                            found = true;
 #if _ARCH_BITS == 32
                             const char* sneed = "/dll/ngs-sdk/32/loaded/path=";
                             const char* vneed = "/dll/ncbi-vdb/32/loaded/path=";
@@ -2845,6 +2840,11 @@ static rc_t _MainPrintNgsInfo(const Main* self) {
                             const char* sneed = "/dll/ngs-sdk/64/loaded/path=";
                             const char* vneed = "/dll/ncbi-vdb/64/loaded/path=";
 #endif
+
+                            assert(num_read <= size);
+                            buffer[num_read] = '\0';
+                            found = true;
+
                             ps = strstr(buffer, sneed);
                             if (ps != NULL) {
                                 ps += strlen(sneed);

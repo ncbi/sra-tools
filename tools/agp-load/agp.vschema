@@ -26,12 +26,12 @@ version 1;
 
 table NCBI:refseq:tbl:assembly #1.0.0
 {
-    extern column ascii SEQID;     /* the accession of the refseq being assembled          */
-    extern column U32   START;     /* the start and                                        */
-    extern column U32   LENGTH;    /*               length of the region                   */
-    extern column ascii COMPONENT; /* the accession sourcing the sequence                  */
-    extern column U32   OFFSET;    /* the start of the source sequence                     */
-    extern column bool  REVERSED;  /* is the source sequence to be reverse-complemented    */
+    extern column ascii SEQID;     /* the accession of the refseq being assembled           */
+    extern column U32   START;     /* the start and                                         */
+    extern column U32   LENGTH;    /*               length of the region                    */
+    extern column ascii COMPONENT; /* the accession sourcing the sequence                   */
+    extern column U32   OFFSET;    /* the offset in the component, length is the same       */
+    extern column bool  REVERSED;  /* is the source sequence to be reverse-complemented     */
 };
 
 database NCBI:refseq:db:remap #1.0.0

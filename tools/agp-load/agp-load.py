@@ -115,6 +115,9 @@ gw = GeneralWriter(  output
                    , '1.0.0'
                    , tbl)
 
+def logMessage(msg):
+    sys.stderr.write("{}\n".format(msg))
+
 def writeAGP(listOfAGP, tbl):
     for r in listOfAGP:
         tbl['SEQID'    ]['data'] = str(r[0]).encode('ascii')
@@ -126,18 +129,25 @@ def writeAGP(listOfAGP, tbl):
         gw.write(tbl)
 
 def main():
-    build[0]["object"] = loadFiles(build[0]["files"])
-    build[1]["object"] = loadFiles(build[1]["files"])
-    remap = build[0]["object"].remap(build[1]["object"])
-
     gw.writeTableMetadata(tbl['SOURCE'], "BuildName", build[0]["name"])
     gw.writeTableMetadata(tbl['RESULT'], "BuildName", build[1]["name"])
 
+    logMessage("loading {} ...".format(build[0]["name"]))
+    build[0]["object"] = loadFiles(build[0]["files"])
     writeAGP(build[0]["object"].flattened(), tbl["SOURCE"])
+    logMessage("loaded {}".format(build[0]["name"]))
+
+    logMessage("loading {} ...".format(build[1]["name"]))
+    build[1]["object"] = loadFiles(build[1]["files"])
     writeAGP(build[1]["object"].flattened(), tbl["RESULT"])
-    writeAGP(remap, tbl["REMAP"])
+    logMessage("loaded {}".format(build[1]["name"]))
+
+    logMessage("generating remapping data ...")
+    writeAGP(build[0]["object"].remap(build[1]["object"]), tbl["REMAP"])
+    logMessage("loaded remapping data")
 
 def cleanup():
+    logMessage("done")
     pass
 
 main()

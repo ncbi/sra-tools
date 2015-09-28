@@ -27,7 +27,7 @@
 import tarfile
 import gzip
 import os
-from eutils import EUtils 
+from eutils import EUtils
 
 class _loc:
     def __init__(self, mol, start, last):
@@ -428,26 +428,31 @@ class AGP:
         return rslt
 
     def remap(self, other):
-        summary_memo = {}
         def getSummary(acc):
             while True:
-                try: return summary_memo[acc]
-                except KeyError:
-                    pass
                 summary = EUtils.summary(acc)
                 if summary:
-                    object = {}
-                    for k in [ 'sourcedb', 'accessionversion', 'assemblyacc', 'taxid', 'subtype', 'subname', 'replacedby' ]:
-                        value = None
-                        try: value = str(summary[k])
-                        except KeyError: pass
-                        object[k] = None if value == '' else value
-                    summary_memo[acc] = object
+                    return summary
 
+        superceeds_memo = {}
         def superceeds(a, b):
-            asum = getSummary(a)
-            bsum = getSummary(b)
-            if bsum['replacedby'] == asum['assemblyacc'] or bsum['replacedby'] == asum['accessionversion']:
+            try: return superceeds_memo[b] == a
+            except KeyError:
+                pass
+            assemblyacc = None
+            accessionversion = None
+            replacedby = None
+            try:
+                assemblyacc = getSummary(a)['assemblyacc']
+                accessionversion = getSummary(a)['accessionversion']
+                replacedby = getSummary(b)['replacedby']
+            except KeyError:
+                pass
+            if replacedby == None:
+                superceeds_memo[b] = None
+                return False
+            if replacedby == assemblyacc or replacedby == accessionversion:
+                superceeds_memo[b] = a
                 return True
             return False
 

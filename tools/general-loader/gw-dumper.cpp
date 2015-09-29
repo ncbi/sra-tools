@@ -869,8 +869,10 @@ namespace gw_dump
     template <>
     void check_metadata_node < gw_2string_evt_v1 > ( const gw_2string_evt_v1 & eh )
     {
+        /* this check is invalid; for most metadata events, the value is not 0
         if ( id ( eh . dad ) != 0 )
             throw "non-zero table id";
+         */
         if ( size1 ( eh ) == 0 )
             throw "empty metadata node";
         if ( size2 ( eh ) == 0 )

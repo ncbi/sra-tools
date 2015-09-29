@@ -45,6 +45,22 @@
 #include <ngs/ncbi/NGS.hpp>
 #include <ngs/ReferenceSequence.hpp>
 
+#define CPP_THREADS 0
+
+#if CPP_THREADS != 0
+#include <thread>
+#include <mutex>
+
+#define LOCK_GUARD std::lock_guard<std::mutex>
+#define LOCK std::mutex
+
+#else
+
+#define LOCK_GUARD KProc::CLockGuard<KProc::CKLock>
+#define LOCK KProc::CKLock
+
+#endif
+
 namespace RefVariation
 {
     struct Params
@@ -401,11 +417,11 @@ namespace RefVariation
     bool filter_pileup_db_mt ( char const* acc, char const* ref_name,
                 KSearch::CVRefVariation const& obj, size_t bases_start,
                 std::vector <std::string>& vec,
-                KProc::CKLock* lock_cout, size_t thread_num)
+                LOCK* lock_cout, size_t thread_num)
     {
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
         {
-            KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+            LOCK_GUARD l(*lock_cout);
             std::cout
                 << "[" << thread_num << "] "
                 << "Processing " << acc << "... " << std::endl;
@@ -443,7 +459,7 @@ namespace RefVariation
             bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             {
-                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                LOCK_GUARD l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << (found ? "" : "not") << "found " << ref_name << " row_id=" << ref_id_start
@@ -461,7 +477,7 @@ namespace RefVariation
                 {
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
-                        KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                        LOCK_GUARD l(*lock_cout);
                         std::cout
                             << "[" << thread_num << "] "
                             << "OUT OF BOUNDS! filtering out" << std::endl;
@@ -490,7 +506,7 @@ namespace RefVariation
                 {
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
-                        KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                        LOCK_GUARD l(*lock_cout);
                         std::cout
                             << "[" << thread_num << "] "
                             << "depth=0 at the ref_pos=" << pos
@@ -507,7 +523,7 @@ namespace RefVariation
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                LOCK_GUARD l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << run_name << " is suspicious" << std::endl;
@@ -524,7 +540,7 @@ namespace RefVariation
                 // calculating a coverage. For the coverage we have to
                 // look into SRR itself anyway.
 
-                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                LOCK_GUARD l(*lock_cout);
                 std::cout << p << std::endl; // report immediately
             }
             else
@@ -538,7 +554,7 @@ namespace RefVariation
             {
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
-                    KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                    LOCK_GUARD l(*lock_cout);
                     std::cout
                         << "[" << thread_num << "] "
                         << "BAD db, filtering out" << std::endl;
@@ -584,13 +600,13 @@ namespace RefVariation
 
     std::vector <std::string> get_acc_list_mt (KApp::CArgs const& args,
         char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
-        KProc::CKLock* lock_cout, size_t param_start, size_t param_count, size_t thread_num )
+        LOCK* lock_cout, size_t param_start, size_t param_count, size_t thread_num )
     {
         size_t ref_pos = bases_start + obj.GetVarStart();
         {
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                LOCK_GUARD l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << param_count << " pileup database" << (param_count == 1 ? "" : "s")
@@ -599,7 +615,7 @@ namespace RefVariation
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             {
-                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                LOCK_GUARD l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << "ref_pos=" << ref_pos
@@ -687,7 +703,7 @@ namespace RefVariation
     void find_alignments_mt ( KApp::CArgs const* pargs, size_t param_start, size_t param_count,
         char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
         std::map <std::string, RunMatchInfo>* pmapMatches,
-        KProc::CKLock* lock_cout, size_t thread_num, KProc::CKLock* lock_map )
+        LOCK* lock_cout, size_t thread_num, LOCK* lock_map )
     {
         try
         {
@@ -698,7 +714,7 @@ namespace RefVariation
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                LOCK_GUARD l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << "Processing parameters from " << param_start + 1
@@ -726,7 +742,7 @@ namespace RefVariation
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                LOCK_GUARD l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << "Looking for \""  << variation << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
@@ -749,13 +765,13 @@ namespace RefVariation
                     {
                         if ( ! g_Params.calc_coverage )
                         {
-                            KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                            LOCK_GUARD l(*lock_cout);
                             std::cout << acc << std::endl;
                             break; // -c option is for speed-up, so we sacrifice verbose output
                         }
                         else
                         {
-                            KProc::CLockGuard<KProc::CKLock> l(*lock_map);
+                            LOCK_GUARD l(*lock_map);
                             RunMatchInfo& info = mapMatches [acc];
                             ++ info.coverage;
                             //if ( ! g_Params.calc_coverage )
@@ -765,7 +781,7 @@ namespace RefVariation
                 
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
                     {
-                        KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                        LOCK_GUARD l(*lock_cout);
                         std::cout
                             << "[" << thread_num << "] "
                             << "id=" << id
@@ -779,18 +795,19 @@ namespace RefVariation
         }
         catch ( ngs::ErrorMsg const& e )
         {
-            KProc::CLockGuard<KProc::CKLock> l(*lock_cout); // reuse cout mutex
+            LOCK_GUARD l(*lock_cout); // reuse cout mutex
             std::cerr
                 << "[" << thread_num << "] "
                 << "ngs::ErrorMsg: " << e.what() << std::endl;
         }
         catch (...)
         {
-            KProc::CLockGuard<KProc::CKLock> l(*lock_cout); // reuse cout mutex
+            LOCK_GUARD l(*lock_cout); // reuse cout mutex
             Utils::HandleException ();
         }
     }
 
+#if CPP_THREADS == 0
     struct AdapterFindAlignment
     {
         KProc::CKThread thread;
@@ -801,9 +818,9 @@ namespace RefVariation
         KSearch::CVRefVariation const* pobj;
         size_t bases_start;
         std::map <std::string, RunMatchInfo>* pmapMatches;
-        KProc::CKLock* lock_cout;
+        LOCK* lock_cout;
         size_t thread_num;
-        KProc::CKLock* lock_map;
+        LOCK* lock_map;
     };
 
     void AdapterFindAlignment_Init (AdapterFindAlignment & params,
@@ -813,9 +830,9 @@ namespace RefVariation
             KSearch::CVRefVariation const* pobj,
             size_t bases_start,
             std::map <std::string, RunMatchInfo>* pmapMatches,
-            KProc::CKLock* lock_cout,
+            LOCK* lock_cout,
             size_t thread_num,
-            KProc::CKLock* lock_map
+            LOCK* lock_map
         )
     {
         params.pargs = pargs;
@@ -838,7 +855,7 @@ namespace RefVariation
             p.pmapMatches, p.lock_cout, p.thread_num, p.lock_map);
         return 0;
     }
-
+#endif
 
     bool find_variation_core_step (KSearch::CVRefVariation& obj,
         char const* ref_slice, size_t ref_slice_size,
@@ -926,24 +943,28 @@ namespace RefVariation
                     << " jobs into " << thread_count << " threads..." << std::endl;
             }
 
-            KProc::CKLock mutex_cout;
-            KProc::CKLock mutex_map;
+            LOCK mutex_cout;
+            LOCK mutex_map;
 
-            //std::vector<std::thread> vec_threads;
+#if CPP_THREADS != 0
+            std::vector<std::thread> vec_threads;
+#else
             std::vector<AdapterFindAlignment> vec_threads ( thread_count );
+#endif
 
             size_t param_chunk_size = param_count / thread_count;
             for (size_t i = 0; i < thread_count; ++i)
             {
                 size_t current_chunk_size = i == thread_count - 1 ?
                     param_chunk_size + param_count % thread_count : param_chunk_size;
-                //vec_threads.push_back(
-                //    std::thread( find_alignments_mt,
-                //                    & args, i * param_chunk_size, current_chunk_size,
-                //                    g_Params.ref_acc, & obj, bases_start, & mapMatches,
-                //                    & mutex_cout, i + 1, & mutex_map
-                //               ));
-
+#if CPP_THREADS != 0
+                vec_threads.push_back(
+                    std::thread( find_alignments_mt,
+                                    & args, i * param_chunk_size, current_chunk_size,
+                                    g_Params.ref_acc, & obj, bases_start, & mapMatches,
+                                    & mutex_cout, i + 1, & mutex_map
+                               ));
+#else
                 AdapterFindAlignment & params = vec_threads [ i ];
 
                 AdapterFindAlignment_Init ( params,
@@ -952,16 +973,18 @@ namespace RefVariation
                     & mutex_cout, i + 1, & mutex_map );
 
                 params.thread.Make ( AdapterFindAlignmentFunc, & params );
+#endif
             }
-
-            //for (std::thread& th : vec_threads)
-            //    th.join();
-
+#if CPP_THREADS != 0
+            for (std::thread& th : vec_threads)
+                th.join();
+#else
             for (std::vector<AdapterFindAlignment>::iterator it = vec_threads.begin(); it != vec_threads.end(); ++it)
             {
                 AdapterFindAlignment & params = *it;
                 params.thread.Wait();
             }
+#endif
 
         }
 

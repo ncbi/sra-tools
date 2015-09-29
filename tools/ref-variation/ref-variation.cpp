@@ -39,12 +39,6 @@
 #include <vector>
 #include <map>
 
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
-#include <thread>
-#include <mutex>
-#else
-#endif
-
 #include <kapp/main.h>
 #include <klib/rc.h>
 
@@ -64,6 +58,7 @@ namespace RefVariation
         size_t var_len_on_ref;
         int verbosity;
         size_t thread_count;
+        bool calc_coverage;
 
     } g_Params =
     {
@@ -72,7 +67,8 @@ namespace RefVariation
         "",
         0,
         0,
-        1
+        1,
+        false
     };
 
     enum
@@ -117,13 +113,18 @@ namespace RefVariation
     char const ALIAS_THREADS[]  = "t";
     char const* USAGE_THREADS[] = { "the number of threads to run", NULL };
 
+    char const OPTION_COVERAGE[] = "coverage";
+    char const ALIAS_COVERAGE[]  = "c";
+    char const* USAGE_COVERAGE[] = { "output coverage (the nubmer of alignments matching the given variation query) for each run", NULL };
+
     ::OptDef Options[] =
     {
         { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true },
         { OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true },
         { OPTION_QUERY,         ALIAS_QUERY,         NULL, USAGE_QUERY,         1, true, true },
         { OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true },
-        { OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false }
+        { OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false },
+        { OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false }
 #if SECRET_OPTION != 0
         ,{ OPTION_SECRET,        NULL,                NULL, USAGE_SECRET,        1, true, false }
 #endif
@@ -367,7 +368,20 @@ namespace RefVariation
                 std::cout << run_name << " is suspicious" << std::endl;
             char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
 
-            vec.push_back ( std::string(p) );
+            if ( indel_cnt == 0 && ! g_Params.calc_coverage )
+            {
+                // if we reached this point in the case of pure mismatch
+                // this means this run definitely has some hits.
+                // due to quantization of pileup stats counters we
+                // cannot rely on the exact value of those counters
+                // So, we can only report this SRR in the case when we aren't
+                // calculating a coverage. For the coverage we have to
+                // look into SRR itself anyway.
+
+                std::cout << p << std::endl; // report immediately
+            }
+            else
+                vec.push_back ( std::string(p) ); // save the SRR for the further lookup
 
             return true;
         }
@@ -384,15 +398,14 @@ namespace RefVariation
         }
     }
 
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
     bool filter_pileup_db_mt ( char const* acc, char const* ref_name,
                 KSearch::CVRefVariation const& obj, size_t bases_start,
                 std::vector <std::string>& vec,
-                std::mutex* lock_cout, size_t thread_num)
+                KProc::CKLock* lock_cout, size_t thread_num)
     {
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
         {
-            std::lock_guard<std::mutex> l(*lock_cout);
+            KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
             std::cout
                 << "[" << thread_num << "] "
                 << "Processing " << acc << "... " << std::endl;
@@ -430,7 +443,7 @@ namespace RefVariation
             bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             {
-                std::lock_guard<std::mutex> l(*lock_cout);
+                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << (found ? "" : "not") << "found " << ref_name << " row_id=" << ref_id_start
@@ -448,7 +461,7 @@ namespace RefVariation
                 {
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
-                        std::lock_guard<std::mutex> l(*lock_cout);
+                        KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                         std::cout
                             << "[" << thread_num << "] "
                             << "OUT OF BOUNDS! filtering out" << std::endl;
@@ -477,7 +490,7 @@ namespace RefVariation
                 {
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
-                        std::lock_guard<std::mutex> l(*lock_cout);
+                        KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                         std::cout
                             << "[" << thread_num << "] "
                             << "depth=0 at the ref_pos=" << pos
@@ -494,14 +507,28 @@ namespace RefVariation
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                std::lock_guard<std::mutex> l(*lock_cout);
+                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << run_name << " is suspicious" << std::endl;
             }
             char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
 
-            vec.push_back ( std::string(p) );
+            if ( indel_cnt == 0 && ! g_Params.calc_coverage )
+            {
+                // if we reached this point in the case of pure mismatch
+                // this means this run definitely has some hits.
+                // due to quantization of pileup stats counters we
+                // cannot rely on the exact value of those counters
+                // So, we can only report this SRR in the case when we aren't
+                // calculating a coverage. For the coverage we have to
+                // look into SRR itself anyway.
+
+                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                std::cout << p << std::endl; // report immediately
+            }
+            else
+                vec.push_back ( std::string(p) ); // save the SRR for the further lookup
 
             return true;
         }
@@ -511,7 +538,7 @@ namespace RefVariation
             {
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
-                    std::lock_guard<std::mutex> l(*lock_cout);
+                    KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                     std::cout
                         << "[" << thread_num << "] "
                         << "BAD db, filtering out" << std::endl;
@@ -522,7 +549,6 @@ namespace RefVariation
                 throw;
         }
     }
-#endif
 
     std::vector <std::string> get_acc_list (KApp::CArgs const& args,
         char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start)
@@ -556,16 +582,15 @@ namespace RefVariation
         return vec_acc;
     }
 
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
     std::vector <std::string> get_acc_list_mt (KApp::CArgs const& args,
         char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
-        std::mutex* lock_cout, size_t param_start, size_t param_count, size_t thread_num )
+        KProc::CKLock* lock_cout, size_t param_start, size_t param_count, size_t thread_num )
     {
         size_t ref_pos = bases_start + obj.GetVarStart();
         {
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                std::lock_guard<std::mutex> l(*lock_cout);
+                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << param_count << " pileup database" << (param_count == 1 ? "" : "s")
@@ -574,7 +599,7 @@ namespace RefVariation
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             {
-                std::lock_guard<std::mutex> l(*lock_cout);
+                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << "ref_pos=" << ref_pos
@@ -594,7 +619,6 @@ namespace RefVariation
         
         return vec_acc;
     }
-#endif
 
     void find_alignments ( KApp::CArgs const& args,
         char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
@@ -638,8 +662,15 @@ namespace RefVariation
                 bool match = strncmp (variation, bases.c_str(), var_size) == 0;
                 if ( match )
                 {
+                    if ( ! g_Params.calc_coverage )
+                    {
+                        std::cout << acc << std::endl;
+                        break; // -c option is for speed-up, so we sacrifice verbose output
+                    }
                     RunMatchInfo& info = mapMatches [acc];
                     ++ info.coverage;
+                    //if ( ! g_Params.calc_coverage )
+                    //    break; // -c option is for speed-up, so we sacrifice verbose output
                 }
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
                 {
@@ -653,11 +684,10 @@ namespace RefVariation
         }
     }
 
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
     void find_alignments_mt ( KApp::CArgs const* pargs, size_t param_start, size_t param_count,
         char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
         std::map <std::string, RunMatchInfo>* pmapMatches,
-        std::mutex* lock_cout, size_t thread_num, std::mutex* lock_map )
+        KProc::CKLock* lock_cout, size_t thread_num, KProc::CKLock* lock_map )
     {
         try
         {
@@ -668,7 +698,7 @@ namespace RefVariation
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                std::lock_guard<std::mutex> l(*lock_cout);
+                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << "Processing parameters from " << param_start + 1
@@ -696,7 +726,7 @@ namespace RefVariation
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                std::lock_guard<std::mutex> l(*lock_cout);
+                KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                 std::cout
                     << "[" << thread_num << "] "
                     << "Looking for \""  << variation << "\" in the selected runs (" << vec_acc.size() << ")" << std::endl;
@@ -717,14 +747,25 @@ namespace RefVariation
                     bool match = strncmp (variation, bases.c_str(), var_size) == 0;
                     if ( match )
                     {
-                        std::lock_guard<std::mutex> l(*lock_map);
-                        RunMatchInfo& info = mapMatches [acc];
-                        ++ info.coverage;
+                        if ( ! g_Params.calc_coverage )
+                        {
+                            KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
+                            std::cout << acc << std::endl;
+                            break; // -c option is for speed-up, so we sacrifice verbose output
+                        }
+                        else
+                        {
+                            KProc::CLockGuard<KProc::CKLock> l(*lock_map);
+                            RunMatchInfo& info = mapMatches [acc];
+                            ++ info.coverage;
+                            //if ( ! g_Params.calc_coverage )
+                            //    break; // -c option is for speed-up, so we sacrifice verbose output
+                        }
                     }
                 
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
                     {
-                        std::lock_guard<std::mutex> l(*lock_cout);
+                        KProc::CLockGuard<KProc::CKLock> l(*lock_cout);
                         std::cout
                             << "[" << thread_num << "] "
                             << "id=" << id
@@ -738,18 +779,66 @@ namespace RefVariation
         }
         catch ( ngs::ErrorMsg const& e )
         {
-            std::lock_guard<std::mutex> l(*lock_cout); // reuse cout mutex
+            KProc::CLockGuard<KProc::CKLock> l(*lock_cout); // reuse cout mutex
             std::cerr
                 << "[" << thread_num << "] "
                 << "ngs::ErrorMsg: " << e.what() << std::endl;
         }
         catch (...)
         {
-            std::lock_guard<std::mutex> l(*lock_cout); // reuse cout mutex
+            KProc::CLockGuard<KProc::CKLock> l(*lock_cout); // reuse cout mutex
             Utils::HandleException ();
         }
     }
-#endif
+
+    struct AdapterFindAlignment
+    {
+        KProc::CKThread thread;
+
+        KApp::CArgs const* pargs;
+        size_t param_start, param_count;
+        char const* ref_name;
+        KSearch::CVRefVariation const* pobj;
+        size_t bases_start;
+        std::map <std::string, RunMatchInfo>* pmapMatches;
+        KProc::CKLock* lock_cout;
+        size_t thread_num;
+        KProc::CKLock* lock_map;
+    };
+
+    void AdapterFindAlignment_Init (AdapterFindAlignment & params,
+            KApp::CArgs const* pargs,
+            size_t param_start, size_t param_count,
+            char const* ref_name,
+            KSearch::CVRefVariation const* pobj,
+            size_t bases_start,
+            std::map <std::string, RunMatchInfo>* pmapMatches,
+            KProc::CKLock* lock_cout,
+            size_t thread_num,
+            KProc::CKLock* lock_map
+        )
+    {
+        params.pargs = pargs;
+        params.param_start = param_start;
+        params.param_count = param_count;
+        params.ref_name = ref_name;
+        params.pobj = pobj;
+        params.bases_start = bases_start;
+        params.pmapMatches = pmapMatches;
+        params.lock_cout = lock_cout;
+        params.thread_num = thread_num;
+        params.lock_map = lock_map;
+    }
+
+    rc_t AdapterFindAlignmentFunc ( void* data )
+    {
+        AdapterFindAlignment& p = * (reinterpret_cast<AdapterFindAlignment*>(data));
+        find_alignments_mt ( p.pargs, p.param_start, p.param_count,
+            p.ref_name, p.pobj, p.bases_start,
+            p.pmapMatches, p.lock_cout, p.thread_num, p.lock_map);
+        return 0;
+    }
+
 
     bool find_variation_core_step (KSearch::CVRefVariation& obj,
         char const* ref_slice, size_t ref_slice_size,
@@ -825,8 +914,7 @@ namespace RefVariation
         size_t thread_count = g_Params.thread_count;
         std::map <std::string, RunMatchInfo> mapMatches;
 
-#if __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8 ) // TODO: switch to VS2013 and newer clang
-        if ( thread_count == 1 || param_count < thread_count * 10 )
+        if ( thread_count == 1 || param_count < thread_count )
             find_alignments (args, g_Params.ref_acc, obj, bases_start, mapMatches);
         else
         {
@@ -838,41 +926,53 @@ namespace RefVariation
                     << " jobs into " << thread_count << " threads..." << std::endl;
             }
 
-            std::mutex mutex_cout;
-            std::mutex mutex_map;
+            KProc::CKLock mutex_cout;
+            KProc::CKLock mutex_map;
 
-            std::vector<std::thread> vec_threads;
+            //std::vector<std::thread> vec_threads;
+            std::vector<AdapterFindAlignment> vec_threads ( thread_count );
+
             size_t param_chunk_size = param_count / thread_count;
             for (size_t i = 0; i < thread_count; ++i)
             {
                 size_t current_chunk_size = i == thread_count - 1 ?
                     param_chunk_size + param_count % thread_count : param_chunk_size;
-                vec_threads.push_back(
-                    std::thread( find_alignments_mt,
-                                    & args, i * param_chunk_size, current_chunk_size,
-                                    g_Params.ref_acc, & obj, bases_start, & mapMatches,
-                                    & mutex_cout, i + 1, & mutex_map
-                               ));
+                //vec_threads.push_back(
+                //    std::thread( find_alignments_mt,
+                //                    & args, i * param_chunk_size, current_chunk_size,
+                //                    g_Params.ref_acc, & obj, bases_start, & mapMatches,
+                //                    & mutex_cout, i + 1, & mutex_map
+                //               ));
+
+                AdapterFindAlignment & params = vec_threads [ i ];
+
+                AdapterFindAlignment_Init ( params,
+                    & args, i * param_chunk_size, current_chunk_size,
+                    g_Params.ref_acc, & obj, bases_start, & mapMatches,
+                    & mutex_cout, i + 1, & mutex_map );
+
+                params.thread.Make ( AdapterFindAlignmentFunc, & params );
             }
 
-            for (std::thread& th : vec_threads)
-                th.join();
+            //for (std::thread& th : vec_threads)
+            //    th.join();
+
+            for (std::vector<AdapterFindAlignment>::iterator it = vec_threads.begin(); it != vec_threads.end(); ++it)
+            {
+                AdapterFindAlignment & params = *it;
+                params.thread.Wait();
+            }
+
         }
-#else
-        if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
-        {
-            std::cout
-                << "Current ref-variation version is compiled without multithreading"
-                << std::endl;
-        }
-        find_alignments (args, g_Params.ref_acc, obj, bases_start, mapMatches);
-#endif
 
         for ( std::map <std::string, RunMatchInfo>::const_iterator cit = mapMatches.begin(); cit != mapMatches.end(); ++cit  )
         {
             std::string const& acc = (*cit).first;
             RunMatchInfo const& info = (*cit).second;
-            std::cout << acc << '\t' << info.coverage << std::endl;
+            //if ( ! g_Params.calc_coverage )
+            //    std::cout << acc << std::endl;
+            //else
+                std::cout << acc << '\t' << info.coverage << std::endl;
         }
     }
 
@@ -1152,6 +1252,8 @@ namespace RefVariation
             if (args.GetOptionCount (OPTION_THREADS) == 1)
                 g_Params.thread_count = args.GetOptionValueUInt<size_t>( OPTION_THREADS, 0 );
 
+            g_Params.calc_coverage = args.GetOptionCount (OPTION_COVERAGE) != 0;
+
             g_Params.verbosity = (int)args.GetOptionCount (OPTION_VERBOSITY);
 
 #if SECRET_OPTION != 0
@@ -1243,6 +1345,7 @@ extern "C"
         HelpOptionLine (RefVariation::ALIAS_QUERY, RefVariation::OPTION_QUERY, "string", RefVariation::USAGE_QUERY);
         HelpOptionLine (RefVariation::ALIAS_VAR_LEN_ON_REF, RefVariation::OPTION_VAR_LEN_ON_REF, "value", RefVariation::USAGE_VAR_LEN_ON_REF);
         HelpOptionLine (RefVariation::ALIAS_THREADS, RefVariation::OPTION_THREADS, "value", RefVariation::USAGE_THREADS);
+        HelpOptionLine (RefVariation::ALIAS_COVERAGE, RefVariation::OPTION_COVERAGE, "", RefVariation::USAGE_COVERAGE);
         //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
 #if SECRET_OPTION != 0
         HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);
@@ -1269,6 +1372,9 @@ extern "C"
 
        -r NC_000002.11 -p 73613071 --query "C" -l 1
        -vv -t 16 -r NC_000007.13 -p 117292900 --query "-" -l 4          
+
+       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query '-' -l 3 /netmnt/traces04/sra33/SRZ/000867/SRR867061/SRR867061.pileup /netmnt/traces04/sra33/SRZ/000867/SRR867131/SRR867131.pileup
+       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR867061.pileup ..\..\..\tools\ref-variation\SRR867131.pileup
        */
 
         RefVariation::find_variation_region ( argc, argv );

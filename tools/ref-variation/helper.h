@@ -44,7 +44,6 @@
 #include <vdb/vdb-priv.h>
 #include <kdb/index.h>
 
-
 #ifndef countof
 #define countof(arr) (sizeof(arr)/sizeof(arr[0]))
 #endif
@@ -514,4 +513,74 @@ namespace KSearch
             size_t ref_pos_var, char const* variation, size_t variation_size,
             size_t var_len_on_ref);
 
+}
+
+struct KThread;
+struct KLock;
+
+namespace KProc
+{
+    class CKThread
+    {
+    public:
+
+        friend rc_t KThreadFunc ( ::KThread const* self, void* data );
+
+        typedef rc_t (*THREAD_FUNC) ( void* data );
+
+        CKThread ();
+        ~CKThread ();
+        CKThread (CKThread const& x);
+        CKThread& operator= (CKThread const& x);
+
+        void Make ( THREAD_FUNC thread_func, void* data );
+        void Release();
+
+        rc_t Wait ();
+
+    private:
+        void Clone(CKThread const& x);
+        ::KThread* m_pSelf;
+
+        THREAD_FUNC m_ThreadFunc;
+        void* m_pData;
+    };
+
+    class CKLock
+    {
+    public:
+        CKLock ();
+        ~CKLock ();
+        CKLock (CKLock const& x);
+        CKLock& operator= (CKLock const& x);
+
+        void Release();
+
+        void Acquire ();
+        void Lock ();
+        void Unlock ();
+
+    private:
+        void Clone(CKLock const& x);
+        ::KLock* m_pSelf;
+    };
+
+    template <class TLockable> class CLockGuard
+    {
+    public:
+        CLockGuard ( TLockable & lock ) : m_lock (lock)
+        {
+            m_lock.Lock();
+        }
+        ~CLockGuard ( )
+        {
+            m_lock.Unlock();
+        }
+
+        CLockGuard( CLockGuard<TLockable> const& x );
+        CLockGuard<TLockable>& operator=( CLockGuard<TLockable> const& x );
+
+    private:
+        TLockable & m_lock;
+    };
 }

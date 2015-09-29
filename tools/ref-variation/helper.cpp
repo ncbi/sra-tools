@@ -37,6 +37,8 @@
 #include <search/grep.h>
 
 #include <kdb/table.h>
+#include <kproc/thread.h>
+#include <kproc/lock.h>
 
 #ifdef _WIN32
 #pragma warning (disable:4503)
@@ -1209,5 +1211,155 @@ namespace KSearch
         printf("Created RefVariation (rd) %p\n", obj.m_pSelf);
 #endif
         return obj;
+    }
+}
+
+namespace KProc
+{
+    rc_t KThreadFunc ( KThread const* , void* data )
+    {
+        CKThread* obj = reinterpret_cast<CKThread*>(data);
+
+        return ( * obj -> m_ThreadFunc ) ( obj -> m_pData );
+    }
+
+    CKThread::CKThread ()
+        : m_pSelf(NULL), m_ThreadFunc(NULL), m_pData(NULL)
+    {
+    }
+
+    CKThread::~CKThread()
+    {
+        Release();
+    }
+    CKThread::CKThread(CKThread const& x)
+    {
+        Clone(x);
+    }
+    CKThread& CKThread::operator=(CKThread const& x)
+    {
+        if (m_pSelf)
+            Release();
+
+        Clone(x);
+        return *this;
+    }
+
+    void CKThread::Release()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing KThread %p\n", m_pSelf);
+#endif
+            ::KThreadRelease(m_pSelf);
+            m_pSelf = NULL;
+            m_ThreadFunc = NULL;
+            m_pData = NULL;
+        }
+    }
+    void CKThread::Clone(CKThread const& x)
+    {
+        m_pSelf = x.m_pSelf;
+        m_ThreadFunc = x.m_ThreadFunc;
+        m_pData = x.m_pData;
+
+        if ( m_pSelf != NULL )
+        {
+            ::KThreadAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
+            printf ("CLONING KThread %p\n", m_pSelf);
+#endif
+        }
+    }
+
+    void CKThread::Make ( THREAD_FUNC thread_func, void* data )
+    {
+        assert (m_pSelf == NULL);
+        assert (m_ThreadFunc == NULL);
+        assert (m_pData == NULL);
+
+        m_ThreadFunc = thread_func;
+        m_pData = data;
+
+        rc_t rc = ::KThreadMake ( & m_pSelf, KThreadFunc, this );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KThreadMake");
+    }
+
+    rc_t CKThread::Wait ()
+    {
+        rc_t status;
+        rc_t rc = ::KThreadWait ( m_pSelf, & status );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KThreadWait");
+
+        return status;
+    }
+
+///////////////////////////////////////////////////////
+
+    CKLock::CKLock ( )
+    {
+        rc_t rc = ::KLockMake ( & m_pSelf );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KLockMake");
+    }
+
+    CKLock::~CKLock()
+    {
+        Release();
+    }
+
+    CKLock::CKLock(CKLock const& x)
+    {
+        Clone(x);
+    }
+    CKLock& CKLock::operator=(CKLock const& x)
+    {
+        if (m_pSelf)
+            Release();
+
+        Clone(x);
+        return *this;
+    }
+
+    void CKLock::Release()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing KLock %p\n", m_pSelf);
+#endif
+            ::KLockRelease(m_pSelf);
+            m_pSelf = NULL;
+        }
+    }
+    void CKLock::Clone(CKLock const& x)
+    {
+        m_pSelf = x.m_pSelf;
+        ::KLockAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
+        printf ("CLONING KLock %p\n", m_pSelf);
+#endif
+    }
+
+    void CKLock::Acquire ()
+    {
+        rc_t rc = ::KLockAcquire ( m_pSelf );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KLockAcquire");
+    }
+
+    void CKLock::Lock ()
+    {
+        Acquire ();
+    }
+
+    void CKLock::Unlock ()
+    {
+        rc_t rc = ::KLockUnlock ( m_pSelf );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KLockUnlock");
     }
 }

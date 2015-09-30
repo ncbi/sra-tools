@@ -1,4 +1,27 @@
 #!python
+"""The loader requires the following arguments:
+* for source: -name=<build name> <AGP file> [<AGP file>...]
+* for result: -name=<build name> <AGP file> [<AGP file>...]
+* -output=<output directory>
+
+<AGP file> can be an AGP file or a tar containing, possibly gzip'ed, AGP files.
+<build name> is stored in the output database (see below)
+
+Example:
+  python agp-load.py -name=GRCh37 GRCh37.tar -name=GRCh38.p2 GRCh38.tar -output=37_to_38.remap
+
+The loader generates three tables containing AGP data.
+# SOURCE: the build being remapped from
+# RESULT: the build being remapped to
+# REMAP: the remapping
+
+SOURCE and RESULT will have a metadata node BuildName containing the given build
+names. This AGP data is only for components, i.e. it doesn't specify gaps, as
+they can be implied.
+
+To produce approximately valid AGP from a loaded database:
+  vdb-dump 37_to_38.remap -T REMAP -f tab -b1 -C "SEQID,START,LENGTH,COMPONENT,OFFSET,REVERSED" | awk 'BEGIN{OFS="\\t"; P[""]=0}{print $1, $2, $2+$3-1, ++P[$1], "O", $4, $5, $5+$3-1, 1-($6*2)}'
+"""
 # =============================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -23,12 +46,6 @@
 #
 # =============================================================================
 
-"""Options:
-    output:     destination VDB database
-    name:       name of build, this must be followed by a list of AGP files
-    help:       displays this message and exits
-Note: There must be two builds specified
-"""
 import sys
 import traceback
 from AGP import AGP
@@ -43,6 +60,7 @@ for arg in sys.argv[1:]:
     if arg[0] == '-':
         if arg == "-help":
             sys.stderr.write(usage)
+            sys.stderr.write(__doc__)
             exit(0)
         if arg[0:8] == "-output=":
             output = arg[8:]

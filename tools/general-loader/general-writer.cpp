@@ -934,26 +934,22 @@ struct gwp_status_evt_v1
             throw "maximum name length exceeded";
 
         // version
-        size_t vers_size = version . size ();
-        if ( str2_size > 0x100 )
-            throw "version too long";
-
         
         // timestamp
-        time_t time = time ( NULL );
+        time_t timestamp = time ( NULL );
         
         // calculate percentage done
         uint32_t percent = done / todo;
 
         gwp_status_evt_v1 hdr;
         init ( hdr, pid, evt_progmsg );
-        set_version ( hdr, );
-        set_timestamp ( hdr, ( uint32_t ) time );
+        // set version
+        set_timestamp ( hdr, ( uint32_t ) timestamp );
         set_pid ( hdr, pid );
         set_size ( hdr, str_size );
         set_percent ( hdr, percent );
 
-        write_event ( &hdr . dad, sizeof dad );
+        write_event ( &hdr . dad, sizeof hdr );
         internal_write ( name.data (), str_size );
         
     }

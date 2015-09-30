@@ -30,8 +30,9 @@
 #include <iterator>
 #include <cstdlib>
 #include <iomanip>
-#include <unistd.h>
 
+#include <time.h>
+#include <unistd.h>
 #include <assert.h>
 #include <string.h>
 
@@ -883,6 +884,74 @@ namespace ncbi
         set_size ( hdr, str_size );
         write_event ( & hdr . dad, sizeof hdr );
         internal_write ( msg.data (), str_size );
+    }
+
+    void GeneralWriter :: logMsg ( const std :: string &msg )
+    {
+        switch ( state )
+        {
+            //what cases?
+        default:
+            return;
+        }
+
+        gwp_1string_evt_U16 hdr;
+        init ( hdr, 0, evt_logmsg );
+
+        size_t str_size = msg . size ();
+        if ( str_size > 0x10000 )
+            str_size = 0x10000;
+
+        set_size ( hdr, str_size );
+        write_event ( & hdr . dad, sizeof hdr );
+        internal_write ( msg . data (), str_size );
+    }
+    /*
+struct gwp_status_evt_v1
+{
+    gwp_evt_hdr_v1 dad;
+    uint32_t version;
+    uint32_t timestamp;
+    uint16_t pid;
+    uint8_t name_sz;
+    uint8_t percent;
+};
+    */
+    void GeneralWriter :: progMsg ( int pid, const std :: string & name,
+                                    uint32_t done, uint32_t todo )
+    {
+        switch ( state )
+        {
+            //what cases?
+        default:
+            return;
+        }
+
+        // check pid
+
+        size_t str_size = name . size ();
+        if ( str_size > 0x100 )
+            throw "maximum name length exceeded";
+
+        // version
+        
+        // timestamp
+        time_t timestamp = time ( NULL );
+        
+        // calculate percentage done
+        uint32_t percent = done / todo;
+
+        gwp_status_evt_v1 hdr;
+        init ( hdr, pid, evt_progmsg );
+        // set version
+        set_timestamp ( hdr, ( uint32_t ) timestamp );
+        set_pid ( hdr, pid );
+        set_size ( hdr, str_size );
+        set_percent ( hdr, percent );
+
+        write_event ( &hdr . dad, sizeof hdr );
+        internal_write ( name.data (), str_size );
+        
     }
 
     void GeneralWriter :: endStream ()

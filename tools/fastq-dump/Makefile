@@ -72,8 +72,8 @@ clean: stdclean
 # Common dumper definitions
 #
 DUMP_LIBS = \
-	-lngs-c++         \
 	-lncbi-ngs-c++    \
+	-lngs-c++         \
 	-lncbi-vdb-static \
 	-lkapp \
 

@@ -116,6 +116,12 @@ namespace ncbi
         // indicate some sort of exception
         void logError ( const std :: string & msg );
 
+        // XML logging for general-loader
+        void logMsg ( const std :: string &msg );
+
+        // indicate progress
+        void progMsg ( int pid, const std :: string &name, uint32_t done, uint32_t todo );
+
         // generates an end event
         // puts object into state that will reject any further transmissions
         void endStream ();

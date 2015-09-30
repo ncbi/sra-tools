@@ -24,14 +24,16 @@
  */
 version 1;
 
+include 'vdb/vdb.vschema';
+
 table NCBI:refseq:tbl:assembly #1.0.0
 {
-    extern column ascii SEQID;     /* the accession of the refseq being assembled           */
-    extern column U32   START;     /* the start and                                         */
-    extern column U32   LENGTH;    /*               length of the region                    */
-    extern column ascii COMPONENT; /* the accession sourcing the sequence                   */
-    extern column U32   OFFSET;    /* the offset in the component, length is the same       */
-    extern column bool  REVERSED;  /* is the source sequence to be reverse-complemented     */
+    extern column <ascii> zip_encoding SEQID;     /* the accession of the refseq being assembled           */
+    extern column <U32> izip_encoding  START;     /* the start and                                         */
+    extern column <U32> izip_encoding  LENGTH;    /*               length of the region                    */
+    extern column <ascii> zip_encoding COMPONENT; /* the accession sourcing the sequence                   */
+    extern column <U32> izip_encoding  OFFSET;    /* the offset in the component, length is the same       */
+    extern column bool_encoding        REVERSED;  /* is the source sequence to be reverse-complemented     */
 };
 
 database NCBI:refseq:db:remap #1.0.0

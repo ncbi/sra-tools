@@ -413,9 +413,7 @@ namespace KApp
     {
     public:
         friend void CXMLLogger::Make ( CArgs const& args );
-
-        CArgs ( int argc, char** argv, ::OptDef const* pOptions, size_t option_count );
-        CArgs ( int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2 );
+        CArgs ();
         CArgs ( CArgs const& x );
         CArgs& operator= ( CArgs const& x );
         ~CArgs ();
@@ -437,11 +435,12 @@ namespace KApp
             return Utils::atou_t <T> ( str_val );
         }
 
-    private:
-
         void MakeAndHandle ( int argc, char** argv, ::OptDef const* pOptions, size_t option_count );
         // TODO: it's better to make ::ArgsMakeAndHandle be able to take va_list
         void MakeAndHandle ( int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2 );
+
+    private:
+
         void Release ();
 
         ::Args* m_pSelf;

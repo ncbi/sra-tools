@@ -837,16 +837,8 @@ namespace KDBObjects
 
 namespace KApp
 {
-    CArgs::CArgs (int argc, char** argv, ::OptDef const* pOptions, size_t option_count)
-        : m_pSelf(NULL)
+    CArgs::CArgs () : m_pSelf(NULL)
     {
-        MakeAndHandle ( argc, argv, pOptions, option_count );
-    }
-
-    CArgs::CArgs (int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2)
-        : m_pSelf(NULL)
-    {
-        MakeAndHandle ( argc, argv, pOptions1, option_count1, pOptions2, option_count2 );
     }
 
     CArgs::~CArgs()

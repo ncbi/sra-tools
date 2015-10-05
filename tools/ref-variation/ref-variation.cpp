@@ -930,7 +930,7 @@ namespace RefVariation
             if ( e.getRC() == SILENT_RC(rcVFS,rcMgr,rcOpening,rcDirectory,rcNotFound))
             {
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
-                    std::cout << "pileup db not found, need to look into run itself" << std::endl;
+                    std::cout << "pileup db NOT FOUND, need to look into run itself" << std::endl;
 
                 return PILEUP_MAYBE_FOUND;
             }
@@ -1090,7 +1090,7 @@ namespace RefVariation
                     LOCK_GUARD l(*lock_cout);
                     std::cout
                         << "[" << thread_num << "] "
-                        << "pileup db not found, need to look into run itself" << std::endl;
+                        << "pileup db NOT FOUND, need to look into run itself" << std::endl;
                 }
                 return PILEUP_MAYBE_FOUND;
             }
@@ -1589,6 +1589,8 @@ namespace RefVariation
         }
     }
 
+    #include <search/grep.h>
+
     void find_variation_region_impl (KApp::CArgs const& args)
     {
         ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
@@ -1950,7 +1952,7 @@ extern "C"
         UsageSummary (progname);
 
 
-        printf ("\nParameters: optional space-separated list of pileup stats in which the query will be looked for\n\n");
+        printf ("\nParameters: optional space-separated list of run accessions in which the query will be looked for\n\n");
 
         printf ("\nOptions:\n");
 

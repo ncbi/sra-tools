@@ -73,6 +73,8 @@
 
 #include <stdio.h> /* printf */
 
+#include "kfile-no-q.h"
+
 #define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, err))
 
 #define DISP_RC2(rc, name, msg) (void)((rc == 0) ? 0 : \
@@ -200,6 +202,8 @@ typedef struct {
     String *ascpMaxRate;
     const char *ascpParams; /* do not free! */
 
+    bool strip_quals;
+    
 #ifdef _DEBUGGING
     const char *textkart;
 #endif
@@ -985,6 +989,18 @@ static rc_t MainDownloadFile(Resolved *self,
         }
     }
 
+    if (main->strip_quals)
+    {
+        const KFile * kfile;
+        
+        rc = KSraFileNoQuals(self->file, &kfile);
+        if (rc == 0)
+        {
+            KFileRelease(self->file);
+            self->file = kfile;
+        }
+    }
+    
     STSMSG(STS_INFO, ("%S -> %s", self->remote.str, to));
     do {
         bool print = pos - prevPos > 200000000;
@@ -2495,6 +2511,11 @@ static const char* SIZE_USAGE[] = {
     "maximum file size to download in KB (exclusive).",
     "Default: " DEFAULT_MAX_FILE_SIZE, NULL };
 
+#define STRIP_QUALS_OPTION "strip-quals"
+#define STRIP_QUALS_ALIAS NULL
+static const char* STRIP_QUALS_USAGE[] =
+{ "remove QUALITY column from all tables", NULL };
+
 #ifdef _DEBUGGING
 #define TEXTKART_OPTION "text-kart"
 static const char* TEXTKART_USAGE[] =
@@ -2503,23 +2524,24 @@ static const char* TEXTKART_USAGE[] =
 
 static OptDef Options[] = {
     /*                                                    needs_value required*/
-    { FORCE_OPTION    , FORCE_ALIAS    , NULL, FORCE_USAGE , 1, true, false }
-   ,{ TRANS_OPTION    , TRASN_ALIAS    , NULL, TRANS_USAGE , 1, true, false }
-   ,{ LIST_OPTION     , LIST_ALIAS     , NULL, LIST_USAGE  , 1, false,false }
-   ,{ NM_L_OPTION     , NM_L_ALIAS     , NULL, NM_L_USAGE  , 1, false,false }
-   ,{ SZ_L_OPTION     , SZ_L_ALIAS     , NULL, SZ_L_USAGE  , 1, false,false }
-   ,{ ROWS_OPTION     , ROWS_ALIAS     , NULL, ROWS_USAGE  , 1, true, false }
-   ,{ MINSZ_OPTION    , MINSZ_ALIAS    , NULL, MINSZ_USAGE , 1, true ,false }
-   ,{ SIZE_OPTION     , SIZE_ALIAS     , NULL, SIZE_USAGE  , 1, true ,false }
-   ,{ ORDR_OPTION     , ORDR_ALIAS     , NULL, ORDR_USAGE  , 1, true ,false }
-   ,{ ASCP_OPTION     , ASCP_ALIAS     , NULL, ASCP_USAGE  , 1, true ,false }
-   ,{ ASCP_PAR_OPTION , ASCP_PAR_ALIAS , NULL, ASCP_PAR_USAGE, 1, true ,false }
-   ,{ HBEAT_OPTION    , HBEAT_ALIAS    , NULL, HBEAT_USAGE , 1, true, false }
-   ,{ FAIL_ASCP_OPTION, FAIL_ASCP_ALIAS, NULL, FAIL_ASCP_USAGE, 1, false, false}
+    { FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
+   ,{ TRANS_OPTION       , TRASN_ALIAS       , NULL, TRANS_USAGE , 1, true, false }
+   ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
+   ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
+   ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
+   ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
+   ,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
+   ,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
+   ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
+   ,{ ASCP_OPTION        , ASCP_ALIAS        , NULL, ASCP_USAGE  , 1, true ,false }
+   ,{ ASCP_PAR_OPTION    , ASCP_PAR_ALIAS    , NULL, ASCP_PAR_USAGE, 1, true ,false }
+   ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
+   ,{ FAIL_ASCP_OPTION   , FAIL_ASCP_ALIAS   , NULL, FAIL_ASCP_USAGE, 1, false, false}
+   ,{ STRIP_QUALS_OPTION , STRIP_QUALS_ALIAS , NULL, STRIP_QUALS_USAGE , 1, false, false }
 #ifdef _DEBUGGING
-   ,{ TEXTKART_OPTION , NULL           , NULL, TEXTKART_USAGE , 1, true , false}
+   ,{ TEXTKART_OPTION    , NULL              , NULL, TEXTKART_USAGE , 1, true , false}
 #endif
-   ,{ CHECK_ALL_OPTION, CHECK_ALL_ALIAS, NULL, CHECK_ALL_USAGE, 1, false, false}
+   ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
 };
 
 static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
@@ -2823,6 +2845,17 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             else if (val[0] == 'h') {
                 self->noAscp = true;
             }
+        }
+        
+/* STRIP_QUALS_OPTION */
+        rc = ArgsOptionCount(self->args, STRIP_QUALS_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" STRIP_QUALS_OPTION "' argument");
+            break;
+        }
+        
+        if (pcount > 0) {
+            self->strip_quals = true;
         }
 
 #ifdef _DEBUGGING

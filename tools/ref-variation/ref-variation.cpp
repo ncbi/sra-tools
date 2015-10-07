@@ -98,7 +98,8 @@ namespace RefVariation
 
     struct RunMatchInfo
     {
-        size_t coverage; // the number of matched alignments
+        size_t alignments_matched;
+        size_t alignments_total;
     };
 
 #if SECRET_OPTION != 0
@@ -1125,8 +1126,10 @@ namespace RefVariation
         ngs::Reference reference = run.getReference( ref_name );
         ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
 
+        size_t alignments_total = 0;
         while ( ai.nextAlignment() )
         {
+            ++ alignments_total;
             ngs::String id = ai.getAlignmentId ().toString();
             int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
             ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
@@ -1138,8 +1141,8 @@ namespace RefVariation
                     std::cout << acc << std::endl;
                     break; // -c option is for speed-up, so we sacrifice verbose output
                 }
-                RunMatchInfo& info = mapMatches [acc];
-                ++ info.coverage;
+                RunMatchInfo& info = mapMatches [acc]; // TODO: can be optimized - calculated before loop
+                ++ info.alignments_matched;
                 //if ( ! g_Params.calc_coverage )
                 //    break; // -c option is for speed-up, so we sacrifice verbose output
             }
@@ -1152,6 +1155,8 @@ namespace RefVariation
                     << std::endl;
             }
         }
+        RunMatchInfo& info = mapMatches [acc];
+        info.alignments_total += alignments_total;
     }
 
     void find_alignments_in_run_db_mt ( char const* acc, char const* ref_name,
@@ -1177,6 +1182,7 @@ namespace RefVariation
         ngs::Reference reference = run.getReference( ref_name );
         ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
 
+        size_t alignments_total = 0;
         while ( ai.nextAlignment() )
         {
             ngs::String id = ai.getAlignmentId ().toString();
@@ -1194,8 +1200,8 @@ namespace RefVariation
                 else
                 {
                     LOCK_GUARD l(*lock_map);
-                    RunMatchInfo& info = mapMatches [acc];
-                    ++ info.coverage;
+                    RunMatchInfo& info = mapMatches [acc]; // TODO: can be optimized - calculated before loop
+                    ++ info.alignments_matched;
                     //if ( ! g_Params.calc_coverage )
                     //    break; // -c option is for speed-up, so we sacrifice verbose output
                 }
@@ -1211,6 +1217,11 @@ namespace RefVariation
                     << (match ? " MATCH!" : "")
                     << std::endl;
             }
+        }
+        {
+            LOCK_GUARD l(*lock_map);
+            RunMatchInfo& info = mapMatches [acc]; // TODO: can be optimized - calculated before loop
+            info.alignments_total += alignments_total;
         }
     }
 
@@ -1585,7 +1596,10 @@ namespace RefVariation
             //if ( ! g_Params.calc_coverage )
             //    std::cout << acc << std::endl;
             //else
-                std::cout << acc << '\t' << info.coverage << std::endl;
+            std::cout
+                << acc << '\t'
+                << info.alignments_matched << '\t'
+                << info.alignments_total << std::endl;
         }
     }
 

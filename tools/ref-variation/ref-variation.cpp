@@ -1185,6 +1185,7 @@ namespace RefVariation
         size_t alignments_total = 0;
         while ( ai.nextAlignment() )
         {
+            ++ alignments_total;
             ngs::String id = ai.getAlignmentId ().toString();
             int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
             ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
@@ -2005,6 +2006,11 @@ extern "C"
 
        -vv -c -t 16 -r NC_000002.11 -p 73613067 --query '-' -l 3 /netmnt/traces04/sra33/SRZ/000867/SRR867061/SRR867061.pileup /netmnt/traces04/sra33/SRZ/000867/SRR867131/SRR867131.pileup
        -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR867061.pileup ..\..\..\tools\ref-variation\SRR867131.pileup
+
+       Current problem cases:
+       -v -c -r CM000671.1 -p 136131022 --query 'T' -l 1 SRR1601768
+       -v -c -r NC_000001.11 -p 136131022 --query 'T' -l 1 SRR1601768
+
        */
 
         RefVariation::find_variation_region ( argc, argv );

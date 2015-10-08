@@ -1606,6 +1606,16 @@ namespace RefVariation
 
     #include <search/grep.h>
 
+    bool check_ref_slice ( char const* ref, size_t ref_size )
+    {
+        for ( size_t i = 0; i < ref_size; ++i )
+        {
+            if ( !(ref [i] == 'N' || ref [i] == 'n' || ref [i] == '.') )
+                return true; // at least one non-N base is OK
+        }
+        return false;
+    }
+
     void find_variation_region_impl (KApp::CArgs const& args)
     {
         ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
@@ -1625,6 +1635,14 @@ namespace RefVariation
         // optimization: first look into the current chunk only (using ngs::StringRef)
         {
             ngs::StringRef ref_chunk = ref_seq.getReferenceChunk ( bases_start );
+
+            if ( ! check_ref_slice (ref_chunk.data() + ref_pos_in_slice, g_Params.var_len_on_ref) )
+            {
+                throw Utils::CErrorMsg (
+                    "The selected reference region [%.*s] does not contain valid bases, "
+                    "exiting...",
+                    (int)g_Params.var_len_on_ref, ref_chunk.data() + ref_pos_in_slice );
+            }
             
             cont = find_variation_core_step ( obj,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,

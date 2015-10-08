@@ -35,9 +35,7 @@
 #include <stdio.h>
 #include <stdint.h>
 
-#include <string>
 #include <vector>
-#include <map>
 
 #include <kapp/main.h>
 #include <klib/rc.h>
@@ -94,12 +92,6 @@ namespace RefVariation
         VERBOSITY_PRINT_VAR_SPEC    = 1,
         VERBOSITY_SOME_DETAILS      = 2,
         VERBOSITY_MORE_DETAILS      = 3
-    };
-
-    struct RunMatchInfo
-    {
-        size_t alignments_matched;
-        size_t alignments_total;
     };
 
 #if SECRET_OPTION != 0
@@ -949,7 +941,7 @@ namespace RefVariation
 
     int find_alignment_in_pileup_db_mt ( char const* acc_pileup, char const* ref_name,
                 KSearch::CVRefVariation const* pobj, size_t bases_start,
-                LOCK* lock_cout, size_t thread_num, LOCK* lock_map )
+                LOCK* lock_cout, size_t thread_num )
     {
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
         {
@@ -1113,8 +1105,7 @@ namespace RefVariation
 
     void find_alignments_in_run_db ( char const* acc, char const* ref_name,
         KSearch::CVRefVariation const& obj, size_t bases_start,
-        char const* variation, size_t var_size,
-        std::map <std::string, RunMatchInfo>& mapMatches )
+        char const* variation, size_t var_size )
     {
         size_t ref_start = bases_start + obj.GetVarStart();
 
@@ -1127,6 +1118,7 @@ namespace RefVariation
         ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
 
         size_t alignments_total = 0;
+        size_t alignments_matched = 0;
         while ( ai.nextAlignment() )
         {
             ++ alignments_total;
@@ -1141,8 +1133,7 @@ namespace RefVariation
                     std::cout << acc << std::endl;
                     break; // -c option is for speed-up, so we sacrifice verbose output
                 }
-                RunMatchInfo& info = mapMatches [acc]; // TODO: can be optimized - calculated before loop
-                ++ info.alignments_matched;
+                ++ alignments_matched;
                 //if ( ! g_Params.calc_coverage )
                 //    break; // -c option is for speed-up, so we sacrifice verbose output
             }
@@ -1155,18 +1146,23 @@ namespace RefVariation
                     << std::endl;
             }
         }
-        RunMatchInfo& info = mapMatches [acc];
-        info.alignments_total += alignments_total;
+
+        if (alignments_total > 0)
+        {
+            std::cout
+                << acc
+                << '\t' << alignments_matched
+                << '\t' << alignments_total
+                << std::endl;
+        }
     }
 
     void find_alignments_in_run_db_mt ( char const* acc, char const* ref_name,
         KSearch::CVRefVariation const* pobj, size_t bases_start,
         char const* variation, size_t var_size,
-        std::map <std::string, RunMatchInfo>* pmapMatches,
-        LOCK* lock_cout, size_t thread_num, LOCK* lock_map )
+        LOCK* lock_cout, size_t thread_num )
     {
         KSearch::CVRefVariation const& obj = *pobj;
-        std::map <std::string, RunMatchInfo>& mapMatches = * pmapMatches;
         size_t ref_start = bases_start + obj.GetVarStart();
 
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
@@ -1183,6 +1179,7 @@ namespace RefVariation
         ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
 
         size_t alignments_total = 0;
+        size_t alignments_matched = 0;
         while ( ai.nextAlignment() )
         {
             ++ alignments_total;
@@ -1198,14 +1195,9 @@ namespace RefVariation
                     std::cout << acc << std::endl;
                     break; // -c option is for speed-up, so we sacrifice verbose output
                 }
-                else
-                {
-                    LOCK_GUARD l(*lock_map);
-                    RunMatchInfo& info = mapMatches [acc]; // TODO: can be optimized - calculated before loop
-                    ++ info.alignments_matched;
-                    //if ( ! g_Params.calc_coverage )
-                    //    break; // -c option is for speed-up, so we sacrifice verbose output
-                }
+                ++ alignments_matched;
+                //if ( ! g_Params.calc_coverage )
+                //    break; // -c option is for speed-up, so we sacrifice verbose output
             }
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
@@ -1219,17 +1211,21 @@ namespace RefVariation
                     << std::endl;
             }
         }
+
+        if (alignments_total > 0)
         {
-            LOCK_GUARD l(*lock_map);
-            RunMatchInfo& info = mapMatches [acc]; // TODO: can be optimized - calculated before loop
-            info.alignments_total += alignments_total;
+            LOCK_GUARD l(*lock_cout);
+            std::cout
+                << acc
+                << '\t' << alignments_matched
+                << '\t' << alignments_total
+                << std::endl;
         }
     }
 
     void find_alignments_in_single_run ( char const* acc,
         char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
-        char const* variation, size_t var_size,
-        std::map <std::string, RunMatchInfo>& mapMatches )
+        char const* variation, size_t var_size )
     {
         char const pileup_suffix[] = ".pileup";
         char acc_pileup [ 128 ];
@@ -1244,15 +1240,14 @@ namespace RefVariation
         if ( res == PILEUP_MAYBE_FOUND )
         {
             find_alignments_in_run_db ( acc, ref_name, obj, bases_start,
-                variation, var_size, mapMatches );
+                variation, var_size );
         }
     }
 
     void find_alignments_in_single_run_mt ( char const* acc,
         char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
         char const* variation, size_t var_size,
-        std::map <std::string, RunMatchInfo>* pmapMatches,
-        LOCK* lock_cout, size_t thread_num, LOCK* lock_map )
+        LOCK* lock_cout, size_t thread_num )
     {
         char const pileup_suffix[] = ".pileup";
         char acc_pileup [ 128 ];
@@ -1263,18 +1258,17 @@ namespace RefVariation
         strncpy ( acc_pileup + acc_len, pileup_suffix, countof(acc_pileup) - acc_len );
 
         int res = find_alignment_in_pileup_db_mt ( acc_pileup, ref_name,
-            pobj, bases_start, lock_cout, thread_num, lock_map );
+            pobj, bases_start, lock_cout, thread_num );
 
         if ( res == PILEUP_MAYBE_FOUND )
         {
             find_alignments_in_run_db_mt ( acc, ref_name, pobj, bases_start,
-                variation, var_size, pmapMatches, lock_cout, thread_num, lock_map );
+                variation, var_size, lock_cout, thread_num );
         }
     }
 
-    void find_alignments ( KApp::CArgs const& args,
-        char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
-        std::map <std::string, RunMatchInfo>& mapMatches)
+    void find_alignments ( KApp::CArgs const& args, char const* ref_name,
+        KSearch::CVRefVariation const& obj, size_t bases_start )
     {
         size_t ref_start = bases_start + obj.GetVarStart();
         char query_del[3];
@@ -1305,7 +1299,7 @@ namespace RefVariation
             try
             {
                 find_alignments_in_single_run ( acc, ref_name, obj, bases_start,
-                    variation, var_size, mapMatches );
+                    variation, var_size );
             }
             catch ( ngs::ErrorMsg const& e )
             {
@@ -1327,8 +1321,7 @@ namespace RefVariation
 
     void find_alignments_mt ( KApp::CArgs const* pargs, size_t param_start, size_t param_count,
         char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
-        std::map <std::string, RunMatchInfo>* pmapMatches,
-        LOCK* lock_cout, size_t thread_num, LOCK* lock_map )
+        LOCK* lock_cout, size_t thread_num )
     {
         try
         {
@@ -1372,7 +1365,7 @@ namespace RefVariation
                 try
                 {
                     find_alignments_in_single_run_mt ( acc, ref_name, pobj, bases_start,
-                        variation, var_size, pmapMatches, lock_cout, thread_num, lock_map );
+                        variation, var_size, lock_cout, thread_num );
                 }
                 catch ( ngs::ErrorMsg const& e )
                 {
@@ -1419,10 +1412,8 @@ namespace RefVariation
         char const* ref_name;
         KSearch::CVRefVariation const* pobj;
         size_t bases_start;
-        std::map <std::string, RunMatchInfo>* pmapMatches;
         LOCK* lock_cout;
         size_t thread_num;
-        LOCK* lock_map;
     };
 
     void AdapterFindAlignment_Init (AdapterFindAlignment & params,
@@ -1431,10 +1422,8 @@ namespace RefVariation
             char const* ref_name,
             KSearch::CVRefVariation const* pobj,
             size_t bases_start,
-            std::map <std::string, RunMatchInfo>* pmapMatches,
             LOCK* lock_cout,
-            size_t thread_num,
-            LOCK* lock_map
+            size_t thread_num
         )
     {
         params.pargs = pargs;
@@ -1443,10 +1432,8 @@ namespace RefVariation
         params.ref_name = ref_name;
         params.pobj = pobj;
         params.bases_start = bases_start;
-        params.pmapMatches = pmapMatches;
         params.lock_cout = lock_cout;
         params.thread_num = thread_num;
-        params.lock_map = lock_map;
     }
 
     rc_t AdapterFindAlignmentFunc ( void* data )
@@ -1454,7 +1441,7 @@ namespace RefVariation
         AdapterFindAlignment& p = * (reinterpret_cast<AdapterFindAlignment*>(data));
         find_alignments_mt ( p.pargs, p.param_start, p.param_count,
             p.ref_name, p.pobj, p.bases_start,
-            p.pmapMatches, p.lock_cout, p.thread_num, p.lock_map);
+            p.lock_cout, p.thread_num );
         return 0;
     }
 #endif
@@ -1531,10 +1518,9 @@ namespace RefVariation
         // Split further processing into multiple threads if there too many params
         size_t param_count = args.GetParamCount();
         size_t thread_count = g_Params.thread_count;
-        std::map <std::string, RunMatchInfo> mapMatches;
 
         if ( thread_count == 1 || param_count < thread_count )
-            find_alignments (args, g_Params.ref_acc, obj, bases_start, mapMatches);
+            find_alignments (args, g_Params.ref_acc, obj, bases_start);
         else
         {
             // split
@@ -1546,7 +1532,6 @@ namespace RefVariation
             }
 
             LOCK mutex_cout;
-            LOCK mutex_map;
 
 #if CPP_THREADS != 0
             std::vector<std::thread> vec_threads;
@@ -1569,10 +1554,9 @@ namespace RefVariation
 #else
                 AdapterFindAlignment & params = vec_threads [ i ];
 
-                AdapterFindAlignment_Init ( params,
-                    & args, i * param_chunk_size, current_chunk_size,
-                    g_Params.ref_acc, & obj, bases_start, & mapMatches,
-                    & mutex_cout, i + 1, & mutex_map );
+                AdapterFindAlignment_Init ( params, & args, i * param_chunk_size,
+                    current_chunk_size, g_Params.ref_acc, & obj, bases_start,
+                    & mutex_cout, i + 1 );
 
                 params.thread.Make ( AdapterFindAlignmentFunc, & params );
 #endif
@@ -1588,19 +1572,6 @@ namespace RefVariation
             }
 #endif
 
-        }
-
-        for ( std::map <std::string, RunMatchInfo>::const_iterator cit = mapMatches.begin(); cit != mapMatches.end(); ++cit  )
-        {
-            std::string const& acc = (*cit).first;
-            RunMatchInfo const& info = (*cit).second;
-            //if ( ! g_Params.calc_coverage )
-            //    std::cout << acc << std::endl;
-            //else
-            std::cout
-                << acc << '\t'
-                << info.alignments_matched << '\t'
-                << info.alignments_total << std::endl;
         }
     }
 

@@ -36,6 +36,8 @@
 #include <stdint.h>
 
 #include <vector>
+#include <string>
+#include <fstream>
 
 #include <kapp/main.h>
 #include <klib/rc.h>
@@ -74,6 +76,7 @@ namespace RefVariation
         int verbosity;
         size_t thread_count;
         bool calc_coverage;
+        char const* input_file;
 
     } g_Params =
     {
@@ -83,7 +86,54 @@ namespace RefVariation
         0,
         0,
         1,
-        false
+        false,
+        ""
+    };
+
+    class CInputRun
+    {
+    public:
+
+        CInputRun (char const* run_name) : m_run_name (run_name == NULL ? "" : run_name)
+        {}
+
+        CInputRun (std::string const& run_name, std::string const& run_path, std::string const& pileup_stats_path)
+            : m_run_name (run_name),
+              m_run_path (run_path),
+              m_pileup_stats_path (pileup_stats_path)
+        {}
+
+        std::string const& GetRunName() const { return m_run_name; }
+        std::string const& GetRunPath() const { return m_run_path; }
+        std::string const& GetPileupStatsPath() const { return m_pileup_stats_path; }
+
+        bool IsValid () const { return m_run_name.size() > 0; }
+
+    private:
+
+        std::string m_run_name;
+        std::string m_run_path;
+        std::string m_pileup_stats_path;
+    };
+
+    class CInputRuns
+    {
+    public:
+        CInputRuns ();
+        CInputRuns (KApp::CArgs const& args);
+        CInputRuns (CInputRuns const& ); // no copy
+        CInputRuns& operator= (CInputRuns const& ); // no assignment
+
+        void Init ( KApp::CArgs const& args ); // not thread-safe!
+
+        size_t GetCount() const;
+        CInputRun GetNext () const;
+        size_t GetCurrentIndex() const;
+    private:
+
+        std::vector <CInputRun> m_input_runs;
+        mutable atomic_t m_param_index;
+        mutable size_t m_current_index;
     };
 
     enum
@@ -108,7 +158,7 @@ namespace RefVariation
     char const* USAGE_REF_POS[] = { "look for the variation at this position on the reference", NULL };
 
     char const OPTION_QUERY[] = "query";
-    char const ALIAS_QUERY[]  = "q";
+    //char const ALIAS_QUERY[]  = "q"; // -q is deprecated
     char const* USAGE_QUERY[] = { "query to find in the given reference (\"-\" is treated as an empty string, or deletion)", NULL };
 
     char const OPTION_VAR_LEN_ON_REF[] = "variation-length";
@@ -127,14 +177,19 @@ namespace RefVariation
     char const ALIAS_COVERAGE[]  = "c";
     char const* USAGE_COVERAGE[] = { "output coverage (the nubmer of alignments matching the given variation query) for each run", NULL };
 
+    char const OPTION_INPUT_FILE[] = "input-file";
+    char const ALIAS_INPUT_FILE[]  = "i";
+    char const* USAGE_INPUT_FILE[] = { "take runs from input file rather than from command line. The file must be in text format, each line should contain three tab-separated values: <run-accession> <run-path> <pileup-stats-path>, the latter two are optional", NULL };
+
     ::OptDef Options[] =
     {
         { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true },
         { OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true },
-        { OPTION_QUERY,         ALIAS_QUERY,         NULL, USAGE_QUERY,         1, true, true },
+        { OPTION_QUERY,         /*ALIAS_QUERY*/NULL, NULL, USAGE_QUERY,         1, true, true },
         { OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true },
         { OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false },
-        { OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false }
+        { OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false },
+        { OPTION_INPUT_FILE,    ALIAS_INPUT_FILE,    NULL, USAGE_INPUT_FILE,    1, true, false }
 #if SECRET_OPTION != 0
         ,{ OPTION_SECRET,        NULL,                NULL, USAGE_SECRET,        1, true, false }
 #endif
@@ -342,7 +397,8 @@ namespace RefVariation
         }
         catch ( Utils::CErrorMsg const& e )
         {
-            if ( e.getRC() == SILENT_RC(rcVFS,rcMgr,rcOpening,rcDirectory,rcNotFound))
+            if ( e.getRC() == SILENT_RC(rcVFS,rcMgr,rcOpening,rcDirectory,rcNotFound)
+                || e.getRC() == SILENT_RC(rcVFS,rcTree,rcResolving,rcPath,rcNotFound))
             {
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     std::cout << "pileup db NOT FOUND, need to look into run itself" << std::endl;
@@ -498,7 +554,8 @@ namespace RefVariation
         }
         catch ( Utils::CErrorMsg const& e )
         {
-            if ( e.getRC() == SILENT_RC(rcVFS,rcMgr,rcOpening,rcDirectory,rcNotFound))
+            if ( e.getRC() == SILENT_RC(rcVFS,rcMgr,rcOpening,rcDirectory,rcNotFound)
+                || e.getRC() == SILENT_RC(rcVFS,rcTree,rcResolving,rcPath,rcNotFound))
             {
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
@@ -525,8 +582,8 @@ namespace RefVariation
         }
     }
 
-    void find_alignments_in_run_db ( char const* acc, char const* ref_name,
-        KSearch::CVRefVariation const& obj, size_t bases_start,
+    void find_alignments_in_run_db ( char const* acc, char const* path,
+        char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
         char const* variation, size_t var_size )
     {
         size_t ref_start = bases_start + obj.GetVarStart();
@@ -534,7 +591,7 @@ namespace RefVariation
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             std::cout << "Processing " << acc << std::endl;
 
-        ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
+        ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( path && path[0] ? path : acc );
 
         ngs::Reference reference = run.getReference( ref_name );
         ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
@@ -579,8 +636,8 @@ namespace RefVariation
         }
     }
 
-    void find_alignments_in_run_db_mt ( char const* acc, char const* ref_name,
-        KSearch::CVRefVariation const* pobj, size_t bases_start,
+    void find_alignments_in_run_db_mt ( char const* acc, char const* path,
+        char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
         char const* variation, size_t var_size,
         LOCK* lock_cout, size_t thread_num )
     {
@@ -595,7 +652,7 @@ namespace RefVariation
                 << "Processing " << acc << std::endl;
         }
 
-        ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( acc );
+        ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( path && path[0] ? path : acc );
 
         ngs::Reference reference = run.getReference( ref_name );
         ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
@@ -645,52 +702,63 @@ namespace RefVariation
         }
     }
 
-    void find_alignments_in_single_run ( char const* acc,
-        char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
+    void find_alignments_in_single_run ( char const* acc, char const* path,
+        char const* pileup_path, char const* ref_name,
+        KSearch::CVRefVariation const& obj, size_t bases_start,
         char const* variation, size_t var_size )
     {
         char const pileup_suffix[] = ".pileup";
         char acc_pileup [ 128 ];
 
-        size_t acc_len = strlen(acc);
-        assert ( countof(acc_pileup) >= acc_len + countof(pileup_suffix) );
-        strncpy ( acc_pileup, acc, countof(acc_pileup) );
-        strncpy ( acc_pileup + acc_len, pileup_suffix, countof(acc_pileup) - acc_len );
+        if ( pileup_path == NULL || pileup_path [0] == '\0' )
+        {
+            size_t acc_len = strlen(acc);
+            assert ( countof(acc_pileup) >= acc_len + countof(pileup_suffix) );
+            strncpy ( acc_pileup, acc, countof(acc_pileup) );
+            strncpy ( acc_pileup + acc_len, pileup_suffix, countof(acc_pileup) - acc_len );
+            pileup_path = acc_pileup;
+        }
 
-        int res = find_alignment_in_pileup_db ( acc_pileup, ref_name, obj, bases_start );
+        int res = find_alignment_in_pileup_db ( pileup_path, ref_name, obj, bases_start );
 
         if ( res == PILEUP_MAYBE_FOUND )
         {
-            find_alignments_in_run_db ( acc, ref_name, obj, bases_start,
+            find_alignments_in_run_db ( acc, path, ref_name, obj, bases_start,
                 variation, var_size );
         }
     }
 
-    void find_alignments_in_single_run_mt ( char const* acc,
-        char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
+    void find_alignments_in_single_run_mt ( char const* acc, char const* path,
+        char const* pileup_path, char const* ref_name,
+        KSearch::CVRefVariation const* pobj, size_t bases_start,
         char const* variation, size_t var_size,
         LOCK* lock_cout, size_t thread_num )
     {
         char const pileup_suffix[] = ".pileup";
         char acc_pileup [ 128 ];
 
-        size_t acc_len = strlen(acc);
-        assert ( countof(acc_pileup) >= acc_len + countof(pileup_suffix) );
-        strncpy ( acc_pileup, acc, countof(acc_pileup) );
-        strncpy ( acc_pileup + acc_len, pileup_suffix, countof(acc_pileup) - acc_len );
+        if ( pileup_path == NULL || pileup_path [0] == '\0' )
+        {
+            size_t acc_len = strlen(acc);
+            assert ( countof(acc_pileup) >= acc_len + countof(pileup_suffix) );
+            strncpy ( acc_pileup, acc, countof(acc_pileup) );
+            strncpy ( acc_pileup + acc_len, pileup_suffix, countof(acc_pileup) - acc_len );
+            pileup_path = acc_pileup;
+        }
 
-        int res = find_alignment_in_pileup_db_mt ( acc_pileup, ref_name,
+        int res = find_alignment_in_pileup_db_mt ( pileup_path, ref_name,
             pobj, bases_start, lock_cout, thread_num );
 
         if ( res == PILEUP_MAYBE_FOUND )
         {
-            find_alignments_in_run_db_mt ( acc, ref_name, pobj, bases_start,
+            find_alignments_in_run_db_mt( acc, path, ref_name, pobj, bases_start,
                 variation, var_size, lock_cout, thread_num );
         }
     }
 
-    void find_alignments ( KApp::CArgs const& args, char const* ref_name,
-        KSearch::CVRefVariation const& obj, size_t bases_start )
+    void find_alignments ( char const* ref_name,
+        KSearch::CVRefVariation const& obj, size_t bases_start,
+        CInputRuns const* p_input_runs )
     {
         size_t ref_start = bases_start + obj.GetVarStart();
         char query_del[3];
@@ -709,19 +777,24 @@ namespace RefVariation
             var_size = obj.GetVarSize();
         }
 
-        uint32_t param_count = args.GetParamCount();
-
-        for ( uint32_t i = 0; i < param_count; ++i)
+        for ( ; ; )
         {
-            char const* acc = args.GetParamValue( i );
+            CInputRun const& input_run = p_input_runs -> GetNext();
+
+            if ( ! input_run.IsValid() )
+                break;
+
+            char const* acc = input_run.GetRunName().c_str();
+            char const* path = input_run.GetRunPath().c_str();
+            char const* pileup_path = input_run.GetPileupStatsPath().c_str();
 
             // TODO: this ugly try-catch is here because
             // we can't effectively (non-linearly and with no exceptions thrown)
             // check if the read collection has the given reference in it
             try
             {
-                find_alignments_in_single_run ( acc, ref_name, obj, bases_start,
-                    variation, var_size );
+                find_alignments_in_single_run ( acc, path, pileup_path, ref_name,
+                    obj, bases_start, variation, var_size );
             }
             catch ( ngs::ErrorMsg const& e )
             {
@@ -741,14 +814,13 @@ namespace RefVariation
         }
     }
 
-    void find_alignments_mt ( KApp::CArgs const* pargs, char const* ref_name,
+    void find_alignments_mt ( char const* ref_name,
         KSearch::CVRefVariation const* pobj, size_t bases_start,
         LOCK* lock_cout, size_t thread_num,
-        atomic_t* p_param_index )
+        CInputRuns const* p_input_runs )
     {
         try
         {
-            KApp::CArgs const& args = *pargs;
             KSearch::CVRefVariation const& obj = *pobj;
             size_t ref_start = bases_start + obj.GetVarStart();
 
@@ -768,18 +840,26 @@ namespace RefVariation
                 var_size = obj.GetVarSize();
             }
 
-            for ( uint32_t i = (uint32_t)atomic_read_and_add( p_param_index, 1 );
-                i < args.GetParamCount(); i = (uint32_t)atomic_read_and_add( p_param_index, 1 ) )
+            for ( ; ; )
             {
-                char const* acc = args.GetParamValue( i );
+                CInputRun const& input_run = p_input_runs -> GetNext();
+
+                if ( ! input_run.IsValid() )
+                    break;
+
+                char const* acc = input_run.GetRunName().c_str();
+                char const* path = input_run.GetRunPath().c_str();
+                char const* pileup_path = input_run.GetPileupStatsPath().c_str();
 
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
                     std::cout
                         << "[" << thread_num << "] "
-                        << "Processing parameter # " << i
+                        << "Processing parameter # " << p_input_runs -> GetCurrentIndex()
                         << ": " << acc
+                        << ", path=[" << path << "]"
+                        << ", pileup path=[" << pileup_path << "]"
                         << std::endl;
                 }
 
@@ -789,8 +869,9 @@ namespace RefVariation
                 // check if the read collection has the given reference in it
                 try
                 {
-                    find_alignments_in_single_run_mt ( acc, ref_name, pobj, bases_start,
-                        variation, var_size, lock_cout, thread_num );
+                    find_alignments_in_single_run_mt ( acc, path, pileup_path,
+                        ref_name, pobj, bases_start, variation, var_size,
+                        lock_cout, thread_num );
                 }
                 catch ( ngs::ErrorMsg const& e )
                 {
@@ -830,28 +911,25 @@ namespace RefVariation
     {
         KProc::CKThread thread;
 
-        KApp::CArgs const* pargs;
         size_t param_start, param_count;
         char const* ref_name;
         KSearch::CVRefVariation const* pobj;
         size_t bases_start;
         LOCK* lock_cout;
         size_t thread_num;
-        atomic_t* p_param_index;
+        CInputRuns const* p_input_runs;
     };
 
     void AdapterFindAlignment_Init (AdapterFindAlignment & params,
-            KApp::CArgs const* pargs,
             size_t param_start, size_t param_count,
             char const* ref_name,
             KSearch::CVRefVariation const* pobj,
             size_t bases_start,
             LOCK* lock_cout,
             size_t thread_num,
-            atomic_t* p_param_index
+            CInputRuns const* p_input_runs
         )
     {
-        params.pargs = pargs;
         params.param_start = param_start;
         params.param_count = param_count;
         params.ref_name = ref_name;
@@ -859,14 +937,14 @@ namespace RefVariation
         params.bases_start = bases_start;
         params.lock_cout = lock_cout;
         params.thread_num = thread_num;
-        params.p_param_index = p_param_index;
+        params.p_input_runs = p_input_runs;
     }
 
     rc_t AdapterFindAlignmentFunc ( void* data )
     {
         AdapterFindAlignment& p = * (reinterpret_cast<AdapterFindAlignment*>(data));
-        find_alignments_mt ( p.pargs, p.ref_name, p.pobj, p.bases_start,
-            p.lock_cout, p.thread_num, p.p_param_index );
+        find_alignments_mt ( p.ref_name, p.pobj, p.bases_start,
+            p.lock_cout, p.thread_num, p.p_input_runs );
         return 0;
     }
 #endif
@@ -941,16 +1019,17 @@ namespace RefVariation
         }
 
         // Split further processing into multiple threads if there too many params
-        size_t param_count = args.GetParamCount();
+        CInputRuns input_runs ( args );
+
+        size_t param_count = input_runs.GetCount();
 
         if ( param_count >= 1 && param_count < g_Params.thread_count )
             g_Params.thread_count = param_count;
 
         size_t thread_count = g_Params.thread_count;
 
-
         if ( thread_count == 1 )
-            find_alignments (args, g_Params.ref_acc, obj, bases_start);
+            find_alignments (g_Params.ref_acc, obj, bases_start, & input_runs);
         else
         {
             // split
@@ -962,7 +1041,6 @@ namespace RefVariation
             }
 
             LOCK mutex_cout;
-            atomic_t param_index = {0};
 
 #if CPP_THREADS != 0
             std::vector<std::thread> vec_threads;
@@ -978,16 +1056,16 @@ namespace RefVariation
 #if CPP_THREADS != 0
                 vec_threads.push_back(
                     std::thread( find_alignments_mt,
-                                    & args, i * param_chunk_size,
+                                    i * param_chunk_size,
                                     current_chunk_size, g_Params.ref_acc, & obj, bases_start,
-                                    & mutex_cout, i + 1, & param_index
+                                    & mutex_cout, i + 1, & input_runs
                                ));
 #else
                 AdapterFindAlignment & params = vec_threads [ i ];
 
-                AdapterFindAlignment_Init ( params, & args, i * param_chunk_size,
+                AdapterFindAlignment_Init ( params, i * param_chunk_size,
                     current_chunk_size, g_Params.ref_acc, & obj, bases_start,
-                    & mutex_cout, i + 1, & param_index );
+                    & mutex_cout, i + 1, & input_runs );
 
                 params.thread.Make ( AdapterFindAlignmentFunc, & params );
 #endif
@@ -1307,6 +1385,19 @@ namespace RefVariation
 
             g_Params.verbosity = (int)args.GetOptionCount (OPTION_VERBOSITY);
 
+            if (args.GetOptionCount (OPTION_INPUT_FILE) == 1)
+            {
+                g_Params.input_file = args.GetOptionValue ( OPTION_INPUT_FILE, 0 );
+                if (args.GetParamCount() > 0)
+                {
+                    std::cerr << argv [0] << OPTION_INPUT_FILE
+                        << " option must not be provided along with parameters,"
+                        " use either command line parameters or input file but"
+                        " not both" << std::endl;
+                    return;
+                }
+            }
+
 #if SECRET_OPTION != 0
             if ( args.GetOptionCount (OPTION_SECRET) > 0 )
             {
@@ -1351,6 +1442,139 @@ namespace RefVariation
             Utils::HandleException ();
         }
     }
+
+/////////////////////////////
+    // class CInputRuns
+
+    CInputRuns::CInputRuns (KApp::CArgs const& args)
+    {
+        m_param_index.counter = 0;
+        m_current_index = 0;
+
+        Init ( args );
+    }
+
+    CInputRuns::CInputRuns ()
+    {
+        m_param_index.counter = 0;
+        m_current_index = 0;
+    }
+    
+
+    bool is_eol (char ch)
+    {
+        return ch == '\0' || ch == '\r' || ch == '\n';
+    }
+
+    bool is_sep (char ch)
+    {
+        return ch == '\t';
+    }
+
+    enum {PARSE_OK, PARSE_EMPTY, PARSE_ERROR};
+
+    int parse_input_line ( char const* line,
+        char const** p_acc, size_t* p_size_acc,
+        char const** p_run_path, size_t* p_size_run_path,
+        char const** p_pileup_path, size_t* p_size_pileup_path)
+    {
+        *p_acc = *p_run_path = *p_pileup_path = "";
+        *p_size_acc = *p_size_run_path = *p_size_pileup_path = 0;
+
+        char const* p = line;
+
+        if ( is_eol (*p) )
+            return PARSE_EMPTY;
+
+        *p_acc = p;
+        for ( ; ! is_sep (*p) && ! is_eol (*p); ++ p, ++ (*p_size_acc) );
+
+        if ( *p_size_acc == 0 )
+            return PARSE_ERROR;
+
+        if ( is_eol ( *p ) )
+            return PARSE_OK;
+
+        ++ p;
+        *p_run_path = p;
+        for ( ; ! is_sep (*p) && ! is_eol (*p); ++p, ++ (*p_size_run_path) );
+
+        if ( is_eol ( *p ) )
+            return PARSE_OK;
+
+        ++ p;
+        *p_pileup_path = p;
+        for ( ; ! is_sep (*p) && ! is_eol (*p); ++p, ++ (*p_size_pileup_path) );
+
+        return PARSE_OK;
+    }
+
+    void CInputRuns::Init ( KApp::CArgs const& args ) // not thread-safe!
+    {
+        if ( g_Params.input_file != NULL && g_Params.input_file [0] != '\0' )
+        {
+            std::ifstream input_file( g_Params.input_file );
+            if ( !input_file.good() )
+                throw Utils::CErrorMsg( "Failed to open file %s", g_Params.input_file );
+
+            std::string line;
+            size_t count = 0;
+
+            while ( std::getline ( input_file, line) )
+            {
+                ++ count;
+                if ( m_input_runs.capacity() < count )
+                    m_input_runs.reserve ( m_input_runs.capacity() * 2 );
+
+                char const* p_acc, *p_path, *p_pileup_path;
+                size_t size_acc, size_path, size_pileup_path;
+
+                int res = parse_input_line ( line.c_str(),
+                    & p_acc, & size_acc,
+                    & p_path, & size_path,
+                    & p_pileup_path, & size_pileup_path );
+                if ( res == PARSE_ERROR )
+                {
+                    throw Utils::CErrorMsg(
+                        "Failed to parse line # %lu from file %s",
+                        count, g_Params.input_file );
+                }
+                else if ( res == PARSE_OK )
+                {
+                    m_input_runs.push_back(
+                        CInputRun(
+                            std::string(p_acc, size_acc),
+                            std::string(p_path, size_path),
+                            std::string(p_pileup_path, size_pileup_path)));
+                }
+                else // res == PARSE_EMPTY
+                    -- count;
+            }
+        }
+        else
+        {
+            m_input_runs.reserve (args.GetParamCount());
+
+            for ( uint32_t i = 0; i < args.GetParamCount(); ++i )
+                m_input_runs.push_back( CInputRun ( args.GetParamValue( i ) ) );
+        }
+    }
+
+    size_t CInputRuns::GetCount() const
+    {
+        return m_input_runs.size();
+    }
+
+    CInputRun CInputRuns::GetNext () const
+    {
+        m_current_index = atomic_read_and_add( & m_param_index, 1 );
+        return m_current_index < m_input_runs.size() ? m_input_runs[m_current_index] : CInputRun("");
+    }
+    size_t CInputRuns::GetCurrentIndex () const
+    {
+        return m_current_index;
+    }
+
 }
 
 extern "C"
@@ -1393,10 +1617,11 @@ extern "C"
 
         HelpOptionLine (RefVariation::ALIAS_REFERENCE_ACC, RefVariation::OPTION_REFERENCE_ACC, "acc", RefVariation::USAGE_REFERENCE_ACC);
         HelpOptionLine (RefVariation::ALIAS_REF_POS, RefVariation::OPTION_REF_POS, "value", RefVariation::USAGE_REF_POS);
-        HelpOptionLine (RefVariation::ALIAS_QUERY, RefVariation::OPTION_QUERY, "string", RefVariation::USAGE_QUERY);
+        HelpOptionLine (NULL, RefVariation::OPTION_QUERY, "string", RefVariation::USAGE_QUERY);
         HelpOptionLine (RefVariation::ALIAS_VAR_LEN_ON_REF, RefVariation::OPTION_VAR_LEN_ON_REF, "value", RefVariation::USAGE_VAR_LEN_ON_REF);
         HelpOptionLine (RefVariation::ALIAS_THREADS, RefVariation::OPTION_THREADS, "value", RefVariation::USAGE_THREADS);
         HelpOptionLine (RefVariation::ALIAS_COVERAGE, RefVariation::OPTION_COVERAGE, "", RefVariation::USAGE_COVERAGE);
+        HelpOptionLine (RefVariation::ALIAS_INPUT_FILE, RefVariation::OPTION_INPUT_FILE, "string", RefVariation::USAGE_INPUT_FILE);
         //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
 #if SECRET_OPTION != 0
         HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);

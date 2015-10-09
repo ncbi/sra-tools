@@ -278,8 +278,8 @@ ParseArgs ( int argc, char ** argv )
         llp ++;
     }
     else {
+        ReadOnly = false;
         if ( strcmp ( Arg, RW_TAG ) == 0 ) {
-            ReadOnly = false;
 
             llp ++;
         }

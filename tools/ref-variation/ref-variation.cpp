@@ -36,6 +36,7 @@
 #include <stdint.h>
 
 #include <vector>
+#include <string>
 
 #include <kapp/main.h>
 #include <klib/rc.h>
@@ -84,6 +85,52 @@ namespace RefVariation
         0,
         1,
         false
+    };
+
+    class CInputRun
+    {
+    public:
+
+        CInputRun (char const* run_name) : m_run_name (run_name == NULL ? "" : run_name)
+        {}
+
+        CInputRun (char const* run_name, char const* run_path, char const* pileup_stats_path)
+            : m_run_name (run_name == NULL ? "" : run_name),
+              m_run_path (run_path == NULL ? "" : run_path),
+              m_pileup_stats_path (pileup_stats_path == NULL ? "" : pileup_stats_path)
+        {}
+
+        std::string const& GetRunName() const { return m_run_name; }
+        std::string const& GetRunPath() const { return m_run_path; }
+        std::string const& GetPileupStatsPath() const { return m_pileup_stats_path; }
+
+        bool IsValid () const { return m_run_name.size() > 0; }
+
+    private:
+
+        std::string m_run_name;
+        std::string m_run_path;
+        std::string m_pileup_stats_path;
+    };
+
+    class CInputRuns
+    {
+    public:
+        CInputRuns ();
+        CInputRuns (KApp::CArgs const& args);
+        CInputRuns (CInputRuns const& ); // no copy
+        CInputRuns& operator= (CInputRuns const& ); // no assignment
+
+        void Init ( KApp::CArgs const& args ); // not thread-safe!
+
+        size_t GetCount() const;
+        CInputRun GetNext () const;
+        size_t GetCurrentIndex() const;
+    private:
+
+        std::vector <CInputRun> m_input_runs;
+        mutable atomic_t m_param_index;
+        mutable size_t m_current_index;
     };
 
     enum
@@ -741,14 +788,13 @@ namespace RefVariation
         }
     }
 
-    void find_alignments_mt ( KApp::CArgs const* pargs, char const* ref_name,
+    void find_alignments_mt ( char const* ref_name,
         KSearch::CVRefVariation const* pobj, size_t bases_start,
         LOCK* lock_cout, size_t thread_num,
-        atomic_t* p_param_index )
+        CInputRuns const* p_input_runs )
     {
         try
         {
-            KApp::CArgs const& args = *pargs;
             KSearch::CVRefVariation const& obj = *pobj;
             size_t ref_start = bases_start + obj.GetVarStart();
 
@@ -768,17 +814,21 @@ namespace RefVariation
                 var_size = obj.GetVarSize();
             }
 
-            for ( uint32_t i = (uint32_t)atomic_read_and_add( p_param_index, 1 );
-                i < args.GetParamCount(); i = (uint32_t)atomic_read_and_add( p_param_index, 1 ) )
+            for ( ; ; )
             {
-                char const* acc = args.GetParamValue( i );
+                CInputRun const& input_run = p_input_runs -> GetNext();
+
+                if ( ! input_run.IsValid() )
+                    break;
+
+                char const* acc = input_run.GetRunName().c_str();
 
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
                     std::cout
                         << "[" << thread_num << "] "
-                        << "Processing parameter # " << i
+                        << "Processing parameter # " << p_input_runs -> GetCurrentIndex()
                         << ": " << acc
                         << std::endl;
                 }
@@ -830,28 +880,25 @@ namespace RefVariation
     {
         KProc::CKThread thread;
 
-        KApp::CArgs const* pargs;
         size_t param_start, param_count;
         char const* ref_name;
         KSearch::CVRefVariation const* pobj;
         size_t bases_start;
         LOCK* lock_cout;
         size_t thread_num;
-        atomic_t* p_param_index;
+        CInputRuns const* p_input_runs;
     };
 
     void AdapterFindAlignment_Init (AdapterFindAlignment & params,
-            KApp::CArgs const* pargs,
             size_t param_start, size_t param_count,
             char const* ref_name,
             KSearch::CVRefVariation const* pobj,
             size_t bases_start,
             LOCK* lock_cout,
             size_t thread_num,
-            atomic_t* p_param_index
+            CInputRuns const* p_input_runs
         )
     {
-        params.pargs = pargs;
         params.param_start = param_start;
         params.param_count = param_count;
         params.ref_name = ref_name;
@@ -859,14 +906,14 @@ namespace RefVariation
         params.bases_start = bases_start;
         params.lock_cout = lock_cout;
         params.thread_num = thread_num;
-        params.p_param_index = p_param_index;
+        params.p_input_runs = p_input_runs;
     }
 
     rc_t AdapterFindAlignmentFunc ( void* data )
     {
         AdapterFindAlignment& p = * (reinterpret_cast<AdapterFindAlignment*>(data));
-        find_alignments_mt ( p.pargs, p.ref_name, p.pobj, p.bases_start,
-            p.lock_cout, p.thread_num, p.p_param_index );
+        find_alignments_mt ( p.ref_name, p.pobj, p.bases_start,
+            p.lock_cout, p.thread_num, p.p_input_runs );
         return 0;
     }
 #endif
@@ -941,13 +988,14 @@ namespace RefVariation
         }
 
         // Split further processing into multiple threads if there too many params
-        size_t param_count = args.GetParamCount();
+        CInputRuns input_runs ( args );
+
+        size_t param_count = input_runs.GetCount();
 
         if ( param_count >= 1 && param_count < g_Params.thread_count )
             g_Params.thread_count = param_count;
 
         size_t thread_count = g_Params.thread_count;
-
 
         if ( thread_count == 1 )
             find_alignments (args, g_Params.ref_acc, obj, bases_start);
@@ -962,7 +1010,6 @@ namespace RefVariation
             }
 
             LOCK mutex_cout;
-            atomic_t param_index = {0};
 
 #if CPP_THREADS != 0
             std::vector<std::thread> vec_threads;
@@ -978,16 +1025,16 @@ namespace RefVariation
 #if CPP_THREADS != 0
                 vec_threads.push_back(
                     std::thread( find_alignments_mt,
-                                    & args, i * param_chunk_size,
+                                    i * param_chunk_size,
                                     current_chunk_size, g_Params.ref_acc, & obj, bases_start,
-                                    & mutex_cout, i + 1, & param_index
+                                    & mutex_cout, i + 1, & input_runs
                                ));
 #else
                 AdapterFindAlignment & params = vec_threads [ i ];
 
-                AdapterFindAlignment_Init ( params, & args, i * param_chunk_size,
+                AdapterFindAlignment_Init ( params, i * param_chunk_size,
                     current_chunk_size, g_Params.ref_acc, & obj, bases_start,
-                    & mutex_cout, i + 1, & param_index );
+                    & mutex_cout, i + 1, & input_runs );
 
                 params.thread.Make ( AdapterFindAlignmentFunc, & params );
 #endif
@@ -1351,6 +1398,47 @@ namespace RefVariation
             Utils::HandleException ();
         }
     }
+
+/////////////////////////////
+    // class CInputRuns
+
+    CInputRuns::CInputRuns (KApp::CArgs const& args)
+    {
+        m_param_index.counter = 0;
+        m_current_index = 0;
+
+        Init ( args );
+    }
+
+    CInputRuns::CInputRuns ()
+    {
+        m_param_index.counter = 0;
+        m_current_index = 0;
+    }
+
+    void CInputRuns::Init ( KApp::CArgs const& args ) // not thread-safe!
+    {
+        m_input_runs.reserve (args.GetParamCount());
+
+        for ( uint32_t i = 0; i < args.GetParamCount(); ++i )
+            m_input_runs.push_back( CInputRun ( args.GetParamValue( i ) ) );
+    }
+
+    size_t CInputRuns::GetCount() const
+    {
+        return m_input_runs.size();
+    }
+
+    CInputRun CInputRuns::GetNext () const
+    {
+        m_current_index = atomic_read_and_add( & m_param_index, 1 );
+        return m_current_index < m_input_runs.size() ? m_input_runs[m_current_index] : CInputRun("");
+    }
+    size_t CInputRuns::GetCurrentIndex () const
+    {
+        return m_current_index;
+    }
+
 }
 
 extern "C"

@@ -90,8 +90,8 @@ UPDATE_SCHEMA_OBJ = \
 	$(addsuffix .$(OBJX),$(UPDATE_SCHEMA_SRC))
 
 UPDATE_SCHEMA_LIB = \
-	-lkapp \
-	-lncbi-wvdb \
+	-skapp \
+	-sncbi-wvdb \
     
 update-schema.vers.h: update-schema.vers
 	$(TOP)/build/make-vers-inc.sh UPDATE_SCHEMA_VERS $^ > $@

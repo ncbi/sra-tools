@@ -39,6 +39,7 @@
 
 #include <kapp/main.h>
 #include <klib/rc.h>
+#include <atomic.h>
 
 #include <ngs/ncbi/NGS.hpp>
 #include <ngs/ReferenceSequence.hpp>
@@ -740,9 +741,10 @@ namespace RefVariation
         }
     }
 
-    void find_alignments_mt ( KApp::CArgs const* pargs, size_t param_start, size_t param_count,
-        char const* ref_name, KSearch::CVRefVariation const* pobj, size_t bases_start,
-        LOCK* lock_cout, size_t thread_num )
+    void find_alignments_mt ( KApp::CArgs const* pargs, char const* ref_name,
+        KSearch::CVRefVariation const* pobj, size_t bases_start,
+        LOCK* lock_cout, size_t thread_num,
+        atomic_t* p_param_index )
     {
         try
         {
@@ -766,19 +768,21 @@ namespace RefVariation
                 var_size = obj.GetVarSize();
             }
 
-            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+            for ( uint32_t i = (uint32_t)atomic_read_and_add( p_param_index, 1 );
+                i < args.GetParamCount(); i = (uint32_t)atomic_read_and_add( p_param_index, 1 ) )
             {
-                LOCK_GUARD l(*lock_cout);
-                std::cout
-                    << "[" << thread_num << "] "
-                    << "Processing parameters from " << param_start + 1
-                    << " to " << param_start + param_count << " inclusively"
-                    << std::endl;
-            }
+                char const* acc = args.GetParamValue( i );
 
-            for ( uint32_t i = 0; i < param_count; ++i)
-            {
-                char const* acc = args.GetParamValue( i + param_start );
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                {
+                    LOCK_GUARD l(*lock_cout);
+                    std::cout
+                        << "[" << thread_num << "] "
+                        << "Processing parameter # " << i
+                        << ": " << acc
+                        << std::endl;
+                }
+
 
                 // TODO: this ugly try-catch is here because
                 // we can't effectively (non-linearly and with no exceptions thrown)
@@ -833,6 +837,7 @@ namespace RefVariation
         size_t bases_start;
         LOCK* lock_cout;
         size_t thread_num;
+        atomic_t* p_param_index;
     };
 
     void AdapterFindAlignment_Init (AdapterFindAlignment & params,
@@ -842,7 +847,8 @@ namespace RefVariation
             KSearch::CVRefVariation const* pobj,
             size_t bases_start,
             LOCK* lock_cout,
-            size_t thread_num
+            size_t thread_num,
+            atomic_t* p_param_index
         )
     {
         params.pargs = pargs;
@@ -853,14 +859,14 @@ namespace RefVariation
         params.bases_start = bases_start;
         params.lock_cout = lock_cout;
         params.thread_num = thread_num;
+        params.p_param_index = p_param_index;
     }
 
     rc_t AdapterFindAlignmentFunc ( void* data )
     {
         AdapterFindAlignment& p = * (reinterpret_cast<AdapterFindAlignment*>(data));
-        find_alignments_mt ( p.pargs, p.param_start, p.param_count,
-            p.ref_name, p.pobj, p.bases_start,
-            p.lock_cout, p.thread_num );
+        find_alignments_mt ( p.pargs, p.ref_name, p.pobj, p.bases_start,
+            p.lock_cout, p.thread_num, p.p_param_index );
         return 0;
     }
 #endif
@@ -936,9 +942,14 @@ namespace RefVariation
 
         // Split further processing into multiple threads if there too many params
         size_t param_count = args.GetParamCount();
+
+        if ( param_count >= 1 && param_count < g_Params.thread_count )
+            g_Params.thread_count = param_count;
+
         size_t thread_count = g_Params.thread_count;
 
-        if ( thread_count == 1 || param_count < thread_count )
+
+        if ( thread_count == 1 )
             find_alignments (args, g_Params.ref_acc, obj, bases_start);
         else
         {
@@ -951,6 +962,7 @@ namespace RefVariation
             }
 
             LOCK mutex_cout;
+            atomic_t param_index = {0};
 
 #if CPP_THREADS != 0
             std::vector<std::thread> vec_threads;
@@ -966,16 +978,16 @@ namespace RefVariation
 #if CPP_THREADS != 0
                 vec_threads.push_back(
                     std::thread( find_alignments_mt,
-                                    & args, i * param_chunk_size, current_chunk_size,
-                                    g_Params.ref_acc, & obj, bases_start, & mapMatches,
-                                    & mutex_cout, i + 1, & mutex_map
+                                    & args, i * param_chunk_size,
+                                    current_chunk_size, g_Params.ref_acc, & obj, bases_start,
+                                    & mutex_cout, i + 1, & param_index
                                ));
 #else
                 AdapterFindAlignment & params = vec_threads [ i ];
 
                 AdapterFindAlignment_Init ( params, & args, i * param_chunk_size,
                     current_chunk_size, g_Params.ref_acc, & obj, bases_start,
-                    & mutex_cout, i + 1 );
+                    & mutex_cout, i + 1, & param_index );
 
                 params.thread.Make ( AdapterFindAlignmentFunc, & params );
 #endif

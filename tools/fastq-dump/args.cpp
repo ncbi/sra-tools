@@ -261,15 +261,15 @@ AOptVal :: reset ( const String & Name, Args * TheArgs, bool needValue )
     _M_val . resize ( count );
     if ( needValue ) {
         for ( uint32_t i = 0; i < count; i ++ ) {
-            const char * val = NULL;
-            if ( ArgsOptionValue ( TheArgs, Name . c_str (), i, reinterpret_cast<const void**>(& val) ) != 0 ) {
+            const void * val = NULL;
+            if ( ArgsOptionValue ( TheArgs, Name . c_str (), i, & val ) != 0 ) {
                 std :: stringstream Vsg;
                 Vsg << "reset: Can not get value for option \"" << Name;
                 Vsg << "\" in series " << i;
                 throw ErrorMsg ( Vsg . str () );
             }
 
-            _M_val [ i ] = val == NULL ? "" : val;
+            _M_val [ i ] = val == NULL ? "" : static_cast <char const*> (val);
         }
     }
 
@@ -321,14 +321,14 @@ AParVal :: reset ( const String & Name, Args * TheArgs, bool )
 
     _M_val . resize ( count );
     for ( uint32_t i = 0; i < count; i ++ ) {
-        const char * val = NULL;
-        if ( ArgsParamValue ( TheArgs, i, reinterpret_cast<const void**>(& val) ) != 0 ) {
+        const void * val = NULL;
+        if ( ArgsParamValue ( TheArgs, i, & val ) != 0 ) {
             std :: stringstream Vsg;
             Vsg << "reset: Can not get parameter in series " << i;
             throw ErrorMsg ( Vsg . str () );
         }
 
-        _M_val [ i ] = val;
+        _M_val [ i ] = static_cast <char const*> (val);
     }
 
     _M_name = Name;

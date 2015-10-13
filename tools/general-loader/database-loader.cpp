@@ -28,6 +28,7 @@
 
 #include <klib/rc.h>
 #include <klib/log.h>
+#include <klib/time.h>
 
 #include <kdb/meta.h>
 #include <kdb/table.h>
@@ -856,4 +857,45 @@ GeneralLoader :: DatabaseLoader :: ErrorMessage ( const string & p_text )
 {
     pLogMsg ( klogErr, "general-loader: error \"$(t)\"", "t=%s", p_text . c_str () );
     return RC ( rcExe, rcFile, rcReading, rcError, rcExists );
+}
+
+rc_t
+GeneralLoader :: DatabaseLoader :: LogMessage ( const string & p_text )
+{
+    pLogMsg ( klogInfo, "general-loader: log \"$(t)\"", "t=%s", p_text . c_str () );
+    return 0;
+}
+
+
+/*
+<Log>
+  <status app="sra-stat" message="processed 12%" pid="60234"
+        timestamp="2015-09-21T19:49:45" version="2.5.1" percent="12"/>
+</Log>
+ */
+rc_t
+GeneralLoader :: DatabaseLoader :: ProgressMessage ( uint32_t p_pid, const std :: string& p_name, 
+                                                     uint32_t p_timestamp, uint32_t p_version, uint32_t p_percent )
+{
+    KTime kt;
+    KTimeLocal ( &kt, ( KTime_t ) p_timestamp );
+
+    pLogMsg ( klogInfo, 
+              "general-loader: "
+              "status app=\"$(app)\" "
+              "message=\"$(message)\" "
+              "pid=\"$(pid)\" "
+              "timestamp=\"$(timestamp)\" "
+              "version=\"$(version)\" "
+              "percent=\"$(percent)\" "
+              ,
+              "app=%s,message=processed %u%%,pid=%u,timestamp=%lT,version=%V,percent=%u"
+              , 
+              p_name . c_str (),
+              p_percent, 
+              p_pid,
+              & kt,
+              ( ver_t ) p_version,
+              p_percent );
+    return 0;
 }

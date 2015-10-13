@@ -877,30 +877,50 @@ namespace ncbi
         gwp_1string_evt_U16 hdr;
         init ( hdr, 0, evt_errmsg2 );
 
+        const char * msg_data = msg . data ();
         size_t str_size = msg . size ();
-        if ( str_size > 0x10000 )
+        if ( str_size == 0 )
+        {
+            msg_data = "ERROR: (NO MSG)";
+            str_size = strlen ( msg_data );
+        }
+        else if ( str_size > 0x10000 )
             str_size = 0x10000;
 
         set_size ( hdr, str_size );
         write_event ( & hdr . dad, sizeof hdr );
-        internal_write ( msg.data (), str_size );
+        internal_write ( msg_data, str_size );
     }
 
     void GeneralWriter :: logMsg ( const std :: string &msg )
     {
         switch ( state )
         {
-            //what cases?
+        case header_written:
+        case remote_name_sent:
+        case schema_sent:
+        case software_name_sent:
+        case remote_name_and_schema_sent:
+        case remote_name_and_software_name_sent:
+        case schema_and_software_name_sent:
+        case remote_name_schema_and_software_name_sent:
+        case have_table:
+        case have_column:
+        case opened:
+            break;
         default:
             return;
         }
 
-        gwp_1string_evt_U16 hdr;
-        init ( hdr, 0, evt_logmsg );
-
         size_t str_size = msg . size ();
+        if ( str_size == 0 )
+            return;
+
         if ( str_size > 0x10000 )
             str_size = 0x10000;
+
+        gwp_1string_evt_U16 hdr;
+        init ( hdr, 0, evt_logmsg );
 
         set_size ( hdr, str_size );
         write_event ( & hdr . dad, sizeof hdr );
@@ -917,35 +937,45 @@ struct gwp_status_evt_v1
     uint8_t percent;
 };
     */
-    void GeneralWriter :: progMsg ( int pid, const std :: string & name,
-                                    uint32_t done, uint32_t todo )
+    void GeneralWriter :: progMsg ( int pid, const std :: string & name, 
+                                    uint32_t version, uint64_t done, uint64_t total )
     {
         switch ( state )
         {
-            //what cases?
+        case opened:
+            break;
         default:
             return;
         }
 
         // check pid
+        if ( pid < 1 || pid > 0xFFFF )
+            throw "invalid pid";
 
         size_t str_size = name . size ();
+        if ( str_size == 0 )
+            throw "zero-length app-name";
         if ( str_size > 0x100 )
-            throw "maximum name length exceeded";
+            str_size = 0x100;
 
-        // version
-        
         // timestamp
         time_t timestamp = time ( NULL );
+
+        if ( total == 0 )
+            throw "illegal total value: would divide by zero";
+        if ( done > total )
+            throw "illegal done value: greater than total";
         
         // calculate percentage done
-        uint32_t percent = done / todo;
+        double fpercent = ( double ) done / total;
+        assert ( fpercent >= 0.0 && fpercent <= 100.0 );
+        uint8_t percent = ( uint8_t ) ( fpercent * 100 );
 
         gwp_status_evt_v1 hdr;
-        init ( hdr, pid, evt_progmsg );
-        // set version
+        init ( hdr, 0, evt_progmsg );
+        set_version ( hdr, version );
         set_timestamp ( hdr, ( uint32_t ) timestamp );
-        set_pid ( hdr, pid );
+        set_pid ( hdr, ( uint16_t ) pid );
         set_size ( hdr, str_size );
         set_percent ( hdr, percent );
 

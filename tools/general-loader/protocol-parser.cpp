@@ -397,6 +397,51 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             }
             break;
             
+        case evt_logmsg:
+        {   
+            LogMsg ( klogInfo, "protocol-parser event: Log-Message" );
+            
+            gw_1string_evt_v1 evt;
+            rc = ReadEvent ( p_reader, evt );
+            if ( rc == 0 )
+            {
+                size_t message_size = ncbi :: size ( evt );
+                rc = p_reader . Read ( message_size );
+                if ( rc == 0 )
+                {
+                    rc = p_dbLoader . LogMessage ( string ( ( const char * ) p_reader . GetBuffer (), message_size ) );
+                }
+            }
+        }
+        break;
+            
+        case evt_progmsg:
+        {
+            LogMsg ( klogInfo, "protocol-parser event: Progress-Message" );
+
+            gw_status_evt_v1 evt;
+            rc = ReadEvent ( p_reader, evt );
+            if ( rc == 0 )
+            {
+                uint32_t version = ncbi :: version ( evt );
+                uint32_t timestamp = ncbi :: timestamp ( evt );
+                uint32_t pid = ncbi :: pid ( evt );
+                size_t name_sz = ncbi :: size ( evt );
+                uint32_t percent = ncbi :: percent ( evt );
+
+                rc = p_reader . Read ( name_sz );
+                if ( rc == 0 )
+                {
+                    rc = p_dbLoader . ProgressMessage ( pid, 
+                                                        string ( ( const char * ) p_reader . GetBuffer (), name_sz ),
+                                                        timestamp, 
+                                                        version, 
+                                                        percent );
+                }
+            }
+        }
+        break;
+        
         default:
             pLogMsg ( klogErr, 
                       "unexpected general-loader event at $(o): $(e)", 
@@ -940,6 +985,51 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
                     }
                 }
             }
+            break;
+
+        case evt_logmsg:
+        {   
+            LogMsg ( klogInfo, "protocol-parser event ( packed ): Log-Message" );
+            
+            gwp_1string_evt_U16_v1 evt;
+            rc = ReadEvent ( p_reader, evt );
+            if ( rc == 0 )
+            {
+                size_t message_size = ncbi :: size ( evt );
+                rc = p_reader . Read ( message_size );
+                if ( rc == 0 )
+                {
+                    rc = p_dbLoader . LogMessage ( string ( ( const char * ) p_reader . GetBuffer (), message_size ) );
+                }
+            }
+        }
+        break;
+            
+        case evt_progmsg:
+        {
+            LogMsg ( klogInfo, "protocol-parser event ( packed ): Progress-Message" );
+
+            gwp_status_evt_v1 evt;
+            rc = ReadEvent ( p_reader, evt );
+            if ( rc == 0 )
+            {
+                uint32_t version = ncbi :: version ( evt );
+                uint32_t timestamp = ncbi :: timestamp ( evt );
+                uint32_t pid = ncbi :: pid ( evt );
+                size_t name_sz = ncbi :: size ( evt );
+                uint32_t percent = ncbi :: percent ( evt );
+
+                rc = p_reader . Read ( name_sz );
+                if ( rc == 0 )
+                {
+                    rc = p_dbLoader . ProgressMessage ( pid, 
+                                                        string ( ( const char * ) p_reader . GetBuffer (), name_sz ),
+                                                        timestamp, 
+                                                        version, 
+                                                        percent );
+                }
+            }
+        }
             break;
 
         default:

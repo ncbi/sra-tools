@@ -120,7 +120,8 @@ namespace ncbi
         void logMsg ( const std :: string &msg );
 
         // indicate progress
-        void progMsg ( int pid, const std :: string &name, uint32_t done, uint32_t todo );
+        void progMsg ( int pid, const std :: string &name, 
+                       uint32_t version, uint64_t done, uint64_t total );
 
         // generates an end event
         // puts object into state that will reject any further transmissions

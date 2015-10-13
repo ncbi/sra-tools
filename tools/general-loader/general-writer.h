@@ -719,7 +719,7 @@ namespace ncbi
         set_string_size ( self . name_sz, bytes );
     }
 
-    inline size_t size1 ( const :: gw_status_evt_v1 &self )
+    inline size_t size ( const :: gw_status_evt_v1 &self )
     { return ( size_t ) self . name_sz; }
 
     inline void set_percent ( :: gw_status_evt_v1 &self, uint32_t percent )
@@ -1060,7 +1060,7 @@ namespace ncbi
         set_string_size ( self . name_sz, bytes );
     }
 
-    inline size_t size1 ( const :: gwp_status_evt_v1 &self )
+    inline size_t size ( const :: gwp_status_evt_v1 &self )
     { return ( size_t ) self . name_sz + 1; }
 
     inline void set_percent ( :: gwp_status_evt_v1 &self, uint32_t percent )

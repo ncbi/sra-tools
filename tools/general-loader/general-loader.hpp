@@ -139,6 +139,8 @@ private:
         rc_t NextRow ( uint32_t p_tableId );
         rc_t MoveAhead ( uint32_t p_tableId, uint64_t p_count );
         rc_t ErrorMessage ( const std :: string& p_text );
+        rc_t LogMessage ( const std :: string& p_text );
+        rc_t ProgressMessage ( uint32_t p_pid, const std :: string& p_name, uint32_t p_timestamp, uint32_t p_version, uint32_t p_percent );
         rc_t OpenStream ();
         rc_t CloseStream ();
         

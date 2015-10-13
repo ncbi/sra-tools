@@ -262,7 +262,7 @@ AOptVal :: reset ( const String & Name, Args * TheArgs, bool needValue )
     if ( needValue ) {
         for ( uint32_t i = 0; i < count; i ++ ) {
             const char * val = NULL;
-            if ( ArgsOptionValue ( TheArgs, Name . c_str (), i, reinterpret_cast<const void**>(& val) ) != 0 ) {
+            if ( ArgsOptionValue ( TheArgs, Name . c_str (), i, (const void**)(& val) ) != 0 ) {
                 std :: stringstream Vsg;
                 Vsg << "reset: Can not get value for option \"" << Name;
                 Vsg << "\" in series " << i;
@@ -322,7 +322,7 @@ AParVal :: reset ( const String & Name, Args * TheArgs, bool )
     _M_val . resize ( count );
     for ( uint32_t i = 0; i < count; i ++ ) {
         const char * val = NULL;
-        if ( ArgsParamValue ( TheArgs, i, reinterpret_cast<const void**>(& val) ) != 0 ) {
+        if ( ArgsParamValue ( TheArgs, i, (const void**)(& val) ) != 0 ) {
             std :: stringstream Vsg;
             Vsg << "reset: Can not get parameter in series " << i;
             throw ErrorMsg ( Vsg . str () );

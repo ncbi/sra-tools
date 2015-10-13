@@ -308,7 +308,7 @@ namespace VDBObjects
         {
             uint32_t nItemsRead = 0;
 
-            rc_t rc = ::VCursorCellDataDirect (m_pSelf, idRow, idxCol, NULL, reinterpret_cast<void const**>(pBuf), 0, &nItemsRead);
+            rc_t rc = ::VCursorCellDataDirect (m_pSelf, idRow, idxCol, NULL, (void const**)(pBuf), 0, &nItemsRead);
             if (rc)
                 throw Utils::CErrorMsg(rc, "VCursorCellDataDirect: row_id=%ld, idxCol=%u", idRow, idxCol);
 

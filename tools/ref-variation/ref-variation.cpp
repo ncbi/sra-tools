@@ -341,7 +341,7 @@ namespace RefVariation
                 if ( indel_cnt == 0 ) // pure mismatch optimization
                 {
                     uint32_t mismatch[4];
-                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], & mismatch, sizeof mismatch );
+                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], mismatch, sizeof mismatch );
 
                     assert ( count == 0 || count == 4 );
 
@@ -490,7 +490,7 @@ namespace RefVariation
                 if ( indel_cnt == 0 ) // pure mismatch optimization
                 {
                     uint32_t mismatch[4];
-                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], & mismatch, sizeof mismatch );
+                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], mismatch, sizeof mismatch );
 
                     assert ( count == 0 || count == 4 );
 
@@ -942,7 +942,7 @@ namespace RefVariation
 
     rc_t AdapterFindAlignmentFunc ( void* data )
     {
-        AdapterFindAlignment& p = * (reinterpret_cast<AdapterFindAlignment*>(data));
+        AdapterFindAlignment& p = * (static_cast<AdapterFindAlignment*>(data));
         find_alignments_mt ( p.ref_name, p.pobj, p.bases_start,
             p.lock_cout, p.thread_num, p.p_input_runs );
         return 0;
@@ -1655,6 +1655,10 @@ extern "C"
        old problem cases (didn't stop):
        -v -c -r CM000671.1 -p 136131022 --query 'T' -l 1 SRR1601768
        -v -c -r NC_000001.11 -p 136131022 --query 'T' -l 1 SRR1601768
+
+       new problebm:
+
+       -t 16 -v -c -r CM000671.1 -p 136131021 --query "T" -l 1 SRR1596639
 
        */
 

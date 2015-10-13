@@ -726,7 +726,7 @@ namespace KApp
     char const* CArgs::GetParamValue ( uint32_t iteration ) const
     {
         char const* ret = NULL;
-        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, reinterpret_cast<const void **>(&ret) );
+        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, (const void **)(&ret) );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsParamValue");
 
@@ -746,7 +746,7 @@ namespace KApp
     char const* CArgs::GetOptionValue ( char const* option_name, uint32_t iteration ) const
     {
         char const* ret = NULL;
-        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, reinterpret_cast<const void**>(&ret) );
+        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, (const void**)(&ret) );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsOptionValue (%s)", option_name);
 

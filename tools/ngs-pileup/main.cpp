@@ -118,7 +118,7 @@ rc_t CC KMain( int argc, char *argv [] )
             if ( pcount == 1 )
             {
                 const char * value;
-                rc = ArgsOptionValue ( args, OPTION_REF, 0, reinterpret_cast<const void **>(& value) );
+                rc = ArgsOptionValue ( args, OPTION_REF, 0, (const void **)(& value) );
                 if ( rc != 0 )
                 {
                     throw ngs :: ErrorMsg ( "ArgsOptionValue (" OPTION_REF ") failed" );
@@ -137,7 +137,7 @@ rc_t CC KMain( int argc, char *argv [] )
                 settings . output = & std::cout;
                 
                 char const *value;
-                rc = ArgsParamValue ( args, 0, reinterpret_cast<const void**>(&value) );
+                rc = ArgsParamValue ( args, 0, (const void**)(&value) );
                 if ( rc == 0 ) 
                 {
                     settings . AddInput ( value );

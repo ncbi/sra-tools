@@ -748,6 +748,13 @@ typedef struct spread
 		}													\
 	}														\
 
+static uint64_t round_to_uint64_t( double value )
+{
+	double floor_value = floor( value );
+	double x = ( value - floor_value ) > 0.5 ? ceil( value ) : floor_value;
+	return ( uint64_t )x;
+}
+
 static rc_t vdcd_collect_spread_col( const struct num_gen * row_set, col_def * cd, const VCursor * cursor )
 {
 	const struct num_gen_iter * iter;
@@ -807,13 +814,11 @@ static rc_t vdcd_collect_spread_col( const struct num_gen * row_set, col_def * c
 			if ( rc == 0 )
 			{
 				double median = ( s.sum / s.count );
-				uint64_t int_median = ( uint64_t )round( median );
-				rc = KOutMsg( "median = %,ld\n", int_median );
+				rc = KOutMsg( "median = %,ld\n", round_to_uint64_t( median ) );
 				if ( rc == 0 )
 				{
 					double stdev = sqrt( ( ( s.sum_sq - ( s.sum * s.sum ) / s.count ) ) / ( s.count - 1 ) );
-					uint64_t int_stdev = ( uint64_t )round( stdev );	
-					rc = KOutMsg( "stdev  = %,ld\n", int_stdev );	
+					rc = KOutMsg( "stdev  = %,ld\n", round_to_uint64_t( stdev ) );	
 				}
 			}
 		}

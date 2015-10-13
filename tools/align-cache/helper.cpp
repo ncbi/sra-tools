@@ -725,12 +725,12 @@ namespace KApp
 
     char const* CArgs::GetParamValue ( uint32_t iteration ) const
     {
-        char const* ret = NULL;
-        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, (const void **)(&ret) );
+        void const* ret = NULL;
+        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, & ret );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsParamValue");
 
-        return ret;
+        return static_cast <char const*> (ret);
     }
 
     uint32_t CArgs::GetOptionCount ( char const* option_name ) const

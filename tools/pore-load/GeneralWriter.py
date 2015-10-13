@@ -81,7 +81,7 @@ class GeneralWriter:
 
 
     def errorMessage(self, message):
-        os.write(sys.stdout.fileno(), _make1StringEvent(cls.evt_errmsg, message.encode('utf-8')))
+        os.write(sys.stdout.fileno(), _make1StringEvent(self.evt_errmsg, message.encode('utf-8')))
 
 
     def write(self, spec):

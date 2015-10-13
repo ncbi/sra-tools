@@ -188,6 +188,12 @@ namespace ncbi
         gw -> setColMetadataNode ( 1, node, value );
     }
 
+    void testProgMsg ( GeneralWriter *gw, int pid, const char *name, 
+                       uint32_t version, uint64_t done, uint64_t total )
+    {
+        gw -> progMsg ( pid, name, version, done, total );
+    }
+
     void testEndStream ( GeneralWriter *gw )
     {
         gw -> endStream ();
@@ -247,6 +253,10 @@ namespace ncbi
             std :: cerr << "---------------------------------" << std :: endl;
             testAddColMetadataNode ( gw, "col_metadata_node", "01a2b3c4d" );
             std :: cerr << "setColMetadataNode Success" << std :: endl;
+            std :: cerr << "---------------------------------" << std :: endl;
+
+            testProgMsg ( gw, 234, "name", 1, 54768, 64000 );
+            std :: cerr << "setProgMsg Success" << std :: endl;
             std :: cerr << "---------------------------------" << std :: endl;
 
             testEndStream ( gw );

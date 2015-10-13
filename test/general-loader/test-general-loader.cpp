@@ -50,11 +50,16 @@
 
 #include <vdb/vdb-priv.h>
 
+#include <time.h>
 #include <cstring>
 #include <stdexcept> 
 #include <map>
 #include <fstream>
 #include <cstdio>
+
+#include <sys/types.h>
+#include <unistd.h>
+
 
 #include "testsource.hpp"
 
@@ -689,7 +694,7 @@ FIXTURE_TEST_CASE ( DBAddTableToSubDb, GeneralLoaderFixture )
     {
         VDatabase * subDb;
         REQUIRE_RC ( VDatabaseOpenDBUpdate ( m_db, & subDb, "subdb" ) );
-        const VTable *tbl;
+        //const VTable *tbl;
         //FAIL("see VDB-1617");
         //REQUIRE_RC ( VDatabaseOpenTableRead ( subDb, & tbl, "tbl" ) );
         //REQUIRE_RC ( VTableRelease ( tbl ) );
@@ -1552,6 +1557,31 @@ FIXTURE_TEST_CASE ( ErrorMessage_Long, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), RC ( rcExe, rcFile, rcReading, rcError, rcExists ) ) );
 }
+
+FIXTURE_TEST_CASE ( LogMessage, GeneralLoaderFixture )
+{   
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
+    m_source . OpenStreamEvent();
+    m_source . LogMessageEvent ( "log message" );
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
+
+
+FIXTURE_TEST_CASE ( ProgressMessage, GeneralLoaderFixture )
+{
+    // timestamp
+    time_t timestamp = time ( NULL );
+
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
+    m_source . OpenStreamEvent ();
+    m_source . ProgMessageEvent ( 123, "progress message", timestamp, 2, 45 );
+    m_source . CloseStreamEvent ();
+
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
+
 
 FIXTURE_TEST_CASE ( TargetOverride, GeneralLoaderFixture )
 {   

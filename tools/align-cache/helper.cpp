@@ -745,12 +745,12 @@ namespace KApp
 
     char const* CArgs::GetOptionValue ( char const* option_name, uint32_t iteration ) const
     {
-        char const* ret = NULL;
-        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, (const void**)(&ret) );
+        void const* ret = NULL;
+        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, & ret );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsOptionValue (%s)", option_name);
 
-        return ret;
+        return static_cast <char const*> (ret);
     }
 
 ////////////////////////////////

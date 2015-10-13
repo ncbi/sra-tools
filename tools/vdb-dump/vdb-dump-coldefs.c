@@ -33,7 +33,9 @@
 #include <klib/printf.h>
 #include <klib/log.h>
 #include <klib/rc.h>
+
 #include <vdb/vdb-priv.h>
+
 #include <sra/sradb.h>
 #include <sra/pacbio.h>
 #include <os-native.h>
@@ -46,6 +48,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include <math.h>
+
+rc_t Quitting();
 
 /* once we get used to having moved the read descriptor
    out of SRA, we should begin using those names.
@@ -707,4 +712,130 @@ bool vdcd_get_first_none_static_column_idx( col_defs* defs, const VCursor * cur,
         }
     }
     return res;
+}
+
+/* ******************************************************************************************************** */
+typedef struct spread
+{
+	uint64_t count;
+	double sum, sum_sq;
+	int64_t min, max;
+} spread;
+
+
+/*
+	s ... spread * s
+	b ... const void * base
+	l ... uint32_t row_len
+	t ... type ( int64_t, uint64_t ... )
+*/
+#define COUNTVALUES( S, b, l, t )							\
+	{														\
+		const t * values = base;							\
+		uint32_t i;											\
+		for ( i = 0; i < l; ++i )							\
+		{													\
+			t value = values[ i ];							\
+			if ( value != 0 )								\
+			{												\
+				double value_d = value;						\
+				if ( value < (S)->min ) (S)->min = value;	\
+				if ( value > (S)->max ) (S)->max = value;	\
+				(S)->sum += value_d;						\
+				(S)->sum_sq += ( value_d * value_d );		\
+				(S)->count++;								\
+			}												\
+		}													\
+	}														\
+
+static rc_t vdcd_collect_spread_col( const struct num_gen * row_set, col_def * cd, const VCursor * cursor )
+{
+	const struct num_gen_iter * iter;
+	rc_t rc = num_gen_iterator_make( row_set, &iter );
+	if ( rc == 0 )
+	{
+		const void * base;
+		uint32_t row_len, elem_bits;
+		int64_t row_id;
+		spread s;
+		spread * sp = &s;
+		
+		s.max = s.sum = s.sum_sq = s.count = 0;
+		s.min = INT64_MAX;
+		
+		while ( ( rc == 0 ) && num_gen_iterator_next( iter, &row_id, &rc ) )
+		{
+			if ( rc == 0 )	rc = Quitting();
+			if ( rc != 0 )	break;
+			rc = VCursorCellDataDirect( cursor, row_id, cd->idx, &elem_bits, &base, NULL, &row_len );
+			if ( rc == 0 )
+			{
+				if ( cd->type_desc.domain == vtdUint )
+				{
+					/* unsigned int's */
+					switch( elem_bits )
+					{
+						case 64 : COUNTVALUES( sp, base, row_len, uint64_t ) break;
+						case 32 : COUNTVALUES( sp, base, row_len, uint32_t ) break;
+						case 16 : COUNTVALUES( sp, base, row_len, uint16_t ) break;
+						case 8  : COUNTVALUES( sp, base, row_len, uint8_t )  break;
+					}
+				}
+				else
+				{
+					/* signed int's */
+					switch( elem_bits )
+					{
+						case 64 : COUNTVALUES( sp, base, row_len, int64_t ) break;
+						case 32 : COUNTVALUES( sp, base, row_len, int32_t ) break;
+						case 16 : COUNTVALUES( sp, base, row_len, int16_t ) break;
+						case 8  : COUNTVALUES( sp, base, row_len, int8_t )  break;
+					}
+				}
+			}
+		}
+
+		if ( s.count > 0 )
+		{
+			rc = KOutMsg( "\n[%s]\n", cd->name );
+			if ( rc == 0 )
+				rc = KOutMsg( "min    = %,ld\n", s.min );
+			if ( rc == 0 )
+				rc = KOutMsg( "max    = %,ld\n", s.max );
+			if ( rc == 0 )
+				rc = KOutMsg( "count  = %,ld\n", s.count );
+			if ( rc == 0 )
+			{
+				double median = ( s.sum / s.count );
+				uint64_t int_median = ( uint64_t )round( median );
+				rc = KOutMsg( "median = %,ld\n", int_median );
+				if ( rc == 0 )
+				{
+					double stdev = sqrt( ( ( s.sum_sq - ( s.sum * s.sum ) / s.count ) ) / ( s.count - 1 ) );
+					uint64_t int_stdev = ( uint64_t )round( stdev );	
+					rc = KOutMsg( "stdev  = %,ld\n", int_stdev );	
+				}
+			}
+		}
+		
+		num_gen_iterator_destroy( iter );
+	}
+	return rc;
+}
+#undef COUNTVALUES
+
+rc_t vdcd_collect_spread( const struct num_gen * row_set, col_defs * cols, const VCursor * cursor )
+{
+	rc_t rc = 0;
+	uint32_t i, n = VectorLength( &cols->cols );
+	for ( i = 0; i < n && rc == 0; ++i )
+	{
+		col_def * cd = VectorGet( &cols->cols, i );
+		if ( cd != NULL )
+		{
+			if ( cd->type_desc.domain == vtdUint || cd->type_desc.domain == vtdInt )
+				rc = vdcd_collect_spread_col( row_set, cd, cursor );
+		}
+	}
+	return rc;
 }

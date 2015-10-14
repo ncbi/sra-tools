@@ -288,6 +288,30 @@ namespace RefVariation
         PILEUP_MAYBE_FOUND
     };
 
+    void report_run_coverage ( char const* acc,
+        size_t alignments_total, size_t alignments_total_positive,
+        size_t alignments_matched, size_t alignments_matched_positive) 
+    {
+        std::cout
+            << acc
+            << "\t" << alignments_matched << "," << alignments_matched_positive
+            << "\t" << alignments_total << "," << alignments_total_positive
+            << std::endl;
+    }
+
+    void report_run_coverage ( char const* acc,
+        size_t alignments_total, size_t alignments_total_positive,
+        size_t alignments_matched, size_t alignments_matched_positive,
+        LOCK* lock_cout) 
+    {
+        LOCK_GUARD l(*lock_cout);
+        std::cout
+            << acc
+            << "\t" << alignments_matched << "," << alignments_matched_positive
+            << "\t" << alignments_total << "," << alignments_total_positive
+            << std::endl;
+    }
+
     int find_alignment_in_pileup_db ( char const* acc_pileup, char const* ref_name,
                 KSearch::CVRefVariation const& obj, size_t bases_start )
     {
@@ -656,17 +680,9 @@ namespace RefVariation
             }
 
             if ( g_Params.calc_coverage )
-            {
-                std::cout
-                    << acc
-                    << '\t' << alignments_matched
-                    << '\t' << alignments_total
-                    << std::endl;
-            }
+                report_run_coverage ( acc, alignments_total, 0, alignments_matched, 0 );
             else if ( alignments_matched > 0 )
-            {
                 std::cout << acc << std::endl;
-            }
         }
         catch ( ngs::ErrorMsg const& e )
         {
@@ -677,9 +693,7 @@ namespace RefVariation
             if ( strstr (e.what(), "Reference not found") == e.what() )
             {
                 if ( g_Params.calc_coverage )
-                {
-                    std::cout << acc << "\t0\t0" << std::endl;
-                }
+                    report_run_coverage ( acc, 0, 0, 0, 0 );
 
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
@@ -747,12 +761,8 @@ namespace RefVariation
 
             if ( g_Params.calc_coverage )
             {
-                LOCK_GUARD l(*lock_cout);
-                std::cout
-                    << acc
-                    << '\t' << alignments_matched
-                    << '\t' << alignments_total
-                    << std::endl;
+                report_run_coverage ( acc,
+                    alignments_total, 0, alignments_matched, 0, lock_cout );
             }
             else if ( alignments_matched > 0 )
             {
@@ -769,10 +779,7 @@ namespace RefVariation
             if ( strstr (e.what(), "Reference not found") == e.what() )
             {
                 if ( g_Params.calc_coverage )
-                {
-                    LOCK_GUARD l(*lock_cout);
-                    std::cout << acc << "\t0\t0" << std::endl;
-                }
+                    report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
 
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
@@ -815,7 +822,7 @@ namespace RefVariation
         }
         else if ( res == PILEUP_DEFINITELY_NOT_FOUND && g_Params.calc_coverage )
         {
-            std::cout << acc << "\t0\t0" << std::endl;
+            report_run_coverage ( acc, 0, 0, 0, 0 );
         }
     }
 
@@ -847,8 +854,7 @@ namespace RefVariation
         }
         else if ( res == PILEUP_DEFINITELY_NOT_FOUND && g_Params.calc_coverage )
         {
-            LOCK_GUARD l(*lock_cout);
-            std::cout << acc << "\t0\t0" << std::endl;
+            report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
         }
     }
 

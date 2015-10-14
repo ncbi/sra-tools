@@ -232,6 +232,12 @@ namespace RefVariation
     uint32_t g_ColumnIndex [ countof (g_ColumnNames) ];
 #endif
 
+    // TODO: remove unused from here:
+    // idx_RUN_NAME - logging only for now
+    // idx_MISMATCH_COUNTS, idx_INSERTION_COUNTS, idx_DELETION_COUNT
+    //     - intended for optimization but not used now
+    // idx_REFERENCE_SPEC, idx_REF_POS - not used
+
     enum PileupColumnNameIndices
     {
         idx_DELETION_COUNT,
@@ -323,21 +329,30 @@ namespace RefVariation
                     << ", id_count=" << id_count << " " <<  std::endl;
             }
             if ( !found )
+            {
                 return PILEUP_DEFINITELY_NOT_FOUND;
+            }
 
-            int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
+            //int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
             //int64_t indel_check_cnt = indel_cnt > 0 ? indel_cnt : -indel_cnt;
 
             // check depth > 0 for every position of the region
+            // TODO: also count total alignment count and matches for the case of pure mismatch
+
             for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + obj.GetVarLenOnRef() ); ++pos )
             {
                 if ( pos + ref_id_start >= id_first + (int64_t)row_count )
                 {
+                    // TODO: this is not expected normally, now
+                    // nothing will be printed to the output
+                    // but maybe we also need to report matches and total alignments
+                    // here (0 0)
+
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                         std::cout << "OUT OF BOUNDS! filtering out" << std::endl;
                     return PILEUP_DEFINITELY_NOT_FOUND; // went beyond the end of db, probably, it's a bug in db
                 }
-
+#if 0 // Temporarily turned off. Needs to be revised
                 if ( indel_cnt == 0 ) // pure mismatch optimization
                 {
                     uint32_t mismatch[4];
@@ -351,6 +366,7 @@ namespace RefVariation
                         return PILEUP_DEFINITELY_NOT_FOUND;
                     }
                 }
+#endif
 
                 uint32_t depth;
                 uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
@@ -366,17 +382,21 @@ namespace RefVariation
                 }
             }
 
-            char run_name[64];
-            uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
-            assert (count < countof(run_name));
-            run_name [count] = '\0';
-
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
-                std::cout << run_name << " is suspicious" << std::endl;
-            char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
+            {
+                char run_name[64];
+                uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
+                assert (count < countof(run_name));
+                run_name [count] = '\0';
+
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+                    std::cout << run_name << " is suspicious" << std::endl;
+                //char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
+            }
 
             int ret;
 
+#if 0 // Temporarily turned off. Needs to be revised
             if ( indel_cnt == 0 && ! g_Params.calc_coverage )
             {
                 // if we reached this point in the case of pure mismatch
@@ -391,6 +411,7 @@ namespace RefVariation
                 ret = PILEUP_DEFINITELY_FOUND;
             }
             else
+#endif
                 ret = PILEUP_MAYBE_FOUND;
 
             return ret;
@@ -469,7 +490,7 @@ namespace RefVariation
             if ( !found )
                 return PILEUP_DEFINITELY_NOT_FOUND;
 
-            int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
+            //int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
             //int64_t indel_check_cnt = indel_cnt > 0 ? indel_cnt : -indel_cnt;
 
             // check depth > 0 for every position of the region
@@ -477,6 +498,11 @@ namespace RefVariation
             {
                 if ( pos + ref_id_start >= id_first + (int64_t)row_count )
                 {
+                    // TODO: this is not expected normally, now
+                    // nothing will be printed to the output
+                    // but maybe we also need to report matches and total alignments
+                    // here (0 0)
+
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
                         LOCK_GUARD l(*lock_cout);
@@ -486,7 +512,7 @@ namespace RefVariation
                     }
                     return PILEUP_DEFINITELY_NOT_FOUND; // went beyond the end of db, probably, it's a bug in db
                 }
-
+#if 0 // Temporarily turned off. Needs to be revised
                 if ( indel_cnt == 0 ) // pure mismatch optimization
                 {
                     uint32_t mismatch[4];
@@ -500,6 +526,7 @@ namespace RefVariation
                         return PILEUP_DEFINITELY_NOT_FOUND;
                     }
                 }
+#endif
 
                 uint32_t depth;
                 uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
@@ -518,22 +545,26 @@ namespace RefVariation
                 }
             }
 
-            char run_name[64];
-            uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
-            assert (count < countof(run_name));
-            run_name [count] = '\0';
-
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                LOCK_GUARD l(*lock_cout);
-                std::cout
-                    << "[" << thread_num << "] "
-                    << run_name << " is suspicious" << std::endl;
+                char run_name[64];
+                uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
+                assert (count < countof(run_name));
+                run_name [count] = '\0';
+
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+                {
+                    LOCK_GUARD l(*lock_cout);
+                    std::cout
+                        << "[" << thread_num << "] "
+                        << run_name << " is suspicious" << std::endl;
+                }
+                //char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
             }
-            char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
 
             int ret;
 
+#if 0 // Temporarily turned off. Needs to be revised
             if ( indel_cnt == 0 && ! g_Params.calc_coverage )
             {
                 // if we reached this point in the case of pure mismatch
@@ -548,6 +579,7 @@ namespace RefVariation
                 ret = PILEUP_DEFINITELY_FOUND;
             }
             else
+#endif
                 ret = PILEUP_MAYBE_FOUND;
 
             return ret;
@@ -593,46 +625,72 @@ namespace RefVariation
 
         ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( path && path[0] ? path : acc );
 
-        ngs::Reference reference = run.getReference( ref_name );
-        ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
-
-        size_t alignments_total = 0;
-        size_t alignments_matched = 0;
-        while ( ai.nextAlignment() )
+        try
         {
-            ++ alignments_total;
-            ngs::String id = ai.getAlignmentId ().toString();
-            int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-            ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
-            bool match = strncmp (variation, bases.c_str(), var_size) == 0;
-            if ( match )
+            ngs::Reference reference = run.getReference( ref_name );
+            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
+
+            size_t alignments_total = 0;
+            size_t alignments_matched = 0;
+            while ( ai.nextAlignment() )
             {
-                if ( ! g_Params.calc_coverage )
+                ++ alignments_total;
+                ngs::String id = ai.getAlignmentId ().toString();
+                int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
+                ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
+                bool match = strncmp (variation, bases.c_str(), var_size) == 0;
+                if ( match )
                 {
-                    std::cout << acc << std::endl;
-                    break; // -c option is for speed-up, so we sacrifice verbose output
+                    ++ alignments_matched;
+                    if ( ! g_Params.calc_coverage )
+                        break; // -c option is for speed-up, so we sacrifice verbose output
                 }
-                ++ alignments_matched;
-                //if ( ! g_Params.calc_coverage )
-                //    break; // -c option is for speed-up, so we sacrifice verbose output
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+                {
+                    std::cout << "id=" << id
+                        << ": "
+                        << bases
+                        << (match ? " MATCH!" : "")
+                        << std::endl;
+                }
             }
-            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+
+            if ( g_Params.calc_coverage )
             {
-                std::cout << "id=" << id
-                    << ": "
-                    << bases
-                    << (match ? " MATCH!" : "")
+                std::cout
+                    << acc
+                    << '\t' << alignments_matched
+                    << '\t' << alignments_total
                     << std::endl;
             }
+            else if ( alignments_matched > 0 )
+            {
+                std::cout << acc << std::endl;
+            }
         }
-
-        if (alignments_total > 0)
+        catch ( ngs::ErrorMsg const& e )
         {
-            std::cout
-                << acc
-                << '\t' << alignments_matched
-                << '\t' << alignments_total
-                << std::endl;
+            // TODO: this ugly try-catch is here because
+            // we can't effectively (non-linearly and with no exceptions thrown)
+            // check if the read collection has the given reference in it
+
+            if ( strstr (e.what(), "Reference not found") == e.what() )
+            {
+                if ( g_Params.calc_coverage )
+                {
+                    std::cout << acc << "\t0\t0" << std::endl;
+                }
+
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                {
+                    std::cout
+                        << "reference " << ref_name
+                        << " NOT FOUND in " << acc
+                        << ", skipping" << std::endl;
+                }
+            }
+            else
+                throw;
         }
     }
 
@@ -654,51 +712,80 @@ namespace RefVariation
 
         ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( path && path[0] ? path : acc );
 
-        ngs::Reference reference = run.getReference( ref_name );
-        ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
-
-        size_t alignments_total = 0;
-        size_t alignments_matched = 0;
-        while ( ai.nextAlignment() )
+        try
         {
-            ++ alignments_total;
-            ngs::String id = ai.getAlignmentId ().toString();
-            int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-            ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
-            bool match = strncmp (variation, bases.c_str(), var_size) == 0;
-            if ( match )
+            ngs::Reference reference = run.getReference( ref_name );
+            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
+
+            size_t alignments_total = 0;
+            size_t alignments_matched = 0;
+            while ( ai.nextAlignment() )
             {
-                if ( ! g_Params.calc_coverage )
+                ++ alignments_total;
+                ngs::String id = ai.getAlignmentId ().toString();
+                int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
+                ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
+                bool match = strncmp (variation, bases.c_str(), var_size) == 0;
+                if ( match )
+                {
+                    ++ alignments_matched;
+                    if ( ! g_Params.calc_coverage )
+                        break; // -c option is for speed-up, so we sacrifice verbose output
+                }
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
-                    std::cout << acc << std::endl;
-                    break; // -c option is for speed-up, so we sacrifice verbose output
+                    std::cout
+                        << "[" << thread_num << "] "
+                        << "id=" << id
+                        << ": "
+                        << bases
+                        << (match ? " MATCH!" : "")
+                        << std::endl;
                 }
-                ++ alignments_matched;
-                //if ( ! g_Params.calc_coverage )
-                //    break; // -c option is for speed-up, so we sacrifice verbose output
             }
-            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+
+            if ( g_Params.calc_coverage )
             {
                 LOCK_GUARD l(*lock_cout);
                 std::cout
-                    << "[" << thread_num << "] "
-                    << "id=" << id
-                    << ": "
-                    << bases
-                    << (match ? " MATCH!" : "")
+                    << acc
+                    << '\t' << alignments_matched
+                    << '\t' << alignments_total
                     << std::endl;
             }
+            else if ( alignments_matched > 0 )
+            {
+                LOCK_GUARD l(*lock_cout);
+                std::cout << acc << std::endl;
+            }
         }
-
-        if (alignments_total > 0)
+        catch ( ngs::ErrorMsg const& e )
         {
-            LOCK_GUARD l(*lock_cout);
-            std::cout
-                << acc
-                << '\t' << alignments_matched
-                << '\t' << alignments_total
-                << std::endl;
+            // TODO: this ugly try-catch is here because
+            // we can't effectively (non-linearly and with no exceptions thrown)
+            // check if the read collection has the given reference in it
+
+            if ( strstr (e.what(), "Reference not found") == e.what() )
+            {
+                if ( g_Params.calc_coverage )
+                {
+                    LOCK_GUARD l(*lock_cout);
+                    std::cout << acc << "\t0\t0" << std::endl;
+                }
+
+                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                {
+                    LOCK_GUARD l(*lock_cout);
+                    std::cout
+                        << "[" << thread_num << "] "
+                        << "reference " << ref_name
+                        << " NOT FOUND in " << acc
+                        << ", skipping" << std::endl;
+                }
+            }
+            else
+                throw;
         }
     }
 
@@ -725,6 +812,10 @@ namespace RefVariation
         {
             find_alignments_in_run_db ( acc, path, ref_name, obj, bases_start,
                 variation, var_size );
+        }
+        else if ( res == PILEUP_DEFINITELY_NOT_FOUND )
+        {
+            std::cout << acc << "\t0\t0" << std::endl;
         }
     }
 
@@ -753,6 +844,11 @@ namespace RefVariation
         {
             find_alignments_in_run_db_mt( acc, path, ref_name, pobj, bases_start,
                 variation, var_size, lock_cout, thread_num );
+        }
+        else if ( res == PILEUP_DEFINITELY_NOT_FOUND )
+        {
+            LOCK_GUARD l(*lock_cout);
+            std::cout << acc << "\t0\t0" << std::endl;
         }
     }
 
@@ -788,9 +884,6 @@ namespace RefVariation
             char const* path = input_run.GetRunPath().c_str();
             char const* pileup_path = input_run.GetPileupStatsPath().c_str();
 
-            // TODO: this ugly try-catch is here because
-            // we can't effectively (non-linearly and with no exceptions thrown)
-            // check if the read collection has the given reference in it
             try
             {
                 find_alignments_in_single_run ( acc, path, pileup_path, ref_name,
@@ -798,13 +891,12 @@ namespace RefVariation
             }
             catch ( ngs::ErrorMsg const& e )
             {
-                if ( strstr (e.what(), "Reference not found") == e.what() )
+                if ( strstr (e.what(), "Cannot open accession") == e.what() )
                 {
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
                         std::cout
-                            << "reference " << ref_name
-                            << " NOT FOUND in " << acc
+                            << e.what()
                             << ", skipping" << std::endl;
                     }
                 }
@@ -863,10 +955,6 @@ namespace RefVariation
                         << std::endl;
                 }
 
-
-                // TODO: this ugly try-catch is here because
-                // we can't effectively (non-linearly and with no exceptions thrown)
-                // check if the read collection has the given reference in it
                 try
                 {
                     find_alignments_in_single_run_mt ( acc, path, pileup_path,
@@ -875,15 +963,14 @@ namespace RefVariation
                 }
                 catch ( ngs::ErrorMsg const& e )
                 {
-                    if ( strstr (e.what(), "Reference not found") == e.what() )
+                    if ( strstr (e.what(), "Cannot open accession") == e.what() )
                     {
                         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                         {
                             LOCK_GUARD l(*lock_cout);
                             std::cout
                                 << "[" << thread_num << "] "
-                                << "reference " << ref_name
-                                << " NOT FOUND in " << acc
+                                << e.what()
                                 << ", skipping" << std::endl;
                         }
                     }

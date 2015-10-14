@@ -28,8 +28,6 @@
 
 #include "ref-variation.vers.h"
 
-#include "helper.h"
-
 #include <iostream>
 #include <string.h>
 #include <stdio.h>
@@ -45,6 +43,8 @@
 
 #include <ngs/ncbi/NGS.hpp>
 #include <ngs/ReferenceSequence.hpp>
+
+#include "helper.h"
 
 #define CPP_THREADS 0
 
@@ -77,7 +77,7 @@ namespace RefVariation
         size_t thread_count;
         bool calc_coverage;
         char const* input_file;
-
+        bool reverse_mate;
     } g_Params =
     {
         "",
@@ -87,7 +87,8 @@ namespace RefVariation
         0,
         1,
         false,
-        ""
+        "",
+        false
     };
 
     class CInputRun
@@ -181,6 +182,10 @@ namespace RefVariation
     char const ALIAS_INPUT_FILE[]  = "i";
     char const* USAGE_INPUT_FILE[] = { "take runs from input file rather than from command line. The file must be in text format, each line should contain three tab-separated values: <run-accession> <run-path> <pileup-stats-path>, the latter two are optional", NULL };
 
+    char const OPTION_REVERSE_MATE[] = "reverse-mate";
+    //char const ALIAS_REVERSE_MATE[]  = "r";
+    char const* USAGE_REVERSE_MATE[] = { "the secondary mate is reversed: \"1\" means \"reversed\", \"0\" means \"not reversed\" (default)", NULL };
+
     ::OptDef Options[] =
     {
         { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true },
@@ -189,7 +194,8 @@ namespace RefVariation
         { OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true },
         { OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false },
         { OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false },
-        { OPTION_INPUT_FILE,    ALIAS_INPUT_FILE,    NULL, USAGE_INPUT_FILE,    1, true, false }
+        { OPTION_INPUT_FILE,    ALIAS_INPUT_FILE,    NULL, USAGE_INPUT_FILE,    1, true, false },
+        { OPTION_REVERSE_MATE,  NULL,                NULL, USAGE_REVERSE_MATE,  1, true, false },
 #if SECRET_OPTION != 0
         ,{ OPTION_SECRET,        NULL,                NULL, USAGE_SECRET,        1, true, false }
 #endif
@@ -638,6 +644,36 @@ namespace RefVariation
         }
     }
 
+    bool is_primary_mate ( ngs::Fragment const& frag )
+    {
+        ngs::StringRef id = frag.getFragmentId();
+
+        // inplace strstr for non null-terminating string
+
+        char const pattern[] = { '.', 'F', 'A', '0', '.' };
+
+        if ( id.size() < countof ( pattern ) )
+            return false;
+
+        char const* data = id.data();
+        size_t stop = id.size() - countof ( pattern );
+
+        for (size_t i = 0; i <= stop; ++i )
+        {
+            if (   data [ i + 0 ] == pattern [ 0 ]
+                && data [ i + 1 ] == pattern [ 1 ]
+                && data [ i + 2 ] == pattern [ 2 ]
+                && data [ i + 3 ] == pattern [ 3 ]
+                && data [ i + 4 ] == pattern [ 4 ]
+                )
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     void find_alignments_in_run_db ( char const* acc, char const* path,
         char const* ref_name, KSearch::CVRefVariation const& obj, size_t bases_start,
         char const* variation, size_t var_size )
@@ -654,24 +690,34 @@ namespace RefVariation
             ngs::Reference reference = run.getReference( ref_name );
             ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
 
-            size_t alignments_total = 0;
-            size_t alignments_matched = 0;
+            size_t alignments_total = 0, alignments_total_negative = 0;
+            size_t alignments_matched = 0, alignments_matched_negative = 0;
             while ( ai.nextAlignment() )
             {
                 ++ alignments_total;
-                ngs::String id = ai.getAlignmentId ().toString();
+                // is_negative = ! ( (g_Params.reverse_mate && is_primary_mate ( ai )) ^ ai.getMateIsReversedOrientation() );
+
+                bool is_negative = ai.getIsReversedOrientation();
+                if ( g_Params.reverse_mate && ! is_primary_mate ( ai ) )
+                    is_negative = ! is_negative;
+
+                if (is_negative)
+                    ++ alignments_total_negative;
+
                 int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-                ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
-                bool match = strncmp (variation, bases.c_str(), var_size) == 0;
+                ngs::StringRef bases = ai.getFragmentBases( align_pos, var_size );
+                bool match = bases.size() >= var_size && strncmp (variation, bases.data(), var_size) == 0;
                 if ( match )
                 {
                     ++ alignments_matched;
                     if ( ! g_Params.calc_coverage )
                         break; // -c option is for speed-up, so we sacrifice verbose output
+                    if (is_negative)
+                        ++ alignments_matched_negative;
                 }
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
                 {
-                    std::cout << "id=" << id
+                    std::cout << "id=" << ai.getAlignmentId()
                         << ": "
                         << bases
                         << (match ? " MATCH!" : "")
@@ -680,7 +726,11 @@ namespace RefVariation
             }
 
             if ( g_Params.calc_coverage )
-                report_run_coverage ( acc, alignments_total, 0, alignments_matched, 0 );
+            {
+                report_run_coverage ( acc,
+                    alignments_total, alignments_total - alignments_total_negative,
+                    alignments_matched, alignments_matched - alignments_matched_negative );
+            }
             else if ( alignments_matched > 0 )
                 std::cout << acc << std::endl;
         }
@@ -731,27 +781,35 @@ namespace RefVariation
             ngs::Reference reference = run.getReference( ref_name );
             ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
 
-            size_t alignments_total = 0;
-            size_t alignments_matched = 0;
+            size_t alignments_total = 0, alignments_total_negative = 0;
+            size_t alignments_matched = 0, alignments_matched_negative = 0;
             while ( ai.nextAlignment() )
             {
                 ++ alignments_total;
-                ngs::String id = ai.getAlignmentId ().toString();
+                bool is_negative = ai.getIsReversedOrientation();
+                if ( g_Params.reverse_mate && ! is_primary_mate ( ai ) )
+                    is_negative = ! is_negative;
+
+                if (is_negative)
+                    ++ alignments_total_negative;
+
                 int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-                ngs::String bases = ai.getFragmentBases( align_pos, var_size ).toString();
-                bool match = strncmp (variation, bases.c_str(), var_size) == 0;
+                ngs::StringRef bases = ai.getFragmentBases( align_pos, var_size );
+                bool match = bases.size() >= var_size && strncmp (variation, bases.data(), var_size) == 0;
                 if ( match )
                 {
                     ++ alignments_matched;
                     if ( ! g_Params.calc_coverage )
                         break; // -c option is for speed-up, so we sacrifice verbose output
+                    if (is_negative)
+                        ++ alignments_matched_negative;
                 }
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
                     std::cout
                         << "[" << thread_num << "] "
-                        << "id=" << id
+                        << "id=" << ai.getAlignmentId ()
                         << ": "
                         << bases
                         << (match ? " MATCH!" : "")
@@ -762,7 +820,9 @@ namespace RefVariation
             if ( g_Params.calc_coverage )
             {
                 report_run_coverage ( acc,
-                    alignments_total, 0, alignments_matched, 0, lock_cout );
+                    alignments_total, alignments_total - alignments_total_negative,
+                    alignments_matched, alignments_matched - alignments_matched_negative,
+                    lock_cout );
             }
             else if ( alignments_matched > 0 )
             {
@@ -1491,6 +1551,21 @@ namespace RefVariation
                 }
             }
 
+            if (args.GetOptionCount (OPTION_REVERSE_MATE) == 1)
+            {
+                g_Params.reverse_mate = args.GetOptionValueUInt<size_t>( OPTION_REVERSE_MATE, 0 ) != 0;
+                if ( args.GetOptionCount (OPTION_COVERAGE) == 0 )
+                {
+                    std::cerr
+                        << "Warning: "
+                        << OPTION_REVERSE_MATE
+                        << " option has no effect if "
+                        << OPTION_COVERAGE << " is not specified"
+                        << std::endl;
+                    g_Params.reverse_mate = false;
+                }
+            }
+
 #if SECRET_OPTION != 0
             if ( args.GetOptionCount (OPTION_SECRET) > 0 )
             {
@@ -1715,6 +1790,7 @@ extern "C"
         HelpOptionLine (RefVariation::ALIAS_THREADS, RefVariation::OPTION_THREADS, "value", RefVariation::USAGE_THREADS);
         HelpOptionLine (RefVariation::ALIAS_COVERAGE, RefVariation::OPTION_COVERAGE, "", RefVariation::USAGE_COVERAGE);
         HelpOptionLine (RefVariation::ALIAS_INPUT_FILE, RefVariation::OPTION_INPUT_FILE, "string", RefVariation::USAGE_INPUT_FILE);
+        HelpOptionLine (NULL, RefVariation::OPTION_REVERSE_MATE, "value", RefVariation::USAGE_REVERSE_MATE);
         //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
 #if SECRET_OPTION != 0
         HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);

@@ -813,7 +813,7 @@ namespace RefVariation
             find_alignments_in_run_db ( acc, path, ref_name, obj, bases_start,
                 variation, var_size );
         }
-        else if ( res == PILEUP_DEFINITELY_NOT_FOUND )
+        else if ( res == PILEUP_DEFINITELY_NOT_FOUND && g_Params.calc_coverage )
         {
             std::cout << acc << "\t0\t0" << std::endl;
         }
@@ -845,7 +845,7 @@ namespace RefVariation
             find_alignments_in_run_db_mt( acc, path, ref_name, pobj, bases_start,
                 variation, var_size, lock_cout, thread_num );
         }
-        else if ( res == PILEUP_DEFINITELY_NOT_FOUND )
+        else if ( res == PILEUP_DEFINITELY_NOT_FOUND && g_Params.calc_coverage )
         {
             LOCK_GUARD l(*lock_cout);
             std::cout << acc << "\t0\t0" << std::endl;

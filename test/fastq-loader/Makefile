@@ -66,9 +66,6 @@ $(TEST_BINDIR)/wb-test-fastq: $(FASTQ_TEST_OBJ)
 wb: wb-test-fastq
 	$(TEST_BINDIR)/wb-test-fastq  2>&1
     
-valgrind_wb: wb-test-fastq
-	valgrind --ncbi $(TEST_BINDIR)/wb-test-fastq
-    
 #-------------------------------------------------------------------------------
 # test-fastqtest-loader
 #
@@ -85,10 +82,6 @@ tfl:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile test-fastq-loader
 	$(TEST_BINDIR)/test-fastq-loader
 
-valgrind_tfl: 
-	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile test-fastq-loader
-	valgrind --ncbi $(TEST_BINDIR)/test-fastq-loader
-    
 .PHONY: test-fastq-loader
 
 #-------------------------------------------------------------------------------

@@ -59,6 +59,3 @@ VCF_TEST_LIB = \
 
 $(TEST_BINDIR)/test-vcf-loader: $(VCF_TEST_OBJ)
 	$(LP) --exe -o $@ $^ $(VCF_TEST_LIB)
-
-valgrind: test-vcf-loader
-	valgrind --ncbi $(TEST_BINDIR)/test-vcf-loader

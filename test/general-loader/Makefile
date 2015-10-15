@@ -69,9 +69,6 @@ $(TEST_BINDIR)/test-general-loader: $(TEST_GEN_LOAD_OBJ)
 gen_load: test-general-loader
 	$(TEST_BINDIR)/test-general-loader
 
-vg_gen_load: test-general-loader
-	valgrind --ncbi $(TEST_BINDIR)/test-general-loader
-
 #-------------------------------------------------------------------------------
 # test-general-writer
 #
@@ -88,11 +85,6 @@ TEST_GEN_WRITE_LIB =   \
 
 $(TEST_BINDIR)/test-general-writer: $(TEST_GEN_WRITE_OBJ)
 	$(LP) --exe -o $@ $^ $(TEST_GEN_WRITE_LIB)
-
-vg_gen_write: test-general-writer
-	valgrind --ncbi $(TEST_BINDIR)/test-general-writer -o gen-write-out
-	rm -f gen-write-out
-
 
 runtests:$(TEST_TOOLS) #piped-load-tests
 
@@ -118,9 +110,6 @@ $(TEST_BINDIR)/test-gw-dumper: $(TEST_GW_DUMP_OBJ)
 
 gw_dump: test-gw-dumper
 	$(TEST_BINDIR)/$^
-
-vg_gw_dump: test-gw-dumper
-	valgrind --ncbi $(TEST_BINDIR)/test-gw-dumper
 
 #-------------------------------------------------------------------------------
 # general-loader tool tests

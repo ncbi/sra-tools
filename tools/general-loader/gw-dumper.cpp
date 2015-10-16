@@ -900,6 +900,8 @@ namespace gw_dump
                 << "  metadata_node [ " << size1 ( eh ) << " ] = \"" << node_path << "\"\n"
                 << "  value [ " << size2 ( eh ) << " ] = \"" << value << "\"\n";
         }
+
+        whack_1string ( eh, string_buffer );
     }
 
     /* check_add_mbr
@@ -1015,6 +1017,8 @@ namespace gw_dump
                 std :: cout << ", kcmMD5";
             std :: cout << " )\n";
         }
+
+        whack_2string ( eh, string_buffer );
     }
 
     /* check_remote_path
@@ -1149,6 +1153,135 @@ namespace gw_dump
         whack_1string ( eh, string_buffer );
     }
 
+    /* check_logmsg
+     *  non-packed
+     *    id == 0
+     *  all:
+     *    length ( msg ) != 0
+     */
+    template < class T > static
+    void check_logmsg ( const T & eh )
+    {
+        if ( size ( eh ) == 0 )
+            throw "empty log message";
+    }
+
+    template <>
+    void check_logmsg < gw_1string_evt_v1 > ( const gw_1string_evt_v1 & eh )
+    {
+        if ( id ( eh . dad ) != 0 )
+            throw "bad log-message id ( should be 0 )";
+        if ( size ( eh ) == 0 )
+            throw "empty log message";
+    }
+
+    /* dump_logmsg
+     */
+    template < class D, class T > static
+    void dump_logmsg ( FILE * in, const D & e )
+    {
+        T eh;
+        init ( eh, e );
+
+        size_t num_read = readFILE ( & eh . sz, sizeof eh - sizeof ( D ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read log-message event";
+
+        check_logmsg ( eh );
+
+        char * string_buffer = read_1string ( eh, in );
+
+        if ( display )
+        {
+            std :: string msg ( string_buffer, size ( eh ) );
+
+            std :: cout
+                << event_num << ": log-message\n"
+                << "  msg [ " << size ( eh ) << " ] = \"" << msg << "\"\n"
+                ;
+        }
+
+        whack_1string ( eh, string_buffer );
+    }
+
+    /* check_progmsg
+     *  non-packed
+     *    id == 0
+     *  all:
+     *    length ( msg ) != 0
+     *    pid != 0 
+     *    timestamp > 0
+     *    version > 0 
+     *    percent > 0 && < 100
+     */
+    template < class T > static
+    void check_progmsg ( const T & eh )
+    {
+        if ( size ( eh ) == 0 )
+            throw "empty prog message";
+        if ( pid ( eh ) == 0 )
+            throw "invalid pid";
+        if ( timestamp ( eh ) == 0 )
+            throw "empty timestamp";
+        if ( version ( eh ) == 0 )
+            throw "invalid version number";
+        if ( percent ( eh ) < 0 || percent ( eh ) > 100 )
+            throw "invalid percent";
+    }
+
+    template <>
+    void check_progmsg < gw_status_evt_v1 > ( const gw_status_evt_v1 & eh )
+    {
+        if ( id ( eh . dad ) != 0 )
+            throw "bad prog-message id ( should be 0 )";
+        if ( size ( eh ) == 0 )
+            throw "empty prog message";
+        if ( pid ( eh ) == 0 )
+            throw "invlaid pid";
+        if ( timestamp ( eh ) == 0 )
+            throw "empty timestamp";
+        if ( version ( eh ) == 0 )
+            throw "invalid version number";
+        if ( percent ( eh ) < 0 || percent ( eh ) > 100 )
+            throw "invalid percent";
+    }
+
+    /* dump-progmsg
+     */
+    template < class D, class T > static
+    void dump_progmsg ( FILE *in, const D & e )
+    {
+        T eh;
+        init ( eh, e );
+
+        size_t num_read = readFILE ( & eh . name_sz, sizeof eh - sizeof ( D ), 1, in );
+        if ( num_read != 1 )
+            throw "failed to read prog-message event";
+
+        check_progmsg ( eh );
+
+        char *string_buffer = read_1string ( eh, in );
+        std :: string app_name ( string_buffer, size ( eh ) );
+        uint16_t _pid = pid ( eh );
+        uint32_t _timestamp = timestamp ( eh );
+        uint32_t _version = version ( eh );
+        uint8_t _percent = percent ( eh );
+
+        if ( display )
+        {
+            std :: cout 
+                << event_num << ": prog-msg\n"
+                << "  app [ " << app_name << " ] "
+                << "  message [  proccessed " << _percent << "% ] "
+                << "  pid [ " << _pid << " ]\n"
+                << "  timestamp [ " << _timestamp << " ] "
+                << "  version [ " << _version << " ] "
+                << "  percent [ " << _percent << " ]\n ";
+        }
+
+        whack_1string ( eh, string_buffer );
+    }
+
     /* dump_v1_event
      *  the events are not packed
      */
@@ -1241,6 +1374,13 @@ namespace gw_dump
             break;
         case evt_add_mbr_tbl:
             dump_add_mbr < gw_evt_hdr_v1, gw_add_mbr_evt_v1 > ( in, e );
+            break;
+
+        case evt_logmsg:
+            dump_logmsg < gw_evt_hdr_v1, gw_1string_evt_v1 > ( in, e );
+            break;
+        case evt_progmsg:
+            dump_progmsg < gw_evt_hdr_v1, gw_status_evt_v1 > ( in, e );
             break;
 
         default:
@@ -1357,6 +1497,12 @@ namespace gw_dump
             break;
         case evt_add_mbr_tbl:
             dump_add_mbr < gwp_evt_hdr_v1, gwp_add_mbr_evt_v1 > ( in, e );
+            break;
+        case evt_logmsg:
+            dump_logmsg < gwp_evt_hdr_v1, gwp_1string_evt_U16_v1 > ( in, e );
+            break;
+        case evt_progmsg:
+            dump_progmsg < gwp_evt_hdr_v1, gwp_status_evt_v1 > ( in, e );
             break;
 
         default:

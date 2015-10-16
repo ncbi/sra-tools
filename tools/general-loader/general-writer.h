@@ -443,7 +443,7 @@ struct gwp_status_evt_v1
     gwp_evt_hdr_v1 dad;
     uint32_t version;
     uint32_t timestamp;
-    uint16_t pid;
+    uint32_t pid;
     uint8_t name_sz;
     uint8_t percent;
 };
@@ -727,7 +727,7 @@ namespace ncbi
         self . percent = percent;
     }
 
-    inline uint32_t percent ( :: gw_status_evt_v1 &self )
+    inline uint32_t percent ( const :: gw_status_evt_v1 &self )
     { return self . percent; }
 
     ////////// packed events //////////
@@ -1028,6 +1028,10 @@ namespace ncbi
         hdr . version = hdr . timestamp = hdr . pid = hdr . name_sz = hdr . percent = 0;
     }
 
+    inline uint32_t pid ( const :: gwp_status_evt_v1 &self )
+    { return self . pid; }
+
+
     inline void set_version ( :: gwp_status_evt_v1 &self, uint32_t version )
     {
         assert ( version > 0 );
@@ -1045,15 +1049,6 @@ namespace ncbi
 
     inline uint32_t timestamp ( const :: gwp_status_evt_v1 &self )
     { return self . timestamp; }
-
-    inline void set_pid ( :: gwp_status_evt_v1 &self, uint32_t pid )
-    {
-        assert ( pid > 0 );
-        self . pid = pid;
-    }
-
-    inline uint32_t pid ( const :: gwp_status_evt_v1 &self )
-    { return self . pid; }
 
     inline void set_size ( :: gwp_status_evt_v1 &self, size_t bytes )
     {

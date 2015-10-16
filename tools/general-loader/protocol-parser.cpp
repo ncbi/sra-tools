@@ -425,15 +425,13 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             {
                 uint32_t version = ncbi :: version ( evt );
                 uint32_t timestamp = ncbi :: timestamp ( evt );
-                uint32_t pid = ncbi :: pid ( evt );
                 size_t name_sz = ncbi :: size ( evt );
                 uint32_t percent = ncbi :: percent ( evt );
 
                 rc = p_reader . Read ( name_sz );
                 if ( rc == 0 )
                 {
-                    rc = p_dbLoader . ProgressMessage ( pid, 
-                                                        string ( ( const char * ) p_reader . GetBuffer (), name_sz ),
+                    rc = p_dbLoader . ProgressMessage ( string ( ( const char * ) p_reader . GetBuffer (), name_sz ),
                                                         timestamp, 
                                                         version, 
                                                         percent );
@@ -1015,15 +1013,13 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             {
                 uint32_t version = ncbi :: version ( evt );
                 uint32_t timestamp = ncbi :: timestamp ( evt );
-                uint32_t pid = ncbi :: pid ( evt );
                 size_t name_sz = ncbi :: size ( evt );
                 uint32_t percent = ncbi :: percent ( evt );
 
                 rc = p_reader . Read ( name_sz );
                 if ( rc == 0 )
                 {
-                    rc = p_dbLoader . ProgressMessage ( pid, 
-                                                        string ( ( const char * ) p_reader . GetBuffer (), name_sz ),
+                    rc = p_dbLoader . ProgressMessage ( string ( ( const char * ) p_reader . GetBuffer (), name_sz ),
                                                         timestamp, 
                                                         version, 
                                                         percent );

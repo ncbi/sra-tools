@@ -120,7 +120,7 @@ namespace ncbi
         void logMsg ( const std :: string &msg );
 
         // indicate progress
-        void progMsg ( int pid, const std :: string &name, 
+        void progMsg ( const std :: string &name, 
                        uint32_t version, uint64_t done, uint64_t total );
 
         // generates an end event
@@ -174,6 +174,8 @@ namespace ncbi
 
         uint64_t evt_count;
         uint64_t byte_count;
+
+        int pid;
 
         uint8_t * packing_buffer;
 

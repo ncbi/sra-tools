@@ -926,19 +926,9 @@ namespace ncbi
         write_event ( & hdr . dad, sizeof hdr );
         internal_write ( msg . data (), str_size );
     }
-    /*
-struct gwp_status_evt_v1
-{
-    gwp_evt_hdr_v1 dad;
-    uint32_t version;
-    uint32_t timestamp;
-    uint16_t pid;
-    uint8_t name_sz;
-    uint8_t percent;
-};
-    */
-    void GeneralWriter :: progMsg ( int pid, const std :: string & name, 
-                                    uint32_t version, uint64_t done, uint64_t total )
+
+    void GeneralWriter :: progMsg ( const std :: string & name, uint32_t version,
+        uint64_t done, uint64_t total )
     {
         switch ( state )
         {
@@ -947,11 +937,7 @@ struct gwp_status_evt_v1
         default:
             return;
         }
-
-        // check pid
-        if ( pid < 1 || pid > 0xFFFF )
-            throw "invalid pid";
-
+        
         size_t str_size = name . size ();
         if ( str_size == 0 )
             throw "zero-length app-name";
@@ -975,13 +961,11 @@ struct gwp_status_evt_v1
         init ( hdr, 0, evt_progmsg );
         set_version ( hdr, version );
         set_timestamp ( hdr, ( uint32_t ) timestamp );
-        set_pid ( hdr, ( uint16_t ) pid );
         set_size ( hdr, str_size );
         set_percent ( hdr, percent );
 
         write_event ( &hdr . dad, sizeof hdr );
         internal_write ( name.data (), str_size );
-        
     }
 
     void GeneralWriter :: endStream ()
@@ -1020,6 +1004,7 @@ struct gwp_status_evt_v1
         : out ( out_path.c_str(), std::ofstream::binary )
         , evt_count ( 0 )
         , byte_count ( 0 )
+        , pid ( getpid () )
         , packing_buffer ( 0 )
         , output_buffer ( 0 )
         , output_bsize ( 0 )
@@ -1036,6 +1021,7 @@ struct gwp_status_evt_v1
     GeneralWriter :: GeneralWriter ( int _out_fd, size_t buffer_size )
         : evt_count ( 0 )
         , byte_count ( 0 )
+        , pid ( getpid () )
         , packing_buffer ( 0 )
         , output_buffer ( 0 )
         , output_bsize ( buffer_size )

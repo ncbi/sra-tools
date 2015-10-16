@@ -29,6 +29,7 @@
   
    <ItemGroup>
     <ClCompile Include="..\..\..\tools\prefetch\prefetch.c" />
+    <ClCompile Include="..\..\..\tools\prefetch\kfile-no-q.c" />
   </ItemGroup>
   
   <PropertyGroup Label="Globals">

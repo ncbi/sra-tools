@@ -38,6 +38,7 @@ struct KFile;
 rc_t CC KSraFileNoQuals( const struct KFile * self,
                          const struct KFile ** kfile );
 
+rc_t CC KSraReadCacheFile( const struct KFile * self, bool elimQuals );
 
 
 #endif /* _h_kfile_no_q_ */

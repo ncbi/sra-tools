@@ -120,7 +120,8 @@ namespace ncbi
         void logMsg ( const std :: string &msg );
 
         // indicate progress
-        void progMsg ( int pid, const std :: string &name, uint32_t done, uint32_t todo );
+        void progMsg ( const std :: string &name, 
+                       uint32_t version, uint64_t done, uint64_t total );
 
         // generates an end event
         // puts object into state that will reject any further transmissions
@@ -140,6 +141,7 @@ namespace ncbi
         void internal_write ( const void *data, size_t num_bytes );
         void write_event ( const gwp_evt_hdr * evt, size_t evt_size );
         void flush ();
+        uint32_t getPid ();
 
         struct int_stream
         {
@@ -173,6 +175,8 @@ namespace ncbi
 
         uint64_t evt_count;
         uint64_t byte_count;
+
+        int pid;
 
         uint8_t * packing_buffer;
 

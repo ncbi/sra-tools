@@ -49,6 +49,7 @@ public:
     typedef uint32_t TableId;
     typedef uint32_t ColumnId;
     typedef uint32_t ObjectId;
+    typedef uint32_t ProcessId;
     
 public:
     static bool packed;
@@ -89,7 +90,10 @@ public:
     void CellDefaultEvent ( ColumnId p_columnId, uint32_t p_value );
     void CellDefaultEvent ( ColumnId p_columnId, bool p_value );
     void CellEmptyDefaultEvent ( ColumnId p_columnId );
+
     void ErrorMessageEvent ( const std :: string& p_msg );
+    void LogMessageEvent ( const std :: string& p_msg );
+    void ProgMessageEvent ( ProcessId p_pid, const std :: string& p_name, uint32_t p_timestamp, uint32_t p_version, uint32_t p_percent );
     
     template < typename T > void CellDataEvent ( ColumnId p_columnId, T p_value )
     {
@@ -108,15 +112,16 @@ private:
     struct Event 
     {
         Event ( gw_evt_id p_event );
-        Event ( gw_evt_id p_event, uint32_t p_id1 );
-        Event ( gw_evt_id p_event, uint32_t p_id1, uint64_t p_uint64 );
-        Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str, uint32_t p_uint32, uint8_t p_uint8 );
-        Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1 );
         Event ( gw_evt_id p_event, const std::string& p_str1 );
         Event ( gw_evt_id p_event, const std::string& p_str1, const std::string& p_str2 );
+        Event ( gw_evt_id p_event, uint32_t p_id1 );
+        Event ( gw_evt_id p_event, uint32_t p_id1, uint64_t p_uint64 );
+        Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1 );
         Event ( gw_evt_id p_event, uint32_t p_id, const std::string& p_str1, const std::string& p_str2 );
         Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_elem_count, uint32_t p_val_bytes, const void* p_val );
         Event ( gw_evt_id p_event, uint32_t p_id1, const std::string& p_str1, const std::string& p_str2, uint8_t p_uint8 );
+        Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str, uint32_t p_uint32, uint8_t p_uint8 );
+        Event ( gw_evt_id p_event, uint32_t p_pid, const std :: string& p_name, uint32_t p_timestamp, uint32_t p_version, uint32_t percent );
         Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str1, const std::string& p_str2, uint8_t p_uint8 );
         
         ~Event();
@@ -127,6 +132,8 @@ private:
         
         uint8_t                 m_uint8;
         uint32_t                m_uint32;
+        uint32_t                m_uint32_2;
+        uint32_t                m_uint32_3;
         uint64_t                m_uint64;
         
         std :: string           m_str1;

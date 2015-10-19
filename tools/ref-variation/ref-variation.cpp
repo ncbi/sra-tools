@@ -1527,6 +1527,18 @@ namespace RefVariation
     }
 #endif
 
+    char const* find_invalid_character ( char const* str )
+    {
+        char const allowed[] = "ACGTNacgtn.-";
+        for ( size_t i = 0; str [i] != '\0'; ++i )
+        {
+            if ( strchr ( allowed, str[i] ) == NULL )
+                return str + i;
+        }
+
+        return NULL;
+    }
+
     void find_variation_region (int argc, char** argv)
     {
         try
@@ -1555,6 +1567,16 @@ namespace RefVariation
                 // TODO: maybe CArgs should allow for empty option value
                 if (g_Params.query [0] == '-' && g_Params.query [1] == '\0' )
                     g_Params.query = "";
+
+                char const* pInvalid = find_invalid_character ( g_Params.query );
+                if ( pInvalid != NULL )
+                {
+                    std::cerr
+                        << "Error: the given query (" << g_Params.query
+                        << ") contains an invalid character (" << *pInvalid
+                        << ")" << std::endl;
+                    return;
+                }
             }
 
             if (args.GetOptionCount (OPTION_VAR_LEN_ON_REF) == 1)

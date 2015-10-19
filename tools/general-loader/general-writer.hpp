@@ -141,6 +141,7 @@ namespace ncbi
         void internal_write ( const void *data, size_t num_bytes );
         void write_event ( const gwp_evt_hdr * evt, size_t evt_size );
         void flush ();
+        uint32_t getPid ();
 
         struct int_stream
         {

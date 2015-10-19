@@ -70,7 +70,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         {
         case evt_use_schema:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Use-Schema" );
+                LogMsg ( klogDebug, "protocol-parser event: Use-Schema" );
                 
                 gw_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -90,7 +90,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
 
         case evt_remote_path:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Remote-Path" );
+                LogMsg ( klogDebug, "protocol-parser event: Remote-Path" );
                 
                 gw_1string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -108,7 +108,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             
         case evt_software_name:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Software-Name" );
+                LogMsg ( klogDebug, "protocol-parser event: Software-Name" );
                 
                 gw_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -129,7 +129,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_db_metadata_node:
             {
                 uint32_t objId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: DB-Metadata-Node, id=$(i)", "i=%u", objId );
+                pLogMsg ( klogDebug, "protocol-parser event: DB-Metadata-Node, id=$(i)", "i=%u", objId );
                 
                 gw_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -151,7 +151,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_tbl_metadata_node:
             {
                 uint32_t objId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Tbl-Metadata-Node, id=$(i)", "i=%u", objId );
+                pLogMsg ( klogDebug, "protocol-parser event: Tbl-Metadata-Node, id=$(i)", "i=%u", objId );
                 
                 gw_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -173,7 +173,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_col_metadata_node:
             {
                 uint32_t objId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Col-Metadata-Node, id=$(i)", "i=%u", objId );
+                pLogMsg ( klogDebug, "protocol-parser event: Col-Metadata-Node, id=$(i)", "i=%u", objId );
                 
                 gw_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -195,7 +195,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_new_table:
             {
                 uint32_t tableId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: New-Table, id=$(i)", "i=%u", tableId );
+                pLogMsg ( klogDebug, "protocol-parser event: New-Table, id=$(i)", "i=%u", tableId );
                 
                 gw_1string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -214,7 +214,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_new_column:
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: New-Column, id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogDebug, "protocol-parser event: New-Column, id=$(i)", "i=%u", columnId );
     
                 gw_column_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -237,7 +237,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_add_mbr_db:
         { 
             uint32_t db_id = ncbi :: id ( evt_header );
-            pLogMsg ( klogInfo, "protocol-parser event: Add-Mbr-DB, id=$(i)", "i=%u", db_id );
+            pLogMsg ( klogDebug, "protocol-parser event: Add-Mbr-DB, id=$(i)", "i=%u", db_id );
             
             gw_add_mbr_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
@@ -263,7 +263,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_add_mbr_tbl:
         {
             uint32_t db_tbl_id = ncbi :: id ( evt_header );
-            pLogMsg ( klogInfo, "protocol-parser event: Add-Mbr-Table, id=$(i)", "i=%u", db_tbl_id );
+            pLogMsg ( klogDebug, "protocol-parser event: Add-Mbr-Table, id=$(i)", "i=%u", db_tbl_id );
             
             gw_add_mbr_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
@@ -289,7 +289,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_cell_data:
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Cell-Data, id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogDebug, "protocol-parser event: Cell-Data, id=$(i)", "i=%u", columnId );
                 
                 gw_data_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -316,7 +316,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_cell_default: 
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Cell-Default, id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogDebug, "protocol-parser event: Cell-Default, id=$(i)", "i=%u", columnId );
                 
                 gw_data_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -343,24 +343,24 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_empty_default: 
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Cell-EmptyDefault, id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogDebug, "protocol-parser event: Cell-EmptyDefault, id=$(i)", "i=%u", columnId );
                 rc = p_dbLoader . CellDefault ( columnId, 0, 0 );
             }
             break;
             
         case evt_open_stream:
-            LogMsg ( klogInfo, "protocol-parser event: Open-Stream" );
+            LogMsg ( klogDebug, "protocol-parser event: Open-Stream" );
             rc = p_dbLoader . OpenStream ();
             break; 
             
         case evt_end_stream:
-            LogMsg ( klogInfo, "protocol-parser event: End-Stream" );
+            LogMsg ( klogDebug, "protocol-parser event: End-Stream" );
             return p_dbLoader . CloseStream ();
             
         case evt_next_row:
             {
                 uint32_t tableId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Next-Row, id=$(i)", "i=%u", tableId );
+                pLogMsg ( klogDebug, "protocol-parser event: Next-Row, id=$(i)", "i=%u", tableId );
                 rc = p_dbLoader . NextRow ( tableId );
             }
             break;
@@ -368,7 +368,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
         case evt_move_ahead:
             {
                 uint32_t tableId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Move-Ahead, id=$(i)", "i=%u", tableId );
+                pLogMsg ( klogDebug, "protocol-parser event: Move-Ahead, id=$(i)", "i=%u", tableId );
     
                 gw_move_ahead_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -381,7 +381,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             
         case evt_errmsg:
             {   
-                LogMsg ( klogInfo, "protocol-parser event: Error-Message" );
+                LogMsg ( klogDebug, "protocol-parser event: Error-Message" );
                 
                 gw_1string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -399,7 +399,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             
         case evt_logmsg:
         {   
-            LogMsg ( klogInfo, "protocol-parser event: Log-Message" );
+            LogMsg ( klogDebug, "protocol-parser event: Log-Message" );
             
             gw_1string_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
@@ -417,21 +417,23 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
             
         case evt_progmsg:
         {
-            LogMsg ( klogInfo, "protocol-parser event: Progress-Message" );
+            LogMsg ( klogDebug, "protocol-parser event: Progress-Message" );
 
             gw_status_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
+                size_t name_sz = ncbi :: size ( evt );
+                uint32_t pid = ncbi :: pid ( evt );
                 uint32_t version = ncbi :: version ( evt );
                 uint32_t timestamp = ncbi :: timestamp ( evt );
-                size_t name_sz = ncbi :: size ( evt );
                 uint32_t percent = ncbi :: percent ( evt );
 
                 rc = p_reader . Read ( name_sz );
                 if ( rc == 0 )
                 {
                     rc = p_dbLoader . ProgressMessage ( string ( ( const char * ) p_reader . GetBuffer (), name_sz ),
+                                                        pid,
                                                         timestamp, 
                                                         version, 
                                                         percent );
@@ -472,7 +474,7 @@ GeneralLoader :: PackedProtocolParser :: UncompressInt (  Reader& p_reader, uint
         int numRead = p_decode ( buf_begin, buf_end, &ret_decoded );
         if ( numRead <= 0 )
         {
-            pLogMsg ( klogInfo, "protocol-parser: decode_uintXX() returned $(i)", "i=%i", numRead );
+            pLogMsg ( klogErr, "protocol-parser: decode_uintXX() returned $(i)", "i=%i", numRead );
             return RC ( rcExe, rcFile, rcReading, rcData, rcCorrupt );
         }
 
@@ -511,7 +513,7 @@ GeneralLoader :: PackedProtocolParser :: ParseData ( Reader& p_reader, DatabaseL
                     rc = UncompressInt ( p_reader, p_dataSize, decode_uint64 );
                     break;
                 default:
-                    LogMsg ( klogInfo, "protocol-parser: bad element size for packed integer" );
+                    LogMsg ( klogErr, "protocol-parser: bad element size for packed integer" );
                     rc = RC ( rcExe, rcFile, rcReading, rcData, rcInvalid );
                     break;
                 }
@@ -550,7 +552,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         {
         case evt_use_schema:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Use-Schema (packed)" );
+                LogMsg ( klogDebug, "protocol-parser event: Use-Schema (packed)" );
                 
                 gwp_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -571,7 +573,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             
         case evt_use_schema2:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Use-Schema2" );
+                LogMsg ( klogDebug, "protocol-parser event: Use-Schema2" );
                 
                 gwp_2string_evt_U16_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -592,7 +594,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             
         case evt_remote_path:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Remote-Path (packed)" );
+                LogMsg ( klogDebug, "protocol-parser event: Remote-Path (packed)" );
                 
                 gwp_1string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -609,7 +611,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             break;
         case evt_remote_path2:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Remote-Path2" );
+                LogMsg ( klogDebug, "protocol-parser event: Remote-Path2" );
                 
                 gwp_1string_evt_U16_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -627,7 +629,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
 
         case evt_software_name:
             {
-                LogMsg ( klogInfo, "protocol-parser event: Software-Name (packed)" );
+                LogMsg ( klogDebug, "protocol-parser event: Software-Name (packed)" );
                 
                 gwp_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -653,7 +655,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
                 {
                     objId = 0;
                 }
-                pLogMsg ( klogInfo, "protocol-parser event: Metadata-Node (packed), id=$(i)", "i=%u", objId );
+                pLogMsg ( klogDebug, "protocol-parser event: Metadata-Node (packed), id=$(i)", "i=%u", objId );
                 
                 gwp_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -675,7 +677,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_tbl_metadata_node:
             {
                 uint32_t objId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Tbl-Metadata-Node (packed), id=$(i)", "i=%u", objId );
+                pLogMsg ( klogDebug, "protocol-parser event: Tbl-Metadata-Node (packed), id=$(i)", "i=%u", objId );
                 
                 gwp_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -697,7 +699,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_col_metadata_node:
             {
                 uint32_t objId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Col-Metadata-Node (packed), id=$(i)", "i=%u", objId );
+                pLogMsg ( klogDebug, "protocol-parser event: Col-Metadata-Node (packed), id=$(i)", "i=%u", objId );
                 
                 gwp_2string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -719,7 +721,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_new_table:
             {
                 uint32_t tableId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: New-Table (packed), id=$(i)", "i=%u", tableId );
+                pLogMsg ( klogDebug, "protocol-parser event: New-Table (packed), id=$(i)", "i=%u", tableId );
                 
                 gwp_1string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -737,7 +739,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_new_table2:
             {
                 uint32_t tableId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: New-Table2, id=$(i)", "i=%u", tableId );
+                pLogMsg ( klogDebug, "protocol-parser event: New-Table2, id=$(i)", "i=%u", tableId );
                 
                 gwp_1string_evt_U16_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -756,7 +758,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_new_column:
         {
             uint32_t columnId = ncbi :: id ( evt_header );
-            pLogMsg ( klogInfo, "protocol-parser event: New-Column (packed), id=$(i)", "i=%u", columnId );
+            pLogMsg ( klogDebug, "protocol-parser event: New-Column (packed), id=$(i)", "i=%u", columnId );
             
             gwp_column_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
@@ -779,7 +781,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_add_mbr_db:
         { 
             uint32_t db_id = ncbi :: id ( evt_header );
-            pLogMsg ( klogInfo, "protocol-parser event: Add-Mbr-DB ( packed ), id=$(i)", "i=%u", db_id );
+            pLogMsg ( klogDebug, "protocol-parser event: Add-Mbr-DB ( packed ), id=$(i)", "i=%u", db_id );
             
             gwp_add_mbr_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
@@ -805,7 +807,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_add_mbr_tbl:
         {
             uint32_t db_tbl_id = ncbi :: id ( evt_header );
-            pLogMsg ( klogInfo, "protocol-parser event: Add-Mbr-Table ( packed ), id=$(i)", "i=%u", db_tbl_id );
+            pLogMsg ( klogDebug, "protocol-parser event: Add-Mbr-Table ( packed ), id=$(i)", "i=%u", db_tbl_id );
             
             gwp_add_mbr_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
@@ -829,18 +831,18 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         break;
 
         case evt_open_stream:
-            LogMsg ( klogInfo, "protocol-parser event: Open-Stream (packed)" );
+            LogMsg ( klogDebug, "protocol-parser event: Open-Stream (packed)" );
             rc = p_dbLoader . OpenStream ();
             break; 
             
         case evt_end_stream:
-            LogMsg ( klogInfo, "protocol-parser event: End-Stream (packed)" );
+            LogMsg ( klogDebug, "protocol-parser event: End-Stream (packed)" );
             return p_dbLoader . CloseStream ();
             
         case evt_cell_data:
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Cell-Data (packed), id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogDebug, "protocol-parser event: Cell-Data (packed), id=$(i)", "i=%u", columnId );
                 
                 gwp_data_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -854,7 +856,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_cell_data2:
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Cell-Data2, id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogDebug, "protocol-parser event: Cell-Data2, id=$(i)", "i=%u", columnId );
                 
                 gwp_data_evt_U16_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -868,7 +870,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_cell_default:
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Cell-Default (packed), id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogDebug, "protocol-parser event: Cell-Default (packed), id=$(i)", "i=%u", columnId );
                 
                 gwp_data_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -895,7 +897,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_cell_default2:
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Cell-Default2, id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogDebug, "protocol-parser event: Cell-Default2, id=$(i)", "i=%u", columnId );
                 
                 gwp_data_evt_U16_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -922,7 +924,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_empty_default: 
             {
                 uint32_t columnId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Cell-EmptyDefault (packed), id=$(i)", "i=%u", columnId );
+                pLogMsg ( klogDebug, "protocol-parser event: Cell-EmptyDefault (packed), id=$(i)", "i=%u", columnId );
                 rc = p_dbLoader . CellDefault ( columnId, 0, 0 );
             }
             break;
@@ -930,7 +932,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_next_row:
             {
                 uint32_t tableId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Next-Row (packed), id=$(i)", "i=%u", tableId );
+                pLogMsg ( klogDebug, "protocol-parser event: Next-Row (packed), id=$(i)", "i=%u", tableId );
                 rc = p_dbLoader . NextRow ( tableId );
             }
             break;
@@ -938,7 +940,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
         case evt_move_ahead:
             {
                 uint32_t tableId = ncbi :: id ( evt_header );
-                pLogMsg ( klogInfo, "protocol-parser event: Move-Ahead (packed), id=$(i)", "i=%u", tableId );
+                pLogMsg ( klogDebug, "protocol-parser event: Move-Ahead (packed), id=$(i)", "i=%u", tableId );
     
                 gwp_move_ahead_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -951,7 +953,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             
         case evt_errmsg:
             {   
-                LogMsg ( klogInfo, "protocol-parser event: Error-Message (packed)" );
+                LogMsg ( klogDebug, "protocol-parser event: Error-Message (packed)" );
                 
                 gwp_1string_evt_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -969,7 +971,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             
         case evt_errmsg2:
             {   
-                LogMsg ( klogInfo, "protocol-parser event: Error-Message2" );
+                LogMsg ( klogDebug, "protocol-parser event: Error-Message2" );
                 
                 gwp_1string_evt_U16_v1 evt;
                 rc = ReadEvent ( p_reader, evt );
@@ -987,7 +989,7 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
 
         case evt_logmsg:
         {   
-            LogMsg ( klogInfo, "protocol-parser event ( packed ): Log-Message" );
+            LogMsg ( klogDebug, "protocol-parser event ( packed ): Log-Message" );
             
             gwp_1string_evt_U16_v1 evt;
             rc = ReadEvent ( p_reader, evt );
@@ -1005,21 +1007,23 @@ GeneralLoader :: PackedProtocolParser :: ParseEvents( Reader& p_reader, Database
             
         case evt_progmsg:
         {
-            LogMsg ( klogInfo, "protocol-parser event ( packed ): Progress-Message" );
+            LogMsg ( klogDebug, "protocol-parser event ( packed ): Progress-Message" );
 
             gwp_status_evt_v1 evt;
             rc = ReadEvent ( p_reader, evt );
             if ( rc == 0 )
             {
+                size_t name_sz = ncbi :: size ( evt );
+                uint32_t pid = ncbi :: pid ( evt );
                 uint32_t version = ncbi :: version ( evt );
                 uint32_t timestamp = ncbi :: timestamp ( evt );
-                size_t name_sz = ncbi :: size ( evt );
                 uint32_t percent = ncbi :: percent ( evt );
 
                 rc = p_reader . Read ( name_sz );
                 if ( rc == 0 )
                 {
                     rc = p_dbLoader . ProgressMessage ( string ( ( const char * ) p_reader . GetBuffer (), name_sz ),
+                                                        pid, 
                                                         timestamp, 
                                                         version, 
                                                         percent );

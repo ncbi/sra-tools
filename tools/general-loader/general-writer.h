@@ -1019,13 +1019,21 @@ namespace ncbi
     inline void init ( :: gwp_status_evt_v1 &hdr, uint32_t id, gw_evt_id evt )
     {
         init ( hdr . dad, id, evt );
-        hdr . version = hdr . timestamp = hdr . pid = hdr . name_sz = hdr . percent = 0;
+        hdr . version = hdr . timestamp  = 0;
+        hdr . name_sz = hdr . percent = 0;
     }
 
     inline void init ( :: gwp_status_evt_v1 &hdr, const :: gwp_evt_hdr_v1 &dad )
     {
         hdr . dad = dad;
-        hdr . version = hdr . timestamp = hdr . pid = hdr . name_sz = hdr . percent = 0;
+        hdr . version = hdr . timestamp = 0;
+        hdr . name_sz = hdr . percent = 0;
+    }
+
+    inline void set_pid ( :: gwp_status_evt_v1 &self, int pid )
+    {
+        assert ( pid > 0 );
+        self . pid = ( uint32_t ) pid;
     }
 
     inline uint32_t pid ( const :: gwp_status_evt_v1 &self )
@@ -1034,7 +1042,7 @@ namespace ncbi
 
     inline void set_version ( :: gwp_status_evt_v1 &self, uint32_t version )
     {
-        assert ( version > 0 );
+        assert ( version != 0 );
         self . version = version;
     }
 
@@ -1043,7 +1051,7 @@ namespace ncbi
 
     inline void set_timestamp ( :: gwp_status_evt_v1 &self, uint32_t timestamp )
     {
-        assert ( timestamp > 0 );
+        assert ( timestamp != 0 );
         self . timestamp = timestamp;
     }
 

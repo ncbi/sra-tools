@@ -137,7 +137,7 @@ namespace ncbi
             case 1:
                 if ( ( ref_zpos % 1000000 ) == 0 )
 #if USE_GW_LOGMESSAGE
-                    out . progMsg ( getpid (), refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+                    out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
 #else
                     std :: cerr << "#  " << std :: setw ( 9 ) << ref_zpos << '\n';
 #endif
@@ -146,7 +146,7 @@ namespace ncbi
                 if ( ( ref_zpos % 5000 ) == 0 )
                 {
 #if USE_GW_LOGMESSAGE
-                    out . progMsg ( getpid (), refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+                    out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
 #else
                     if ( ( ref_zpos % 500000 ) == 0 )
                         std :: cerr << "\n#  " << std :: setw ( 9 ) << ref_zpos << ' ';

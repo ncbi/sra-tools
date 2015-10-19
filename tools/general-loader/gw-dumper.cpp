@@ -148,6 +148,21 @@ namespace gw_dump
         return ( char * ) string_buffer;
     }
 
+    template <>
+    char * read_1string < :: gw_status_evt_v1 > ( const :: gw_status_evt_v1 & eh, FILE * in )
+    {
+        size_t string_size_uint32 = ( size ( eh ) + 3 ) / 4;
+        uint32_t * string_buffer = new uint32_t [ string_size_uint32 ];
+        size_t num_read = readFILE ( string_buffer, sizeof string_buffer [ 0 ], string_size_uint32, in );
+        if ( num_read != string_size_uint32 )
+        {
+            delete [] string_buffer;
+            throw "failed to read string data";
+        }
+
+        return ( char * ) string_buffer;
+    }
+
     /* whack_1string
      */
     template < class T > static
@@ -1254,7 +1269,7 @@ namespace gw_dump
         T eh;
         init ( eh, e );
 
-        size_t num_read = readFILE ( & eh . name_sz, sizeof eh - sizeof ( D ), 1, in );
+        size_t num_read = readFILE ( & ( & eh . dad ) [ 1 ], sizeof eh - sizeof eh . dad, 1, in );
         if ( num_read != 1 )
             throw "failed to read prog-message event";
 
@@ -1262,20 +1277,27 @@ namespace gw_dump
 
         char *string_buffer = read_1string ( eh, in );
         std :: string app_name ( string_buffer, size ( eh ) );
-        uint16_t _pid = pid ( eh );
+        uint32_t _pid = pid ( eh );
         uint32_t _timestamp = timestamp ( eh );
         uint32_t _version = version ( eh );
-        uint8_t _percent = percent ( eh );
+        uint32_t _percent = percent ( eh );
 
         if ( display )
         {
+            time_t ts = ( time_t ) _timestamp;
+            char time_str [ 256 ];
+            asctime_r ( localtime ( & ts ), time_str );
+            size_t len = strlen ( time_str );
+            while ( len > 0 && time_str [ len - 1 ] == '\n' )
+                time_str [ -- len ] = 0;
+
             std :: cout 
                 << event_num << ": prog-msg\n"
-                << "  app [ " << app_name << " ] "
-                << "  message [  proccessed " << _percent << "% ] "
+                << "  app [ " << app_name << " ] \n"
+                << "  message [  proccessed " << _percent << "% ] \n"
                 << "  pid [ " << _pid << " ]\n"
-                << "  timestamp [ " << _timestamp << " ] "
-                << "  version [ " << _version << " ] "
+                << "  timestamp [ " << time_str << " ( " << _timestamp << " ) ] \n"
+                << "  version [ " << ( _version >> 24 ) << '.' << ( ( _version >> 16 ) & 0xFF ) << '.' << ( _version & 0xFFFF ) << " ] \n"
                 << "  percent [ " << _percent << " ]\n ";
         }
 

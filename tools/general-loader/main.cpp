@@ -91,6 +91,7 @@ const char* OptHelpParam[] =
     "path(s)",
     "path(s)",
     "path",
+    "",
 };
 
 rc_t UsageSummary (char const * progname)
@@ -134,6 +135,7 @@ rc_t CC Usage (const Args * args)
             HelpOptionLine(Options[i].aliases, Options[i].name, OptHelpParam[i], Options[i].help);
         }
     }
+    XMLLogger_Usage();
     
     HelpOptionsStandard ();
     HelpVersion (fullpath, KAppVersion());

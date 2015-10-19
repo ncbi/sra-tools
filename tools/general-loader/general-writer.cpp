@@ -959,6 +959,7 @@ namespace ncbi
 
         gwp_status_evt_v1 hdr;
         init ( hdr, 0, evt_progmsg );
+        set_pid ( hdr, pid );
         set_version ( hdr, version );
         set_timestamp ( hdr, ( uint32_t ) timestamp );
         set_size ( hdr, str_size );
@@ -1080,6 +1081,11 @@ namespace ncbi
     }
 
     // Private methods
+
+    uint32_t GeneralWriter :: getPid ()
+    {
+        return ( uint32_t ) pid;
+    }
 
     void GeneralWriter :: writeHeader ()
     {

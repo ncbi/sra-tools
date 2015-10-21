@@ -57,10 +57,6 @@
 #include <fstream>
 #include <cstdio>
 
-#include <sys/types.h>
-#include <unistd.h>
-
-
 #include "testsource.hpp"
 
 using namespace std;

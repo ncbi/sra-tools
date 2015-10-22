@@ -102,6 +102,7 @@ set_schema: $(BINDIR)/vdb-config
 SMALLRUN = @ $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
 smalltests: $(TEST_TOOLS)
 	-rm -rf $(SRCDIR)/actual
+	$(BINDIR)/vdb-config -on
 #   Small tests
 #   Input:
 #       Quality encoding: phred/logodds, ascii/decimal

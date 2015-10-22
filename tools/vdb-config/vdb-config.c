@@ -451,30 +451,12 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
     args = prm->args;
     do {
         uint32_t pcount = 0;
-        rc = ArgsMakeStandardOptions(&args);
+        rc = ArgsMakeAndHandle2(&args, argc, argv, Parameters, sizeof Parameters / sizeof Parameters[0], 1, Options, sizeof Options / sizeof Options[0]);
         if (rc) {
-            LOGERR(klogErr, rc, "While calling ArgsMake");
+            LOGERR(klogErr, rc, "While calling ArgsMakeAndHandle2");
             break;
         }
-        
-        rc = ArgsAddOptionArray(args, Options, sizeof Options / sizeof Options[0]);
-        if (rc) {
-            LOGERR(klogErr, rc, "While calling ArgsAddOptionsArray");
-            break;
-        }
-        
-        rc = ArgsAddParamArray(args, Parameters, sizeof Parameters / sizeof Parameters[0]);
-        if (rc) {
-            LOGERR(klogErr, rc, "While calling ArgsAddParamsArray");
-            break;
-        }
-        
-        rc = ArgsParse(args, argc, argv);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failed to parse arguments");
-            break;
-        }
-        
+
         prm->args = args;
         rc = ArgsParamCount(args, &prm->argsParamCnt);
         if (rc) {
@@ -486,285 +468,285 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             ++count;
         }
 
-    {   // OPTION_OUT
-        prm->xml = true;
-        rc = ArgsOptionCount(args, OPTION_OUT, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
-            break;
-        }
-        if (pcount) {
-            const char* dummy = NULL;
-            rc = ArgsOptionValue(args, OPTION_OUT, 0, (const void **)&dummy);
+        {   // OPTION_OUT
+            prm->xml = true;
+            rc = ArgsOptionCount(args, OPTION_OUT, &pcount);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
                 break;
             }
-            if (!strcmp(dummy, "n")) {
-                prm->xml = false;
+            if (pcount) {
+                const char* dummy = NULL;
+                rc = ArgsOptionValue(args, OPTION_OUT, 0, (const void **)&dummy);
+                if (rc) {
+                    LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
+                    break;
+                }
+                if (!strcmp(dummy, "n")) {
+                    prm->xml = false;
+                }
+                else if (strcmp(dummy, "x")) {
+                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                    LOGERR(klogErr, rc, "Bad " OPTION_OUT " value");
+                    break;
+                }
             }
-            else if (strcmp(dummy, "x")) {
-                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                LOGERR(klogErr, rc, "Bad " OPTION_OUT " value");
+        }
+        {   // OPTION_ENV
+            rc = ArgsOptionCount(args, OPTION_ENV, &pcount);
+            if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_ENV "' argument");
                 break;
             }
+            if (pcount) {
+                prm->modeShowEnv = true;
+                ++count;
+            }
         }
-    }
-    {   // OPTION_ENV
-        rc = ArgsOptionCount(args, OPTION_ENV, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_ENV "' argument");
-            break;
+        {   // OPTION_FIL
+            rc = ArgsOptionCount(args, OPTION_FIL, &pcount);
+            if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_FIL "' argument");
+                break;
+            }
+            if (pcount > 0) {
+                prm->modeShowFiles = true;
+                ++count;
+            }
         }
-        if (pcount) {
-            prm->modeShowEnv = true;
-            ++count;
-        }
-    }
-    {   // OPTION_FIL
-        rc = ArgsOptionCount(args, OPTION_FIL, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_FIL "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            prm->modeShowFiles = true;
-            ++count;
-        }
-    }
-    {   // OPTION_IMP
-        rc = ArgsOptionCount(args, OPTION_IMP, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            rc = ArgsOptionValue(args, OPTION_IMP, 0, (const void **)&prm->ngc);
+        {   // OPTION_IMP
+            rc = ArgsOptionCount(args, OPTION_IMP, &pcount);
             if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
                 break;
             }
-            else {
-                 prm->modeShowCfg = false;
+            if (pcount > 0) {
+                rc = ArgsOptionValue(args, OPTION_IMP, 0, (const void **)&prm->ngc);
+                if (rc != 0) {
+                    LOGERR(klogErr, rc, "Failure to get '" OPTION_IMP "' argument");
+                    break;
+                }
+                else {
+                     prm->modeShowCfg = false;
+                }
             }
         }
-    }
-    {   // OPTION_MOD
-        rc = ArgsOptionCount(args, OPTION_MOD, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_MOD "' argument");
-            break;
-        }
-        if (pcount) {
-            prm->modeShowModules = true;
-            ++count;
-        }
-    }
-#if 0
-    {   // OPTION_NEW
-        rc = ArgsOptionCount(args, OPTION_NEW, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_NEW "' argument");
-            break;
-        }
-        if (pcount) {
-            prm->modeCreate = true;
-            ++count;
-        }
-    }
-#endif
-    {   // OPTION_PCF
-        rc = ArgsOptionCount(args, OPTION_PCF, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_PCF "' argument");
-            break;
-        }
-        if (pcount) {
-            if (!prm->modeShowCfg) {
-                prm->modeShowCfg = true;
+        {   // OPTION_MOD
+            rc = ArgsOptionCount(args, OPTION_MOD, &pcount);
+            if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_MOD "' argument");
+                break;
+            }
+            if (pcount) {
+                prm->modeShowModules = true;
                 ++count;
             }
         }
-    }
-    {   // OPTION_PRD
-        rc = ArgsOptionCount(args, OPTION_PRD, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_PRD "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            const char *dummy = NULL;
-            rc = ArgsOptionValue(args, OPTION_PRD, 0, (const void **)&dummy);
+#if 0
+        {   // OPTION_NEW
+            rc = ArgsOptionCount(args, OPTION_NEW, &pcount);
             if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_NEW "' argument");
+                break;
+            }
+            if (pcount) {
+                prm->modeCreate = true;
+                ++count;
+            }
+        }
+#endif
+        {   // OPTION_PCF
+            rc = ArgsOptionCount(args, OPTION_PCF, &pcount);
+            if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_PCF "' argument");
+                break;
+            }
+            if (pcount) {
+                if (!prm->modeShowCfg) {
+                    prm->modeShowCfg = true;
+                    ++count;
+                }
+            }
+        }
+        {   // OPTION_PRD
+            rc = ArgsOptionCount(args, OPTION_PRD, &pcount);
+            if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_PRD "' argument");
                 break;
             }
-            if (tolower(dummy[0]) == 'y') {
-                prm->proxyDisabled = eYes;
-            }
-            else if (tolower(dummy[0]) == 'n') {
-                prm->proxyDisabled = eNo;
+            if (pcount > 0) {
+                const char *dummy = NULL;
+                rc = ArgsOptionValue(args, OPTION_PRD, 0, (const void **)&dummy);
+                if (rc) {
+                    LOGERR(klogErr, rc, "Failure to get '" OPTION_PRD "' argument");
+                    break;
+                }
+                if (tolower(dummy[0]) == 'y') {
+                    prm->proxyDisabled = eYes;
+                }
+                else if (tolower(dummy[0]) == 'n') {
+                    prm->proxyDisabled = eNo;
+                }
             }
         }
-    }
-    {   // OPTION_PRX
-        rc = ArgsOptionCount(args, OPTION_PRX, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_PRX "' argument");
-            break;
-        }
-        if (pcount > 0) {
-            rc = ArgsOptionValue(args, OPTION_PRX, 0, (const void **)&prm->proxy);
-            if (rc) {
+        {   // OPTION_PRX
+            rc = ArgsOptionCount(args, OPTION_PRX, &pcount);
+            if (rc != 0) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_PRX "' argument");
                 break;
             }
-        }
-    }
-    {   // OPTION_DIR
-        rc = ArgsOptionCount(args, OPTION_DIR, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_DIR "' argument");
-            break;
-        }
-        if (pcount) {
-            prm->modeShowLoadPath = true;
-            ++count;
-        }
-    }
-    {   // OPTION_ROOT
-        rc = ArgsOptionCount(args, OPTION_ROOT, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_ROOT "' argument");
-            break;
-        }
-        if (pcount) {
-            prm->modeRoot = true;
-        }
-    }
-    {   // OPTION_SET
-        rc = ArgsOptionCount(args, OPTION_SET, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_SET "' argument");
-            break;
-        }
-        if (pcount) {
-            rc = ArgsOptionValue(args, OPTION_SET, 0, (const void **)&prm->setValue);
-            if (rc == 0) {
-                const char* p = strchr(prm->setValue, '=');
-                if (p == NULL || *(p + 1) == '\0') {
-                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                    LOGERR(klogErr, rc, "Bad " OPTION_SET " value");
+            if (pcount > 0) {
+                rc = ArgsOptionValue(args, OPTION_PRX, 0, (const void **)&prm->proxy);
+                if (rc) {
+                    LOGERR(klogErr, rc, "Failure to get '" OPTION_PRX "' argument");
                     break;
                 }
-                prm->modeSetNode = true;
-                prm->modeCreate = prm->modeShowCfg = prm->modeShowEnv
-                    = prm->modeShowFiles = prm->modeShowLoadPath
-                    = prm->modeShowModules = false;
-                count = 1;
             }
         }
-    }
-    {   // OPTION_FIX
-        rc = ArgsOptionCount(args, OPTION_FIX, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_FIX "' argument");
-            break;
+        {   // OPTION_DIR
+            rc = ArgsOptionCount(args, OPTION_DIR, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_DIR "' argument");
+                break;
+            }
+            if (pcount) {
+                prm->modeShowLoadPath = true;
+                ++count;
+            }
         }
-        if (pcount) {
-            prm->modeConfigure = true;
-            prm->modeShowCfg = false;
-            count = 1;
-            prm->configureMode = eCfgModeDefault;
+        {   // OPTION_ROOT
+            rc = ArgsOptionCount(args, OPTION_ROOT, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_ROOT "' argument");
+                break;
+            }
+            if (pcount) {
+                prm->modeRoot = true;
+            }
         }
-    }
-    {   // OPTION_CFG
-        rc = ArgsOptionCount(args, OPTION_CFG, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_CFG "' argument");
-            break;
+        {   // OPTION_SET
+            rc = ArgsOptionCount(args, OPTION_SET, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_SET "' argument");
+                break;
+            }
+            if (pcount) {
+                rc = ArgsOptionValue(args, OPTION_SET, 0, (const void **)&prm->setValue);
+                if (rc == 0) {
+                    const char* p = strchr(prm->setValue, '=');
+                    if (p == NULL || *(p + 1) == '\0') {
+                        rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                        LOGERR(klogErr, rc, "Bad " OPTION_SET " value");
+                        break;
+                    }
+                    prm->modeSetNode = true;
+                    prm->modeCreate = prm->modeShowCfg = prm->modeShowEnv
+                        = prm->modeShowFiles = prm->modeShowLoadPath
+                        = prm->modeShowModules = false;
+                    count = 1;
+                }
+            }
         }
-        if (pcount) {
-#if 1
-            prm->modeConfigure = true;
-            prm->modeShowCfg = false;
-            count = 1;
-            prm->configureMode = eCfgModeVisual;
-
-#else
-            const char* dummy = NULL;
-            rc = ArgsOptionValue(args, OPTION_CFG, 0, (const void **)&dummy);
+        {   // OPTION_FIX
+            rc = ArgsOptionCount(args, OPTION_FIX, &pcount);
+            if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_FIX "' argument");
+                break;
+            }
+            if (pcount) {
+                prm->modeConfigure = true;
+                prm->modeShowCfg = false;
+                count = 1;
+                prm->configureMode = eCfgModeDefault;
+            }
+        }
+        {   // OPTION_CFG
+            rc = ArgsOptionCount(args, OPTION_CFG, &pcount);
             if (rc) {
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_CFG "' argument");
                 break;
             }
-            prm->modeConfigure = true;
-            prm->modeShowCfg = false;
-            count = 1;
-            switch (dummy[0]) {
-                case 't':
-                    prm->configureMode = eCfgModeTextual;
-                    break;
-                default:
-                    prm->configureMode = eCfgModeDefault;
-                    break;
-            }
-#endif
-        }
-    }
-    {   // OPTION_CFM
-        rc = ArgsOptionCount(args, OPTION_CFM, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_CFM "' argument");
-            break;
-        }
-        if (pcount) {
-            const char* dummy = NULL;
-            size_t dummy_len;
-            rc = ArgsOptionValue(args, OPTION_CFM, 0, (const void **)&dummy);
-            if (rc) {
-                LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
-                break;
-            }
-            prm->modeShowCfg = false;
-            count = 1;
-            prm->modeConfigure = true;
-
-            dummy_len = strlen( dummy );
-            if ( dummy_len == 0 )
-                dummy_len = 1;
-
-            if ( strncmp( dummy, "textual", dummy_len ) == 0 )
-                prm->configureMode = eCfgModeTextual;
-            else if ( strncmp( dummy, "graphical", dummy_len ) == 0 )
+            if (pcount) {
+#if 1
+                prm->modeConfigure = true;
+                prm->modeShowCfg = false;
+                count = 1;
                 prm->configureMode = eCfgModeVisual;
-            else
-            {
-                rc = RC( rcExe, rcArgv, rcEvaluating, rcParam, rcInvalid );
-                LOGERR(klogErr, rc, "Unrecognized '" OPTION_CFM "' argument");
-                break;
+
+#else
+                const char* dummy = NULL;
+                rc = ArgsOptionValue(args, OPTION_CFG, 0, (const void **)&dummy);
+                if (rc) {
+                    LOGERR(klogErr, rc, "Failure to get '" OPTION_CFG "' argument");
+                    break;
+                }
+                prm->modeConfigure = true;
+                prm->modeShowCfg = false;
+                count = 1;
+                switch (dummy[0]) {
+                    case 't':
+                        prm->configureMode = eCfgModeTextual;
+                        break;
+                    default:
+                        prm->configureMode = eCfgModeDefault;
+                        break;
+                }
+#endif
             }
         }
-    }
-    {   // OPTION_ALL
-        rc = ArgsOptionCount(args, OPTION_ALL, &pcount);
-        if (rc) {
-            LOGERR(klogErr, rc, "Failure to get '" OPTION_ALL "' argument");
-            break;
+        {   // OPTION_CFM
+            rc = ArgsOptionCount(args, OPTION_CFM, &pcount);
+            if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_CFM "' argument");
+                break;
+            }
+            if (pcount) {
+                const char* dummy = NULL;
+                size_t dummy_len;
+                rc = ArgsOptionValue(args, OPTION_CFM, 0, (const void **)&dummy);
+                if (rc) {
+                    LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
+                    break;
+                }
+                prm->modeShowCfg = false;
+                count = 1;
+                prm->modeConfigure = true;
+
+                dummy_len = strlen( dummy );
+                if ( dummy_len == 0 )
+                    dummy_len = 1;
+
+                if ( strncmp( dummy, "textual", dummy_len ) == 0 )
+                    prm->configureMode = eCfgModeTextual;
+                else if ( strncmp( dummy, "graphical", dummy_len ) == 0 )
+                    prm->configureMode = eCfgModeVisual;
+                else
+                {
+                    rc = RC( rcExe, rcArgv, rcEvaluating, rcParam, rcInvalid );
+                    LOGERR(klogErr, rc, "Unrecognized '" OPTION_CFM "' argument");
+                    break;
+                }
+            }
         }
-        if (pcount
-            || ( !prm->modeConfigure
-              && !prm->modeShowCfg && ! prm->modeShowLoadPath
-              && !prm->modeShowEnv && !prm->modeShowFiles
-              && !prm->modeShowModules && !prm->modeCreate
-              && !prm->modeSetNode && prm->ngc == NULL
-              && prm->proxy == NULL && prm->proxyDisabled == eUndefined))
-            /* show all by default */
-        {
-            prm->modeShowCfg = prm->modeShowEnv = prm->modeShowFiles = true;
-            count += 2;
+        {   // OPTION_ALL
+            rc = ArgsOptionCount(args, OPTION_ALL, &pcount);
+            if (rc) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_ALL "' argument");
+                break;
+            }
+            if (pcount
+                || ( !prm->modeConfigure
+                  && !prm->modeShowCfg && ! prm->modeShowLoadPath
+                  && !prm->modeShowEnv && !prm->modeShowFiles
+                  && !prm->modeShowModules && !prm->modeCreate
+                  && !prm->modeSetNode && prm->ngc == NULL
+                  && prm->proxy == NULL && prm->proxyDisabled == eUndefined))
+                /* show all by default */
+            {
+                prm->modeShowCfg = prm->modeShowEnv = prm->modeShowFiles = true;
+                count += 2;
+            }
         }
-    }
 
         if (count > 1)  {
             prm->showMultiple = true;

@@ -443,7 +443,7 @@ struct gwp_status_evt_v1
     gwp_evt_hdr_v1 dad;
     uint32_t version;
     uint32_t timestamp;
-    uint16_t pid;
+    uint32_t pid;
     uint8_t name_sz;
     uint8_t percent;
 };
@@ -719,7 +719,7 @@ namespace ncbi
         set_string_size ( self . name_sz, bytes );
     }
 
-    inline size_t size1 ( const :: gw_status_evt_v1 &self )
+    inline size_t size ( const :: gw_status_evt_v1 &self )
     { return ( size_t ) self . name_sz; }
 
     inline void set_percent ( :: gw_status_evt_v1 &self, uint32_t percent )
@@ -727,7 +727,7 @@ namespace ncbi
         self . percent = percent;
     }
 
-    inline uint32_t percent ( :: gw_status_evt_v1 &self )
+    inline uint32_t percent ( const :: gw_status_evt_v1 &self )
     { return self . percent; }
 
     ////////// packed events //////////
@@ -1019,18 +1019,30 @@ namespace ncbi
     inline void init ( :: gwp_status_evt_v1 &hdr, uint32_t id, gw_evt_id evt )
     {
         init ( hdr . dad, id, evt );
-        hdr . version = hdr . timestamp = hdr . pid = hdr . name_sz = hdr . percent = 0;
+        hdr . version = hdr . timestamp  = 0;
+        hdr . name_sz = hdr . percent = 0;
     }
 
     inline void init ( :: gwp_status_evt_v1 &hdr, const :: gwp_evt_hdr_v1 &dad )
     {
         hdr . dad = dad;
-        hdr . version = hdr . timestamp = hdr . pid = hdr . name_sz = hdr . percent = 0;
+        hdr . version = hdr . timestamp = 0;
+        hdr . name_sz = hdr . percent = 0;
     }
+
+    inline void set_pid ( :: gwp_status_evt_v1 &self, int pid )
+    {
+        assert ( pid > 0 );
+        self . pid = ( uint32_t ) pid;
+    }
+
+    inline uint32_t pid ( const :: gwp_status_evt_v1 &self )
+    { return self . pid; }
+
 
     inline void set_version ( :: gwp_status_evt_v1 &self, uint32_t version )
     {
-        assert ( version > 0 );
+        assert ( version != 0 );
         self . version = version;
     }
 
@@ -1039,28 +1051,19 @@ namespace ncbi
 
     inline void set_timestamp ( :: gwp_status_evt_v1 &self, uint32_t timestamp )
     {
-        assert ( timestamp > 0 );
+        assert ( timestamp != 0 );
         self . timestamp = timestamp;
     }
 
     inline uint32_t timestamp ( const :: gwp_status_evt_v1 &self )
     { return self . timestamp; }
 
-    inline void set_pid ( :: gwp_status_evt_v1 &self, uint32_t pid )
-    {
-        assert ( pid > 0 );
-        self . pid = pid;
-    }
-
-    inline uint32_t pid ( const :: gwp_status_evt_v1 &self )
-    { return self . pid; }
-
     inline void set_size ( :: gwp_status_evt_v1 &self, size_t bytes )
     {
         set_string_size ( self . name_sz, bytes );
     }
 
-    inline size_t size1 ( const :: gwp_status_evt_v1 &self )
+    inline size_t size ( const :: gwp_status_evt_v1 &self )
     { return ( size_t ) self . name_sz + 1; }
 
     inline void set_percent ( :: gwp_status_evt_v1 &self, uint32_t percent )

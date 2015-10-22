@@ -57,7 +57,7 @@ GeneralLoader::Reader::~Reader()
 rc_t 
 GeneralLoader::Reader::Read( void * p_buffer, size_t p_size )
 {
-    pLogMsg ( klogInfo, 
+    pLogMsg ( klogDebug, 
              "general-loader: reading $(s) bytes, offset=$(o)", 
              "s=%u,o=%lu", 
              ( unsigned int ) p_size, m_readCount );
@@ -80,7 +80,7 @@ GeneralLoader::Reader::Read( size_t p_size )
         }
     }
     
-    pLogMsg ( klogInfo, "general-loader: reading $(s) bytes", "s=%u", ( unsigned int ) p_size );
+    pLogMsg ( klogDebug, "general-loader: reading $(s) bytes", "s=%u", ( unsigned int ) p_size );
     
     m_readCount += p_size;
     return KStreamReadExactly ( & m_input, m_buffer, p_size );
@@ -198,7 +198,7 @@ GeneralLoader::ReadHeader ( bool& p_packed )
                 }
                 break;
             case GW_REVERSE_ENDIAN:
-                LogMsg ( klogInfo, "general-loader event: Detected reverse endianness (not yet supported)" );
+                LogMsg ( klogErr, "general-loader event: Detected reverse endianness (not yet supported)" );
                 rc = RC ( rcExe, rcFile, rcReading, rcFormat, rcUnsupported );
                 //TODO: apply byte order correction before checking the version number
                 break;

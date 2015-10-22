@@ -64,6 +64,18 @@
 
 namespace RefVariation
 {
+
+#define COUNT_STRAND_NONE_STR           "none"
+#define COUNT_STRAND_COUNTERALIGNED_STR "counteraligned"
+#define COUNT_STRAND_COALIGNED_STR      "coaligned"
+
+    enum EnumCountStrand
+    {
+        COUNT_STRAND_NONE,
+        COUNT_STRAND_COUNTERALIGNED,
+        COUNT_STRAND_COALIGNED
+    };
+
     struct Params
     {
         // command line params
@@ -77,7 +89,7 @@ namespace RefVariation
         size_t thread_count;
         bool calc_coverage;
         char const* input_file;
-        bool reverse_mate;
+        EnumCountStrand count_strand;
     } g_Params =
     {
         "",
@@ -88,7 +100,7 @@ namespace RefVariation
         1,
         false,
         "",
-        false
+        COUNT_STRAND_NONE
     };
 
     class CInputRun
@@ -145,6 +157,7 @@ namespace RefVariation
         VERBOSITY_MORE_DETAILS      = 3
     };
 
+
 #if SECRET_OPTION != 0
     char const OPTION_SECRET[] = "alt-ctrl-shift-f12";
     char const* USAGE_SECRET[] = { "activate secret mode", NULL };
@@ -182,9 +195,12 @@ namespace RefVariation
     char const ALIAS_INPUT_FILE[]  = "i";
     char const* USAGE_INPUT_FILE[] = { "take runs from input file rather than from command line. The file must be in text format, each line should contain three tab-separated values: <run-accession> <run-path> <pileup-stats-path>, the latter two are optional", NULL };
 
-    char const OPTION_REVERSE_MATE[] = "reverse-mate";
-    //char const ALIAS_REVERSE_MATE[]  = "r";
-    char const* USAGE_REVERSE_MATE[] = { "the secondary mate is reversed: \"1\" means \"reversed\", \"0\" means \"not reversed\" (default)", NULL };
+    char const OPTION_COUNT_STRAND[] = "count-strand";
+    //char const ALIAS_COUNT_STRAND[]  = "s";
+    char const* USAGE_COUNT_STRAND[] = { "controls relative orientation of 3' and 5' fragments. "
+        "\""COUNT_STRAND_NONE_STR"\" - do not count (default). "
+        "\""COUNT_STRAND_COUNTERALIGNED_STR"\" - as in Illumina. "
+        "\""COUNT_STRAND_COALIGNED_STR"\" - as in 454 or IonTorrent. ", NULL };
 
     ::OptDef Options[] =
     {
@@ -195,7 +211,7 @@ namespace RefVariation
         { OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false },
         { OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false },
         { OPTION_INPUT_FILE,    ALIAS_INPUT_FILE,    NULL, USAGE_INPUT_FILE,    1, true, false },
-        { OPTION_REVERSE_MATE,  NULL,                NULL, USAGE_REVERSE_MATE,  1, true, false },
+        { OPTION_COUNT_STRAND,  NULL,                NULL, USAGE_COUNT_STRAND,  1, true, false },
 #if SECRET_OPTION != 0
         ,{ OPTION_SECRET,        NULL,                NULL, USAGE_SECRET,        1, true, false }
 #endif
@@ -298,11 +314,17 @@ namespace RefVariation
         size_t alignments_total, size_t alignments_total_positive,
         size_t alignments_matched, size_t alignments_matched_positive) 
     {
-        std::cout
-            << acc
-            << "\t" << alignments_matched << "," << alignments_matched_positive
-            << "\t" << alignments_total << "," << alignments_total_positive
-            << std::endl;
+        std::cout << acc << "\t" << alignments_matched;
+        
+        if ( g_Params.count_strand != COUNT_STRAND_NONE )
+            std::cout << "," << alignments_matched_positive;
+            
+        std::cout << "\t" << alignments_total;
+        
+        if ( g_Params.count_strand != COUNT_STRAND_NONE )
+            std::cout << "," << alignments_total_positive;
+            
+        std::cout << std::endl;
     }
 
     void report_run_coverage ( char const* acc,
@@ -311,11 +333,17 @@ namespace RefVariation
         LOCK* lock_cout) 
     {
         LOCK_GUARD l(*lock_cout);
-        std::cout
-            << acc
-            << "\t" << alignments_matched << "," << alignments_matched_positive
-            << "\t" << alignments_total << "," << alignments_total_positive
-            << std::endl;
+        std::cout << acc << "\t" << alignments_matched;
+        
+        if ( g_Params.count_strand != COUNT_STRAND_NONE )
+            std::cout << "," << alignments_matched_positive;
+            
+        std::cout << "\t" << alignments_total;
+        
+        if ( g_Params.count_strand != COUNT_STRAND_NONE )
+            std::cout << "," << alignments_total_positive;
+            
+        std::cout << std::endl;
     }
 
     int find_alignment_in_pileup_db ( char const* acc_pileup, char const* ref_name,
@@ -695,10 +723,10 @@ namespace RefVariation
             while ( ai.nextAlignment() )
             {
                 ++ alignments_total;
-                // is_negative = ! ( (g_Params.reverse_mate && is_primary_mate ( ai )) ^ ai.getMateIsReversedOrientation() );
 
-                bool is_negative = ai.getIsReversedOrientation();
-                if ( g_Params.reverse_mate && ! is_primary_mate ( ai ) )
+                bool is_negative = g_Params.count_strand != COUNT_STRAND_NONE
+                    && ai.getIsReversedOrientation();
+                if ( g_Params.count_strand == COUNT_STRAND_COUNTERALIGNED && ! is_primary_mate ( ai ) )
                     is_negative = ! is_negative;
 
                 if (is_negative)
@@ -786,8 +814,9 @@ namespace RefVariation
             while ( ai.nextAlignment() )
             {
                 ++ alignments_total;
-                bool is_negative = ai.getIsReversedOrientation();
-                if ( g_Params.reverse_mate && ! is_primary_mate ( ai ) )
+                bool is_negative = g_Params.count_strand != COUNT_STRAND_NONE
+                    && ai.getIsReversedOrientation();
+                if ( g_Params.count_strand == COUNT_STRAND_COUNTERALIGNED && ! is_primary_mate ( ai ) )
                     is_negative = ! is_negative;
 
                 if (is_negative)
@@ -1498,6 +1527,18 @@ namespace RefVariation
     }
 #endif
 
+    char const* find_invalid_character ( char const* str )
+    {
+        char const allowed[] = "ACGTNacgtn.-";
+        for ( size_t i = 0; str [i] != '\0'; ++i )
+        {
+            if ( strchr ( allowed, str[i] ) == NULL )
+                return str + i;
+        }
+
+        return NULL;
+    }
+
     void find_variation_region (int argc, char** argv)
     {
         try
@@ -1526,6 +1567,16 @@ namespace RefVariation
                 // TODO: maybe CArgs should allow for empty option value
                 if (g_Params.query [0] == '-' && g_Params.query [1] == '\0' )
                     g_Params.query = "";
+
+                char const* pInvalid = find_invalid_character ( g_Params.query );
+                if ( pInvalid != NULL )
+                {
+                    std::cerr
+                        << "Error: the given query (" << g_Params.query
+                        << ") contains an invalid character (" << *pInvalid
+                        << ")" << std::endl;
+                    return;
+                }
             }
 
             if (args.GetOptionCount (OPTION_VAR_LEN_ON_REF) == 1)
@@ -1551,18 +1602,32 @@ namespace RefVariation
                 }
             }
 
-            if (args.GetOptionCount (OPTION_REVERSE_MATE) == 1)
+            if (args.GetOptionCount (OPTION_COUNT_STRAND) == 1)
             {
-                g_Params.reverse_mate = args.GetOptionValueUInt<size_t>( OPTION_REVERSE_MATE, 0 ) != 0;
+                char const* val = args.GetOptionValue ( OPTION_COUNT_STRAND, 0 );
+                if ( strcmp (val, COUNT_STRAND_NONE_STR) == 0 )
+                    g_Params.count_strand = COUNT_STRAND_NONE;
+                else if ( strcmp (val, COUNT_STRAND_COUNTERALIGNED_STR) == 0 )
+                    g_Params.count_strand = COUNT_STRAND_COUNTERALIGNED;
+                else if ( strcmp (val, COUNT_STRAND_COALIGNED_STR) == 0 )
+                    g_Params.count_strand = COUNT_STRAND_COALIGNED;
+                else
+                {
+                    std::cerr
+                        << "Error: unrecognized " << OPTION_COUNT_STRAND
+                        << " option value: \"" << val << "\"" << std::endl;
+                    return;
+                }
+
                 if ( args.GetOptionCount (OPTION_COVERAGE) == 0 )
                 {
                     std::cerr
                         << "Warning: "
-                        << OPTION_REVERSE_MATE
+                        << OPTION_COUNT_STRAND
                         << " option has no effect if "
                         << OPTION_COVERAGE << " is not specified"
                         << std::endl;
-                    g_Params.reverse_mate = false;
+                    g_Params.count_strand = COUNT_STRAND_NONE;
                 }
             }
 
@@ -1790,7 +1855,7 @@ extern "C"
         HelpOptionLine (RefVariation::ALIAS_THREADS, RefVariation::OPTION_THREADS, "value", RefVariation::USAGE_THREADS);
         HelpOptionLine (RefVariation::ALIAS_COVERAGE, RefVariation::OPTION_COVERAGE, "", RefVariation::USAGE_COVERAGE);
         HelpOptionLine (RefVariation::ALIAS_INPUT_FILE, RefVariation::OPTION_INPUT_FILE, "string", RefVariation::USAGE_INPUT_FILE);
-        HelpOptionLine (NULL, RefVariation::OPTION_REVERSE_MATE, "value", RefVariation::USAGE_REVERSE_MATE);
+        HelpOptionLine (NULL, RefVariation::OPTION_COUNT_STRAND, "value", RefVariation::USAGE_COUNT_STRAND);
         //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
 #if SECRET_OPTION != 0
         HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);

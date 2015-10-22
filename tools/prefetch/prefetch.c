@@ -53,6 +53,7 @@
 #include <kfs/file.h> /* KFile */
 #include <kfs/gzip.h> /* KFileMakeGzipForRead */
 #include <kfs/subfile.h> /* KFileMakeSubRead */
+#include <kfs/cacheteefile.h> /* KDirectoryMakeCacheTee */
 
 #include <klib/container.h> /* BSTree */
 #include <klib/data-buffer.h> /* KDataBuffer */
@@ -73,6 +74,8 @@
 
 #include <stdio.h> /* printf */
 
+#include "kfile-no-q.h"
+
 #define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, err))
 
 #define DISP_RC2(rc, name, msg) (void)((rc == 0) ? 0 : \
@@ -91,6 +94,7 @@
 #define STS_FIN 3
 
 #define USE_CURL 0
+#define ALLOW_STRIP_QUALS 0
 
 #define rcResolver   rcTree
 static bool NotFoundByResolver(rc_t rc) {
@@ -200,6 +204,9 @@ typedef struct {
     String *ascpMaxRate;
     const char *ascpParams; /* do not free! */
 
+    bool stripQuals; /* this will download file without quality columns */
+    bool eliminateQuals; /* this will download cache file with eliminated quality columns which could filled later */
+    
 #ifdef _DEBUGGING
     const char *textkart;
 #endif
@@ -216,6 +223,8 @@ typedef struct {
 
     Resolved resolved;
     int number;
+    
+    bool isDependency;
 
     Main *main; /* just a pointer, no refcount here, don't release it */
 } Item;
@@ -967,6 +976,7 @@ static rc_t MainDownloadFile(Resolved *self,
     uint64_t prevPos = 0;
 
     assert(self && main);
+    assert(!main->eliminateQuals);
 
     if (rc == 0) {
         STSMSG(STS_DBG, ("creating %s", to));
@@ -985,6 +995,18 @@ static rc_t MainDownloadFile(Resolved *self,
         }
     }
 
+    if (main->stripQuals)
+    {
+        const KFile * kfile;
+        
+        rc = KSraFileNoQuals(self->file, &kfile);
+        if (rc == 0)
+        {
+            KFileRelease(self->file);
+            self->file = kfile;
+        }
+    }
+    
     STSMSG(STS_INFO, ("%S -> %s", self->remote.str, to));
     do {
         bool print = pos - prevPos > 200000000;
@@ -1025,6 +1047,54 @@ static rc_t MainDownloadFile(Resolved *self,
     return rc;
 }
 
+static rc_t MainDownloadCacheFile(Resolved *self,
+                                  Main *main, const char *to, bool elimQuals)
+{
+    rc_t rc = 0;
+    const KFile *out = NULL;
+
+    assert(self && main);
+    assert(!main->stripQuals);
+
+    assert(self->remote.str);
+
+    if (self->file == ((void*)0)) {
+        rc = _KFileOpenRemote(&self->file, main->kns, self->remote.str->addr);
+        if (rc != 0) {
+            PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
+                              "path=%S", self->remote.str));
+            return rc;
+        }
+    }
+    
+    rc = KDirectoryMakeCacheTee(main->dir, &out, self->file, 0, "%s", to);
+    if (rc != 0) {
+        PLOGERR(klogInt, (klogInt, rc, "failed to open cache file for $(path)",
+                          "path=%S", to));
+        return rc;
+    }
+    
+    STSMSG(STS_INFO, ("%S -> %s", self->remote.str, to));
+
+    rc = KSraReadCacheFile( out, elimQuals );
+    if (rc != 0) {
+        PLOGERR(klogInt, (klogInt, rc, "failed to read cache file at $(path)",
+                          "path=%S", to));
+    }
+  
+    RELEASE(KFile, out);
+    
+    if (rc != 0) {
+        return rc;
+    }
+    
+    if (rc == 0) {
+        STSMSG(STS_INFO, ("%s", to));
+    }
+    
+    return rc;
+}
+
 /*  http://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByR.../SRR125365.sra
 anonftp@ftp-private.ncbi.nlm.nih.gov:/sra/sra-instant/reads/ByR.../SRR125365.sra
 */
@@ -1062,7 +1132,7 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *main,
     return aspera_get(main->ascp, main->asperaKey, src, to, &opt);
 }
 
-static rc_t MainDownload(Resolved *self, Main *main) {
+static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
     bool canceled = false;
     rc_t rc = 0;
     KFile *flock = NULL;
@@ -1084,7 +1154,7 @@ static rc_t MainDownload(Resolved *self, Main *main) {
         rc = _KDirectoryMkLockName(main->dir, self->cache, lock, sizeof lock);
     }
 
-    if (rc == 0) {
+    if (rc == 0 && !main->eliminateQuals) {
         rc = _KDirectoryMkTmpName(main->dir, self->cache, tmp, sizeof tmp);
     }
 
@@ -1138,6 +1208,14 @@ static rc_t MainDownload(Resolved *self, Main *main) {
             if (main->forceAscpFail) {
                 rc = 1;
             }
+            else if (main->eliminateQuals) {
+                LOGMSG(klogErr, "Cannot eliminate qualities during fasp download");
+                rc = 1;
+            }
+            else if (main->eliminateQuals) {
+                LOGMSG(klogErr, "Cannot remove QUALITY columns during fasp download");
+                rc = 1;
+            }
             else {
                 rc = MainDownloadAscp(self, main, tmp);
             }
@@ -1172,14 +1250,21 @@ static rc_t MainDownload(Resolved *self, Main *main) {
                     &self->remote.path, &self->remote.str, &self->cache);
             }
             if (rc == 0) {
-                rc = MainDownloadFile(self, main, tmp);
+                /* when eliminateQuals is specified we will try newer algorithm for downloading files via cache, 
+                    but filter out qualities for main file, not for dependencies */
+                if (main->eliminateQuals) {
+                    rc = MainDownloadCacheFile(self, main, self->cache->addr, main->eliminateQuals && !isDependency);
+                }
+                else {
+                    rc = MainDownloadFile(self, main, tmp);
+                }
             }
         }
     }
 
     RELEASE(KFile, flock);
-
-    if (rc == 0) {
+    
+    if (rc == 0 && !main->eliminateQuals) {
         STSMSG(STS_DBG, ("renaming %s -> %S", tmp, self->cache));
         rc = KDirectoryRename(main->dir, true, tmp, self->cache->addr);
         if (rc != 0) {
@@ -1192,7 +1277,7 @@ static rc_t MainDownload(Resolved *self, Main *main) {
         rc = MainDownloaded(main, self->cache->addr);
     }
 
-    if (rc == 0) {
+    if (rc == 0 && !main->eliminateQuals) {
         rc_t rc2 = _KDirectoryCleanCache(main->dir, self->cache);
         if (rc == 0 && rc2 != 0) {
             rc = rc2;
@@ -1200,7 +1285,7 @@ static rc_t MainDownload(Resolved *self, Main *main) {
     }
 
     {
-        rc_t rc2 = _KDirectoryClean(main->dir, self->cache, lock, tmp, rc != 0);
+        rc_t rc2 = _KDirectoryClean(main->dir, self->cache, lock, main->eliminateQuals ? NULL : tmp, rc != 0);
         if (rc == 0 && rc2 != 0) {
             rc = rc2;
         }
@@ -1239,7 +1324,7 @@ static rc_t MainDependenciesList(const Main *self,
 
     STSMSG(STS_DBG, ("Listing '%S's dependencies...", str));
 
-    type = VDBManagerPathType(self->mgr, "%s", path) & ~kptAlias;
+    type = VDBManagerPathType(self->mgr, "%s", resolved->name) & ~kptAlias;
     if (type != kptDatabase) {
         if (type == kptTable) {
             STSMSG(STS_DBG, ("...'%S' is a table", str));
@@ -1251,7 +1336,7 @@ static rc_t MainDependenciesList(const Main *self,
         return 0;
     }
 
-    rc = VDBManagerOpenDBRead(self->mgr, &db, NULL, "%s", path);
+    rc = VDBManagerOpenDBRead(self->mgr, &db, NULL, "%s", resolved->name);
     if (rc != 0) {
         if (rc == SILENT_RC(rcDB, rcMgr, rcOpening, rcDatabase, rcIncorrect)) {
             isDb = false;
@@ -1260,17 +1345,17 @@ static rc_t MainDependenciesList(const Main *self,
         else if (rc ==
             SILENT_RC(rcKFG, rcEncryptionKey, rcRetrieving, rcItem, rcNotFound))
         {
-            STSMSG(STS_TOP, ("Cannot open encrypted file '%s'", path));
+            STSMSG(STS_TOP, ("Cannot open encrypted file '%s'", resolved->name));
             isDb = false;
             rc = 0;
         }
-        DISP_RC2(rc, "Cannot open database", path);
+        DISP_RC2(rc, "Cannot open database", resolved->name);
     }
 
     if (rc == 0 && isDb) {
         bool all = self->check_all || self->force != eForceNo;
         rc = VDatabaseListDependencies(db, deps, !all);
-        DISP_RC2(rc, "VDatabaseListDependencies", path);
+        DISP_RC2(rc, "VDatabaseListDependencies", resolved->name);
     }
 
     RELEASE(VDatabase, db);
@@ -1687,7 +1772,7 @@ static rc_t ItemDownload(Item *item) {
         }
         else {
             STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, self->name));
-            rc = MainDownload(self, item->main);
+            rc = MainDownload(self, item->main, item->isDependency);
             if (rc == 0) {
                 STSMSG(STS_TOP,
                     ("%d) '%s' was downloaded successfully", n, self->name));
@@ -1837,6 +1922,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
 
                 ditem->desc = ncbiAcc;
                 ditem->main = item->main;
+                ditem->isDependency = true;
 
                 ResolvedReset(&ditem->resolved, eRunTypeDownload);
 
@@ -2205,7 +2291,7 @@ static rc_t ItemDownloadVdbcache(Item *item) {
      /* ignore fasp transport request while ascp vdbcache address is unknown */
         item->main->noHttp = false;
 
-        rc = MainDownload(&item->resolved, item->main);
+        rc = MainDownload(&item->resolved, item->main, item->isDependency);
         if (rc == 0) {
             if (local && StringCompare(local, cache) != 0) {
                 STSMSG(STS_DBG, ("Removing '%S'", local));
@@ -2239,7 +2325,7 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
         assert(item->main);
         rc = _VDBManagerSetDbGapCtx(item->main->mgr, resolved->resolver);
         type = VDBManagerPathType
-            (item->main->mgr, "%s", resolved->path.str->addr) & ~kptAlias;
+            (item->main->mgr, "%s", resolved->name) & ~kptAlias;
         if (type != kptDatabase) {
             if (type == kptTable) {
                  STSMSG(STS_DBG, ("...'%S' is a table", resolved->path.str));
@@ -2498,6 +2584,18 @@ static const char* SIZE_USAGE[] = {
     "maximum file size to download in KB (exclusive).",
     "Default: " DEFAULT_MAX_FILE_SIZE, NULL };
 
+#if ALLOW_STRIP_QUALS
+#define STRIP_QUALS_OPTION "strip-quals"
+#define STRIP_QUALS_ALIAS NULL
+static const char* STRIP_QUALS_USAGE[] =
+{ "remove QUALITY column from all tables", NULL };
+#endif
+
+#define ELIM_QUALS_OPTION "eliminate-quals"
+#define ELIM_QUALS_ALIAS NULL
+static const char* ELIM_QUALS_USAGE[] =
+{ "don't download QUALITY column", NULL };
+
 #ifdef _DEBUGGING
 #define TEXTKART_OPTION "text-kart"
 static const char* TEXTKART_USAGE[] =
@@ -2506,23 +2604,27 @@ static const char* TEXTKART_USAGE[] =
 
 static OptDef Options[] = {
     /*                                                    needs_value required*/
-    { FORCE_OPTION    , FORCE_ALIAS    , NULL, FORCE_USAGE , 1, true, false }
-   ,{ TRANS_OPTION    , TRASN_ALIAS    , NULL, TRANS_USAGE , 1, true, false }
-   ,{ LIST_OPTION     , LIST_ALIAS     , NULL, LIST_USAGE  , 1, false,false }
-   ,{ NM_L_OPTION     , NM_L_ALIAS     , NULL, NM_L_USAGE  , 1, false,false }
-   ,{ SZ_L_OPTION     , SZ_L_ALIAS     , NULL, SZ_L_USAGE  , 1, false,false }
-   ,{ ROWS_OPTION     , ROWS_ALIAS     , NULL, ROWS_USAGE  , 1, true, false }
-   ,{ MINSZ_OPTION    , MINSZ_ALIAS    , NULL, MINSZ_USAGE , 1, true ,false }
-   ,{ SIZE_OPTION     , SIZE_ALIAS     , NULL, SIZE_USAGE  , 1, true ,false }
-   ,{ ORDR_OPTION     , ORDR_ALIAS     , NULL, ORDR_USAGE  , 1, true ,false }
-   ,{ ASCP_OPTION     , ASCP_ALIAS     , NULL, ASCP_USAGE  , 1, true ,false }
-   ,{ ASCP_PAR_OPTION , ASCP_PAR_ALIAS , NULL, ASCP_PAR_USAGE, 1, true ,false }
-   ,{ HBEAT_OPTION    , HBEAT_ALIAS    , NULL, HBEAT_USAGE , 1, true, false }
-   ,{ FAIL_ASCP_OPTION, FAIL_ASCP_ALIAS, NULL, FAIL_ASCP_USAGE, 1, false, false}
-#ifdef _DEBUGGING
-   ,{ TEXTKART_OPTION , NULL           , NULL, TEXTKART_USAGE , 1, true , false}
+    { FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
+   ,{ TRANS_OPTION       , TRASN_ALIAS       , NULL, TRANS_USAGE , 1, true, false }
+   ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
+   ,{ NM_L_OPTION        , NM_L_ALIAS        , NULL, NM_L_USAGE  , 1, false,false }
+   ,{ SZ_L_OPTION        , SZ_L_ALIAS        , NULL, SZ_L_USAGE  , 1, false,false }
+   ,{ ROWS_OPTION        , ROWS_ALIAS        , NULL, ROWS_USAGE  , 1, true, false }
+   ,{ MINSZ_OPTION       , MINSZ_ALIAS       , NULL, MINSZ_USAGE , 1, true ,false }
+   ,{ SIZE_OPTION        , SIZE_ALIAS        , NULL, SIZE_USAGE  , 1, true ,false }
+   ,{ ORDR_OPTION        , ORDR_ALIAS        , NULL, ORDR_USAGE  , 1, true ,false }
+   ,{ ASCP_OPTION        , ASCP_ALIAS        , NULL, ASCP_USAGE  , 1, true ,false }
+   ,{ ASCP_PAR_OPTION    , ASCP_PAR_ALIAS    , NULL, ASCP_PAR_USAGE, 1, true ,false }
+   ,{ HBEAT_OPTION       , HBEAT_ALIAS       , NULL, HBEAT_USAGE , 1, true, false }
+   ,{ FAIL_ASCP_OPTION   , FAIL_ASCP_ALIAS   , NULL, FAIL_ASCP_USAGE, 1, false, false}
+#if ALLOW_STRIP_QUALS
+   ,{ STRIP_QUALS_OPTION , STRIP_QUALS_ALIAS , NULL, STRIP_QUALS_USAGE , 1, false, false }
 #endif
-   ,{ CHECK_ALL_OPTION, CHECK_ALL_ALIAS, NULL, CHECK_ALL_USAGE, 1, false, false}
+   ,{ ELIM_QUALS_OPTION  , ELIM_QUALS_ALIAS  , NULL, ELIM_QUALS_USAGE , 1, false, false }
+#ifdef _DEBUGGING
+   ,{ TEXTKART_OPTION    , NULL              , NULL, TEXTKART_USAGE , 1, true , false}
+#endif
+   ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
 };
 
 static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
@@ -2828,6 +2930,38 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             }
         }
 
+#if ALLOW_STRIP_QUALS
+/* STRIP_QUALS_OPTION */
+        rc = ArgsOptionCount(self->args, STRIP_QUALS_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" STRIP_QUALS_OPTION "' argument");
+            break;
+        }
+        
+        if (pcount > 0) {
+            self->stripQuals = true;
+        }
+#endif
+        
+/* ELIM_QUALS_OPTION */
+        rc = ArgsOptionCount(self->args, ELIM_QUALS_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" ELIM_QUALS_OPTION "' argument");
+            break;
+        }
+        
+        if (pcount > 0) {
+            self->eliminateQuals = true;
+        }
+
+#if ALLOW_STRIP_QUALS
+        if (self->stripQuals && self->eliminateQuals) {
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+            LOGERR(klogErr, rc, "Cannot set both '" STRIP_QUALS_OPTION "' and '" ELIM_QUALS_OPTION "'");
+            break;
+        }
+#endif
+        
 #ifdef _DEBUGGING
 /* TEXTKART_OPTION */
         rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);

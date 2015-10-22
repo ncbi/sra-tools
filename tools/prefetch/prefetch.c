@@ -1396,6 +1396,9 @@ static rc_t _ItemSetResolverAndAssessionInResolved(Item *item,
                     DISP_RC(rc, "KRepositoryMakeResolver");
                     return rc;
                 }
+                else {
+                    VResolverCacheEnable(resolved->resolver, vrAlwaysEnable);
+                }
             }
             else {
                 PLOGERR(klogErr, (klogErr, rc,

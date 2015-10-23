@@ -120,6 +120,7 @@ static const char * spotgroup_usage[] = { "show spotgroups", NULL };
 /*static const char * sraschema_usage[] = { "force use of dflt. sra-schema", NULL }; */
 static const char * merge_ranges_usage[] = { "merge and sort row-ranges", NULL };
 static const char * spread_usage[] = { "show spread of integer values", NULL };
+static const char * slice_usage[] = { "find a slice of given depth", NULL };
 
 OptDef DumpOptions[] =
 {
@@ -168,7 +169,8 @@ OptDef DumpOptions[] =
 	{ OPTION_SPOTGROUPS, NULL, NULL, spotgroup_usage, 1, false, false },
 	/*{ OPTION_SRASCHEMA, NULL, NULL, sraschema_usage, 1, false, false }, */
 	{ OPTION_MERGE_RANGES, NULL, NULL, merge_ranges_usage, 1, false, false },
-	{ OPTION_SPREAD, NULL, NULL, spread_usage, 1, false, false }
+	{ OPTION_SPREAD, NULL, NULL, spread_usage, 1, false, false },
+	{ OPTION_SLICE, NULL, NULL, slice_usage, 1, true, false }
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -2273,9 +2275,11 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( rc == 0 )
                 {
                     if ( ctx->phase > 0 )
-                        rc = vdi_bin_phase( ctx, args );
+                        rc = vdi_bin_phase( ctx, args ); /* vdb-dump-bin.c */
                     else if ( ctx->diff )
-						rc = diff_files( args );
+						rc = diff_files( args ); /* above calls into vdb-dump-str.c */
+					else if ( ctx->slice_depth > 0 )
+						rc = find_slice( ctx, args ); /* vdb-dump-str.c */
 					else
                         rc = vdm_main( ctx, args );
 						

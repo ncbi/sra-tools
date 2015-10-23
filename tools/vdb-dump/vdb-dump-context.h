@@ -84,6 +84,7 @@ extern "C" {
 /*#define OPTION_SRASCHEMA         "sraschema"*/
 #define OPTION_MERGE_RANGES      "merge-ranges"
 #define OPTION_SPREAD      		 "spread"
+#define OPTION_SLICE      		 "slice"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -155,6 +156,7 @@ typedef struct dump_context
     uint16_t indented_line_len;
     uint16_t phase;
     uint32_t generic_idx;
+	uint32_t slice_depth;
     size_t cur_cache_size;
     size_t output_buffer_size;
     dump_format_t format;

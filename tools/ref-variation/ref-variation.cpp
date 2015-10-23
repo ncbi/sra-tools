@@ -55,6 +55,31 @@
 #define LOCK_GUARD std::lock_guard<std::mutex>
 #define LOCK std::mutex
 
+#if 0 // TODO: get rid of single-threaded and multithreaded
+      // function duplication in this file by using NULL-pointer
+      // instead of real mutexes in the singlethreaded code
+template <class TLockable> class CLockGuardPtr
+{
+public:
+    CLockGuardPtr ( TLockable* plock ) : m_plock (plock)
+    {
+        if ( m_plock != NULL )
+            m_plock -> lock()
+    }
+    ~CLockGuardPtr ( )
+    {
+        if ( m_plock != NULL )
+            m_plock -> unlock();
+    }
+
+    CLockGuardPtr( CLockGuardPtr<TLockable> const& x );
+    CLockGuardPtr<TLockable>& operator=( CLockGuardPtr<TLockable> const& x );
+
+private:
+    TLockable* m_plock;
+};
+#endif
+
 #else
 
 #define LOCK_GUARD KProc::CLockGuard<KProc::CKLock>
@@ -314,17 +339,22 @@ namespace RefVariation
         size_t alignments_total, size_t alignments_total_positive,
         size_t alignments_matched, size_t alignments_matched_positive) 
     {
-        std::cout << acc << "\t" << alignments_matched;
+        if ( g_Params.calc_coverage )
+        {
+            std::cout << acc << "\t" << alignments_matched;
         
-        if ( g_Params.count_strand != COUNT_STRAND_NONE )
-            std::cout << "," << alignments_matched_positive;
+            if ( g_Params.count_strand != COUNT_STRAND_NONE )
+                std::cout << "," << alignments_matched_positive;
             
-        std::cout << "\t" << alignments_total;
+            std::cout << "\t" << alignments_total;
         
-        if ( g_Params.count_strand != COUNT_STRAND_NONE )
-            std::cout << "," << alignments_total_positive;
+            if ( g_Params.count_strand != COUNT_STRAND_NONE )
+                std::cout << "," << alignments_total_positive;
             
-        std::cout << std::endl;
+            std::cout << std::endl;
+        }
+        else if ( alignments_matched > 0 )
+            std::cout << acc << std::endl;
     }
 
     void report_run_coverage ( char const* acc,
@@ -332,21 +362,30 @@ namespace RefVariation
         size_t alignments_matched, size_t alignments_matched_positive,
         LOCK* lock_cout) 
     {
-        LOCK_GUARD l(*lock_cout);
-        std::cout << acc << "\t" << alignments_matched;
+        if ( g_Params.calc_coverage )
+        {
+            LOCK_GUARD l(*lock_cout);
+            std::cout << acc << "\t" << alignments_matched;
         
-        if ( g_Params.count_strand != COUNT_STRAND_NONE )
-            std::cout << "," << alignments_matched_positive;
+            if ( g_Params.count_strand != COUNT_STRAND_NONE )
+                std::cout << "," << alignments_matched_positive;
             
-        std::cout << "\t" << alignments_total;
+            std::cout << "\t" << alignments_total;
         
-        if ( g_Params.count_strand != COUNT_STRAND_NONE )
-            std::cout << "," << alignments_total_positive;
+            if ( g_Params.count_strand != COUNT_STRAND_NONE )
+                std::cout << "," << alignments_total_positive;
             
-        std::cout << std::endl;
+            std::cout << std::endl;
+        }
+        else if ( alignments_matched > 0 )
+        {
+            LOCK_GUARD l(*lock_cout);
+            std::cout << acc << std::endl;
+        }
     }
 
-    int find_alignment_in_pileup_db ( char const* acc_pileup, char const* ref_name,
+    int find_alignment_in_pileup_db ( char const* acc,
+                char const* acc_pileup, char const* ref_name,
                 KSearch::CVRefVariation const& obj, size_t bases_start )
     {
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
@@ -388,14 +427,13 @@ namespace RefVariation
             }
             if ( !found )
             {
+                report_run_coverage ( acc, 0, 0, 0, 0 );
                 return PILEUP_DEFINITELY_NOT_FOUND;
             }
 
-            //int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
+            int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
             //int64_t indel_check_cnt = indel_cnt > 0 ? indel_cnt : -indel_cnt;
-
-            // check depth > 0 for every position of the region
-            // TODO: also count total alignment count and matches for the case of pure mismatch
+            size_t alignments_total = (size_t)((uint32_t)-1);
 
             for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + obj.GetVarLenOnRef() ); ++pos )
             {
@@ -408,36 +446,68 @@ namespace RefVariation
 
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                         std::cout << "OUT OF BOUNDS! filtering out" << std::endl;
+
+                    report_run_coverage ( acc, 0, 0, 0, 0 );
                     return PILEUP_DEFINITELY_NOT_FOUND; // went beyond the end of db, probably, it's a bug in db
                 }
-#if 0 // Temporarily turned off. Needs to be revised
-                if ( indel_cnt == 0 ) // pure mismatch optimization
-                {
-                    uint32_t mismatch[4];
-                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], mismatch, sizeof mismatch );
-
-                    assert ( count == 0 || count == 4 );
-
-                    if ( count == 0 ||
-                        mismatch [base2na_to_index (obj.GetVariation()[pos - ref_pos])] == 0 )
-                    {
-                        return PILEUP_DEFINITELY_NOT_FOUND;
-                    }
-                }
-#endif
 
                 uint32_t depth;
                 uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
+                if ( count == 0)
+                    depth = 0;
 
-                if ( count == 0 || depth == 0 )
+                if ( depth == 0 )
                 {
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
                         std::cout << "depth=0 at the ref_pos=" << pos
                             << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
                     }
+                    report_run_coverage ( acc, 0, 0, 0, 0 );
                     return PILEUP_DEFINITELY_NOT_FOUND;
                 }
+
+                // if OPTION_COUNT_STRAND != none - cannot report any non-zero counts,
+                // so no further optimization is possible
+                if ( g_Params.count_strand != COUNT_STRAND_NONE )
+                    continue;
+
+                if ( depth < alignments_total )
+                    alignments_total = depth;
+
+                if ( indel_cnt == 0 ) // pure mismatch optimization
+                {
+                    // 1. for query of length == 1 we can return PILEUP_DEFINITELY_FOUND
+                    //    and produce output (for total count can use DEPTH for -c option)
+
+                    uint32_t mismatch[4];
+                    count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], mismatch, sizeof mismatch );
+                    assert ( count == 0 || count == 4 );
+
+                    size_t alignments_matched = count == 0 ? 0 :
+                        mismatch [base2na_to_index(obj.GetVariation()[pos - ref_pos])];
+
+                    if ( obj.GetVarLenOnRef() == 1 && obj.GetVarSize() == 1 )
+                    {
+                        report_run_coverage ( acc, alignments_total, 0, alignments_matched, 0 );
+                        return alignments_matched == 0 ?
+                            PILEUP_DEFINITELY_NOT_FOUND : PILEUP_DEFINITELY_FOUND;
+                    }
+
+                    // 2. if at least one position has zero MISMATCH_COUNT - PILEUP_DEFINITELY_NOT_FOUND
+                    //    for the case when no -c option is specified
+                    //    otherwise we have to go into SRR to get actual
+                    //    alignments_total or alignments_matched
+
+                    else if ( alignments_matched == 0 && ! g_Params.calc_coverage )
+                    {
+                        std::cout << acc << std::endl;
+                        return PILEUP_DEFINITELY_NOT_FOUND;
+                    }
+                }
+
+                // TODO: see if INSERTION_COUNTS or DELETION_COUNT can be also used
+                // for optimizations (at least for the case of lenght=1 indels).
             }
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
@@ -452,27 +522,7 @@ namespace RefVariation
                 //char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
             }
 
-            int ret;
-
-#if 0 // Temporarily turned off. Needs to be revised
-            if ( indel_cnt == 0 && ! g_Params.calc_coverage )
-            {
-                // if we reached this point in the case of pure mismatch
-                // this means this run definitely has some hits.
-                // due to quantization of pileup stats counters we
-                // cannot rely on the exact value of those counters
-                // So, we can only report this SRR in the case when we aren't
-                // calculating a coverage. For the coverage we have to
-                // look into SRR itself anyway.
-
-                std::cout << p << std::endl; // report immediately
-                ret = PILEUP_DEFINITELY_FOUND;
-            }
-            else
-#endif
-                ret = PILEUP_MAYBE_FOUND;
-
-            return ret;
+            return PILEUP_MAYBE_FOUND;
         }
         catch ( Utils::CErrorMsg const& e )
         {
@@ -496,7 +546,8 @@ namespace RefVariation
         }
     }
 
-    int find_alignment_in_pileup_db_mt ( char const* acc_pileup, char const* ref_name,
+    int find_alignment_in_pileup_db_mt ( char const* acc,
+                char const* acc_pileup, char const* ref_name,
                 KSearch::CVRefVariation const* pobj, size_t bases_start,
                 LOCK* lock_cout, size_t thread_num )
     {
@@ -546,12 +597,15 @@ namespace RefVariation
                     << ", id_count=" << id_count << " " <<  std::endl;
             }
             if ( !found )
+            {
+                report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
                 return PILEUP_DEFINITELY_NOT_FOUND;
+            }
 
-            //int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
+            int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
             //int64_t indel_check_cnt = indel_cnt > 0 ? indel_cnt : -indel_cnt;
+            size_t alignments_total = (size_t)((uint32_t)-1);
 
-            // check depth > 0 for every position of the region
             for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + obj.GetVarLenOnRef() ); ++pos )
             {
                 if ( pos + ref_id_start >= id_first + (int64_t)row_count )
@@ -568,28 +622,17 @@ namespace RefVariation
                             << "[" << thread_num << "] "
                             << "OUT OF BOUNDS! filtering out" << std::endl;
                     }
+
+                    report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
                     return PILEUP_DEFINITELY_NOT_FOUND; // went beyond the end of db, probably, it's a bug in db
                 }
-#if 0 // Temporarily turned off. Needs to be revised
-                if ( indel_cnt == 0 ) // pure mismatch optimization
-                {
-                    uint32_t mismatch[4];
-                    uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], mismatch, sizeof mismatch );
-
-                    assert ( count == 0 || count == 4 );
-
-                    if ( count == 0 ||
-                        mismatch [base2na_to_index (obj.GetVariation()[pos - ref_pos])] == 0 )
-                    {
-                        return PILEUP_DEFINITELY_NOT_FOUND;
-                    }
-                }
-#endif
 
                 uint32_t depth;
                 uint32_t count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DEPTH], & depth, sizeof depth );
+                if ( count == 0)
+                    depth = 0;
 
-                if ( count == 0 || depth == 0 )
+                if ( depth == 0 )
                 {
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
@@ -599,8 +642,52 @@ namespace RefVariation
                             << "depth=0 at the ref_pos=" << pos
                             << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
                     }
+                    report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
                     return PILEUP_DEFINITELY_NOT_FOUND;
                 }
+
+                // if OPTION_COUNT_STRAND != none - cannot report any non-zero counts,
+                // so no further optimization is possible
+                if ( g_Params.count_strand != COUNT_STRAND_NONE )
+                    continue;
+
+                if ( depth < alignments_total )
+                    alignments_total = depth;
+
+                if ( indel_cnt == 0 ) // pure mismatch optimization
+                {
+                    // 1. for query of length == 1 we can return PILEUP_DEFINITELY_FOUND
+                    //    and produce output (for total count can use DEPTH for -c option)
+
+                    uint32_t mismatch[4];
+                    count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], mismatch, sizeof mismatch );
+                    assert ( count == 0 || count == 4 );
+
+                    size_t alignments_matched = count == 0 ? 0 :
+                        mismatch [base2na_to_index(obj.GetVariation()[pos - ref_pos])];
+
+                    if ( obj.GetVarLenOnRef() == 1 && obj.GetVarSize() == 1 )
+                    {
+                        report_run_coverage ( acc, alignments_total, 0, alignments_matched, 0, lock_cout );
+                        return alignments_matched == 0 ?
+                            PILEUP_DEFINITELY_NOT_FOUND : PILEUP_DEFINITELY_FOUND;
+                    }
+
+                    // 2. if at least one position has zero MISMATCH_COUNT - PILEUP_DEFINITELY_NOT_FOUND
+                    //    for the case when no -c option is specified
+                    //    otherwise we have to go into SRR to get actual
+                    //    alignments_total or alignments_matched
+
+                    else if ( alignments_matched == 0 && ! g_Params.calc_coverage )
+                    {
+                        LOCK_GUARD l(*lock_cout);
+                        std::cout << acc << std::endl;
+                        return PILEUP_DEFINITELY_NOT_FOUND;
+                    }
+                }
+
+                // TODO: see if INSERTION_COUNTS or DELETION_COUNT can be also used
+                // for optimizations (at least for the case of lenght=1 indels).
             }
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
@@ -620,27 +707,7 @@ namespace RefVariation
                 //char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
             }
 
-            int ret;
-
-#if 0 // Temporarily turned off. Needs to be revised
-            if ( indel_cnt == 0 && ! g_Params.calc_coverage )
-            {
-                // if we reached this point in the case of pure mismatch
-                // this means this run definitely has some hits.
-                // due to quantization of pileup stats counters we
-                // cannot rely on the exact value of those counters
-                // So, we can only report this SRR in the case when we aren't
-                // calculating a coverage. For the coverage we have to
-                // look into SRR itself anyway.
-
-                std::cout << p << std::endl; // report immediately
-                ret = PILEUP_DEFINITELY_FOUND;
-            }
-            else
-#endif
-                ret = PILEUP_MAYBE_FOUND;
-
-            return ret;
+            return PILEUP_MAYBE_FOUND;
         }
         catch ( Utils::CErrorMsg const& e )
         {
@@ -753,14 +820,9 @@ namespace RefVariation
                 }
             }
 
-            if ( g_Params.calc_coverage )
-            {
-                report_run_coverage ( acc,
-                    alignments_total, alignments_total - alignments_total_negative,
-                    alignments_matched, alignments_matched - alignments_matched_negative );
-            }
-            else if ( alignments_matched > 0 )
-                std::cout << acc << std::endl;
+            report_run_coverage ( acc,
+                alignments_total, alignments_total - alignments_total_negative,
+                alignments_matched, alignments_matched - alignments_matched_negative );
         }
         catch ( ngs::ErrorMsg const& e )
         {
@@ -770,8 +832,7 @@ namespace RefVariation
 
             if ( strstr (e.what(), "Reference not found") == e.what() )
             {
-                if ( g_Params.calc_coverage )
-                    report_run_coverage ( acc, 0, 0, 0, 0 );
+                report_run_coverage ( acc, 0, 0, 0, 0 );
 
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
@@ -846,18 +907,10 @@ namespace RefVariation
                 }
             }
 
-            if ( g_Params.calc_coverage )
-            {
-                report_run_coverage ( acc,
-                    alignments_total, alignments_total - alignments_total_negative,
-                    alignments_matched, alignments_matched - alignments_matched_negative,
-                    lock_cout );
-            }
-            else if ( alignments_matched > 0 )
-            {
-                LOCK_GUARD l(*lock_cout);
-                std::cout << acc << std::endl;
-            }
+            report_run_coverage ( acc,
+                alignments_total, alignments_total - alignments_total_negative,
+                alignments_matched, alignments_matched - alignments_matched_negative,
+                lock_cout );
         }
         catch ( ngs::ErrorMsg const& e )
         {
@@ -867,8 +920,7 @@ namespace RefVariation
 
             if ( strstr (e.what(), "Reference not found") == e.what() )
             {
-                if ( g_Params.calc_coverage )
-                    report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
+                report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
 
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
@@ -902,16 +954,12 @@ namespace RefVariation
             pileup_path = acc_pileup;
         }
 
-        int res = find_alignment_in_pileup_db ( pileup_path, ref_name, obj, bases_start );
+        int res = find_alignment_in_pileup_db ( acc, pileup_path, ref_name, obj, bases_start );
 
         if ( res == PILEUP_MAYBE_FOUND )
         {
             find_alignments_in_run_db ( acc, path, ref_name, obj, bases_start,
                 variation, var_size );
-        }
-        else if ( res == PILEUP_DEFINITELY_NOT_FOUND && g_Params.calc_coverage )
-        {
-            report_run_coverage ( acc, 0, 0, 0, 0 );
         }
     }
 
@@ -933,17 +981,13 @@ namespace RefVariation
             pileup_path = acc_pileup;
         }
 
-        int res = find_alignment_in_pileup_db_mt ( pileup_path, ref_name,
+        int res = find_alignment_in_pileup_db_mt ( acc, pileup_path, ref_name,
             pobj, bases_start, lock_cout, thread_num );
 
         if ( res == PILEUP_MAYBE_FOUND )
         {
             find_alignments_in_run_db_mt( acc, path, ref_name, pobj, bases_start,
                 variation, var_size, lock_cout, thread_num );
-        }
-        else if ( res == PILEUP_DEFINITELY_NOT_FOUND && g_Params.calc_coverage )
-        {
-            report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
         }
     }
 

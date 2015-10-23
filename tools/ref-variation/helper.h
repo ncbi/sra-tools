@@ -565,6 +565,10 @@ namespace KProc
         void Lock ();
         void Unlock ();
 
+        // for compatibility with standard library
+        void lock();
+        void unlock();
+
     private:
         void Clone(CKLock const& x);
         ::KLock* m_pSelf;
@@ -575,11 +579,11 @@ namespace KProc
     public:
         CLockGuard ( TLockable & lock ) : m_lock (lock)
         {
-            m_lock.Lock();
+            m_lock.lock();
         }
         ~CLockGuard ( )
         {
-            m_lock.Unlock();
+            m_lock.unlock();
         }
 
         CLockGuard( CLockGuard<TLockable> const& x );

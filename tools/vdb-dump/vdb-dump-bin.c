@@ -1333,8 +1333,8 @@ static rc_t find_slice_in_ref( const p_dump_context ctx, const VTable * ref_tab,
 		uint32_t col_idx[ 5 ];
 		char seq_id[ 512 ];
 		uint32_t cgraph_len;
-		int64_t first, row;
-		uint64_t count;
+		int64_t first = 0, row = 0;
+		uint64_t count = 0;
 		const uint8_t * cgraph_value;
 		bool done = false;
 		

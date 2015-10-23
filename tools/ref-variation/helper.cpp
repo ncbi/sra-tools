@@ -1354,4 +1354,13 @@ namespace KProc
         if (rc)
             throw Utils::CErrorMsg(rc, "KLockUnlock");
     }
+
+    void CKLock::lock ()
+    {
+        Lock();
+    }
+    void CKLock::unlock ()
+    {
+        Unlock();
+    }
 }

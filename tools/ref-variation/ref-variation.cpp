@@ -591,8 +591,7 @@ namespace RefVariation
         }
 
         ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( path && path[0] ? path : acc );
-
-        try
+        if ( run.hasReference ( ref_name ) )
         {
             ngs::Reference reference = run.getReference( ref_name );
             ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
@@ -639,28 +638,19 @@ namespace RefVariation
                 alignments_matched, alignments_matched - alignments_matched_negative,
                 lock_cout );
         }
-        catch ( ngs::ErrorMsg const& e )
+        else
         {
-            // TODO: this ugly try-catch is here because
-            // we can't effectively (non-linearly and with no exceptions thrown)
-            // check if the read collection has the given reference in it
-
-            if ( strstr (e.what(), "Reference not found") == e.what() )
+            if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             {
-                report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
-
-                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
-                {
-                    LOCK_GUARD l(*lock_cout);
-                    std::cout
-                        << "[" << thread_num << "] "
-                        << "reference " << ref_name
-                        << " NOT FOUND in " << acc
-                        << ", skipping" << std::endl;
-                }
+                LOCK_GUARD l(*lock_cout);
+                std::cout
+                    << "[" << thread_num << "] "
+                    << "reference " << ref_name
+                    << " NOT FOUND in " << acc
+                    << ", skipping" << std::endl;
             }
-            else
-                throw;
+
+            report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
         }
     }
 

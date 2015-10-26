@@ -35,7 +35,6 @@ INT_TOOLS = \
 EXT_TOOLS = \
 	sra-pileup \
 	sam-dump
-#	sam-dump2
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -88,6 +87,7 @@ clean: stdclean
 TOOL_SRC = \
 	dyn_string \
 	cmdline_cmn \
+	out_redir \
 	perf_log \
 	reref \
 	cg_tools \
@@ -116,28 +116,6 @@ TOOL_LIB = \
 $(BINDIR)/sra-pileup: $(TOOL_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(TOOL_LIB)
 
-#-------------------------------------------------------------------------------
-# sam-dump2
-#
-SAMDUMP2_SRC = \
-	cmdline_cmn \
-	writer \
-	sam-dump
-
-SAMDUMP2_OBJ = \
-	$(addsuffix .$(OBJX),$(SAMDUMP2_SRC))
-
-SAMDUMP2_LIB = \
-	-lkapp \
-	-sncbi-vdb \
-	-lm
-
-ifdef NCBI
-CFLAGS += -DNCBI
-endif
-
-$(BINDIR)/sam-dump2: $(SAMDUMP2_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SAMDUMP2_LIB)
 
 #-------------------------------------------------------------------------------
 # sam-dump

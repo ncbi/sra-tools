@@ -28,6 +28,7 @@
 
 #include "ref_regions.h"
 #include "cmdline_cmn.h"
+#include "out_redir.h"
 #include "pileup_options.h"
 #include "dyn_string.h"
 #include "reref.h"
@@ -418,7 +419,7 @@ ver_t CC KAppVersion ( void )
 
 /* =========================================================================================== */
 
-
+/*
 static rc_t CC BufferedWriter ( void* self, const char* buffer, size_t bufsize, size_t* num_writ )
 {
     rc_t rc = 0;
@@ -512,7 +513,7 @@ static void release_stdout_redirection( void )
     }
     g_out_writer.org_writer = NULL;
 }
-
+*/
 
 static rc_t CC write_to_FILE( void *f, const char *buffer, size_t bytes, size_t *num_writ )
 {
@@ -1568,7 +1569,7 @@ rc_t CC KMain( int argc, char *argv [] )
     {
         Args * args;
 
-        KLogHandlerSetStdErr();
+        /* KLogHandlerSetStdErr(); */
         rc = ArgsMakeAndHandle( &args, argc, argv, 2,
             MyOptions, sizeof MyOptions / sizeof MyOptions [ 0 ],
             CommonOptions_ptr(), CommonOptions_count() );
@@ -1581,7 +1582,21 @@ rc_t CC KMain( int argc, char *argv [] )
                 rc = get_pileup_options( args, &options );
                 if ( rc == 0 )
                 {
-                    options.skiplist = NULL;
+					out_redir redir; /* from out_redir.h */
+					enum out_redir_mode mode;
+
+					options.skiplist = NULL;
+					
+					if ( options.cmn.gzip_output )
+						mode = orm_gzip;
+					else if ( options.cmn.bzip_output )
+						mode = orm_bzip2;
+					else
+						mode = orm_uncompressed;
+
+					rc = init_out_redir( &redir, mode, options.cmn.output_file, 32 * 1024 ); /* from out_redir.c */
+					
+					/*
                     if ( options.cmn.output_file != NULL )
                     {
                         rc = set_stdout_to( options.cmn.gzip_output,
@@ -1589,7 +1604,8 @@ rc_t CC KMain( int argc, char *argv [] )
                                             options.cmn.output_file,
                                             32 * 1024 );
                     }
-
+					*/
+					
                     if ( rc == 0 )
                     {
                         if ( options.function == sra_pileup_report_ref ||
@@ -1613,9 +1629,12 @@ rc_t CC KMain( int argc, char *argv [] )
                         }
                     }
 
+					/*
                     if ( options.cmn.output_file != NULL )
                         release_stdout_redirection();
-
+					*/
+					release_out_redir( &redir ); /* from out_redir.c */
+					
                     if ( options.skiplist != NULL )
                         skiplist_release( options.skiplist );
                 }

@@ -610,8 +610,8 @@ namespace RefVariation
                     ++ alignments_total_negative;
 
                 int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-                ngs::StringRef bases = ai.getFragmentBases( align_pos, var_size );
-                bool match = bases.size() >= var_size && strncmp (variation, bases.data(), var_size) == 0;
+                ngs::StringRef bases = ai.getAlignedFragmentBases ();
+                bool match = bases.size() + align_pos >= var_size && strncmp (variation, bases.data() + align_pos, var_size) == 0;
                 if ( match )
                 {
                     ++ alignments_matched;
@@ -627,7 +627,7 @@ namespace RefVariation
                         << "[" << thread_num << "] "
                         << "id=" << ai.getAlignmentId ()
                         << ": "
-                        << bases
+                        << bases.toString ( align_pos, var_size )
                         << (match ? " MATCH!" : "")
                         << std::endl;
                 }
@@ -1189,7 +1189,7 @@ namespace RefVariation
         ngs::Alignment align = read_coll.getAlignment("SRR1597772.PA.6");
 
         ngs::String ref_str = ref.getReferenceBases( ref_pos, stop - ref_pos );
-        ngs::StringRef align_str = align.getFragmentBases();
+        ngs::StringRef align_str = align.getAlignedFragmentBases();
 
         std::cout
             << "ref: " << ref_str << std::endl
@@ -1206,7 +1206,8 @@ namespace RefVariation
                 << ref_pos << " "
                 << ref_base
                 << " (" << (int32_t)align_pos << ", " << range_len << ") "
-                << align.getFragmentBases( align_pos, range_len == 0 ? 1 : range_len )
+                // TODO: bases getAlignedFragmentBases doesn't take parameters
+                << align.getAlignedFragmentBases( align_pos, range_len == 0 ? 1 : range_len )
                 << std::endl;
         }
 

@@ -114,7 +114,7 @@ static void CC vdfo_print_col_csv( void *item, void *data )
     if ( my_col_def->valid == false ) return;
     if ( my_col_def->excluded == true ) return;
 
-    if ( r_ctx->col_nr > 0 )
+    if ( r_ctx->col_nr > 0 || r_ctx->ctx->print_row_id )
     {
         rc = vds_append_str( &(r_ctx->s_col), "," );
         DISP_RC( rc, "dump_str_append_str() failed" )
@@ -136,6 +136,9 @@ static rc_t vdfo_print_row_csv( const p_row_context r_ctx )
 {
     rc_t rc = vds_clear( &(r_ctx->s_col) );
     DISP_RC( rc, "dump_str_clear() failed" )
+	if ( rc == 0 && r_ctx->ctx->print_row_id )
+		rc = KOutMsg( "%u", r_ctx->row_id );
+	
     if ( rc == 0 )
     {
         r_ctx->col_nr = 0;
@@ -304,7 +307,7 @@ static void CC vdfo_print_col_tab( void *item, void *data )
     if ( my_col_def->valid == false ) return;
     if ( my_col_def->excluded == true ) return;
 
-    if ( r_ctx->col_nr > 0 )
+    if ( r_ctx->col_nr > 0 || r_ctx->ctx->print_row_id )
     {
         rc = vds_append_str( &(r_ctx->s_col), "\t" );
         DISP_RC( rc, "dump_str_append_str() failed" )
@@ -347,6 +350,9 @@ static rc_t vdfo_print_row_tab( const p_row_context r_ctx )
 {
     rc_t rc = vds_clear( &(r_ctx->s_col) );
     DISP_RC( rc, "dump_str_clear() failed" )
+	if ( rc == 0 && r_ctx->ctx->print_row_id )
+		rc = KOutMsg( "%u", r_ctx->row_id );
+	
     if ( rc == 0 )
     {
         r_ctx->col_nr = 0;

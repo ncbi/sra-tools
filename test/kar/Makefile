@@ -28,18 +28,13 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/kar
 
-TEST_TOOLS = \
+TEST_TOOLS = 
 
 include $(TOP)/build/Makefile.env
 
 .PHONY: $(TEST_TOOLS)
 
-runtests: kar sra-kar
-
-sra-kar:
-	@ rm -f SRR000123.sra
-	$(BINDIR)/sra-kar -v SRR000123
-	$(BINDIR)/vdb-dump SRR000123.sra
+runtests: kar 
 
 kar:
 	rm -rf actual
@@ -47,5 +42,5 @@ kar:
 	$(BINDIR)/kar -c actual/1.0.kar -d input/1.0; $(BINDIR)/kar -t actual/1.0.kar >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
 	rm -rf actual
 
-.PHONY: kar sra-kar
+.PHONY: kar 
 

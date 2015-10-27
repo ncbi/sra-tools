@@ -224,7 +224,7 @@ namespace RefVariation
         { OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false },
         { OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false },
         { OPTION_INPUT_FILE,    ALIAS_INPUT_FILE,    NULL, USAGE_INPUT_FILE,    1, true, false },
-        { OPTION_COUNT_STRAND,  NULL,                NULL, USAGE_COUNT_STRAND,  1, true, false },
+        { OPTION_COUNT_STRAND,  NULL,                NULL, USAGE_COUNT_STRAND,  1, true, false }
 #if SECRET_OPTION != 0
         ,{ OPTION_SECRET,        NULL,                NULL, USAGE_SECRET,        1, true, false }
 #endif
@@ -1202,16 +1202,34 @@ namespace RefVariation
             uint32_t align_pos = range >> 32;
             uint32_t range_len = range & 0xFFFFFFFF;
 
+            ngs::StringRef bases = align.getAlignedFragmentBases ( );
+
             std::cout
                 << ref_pos << " "
                 << ref_base
                 << " (" << (int32_t)align_pos << ", " << range_len << ") "
-                // TODO: bases getAlignedFragmentBases doesn't take parameters
-                << align.getAlignedFragmentBases( align_pos, range_len == 0 ? 1 : range_len )
+                << bases.toString( align_pos, range_len == 0 ? 1 : range_len )
                 << std::endl;
         }
 
         std::cout << "getReferenceProjectionRange test has SUCCEEDED" << std::endl;
+    }
+
+    void test_deletion_ambiguity ()
+    {
+        char const ref[] = "xABCABCy";
+        char const var[] = "";
+        size_t var_len_on_ref = g_Params.var_len_on_ref;
+        size_t pos = g_Params.ref_pos_var;
+
+        KSearch::CVRefVariation obj = KSearch::VRefVariationIUPACMake (
+            ref, countof(ref) - 1, pos, var, countof(var) - 1, var_len_on_ref );
+
+        std::cout
+            << "Found indel box at pos=" << obj.GetVarStart()
+            << ", length=" << obj.GetVarLenOnRef()
+            << std::endl;
+        print_indel ( "reference", ref, countof(ref) - 1, obj.GetVarStart(), obj.GetVarLenOnRef() );
     }
 #endif
 
@@ -1339,13 +1357,17 @@ namespace RefVariation
                 case 4:
                     test_getReferenceProjectionRange ();
                     break;
+                case 5:
+                    test_deletion_ambiguity ();
+                    break;
                 default:
                     std::cout
                         << "specify value for this option:" << std::endl
                         << "1 - run correctness test" << std::endl
                         << "2 - run ngs performance test" << std::endl
                         << "3 - run vdb performance test" << std::endl
-                        << "4 - run getReferencePositionProjectionRange test" << std::endl;
+                        << "4 - run getReferencePositionProjectionRange test" << std::endl
+                        << "5 - run deletion ambiguity test" << std::endl;
                 }
             }
             else

@@ -58,6 +58,9 @@
 
 /******************************************************************************/
 
+
+#ifdef JOJOBA
+
 static
 void
 SLEPOY ( int Sec )
@@ -73,6 +76,8 @@ printf ( "Sleeping %d seconds\n", Sec );
 printf ( "    DONE [ Sleeping %d seconds ]\n", Sec );
 
 }
+
+#endif /* JOJOBA */
 
 XFS_EXTERN rc_t CC XFS_InitAll_MHR ( const char * ConfigFile );
 XFS_EXTERN rc_t CC XFS_DisposeAll_MHR ();
@@ -104,7 +109,10 @@ MakeModel (
                 RCt = XFSModelNodeSetProperty (
                                         ModNod,
                                         XFS_MODEL_MODE,
-                                        ( ReadOnly ? "RO" : "RW" )
+                                        ( ReadOnly
+                                                ? XFS_MODEL_MODE_RO
+                                                : XFS_MODEL_MODE_RW
+                                        )
                                         );
                 if ( RCt == 0 ) {
                     RCt = XFSModelNodeSetProperty (
@@ -221,7 +229,7 @@ void
 RightUsage()
 {
     printf("\ndbGaP mount tool demo program. Will mount and show content of cart files\n");
-    printf("\nUsage: %s [%s|%s] [%s] project_id [ mount_point ] ]\n\n\
+    printf("\nUsage: %s [%s|%s] [%s] project_id mount_point\n\n\
 Where:\n\
     project_id - usually integer greater that zero and less than twelve\n\
     %s - mount in read only mode\n\

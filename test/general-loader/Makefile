@@ -38,7 +38,7 @@ ALL_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
-INCDIRS += -I$(TOP)/tools/general-loader
+INCDIRS += -I$(TOP)/tools/general-loader -DLOCAL_SCHEMA=$(VDB_INCDIR)
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
@@ -67,7 +67,7 @@ $(TEST_BINDIR)/test-general-loader: $(TEST_GEN_LOAD_OBJ)
 	$(LP) --exe -o $@ $^ $(TEST_GEN_LOAD_LIB)
 
 gen_load: test-general-loader
-	$(TEST_BINDIR)/test-general-loader
+	$(warning CFLAGS3=$(CFLAGS)) $(TEST_BINDIR)/test-general-loader
 
 vg_gen_load: test-general-loader
 	valgrind --ncbi $(TEST_BINDIR)/test-general-loader

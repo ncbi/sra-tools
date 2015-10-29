@@ -130,6 +130,10 @@ public:
             
         GeneralLoader* ret = new GeneralLoader ( argv0, * inStream );
         
+#ifdef LOCAL_SCHEMA
+		ret -> AddSchemaIncludePath ( stringize ( LOCAL_SCHEMA ) );
+#endif
+
         THROW_ON_RC ( KStreamRelease ( inStream ) );
         THROW_ON_RC ( KFileRelease ( p_input ) );
             
@@ -155,6 +159,11 @@ public:
         THROW_ON_RC ( KStreamFromKFilePair ( & inStream, p_input, 0 ) );
             
         GeneralLoader gl ( argv0, *inStream );
+		
+#ifdef LOCAL_SCHEMA
+		gl . AddSchemaIncludePath ( stringize ( LOCAL_SCHEMA ) );
+#endif
+		
         rc_t rc = gl.Run();
         bool ret;
         if ( GetRCObject ( rc ) == GetRCObject ( p_rc ) && 
@@ -445,9 +454,9 @@ FIXTURE_TEST_CASE ( LaterVersion, GeneralLoaderFixture )
 FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
 {
     KConfig *kfg;
-    rc_t rc = KConfigMake ( & kfg, NULL );
-    KConfigPrint(kfg, 0);
-    KConfigRelease(kfg);
+//    REQUIRE_RC ( KConfigMake ( & kfg, NULL ) );
+//    KConfigPrint(kfg, 0);
+//    KConfigRelease(kfg);
     m_source . SchemaEvent ( "this file should not exist", "someSchemaName" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
 }

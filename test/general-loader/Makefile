@@ -67,7 +67,7 @@ $(TEST_BINDIR)/test-general-loader: $(TEST_GEN_LOAD_OBJ)
 	$(LP) --exe -o $@ $^ $(TEST_GEN_LOAD_LIB)
 
 gen_load: test-general-loader
-	$(warning CFLAGS3=$(CFLAGS)) $(TEST_BINDIR)/test-general-loader
+	$(TEST_BINDIR)/test-general-loader
 
 vg_gen_load: test-general-loader
 	valgrind --ncbi $(TEST_BINDIR)/test-general-loader

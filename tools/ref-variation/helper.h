@@ -40,6 +40,7 @@
 #include <kapp/args.h>
 #include <kapp/progressbar.h>
 #include <kapp/log-xml.h>
+#include <klib/out.h>
 
 #include <vdb/vdb-priv.h>
 #include <kdb/index.h>

@@ -1453,8 +1453,10 @@ rc_t CC KMain ( int argc, char *argv [] )
             DISP_RC( rc, "KMain:context_capture_arguments_and_options() failed" );
             if ( rc == 0 )
             {
-                if ( ctx->usage_requested )
+                if ( ctx->usage_requested ) {
                     MiniUsage( args );
+                    rc = RC(rcApp, rcArgv, rcParsing, rcParam, rcInsufficient);
+                }
                 else
                     /************************/
                     rc = vdb_copy_main( ctx );

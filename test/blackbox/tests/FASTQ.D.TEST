@@ -1,0 +1,4 @@
+tool=fastq-dump
+database=true
+args={acc} -Z -X 10
+timeout=200

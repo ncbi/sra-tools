@@ -1,0 +1,4 @@
+tool=sra-pileup
+database=true
+args={acc} -r {slice}
+timeout=1000

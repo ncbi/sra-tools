@@ -22,35 +22,36 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: slowtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/blackbox
 
-include $(TOP)/build/Makefile.config
+include $(TOP)/build/Makefile.env
 
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean
+
+cleanlogs:
+	rm $(SRCDIR)/*.log
+	
 #-------------------------------------------------------------------------------
-# default
+# scripted test : run the jar 'AccessionTester.jar'
 #
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-    kget            \
-    general-loader  \
-    vschema         \
-	align-info      \
-	blackbox
+TOOLDIR = -t $(BINDIR)
+LOGDIR  = -l $(SRCDIR)
+TESTDIR = -e $(SRCDIR)/tests
+ACCFILE = -a $(SRCDIR)/acc.txt
+MD5FILE = -m $(SRCDIR)/md5.txt
+THREADS = -n 6
 
-# under construction    
-#    ngs-pileup      \
+ARGUMENTS = $(TOOLDIR) $(LOGDIR) $(ACCFILE) $(TESTDIR) $(MD5FILE) $(THREADS)
+TESTJAR   = $(SRCDIR)/dist/AccessionTester.jar
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
+slowtests:
+	java -jar $(TESTJAR) $(ARGUMENTS)

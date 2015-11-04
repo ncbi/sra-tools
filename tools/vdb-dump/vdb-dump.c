@@ -2182,7 +2182,8 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                     }
                     else
                     {
-                        rc = UsageSummary ( UsageDefaultName );
+                        UsageSummary ( UsageDefaultName );
+                        rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
                     }
                 }
             }

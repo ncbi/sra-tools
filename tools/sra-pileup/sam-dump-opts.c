@@ -350,7 +350,7 @@ static rc_t parse_and_add_region( BSTree * regions, const char * s )
 {
     rc_t rc = 0;
     uint64_t start, end;
-    char name[ 64 ];
+    char name[ 4096 ];
     parse_definition( s, name, sizeof name, &start, &end );
     if ( name[ 0 ] == 0 )
         rc = RC( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );

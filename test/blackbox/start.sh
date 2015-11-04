@@ -1,3 +1,4 @@
+#!/bin/bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,35 +23,11 @@
 #
 # ===========================================================================
 
-by_default: runtests
-
-TOP ?= $(abspath ..)
-MODULE = test
-
-include $(TOP)/build/Makefile.shell
-
-include $(TOP)/build/Makefile.config
-
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-    kget            \
-    general-loader  \
-    vschema         \
-	align-info      \
-	blackbox
-
-# under construction    
-#    ngs-pileup      \
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
+echo "starting blacktests manually"
+VDB_DUMP_BIN=`which vdb-dump`
+TOOL_PATH=${VDB_DUMP_BIN%/*}
+CMD="java -jar AccessionTester.jar -t $TOOL_PATH"
+echo $CMD
+eval $CMD
+RC="$?"
+echo "RESULT = $RC"

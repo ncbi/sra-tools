@@ -107,13 +107,13 @@ ifeq (true, $(LINUX_ROOT))
 	@ cp $(TOP)/tools/vdb-copy/vdb-copy.kfg $(ROOT)/etc/ncbi/
 	@ #
 	@ echo "Updating $(PROFILE_FILE).[c]sh"
-	@ echo -e \
+	@ printf \
 "#version $(VERSION)\n"\
 "if ! echo \$$PATH | /bin/grep -q $(EXE_TARGET)\n"\
 "then export PATH=$(EXE_TARGET):\$$PATH\n"\
 "fi" \
         >$(PROFILE_FILE).sh && chmod 644 $(PROFILE_FILE).sh || true;
-	@ echo -e \
+	@ printf \
 "#version $(VERSION)\n"\
 "echo \$$PATH | /bin/grep -q $(EXE_TARGET)\n"\
 "if ( \$$status ) setenv PATH $(EXE_TARGET):\$$PATH\n"\

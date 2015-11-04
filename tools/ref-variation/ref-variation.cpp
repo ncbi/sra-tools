@@ -501,9 +501,60 @@ namespace RefVariation
                         return PILEUP_DEFINITELY_NOT_FOUND;
                     }
                 }
-
                 // TODO: see if INSERTION_COUNTS or DELETION_COUNT can be also used
                 // for optimizations (at least for the case of lenght=1 indels).
+#if 0
+                else if ( indel_cnt > 0 ) // insertion
+                {
+                    uint32_t counts[4];
+                    count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_INSERTION_COUNTS], counts, sizeof counts );
+                    assert ( count == 0 || count == 4 );
+
+                    LOCK_GUARD l(*lock_cout);
+                    std::cout
+                        << "pos=" << pos
+                        << ", pileup row_id=" << pos + ref_id_start
+                        << ", insertions=";
+                    if ( count )
+                    {
+                        std::cout << "[";
+                        for (size_t i = 0; i < count; ++i)
+                            std::cout << ( i == 0 ? "" : ", ") << counts[i];
+                        std::cout << "]";
+                    }
+                    else
+                        std::cout << "<none>";
+
+                    count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], counts, sizeof counts );
+                    assert ( count == 0 || count == 4 );
+                    std::cout << ", mismatches=";
+                    if ( count )
+                    {
+                        std::cout << "[";
+                        for (size_t i = 0; i < count; ++i)
+                            std::cout << ( i == 0 ? "" : ", ") << counts[i];
+                        std::cout << "]";
+                    }
+                    else
+                        std::cout << "<none>";
+
+                    count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DELETION_COUNT], counts, sizeof counts[0] );
+                    assert ( count == 0 || count == 1 );
+
+                    std::cout << ", deletions=";
+                    if ( count > 0 ) 
+                        std::cout << counts[0];
+                    else
+                        std::cout << "<none>";
+
+                    std::cout << std::endl;
+                }
+                else
+                {
+                    LOCK_GUARD l(*lock_cout);
+                    std::cout << "DELETION" << std::endl;
+                }
+#endif
             }
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
@@ -613,8 +664,16 @@ namespace RefVariation
         ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( path && path[0] ? path : acc );
         if ( run.hasReference ( ref_name ) )
         {
+            size_t slice_size = obj.GetVarLenOnRef();
+            if ( slice_size == 0 )
+                slice_size = 1; // for a pure insertion we at least a slice of length == 1 ?
+
             ngs::Reference reference = run.getReference( ref_name );
-            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
+            ngs::AlignmentIterator ai = reference.getAlignmentSlice (
+                ref_start, slice_size, ngs::Alignment::all);
+            //ngs::AlignmentIterator ai = reference.getFilteredAlignmentSlice (
+            //    ref_start, var_size, ngs::Alignment::all,
+            //    ngs::Alignment::passFailed | ngs::Alignment::passDuplicates, 0);
 
             size_t alignments_total = 0, alignments_total_negative = 0;
             size_t alignments_matched = 0, alignments_matched_negative = 0;

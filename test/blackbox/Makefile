@@ -48,8 +48,9 @@ LOGDIR  = -l $(SRCDIR)
 TESTDIR = -e $(SRCDIR)/tests
 ACCFILE = -a $(SRCDIR)/acc.txt
 MD5FILE = -m $(SRCDIR)/md5.txt
+THREADS = -n 6
 
-ARGUMENTS = $(TOOLDIR) $(LOGDIR) $(ACCFILE) $(TESTDIR) $(MD5FILE)
+ARGUMENTS = $(TOOLDIR) $(LOGDIR) $(ACCFILE) $(TESTDIR) $(MD5FILE) $(THREADS)
 TESTJAR   = $(SRCDIR)/dist/AccessionTester.jar
 
 slowtests:

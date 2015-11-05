@@ -110,8 +110,7 @@ tbl = {
         },
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
-            'elem_bits': 8,
-            'default': array.array('B', [1, 1])
+            'elem_bits': 8
         },
     },
     'CONSENSUS': {
@@ -148,8 +147,7 @@ tbl = {
         },
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
-            'elem_bits': 8,
-            'default': array.array('B', [1])
+            'elem_bits': 8
         },
     }
 }
@@ -196,24 +194,25 @@ class FastQData:
             Writes other reads to SEQUENCE
         """
         if self.sequence_2d != None:
-            tbl['CONSENSUS']['HIGH_QUALITY']['data'] = array.array('b',
-                [ 1 if self.isHighQuality else 0 ])
-            tbl['CONSENSUS']['READ_LENGTH']['data'] = array.array('I', [len(self.sequence_2d)])
-            tbl['CONSENSUS']['READ'   ]['data'] = self.sequence_2d.encode('ascii')
-            tbl['CONSENSUS']['QUALITY']['data'] = self.quality_2d.encode('ascii')
+            tbl['CONSENSUS']['HIGH_QUALITY']['data'] = array.array('b', [ 1 if self.isHighQuality else 0 ])
+            tbl['CONSENSUS']['READ_LENGTH' ]['data'] = array.array('I', [len(self.sequence_2d)])
+            tbl['CONSENSUS']['READ_TYPE'   ]['data'] = array.array('B', [1])
+            tbl['CONSENSUS']['READ'        ]['data'] = self.sequence_2d.encode('ascii')
+            tbl['CONSENSUS']['QUALITY'     ]['data'] = self.quality_2d.encode('ascii')
         else:
             tbl['CONSENSUS']['HIGH_QUALITY']['data'] = array.array('b', [False])
-            tbl['CONSENSUS']['READ_LENGTH']['data'] = array.array('I', [0])
-            tbl['CONSENSUS']['READ'   ]['data'] = ''.encode('ascii')
-            tbl['CONSENSUS']['QUALITY']['data'] = ''.encode('ascii')
+            tbl['CONSENSUS']['READ_LENGTH' ]['data'] = array.array('I', [0])
+            tbl['CONSENSUS']['READ_TYPE'   ]['data'] = array.array('B', [0])
+            tbl['CONSENSUS']['READ'        ]['data'] = ''.encode('ascii')
+            tbl['CONSENSUS']['QUALITY'     ]['data'] = ''.encode('ascii')
 
-        tbl['SEQUENCE']['READ_START' ]['data'] = array.array('I',
-            [ 0, self.readLength[0] ])
+        tbl['SEQUENCE']['READ_START' ]['data'] = array.array('I', [ 0, self.readLength[0] ])
         tbl['SEQUENCE']['READ_LENGTH']['data'] = self.readLength
-        tbl['SEQUENCE']['READ'   ]['data'] = self.sequence.encode('ascii')
-        tbl['SEQUENCE']['QUALITY']['data'] = self.quality.encode('ascii')
-        tbl['SEQUENCE']['CHANNEL']['data'] = array.array('I', [self.channel])
-        tbl['SEQUENCE']['READ_NO']['data'] = array.array('I', [self.readno])
+        tbl['SEQUENCE']['READ_TYPE'  ]['data'] = array.array('B', map((lambda length: 1 if length > 0 else 0), self.readLength))
+        tbl['SEQUENCE']['READ'       ]['data'] = self.sequence.encode('ascii')
+        tbl['SEQUENCE']['QUALITY'    ]['data'] = self.quality.encode('ascii')
+        tbl['SEQUENCE']['CHANNEL'    ]['data'] = array.array('I', [self.channel])
+        tbl['SEQUENCE']['READ_NO'    ]['data'] = array.array('I', [self.readno])
         spotGroup = os.path.basename(self.source)
         try:
             at = spotGroup.rindex("_ch{}_".format(self.channel))

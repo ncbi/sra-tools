@@ -28,22 +28,20 @@ import java.util.concurrent.Callable;
 public class TestWorker implements Callable< TestResult >
 {
     private final sra_type test_object;
-    private final String toolpath;
     private final sra_test test_to_run;
-    private final CommonLogger logger;
+    private final tester_params tp;
     
     @Override public TestResult call()
     {
-        test_runner runner = new test_runner( toolpath, logger );
-        return test_to_run.run( runner, test_object );
+        test_runner runner = new test_runner( tp );
+        return test_to_run.run( runner, test_object, tp.pause );
     }
     
-    TestWorker( final String toolpath, final sra_type test_object,
-                final sra_test test_to_run, final CommonLogger logger )
+    TestWorker( final sra_type test_object, final sra_test test_to_run,
+                final tester_params tp )
     {
         this.test_object = test_object;
-        this.toolpath = toolpath;
         this.test_to_run = test_to_run;
-        this.logger = logger;
+        this.tp = tp;
     }
 }

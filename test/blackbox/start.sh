@@ -26,7 +26,7 @@
 echo "starting blacktests manually"
 VDB_DUMP_BIN=`which vdb-dump`
 TOOL_PATH=${VDB_DUMP_BIN%/*}
-CMD="java -jar AccessionTester.jar -t $TOOL_PATH"
+CMD="java -jar dist/AccessionTester.jar -t $TOOL_PATH -l -"
 echo $CMD
 eval $CMD
 RC="$?"

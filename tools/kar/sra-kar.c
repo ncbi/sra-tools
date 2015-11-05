@@ -339,13 +339,15 @@ rc_t CC Usage (const Args * args)
             if (pcount == 0)
             {
                 KOutMsg ("missing source table\n");
-                rc = MiniUsage (args);
+                MiniUsage (args);
+                rc = RC (rcExe, rcArgv, rcParsing, rcPath, rcInsufficient);
                 break;
             }
             else if (pcount > 2)
             {
                 KOutMsg ("Too many parameters\n");
-                rc = MiniUsage (args);
+                MiniUsage (args);
+                rc = RC (rcExe, rcArgv, rcParsing, rcPath, rcExcessive);
                 break;
             }
 

@@ -33,4 +33,16 @@ public class TestResult
     public int ret;
     public long exec_time, output_bytes;
     public TestResultType type;
+    
+    public void set_retcode( final int ret_code )
+    {
+        ret = ret_code;
+        type = ( ret == 0 ) ? TestResultType.SUCCESS : TestResultType.ERROR;
+    }
+    
+    public void set_rettype( TestResultType ret_type )
+    {
+        type = ret_type;
+        ret = -1;
+    }
 }

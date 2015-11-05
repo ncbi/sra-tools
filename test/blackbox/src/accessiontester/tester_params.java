@@ -34,6 +34,7 @@ public class tester_params
     public final String input_file;
     public final String md5_file;
     public final int num_threads;
+    public final int pause;
     public final CommonLogger logger;
     public final boolean valid;
     public final boolean ordered;
@@ -103,6 +104,11 @@ public class tester_params
         return res;
     }
 
+    private int int_value( final String s )
+    {
+        return ( s != null && !s.isEmpty() ) ? Integer.valueOf( s ) : 0 ;    
+    }
+    
     public tester_params( final Commandline cl )
     {
         toolpath        = cl.get_option( "--tools" );
@@ -111,14 +117,17 @@ public class tester_params
         md5_file        = cl.get_option( "--md5" );
         cmdline_tests   = cl.get_options( "--run" );
         cmdline_accessions = cl.get_arguments();
-                
-        final String nt = cl.get_option( "--threads" );
-        num_threads     = ( nt != null && !nt.isEmpty() ) ? Integer.valueOf( nt ) : 0 ;
-
+        num_threads     = int_value( cl.get_option( "--threads" ) );
+        pause           = int_value( cl.get_option( "--pause" ) );
         ordered         = ( cl.get_option_count( "--ordered" ) > 0 );
         final String log_file_path = cl.get_option( "--log" );
-        final String log_file_name = get_log_file_name( log_file_path );
-        logger = new CommonLogger( log_file_name, "acc-test log" );
+        if ( log_file_path.compareTo( "-" ) == 0 )
+            logger = new CommonLogger( null, "acc-test log" );
+        else
+        {
+            final String log_file_name = get_log_file_name( log_file_path );
+            logger = new CommonLogger( log_file_name, "acc-test log" );
+        }
         logger.start();
 
         valid = check_params();

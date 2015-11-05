@@ -78,7 +78,9 @@ class LogTask implements Runnable
         done = true;
     }
     
-    public LogTask( final String filename, final String info, BlockingQueue<String> q )
+    public LogTask( final String filename,
+                    final String info,
+                    BlockingQueue<String> q )
     {
         my_logger = null;
         log_lines_queue = q;
@@ -88,16 +90,21 @@ class LogTask implements Runnable
         {
             MyFormatter f = new MyFormatter();
                     
-            FileHandler my_file_handler = new FileHandler( filename, true );
-            my_file_handler.setFormatter( f );
+            FileHandler my_file_handler = null;
+            if ( filename != null && !filename.isEmpty() )
+            {
+                my_file_handler = new FileHandler( filename, true );
+                my_file_handler.setFormatter( f );
+            }
             
             ConsoleHandler my_console_handler = new ConsoleHandler();
             my_console_handler.setFormatter( f );
             
             my_logger = Logger.getLogger( info );
             my_logger.setLevel( Level.INFO );
-            my_logger.addHandler( my_console_handler );            
-            my_logger.addHandler( my_file_handler );
+            my_logger.addHandler( my_console_handler );
+            if ( my_file_handler != null )
+                my_logger.addHandler( my_file_handler );
             
             LogManager my_log_manager = LogManager.getLogManager();
             my_log_manager.addLogger( my_logger );

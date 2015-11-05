@@ -33,6 +33,7 @@ public class AccessionTester
     private static final String dflt_acc = "acc.txt";
     private static final String dflt_md5 = "md5.txt";
     private static final String dflt_log = ".";
+    private static final String dflt_pause = "0";
     
     private static void help()
     {
@@ -42,7 +43,8 @@ public class AccessionTester
         System.out.println( String.format( "--tests   -e : path to the test-files (dflt: './%s')", dflt_tests ) );
         System.out.println( String.format( "--md5     -m : file containing the md5-sums (dflt: './%s')", dflt_md5 ) );
         System.out.println( String.format( "--threads -n : use this many threads (dflt: %s)", dflt_threads ) );
-        System.out.println( String.format( "--log     -l : log file path (dflt: '%s')", dflt_log ) );
+        System.out.println( String.format( "--log     -l : log file path (dflt: '%s'), '-' do not write log", dflt_log ) );
+        System.out.println( String.format( "--pause   -s : pause after each test (dflt: %s msec)", dflt_pause ) );
         System.out.println( "--run     -u : run only these tests" );
         System.out.println( "--force   -f : overwrite md5-sum in md5-file if different" );
         System.out.println( "--ordered -o : process accessions in the order found in the file" );
@@ -59,6 +61,7 @@ public class AccessionTester
         cl.add_value_rule( dflt_log,     "--log",     "-l" );
         cl.add_value_rule( null,         "--run",     "-u" );
         cl.add_value_rule( dflt_threads, "--threads", "-n" );
+        cl.add_value_rule( dflt_pause,   "--pause",   "-s" );        
         cl.add_flag_rule( "--force",   "-f" );
         cl.add_flag_rule( "--ordered", "-o" );
         cl.add_flag_rule( "--help",    "-h" );

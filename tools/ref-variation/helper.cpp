@@ -943,7 +943,6 @@ namespace KApp
 
     void CProgressBar::Make ( uint64_t size )
     {
-        ::KLogLevelSet ( klogLevelMax );
         rc_t rc = ::KLoadProgressbar_Make ( &m_pSelf, size );
         if (rc)
             throw Utils::CErrorMsg(rc, "KLoadProgressbar_Make");

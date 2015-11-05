@@ -37,7 +37,7 @@ public class sra_test
     public final int timeout;
     public boolean for_database;
             
-    public TestResult run( final test_runner runner, final sra_type test_object )
+    public TestResult run( final test_runner runner, final sra_type test_object, int pause )
     {
         boolean can_run = true;
         StringBuilder sb = new StringBuilder();
@@ -89,7 +89,7 @@ public class sra_test
         TestResult res;
         if ( can_run )
         {
-            res = runner.run( cmd_list, timeout );
+            res = runner.run( cmd_list, timeout, pause );
             if ( res.ret == 0 )
             {
                 sb.append( String.format( " t=%d msec, %d bytes", res.exec_time, res.output_bytes ) );
@@ -103,7 +103,7 @@ public class sra_test
                     case EMPTY   : sb.append( " empty" ); break;    
                 }
             }
-            runner.logger.log( sb.toString() );
+            runner.log( sb.toString() );
         }
         else
         {

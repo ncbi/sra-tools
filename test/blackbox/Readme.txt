@@ -116,7 +116,7 @@ The tool recognizes these options:
     --tests   -e : path to the test-files (dflt: './tests' )
     --md5     -m : file containing the md5-sums (dflt: './md5.txt')
     --threads -n : use this many threads (dflt: 12)
-    --log     -l : log file path (dflt: '.')
+    --log     -l : log file path (dflt: '.') , '-' do not write log
     --run     -u : run only these tests
     --force   -f : overwrite md5-sum in md5-file if different
 	--ordered -o : process accessions in the order found in the file

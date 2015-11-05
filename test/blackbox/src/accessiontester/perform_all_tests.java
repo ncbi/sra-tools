@@ -82,7 +82,7 @@ public class perform_all_tests
         if ( st != null )
         {
             if ( t.is_db == st.for_database )
-                res = new TestWorker( tp.toolpath, t, st, tp.logger );
+                res = new TestWorker( t, st, tp );
         }
         else
             tp.logger.log( String.format( "TEST: '%s' not found (#%d: %s)",
@@ -107,44 +107,37 @@ public class perform_all_tests
                                            final sra_type t )
     {
         final String platformname = t.platform.toUpperCase();
-        List< String > l = l_platforms.platforms.get( "COMMON" );
-        if ( l == null )
-            l = l_platforms.platforms.get( platformname );
-        else
+        List< String > l = new ArrayList<>();
+        
+        List< String > l_cmn = l_platforms.platforms.get( "COMMON" );
+        List< String > l_pf  = l_platforms.platforms.get( platformname );
+        if ( l_cmn != null )
         {
-            List< String > lp = l_platforms.platforms.get( platformname );
-            if ( lp != null )
+            for ( String s : l_cmn ) l.add( s );
+        }
+        if ( l_pf != null )
+        {
+            for ( String s : l_pf )
             {
-                for ( String s : lp )
-                {
-                    if ( !list_contains_string( l, s ) );
-                        l.add( s );
-                }
+                if ( !list_contains_string( l, s ) ) l.add( s );
             }
         }
-        if ( l != null )
+        
+        if ( tp.cmdline_tests != null && tp.cmdline_tests.length > 0 )
         {
-            if ( tp.cmdline_tests != null && tp.cmdline_tests.length > 0 )
+            for ( String testname : tp.cmdline_tests )
             {
-                for ( String testname : tp.cmdline_tests )
-                {
-                    TestWorker worker = make_worker( l_tests, t, testname );
-                    if ( worker != null ) worker_list.add( worker );
-                }
-            }
-            else
-            {
-                for ( String testname : l )
-                {
-                    TestWorker worker = make_worker( l_tests, t, testname );
-                    if ( worker != null ) worker_list.add( worker );
-                }
+                TestWorker worker = make_worker( l_tests, t, testname );
+                if ( worker != null ) worker_list.add( worker );
             }
         }
         else
         {
-            tp.logger.log( String.format( "PLATFORM: '%s' no tests found (#%d: %s)",
-                    platformname, t.number, t.acc ) );
+            for ( String testname : l )
+            {
+                TestWorker worker = make_worker( l_tests, t, testname );
+                if ( worker != null ) worker_list.add( worker );
+            }
         }
     }
             
@@ -206,7 +199,8 @@ public class perform_all_tests
                 else
                 {
                     md5_errors++;
-                    tp.logger.log( String.format( "md5-error: %s", res.command ) );
+                    tp.logger.log( String.format( "md5-error: %s (%s vs %s)",
+                            res.command, expected_md5, res.md5 ) );
                 }
             }
         }

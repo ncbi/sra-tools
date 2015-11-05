@@ -110,8 +110,7 @@ tbl = {
         },
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
-            'elem_bits': 8,
-            'default': array.array('B', [1, 1])
+            'elem_bits': 8
         },
     },
     'CONSENSUS': {
@@ -148,8 +147,7 @@ tbl = {
         },
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
-            'elem_bits': 8,
-            'default': array.array('B', [1])
+            'elem_bits': 8
         },
     }
 }
@@ -210,6 +208,7 @@ class FastQData:
 
         tbl['SEQUENCE']['READ_START' ]['data'] = array.array('I', [ 0, self.readLength[0] ])
         tbl['SEQUENCE']['READ_LENGTH']['data'] = self.readLength
+        tbl['SEQUENCE']['READ_TYPE'  ]['data'] = array.array('B', map((lambda length: 1 if length > 0 else 0), self.readLength))
         tbl['SEQUENCE']['READ'       ]['data'] = self.sequence.encode('ascii')
         tbl['SEQUENCE']['QUALITY'    ]['data'] = self.quality.encode('ascii')
         tbl['SEQUENCE']['CHANNEL'    ]['data'] = array.array('I', [self.channel])

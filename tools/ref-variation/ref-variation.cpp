@@ -679,6 +679,14 @@ namespace RefVariation
             size_t alignments_matched = 0, alignments_matched_negative = 0;
             while ( ai.nextAlignment() )
             {
+                uint64_t ref_pos_range = ai.getReferencePositionProjectionRange (ref_start);
+                uint64_t const range_err = 0xFFFFFFFF00000000ul;
+                if ( (ref_pos_range & range_err) == range_err )
+                    continue;
+
+                int64_t align_pos = (int64_t)( ref_pos_range >> 32);
+                ngs::StringRef bases = ai.getAlignedFragmentBases ();
+
                 ++ alignments_total;
                 bool is_negative = g_Params.count_strand != COUNT_STRAND_NONE
                     && ai.getIsReversedOrientation();
@@ -688,8 +696,6 @@ namespace RefVariation
                 if (is_negative)
                     ++ alignments_total_negative;
 
-                int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-                ngs::StringRef bases = ai.getAlignedFragmentBases ();
                 bool match = bases.size() + align_pos >= var_size && strncmp (variation, bases.data() + align_pos, var_size) == 0;
                 if ( match )
                 {

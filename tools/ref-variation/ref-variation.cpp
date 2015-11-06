@@ -680,8 +680,7 @@ namespace RefVariation
             while ( ai.nextAlignment() )
             {
                 uint64_t ref_pos_range = ai.getReferencePositionProjectionRange (ref_start);
-                uint64_t const range_err = 0xFFFFFFFF00000000ul;
-                if ( ref_pos_range == range_err )
+                if ( ref_pos_range == (uint64_t)-1 )
                     continue;
 
                 int64_t align_pos = (int64_t)( ref_pos_range >> 32);

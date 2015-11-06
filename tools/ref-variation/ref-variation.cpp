@@ -154,12 +154,13 @@ namespace RefVariation
 
         size_t GetCount() const;
         CInputRun GetNext () const;
-        size_t GetCurrentIndex() const;
+
+        size_t GetNextIndex() const;
+        CInputRun Get(size_t index) const;
     private:
 
         std::vector <CInputRun> m_input_runs;
         mutable atomic_t m_param_index;
-        mutable size_t m_current_index;
     };
 
     enum
@@ -237,14 +238,18 @@ namespace RefVariation
         int suffix_count = (int)((text_size - (indel_start + indel_len)) < 5 ?
                 (text_size - (indel_start + indel_len)) : 5);
 
-        printf ( "%s: %s%.*s[%.*s]%.*s%s\n",
-                    name,
-                    indel_start < 5 ? "" : "...",
-                    prefix_count, text + indel_start - prefix_count, //(int)indel_start, text,
-                    (int)indel_len, text + indel_start,
-                    suffix_count, text + indel_start + indel_len, //(int)(text_size - (indel_start + indel_len)), text + indel_start + indel_len
-                    (text_size - (indel_start + indel_len)) > 5 ? "..." : ""
-               );
+        char buf[512] = "";
+        rc_t res = string_printf(buf, countof(buf), NULL, "%s: %s%.*s[%.*s]%.*s%s",
+            name,
+            indel_start < 5 ? "" : "...",
+            prefix_count, text + indel_start - prefix_count, //(int)indel_start, text,
+            (int)indel_len, text + indel_start,
+            suffix_count, text + indel_start + indel_len, //(int)(text_size - (indel_start + indel_len)), text + indel_start + indel_len
+            (text_size - (indel_start + indel_len)) > 5 ? "..." : "");
+        if (res == rcBuffer || res == rcInsufficient)
+            buf[countof(buf) - 1] = '\0';
+
+        LOGMSG ( klogInfo, buf );
     }
 
 #if SECRET_OPTION != 0
@@ -331,22 +336,23 @@ namespace RefVariation
         if ( g_Params.calc_coverage )
         {
             LOCK_GUARD l(*lock_cout);
-            std::cout << acc << "\t" << alignments_matched;
+
+            OUTMSG (( "%s\t%zu", acc, alignments_matched ));
         
             if ( g_Params.count_strand != COUNT_STRAND_NONE )
-                std::cout << "," << alignments_matched_positive;
+                OUTMSG (( ",%zu", alignments_matched_positive ));
             
-            std::cout << "\t" << alignments_total;
+            OUTMSG (( "\t%zu", alignments_total ));
         
             if ( g_Params.count_strand != COUNT_STRAND_NONE )
-                std::cout << "," << alignments_total_positive;
+                OUTMSG (( ",%zu", alignments_total_positive ));
             
-            std::cout << std::endl;
+            OUTMSG (("\n"));
         }
         else if ( alignments_matched > 0 )
         {
             LOCK_GUARD l(*lock_cout);
-            std::cout << acc << std::endl;
+            OUTMSG (( "%s\n", acc ));
         }
     }
 
@@ -358,9 +364,11 @@ namespace RefVariation
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
         {
             LOCK_GUARD l(*lock_cout);
-            std::cout
-                << "[" << thread_num << "] "
-                << "Processing " << acc_pileup << "... " << std::endl;
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
+                "[$(THREAD_NUM)] Processing $(ACC)...",
+                "THREAD_NUM=%zu,ACC=%s", thread_num, acc_pileup
+                ));
         }
 
         KSearch::CVRefVariation const& obj = *pobj;
@@ -395,10 +403,12 @@ namespace RefVariation
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             {
                 LOCK_GUARD l(*lock_cout);
-                std::cout
-                    << "[" << thread_num << "] "
-                    << (found ? "" : " not") << " found " << ref_name << " row_id=" << ref_id_start
-                    << ", id_count=" << id_count << " " <<  std::endl;
+                PLOGMSG ( klogInfo,
+                    ( klogInfo,
+                    "[$(THREAD_NUM)] $(FOUND)found $(REFNAME) row_id=$(ROWID), id_count=$(IDCOUNT)",
+                    "THREAD_NUM=%zu,FOUND=%s,REFNAME=%s,ROWID=%ld,IDCOUNT=%lu",
+                    thread_num, found ? "" : " not ", ref_name, ref_id_start, id_count
+                    ));
             }
             if ( !found )
             {
@@ -422,9 +432,11 @@ namespace RefVariation
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
                         LOCK_GUARD l(*lock_cout);
-                        std::cout
-                            << "[" << thread_num << "] "
-                            << "OUT OF BOUNDS! filtering out" << std::endl;
+                        PLOGMSG ( klogInfo,
+                            ( klogWarn,
+                            "[$(THREAD_NUM)] OUT OF BOUNDS! filtering out",
+                            "THREAD_NUM=%zu", thread_num
+                            ));
                     }
 
                     report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
@@ -441,10 +453,11 @@ namespace RefVariation
                     if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                     {
                         LOCK_GUARD l(*lock_cout);
-                        std::cout
-                            << "[" << thread_num << "] "
-                            << "depth=0 at the ref_pos=" << pos
-                            << " (id=" << pos + ref_id_start << ") filtering out" << std::endl;
+                        PLOGMSG ( klogInfo,
+                            ( klogInfo,
+                            "[$(THREAD_NUM)] depth=0 at the ref_pos=$(POS) (id=$(ID)) filtering out",
+                            "THREAD_NUM=%zu,POS=%ld,ID=%ld", thread_num, pos, pos + ref_id_start
+                            ));
                     }
                     report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
                     return PILEUP_DEFINITELY_NOT_FOUND;
@@ -484,14 +497,64 @@ namespace RefVariation
 
                     else if ( alignments_matched == 0 && ! g_Params.calc_coverage )
                     {
-                        LOCK_GUARD l(*lock_cout);
-                        std::cout << acc << std::endl;
+                        report_run_coverage ( acc, alignments_total, 0, alignments_matched, 0, lock_cout );
                         return PILEUP_DEFINITELY_NOT_FOUND;
                     }
                 }
-
                 // TODO: see if INSERTION_COUNTS or DELETION_COUNT can be also used
                 // for optimizations (at least for the case of lenght=1 indels).
+#if 0
+                else if ( indel_cnt > 0 ) // insertion
+                {
+                    uint32_t counts[4];
+                    count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_INSERTION_COUNTS], counts, sizeof counts );
+                    assert ( count == 0 || count == 4 );
+
+                    LOCK_GUARD l(*lock_cout);
+                    std::cout
+                        << "pos=" << pos
+                        << ", pileup row_id=" << pos + ref_id_start
+                        << ", insertions=";
+                    if ( count )
+                    {
+                        std::cout << "[";
+                        for (size_t i = 0; i < count; ++i)
+                            std::cout << ( i == 0 ? "" : ", ") << counts[i];
+                        std::cout << "]";
+                    }
+                    else
+                        std::cout << "<none>";
+
+                    count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], counts, sizeof counts );
+                    assert ( count == 0 || count == 4 );
+                    std::cout << ", mismatches=";
+                    if ( count )
+                    {
+                        std::cout << "[";
+                        for (size_t i = 0; i < count; ++i)
+                            std::cout << ( i == 0 ? "" : ", ") << counts[i];
+                        std::cout << "]";
+                    }
+                    else
+                        std::cout << "<none>";
+
+                    count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_DELETION_COUNT], counts, sizeof counts[0] );
+                    assert ( count == 0 || count == 1 );
+
+                    std::cout << ", deletions=";
+                    if ( count > 0 ) 
+                        std::cout << counts[0];
+                    else
+                        std::cout << "<none>";
+
+                    std::cout << std::endl;
+                }
+                else
+                {
+                    LOCK_GUARD l(*lock_cout);
+                    std::cout << "DELETION" << std::endl;
+                }
+#endif
             }
 
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
@@ -504,9 +567,11 @@ namespace RefVariation
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
-                    std::cout
-                        << "[" << thread_num << "] "
-                        << run_name << " is suspicious" << std::endl;
+                    PLOGMSG ( klogInfo,
+                        ( klogInfo,
+                        "[$(THREAD_NUM)] $(RUNNAME) is suspicious",
+                        "THREAD_NUM=%zu,RUNNAME=%s", thread_num, run_name
+                        ));
                 }
                 //char const* p = run_name[0] == '/' ? run_name + 1 : run_name;
             }
@@ -521,9 +586,11 @@ namespace RefVariation
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
-                    std::cout
-                        << "[" << thread_num << "] "
-                        << "pileup db NOT FOUND, need to look into run itself" << std::endl;
+                    PLOGMSG ( klogInfo,
+                        ( klogInfo,
+                        "[$(THREAD_NUM)] pileup db NOT FOUND, need to look into run itself",
+                        "THREAD_NUM=%zu", thread_num
+                        ));
                 }
                 return PILEUP_MAYBE_FOUND;
             }
@@ -532,9 +599,11 @@ namespace RefVariation
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
-                    std::cout
-                        << "[" << thread_num << "] "
-                        << "BAD pileup db, need to look into run itself" << std::endl;
+                    PLOGMSG ( klogWarn,
+                        ( klogWarn,
+                        "[$(THREAD_NUM)] BAD pileup db, need to look into run itself",
+                        "THREAD_NUM=%zu", thread_num
+                        ));
                 }
                 return PILEUP_MAYBE_FOUND;
             }
@@ -585,21 +654,39 @@ namespace RefVariation
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
         {
             LOCK_GUARD l(*lock_cout);
-            std::cout
-                << "[" << thread_num << "] "
-                << "Processing " << acc << std::endl;
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
+                "[$(THREAD_NUM)] Processing $(ACC)",
+                "THREAD_NUM=%zu,ACC=%s", thread_num, acc
+                ));
         }
 
         ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( path && path[0] ? path : acc );
         if ( run.hasReference ( ref_name ) )
         {
+            size_t slice_size = obj.GetVarLenOnRef();
+            if ( slice_size == 0 )
+                slice_size = 1; // for a pure insertion we at least a slice of length == 1 ?
+
             ngs::Reference reference = run.getReference( ref_name );
-            ngs::AlignmentIterator ai = reference.getAlignmentSlice ( ref_start, var_size, ngs::Alignment::all );
+            ngs::AlignmentIterator ai = reference.getAlignmentSlice (
+                ref_start, slice_size, ngs::Alignment::all);
+            //ngs::AlignmentIterator ai = reference.getFilteredAlignmentSlice (
+            //    ref_start, var_size, ngs::Alignment::all,
+            //    ngs::Alignment::passFailed | ngs::Alignment::passDuplicates, 0);
 
             size_t alignments_total = 0, alignments_total_negative = 0;
             size_t alignments_matched = 0, alignments_matched_negative = 0;
             while ( ai.nextAlignment() )
             {
+                uint64_t ref_pos_range = ai.getReferencePositionProjectionRange (ref_start);
+                uint64_t const range_err = 0xFFFFFFFF00000000ul;
+                if ( ref_pos_range == range_err )
+                    continue;
+
+                int64_t align_pos = (int64_t)( ref_pos_range >> 32);
+                ngs::StringRef bases = ai.getAlignedFragmentBases ();
+
                 ++ alignments_total;
                 bool is_negative = g_Params.count_strand != COUNT_STRAND_NONE
                     && ai.getIsReversedOrientation();
@@ -609,8 +696,6 @@ namespace RefVariation
                 if (is_negative)
                     ++ alignments_total_negative;
 
-                int64_t align_pos = (ai.getReferencePositionProjectionRange (ref_start) >> 32);
-                ngs::StringRef bases = ai.getAlignedFragmentBases ();
                 bool match = bases.size() + align_pos >= var_size && strncmp (variation, bases.data() + align_pos, var_size) == 0;
                 if ( match )
                 {
@@ -623,13 +708,14 @@ namespace RefVariation
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
-                    std::cout
-                        << "[" << thread_num << "] "
-                        << "id=" << ai.getAlignmentId ()
-                        << ": "
-                        << bases.toString ( align_pos, var_size )
-                        << (match ? " MATCH!" : "")
-                        << std::endl;
+                    PLOGMSG ( klogInfo,
+                        ( klogInfo,
+                        "[$(THREAD_NUM)] id=$(ID): $(BASES)$(MATCH)",
+                        "THREAD_NUM=%zu,ID=%s,BASES=%s,MATCH=%s",
+                        thread_num, ai.getAlignmentId().data(),
+                        bases.toString ( align_pos, var_size ).c_str(),
+                        match ? " MATCH!" : ""
+                        ));
                 }
             }
 
@@ -643,11 +729,11 @@ namespace RefVariation
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
             {
                 LOCK_GUARD l(*lock_cout);
-                std::cout
-                    << "[" << thread_num << "] "
-                    << "reference " << ref_name
-                    << " NOT FOUND in " << acc
-                    << ", skipping" << std::endl;
+                PLOGMSG ( klogInfo,
+                    ( klogInfo,
+                    "[$(THREAD_NUM)] reference $(REFNAME) NOT FOUND in $(ACC), skipping",
+                    "THREAD_NUM=%zu,REFNAME=%s,ACC=%s", thread_num, ref_name, acc
+                    ));
             }
 
             report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
@@ -685,7 +771,8 @@ namespace RefVariation
     template <class TLock> void find_alignments ( char const* ref_name,
         KSearch::CVRefVariation const* pobj, size_t bases_start,
         TLock* lock_cout, size_t thread_num,
-        CInputRuns const* p_input_runs )
+        CInputRuns const* p_input_runs,
+        KApp::CProgressBar* progress_bar )
     {
         try
         {
@@ -710,7 +797,8 @@ namespace RefVariation
 
             for ( ; ; )
             {
-                CInputRun const& input_run = p_input_runs -> GetNext();
+                size_t index = p_input_runs -> GetNextIndex();
+                CInputRun const& input_run = p_input_runs -> Get(index);
 
                 if ( ! input_run.IsValid() )
                     break;
@@ -722,13 +810,13 @@ namespace RefVariation
                 if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
-                    std::cout
-                        << "[" << thread_num << "] "
-                        << "Processing parameter # " << p_input_runs -> GetCurrentIndex()
-                        << ": " << acc
-                        << ", path=[" << path << "]"
-                        << ", pileup path=[" << pileup_path << "]"
-                        << std::endl;
+                    PLOGMSG ( klogInfo,
+                        ( klogInfo,
+                        "[$(THREAD_NUM)] Processing parameter # $(INDEX): $(ACC), path=[$(PATH)], pileup path=[$(PILEUPPATH)]",
+                        "THREAD_NUM=%zu,INDEX=%zu,ACC=%s,PATH=%s,PILEUPPATH=%s",
+                        thread_num, index,
+                        acc, path, pileup_path
+                        ));
                 }
 
                 try
@@ -744,23 +832,42 @@ namespace RefVariation
                         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
                         {
                             LOCK_GUARD l(*lock_cout);
-                            std::cout
-                                << "[" << thread_num << "] "
-                                << e.what()
-                                << ", skipping" << std::endl;
+                            PLOGMSG ( klogWarn,
+                                ( klogWarn,
+                                "[$(THREAD_NUM)] $(WHAT), skipping",
+                                "THREAD_NUM=%zu,WHAT=%s", thread_num, e.what()
+                                ));
                         }
                     }
                     else
                         throw;
+                }
+
+                {
+                    LOCK_GUARD l(*lock_cout);
+                    progress_bar -> Process( 1, false );
+                }
+
+                if ( ::Quitting() )
+                {
+                    LOCK_GUARD l(*lock_cout);
+                    PLOGMSG ( klogWarn,
+                        ( klogWarn,
+                        "[$(THREAD_NUM)] Interrupted",
+                        "THREAD_NUM=%zu", thread_num
+                        ));
+                    break;
                 }
             }
         }
         catch ( ngs::ErrorMsg const& e )
         {
             LOCK_GUARD l(*lock_cout); // reuse cout mutex
-            std::cerr
-                << "[" << thread_num << "] "
-                << "ngs::ErrorMsg: " << e.what() << std::endl;
+            PLOGMSG ( klogErr,
+                ( klogErr,
+                "[$(THREAD_NUM)] ngs::ErrorMsg: $(WHAT)",
+                "THREAD_NUM=%zu,WHAT=%s", thread_num, e.what()
+                ));
         }
         catch (...)
         {
@@ -781,6 +888,7 @@ namespace RefVariation
         LOCK* lock_cout;
         size_t thread_num;
         CInputRuns const* p_input_runs;
+        KApp::CProgressBar* progress_bar;
     };
 
     void AdapterFindAlignment_Init (AdapterFindAlignment & params,
@@ -790,7 +898,8 @@ namespace RefVariation
             size_t bases_start,
             LOCK* lock_cout,
             size_t thread_num,
-            CInputRuns const* p_input_runs
+            CInputRuns const* p_input_runs,
+            KApp::CProgressBar* progress_bar
         )
     {
         params.param_start = param_start;
@@ -801,13 +910,14 @@ namespace RefVariation
         params.lock_cout = lock_cout;
         params.thread_num = thread_num;
         params.p_input_runs = p_input_runs;
+        params.progress_bar = progress_bar;
     }
 
     rc_t AdapterFindAlignmentFunc ( void* data )
     {
         AdapterFindAlignment& p = * (static_cast<AdapterFindAlignment*>(data));
         find_alignments ( p.ref_name, p.pobj, p.bases_start,
-            p.lock_cout, p.thread_num, p.p_input_runs );
+            p.lock_cout, p.thread_num, p.p_input_runs, p.progress_bar );
         return 0;
     }
 #endif
@@ -843,27 +953,34 @@ namespace RefVariation
 
     void finish_find_variation_region ( KApp::CArgs const & args, size_t var_len,
         char const* ref_slice, size_t ref_slice_size, size_t bases_start,
-        KSearch::CVRefVariation const& obj )
+        KSearch::CVRefVariation const& obj, KApp::CProgressBar& progress_bar )
     {
         size_t ref_start = obj.GetVarStart() + bases_start;
         size_t ref_len = obj.GetVarLenOnRef();
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
         {
-            std::cout << "Found indel box at pos=" << ref_start << ", length=" << ref_len << std::endl;
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
+                "Found indel box at pos=$(REFSTART), length=$(REFLEN)",
+                "REFSTART=%zu,REFLEN=%zu", ref_start, ref_len
+                ));
             print_indel ( "reference", ref_slice, ref_slice_size, obj.GetVarStart(), ref_len );
 
-            std::cout << "var_query=" << obj.GetVariation() << std::endl;
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
+                "var_query=$(VARIATION)", "VARIATION=%s", obj.GetVariation()
+                ));
         }
 
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
         {
-            std::cout
-                << "Input variation spec   : "
-                << g_Params.ref_acc << ":"
-                << g_Params.ref_pos_var << ":"
-                << g_Params.var_len_on_ref << ":"
-                << g_Params.query
-                << std::endl;
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
+                "Input variation spec   : $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
+                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
+                g_Params.ref_acc, g_Params.ref_pos_var,
+                g_Params.var_len_on_ref, g_Params.query
+                ));
         }
 
         size_t var_len_on_ref_adj = obj.GetVarLenOnRef();
@@ -872,19 +989,20 @@ namespace RefVariation
 
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
         {
-            std::cout
-                << "Adjusted variation spec: "
-                << g_Params.ref_acc << ":"
-                << obj.GetVarStart() + bases_start << ":"
-                << obj.GetVarLenOnRef() << ":"
-                << obj.GetVariation()
-                << std::endl;
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
+                "Adjusted variation spec: $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
+                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
+                g_Params.ref_acc, obj.GetVarStart() + bases_start,
+                obj.GetVarLenOnRef(), obj.GetVariation()
+                ));
         }
 
         // Split further processing into multiple threads if there too many params
         CInputRuns input_runs ( args );
 
         size_t param_count = input_runs.GetCount();
+        progress_bar.Append ( param_count );
 
         if ( param_count == 0 )
             return;
@@ -897,16 +1015,19 @@ namespace RefVariation
         if ( thread_count == 1 )
         {
             CNoMutex mtx;
-            find_alignments (g_Params.ref_acc, & obj, bases_start, & mtx, 0, & input_runs);
+            find_alignments (g_Params.ref_acc, & obj, bases_start, & mtx,
+                0, & input_runs, & progress_bar);
         }
         else
         {
             // split
             if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
             {
-                std::cout
-                    << "Splitting " << param_count
-                    << " jobs into " << thread_count << " threads..." << std::endl;
+                PLOGMSG ( klogInfo,
+                    ( klogInfo,
+                    "Splitting $(PARAMCOUNT) jobs into $(THREADCOUNT) threads...",
+                    "PARAMCOUNT=%zu,THREADCOUNT=%zu", param_count, thread_count
+                    ));
             }
 
             LOCK mutex_cout;
@@ -927,14 +1048,14 @@ namespace RefVariation
                     std::thread( find_alignments <LOCK>,
                                     i * param_chunk_size,
                                     current_chunk_size, g_Params.ref_acc, & obj, bases_start,
-                                    & mutex_cout, i + 1, & input_runs
+                                    & mutex_cout, i + 1, & input_runs, & progress_bar
                                ));
 #else
                 AdapterFindAlignment & params = vec_threads [ i ];
 
                 AdapterFindAlignment_Init ( params, i * param_chunk_size,
                     current_chunk_size, g_Params.ref_acc, & obj, bases_start,
-                    & mutex_cout, i + 1, & input_runs );
+                    & mutex_cout, i + 1, & input_runs, & progress_bar );
 
                 params.thread.Make ( AdapterFindAlignmentFunc, & params );
 #endif
@@ -965,6 +1086,10 @@ namespace RefVariation
 
     int find_variation_region_impl (KApp::CArgs const& args)
     {
+        // Adding 0% mark at the very beginning of the program
+        KApp::CProgressBar progress_bar(1);
+        progress_bar.Process ( 0, true );
+
         ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
 
         size_t var_len = strlen (g_Params.query);
@@ -998,8 +1123,8 @@ namespace RefVariation
 
             if ( !cont )
             {
-                finish_find_variation_region ( args, var_len,
-                    ref_chunk.data(), ref_chunk.size(), bases_start, obj);
+                finish_find_variation_region ( args, var_len, ref_chunk.data(),
+                    ref_chunk.size(), bases_start, obj, progress_bar );
             }
         }
 
@@ -1018,8 +1143,8 @@ namespace RefVariation
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
             }
 
-            finish_find_variation_region ( args, var_len,
-                ref_slice.c_str(), ref_slice.size(), bases_start, obj);
+            finish_find_variation_region ( args, var_len, ref_slice.c_str(),
+                ref_slice.size(), bases_start, obj, progress_bar );
         }
 
         return 0;
@@ -1245,19 +1370,37 @@ namespace RefVariation
         return NULL;
     }
 
+    int find_variation_region_impl_safe ( KApp::CArgs const& args)
+    {
+        int ret = 0;
+        try
+        {
+            ret = find_variation_region_impl ( args );
+        }
+        catch ( ngs::ErrorMsg const& e )
+        {
+            PLOGMSG ( klogErr,
+                ( klogErr, "ngs::ErrorMsg: $(WHAT)", "WHAT=%s", e.what()
+                ));
+            ret = 3;
+        }
+        catch (...)
+        {
+            Utils::HandleException ();
+            ret = 3;
+        }
+
+        return ret;
+    }
+
     int find_variation_region (int argc, char** argv)
     {
         int ret = 0;
         try
         {
             KApp::CArgs args;
-            args.MakeAndHandle (argc, argv, Options, countof (Options));
-            /*uint32_t param_count = args.GetParamCount ();
-            if ( param_count != 0 )
-            {
-                MiniUsage (args.GetArgs());
-                return;
-            }*/
+            args.MakeAndHandle (argc, argv, Options, countof (Options), ::XMLLogger_Args, ::XMLLogger_ArgsQty);
+            KApp::CXMLLogger xml_logger ( args );
 
             // Actually GetOptionCount check is not needed here since
             // CArgs checks that exactly 1 option is required
@@ -1278,11 +1421,12 @@ namespace RefVariation
                 char const* pInvalid = find_invalid_character ( g_Params.query );
                 if ( pInvalid != NULL )
                 {
-                    std::cerr
-                        << "Error: the given query (" << g_Params.query
-                        << ") contains an invalid character (" << *pInvalid
-                        << ")" << std::endl;
-                    return 1;
+                    PLOGMSG ( klogErr,
+                        ( klogErr,
+                        "Error: the given query ($(QUERY)) contains an invalid character ($(CHAR))",
+                        "QUERY=%s,CHAR=%c", g_Params.query, *pInvalid
+                        ));
+                    return 3;
                 }
             }
 
@@ -1301,11 +1445,13 @@ namespace RefVariation
                 g_Params.input_file = args.GetOptionValue ( OPTION_INPUT_FILE, 0 );
                 if (args.GetParamCount() > 0)
                 {
-                    std::cerr << argv [0] << OPTION_INPUT_FILE
-                        << " option must not be provided along with parameters,"
-                        " use either command line parameters or input file but"
-                        " not both" << std::endl;
-                    return 1;
+                    PLOGMSG ( klogErr,
+                        ( klogErr,
+                        "$(PROGNAME) $(OPTIONNAME) option must not be provided along with parameters,"
+                        " use either command line parameters or input file but not both",
+                        "PROGNAME=%s,OPTIONNAME=%s", argv [0], OPTION_INPUT_FILE
+                        ));
+                    return 3;
                 }
             }
 
@@ -1320,20 +1466,21 @@ namespace RefVariation
                     g_Params.count_strand = COUNT_STRAND_COALIGNED;
                 else
                 {
-                    std::cerr
-                        << "Error: unrecognized " << OPTION_COUNT_STRAND
-                        << " option value: \"" << val << "\"" << std::endl;
-                    return 1;
+                    PLOGMSG ( klogErr,
+                        ( klogErr,
+                        "Error: unrecognized $(OPTIONNAME) option value: \"$(VALUE)\"",
+                        "OPTIONNAME=%s,VALUE=%s", OPTION_COUNT_STRAND, val
+                        ));
+                    return 3;
                 }
 
                 if ( args.GetOptionCount (OPTION_COVERAGE) == 0 )
                 {
-                    std::cerr
-                        << "Warning: "
-                        << OPTION_COUNT_STRAND
-                        << " option has no effect if "
-                        << OPTION_COVERAGE << " is not specified"
-                        << std::endl;
+                    PLOGMSG ( klogWarn,
+                        ( klogWarn,
+                        "Warning: $(COUNTSTRAND) option has no effect if $(COVERAGE) is not specified",
+                        "COUNTSTRAND=%s,COVERAGE=%s", OPTION_COUNT_STRAND, OPTION_COVERAGE
+                        ));
                     g_Params.count_strand = COUNT_STRAND_NONE;
                 }
             }
@@ -1373,19 +1520,13 @@ namespace RefVariation
             else
 #endif
             {
-                ret = find_variation_region_impl (args);
+                ret = find_variation_region_impl_safe (args);
             }
 
         }
-        catch ( ngs::ErrorMsg const& e )
+        catch (...) // here we handle only exceptions in CArgs or CXMLLogger
         {
-            std::cerr << "ngs::ErrorMsg: " << e.what() << std::endl;
-            ret = 1;
-        }
-        catch (...)
-        {
-            Utils::HandleException ();
-            ret = 1;
+            ret = 3;
         }
         
         return ret;
@@ -1397,7 +1538,6 @@ namespace RefVariation
     CInputRuns::CInputRuns (KApp::CArgs const& args)
     {
         m_param_index.counter = 0;
-        m_current_index = 0;
 
         Init ( args );
     }
@@ -1405,7 +1545,6 @@ namespace RefVariation
     CInputRuns::CInputRuns ()
     {
         m_param_index.counter = 0;
-        m_current_index = 0;
     }
     
 
@@ -1515,12 +1654,16 @@ namespace RefVariation
 
     CInputRun CInputRuns::GetNext () const
     {
-        m_current_index = atomic_read_and_add( & m_param_index, 1 );
-        return m_current_index < m_input_runs.size() ? m_input_runs[m_current_index] : CInputRun("");
+        size_t current_index = atomic_read_and_add( & m_param_index, 1 );
+        return current_index < m_input_runs.size() ? m_input_runs[current_index] : CInputRun("");
     }
-    size_t CInputRuns::GetCurrentIndex () const
+    size_t CInputRuns::GetNextIndex () const
     {
-        return m_current_index;
+        return atomic_read_and_add( & m_param_index, 1 );
+    }
+    CInputRun CInputRuns::Get(size_t index) const
+    {
+        return index < m_input_runs.size() ? m_input_runs[index] : CInputRun("");
     }
 
 }
@@ -1535,13 +1678,13 @@ extern "C"
 
     rc_t CC UsageSummary (const char * progname)
     {
-        printf (
+        OUTMSG ((
         "Usage example:\n"
         "  %s -r <reference accession> -p <position on reference> -q <query to look for> -l 0 [<parameters>]\n"
         "\n"
         "Summary:\n"
         "  Find a possible indel window\n"
-        "\n", progname);
+        "\n", progname));
         return 0;
     }
 
@@ -1559,9 +1702,9 @@ extern "C"
         UsageSummary (progname);
 
 
-        printf ("\nParameters: optional space-separated list of run accessions in which the query will be looked for\n\n");
+        OUTMSG (("\nParameters: optional space-separated list of run accessions in which the query will be looked for\n\n"));
 
-        printf ("\nOptions:\n");
+        OUTMSG (("\nOptions:\n"));
 
         HelpOptionLine (RefVariation::ALIAS_REFERENCE_ACC, RefVariation::OPTION_REFERENCE_ACC, "acc", RefVariation::USAGE_REFERENCE_ACC);
         HelpOptionLine (RefVariation::ALIAS_REF_POS, RefVariation::OPTION_REF_POS, "value", RefVariation::USAGE_REF_POS);
@@ -1575,6 +1718,7 @@ extern "C"
 #if SECRET_OPTION != 0
         HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);
 #endif
+        XMLLogger_Usage();
 
         HelpOptionsStandard ();
 

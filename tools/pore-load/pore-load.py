@@ -110,8 +110,7 @@ tbl = {
         },
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
-            'elem_bits': 8,
-            'default': array.array('B', [1, 1])
+            'elem_bits': 8
         },
     },
     'CONSENSUS': {
@@ -148,8 +147,7 @@ tbl = {
         },
         'READ_TYPE': {
             'expression': '(U8)READ_TYPE',
-            'elem_bits': 8,
-            'default': array.array('B', [1])
+            'elem_bits': 8
         },
     }
 }
@@ -174,16 +172,18 @@ class FastQData:
         , readLength
         , sequence
         , quality
+        , sequence_2d
+        , quality_2d
         , channel
         , readno
-        , is2D
         , isHighQuality
         ):
-        self.is2D = is2D
         self.source = source
         self.readLength = readLength
         self.sequence = sequence
         self.quality = quality
+        self.sequence_2d = sequence_2d
+        self.quality_2d = quality_2d
         self.channel = channel
         self.readno = readno
         self.isHighQuality = isHighQuality
@@ -193,29 +193,40 @@ class FastQData:
             Writes 2D reads to CONSENSUS
             Writes other reads to SEQUENCE
         """
-        dst = tbl['SEQUENCE']
-        if self.is2D:
-            dst = tbl['CONSENSUS']
-            dst['HIGH_QUALITY']['data'] = array.array('b',
-                [ 1 if self.isHighQuality else 0 ])
-            dst['READ_LENGTH']['data'] = array.array('I', [len(self.sequence)])
+        if self.sequence_2d != None:
+            tbl['CONSENSUS']['HIGH_QUALITY']['data'] = array.array('b', [ 1 if self.isHighQuality else 0 ])
+            tbl['CONSENSUS']['READ_LENGTH' ]['data'] = array.array('I', [len(self.sequence_2d)])
+            tbl['CONSENSUS']['READ_TYPE'   ]['data'] = array.array('B', [1])
+            tbl['CONSENSUS']['READ'        ]['data'] = self.sequence_2d.encode('ascii')
+            tbl['CONSENSUS']['QUALITY'     ]['data'] = self.quality_2d.encode('ascii')
         else:
-            dst['READ_START' ]['data'] = array.array('I',
-                [ 0, self.readLength[0] ])
-            dst['READ_LENGTH']['data'] = self.readLength
-        
-        dst['READ'   ]['data'] = self.sequence.encode('ascii')
-        dst['QUALITY']['data'] = self.quality.encode('ascii')
-        dst['CHANNEL']['data'] = array.array('I', [self.channel])
-        dst['READ_NO']['data'] = array.array('I', [self.readno])
+            tbl['CONSENSUS']['HIGH_QUALITY']['data'] = array.array('b', [False])
+            tbl['CONSENSUS']['READ_LENGTH' ]['data'] = array.array('I', [0])
+            tbl['CONSENSUS']['READ_TYPE'   ]['data'] = array.array('B', [0])
+            tbl['CONSENSUS']['READ'        ]['data'] = ''.encode('ascii')
+            tbl['CONSENSUS']['QUALITY'     ]['data'] = ''.encode('ascii')
+
+        tbl['SEQUENCE']['READ_START' ]['data'] = array.array('I', [ 0, self.readLength[0] ])
+        tbl['SEQUENCE']['READ_LENGTH']['data'] = self.readLength
+        tbl['SEQUENCE']['READ_TYPE'  ]['data'] = array.array('B', map((lambda length: 1 if length > 0 else 0), self.readLength))
+        tbl['SEQUENCE']['READ'       ]['data'] = self.sequence.encode('ascii')
+        tbl['SEQUENCE']['QUALITY'    ]['data'] = self.quality.encode('ascii')
+        tbl['SEQUENCE']['CHANNEL'    ]['data'] = array.array('I', [self.channel])
+        tbl['SEQUENCE']['READ_NO'    ]['data'] = array.array('I', [self.readno])
         spotGroup = os.path.basename(self.source)
         try:
             at = spotGroup.rindex("_ch{}_".format(self.channel))
-            dst['SPOT_GROUP']['data'] = spotGroup[0:at]
+            spotGroup = spotGroup[0:at]
         except:
-            dst['SPOT_GROUP']['data'] = spotGroup
-    
-        gw.write(dst)
+            pass
+        tbl['SEQUENCE']['SPOT_GROUP']['data'] = spotGroup
+
+        tbl['CONSENSUS']['CHANNEL'   ]['data'] = tbl['SEQUENCE']['CHANNEL'   ]['data']
+        tbl['CONSENSUS']['READ_NO'   ]['data'] = tbl['SEQUENCE']['READ_NO'   ]['data']
+        tbl['CONSENSUS']['SPOT_GROUP']['data'] = tbl['SEQUENCE']['SPOT_GROUP']['data']
+
+        gw.write(tbl['SEQUENCE' ])
+        gw.write(tbl['CONSENSUS'])
 
 
     @classmethod
@@ -229,20 +240,25 @@ class FastQData:
         try:
             channel = int(f5.get_channel_number())
             readno = int(f5.get_read_number())
+            sequence_2d = None
+            quality_2d = None
+            hiQ = False
 
             if f5.has_2D():
                 twoD = f5.get_fastqs("2D")[0]
-                return FastQData(fname, None, twoD.seq, twoD.qual
-                    , channel, readno, True, f5.is_high_quality())
-            else:
-                fwd = f5.get_fastqs("fwd")[0]
-                rev = f5.get_fastqs("rev")[0]
-                if fwd != None or rev != None:
-                    return FastQData(fname
-                        , array.array('I', [ len(fwd.seq) if fwd != None else 0, len(rev.seq) if rev != None else 0 ])
-                        , (fwd.seq  if fwd != None else '') + (rev.seq  if rev != None else '')
-                        , (fwd.qual if fwd != None else '') + (rev.qual if rev != None else '')
-                        , channel, readno, False, None)
+                sequence_2d = twoD.seq
+                quality_2d = twoD.qual
+                hiQ = f5.is_high_quality()
+
+            fwd = f5.get_fastqs("fwd")[0]
+            rev = f5.get_fastqs("rev")[0]
+            if fwd != None or rev != None:
+                return FastQData(fname
+                    , array.array('I', [ len(fwd.seq) if fwd != None else 0, len(rev.seq) if rev != None else 0 ])
+                    , (fwd.seq  if fwd != None else '') + (rev.seq  if rev != None else '')
+                    , (fwd.qual if fwd != None else '') + (rev.qual if rev != None else '')
+                    , sequence_2d, quality_2d
+                    , channel, readno, hiQ)
                         
             return None
         except:

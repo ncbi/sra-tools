@@ -29,8 +29,9 @@
 #include "helper.h"
 
 #include <algorithm>
+#if DEBUG_PRINT != 0
 #include <stdio.h>
-#include <iostream>
+#endif
 
 #include <vdb/vdb-priv.h>
 #include <klib/rc.h>
@@ -942,7 +943,6 @@ namespace KApp
 
     void CProgressBar::Make ( uint64_t size )
     {
-        ::KLogLevelSet ( klogLevelMax );
         rc_t rc = ::KLoadProgressbar_Make ( &m_pSelf, size );
         if (rc)
             throw Utils::CErrorMsg(rc, "KLoadProgressbar_Make");
@@ -1057,15 +1057,20 @@ namespace Utils
                 res = string_printf(szBufErr, countof(szBufErr), NULL, "ERROR: %s", e.what());
             if (res == rcBuffer || res == rcInsufficient)
                 szBufErr[countof(szBufErr) - 1] = '\0';
-            fprintf(stderr, "%s\n", szBufErr);
+            LOGMSG ( klogErr, szBufErr );
         }
         catch (std::exception const& e)
         {
-            fprintf(stderr, "std::exception: %s\n", e.what());
+            char szBufErr[512];
+            rc_t res = string_printf(szBufErr, countof(szBufErr), NULL,
+                "std::exception: %s", e.what());
+            if (res == rcBuffer || res == rcInsufficient)
+                szBufErr[countof(szBufErr) - 1] = '\0';
+            LOGMSG ( klogErr, szBufErr );
         }
         catch (...)
         {
-            fprintf(stderr, "Unexpected exception occured\n");
+            LOGMSG ( klogErr, "Unexpected exception occured" );
         }
     }
 }

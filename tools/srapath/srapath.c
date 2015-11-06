@@ -144,7 +144,8 @@ rc_t CC KMain ( int argc, char *argv [] )
 
         if (acount == 0)
         {
-            rc = MiniUsage (args);
+            /* That useless: rc = */ MiniUsage (args);
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
             break;
         }
         else

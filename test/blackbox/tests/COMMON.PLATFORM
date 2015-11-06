@@ -1,0 +1,8 @@
+FASTA.t.test
+FASTQ.t.test
+FASTA.d.test
+FASTQ.d.test
+VDBDUMP.t.test
+VDBDUMP.d.test
+PILEUP.test
+SAMDUMP.test

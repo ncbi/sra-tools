@@ -150,10 +150,10 @@ tool-tests: $(TEST_BINDIR)/makeinputs
 	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 -I=$(VDB_INCDIR) -T actual/1override/db 
 	@#    
 	@# error message event, unpacked
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2 3 -I=$(VDB_INCDIR)
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2 3 -I=$(VDB_INCDIR) -L=err
 	@#    
 	@# error message event, packed
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2packed 3 -I=$(VDB_INCDIR)
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2packed 3 -I=$(VDB_INCDIR) -L=err
 	@#    
 	@# empty default values, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 3 0 -I=$(VDB_INCDIR)

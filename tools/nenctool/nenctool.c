@@ -416,8 +416,10 @@ rc_t CC KMain ( int argc, char *argv [] )
                 LOGERR (klogInt, rc, "failed to count parameters");
             else
             {
-                if (pcount != 2)
+                if (pcount != 2) {
                     MiniUsage (args);
+                    rc = RC(rcApp, rcArgv, rcParsing, rcParam, rcInsufficient);
+                }
                 else
                 {
                     const char * src;

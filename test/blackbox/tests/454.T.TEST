@@ -1,0 +1,4 @@
+tool=abi-dump
+database=false
+args={acc} -Z -X 10
+timeout=20

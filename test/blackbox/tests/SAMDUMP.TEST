@@ -1,0 +1,4 @@
+tool=sam-dump
+database=true
+args={acc} --aligned-region {slice} -n
+timeout=1000

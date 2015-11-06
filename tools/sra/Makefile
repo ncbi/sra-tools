@@ -90,15 +90,8 @@ TABLE_VERS_OBJ = \
 	$(addsuffix .$(OBJX),$(TABLE_VERS_SRC))
 
 TABLE_VERS_LIB = \
-	-dvxf \
-	-lvdb \
-	-lkdb \
-	-lvfs \
 	-lkapp \
-	-lkfg \
-	-lkfs \
-	-lkrypto \
-	-lklib \
+	-lncbi-vdb \
 	-lm
 
 table-vers.vers.h: table-vers.vers

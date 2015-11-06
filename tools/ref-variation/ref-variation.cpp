@@ -965,16 +965,16 @@ namespace RefVariation
                 ));
             print_indel ( "reference", ref_slice, ref_slice_size, obj.GetVarStart(), ref_len );
 
-            PLOGMSG ( klogInfo,
-                ( klogInfo,
+            PLOGMSG ( klogWarn,
+                ( klogWarn,
                 "var_query=$(VARIATION)", "VARIATION=%s", obj.GetVariation()
                 ));
         }
 
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
         {
-            PLOGMSG ( klogInfo,
-                ( klogInfo,
+            PLOGMSG ( klogWarn,
+                ( klogWarn,
                 "Input variation spec   : $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
                 "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
                 g_Params.ref_acc, g_Params.ref_pos_var,
@@ -988,8 +988,8 @@ namespace RefVariation
 
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
         {
-            PLOGMSG ( klogInfo,
-                ( klogInfo,
+            PLOGMSG ( klogWarn,
+                ( klogWarn,
                 "Adjusted variation spec: $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
                 "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
                 g_Params.ref_acc, obj.GetVarStart() + bases_start,

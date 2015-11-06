@@ -965,8 +965,8 @@ namespace RefVariation
                 ));
             print_indel ( "reference", ref_slice, ref_slice_size, obj.GetVarStart(), ref_len );
 
-            PLOGMSG ( klogWarn,
-                ( klogWarn,
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
                 "var_query=$(VARIATION)", "VARIATION=%s", obj.GetVariation()
                 ));
         }

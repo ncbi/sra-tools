@@ -28,39 +28,55 @@ version 1;
 
 include 'vdb/vdb.vschema';
 
-/* ======= case insensitive ======= */
-table idx_text:ci:test:table #1
+/* ======= case insensitive - lower ======= */
+table idx_text:ci_lower:test:table #1
 {
     extern column utf8  NAME = out_name_utf8;
-    physical utf8 .NAME = idx:text:insert  < 'i_name', true > ( NAME );
+    physical utf8 .NAME = idx:text:insert  < 'i_name', CASE_INSENSITIVE_LOWER > ( NAME );
 
-    utf8 out_name_utf8 = idx:text:project < 'i_name', true > ( .NAME );
-
-    ascii out_name = cast ( out_name_utf8 );
+    utf8 out_name_utf8 = idx:text:project < 'i_name', CASE_INSENSITIVE_LOWER > ( .NAME );
 
     // Mechanism to seach for NAME
     readonly column vdb:row_id_range NAME_RANGE
-        = idx:text:lookup < 'i_name', 'QUERY_NAME', true > ();
+        = idx:text:lookup < 'i_name', 'QUERY_NAME', CASE_INSENSITIVE_LOWER > ();
 }
 
-database idx_text:ci:test:database #1
+database idx_text:ci_lower:test:database #1
 {
-    table idx_text:ci:test:table #1 table1;
+    table idx_text:ci_lower:test:table #1 table1;
+}
+
+/* ======= case insensitive - upper ======= */
+table idx_text:ci_upper:test:table #1
+{
+    extern column utf8  NAME = out_name_utf8;
+    physical utf8 .NAME = idx:text:insert  < 'i_name', CASE_INSENSITIVE_UPPER > ( NAME );
+
+    utf8 out_name_utf8 = idx:text:project < 'i_name', CASE_INSENSITIVE_UPPER > ( .NAME );
+
+    // Mechanism to seach for NAME
+    readonly column vdb:row_id_range NAME_RANGE
+        = idx:text:lookup < 'i_name', 'QUERY_NAME', CASE_INSENSITIVE_UPPER > ();
+}
+
+database idx_text:ci_upper:test:database #1
+{
+    table idx_text:ci_upper:test:table #1 table1;
 }
 
 /* ======= case sensitive ======= */
 table idx_text:cs:test:table #1
 {
     extern column utf8  NAME = out_name_utf8;
-    physical utf8 .NAME = idx:text:insert  < 'i_name', false > ( NAME );
+    physical utf8 .NAME = idx:text:insert  < 'i_name', CASE_SENSITIVE > ( NAME );
 
-    utf8 out_name_utf8 = idx:text:project < 'i_name', false > ( .NAME );
+    utf8 out_name_utf8 = idx:text:project < 'i_name', CASE_SENSITIVE > ( .NAME );
 
     ascii out_name = cast ( out_name_utf8 );
 
     // Mechanism to seach for NAME
     readonly column vdb:row_id_range NAME_RANGE
-        = idx:text:lookup < 'i_name', 'QUERY_NAME', false > ();
+        = idx:text:lookup < 'i_name', 'QUERY_NAME', CASE_SENSITIVE > ();
 }
 
 database idx_text:cs:test:database #1

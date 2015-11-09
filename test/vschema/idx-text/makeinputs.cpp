@@ -39,7 +39,8 @@ const char* tableName = "table1";
 
 enum TestCaseType
 {
-    caseInsensitive,
+    caseInsensitiveLower,
+    caseInsensitiveUpper,
     caseSensitive,
     defaultCaseSensitive
 };
@@ -55,8 +56,11 @@ void run( const char * p_caseId, TestCaseType test_case_type, const std::string 
     {
         const char* db_schema;
         switch (test_case_type) {
-            case caseInsensitive:
-                db_schema = "idx_text:ci:test:database";
+            case caseInsensitiveLower:
+                db_schema = "idx_text:ci_lower:test:database";
+                break;
+            case caseInsensitiveUpper:
+                db_schema = "idx_text:ci_upper:test:database";
                 break;
             case caseSensitive:
                 db_schema = "idx_text:cs:test:database";
@@ -102,25 +106,39 @@ int main()
         std::string names[]   = {"a", "a", "a", "A", "b"};
         const char * test_case_id = "ci-1";
         
-        run( test_case_id, caseInsensitive, names, sizeof names / sizeof names[0] );
+        run( test_case_id, caseInsensitiveLower, names, sizeof names / sizeof names[0] );
     }
-    
+
     {
-        std::string names[]   = {"a", "a", "A", "a"};
+        std::string names[]   = {"abcdefghi", "abcdefghi", "abcdefghi", "abcdefGHI", "ABcdefghi", "ABcdefghi1234567890"};
         const char * test_case_id = "ci-2";
         
-        run( test_case_id, caseInsensitive, names, sizeof names / sizeof names[0] );
+        run( test_case_id, caseInsensitiveLower, names, sizeof names / sizeof names[0] );
     }
     
     {
-        std::string names[]   = {"a", "a", "a", "A", "b"};
+        std::string names[]   = {"abcdefghi", "abcdefghi", "abcdefGHI", "ABcdefghi"};
+        const char * test_case_id = "ci-3";
+        
+        run( test_case_id, caseInsensitiveLower, names, sizeof names / sizeof names[0] );
+    }
+    
+    {
+        std::string names[]   = {"abcdefghi", "abcdefghi", "abcdefGHI", "ABcdefghi"};
+        const char * test_case_id = "ci-4";
+        
+        run( test_case_id, caseInsensitiveUpper, names, sizeof names / sizeof names[0] );
+    }
+    
+    {
+        std::string names[]   = {"abcdefghi", "abcdefghi", "abcdefghi", "abcdefGHI", "ABcdefghi", "ABcdefghi1234567890"};
         const char * test_case_id = "cs-1";
         
         run( test_case_id, caseSensitive, names, sizeof names / sizeof names[0] );
     }
     
     {
-        std::string names[]   = {"a", "a", "a", "A", "b"};
+        std::string names[]   = {"abcdefghi", "abcdefghi", "abcdefghi", "abcdefGHI", "ABcdefghi", "ABcdefghi1234567890"};
         const char * test_case_id = "cs-2";
         
         run( test_case_id, defaultCaseSensitive, names, sizeof names / sizeof names[0] );

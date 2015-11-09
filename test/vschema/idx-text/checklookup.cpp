@@ -199,9 +199,14 @@ void initTestCases()
     {
         std::map<std::string, RowRange> key_ranges;
         {
-            RowRange range = {1, 4};
-            key_ranges["a"] = range;
-            key_ranges["A"] = range;
+            RowRange range = {1, 5};
+            key_ranges["abcdefghi"] = range;
+            key_ranges["abcdefGHI"] = range;
+            key_ranges["ABcdefghi"] = range;
+        }
+        {
+            RowRange range = {6, 6};
+            key_ranges["ABcdefghi1234567890"] = range;
         }
         
         TestCase tc = { TEST_SUITE "/actual/ci-2/db", key_ranges };
@@ -211,18 +216,49 @@ void initTestCases()
     {
         std::map<std::string, RowRange> key_ranges;
         {
+            RowRange range = {1, 4};
+            key_ranges["abcdefghi"] = range;
+            key_ranges["abcdefGHI"] = range;
+            key_ranges["ABcdefghi"] = range;
+        }
+        
+        TestCase tc = { TEST_SUITE "/actual/ci-3/db", key_ranges };
+        test_cases["ci-3"] = tc;
+    }
+    
+    {
+        std::map<std::string, RowRange> key_ranges;
+        {
+            RowRange range = {1, 4};
+            key_ranges["abcdefghi"] = range;
+            key_ranges["abcdefGHI"] = range;
+            key_ranges["ABcdefghi"] = range;
+        }
+        
+        TestCase tc = { TEST_SUITE "/actual/ci-4/db", key_ranges };
+        test_cases["ci-4"] = tc;
+    }
+    
+    {
+        std::map<std::string, RowRange> key_ranges;
+        {
             RowRange range = {1, 3};
-            key_ranges["a"] = range;
+            key_ranges["abcdefghi"] = range;
         }
         
         {
             RowRange range = {4, 4};
-            key_ranges["A"] = range;
+            key_ranges["abcdefGHI"] = range;
         }
         
         {
             RowRange range = {5, 5};
-            key_ranges["b"] = range;
+            key_ranges["ABcdefghi"] = range;
+        }
+        
+        {
+            RowRange range = {6, 6};
+            key_ranges["ABcdefghi1234567890"] = range;
         }
         
         TestCase tc = { TEST_SUITE "/actual/cs-1/db", key_ranges };
@@ -233,17 +269,22 @@ void initTestCases()
         std::map<std::string, RowRange> key_ranges;
         {
             RowRange range = {1, 3};
-            key_ranges["a"] = range;
+            key_ranges["abcdefghi"] = range;
         }
         
         {
             RowRange range = {4, 4};
-            key_ranges["A"] = range;
+            key_ranges["abcdefGHI"] = range;
         }
         
         {
             RowRange range = {5, 5};
-            key_ranges["b"] = range;
+            key_ranges["ABcdefghi"] = range;
+        }
+        
+        {
+            RowRange range = {6, 6};
+            key_ranges["ABcdefghi1234567890"] = range;
         }
         
         TestCase tc = { TEST_SUITE "/actual/cs-2/db", key_ranges };

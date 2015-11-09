@@ -106,6 +106,8 @@ idx-text-tests: idx-text-makeinputs idx-text-checklookup
 	@# test cases
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text ci-1 0 y ./idx-text-checklookup
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text ci-2 0 y ./idx-text-checklookup
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text ci-3 0 y ./idx-text-checklookup
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text ci-4 0 y ./idx-text-checklookup
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text cs-1 0 y ./idx-text-checklookup
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text cs-2 0 y ./idx-text-checklookup
 	@rm -f ./idx-text-checklookup

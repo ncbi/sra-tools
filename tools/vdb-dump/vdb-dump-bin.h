@@ -36,7 +36,6 @@ extern "C" {
 
 rc_t vdi_dump_opened_table( const p_dump_context ctx, const VTable *my_table );
 rc_t vdi_bin_phase( const p_dump_context ctx, Args * args );
-rc_t find_slice( const p_dump_context ctx, Args * args );
 
 #ifdef __cplusplus
 }

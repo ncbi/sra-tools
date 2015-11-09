@@ -28,7 +28,6 @@
 
 #include <insdc/insdc.h>
 
-#include <kdb/manager.h>
 #include <vdb/table.h>
 #include <vdb/cursor.h>
 
@@ -1236,13 +1235,16 @@ static rc_t vdi_bin_phase_1( KDirectory * dir, const p_dump_context ctx )
 
 /* ----------------------------------------------------------------------------------------------------------- */
 
+
+/* ----------------------------------------------------------------------------------------------------------- */
+
 rc_t vdi_bin_phase( const p_dump_context ctx, Args * args )
 {
     uint32_t count;
     rc_t rc = ArgsParamCount( args, &count );
     if ( rc != 0 )
     {
-        LOGERR( klogInt, rc, "ArgsParamCount() failed" );
+        LOGERR( klogInt, rc, "VCursorOpen() failed" );
     }
     else if ( count < 1 )
     {
@@ -1273,224 +1275,4 @@ rc_t vdi_bin_phase( const p_dump_context ctx, Args * args )
         }
     }
     return rc;
-}
-
-
-/* ----------------------------------------------------------------------------------------------------------- */
-#define SLICE_COL_CG_LOW    0
-#define SLICE_COL_CG_HIGH   1
-#define SLICE_COL_SEQ_ID    2
-#define SLICE_COL_SEQ_START 3
-#define SLICE_COL_SEQ_LEN   4
-
-static rc_t get_seq_id( const VCursor * ref_cur, int64_t row, uint32_t *col_idx, char * buffer, size_t buflen )
-{
-	const char * value;
-	uint32_t len;
-	rc_t rc = VCursorCellDataDirect ( ref_cur, row, col_idx[ SLICE_COL_SEQ_ID ], NULL, ( const void ** )&value, NULL, &len );
-	if ( rc == 0 )
-	{
-		if ( len == 0 )
-			buffer[ 0 ] = 0;
-		else
-			string_copy( buffer, buflen, value, len );
-	}
-	return rc;
-}
-
-static INSDC_coord_one get_seq_start( const VCursor * ref_cur, int64_t row, uint32_t *col_idx )
-{
-	INSDC_coord_one * value;
-	uint32_t len;
-	rc_t rc = VCursorCellDataDirect ( ref_cur, row, col_idx[ SLICE_COL_SEQ_START ], NULL, ( const void ** )&value, NULL, &len );
-	if ( rc == 0 && len > 0 )
-		return *value;
-	return 0;
-}
-
-
-static INSDC_coord_len get_seq_len( const VCursor * ref_cur, int64_t row, uint32_t *col_idx )
-{
-	INSDC_coord_len * value;
-	uint32_t len;
-	rc_t rc = VCursorCellDataDirect ( ref_cur, row, col_idx[ SLICE_COL_SEQ_LEN ], NULL, ( const void ** )&value, NULL, &len );
-	if ( rc == 0 && len > 0 )
-		return *value;
-	return 0;
-}
-
-
-static rc_t find_slice_in_ref( const p_dump_context ctx, const VTable * ref_tab, const VTable * prim_tab  )
-{
-	const VCursor * ref_cur;
-	rc_t rc = VTableCreateCachedCursorRead( ref_tab, &ref_cur, ctx->cur_cache_size );
-	if ( rc != 0 )
-	{
-		LOGERR( klogInt, rc, "VTableCreateCachedCursorRead( REFERENCE ) failed" );
-	}
-	else
-	{
-		uint32_t col_idx[ 5 ];
-		char seq_id[ 512 ];
-		uint32_t cgraph_len;
-		int64_t first = 0, row = 0;
-		uint64_t count = 0;
-		const uint8_t * cgraph_value;
-		bool done = false;
-		
-		rc = VCursorAddColumn( ref_cur, &col_idx[ SLICE_COL_CG_LOW ], "CGRAPH_LOW" );
-		if ( rc == 0 )
-			rc = VCursorAddColumn( ref_cur, &col_idx[ SLICE_COL_CG_HIGH ], "CGRAPH_HIGH" );
-		if ( rc == 0 )
-			rc = VCursorAddColumn( ref_cur, &col_idx[ SLICE_COL_SEQ_ID ], "SEQ_ID" );
-		if ( rc == 0 )
-			rc = VCursorAddColumn( ref_cur, &col_idx[ SLICE_COL_SEQ_START ], "SEQ_START" );
-		if ( rc == 0 )
-			rc = VCursorAddColumn( ref_cur, &col_idx[ SLICE_COL_SEQ_LEN ], "SEQ_LEN" );
-		if ( rc == 0 )
-			rc = VCursorOpen( ref_cur );
-		if ( rc == 0 )
-			rc = VCursorIdRange( ref_cur, col_idx[ SLICE_COL_CG_LOW ], &first, &count );
-
-		for ( row = first; rc == 0 && !done && ( row < ( first + count ) ); ++row )
-		{
-			rc = VCursorCellDataDirect ( ref_cur, row, col_idx[ SLICE_COL_CG_LOW ], NULL, ( const void ** )&cgraph_value, NULL, &cgraph_len );
-			if ( rc == 0 && cgraph_len > 0 )
-			{
-				if ( *cgraph_value >= ctx->slice_depth )
-				{
-					
-					rc = get_seq_id( ref_cur, row, col_idx, seq_id, sizeof seq_id );
-					if ( rc == 0 )
-					{
-						INSDC_coord_one seq_start = get_seq_start( ref_cur, row, col_idx );
-						INSDC_coord_len seq_len = get_seq_len( ref_cur, row, col_idx );
-						if ( ctx->indented_line_len > 0 && ctx->indented_line_len < seq_len )
-							rc = KOutMsg( "%s:%d-%d\n", seq_id, seq_start, seq_start + ctx->indented_line_len );
-						else
-							rc = KOutMsg( "%s:%d-%d\n", seq_id, seq_start, seq_start + seq_len - 1 );
-					}
-					done = true;
-				}
-			}
-		}
-
-		for ( row = first; rc == 0 && !done && ( row < ( first + count ) ); ++row )
-		{
-			rc = VCursorCellDataDirect ( ref_cur, row, col_idx[ SLICE_COL_CG_HIGH ], NULL, ( const void ** )&cgraph_value, NULL, &cgraph_len );
-			if ( rc == 0 && cgraph_len > 0 )
-			{
-				if ( *cgraph_value >= ctx->slice_depth )
-				{
-					
-					rc = get_seq_id( ref_cur, row, col_idx, seq_id, sizeof seq_id );
-					if ( rc == 0 )
-					{
-						INSDC_coord_one seq_start = get_seq_start( ref_cur, row, col_idx );
-						INSDC_coord_len seq_len = get_seq_len( ref_cur, row, col_idx );
-						rc = KOutMsg( "%s:%d-%d\n", seq_id, seq_start, seq_start + seq_len - 1 );
-					}
-					done = true;
-				}
-			}
-		}
-	
-	
-		if ( !done || rc != 0 )
-			KOutMsg( "none\n" );
-		
-		VCursorRelease( ref_cur );
-	}
-	return rc;
-}
-
-
-static rc_t find_slice_in( const p_dump_context ctx, const VDBManager *mgr, const char * acc )
-{
-    rc_t rc;
-    int path_type = ( VDBManagerPathType ( mgr, "%s", acc ) & ~ kptAlias );
-    /* types defined in <kdb/manager.h> */
-    if ( path_type == kptDatabase )
-	{
-		const VDatabase * db;
-		rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", acc );
-		if ( rc != 0 )
-		{
-			LOGERR( klogInt, rc, "VDBManagerOpenDBRead() failed" );
-		}
-		else
-		{
-			const VTable * ref_tab;
-			rc = VDatabaseOpenTableRead( db, & ref_tab, "REFERENCE" );
-			if ( rc == 0 )
-			{
-				const VTable * prim_tab;
-				rc = VDatabaseOpenTableRead( db, & prim_tab, "PRIMARY_ALIGNMENT" );	
-				if ( rc == 0 )
-				{
-					rc = find_slice_in_ref( ctx, ref_tab, prim_tab );
-					VTableRelease ( prim_tab );
-				}
-				VTableRelease ( ref_tab );
-			}
-			VDatabaseRelease( db );
-		}
-		if ( rc != 0 )
-			rc = KOutMsg( "none\n" );
-	}
-	else
-		rc = KOutMsg( "none\n" );
-	return rc;
-}
-
-
-rc_t find_slice( const p_dump_context ctx, Args * args )
-{
-    uint32_t count;
-    rc_t rc = ArgsParamCount( args, &count );
-    if ( rc != 0 )
-    {
-        LOGERR( klogInt, rc, "ArgsParamCount() failed" );
-    }
-    else if ( count < 1 )
-    {
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-        LOGERR( klogInt, rc, "parameter missing ( accession to find slice in )" );
-    }
-	else
-	{
-		KDirectory * dir;
-		rc = KDirectoryNativeDir( &dir );
-		if ( rc != 0 )
-		{
-			LOGERR( klogInt, rc, "KDirectoryNativeDir() failed" );
-		}
-		else
-		{
-			const VDBManager *mgr;
-			rc = VDBManagerMakeRead ( &mgr, dir );
-			if ( rc != 0 )
-			{
-				LOGERR( klogInt, rc, "VDBManagerMakeRead() failed" );
-			}
-			else
-			{
-				uint32_t idx;
-				for ( idx = 0; idx < count && rc == 0; ++idx )
-				{
-					const char *acc = NULL;
-					rc = ArgsParamValue( args, 0, (const void**)&acc );
-					if ( rc != 0 )
-					{
-						LOGERR( klogInt, rc, "ArgsParamValue() failed" );
-					}
-					else
-						rc = find_slice_in( ctx, mgr, acc );
-				}
-				VDBManagerRelease( mgr );
-			}
-			KDirectoryRelease( dir );
-		}
-	}
-	return rc;
 }

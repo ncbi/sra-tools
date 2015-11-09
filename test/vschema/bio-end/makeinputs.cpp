@@ -29,15 +29,17 @@
  */
 #include "../../../tools/general-loader/general-writer.hpp"
 
+#define TEST_SUITE "bio-end"
+
 using namespace ncbi;
 
 const char* tableName = "table1";
 
 void run( const char * p_caseId, bool inclusive, const int32_t coord_start[], const int32_t coord_len[], const int8_t coord_type[], int segments_number )
 {
-    std::string output_path = std::string ( "bio-end/input/" ) + p_caseId + ".gl";
-    std::string db_path = std::string ( "bio-end/actual/" ) + p_caseId + "/db";
-    std::string schema_path = inclusive ? "bio-end/bio-end-incl.vschema" : "bio-end/bio-end-excl.vschema";
+    std::string output_path = std::string ( TEST_SUITE "/input/" ) + p_caseId + ".gl";
+    std::string db_path = std::string ( TEST_SUITE "/actual/" ) + p_caseId + "/db";
+    std::string schema_path = inclusive ? TEST_SUITE "/bio-end-incl.vschema" : TEST_SUITE "/bio-end-excl.vschema";
     
     GeneralWriter *gw;
     try
@@ -46,7 +48,7 @@ void run( const char * p_caseId, bool inclusive, const int32_t coord_start[], co
         
         gw -> setRemotePath ( db_path );
         gw -> useSchema ( schema_path, "bio_end:test:database1" );
-
+        
         int table_id = gw -> addTable ( tableName );
         int column_read_start_id = gw -> addIntegerColumn ( table_id, "out_read_start", 32 );
         int column_read_len_id = gw -> addIntegerColumn ( table_id, "out_read_len", 32 );

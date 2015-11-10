@@ -745,8 +745,7 @@ namespace RefVariation
             ngs::AlignmentIterator ai = reference.getAlignmentSlice (
                 ref_start, slice_size, ngs::Alignment::all);
             //ngs::AlignmentIterator ai = reference.getFilteredAlignmentSlice (
-            //    ref_start, var_size, ngs::Alignment::all,
-            //    ngs::Alignment::passFailed | ngs::Alignment::passDuplicates, 0);
+            //    ref_start, var_size, ngs::Alignment::all, (ngs::Alignment::AlignmentFilter)0, 0);
 
             size_t alignments_total = 0, alignments_total_negative = 0;
             size_t alignments_matched = 0, alignments_matched_negative = 0;
@@ -1123,12 +1122,13 @@ namespace RefVariation
 
     bool check_ref_slice ( char const* ref, size_t ref_size )
     {
-        for ( size_t i = 0; i < ref_size; ++i )
+        bool ret = ref_size == 0;
+        for ( size_t i = 0; i < ref_size && !ret; ++i )
         {
             if ( !(ref [i] == 'N' || ref [i] == 'n' || ref [i] == '.') )
-                return true; // at least one non-N base is OK
+                ret = true; // at least one non-N base is OK
         }
-        return false;
+        return ret;
     }
 
     char const* get_query (char const* pattern, uint32_t repetitions, std::string& generated_query)

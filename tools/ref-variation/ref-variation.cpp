@@ -1123,10 +1123,13 @@ namespace RefVariation
     bool check_ref_slice ( char const* ref, size_t ref_size )
     {
         bool ret = ref_size == 0;
-        for ( size_t i = 0; i < ref_size && !ret; ++i )
+        for ( size_t i = 0; i < ref_size; ++i )
         {
             if ( !(ref [i] == 'N' || ref [i] == 'n' || ref [i] == '.') )
+            {
                 ret = true; // at least one non-N base is OK
+                break;
+            }
         }
         return ret;
     }

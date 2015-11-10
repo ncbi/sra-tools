@@ -495,7 +495,7 @@ namespace KSearch
     public:
         friend CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
-            size_t var_len_on_ref);
+            size_t var_len_on_ref, size_t bases_start);
 
         CVRefVariation();
         ~CVRefVariation();
@@ -505,19 +505,26 @@ namespace KSearch
         void Release();
 
         char const* GetVariation() const;
-        char const* GetQueryForPureDeletion( char* buf, size_t buf_size ) const;
-        size_t GetVarStart() const;
+        char const* GetQueryForPureDeletion() const;
+        size_t GetVarStartRelative() const; // relative to search region
+        size_t GetVarStartAbsolute() const; // in absolute reference coordinates
         size_t GetVarSize() const;
         size_t GetVarLenOnRef() const;
+        bool IsPureDeletion() const;
+
+        void InitQueryForPureDeletion ( char* buf, size_t buf_size ) const;
 
     private:
         void Clone(CVRefVariation const& x);
         ::VRefVariation* m_pSelf;
+        size_t m_bases_start; // the absolute position on the reference
+                              // starting at which the search was initiated
+        char m_query_del[3];
     };
 
     CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
-            size_t var_len_on_ref);
+            size_t var_len_on_ref, size_t bases_start);
 
 }
 

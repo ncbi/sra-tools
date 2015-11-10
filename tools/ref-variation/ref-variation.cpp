@@ -96,13 +96,15 @@ namespace RefVariation
         // command line options
         char const* ref_acc;
         int64_t ref_pos_var;
-        char const* query;
+        char query[256];
         size_t var_len_on_ref;
         int verbosity;
         size_t thread_count;
         bool calc_coverage;
         char const* input_file;
         EnumCountStrand count_strand;
+        uint32_t query_min_rep;
+        uint32_t query_max_rep;
     } g_Params =
     {
         "",
@@ -113,7 +115,9 @@ namespace RefVariation
         1,
         false,
         "",
-        COUNT_STRAND_NONE
+        COUNT_STRAND_NONE,
+        0,
+        0
     };
 
     class CInputRun
@@ -187,7 +191,15 @@ namespace RefVariation
 
     char const OPTION_QUERY[] = "query";
     //char const ALIAS_QUERY[]  = "q"; // -q is deprecated
-    char const* USAGE_QUERY[] = { "query to find in the given reference (\"-\" is treated as an empty string, or deletion)", NULL };
+    char const* USAGE_QUERY[] = { "query to find in the given reference (\"-\" is treated as an empty string, or deletion)."
+        " Optionally, for non-empty query, the variable number of repetitions "
+        "can be specified in the following way: "
+        "\"<query>[<min_rep>-<max_rep>]\" where <query> is the pattern which "
+        "should be repeated, <min_rep> is the minimum number of repetiotions and "
+        "<max_rep> is the maximum number of repetiotions to produce from query pattern. "
+        "E.g.: \"AT[1-3]\" produces 3 queries: \"AT\", \"ATAT\" and \"ATATAT\". "
+        "In this case the output counts will contain as many columns for matched "
+        "counts as many variations is produced from the given query.", NULL };
 
     char const OPTION_VAR_LEN_ON_REF[] = "variation-length";
     char const ALIAS_VAR_LEN_ON_REF[]  = "l";
@@ -328,38 +340,104 @@ namespace RefVariation
         PILEUP_MAYBE_FOUND
     };
 
-    template <class TLock> void report_run_coverage ( char const* acc,
+    struct count_pair
+    {
+        size_t count;
+        size_t count_posititve;
+    };
+
+    struct coverage_info
+    {
+        count_pair count_total;
+        std::vector <count_pair> counts_matched;
+    };
+
+    template <class TLock> void update_run_coverage ( char const* acc,
         size_t alignments_total, size_t alignments_total_positive,
         size_t alignments_matched, size_t alignments_matched_positive,
-        TLock* lock_cout) 
+        TLock* lock_cout, coverage_info* pcoverage_count, size_t index)
     {
+        coverage_info& counts = *pcoverage_count;
+
+        if ( counts.count_total.count != (size_t)-1 )
+        {
+            if ( counts.count_total.count != alignments_total ||
+                counts.count_total.count_posititve != alignments_total_positive )
+            {
+                LOCK_GUARD l(*lock_cout);
+                PLOGMSG ( klogWarn,
+                    (klogWarn,
+                    "Total counts don't match for $(ACC) for query # $(IDXPREV) and $(IDXCUR): "
+                    "total: $(TOTALPREV) vs $(TOTALCUR), total positive: $(TOTALPOSPREV) vs $(TOTALPOSCUR)",
+                    "ACC=%s,IDXPREV=%zu,IDXCUR=%zu,TOTALPREV=%zu,TOTALCUR=%zu,TOTALPOSPREV=%zu,TOTALPOSCUR=%zu",
+                    acc, index, index + 1, alignments_total, counts.count_total.count,
+                    alignments_total_positive, counts.count_total.count_posititve));
+            }
+        }
+
+        counts.count_total.count = alignments_total;
+        counts.count_total.count_posititve = alignments_total_positive;
+
+        assert ( index < counts.counts_matched.size() );
+        count_pair& matched_count = counts.counts_matched [index];
+
+        matched_count.count = alignments_matched;
+        matched_count.count_posititve = alignments_matched_positive;
+    }
+    
+
+    template <class TLock> void report_run_coverage ( char const* acc,
+        coverage_info const* pcoverage_count, TLock* lock_cout) 
+    {
+        coverage_info const& counts = *pcoverage_count;
         if ( g_Params.calc_coverage )
         {
             LOCK_GUARD l(*lock_cout);
 
-            OUTMSG (( "%s\t%zu", acc, alignments_matched ));
+            OUTMSG (( "%s", acc ));
+
+            std::vector <count_pair>::const_iterator cit = counts.counts_matched.begin();
+            std::vector <count_pair>::const_iterator cend = counts.counts_matched.end();
+            for (; cit != cend; ++cit)
+            {
+                count_pair const& c = *cit;
+                OUTMSG (( "\t%zu", c.count ));
+        
+                if ( g_Params.count_strand != COUNT_STRAND_NONE )
+                    OUTMSG (( ",%zu", c.count_posititve ));
+            }
+
+            OUTMSG (( "\t%zu", counts.count_total.count ));
         
             if ( g_Params.count_strand != COUNT_STRAND_NONE )
-                OUTMSG (( ",%zu", alignments_matched_positive ));
-            
-            OUTMSG (( "\t%zu", alignments_total ));
-        
-            if ( g_Params.count_strand != COUNT_STRAND_NONE )
-                OUTMSG (( ",%zu", alignments_total_positive ));
+                OUTMSG (( ",%zu", counts.count_total.count_posititve ));
             
             OUTMSG (("\n"));
         }
-        else if ( alignments_matched > 0 )
+        else
         {
-            LOCK_GUARD l(*lock_cout);
-            OUTMSG (( "%s\n", acc ));
+
+            std::vector <count_pair>::const_iterator cit = counts.counts_matched.begin();
+            std::vector <count_pair>::const_iterator cend = counts.counts_matched.end();
+            for (; cit != cend; ++cit)
+            {
+                count_pair const& c = *cit;
+                if ( c.count > 0 )
+                {
+                    LOCK_GUARD l(*lock_cout);
+                    OUTMSG (( "%s\n", acc ));
+                    break;
+                }
+            }
         }
     }
 
     template <class TLock> int find_alignment_in_pileup_db ( char const* acc,
                 char const* acc_pileup, char const* ref_name,
-                KSearch::CVRefVariation const* pobj, size_t bases_start,
-                TLock* lock_cout, size_t thread_num )
+                KSearch::CVRefVariation const* pobj, size_t ref_pos,
+                size_t query_len_on_ref,
+                TLock* lock_cout, size_t thread_num,
+                coverage_info* pcoverage_count, size_t index )
     {
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
         {
@@ -372,7 +450,6 @@ namespace RefVariation
         }
 
         KSearch::CVRefVariation const& obj = *pobj;
-        size_t ref_pos = bases_start + obj.GetVarStart();
         VDBObjects::CVDBManager mgr;
         mgr.Make();
 
@@ -412,7 +489,7 @@ namespace RefVariation
             }
             if ( !found )
             {
-                report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
+                update_run_coverage ( acc, 0, 0, 0, 0, lock_cout, pcoverage_count, index );
                 return PILEUP_DEFINITELY_NOT_FOUND;
             }
 
@@ -420,7 +497,7 @@ namespace RefVariation
             //int64_t indel_check_cnt = indel_cnt > 0 ? indel_cnt : -indel_cnt;
             size_t alignments_total = (size_t)((uint32_t)-1);
 
-            for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + obj.GetVarLenOnRef() ); ++pos )
+            for ( int64_t pos = (int64_t)ref_pos; pos < (int64_t)( ref_pos + query_len_on_ref ); ++pos )
             {
                 if ( pos + ref_id_start >= id_first + (int64_t)row_count )
                 {
@@ -439,7 +516,7 @@ namespace RefVariation
                             ));
                     }
 
-                    report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
+                    update_run_coverage ( acc, 0, 0, 0, 0, lock_cout, pcoverage_count, index );
                     return PILEUP_DEFINITELY_NOT_FOUND; // went beyond the end of db, probably, it's a bug in db
                 }
 
@@ -459,7 +536,7 @@ namespace RefVariation
                             "THREAD_NUM=%zu,POS=%ld,ID=%ld", thread_num, pos, pos + ref_id_start
                             ));
                     }
-                    report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
+                    update_run_coverage ( acc, 0, 0, 0, 0, lock_cout, pcoverage_count, index );
                     return PILEUP_DEFINITELY_NOT_FOUND;
                 }
 
@@ -485,7 +562,7 @@ namespace RefVariation
 
                     if ( obj.GetVarLenOnRef() == 1 && obj.GetVarSize() == 1 )
                     {
-                        report_run_coverage ( acc, alignments_total, 0, alignments_matched, 0, lock_cout );
+                        update_run_coverage ( acc, alignments_total, 0, alignments_matched, 0, lock_cout, pcoverage_count, index );
                         return alignments_matched == 0 ?
                             PILEUP_DEFINITELY_NOT_FOUND : PILEUP_DEFINITELY_FOUND;
                     }
@@ -497,7 +574,7 @@ namespace RefVariation
 
                     else if ( alignments_matched == 0 && ! g_Params.calc_coverage )
                     {
-                        report_run_coverage ( acc, alignments_total, 0, alignments_matched, 0, lock_cout );
+                        update_run_coverage ( acc, alignments_total, 0, alignments_matched, 0, lock_cout, pcoverage_count, index );
                         return PILEUP_DEFINITELY_NOT_FOUND;
                     }
                 }
@@ -643,14 +720,11 @@ namespace RefVariation
     }
 
     template <class TLock> void find_alignments_in_run_db ( char const* acc,
-        char const* path, char const* ref_name,
-        KSearch::CVRefVariation const* pobj, size_t bases_start,
-        char const* variation, size_t var_size,
-        TLock* lock_cout, size_t thread_num )
+        char const* path, char const* ref_name, size_t ref_start,
+        char const* variation, size_t var_size, size_t slice_size,
+        TLock* lock_cout, size_t thread_num,
+        coverage_info* pcoverage_count, size_t index)
     {
-        KSearch::CVRefVariation const& obj = *pobj;
-        size_t ref_start = bases_start + obj.GetVarStart();
-
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
         {
             LOCK_GUARD l(*lock_cout);
@@ -664,7 +738,6 @@ namespace RefVariation
         ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( path && path[0] ? path : acc );
         if ( run.hasReference ( ref_name ) )
         {
-            size_t slice_size = obj.GetVarLenOnRef();
             if ( slice_size == 0 )
                 slice_size = 1; // for a pure insertion we at least a slice of length == 1 ?
 
@@ -718,10 +791,10 @@ namespace RefVariation
                 }
             }
 
-            report_run_coverage ( acc,
+            update_run_coverage ( acc,
                 alignments_total, alignments_total - alignments_total_negative,
                 alignments_matched, alignments_matched - alignments_matched_negative,
-                lock_cout );
+                lock_cout, pcoverage_count, index );
         }
         else
         {
@@ -735,14 +808,47 @@ namespace RefVariation
                     ));
             }
 
-            report_run_coverage ( acc, 0, 0, 0, 0, lock_cout );
+            update_run_coverage ( acc, 0, 0, 0, 0, lock_cout, pcoverage_count, index );
+        }
+    }
+
+    template <class TLock> void find_alignments_in_single_run (char const* acc,
+        char const* path, char const* pileup_path, char const* ref_name,
+        KSearch::CVRefVariation const* pobj, size_t index,
+        TLock* lock_cout, size_t thread_num, coverage_info* pcoverage_count)
+    {
+        char const* variation;
+        size_t query_len_on_ref, var_start, var_size;
+
+        if (pobj->IsPureDeletion())
+        {
+            variation = pobj->GetQueryForPureDeletion();
+            var_size = strlen (variation);
+            query_len_on_ref = var_size;
+            var_start = pobj->GetVarStartAbsolute() - 1;
+        }
+        else
+        {
+            variation = pobj->GetVariation();
+            var_size = pobj->GetVarSize();
+            query_len_on_ref = pobj->GetVarLenOnRef();
+            var_start = pobj->GetVarStartAbsolute();
+        }
+
+        int res = find_alignment_in_pileup_db ( acc, pileup_path, ref_name,
+            pobj, var_start, query_len_on_ref, lock_cout, thread_num, pcoverage_count, index );
+
+        if ( res == PILEUP_MAYBE_FOUND )
+        {
+            find_alignments_in_run_db( acc, path, ref_name, var_start,
+                variation, var_size, query_len_on_ref,
+                lock_cout, thread_num, pcoverage_count, index );
         }
     }
 
     template <class TLock> void find_alignments_in_single_run ( char const* acc,
         char const* path, char const* pileup_path, char const* ref_name,
-        KSearch::CVRefVariation const* pobj, size_t bases_start,
-        char const* variation, size_t var_size,
+        std::vector <KSearch::CVRefVariation> const* pvec_obj,
         TLock* lock_cout, size_t thread_num )
     {
         char const pileup_suffix[] = ".pileup";
@@ -757,43 +863,32 @@ namespace RefVariation
             pileup_path = acc_pileup;
         }
 
-        int res = find_alignment_in_pileup_db ( acc, pileup_path, ref_name,
-            pobj, bases_start, lock_cout, thread_num );
+        std::vector <KSearch::CVRefVariation> const& vec_obj = *pvec_obj;
 
-        if ( res == PILEUP_MAYBE_FOUND )
+        coverage_info coverage_counts = {};
+        coverage_counts.count_total.count = (size_t)-1;
+        coverage_counts.count_total.count_posititve = (size_t)-1;
+        coverage_counts.counts_matched.resize( vec_obj.size() );
+
+        std::vector <KSearch::CVRefVariation>::const_iterator cit = vec_obj.begin();
+        std::vector <KSearch::CVRefVariation>::const_iterator cend = vec_obj.end();
+        for ( size_t i = 0; cit != cend; ++cit, ++i )
         {
-            find_alignments_in_run_db( acc, path, ref_name, pobj, bases_start,
-                variation, var_size, lock_cout, thread_num );
+            KSearch::CVRefVariation const& obj = *cit;
+            find_alignments_in_single_run ( acc, path, pileup_path,
+                ref_name, & obj, i, lock_cout, thread_num, & coverage_counts );
         }
+
+        report_run_coverage ( acc, & coverage_counts, lock_cout );
     }
 
     template <class TLock> void find_alignments ( char const* ref_name,
-        KSearch::CVRefVariation const* pobj, size_t bases_start,
-        TLock* lock_cout, size_t thread_num,
-        CInputRuns const* p_input_runs,
+        std::vector <KSearch::CVRefVariation> const* pvec_obj,
+        TLock* lock_cout, size_t thread_num, CInputRuns const* p_input_runs,
         KApp::CProgressBar* progress_bar )
     {
         try
         {
-            KSearch::CVRefVariation const& obj = *pobj;
-            size_t ref_start = bases_start + obj.GetVarStart();
-
-            char query_del[3];
-
-            char const* variation;
-            size_t var_size;
-            if ( obj.GetVarSize() == 0 && obj.GetVarLenOnRef() > 0 )
-            {
-                variation = obj.GetQueryForPureDeletion( query_del, sizeof query_del );
-                var_size = 2;
-                -- ref_start;
-            }
-            else
-            {
-                variation = obj.GetVariation();
-                var_size = obj.GetVarSize();
-            }
-
             for ( ; ; )
             {
                 size_t index = p_input_runs -> GetNextIndex();
@@ -821,8 +916,7 @@ namespace RefVariation
                 try
                 {
                     find_alignments_in_single_run ( acc, path, pileup_path,
-                        ref_name, pobj, bases_start, variation, var_size,
-                        lock_cout, thread_num );
+                        ref_name, pvec_obj, lock_cout, thread_num );
                 }
                 catch ( ngs::ErrorMsg const& e )
                 {
@@ -882,8 +976,7 @@ namespace RefVariation
 
         size_t param_start, param_count;
         char const* ref_name;
-        KSearch::CVRefVariation const* pobj;
-        size_t bases_start;
+        std::vector <KSearch::CVRefVariation> const* pvec_obj;
         LOCK* lock_cout;
         size_t thread_num;
         CInputRuns const* p_input_runs;
@@ -893,8 +986,7 @@ namespace RefVariation
     void AdapterFindAlignment_Init (AdapterFindAlignment & params,
             size_t param_start, size_t param_count,
             char const* ref_name,
-            KSearch::CVRefVariation const* pobj,
-            size_t bases_start,
+            std::vector <KSearch::CVRefVariation> const* pvec_obj,
             LOCK* lock_cout,
             size_t thread_num,
             CInputRuns const* p_input_runs,
@@ -904,8 +996,7 @@ namespace RefVariation
         params.param_start = param_start;
         params.param_count = param_count;
         params.ref_name = ref_name;
-        params.pobj = pobj;
-        params.bases_start = bases_start;
+        params.pvec_obj = pvec_obj;
         params.lock_cout = lock_cout;
         params.thread_num = thread_num;
         params.p_input_runs = p_input_runs;
@@ -915,8 +1006,8 @@ namespace RefVariation
     rc_t AdapterFindAlignmentFunc ( void* data )
     {
         AdapterFindAlignment& p = * (static_cast<AdapterFindAlignment*>(data));
-        find_alignments ( p.ref_name, p.pobj, p.bases_start,
-            p.lock_cout, p.thread_num, p.p_input_runs, p.progress_bar );
+        find_alignments ( p.ref_name, p.pvec_obj, p.lock_cout, p.thread_num,
+            p.p_input_runs, p.progress_bar );
         return 0;
     }
 #endif
@@ -931,16 +1022,16 @@ namespace RefVariation
         bool cont = false;
         obj = KSearch::VRefVariationIUPACMake (
             ref_slice, ref_slice_size,
-            ref_pos_in_slice, var, var_len, var_len_on_ref );
+            ref_pos_in_slice, var, var_len, var_len_on_ref, bases_start );
 
-        if ( obj.GetVarStart() == 0 && chunk_no_start > 0 )
+        if ( obj.GetVarStartRelative() == 0 && chunk_no_start > 0 )
         {
             cont = true;
             --chunk_no_start;
             ref_pos_in_slice += chunk_size;
             bases_start -= chunk_size;
         }
-        if (obj.GetVarStart() + obj.GetVarLenOnRef() == ref_slice_size &&
+        if (obj.GetVarStartRelative() + obj.GetVarLenOnRef() == ref_slice_size &&
             chunk_no_end < chunk_no_last )
         {
             cont = true;
@@ -950,53 +1041,10 @@ namespace RefVariation
         return cont;
     }
 
-    void finish_find_variation_region ( KApp::CArgs const & args, size_t var_len,
-        char const* ref_slice, size_t ref_slice_size, size_t bases_start,
-        KSearch::CVRefVariation const& obj, KApp::CProgressBar& progress_bar )
+    void finish_find_variation_region ( KApp::CArgs const & args,
+        std::vector <KSearch::CVRefVariation> const& vec_obj,
+        KApp::CProgressBar& progress_bar )
     {
-        size_t ref_start = obj.GetVarStart() + bases_start;
-        size_t ref_len = obj.GetVarLenOnRef();
-        if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
-        {
-            PLOGMSG ( klogInfo,
-                ( klogInfo,
-                "Found indel box at pos=$(REFSTART), length=$(REFLEN)",
-                "REFSTART=%zu,REFLEN=%zu", ref_start, ref_len
-                ));
-            print_indel ( "reference", ref_slice, ref_slice_size, obj.GetVarStart(), ref_len );
-
-            PLOGMSG ( klogInfo,
-                ( klogInfo,
-                "var_query=$(VARIATION)", "VARIATION=%s", obj.GetVariation()
-                ));
-        }
-
-        if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
-        {
-            PLOGMSG ( klogWarn,
-                ( klogWarn,
-                "Input variation spec   : $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
-                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
-                g_Params.ref_acc, g_Params.ref_pos_var,
-                g_Params.var_len_on_ref, g_Params.query
-                ));
-        }
-
-        size_t var_len_on_ref_adj = obj.GetVarLenOnRef();
-        if ( (int64_t)ref_start > g_Params.ref_pos_var )
-            var_len_on_ref_adj -= ref_start - g_Params.ref_pos_var;
-
-        if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
-        {
-            PLOGMSG ( klogWarn,
-                ( klogWarn,
-                "Adjusted variation spec: $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
-                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
-                g_Params.ref_acc, obj.GetVarStart() + bases_start,
-                obj.GetVarLenOnRef(), obj.GetVariation()
-                ));
-        }
-
         // Split further processing into multiple threads if there too many params
         CInputRuns input_runs ( args );
 
@@ -1014,7 +1062,7 @@ namespace RefVariation
         if ( thread_count == 1 )
         {
             CNoMutex mtx;
-            find_alignments (g_Params.ref_acc, & obj, bases_start, & mtx,
+            find_alignments (g_Params.ref_acc, & vec_obj, & mtx,
                 0, & input_runs, & progress_bar);
         }
         else
@@ -1046,14 +1094,14 @@ namespace RefVariation
                 vec_threads.push_back(
                     std::thread( find_alignments <LOCK>,
                                     i * param_chunk_size,
-                                    current_chunk_size, g_Params.ref_acc, & obj, bases_start,
+                                    current_chunk_size, g_Params.ref_acc, & vec_obj,
                                     & mutex_cout, i + 1, & input_runs, & progress_bar
                                ));
 #else
                 AdapterFindAlignment & params = vec_threads [ i ];
 
                 AdapterFindAlignment_Init ( params, i * param_chunk_size,
-                    current_chunk_size, g_Params.ref_acc, & obj, bases_start,
+                    current_chunk_size, g_Params.ref_acc, & vec_obj,
                     & mutex_cout, i + 1, & input_runs, & progress_bar );
 
                 params.thread.Make ( AdapterFindAlignmentFunc, & params );
@@ -1083,15 +1131,67 @@ namespace RefVariation
         return false;
     }
 
-    int find_variation_region_impl (KApp::CArgs const& args)
+    char const* get_query (char const* pattern, uint32_t repetitions, std::string& generated_query)
     {
-        // Adding 0% mark at the very beginning of the program
-        KApp::CProgressBar progress_bar(1);
-        progress_bar.Process ( 0, true );
+        if ( repetitions == 0 )
+            return pattern;
+        else
+        {
+            size_t pattern_len = strlen (pattern);
+            generated_query.reserve ( pattern_len * repetitions );
+            generated_query.clear();
 
-        ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
+            while ( repetitions-- > 0 )
+                generated_query.append ( pattern );
 
-        size_t var_len = strlen (g_Params.query);
+            return generated_query.c_str();
+        }
+    }
+
+    void print_variation_specs ( char const* ref_slice, size_t ref_slice_size,
+        KSearch::CVRefVariation const& obj, const char* query )
+    {
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+        {
+            size_t ref_start = obj.GetVarStartAbsolute();
+            size_t ref_len = obj.GetVarLenOnRef();
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
+                "Found indel box at pos=$(REFSTART), length=$(REFLEN)",
+                "REFSTART=%zu,REFLEN=%zu", ref_start, ref_len
+                ));
+            print_indel ( "reference", ref_slice, ref_slice_size, obj.GetVarStartRelative(), ref_len );
+
+            PLOGMSG ( klogInfo,
+                ( klogInfo,
+                "var_query=$(VARIATION)", "VARIATION=%s", obj.GetVariation()
+                ));
+        }
+
+        if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
+        {
+            PLOGMSG ( klogWarn,
+                ( klogWarn,
+                "Input variation spec   : $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
+                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
+                g_Params.ref_acc, g_Params.ref_pos_var,
+                g_Params.var_len_on_ref, query
+                ));
+
+            PLOGMSG ( klogWarn,
+                ( klogWarn,
+                "Adjusted variation spec: $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
+                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
+                g_Params.ref_acc, obj.GetVarStartAbsolute(),
+                obj.GetVarLenOnRef(), obj.GetVariation()
+                ));
+        }
+    }
+
+    void get_ref_var_object (KSearch::CVRefVariation& obj,
+        char const* query, ngs::ReferenceSequence const& ref_seq)
+    {
+        size_t var_len = strlen (query);
 
         size_t chunk_size = 5000; // TODO: add the method Reference[Sequence].getChunkSize() to the API
         size_t chunk_no = g_Params.ref_pos_var / chunk_size;
@@ -1099,7 +1199,6 @@ namespace RefVariation
         size_t bases_start = chunk_no * chunk_size;
         size_t chunk_no_last = ref_seq.getLength() / chunk_size;
 
-        KSearch::CVRefVariation obj;
         bool cont = false;
         size_t chunk_no_start = chunk_no, chunk_no_end = chunk_no;
 
@@ -1117,13 +1216,12 @@ namespace RefVariation
             
             cont = find_variation_core_step ( obj,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
-                g_Params.query, var_len, g_Params.var_len_on_ref,
+                query, var_len, g_Params.var_len_on_ref,
                 chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
 
             if ( !cont )
             {
-                finish_find_variation_region ( args, var_len, ref_chunk.data(),
-                    ref_chunk.size(), bases_start, obj, progress_bar );
+                print_variation_specs ( ref_chunk.data(), ref_chunk.size(), obj, query );
             }
         }
 
@@ -1138,13 +1236,80 @@ namespace RefVariation
 
                 cont = find_variation_core_step ( obj,
                     ref_slice.c_str(), ref_slice.size(), ref_pos_in_slice,
-                    g_Params.query, var_len, g_Params.var_len_on_ref,
+                    query, var_len, g_Params.var_len_on_ref,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
             }
-
-            finish_find_variation_region ( args, var_len, ref_slice.c_str(),
-                ref_slice.size(), bases_start, obj, progress_bar );
+            print_variation_specs ( ref_slice.c_str(), ref_slice.size(), obj, query );
         }
+    }
+
+    void check_var_objects (std::vector <KSearch::CVRefVariation> const& vec_obj)
+    {
+        assert (vec_obj.size() > 0);
+
+        // checking for invariants
+        size_t count = vec_obj.size();
+
+        if (count > 1)
+        {
+            size_t i_first_var = 0;
+            for (; i_first_var < count; ++i_first_var)
+            {
+                KSearch::CVRefVariation const& cur = vec_obj [i_first_var];
+                if ( cur.GetVarLenOnRef() != cur.GetVarSize() )
+                    break;
+            }
+
+            KSearch::CVRefVariation const& first = vec_obj [i_first_var];
+
+            for (size_t i = i_first_var + 1; i < count; ++i)
+            {
+                KSearch::CVRefVariation const& cur = vec_obj[i];
+
+                // exception: if var_len_on_ref == var_size - skip
+                // this is probably the exact reference
+                if ( cur.GetVarLenOnRef() != cur.GetVarSize() )
+                {
+                    if ( first.GetVarStartAbsolute() != cur.GetVarStartAbsolute()
+                        || first.GetVarLenOnRef() != cur.GetVarLenOnRef() )
+                    {
+                        throw Utils::CErrorMsg (
+                            "Inconsistent variations found: (start=%zu, len=%zu, variation=%s) vs (start=%zu, len=%zu, variation=%s)",
+                            first.GetVarStartAbsolute(), first.GetVarLenOnRef(), first.GetVariation(),
+                            cur.GetVarStartAbsolute(), cur.GetVarLenOnRef(), cur.GetVariation());
+                    }
+                }
+            }
+        }
+    }
+
+    int find_variation_region_impl (KApp::CArgs const& args)
+    {
+        // Adding 0% mark at the very beginning of the program
+        KApp::CProgressBar progress_bar(1);
+        progress_bar.Process ( 0, true );
+
+        ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence ( g_Params.ref_acc );
+
+        size_t variation_count = g_Params.query_min_rep == 0 ?
+            1 : g_Params.query_max_rep - g_Params.query_min_rep + 1;
+
+        std::string generated_query;
+        if (g_Params.query_min_rep > 0)
+            generated_query.reserve ( strlen(g_Params.query) * g_Params.query_max_rep );
+
+        std::vector <KSearch::CVRefVariation> vec_obj ( variation_count );
+
+        for (size_t i = 0; i < variation_count; ++i)
+        {
+            char const* query = get_query ( g_Params.query,
+                g_Params.query_min_rep + i, generated_query );
+
+            get_ref_var_object ( vec_obj [i], query, ref_seq );
+        }
+
+        check_var_objects (vec_obj);
+        finish_find_variation_region ( args, vec_obj, progress_bar );
 
         return 0;
     }
@@ -1347,26 +1512,85 @@ namespace RefVariation
         size_t pos = g_Params.ref_pos_var;
 
         KSearch::CVRefVariation obj = KSearch::VRefVariationIUPACMake (
-            ref, countof(ref) - 1, pos, var, countof(var) - 1, var_len_on_ref );
+            ref, countof(ref) - 1, pos, var, countof(var) - 1, var_len_on_ref, 0 );
 
         std::cout
-            << "Found indel box at pos=" << obj.GetVarStart()
+            << "Found indel box at pos=" << obj.GetVarStartRelative()
             << ", length=" << obj.GetVarLenOnRef()
             << std::endl;
-        print_indel ( "reference", ref, countof(ref) - 1, obj.GetVarStart(), obj.GetVarLenOnRef() );
+        print_indel ( "reference", ref, countof(ref) - 1, obj.GetVarStartRelative(), obj.GetVarLenOnRef() );
     }
 #endif
 
-    char const* find_invalid_character ( char const* str )
+    // returns pointer to the character that cannot be parsed
+    char const* parse_query ( char const* str )
     {
         char const allowed[] = "ACGTNacgtn.-";
-        for ( size_t i = 0; str [i] != '\0'; ++i )
+        size_t i;
+        for ( i = 0; str [i] != '\0'; ++i )
         {
             if ( strchr ( allowed, str[i] ) == NULL )
-                return str + i;
+                break;
         }
 
-        return NULL;
+        if ( i >= countof (g_Params.query) )
+        {
+            LOGMSG( klogErr, "The query is too long" );
+            return str + i;
+        }
+
+        strncpy ( g_Params.query, str, i );
+
+        // TODO: maybe CArgs should allow for empty option value
+        if (g_Params.query [0] == '-' && g_Params.query [1] == '\0' )
+            g_Params.query[0] = '\0';
+
+        if ( str [i] == '[' )
+        {
+            // the next substring must contain: "\[[0-9]+\-[0-9]+\]$"
+            ++i;
+            uint32_t num = 0;
+            size_t i_num_start = i;
+            for ( ; str[i] >= '0' && str[i] <= '9'; ++i )
+            {
+                num *= 10;
+                num += str[i] - '0';
+            }
+
+            if ( num == 0 )
+                return str + i_num_start;
+
+            g_Params.query_min_rep = num;
+
+            if ( str[i] != '-' )
+                return str + i;
+
+            ++i;
+            i_num_start = i;
+            for ( num = 0; str[i] >= '0' && str[i] <= '9'; ++i )
+            {
+                num *= 10;
+                num += str[i] - '0';
+            }
+
+            if ( num == 0 )
+                return str + i_num_start;
+
+            g_Params.query_max_rep = num;
+
+            if ( str[i] != ']' )
+                return str + i;
+
+            ++i;
+            if ( str[i] != '\0' )
+                return str + i;
+
+            return NULL;
+        }
+        else if ( str [i] != '\0' )
+            return str + i;
+        else
+            return NULL;
     }
 
     int find_variation_region_impl_safe ( KApp::CArgs const& args)
@@ -1412,18 +1636,25 @@ namespace RefVariation
 
             if (args.GetOptionCount (OPTION_QUERY) == 1)
             {
-                g_Params.query = args.GetOptionValue ( OPTION_QUERY, 0 );
-                // TODO: maybe CArgs should allow for empty option value
-                if (g_Params.query [0] == '-' && g_Params.query [1] == '\0' )
-                    g_Params.query = "";
-
-                char const* pInvalid = find_invalid_character ( g_Params.query );
+                char const* query = args.GetOptionValue ( OPTION_QUERY, 0 );
+                char const* pInvalid = parse_query ( query );
                 if ( pInvalid != NULL )
                 {
                     PLOGMSG ( klogErr,
                         ( klogErr,
                         "Error: the given query ($(QUERY)) contains an invalid character ($(CHAR))",
                         "QUERY=%s,CHAR=%c", g_Params.query, *pInvalid
+                        ));
+                    return 3;
+                }
+                else if ( g_Params.query_min_rep != 0
+                    && g_Params.query_min_rep >= g_Params.query_max_rep )
+                {
+                    PLOGMSG ( klogErr,
+                        ( klogErr,
+                        "Error: the given query ($(QUERY)) contains an invalid repetition range [$(MIN)-$(MAX)] (min must be less than max and more than zero)",
+                        "QUERY=%s,MIN=%u,MAX=%u",
+                        g_Params.query, g_Params.query_min_rep, g_Params.query_max_rep
                         ));
                     return 3;
                 }
@@ -1753,6 +1984,21 @@ extern "C"
        new problebm:
 
        -t 16 -v -c -r CM000671.1 -p 136131021 --query "T" -l 1 SRR1596639
+
+       multiple repetitions:
+
+       -c -r CM000664.1 -p 234668879 -l 14 --query "AT[1-8]" SRR1597895 -vv 
+
+       NEW problem:
+       -vvv -r NC_000002.11 -p 73613030 --query "AT[1-3]" -l 3
+       error
+
+       NEW problem - FIXED: 
+       -c -r CM000664.1 -p 234668879  -l 14 --query "ATATATATATATAT" SRR1597895 ok, non zero 32/37
+       -c -r CM000664.1 -p 234668879  -l 14 --query "AT[1-8]" SRR1597895 - all counts 0 - FIXED
+       was different total count because of SRR1597895.PA.26088404
+       had wrong projected pos - fixed in ncbi-vdb
+
 
        */
 

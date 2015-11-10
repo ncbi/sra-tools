@@ -145,9 +145,9 @@ tool-tests: $(TEST_BINDIR)/makeinputs
 	@#    
 	@# target db override 
 	@# use 1.gl which specifies the target as actual/1/db, and override that to where the script expects to see the result
-	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 --target actual/1override/db 
+	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 "--target actual/1override/db"
 	@# same with the storthand option
-	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 -T actual/1override/db 
+	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 "-T actual/1override/db"
 	@#    
 	@# error message event, unpacked
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2 3
@@ -171,16 +171,16 @@ tool-tests: $(TEST_BINDIR)/makeinputs
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 5packed 0 -L=info
 	@#    
 	@# software name in the metadata, unpacked   
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 -L=info
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 -L=info SOFTWARE/formatter
 	@#    
 	@# software name in the metadata, packed   
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6packed 0 -L=info
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6packed 0 -L=info SOFTWARE/formatter
 	@#    
 	@rm -rf input/*.gl actual/*
 
 one-tool: $(TEST_BINDIR)/makeinputs
 	@mkdir -p input && $(TEST_BINDIR)/makeinputs && rm $(TEST_BINDIR)/makeinputs
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 -L=info
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 -L=info SOFTWARE/formatter
 
 
 #-------------------------------------------------------------------------------

@@ -749,10 +749,13 @@ namespace RefVariation
                 slice_size = 1; // for a pure insertion we at least a slice of length == 1 ?
 
             ngs::Reference reference = run.getReference( ref_name );
-            ngs::AlignmentIterator ai = reference.getAlignmentSlice (
-                ref_start, slice_size + pattern_len, ngs::Alignment::all);
-            //ngs::AlignmentIterator ai = reference.getFilteredAlignmentSlice (
-            //    ref_start, var_size, ngs::Alignment::all, (ngs::Alignment::AlignmentFilter)0, 0);
+            //ngs::AlignmentIterator ai = reference.getAlignmentSlice (
+            //    ref_start, slice_size + pattern_len, ngs::Alignment::all);
+
+            // TODO: remove C-cast to ngs::Alignment::AlignmentFilter
+            // when it's fixed in ngs api
+            ngs::AlignmentIterator ai = reference.getFilteredAlignmentSlice (
+                ref_start, slice_size + pattern_len, ngs::Alignment::all, (ngs::Alignment::AlignmentFilter)0, 0);
 
             size_t alignments_total = 0, alignments_total_negative = 0;
             size_t alignments_matched = 0, alignments_matched_negative = 0;

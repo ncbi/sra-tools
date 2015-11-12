@@ -736,6 +736,13 @@ namespace RefVariation
         }
 
         ncbi::ReadCollection run = ncbi::NGS::openReadCollection ( path && path[0] ? path : acc );
+
+        // TODO: if it works, it should me moved at the upper level, so
+        // it would not be calculated for each run. It should be done one time
+        // for each variation search
+        char const* pattern = g_Params.query_min_rep != 0 ? g_Params.query : NULL;
+        size_t pattern_len = g_Params.query_min_rep != 0 ? strlen (g_Params.query) : 0;
+
         if ( run.hasReference ( ref_name ) )
         {
             if ( slice_size == 0 )
@@ -743,7 +750,7 @@ namespace RefVariation
 
             ngs::Reference reference = run.getReference( ref_name );
             ngs::AlignmentIterator ai = reference.getAlignmentSlice (
-                ref_start, slice_size, ngs::Alignment::all);
+                ref_start, slice_size + pattern_len, ngs::Alignment::all);
             //ngs::AlignmentIterator ai = reference.getFilteredAlignmentSlice (
             //    ref_start, var_size, ngs::Alignment::all, (ngs::Alignment::AlignmentFilter)0, 0);
 
@@ -767,7 +774,17 @@ namespace RefVariation
                 if (is_negative)
                     ++ alignments_total_negative;
 
-                bool match = bases.size() + align_pos >= var_size && strncmp (variation, bases.data() + align_pos, var_size) == 0;
+                char const* bases_data = bases.data();
+                size_t bases_size = bases.size();
+                bool match = bases_size + align_pos >= var_size && strncmp (variation, bases_data + align_pos, var_size) == 0;
+                if ( match && pattern != NULL )
+                {
+                    char const* align_suffix = bases_data + align_pos + var_size;
+                    size_t align_suffix_size = bases_size - (align_pos + var_size);
+
+                    size_t min_size = align_suffix_size < pattern_len ? align_suffix_size : pattern_len;
+                    match = strncmp ( pattern, align_suffix, min_size );
+                }
                 if ( match )
                 {
                     ++ alignments_matched;
@@ -1276,10 +1293,16 @@ namespace RefVariation
                     if ( first.GetVarStartAbsolute() != cur.GetVarStartAbsolute()
                         || first.GetVarLenOnRef() != cur.GetVarLenOnRef() )
                     {
-                        throw Utils::CErrorMsg (
-                            "Inconsistent variations found: (start=%zu, len=%zu, variation=%s) vs (start=%zu, len=%zu, variation=%s)",
+                        PLOGMSG( klogWarn, (klogWarn,
+                            "Inconsistent variations found: (start=$(STARTFIRST), len=$(LENFIRST), variation=$(VARFIRST)) vs (start=$(STARTCUR), len=$(LENCUR), variation=$(VARCUR))",
+                            "STARTFIRST=%zu,LENFIRST=%zu,VARFIRST=%s,STARTCUR=%zu,LENCUR=%zu,VARCUR=%s",
                             first.GetVarStartAbsolute(), first.GetVarLenOnRef(), first.GetVariation(),
-                            cur.GetVarStartAbsolute(), cur.GetVarLenOnRef(), cur.GetVariation());
+                            cur.GetVarStartAbsolute(), cur.GetVarLenOnRef(), cur.GetVariation()
+                            ));
+                        //throw Utils::CErrorMsg (
+                        //    "Inconsistent variations found: (start=%zu, len=%zu, variation=%s) vs (start=%zu, len=%zu, variation=%s)",
+                        //    first.GetVarStartAbsolute(), first.GetVarLenOnRef(), first.GetVariation(),
+                        //    cur.GetVarStartAbsolute(), cur.GetVarLenOnRef(), cur.GetVariation());
                     }
                 }
             }
@@ -1307,7 +1330,6 @@ namespace RefVariation
         {
             char const* query = get_query ( g_Params.query,
                 g_Params.query_min_rep + i, generated_query );
-
             get_ref_var_object ( vec_obj [i], query, ref_seq );
         }
 
@@ -1522,6 +1544,24 @@ namespace RefVariation
             << ", length=" << obj.GetVarLenOnRef()
             << std::endl;
         print_indel ( "reference", ref, countof(ref) - 1, obj.GetVarStartRelative(), obj.GetVarLenOnRef() );
+    }
+
+    void test_temp ()
+    {
+        char const ref[] = "ACACACTA";
+        char const var[] = "AGCACACA";
+        size_t var_len_on_ref = countof(ref) - 1;
+        size_t pos = 0;
+
+        KSearch::CVRefVariation obj = KSearch::VRefVariationIUPACMake (
+            ref, countof(ref) - 1, pos, var, countof(var) - 1, var_len_on_ref, 0 );
+
+        std::cout
+            << "Found indel box at pos=" << obj.GetVarStartRelative()
+            << ", length=" << obj.GetVarLenOnRef()
+            << std::endl;
+        print_indel ( "reference", ref, countof(ref) - 1, obj.GetVarStartRelative(), obj.GetVarLenOnRef() );
+        print_variation_specs ( ref, countof(ref), obj, var );
     }
 #endif
 
@@ -1740,6 +1780,9 @@ namespace RefVariation
                 case 5:
                     test_deletion_ambiguity ();
                     break;
+                case 6:
+                    test_temp ();
+                    break;
                 default:
                     std::cout
                         << "specify value for this option:" << std::endl
@@ -1747,7 +1790,8 @@ namespace RefVariation
                         << "2 - run ngs performance test" << std::endl
                         << "3 - run vdb performance test" << std::endl
                         << "4 - run getReferencePositionProjectionRange test" << std::endl
-                        << "5 - run deletion ambiguity test" << std::endl;
+                        << "5 - run deletion ambiguity test" << std::endl
+                        << "6 - run temporary test" << std::endl;
                 }
             }
             else

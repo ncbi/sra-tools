@@ -406,8 +406,15 @@ if ($OS ne 'win' && $PKG{LNG} ne 'JAVA') {
 }
 
 if ($CPP) {
-    unless (check_tool($CPP)) {
+    unless (check_tool__h($CPP)) {
         println "configure: error: '$CPP' cannot be found";
+        exit 1;
+    }
+}
+
+if ($JAVAC) {
+    unless (check_tool_h($JAVAC)) {
+        println "configure: error: '$JAVAC' cannot be found";
         exit 1;
     }
 }
@@ -1381,10 +1388,13 @@ sub reverse_build {
 
 ################################################################################
 
+sub check_tool_h  { return check_tool(@_,  '-help'); }
+sub check_tool__h { return check_tool(@_, '--help'); }
+
 sub check_tool {
-    my ($tool) = @_;
+    my ($tool, $o) = @_;
     print "checking for $tool... ";
-    my $cmd = "$tool --help";
+    my $cmd = "$tool $o";
     print "\n\t\trunning $cmd\n\t" if ($OPT{'debug'});
     my $out = `$cmd 2>&1`;
     if ($? == 0) {

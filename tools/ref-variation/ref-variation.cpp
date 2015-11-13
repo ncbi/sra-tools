@@ -762,10 +762,16 @@ namespace RefVariation
             while ( ai.nextAlignment() )
             {
                 uint64_t ref_pos_range = ai.getReferencePositionProjectionRange (ref_start);
-                if ( ref_pos_range == (uint64_t)-1 )
+                if ( ref_pos_range == (uint64_t)-1 ) // effectively, checking that read doesn't start past ref_start
                     continue;
 
                 int64_t align_pos = (int64_t)( ref_pos_range >> 32);
+
+                // checking that read doesn't end before ref slice ends
+                if ( (int64_t) ai.getAlignmentLength() - align_pos < slice_size )
+                    continue;
+
+
                 ngs::StringRef bases = ai.getAlignedFragmentBases ();
 
                 ++ alignments_total;

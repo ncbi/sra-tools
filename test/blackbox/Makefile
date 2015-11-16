@@ -44,11 +44,11 @@ cleanlogs:
 # scripted test : run the jar 'AccessionTester.jar'
 #
 TOOLDIR = -t $(BINDIR)
-LOGDIR  = -l $(SRCDIR)
+LOGDIR  = -l -
 TESTDIR = -e $(SRCDIR)/tests
 ACCFILE = -a $(SRCDIR)/acc.txt
 MD5FILE = -m $(SRCDIR)/md5.txt
-THREADS = -n 3
+THREADS = -n 6
 
 ARGUMENTS = $(TOOLDIR) $(LOGDIR) $(ACCFILE) $(TESTDIR) $(MD5FILE) $(THREADS)
 TESTJAR   = $(SRCDIR)/dist/AccessionTester.jar

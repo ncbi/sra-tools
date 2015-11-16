@@ -446,7 +446,7 @@ FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
 {
     KConfig *kfg;
     rc_t rc = KConfigMake ( & kfg, NULL );
-    KConfigPrint(kfg, 0);
+//  KConfigPrint(kfg, 0);
     KConfigRelease(kfg);
     m_source . SchemaEvent ( "this file should not exist", "someSchemaName" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );

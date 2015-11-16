@@ -1520,6 +1520,7 @@ static rc_t pileup_main( Args * args, pileup_options *options )
             if ( empty )
             {
                 Usage ( args );
+                rc = RC ( rcApp, rcArgv, rcAccessing, rcSelf, rcInsufficient );
             }
             free_ref_regions( &regions );
         }

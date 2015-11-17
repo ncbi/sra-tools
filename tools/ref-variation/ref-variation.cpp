@@ -1178,7 +1178,7 @@ namespace RefVariation
     }
 
     void print_variation_specs ( char const* ref_slice, size_t ref_slice_size,
-        KSearch::CVRefVariation const& obj, const char* query )
+        KSearch::CVRefVariation const& obj, const char* query, size_t query_len )
     {
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
         {
@@ -1202,9 +1202,9 @@ namespace RefVariation
             PLOGMSG ( klogWarn,
                 ( klogWarn,
                 "Input variation spec   : $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
-                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
+                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%.*s",
                 g_Params.ref_acc, g_Params.ref_pos_var,
-                g_Params.var_len_on_ref, query
+                g_Params.var_len_on_ref, query_len, query
                 ));
 
             PLOGMSG ( klogWarn,
@@ -1218,9 +1218,9 @@ namespace RefVariation
     }
 
     void get_ref_var_object (KSearch::CVRefVariation& obj,
-        char const* query, ngs::ReferenceSequence const& ref_seq)
+        char const* query, size_t query_len, ngs::ReferenceSequence const& ref_seq)
     {
-        size_t var_len = strlen (query);
+        size_t var_len = query_len;
 
         size_t chunk_size = 5000; // TODO: add the method Reference[Sequence].getChunkSize() to the API
         size_t chunk_no = g_Params.ref_pos_var / chunk_size;
@@ -1250,7 +1250,7 @@ namespace RefVariation
 
             if ( !cont )
             {
-                print_variation_specs ( ref_chunk.data(), ref_chunk.size(), obj, query );
+                print_variation_specs ( ref_chunk.data(), ref_chunk.size(), obj, query, query_len );
             }
         }
 
@@ -1268,7 +1268,7 @@ namespace RefVariation
                     query, var_len, g_Params.var_len_on_ref,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
             }
-            print_variation_specs ( ref_slice.c_str(), ref_slice.size(), obj, query );
+            print_variation_specs ( ref_slice.c_str(), ref_slice.size(), obj, query, query_len );
         }
     }
 
@@ -1318,6 +1318,25 @@ namespace RefVariation
         }
     }
 
+    void find_reference_variation ( ngs::ReferenceSequence const& ref_seq )
+    {
+        uint64_t start = g_Params.ref_pos_var;
+        uint64_t len = g_Params.var_len_on_ref;
+
+        KSearch::CVRefVariation obj;
+
+        ngs::StringRef query = ref_seq.getReferenceChunk ( start, len );
+        if ( query.size() == len )
+        {
+            get_ref_var_object ( obj, query.data(), query.size(), ref_seq );
+        }
+        else
+        {
+            ngs::String query_copy = ref_seq.getReferenceBases ( start, len );
+            get_ref_var_object ( obj, query_copy.c_str(), query_copy.size(), ref_seq );
+        }
+    }
+
     int find_variation_region_impl (KApp::CArgs const& args)
     {
         // Adding 0% mark at the very beginning of the program
@@ -1335,11 +1354,15 @@ namespace RefVariation
 
         std::vector <KSearch::CVRefVariation> vec_obj ( variation_count );
 
+        // first, try to search against reference itself
+        find_reference_variation ( ref_seq );
+
+
         for (size_t i = 0; i < variation_count; ++i)
         {
             char const* query = get_query ( g_Params.query,
                 g_Params.query_min_rep + i, generated_query );
-            get_ref_var_object ( vec_obj [i], query, ref_seq );
+            get_ref_var_object ( vec_obj [i], query, strlen(query), ref_seq );
         }
 
         check_var_objects (vec_obj);

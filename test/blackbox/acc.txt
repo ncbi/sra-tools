@@ -652,7 +652,11 @@ NCBI:align:db:alignment_sorted#1.2.1-PACBIO_SMRT-latf-load(2.3.3)-D,SRR999223,D,
 NCBI:align:db:alignment_sorted#1.2.1-PACBIO_SMRT-latf-load.2.3.3(2.3.3)-D,SRR1006673,D,PACBIO_SMRT
 NCBI:align:db:alignment_sorted#1.2.1-PACBIO_SMRT-latf-load.2.3.4(2.3.4)-D,SRR1168957,D,PACBIO_SMRT
 NCBI:align:db:alignment_sorted#1.2.1-PACBIO_SMRT-latf-load.2.3.5(2.3.5)-D,SRR1564130,D,PACBIO_SMRT
-NCBI:align:db:alignment_sorted#1.2.1-UNDEFINED-bam-load(2.2.3)-D,SRR820132,D,UNDEFINED,CM000671.1:120001-125000
+
+#SRR820132 has been reloaded, it is now in a different class of run's, it's former class is now represented by SRR806708
+NCBI:align:db:alignment_sorted#1.3-UNDEFINED-bam-load.2.5.4(2.5.4)-D,SRR820132,D,UNDEFINED,chr9:118398-123961
+NCBI:align:db:alignment_sorted#1.2.1-UNDEFINED-bam-load(2.2.3)-D,SRR806708,D,UNDEFINED,chr1:10001-10002
+
 NCBI:align:db:alignment_sorted#1.2.1-UNDEFINED-bam-load(2.3.2)-D,ERR318663,D,UNDEFINED,CM000663.1:85001-85011
 NCBI:align:db:alignment_sorted#1.2.1-UNDEFINED-bam-load(2.3.3)-D,ERR231644,D,UNDEFINED,NC_000067.6:33855001-33855011
 NCBI:align:db:alignment_sorted#1.2.1-UNDEFINED-bam-load(2.3.5)-D,DRR027738,D,UNDEFINED,AF125673r4000:1-2

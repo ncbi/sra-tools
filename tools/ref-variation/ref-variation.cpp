@@ -768,7 +768,7 @@ namespace RefVariation
                 int64_t align_pos = (int64_t)( ref_pos_range >> 32);
 
                 // checking that read doesn't end before ref slice ends
-                if ( (int64_t) ai.getAlignmentLength() - align_pos < slice_size )
+                if ( (int64_t) ai.getAlignmentLength() - align_pos < (int64_t)slice_size )
                     continue;
 
 
@@ -792,7 +792,7 @@ namespace RefVariation
                     size_t align_suffix_size = bases_size - (align_pos + var_size);
 
                     size_t min_size = align_suffix_size < pattern_len ? align_suffix_size : pattern_len;
-                    match = strncmp ( pattern, align_suffix, min_size );
+                    match = strncmp ( pattern, align_suffix, min_size ) != 0;
                 }
                 if ( match )
                 {
@@ -1358,7 +1358,7 @@ namespace RefVariation
         find_reference_variation ( ref_seq );
 
 
-        for (size_t i = 0; i < variation_count; ++i)
+        for (uint32_t i = 0; i < variation_count; ++i)
         {
             char const* query = get_query ( g_Params.query,
                 g_Params.query_min_rep + i, generated_query );
@@ -2078,6 +2078,8 @@ extern "C"
        was different total count because of SRR1597895.PA.26088404
        had wrong projected pos - fixed in ncbi-vdb
 
+       NEW problem - FIXED
+       -r NC_000001.10 -p 1064999 -l 1 --query A -v - hangs up
 
        */
 

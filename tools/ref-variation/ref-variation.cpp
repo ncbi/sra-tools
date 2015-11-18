@@ -1325,6 +1325,7 @@ namespace RefVariation
 
         KSearch::CVRefVariation obj;
 
+        // this doesn't work for len = 0
         ngs::StringRef query = ref_seq.getReferenceChunk ( start, len );
         if ( query.size() == len )
         {
@@ -1355,8 +1356,7 @@ namespace RefVariation
         std::vector <KSearch::CVRefVariation> vec_obj ( variation_count );
 
         // first, try to search against reference itself
-        find_reference_variation ( ref_seq );
-
+        // find_reference_variation ( ref_seq );
 
         for (uint32_t i = 0; i < variation_count; ++i)
         {
@@ -2045,6 +2045,7 @@ extern "C"
        
        find insertion:
           ref-variation -r NC_000013.10 -p 100635036 --query 'ACC' -l 0 /netmnt/traces04/sra33/SRZ/000793/SRR793062/SRR793062.pileup /netmnt/traces04/sra33/SRZ/000795/SRR795251/SRR795251.pileup
+          NEW: -r NC_000013.10 -p 100635036 --query ACC -l 0 SRR793062 SRR795251
 
        windows example: -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR618508.pileup
 
@@ -2056,30 +2057,29 @@ extern "C"
 
        -vvv -c --count-strand counteraligned -t 16 -r NC_000002.11 -p 73613067 --query '-' -l 3 SRR867061 SRR867131
 
-       old problem cases (didn't stop):
+       old problem cases (didn't stop) - now OK:
        -v -c -r CM000671.1 -p 136131022 --query 'T' -l 1 SRR1601768
        -v -c -r NC_000001.11 -p 136131022 --query 'T' -l 1 SRR1601768
 
-       new problebm:
-
+       NEW problebm - FIXED:
        -t 16 -v -c -r CM000671.1 -p 136131021 --query "T" -l 1 SRR1596639
-
-       multiple repetitions:
-
-       -c -r CM000664.1 -p 234668879 -l 14 --query "AT[1-8]" SRR1597895 -vv 
 
        NEW problem:
        -vvv -r NC_000002.11 -p 73613030 --query "AT[1-3]" -l 3
-       error
+       Inconsistent variations found
 
-       NEW problem - FIXED: 
-       -c -r CM000664.1 -p 234668879  -l 14 --query "ATATATATATATAT" SRR1597895 ok, non zero 32/37
+       NEW problem - FIXED (not completely): 
+       -c -r CM000664.1 -p 234668879  -l 14 --query "ATATATATATATAT" SRR1597895 ok, non zero 30/33
        -c -r CM000664.1 -p 234668879  -l 14 --query "AT[1-8]" SRR1597895 - all counts 0 - FIXED
        was different total count because of SRR1597895.PA.26088404
        had wrong projected pos - fixed in ncbi-vdb
+       UPDATE: now the sum of counts for AT[1-8] < for "ATATATATATATAT"
 
        NEW problem - FIXED
        -r NC_000001.10 -p 1064999 -l 1 --query A -v - hangs up
+
+       NEW problem - FIXED
+       -r NC_000020.10 -p 137534 -l 2 --query - -v
 
        */
 

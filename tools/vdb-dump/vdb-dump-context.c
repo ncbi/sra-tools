@@ -118,8 +118,8 @@ static void vdco_init_values( p_dump_context ctx )
 	ctx->table_defined = false;
 	ctx->diff = false;
 	ctx->show_spotgroups = false;
-	/*ctx->force_sra_schema = false;*/
 	ctx->show_spread = false;
+	ctx->interactive = false;	
 }
 
 rc_t vdco_init( dump_context **ctx )
@@ -569,6 +569,7 @@ static void vdco_evaluate_options( const Args *my_args,
 	/*ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );*/
 	ctx->merge_ranges = vdco_get_bool_option( my_args, OPTION_MERGE_RANGES, false );
 	ctx->show_spread = vdco_get_bool_option( my_args, OPTION_SPREAD, false );
+	ctx->interactive = vdco_get_bool_option( my_args, OPTION_INTERACTIVE, false );
 	ctx->slice_depth = vdco_get_uint16_option( my_args, OPTION_SLICE, 0 );
 	
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );

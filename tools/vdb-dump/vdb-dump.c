@@ -2266,12 +2266,13 @@ rc_t CC KMain ( int argc, char *argv [] )
             if ( rc == 0 )
             {
                 out_redir redir; /* vdb-dump-redir.h */
-
+                
                 KLogHandlerSetStdErr();
                 rc = init_out_redir( &redir,
-                                     ctx->compress_mode,
-                                     ctx->output_file,
-                                     ctx->output_buffer_size ); /* vdb-dump-redir.c */
+                                 ctx->compress_mode,
+                                 ctx->output_file,
+                                 ctx->interactive ? 0 : ctx->output_buffer_size ); /* vdb-dump-redir.c */
+                
                 if ( rc == 0 )
                 {
                     if ( ctx->phase > 0 )
@@ -2284,7 +2285,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                         rc = find_slice( ctx, args ); /* vdb-dump-str.c */
                     else
                         rc = vdm_main( ctx, args );
-                        
+                
                     release_out_redir( &redir ); /* vdb-dump-redir.c */
                 }
             }

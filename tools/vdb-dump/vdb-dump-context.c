@@ -97,6 +97,7 @@ static void vdco_init_values( p_dump_context ctx )
     ctx->max_line_len = 0;
     ctx->indented_line_len = 0;
     ctx->phase = 0;
+	ctx->slice_depth = 0;
 
     ctx->help_requested = false;
     ctx->usage_requested = false;
@@ -568,6 +569,7 @@ static void vdco_evaluate_options( const Args *my_args,
 	/*ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );*/
 	ctx->merge_ranges = vdco_get_bool_option( my_args, OPTION_MERGE_RANGES, false );
 	ctx->show_spread = vdco_get_bool_option( my_args, OPTION_SPREAD, false );
+	ctx->slice_depth = vdco_get_uint16_option( my_args, OPTION_SLICE, 0 );
 	
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );
     ctx->output_buffer_size = vdco_get_size_t_option( my_args, OPTION_OUT_BUF_SIZE, DEF_OPTION_OUT_BUF_SIZE );

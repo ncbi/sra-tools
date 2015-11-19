@@ -762,10 +762,16 @@ namespace RefVariation
             while ( ai.nextAlignment() )
             {
                 uint64_t ref_pos_range = ai.getReferencePositionProjectionRange (ref_start);
-                if ( ref_pos_range == (uint64_t)-1 )
+                if ( ref_pos_range == (uint64_t)-1 ) // effectively, checking that read doesn't start past ref_start
                     continue;
 
                 int64_t align_pos = (int64_t)( ref_pos_range >> 32);
+
+                // checking that read doesn't end before ref slice ends
+                if ( (int64_t) ai.getAlignmentLength() - align_pos < (int64_t)slice_size )
+                    continue;
+
+
                 ngs::StringRef bases = ai.getAlignedFragmentBases ();
 
                 ++ alignments_total;
@@ -786,7 +792,7 @@ namespace RefVariation
                     size_t align_suffix_size = bases_size - (align_pos + var_size);
 
                     size_t min_size = align_suffix_size < pattern_len ? align_suffix_size : pattern_len;
-                    match = strncmp ( pattern, align_suffix, min_size );
+                    match = strncmp ( pattern, align_suffix, min_size ) != 0;
                 }
                 if ( match )
                 {
@@ -1172,7 +1178,7 @@ namespace RefVariation
     }
 
     void print_variation_specs ( char const* ref_slice, size_t ref_slice_size,
-        KSearch::CVRefVariation const& obj, const char* query )
+        KSearch::CVRefVariation const& obj, const char* query, size_t query_len )
     {
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
         {
@@ -1196,9 +1202,9 @@ namespace RefVariation
             PLOGMSG ( klogWarn,
                 ( klogWarn,
                 "Input variation spec   : $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
-                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
+                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%.*s",
                 g_Params.ref_acc, g_Params.ref_pos_var,
-                g_Params.var_len_on_ref, query
+                g_Params.var_len_on_ref, query_len, query
                 ));
 
             PLOGMSG ( klogWarn,
@@ -1212,9 +1218,9 @@ namespace RefVariation
     }
 
     void get_ref_var_object (KSearch::CVRefVariation& obj,
-        char const* query, ngs::ReferenceSequence const& ref_seq)
+        char const* query, size_t query_len, ngs::ReferenceSequence const& ref_seq)
     {
-        size_t var_len = strlen (query);
+        size_t var_len = query_len;
 
         size_t chunk_size = 5000; // TODO: add the method Reference[Sequence].getChunkSize() to the API
         size_t chunk_no = g_Params.ref_pos_var / chunk_size;
@@ -1244,7 +1250,7 @@ namespace RefVariation
 
             if ( !cont )
             {
-                print_variation_specs ( ref_chunk.data(), ref_chunk.size(), obj, query );
+                print_variation_specs ( ref_chunk.data(), ref_chunk.size(), obj, query, query_len );
             }
         }
 
@@ -1262,7 +1268,7 @@ namespace RefVariation
                     query, var_len, g_Params.var_len_on_ref,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
             }
-            print_variation_specs ( ref_slice.c_str(), ref_slice.size(), obj, query );
+            print_variation_specs ( ref_slice.c_str(), ref_slice.size(), obj, query, query_len );
         }
     }
 
@@ -1312,6 +1318,26 @@ namespace RefVariation
         }
     }
 
+    void find_reference_variation ( ngs::ReferenceSequence const& ref_seq )
+    {
+        uint64_t start = g_Params.ref_pos_var;
+        uint64_t len = g_Params.var_len_on_ref;
+
+        KSearch::CVRefVariation obj;
+
+        // this doesn't work for len = 0
+        ngs::StringRef query = ref_seq.getReferenceChunk ( start, len );
+        if ( query.size() == len )
+        {
+            get_ref_var_object ( obj, query.data(), query.size(), ref_seq );
+        }
+        else
+        {
+            ngs::String query_copy = ref_seq.getReferenceBases ( start, len );
+            get_ref_var_object ( obj, query_copy.c_str(), query_copy.size(), ref_seq );
+        }
+    }
+
     int find_variation_region_impl (KApp::CArgs const& args)
     {
         // Adding 0% mark at the very beginning of the program
@@ -1329,11 +1355,14 @@ namespace RefVariation
 
         std::vector <KSearch::CVRefVariation> vec_obj ( variation_count );
 
-        for (size_t i = 0; i < variation_count; ++i)
+        // first, try to search against reference itself
+        // find_reference_variation ( ref_seq );
+
+        for (uint32_t i = 0; i < variation_count; ++i)
         {
             char const* query = get_query ( g_Params.query,
                 g_Params.query_min_rep + i, generated_query );
-            get_ref_var_object ( vec_obj [i], query, ref_seq );
+            get_ref_var_object ( vec_obj [i], query, strlen(query), ref_seq );
         }
 
         check_var_objects (vec_obj);
@@ -2016,6 +2045,7 @@ extern "C"
        
        find insertion:
           ref-variation -r NC_000013.10 -p 100635036 --query 'ACC' -l 0 /netmnt/traces04/sra33/SRZ/000793/SRR793062/SRR793062.pileup /netmnt/traces04/sra33/SRZ/000795/SRR795251/SRR795251.pileup
+          NEW: -r NC_000013.10 -p 100635036 --query ACC -l 0 SRR793062 SRR795251
 
        windows example: -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR618508.pileup
 
@@ -2027,28 +2057,29 @@ extern "C"
 
        -vvv -c --count-strand counteraligned -t 16 -r NC_000002.11 -p 73613067 --query '-' -l 3 SRR867061 SRR867131
 
-       old problem cases (didn't stop):
+       old problem cases (didn't stop) - now OK:
        -v -c -r CM000671.1 -p 136131022 --query 'T' -l 1 SRR1601768
        -v -c -r NC_000001.11 -p 136131022 --query 'T' -l 1 SRR1601768
 
-       new problebm:
-
+       NEW problebm - FIXED:
        -t 16 -v -c -r CM000671.1 -p 136131021 --query "T" -l 1 SRR1596639
-
-       multiple repetitions:
-
-       -c -r CM000664.1 -p 234668879 -l 14 --query "AT[1-8]" SRR1597895 -vv 
 
        NEW problem:
        -vvv -r NC_000002.11 -p 73613030 --query "AT[1-3]" -l 3
-       error
+       Inconsistent variations found
 
-       NEW problem - FIXED: 
-       -c -r CM000664.1 -p 234668879  -l 14 --query "ATATATATATATAT" SRR1597895 ok, non zero 32/37
+       NEW problem - FIXED (not completely): 
+       -c -r CM000664.1 -p 234668879  -l 14 --query "ATATATATATATAT" SRR1597895 ok, non zero 30/33
        -c -r CM000664.1 -p 234668879  -l 14 --query "AT[1-8]" SRR1597895 - all counts 0 - FIXED
        was different total count because of SRR1597895.PA.26088404
        had wrong projected pos - fixed in ncbi-vdb
+       UPDATE: now the sum of counts for AT[1-8] < for "ATATATATATATAT"
 
+       NEW problem - FIXED
+       -r NC_000001.10 -p 1064999 -l 1 --query A -v - hangs up
+
+       NEW problem - FIXED
+       -r NC_000020.10 -p 137534 -l 2 --query - -v
 
        */
 

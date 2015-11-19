@@ -22,36 +22,26 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/vdb-dump
 
-include $(TOP)/build/Makefile.config
+TEST_TOOLS = 
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-    kget            \
-    general-loader  \
-    vschema         \
-	align-info      \
-	blackbox        \
-    vdb-dump        \
+include $(TOP)/build/Makefile.env
 
-# under construction    
-#    ngs-pileup      \
+.PHONY: $(TEST_TOOLS)
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+runtests: vdb-dump 
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
+vdb-dump:
+	rm -rf actual
+	mkdir -p actual
+	$(BINDIR)/vdb-dump SRR000001 -R 1 -C READ -f tab >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
+	$(BINDIR)/vdb-dump SRR000001 -R 1 -C READ -f tab -I >actual/1.1.stdout; diff expected/1.1.stdout actual/1.1.stdout
+	rm -rf actual
 
-.PHONY: default $(SUBDIRS)
+.PHONY: kar 
 

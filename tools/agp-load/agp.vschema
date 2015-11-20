@@ -1,0 +1,45 @@
+/*============================================================================
+ *
+ *                            PUBLIC DOMAIN NOTICE
+ *               National Center for Biotechnology Information
+ *
+ *  This software/database is a "United States Government Work" under the
+ *  terms of the United States Copyright Act.  It was written as part of
+ *  the author's official duties as a United States Government employee and
+ *  thus cannot be copyrighted.  This software/database is freely available
+ *  to the public for use. The National Library of Medicine and the U.S.
+ *  Government have not placed any restriction on its use or reproduction.
+ *
+ *  Although all reasonable efforts have been taken to ensure the accuracy
+ *  and reliability of the software and data, the NLM and the U.S.
+ *  Government do not and cannot warrant the performance or results that
+ *  may be obtained by using this software or data. The NLM and the U.S.
+ *  Government disclaim all warranties, express or implied, including
+ *  warranties of performance, merchantability or fitness for any particular
+ *  purpose.
+ *
+ *  Please cite the author in any work or product based on this material.
+ *
+ *============================================================================
+ */
+version 1;
+
+include 'vdb/vdb.vschema';
+
+table NCBI:refseq:tbl:assembly #1.0.0
+{
+    extern column <ascii> zip_encoding SEQID;     /* the accession of the refseq being assembled           */
+    extern column <U32> izip_encoding  START;     /* the start and                                         */
+    extern column <U32> izip_encoding  LENGTH;    /*               length of the region                    */
+    extern column <ascii> zip_encoding COMPONENT; /* the accession sourcing the sequence                   */
+    extern column <U32> izip_encoding  OFFSET;    /* the offset in the component, length is the same       */
+    extern column bool_encoding        REVERSED;  /* is the source sequence to be reverse-complemented     */
+};
+
+database NCBI:refseq:db:remap #1.0.0
+{
+    table NCBI:refseq:tbl:assembly #1.0.0 SOURCE;   /* how to assemble the source from its base components  */
+    table NCBI:refseq:tbl:assembly #1.0.0 RESULT;   /* how to assemble the result from its base components  */
+    table NCBI:refseq:tbl:assembly #1.0.0 REMAP;    /* how to assemble the result from the source,          */
+                                                    /* and how to remap alignments from source to result    */
+};

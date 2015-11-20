@@ -1,22 +1,20 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     
-    <Import Condition="Exists('$(ProjectDir)..\..\Makefile.config.win')" Project="$(ProjectDir)..\..\Makefile.config.win" />
-
+    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  
     <PropertyGroup Label="Globals">
         <Platform Condition="'$(Platform)' == ''">x64</Platform>
         <Configuration Condition="'$(Configuration)' == ''">Release</Configuration>
     
         <NGS_ROOT Condition="'$(NGS_ROOT)' == ''">$(ProjectDir)..\..\..\..\ngs\ngs-sdk\</NGS_ROOT>
-        <NGS_OUTDIR Condition="'$(NGS_OUTDIR)' == ''">$(USERPROFILE)\</NGS_OUTDIR>
+        <NGS_OUTDIR Condition="'$(NGS_OUTDIR)' == ''">$(NGS_ROOT)..\..\OUTDIR\</NGS_OUTDIR>
         <NGS_TARGET Condition="'$(NGS_TARGET)' == ''">$(NGS_OUTDIR)win\cl\$(Platform)\$(Configuration)\</NGS_TARGET>
 
-        <VDB_OUTDIR Condition="'$(VDB_OUTDIR)' == ''">$(USERPROFILE)\</VDB_OUTDIR>
+        <VDB_OUTDIR Condition="'$(VDB_OUTDIR)' == ''">$(NGS_OUTDIR)</VDB_OUTDIR>
         <VDB_ROOT Condition="'$(VDB_ROOT)' == ''">$(ProjectDir)..\..\..\..\ncbi-vdb\</VDB_ROOT>
         <VDB_TARGET Condition="'$(VDB_TARGET)' == ''">$(VDB_OUTDIR)win\cl\$(Platform)\$(Configuration)\</VDB_TARGET>
 
     </PropertyGroup>
-  
-    <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   
     <PropertyGroup Label="Configuration">
         <CharacterSet>Unicode</CharacterSet>

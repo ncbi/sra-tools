@@ -132,6 +132,7 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
         
     case evt_remote_path:
     case evt_new_table:
+    case evt_logmsg:
     case evt_errmsg:
         {   
             gw_1string_evt_v1 hdr;
@@ -141,6 +142,19 @@ TestSource::Buffer::WriteUnpacked ( const TestSource::Event& p_event )
             Write ( & hdr, sizeof hdr ); 
             Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
         }
+        break;
+    case evt_progmsg:
+        gw_status_evt_v1 hdr;
+        init ( hdr, p_event . m_id1 , evt_progmsg );
+        set_version ( hdr, p_event . m_uint32_2 );
+        set_timestamp ( hdr, p_event . m_uint32 );
+        set_pid ( hdr, p_event . m_id1 );
+        set_size ( hdr, p_event . m_str1 . size () );
+        set_percent ( hdr, p_event . m_uint32_3 );
+
+        Write ( &hdr . dad, sizeof hdr );
+        Write ( p_event . m_str1 . c_str (), p_event . m_str1 . size () );
+
         break;
         
     case evt_new_column :
@@ -287,6 +301,15 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
         }
         Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
         break;
+    case evt_logmsg:
+        {
+            gwp_1string_evt_U16_v1 hdr;
+            init ( hdr, p_event . m_id1, p_event . m_event );
+            set_size ( hdr, p_event . m_str1 . size () );
+            Write ( & hdr, sizeof hdr ); 
+        }
+        Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
+        break;
     case evt_errmsg:
         if ( p_event . m_str1 . size () <= GeneralLoader :: MaxPackedString )
         {   
@@ -304,7 +327,18 @@ TestSource::Buffer::WritePacked ( const TestSource::Event& p_event )
         }
         Write ( p_event . m_str1 . c_str(), p_event . m_str1 . size() ); 
         break;
+    case evt_progmsg:
+        gwp_status_evt_v1 hdr;
+        init ( hdr, p_event . m_id1 , evt_progmsg );
+        set_version ( hdr, p_event . m_uint32_2 );
+        set_timestamp ( hdr, p_event . m_uint32 );
+        set_pid ( hdr, ( uint16_t ) p_event . m_id1 );
+        set_size ( hdr, p_event . m_str1 . size () );
+        set_percent ( hdr, ( uint8_t ) p_event . m_uint32_3 );
 
+        Write ( &hdr . dad, sizeof hdr );
+        Write ( p_event . m_str1 . c_str (), p_event . m_str1 . size () );
+        break;
     case evt_new_column :
         {
             gwp_column_evt_v1 hdr;
@@ -563,6 +597,19 @@ TestSource::ErrorMessageEvent ( const string& p_msg )
 }
 
 void 
+TestSource::LogMessageEvent ( const string& p_msg )
+{
+    m_buffer -> Write ( Event ( evt_logmsg, p_msg ) );
+}
+
+void
+TestSource::ProgMessageEvent ( ProcessId p_pid, const std :: string& p_name, uint32_t p_timestamp, uint32_t p_version, uint32_t p_percent )
+{
+    m_buffer -> Write ( Event ( evt_progmsg, p_pid, p_name, p_timestamp, p_version, p_percent ) );
+}
+
+
+void 
 TestSource::SaveBuffer ( const char* p_filename ) const
 {
     ofstream out ( p_filename );
@@ -682,6 +729,17 @@ TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, const std::string&
 {
 }
 
+TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_pid, const std :: string& p_name, uint32_t p_timestamp, uint32_t p_version, uint32_t p_percent )
+:  m_event ( p_event ),
+   m_id1 ( p_pid ),
+   m_id2 ( 0 ),
+   m_uint8 ( 0 ),
+   m_uint32 ( p_timestamp ),
+   m_uint32_2 ( p_version ),
+   m_uint32_3 ( p_percent ),
+   m_str1 ( p_name )
+{
+}
 TestSource::Event::Event ( gw_evt_id p_event, uint32_t p_id1, uint32_t p_id2, const std::string& p_str1, const std::string& p_str2, uint8_t p_uint8 )
 :   m_event ( p_event ),
     m_id1 ( p_id1 ),

@@ -40,10 +40,10 @@
 #include <kapp/args.h>
 #include <kapp/progressbar.h>
 #include <kapp/log-xml.h>
+#include <klib/out.h>
 
 #include <vdb/vdb-priv.h>
 #include <kdb/index.h>
-
 
 #ifndef countof
 #define countof(arr) (sizeof(arr)/sizeof(arr[0]))
@@ -309,9 +309,15 @@ namespace VDBObjects
         {
             uint32_t nItemsRead = 0;
 
-            rc_t rc = ::VCursorCellDataDirect (m_pSelf, idRow, idxCol, NULL, reinterpret_cast<void const**>(pBuf), 0, &nItemsRead);
+            assert ( pBuf != NULL );
+
+            void const* pv;
+
+            rc_t rc = ::VCursorCellDataDirect (m_pSelf, idRow, idxCol, NULL, & pv, 0, &nItemsRead);
             if (rc)
                 throw Utils::CErrorMsg(rc, "VCursorCellDataDirect: row_id=%ld, idxCol=%u", idRow, idxCol);
+
+            *pBuf = static_cast <T const*>(pv);
 
             return nItemsRead;
         }
@@ -414,9 +420,7 @@ namespace KApp
     {
     public:
         friend void CXMLLogger::Make ( CArgs const& args );
-
-        CArgs ( int argc, char** argv, ::OptDef const* pOptions, size_t option_count );
-        CArgs ( int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2 );
+        CArgs ();
         CArgs ( CArgs const& x );
         CArgs& operator= ( CArgs const& x );
         ~CArgs ();
@@ -438,11 +442,12 @@ namespace KApp
             return Utils::atou_t <T> ( str_val );
         }
 
-    private:
-
         void MakeAndHandle ( int argc, char** argv, ::OptDef const* pOptions, size_t option_count );
         // TODO: it's better to make ::ArgsMakeAndHandle be able to take va_list
         void MakeAndHandle ( int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2 );
+
+    private:
+
         void Release ();
 
         ::Args* m_pSelf;
@@ -467,8 +472,11 @@ namespace KApp
     };
 }
 
+struct VRefVariation;
+
 namespace KSearch
 {
+#if 0 // turning off old code
     void FindRefVariationRegionAscii (
             char const* ref, size_t ref_size, size_t ref_pos_var,
             char const* variation, size_t variation_size, size_t var_len_on_ref,
@@ -480,4 +488,116 @@ namespace KSearch
             char const* variation, size_t variation_size, size_t var_len_on_ref,
             size_t& ref_start, size_t& ref_len
         );
+#endif
+
+    class CVRefVariation
+    {
+    public:
+        friend CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+            size_t ref_pos_var, char const* variation, size_t variation_size,
+            size_t var_len_on_ref, size_t bases_start);
+
+        CVRefVariation();
+        ~CVRefVariation();
+        CVRefVariation(CVRefVariation const& x);
+        CVRefVariation& operator=(CVRefVariation const& x);
+
+        void Release();
+
+        char const* GetVariation() const;
+        char const* GetQueryForPureDeletion() const;
+        size_t GetVarStartRelative() const; // relative to search region
+        size_t GetVarStartAbsolute() const; // in absolute reference coordinates
+        size_t GetVarSize() const;
+        size_t GetVarLenOnRef() const;
+        bool IsPureDeletion() const;
+
+        void InitQueryForPureDeletion ( char* buf, size_t buf_size ) const;
+
+    private:
+        void Clone(CVRefVariation const& x);
+        ::VRefVariation* m_pSelf;
+        size_t m_bases_start; // the absolute position on the reference
+                              // starting at which the search was initiated
+        char m_query_del[3];
+    };
+
+    CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+            size_t ref_pos_var, char const* variation, size_t variation_size,
+            size_t var_len_on_ref, size_t bases_start);
+
+}
+
+struct KThread;
+struct KLock;
+
+namespace KProc
+{
+    class CKThread
+    {
+    public:
+
+        friend rc_t KThreadFunc ( ::KThread const* self, void* data );
+
+        typedef rc_t (*THREAD_FUNC) ( void* data );
+
+        CKThread ();
+        ~CKThread ();
+        CKThread (CKThread const& x);
+        CKThread& operator= (CKThread const& x);
+
+        void Make ( THREAD_FUNC thread_func, void* data );
+        void Release();
+
+        rc_t Wait ();
+
+    private:
+        void Clone(CKThread const& x);
+        ::KThread* m_pSelf;
+
+        THREAD_FUNC m_ThreadFunc;
+        void* m_pData;
+    };
+
+    class CKLock
+    {
+    public:
+        CKLock ();
+        ~CKLock ();
+        CKLock (CKLock const& x);
+        CKLock& operator= (CKLock const& x);
+
+        void Release();
+
+        void Acquire ();
+        void Lock ();
+        void Unlock ();
+
+        // for compatibility with standard library
+        void lock();
+        void unlock();
+
+    private:
+        void Clone(CKLock const& x);
+        ::KLock* m_pSelf;
+    };
+
+    template <class TLockable> class CLockGuard
+    {
+    public:
+        CLockGuard ( TLockable & lock ) : m_lock (lock)
+        {
+            m_lock.lock();
+        }
+        ~CLockGuard ( )
+        {
+            m_lock.unlock();
+        }
+
+        CLockGuard( CLockGuard<TLockable> const& x );
+        CLockGuard<TLockable>& operator=( CLockGuard<TLockable> const& x );
+
+    private:
+        TLockable & m_lock;
+    };
 }

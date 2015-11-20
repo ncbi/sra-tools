@@ -38,6 +38,7 @@ INT_TOOLS = \
 	pacbio-correct \
 	crc32sum \
 	samview \
+	kdb-index
 
 EXT_TOOLS = \
 	rcexplain \
@@ -83,7 +84,7 @@ $(TARGDIR)/std: \
 #-------------------------------------------------------------------------------
 # vers-includes
 #
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
+$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS) kdb-index)
 
 .PHONY: $(TARGDIR)/vers-includes
 
@@ -365,3 +366,19 @@ PACBIO_CORRECT_LIB = \
 
 $(BINDIR)/pacbio-correct: $(PACBIO_CORRECT_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(PACBIO_CORRECT_LIB)
+
+#-------------------------------------------------------------------------------
+# kdb-index
+#
+KDBINDEX_SRC = \
+	kdb-index
+
+KDBINDEX_OBJ = \
+	$(addsuffix .$(OBJX),$(KDBINDEX_SRC))
+
+KDBINDEX_LIB = \
+	-skapp \
+	-sncbi-vdb \
+
+$(BINDIR)/kdb-index: $(KDBINDEX_OBJ)
+	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(KDBINDEX_LIB)

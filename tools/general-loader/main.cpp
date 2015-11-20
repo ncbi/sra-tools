@@ -91,6 +91,7 @@ const char* OptHelpParam[] =
     "path(s)",
     "path(s)",
     "path",
+    "",
 };
 
 rc_t UsageSummary (char const * progname)
@@ -134,6 +135,7 @@ rc_t CC Usage (const Args * args)
             HelpOptionLine(Options[i].aliases, Options[i].name, OptHelpParam[i], Options[i].help);
         }
     }
+    XMLLogger_Usage();
     
     HelpOptionsStandard ();
     HelpVersion (fullpath, KAppVersion());
@@ -184,13 +186,13 @@ rc_t CC KMain (int argc, char * argv[])
                             {
                                 for ( uint32_t i = 0 ; i < pcount; ++i )
                                 {
-                                    const char* value;
-                                    rc = ArgsOptionValue (args, OPTION_INCLUDE_PATHS, i, reinterpret_cast<const void **>(&value));
+                                    const void* value;
+                                    rc = ArgsOptionValue (args, OPTION_INCLUDE_PATHS, i, &value);
                                     if ( rc != 0 )
                                     {
                                         break;
                                     }
-                                    loader . AddSchemaIncludePath ( value );
+                                    loader . AddSchemaIncludePath ( static_cast <char const*> (value) );
                                 }
                             }
                             
@@ -199,24 +201,24 @@ rc_t CC KMain (int argc, char * argv[])
                             {
                                 for ( uint32_t i = 0 ; i < pcount; ++i )
                                 {
-                                    const char* value;
-                                    rc = ArgsOptionValue (args, OPTION_SCHEMAS, i, reinterpret_cast<const void **>(&value));
+                                    const void* value;
+                                    rc = ArgsOptionValue (args, OPTION_SCHEMAS, i, &value);
                                     if ( rc != 0 )
                                     {
                                         break;
                                     }
-                                    loader . AddSchemaFile( value );
+                                    loader . AddSchemaFile( static_cast <char const*> (value) );
                                 }
                             }
                             
                             rc = ArgsOptionCount (args, OPTION_TARGET, &pcount);
                             if ( rc == 0 && pcount == 1 )
                             {
-                                const char* value;
-                                rc = ArgsOptionValue (args, OPTION_TARGET, 0, reinterpret_cast<const void **>(&value));
+                                const void* value;
+                                rc = ArgsOptionValue (args, OPTION_TARGET, 0, &value);
                                 if ( rc == 0 )
                                 {
-                                    loader . SetTargetOverride ( value );
+                                    loader . SetTargetOverride ( static_cast <char const*> (value) );
                                 }
                             }
                             

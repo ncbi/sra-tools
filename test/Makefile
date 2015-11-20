@@ -41,6 +41,8 @@ SUBDIRS =    \
     general-loader  \
     vschema         \
 	align-info      \
+	blackbox        \
+    vdb-dump        \
 
 # under construction    
 #    ngs-pileup      \

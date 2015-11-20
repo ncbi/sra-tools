@@ -32,8 +32,10 @@
 #include <vdb/table.h>
 #include <vdb/cursor.h>
 #include <vdb/database.h>
+
 #include <klib/vector.h>
 #include <klib/text.h>
+#include <klib/num-gen.h>
 
 #include "vdb-dump-str.h"
 
@@ -91,12 +93,15 @@ void vdcd_destroy( col_defs* defs );
 
 uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *my_table );
 uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *my_table );
+bool vdcd_table_has_column( const VTable *my_table, const char * to_find );
 bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *my_table );
 uint32_t vdcd_add_to_cursor( col_defs* defs, const VCursor *my_cursor );
 void vdcd_reset_content( col_defs* defs );
 void vdcd_ins_trans_fkt( col_defs* defs, const VSchema *my_schema );
 void vdcd_exclude_these_columns( col_defs* defs, const char* column_names );
 bool vdcd_get_first_none_static_column_idx( col_defs* defs, const VCursor * cur, uint32_t * idx );
+
+rc_t vdcd_collect_spread( const struct num_gen * row_set, col_defs * cols, const VCursor * cursor );
 
 #ifdef __cplusplus
 }

@@ -89,10 +89,11 @@ my @options = ( 'build-prefix=s',
     my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
     push @options, 'arch=s'    if (@ARCHITECTURES);
 }
+push @options, 'source=s' if ($PKG{LNG} eq 'JAVA');
 push @options, 'enable-static' if (PACKAGE_TYPE() eq 'B');
 foreach my $href (@REQ) {
     my %a = %$href;
-    push @options, "$a{option}=s";
+    push @options, "$a{option}=s"  if ($a {option});
     push @options, "$a{boption}=s" if ($a{boption});
     $href->{usrpath} = '' unless ($href->{usrpath});
     $href->{usrpath} = expand($href->{usrpath});
@@ -387,6 +388,9 @@ if ($TOOLS =~ /gcc$/) {
     $MD  = '-MD';
 } elsif ($TOOLS eq 'jdk') {
     $JAVAC = 'javac';
+    if ($OPT{source}) {
+        $JAVAC .= ' -target ' . $OPT{source} . ' -source ' . $OPT{source};
+    }
     $JAVAH = 'javah';
     $JAR   = 'jar cf';
 
@@ -402,8 +406,15 @@ if ($OS ne 'win' && $PKG{LNG} ne 'JAVA') {
 }
 
 if ($CPP) {
-    unless (check_tool($CPP)) {
+    unless (check_tool__h($CPP)) {
         println "configure: error: '$CPP' cannot be found";
+        exit 1;
+    }
+}
+
+if ($JAVAC) {
+    unless (check_tool_h($JAVAC)) {
+        println "configure: error: '$JAVAC' cannot be found";
         exit 1;
     }
 }
@@ -451,18 +462,23 @@ foreach my $href (DEPENDS()) {
 foreach my $href (@REQ) {
     $href->{   bldpath} = expand($href->{   bldpath}) if ($href->{   bldpath});
     $href->{locbldpath} = expand($href->{locbldpath}) if ($href->{locbldpath});
-    my ($found_itf, $found_lib, $found_ilib, $found_jar);   # found directories
+
+    # found directories
+    my ($found_itf, $found_bin, $found_lib, $found_ilib, $found_jar);
+
     my %a = %$href;
     next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
     my $is_optional = optional($a{type});
     my $quasi_optional = $a{type} =~ /Q/;
     my $need_source = $a{type} =~ /S/;
+    my $need_bin = $a{type} =~ /E/;
     my $need_build = $a{type} =~ /B/;
     my $need_lib = $a{type} =~ /L|D/;
-    my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /J/);
+    my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /E/ || $a{type} =~ /J/);
     my $need_jar = $a{type} =~ /J/;
 
-    my ($inc, $lib, $ilib) = ($a{include}, $a{lib}); # file names to check
+    my ($bin, $inc, $lib, $ilib)
+        = ($a{bin}, $a{include}, $a{lib}); # file names to check
     $lib = '' unless ($lib);
     $lib = expand($lib);
 
@@ -491,30 +507,35 @@ foreach my $href (@REQ) {
                 println "\tjar... $try" unless ($AUTORUN);
                 $found_jar = $try;
             }
-            next unless ($tolib);
-            my ($i, $l, $il) = ($inc, $lib, $ilib);
-            if ($option =~ /-build$/) {
-                undef $i;
-                ++$has_option{build};
-            } elsif ($option =~ /-prefix$/) {
-                undef $il;
-                ++$has_option{prefix};
-            } elsif ($option =~ /-sources$/) {
-                undef $l;
-                undef $il;
-                ++$has_option{sources};
-            }
-            my ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
-            if ($fi || $fl || $fil) {
-                $found_itf  = $fi  if (! $found_itf  && $fi);
-                $found_lib  = $fl  if (! $found_lib  && $fl);
-                $found_ilib = $fil if (! $found_ilib && $fil);
-            } elsif (! ($try =~ /$a{name}$/)) {
-                $try = File::Spec->catdir($try, $a{name});
-                ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
-                $found_itf  = $fi  if (! $found_itf  && $fi);
-                $found_lib  = $fl  if (! $found_lib  && $fl);
-                $found_ilib = $fil if (! $found_ilib && $fil);
+            elsif ($tolib) {
+                my ($i, $l, $il) = ($inc, $lib, $ilib);
+                if ($option =~ /-build$/) {
+                    undef $i;
+                    ++$has_option{build};
+                } elsif ($option =~ /-prefix$/) {
+                    undef $il;
+                    ++$has_option{prefix};
+                } elsif ($option =~ /-sources$/) {
+                    undef $l;
+                    undef $il;
+                    ++$has_option{sources};
+                }
+                my ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                if ($fi || $fl || $fil) {
+                    $found_itf  = $fi  if (! $found_itf  && $fi);
+                    $found_lib  = $fl  if (! $found_lib  && $fl);
+                    $found_ilib = $fil if (! $found_ilib && $fil);
+                } elsif (! ($try =~ /$a{name}$/)) {
+                    $try = File::Spec->catdir($try, $a{name});
+                    ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                    $found_itf  = $fi  if (! $found_itf  && $fi);
+                    $found_lib  = $fl  if (! $found_lib  && $fl);
+                    $found_ilib = $fil if (! $found_ilib && $fil);
+                }
+            } elsif ($need_bin) {
+                my (undef, $fl, $fil)
+                    = find_in_dir($try, undef, $lib, $ilib, undef, $bin);
+                $found_bin = $fl if ($fl);
             }
         }
     }
@@ -548,8 +569,9 @@ foreach my $href (@REQ) {
     if (! $has_option{build}) {
         if ($a{bldpath}) {
             my $tolib = $need_build || ($need_lib && ! $found_lib);
+            my $tobin = $need_bin && ! $found_bin;
             my $tojar = $need_jar && ! $found_jar;
-            if ($tolib || $tojar) {
+            if ($tolib || $tobin || $tojar) {
                 my ($fl, $fil, $found);
                 if ($OPT{'build-prefix'}) {
                     my $try = $OPT{'build-prefix'};
@@ -596,6 +618,11 @@ foreach my $href (@REQ) {
                         }
                         $found_lib  = $fl  if ($resetLib && $fl);
                     }
+                    if ($tobin && ! $found) {
+                        (undef, $fl, $fil) =
+                            find_in_dir($try, undef, $lib, $ilib, undef, $bin);
+                        $found_bin = $fl if ($fl);
+                    }
                     if ($need_jar && ! $found_jar) {
                         (undef, $found_jar)
                             = find_in_dir($try, undef, undef, undef, $lib);
@@ -605,7 +632,8 @@ foreach my $href (@REQ) {
         }
     }
     if (($need_itf && ! $found_itf) || ($need_lib && ! $found_lib) ||
-        ($need_jar && ! $found_jar) || ($ilib && ! $found_ilib))
+        ($need_jar && ! $found_jar) || ($ilib && ! $found_ilib) ||
+        ($need_bin && ! $found_bin))
     {
         if ($is_optional) {
             println "configure: optional $a{name} package not found: skipped.";
@@ -658,6 +686,11 @@ foreach my $href (@REQ) {
             push(@dependencies, "$a{aname}_ILIBDIR = $found_ilib");
             println "ilibraries: $found_ilib";
         }
+        if ($found_bin) {
+            $found_bin = abs_path($found_bin);
+            push(@dependencies, "$a{aname}_BINDIR = $found_bin");
+            println "bin: $found_bin";
+        }
         if ($found_jar) {
             $found_jar = abs_path($found_jar);
             push(@dependencies, "$a{aname}_JAR = $found_jar");
@@ -669,6 +702,8 @@ foreach my $href (@REQ) {
 my ($E_BINDIR, $E_LIBDIR, $VERSION, $MAJVERS, $E_VERSION_LIBX, $E_MAJVERS_LIBX,
                                               $E_VERSION_EXEX, $E_MAJVERS_EXEX)
     = (''    , '');
+
+println unless ($AUTORUN);
 
 if ($OS ne 'win' && ! $OPT{'status'}) {
     if ($OSTYPE =~ /darwin/i && CONFIG_OUT() ne '.') {
@@ -1219,7 +1254,7 @@ sub expand_path {
 }
 
 sub find_in_dir {
-    my ($dir, $include, $lib, $ilib, $jar) = @_;
+    my ($dir, $include, $lib, $ilib, $jar, $bin) = @_;
     unless (-d $dir) {
 #       println "no" unless ($AUTORUN);
         println "\t\tnot found $dir" if ($OPT{'debug'});
@@ -1316,6 +1351,19 @@ sub find_in_dir {
             undef $found_lib;
         }
     }
+    if ($bin) {
+        print "\t... " unless ($AUTORUN);
+        my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
+        my $bdir  = File::Spec->catdir($builddir, 'bin');
+        my $f = File::Spec->catdir($bdir, $bin);
+        print "\n\t\tchecking $f\n\t" if ($OPT{'debug'});
+        if (-e $f) {
+            $found_lib = $bdir;
+            println $bdir;
+        } else {
+            println 'no' unless ($AUTORUN);
+        }
+    }
     if ($jar) {
         print "\tjar... " unless ($AUTORUN);
         my $try = "$dir/jar/$jar";
@@ -1340,10 +1388,13 @@ sub reverse_build {
 
 ################################################################################
 
+sub check_tool_h  { return check_tool(@_,  '-help'); }
+sub check_tool__h { return check_tool(@_, '--help'); }
+
 sub check_tool {
-    my ($tool) = @_;
+    my ($tool, $o) = @_;
     print "checking for $tool... ";
-    my $cmd = "$tool --help";
+    my $cmd = "$tool $o";
     print "\n\t\trunning $cmd\n\t" if ($OPT{'debug'});
     my $out = `$cmd 2>&1`;
     if ($? == 0) {
@@ -1468,11 +1519,14 @@ sub check {
     foreach my $href (REQ()) {
         die         "No REQ::name" unless $href->{name};
 
-        die         "No $href->{name}:option"  unless $href->{option};
+        die         "No $href->{name}:option"  unless $href->{option}
+                                                   || $href->{boption};
 
         die         "No $href->{name}:type"    unless $href->{type};
         unless ($href->{type} =~ /I/) {
+          unless ($href->{type} =~ /E/) {
             die     "No $href->{name}:lib"     unless $href->{lib};
+          }
             die     "No $href->{name}:pkgpath" unless $href->{pkgpath};
             die     "No $href->{name}:usrpath" unless $href->{usrpath};
         }
@@ -1480,7 +1534,9 @@ sub check {
         die         "No $href->{name}:origin"  unless $href->{origin};
         if ($href->{origin} eq 'I') {
             die     "No $href->{name}:aname"   unless $href->{aname};
-            unless ($href->{type} =~ /D/ || $href->{type} =~ /J/) {
+            unless ($href->{type} =~ /D/ || $href->{type} =~ /E/
+                                         || $href->{type} =~ /J/)
+            {
                 die "No $href->{name}:include" unless $href->{include};
                 die "No $href->{name}:srcpath" unless $href->{srcpath};
             }
@@ -1573,8 +1629,10 @@ EndText
                 println "  --$a{option}=DIR    search for $a{name} package";
                 println "                                 source files in DIR";
             } else {
-                println
+                unless ($a{type} =~ /E/) {
+                  println
                     "  --$a{option}=DIR      search for $a{name} package in DIR"
+                }
             }
             if ($a{boption}) {
                 println "  --$a{boption}=DIR      search for $a{name} package";
@@ -1608,19 +1666,30 @@ EndText
     my ($OS, $ARCH, $OSTYPE, $MARCH, @ARCHITECTURES) = OsArch();
 
     if ($^O ne 'MSWin32') {
-        print <<EndText;
-Build tuning:
+        print "Build tuning:\n";
+        if ($PKG{LNG} ne 'JAVA') {
+            print <<EndText;
   --with-debug
   --without-debug
 EndText
+        }
 
         if (@ARCHITECTURES) {
             print
 "  --arch=name             specify the name of the target architecture\n";
         }
 
-        print <<EndText;
+        if ($PKG{LNG} eq 'JAVA') {
+            print <<EndText;
+  --source=release        provide source compatibility with specified release,
+                          generate class files for specified VM version.
+                          e.g. `--source=1.6'
+EndText
+        } else {
+            print "\n";
+        }
 
+        print <<EndText;
   --build-prefix=DIR      generate build output into DIR directory
                           [$OUTDIR]
 

@@ -46,6 +46,7 @@
     <ClCompile Include="..\..\..\tools\sra-pileup\reref.c" />
     <ClCompile Include="..\..\..\tools\sra-pileup\sra-pileup.c" />
     <ClCompile Include="..\..\..\tools\sra-pileup\walk_debug.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\out_redir.c" />	
   </ItemGroup>
   
   <PropertyGroup Label="Globals">

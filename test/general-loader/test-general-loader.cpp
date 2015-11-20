@@ -48,8 +48,11 @@
 
 #include <kdb/table.h>
 
+#include <kfg/config.h> // KConfigPrint
+
 #include <vdb/vdb-priv.h>
 
+#include <time.h>
 #include <cstring>
 #include <stdexcept> 
 #include <map>
@@ -61,7 +64,18 @@
 using namespace std;
 using namespace ncbi::NK;
 
-TEST_SUITE(GeneralLoaderTestSuite);
+static KLogLevel l = 4;
+static rc_t argsHandler(int argc, char* argv[]) {
+    Args* args = NULL;
+    rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 0, NULL, 0);
+    ArgsWhack(args);
+    KLogLevel lv = KLogLevelGet();
+    if (lv != 4) {
+        l = lv;
+    }
+    return rc;
+}
+TEST_SUITE_WITH_ARGS_HANDLER(GeneralLoaderTestSuite, argsHandler);
 
 const string ScratchDir = "./db/";
 
@@ -99,7 +113,9 @@ public:
     ~GeneralLoaderFixture()
     {
         RemoveDatabase();
-        KLogLevelSet ( klogFatal );
+        if (l == 4) {
+            KLogLevelSet ( klogFatal );
+        }
         KDirectoryRelease ( m_wd );
         if ( ! m_tempSchemaFile . empty() )
         {
@@ -427,7 +443,11 @@ FIXTURE_TEST_CASE ( LaterVersion, GeneralLoaderFixture )
 
 
 FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
-{   
+{
+    KConfig *kfg;
+    rc_t rc = KConfigMake ( & kfg, NULL );
+//  KConfigPrint(kfg, 0);
+    KConfigRelease(kfg);
     m_source . SchemaEvent ( "this file should not exist", "someSchemaName" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
 }
@@ -689,7 +709,7 @@ FIXTURE_TEST_CASE ( DBAddTableToSubDb, GeneralLoaderFixture )
     {
         VDatabase * subDb;
         REQUIRE_RC ( VDatabaseOpenDBUpdate ( m_db, & subDb, "subdb" ) );
-        const VTable *tbl;
+        //const VTable *tbl;
         //FAIL("see VDB-1617");
         //REQUIRE_RC ( VDatabaseOpenTableRead ( subDb, & tbl, "tbl" ) );
         //REQUIRE_RC ( VTableRelease ( tbl ) );
@@ -1552,6 +1572,31 @@ FIXTURE_TEST_CASE ( ErrorMessage_Long, GeneralLoaderFixture )
     
     REQUIRE ( Run ( m_source . MakeSource (), RC ( rcExe, rcFile, rcReading, rcError, rcExists ) ) );
 }
+
+FIXTURE_TEST_CASE ( LogMessage, GeneralLoaderFixture )
+{   
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
+    m_source . OpenStreamEvent();
+    m_source . LogMessageEvent ( "log message" );
+    m_source . CloseStreamEvent();
+    
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
+
+
+FIXTURE_TEST_CASE ( ProgressMessage, GeneralLoaderFixture )
+{
+    // timestamp
+    time_t timestamp = time ( NULL );
+
+    OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
+    m_source . OpenStreamEvent ();
+    m_source . ProgMessageEvent ( 123, "progress message", timestamp, 2, 45 );
+    m_source . CloseStreamEvent ();
+
+    REQUIRE ( Run ( m_source . MakeSource (), 0 ) );
+}
+
 
 FIXTURE_TEST_CASE ( TargetOverride, GeneralLoaderFixture )
 {   

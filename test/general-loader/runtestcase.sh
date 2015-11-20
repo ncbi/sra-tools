@@ -29,7 +29,8 @@
 # $3 - work directory (expected results under expected/, actual results and temporaries created under actual/)
 # $4 - test case ID (expect a file input/$3.gl to exist)
 # $5 - expected return code
-# $6, $7, ... - command line options for general-loader
+# $6 - command line options for general-loader
+# $7 - command line options for dumper
 #
 # return codes:
 # 0 - passed
@@ -43,8 +44,8 @@ DUMPER=$2
 WORKDIR=$3
 CASEID=$4
 RC=$5
-shift 5
-CMDLINE=$*
+LOAD_OPTIONS=$6
+DUMP_OPTIONS=$7
 
 DUMP="$BINDIR/$DUMPER"
 LOAD="$BINDIR/general-loader"
@@ -59,7 +60,7 @@ if [ "$?" != "0" ] ; then
 fi
 rm -rf $TEMPDIR/*
 
-CMD="cat input/$CASEID.gl | $LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
+CMD="cat input/$CASEID.gl | $LOAD $LOAD_OPTIONS 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 #echo $CMD
 eval $CMD
 rc="$?"
@@ -72,7 +73,7 @@ if [ "$rc" != "$RC" ] ; then
 fi
 
 if [ "$rc" == "0" ] ; then
-    CMD="$DUMP $TEMPDIR/db 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
+    CMD="$DUMP $TEMPDIR/db $DUMP_OPTIONS 1>$TEMPDIR/dump.stdout 2>$TEMPDIR/dump.stderr"
     #echo $CMD
     eval $CMD || ( echo "$CMD" && exit 3 )
     

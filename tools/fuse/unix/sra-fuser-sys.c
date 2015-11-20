@@ -363,7 +363,7 @@ int UX_FUSE_ftruncate(const char *path, off_t o, struct fuse_file_info *fi)
 }
 
 static
-void CoreUsage(int fd, const char *progName, bool showHelp, bool showVersion, bool fail)
+void CoreUsage(int fd, const char *progName, bool showHelp, bool showVersion, bool fail, bool forceShowHelp)
 {
     /* used only for FUSE built-in help and version printing */
     struct fuse_operations ops;
@@ -382,7 +382,7 @@ void CoreUsage(int fd, const char *progName, bool showHelp, bool showVersion, bo
             p = progName;
         }
         UsageSummary(p);
-        if( !fail ) {
+        if( !fail || forceShowHelp ) {
             fuse_opt_add_arg(&args, "-ho");
             KOutMsg("\n"
                 "    -x|--xml-dir <path>                XML file with virtual directory structure\n"
@@ -451,7 +451,7 @@ rc_t CC KMain(int argc, char *argv[])
     int i;
     rc_t rc;
 
-    bool showHelp = argc < 2, showVersion = false, unmount = false, foreground = false;
+    bool missedArgs = argc < 2, showHelp = false, showVersion = false, unmount = false, foreground = false;
     const char* mount_point = NULL, *xml_path = NULL, *log_file = NULL;
     const char* sra_cache = NULL, *xml_root = ".";
     char** fargs = (char**)calloc(argc, sizeof(char*));
@@ -479,7 +479,7 @@ rc_t CC KMain(int argc, char *argv[])
             if( i++ == argc - 1 ) {
                 rc = RC(rcExe, rcArgv, rcValidating, rcParam, rcInsufficient);
                 LOGERR(klogErr, rc, "XML validation setting value");
-                CoreUsage(log_fd, argv[0], true, false, true);
+                CoreUsage(log_fd, argv[0], true, false, true, false);
             } else if( !strcmp(argv[i], "ignore") ) {
                 xml_validate = eXML_NoFail;
             } else if( !strcmp(argv[i], "nocheck") ) {
@@ -487,7 +487,7 @@ rc_t CC KMain(int argc, char *argv[])
             } else {
                 rc = RC(rcExe, rcArgv, rcValidating, rcParam, rcUnrecognized);
                 PLOGERR(klogErr, (klogErr, rc, "XML validation setting value '$(lvl)'", PLOG_S(lvl), argv[i]));
-                CoreUsage(log_fd, argv[0], true, false, true);
+                CoreUsage(log_fd, argv[0], true, false, true, false);
             }
         } else if(!strcmp(argv[i], "-ds") || !strcmp(argv[i], "--SRA-check")) {
             sra_sync = AsciiToU32(argv[++i], NULL, NULL);
@@ -499,20 +499,20 @@ rc_t CC KMain(int argc, char *argv[])
             if( i == argc - 1 ) {
                 rc = RC(rcExe, rcArgv, rcValidating, rcParam, rcInsufficient);
                 LOGERR(klogErr, rc, "missing log level");
-                CoreUsage(log_fd, argv[0], true, false, true);
+                CoreUsage(log_fd, argv[0], true, false, true, false);
             } else if( (rc = LogLevelSet(argv[++i])) != 0 ) {
                 PLOGERR(klogErr, (klogErr, rc, "log level $(lvl)", PLOG_S(lvl), argv[i]));
-                CoreUsage(log_fd, argv[0], true, false, true);
+                CoreUsage(log_fd, argv[0], true, false, true, false);
             }
         } else if(!strcmp(argv[i], "-+") || !strcmp (argv[i], "--debug")) {
 #ifdef _DEBUGGING
             if( i == argc - 1 ) {
                 rc = RC(rcExe, rcArgv, rcValidating, rcParam, rcInsufficient);
                 LOGERR(klogErr, rc, "missing debug level");
-                CoreUsage(log_fd, argv[0], true, false, true);
+                CoreUsage(log_fd, argv[0], true, false, true, false);
             } else if( (rc = KDbgSetString(argv[++i])) != 0 ) {
                 PLOGERR(klogErr, (klogErr, rc, "debug level $(lvl)", PLOG_S(lvl), argv[i]));
-                CoreUsage(log_fd, argv[0], true, false, true);
+                CoreUsage(log_fd, argv[0], true, false, true, false);
             }
 #else
             i++;
@@ -537,16 +537,19 @@ rc_t CC KMain(int argc, char *argv[])
             }
         }
     }
+    if( missedArgs ) {
+        CoreUsage(log_fd, argv[0], missedArgs, showVersion, true, true);
+    }
     if( showHelp || showVersion ) {
-        CoreUsage(log_fd, argv[0], showHelp, showVersion, false);
+        CoreUsage(log_fd, argv[0], showHelp, showVersion, false, false);
     }
     if( (rc = LogFile_Init(log_file, log_sync, foreground, &log_fd)) != 0 ) {
         LOGERR(klogErr, rc, log_file ? log_file : "no log");
-        CoreUsage(log_fd, argv[0], true, false, true);
+        CoreUsage(log_fd, argv[0], true, false, true, false);
     }
     if( mount_point == NULL ) {
         LOGERR(klogErr, RC(rcExe, rcArgv, rcValidating, rcParam, rcInsufficient), "mountpoint");
-        CoreUsage(log_fd, argv[0], true, false, true);
+        CoreUsage(log_fd, argv[0], true, false, true, false);
     }
     if( unmount ) {
         fuse_unmount(mount_point);
@@ -554,15 +557,15 @@ rc_t CC KMain(int argc, char *argv[])
     }
     if( xml_path == NULL ) {
         LOGERR(klogErr, RC(rcExe, rcArgv, rcValidating, rcParam, rcInsufficient), "virtual directory XML");
-        CoreUsage(log_fd, argv[0], true, false, true);
+        CoreUsage(log_fd, argv[0], true, false, true, false);
     }
     if( i != argc ) {
         LOGERR(klogErr, RC(rcExe, rcArgv, rcValidating, rcParam, rcExcessive), argv[i]);
-        CoreUsage(log_fd, argv[0], true, false, true);
+        CoreUsage(log_fd, argv[0], true, false, true, false);
     }
     if( stat(mount_point, &g_mount_point_stat) < 0 ) {
         PLOGMSG(klogErr, (klogErr, "$(p): $(e)", PLOG_2(PLOG_S(p),PLOG_S(e)), mount_point, strerror(errno)));
-        CoreUsage(log_fd, argv[0], true, false, true);
+        CoreUsage(log_fd, argv[0], true, false, true, false);
     }
     g_mount_point_stat.st_dev = 0;
     g_mount_point_stat.st_ino = 0;
@@ -572,7 +575,7 @@ rc_t CC KMain(int argc, char *argv[])
     
     if( stat(xml_path, &g_dflt_file_stat) < 0 ) {
         PLOGMSG(klogErr, (klogErr, "$(p): $(e)", PLOG_2(PLOG_S(p),PLOG_S(e)), xml_path, strerror(errno)));
-        CoreUsage(log_fd, argv[0], true, false, true);
+        CoreUsage(log_fd, argv[0], true, false, true, false);
     }
     g_dflt_file_stat.st_dev = 0;
     g_dflt_file_stat.st_ino = 0;
@@ -585,7 +588,7 @@ rc_t CC KMain(int argc, char *argv[])
 
     if( (rc = Initialize(sra_sync, xml_path, xml_sync, sra_cache, xml_root, xml_validate)) != 0 ) {
         LOGERR(klogErr, rc, "at initialization");
-        CoreUsage(log_fd, argv[0], true, false, true);
+        CoreUsage(log_fd, argv[0], true, false, true, false);
     }
     DEBUG_MSG(8, ("Mount point set to '%s'\n", mount_point));
 

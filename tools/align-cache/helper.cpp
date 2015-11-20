@@ -213,6 +213,9 @@ namespace VDBObjects
 
     CVCursor& CVCursor::operator=(CVCursor const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -231,11 +234,6 @@ namespace VDBObjects
 
     void CVCursor::Clone(CVCursor const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VCursorAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -362,6 +360,9 @@ namespace VDBObjects
 
     CVTable& CVTable::operator=(CVTable const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -380,11 +381,6 @@ namespace VDBObjects
 
     void CVTable::Clone(CVTable const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VTableAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -435,6 +431,9 @@ namespace VDBObjects
 
     CVDatabase& CVDatabase::operator=(CVDatabase const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -453,11 +452,6 @@ namespace VDBObjects
 
     void CVDatabase::Clone(CVDatabase const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VDatabaseAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -731,12 +725,12 @@ namespace KApp
 
     char const* CArgs::GetParamValue ( uint32_t iteration ) const
     {
-        char const* ret = NULL;
-        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, reinterpret_cast<const void **>(&ret) );
+        void const* ret = NULL;
+        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, & ret );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsParamValue");
 
-        return ret;
+        return static_cast <char const*> (ret);
     }
 
     uint32_t CArgs::GetOptionCount ( char const* option_name ) const
@@ -751,12 +745,12 @@ namespace KApp
 
     char const* CArgs::GetOptionValue ( char const* option_name, uint32_t iteration ) const
     {
-        char const* ret = NULL;
-        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, reinterpret_cast<const void**>(&ret) );
+        void const* ret = NULL;
+        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, & ret );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsOptionValue (%s)", option_name);
 
-        return ret;
+        return static_cast <char const*> (ret);
     }
 
 ////////////////////////////////
@@ -773,7 +767,6 @@ namespace KApp
 
     void CProgressBar::Make ( uint64_t size )
     {
-        ::KLogLevelSet ( klogLevelMax );
         rc_t rc = ::KLoadProgressbar_Make ( &m_pSelf, size );
         if (rc)
             throw Utils::CErrorMsg(rc, "KLoadProgressbar_Make");

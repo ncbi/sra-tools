@@ -1033,22 +1033,27 @@ static rc_t vdb_info_print_json( vdb_info_data * data )
 
 /* ----------------------------------------------------------------------------- */
 
+static const char dflt_event_name[] = "-";
 
 static rc_t vdb_info_print_sep_event( vdb_info_event * event, const char sep, bool last )
 {
     rc_t rc;
+	const char * ev_name = event->name;
+	if ( ev_name == NULL || ev_name[ 0 ] == 0 )
+		ev_name = dflt_event_name;
+	
     if ( last )
     {
-        rc = KOutMsg( "%s%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d",
-                      event->name, sep,
+        rc = KOutMsg( "'%s'%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d",
+                      ev_name, sep,
                       event->vers.major, sep, event->vers.minor, sep, event->vers.release, sep,
                       event->tool_date.month, sep, event->tool_date.day, sep, event->tool_date.year, sep,
                       event->run_date.month, sep, event->run_date.day, sep, event->run_date.year );
     }
     else
     {
-        rc = KOutMsg( "%s%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c",
-                      event->name, sep,
+        rc = KOutMsg( "'%s'%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c",
+                      ev_name, sep,
                       event->vers.major, sep, event->vers.minor, sep, event->vers.release, sep,
                       event->tool_date.month, sep, event->tool_date.day, sep, event->tool_date.year, sep,
                       event->run_date.month, sep, event->run_date.day, sep, event->run_date.year, sep );
@@ -1059,7 +1064,7 @@ static rc_t vdb_info_print_sep_event( vdb_info_event * event, const char sep, bo
 
 static rc_t vdb_info_print_sep( vdb_info_data * data, const char sep )
 {
-    rc_t rc = KOutMsg( "%s%c%lu%c%c%c%s%c",
+    rc_t rc = KOutMsg( "'%s'%c%lu%c%c%c'%s'%c",
                        data->acc, sep, data->file_size, sep,
                        data->s_path_type[0], sep, &(data->s_platform[13]), sep );
     if ( rc == 0 )
@@ -1069,14 +1074,15 @@ static rc_t vdb_info_print_sep( vdb_info_data * data, const char sep )
                       data->ev_int_rows, sep, data->consensus_rows, sep,
                       data->passes_rows, sep, data->metrics_rows, sep );
     if ( rc == 0 )
-        rc = KOutMsg( "%s%c%d%c%d%c%d%c%d%c%d%c", data->schema_name, sep,
+        rc = KOutMsg( "'%s'%c%d%c%d%c%d%c%d%c%d%c",
+					  data->schema_name, sep,
                       data->ts.month, sep, data->ts.day, sep, data->ts.year, sep,
                       data->ts.hour, sep, data->ts.minute, sep );
 
     if ( rc == 0 )
 	{
 		if ( data->species[ 0 ] != 0 )
-			rc = KOutMsg( "%s%c", data->species, sep );
+			rc = KOutMsg( "'%s'%c", data->species, sep );
 		else
 			rc = KOutMsg( "-%c", sep );
 	}

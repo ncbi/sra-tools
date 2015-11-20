@@ -118,6 +118,7 @@ static void vdco_init_values( p_dump_context ctx )
 	ctx->diff = false;
 	ctx->show_spotgroups = false;
 	/*ctx->force_sra_schema = false;*/
+	ctx->show_spread = false;
 }
 
 rc_t vdco_init( dump_context **ctx )
@@ -386,9 +387,15 @@ static bool vdco_set_format( p_dump_context ctx, const char *src )
         ctx->format = df_tab;
     else if ( strcmp( src, "fastq" ) == 0 )
         ctx->format = df_fastq;
-    else if ( strcmp( src, "fasta" ) == 0 )
+    else if ( strcmp( src, "fastq1" ) == 0 )
+        ctx->format = df_fastq1;
+	else if ( strcmp( src, "fasta" ) == 0 )
         ctx->format = df_fasta;
-    else if ( strcmp( src, "bin" ) == 0 )
+    else if ( strcmp( src, "fasta1" ) == 0 )
+        ctx->format = df_fasta1;
+    else if ( strcmp( src, "fasta2" ) == 0 )
+        ctx->format = df_fasta2;
+	else if ( strcmp( src, "bin" ) == 0 )
         ctx->format = df_bin;
     else if ( strcmp( src, "sql" ) == 0 )
         ctx->format = df_sql;
@@ -560,6 +567,7 @@ static void vdco_evaluate_options( const Args *my_args,
 	ctx->show_spotgroups = vdco_get_bool_option( my_args, OPTION_SPOTGROUPS, false );
 	/*ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );*/
 	ctx->merge_ranges = vdco_get_bool_option( my_args, OPTION_MERGE_RANGES, false );
+	ctx->show_spread = vdco_get_bool_option( my_args, OPTION_SPREAD, false );
 	
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );
     ctx->output_buffer_size = vdco_get_size_t_option( my_args, OPTION_OUT_BUF_SIZE, DEF_OPTION_OUT_BUF_SIZE );

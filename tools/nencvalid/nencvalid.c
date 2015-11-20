@@ -484,9 +484,10 @@ rc_t HandleOptions (Args * args)
 
     else
     {
-        if (pcount == 0)
+        if (pcount == 0) {
             MiniUsage(args);
-
+            rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
+        }
         else
         {
             uint32_t ocount;

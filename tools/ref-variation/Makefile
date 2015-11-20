@@ -75,6 +75,9 @@ clean: stdclean
 #-------------------------------------------------------------------------------
 # ref-variation
 #
+
+CPFLAGS += -pthread 
+
 REF_VARIATION_SRC = \
 	ref-variation \
 	helper

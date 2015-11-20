@@ -1484,6 +1484,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             if (mode == OM_NONE)
             {
                 MiniUsage(args);
+                rc = RC(rcApp, rcArgv, rcParsing, rcParam, rcInsufficient);
                 break;
             }
 

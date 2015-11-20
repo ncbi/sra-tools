@@ -83,6 +83,8 @@ extern "C" {
 #define OPTION_SPOTGROUPS        "spotgroups"
 /*#define OPTION_SRASCHEMA         "sraschema"*/
 #define OPTION_MERGE_RANGES      "merge-ranges"
+#define OPTION_SPREAD      		 "spread"
+#define OPTION_SLICE      		 "slice"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -124,7 +126,10 @@ typedef enum dump_format_t
     df_sra_dump,
     df_tab,
     df_fastq,
+    df_fastq1,	
     df_fasta,
+    df_fasta1,
+    df_fasta2,
     df_bin,
     df_sql
 } dump_format_t;
@@ -151,6 +156,7 @@ typedef struct dump_context
     uint16_t indented_line_len;
     uint16_t phase;
     uint32_t generic_idx;
+	uint32_t slice_depth;
     size_t cur_cache_size;
     size_t output_buffer_size;
     dump_format_t format;
@@ -186,6 +192,7 @@ typedef struct dump_context
 	bool show_spotgroups;
 	/* bool force_sra_schema; */
 	bool merge_ranges;
+	bool show_spread;
 } dump_context;
 typedef dump_context* p_dump_context;
 

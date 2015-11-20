@@ -26,7 +26,7 @@ default: runtests
 
 TOP ?= $(abspath ../..)
 
-MODULE = test/ngs-pileup
+MODULE = test/kget
 
 TEST_TOOLS = \
 

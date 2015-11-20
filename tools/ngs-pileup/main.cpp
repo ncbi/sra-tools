@@ -117,13 +117,13 @@ rc_t CC KMain( int argc, char *argv [] )
             }
             if ( pcount == 1 )
             {
-                const char * value;
-                rc = ArgsOptionValue ( args, OPTION_REF, 0, reinterpret_cast<const void **>(& value) );
+                const void * value;
+                rc = ArgsOptionValue ( args, OPTION_REF, 0, & value );
                 if ( rc != 0 )
                 {
                     throw ngs :: ErrorMsg ( "ArgsOptionValue (" OPTION_REF ") failed" );
                 }
-                settings . AddReference ( value );
+                settings . AddReference ( static_cast <char const*> (value) );
             }
             
             rc = ArgsParamCount ( args, &pcount );
@@ -136,11 +136,11 @@ rc_t CC KMain( int argc, char *argv [] )
                 
                 settings . output = & std::cout;
                 
-                char const *value;
-                rc = ArgsParamValue ( args, 0, reinterpret_cast<const void**>(&value) );
+                void const *value;
+                rc = ArgsParamValue ( args, 0, &value );
                 if ( rc == 0 ) 
                 {
-                    settings . AddInput ( value );
+                    settings . AddInput ( static_cast <char const*> (value) );
                     
                     NGS_Pileup ( settings ) . Run ();
                 }

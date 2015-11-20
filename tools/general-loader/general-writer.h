@@ -77,6 +77,9 @@ enum gw_evt_id
     evt_add_mbr_db,
     evt_add_mbr_tbl,
 
+    evt_logmsg,
+    evt_progmsg,
+
     evt_max_id                            /* must be last                */
 };
 
@@ -284,6 +287,16 @@ struct gw_add_mbr_evt_v1
     uint8_t create_mode;
 };
 
+struct gw_status_evt_v1
+{
+    gw_evt_hdr_v1 dad;
+    uint32_t version;
+    uint32_t timestamp;
+    uint32_t pid;
+    uint32_t name_sz;
+    uint32_t percent;
+};
+
 /*----------------------------------------------------------------------
  * packed events
  *   used for C/C++ level operations
@@ -423,6 +436,16 @@ struct gwp_add_mbr_evt_v1
     uint8_t mbr_sz;
     uint8_t name_sz;
     uint8_t create_mode;
+};
+
+struct gwp_status_evt_v1
+{
+    gwp_evt_hdr_v1 dad;
+    uint32_t version;
+    uint32_t timestamp;
+    uint32_t pid;
+    uint8_t name_sz;
+    uint8_t percent;
 };
 
 #ifdef __cplusplus
@@ -628,10 +651,10 @@ namespace ncbi
     }
 
     inline size_t size1 ( const gw_add_mbr_evt_v1 & self )
-    { return self . mbr_sz; }
+    { return ( size_t ) self . mbr_sz; }
 
     inline size_t size2 ( const gw_add_mbr_evt_v1 & self )
-    { return self . name_sz; }
+    { return ( size_t ) self . name_sz; }
 
     inline void set_size1 ( :: gw_add_mbr_evt_v1 & self, size_t bytes )
     {
@@ -651,6 +674,61 @@ namespace ncbi
         self . create_mode = mode;
     }
 
+    // gw_status_evt
+    inline void init ( :: gw_status_evt_v1 &hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . version = hdr . timestamp = hdr . pid = hdr . name_sz = hdr . percent = 0;
+    }
+
+    inline void init ( :: gw_status_evt_v1 &hdr, const :: gw_evt_hdr_v1 &dad )
+    {
+        hdr . dad = dad;
+        hdr . version = hdr . timestamp = hdr . pid = hdr . name_sz = hdr . percent = 0;
+    }
+
+    inline void set_version ( :: gw_status_evt_v1 &self, uint32_t version )
+    {
+        assert ( version > 0 );
+        self . version = version;
+    }
+
+    inline uint32_t version ( const :: gw_status_evt_v1 &self )
+    { return self . version; }
+
+    inline void set_timestamp ( :: gw_status_evt_v1 &self, uint32_t timestamp )
+    {
+        assert ( timestamp > 0 );
+        self . timestamp = timestamp;
+    }
+
+    inline uint32_t timestamp ( const :: gw_status_evt_v1 &self )
+    { return self . timestamp; }
+
+    inline void set_pid ( :: gw_status_evt_v1 &self, uint32_t pid )
+    {
+        assert ( pid > 0 );
+        self . pid = pid;
+    }
+
+    inline uint32_t pid ( const :: gw_status_evt_v1 &self )
+    { return self . pid; }
+
+    inline void set_size ( :: gw_status_evt_v1 &self, size_t bytes )
+    {
+        set_string_size ( self . name_sz, bytes );
+    }
+
+    inline size_t size ( const :: gw_status_evt_v1 &self )
+    { return ( size_t ) self . name_sz; }
+
+    inline void set_percent ( :: gw_status_evt_v1 &self, uint32_t percent )
+    {
+        self . percent = percent;
+    }
+
+    inline uint32_t percent ( const :: gw_status_evt_v1 &self )
+    { return self . percent; }
 
     ////////// packed events //////////
 
@@ -936,6 +1014,65 @@ namespace ncbi
     {
         self . create_mode = mode;
     }
+
+    // gwp_status_evt
+    inline void init ( :: gwp_status_evt_v1 &hdr, uint32_t id, gw_evt_id evt )
+    {
+        init ( hdr . dad, id, evt );
+        hdr . version = hdr . timestamp  = 0;
+        hdr . name_sz = hdr . percent = 0;
+    }
+
+    inline void init ( :: gwp_status_evt_v1 &hdr, const :: gwp_evt_hdr_v1 &dad )
+    {
+        hdr . dad = dad;
+        hdr . version = hdr . timestamp = 0;
+        hdr . name_sz = hdr . percent = 0;
+    }
+
+    inline void set_pid ( :: gwp_status_evt_v1 &self, int pid )
+    {
+        assert ( pid > 0 );
+        self . pid = ( uint32_t ) pid;
+    }
+
+    inline uint32_t pid ( const :: gwp_status_evt_v1 &self )
+    { return self . pid; }
+
+
+    inline void set_version ( :: gwp_status_evt_v1 &self, uint32_t version )
+    {
+        assert ( version != 0 );
+        self . version = version;
+    }
+
+    inline uint32_t version ( const :: gwp_status_evt_v1 &self )
+    { return self . version; }
+
+    inline void set_timestamp ( :: gwp_status_evt_v1 &self, uint32_t timestamp )
+    {
+        assert ( timestamp != 0 );
+        self . timestamp = timestamp;
+    }
+
+    inline uint32_t timestamp ( const :: gwp_status_evt_v1 &self )
+    { return self . timestamp; }
+
+    inline void set_size ( :: gwp_status_evt_v1 &self, size_t bytes )
+    {
+        set_string_size ( self . name_sz, bytes );
+    }
+
+    inline size_t size ( const :: gwp_status_evt_v1 &self )
+    { return ( size_t ) self . name_sz + 1; }
+
+    inline void set_percent ( :: gwp_status_evt_v1 &self, uint32_t percent )
+    {
+        self . percent = percent;
+    }
+
+    inline uint32_t percent ( const :: gwp_status_evt_v1 &self )
+    { return self . percent; }
 
 }
 #endif

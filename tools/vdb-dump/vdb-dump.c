@@ -45,6 +45,7 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
+#include <kapp/args-conv.h>
 
 #include <klib/container.h>
 #include <klib/vector.h>
@@ -92,7 +93,7 @@ static const char * dna_bases_usage[] = { "print dna-bases", NULL };
 static const char * max_line_len_usage[] = { "limits line length", NULL };
 static const char * line_indent_usage[] = { "indents the line", NULL };
 static const char * filter_usage[] = { "filters lines", NULL };
-static const char * format_usage[] = { "dump format (csv,xml,json,piped,tab,sra-dump,fastq,fasta,bin)", NULL };
+static const char * format_usage[] = { "output format:", NULL };
 static const char * id_range_usage[] = { "prints id-range", NULL };
 static const char * without_sra_usage[] = { "without sra-type-translation", NULL };
 static const char * excluded_columns_usage[] = { "exclude these columns", NULL };
@@ -118,6 +119,8 @@ static const char * info_usage[] = { "print info about run", NULL };
 static const char * spotgroup_usage[] = { "show spotgroups", NULL };
 /*static const char * sraschema_usage[] = { "force use of dflt. sra-schema", NULL }; */
 static const char * merge_ranges_usage[] = { "merge and sort row-ranges", NULL };
+static const char * spread_usage[] = { "show spread of integer values", NULL };
+static const char * slice_usage[] = { "find a slice of given depth", NULL };
 
 OptDef DumpOptions[] =
 {
@@ -165,8 +168,9 @@ OptDef DumpOptions[] =
     { OPTION_DIFF, NULL, NULL, NULL, 1, false, false },
 	{ OPTION_SPOTGROUPS, NULL, NULL, spotgroup_usage, 1, false, false },
 	/*{ OPTION_SRASCHEMA, NULL, NULL, sraschema_usage, 1, false, false }, */
-	{ OPTION_MERGE_RANGES, NULL, NULL, merge_ranges_usage, 1, false, false }
-	
+	{ OPTION_MERGE_RANGES, NULL, NULL, merge_ranges_usage, 1, false, false },
+	{ OPTION_SPREAD, NULL, NULL, spread_usage, 1, false, false },
+	{ OPTION_SLICE, NULL, NULL, slice_usage, 1, true, false }
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -215,6 +219,18 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( ALIAS_MAX_LINE_LEN, OPTION_MAX_LINE_LEN, "max_length", max_line_len_usage );
     HelpOptionLine ( ALIAS_LINE_INDENT, OPTION_LINE_INDENT, "indent_width", line_indent_usage );
     HelpOptionLine ( ALIAS_FORMAT, OPTION_FORMAT, "format", format_usage );
+	
+	KOutMsg( "      csv ..... comma separated values on one line\n" );
+	KOutMsg( "      xml ..... xml-style without complete xml-frame\n" );
+	KOutMsg( "      json .... json-style\n" );
+	KOutMsg( "      piped ... 1 line per cell: row-id, column-name: value\n" );
+	KOutMsg( "      tab ..... 1 line per row: tab-separated values only\n" );
+	KOutMsg( "      fastq ... FASTQ( 4 lines ) for each row\n" );
+	KOutMsg( "      fastq1 .. FASTQ( 4 lines ) for each fragment\n" );	
+	KOutMsg( "      fasta ... FASTA( 2 lines ) for each fragment if possible\n" );
+	KOutMsg( "      fasta1 .. one FASTA-record for the whole accession (REFSEQ)\n" );
+	KOutMsg( "      fasta2 .. one FASTA-record for each REFERENCE in cSRA\n\n" );
+	
     HelpOptionLine ( ALIAS_ID_RANGE, OPTION_ID_RANGE, NULL, id_range_usage );
     HelpOptionLine ( ALIAS_WITHOUT_SRA, OPTION_WITHOUT_SRA, NULL, without_sra_usage );
     HelpOptionLine ( ALIAS_EXCLUDED_COLUMNS, OPTION_EXCLUDED_COLUMNS, NULL, excluded_columns_usage );
@@ -240,6 +256,7 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine ( NULL, OPTION_SPOTGROUPS, NULL, spotgroup_usage );
     /* HelpOptionLine ( NULL, OPTION_SRASCHEMA, NULL, sraschema_usage ); */
     HelpOptionLine ( NULL, OPTION_MERGE_RANGES, NULL, merge_ranges_usage );
+    HelpOptionLine ( NULL, OPTION_SPREAD, NULL, spread_usage );
 	
     HelpOptionsStandard ();
 
@@ -542,7 +559,7 @@ static bool vdm_extract_or_parse_phys_columns( const p_dump_context ctx,
             res = vdcd_extract_from_phys_table( my_col_defs, my_table );
         else
             /* the user knows the names of the wanted columns... */
-            res = vdcd_parse_string( my_col_defs, ctx->columns, NULL );
+            res = vdcd_parse_string( my_col_defs, ctx->columns, my_table );
 
         if ( ctx->excluded_columns != NULL )
             vdcd_exclude_these_columns( my_col_defs, ctx->excluded_columns );
@@ -794,6 +811,90 @@ static rc_t vdm_dump_opened_database( const p_dump_context ctx,
     }
     return rc;
 }
+
+/* ********************************************************************** */
+
+static rc_t vdm_show_tab_spread( const p_dump_context ctx,
+							     const VTable *my_table )
+{
+	const VCursor * cursor;
+	rc_t rc = VTableCreateCachedCursorRead( my_table, &cursor, ctx->cur_cache_size );
+	DISP_RC( rc, "VTableCreateCursorRead() failed" );
+	if ( rc == 0 )
+	{
+		col_defs * cols;
+		if ( !vdcd_init( &cols, ctx->max_line_len ) )
+		{
+			rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+			DISP_RC( rc, "col_defs_init() failed" );
+		}
+		if ( rc == 0 )
+		{
+			uint32_t n = vdm_extract_or_parse_columns( ctx, my_table, cols );
+			if ( n < 1 )
+				rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+			else
+			{
+				n = vdcd_add_to_cursor( cols, cursor );
+				if ( n < 1 )
+					rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+				else
+				{
+					rc = VCursorOpen( cursor );
+					DISP_RC( rc, "VCursorOpen() failed" );
+					if ( rc == 0 )
+					{
+						int64_t  first;
+						uint64_t count;
+						rc = VCursorIdRange( cursor, 0, &first, &count );
+						DISP_RC( rc, "VCursorIdRange( spread ) failed" );
+						if ( rc == 0 )
+						{
+							if ( ctx->rows == NULL )
+							{
+								rc = num_gen_make_from_range( &ctx->rows, first, count );
+								DISP_RC( rc, "num_gen_make_from_range() failed" );
+							}
+							else
+							{
+								if ( count > 0 )
+								{
+									rc = num_gen_trim( ctx->rows, first, count );
+									DISP_RC( rc, "num_gen_trim() failed" );
+								}
+							}
+							
+							if ( rc == 0 )
+							{
+								if ( num_gen_empty( ctx->rows ) )
+									rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+								else
+									rc = vdcd_collect_spread( ctx->rows, cols, cursor ); /* is in vdb-dump-coldefs.c */
+							}
+						}
+					}
+				}
+			}
+			vdcd_destroy( cols );
+		}
+		VCursorRelease( cursor );
+	}
+	return rc;
+}
+
+static rc_t vdm_show_db_spread( const p_dump_context ctx,
+                                const VDatabase *my_database )
+{
+    const VTable *my_table;
+    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+    if ( rc == 0 )
+    {
+        rc = vdm_show_tab_spread( ctx, my_table );
+        VTableRelease( my_table );
+    }
+    return rc;
+}
+/* ********************************************************************** */
 
 /********************************************************************
 helper function, needed by "VSchemaDump()"
@@ -1064,7 +1165,7 @@ static rc_t vdm_show_row_blobbing( const p_col_def col_def,
         DISP_RC( rc, "KColumnIdRange() failed" );
         if ( rc == 0 )
         {
-            int64_t last = first + count;
+            int64_t last = first + count - 1;
             rc = KOutMsg( "range: %,ld ... %,ld\n", first, last );
             if ( rc == 0 )
             {
@@ -1089,7 +1190,7 @@ static rc_t vdm_show_row_blobbing( const p_col_def col_def,
                             DISP_RC( rc, "KColumnBlobRead() failed" );
                             if ( rc == 0 )
                             {
-                                rc = KOutMsg( "blob[ %,ld ... %,ld] size = %,zu\n", first_id_in_blob, last_id_in_blob, remaining );
+                                rc = KOutMsg( "blob[ %,ld ... %,ld] size = %,zu\n", first_id_in_blob, last_id_in_blob, remaining + num_read );
                             }
                             id = last_id_in_blob + 1;
                         }
@@ -1539,6 +1640,7 @@ static rc_t vdm_range_db_index( const p_dump_context ctx, const VDatabase *my_da
 
 
 /* ************************************************************************************ */
+
 static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_table )
 {
 	const KMetadata * meta = NULL;
@@ -1719,6 +1821,10 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *my_manag
 	{
 		rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spotgroups );
 	}
+	else if ( ctx->show_spread )
+	{
+		rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spread );
+	}
     else
     {
         rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_opened_table );
@@ -1831,6 +1937,10 @@ static rc_t vdm_dump_database( const p_dump_context ctx, const VDBManager *my_ma
     else if ( ctx->show_spotgroups )
     {
         rc = vdm_dump_db_fkt( ctx, my_manager, vdm_show_db_spotgroups );
+    }
+    else if ( ctx->show_spread )
+    {
+        rc = vdm_dump_db_fkt( ctx, my_manager, vdm_show_db_spread );
     }
     else
     {
@@ -2060,8 +2170,11 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                                 }
                                 else switch( ctx->format )
                                 {
-                                    case df_fastq : ;
-                                    case df_fasta : vdf_main( ctx, mgr, value ); break;
+                                    case df_fastq  : ;
+                                    case df_fastq1 : ;									
+                                    case df_fasta  : ;
+                                    case df_fasta1 : ;
+                                    case df_fasta2 : vdf_main( ctx, mgr, value ); break;
                                     default : rc = vdm_main_one_obj( ctx, mgr, value ); break;
                                 }
                             }
@@ -2069,7 +2182,8 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                     }
                     else
                     {
-                        rc = UsageSummary ( UsageDefaultName );
+                        UsageSummary ( UsageDefaultName );
+                        rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInsufficient);
                     }
                 }
             }
@@ -2136,8 +2250,10 @@ rc_t CC KMain ( int argc, char *argv [] )
 
     rc = KOutHandlerSet ( write_to_FILE, stdout );
     if ( rc == 0 )
-        rc = ArgsMakeAndHandle (&args, argc, argv, 1,
-            DumpOptions, sizeof DumpOptions / sizeof DumpOptions [ 0 ] );
+    {
+        rc = ArgsMakeAndHandle (&args, argc, argv,
+            1, DumpOptions, sizeof DumpOptions / sizeof DumpOptions [ 0 ] );
+    }
     if ( rc == 0 )
     {
         dump_context *ctx;
@@ -2160,9 +2276,11 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( rc == 0 )
                 {
                     if ( ctx->phase > 0 )
-                        rc = vdi_bin_phase( ctx, args );
+                        rc = vdi_bin_phase( ctx, args ); /* vdb-dump-bin.c */
                     else if ( ctx->diff )
-						rc = diff_files( args );
+						rc = diff_files( args ); /* above calls into vdb-dump-str.c */
+					else if ( ctx->slice_depth > 0 )
+						rc = find_slice( ctx, args ); /* vdb-dump-str.c */
 					else
                         rc = vdm_main( ctx, args );
 						

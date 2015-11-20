@@ -42,7 +42,14 @@ WORKDIR=$2
 SUITEID=$3
 CASEID=$4
 RC=$5
-shift 5
+EXTRA_CHECKER_PRESENT=$6
+if [ "$EXTRA_CHECKER_PRESENT" == "y" ] ; then
+    EXTRA_CHECKER=$7
+    shift 7
+else
+    EXTRA_CHECKER=
+    shift 6
+fi
 CMDLINE=$*
 
 DUMP="$BINDIR/vdb-dump"
@@ -65,6 +72,7 @@ if [ "$rc" != "$RC" ] ; then
     echo "$LOAD returned $rc, expected $RC"
     echo "command executed:"
     echo $CMD
+
     cat $TEMPDIR/load.stdout
     cat $TEMPDIR/load.stderr
     exit 2
@@ -90,11 +98,28 @@ else
 fi
 
 if [ "$rc" != "0" ] ; then
-    cat $TEMPDIR/diff
     echo "command executed:"
     echo $CMD
+
+    cat $TEMPDIR/diff
     exit 4
 fi    
+
+if [ "$EXTRA_CHECKER_PRESENT" == "y" ] ; then
+    CMD="$EXTRA_CHECKER $CASEID 1>$TEMPDIR/extra_checker.stdout 2>$TEMPDIR/extra_checker.stderr"
+    eval $CMD
+    rc="$?"
+
+    if [ "$rc" != "0" ] ; then
+        echo "command executed:"
+        echo $CMD
+
+        cat $TEMPDIR/extra_checker.stdout
+        cat $TEMPDIR/extra_checker.stderr
+
+        exit 5
+    fi
+fi
 
 rm -rf $TEMPDIR
 

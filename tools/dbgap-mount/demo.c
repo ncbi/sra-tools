@@ -58,6 +58,9 @@
 
 /******************************************************************************/
 
+
+#ifdef JOJOBA
+
 static
 void
 SLEPOY ( int Sec )
@@ -74,6 +77,8 @@ printf ( "    DONE [ Sleeping %d seconds ]\n", Sec );
 
 }
 
+#endif /* JOJOBA */
+
 XFS_EXTERN rc_t CC XFS_InitAll_MHR ( const char * ConfigFile );
 XFS_EXTERN rc_t CC XFS_DisposeAll_MHR ();
 
@@ -82,7 +87,6 @@ rc_t
 MakeModel (
             struct XFSModel ** Model,
             const char * ProjectId,
-            const char * Karts,
             bool ReadOnly
 )
 {
@@ -95,7 +99,7 @@ MakeModel (
 
     RCt = XFSModelFromScratch ( & Mod, NULL );
     if ( RCt == 0 ) {
-        RCt = XFSModelAddRootNode ( Mod, "dbgap-project" );
+        RCt = XFSModelAddRootNode ( Mod, "gap-project" );
         if ( RCt == 0 ) {
             ModNod = ( struct XFSModelNode * ) XFSModelRootNode ( Mod );
             if ( ModNod == NULL ) {
@@ -103,28 +107,24 @@ MakeModel (
             }
             else {
                 RCt = XFSModelNodeSetProperty (
-                                            ModNod,
-                                            XFS_MODEL_KARTFILES,
-                                            Karts
-                                            );
+                                        ModNod,
+                                        XFS_MODEL_MODE,
+                                        ( ReadOnly
+                                                ? XFS_MODEL_MODE_RO
+                                                : XFS_MODEL_MODE_RW
+                                        )
+                                        );
                 if ( RCt == 0 ) {
                     RCt = XFSModelNodeSetProperty (
                                             ModNod,
-                                            XFS_MODEL_MODE,
-                                            ( ReadOnly ? "RO" : "RW" )
+                                            XFS_MODEL_PROJECTID,
+                                            ProjectId
                                             );
                     if ( RCt == 0 ) {
-                        RCt = XFSModelNodeSetProperty (
-                                                ModNod,
-                                                XFS_MODEL_PROJECTID,
-                                                ProjectId
-                                                );
-                        if ( RCt == 0 ) {
-                            * Model = Mod;
-                        }
+                        * Model = Mod;
                     }
-
                 }
+
             }
         }
     }
@@ -137,7 +137,6 @@ static
 rc_t run (
         const char * ProjectId,
         const char * MountPoint,
-        const char * Karts,
         bool ReadOnly,
         bool Daemonize
 )
@@ -156,7 +155,7 @@ rc_t run (
 
     XFS_InitAll_MHR ( NULL );
 
-    RCt = MakeModel ( & TheModel, ProjectId, Karts, ReadOnly );
+    RCt = MakeModel ( & TheModel, ProjectId, ReadOnly );
 
     printf ( "HA(XFSModelMake)[RC=%d]\n", RCt );
 
@@ -218,7 +217,6 @@ char ProgramName[333];
 char ProjectId [33];
 int ProjectIdInt = 0;
 char MountPoint[333];
-char KartFiles[333];
 bool ReadOnly = true;
 bool Daemonize = false;
 
@@ -231,14 +229,13 @@ void
 RightUsage()
 {
     printf("\ndbGaP mount tool demo program. Will mount and show content of cart files\n");
-    printf("\nUsage: %s [%s|%s] [%s] project_id [ mount_point [ kart_file ... ] ]\n\n\
+    printf("\nUsage: %s [%s|%s] [%s] project_id mount_point\n\n\
 Where:\n\
     project_id - usually integer greater that zero and less than twelve\n\
     %s - mount in read only mode\n\
     %s - mount in read-write mode\n\
     %s - run mounter as daemon\n\
     mount_point - point to mount\n\
-    kart_file - kart file to mount\n\n\
 \n\n", ProgramName, RO_TAG, RW_TAG, DM_TAG, RO_TAG, RW_TAG, DM_TAG );
 }   /* RightUsage() */
 
@@ -256,7 +253,6 @@ ParseArgs ( int argc, char ** argv )
     * ProjectId = 0;
     ProjectIdInt = 0;
     * MountPoint = 0;
-    * KartFiles = 0;
 
     ReadOnly = true;
     Daemonize = false;
@@ -290,8 +286,8 @@ ParseArgs ( int argc, char ** argv )
         llp ++;
     }
     else {
+        ReadOnly = false;
         if ( strcmp ( Arg, RW_TAG ) == 0 ) {
-            ReadOnly = false;
 
             llp ++;
         }
@@ -336,22 +332,8 @@ ParseArgs ( int argc, char ** argv )
         llp ++;
     }
 
-        /* herer wer arer collectr cartsr
-         */
-
-    for ( ; llp < argc; llp ++ ) {
-        Arg = * ( argv + llp );
-
-        strcat ( KartFiles, Arg );
-
-        if ( llp < argc - 1 ) {
-            strcat ( KartFiles, "," );
-        }
-    }
-
     printf ( "PrI [%d]\n", ProjectIdInt );
     printf ( "MnP [%s]\n", MountPoint );
-    printf ( "KrF [%s]\n", KartFiles );
 
 
     return true;
@@ -372,7 +354,6 @@ rc_t CC KMain(int argc, char *argv[]) {
     return run (
                 ProjectId,
                 MountPoint,
-                KartFiles,
                 ReadOnly,
                 Daemonize
                 );

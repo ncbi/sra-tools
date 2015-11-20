@@ -5,7 +5,7 @@
     <property name="targetname" value="current-win64" />
     
     <target name="tarballs">
-        <delete dir="${workdir}"/>
+        <delete dir="${workdir}" failonerror="false"/>
         <mkdir dir="${workdir}"/>
         <get src="${url}/${sourcename}" dest="${workdir}/${sourcename}" />
         <unzip src="${workdir}/${sourcename}" dest="${workdir}" />
@@ -22,6 +22,6 @@
             <arg value="${workdir}\${targetname}\bin"/>
         </exec>
         
-        <delete dir="${workdir}"/>
+        <delete dir="${workdir}" failonerror="false"/>
     </target>
 </project>

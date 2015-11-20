@@ -46,6 +46,12 @@
 #include <string.h>
 #include <ctype.h>
 
+#include <sys/types.h>
+#include <unistd.h>
+
+// log via general-writer API rather than stderr
+#define USE_GW_LOGMESSAGE 1
+
 using namespace ngs;
 
 namespace ncbi
@@ -109,7 +115,7 @@ namespace ncbi
     static
     void run (
         GeneralWriter & out,
-        const String & runName, const String & refName, PileupIterator & pileup )
+        const String & runName, const String & refName, PileupIterator & pileup, uint64_t refLength, uint64_t refLengthSubTotal, uint64_t refLengthTotal )
     {
         int64_t ref_zpos, last_writ = 0;
         bool need_write = false;
@@ -130,14 +136,22 @@ namespace ncbi
                 break;
             case 1:
                 if ( ( ref_zpos % 1000000 ) == 0 )
+#if USE_GW_LOGMESSAGE
+                    out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+#else
                     std :: cerr << "#  " << std :: setw ( 9 ) << ref_zpos << '\n';
+#endif
                 break;
             default:
                 if ( ( ref_zpos % 5000 ) == 0 )
                 {
+#if USE_GW_LOGMESSAGE
+                    out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+#else
                     if ( ( ref_zpos % 500000 ) == 0 )
                         std :: cerr << "\n#  " << std :: setw ( 9 ) << ref_zpos << ' ';
                     std :: cerr << '.';
+#endif
                 }
             }
 
@@ -318,17 +332,21 @@ namespace ncbi
     static
     void run ( const char * spec, const char *outfile, const char *_remote_db, size_t buffer_size, Alignment :: AlignmentCategory cat )
     {
+#if ! USE_GW_LOGMESSAGE
         if ( verbosity > 0 )
             std :: cerr << "# Opening run '" << spec << "'\n";
+#endif
         ReadCollection obj = ncbi :: NGS :: openReadCollection ( spec );
         String runName = obj . getName ();
 
+#if ! USE_GW_LOGMESSAGE
         if ( verbosity > 0 )
         {
             std :: cerr << "# Preparing version " << GW_CURRENT_VERSION << " pipe to stdout\n";
             if ( ( integer_column_flag_bits & 1 ) != 0 )
                 std :: cerr << "#   USING INTEGER PACKING\n";
         }
+#endif
         std :: string remote_db;
         if ( _remote_db == NULL )
             remote_db = runName + ".pileup_stat";
@@ -353,23 +371,56 @@ namespace ncbi
 
             prepareOutput ( out, runName );
             if ( verbosity > 0 )
+#if USE_GW_LOGMESSAGE
+                out . logMsg ( "Accessing all references" );
+#else
                 std :: cerr << "# Accessing all references\n";
+#endif
+
+
+
+            // get the total number of references
+            uint64_t totalRefLength = 0;
+            {
+                ReferenceIterator rf = obj . getReferences ();
+                while ( rf . nextReference () )
+                    totalRefLength += rf . getLength ();
+            }
+
             ReferenceIterator ref = obj . getReferences ();
-            
+
+            uint64_t refLengthSubTotal = 0;
             while ( ref . nextReference () )
             {
                 String refName = ref . getCanonicalName ();
 
+                //get the length of the reference so that progress can be given
+                uint64_t refLength = ref . getLength ();
+
                 if ( verbosity > 0 )
+#if USE_GW_LOGMESSAGE
+                {
+                    out . logMsg ( "Processing reference '" + refName + "'" );
+                }
+#else
                     std :: cerr << "# Processing reference '" << refName << "'\n";
+#endif
                 out . columnDefault ( column_id [ col_REFERENCE_SPEC ], 8, refName . data (), refName . size () );
 
                 if ( verbosity > 0 )
+#if USE_GW_LOGMESSAGE
+                out . logMsg ( "Accessing all pileups" );
+#else
                     std :: cerr << "# Accessing all pileups\n";
+#endif
                 PileupIterator pileup = ref . getPileups ( cat );
-                run ( out, runName, refName, pileup );
+                run ( out, runName, refName, pileup, refLength, refLengthSubTotal,  totalRefLength );
+
+                refLengthSubTotal += refLength;
+#if ! USE_GW_LOGMESSAGE
                 if ( verbosity > 1 )
                     std :: cerr << '\n';
+#endif
             }
         }
         catch ( ErrorMsg & x )
@@ -451,7 +502,7 @@ extern "C"
             << "  -e|--event-cutoff                cutoff for number of events > value (default " << ncbi::event_cutoff << ")\n"
             << "  -p|--num-significant-bits        number of significant bits for depth and counts to store (default " << ncbi::num_significant_bits << ")\n"
             << "  -a|--align-category              the types of alignments to pile up:\n"
-            << "                                   { primary, secondary, all } (default all)\n"
+            << "                                   { primary, secondary, all } (default primary)\n"
             << "  --buffer-size bytes              size of output pipe buffer - default " << DFLT_BUFFER_SIZE/1024 << "K bytes\n"
             << "  -U|--unpack-integer              don't pack integers in output pipe - uses more bandwidth\n"
             << "  -h|--help                        output brief explanation of the program\n"
@@ -477,7 +528,7 @@ extern "C"
     rc_t CC KMain ( int argc, char *argv [] )
     {
         rc_t rc = -1;
-        Alignment :: AlignmentCategory cat = Alignment :: all;
+        Alignment :: AlignmentCategory cat = Alignment :: primaryAlignment;
         size_t buffer_size = DFLT_BUFFER_SIZE;
         try
         {
@@ -630,6 +681,7 @@ extern "C"
         }
         catch ( ErrorMsg & x )
         {
+#if ! USE_GW_LOGMESSAGE
             std :: cerr
                 << "ERROR: "
                 << argv [ 0 ]
@@ -637,9 +689,11 @@ extern "C"
                 << x . what ()
                 << '\n'
                 ;
+#endif
         }
         catch ( const char x [] )
         {
+#if ! USE_GW_LOGMESSAGE
             std :: cerr
                 << "ERROR: "
                 << argv [ 0 ]
@@ -647,14 +701,17 @@ extern "C"
                 << x
                 << '\n'
                 ;
+#endif
         }
         catch ( ... )
         {
+#if ! USE_GW_LOGMESSAGE
             std :: cerr
                 << "ERROR: "
                 << argv [ 0 ]
                 << ": unknown\n"
                 ;
+#endif
         }
 
         return rc;

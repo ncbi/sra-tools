@@ -85,7 +85,8 @@ clean: stdclean
 # prefetch
 #
 PREFETCH_SRC = \
-	prefetch
+	prefetch \
+	kfile-no-q
 
 PREFETCH_OBJ = \
 	$(addsuffix .$(OBJX),$(PREFETCH_SRC))

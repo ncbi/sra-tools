@@ -1,0 +1,4 @@
+tool=vdb-dump
+database=true
+args={acc} -C READ,QUALITY -R1-10
+timeout=360

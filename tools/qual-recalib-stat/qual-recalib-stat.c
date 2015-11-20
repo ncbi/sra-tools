@@ -400,8 +400,10 @@ rc_t CC KMain( int argc, char * argv[] )
                 LogErr( klogInt, rc, "context_capture_arguments_and_options() failed\n" );
             else
             {
-                if ( ctx->usage_requested )
+                if ( ctx->usage_requested ) {
                     MiniUsage( args );
+                    rc = RC(rcApp, rcArgv, rcParsing, rcParam, rcInsufficient);
+                }
                 else
                 {
                     switch( ctx->output_mode[ 0 ] )

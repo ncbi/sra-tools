@@ -28,6 +28,7 @@
 
 #include <klib/rc.h>
 #include <klib/log.h>
+#include <klib/time.h>
 
 #include <kdb/meta.h>
 #include <kdb/table.h>
@@ -109,7 +110,7 @@ GeneralLoader :: DatabaseLoader :: GetColumn ( uint32_t p_columnId ) const
 rc_t 
 GeneralLoader :: DatabaseLoader :: UseSchema ( const string& p_file, const string& p_name )
 {
-    pLogMsg ( klogInfo, "database-loader: schema file '$(s1)', name '$(s2)'", "s1=%s,s2=%s", 
+    pLogMsg ( klogDebug, "database-loader: schema file '$(s1)', name '$(s2)'", "s1=%s,s2=%s", 
                         p_file . c_str (), p_name . c_str () );
 
     rc_t rc = VDBManagerMakeUpdate ( & m_mgr, NULL );
@@ -120,14 +121,14 @@ GeneralLoader :: DatabaseLoader :: UseSchema ( const string& p_file, const strin
             rc = VDBManagerAddSchemaIncludePath ( m_mgr, "%s", it -> c_str() );
             if ( rc == 0 )
             {
-                pLogMsg ( klogInfo, 
+                pLogMsg ( klogDebug, 
                           "database-loader: Added schema include path '$(s)'", 
                           "s=%s", 
                           it -> c_str() );
             }
             else if ( GetRCObject ( rc ) == (RCObject)rcPath )
             {
-                pLogMsg ( klogInfo, 
+                pLogMsg ( klogWarn, 
                           "database-loader: Schema include path not found: '$(s)'", 
                           "s=%s", 
                           it -> c_str() );
@@ -148,7 +149,7 @@ GeneralLoader :: DatabaseLoader :: UseSchema ( const string& p_file, const strin
                 rc = VSchemaParseFile ( m_schema, "%s", p_file . c_str () );
                 if ( rc == 0 )
                 {
-                    pLogMsg ( klogInfo, 
+                    pLogMsg ( klogDebug, 
                               "database-loader: Added schema file '$(s)'", 
                               "s=%s", 
                               p_file . c_str () );
@@ -156,7 +157,7 @@ GeneralLoader :: DatabaseLoader :: UseSchema ( const string& p_file, const strin
                 }
                 else if ( GetRCObject ( rc ) == (RCObject)rcPath && GetRCState ( rc ) == rcNotFound )
                 {
-                    pLogMsg ( klogInfo, 
+                    pLogMsg ( klogWarn, 
                               "database-loader: Schema file not found: '$(s)'", 
                               "s=%s", 
                               p_file . c_str () );
@@ -173,7 +174,7 @@ GeneralLoader :: DatabaseLoader :: UseSchema ( const string& p_file, const strin
                     rc = VSchemaParseFile ( m_schema, "%s", it -> c_str() );
                     if ( rc == 0 )
                     {
-                        pLogMsg ( klogInfo, 
+                        pLogMsg ( klogDebug, 
                                   "database-loader: Added schema file '$(s)'", 
                                   "s=%s", 
                                   it -> c_str() );
@@ -181,7 +182,7 @@ GeneralLoader :: DatabaseLoader :: UseSchema ( const string& p_file, const strin
                     }
                     else if ( GetRCObject ( rc ) == (RCObject)rcPath && GetRCState ( rc ) == rcNotFound )
                     {
-                        pLogMsg ( klogInfo, 
+                        pLogMsg ( klogWarn, 
                                   "database-loader: Schema file not found: '$(s)'", 
                                   "s=%s", 
                                   it -> c_str() );
@@ -208,14 +209,14 @@ GeneralLoader :: DatabaseLoader :: RemotePath ( const string& p_path )
 {
     if ( m_databaseNameOverridden )
     {
-        pLogMsg ( klogInfo, 
+        pLogMsg ( klogWarn, 
                   "database-loader: remote  path '$(s1)' ignored, overridden to '$(s2)'", 
                   "s1=%s,s2=%s", 
                   p_path . c_str (), m_databaseName . c_str () );
     }
     else
     {
-        pLogMsg ( klogInfo, "database-loader: remote  path '$(s1)'", "s1=%s", p_path . c_str () );
+        pLogMsg ( klogDebug, "database-loader: remote  path '$(s1)'", "s1=%s", p_path . c_str () );
         m_databaseName = p_path;
     }
     return 0;
@@ -262,7 +263,7 @@ string2ver_t ( const char * vers )
 rc_t
 GeneralLoader :: DatabaseLoader :: SoftwareName ( const string& p_name, const string& p_version )
 {
-    pLogMsg ( klogInfo, "database-loader: SoftwareName '$(n)', version '$(v)'", "n=%s,v=%s", p_name . c_str(), p_version . c_str() );
+    pLogMsg ( klogDebug, "database-loader: SoftwareName '$(n)', version '$(v)'", "n=%s,v=%s", p_name . c_str(), p_version . c_str() );
     try
     {   
         m_softwareVersion = string2ver_t ( p_version.c_str() );
@@ -284,7 +285,7 @@ GeneralLoader :: DatabaseLoader :: NewTable ( uint32_t p_tableId, const string& 
 rc_t 
 GeneralLoader :: DatabaseLoader :: NewColumn ( uint32_t p_columnId, uint32_t p_tableId, uint32_t p_elemBits, uint8_t p_flagBits, const string& p_columnName )
 {
-    pLogMsg ( klogInfo, "database-loader: adding column '$(c)'", "c=%s", p_columnName . c_str() );
+    pLogMsg ( klogDebug, "database-loader: adding column '$(c)'", "c=%s", p_columnName . c_str() );
     
     rc_t rc = 0;
     Tables::const_iterator table = m_tables . find ( p_tableId );
@@ -308,7 +309,7 @@ GeneralLoader :: DatabaseLoader :: NewColumn ( uint32_t p_columnId, uint32_t p_t
                 col . elemBits  = p_elemBits;
                 col . flagBits  = p_flagBits;
                 m_columns [ p_columnId ] = col;
-                pLogMsg ( klogInfo, 
+                pLogMsg ( klogDebug, 
                           "database-loader: tableId = $(t), added column '$(c)', columnIdx = $(i1), elemBits = $(i2), flagBits = $(i3)",  
                           "t=%u,c=%s,i1=%u,i2=%u,i3=%u",  
                           p_tableId, p_columnName . c_str(), col.columnIdx, col.elemBits, col.flagBits );
@@ -329,7 +330,7 @@ GeneralLoader :: DatabaseLoader :: NewColumn ( uint32_t p_columnId, uint32_t p_t
 rc_t
 GeneralLoader :: DatabaseLoader :: AddMbrDB ( uint32_t p_objId, uint32_t p_parentId, const std :: string &p_mbrName, const std :: string &p_dbName, uint8_t p_createMode )
 {
-    pLogMsg ( klogInfo, 
+    pLogMsg ( klogDebug, 
               "database-loader: adding database id=$(i) parent=$(p) mbrName='$(m)' dbName='$(n)' mode=$(d)", 
               "m=%s,n=%s,i=%u,p=%u,d=%u", 
               p_objId, p_parentId, p_mbrName . c_str(), p_dbName . c_str (), ( unsigned int ) p_createMode );
@@ -362,7 +363,7 @@ GeneralLoader :: DatabaseLoader :: AddMbrDB ( uint32_t p_objId, uint32_t p_paren
 rc_t
 GeneralLoader :: DatabaseLoader :: AddMbrTbl ( uint32_t p_tblId, uint32_t p_dbId, const std :: string &p_mbrName, const std :: string &p_tblName, uint8_t p_createMode )
 {
-    pLogMsg ( klogInfo, 
+    pLogMsg ( klogDebug, 
               "database-loader: adding table id=$(i) parent=$(p) mbrName='$(m)' dbName='$(n)' mode=$(d)", 
               "m=%s,n=%s,i=%u,p=%u,d=%u", 
               p_mbrName . c_str(), p_tblName . c_str (), p_tblId, p_dbId, ( unsigned int ) p_createMode );
@@ -433,7 +434,7 @@ rc_t WriteMetadata ( KMetadata* p_meta, const string& p_metadata_node, const str
 rc_t
 GeneralLoader :: DatabaseLoader :: DBMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
-    pLogMsg ( klogInfo, 
+    pLogMsg ( klogDebug, 
               "database-loader: adding metadata node '$(n)=$(v)' to database $(i)", 
               "n=%s,v=%s,i=%u", 
               p_metadata_node . c_str(), p_value.c_str(), p_objId );
@@ -465,7 +466,7 @@ GeneralLoader :: DatabaseLoader :: DBMetadataNode ( uint32_t p_objId, const stri
 rc_t
 GeneralLoader :: DatabaseLoader :: TblMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
-    pLogMsg ( klogInfo, 
+    pLogMsg ( klogDebug, 
               "database-loader: adding metadata node '$(n)=$(v)' to table $(i)", 
               "n=%s,v=%s,i=%u", 
               p_metadata_node . c_str(), p_value.c_str(), p_objId );
@@ -508,7 +509,7 @@ GeneralLoader :: DatabaseLoader :: TblMetadataNode ( uint32_t p_objId, const str
 rc_t
 GeneralLoader :: DatabaseLoader :: ColMetadataNode ( uint32_t p_objId, const string& p_metadata_node, const string& p_value )
 {
-    pLogMsg ( klogInfo, 
+    pLogMsg ( klogDebug, 
               "database-loader: adding metadata node '$(n)=$(v)' to column $(i)", 
               "n=%s,v=%s,i=%u", 
               p_metadata_node . c_str(), p_value.c_str(), p_objId );
@@ -622,7 +623,7 @@ GeneralLoader :: DatabaseLoader :: CellData ( uint32_t p_columnId, const void* p
     if ( curIt != m_columns . end () )
     {
         const Column& col = curIt -> second;
-        pLogMsg ( klogInfo,     
+        pLogMsg ( klogDebug,     
                   "database-loader: columnIdx = $(i), elem size=$(s) bits, elem count=$(c)",
                   "i=%u,s=%u,c=%u", 
                   col . columnIdx, col . elemBits, p_elemCount );
@@ -643,7 +644,7 @@ GeneralLoader :: DatabaseLoader :: CellDefault ( uint32_t p_columnId, const void
     if ( curIt != m_columns . end () )
     {
         const Column& col = curIt -> second;
-        pLogMsg ( klogInfo,     
+        pLogMsg ( klogDebug,     
                   "database-loader: columnIdx = $(i), elem size=$(s) bits, elem count=$(c)",
                   "i=%u,s=%u,c=%u", 
                   col . columnIdx, col . elemBits, p_elemCount );
@@ -708,7 +709,7 @@ GeneralLoader :: DatabaseLoader :: MakeDatabase( uint32_t p_id )
 rc_t 
 GeneralLoader :: DatabaseLoader :: OpenStream ()
 {
-    pLogMsg ( klogInfo, 
+    pLogMsg ( klogDebug, 
               "database-loader: Database created, schema spec='$(s)', database='$(d)'", 
               "s=%s,d=%s", 
               m_schemaName . c_str (), m_databaseName . c_str () );
@@ -856,4 +857,39 @@ GeneralLoader :: DatabaseLoader :: ErrorMessage ( const string & p_text )
 {
     pLogMsg ( klogErr, "general-loader: error \"$(t)\"", "t=%s", p_text . c_str () );
     return RC ( rcExe, rcFile, rcReading, rcError, rcExists );
+}
+
+rc_t
+GeneralLoader :: DatabaseLoader :: LogMessage ( const string & p_text )
+{
+#pragma message "need to pass the app-name from front end"
+    pLogMsg ( klogInfo, "general-loader: log \"$(t)\"", "t=%s", p_text . c_str () );
+    return 0;
+}
+
+
+/*
+<Log>
+  <status app="sra-stat" message="processed 12%" pid="60234"
+        timestamp="2015-09-21T19:49:45" version="2.5.1" percent="12"/>
+</Log>
+ */
+rc_t
+GeneralLoader :: DatabaseLoader :: ProgressMessage ( const std :: string& p_name, uint32_t p_pid,  
+                                                     uint32_t p_timestamp, uint32_t p_version, uint32_t p_percent )
+{
+    KTime kt;
+    KTimeLocal ( &kt, ( KTime_t ) p_timestamp );
+
+    pLogMsg ( klogInfo, 
+              "processed $(percent)%"
+              ,
+              "app=%s,pid=%u,timestamp=%lT,version=%V,percent=%u"
+              , 
+              p_name . c_str (),
+              p_pid,
+              & kt,
+              ( ver_t ) p_version,
+              p_percent );
+    return 0;
 }

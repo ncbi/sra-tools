@@ -29,14 +29,17 @@
 #include "helper.h"
 
 #include <algorithm>
+#if DEBUG_PRINT != 0
 #include <stdio.h>
-#include <iostream>
+#endif
 
 #include <vdb/vdb-priv.h>
 #include <klib/rc.h>
 #include <search/grep.h>
 
 #include <kdb/table.h>
+#include <kproc/thread.h>
+#include <kproc/lock.h>
 
 #ifdef _WIN32
 #pragma warning (disable:4503)
@@ -216,6 +219,9 @@ namespace VDBObjects
 
     CVCursor& CVCursor::operator=(CVCursor const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -234,11 +240,6 @@ namespace VDBObjects
 
     void CVCursor::Clone(CVCursor const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VCursorAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -376,6 +377,9 @@ namespace VDBObjects
 
     CVTable& CVTable::operator=(CVTable const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -394,11 +398,6 @@ namespace VDBObjects
 
     void CVTable::Clone(CVTable const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VTableAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -476,6 +475,9 @@ namespace VDBObjects
 
     CVDatabase& CVDatabase::operator=(CVDatabase const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -494,11 +496,6 @@ namespace VDBObjects
 
     void CVDatabase::Clone(CVDatabase const& x)
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
-            Release();
-        }
         m_pSelf = x.m_pSelf;
         ::VDatabaseAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -577,11 +574,9 @@ namespace VDBObjects
 
     void CVSchema::Clone ( CVSchema const& x )
     {
-        if (false && m_pSelf)
-        {
-            assert(0);
+        if (m_pSelf)
             Release();
-        }
+
         m_pSelf = x.m_pSelf;
         ::VSchemaAddRef ( m_pSelf );
 #if DEBUG_PRINT != 0
@@ -735,6 +730,9 @@ namespace KDBObjects
 
     CKIndex& CKIndex::operator=(CKIndex const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -792,6 +790,9 @@ namespace KDBObjects
 
     CKTable& CKTable::operator=(CKTable const& x)
     {
+        if (m_pSelf)
+            Release();
+
         Clone(x);
         return *this;
     }
@@ -837,16 +838,8 @@ namespace KDBObjects
 
 namespace KApp
 {
-    CArgs::CArgs (int argc, char** argv, ::OptDef const* pOptions, size_t option_count)
-        : m_pSelf(NULL)
+    CArgs::CArgs () : m_pSelf(NULL)
     {
-        MakeAndHandle ( argc, argv, pOptions, option_count );
-    }
-
-    CArgs::CArgs (int argc, char** argv, ::OptDef const* pOptions1, size_t option_count1, ::OptDef const* pOptions2, size_t option_count2)
-        : m_pSelf(NULL)
-    {
-        MakeAndHandle ( argc, argv, pOptions1, option_count1, pOptions2, option_count2 );
     }
 
     CArgs::~CArgs()
@@ -908,12 +901,12 @@ namespace KApp
 
     char const* CArgs::GetParamValue ( uint32_t iteration ) const
     {
-        char const* ret = NULL;
-        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, reinterpret_cast<const void**>(&ret) );
+        void const* ret = NULL;
+        rc_t rc = ::ArgsParamValue ( m_pSelf, iteration, & ret );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsParamValue");
 
-        return ret;
+        return static_cast <char const*> (ret);
     }
 
     uint32_t CArgs::GetOptionCount ( char const* option_name ) const
@@ -928,12 +921,12 @@ namespace KApp
 
     char const* CArgs::GetOptionValue ( char const* option_name, uint32_t iteration ) const
     {
-        char const* ret = NULL;
-        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, reinterpret_cast<const void**>(&ret) );
+        void const* ret = NULL;
+        rc_t rc = ::ArgsOptionValue ( m_pSelf, option_name, iteration, & ret );
         if (rc)
             throw Utils::CErrorMsg(rc, "ArgsOptionValue (%s)", option_name);
 
-        return ret;
+        return static_cast <char const*> (ret);
     }
 
 ////////////////////////////////
@@ -950,7 +943,6 @@ namespace KApp
 
     void CProgressBar::Make ( uint64_t size )
     {
-        ::KLogLevelSet ( klogLevelMax );
         rc_t rc = ::KLoadProgressbar_Make ( &m_pSelf, size );
         if (rc)
             throw Utils::CErrorMsg(rc, "KLoadProgressbar_Make");
@@ -1065,21 +1057,27 @@ namespace Utils
                 res = string_printf(szBufErr, countof(szBufErr), NULL, "ERROR: %s", e.what());
             if (res == rcBuffer || res == rcInsufficient)
                 szBufErr[countof(szBufErr) - 1] = '\0';
-            printf("%s\n", szBufErr);
+            LOGMSG ( klogErr, szBufErr );
         }
         catch (std::exception const& e)
         {
-            printf("std::exception: %s\n", e.what());
+            char szBufErr[512];
+            rc_t res = string_printf(szBufErr, countof(szBufErr), NULL,
+                "std::exception: %s", e.what());
+            if (res == rcBuffer || res == rcInsufficient)
+                szBufErr[countof(szBufErr) - 1] = '\0';
+            LOGMSG ( klogErr, szBufErr );
         }
         catch (...)
         {
-            printf("Unexpected exception occured\n");
+            LOGMSG ( klogErr, "Unexpected exception occured" );
         }
     }
 }
 
 namespace KSearch
 {
+#if 0 // turning off old code
     void FindRefVariationRegionAscii (
             char const* ref, size_t ref_size, size_t ref_pos_var,
             char const* variation, size_t variation_size, size_t var_len_on_ref,
@@ -1103,5 +1101,299 @@ namespace KSearch
     {
         FindRefVariationRegionAscii ( ref.c_str(), ref.size(), ref_pos_var,
             variation, variation_size, var_len_on_ref, & ref_start, & ref_len );
+    }
+#endif
+
+////////////////////////////////////////////////
+
+    CVRefVariation::CVRefVariation() : m_pSelf(NULL)
+    {
+        m_query_del[0] = '\0';
+    }
+
+    CVRefVariation::~CVRefVariation()
+    {
+        Release();
+    }
+
+    CVRefVariation::CVRefVariation(CVRefVariation const& x)
+    {
+        Clone(x);
+    }
+
+    CVRefVariation& CVRefVariation::operator=(CVRefVariation const& x)
+    {
+        if (m_pSelf)
+            Release();
+
+        Clone(x);
+        return *this;
+    }
+
+    void CVRefVariation::Release()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing VRefVariation %p\n", m_pSelf);
+#endif
+            ::VRefVariationIUPACRelease(m_pSelf);
+            m_pSelf = NULL;
+        }
+    }
+
+    void CVRefVariation::Clone(CVRefVariation const& x)
+    {
+        m_pSelf = x.m_pSelf;
+        ::VRefVariationIUPACAddRef ( m_pSelf );
+        m_bases_start = x.m_bases_start;
+
+        m_query_del[0] = x.m_query_del[0];
+        m_query_del[1] = x.m_query_del[1];
+        m_query_del[2] = x.m_query_del[2];
+
+#if DEBUG_PRINT != 0
+        printf ("CLONING VRefVariation %p\n", m_pSelf);
+#endif
+    }
+    char const* CVRefVariation::GetVariation() const
+    {
+        if ( m_pSelf == NULL )
+            return "";
+        char const* ret = ::VRefVariationIUPACGetVariation ( m_pSelf );
+        return ret == NULL ? "" : ret;
+    }
+
+    void CVRefVariation::InitQueryForPureDeletion ( char* buf, size_t buf_size ) const
+    {
+        if ( IsPureDeletion() )
+        {
+            assert ( GetVarSize() == 0 );
+            assert ( GetVarLenOnRef() > 0 );
+            char const* ref_chunk = ::VRefVariationIUPACGetRefChunk ( m_pSelf );
+            size_t ref_chunk_size = ::VRefVariationIUPACGetRefChunkSize ( m_pSelf );
+            (void)ref_chunk_size;
+
+            assert ( GetVarStartRelative() > 0 && GetVarStartRelative() + GetVarLenOnRef() < ref_chunk_size - 1 );
+            buf [0] = ref_chunk [ GetVarStartRelative() - 1 ];
+            buf [1] = ref_chunk [ GetVarStartRelative() + GetVarLenOnRef() ];
+            buf [2] = '\0';
+        }
+    }
+
+    char const* CVRefVariation::GetQueryForPureDeletion() const
+    {
+        assert ( IsPureDeletion() );
+        return m_query_del;
+    }
+
+    bool CVRefVariation::IsPureDeletion() const
+    {
+        return GetVarSize() == 0 && GetVarLenOnRef() > 0;
+    }
+
+    size_t CVRefVariation::GetVarStartRelative() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetVarStart ( m_pSelf );
+    }
+
+    size_t CVRefVariation::GetVarStartAbsolute() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetVarStart ( m_pSelf ) + m_bases_start;
+    }
+
+    size_t CVRefVariation::GetVarSize() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetVarSize ( m_pSelf );
+    }
+
+    size_t CVRefVariation::GetVarLenOnRef() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetVarLenOnRef ( m_pSelf );
+    }
+
+    CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+            size_t ref_pos_var, char const* variation, size_t variation_size,
+            size_t var_len_on_ref, size_t bases_start)
+    {
+        CVRefVariation obj;
+        rc_t rc = ::VRefVariationIUPACMake (& obj.m_pSelf,
+            ref, ref_size, ref_pos_var, variation, variation_size, var_len_on_ref);
+        if (rc)
+            throw Utils::CErrorMsg(rc, "VRefVariationIUPACMake");
+
+#if DEBUG_PRINT != 0
+        printf("Created RefVariation (rd) %p\n", obj.m_pSelf);
+#endif
+        obj.m_bases_start = bases_start;
+        obj.InitQueryForPureDeletion ( obj.m_query_del, countof (obj.m_query_del) );
+        return obj;
+    }
+}
+
+namespace KProc
+{
+    rc_t KThreadFunc ( KThread const* , void* data )
+    {
+        CKThread* obj = static_cast<CKThread*>(data);
+
+        return ( * obj -> m_ThreadFunc ) ( obj -> m_pData );
+    }
+
+    CKThread::CKThread ()
+        : m_pSelf(NULL), m_ThreadFunc(NULL), m_pData(NULL)
+    {
+    }
+
+    CKThread::~CKThread()
+    {
+        Release();
+    }
+    CKThread::CKThread(CKThread const& x)
+    {
+        Clone(x);
+    }
+    CKThread& CKThread::operator=(CKThread const& x)
+    {
+        if (m_pSelf)
+            Release();
+
+        Clone(x);
+        return *this;
+    }
+
+    void CKThread::Release()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing KThread %p\n", m_pSelf);
+#endif
+            ::KThreadRelease(m_pSelf);
+            m_pSelf = NULL;
+            m_ThreadFunc = NULL;
+            m_pData = NULL;
+        }
+    }
+    void CKThread::Clone(CKThread const& x)
+    {
+        m_pSelf = x.m_pSelf;
+        m_ThreadFunc = x.m_ThreadFunc;
+        m_pData = x.m_pData;
+
+        if ( m_pSelf != NULL )
+        {
+            ::KThreadAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
+            printf ("CLONING KThread %p\n", m_pSelf);
+#endif
+        }
+    }
+
+    void CKThread::Make ( THREAD_FUNC thread_func, void* data )
+    {
+        assert (m_pSelf == NULL);
+        assert (m_ThreadFunc == NULL);
+        assert (m_pData == NULL);
+
+        m_ThreadFunc = thread_func;
+        m_pData = data;
+
+        rc_t rc = ::KThreadMake ( & m_pSelf, KThreadFunc, this );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KThreadMake");
+    }
+
+    rc_t CKThread::Wait ()
+    {
+        rc_t status;
+        rc_t rc = ::KThreadWait ( m_pSelf, & status );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KThreadWait");
+
+        return status;
+    }
+
+///////////////////////////////////////////////////////
+
+    CKLock::CKLock ( )
+    {
+        rc_t rc = ::KLockMake ( & m_pSelf );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KLockMake");
+    }
+
+    CKLock::~CKLock()
+    {
+        Release();
+    }
+
+    CKLock::CKLock(CKLock const& x)
+    {
+        Clone(x);
+    }
+    CKLock& CKLock::operator=(CKLock const& x)
+    {
+        if (m_pSelf)
+            Release();
+
+        Clone(x);
+        return *this;
+    }
+
+    void CKLock::Release()
+    {
+        if (m_pSelf)
+        {
+#if DEBUG_PRINT != 0
+            printf("Releasing KLock %p\n", m_pSelf);
+#endif
+            ::KLockRelease(m_pSelf);
+            m_pSelf = NULL;
+        }
+    }
+    void CKLock::Clone(CKLock const& x)
+    {
+        m_pSelf = x.m_pSelf;
+        ::KLockAddRef ( m_pSelf );
+#if DEBUG_PRINT != 0
+        printf ("CLONING KLock %p\n", m_pSelf);
+#endif
+    }
+
+    void CKLock::Acquire ()
+    {
+        rc_t rc = ::KLockAcquire ( m_pSelf );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KLockAcquire");
+    }
+
+    void CKLock::Lock ()
+    {
+        Acquire ();
+    }
+
+    void CKLock::Unlock ()
+    {
+        rc_t rc = ::KLockUnlock ( m_pSelf );
+        if (rc)
+            throw Utils::CErrorMsg(rc, "KLockUnlock");
+    }
+
+    void CKLock::lock ()
+    {
+        Lock();
+    }
+    void CKLock::unlock ()
+    {
+        Unlock();
     }
 }

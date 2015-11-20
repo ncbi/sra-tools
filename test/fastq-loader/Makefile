@@ -97,6 +97,7 @@ valgrind_tfl:
 runtests: set_schema smalltests
 
 set_schema: $(BINDIR)/vdb-config
+	$(BINDIR)/vdb-config -on
 	$(BINDIR)/vdb-config -s vdb/schema/paths="$(VDB_INCDIR)"
 
 SMALLRUN = @ $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)

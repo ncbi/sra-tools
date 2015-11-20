@@ -98,6 +98,7 @@ runtests: set_schema smalltests
 
 set_schema: $(BINDIR)/vdb-config
 	$(BINDIR)/vdb-config -on
+	find $(HOME)/ncbi -size +9999c -exec ls -l {} \; | sort -nk5 | tail
 	echo HOST=`hostname`
 	echo OS=$(OS)
 	echo USER=$(USER)

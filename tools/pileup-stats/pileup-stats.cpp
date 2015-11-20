@@ -502,7 +502,7 @@ extern "C"
             << "  -e|--event-cutoff                cutoff for number of events > value (default " << ncbi::event_cutoff << ")\n"
             << "  -p|--num-significant-bits        number of significant bits for depth and counts to store (default " << ncbi::num_significant_bits << ")\n"
             << "  -a|--align-category              the types of alignments to pile up:\n"
-            << "                                   { primary, secondary, all } (default all)\n"
+            << "                                   { primary, secondary, all } (default primary)\n"
             << "  --buffer-size bytes              size of output pipe buffer - default " << DFLT_BUFFER_SIZE/1024 << "K bytes\n"
             << "  -U|--unpack-integer              don't pack integers in output pipe - uses more bandwidth\n"
             << "  -h|--help                        output brief explanation of the program\n"
@@ -528,7 +528,7 @@ extern "C"
     rc_t CC KMain ( int argc, char *argv [] )
     {
         rc_t rc = -1;
-        Alignment :: AlignmentCategory cat = Alignment :: all;
+        Alignment :: AlignmentCategory cat = Alignment :: primaryAlignment;
         size_t buffer_size = DFLT_BUFFER_SIZE;
         try
         {

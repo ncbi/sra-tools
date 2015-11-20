@@ -98,6 +98,7 @@ runtests: set_schema smalltests
 
 set_schema: $(BINDIR)/vdb-config
 	$(BINDIR)/vdb-config -on
+	echo HOST=`hostname`
 	echo OS=$(OS)
 	echo USER=$(USER)
 	$(BINDIR)/vdb-config -s vdb/schema/paths="$(VDB_INCDIR)"

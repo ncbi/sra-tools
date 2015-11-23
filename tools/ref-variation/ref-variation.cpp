@@ -2052,14 +2052,14 @@ extern "C"
        -r NC_000002.11 -p 73613071 --query "C" -l 1
        -vv -t 16 -r NC_000007.13 -p 117292900 --query "-" -l 4          
 
-       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query '-' -l 3 /netmnt/traces04/sra33/SRZ/000867/SRR867061/SRR867061.pileup /netmnt/traces04/sra33/SRZ/000867/SRR867131/SRR867131.pileup
+       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 /netmnt/traces04/sra33/SRZ/000867/SRR867061/SRR867061.pileup /netmnt/traces04/sra33/SRZ/000867/SRR867131/SRR867131.pileup
        -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR867061.pileup ..\..\..\tools\ref-variation\SRR867131.pileup
 
-       -vvv -c --count-strand counteraligned -t 16 -r NC_000002.11 -p 73613067 --query '-' -l 3 SRR867061 SRR867131
+       -vvv -c --count-strand counteraligned -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 SRR867061 SRR867131
 
        old problem cases (didn't stop) - now OK:
-       -v -c -r CM000671.1 -p 136131022 --query 'T' -l 1 SRR1601768
-       -v -c -r NC_000001.11 -p 136131022 --query 'T' -l 1 SRR1601768
+       -v -c -r CM000671.1 -p 136131022 --query "T" -l 1 SRR1601768
+       -v -c -r NC_000001.11 -p 136131022 --query "T" -l 1 SRR1601768
 
        NEW problebm - FIXED:
        -t 16 -v -c -r CM000671.1 -p 136131021 --query "T" -l 1 SRR1596639
@@ -2080,6 +2080,10 @@ extern "C"
 
        NEW problem - FIXED
        -r NC_000020.10 -p 137534 -l 2 --query - -v
+
+       NEW problem - FIXED
+       -c -r CM000663.1 -p 123452 -l 7 --query "GGGAGAAAT" -vv -L info
+       expanded variation has smaller window (6) but the variation returned is still of length 7
 
        */
 

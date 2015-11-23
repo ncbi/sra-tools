@@ -116,8 +116,9 @@ static uint32_t copy_String_2_vector( Vector * v, const String * S )
         String * S1 = malloc( sizeof * S1 );
         if ( S1 != NULL )
         {
+            rc_t rc;
             StringInit( S1, S->addr, S->size, S->len );
-            rc_t rc = VectorAppend( v, NULL, S1 );
+            rc = VectorAppend( v, NULL, S1 );
             if ( rc == 0 ) res++; else free( S1 );
         }
     }

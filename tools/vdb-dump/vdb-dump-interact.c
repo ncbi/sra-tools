@@ -29,19 +29,25 @@
 #include "vdb-dump-helper.h"
 
 #include <klib/vector.h>
+#include <klib/text.h>
 #include <kfs/file.h>
 #include <kfs/filetools.h>
 
 rc_t Quitting();
+
+#define INPUTLINE_SIZE 4096
 
 typedef struct ictx
 {
     const dump_context * ctx;
     const Args * args;
     const KFile * std_in;
-    bool interactive, done;
-    
+    Vector history;
+    char inputline[ INPUTLINE_SIZE ];
     String PROMPT;
+    String SInputLine;
+    
+    bool interactive, done;
 } ictx;
 
 
@@ -53,10 +59,12 @@ static rc_t init_ictx( struct ictx * ictx, const dump_context * ctx, const Args 
     {
         ictx->ctx = ctx;
         ictx->args = args;
+        VectorInit( &ictx->history, 0, 10 );
         ictx->interactive = ( KFileType ( ictx->std_in ) == kfdCharDev );
         ictx->done = false;
         
         CONST_STRING( &(ictx->PROMPT), "\nvdb $" );
+        StringInit( &(ictx->SInputLine), &( ictx->inputline[0] ), sizeof( ictx->inputline ), 0 );
     }
     return rc;
 }
@@ -64,6 +72,7 @@ static rc_t init_ictx( struct ictx * ictx, const dump_context * ctx, const Args 
 
 static void release_ictx( ictx * ctx )
 {
+    destroy_String_vector( &ctx->history );
     KFileRelease( ctx->std_in );
 }
 
@@ -124,11 +133,11 @@ static rc_t vdi_help( const Vector * v )
 }
 
 
-static rc_t vdi_handle_buffer( ictx * ctx, const char * buffer, size_t buffer_len )
+static rc_t vdi_on_newline( ictx * ctx, const String * Line )
 {
     rc_t rc = 0;
     Vector v;
-    uint32_t args = split_buffer( &v, buffer, buffer_len, " \t" ); /* from vdb-dump-helper.c */
+    uint32_t args = split_buffer( &v, Line, " \t" ); /* from vdb-dump-helper.c */
     if ( args > 0 )
     {
         const String * S = VectorGet( &v, 0 );
@@ -162,51 +171,66 @@ static rc_t vdi_handle_buffer( ictx * ctx, const char * buffer, size_t buffer_le
 }
 
 
+static rc_t vdi_on_char( ictx * ctx, const char c )
+{
+    rc_t rc = 0;
+    if ( ctx->SInputLine.len < ( ( ctx->SInputLine.size ) - 1 ) )
+    {
+        ctx->inputline[ ctx->SInputLine.len++ ] = c;
+    }
+    else
+    {
+        rc = KOutMsg( "\ntoo long!%s", &( ctx->PROMPT ) );
+        ctx->SInputLine.len = 0;
+    }
+    return rc;
+}
+
+
+static rc_t vdi_interactive_newline( ictx * ctx )
+{
+    rc_t rc = vdi_on_newline( ctx, &(ctx->SInputLine) );
+    copy_String_2_vector( &(ctx->history), &(ctx->SInputLine) );
+    ctx->SInputLine.len = 0;
+    return rc;
+}
+
+
 static rc_t vdi_interactive_loop( ictx * ctx )
 {
-    char one_char[ 4 ], buffer[ 4096 ];
+    char cc[ 4 ];
     uint64_t pos = 0;
-    size_t buffer_idx = 0;
     rc_t rc = KOutMsg( "%S", &( ctx->PROMPT ) );    
 
     while ( rc == 0 && !ctx->done && ( 0 == Quitting() ) )
     {
         size_t num_read;
-        rc = KFileRead( ctx->std_in, pos, one_char, 1, &num_read );
+        rc = KFileRead( ctx->std_in, pos, cc, 1, &num_read );
         if ( rc != 0 )
             LOGERR ( klogErr, rc, "failed to read stdin" );
-        else
+        else if ( num_read > 0 )
         {
             pos += num_read;
-            if ( one_char[ 0 ] == '\n' )
+            switch( cc[ 0 ] )
             {
-                rc = vdi_handle_buffer( ctx, buffer, buffer_idx ); /* <---- */
-                buffer_idx = 0;
-            }
-            else
-            {
-                if ( buffer_idx < ( ( sizeof buffer ) - 1 ) )
-                {
-                    buffer[ buffer_idx++ ] = one_char[ 0 ];
-                }
-                else
-                {
-                    rc = KOutMsg( "\ntoo long!%s", &( ctx->PROMPT ) );
-                    buffer_idx = 0;
-                }
+                case '\n' : rc = vdi_interactive_newline( ctx ); break;
+                default   : rc = vdi_on_char( ctx, cc[ 0 ] ); break;
             }
         }
     }
-    KOutMsg( "\n" );
+    if ( rc == 0 ) rc = KOutMsg( "\n" );
     return rc;
 }
 
 
 static rc_t on_line( const String * line, void * data )
 {
-    ictx * ctx = data;
     rc_t rc = Quitting();
-    if ( rc == 0 ) rc = vdi_handle_buffer( ctx, line->addr, line->size );
+    if ( rc == 0 )
+    {
+        ictx * ctx = data;
+        rc = vdi_on_newline( ctx, line );
+    }
     return rc;
 }
 

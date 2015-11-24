@@ -91,7 +91,7 @@ rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * byt
 int32_t index_of_match( const String * word, uint32_t num, ... );
 void destroy_String_vector( Vector * v );
 uint32_t copy_String_2_vector( Vector * v, const String * S );
-uint32_t split_buffer( Vector * v, const char * buffer, size_t len, const char * delim );
+uint32_t split_buffer( Vector * v, const String * S, const char * delim );
 
 #ifdef __cplusplus
 }

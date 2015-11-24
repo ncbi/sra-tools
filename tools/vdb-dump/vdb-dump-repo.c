@@ -34,6 +34,8 @@
 
 /* ------------------------------------------------------------------------------------------------- */
 
+static const KRepCategory id_to_repo_cat[ 4 ] = { krepUserCategory, krepSiteCategory, krepRemoteCategory, krepBadCategory };
+
 static const char * s_BadCategory       = "BadCategory";
 static const char * s_UserCategory      = "UserCategory";
 static const char * s_SiteCategory      = "SiteCategory";
@@ -113,18 +115,21 @@ static rc_t vdi_report_repository( const KRepository * repo, const char * prefix
 {
     KRepCategory cat = KRepositoryCategory( repo );
     KRepSubCategory subcat = KRepositorySubCategory( repo );
+
     rc_t rc = KOutMsg( "  repo.%s #%d:\n", prefix, idx );
     if ( rc == 0 )
         rc = KOutMsg( "     - category : %s.%s\n", KRepCategory_to_str( cat ), KRepSubCategory_to_str( subcat ) );
-    if ( rc == 0 ) rc = vdi_report_repo_str( repo, "name", KRepositoryName );
+    if ( rc == 0 )
+        rc = vdi_report_repo_str( repo, "name", KRepositoryName );
+    if ( rc == 0 )
+        rc = KOutMsg( "     - disabled : %s\n", yes_or_no( KRepositoryDisabled( repo ) ) );
+    
     if ( full )
     {
         if ( rc == 0 ) rc = vdi_report_repo_str( repo, "displayname", KRepositoryDisplayName );
         if ( rc == 0 ) rc = vdi_report_repo_str( repo, "root", KRepositoryRoot );
         if ( rc == 0 ) rc = vdi_report_repo_str( repo, "resolver", KRepositoryResolver );
         
-        if ( rc == 0 )
-            rc = KOutMsg( "     - disabled : %s\n", yes_or_no( KRepositoryDisabled( repo ) ) );
         if ( rc == 0 )
             rc = KOutMsg( "     - cached : %s\n", yes_or_no( KRepositoryCacheEnabled( repo ) ) );
             
@@ -198,6 +203,50 @@ static rc_t vdi_repo_all( const KRepositoryMgr * repomgr, bool full )
 }
 
 
+static rc_t vdi_repo_switch( const KRepositoryMgr * repomgr, const KRepCategory cat, bool disabled )
+{
+    const char * s_cat = KRepCategory_to_prefix( cat );
+    rc_t rc = KRepositoryMgrCategorySetDisabled( repomgr, cat, disabled );
+    if ( rc == 0 )
+        rc = KOutMsg( "repository '%s' successfully %s", s_cat, ( disabled ? "disabled" : "enabled" ) );
+    else
+        rc = KOutMsg( "repository '%s' not %s: '%R'", s_cat, ( disabled ? "disabled" : "enabled" ), rc );
+    return rc;
+}
+
+
+static rc_t vdi_sub_repo( const KRepositoryMgr * repomgr, const Vector * v, const String * which_repo, int32_t repo_id )
+{
+    rc_t rc = 0;
+    const KRepCategory cat = id_to_repo_cat[ repo_id ];
+    
+    if ( VectorLength( v ) > 2 )
+    {
+        const String * which_sub = VectorGet( v, 2 );
+        int32_t repo_func = index_of_match( which_sub, 2, "on", "off" );
+        switch( repo_func )
+        {
+            case 0 : rc = vdi_repo_switch( repomgr, cat, false ); break;
+            case 1 : rc = vdi_repo_switch( repomgr, cat, true ); break;
+            case -1 :  {
+                            int32_t select = ( int32_t )string_to_I64( which_sub->addr, which_sub->len, NULL );
+                            rc = vdi_report_repo_vector( repomgr, cat, select, true );
+                        }
+                        break; 
+        }
+    }
+    else
+    {
+        if ( repo_id < 3 )
+            rc = vdi_report_repo_vector( repomgr, cat, -1, false );
+        else
+            rc = vdi_repo_all( repomgr, false );
+    }
+    
+    return rc;
+}
+
+
 rc_t vdi_repo( const Vector * v )
 {
     KConfig * cfg;
@@ -208,37 +257,19 @@ rc_t vdi_repo( const Vector * v )
         rc = KConfigMakeRepositoryMgrRead( cfg, &repomgr );
         {
             if ( VectorLength( v ) < 2 )
+            {
                 rc = vdi_repo_all( repomgr, true );
+            }
             else
             {
-                String * which_repo = VectorGet( v, 1 );
+                const String * which_repo = VectorGet( v, 1 );
                 if ( which_repo != NULL )
                 {
-                    int32_t idx1 = index_of_match( which_repo, 4, "user", "site", "remote", "all" );
-                    if ( VectorLength( v ) > 2 )
-                    {
-                        String * S2 = VectorGet( v, 2 );
-                        int32_t select = ( int32_t )string_to_I64( S2->addr, S2->len, NULL );
-                        switch( idx1 )
-                        {
-                            case 0 : rc = vdi_report_repo_vector( repomgr, krepUserCategory, select, true ); break;
-                            case 1 : rc = vdi_report_repo_vector( repomgr, krepSiteCategory, select, true ); break;
-                            case 2 : rc = vdi_report_repo_vector( repomgr, krepRemoteCategory, select, true ); break;
-                            default : rc = KOutMsg( "unknow repository '%S'", which_repo ); break;
-                        }
-                        
-                    }
+                    int32_t repo_id = index_of_match( which_repo, 4, "user", "site", "remote", "all" );
+                    if ( repo_id < 0 || repo_id > 3 )
+                        rc = KOutMsg( "unknow repository '%S'", which_repo );
                     else
-                    {
-                        switch( idx1 )
-                        {
-                            case 0 : rc = vdi_report_repo_vector( repomgr, krepUserCategory, -1, false ); break;
-                            case 1 : rc = vdi_report_repo_vector( repomgr, krepSiteCategory, -1, false ); break;
-                            case 2 : rc = vdi_report_repo_vector( repomgr, krepRemoteCategory, -1, false ); break;
-                            case 3 : rc = vdi_repo_all( repomgr, false );
-                            default : rc = KOutMsg( "unknow repository '%S'", which_repo ); break;
-                        }
-                    }
+                        rc = vdi_sub_repo( repomgr, v, which_repo, repo_id );
                 }
             }
             

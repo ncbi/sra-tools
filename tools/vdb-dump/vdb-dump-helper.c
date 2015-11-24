@@ -602,30 +602,30 @@ uint32_t copy_String_2_vector( Vector * v, const String * S )
 }
 
 
-uint32_t split_buffer( Vector * v, const char * buffer, size_t len, const char * delim )
+uint32_t split_buffer( Vector * v, const String * S, const char * delim )
 {
     uint32_t i, res = 0;
     size_t delim_len = string_size( delim );
-    String S;
+    String temp;
     
-    StringInit( &S, NULL, 0, 0 );
-    VectorInit( v, 0, 10 );    
-    for( i = 0; i < len; ++i )
+    StringInit( &temp, NULL, 0, 0 );
+    VectorInit( v, 0, 10 );
+    for( i = 0; i < S->len; ++i )
     {
-        if ( string_chr( delim, delim_len, buffer[ i ] ) != NULL )
+        if ( string_chr( delim, delim_len, S->addr[ i ] ) != NULL )
         {
             /* delimiter found */
-            res += copy_String_2_vector( v, &S );
-            StringInit( &S, NULL, 0, 0 );
+            res += copy_String_2_vector( v, &temp );
+            StringInit( &temp, NULL, 0, 0 );
         }
         else
         {
             /* normal char in line */
-            if ( S.addr == NULL ) S.addr = &( buffer[ i ] );
-            S.size++;
-            S.len++;
+            if ( temp.addr == NULL ) temp.addr = &( S->addr[ i ] );
+            temp.size++;
+            temp.len++;
         }
     }
-    res += copy_String_2_vector( v, &S ); /* from vdb-dump-helper.c*/
+    res += copy_String_2_vector( v, &temp );
     return res;
 }

@@ -37,12 +37,11 @@ include $(TOP)/build/Makefile.config
 SUBDIRS =    \
 	fastq-loader    \
 	vcf-loader      \
-    kget            \
-    general-loader  \
-    vschema         \
+	kget            \
+	general-loader  \
+	vschema         \
 	align-info      \
-	blackbox        \
-    vdb-dump        \
+	vdb-dump        \
 
 # under construction    
 #    ngs-pileup      \

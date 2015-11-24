@@ -96,6 +96,7 @@ VDB_DUMP_SRC = \
 	vdb-dump-fastq \
 	vdb-dump-bin \
 	vdb-dump-interact \
+	vdb-dump-repo \
 	vdb_info \
 	vdb-dump
 

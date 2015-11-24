@@ -37,6 +37,8 @@ extern "C" {
 
 #include <kapp/args.h>
 #include <klib/rc.h>
+#include <klib/text.h>
+
 #include "vdb-dump-context.h"
 
 rc_t vdi_main( const dump_context * ctx, const Args * args );

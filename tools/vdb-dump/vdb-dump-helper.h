@@ -37,6 +37,8 @@ extern "C" {
 
 #include <klib/out.h>
 #include <klib/rc.h>
+#include <klib/vector.h>
+#include <klib/text.h>
 
 #include <vfs/manager.h>
 #include <vfs/path.h>
@@ -85,6 +87,11 @@ rc_t vdh_print_col_info( dump_context *ctx,
 rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely );
 rc_t resolve_cache( const char * accession, char * dst, size_t dst_size );
 rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache );
+
+int32_t index_of_match( const String * word, uint32_t num, ... );
+void destroy_String_vector( Vector * v );
+uint32_t copy_String_2_vector( Vector * v, const String * S );
+uint32_t split_buffer( Vector * v, const char * buffer, size_t len, const char * delim );
 
 #ifdef __cplusplus
 }

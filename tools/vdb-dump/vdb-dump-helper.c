@@ -542,3 +542,90 @@ rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * byt
 	}
 	return rc;
 }
+
+
+static bool matches( const String * cmd, const String * pattern )
+{
+    char buffer[ 256 ];
+    String match;
+    uint32_t matching;
+    
+    StringInit( &match, buffer, sizeof buffer, 0 );
+    matching = StringMatch( &match, cmd, pattern );
+    return ( matching == pattern->len && matching == cmd->len );
+}
+
+
+int32_t index_of_match( const String * word, uint32_t num, ... )
+{
+    int32_t res = -1;
+    if ( word != NULL )
+    {
+        uint32_t idx;
+        va_list args;
+        
+        va_start ( args, num );
+        for ( idx = 0; idx < num && res < 0; ++idx )
+        {
+            const char * arg = va_arg ( args, const char * );
+            if ( arg != NULL )
+            {
+                String S;
+                StringInitCString( &S, arg );
+                if ( matches( word, &S ) ) res = idx;
+            }
+        }
+        va_end ( args );
+    }
+    return res;
+}
+
+
+static void CC destroy_String( void * item, void * data ) { free( item ); }
+void destroy_String_vector( Vector * v ) { VectorWhack( v, destroy_String, NULL ); }
+
+uint32_t copy_String_2_vector( Vector * v, const String * S )
+{
+    uint32_t res = 0;
+    if ( S->len > 0 && S->addr != NULL )
+    {
+        String * S1 = malloc( sizeof * S1 );
+        if ( S1 != NULL )
+        {
+            rc_t rc;
+            StringInit( S1, S->addr, S->size, S->len );
+            rc = VectorAppend( v, NULL, S1 );
+            if ( rc == 0 ) res++; else free( S1 );
+        }
+    }
+    return res;
+}
+
+
+uint32_t split_buffer( Vector * v, const char * buffer, size_t len, const char * delim )
+{
+    uint32_t i, res = 0;
+    size_t delim_len = string_size( delim );
+    String S;
+    
+    StringInit( &S, NULL, 0, 0 );
+    VectorInit( v, 0, 10 );    
+    for( i = 0; i < len; ++i )
+    {
+        if ( string_chr( delim, delim_len, buffer[ i ] ) != NULL )
+        {
+            /* delimiter found */
+            res += copy_String_2_vector( v, &S );
+            StringInit( &S, NULL, 0, 0 );
+        }
+        else
+        {
+            /* normal char in line */
+            if ( S.addr == NULL ) S.addr = &( buffer[ i ] );
+            S.size++;
+            S.len++;
+        }
+    }
+    res += copy_String_2_vector( v, &S ); /* from vdb-dump-helper.c*/
+    return res;
+}

@@ -1,4 +1,0 @@
-tool=illumina-dump
-database=false
-args={acc} -Z -X 10 --qseq 1
-timeout=20

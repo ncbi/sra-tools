@@ -36,22 +36,31 @@ namespace VarExpand
         size_t& bases_start, size_t& chunk_no_start, size_t& chunk_no_end)
     {
         bool cont = false;
-        obj = KSearch::VRefVariationIUPACMake (
-            ref_slice, ref_slice_size,
-            ref_pos_in_slice, var, var_len, var_len_on_ref, bases_start );
 
-        if ( obj.GetVarStartRelative() == 0 && chunk_no_start > 0 )
-        {
-            cont = true;
-            --chunk_no_start;
-            ref_pos_in_slice += chunk_size;
-            bases_start -= chunk_size;
-        }
-        if (obj.GetVarStartRelative() + obj.GetVarLenOnRef() == ref_slice_size &&
-            chunk_no_end < chunk_no_last )
+        if ( ref_pos_in_slice + var_len_on_ref >= ref_slice_size )
         {
             cont = true;
             ++chunk_no_end;
+        }
+        else
+        {
+            obj = KSearch::VRefVariationIUPACMake (
+                ref_slice, ref_slice_size,
+                ref_pos_in_slice, var, var_len, var_len_on_ref, bases_start );
+
+            if ( obj.GetVarStartRelative() == 0 && chunk_no_start > 0 )
+            {
+                cont = true;
+                --chunk_no_start;
+                ref_pos_in_slice += chunk_size;
+                bases_start -= chunk_size;
+            }
+            if (obj.GetVarStartRelative() + obj.GetVarLenOnRef() == ref_slice_size &&
+                chunk_no_end < chunk_no_last )
+            {
+                cont = true;
+                ++chunk_no_end;
+            }
         }
 
         return cont;

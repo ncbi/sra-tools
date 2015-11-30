@@ -50,6 +50,10 @@
 
 #include <kfg/config.h> // KConfigPrint
 
+#include <vfs/path.h>
+#include <vfs/path-priv.h>
+#include <vfs/manager.h>
+
 #include <vdb/vdb-priv.h>
 
 #include <time.h>
@@ -109,6 +113,21 @@ public:
         m_wd ( 0 )
     {
         THROW_ON_RC ( KDirectoryNativeDir ( & m_wd ) );
+
+#ifdef LOCAL_SCHEMA
+        {
+            VFSManager * vfs;
+            VFSManagerMake ( & vfs );
+            VPath* path;
+            VFSManagerMakeSysPath ( vfs, &path, stringize ( LOCAL_SCHEMA ) );
+            const String *uri = NULL;
+            VPathMakeString ( path, &uri );
+			m_schemaDir = string( uri->addr, uri->size );
+            VPathRelease ( path );
+            VFSManagerRelease ( vfs );
+        }
+#endif
+
     }
     ~GeneralLoaderFixture()
     {
@@ -129,7 +148,11 @@ public:
         THROW_ON_RC ( KStreamFromKFilePair ( & inStream, p_input, 0 ) );
             
         GeneralLoader* ret = new GeneralLoader ( argv0, * inStream );
-        
+		if ( ! m_schemaDir.empty() )
+		{
+            ret -> AddSchemaIncludePath ( m_schemaDir );
+		}
+
         THROW_ON_RC ( KStreamRelease ( inStream ) );
         THROW_ON_RC ( KFileRelease ( p_input ) );
             
@@ -155,6 +178,11 @@ public:
         THROW_ON_RC ( KStreamFromKFilePair ( & inStream, p_input, 0 ) );
             
         GeneralLoader gl ( argv0, *inStream );
+		if ( ! m_schemaDir.empty() )
+		{
+            gl . AddSchemaIncludePath ( m_schemaDir );
+		}
+		
         rc_t rc = gl.Run();
         bool ret;
         if ( GetRCObject ( rc ) == GetRCObject ( p_rc ) && 
@@ -379,6 +407,7 @@ public:
     const VCursor * m_cursor;
     KDirectory*     m_wd;
     string          m_tempSchemaFile;
+	string			m_schemaDir;
 };    
 
 template<> std::string GeneralLoaderFixture::GetValue ( const char* p_table, const char* p_column, uint64_t p_row )
@@ -444,10 +473,6 @@ FIXTURE_TEST_CASE ( LaterVersion, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( BadSchemaFileName, GeneralLoaderFixture )
 {
-    KConfig *kfg;
-    rc_t rc = KConfigMake ( & kfg, NULL );
-//  KConfigPrint(kfg, 0);
-    KConfigRelease(kfg);
     m_source . SchemaEvent ( "this file should not exist", "someSchemaName" );
     REQUIRE ( Run ( m_source . MakeSource (), SILENT_RC ( rcVDB, rcMgr, rcCreating, rcSchema, rcNotFound ) ) );
 }

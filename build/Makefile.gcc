@@ -79,11 +79,11 @@ ifeq (dbg, $(BUILD))
 	PED = -std=gnu99 -pedantic # -fdiagnostics-show-option
 else
 
+OPT = -O3 -Wno-variadic-macros -fno-strict-aliasing -U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=1
 ifeq (x86_64, $(ARCH))
-	OPT = -O3 -Wall -Wno-variadic-macros -fno-strict-aliasing
-else
-	OPT = -O3 -Wno-variadic-macros -fno-strict-aliasing
+	OPT += -Wall
 endif
+
 endif
 
 ifeq (mac,$(OS))

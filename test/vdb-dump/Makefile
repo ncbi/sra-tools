@@ -39,8 +39,8 @@ runtests: vdb-dump
 vdb-dump:
 	rm -rf actual
 	mkdir -p actual
-	$(BINDIR)/vdb-dump SRR000001 -R 1 -C READ -f tab >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
-	$(BINDIR)/vdb-dump SRR000001 -R 1 -C READ -f tab -I >actual/1.1.stdout; diff expected/1.1.stdout actual/1.1.stdout
+	$(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
+	$(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout; diff expected/1.1.stdout actual/1.1.stdout
 	rm -rf actual
 
 .PHONY: kar 

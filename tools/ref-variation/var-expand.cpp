@@ -244,6 +244,9 @@ namespace VarExpand
         for (; i < line_size && !is_sep(line[i], SEP_COLON) && !is_eol(line[i]); ++i, ++str_len);
         *pallele = pstr;
         *pallele_len = str_len;
+        // treat "-" as ""
+        if (*pallele_len == 1 && (*pallele)[0] == '-')
+            *pallele_len = 0;
 
         return true;
     }

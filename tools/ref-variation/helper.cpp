@@ -1108,7 +1108,6 @@ namespace KSearch
 
     CVRefVariation::CVRefVariation() : m_pSelf(NULL)
     {
-        m_query_del[0] = '\0';
     }
 
     CVRefVariation::~CVRefVariation()
@@ -1148,76 +1147,83 @@ namespace KSearch
         ::VRefVariationIUPACAddRef ( m_pSelf );
         m_bases_start = x.m_bases_start;
 
-        m_query_del[0] = x.m_query_del[0];
-        m_query_del[1] = x.m_query_del[1];
-        m_query_del[2] = x.m_query_del[2];
-
 #if DEBUG_PRINT != 0
         printf ("CLONING VRefVariation %p\n", m_pSelf);
 #endif
     }
-    char const* CVRefVariation::GetVariation() const
+    char const* CVRefVariation::GetSearchQuery() const
     {
         if ( m_pSelf == NULL )
             return "";
-        char const* ret = ::VRefVariationIUPACGetVariation ( m_pSelf );
+        char const* ret = ::VRefVariationIUPACGetSearchQuery ( m_pSelf );
         return ret == NULL ? "" : ret;
     }
 
-    void CVRefVariation::InitQueryForPureDeletion ( char* buf, size_t buf_size ) const
+    size_t CVRefVariation::GetSearchQueryStartRelative() const
     {
-        if ( IsPureDeletion() )
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetSearchQueryStart ( m_pSelf );
+    }
+
+    size_t CVRefVariation::GetSearchQueryStartAbsolute() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetSearchQueryStart ( m_pSelf ) + m_bases_start;
+    }
+
+    size_t CVRefVariation::GetSearchQuerySize() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetSearchQuerySize ( m_pSelf );
+    }
+
+    size_t CVRefVariation::GetSearchQueryLenOnRef() const
+    {
+        if ( m_pSelf == NULL )
+            return 0;
+        return ::VRefVariationIUPACGetSearchQueryLenOnRef ( m_pSelf );
+    }
+
+
+    char const* CVRefVariation::GetAllele( size_t& ret_size ) const
+    {
+        if ( m_pSelf == NULL )
         {
-            assert ( GetVarSize() == 0 );
-            assert ( GetVarLenOnRef() > 0 );
-            char const* ref_chunk = ::VRefVariationIUPACGetRefChunk ( m_pSelf );
-            size_t ref_chunk_size = ::VRefVariationIUPACGetRefChunkSize ( m_pSelf );
-            (void)ref_chunk_size;
-
-            assert ( GetVarStartRelative() > 0 && GetVarStartRelative() + GetVarLenOnRef() < ref_chunk_size - 1 );
-            buf [0] = ref_chunk [ GetVarStartRelative() - 1 ];
-            buf [1] = ref_chunk [ GetVarStartRelative() + GetVarLenOnRef() ];
-            buf [2] = '\0';
+            ret_size = 0;
+            return "";
         }
+        return ::VRefVariationIUPACGetAllele ( m_pSelf, & ret_size );
     }
 
-    char const* CVRefVariation::GetQueryForPureDeletion() const
-    {
-        assert ( IsPureDeletion() );
-        return m_query_del;
-    }
-
-    bool CVRefVariation::IsPureDeletion() const
-    {
-        return GetVarSize() == 0 && GetVarLenOnRef() > 0;
-    }
-
-    size_t CVRefVariation::GetVarStartRelative() const
+    size_t CVRefVariation::GetAlleleStartRelative() const
     {
         if ( m_pSelf == NULL )
             return 0;
-        return ::VRefVariationIUPACGetVarStart ( m_pSelf );
+        return ::VRefVariationIUPACGetAlleleStart ( m_pSelf );
     }
 
-    size_t CVRefVariation::GetVarStartAbsolute() const
+    size_t CVRefVariation::GetAlleleStartAbsolute() const
     {
         if ( m_pSelf == NULL )
             return 0;
-        return ::VRefVariationIUPACGetVarStart ( m_pSelf ) + m_bases_start;
+        return ::VRefVariationIUPACGetAlleleStart ( m_pSelf ) + m_bases_start;
     }
 
-    size_t CVRefVariation::GetVarSize() const
+    size_t CVRefVariation::GetAlleleSize() const
     {
         if ( m_pSelf == NULL )
             return 0;
-        return ::VRefVariationIUPACGetVarSize ( m_pSelf );
+        return ::VRefVariationIUPACGetAlleleSize ( m_pSelf );
     }
 
-    size_t CVRefVariation::GetVarLenOnRef() const
+    size_t CVRefVariation::GetAlleleLenOnRef() const
     {
         if ( m_pSelf == NULL )
             return 0;
-        return ::VRefVariationIUPACGetVarLenOnRef ( m_pSelf );
+        return ::VRefVariationIUPACGetAlleleLenOnRef ( m_pSelf );
     }
 
     CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
@@ -1234,7 +1240,6 @@ namespace KSearch
         printf("Created RefVariation (rd) %p\n", obj.m_pSelf);
 #endif
         obj.m_bases_start = bases_start;
-        obj.InitQueryForPureDeletion ( obj.m_query_del, countof (obj.m_query_del) );
         return obj;
     }
 }

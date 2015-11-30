@@ -11,6 +11,7 @@
 #include <ngs/ReferenceSequence.hpp>
 
 #include "helper.h"
+#include "common.h"
 
 namespace VarExpand
 {
@@ -26,44 +27,6 @@ namespace VarExpand
             }
         }
         return ret;
-    }
-
-    bool find_variation_core_step (KSearch::CVRefVariation& obj,
-        char const* ref_slice, size_t ref_slice_size,
-        size_t& ref_pos_in_slice,
-        char const* var, size_t var_len, size_t var_len_on_ref,
-        size_t chunk_size, size_t chunk_no_last,
-        size_t& bases_start, size_t& chunk_no_start, size_t& chunk_no_end)
-    {
-        bool cont = false;
-
-        if ( ref_pos_in_slice + var_len_on_ref >= ref_slice_size )
-        {
-            cont = true;
-            ++chunk_no_end;
-        }
-        else
-        {
-            obj = KSearch::VRefVariationIUPACMake (
-                ref_slice, ref_slice_size,
-                ref_pos_in_slice, var, var_len, var_len_on_ref, bases_start );
-
-            if ( obj.GetVarStartRelative() == 0 && chunk_no_start > 0 )
-            {
-                cont = true;
-                --chunk_no_start;
-                ref_pos_in_slice += chunk_size;
-                bases_start -= chunk_size;
-            }
-            if (obj.GetVarStartRelative() + obj.GetVarLenOnRef() == ref_slice_size &&
-                chunk_no_end < chunk_no_last )
-            {
-                cont = true;
-                ++chunk_no_end;
-            }
-        }
-
-        return cont;
     }
 
     void get_ref_var_object (KSearch::CVRefVariation& obj, size_t ref_pos, size_t del_len,
@@ -93,7 +56,7 @@ namespace VarExpand
                     (int)del_len, ref_chunk.data() + ref_pos_in_slice ));
             }
             
-            cont = find_variation_core_step ( obj,
+            cont = Common::find_variation_core_step ( obj,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
                 allele, var_len, del_len,
                 chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -108,7 +71,7 @@ namespace VarExpand
                 ref_slice = ref_seq.getReferenceBases (
                     bases_start, (chunk_no_end - chunk_no_start + 1)*chunk_size );
 
-                cont = find_variation_core_step ( obj,
+                cont = Common::find_variation_core_step ( obj,
                     ref_slice.c_str(), ref_slice.size(), ref_pos_in_slice,
                     allele, var_len, del_len,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -131,8 +94,10 @@ namespace VarExpand
             get_ref_var_object ( obj, ref_pos, del_len, allele, allele_len, ref_seq );
 
             char buf[512];
+            size_t new_allele_size;
+            char const* new_allele = obj.GetAllele ( new_allele_size );
             string_printf ( buf, countof(buf), NULL,
-                "%.*s\t%s:%zu:%zu:%.*s\t%s:%zu:%zu:%s",
+                "%.*s\t%s:%zu:%zu:%.*s\t%s:%zu:%zu:%.*s",
                 (int)key_len, key,
 
                 sref_name.c_str(),
@@ -140,8 +105,8 @@ namespace VarExpand
                 (int)allele_len, allele,
             
                 sref_name.c_str(),
-                obj.GetVarStartAbsolute(), obj.GetVarLenOnRef(),
-                obj.GetVariation()
+                obj.GetAlleleStartAbsolute(), obj.GetAlleleLenOnRef(),
+                (new_allele_size), new_allele
                 );
             buf [countof(buf) - 1] = '\0';
             printf ("%s\n", buf);

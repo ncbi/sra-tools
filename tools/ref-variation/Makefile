@@ -81,6 +81,7 @@ CPFLAGS += -pthread
 
 REF_VARIATION_SRC = \
 	ref-variation \
+	common \
 	helper
 
 REF_VARIATION_OBJ = \
@@ -106,6 +107,7 @@ $(BINDIR)/ref-variation: $(REF_VARIATION_OBJ)
 
 VAR_EXPAND_SRC = \
 	var-expand \
+	common \
 	helper
 
 VAR_EXPAND_OBJ = \

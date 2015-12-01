@@ -79,43 +79,33 @@ namespace VarExpand
         }
     }
 
-    void expand_variation ( char const* key, size_t key_len,
+    void expand_variation ( ngs::ReferenceSequence const& ref_seq,
+                        char const* key, size_t key_len,
                         char const* ref_name, size_t ref_name_len,
                         size_t ref_pos, size_t del_len,
                         char const* allele, size_t allele_len )
     {
-        try
-        {
-            ncbi::String sref_name(ref_name, ref_name_len);
-            ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence(sref_name);
+        KSearch::CVRefVariation obj;
 
-            KSearch::CVRefVariation obj;
+        get_ref_var_object ( obj, ref_pos, del_len, allele, allele_len, ref_seq );
 
-            get_ref_var_object ( obj, ref_pos, del_len, allele, allele_len, ref_seq );
+        char buf[512];
+        size_t new_allele_size;
+        char const* new_allele = obj.GetAllele ( new_allele_size );
+        string_printf ( buf, countof(buf), NULL,
+            "%.*s\t%.*s:%zu:%zu:%.*s\t%.*s:%zu:%zu:%.*s",
+            (int)key_len, key,
 
-            char buf[512];
-            size_t new_allele_size;
-            char const* new_allele = obj.GetAllele ( new_allele_size );
-            string_printf ( buf, countof(buf), NULL,
-                "%.*s\t%s:%zu:%zu:%.*s\t%s:%zu:%zu:%.*s",
-                (int)key_len, key,
+            (int)ref_name_len, ref_name,
+            ref_pos, del_len,
+            (int)allele_len, allele,
 
-                sref_name.c_str(),
-                ref_pos, del_len,
-                (int)allele_len, allele,
-            
-                sref_name.c_str(),
-                obj.GetAlleleStartAbsolute(), obj.GetAlleleLenOnRef(),
-                (new_allele_size), new_allele
-                );
-            buf [countof(buf) - 1] = '\0';
-            printf ("%s\n", buf);
-        }
-        catch (ngs::ErrorMsg const& e)
-        {
-            if ( strstr ( e.what(), "failed to open table" ) == NULL )
-                throw;
-        }
+            (int)ref_name_len, ref_name,
+            obj.GetAlleleStartAbsolute(), obj.GetAlleleLenOnRef(),
+            (new_allele_size), new_allele
+            );
+        buf [countof(buf) - 1] = '\0';
+        printf ("%s\n", buf);
     }
 
 
@@ -215,7 +205,7 @@ namespace VarExpand
 
         return true;
     }
-
+#if 0
     void process_input_line ( char const* line, size_t line_size )
     {
         char const* key, *ref_name, *allele;
@@ -233,14 +223,90 @@ namespace VarExpand
                 allele, allele_len );
         }
     }
-
+#endif
     int expand_variations_impl ( )
     {
         std::string line;
+        bool end_of_stream = false;
+
+        ncbi::String sref_name, sref_name_prev;
+        char const* key, *ref_name, *allele;
+        size_t key_len, ref_name_len, allele_len, ref_pos, del_len;
+
+        while ( ! end_of_stream )
+        {
+            end_of_stream = std::getline ( std::cin, line ).eof();
+            if (line.size() > 0 && parse_input_line ( line.c_str(), line.size(),
+                                    & key, & key_len,
+                                    & ref_name, & ref_name_len,
+                                    & allele, & allele_len,
+                                    & ref_pos, & del_len ))
+            {
+                try // really only trying to open the first reference
+                {
+                    sref_name.assign ( ref_name, ref_name_len );
+                    ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence(sref_name);
+                    break;
+                }
+                catch (ngs::ErrorMsg const& e)
+                {
+                    if ( strstr ( e.what(), "failed to open table" ) == NULL )
+                        throw;
+                    else
+                        continue;
+                }
+            }
+        }
+
+        if ( end_of_stream )
+            return 0;
+
+        // here we have the first good reference name in sref_name (shall be opened with no exceptions)
+        ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence(sref_name);
+        expand_variation ( ref_seq, key, key_len,
+                ref_name, ref_name_len,
+                ref_pos, del_len,
+                allele, allele_len );
+        sref_name_prev = sref_name;
+
+        // process the next input lines
         while ( std::getline ( std::cin, line ) )
         {
-            if (line.size() > 0)
-                process_input_line ( line.c_str(), line.size() );
+            if (line.size() > 0 && parse_input_line ( line.c_str(), line.size(),
+                                    & key, & key_len,
+                                    & ref_name, & ref_name_len,
+                                    & allele, & allele_len,
+                                    & ref_pos, & del_len ))
+            {
+                sref_name.assign ( ref_name, ref_name_len );
+                if (sref_name == sref_name_prev)
+                {
+                    expand_variation ( ref_seq, key, key_len,
+                            ref_name, ref_name_len,
+                            ref_pos, del_len,
+                            allele, allele_len );
+                }
+                else
+                {
+                    try
+                    {
+                    
+                        ref_seq = ncbi::NGS::openReferenceSequence(sref_name);
+                        expand_variation ( ref_seq, key, key_len,
+                                ref_name, ref_name_len,
+                                ref_pos, del_len,
+                                allele, allele_len );
+                        sref_name_prev = sref_name;
+                    }
+                    catch (ngs::ErrorMsg const& e)
+                    {
+                        if ( strstr ( e.what(), "failed to open table" ) == NULL )
+                            throw;
+                        else
+                            continue;
+                    }
+                }
+            }
         }
 
         return 0;

@@ -26,4 +26,5 @@
 
 rc_t run(char const argv0[],
          unsigned countAligned, char const *bamFile[],
-         unsigned countUnaligned, char const *unaligned[]);
+         unsigned countUnaligned, char const *unaligned[],
+         bool continuing);

@@ -24,18 +24,17 @@
  *
  */
 
-#ifndef BAM_LOAD_GLOBALS_H_
-#define BAM_LOAD_GLOBALS_H_ 1
-
 enum LoaderModes {
     mode_Archive,
-    mode_Analysis
+    mode_Remap
 };
 
 typedef struct globals
 {
     char const *inpath;
     char const *outpath;
+    char const *outname;
+    char const *firstOut;
     char const *tmpfs;
     
     struct KFile *noMatchLog;
@@ -89,4 +88,3 @@ typedef struct globals
 } Globals;
 
 extern Globals G;
-#endif

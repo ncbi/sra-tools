@@ -22,6 +22,9 @@
   <Import Project=".\test-project.props" />
   
   <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>LOCAL_SCHEMA=$(VDB_ROOT.Replace('\','\\'))interfaces</PreprocessorDefinitions>
+    </ClCompile>
     <Link>
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-wvdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\load.lib;%(AdditionalDependencies)</AdditionalDependencies>

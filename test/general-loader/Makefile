@@ -38,7 +38,7 @@ ALL_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
-INCDIRS += -I$(TOP)/tools/general-loader
+INCDIRS += -I$(TOP)/tools/general-loader -DLOCAL_SCHEMA=$(VDB_INCDIR)
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
@@ -138,49 +138,49 @@ tool-tests: $(TEST_BINDIR)/makeinputs
 	@mkdir -p input && $(TEST_BINDIR)/makeinputs && rm $(TEST_BINDIR)/makeinputs
 	@#    
 	@# basic, unpacked
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1 0 -I=$(VDB_INCDIR)
 	@#    
 	@# basic, packed
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1packed 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1packed 0 -I=$(VDB_INCDIR)
 	@#    
 	@# target db override 
 	@# use 1.gl which specifies the target as actual/1/db, and override that to where the script expects to see the result
-	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 "--target actual/1override/db"
+	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 "-I=$(VDB_INCDIR) --target actual/1override/db"
 	@# same with the storthand option
-	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 "-T actual/1override/db"
+	@cp input/1.gl input/1override.gl && $(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 1override 0 "-I=$(VDB_INCDIR) -T actual/1override/db"
 	@#    
 	@# error message event, unpacked
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2 3
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2 3 "-I=$(VDB_INCDIR) -L=err"
 	@#    
 	@# error message event, packed
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2packed 3
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 2packed 3 "-I=$(VDB_INCDIR) -L=err"
 	@#    
 	@# empty default values, unpacked
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 3 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 3 0 -I=$(VDB_INCDIR)
 	@#    
 	@# empty default values, packed
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 3packed 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 3packed 0 -I=$(VDB_INCDIR)
 	@#    
 	@# move ahead event, unpacked
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 4 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 4 0 -I=$(VDB_INCDIR)
 	@#    
 	@# move ahead event, packed
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 4packed 0
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 4packed 0 -I=$(VDB_INCDIR)
 	@#    
 	@# integer compression (packed only)
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 5packed 0 -L=info
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 5packed 0 "-L=info -I=$(VDB_INCDIR)"
 	@#    
 	@# software name in the metadata, unpacked   
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 -L=info SOFTWARE/formatter
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 "-L=info -I=$(VDB_INCDIR)" SOFTWARE/formatter
 	@#    
 	@# software name in the metadata, packed   
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6packed 0 -L=info SOFTWARE/formatter
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6packed 0 "-L=info -I=$(VDB_INCDIR)" SOFTWARE/formatter
 	@#    
 	@rm -rf input/*.gl actual/*
 
 one-tool: $(TEST_BINDIR)/makeinputs
 	@mkdir -p input && $(TEST_BINDIR)/makeinputs && rm $(TEST_BINDIR)/makeinputs
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 -L=info SOFTWARE/formatter
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 "-L=info -I=$(VDB_INCDIR)" SOFTWARE/formatter
 
 
 #-------------------------------------------------------------------------------

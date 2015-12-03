@@ -1226,12 +1226,12 @@ namespace KSearch
         return ::VRefVariationIUPACGetAlleleLenOnRef ( m_pSelf );
     }
 
-    CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+    CVRefVariation VRefVariationIUPACMake ( uint32_t alg, char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
             size_t var_len_on_ref, size_t bases_start)
     {
         CVRefVariation obj;
-        rc_t rc = ::VRefVariationIUPACMake (& obj.m_pSelf,
+        rc_t rc = ::VRefVariationIUPACMake ( & obj.m_pSelf, alg,
             ref, ref_size, ref_pos_var, variation, variation_size, var_len_on_ref);
         if (rc)
             throw Utils::CErrorMsg(rc, "VRefVariationIUPACMake");

@@ -26,6 +26,7 @@
 
 #include "common.h"
 #include "helper.h"
+#include <search/grep.h>
 
 namespace Common
 {
@@ -45,7 +46,7 @@ namespace Common
         }
         else
         {
-            obj = KSearch::VRefVariationIUPACMake (
+            obj = KSearch::VRefVariationIUPACMake ( refvarAlgRA,
                 ref_slice, ref_slice_size,
                 ref_pos_in_slice, var, var_len, var_len_on_ref, bases_start );
 

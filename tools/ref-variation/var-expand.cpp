@@ -30,7 +30,8 @@ namespace VarExpand
     }
 
     void get_ref_var_object (KSearch::CVRefVariation& obj, size_t ref_pos, size_t del_len,
-        char const* allele, size_t allele_len, ngs::ReferenceSequence const& ref_seq)
+        char const* allele, size_t allele_len, ngs::ReferenceSequence const& ref_seq,
+        std::string & ref_allele)
     {
         size_t var_len = allele_len;
 
@@ -60,6 +61,9 @@ namespace VarExpand
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
                 allele, var_len, del_len,
                 chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
+
+            if ( !cont )
+                ref_allele.assign (ref_chunk.data() + obj.GetAlleleStartRelative(), obj.GetAlleleLenOnRef());
         }
 
         // general case - expanding ref_slice to multiple chunks
@@ -76,6 +80,7 @@ namespace VarExpand
                     allele, var_len, del_len,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
             }
+            ref_allele.assign (ref_slice.c_str() + obj.GetAlleleStartRelative(), obj.GetAlleleLenOnRef());
         }
     }
 
@@ -86,14 +91,25 @@ namespace VarExpand
                         char const* allele, size_t allele_len )
     {
         KSearch::CVRefVariation obj;
+        std::string ref_allele;
 
-        get_ref_var_object ( obj, ref_pos, del_len, allele, allele_len, ref_seq );
+        get_ref_var_object ( obj, ref_pos, del_len, allele, allele_len, ref_seq, ref_allele );
+
+        if ( ref_allele.size() == 0 )
+            ref_allele = "-";
 
         char buf[512];
         size_t new_allele_size;
         char const* new_allele = obj.GetAllele ( new_allele_size );
+
+        if ( new_allele_size == 0)
+        {
+            new_allele = "-";
+            new_allele_size = 1;
+        }
+
         string_printf ( buf, countof(buf), NULL,
-            "%.*s\t%.*s:%zu:%zu:%.*s\t%.*s:%zu:%zu:%.*s",
+            "%.*s\t%.*s:%zu:%zu:%.*s\t%.*s:%zu:%zu:%.*s\t%.*s:%zu:%zu:%s",
             (int)key_len, key,
 
             (int)ref_name_len, ref_name,
@@ -102,7 +118,11 @@ namespace VarExpand
 
             (int)ref_name_len, ref_name,
             obj.GetAlleleStartAbsolute(), obj.GetAlleleLenOnRef(),
-            (new_allele_size), new_allele
+            (int)new_allele_size, new_allele,
+
+            (int)ref_name_len, ref_name,
+            obj.GetAlleleStartAbsolute(), obj.GetAlleleLenOnRef(),
+            ref_allele.c_str()
             );
         buf [countof(buf) - 1] = '\0';
         printf ("%s\n", buf);

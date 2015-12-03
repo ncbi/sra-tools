@@ -12,9 +12,33 @@
 
 #include "helper.h"
 #include "common.h"
+#include <search/grep.h>
+
+#define PARAM_ALG_SW "sw"
+#define PARAM_ALG_RA "ra"
 
 namespace VarExpand
 {
+    struct Params
+    {
+        ::RefVarAlg alg;
+    } g_Params =
+    {
+        ::refvarAlgSW
+    };
+
+    char const OPTION_ALG[] = "algorithm";
+    //char const ALIAS_ALG[]  = "a";
+    char const* USAGE_ALG[] = { "the algorithm to use for searching. "
+        "\""PARAM_ALG_SW"\" means Smith-Waterman. "
+        "\""PARAM_ALG_RA"\" means Rolling bulldozer algorithm\n", NULL };
+
+    ::OptDef Options[] =
+    {
+        { OPTION_ALG, NULL, NULL, USAGE_ALG, 1, true, false }
+    };
+
+
     bool check_ref_slice ( char const* ref, size_t ref_size )
     {
         bool ret = ref_size == 0;
@@ -338,7 +362,23 @@ namespace VarExpand
         try
         {
             KApp::CArgs args;
-            args.MakeAndHandle (argc, argv, NULL, 0);
+            args.MakeAndHandle (argc, argv, Options, countof (Options));
+
+            if (args.GetOptionCount (OPTION_ALG) == 1)
+            {
+                char const* alg = args.GetOptionValue ( OPTION_ALG, 0 );
+                if (!strcmp(alg, PARAM_ALG_SW))
+                    g_Params.alg = ::refvarAlgSW;
+                else if (!strcmp(alg, PARAM_ALG_RA))
+                    g_Params.alg = ::refvarAlgRA;
+                else
+                {
+                    PLOGMSG ( klogErr, ( klogErr,
+                        "Error: Unknown algorithm specified: \"$(ALG)\"", "ALG=%s", alg ));
+                    return 3;
+                }
+            }
+
             ret = expand_variations_impl ();
         }
         catch ( ngs::ErrorMsg const& e )
@@ -388,7 +428,9 @@ extern "C"
 
 
         OUTMSG (("\nInput: the stream of lines in the format: <key> <tab> <input variation>\n\n"));
-        OUTMSG (("\nOptions: no options\n"));
+        OUTMSG (("\nOptions:\n"));
+
+        HelpOptionLine (NULL, VarExpand::OPTION_ALG, "value", VarExpand::USAGE_ALG);
 
         XMLLogger_Usage();
 

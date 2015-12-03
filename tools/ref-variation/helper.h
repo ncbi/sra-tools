@@ -493,7 +493,8 @@ namespace KSearch
     class CVRefVariation
     {
     public:
-        friend CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+        friend CVRefVariation VRefVariationIUPACMake ( uint32_t alg,
+            char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
             size_t var_len_on_ref, size_t bases_start);
 
@@ -523,7 +524,7 @@ namespace KSearch
                               // starting at which the search was initiated
     };
 
-    CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+    CVRefVariation VRefVariationIUPACMake ( uint32_t alg, char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
             size_t var_len_on_ref, size_t bases_start);
 

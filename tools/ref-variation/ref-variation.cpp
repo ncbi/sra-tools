@@ -46,9 +46,9 @@
 
 #include "helper.h"
 #include "common.h"
+#include <search/grep.h>
 
 #define CPP_THREADS 0
-
 
 class CNoMutex // empty class for singlethreaded lock_guard (no actions)
 {
@@ -82,6 +82,8 @@ namespace RefVariation
 #define COUNT_STRAND_NONE_STR           "none"
 #define COUNT_STRAND_COUNTERALIGNED_STR "counteraligned"
 #define COUNT_STRAND_COALIGNED_STR      "coaligned"
+#define PARAM_ALG_SW "sw"
+#define PARAM_ALG_RA "ra"
 
     enum EnumCountStrand
     {
@@ -106,6 +108,7 @@ namespace RefVariation
         EnumCountStrand count_strand;
         uint32_t query_min_rep;
         uint32_t query_max_rep;
+        ::RefVarAlg alg;
     } g_Params =
     {
         "",
@@ -118,7 +121,8 @@ namespace RefVariation
         "",
         COUNT_STRAND_NONE,
         0,
-        0
+        0,
+        ::refvarAlgSW
     };
 
     class CInputRun
@@ -229,16 +233,23 @@ namespace RefVariation
         "\""COUNT_STRAND_COUNTERALIGNED_STR"\" - as in Illumina. "
         "\""COUNT_STRAND_COALIGNED_STR"\" - as in 454 or IonTorrent. ", NULL };
 
+    char const OPTION_ALG[] = "algorithm";
+    //char const ALIAS_ALG[]  = "a";
+    char const* USAGE_ALG[] = { "the algorithm to use for searching. "
+        "\""PARAM_ALG_SW"\" means Smith-Waterman. "
+        "\""PARAM_ALG_RA"\" means Rolling bulldozer algorithm\n", NULL };
+
     ::OptDef Options[] =
     {
-        { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true },
-        { OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true },
-        { OPTION_QUERY,         /*ALIAS_QUERY*/NULL, NULL, USAGE_QUERY,         1, true, true },
-        { OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true },
-        { OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false },
-        { OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false },
-        { OPTION_INPUT_FILE,    ALIAS_INPUT_FILE,    NULL, USAGE_INPUT_FILE,    1, true, false },
-        { OPTION_COUNT_STRAND,  NULL,                NULL, USAGE_COUNT_STRAND,  1, true, false }
+        { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true }
+        ,{ OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true }
+        ,{ OPTION_QUERY,         /*ALIAS_QUERY*/NULL, NULL, USAGE_QUERY,         1, true, true }
+        ,{ OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true }
+        ,{ OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false }
+        ,{ OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false }
+        ,{ OPTION_INPUT_FILE,    ALIAS_INPUT_FILE,    NULL, USAGE_INPUT_FILE,    1, true, false }
+        ,{ OPTION_COUNT_STRAND,  NULL,                NULL, USAGE_COUNT_STRAND,  1, true, false }
+        ,{ OPTION_ALG,           NULL,                NULL, USAGE_ALG,           1, true, false }
 #if SECRET_OPTION != 0
         ,{ OPTION_SECRET,        NULL,                NULL, USAGE_SECRET,        1, true, false }
 #endif
@@ -1773,6 +1784,21 @@ BREAK_ALIGNMENT_ITER:
                 }
             }
 
+            if (args.GetOptionCount (OPTION_ALG) == 1)
+            {
+                char const* alg = args.GetOptionValue ( OPTION_ALG, 0 );
+                if (!strcmp(alg, PARAM_ALG_SW))
+                    g_Params.alg = ::refvarAlgSW;
+                else if (!strcmp(alg, PARAM_ALG_RA))
+                    g_Params.alg = ::refvarAlgRA;
+                else
+                {
+                    PLOGMSG ( klogErr, ( klogErr,
+                        "Error: Unknown algorithm specified: \"$(ALG)\"", "ALG=%s", alg ));
+                    return 3;
+                }
+            }
+
 #if SECRET_OPTION != 0
             if ( args.GetOptionCount (OPTION_SECRET) > 0 )
             {
@@ -2006,6 +2032,7 @@ extern "C"
         HelpOptionLine (RefVariation::ALIAS_COVERAGE, RefVariation::OPTION_COVERAGE, "", RefVariation::USAGE_COVERAGE);
         HelpOptionLine (RefVariation::ALIAS_INPUT_FILE, RefVariation::OPTION_INPUT_FILE, "string", RefVariation::USAGE_INPUT_FILE);
         HelpOptionLine (NULL, RefVariation::OPTION_COUNT_STRAND, "value", RefVariation::USAGE_COUNT_STRAND);
+        HelpOptionLine (NULL, RefVariation::OPTION_ALG, "value", RefVariation::USAGE_ALG);
         //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
 #if SECRET_OPTION != 0
         HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);

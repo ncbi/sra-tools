@@ -155,6 +155,7 @@ namespace VarExpand
             {
                 if ( strstr ( e.what(), "failed to open table" ) == NULL )
                     throw;
+                return;
             }
         }
 

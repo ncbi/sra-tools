@@ -1233,7 +1233,7 @@ BREAK_ALIGNMENT_ITER:
                     (int)g_Params.var_len_on_ref, ref_chunk.data() + ref_pos_in_slice );
             }
             
-            cont = Common::find_variation_core_step ( obj,
+            cont = Common::find_variation_core_step ( obj, g_Params.alg,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
                 query, var_len, g_Params.var_len_on_ref,
                 chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -1253,7 +1253,7 @@ BREAK_ALIGNMENT_ITER:
                 ref_slice = ref_seq.getReferenceBases (
                     bases_start, (chunk_no_end - chunk_no_start + 1)*chunk_size );
 
-                cont = Common::find_variation_core_step ( obj,
+                cont = Common::find_variation_core_step ( obj, g_Params.alg,
                     ref_slice.c_str(), ref_slice.size(), ref_pos_in_slice,
                     query, var_len, g_Params.var_len_on_ref,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );

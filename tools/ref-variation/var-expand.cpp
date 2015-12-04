@@ -110,7 +110,7 @@ namespace VarExpand
                     (int)del_len, ref_chunk.data() + ref_pos_in_slice ));
             }
             
-            cont = Common::find_variation_core_step ( obj,
+            cont = Common::find_variation_core_step ( obj, g_Params.alg,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
                 allele, var_len, del_len,
                 chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -128,7 +128,7 @@ namespace VarExpand
                 ref_slice = ref_seq.getReferenceBases (
                     bases_start, (chunk_no_end - chunk_no_start + 1)*chunk_size );
 
-                cont = Common::find_variation_core_step ( obj,
+                cont = Common::find_variation_core_step ( obj, g_Params.alg,
                     ref_slice.c_str(), ref_slice.size(), ref_pos_in_slice,
                     allele, var_len, del_len,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );

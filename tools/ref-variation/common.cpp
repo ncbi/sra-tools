@@ -30,7 +30,7 @@
 
 namespace Common
 {
-    bool find_variation_core_step (KSearch::CVRefVariation& obj,
+    bool find_variation_core_step (KSearch::CVRefVariation& obj, ::RefVarAlg alg,
         char const* ref_slice, size_t ref_slice_size,
         size_t& ref_pos_in_slice,
         char const* var, size_t var_len, size_t var_len_on_ref,
@@ -46,7 +46,7 @@ namespace Common
         }
         else
         {
-            obj = KSearch::VRefVariationIUPACMake ( refvarAlgRA,
+            obj = KSearch::VRefVariationIUPACMake ( alg,
                 ref_slice, ref_slice_size,
                 ref_pos_in_slice, var, var_len, var_len_on_ref, bases_start );
 

@@ -2,7 +2,6 @@
 
 #include <kapp/main.h>
 #include <klib/rc.h>
-#include <klib/printf.h>
 
 #include <iostream>
 #include <stdio.h>
@@ -16,6 +15,12 @@
 
 #define PARAM_ALG_SW "sw"
 #define PARAM_ALG_RA "ra"
+
+#ifdef _WIN32
+#define PRSIZE_T "I"
+#else
+#define PRSIZE_T "z"
+#endif
 
 namespace VarExpand
 {
@@ -169,7 +174,6 @@ namespace VarExpand
         if ( ref_allele.size() == 0 )
             ref_allele = "-";
 
-        char buf[512];
         size_t new_allele_size;
         char const* new_allele = obj.GetAllele ( new_allele_size );
 
@@ -179,8 +183,8 @@ namespace VarExpand
             new_allele_size = 1;
         }
 
-        string_printf ( buf, countof(buf), NULL,
-            "%.*s\t%.*s:%zu:%zu:%.*s\t%.*s:%zu:%zu:%.*s\t%.*s:%zu:%zu:%s",
+        printf (
+            "%.*s\t%.*s:%"PRSIZE_T"u:%"PRSIZE_T"u:%.*s\t%.*s:%"PRSIZE_T"u:%"PRSIZE_T"u:%.*s\t%.*s:%"PRSIZE_T"u:%"PRSIZE_T"u:%s\n",
             (int)key_len, key,
 
             (int)ref_name_len, ref_name,
@@ -195,8 +199,6 @@ namespace VarExpand
             obj.GetAlleleStartAbsolute(), obj.GetAlleleLenOnRef(),
             ref_allele.c_str()
             );
-        buf [countof(buf) - 1] = '\0';
-        printf ("%s\n", buf);
     }
 
 

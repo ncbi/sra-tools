@@ -63,6 +63,7 @@ typedef struct globals
     unsigned minMatchCount; /* minimum number of matches to count as an alignment */
     int minMapQual;
     enum LoaderModes mode;
+    enum LoaderModes globalMode;
     uint32_t maxSeqLen;
     bool omit_aligned_reads;
     bool omit_reference_reads;

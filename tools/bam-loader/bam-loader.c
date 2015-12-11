@@ -633,7 +633,7 @@ static rc_t LoadHeader(char const **rslt, char const path[], char const base[])
     return rc;
 }
 
-rc_t main_help_vers(int argc, char * argv[])
+static rc_t main_help_vers(int argc, char * argv[])
 {
     Args *args = NULL;
     rc_t const rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
@@ -642,7 +642,18 @@ rc_t main_help_vers(int argc, char * argv[])
     return rc;
 }
 
-rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
+static rc_t getArgValue(Args *const args, char const *name, int index, char const **result)
+{
+    void const *value;
+    rc_t const rc = ArgsOptionValue(args, name, index, &value);
+    if (rc) return rc;
+    free((void *)*result);
+    *result = strdup(value);
+    assert(*result);
+    return 0;
+}
+
+static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
 {
     Args *args;
     rc_t rc;
@@ -663,33 +674,40 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
         rc = ArgsOptionCount(args, option_only_verify, &pcount);
         if (rc)
             break;
-        G.onlyVerifyReferences = (pcount > 0);
+        G.onlyVerifyReferences |= (pcount > 0);
         
         rc = ArgsOptionCount(args, option_no_verify, &pcount);
         if (rc)
             break;
-        G.noVerifyReferences = (pcount > 0);
+        G.noVerifyReferences |= (pcount > 0);
         
         rc = ArgsOptionCount(args, option_use_qual, &pcount);
         if (rc)
             break;
-        G.useQUAL = (pcount > 0);
+        G.useQUAL |= (pcount > 0);
         
         rc = ArgsOptionCount(args, option_ref_config, &pcount);
         if (rc)
             break;
-        G.limit2config = (pcount > 0);
+        G.limit2config |= (pcount > 0);
         
         rc = ArgsOptionCount(args, OPTION_REF_FILE, &pcount);
         if (rc)
             break;
+        if (pcount && G.refFiles) {
+            int i;
+
+            for (i = 0; G.refFiles[i]; ++i)
+                free((void *)G.refFiles[i]);
+            free((void *)G.refFiles);
+        }
         G.refFiles = calloc(pcount + 1, sizeof(*(G.refFiles)));
-        if( !G.refFiles ) {
+        if (!G.refFiles) {
             rc = RC(rcApp, rcArgv, rcAccessing, rcMemory, rcExhausted);
             break;
         }
         while(pcount-- > 0) {
-            rc = ArgsOptionValue(args, OPTION_REF_FILE, pcount, (const void **)&G.refFiles[pcount]);
+            rc = getArgValue(args, OPTION_REF_FILE, pcount, &G.refFiles[pcount]);
             if (rc)
                 break;
         }
@@ -699,7 +717,7 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_TMPFS, 0, (const void **)&G.tmpfs);
+            rc = getArgValue(args, OPTION_TMPFS, 0, &G.tmpfs);
             if (rc)
                 break;
         }
@@ -716,7 +734,7 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_INPUT, 0, (const void **)&G.inpath);
+            rc = getArgValue(args, OPTION_INPUT, 0, &G.inpath);
             if (rc)
                 break;
         }
@@ -733,7 +751,7 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, option_ref_filter, 0, (const void **)&G.refFilter);
+            rc = getArgValue(args, option_ref_filter, 0, &G.refFilter);
             if (rc)
                 break;
         }
@@ -750,7 +768,7 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_CONFIG, 0, (const void **)&G.refXRefPath);
+            rc = getArgValue(args, OPTION_CONFIG, 0, &G.refXRefPath);
             if (rc)
                 break;
         }
@@ -767,11 +785,11 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_OUTPUT, 0, (const void **)&G.outpath);
+            rc = getArgValue(args, OPTION_OUTPUT, 0, &G.outpath);
             if (rc)
                 break;
             if (load == 0) {
-                G.firstOut = G.outpath;
+                G.firstOut = strdup(G.outpath);
             }
             value = strrchr(G.outpath, '/');
             G.outname = value ? (value + 1) : G.outpath;
@@ -795,7 +813,7 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MINMAPQ, 0, (const void **)&value);
+            rc = ArgsOptionValue(args, OPTION_MINMAPQ, 0, (const void **)&value);
             if (rc)
                 break;
             G.minMapQual = strtoul(value, &dummy, 0);
@@ -806,11 +824,11 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_QCOMP, 0, (const void **)&G.QualQuantizer);
+            rc = getArgValue(args, OPTION_QCOMP, 0, &G.QualQuantizer);
             if (rc)
                 break;
         }
-        
+
         rc = ArgsOptionCount (args, option_edit_aligned_qual, &pcount);
         if (rc)
             break;
@@ -860,12 +878,12 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
         rc = ArgsOptionCount (args, option_unsorted, &pcount);
         if (rc)
             break;
-        G.expectUnsorted = pcount > 0;
+        G.expectUnsorted |= (pcount > 0);
         
         rc = ArgsOptionCount (args, option_sorted, &pcount);
         if (rc)
             break;
-        G.requireSorted = pcount > 0;
+        G.requireSorted |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_MAX_REC_COUNT, &pcount);
         if (rc)
@@ -903,42 +921,42 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
         rc = ArgsOptionCount (args, OPTION_ACCEPT_DUP, &pcount);
         if (rc)
             break;
-        G.acceptBadDups = pcount > 0;
+        G.acceptBadDups |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_ACCEPT_NOMATCH, &pcount);
         if (rc)
             break;
-        G.acceptNoMatch = pcount > 0;
+        G.acceptNoMatch |= (pcount > 0);
         
         rc = ArgsOptionCount (args, option_keep_mismatch_qual, &pcount);
         if (rc)
             break;
-        G.keepMismatchQual = pcount > 0;
+        G.keepMismatchQual |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_NO_CS, &pcount);
         if (rc)
             break;
-        G.noColorSpace = pcount > 0;
+        G.noColorSpace |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_NO_SECONDARY, &pcount);
         if (rc)
             break;
-        G.noSecondary = pcount > 0;
+        G.noSecondary |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_TI, &pcount);
         if (rc)
             break;
-        G.hasTI = pcount > 0;
+        G.hasTI |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_ACCEPT_HARD_CLIP, &pcount);
         if (rc)
             break;
-        G.acceptHardClip = pcount > 0;
+        G.acceptHardClip |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_ALLOW_MULTI_MAP, &pcount);
         if (rc)
             break;
-        G.allowMultiMapping = pcount > 0;
+        G.allowMultiMapping |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_NOMATCH_LOG, &pcount);
         if (rc)
@@ -962,6 +980,7 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
         if (pcount == 1) {
             rc = ArgsOptionValue (args, OPTION_HEADER, 0, (const void **)&value);
             if (rc) break;
+            free((void *)G.headerText);
             rc = LoadHeader(&G.headerText, value, G.inpath);
             if (rc) break;
         }
@@ -1054,10 +1073,6 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
         break;
     }
     free(name_buffer);
-    free((void *)G.headerText);
-    free(G.refFiles);
-    G.headerText = NULL;
-    G.refFiles = NULL;
 
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "load failed",
@@ -1068,6 +1083,26 @@ rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
     }
     ArgsWhack(args);
     return rc;
+}
+
+static void cleanupGlobal(void)
+{
+    if (G.refFiles) {
+        int i;
+
+        for (i = 0; G.refFiles[i]; ++i)
+            free((void *)G.refFiles[i]);
+        free((void *)G.refFiles);
+    }
+    free((void *)G.tmpfs);
+    free((void *)G.inpath);
+    free((void *)G.refFilter);
+    free((void *)G.refXRefPath);
+    free((void *)G.outpath);
+    free((void *)G.firstOut);
+    free((void *)G.headerText);
+    free((void *)G.QualQuantizer);
+    free((void *)G.schemaPath);
 }
 
 static int find_arg(char const *const *const query, int const first, int const argc, char **const argv)
@@ -1163,6 +1198,14 @@ rc_t CC KMain(int argc, char *argv[])
     rc_t rc = 0;
     unsigned load = 0;
 
+    if (has_help) {
+        argc = 2;
+        argv[1] = "--help";
+    }
+    if (has_vers) {
+        argc = 2;
+        argv[1] = "--vers";
+    }
     if (has_help || has_vers)
         return main_help_vers(argc, argv);
 
@@ -1170,12 +1213,13 @@ rc_t CC KMain(int argc, char *argv[])
 
     memset(&G, 0, sizeof(G));
     G.mode = mode_Archive;
+    G.globalMode = mode_Archive;
     G.maxSeqLen = TableWriterRefSeq_MAX_SEQ_LEN;
-    G.schemaPath = SCHEMAFILE;
+    G.schemaPath = strdup(SCHEMAFILE);
     G.omit_aligned_reads = true;
     G.omit_reference_reads = true;
     G.minMapQual = 0; /* accept all */
-    G.tmpfs = "/tmp";
+    G.tmpfs = strdup("/tmp");
     G.cache_size = ((size_t)16) << 30;
     G.maxErrCount = 1000;
     G.minMatchCount = 10;
@@ -1184,17 +1228,18 @@ rc_t CC KMain(int argc, char *argv[])
 
     for (arglast = 1; arglast < argc; ++arglast) {
         if (strcmp(argv[arglast], "--remap") == 0) {
-
             argv[arglast] = argv[0];
-            G.mode = mode_Remap;
+            G.globalMode = mode_Remap;
             rc = main_1(arglast - argfirst, argv + argfirst, true, load);
             if (rc)
                 break;
+            G.mode = mode_Remap;
             argfirst = arglast;
             ++load;
         }
     }
     rc = main_1(arglast - argfirst, argv + argfirst, false, load);
     XMLLogger_Release(logger);
+    cleanupGlobal();
     return rc;
 }

@@ -65,9 +65,6 @@ rc_t SequenceRecordAppend(SequenceRecord *self,
 typedef struct s_sequence {
     VDatabase *db;
     struct TableWriterSeq const *tbl;
-    VCursor const *ccurs;
-    VCursor *curs;
-    uint32_t colId[2];
 } Sequence;
 
 Sequence *SequenceInit(Sequence *self, VDatabase *db);

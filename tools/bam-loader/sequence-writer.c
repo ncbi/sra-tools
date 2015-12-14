@@ -28,6 +28,7 @@
 #include <klib/log.h>
 
 #include <vdb/database.h>
+#include <vdb/vdb-priv.h>
 
 #include <kdb/manager.h>
 
@@ -51,6 +52,21 @@ Sequence *SequenceInit(Sequence *self, VDatabase *db) {
     self->db = db;
     VDatabaseAddRef(db);
     return self;
+}
+
+static rc_t getTable(Sequence *self, bool color)
+{
+    int const options = (color ? ewseq_co_ColorSpace : 0)
+                      | (G.hasTI ? ewseq_co_TI : 0)
+                      | (G.globalMode == mode_Remap ? (ewseq_co_SaveRead | ewseq_co_KeepKey) : 0)
+                      | ewseq_co_NoLabelData
+                      | ewseq_co_SpotGroup;
+
+    if (self->tbl) return 0;
+
+    return TableWriterSeq_Make(&self->tbl, self->db,
+                               options,
+                               G.QualQuantizer);
 }
 
 rc_t SequenceWriteRecord(Sequence *self,
@@ -167,15 +183,7 @@ rc_t SequenceWriteRecord(Sequence *self,
     data.ti.elements = nreads;
 
     if (!G.no_real_output) {
-        if (self->tbl == NULL) {
-            int csoption = (color ? ewseq_co_ColorSpace : 0);
-
-            if(G.hasTI) csoption |= ewseq_co_TI;
-
-            rc = TableWriterSeq_Make(&self->tbl, self->db,
-                                     csoption | ewseq_co_NoLabelData | ewseq_co_SpotGroup,
-                                     G.QualQuantizer);
-        }
+        rc = getTable(self, color);
         if (rc == 0) {
             rc = TableWriterSeq_Write(self->tbl, &data, &dummyRowId);
         }
@@ -187,57 +195,155 @@ rc_t SequenceWriteRecord(Sequence *self,
     return rc;
 }
 
+static rc_t ReadSequenceData(TableWriterSeqData *const data, VCursor const *const curs, int64_t const row, uint32_t const colId[])
+{
+    int i;
+    
+    memset(data, 0, sizeof(*data));
+    
+    for (i = 0; i <= 8; ++i) {
+        uint32_t elem_bits = 0;
+        uint32_t row_len = 0;
+        uint32_t boff = 0;
+        void const *base = NULL;
+        rc_t const rc = VCursorCellDataDirect(curs, row, colId[i], &elem_bits, &base, &boff, &row_len);
+        if (rc == 0) {
+            TableWriterData *tdata = NULL;
+            
+            switch (i) {
+                case 0:
+                    assert(elem_bits == sizeof(data->tmp_key_id) * 8);
+                    assert(row_len == 1);
+                    memcpy(&data->tmp_key_id, base, sizeof(data->tmp_key_id));
+                    break;
+                case 1:
+                    tdata = &data->sequence;
+                    break;
+                case 2:
+                    tdata = &data->quality;
+                    break;
+                case 3:
+                    tdata = &data->read_type;
+                    break;
+                case 4:
+                    tdata = &data->read_start;
+                    break;
+                case 5:
+                    tdata = &data->read_len;
+                    break;
+                case 6:
+                    tdata = &data->spot_group;
+                    break;
+                case 7:
+                    tdata = &data->read_filter;
+                    break;
+                case 8:
+                    tdata = &data->platform;
+                    break;
+                default:
+                    assert(!"reachable");
+                    break;
+            }
+            if (tdata) {
+                tdata->buffer = base;
+                tdata->elements = row_len;
+            }
+        }
+        else
+            return rc;
+    }
+    return 0;
+}
+
 rc_t SequenceDoneWriting(Sequence *self)
 {
-    if (G.mode == mode_Archive)
-        return TableWriterSeq_TmpKeyStart(self->tbl);
-    else {
+    if (G.mode == mode_Remap) {
+        /* copy the SEQUENCE table from the first output */
         VDBManager *mgr = NULL;
+        rc_t rc;
+        
+        getTable(self, false);
 
-        rc_t rc = VDatabaseOpenManagerUpdate(self->db, &mgr);
+        rc = VDatabaseOpenManagerUpdate(self->db, &mgr);
+        assert(rc == 0);
+        
         if (rc == 0) {
             VDatabase const *db = NULL;
-
+            
             rc = VDBManagerOpenDBRead(mgr, &db, NULL, G.firstOut);
-
+            assert(rc == 0);
+            
             VDBManagerRelease(mgr);
             if (rc == 0) {
                 VTable const *tbl = NULL;
-
+                
                 rc = VDatabaseOpenTableRead(db, &tbl, "SEQUENCE");
+                assert(rc == 0);
                 VDatabaseRelease(db);
                 if (rc == 0) {
-                    rc = VTableCreateCursorRead(tbl, &self->ccurs);
-
+                    VCursor const *curs = NULL;
+                    rc = VTableCreateCursorRead(tbl, &curs);
+                    assert(rc == 0);
                     VTableRelease(tbl);
                     if (rc == 0) {
-                        rc = VCursorAddColumn(self->ccurs, &self->colId[0], "TMP_KEY_ID");
+                        uint32_t colId[9];
+                        
+                        rc = VCursorAddColumn(curs, &colId[0], "TMP_KEY_ID");
+                        assert(rc == 0);
+                        rc = VCursorAddColumn(curs, &colId[1], "(INSDC:dna:text)READ");
+                        assert(rc == 0);
+                        rc = VCursorAddColumn(curs, &colId[2], "QUALITY");
+                        assert(rc == 0);
+                        rc = VCursorAddColumn(curs, &colId[3], "READ_TYPE");
+                        assert(rc == 0);
+                        rc = VCursorAddColumn(curs, &colId[4], "READ_START");
+                        assert(rc == 0);
+                        rc = VCursorAddColumn(curs, &colId[5], "READ_LEN");
+                        assert(rc == 0);
+                        rc = VCursorAddColumn(curs, &colId[6], "SPOT_GROUP");
+                        assert(rc == 0);
+                        rc = VCursorAddColumn(curs, &colId[7], "READ_FILTER");
+                        assert(rc == 0);
+                        rc = VCursorAddColumn(curs, &colId[8], "PLATFORM");
+                        assert(rc == 0);
+                        if (rc == 0) {
+                            rc = VCursorOpen(curs);
+                            assert(rc == 0);
+                            if (rc == 0) {
+                                int64_t first;
+                                uint64_t count;
+                                uint64_t row;
+                                TableWriterSeqData data;
+                                
+                                rc = VCursorIdRange(curs, colId[0], &first, &count);
+                                assert(rc == 0);
+                                for (row = 0; row < count; ++row) {
+                                    int64_t dummyRowId = 0;
+                                    
+                                    rc = ReadSequenceData(&data, curs, row+first, colId);
+                                    assert(rc == 0);
+                                    if (rc) return rc;
+
+                                    data.nreads = data.read_start.elements;
+
+                                    rc = TableWriterSeq_Write(self->tbl, &data, &dummyRowId);
+                                    assert(rc == 0);
+                                    if (rc) return rc;
+                                }
+                            }
+                        }
+                        VCursorRelease(curs);
                     }
                 }
             }
         }
-        return rc;
     }
+    return TableWriterSeq_TmpKeyStart(self->tbl);
 }
 
 rc_t SequenceReadKey(const Sequence *cself, int64_t row, uint64_t *keyId)
 {
-    if (G.mode == mode_Archive)
-        return TableWriterSeq_TmpKey(cself->tbl, row, keyId);
-    else {
-        uint32_t elem_bits;
-        uint32_t row_len;
-        uint32_t boff;
-        void const *base;
-        rc_t const rc = VCursorCellDataDirect(cself->ccurs, row, cself->colId[0], &elem_bits, &base, &boff, &row_len);
-        if (rc == 0) {
-            assert(row_len == 1);
-            assert(elem_bits == sizeof(*keyId) * 8);
-            assert(boff == 0);
-            memcpy(keyId, base, sizeof(*keyId));
-        }
-        return rc;
-    }
+    return TableWriterSeq_TmpKey(cself->tbl, row, keyId);
 }
 
 rc_t SequenceUpdateAlignData(Sequence *self, int64_t rowId, unsigned nreads,
@@ -248,19 +354,30 @@ rc_t SequenceUpdateAlignData(Sequence *self, int64_t rowId, unsigned nreads,
     
     data[0].buffer = primeId; data[0].elements = nreads;
     data[1].buffer = algnCnt; data[1].elements = nreads;
-    
+
     return TableWriterSeq_WriteAlignmentData(self->tbl, rowId, &data[0], &data[1]);
 }
 
 void SequenceWhack(Sequence *self, bool commit) {
     uint64_t dummyRows;
     
-    VDatabaseRelease(self->db);
-    
     if (self->tbl == NULL)
         return;
     
     (void)TableWriterSeq_Whack(self->tbl, commit, &dummyRows);
+    if (G.mode == mode_Remap) {
+        /* This only happens for the second and subsequent loads.
+         * Cleaning up the first load is handled by the bam-load itself
+         * when everything is done.
+         */
+        VTable *tbl = NULL;
+        rc_t rc = VDatabaseOpenTableUpdate(self->db, &tbl, "SEQUENCE");
+        assert(rc == 0);
+        VTableDropColumn(tbl, "TMP_KEY_ID");
+        VTableDropColumn(tbl, "READ");
+        VTableRelease(tbl);
+    }
+    VDatabaseRelease(self->db);
 }
 
 /* MARK: SequenceRecord Object */

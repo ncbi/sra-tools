@@ -134,16 +134,9 @@ typedef struct FragmentInfo {
     uint8_t  cskey;
 } FragmentInfo;
 
-typedef struct context_t {
-    const KLoadProgressbar *progress[4];
+typedef struct KeyToID {
     KBTree *key2id[NUM_ID_SPACES];
     char *key2id_names;
-    MMArray *id2value;
-    MemBank *frags;
-    int64_t spotId;
-    int64_t primaryId;
-    int64_t secondId;
-    uint64_t alignCount;
 
     uint32_t idCount[NUM_ID_SPACES];
     uint32_t key2id_hash[NUM_ID_SPACES];
@@ -157,6 +150,17 @@ typedef struct context_t {
     /* this array is kept in name order */
     /* this maps the names to key2id and idCount */
     unsigned key2id_oid[NUM_ID_SPACES];
+} KeyToID;
+
+typedef struct context_t {
+    KeyToID keyToID;
+    const KLoadProgressbar *progress[4];
+    MMArray *id2value;
+    MemBank *frags;
+    int64_t spotId;
+    int64_t primaryId;
+    int64_t secondId;
+    uint64_t alignCount;
 
     unsigned pass;
     bool isColorSpace;
@@ -277,6 +281,31 @@ static void MMArrayLock(MMArray *const self)
 #endif
 }
 
+static void MMArrayClear(MMArray *self)
+{
+    size_t const chunk = MMA_SUBCHUNK_SIZE * self->elemSize;
+    unsigned i;
+
+    for (i = 0; i != sizeof(self->map)/sizeof(self->map[0]); ++i) {
+        unsigned j;
+
+        for (j = 0; j != sizeof(self->map[0].submap)/sizeof(self->map[0].submap[0]); ++j) {
+            if (self->map[i].submap[j].base) {
+#if PROT
+                mprotect(self->map[i].submap[j].base, chunk, PROT_READ|PROT_WRITE);
+#endif
+            	memset(self->map[i].submap[j].base, 0, chunk);
+#if PROT
+                mprotect(self->map[i].submap[j].base, chunk, PROT_NONE);
+#endif
+            }
+        }
+    }
+#if PROT
+    self->current = NULL;
+#endif
+}
+
 static void MMArrayWhack(MMArray *self)
 {
     size_t const chunk = MMA_SUBCHUNK_SIZE * self->elemSize;
@@ -329,7 +358,7 @@ static rc_t OpenKBTree(KBTree **const rslt, unsigned n, unsigned max)
     return rc;
 }
 
-static rc_t GetKeyIDOld(context_t *const ctx, uint64_t *const rslt, bool *const wasInserted, char const key[], char const name[], unsigned const namelen)
+static rc_t GetKeyIDOld(KeyToID *const ctx, uint64_t *const rslt, bool *const wasInserted, char const key[], char const name[], unsigned const namelen)
 {
     unsigned const keylen = strlen(key);
     rc_t rc;
@@ -466,7 +495,7 @@ static size_t GetFixedNameLength(char const name[], size_t const namelen)
 }
 
 static
-rc_t GetKeyID(context_t *const ctx,
+rc_t GetKeyID(KeyToID *const ctx,
               uint64_t *const rslt,
               bool *const wasInserted,
               char const key[],
@@ -624,13 +653,6 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
         fragSize[1] = (G.cache_size / 8);
         fragSize[0] = fragSize[1] * 4;
 
-        rc = KLoadProgressbar_Make(&ctx->progress[0], 0); if (rc) return rc;
-        rc = KLoadProgressbar_Make(&ctx->progress[1], 0); if (rc) return rc;
-        rc = KLoadProgressbar_Make(&ctx->progress[2], 0); if (rc) return rc;
-        rc = KLoadProgressbar_Make(&ctx->progress[3], 0); if (rc) return rc;
-
-        KLoadProgressbar_Append(ctx->progress[0], 100 * numfiles);
-
         rc = TmpfsDirectory(&dir);
         if (rc == 0)
             rc = OpenMMapFile(ctx, dir);
@@ -638,6 +660,24 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
             rc = MemBankMake(&ctx->frags, dir, G.pid, fragSize);
         KDirectoryRelease(dir);
     }
+    else if (G.mode == mode_Remap) {
+        KeyToID const save1 = ctx->keyToID;
+        MMArray *const save2 = ctx->id2value;
+        int64_t const save3 = ctx->spotId;
+
+        memset(ctx, 0, sizeof(*ctx));
+        ctx->keyToID = save1;
+        ctx->id2value = save2;
+        ctx->spotId = save3;
+    }
+
+    rc = KLoadProgressbar_Make(&ctx->progress[0], 0); if (rc) return rc;
+    rc = KLoadProgressbar_Make(&ctx->progress[1], 0); if (rc) return rc;
+    rc = KLoadProgressbar_Make(&ctx->progress[2], 0); if (rc) return rc;
+    rc = KLoadProgressbar_Make(&ctx->progress[3], 0); if (rc) return rc;
+
+    KLoadProgressbar_Append(ctx->progress[0], 100 * numfiles);
+
     return rc;
 }
 
@@ -647,13 +687,16 @@ static void ContextReleaseMemBank(context_t *ctx)
     ctx->frags = NULL;
 }
 
-static void ContextRelease(context_t *ctx)
+static void ContextRelease(context_t *ctx, bool continuing)
 {
     KLoadProgressbar_Release(ctx->progress[0], true);
     KLoadProgressbar_Release(ctx->progress[1], true);
     KLoadProgressbar_Release(ctx->progress[2], true);
     KLoadProgressbar_Release(ctx->progress[3], true);
-    MMArrayWhack(ctx->id2value);
+    if (!continuing)
+        MMArrayWhack(ctx->id2value);
+    else
+        MMArrayClear(ctx->id2value);
 }
 
 static
@@ -1212,15 +1255,15 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
             return rc;
         }
     }
-    if (ctx->key2id_max == 0) {
+    if (ctx->keyToID.key2id_max == 0) {
         uint32_t rgcount;
         unsigned rgi;
         
         BAM_FileGetReadGroupCount(bam, &rgcount);
-        if (rgcount > (sizeof(ctx->key2id)/sizeof(ctx->key2id[0]) - 1))
-            ctx->key2id_max = 1;
+        if (rgcount > (sizeof(ctx->keyToID.key2id)/sizeof(ctx->keyToID.key2id[0]) - 1))
+            ctx->keyToID.key2id_max = 1;
         else
-            ctx->key2id_max = sizeof(ctx->key2id)/sizeof(ctx->key2id[0]);
+            ctx->keyToID.key2id_max = sizeof(ctx->keyToID.key2id)/sizeof(ctx->keyToID.key2id[0]);
 
         for (rgi = 0; rgi != rgcount; ++rgi) {
             BAMReadGroup const *rg;
@@ -1437,7 +1480,7 @@ MIXED_BASE_AND_COLOR:
                 spotGroup[0] = '\0';
         }}
         AR_REF_ORIENT(data) = (flags & BAMFlags_SelfIsReverse) == 0 ? false : true;/*BAM*/
-        isPrimary = (flags & BAMFlags_IsNotPrimary) == 0 ? true : false;/*BAM*/
+        isPrimary = (flags & (BAMFlags_IsNotPrimary|BAMFlags_IsSupplemental)) == 0 ? true : false;/*BAM*/
         if (G.noSecondary && !isPrimary)
             goto LOOP_END;
         originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;/*BAM*/
@@ -1546,7 +1589,7 @@ MIXED_BASE_AND_COLOR:
             assert("this shouldn't happen");
             goto LOOP_END;
         }
-        rc = GetKeyID(ctx, &keyId, &wasInserted, spotGroup, name, namelen);
+        rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
             goto LOOP_END;
@@ -1590,6 +1633,12 @@ MIXED_BASE_AND_COLOR:
             AR_READNO(data) = 1;
 
         if (wasInserted) {
+            if (G.mode == mode_Remap) {
+                (void)PLOGERR(klogErr, (klogErr, rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+                                         "Spot '$(name)' is a new spot, not a remapping",
+                                         "name=%s", name));
+                goto LOOP_END;
+            }
             memset(value, 0, sizeof(*value));
             value->unmated = !mated;
             value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;/*BAM*/
@@ -2049,8 +2098,8 @@ WRITE_ALIGNMENT:
                 ++value->alignmentCount[AR_READNO(data) - 1];
             ++ctx->alignCount;
 
-            assert(keyId >> 32 < ctx->key2id_count);
-            assert((uint32_t)keyId < ctx->idCount[keyId >> 32]);
+            assert(keyId >> 32 < ctx->keyToID.key2id_count);
+            assert((uint32_t)keyId < ctx->keyToID.idCount[keyId >> 32]);
 
             rc = AlignmentWriteRecord(align, &data);
             if (rc == 0) {
@@ -2115,13 +2164,13 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
         (void)LOGERR(klogErr, rc, "KDataBufferMake failed");
         return rc;
     }
-    for (idCount = 0, j = 0; j < ctx->key2id_count; ++j) {
-        idCount += ctx->idCount[j];
+    for (idCount = 0, j = 0; j < ctx->keyToID.key2id_count; ++j) {
+        idCount += ctx->keyToID.idCount[j];
     }
     KLoadProgressbar_Append(ctx->progress[ctx->pass - 1], idCount);
 
-    for (idCount = 0, j = 0; j < ctx->key2id_count; ++j) {
-        for (i = 0; i != ctx->idCount[j]; ++i, ++idCount) {
+    for (idCount = 0, j = 0; j < ctx->keyToID.key2id_count; ++j) {
+        for (i = 0; i != ctx->keyToID.idCount[j]; ++i, ++idCount) {
             uint64_t const keyId = ((uint64_t)j << 32) | i;
             ctx_value_t *value;
             size_t rsize;
@@ -2203,22 +2252,26 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 {
     rc_t rc = 0;
     uint64_t row;
-    ctx_value_t const *value;
     uint64_t keyId;
 
     ++ctx->pass;
     KLoadProgressbar_Append(ctx->progress[ctx->pass - 1], ctx->spotId + 1);
 
     for (row = 1; row <= ctx->spotId; ++row) {
+        ctx_value_t *value;
+
         rc = SequenceReadKey(seq, row, &keyId);
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "Failed to get key for row $(row)", "row=%u", (unsigned)row));
             break;
         }
-        rc = MMArrayGetRead(ctx->id2value, (void const **)&value, keyId);
+        rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "Failed to read info for row $(row), index $(idx)", "row=%u,idx=%u", (unsigned)row, (unsigned)keyId));
             break;
+        }
+        if (G.mode == mode_Remap) {
+            CTX_VALUE_SET_S_ID(*value, row);
         }
         if (row != CTX_VALUE_GET_S_ID(*value)) {
             rc = RC(rcApp, rcTable, rcWriting, rcData, rcUnexpected);
@@ -2256,7 +2309,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
 
     rc = AlignmentStartUpdatingSpotIds(align);
     while (rc == 0 && (rc = Quitting()) == 0) {
-        ctx_value_t const *value;
+        ctx_value_t *value;
 
         rc = AlignmentGetSpotKey(align, &keyId);
         if (rc) {
@@ -2264,9 +2317,9 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
                 rc = 0;
             break;
         }
-        assert(keyId >> 32 < ctx->key2id_count);
-        assert((uint32_t)keyId < ctx->idCount[keyId >> 32]);
-        rc = MMArrayGetRead(ctx->id2value, (void const **)&value, keyId);
+        assert(keyId >> 32 < ctx->keyToID.key2id_count);
+        assert((uint32_t)keyId < ctx->keyToID.idCount[keyId >> 32]);
+        rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
         if (rc == 0) {
             int64_t const spotId = CTX_VALUE_GET_S_ID(*value);
 
@@ -2336,13 +2389,13 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     }
     if (!continuing) {
 /*** No longer need memory for key2id ***/
-        for (i = 0; i != ctx->key2id_count; ++i) {
-            KBTreeDropBacking(ctx->key2id[i]);
-            KBTreeRelease(ctx->key2id[i]);
-            ctx->key2id[i] = NULL;
+        for (i = 0; i != ctx->keyToID.key2id_count; ++i) {
+            KBTreeDropBacking(ctx->keyToID.key2id[i]);
+            KBTreeRelease(ctx->keyToID.key2id[i]);
+            ctx->keyToID.key2id[i] = NULL;
         }
-        free(ctx->key2id_names);
-        ctx->key2id_names = NULL;
+        free(ctx->keyToID.key2id_names);
+        ctx->keyToID.key2id_names = NULL;
 /*******************/
     }
 
@@ -2377,7 +2430,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     SequenceWhack(&seq, rc == 0);
 
-    ContextRelease(ctx);
+    ContextRelease(ctx, continuing);
 
     if (rc == 0) {
         (void)LOGMSG(klogInfo, "Successfully loaded all files");
@@ -2445,6 +2498,7 @@ rc_t run(char const progName[],
     else {
         bool has_alignments = false;
 
+        /* VDBManagerDisableFlushThread(mgr); */
         rc = VDBManagerDisablePagemapThread(mgr);
         if (rc == 0)
         {
@@ -2487,6 +2541,22 @@ rc_t run(char const progName[],
                                 (void)LOGERR(klogWarn, rc2, "Failed to close database");
                             if (rc == 0)
                                 rc = rc2;
+
+                            if (rc == 0 && G.globalMode == mode_Remap && !continuing) {
+                                rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, G.firstOut);
+                                assert(rc == 0);
+                                if (rc == 0) {
+                                    VTable *tbl = NULL;
+                                    rc = VDatabaseOpenTableUpdate(db, &tbl, "SEQUENCE");
+                                    assert(rc == 0);
+                                    if (rc == 0) {
+                                        VTableDropColumn(tbl, "TMP_KEY_ID");
+                                        VTableDropColumn(tbl, "READ");
+                                    }
+                                    VTableRelease(tbl);
+                                }
+                                VDatabaseRelease(db);
+                            }
 
                             if (rc == 0) {
                                 KMetadata *meta = NULL;

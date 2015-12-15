@@ -113,7 +113,6 @@ typedef struct {
     uint8_t  alignmentCount[2]; /* 0..254; 254: saturated max; 255: special meaning "too many" */
     uint8_t  unmated: 1,
              pcr_dup: 1,
-             has_a_read: 1,
              unaligned_1: 1,
              unaligned_2: 1;
 } ctx_value_t;
@@ -135,16 +134,9 @@ typedef struct FragmentInfo {
     uint8_t  cskey;
 } FragmentInfo;
 
-typedef struct context_t {
-    const KLoadProgressbar *progress[4];
+typedef struct KeyToID {
     KBTree *key2id[NUM_ID_SPACES];
     char *key2id_names;
-    MMArray *id2value;
-    MemBank *frags;
-    int64_t spotId;
-    int64_t primaryId;
-    int64_t secondId;
-    uint64_t alignCount;
 
     uint32_t idCount[NUM_ID_SPACES];
     uint32_t key2id_hash[NUM_ID_SPACES];
@@ -158,6 +150,17 @@ typedef struct context_t {
     /* this array is kept in name order */
     /* this maps the names to key2id and idCount */
     unsigned key2id_oid[NUM_ID_SPACES];
+} KeyToID;
+
+typedef struct context_t {
+    KeyToID keyToID;
+    const KLoadProgressbar *progress[4];
+    MMArray *id2value;
+    MemBank *frags;
+    int64_t spotId;
+    int64_t primaryId;
+    int64_t secondId;
+    uint64_t alignCount;
 
     unsigned pass;
     bool isColorSpace;
@@ -278,6 +281,31 @@ static void MMArrayLock(MMArray *const self)
 #endif
 }
 
+static void MMArrayClear(MMArray *self)
+{
+    size_t const chunk = MMA_SUBCHUNK_SIZE * self->elemSize;
+    unsigned i;
+
+    for (i = 0; i != sizeof(self->map)/sizeof(self->map[0]); ++i) {
+        unsigned j;
+
+        for (j = 0; j != sizeof(self->map[0].submap)/sizeof(self->map[0].submap[0]); ++j) {
+            if (self->map[i].submap[j].base) {
+#if PROT
+                mprotect(self->map[i].submap[j].base, chunk, PROT_READ|PROT_WRITE);
+#endif
+            	memset(self->map[i].submap[j].base, 0, chunk);
+#if PROT
+                mprotect(self->map[i].submap[j].base, chunk, PROT_NONE);
+#endif
+            }
+        }
+    }
+#if PROT
+    self->current = NULL;
+#endif
+}
+
 static void MMArrayWhack(MMArray *self)
 {
     size_t const chunk = MMA_SUBCHUNK_SIZE * self->elemSize;
@@ -330,7 +358,7 @@ static rc_t OpenKBTree(KBTree **const rslt, unsigned n, unsigned max)
     return rc;
 }
 
-static rc_t GetKeyIDOld(context_t *const ctx, uint64_t *const rslt, bool *const wasInserted, char const key[], char const name[], unsigned const namelen)
+static rc_t GetKeyIDOld(KeyToID *const ctx, uint64_t *const rslt, bool *const wasInserted, char const key[], char const name[], unsigned const namelen)
 {
     unsigned const keylen = strlen(key);
     rc_t rc;
@@ -467,7 +495,7 @@ static size_t GetFixedNameLength(char const name[], size_t const namelen)
 }
 
 static
-rc_t GetKeyID(context_t *const ctx,
+rc_t GetKeyID(KeyToID *const ctx,
               uint64_t *const rslt,
               bool *const wasInserted,
               char const key[],
@@ -616,7 +644,7 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
 {
     rc_t rc = 0;
 
-    memset(ctx, 0, sizeof(*ctx));
+    // memset(ctx, 0, sizeof(*ctx));
 
     if (G.mode == mode_Archive) {
         KDirectory *dir;
@@ -625,13 +653,6 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
         fragSize[1] = (G.cache_size / 8);
         fragSize[0] = fragSize[1] * 4;
 
-        rc = KLoadProgressbar_Make(&ctx->progress[0], 0); if (rc) return rc;
-        rc = KLoadProgressbar_Make(&ctx->progress[1], 0); if (rc) return rc;
-        rc = KLoadProgressbar_Make(&ctx->progress[2], 0); if (rc) return rc;
-        rc = KLoadProgressbar_Make(&ctx->progress[3], 0); if (rc) return rc;
-
-        KLoadProgressbar_Append(ctx->progress[0], 100 * numfiles);
-
         rc = TmpfsDirectory(&dir);
         if (rc == 0)
             rc = OpenMMapFile(ctx, dir);
@@ -639,6 +660,24 @@ static rc_t SetupContext(context_t *ctx, unsigned numfiles)
             rc = MemBankMake(&ctx->frags, dir, G.pid, fragSize);
         KDirectoryRelease(dir);
     }
+    else if (G.mode == mode_Remap) {
+        KeyToID const save1 = ctx->keyToID;
+        MMArray *const save2 = ctx->id2value;
+        int64_t const save3 = ctx->spotId;
+
+        memset(ctx, 0, sizeof(*ctx));
+        ctx->keyToID = save1;
+        ctx->id2value = save2;
+        ctx->spotId = save3;
+    }
+
+    rc = KLoadProgressbar_Make(&ctx->progress[0], 0); if (rc) return rc;
+    rc = KLoadProgressbar_Make(&ctx->progress[1], 0); if (rc) return rc;
+    rc = KLoadProgressbar_Make(&ctx->progress[2], 0); if (rc) return rc;
+    rc = KLoadProgressbar_Make(&ctx->progress[3], 0); if (rc) return rc;
+
+    KLoadProgressbar_Append(ctx->progress[0], 100 * numfiles);
+
     return rc;
 }
 
@@ -648,13 +687,16 @@ static void ContextReleaseMemBank(context_t *ctx)
     ctx->frags = NULL;
 }
 
-static void ContextRelease(context_t *ctx)
+static void ContextRelease(context_t *ctx, bool continuing)
 {
     KLoadProgressbar_Release(ctx->progress[0], true);
     KLoadProgressbar_Release(ctx->progress[1], true);
     KLoadProgressbar_Release(ctx->progress[2], true);
     KLoadProgressbar_Release(ctx->progress[3], true);
-    MMArrayWhack(ctx->id2value);
+    if (!continuing)
+        MMArrayWhack(ctx->id2value);
+    else
+        MMArrayClear(ctx->id2value);
 }
 
 static
@@ -1213,15 +1255,15 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
             return rc;
         }
     }
-    if (ctx->key2id_max == 0) {
+    if (ctx->keyToID.key2id_max == 0) {
         uint32_t rgcount;
         unsigned rgi;
         
         BAM_FileGetReadGroupCount(bam, &rgcount);
-        if (rgcount > (sizeof(ctx->key2id)/sizeof(ctx->key2id[0]) - 1))
-            ctx->key2id_max = 1;
+        if (rgcount > (sizeof(ctx->keyToID.key2id)/sizeof(ctx->keyToID.key2id[0]) - 1))
+            ctx->keyToID.key2id_max = 1;
         else
-            ctx->key2id_max = sizeof(ctx->key2id)/sizeof(ctx->key2id[0]);
+            ctx->keyToID.key2id_max = sizeof(ctx->keyToID.key2id)/sizeof(ctx->keyToID.key2id[0]);
 
         for (rgi = 0; rgi != rgcount; ++rgi) {
             BAMReadGroup const *rg;
@@ -1438,7 +1480,7 @@ MIXED_BASE_AND_COLOR:
                 spotGroup[0] = '\0';
         }}
         AR_REF_ORIENT(data) = (flags & BAMFlags_SelfIsReverse) == 0 ? false : true;/*BAM*/
-        isPrimary = (flags & BAMFlags_IsNotPrimary) == 0 ? true : false;/*BAM*/
+        isPrimary = (flags & (BAMFlags_IsNotPrimary|BAMFlags_IsSupplemental)) == 0 ? true : false;/*BAM*/
         if (G.noSecondary && !isPrimary)
             goto LOOP_END;
         originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;/*BAM*/
@@ -1547,7 +1589,7 @@ MIXED_BASE_AND_COLOR:
             assert("this shouldn't happen");
             goto LOOP_END;
         }
-        rc = GetKeyID(ctx, &keyId, &wasInserted, spotGroup, name, namelen);
+        rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
             goto LOOP_END;
@@ -1591,6 +1633,12 @@ MIXED_BASE_AND_COLOR:
             AR_READNO(data) = 1;
 
         if (wasInserted) {
+            if (G.mode == mode_Remap) {
+                (void)PLOGERR(klogErr, (klogErr, rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+                                         "Spot '$(name)' is a new spot, not a remapping",
+                                         "name=%s", name));
+                goto LOOP_END;
+            }
             memset(value, 0, sizeof(*value));
             value->unmated = !mated;
             value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;/*BAM*/
@@ -1770,191 +1818,247 @@ MIXED_BASE_AND_COLOR:
                 break;
             }
         }
-        if (mated) {
-            int64_t const spotId = CTX_VALUE_GET_S_ID(*value);
-            uint32_t const fragmentId = value->fragmentId;
-            bool const spotHasBeenWritten = (spotId != 0);
-            bool const spotHasFragmentInfo = (fragmentId != 0);
-            bool const spotIsFirstSeen = (spotHasBeenWritten || spotHasFragmentInfo) ? false : true;
-            
-            if (spotHasBeenWritten) {
-                /* do nothing */
-            }
-            else if (spotIsFirstSeen) {
-                /* start spot assembly */
-                unsigned sz;
-                FragmentInfo fi;
-                int32_t mate_refSeqId = -1;
-                int64_t pnext = 0;
+        if (G.mode == mode_Archive)
+            goto WRITE_SEQUENCE;
+        else
+            goto WRITE_ALIGNMENT;
+        if (0) {
+WRITE_SEQUENCE:
+            if (mated) {
+                int64_t const spotId = CTX_VALUE_GET_S_ID(*value);
+                uint32_t const fragmentId = value->fragmentId;
+                bool const spotHasBeenWritten = (spotId != 0);
+                bool const spotHasFragmentInfo = (fragmentId != 0);
+                bool const spotIsFirstSeen = (spotHasBeenWritten || spotHasFragmentInfo) ? false : true;
                 
-                memset(&fi, 0, sizeof(fi));
-                fi.aligned = aligned;
-                fi.ti = ti;
-                fi.orientation = AR_REF_ORIENT(data);
-                fi.otherReadNo = AR_READNO(data);
-                fi.sglen   = strlen(spotGroup);
-                fi.readlen = readlen;
-                fi.cskey = cskey;
-                fi.is_bad = (flags & BAMFlags_IsLowQuality) != 0;/*BAM*/
-                sz = sizeof(fi) + 2*fi.readlen + fi.sglen;
-                if (align) {
-                    BAM_AlignmentGetMateRefSeqId(rec, &mate_refSeqId);/*BAM*/
-                    BAM_AlignmentGetMatePosition(rec, &pnext);/*BAM*/
+                if (spotHasBeenWritten) {
+                    /* do nothing */
                 }
-                if(align && mate_refSeqId == refSeqId && pnext > 0 && pnext!=rpos /*** weird case in some bams**/){
-                    rc = MemBankAlloc(ctx->frags, &value->fragmentId, sz, 0, false);
-                    fcountBoth++;
-                } else {
-                    rc = MemBankAlloc(ctx->frags, &value->fragmentId, sz, 0, true);
-                    fcountOne++;
-                }
-                if (rc) {
-                    (void)LOGERR(klogErr, rc, "KMemBankAlloc failed");
-                    goto LOOP_END;
-                }
-                /*printf("IN:%10d\tcnt2=%ld\tcnt1=%ld\n",value->fragmentId,fcountBoth,fcountOne);*/
-                
-                rc = KDataBufferResize(&fragBuf, sz);
-                if (rc) {
-                    (void)LOGERR(klogErr, rc, "Failed to resize fragment buffer");
-                    goto LOOP_END;
-                }
-                {{
-                    int const revcmp = (isColorSpace && !aligned) ? 0 : fi.orientation;
-                    uint8_t *dst = (uint8_t*) fragBuf.base;
+                else if (spotIsFirstSeen) {
+                    /* start spot assembly */
+                    unsigned sz;
+                    FragmentInfo fi;
+                    int32_t mate_refSeqId = -1;
+                    int64_t pnext = 0;
                     
-                    if (revcmp) {
-                        QUAL_CHANGED_REVERSED;
-                        SEQ__CHANGED_REV_COMP;
+                    memset(&fi, 0, sizeof(fi));
+                    fi.aligned = aligned;
+                    fi.ti = ti;
+                    fi.orientation = AR_REF_ORIENT(data);
+                    fi.otherReadNo = AR_READNO(data);
+                    fi.sglen   = strlen(spotGroup);
+                    fi.readlen = readlen;
+                    fi.cskey = cskey;
+                    fi.is_bad = (flags & BAMFlags_IsLowQuality) != 0;/*BAM*/
+                    sz = sizeof(fi) + 2*fi.readlen + fi.sglen;
+                    if (align) {
+                        BAM_AlignmentGetMateRefSeqId(rec, &mate_refSeqId);/*BAM*/
+                        BAM_AlignmentGetMatePosition(rec, &pnext);/*BAM*/
                     }
-                    memcpy(dst,&fi,sizeof(fi));
-                    dst += sizeof(fi);
-                    COPY_READ((char *)dst, seqDNA, fi.readlen, revcmp);
-                    dst += fi.readlen;
-                    COPY_QUAL(dst, qual, fi.readlen, revcmp);
-                    dst += fi.readlen;
-                    memcpy(dst,spotGroup,fi.sglen);
-                }}
-                rc = MemBankWrite(ctx->frags, value->fragmentId, 0, fragBuf.base, sz, &rsize);
-                if (rc) {
-                    (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankWrite failed writing fragment $(id)", "id=%u", value->fragmentId));
-                    goto LOOP_END;
-                }
-                value->has_a_read = 1;
-            }
-            else if (spotHasFragmentInfo) {
-                /* continue spot assembly */
-                FragmentInfo *fip;
-                {
-                    size_t size1;
-                    size_t size2;
-                    
-                    rc = MemBankSize(ctx->frags, fragmentId, &size1);
+                    if(align && mate_refSeqId == refSeqId && pnext > 0 && pnext!=rpos /*** weird case in some bams**/){
+                        rc = MemBankAlloc(ctx->frags, &value->fragmentId, sz, 0, false);
+                        fcountBoth++;
+                    } else {
+                        rc = MemBankAlloc(ctx->frags, &value->fragmentId, sz, 0, true);
+                        fcountOne++;
+                    }
                     if (rc) {
-                        (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankSize failed on fragment $(id)", "id=%u", fragmentId));
+                        (void)LOGERR(klogErr, rc, "KMemBankAlloc failed");
                         goto LOOP_END;
                     }
+                    /*printf("IN:%10d\tcnt2=%ld\tcnt1=%ld\n",value->fragmentId,fcountBoth,fcountOne);*/
                     
-                    rc = KDataBufferResize(&fragBuf, size1);
-                    fip = (FragmentInfo *)fragBuf.base;
+                    rc = KDataBufferResize(&fragBuf, sz);
                     if (rc) {
-                        (void)PLOGERR(klogErr, (klogErr, rc, "Failed to resize fragment buffer", ""));
+                        (void)LOGERR(klogErr, rc, "Failed to resize fragment buffer");
                         goto LOOP_END;
                     }
-                    
-                    rc = MemBankRead(ctx->frags, fragmentId, 0, fragBuf.base, size1, &size2);
-                    if (rc) {
-                        (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankRead failed on fragment $(id)", "id=%u", fragmentId));
-                        goto LOOP_END;
-                    }
-                    assert(size1 == size2);
-                }
-                if (AR_READNO(data) == fip->otherReadNo) {
-                    /* is a repeat of the same read; do nothing */
-                }
-                else {
-                    /* mate found; finish spot assembly */
-                    unsigned readLen[2];
-                    unsigned read1 = 0;
-                    unsigned read2 = 1;
-                    uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
-                    
-                    if (AR_READNO(data) < fip->otherReadNo) {
-                        read1 = 1;
-                        read2 = 0;
-                    }
-                    readLen[read1] = fip->readlen;
-                    readLen[read2] = readlen;
-                    rc = SequenceRecordInit(&srec, 2, readLen);
-                    if (rc) {
-                        (void)PLOGERR(klogErr, (klogErr, rc, "Failed resizing sequence record buffer", ""));
-                        goto LOOP_END;
-                    }
-                    srec.ti[read1] = fip->ti;
-                    srec.aligned[read1] = fip->aligned;
-                    srec.is_bad[read1] = fip->is_bad;
-                    srec.orientation[read1] = fip->orientation;
-                    srec.cskey[read1] = fip->cskey;
-                    memcpy(srec.seq + srec.readStart[read1], src, fip->readlen);
-                    src += fip->readlen;
-                    memcpy(srec.qual + srec.readStart[read1], src, fip->readlen);
-                    src += fip->readlen;
-                    
-                    srec.orientation[read2] = AR_REF_ORIENT(data);
-                    {
-                        int const revcmp = (isColorSpace && !aligned) ? 0 : srec.orientation[read2];
+                    {{
+                        int const revcmp = (isColorSpace && !aligned) ? 0 : fi.orientation;
+                        uint8_t *dst = (uint8_t*) fragBuf.base;
                         
                         if (revcmp) {
                             QUAL_CHANGED_REVERSED;
                             SEQ__CHANGED_REV_COMP;
                         }
-                        COPY_READ(srec.seq + srec.readStart[read2], seqDNA, srec.readLen[read2], revcmp);
-                        COPY_QUAL(srec.qual + srec.readStart[read2], qual, srec.readLen[read2],  revcmp);
-                    }
-                    srec.keyId = keyId;
-                    srec.is_bad[read2] = (flags & BAMFlags_IsLowQuality) != 0;
-                    srec.aligned[read2] = aligned;
-                    srec.cskey[read2] = cskey;
-                    srec.ti[read2] = ti;
-                    
-                    srec.spotGroup = spotGroup;
-                    srec.spotGroupLen = strlen(spotGroup);
-                    if (value->pcr_dup && (srec.is_bad[0] || srec.is_bad[1])) {
-                        FLAG_CHANGED_400_AND_200;
-                        filterFlagConflictRecords++;
-                        if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
-                            (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
-                        }
-                        else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
-                            (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
-                        }
-                    }
-                    rc = SequenceWriteRecord(seq, &srec, isColorSpace, value->pcr_dup, value->platform);
+                        memcpy(dst,&fi,sizeof(fi));
+                        dst += sizeof(fi);
+                        COPY_READ((char *)dst, seqDNA, fi.readlen, revcmp);
+                        dst += fi.readlen;
+                        COPY_QUAL(dst, qual, fi.readlen, revcmp);
+                        dst += fi.readlen;
+                        memcpy(dst,spotGroup,fi.sglen);
+                    }}
+                    rc = MemBankWrite(ctx->frags, value->fragmentId, 0, fragBuf.base, sz, &rsize);
                     if (rc) {
-                        (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
+                        (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankWrite failed writing fragment $(id)", "id=%u", value->fragmentId));
                         goto LOOP_END;
                     }
-                    CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
-                    if(fragmentId & 1){
-                        fcountOne--;
-                    } else {
-                        fcountBoth--;
+                }
+                else if (spotHasFragmentInfo) {
+                    /* continue spot assembly */
+                    FragmentInfo *fip;
+                    {
+                        size_t size1;
+                        size_t size2;
+                        
+                        rc = MemBankSize(ctx->frags, fragmentId, &size1);
+                        if (rc) {
+                            (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankSize failed on fragment $(id)", "id=%u", fragmentId));
+                            goto LOOP_END;
+                        }
+                        
+                        rc = KDataBufferResize(&fragBuf, size1);
+                        fip = (FragmentInfo *)fragBuf.base;
+                        if (rc) {
+                            (void)PLOGERR(klogErr, (klogErr, rc, "Failed to resize fragment buffer", ""));
+                            goto LOOP_END;
+                        }
+                        
+                        rc = MemBankRead(ctx->frags, fragmentId, 0, fragBuf.base, size1, &size2);
+                        if (rc) {
+                            (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankRead failed on fragment $(id)", "id=%u", fragmentId));
+                            goto LOOP_END;
+                        }
+                        assert(size1 == size2);
                     }
-                    /*	printf("OUT:%9d\tcnt2=%ld\tcnt1=%ld\n",fragmentId,fcountBoth,fcountOne);*/
-                    rc = MemBankFree(ctx->frags, fragmentId);
-                    if (rc) {
-                        (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankFree failed on fragment $(id)", "id=%u", fragmentId));
-                        goto LOOP_END;
+                    if (AR_READNO(data) == fip->otherReadNo) {
+                        /* is a repeat of the same read; do nothing */
                     }
-                    value->fragmentId = 0;
+                    else {
+                        /* mate found; finish spot assembly */
+                        unsigned readLen[2];
+                        unsigned read1 = 0;
+                        unsigned read2 = 1;
+                        uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
+                        
+                        if (AR_READNO(data) < fip->otherReadNo) {
+                            read1 = 1;
+                            read2 = 0;
+                        }
+                        readLen[read1] = fip->readlen;
+                        readLen[read2] = readlen;
+                        rc = SequenceRecordInit(&srec, 2, readLen);
+                        if (rc) {
+                            (void)PLOGERR(klogErr, (klogErr, rc, "Failed resizing sequence record buffer", ""));
+                            goto LOOP_END;
+                        }
+                        srec.ti[read1] = fip->ti;
+                        srec.aligned[read1] = fip->aligned;
+                        srec.is_bad[read1] = fip->is_bad;
+                        srec.orientation[read1] = fip->orientation;
+                        srec.cskey[read1] = fip->cskey;
+                        memcpy(srec.seq + srec.readStart[read1], src, fip->readlen);
+                        src += fip->readlen;
+                        memcpy(srec.qual + srec.readStart[read1], src, fip->readlen);
+                        src += fip->readlen;
+                        
+                        srec.orientation[read2] = AR_REF_ORIENT(data);
+                        {
+                            int const revcmp = (isColorSpace && !aligned) ? 0 : srec.orientation[read2];
+                            
+                            if (revcmp) {
+                                QUAL_CHANGED_REVERSED;
+                                SEQ__CHANGED_REV_COMP;
+                            }
+                            COPY_READ(srec.seq + srec.readStart[read2], seqDNA, srec.readLen[read2], revcmp);
+                            COPY_QUAL(srec.qual + srec.readStart[read2], qual, srec.readLen[read2],  revcmp);
+                        }
+                        srec.keyId = keyId;
+                        srec.is_bad[read2] = (flags & BAMFlags_IsLowQuality) != 0;
+                        srec.aligned[read2] = aligned;
+                        srec.cskey[read2] = cskey;
+                        srec.ti[read2] = ti;
+                        
+                        srec.spotGroup = spotGroup;
+                        srec.spotGroupLen = strlen(spotGroup);
+                        if (value->pcr_dup && (srec.is_bad[0] || srec.is_bad[1])) {
+                            FLAG_CHANGED_400_AND_200;
+                            filterFlagConflictRecords++;
+                            if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
+                                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
+                            }
+                            else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
+                                (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
+                            }
+                        }
+                        rc = SequenceWriteRecord(seq, &srec, isColorSpace, value->pcr_dup, value->platform);
+                        if (rc) {
+                            (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
+                            goto LOOP_END;
+                        }
+                        CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
+                        if(fragmentId & 1){
+                            fcountOne--;
+                        } else {
+                            fcountBoth--;
+                        }
+                        /*	printf("OUT:%9d\tcnt2=%ld\tcnt1=%ld\n",fragmentId,fcountBoth,fcountOne);*/
+                        rc = MemBankFree(ctx->frags, fragmentId);
+                        if (rc) {
+                            (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankFree failed on fragment $(id)", "id=%u", fragmentId));
+                            goto LOOP_END;
+                        }
+                        value->fragmentId = 0;
+                    }
+                }
+                else {
+                    (void)PLOGMSG(klogErr, (klogErr, "Spot '$(name)' has caused the loader to enter an illogical state", "name=%s", name));
+                    assert("this should never happen");
                 }
             }
-            else {
-                (void)PLOGMSG(klogErr, (klogErr, "Spot '$(name)' has caused the loader to enter an illogical state", "name=%s", name));
-                assert("this should never happen");
+            else if (CTX_VALUE_GET_S_ID(*value) == 0 && (isPrimary || !originally_aligned)) {
+                /* new unmated fragment - no spot assembly */
+                unsigned readLen[1];
+
+                readLen[0] = readlen;
+                rc = SequenceRecordInit(&srec, 1, readLen);
+                if (rc) {
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Failed resizing sequence record buffer", ""));
+                    goto LOOP_END;
+                }
+                srec.ti[0] = ti;
+                srec.aligned[0] = aligned;
+                srec.is_bad[0] = (flags & BAMFlags_IsLowQuality) != 0;
+                srec.orientation[0] = AR_REF_ORIENT(data);
+                srec.cskey[0] = cskey;
+                {
+                    int const revcmp = (isColorSpace && !aligned) ? 0 : srec.orientation[0];
+                    
+                    if (revcmp) {
+                        QUAL_CHANGED_REVERSED;
+                        SEQ__CHANGED_REV_COMP;
+                    }
+                    COPY_READ(srec.seq  + srec.readStart[0], seqDNA, readlen, revcmp);
+                    COPY_QUAL(srec.qual + srec.readStart[0],   qual, readlen, revcmp);
+                }
+
+                srec.keyId = keyId;
+
+                srec.spotGroup = spotGroup;
+                srec.spotGroupLen = strlen(spotGroup);
+                if (value->pcr_dup && srec.is_bad[0]) {
+                    FLAG_CHANGED_400_AND_200;
+                    filterFlagConflictRecords++;
+                    if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
+                        (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
+                    }
+                    else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
+                        (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
+                    }
+                }
+                rc = SequenceWriteRecord(seq, &srec, isColorSpace, value->pcr_dup, value->platform);
+                if (rc) {
+                    (void)PLOGERR(klogErr, (klogErr, rc, "SequenceWriteRecord failed", ""));
+                    goto LOOP_END;
+                }
+                CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
+                value->fragmentId = 0;
             }
-            
-            if (!isPrimary && aligned) {
+        }
+WRITE_ALIGNMENT:
+        if (aligned) {
+            if (mated && !isPrimary) {
                 int32_t bam_mrid;
                 int64_t mpos;
                 int64_t mrid = 0;
@@ -1989,63 +2093,13 @@ MIXED_BASE_AND_COLOR:
                     MATE_INFO_LOST_MISSING;
                 }
             }
-        }
-        else if (CTX_VALUE_GET_S_ID(*value) == 0 && (isPrimary || !originally_aligned)) {
-            /* new unmated fragment - no spot assembly */
-            unsigned readLen[1];
 
-            readLen[0] = readlen;
-            rc = SequenceRecordInit(&srec, 1, readLen);
-            if (rc) {
-                (void)PLOGERR(klogErr, (klogErr, rc, "Failed resizing sequence record buffer", ""));
-                goto LOOP_END;
-            }
-            srec.ti[0] = ti;
-            srec.aligned[0] = aligned;
-            srec.is_bad[0] = (flags & BAMFlags_IsLowQuality) != 0;
-            srec.orientation[0] = AR_REF_ORIENT(data);
-            srec.cskey[0] = cskey;
-            {
-                int const revcmp = (isColorSpace && !aligned) ? 0 : srec.orientation[0];
-                
-                if (revcmp) {
-                    QUAL_CHANGED_REVERSED;
-                    SEQ__CHANGED_REV_COMP;
-                }
-                COPY_READ(srec.seq  + srec.readStart[0], seqDNA, readlen, revcmp);
-                COPY_QUAL(srec.qual + srec.readStart[0],   qual, readlen, revcmp);
-            }
-
-            srec.keyId = keyId;
-
-            srec.spotGroup = spotGroup;
-            srec.spotGroupLen = strlen(spotGroup);
-            if (value->pcr_dup && srec.is_bad[0]) {
-                FLAG_CHANGED_400_AND_200;
-                filterFlagConflictRecords++;
-                if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
-                    (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
-                }
-                else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
-                    (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
-                }
-            }
-            rc = SequenceWriteRecord(seq, &srec, isColorSpace, value->pcr_dup, value->platform);
-            if (rc) {
-                (void)PLOGERR(klogErr, (klogErr, rc, "SequenceWriteRecord failed", ""));
-                goto LOOP_END;
-            }
-            CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
-            value->fragmentId = 0;
-        }
-
-        if (aligned) {
             if (value->alignmentCount[AR_READNO(data) - 1] < 254)
                 ++value->alignmentCount[AR_READNO(data) - 1];
             ++ctx->alignCount;
 
-            assert(keyId >> 32 < ctx->key2id_count);
-            assert((uint32_t)keyId < ctx->idCount[keyId >> 32]);
+            assert(keyId >> 32 < ctx->keyToID.key2id_count);
+            assert((uint32_t)keyId < ctx->keyToID.idCount[keyId >> 32]);
 
             rc = AlignmentWriteRecord(align, &data);
             if (rc == 0) {
@@ -2110,13 +2164,13 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
         (void)LOGERR(klogErr, rc, "KDataBufferMake failed");
         return rc;
     }
-    for (idCount = 0, j = 0; j < ctx->key2id_count; ++j) {
-        idCount += ctx->idCount[j];
+    for (idCount = 0, j = 0; j < ctx->keyToID.key2id_count; ++j) {
+        idCount += ctx->keyToID.idCount[j];
     }
     KLoadProgressbar_Append(ctx->progress[ctx->pass - 1], idCount);
 
-    for (idCount = 0, j = 0; j < ctx->key2id_count; ++j) {
-        for (i = 0; i != ctx->idCount[j]; ++i, ++idCount) {
+    for (idCount = 0, j = 0; j < ctx->keyToID.key2id_count; ++j) {
+        for (i = 0; i != ctx->keyToID.idCount[j]; ++i, ++idCount) {
             uint64_t const keyId = ((uint64_t)j << 32) | i;
             ctx_value_t *value;
             size_t rsize;
@@ -2198,22 +2252,26 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 {
     rc_t rc = 0;
     uint64_t row;
-    ctx_value_t const *value;
     uint64_t keyId;
 
     ++ctx->pass;
     KLoadProgressbar_Append(ctx->progress[ctx->pass - 1], ctx->spotId + 1);
 
     for (row = 1; row <= ctx->spotId; ++row) {
+        ctx_value_t *value;
+
         rc = SequenceReadKey(seq, row, &keyId);
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "Failed to get key for row $(row)", "row=%u", (unsigned)row));
             break;
         }
-        rc = MMArrayGetRead(ctx->id2value, (void const **)&value, keyId);
+        rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "Failed to read info for row $(row), index $(idx)", "row=%u,idx=%u", (unsigned)row, (unsigned)keyId));
             break;
+        }
+        if (G.mode == mode_Remap) {
+            CTX_VALUE_SET_S_ID(*value, row);
         }
         if (row != CTX_VALUE_GET_S_ID(*value)) {
             rc = RC(rcApp, rcTable, rcWriting, rcData, rcUnexpected);
@@ -2251,7 +2309,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
 
     rc = AlignmentStartUpdatingSpotIds(align);
     while (rc == 0 && (rc = Quitting()) == 0) {
-        ctx_value_t const *value;
+        ctx_value_t *value;
 
         rc = AlignmentGetSpotKey(align, &keyId);
         if (rc) {
@@ -2259,9 +2317,9 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
                 rc = 0;
             break;
         }
-        assert(keyId >> 32 < ctx->key2id_count);
-        assert((uint32_t)keyId < ctx->idCount[keyId >> 32]);
-        rc = MMArrayGetRead(ctx->id2value, (void const **)&value, keyId);
+        assert(keyId >> 32 < ctx->keyToID.key2id_count);
+        assert((uint32_t)keyId < ctx->keyToID.idCount[keyId >> 32]);
+        rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
         if (rc == 0) {
             int64_t const spotId = CTX_VALUE_GET_S_ID(*value);
 
@@ -2280,14 +2338,16 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
 static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
                        unsigned bamFiles, char const *bamFile[],
                        unsigned seqFiles, char const *seqFile[],
-                       bool *has_alignments)
+                       bool *has_alignments,
+                       bool continuing)
 {
     rc_t rc = 0;
     rc_t rc2;
     Reference ref;
     Sequence seq;
     Alignment *align;
-    context_t ctx;
+    static context_t Ctx;
+    static context_t *ctx = &Ctx;
     bool has_sequences = false;
     unsigned i;
 
@@ -2306,16 +2366,16 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     SequenceInit(&seq, db);
     align = AlignmentMake(db);
 
-    rc = SetupContext(&ctx, bamFiles + seqFiles);
+    rc = SetupContext(ctx, bamFiles + seqFiles);
     if (rc)
         return rc;
 
-    ++ctx.pass;
+    ctx->pass = 1;
     for (i = 0; i < bamFiles && rc == 0; ++i) {
         bool this_has_alignments = false;
         bool this_has_sequences = false;
 
-        rc = ProcessBAM(bamFile[i], &ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
+        rc = ProcessBAM(bamFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
         *has_alignments |= this_has_alignments;
         has_sequences |= this_has_sequences;
     }
@@ -2323,30 +2383,34 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
         bool this_has_alignments = false;
         bool this_has_sequences = false;
 
-        rc = ProcessBAM(seqFile[i], &ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
+        rc = ProcessBAM(seqFile[i], ctx, db, &ref, &seq, align, &this_has_alignments, &this_has_sequences);
         *has_alignments |= this_has_alignments;
         has_sequences |= this_has_sequences;
     }
+    if (!continuing) {
 /*** No longer need memory for key2id ***/
-    for (i = 0; i != ctx.key2id_count; ++i) {
-        KBTreeDropBacking(ctx.key2id[i]);
-        KBTreeRelease(ctx.key2id[i]);
-        ctx.key2id[i] = NULL;
-    }
-    free(ctx.key2id_names);
-    ctx.key2id_names = NULL;
+        for (i = 0; i != ctx->keyToID.key2id_count; ++i) {
+            KBTreeDropBacking(ctx->keyToID.key2id[i]);
+            KBTreeRelease(ctx->keyToID.key2id[i]);
+            ctx->keyToID.key2id[i] = NULL;
+        }
+        free(ctx->keyToID.key2id_names);
+        ctx->keyToID.key2id_names = NULL;
 /*******************/
+    }
 
     if (has_sequences) {
         if (rc == 0 && (rc = Quitting()) == 0) {
-            (void)LOGMSG(klogInfo, "Writing unpaired sequences");
-            rc = WriteSoloFragments(&ctx, &seq);
-            ContextReleaseMemBank(&ctx);
+            if (G.mode == mode_Archive) {
+                (void)LOGMSG(klogInfo, "Writing unpaired sequences");
+                rc = WriteSoloFragments(ctx, &seq);
+                ContextReleaseMemBank(ctx);
+            }
             if (rc == 0) {
                 rc = SequenceDoneWriting(&seq);
                 if (rc == 0) {
                     (void)LOGMSG(klogInfo, "Updating sequence alignment info");
-                    rc = SequenceUpdateAlignInfo(&ctx, &seq);
+                    rc = SequenceUpdateAlignInfo(ctx, &seq);
                 }
             }
         }
@@ -2354,7 +2418,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     if (*has_alignments && rc == 0 && (rc = Quitting()) == 0) {
         (void)LOGMSG(klogInfo, "Writing alignment spot ids");
-        rc = AlignmentUpdateSpotInfo(&ctx, align);
+        rc = AlignmentUpdateSpotInfo(ctx, align);
     }
     rc2 = AlignmentWhack(align, *has_alignments && rc == 0 && (rc = Quitting()) == 0);
     if (rc == 0)
@@ -2366,7 +2430,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
 
     SequenceWhack(&seq, rc == 0);
 
-    ContextRelease(&ctx);
+    ContextRelease(ctx, continuing);
 
     if (rc == 0) {
         (void)LOGMSG(klogInfo, "Successfully loaded all files");
@@ -2416,9 +2480,11 @@ rc_t ConvertDatabaseToUnmapped(VDatabase *db)
     }
     return rc;
 }
+
 rc_t run(char const progName[],
          unsigned bamFiles, char const *bamFile[],
-         unsigned seqFiles, char const *seqFile[])
+         unsigned seqFiles, char const *seqFile[],
+         bool continuing)
 {
     VDBManager *mgr;
     rc_t rc;
@@ -2432,12 +2498,12 @@ rc_t run(char const progName[],
     else {
         bool has_alignments = false;
 
+        /* VDBManagerDisableFlushThread(mgr); */
         rc = VDBManagerDisablePagemapThread(mgr);
         if (rc == 0)
         {
-
             if (G.onlyVerifyReferences) {
-                rc = ArchiveBAM(mgr, NULL, bamFiles, bamFile, 0, NULL, &has_alignments);
+                rc = ArchiveBAM(mgr, NULL, bamFiles, bamFile, 0, NULL, &has_alignments, continuing);
             }
             else {
                 VSchema *schema;
@@ -2463,7 +2529,7 @@ rc_t run(char const progName[],
                         if (rc == 0)
                             rc = rc2;
                         if (rc == 0) {
-                            rc = ArchiveBAM(mgr, db, bamFiles, bamFile, seqFiles, seqFile, &has_alignments);
+                            rc = ArchiveBAM(mgr, db, bamFiles, bamFile, seqFiles, seqFile, &has_alignments, continuing);
                             if (rc == 0)
                                 PrintChangeReport();
                             if (rc == 0 && !has_alignments) {
@@ -2475,6 +2541,22 @@ rc_t run(char const progName[],
                                 (void)LOGERR(klogWarn, rc2, "Failed to close database");
                             if (rc == 0)
                                 rc = rc2;
+
+                            if (rc == 0 && G.globalMode == mode_Remap && !continuing) {
+                                rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, G.firstOut);
+                                assert(rc == 0);
+                                if (rc == 0) {
+                                    VTable *tbl = NULL;
+                                    rc = VDatabaseOpenTableUpdate(db, &tbl, "SEQUENCE");
+                                    assert(rc == 0);
+                                    if (rc == 0) {
+                                        VTableDropColumn(tbl, "TMP_KEY_ID");
+                                        VTableDropColumn(tbl, "READ");
+                                    }
+                                    VTableRelease(tbl);
+                                }
+                                VDatabaseRelease(db);
+                            }
 
                             if (rc == 0) {
                                 KMetadata *meta = NULL;

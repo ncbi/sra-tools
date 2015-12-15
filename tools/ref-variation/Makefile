@@ -33,7 +33,8 @@ include $(TOP)/build/Makefile.env
 INT_TOOLS =
 
 EXT_TOOLS = \
-	ref-variation
+	ref-variation \
+	var-expand
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -80,6 +81,7 @@ CPFLAGS += -pthread
 
 REF_VARIATION_SRC = \
 	ref-variation \
+	common \
 	helper
 
 REF_VARIATION_OBJ = \
@@ -96,3 +98,29 @@ REF_VARIATION_LIB =   \
 
 $(BINDIR)/ref-variation: $(REF_VARIATION_OBJ)
 	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(REF_VARIATION_LIB)
+
+#-------------------------------------------------------------------------------
+# var-expand
+#
+
+#CPFLAGS += -pthread 
+
+VAR_EXPAND_SRC = \
+	var-expand \
+	common \
+	helper
+
+VAR_EXPAND_OBJ = \
+	$(addsuffix .$(OBJX),$(VAR_EXPAND_SRC))
+
+VAR_EXPAND_LIB =   \
+	-sncbi-ngs-c++    \
+	-sncbi-vdb-static \
+	-sngs-c++         \
+	-skapp            \
+	-sncbi-vdb        \
+	-sm               \
+	-sload
+
+$(BINDIR)/var-expand: $(VAR_EXPAND_OBJ)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(VAR_EXPAND_LIB)

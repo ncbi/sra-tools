@@ -493,7 +493,8 @@ namespace KSearch
     class CVRefVariation
     {
     public:
-        friend CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+        friend CVRefVariation VRefVariationIUPACMake ( uint32_t alg,
+            char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
             size_t var_len_on_ref, size_t bases_start);
 
@@ -504,25 +505,26 @@ namespace KSearch
 
         void Release();
 
-        char const* GetVariation() const;
-        char const* GetQueryForPureDeletion() const;
-        size_t GetVarStartRelative() const; // relative to search region
-        size_t GetVarStartAbsolute() const; // in absolute reference coordinates
-        size_t GetVarSize() const;
-        size_t GetVarLenOnRef() const;
-        bool IsPureDeletion() const;
+        char const* GetSearchQuery() const;
+        size_t GetSearchQueryStartRelative() const;
+        size_t GetSearchQueryStartAbsolute() const;
+        size_t GetSearchQuerySize() const;
+        size_t GetSearchQueryLenOnRef() const;
 
-        void InitQueryForPureDeletion ( char* buf, size_t buf_size ) const;
+        char const* GetAllele( size_t& ret_size ) const;
+        size_t GetAlleleStartRelative() const; // relative to search region
+        size_t GetAlleleStartAbsolute() const; // in absolute reference coordinates
+        size_t GetAlleleSize() const;
+        size_t GetAlleleLenOnRef() const;
 
     private:
         void Clone(CVRefVariation const& x);
         ::VRefVariation* m_pSelf;
         size_t m_bases_start; // the absolute position on the reference
                               // starting at which the search was initiated
-        char m_query_del[3];
     };
 
-    CVRefVariation VRefVariationIUPACMake ( char const* ref, size_t ref_size,
+    CVRefVariation VRefVariationIUPACMake ( uint32_t alg, char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
             size_t var_len_on_ref, size_t bases_start);
 

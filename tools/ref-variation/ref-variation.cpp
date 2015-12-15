@@ -45,9 +45,10 @@
 #include <ngs/ReferenceSequence.hpp>
 
 #include "helper.h"
+#include "common.h"
+#include <search/grep.h>
 
 #define CPP_THREADS 0
-
 
 class CNoMutex // empty class for singlethreaded lock_guard (no actions)
 {
@@ -81,6 +82,8 @@ namespace RefVariation
 #define COUNT_STRAND_NONE_STR           "none"
 #define COUNT_STRAND_COUNTERALIGNED_STR "counteraligned"
 #define COUNT_STRAND_COALIGNED_STR      "coaligned"
+#define PARAM_ALG_SW "sw"
+#define PARAM_ALG_RA "ra"
 
     enum EnumCountStrand
     {
@@ -105,6 +108,7 @@ namespace RefVariation
         EnumCountStrand count_strand;
         uint32_t query_min_rep;
         uint32_t query_max_rep;
+        ::RefVarAlg alg;
     } g_Params =
     {
         "",
@@ -117,7 +121,8 @@ namespace RefVariation
         "",
         COUNT_STRAND_NONE,
         0,
-        0
+        0,
+        ::refvarAlgSW
     };
 
     class CInputRun
@@ -228,16 +233,23 @@ namespace RefVariation
         "\""COUNT_STRAND_COUNTERALIGNED_STR"\" - as in Illumina. "
         "\""COUNT_STRAND_COALIGNED_STR"\" - as in 454 or IonTorrent. ", NULL };
 
+    char const OPTION_ALG[] = "algorithm";
+    //char const ALIAS_ALG[]  = "a";
+    char const* USAGE_ALG[] = { "the algorithm to use for searching. "
+        "\""PARAM_ALG_SW"\" means Smith-Waterman. "
+        "\""PARAM_ALG_RA"\" means Rolling bulldozer algorithm\n", NULL };
+
     ::OptDef Options[] =
     {
-        { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true },
-        { OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true },
-        { OPTION_QUERY,         /*ALIAS_QUERY*/NULL, NULL, USAGE_QUERY,         1, true, true },
-        { OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true },
-        { OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false },
-        { OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false },
-        { OPTION_INPUT_FILE,    ALIAS_INPUT_FILE,    NULL, USAGE_INPUT_FILE,    1, true, false },
-        { OPTION_COUNT_STRAND,  NULL,                NULL, USAGE_COUNT_STRAND,  1, true, false }
+        { OPTION_REFERENCE_ACC, ALIAS_REFERENCE_ACC, NULL, USAGE_REFERENCE_ACC, 1, true, true }
+        ,{ OPTION_REF_POS,       ALIAS_REF_POS,       NULL, USAGE_REF_POS,       1, true, true }
+        ,{ OPTION_QUERY,         /*ALIAS_QUERY*/NULL, NULL, USAGE_QUERY,         1, true, true }
+        ,{ OPTION_VAR_LEN_ON_REF,ALIAS_VAR_LEN_ON_REF,NULL, USAGE_VAR_LEN_ON_REF,1, true, true }
+        ,{ OPTION_THREADS,       ALIAS_THREADS,       NULL, USAGE_THREADS,       1, true, false }
+        ,{ OPTION_COVERAGE,      ALIAS_COVERAGE,      NULL, USAGE_COVERAGE,      1, false,false }
+        ,{ OPTION_INPUT_FILE,    ALIAS_INPUT_FILE,    NULL, USAGE_INPUT_FILE,    1, true, false }
+        ,{ OPTION_COUNT_STRAND,  NULL,                NULL, USAGE_COUNT_STRAND,  1, true, false }
+        ,{ OPTION_ALG,           NULL,                NULL, USAGE_ALG,           1, true, false }
 #if SECRET_OPTION != 0
         ,{ OPTION_SECRET,        NULL,                NULL, USAGE_SECRET,        1, true, false }
 #endif
@@ -493,7 +505,7 @@ namespace RefVariation
                 return PILEUP_DEFINITELY_NOT_FOUND;
             }
 
-            int64_t indel_cnt = (int64_t)obj.GetVarSize() - (int64_t)obj.GetVarLenOnRef();
+            int64_t indel_cnt = (int64_t)obj.GetAlleleSize() - (int64_t)obj.GetAlleleLenOnRef();
             //int64_t indel_check_cnt = indel_cnt > 0 ? indel_cnt : -indel_cnt;
             size_t alignments_total = (size_t)((uint32_t)-1);
 
@@ -557,10 +569,13 @@ namespace RefVariation
                     count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], mismatch, sizeof mismatch );
                     assert ( count == 0 || count == 4 );
 
+                    size_t allele_size;
+                    char const* allele = obj.GetAllele(allele_size);
+                    assert (count == 0 || pos - ref_pos < allele_size );
                     size_t alignments_matched = count == 0 ? 0 :
-                        mismatch [base2na_to_index(obj.GetVariation()[pos - ref_pos])];
+                        mismatch [base2na_to_index(allele[pos - ref_pos])];
 
-                    if ( obj.GetVarLenOnRef() == 1 && obj.GetVarSize() == 1 )
+                    if ( obj.GetAlleleLenOnRef() == 1 && obj.GetAlleleSize() == 1 )
                     {
                         update_run_coverage ( acc, alignments_total, 0, alignments_matched, 0, lock_cout, pcoverage_count, index );
                         return alignments_matched == 0 ?
@@ -765,12 +780,12 @@ namespace RefVariation
                 if ( ref_pos_range == (uint64_t)-1 ) // effectively, checking that read doesn't start past ref_start
                     continue;
 
-                int64_t align_pos = (int64_t)( ref_pos_range >> 32);
+                int64_t align_pos_first = (int64_t)( ref_pos_range >> 32);
+                int64_t align_pos_count = ref_pos_range & 0xFFFFFFFF;
 
                 // checking that read doesn't end before ref slice ends
-                if ( (int64_t) ai.getAlignmentLength() - align_pos < (int64_t)slice_size )
+                if ( (int64_t) ai.getAlignmentLength() - align_pos_first < (int64_t)slice_size )
                     continue;
-
 
                 ngs::StringRef bases = ai.getAlignedFragmentBases ();
 
@@ -785,37 +800,49 @@ namespace RefVariation
 
                 char const* bases_data = bases.data();
                 size_t bases_size = bases.size();
-                bool match = bases_size + align_pos >= var_size && strncmp (variation, bases_data + align_pos, var_size) == 0;
-                if ( match && pattern != NULL )
-                {
-                    char const* align_suffix = bases_data + align_pos + var_size;
-                    size_t align_suffix_size = bases_size - (align_pos + var_size);
 
-                    size_t min_size = align_suffix_size < pattern_len ? align_suffix_size : pattern_len;
-                    match = strncmp ( pattern, align_suffix, min_size ) != 0;
-                }
-                if ( match )
+                // trying all possible starting positions in
+                // the case when single reference position
+                // can have multiple alignment projections
+                for (int64_t i = 0; i < align_pos_count; ++i)
                 {
-                    ++ alignments_matched;
-                    if ( ! g_Params.calc_coverage )
-                        break; // -c option is for speed-up, so we sacrifice verbose output
-                    if (is_negative)
-                        ++ alignments_matched_negative;
-                }
-                if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
-                {
-                    LOCK_GUARD l(*lock_cout);
-                    PLOGMSG ( klogInfo,
-                        ( klogInfo,
-                        "[$(THREAD_NUM)] id=$(ID): $(BASES)$(MATCH)",
-                        "THREAD_NUM=%zu,ID=%s,BASES=%s,MATCH=%s",
-                        thread_num, ai.getAlignmentId().data(),
-                        bases.toString ( align_pos, var_size ).c_str(),
-                        match ? " MATCH!" : ""
-                        ));
+                    int64_t align_pos = align_pos_first + i;
+
+                    bool match = bases_size + align_pos >= var_size && strncmp (variation, bases_data + align_pos, var_size) == 0;
+                    if ( match && pattern != NULL )
+                    {
+                        char const* align_suffix = bases_data + align_pos + var_size;
+                        size_t align_suffix_size = bases_size - (align_pos + var_size);
+
+                        size_t min_size = align_suffix_size < pattern_len ? align_suffix_size : pattern_len;
+                        match = strncmp ( pattern, align_suffix, min_size ) != 0;
+                    }
+                    if ( match )
+                    {
+                        ++ alignments_matched;
+                        if ( ! g_Params.calc_coverage )
+                            goto BREAK_ALIGNMENT_ITER; // -c option is for speed-up, so we sacrifice verbose output
+                        if (is_negative)
+                            ++ alignments_matched_negative;
+                    }
+                    if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+                    {
+                        LOCK_GUARD l(*lock_cout);
+                        PLOGMSG ( klogInfo,
+                            ( klogInfo,
+                            "[$(THREAD_NUM)] id=$(ID): $(BASES)$(MATCH)",
+                            "THREAD_NUM=%zu,ID=%s,BASES=%s,MATCH=%s",
+                            thread_num, ai.getAlignmentId().data(),
+                            bases.toString ( align_pos, var_size ).c_str(),
+                            match ? " MATCH!" : ""
+                            ));
+                    }
+                    if ( match )
+                        break;
                 }
             }
 
+BREAK_ALIGNMENT_ITER:
             update_run_coverage ( acc,
                 alignments_total, alignments_total - alignments_total_negative,
                 alignments_matched, alignments_matched - alignments_matched_negative,
@@ -845,20 +872,10 @@ namespace RefVariation
         char const* variation;
         size_t query_len_on_ref, var_start, var_size;
 
-        if (pobj->IsPureDeletion())
-        {
-            variation = pobj->GetQueryForPureDeletion();
-            var_size = strlen (variation);
-            query_len_on_ref = var_size;
-            var_start = pobj->GetVarStartAbsolute() - 1;
-        }
-        else
-        {
-            variation = pobj->GetVariation();
-            var_size = pobj->GetVarSize();
-            query_len_on_ref = pobj->GetVarLenOnRef();
-            var_start = pobj->GetVarStartAbsolute();
-        }
+        variation = pobj->GetSearchQuery();
+        var_size = pobj->GetSearchQuerySize();
+        query_len_on_ref = pobj->GetSearchQueryLenOnRef();
+        var_start = pobj->GetSearchQueryStartAbsolute();
 
         int res = find_alignment_in_pileup_db ( acc, pileup_path, ref_name,
             pobj, var_start, query_len_on_ref, lock_cout, thread_num, pcoverage_count, index );
@@ -1037,35 +1054,6 @@ namespace RefVariation
     }
 #endif
 
-    bool find_variation_core_step (KSearch::CVRefVariation& obj,
-        char const* ref_slice, size_t ref_slice_size,
-        size_t& ref_pos_in_slice,
-        char const* var, size_t var_len, size_t var_len_on_ref,
-        size_t chunk_size, size_t chunk_no_last,
-        size_t& bases_start, size_t& chunk_no_start, size_t& chunk_no_end)
-    {
-        bool cont = false;
-        obj = KSearch::VRefVariationIUPACMake (
-            ref_slice, ref_slice_size,
-            ref_pos_in_slice, var, var_len, var_len_on_ref, bases_start );
-
-        if ( obj.GetVarStartRelative() == 0 && chunk_no_start > 0 )
-        {
-            cont = true;
-            --chunk_no_start;
-            ref_pos_in_slice += chunk_size;
-            bases_start -= chunk_size;
-        }
-        if (obj.GetVarStartRelative() + obj.GetVarLenOnRef() == ref_slice_size &&
-            chunk_no_end < chunk_no_last )
-        {
-            cont = true;
-            ++chunk_no_end;
-        }
-
-        return cont;
-    }
-
     void finish_find_variation_region ( KApp::CArgs const & args,
         std::vector <KSearch::CVRefVariation> const& vec_obj,
         KApp::CProgressBar& progress_bar )
@@ -1182,18 +1170,18 @@ namespace RefVariation
     {
         if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
         {
-            size_t ref_start = obj.GetVarStartAbsolute();
-            size_t ref_len = obj.GetVarLenOnRef();
+            size_t ref_start = obj.GetAlleleStartAbsolute();
+            size_t ref_len = obj.GetAlleleLenOnRef();
             PLOGMSG ( klogInfo,
                 ( klogInfo,
                 "Found indel box at pos=$(REFSTART), length=$(REFLEN)",
                 "REFSTART=%zu,REFLEN=%zu", ref_start, ref_len
                 ));
-            print_indel ( "reference", ref_slice, ref_slice_size, obj.GetVarStartRelative(), ref_len );
+            print_indel ( "reference", ref_slice, ref_slice_size, obj.GetAlleleStartRelative(), ref_len );
 
             PLOGMSG ( klogInfo,
                 ( klogInfo,
-                "var_query=$(VARIATION)", "VARIATION=%s", obj.GetVariation()
+                "var_query=$(VARIATION)", "VARIATION=%s", obj.GetSearchQuery()
                 ));
         }
 
@@ -1207,12 +1195,14 @@ namespace RefVariation
                 g_Params.var_len_on_ref, query_len, query
                 ));
 
+            size_t allele_size;
+            char const* allele = obj.GetAllele ( allele_size );
             PLOGMSG ( klogWarn,
                 ( klogWarn,
-                "Adjusted variation spec: $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(QUERY)",
-                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,QUERY=%s",
-                g_Params.ref_acc, obj.GetVarStartAbsolute(),
-                obj.GetVarLenOnRef(), obj.GetVariation()
+                "Adjusted variation spec: $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(ALLELE)",
+                "REFACC=%s,REFPOSVAR=%ld,VARLENONREF=%lu,ALLELE=%.*s",
+                g_Params.ref_acc, obj.GetAlleleStartAbsolute(),
+                obj.GetAlleleLenOnRef(), (int)allele_size, allele
                 ));
         }
     }
@@ -1243,7 +1233,7 @@ namespace RefVariation
                     (int)g_Params.var_len_on_ref, ref_chunk.data() + ref_pos_in_slice );
             }
             
-            cont = find_variation_core_step ( obj,
+            cont = Common::find_variation_core_step ( obj,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
                 query, var_len, g_Params.var_len_on_ref,
                 chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -1263,7 +1253,7 @@ namespace RefVariation
                 ref_slice = ref_seq.getReferenceBases (
                     bases_start, (chunk_no_end - chunk_no_start + 1)*chunk_size );
 
-                cont = find_variation_core_step ( obj,
+                cont = Common::find_variation_core_step ( obj,
                     ref_slice.c_str(), ref_slice.size(), ref_pos_in_slice,
                     query, var_len, g_Params.var_len_on_ref,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -1285,7 +1275,7 @@ namespace RefVariation
             for (; i_first_var < count; ++i_first_var)
             {
                 KSearch::CVRefVariation const& cur = vec_obj [i_first_var];
-                if ( cur.GetVarLenOnRef() != cur.GetVarSize() )
+                if ( cur.GetAlleleLenOnRef() != cur.GetAlleleSize() )
                     break;
             }
 
@@ -1297,16 +1287,20 @@ namespace RefVariation
 
                 // exception: if var_len_on_ref == var_size - skip
                 // this is probably the exact reference
-                if ( cur.GetVarLenOnRef() != cur.GetVarSize() )
+                if ( cur.GetAlleleLenOnRef() != cur.GetAlleleSize() )
                 {
-                    if ( first.GetVarStartAbsolute() != cur.GetVarStartAbsolute()
-                        || first.GetVarLenOnRef() != cur.GetVarLenOnRef() )
+                    if ( first.GetAlleleStartAbsolute() != cur.GetAlleleStartAbsolute()
+                        || first.GetAlleleLenOnRef() != cur.GetAlleleLenOnRef() )
                     {
+                        size_t allele_size_first, allele_size_cur;
+                        char const* allele_first = first.GetAllele ( allele_size_first );
+                        char const* allele_cur = cur.GetAllele ( allele_size_cur );
+
                         PLOGMSG( klogWarn, (klogWarn,
-                            "Inconsistent variations found: (start=$(STARTFIRST), len=$(LENFIRST), variation=$(VARFIRST)) vs (start=$(STARTCUR), len=$(LENCUR), variation=$(VARCUR))",
-                            "STARTFIRST=%zu,LENFIRST=%zu,VARFIRST=%s,STARTCUR=%zu,LENCUR=%zu,VARCUR=%s",
-                            first.GetVarStartAbsolute(), first.GetVarLenOnRef(), first.GetVariation(),
-                            cur.GetVarStartAbsolute(), cur.GetVarLenOnRef(), cur.GetVariation()
+                            "Inconsistent variations found: (start=$(STARTFIRST), len=$(LENFIRST), allele=$(ALLELEFIRST)) vs (start=$(STARTCUR), len=$(LENCUR), allele=$(ALLELECUR))",
+                            "STARTFIRST=%zu,LENFIRST=%zu,ALLELEFIRST=%.*s,STARTCUR=%zu,LENCUR=%zu,ALLELECUR=%.*s",
+                            first.GetAlleleStartAbsolute(), first.GetAlleleLenOnRef(), (int)allele_size_first, allele_first,
+                            cur.GetAlleleStartAbsolute(), cur.GetAlleleLenOnRef(), (int)allele_size_cur, allele_cur
                             ));
                         //throw Utils::CErrorMsg (
                         //    "Inconsistent variations found: (start=%zu, len=%zu, variation=%s) vs (start=%zu, len=%zu, variation=%s)",
@@ -1790,6 +1784,21 @@ namespace RefVariation
                 }
             }
 
+            if (args.GetOptionCount (OPTION_ALG) == 1)
+            {
+                char const* alg = args.GetOptionValue ( OPTION_ALG, 0 );
+                if (!strcmp(alg, PARAM_ALG_SW))
+                    g_Params.alg = ::refvarAlgSW;
+                else if (!strcmp(alg, PARAM_ALG_RA))
+                    g_Params.alg = ::refvarAlgRA;
+                else
+                {
+                    PLOGMSG ( klogErr, ( klogErr,
+                        "Error: Unknown algorithm specified: \"$(ALG)\"", "ALG=%s", alg ));
+                    return 3;
+                }
+            }
+
 #if SECRET_OPTION != 0
             if ( args.GetOptionCount (OPTION_SECRET) > 0 )
             {
@@ -2023,6 +2032,7 @@ extern "C"
         HelpOptionLine (RefVariation::ALIAS_COVERAGE, RefVariation::OPTION_COVERAGE, "", RefVariation::USAGE_COVERAGE);
         HelpOptionLine (RefVariation::ALIAS_INPUT_FILE, RefVariation::OPTION_INPUT_FILE, "string", RefVariation::USAGE_INPUT_FILE);
         HelpOptionLine (NULL, RefVariation::OPTION_COUNT_STRAND, "value", RefVariation::USAGE_COUNT_STRAND);
+        HelpOptionLine (NULL, RefVariation::OPTION_ALG, "value", RefVariation::USAGE_ALG);
         //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
 #if SECRET_OPTION != 0
         HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);
@@ -2052,14 +2062,14 @@ extern "C"
        -r NC_000002.11 -p 73613071 --query "C" -l 1
        -vv -t 16 -r NC_000007.13 -p 117292900 --query "-" -l 4          
 
-       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query '-' -l 3 /netmnt/traces04/sra33/SRZ/000867/SRR867061/SRR867061.pileup /netmnt/traces04/sra33/SRZ/000867/SRR867131/SRR867131.pileup
+       -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 /netmnt/traces04/sra33/SRZ/000867/SRR867061/SRR867061.pileup /netmnt/traces04/sra33/SRZ/000867/SRR867131/SRR867131.pileup
        -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR867061.pileup ..\..\..\tools\ref-variation\SRR867131.pileup
 
-       -vvv -c --count-strand counteraligned -t 16 -r NC_000002.11 -p 73613067 --query '-' -l 3 SRR867061 SRR867131
+       -vvv -c --count-strand counteraligned -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 SRR867061 SRR867131
 
        old problem cases (didn't stop) - now OK:
-       -v -c -r CM000671.1 -p 136131022 --query 'T' -l 1 SRR1601768
-       -v -c -r NC_000001.11 -p 136131022 --query 'T' -l 1 SRR1601768
+       -v -c -r CM000671.1 -p 136131022 --query "T" -l 1 SRR1601768
+       -v -c -r NC_000001.11 -p 136131022 --query "T" -l 1 SRR1601768
 
        NEW problebm - FIXED:
        -t 16 -v -c -r CM000671.1 -p 136131021 --query "T" -l 1 SRR1596639
@@ -2080,6 +2090,10 @@ extern "C"
 
        NEW problem - FIXED
        -r NC_000020.10 -p 137534 -l 2 --query - -v
+
+       NEW problem - FIXED
+       -c -r CM000663.1 -p 123452 -l 7 --query "GGGAGAAAT" -vv -L info
+       expanded variation has smaller window (6) but the variation returned is still of length 7
 
        */
 

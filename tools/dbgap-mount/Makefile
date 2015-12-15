@@ -125,6 +125,7 @@ demo_tag:
 #  test program for new XFS toy
 #
 ZDB_TOOL_SRC = \
+    wrap    \
 	mount-tool
 
 ZDB_TOOL_OBJ = \

@@ -26,12 +26,10 @@
 
 #include "mount-tool.vers.h" /* VDB_PASSWD_VERS */
 
-#include <sysalloc.h>
 #include <kapp/main.h> /* KMain */
 #include <kapp/args.h> /* KMain */
 
 #include <klib/text.h>
-#include <klib/log.h> /* LOGERR */
 #include <klib/out.h> /* OUTMSG */
 #include <klib/refcount.h>
 #include <klib/rc.h>
@@ -43,42 +41,15 @@
 #include <xfs/node.h>
 #include <xfs/tree.h>
 #include <xfs/xfs.h>
+#include <xfs/xlog.h>
 
+#include "mount-tool.h"
+
+#include <sysalloc.h>
 #include <stdio.h>
 #include <string.h>
 
-#ifdef WINDOWS
-
-#include <windows.h>    /* Sleep () */
-
-#else
-
-#include <unistd.h>     /* sleep () */
-
-#endif /* WINDOWS */
-
 /******************************************************************************/
-
-/*)))
-  \\\   Argumends ... raznye
-  (((*/
-#define OPT_DAEMONIZE   "daemonize"
-#define ALS_DAEMONIZE   "d"
-#define PRM_DAEMONIZE   NULL
-static const char * UsgDaemonize [] = { "Run tool as a daemon", NULL };
-
-#define OPT_LOGFILE     "log-file"
-#define ALS_LOGFILE     "l"
-#define PRM_LOGFILE     "log-file-path"
-static const char * UsgLogFile []   = { "Log file", NULL };
-
-#define OPT_UNMOUNT     "unmount"
-#define ALS_UNMOUNT     "u"
-#define PRM_UNMOUNT     "mount-point"
-static const char * UsgUnmount []   = { "Unmount", NULL };
-
-#define PARAM_RO        "ro"
-#define PARAM_RW        "rw"
 
 /*)))
   \\\   Celebrity is here ...
@@ -165,31 +136,31 @@ DoFukan (
 
         /*  Some messages good to say
          */
-    LogMsg ( klogInfo, "Start\n" );
-    pLogMsg ( klogInfo, "ProjectID: $(var)\n", "var=%s", ProjectId );
-    pLogMsg ( klogInfo, "MountPoint: $(var)\n", "var=%s", MountPoint );
+    XFSLogMsg ( "Start\n" );
+    XFSLogMsg ( "ProjectID: %s\n", ProjectId );
+    XFSLogMsg ( "MountPoint: %s\n", MountPoint );
     if ( LogFile != NULL ) {
-        pLogMsg ( klogInfo, "LogFile: $(var)\n", "var=%s", LogFile );
+        XFSLogMsg ( "LogFile: %s\n", LogFile );
     }
-    pLogMsg ( klogInfo, "ReadOnly: $(var)\n", "var=%s", ( ReadOnly ? "true" : "false" ) );
-    pLogMsg ( klogInfo, "Daemonize: $(var)\n", "var=%s", ( Daemonize ? "true" : "false" ) );
+    XFSLogMsg ( "ReadOnly: %s\n", ( ReadOnly ? "true" : "false" ) );
+    XFSLogMsg ( "Daemonize: %s\n", ( Daemonize ? "true" : "false" ) );
 
         /*  Initializing all depots and heavy gunz
          */
     RCt = XFS_InitAll_MHR ( NULL );
-    pLogMsg ( klogDebug, "[XFS_InitAll_MHR][RC=$(var)]\n", "var=%d", RCt );
+    XFSLogDbg ( "[XFS_InitAll_MHR][RC=%s]\n", RCt );
     if ( RCt == 0 ) {
 
         RCt = MakeModel ( & TheModel, ProjectId, ReadOnly );
-        pLogMsg ( klogDebug, "[XFSModelMake][RC=$(var)]\n", "var=%d", RCt );
+        XFSLogDbg ( "[XFSModelMake][RC=%s]\n", RCt );
         if ( RCt == 0 ) {
 
             RCt = XFSTreeMake ( TheModel, & TheTree );
-            pLogMsg ( klogDebug, "[XFSTreeMake][RC=$(var)]\n", "var=%d", RCt );
+            XFSLogDbg ( "[XFSTreeMake][RC=%s]\n", RCt );
             if ( RCt == 0 ) {
 
                 RCt = XFSControlMake ( TheTree, & TheControl );
-                pLogMsg ( klogDebug, "[XFSControlMake][RC=$(var)]\n", "var=%d", RCt );
+                XFSLogDbg ( "[XFSControlMake][RC=%s]\n", RCt );
                 if ( RCt == 0 ) {
 
                     XFSControlSetMountPoint ( TheControl, MountPoint );
@@ -201,17 +172,16 @@ DoFukan (
                         XFSControlDaemonize ( TheControl );
                     }
 
-                    LogMsg ( klogDebug, "[XFSStart]\n" );
+                    XFSLogDbg ( "[XFSStart]\n" );
                     RCt = XFSStart ( TheControl );
-                    pLogMsg ( klogDebug, "[XFSStart][RC=$(var)]\n", "var=%d", RCt );
-
+                    XFSLogDbg ( "[XFSStart][RC=%s]\n", RCt );
                     if ( RCt == 0 ) {
-                        LogMsg ( klogDebug, "[XFSStop]\n" );
+                        XFSLogDbg ( "[XFSStop]\n" );
                         RCt = XFSStop ( TheControl );
-                        pLogMsg ( klogDebug, "[XFSStop][RC=$(var)]\n", "var=%d", RCt );
+                        XFSLogDbg ( "[XFSStop][RC=%s]\n", RCt );
                     }
                     else {
-                        printf ( "Can not start FUSE\n" );
+                        XFSLogErr ( RCt, "CRITICAL ERROR: Can not start FUSE\n" );
                     }
                 }
 
@@ -229,7 +199,7 @@ DoFukan (
 
         /*  Another message good to say
          */
-    LogMsg ( klogInfo, "Stop\n" );
+    XFSLogDbg ( "[Exiting]\n" );
 
     return RCt;
 }   /* DoFukan () */
@@ -395,6 +365,8 @@ RunApp ( struct Args * TheArgs )
 
     XFS_CAN ( TheArgs )
 
+
+
         /*  First we are checking parameters
          */
     RCt = CheckParameters (
@@ -403,6 +375,7 @@ RunApp ( struct Args * TheArgs )
                         & MountPoint,
                         & ReadOnly
                         );
+
     if ( RCt == 0 ) {
             /*  Second we are checking Arguments
              */
@@ -436,7 +409,7 @@ DoUnmount ( const char * MountPoint )
 
     XFS_CAN ( MountPoint )
 
-    pLogMsg ( klogDebug, "Unmount [$(var)]\n", "var=%s", MountPoint );
+    XFSLogDbg ( "[DoUnmount] [%s]\n", MountPoint );
 
     XFSUnmountAndDestroy ( MountPoint );
 
@@ -566,7 +539,7 @@ KMain ( int ArgC, char * ArgV [] )
                             ( const void ** ) & MountPoint
                             );
         if ( RCt != 0 ) {
-            RCt = RunApp ( TheArgs );
+            RCt = WrapIt ( TheArgs, RunApp );
         }
         else {
             RCt = DoUnmount ( MountPoint );

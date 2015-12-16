@@ -35,7 +35,6 @@
 
 #include <vdb/vdb-priv.h>
 #include <klib/rc.h>
-#include <search/grep.h>
 
 #include <kdb/table.h>
 #include <kproc/thread.h>
@@ -1077,37 +1076,11 @@ namespace Utils
 
 namespace KSearch
 {
-#if 0 // turning off old code
-    void FindRefVariationRegionAscii (
-            char const* ref, size_t ref_size, size_t ref_pos_var,
-            char const* variation, size_t variation_size, size_t var_len_on_ref,
-            size_t* p_ref_start, size_t* p_ref_len
-        )
-    {
-        rc_t rc = ::FindRefVariationRegionIUPAC ( ref, ref_size, ref_pos_var,
-            variation, variation_size, var_len_on_ref, p_ref_start, p_ref_len );
-            
-        if (rc)
-            throw Utils::CErrorMsg(rc, "FindRefVariationRegionAscii");
-    }
-
-    // TODO: use pointers for return parameters, parameters returned by pointers should be
-    // in the beginning
-    void FindRefVariationRegionAscii (
-            std::string const& ref, size_t ref_pos_var,
-            char const* variation, size_t variation_size, size_t var_len_on_ref,
-            size_t& ref_start, size_t& ref_len
-        )
-    {
-        FindRefVariationRegionAscii ( ref.c_str(), ref.size(), ref_pos_var,
-            variation, variation_size, var_len_on_ref, & ref_start, & ref_len );
-    }
-#endif
-
 ////////////////////////////////////////////////
 
-    CVRefVariation::CVRefVariation() : m_pSelf(NULL)
+    CVRefVariation::CVRefVariation()
     {
+        ClearMembers();
     }
 
     CVRefVariation::~CVRefVariation()
@@ -1129,6 +1102,20 @@ namespace KSearch
         return *this;
     }
 
+    void CVRefVariation::ClearMembers()
+    {
+        m_pSelf             = NULL;
+        m_bases_start       = KSearch::UNINITIALIZED_POSITION;
+        m_allele            = NULL;
+        m_query             = NULL;
+        m_allele_len        = KSearch::UNINITIALIZED_POSITION;
+        m_allele_len_on_ref = KSearch::UNINITIALIZED_POSITION;
+        m_query_len         = KSearch::UNINITIALIZED_POSITION;
+        m_query_len_on_ref  = KSearch::UNINITIALIZED_POSITION;
+        m_allele_start      = KSearch::UNINITIALIZED_POSITION;
+        m_query_start       = KSearch::UNINITIALIZED_POSITION;
+    }
+
     void CVRefVariation::Release()
     {
         if (m_pSelf)
@@ -1136,16 +1123,25 @@ namespace KSearch
 #if DEBUG_PRINT != 0
             printf("Releasing VRefVariation %p\n", m_pSelf);
 #endif
-            ::VRefVariationIUPACRelease(m_pSelf);
-            m_pSelf = NULL;
+            ::RefVariationRelease(m_pSelf); // don't throw an exception since this function is called in the destructor
+            ClearMembers();
         }
     }
 
     void CVRefVariation::Clone(CVRefVariation const& x)
     {
         m_pSelf = x.m_pSelf;
-        ::VRefVariationIUPACAddRef ( m_pSelf );
+        ::RefVariationAddRef ( m_pSelf ); // TODO: maybe we have to check rc and throw here
         m_bases_start = x.m_bases_start;
+
+        m_allele            = x.m_allele;
+        m_query             = x.m_query;
+        m_allele_len        = x.m_allele_len;
+        m_allele_len_on_ref = x.m_allele_len_on_ref;
+        m_query_len         = x.m_query_len;
+        m_query_len_on_ref  = x.m_query_len_on_ref;
+        m_allele_start      = x.m_allele_start;
+        m_query_start       = x.m_query_start;
 
 #if DEBUG_PRINT != 0
         printf ("CLONING VRefVariation %p\n", m_pSelf);
@@ -1154,87 +1150,143 @@ namespace KSearch
     char const* CVRefVariation::GetSearchQuery() const
     {
         if ( m_pSelf == NULL )
-            return "";
-        char const* ret = ::VRefVariationIUPACGetSearchQuery ( m_pSelf );
-        return ret == NULL ? "" : ret;
+            throw Utils::CErrorMsg("GetSearchQuery on uninitialized RefVariation");
+        
+        if ( m_query == NULL )
+        {
+            rc_t rc = ::RefVariationGetIUPACSearchQuery ( m_pSelf, & m_query, & m_query_len, & m_query_start );
+            if (rc)
+                throw Utils::CErrorMsg(rc, "RefVariationGetIUPACSearchQuery");
+        }
+
+        return m_query;
     }
 
     size_t CVRefVariation::GetSearchQueryStartRelative() const
     {
         if ( m_pSelf == NULL )
-            return 0;
-        return ::VRefVariationIUPACGetSearchQueryStart ( m_pSelf );
+            throw Utils::CErrorMsg("GetSearchQueryStartRelative on uninitialized RefVariation");
+
+        if ( m_query_start == KSearch::UNINITIALIZED_POSITION )
+        {
+            rc_t rc = ::RefVariationGetIUPACSearchQuery ( m_pSelf, & m_query, & m_query_len, & m_query_start );
+            if (rc)
+                throw Utils::CErrorMsg(rc, "RefVariationGetIUPACSearchQuery");
+        }
+
+        return m_query_start;
     }
 
     size_t CVRefVariation::GetSearchQueryStartAbsolute() const
     {
-        if ( m_pSelf == NULL )
-            return 0;
-        return ::VRefVariationIUPACGetSearchQueryStart ( m_pSelf ) + m_bases_start;
+        return GetSearchQueryStartRelative() + m_bases_start;
     }
 
     size_t CVRefVariation::GetSearchQuerySize() const
     {
         if ( m_pSelf == NULL )
-            return 0;
-        return ::VRefVariationIUPACGetSearchQuerySize ( m_pSelf );
+            throw Utils::CErrorMsg("GetSearchQuerySize on uninitialized RefVariation");
+
+        if ( m_query_len == KSearch::UNINITIALIZED_POSITION )
+        {
+            rc_t rc = ::RefVariationGetIUPACSearchQuery ( m_pSelf, & m_query, & m_query_len, & m_query_start );
+            if (rc)
+                throw Utils::CErrorMsg(rc, "RefVariationGetIUPACSearchQuery");
+        }
+
+        return m_query_len;
     }
 
     size_t CVRefVariation::GetSearchQueryLenOnRef() const
     {
         if ( m_pSelf == NULL )
-            return 0;
-        return ::VRefVariationIUPACGetSearchQueryLenOnRef ( m_pSelf );
+            throw Utils::CErrorMsg("GetSearchQueryLenOnRef on uninitialized RefVariation");
+
+        if ( m_query_len_on_ref == KSearch::UNINITIALIZED_POSITION )
+        {
+            rc_t rc = ::RefVariationGetSearchQueryLenOnRef ( m_pSelf, & m_query_len_on_ref );
+            if (rc)
+                throw Utils::CErrorMsg(rc, "RefVariationGetSearchQueryLenOnRef");
+        }
+
+        return m_query_len_on_ref;
     }
 
 
-    char const* CVRefVariation::GetAllele( size_t& ret_size ) const
+    char const* CVRefVariation::GetAllele() const
     {
         if ( m_pSelf == NULL )
+            throw Utils::CErrorMsg("GetAllele on uninitialized RefVariation");
+        
+        if ( m_allele == NULL )
         {
-            ret_size = 0;
-            return "";
+            rc_t rc = ::RefVariationGetAllele ( m_pSelf, & m_allele, & m_allele_len, & m_allele_start );
+            if (rc)
+                throw Utils::CErrorMsg(rc, "RefVariationGetAllele");
         }
-        return ::VRefVariationIUPACGetAllele ( m_pSelf, & ret_size );
+
+        return m_allele;
     }
 
     size_t CVRefVariation::GetAlleleStartRelative() const
     {
         if ( m_pSelf == NULL )
-            return 0;
-        return ::VRefVariationIUPACGetAlleleStart ( m_pSelf );
+            throw Utils::CErrorMsg("GetAllele on uninitialized RefVariation");
+        
+        if ( m_allele_start == KSearch::UNINITIALIZED_POSITION )
+        {
+            rc_t rc = ::RefVariationGetAllele ( m_pSelf, & m_allele, & m_allele_len, & m_allele_start );
+            if (rc)
+                throw Utils::CErrorMsg(rc, "RefVariationGetAllele");
+        }
+
+        return m_allele_start;
     }
 
     size_t CVRefVariation::GetAlleleStartAbsolute() const
     {
-        if ( m_pSelf == NULL )
-            return 0;
-        return ::VRefVariationIUPACGetAlleleStart ( m_pSelf ) + m_bases_start;
+        return GetAlleleStartRelative() + m_bases_start;
     }
 
     size_t CVRefVariation::GetAlleleSize() const
     {
         if ( m_pSelf == NULL )
-            return 0;
-        return ::VRefVariationIUPACGetAlleleSize ( m_pSelf );
+            throw Utils::CErrorMsg("GetAlleleSize on uninitialized RefVariation");
+        
+        if ( m_allele_len == KSearch::UNINITIALIZED_POSITION )
+        {
+            rc_t rc = ::RefVariationGetAllele ( m_pSelf, & m_allele, & m_allele_len, & m_allele_start );
+            if (rc)
+                throw Utils::CErrorMsg(rc, "RefVariationGetAllele");
+        }
+
+        return m_allele_len;
     }
 
     size_t CVRefVariation::GetAlleleLenOnRef() const
     {
         if ( m_pSelf == NULL )
-            return 0;
-        return ::VRefVariationIUPACGetAlleleLenOnRef ( m_pSelf );
+            throw Utils::CErrorMsg("GetAlleleLenOnRef on uninitialized RefVariation");
+
+        if ( m_allele_len_on_ref == KSearch::UNINITIALIZED_POSITION )
+        {
+            rc_t rc = ::RefVariationGetAlleleLenOnRef ( m_pSelf, & m_allele_len_on_ref );
+            if (rc)
+                throw Utils::CErrorMsg(rc, "RefVariationGetAlleleLenOnRef");
+        }
+
+        return m_allele_len_on_ref;
     }
 
-    CVRefVariation VRefVariationIUPACMake ( uint32_t alg, char const* ref, size_t ref_size,
+    CVRefVariation VRefVariationIUPACMake ( ::RefVarAlg alg, char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
             size_t var_len_on_ref, size_t bases_start)
     {
         CVRefVariation obj;
-        rc_t rc = ::VRefVariationIUPACMake ( & obj.m_pSelf, alg,
-            ref, ref_size, ref_pos_var, variation, variation_size, var_len_on_ref);
+        rc_t rc = ::RefVariationIUPACMake ( & obj.m_pSelf,
+            ref, ref_size, ref_pos_var, var_len_on_ref, variation, variation_size, alg );
         if (rc)
-            throw Utils::CErrorMsg(rc, "VRefVariationIUPACMake");
+            throw Utils::CErrorMsg(rc, "RefVariationIUPACMake");
 
 #if DEBUG_PRINT != 0
         printf("Created RefVariation (rd) %p\n", obj.m_pSelf);

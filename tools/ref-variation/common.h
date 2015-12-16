@@ -25,7 +25,7 @@
 */
 
 #include <stdlib.h>
-#include <search/grep.h>
+#include "helper.h"
 
 namespace KSearch
 {

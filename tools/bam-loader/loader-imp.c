@@ -1840,7 +1840,10 @@ WRITE_SEQUENCE:
                     FragmentInfo fi;
                     int32_t mate_refSeqId = -1;
                     int64_t pnext = 0;
-                    
+
+                    if (!isPrimary) {
+                        (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
+                    }
                     memset(&fi, 0, sizeof(fi));
                     fi.aligned = aligned;
                     fi.ti = ti;
@@ -1932,6 +1935,9 @@ WRITE_SEQUENCE:
                         unsigned read2 = 1;
                         uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
                         
+                        if (!isPrimary) {
+                            (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
+                        }
                         if (AR_READNO(data) < fip->otherReadNo) {
                             read1 = 1;
                             read2 = 0;
@@ -2283,6 +2289,13 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
 
             primaryId[0] = CTX_VALUE_GET_P_ID(*value, 0);
             primaryId[1] = CTX_VALUE_GET_P_ID(*value, 1);
+
+            if (primaryId[0] == 0 && value->alignmentCount[0] != 0) {
+                (void)PLOGMSG(klogWarn, (klogWarn, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
+            }
+            if (!value->unmated && primaryId[1] == 0 && value->alignmentCount[1] != 0) {
+                (void)PLOGMSG(klogWarn, (klogWarn, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", keyId));
+            }
 
             rc = SequenceUpdateAlignData(seq, row, value->unmated ? 1 : 2,
                                          primaryId,

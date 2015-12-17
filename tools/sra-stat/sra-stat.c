@@ -314,6 +314,7 @@ typedef struct {
 
     bool finalized;
 } Bases;
+
 static rc_t BasesInit(Bases *self, const VTable *vtbl) {
     rc_t rc = 0;
 
@@ -490,15 +491,6 @@ static rc_t BasesPrint(const Bases *self,
         return rc;
     }
 
-    if (self->cnt[0] + self->cnt[1] + self->cnt[2] +
-        self->cnt[3] + self->cnt[4] != base_count)
-    {
-        rc = RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
-        LOGERR(klogErr, rc,
-            "BASE_COUNT MISMATCH DURING BASES COUNT CALCULATION");
-        return rc;
-    }
-
     name = self->CS_NATIVE ? "0123." : "ACGTN";
 
     OUTMSG(("%s<%s cs_native=\"%s\" count=\"%lu\">\n",
@@ -510,6 +502,13 @@ static rc_t BasesPrint(const Bases *self,
     }
 
     OUTMSG(("%s</%s>\n", indent, tag));
+
+    if (self->cnt[0] + self->cnt[1] + self->cnt[2] +
+        self->cnt[3] + self->cnt[4] != base_count)
+    {
+        rc = RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
+        LOGERR(klogErr, rc, "stored base count did not match observed base count");
+    }
 
     return rc;
 }

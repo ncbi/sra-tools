@@ -108,8 +108,10 @@ idx-text-tests: idx-text-makeinputs idx-text-checklookup
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text ci-2 0 y ./idx-text-checklookup
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text ci-3 0 y ./idx-text-checklookup
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text ci-4 0 y ./idx-text-checklookup
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text ci-5 0 n
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text cs-1 0 y ./idx-text-checklookup
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text cs-2 0 y ./idx-text-checklookup
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)/idx-text idx-text cs-3 0 n
 	@rm -f ./idx-text-checklookup
 	@rm -f $(SRCDIR)/idx-text/input/*.gl
 	@echo "idx-text tests executed successfuly"

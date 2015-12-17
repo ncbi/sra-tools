@@ -78,15 +78,27 @@ rc_t runChecks(const TestCase& test_case, const VCursor * cursor, uint32_t name_
         
         rc = VCursorCellDataDirect( cursor, row_id, name_idx, NULL, (void const **)&name, NULL, &name_len );
         if ( rc != 0 )
+        {
+            LOGERR( klogInt, rc, "VCursorCellDataDirect() failed" );
             return rc;
+        }
         
+        if ( name_len == 0 )
+            continue;
+
         rc = VCursorParamsSet( ( struct VCursorParams const * )cursor, "QUERY_NAME", "%.*s", name_len, name );
         if ( rc != 0 )
+        {
+            LOGERR( klogInt, rc, "VCursorParamsSet() failed" );
             return rc;
+        }
         
         rc = VCursorCellDataDirect( cursor, row_id, name_range_idx, NULL, (void const **)&row_range, NULL, NULL );
         if ( rc != 0 )
+        {
+            LOGERR( klogInt, rc, "VCursorCellDataDirect() failed" );
             return rc;
+        }
         
         std::string name_str(name, name_len);
         
@@ -183,12 +195,12 @@ void initTestCases()
     {
         std::map<std::string, RowRange> key_ranges;
         {
-            RowRange range = {1, 4};
+            RowRange range = {2, 5};
             key_ranges["a"] = range;
             key_ranges["A"] = range;
         }
         {
-            RowRange range = {5, 5};
+            RowRange range = {7, 7};
             key_ranges["b"] = range;
         }
         

@@ -11,7 +11,6 @@
 
 #include "helper.h"
 #include "common.h"
-#include <search/grep.h>
 
 #define PARAM_ALG_SW "sw"
 #define PARAM_ALG_RA "ra"
@@ -174,8 +173,8 @@ namespace VarExpand
         if ( ref_allele.size() == 0 )
             ref_allele = "-";
 
-        size_t new_allele_size;
-        char const* new_allele = obj.GetAllele ( new_allele_size );
+        size_t new_allele_size = obj.GetAlleleSize();
+        char const* new_allele = obj.GetAllele();
 
         if ( new_allele_size == 0)
         {

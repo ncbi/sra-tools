@@ -24,6 +24,9 @@
 *
 */
 
+#ifndef HELPER_H
+#define HELPER_H
+
 // helper.h
 #include <exception>
 
@@ -44,6 +47,7 @@
 
 #include <vdb/vdb-priv.h>
 #include <kdb/index.h>
+#include <search/ref-variation.h>
 
 #ifndef countof
 #define countof(arr) (sizeof(arr)/sizeof(arr[0]))
@@ -476,24 +480,12 @@ struct VRefVariation;
 
 namespace KSearch
 {
-#if 0 // turning off old code
-    void FindRefVariationRegionAscii (
-            char const* ref, size_t ref_size, size_t ref_pos_var,
-            char const* variation, size_t variation_size, size_t var_len_on_ref,
-            size_t* p_ref_start, size_t* p_ref_len
-        );
-
-    void FindRefVariationRegionAscii (
-            std::string const& ref, size_t ref_pos_var,
-            char const* variation, size_t variation_size, size_t var_len_on_ref,
-            size_t& ref_start, size_t& ref_len
-        );
-#endif
+    enum { UNINITIALIZED_POSITION = (size_t)-1 };
 
     class CVRefVariation
     {
     public:
-        friend CVRefVariation VRefVariationIUPACMake ( uint32_t alg,
+        friend CVRefVariation VRefVariationIUPACMake ( ::RefVarAlg alg,
             char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
             size_t var_len_on_ref, size_t bases_start);
@@ -511,7 +503,7 @@ namespace KSearch
         size_t GetSearchQuerySize() const;
         size_t GetSearchQueryLenOnRef() const;
 
-        char const* GetAllele( size_t& ret_size ) const;
+        char const* GetAllele() const;
         size_t GetAlleleStartRelative() const; // relative to search region
         size_t GetAlleleStartAbsolute() const; // in absolute reference coordinates
         size_t GetAlleleSize() const;
@@ -519,12 +511,17 @@ namespace KSearch
 
     private:
         void Clone(CVRefVariation const& x);
-        ::VRefVariation* m_pSelf;
+        void ClearMembers();
+        ::RefVariation* m_pSelf;
         size_t m_bases_start; // the absolute position on the reference
                               // starting at which the search was initiated
+
+        mutable char const* m_allele, *m_query;
+        mutable size_t m_allele_len, m_allele_len_on_ref, m_query_len, m_query_len_on_ref;
+        mutable size_t m_allele_start, m_query_start;
     };
 
-    CVRefVariation VRefVariationIUPACMake ( uint32_t alg, char const* ref, size_t ref_size,
+    CVRefVariation VRefVariationIUPACMake ( ::RefVarAlg alg, char const* ref, size_t ref_size,
             size_t ref_pos_var, char const* variation, size_t variation_size,
             size_t var_len_on_ref, size_t bases_start);
 
@@ -603,3 +600,4 @@ namespace KProc
         TLockable & m_lock;
     };
 }
+#endif

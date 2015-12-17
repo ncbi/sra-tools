@@ -26,7 +26,6 @@
 
 #include "common.h"
 #include "helper.h"
-#include <search/grep.h>
 
 namespace Common
 {

@@ -294,7 +294,6 @@ _SetLog ( struct Args * TheArgs )
 
     XFS_CAN ( TheArgs )
 
-printf ( " [HOHOHO] SetLF\n" );
     RCt = ArgsOptionCount ( TheArgs, OPT_LOGFILE, & OptCount );
     if ( RCt == 0 && OptCount == 1 ) {
         RCt = ArgsOptionValue (
@@ -305,7 +304,7 @@ printf ( " [HOHOHO] SetLF\n" );
                             );
         if ( RCt == 0 ) {
             if ( LogFile != NULL ) {
-printf ( " [HOHOHO] SetLF [%s]\n", LogFile );
+                printf ( "Log File [%s]\n", LogFile );
                 RCt = XFSLogInit ( LogFile );
             }
         }

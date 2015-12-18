@@ -27,8 +27,9 @@
       <AdditionalDependencies>$(VDB_TARGET)lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\kapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\libxfs.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>c:\Program Files (x86)\Dokan\DokanLibrary\dokan.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>%ProgramFiles(x86)%\Dokan\DokanLibrary\dokan.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>Kernel32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>Shlwapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>  
   

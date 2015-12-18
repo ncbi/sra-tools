@@ -174,14 +174,14 @@ DoFukan (
 
                     XFSLogDbg ( "[XFSStart]\n" );
                     RCt = XFSStart ( TheControl );
-                    XFSLogDbg ( "[XFSStart][RC=%s]\n", RCt );
+                    XFSLogDbg ( "[XFSStart][RC=%d]\n", RCt );
                     if ( RCt == 0 ) {
                         XFSLogDbg ( "[XFSStop]\n" );
                         RCt = XFSStop ( TheControl );
-                        XFSLogDbg ( "[XFSStop][RC=%s]\n", RCt );
+                        XFSLogDbg ( "[XFSStop][RC=%d]\n", RCt );
                     }
                     else {
-                        XFSLogErr ( RCt, "CRITICAL ERROR: Can not start FUSE\n" );
+                        XFSLogErr ( RCt, "CRITICAL ERROR: Can not start MOUNTER\n" );
                     }
                 }
 
@@ -380,20 +380,20 @@ RunApp ( struct Args * TheArgs )
             /*  Second we are checking Arguments
              */
         RCt = CheckArgs ( TheArgs, & LogFile, & ProgName, & Daemonize );
-        if ( RCt == 0 ) {
-            RCt = DoFukan (
-                        ProjectId,
-                        MountPoint,
-                        LogFile,
-                        ProgName,
-                        Daemonize,
-                        ReadOnly
-                        );
-        }
     }
 
     if ( RCt != 0 ) {
         UsageSummary ( ProgName == NULL ? UsageDefaultName : ProgName );
+    }
+    else {
+        RCt = DoFukan (
+                    ProjectId,
+                    MountPoint,
+                    LogFile,
+                    ProgName,
+                    Daemonize,
+                    ReadOnly
+                    );
     }
 
     return RCt;

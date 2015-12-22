@@ -23,7 +23,7 @@
   
     <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
       <Exec Command="dir . $(VDB_TARGET)\bin\align-info.exe"/>
-      <Exec Command="$(VDB_TARGET)\bin\align-info -h" WorkingDirectory="$(ProjectDir)"/>
+      <Exec Command="$(VDB_TARGET)\bin\align-info.exe -h" WorkingDirectory="$(ProjectDir)"/>
     </Target>
     
 </Project>

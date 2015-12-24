@@ -2387,7 +2387,7 @@ rc_t print_results(const Ctx* ctx)
             {
                 mismatch = true;
             }
-            if (|| ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT)
+            if (ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT)
             {   mismatch = true; }
         }
         if (ctx->pb->total.spot_count != ctx->total->spot_count ||

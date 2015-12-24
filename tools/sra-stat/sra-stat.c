@@ -2275,15 +2275,16 @@ rc_t print_results(const Ctx* ctx)
     }
 
     if (ctx->meta->found && ! ctx->pb->quick) {
-        bool mismatch = false;
+/*      bool mismatch = false; */
         SraStats* ss = (SraStats*)BSTreeFind(ctx->tr, "", srastats_cmp);
         const SraStatsMeta* m = &ctx->meta->table;
         if (ctx->total->BASE_COUNT != m->BASE_COUNT)
         { mismatch = true; }
         if (ctx->total->BIO_BASE_COUNT != m->BIO_BASE_COUNT)
         { mismatch = true; }
-        if (ctx->total->spot_count != m->spot_count ||
-            ctx->total->total_cmp_len != m->CMP_BASE_COUNT)
+        if (ctx->total->spot_count != m->spot_count)
+        { mismatch = true; }
+        if (ctx->total->total_cmp_len != m->CMP_BASE_COUNT)
         { mismatch = true; }
         if (ss != NULL) {
             const SraStatsMeta* m = &ctx->meta->table;
@@ -2382,11 +2383,12 @@ rc_t print_results(const Ctx* ctx)
             const SraStatsMeta* m = &ctx->meta->table;
             if (ctx->pb->total.BASE_COUNT != m->BASE_COUNT
                 || ctx->pb->total.BIO_BASE_COUNT != m->BIO_BASE_COUNT
-                || ctx->pb->total.spot_count != m->spot_count
-                || ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT)
+                || ctx->pb->total.spot_count != m->spot_count)
             {
                 mismatch = true;
             }
+            if (|| ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT)
+            {   mismatch = true; }
         }
         if (ctx->pb->total.spot_count != ctx->total->spot_count ||
             ctx->pb->total.spot_count_mates != ctx->total->spot_count_mates ||

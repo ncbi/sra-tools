@@ -250,7 +250,6 @@ _CreateDetached ( LPCTSTR AppName, LPTSTR Cmd )
         RCt = XFS_RC ( rcInvalid );
     }
     else {
-        Err = GetLastError ();
         wprintf ( L"RUN DETACHED\n" );
     }
 
@@ -294,20 +293,26 @@ _SetLog ( struct Args * TheArgs )
 
     XFS_CAN ( TheArgs )
 
-    RCt = ArgsOptionCount ( TheArgs, OPT_LOGFILE, & OptCount );
-    if ( RCt == 0 && OptCount == 1 ) {
-        RCt = ArgsOptionValue (
-                            TheArgs,
-                            OPT_LOGFILE,
-                            0,
-                            ( const void ** ) & LogFile
-                            );
-        if ( RCt == 0 ) {
-            if ( LogFile != NULL ) {
-                printf ( "Log File [%s]\n", LogFile );
-                RCt = XFSLogInit ( LogFile );
-            }
+    if ( TheArgs != NULL ) {
+        RCt = ArgsOptionCount ( TheArgs, OPT_LOGFILE, & OptCount );
+        if ( RCt == 0 && OptCount == 1 ) {
+            RCt = ArgsOptionValue (
+                                TheArgs,
+                                OPT_LOGFILE,
+                                0,
+                                ( const void ** ) & LogFile
+                                );
         }
+    }
+
+    if ( RCt == 0 ) {
+        if ( LogFile != NULL ) {
+            printf ( "Log File [%s]\n", LogFile );
+        }
+        else {
+            printf ( "Log File [NULL]\n" );
+        }
+        RCt = XFSLogInit ( LogFile );
     }
 
     return RCt;

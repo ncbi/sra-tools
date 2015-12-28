@@ -1036,7 +1036,8 @@ static char const *const CHANGED[] = {
     "record made unfragmented",
     "mate alignment lost",
     "record discarded",
-    "reference name changed"
+    "reference name changed",
+    "CIGAR changed"
 };
 
 static char const *const REASONS[] = {
@@ -1072,9 +1073,11 @@ static char const *const REASONS[] = {
 /* discarded */
     "conflicting PCR duplicate",                /* 24 */
     "conflicting fragment info",                /* 25 */
-    "reference is skipped"                      /* 26 */
+    "reference is skipped",                     /* 26 */
 /* reference name changed */
-    "reference was named more than once"        /* 27 */
+    "reference was named more than once",       /* 27 */
+/* CIGAR changed */
+    "alignment overhanging end of reference"    /* 28 */
 };
 
 static struct {
@@ -1110,6 +1113,7 @@ static struct {
     {6, 26},
     {6, 17},
     {7, 27},
+    {8, 28},
 };
 
 #define NUMBER_OF_CHANGES ((unsigned)(sizeof(CHANGES)/sizeof(CHANGES[0])))
@@ -1209,6 +1213,58 @@ static rc_t RecordChanges(KMDataNode *const node, char const name[])
 #define DISCARD_SKIP_REFERENCE     do { LOG_CHANGE(27); } while(0)
 #define DISCARD_UNKNOWN_REFERENCE  do { LOG_CHANGE(28); } while(0)
 #define RENAMED_REFERENCE          do { LOG_CHANGE(29); } while(0)
+#define OVERHANGING_ALIGNMENT      do { LOG_CHANGE(30); } while(0)
+
+static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint32_t refPos, uint32_t refLen, uint32_t readlen)
+{
+    uint32_t const *cigar = cigBuf->base;
+    int refend = refPos;
+    int seqpos = 0;
+    unsigned i;
+
+    for (i = 0; i < *opCount; ++i) {
+        uint32_t const op = cigar[i];
+        int const len = op >> 4;
+        int const code = op & 0x0F;
+
+        switch (code) {
+        case 0: /* M */
+        case 7: /* = */
+        case 8: /* X */
+            seqpos += len;
+            refend += len;
+            break;
+        case 2: /* D */
+        case 3: /* N */
+            refend += len;
+            break;
+        case 1: /* I */
+        case 4: /* S */
+        case 9: /* B */
+            seqpos += len;
+        default:
+            break;
+        }
+        if (refend > refLen) {
+            int const chop = refend - refLen;
+            int const newlen = len - chop;
+            int const left = seqpos - chop;
+            if (left * 2 > readlen) {
+                int const clip = readlen - left;
+                rc_t rc;
+
+                *opCount = i + 2;
+                rc = KDataBufferResize(cigBuf, *opCount);
+                if (rc) return rc;
+                ((uint32_t *)cigBuf->base)[i  ] = (newlen << 4) | code;
+                ((uint32_t *)cigBuf->base)[i+1] = (clip << 4) | 4;
+                OVERHANGING_ALIGNMENT;
+                break;
+            }
+        }
+    }
+    return 0;
+}
 
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                        Reference *ref, Sequence *seq, Alignment *align,
@@ -1710,6 +1766,7 @@ MIXED_BASE_AND_COLOR:
             uint32_t matches = 0;
             uint8_t rna_orient = ' ';
 
+            FixOverhangingAlignment(&cigBuf, &opCount, rpos, refSeq->length, readlen);
             BAM_AlignmentGetRNAStrand(rec, &rna_orient);
             rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen,
                                rna_orient == '+' ? NCBI_align_ro_intron_plus :

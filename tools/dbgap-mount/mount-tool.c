@@ -148,23 +148,23 @@ DoFukan (
         /*  Initializing all depots and heavy gunz
          */
     RCt = XFS_InitAll_MHR ( NULL );
-    XFSLogDbg ( "[XFS_InitAll_MHR][RC=%s]\n", RCt );
+    XFSLogDbg ( "[XFS_InitAll_MHR][RC=%d]\n", RCt );
     if ( RCt == 0 ) {
 
         RCt = MakeModel ( & TheModel, ProjectId, ReadOnly );
-        XFSLogDbg ( "[XFSModelMake][RC=%s]\n", RCt );
+        XFSLogDbg ( "[XFSModelMake][RC=%d]\n", RCt );
         if ( RCt == 0 ) {
 
             RCt = XFSTreeMake ( TheModel, & TheTree );
-            XFSLogDbg ( "[XFSTreeMake][RC=%s]\n", RCt );
+            XFSLogDbg ( "[XFSTreeMake][RC=%d]\n", RCt );
             if ( RCt == 0 ) {
 
                 RCt = XFSControlMake ( TheTree, & TheControl );
-                XFSLogDbg ( "[XFSControlMake][RC=%s]\n", RCt );
+                XFSLogDbg ( "[XFSControlMake][RC=%d]\n", RCt );
                 if ( RCt == 0 ) {
 
                     XFSControlSetMountPoint ( TheControl, MountPoint );
-                    XFSControlSetLabel ( TheControl, "KLeeNUX" );
+                    XFSControlSetLabel ( TheControl, "dbGaP" );
                     if ( LogFile != NULL ) {
                         XFSControlSetLogFile ( TheControl, LogFile );
                     }

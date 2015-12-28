@@ -33,6 +33,7 @@
 #include <kapp/main.h>
 #include <vdb/table.h>
 #include <vdb/cursor.h>
+#include <vdb/vdb-priv.h>
 #include <kproc/thread.h>
 #include <klib/rc.h>
 
@@ -306,7 +307,13 @@ void CrossCheckRefAlignTblInt ( const ctx_t *ctx,
             INTERNAL_ERROR ( rc, "VTableCreateCursorRead - failed to open cursor on %s table", align_name );
         else
         {
-            CrossCheckRefAlignCurs ( ctx, ref_curs, align_curs, align_name );
+            rc = VCursorLinkedCursorSet(align_curs,"REFERENCE",ref_curs);
+            if ( rc != 0 )
+                INTERNAL_ERROR ( rc, "VCursorLinkedCursorSet - failed to link cursor on REFERENCE table" );
+            else
+            {
+                CrossCheckRefAlignCurs ( ctx, ref_curs, align_curs, align_name );
+            }
 
             VCursorRelease ( align_curs );
         }

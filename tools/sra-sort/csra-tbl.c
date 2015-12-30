@@ -199,6 +199,21 @@ static TablePair_vt cSRATblPair_Ref_vt =
  */
 
 static
+void cSRATblPairWhackMappingIdx ( cSRATblPair * self, const ctx_t * ctx )
+{
+    cSRAPair *csra = self -> csra;
+
+    RowSetIteratorRelease ( self -> rsi, ctx );
+    self -> rsi = NULL;
+
+    MapFileRelease ( csra -> pa_idx, ctx );
+    csra -> pa_idx = NULL;
+
+    MapFileRelease ( csra -> seq_idx, ctx );
+    csra -> seq_idx = NULL;
+}
+
+static
 ColumnPair *cSRATblPairMakeSeqSpotIdColPairPrim ( cSRATblPair *self, const ctx_t *ctx )
 {
     FUNC_ENTRY ( ctx );
@@ -447,6 +462,11 @@ void cSRATblPairPostCopyAlign ( cSRATblPair *self, const ctx_t *ctx )
         break;
     case 2:
         CrossCheckRefAlignTbl ( ctx, csra -> reference -> dtbl, csra -> sec_align -> dtbl, "SECONDARY_ALIGNMENT" );
+
+#if SEQUENCE_BEFORE_SECONDARY
+        cSRATblPairWhackMappingIdx ( self, ctx );
+#endif
+
         break;
     }
 }
@@ -593,14 +613,9 @@ void cSRATblPairPostCopySeq ( cSRATblPair *self, const ctx_t *ctx )
 
     cSRAPair *csra = self -> csra;
 
-    RowSetIteratorRelease ( self -> rsi, ctx );
-    self -> rsi = NULL;
-
-    MapFileRelease ( csra -> pa_idx, ctx );
-    csra -> pa_idx = NULL;
-
-    MapFileRelease ( csra -> seq_idx, ctx );
-    csra -> seq_idx = NULL;
+#if ! SEQUENCE_BEFORE_SECONDARY
+    cSRATblPairWhackMappingIdx ( self, ctx );
+#endif
 
     /* record markers in metadata */
     if ( ! FAILED () && ( csra -> first_half_aligned_spot != 0 || csra -> first_unaligned_spot != 0 ) )

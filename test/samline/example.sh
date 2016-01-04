@@ -49,16 +49,13 @@ kar_CSRA()
 }
 
 SAMFILE="temp.SAM"
-BAMFILE="temp.BAM"
 CONFIG="temp.kfg"
 TEMP_DIR="temp_csra"
 FINAL_CSRA="test.csra"
 
 produce_SAM "$CONFIG" "$SAMFILE"
-#convert_SAM_to_BAM "$SAMFILE" "$BAMFILE"
-#load_BAM_to_CSRA "$CONFIG" "$BAMFILE" "$TEMP_DIR"
 load_SAM_to_CSRA "$CONFIG" "$SAMFILE" "$TEMP_DIR"
 kar_CSRA "$FINAL_CSRA" "$TEMP_DIR"
 
-execute "rm -rf $TEMP_DIR $SAMFILE $BAMFILE $CONFIG"
+execute "rm -rf $TEMP_DIR $SAMFILE $CONFIG"
 execute "vdb-dump $FINAL_CSRA --info"

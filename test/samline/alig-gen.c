@@ -65,6 +65,8 @@ static const char * sec_usage[]			= { "secondary alignment", NULL };
 static const char * bad_usage[]			= { "did not pass quality control", NULL };
 static const char * dup_usage[]			= { "is PCR or optical duplicate", NULL };
 static const char * prop_usage[]		= { "each fragment is properly aligned", NULL };
+static const char * first_usage[]		= { "fragment is first", NULL };
+static const char * last_usage[]		= { "fragment is last", NULL };
 static const char * show_usage[]		= { "show details of calculations", NULL };
 static const char * ref_usage[]			= { "return only refbases (set cigar to 100M for len=100)", NULL };
 static const char * flags_usage[]		= { "decode decimal flags-value", NULL };
@@ -83,6 +85,8 @@ static const char * mdtag_usage[]		= { "procuce md-tag", NULL };
 #define OPTION_BAD			"bad"
 #define OPTION_DUP			"duplicate"
 #define OPTION_PROP			"proper"
+#define OPTION_FIRST		"first"
+#define OPTION_LAST		    "last"
 #define OPTION_SHOW			"show"
 #define OPTION_REF			"ref"
 #define OPTION_FLAGS		"flags"
@@ -96,7 +100,6 @@ static const char * mdtag_usage[]		= { "procuce md-tag", NULL };
 #define ALIAS_INSBASES		"i"
 #define ALIAS_MAPQ			"m"
 #define ALIAS_REVERSE		"e"
-#define ALIAS_QNAME			"q"
 #define ALIAS_SEC			"2"
 #define ALIAS_BAD			"a"
 #define ALIAS_DUP			"u"
@@ -116,11 +119,13 @@ OptDef Options[] =
     { OPTION_INSBASES, 	ALIAS_INSBASES,	NULL, insbases_usage, 	1,	true, 	false },
     { OPTION_MAPQ, 		ALIAS_MAPQ,		NULL, mapq_usage, 		2,	true, 	false },
     { OPTION_REVERSE, 	ALIAS_REVERSE,	NULL, reverse_usage,	1,	false, 	false },
-    { OPTION_QNAME, 	ALIAS_QNAME,	NULL, qname_usage,		2,	true, 	false },
-    { OPTION_SEC, 		ALIAS_SEC,		NULL, sec_usage,		2,	false, 	false },
-    { OPTION_BAD, 		ALIAS_BAD,		NULL, bad_usage,		2,	false, 	false },
-    { OPTION_DUP, 		ALIAS_DUP,		NULL, dup_usage,		2,	false, 	false },
-    { OPTION_PROP, 		ALIAS_PROP,		NULL, prop_usage,		2,	false, 	false },
+    { OPTION_QNAME, 	NULL,	        NULL, qname_usage,		2,	true, 	false },
+    { OPTION_SEC, 		ALIAS_SEC,		NULL, sec_usage,		2,	true, 	false },
+    { OPTION_BAD, 		ALIAS_BAD,		NULL, bad_usage,		2,	true, 	false },
+    { OPTION_DUP, 		ALIAS_DUP,		NULL, dup_usage,		2,	true, 	false },
+    { OPTION_PROP, 		ALIAS_PROP,		NULL, prop_usage,		2,	true, 	false },
+    { OPTION_FIRST, 	NULL,		    NULL, first_usage,		2,	true, 	false },
+    { OPTION_LAST, 		NULL,		    NULL, last_usage,		2,	true, 	false },
     { OPTION_SHOW, 		ALIAS_SHOW,		NULL, show_usage,		1,	false, 	false },
     { OPTION_REF, 		ALIAS_REF,		NULL, ref_usage,		1,	false, 	false },
     { OPTION_FLAGS, 	ALIAS_FLAGS,	NULL, flags_usage,		1,	true, 	false },
@@ -219,7 +224,7 @@ typedef struct alignment
 	char read[ 4096 ];
 	char sam[ 4096 ];
 	
-	int reverse, secondary, bad, dup, prop;
+	int reverse, secondary, bad, dup, prop, first, last;
 
 	uint32_t refpos, mapq, bases_in_ref, reflen;	
 	
@@ -320,6 +325,11 @@ static size_t produce_sam( char * buffer, size_t buflen,
 			last = !first;
 			r_pos = other->refpos;
 		}
+        else
+        {
+            first = alig->first;
+            last  = alig->last;
+        }
 
 		string_printf ( buffer, buflen, &res,
 						"%s\t%d\t%s\t%d\t%d\t%s\t%s\t%d\t%d\t%s\t%s",
@@ -351,6 +361,8 @@ static void show_alig_details( const alignment * alig )
 	KOutMsg ( "BAD      : %s\n", alig->bad ? "YES" : "NO" );
 	KOutMsg ( "DUPLICATE: %s\n", alig->dup ? "YES" : "NO" );
 	KOutMsg ( "PROPERLY : %s\n", alig->prop ? "YES" : "NO" );
+	KOutMsg ( "FIRST    : %s\n", alig->first ? "YES" : "NO" );
+	KOutMsg ( "LAST     : %s\n", alig->last ? "YES" : "NO" );    
 	KOutMsg ( "REFLEN   : %d\n", alig->reflen );
 	KOutMsg ( "READLEN  : %d\n", cigar_t_readlen( alig->cigar ) );	
 	KOutMsg ( "INSLEN   : %d\n", cigar_t_inslen( alig->cigar ) );
@@ -460,9 +472,19 @@ static void write_config_file( const char * filename, const char * refname0, con
 		rc = KDirectoryCreateFile ( dir, &dst, false, 0664, kcmInit, filename );
 		if ( rc == 0 )
 		{
-			size_t pos = write_config_line( dst, 0, refname0, refname0 );
-			if ( pos > 0 && ( strcmp( refname0, refname1 ) != 0 ) )
-				write_config_line( dst, pos, refname1, refname1 );
+            size_t pos = 0;
+            
+            if ( refname0 != NULL )
+                pos = write_config_line( dst, pos, refname0, refname0 );
+            
+            if ( refname1 != NULL )
+            {
+                if ( pos == 0 )
+                    write_config_line( dst, pos, refname1, refname1 );
+                else if ( ( strcmp( refname0, refname1 ) != 0 ) )
+                    write_config_line( dst, pos, refname1, refname1 );
+            }
+            
 			KFileRelease( dst );			
 		}
 		KDirectoryRelease( dir );
@@ -474,8 +496,10 @@ static void generate_alignment( const gen_context * gctx )
 {
 	/* write reference names into config-file for bam-load */
 	if ( gctx->config != NULL )
-		write_config_file( gctx->config, gctx->alig[ 0 ].refname, gctx->alig[ 1 ].refname );
-	
+    {
+        write_config_file( gctx->config, gctx->alig[ 0 ].refname, gctx->alig[ 1 ].refname );
+    }
+    
 	/* procude SAM-header on stdout */
 	if ( gctx->header )
 	{
@@ -494,7 +518,7 @@ static void generate_alignment( const gen_context * gctx )
 }
 
 
-static void read_alig_context( Args * args, gen_context * gctx, alignment * alig, uint32_t idx )
+static void read_alig_context( Args * args, alignment * alig, uint32_t idx )
 {
 	alig->refname	= get_str_option( args, OPTION_REFNAME, 	idx,	idx == 0 ? DFLT_REFNAME : NULL );
 	alig->refpos	= get_uint32_option( args, OPTION_REFPOS, 	idx,	idx == 0 ? DFLT_REFPOS : 0 );
@@ -506,7 +530,9 @@ static void read_alig_context( Args * args, gen_context * gctx, alignment * alig
 	alig->bad		= get_uint32_option( args, OPTION_BAD,		idx,	0 );
 	alig->dup		= get_uint32_option( args, OPTION_DUP,		idx,	0 );
 	alig->prop		= get_uint32_option( args, OPTION_PROP,		idx,	0 );
-	
+	alig->first		= get_uint32_option( args, OPTION_FIRST,	idx,	0 );
+	alig->last		= get_uint32_option( args, OPTION_LAST,		idx,	0 );
+    
 	/* precalculate values need in all functions */
 	alig->cigar		= make_cigar_t( alig->cigar_str );
 	alig->reflen	= cigar_t_reflen( alig->cigar );
@@ -529,8 +555,8 @@ static void read_context( Args * args, gen_context * gctx )
 	gctx->config	= get_str_option( args, OPTION_CONFIG, 		0, 	NULL );
 	gctx->tlen		= 0;
 	
-	read_alig_context( args, gctx, &gctx->alig[ 0 ], 0 );
-	read_alig_context( args, gctx, &gctx->alig[ 1 ], 1 );
+	read_alig_context( args, &gctx->alig[ 0 ], 0 );
+	read_alig_context( args, &gctx->alig[ 1 ], 1 );
 
 	alig0 = &gctx->alig[ 0 ];
 	alig1 = &gctx->alig[ 1 ];

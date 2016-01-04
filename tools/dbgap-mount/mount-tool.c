@@ -544,6 +544,8 @@ KMain ( int ArgC, char * ArgV [] )
         else {
             RCt = DoUnmount ( MountPoint );
         }
+
+        ArgsWhack ( TheArgs );
     }
 
     return RCt;

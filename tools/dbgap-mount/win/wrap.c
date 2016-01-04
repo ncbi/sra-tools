@@ -310,7 +310,9 @@ _SetLog ( struct Args * TheArgs )
             printf ( "Log File [%s]\n", LogFile );
         }
         else {
+/* 
             printf ( "Log File [NULL]\n" );
+*/
         }
         RCt = XFSLogInit ( LogFile );
     }

@@ -1600,9 +1600,16 @@ FIXTURE_TEST_CASE ( ErrorMessage_Long, GeneralLoaderFixture )
 
 FIXTURE_TEST_CASE ( LogMessage, GeneralLoaderFixture )
 {   
+//FullLog();
+// uncomment the line above to see the message on stdout, eg:
+// 2016-01-05T18:45:01 test-general-loader.1 info: general-loader: log from front-end-app: "some log message"
+
     OpenStream_OneTableOneColumn ( GetName(), tableName, columnName, 8 );
+    const string SoftwareName = "front-end-app";
+    const string Version = "2.1.1";
+    m_source . SoftwareNameEvent ( SoftwareName, Version );
     m_source . OpenStreamEvent();
-    m_source . LogMessageEvent ( "log message" );
+    m_source . LogMessageEvent ( "some log message" );
     m_source . CloseStreamEvent();
     
     REQUIRE ( Run ( m_source . MakeSource (), 0 ) );

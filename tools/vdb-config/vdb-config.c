@@ -127,6 +127,11 @@ static const char* USAGE_OUT[] = { "output type: one of (x n), "
 #define OPTION_PCF   "cfg"
 static const char* USAGE_PCF[] = { "print current configuration", NULL };
 
+#define ALIAS_CDR    NULL
+#define OPTION_CDR   "cfg-dir"
+static const char* USAGE_CDR[]
+    = { "set directory to load configuration", NULL };
+
 #define ALIAS_PRD    NULL
 #define OPTION_PRD   "proxy-disable"
 static const char* USAGE_PRD[] = { "enable/disable using HTTP proxy", NULL };
@@ -166,6 +171,7 @@ rc_t WorkspaceDirPathConv(const Args * args, uint32_t arg_index, const char * ar
 OptDef Options[] =
 {                                         /* needs_value, required, converter */
       { OPTION_ALL, ALIAS_ALL, NULL, USAGE_ALL, 1, false, false, NULL }
+    , { OPTION_CDR, ALIAS_CDR, NULL, USAGE_CDR, 1, true , false, NULL }
     , { OPTION_CFG, ALIAS_CFG, NULL, USAGE_CFG, 1, false, false, NULL }
     , { OPTION_CFM, ALIAS_CFM, NULL, USAGE_CFM, 1, true , false, NULL }
     , { OPTION_DIR, ALIAS_DIR, NULL, USAGE_DIR, 1, false, false, NULL }
@@ -218,6 +224,7 @@ rc_t CC Usage(const Args* args) {
     HelpOptionLine (ALIAS_ALL, OPTION_ALL, NULL, USAGE_ALL);
     HelpOptionLine (ALIAS_PCF, OPTION_PCF, NULL, USAGE_PCF);
     HelpOptionLine (ALIAS_FIL, OPTION_FIL, NULL, USAGE_FIL);
+    HelpOptionLine (ALIAS_DIR, OPTION_DIR, NULL, USAGE_DIR);
     HelpOptionLine (ALIAS_ENV, OPTION_ENV, NULL, USAGE_ENV);
     HelpOptionLine (ALIAS_MOD, OPTION_MOD, NULL, USAGE_MOD);
     KOutMsg ("\n");
@@ -232,6 +239,8 @@ rc_t CC Usage(const Args* args) {
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_PRX, OPTION_PRX, "uri[:port]", USAGE_PRX);
     HelpOptionLine (ALIAS_PRD, OPTION_PRD, "yes | no", USAGE_PRD);
+    KOutMsg ("\n");
+    HelpOptionLine (ALIAS_CDR, OPTION_CDR, "path", USAGE_CDR);
     KOutMsg ("\n");
     HelpOptionLine (ALIAS_ROOT,OPTION_ROOT,NULL, USAGE_ROOT);
 
@@ -416,6 +425,8 @@ typedef struct Params {
     uint32_t argsParamIdx;
     uint32_t argsParamCnt;
 
+    const char *cfg_dir;
+
     bool xml;
 
     const char *setValue;
@@ -501,6 +512,22 @@ static rc_t ParamsConstruct(int argc, char* argv[], Params* prm) {
             if (pcount) {
                 prm->modeShowEnv = true;
                 ++count;
+            }
+        }
+        {   // OPTION_CDR
+            rc = ArgsOptionCount(args, OPTION_CDR, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_CDR "' argument");
+                break;
+            }
+            if (pcount > 0) {
+                rc = ArgsOptionValue
+                    (args, OPTION_CDR, 0, (const void **)&prm->cfg_dir);
+                if (rc) {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_CDR "' argument");
+                    break;
+                }
             }
         }
         {   // OPTION_FIL
@@ -1387,9 +1414,12 @@ static void ShowEnv(const Params* prm) {
     bool hasAny = false;
     const char * env_list [] = {
         "KLIB_CONFIG",
-        "VDB_CONFIG",
+        "LD_LIBRARY_PATH",
+        "NCBI_HOME",
+        "NCBI_SETTINGS",
+        "NCBI_VDB_CONFIG",
         "VDBCONFIG",
-        "LD_LIBRARY_PATH"
+        "VDB_CONFIG",
     };
     int i = 0;
 
@@ -1626,8 +1656,21 @@ rc_t CC KMain(int argc, char* argv[]) {
     }
 
     if (rc == 0) {
-        rc = KConfigMake(&cfg, NULL);
-        DISP_RC(rc, "while calling KConfigMake");
+        const KDirectory *d = NULL;
+        if (prm.cfg_dir != NULL) {
+            KDirectory *n = NULL;
+            rc = KDirectoryNativeDir(&n);
+            if (rc == 0) {
+                rc = KDirectoryOpenDirRead(n, &d, false, prm.cfg_dir);
+                DISP_RC2(rc, "while opening", prm.cfg_dir);
+            }
+            RELEASE(KDirectory, n);
+        }
+        if (rc == 0) {
+            rc = KConfigMake(&cfg, d);
+            DISP_RC(rc, "while calling KConfigMake");
+        }
+        RELEASE(KDirectory, d);
     }
 
     if (rc == 0 && prm.showMultiple && prm.xml) {

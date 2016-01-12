@@ -46,7 +46,7 @@ INT_TOOLS = \
 
 EXT_TOOLS = \
 	demo    \
-	mount-tool
+	dbgap-mount-tool
     
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -126,16 +126,16 @@ demo_tag:
 #
 ZDB_TOOL_SRC = \
     wrap    \
-	mount-tool
+	dbgap-mount-tool
 
 ZDB_TOOL_OBJ = \
 	$(addsuffix .$(OBJX),$(ZDB_TOOL_SRC))
 
 ZDB_TOOL_LIB = -lkapp -lncbi-vdb -lxfs $(DOCAN_LIBS)
 
-$(BINDIR)/mount-tool: $(ZDB_TOOL_OBJ)
+$(BINDIR)/dbgap-mount-tool: $(ZDB_TOOL_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(ZDB_TOOL_LIB)
 
-mount-tool_tag:
-	@ $(TOP)/build/tag-module.sh $(MODULE) mount-tool $(ZDB_TOOL_OBJ)
+dbgap-mount-tool_tag:
+	@ $(TOP)/build/tag-module.sh $(MODULE) dbgap-mount-tool $(ZDB_TOOL_OBJ)
 

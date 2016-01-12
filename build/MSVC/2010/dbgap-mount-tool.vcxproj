@@ -34,7 +34,7 @@
   </ItemDefinitionGroup>  
   
   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\dbgap-mount\mount-tool.c" />
+    <ClCompile Include="..\..\..\tools\dbgap-mount\dbgap-mount-tool.c" />
     <ClCompile Include="..\..\..\tools\dbgap-mount\win\wrap.c" />
   </ItemGroup>
 

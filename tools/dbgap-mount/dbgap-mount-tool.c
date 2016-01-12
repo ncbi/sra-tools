@@ -24,7 +24,7 @@
 *
 */
 
-#include "mount-tool.vers.h" /* VDB_PASSWD_VERS */
+#include "dbgap-mount-tool.vers.h" /* VDB_PASSWD_VERS */
 
 #include <kapp/main.h> /* KMain */
 #include <kapp/args.h> /* KMain */
@@ -43,7 +43,7 @@
 #include <xfs/xfs.h>
 #include <xfs/xlog.h>
 
-#include "mount-tool.h"
+#include "dbgap-mount-tool.h"
 
 #include <sysalloc.h>
 #include <stdio.h>
@@ -428,7 +428,7 @@ struct OptDef ToolOpts [] = {
     { OPT_UNMOUNT, ALS_UNMOUNT, NULL, UsgUnmount, 1, true, false }
 };  /* OptDef */
 
-const char UsageDefaultName[] = "mount-tool";
+const char UsageDefaultName[] = "dbgap-mount-tool";
 
 rc_t CC
 UsageSummary ( const char * ProgName )

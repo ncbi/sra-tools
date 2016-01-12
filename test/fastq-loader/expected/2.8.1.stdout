@@ -12,7 +12,7 @@
                 NAME: 1
             PLATFORM: SRA_PLATFORM_UNDEFINED
 PRIMARY_ALIGNMENT_ID: 0
-             QUALITY: 0, 0, 0
+             QUALITY: 30, 30, 30
            RD_FILTER: SRA_READ_FILTER_PASS
                 READ: NTA
          READ_FILTER: SRA_READ_FILTER_PASS
@@ -42,7 +42,7 @@ PRIMARY_ALIGNMENT_ID: 0
                 NAME: 2
             PLATFORM: SRA_PLATFORM_UNDEFINED
 PRIMARY_ALIGNMENT_ID: 0
-             QUALITY: 0, 0, 0
+             QUALITY: 30, 30, 30
            RD_FILTER: SRA_READ_FILTER_PASS
                 READ: NNT
          READ_FILTER: SRA_READ_FILTER_PASS

@@ -1201,13 +1201,13 @@ rc_t CC KMain(int argc, char *argv[])
     if (has_help) {
         argc = 2;
         argv[1] = "--help";
+        return main_help_vers(argc, argv);
     }
     if (has_vers) {
         argc = 2;
         argv[1] = "--vers";
-    }
-    if (has_help || has_vers)
         return main_help_vers(argc, argv);
+    }
 
     logger = make_logger(&argc, argv);
 

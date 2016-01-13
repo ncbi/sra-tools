@@ -204,11 +204,15 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 12.1 0 $(SRCDIR)/input/12.1.fastq --quality PHRED_33 
     # Illumina, use barcodes as spotgroups, alternative format
 	$(SMALLRUN) 12.2 0 $(SRCDIR)/input/12.2.fastq --quality PHRED_33
+    # Consume our own dog food (13.0.fastq created by fastq-dump )
+	$(SMALLRUN) 13.0 0 $(SRCDIR)/input/13.0.fastq --quality PHRED_33 
+    # Consume our own dog food (13.1.fastq created by fastq-dump -F )
+	$(SMALLRUN) 13.1 0 $(SRCDIR)/input/13.1.fastq --quality PHRED_33 
     # SRA-2932: 30 is the preferred value for qualities when reading FASTA
-	$(SMALLRUN) 13.0 0 $(SRCDIR)/input/13.0.fasta $(SRCDIR)/input/13.0.fasta --quality PHRED_33
+	$(SMALLRUN) 14.0 0 $(SRCDIR)/input/14.0.fasta $(SRCDIR)/input/14.0.fasta --quality PHRED_33
 	rm -rf $(SRCDIR)/actual
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 13.0 0 $(SRCDIR)/input/13.0.fasta $(SRCDIR)/input/13.0.fasta --quality PHRED_33
+	$(SMALLRUN) 13.1 0 $(SRCDIR)/input/13.1.fastq --quality PHRED_33 
     

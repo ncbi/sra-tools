@@ -1308,6 +1308,17 @@ FIXTURE_TEST_CASE ( AnotherUnexpectedEOLreported, LoaderFixture )
     REQUIRE(SequenceIsSecond(seq));
 }
 
+FIXTURE_TEST_CASE ( FastqDumpOutput, LoaderFixture )
+{ // VDB-2835 source: fastq-dump SRR000123 
+    REQUIRE(CreateFileGetSequence(GetName(), 
+        "@SRR000123.1 EXRHO8E16JTGUV length=157\n"
+        "TCAGTTTCGGGAACTATGTAAACAATACGCTAAGCGTGTTCTATGGTTTTACAATGTTCAGGATGGAAACATTGTAGGAGATAACAACCGAGAAGTATCGCTGCCTGTCGGCTGAGACACGCAACAGGGGATAGGCAAGGCACTACAGGGGATAGGN\n"
+        "+SRR000123.1 EXRHO8E16JTGUV length=157\n"
+        "=<:7F?)9F?)>3<=<===F?*<D:<<<=<:F>=<==:D;==;=D;LE8,49E<==E==;E===E<F@+==E<==<D=<8<=C;;A9@7;<9>6<<===<=<<A:8<:;C<<=<;<<<9<:=B;88GC6(6<<C==C=C=<=<&<9=GC7):<<B:!\n"
+    ));
+    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
+    REQUIRE_EQ(string("SRR000123.1"), string(name, length));
+}
 
 
 // FIXTURE_TEST_CASE(Pacbio, LoaderFixture)

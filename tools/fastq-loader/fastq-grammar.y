@@ -59,7 +59,7 @@
 %parse-param {FASTQParseBlock* pb }
 %lex-param {FASTQParseBlock* pb }
 %error-verbose 
-%name-prefix="FASTQ_"
+%name-prefix "FASTQ_"
 
 %token fqRUNDOTSPOT
 %token fqNUMBER
@@ -154,7 +154,8 @@ tagLine
     
     | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } casava1_8 { FASTQScan_skip_to_eol(pb); }
     | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
-    | runSpotRead { FASTQScan_skip_to_eol(pb); }
+    | runSpotRead fqWS  { FASTQScan_skip_to_eol(pb); }
+    | runSpotRead       { FASTQScan_skip_to_eol(pb); }
     | name readNumber
     | name readNumber fqWS  { FASTQScan_skip_to_eol(pb); } 
     | name 

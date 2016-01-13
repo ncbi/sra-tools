@@ -102,7 +102,7 @@ FASTQ_SRC = \
 	fastq-grammar \
 	fastq-lex
 
-# flex/bison should only be invoked manually in an environment ensures the correct versions:
+# flex/bison should only be invoked manually in an environment that ensures the correct versions:
 # bison 2.5, flex 2.5.35
 bison:
 	bison --warnings=error -o $(SRCDIR)/fastq-grammar.c --defines=$(SRCDIR)/fastq-tokens.h -v --no-lines $(SRCDIR)/fastq-grammar.y

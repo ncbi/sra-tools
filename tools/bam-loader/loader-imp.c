@@ -114,7 +114,8 @@ typedef struct {
     uint8_t  unmated: 1,
              pcr_dup: 1,
              unaligned_1: 1,
-             unaligned_2: 1;
+             unaligned_2: 1,
+             hardclipped: 1;
 } ctx_value_t;
 
 #define CTX_VALUE_SET_P_ID(O,N,V) do { int64_t tv = (V); (O).primaryId[N] = (uint32_t)tv; (O).pId_ext[N] = tv >> 32; } while(0);

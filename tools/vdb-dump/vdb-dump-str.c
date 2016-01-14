@@ -350,15 +350,15 @@ rc_t vds_enclose_string( p_dump_str s, const char c_left, const char c_right )
     {
         return RC( rcVDB, rcNoTarg, rcInserting, rcParam, rcNull );
     }
-    to_move = string_size( s->buf ) + 1;
+    to_move = s->str_len + 1;
     rc = vds_inc_buffer( s, 2 );
     if ( rc == 0 )
     {
         memmove( s->buf + 1, s->buf, to_move );
-        s->buf[0]=c_left;
-        s->buf[to_move]=c_right;
-        s->buf[to_move+1]=0;
-        s->str_len = string_size( s->buf );
+        s->buf[ 0 ] = c_left;
+        s->buf[ to_move ] = c_right;
+        s->buf[ to_move + 1 ] = 0;
+        s->str_len += 2;
     }
     return rc;
 }

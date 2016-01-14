@@ -814,8 +814,7 @@ static rc_t VerifyReferences(BAM_File const *bam, Reference const *ref)
                 (void)PLOGMSG(klogWarn, (klogWarn, "Reference: '$(name)', Length: $(len); checksums do not match", "name=%s,len=%u", refSeq->name, (unsigned)refSeq->length));
 #endif
             }
-            else
-            if (GetRCObject(rc) == rcSize && GetRCState(rc) == rcUnequal) {
+            else if (GetRCObject(rc) == rcSize && GetRCState(rc) == rcUnequal) {
                 (void)PLOGMSG(klogWarn, (klogWarn, "Reference: '$(name)', Length: $(len); lengths do not match", "name=%s,len=%u", refSeq->name, (unsigned)refSeq->length));
             }
             else if (GetRCObject(rc) == rcSize && GetRCState(rc) == rcEmpty) {
@@ -1041,6 +1040,16 @@ static char const *const CHANGED[] = {
     "CIGAR changed"
 };
 
+#define FLAG_CHANGED (0)
+#define QUAL_CHANGED (1)
+#define SEQ_CHANGED (2)
+#define MAKE_UNALIGNED (3)
+#define MAKE_UNFRAGMENTED (4)
+#define MATE_LOST (5)
+#define DISCARDED (6)
+#define REF_NAME_CHANGED (7)
+#define CIGAR_CHANGED (8)
+
 static char const *const REASONS[] = {
 /* FLAG changed */
     "0x400 and 0x200 both set",                 /*  0 */
@@ -1078,43 +1087,46 @@ static char const *const REASONS[] = {
 /* reference name changed */
     "reference was named more than once",       /* 27 */
 /* CIGAR changed */
-    "alignment overhanging end of reference"    /* 28 */
+    "alignment overhanging end of reference",   /* 28 */
+/* discarded */
+    "hard-clipped secondary alignment",         /* 29 */
 };
 
 static struct {
     unsigned what, why;
 } const CHANGES[] = {
-    {0,  0},
-    {0,  1},
-    {0,  2},
-    {0,  3},
-    {1,  4},
-    {1,  5},
-    {1,  6},
-    {1,  7},
-    {1,  8},
-    {2,  8},
-    {3,  9},
-    {3, 10},
-    {3, 11},
-    {3, 12},
-    {3, 13},
-    {3, 14},
-    {3, 15},
-    {3, 16},
-    {3, 17},
-    {3, 18},
-    {4, 19},
-    {4, 20},
-    {5, 21},
-    {5, 22},
-    {5, 23},
-    {6, 24},
-    {6, 25},
-    {6, 26},
-    {6, 17},
-    {7, 27},
-    {8, 28},
+    {FLAG_CHANGED,  0},
+    {FLAG_CHANGED,  1},
+    {FLAG_CHANGED,  2},
+    {FLAG_CHANGED,  3},
+    {QUAL_CHANGED,  4},
+    {QUAL_CHANGED,  5},
+    {QUAL_CHANGED,  6},
+    {QUAL_CHANGED,  7},
+    {QUAL_CHANGED,  8},
+    {SEQ_CHANGED,  8},
+    {MAKE_UNALIGNED,  9},
+    {MAKE_UNALIGNED, 10},
+    {MAKE_UNALIGNED, 11},
+    {MAKE_UNALIGNED, 12},
+    {MAKE_UNALIGNED, 13},
+    {MAKE_UNALIGNED, 14},
+    {MAKE_UNALIGNED, 15},
+    {MAKE_UNALIGNED, 16},
+    {MAKE_UNALIGNED, 17},
+    {MAKE_UNALIGNED, 18},
+    {MAKE_UNFRAGMENTED, 19},
+    {MAKE_UNFRAGMENTED, 20},
+    {MATE_LOST, 21},
+    {MATE_LOST, 22},
+    {MATE_LOST, 23},
+    {DISCARDED, 24},
+    {DISCARDED, 25},
+    {DISCARDED, 26},
+    {DISCARDED, 17},
+    {REF_NAME_CHANGED, 27},
+    {CIGAR_CHANGED, 28},
+    {DISCARDED, 29},
 };
 
 #define NUMBER_OF_CHANGES ((unsigned)(sizeof(CHANGES)/sizeof(CHANGES[0])))
@@ -1215,6 +1227,21 @@ static rc_t RecordChanges(KMDataNode *const node, char const name[])
 #define DISCARD_UNKNOWN_REFERENCE  do { LOG_CHANGE(28); } while(0)
 #define RENAMED_REFERENCE          do { LOG_CHANGE(29); } while(0)
 #define OVERHANGING_ALIGNMENT      do { LOG_CHANGE(30); } while(0)
+#define DISCARD_HARDCLIP_SECONDARY do { LOG_CHANGE(31); } while(0)
+
+static bool isHardClipped(unsigned const ops, uint32_t const cigar[/* ops */])
+{
+    unsigned i;
+
+    for (i = 0; i < ops; ++i) {
+        uint32_t const op = cigar[i];
+        int const code = op & 0x0F;
+
+        if (code == 5)
+            return true;
+    }
+    return false;
+}
 
 static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint32_t refPos, uint32_t refLen, uint32_t readlen)
 {
@@ -1538,8 +1565,14 @@ MIXED_BASE_AND_COLOR:
         }}
         AR_REF_ORIENT(data) = (flags & BAMFlags_SelfIsReverse) == 0 ? false : true;/*BAM*/
         isPrimary = (flags & (BAMFlags_IsNotPrimary|BAMFlags_IsSupplemental)) == 0 ? true : false;/*BAM*/
-        if (G.noSecondary && !isPrimary)
-            goto LOOP_END;
+        if (!isPrimary) {
+            if (G.noSecondary)
+                goto LOOP_END;
+            if (G.acceptHardClip && isHardClipped(opCount, cigBuf.base)) {
+                DISCARD_HARDCLIP_SECONDARY;
+                goto LOOP_END;
+            }
+        }
         originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;/*BAM*/
         aligned = originally_aligned;
 #if 0
@@ -1731,9 +1764,6 @@ MIXED_BASE_AND_COLOR:
                 goto LOOP_END;
             }
         }
-
-        ++recordsProcessed;
-
         if (isPrimary) {
             switch (AR_READNO(data)) {
             case 1:
@@ -1762,6 +1792,15 @@ MIXED_BASE_AND_COLOR:
                 break;
             }
         }
+        if (!isPrimary && value->hardclipped != 0) {
+            DISCARD_HARDCLIP_SECONDARY;
+            goto LOOP_END;
+        }
+
+        ++recordsProcessed;
+
+        if (isPrimary && isHardClipped(opCount, cigBuf.base))
+            value->hardclipped = 1;
         data.isPrimary = isPrimary;
         if (aligned) {
             uint32_t matches = 0;

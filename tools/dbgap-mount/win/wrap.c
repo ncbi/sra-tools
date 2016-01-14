@@ -28,6 +28,7 @@
 #include <klib/text.h>
 #include <klib/out.h> /* OUTMSG */
 #include <klib/rc.h>
+#include <klib/log.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -35,7 +36,7 @@
 #include <xfs/xfs-defs.h>
 #include <xfs/xlog.h>
 
-#include "../mount-tool.h"
+#include "../dbgap-mount-tool.h"
 
 #include <sysalloc.h>
 
@@ -352,7 +353,7 @@ WrapIt (
                 RCt = runner ( TheArgs );
             }
             else {
-                XFSLogErr ( RCt, "CRITICAL ERROR: Can not initialize log file\n" );
+                LogErr ( klogErr, RCt, "CRITICAL ERROR: Can not initialize log file" );
             }
         }
     }

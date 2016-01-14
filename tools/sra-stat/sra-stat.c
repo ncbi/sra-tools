@@ -306,6 +306,11 @@ static void Statistics2Print(const Statistics2* selfs,
     OUTMSG(("%s</Statistics2>\n", indent));
 }
 
+static bool columnUndefined(rc_t rc) {
+    return rc == SILENT_RC(rcVDB, rcCursor, rcOpening , rcColumn, rcUndefined)
+        || rc == SILENT_RC(rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound );
+}
+
 typedef struct {
     uint64_t cnt[5];
     bool CS_NATIVE;
@@ -340,28 +345,38 @@ static rc_t BasesInit(Bases *self, const VTable *vtbl) {
 
         if (rc == 0) {
             rc = VCursorOpen(curs);
-            DISP_RC(rc, "Cannot VCursorOpen(CS_NATIVE)");
-        }
 
-        if (rc == 0) {
-            bitsz_t boff = ~0;
-            bitsz_t row_bits = ~0;
-
-            uint32_t elem_bits = 0, elem_off = 0, elem_cnt = 0;
-            rc = VCursorCellDataDirect(curs, 1, idx,
-                &elem_bits, &base, &elem_off, &elem_cnt);
-            boff     = elem_off * elem_bits;
-            row_bits = elem_cnt * elem_bits;
-
-            if (boff != 0 || row_bits != 8) {
-                rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
-                PLOGERR(klogInt, (klogErr, rc, "invalid boff or row_bits "
-                    "while VCursorCellDataDirect($(name))", "name=%s", name));
+            if (rc != 0) {
+                if (columnUndefined(rc)) {
+                    self->CS_NATIVE = false;
+                    rc = 0;
+                }
+                else {
+                    DISP_RC(rc, "Cannot VCursorOpen(CS_NATIVE)");
+                }
             }
-        }
+            else {
+                bitsz_t boff = ~0;
+                bitsz_t row_bits = ~0;
 
-        if (rc == 0) {
-            self->CS_NATIVE = *((bool*)base);
+                uint32_t elem_bits = 0, elem_off = 0, elem_cnt = 0;
+                rc = VCursorCellDataDirect(curs, 1, idx,
+                    &elem_bits, &base, &elem_off, &elem_cnt);
+                boff     = elem_off * elem_bits;
+                row_bits = elem_cnt * elem_bits;
+
+                if (boff != 0 || row_bits != 8) {
+                    rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
+                    PLOGERR(klogInt, (klogErr, rc, "invalid boff or row_bits "
+                        "while VCursorCellDataDirect($(name))",
+                        "name=%s", name));
+                }
+
+                if (rc == 0) {
+                    self->CS_NATIVE = *((bool*)base);
+                }
+
+            }
         }
 
         RELEASE(VCursor, curs);
@@ -2513,11 +2528,6 @@ int64_t CC srastats_sort ( const BSTNode *item, const BSTNode *n )
 {
     const SraStats *ss = ( const SraStats* ) item;
     return srastats_cmp(ss->spot_group,n);
-}
-
-static bool columnUndefined(rc_t rc) {
-    return rc == SILENT_RC(rcVDB, rcCursor, rcOpening , rcColumn, rcUndefined)
-        || rc == SILENT_RC(rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound );
 }
 
 static rc_t sra_stat(srastat_parms* pb, BSTree* tr,

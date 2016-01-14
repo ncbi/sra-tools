@@ -338,20 +338,24 @@ static rc_t BasesInit(Bases *self, const VTable *vtbl) {
         DISP_RC(rc, "Cannot VTableCreateCursorRead");
 
         if (rc == 0) {
-            rc = VCursorAddColumn(curs, &idx, "%s", name);
-            DISP_RC(rc, "Cannot VCursorAddColumn(CS_NATIVE)");
+            rc = VCursorPermitPostOpenAdd(curs);
+            DISP_RC(rc, "Cannot VCursorPermitPostOpenAdd");
         }
 
         if (rc == 0) {
             rc = VCursorOpen(curs);
+            DISP_RC(rc, "Cannot VCursorOpen");
+        }
 
+        if (rc == 0) {
+            rc = VCursorAddColumn(curs, &idx, "%s", name);
             if (rc != 0) {
                 if (columnUndefined(rc)) {
                     self->CS_NATIVE = false;
                     rc = 0;
                 }
                 else {
-                    DISP_RC(rc, "Cannot VCursorOpen(CS_NATIVE)");
+                    DISP_RC(rc, "Cannot VCursorAddColumn(CS_NATIVE)");
                 }
             }
             else {

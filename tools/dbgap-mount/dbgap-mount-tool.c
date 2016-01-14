@@ -33,6 +33,7 @@
 #include <klib/out.h> /* OUTMSG */
 #include <klib/refcount.h>
 #include <klib/rc.h>
+#include <klib/log.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -41,7 +42,6 @@
 #include <xfs/node.h>
 #include <xfs/tree.h>
 #include <xfs/xfs.h>
-#include <xfs/xlog.h>
 
 #include "dbgap-mount-tool.h"
 
@@ -136,31 +136,31 @@ DoFukan (
 
         /*  Some messages good to say
          */
-    XFSLogMsg ( "Start\n" );
-    XFSLogMsg ( "ProjectID: %s\n", ProjectId );
-    XFSLogMsg ( "MountPoint: %s\n", MountPoint );
+    LogMsg ( klogInfo, "Start" );
+    pLogMsg ( klogInfo, "ProjectID: $(project)", "project=%s", ProjectId );
+    pLogMsg ( klogInfo, "MountPoint: $(point)", "point=%s", MountPoint );
     if ( LogFile != NULL ) {
-        XFSLogMsg ( "LogFile: %s\n", LogFile );
+        pLogMsg ( klogInfo, "LogFile: $(file)", "file=%s", LogFile );
     }
-    XFSLogMsg ( "ReadOnly: %s\n", ( ReadOnly ? "true" : "false" ) );
-    XFSLogMsg ( "Daemonize: %s\n", ( Daemonize ? "true" : "false" ) );
+    pLogMsg ( klogInfo, "ReadOnly: $(ro)", "ro=%s", ( ReadOnly ? "true" : "false" ) );
+    pLogMsg ( klogInfo, "Daemonize: $(pokemon)", "pokemon=%s", ( Daemonize ? "true" : "false" ) );
 
         /*  Initializing all depots and heavy gunz
          */
     RCt = XFS_InitAll_MHR ( NULL );
-    XFSLogDbg ( "[XFS_InitAll_MHR][RC=%d]\n", RCt );
+    pLogMsg ( klogDebug, "[XFS_InitAll_MHR][$(rc)]", "rc=%d", RCt );
     if ( RCt == 0 ) {
 
         RCt = MakeModel ( & TheModel, ProjectId, ReadOnly );
-        XFSLogDbg ( "[XFSModelMake][RC=%d]\n", RCt );
+        pLogMsg ( klogDebug, "[XFSModelMake][$(rc)]", "rc=%d", RCt );
         if ( RCt == 0 ) {
 
             RCt = XFSTreeMake ( TheModel, & TheTree );
-            XFSLogDbg ( "[XFSTreeMake][RC=%d]\n", RCt );
+            pLogMsg ( klogDebug, "[XFSTreeMake][$(rc)]", "rc=%d", RCt );
             if ( RCt == 0 ) {
 
                 RCt = XFSControlMake ( TheTree, & TheControl );
-                XFSLogDbg ( "[XFSControlMake][RC=%d]\n", RCt );
+                pLogMsg ( klogDebug, "[XFSControlMake][$(rc)]", "rc=%d", RCt );
                 if ( RCt == 0 ) {
 
                     XFSControlSetMountPoint ( TheControl, MountPoint );
@@ -172,16 +172,16 @@ DoFukan (
                         XFSControlDaemonize ( TheControl );
                     }
 
-                    XFSLogDbg ( "[XFSStart]\n" );
+                    LogMsg ( klogDebug, "[XFSStart]" );
                     RCt = XFSStart ( TheControl );
-                    XFSLogDbg ( "[XFSStart][RC=%d]\n", RCt );
+                    pLogMsg ( klogDebug, "[XFSStart][$(rc)]", "rc=%d", RCt );
                     if ( RCt == 0 ) {
-                        XFSLogDbg ( "[XFSStop]\n" );
+                        LogMsg ( klogDebug, "[XFSStop]" );
                         RCt = XFSStop ( TheControl );
-                        XFSLogDbg ( "[XFSStop][RC=%d]\n", RCt );
+                        pLogMsg ( klogDebug, "[XFSStop][$(rc)]", "rc=%d", RCt );
                     }
                     else {
-                        XFSLogErr ( RCt, "CRITICAL ERROR: Can not start MOUNTER\n" );
+                        LogErr ( klogFatal, RCt, "CRITICAL ERROR: Can not start MOUNTER" );
                     }
                 }
 
@@ -199,7 +199,7 @@ DoFukan (
 
         /*  Another message good to say
          */
-    XFSLogDbg ( "[Exiting]\n" );
+    LogMsg ( klogDebug, "[Exiting]" );
 
     return RCt;
 }   /* DoFukan () */
@@ -409,7 +409,7 @@ DoUnmount ( const char * MountPoint )
 
     XFS_CAN ( MountPoint )
 
-    XFSLogDbg ( "[DoUnmount] [%s]\n", MountPoint );
+    pLogMsg ( klogDebug, "[DoUnmount] [$(point)]", "point=%s", MountPoint );
 
     XFSUnmountAndDestroy ( MountPoint );
 

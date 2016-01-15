@@ -2019,7 +2019,6 @@ WRITE_SEQUENCE:
                         
                         if (!isPrimary) {
                             if (!G.assembleWithSecondary) {
-                                (void)PLOGERR(klogWarn, (klogWarn, "File '$(file)' attempt to construct spot from secondary alignment", "file=%s", bamFile));
                                 goto LOOP_END;
                             }
                             (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2105,7 +2104,6 @@ WRITE_SEQUENCE:
 
                 if (!isPrimary) {
                     if (!G.assembleWithSecondary) {
-                        (void)PLOGERR(klogWarn, (klogWarn, "File '$(file)' attempt to construct spot from secondary alignment", "file=%s", bamFile));
                         goto LOOP_END;
                     }
                     (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));

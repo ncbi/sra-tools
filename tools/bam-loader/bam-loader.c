@@ -149,6 +149,7 @@ static char const option_TI[] = "TI";
 static char const option_max_warn_dup_flag[] = "max-warning-dup-flag";
 static char const option_accept_hard_clip[] = "accept-hard-clip";
 static char const option_allow_multi_map[] = "allow-multi-map";
+static char const option_allow_secondary[] = "allow-secondary";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -172,6 +173,7 @@ static char const option_allow_multi_map[] = "allow-multi-map";
 #define OPTION_MAX_WARN_DUP_FLAG option_max_warn_dup_flag
 #define OPTION_ACCEPT_HARD_CLIP option_accept_hard_clip
 #define OPTION_ALLOW_MULTI_MAP option_allow_multi_map
+#define OPTION_ALLOW_SECONDARY option_allow_secondary
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -407,6 +409,13 @@ char const * use_allow_multi_map[] =
     NULL
 };
 
+static
+char const * use_allow_secondary[] =
+{
+    "allow secondary alignments to be used for constructing spots",
+    NULL
+};
+
 OptDef Options[] = 
 {
     /* order here is same as in param array below!!! */
@@ -440,7 +449,8 @@ OptDef Options[] =
     { OPTION_TI, NULL, NULL, use_TI, 1, false, false },
     { OPTION_MAX_WARN_DUP_FLAG, NULL, NULL, use_max_dup_warnings, 1, true, false },
     { OPTION_ACCEPT_HARD_CLIP, NULL, NULL, use_accept_hard_clip, 1, false, false },
-    { OPTION_ALLOW_MULTI_MAP, NULL, NULL, use_allow_multi_map, 1, false, false }
+    { OPTION_ALLOW_MULTI_MAP, NULL, NULL, use_allow_multi_map, 1, false, false },
+    { OPTION_ALLOW_SECONDARY, NULL, NULL, use_allow_secondary, 1, false, false }
 };
 
 const char* OptHelpParam[] =
@@ -476,7 +486,8 @@ const char* OptHelpParam[] =
     NULL,				/* use XT->TI */
     "count",			/* max. duplicate warning count */
     NULL,				/* allow hard clipping */
-    NULL				/* allow multimapping */
+    NULL,				/* allow multimapping */
+    NULL				/* allow secondary */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -957,6 +968,11 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
         if (rc)
             break;
         G.allowMultiMapping |= (pcount > 0);
+        
+        rc = ArgsOptionCount (args, OPTION_ALLOW_SECONDARY, &pcount);
+        if (rc)
+            break;
+        G.assembleWithSecondary |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_NOMATCH_LOG, &pcount);
         if (rc)

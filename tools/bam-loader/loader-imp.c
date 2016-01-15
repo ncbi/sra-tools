@@ -1010,7 +1010,7 @@ rc_t LogNoMatch(char const readName[], char const refName[], unsigned rpos, unsi
 static
 rc_t LogDupConflict(char const readName[])
 {
-    rc_t const rc = CheckLimitAndLogError();
+    rc_t const rc = 0; /*CheckLimitAndLogError();*/
     static unsigned count = 0;
 
     ++count;

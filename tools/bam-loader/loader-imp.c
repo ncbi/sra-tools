@@ -1920,7 +1920,7 @@ WRITE_SEQUENCE:
 
                     if (!isPrimary) {
                         if (!G.assembleWithSecondary) {
-                            goto LOOP_END;
+                            goto WRITE_ALIGNMENT;
                         }
                         (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
                     }

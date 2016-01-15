@@ -1546,7 +1546,7 @@ MIXED_BASE_AND_COLOR:
         }
         else {
             BAM_AlignmentGetReadLength(rec, &readlen);
-            rc = AlignmentRecordInit(&data, readlen);
+            rc = AlignmentRecordInit(&data, readlen + lpad + rpad);
             if (rc == 0)
                 rc = KDataBufferResize(&buf, readlen + lpad + rpad);
             if (rc) {

@@ -2019,8 +2019,7 @@ WRITE_SEQUENCE:
                         
                         if (!isPrimary) {
                             if (!G.assembleWithSecondary) {
-                                rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                                (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' attempt to construct spot from secondary alignment", "file=%s", bamFile));
+                                (void)PLOGERR(klogWarn, (klogWarn, "File '$(file)' attempt to construct spot from secondary alignment", "file=%s", bamFile));
                                 goto LOOP_END;
                             }
                             (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2106,8 +2105,7 @@ WRITE_SEQUENCE:
 
                 if (!isPrimary) {
                     if (!G.assembleWithSecondary) {
-                        rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                        (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' attempt to construct spot from secondary alignment", "file=%s", bamFile));
+                        (void)PLOGERR(klogWarn, (klogWarn, "File '$(file)' attempt to construct spot from secondary alignment", "file=%s", bamFile));
                         goto LOOP_END;
                     }
                     (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2386,10 +2384,14 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
             primaryId[1] = CTX_VALUE_GET_P_ID(*value, 1);
 
             if (primaryId[0] == 0 && value->alignmentCount[0] != 0) {
-                (void)PLOGMSG(klogWarn, (klogWarn, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
+                rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+                (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
+                break;
             }
             if (!value->unmated && primaryId[1] == 0 && value->alignmentCount[1] != 0) {
-                (void)PLOGMSG(klogWarn, (klogWarn, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", keyId));
+                rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+                (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", keyId));
+                break;
             }
 
             rc = SequenceUpdateAlignData(seq, row, value->unmated ? 1 : 2,
@@ -2432,8 +2434,9 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
             int64_t const spotId = CTX_VALUE_GET_S_ID(*value);
 
             if (spotId == 0) {
-                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(id)' was never assigned a spot id, probably has no primary alignments", "id=%lx", keyId));
-                /* (void)PLOGMSG(klogWarn, (klogWarn, "Spot #$(i): { $(s) }", "i=%lu,s=%s", keyId, Print_ctx_value_t(value))); */
+                rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+                (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(id)' was never assigned a spot id, probably has no primary alignments", "id=%lx", keyId));
+                break;
             }
             rc = AlignmentWriteSpotId(align, spotId);
         }

@@ -1396,6 +1396,8 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         bool hasCG = false;
         uint64_t ti = 0;
         uint32_t csSeqLen = 0;
+        int lpad = 0;
+        int rpad = 0;
 
         rc = BAM_FileRead2(bam, &rec);
         if (rc) {
@@ -1426,36 +1428,98 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         }
 
 
-        /**************************************************************/
         if (!G.noColorSpace) {
-            if (BAM_AlignmentHasColorSpace(rec)) {/*BAM*/
+            if (BAM_AlignmentHasColorSpace(rec)) {
                 if (isNotColorSpace) {
 MIXED_BASE_AND_COLOR:
                     rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
                     (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains base space and color space", "file=%s", bamFile));
                     goto LOOP_END;
                 }
-                ctx->isColorSpace = isColorSpace = true;
+                /* COLORSPACE is disabled!
+                 * ctx->isColorSpace = isColorSpace = true; */
             }
             else if (isColorSpace)
                 goto MIXED_BASE_AND_COLOR;
             else
                 isNotColorSpace = true;
         }
-        rc = BAM_AlignmentCGReadLength(rec, &readlen);/*BAM*/
+        BAM_AlignmentGetFlags(rec, &flags);
+        BAM_AlignmentGetReadName2(rec, &name, &namelen);
+        isPrimary = (flags & (BAMFlags_IsNotPrimary|BAMFlags_IsSupplemental)) == 0 ? true : false;
+        if (!isPrimary && G.noSecondary)
+            goto LOOP_END;
+
+        {
+            char const *rgname;
+
+            BAM_AlignmentGetReadGroupName(rec, &rgname);
+            if (rgname)
+                strcpy(spotGroup, rgname);
+            else
+                spotGroup[0] = '\0';
+        }
+
+        rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
             (void)LOGERR(klogErr, rc, "Invalid CG data");
             goto LOOP_END;
         }
         if (rc == 0) {
             hasCG = true;
-            BAM_AlignmentGetCigarCount(rec, &opCount);/*BAM*/
+            BAM_AlignmentGetCigarCount(rec, &opCount);
             rc = KDataBufferResize(&cigBuf, opCount * 2 + 5);
             if (rc) {
                 (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
                 goto LOOP_END;
             }
+        }
+        else {
+            uint32_t const *tmp;
 
+            BAM_AlignmentGetRawCigar(rec, &tmp, &opCount);
+            rc = KDataBufferResize(&cigBuf, opCount);
+            if (rc) {
+                (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
+                goto LOOP_END;
+            }
+            memcpy(cigBuf.base, tmp, opCount * sizeof(uint32_t));
+            {
+                bool const hardclipped = isHardClipped(opCount, cigBuf.base);
+                if (hardclipped) {
+                    if (isPrimary) {
+                        if (!G.acceptHardClip) {
+                            rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+                            (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains hard clipped primary alignments", "file=%s", bamFile));
+                            goto LOOP_END;
+                        }
+                    }
+                    else if (!G.acceptHardClip) { /* convert to soft clip */
+                        uint32_t *const cigar = cigBuf.base;
+                        uint32_t const lOp = cigar[0];
+                        uint32_t const rOp = cigar[opCount - 1];
+
+                        lpad = (lOp & 0xF) == 5 ? (lOp >> 4) : 0;
+                        rpad = (rOp & 0xF) == 5 ? (rOp >> 4) : 0;
+
+                        if (lpad + rpad == 0) {
+                            rc = RC(rcApp, rcFile, rcReading, rcData, rcInvalid);
+                            (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains invalid CIGAR", "file=%s", bamFile));
+                            goto LOOP_END;
+                        }
+                        if (lpad != 0) {
+                            uint32_t const new_lOp = (((uint32_t)lpad) << 4) | 4;
+                            cigar[0] = new_lOp;
+                        }
+                        if (rpad != 0) {
+                            uint32_t const new_rOp = (((uint32_t)rpad) << 4) | 4;
+                            cigar[opCount - 1] = new_rOp;
+                        }
+                    }
+                }
+            }
+        }
+        if (hasCG) {
             rc = AlignmentRecordInit(&data, readlen);
             if (rc == 0)
                 rc = KDataBufferResize(&buf, readlen);
@@ -1466,133 +1530,79 @@ MIXED_BASE_AND_COLOR:
 
             seqDNA = buf.base;
             qual = (uint8_t *)&seqDNA[readlen];
-        }
-        else {
-            uint32_t const *tmp;
 
-            BAM_AlignmentGetRawCigar(rec, &tmp, &opCount);/*BAM*/
-            rc = KDataBufferResize(&cigBuf, opCount);
+            rc = BAM_AlignmentGetCGSeqQual(rec, seqDNA, qual);
+            if (rc == 0) {
+                rc = BAM_AlignmentGetCGCigar(rec, cigBuf.base, cigBuf.elem_count, &opCount);
+            }
             if (rc) {
-                (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
+                (void)LOGERR(klogErr, rc, "Failed to read CG data");
                 goto LOOP_END;
             }
-            memcpy(cigBuf.base, tmp, opCount * sizeof(uint32_t));
-
-            BAM_AlignmentGetReadLength(rec, &readlen);/*BAM*/
-            if (isColorSpace) {
-                BAM_AlignmentGetCSSeqLen(rec, &csSeqLen);
-                if (readlen > csSeqLen) {
-                    rc = RC(rcAlign, rcRow, rcReading, rcData, rcInconsistent);
-                    (void)LOGERR(klogErr, rc, "Sequence length and CS Sequence length are inconsistent");
-                    goto LOOP_END;
-                }
-                else if (readlen < csSeqLen)
-                    readlen = 0;
-            }
-            else if (readlen == 0) {
-            }
-
-            rc = AlignmentRecordInit(&data, readlen | csSeqLen);
+            data.data.align_group.elements = 0;
+            data.data.align_group.buffer = alignGroup;
+            if (BAM_AlignmentGetCGAlignGroup(rec, alignGroup, sizeof(alignGroup), &alignGroupLen) == 0)
+                data.data.align_group.elements = alignGroupLen;
+        }
+        else {
+            BAM_AlignmentGetReadLength(rec, &readlen);
+            rc = AlignmentRecordInit(&data, readlen);
             if (rc == 0)
-                rc = KDataBufferResize(&buf, readlen | csSeqLen);
+                rc = KDataBufferResize(&buf, readlen + lpad + rpad);
             if (rc) {
                 (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
                 goto LOOP_END;
             }
 
             seqDNA = buf.base;
-            qual = (uint8_t *)&seqDNA[readlen | csSeqLen];
-        }
-        BAM_AlignmentGetReadName2(rec, &name, &namelen);/*BAM*/
-        BAM_AlignmentGetSequence(rec, seqDNA);/*BAM*/
-        if (G.useQUAL) {
-            uint8_t const *squal;
+            qual = (uint8_t *)&seqDNA[(readlen | csSeqLen) + lpad + rpad];
+            memset(seqDNA, '=', (readlen | csSeqLen) + lpad + rpad);
+            memset(qual, 0, (readlen | csSeqLen) + lpad + rpad);
 
-            BAM_AlignmentGetQuality(rec, &squal);/*BAM*/
-            memcpy(qual, squal, readlen);
-        }
-        else {
-            uint8_t const *squal;
-            uint8_t qoffset = 0;
-            unsigned i;
+            BAM_AlignmentGetSequence(rec, seqDNA + lpad);
+            if (G.useQUAL) {
+                uint8_t const *squal;
 
-            rc = BAM_AlignmentGetQuality2(rec, &squal, &qoffset);/*BAM*/
-            if (rc) {
-                (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(name)': length of original quality does not match sequence", "name=%s", name));
-                goto LOOP_END;
+                BAM_AlignmentGetQuality(rec, &squal);
+                memcpy(qual + lpad, squal, readlen);
             }
-            if (qoffset) {
-                for (i = 0; i != readlen; ++i)
-                    qual[i] = squal[i] - qoffset;
-                QUAL_CHANGED_OQ;
+            else {
+                uint8_t const *squal;
+                uint8_t qoffset = 0;
+                unsigned i;
+
+                rc = BAM_AlignmentGetQuality2(rec, &squal, &qoffset);
+                if (rc) {
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(name)': length of original quality does not match sequence", "name=%s", name));
+                    goto LOOP_END;
+                }
+                if (qoffset) {
+                    for (i = 0; i != readlen; ++i)
+                        qual[i + lpad] = squal[i] - qoffset;
+                    QUAL_CHANGED_OQ;
+                }
+                else
+                    memcpy(qual + lpad, squal, readlen);
             }
-            else
-                memcpy(qual, squal, readlen);
-        }
-        if (hasCG) {
-            rc = BAM_AlignmentGetCGSeqQual(rec, seqDNA, qual);
-            if (rc == 0) {
-                rc = BAM_AlignmentGetCGCigar(rec, cigBuf.base, cigBuf.elem_count, &opCount);/*BAM*/
-            }
-            if (rc) {
-                (void)LOGERR(klogErr, rc, "Failed to read CG data");
-                goto LOOP_END;
-            }
+            readlen = readlen + lpad + rpad;
+            data.data.align_group.elements = 0;
+            data.data.align_group.buffer = alignGroup;
         }
         if (G.hasTI) {
-            rc = BAM_AlignmentGetTI(rec, &ti);/*BAM*/
+            rc = BAM_AlignmentGetTI(rec, &ti);
             if (rc)
                 ti = 0;
             rc = 0;
         }
-        data.data.align_group.buffer = alignGroup;
-        if (BAM_AlignmentGetCGAlignGroup(rec, alignGroup, sizeof(alignGroup), &alignGroupLen) == 0)/*BAM*/
-            data.data.align_group.elements = alignGroupLen;
-        else
-            data.data.align_group.elements = 0;
+
+        AR_REF_ORIENT(data) = (flags & BAMFlags_SelfIsReverse) == 0 ? false : true;
 
         AR_MAPQ(data) = GetMapQ(rec);
-        BAM_AlignmentGetFlags(rec, &flags);/*BAM*/
-        BAM_AlignmentGetReadName2(rec, &name, &namelen);/*BAM*/
-        {{
-            char const *rgname;
-
-            BAM_AlignmentGetReadGroupName(rec, &rgname);/*BAM*/
-            if (rgname)
-                strcpy(spotGroup, rgname);
-            else
-                spotGroup[0] = '\0';
-        }}
-        AR_REF_ORIENT(data) = (flags & BAMFlags_SelfIsReverse) == 0 ? false : true;/*BAM*/
-        isPrimary = (flags & (BAMFlags_IsNotPrimary|BAMFlags_IsSupplemental)) == 0 ? true : false;/*BAM*/
-        if (!isPrimary) {
-            if (G.noSecondary)
-                goto LOOP_END;
-            if (G.acceptHardClip && isHardClipped(opCount, cigBuf.base)) {
-                DISCARD_HARDCLIP_SECONDARY;
-                goto LOOP_END;
-            }
-        }
-        originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;/*BAM*/
-        aligned = originally_aligned;
-#if 0
-        if (originally_aligned && AR_MAPQ(data) < G.minMapQual) {
-            aligned = false;
-            UNALIGNED_LOW_MAPQ;
-        }
-#else
-        /* min-mapq now only applies to secondary alignment to match cg-load
-         * see [SRA-2778] in JIRA
-         */
         if (!isPrimary && AR_MAPQ(data) < G.minMapQual)
             goto LOOP_END;
-#endif
-        if (aligned && isColorSpace && readlen == 0) {
-            /* detect hard clipped colorspace   */
-            /* reads and make unaligned         */
-            aligned = false;
-            UNALIGNED_HARD_CLIPPED_CS;
-        }
+
+        originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;
+        aligned = originally_aligned;
 
         if (aligned && align == NULL) {
             rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
@@ -1600,8 +1610,8 @@ MIXED_BASE_AND_COLOR:
             goto LOOP_END;
         }
         while (aligned) {
-            BAM_AlignmentGetPosition(rec, &rpos);/*BAM*/
-            BAM_AlignmentGetRefSeqId(rec, &refSeqId);/*BAM*/
+            BAM_AlignmentGetPosition(rec, &rpos);
+            BAM_AlignmentGetRefSeqId(rec, &refSeqId);
             if (rpos >= 0 && refSeqId >= 0) {
                 if (refSeqId == skipRefSeqID) {
                     DISCARD_SKIP_REFERENCE;
@@ -1616,7 +1626,7 @@ MIXED_BASE_AND_COLOR:
                 if (refSeqId == lastRefSeqId)
                     break;
                 refSeq = NULL;
-                BAM_FileGetRefSeqById(bam, refSeqId, &refSeq);/*BAM*/
+                BAM_FileGetRefSeqById(bam, refSeqId, &refSeq);
                 if (refSeq == NULL) {
                     rc = SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
@@ -1676,7 +1686,7 @@ MIXED_BASE_AND_COLOR:
             aligned = false;
         }
         if (!aligned && (G.refFilter != NULL || G.limit2config)) {
-            assert("this shouldn't happen");
+            assert(!"this shouldn't happen");
             goto LOOP_END;
         }
         rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
@@ -1693,10 +1703,10 @@ MIXED_BASE_AND_COLOR:
         AR_KEY(data) = keyId;
 
         mated = false;
-        if (flags & BAMFlags_WasPaired) {/*BAM*/
-            if ((flags & BAMFlags_IsFirst) != 0)/*BAM*/
+        if (flags & BAMFlags_WasPaired) {
+            if ((flags & BAMFlags_IsFirst) != 0)
                 AR_READNO(data) |= 1;
-            if ((flags & BAMFlags_IsSecond) != 0)/*BAM*/
+            if ((flags & BAMFlags_IsSecond) != 0)
                 AR_READNO(data) |= 2;
             switch (AR_READNO(data)) {
             case 1:
@@ -1730,11 +1740,13 @@ MIXED_BASE_AND_COLOR:
                 goto LOOP_END;
             }
             memset(value, 0, sizeof(*value));
-            value->unmated = !mated;
-            value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;/*BAM*/
-            value->platform = GetINSDCPlatform(bam, spotGroup);
+            if (isPrimary || G.assembleWithSecondary) {
+                value->unmated = !mated;
+                value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
+                value->platform = GetINSDCPlatform(bam, spotGroup);
+            }
         }
-        else {
+        else if (isPrimary || G.assembleWithSecondary) {
             int const o_pcr_dup = value->pcr_dup;
             int const n_pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
             
@@ -1792,15 +1804,16 @@ MIXED_BASE_AND_COLOR:
                 break;
             }
         }
-        if (!isPrimary && value->hardclipped != 0) {
+        if (isPrimary && (lpad != 0 || rpad != 0)) {
+            value->hardclipped = 1;
+        }
+        if (!isPrimary && value->hardclipped) {
             DISCARD_HARDCLIP_SECONDARY;
             goto LOOP_END;
         }
 
         ++recordsProcessed;
 
-        if (isPrimary && isHardClipped(opCount, cigBuf.base))
-            value->hardclipped = 1;
         data.isPrimary = isPrimary;
         if (aligned) {
             uint32_t matches = 0;
@@ -1851,41 +1864,8 @@ MIXED_BASE_AND_COLOR:
                 if (rc) goto LOOP_END;
             }
         }
-        if (isColorSpace) {
-            /* must be after ReferenceRead */
-            BAM_AlignmentGetCSKey(rec, &cskey);/*BAM*/
-            BAM_AlignmentGetCSSequence(rec, seqDNA, csSeqLen);/*BAM*/
-            if (!aligned && !G.useQUAL) {
-                uint8_t const *squal;
-                uint8_t qoffset = 0;
 
-                rc = BAM_AlignmentGetCSQuality(rec, &squal, &qoffset);/*BAM*/
-                if (rc) {
-                    (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(name)': length of colorspace quality does not match sequence", "name=%s", name));
-                    goto LOOP_END;
-                }
-                if (qoffset) {
-                    unsigned i;
-
-                    QUAL_CHANGED_UNALIGNED_CS;
-                    for (i = 0; i < csSeqLen; ++i)
-                        qual[i] = squal[i] - qoffset;
-                }
-                else
-                    memcpy(qual, squal, csSeqLen);
-                readlen = csSeqLen;
-            }
-        }
-
-        if (aligned) {
-            if (G.editAlignedQual && EditAlignedQualities  (qual, AR_HAS_MISMATCH(data), readlen)) {
-                QUAL_CHANGED_ALIGNED_EDIT;
-            }
-            if (G.keepMismatchQual && EditUnalignedQualities(qual, AR_HAS_MISMATCH(data), readlen)) {
-                QUAL_CHANGED_UNALIGN_EDIT;
-            }
-        }
-        else if (isPrimary) {
+        if (!aligned && isPrimary) {
             switch (AR_READNO(data)) {
             case 1:
                 value->unaligned_1 = 1;
@@ -1939,6 +1919,11 @@ WRITE_SEQUENCE:
                     int64_t pnext = 0;
 
                     if (!isPrimary) {
+                        if (!G.assembleWithSecondary) {
+                            rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+                            (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' attempt to construct spot from secondary alignment", "file=%s", bamFile));
+                            goto LOOP_END;
+                        }
                         (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
                     }
                     memset(&fi, 0, sizeof(fi));
@@ -1949,11 +1934,11 @@ WRITE_SEQUENCE:
                     fi.sglen   = strlen(spotGroup);
                     fi.readlen = readlen;
                     fi.cskey = cskey;
-                    fi.is_bad = (flags & BAMFlags_IsLowQuality) != 0;/*BAM*/
+                    fi.is_bad = (flags & BAMFlags_IsLowQuality) != 0;
                     sz = sizeof(fi) + 2*fi.readlen + fi.sglen;
                     if (align) {
-                        BAM_AlignmentGetMateRefSeqId(rec, &mate_refSeqId);/*BAM*/
-                        BAM_AlignmentGetMatePosition(rec, &pnext);/*BAM*/
+                        BAM_AlignmentGetMateRefSeqId(rec, &mate_refSeqId);
+                        BAM_AlignmentGetMatePosition(rec, &pnext);
                     }
                     if(align && mate_refSeqId == refSeqId && pnext > 0 && pnext!=rpos /*** weird case in some bams**/){
                         rc = MemBankAlloc(ctx->frags, &value->fragmentId, sz, 0, false);
@@ -2033,6 +2018,11 @@ WRITE_SEQUENCE:
                         uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
                         
                         if (!isPrimary) {
+                            if (!G.assembleWithSecondary) {
+                                rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+                                (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' attempt to construct spot from secondary alignment", "file=%s", bamFile));
+                                goto LOOP_END;
+                            }
                             (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
                         }
                         if (AR_READNO(data) < fip->otherReadNo) {
@@ -2110,10 +2100,18 @@ WRITE_SEQUENCE:
                     assert("this should never happen");
                 }
             }
-            else if (CTX_VALUE_GET_S_ID(*value) == 0 && (isPrimary || !originally_aligned)) {
+            else if (CTX_VALUE_GET_S_ID(*value) == 0) {
                 /* new unmated fragment - no spot assembly */
                 unsigned readLen[1];
 
+                if (!isPrimary) {
+                    if (!G.assembleWithSecondary) {
+                        rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+                        (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' attempt to construct spot from secondary alignment", "file=%s", bamFile));
+                        goto LOOP_END;
+                    }
+                    (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
+                }
                 readLen[0] = readlen;
                 rc = SequenceRecordInit(&srec, 1, readLen);
                 if (rc) {
@@ -2167,14 +2165,14 @@ WRITE_ALIGNMENT:
                 int64_t mrid = 0;
                 int64_t tlen;
 
-                BAM_AlignmentGetMatePosition(rec, &mpos);/*BAM*/
-                BAM_AlignmentGetMateRefSeqId(rec, &bam_mrid);/*BAM*/
-                BAM_AlignmentGetInsertSize(rec, &tlen);/*BAM*/
+                BAM_AlignmentGetMatePosition(rec, &mpos);
+                BAM_AlignmentGetMateRefSeqId(rec, &bam_mrid);
+                BAM_AlignmentGetInsertSize(rec, &tlen);
 
                 if (mpos >= 0 && bam_mrid >= 0 && tlen != 0) {
-                    BAMRefSeq const *mref;/*BAM*/
+                    BAMRefSeq const *mref;
 
-                    BAM_FileGetRefSeq(bam, bam_mrid, &mref);/*BAM*/
+                    BAM_FileGetRefSeq(bam, bam_mrid, &mref);
                     if (mref) {
                         rc_t rc_temp = ReferenceGet1stRow(ref, &mrid, mref->name);
                         if (rc_temp == 0) {

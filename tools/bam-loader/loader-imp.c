@@ -1455,7 +1455,7 @@ MIXED_BASE_AND_COLOR:
 
             BAM_AlignmentGetReadGroupName(rec, &rgname);
             if (rgname)
-                strcpy(spotGroup, rgname);
+                strncpy(spotGroup, rgname, sizeof spotGroup - 1);
             else
                 spotGroup[0] = '\0';
         }

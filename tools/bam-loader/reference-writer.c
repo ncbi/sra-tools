@@ -556,12 +556,11 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
         GetCounts(data, seqLen, &nmatch, &nmis, &indels);
         *matches = nmatch;
         
-        if (G.acceptNoMatch || nmatch >= G.minMatchCount)
+        /* if (G.acceptNoMatch || nmatch >= G.minMatchCount)    --- removed before more comlete implementation - EY ***/
             return ReferenceAddCoverage(self, data->data.effective_offset,
                                         data->data.ref_len, nmis, indels,
                                         data->isPrimary);
-        else
-            return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+       /* else return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated); --- removed before more comlete implementation - EY ***/
     }
     return 0;
 }

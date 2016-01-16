@@ -574,7 +574,7 @@ static rc_t PathWithBasePath(char rslt[], size_t sz, char const path[], char con
             return 0;
     }
     else if (plen < sz) {
-        strcpy(rslt, path);
+        strncpy(rslt, path, sz);
         return 0;
     }
     {

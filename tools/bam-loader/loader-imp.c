@@ -2387,12 +2387,12 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
             primaryId[1] = CTX_VALUE_GET_P_ID(*value, 1);
 
             if (primaryId[0] == 0 && value->alignmentCount[0] != 0) {
-                rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+                /*rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);*/
                 (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
                 break;
             }
             if (!value->unmated && primaryId[1] == 0 && value->alignmentCount[1] != 0) {
-                rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
+                /*rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);*/
                 (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", keyId));
                 break;
             }

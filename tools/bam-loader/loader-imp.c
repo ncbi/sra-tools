@@ -1826,9 +1826,14 @@ MIXED_BASE_AND_COLOR:
                                rna_orient == '-' ? NCBI_align_ro_intron_minus :
                                            hasCG ? NCBI_align_ro_complete_genomics :
                                                    NCBI_align_ro_intron_unknown, &matches);
+			if (G.acceptNoMatch || matches >= G.minMatchCount){
+				RecordNoMatch(name, refSeq->name, rpos);
+				rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
+				if (rc) goto LOOP_END;
+			}
             if (rc) {
                 aligned = false;
-
+#if 1 /*to be removed -EY */
                 if (   (GetRCState(rc) == rcViolated  && GetRCObject(rc) == rcConstraint)
                     || (GetRCState(rc) == rcExcessive && GetRCObject(rc) == rcRange))
                 {
@@ -1838,6 +1843,8 @@ MIXED_BASE_AND_COLOR:
                     rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
                     UNALIGNED_LOW_MATCH_COUNT;
                 }
+#endif  /*to be removed -EY */ 
+
 #define DATA_INVALID_ERRORS_ARE_DEADLY 0
 #if DATA_INVALID_ERRORS_ARE_DEADLY
                 else if (((int)GetRCObject(rc)) == ((int)rcData) && GetRCState(rc) == rcInvalid) {

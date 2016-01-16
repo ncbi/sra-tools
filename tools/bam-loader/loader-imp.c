@@ -1826,7 +1826,7 @@ MIXED_BASE_AND_COLOR:
                                rna_orient == '-' ? NCBI_align_ro_intron_minus :
                                            hasCG ? NCBI_align_ro_complete_genomics :
                                                    NCBI_align_ro_intron_unknown, &matches);
-			if (G.acceptNoMatch || matches >= G.minMatchCount){
+			if (matches < G.minMatchCount || (matches==0&& !G.acceptNoMatch)){
 				RecordNoMatch(name, refSeq->name, rpos);
 				rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
 				if (rc) goto LOOP_END;

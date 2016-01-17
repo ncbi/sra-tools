@@ -115,7 +115,8 @@ typedef struct {
              pcr_dup: 1,
              unaligned_1: 1,
              unaligned_2: 1,
-             hardclipped: 1;
+             hardclipped: 1,
+			 primary_is_set: 1;
 } ctx_value_t;
 
 #define CTX_VALUE_SET_P_ID(O,N,V) do { int64_t tv = (V); (O).primaryId[N] = (uint32_t)tv; (O).pId_ext[N] = tv >> 32; } while(0);
@@ -1010,7 +1011,7 @@ rc_t LogNoMatch(char const readName[], char const refName[], unsigned rpos, unsi
 static
 rc_t LogDupConflict(char const readName[])
 {
-    rc_t const rc = 0; /*CheckLimitAndLogError();*/
+    rc_t const rc = CheckLimitAndLogError();
     static unsigned count = 0;
 
     ++count;
@@ -1744,11 +1745,17 @@ MIXED_BASE_AND_COLOR:
                 value->unmated = !mated;
                 value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
                 value->platform = GetINSDCPlatform(bam, spotGroup);
+				value->primary_is_set = 1;
             }
         }
         else if (isPrimary || G.assembleWithSecondary) {
-            int const o_pcr_dup = value->pcr_dup;
+            int o_pcr_dup = value->pcr_dup;
             int const n_pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
+
+			if(!value->primary_is_set){
+				o_pcr_dup = n_pcr_dup;
+				value->primary_is_set = 1;
+			}
             
             if (!G.acceptBadDups && o_pcr_dup != n_pcr_dup) {
                 rc = LogDupConflict(name);
@@ -2387,12 +2394,12 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
             primaryId[1] = CTX_VALUE_GET_P_ID(*value, 1);
 
             if (primaryId[0] == 0 && value->alignmentCount[0] != 0) {
-                /*rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);*/
+                rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
                 (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
                 break;
             }
             if (!value->unmated && primaryId[1] == 0 && value->alignmentCount[1] != 0) {
-                /*rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);*/
+                rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
                 (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", keyId));
                 break;
             }

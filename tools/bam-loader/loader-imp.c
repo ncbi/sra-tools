@@ -1741,8 +1741,8 @@ MIXED_BASE_AND_COLOR:
                 goto LOOP_END;
             }
             memset(value, 0, sizeof(*value));
+            value->unmated = !mated;
             if (isPrimary || G.assembleWithSecondary) {
-                value->unmated = !mated;
                 value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
                 value->platform = GetINSDCPlatform(bam, spotGroup);
 				value->primary_is_set = 1;

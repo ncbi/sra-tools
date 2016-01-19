@@ -81,7 +81,7 @@ void runChecks ( const char * accession, const VCursor * pa_cursor, const VCurso
 {
     rc_t rc;
     uint32_t pa_has_ref_offset_idx;
-    uint32_t pa_quality_idx;
+    //uint32_t pa_quality_idx;
     uint32_t sa_has_ref_offset_idx;
     uint32_t sa_seq_spot_id_idx;
     uint32_t sa_seq_read_id_idx;
@@ -95,7 +95,7 @@ void runChecks ( const char * accession, const VCursor * pa_cursor, const VCurso
         throw VDB_ERROR("VCursorAddColumn() failed for " tbl_name " table, " col_spec " column", rc);
 
     add_column( "PRIMARY_ALIGNMENT", pa_cursor, pa_has_ref_offset_idx, "(bool)HAS_REF_OFFSET" );
-    add_column( "PRIMARY_ALIGNMENT", pa_cursor, pa_quality_idx, "(B8)QUALITY" );
+    //add_column( "PRIMARY_ALIGNMENT", pa_cursor, pa_quality_idx, "(B8)QUALITY" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_has_ref_offset_idx, "(bool)HAS_REF_OFFSET" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_seq_spot_id_idx, "SEQ_SPOT_ID" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_seq_read_id_idx, "SEQ_READ_ID" );
@@ -143,9 +143,8 @@ void runChecks ( const char * accession, const VCursor * pa_cursor, const VCurso
         uint32_t seq_spot_id_len;
         // SA:SEQ_SPOT_ID
         rc = VCursorCellDataDirect ( sa_cursor, row_id, sa_seq_spot_id_idx, NULL, (const void**)&p_seq_spot_id, NULL, &seq_spot_id_len );
-        if ( rc != 0 )
+        if ( rc != 0 || p_seq_spot_id == NULL || seq_spot_id_len != 1 )
             throw VDB_ROW_ERROR("VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, SEQ_SPOT_ID column", row_id, rc);
-        assert(seq_spot_id_len == 1);
 
         int64_t seq_spot_id = *p_seq_spot_id;
         if (seq_spot_id == 0)
@@ -159,9 +158,8 @@ void runChecks ( const char * accession, const VCursor * pa_cursor, const VCurso
         int64_t * p_pa_row_id;
         // SA:PRIMARY_ALIGNMENT_ID
         rc = VCursorCellDataDirect ( sa_cursor, row_id, sa_pa_id_idx, NULL, (const void**)&p_pa_row_id, NULL, &data_len );
-        if ( rc != 0 )
+        if ( rc != 0 || p_pa_row_id == NULL || data_len != 1 )
             throw VDB_ROW_ERROR("VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, PRIMARY_ALIGNMENT_ID column", row_id, rc);
-        assert(data_len == 1);
 
         int64_t pa_row_id = *p_pa_row_id;
         if (pa_row_id == 0)
@@ -205,19 +203,19 @@ void runChecks ( const char * accession, const VCursor * pa_cursor, const VCurso
         int32_t * p_seq_read_id;
         // SA:SEQ_READ_ID
         rc = VCursorCellDataDirect ( sa_cursor, row_id, sa_seq_read_id_idx, NULL, (const void**)&p_seq_read_id, NULL, &data_len );
-        if ( rc != 0 )
+        if ( rc != 0 || p_seq_read_id == NULL || data_len != 1 )
             throw VDB_ROW_ERROR("VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, SEQ_READ_ID column", row_id, rc);
-        assert(data_len == 1);
 
+        // one-based read index
         int32_t seq_read_id = *p_seq_read_id;
 
         uint32_t * p_seq_read_len;
         // SEQ:READ_LEN
         rc = VCursorCellDataDirect ( seq_cursor, seq_spot_id, seq_read_len_idx, NULL, (const void**)&p_seq_read_len, NULL, &seq_read_len_len );
-        if ( rc != 0 )
+        if ( rc != 0 || p_seq_read_len == NULL )
             throw VDB_ROW_ERROR("VCursorCellDataDirect() failed on SEQUENCE table, READ_LEN column", seq_spot_id, rc);
 
-        if ( seq_read_id < 1 || (uint32_t)seq_read_id - 1 > seq_read_len_len )
+        if ( seq_read_id < 1 || (uint32_t)seq_read_id > seq_read_len_len )
         {
             std::stringstream ss;
             ss << "SECONDARY:" << row_id << " SEQ_READ_ID value (" << seq_read_id << ") - 1 based, is out of SEQUENCE:" << seq_spot_id << " READ_LEN range (" << seq_read_len_len << ")";

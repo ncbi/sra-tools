@@ -1054,9 +1054,14 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
         rc = KOutMsg( "*\t0\t0\t%.*s\t", cgc_output.p_read.len, cgc_output.p_read.ptr );
 
     /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY */
-    if ( rc == 0 && cgc_output.p_quality.len > 0 )
-        rc = dump_quality_33( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, false ); /* sam-dump-opts.c */
-
+    if ( rc == 0 )
+    { 
+        if ( cgc_output.p_quality.len > 0 && cgc_output.p_quality.len == cgc_output.p_read.len )
+            rc = dump_quality_33( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, false ); /* sam-dump-opts.c */
+        else
+            rc = KOutMsg( "*\t" );
+    }
+    
     /* OPT SAM-FIELD: RG     SRA-column: SEQ_SPOT_GROUP */
     if ( rc == 0 && spot_group_len > 0 )
         rc = KOutMsg( "\tRG:Z:%.*s", spot_group_len, spot_group );
@@ -1179,9 +1184,14 @@ static rc_t print_evidence_alignment_cg_ev_dnb( const samdump_opts * const opts,
         rc = KOutMsg( "*\t0\t0\t%.*s\t", cgc_output.p_read.len, cgc_output.p_read.ptr );
 
     /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY */
-    if ( rc == 0 && cgc_output.p_quality.len > 0 )
-        rc = dump_quality_33( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, false ); /* sam-dump-opts.c */
-
+    if ( rc == 0 )
+    {
+        if ( cgc_output.p_quality.len > 0 &&  cgc_output.p_quality.len == cgc_output.p_read.len )
+            rc = dump_quality_33( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, false ); /* sam-dump-opts.c */
+        else
+            rc = KOutMsg( "*\t" );
+    }
+    
     /* OPT SAM-FIELD: RG     SRA-column: SEQ_SPOT_GROUP */
     if ( rc == 0 && spot_group_len > 0 )
         rc = KOutMsg( "\tRG:Z:%.*s", spot_group_len, spot_group );
@@ -1295,8 +1305,13 @@ static rc_t print_alignment_sam_ev( const samdump_opts * const opts,
 
                 /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY sliced!!! */
                 if ( rc == 0 )
-                    rc = print_qslice( opts, false, quality, quality_str_len, &quality_offset, read_len_vector, read_len_vector_len, ploidy_idx );
-
+                {
+                    if ( quality_str_len == read_slice_len )
+                        rc = print_qslice( opts, false, quality, quality_str_len, &quality_offset, read_len_vector, read_len_vector_len, ploidy_idx );
+                    else
+                        rc = KOutMsg( "*\t" );
+                }
+                
                 /* OPT SAM-FIELD: RG     SRA-column: ploidy_idx */
                 if ( rc == 0 )
                     rc = KOutMsg( "RG:Z:ALLELE_%u", ploidy_idx + 1 );
@@ -1641,7 +1656,7 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
     /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY */
     if ( rc == 0 )
     {
-        if ( cgc_output.p_quality.len > 0 )
+        if ( cgc_output.p_quality.len > 0 && cgc_output.p_quality.len == cgc_output.p_read.len )
             rc = dump_quality_33( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, false );
         else
             rc = KOutMsg( "*" );

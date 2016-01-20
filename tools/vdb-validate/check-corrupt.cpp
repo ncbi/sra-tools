@@ -216,14 +216,6 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
         // we already know that pa_row_len > sa_row_len
         ++pa_longer_sa_rows;
 
-        if (pa_longer_sa_rows >= pa_longer_sa_limit)
-        {
-            std::stringstream ss;
-            ss << "Limit violation (pa_longer_sa): there are at least " << pa_longer_sa_rows << " alignments where HAS_REF_OFFSET column is longer in PRIMARY_ALIGNMENT than in SECONDARY_ALIGNMENT";
-
-            throw DATA_ERROR(ss.str());
-        }
-
         int32_t * p_seq_read_id;
         // SA:SEQ_READ_ID
         rc = VCursorCellDataDirect ( sa_cursor, row_id, sa_seq_read_id_idx, NULL, (const void**)&p_seq_read_id, NULL, &data_len );
@@ -251,6 +243,14 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
         {
             std::stringstream ss;
             ss << "PRIMARY_ALIGNMENT:" << pa_row_id << " HAS_REF_OFFSET length (" << pa_row_len << ") does not match its SEQUENCE:" << seq_spot_id << " READ_LEN[" << seq_read_id - 1 << "] value (" << p_seq_read_len[seq_read_id - 1] << ")";
+
+            throw DATA_ERROR(ss.str());
+        }
+
+        if (pa_longer_sa_rows >= pa_longer_sa_limit)
+        {
+            std::stringstream ss;
+            ss << "Limit violation (pa_longer_sa): there are at least " << pa_longer_sa_rows << " alignments where HAS_REF_OFFSET column is longer in PRIMARY_ALIGNMENT than in SECONDARY_ALIGNMENT";
 
             throw DATA_ERROR(ss.str());
         }

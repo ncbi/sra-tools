@@ -547,6 +547,7 @@ rc_t parseConfig ( Args * args, CheckCorruptConfig * config )
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
+    XMLLogger const *xlogger = NULL;
     Args * args;
     rc_t rc;
     bool any_failed = false;
@@ -554,47 +555,54 @@ rc_t CC KMain ( int argc, char *argv [] )
 
     KLogLevelSet(klogInfo);
 
-    rc = ArgsMakeAndHandle (&args, argc, argv, 1, Options,
-                            sizeof (Options) / sizeof (Options[0]));
+    rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
+                            sizeof (Options) / sizeof (Options[0]),
+                            XMLLogger_Args, XMLLogger_ArgsQty);
     if (rc)
         LOGERR (klogInt, rc, "failed to parse command line parameters");
     else
     {
-        rc = parseConfig ( args, &config );
-        if (rc == 0)
+        rc = XMLLogger_Make(&xlogger, NULL, args);
+        if (rc)
+            LOGERR (klogInt, rc, "failed to make xml logger");
+        else
         {
-            uint32_t pcount;
-            rc = ArgsParamCount ( args, &pcount );
-            if (rc)
-                LOGERR (klogInt, rc, "ArgsParamCount() failed");
-            else
+            rc = parseConfig ( args, &config );
+            if (rc == 0)
             {
-                if ( pcount == 0 )
-                    LOGMSG (klogErr, "no accessions were passed in");
+                uint32_t pcount;
+                rc = ArgsParamCount ( args, &pcount );
+                if (rc)
+                    LOGERR (klogInt, rc, "ArgsParamCount() failed");
                 else
                 {
-                    for ( uint32_t i = 0; i < pcount; ++i )
+                    if ( pcount == 0 )
+                        LOGMSG (klogErr, "no accessions were passed in");
+                    else
                     {
-                        const char * accession;
-                        rc = ArgsParamValue ( args, i, (const void **)&accession );
-                        if (rc)
+                        for ( uint32_t i = 0; i < pcount; ++i )
                         {
-                            PLOGERR (klogInt, (klogInt, rc, "failed to get $(PARAM_I) accession from command line", "PARAM_I=%d", i));
-                            any_failed = true;
-                        }
-                        else
-                        {
-                            if (!checkAccession ( accession, &config ))
+                            const char * accession;
+                            rc = ArgsParamValue ( args, i, (const void **)&accession );
+                            if (rc)
+                            {
+                                PLOGERR (klogInt, (klogInt, rc, "failed to get $(PARAM_I) accession from command line", "PARAM_I=%d", i));
                                 any_failed = true;
+                            }
+                            else
+                            {
+                                if (!checkAccession ( accession, &config ))
+                                    any_failed = true;
+                            }
                         }
-                    }
 
-                    if (!any_failed)
-                        LOGMSG (klogInfo, "All accessions are good!");
+                        if (!any_failed)
+                            LOGMSG (klogInfo, "All accessions are good!");
+                    }
                 }
             }
+            XMLLogger_Release(xlogger);
         }
-
         ArgsWhack ( args );
     }
     return rc != 0 || any_failed ? 1 : 0;

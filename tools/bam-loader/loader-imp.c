@@ -83,6 +83,7 @@
 #include "reference-writer.h"
 #include "alignment-writer.h"
 #include "mem-bank.h"
+#include "low-match-count.h"
 
 #define NUM_ID_SPACES (256u)
 
@@ -989,9 +990,19 @@ void RecordNoMatch(char const readName[], char const refName[], uint32_t const r
     }
 }
 
+static LowMatchCounter *lmc = NULL;
+
 static
 rc_t LogNoMatch(char const readName[], char const refName[], unsigned rpos, unsigned matches)
 {
+#if 1
+    if (lmc == NULL)
+        lmc = LowMatchCounterMake();
+    assert(lmc != NULL);
+    LowMatchCounterAdd(lmc, refName);
+
+    return 0;
+#else
     rc_t const rc = CheckLimitAndLogError();
     static unsigned count = 0;
 
@@ -1006,6 +1017,47 @@ rc_t LogNoMatch(char const readName[], char const refName[], unsigned rpos, unsi
         (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos)",
                                  "name=%s,ref=%s,pos=%u,count=%u", readName, refName, rpos, matches));
     return rc;
+#endif
+}
+
+struct rlmc_context {
+    KMDataNode *node;
+    unsigned node_number;
+    rc_t rc;
+};
+
+static void RecordLowMatchCount(void *Ctx, char const name[], unsigned const count)
+{
+    struct rlmc_context *const ctx = Ctx;
+
+    if (ctx->rc == 0) {
+        KMDataNode *sub = NULL;
+
+        ctx->rc = KMDataNodeOpenNodeUpdate(ctx->node, &sub, "LOW_MATCH_COUNT_%u", ++ctx->node_number);
+        if (ctx->rc == 0) {
+            uint32_t const count_temp = count;
+            ctx->rc = KMDataNodeWriteAttr(sub, "REFNAME", name);
+            if (ctx->rc == 0)
+                ctx->rc = KMDataNodeWriteB32(sub, &count_temp);
+            
+            KMDataNodeRelease(sub);
+        }
+    }
+}
+
+static rc_t RecordLowMatchCounts(KMDataNode *const node)
+{
+    struct rlmc_context ctx;
+
+    assert(lmc != NULL);
+    if (node) {
+        ctx.node = node;
+        ctx.node_number = 0;
+        ctx.rc = 0;
+
+        LowMatchCounterEach(lmc, &ctx, RecordLowMatchCount);
+    }
+    return ctx.rc;
 }
 
 static
@@ -1456,7 +1508,7 @@ MIXED_BASE_AND_COLOR:
 
             BAM_AlignmentGetReadGroupName(rec, &rgname);
             if (rgname)
-                strncpy(spotGroup, rgname, sizeof spotGroup - 1);
+                strcpy(spotGroup, rgname);
             else
                 spotGroup[0] = '\0';
         }
@@ -1756,12 +1808,7 @@ MIXED_BASE_AND_COLOR:
 				o_pcr_dup = n_pcr_dup;
 				value->primary_is_set = 1;
 			}
-            
-            if (!G.acceptBadDups && o_pcr_dup != n_pcr_dup) {
-                rc = LogDupConflict(name);
-                DISCARD_PCR_DUP;
-                goto LOOP_END;
-            }
+
             value->pcr_dup = o_pcr_dup & n_pcr_dup;
             if (o_pcr_dup != (o_pcr_dup & n_pcr_dup)) {
                 FLAG_CHANGED_PCR_DUP;
@@ -1828,41 +1875,28 @@ MIXED_BASE_AND_COLOR:
 
             FixOverhangingAlignment(&cigBuf, &opCount, rpos, refSeq->length, readlen);
             BAM_AlignmentGetRNAStrand(rec, &rna_orient);
-            rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen,
-                               rna_orient == '+' ? NCBI_align_ro_intron_plus :
-                               rna_orient == '-' ? NCBI_align_ro_intron_minus :
-                                           hasCG ? NCBI_align_ro_complete_genomics :
-                                                   NCBI_align_ro_intron_unknown, &matches);
-			if (matches < G.minMatchCount || (matches==0&& !G.acceptNoMatch)){
+            {
+                int const intronType = rna_orient == '+' ? NCBI_align_ro_intron_plus :
+                                       rna_orient == '-' ? NCBI_align_ro_intron_minus :
+                                                   hasCG ? NCBI_align_ro_complete_genomics :
+                                                           NCBI_align_ro_intron_unknown;
+                rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches);
+            }
+			if (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch)) {
 				RecordNoMatch(name, refSeq->name, rpos);
 				rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
-				if (rc) goto LOOP_END;
+				if (rc) {
+                    /* because of code above, this should be unreachable */
+                    abort();
+                    goto LOOP_END;
+                }
 			}
             if (rc) {
                 aligned = false;
-#if 1 /*to be removed -EY */
-                if (   (GetRCState(rc) == rcViolated  && GetRCObject(rc) == rcConstraint)
-                    || (GetRCState(rc) == rcExcessive && GetRCObject(rc) == rcRange))
-                {
-                    RecordNoMatch(name, refSeq->name, rpos);
-                }
-                if (GetRCState(rc) == rcViolated && GetRCObject(rc) == rcConstraint) {
-                    rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
-                    UNALIGNED_LOW_MATCH_COUNT;
-                }
-#endif  /*to be removed -EY */ 
 
-#define DATA_INVALID_ERRORS_ARE_DEADLY 0
-#if DATA_INVALID_ERRORS_ARE_DEADLY
-                else if (((int)GetRCObject(rc)) == ((int)rcData) && GetRCState(rc) == rcInvalid) {
-                    UNALIGNED_INVALID_INFO;
-                    (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': bad alignment to reference '$(ref)' at $(pos)", "name=%s,ref=%s,pos=%u", name, refSeq->name, rpos));
-                    CheckLimitAndLogError();
-                }
-#endif
-                else if (((int)GetRCObject(rc)) == ((int)rcData) && GetRCState(rc) == rcNotAvailable) {
-                    (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot '$(name)': sequence was hard clipped", "name=%s", name));
-                    CheckLimitAndLogError();
+                if (((int)GetRCObject(rc)) == ((int)rcData) && GetRCState(rc) == rcNotAvailable) {
+                    /* because of code above converting hard clips to soft clips, this should be unreachable */
+                    abort();
                 }
                 else if (((int)GetRCObject(rc)) == ((int)rcData)) {
                     UNALIGNED_INVALID_INFO;
@@ -2031,7 +2065,7 @@ WRITE_SEQUENCE:
                         
                         if (!isPrimary) {
                             if (!G.assembleWithSecondary) {
-                                goto LOOP_END;
+                                goto WRITE_ALIGNMENT;
                             }
                             (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
                         }
@@ -2656,6 +2690,29 @@ rc_t run(char const progName[],
                             if (rc == 0 && !has_alignments) {
                                 rc = ConvertDatabaseToUnmapped(db);
                             }
+                            else if (rc == 0 && lmc != NULL) {
+                                VTable *tbl = NULL;
+                                KTable *ktbl = NULL;
+                                KMetadata *meta = NULL;
+                                KMDataNode *node = NULL;
+
+                                VDatabaseOpenTableUpdate(db, &tbl, "REFERENCE");
+                                VTableOpenKTableUpdate(tbl, &ktbl);
+                                VTableRelease(tbl);
+
+                                KTableOpenMetadataUpdate(ktbl, &meta);
+                                KTableRelease(ktbl);
+
+                                KMetadataOpenNodeUpdate(meta, &node, "LOW_MATCH_COUNT");
+                                KMetadataRelease(meta);
+
+                                RecordLowMatchCounts(node);
+
+                                KMDataNodeRelease(node);
+
+                                LowMatchCounterFree(lmc);
+                                lmc = NULL;
+                            }
 
                             rc2 = VDatabaseRelease(db);
                             if (rc2)
@@ -2664,19 +2721,14 @@ rc_t run(char const progName[],
                                 rc = rc2;
 
                             if (rc == 0 && G.globalMode == mode_Remap && !continuing) {
-                                rc = VDBManagerOpenDBUpdate(mgr, &db, NULL, G.firstOut);
-                                assert(rc == 0);
-                                if (rc == 0) {
-                                    VTable *tbl = NULL;
-                                    rc = VDatabaseOpenTableUpdate(db, &tbl, "SEQUENCE");
-                                    assert(rc == 0);
-                                    if (rc == 0) {
-                                        VTableDropColumn(tbl, "TMP_KEY_ID");
-                                        VTableDropColumn(tbl, "READ");
-                                    }
-                                    VTableRelease(tbl);
-                                }
+                                VTable *tbl = NULL;
+
+                                VDBManagerOpenDBUpdate(mgr, &db, NULL, G.firstOut);
+                                VDatabaseOpenTableUpdate(db, &tbl, "SEQUENCE");
                                 VDatabaseRelease(db);
+                                VTableDropColumn(tbl, "TMP_KEY_ID");
+                                VTableDropColumn(tbl, "READ");
+                                VTableRelease(tbl);
                             }
 
                             if (rc == 0) {

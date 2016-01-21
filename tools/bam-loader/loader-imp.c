@@ -637,7 +637,7 @@ static rc_t TmpfsDirectory(KDirectory **const rslt)
     KDirectory *dir;
     rc_t rc = KDirectoryNativeDir(&dir);
     if (rc == 0) {
-	    rc = KDirectoryOpenDirUpdate(dir, rslt, false, "%s", G.tmpfs);
+        rc = KDirectoryOpenDirUpdate(dir, rslt, false, "%s", G.tmpfs);
         KDirectoryRelease(dir);
     }
     return rc;
@@ -764,9 +764,28 @@ void COPY_READ(INSDC_dna_text D[], INSDC_dna_text const S[], unsigned const L, b
         memcpy(D, S, L);
 }
 
+static KFile *MakeDeferralFile() {
+    if (G.deferSecondary) {
+        char template[4096];
+        int fd;
+        KFile *f;
+        KDirectory *d;
+        size_t nwrit;
+
+        KDirectoryNativeDir(&d);
+        string_printf(template, sizeof(template), &nwrit, "%s/defer.XXXXXX", G.tmpfs);
+        fd = mkstemp(template);
+        KDirectoryOpenFileWrite(d, &f, true, template);
+        close(fd);
+        unlink(template);
+        return f;
+    }
+    return NULL;
+}
+
 static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
 {
-    rc_t rc = BAM_FileMake(bam, NULL, G.headerText, "%s", bamFile);
+    rc_t rc = BAM_FileMake(bam, MakeDeferralFile(), G.headerText, "%s", bamFile);
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "Failed to open '$(file)'", "file=%s", bamFile));
     }

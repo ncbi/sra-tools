@@ -1342,6 +1342,7 @@ static void BAM_FileWhack(BAM_File *self) {
         free(self->nocopy);
     if (self->vt.FileWhack)
         self->vt.FileWhack(&self->file);
+    KFileRelease(self->defer);
     BufferedFileWhack(&self->file.bam.file);
 }
 
@@ -1349,8 +1350,8 @@ static void BAM_FileWhack(BAM_File *self) {
 
 /* file is retained */
 static rc_t BAM_FileMakeWithKFileAndHeader(BAM_File **cself,
-                                          KFile const *file,
-                                          char const *headerText)
+                                           KFile const *file,
+                                           char const *headerText)
 {
     BAM_File *self = calloc(1, sizeof(*self));
     rc_t rc;

@@ -75,7 +75,7 @@
 
 ws          [ \t]+
 digits      [0-9]+
-alphanum    [A-Za-z0-9\-]+[A-Za-z0-9\-_]*
+alphanum    [A-Za-z0-9\-]+
 eol         (\r\n|\r|\n)
 
 /* there are more: =ACMGRSVTWYHKDBN. plus lowercase */
@@ -96,12 +96,12 @@ ascqual   [\x0E-\x1F \x21-\x7F]+
 {
     :{digits}:{digits}:{digits}:{digits}                    { return fqCOORDS; }
     [SDE]RR{digits}\.{digits}   { return fqRUNDOTSPOT; } 
+    #[A-Za-z0-9\-_]*            { return fqSPOTGROUP; }
     {digits}                    { return fqNUMBER; }
     {alphanum}                  { return fqALPHANUM; }
     {ws}                        { return fqWS; }
     ^{base}+/{eol}              { return fqBASESEQ; }
     ^{cskey}{color}+/{eol}      { return fqCOLORSEQ; }
-    #[A-Za-z0-9\-_]*            { return fqSPOTGROUP; }
     .                           { return yytext[0]; }
 }
 

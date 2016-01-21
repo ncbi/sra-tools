@@ -1705,6 +1705,25 @@ static bool BAM_AlignmentInit(BAM_Alignment *const self, unsigned const maxsize,
     }
 }
 
+static void BAM_AlignmentDebugPrint(BAM_Alignment const *const self)
+{
+    DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BAM), ("{"
+                                                    "\"BAM record\": "
+                                                    "{ "
+                                                        "\"size\": %u, "
+                                                        "\"name length\": %u, "
+                                                        "\"cigar count\": %u, "
+                                                        "\"read length\": %u, "
+                                                        "\"extra count\": %u "
+                                                    "}"
+                                                "}\n",
+                                                (unsigned)self->datasize,
+                                                (unsigned)getReadNameLength(self),
+                                                (unsigned)getCigarCount(self),
+                                                (unsigned)getReadLen(self),
+                                                (unsigned)self->numExtra));
+}
+
 static bool BAM_AlignmentInitLog(BAM_Alignment *const self, unsigned const maxsize,
                                 unsigned const datasize, void const *const data)
 {
@@ -1722,37 +1741,10 @@ static bool BAM_AlignmentInitLog(BAM_Alignment *const self, unsigned const maxsi
             rc_t const rc = ParseOptDataLog(self, maxsize, xtra, datasize);
             
             if (rc == 0) {
-                DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BAM), ("{"
-                                                                "\"BAM record\": "
-                                                                "{ "
-                                                                    "\"size\": %u, "
-                                                                    "\"name length\": %u, "
-                                                                    "\"cigar count\": %u, "
-                                                                    "\"read length\": %u, "
-                                                                    "\"extra count\": %u "
-                                                                "}"
-                                                            "}\n",
-                                                            (unsigned)datasize,
-                                                            (unsigned)getReadNameLength(self),
-                                                            (unsigned)getCigarCount(self),
-                                                            (unsigned)getReadLen(self),
-                                                            (unsigned)self->numExtra));
+                BAM_AlignmentDebugPrint(self);
                 return true;
             }
         }
-        DBGMSG(DBG_ALIGN, DBG_FLAG(DBG_ALIGN_BAM), ("{"
-                                                        "\"BAM record\": "
-                                                        "{ "
-                                                            "\"size\": %u, "
-                                                            "\"name length\": %u, "
-                                                            "\"cigar count\": %u, "
-                                                            "\"read length\": %u "
-                                                        "}"
-                                                    "}\n",
-                                                    (unsigned)datasize,
-                                                    (unsigned)getReadNameLength(self),
-                                                    (unsigned)getCigarCount(self),
-                                                    (unsigned)getReadLen(self)));
         return false;
     }
 }
@@ -2449,8 +2441,12 @@ static rc_t read2(BAM_File *const self, BAM_Alignment const **const rhs)
     if (self->bufCurrent >= self->bufSize && self->eof)
         return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
 
-    if (self->isSAM) return BAM_FileReadSAM(self, rhs);
-
+    if (self->isSAM) {
+        rc = BAM_FileReadSAM(self, rhs);
+        if (rc != 0 && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound)
+            self->eof = true;
+        return rc;
+    }
     if (self->nocopy == NULL) {
         size_t const size = 64u * 1024u;
         void *const temp = malloc(size);
@@ -2507,9 +2503,14 @@ static rc_t readDefer(BAM_File *const self, BAM_Alignment const **const rslt)
 
         self->nocopy = temp;
     }
-    rc = KFileReadAll(self->defer, self->deferPos + 4, self->nocopy, datasize, &nread);
+
+    rc = KFileReadAll(self->defer, self->deferPos + 4, self->buffer, datasize, &nread);
     if (rc) return rc;
     assert(nread == datasize);
+    self->deferPos += 4 + datasize;
+    
+    BAM_AlignmentInitLog(self->nocopy, 64u * 1024u, datasize, self->buffer);
+    self->nocopy->parent = self;
     *rslt = self->nocopy;
     if (BAM_AlignmentIsEmpty(self->nocopy)) {
         rc = RC(rcAlign, rcFile, rcReading, rcRow, rcEmpty);

@@ -766,7 +766,7 @@ void COPY_READ(INSDC_dna_text D[], INSDC_dna_text const S[], unsigned const L, b
 
 static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
 {
-    rc_t rc = BAM_FileMakeWithHeader(bam, G.headerText, "%s", bamFile);
+    rc_t rc = BAM_FileMake(bam, NULL, G.headerText, "%s", bamFile);
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "Failed to open '$(file)'", "file=%s", bamFile));
     }

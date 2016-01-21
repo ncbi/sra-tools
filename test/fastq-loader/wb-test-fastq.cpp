@@ -908,6 +908,15 @@ FIXTURE_TEST_CASE(SequenceGetSpotGroupBarcode, LoaderFixture)
     REQUIRE(SequenceIsFirst(seq));
 }
 
+FIXTURE_TEST_CASE(SequenceGetSpotGroupUnderscore, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@FCA5PJ4:1:1101:14707:1407#GTAGTCGC_AGCTCGGT/1\nATCG\n"));
+    REQUIRE_RC(SequenceGetSpotGroup(seq, &name, &length));
+    REQUIRE_EQ(string("GTAGTCGC_AGCTCGGT"), string(name, length));
+    REQUIRE(!SequenceIsSecond(seq));
+    REQUIRE(SequenceIsFirst(seq));
+}
+
 
 #define TEST_PAIRED(line, paired)\
     REQUIRE(CreateFileGetSequence(GetName(), line "\n" "GATT\n" "+\n" "!''*\n"));\

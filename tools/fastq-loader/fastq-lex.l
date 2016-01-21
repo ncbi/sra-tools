@@ -75,7 +75,7 @@
 
 ws          [ \t]+
 digits      [0-9]+
-alphanum    [A-Za-z0-9\-]+
+alphanum    [A-Za-z0-9\-]+[A-Za-z0-9\-_]*
 eol         (\r\n|\r|\n)
 
 /* there are more: =ACMGRSVTWYHKDBN. plus lowercase */
@@ -101,6 +101,7 @@ ascqual   [\x0E-\x1F \x21-\x7F]+
     {ws}                        { return fqWS; }
     ^{base}+/{eol}              { return fqBASESEQ; }
     ^{cskey}{color}+/{eol}      { return fqCOLORSEQ; }
+    #[A-Za-z0-9\-_]*            { return fqSPOTGROUP; }
     .                           { return yytext[0]; }
 }
 

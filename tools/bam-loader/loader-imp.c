@@ -1628,7 +1628,7 @@ MIXED_BASE_AND_COLOR:
 
             seqDNA = buf.base;
             qual = (uint8_t *)&seqDNA[(readlen | csSeqLen) + lpad + rpad];
-            memset(seqDNA, '=', (readlen | csSeqLen) + lpad + rpad);
+            memset(seqDNA, 'N', (readlen | csSeqLen) + lpad + rpad);
             memset(qual, 0, (readlen | csSeqLen) + lpad + rpad);
 
             BAM_AlignmentGetSequence(rec, seqDNA + lpad);

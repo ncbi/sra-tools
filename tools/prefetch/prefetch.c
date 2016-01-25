@@ -1309,7 +1309,6 @@ static rc_t MainDependenciesList(const Main *self,
     rc_t rc = 0;
     bool isDb = true;
     const VDatabase *db = NULL;
-    const char *path = NULL;
     const String *str = NULL;
     KPathType type = kptNotFound;
 
@@ -1317,8 +1316,6 @@ static rc_t MainDependenciesList(const Main *self,
 
     str = resolved->path.str;
     assert(str && str->addr);
-
-    path = str->addr;
 
     rc = _VDBManagerSetDbGapCtx(self->mgr, resolved->resolver);
 
@@ -1712,6 +1709,95 @@ static rc_t ItemResolve(Item *item, int32_t row) {
     return rc;
 }
 
+static bool maxSzPrntd = false;
+
+static void logMaxSize(size_t maxSize) {
+    if (maxSzPrntd) {
+        return;
+    }
+        
+    maxSzPrntd = true;
+
+    if (maxSize == 0) {
+/*      OUTMSG(("Maximum file size download limit is unlimited\n")); */
+            return;
+    }
+
+    if (maxSize / 1024 < 10) {
+        PLOGMSG(klogWarn, (klogWarn,
+            "Maximum file size download limit is $(size)B\n",
+            "size=%zu", maxSize));
+        return;
+    }
+
+    maxSize /= 1024;
+    if (maxSize / 1024 < 10) {
+        PLOGMSG(klogWarn, (klogWarn,
+            "Maximum file size download limit is $(size)KB\n",
+            "size=%zu", maxSize));
+        return;
+    }
+
+    maxSize /= 1024;
+    if (maxSize / 1024 < 10) {
+        PLOGMSG(klogWarn, (klogWarn,
+            "Maximum file size download limit is $(size)MB\n",
+            "size=%zu", maxSize));
+        return;
+    }
+
+    maxSize /= 1024;
+    if (maxSize / 1024 < 10) {
+        PLOGMSG(klogWarn, (klogWarn,
+            "Maximum file size download limit is $(size)GB\n",
+            "size=%zu", maxSize));
+        return;
+    }
+
+    maxSize /= 1024;
+    PLOGMSG(klogWarn, (klogWarn,
+        "Maximum file size download limit is $(size)TB\n",
+        "size=%zu", maxSize));
+}
+
+static void logBigFile(int n, const char *name, size_t size) {
+    if (size / 1024 < 10) {
+        STSMSG(STS_TOP,
+            ("%d) '%s' (%,zuB) is larger than maximum allowed: skipped\n",
+                n, name, size));
+        return;
+    }
+
+    size /= 1024;
+    if (size / 1024 < 10) {
+        STSMSG(STS_TOP,
+            ("%d) '%s' (%,zuKB) is larger than maximum allowed: skipped\n",
+                n, name, size));
+        return;
+    }
+
+    size /= 1024;
+    if (size / 1024 < 10) {
+        STSMSG(STS_TOP,
+            ("%d) '%s' (%,zuMB) is larger than maximum allowed: skipped\n",
+                n, name, size));
+        return;
+    }
+
+    size /= 1024;
+    if (size / 1024 < 10) {
+        STSMSG(STS_TOP,
+            ("%d) '%s' (%,zuGB) is larger than maximum allowed: skipped\n",
+                n, name, size));
+        return;
+    }
+
+    size /= 1024;
+    STSMSG(STS_TOP,
+        ("%d) '%s' (%,zuTB) is larger than maximum allowed: skipped\n",
+            n, name, size));
+}
+
 /* download if not found; obey size restriction */
 static rc_t ItemDownload(Item *item) {
     bool isLocal = false;
@@ -1725,12 +1811,10 @@ static rc_t ItemDownload(Item *item) {
 
     if (rc == 0) {
         bool skip = false;
-
         if (self->existing) { /* the path is a path to an existing local file */
             rc = VPathStrInitStr(&self->path, item->desc, 0);
             return rc;
         }
-
         if (self->undersized) {
             STSMSG(STS_TOP,
                ("%d) '%s' (%,zu KB) is smaller than minimum allowed: skipped\n",
@@ -1738,9 +1822,8 @@ static rc_t ItemDownload(Item *item) {
             skip = true;
         }
         else if (self->oversized) {
-            STSMSG(STS_TOP,
-                ("%d) '%s' (%,zu KB) is larger than maximum allowed: skipped\n",
-                n, self->name, self->remoteSz / 1024));
+            logMaxSize(item->main->maxSize);
+            logBigFile(n, self->name, self->remoteSz);
             skip = true;
         }
 
@@ -2500,6 +2583,9 @@ static size_t _sizeFromString(const char *val) {
     else if (*val == 'g' || *val == 'G') {
         s *= 1024L * 1024 * 1024;
     }
+    else if (*val == 't' || *val == 'T') {
+        s *= 1024L * 1024 * 1024 * 1024;
+    }
     else if (*val == 'u' || *val == 'U') {  /* unlimited */
         s = 0;
     }
@@ -3235,7 +3321,6 @@ static rc_t MainInit(int argc, char *argv[], Main *self) {
 /*********** Process one command line argument **********/
 static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
     ERunType type = eRunTypeDownload;
-    static bool maxSzPrntd = false;
     rc_t rc = 0;
     Iterator it;
     assert(self && realArg);
@@ -3292,17 +3377,6 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
                 }
             }
             else {
-                if (!maxSzPrntd) {
-                    maxSzPrntd = true;
-                    if (self->maxSize == 0) {
-                        OUTMSG((
-                            "Maximum file size download limit is unlimited\n"));
-                    }
-                    else {
-                        OUTMSG(("Maximum file size download limit is %,zuKB\n",
-                             self->maxSize / 1024));
-                    }
-                }
                 if (it.kart != NULL) {
                     OUTMSG(("Downloading kart file '%s'\n", realArg));
                     if (type == eRunTypeGetSize) {
@@ -3311,7 +3385,7 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
                 }
                 OUTMSG(("\n"));
             }
-                
+
             for (n = 1; ; ++n) {
                 rc_t rc2 = 0;
                 rc_t rc3 = 0;
@@ -3356,9 +3430,9 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
                         else if (item->resolved.oversized &&
                              type == eRunTypeGetSize)
                         {
-                            STSMSG(STS_TOP,
-                ("%d) '%s' (%,zu KB) is larger than maximum allowed: skipped\n",
-                n, item->resolved.name, item->resolved.remoteSz / 1024));
+                            logMaxSize(self->maxSize);
+                            logBigFile(n, item->resolved.name,
+                                          item->resolved.remoteSz);
                         }
                         else {
                             total += item->resolved.remoteSz;

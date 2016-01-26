@@ -135,7 +135,7 @@ namespace ncbi
             case 1:
                 if ( ( ref_zpos % 1000000 ) == 0 )
                 {
-                    if ( use_gw_logmessage )
+                    if ( ncbi :: use_gw_logmessage )
                         out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
                     else
                         std :: cerr << "#  " << std :: setw ( 9 ) << ref_zpos << '\n';
@@ -144,7 +144,7 @@ namespace ncbi
             default:
                 if ( ( ref_zpos % 5000 ) == 0 )
                 {
-                    if ( use_gw_logmessage )
+                    if ( ncbi :: use_gw_logmessage )
                         out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
                     else
                     {
@@ -332,7 +332,7 @@ namespace ncbi
     static
     void run ( const char * spec, const char *outfile, const char *_remote_db, size_t buffer_size, Alignment :: AlignmentCategory cat )
     {
-        if ( ! use_gw_logmessage )
+        if ( ! ncbi :: use_gw_logmessage )
         {
             if ( verbosity > 0 )
                 std :: cerr << "# Opening run '" << spec << "'\n";
@@ -340,7 +340,7 @@ namespace ncbi
         ReadCollection obj = ncbi :: NGS :: openReadCollection ( spec );
         String runName = obj . getName ();
 
-        if ( ! use_gw_logmessage )
+        if ( ! ncbi :: use_gw_logmessage )
         {
             if ( verbosity > 0 )
             {
@@ -375,7 +375,7 @@ namespace ncbi
             prepareOutput ( out, runName );
             if ( verbosity > 0 )
             {
-                if ( use_gw_logmessage )
+                if ( ncbi :: use_gw_logmessage )
                     out . logMsg ( "Accessing all references" );
                 else
                     std :: cerr << "# Accessing all references\n";
@@ -403,7 +403,7 @@ namespace ncbi
 
                 if ( verbosity > 0 )
                 {
-                    if ( use_gw_logmessage )
+                    if ( ncbi :: use_gw_logmessage )
                         out . logMsg ( "Processing reference '" + refName + "'" );
                     else
                         std :: cerr << "# Processing reference '" << refName << "'\n";
@@ -412,7 +412,7 @@ namespace ncbi
 
                 if ( verbosity > 0 )
                 {
-                    if ( use_gw_logmessage )
+                    if ( ncbi :: use_gw_logmessage )
                         out . logMsg ( "Accessing all pileups" );
                     else
                         std :: cerr << "# Accessing all pileups\n";
@@ -421,7 +421,7 @@ namespace ncbi
                 run ( out, runName, refName, pileup, refLength, refLengthSubTotal,  totalRefLength );
 
                 refLengthSubTotal += refLength;
-                if ( ! use_gw_logmessage )
+                if ( ! ncbi :: use_gw_logmessage )
                 {
                     if ( verbosity > 1 )
                         std :: cerr << '\n';
@@ -691,7 +691,7 @@ extern "C"
         }
         catch ( ErrorMsg & x )
         {
-            if ( ! use_gw_logmessage )
+            if ( ! ncbi :: use_gw_logmessage )
             {
                 std :: cerr
                     << "ERROR: "
@@ -704,7 +704,7 @@ extern "C"
         }
         catch ( const char x [] )
         {
-            if ( ! use_gw_logmessage )
+            if ( ! ncbi :: use_gw_logmessage )
             {
                 std :: cerr
                     << "ERROR: "
@@ -717,7 +717,7 @@ extern "C"
         }
         catch ( ... )
         {
-            if ( ! use_gw_logmessage )
+            if ( ! ncbi :: use_gw_logmessage )
             {
                 std :: cerr
                     << "ERROR: "

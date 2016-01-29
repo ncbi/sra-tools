@@ -33,6 +33,9 @@
 #include <vector>
 #include <utility>
 #include <math.h>
+#include <stdlib.h>
+#include <stdint.h>
+#include <time.h>
 
 using namespace std;
 
@@ -48,7 +51,7 @@ static unsigned stringtoui(string const &str, int base = 0)
     if (*endp != '\0')
         throw invalid_argument("'" + str + "' is not convertible to an integer");
     
-    if (value > UINT_MAX)
+    if (value > unsigned(-1L))
         throw range_error("'" + str + "' is too big");
 
     return (unsigned)value;
@@ -507,6 +510,6 @@ int main(int argc, char *argv[])
     }
     cout << "}" << endl;
     
-    srandomdev();
+    srandom((unsigned long)(time(0)));
     return run();
 }

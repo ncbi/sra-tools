@@ -1159,6 +1159,7 @@ static char const *const REASONS[] = {
     "alignment overhanging end of reference",   /* 28 */
 /* discarded */
     "hard-clipped secondary alignment",         /* 29 */
+    "low-matching secondary alignment",         /* 30 */
 };
 
 static struct {
@@ -1196,6 +1197,7 @@ static struct {
     {REF_NAME_CHANGED, 27},
     {CIGAR_CHANGED, 28},
     {DISCARDED, 29},
+    {DISCARDED, 30},
 };
 
 #define NUMBER_OF_CHANGES ((unsigned)(sizeof(CHANGES)/sizeof(CHANGES[0])))
@@ -1297,6 +1299,7 @@ static rc_t RecordChanges(KMDataNode *const node, char const name[])
 #define RENAMED_REFERENCE          do { LOG_CHANGE(29); } while(0)
 #define OVERHANGING_ALIGNMENT      do { LOG_CHANGE(30); } while(0)
 #define DISCARD_HARDCLIP_SECONDARY do { LOG_CHANGE(31); } while(0)
+#define DISCARD_BAD_SECONDARY      do { LOG_CHANGE(32); } while(0)
 
 static bool isHardClipped(unsigned const ops, uint32_t const cigar[/* ops */])
 {
@@ -1908,6 +1911,7 @@ MIXED_BASE_AND_COLOR:
                 else {
                     (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos); discarding secondary alignment",
                                              "name=%s,ref=%s,pos=%u,count=%u", name, refSeq->name, (unsigned)rpos, (unsigned)matches));
+                    DISCARD_BAD_SECONDARY;
                     rc = 0;
                     goto LOOP_END;
                 }

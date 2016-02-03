@@ -2425,20 +2425,21 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         }
         {{
             int64_t primaryId[2];
+            int const logLevel = G.assembleWithSecondary ? klogWarn : klogErr;
 
             primaryId[0] = CTX_VALUE_GET_P_ID(*value, 0);
             primaryId[1] = CTX_VALUE_GET_P_ID(*value, 1);
 
             if (primaryId[0] == 0 && value->alignmentCount[0] != 0) {
                 rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
-                (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
-                break;
+                (void)PLOGERR(logLevel, (logLevel, rc, "Spot id $(id) read 1 never had a primary alignment", "id=%lx", keyId));
             }
             if (!value->unmated && primaryId[1] == 0 && value->alignmentCount[1] != 0) {
                 rc = RC(rcApp, rcTable, rcWriting, rcConstraint, rcViolated);
-                (void)PLOGERR(klogWarn, (klogWarn, rc, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", keyId));
-                break;
+                (void)PLOGERR(logLevel, (logLevel, rc, "Spot id $(id) read 2 never had a primary alignment", "id=%lx", keyId));
             }
+            if (rc != 0 && logLevel == klogErr)
+                break;
 
             rc = SequenceUpdateAlignData(seq, row, value->unmated ? 1 : 2,
                                          primaryId,

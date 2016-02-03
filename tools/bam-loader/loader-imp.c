@@ -1014,29 +1014,26 @@ static LowMatchCounter *lmc = NULL;
 static
 rc_t LogNoMatch(char const readName[], char const refName[], unsigned rpos, unsigned matches)
 {
-#if 1
+    rc_t const rc = CheckLimitAndLogError();
+    static unsigned count = 0;
+
     if (lmc == NULL)
         lmc = LowMatchCounterMake();
     assert(lmc != NULL);
     LowMatchCounterAdd(lmc, refName);
 
-    return 0;
-#else
-    rc_t const rc = CheckLimitAndLogError();
-    static unsigned count = 0;
-
     ++count;
     if (rc) {
         (void)PLOGMSG(klogInfo, (klogInfo, "This is the last warning; this class of warning occurred $(occurred) times",
                                  "occurred=%u", count));
-        (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos)",
+        (void)PLOGMSG(klogErr, (klogErr, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos)",
                                  "name=%s,ref=%s,pos=%u,count=%u", readName, refName, rpos, matches));
+        return rc;
     }
-    else if (G.maxWarnCount_NoMatch == 0 || count < G.maxWarnCount_NoMatch)
+    if (G.maxWarnCount_NoMatch == 0 || count < G.maxWarnCount_NoMatch)
         (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos)",
                                  "name=%s,ref=%s,pos=%u,count=%u", readName, refName, rpos, matches));
-    return rc;
-#endif
+    return 0;
 }
 
 struct rlmc_context {
@@ -1902,11 +1899,16 @@ MIXED_BASE_AND_COLOR:
                 rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches);
             }
 			if (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch)) {
-				RecordNoMatch(name, refSeq->name, rpos);
-				rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
-				if (rc) {
-                    /* because of code above, this should be unreachable */
-                    abort();
+                if (isPrimary) {
+                    RecordNoMatch(name, refSeq->name, rpos);
+                    rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
+                    if (rc)
+                        goto LOOP_END;
+                }
+                else {
+                    (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos); discarding secondary alignment",
+                                             "name=%s,ref=%s,pos=%u,count=%u", name, refSeq->name, (unsigned)rpos, (unsigned)matches));
+                    rc = 0;
                     goto LOOP_END;
                 }
 			}

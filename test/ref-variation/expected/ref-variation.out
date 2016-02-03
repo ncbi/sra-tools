@@ -66,9 +66,6 @@ info: processed 0%
 info: percent="100"
 info: processed 100%
 err: ERROR: The selected reference region [N] does not contain valid bases, exiting...
-warn: libs/vdb/blob.c:381:PageMapProcessRequestLock: self NULL while constructing page map within virtual database module - libs/vdb/blob.c:381 within PageMapProcessRequestLock
-warn: libs/vdb/blob.c:381:PageMapProcessRequestLock: self NULL while constructing page map within virtual database module - libs/vdb/blob.c:381 within PageMapProcessRequestLock
-warn: libs/vdb/blob.c:381:PageMapProcessRequestLock: self NULL while constructing page map within virtual database module - libs/vdb/blob.c:381 within PageMapProcessRequestLock
 info: percent="0"
 info: processed 0%
 warn: Input variation spec   : CM000671.1:136131021:1:T
@@ -166,8 +163,7 @@ warn: Input variation spec   : CM000684.1:36662045:6:
 warn: Adjusted variation spec: CM000684.1:36662041:10:ATAA
 info: [0] Processing parameter # 0: SRR1597729, path=[], pileup path=[]
 info: [0] Processing SRR1597729.pileup...
-info: [0] found CM000684.1 row_id=2829728721, id_count=51304566
-info: [0] /SRR1597729 is suspicious
+info: [0] pileup db NOT FOUND, need to look into run itself
 info: [0] Processing SRR1597729
 info: [0] id=SRR1597729.PA.257963012: AATAAT
 info: [0] id=SRR1597729.PA.257963013: AATAAG MATCH!

@@ -1531,7 +1531,7 @@ static rc_t ProcessSAMHeader(BAM_File *self, char const substitute[])
 /* MARK: BAM File destructor */
 
 static void BAM_FileWhack(BAM_File *self) {
-    if (self->refSeq)
+    if (self->refSeqs > 0 && self->refSeq)
         free(self->refSeq);
     if (self->readGroup)
         free(self->readGroup);

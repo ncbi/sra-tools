@@ -28,6 +28,7 @@
 
 #include "prefetch.vers.h"
 
+#include <kapp/args-conv.h> /* ArgsConvFilepath */
 #include <kapp/main.h> /* KAppVersion */
 
 #include <kdb/manager.h> /* kptDatabase */
@@ -1614,7 +1615,9 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 
     assert(resolved->type != eRunTypeUnknown);
 
-    if (self->desc != NULL) { /* object name is specified (not kart item) */
+    if (!self->isDependency &&
+        self->desc != NULL) /* object name is specified (not kart item) */
+    {
         KPathType type = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
         if (type == kptFile || type == kptDir) {
             rc = VPathStrInitStr(&resolved->path, self->desc, 0);
@@ -2713,6 +2716,8 @@ static OptDef Options[] = {
    ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
 };
 
+static ParamDef Parameters[] = { { ArgsConvFilepath } };
+
 static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
     rc_t rc = 0;
 
@@ -2720,8 +2725,9 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
 
     assert(self);
 
-    rc = ArgsMakeAndHandle(&self->args, argc, argv, 1,
-        Options, sizeof Options / sizeof (OptDef));
+    rc = ArgsMakeAndHandle2(&self->args, argc, argv,
+        Parameters, sizeof Parameters / sizeof Parameters[0],
+        1, Options, sizeof Options / sizeof Options[0]);
     if (rc != 0) {
         DISP_RC(rc, "ArgsMakeAndHandle");
         return rc;

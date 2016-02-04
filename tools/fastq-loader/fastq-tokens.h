@@ -1,10 +1,8 @@
+/* A Bison parser, made by GNU Bison 2.5.  */
 
-/* A Bison parser, made by GNU Bison 2.4.1.  */
-
-/* Skeleton interface for Bison's Yacc-like parsers in C
+/* Bison interface for Yacc-like parsers in C
    
-      Copyright (C) 1984, 1989, 1990, 2000, 2001, 2002, 2003, 2004, 2005, 2006
-   Free Software Foundation, Inc.
+      Copyright (C) 1984, 1989-1990, 2000-2011 Free Software Foundation, Inc.
    
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,16 +39,17 @@
    enum yytokentype {
      fqENDOFTEXT = 0,
      fqRUNDOTSPOT = 258,
-     fqNUMBER = 259,
-     fqALPHANUM = 260,
-     fqWS = 261,
-     fqENDLINE = 262,
-     fqBASESEQ = 263,
-     fqCOLORSEQ = 264,
-     fqTOKEN = 265,
-     fqASCQUAL = 266,
-     fqCOORDS = 267,
-     fqUNRECOGNIZED = 268
+     fqSPOTGROUP = 259,
+     fqNUMBER = 260,
+     fqALPHANUM = 261,
+     fqWS = 262,
+     fqENDLINE = 263,
+     fqBASESEQ = 264,
+     fqCOLORSEQ = 265,
+     fqTOKEN = 266,
+     fqASCQUAL = 267,
+     fqCOORDS = 268,
+     fqUNRECOGNIZED = 269
    };
 #endif
 

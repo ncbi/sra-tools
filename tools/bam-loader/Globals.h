@@ -87,6 +87,7 @@ typedef struct globals
     bool acceptHardClip;
     bool allowMultiMapping; /* allow multiple reference names to map to the same real reference */
     bool assembleWithSecondary;
+    bool deferSecondary;
 } Globals;
 
 extern Globals G;

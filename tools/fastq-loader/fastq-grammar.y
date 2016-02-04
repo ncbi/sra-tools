@@ -62,6 +62,7 @@
 %name-prefix "FASTQ_"
 
 %token fqRUNDOTSPOT
+%token fqSPOTGROUP
 %token fqNUMBER
 %token fqALPHANUM
 %token fqWS
@@ -163,10 +164,10 @@ tagLine
     
 nameSpotGroup
     : nameWithCoords 
-    | nameWithCoords spotGroup
-    | name { StopSpotName(pb); } spotGroup 
-    | nameWS nameWithCoords             /* nameWS ignored */
-    | nameWS nameWithCoords spotGroup   /* nameWS ignored */
+    | nameWithCoords fqSPOTGROUP                { SetSpotGroup(pb, &$2); }
+    | name { StopSpotName(pb); } fqSPOTGROUP    { SetSpotGroup(pb, &$3); }
+    | nameWS nameWithCoords                                                     /* nameWS ignored */
+    | nameWS nameWithCoords fqSPOTGROUP         { SetSpotGroup(pb, &$3); }      /* nameWS ignored */
     | nameWS fqALPHANUM '='  { RevertSpotName(pb); FASTQScan_skip_to_eol(pb); }
     ;
     
@@ -206,14 +207,6 @@ name
     | name fqNUMBER     { GrowSpotName(pb, &$2); }
     ;
 
-spotGroup
-    : '#'           { StopSpotName(pb); }
-        fqNUMBER    { SetSpotGroup(pb, &$3); }
-    | '#'           { StopSpotName(pb); }    
-        fqALPHANUM  { SetSpotGroup(pb, &$3); }    
-    | '#'           { StopSpotName(pb); }    
-    ;
-    
 readNumber
     : '/'       
         {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
@@ -462,11 +455,18 @@ void StopSpotName(FASTQParseBlock* pb)
 void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token)
 {
     if ( ! pb->ignoreSpotGroups )
-    {
-        if (token->tokenLength != 1 || TokenTextPtr(pb, token)[0] != '0') /* ignore spot group 0 */
+    {   
+        unsigned int nameStart = 0;
+        /* skip possible '#' at the start of spot group name */
+        if ( TokenTextPtr ( pb, token )[0] == '#' ) 
+        {   
+            nameStart = 1;
+        }
+        
+        if ( token->tokenLength != 1+nameStart || TokenTextPtr(pb, token)[nameStart] != '0' ) /* ignore spot group 0 */
         {
-            pb->spotGroupOffset = token->tokenStart;    
-            pb->spotGroupLength = token->tokenLength;
+            pb->spotGroupOffset = token->tokenStart  + nameStart;    
+            pb->spotGroupLength = token->tokenLength - nameStart;
         }
     }
 }

@@ -91,7 +91,6 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
 {
     rc_t rc;
     uint32_t pa_has_ref_offset_idx;
-    //uint32_t pa_quality_idx;
     uint32_t sa_has_ref_offset_idx;
     uint32_t sa_seq_spot_id_idx;
     uint32_t sa_seq_read_id_idx;
@@ -105,7 +104,6 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
         throw VDB_ERROR("VCursorAddColumn() failed for " tbl_name " table, " col_spec " column", rc);
 
     add_column( "PRIMARY_ALIGNMENT", pa_cursor, pa_has_ref_offset_idx, "(bool)HAS_REF_OFFSET" );
-    //add_column( "PRIMARY_ALIGNMENT", pa_cursor, pa_quality_idx, "(B8)QUALITY" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_has_ref_offset_idx, "(bool)HAS_REF_OFFSET" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_seq_spot_id_idx, "SEQ_SPOT_ID" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_seq_read_id_idx, "SEQ_READ_ID" );
@@ -216,14 +214,6 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
         // we already know that pa_row_len > sa_row_len
         ++pa_longer_sa_rows;
 
-        if (pa_longer_sa_rows >= pa_longer_sa_limit)
-        {
-            std::stringstream ss;
-            ss << "Limit violation (pa_longer_sa): there are at least " << pa_longer_sa_rows << " alignments where HAS_REF_OFFSET column is longer in PRIMARY_ALIGNMENT than in SECONDARY_ALIGNMENT";
-
-            throw DATA_ERROR(ss.str());
-        }
-
         int32_t * p_seq_read_id;
         // SA:SEQ_READ_ID
         rc = VCursorCellDataDirect ( sa_cursor, row_id, sa_seq_read_id_idx, NULL, (const void**)&p_seq_read_id, NULL, &data_len );
@@ -254,6 +244,14 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
 
             throw DATA_ERROR(ss.str());
         }
+
+        if (pa_longer_sa_rows >= pa_longer_sa_limit)
+        {
+            std::stringstream ss;
+            ss << "Limit violation (pa_longer_sa): there are at least " << pa_longer_sa_rows << " alignments where HAS_REF_OFFSET column is longer in PRIMARY_ALIGNMENT than in SECONDARY_ALIGNMENT";
+
+            throw DATA_ERROR(ss.str());
+        }
     }
 }
 
@@ -276,22 +274,22 @@ bool checkAccession ( const char * accession, const CheckCorruptConfig * config 
 
     rc = KDirectoryNativeDir( &cur_dir );
     if ( rc != 0 )
-        LOGERR( klogInt, rc, "KDirectoryNativeDir() failed" );
+        PLOGERR( klogInt, (klogInt, rc, "$(ACC) KDirectoryNativeDir() failed", "ACC=%s", accession));
     else
     {
         rc = VDBManagerMakeRead ( &manager, cur_dir );
         if ( rc != 0 )
-            LOGERR( klogInt, rc, "VDBManagerMakeRead() failed" );
+            PLOGERR( klogInt, (klogInt, rc, "$(ACC) VDBManagerMakeRead() failed", "ACC=%s", accession));
         else
         {
             int type = VDBManagerPathType ( manager, "%s", accession );
-            if ( type > kptDatabase )
-                PLOGMSG (klogInfo, (klogInfo, "$(ACC) SKIPPING - not a database", "ACC=%s", accession));
+            if ( ( type & ~ kptAlias ) != kptDatabase )
+                PLOGMSG (klogInfo, (klogInfo, "$(ACC) SKIPPING - can't be opened as a database", "ACC=%s", accession));
             else
             {
                 rc = VDBManagerOpenDBRead( manager, &database, NULL, "%s", accession );
                 if (rc != 0)
-                    LOGERR( klogInt, rc, "VDBManagerOpenDBRead() failed" );
+                    PLOGERR( klogInt, (klogInt, rc, "$(ACC) VDBManagerOpenDBRead() failed", "ACC=%s", accession));
                 else
                 {
                     rc = VDatabaseOpenTableRead( database, &pa_table, "%s", "PRIMARY_ALIGNMENT" );
@@ -304,7 +302,7 @@ bool checkAccession ( const char * accession, const CheckCorruptConfig * config 
                     {
                         rc = VTableCreateCursorRead( pa_table, &pa_cursor );
                         if ( rc != 0 )
-                            LOGERR( klogInt, rc, "VTableCreateCursorRead() failed for PRIMARY_ALIGNMENT cursor" );
+                            PLOGERR( klogInt, (klogInt, rc, "$(ACC) VTableCreateCursorRead() failed for PRIMARY_ALIGNMENT cursor", "ACC=%s", accession));
                         else
                         {
                             rc = VDatabaseOpenTableRead( database, &sa_table, "%s", "SECONDARY_ALIGNMENT" );
@@ -317,7 +315,7 @@ bool checkAccession ( const char * accession, const CheckCorruptConfig * config 
                             {
                                 rc = VTableCreateCursorRead( sa_table, &sa_cursor );
                                 if ( rc != 0 )
-                                    LOGERR( klogInt, rc, "VTableCreateCursorRead() failed for SECONDARY_ALIGNMENT cursor" );
+                                    PLOGERR( klogInt, (klogInt, rc, "$(ACC) VTableCreateCursorRead() failed for SECONDARY_ALIGNMENT cursor", "ACC=%s", accession));
                                 else
                                 {
                                     rc = VDatabaseOpenTableRead( database, &seq_table, "%s", "SEQUENCE" );
@@ -330,24 +328,26 @@ bool checkAccession ( const char * accession, const CheckCorruptConfig * config 
                                     {
                                         rc = VTableCreateCursorRead( seq_table, &seq_cursor );
                                         if ( rc != 0 )
-                                            LOGERR( klogInt, rc, "VTableCreateCursorRead() failed for SEQUENCE cursor" );
+                                            PLOGERR( klogInt, (klogInt, rc, "VTableCreateCursorRead() failed for SEQUENCE cursor", "ACC=%s", accession));
                                         else
                                         {
                                             try {
                                                 runChecks( accession, config, pa_cursor, sa_cursor, seq_cursor );
                                                 if (config->cutoff_percent > 0)
                                                     PLOGMSG (klogInfo, (klogInfo, "$(ACC) looks good (based on first $(CUTOFF)% of SECONDARY_ALIGNMENT rows)", "ACC=%s,CUTOFF=%f", accession, config->cutoff_percent * 100));
+                                                else if (config->cutoff_number == 0)
+                                                    PLOGMSG (klogInfo, (klogInfo, "$(ACC) looks good", "ACC=%s", accession));
                                                 else
                                                     PLOGMSG (klogInfo, (klogInfo, "$(ACC) looks good (based on first $(CUTOFF) SECONDARY_ALIGNMENT rows)", "ACC=%s,CUTOFF=%lu", accession, config->cutoff_number));
                                             } catch ( VDB_ERROR & x ) {
-                                                PLOGERR (klogErr, (klogInfo, x.rc, "VDB error: $(ACC) $(MSG)", "ACC=%s,MSG=%s", accession, x.msg));
+                                                PLOGERR (klogErr, (klogInfo, x.rc, "$(ACC) VDB error: $(MSG)", "ACC=%s,MSG=%s", accession, x.msg));
                                                 rc = 1;
                                             } catch ( VDB_ROW_ERROR & x ) {
-                                                PLOGERR (klogErr, (klogInfo, x.rc, "VDB error: $(ACC) $(MSG) row_id: $(ROW_ID)", "ACC=%s,MSG=%s,ROW_ID=%ld", accession, x.msg, x.row_id));
+                                                PLOGERR (klogErr, (klogInfo, x.rc, "$(ACC) VDB error: $(MSG) row_id: $(ROW_ID)", "ACC=%s,MSG=%s,ROW_ID=%ld", accession, x.msg, x.row_id));
                                                 rc = 1;
                                             } catch ( DATA_ERROR & x ) {
                                                 KOutMsg("%s\n", accession);
-                                                PLOGMSG (klogInfo, (klogInfo, "Invalid data: $(ACC) $(MSG) ", "ACC=%s,MSG=%s", accession, x.msg.c_str()));
+                                                PLOGMSG (klogInfo, (klogInfo, "$(ACC) Invalid data: $(MSG) ", "ACC=%s,MSG=%s", accession, x.msg.c_str()));
                                                 rc = 1;
                                             }
                                             VCursorRelease( seq_cursor );
@@ -446,7 +446,7 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-rc_t parseConfig ( Args * args, CheckCorruptConfig * config )
+rc_t parseArgs ( Args * args, CheckCorruptConfig * config )
 {
     rc_t rc;
     uint32_t opt_count;
@@ -469,7 +469,7 @@ rc_t parseConfig ( Args * args, CheckCorruptConfig * config )
         }
 
         value_size = string_size ( value );
-        if ( value[value_size - 1] == '%' )
+        if ( value_size >= 1 && value[value_size - 1] == '%' )
         {
             config->cutoff_percent = string_to_U64 ( value, value_size - 1, &rc );
             if (rc)
@@ -515,7 +515,7 @@ rc_t parseConfig ( Args * args, CheckCorruptConfig * config )
         }
 
         value_size = string_size ( value );
-        if ( value[value_size - 1] == '%' )
+        if ( value_size >= 1 && value[value_size - 1] == '%' )
         {
             config->pa_len_threshold_percent = string_to_U64 ( value, value_size - 1, &rc );
             if (rc)
@@ -567,7 +567,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             LOGERR (klogInt, rc, "failed to make xml logger");
         else
         {
-            rc = parseConfig ( args, &config );
+            rc = parseArgs ( args, &config );
             if (rc == 0)
             {
                 uint32_t pcount;

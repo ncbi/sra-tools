@@ -30,6 +30,7 @@
 #include <kapp/args.h> /* KMain */
 
 #include <klib/text.h>
+#include <klib/printf.h>
 #include <klib/out.h> /* OUTMSG */
 #include <klib/refcount.h>
 #include <klib/rc.h>
@@ -124,11 +125,15 @@ DoFukan (
     struct XFSModel * TheModel;
     struct XFSTree * TheTree;
     struct XFSControl * TheControl;
+    char Lable [ 256 ];
+    size_t NumWr;
 
     RCt = 0;
     TheModel = NULL;
     TheTree = NULL;
     TheControl = NULL;
+    * Lable = 0;
+    NumWr = 0;
 
     XFS_CAN ( ProjectId )
     XFS_CAN ( MountPoint )
@@ -164,7 +169,15 @@ DoFukan (
                 if ( RCt == 0 ) {
 
                     XFSControlSetMountPoint ( TheControl, MountPoint );
-                    XFSControlSetLabel ( TheControl, "dbGaP" );
+
+                    RCt = string_printf (
+                                        Lable,
+                                        sizeof ( Lable ) - 1,
+                                        & NumWr,
+                                        "dbGaP(%s)",
+                                        ProjectId
+                                        );
+                    XFSControlSetLabel ( TheControl, Lable );
                     if ( LogFile != NULL ) {
                         XFSControlSetLogFile ( TheControl, LogFile );
                     }

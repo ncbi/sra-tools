@@ -405,6 +405,20 @@ static rc_t pacbio_load_multipart( context * ctx, KDirectory * wd, VDatabase * d
 }
 
 
+static rc_t add_unique_to_namelist( const VNamelist * src, VNamelist * dst, int32_t idx )
+{
+    const char * s;
+    rc_t rc = VNameListGet( src, idx, &s );
+    if ( rc == 0 && s != NULL && s[ 0 ] != 0 )
+    {
+        uint32_t found;
+        rc_t rc2 = VNamelistIndexOf( dst, s, &found );
+        if ( GetRCState( rc2 ) == rcNotFound )
+            rc = VNamelistAppend( dst, s );
+    }
+    return rc;
+}
+
 static rc_t pacbio_load( context *ctx, KDirectory * wd, ld_context *lctx, const char * toolname )
 {
     VDBManager * vdb_mgr = NULL;
@@ -440,46 +454,59 @@ static rc_t pacbio_load( context *ctx, KDirectory * wd, ld_context *lctx, const 
     /* creates the 4 output vdb tables... SEQUENCE, CONSENSUS, PASSES and METRICS */
     if ( rc == 0 )
     {
-        bool consensus_present = false;
-        uint32_t count;
-        KDirectory * hdf5_src;
-
-        rc = VNameListCount ( ctx->src_paths, &count );
-        if ( rc == 0 && count > 0 )
-        {
-            rc = pacbio_get_hdf5_src( wd, ctx->src_paths, 0, &hdf5_src );
-            if ( rc == 0 )
-            {
-                if ( pacbio_has_MultiParts( hdf5_src ) )
-                {
-                    VNamelist * parts;
-                    rc = VNamelistMake ( &parts, 5 );
-                    if ( rc == 0 )
-                    {
-                        rc = pacbio_get_MultiParts( hdf5_src, parts );
-                        if ( rc == 0 )
-                        {
-                            VNamelistRelease ( ctx->src_paths );
-                            ctx->src_paths = parts;
-                        }
-                    }
-                }
-                KDirectoryRelease( hdf5_src );
-            }
-        }
-
+        bool consensus_present = false;    
+        VNamelist * to_process;
+        rc = VNamelistMake ( &to_process, 5 );
         if ( rc == 0 )
         {
+            KDirectory * hdf5_src;
+            uint32_t count, idx;
+
             rc = VNameListCount ( ctx->src_paths, &count );
-            if ( rc == 0 && count > 0 )
+            for ( idx = 0; rc == 0 && idx < count; ++idx )
             {
-                ctx_show( ctx );
                 rc = pacbio_get_hdf5_src( wd, ctx->src_paths, 0, &hdf5_src );
                 if ( rc == 0 )
-                    rc = pacbio_load_multipart( ctx, wd, database, &hdf5_src, &consensus_present, lctx, count );
+                {
+                    if ( pacbio_has_MultiParts( hdf5_src ) )
+                    {
+                        VNamelist * parts;
+                        rc = VNamelistMake ( &parts, 5 );
+                        if ( rc == 0 )
+                        {
+                            rc = pacbio_get_MultiParts( hdf5_src, parts );
+                            if ( rc == 0 )
+                            {
+                                uint32_t p_count, p_idx;                            
+                                rc = VNameListCount ( ctx->src_paths, &p_count );
+                                for ( p_idx = 0; rc == 0 && p_idx < p_count; ++p_idx )
+                                    rc = add_unique_to_namelist( parts, to_process, p_idx );
+                            }
+                            VNamelistRelease ( parts );
+                        }
+                    }
+                    else
+                        rc = add_unique_to_namelist( ctx->src_paths, to_process, idx );
+                    KDirectoryRelease( hdf5_src );
+                }
             }
+            VNamelistRelease ( ctx->src_paths );
+            ctx->src_paths = to_process;
+            
+            if ( rc == 0 )
+            {
+                rc = VNameListCount ( ctx->src_paths, &count );
+                if ( rc == 0 && count > 0 )
+                {
+                    ctx_show( ctx );
+                    rc = pacbio_get_hdf5_src( wd, ctx->src_paths, 0, &hdf5_src );
+                    if ( rc == 0 )
+                        rc = pacbio_load_multipart( ctx, wd, database, &hdf5_src, &consensus_present, lctx, count );
+                }
+            }
+        
         }
-
+        
         if ( !consensus_present )
             VDatabaseDropTable ( database, "CONSENSUS" );
     }

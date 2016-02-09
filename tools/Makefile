@@ -66,7 +66,7 @@ SUBDIRS =             \
     kget              \
     ngs-pileup        \
     general-loader    \
-	ref-variation	  \
+#	ref-variation	  \
 
 
 ifneq (win,$(BUILD_OS))

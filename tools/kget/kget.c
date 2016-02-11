@@ -135,6 +135,10 @@ static const char * sleep_usage[]       = { "sleep inbetween requests by this am
 #define ALIAS_TIMEOUT "m"
 static const char * timeout_usage[]     = { "use timed read with tis amount of ms as timeout", NULL };
 
+#define OPTION_CCOMPL "cache-complete"
+#define ALIAS_CCOMPL "a"
+static const char * ccompl_usage[]      = { "check completeness on open cacheteefile", NULL };
+
 OptDef MyOptions[] =
 {
 /*    name              alias           fkt    usage-txt,       cnt, needs value, required */
@@ -151,6 +155,7 @@ OptDef MyOptions[] =
     { OPTION_SLEEP,     ALIAS_SLEEP,    NULL, sleep_usage,      1,  true,        false },    
     { OPTION_TIMEOUT,   ALIAS_TIMEOUT,  NULL, timeout_usage,    1,  true,        false },
     { OPTION_COMPLETE,  NULL,           NULL, complete_usage,   1,  false,       false },
+    { OPTION_CCOMPL,    ALIAS_CCOMPL,   NULL, ccompl_usage,     1,  false,       false },
     { OPTION_TRUNC,     NULL,           NULL, truncate_usage,   1,  false,       false },
     { OPTION_START,     NULL,           NULL, start_usage,      1,  true,        false },
     { OPTION_COUNT,     NULL,           NULL, count_usage,      1,  true,        false },
@@ -216,6 +221,7 @@ typedef struct fetch_ctx
     bool show_curl_version;
     bool report_cache;
     bool check_cache_complete;
+    bool check_completeness;    
     bool truncate_cache;
     bool local_read_only;
     bool show_progress;
@@ -368,22 +374,22 @@ static rc_t copy_file( const KFile * src, KFile * dst, fetch_ctx * ctx )
 
 static rc_t fetch_cached( KDirectory *dir, const KFile *src, KFile *dst, fetch_ctx *ctx )
 {
-    rc_t rc = 0;
-    const KFile *tee; /* this is the file that forks persistent_content with remote */
-
     size_t bs = ctx->cache_blk == 0 ? CACHE_TEE_DEFAULT_BLOCKSIZE : ctx->cache_blk;
-    
-    KOutMsg( "persistent cache created : '%s' (blk-size: %d)\n", ctx->cache_file, bs );
-    rc = KDirectoryMakeCacheTee ( dir,                  /* the KDirectory for the the sparse-file */
-                                  &tee,                 /* the newly created cache-tee-file */
-                                  src,                  /* the file that we are wrapping ( usually the remote http-file ) */
-                                  ctx->cache_blk,       /* how big one block in the cache-tee-file will be */
-                                  ctx->cache_file );    /* the sparse-file we use write to */
+    rc_t rc = KOutMsg( "persistent cache created : '%s' (blk-size: %d)\n", ctx->cache_file, bs );
     if ( rc == 0 )
     {
-        KOutMsg( "cache tee created\n" );
-        rc = copy_file( tee, dst, ctx );
-        KFileRelease( tee );
+        const KFile *tee; /* this is the file that forks persistent_content with remote */
+        rc = KDirectoryMakeCacheTee ( dir,                  /* the KDirectory for the the sparse-file */
+                                      &tee,                 /* the newly created cache-tee-file */
+                                      src,                  /* the file that we are wrapping ( usually the remote http-file ) */
+                                      ctx->cache_blk,       /* how big one block in the cache-tee-file will be */
+                                      ctx->cache_file );    /* the sparse-file we use write to */
+        if ( rc == 0 )
+        {
+            KOutMsg( "cache tee created\n" );
+            rc = copy_file( tee, dst, ctx );
+            KFileRelease( tee );
+        }
     }
     return rc;
 }
@@ -405,9 +411,7 @@ static rc_t fetch_from( KDirectory *dir, fetch_ctx *ctx, char * outfile,
     uint64_t file_size;
     rc_t rc = KFileSize( src, &file_size );
     if ( rc != 0 )
-    {
         KOutMsg( "cannot disover src-size >%R<\n", rc );
-    }
     else
     {
         KFile *dst;
@@ -449,9 +453,9 @@ static rc_t make_remote_file( struct KNSManager * kns_mgr, const KFile ** src, f
     }
     else
     {
-        const KFile * temp_file;
         if ( ctx->buffer_size > 0 )
         {
+            const KFile * temp_file;
             rc = KBufFileMakeRead ( & temp_file, *src, ctx->buffer_size );
             if ( rc == 0 )
             {
@@ -512,58 +516,126 @@ static rc_t fetch( KDirectory *dir, fetch_ctx *ctx )
 
 static rc_t show_size( KDirectory *dir, fetch_ctx *ctx )
 {
-    rc_t rc = 0;
-    const KFile * remote;
-    struct KNSManager * kns_mgr;
-    
-    KOutMsg( "source: >%s<\n", ctx->url );
-    rc = KNSManagerMake ( &kns_mgr );
-    if ( rc != 0 )
-        (void)LOGERR( klogInt, rc, "KNSManagerMake() failed" );
-    else
+    rc_t rc = KOutMsg( "source: >%s<\n", ctx->url );
+    if ( rc == 0 )
     {
-        rc = make_remote_file( kns_mgr, &remote, ctx );
+        struct KNSManager * kns_mgr;
+        rc = KNSManagerMake ( &kns_mgr );
+        if ( rc != 0 )
+            (void)LOGERR( klogInt, rc, "KNSManagerMake() failed" );
+        else
+        {
+            const KFile * remote;    
+            rc = make_remote_file( kns_mgr, &remote, ctx );
+            if ( rc == 0 )
+            {
+                uint64_t file_size;
+                rc = KFileSize( remote, &file_size );
+                KOutMsg( "file-size = %u\n", file_size );
+                KFileRelease( remote );
+            }
+            KNSManagerRelease( kns_mgr );
+        }
+    }
+    return rc;
+}
+
+/* check cache completeness on raw file in the filesystem */
+static rc_t check_cache_complete( KDirectory *dir, fetch_ctx *ctx )
+{
+    rc_t rc = KOutMsg( "checking if this cache file >%s< is complete\n", ctx->url );
+    if ( rc == 0 )
+    {
+        const KFile *f;
+        rc = KDirectoryOpenFileRead( dir, &f, "%s", ctx->url );
         if ( rc == 0 )
         {
-            uint64_t file_size;
-            rc = KFileSize( remote, &file_size );
-            KOutMsg( "file-size = %u\n", file_size );
-            KFileRelease( remote );
+            bool is_complete;
+            rc = IsCacheFileComplete( f, &is_complete );
+            if ( rc != 0 )
+                KOutMsg( "error performing IsCacheFileComplete() %R\n", rc );
+            else
+            {
+                if ( is_complete )
+                    KOutMsg( "the file is complete\n" );
+                else
+                {
+                    float percent = 0;
+                    uint64_t bytes_cached;
+                    rc = GetCacheCompleteness( f, &percent, &bytes_cached );
+                    if ( rc == 0 )
+                        KOutMsg( "the file is %f%% complete ( %lu bytes are cached )\n", percent, bytes_cached );
+                }
+            }
+            KFileRelease( f );
         }
-        KNSManagerRelease( kns_mgr );
     }
     return rc;
 }
 
 
-static rc_t check_cache_complete( KDirectory *dir, fetch_ctx *ctx )
+static rc_t fetch_loop( const KFile * src, fetch_ctx *ctx )
 {
     rc_t rc = 0;
-    const KFile *f;
+    size_t buffer_size = ( ctx->count == 0 ? ctx->blocksize : ctx->count );
+    char * buffer = malloc( buffer_size );
+    if ( buffer == NULL )
+    {
+        rc = RC( rcExe, rcFile, rcPacking, rcMemory, rcExhausted );
+        KOutMsg( "cant make buffer of size %u\n", buffer_size );
+    }
+    else
+    {
+        uint64_t pos = 0;
+        do
+        {
+            uint64_t num_read = 0;        
+            rc = KFileReadAll( src, pos, buffer, buffer_size, &num_read );
+            if ( rc == 0 )
+                pos += num_read;
+        } while ( rc == 0 && num_read > 0 );
+        KOutMsg( "%lu bytes copied\n", pos );
+        free( buffer );
+    }
+    return rc;
+}
 
-    KOutMsg( "checking if this cache file >%s< is complete\n", ctx->url );
-
-    rc = KDirectoryOpenFileRead( dir, &f, "%s", ctx->url );
+/* check cache completeness on a open cacheteefile */
+static rc_t check_cache_completeness( KDirectory *dir, fetch_ctx *ctx )
+{
+    rc_t rc = KOutMsg( "check if IsCacheTeeComplete() works as intended\n" );
     if ( rc == 0 )
     {
-        bool is_complete;
-        rc = IsCacheFileComplete( f, &is_complete );
+        struct KNSManager * kns_mgr;    
+        rc = KNSManagerMake ( &kns_mgr );
         if ( rc != 0 )
-            KOutMsg( "error performing IsCacheFileComplete() %R\n", rc );
+            (void)LOGERR( klogInt, rc, "KNSManagerMake() failed" );
         else
         {
-            if ( is_complete )
-                KOutMsg( "the file is complete\n" );
-            else
+            const KFile * remote;    
+            rc = make_remote_file( kns_mgr, &remote, ctx );
+            if ( rc == 0 )
             {
-                float percent = 0;
-                uint64_t bytes_cached;
-                rc = GetCacheCompleteness( f, &percent, &bytes_cached );
+                const KFile *tee; /* this is the file that forks persistent_content with remote */
+                rc = KDirectoryMakeCacheTee ( dir,                  /* the KDirectory for the the sparse-file */
+                                              &tee,                 /* the newly created cache-tee-file */
+                                              remote,               /* the file that we are wrapping ( usually the remote http-file ) */
+                                              ctx->cache_blk,       /* how big one block in the cache-tee-file will be */
+                                              ctx->cache_file );    /* the sparse-file we use write to */
                 if ( rc == 0 )
-                    KOutMsg( "the file is %f%% complete ( %lu bytes are cached )\n", percent, bytes_cached );
+                    rc = fetch_loop( tee, ctx );
+                if ( rc == 0 )
+                {
+                
+                    bool complete = false;
+                    rc = IsCacheTeeComplete( tee, &complete );
+                    KOutMsg( "IsCacheTeeComplete() -> %R, complete = %s\n", rc, complete ? "YES" : "NO" );
+                    KFileRelease( tee );
+                }
+                KFileRelease( remote );
             }
+            KNSManagerRelease( kns_mgr );
         }
-        KFileRelease( f );
     }
     return rc;
 }
@@ -691,6 +763,7 @@ rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
     if ( rc == 0 ) rc = get_size_t( args, OPTION_SLEEP, &ctx->sleep_time, 0 );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_TIMEOUT, &ctx->timeout_time, 0 );
     if ( rc == 0 ) rc = get_bool( args, OPTION_COMPLETE, &ctx->check_cache_complete );
+    if ( rc == 0 ) rc = get_bool( args, OPTION_CCOMPL, &ctx->check_completeness );
     if ( rc == 0 ) rc = get_bool( args, OPTION_TRUNC, &ctx->truncate_cache );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_START, &ctx->start, 0 );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_COUNT, &ctx->count, 0 );
@@ -725,6 +798,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                 {
                     if ( ctx.check_cache_complete )
                         rc = check_cache_complete( dir, &ctx );
+                    else if ( ctx.check_completeness )
+                        rc = check_cache_completeness( dir, &ctx );
                     else if ( ctx.truncate_cache )
                         rc = truncate_cache( dir, &ctx );
                     else if ( ctx.show_filesize )

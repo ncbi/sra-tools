@@ -1901,7 +1901,7 @@ MIXED_BASE_AND_COLOR:
                                                            NCBI_align_ro_intron_unknown;
                 rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches);
             }
-			if (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch)) {
+            if (rc == 0 && (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch))) {
                 if (isPrimary) {
                     RecordNoMatch(name, refSeq->name, rpos);
                     rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);

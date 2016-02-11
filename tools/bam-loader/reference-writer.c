@@ -531,6 +531,10 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
                    char const seqDNA[], uint32_t const seqLen,
                    uint8_t rna_orient, uint32_t *matches)
 {
+    unsigned nmis = 0;
+    unsigned nmatch = 0;
+    unsigned indels = 0;
+       
     *matches = 0;
     BAIL_ON_FAIL(ReferenceSeq_Compress(self->rseq,
                                        (G.acceptHardClip ? ewrefmgr_co_AcceptHardClip : 0) + ewrefmgr_cmp_Binary,
@@ -541,6 +545,9 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
                                        rna_orient,
                                        &data->data));
 
+    GetCounts(data, seqLen, &nmatch, &nmis, &indels);
+    *matches = nmatch;
+
     if (!G.acceptNoMatch && data->data.ref_len == 0)
         return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
     
@@ -548,13 +555,7 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
         return Unsorted(self);
     }
     if (!self->out_of_order) {
-        unsigned nmis;
-        unsigned nmatch;
-        unsigned indels;
-
         SetLastOffset(self, data->data.effective_offset);
-        GetCounts(data, seqLen, &nmatch, &nmis, &indels);
-        *matches = nmatch;
         
         /* if (G.acceptNoMatch || nmatch >= G.minMatchCount)    --- removed before more comlete implementation - EY ***/
             return ReferenceAddCoverage(self, data->data.effective_offset,

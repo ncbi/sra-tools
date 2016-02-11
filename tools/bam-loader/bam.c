@@ -1404,11 +1404,18 @@ rc_t BAM_FileMake(const BAM_File **cself,
     if (cself == NULL)
         return RC(rcAlign, rcFile, rcOpening, rcParam, rcNull);
     *cself = NULL;
-    
-    rc = KDirectoryNativeDir(&dir);
-    if (rc) return rc;
-    va_start(args, path);
-    rc = KDirectoryVOpenFileRead(dir, &kf, path, args);
+
+    if (strcmp(path, "/dev/stdin") == 0) {
+        rc = KFileMakeStdIn(&kf);
+    }
+    else {
+        rc = KDirectoryNativeDir(&dir);
+        if (rc) return rc;
+        va_start(args, path);
+        rc = KDirectoryVOpenFileRead(dir, &kf, path, args);
+        va_end(args);
+        KDirectoryRelease(dir);
+    }
     if (rc == 0) {
         BAM_File *self = NULL;
         rc = BAM_FileMakeWithKFileAndHeader(&self, kf, headerText);
@@ -1420,8 +1427,6 @@ rc_t BAM_FileMake(const BAM_File **cself,
         *cself = self;
         KFileRelease(kf);
     }
-    va_end(args);
-    KDirectoryRelease(dir);
     return rc;
 }
 

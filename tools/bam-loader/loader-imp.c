@@ -785,7 +785,14 @@ static KFile *MakeDeferralFile() {
 
 static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
 {
-    rc_t rc = BAM_FileMake(bam, MakeDeferralFile(), G.headerText, "%s", bamFile);
+    rc_t rc = 0;
+
+    if (strcmp(bamFile, "/dev/stdin") == 0) {
+        rc = BAM_FileMake(bam, MakeDeferralFile(), G.headerText, "/dev/stdin");
+    }
+    else {
+        rc = BAM_FileMake(bam, MakeDeferralFile(), G.headerText, "%s", bamFile);
+    }
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "Failed to open '$(file)'", "file=%s", bamFile));
     }

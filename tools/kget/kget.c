@@ -44,6 +44,7 @@
 #include <kns/manager.h>
 #include <kns/kns-mgr-priv.h>
 #include <kns/http.h>
+#include <kns/stream.h>
 
 #include <kproc/timeout.h>
 
@@ -139,6 +140,10 @@ static const char * timeout_usage[]     = { "use timed read with tis amount of m
 #define ALIAS_CCOMPL "a"
 static const char * ccompl_usage[]      = { "check completeness on open cacheteefile", NULL };
 
+#define OPTION_FULL "full"
+#define ALIAS_FULL "f"
+static const char * full_usage[]        = { "download via one http-request, not partial requests in a loop", NULL };
+
 OptDef MyOptions[] =
 {
 /*    name              alias           fkt    usage-txt,       cnt, needs value, required */
@@ -160,7 +165,8 @@ OptDef MyOptions[] =
     { OPTION_START,     NULL,           NULL, start_usage,      1,  true,        false },
     { OPTION_COUNT,     NULL,           NULL, count_usage,      1,  true,        false },
     { OPTION_PROGRESS,  NULL,           NULL, progress_usage,   1,  false,       false },
-    { OPTION_RELIABLE,  NULL,           NULL, reliable_usage,   1,  false,       false }
+    { OPTION_RELIABLE,  NULL,           NULL, reliable_usage,   1,  false,       false },
+    { OPTION_FULL,      ALIAS_FULL,     NULL, full_usage,       1,  false,       false }
 };
 
 rc_t CC Usage ( const Args * args )
@@ -226,6 +232,7 @@ typedef struct fetch_ctx
     bool local_read_only;
     bool show_progress;
     bool reliable;
+    bool full_download;
 } fetch_ctx;
 
 
@@ -514,6 +521,9 @@ static rc_t fetch( KDirectory *dir, fetch_ctx *ctx )
 }
 
 
+/* -------------------------------------------------------------------------------------------------------------------- */
+
+
 static rc_t show_size( KDirectory *dir, fetch_ctx *ctx )
 {
     rc_t rc = KOutMsg( "source: >%s<\n", ctx->url );
@@ -539,6 +549,10 @@ static rc_t show_size( KDirectory *dir, fetch_ctx *ctx )
     }
     return rc;
 }
+
+
+/* -------------------------------------------------------------------------------------------------------------------- */
+
 
 /* check cache completeness on raw file in the filesystem */
 static rc_t check_cache_complete( KDirectory *dir, fetch_ctx *ctx )
@@ -574,6 +588,9 @@ static rc_t check_cache_complete( KDirectory *dir, fetch_ctx *ctx )
 }
 
 
+/* -------------------------------------------------------------------------------------------------------------------- */
+
+
 static rc_t fetch_loop( const KFile * src, fetch_ctx *ctx )
 {
     rc_t rc = 0;
@@ -587,9 +604,9 @@ static rc_t fetch_loop( const KFile * src, fetch_ctx *ctx )
     else
     {
         uint64_t pos = 0;
+        uint64_t num_read = 0;
         do
         {
-            uint64_t num_read = 0;        
             rc = KFileReadAll( src, pos, buffer, buffer_size, &num_read );
             if ( rc == 0 )
                 pos += num_read;
@@ -599,6 +616,7 @@ static rc_t fetch_loop( const KFile * src, fetch_ctx *ctx )
     }
     return rc;
 }
+
 
 /* check cache completeness on a open cacheteefile */
 static rc_t check_cache_completeness( KDirectory *dir, fetch_ctx *ctx )
@@ -641,6 +659,119 @@ static rc_t check_cache_completeness( KDirectory *dir, fetch_ctx *ctx )
 }
 
 
+/* -------------------------------------------------------------------------------------------------------------------- */
+
+typedef enum 
+{
+    st_NONE,
+    st_HTTP,
+    st_S3
+} SchemeType;
+
+typedef struct URLBlock URLBlock;
+struct URLBlock
+{
+    String scheme;
+    String host;
+    String path; /* Path includes any parameter portion */
+    String query;
+    String fragment;
+
+    uint32_t port;
+
+    SchemeType scheme_type;
+};
+extern void URLBlockInit ( URLBlock *self );
+extern rc_t ParseUrl ( URLBlock * b, const char * url, size_t url_size );
+
+
+/* check cache completeness on a open cacheteefile */
+static rc_t full_download( KDirectory *dir, fetch_ctx *ctx )
+{
+    rc_t rc = KOutMsg( "make full download without partial access\n" );
+    if ( rc == 0 )
+    {
+        struct KNSManager * kns_mgr;    
+        rc = KNSManagerMake ( &kns_mgr );
+        if ( rc != 0 )
+            (void)LOGERR( klogInt, rc, "KNSManagerMake() failed" );
+        else
+        {
+            struct URLBlock url;
+            URLBlockInit( &url );
+            rc = ParseUrl( &url, ctx->url, string_size( ctx->url ) );
+            if ( rc == 0 )
+            {
+                KClientHttp * http;
+
+                KOutMsg( "scheme = %S\n", &url.scheme );
+                KOutMsg( "host   = %S\n", &url.host );
+                KOutMsg( "path   = %S\n", &url.path );
+                KOutMsg( "query  = %S\n", &url.query );
+                KOutMsg( "fragm  = %S\n", &url.fragment );
+                KOutMsg( "port   = %d\n", url.port );
+                
+                rc = KNSManagerMakeClientHttp( kns_mgr, &http, NULL, 0x01010000, &url.host, url.port );
+                if ( rc == 0 )
+                {
+                    KClientHttpRequest * req;
+                    KOutMsg( "connection open!\n" );
+                    rc = KClientHttpMakeRequest( http, &req, ctx->url );
+                    if ( rc == 0 )
+                    {
+                        KClientHttpResult *rslt;
+                        
+                        KOutMsg( "request made!\n" );
+                        
+                        KClientHttpRequestConnection( req, true );
+                        KClientHttpRequestSetNoCache( req );
+                        
+                        rc = KClientHttpRequestGET( req, &rslt ); 
+                        if ( rc == 0 )
+                        {
+                            uint32_t result_code;
+                            size_t msg_size;
+                            char buffer[ 4096 * 32 ]; /* 128k */
+                            
+                            KOutMsg( "reply received!\n" );
+                            rc = KClientHttpResultStatus( rslt, &result_code, buffer, sizeof buffer, &msg_size );
+                            if ( rc == 0 )
+                            {
+                                struct KStream  *content;
+                                KOutMsg( "result-code = %d\n", result_code );
+                                KOutMsg( "result-size = %d\n", msg_size );
+                                rc = KClientHttpResultGetInputStream( rslt, &content );
+                                if ( rc == 0 )
+                                {
+                                    size_t num_read;
+                                    KOutMsg( "content stream made!\n" );
+                                    do
+                                    {
+                                        rc = KStreamReadAll( content, buffer, sizeof buffer, &num_read );
+                                        if ( rc == 0 )
+                                            KOutMsg( "%d bytes read!\n", num_read );
+                                    } while ( rc == 0 && num_read > 0 );
+                                    KStreamRelease( content );
+                                }
+                            }
+                            KClientHttpResultRelease( rslt );
+                        }
+                        
+                        KClientHttpRequestRelease( req );
+                    }
+                    KClientHttpRelease ( http );
+                }
+            }
+            KNSManagerRelease( kns_mgr );
+        }
+    }
+    return rc;
+}
+
+
+/* -------------------------------------------------------------------------------------------------------------------- */
+
+
 static rc_t truncate_cache( KDirectory *dir, fetch_ctx *ctx )
 {
     rc_t rc = 0;
@@ -660,6 +791,9 @@ static rc_t truncate_cache( KDirectory *dir, fetch_ctx *ctx )
     }
     return rc;
 }
+
+
+/* -------------------------------------------------------------------------------------------------------------------- */
 
 
 rc_t get_bool( Args * args, const char *option, bool *value )
@@ -769,6 +903,7 @@ rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
     if ( rc == 0 ) rc = get_size_t( args, OPTION_COUNT, &ctx->count, 0 );
     if ( rc == 0 ) rc = get_bool( args, OPTION_PROGRESS, &ctx->show_progress );
     if ( rc == 0 ) rc = get_bool( args, OPTION_RELIABLE, &ctx->reliable );
+    if ( rc == 0 ) rc = get_bool( args, OPTION_FULL, &ctx->full_download );
     
     return rc;
 }
@@ -804,6 +939,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                         rc = truncate_cache( dir, &ctx );
                     else if ( ctx.show_filesize )
                         rc = show_size( dir, &ctx );
+                    else if ( ctx.full_download )
+                        rc = full_download( dir, &ctx );
                     else
                         rc = fetch( dir, &ctx );
 

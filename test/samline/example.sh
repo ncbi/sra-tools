@@ -11,41 +11,41 @@ execute()
 # call: produce_SAM "$CONFIG" "$SAMFILE"
 produce_SAM()
 {
-	SAMLINE_BINARY="samline"
-	REFNAME="NC_011752.1"
-	REFPOS1=1000
-	REFPOS2=3500
-	CIGAR1="30MAAA20M"
-	CIGAR2="50M2D10M"
-	execute "$SAMLINE_BINARY -r $REFNAME -p $REFPOS1 -p $REFPOS2 -c $CIGAR1 -c $CIGAR2 -n $1 -d > $2"
+    SAMLINE_BINARY="samline"
+    REFNAME="NC_011752.1"
+    REFPOS1=1000
+    REFPOS2=3500
+    CIGAR1="30MAAA20M"
+    CIGAR2="50M2D10M"
+    execute "$SAMLINE_BINARY -r $REFNAME -p $REFPOS1 -p $REFPOS2 -c $CIGAR1 -c $CIGAR2 -n $1 -d > $2"
 }
 
 # call: convert_SAM_to_BAM "$SAMFILE" "$BAMFILE"
 convert_SAM_to_BAM()
 {
-	SAMTOOLS_BINARY="/netopt/ncbi_tools64/samtools/bin/samtools"
-	execute "$SAMTOOLS_BINARY view -bS $1 > $2"
+    SAMTOOLS_BINARY="/netopt/ncbi_tools64/samtools/bin/samtools"
+    execute "$SAMTOOLS_BINARY view -bS $1 > $2"
 }
 
 # call: load_BAM_to_CSRA "$CONFIG" "$BAMFILE" "$TEMP_DIR"
 load_BAM_to_CSRA()
 {
-	BAMLOAD_BINARY="bam-load"
-	execute "$BAMLOAD_BINARY -L 3 -o $3 -k $1 -E0 -Q0 $2"
+    BAMLOAD_BINARY="bam-load"
+    execute "$BAMLOAD_BINARY -L 3 -o $3 -k $1 -E0 -Q0 $2"
 }
 
 # call: load_SAM_to_CSRA "$CONFIG" "$SAMFILE" "$TEMP_DIR"
 load_SAM_to_CSRA()
 {
-	BAMLOAD_BINARY="bam-load"
-	execute "cat $2 | $BAMLOAD_BINARY -L 3 -o $3 -k $1 -E0 -Q0 /dev/stdin"
+    BAMLOAD_BINARY="bam-load"
+    execute "cat $2 | $BAMLOAD_BINARY -L 3 -o $3 -k $1 -E0 -Q0 /dev/stdin"
 }
 
 # call: kar_CSRA "$FINAL_CSRA" "$TEMP_DIR"
 kar_CSRA()
 {
-	KAR_BINARY="kar"
-	execute "$KAR_BINARY --create $1 -d $2 -f"
+    KAR_BINARY="kar"
+    execute "$KAR_BINARY --create $1 -d $2 -f"
 }
 
 SAMFILE="temp.SAM"

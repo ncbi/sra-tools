@@ -66,6 +66,9 @@ info: processed 0%
 info: percent="100"
 info: processed 100%
 err: ERROR: The selected reference region [N] does not contain valid bases, exiting...
+warn: libs/vdb/blob.c:381:PageMapProcessRequestLock: self NULL while constructing page map within virtual database module - libs/vdb/blob.c:381 within PageMapProcessRequestLock
+warn: libs/vdb/blob.c:381:PageMapProcessRequestLock: self NULL while constructing page map within virtual database module - libs/vdb/blob.c:381 within PageMapProcessRequestLock
+warn: libs/vdb/blob.c:381:PageMapProcessRequestLock: self NULL while constructing page map within virtual database module - libs/vdb/blob.c:381 within PageMapProcessRequestLock
 info: percent="0"
 info: processed 0%
 warn: Input variation spec   : CM000671.1:136131021:1:T

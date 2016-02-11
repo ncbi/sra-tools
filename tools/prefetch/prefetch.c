@@ -28,6 +28,7 @@
 
 #include "prefetch.vers.h"
 
+#include <kapp/args-conv.h> /* ArgsConvFilepath */
 #include <kapp/main.h> /* KAppVersion */
 
 #include <kdb/manager.h> /* kptDatabase */
@@ -267,7 +268,9 @@ bool _StringIsFasp(const String *self, const char **withoutScheme)
 
     *withoutScheme = NULL;
 
-    if (memcmp(self->addr, fasp, sizeof fasp - 1) == 0) {
+    if (string_cmp(self->addr, self->len, fasp, sizeof fasp - 1,
+                                                sizeof fasp - 1) == 0)
+    {
         *withoutScheme = self->addr + sizeof fasp - 1;
         return true;
     }
@@ -1614,7 +1617,9 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 
     assert(resolved->type != eRunTypeUnknown);
 
-    if (self->desc != NULL) { /* object name is specified (not kart item) */
+    if (!self->isDependency &&
+        self->desc != NULL) /* object name is specified (not kart item) */
+    {
         KPathType type = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
         if (type == kptFile || type == kptDir) {
             rc = VPathStrInitStr(&resolved->path, self->desc, 0);
@@ -2658,9 +2663,9 @@ static const char* SZ_L_USAGE[] =
 
 #define TRANS_OPTION "transport"
 #define TRASN_ALIAS  "t"
-static const char* TRANS_USAGE[] = { "transport: one of: ascp; http; both.",
-    "(ascp only; http only; first try ascp, "
-    "use http if cannot download by ascp).",
+static const char* TRANS_USAGE[] = { "transport: one of: fasp; http; both.",
+    "(fasp only; http only; first try fasp (ascp), "
+    "use http if cannot download using fasp).",
     "Default: both", NULL };
 
 #define DEFAULT_MAX_FILE_SIZE "20G"
@@ -2713,6 +2718,8 @@ static OptDef Options[] = {
    ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
 };
 
+static ParamDef Parameters[] = { { ArgsConvFilepath } };
+
 static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
     rc_t rc = 0;
 
@@ -2720,8 +2727,9 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
 
     assert(self);
 
-    rc = ArgsMakeAndHandle(&self->args, argc, argv, 1,
-        Options, sizeof Options / sizeof (OptDef));
+    rc = ArgsMakeAndHandle2(&self->args, argc, argv,
+        Parameters, sizeof Parameters / sizeof Parameters[0],
+        1, Options, sizeof Options / sizeof Options[0]);
     if (rc != 0) {
         DISP_RC(rc, "ArgsMakeAndHandle");
         return rc;
@@ -3000,19 +3008,50 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         }
 
         if (pcount > 0) {
+            bool ok = false;
             const char *val = NULL;
-            rc = ArgsOptionValue(self->args, TRANS_OPTION, 0, (const void **)&val);
+            rc = ArgsOptionValue
+                (self->args, TRANS_OPTION, 0, (const void **)&val);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" TRANS_OPTION "' argument value");
                 break;
             }
             assert(val);
-            if (val[0] == 'a') {
-                self->noHttp = true;
+            switch (val[0]) {
+                case 'a':
+                case 'f': {
+                    const char ascp[] = "ascp";
+                    const char fasp[] = "fasp";
+                    if (string_cmp(val, string_measure(val, NULL),
+                            ascp, sizeof ascp - 1, sizeof ascp - 1) == 0
+                        ||
+                        string_cmp(val, string_measure(val, NULL),
+                            fasp, sizeof fasp - 1, sizeof fasp - 1) == 0
+                        ||
+                        (val[0] == 'a' && val[1] == '\0'))
+                    {
+                        self->noHttp = true;
+                        ok = true;
+                    }
+                    break;
+                }
+                case 'h': {
+                    const char http[] = "http";
+                    if (string_cmp(val, string_measure(val, NULL),
+                            http, sizeof http - 1, sizeof http - 1) == 0
+                        || val[1] == '\0')
+                    {
+                        self->noAscp = true;
+                        ok = true;
+                    }
+                    break;
+                }
             }
-            else if (val[0] == 'h') {
-                self->noAscp = true;
+            if (!ok) {
+                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                LOGERR(klogErr, rc, "Bad '" TRANS_OPTION "' argument value");
+                break;
             }
         }
 

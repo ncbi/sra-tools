@@ -73,81 +73,89 @@ rc_t CC UsageSummary ( const char * progname )
 
 #define OPTION_VERB "verb"
 #define ALIAS_VERB  "b"
-static const char * verb_usage[]       = { "execute verbose", NULL };
+static const char * verb_usage[]        = { "execute verbose", NULL };
 
 #define OPTION_BLOCK "block-size"
 #define ALIAS_BLOCK  "s"
-static const char * block_usage[]      = { "how many bytes per block", NULL };
+static const char * block_usage[]       = { "how many bytes per block", NULL };
 
 #define OPTION_SHOW  "show-size"
 #define ALIAS_SHOW   "w"
-static const char * show_usage[]       = { "query size of remote file first", NULL };
+static const char * show_usage[]        = { "query size of remote file first", NULL };
 
 #define OPTION_CACHE "cache"
 #define ALIAS_CACHE  "c"
-static const char * cache_usage[]      = { "wrap the remote-file into a KCacheTeeFile", NULL };
+static const char * cache_usage[]       = { "wrap the remote-file into a KCacheTeeFile", NULL };
+
+#define OPTION_CACHE_BLK "cache-block"
+static const char * cache_blk_usage[]   = { "blocksize inside a KCacheTeeFile", NULL };
+
+#define OPTION_PROXY "proxy"
+static const char * proxy_usage[]       = { "use a proxy to download remote file", NULL };
 
 #define OPTION_RAND  "random"
 #define ALIAS_RAND   "r"
-static const char * random_usage[]     = { "request blocks in random order", NULL };
+static const char * random_usage[]      = { "request blocks in random order", NULL };
 
 #define OPTION_REP   "repeat"
 #define ALIAS_REP    "e"
-static const char * repeat_usage[]     = { "request blocks with repeats if in random order", NULL };
+static const char * repeat_usage[]      = { "request blocks with repeats if in random order", NULL };
 
 #define OPTION_CREPORT "report"
 #define ALIAS_CREPORT  "p"
-static const char * creport_usage[]    = { "report cache usage", NULL };
+static const char * creport_usage[]     = { "report cache usage", NULL };
 
 #define OPTION_COMPLETE "complete"
-static const char * complete_usage[]   = { "check if 1st parameter is a complete", NULL };
+static const char * complete_usage[]    = { "check if 1st parameter is a complete", NULL };
 
 #define OPTION_TRUNC "truncate"
-static const char * truncate_usage[]   = { "truncate the file ( 1st parameter ) / remove trailing cache-bitmap", NULL };
+static const char * truncate_usage[]    = { "truncate the file ( 1st parameter ) / remove trailing cache-bitmap", NULL };
 
 #define OPTION_START "start"
-static const char * start_usage[]   = { "offset where to read from", NULL };
+static const char * start_usage[]       = { "offset where to read from", NULL };
 
 #define OPTION_COUNT "count"
-static const char * count_usage[]   = { "number of bytes to read", NULL };
+static const char * count_usage[]       = { "number of bytes to read", NULL };
 
 #define OPTION_PROGRESS "progress"
-static const char * progress_usage[]   = { "show progress", NULL };
+static const char * progress_usage[]    = { "show progress", NULL };
 
 #define OPTION_RELIABLE "reliable"
-static const char * reliable_usage[]   = { "use reliable version of http-file", NULL };
+static const char * reliable_usage[]    = { "use reliable version of http-file", NULL };
 
 #define OPTION_BUFFER "buffer"
 #define ALIAS_BUFFER  "u"
-static const char * buffer_usage[]   = { "wrap remote file into KBufFile with this buffer-size", NULL };
+static const char * buffer_usage[]      = { "wrap remote file into KBufFile with this buffer-size", NULL };
 
 #define OPTION_SLEEP "sleep"
 #define ALIAS_SLEEP  "i"
-static const char * sleep_usage[]   = { "sleep inbetween requests by this amount of ms", NULL };
+static const char * sleep_usage[]       = { "sleep inbetween requests by this amount of ms", NULL };
 
 #define OPTION_TIMEOUT "timeout"
 #define ALIAS_TIMEOUT "m"
-static const char * timeout_usage[]   = { "use timed read with tis amount of ms as timeout", NULL };
+static const char * timeout_usage[]     = { "use timed read with tis amount of ms as timeout", NULL };
 
 OptDef MyOptions[] =
 {
-/*    name            alias         fkt   usage-txt,      cnt, needs value, required */
-    { OPTION_VERB,    ALIAS_VERB,    NULL, verb_usage,     1,   false,       false },
-    { OPTION_BLOCK,   ALIAS_BLOCK,   NULL, block_usage,    1,   true,        false },
-    { OPTION_SHOW,    ALIAS_SHOW,    NULL, show_usage,     1,   false,       false },
-    { OPTION_CACHE,   ALIAS_CACHE,   NULL, cache_usage,    1,   true,        false },
-    { OPTION_RAND,    ALIAS_RAND,    NULL, random_usage,   1,   false,       false },
-    { OPTION_REP,     ALIAS_REP,     NULL, repeat_usage,   1,   false,       false },
-    { OPTION_CREPORT, ALIAS_CREPORT, NULL, creport_usage,  1,   false,       false },
-    { OPTION_BUFFER,  ALIAS_BUFFER,  NULL, buffer_usage,   1,   true,        false },
-    { OPTION_SLEEP,   ALIAS_SLEEP,   NULL, sleep_usage,  	1,   true,        false },	
-    { OPTION_TIMEOUT, ALIAS_TIMEOUT, NULL, timeout_usage, 	1,   true,        false },
-    { OPTION_COMPLETE,NULL,          NULL, complete_usage, 1,   false,       false },
-    { OPTION_TRUNC,   NULL,          NULL, truncate_usage, 1,   false,       false },
-    { OPTION_START,   NULL,          NULL, start_usage,    1,   true,        false },
-    { OPTION_COUNT,   NULL,          NULL, count_usage,    1,   true,        false },
-    { OPTION_PROGRESS,NULL,          NULL, progress_usage, 1,   false,       false },
-    { OPTION_RELIABLE,NULL,          NULL, reliable_usage, 1,   false,       false }
+/*    name              alias           fkt    usage-txt,       cnt, needs value, required */
+    { OPTION_VERB,      ALIAS_VERB,     NULL, verb_usage,       1,  false,       false },
+    { OPTION_BLOCK,     ALIAS_BLOCK,    NULL, block_usage,      1,  true,        false },
+    { OPTION_SHOW,      ALIAS_SHOW,     NULL, show_usage,       1,  false,       false },
+    { OPTION_CACHE,     ALIAS_CACHE,    NULL, cache_usage,      1,  true,        false },
+    { OPTION_CACHE_BLK, NULL,           NULL, cache_blk_usage,  1,  true,        false },
+    { OPTION_PROXY,     NULL,           NULL, proxy_usage,      1,  true,        false },
+    { OPTION_RAND,      ALIAS_RAND,     NULL, random_usage,     1,  false,       false },
+    { OPTION_REP,       ALIAS_REP,      NULL, repeat_usage,     1,  false,       false },
+    { OPTION_CREPORT,   ALIAS_CREPORT,  NULL, creport_usage,    1,  false,       false },
+    { OPTION_BUFFER,    ALIAS_BUFFER,   NULL, buffer_usage,     1,  true,        false },
+    { OPTION_SLEEP,     ALIAS_SLEEP,    NULL, sleep_usage,      1,  true,        false },    
+    { OPTION_TIMEOUT,   ALIAS_TIMEOUT,  NULL, timeout_usage,    1,  true,        false },
+    { OPTION_COMPLETE,  NULL,           NULL, complete_usage,   1,  false,       false },
+    { OPTION_TRUNC,     NULL,           NULL, truncate_usage,   1,  false,       false },
+    { OPTION_START,     NULL,           NULL, start_usage,      1,  true,        false },
+    { OPTION_COUNT,     NULL,           NULL, count_usage,      1,  true,        false },
+    { OPTION_PROGRESS,  NULL,           NULL, progress_usage,   1,  false,       false },
+    { OPTION_RELIABLE,  NULL,           NULL, reliable_usage,   1,  false,       false }
 };
 
 rc_t CC Usage ( const Args * args )
@@ -194,11 +202,13 @@ typedef struct fetch_ctx
     const char *url;
     const char *destination;
     const char *cache_file;
+    const char * proxy;
     size_t blocksize;
     size_t start, count;
-	size_t buffer_size;
-	size_t sleep_time;
-	size_t timeout_time;	
+    size_t buffer_size;
+    size_t sleep_time;
+    size_t timeout_time;
+    size_t cache_blk;
     bool verbose;
     bool show_filesize;
     bool random;
@@ -209,31 +219,31 @@ typedef struct fetch_ctx
     bool truncate_cache;
     bool local_read_only;
     bool show_progress;
-	bool reliable;
+    bool reliable;
 } fetch_ctx;
 
 
 static rc_t src_2_dst( const KFile *src, KFile *dst, char * buffer,
-					   uint64_t pos, size_t * num_read, fetch_ctx * ctx )
+                       uint64_t pos, size_t * num_read, fetch_ctx * ctx )
 {
-	rc_t rc;
-	size_t n_transfer = ( ctx->count == 0 ? ctx->blocksize : ctx->count );
-	
-	if ( ctx->timeout_time == 0 )
-		rc = KFileReadAll ( src, pos, buffer, n_transfer, num_read );
-	else
-	{
-		timeout_t tm;
-		rc = TimeoutInit ( &tm, ctx->timeout_time );
-		if ( rc == 0 )
-			rc = KFileTimedReadAll ( src, pos, buffer, n_transfer, num_read, &tm );
-	}
-	if ( rc == 0 && *num_read > 0 )
-	{
-		size_t num_writ;
-		rc = KFileWriteAll ( dst, pos, buffer, *num_read, &num_writ );
-	}
-	return rc;
+    rc_t rc;
+    size_t n_transfer = ( ctx->count == 0 ? ctx->blocksize : ctx->count );
+    
+    if ( ctx->timeout_time == 0 )
+        rc = KFileReadAll ( src, pos, buffer, n_transfer, num_read );
+    else
+    {
+        timeout_t tm;
+        rc = TimeoutInit ( &tm, ctx->timeout_time );
+        if ( rc == 0 )
+            rc = KFileTimedReadAll ( src, pos, buffer, n_transfer, num_read, &tm );
+    }
+    if ( rc == 0 && *num_read > 0 )
+    {
+        size_t num_writ;
+        rc = KFileWriteAll ( dst, pos, buffer, *num_read, &num_writ );
+    }
+    return rc;
 }
 
 
@@ -242,20 +252,20 @@ static rc_t block_loop_in_order( const KFile *src, KFile *dst, char * buffer,
 {
     rc_t rc = 0;
     uint64_t pos = 0;
-	uint32_t blocks = 0;
+    uint32_t blocks = 0;
     size_t num_read = 1;
     KOutMsg( "copy-mode : linear read/write\n" );
     while ( rc == 0 && num_read > 0 )
     {
-		rc = src_2_dst( src, dst, buffer, pos, &num_read, ctx );
-		if ( rc == 0 ) pos += num_read;
-		if ( ctx->show_progress && ( ( blocks & 0x0F ) == 0 ) ) KOutMsg( "." );
-		blocks++;
-		if ( ctx->sleep_time > 0 ) KSleepMs( ctx->sleep_time );
+        rc = src_2_dst( src, dst, buffer, pos, &num_read, ctx );
+        if ( rc == 0 ) pos += num_read;
+        if ( ctx->show_progress && ( ( blocks & 0x0F ) == 0 ) ) KOutMsg( "." );
+        blocks++;
+        if ( ctx->sleep_time > 0 ) KSleepMs( ctx->sleep_time );
     }
     *bytes_copied = pos;
     if ( ctx->show_progress ) KOutMsg( "\n" );
-	KOutMsg( "%d blocks a %d bytes\n", blocks, ctx->blocksize );
+    KOutMsg( "%d blocks a %d bytes\n", blocks, ctx->blocksize );
     return rc;
 }
 
@@ -284,36 +294,36 @@ static rc_t block_loop_random( const KFile *src, KFile *dst, char * buffer,
             if ( block_vector != NULL )
             {
                 uint32_t loop;
-				
-				/* fill the block_vector with ascending numbers */
-				for ( loop = 0; loop < block_count; loop++ )
-					block_vector[ loop ] = loop;
-				
-				/* randomize them */
-				for ( loop = 0; loop < block_count; loop++ )
-				{
-					uint32_t src_idx = randr( 0, block_count - 1 );
-					uint32_t dst_idx = randr( 0, block_count - 1 );
-					/* swap it... */
-					uint32_t tmp = block_vector[ dst_idx ];
-					block_vector[ dst_idx ] = block_vector[ src_idx ];
-					block_vector[ src_idx ] = tmp;
-				}
+                
+                /* fill the block_vector with ascending numbers */
+                for ( loop = 0; loop < block_count; loop++ )
+                    block_vector[ loop ] = loop;
+                
+                /* randomize them */
+                for ( loop = 0; loop < block_count; loop++ )
+                {
+                    uint32_t src_idx = randr( 0, block_count - 1 );
+                    uint32_t dst_idx = randr( 0, block_count - 1 );
+                    /* swap it... */
+                    uint32_t tmp = block_vector[ dst_idx ];
+                    block_vector[ dst_idx ] = block_vector[ src_idx ];
+                    block_vector[ src_idx ] = tmp;
+                }
 
-				for ( loop = 0; rc == 0 && loop < block_count; loop++ )
-				{
-					size_t num_read;
-					uint64_t pos = ctx->blocksize;
-					pos *= block_vector[ loop ];
-					rc = src_2_dst( src, dst, buffer, pos, &num_read, ctx );
-					if ( rc == 0 ) *bytes_copied += num_read;
-					if ( ctx->show_progress && ( ( loop & 0x0F ) == 0 ) ) KOutMsg( "." );
-					if ( ctx->sleep_time > 0 ) KSleepMs( ctx->sleep_time );
+                for ( loop = 0; rc == 0 && loop < block_count; loop++ )
+                {
+                    size_t num_read;
+                    uint64_t pos = ctx->blocksize;
+                    pos *= block_vector[ loop ];
+                    rc = src_2_dst( src, dst, buffer, pos, &num_read, ctx );
+                    if ( rc == 0 ) *bytes_copied += num_read;
+                    if ( ctx->show_progress && ( ( loop & 0x0F ) == 0 ) ) KOutMsg( "." );
+                    if ( ctx->sleep_time > 0 ) KSleepMs( ctx->sleep_time );
 
-				}
+                }
                 free( block_vector );
-				if ( ctx->show_progress ) KOutMsg( "\n" );
-				KOutMsg( "%d blocks a %d bytes\n", loop, ctx->blocksize );
+                if ( ctx->show_progress ) KOutMsg( "\n" );
+                KOutMsg( "%d blocks a %d bytes\n", loop, ctx->blocksize );
             }
         }
     }
@@ -344,8 +354,8 @@ static rc_t copy_file( const KFile * src, KFile * dst, fetch_ctx * ctx )
         else
         {
             size_t num_read;
-			rc = src_2_dst( src, dst, buffer, ctx->start, &num_read, ctx );
-			if ( rc == 0 ) bytes_copied = num_read;
+            rc = src_2_dst( src, dst, buffer, ctx->start, &num_read, ctx );
+            if ( rc == 0 ) bytes_copied = num_read;
         }
         KOutMsg( "%lu bytes copied\n", bytes_copied );
         free( buffer );
@@ -354,25 +364,27 @@ static rc_t copy_file( const KFile * src, KFile * dst, fetch_ctx * ctx )
 }
 
 
+#define CACHE_TEE_DEFAULT_BLOCKSIZE ( 32 * 1024 * 4 )
+
 static rc_t fetch_cached( KDirectory *dir, const KFile *src, KFile *dst, fetch_ctx *ctx )
 {
     rc_t rc = 0;
-	const KFile *tee; /* this is the file that forks persistent_content with remote */
-	size_t cache_tee_block = 0; /* ctx->blocksize; */
-	
-	KOutMsg( "persistent cache created\n" );
+    const KFile *tee; /* this is the file that forks persistent_content with remote */
 
-	rc = KDirectoryMakeCacheTee ( dir,					/* the KDirectory for the the sparse-file */
-								  &tee,					/* the newly created cache-tee-file */
-								  src,					/* the file that we are wrapping ( usually the remote http-file ) */
-								  cache_tee_block,		/* how big one block in the cache-tee-file will be */
-								  ctx->cache_file );	/* the sparse-file we use write to */
-	if ( rc == 0 )
-	{
-		KOutMsg( "cache tee created\n" );
-		rc = copy_file( tee, dst, ctx );
-		KFileRelease( tee );
-	}
+    size_t bs = ctx->cache_blk == 0 ? CACHE_TEE_DEFAULT_BLOCKSIZE : ctx->cache_blk;
+    
+    KOutMsg( "persistent cache created : '%s' (blk-size: %d)\n", ctx->cache_file, bs );
+    rc = KDirectoryMakeCacheTee ( dir,                  /* the KDirectory for the the sparse-file */
+                                  &tee,                 /* the newly created cache-tee-file */
+                                  src,                  /* the file that we are wrapping ( usually the remote http-file ) */
+                                  ctx->cache_blk,       /* how big one block in the cache-tee-file will be */
+                                  ctx->cache_file );    /* the sparse-file we use write to */
+    if ( rc == 0 )
+    {
+        KOutMsg( "cache tee created\n" );
+        rc = copy_file( tee, dst, ctx );
+        KFileRelease( tee );
+    }
     return rc;
 }
 
@@ -388,70 +400,68 @@ static void extract_name( char ** dst, const char * url )
 
 
 static rc_t fetch_from( KDirectory *dir, fetch_ctx *ctx, char * outfile,
-						const KFile * src )
+                        const KFile * src )
 {
-	uint64_t file_size;
+    uint64_t file_size;
     rc_t rc = KFileSize( src, &file_size );
-	if ( rc != 0 )
-	{
-		KOutMsg( "cannot disover src-size >%R<\n", rc );
-	}
-	else
-	{
-		KFile *dst;
-		KOutMsg( "src-size = %lu\n", file_size );
-		rc = KDirectoryCreateFile ( dir, &dst, false, 0664, kcmInit, outfile );
-		if ( rc == 0 )
-		{
-			KOutMsg( "dst >%s< created\n", outfile );
-			if ( rc == 0 )
-			{
-				if ( ctx->cache_file != NULL )
-					rc = fetch_cached( dir, src, dst, ctx );
-				else
-					rc = copy_file( src, dst, ctx );
-			}
-			KFileRelease( dst );
-		}
-	}
-	return rc;
+    if ( rc != 0 )
+    {
+        KOutMsg( "cannot disover src-size >%R<\n", rc );
+    }
+    else
+    {
+        KFile *dst;
+        KOutMsg( "src-size = %lu\n", file_size );
+        rc = KDirectoryCreateFile ( dir, &dst, false, 0664, kcmInit, outfile );
+        if ( rc == 0 )
+        {
+            KOutMsg( "dst >%s< created\n", outfile );
+            if ( rc == 0 )
+            {
+                if ( ctx->cache_file != NULL )
+                    rc = fetch_cached( dir, src, dst, ctx );
+                else
+                    rc = copy_file( src, dst, ctx );
+            }
+            KFileRelease( dst );
+        }
+    }
+    return rc;
 }
 
 
 static rc_t make_remote_file( struct KNSManager * kns_mgr, const KFile ** src, fetch_ctx * ctx )
 {
-	rc_t rc;
-	
-	KNSManagerSetVerbose( kns_mgr, ctx->verbose );
-	if ( ctx->reliable )
-		rc = KNSManagerMakeReliableHttpFile( kns_mgr, src, NULL, 0x01010000, ctx->url );
-	else
-		rc = KNSManagerMakeHttpFile ( kns_mgr, src, NULL, 0x01010000, ctx->url );
-	
-	if ( rc != 0 )
-	{
-		if ( ctx->reliable )
-			(void)LOGERR( klogInt, rc, "KNSManagerMakeReliableHttpFile() failed" );
-		else
-			(void)LOGERR( klogInt, rc, "KNSManagerMakeHttpFile() failed" );
-	}
-	else
-	{
+    rc_t rc;
+    
+    KNSManagerSetVerbose( kns_mgr, ctx->verbose );
+    if ( ctx->reliable )
+        rc = KNSManagerMakeReliableHttpFile( kns_mgr, src, NULL, 0x01010000, ctx->url );
+    else
+        rc = KNSManagerMakeHttpFile( kns_mgr, src, NULL, 0x01010000, ctx->url );
+    
+    if ( rc != 0 )
+    {
+        if ( ctx->reliable )
+            (void)LOGERR( klogInt, rc, "KNSManagerMakeReliableHttpFile() failed" );
+        else
+            (void)LOGERR( klogInt, rc, "KNSManagerMakeHttpFile() failed" );
+    }
+    else
+    {
         const KFile * temp_file;
         if ( ctx->buffer_size > 0 )
         {
-            /* there is no cache_location! just wrap the remote file in a buffer */
-			/* rc = KBigBlockReaderMake ( &temp_file, *src, ctx->buffer_size ); */
             rc = KBufFileMakeRead ( & temp_file, *src, ctx->buffer_size );
-			if ( rc == 0 )
-			{
-				KOutMsg( "remote-file wrapped in new big-block-reader of size %d\n", ctx->buffer_size );
-				KFileRelease ( *src );
-				*src = temp_file;
-			}
+            if ( rc == 0 )
+            {
+                KOutMsg( "remote-file wrapped in new big-block-reader of size %d\n", ctx->buffer_size );
+                KFileRelease ( *src );
+                *src = temp_file;
+            }
         }
-	}
-	return rc;
+    }
+    return rc;
 }
 
 
@@ -460,8 +470,8 @@ static rc_t fetch( KDirectory *dir, fetch_ctx *ctx )
     rc_t rc = 0;
     char * outfile;
     const KFile * remote;
-	struct KNSManager * kns_mgr;
-	
+    struct KNSManager * kns_mgr;
+    
     if ( ctx->destination == NULL )
         extract_name( &outfile, ctx->url );
     else
@@ -472,46 +482,56 @@ static rc_t fetch( KDirectory *dir, fetch_ctx *ctx )
     if ( ctx->count > 0 )
         KOutMsg( "range   : %u.%u\n", ctx->start, ctx->count );
 
-	rc = KNSManagerMake ( &kns_mgr );
-	if ( rc != 0 )
-		(void)LOGERR( klogInt, rc, "KNSManagerMake() failed" );
-	else
-	{
-		rc = make_remote_file( kns_mgr, &remote, ctx );
-		if ( rc == 0 )
-		{
-			rc = fetch_from( dir, ctx, outfile, remote );
-			KFileRelease( remote );
-		}
-		KNSManagerRelease( kns_mgr );
-	}
+    rc = KNSManagerMake ( &kns_mgr );
+    if ( rc != 0 )
+        (void)LOGERR( klogInt, rc, "KNSManagerMake() failed" );
+    else
+    {
+        if ( ctx->proxy != NULL )
+        {
+            rc = KNSManagerSetHTTPProxyPath( kns_mgr, "%s", ctx->proxy );
+            if ( rc != 0 )
+                (void)LOGERR( klogInt, rc, "KNSManagerSetHTTPProxyPath() failed" );    
+        }
+        if ( rc == 0 )
+        {
+            rc = make_remote_file( kns_mgr, &remote, ctx );
+            if ( rc == 0 )
+            {
+                rc = fetch_from( dir, ctx, outfile, remote );
+                KFileRelease( remote );
+            }
+        }
+        KNSManagerRelease( kns_mgr );
+    }
 
-	free( outfile );
+    free( outfile );
     return rc;
 }
+
 
 static rc_t show_size( KDirectory *dir, fetch_ctx *ctx )
 {
     rc_t rc = 0;
     const KFile * remote;
-	struct KNSManager * kns_mgr;
-	
+    struct KNSManager * kns_mgr;
+    
     KOutMsg( "source: >%s<\n", ctx->url );
-	rc = KNSManagerMake ( &kns_mgr );
-	if ( rc != 0 )
-		(void)LOGERR( klogInt, rc, "KNSManagerMake() failed" );
-	else
-	{
-		rc = make_remote_file( kns_mgr, &remote, ctx );
-		if ( rc == 0 )
-		{
-			uint64_t file_size;
-			rc = KFileSize( remote, &file_size );
-			KOutMsg( "file-size = %u\n", file_size );
-			KFileRelease( remote );
-		}
-		KNSManagerRelease( kns_mgr );
-	}
+    rc = KNSManagerMake ( &kns_mgr );
+    if ( rc != 0 )
+        (void)LOGERR( klogInt, rc, "KNSManagerMake() failed" );
+    else
+    {
+        rc = make_remote_file( kns_mgr, &remote, ctx );
+        if ( rc == 0 )
+        {
+            uint64_t file_size;
+            rc = KFileSize( remote, &file_size );
+            KOutMsg( "file-size = %u\n", file_size );
+            KFileRelease( remote );
+        }
+        KNSManagerRelease( kns_mgr );
+    }
     return rc;
 }
 
@@ -537,7 +557,7 @@ static rc_t check_cache_complete( KDirectory *dir, fetch_ctx *ctx )
             else
             {
                 float percent = 0;
-				uint64_t bytes_cached;
+                uint64_t bytes_cached;
                 rc = GetCacheCompleteness( f, &percent, &bytes_cached );
                 if ( rc == 0 )
                     KOutMsg( "the file is %f%% complete ( %lu bytes are cached )\n", percent, bytes_cached );
@@ -596,7 +616,42 @@ rc_t get_size_t( Args * args, const char *option, size_t *value, size_t dflt )
     rc_t rc = get_str( args, option, &s );
     *value = dflt;
     if ( rc == 0 && s != NULL )
-        *value = atoi( s );
+    {
+        size_t l = string_size( s );
+        if ( l == 0 )
+            *value = dflt;
+        else
+        {
+            size_t multipl = 1;
+            switch( s[ l - 1 ] )
+            {
+                case 'k' :
+                case 'K' : multipl = 1024; break;
+                case 'm' :
+                case 'M' : multipl = 1024 * 1024; break;
+                case 'g' :
+                case 'G' : multipl = 1024 * 1024 * 1024; break;
+            }
+            
+            if ( multipl > 1 )
+            {
+                char * src = string_dup( s, l - 1 );
+                if ( src != NULL )
+                {
+                    char * endptr;
+                    *value = strtol( src, &endptr, 0 ) * multipl;
+                    free( src );
+                }
+                else
+                    *value = dflt;
+            }
+            else
+            {
+                char * endptr;
+                *value = strtol( s, &endptr, 0 );
+            }
+        }
+    }
     else
         *value = dflt;
     return rc;
@@ -626,20 +681,22 @@ rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
     if ( rc == 0 ) rc = get_bool( args, OPTION_VERB, &ctx->verbose );
     if ( rc == 0 ) rc = get_bool( args, OPTION_SHOW, &ctx->show_filesize );
     if ( rc == 0 ) rc = get_str( args, OPTION_CACHE, &ctx->cache_file );
+    if ( rc == 0 ) rc = get_size_t( args, OPTION_CACHE_BLK, &ctx->cache_blk, 0 );
+    if ( rc == 0 ) rc = get_str( args, OPTION_PROXY, &ctx->proxy );
     if ( rc == 0 ) rc = get_bool( args, OPTION_RAND, &ctx->random );
     if ( rc == 0 ) rc = get_bool( args, OPTION_REP, &ctx->with_repeats );
     if ( rc == 0 ) rc = get_bool( args, OPTION_CREPORT, &ctx->report_cache );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_BLOCK, &ctx->blocksize, ( 32 * 1024 ) );
-	if ( rc == 0 ) rc = get_size_t( args, OPTION_BUFFER, &ctx->buffer_size, 0 );
-	if ( rc == 0 ) rc = get_size_t( args, OPTION_SLEEP, &ctx->sleep_time, 0 );
-	if ( rc == 0 ) rc = get_size_t( args, OPTION_TIMEOUT, &ctx->timeout_time, 0 );
+    if ( rc == 0 ) rc = get_size_t( args, OPTION_BUFFER, &ctx->buffer_size, 0 );
+    if ( rc == 0 ) rc = get_size_t( args, OPTION_SLEEP, &ctx->sleep_time, 0 );
+    if ( rc == 0 ) rc = get_size_t( args, OPTION_TIMEOUT, &ctx->timeout_time, 0 );
     if ( rc == 0 ) rc = get_bool( args, OPTION_COMPLETE, &ctx->check_cache_complete );
     if ( rc == 0 ) rc = get_bool( args, OPTION_TRUNC, &ctx->truncate_cache );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_START, &ctx->start, 0 );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_COUNT, &ctx->count, 0 );
     if ( rc == 0 ) rc = get_bool( args, OPTION_PROGRESS, &ctx->show_progress );
     if ( rc == 0 ) rc = get_bool( args, OPTION_RELIABLE, &ctx->reliable );
-	
+    
     return rc;
 }
 
@@ -659,8 +716,8 @@ rc_t CC KMain ( int argc, char *argv [] )
         if ( rc == 0 )
         {
             if ( ctx.url == NULL )
-				KOutMsg( "URL is missing!\n" );	
-			else
+                KOutMsg( "URL is missing!\n" );    
+            else
             {
                 KDirectory *dir;
                 rc = KDirectoryNativeDir ( &dir );

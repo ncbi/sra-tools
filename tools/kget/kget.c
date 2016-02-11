@@ -661,6 +661,12 @@ static rc_t check_cache_completeness( KDirectory *dir, fetch_ctx *ctx )
 
 /* -------------------------------------------------------------------------------------------------------------------- */
 
+/* this is 'borrowed' from libs/kns/http-priv.h :
+    - this is a private header inside the source-directory
+    - without it KNSManagerMakeClientHttp( ... ) a public function cannot be used
+        ( or the user writes it's own URL-parsing )
+*/
+
 typedef enum 
 {
     st_NONE,
@@ -703,14 +709,6 @@ static rc_t full_download( KDirectory *dir, fetch_ctx *ctx )
             if ( rc == 0 )
             {
                 KClientHttp * http;
-
-                KOutMsg( "scheme = %S\n", &url.scheme );
-                KOutMsg( "host   = %S\n", &url.host );
-                KOutMsg( "path   = %S\n", &url.path );
-                KOutMsg( "query  = %S\n", &url.query );
-                KOutMsg( "fragm  = %S\n", &url.fragment );
-                KOutMsg( "port   = %d\n", url.port );
-                
                 rc = KNSManagerMakeClientHttp( kns_mgr, &http, NULL, 0x01010000, &url.host, url.port );
                 if ( rc == 0 )
                 {
@@ -739,26 +737,52 @@ static rc_t full_download( KDirectory *dir, fetch_ctx *ctx )
                             {
                                 struct KStream  *content;
                                 KOutMsg( "result-code = %d\n", result_code );
-                                KOutMsg( "result-size = %d\n", msg_size );
-                                rc = KClientHttpResultGetInputStream( rslt, &content );
-                                if ( rc == 0 )
+                                if ( result_code == 200 )
                                 {
-                                    size_t num_read;
-                                    KOutMsg( "content stream made!\n" );
-                                    do
+                                    rc = KClientHttpResultGetInputStream( rslt, &content );
+                                    if ( rc == 0 )
                                     {
-                                        /*struct timeout_t timeout;*/
+                                        KFile *dst;
+                                        char * outfile;
                                         
-                                        rc = KStreamReadAll( content, buffer, sizeof buffer, &num_read );
+                                        if ( ctx->destination == NULL )
+                                            extract_name( &outfile, ctx->url );
+                                        else
+                                            string_dup_measure( ctx->destination, NULL );
+
+                                        rc = KDirectoryCreateFile ( dir, &dst, false, 0664, kcmInit, outfile );
                                         if ( rc == 0 )
-                                            KOutMsg( "%d bytes read!\n", num_read );
-                                    } while ( rc == 0 && num_read > 0 );
-                                    KStreamRelease( content );
+                                        {
+                                            KOutMsg( "dst >%s< created\n", outfile );
+                                            if ( rc == 0 )
+                                            {
+                                                uint64_t pos = 0;
+                                                size_t num_read;
+                                                struct timeout_t timeout;
+
+                                                TimeoutInit( &timeout, 2000 );                                                
+                                                do
+                                                {
+                                                    rc = KStreamTimedRead( content, buffer, sizeof buffer, &num_read, &timeout );
+                                                    if ( rc == 0 )
+                                                    {
+                                                        size_t num_writ;
+                                                        rc = KFileWriteAll( dst, pos, buffer, num_read, &num_writ );
+                                                        pos += num_read;
+                                                    }
+                                                } while ( rc == 0 && num_read > 0 );
+
+                                                KOutMsg( "%d bytes read!\n", pos );
+                                            }
+                                            KFileRelease( dst );
+                                        }
+                                        free( outfile );
+                                        KStreamRelease( content );
+                                    }
                                 }
                             }
                             KClientHttpResultRelease( rslt );
                         }
-                        
                         KClientHttpRequestRelease( req );
                     }
                     KClientHttpRelease ( http );

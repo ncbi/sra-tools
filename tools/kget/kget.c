@@ -604,7 +604,7 @@ static rc_t fetch_loop( const KFile * src, fetch_ctx *ctx )
     else
     {
         uint64_t pos = 0;
-        uint64_t num_read = 0;
+        size_t num_read = 0;
         do
         {
             rc = KFileReadAll( src, pos, buffer, buffer_size, &num_read );
@@ -747,6 +747,8 @@ static rc_t full_download( KDirectory *dir, fetch_ctx *ctx )
                                     KOutMsg( "content stream made!\n" );
                                     do
                                     {
+                                        /*struct timeout_t timeout;*/
+                                        
                                         rc = KStreamReadAll( content, buffer, sizeof buffer, &num_read );
                                         if ( rc == 0 )
                                             KOutMsg( "%d bytes read!\n", num_read );

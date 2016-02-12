@@ -1384,6 +1384,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     KDataBuffer cigBuf;
     rc_t rc;
     int32_t lastRefSeqId = -1;
+    bool wasRenamed = false;
     size_t rsize;
     uint64_t keyId = 0;
     uint64_t reccount = 0;
@@ -1715,7 +1716,6 @@ MIXED_BASE_AND_COLOR:
                 }
                 else {
                     bool shouldUnmap = false;
-                    bool wasRenamed = false;
 
                     if (G.refFilter && strcmp(G.refFilter, refSeq->name) != 0) {
                         (void)PLOGMSG(klogInfo, (klogInfo, "Skipping Reference '$(name)'", "name=%s", refSeq->name));
@@ -1731,9 +1731,6 @@ MIXED_BASE_AND_COLOR:
                             aligned = false;
                             unmapRefSeqId = refSeqId;
                             UNALIGNED_UNALIGNED_REF;
-                        }
-                        if (wasRenamed) {
-                            RENAMED_REFERENCE;
                         }
                         break;
                     }
@@ -2269,6 +2266,9 @@ WRITE_ALIGNMENT:
                 }
             }
 
+            if (wasRenamed) {
+                RENAMED_REFERENCE;
+            }
             if (value->alignmentCount[AR_READNO(data) - 1] < 254)
                 ++value->alignmentCount[AR_READNO(data) - 1];
             ++ctx->alignCount;

@@ -38,7 +38,7 @@ ALL_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
-INCDIRS += -I$(TOP)/tools/general-loader -DLOCAL_SCHEMA=$(VDB_INCDIR)
+INCDIRS += -I$(TOP)/tools/general-loader
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@

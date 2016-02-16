@@ -807,7 +807,7 @@ static unsigned ParseHD(char const **rslt, unsigned const hlen, char hdata[])
             break;
         case 2:
             if (cc != ':')
-                return 0;
+                continue;
             hdata[i] = '\0';
             value = i + 1;
             ++st;
@@ -870,7 +870,7 @@ static unsigned ParseSQ(BAMRefSeq *rs, unsigned const hlen, char hdata[])
             }
 #else
             if (cc != ':')
-                return 0;
+                continue;
 #endif
             hdata[i] = '\0';
             value = i + 1;
@@ -971,7 +971,7 @@ static unsigned ParseRG(BAMReadGroup *dst, unsigned const hlen, char hdata[])
             break;
         case 2:
             if (cc != ':')
-                return 0;
+                continue;
             hdata[i] = '\0';
             value = i + 1;
             ++st;

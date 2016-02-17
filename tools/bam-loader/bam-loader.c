@@ -149,7 +149,8 @@ static char const option_TI[] = "TI";
 static char const option_max_warn_dup_flag[] = "max-warning-dup-flag";
 static char const option_accept_hard_clip[] = "accept-hard-clip";
 static char const option_allow_multi_map[] = "allow-multi-map";
-static char const option_allow_secondary[] = "allow-secondary";
+static char const option_allow_secondary[] = "make-spots-with-secondary";
+static char const option_defer_secondary[] = "defer-secondary";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -412,7 +413,7 @@ char const * use_allow_multi_map[] =
 static
 char const * use_allow_secondary[] =
 {
-    "allow secondary alignments to be used for constructing spots",
+    "use secondary alignments for constructing spots",
     NULL
 };
 

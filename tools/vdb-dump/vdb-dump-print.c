@@ -740,6 +740,37 @@ static rc_t vdp_open_table( vdp_src_context * vctx,
     return rc;
 }
 
+static rc_t vdp_table_adjust_ranges( vdp_table * tbl, struct num_gen * ranges )
+{
+    rc_t rc = 0;
+    if ( tbl == NULL || ranges == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+    else
+    {
+        int64_t first;
+        uint64_t count;
+        rc = VCursorIdRange( tbl->cursor, 0, &first, &count );
+        if ( rc != 0 )
+            KOutMsg( "VCursorIdRange( %s ) -> %R\n", tbl->name, rc );
+        else
+        {
+            if ( num_gen_empty( ranges ) )
+            {
+                rc = num_gen_add( ranges, first, count );
+                if ( rc != 0 )
+                    KOutMsg( "tbl '%s' : num_gen_add( %d, %d ) -> %R\n", tbl->name, first, count, rc );
+            }
+            else
+            {
+                rc = num_gen_trim( ranges, first, count );
+                if ( rc != 0 )
+                    KOutMsg( "tbl '%s' : num_gen_trim( %d, %d ) -> %R\n", tbl->name, first, count, rc );
+            }
+        }
+    }
+    return rc;
+}
+
 /* -----------------------------------------------------------------------------------------------*/
 
 static void CC release_database( void *item, void * data )
@@ -842,6 +873,23 @@ static rc_t vdp_open_database( vdp_src_context * vctx,
         }
     }
     return rc;
+}
+
+static vdp_table * vdp_db_get_table( vdp_database * db, String * path )
+{
+    vdp_table * res = NULL;
+    if ( db != NULL )
+    {
+        if ( path == NULL )
+        {
+            res = VectorGet( &db->sub_tables, 0 );
+        }
+        else
+        {
+            
+        }
+    }
+    return res;
 }
 
 /* -----------------------------------------------------------------------------------------------*/
@@ -984,31 +1032,104 @@ rc_t vdp_init_ctx( vdp_src_context ** vctx, const Args * args )
     return rc;
 }
 
+
+static vdp_table * vdp_get_table( vdp_src_context * vctx, uint32_t src_id, String * path )
+{
+    vdp_table * res = NULL;
+    if ( vctx != NULL )
+    {
+        vdp_source * src = VectorGet( &vctx->sources, src_id );
+        if ( src != NULL )
+        {
+            if ( src->tbl != NULL )
+                res = src->tbl; /* source has only this table */
+            else if ( src->db != NULL )
+                res = vdp_db_get_table( src->db, NULL ); /* source is a database */
+        }
+    }
+    return res;
+}
+
 /* -----------------------------------------------------------------------------------------------*/
+static rc_t vdb_print_parse_range( struct num_gen * ranges, const String * range )
+{
+    rc_t rc = num_gen_parse_S( ranges, range );
+    if ( rc != 0 )
+        KOutMsg( "num_gen_parse_S( %S ) -> %R\n", range, rc );
+    return rc;
+}
+
+static rc_t vdb_print_get_src_and_ranges( const String * S,
+                struct num_gen * ranges, uint32_t * src_id )
+{
+    rc_t rc = 0;
+    if ( S != NULL )
+    {
+        char * dot = string_chr( S->addr, S->len, '.' );
+        if ( dot == NULL )
+            rc = vdb_print_parse_range( ranges, S );
+        else
+        {
+            String Sub;
+            uint32_t dot_idx = ( dot - S->addr );
+            if ( dot_idx < S->len )
+            {
+                String * tmp = StringSubstr( S, &Sub, dot_idx + 1, S->len - dot_idx );
+                if ( tmp != NULL )
+                    rc = vdb_print_parse_range( ranges, tmp );
+            }
+            if ( rc == 0 && dot_idx > 0 )
+            {
+                String * tmp = StringSubstr( S, &Sub, 0, dot_idx );
+                if ( tmp != NULL )
+                {
+                    rc_t rc1;
+                    uint64_t v = StringToU64( tmp, &rc1 );
+                    if ( rc1 != 0 || v > 0xFFFF ) v = 0;
+                    *src_id = ( v & 0xFFFF );
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+
+static rc_t vdb_print_show_src_and_ranges( struct num_gen * ranges, uint32_t src_id )
+{
+    rc_t rc;
+    char buffer[ 1024 ];
+    buffer[ 0 ] = 0;
+    rc = num_gen_as_string( ranges, buffer, sizeof buffer, NULL, true );
+    if ( rc == 0 )
+        rc = KOutMsg( "src-id = %d, ranges = %s\n", src_id, buffer );
+    return rc;
+}
+
 
 /* called from vdb-dump-interact.c, v is a vector of String-objects */
 rc_t vdp_print_interactive( const Vector * v, vdp_src_context * vctx )
 {
-    String * src = VectorGet ( v, 1 );
-    if ( src == NULL )
-        KOutMsg( "source missing '1.1-10' ... to print rows 1..10 of first accession\n" );
+    struct num_gen * ranges;
+    uint32_t src_id = 0;    /* per default use the first ( mostly only ) source */
+    rc_t rc = num_gen_make_sorted( &ranges, true );
+    if ( rc != 0 )
+        KOutMsg( "num_gen_make_sorted() -> %R\n", rc );
     else
+        rc = vdb_print_get_src_and_ranges( VectorGet ( v, 1 ), ranges, &src_id );
+
+    if ( rc == 0 )
     {
-        /* uint32_t src_id = 0;    per default use the first ( mostly only ) source */
-        /* struct num_gen * range = NULL;  per default no range given, later use all rows */
-        if ( src->len > 0 )
+        vdp_table * tbl = vdp_get_table( vctx, src_id, NULL );
+        if ( tbl == NULL )
+            KOutMsg( "invalid source #%d\n", src_id );
+        else
         {
-            char * dot = string_chr( src->addr, src->len, '.' );
-            if ( dot == NULL )
-            {
-                /* no source given, the whole string is a row-range */
-                /* num_gen_make_from_str( struct num_gen ** self, const char * src ); */
-            }
-            else
-            {
-                /* source given, before the dot we have the source, after the dot the row-range */
-            }
+            rc = vdp_table_adjust_ranges( tbl, ranges );
+            
+            if ( rc == 0 )
+                rc = vdb_print_show_src_and_ranges( ranges, src_id );
         }
     }
-    return 0;
+    return rc;
 }

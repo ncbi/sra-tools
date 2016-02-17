@@ -559,7 +559,7 @@ static void read_alig_context( Args * args, alignment * alig, uint32_t idx )
     alig->last      = get_uint32_option( args, OPTION_LAST,     idx,    0 );
     
     /* precalculate values need in all functions */
-    alig->cigar        = make_cigar_t( alig->cigar_str );
+    alig->cigar     = make_cigar_t( alig->cigar_str );
     alig->reflen    = cigar_t_reflen( alig->cigar );
 }
 

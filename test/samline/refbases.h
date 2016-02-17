@@ -32,7 +32,7 @@ extern "C" {
 #endif
 
 char * read_refbases( const char * refname, uint32_t ref_pos_1_based,
-					  uint32_t ref_len, uint32_t * bases_in_ref );
+                      uint32_t ref_len, uint32_t * bases_in_ref );
 
 #ifdef __cplusplus
 }

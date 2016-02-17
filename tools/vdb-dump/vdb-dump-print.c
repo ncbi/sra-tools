@@ -25,11 +25,21 @@
 */
 
 #include "vdb-dump-print.h"
+#include "vdb-dump-helper.h"
 
 #include <klib/rc.h>
 #include <klib/printf.h>
 #include <klib/out.h>
 #include <klib/pack.h>
+#include <klib/num-gen.h>
+
+#include <kfs/directory.h>
+
+#include <kdb/manager.h>
+
+#include <vdb/cursor.h>
+#include <vdb/table.h>
+#include <vdb/database.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -547,4 +557,458 @@ rc_t vdp_print_cell( const uint32_t elem_bits, const void * base, uint32_t boff,
         rc = vdp_print_cell_cmn( NULL, 0, NULL, elem_bits, base, boff, row_len, type_desc, opts );
     }
     return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+typedef struct vdp_src_context
+{
+    KDirectory *dir;
+    const VDBManager *mgr;
+    VSchema *schema;
+    Vector sources;
+    bool print_info;
+} vdp_src_context;
+
+
+typedef struct vdp_database
+{
+    const void * name;
+    const VDatabase *database;
+    Vector sub_databases;
+    Vector sub_tables;
+} vdp_database;
+
+typedef struct vdp_table
+{
+    const void * name;
+    const VTable *table;
+    const VCursor *cursor;
+    Vector columns;
+} vdp_table;
+
+
+typedef struct vdp_column
+{
+    const void * name;
+    uint32_t id;
+    vdp_table * tab;
+} vdp_column;
+
+
+typedef struct vdp_source
+{
+    const char * path;
+    int path_type;
+    vdp_table * tbl;
+    vdp_database * db;
+} vdp_source;
+
+
+/* -----------------------------------------------------------------------------------------------*/
+
+static void CC release_column( void *item, void * data )
+{
+    vdp_column * c = ( vdp_column * )item;
+    if ( c != NULL )
+        free( ( void * ) c->name );
+    free( item );
+}
+
+static rc_t vdp_add_column( vdp_table * tbl, const char * name, bool print_info )
+{
+    rc_t rc = 0;
+    vdp_column * col = malloc( sizeof * col );
+    if ( col == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        KOutMsg( "vdp_add_column( '%s' ) -> %R\n", name, rc );
+    }
+    else
+    {
+        col->name = string_dup_measure( name, NULL );
+        if ( col->name == NULL )
+        {
+            free( ( void * ) col );
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            KOutMsg( "string_dup_measure( '%s' ) -> %R\n", name, rc );
+        }
+        else
+        {
+            col->tab = tbl;
+            rc = VCursorAddColumn( tbl->cursor, &col->id, "%s", name );
+            if ( rc != 0 )
+                KOutMsg( "VCursorAddColumn( '%s.%s' ) -> %R\n", tbl->name, name, rc );
+            else
+                rc = VectorAppend( &tbl->columns, NULL, col );
+
+            if ( rc != 0 )
+                release_column( col, NULL );
+            else if ( print_info )
+                KOutMsg( "column: '%s.%s' added\n", tbl->name, name );
+        }
+    }
+    return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+static void CC release_table( void *item, void * data )
+{
+    vdp_table * tbl = ( vdp_table * ) item;
+    if ( tbl != NULL )
+    {
+        VectorWhack( &tbl->columns, release_column, NULL );
+        free( ( void * ) tbl->name );
+        VCursorRelease( tbl->cursor );
+        VTableRelease ( tbl->table );
+        free( item );
+    }
+}
+
+/* we can open a table from an accession or from a database... */
+static rc_t vdp_open_table( vdp_src_context * vctx,
+                            vdp_source * acc, vdp_database * parent_db, const char * name )
+{
+    rc_t rc = 0;
+    vdp_table * tbl = malloc( sizeof * tbl );
+    if ( tbl == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        KOutMsg( "vdp_open_table( '%s' ) -> %R\n", name, rc );
+    }
+    else
+    {
+        tbl->name = string_dup_measure( name, NULL );
+        if ( tbl->name == NULL )
+        {
+            free( ( void * ) tbl );
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            KOutMsg( "string_dup_measure( '%s' ) -> %R\n", name, rc );
+        }
+        else
+        {
+            VectorInit( &tbl->columns, 0, 20 );
+            
+            /* open the table: either from manager or from database */
+            if ( acc != NULL )
+                rc = VDBManagerOpenTableRead( vctx->mgr, &tbl->table, vctx->schema, "%s", name );
+            else
+                rc = VDatabaseOpenTableRead( parent_db->database, &tbl->table, "%s", name );
+            
+            /* enumerate columns, create cursor, add columns */
+            if ( rc == 0 )
+            {
+                rc = VTableCreateCursorRead( tbl->table, &tbl->cursor );
+                if ( rc == 0 )
+                {
+                    KNamelist * column_names;
+                    rc = VTableListCol( tbl->table, &column_names );
+                    if ( rc == 0 )
+                    {
+                        uint32_t count, idx;
+                        rc = KNamelistCount( column_names, &count );
+                        for ( idx = 0; rc == 0 && idx < count; ++idx )
+                        {
+                            const char * column_name;
+                            rc = KNamelistGet( column_names, idx, &column_name );
+                            if ( rc == 0 && column_name != NULL )
+                                rc = vdp_add_column( tbl, column_name, vctx->print_info );
+                        }
+                        KNamelistRelease( column_names );
+                    }
+                    rc = VCursorOpen( tbl->cursor );
+                }
+            }
+            
+            if ( rc == 0 )
+            {
+                /* enter the new object: either into source-struct or parent-db */
+                if ( acc != NULL )
+                    acc->tbl = tbl;
+                else
+                    rc = VectorAppend( &parent_db->sub_tables, NULL, tbl );
+            }
+
+            if ( rc != 0 )
+                release_table( tbl, NULL );
+            else if ( vctx->print_info )
+                KOutMsg( "table: '%s' opened\n", name );
+                
+        }
+    }
+    return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+static void CC release_database( void *item, void * data )
+{
+    vdp_database * db = ( vdp_database * ) item;
+    if ( db != NULL )
+    {
+        free( ( void * ) db->name );
+        VectorWhack( &db->sub_tables, release_table, NULL );
+        VectorWhack( &db->sub_databases, release_database, NULL ); /* !! recursion */
+        VDatabaseRelease( db->database );
+        free( item );
+    }
+}
+
+/* we can open a database from an accession or from a database... */
+static rc_t vdp_open_database( vdp_src_context * vctx,
+                               vdp_source * acc, vdp_database * parent_db, const char * name )
+{
+    rc_t rc = 0;
+    vdp_database * db = malloc( sizeof * db );
+    if ( db == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        KOutMsg( "vdp_open_database( '%s' ) -> %R\n", name, rc );
+    }
+    else
+    {
+        db->name = string_dup_measure( name, NULL );
+        if ( db->name == NULL )
+        {
+            free( ( void * ) db );
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            KOutMsg( "string_dup_measure( '%s' ) -> %R\n", name, rc );
+        }
+        else
+        {
+            VectorInit( &db->sub_databases, 0, 5 );
+            VectorInit( &db->sub_tables, 0, 5 );
+
+            /* open the table: either from manager or from database */
+            if ( acc != NULL )
+                rc = VDBManagerOpenDBRead( vctx->mgr, &db->database, vctx->schema, "%s", name );
+            else
+                rc = VDatabaseOpenDBRead( parent_db->database, &db->database, "%s", name );
+
+            /* enumerate tables, open tables */
+            if ( rc == 0 )
+            {
+                KNamelist * table_names;
+                rc_t rc1 = VDatabaseListTbl( db->database, &table_names );
+                if ( rc1 == 0 )
+                {
+                    uint32_t count, idx;
+                    rc = KNamelistCount( table_names, &count );
+                    for ( idx = 0; rc == 0 && idx < count; ++idx )
+                    {
+                        const char * table_name;
+                        rc = KNamelistGet( table_names, idx, &table_name );
+                        if ( rc == 0 && table_name != NULL )
+                            rc = vdp_open_table( vctx, NULL, db, table_name );
+                    }
+                    KNamelistRelease( table_names );
+                }
+            }
+            
+            /* enumerate sub-db's, open sub-db's */
+            if ( rc == 0 )    
+            {
+                KNamelist * sub_db_names;
+                rc_t rc1 = VDatabaseListDB( db->database, &sub_db_names );
+                if ( rc1 == 0 )
+                {
+                    uint32_t count, idx;
+                    rc = KNamelistCount( sub_db_names, &count );
+                    for ( idx = 0; rc == 0 && idx < count; ++idx )
+                    {
+                        const char * sub_db_name;
+                        rc = KNamelistGet( sub_db_names, idx, &sub_db_name );
+                        if ( rc == 0 && sub_db_name != NULL )
+                            rc = vdp_open_database( vctx, NULL, db, sub_db_name ); /* !! recursion !! */
+                    }
+                    KNamelistRelease( sub_db_names );
+                }
+            }
+        
+            if ( rc == 0 )
+            {
+                /* enter the new object: either into source-struct or parent-db */
+                if ( acc != NULL )
+                    acc->db = db;
+                else
+                    rc = VectorAppend( &parent_db->sub_databases, NULL, db );
+            }
+            
+            if ( rc != 0 )
+                release_database( db, NULL );
+            else if ( vctx->print_info )
+                KOutMsg( "database: '%s' opened\n", name );
+        }
+    }
+    return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+static void CC release_source( void *item, void * data )
+{
+    vdp_source * vsrc = ( vdp_source * )item;
+    if ( vsrc != NULL )
+    {
+        if ( vsrc->tbl != NULL ) release_table( vsrc->tbl, NULL );
+        if ( vsrc->db != NULL ) release_database( vsrc->db, NULL );
+        free( ( void * ) vsrc->path );
+    }
+}
+
+static rc_t vdp_init_source( vdp_src_context * vctx, const char * name )
+{
+    rc_t rc = 0;
+    vdp_source * vsrc = malloc( sizeof * vsrc );
+    if ( vsrc == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        KOutMsg( "vdp_init_source( '%s' ) -> %R\n", name, rc );
+    }
+    else
+    {
+        vsrc->path = string_dup_measure( name, NULL );
+        if ( vsrc->path == NULL )
+        {
+            free( ( void * ) vsrc );
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            KOutMsg( "string_dup_measure( '%s' ) -> %R\n", name, rc );
+        }
+        else
+        {
+            vsrc->path_type = ( VDBManagerPathType ( vctx->mgr, "%s", name ) & ~ kptAlias );
+            vsrc->tbl = NULL;
+            vsrc->db = NULL;
+            /* types defined in <kdb/manager.h> */
+            switch ( vsrc->path_type )
+            {
+                case kptDatabase    :   rc = vdp_open_database( vctx, vsrc, NULL, name ); break;
+                case kptPrereleaseTbl:
+                case kptTable       :   rc = vdp_open_table( vctx, vsrc, NULL, name ); break;
+                default : rc = RC( rcVDB, rcNoTarg, rcConstructing, rcFormat, rcUnknown ); break;
+            }
+
+            if ( rc != 0 )
+                KOutMsg( "cannot open source '%s' -> %R\n", name, rc );
+            else
+                rc = VectorAppend( &vctx->sources, NULL, vsrc );
+            
+            if ( rc == 0 && vctx->print_info )
+                KOutMsg( "source '%s' opened\n", name );
+            
+        }
+    }
+    return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+rc_t vdp_release_ctx( vdp_src_context * vctx )
+{
+    rc_t rc = 0;
+    if ( vctx != NULL )
+    {
+        /* release all sources */
+        VectorWhack( &vctx->sources, release_source, NULL );
+        if ( vctx->dir != NULL )
+            rc = KDirectoryRelease( vctx->dir );
+        if ( rc == 0 && vctx->mgr != NULL )
+            rc = VDBManagerRelease( vctx->mgr );
+        if ( rc == 0 && vctx->schema != NULL )
+            rc = VSchemaRelease( vctx->schema );
+    }
+    return rc;
+}
+
+rc_t vdp_init_ctx( vdp_src_context ** vctx, const Args * args )
+{
+    rc_t rc = 0;
+    if ( vctx == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        KOutMsg( "vdp_init_ctx() -> %R\n", rc );
+    
+    }
+    else
+    {
+        vdp_src_context * o = malloc( sizeof *o );
+        if ( o == NULL )
+        {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            KOutMsg( "vdp_init_ctx() -> %R\n", rc );
+        }
+        else
+        {
+            VectorInit( &o->sources, 0, 5 );
+            o->schema = NULL;
+            o->print_info = false;
+            rc = KDirectoryNativeDir( &o->dir );
+            if ( rc != 0 )
+            {
+                KOutMsg( "KDirectoryNativeDir() -> %R\n", rc );
+                o->dir = NULL;
+            }
+            else
+            {
+                rc = VDBManagerMakeRead ( &o->mgr, o->dir );
+                if ( rc != 0 )
+                {
+                    KOutMsg( "VDBManagerMakeRead() -> %R\n", rc );
+                    o->mgr = NULL;
+                }
+                else
+                {
+                    uint32_t count, idx;
+                    vdh_parse_schema( o->mgr, &o->schema, NULL, true /*ctx->force_sra_schema*/ );
+                    rc = ArgsParamCount( args, &count );
+                    if ( rc != 0 )
+                        KOutMsg( "ArgsParamCount() -> %R\n", rc );
+                    else for ( idx = 0; rc == 0 && idx < count; ++idx )
+                    {
+                        const char *arg = NULL;
+                        rc = ArgsParamValue( args, idx, (const void **)&arg );
+                        if ( rc != 0 )
+                            KOutMsg( "ArgsParamValue() -> %R\n", rc );
+                        else if ( arg != NULL && arg[ 0 ] != 0 )
+                            rc = vdp_init_source( o, arg );
+                    }
+                }
+            }
+            if ( rc == 0 )
+                *vctx = o;
+            else
+                vdp_release_ctx( o );
+        }
+    }
+    return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+/* called from vdb-dump-interact.c, v is a vector of String-objects */
+rc_t vdp_print_interactive( const Vector * v, vdp_src_context * vctx )
+{
+    String * src = VectorGet ( v, 1 );
+    if ( src == NULL )
+        KOutMsg( "source missing '1.1-10' ... to print rows 1..10 of first accession\n" );
+    else
+    {
+        /* uint32_t src_id = 0;    per default use the first ( mostly only ) source */
+        /* struct num_gen * range = NULL;  per default no range given, later use all rows */
+        if ( src->len > 0 )
+        {
+            char * dot = string_chr( src->addr, src->len, '.' );
+            if ( dot == NULL )
+            {
+                /* no source given, the whole string is a row-range */
+                /* num_gen_make_from_str( struct num_gen ** self, const char * src ); */
+            }
+            else
+            {
+                /* source given, before the dot we have the source, after the dot the row-range */
+            }
+        }
+    }
+    return 0;
 }

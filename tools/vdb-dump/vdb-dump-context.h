@@ -83,9 +83,9 @@ extern "C" {
 #define OPTION_SPOTGROUPS        "spotgroups"
 /*#define OPTION_SRASCHEMA         "sraschema"*/
 #define OPTION_MERGE_RANGES      "merge-ranges"
-#define OPTION_SPREAD      		 "spread"
-#define OPTION_SLICE      		 "slice"
-#define OPTION_INTERACTIVE		 "interactive"
+#define OPTION_SPREAD            "spread"
+#define OPTION_SLICE             "slice"
+#define OPTION_INTERACTIVE       "interactive"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"

@@ -27,6 +27,7 @@
 #include "vdb-dump-interact.h"
 #include "vdb-dump-repo.h"
 #include "vdb-dump-helper.h"
+#include "vdb-dump-print.h"
 
 #include <klib/vector.h>
 #include <klib/text.h>
@@ -42,6 +43,7 @@ typedef struct ictx
     const dump_context * ctx;
     const Args * args;
     const KFile * std_in;
+    struct vdp_src_context * vsctx;
     Vector history;
     char inputline[ INPUTLINE_SIZE ];
     String PROMPT;
@@ -65,6 +67,8 @@ static rc_t init_ictx( struct ictx * ictx, const dump_context * ctx, const Args 
         
         CONST_STRING( &(ictx->PROMPT), "\nvdb $" );
         StringInit( &(ictx->SInputLine), &( ictx->inputline[0] ), sizeof( ictx->inputline ), 0 );
+        
+        rc = vdp_init_ctx( &ictx->vsctx, args );
     }
     return rc;
 }
@@ -74,6 +78,7 @@ static void release_ictx( ictx * ctx )
 {
     destroy_String_vector( &ctx->history );
     KFileRelease( ctx->std_in );
+    vdp_release_ctx( ctx->vsctx );
 }
 
 
@@ -114,6 +119,12 @@ static rc_t vdi_help_on_repo()
     return rc;
 }
 
+static rc_t vdi_help_on_print()
+{
+    rc_t rc = KOutMsg( "help: [print]\n" );
+    return rc;
+}
+
 static rc_t vdi_help( const Vector * v )
 {
     rc_t rc = 0;
@@ -122,11 +133,12 @@ static rc_t vdi_help( const Vector * v )
     else
     {
         int32_t cmd_idx = index_of_match( VectorGet( v, 1 ), 2,
-            "help", "repo" );
+            "help", "repo", "print" );
         switch( cmd_idx )
         {
             case 0 : rc = vdi_help_on_help(); break;
             case 1 : rc = vdi_help_on_repo(); break;
+            case 2 : rc = vdi_help_on_print(); break;
         }
     }
     return rc;
@@ -144,16 +156,17 @@ static rc_t vdi_on_newline( ictx * ctx, const String * Line )
         if ( S != NULL )
         {
             int32_t cmd_idx = index_of_match( S, 6,
-                "quit", "exit", "help", "repo", "test" );
+                "quit", "exit", "help", "repo", "test", "print" );
                 
             ctx->done = ( cmd_idx == 0 || cmd_idx == 1 );
             if ( !ctx->done )
             {
                 switch( cmd_idx )
                 {
-                    case 2  : rc = vdi_help( &v ); break;
-                    case 3  : rc = vdi_repo( &v ); break;
+                    case 2  : rc = vdi_help( &v ); break; /* above */
+                    case 3  : rc = vdi_repo( &v ); break; /* in vdb-dump-repo */
                     case 4  : rc = vdi_test( &v ); break;
+                    case 5  : rc = vdp_print_interactive( &v, ctx->vsctx ); break; /* in vdb-dump-print */
                     default : rc = KOutMsg( "??? {%S}", S ); break;
                 }
                 if ( rc == 0 )
@@ -241,12 +254,12 @@ rc_t vdi_main( const dump_context * ctx, const Args * args )
     rc_t rc = init_ictx( &ictx, ctx, args );
     if ( rc == 0 )
     {
-        if ( ictx.interactive )
+         if ( ictx.interactive )
             rc = vdi_interactive_loop( &ictx );
         else
             rc = ProcessFileLineByLine( ictx.std_in, on_line, &ictx ); /* from kfs/filetools.h */
-            
-        release_ictx( &ictx );
+        
+         release_ictx( &ictx );
     }
     return rc;
 }

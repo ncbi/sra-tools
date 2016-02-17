@@ -111,15 +111,6 @@ _ReadSchema ( const char * Path, char * Buffer, size_t BufferSize )
     return _ReadSomething ( Path, Buffer, BufferSize, VPathReadScheme );
 }   /* _ReadSchema () */
 
-#ifdef IDDQD
-static
-rc_t CC
-_ReadHost ( const char * Path, char * Buffer, size_t BufferSize )
-{
-    return _ReadSomething ( Path, Buffer, BufferSize, VPathReadHost );
-}   /* _ReadHost () */
-#endif /* IDDQD */
-
 bool CC
 _MatchSchemas ( const char * Schema1, const char * Schema2 )
 {
@@ -220,8 +211,15 @@ struct RCacheEntry {
 
     char * Name;
     char * Url;
+    char * Path;
 
-    const KFile * File;
+    int read_qty;
+    bool is_local;
+    bool is_complete;
+
+    uint64_t actual_size;
+
+    const struct KFile * File;
 };
 
 /*))
@@ -408,54 +406,6 @@ _CheckRemoveOldCacheDirectory ( const char * CacheRoot )
 
     return RCt;
 }   /* _CheckRemoveOldCacheDirectory () */
-
-#ifdef LOPPPATA
-######
-rc_t CC
-_EGetCachePathToFile (
-                const char * CacheRoot,
-                const char * PathToFile,
-                char * Buffer,
-                size_t BufferSize
-)
-{
-    size_t NumWrit;
-
-    if ( Buffer == NULL
-        || BufferSize == 0
-        || PathToFile == NULL
-        || CacheRoot == NULL
-        )
-    {
-        return RC ( rcExe, rcString, rcCopying, rcParam, rcNull );
-    }
-
-    return string_printf (
-                        Buffer,
-                        BufferSize,
-                        & NumWrit,
-                        "%s/%s/%s",
-                        CacheRoot,
-                        CacheDirName,
-                        PathToFile
-                        );
-}   /* _EGetCachePathToFile () */
-
-rc_t CC
-_GetCachePathToFile (
-                const char * PathToFile,
-                char * Buffer,
-                size_t BufferSize
-)
-{
-    return _EGetCachePathToFile (
-                            RemoteCachePath (),
-                            PathToFile,
-                            Buffer,
-                            BufferSize
-                            );
-}   /* _GetCachePathToFile () */
-#endif /* LOPPPATA */
 
 /*
  *  Lyrics: This method will set buffer size for HTTP transport
@@ -716,27 +666,82 @@ RemoteCacheDispose ()
 }   /* RemoteCacheDispose () */
 
 /*))
- //  Generates effective name for a file
+ //  Generates effective name and path for file
 ((*/
 rc_t CC
-_RCacheEntryGenerateName ( char * Buffer, size_t Size )
+_RCacheEntryGenerateNameAndPath ( char ** Name, char ** Path )
 {
+    rc_t RCt;
+    char Buffer [ 4096 ];
+    char Buffer2 [ 4096 ];
     size_t NumWritten;
+    char * TheName;
+    char * ThePath;
 
+    RCt = 0;
+    * Buffer = 0;
+    * Buffer2 = 0;
     NumWritten = 0;
+    TheName = NULL;
+    ThePath = NULL;
 
-    if ( Buffer == NULL || Size <= 2 ) {
+    if ( Name != NULL ) { * Name = NULL; }
+    if ( Path != NULL ) { * Path = NULL; }
+
+    if ( Name == NULL || Path == NULL ) {
         return RC ( rcExe, rcFile, rcInitializing, rcParam, rcNull );
     }
 
-    return string_printf (
+    RCt = string_printf (
                         Buffer,
-                        Size,
+                        sizeof ( Buffer ),
                         & NumWritten,
                         "etwas.%d",
                         _CacheEntryNo + 1
                         );
-}   /* _RCacheEntryGenerateName () */
+    if ( RCt == 0 ) {
+        TheName = string_dup_measure ( Buffer, NULL );
+        if ( TheName == NULL ) {
+            RCt = RC ( rcExe, rcFile, rcInitializing, rcMemory, rcExhausted );
+        }
+        else {
+            RCt = _GetCachePath ( Buffer2, sizeof ( Buffer2 ) );
+            if ( RCt == 0 ) {
+                RCt = string_printf (
+                                    Buffer,
+                                    sizeof ( Buffer ),
+                                    & NumWritten,
+                                    "%s/%s",
+                                    Buffer2,
+                                    TheName
+                                    );
+                if ( RCt == 0 ) {
+                    ThePath = string_dup_measure ( Buffer, NULL );
+                    if ( TheName == NULL ) {
+                        RCt = RC ( rcExe, rcFile, rcInitializing, rcMemory, rcExhausted );
+                    }
+                    else {
+                         * Name = TheName;
+                         * Path = ThePath;
+                    }
+                }
+            }
+        }
+    }
+
+    if ( RCt != 0 ) {
+        * Name = NULL;
+        if ( TheName != NULL ) {
+            free ( TheName );
+        }
+        * Path = NULL;
+        if ( ThePath != NULL ) {
+            free ( ThePath );
+        }
+    }
+
+    return RCt;
+}   /* _RCacheEntryGenerateNameAndPath () */
 
 /*))
  //  This method will destroy CacheEntry and free all resources
@@ -744,6 +749,9 @@ _RCacheEntryGenerateName ( char * Buffer, size_t Size )
 rc_t CC
 _RCacheEntryDestroy ( struct RCacheEntry * self )
 {
+/*
+KOutMsg ( " [GGU] [EntryDestroy]\n" );
+*/
     if ( self != NULL ) {
  /*
  RmOutMsg ( "++++++DL DESTROY [0x%p] entry\n", self );
@@ -763,6 +771,12 @@ _RCacheEntryDestroy ( struct RCacheEntry * self )
             free ( self -> Url );
             self -> Url = NULL;
         }
+            /*) Path
+             (*/
+        if ( self -> Path != NULL ) {
+            free ( self -> Path );
+            self -> Path = NULL;
+        }
             /*) Name
              (*/
         if ( self -> Name != NULL ) {
@@ -777,7 +791,12 @@ _RCacheEntryDestroy ( struct RCacheEntry * self )
         }
             /*) refcount 
              (*/
-        KRefcountWhack ( & ( self -> refcount ), _CacheEntryClassName ); 
+        KRefcountWhack ( & ( self -> refcount ), _CacheEntryClassName );
+
+        self -> read_qty = 0;
+        self -> is_local = false;
+        self -> is_complete = false;
+        self -> actual_size = 0;
 
         free ( self );
     }
@@ -796,22 +815,16 @@ _RCacheEntryMake (
 {
     rc_t RCt;
     struct RCacheEntry * Entry;
-    char Buffer [ 4096 ];
 
     RCt = 0;
+    Entry = NULL;
+
+    if ( RetEntry != NULL ) {
+        * RetEntry = NULL;
+    }
 
     if ( Url == NULL || RetEntry == NULL ) {
         return RC ( rcExe, rcFile, rcInitializing, rcParam, rcNull );
-    }
-    * RetEntry = NULL;
-
-    if ( ! RemoteCacheIsDisklessMode () ) {
-            /*)  It is better do it here, before any allocation
-             (*/
-        RCt = _RCacheEntryGenerateName ( Buffer, sizeof ( Buffer ) );
-        if ( RCt != 0 ) {
-            return RCt;
-        }
     }
 
     Entry = ( struct RCacheEntry * ) calloc (
@@ -819,47 +832,51 @@ _RCacheEntryMake (
                                         sizeof ( struct RCacheEntry )
                                         );
     if ( Entry == NULL ) {
-        return RC ( rcExe, rcFile, rcInitializing, rcMemory, rcExhausted );
+        RCt = RC ( rcExe, rcFile, rcInitializing, rcMemory, rcExhausted );
     }
+    else {
+        Entry -> read_qty = 0;
+        Entry -> is_local = false;
+        Entry -> is_complete = false;
+        Entry -> actual_size = 0;
 
-        /*) refcount
-         (*/
-    KRefcountInit (
-                & ( Entry -> refcount ),
-                0,
-                _CacheEntryClassName,
-                "_RCacheEntryMake()",
-                Buffer
-                );
-        /*) mutabor
-         (*/
-    RCt = KLockMake ( & ( Entry -> mutabor ) );
-
-    if ( RCt == 0 ) {
         if ( ! RemoteCacheIsDisklessMode () ) {
-                /*) Name
+                /*)  It is better do it here, before any allocation
                  (*/
-            Entry -> Name = string_dup_measure ( Buffer, NULL );
-            if ( Entry -> Name == NULL ) {
-                RCt = RC ( rcExe, rcFile, rcInitializing, rcMemory, rcExhausted );
-            }
+            RCt = _RCacheEntryGenerateNameAndPath (
+                                                & ( Entry -> Name ),
+                                                & ( Entry -> Path )
+                                                );
         }
 
         if ( RCt == 0 ) {
-                /*) Url
+                /*) refcount
                  (*/
-            Entry -> Url = string_dup_measure ( Url, NULL );
-            if ( Entry -> Url == NULL ) {
-                RCt = RC ( rcExe, rcFile, rcInitializing, rcMemory, rcExhausted );
-            }
+            KRefcountInit (
+                        & ( Entry -> refcount ),
+                        0,
+                        _CacheEntryClassName,
+                        "_RCacheEntryMake()",
+                        Entry -> Name
+                        );
+                /*) mutabor
+                 (*/
+            RCt = KLockMake ( & ( Entry -> mutabor ) );
+    
             if ( RCt == 0 ) {
-                    /*) File, nothing about file, it will be opened by
-                     /  on demand
-                    (*/
-                    /*) Increasing count and assigning value
+                    /*) Url
                      (*/
-                _CacheEntryNo ++;
-                * RetEntry = Entry;
+                Entry -> Url = string_dup_measure ( Url, NULL );
+                if ( Entry -> Url == NULL ) {
+                    RCt = RC ( rcExe, rcFile, rcInitializing, rcMemory, rcExhausted );
+                }
+                if ( RCt == 0 ) {
+                        /*) File will be opened on demand
+                         /  Increasing count and assigning value
+                        (*/
+                    _CacheEntryNo ++;
+                    * RetEntry = Entry;
+                }
             }
         }
     }
@@ -1049,6 +1066,9 @@ _RCacheEntryReleaseWithoutLock ( struct RCacheEntry * self )
 
     if ( self -> File != NULL ) {
 /*
+KOutMsg ( "[GGU] [ReleaseEntry] [%s]\n", self -> Name );
+*/
+/*
 RmOutMsg ( "|||<-- Releasing [%s][%s]\n", self -> Name, self -> Url );
 */
         ReleaseComplain ( KFileRelease, self -> File );
@@ -1057,6 +1077,20 @@ RmOutMsg ( "|||<-- Releasing [%s][%s]\n", self -> Name, self -> Url );
 
     return 0;
 }   /*  _RCacheEntryReleaseWithoutLock () */
+
+rc_t CC
+_RCacheEntryReleaseWithLock ( struct RCacheEntry * self )
+{
+    rc_t RCt = 0;
+
+    RCt = KLockAcquire ( self -> mutabor );
+    if ( RCt == 0 ) {
+        RCt = _RCacheEntryReleaseWithoutLock ( self );
+        KLockUnlock ( self -> mutabor );
+    }
+
+    return RCt;
+}   /* _RCacheEntryReleaseWithLock () */
 
 rc_t CC
 RCacheEntryRelease ( struct RCacheEntry * self )
@@ -1075,6 +1109,7 @@ RCacheEntryRelease ( struct RCacheEntry * self )
                             ) ) {
                 case krefWhack:
                     _RCacheEntryReleaseWithoutLock ( self );
+                    KLockUnlock ( self -> mutabor );
                     if ( RemoteCacheIsDisklessMode () ) {
  /*
  RmOutMsg ( "++++++DL RELEASE [0x%p] entry\n", self );
@@ -1085,10 +1120,10 @@ RCacheEntryRelease ( struct RCacheEntry * self )
                 case krefNegative:
                     RCt = RC ( rcExe, rcFile, rcReleasing, rcRange, rcExcessive );
                 default:
+                    KLockUnlock ( self -> mutabor );
                     break;
             }
 
-            KLockUnlock ( self -> mutabor );
         }
     }
 
@@ -1096,10 +1131,7 @@ RCacheEntryRelease ( struct RCacheEntry * self )
 }   /* RCacheEntryRelease () */
 
 rc_t CC
-_RCacheEntryOpenFileReadRemote (
-                            struct RCacheEntry * self,
-                            const char * Path
-)
+_RCacheEntryOpenFileReadRemote ( struct RCacheEntry * self )
 {
     rc_t RCt;
     struct KDirectory * Directory;
@@ -1113,13 +1145,17 @@ _RCacheEntryOpenFileReadRemote (
         return RC ( rcExe, rcFile, rcOpening, rcParam, rcNull );
     }
 
-    if ( ( ! RemoteCacheIsDisklessMode () ) && Path == NULL ) {
+/*
+KOutMsg ( "[GGU] [OpenReadRemote] [%s]\n", self -> Name );
+*/
+
+    if ( ( ! RemoteCacheIsDisklessMode () ) && self -> Path == NULL ) {
         return RC ( rcExe, rcFile, rcOpening, rcParam, rcNull );
     }
 
 /*
 RmOutMsg ( "|||<-- Opening [R] [%s][%s]\n", self -> Name, self -> Url );
-RmOutMsg ( "  |<-- Cache Entry [%s]\n", Path );
+RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
 */
 
     RCt = KNSManagerMakeHttpFile (
@@ -1141,7 +1177,7 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", Path );
                                     & TeeFile,
                                     HttpFile,
                                     _HttpBlockSize, /* blocksize */
-                                    Path
+                                    self -> Path
                                     );
                 if ( RCt == 0 ) {
                     self -> File = ( KFile * ) TeeFile;
@@ -1153,14 +1189,17 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", Path );
         }
     }
 
+    if ( RCt == 0 ) {
+        if ( self -> actual_size == 0 ) {
+            RCt = KFileSize ( self -> File, & ( self -> actual_size ) );
+        }
+    }
+
     return RCt;
 }   /* _RCacneEntryOpenFileReadRemote () */
 
 rc_t CC
-_RCacheEntryOpenFileReadLocal (
-                            struct RCacheEntry * self,
-                            const char * Path
-)
+_RCacheEntryOpenFileReadLocal ( struct RCacheEntry * self )
 {
     rc_t RCt;
     const struct KFile * File;
@@ -1170,18 +1209,25 @@ _RCacheEntryOpenFileReadLocal (
     File = NULL;
     Directory = NULL;
 
-    if ( self == NULL || Path == NULL ) {
+    if ( self == NULL ) {
+        return RC ( rcExe, rcFile, rcOpening, rcParam, rcNull );
+    }
+
+    if ( self -> Path == NULL ) {
         return RC ( rcExe, rcFile, rcOpening, rcParam, rcNull );
     }
 
 /*
+KOutMsg ( "[GGU] [OpenReadLocal] [%s]\n", self -> Name );
+*/
+/*
 RmOutMsg ( "|||<-- Opening [L] [%s][%s]\n", self -> Name, self -> Url );
-RmOutMsg ( "  |<-- Cache Entry [%s]\n", Path );
+RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
 */
 
     RCt = KDirectoryNativeDir ( & Directory );
     if ( RCt == 0 ) {
-        RCt = KDirectoryOpenFileRead ( Directory, & File, Path );
+        RCt = KDirectoryOpenFileRead ( Directory, & File, self -> Path );
         if ( RCt == 0 ) {
             self -> File = File;
         }
@@ -1189,86 +1235,257 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", Path );
         ReleaseComplain ( KDirectoryRelease, Directory );
     }
 
+    if ( RCt == 0 ) {
+        if ( self -> actual_size == 0 ) {
+            RCt = KFileSize ( self -> File, & ( self -> actual_size ) );
+        }
+    }
+
     return RCt;
 }   /* _RCacneEntryOpenFileReadLocal () */
 
-/*((
-   \\  The only way to check that cache file completed, is to check if
-    \\  it exists
-     ((*/
-bool CC
-_RCacheCheckCompleted ( const char * Path )
-{
-    uint32_t PathType;
-    KDirectory * Directory;
-
-    PathType = kptNotFound;
-    Directory = NULL;
-
-    if ( KDirectoryNativeDir ( & Directory ) == 0 ) {
-        PathType = KDirectoryPathType ( Directory, Path );
-        ReleaseComplain ( KDirectoryRelease, Directory );
-    }
-
-    return PathType == kptFile;
-}   /* _RCacheCheckCompleted () */
-
 rc_t CC
-_RCacheEntryOpenFileRead ( struct RCacheEntry * self)
+_RCacheEntryGetAndCheckFile (
+                        struct RCacheEntry * self,
+                        const struct KFile ** File,
+                        bool * Synchronized
+)
 {
     rc_t RCt;
-    char Buffer [ 4096 ], ThePath [ 4096 ];
-    size_t TheSize;
+    struct KDirectory * NatDir;
+    bool OpenLocal;
+    bool OpenRemote;
+    bool CloseFile;
+    bool IsComplete;
 
     RCt = 0;
-    TheSize = 0;
-    * Buffer = 0;
-    * ThePath = 0;
+    NatDir = NULL;
+    OpenLocal = false;
+    OpenRemote = false;
+    CloseFile = false;
+    IsComplete = false;
+
+    if ( Synchronized != NULL ) {
+        * Synchronized = true;
+    }
+
+    if ( File != NULL ) {
+        * File = NULL;
+    }
 
     if ( self == NULL ) {
-        return RC ( rcExe, rcFile, rcOpening, rcParam, rcNull );
+        return RC ( rcExe, rcFile, rcReading, rcParam, rcNull );
     }
 
-    if ( self -> File != NULL ) {
-        return 0;
+    if ( File == NULL ) {
+        return RC ( rcExe, rcFile, rcReading, rcParam, rcNull );
     }
 
-        /*)  Do that before messing with disk
+    if ( Synchronized == NULL ) {
+        return RC ( rcExe, rcFile, rcReading, rcParam, rcNull );
+    }
+
+        /*  How it is work:
+         *
+         *  if file exists, it is complete and local, just open it
+         *  any read operation should be unsynchronized.
+         *
+         *  if file does not exists, but opened, and it is 100th read
+         *  we should call IsCacheFileComplete () and if it is complete
+         *  we should close file and open it as regular. Any reed
+         *  operation will be unsynchronized.
+         *
+         *  all other situations, it is not complete, open tee
+         *  all read operations are synchronized.
+         * 
+         *  if it diskless mode - all operations are synchronized
+         */
+
+        /*) Diskless mode.
          (*/
     if ( RemoteCacheIsDisklessMode () ) {
-        RCt = _RCacheEntryOpenFileReadRemote ( self, NULL );
-    }
-    else {
+        if ( self -> File == NULL ) {
+            RCt = _RCacheEntryOpenFileReadRemote ( self );
+        }
 
-            /*)  First we should to make path to real cache file
-             (*/
-        RCt = _GetCachePath ( Buffer, sizeof ( Buffer ) );
         if ( RCt == 0 ) {
-            RCt = string_printf (
-                                ThePath,
-                                sizeof ( ThePath ),
-                                & TheSize,
-                                "%s/%s",
-                                Buffer,
-                                self -> Name
-                                );
+            * File = self -> File;
+            * Synchronized = true;
         }
 
-        if ( RCt != 0 ) {
-            return RCt;
-        }
+        return RCt;
+    }
 
-        if ( _RCacheCheckCompleted ( ThePath ) ) {
-            RCt = _RCacheEntryOpenFileReadLocal ( self, ThePath );
+        /*) Normal mode
+         (*/
+    if ( self -> File == NULL ) {
+            /* Checking if it is known that file complete */
+        if ( self -> is_complete ) {
+            OpenLocal = true;
         }
         else {
-            RCt = _RCacheEntryOpenFileReadRemote ( self, ThePath );
+                /* Checking if file exist */
+            RCt = KDirectoryNativeDir ( & NatDir );
+            if ( RCt == 0 ) {
+                if ( KDirectoryPathType ( NatDir, self -> Path ) == kptFile ) {
+                    OpenLocal = true;
+                }
+                else {
+                    OpenRemote = true;
+                }
+
+                ReleaseComplain ( KDirectoryRelease, NatDir );
+            }
+        }
+    }
+    else {
+            /* Checking if it is known that file complete */
+        if ( self -> is_complete ) {
+            if ( ! self -> is_local ) {
+                CloseFile = true;
+                OpenLocal = true;
+            }
+        }
+        else {
+                /* checking completiness is quite heavy operation */
+            RCt = IsCacheTeeComplete ( self -> File, & IsComplete );
+            if ( RCt == 0 ) {
+                if ( IsComplete ) {
+                    CloseFile = true;
+                    OpenLocal = true;
+                }
+            }
+        }
+    }
+        /*) Stupid checks
+         (*/
+    if ( OpenLocal && OpenRemote ) {
+        RCt = RC ( rcExe, rcFile, rcReading, rcParam, rcInvalid );
+    }
+
+    if ( CloseFile && self -> File == NULL ) {
+        RCt = RC ( rcExe, rcFile, rcReading, rcParam, rcInvalid );
+    }
+
+        /*) Here we are trying to animate that object
+         (*/
+    if ( RCt == 0 ) {
+        if ( CloseFile ) {
+            self -> read_qty = 0;
+
+            RCt = _RCacheEntryReleaseWithoutLock ( self );
+/*
+RmOutMsg ( "|||<-- Close file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RCt );
+*/
         }
 
+        if ( OpenLocal ) {
+            self -> is_complete = true;
+            self -> is_local = true;
+            self -> read_qty = 0;
+
+            RCt = _RCacheEntryOpenFileReadLocal ( self );
+/*
+RmOutMsg ( "|||<-- Open LOCAL file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RCt );
+*/
+        }
+
+        if ( OpenRemote ) {
+            self -> is_complete = false;
+            self -> is_local = false;
+            self -> read_qty = 1;
+
+            RCt = _RCacheEntryOpenFileReadRemote ( self );
+/*
+RmOutMsg ( "|||<-- Open REMOTE file [%s][%s] [A=%d]\n", self -> Name, self -> Url, RCt );
+*/
+        }
+
+        if ( RCt == 0 ) {
+            * File = self -> File;
+            * Synchronized = ! self -> is_local;
+        }
     }
 
     return RCt;
-}   /* _RCacheEntryOpenFileRead () */
+}   /* _RCacheEntryGetAndCheckFile () */
+
+rc_t CC
+_RCacheEntryDoRead (
+                struct RCacheEntry * self,
+                char * Buffer,
+                size_t SizeToRead,
+                uint64_t Offset,
+                size_t * NumReaded
+)
+{
+    rc_t RCt;
+    const struct KFile * File;
+    bool Synchronized;
+
+    RCt = 0;
+    Synchronized = true;
+
+    if ( NumReaded != NULL ) {
+        * NumReaded = 0;
+    }
+
+    if ( self == NULL ) { 
+        return RC ( rcExe, rcFile, rcReading, rcParam, rcNull );
+    }
+
+    if ( NumReaded == NULL ) {
+        return RC ( rcExe, rcFile, rcReading, rcParam, rcInvalid );
+    }
+
+    if ( SizeToRead == 0 ) {
+        return RC ( rcExe, rcFile, rcReading, rcParam, rcInvalid );
+    }
+
+        /*)  Here we are locking
+         (*/
+    RCt = KLockAcquire ( self -> mutabor );
+    if ( RCt == 0 ) {
+        RCt = _RCacheEntryGetAndCheckFile (
+                                        self,
+                                        & File,
+                                        & Synchronized
+                                        );
+        if ( RCt == 0 ) {
+            if ( ! Synchronized ) {
+                    /*) do not need synchronisation to read local file
+                     (*/
+                KLockUnlock ( self -> mutabor );
+            }
+
+            RCt = KFileRead (
+                            self -> File,
+                            Offset,
+                            Buffer,
+                            SizeToRead,
+                            NumReaded
+                            );
+/*
+RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, self -> Url, Offset, SizeToRead, * NumReaded, RCt );
+*/
+        }
+
+        if ( Synchronized ) {
+            KLockUnlock ( self -> mutabor );
+        }
+    }
+
+    if ( RCt != 0 ) {
+        * NumReaded = 0;
+
+/*
+RmOutMsg ( "|||<- Failed to read file [%s][%s] at attempt [%d]\n", self -> Name, self -> Url, llp + 1 );
+*/
+        _RCacheEntryReleaseWithLock ( self );
+    }
+
+    return RCt;
+}   /* _RCacheEntryDoRead () */
 
 rc_t CC
 RCacheEntryRead (
@@ -1276,7 +1493,8 @@ RCacheEntryRead (
             char * Buffer,
             size_t SizeToRead,
             uint64_t Offset,
-            size_t * NumReaded
+            size_t * NumReaded,
+            uint64_t * ActualSize
 )
 {
     rc_t RCt;
@@ -1290,58 +1508,37 @@ RCacheEntryRead (
         return RC ( rcExe, rcFile, rcReading, rcParam, rcNull );
     }
 
-        /*)  Here we are locking
-         (*/
-    RCt = KLockAcquire ( self -> mutabor );
+    for ( llp = 0; llp < NumAttempts; llp ++ ) {
+            /*) There could be non zero value from previous pass
+             (*/
+        if ( RCt != 0 ) {
+PLOGMSG ( klogErr, ( klogErr, "|||<- Trying to read file $(n) [$(u)] at attempt $(l)", PLOG_3(PLOG_S(n),PLOG_S(u),PLOG_I64(l)), self -> Name, self -> Url, llp + 1 ) );
+            RCt = 0;
+        }
 
-    if ( RCt == 0 ) {
-
-        for ( llp = 0; llp < NumAttempts; llp ++ ) {
-                /*) There could be non zero value from previous pass
-                 (*/
-            if ( RCt != 0 ) {
-PLOGMSG ( klogErr, ( klogErr, "|||<- Trying to read file $(n)$(u) at attempt $(l)", PLOG_3(PLOG_S(n),PLOG_S(u),PLOG_I64(l)), self -> Name, self -> Url, llp + 1 ) );
-                RCt = 0;
-            }
-
-                /*) If error happen on previous pass file is released
-                 (*/
-            if ( self -> File == NULL ) {
-                /*)  We are opening file for read here
-                 (*/
-                RCt = _RCacheEntryOpenFileRead ( self );
-/*
-RmOutMsg ( "|||<-- Opening file [%s][%s] [A=%d]\n", self -> Name, self -> Url, RCt );
-*/
-            }
-
-            if ( RCt == 0 ) {
-                RCt = KFileRead (
-                                self -> File,
-                                Offset,
+        RCt = _RCacheEntryDoRead (
+                                self,
                                 Buffer,
                                 SizeToRead,
+                                Offset,
                                 NumReaded
                                 );
 /*
 RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, self -> Url, Offset, SizeToRead, * NumReaded, RCt );
 */
-                if ( RCt == 0 ) {
-                    break;
-                }
-            }
-/*
-RmOutMsg ( "|||<- Failed to read file [%s][%s] at attempt [%d]\n", self -> Name, self -> Url, llp + 1 );
-*/
-            _RCacheEntryReleaseWithoutLock ( self );
-
+        if ( RCt == 0 ) {
+            break;
         }
+    }
 
-        if ( RCt != 0 ) {
+    if ( RCt != 0 ) {
 PLOGMSG ( klogErr, ( klogErr, "|||<- Failed to read file $(n)$(u) after $(l) attempts", PLOG_3(PLOG_S(n),PLOG_S(u),PLOG_I64(l)), self -> Name, self -> Url, llp + 1 ) );
-        }
+    }
 
-        KLockUnlock ( self -> mutabor );
+    if ( RCt == 0 ) {
+        if ( ActualSize != NULL ) {
+            * ActualSize = self -> actual_size;
+        }
     }
 
     return RCt;

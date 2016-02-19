@@ -762,6 +762,9 @@ KOutMsg ( " [GGU] [EntryDestroy]\n" );
             /*) File
              (*/
         if ( self -> File != NULL ) {
+/*
+KOutMsg ( "[GGU] [DestroyEnty] [%s]\n", self -> Name );
+*/
             ReleaseComplain ( KFileRelease, self -> File );
             self -> File = 0;
         }
@@ -1099,6 +1102,9 @@ RCacheEntryRelease ( struct RCacheEntry * self )
 
     RCt = 0;
 
+/*
+KOutMsg ( " [GGU] [Closing Entry]\n" );
+*/
     if ( self != NULL ) {
         RCt = KLockAcquire ( self -> mutabor );
 
@@ -1108,7 +1114,7 @@ RCacheEntryRelease ( struct RCacheEntry * self )
                             _CacheEntryClassName
                             ) ) {
                 case krefWhack:
-                    _RCacheEntryReleaseWithoutLock ( self );
+//                     _RCacheEntryReleaseWithoutLock ( self );
                     KLockUnlock ( self -> mutabor );
                     if ( RemoteCacheIsDisklessMode () ) {
  /*

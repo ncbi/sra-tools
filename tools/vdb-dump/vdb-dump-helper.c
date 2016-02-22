@@ -82,7 +82,7 @@ static void CC vdh_parse_1_schema( void *item, void *data )
 rc_t vdh_parse_schema( const VDBManager *my_manager,
                        VSchema **new_schema,
                        Vector *schema_list,
-					   bool with_sra_schema )
+                       bool with_sra_schema )
 {
     rc_t rc = 0;
 
@@ -95,23 +95,23 @@ rc_t vdh_parse_schema( const VDBManager *my_manager,
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     }
 
-	*new_schema = NULL;
-	
-	if ( with_sra_schema )
-	{
-		rc = VDBManagerMakeSRASchema( my_manager, new_schema );
-		DISP_RC( rc, "VDBManagerMakeSRASchema() failed" );
-	}
-	
+    *new_schema = NULL;
+    
+    if ( with_sra_schema )
+    {
+        rc = VDBManagerMakeSRASchema( my_manager, new_schema );
+        DISP_RC( rc, "VDBManagerMakeSRASchema() failed" );
+    }
+    
     if ( ( rc == 0 )&&( schema_list != NULL ) )
     {
-		if ( *new_schema == NULL )
-		{
-			rc = VDBManagerMakeSchema( my_manager, new_schema );
-			DISP_RC( rc, "VDBManagerMakeSchema() failed" );
-		}
-		if ( rc == 0 )
-			VectorForEach( schema_list, false, vdh_parse_1_schema, *new_schema );
+        if ( *new_schema == NULL )
+        {
+            rc = VDBManagerMakeSchema( my_manager, new_schema );
+            DISP_RC( rc, "VDBManagerMakeSchema() failed" );
+        }
+        if ( rc == 0 )
+            VectorForEach( schema_list, false, vdh_parse_1_schema, *new_schema );
     }
     return rc;
 }
@@ -479,12 +479,12 @@ rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
             {
                 const VPath * local = NULL;
                 const VPath * remote = NULL;
-				const VPath * cache = NULL;
-				rc = VResolverQuery ( resolver, eProtocolHttp, vpath, &local, &remote, &cache );
+                const VPath * cache = NULL;
+                rc = VResolverQuery ( resolver, eProtocolHttp, vpath, &local, &remote, &cache );
                 if ( rc == 0 && cache != NULL )
                 {
                     const String * path;
-					rc = VPathMakeString( cache, &path );
+                    rc = VPathMakeString( cache, &path );
 
                     if ( rc == 0 && path != NULL )
                     {
@@ -512,35 +512,35 @@ rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
 
 rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache )
 {
-	rc_t rc = 0;
-	if ( percent != NULL )	{ ( * percent ) = 0.0; }
-	if ( bytes_in_cache != NULL ) { ( * bytes_in_cache ) = 0; }
-	if ( path != NULL && path[ 0 ] != 0 )
-	{
-		KDirectory * dir;
-		rc_t rc = KDirectoryNativeDir( &dir );
-		if ( rc == 0 )
-		{
-			const KFile * f = NULL;
-			rc = KDirectoryOpenFileRead( dir, &f, "%s.cache", path );
-			if ( rc == 0 )
-			{
-				rc = GetCacheCompleteness( f, percent, bytes_in_cache );
-			}
-			else
-			{
-				rc = KDirectoryOpenFileRead( dir, &f, "%s", path );
-				if ( rc == 0 )
-				{
-					if ( percent != NULL )	( * percent ) = 100.0;
-					if ( bytes_in_cache != NULL ) rc = KFileSize ( f, bytes_in_cache );
-				}
-			}
-			if ( f != NULL ) KFileRelease( f );
-			KDirectoryRelease( dir );
-		}
-	}
-	return rc;
+    rc_t rc = 0;
+    if ( percent != NULL )    { ( * percent ) = 0.0; }
+    if ( bytes_in_cache != NULL ) { ( * bytes_in_cache ) = 0; }
+    if ( path != NULL && path[ 0 ] != 0 )
+    {
+        KDirectory * dir;
+        rc_t rc = KDirectoryNativeDir( &dir );
+        if ( rc == 0 )
+        {
+            const KFile * f = NULL;
+            rc = KDirectoryOpenFileRead( dir, &f, "%s.cache", path );
+            if ( rc == 0 )
+            {
+                rc = GetCacheCompleteness( f, percent, bytes_in_cache );
+            }
+            else
+            {
+                rc = KDirectoryOpenFileRead( dir, &f, "%s", path );
+                if ( rc == 0 )
+                {
+                    if ( percent != NULL )    ( * percent ) = 100.0;
+                    if ( bytes_in_cache != NULL ) rc = KFileSize ( f, bytes_in_cache );
+                }
+            }
+            if ( f != NULL ) KFileRelease( f );
+            KDirectoryRelease( dir );
+        }
+    }
+    return rc;
 }
 
 

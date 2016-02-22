@@ -49,6 +49,74 @@
 #include "Globals.h"
 #include "loader-imp.h"
 
+/*: ARGS
+Summary:
+	Load a BAM formatted data file
+
+Usage:
+    --help                          display this text and quit
+    --version                       display the version string and quit
+    [global-options] [options] <file...> [ --remap [options] <file>... ]...
+
+//:global-options
+Global Options:
+
+* options effecting logging
+  log-level <level>                 logging level values: [fatal|sys|int|err|warn|info|0-5] default: info
+  xml-log <filename>                produce an XML-formatted log file
+
+* options effecting performance optimisation
+  tmpfs <directory>                 where to store temparary files, default: '/tmp'
+  cache-size <mbytes>               the limit in MB for temparary files
+
+* options effecting error limits
+  max-err-count <number>            the maximum number of errors to ignore
+  max-warning-dup-flag <count>      the limit for number of duplicate flag mismatch warnings
+
+//:options
+Options:
+  output <name>                     name of the output, required
+  config <file>                     reference configuration file (See Configuration)
+  header <file>                     file containing the SAM header
+  remap                             special option to enable processing sets of remapped files. remap MUST be given between each set, all regular options can be respecified, in fact the output must be unique for each set. This is for when a set of reads are aligned multiple times, for example against different reference builds or with different aligners. This mode ensures that spot ids are the same across the several outputs.
+
+Debugging Options:
+  only-verify                       exit after verifying existence of references
+  max-rec-count <number>            exit after processing this many records (per file)
+  nomatch-log <path>                log alignments with no matching bases
+
+Filtering Options:
+  minimum-match <number>            minimum number of matches for an alignment
+  no-secondary                      ignore alignments marked as secondary
+  accept-dups                       accept spots with inconsistent PCR duplicate flags
+  accept-nomatch                    accept alignments with no matching bases
+  ref-config                        limit processing to references in the config file, ignoring all others
+  ref-filter <name>                 limit processing to the given reference, ignoring all others
+  min-mapq <number>                 filter secondary alignments by minimum mapping quality
+
+Rare or Esoteric Options:
+  input <directory>                 where to find fasta files
+  ref-file <file>                   fasta file with references
+  unsorted                          expect unsorted input (requires more memory)
+  sorted                            require sorted input
+  TI                                look for trace id optional tag
+  unaligned <file>                  file without aligned reads
+
+Deprecated Options:
+  use-OQ                            use OQ option column for quality values instead of QUAL
+  no-verify                         skip verify existence of references from the BAM file
+  accept-hard-clip                  allow hard clipping in CIGAR
+  allow-multi-map                   allow the same reference to be mapped to multiple names in the input files
+  edit-aligned-qual <number>        convert quality at aligned positions to this value
+  cs                                turn on awareness of colorspace
+  qual-quant                        quality scores quantization level
+  keep-mismatch-qual                don't quantized quality at mismatched positions
+
+
+Example:
+    bam-load -o /tmp/SRZ123456 -k analysis.bam.cfg 123456.bam
+*/
+
 /* MARK: Arguments and Usage */
 static char const option_input[] = "input";
 static char const option_output[] = "output";
@@ -81,6 +149,8 @@ static char const option_TI[] = "TI";
 static char const option_max_warn_dup_flag[] = "max-warning-dup-flag";
 static char const option_accept_hard_clip[] = "accept-hard-clip";
 static char const option_allow_multi_map[] = "allow-multi-map";
+static char const option_allow_secondary[] = "make-spots-with-secondary";
+static char const option_defer_secondary[] = "defer-secondary";
 
 #define OPTION_INPUT option_input
 #define OPTION_OUTPUT option_output
@@ -104,6 +174,8 @@ static char const option_allow_multi_map[] = "allow-multi-map";
 #define OPTION_MAX_WARN_DUP_FLAG option_max_warn_dup_flag
 #define OPTION_ACCEPT_HARD_CLIP option_accept_hard_clip
 #define OPTION_ALLOW_MULTI_MAP option_allow_multi_map
+#define OPTION_ALLOW_SECONDARY option_allow_secondary
+#define OPTION_DEFER_SECONDARY option_defer_secondary
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -339,6 +411,20 @@ char const * use_allow_multi_map[] =
     NULL
 };
 
+static
+char const * use_allow_secondary[] =
+{
+    "use secondary alignments for constructing spots",
+    NULL
+};
+
+static
+char const * use_defer_secondary[] =
+{
+    "defer processing of secondary alignments until the end of the file",
+    NULL
+};
+
 OptDef Options[] = 
 {
     /* order here is same as in param array below!!! */
@@ -372,7 +458,9 @@ OptDef Options[] =
     { OPTION_TI, NULL, NULL, use_TI, 1, false, false },
     { OPTION_MAX_WARN_DUP_FLAG, NULL, NULL, use_max_dup_warnings, 1, true, false },
     { OPTION_ACCEPT_HARD_CLIP, NULL, NULL, use_accept_hard_clip, 1, false, false },
-    { OPTION_ALLOW_MULTI_MAP, NULL, NULL, use_allow_multi_map, 1, false, false }
+    { OPTION_ALLOW_MULTI_MAP, NULL, NULL, use_allow_multi_map, 1, false, false },
+    { OPTION_ALLOW_SECONDARY, NULL, NULL, use_allow_secondary, 1, false, false },
+    { OPTION_DEFER_SECONDARY, NULL, NULL, use_defer_secondary, 1, false, false }
 };
 
 const char* OptHelpParam[] =
@@ -408,7 +496,9 @@ const char* OptHelpParam[] =
     NULL,				/* use XT->TI */
     "count",			/* max. duplicate warning count */
     NULL,				/* allow hard clipping */
-    NULL				/* allow multimapping */
+    NULL,				/* allow multimapping */
+    NULL,				/* allow secondary */
+    NULL				/* defer secondary */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -495,7 +585,7 @@ static rc_t PathWithBasePath(char rslt[], size_t sz, char const path[], char con
             return 0;
     }
     else if (plen < sz) {
-        strcpy(rslt, path);
+        strncpy(rslt, path, sz);
         return 0;
     }
     {
@@ -565,9 +655,29 @@ static rc_t LoadHeader(char const **rslt, char const path[], char const base[])
     return rc;
 }
 
-rc_t CC KMain (int argc, char * argv[])
+static rc_t main_help_vers(int argc, char * argv[])
 {
-    Args * args;
+    Args *args = NULL;
+    rc_t const rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
+        sizeof Options / sizeof (OptDef), XMLLogger_Args, XMLLogger_ArgsQty);
+    ArgsWhack(args);
+    return rc;
+}
+
+static rc_t getArgValue(Args *const args, char const *name, int index, char const **result)
+{
+    void const *value;
+    rc_t const rc = ArgsOptionValue(args, name, index, &value);
+    if (rc) return rc;
+    free((void *)*result);
+    *result = strdup(value);
+    assert(*result);
+    return 0;
+}
+
+static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const load)
+{
+    Args *args;
     rc_t rc;
     unsigned n_aligned = 0;
     unsigned n_unalgnd = 0;
@@ -578,67 +688,48 @@ rc_t CC KMain (int argc, char * argv[])
     unsigned nbsz = 0;
     char const *value;
     char *dummy;
-    const XMLLogger* xml_logger = NULL;
-    
-    memset(&G, 0, sizeof(G));
-    
-    G.mode = mode_Archive;
-    G.maxSeqLen = TableWriterRefSeq_MAX_SEQ_LEN;
-    G.schemaPath = SCHEMAFILE;
-    G.omit_aligned_reads = true;
-    G.omit_reference_reads = true;
-    G.minMapQual = 0; /* accept all */
-    G.tmpfs = "/tmp";
-#if _ARCH_BITS == 32
-#warning 32-bit build is not tested. BEWARE!!!
-    G.cache_size = ((size_t) 1) << 30;
-#else
-    G.cache_size = ((size_t)16) << 30;
-#endif
-    G.maxErrCount = 1000;
-    G.minMatchCount = 10;
-    
-    set_pid();
 
-    rc = ArgsMakeAndHandle (&args, argc, argv, 2, Options,
-                            sizeof Options / sizeof (OptDef), XMLLogger_Args, XMLLogger_ArgsQty);
-
+    rc = ArgsMakeAndHandle (&args, argc, argv, 1, Options, sizeof(Options)/sizeof(Options[0]));
     while (rc == 0) {
         uint32_t pcount;
 
-        if( (rc = XMLLogger_Make(&xml_logger, NULL, args)) != 0 ) {
-            break;
-        }
         rc = ArgsOptionCount(args, option_only_verify, &pcount);
         if (rc)
             break;
-        G.onlyVerifyReferences = (pcount > 0);
+        G.onlyVerifyReferences |= (pcount > 0);
         
         rc = ArgsOptionCount(args, option_no_verify, &pcount);
         if (rc)
             break;
-        G.noVerifyReferences = (pcount > 0);
+        G.noVerifyReferences |= (pcount > 0);
         
         rc = ArgsOptionCount(args, option_use_qual, &pcount);
         if (rc)
             break;
-        G.useQUAL = (pcount > 0);
+        G.useQUAL |= (pcount > 0);
         
         rc = ArgsOptionCount(args, option_ref_config, &pcount);
         if (rc)
             break;
-        G.limit2config = (pcount > 0);
+        G.limit2config |= (pcount > 0);
         
         rc = ArgsOptionCount(args, OPTION_REF_FILE, &pcount);
         if (rc)
             break;
+        if (pcount && G.refFiles) {
+            int i;
+
+            for (i = 0; G.refFiles[i]; ++i)
+                free((void *)G.refFiles[i]);
+            free((void *)G.refFiles);
+        }
         G.refFiles = calloc(pcount + 1, sizeof(*(G.refFiles)));
-        if( !G.refFiles ) {
+        if (!G.refFiles) {
             rc = RC(rcApp, rcArgv, rcAccessing, rcMemory, rcExhausted);
             break;
         }
         while(pcount-- > 0) {
-            rc = ArgsOptionValue(args, OPTION_REF_FILE, pcount, (const void **)&G.refFiles[pcount]);
+            rc = getArgValue(args, OPTION_REF_FILE, pcount, &G.refFiles[pcount]);
             if (rc)
                 break;
         }
@@ -648,7 +739,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_TMPFS, 0, (const void **)&G.tmpfs);
+            rc = getArgValue(args, OPTION_TMPFS, 0, &G.tmpfs);
             if (rc)
                 break;
         }
@@ -665,7 +756,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_INPUT, 0, (const void **)&G.inpath);
+            rc = getArgValue(args, OPTION_INPUT, 0, &G.inpath);
             if (rc)
                 break;
         }
@@ -682,7 +773,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, option_ref_filter, 0, (const void **)&G.refFilter);
+            rc = getArgValue(args, option_ref_filter, 0, &G.refFilter);
             if (rc)
                 break;
         }
@@ -699,7 +790,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_CONFIG, 0, (const void **)&G.refXRefPath);
+            rc = getArgValue(args, OPTION_CONFIG, 0, &G.refXRefPath);
             if (rc)
                 break;
         }
@@ -716,9 +807,14 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_OUTPUT, 0, (const void **)&G.outpath);
+            rc = getArgValue(args, OPTION_OUTPUT, 0, &G.outpath);
             if (rc)
                 break;
+            if (load == 0) {
+                G.firstOut = strdup(G.outpath);
+            }
+            value = strrchr(G.outpath, '/');
+            G.outname = value ? (value + 1) : G.outpath;
         }
         else if (pcount > 1)
         {
@@ -739,7 +835,7 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_MINMAPQ, 0, (const void **)&value);
+            rc = ArgsOptionValue(args, OPTION_MINMAPQ, 0, (const void **)&value);
             if (rc)
                 break;
             G.minMapQual = strtoul(value, &dummy, 0);
@@ -750,11 +846,11 @@ rc_t CC KMain (int argc, char * argv[])
             break;
         if (pcount == 1)
         {
-            rc = ArgsOptionValue (args, OPTION_QCOMP, 0, (const void **)&G.QualQuantizer);
+            rc = getArgValue(args, OPTION_QCOMP, 0, &G.QualQuantizer);
             if (rc)
                 break;
         }
-        
+
         rc = ArgsOptionCount (args, option_edit_aligned_qual, &pcount);
         if (rc)
             break;
@@ -804,12 +900,12 @@ rc_t CC KMain (int argc, char * argv[])
         rc = ArgsOptionCount (args, option_unsorted, &pcount);
         if (rc)
             break;
-        G.expectUnsorted = pcount > 0;
+        G.expectUnsorted |= (pcount > 0);
         
         rc = ArgsOptionCount (args, option_sorted, &pcount);
         if (rc)
             break;
-        G.requireSorted = pcount > 0;
+        G.requireSorted |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_MAX_REC_COUNT, &pcount);
         if (rc)
@@ -847,42 +943,52 @@ rc_t CC KMain (int argc, char * argv[])
         rc = ArgsOptionCount (args, OPTION_ACCEPT_DUP, &pcount);
         if (rc)
             break;
-        G.acceptBadDups = pcount > 0;
+        G.acceptBadDups |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_ACCEPT_NOMATCH, &pcount);
         if (rc)
             break;
-        G.acceptNoMatch = pcount > 0;
+        G.acceptNoMatch |= (pcount > 0);
         
         rc = ArgsOptionCount (args, option_keep_mismatch_qual, &pcount);
         if (rc)
             break;
-        G.keepMismatchQual = pcount > 0;
+        G.keepMismatchQual |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_NO_CS, &pcount);
         if (rc)
             break;
-        G.noColorSpace = pcount > 0;
+        G.noColorSpace |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_NO_SECONDARY, &pcount);
         if (rc)
             break;
-        G.noSecondary = pcount > 0;
+        G.noSecondary |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_TI, &pcount);
         if (rc)
             break;
-        G.hasTI = pcount > 0;
+        G.hasTI |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_ACCEPT_HARD_CLIP, &pcount);
         if (rc)
             break;
-        G.acceptHardClip = pcount > 0;
+        G.acceptHardClip |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_ALLOW_MULTI_MAP, &pcount);
         if (rc)
             break;
-        G.allowMultiMapping = pcount > 0;
+        G.allowMultiMapping |= (pcount > 0);
+        
+        rc = ArgsOptionCount (args, OPTION_ALLOW_SECONDARY, &pcount);
+        if (rc)
+            break;
+        G.assembleWithSecondary |= (pcount > 0);
+        
+        rc = ArgsOptionCount (args, OPTION_DEFER_SECONDARY, &pcount);
+        if (rc)
+            break;
+        G.deferSecondary |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_NOMATCH_LOG, &pcount);
         if (rc)
@@ -906,6 +1012,7 @@ rc_t CC KMain (int argc, char * argv[])
         if (pcount == 1) {
             rc = ArgsOptionValue (args, OPTION_HEADER, 0, (const void **)&value);
             if (rc) break;
+            free((void *)G.headerText);
             rc = LoadHeader(&G.headerText, value, G.inpath);
             if (rc) break;
         }
@@ -993,28 +1100,178 @@ rc_t CC KMain (int argc, char * argv[])
         }
         else
             break;
-        
-        rc = run(argv[0], n_aligned, (char const **)aligned, n_unalgnd, (char const **)unalgnd);
+
+        rc = run(argv[0], n_aligned, (char const **)aligned, n_unalgnd, (char const **)unalgnd, continuing);
         break;
     }
     free(name_buffer);
-    free((void *)G.headerText);
-    free(G.refFiles);
 
-    value = G.outpath ? strrchr(G.outpath, '/') : "/???";
-    if( value == NULL ) {
-        value = G.outpath;
-    } else {
-        value++;
-    }
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "load failed",
-                "severity=total,status=failure,accession=%s,errors=%u", value, G.errCount));
+                "severity=total,status=failure,accession=%s,errors=%u", G.outname, G.errCount));
     } else {
         (void)PLOGMSG(klogInfo, (klogInfo, "loaded",
-                "severity=total,status=success,accession=%s,errors=%u", value, G.errCount));
+                "severity=total,status=success,accession=%s,errors=%u", G.outname, G.errCount));
     }
     ArgsWhack(args);
-    XMLLogger_Release(xml_logger);
+    return rc;
+}
+
+static void cleanupGlobal(void)
+{
+    if (G.refFiles) {
+        int i;
+
+        for (i = 0; G.refFiles[i]; ++i)
+            free((void *)G.refFiles[i]);
+        free((void *)G.refFiles);
+    }
+    free((void *)G.tmpfs);
+    free((void *)G.inpath);
+    free((void *)G.refFilter);
+    free((void *)G.refXRefPath);
+    free((void *)G.outpath);
+    free((void *)G.firstOut);
+    free((void *)G.headerText);
+    free((void *)G.QualQuantizer);
+    free((void *)G.schemaPath);
+}
+
+static int find_arg(char const *const *const query, int const first, int const argc, char **const argv)
+{
+    int i;
+
+    for (i = first; i < argc; ++i) {
+        int j;
+
+        for (j = 0; query[j] != NULL; ++j) {
+            if (strcmp(argv[i], query[j]) == 0)
+                return i;
+        }
+    }
+    return 0;
+}
+
+static bool has_arg(char const *const *const query, int const argc, char **const argv)
+{
+    return find_arg(query, 1, argc, argv) > 0;
+}
+
+static const char *logger_options[] = { "--xml-log-fd", "--xml-log", "-z" };
+static XMLLogger const *make_logger(int *argc, char *argv[])
+{
+    XMLLogger const *rslt = NULL;
+    char *argf[4];
+    int i;
+
+    argf[0] = argv[0];
+    argf[1] = NULL;
+    argf[2] = NULL;
+    argf[3] = NULL;
+
+    for (i = 1; i < *argc; ++i) {
+        int remove = 0;
+
+        if (strcmp(argv[i], logger_options[2]) == 0) {
+            argf[1] = argv[i];
+            argf[2] = argv[i + 1];
+            remove = 2;
+        }
+        else {
+            int j;
+
+            for (j = 0; j < 2; ++j) {
+                if (strstr(argv[i], logger_options[j]) == argv[i]) {
+                    int const n = strlen(logger_options[j]);
+
+                    if (argv[i][n] == '\0') {
+                        argf[1] = argv[i];
+                        argf[2] = argv[i + 1];
+                        remove = 2;
+                    }
+                    else if (argv[i][n] == '=') {
+                        argv[i][n] = '\0';
+                        argf[1] = argv[i];
+                        argf[2] = argv[i] + n + 1;
+                        remove = 1;
+                    }
+                    break;
+                }
+            }
+        }
+        if (argf[1] != NULL) {
+            Args *args = NULL;
+
+            ArgsMakeAndHandle(&args, 3, argf, 1, XMLLogger_Args, XMLLogger_ArgsQty);
+            if (args) {
+                XMLLogger_Make(&rslt, NULL, args);
+                ArgsWhack(args);
+            }
+        }
+        if (remove) {
+            *argc -= remove;
+            memmove(argv + i, argv + i + remove, (*argc + 1) * sizeof(argv[0]));
+            break;
+        }
+    }
+    return rslt;
+}
+
+rc_t CC KMain(int argc, char *argv[])
+{
+    static const char *help[] = { "--help", "-h", "-?", NULL };
+    static const char *vers[] = { "--version", "-V", NULL };
+
+    bool const has_help = has_arg(help, argc, argv);
+    bool const has_vers = has_arg(vers, argc, argv);
+    XMLLogger const *logger = NULL;
+    int argfirst = 0;
+    int arglast = 0;
+    rc_t rc = 0;
+    unsigned load = 0;
+
+    if (has_help) {
+        argc = 2;
+        argv[1] = "--help";
+        return main_help_vers(argc, argv);
+    }
+    if (has_vers) {
+        argc = 2;
+        argv[1] = "--vers";
+        return main_help_vers(argc, argv);
+    }
+
+    logger = make_logger(&argc, argv);
+
+    memset(&G, 0, sizeof(G));
+    G.mode = mode_Archive;
+    G.globalMode = mode_Archive;
+    G.maxSeqLen = TableWriterRefSeq_MAX_SEQ_LEN;
+    G.schemaPath = strdup(SCHEMAFILE);
+    G.omit_aligned_reads = true;
+    G.omit_reference_reads = true;
+    G.minMapQual = 0; /* accept all */
+    G.tmpfs = strdup("/tmp");
+    G.cache_size = ((size_t)16) << 30;
+    G.maxErrCount = 1000;
+    G.minMatchCount = 10;
+    
+    set_pid();
+
+    for (arglast = 1; arglast < argc; ++arglast) {
+        if (strcmp(argv[arglast], "--remap") == 0) {
+            argv[arglast] = argv[0];
+            G.globalMode = mode_Remap;
+            rc = main_1(arglast - argfirst, argv + argfirst, true, load);
+            if (rc)
+                break;
+            G.mode = mode_Remap;
+            argfirst = arglast;
+            ++load;
+        }
+    }
+    rc = main_1(arglast - argfirst, argv + argfirst, false, load);
+    XMLLogger_Release(logger);
+    cleanupGlobal();
     return rc;
 }

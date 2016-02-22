@@ -852,13 +852,13 @@ static rc_t print_qslice( const samdump_opts * const opts,
             rc = dump_quality_33( opts, ptr, len, reverse ); /* sam-dump-opts.c */
             if ( rc == 0 )
             {
-                rc = KOutMsg( "\t" );
+                rc = KOutMsg( "" );
                 if ( rc == 0 )
                     *source_offset += len;
             }
         }
         else
-            rc = KOutMsg( "*\t" );
+            rc = KOutMsg( "*" );
     }
     return rc;
 }
@@ -966,6 +966,29 @@ static rc_t cg_cigar_treatments( enum cigar_treatment what_treatment,
 }
 
 
+static rc_t print_quality_or_star( const samdump_opts * const opts,
+                                   const char * const q,
+                                   uint32_t q_len,
+                                   uint32_t r_len )
+{
+    rc_t rc;
+    bool star_qual = ( q_len == 0 || q_len != r_len );
+    if ( !star_qual && q[ 0 ] == 255 )
+    {
+        uint32_t i = 0;
+        while ( i < q_len && q[ i ] == 255 ) i++;
+        star_qual = ( i == q_len );
+    }
+    
+    if ( star_qual )
+        rc = KOutMsg( "*" );
+    else
+        rc = dump_quality_33( opts, q, q_len, false ); /* sam-dump-opts.c */
+
+    return rc;
+}
+    
+
 /* triggered by option "--CG-SAM" */
 static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
                                              const PlacementRecord * const rec,
@@ -1054,9 +1077,9 @@ static rc_t print_evidence_alignment_cg_sam( const samdump_opts * const opts,
         rc = KOutMsg( "*\t0\t0\t%.*s\t", cgc_output.p_read.len, cgc_output.p_read.ptr );
 
     /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY */
-    if ( rc == 0 && cgc_output.p_quality.len > 0 )
-        rc = dump_quality_33( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, false ); /* sam-dump-opts.c */
-
+    if ( rc == 0 )
+        rc = print_quality_or_star( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, cgc_output.p_read.len ); /* above */
+    
     /* OPT SAM-FIELD: RG     SRA-column: SEQ_SPOT_GROUP */
     if ( rc == 0 && spot_group_len > 0 )
         rc = KOutMsg( "\tRG:Z:%.*s", spot_group_len, spot_group );
@@ -1179,9 +1202,9 @@ static rc_t print_evidence_alignment_cg_ev_dnb( const samdump_opts * const opts,
         rc = KOutMsg( "*\t0\t0\t%.*s\t", cgc_output.p_read.len, cgc_output.p_read.ptr );
 
     /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY */
-    if ( rc == 0 && cgc_output.p_quality.len > 0 )
-        rc = dump_quality_33( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, false ); /* sam-dump-opts.c */
-
+    if ( rc == 0 )
+        rc = print_quality_or_star( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, cgc_output.p_read.len ); /* above */
+    
     /* OPT SAM-FIELD: RG     SRA-column: SEQ_SPOT_GROUP */
     if ( rc == 0 && spot_group_len > 0 )
         rc = KOutMsg( "\tRG:Z:%.*s", spot_group_len, spot_group );
@@ -1295,11 +1318,16 @@ static rc_t print_alignment_sam_ev( const samdump_opts * const opts,
 
                 /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY sliced!!! */
                 if ( rc == 0 )
-                    rc = print_qslice( opts, false, quality, quality_str_len, &quality_offset, read_len_vector, read_len_vector_len, ploidy_idx );
-
+                {
+                    if ( quality_str_len == read_slice_len )
+                        rc = print_qslice( opts, false, quality, quality_str_len, &quality_offset, read_len_vector, read_len_vector_len, ploidy_idx );
+                    else
+                        rc = KOutMsg( "*" );
+                }
+                
                 /* OPT SAM-FIELD: RG     SRA-column: ploidy_idx */
                 if ( rc == 0 )
-                    rc = KOutMsg( "RG:Z:ALLELE_%u", ploidy_idx + 1 );
+                    rc = KOutMsg( "\tRG:Z:ALLELE_%u", ploidy_idx + 1 );
 
                 /* OPT SAM-FIELD: XI     SRA-column: ALIGN_ID */
                 if ( rc == 0 && opts->print_alignment_id_in_column_xi )
@@ -1640,12 +1668,7 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
 
     /* SAM-FIELD: QUAL      SRA-column: SAM_QUALITY */
     if ( rc == 0 )
-    {
-        if ( cgc_output.p_quality.len > 0 )
-            rc = dump_quality_33( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, false );
-        else
-            rc = KOutMsg( "*" );
-    }
+        rc = print_quality_or_star( opts, cgc_output.p_quality.ptr, cgc_output.p_quality.len, cgc_output.p_read.len ); /* above */    
 
     /* OPT SAM-FIELD: RG     SRA-column: SPOT_GROUP */
     if ( rc == 0 && ( atx->cmn.seq_spot_group_idx != COL_NOT_AVAILABLE ) )
@@ -1711,16 +1734,6 @@ static rc_t print_alignment_sam_ps( const samdump_opts * const opts,
                 else 
                     rc = KOutMsg( "\tXS:A:-" );
             }
-/*
-            uint32_t i;
-            KOutMsg( "\tXS:A:" );
-            for ( i = 0; i < candidates.count; ++i )
-            {
-                rna_splice_candidate * rsc = &candidates.candidates[ i ];
-                KOutMsg( "( offs=%u | len=%u | op_idx=%u | matech=%u )", rsc->offset, rsc->len, rsc->op_idx, rsc->matched );
-            }
-*/
-
         }
         else
         {

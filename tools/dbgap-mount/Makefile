@@ -45,7 +45,8 @@ endif
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	demo
+	demo    \
+	dbgap-mount-tool
     
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -105,17 +106,36 @@ tag: \
 # demo
 #  test program for new XFS toy
 #
-ZDB_NFUS_SRC = \
+ZDB_DEMO_SRC = \
 	demo
 
-ZDB_NFUS_OBJ = \
-	$(addsuffix .$(OBJX),$(ZDB_NFUS_SRC))
+ZDB_DEMO_OBJ = \
+	$(addsuffix .$(OBJX),$(ZDB_DEMO_SRC))
 
-ZDB_NFUS_LIB = -lkapp -lncbi-vdb -lxfs $(DOCAN_LIBS)
+ZDB_DEMO_LIB = -lkapp -lncbi-vdb -lxfs $(DOCAN_LIBS)
 
-$(BINDIR)/demo: $(ZDB_NFUS_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(ZDB_NFUS_LIB)
+$(BINDIR)/demo: $(ZDB_DEMO_OBJ)
+	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(ZDB_DEMO_LIB)
 
 demo_tag:
-	@ $(TOP)/build/tag-module.sh $(MODULE) demo $(ZDB_NFUS_OBJ)
+	@ $(TOP)/build/tag-module.sh $(MODULE) demo $(ZDB_DEMO_OBJ)
+
+#-------------------------------------------------------------------------------
+# demo
+#  test program for new XFS toy
+#
+ZDB_TOOL_SRC = \
+    wrap    \
+	dbgap-mount-tool
+
+ZDB_TOOL_OBJ = \
+	$(addsuffix .$(OBJX),$(ZDB_TOOL_SRC))
+
+ZDB_TOOL_LIB = -lkapp -lncbi-vdb -lxfs $(DOCAN_LIBS)
+
+$(BINDIR)/dbgap-mount-tool: $(ZDB_TOOL_OBJ)
+	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(ZDB_TOOL_LIB)
+
+dbgap-mount-tool_tag:
+	@ $(TOP)/build/tag-module.sh $(MODULE) dbgap-mount-tool $(ZDB_TOOL_OBJ)
 

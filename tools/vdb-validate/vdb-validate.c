@@ -31,6 +31,7 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
+#include <kapp/log-xml.h>
 
 #include <kdb/manager.h>
 #include <kdb/database.h>
@@ -2445,24 +2446,19 @@ rc_t vdb_validate_params_init ( vdb_validate_params *pb )
     return rc;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+static rc_t main_with_args(Args *const args)
 {
-    Args * args;
-    rc_t rc = ArgsMakeAndHandle ( & args, argc, argv, 1,
-        options, sizeof options / sizeof options [ 0 ] );
-    if ( rc != 0 )
-        LOGERR ( klogErr, rc, "Failed to parse command line" );
-    else
-    {
+    XMLLogger const *xlogger = NULL;
+    rc_t rc = XMLLogger_Make(&xlogger, NULL, args);
+
+    if (rc) {
+        LOGERR(klogErr, rc, "Failed to make XML logger");
+    }
+    else {
         uint32_t pcount;
         rc = ArgsParamCount ( args, & pcount );
         if ( rc != 0 )
             LOGERR ( klogErr, rc, "Failed to count command line parameters" );
-        else if ( argc <= 1 )
-        {
-            rc = RC ( rcExe, rcPath, rcValidating, rcParam, rcInsufficient );
-            MiniUsage ( args );
-        }
         else if ( pcount == 0 )
         {
             rc = RC ( rcExe, rcPath, rcValidating, rcParam, rcInsufficient );
@@ -2522,7 +2518,23 @@ rc_t CC KMain ( int argc, char *argv [] )
                 vdb_validate_params_whack ( & pb );
             }
         }
+        XMLLogger_Release(xlogger);
+    }
+    return rc;
+}
 
+rc_t CC KMain(int argc, char *argv[])
+{
+    Args *args = NULL;
+    rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 2,
+                                options, sizeof(options)/sizeof(options[0]),
+                                XMLLogger_Args, XMLLogger_ArgsQty);
+
+    if ( rc != 0 )
+        LOGERR ( klogErr, rc, "Failed to parse command line" );
+    else
+    {
+        rc = main_with_args(args);
         ArgsWhack ( args );
     }
 

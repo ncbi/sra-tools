@@ -306,6 +306,11 @@ static void Statistics2Print(const Statistics2* selfs,
     OUTMSG(("%s</Statistics2>\n", indent));
 }
 
+static bool columnUndefined(rc_t rc) {
+    return rc == SILENT_RC(rcVDB, rcCursor, rcOpening , rcColumn, rcUndefined)
+        || rc == SILENT_RC(rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound );
+}
+
 typedef struct {
     uint64_t cnt[5];
     bool CS_NATIVE;
@@ -314,6 +319,7 @@ typedef struct {
 
     bool finalized;
 } Bases;
+
 static rc_t BasesInit(Bases *self, const VTable *vtbl) {
     rc_t rc = 0;
 
@@ -333,34 +339,48 @@ static rc_t BasesInit(Bases *self, const VTable *vtbl) {
         DISP_RC(rc, "Cannot VTableCreateCursorRead");
 
         if (rc == 0) {
-            rc = VCursorAddColumn(curs, &idx, "%s", name);
-            DISP_RC(rc, "Cannot VCursorAddColumn(CS_NATIVE)");
+            rc = VCursorPermitPostOpenAdd(curs);
+            DISP_RC(rc, "Cannot VCursorPermitPostOpenAdd");
         }
 
         if (rc == 0) {
             rc = VCursorOpen(curs);
-            DISP_RC(rc, "Cannot VCursorOpen(CS_NATIVE)");
+            DISP_RC(rc, "Cannot VCursorOpen");
         }
 
         if (rc == 0) {
-            bitsz_t boff = ~0;
-            bitsz_t row_bits = ~0;
-
-            uint32_t elem_bits = 0, elem_off = 0, elem_cnt = 0;
-            rc = VCursorCellDataDirect(curs, 1, idx,
-                &elem_bits, &base, &elem_off, &elem_cnt);
-            boff     = elem_off * elem_bits;
-            row_bits = elem_cnt * elem_bits;
-
-            if (boff != 0 || row_bits != 8) {
-                rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
-                PLOGERR(klogInt, (klogErr, rc, "invalid boff or row_bits "
-                    "while VCursorCellDataDirect($(name))", "name=%s", name));
+            rc = VCursorAddColumn(curs, &idx, "%s", name);
+            if (rc != 0) {
+                if (columnUndefined(rc)) {
+                    self->CS_NATIVE = false;
+                    rc = 0;
+                }
+                else {
+                    DISP_RC(rc, "Cannot VCursorAddColumn(CS_NATIVE)");
+                }
             }
-        }
+            else {
+                bitsz_t boff = ~0;
+                bitsz_t row_bits = ~0;
 
-        if (rc == 0) {
-            self->CS_NATIVE = *((bool*)base);
+                uint32_t elem_bits = 0, elem_off = 0, elem_cnt = 0;
+                rc = VCursorCellDataDirect(curs, 1, idx,
+                    &elem_bits, &base, &elem_off, &elem_cnt);
+                boff     = elem_off * elem_bits;
+                row_bits = elem_cnt * elem_bits;
+
+                if (boff != 0 || row_bits != 8) {
+                    rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
+                    PLOGERR(klogInt, (klogErr, rc, "invalid boff or row_bits "
+                        "while VCursorCellDataDirect($(name))",
+                        "name=%s", name));
+                }
+
+                if (rc == 0) {
+                    self->CS_NATIVE = *((bool*)base);
+                }
+
+            }
         }
 
         RELEASE(VCursor, curs);
@@ -490,15 +510,6 @@ static rc_t BasesPrint(const Bases *self,
         return rc;
     }
 
-    if (self->cnt[0] + self->cnt[1] + self->cnt[2] +
-        self->cnt[3] + self->cnt[4] != base_count)
-    {
-        rc = RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
-        LOGERR(klogErr, rc,
-            "BASE_COUNT MISMATCH DURING BASES COUNT CALCULATION");
-        return rc;
-    }
-
     name = self->CS_NATIVE ? "0123." : "ACGTN";
 
     OUTMSG(("%s<%s cs_native=\"%s\" count=\"%lu\">\n",
@@ -510,6 +521,13 @@ static rc_t BasesPrint(const Bases *self,
     }
 
     OUTMSG(("%s</%s>\n", indent, tag));
+
+    if (self->cnt[0] + self->cnt[1] + self->cnt[2] +
+        self->cnt[3] + self->cnt[4] != base_count)
+    {
+        rc = RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
+        LOGERR(klogErr, rc, "stored base count did not match observed base count");
+    }
 
     return rc;
 }
@@ -2276,15 +2294,16 @@ rc_t print_results(const Ctx* ctx)
     }
 
     if (ctx->meta->found && ! ctx->pb->quick) {
-        bool mismatch = false;
+/*      bool mismatch = false; */
         SraStats* ss = (SraStats*)BSTreeFind(ctx->tr, "", srastats_cmp);
         const SraStatsMeta* m = &ctx->meta->table;
         if (ctx->total->BASE_COUNT != m->BASE_COUNT)
         { mismatch = true; }
         if (ctx->total->BIO_BASE_COUNT != m->BIO_BASE_COUNT)
         { mismatch = true; }
-        if (ctx->total->spot_count != m->spot_count ||
-            ctx->total->total_cmp_len != m->CMP_BASE_COUNT)
+        if (ctx->total->spot_count != m->spot_count)
+        { mismatch = true; }
+        if (ctx->total->total_cmp_len != m->CMP_BASE_COUNT)
         { mismatch = true; }
         if (ss != NULL) {
             const SraStatsMeta* m = &ctx->meta->table;
@@ -2383,11 +2402,12 @@ rc_t print_results(const Ctx* ctx)
             const SraStatsMeta* m = &ctx->meta->table;
             if (ctx->pb->total.BASE_COUNT != m->BASE_COUNT
                 || ctx->pb->total.BIO_BASE_COUNT != m->BIO_BASE_COUNT
-                || ctx->pb->total.spot_count != m->spot_count
-                || ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT)
+                || ctx->pb->total.spot_count != m->spot_count)
             {
                 mismatch = true;
             }
+            if (ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT)
+            {   mismatch = true; }
         }
         if (ctx->pb->total.spot_count != ctx->total->spot_count ||
             ctx->pb->total.spot_count_mates != ctx->total->spot_count_mates ||
@@ -2512,11 +2532,6 @@ int64_t CC srastats_sort ( const BSTNode *item, const BSTNode *n )
 {
     const SraStats *ss = ( const SraStats* ) item;
     return srastats_cmp(ss->spot_group,n);
-}
-
-static bool columnUndefined(rc_t rc) {
-    return rc == SILENT_RC(rcVDB, rcCursor, rcOpening , rcColumn, rcUndefined)
-        || rc == SILENT_RC(rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound );
 }
 
 static rc_t sra_stat(srastat_parms* pb, BSTree* tr,

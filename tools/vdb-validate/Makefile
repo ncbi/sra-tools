@@ -34,7 +34,8 @@ INT_TOOLS = \
 
 
 EXT_TOOLS = \
-	vdb-validate
+	vdb-validate \
+	check-corrupt
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -100,3 +101,21 @@ vdb-validate.vers.h: vdb-validate.vers
 
 $(BINDIR)/vdb-validate: $(VDB_VALIDATE_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_VALIDATE_LIB)
+
+
+#-------------------------------------------------------------------------------
+# check-corrupt
+#
+CHECK_CORRUPT_SRC = \
+	check-corrupt
+
+CHECK_CORRUPT_OBJ = \
+	$(addsuffix .$(OBJX),$(CHECK_CORRUPT_SRC))
+
+CHECK_CORRUPT_LIB = \
+	-lkapp \
+	-sncbi-vdb \
+	-lm
+
+$(BINDIR)/check-corrupt: $(CHECK_CORRUPT_OBJ)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(CHECK_CORRUPT_LIB)

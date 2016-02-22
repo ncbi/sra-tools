@@ -29,6 +29,10 @@
 #define _h_vdb_dump_print_
 
 #include <vdb/schema.h> /* for VTypedesc */
+#include <vdb/manager.h>
+
+#include <klib/vector.h>
+#include <kapp/args.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -41,6 +45,9 @@ typedef struct vdp_opts
     bool without_sra_types;
     char c_boolean; /* how boolean is printed '1' ... 0/1, 'T' ... T/F, /0 ... true/false */
 } vdp_opts;
+
+
+struct vdp_src_context;
 
 
 /* vdp_print_cell
@@ -65,6 +72,12 @@ rc_t vdp_print_cell_2_buffer( char * buf, size_t buf_size, size_t *num_written,
 rc_t vdp_print_cell( const uint32_t elem_bits, const void * base, uint32_t boff, uint32_t row_len,
                      const VTypedesc * type_desc, vdp_opts * opts );
 
+
+rc_t vdp_init_ctx( struct vdp_src_context ** vctx, const Args * args );
+rc_t vdp_release_ctx( struct vdp_src_context * vctx );
+
+/* v is a vector of String objects... */
+rc_t vdp_print_interactive( const Vector * v, struct vdp_src_context * vctx );
 
 #ifdef __cplusplus
 }

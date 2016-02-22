@@ -83,9 +83,9 @@ extern "C" {
 #define OPTION_SPOTGROUPS        "spotgroups"
 /*#define OPTION_SRASCHEMA         "sraschema"*/
 #define OPTION_MERGE_RANGES      "merge-ranges"
-#define OPTION_SPREAD      		 "spread"
-#define OPTION_SLICE      		 "slice"
-#define OPTION_INTERACTIVE		 "interactive"
+#define OPTION_SPREAD            "spread"
+#define OPTION_SLICE             "slice"
+#define OPTION_INTERACTIVE       "interactive"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -127,7 +127,7 @@ typedef enum dump_format_t
     df_sra_dump,
     df_tab,
     df_fastq,
-    df_fastq1,	
+    df_fastq1,
     df_fasta,
     df_fasta1,
     df_fasta2,
@@ -146,7 +146,7 @@ typedef struct dump_context
     const char *columns;
     const char *excluded_columns;
     const char *filter;
-	const char *idx_range;
+    const char *idx_range;
     const char *row_range;
     const char *output_file;
     const char *output_path;
@@ -157,7 +157,7 @@ typedef struct dump_context
     uint16_t indented_line_len;
     uint16_t phase;
     uint32_t generic_idx;
-	uint32_t slice_depth;
+    uint32_t slice_depth;
     size_t cur_cache_size;
     size_t output_buffer_size;
     dump_format_t format;
@@ -184,16 +184,16 @@ typedef struct dump_context
     bool show_blobbing;
     bool enum_phys;
     bool enum_readable;
-	bool idx_enum_requested;
-	bool idx_range_requested;
+    bool idx_enum_requested;
+    bool idx_range_requested;
     bool disable_multithreading;
     bool print_info;
-	bool table_defined;
-	bool diff;
-	bool show_spotgroups;
-	bool merge_ranges;
-	bool show_spread;
-	bool interactive;
+    bool table_defined;
+    bool diff;
+    bool show_spotgroups;
+    bool merge_ranges;
+    bool show_spread;
+    bool interactive;
 } dump_context;
 typedef dump_context* p_dump_context;
 

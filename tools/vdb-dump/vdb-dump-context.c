@@ -84,9 +84,9 @@ static void vdco_init_values( p_dump_context ctx )
     ctx->columns = NULL;
     ctx->excluded_columns = NULL;
     ctx->filter = NULL;
-	ctx->idx_range = NULL;
-	ctx->output_file = NULL;
-	ctx->output_path = NULL;
+    ctx->idx_range = NULL;
+    ctx->output_file = NULL;
+    ctx->output_path = NULL;
     ctx->rows = NULL;
 
     ctx->print_row_id = true;
@@ -97,7 +97,7 @@ static void vdco_init_values( p_dump_context ctx )
     ctx->max_line_len = 0;
     ctx->indented_line_len = 0;
     ctx->phase = 0;
-	ctx->slice_depth = 0;
+    ctx->slice_depth = 0;
 
     ctx->help_requested = false;
     ctx->usage_requested = false;
@@ -112,14 +112,14 @@ static void vdco_init_values( p_dump_context ctx )
     ctx->objver_requested = false;
     ctx->objts_requested = false;
     ctx->objtype_requested = false;
-	ctx->idx_enum_requested = false;
-	ctx->idx_range_requested = false;
+    ctx->idx_enum_requested = false;
+    ctx->idx_range_requested = false;
     ctx->disable_multithreading = false;
-	ctx->table_defined = false;
-	ctx->diff = false;
-	ctx->show_spotgroups = false;
-	ctx->show_spread = false;
-	ctx->interactive = false;	
+    ctx->table_defined = false;
+    ctx->diff = false;
+    ctx->show_spotgroups = false;
+    ctx->show_spread = false;
+    ctx->interactive = false;    
 }
 
 rc_t vdco_init( dump_context **ctx )
@@ -390,13 +390,13 @@ static bool vdco_set_format( p_dump_context ctx, const char *src )
         ctx->format = df_fastq;
     else if ( strcmp( src, "fastq1" ) == 0 )
         ctx->format = df_fastq1;
-	else if ( strcmp( src, "fasta" ) == 0 )
+    else if ( strcmp( src, "fasta" ) == 0 )
         ctx->format = df_fasta;
     else if ( strcmp( src, "fasta1" ) == 0 )
         ctx->format = df_fasta1;
     else if ( strcmp( src, "fasta2" ) == 0 )
         ctx->format = df_fasta2;
-	else if ( strcmp( src, "bin" ) == 0 )
+    else if ( strcmp( src, "bin" ) == 0 )
         ctx->format = df_bin;
     else if ( strcmp( src, "sql" ) == 0 )
         ctx->format = df_sql;
@@ -565,13 +565,13 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->disable_multithreading = vdco_get_bool_option( my_args, OPTION_NO_MULTITHREAD, false );
     ctx->print_info = vdco_get_bool_option( my_args, OPTION_INFO, false );
     ctx->diff = vdco_get_bool_option( my_args, OPTION_DIFF, false );
-	ctx->show_spotgroups = vdco_get_bool_option( my_args, OPTION_SPOTGROUPS, false );
-	/*ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );*/
-	ctx->merge_ranges = vdco_get_bool_option( my_args, OPTION_MERGE_RANGES, false );
-	ctx->show_spread = vdco_get_bool_option( my_args, OPTION_SPREAD, false );
-	ctx->interactive = vdco_get_bool_option( my_args, OPTION_INTERACTIVE, false );
-	ctx->slice_depth = vdco_get_uint16_option( my_args, OPTION_SLICE, 0 );
-	
+    ctx->show_spotgroups = vdco_get_bool_option( my_args, OPTION_SPOTGROUPS, false );
+    /*ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );*/
+    ctx->merge_ranges = vdco_get_bool_option( my_args, OPTION_MERGE_RANGES, false );
+    ctx->show_spread = vdco_get_bool_option( my_args, OPTION_SPREAD, false );
+    ctx->interactive = vdco_get_bool_option( my_args, OPTION_INTERACTIVE, false );
+    ctx->slice_depth = vdco_get_uint16_option( my_args, OPTION_SLICE, 0 );
+    
     ctx->cur_cache_size = vdco_get_size_t_option( my_args, OPTION_CUR_CACHE, CURSOR_CACHE_SIZE );
     ctx->output_buffer_size = vdco_get_size_t_option( my_args, OPTION_OUT_BUF_SIZE, DEF_OPTION_OUT_BUF_SIZE );
     
@@ -581,18 +581,18 @@ static void vdco_evaluate_options( const Args *my_args,
         ctx->compress_mode = orm_bzip2;
     else
         ctx->compress_mode = orm_uncompressed;
-	
+    
     vdco_set_table( ctx, vdco_get_str_option( my_args, OPTION_TABLE ) );
-	ctx->table_defined = ( ctx->table != NULL );
-	
+    ctx->table_defined = ( ctx->table != NULL );
+    
     vdco_set_columns( ctx, vdco_get_str_option( my_args, OPTION_COLUMNS ) );
     vdco_set_excluded_columns( ctx, vdco_get_str_option( my_args, OPTION_EXCLUDED_COLUMNS ) );
     vdco_set_row_range( ctx, vdco_get_str_option( my_args, OPTION_ROWS ) );
-	vdco_set_idx_range( ctx, vdco_get_str_option( my_args, OPTION_IDX_RANGE ) );
+    vdco_set_idx_range( ctx, vdco_get_str_option( my_args, OPTION_IDX_RANGE ) );
     vdco_set_output_file( ctx, vdco_get_str_option( my_args, OPTION_OUT_FILE ) );
     vdco_set_output_path( ctx, vdco_get_str_option( my_args, OPTION_OUT_PATH ) );
 
-	ctx->idx_range_requested = ( ctx->idx_range != NULL );
+    ctx->idx_range_requested = ( ctx->idx_range != NULL );
     vdco_set_schemas( my_args, ctx );
     vdco_set_filter( ctx, vdco_get_str_option( my_args, OPTION_FILTER ) );
     vdco_set_boolean_char( ctx, vdco_get_str_option( my_args, OPTION_BOOLEAN ) );

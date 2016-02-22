@@ -38,7 +38,8 @@ INT_TOOLS = \
 	pacbio-correct \
 	crc32sum \
 	samview \
-	kdb-index
+	kdb-index \
+	pseudo-aligner
 
 EXT_TOOLS = \
 	rcexplain \
@@ -294,6 +295,20 @@ SAMVIEW_LIB = \
 
 $(BINDIR)/samview: $(SAMVIEW_OBJ)
 	$(LD) --exe -o $@ $^ $(SAMVIEW_LIB)
+
+
+#-------------------------------------------------------------------------------
+# pseudo-aligner
+#  for generating test data
+#
+SUDO_ALGN_SRC = \
+	pseudo-aligner
+
+SUDO_ALGN_OBJ = \
+	$(addsuffix .$(OBJX),$(SUDO_ALGN_SRC))
+
+$(BINDIR)/pseudo-aligner: $(SUDO_ALGN_OBJ)
+	$(LP) --exe -o $@ $^
 
 
 #----------------------------------------------------------------

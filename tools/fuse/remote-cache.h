@@ -95,7 +95,8 @@ rc_t CC RCacheEntryRead (
                     char * Buffer,
                     size_t BufferSize,
                     uint64_t Offset,
-                    size_t * NumRead
+                    size_t * NumRead,
+                    uint64_t * ActualSize
                     );
     /*))
      //  This method will set block size for HTTP transport
@@ -132,7 +133,6 @@ rc_t CC RemoteCacheFindOrCreateEntry (
                         const char * Url,
                         struct RCacheEntry ** Entry
                     );
-
 
     /*))
      //  Found that interesting

@@ -24,18 +24,17 @@
  *
  */
 
-#ifndef BAM_LOAD_GLOBALS_H_
-#define BAM_LOAD_GLOBALS_H_ 1
-
 enum LoaderModes {
     mode_Archive,
-    mode_Analysis
+    mode_Remap
 };
 
 typedef struct globals
 {
     char const *inpath;
     char const *outpath;
+    char const *outname;
+    char const *firstOut;
     char const *tmpfs;
     
     struct KFile *noMatchLog;
@@ -64,6 +63,7 @@ typedef struct globals
     unsigned minMatchCount; /* minimum number of matches to count as an alignment */
     int minMapQual;
     enum LoaderModes mode;
+    enum LoaderModes globalMode;
     uint32_t maxSeqLen;
     bool omit_aligned_reads;
     bool omit_reference_reads;
@@ -86,7 +86,8 @@ typedef struct globals
     bool hasTI;
     bool acceptHardClip;
     bool allowMultiMapping; /* allow multiple reference names to map to the same real reference */
+    bool assembleWithSecondary;
+    bool deferSecondary;
 } Globals;
 
 extern Globals G;
-#endif

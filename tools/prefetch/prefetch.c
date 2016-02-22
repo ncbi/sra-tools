@@ -28,6 +28,7 @@
 
 #include "prefetch.vers.h"
 
+#include <kapp/args-conv.h> /* ArgsConvFilepath */
 #include <kapp/main.h> /* KAppVersion */
 
 #include <kdb/manager.h> /* kptDatabase */
@@ -267,7 +268,9 @@ bool _StringIsFasp(const String *self, const char **withoutScheme)
 
     *withoutScheme = NULL;
 
-    if (memcmp(self->addr, fasp, sizeof fasp - 1) == 0) {
+    if (string_cmp(self->addr, self->len, fasp, sizeof fasp - 1,
+                                                sizeof fasp - 1) == 0)
+    {
         *withoutScheme = self->addr + sizeof fasp - 1;
         return true;
     }
@@ -1309,7 +1312,6 @@ static rc_t MainDependenciesList(const Main *self,
     rc_t rc = 0;
     bool isDb = true;
     const VDatabase *db = NULL;
-    const char *path = NULL;
     const String *str = NULL;
     KPathType type = kptNotFound;
 
@@ -1317,8 +1319,6 @@ static rc_t MainDependenciesList(const Main *self,
 
     str = resolved->path.str;
     assert(str && str->addr);
-
-    path = str->addr;
 
     rc = _VDBManagerSetDbGapCtx(self->mgr, resolved->resolver);
 
@@ -1617,7 +1617,9 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 
     assert(resolved->type != eRunTypeUnknown);
 
-    if (self->desc != NULL) { /* object name is specified (not kart item) */
+    if (!self->isDependency &&
+        self->desc != NULL) /* object name is specified (not kart item) */
+    {
         KPathType type = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
         if (type == kptFile || type == kptDir) {
             rc = VPathStrInitStr(&resolved->path, self->desc, 0);
@@ -1712,6 +1714,95 @@ static rc_t ItemResolve(Item *item, int32_t row) {
     return rc;
 }
 
+static bool maxSzPrntd = false;
+
+static void logMaxSize(size_t maxSize) {
+    if (maxSzPrntd) {
+        return;
+    }
+        
+    maxSzPrntd = true;
+
+    if (maxSize == 0) {
+/*      OUTMSG(("Maximum file size download limit is unlimited\n")); */
+            return;
+    }
+
+    if (maxSize / 1024 < 10) {
+        PLOGMSG(klogWarn, (klogWarn,
+            "Maximum file size download limit is $(size)B\n",
+            "size=%zu", maxSize));
+        return;
+    }
+
+    maxSize /= 1024;
+    if (maxSize / 1024 < 10) {
+        PLOGMSG(klogWarn, (klogWarn,
+            "Maximum file size download limit is $(size)KB\n",
+            "size=%zu", maxSize));
+        return;
+    }
+
+    maxSize /= 1024;
+    if (maxSize / 1024 < 10) {
+        PLOGMSG(klogWarn, (klogWarn,
+            "Maximum file size download limit is $(size)MB\n",
+            "size=%zu", maxSize));
+        return;
+    }
+
+    maxSize /= 1024;
+    if (maxSize / 1024 < 10) {
+        PLOGMSG(klogWarn, (klogWarn,
+            "Maximum file size download limit is $(size)GB\n",
+            "size=%zu", maxSize));
+        return;
+    }
+
+    maxSize /= 1024;
+    PLOGMSG(klogWarn, (klogWarn,
+        "Maximum file size download limit is $(size)TB\n",
+        "size=%zu", maxSize));
+}
+
+static void logBigFile(int n, const char *name, size_t size) {
+    if (size / 1024 < 10) {
+        STSMSG(STS_TOP,
+            ("%d) '%s' (%,zuB) is larger than maximum allowed: skipped\n",
+                n, name, size));
+        return;
+    }
+
+    size /= 1024;
+    if (size / 1024 < 10) {
+        STSMSG(STS_TOP,
+            ("%d) '%s' (%,zuKB) is larger than maximum allowed: skipped\n",
+                n, name, size));
+        return;
+    }
+
+    size /= 1024;
+    if (size / 1024 < 10) {
+        STSMSG(STS_TOP,
+            ("%d) '%s' (%,zuMB) is larger than maximum allowed: skipped\n",
+                n, name, size));
+        return;
+    }
+
+    size /= 1024;
+    if (size / 1024 < 10) {
+        STSMSG(STS_TOP,
+            ("%d) '%s' (%,zuGB) is larger than maximum allowed: skipped\n",
+                n, name, size));
+        return;
+    }
+
+    size /= 1024;
+    STSMSG(STS_TOP,
+        ("%d) '%s' (%,zuTB) is larger than maximum allowed: skipped\n",
+            n, name, size));
+}
+
 /* download if not found; obey size restriction */
 static rc_t ItemDownload(Item *item) {
     bool isLocal = false;
@@ -1725,12 +1816,10 @@ static rc_t ItemDownload(Item *item) {
 
     if (rc == 0) {
         bool skip = false;
-
         if (self->existing) { /* the path is a path to an existing local file */
             rc = VPathStrInitStr(&self->path, item->desc, 0);
             return rc;
         }
-
         if (self->undersized) {
             STSMSG(STS_TOP,
                ("%d) '%s' (%,zu KB) is smaller than minimum allowed: skipped\n",
@@ -1738,9 +1827,8 @@ static rc_t ItemDownload(Item *item) {
             skip = true;
         }
         else if (self->oversized) {
-            STSMSG(STS_TOP,
-                ("%d) '%s' (%,zu KB) is larger than maximum allowed: skipped\n",
-                n, self->name, self->remoteSz / 1024));
+            logMaxSize(item->main->maxSize);
+            logBigFile(n, self->name, self->remoteSz);
             skip = true;
         }
 
@@ -2500,6 +2588,9 @@ static size_t _sizeFromString(const char *val) {
     else if (*val == 'g' || *val == 'G') {
         s *= 1024L * 1024 * 1024;
     }
+    else if (*val == 't' || *val == 'T') {
+        s *= 1024L * 1024 * 1024 * 1024;
+    }
     else if (*val == 'u' || *val == 'U') {  /* unlimited */
         s = 0;
     }
@@ -2572,9 +2663,9 @@ static const char* SZ_L_USAGE[] =
 
 #define TRANS_OPTION "transport"
 #define TRASN_ALIAS  "t"
-static const char* TRANS_USAGE[] = { "transport: one of: ascp; http; both.",
-    "(ascp only; http only; first try ascp, "
-    "use http if cannot download by ascp).",
+static const char* TRANS_USAGE[] = { "transport: one of: fasp; http; both.",
+    "(fasp only; http only; first try fasp (ascp), "
+    "use http if cannot download using fasp).",
     "Default: both", NULL };
 
 #define DEFAULT_MAX_FILE_SIZE "20G"
@@ -2627,6 +2718,8 @@ static OptDef Options[] = {
    ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
 };
 
+static ParamDef Parameters[] = { { ArgsConvFilepath } };
+
 static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
     rc_t rc = 0;
 
@@ -2634,8 +2727,9 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
 
     assert(self);
 
-    rc = ArgsMakeAndHandle(&self->args, argc, argv, 1,
-        Options, sizeof Options / sizeof (OptDef));
+    rc = ArgsMakeAndHandle2(&self->args, argc, argv,
+        Parameters, sizeof Parameters / sizeof Parameters[0],
+        1, Options, sizeof Options / sizeof Options[0]);
     if (rc != 0) {
         DISP_RC(rc, "ArgsMakeAndHandle");
         return rc;
@@ -2914,19 +3008,50 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         }
 
         if (pcount > 0) {
+            bool ok = false;
             const char *val = NULL;
-            rc = ArgsOptionValue(self->args, TRANS_OPTION, 0, (const void **)&val);
+            rc = ArgsOptionValue
+                (self->args, TRANS_OPTION, 0, (const void **)&val);
             if (rc != 0) {
                 LOGERR(klogErr, rc,
                     "Failure to get '" TRANS_OPTION "' argument value");
                 break;
             }
             assert(val);
-            if (val[0] == 'a') {
-                self->noHttp = true;
+            switch (val[0]) {
+                case 'a':
+                case 'f': {
+                    const char ascp[] = "ascp";
+                    const char fasp[] = "fasp";
+                    if (string_cmp(val, string_measure(val, NULL),
+                            ascp, sizeof ascp - 1, sizeof ascp - 1) == 0
+                        ||
+                        string_cmp(val, string_measure(val, NULL),
+                            fasp, sizeof fasp - 1, sizeof fasp - 1) == 0
+                        ||
+                        (val[0] == 'a' && val[1] == '\0'))
+                    {
+                        self->noHttp = true;
+                        ok = true;
+                    }
+                    break;
+                }
+                case 'h': {
+                    const char http[] = "http";
+                    if (string_cmp(val, string_measure(val, NULL),
+                            http, sizeof http - 1, sizeof http - 1) == 0
+                        || val[1] == '\0')
+                    {
+                        self->noAscp = true;
+                        ok = true;
+                    }
+                    break;
+                }
             }
-            else if (val[0] == 'h') {
-                self->noAscp = true;
+            if (!ok) {
+                rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                LOGERR(klogErr, rc, "Bad '" TRANS_OPTION "' argument value");
+                break;
             }
         }
 
@@ -3235,7 +3360,6 @@ static rc_t MainInit(int argc, char *argv[], Main *self) {
 /*********** Process one command line argument **********/
 static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
     ERunType type = eRunTypeDownload;
-    static bool maxSzPrntd = false;
     rc_t rc = 0;
     Iterator it;
     assert(self && realArg);
@@ -3292,17 +3416,6 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
                 }
             }
             else {
-                if (!maxSzPrntd) {
-                    maxSzPrntd = true;
-                    if (self->maxSize == 0) {
-                        OUTMSG((
-                            "Maximum file size download limit is unlimited\n"));
-                    }
-                    else {
-                        OUTMSG(("Maximum file size download limit is %,zuKB\n",
-                             self->maxSize / 1024));
-                    }
-                }
                 if (it.kart != NULL) {
                     OUTMSG(("Downloading kart file '%s'\n", realArg));
                     if (type == eRunTypeGetSize) {
@@ -3311,7 +3424,7 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
                 }
                 OUTMSG(("\n"));
             }
-                
+
             for (n = 1; ; ++n) {
                 rc_t rc2 = 0;
                 rc_t rc3 = 0;
@@ -3356,9 +3469,9 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
                         else if (item->resolved.oversized &&
                              type == eRunTypeGetSize)
                         {
-                            STSMSG(STS_TOP,
-                ("%d) '%s' (%,zu KB) is larger than maximum allowed: skipped\n",
-                n, item->resolved.name, item->resolved.remoteSz / 1024));
+                            logMaxSize(self->maxSize);
+                            logBigFile(n, item->resolved.name,
+                                          item->resolved.remoteSz);
                         }
                         else {
                             total += item->resolved.remoteSz;

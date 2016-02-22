@@ -324,11 +324,7 @@ rc_t ReferenceSetFile(Reference *const self, char const id[],
     ReferenceSeq const *rseq;
     int found = 0;
     unsigned at = 0;
-    char const *actid = id;
 
-    if (!G.allowMultiMapping) {
-        assert(actid != NULL);
-    }
     if (self->last_id < self->ref_info.elem_count) {
         struct s_reference_info const *const refInfoBase = self->ref_info.base;
         struct s_reference_info const refInfo = refInfoBase[self->last_id];
@@ -343,21 +339,15 @@ rc_t ReferenceSetFile(Reference *const self, char const id[],
     BAIL_ON_FAIL(FlushBuffers(self, self->length, true, true));
     BAIL_ON_FAIL(ReferenceMgr_GetSeq(self->mgr, &rseq, id, shouldUnmap, G.allowMultiMapping, wasRenamed));
     
-    if (self->rseq)
-        ReferenceSeq_Release(self->rseq);
     self->rseq = rseq;
 
-    if (*wasRenamed)
-        ReferenceSeq_GetID(rseq, &actid);
-
-    at = bsearch_name(actid, self->ref_names.base, self->ref_info.elem_count, self->ref_info.base, &found);
+    at = bsearch_name(id, self->ref_names.base, self->ref_info.elem_count, self->ref_info.base, &found);
     if (!found) {
-        unsigned const len1 = str__len(actid);
-        unsigned const len2 = str__len(id);
+        unsigned const len = str__len(id);
         unsigned const name_at = self->ref_names.elem_count;
-        unsigned const id_at = *wasRenamed ? (name_at + len1 + 1) : name_at;
+        unsigned const id_at = name_at;
         struct s_reference_info const new_elem = s_reference_info_make(name_at, id_at);
-        rc_t const rc = KDataBufferResize(&self->ref_names, name_at + len1 + 1 + (*wasRenamed ? (len2 + 1) : 0));
+        rc_t const rc = KDataBufferResize(&self->ref_names, name_at + len + 1);
         
         if (rc)
             return rc;
@@ -369,16 +359,16 @@ rc_t ReferenceSetFile(Reference *const self, char const id[],
             if (rc)
                 return rc;
             
-            memmove(((char *)self->ref_names.base) + name_at, actid, len1 + 1);
-            if (*wasRenamed)
-                memmove(((char *)self->ref_names.base) + id_at, id, len2 + 1);
-            
+            memmove(((char *)self->ref_names.base) + name_at, id, len + 1);
             memmove(refInfoBase + at + 1, refInfoBase + at, (count - at) * sizeof(*refInfoBase));
             refInfoBase[at] = new_elem;
         }
         (void)PLOGMSG(klogInfo, (klogInfo, "Processing Reference '$(id)'", "id=%s", id));
-        if (*wasRenamed)
-            (void)PLOGMSG(klogInfo, (klogInfo, "Reference '$(id)' was renamed to '$(actid)'", "id=%s,actid=%s", id, *actid));
+        if (*wasRenamed) {
+            char const *actid = NULL;
+            ReferenceSeq_GetID(rseq, &actid);
+            (void)PLOGMSG(klogInfo, (klogInfo, "Reference '$(id)' was renamed to '$(actid)'", "id=%s,actid=%s", id, actid));
+        }
     }
     else if (!self->out_of_order)
         Unsorted(self);
@@ -529,8 +519,12 @@ static void GetCounts(AlignmentRecord const *data, unsigned const seqLen,
 rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
                    uint32_t const rawCigar[], uint32_t const cigCount,
                    char const seqDNA[], uint32_t const seqLen,
-                   uint8_t rna_orient, uint32_t *matches)
+                   uint8_t rna_orient, uint32_t *matches, uint32_t *misses)
 {
+    unsigned nmis = 0;
+    unsigned nmatch = 0;
+    unsigned indels = 0;
+       
     *matches = 0;
     BAIL_ON_FAIL(ReferenceSeq_Compress(self->rseq,
                                        (G.acceptHardClip ? ewrefmgr_co_AcceptHardClip : 0) + ewrefmgr_cmp_Binary,
@@ -541,27 +535,25 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
                                        rna_orient,
                                        &data->data));
 
+    GetCounts(data, seqLen, &nmatch, &nmis, &indels);
+    *matches = nmatch;
+	*misses  = nmis;
+/* removed before more comlete implementation - EY 
     if (!G.acceptNoMatch && data->data.ref_len == 0)
         return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+***********************/
     
     if (!self->out_of_order && pos < GetLastOffset(self)) {
         return Unsorted(self);
     }
     if (!self->out_of_order) {
-        unsigned nmis;
-        unsigned nmatch;
-        unsigned indels;
-
         SetLastOffset(self, data->data.effective_offset);
-        GetCounts(data, seqLen, &nmatch, &nmis, &indels);
-        *matches = nmatch;
         
-        if (G.acceptNoMatch || nmatch >= G.minMatchCount)
+        /* if (G.acceptNoMatch || nmatch >= G.minMatchCount)    --- removed before more comlete implementation - EY ***/
             return ReferenceAddCoverage(self, data->data.effective_offset,
                                         data->data.ref_len, nmis, indels,
                                         data->isPrimary);
-        else
-            return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+       /* else return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated); --- removed before more comlete implementation - EY ***/
     }
     return 0;
 }

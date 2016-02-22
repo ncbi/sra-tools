@@ -221,18 +221,20 @@ enum BAMFlags
     BAMFlags_bit_IsNotPrimary,   /* a read having split hits may have multiple primary alignments */
     BAMFlags_bit_IsLowQuality,   /* fails platform/vendor quality checks */
     BAMFlags_bit_IsDuplicate,    /* PCR or optical dup */
+    BAMFlags_bit_IsSupplemental,
     
     BAMFlags_WasPaired      = (1 << BAMFlags_bit_WasPaired),
     BAMFlags_IsMappedAsPair	= (1 << BAMFlags_bit_IsMappedAsPair),
     BAMFlags_SelfIsUnmapped	= (1 << BAMFlags_bit_SelfIsUnmapped),
     BAMFlags_MateIsUnmapped	= (1 << BAMFlags_bit_MateIsUnmapped),
-    BAMFlags_SelfIsReverse	= (1 << BAMFlags_bit_SelfIsReverse),
-    BAMFlags_MateIsReverse	= (1 << BAMFlags_bit_MateIsReverse),
+    BAMFlags_SelfIsReverse  = (1 << BAMFlags_bit_SelfIsReverse),
+    BAMFlags_MateIsReverse  = (1 << BAMFlags_bit_MateIsReverse),
     BAMFlags_IsFirst        = (1 << BAMFlags_bit_IsFirst),
     BAMFlags_IsSecond       = (1 << BAMFlags_bit_IsSecond),
-    BAMFlags_IsNotPrimary	= (1 << BAMFlags_bit_IsNotPrimary),
-    BAMFlags_IsLowQuality	= (1 << BAMFlags_bit_IsLowQuality),
-    BAMFlags_IsDuplicate	= (1 << BAMFlags_bit_IsDuplicate)
+    BAMFlags_IsNotPrimary   = (1 << BAMFlags_bit_IsNotPrimary),
+    BAMFlags_IsLowQuality   = (1 << BAMFlags_bit_IsLowQuality),
+    BAMFlags_IsDuplicate    = (1 << BAMFlags_bit_IsDuplicate),
+    BAMFlags_IsSupplemental = (1 << BAMFlags_bit_IsSupplemental)
 };
 
 rc_t BAM_AlignmentGetFlags ( const BAM_Alignment *self, uint16_t *flags );
@@ -483,31 +485,10 @@ typedef uint64_t BAM_FilePosition;
  *
  *  "path" [ IN ] - NUL terminated string or format
  */
-rc_t BAM_FileMake ( const BAM_File **result, const char *path, ... );
-
-rc_t BAM_FileMakeWithHeader ( const BAM_File **result,
-                                            char const headerText[],
-                                            char const path[], ... );
-
-/* MakeWithDir
- *  open the BAM file specified by path and supplied directory
- *
- *  "dir" [ IN ] - directory object used to open file
- *
- *  "path" [ IN ] - NUL terminated string or format
- */
-rc_t BAM_FileMakeWithDir ( const BAM_File **result,
-    struct KDirectory const *dir, const char *path, ... );
-rc_t BAM_FileVMakeWithDir ( const BAM_File **result,
-    struct KDirectory const *dir, const char *path, va_list args );
-
-/* Make
- *  open the BAM file specified by file
- *
- *  "file" [ IN ] - an open KFile
- */
-rc_t BAM_FileMakeWithKFile(const BAM_File **result,
-    struct KFile const *file);
+rc_t BAM_FileMake(const BAM_File **result,
+                  KFile *defer,
+                  char const headerText[],
+                  char const path[], ... );
 
 /* AddRef
  * Release
@@ -534,17 +515,6 @@ rc_t BAM_FileGetPosition ( const BAM_File *self, BAM_FilePosition *pos );
  */
 float BAM_FileGetProportionalPosition ( const BAM_File *self );
 
-
-/* Read
- *  read an aligment
- *
- *  "result" [ OUT ] - return param for BAM_Alignment object
- *   must be released with BAM_AlignmentRelease
- *
- *  returns RC(..., ..., ..., rcRow, rcNotFound) at end
- */
-rc_t BAM_FileRead ( const BAM_File *self, const BAM_Alignment **result );
-
     
 /* Read
  *  read an aligment
@@ -562,19 +532,6 @@ rc_t BAM_FileRead ( const BAM_File *self, const BAM_Alignment **result );
  *  tries to use static buffers and will log messages about parsing errors
  */
 rc_t BAM_FileRead2 ( const BAM_File *self, const BAM_Alignment **result );
-
-
-/* Rewind
- *  reset the position back to the first aligment in the file
- */
-rc_t BAM_FileRewind ( const BAM_File *self );
-
-
-/* SetPosition
- *  set the position to a particular alignment
- *  pass in the values from GetPosition
- */
-rc_t BAM_FileSetPosition ( const BAM_File *self, const BAM_FilePosition *pos );
 
 
 /* GetRefSeqCount

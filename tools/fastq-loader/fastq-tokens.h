@@ -39,16 +39,17 @@
    enum yytokentype {
      fqENDOFTEXT = 0,
      fqRUNDOTSPOT = 258,
-     fqNUMBER = 259,
-     fqALPHANUM = 260,
-     fqWS = 261,
-     fqENDLINE = 262,
-     fqBASESEQ = 263,
-     fqCOLORSEQ = 264,
-     fqTOKEN = 265,
-     fqASCQUAL = 266,
-     fqCOORDS = 267,
-     fqUNRECOGNIZED = 268
+     fqSPOTGROUP = 259,
+     fqNUMBER = 260,
+     fqALPHANUM = 261,
+     fqWS = 262,
+     fqENDLINE = 263,
+     fqBASESEQ = 264,
+     fqCOLORSEQ = 265,
+     fqTOKEN = 266,
+     fqASCQUAL = 267,
+     fqCOORDS = 268,
+     fqUNRECOGNIZED = 269
    };
 #endif
 

@@ -1894,6 +1894,7 @@ MIXED_BASE_AND_COLOR:
         data.isPrimary = isPrimary;
         if (aligned) {
             uint32_t matches = 0;
+            uint32_t misses = 0;
             uint8_t rna_orient = ' ';
 
             FixOverhangingAlignment(&cigBuf, &opCount, rpos, refSeq->length, readlen);
@@ -1903,14 +1904,16 @@ MIXED_BASE_AND_COLOR:
                                        rna_orient == '-' ? NCBI_align_ro_intron_minus :
                                                    hasCG ? NCBI_align_ro_complete_genomics :
                                                            NCBI_align_ro_intron_unknown;
-                rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches);
+                rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches, &misses);
             }
             if (rc == 0 && (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch))) {
                 if (isPrimary) {
-                    RecordNoMatch(name, refSeq->name, rpos);
-                    rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
-                    if (rc)
-                        goto LOOP_END;
+					if(misses > matches ){
+						RecordNoMatch(name, refSeq->name, rpos);
+						rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
+						if (rc)
+							goto LOOP_END;
+					}
                 }
                 else {
                     (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos); discarding secondary alignment",

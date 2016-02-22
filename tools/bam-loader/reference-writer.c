@@ -519,7 +519,7 @@ static void GetCounts(AlignmentRecord const *data, unsigned const seqLen,
 rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
                    uint32_t const rawCigar[], uint32_t const cigCount,
                    char const seqDNA[], uint32_t const seqLen,
-                   uint8_t rna_orient, uint32_t *matches)
+                   uint8_t rna_orient, uint32_t *matches, uint32_t *misses)
 {
     unsigned nmis = 0;
     unsigned nmatch = 0;
@@ -537,9 +537,11 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
 
     GetCounts(data, seqLen, &nmatch, &nmis, &indels);
     *matches = nmatch;
-
+	*misses  = nmis;
+/* removed before more comlete implementation - EY 
     if (!G.acceptNoMatch && data->data.ref_len == 0)
         return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+***********************/
     
     if (!self->out_of_order && pos < GetLastOffset(self)) {
         return Unsorted(self);

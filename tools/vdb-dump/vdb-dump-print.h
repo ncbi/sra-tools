@@ -42,7 +42,7 @@ typedef struct vdp_opts
 {
     bool print_dna_bases;
     bool in_hex;
-    bool without_sra_types;
+    bool translate_sra_types;
     char c_boolean; /* how boolean is printed '1' ... 0/1, 'T' ... T/F, /0 ... true/false */
 } vdp_opts;
 

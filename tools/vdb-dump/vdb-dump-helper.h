@@ -65,7 +65,7 @@ rc_t vdh_show_manager_version( const VDBManager *my_manager );
 rc_t vdh_parse_schema( const VDBManager *my_manager,
                        VSchema **new_schema,
                        Vector *schema_list,
-					   bool with_sra_schema );
+                       bool with_sra_schema );
 
 bool vdh_is_path_table( const VDBManager *my_manager, const char *path,
                         Vector *schema_list );
@@ -84,6 +84,7 @@ rc_t vdh_print_col_info( dump_context *ctx,
                          const p_col_def col_def,
                          const VSchema *my_schema );
 
+rc_t resolve_remote_accession( const char * accession, char * dst, size_t dst_size );
 rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely );
 rc_t resolve_cache( const char * accession, char * dst, size_t dst_size );
 rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache );

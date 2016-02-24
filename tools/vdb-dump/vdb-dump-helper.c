@@ -402,7 +402,53 @@ rc_t vdh_print_col_info( dump_context *ctx,
     return rc;
 }
 
+rc_t resolve_remote_accession( const char * accession, char * dst, size_t dst_size )
+{
+    VFSManager * vfs_mgr;
+    rc_t rc = VFSManagerMake( &vfs_mgr );
+    dst[ 0 ] = 0;
+    if ( rc == 0 )
+    {
+        VResolver * resolver;
+        rc = VFSManagerGetResolver( vfs_mgr, &resolver );
+        if ( rc == 0 )
+        {
+            VPath * vpath;
+            rc = VFSManagerMakePath( vfs_mgr, &vpath, "ncbi-acc:%s", accession );
+            if ( rc == 0 )
+            {
+                const VPath * remote = NULL;
+                VResolverRemoteEnable( resolver, vrAlwaysEnable );
+                rc = VResolverQuery ( resolver, eProtocolHttp, vpath, NULL, &remote, NULL );
+                if ( rc == 0 &&  remote != NULL )
+                {
+                    const String * path;
+                    rc = VPathMakeString( remote, &path );
 
+                    if ( rc == 0 && path != NULL )
+                    {
+                        string_copy ( dst, dst_size, path->addr, path->size );
+                        dst[ path->size ] = 0;
+                        StringWhack ( path );
+                    }
+                    if ( remote != NULL )
+                        VPathRelease ( remote );
+                }
+                VPathRelease ( vpath );
+            }
+            VResolverRelease( resolver );
+        }
+        VFSManagerRelease ( vfs_mgr );
+    }
+
+    if ( rc == 0 && vdh_str_starts_with( dst, "ncbi-acc:" ) )
+    {
+        size_t l = string_size ( dst );
+        memmove( dst, &( dst[ 9 ] ), l - 9 );
+        dst[ l - 9 ] = 0;
+    }
+    return rc;
+}
 
 rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely )
 {

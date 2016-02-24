@@ -35,6 +35,14 @@ include $(TOP)/build/Makefile.env
 .PHONY: $(TEST_TOOLS)
 
 #-------------------------------------------------------------------------------
+# runtests: 
+#
+runtests: download
+
+download:
+	python test_kget.py # expect rc = 0 
+
+#-------------------------------------------------------------------------------
 # slowtests: match output vs wget
 #
 
@@ -52,5 +60,6 @@ diff-vs-wget: clean
 	diff $(ACCESSION).sra ./$(ACCESSION).dat
 	#diff $(ACCESSION).sra ./$(ACCESSION).cachetee
 	rm -f $(ACCESSION)*
+
 
 .PHONY: 

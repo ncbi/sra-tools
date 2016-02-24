@@ -40,7 +40,7 @@ include $(TOP)/build/Makefile.env
 runtests: download
 
 download:
-	python test_kget.py # expect rc = 0 
+	export PATH=$(BINDIR):$$PATH; python test_kget.py # expect rc = 0 
 
 #-------------------------------------------------------------------------------
 # slowtests: match output vs wget

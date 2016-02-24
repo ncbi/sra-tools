@@ -40,6 +40,7 @@ include $(TOP)/build/Makefile.env
 runtests: download
 
 download:
+	$(BINDIR)/vdb-config -s /repository/remote/main/CGI/resolver-cgi=http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi
 	export PATH=$(BINDIR):$$PATH; python test_kget.py # expect rc = 0 
 
 #-------------------------------------------------------------------------------

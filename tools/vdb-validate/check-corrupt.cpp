@@ -97,6 +97,7 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
     uint32_t sa_pa_id_idx;
     uint32_t sa_tmp_mismatch_idx;
     uint32_t seq_read_len_idx;
+    bool has_tmp_mismatch;
 
     /* add columns to cursor */
 #define add_column(tbl_name, cursor, idx, col_spec) \
@@ -109,8 +110,18 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_seq_spot_id_idx, "SEQ_SPOT_ID" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_seq_read_id_idx, "SEQ_READ_ID" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_pa_id_idx, "PRIMARY_ALIGNMENT_ID" );
-    add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_tmp_mismatch_idx, "TMP_MISMATCH" );
     add_column( "SEQUENCE", seq_cursor, seq_read_len_idx, "READ_LEN" );
+
+    // optional columns
+    rc = VCursorAddColumn( sa_cursor, &sa_tmp_mismatch_idx, "TMP_MISMATCH" );
+    if ( rc == 0 )
+        has_tmp_mismatch = true;
+    else
+    {
+        has_tmp_mismatch = false;
+        rc = 0;
+    }
+
 
 #undef add_column
 
@@ -179,20 +190,23 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
             throw DATA_ERROR(ss.str());
         }
 
-        const char * p_sa_tmp_mismatch;
-        // SA:TMP_MISMATCH
-        rc = VCursorCellDataDirect ( sa_cursor, sa_row_id, sa_tmp_mismatch_idx, NULL, (const void**)&p_sa_tmp_mismatch, NULL, &data_len );
-        if ( rc != 0 || p_sa_tmp_mismatch == NULL )
-            throw VDB_ROW_ERROR("VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, TMP_MISMATCH column", sa_row_id, rc);
-
-        for ( uint32_t j = 0; j < data_len; ++j )
+        if ( has_tmp_mismatch )
         {
-            if ( p_sa_tmp_mismatch[j] == '=' )
-            {
-                std::stringstream ss;
-                ss << "SECONDARY_ALIGNMENT:" << sa_row_id << " TMP_MISMATCH contains '='";
+            const char * p_sa_tmp_mismatch;
+            // SA:TMP_MISMATCH
+            rc = VCursorCellDataDirect ( sa_cursor, sa_row_id, sa_tmp_mismatch_idx, NULL, (const void**)&p_sa_tmp_mismatch, NULL, &data_len );
+            if ( rc != 0 || p_sa_tmp_mismatch == NULL )
+                throw VDB_ROW_ERROR("VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, TMP_MISMATCH column", sa_row_id, rc);
 
-                throw DATA_ERROR(ss.str());
+            for ( uint32_t j = 0; j < data_len; ++j )
+            {
+                if ( p_sa_tmp_mismatch[j] == '=' )
+                {
+                    std::stringstream ss;
+                    ss << "SECONDARY_ALIGNMENT:" << sa_row_id << " TMP_MISMATCH contains '='";
+
+                    throw DATA_ERROR(ss.str());
+                }
             }
         }
 

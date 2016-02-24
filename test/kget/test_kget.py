@@ -66,7 +66,11 @@ def sha256( fname ) :
     calls "kget URL"
 ---------------------------------------------------------------------'''
 def kget_download_partial( url, acc ):
-    os.remove( ACC )
+    try:
+        os.remove( ACC )
+    except:
+        pass
+
     cmd = "kget %s"%( url )
     try:
         subprocess.check_output( cmd, shell = True )

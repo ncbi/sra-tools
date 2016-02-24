@@ -46,7 +46,7 @@ produce_SAM2()
 load_SAM_to_CSRA()
 {
 	BAMLOAD_BINARY="bam-load"
-	execute "cat $2 | $BAMLOAD_BINARY -L 3 -o $3 -k $1 -E0 -Q0 /dev/stdin"
+	execute "cat $2 | $BAMLOAD_BINARY --make-spots-with-secondary -L 3 -o $3 -k $1 -E0 -Q0 /dev/stdin"
 }
 
 # call: kar_CSRA "$FINAL_CSRA" "$TEMP_DIR"

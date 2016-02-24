@@ -67,7 +67,7 @@ def sha256( fname ) :
 ---------------------------------------------------------------------'''
 def kget_download_partial( url, acc ):
     try:
-        os.remove( ACC )
+        os.remove( acc )
     except:
         pass
 
@@ -82,7 +82,10 @@ def kget_download_partial( url, acc ):
     calls "kget URL --full"
 ---------------------------------------------------------------------'''
 def kget_download_full( url, acc ):
-    os.remove( ACC )
+    try:
+        os.remove( acc )
+    except:
+        pass
     cmd = "kget %s --full"%( url )
     try:
         subprocess.check_output( cmd, shell = True )
@@ -150,5 +153,10 @@ if t_full >= t_partial :
     sys.exit( -1 )
 else :
     print "timing ok: full download is faster than partial download"
+
+try:
+    os.remove( ACC )
+except:
+    pass
 
 print "-" * 80

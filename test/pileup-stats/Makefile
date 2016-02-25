@@ -47,11 +47,9 @@ clean: stdclean
 #
 runtests: pileup-stats
 
-SRC_VER = $(head -n 1 $(TOP)/tools/pileup-stats/pileup-stats.vers)
-
 pileup-stats: $(BINDIR)/pileup-stats
-	@echo SRC_VER=$(SRC_VER)
-#	@$(BINDIR)/pileup-stats -V | grep --quiet "2.5.8"
+	@ SRC_VER=$(shell head -n 1 $(TOP)/tools/pileup-stats/pileup-stats.vers)
+	@ $(BINDIR)/pileup-stats -V | grep --quiet "$(SRC_VER)[^0-9\.]"
 
 vg: $(BINDIR)/pileup-stats
 	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $(BINDIR)/pileup-stats -V

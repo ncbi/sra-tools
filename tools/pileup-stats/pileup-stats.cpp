@@ -49,9 +49,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-// log via general-writer API rather than stderr
-#define USE_GW_LOGMESSAGE 1
-
 using namespace ngs;
 
 namespace ncbi
@@ -79,6 +76,7 @@ namespace ncbi
     static uint32_t num_significant_bits = 4;
 
     static uint32_t verbosity;
+    static bool use_gw_logmessage = true; // log via general-writer API rather than stderr
 
     const bool need_write_true = false;
 
@@ -136,22 +134,24 @@ namespace ncbi
                 break;
             case 1:
                 if ( ( ref_zpos % 1000000 ) == 0 )
-#if USE_GW_LOGMESSAGE
-                    out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
-#else
-                    std :: cerr << "#  " << std :: setw ( 9 ) << ref_zpos << '\n';
-#endif
+                {
+                    if ( ncbi :: use_gw_logmessage )
+                        out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+                    else
+                        std :: cerr << "#  " << std :: setw ( 9 ) << ref_zpos << '\n';
+                }
                 break;
             default:
                 if ( ( ref_zpos % 5000 ) == 0 )
                 {
-#if USE_GW_LOGMESSAGE
-                    out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
-#else
-                    if ( ( ref_zpos % 500000 ) == 0 )
-                        std :: cerr << "\n#  " << std :: setw ( 9 ) << ref_zpos << ' ';
-                    std :: cerr << '.';
-#endif
+                    if ( ncbi :: use_gw_logmessage )
+                        out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+                    else
+                    {
+                        if ( ( ref_zpos % 500000 ) == 0 )
+                            std :: cerr << "\n#  " << std :: setw ( 9 ) << ref_zpos << ' ';
+                        std :: cerr << '.';
+                    }
                 }
             }
 
@@ -332,21 +332,24 @@ namespace ncbi
     static
     void run ( const char * spec, const char *outfile, const char *_remote_db, size_t buffer_size, Alignment :: AlignmentCategory cat )
     {
-#if ! USE_GW_LOGMESSAGE
-        if ( verbosity > 0 )
-            std :: cerr << "# Opening run '" << spec << "'\n";
-#endif
+        if ( ! ncbi :: use_gw_logmessage )
+        {
+            if ( verbosity > 0 )
+                std :: cerr << "# Opening run '" << spec << "'\n";
+        }
         ReadCollection obj = ncbi :: NGS :: openReadCollection ( spec );
         String runName = obj . getName ();
 
-#if ! USE_GW_LOGMESSAGE
-        if ( verbosity > 0 )
+        if ( ! ncbi :: use_gw_logmessage )
         {
-            std :: cerr << "# Preparing version " << GW_CURRENT_VERSION << " pipe to stdout\n";
-            if ( ( integer_column_flag_bits & 1 ) != 0 )
-                std :: cerr << "#   USING INTEGER PACKING\n";
+            if ( verbosity > 0 )
+            {
+                std :: cerr << "# Preparing version " << GW_CURRENT_VERSION << " pipe to stdout\n";
+                if ( ( integer_column_flag_bits & 1 ) != 0 )
+                    std :: cerr << "#   USING INTEGER PACKING\n";
+            }
         }
-#endif
+
         std :: string remote_db;
         if ( _remote_db == NULL )
             remote_db = runName + ".pileup_stat";
@@ -371,11 +374,12 @@ namespace ncbi
 
             prepareOutput ( out, runName );
             if ( verbosity > 0 )
-#if USE_GW_LOGMESSAGE
-                out . logMsg ( "Accessing all references" );
-#else
-                std :: cerr << "# Accessing all references\n";
-#endif
+            {
+                if ( ncbi :: use_gw_logmessage )
+                    out . logMsg ( "Accessing all references" );
+                else
+                    std :: cerr << "# Accessing all references\n";
+            }
 
 
 
@@ -398,29 +402,30 @@ namespace ncbi
                 uint64_t refLength = ref . getLength ();
 
                 if ( verbosity > 0 )
-#if USE_GW_LOGMESSAGE
                 {
-                    out . logMsg ( "Processing reference '" + refName + "'" );
+                    if ( ncbi :: use_gw_logmessage )
+                        out . logMsg ( "Processing reference '" + refName + "'" );
+                    else
+                        std :: cerr << "# Processing reference '" << refName << "'\n";
                 }
-#else
-                    std :: cerr << "# Processing reference '" << refName << "'\n";
-#endif
                 out . columnDefault ( column_id [ col_REFERENCE_SPEC ], 8, refName . data (), refName . size () );
 
                 if ( verbosity > 0 )
-#if USE_GW_LOGMESSAGE
-                out . logMsg ( "Accessing all pileups" );
-#else
-                    std :: cerr << "# Accessing all pileups\n";
-#endif
+                {
+                    if ( ncbi :: use_gw_logmessage )
+                        out . logMsg ( "Accessing all pileups" );
+                    else
+                        std :: cerr << "# Accessing all pileups\n";
+                }
                 PileupIterator pileup = ref . getPileups ( cat );
                 run ( out, runName, refName, pileup, refLength, refLengthSubTotal,  totalRefLength );
 
                 refLengthSubTotal += refLength;
-#if ! USE_GW_LOGMESSAGE
-                if ( verbosity > 1 )
-                    std :: cerr << '\n';
-#endif
+                if ( ! ncbi :: use_gw_logmessage )
+                {
+                    if ( verbosity > 1 )
+                        std :: cerr << '\n';
+                }
             }
         }
         catch ( ErrorMsg & x )
@@ -508,6 +513,7 @@ extern "C"
             << "  -h|--help                        output brief explanation of the program\n"
             << "  -v|--verbose                     increase the verbosity of the program.\n"
             << "                                   use multiple times for more verbosity.\n"
+            << "  --log-stderr                     log via stderr rather than general-writer API (default - general-writer API)\n"
             << '\n'
             << appName << " : "
             << ( vers >> 24 )
@@ -651,6 +657,10 @@ extern "C"
                     {
                         ++ ncbi :: verbosity;
                     }
+                    else if ( strcmp ( arg, "log-stderr" ) == 0 )
+                    {
+                        ncbi :: use_gw_logmessage = false;
+                    }
                     else if ( strcmp ( arg, "help" ) == 0 )
                     {
                         handle_help ( argv [ 0 ] );
@@ -681,37 +691,40 @@ extern "C"
         }
         catch ( ErrorMsg & x )
         {
-#if ! USE_GW_LOGMESSAGE
-            std :: cerr
-                << "ERROR: "
-                << argv [ 0 ]
-                << ": "
-                << x . what ()
-                << '\n'
-                ;
-#endif
+            if ( ! ncbi :: use_gw_logmessage )
+            {
+                std :: cerr
+                    << "ERROR: "
+                    << argv [ 0 ]
+                    << ": "
+                    << x . what ()
+                    << '\n'
+                    ;
+            }
         }
         catch ( const char x [] )
         {
-#if ! USE_GW_LOGMESSAGE
-            std :: cerr
-                << "ERROR: "
-                << argv [ 0 ]
-                << ": "
-                << x
-                << '\n'
-                ;
-#endif
+            if ( ! ncbi :: use_gw_logmessage )
+            {
+                std :: cerr
+                    << "ERROR: "
+                    << argv [ 0 ]
+                    << ": "
+                    << x
+                    << '\n'
+                    ;
+            }
         }
         catch ( ... )
         {
-#if ! USE_GW_LOGMESSAGE
-            std :: cerr
-                << "ERROR: "
-                << argv [ 0 ]
-                << ": unknown\n"
-                ;
-#endif
+            if ( ! ncbi :: use_gw_logmessage )
+            {
+                std :: cerr
+                    << "ERROR: "
+                    << argv [ 0 ]
+                    << ": unknown\n"
+                    ;
+            }
         }
 
         return rc;

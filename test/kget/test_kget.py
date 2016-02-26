@@ -17,7 +17,18 @@ def get_remote_url( acc ):
             try:
                 colon = line.index( ":" )
                 if line[ :colon ].strip() == "remote" :
-                    return line[ colon+1: ].strip()
+                    url = line[ colon+1: ].strip()
+                    if url.startswith( "http:" ) :
+                        return url
+            except:
+                pass
+        for line in lines:
+            try:
+                colon = line.index( ":" )
+                if line[ :colon ].strip() == "path" :
+                    url = line[ colon+1: ].strip()
+                    if url.startswith( "http:" ) :
+                        return url
             except:
                 pass
     except:

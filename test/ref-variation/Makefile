@@ -50,7 +50,7 @@ runtests: ref-variation var-expand
 ref-variation: $(BINDIR)/ref-variation
 
 	@ #./have-access.sh $(BINDIR) || (echo "no access to repository, skipping ref-variation test..."; exit 0)
-	@ ./have-access.sh $(BINDIR) "ref-variation"
+	@ ./have-access.sh $(BINDIR) $@
 	
 vg: $(BINDIR)/ref-variation
 	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $(BINDIR)/ref-variation -r NC_000002.11 -p 73613067 --query '-' -l 3 \
@@ -59,4 +59,4 @@ vg: $(BINDIR)/ref-variation
 
 var-expand: $(BINDIR)/var-expand
 	@# ./have-access.sh $(BINDIR) || (echo "no access to repository, skipping var-expand test..."; exit 0)
-	@ ./have-access.sh $(BINDIR) "var-expand"
+	@ ./have-access.sh $(BINDIR) $@

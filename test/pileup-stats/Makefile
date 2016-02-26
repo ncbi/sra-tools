@@ -48,8 +48,9 @@ clean: stdclean
 runtests: pileup-stats
 
 pileup-stats: $(BINDIR)/pileup-stats
-	@ SRC_VER=$(shell head -n 1 $(TOP)/tools/pileup-stats/pileup-stats.vers)
-	@ $(BINDIR)/pileup-stats -V | grep --quiet "$(SRC_VER)[^0-9\.]"
+	# The line below is the test for --version output. Yes, this is ridiculous to make tests like this (especially the one depending on the path to the sources of the binary being tested) but Anatoly insisted on it here: VDB-2837
+	@ $(BINDIR)/pileup-stats -V | grep --quiet "$(shell head -n 1 $(TOP)/tools/pileup-stats/pileup-stats.vers)[^0-9\.]"
 
 vg: $(BINDIR)/pileup-stats
+	# TODO: a better command line options should be chosen to test for memory leaks
 	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $(BINDIR)/pileup-stats -V

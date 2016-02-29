@@ -49,7 +49,7 @@ runtests: pileup-stats
 
 pileup-stats: $(BINDIR)/pileup-stats
 	@ # The line below is the test for --version output. Yes, this is ridiculous to make tests like this (especially the one depending on the path to the sources of the binary being tested) but Anatoly insisted on it here: VDB-2837
-	@ $(BINDIR)/pileup-stats -V | grep --quiet "$(shell head -n 1 $(TOP)/tools/pileup-stats/pileup-stats.vers)[^0-9\.]"
+	@ $(BINDIR)/pileup-stats -V | sed -e 's/\([1-9][0-9]*\)\.0\.0/\1/' -e 's/\([1-9][0-9]*\.[1-9][0-9]*\)\.0/\1/' -e 's/\([1-9][0-9]*\.[0-9][0-9]*\.[1-9][0-9]*\)/\1/' | grep --quiet "$(shell head -n 1 $(TOP)/tools/pileup-stats/pileup-stats.vers)[^0-9\.]"
 
 vg: $(BINDIR)/pileup-stats
 	@ # TODO: a better command line options should be chosen to test for memory leaks

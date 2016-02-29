@@ -1,89 +1,63 @@
-import subprocess
+from sam import *
 
-#calls to sampart-binary for creating sequence, random quality, merged cigar-str, lenght of reference
-def cigar2read( cigar, pos, ref ):
-    cmd = "sampart -f read -c %s - p %d -r %s"%( cigar, pos, ref )
-    return subprocess.check_output( cmd, shell = True )
+def dump( acc ) :
+    print "SEQ"
+    vdb_dump( acc, "-C READ -l0" )
+    print "PRIM"
+    vdb_dump( acc, "-T PRIMARY_ALIGNMENT -C READ -l0" )
+    print "SEC"
+    vdb_dump( acc, "-T SECONDARY_ALIGNMENT -C READ -l0" )
 
-def rnd_qual( l ):
-    cmd = "sampart -f qual -l %d -s 7"%( l )
-    return subprocess.check_output( cmd, shell = True )
+def test1() :
+    REF  = "NC_011752.1"
+    CSRA1= "X.CSRA"
+    CSRA2= "S.CSRA"
+    
+    A1 = make_prim( "A1", 0, REF, "c1", 17000, 20, "60M" )
+    A2 = make_prim( "A2", 0, REF, "c1", 12500, 20, "50M" )
+    A1.pair_with( A2 )
 
-def merge_cigar( cigar ):
-    cmd = "sampart -f cigar -c %s"%( cigar )
-    return subprocess.check_output( cmd, shell = True )
+    A3 = make_prim( "A3", 0, REF, "c1", 33000, 20, "60M" )
+    U1 = make_unaligned( "U1", 0, "ACTTTAGTAAGGGGTTNN" )
 
+    A4 = make_sec( "A4", 0, REF, "c1", 19000, 20, "60M" )
+    A4.link_to( A1 )
 
-FLAG_MULTI = 0x01
-FLAG_PROPPER = 0x02
-FLAG_UNMAPPED = 0x04
-FLAG_NEXT_UNMAPPED = 0x08
-FLAG_REVERSED = 0x010
-FLAG_NEXT_REVERSED = 0x020
-FLAG_FIRST = 0x040
-FLAG_LAST = 0x080
-FLAG_SECONDARY = 0x0100
-FLAG_BAD = 0x0200
-FLAG_PCR = 0x0400
+    A5 = make_sec( "A5", 0, REF, "c1", 22000, 20, "30M" )
+    
+    L = [ A1, A2, A3, A4, U1, A5 ]
+    print_sam( L )
+    
+    R1 = bam_load( L, CSRA1, "--make-spots-with-secondary -L 3 -E0 -Q0" )
+    print "bam-load = %d"%( R1 )
 
-class SAM:
-    def __init__( self, qname, flags, refname, refalias, pos, mapq, cigar ):
-        self.qname = qname
-        self.flags = flags
-        self.refalias = refalias
-        self.pos = pos
-        self.mapq = mapq
-        self.cigar = merge_cigar( cigar )
-        self.seq = cigar2read( cigar, pos, refname )
-        self.qual = rnd_qual( len( self.seq ) )
-        self.nxt_ref = "*"
-        self.nxt_pos = "*"
-        self.tlen = 0
+    if R1 == 1 :
+        R2 = sra_sort( CSRA1, CSRA2 )
+        print "sra-sort = %d"%( R2 )
 
-    def __str__( self ):
-        return "%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s"%( self.qname, self.flags, self.refalias,
-        self.pos, self.mapq, self.cigar, self.nxt_ref, self.nxt_pos, self.tlen, self.seq, self.qual )    
+    dump( CSRA1 )
+    dump( CSRA2 )
 
-    @classmethod
-    def pair( cls, first, next ):
-        first.nxt_ref = next.refalias
-        first.nxt_pos = next.pos
-        first.flags |= FLAG_MULTI
-        first.flags |= FLAG_FIRST
-        if next.flags & FLAG_UNMAPPED:
-            first.flags |= FLAG_NEXT_UNMAPPED
-        if next.flags & FLAG_REVERSED:
-            first.flags |= FLAG_NEXT_REVERSED
+def test2() :
+    REF  = "NC_011752.1"
+    CSRA1= "X.CSRA"
+    CSRA2= "S.CSRA"
+    
+    A1 = make_prim( "A1", 0, REF, "c1", 17000, 20, "60M" )
+    A2 = make_sec( "A2", 0, REF, "c1", 12500, 20, "50M" )
+    A1.pair_with( A2 )
 
-        next.nxt_ref = first.refalias
-        next.nxt_pos = first.pos
-        next.flags |= FLAG_MULTI
-        next.flags |= FLAG_LAST
-        if first.flags & FLAG_UNMAPPED:
-            next.flags |= FLAG_NEXT_UNMAPPED
-        if first.flags & FLAG_REVERSED:
-            next.flags |= FLAG_NEXT_REVERSED
+    L = [ A1, A2 ]
+    print_sam( L )
+    
+    R1 = bam_load( L, CSRA1, "--make-spots-with-secondary -L 3 -E0 -Q0" )
+    print "bam-load = %d"%( R1 )
 
-        end = next.pos + len( next.seq )
-        first.tlen = ( end - first.pos );
-        next.tlen = -first.tlen
+    if R1 == 1 :
+        R2 = sra_sort( CSRA1, CSRA2 )
+        print "sra-sort = %d"%( R2 )
 
-    @classmethod
-    def headers( cls, list ):
-        hdr = "@HD\tVN:1.3\n"
-        hdr += "@SQ\tSN:%s\tAS:%s\tLN:%d\n"%( list[0].refalias, list[1].refalias, 1234567 )
-        return hdr
-
-REF  = "NC_011752.1"
-
-SAMS = []
-A1 = SAM( "A1", FLAG_PROPPER, REF, "c1", 17000, 20, "60M" )
-A2 = SAM( "A2", FLAG_PROPPER, REF, "c1", 17500, 20, "50M" )
-SAM.pair( A1, A2 )
-SAMS.append( A1 )
-SAMS.append( A2 )
-
-print SAM.headers( SAMS )
-for elem in SAMS:
-    print elem
-
+    dump( CSRA1 )
+    dump( CSRA2 )
+    
+test2()

@@ -499,6 +499,12 @@ static struct offset_size_s const *get_CG_GQ_info(BAM_Alignment const *cself)
     return x;
 }
 
+static char const *get_BX(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = tag_search(cself, "BX", 0);
+    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+}
+
 /* MARK: BAM_File Reading functions */
 
 /* returns (rcData, rcInsufficient) if eof */
@@ -3733,6 +3739,19 @@ rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
         rc = ExtractInt32(self, &za, ZA); if (rc) return rc;
         rc = ExtractInt32(self, &zi, ZI); if (rc) return rc;
         return string_printf(buffer, max_size, act_size, "%i_%i", zi, za);
+    }
+    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+}
+
+rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
+                                    char buffer[],
+                                    size_t max_size,
+                                    size_t *act_size)
+{
+    char const *const BX = get_BX(self);
+    
+    if (BX != NULL) {
+        return string_printf(buffer, max_size, act_size, "%s", BX);
     }
     return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }

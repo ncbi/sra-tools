@@ -81,6 +81,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include <math.h>
 
 #include "vdb-validate.vers.h"
 
@@ -1529,9 +1530,302 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
     return rc;
 }
 
+#define PRI_LEN_THRESHOLD 0.01
+#define SEC_ROW_LIMIT 100000
+
+/* data integrity check for secondary alignment table */
+static rc_t ric_align_sec(char const dbname[],
+                          VTable const *seq,
+                          VTable const *pri,
+                          VTable const *sec)
+{
+    rc_t rc = 0, rc2;
+    VCursor const *seq_cursor = NULL;
+    VCursor const *pri_cursor = NULL;
+    VCursor const *sec_cursor = NULL;
+
+    uint32_t seq_read_len_idx;
+    uint32_t pri_has_ref_offset_idx;
+    uint32_t sec_has_ref_offset_idx;
+    uint32_t sec_seq_spot_id_idx;
+    uint32_t sec_seq_read_id_idx;
+    uint32_t sec_pa_id_idx;
+    uint32_t sec_tmp_mismatch_idx;
+    bool has_tmp_mismatch;
+
+    int64_t sec_id_first;
+    uint64_t sec_row_count;
+
+    // SEQUENCE cursor
+    if (rc == 0)
+    {
+        rc2 = VTableCreateCursorRead(seq, &seq_cursor);
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(seq_cursor, &seq_read_len_idx, "%s", "READ_LEN");
+        if (rc2 == 0)
+            rc2 = VCursorOpen(seq_cursor);
+        if (rc2 != 0)
+        {
+            rc = rc2;
+            (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                        "alignment table SEQUENCE can not be read", "name=%s", dbname));
+        }
+    }
+
+    // PRIMARY_ALIGNMENT cursor
+    if (rc == 0)
+    {
+        if (rc2 == 0)
+            rc2 = VTableCreateCursorRead(pri, &pri_cursor);
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(pri_cursor, &pri_has_ref_offset_idx, "%s", "(bool)HAS_REF_OFFSET");
+        if (rc2 == 0)
+            rc2 = VCursorOpen(pri_cursor);
+        if (rc2 != 0)
+        {
+            rc = rc2;
+            (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                        "alignment table PRIMARY_ALIGNMENT can not be read", "name=%s", dbname));
+        }
+    }
+
+    // SECONDARY_ALIGNMENT cursor
+    if (rc == 0)
+    {
+        if (rc2 == 0)
+            rc2 = VTableCreateCursorRead(sec, &sec_cursor);
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(sec_cursor, &sec_has_ref_offset_idx, "%s", "(bool)HAS_REF_OFFSET");
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(sec_cursor, &sec_seq_spot_id_idx, "%s", "SEQ_SPOT_ID");
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(sec_cursor, &sec_seq_read_id_idx, "%s", "SEQ_READ_ID");
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(sec_cursor, &sec_pa_id_idx, "%s", "PRIMARY_ALIGNMENT_ID");
+        if (rc2 == 0)
+        {
+            rc2 = VCursorAddColumn(sec_cursor, &sec_tmp_mismatch_idx, "%s", "TMP_MISMATCH");
+            if (rc2 == 0)
+                has_tmp_mismatch = true;
+            else
+            {
+                has_tmp_mismatch = false;
+                rc2 = 0;
+            }
+        }
+        if (rc2 == 0)
+            rc2 = VCursorOpen(sec_cursor);
+        if (rc2 != 0)
+        {
+            rc = rc2;
+            (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                        "alignment table SECONDARY_ALIGNMENT can not be read", "name=%s", dbname));
+        }
+    }
+
+    if (rc == 0)
+        rc = VCursorIdRange(sec_cursor, sec_pa_id_idx, &sec_id_first, &sec_row_count);
+    if (rc != 0)
+        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+            "alignment table can not be read", "name=%s", dbname));
+
+    if (rc == 0)
+    {
+        int64_t i;
+        bool reported_about_no_pa = false;
+        uint64_t pa_longer_sa_rows = 0;
+        uint64_t pa_longer_sa_limit = ceil( PRI_LEN_THRESHOLD * sec_row_count );
+        uint64_t sec_row_lmit = exhaustive ? sec_row_count : SEC_ROW_LIMIT;
+
+        for ( i = 0; i < sec_row_count && i < sec_row_lmit; ++i )
+        {
+            const void * data_ptr = NULL;
+            uint32_t data_len;
+
+            int64_t pri_row_id;
+            int64_t sec_row_id = i + sec_id_first;
+            int64_t seq_spot_id;
+            int32_t seq_read_id;
+            const uint32_t * p_seq_read_len;
+
+            uint32_t pri_row_len;
+            uint32_t sec_row_len;
+
+            // SECONDARY_ALIGNMENT:HAS_REF_OFFSET
+            rc = VCursorCellDataDirect ( sec_cursor, sec_row_id, sec_has_ref_offset_idx, NULL, (const void**)&data_ptr, NULL, &sec_row_len );
+            if ( rc != 0 )
+            {
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                        "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, HAS_REF_OFFSET column, row_id: $(ROW_ID)",
+                                        "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                break;
+            }
+
+
+            // SECONDARY_ALIGNMENT:SEQ_SPOT_ID
+            rc = VCursorCellDataDirect ( sec_cursor, sec_row_id, sec_seq_spot_id_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
+            if ( rc != 0 || data_ptr == NULL || data_len != 1 )
+            {
+                if (rc == 0)
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                        "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, SEQ_SPOT_ID column, row_id: $(ROW_ID)",
+                                        "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                break;
+            }
+
+            seq_spot_id = *(const int64_t *)data_ptr;
+            if (seq_spot_id == 0)
+            {
+                rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                            "SECONDARY_ALIGNMENT:$(ROW_ID) has SEQ_SPOT_ID = 0", "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                break;
+            }
+
+            if ( has_tmp_mismatch )
+            {
+                const char * p_sa_tmp_mismatch;
+                // SECONDARY_ALIGNMENT:TMP_MISMATCH
+                rc = VCursorCellDataDirect ( sec_cursor, sec_row_id, sec_tmp_mismatch_idx, NULL, (const void**)&p_sa_tmp_mismatch, NULL, &data_len );
+                if ( rc != 0 || p_sa_tmp_mismatch == NULL )
+                {
+                    if (rc == 0)
+                        rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                            "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, TMP_MISMATCH column, row_id: $(ROW_ID)",
+                                            "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                    break;
+                }
+
+                if (string_chr(p_sa_tmp_mismatch, data_len, '=') != NULL)
+                {
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "SECONDARY_ALIGNMENT:$(ROW_ID) TMP_MISMATCH column contains '='",
+                                "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                    break;
+                }
+            }
+
+            // SECONDARY_ALIGNMENT:PRIMARY_ALIGNMENT_ID
+            rc = VCursorCellDataDirect ( sec_cursor, sec_row_id, sec_pa_id_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
+            if ( rc != 0 || data_ptr == NULL || data_len != 1 )
+            {
+                if (rc == 0)
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                        "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, PRIMARY_ALIGNMENT_ID column, row_id: $(ROW_ID)",
+                                        "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                break;
+
+            }
+
+            pri_row_id = *(const int64_t *)data_ptr;
+            if (pri_row_id == 0)
+            {
+                if (!reported_about_no_pa)
+                {
+                    PLOGMSG (klogInfo, (klogInfo, "Database '$(name)' has secondary alignments without primary", "name=%s", dbname));
+                    reported_about_no_pa = true;
+                }
+                continue;
+            }
+
+            // PRIMARY_ALIGNMENT:HAS_REF_OFFSET
+            rc = VCursorCellDataDirect ( pri_cursor, pri_row_id, pri_has_ref_offset_idx, NULL, &data_ptr, NULL, &pri_row_len );
+            if ( rc != 0 )
+            {
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                        "VCursorCellDataDirect() failed on PRIMARY_ALIGNMENT table, HAS_REF_OFFSET column, row_id: $(ROW_ID)",
+                                        "name=%s,ROW_ID=%ld", dbname, pri_row_id));
+                break;
+            }
+
+            // move on when PRIMARY_ALIGNMENT.len equal to SECONDARY_ALIGNMENT.len
+            if (pri_row_len == sec_row_len)
+                continue;
+
+            if (pri_row_len < sec_row_len)
+            {
+                rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                            "PRIMARY_ALIGNMENT:$(PRI_ROW_ID) HAS_REF_OFFSET length ($(PRI_LEN)) less than SECONDARY_ALIGNMENT:$(SEC_ROW_ID) HAS_REF_OFFSET length ($(SEC_LEN))",
+                            "name=%s,PRI_ROW_ID=%ld,SEC_ROW_ID=%ld,PRI_LEN=%u,SEC_LEN=%u", dbname, pri_row_id, sec_row_id, pri_row_len, sec_row_len));
+                break;
+            }
+
+            // we already know that pri_row_len > sec_row_len
+            ++pa_longer_sa_rows;
+
+            // SECONDARY_ALIGNMENT:SEQ_READ_ID
+            rc = VCursorCellDataDirect ( sec_cursor, sec_row_id, sec_seq_read_id_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
+            if ( rc != 0 || data_ptr == NULL || data_len != 1 )
+            {
+                if (rc == 0)
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                            "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, SEQ_READ_ID column, row_id: $(ROW_ID)",
+                            "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                break;
+            }
+
+            // one-based read index
+            seq_read_id = *(const int32_t *)data_ptr;
+
+            // SEQUENCE:READ_LEN
+            rc = VCursorCellDataDirect ( seq_cursor, seq_spot_id, seq_read_len_idx, NULL, (const void**)&p_seq_read_len, NULL, &data_len );
+            if ( rc != 0 || p_seq_read_len == NULL )
+            {
+                if (rc == 0)
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                            "VCursorCellDataDirect() failed on SEQUENCE table, READ_LEN column, row_id: $(ROW_ID)",
+                            "name=%s,ROW_ID=%ld", dbname, seq_spot_id));
+                break;
+            }
+
+            if ( seq_read_id < 1 || (uint32_t)seq_read_id > data_len )
+            {
+                rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                            "SECONDARY_ALIGNMENT:$(SEC_ROW_ID) SEQ_READ_ID value ($(SEQ_READ_ID)) - 1 based, is out of SEQUENCE:$(SEQ_SPOT_ID) READ_LEN range ($(SEQ_READ_LEN_LEN))",
+                            "name=%s,SEC_ROW_ID=%ld,SEQ_READ_ID=%d,SEQ_SPOT_ID=%ld,SEQ_READ_LEN_LEN=%u", dbname, sec_row_id, seq_read_id, seq_spot_id, data_len));
+                break;
+            }
+
+            if (pri_row_len != p_seq_read_len[seq_read_id - 1])
+            {
+                rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                            "PRIMARY_ALIGNMENT:$(PRI_ROW_ID) HAS_REF_OFFSET length ($(PRI_LEN)) does not match its SEQUENCE:$(SEQ_SPOT_ID) READ_LEN[$(SEQ_READ_ID)] value ($(SEQ_READ_LEN))",
+                            "name=%s,PRI_ROW_ID=%ld,PRI_LEN=%u,SEQ_SPOT_ID=%ld,SEQ_READ_ID=%d,SEQ_READ_LEN=%u", dbname, pri_row_id, pri_row_len, seq_spot_id, seq_read_id, p_seq_read_len[seq_read_id - 1]));
+                break;
+            }
+
+            if (pa_longer_sa_rows >= pa_longer_sa_limit)
+            {
+                rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                            "Limit violation (pa_longer_sa): there are at least $(PA_LONGER_SA_ROWS) alignments where HAS_REF_OFFSET column is longer in PRIMARY_ALIGNMENT than in SECONDARY_ALIGNMENT",
+                            "name=%s,PA_LONGER_SA_ROWS=%lu", dbname, pa_longer_sa_rows));
+                break;
+            }
+
+        }
+    }
+
+    VCursorRelease(seq_cursor);
+    VCursorRelease(pri_cursor);
+    VCursorRelease(sec_cursor);
+    return rc;
+
+}
+
 /* database referential integrity check for alignment database */
 static rc_t dbric_align(char const dbname[],
                         VTable const *pri,
+                        VTable const *sec,
                         VTable const *seq,
                         VTable const *ref)
 {
@@ -1556,6 +1850,16 @@ static rc_t dbric_align(char const dbname[],
             (void)PLOGMSG(klogInfo, (klogInfo, "Database '$(dbname)': "
                 "REFERENCE.PRIMARY_ALIGNMENT_IDS <-> PRIMARY_ALIGNMENT.REF_ID "
                 "referential integrity ok", "dbname=%s", dbname));
+        }
+        if (rc == 0) {
+            rc = rc2;
+        }
+    }
+    if ((rc == 0 || exhaustive) && (pri != NULL && sec != NULL && seq != NULL)) {
+        rc_t rc2 = ric_align_sec(dbname, seq, pri, sec);
+        if (rc2 == 0) {
+            (void)PLOGMSG(klogInfo, (klogInfo, "Database '$(dbname)': "
+                "SECONDARY_ALIGNMENT table checks ok", "dbname=%s", dbname));
         }
         if (rc == 0) {
             rc = rc2;
@@ -1653,11 +1957,16 @@ static rc_t verify_database_align(VDatabase const *db,
     }
     while (ref_int_check) {
         VTable const *pri = NULL;
+        VTable const *sec = NULL;
         VTable const *seq = NULL;
         VTable const *ref = NULL;
 
         if ((tables & tbPrimaryAlignment) != 0) {
             rc = VDatabaseOpenTableRead(db, &pri, "PRIMARY_ALIGNMENT");
+            if (rc) break;
+        }
+        if ((tables & tbSecondaryAlignment) != 0) {
+            rc = VDatabaseOpenTableRead(db, &sec, "SECONDARY_ALIGNMENT");
             if (rc) break;
         }
         if ((tables & tbSequence) != 0) {
@@ -1668,10 +1977,11 @@ static rc_t verify_database_align(VDatabase const *db,
             rc = VDatabaseOpenTableRead(db, &ref, "REFERENCE");
             if (rc) break;
         }
-        rc = dbric_align(name, pri, seq, ref);
+        rc = dbric_align(name, pri, sec, seq, ref);
 
         RELEASE(VTable, ref);
         RELEASE(VTable, seq);
+        RELEASE(VTable, sec);
         RELEASE(VTable, pri);
 
         break;

@@ -72,3 +72,16 @@ COMPILERS = GCC # ICC
 
 # copy without following symlinks
 COPY = cp -P
+
+# valgrind
+VALGRIND = export NCBI_VALGRIND=ncbi; valgrind --error-exitcode=1 --suppressions=$(TOP)/build/valgrind.suppress --show-reachable=no 
+
+VALGRIND_TARGETS = $(addprefix vg-,$(TEST_TOOLS))
+
+valgrind: $(VALGRIND_TARGETS)
+
+vg-test-%: test-%
+	$(VALGRIND) $(TEST_BINDIR)/$^
+
+vg-wb-test-%: wb-test-%
+	$(VALGRIND) $(TEST_BINDIR)/$^

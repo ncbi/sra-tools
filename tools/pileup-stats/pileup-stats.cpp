@@ -33,6 +33,7 @@
 
 #include <kapp/main.h>
 #include <klib/printf.h>
+#include <klib/sra-release-version.h>
 #include <iomanip>
 
 #define DFLT_BUFFER_SIZE ( 32 * 1024 )
@@ -512,6 +513,7 @@ extern "C"
             << "  -U|--unpack-integer              don't pack integers in output pipe - uses more bandwidth\n"
             << "  -h|--help                        output brief explanation of the program\n"
             << "  -v|--verbose                     increase the verbosity of the program.\n"
+            << "  -V|--version                     display the version of the program then quit.\n"
             << "                                   use multiple times for more verbosity.\n"
             << "  --log-stderr                     log via stderr rather than general-writer API (default - general-writer API)\n"
             << '\n'
@@ -524,6 +526,32 @@ extern "C"
             << '\n'
             << '\n'
             ;
+    }
+
+    static void handle_version ( const char *progname )
+    {
+        char cSra [ 512 ] = "";
+        SraReleaseVersion sraVersion;
+        memset ( & sraVersion, 0, sizeof sraVersion );
+
+        rc_t rc = SraReleaseVersionGet ( & sraVersion );
+        if ( rc == 0 )
+        {
+            rc = SraReleaseVersionPrint ( & sraVersion, cSra, sizeof cSra, NULL );
+        }
+
+        ::ver_t vers = ::KAppVersion();
+
+        std::cout
+            << std::endl
+            << progname << " : "
+            << ( vers >> 24 )
+            << '.'
+            << ( ( vers >> 16 ) & 0xFF )
+            << '.'
+            << ( vers & 0xFFFF )
+            << " ( " << cSra << " )"
+            << std::endl << std::endl;
     }
 
     static void CC handle_error ( const char *arg, void *message )
@@ -597,6 +625,9 @@ extern "C"
                 case '?':
                     handle_help ( argv [ 0 ] );
                     return 0;
+                case 'V':
+                    handle_version ( argv [ 0 ] );
+                    return 0;
                 case '-':
                     ++ arg;
                     if ( strcmp ( arg, "output-file" ) == 0 )
@@ -664,6 +695,11 @@ extern "C"
                     else if ( strcmp ( arg, "help" ) == 0 )
                     {
                         handle_help ( argv [ 0 ] );
+                        return 0;
+                    }
+                    else if ( strcmp ( arg, "version" ) == 0 )
+                    {
+                        handle_version ( argv [ 0 ] );
                         return 0;
                     }
                     else

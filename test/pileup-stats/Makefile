@@ -26,23 +26,16 @@ default: runtests
 
 TOP ?= $(abspath ../..)
 
-MODULE = test/vcf-loader
+MODULE = test/pileup-stats
 
 TEST_TOOLS = \
-    test-vcf-loader 
+
+ALL_TOOLS = \
+	$(TEST_TOOLS) \
 
 include $(TOP)/build/Makefile.env
 
-
-# make sure runs are not cached in the user repository when running tests
-ifeq ($(wildcard ../../../asm-trace),)
-	ifeq (,$(VDB_CONFIG))
-		VDB_CONFIG = $(shell pwd)/../only-remote-repository.kfg
-	endif
-endif
-
-
-$(TEST_TOOLS): makedirs
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
 .PHONY: $(TEST_TOOLS)
@@ -50,21 +43,14 @@ $(TEST_TOOLS): makedirs
 clean: stdclean
 
 #-------------------------------------------------------------------------------
-# white-box test
+# pileup-stats tool tests
 #
-INCDIRS += -I$(TOP)/tools/vcf-loader
+runtests: pileup-stats
 
-VCF_TEST_SRC = \
-	test-vcf-loader
+pileup-stats: $(BINDIR)/pileup-stats
+	@ # The line below is the test for --version output. Yes, this is ridiculous to make tests like this (especially the one depending on the path to the sources of the binary being tested) but Anatoly insisted on it here: VDB-2837
+	@ $(BINDIR)/pileup-stats -V | sed -e 's/\([1-9][0-9]*\)\.0\.0/\1/' -e 's/\([1-9][0-9]*\.[1-9][0-9]*\)\.0/\1/' -e 's/\([1-9][0-9]*\.[0-9][0-9]*\.[1-9][0-9]*\)/\1/' | grep --quiet "$(shell head -n 1 $(TOP)/tools/pileup-stats/pileup-stats.vers)[^0-9\.]"
 
-VCF_TEST_OBJ = \
-	$(addsuffix .$(OBJX),$(VCF_TEST_SRC))
-
-VCF_TEST_LIB = \
-	-skapp \
-	-sktst \
-	-sncbi-wvdb \
-    -svcfloader 
-
-$(TEST_BINDIR)/test-vcf-loader: $(VCF_TEST_OBJ)
-	$(LP) --exe -o $@ $^ $(VCF_TEST_LIB)
+vg: $(BINDIR)/pileup-stats
+	@ # TODO: a better command line options should be chosen to test for memory leaks
+	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $(BINDIR)/pileup-stats -V

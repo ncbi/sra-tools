@@ -49,6 +49,25 @@ def rm_dir( dirname ) :
     except:
         pass
 
+def load_file( filename ) :
+    if os.path.isfile( filename ) :
+        with open( filename, "r" ) as the_file:
+            return the_file.read()
+    return ""
+
+def print_file( filename ) :
+    s = load_file( filename )
+    if len( s ) > 0 :
+        print s
+
+def print_txt( txt ) :
+    if len( txt ) > 0 :
+        print txt
+
+def print_txt_list( list ) :
+    for a in list :
+        print_txt( a )
+
 '''===============================================================
 preform a bam-load on a python-list of SAM-objects
     will create temporary files and directory ( x.sam, x.kfg, x_csra )
@@ -63,25 +82,29 @@ preform a bam-load on a python-list of SAM-objects
     keep_files... False/True for debugging temp. files
 ==============================================================='''
 def bam_load( list, output, params, keep_files = False ) :
+    res = 0
+    txt1=""
+    txt2=""
     try :
         rm_dir( "x_csra" )
         rm_file( output )
+        rm_file( "err.txt" )
         save_sam( list, "x.sam" )
         save_config( list, "x.kfg" )
-        cmd = "bam-load %s -o x_csra -k x.kfg x.sam"%( params )
-        txt = subprocess.check_output( cmd, stderr=subprocess.STDOUT, shell=True )
-        print txt
-        cmd = "kar --create %s -d x_csra -f"%( output )
-        lr = subprocess.check_call( cmd, shell=True )
-        if lr == 0 :
-            if not keep_files :
-                rm_dir( "x_csra" )
-                rm_file( "x.sam" )
-                rm_file( "x.kfg" )
-            return 1
+        cmd = "bam-load %s -o x_csra -k x.kfg x.sam 2>err.txt"%( params )
+        txt1 = subprocess.check_output( cmd, shell=True )
+        cmd = "kar --create %s -d x_csra -f 2>err.txt"%( output )
+        txt2 = subprocess.check_output( cmd, shell=True )
+        if not keep_files :
+            rm_dir( "x_csra" )
+            rm_file( "x.sam" )
+            rm_file( "x.kfg" )
+        res = 1
     except :
         pass
-    return 0
+    print_txt_list( [ load_file( "err.txt" ), txt1, txt2 ] )
+    rm_file( "err.txt" )
+    return res
 
 
 '''===============================================================
@@ -96,21 +119,26 @@ preform a sra-sort on a given cSRA-file
     keep_files... False/True for debugging temp. files
 ==============================================================='''
 def sra_sort( input, output, params = "", keep_files = False ) :
+    res = 0
+    txt1 = ""
+    txt2 = ""
     try :
         rm_dir( "s_csra" )
         rm_file( output )
-        cmd = "sra-sort %s s_csra -f %s"%( input, params )
-        txt = subprocess.check_output( cmd, stderr=subprocess.STDOUT, shell=True )
-        print txt
-        cmd = "kar --create %s -d s_csra -f"%( output )
-        lr = subprocess.check_call( cmd, shell=True )
-        if lr == 0 :
-            if not keep_files :
-                rm_dir( "s_csra" )
-            return 1
+        rm_file( "err.txt" )
+        cmd = "sra-sort %s s_csra -f %s 2>err.txt"%( input, params )
+        txt1 = subprocess.check_output( cmd, shell=True )
+        cmd = "kar --create %s -d s_csra -f 2>err.txt"%( output )
+        txt2 = subprocess.check_output( cmd, shell=True )
+        if not keep_files :
+            rm_dir( "s_csra" )
+        res = 1
     except :
         pass
-    return 0
+    print_txt_list( [ load_file( "err.txt" ), txt1, txt2 ] )
+    rm_file( "err.txt" )
+    return res
+
 
 def vdb_dump( accession, params = "" ) :
     try :
@@ -142,7 +170,7 @@ FLAG_PCR = 0x0400
 '''===============================================================
     make a primary SAM-alignment
 ==============================================================='''
-def make_prim( qname, flags, refname, refalias, pos, mapq, cigar, rnxt = "-", pnxt = "0" ) :
+def make_prim( qname, flags, refname, refalias, pos, mapq, cigar, rnxt = "*", pnxt = "0" ) :
     return SAM( qname, flags | FLAG_PROPPER, refname, refalias, pos, mapq, merge_cigar( cigar ), 
         cigar2read( cigar, pos, refname ), rnxt, pnxt )
 
@@ -150,7 +178,7 @@ def make_prim( qname, flags, refname, refalias, pos, mapq, cigar, rnxt = "-", pn
 '''===============================================================
     make a secondary SAM-alignment
 ==============================================================='''
-def make_sec( qname, flags, refname, refalias, pos, mapq, cigar, rnxt = "-", pnxt = "0" ) :
+def make_sec( qname, flags, refname, refalias, pos, mapq, cigar, rnxt = "*", pnxt = "0" ) :
     return SAM( qname, flags | FLAG_SECONDARY, refname, refalias, pos, mapq, merge_cigar( cigar ), 
         cigar2read( cigar, pos, refname ), rnxt, pnxt )
 

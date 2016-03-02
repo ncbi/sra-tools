@@ -60,6 +60,8 @@ extern "C" {
 #define DISP_RC2(rc,err,succ) \
     (void)((rc != 0)? 0 : (succ) ? LOGMSG( klogInfo, succ ) : LOGERR( klogInt, rc, err ))
 
+rc_t ErrMsg( const char * fmt, ... );
+
 rc_t vdh_show_manager_version( const VDBManager *my_manager );
 
 rc_t vdh_parse_schema( const VDBManager *my_manager,
@@ -74,10 +76,14 @@ bool vdh_is_path_column( const VDBManager *my_manager, const char *path,
 bool vdh_is_path_database( const VDBManager *my_manager, const char *path,
                            Vector *schema_list );
 
-bool vdh_take_1st_table_from_db( dump_context *ctx,
-                                 const VDatabase *my_database );
+bool list_contains_value( const KNamelist * list, const String * value );
 
-bool vdh_take_this_table_from_db( dump_context *ctx, const VDatabase *my_database,
+bool vdh_take_1st_table_from_db( dump_context *ctx, const KNamelist *tbl_names );
+
+bool vdh_take_this_table_from_list( dump_context *ctx, const KNamelist *tbl_names,
+                                    const char * table_to_find );
+
+bool vdh_take_this_table_from_db( dump_context *ctx, const VDatabase *db,
                                   const char * table_to_find );
 
 rc_t vdh_print_col_info( dump_context *ctx,

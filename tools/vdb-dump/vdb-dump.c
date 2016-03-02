@@ -1855,42 +1855,59 @@ ctx    [IN] ... contains source-path, tablename, columns and row-range as ascii-
 db_fkt [IN] ... function to be called if directory, manager and database are open
 *************************************************************************************/
 static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
-                             const VDBManager *my_manager,
+                             const VDBManager * mgr,
                              const db_fkt_t db_fkt )
 {
-    const VDatabase *my_database;
-    VSchema *my_schema = NULL;
+    const VDatabase *db;
+    VSchema *schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
+    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
 
-    rc = VDBManagerOpenDBRead( my_manager, &my_database, my_schema, "%s", ctx->path );
+    rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", ctx->path );
     DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
     if ( rc == 0 )
     {
-        bool table_defined = ( ctx->table != NULL );
-        if ( !table_defined )
+        KNamelist *tbl_names;
+        rc = VDatabaseListTbl( db, &tbl_names );
+        DISP_RC( rc, "VDatabaseListTbl() failed" );
+        if ( rc == 0 )
         {
-            table_defined = vdh_take_this_table_from_db( ctx, my_database, "SEQUENCE" );
-            if ( !table_defined )
-                table_defined = vdh_take_1st_table_from_db( ctx, my_database );
+            if ( ctx->table == NULL )
+            {
+                /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
+                bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
+                /* if there is no SEQUENCE-table, just pick the first table available... */
+                if ( !table_found )
+                    vdh_take_1st_table_from_db( ctx, tbl_names );
+            }
+            else
+            {
+                /* the user DID specify a table: check if the database has a table with this name,
+                   if not try with a sub-string */
+                String value;
+                StringInitCString( &value, ctx->table );
+                if ( !list_contains_value( tbl_names, &value ) )
+                    vdh_take_this_table_from_list( ctx, tbl_names, ctx->table );
+            }
+            
+            if ( ctx->table != NULL || ctx->table_enum_requested )
+            {
+                rc = db_fkt( ctx, db ); /* fkt-pointer is called */
+            }
+            else
+            {
+                LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
+                ctx->usage_requested = true;
+            }
+            rc = KNamelistRelease( tbl_names );
+            DISP_RC( rc, "KNamelistRelease() failed" );
         }
-        if ( table_defined || ctx->table_enum_requested )
-        {
-            rc = db_fkt( ctx, my_database ); /* fkt-pointer is called */
-        }
-        else
-        {
-            LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
-            ctx->usage_requested = true;
-        }
-        VDatabaseRelease( my_database );
+        VDatabaseRelease( db );
     }
 
-    if ( my_schema != NULL )
-    {
-        VSchemaRelease( my_schema );
-    }
+    if ( schema != NULL )
+        VSchemaRelease( schema );
 
     return rc;
 }

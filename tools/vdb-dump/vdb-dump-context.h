@@ -207,6 +207,7 @@ void vdco_show_usage( p_dump_context ctx );
 void vdco_show_help( p_dump_context ctx );
 
 rc_t vdco_set_table( p_dump_context ctx, const char *src );
+rc_t vdco_set_table_String( p_dump_context ctx, const String * src );
 
 rc_t vdco_capture_arguments_and_options( const Args * args, dump_context *ctx );
 

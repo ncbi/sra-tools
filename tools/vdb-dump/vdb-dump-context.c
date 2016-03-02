@@ -51,29 +51,48 @@ static rc_t vdco_set_str( char **dst, const char *src )
 {
     size_t len;
     if ( dst == NULL )
-    {
         return RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
-    }
     if ( *dst != NULL )
     {
         free( *dst );
         *dst = NULL;
     }
     if ( src == NULL )
-    {
         return RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
-    }
+
     len = string_size( src );
     if ( len == 0 )
-    {
         return RC( rcVDB, rcNoTarg, rcWriting, rcItem, rcEmpty );
-    }
+
     *dst = (char*)malloc( len + 1 );
     if ( *dst == NULL )
-    {
         return RC( rcVDB, rcNoTarg, rcWriting, rcMemory, rcExhausted );
-    }
+
     string_copy( *dst, len + 1, src, len );
+    return 0;
+}
+
+
+static rc_t vdco_set_String( char **dst, const String *src )
+{
+    if ( dst == NULL )
+        return RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
+    if ( *dst != NULL )
+    {
+        free( *dst );
+        *dst = NULL;
+    }
+    if ( src == NULL )
+        return RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
+
+    if ( src->len == 0 )
+        return RC( rcVDB, rcNoTarg, rcWriting, rcItem, rcEmpty );
+
+    *dst = (char*)malloc( src->size + 1 );
+    if ( *dst == NULL )
+        return RC( rcVDB, rcNoTarg, rcWriting, rcMemory, rcExhausted );
+
+    string_copy( *dst, src->len + 1, src->addr, src->len );
     return 0;
 }
 
@@ -251,20 +270,33 @@ static rc_t vdco_set_filter( p_dump_context ctx, const char *src )
 }
 
 /* not static because can be called directly from vdb-dump.c */
-rc_t vdco_set_table( p_dump_context ctx, const char *src )
+rc_t vdco_set_table( p_dump_context ctx, const char * src )
 {
-    rc_t rc = 0;
+    rc_t rc;
     if ( ( ctx == NULL )||( src == NULL ) )
-    {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
-    }
-    if ( rc == 0 )
+    else
     {
         rc = vdco_set_str( (char**)&(ctx->table), src );
         DISP_RC( rc, "vdco_set_str() failed" );
     }
     return rc;
 }
+
+
+rc_t vdco_set_table_String( p_dump_context ctx, const String * src )
+{
+    rc_t rc;
+    if ( ( ctx == NULL )||( src == NULL ) )
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
+    else
+    {
+        rc = vdco_set_String( (char**)&(ctx->table), src );
+        DISP_RC( rc, "vdco_set_str() failed" );
+    }
+    return rc;
+}
+
 
 static rc_t vdco_set_columns( p_dump_context ctx, const char *src )
 {

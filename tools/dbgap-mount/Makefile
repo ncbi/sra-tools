@@ -131,7 +131,8 @@ ZDB_TOOL_SRC = \
 ZDB_TOOL_OBJ = \
 	$(addsuffix .$(OBJX),$(ZDB_TOOL_SRC))
 
-ZDB_TOOL_LIB = -lkapp -lncbi-vdb -lxfs $(DOCAN_LIBS)
+# ZDB_TOOL_LIB = -lkapp -lncbi-vdb -lxfs $(DOCAN_LIBS)
+ZDB_TOOL_LIB = -sxfs -skapp -sncbi-vdb -skfg $(DOCAN_LIBS)
 
 $(BINDIR)/dbgap-mount-tool: $(ZDB_TOOL_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(ZDB_TOOL_LIB)

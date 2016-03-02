@@ -38,7 +38,7 @@ produce_SAM()
 load_SAM_to_CSRA()
 {
     BAMLOAD_BINARY="bam-load"
-    execute "cat $2 | $BAMLOAD_BINARY -L 3 -o $3 -k $1 -E0 -Q0 /dev/stdin" # --allow-multi-map"
+    execute "cat $2 | $BAMLOAD_BINARY -L 5 -o $3 -k $1 -E0 -Q0 /dev/stdin" # --allow-multi-map"
 }
 
 # call: kar_CSRA "$FINAL_CSRA" "$TEMP_DIR"
@@ -54,8 +54,8 @@ CONFIG="${PREFIX}.kfg"
 TEMP_DIR="${PREFIX}_csra"
 FINAL_CSRA="${PREFIX}.csra"
 
-produce_SAM "$SAMFILE" "$CONFIG"
-execute "rm -rf $TEMP_DIR"
+#produce_SAM "$SAMFILE" "$CONFIG"
+#execute "rm -rf $TEMP_DIR"
 load_SAM_to_CSRA "$CONFIG" "$SAMFILE" "$TEMP_DIR"
 #kar_CSRA "$FINAL_CSRA" "$TEMP_DIR"
 #execute "rm -rf $TEMP_DIR"

@@ -143,3 +143,42 @@ char * read_refbases( const char * refname, uint32_t ref_pos_1_based, uint32_t r
     }
     return res;
 }
+
+
+uint32_t ref_len( const char * refname )
+{
+    uint32_t res = 0;
+    KDirectory * dir;
+    rc_t rc = KDirectoryNativeDir( &dir );
+    if ( rc == 0 )
+    {
+        const VDBManager * mgr;
+        rc = VDBManagerMakeRead ( &mgr, dir );
+        if ( rc == 0 )
+        {
+            const VTable * tab;
+            rc = VDBManagerOpenTableRead( mgr, &tab, NULL, "%s", refname );
+            if ( rc == 0 )
+            {
+                const VCursor * cur;
+                rc = VTableCreateCursorRead( tab, &cur );
+                if ( rc == 0 )
+                {
+                    uint32_t base_count_idx;
+                    rc = VCursorAddColumn( cur, &base_count_idx, "BASE_COUNT" );
+                    if ( rc == 0 )
+                    {
+                        rc = VCursorOpen ( cur );
+                        if ( rc == 0 )
+                            res = read_uint32( cur, base_count_idx );
+                    }
+                    VCursorRelease( cur );
+                }
+                VTableRelease( tab );
+            }
+            VDBManagerRelease( mgr );
+        }
+        KDirectoryRelease( dir );
+    }
+    return res;
+}

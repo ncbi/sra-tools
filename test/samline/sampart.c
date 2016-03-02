@@ -174,7 +174,7 @@ static rc_t make_read( const Args * args )
     struct cigar_t * cigar = make_cigar_t( cigar_str );
     if ( cigar != NULL )
     {
-        uint32_t reflen = cigar_t_reflen( cigar );
+        uint32_t reflen        = cigar_t_reflen( cigar );
         uint32_t refpos        = get_uint32_option( args, OPTION_REFPOS, 0, DFLT_REFPOS );
         const char * refname   = get_str_option( args, OPTION_REFNAME, 0, DFLT_REFNAME );
         const char * refbases  = read_refbases( refname, refpos, reflen, NULL );
@@ -260,6 +260,15 @@ static rc_t make_cigar( const Args * args )
     return rc;
 }
 
+static rc_t get_ref_len( const Args * args )
+{
+    rc_t rc = 0;
+    const char * refname = get_str_option( args, OPTION_REFNAME, 0, DFLT_REFNAME );
+    if ( refname != NULL )
+        rc = KOutMsg( "%d", ref_len( refname ) );
+    return rc;
+}
+
 static const char function_read[] = "read";
 static const char function_qual[] = "qual";
 static const char function_cigar[] = "cigar";
@@ -284,6 +293,8 @@ rc_t CC KMain( int argc, char *argv [] )
                 rc = make_quality( args );
             else if ( 0 == strcase_cmp ( function, string_size( function ), function_cigar, 5, 5 ) )
                 rc = make_cigar( args );
+            else if ( 0 == strcase_cmp ( function, string_size( function ), function_rlen, 4, 4 ) )
+                rc = get_ref_len( args );
             else
                 rc = KOutMsg( "unknown function '%s'\n", function );
             ArgsWhack( args );

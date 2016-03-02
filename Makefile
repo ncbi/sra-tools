@@ -98,6 +98,25 @@ slowtests_test:
 	@ $(MAKE) -s -C test slowtests
 
 #-------------------------------------------------------------------------------
+# valgrind
+#
+valgrind: valgrind_test
+
+valgrind_test:
+	@ $(MAKE) -s -C test valgrind
+
+#-------------------------------------------------------------------------------
+# RPM
+#
+ifeq (mac,$(OS))
+rpm:
+	@ echo "Not making RMP on Mac"
+else
+rpm: std
+	@ $(MAKE) rpm -s TOP=$(CURDIR) -f build/Makefile.rpm
+endif
+
+#-------------------------------------------------------------------------------
 # pass-through targets
 #
 COMPILERS = GCC ICC VC++ CLANG

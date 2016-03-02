@@ -1478,6 +1478,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         uint32_t csSeqLen = 0;
         int lpad = 0;
         int rpad = 0;
+        bool hardclipped = false;
 
         rc = BAM_FileRead2(bam, &rec);
         if (rc) {
@@ -1565,7 +1566,7 @@ MIXED_BASE_AND_COLOR:
             }
             memcpy(cigBuf.base, tmp, opCount * sizeof(uint32_t));
             {
-                bool const hardclipped = isHardClipped(opCount, cigBuf.base);
+                hardclipped = isHardClipped(opCount, cigBuf.base);
                 if (hardclipped) {
                     if (isPrimary) {
                         if (!G.acceptHardClip) {
@@ -1881,7 +1882,7 @@ MIXED_BASE_AND_COLOR:
                 break;
             }
         }
-        if (lpad != 0 || rpad != 0) {
+        if (hardclipped) {
             value->hardclipped = 1;
         }
 #if 0 /** EY TO REVIEW **/
@@ -1910,12 +1911,12 @@ MIXED_BASE_AND_COLOR:
             }
             if (rc == 0 && (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch))) {
                 if (isPrimary) {
-					if(misses > matches ){
-						RecordNoMatch(name, refSeq->name, rpos);
-						rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
-						if (rc)
-							goto LOOP_END;
-					}
+                    if (misses > matches) {
+                        RecordNoMatch(name, refSeq->name, rpos);
+                        rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
+                        if (rc)
+                            goto LOOP_END;
+                    }
                 }
                 else {
                     (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos); discarding secondary alignment",
@@ -1924,7 +1925,7 @@ MIXED_BASE_AND_COLOR:
                     rc = 0;
                     goto LOOP_END;
                 }
-			}
+            }
             if (rc) {
                 aligned = false;
 

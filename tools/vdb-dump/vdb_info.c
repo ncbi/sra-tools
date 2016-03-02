@@ -87,13 +87,13 @@ typedef struct vdb_info_event
 
 typedef struct vdb_info_bam_hdr
 {
-	bool present;
-	size_t hdr_bytes;
-	uint32_t total_lines;
-	uint32_t HD_lines;
-	uint32_t SQ_lines;
-	uint32_t RG_lines;
-	uint32_t PG_lines;
+    bool present;
+    size_t hdr_bytes;
+    uint32_t total_lines;
+    uint32_t HD_lines;
+    uint32_t SQ_lines;
+    uint32_t RG_lines;
+    uint32_t PG_lines;
 } vdb_info_bam_hdr;
 
 typedef struct vdb_info_data
@@ -102,21 +102,22 @@ typedef struct vdb_info_data
     const char * s_path_type;
     const char * s_platform;
 
-    char path[ 1024 ];
-	char cache[ 1024 ];
+    char path[ 4096 ];
+    char remote_path[ 4096 ];
+    char cache[ 1024 ];
     char schema_name[ 1024 ];
-	char species[ 1024 ];
-	
+    char species[ 1024 ];
+    
     vdb_info_event formatter;
     vdb_info_event loader;
     vdb_info_event update;
 
     vdb_info_date ts;
 
-	vdb_info_bam_hdr bam_hdr;
-	
-	float cache_percent;
-	uint64_t bytes_in_cache;
+    vdb_info_bam_hdr bam_hdr;
+    
+    float cache_percent;
+    uint64_t bytes_in_cache;
 
     uint64_t seq_rows;
     uint64_t ref_rows;
@@ -357,98 +358,98 @@ static void split_date( vdb_info_date * d )
 /* ----------------------------------------------------------------------------- */
 static bool has_col( const VTable * tab, const char * colname )
 {
-	bool res = false;
-	struct KNamelist * columns;
-	rc_t rc = VTableListReadableColumns( tab, &columns );
-	if ( rc == 0 )
-	{
-		uint32_t count;
-		rc = KNamelistCount( columns, &count );
-		if ( rc == 0 && count > 0 )
-		{
-			uint32_t idx;
-			size_t colname_size = string_size( colname );
-			for ( idx = 0; idx < count && rc == 0 && !res; ++idx )
-			{
-				const char * a_name;
-				rc = KNamelistGet ( columns, idx, &a_name );
-				if ( rc == 0 )
-				{
-					int cmp;
-					size_t a_name_size = string_size( a_name );
-					uint32_t max_chars = ( uint32_t )colname_size;
-					if ( a_name_size > max_chars ) max_chars = ( uint32_t )a_name_size;
-					cmp = strcase_cmp ( colname, colname_size,
-										a_name, a_name_size,
-										max_chars );
-					res = ( cmp == 0 );
-				}
-			}
-		}
-		KNamelistRelease( columns );
-	}
-	return res;
+    bool res = false;
+    struct KNamelist * columns;
+    rc_t rc = VTableListReadableColumns( tab, &columns );
+    if ( rc == 0 )
+    {
+        uint32_t count;
+        rc = KNamelistCount( columns, &count );
+        if ( rc == 0 && count > 0 )
+        {
+            uint32_t idx;
+            size_t colname_size = string_size( colname );
+            for ( idx = 0; idx < count && rc == 0 && !res; ++idx )
+            {
+                const char * a_name;
+                rc = KNamelistGet ( columns, idx, &a_name );
+                if ( rc == 0 )
+                {
+                    int cmp;
+                    size_t a_name_size = string_size( a_name );
+                    uint32_t max_chars = ( uint32_t )colname_size;
+                    if ( a_name_size > max_chars ) max_chars = ( uint32_t )a_name_size;
+                    cmp = strcase_cmp ( colname, colname_size,
+                                        a_name, a_name_size,
+                                        max_chars );
+                    res = ( cmp == 0 );
+                }
+            }
+        }
+        KNamelistRelease( columns );
+    }
+    return res;
 }
 
 static const char * get_platform( const VTable * tab )
 {
     const char * res = PT_NONE;
-	if ( has_col( tab, "PLATFORM" ) )
-	{
-		const VCursor * cur;
-		rc_t rc = VTableCreateCursorRead( tab, &cur );
-		if ( rc == 0 )
-		{
-			uint32_t idx;
-			rc = VCursorAddColumn( cur, &idx, "PLATFORM" );
-			if ( rc == 0 )
-			{
-				rc = VCursorOpen( cur );
-				if ( rc == 0 )
-				{
-					const uint8_t * pf;
-					rc = VCursorCellDataDirect( cur, 1, idx, NULL, (const void**)&pf, NULL, NULL );
-					if ( rc == 0 )
-					{
-						res = vdcd_get_platform_txt( *pf );
-					}
-				}
-			}
-			VCursorRelease( cur );
-		}
-	}
+    if ( has_col( tab, "PLATFORM" ) )
+    {
+        const VCursor * cur;
+        rc_t rc = VTableCreateCursorRead( tab, &cur );
+        if ( rc == 0 )
+        {
+            uint32_t idx;
+            rc = VCursorAddColumn( cur, &idx, "PLATFORM" );
+            if ( rc == 0 )
+            {
+                rc = VCursorOpen( cur );
+                if ( rc == 0 )
+                {
+                    const uint8_t * pf;
+                    rc = VCursorCellDataDirect( cur, 1, idx, NULL, (const void**)&pf, NULL, NULL );
+                    if ( rc == 0 )
+                    {
+                        res = vdcd_get_platform_txt( *pf );
+                    }
+                }
+            }
+            VCursorRelease( cur );
+        }
+    }
     return res;
 }
 
 
 static void get_string_cell( char * buffer, size_t buffer_size, const VTable * tab, int64_t row, const char * column )
 {
-	if ( has_col( tab, column ) )
-	{
-		const VCursor * cur;
-		rc_t rc = VTableCreateCursorRead( tab, &cur );
-		if ( rc == 0 )
-		{
-			uint32_t idx;
-			rc = VCursorAddColumn( cur, &idx, column );
-			if ( rc == 0 )
-			{
-				rc = VCursorOpen( cur );
-				if ( rc == 0 )
-				{
-					const char * src;
-					uint32_t row_len;
-					rc = VCursorCellDataDirect( cur, row, idx, NULL, (const void**)&src, NULL, &row_len );
-					if ( rc == 0 )
-					{
-						size_t num_writ;
-						string_printf( buffer, buffer_size, &num_writ, "%.*s", row_len, src );
-					}
-				}
-			}
-			VCursorRelease( cur );
-		}
-	}
+    if ( has_col( tab, column ) )
+    {
+        const VCursor * cur;
+        rc_t rc = VTableCreateCursorRead( tab, &cur );
+        if ( rc == 0 )
+        {
+            uint32_t idx;
+            rc = VCursorAddColumn( cur, &idx, column );
+            if ( rc == 0 )
+            {
+                rc = VCursorOpen( cur );
+                if ( rc == 0 )
+                {
+                    const char * src;
+                    uint32_t row_len;
+                    rc = VCursorCellDataDirect( cur, row, idx, NULL, (const void**)&src, NULL, &row_len );
+                    if ( rc == 0 )
+                    {
+                        size_t num_writ;
+                        string_printf( buffer, buffer_size, &num_writ, "%.*s", row_len, src );
+                    }
+                }
+            }
+            VCursorRelease( cur );
+        }
+    }
 }
 
 
@@ -525,92 +526,92 @@ static void get_meta_event( const KMetadata * meta, const char * node_path, vdb_
 
 static size_t get_node_size( const KMDataNode * node )
 {
-	char buffer[ 10 ];
-	size_t num_read, remaining, res = 0;
-	rc_t rc = KMDataNodeRead( node, 0, buffer, sizeof( buffer ), &num_read, &remaining );
-	if ( rc == 0 ) res = num_read + remaining;
-	return res;
+    char buffer[ 10 ];
+    size_t num_read, remaining, res = 0;
+    rc_t rc = KMDataNodeRead( node, 0, buffer, sizeof( buffer ), &num_read, &remaining );
+    if ( rc == 0 ) res = num_read + remaining;
+    return res;
 }
 
 static bool is_newline( const char c ) { return ( c == 0x0A || c == 0x0D ); }
 
 static void inspect_line( vdb_info_bam_hdr * bam_hdr, char * line, size_t len )
 {
-	bam_hdr->total_lines++;
-	if ( len > 3 && line[ 0 ] == '@' )
-	{
-		switch( line[ 1 ] )
-		{
-			case 'H'	: if ( line[ 2 ] == 'D' ) bam_hdr->HD_lines++; break;
-			case 'S'	: if ( line[ 2 ] == 'Q' ) bam_hdr->SQ_lines++; break;
-			case 'R'	: if ( line[ 2 ] == 'G' ) bam_hdr->RG_lines++; break;
-			case 'P'	: if ( line[ 2 ] == 'G' ) bam_hdr->PG_lines++; break;
-		}
-	}
+    bam_hdr->total_lines++;
+    if ( len > 3 && line[ 0 ] == '@' )
+    {
+        switch( line[ 1 ] )
+        {
+            case 'H'    : if ( line[ 2 ] == 'D' ) bam_hdr->HD_lines++; break;
+            case 'S'    : if ( line[ 2 ] == 'Q' ) bam_hdr->SQ_lines++; break;
+            case 'R'    : if ( line[ 2 ] == 'G' ) bam_hdr->RG_lines++; break;
+            case 'P'    : if ( line[ 2 ] == 'G' ) bam_hdr->PG_lines++; break;
+        }
+    }
 }
 
 static void parse_buffer( vdb_info_bam_hdr * bam_hdr, char * buffer, size_t len )
 {
-	char * line;
-	size_t idx, line_len, state = 0;
-	for ( idx = 0; idx < len; ++idx )
-	{
-		switch( state )
-		{
-			case 0 :	if ( is_newline( buffer[ idx ] ) ) /* init */
-							state = 2;
-						else
-						{
-							line = &( buffer[ idx ] );
-							line_len = 1;
-							state = 1;
-						}
-						break;
-					  
-			case 1 :	if ( is_newline( buffer[ idx ] ) ) /* content */
-						{
-							inspect_line( bam_hdr, line, line_len );
-							state = 2;
-						}
-						else
-							line_len++;
-						break;
+    char * line;
+    size_t idx, line_len, state = 0;
+    for ( idx = 0; idx < len; ++idx )
+    {
+        switch( state )
+        {
+            case 0 :    if ( is_newline( buffer[ idx ] ) ) /* init */
+                            state = 2;
+                        else
+                        {
+                            line = &( buffer[ idx ] );
+                            line_len = 1;
+                            state = 1;
+                        }
+                        break;
+                      
+            case 1 :    if ( is_newline( buffer[ idx ] ) ) /* content */
+                        {
+                            inspect_line( bam_hdr, line, line_len );
+                            state = 2;
+                        }
+                        else
+                            line_len++;
+                        break;
 
-			case 2 :   if ( !is_newline( buffer[ idx ] ) ) /* newline */
-						{
-							line = &( buffer[ idx ] );
-							line_len = 1;
-							state = 1;
-						}
-						break;
-		}
-	}
+            case 2 :   if ( !is_newline( buffer[ idx ] ) ) /* newline */
+                        {
+                            line = &( buffer[ idx ] );
+                            line_len = 1;
+                            state = 1;
+                        }
+                        break;
+        }
+    }
 }
 
 static void get_meta_bam_hdr( vdb_info_bam_hdr * bam_hdr, const KMetadata * meta )
 {
     const KMDataNode * node;
     rc_t rc = KMetadataOpenNodeRead ( meta, &node, "BAM_HEADER" );
-	bam_hdr -> present = ( rc == 0 );
+    bam_hdr -> present = ( rc == 0 );
     if ( bam_hdr -> present )
     {
-		bam_hdr->hdr_bytes = get_node_size( node );
-		if ( bam_hdr->hdr_bytes > 0 )
-		{
-			char * buffer = malloc( bam_hdr->hdr_bytes );
-			if ( buffer != NULL )
-			{
-				size_t num_read, remaining;
-				rc = KMDataNodeRead( node, 0, buffer, bam_hdr->hdr_bytes, &num_read, &remaining );
-				if ( rc == 0 )
-				{
-					parse_buffer( bam_hdr, buffer, bam_hdr->hdr_bytes );
-				}
-				free( buffer );
-			}
-		}
-		KMDataNodeRelease ( node );
-	}
+        bam_hdr->hdr_bytes = get_node_size( node );
+        if ( bam_hdr->hdr_bytes > 0 )
+        {
+            char * buffer = malloc( bam_hdr->hdr_bytes );
+            if ( buffer != NULL )
+            {
+                size_t num_read, remaining;
+                rc = KMDataNodeRead( node, 0, buffer, bam_hdr->hdr_bytes, &num_read, &remaining );
+                if ( rc == 0 )
+                {
+                    parse_buffer( bam_hdr, buffer, bam_hdr->hdr_bytes );
+                }
+                free( buffer );
+            }
+        }
+        KMDataNodeRelease ( node );
+    }
 }
 
 static void get_meta_info( vdb_info_data * data, const KMetadata * meta )
@@ -646,7 +647,7 @@ static void get_meta_info( vdb_info_data * data, const KMetadata * meta )
     get_meta_event( meta, "SOFTWARE/formatter", &data->formatter );
     get_meta_event( meta, "SOFTWARE/loader", &data->loader );
     get_meta_event( meta, "SOFTWARE/update", &data->update );
-	get_meta_bam_hdr( &data->bam_hdr, meta );
+    get_meta_bam_hdr( &data->bam_hdr, meta );
 }
 
 
@@ -670,42 +671,42 @@ static const char * get_path_type( const VDBManager *mgr, const char * acc_or_pa
 
 static rc_t make_remote_file( const KFile ** f, const char * url )
 {
-	KNSManager * kns_mgr;
-	rc_t rc = KNSManagerMake ( & kns_mgr );
-	*f = NULL;	
-	if ( rc == 0 )
-	{
-		rc = KNSManagerMakeHttpFile ( kns_mgr, f, NULL, 0x01010000, "%s", url );
-		KNSManagerRelease ( kns_mgr );
-	}
-	return rc;
+    KNSManager * kns_mgr;
+    rc_t rc = KNSManagerMake ( & kns_mgr );
+    *f = NULL;    
+    if ( rc == 0 )
+    {
+        rc = KNSManagerMakeHttpFile ( kns_mgr, f, NULL, 0x01010000, "%s", url );
+        KNSManagerRelease ( kns_mgr );
+    }
+    return rc;
 }
 
 
 static rc_t make_local_file( const KFile ** f, const char * path )
 {
-	KDirectory * dir;
-	rc_t rc = KDirectoryNativeDir( &dir );
-	*f = NULL;
-	if ( rc == 0 )
-	{
-		rc = KDirectoryOpenFileRead( dir, f, "%s", path );
-		KDirectoryRelease( dir );
-	}
-	return rc;
+    KDirectory * dir;
+    rc_t rc = KDirectoryNativeDir( &dir );
+    *f = NULL;
+    if ( rc == 0 )
+    {
+        rc = KDirectoryOpenFileRead( dir, f, "%s", path );
+        KDirectoryRelease( dir );
+    }
+    return rc;
 }
 
 
 static uint64_t get_file_size( const char * path, bool remotely )
 {
     uint64_t res = 0;
-	const KFile * f;
-	rc_t rc = ( remotely ) ? make_remote_file( &f, path ) : make_local_file( &f, path );
-	if ( rc == 0 )
-	{
-		KFileSize ( f, &res );
-		KFileRelease( f );
-	}
+    const KFile * f;
+    rc_t rc = ( remotely ) ? make_remote_file( &f, path ) : make_local_file( &f, path );
+    if ( rc == 0 )
+    {
+        KFileSize ( f, &res );
+        KFileRelease( f );
+    }
     return res;
 }
 
@@ -720,7 +721,7 @@ static rc_t vdb_info_tab( vdb_info_data * data, VSchema * schema, const VDBManag
 
         data->s_platform = get_platform( tab );
         data->seq_rows = get_rowcount( tab );
-		get_string_cell( data->species, sizeof data->species, tab, 1, "DEF_LINE" );
+        get_string_cell( data->species, sizeof data->species, tab, 1, "DEF_LINE" );
 
         rc = VTableOpenMetadataRead ( tab, &meta );
         if ( rc == 0 )
@@ -755,20 +756,20 @@ static void get_species( char * buffer, size_t buffer_size, const VDatabase * db
     rc_t rc = VDatabaseOpenTableRead( db, &tab, "REFERENCE" );
     if ( rc == 0 )
     {
-		char seq_id[ 1024 ];
-		
-		seq_id[ 0 ] = 0;
-		get_string_cell( seq_id, sizeof seq_id, tab, 1, "SEQ_ID" );
-		VTableRelease( tab );
-		if ( seq_id[ 0 ] != 0 )
-		{
-			rc = VDBManagerOpenTableRead( mgr, &tab, NULL, "%s", seq_id );
-			if ( rc == 0 )
-			{
-				get_string_cell( buffer, buffer_size, tab, 1, "DEF_LINE" );
-				VTableRelease( tab );	
-			}
-		}
+        char seq_id[ 1024 ];
+        
+        seq_id[ 0 ] = 0;
+        get_string_cell( seq_id, sizeof seq_id, tab, 1, "SEQ_ID" );
+        VTableRelease( tab );
+        if ( seq_id[ 0 ] != 0 )
+        {
+            rc = VDBManagerOpenTableRead( mgr, &tab, NULL, "%s", seq_id );
+            if ( rc == 0 )
+            {
+                get_string_cell( buffer, buffer_size, tab, 1, "DEF_LINE" );
+                VTableRelease( tab );    
+            }
+        }
     }
 }
 
@@ -798,9 +799,9 @@ static rc_t vdb_info_db( vdb_info_data * data, VSchema * schema, const VDBManage
         data->passes_rows       = get_tab_row_count( db, "PASSES" );
         data->metrics_rows      = get_tab_row_count( db, "ZMW_METRICS" );
 
-		if ( data->ref_rows > 0 )
-			get_species( data->species, sizeof data->species, db, mgr );
-		
+        if ( data->ref_rows > 0 )
+            get_species( data->species, sizeof data->species, db, mgr );
+        
         rc = VDatabaseOpenMetadataRead ( db, &meta );
         if ( rc == 0 )
         {
@@ -907,9 +908,9 @@ static rc_t vdb_info_print_xml( vdb_info_data * data )
             rc = KOutMsg( "<MINUTE>%.02d</MINUTE>\n", data->ts.minute );
     }
 
-	if ( rc == 0 && data->species[ 0 ] != 0 )
-		rc = vdb_info_print_xml_s( "SPECIES", data->species );
-	
+    if ( rc == 0 && data->species[ 0 ] != 0 )
+        rc = vdb_info_print_xml_s( "SPECIES", data->species );
+    
     if ( rc == 0 )
         rc = vdb_info_print_xml_event( "FORMATTER", &data->formatter );
     if ( rc == 0 )
@@ -1014,9 +1015,9 @@ static rc_t vdb_info_print_json( vdb_info_data * data )
             rc = KOutMsg( "\"MINUTE\":%d,\n", data->ts.minute );
     }
 
-	if ( rc == 0 && data->species[ 0 ] != 0 )
-		rc = vdb_info_print_json_s( "SPECIES", data->species );
-	
+    if ( rc == 0 && data->species[ 0 ] != 0 )
+        rc = vdb_info_print_json_s( "SPECIES", data->species );
+    
     if ( rc == 0 )
         rc = vdb_info_print_json_event( "FORMATTER", &data->formatter );
     if ( rc == 0 )
@@ -1038,10 +1039,10 @@ static const char dflt_event_name[] = "-";
 static rc_t vdb_info_print_sep_event( vdb_info_event * event, const char sep, bool last )
 {
     rc_t rc;
-	const char * ev_name = event->name;
-	if ( ev_name == NULL || ev_name[ 0 ] == 0 )
-		ev_name = dflt_event_name;
-	
+    const char * ev_name = event->name;
+    if ( ev_name == NULL || ev_name[ 0 ] == 0 )
+        ev_name = dflt_event_name;
+    
     if ( last )
     {
         rc = KOutMsg( "'%s'%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d%c%d",
@@ -1075,25 +1076,25 @@ static rc_t vdb_info_print_sep( vdb_info_data * data, const char sep )
                       data->passes_rows, sep, data->metrics_rows, sep );
     if ( rc == 0 )
         rc = KOutMsg( "'%s'%c%d%c%d%c%d%c%d%c%d%c",
-					  data->schema_name, sep,
+                      data->schema_name, sep,
                       data->ts.month, sep, data->ts.day, sep, data->ts.year, sep,
                       data->ts.hour, sep, data->ts.minute, sep );
 
     if ( rc == 0 )
-	{
-		if ( data->species[ 0 ] != 0 )
-			rc = KOutMsg( "'%s'%c", data->species, sep );
-		else
-			rc = KOutMsg( "-%c", sep );
-	}
-		
+    {
+        if ( data->species[ 0 ] != 0 )
+            rc = KOutMsg( "'%s'%c", data->species, sep );
+        else
+            rc = KOutMsg( "-%c", sep );
+    }
+        
     if ( rc == 0 )
         rc = vdb_info_print_sep_event( &data->formatter, sep, false );
     if ( rc == 0 )
         rc = vdb_info_print_sep_event( &data->loader, sep, false );
     if ( rc == 0 )
         rc = vdb_info_print_sep_event( &data->update, sep, true );
-		
+        
     if ( rc == 0 )
         rc = KOutMsg( "\n" );
 
@@ -1137,22 +1138,25 @@ static rc_t vdb_info_print_dflt( vdb_info_data * data )
     if ( rc == 0 && data->path[ 0 ] != 0 )
         rc = KOutMsg( "path   : %s\n", data->path );
 
-	if ( rc == 0 && data->file_size != 0 )
+    if ( rc == 0 && data->remote_path[ 0 ] != 0 )
+        rc = KOutMsg( "remote : %s\n", data->remote_path );
+
+    if ( rc == 0 && data->file_size != 0 )
         rc = KOutMsg( "size   : %,lu\n", data->file_size );
 
-	if ( rc == 0 && data->cache[ 0 ] != 0 )
-	{
+    if ( rc == 0 && data->cache[ 0 ] != 0 )
+    {
         rc = KOutMsg( "cache  : %s\n", data->cache );
-		if ( rc == 0 )
-			rc = KOutMsg( "percent: %f\n", data->cache_percent );
-		if ( rc == 0 )
-			rc = KOutMsg( "bytes  : %,lu\n", data->bytes_in_cache );
-	}
-	
-    if ( rc == 0 && data->s_path_type[ 0 ] != 0 )	
+        if ( rc == 0 )
+            rc = KOutMsg( "percent: %f\n", data->cache_percent );
+        if ( rc == 0 )
+            rc = KOutMsg( "bytes  : %,lu\n", data->bytes_in_cache );
+    }
+    
+    if ( rc == 0 && data->s_path_type[ 0 ] != 0 )    
         rc = KOutMsg( "type   : %s\n", data->s_path_type );
 
-	if ( rc == 0 && data->s_platform[ 0 ] != 0 )
+    if ( rc == 0 && data->s_platform[ 0 ] != 0 )
         rc = KOutMsg( "platf  : %s\n", data->s_platform );
 
     if ( rc == 0 && data->seq_rows != 0 )
@@ -1192,7 +1196,7 @@ static rc_t vdb_info_print_dflt( vdb_info_data * data )
 
     if ( rc == 0 && data->species[ 0 ] != 0 )
         rc = KOutMsg( "SPECIES: %s\n", data->species );
-		
+        
     if ( rc == 0 )
         vdb_info_print_dflt_event( &data->formatter, "FMT" );
     if ( rc == 0 )
@@ -1200,19 +1204,19 @@ static rc_t vdb_info_print_dflt( vdb_info_data * data )
     if ( rc == 0 )
         vdb_info_print_dflt_event( &data->update, "UPD" );
 
-	if ( rc == 0 && data->bam_hdr.present )
-	{
-		rc = KOutMsg( "BAMHDR : %d bytes / %d lines\n", data->bam_hdr.hdr_bytes, data->bam_hdr.total_lines );
-		if ( rc == 0 && data->bam_hdr.HD_lines > 0 )
-			rc = KOutMsg( "BAMHDR : %d HD-lines\n", data->bam_hdr.HD_lines );
-		if ( rc == 0 && data->bam_hdr.SQ_lines > 0 )
-			rc = KOutMsg( "BAMHDR : %d SQ-lines\n", data->bam_hdr.SQ_lines );
-		if ( rc == 0 && data->bam_hdr.RG_lines > 0 )
-			rc = KOutMsg( "BAMHDR : %d RG-lines\n", data->bam_hdr.RG_lines );
-		if ( rc == 0 && data->bam_hdr.PG_lines > 0 )
-			rc = KOutMsg( "BAMHDR : %d PG-lines\n", data->bam_hdr.PG_lines );
-	}
-	
+    if ( rc == 0 && data->bam_hdr.present )
+    {
+        rc = KOutMsg( "BAMHDR : %d bytes / %d lines\n", data->bam_hdr.hdr_bytes, data->bam_hdr.total_lines );
+        if ( rc == 0 && data->bam_hdr.HD_lines > 0 )
+            rc = KOutMsg( "BAMHDR : %d HD-lines\n", data->bam_hdr.HD_lines );
+        if ( rc == 0 && data->bam_hdr.SQ_lines > 0 )
+            rc = KOutMsg( "BAMHDR : %d SQ-lines\n", data->bam_hdr.SQ_lines );
+        if ( rc == 0 && data->bam_hdr.RG_lines > 0 )
+            rc = KOutMsg( "BAMHDR : %d RG-lines\n", data->bam_hdr.RG_lines );
+        if ( rc == 0 && data->bam_hdr.PG_lines > 0 )
+            rc = KOutMsg( "BAMHDR : %d PG-lines\n", data->bam_hdr.PG_lines );
+    }
+    
     return rc;
 }
 
@@ -1426,27 +1430,30 @@ static rc_t vdb_info_1( VSchema * schema, dump_format_t format, const VDBManager
             case 'T' : vdb_info_tab( &data, schema, mgr ); break;
         }
 
-		/* try to resolve the path locally */
+        /* try to resolve the path locally */
         rc1 = resolve_accession( acc_or_path, data.path, sizeof data.path, false ); /* vdb-dump-helper.c */
         if ( rc1 == 0 )
+        {
             data.file_size = get_file_size( data.path, false );
-		else
-		{
-			/* try to resolve the path remotely */
-			rc1 = resolve_accession( acc_or_path, data.path, sizeof data.path, true ); /* vdb-dump-helper.c */
-			if ( rc1 == 0 )
-			{
-				data.file_size = get_file_size( data.path, true );
-				/* try to find out the cache-file */
-				rc1 = resolve_cache( acc_or_path, data.cache, sizeof data.cache ); /* vdb-dump-helper.c */
-				if ( rc1 == 0 )
-				{
-					/* try to find out cache completeness */
-					check_cache_comleteness( data.cache, &data.cache_percent, &data.bytes_in_cache );
-				}
-			}
-		}
-		
+            resolve_remote_accession( acc_or_path, data.remote_path, sizeof data.remote_path ); /* vdb-dump-helper.c */
+        }
+        else
+        {
+            /* try to resolve the path remotely */
+            rc1 = resolve_accession( acc_or_path, data.path, sizeof data.path, true ); /* vdb-dump-helper.c */
+            if ( rc1 == 0 )
+            {
+                data.file_size = get_file_size( data.path, true );
+                /* try to find out the cache-file */
+                rc1 = resolve_cache( acc_or_path, data.cache, sizeof data.cache ); /* vdb-dump-helper.c */
+                if ( rc1 == 0 )
+                {
+                    /* try to find out cache completeness */
+                    check_cache_comleteness( data.cache, &data.cache_percent, &data.bytes_in_cache );
+                }
+            }
+        }
+        
         switch ( format )
         {
             case df_xml  : rc = vdb_info_print_xml( &data ); break;

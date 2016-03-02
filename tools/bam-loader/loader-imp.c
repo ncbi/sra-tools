@@ -1881,13 +1881,15 @@ MIXED_BASE_AND_COLOR:
                 break;
             }
         }
-        if (isPrimary && (lpad != 0 || rpad != 0)) {
+        if (lpad != 0 || rpad != 0) {
             value->hardclipped = 1;
         }
+#if 0 /** EY TO REVIEW **/
         if (!isPrimary && value->hardclipped) {
             DISCARD_HARDCLIP_SECONDARY;
             goto LOOP_END;
         }
+#endif
 
         ++recordsProcessed;
 
@@ -2005,7 +2007,7 @@ WRITE_SEQUENCE:
                         (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
                     }
                     memset(&fi, 0, sizeof(fi));
-                    fi.aligned = aligned;
+                    fi.aligned = isPrimary?aligned:0;
                     fi.ti = ti;
                     fi.orientation = AR_REF_ORIENT(data);
                     fi.otherReadNo = AR_READNO(data);
@@ -2135,7 +2137,7 @@ WRITE_SEQUENCE:
                         }
                         srec.keyId = keyId;
                         srec.is_bad[read2] = (flags & BAMFlags_IsLowQuality) != 0;
-                        srec.aligned[read2] = aligned;
+                        srec.aligned[read2] = isPrimary?aligned:0;
                         srec.cskey[read2] = cskey;
                         srec.ti[read2] = ti;
                         
@@ -2193,7 +2195,7 @@ WRITE_SEQUENCE:
                     goto LOOP_END;
                 }
                 srec.ti[0] = ti;
-                srec.aligned[0] = aligned;
+                srec.aligned[0] = isPrimary?aligned:0;
                 srec.is_bad[0] = (flags & BAMFlags_IsLowQuality) != 0;
                 srec.orientation[0] = AR_REF_ORIENT(data);
                 srec.cskey[0] = cskey;

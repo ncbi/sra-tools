@@ -1,2 +1,6 @@
 db
 *.gw
+*.xml
+input/
+actual/
+

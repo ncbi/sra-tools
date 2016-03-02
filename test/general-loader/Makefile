@@ -176,11 +176,17 @@ tool-tests: $(TEST_BINDIR)/makeinputs
 	@# software name in the metadata, packed   
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6packed 0 "-L=info -I=$(VDB_INCDIR)" SOFTWARE/formatter
 	@#    
+	@# log message, unpacked
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 7 0 -I=$(VDB_INCDIR)
+	@#    
+	@# log message, packed
+	@$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 7packed 0 -I=$(VDB_INCDIR)
+	@#    
 	@rm -rf input/*.gl actual/*
 
 one-tool: $(TEST_BINDIR)/makeinputs
 	@mkdir -p input && $(TEST_BINDIR)/makeinputs && rm $(TEST_BINDIR)/makeinputs
-	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6 0 "-L=info -I=$(VDB_INCDIR)" SOFTWARE/formatter
+	$(SRCDIR)/runtestcase.sh $(BINDIR) vdb-dump $(SRCDIR) 7 0 "-L=info  -z actual/7.xml -I=$(VDB_INCDIR)"
 
 
 #-------------------------------------------------------------------------------

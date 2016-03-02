@@ -205,6 +205,24 @@ SoftwareIdString( const string& p_caseId, bool p_packed )
     source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
 }
 
+void
+LogMessage( const string& p_caseId, bool p_packed )
+{   // Front-end generated log message to be displayed by general loader
+    TestSource source;
+    TestSource::packed = true;
+    
+    source . SchemaEvent ( "align/align.vschema", "NCBI:align:db:alignment_sorted" );
+    source . DatabaseEvent ( DatabasePath ( p_caseId, p_packed ) );
+    
+    source . SoftwareNameEvent ( string ( "some-tool" ), string ( "1.2.3" ) );
+    
+    source . OpenStreamEvent();
+    source . LogMessageEvent ("this is a log message from the front end app");
+    source . CloseStreamEvent();
+    
+    source . SaveBuffer ( OutputPath ( p_caseId, p_packed ) . c_str ()  );
+}
+
 int main()
 {
     for (bool packed = false; ; packed = true )
@@ -215,6 +233,7 @@ int main()
         MoveAhead( "4", packed );
         IntegerCompression( "5", packed );
         SoftwareIdString( "6", packed );
+        LogMessage( "7", packed );
         
         if ( packed )
         {

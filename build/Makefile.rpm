@@ -1,0 +1,129 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+#VERBOSE=-v
+
+# determine shell environment
+include $(TOP)/build/Makefile.shell
+
+# load build configuration ($TARGDIR)
+include $(CONFIG_FILE)
+
+# $TOOLS_TO_INSTALL
+include $(TOP)/build/Makefile.tools
+ifeq (1,$(HAVE_HDF5))
+	TOOLS_TO_INSTALL += pacbio-load
+endif
+TOOLS_TO_INSTALL += remote-fuser sra-kar
+
+REVISION=0
+RPMDIR=$(TARGDIR)/rpmbuild
+RPM=$(RPMDIR)/RPMS/$(ARCH)/sra-toolkit-$(VERSION)-$(REVISION).$(ARCH).rpm
+DST=$(RPMDIR)/sra-toolkit-$(VERSION)
+
+rpm: $(RPMDIR) $(RPM)
+
+$(RPMDIR):
+	mkdir $(VERBOSE) -p $@/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
+	mkdir $(VERBOSE) -p $(DST)/etc/ncbi
+	mkdir $(VERBOSE) -p $(DST)/usr/bin
+
+$(RPM): $(RPMDIR)/SOURCES/sra-toolkit-$(VERSION).tar.gz \
+		$(RPMDIR)/SPECS/sra-toolkit.spec
+	rpmbuild --define "_topdir $(RPMDIR)" \
+	   --define "_tmppath %{_topdir}/tmp" -bb $(RPMDIR)/SPECS/sra-toolkit.spec
+
+$(RPMDIR)/SOURCES/sra-toolkit-$(VERSION).tar.gz: $(DST)
+	cd $(RPMDIR) ; tar $(VERBOSE) \
+		-zcf $(DST).tar.gz --owner 0 --group 0 sra-toolkit-$(VERSION)
+	cp $(VERBOSE) -p $(DST).tar.gz $@
+
+$(RPMDIR)/SPECS/sra-toolkit.spec:
+	printf \
+"%%define        __spec_install_post %%{nil}\n"\
+"%%define          debug_package     %%{nil}\n"\
+"%%define        __os_install_post   %%{_dbpath}/brp-compress\n"\
+"\n"\
+"Summary: SRA Toolkit package\n"\
+"Name: sra-toolkit\n"\
+"Version: $(VERSION)\n"\
+"Release: $(REVISION)\n"\
+"License: Public Domain\n"\
+"Group: NCBI/VDB\n"\
+"SOURCE0 : %%{name}-%%{version}.tar.gz\n"\
+"URL: http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\n"\
+"\n"\
+"BuildRoot: %%{_tmppath}/%%{name}-%%{version}-%%{release}-root\n"\
+"\n"\
+"%%description\n"\
+"%%{summary}\n"\
+"\n"\
+"%%prep\n"\
+"%%setup -q\n"\
+"\n"\
+"%%build\n"\
+"# Empty section.\n"\
+"\n"\
+"%%install\n"\
+"rm   -rf %%{buildroot}\n"\
+"mkdir -p %%{buildroot}\n"\
+"\n"\
+"# in builddir\n"\
+"cp -a * %%{buildroot}\n"\
+"\n"\
+"%%clean\n"\
+"rm -rf %%{buildroot}\n"\
+"\n"\
+"%%files\n"\
+"%%defattr(-,root,root,-)\n"\
+"%%{_bindir}/*\n"\
+"/etc/ncbi/*\n"\
+"/usr/share/ncbi/schema/*/*\n"\
+"\n"\
+"%%changelog\n" > $@
+
+$(DST): $(DST)/usr/share/ncbi/schema $(DST)/etc/ncbi/default.kfg \
+	$(DST)/etc/ncbi/schema.kfg $(DST)/etc/ncbi/vdb-copy.kfg
+	$(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.rpm \
+		$(TOOLS_TO_INSTALL)
+	chmod -R g-w $(DST)
+
+$(DST)/etc/ncbi/default.kfg:
+	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/default.kfg $@
+
+$(DST)/etc/ncbi/schema.kfg:
+	echo '/vdb/schema/paths = "/usr/share/ncbi/schema"' > $@
+
+$(DST)/etc/ncbi/vdb-copy.kfg:
+	rsync $(VERBOSE) -l --chmod=g-w $(BINDIR)/ncbi/vdb-copy.kfg $@
+
+$(DST)/usr/share/ncbi/schema: $(RPMDIR)
+	mkdir $(VERBOSE) -p $@
+	rsync $(VERBOSE) -rmloptD --include '*.vschema' --include='*/' \
+		 --exclude '*' $(VDB_INCDIR)/* $@
+
+$(TOOLS_TO_INSTALL):
+	- ( test -f $(BINDIR)/$@ || ( echo "$@ not found" && false ) ) && \
+		rsync $(VERBOSE) -l $(BINDIR)/$@ $(BINDIR)/$@$(VERSION_EXEX) \
+			$(BINDIR)/$@$(MAJVERS_EXEX) $(DST)/usr/bin

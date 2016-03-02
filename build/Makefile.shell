@@ -35,6 +35,7 @@ ifeq (Darwin, $(UNAME))
 endif
 ifeq (Linux, $(UNAME))
 	HOST_OS = linux
+	OS_DISTRIBUTOR = $(shell lsb_release -si)
 endif
 ifeq (SunOS, $(UNAME))
 	HOST_OS = sun

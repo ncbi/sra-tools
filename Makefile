@@ -117,6 +117,22 @@ rpm: std
 endif
 
 #-------------------------------------------------------------------------------
+# DEB
+#
+ifeq (mac,$(OS))
+#deb: std
+deb:
+	@ $(MAKE) deb -s TOP=$(CURDIR) -f build/Makefile.deb
+else
+deb:
+ifeq (Ubuntu,$(OS_DISTRIBUTOR))
+	@ $(MAKE) deb -s TOP=$(CURDIR) -f build/Makefile.deb
+else
+	@ echo "Not making Deb on $(OS_DISTRIBUTOR) $(OS)"
+endif
+endif
+
+#-------------------------------------------------------------------------------
 # pass-through targets
 #
 COMPILERS = GCC ICC VC++ CLANG

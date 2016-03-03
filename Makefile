@@ -74,7 +74,7 @@ uninstall:
 #-------------------------------------------------------------------------------
 # clean
 #
-clean: clean_test
+clean: clean_test clean_rpm
 
 clean_test:
 	@ $(MAKE) -s -C test clean
@@ -111,9 +111,12 @@ valgrind_test:
 ifeq (mac,$(OS))
 rpm:
 	@ echo "Not making RMP on Mac"
+clean_rpm:
 else
 rpm: std
-	@ $(MAKE) rpm -s TOP=$(CURDIR) -f build/Makefile.rpm
+	@ $(MAKE)       rpm -s TOP=$(CURDIR) -f build/Makefile.rpm
+clean_rpm:
+	@ $(MAKE) clean_rpm -s TOP=$(CURDIR) -f build/Makefile.rpm
 endif
 
 #-------------------------------------------------------------------------------

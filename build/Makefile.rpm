@@ -24,10 +24,10 @@
 
 #VERBOSE=-v
 
-# determine shell environment
+# determine shell environment ($CONFIG_FILE)
 include $(TOP)/build/Makefile.shell
 
-# load build configuration ($TARGDIR)
+# load build configuration ($TARGDIR) ($VERSION)
 include $(CONFIG_FILE)
 
 # $TOOLS_TO_INSTALL
@@ -35,31 +35,61 @@ include $(TOP)/build/Makefile.tools
 ifeq (1,$(HAVE_HDF5))
 	TOOLS_TO_INSTALL += pacbio-load
 endif
-TOOLS_TO_INSTALL += remote-fuser sra-kar
+TOOLS_TO_INSTALL += remote-fuser
 
 REVISION=0
-RPMDIR=$(TARGDIR)/rpmbuild
-RPM=$(RPMDIR)/RPMS/$(ARCH)/sra-toolkit-$(VERSION)-$(REVISION).$(ARCH).rpm
-DST=$(RPMDIR)/sra-toolkit-$(VERSION)
+PKGDIR=$(TARGDIR)/rpmbuild
+RPM =$(PKGDIR)/RPMS/$(ARCH)/sra-toolkit-$(VERSION)-$(REVISION).$(ARCH).rpm
+SRC =$(PKGDIR)/SOURCES/sra-toolkit-$(VERSION).tar.gz
+SPEC=$(PKGDIR)/SPECS/sra-toolkit.spec
+DST =$(PKGDIR)/sra-toolkit-$(VERSION)
+TGZ=$(DST).tar.gz
 
-rpm: $(RPMDIR) $(RPM)
+clean_rpm:
+	rm -rf $(DST) $(RPM) $(SPEC) $(SRC) $(TGZ)
 
-$(RPMDIR):
-	mkdir $(VERBOSE) -p $@/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
+rpm: $(RPM)
+
+$(RPM): $(SPEC) $(SRC)
+	rpmbuild --define "_topdir $(PKGDIR)"  --define "_tmppath %{_topdir}/tmp" \
+	    -bb $(SPEC)
+
+$(SRC): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
+		$(DST)/etc/ncbi/vdb-copy.kfg $(DST)/usr/share/ncbi/schema
+	chmod -R g-w $(DST)
+	cd $(PKGDIR) ; tar $(VERBOSE) -zcf $(TGZ) --owner 0 --group 0 \
+		sra-toolkit-$(VERSION)
+	cp $(VERBOSE) -p $(TGZ) $@
+
+$(DST)/etc/ncbi/default.kfg: $(DST)
+	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/default.kfg $@
+
+$(DST)/etc/ncbi/schema.kfg: $(DST)
+	echo '/vdb/schema/paths = "/usr/share/ncbi/schema"' > $@
+
+$(DST)/etc/ncbi/vdb-copy.kfg: $(DST)
+	rsync $(VERBOSE) -l --chmod=g-w $(BINDIR)/ncbi/vdb-copy.kfg $@
+
+$(DST): $(PKGDIR)
 	mkdir $(VERBOSE) -p $(DST)/etc/ncbi
 	mkdir $(VERBOSE) -p $(DST)/usr/bin
+	$(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.rpm \
+		$(TOOLS_TO_INSTALL)
 
-$(RPM): $(RPMDIR)/SOURCES/sra-toolkit-$(VERSION).tar.gz \
-		$(RPMDIR)/SPECS/sra-toolkit.spec
-	rpmbuild --define "_topdir $(RPMDIR)" \
-	   --define "_tmppath %{_topdir}/tmp" -bb $(RPMDIR)/SPECS/sra-toolkit.spec
+$(DST)/usr/share/ncbi/schema: $(DST)
+	mkdir $(VERBOSE) -p $@
+	rsync $(VERBOSE) -rmloptD --include '*.vschema' --include='*/' \
+		 --exclude '*' $(VDB_INCDIR)/* $@
 
-$(RPMDIR)/SOURCES/sra-toolkit-$(VERSION).tar.gz: $(DST)
-	cd $(RPMDIR) ; tar $(VERBOSE) \
-		-zcf $(DST).tar.gz --owner 0 --group 0 sra-toolkit-$(VERSION)
-	cp $(VERBOSE) -p $(DST).tar.gz $@
+$(PKGDIR):
+	mkdir $(VERBOSE) -p $@/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
 
-$(RPMDIR)/SPECS/sra-toolkit.spec:
+$(TOOLS_TO_INSTALL):
+	- ( test -f $(BINDIR)/$@ || ( echo "$@ not found" && false ) ) && \
+		rsync $(VERBOSE) -l $(BINDIR)/$@ $(BINDIR)/$@$(VERSION_EXEX) \
+			$(BINDIR)/$@$(MAJVERS_EXEX) $(DST)/usr/bin
+
+$(SPEC):
 	printf \
 "%%define        __spec_install_post %%{nil}\n"\
 "%%define          debug_package     %%{nil}\n"\
@@ -102,28 +132,3 @@ $(RPMDIR)/SPECS/sra-toolkit.spec:
 "/usr/share/ncbi/schema/*/*\n"\
 "\n"\
 "%%changelog\n" > $@
-
-$(DST): $(DST)/usr/share/ncbi/schema $(DST)/etc/ncbi/default.kfg \
-	$(DST)/etc/ncbi/schema.kfg $(DST)/etc/ncbi/vdb-copy.kfg
-	$(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.rpm \
-		$(TOOLS_TO_INSTALL)
-	chmod -R g-w $(DST)
-
-$(DST)/etc/ncbi/default.kfg:
-	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/default.kfg $@
-
-$(DST)/etc/ncbi/schema.kfg:
-	echo '/vdb/schema/paths = "/usr/share/ncbi/schema"' > $@
-
-$(DST)/etc/ncbi/vdb-copy.kfg:
-	rsync $(VERBOSE) -l --chmod=g-w $(BINDIR)/ncbi/vdb-copy.kfg $@
-
-$(DST)/usr/share/ncbi/schema: $(RPMDIR)
-	mkdir $(VERBOSE) -p $@
-	rsync $(VERBOSE) -rmloptD --include '*.vschema' --include='*/' \
-		 --exclude '*' $(VDB_INCDIR)/* $@
-
-$(TOOLS_TO_INSTALL):
-	- ( test -f $(BINDIR)/$@ || ( echo "$@ not found" && false ) ) && \
-		rsync $(VERBOSE) -l $(BINDIR)/$@ $(BINDIR)/$@$(VERSION_EXEX) \
-			$(BINDIR)/$@$(MAJVERS_EXEX) $(DST)/usr/bin

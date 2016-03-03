@@ -74,7 +74,7 @@ uninstall:
 #-------------------------------------------------------------------------------
 # clean
 #
-clean: clean_test clean_rpm
+clean: clean_deb clean_rpm clean_test
 
 clean_test:
 	@ $(MAKE) -s -C test clean
@@ -123,15 +123,19 @@ endif
 # DEB
 #
 ifeq (mac,$(OS))
-#deb: std
-deb:
-	@ $(MAKE) deb -s TOP=$(CURDIR) -f build/Makefile.deb
+deb: std
+	@ $(MAKE)       deb -s TOP=$(CURDIR) -f build/Makefile.deb
+clean_deb:
+	@ $(MAKE) clean_deb -s TOP=$(CURDIR) -f build/Makefile.deb
 else
 deb:
 ifeq (Ubuntu,$(OS_DISTRIBUTOR))
-	@ $(MAKE) deb -s TOP=$(CURDIR) -f build/Makefile.deb
+	@ $(MAKE)       deb -s TOP=$(CURDIR) -f build/Makefile.deb
+clean_deb:
+	@ $(MAKE) clean_deb -s TOP=$(CURDIR) -f build/Makefile.deb
 else
 	@ echo "Not making Deb on $(OS_DISTRIBUTOR) $(OS)"
+clean_deb:
 endif
 endif
 

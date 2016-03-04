@@ -44,12 +44,15 @@ DEB=$(DST).deb
 ################################################################################
 
 clean_deb:
+	echo 'DEBUGGING DEB: clean_deb'
 	rm -rf $(DEB) $(DST)
 
 deb: $(DEB)
+	echo 'DEBUGGING DEB: deb'
 
 $(DEB): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
 	$(DST)/etc/ncbi/vdb-copy.kfg $(DST)/usr/bin $(DST)/DEBIAN/control
+	echo 'DEBUGGING DEB: (DEB)'
 ifeq (mac,$(OS))
 	dpkg-deb --build $(DST)
 else
@@ -57,35 +60,44 @@ else
 endif
 
 $(PKGDIR):
+	echo 'DEBUGGING DEB: (PKGDIR)'
 	mkdir $(VERBOSE) -p $@
 
 $(DST): $(PKGDIR)
+	echo 'DEBUGGING DEB: (PKGDIR)'
 	mkdir $(VERBOSE) -p $@/DEBIAN
 	mkdir $(VERBOSE) -p $@/etc/ncbi
 
 $(DST)/etc/ncbi:
+	echo 'DEBUGGING DEB: (DST)/etc/ncbi'
 	mkdir -p $@
 
 $(DST)/etc/ncbi/default.kfg: $(DST)/etc/ncbi
+	echo 'DEBUGGING DEB: (DST)/etc/ncbi/default.kfg'
 	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/default.kfg $@
 
 $(DST)/etc/ncbi/schema.kfg: $(DST)/etc/ncbi
+	echo 'DEBUGGING DEB: (DST)/etc/ncbi/schema.kfg'
 	echo '/vdb/schema/paths = "/usr/share/ncbi/schema"' > $@
 
 $(DST)/etc/ncbi/vdb-copy.kfg: $(DST)/etc/ncbi
+	echo 'DEBUGGING DEB: (DST)/etc/ncbi/vdb-copy.kfg'
 	rsync $(VERBOSE) -l --chmod=g-w $(BINDIR)/ncbi/vdb-copy.kfg $@
 
 $(DST)/usr/bin: $(DST)
+	echo 'DEBUGGING DEB: (DST)/usr/bin'
 	mkdir $(VERBOSE) -p $@
 	$(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.deb \
 		$(TOOLS_TO_INSTALL)
 
 $(DST)/usr/share/ncbi/schema: $(DST)
+	echo 'DEBUGGING DEB: (DST)/usr/share/ncbi/schema'
 	mkdir $(VERBOSE) -p $@
 	rsync $(VERBOSE) -rmloptD --include '*.vschema' --include='*/' \
 		 --exclude '*' $(VDB_INCDIR)/* $@
 
 $(DST)/DEBIAN/control:
+	echo 'DEBUGGING DEB: (DST)/DEBIAN/control'
 	mkdir $(VERBOSE) -p $(DST)/DEBIAN
 	printf \
 "Package: sra-toolkit\n"\
@@ -97,6 +109,7 @@ $(DST)/DEBIAN/control:
 " for using data in the INSDC Sequence Read Archives.\n" > $@
 
 $(TOOLS_TO_INSTALL):
+	echo 'DEBUGGING DEB: (TOOLS_TO_INSTALL)/DEBIAN/control'
 	- ( test -f $(BINDIR)/$@ || ( echo "$@ not found" && false ) ) && \
 		rsync $(VERBOSE) -l $(BINDIR)/$@ $(BINDIR)/$@$(VERSION_EXEX) \
 			$(BINDIR)/$@$(MAJVERS_EXEX) $(DST)/usr/bin

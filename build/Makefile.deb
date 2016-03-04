@@ -41,12 +41,15 @@ PKGDIR=$(TARGDIR)/debbuild
 DST=$(PKGDIR)/sra-toolkit-$(VERSION)
 DEB=$(DST).deb
 
+################################################################################
+
 clean_deb:
 	rm -rf $(DEB) $(DST)
 
 deb: $(DEB)
 
-$(DEB): $(DST)/etc/ncbi $(DST)/usr/bin $(DST)/DEBIAN/control
+$(DEB): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
+	$(DST)/etc/ncbi/vdb-copy.kfg $(DST)/usr/bin $(DST)/DEBIAN/control
 ifeq (mac,$(OS))
 	dpkg-deb --build $(DST)
 else
@@ -57,20 +60,19 @@ $(DST):
 	mkdir $(VERBOSE) -p $@/DEBIAN
 	mkdir $(VERBOSE) -p $@/etc/ncbi
 
-$(DST)/etc/ncbi: $(DST) $(DST)/usr/share/ncbi/schema \
-	$(DST)/etc/ncbi/default.kfg  $(DST)/etc/ncbi/schema.kfg \
-	$(DST)/etc/ncbi/vdb-copy.kfg
+$(DST)/etc/ncbi:
+	mkdir -p $@
 
-$(DST)/etc/ncbi/default.kfg:
+$(DST)/etc/ncbi/default.kfg: $(DST)/etc/ncbi
 	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/default.kfg $@
 
-$(DST)/etc/ncbi/schema.kfg:
+$(DST)/etc/ncbi/schema.kfg: $(DST)/etc/ncbi
 	echo '/vdb/schema/paths = "/usr/share/ncbi/schema"' > $@
 
-$(DST)/etc/ncbi/vdb-copy.kfg:
+$(DST)/etc/ncbi/vdb-copy.kfg: $(DST)/etc/ncbi
 	rsync $(VERBOSE) -l --chmod=g-w $(BINDIR)/ncbi/vdb-copy.kfg $@
 
-$(DST)/usr/bin:
+$(DST)/usr/bin: $(DST)
 	mkdir $(VERBOSE) -p $@
 	$(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.deb \
 		$(TOOLS_TO_INSTALL)
@@ -80,7 +82,7 @@ $(DST)/usr/share/ncbi/schema: $(DST)
 	rsync $(VERBOSE) -rmloptD --include '*.vschema' --include='*/' \
 		 --exclude '*' $(VDB_INCDIR)/* $@
 
-$(DST)/DEBIAN/control:
+$(DST)/DEBIAN/control: $(DST)
 	printf \
 "Package: sra-toolkit\n"\
 "Version: $(VERSION)\n"\

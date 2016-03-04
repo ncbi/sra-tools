@@ -56,7 +56,10 @@ else
 	fakeroot dpkg-deb --build $(DST)
 endif
 
-$(DST):
+$(PKGDIR):
+	mkdir $(VERBOSE) -p $@
+
+$(DST): $(PKGDIR)
 	mkdir $(VERBOSE) -p $@/DEBIAN
 	mkdir $(VERBOSE) -p $@/etc/ncbi
 

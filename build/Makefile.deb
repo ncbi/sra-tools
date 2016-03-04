@@ -85,7 +85,7 @@ $(DST)/usr/share/ncbi/schema: $(DST)
 	rsync $(VERBOSE) -rmloptD --include '*.vschema' --include='*/' \
 		 --exclude '*' $(VDB_INCDIR)/* $@
 
-$(DST)/DEBIAN/control: $(DST)
+$(DST)/DEBIAN/control:
 	mkdir $(VERBOSE) -p $(DST)/DEBIAN
 	printf \
 "Package: sra-toolkit\n"\

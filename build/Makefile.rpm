@@ -102,6 +102,7 @@ $(TOOLS_TO_INSTALL):
 
 $(SPEC): $(PKGDIR)
 	echo 'DEBUGGING RPM: (SPEC)'
+	mkdir -p $(PKGDIR)/SPECS
 	printf \
 "%%define        __spec_install_post %%{nil}\n"\
 "%%define          debug_package     %%{nil}\n"\

@@ -46,50 +46,62 @@ DST =$(PKGDIR)/sra-toolkit-$(VERSION)
 TGZ=$(DST).tar.gz
 
 clean_rpm:
+	echo DEBUGGING RPM: clean_rpm
 	rm -rf $(DST) $(RPM) $(SPEC) $(SRC) $(TGZ)
 
 rpm: $(RPM)
+	echo DEBUGGING RPM: rpm
 
 $(RPM): $(SPEC) $(SRC)
+	echo DEBUGGING RPM: (RPM)
 	rpmbuild --define "_topdir $(PKGDIR)"  --define "_tmppath %{_topdir}/tmp" \
 	    -bb $(SPEC)
 
 $(SRC): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
 		$(DST)/etc/ncbi/vdb-copy.kfg $(DST)/usr/share/ncbi/schema
+	echo DEBUGGING RPM: (SRC)
 	chmod -R g-w $(DST)
 	cd $(PKGDIR) ; tar $(VERBOSE) -zcf $(TGZ) --owner 0 --group 0 \
 		sra-toolkit-$(VERSION)
 	cp $(VERBOSE) -p $(TGZ) $@
 
 $(DST)/etc/ncbi/default.kfg: $(DST)
+	echo DEBUGGING RPM: (/etc/ncbi/default.kfg)
 	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/default.kfg $@
 
 $(DST)/etc/ncbi/schema.kfg: $(DST)
+	echo DEBUGGING RPM: (/etc/ncbi/schema.kfg)
 	echo '/vdb/schema/paths = "/usr/share/ncbi/schema"' > $@
 
 $(DST)/etc/ncbi/vdb-copy.kfg: $(DST)
+	echo DEBUGGING RPM: (/etc/ncbi/vdb-copy.kfg)
 	rsync $(VERBOSE) -l --chmod=g-w $(BINDIR)/ncbi/vdb-copy.kfg $@
 
 $(DST): $(PKGDIR)
+	echo DEBUGGING RPM: (DST)
 	mkdir $(VERBOSE) -p $(DST)/etc/ncbi
 	mkdir $(VERBOSE) -p $(DST)/usr/bin
 	$(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.rpm \
 		$(TOOLS_TO_INSTALL)
 
 $(DST)/usr/share/ncbi/schema: $(DST)
+	echo DEBUGGING RPM: (/usr/share/ncbi/schema)
 	mkdir $(VERBOSE) -p $@
 	rsync $(VERBOSE) -rmloptD --include '*.vschema' --include='*/' \
 		 --exclude '*' $(VDB_INCDIR)/* $@
 
 $(PKGDIR):
+	echo DEBUGGING RPM: (PKGDIR)
 	mkdir $(VERBOSE) -p $@/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
 
 $(TOOLS_TO_INSTALL):
+	echo DEBUGGING RPM: (TOOLS_TO_INSTALL)
 	- ( test -f $(BINDIR)/$@ || ( echo "$@ not found" && false ) ) && \
 		rsync $(VERBOSE) -l $(BINDIR)/$@ $(BINDIR)/$@$(VERSION_EXEX) \
 			$(BINDIR)/$@$(MAJVERS_EXEX) $(DST)/usr/bin
 
 $(SPEC):
+	echo DEBUGGING RPM: (SPEC)
 	printf \
 "%%define        __spec_install_post %%{nil}\n"\
 "%%define          debug_package     %%{nil}\n"\

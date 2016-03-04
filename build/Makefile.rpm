@@ -100,7 +100,7 @@ $(TOOLS_TO_INSTALL):
 		rsync $(VERBOSE) -l $(BINDIR)/$@ $(BINDIR)/$@$(VERSION_EXEX) \
 			$(BINDIR)/$@$(MAJVERS_EXEX) $(DST)/usr/bin
 
-$(SPEC):
+$(SPEC): $(PKGDIR)
 	echo 'DEBUGGING RPM: (SPEC)'
 	printf \
 "%%define        __spec_install_post %%{nil}\n"\

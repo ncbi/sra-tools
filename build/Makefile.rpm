@@ -63,6 +63,7 @@ $(SRC): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
 	chmod -R g-w $(DST)
 	cd $(PKGDIR) ; tar $(VERBOSE) -zcf $(TGZ) --owner 0 --group 0 \
 		sra-toolkit-$(VERSION)
+	mkdir $(VERBOSE) -p $(PKGDIR)/SOURCES
 	cp $(VERBOSE) -p $(TGZ) $@
 
 $(DST)/etc/ncbi/default.kfg: $(DST)

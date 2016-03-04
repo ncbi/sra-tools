@@ -86,6 +86,7 @@ $(DST)/usr/share/ncbi/schema: $(DST)
 		 --exclude '*' $(VDB_INCDIR)/* $@
 
 $(DST)/DEBIAN/control: $(DST)
+	mkdir $(VERBOSE) -p $(DST)/DEBIAN
 	printf \
 "Package: sra-toolkit\n"\
 "Version: $(VERSION)\n"\

@@ -54,7 +54,10 @@ $(DEB): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
 	$(DST)/etc/ncbi/vdb-copy.kfg $(DST)/usr/bin $(DST)/DEBIAN/control
 	echo 'DEBUGGING DEB: (DEB)'
 ifeq (mac,$(OS))
-	/sw/bin/dpkg-deb/dpkg-deb --build $(DST)
+	which dpkg-deb
+	if [ "$?" == "0" ] ; then
+		dpkg-deb --build $(DST)
+	endif
 else
 	fakeroot dpkg-deb --build $(DST)
 endif

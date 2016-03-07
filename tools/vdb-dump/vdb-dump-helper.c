@@ -71,8 +71,9 @@ rc_t vdh_show_manager_version( const VDBManager *my_manager )
 {
     uint32_t version;
     rc_t rc = VDBManagerVersion( my_manager, &version );
-    DISP_RC( rc, "VDBManagerVersion() failed" );
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerVersion() -> %R", rc );
+    else
     {
         PLOGMSG ( klogInfo, ( klogInfo, "manager-version = $(maj).$(min).$(rel)",
                               "vers=0x%X,maj=%u,min=%u,rel=%u",
@@ -104,13 +105,10 @@ rc_t vdh_parse_schema( const VDBManager *my_manager,
     rc_t rc = 0;
 
     if ( my_manager == NULL )
-    {
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
-    }
+
     if ( new_schema == NULL )
-    {
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
-    }
 
     *new_schema = NULL;
     

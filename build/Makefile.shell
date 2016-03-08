@@ -24,7 +24,7 @@
 
 CONFIG_FILE = $(TOP)/build/Makefile.config
 ifeq (no, $(shell test -f $(CONFIG_FILE) && echo yes || echo no))
-    $(error "*** File '$(CONFIG_FILE)' is missing. Please run $(TOP)/build/configure")
+    $(error "*** File '$(CONFIG_FILE)' is missing. Please run $(TOP)/configure")
 endif
 
 # determine OS
@@ -36,6 +36,10 @@ endif
 ifeq (Linux, $(UNAME))
 	HOST_OS = linux
 	OS_DISTRIBUTOR = $(shell lsb_release -si)
+	EXECMDF = $(TOP)/build/ld.linux.exe_cmd.sh
+	ifeq (no, $(shell test -f $(EXECMDF) && echo yes || echo no))
+        	$(error "*** File '$(EXECMDF)' is missing. Please run $(TOP)/configure")
+	endif
 endif
 ifeq (SunOS, $(UNAME))
 	HOST_OS = sun

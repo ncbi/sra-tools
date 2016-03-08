@@ -424,6 +424,11 @@ if ($TOOLS =~ /gcc$/ && check_no_array_bounds()) {
     $NO_ARRAY_BOUNDS_WARNING = '-Wno-array-bounds';
 }
 
+my $STATIC_LIBSTDCPP = '';
+if ($TOOLS =~ /gcc$/) {
+    $STATIC_LIBSTDCPP = check_static_libstdcpp();
+}
+
 my @dependencies;
 
 my %DEPEND_OPTIONS;
@@ -711,6 +716,14 @@ if ($OS ne 'win' && ! $OPT{'status'}) {
         println "configure: creating '$COMP' ($TOOLS)" unless ($AUTORUN);
         open F, ">$COMP" or die "cannot open $COMP to write";
         print F "$TOOLS\n";
+        close F;
+    }
+
+    if ($TOOLS =~ /gcc$/) {
+        my $EXECMDF = File::Spec->catdir(CONFIG_OUT(), 'ld.linux.exe_cmd.sh');
+        println "configure: creating '$EXECMDF'" unless ($AUTORUN);
+        open F, ">$EXECMDF" or die "cannot open $EXECMDF to write";
+        print F "EXE_CMD=\"\$LD $STATIC_LIBSTDCPP -static-libgcc\"\n";
         close F;
     }
 
@@ -1410,6 +1423,15 @@ sub check_no_array_bounds {
     check_compiler('O', '-Wno-array-bounds');
 }
 
+sub check_static_libstdcpp {
+    my $option = '-static-libstdc++';
+    my $save = $TOOLS;
+    $TOOLS = $CPP;
+    $_ = check_compiler('O', $option);
+    $TOOLS = $save;
+    $_ ? $option : ''
+}
+
 sub find_lib {
     check_compiler('L', @_);
 }
@@ -1421,7 +1443,7 @@ sub check_compiler {
     if ($t eq 'L') {
         print "checking for $n library... ";
     } elsif ($t eq 'O') {
-        if ($tool && $tool =~ /gcc$/) {
+        if ($tool && ($tool =~ /gcc$/ || $tool =~ /g\+\+$/)) {
             print "checking whether $tool accepts $n... ";
         } else {
             return;

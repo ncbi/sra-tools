@@ -33,7 +33,10 @@ LD_REF_SYMBOLS="-Wl,-no-whole-archive"
 
 # build command
 DLIB_CMD="$LD -shared"
-EXE_CMD="$LD -static-libstdc++ -static-libgcc"
+
+#EXE_CMD="$LD -static-libstdc++ -static-libgcc"
+source "${0%exe.sh}exe_cmd.sh" # EXE_CMD is defined in build/ld.linux.exe_cmd.sh
+
 EXE_STATIC_CMD="$EXE_CMD"
 #EXE_CMD="$LD"
 #EXE_STATIC_CMD="$LD -static"

@@ -759,6 +759,22 @@ struct vdb_validate_params
     bool index_chk;
     bool consist_check;
     bool exhaustive;
+
+    // secondary data checks parameters
+    bool sdc_enabled;
+    bool sdc_rows_in_percent;
+    union
+    {
+        double percent;
+        uint64_t number;
+    } sdc_rows;
+
+    bool sdc_pa_len_thold_in_percent;
+    union
+    {
+        double percent;
+        uint64_t number;
+    } sdc_pa_len_thold;
 };
 
 static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
@@ -1540,13 +1556,13 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
 
 #define PRI_LEN_THRESHOLD 0.01
 #define SEC_ROW_LIMIT 100000
-//#define SEC_ROW_CHUNK_MAX 65536
 #define SEC_ROW_CHUNK_MAX 8ull*1024ull*1024ull
 //#define DBG_MSG(args) KOutMsg args
 #define DBG_MSG(args)
 
-/* data integrity check for secondary alignment table */
-static rc_t ric_align_sec(char const dbname[],
+/* referential integrity and data checks for secondary alignment table */
+static rc_t ridc_align_sec(const vdb_validate_params *pb,
+                          char const dbname[],
                           VTable const *seq,
                           VTable const *pri,
                           VTable const *sec)
@@ -1682,13 +1698,30 @@ static rc_t ric_align_sec(char const dbname[],
     {
         bool reported_about_no_pa = false;
         uint64_t pa_longer_sa_rows = 0;
-        uint64_t pa_longer_sa_limit = ceil( PRI_LEN_THRESHOLD * sec_row_count );
-        uint64_t sec_row_lmit = exhaustive ? sec_row_count : SEC_ROW_LIMIT;
+        uint64_t pa_longer_sa_limit;
+        uint64_t sec_row_lmit;
 
         int64_t sec_row_id_start = sec_id_first;
-        int64_t sec_row_id_end = sec_id_first + MIN(sec_row_count, sec_row_lmit);
+        int64_t sec_row_id_end;
 
         int64_t chunk;
+
+        // set limits from params
+        if (pb->sdc_pa_len_thold_in_percent)
+            pa_longer_sa_limit = ceil( pb->sdc_pa_len_thold.percent * sec_row_count );
+        else if (pb->sdc_pa_len_thold.number == 0 || pb->sdc_pa_len_thold.number > sec_row_count)
+            pa_longer_sa_limit = sec_row_count;
+        else
+            pa_longer_sa_limit = pb->sdc_pa_len_thold.number;
+
+        if (pb->sdc_rows_in_percent)
+            sec_row_lmit = ceil( pb->sdc_rows.percent * sec_row_count );
+        else if (pb->sdc_rows.number == 0 || pb->sdc_rows.number > sec_row_count)
+            sec_row_lmit = sec_row_count;
+        else
+            sec_row_lmit = pb->sdc_rows.number;
+
+        sec_row_id_end = sec_id_first + MIN(sec_row_count, sec_row_lmit);
 
         for ( chunk = sec_row_id_start; chunk < sec_row_id_end; chunk += chunk_size )
         {
@@ -1968,7 +2001,8 @@ static rc_t ric_align_sec(char const dbname[],
 }
 
 /* database referential integrity check for alignment database */
-static rc_t dbric_align(char const dbname[],
+static rc_t dbric_align(const vdb_validate_params *pb,
+                        char const dbname[],
                         VTable const *pri,
                         VTable const *sec,
                         VTable const *seq,
@@ -2000,8 +2034,8 @@ static rc_t dbric_align(char const dbname[],
             rc = rc2;
         }
     }
-    if ((rc == 0 || exhaustive) && (pri != NULL && sec != NULL && seq != NULL)) {
-        rc_t rc2 = ric_align_sec(dbname, seq, pri, sec);
+    if (pb->sdc_enabled && (rc == 0 || exhaustive) && (pri != NULL && sec != NULL && seq != NULL)) {
+        rc_t rc2 = ridc_align_sec(pb, dbname, seq, pri, sec);
         if (rc2 == 0) {
             (void)PLOGMSG(klogInfo, (klogInfo, "Database '$(dbname)': "
                 "SECONDARY_ALIGNMENT table checks ok", "dbname=%s", dbname));
@@ -2014,7 +2048,7 @@ static rc_t dbric_align(char const dbname[],
 }
 
 
-static rc_t verify_database_align(VDatabase const *db,
+static rc_t verify_database_align(const vdb_validate_params *pb, VDatabase const *db,
     char const name[], node_t const nodes[], char const names[])
 {
     rc_t rc = 0;
@@ -2122,7 +2156,7 @@ static rc_t verify_database_align(VDatabase const *db,
             rc = VDatabaseOpenTableRead(db, &ref, "REFERENCE");
             if (rc) break;
         }
-        rc = dbric_align(name, pri, sec, seq, ref);
+        rc = dbric_align(pb, name, pri, sec, seq, ref);
 
         RELEASE(VTable, ref);
         RELEASE(VTable, seq);
@@ -2135,7 +2169,7 @@ static rc_t verify_database_align(VDatabase const *db,
     return rc;
 }
 
-static rc_t verify_database(VDatabase const *db,
+static rc_t verify_database(const vdb_validate_params *pb, VDatabase const *db,
     char const name[], node_t const nodes[], char const names[])
 {
     char schemaName[1024];
@@ -2154,7 +2188,7 @@ static rc_t verify_database(VDatabase const *db,
         /* TODO: verify NCBI:WGS:db:* */
     }
     else if (strncmp(schemaName, "NCBI:align:db:", 14) == 0) {
-        rc = verify_database_align(db, name, nodes, names);
+        rc = verify_database_align(pb, db, name, nodes, names);
     }
     else if (strcmp(schemaName, "NCBI:SRA:PacBio:smrt:db") == 0) {
         /* TODO: verify NCBI:SRA:PacBio:smrt:db */
@@ -2182,7 +2216,7 @@ static rc_t verify_mgr_database(const vdb_validate_params *pb,
     rc = VDBManagerOpenDBRead(mgr, &child, NULL, "%s", name);
 
     if (rc == 0) {
-        rc = verify_database(child, name, nodes, names);
+        rc = verify_database(pb, child, name, nodes, names);
         VDatabaseRelease(child);
     }
 
@@ -2650,6 +2684,17 @@ static const char *USAGE_REF_INT[] =
 #define ALIAS_REF_INT  "I"
 #define OPTION_REF_INT "REFERENTIAL-INTEGRITY"
 
+#define OPTION_SDC_ROWS "sdc:rows"
+static const char *USAGE_SDC_ROWS[] =
+{ "Specify maximum amount of secondary alignment rows to look at before saying accession is good, default 100000.",
+  "Specifying 0 will iterate the whole table. Can be in percent (e.g. 5%)",
+  NULL };
+
+#define OPTION_SDC_PLEN_THOLD "sdc:plen_thold"
+static const char *USAGE_SDC_PLEN_THOLD[] =
+{ "Specify a threshold for amount of secondary alignment which are shorter (hard-clipped) than corresponding primaries, default 1%.", NULL };
+
+
 static const char *USAGE_DRI[] =
 { "Do not check data referential integrity for databases", NULL };
 
@@ -2668,6 +2713,10 @@ static OptDef options [] =
   , { OPTION_REF_INT , ALIAS_REF_INT , NULL, USAGE_REF_INT , 1, true , false }
   , { OPTION_CNS_CHK , ALIAS_CNS_CHK , NULL, USAGE_CNS_CHK , 1, true , false }
 
+    /* secondary alignment table data check options */
+  , { OPTION_SDC_ROWS, NULL          , NULL, USAGE_SDC_ROWS, 1, true , false }
+  , { OPTION_SDC_PLEN_THOLD, NULL    , NULL, USAGE_SDC_PLEN_THOLD, 1, true , false }
+
     /* not printed by --help */
   , { "dri"          , NULL          , NULL, USAGE_DRI     , 1, false, false }
   , { "index-only"   ,NULL           , NULL, USAGE_IND_ONLY, 1, false, false }
@@ -2677,6 +2726,7 @@ static OptDef options [] =
   , { OPTION_blob_crc, ALIAS_blob_crc, NULL, USAGE_BLOB_CRC, 1, false, false }
   , { OPTION_ref_int , ALIAS_ref_int , NULL, USAGE_REF_INT , 1, false, false }
 };
+
 /*
 #define NUM_SILENT_TRAILING_OPTIONS 5
 
@@ -2719,6 +2769,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine(ALIAS_REF_INT , OPTION_REF_INT , "yes | no", USAGE_REF_INT);
     HelpOptionLine(ALIAS_CNS_CHK , OPTION_CNS_CHK , "yes | no", USAGE_CNS_CHK);
     HelpOptionLine(ALIAS_EXHAUSTIVE, OPTION_EXHAUSTIVE, NULL, USAGE_EXHAUSTIVE);
+    HelpOptionLine(NULL          , OPTION_SDC_ROWS, "rows"    , USAGE_SDC_ROWS);
+    HelpOptionLine(NULL          , OPTION_SDC_PLEN_THOLD, "threshold", USAGE_SDC_PLEN_THOLD);
 
 /*
 #define NUM_LISTABLE_OPTIONS \
@@ -2753,6 +2805,10 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
     pb->consist_check = false;
     ref_int_check = pb -> blob_crc
         = pb -> md5_chk_explicit = md5_required = true;
+    pb -> sdc_rows_in_percent = false;
+    pb -> sdc_rows.number = 100000;
+    pb -> sdc_pa_len_thold_in_percent = true;
+    pb -> sdc_pa_len_thold.percent = 0.01;
 
   {
     rc = ArgsOptionCount(args, OPTION_CNS_CHK, &cnt);
@@ -2858,6 +2914,112 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
         }
     }
   }
+  {
+      rc = ArgsOptionCount ( args, OPTION_SDC_ROWS, &cnt );
+      if (rc)
+      {
+          LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_ROWS);
+          return rc;
+      }
+
+      if (cnt > 0)
+      {
+          uint64_t value;
+          size_t value_size;
+          rc = ArgsOptionValue ( args, OPTION_SDC_ROWS, 0, (const void **) &dummy );
+          if (rc)
+          {
+              LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_ROWS);
+              return rc;
+          }
+
+          pb->sdc_enabled = true;
+
+          value_size = string_size ( dummy );
+          if ( value_size >= 1 && dummy[value_size - 1] == '%' )
+          {
+              value = string_to_U64 ( dummy, value_size - 1, &rc );
+              if (rc)
+              {
+                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_ROWS);
+                  return rc;
+              }
+              else if (value == 0 || value > 100)
+              {
+                  rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                  LOGERR (klogInt, rc, OPTION_SDC_ROWS " has illegal percentage value (has to be 1-100%)" );
+                  return rc;
+              }
+
+              pb->sdc_rows_in_percent = true;
+              pb->sdc_rows.percent = (double)value / 100;
+          }
+          else
+          {
+              value = string_to_U64 ( dummy, value_size, &rc );
+              if (rc)
+              {
+                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_ROWS);
+                  return rc;
+              }
+              pb->sdc_rows_in_percent = false;
+              pb->sdc_rows.number = value;
+          }
+      }
+  }
+  {
+        rc = ArgsOptionCount ( args, OPTION_SDC_PLEN_THOLD, &cnt );
+        if (rc)
+        {
+            LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_PLEN_THOLD);
+            return rc;
+        }
+
+        if (cnt > 0)
+        {
+            uint64_t value;
+            size_t value_size;
+            rc = ArgsOptionValue ( args, OPTION_SDC_PLEN_THOLD, 0, (const void **) &dummy );
+            if (rc)
+            {
+                LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_PLEN_THOLD);
+                return rc;
+            }
+
+            pb->sdc_enabled = true;
+
+            value_size = string_size ( dummy );
+            if ( value_size >= 1 && dummy[value_size - 1] == '%' )
+            {
+                value = string_to_U64 ( dummy, value_size - 1, &rc );
+                if (rc)
+                {
+                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_PLEN_THOLD);
+                    return rc;
+                }
+                else if (value == 0 || value > 100)
+                {
+                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                    LOGERR (klogInt, rc, OPTION_SDC_PLEN_THOLD " has illegal percentage value (has to be 1-100%)" );
+                    return rc;
+                }
+
+                pb->sdc_pa_len_thold_in_percent = true;
+                pb->sdc_pa_len_thold.percent = (double)value / 100;
+            }
+            else
+            {
+                value = string_to_U64 ( dummy, value_size, &rc );
+                if (rc)
+                {
+                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_PLEN_THOLD);
+                    return rc;
+                }
+                pb->sdc_pa_len_thold_in_percent = false;
+                pb->sdc_pa_len_thold.number = value;
+            }
+        }
+    }
 
     if ( pb -> blob_crc || pb -> index_chk )
         pb -> md5_chk = pb -> md5_chk_explicit;

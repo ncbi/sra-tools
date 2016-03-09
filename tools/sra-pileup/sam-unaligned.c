@@ -90,6 +90,7 @@ static rc_t prepare_prim_table_ctx( const samdump_opts * const opts,
 #define COL_QUALITY "(INSDC:quality:phred)QUALITY"
 #define COL_SPOT_GROUP "(ascii)SPOT_GROUP"
 #define COL_NAME "(ascii)NAME"
+#define COL_LNK_GROUP "(ascii)LINKAGE_GROUP"
 
 typedef struct seq_table_ctx
 {
@@ -105,6 +106,7 @@ typedef struct seq_table_ctx
     uint32_t quality_idx;
     uint32_t spot_group_idx;
     uint32_t name_idx;
+    uint32_t lnk_group_idx;
 } seq_table_ctx;
 
 
@@ -134,7 +136,8 @@ static rc_t prepare_seq_table_ctx( const samdump_opts * const opts,
             add_opt_column( stx->cursor, available_columns, COL_ALIGN_COUNT, &stx->align_count_idx ); /* read_fkt.c */
             add_opt_column( stx->cursor, available_columns, COL_PRIM_AL_ID, &stx->prim_al_id_idx );
             add_opt_column( stx->cursor, available_columns, COL_NAME, &stx->name_idx );
-
+            add_opt_column( stx->cursor, available_columns, COL_LNK_GROUP, &stx->lnk_group_idx );
+            
             if ( rc == 0 )
                 rc = add_column( stx->cursor, COL_READ_TYPE, &stx->read_type_idx ); /* read_fkt.c */
             if ( rc == 0 )
@@ -563,6 +566,26 @@ static bool calc_reverse_flag( const samdump_opts * const opts,
 }
 
 
+static rc_t opt_field_spot_group( const seq_table_ctx * const stx, int64_t row_id )
+{
+    const char * spot_group = NULL;
+    uint32_t spot_group_len;    
+    rc_t rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+    if ( rc == 0 && spot_group_len > 0 )
+        rc = KOutMsg( "\tRG:Z:%.*s", spot_group_len, spot_group );
+    return rc;
+}
+
+static rc_t opt_field_lnk_group( const seq_table_ctx * const stx, int64_t row_id )
+{
+    const char * lnk_grp;
+    uint32_t lnk_grp_len;
+    rc_t rc = read_char_ptr( row_id, stx->cursor, stx->lnk_group_idx, &lnk_grp, &lnk_grp_len, "LINKAGE_GROUP" );
+    if ( rc == 0 && lnk_grp_len > 0 )
+        rc = KOutMsg( "\tBX:Z:%.*s", lnk_grp_len, lnk_grp );
+    return rc;
+}
+
 static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
                                        const seq_table_ctx * const stx,
                                        const prim_table_ctx * const ptx,
@@ -571,9 +594,8 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
                                        const int64_t row_id,
                                        const uint32_t nreads )
 {
-    uint32_t read_idx, rd_len, prim_align_ids_len, spot_group_len;
+    uint32_t read_idx, rd_len, prim_align_ids_len;
     const int64_t * prim_align_ids;
-    const char * spot_group = NULL;
     const char * quality = NULL;
     const INSDC_dna_text * read = NULL;
     const INSDC_read_type * read_type = NULL;
@@ -683,16 +705,18 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
                             if ( rc == 0 )
                                 rc = print_sliced_quality( opts, quality, read_idx, reverse, read_start, read_len );
 
-                            /* OPT SAM-FIIELD:      SRA-column: ALIGN_ID */
+                            /* OPT SAM-FIELD:       SRA-column: ALIGN_ID */
                             if ( rc == 0 && opts->print_alignment_id_in_column_xi )
                                 rc = KOutMsg( "\tXI:i:%u", row_id );
 
-                            /* OPT SAM-FIIELD:      SRA-column: SPOT_GROUP */
-                            if ( rc == 0 && spot_group == NULL )
-                                rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
-                            if ( rc == 0 && spot_group_len > 0 )
-                                rc = KOutMsg( "\tRG:Z:%.*s", spot_group_len, spot_group );
+                            /* OPT SAM-FIELD:      SRA-column: SPOT_GROUP */
+                            if ( rc == 0 && stx->spot_group_idx != COL_NOT_AVAILABLE )
+                                rc = opt_field_spot_group( stx, row_id );
 
+                            /* OPT SAM-FIELD:       SRA-column: LINKAGE_GROUP */
+                            if ( rc == 0 && stx->lnk_group_idx != COL_NOT_AVAILABLE )
+                                rc = opt_field_lnk_group( stx, row_id );
+                            
                             if ( rc == 0 )
                                 rc = KOutMsg( "\n" );
                         }
@@ -717,9 +741,8 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
                                    const int64_t row_id,
                                    const uint32_t nreads )
 {
-    uint32_t read_idx, rd_len, prim_align_ids_len, spot_group_len;
+    uint32_t read_idx, rd_len, prim_align_ids_len;
     const int64_t * prim_align_ids;
-    const char * spot_group = NULL;
     const char * quality = NULL;
     const INSDC_dna_text * read = NULL;
     const INSDC_read_type * read_type = NULL;
@@ -850,10 +873,12 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
                 rc = KOutMsg( "\tXI:i:%u", row_id );
 
             /* OPT SAM-FIIELD:      SRA-column: SPOT_GROUP */
-            if ( rc == 0 && spot_group == NULL )
-                rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
-            if ( rc == 0 && spot_group_len > 0 )
-                rc = KOutMsg( "\tRG:Z:%.*s", spot_group_len, spot_group );
+            if ( rc == 0 && stx->spot_group_idx != COL_NOT_AVAILABLE )
+                rc = opt_field_spot_group( stx, row_id );
+
+            /* OPT SAM-FIELD:       SRA-column: LINKAGE_GROUP */
+            if ( rc == 0 && stx->lnk_group_idx != COL_NOT_AVAILABLE )
+                rc = opt_field_lnk_group( stx, row_id );
 
             if ( rc == 0 )
                 rc = KOutMsg( "\n" );
@@ -869,8 +894,7 @@ static rc_t dump_seq_row_sam( const samdump_opts * const opts,
                               const int64_t row_id,
                               const uint32_t nreads )
 {
-    uint32_t read_idx, rd_len, spot_group_len, name_len;
-    const char * spot_group = NULL;
+    uint32_t read_idx, rd_len, name_len;
     const char * quality = NULL;
     const char * name = NULL;
     const INSDC_dna_text * read = NULL;
@@ -963,10 +987,12 @@ static rc_t dump_seq_row_sam( const samdump_opts * const opts,
                 rc = KOutMsg( "\tXI:i:%u", row_id );
 
             /* OPT SAM-FIIELD:      SRA-column: SPOT_GROUP */
-            if ( rc == 0 && spot_group == NULL )
-                rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
-            if ( rc == 0 && ( spot_group != NULL ) && ( spot_group_len > 0 ) )
-                rc = KOutMsg( "\tRG:Z:%.*s", spot_group_len, spot_group );
+            if ( rc == 0 && stx->spot_group_idx != COL_NOT_AVAILABLE )
+                rc = opt_field_spot_group( stx, row_id );
+
+            /* OPT SAM-FIELD:       SRA-column: LINKAGE_GROUP */
+            if ( rc == 0 && stx->lnk_group_idx != COL_NOT_AVAILABLE )
+                rc = opt_field_lnk_group( stx, row_id );
 
             if ( rc == 0 )
                 rc = KOutMsg( "\n" );

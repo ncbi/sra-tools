@@ -159,11 +159,13 @@ if remote_md5 != EXP_MD5 :
 else :
     print "full donwload ok in %d ms"%( t_full.microseconds )
 
+'''---------------------------------------------------------------------
 if t_full >= t_partial :
     print "timing problem: full download should be faster than partial download"
     sys.exit( -1 )
 else :
     print "timing ok: full download is faster than partial download"
+---------------------------------------------------------------------'''
 
 try:
     os.remove( ACC )

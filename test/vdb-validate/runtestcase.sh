@@ -28,7 +28,6 @@ TEST_CMD=$1
 CASEID=$2
 RC=$3
 
-#CMD="$TEST_CMD 2>&1 | awk '{if(substr(\$2,0,12) == \"vdb-validate\"){\$2=\$1=\"\";} print \$0}' | sed 's/^[ \t]*//g' | sed 's/: .*:[0-9]*:[^ ]*:/:/g' > \"actual/$CASEID\""
 CMD="$TEST_CMD > \"actual/$CASEID.tmp\" 2>&1"
 #echo $CMD
 eval $CMD
@@ -45,7 +44,7 @@ if [ "$rc" != "$RC" ] ; then
 fi
 
 # remove first two columns from output: datetime and progname 
-cat "actual/$CASEID.tmp" | awk '{if(substr($2,0,12) == "vdb-validate"){$2=$1="";} print $0}' > "actual/$CASEID"
+cat "actual/$CASEID.tmp" | awk '{if(substr($2,1,12) == "vdb-validate"){$2=$1="";} print $0}' > "actual/$CASEID"
 rm "actual/$CASEID.tmp"
 
 # remove trailing white spaces

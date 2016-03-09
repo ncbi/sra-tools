@@ -714,6 +714,7 @@ static rc_t get_schema_info(KMetadata const *meta, char buffer[], size_t bsz,
                 }
             }
         }
+        KMDataNodeRelease(node);
     }
     return rc;
 }
@@ -736,7 +737,12 @@ static rc_t get_db_schema_info(VDatabase const *db, char buffer[], size_t bsz,
     rc_t rc = VDatabaseOpenMetadataRead(db, &meta);
 
     *(*vers = &buffer[0]) = '\0';
-    if (rc == 0) rc = get_schema_info(meta, buffer, bsz, vers);
+    if (rc == 0)
+    {
+        rc = get_schema_info(meta, buffer, bsz, vers);
+        KMetadataRelease(meta);
+    }
+
     return rc;
 }
 

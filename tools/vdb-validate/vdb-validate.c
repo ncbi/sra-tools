@@ -1826,7 +1826,7 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
                 {
                     if (!reported_about_no_pa)
                     {
-                        PLOGMSG (klogInfo, (klogInfo, "Database '$(name)' has secondary alignments without primary", "name=%s", dbname));
+                        PLOGMSG (klogWarn, (klogWarn, "Database '$(name)' has secondary alignments without primary", "name=%s", dbname));
                         reported_about_no_pa = true;
                     }
                 }
@@ -1859,7 +1859,6 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
                 }
 
                 seq_read_lens[sec_row_id - chunk] = ((const uint32_t *)data_ptr)[seq_read_id - 1];
-                seq_read_lens[sec_row_id - chunk] = sec_row_id - chunk;
                 DBG_MSG(("SEQUENCE:%ld READ_LEN column = %u\n", seq_spot_id, seq_read_lens[sec_row_id - chunk]));
             }
 
@@ -1892,7 +1891,6 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
                     break;
                 }
                 pri_len_pairs[sec_i_orig].second = pri_len;
-                pri_len_pairs[sec_i_orig].second = sec_i_orig;
                 DBG_MSG(("PRIMARY_ALIGNMENT:%ld HAS_REF_OFFSET column len = %u\n", pri_len_pairs[sec_i_orig].first, pri_len_pairs[sec_i_orig].second));
             }
             if (rc != 0)
@@ -1920,7 +1918,6 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
                                             "name=%s,ROW_ID=%ld", dbname, sec_row_id));
                     break;
                 }
-                sec_row_len = i;
                 DBG_MSG(("SECONDARY_ALIGNMENT:%ld HAS_REF_OFFSET column len = %u\n", sec_row_id, sec_row_len));
 
                 if ( has_tmp_mismatch )

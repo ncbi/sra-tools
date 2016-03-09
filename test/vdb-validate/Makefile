@@ -22,37 +22,42 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/vdb-validate
 
-include $(TOP)/build/Makefile.config
+TEST_TOOLS = \
+
+ALL_TOOLS = \
+	$(TEST_TOOLS) \
+
+include $(TOP)/build/Makefile.env
+
+$(ALL_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean
 
 #-------------------------------------------------------------------------------
-# default
+# ref-variation tool tests
 #
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-	kget            \
-	general-loader  \
-	vschema         \
-	align-info      \
-	vdb-dump        \
-	ref-variation   \
-	vdb-validate    \
+runtests: vdb-validate
 
-# under construction    
-#    ngs-pileup      \
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
+vdb-validate: $(BINDIR)/vdb-validate
+	@ echo "Starting vdb-validate tests..."
+	@ rm -rf actual/
+	@ mkdir actual/
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_tmp_mismatch.csra --sdc:rows 100%" sdc_tmp_mismatch 3
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_pa_longer.csra --sdc:rows 100%" sdc_pa_longer_1 3
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_pa_longer.csra --sdc:rows 100% --sdc:plen_thold 50%" sdc_pa_longer_2 3
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_pa_longer.csra --sdc:rows 100% --sdc:plen_thold 51%" sdc_pa_longer_3 0
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra --sdc:rows 100% --sdc:plen_thold 1%" sdc_len_mismatch_1 3
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra --sdc:rows 100% --sdc:plen_thold 100%" sdc_len_mismatch_2 3
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra" no_sdc_checks 0
+	@ echo "All vdb-validate tests succeed"
+	@ rm -rf actual/
+	

@@ -96,6 +96,14 @@
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
 
+#define SDC_ROW_CHUNK_MAX 8ull*1024ull*1024ull
+
+#if 0
+#define DBG_MSG(args) KOutMsg args
+#else
+#define DBG_MSG(args)
+#endif
+
 static bool exhaustive;
 static bool md5_required;
 static bool ref_int_check;
@@ -1560,12 +1568,6 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
     return rc;
 }
 
-#define PRI_LEN_THRESHOLD 0.01
-#define SEC_ROW_LIMIT 100000
-#define SEC_ROW_CHUNK_MAX 8ull*1024ull*1024ull
-//#define DBG_MSG(args) KOutMsg args
-#define DBG_MSG(args)
-
 /* referential integrity and data checks for secondary alignment table */
 static rc_t ridc_align_sec(const vdb_validate_params *pb,
                           char const dbname[],
@@ -1686,7 +1688,7 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
 
     if (rc == 0)
     {
-        chunk_size = sec_row_count > SEC_ROW_CHUNK_MAX ? SEC_ROW_CHUNK_MAX : sec_row_count;
+        chunk_size = sec_row_count > SDC_ROW_CHUNK_MAX ? SDC_ROW_CHUNK_MAX : sec_row_count;
 
         pri_id_pairs = malloc(sizeof(*pri_id_pairs) * chunk_size);
         pri_len_pairs = malloc(sizeof(*pri_len_pairs) * chunk_size);

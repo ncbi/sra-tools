@@ -1741,6 +1741,7 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
             int64_t last_pri_row_id = INT64_MIN;
             bool ordered = true;
 
+            // Load chunk of SEQ_SPOT_ID and sort ids for faster data retrieval
             for ( i = 0; i < i_count; ++i )
             {
                 int64_t seq_spot_id;
@@ -1799,6 +1800,7 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
                 sort_key_pairs(i_count, seq_spot_id_pairs);
             }
 
+            // Load chunk of PRIMARY_ALIGNMENT_ID (and some other fields) and sort ids for faster data retrieval
             ordered = true;
             for ( i = 0; i < i_count; ++i )
             {
@@ -1904,6 +1906,7 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
             if (rc != 0)
                 break;
 
+            // Iterate over SECONDARY_ALIGNMENT chunk, having data from other table chunks already loaded
             for ( i = 0; i < i_count; ++i )
             {
                 int64_t pri_row_id = pri_len_pairs[i].first;

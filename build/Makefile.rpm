@@ -50,10 +50,10 @@ clean_rpm:
 	rm -rf $(DST) $(RPM) $(SPEC) $(SRC) $(TGZ)
 
 rpm: $(RPM)
-	echo 'DEBUGGING RPM: rpm'
+#	echo DEBUGGING RPM: rpm $(TOP)/$(MODULE)
 
 $(RPM): $(SPEC) $(SRC)
-	echo 'DEBUGGING RPM: (RPM)'
+#	echo 'DEBUGGING RPM: (RPM)'
 	rpmbuild --define "_topdir $(PKGDIR)"  --define "_tmppath %{_topdir}/tmp" \
 	    -bb $(SPEC)
 
@@ -79,7 +79,7 @@ $(DST)/etc/ncbi/vdb-copy.kfg: $(DST)
 	rsync $(VERBOSE) -l --chmod=g-w $(BINDIR)/ncbi/vdb-copy.kfg $@
 
 $(DST): $(PKGDIR)
-	echo 'DEBUGGING RPM: (DST)'
+#	echo 'DEBUGGING RPM: (DST)'
 	mkdir $(VERBOSE) -p $(DST)/etc/ncbi
 	mkdir $(VERBOSE) -p $(DST)/usr/bin
 	$(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.rpm \
@@ -96,13 +96,13 @@ $(PKGDIR):
 	mkdir $(VERBOSE) -p $@/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
 
 $(TOOLS_TO_INSTALL):
-	echo 'DEBUGGING RPM: (TOOLS_TO_INSTALL)'
+#	echo 'DEBUGGING RPM: (TOOLS_TO_INSTALL)'
 	- ( test -f $(BINDIR)/$@ || ( echo "$@ not found" && false ) ) && \
 		rsync $(VERBOSE) -l $(BINDIR)/$@ $(BINDIR)/$@$(VERSION_EXEX) \
 			$(BINDIR)/$@$(MAJVERS_EXEX) $(DST)/usr/bin
 
-$(SPEC): $(PKGDIR)
-	echo 'DEBUGGING RPM: (SPEC)'
+$(SPEC): $(PKGDIR) $(TOP)/build/Makefile.rpm
+#	echo 'DEBUGGING RPM: (SPEC)'
 	mkdir -p $(PKGDIR)/SPECS
 	printf \
 "%%define        __spec_install_post %%{nil}\n"\
@@ -145,4 +145,21 @@ $(SPEC): $(PKGDIR)
 "/etc/ncbi/*\n"\
 "/usr/share/ncbi/schema/*/*\n"\
 "\n"\
-"%%changelog\n" > $@
+"%%post\n"\
+"if [ -e /etc/profile.d/sra-tools.csh ] || [ -e /etc/profile.d/sra-tools.sh  ]"\
+"\n"\
+"then\n"\
+"    FOUND=1\n"\
+"fi\n"\
+'if [ "$$FOUND" != "" ] ; then'\
+"\n"\
+"    echo User installation of sra-tools is found.\n"\
+"    if [ -e /etc/profile.d/sra-tools.csh ] ; then\n"\
+"        mv -v /etc/profile.d/sra-tools.csh /etc/profile.d/sra-tools.csh.bak\n"\
+"    fi\n"\
+"    if [ -e /etc/profile.d/sra-tools.sh ] ; then\n"\
+"        mv -v /etc/profile.d/sra-tools.sh /etc/profile.d/sra-tools.sh.bak\n"\
+"    fi\n"\
+"    echo /etc/profile.d/sra-tools.[c]sh was updated.\n"\
+"    echo You might need to relogin to have your PATH variable updated.\n"\
+"fi\n" > $@

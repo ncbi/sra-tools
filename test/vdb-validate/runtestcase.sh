@@ -1,3 +1,4 @@
+#!/bin/bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -21,38 +22,40 @@
 #  Please cite the author in any work or product based on this material.
 #
 # ===========================================================================
+#echo "$0 $*"
 
-by_default: runtests
+TEST_CMD=$1
+CASEID=$2
+RC=$3
 
-TOP ?= $(abspath ..)
-MODULE = test
+CMD="$TEST_CMD > \"actual/$CASEID.tmp\" 2>&1"
+#echo $CMD
+eval $CMD
+rc="$?"
 
-include $(TOP)/build/Makefile.shell
+if [ "$rc" != "$RC" ] ; then
+    echo "command \"$TEST_CMD\" returned $rc, expected $RC"
+    echo "command executed:"
+    echo $CMD
 
-include $(TOP)/build/Makefile.config
+	echo "command output:"
+    cat actual/$CASEID.tmp
+    exit 2
+fi
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-	kget            \
-	general-loader  \
-	vschema         \
-	align-info      \
-	vdb-dump        \
-	ref-variation   \
-	vdb-validate    \
+# remove first two columns from output: datetime and progname 
+cat "actual/$CASEID.tmp" | awk '{if(substr($2,1,12) == "vdb-validate"){$2=$1="";} print $0}' > "actual/$CASEID"
+rm "actual/$CASEID.tmp"
 
-# under construction    
-#    ngs-pileup      \
+# remove trailing white spaces
+sed -i -e 's/^[ \t]*//g' "actual/$CASEID"
+# remove file names and line numbers
+sed -i -e 's/: .*:[0-9]*:[^ ]*:/:/g' "actual/$CASEID"
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+diff expected/$CASEID actual/$CASEID
+rc="$?"
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
+if [ "$rc" != "0" ] ; then
+    exit 3
+fi
 

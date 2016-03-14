@@ -110,7 +110,7 @@ valgrind_test:
 #
 ifeq (mac,$(OS))
 rpm:
-	@ echo "Not making RMP on Mac"
+	@ echo "Not making rpm on Mac"
 clean_rpm:
 else
 rpm: std
@@ -124,20 +124,12 @@ endif
 #
 ifeq (mac,$(OS))
 deb: std
-	@ $(MAKE)       deb -s TOP=$(CURDIR) -f build/Makefile.deb
-clean_deb:
-	@ $(MAKE) clean_deb -s TOP=$(CURDIR) -f build/Makefile.deb
 else
 deb:
-ifeq (Ubuntu,$(OS_DISTRIBUTOR))
+endif
 	@ $(MAKE)       deb -s TOP=$(CURDIR) -f build/Makefile.deb
 clean_deb:
 	@ $(MAKE) clean_deb -s TOP=$(CURDIR) -f build/Makefile.deb
-else
-	@ echo "Not making Deb on $(OS_DISTRIBUTOR) $(OS)"
-clean_deb:
-endif
-endif
 
 #-------------------------------------------------------------------------------
 # pass-through targets

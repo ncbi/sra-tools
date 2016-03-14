@@ -3,8 +3,10 @@
       BIO_BASE_COUNT: 105
       CMP_BASE_COUNT: 105
           CMP_CSREAD: 12312312312312312312312312312312312
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CS_KEY: GT
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 3
          MIN_SPOT_ID: 1
                 NAME: 1
@@ -25,8 +27,10 @@ PRIMARY_ALIGNMENT_ID: 0, 0
       BIO_BASE_COUNT: 105
       CMP_BASE_COUNT: 105
           CMP_CSREAD: 12312312312312312312312312312312312
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CS_KEY: GT
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 3
          MIN_SPOT_ID: 1
                 NAME: 2
@@ -47,8 +51,10 @@ PRIMARY_ALIGNMENT_ID: 0, 0
       BIO_BASE_COUNT: 105
       CMP_BASE_COUNT: 105
           CMP_CSREAD: 12312312312312312312312312312312312
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CS_KEY: GT
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 3
          MIN_SPOT_ID: 1
                 NAME: 3

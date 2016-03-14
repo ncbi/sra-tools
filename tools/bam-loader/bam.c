@@ -3743,19 +3743,6 @@ rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
     return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
-rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
-                                    char buffer[],
-                                    size_t max_size,
-                                    size_t *act_size)
-{
-    char const *const BX = get_BX(self);
-    
-    if (BX != NULL) {
-        return string_printf(buffer, max_size, act_size, "%s", BX);
-    }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
-}
-
 rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
                                  char sequence[],
                                  uint8_t quality[])
@@ -3961,5 +3948,12 @@ rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const r
         
 	    *rslt = XS ? XS[0] : ' ';
     }
+    return 0;
+}
+
+rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
+                                  char const **name)
+{
+    *name = get_BX(self);
     return 0;
 }

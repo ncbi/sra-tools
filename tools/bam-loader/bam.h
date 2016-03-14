@@ -437,9 +437,7 @@ rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
                                               size_t *act_size);
 
 rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
-                                  char buffer[],
-                                  size_t max_size,
-                                  size_t *act_size);
+                                  char const **name);
     
     
 /*--------------------------------------------------------------------------

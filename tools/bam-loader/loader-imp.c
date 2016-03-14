@@ -91,7 +91,9 @@
 #include "low-match-count.h"
 
 #define THREADING_BAMREAD 0              /*** Reading BAM and SAM are moved to a separate thread ***/
+#if THREADING_BAMREAD
 #define THREADING_BAMREAD_PRIME_NAME2KEY 1 /*** Only valid when THREADING_BAMREAD==1. Will prime Name2Key on BAM/SAM thread ***/
+#endif
 
 #define NUM_ID_SPACES (256u)
 

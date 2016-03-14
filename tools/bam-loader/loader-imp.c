@@ -63,6 +63,11 @@
 #include <kapp/log-xml.h>
 #include <kapp/progressbar.h>
 
+#include <kproc/queue.h>
+#include <kproc/thread.h>
+#include <kproc/timeout.h>
+#include <os-native.h>
+
 #include <sysalloc.h>
 #include <atomic32.h>
 
@@ -76,14 +81,17 @@
 #include <assert.h>
 #include <limits.h>
 #include <time.h>
-
-#include "bam.h"
+#include <zlib.h>
+#include "bam-priv.h"
 #include "Globals.h"
 #include "sequence-writer.h"
 #include "reference-writer.h"
 #include "alignment-writer.h"
 #include "mem-bank.h"
 #include "low-match-count.h"
+
+#define THREADING_BAMREAD 1              /*** Reading BAM and SAM are moved to a separate thread ***/
+#define THREADING_BAMREAD_PRIME_NAME2KEY 1 /*** Only valid when THREADING_BAMREAD==1. Will prime Name2Key on BAM/SAM thread ***/
 
 #define NUM_ID_SPACES (256u)
 
@@ -171,7 +179,7 @@ typedef struct context_t {
 
 static char const *Print_ctx_value_t(ctx_value_t const *const self)
 {
-    static char buffer[4096];
+    static char buffer[16384];
     rc_t rc = string_printf(buffer, sizeof(buffer), NULL, "pid: { %lu, %lu }, sid: %lu, fid: %u, alc: { %u, %u }, flg: %x", CTX_VALUE_GET_P_ID(*self, 0), CTX_VALUE_GET_P_ID(*self, 1), CTX_VALUE_GET_S_ID(*self), self->fragmentId, self->alignmentCount[0], self->alignmentCount[1], *(self->alignmentCount + sizeof(self->alignmentCount)/sizeof(self->alignmentCount[0])));
 
     if (rc)
@@ -1373,6 +1381,55 @@ static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint
     return 0;
 }
 
+static context_t GlobalContext;
+
+#if THREADING_BAMREAD
+timeout_t bamq_tm;
+KQueue  *bamq;
+rc_t run_bamread_thread( const KThread *self, void *data )
+{
+	const BAM_Alignment *rec;
+	const BAM_File *bam=data;
+	rc_t  rc=0;
+
+	while(rc==0){
+		bool done=false;
+		rec=NULL;
+		rc = BAM_FileRead2(bam, &rec, true);
+#if THREADING_BAMREAD_PRIME_NAME2KEY
+		if(rc==0){
+    		size_t   namelen;
+            const char *spotGroup;
+            const char *name;
+			char       dummy[]="";
+			BAM_Alignment *mrec=(BAM_Alignment*)rec;
+			  
+            BAM_AlignmentGetReadName2(rec, &name, &namelen);
+            BAM_AlignmentGetReadGroupName(rec, &spotGroup);
+            rc = GetKeyID(&GlobalContext.keyToID, &mrec->keyId, &mrec->wasInserted, spotGroup?spotGroup:dummy, name, namelen);
+		}
+#endif
+	
+		if(rc==0){
+			while(!done){
+				rc=KQueuePush(bamq,rec,&bamq_tm);
+				if(rc== 0){
+					done=true;
+				} else if (GetRCObject(rc)==rcTimeout){
+        			/*(void)PLOGMSG(klogInfo, (klogInfo, "KQueuePush Waiting", NULL));*/
+					rc =0;
+				}
+			}
+		} else {
+			KQueueSeal(bamq);
+		}
+	}
+	return rc;
+}
+#endif
+
+
+
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                        Reference *ref, Sequence *seq, Alignment *align,
                        bool *had_alignments, bool *had_sequences)
@@ -1407,6 +1464,9 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     char alignGroup[32];
     size_t alignGroupLen;
     AlignmentRecord data;
+#if THREADING_BAMREAD
+	KThread *bamread_thread=NULL;
+#endif
 
     memset(&data, 0, sizeof(data));
 
@@ -1456,6 +1516,15 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     if (rc == 0) {
         (void)PLOGMSG(klogInfo, (klogInfo, "Loading '$(file)'", "file=%s", bamFile));
     }
+
+#if THREADING_BAMREAD
+	TimeoutInit(&bamq_tm,10000);
+	rc = KQueueMake (&bamq,4096);
+	if(rc) return rc;
+	rc = KThreadMake(&bamread_thread,run_bamread_thread,(void*)bam);
+	if(rc) return rc;
+#endif
+
     while (rc == 0 && (rc = Quitting()) == 0) {
         bool aligned;
         uint32_t readlen;
@@ -1479,8 +1548,31 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         int lpad = 0;
         int rpad = 0;
         bool hardclipped = false;
-
-        rc = BAM_FileRead2(bam, &rec);
+#if THREADING_BAMREAD
+		{
+			bool done=false;
+			while(!done){
+				rc = KQueuePop (bamq, (void**)&rec, &bamq_tm);
+				if(rc== 0){
+                    done=true;
+                } else if (GetRCObject(rc)==rcTimeout){
+        			/*(void)PLOGMSG(klogInfo, (klogInfo, "KQueuePop Waiting", NULL));*/
+                    rc =0;
+                } else {
+					if(GetRCObject(rc)==rcData && GetRCState(rc)==rcDone)
+                        (void)PLOGMSG(klogInfo, (klogInfo, "KQueuePop Done", NULL));
+					else
+					    (void)PLOGERR(klogWarn, (klogWarn, rc, "KQueuePop Error", NULL));
+					done=true;
+					KThreadWait(bamread_thread,&rc);
+					KThreadRelease(bamread_thread);
+					bamread_thread=NULL;
+				}
+			}
+		}
+#else
+        rc = BAM_FileRead2(bam, &rec, false);
+#endif
         if (rc) {
             if (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound) {
                 (void)PLOGMSG(klogInfo, (klogInfo, "EOF '$(file)'; read $(read); processed $(proc)", "file=%s,read=%lu,proc=%lu", bamFile, (unsigned long)recordsRead, (unsigned long)recordsProcessed));
@@ -1507,7 +1599,6 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                 progress = new_value;
             }
         }
-
 
         if (!G.noColorSpace) {
             if (BAM_AlignmentHasColorSpace(rec)) {
@@ -1766,7 +1857,12 @@ MIXED_BASE_AND_COLOR:
             assert(!"this shouldn't happen");
             goto LOOP_END;
         }
-        rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
+#if THREADING_BAMREAD_PRIME_NAME2KEY
+		keyId = rec->keyId;
+		wasInserted = rec->wasInserted;
+#else
+		rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
+#endif
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
             goto LOOP_END;
@@ -2002,7 +2098,7 @@ WRITE_SEQUENCE:
                     int64_t pnext = 0;
 
                     if (!isPrimary) {
-                        if (!G.assembleWithSecondary) {
+                        if (!G.assembleWithSecondary || hardclipped) { 
                             goto WRITE_ALIGNMENT;
                         }
                         (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2099,7 +2195,7 @@ WRITE_SEQUENCE:
                         uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
                         
                         if (!isPrimary) {
-                            if (!G.assembleWithSecondary) {
+                            if (!G.assembleWithSecondary || hardclipped ) {
                                 goto WRITE_ALIGNMENT;
                             }
                             (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2184,7 +2280,7 @@ WRITE_SEQUENCE:
                 unsigned readLen[1];
 
                 if (!isPrimary) {
-                    if (!G.assembleWithSecondary) {
+                    if (!G.assembleWithSecondary || hardclipped ) {
                         goto WRITE_ALIGNMENT;
                     }
                     (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2318,6 +2414,17 @@ WRITE_ALIGNMENT:
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
+#if THREADING_BAMREAD
+	KQueueRelease(bamq); bamq=NULL;
+	if(bamread_thread) {
+		rc_t rc1;
+		KThreadWait(bamread_thread,&rc1);
+		if(rc == 0){
+			rc=rc1;
+		}
+		KThreadRelease(bamread_thread);
+	}
+#endif
     BAM_FileRelease(bam);
     MMArrayLock(ctx->id2value);
     KDataBufferWhack(&buf);
@@ -2461,7 +2568,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         }
         {{
             int64_t primaryId[2];
-            int const logLevel = G.assembleWithSecondary ? klogWarn : klogErr;
+            int const logLevel = klogWarn; /*G.assembleWithSecondary ? klogWarn : klogErr;*/
 
             primaryId[0] = CTX_VALUE_GET_P_ID(*value, 0);
             primaryId[1] = CTX_VALUE_GET_P_ID(*value, 1);
@@ -2529,6 +2636,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
     return rc;
 }
 
+
 static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
                        unsigned bamFiles, char const *bamFile[],
                        unsigned seqFiles, char const *seqFile[],
@@ -2540,8 +2648,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     Reference ref;
     Sequence seq;
     Alignment *align;
-    static context_t Ctx;
-    static context_t *ctx = &Ctx;
+    static context_t *ctx = &GlobalContext;
     bool has_sequences = false;
     unsigned i;
 

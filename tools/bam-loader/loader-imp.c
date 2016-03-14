@@ -1419,6 +1419,8 @@ rc_t run_bamread_thread( const KThread *self, void *data )
 				} else if (GetRCObject(rc)==rcTimeout){
         			/*(void)PLOGMSG(klogInfo, (klogInfo, "KQueuePush Waiting", NULL));*/
 					rc =0;
+				} else {
+					done=true;
 				}
 			}
 		} else {
@@ -2503,6 +2505,7 @@ WRITE_ALIGNMENT:
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
 #if THREADING_BAMREAD
+	KQueueSeal(bamq);
 	KQueueRelease(bamq); bamq=NULL;
 	if(bamread_thread) {
 		rc_t rc1;

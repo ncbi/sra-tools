@@ -59,9 +59,6 @@ TEST_NGS_PILEUP_LIB =   \
 $(TEST_BINDIR)/test-ngs-pileup: $(TEST_NGS_PILEUP_OBJ)
 	$(LP) --exe -o $@ $^ $(TEST_NGS_PILEUP_LIB)
 
-valgrind_ngs_pileup: test-ngs-pileup
-	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $(TEST_BINDIR)/test-ngs-pileup 
-    
 #-------------------------------------------------------------------------------
 # slowtests: match output vs sra-pileup
 #

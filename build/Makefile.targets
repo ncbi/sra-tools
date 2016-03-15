@@ -29,6 +29,7 @@
 #   clean
 #   runtests
 #   slowtests
+#   valgrind
 #
 # requires $(SUBDIRS) to be defined
 #
@@ -101,4 +102,16 @@ $(SUBDIRS_SLOWTESTS):
 	@ $(MAKE) -C $(subst _slowtests,,$@) slowtests
 
 .PHONY: slowtests $(SUBDIRS_SLOWTESTS)
+
+#-------------------------------------------------------------------------------
+# valgrind
+#
+SUBDIRS_VALGRIND ?= $(addsuffix _valgrind, $(SUBDIRS))
+
+valgrind: $(SUBDIRS_VALGRIND)
+
+$(SUBDIRS_VALGRIND):
+	@ $(MAKE) -C $(subst _valgrind,,$@) valgrind
+
+.PHONY: valgrind $(SUBDIRS_VALGRIND)
 

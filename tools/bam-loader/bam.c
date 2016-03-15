@@ -499,6 +499,12 @@ static struct offset_size_s const *get_CG_GQ_info(BAM_Alignment const *cself)
     return x;
 }
 
+static char const *get_BX(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = tag_search(cself, "BX", 0);
+    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+}
+
 /* MARK: BAM_File Reading functions */
 
 /* returns (rcData, rcInsufficient) if eof */
@@ -1841,7 +1847,7 @@ static bool BAM_AlignmentIsEmpty(BAM_Alignment const *const self)
 }
 
 static
-rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment const *rslt[], bool const log)
+rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment const *rslt[], bool const log,bool MTsafe)
 {
     void *storage;
     void const *data;
@@ -1867,7 +1873,7 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment const *rslt[], bool co
         
         datasize = i32;
     }
-    if (BAM_FileMaxPeek(self) < datasize) {
+    if ( MTsafe || BAM_FileMaxPeek(self) < datasize) {
         data = storage = malloc(datasize);
         if (storage == NULL)
             return RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
@@ -2195,7 +2201,7 @@ static int SAM2BAM_ConvertEXTRA(unsigned const insize, void /* inout */ *const d
     }
 }
 
-static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rslt)
+static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rslt, bool MTsafe)
 {
     void const *const endp = self->buffer + sizeof(self->buffer);
     struct bam_alignment_s *raw = (void *)self->buffer;
@@ -2406,7 +2412,6 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
         if (field > 0)
             ++field;
     }
-
     SAM2BAM_ConvertInt(raw->rID, temp.RNAME);
     SAM2BAM_ConvertInt(raw->pos, temp.POS - 1);
     raw->read_name_len = temp.namelen;
@@ -2431,6 +2436,15 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
         
             if (BAM_AlignmentIsEmpty(y))
                 return RC(rcAlign, rcFile, rcReading, rcRow, rcEmpty);
+			if(MTsafe){ /** converting into indepenedent data storage **/
+				BAM_Alignment *m_rslt = (BAM_Alignment *) (*rslt);
+				
+				void *storage=malloc(m_rslt->datasize);
+                if(storage == NULL) return RC(rcAlign, rcFile, rcReading, rcMemory, rcExhausted);
+				memcpy(storage,raw,m_rslt->datasize);
+                m_rslt->storage=storage;
+                m_rslt->data   =storage;
+			}
             return 0;
         }
         free(y);
@@ -2438,7 +2452,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
     return RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid);
 }
 
-static rc_t read2(BAM_File *const self, BAM_Alignment const **const rhs)
+static rc_t read2(BAM_File *const self, BAM_Alignment const **const rhs, bool MTsafe)
 {
     unsigned actsize = 0;
     rc_t rc;
@@ -2447,11 +2461,14 @@ static rc_t read2(BAM_File *const self, BAM_Alignment const **const rhs)
         return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
 
     if (self->isSAM) {
-        rc = BAM_FileReadSAM(self, rhs);
+        rc = BAM_FileReadSAM(self, rhs, MTsafe);
         if (rc != 0 && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound)
             self->eof = true;
         return rc;
     }
+	if(MTsafe){
+		return BAM_FileReadCopy(self, rhs, true, true);
+	}
     if (self->nocopy == NULL) {
         size_t const size = 64u * 1024u;
         void *const temp = malloc(size);
@@ -2461,6 +2478,7 @@ static rc_t read2(BAM_File *const self, BAM_Alignment const **const rhs)
 
         self->nocopy = temp;
     }
+
 
     rc = BAM_FileReadNoCopy(self, &actsize, self->nocopy, 64u * 1024u);
     if (rc == 0) {
@@ -2476,7 +2494,7 @@ static rc_t read2(BAM_File *const self, BAM_Alignment const **const rhs)
     }
     else if (GetRCObject(rc) == (enum RCObject)rcBuffer && GetRCState(rc) == rcNotAvailable)
     {
-        rc = BAM_FileReadCopy(self, rhs, true);
+        rc = BAM_FileReadCopy(self, rhs, true, MTsafe);
     }
     else if (GetRCObject(rc) == rcRow && GetRCState(rc) == rcInvalid) {
         BAM_AlignmentLogParseError(self->nocopy);
@@ -2549,7 +2567,7 @@ static rc_t writeDefer(BAM_File *const self, BAM_Alignment const *const algn)
     return 0;
 }
 
-rc_t BAM_FileRead2(const BAM_File *cself, const BAM_Alignment **rhs)
+rc_t BAM_FileRead2(const BAM_File *cself, const BAM_Alignment **rhs, bool MTsafe)
 {
     BAM_File *const self = (BAM_File *)cself;
     
@@ -2562,7 +2580,7 @@ rc_t BAM_FileRead2(const BAM_File *cself, const BAM_Alignment **rhs)
         return readDefer(self, rhs);
     }
     for ( ; ; ) {
-        rc_t const rc = read2(self, rhs);
+        rc_t const rc = read2(self, rhs, MTsafe);
         if (rc != 0) {
             if (self->eof && self->defer != NULL) {
                 self->deferPos = 0;
@@ -3942,5 +3960,12 @@ rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const r
         
 	    *rslt = XS ? XS[0] : ' ';
     }
+    return 0;
+}
+
+rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
+                                  char const **name)
+{
+    *name = get_BX(self);
     return 0;
 }

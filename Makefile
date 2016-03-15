@@ -74,7 +74,7 @@ uninstall:
 #-------------------------------------------------------------------------------
 # clean
 #
-clean: clean_test
+clean: clean_deb clean_rpm clean_test
 
 clean_test:
 	@ $(MAKE) -s -C test clean
@@ -96,6 +96,40 @@ slowtests: slowtests_test
 
 slowtests_test:
 	@ $(MAKE) -s -C test slowtests
+
+#-------------------------------------------------------------------------------
+# valgrind
+#
+valgrind: valgrind_test
+
+valgrind_test:
+	@ $(MAKE) -s -C test valgrind
+
+#-------------------------------------------------------------------------------
+# RPM
+#
+ifeq (mac,$(OS))
+rpm:
+	@ echo "Not making rpm on Mac"
+clean_rpm:
+else
+rpm: std
+	@ $(MAKE)       rpm -s TOP=$(CURDIR) -f build/Makefile.rpm
+clean_rpm:
+	@ $(MAKE) clean_rpm -s TOP=$(CURDIR) -f build/Makefile.rpm
+endif
+
+#-------------------------------------------------------------------------------
+# DEB
+#
+ifeq (mac,$(OS))
+deb: std
+else
+deb:
+endif
+	@ $(MAKE)       deb -s TOP=$(CURDIR) -f build/Makefile.deb
+clean_deb:
+	@ $(MAKE) clean_deb -s TOP=$(CURDIR) -f build/Makefile.deb
 
 #-------------------------------------------------------------------------------
 # pass-through targets

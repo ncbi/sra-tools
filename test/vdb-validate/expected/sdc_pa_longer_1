@@ -1,0 +1,26 @@
+info: Database 'sdc_pa_longer.csra' metadata: md5 ok
+info: Table 'PRIMARY_ALIGNMENT' metadata: md5 ok
+info: Column 'HAS_MISMATCH': checksums ok
+info: Column 'HAS_REF_OFFSET': checksums ok
+info: Column 'REF_LEN': checksums ok
+info: Column 'SEQ_SPOT_ID': checksums ok
+info: Table 'REFERENCE' metadata: md5 ok
+info: Column 'CGRAPH_HIGH': checksums ok
+info: Column 'CS_KEY': checksums ok
+info: Column 'PRIMARY_ALIGNMENT_IDS': checksums ok
+info: Column 'SECONDARY_ALIGNMENT_IDS': checksums ok
+info: Column 'SEQ_LEN': checksums ok
+info: Column 'SEQ_START': checksums ok
+info: Table 'SECONDARY_ALIGNMENT' metadata: md5 ok
+info: Column 'HAS_REF_OFFSET': checksums ok
+info: Column 'REF_LEN': checksums ok
+info: Column 'SEQ_SPOT_ID': checksums ok
+info: Column 'TMP_HAS_MISMATCH': checksums ok
+info: Table 'SEQUENCE' metadata: md5 ok
+info: Column 'PRIMARY_ALIGNMENT_ID': checksums ok
+info: Column 'QUALITY': checksums ok
+info: Column 'READ_LEN': checksums ok
+info: Database 'db/sdc_pa_longer.csra': SEQUENCE.PRIMARY_ALIGNMENT_ID <-> PRIMARY_ALIGNMENT.SEQ_SPOT_ID referential integrity ok
+info: Database 'db/sdc_pa_longer.csra': REFERENCE.PRIMARY_ALIGNMENT_IDS <-> PRIMARY_ALIGNMENT.REF_ID referential integrity ok
+err: data inconsistent while validating database - Database 'db/sdc_pa_longer.csra': Limit violation (pa_longer_sa): there are at least 1 alignments where HAS_REF_OFFSET column is longer in PRIMARY_ALIGNMENT than in SECONDARY_ALIGNMENT
+err: data inconsistent while validating database - Database 'sdc_pa_longer.csra' check failed

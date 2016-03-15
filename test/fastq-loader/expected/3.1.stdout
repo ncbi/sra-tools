@@ -2,11 +2,13 @@
           BASE_COUNT: 144
       BIO_BASE_COUNT: 144
       CMP_BASE_COUNT: 144
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CSREAD: 112332022230202..1120022110..03..0..
               CS_KEY: T
            CS_NATIVE: false
       FIXED_SPOT_LEN: 36
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 4
          MIN_SPOT_ID: 1
                 NAME: 1
@@ -32,11 +34,13 @@ PRIMARY_ALIGNMENT_ID: 0
           BASE_COUNT: 144
       BIO_BASE_COUNT: 144
       CMP_BASE_COUNT: 144
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CSREAD: 122311322021001....32101321......2..
               CS_KEY: T
            CS_NATIVE: false
       FIXED_SPOT_LEN: 36
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 4
          MIN_SPOT_ID: 1
                 NAME: 2
@@ -62,11 +66,13 @@ PRIMARY_ALIGNMENT_ID: 0
           BASE_COUNT: 144
       BIO_BASE_COUNT: 144
       CMP_BASE_COUNT: 144
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CSREAD: 312102231132..2..00....12...........
               CS_KEY: T
            CS_NATIVE: false
       FIXED_SPOT_LEN: 36
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 4
          MIN_SPOT_ID: 1
                 NAME: 3
@@ -92,11 +98,13 @@ PRIMARY_ALIGNMENT_ID: 0
           BASE_COUNT: 144
       BIO_BASE_COUNT: 144
       CMP_BASE_COUNT: 144
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CSREAD: 221022311322201....30030211......3..
               CS_KEY: T
            CS_NATIVE: false
       FIXED_SPOT_LEN: 36
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 4
          MIN_SPOT_ID: 1
                 NAME: 4

@@ -141,6 +141,8 @@ struct BAM_Alignment {
     unsigned qual;
     unsigned numExtra;
     unsigned hasColor;
+	uint64_t keyId;
+	bool	wasInserted;
     struct offset_size_s extra[1];
 };
 

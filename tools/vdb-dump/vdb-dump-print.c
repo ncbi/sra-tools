@@ -75,7 +75,7 @@ static rc_t vdp_print( vdp_context * vdp_ctx, const char * fmt, ... )
         size_t available = ( vdp_ctx->buf_size - vdp_ctx->printed_so_far );
 
         va_start ( args, fmt );
-        rc = string_vprintf ( &( vdp_ctx->buf[ vdp_ctx->printed_so_far ]), available, &num_writ, fmt, args );
+        rc = string_vprintf( &( vdp_ctx->buf[ vdp_ctx->printed_so_far ]), available, &num_writ, fmt, args );
         vdp_ctx->printed_so_far += num_writ;
         va_end ( args );
     }
@@ -100,7 +100,7 @@ static rc_t vdp_print_string( vdp_context * vdp_ctx, const char * s )
             size_t num_writ;
             size_t available = ( vdp_ctx->buf_size - vdp_ctx->printed_so_far );
 
-            rc = string_printf ( &( vdp_ctx->buf[ vdp_ctx->printed_so_far ]), available, &num_writ, s );
+            rc = string_printf ( &( vdp_ctx->buf[ vdp_ctx->printed_so_far ] ), available, &num_writ, s );
             vdp_ctx->printed_so_far += num_writ;
         }
 
@@ -183,7 +183,7 @@ static uint64_t vdp_bitlength_2_mask( const size_t n_bits )
 
 static void vdp_move_to_value( void* dst, vdp_context * vdp_ctx, const uint32_t n_bits )
 {
-    char *src_ptr = ( char* )vdp_ctx->buf + BYTE_OFFSET( vdp_ctx->offset_in_bits );
+    uint8_t *src_ptr = ( uint8_t * )vdp_ctx->base + BYTE_OFFSET( vdp_ctx->offset_in_bits );
     if ( BIT_OFFSET( vdp_ctx->offset_in_bits ) == 0 )
     {
         memmove( dst, src_ptr, vdp_bitlength_2_bytes( n_bits ) );
@@ -209,7 +209,6 @@ static uint64_t vdp_move_to_uint64( vdp_context * vdp_ctx )
     vdp_ctx->offset_in_bits += n_bits;
     return value;
 }
-
 
 static rc_t vdp_boolean( vdp_context * vdp_ctx )
 {
@@ -242,11 +241,28 @@ static const char * uint_hex_fmt = "0x%lX";
 static const char * uint_dec_fmt = "%lu";
 static const char * int_dec_fmt = "%ld";
 
+
+static rc_t vdp_print_uint64( vdp_context * vdp_ctx, const char * fmt, uint64_t value )
+{
+    if ( vdp_ctx->buf == NULL )
+        return KOutMsg( fmt, value );
+    else
+        return vdp_print( vdp_ctx, fmt, value );
+}
+
+static rc_t vdp_print_int64( vdp_context * vdp_ctx, const char * fmt, int64_t value )
+{
+    if ( vdp_ctx->buf == NULL )
+        return KOutMsg( fmt, value );
+    else
+        return vdp_print( vdp_ctx, fmt, value );
+}
+
 static rc_t vdp_uint( vdp_context * vdp_ctx )
 {
     rc_t rc = 0;
     uint64_t value = vdp_move_to_uint64( vdp_ctx );
-    if ( ( vdp_ctx->opts->without_sra_types == false )/*&&( def->value_trans_fct != NULL )*/ )
+    if ( ( vdp_ctx->opts->translate_sra_types )/*&&( def->value_trans_fct != NULL )*/ )
     {
 /*
         const char *txt = def->value_trans_fct( (uint32_t)value );
@@ -255,16 +271,9 @@ static rc_t vdp_uint( vdp_context * vdp_ctx )
     }
     else
     {
-        const char * fmt;
-        if ( vdp_ctx->opts->in_hex )
-            fmt = uint_hex_fmt;
-        else
-            fmt = uint_dec_fmt;
-
-        if ( vdp_ctx->buf == NULL )
-            rc = KOutMsg( fmt, value );
-        else
-            rc = vdp_print( vdp_ctx, fmt, value );
+        rc = vdp_print_uint64( vdp_ctx,
+                               vdp_ctx->opts->in_hex ? uint_hex_fmt : uint_dec_fmt,
+                               value ) ;
     }
     return rc;
 }
@@ -274,7 +283,7 @@ static rc_t vdp_int( vdp_context * vdp_ctx )
 {
     rc_t rc = 0;
     int64_t value = (int64_t)vdp_move_to_uint64( vdp_ctx );
-    if ( ( vdp_ctx->opts->without_sra_types == false )/*&&( def->value_trans_fct != NULL )*/ )
+    if ( ( vdp_ctx->opts->translate_sra_types )/*&&( def->value_trans_fct != NULL )*/ )
     {
 /*
         const char *txt = def->value_trans_fct( (uint32_t)value );
@@ -283,8 +292,6 @@ static rc_t vdp_int( vdp_context * vdp_ctx )
     }
     else
     {
-        const char * fmt;
-
         switch ( vdp_ctx->type_desc->intrinsic_bits )
         {
             case  8 : { int8_t temp = (int8_t)value;
@@ -297,16 +304,9 @@ static rc_t vdp_int( vdp_context * vdp_ctx )
                         value = temp; }
                       break;
         }
-
-        if ( vdp_ctx->opts->in_hex )
-            fmt = uint_hex_fmt;
-        else
-            fmt = int_dec_fmt;
-
-        if ( vdp_ctx->buf == NULL )
-            rc = KOutMsg( fmt, value );
-        else
-            rc = vdp_print( vdp_ctx, fmt, value );
+        rc = vdp_print_int64( vdp_ctx,
+                              vdp_ctx->opts->in_hex ? uint_hex_fmt : int_dec_fmt,
+                              value ) ;
     }
     return rc;
 }
@@ -344,9 +344,8 @@ static rc_t vdp_float( vdp_context * vdp_ctx )
                 rc = vdp_print( vdp_ctx, float_fmt, value );
         }
         else
-        {
             rc = vdp_print_string( vdp_ctx, unknown_float_fmt );
-        }
+
         vdp_ctx->offset_in_bits += n_bits;
     }
     return rc;
@@ -358,7 +357,7 @@ static const char * txt_fmt = "%.*s";
 static rc_t vdp_txt_ascii( vdp_context * vdp_ctx )
 {
     rc_t rc;
-    char *src_ptr = (char*)vdp_ctx->buf + BYTE_OFFSET( vdp_ctx->offset_in_bits );
+    char *src_ptr = (char*)vdp_ctx->base + BYTE_OFFSET( vdp_ctx->offset_in_bits );
     if ( vdp_ctx->buf == NULL )
         rc = KOutMsg( txt_fmt, vdp_ctx->row_len, src_ptr );
     else
@@ -385,20 +384,20 @@ static rc_t vdp_hex_char( char * temp, uint32_t * idx, const uint8_t c )
 static rc_t vdp_hex_ascii( vdp_context * vdp_ctx )
 {
     rc_t rc = 0;
-    char *src_ptr = (char*)vdp_ctx->buf + BYTE_OFFSET( vdp_ctx->offset_in_bits );
+    char *src_ptr = (char*)vdp_ctx->base + BYTE_OFFSET( vdp_ctx->offset_in_bits );
     char *tmp = malloc( ( vdp_ctx->row_len + 1 ) * 4 );
     if ( tmp != NULL )
     {
-        uint32_t i, dst = 0;
+        uint32_t i, dst_idx = 0;
         for ( i = 0; i < vdp_ctx->row_len && rc == 0; ++i )
-            rc = vdp_hex_char( tmp, &dst, src_ptr[ i ] );
-        src_ptr[ dst ] = 0;
+            rc = vdp_hex_char( tmp, &dst_idx, src_ptr[ i ] );
+        tmp[ dst_idx ] = 0;
         if ( rc == 0 )
         {
             if ( vdp_ctx->buf == NULL )
-                rc = KOutMsg( txt_fmt, dst, tmp );
+                rc = KOutMsg( txt_fmt, dst_idx, tmp );
             else
-                rc = vdp_print( vdp_ctx, txt_fmt, dst, tmp );
+                rc = vdp_print( vdp_ctx, txt_fmt, dst_idx, tmp );
         }
         free( tmp );
     }
@@ -443,11 +442,92 @@ vdp_fkt vdp_dispatch[] =
     vdp_unicode
 };
 
+static rc_t vdp_print_dim( vdp_context * vdp_ctx, uint32_t dimension, uint32_t selection )
+{
+    rc_t rc = 0;
+    int i = 0;
+    bool print_comma = true;
+
+    if ( selection == 0 ) /* cell-type == boolean */
+    {
+        /* if long form "false" or "true" separate elements by comma */
+        print_comma = ( vdp_ctx->opts->c_boolean == 0 );
+    }
+
+    while ( ( i < dimension )&&( rc == 0 ) )
+    {
+        /* selection 0 ... boolean */
+        if ( print_comma && ( i > 0 ) )
+            rc = vdp_print( vdp_ctx, ", " );
+
+        if ( rc == 0 )
+            rc = vdp_dispatch[ selection ]( vdp_ctx );
+
+        i++;
+    }
+    return rc;
+}
+
+
+static char dna_chars[ 4 ] = { 'A', 'C', 'G', 'T' };
+
+/* special function to translate dim=2,bits=1 into a DNA-base */
+static rc_t vdp_print_1_base( vdp_context * vdp_ctx )
+{
+    uint64_t value;
+    vdp_move_to_value( &value, vdp_ctx, 2 ); /* move 2 bits into value */
+    value &= 3;
+    if ( vdp_ctx->buf == NULL )
+        return KOutMsg( "%c", dna_chars[ value ] );
+    else
+        return vdp_print( vdp_ctx, "%c", dna_chars[ value ] );
+}
 
 static rc_t vdp_print_elem( vdp_context * vdp_ctx )
 {
     rc_t rc = 0;
 
+    uint32_t dimension   = vdp_ctx->type_desc->intrinsic_dim;
+    uint32_t selection   = vdp_ctx->type_desc->domain - 1;
+    
+    if ( dimension == 1 )
+    {
+        /* we have only 1 dimension ---> just print this value */
+        if ( selection < 6 )
+            rc = vdp_dispatch[ selection ]( vdp_ctx );
+    }
+    else
+    {
+        /* we have more than 1 dimension ---> repeat printing value's */
+        if ( vdp_ctx->print_dna_bases )
+            rc = vdp_print_1_base( vdp_ctx );
+        else
+        {
+            /*
+            bool trans = ( ( vdp_ctx->opts->without_sra_types == false )&&
+                           ( def->dim_trans_fct ) );
+            bool paren = ( ( src->number_of_elements > 1 )||( !trans ) );                           
+            */
+            bool paren = ( vdp_ctx->row_len > 1 );
+
+            if ( paren )
+                rc = vdp_print( vdp_ctx, "[" );
+            /* rc = vds_append_str( &(def->content), bracket ? "[" : "{" ); */
+
+            if ( rc == 0 )
+            {
+                /*
+                if ( trans )
+                    rc = vdt_dump_dim_trans( src, def, dimension );
+                else
+                */
+                rc = vdp_print_dim( vdp_ctx, dimension, selection );
+            }
+
+            if ( paren && ( rc == 0 ) )
+                rc = vdp_print( vdp_ctx, "]" );
+        }
+    }
     return rc;
 }
 
@@ -481,9 +561,7 @@ rc_t vdp_print_cell_cmn( char * buf, size_t buf_size, size_t *num_written,
         vdp_ctx.offset_in_bits = 0;
 
         if ( ( type_desc->domain < vtdBool ) || ( type_desc->domain > vtdUnicode ) )
-        {
             rc = vdp_print_string( &vdp_ctx, "unknown data-type" );
-        }
         else
         {
             bool print_comma = true;
@@ -494,18 +572,14 @@ rc_t vdp_print_cell_cmn( char * buf, size_t buf_size, size_t *num_written,
                         ( type_desc->intrinsic_bits == 1 ) );
 
             if ( ( type_desc->domain == vtdBool ) && opts->c_boolean )
-            {
                 print_comma = false;
-            }
 
             while( ( vdp_ctx.elem_idx < row_len ) && ( rc == 0 ) && ( !vdp_ctx.buf_filled ) )
             {
                 uint32_t eidx = vdp_ctx.elem_idx;
 
-                if ( ( eidx > 0 )&& ( vdp_ctx.print_dna_bases == false ) && print_comma )
-                {
+                if ( ( eidx > 0 ) && ( vdp_ctx.print_dna_bases == false ) && print_comma )
                     rc = vdp_print_string( &vdp_ctx, ", " );
-                }
 
                 /* dumps the basic data-types, implementation above
                    >>> that means it appends or prints to stdout the element-string
@@ -515,9 +589,7 @@ rc_t vdp_print_cell_cmn( char * buf, size_t buf_size, size_t *num_written,
 
                 /* insurance against endless loop */
                 if ( eidx == vdp_ctx.elem_idx )
-                {
                     vdp_ctx.elem_idx++;
-                }
             }
         }
     }
@@ -551,11 +623,10 @@ rc_t vdp_print_cell( const uint32_t elem_bits, const void * base, uint32_t boff,
     if ( base == NULL || type_desc == NULL || opts == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcVisiting, rcParam, rcNull );
+        KOutMsg( "base/type_desc/otps is NULL\n" );
     }
     else
-    {
         rc = vdp_print_cell_cmn( NULL, 0, NULL, elem_bits, base, boff, row_len, type_desc, opts );
-    }
     return rc;
 }
 
@@ -571,6 +642,7 @@ typedef struct vdp_src_context
     VSchema *schema;
     Vector sources;
     bool print_info;
+    vdp_opts opts;
 } vdp_src_context;
 
 
@@ -580,6 +652,7 @@ typedef struct vdp_database
     const VDatabase *database;
     Vector sub_databases;
     Vector sub_tables;
+    vdp_opts * opts;
 } vdp_database;
 
 typedef struct vdp_table
@@ -587,7 +660,9 @@ typedef struct vdp_table
     const String * name;
     const VTable *table;
     const VCursor *cursor;
+    vdp_opts * opts;
     Vector columns;
+    uint32_t max_col_name_len;
 } vdp_table;
 
 
@@ -596,6 +671,8 @@ typedef struct vdp_column
     const String * name;
     uint32_t id;
     vdp_table * tab;
+    struct VTypedecl type;
+    struct VTypedesc desc;
 } vdp_column;
 
 
@@ -605,6 +682,7 @@ typedef struct vdp_source
     int path_type;
     vdp_table * tbl;
     vdp_database * db;
+    vdp_opts * opts;
 } vdp_source;
 
 
@@ -638,6 +716,7 @@ static rc_t vdp_add_column( vdp_table * tbl, const String * name, bool print_inf
         else
         {
             col->tab = tbl;
+            if ( name->len > tbl->max_col_name_len ) tbl->max_col_name_len = name->len;
             rc = VCursorAddColumn( tbl->cursor, &col->id, "%s", name->addr );
             if ( rc != 0 )
                 KOutMsg( "VCursorAddColumn( '%S.%S' ) -> %R\n", tbl->name, name, rc );
@@ -650,6 +729,14 @@ static rc_t vdp_add_column( vdp_table * tbl, const String * name, bool print_inf
                 KOutMsg( "column: '%S.%S' added\n", tbl->name, name );
         }
     }
+    return rc;
+}
+
+static rc_t vdp_get_column_type( vdp_table * tbl, vdp_column * col )
+{
+    rc_t rc = VCursorDatatype( tbl->cursor, col->id, &col->type, &col->desc );
+    if ( rc != 0 )
+        KOutMsg( "VCursorDatatype( '%S.%S' ) -> %R\n", tbl->name, col->name, rc );
     return rc;
 }
 
@@ -689,7 +776,9 @@ static rc_t vdp_open_table( vdp_src_context * vctx,
         }
         else
         {
+            tbl->opts = &vctx->opts;
             VectorInit( &tbl->columns, 0, 20 );
+            tbl->max_col_name_len = 0;
             
             /* open the table: either from manager or from database */
             if ( acc != NULL )
@@ -723,6 +812,21 @@ static rc_t vdp_open_table( vdp_src_context * vctx,
                         KNamelistRelease( column_names );
                     }
                     rc = VCursorOpen( tbl->cursor );
+                }
+            }
+            
+            if ( rc == 0 )
+            {
+                /* update the type for each column */
+                uint32_t start = VectorStart( &tbl->columns );
+                uint32_t count = VectorLength( &tbl->columns );
+                uint32_t id = start;
+                while ( id < start + count - 1 && rc == 0 )
+                {
+                    vdp_column * column = VectorGet( &tbl->columns, id );
+                    if ( column != NULL )
+                        rc = vdp_get_column_type( tbl, column );
+                    id++;
                 }
             }
             
@@ -776,6 +880,68 @@ static rc_t vdp_table_adjust_ranges( vdp_table * tbl, struct num_gen * ranges )
     return rc;
 }
 
+
+static rc_t vdp_print_table_row( vdp_table * tbl, int64_t row_id )
+{
+    rc_t rc = 0;
+    uint32_t start = VectorStart( &tbl->columns );
+    uint32_t count = VectorLength( &tbl->columns );
+    uint32_t id = start;
+    
+    /* rc = KOutMsg( "row#%ld:\n", row_id ); */
+    while ( id < start + count - 1 && rc == 0 )
+    {
+        vdp_column * column = VectorGet( &tbl->columns, id );
+        if ( column != NULL )
+        {
+            uint32_t w = tbl->max_col_name_len + 1 - column->name->len;
+            rc = KOutMsg( "%S:%*s", column->name, w, " " );
+            if ( rc == 0 )
+            {
+                uint32_t elem_bits, boff, row_len;
+                const void * base;
+                rc = VCursorCellDataDirect( tbl->cursor, row_id, column->id,
+                    &elem_bits, &base, &boff, &row_len );
+                if ( rc != 0 )
+                    KOutMsg( "VCursorCellDataDirect( tbl: '%s', row: %ld, col: '%s' ) -> %R\n",
+                        tbl->name, row_id, column->name, rc );
+                else
+                {
+                    if ( rc == 0 && base != NULL )
+                    {
+                        rc = vdp_print_cell( elem_bits, base, boff, row_len, &column->desc, tbl->opts );
+                    }
+                    /*
+                    KOutMsg( "elem_bits=%d, base=%p boff=%d, row_len=%d, desc=%p, opts=%p\n",
+                        elem_bits, base, boff, row_len, &column->desc, tbl->opts );
+                    */
+                }
+            }
+            if ( rc == 0 )
+                rc = KOutMsg( "\n" );
+        }
+        id++;
+    }
+    return rc;
+}
+
+static rc_t vdp_print_table( vdp_table * tbl, struct num_gen * ranges )
+{
+    const struct num_gen_iter * iter;
+    rc_t rc = num_gen_iterator_make( ranges, &iter );
+    if ( rc != 0 )
+        KOutMsg( "num_gen_iterator_make() -> %R", rc );
+    else
+    {
+        int64_t row_id;
+        while ( num_gen_iterator_next( iter, &row_id, &rc ) && rc == 0 )
+            rc = vdp_print_table_row( tbl, row_id );
+            
+        num_gen_iterator_destroy( iter );
+    }
+    return rc;
+}
+
 /* -----------------------------------------------------------------------------------------------*/
 
 static void CC release_database( void *item, void * data )
@@ -814,7 +980,8 @@ static rc_t vdp_open_database( vdp_src_context * vctx,
         {
             VectorInit( &db->sub_databases, 0, 5 );
             VectorInit( &db->sub_tables, 0, 5 );
-
+            db->opts = &vctx->opts;
+            
             /* open the table: either from manager or from database */
             if ( acc != NULL )
                 rc = VDBManagerOpenDBRead( vctx->mgr, &db->database, vctx->schema, "%s", name->addr );
@@ -891,19 +1058,33 @@ static rc_t vdp_open_database( vdp_src_context * vctx,
 KLIB_EXTERN void* CC VectorFind ( const Vector *self, const void *key, uint32_t *idx,
     int64_t ( CC * cmp ) ( const void *key, const void *n ) );
 */
+static int64_t CC vdp_db_find_table( const void *key, const void * n )
+{
+    const String * to_find = key;
+    const vdp_table * tbl = n;
+    return StringCompare( to_find, tbl->name );
+}
 
-static vdp_table * vdp_db_get_table( vdp_database * db, String * path )
+static const char * DFLT_TABLE = "SEQUENCE";
+
+static vdp_table * vdp_db_get_table( vdp_database * db, const String * path )
 {
     vdp_table * res = NULL;
     if ( db != NULL )
     {
-        if ( path == NULL )
+        if ( path == NULL || path->len == 0 )
         {
-            res = VectorGet( &db->sub_tables, 0 );
+            String tmp;
+            tmp.addr = DFLT_TABLE;
+            tmp.size = tmp.len = sizeof DFLT_TABLE;
+            res = vdp_db_get_table( db, &tmp ); /* recursion */
+            if ( res == NULL )
+                res = VectorGet( &db->sub_tables, 0 );
         }
         else
         {
-            
+            uint32_t found;
+            res = VectorFind( &db->sub_tables, path, &found, vdp_db_find_table );
         }
     }
     return res;
@@ -945,6 +1126,7 @@ static rc_t vdp_init_source( vdp_src_context * vctx, const String * path )
             vsrc->path_type = ( VDBManagerPathType ( vctx->mgr, "%s", vsrc->path->addr ) & ~ kptAlias );
             vsrc->tbl = NULL;
             vsrc->db = NULL;
+            vsrc->opts = &vctx->opts;
             /* types defined in <kdb/manager.h> */
             switch ( vsrc->path_type )
             {
@@ -1007,6 +1189,11 @@ rc_t vdp_init_ctx( vdp_src_context ** vctx, const Args * args )
             VectorInit( &o->sources, 0, 5 );
             o->schema = NULL;
             o->print_info = false;
+            o->opts.print_dna_bases = false;
+            o->opts.in_hex = false;
+            o->opts.translate_sra_types = false;
+            o->opts.c_boolean = '1';
+
             rc = KDirectoryNativeDir( &o->dir );
             if ( rc != 0 )
             {
@@ -1064,7 +1251,7 @@ static vdp_table * vdp_get_table( vdp_src_context * vctx, uint32_t src_id, Strin
             if ( src->tbl != NULL )
                 res = src->tbl; /* source has only this table */
             else if ( src->db != NULL )
-                res = vdp_db_get_table( src->db, NULL ); /* source is a database */
+                res = vdp_db_get_table( src->db, path ); /* source is a database */
         }
     }
     return res;
@@ -1115,7 +1302,7 @@ static rc_t vdb_print_get_src_and_ranges( const String * S,
 }
 
 
-static rc_t vdb_print_show_src_and_ranges( struct num_gen * ranges, uint32_t src_id )
+static rc_t vdp_print_show_src_and_ranges( struct num_gen * ranges, uint32_t src_id )
 {
     rc_t rc;
     char buffer[ 1024 ];
@@ -1148,7 +1335,12 @@ rc_t vdp_print_interactive( const Vector * v, vdp_src_context * vctx )
                 rc = vdp_table_adjust_ranges( tbl, ranges );
                 
                 if ( rc == 0 )
-                    rc = vdb_print_show_src_and_ranges( ranges, src_id );
+                    rc = KOutMsg( "tbl: %S\n", tbl->name );
+                /* if ( rc == 0 )
+                    rc = vdp_print_show_src_and_ranges( ranges, src_id ); */
+                    
+                if ( rc == 0 )
+                    rc = vdp_print_table( tbl, ranges );
             }
         }
         num_gen_destroy( ranges );

@@ -186,3 +186,7 @@ warn: Input variation spec   : NC_000001.10:570000:1:A
 warn: Adjusted variation spec: NC_000001.10:569998:4:GGAA
 info: percent="100"
 info: processed 100%
+SRR867061	0	45
+SRR867061	0	45
+SRR867131	22	50
+SRR867131	22	50

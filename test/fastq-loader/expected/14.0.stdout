@@ -2,11 +2,13 @@
           BASE_COUNT: 76
       BIO_BASE_COUNT: 76
       CMP_BASE_COUNT: 76
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CSREAD: 1223103303112233001010000000000000000000000000020330103311100011101102130111
               CS_KEY: TT
            CS_NATIVE: false
       FIXED_SPOT_LEN: 76
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 1
          MIN_SPOT_ID: 1
                 NAME: 1

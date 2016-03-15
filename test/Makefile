@@ -42,7 +42,8 @@ SUBDIRS =    \
 	vschema         \
 	align-info      \
 	vdb-dump        \
-#	ref-variation   \
+	ref-variation   \
+	vdb-validate    \
 
 # under construction    
 #    ngs-pileup      \

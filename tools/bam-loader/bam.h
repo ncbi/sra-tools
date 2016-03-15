@@ -29,7 +29,6 @@
  */
 typedef struct BAM_Alignment BAM_Alignment;
 
-    
 /* AddRef
  * Release
  */
@@ -435,6 +434,9 @@ rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
                                               char buffer[],
                                               size_t max_size,
                                               size_t *act_size);
+
+rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
+                                  char const **name);
     
     
 /*--------------------------------------------------------------------------
@@ -531,7 +533,7 @@ float BAM_FileGetProportionalPosition ( const BAM_File *self );
  *
  *  tries to use static buffers and will log messages about parsing errors
  */
-rc_t BAM_FileRead2 ( const BAM_File *self, const BAM_Alignment **result );
+rc_t BAM_FileRead2 ( const BAM_File *self, const BAM_Alignment **result, bool MTsafe);
 
 
 /* GetRefSeqCount

@@ -1595,18 +1595,19 @@ static rc_t vdm_range_tab_index( const p_dump_context ctx, const VTable *my_tabl
 {
     const KTable * my_ktable;
     rc_t rc = VTableOpenKTableRead( my_table, &my_ktable );
-    DISP_RC( rc, "VTableOpenKTableRead() failed" );
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VTableOpenKTableRead() -> %R", rc );
+    else
     {
         const KIndex * my_kindex;
         rc = KTableOpenIndexRead ( my_ktable, &my_kindex, "%s", ctx->idx_range );
-        DISP_RC( rc, "KTableOpenIndexRead() failed" );
-        if ( rc == 0 )
+        if ( rc != 0 )
+            ErrMsg( "KTableOpenIndexRead() -> %R", rc );
+        else
         {
             int64_t start;
             uint64_t count;
             rc_t rc2 = 0;
-
             for ( start = 1; rc2 == 0 && rc == 0; start += count )
             {
                 size_t key_size;
@@ -1616,7 +1617,6 @@ static rc_t vdm_range_tab_index( const p_dump_context ctx, const VTable *my_tabl
                 if ( rc2 == 0 )
                     rc = KOutMsg( "%.*s : %lu ... %lu\n", ( int )key_size, key, start, start + count - 1 );
             }
-
             KIndexRelease( my_kindex );
         }
         KTableRelease( my_ktable );
@@ -1644,44 +1644,59 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_
 {
     const KMetadata * meta = NULL;
     rc_t rc = VTableOpenMetadataRead( my_table, &meta );
-    DISP_RC( rc, "VTableOpenMetadataRead() failed" );
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VTableOpenMetadataRead() -> %R", rc );
+    else
     {
         const KMDataNode * spot_groups_node;
         rc = KMetadataOpenNodeRead( meta, &spot_groups_node, "STATS/SPOT_GROUP" );
-        DISP_RC( rc, "KMetadataOpenNodeRead( STATS/SPOT_GROUP ) failed" );
-        if ( rc == 0 )
+        if ( rc != 0 )
+            ErrMsg( "KMetadataOpenNodeRead( STATS/SPOT_GROUP ) -> %R", rc );
+        else
         {
             KNamelist * spot_groups;
             rc = KMDataNodeListChildren( spot_groups_node, &spot_groups );
-            DISP_RC( rc, "KMDataNodeListChildren() failed" );
-            if ( rc == 0 )
+            if ( rc != 0 )
+                ErrMsg( "KMDataNodeListChildren() -> %R", rc );
+            else
             {
                 uint32_t count;
                 rc = KNamelistCount( spot_groups, &count );
-                if ( rc == 0 && count > 0 )
+                if ( rc != 0 )
+                    ErrMsg( "KNamelistCount() -> %R", rc );
+                else if ( count > 0 )
                 {
                     uint32_t i;
                     for ( i = 0; i < count && rc == 0; ++i )
                     {
                         const char * name = NULL;
                         rc = KNamelistGet( spot_groups, i, &name );
-                        if ( rc == 0 && name != NULL )
+                        if ( rc != 0 )
+                            ErrMsg( "KNamelistCount( %d) -> %R", i, rc );
+                        else if ( name != NULL )
                         {
                             const KMDataNode * spot_count_node;
                             rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_count_node, "%s/SPOT_COUNT", name );
-                            DISP_RC( rc, "KMDataNodeOpenNodeRead() failed" );
-                            if ( rc == 0 )
+                            if ( rc != 0 )
+                                ErrMsg( "KMDataNodeOpenNodeRead() -> %R", rc );
+                            else
                             {
                                 uint64_t spot_count = 0;
                                 rc = KMDataNodeReadAsU64( spot_count_node, &spot_count );
-                                if ( rc == 0 )
+                                if ( rc != 0 )
+                                {
+                                    ErrMsg( "KMDataNodeReadAsU64() -> %R", rc );
+                                    vdm_clear_recorded_errors();
+                                }
+                                else
                                 {
                                     if ( spot_count > 0 )
                                     {
                                         const KMDataNode * spot_group_node;
-                                        rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_group_node, name );            
-                                        if ( rc == 0 )
+                                        rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_group_node, name );
+                                        if ( rc != 0 )
+                                            ErrMsg( "KMDataNodeOpenNodeRead( '%s' ) -> %R", name, rc );
+                                        else
                                         {
                                             char name_attr[ 2048 ];
                                             size_t num_writ;
@@ -1692,9 +1707,6 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_
 
                                     }
                                 }
-                                else
-                                    vdm_clear_recorded_errors();
-
                                 KMDataNodeRelease( spot_count_node );
                             }
                         }
@@ -1750,8 +1762,9 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /*ctx->force_sra_schema*/ );
 
     rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
-    DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerOpenTableRead( '%R' ) -> %R", ctx->path, rc );
+    else
     {
         rc = vdm_check_table_empty( my_table );
         if ( rc == 0 )
@@ -1760,8 +1773,11 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     }
 
     if ( my_schema != NULL )
-        VSchemaRelease( my_schema );
-
+    {
+        rc = VSchemaRelease( my_schema );
+        if ( rc != 0 )
+            ErrMsg( "VSchemaRelease() -> %R", rc );
+    }
     return rc;
 }
 
@@ -1828,7 +1844,6 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *my_manag
     {
         rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_opened_table );
     }
-
     return rc;
 }
 
@@ -1855,43 +1870,69 @@ ctx    [IN] ... contains source-path, tablename, columns and row-range as ascii-
 db_fkt [IN] ... function to be called if directory, manager and database are open
 *************************************************************************************/
 static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
-                             const VDBManager *my_manager,
+                             const VDBManager * mgr,
                              const db_fkt_t db_fkt )
 {
-    const VDatabase *my_database;
-    VSchema *my_schema = NULL;
+    const VDatabase *db;
+    VSchema *schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
+    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
 
-    rc = VDBManagerOpenDBRead( my_manager, &my_database, my_schema, "%s", ctx->path );
-    DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
-    if ( rc == 0 )
+    rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", ctx->path );
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerOpenDBRead( '%s' ) -> %R", ctx->path, rc );
+    else
     {
-        bool table_defined = ( ctx->table != NULL );
-        if ( !table_defined )
-        {
-            table_defined = vdh_take_this_table_from_db( ctx, my_database, "SEQUENCE" );
-            if ( !table_defined )
-                table_defined = vdh_take_1st_table_from_db( ctx, my_database );
-        }
-        if ( table_defined || ctx->table_enum_requested )
-        {
-            rc = db_fkt( ctx, my_database ); /* fkt-pointer is called */
-        }
+        KNamelist *tbl_names;
+        rc = VDatabaseListTbl( db, &tbl_names );
+        if ( rc != 0 )
+            ErrMsg( "VDatabaseListTbl( '%s' ) -> %R", ctx->path, rc );
         else
         {
-            LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
-            ctx->usage_requested = true;
+            if ( ctx->table == NULL )
+            {
+                /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
+                bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
+                /* if there is no SEQUENCE-table, just pick the first table available... */
+                if ( !table_found )
+                    vdh_take_1st_table_from_db( ctx, tbl_names );
+            }
+            else
+            {
+                /* the user DID specify a table: check if the database has a table with this name,
+                   if not try with a sub-string */
+                String value;
+                StringInitCString( &value, ctx->table );
+                if ( !list_contains_value( tbl_names, &value ) )
+                    vdh_take_this_table_from_list( ctx, tbl_names, ctx->table );
+            }
+            
+            if ( ctx->table != NULL || ctx->table_enum_requested )
+            {
+                rc = db_fkt( ctx, db ); /* fkt-pointer is called */
+            }
+            else
+            {
+                LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
+                ctx->usage_requested = true;
+            }
+            rc = KNamelistRelease( tbl_names );
+            if ( rc != 0 )
+                ErrMsg( "KNamelistRelease() -> %R", rc );
         }
-        VDatabaseRelease( my_database );
+        rc = VDatabaseRelease( db );
+        if ( rc != 0 )
+            ErrMsg( "VDatabaseRelease() -> %R", rc );
     }
 
-    if ( my_schema != NULL )
+    if ( schema != NULL )
     {
-        VSchemaRelease( my_schema );
+        rc = VSchemaRelease( schema );
+        if ( rc != 0 )
+            ErrMsg( "VSchemaRelease() -> %R", rc );
     }
-
+    
     return rc;
 }
 
@@ -1954,8 +1995,9 @@ static rc_t vdm_print_objver( const p_dump_context ctx, const VDBManager *mgr )
 {
     ver_t version;
     rc_t rc = VDBManagerGetObjVersion ( mgr, &version, ctx->path );
-    DISP_RC( rc, "VDBManagerGetObjVersion() failed" );
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerGetObjVersion( '%s' ) -> %R", ctx->path, rc );
+    else
         rc = KOutMsg( "%V\n", version );
     return rc;
 }
@@ -1963,8 +2005,9 @@ static rc_t vdm_print_objver( const p_dump_context ctx, const VDBManager *mgr )
 static rc_t vdm_print_objts ( const p_dump_context ctx, const VDBManager *mgr )
 {
     KTime_t timestamp;
-    rc_t rc = VDBManagerGetObjModDate ( mgr, &timestamp, ctx-> path );
-    DISP_RC ( rc, "VDBManagerGetObjModDate () failed" );
+    rc_t rc = VDBManagerGetObjModDate ( mgr, &timestamp, ctx->path );
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerGetObjModDate( '%s' ) -> %R", ctx->path, rc  );
     if ( rc == 0 )
     {
         KTime kt;
@@ -2028,7 +2071,7 @@ static rc_t vdb_main_one_obj_by_pathtype( const p_dump_context ctx,
                                 "p=%s", ctx->path ) );
                             if ( vdco_schema_count( ctx ) == 0 )
                             {
-                            LOGERR( klogInt, rc, "Maybe it is a legacy table. If so, specify a schema with the -S option" );
+                                LOGERR( klogInt, rc, "Maybe it is a legacy table. If so, specify a schema with the -S option" );
                             }
                             break;
     }
@@ -2119,38 +2162,38 @@ ctx        [IN] ... contains path, tablename, columns, row-range etc.
 ***************************************************************************/
 static rc_t vdm_main( const p_dump_context ctx, Args * args )
 {
-    rc_t rc, rc1;
     KDirectory *dir;
-
-    rc = KDirectoryNativeDir( &dir );
-    DISP_RC( rc, "KDirectoryNativeDir() failed" );
-    if ( rc == 0 )
+    rc_t rc1, rc = KDirectoryNativeDir( &dir );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryNativeDir() -> %R", rc );
+    else
     {
         const VDBManager *mgr;
-
-        rc = VDBManagerMakeRead ( &mgr, dir );
-        DISP_RC( rc, "VDBManagerMakeRead() failed" );
-        if ( rc == 0 )
+        rc = VDBManagerMakeRead( &mgr, dir );
+        if ( rc != 0 )
+            ErrMsg( "VDBManagerMakeRead() -> %R", rc );
+        else
         {
             if ( ctx->disable_multithreading )
             {
-                rc = VDBManagerDisablePagemapThread ( mgr );
-                DISP_RC( rc, "VDBManagerDisablePagemapThread() failed" );
-                rc = 0;
+                rc = VDBManagerDisablePagemapThread( mgr );
+                if ( rc != 0 )
+                {
+                    ErrMsg( "VDBManagerDisablePagemapThread() -> %R", rc );
+                    rc = 0;
+                }
             }
             
             /* show manager is independend form db or tab */
             if ( ctx->version_requested )
-            {
                 rc = vdh_show_manager_version( mgr );
-                DISP_RC( rc, "show_manager_version() failed" );
-            }
             else
             {
                 uint32_t count;
                 rc = ArgsParamCount( args, &count );
-                DISP_RC( rc, "ArgsParamCount() failed" );
-                if ( rc == 0 )
+                if ( rc != 0 )
+                    ErrMsg( "ArgsParamCount() -> %R", rc );
+                else
                 {
                     if ( count > 0 )
                     {
@@ -2159,14 +2202,13 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                         {
                             const char *value = NULL;
                             rc = ArgsParamValue( args, idx, (const void **)&value );
-                            DISP_RC( rc, "ArgsParamValue() failed" );
-                            if ( rc == 0 )
+                            if ( rc != 0 )
+                                ErrMsg( "ArgsParamValue() -> %R", rc );
+                            else
                             {
                                 if ( ctx->print_info )
-                                {
                                     rc = vdb_info( &(ctx->schema_list), ctx->format, mgr,
                                                    value, ctx->rows );   /* in vdb_info.c */
-                                }
                                 else switch( ctx->format )
                                 {
                                     case df_fastq  : ;
@@ -2187,10 +2229,12 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                 }
             }
             rc1 = VDBManagerRelease( mgr );
-            DISP_RC( rc1, "VDBManagerRelease() failed" );
+            if ( rc1 != 0 )
+                ErrMsg( "VDBManagerRelease() -> %R", rc );
         }
         rc1 = KDirectoryRelease( dir );
-        DISP_RC( rc1, "KDirectoryRelease() failed" );
+        if ( rc != 0 )
+            ErrMsg( "KDirectoryRelease() -> %R", rc );
     }
     return rc;
 }
@@ -2200,8 +2244,9 @@ static rc_t diff_files( Args * args )
 {
     uint32_t count;
     rc_t rc = ArgsParamCount( args, &count );
-    DISP_RC( rc, "ArgsParamCount() failed" );
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "ArgsParamCount() -> %R", rc );
+    else
     {
         if ( count != 2 )
             KOutMsg( "this function needs exactly 2 files to diff\n" );
@@ -2209,13 +2254,15 @@ static rc_t diff_files( Args * args )
         {
             const char * f1;
             rc = ArgsParamValue( args, 0, (const void **)&f1 );
-            DISP_RC( rc, "ArgsParamValue( 0 ) failed" );
-            if ( rc == 0 )
+            if ( rc != 0 )
+                ErrMsg( "ArgsParamValue( 0 ) -> %R", rc );
+            else
             {
                 const char * f2;
                 rc = ArgsParamValue( args, 1, (const void **)&f2 );
-                DISP_RC( rc, "ArgsParamValue( 1 ) failed" );
-                if ( rc == 0 )
+                if ( rc != 0 )
+                    ErrMsg( "ArgsParamValue( 1 ) -> %R", rc );
+                else
                     rc = vds_diff( f1, f2 ); /* in vdb-dump-str.c */
             }
         }
@@ -2245,55 +2292,54 @@ rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_w
 rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
-    rc_t rc;
-
-    rc = KOutHandlerSet ( write_to_FILE, stdout );
-    if ( rc == 0 )
+    rc_t rc = KOutHandlerSet( write_to_FILE, stdout );
+    if ( rc != 0 )
+        ErrMsg( "KOutHandlerSet() -> %R", rc );
+    else
     {
-        rc = ArgsMakeAndHandle (&args, argc, argv,
+        rc = ArgsMakeAndHandle( &args, argc, argv,
             1, DumpOptions, sizeof DumpOptions / sizeof DumpOptions [ 0 ] );
-    }
-    if ( rc == 0 )
-    {
-        dump_context *ctx;
-
-        rc = vdco_init( &ctx );
-        DISP_RC( rc, "dump_context_init() failed" );
-
-        if ( rc == 0 )
+        if ( rc != 0 )
+            ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
+        else
         {
-            rc = vdco_capture_arguments_and_options( args, ctx );
+            dump_context *ctx;
+
+            rc = vdco_init( &ctx );
             if ( rc == 0 )
             {
-                out_redir redir; /* vdb-dump-redir.h */
-                
-                KLogHandlerSetStdErr();
-                rc = init_out_redir( &redir,
-                                 ctx->compress_mode,
-                                 ctx->output_file,
-                                 ctx->interactive ? 0 : ctx->output_buffer_size ); /* vdb-dump-redir.c */
-                
+                rc = vdco_capture_arguments_and_options( args, ctx );
                 if ( rc == 0 )
                 {
-                    if ( ctx->phase > 0 )
-                        rc = vdi_bin_phase( ctx, args ); /* vdb-dump-bin.c */
-                    else if ( ctx->diff )
-                        rc = diff_files( args ); /* above calls into vdb-dump-str.c */
-                    else if ( ctx->interactive )
-                        rc = vdi_main( ctx, args ); /* vdb-dump-interact.c */
-                    else if ( ctx->slice_depth > 0 )
-                        rc = find_slice( ctx, args ); /* vdb-dump-str.c */
-                    else
-                        rc = vdm_main( ctx, args );
-                
-                    release_out_redir( &redir ); /* vdb-dump-redir.c */
+                    out_redir redir; /* vdb-dump-redir.h */
+                    
+                    KLogHandlerSetStdErr();
+                    rc = init_out_redir( &redir,
+                                     ctx->compress_mode,
+                                     ctx->output_file,
+                                     ctx->interactive ? 0 : ctx->output_buffer_size ); /* vdb-dump-redir.c */
+                    
+                    if ( rc == 0 )
+                    {
+                        if ( ctx->phase > 0 )
+                            rc = vdi_bin_phase( ctx, args ); /* vdb-dump-bin.c */
+                        else if ( ctx->diff )
+                            rc = diff_files( args ); /* above calls into vdb-dump-str.c */
+                        else if ( ctx->interactive )
+                            rc = vdi_main( ctx, args ); /* vdb-dump-interact.c */
+                        else if ( ctx->slice_depth > 0 )
+                            rc = find_slice( ctx, args ); /* vdb-dump-str.c */
+                        else
+                            rc = vdm_main( ctx, args );
+                    
+                        release_out_redir( &redir ); /* vdb-dump-redir.c */
+                    }
                 }
+                vdco_destroy( ctx );
             }
-            vdco_destroy( ctx );
+            ArgsWhack( args );
         }
-        ArgsWhack (args);
     }
-
     return rc;
 }
 

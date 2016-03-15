@@ -1,3 +1,4 @@
+#!/bin/bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,38 +23,29 @@
 #
 # ===========================================================================
 
-by_default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+WORKDIR="./testsource"
+ARCHIVE="kar.kar"
 
-include $(TOP)/build/Makefile.shell
+kar --md5 -f -d $WORKDIR -c $ARCHIVE
 
-include $(TOP)/build/Makefile.config
+#cat $ARCHIVE.md5
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-	kget            \
-	general-loader  \
-	vschema         \
-	align-info      \
-	vdb-dump        \
-	ref-variation   \
-	vdb-validate    \
-	kar             \
-
-# under construction    
-#    ngs-pileup      \
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
+case $(uname) in
+    (Linux)
+        md5sum -c $ARCHIVE.md5
+        ;;
+    (Darwin)
+        MD5=$(md5 $ARCHIVE)
+        MY_MD5=$(cut -f1 -d' ' $ARCHIVE.md5)
+        if [ "$MD5" == "$MY_MD5" ]
+        then
+            echo "$ARCHIVE: OK"
+        else
+            echo "$ARCHIVE: FAILED"
+        fi
+        ;;
+    (*)
+        echo unknown platform
+        ;;
+esac

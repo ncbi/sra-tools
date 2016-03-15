@@ -766,7 +766,7 @@ static rc_t print_HD_line( const VNamelist * lines )
 
 static rc_t print_callback( const char * line, void * context ) { return KOutMsg( "%s\n", line ); }
 
-
+/*
 static void print_header_info( const headers * h )
 {
     uint32_t count;
@@ -789,7 +789,7 @@ static void print_header_info( const headers * h )
     VNameListCount( h->HD_Lines, &count );
     KOutMsg( "h->HD_Lines = %d\n", count );
 }
-
+*/
 
 static rc_t merge_and_print( VNamelist ** L1, const VNamelist * L2 )
 {
@@ -842,8 +842,6 @@ rc_t print_headers_1( const samdump_opts * opts, input_files * ifs )
         if ( rc == 0 )
             rc = print_HD_line( h.HD_Lines );
 
-        print_header_info( &h );
-        
         if ( rc == 0 )
             rc = merge_and_print( &h.SQ_Lines_1, h.SQ_Lines_2 );
             

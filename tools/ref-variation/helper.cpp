@@ -82,10 +82,12 @@ namespace KLib
         }
     }
 
+#if USING_UINT64_BITMAP == 2
     size_t const RECORD_SIZE_IN_BITS = 2;
     uint64_t const BIT_SET_MASK = 0x2;
     uint64_t const BIT_VALUE_MASK = 0x1;
     uint64_t const BIT_RECORD_MASK = BIT_SET_MASK | BIT_VALUE_MASK;
+#endif
 
     void CKVector::SetBool(uint64_t key, bool value)
     {

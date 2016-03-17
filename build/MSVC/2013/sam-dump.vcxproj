@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+ 
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\sra-pileup\cg_tools.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\inputfiles.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\matecache.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\out_redir.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\perf_log.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\read_fkt.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\md_flag.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\rna_splice_log.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\sam-aligned.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\sam-dump-opts.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\sam-dump.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\sam-dump3.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\sam-hdr.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\sam-hdr1.c" />	
+    <ClCompile Include="..\..\..\tools\sra-pileup\sam-unaligned.c" />
+  </ItemGroup>
+  
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E7FAF31B-CA59-4E70-979F-E869EB45ABA0}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

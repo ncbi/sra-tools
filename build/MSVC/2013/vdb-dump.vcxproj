@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>  
+  
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-bin.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-coldefs.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-context.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-fastq.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-filter.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-formats.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-helper.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-print.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-redir.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-str.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-tools.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-interact.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-repo.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb_info.c" />
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{5E85344A-92C9-4407-8A76-1EF0C8AB0D60}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

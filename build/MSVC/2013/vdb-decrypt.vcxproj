@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -18,11 +18,22 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-
-  <Import Project=".\test-project.props" />
   
-    <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
-      <Exec Command="$(SRATOOLS_TARGET)\bin\align-info.exe -h" WorkingDirectory="$(ProjectDir)"/>
-    </Target>
-    
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-wvdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>    
+  
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\vdb-decrypt\shared.c" />
+    <ClCompile Include="..\..\..\tools\vdb-decrypt\vdb-decrypt.c" />
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E4824F7B-4698-4F9B-85B1-AEFD6A81F957}</ProjectGuid>
+  </PropertyGroup>
+
 </Project>

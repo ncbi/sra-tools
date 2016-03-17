@@ -1,0 +1,30 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">  
+
+  <Import Project="vdb-common.props" />
+  
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <TargetExt>.lib</TargetExt>
+    <OutDir>$(VDB_TARGET)\lib\</OutDir>
+  </PropertyGroup>
+  
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  
+  <ItemDefinitionGroup Condition="'$(Platform)'=='Win32'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(VDB_ROOT)interfaces/cc/vc++/i386;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_ARCH_BITS=32;PKGNAME=win32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>$(VDB_ROOT)interfaces/cc/vc++/x86_64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_ARCH_BITS=64;PKGNAME=win64;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  
+  <ImportGroup Label="ExtensionTargets" />
+  
+</Project>

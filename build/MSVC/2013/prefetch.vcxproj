@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -18,11 +18,23 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-
-  <Import Project=".\test-project.props" />
   
-    <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
-      <Exec Command="$(SRATOOLS_TARGET)\bin\align-info.exe -h" WorkingDirectory="$(ProjectDir)"/>
-    </Target>
-    
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <EntryPointSymbol>wmainCRTStartupNoPathConversion</EntryPointSymbol>
+    </Link>
+  </ItemDefinitionGroup>
+  
+   <ItemGroup>
+    <ClCompile Include="..\..\..\tools\prefetch\prefetch.c" />
+    <ClCompile Include="..\..\..\tools\prefetch\kfile-no-q.c" />
+  </ItemGroup>
+  
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{2CF4BF04-4C4D-442E-A7AD-0AE5EF87C733}</ProjectGuid>
+  </PropertyGroup>
+
 </Project>

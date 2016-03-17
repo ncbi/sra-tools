@@ -1,0 +1,18 @@
+﻿Build started 3/17/2016 1:29:21 PM.
+     1>Project "C:\Users\boshkina\devel\sra-tools\build\MSVC\2010\test-align-info.vcxproj" on node 2 (build target(s)).
+     1>InitializeBuildStatus:
+         Touching "C:\Users\boshkina\devel\sra-tools\build\MSVC\2010\..\..\..\..\ngs\ngs-sdk\..\..\OUTDIR\\sra-tools\win\v100\\x64\Debug\\obj\test-align-info\test-align-info.unsuccessfulbuild".
+       PostBuildEvent:
+         del C:\Users\boshkina\devel\OUTDIR\sra-tools\win\v100\x64\Debug\bin\test-align-info.lib
+         del C:\Users\boshkina\devel\OUTDIR\sra-tools\win\v100\x64\Debug\bin\test-align-info.exp
+         :VCEnd
+         Could Not Find C:\Users\boshkina\devel\OUTDIR\sra-tools\win\v100\x64\Debug\bin\test-align-info.lib
+         Could Not Find C:\Users\boshkina\devel\OUTDIR\sra-tools\win\v100\x64\Debug\bin\test-align-info.exp
+       FinalizeBuildStatus:
+         Deleting file "C:\Users\boshkina\devel\sra-tools\build\MSVC\2010\..\..\..\..\ngs\ngs-sdk\..\..\OUTDIR\\sra-tools\win\v100\\x64\Debug\\obj\test-align-info\test-align-info.unsuccessfulbuild".
+         Touching "C:\Users\boshkina\devel\sra-tools\build\MSVC\2010\..\..\..\..\ngs\ngs-sdk\..\..\OUTDIR\\sra-tools\win\v100\\x64\Debug\\obj\test-align-info\test-align-info.lastbuildstate".
+     1>Done Building Project "C:\Users\boshkina\devel\sra-tools\build\MSVC\2010\test-align-info.vcxproj" (build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:00.35

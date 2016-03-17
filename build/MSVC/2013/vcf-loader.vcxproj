@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -18,11 +18,18 @@
       <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
-
-  <Import Project=".\test-project.props" />
   
-    <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
-      <Exec Command="$(SRATOOLS_TARGET)\bin\align-info.exe -h" WorkingDirectory="$(ProjectDir)"/>
-    </Target>
-    
+  <Import Project=".\lib-project.props" />
+  
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\vcf-loader\vcf-database.c" />
+    <ClCompile Include="..\..\..\tools\vcf-loader\vcf-grammar.c" />
+    <ClCompile Include="..\..\..\tools\vcf-loader\vcf-lex.c" />
+    <ClCompile Include="..\..\..\tools\vcf-loader\vcf-reader.c" />
+  </ItemGroup>
+  
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{DA226775-67B1-4354-A5CA-7F5406E0B1E7}</ProjectGuid>
+  </PropertyGroup>
+
 </Project>

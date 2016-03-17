@@ -1,0 +1,56 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  
+   <ItemGroup>
+    <ClCompile Include="..\..\..\tools\sra-pileup\4na_ascii.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\cg_tools.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\cmdline_cmn.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\dyn_string.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\perf_log.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_counters.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_index.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_indels.c" />	
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_stat.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_v2.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_varcount.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\ref_regions.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\ref_walker.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\ref_walker_0.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\report_deletes.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\reref.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\sra-pileup.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\walk_debug.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\out_redir.c" />	
+  </ItemGroup>
+  
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{9112BE22-FE04-407B-8B3B-9D7C3731E39A}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

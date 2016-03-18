@@ -47,6 +47,10 @@ extern "C" {
 #include <vdb/cursor.h>
 #endif
 
+#ifndef _h_kfs_directory_
+#include <kfs/directory.h>
+#endif
+
 typedef struct SBuffer
 {
     String S;
@@ -84,6 +88,8 @@ void pack_4na( const String * unpacked, SBuffer * packed );
 void unpack_4na( const String * packed, SBuffer * unpacked );
 
 uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits );
+
+bool file_exists( const KDirectory * dir, const char * fmt, ... );
 
 #ifdef __cplusplus
 }

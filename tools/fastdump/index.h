@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_sorter_
-#define _h_sorter_
+#ifndef _h_index_
+#define _h_index_
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,34 +39,24 @@ extern "C" {
 #include <klib/text.h>
 #endif
 
-#ifndef _h_atomic_
-#include <atomic.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
 #endif
 
-#ifndef _h_raw_read_iter_
-#include "raw_read_iter.h"
-#endif
+struct index_writer;
 
+void release_index_writer( struct index_writer * writer );
+rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
+                        size_t buf_size, uint64_t frequency, const char * fmt, ... );
+rc_t write_key( struct index_writer * writer, uint64_t key, uint64_t offset );
 
-typedef struct sorter_params
-{
-    KDirectory * dir;
-    const char * acc;    
-    const char * output_filename;
-    const char * index_filename;
-    const char * temp_path;
-    struct raw_read_iter * src;
-    size_t buf_size, mem_limit, prefix, num_threads, cursor_cache;
-    atomic_t * sort_progress;
-    bool show_progress;
-} sorter_params;
+struct index_reader;
 
-rc_t run_sorter( const sorter_params * params );
-rc_t run_sorter_pool( const sorter_params * params );
+void release_index_reader( struct index_reader * reader );
+rc_t make_index_reader( KDirectory * dir, struct index_reader ** reader,
+                        size_t buf_size, const char * fmt, ... );
+rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key,
+                   uint64_t * nearest, uint64_t * offset );
 
 #ifdef __cplusplus
 }

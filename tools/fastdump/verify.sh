@@ -9,19 +9,32 @@ execute()
 }
 
 ACC="SRR341578"
-BINLOOKUP="lookup_bin.dat"
+LOOKUP="SRR341578.lookup"
 SPECIAL="special.txt"
 SPECIAL2="vdb_dump_special.txt"
-SCRATCH="/panfs/traces01/compress/qa/raetzw/fastdump/"
+SCRATCH_PATH="/panfs/traces01/compress/qa/raetzw/fastdump/"
+SCRATCH="-t $SCRATCH_PATH"
+INDEX_FILE="SRR341578.lookup.idx"
+INDEX="-i $INDEX_FILE"
+
+#remove lookup_file
+CMD="rm -rf $LOOKUP $INDEX_FILE"
+#execute "$CMD"
 
 #produce the lookup-file
-CMD="time fastdump $ACC -f lookup -o $BINLOOKUP -t $SCRATCH -p -b 5M -n 8 -c 5M"
-execute "$CMD"
+CMD="time fastdump $ACC -f lookup -o $LOOKUP $INDEX $SCRATCH -e 4 -p"
+#CMD="totalview fastdump -a $ACC -f lookup -o $LOOKUP $INDEX $SCRATCH -m 4G -p"
+#CMD="time fastdump $ACC -f lookup -o $LOOKUP $SCRATCH -p"
+#execute "$CMD"
 # about 1m26
 
-#produce the output using the lookup-file
-CMD="time fastdump $ACC -l $BINLOOKUP -o $SPECIAL -b 10M -c 5M -p"
+#check key seeker
+CMD="time fastdump $ACC -f test -l $LOOKUP $INDEX -a 1"
 execute "$CMD"
+
+#produce the output using the lookup-file
+CMD="time fastdump $ACC -l $LOOKUP -o $SPECIAL -p"
+#execute "$CMD"
 #about 0m49
 
 #produce the same output using vdb-dump with internal schema-joins
@@ -31,4 +44,4 @@ execute "$CMD"
 
 #verify that the output is the same
 CMD="time diff $SPECIAL $SPECIAL2"
-execute "$CMD"
+#execute "$CMD"

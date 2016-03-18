@@ -27,6 +27,7 @@
 #include "helper.h"
 #include <klib/log.h>
 #include <klib/printf.h>
+#include <kfs/defs.h>
 
 rc_t ErrMsg( const char * fmt, ... )
 {
@@ -337,4 +338,17 @@ uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
     }
     if ( max > 0 ) res /= max;
     return res;
+}
+
+
+bool file_exists( const KDirectory * dir, const char * fmt, ... )
+{
+    uint32_t pt;
+    va_list list;
+    
+    va_start( list, fmt );
+    pt = KDirectoryVPathType( dir, fmt, list );
+    va_end( list );
+
+    return ( pt == kptFile ) ;
 }

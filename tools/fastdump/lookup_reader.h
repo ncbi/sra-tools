@@ -44,13 +44,18 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
+#ifndef _h_index_
+#include "index.h"
+#endif
 
 struct lookup_reader;
 
 void release_lookup_reader( struct lookup_reader * reader );
 
-rc_t make_lookup_reader( KDirectory *dir, struct lookup_reader ** reader,
-                         size_t buf_size, const char * fmt, ... );
+rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * index,
+                         struct lookup_reader ** reader, size_t buf_size, const char * fmt, ... );
+
+rc_t seek_lookup_reader( struct lookup_reader * reader, uint64_t key, bool exactly );
 
 rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * reader,
                         uint64_t * key, SBuffer * packed_bases );

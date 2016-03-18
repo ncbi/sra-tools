@@ -35,6 +35,7 @@
 typedef struct lookup_reader
 {
     const struct KFile * f;
+    const struct index_reader * index;
     SBuffer buf;
     uint64_t pos;
 } lookup_reader;
@@ -51,8 +52,8 @@ void release_lookup_reader( struct lookup_reader * reader )
 }
 
 
-rc_t make_lookup_reader( KDirectory *dir, struct lookup_reader ** reader,
-                         size_t buf_size, const char * fmt, ... )
+rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * index,
+                         struct lookup_reader ** reader, size_t buf_size, const char * fmt, ... )
 {
     rc_t rc;
     const struct KFile * f;
@@ -83,14 +84,13 @@ rc_t make_lookup_reader( KDirectory *dir, struct lookup_reader ** reader,
             }
             else
             {
+                r->f = temp_file;
+                r->index = index;
                 rc = make_SBuffer( &r->buf, 4096 );
-                if ( rc != 0 )
-                    KFileRelease( temp_file );
-                else
-                {
-                    r->f = temp_file;
+                if ( rc == 0 )
                     *reader = r;
-                }
+                else
+                    release_lookup_reader( r );
             }
         }
     }
@@ -99,48 +99,133 @@ rc_t make_lookup_reader( KDirectory *dir, struct lookup_reader ** reader,
 }
 
 
-rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * reader,
-                        uint64_t * key, SBuffer * packed_bases )
+static rc_t read_key_and_len( struct lookup_reader * reader, uint64_t pos, uint64_t *key, size_t *len )
 {
     size_t num_read;
-    char buffer1[ 10 ];
-    rc_t rc = KFileRead( reader->f, reader->pos, buffer1, sizeof buffer1, &num_read );
+    char buffer[ 10 ];
+    rc_t rc = KFileRead( reader->f, pos, buffer, sizeof buffer, &num_read );
     if ( rc != 0 )
-        ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", reader->pos, sizeof buffer1, rc );
-    else if ( num_read != sizeof buffer1 )
-    {
-        rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-        /* ErrMsg( "KFileRead( %ld ) %d vs %d -> %R", reader->pos, num_read, sizeof buffer1, rc ); */
-    }
+        ErrMsg( "read_key_and_len.KFileRead( at %ld, to_read %u ) -> %R", pos, sizeof buffer, rc );
+    else if ( num_read != sizeof buffer )
+        rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
     else
     {
         uint16_t dna_len;
-        size_t to_read;
-        char * dst = ( char * )packed_bases->S.addr;
-        
-        memmove( key, buffer1, sizeof *key );
-
-        dna_len = buffer1[ 8 ];
+        size_t packed_len;
+        memmove( key, buffer, sizeof *key );
+        dna_len = buffer[ 8 ];
         dna_len <<= 8;
-        dna_len |= buffer1[ 9 ];
-        dst[ 0 ] = buffer1[ 8 ];
-        dst[ 1 ] = buffer1[ 9 ];
-        dst += 2;
-        to_read = ( dna_len & 1 ) ? ( dna_len + 1 ) >> 1 : dna_len >> 1;
-        if ( rc == 0 )
+        dna_len |= buffer[ 9 ];
+        packed_len = ( dna_len & 1 ) ? ( dna_len + 1 ) >> 1 : dna_len >> 1;
+        *len = ( ( sizeof *key ) + ( sizeof dna_len ) + packed_len );
+    }
+    return rc;
+}
+
+
+static rc_t loop_until_key_found( struct lookup_reader * reader, uint64_t *pos, uint64_t key_to_find )
+{
+    rc_t rc = 0;
+    bool done = false;
+    uint64_t curr = *pos;
+    while ( !done && rc == 0 )
+    {
+        uint64_t found_key;
+        size_t found_len;
+        rc = read_key_and_len( reader, curr, &found_key, &found_len );
+        if ( key_to_find == found_key )
         {
-            rc = KFileRead( reader->f, reader->pos + 10, dst, to_read, &num_read );
-            if ( rc != 0 )
-                ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", reader->pos + 10, to_read, rc );
-            else if ( num_read != to_read )
+            done = true;
+            *pos = curr;
+        }
+        else if ( key_to_find > found_key )
+            curr += found_len;
+        else
+        {
+            done = true;
+            rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+        }
+    }
+    return rc;
+}
+
+
+rc_t seek_lookup_reader( struct lookup_reader * reader, uint64_t key, bool exactly )
+{
+    rc_t rc = 0;
+    uint64_t offset = 0;
+    if ( reader == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
+        ErrMsg( "seek_lookup_reader() -> %R", rc );
+    }
+    else if ( reader->index != NULL )
+    {
+        /* we have a index! find set pos to the found offset */
+        uint64_t nearest;
+        rc = get_nearest_offset( reader->index, key, &nearest, &offset );
+    }
+    if ( rc == 0 )
+    {
+        if ( exactly )
+            rc = loop_until_key_found( reader, &offset, key );
+        if ( rc == 0 )
+            reader->pos = offset;
+    }
+    return rc;
+}
+
+
+rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * reader,
+                        uint64_t * key, SBuffer * packed_bases )
+{
+    rc_t rc;
+    if ( reader == NULL || key == NULL || packed_bases == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
+        ErrMsg( "get_packed_and_key_from_lookup_reader() -> %R", rc );
+    }
+    else
+    {
+        size_t num_read;
+        char buffer1[ 10 ];
+        rc = KFileRead( reader->f, reader->pos, buffer1, sizeof buffer1, &num_read );
+        if ( rc != 0 )
+            ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", reader->pos, sizeof buffer1, rc );
+        else if ( num_read != sizeof buffer1 )
+            rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+        else
+        {
+            uint16_t dna_len;
+            size_t to_read;
+            char * dst = ( char * )packed_bases->S.addr;
+            
+            memmove( key, buffer1, sizeof *key );
+
+            dna_len = buffer1[ 8 ];
+            dna_len <<= 8;
+            dna_len |= buffer1[ 9 ];
+            dst[ 0 ] = buffer1[ 8 ];
+            dst[ 1 ] = buffer1[ 9 ];
+            dst += 2;
+            to_read = ( dna_len & 1 ) ? ( dna_len + 1 ) >> 1 : dna_len >> 1;
+            if ( to_read > ( packed_bases->buffer_size - 2 ) )
+                to_read = ( packed_bases->buffer_size - 2 );
+            if ( rc == 0 )
             {
-                rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                ErrMsg( "KFileRead( %ld ) %d vs %d -> %R", reader->pos + 10, num_read, to_read, rc );
-            }
-            else
-            {
-                packed_bases->S.len = packed_bases->S.size = num_read + 2;
-                reader->pos += ( num_read + 10 );
+                rc = KFileRead( reader->f, reader->pos + 10, dst, to_read, &num_read );
+                if ( rc != 0 )
+                    ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", reader->pos + 10, to_read, rc );
+                else if ( num_read != to_read )
+                {
+                    rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+                    ErrMsg( "KFileRead( %ld ) %d vs %d -> %R", reader->pos + 10, num_read, to_read, rc );
+                }
+                else
+                {
+                    packed_bases->S.len = packed_bases->S.size = num_read + 2;
+                    reader->pos += ( num_read + 10 );
+                }
             }
         }
     }

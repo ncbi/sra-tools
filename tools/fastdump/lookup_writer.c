@@ -33,6 +33,7 @@
 typedef struct lookup_writer
 {
     struct KFile * f;
+    struct index_writer * idx;
     SBuffer buf;
     uint64_t pos;
 } lookup_writer;
@@ -49,8 +50,8 @@ void release_lookup_writer( struct lookup_writer * writer )
 }
 
 
-rc_t make_lookup_writer( KDirectory *dir, struct lookup_writer ** writer,
-                         size_t buf_size,
+rc_t make_lookup_writer( KDirectory *dir, struct index_writer * idx,
+                         struct lookup_writer ** writer, size_t buf_size,
                          const char * fmt, ... )
 {
     rc_t rc;
@@ -80,14 +81,13 @@ rc_t make_lookup_writer( KDirectory *dir, struct lookup_writer ** writer,
             }
             else
             {
+                w->f = temp_file;
+                w->idx = idx;
                 rc = make_SBuffer( &w->buf, 4096 );
-                if ( rc != 0 )
-                    KFileRelease( temp_file );
-                else
-                {
-                    w->f = temp_file;
+                if ( rc == 0 )
                     *writer = w;
-                }
+                else
+                    release_lookup_writer( w );
             }
         }
     }
@@ -117,6 +117,7 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer * writer,
     }
     else
     {
+        uint64_t start_pos = writer->pos;
         writer->pos += num_writ;
         rc = KFileWriteAll( writer->f, writer->pos, bases_as_packed_4na->addr, bases_as_packed_4na->size, &num_writ );
         if ( rc != 0 )
@@ -127,7 +128,11 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer * writer,
             ErrMsg( "KFileWriteAll( bases ) -> %R", rc );
         }
         else
+        {
+            if ( writer->idx != NULL )
+                rc = write_key( writer->idx, key, start_pos );
             writer->pos += num_writ;
+        }
     }
     return rc;
 }

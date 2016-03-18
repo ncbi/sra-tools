@@ -82,7 +82,8 @@
 #include <limits.h>
 #include <time.h>
 #include <zlib.h>
-#include "bam-priv.h"
+#include "bam.h"
+#include "bam-alignment.h"
 #include "Globals.h"
 #include "sequence-writer.h"
 #include "reference-writer.h"
@@ -90,7 +91,7 @@
 #include "mem-bank.h"
 #include "low-match-count.h"
 
-#define THREADING_BAMREAD 0              /*** Reading BAM and SAM are moved to a separate thread ***/
+#define THREADING_BAMREAD 1              /*** Reading BAM and SAM are moved to a separate thread ***/
 #if THREADING_BAMREAD
 #define THREADING_BAMREAD_PRIME_NAME2KEY 1 /*** Only valid when THREADING_BAMREAD==1. Will prime Name2Key on BAM/SAM thread ***/
 #endif
@@ -1387,49 +1388,45 @@ static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint
 static context_t GlobalContext;
 
 #if THREADING_BAMREAD
-timeout_t bamq_tm;
-KQueue  *bamq;
-rc_t run_bamread_thread( const KThread *self, void *data )
-{
-	const BAM_Alignment *rec;
-	const BAM_File *bam=data;
-	rc_t  rc=0;
 
-	while(rc==0){
-		bool done=false;
-		rec=NULL;
-		rc = BAM_FileRead2(bam, &rec, true);
+timeout_t bamq_tm;
+KQueue *bamq;
+static rc_t run_bamread_thread(const KThread *self, void *const file)
+{
+    rc_t rc = 0;
+
+    while (rc == 0) {
+        BAM_Alignment const *crec = NULL;
+        BAM_Alignment *rec = NULL;
+
+        rc = BAM_FileRead2(file, &crec);
+        if (rc) break;
+        rc = BAM_AlignmentCopy(crec, &rec);
+        BAM_AlignmentRelease(crec);
+        if (rc) break;
+
 #if THREADING_BAMREAD_PRIME_NAME2KEY
-		if(rc==0){
-    		size_t   namelen;
-            const char *spotGroup;
-            const char *name;
-			char       dummy[]="";
-			BAM_Alignment *mrec=(BAM_Alignment*)rec;
-			  
+        {
+            static char const dummy[] = "";
+            char const *spotGroup;
+            char const *name;
+            size_t namelen;
+
             BAM_AlignmentGetReadName2(rec, &name, &namelen);
             BAM_AlignmentGetReadGroupName(rec, &spotGroup);
-            rc = GetKeyID(&GlobalContext.keyToID, &mrec->keyId, &mrec->wasInserted, spotGroup?spotGroup:dummy, name, namelen);
-		}
+            rc = GetKeyID(&GlobalContext.keyToID, &rec->keyId, &rec->wasInserted, spotGroup ? spotGroup : dummy, name, namelen);
+            if (rc) break;
+        }
 #endif
-	
-		if(rc==0){
-			while(!done){
-				rc=KQueuePush(bamq,rec,&bamq_tm);
-				if(rc== 0){
-					done=true;
-				} else if (GetRCObject(rc)==rcTimeout){
-        			/*(void)PLOGMSG(klogInfo, (klogInfo, "KQueuePush Waiting", NULL));*/
-					rc =0;
-				} else {
-					done=true;
-				}
-			}
-		} else {
-			KQueueSeal(bamq);
-		}
-	}
-	return rc;
+        for ( ; ; ) {
+            rc = KQueuePush(bamq, rec, &bamq_tm);
+            if (rc == 0 || (int)GetRCObject(rc) != rcTimeout)
+                break;
+        }
+    }
+    (void)PLOGERR(klogInfo, (klogInfo, rc, "bamread_thread done", NULL));
+    KQueueSeal(bamq);
+    return rc;
 }
 #endif
 
@@ -1546,7 +1543,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
 	TimeoutInit(&bamq_tm,10000);
 	rc = KQueueMake (&bamq,4096);
 	if(rc) return rc;
-	rc = KThreadMake(&bamread_thread,run_bamread_thread,(void*)bam);
+	rc = KThreadMake(&bamread_thread, run_bamread_thread, (void*)bam);
 	if(rc) return rc;
 #endif
 
@@ -1577,29 +1574,24 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         char const *BX = NULL;
 
 #if THREADING_BAMREAD
-		{
-			bool done=false;
-			while(!done){
-				rc = KQueuePop (bamq, (void**)&rec, &bamq_tm);
-				if(rc== 0){
-                    done=true;
-                } else if (GetRCObject(rc)==rcTimeout){
-        			/*(void)PLOGMSG(klogInfo, (klogInfo, "KQueuePop Waiting", NULL));*/
-                    rc =0;
-                } else {
-					if(GetRCObject(rc)==rcData && GetRCState(rc)==rcDone)
-                        (void)PLOGMSG(klogInfo, (klogInfo, "KQueuePop Done", NULL));
-					else
-					    (void)PLOGERR(klogWarn, (klogWarn, rc, "KQueuePop Error", NULL));
-					done=true;
-					KThreadWait(bamread_thread,&rc);
-					KThreadRelease(bamread_thread);
-					bamread_thread=NULL;
-				}
-			}
-		}
+        for ( ; ; ) {
+            rc = KQueuePop(bamq, (void **)&rec, &bamq_tm);
+            if (rc == 0) break;
+            if ((int)GetRCObject(rc) == rcTimeout)
+                rc = 0;
+            else {
+                if ((int)GetRCObject(rc)==rcData && (int)GetRCState(rc)==rcDone)
+                    (void)PLOGMSG(klogInfo, (klogInfo, "KQueuePop Done", NULL));
+                else
+                    (void)PLOGERR(klogWarn, (klogWarn, rc, "KQueuePop Error", NULL));
+                KThreadWait(bamread_thread, &rc);
+                KThreadRelease(bamread_thread);
+                bamread_thread = NULL;
+                break;
+            }
+        }
 #else
-        rc = BAM_FileRead2(bam, &rec, false);
+        rc = BAM_FileRead2(bam, &rec);
 #endif
 
         if (rc) {

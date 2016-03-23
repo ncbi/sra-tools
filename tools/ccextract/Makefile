@@ -101,9 +101,5 @@ CCEXTRACT_LIB = \
     -lkxml \
 	-sncbi-vdb
 
-ifeq (mac,$(OS))
-	CCEXTRACT_LIB += -liconv
-endif
-
 $(BINDIR)/ccextract: $(CCEXTRACT_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(CCEXTRACT_LIB)

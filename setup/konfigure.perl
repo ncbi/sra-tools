@@ -203,6 +203,14 @@ unless ($OSTYPE =~ /linux/i || $OSTYPE =~ /darwin/i || $OSTYPE eq 'win') {
     exit 1;
 }
 
+my $OS_DISTRIBUTOR = '';
+if ($OS eq 'linux') {
+    print "checking OS distributor... " unless ($AUTORUN);
+    $OS_DISTRIBUTOR = `lsb_release -si`;
+    chomp $OS_DISTRIBUTOR;
+    println $OS_DISTRIBUTOR unless ($AUTORUN);
+}
+
 print "checking machine architecture... " unless ($AUTORUN);
 println $MARCH unless ($AUTORUN);
 unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i) {
@@ -773,6 +781,7 @@ BUILD = $BUILD
 # target OS
 OS    = $OS
 OSINC = $OSINC
+OS_DISTRIBUTOR = $OS_DISTRIBUTOR
 
 # prefix string for system libraries
 LPFX = $LPFX
@@ -1452,7 +1461,8 @@ sub check_compiler {
             $library = '-lmagic';
             $log = '#include <magic.h> \n int main() { magic_open     (0); }\n'
         } elsif ($n eq 'xml2') {
-            $library = '-lxml2';
+            $library  = '-lxml2';
+            $library .=       ' -liconv' if ($OS eq 'mac');
             $log = '#include <libxml/xmlreader.h>\n' .
                                          'int main() { xmlInitParser  ( ); }\n'
         } else {

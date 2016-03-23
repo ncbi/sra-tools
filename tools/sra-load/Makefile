@@ -107,6 +107,9 @@ LOADER_OBJ = \
 	$(addsuffix .$(OBJX),$(LOADER_SRC))
 
 LIBXML = -lkxfs -lkxml -lxml2
+ifeq (mac,$(OS))
+	LIBXML += -liconv
+endif
 
 LOADER_LIB = \
 	-lkapp \

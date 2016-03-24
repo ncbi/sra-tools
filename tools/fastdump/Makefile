@@ -95,6 +95,7 @@ TOOL_SRC = \
 	raw_read_iter \
 	special_iter \
 	fastq_iter \
+	join \
 	fastdump
 
 TOOL_OBJ = \

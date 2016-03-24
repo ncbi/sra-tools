@@ -26,7 +26,6 @@
 #include "index.h"
 #include "helper.h"
 
-#include <klib/out.h>
 #include <kfs/file.h>
 #include <kfs/buffile.h>
 

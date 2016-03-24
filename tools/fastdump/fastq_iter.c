@@ -63,7 +63,7 @@ rc_t make_fastq_iter( cmn_params * params, struct fastq_iter ** iter )
         if ( rc == 0 )
             rc = cmn_iter_add_column( i->cmn, "CMP_READ", &i->cmp_read_id );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "QUALITY", &i->quality_id );
+            rc = cmn_iter_add_column( i->cmn, "(INSDC:quality:text:phred_33)QUALITY", &i->quality_id );
         if ( rc == 0 )
             rc = cmn_iter_range( i->cmn, i->prim_alig_id );
             

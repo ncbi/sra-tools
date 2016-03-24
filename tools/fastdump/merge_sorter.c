@@ -152,6 +152,7 @@ static merge_src * get_min_merge_src( merge_src * src, uint32_t count )
     return res;
 } 
 
+rc_t CC Quitting();
 
 rc_t run_merge_sorter( struct merge_sorter *ms )
 {
@@ -159,10 +160,14 @@ rc_t run_merge_sorter( struct merge_sorter *ms )
     merge_src * to_write = get_min_merge_src( ms->src_list, ms->params->count );
     while( rc == 0 && to_write != NULL )
     {
-        rc = write_packed_to_lookup_writer( ms->dst, to_write->key, &to_write->packed_bases.S );
+        rc = Quitting();
         if ( rc == 0 )
-            to_write->rc = get_packed_and_key_from_lookup_reader( to_write->reader, &to_write->key, &to_write->packed_bases );
-        to_write = get_min_merge_src( ms->src_list, ms->params->count );
+        {
+            rc = write_packed_to_lookup_writer( ms->dst, to_write->key, &to_write->packed_bases.S );
+            if ( rc == 0 )
+                to_write->rc = get_packed_and_key_from_lookup_reader( to_write->reader, &to_write->key, &to_write->packed_bases );
+            to_write = get_min_merge_src( ms->src_list, ms->params->count );
+        }
     }
     return rc;
 }

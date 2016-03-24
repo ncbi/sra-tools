@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_lookup_producer_
-#define _h_lookup_producer_
+#ifndef _h_join_
+#define _h_join_
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,16 +43,31 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
-struct lookup_producer;
+#ifndef _h_atomic_
+#include <atomic.h>
+#endif
 
-void release_lookup_producer( struct lookup_producer * lookup_producer );
+#ifndef _h_helper_
+#include "helper.h"
+#endif
 
-rc_t make_lookup_producer( sorter_params * params, struct sorter ** sorter );
+typedef struct join_params
+{
+    KDirectory * dir;
+    const char * accession;
+    const char * lookup_filename;
+    const char * index_filename;
+    const char * output_filename;
+    const char * temp_path;
+    atomic_t   * join_progress;
+    size_t buf_size, cur_cache, num_threads;
+    int64_t first;
+    uint64_t count;
+    bool show_progress;
+    format_t fmt;
+} join_params;
 
-rc_t write_to_sorter( struct sorter * sorter, int64_t seq_spot_id, uint32_t seq_read_id,
-        const String * unpacked_bases );
-
-rc_t finalize_sorter( struct sorter * sorter );
+rc_t execute_join( const join_params * jp );
 
 #ifdef __cplusplus
 }

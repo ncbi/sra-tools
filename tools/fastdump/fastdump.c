@@ -33,6 +33,7 @@
 #include "fastq_iter.h"
 #include "lookup_writer.h"
 #include "lookup_reader.h"
+#include "join.h"
 #include "sorter.h"
 #include "helper.h"
 
@@ -54,7 +55,7 @@ static const char * range_usage[] = { "row-range", NULL };
 #define OPTION_RANGE    "range"
 #define ALIAS_RANGE     "R"
 
-static const char * format_usage[] = { "format (special,fastq,lookup)", NULL };
+static const char * format_usage[] = { "format (special, fastq, lookup, default=special)", NULL };
 #define OPTION_FORMAT   "format"
 #define ALIAS_FORMAT     "f"
 
@@ -90,14 +91,9 @@ static const char * index_usage[] = { "name of index-file", NULL };
 #define OPTION_INDEX    "index"
 #define ALIAS_INDEX     "i"
 
-static const char * value_usage[] = { "value for test", NULL };
-#define OPTION_VALUE    "value"
-#define ALIAS_VALUE     "a"
-
 OptDef ToolOptions[] =
 {
     { OPTION_RANGE,     ALIAS_RANGE,     NULL, range_usage,      1, true,   false },
-    { OPTION_VALUE,     ALIAS_VALUE,     NULL, value_usage,      1, true,   false },    
     { OPTION_LOOKUP,    ALIAS_LOOKUP,    NULL, lookup_usage,     1, true,   false },
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
     { OPTION_OUTPUT,    ALIAS_OUTPUT,    NULL, output_usage,     1, true,   false },
@@ -154,160 +150,8 @@ rc_t CC Usage ( const Args * args )
  *      mm = minor release
  *    rrrr = bug-fix release
  */
-ver_t CC KAppVersion( void )
-{
-    return FASTDUMP_VERS;
-}
+ver_t CC KAppVersion( void ) { return FASTDUMP_VERS; }
 
-
-/* -------------------------------------------------------------------------------------------- */
-
-static rc_t print_special( special_rec * rec, struct lookup_reader * lookup,
-            SBuffer * B1, SBuffer * B2, struct file_printer * printer )
-{
-    rc_t rc = 0;
-    int64_t row_id = rec->row_id;
-    
-    if ( rec->prim_alig_id[ 0 ] == 0 )
-    {
-        if ( rec->prim_alig_id[ 1 ] == 0 )
-        {
-            /* both unaligned, print what is in row->cmp_read ( !!! no lookup !!! )*/
-            if ( printer != NULL )
-                rc = file_print( printer, "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
-            else
-                rc = KOutMsg( "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
-        }
-        else
-        {
-            /* A0 is unaligned / A1 is aligned (lookup) */
-            rc = lookup_bases( lookup, row_id, 2, B2 );
-            if ( rc == 0 )
-            {
-                if ( printer != NULL )
-                    rc = file_print( printer, "%ld\t%S%S\t%S\n", row_id, &rec->cmp_read, &B2->S, &rec->spot_group );
-                else
-                    rc = KOutMsg( "%ld\t%S%S\t%S\n", row_id, &rec->cmp_read, &B2->S, &rec->spot_group );
-            }
-        }
-    }
-    else
-    {
-        if ( rec->prim_alig_id[ 1 ] == 0 )
-        {
-            /* A0 is aligned (lookup) / A1 is unaligned */
-            rc = lookup_bases( lookup, row_id, 1, B1 );
-            if ( rc == 0 )
-            {
-                if ( printer != NULL )
-                    rc = file_print( printer, "%ld\t%S%S\t%S\n", row_id, &B1->S, &rec->cmp_read, &rec->spot_group );
-                else
-                    rc = KOutMsg( "%ld\t%S%S\t%S\n", row_id, &B1->S, &rec->cmp_read, &rec->spot_group );
-            }
-        }
-        else
-        {
-            /* A0 and A1 are aligned (2 lookups)*/
-            rc = lookup_bases( lookup, row_id, 1, B1 );
-            if ( rc == 0 )
-                rc = lookup_bases( lookup, row_id, 2, B2 );
-            if ( rc == 0 )
-            {
-                if ( printer != NULL )
-                    rc = file_print( printer, "%ld\t%S%S\t%S\n", row_id, &B1->S, &B2->S, &rec->spot_group );
-                else
-                    rc = KOutMsg( "%ld\t%S%S\t%S\n", row_id, &B1->S, &B2->S, &rec->spot_group );
-            }
-        }
-
-    }
-    return rc;
-}
-
-
-/* -------------------------------------------------------------------------------------------- */
-
-static rc_t print_fastq( const char * acc, fastq_rec * rec, struct lookup_reader * lookup,
-            SBuffer * B1, SBuffer * B2, struct file_printer * printer )
-{
-    rc_t rc = 0;
-    int64_t row_id = rec->row_id;
-
-    if ( rec->prim_alig_id[ 0 ] == 0 )
-    {
-        if ( rec->prim_alig_id[ 1 ] == 0 )
-        {
-            /* both unaligned, print what is in row->cmp_read (no lookup)*/
-            const char * fmt = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
-            if ( printer != NULL )
-                rc = file_print( printer, fmt,
-                    acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
-                    acc, row_id, row_id, rec->quality.len, &rec->quality );
-            else
-                rc = KOutMsg( fmt,
-                    acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
-                    acc, row_id, row_id, rec->quality.len, &rec->quality );
-                
-        }
-        else
-        {
-            /* A0 is unaligned / A1 is aligned (lookup) */
-            rc = lookup_bases( lookup, row_id, 2, B2 );
-            if ( rc == 0 )
-            {
-                const char * fmt = "@%s.%ld %ld length=%d\n%S%S\n+%s.%ld %ld length=%d\n%S\n";
-                if ( printer != NULL )
-                    rc = file_print( printer, fmt,
-                        acc, row_id, row_id, rec->cmp_read.len + B2->S.len, &rec->cmp_read, &B2->S,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-                else
-                    rc = KOutMsg( fmt,
-                        acc, row_id, row_id, rec->cmp_read.len + B2->S.len, &rec->cmp_read, &B2->S,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-            }
-        }
-    }
-    else
-    {
-        if ( rec->prim_alig_id[ 1 ] == 0 )
-        {
-            /* A0 is aligned (lookup) / A1 is unaligned */
-            rc = lookup_bases( lookup, row_id, 1, B1 );
-            if ( rc == 0 )
-            {
-                const char * fmt = "@%s.%ld %ld length=%d\n%S%S\n+%s.%ld %ld length=%d\n%S\n";
-                if ( printer != NULL )
-                    rc = file_print( printer, fmt,
-                        acc, row_id, row_id, rec->cmp_read.len + B1->S.len, &B1->S, &rec->cmp_read,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-                else
-                    rc = KOutMsg( fmt,
-                        acc, row_id, row_id, rec->cmp_read.len + B1->S.len, &B1->S, &rec->cmp_read,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-            }
-        }
-        else
-        {
-            /* A0 and A1 are aligned (2 lookups)*/
-            rc = lookup_bases( lookup, row_id, 1, B1 );
-            if ( rc == 0 )
-                rc = lookup_bases( lookup, row_id, 2, B2 );
-            if ( rc == 0 )
-            {
-                const char * fmt = "@%s.%ld %ld length=%d\n%S%S\n+%s.%ld %ld length=%d\n%S\n";
-                if ( printer != NULL )
-                    rc = file_print( printer, fmt,
-                        acc, row_id, row_id, B1->S.len + B2->S.len, &B1->S, &B2->S,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-                else
-                    rc = KOutMsg( fmt,
-                        acc, row_id, row_id, B1->S.len + B2->S.len, &B1->S, &B2->S,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-            }
-        }
-    }
-    return rc;
-}
 
 /* -------------------------------------------------------------------------------------------- */
 
@@ -319,126 +163,8 @@ typedef struct fd_ctx
     const char * index_filename;
     const char * temp_path;
     size_t buf_size, mem_limit;
-    uint64_t num_threads, value;
+    uint64_t num_threads;
 } fd_ctx;
-
-
-static rc_t fastdump_make_lookup( fd_ctx * fd_ctx );
-
-static rc_t no_lookup_found( fd_ctx * fd_ctx )
-{
-    rc_t rc;
-    const char * temp = fd_ctx->output_filename;
-    fd_ctx->output_filename = fd_ctx->lookup_filename;
-    rc = fastdump_make_lookup( fd_ctx );
-    fd_ctx->output_filename = temp;
-    return rc;
-}
-
-
-typedef struct join_ctx
-{
-    struct lookup_reader * lookup;
-    struct index_reader * index;
-    struct file_printer * printer;
-    SBuffer B1, B2;
-} join_ctx;
-
-
-static void release_join_ctx( join_ctx * j_ctx )
-{
-    release_index_reader( j_ctx->index );
-    release_lookup_reader( j_ctx->lookup );
-    destroy_file_printer( j_ctx->printer );
-    release_SBuffer( &j_ctx->B1 );
-    release_SBuffer( &j_ctx->B2 );
-}
-
-static rc_t init_join_ctx( fd_ctx * fd_ctx, join_ctx * j_ctx )
-{
-    rc_t rc;
-    if ( !file_exists( fd_ctx->cmn.dir, "%s", fd_ctx->lookup_filename ) )
-        rc = no_lookup_found( fd_ctx );
-    if ( rc == 0 )
-    {
-        j_ctx->lookup = NULL;    
-        j_ctx->index = NULL;
-        j_ctx->printer = NULL;
-        if ( fd_ctx->index_filename != NULL )
-        {
-            if ( file_exists( fd_ctx->cmn.dir, "%s", fd_ctx->index_filename ) )
-                rc = make_index_reader( fd_ctx->cmn.dir, &j_ctx->index, fd_ctx->buf_size, "%s", fd_ctx->index_filename );
-        }
-        if ( rc == 0 )
-            rc = make_lookup_reader( fd_ctx->cmn.dir, j_ctx->index, &j_ctx->lookup, fd_ctx->buf_size, "%s", fd_ctx->lookup_filename );
-        if ( rc == 0 && fd_ctx->output_filename != NULL )
-            rc = make_file_printer( fd_ctx->cmn.dir, &j_ctx->printer, fd_ctx->buf_size, 4096 * 4, "%s", fd_ctx->output_filename );
-        if ( rc == 0 )
-            rc = make_SBuffer( &j_ctx->B1, 4096 );
-        if ( rc == 0 )
-            rc = make_SBuffer( &j_ctx->B2, 4096 );
-    }
-    if ( rc != 0 )
-        release_join_ctx( j_ctx );
-    return rc;
-}
-
-/* --------------------------------------------------------------------------------------------
-    produce special-output ( SPOT_ID,READ,SPOT_GROUP ) by iterating over the SEQUENCE - table:
-   -------------------------------------------------------------------------------------------- 
-   
--------------------------------------------------------------------------------------------- */
-static rc_t fastdump_special( fd_ctx * fd_ctx )
-{
-    join_ctx jctx;
-    rc_t rc = init_join_ctx( fd_ctx, &jctx );
-    if ( rc == 0 )
-    {
-        struct special_iter * iter;
-        rc = make_special_iter( &fd_ctx->cmn, &iter );
-        if ( rc == 0 )
-        {
-            special_rec rec;
-            while ( get_from_special_iter( iter, &rec, &rc ) && rc == 0 )
-            {
-                rc = print_special( &rec, jctx.lookup, &jctx.B1, &jctx.B2, jctx.printer );
-            }
-            destroy_special_iter( iter );
-        }
-        release_join_ctx( &jctx );
-    }
-    return rc;
-}
-
-
-/* --------------------------------------------------------------------------------------------
-    produce fastq-output by iterating over the SEQUENCE - table:
-   -------------------------------------------------------------------------------------------- 
-   
--------------------------------------------------------------------------------------------- */
-static rc_t fastdump_fastq( fd_ctx * fd_ctx )
-{
-    join_ctx jctx;
-    rc_t rc = init_join_ctx( fd_ctx, &jctx );
-    if ( rc == 0 )
-    {
-    
-        struct fastq_iter * iter;
-        rc = make_fastq_iter( &fd_ctx->cmn, &iter );
-        if ( rc == 0 )
-        {
-            fastq_rec rec;
-
-            while ( get_from_fastq_iter( iter, &rec, &rc ) && rc == 0 )
-            {
-                rc = print_fastq( fd_ctx->cmn.acc, &rec, jctx.lookup, &jctx.B1, &jctx.B2, jctx.printer );
-            }
-            destroy_fastq_iter( iter );
-        }
-        release_join_ctx( &jctx );        
-    }
-    return rc;
-}
 
 
 static void init_sorter_params( const fd_ctx * fd_ctx, sorter_params * sp )
@@ -525,7 +251,60 @@ static rc_t fastdump_make_lookup( fd_ctx * fd_ctx )
 }
 
 
-#if 0
+/* --------------------------------------------------------------------------------------------
+    produce special-output ( SPOT_ID,READ,SPOT_GROUP ) by iterating over the SEQUENCE - table:
+    produce fastq-output by iterating over the SEQUENCE - table:
+   -------------------------------------------------------------------------------------------- 
+   
+-------------------------------------------------------------------------------------------- */
+
+static rc_t perform_join( fd_ctx * fd_ctx, format_t fmt )
+{
+    rc_t rc = 0;
+    if ( !file_exists( fd_ctx->cmn.dir, "%s", fd_ctx->lookup_filename ) )
+    {
+        const char * temp = fd_ctx->output_filename;
+        fd_ctx->output_filename = fd_ctx->lookup_filename;
+        rc = fastdump_make_lookup( fd_ctx );
+        fd_ctx->output_filename = temp;
+    }
+    
+    if ( rc == 0 )
+    {
+        join_params jp;
+        
+        jp.dir              = fd_ctx->cmn.dir;
+        jp.accession        = fd_ctx->cmn.acc;
+        jp.lookup_filename  = fd_ctx->lookup_filename;
+        jp.index_filename   = fd_ctx->index_filename;
+        jp.output_filename  = fd_ctx->output_filename;
+        jp.temp_path        = fd_ctx->temp_path;
+        jp.join_progress    = NULL;
+        jp.buf_size         = fd_ctx->buf_size;
+        jp.cur_cache        = fd_ctx->cmn.cursor_cache;
+        jp.show_progress    = fd_ctx->cmn.show_progress;
+        jp.num_threads      = fd_ctx->num_threads;
+        jp.first            = 0;
+        jp.count            = 0;
+        jp.fmt              = fmt;
+        
+        rc = execute_join( &jp );
+    }
+    return rc;
+}
+
+
+/* --------------------------------------------------------------------------------------------
+    produces the binaray lookup-table as readable ascii-file
+   -------------------------------------------------------------------------------------------- 
+    exercises the lookup-reader, writes each alignment as one line
+    SEQ_READ_ID,SEQ_SPOT_ID,RAW_READ ( tab-separated )
+    used to be compared to the output of
+    'vdb-dump SRRXXX -T PRIMARY_ALIGNMENT -C SEQ_SPOT_ID,SEQ_READ_ID,RAW_READ -f tab > XXX.txt'
+    xxx.txt has to be numerically sorted! 'sort xxx.txt -n -T scratch -o yyy.txt'
+    don't forget to give the sort-command a scratch-path that has enough space!
+    yyy.txt can the be compared agains the output of this function
+
 static rc_t dump_lookup( fd_ctx * fd_ctx, struct lookup_reader * lookup )
 {
     SBuffer bases;
@@ -556,45 +335,7 @@ static rc_t dump_lookup( fd_ctx * fd_ctx, struct lookup_reader * lookup )
     }
     return rc;
 }
-#endif
 
-
-static rc_t check_index( fd_ctx * fd_ctx, struct lookup_reader * lookup, struct index_reader * index )
-{
-    uint64_t key = fd_ctx->value;
-    rc_t rc = seek_lookup_reader( lookup, key, true );
-    if ( rc == 0 )
-    {
-        SBuffer bases;
-        int64_t  seq_spot_id;
-        uint32_t seq_read_id;
-        rc = make_SBuffer( &bases, 4096 );
-        if ( rc == 0 )
-        {
-            rc = get_bases_from_lookup_reader( lookup, &seq_spot_id, &seq_read_id, &bases );
-            if ( rc == 0 )
-                rc = KOutMsg( "%lu\t%u\t%S\n", seq_spot_id, seq_read_id, &bases.S );
-            release_SBuffer( &bases );
-        }
-    }
-    else
-    {
-        rc = KOutMsg( "cannot seek to key '%lu'\n", key );
-    }
-    return rc;
-}
-
-/* --------------------------------------------------------------------------------------------
-    produces the binaray lookup-table as readable ascii-file
-   -------------------------------------------------------------------------------------------- 
-    exercises the lookup-reader, writes each alignment as one line
-    SEQ_READ_ID,SEQ_SPOT_ID,RAW_READ ( tab-separated )
-    used to be compared to the output of
-    'vdb-dump SRRXXX -T PRIMARY_ALIGNMENT -C SEQ_SPOT_ID,SEQ_READ_ID,RAW_READ -f tab > XXX.txt'
-    xxx.txt has to be numerically sorted! 'sort xxx.txt -n -T scratch -o yyy.txt'
-    don't forget to give the sort-command a scratch-path that has enough space!
-    yyy.txt can the be compared agains the output of this function
--------------------------------------------------------------------------------------------- */
 static rc_t fastdump_test( fd_ctx * fd_ctx )
 {
     rc_t rc = 0;
@@ -611,17 +352,14 @@ static rc_t fastdump_test( fd_ctx * fd_ctx )
                         "%s", fd_ctx->lookup_filename );
         if ( rc == 0 )
         {
-            /* rc = dump_lookup( fd_ctx, lookup ); */
-            
-            rc = check_index( fd_ctx, lookup, index );
-            
+            rc = dump_lookup( fd_ctx, lookup );
             release_lookup_reader( lookup );
         }
         release_index_reader( index );
     }
     return rc;
 }
-
+-------------------------------------------------------------------------------------------- */
 
 /* -------------------------------------------------------------------------------------------- */
 
@@ -640,34 +378,72 @@ rc_t CC KMain ( int argc, char *argv [] )
             ErrMsg( "ArgsParamValue() -> %R", rc );
         else
         {
+            const char * format = get_str_option( args, OPTION_FORMAT, NULL );
+            format_t fmt = get_format_t( format );
+            char dflt_lookup[ 4096 ];
+            char dflt_index[ 4096 ];
+            char dflt_output[ 4096 ];
+            
+            dflt_lookup[ 0 ] = 0;
+            dflt_index[ 0 ] = 0;
+            dflt_output[ 0 ] = 0;
+            
             fd_ctx.cmn.row_range = get_str_option( args, OPTION_RANGE, NULL );
             fd_ctx.cmn.cursor_cache = get_size_t_option( args, OPTION_CURCACHE, 5 * 1024 * 1024 );            
             fd_ctx.cmn.show_progress = get_bool_option( args, OPTION_PROGRESS );
             fd_ctx.cmn.count = 0;
 
-            fd_ctx.output_filename = get_str_option( args, OPTION_OUTPUT, NULL );
-            fd_ctx.index_filename = get_str_option( args, OPTION_INDEX, NULL );
             fd_ctx.temp_path = get_str_option( args, OPTION_TEMP, NULL );
-            fd_ctx.lookup_filename = get_str_option( args, OPTION_LOOKUP, NULL );
+            fd_ctx.output_filename = get_str_option( args, OPTION_OUTPUT, NULL );
+            fd_ctx.lookup_filename = get_str_option( args, OPTION_LOOKUP, NULL );            
+            fd_ctx.index_filename = get_str_option( args, OPTION_INDEX, NULL );
             fd_ctx.buf_size = get_size_t_option( args, OPTION_BUFSIZE, 1024 * 1024 );
             fd_ctx.mem_limit = get_size_t_option( args, OPTION_MEM, 1024L * 1024 * 100 );
             fd_ctx.num_threads = get_uint64_t_option( args, OPTION_THREADS, 1 );
-            fd_ctx.value = get_uint64_t_option( args, OPTION_VALUE, 1 );
-            
+
+            if ( fd_ctx.lookup_filename == NULL )
+            {
+                rc = make_prefixed( dflt_lookup, sizeof dflt_lookup, fd_ctx.temp_path,
+                                    fd_ctx.cmn.acc, ".lookup" );
+                if ( rc == 0 )
+                    fd_ctx.lookup_filename = dflt_lookup;
+            }
+
+            if ( fd_ctx.index_filename == NULL )
+            {
+                rc = make_prefixed( dflt_index, sizeof dflt_index, fd_ctx.temp_path,
+                                    fd_ctx.cmn.acc, ".lookup.idx" );
+                if ( rc == 0 )
+                    fd_ctx.index_filename = dflt_index;
+            }
+
+            if ( fd_ctx.output_filename == NULL )
+            {
+                rc = make_prefixed( dflt_output, sizeof dflt_output, NULL,
+                                    fd_ctx.cmn.acc, ".txt" );
+                if ( rc == 0 )
+                    fd_ctx.output_filename = dflt_output;
+            }
+
             rc = KDirectoryNativeDir( &fd_ctx.cmn.dir );
             if ( rc != 0 )
                 ErrMsg( "KDirectoryNativeDir() -> %R", rc );
             else
             {
-                const char * format = get_str_option( args, OPTION_FORMAT, NULL );
-                format_t f = get_format_t( format );
-                switch( f )
+                switch( fmt )
                 {
-                    case ft_special : rc = fastdump_special( &fd_ctx ); break;
-                    case ft_fastq   : rc = fastdump_fastq( &fd_ctx ); break;
+                    case ft_special : rc = perform_join( &fd_ctx, fmt ); break;
+                    case ft_fastq   : rc = perform_join( &fd_ctx, fmt ); break;
                     case ft_lookup  : rc = fastdump_make_lookup( &fd_ctx ); break;
-                    case ft_test    : rc = fastdump_test( &fd_ctx ); break;
+                    case ft_test    : /* rc = fastdump_test( &fd_ctx ); */ break;
                 }
+
+                if ( dflt_lookup[ 0 ] != 0 )
+                    KDirectoryRemove( fd_ctx.cmn.dir, true, "%s", dflt_lookup );
+
+                if ( dflt_index[ 0 ] != 0 )
+                    KDirectoryRemove( fd_ctx.cmn.dir, true, "%s", dflt_index );
+                
                 KDirectoryRelease( fd_ctx.cmn.dir );
             }
         }

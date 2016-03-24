@@ -31,10 +31,8 @@
 #include "helper.h"
 
 #include <klib/vector.h>
-#include <klib/out.h>
 #include <klib/printf.h>
 #include <klib/progressbar.h>
-#include <klib/time.h>
 #include <kproc/thread.h>
 
 /* 
@@ -302,6 +300,7 @@ static rc_t final_merge_sort( const sorter_params * params, uint32_t count )
     return rc;
 }
 
+rc_t CC Quitting();
 
 rc_t run_sorter( const sorter_params * params )
 {
@@ -312,10 +311,13 @@ rc_t run_sorter( const sorter_params * params )
         raw_read_rec rec;
         while ( rc == 0 && get_from_raw_read_iter( sorter.params.src, &rec, &rc ) )
         {
+            rc = Quitting();
             if ( rc == 0 )
+            {
                 rc = write_to_sorter( &sorter, rec.seq_spot_id, rec.seq_read_id, &rec.raw_read );
-            if ( rc == 0 && params->sort_progress != NULL )
-                atomic_inc( params->sort_progress );
+                if ( rc == 0 && params->sort_progress != NULL )
+                    atomic_inc( params->sort_progress );
+            }
         }
         
         if ( rc == 0 )
@@ -464,54 +466,6 @@ static void init_cmn_params( cmn_params * dst, const sorter_params * params, uin
 }
 
 
-static void join_and_release_threads( Vector * threads )
-{
-    uint32_t i, n = VectorLength( threads );
-    for ( i = VectorStart( threads ); i < n; ++i )
-    {
-        KThread * thread = VectorGet( threads, i );
-        if ( thread != NULL )
-        {
-            KThreadWait( thread, NULL );
-            KThreadRelease( thread );
-        }
-    }
-}
-
-
-typedef struct sort_progress
-{
-    atomic_t progress_done;
-    atomic_t progress_rows;
-    uint64_t row_count;
-} sort_progress;
-
-
-static rc_t CC progress_thread_func( const KThread *self, void *data )
-{
-    sort_progress * sp = data;
-    struct progressbar * progressbar;
-    uint32_t curr = 0;
-    rc_t rc = make_progressbar( &progressbar, 2 );
-    update_progressbar( progressbar, curr );
-    while ( atomic_read( &sp->progress_done ) == 0 )
-    {
-        uint32_t percent = calc_percent( sp->row_count, atomic_read( &sp->progress_rows ), 2 );
-        if ( percent > curr )
-        {
-            uint32_t i;
-            for ( i = curr + 1; i <= percent; ++i )
-                update_progressbar( progressbar, i );
-            curr = percent;
-        }
-        KSleepMs( 100 );
-    }
-    destroy_progressbar( progressbar );
-    KOutMsg( "\n" );
-    return rc;
-}
-
-
 static rc_t CC sort_thread_func( const KThread *self, void *data )
 {
     rc_t rc = 0;
@@ -538,21 +492,15 @@ rc_t run_sorter_pool( const sorter_params * params )
         Vector threads;
         KThread * progress_thread = NULL;
         uint32_t prefix = 1;
-        sort_progress sort_progress;
-        
-        atomic_set( &sort_progress.progress_done, 0 );
-        atomic_set( &sort_progress.progress_rows, 0 );
-        sort_progress.row_count = row_count;
+        multi_progress progress;
+
+        init_progress_data( &progress, row_count );
         VectorInit( &threads, 0, params->num_threads );
         init_cmn_params( &cp, params, row_count );
         
-        /* KOutMsg( "rows per thread: %lu of %lu\n", cp.count, row_count ); */
         if ( params->show_progress )
-        {
-            rc = KThreadMake( &progress_thread, progress_thread_func, &sort_progress );
-            if ( rc != 0 )
-                ErrMsg( "KThreadMake( progress_thread ) -> %R", rc );
-        }
+            rc = start_multi_progress( &progress_thread, &progress );
+            
         while ( rc == 0 && cp.first < row_count )
         {
             sorter_params * sp = calloc( 1, sizeof *sp );
@@ -560,14 +508,13 @@ rc_t run_sorter_pool( const sorter_params * params )
             {
                 init_sorter_params( sp, params, prefix++ );
                 rc = make_raw_read_iter( &cp, &sp->src );
-                /* KOutMsg( "sorter #%d: %ld.%lu\n", sp->prefix, cp.first, cp.count ); */
                 
                 if ( rc == 0 )
                 {
                     KThread * thread;
                     
                     if ( params->show_progress )
-                        sp->sort_progress = &sort_progress.progress_rows;
+                        sp->sort_progress = &progress.progress_rows;
                     rc = KThreadMake( &thread, sort_thread_func, sp );
                     if ( rc != 0 )
                         ErrMsg( "KThreadMake( sort-thread #%d ) -> %R", prefix - 1, rc );
@@ -583,15 +530,8 @@ rc_t run_sorter_pool( const sorter_params * params )
         }
 
         join_and_release_threads( &threads );
-
         /* all sorter-threads are done now, tell the progress-thread to terminate! */
-        if ( progress_thread != NULL )
-        {
-            atomic_set( &sort_progress.progress_done, 1 );
-            KThreadWait( progress_thread, NULL );
-            KThreadRelease( progress_thread );
-        }
-
+        join_multi_progress( progress_thread, &progress );
         rc = merge_pool_files( params );
     }
     return rc;

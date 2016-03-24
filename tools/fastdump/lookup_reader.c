@@ -27,6 +27,7 @@
 #include "lookup_reader.h"
 #include "helper.h"
 
+#include <klib/printf.h>
 #include <kfs/file.h>
 #include <kfs/buffile.h>
 
@@ -56,22 +57,30 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
                          struct lookup_reader ** reader, size_t buf_size, const char * fmt, ... )
 {
     rc_t rc;
-    const struct KFile * f;
+    const struct KFile * f = NULL;
     
     va_list args;
     va_start ( args, fmt );
     
     rc = KDirectoryVOpenFileRead( dir, &f, fmt, args );
     if ( rc != 0 )
-        ErrMsg( "KDirectoryVOpenFileRead() -> %R", rc );
+    {
+        char tmp[ 4096 ];
+        size_t num_writ;
+        rc_t rc1 = string_vprintf( tmp, sizeof tmp, &num_writ, fmt, args );
+        if ( rc1 != 0 )
+            ErrMsg( "make_lookup_reader.KDirectoryVOpenFileRead( '?' ) -> %R", rc );
+        else
+            ErrMsg( "make_lookup_reader.KDirectoryVOpenFileRead( '%s' ) -> %R", tmp, rc );
+    }
     else
     {
-        const struct KFile * temp_file;
+        const struct KFile * temp_file = NULL;
         rc = KBufFileMakeRead( &temp_file, f, buf_size );
         KFileRelease( f );
         if ( rc != 0 )
         {
-            ErrMsg( "KBufFileMakeRead() -> %R", rc );
+            ErrMsg( "make_lookup_reader.KBufFileMakeRead() -> %R", rc );
         }
         else
         {
@@ -80,7 +89,7 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
             {
                 KFileRelease( temp_file );
                 rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                ErrMsg( "calloc( %d ) -> %R", ( sizeof * r ), rc );
+                ErrMsg( "make_lookup_reader.calloc( %d ) -> %R", ( sizeof * r ), rc );
             }
             else
             {

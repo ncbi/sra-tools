@@ -18,7 +18,7 @@ def load_sort( L ) :
     R1 = bam_load( L, CSRA1, "--make-spots-with-secondary -L 3 -E0 -Q0" )
     print "bam-load = %d"%( R1 )
     if R1 == 1 :
-        R2 = sra_sort( CSRA1, CSRA2 )
+        R2 = sra_sort( CSRA1, CSRA2, "-vvvv" )
         print "sra-sort = %d"%( R2 )
 
 def load_sort_print( L ) :

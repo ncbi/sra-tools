@@ -983,6 +983,14 @@ EndText
     L($F, $_) foreach (@dependencies);
     L($F);
 
+    # pass HAVE_XML2 to build scripts
+    L($F, 'ifeq (,$(HAVE_XML2))');
+    L($F, '    HAVE_XML2=0');
+    L($F, 'endif');
+    L($F, 'CONFIGURE_FOUND_XML2=$(HAVE_XML2)');
+    L($F, 'export CONFIGURE_FOUND_XML2');
+    L($F);
+
     if ($OS eq 'linux' || $OS eq 'mac') {
         L($F, '# installation rules');
         L($F,

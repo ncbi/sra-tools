@@ -75,7 +75,13 @@ static rc_t init_join( const join_params * jp, struct join *j, struct index_read
        the range of the fully unaligned data - seek will fail, because the are no alignments = lookup-records
        in this area !*/
     if ( rc == 0 && jp->first > 1 )
-        seek_lookup_reader( j->lookup, ( jp->first << 1 ), true );
+    {
+        uint64_t key_to_find = jp->first << 1;
+        uint64_t key_found = 0;
+        rc_t rc1 = seek_lookup_reader( j->lookup, key_to_find, &key_found, true );
+        if ( GetRCState( rc1 ) != rcTooBig )
+            rc = rc1;
+    }
     if ( rc != 0 )
         release_join_ctx( j );
     return rc;

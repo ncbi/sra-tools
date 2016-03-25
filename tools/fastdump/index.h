@@ -55,8 +55,10 @@ struct index_reader;
 void release_index_reader( struct index_reader * reader );
 rc_t make_index_reader( KDirectory * dir, struct index_reader ** reader,
                         size_t buf_size, const char * fmt, ... );
-rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key,
-                   uint64_t * nearest, uint64_t * offset );
+rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key_to_find,
+                   uint64_t * key_found, uint64_t * offset );
+
+rc_t get_max_key( const struct index_reader * reader, uint64_t * max_key );
 
 #ifdef __cplusplus
 }

@@ -294,52 +294,20 @@ static rc_t perform_join( fd_ctx * fd_ctx, format_t fmt )
 }
 
 
-/* --------------------------------------------------------------------------------------------
-    produces the binaray lookup-table as readable ascii-file
-   -------------------------------------------------------------------------------------------- 
-    exercises the lookup-reader, writes each alignment as one line
-    SEQ_READ_ID,SEQ_SPOT_ID,RAW_READ ( tab-separated )
-    used to be compared to the output of
-    'vdb-dump SRRXXX -T PRIMARY_ALIGNMENT -C SEQ_SPOT_ID,SEQ_READ_ID,RAW_READ -f tab > XXX.txt'
-    xxx.txt has to be numerically sorted! 'sort xxx.txt -n -T scratch -o yyy.txt'
-    don't forget to give the sort-command a scratch-path that has enough space!
-    yyy.txt can the be compared agains the output of this function
-
-static rc_t dump_lookup( fd_ctx * fd_ctx, struct lookup_reader * lookup )
-{
-    SBuffer bases;
-    int64_t  seq_spot_id;
-    uint32_t seq_read_id;
-    rc_t rc = make_SBuffer( &bases, 4096 );
-    if ( rc == 0 )
-    {
-        struct file_printer * printer = NULL;
-        if ( fd_ctx->output_filename != NULL )
-            rc = make_file_printer( fd_ctx->cmn.dir, &printer,
-                    fd_ctx->buf_size, 4096 * 4, "%s", fd_ctx->output_filename );
-        
-        while ( rc == 0 )
-        {
-            rc = get_bases_from_lookup_reader( lookup, &seq_spot_id, &seq_read_id, &bases );
-            if ( rc == 0 )
-            {
-                if ( printer != NULL )
-                    rc = file_print( printer, "%lu\t%u\t%S\n", seq_spot_id, seq_read_id, &bases.S );
-                else
-                    rc = KOutMsg( "%lu\t%u\t%S\n", seq_spot_id, seq_read_id, &bases.S );
-            }
-        }
-        destroy_file_printer( printer );
-        
-        release_SBuffer( &bases );
-    }
-    return rc;
-}
-
+/*
 static rc_t fastdump_test( fd_ctx * fd_ctx )
 {
     rc_t rc = 0;
     struct index_reader * index = NULL;
+
+    if ( !file_exists( fd_ctx->cmn.dir, "%s", fd_ctx->lookup_filename ) )
+    {
+        const char * temp = fd_ctx->output_filename;
+        fd_ctx->output_filename = fd_ctx->lookup_filename;
+        rc = fastdump_make_lookup( fd_ctx );
+        fd_ctx->output_filename = temp;
+    }
+    
     if ( fd_ctx->index_filename != NULL )
     {
         if ( file_exists( fd_ctx->cmn.dir, "%s", fd_ctx->index_filename ) )
@@ -352,14 +320,26 @@ static rc_t fastdump_test( fd_ctx * fd_ctx )
                         "%s", fd_ctx->lookup_filename );
         if ( rc == 0 )
         {
-            rc = dump_lookup( fd_ctx, lookup );
+            uint64_t max_key = 0;
+            rc = get_max_key( index, &max_key );
+            if ( rc == 0 )
+            {
+                uint64_t key_to_find = 7549714;
+                uint64_t key_found = 0;
+                KOutMsg( "max-key = %ld\n", max_key );
+                rc_t rc1 = seek_lookup_reader( lookup, key_to_find, &key_found, true );
+                if ( rc1 == 0 )
+                    KOutMsg( "key '%ld' found\n", key_to_find );
+                else
+                    KOutMsg( "key '%ld' not found, nearest: %ld\n", key_to_find, key_found );
+            }
             release_lookup_reader( lookup );
         }
         release_index_reader( index );
     }
     return rc;
 }
--------------------------------------------------------------------------------------------- */
+*/
 
 /* -------------------------------------------------------------------------------------------- */
 

@@ -147,7 +147,7 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
 typedef struct index_reader
 {
     const struct KFile * f;
-    uint64_t frequency, file_size;
+    uint64_t frequency, file_size, max_key;
 } index_reader;
 
 
@@ -211,7 +211,10 @@ rc_t make_index_reader( KDirectory * dir, struct index_reader ** reader,
                     rc = KFileSize( temp_file, &r->file_size );
 
                 if ( rc == 0 )
+                {
+                    get_max_key( r, &r->max_key );
                     *reader = r;
+                }
                 else
                     release_index_reader( r );
             }
@@ -241,11 +244,11 @@ static rc_t read_3( const struct index_reader * reader, uint64_t pos, uint64_t *
 }
 
 
-rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key,
-                   uint64_t * nearest, uint64_t * offset )
+rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key_to_find,
+                   uint64_t * key_found, uint64_t * offset )
 {
     rc_t rc = 0;
-    if ( reader == NULL || nearest == NULL || offset == NULL )
+    if ( reader == NULL || key_found == NULL || offset == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
         ErrMsg( "get_nearest_offset() -> %R", rc );
@@ -253,37 +256,49 @@ rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key,
     else
     {
         uint64_t data[ 6 ];
-        uint64_t pos = key_to_pos_guess( reader, key );
+        /*
+            data[ 0 ] ... key0      data[ 1 ] ... offset0
+            data[ 2 ] ... key1      data[ 3 ] ... offset1
+            data[ 4 ] ... key2      data[ 5 ] ... offset2
+        */
+        uint64_t pos = key_to_pos_guess( reader, key_to_find );
         bool found = false;
         while ( rc == 0 && !found && pos < reader->file_size )
         {        
             rc = read_3( reader, pos, data, sizeof data );
             if ( rc == 0 )
             {
-                if ( key >= data[ 0 ] && key < data[ 2 ] )
+                if ( key_to_find >= data[ 0 ] && key_to_find < data[ 2 ] )
                 {
+                    /* key_to_find is between key0 and key1 */
                     found = true;
-                    *nearest = data[ 0 ]; *offset = data[ 1 ];
+                    *key_found = data[ 0 ];
+                    *offset = data[ 1 ];
                 }
-                else if ( key >= data[ 2 ] && key < data[ 4 ] )
+                else if ( key_to_find >= data[ 2 ] && key_to_find < data[ 4 ] )
                 {
+                    /* key_to_find is between key1 and key2 */
                     found = true;
-                    *nearest = data[ 2 ]; *offset = data[ 3 ];
+                    *key_found = data[ 2 ];
+                    *offset = data[ 3 ];
                 }
                 if ( !found )
                 {
-                    if ( key < data[ 0 ] )
+                    if ( key_to_find < data[ 0 ] )
                     {
+                        /* key_to_find is smaller than our guess */
                         if ( pos > sizeof reader->frequency )
                             pos -= ( 2 * ( sizeof reader->frequency ) );
                         else
                         {
                             found = true;
-                            *nearest = data[ 0 ]; *offset = data[ 1 ];
+                            *key_found = data[ 0 ];
+                            *offset = data[ 1 ];
                         }
                     }
-                    else if ( key > data[ 4 ] )
+                    else if ( key_to_find > data[ 4 ] )
                     {
+                        /* key_to_find is bigger than our guess */
                         pos += ( 2 * ( sizeof reader->frequency ) );
                     }
                 }
@@ -291,6 +306,30 @@ rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key,
         }
         if ( !found )
             rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+    }
+    return rc;
+}
+
+
+rc_t get_max_key( const struct index_reader * reader, uint64_t * max_key )
+{
+    rc_t rc = 0;
+    if ( reader == NULL || max_key == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
+        ErrMsg( "get_nearest_offset() -> %R", rc );
+    }
+    else if ( reader->max_key > 0 )
+    {
+        *max_key = reader->max_key;
+    }
+    else
+    {
+        uint64_t data[ 6 ];
+        uint64_t pos = reader->file_size - ( sizeof data );
+        rc = read_3( reader, pos, data, sizeof data );
+        if ( rc == 0 )
+             *max_key = data[ 4 ];
     }
     return rc;
 }

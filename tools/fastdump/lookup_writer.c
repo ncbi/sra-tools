@@ -107,7 +107,7 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer * writer,
             uint64_t key, const String * bases_as_packed_4na )
 {
     size_t num_writ;
-    rc_t rc = KFileWriteAll( writer->f, writer->pos, &key, sizeof key, &num_writ );
+    rc_t rc = KFileWrite( writer->f, writer->pos, &key, sizeof key, &num_writ );
     if ( rc != 0 )
         ErrMsg( "KFileWriteAll( key ) -> %R", rc );
     else if ( num_writ != sizeof key )
@@ -119,7 +119,7 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer * writer,
     {
         uint64_t start_pos = writer->pos;
         writer->pos += num_writ;
-        rc = KFileWriteAll( writer->f, writer->pos, bases_as_packed_4na->addr, bases_as_packed_4na->size, &num_writ );
+        rc = KFileWrite( writer->f, writer->pos, bases_as_packed_4na->addr, bases_as_packed_4na->size, &num_writ );
         if ( rc != 0 )
             ErrMsg( "KFileWriteAll( bases ) -> %R", rc );
         else if ( num_writ != bases_as_packed_4na->size )

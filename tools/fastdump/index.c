@@ -49,7 +49,7 @@ void release_index_writer( struct index_writer * writer )
 static rc_t write_value( index_writer * writer, uint64_t value )
 {
     size_t num_writ;
-    rc_t rc = KFileWriteAll( writer->f, writer->pos, &value, sizeof value, &num_writ );
+    rc_t rc = KFileWrite( writer->f, writer->pos, &value, sizeof value, &num_writ );
     if ( rc != 0 )
         ErrMsg( "write_value.KFileWriteAll( key ) -> %R", rc );
     else if ( num_writ != sizeof value )
@@ -74,7 +74,7 @@ static rc_t write_key_and_offset( index_writer * writer, uint64_t key, uint64_t 
 
 rc_t write_key( struct index_writer * writer, uint64_t key, uint64_t offset )
 {
-    rc_t rc;
+    rc_t rc = 0;
     if ( writer == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );

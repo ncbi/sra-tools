@@ -22,38 +22,27 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
+include $(TOP)/build/Makefile.env # BINDIR
 
-include $(TOP)/build/Makefile.shell
+ifeq ($(TEMPDIR),)
+    TEMPDIR=$(abspath .)/tmp
+    $(shell mkdir -p $(TEMPDIR))
+    TEMPDIR := $(shell mktemp -d $(abspath .)/tmp/XXXXXX)
+endif
 
-include $(TOP)/build/Makefile.config
+runtests:
+	@echo prefetch SHOULD BE ABLE TO DOWNLOAD WHEN CACHING IS DISABLED: STARTING
+	@ echo "Created temporary directory '$(TEMPDIR)'"
+	@ export TEMPDIR=$(TEMPDIR) ; $(MAKE) prefetch -s TOP=$(TOP)
+	@ rm -rv $(TEMPDIR)
+	@ if [ `ls tmp | wc -l` == 0 ] ; then rm -vr tmp ; fi
+	@ echo prefetch SHOULD BE ABLE TO DOWNLOAD WHEN CACHING IS DISABLED: SUCCESS
+	@ echo
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-	kget            \
-	prefetch        \
-	general-loader  \
-	vschema         \
-	align-info      \
-	vdb-dump        \
-	ref-variation   \
-	vdb-validate    \
-
-# under construction    
-#    ngs-pileup      \
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
+prefetch:
+	@ export TEMPDIR=$(TEMPDIR) ; \
+	  export PATH=$(BINDIR):$(PATH) ; \
+	  ./test-prefetch.sh

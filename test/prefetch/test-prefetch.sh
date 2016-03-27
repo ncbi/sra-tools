@@ -2,6 +2,7 @@
 
 ACC=SRR053325
 UNAME=`uname`
+echo "uname='$UNAME'"
 if [ "$UNAME" == 'Linux' ] ; then
     OS=linux
 else

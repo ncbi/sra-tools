@@ -1,0 +1,42 @@
+info: Database 'blob-row-gap.kar' metadata: md5 ok
+info: Table 'FEATURE' metadata: md5 ok
+info: Column 'FEAT_TYPE': checksums ok
+info: Column 'LOC_LEN': checksums ok
+info: Column 'LOC_ROW_ID': checksums ok
+info: Column 'LOC_SEQ_TYPE': checksums ok
+info: Column 'LOC_START': checksums ok
+info: Column 'LOC_STRAND': checksums ok
+info: Column 'PRODUCT_LEN': checksums ok
+info: Column 'PRODUCT_ROW_ID': checksums ok
+info: Column 'PRODUCT_SEQ_TYPE': checksums ok
+info: Column 'PRODUCT_START': checksums ok
+info: Column 'SEQ_FEAT': checksums ok
+info: Table 'GI_IDX' metadata: md5 ok
+info: Column 'NUC_ROW_ID': checksums ok
+info: Column 'PROT_ROW_ID': checksums ok
+info: Table 'PROTEIN' metadata: md5 ok
+info: Column 'DESCR': checksums ok
+info: Column 'FEAT_PRODUCT_ROW_ID': checksums ok
+info: Column 'FEAT_ROW_END': checksums ok
+info: Column 'FEAT_ROW_START': checksums ok
+info: Column 'GI': checksums ok
+info: Column 'HASH': checksums ok
+info: Column 'PROTEIN': checksums ok
+info: Column 'PROTEIN_LEN': checksums ok
+info: Column 'PROTEIN_NAME': checksums ok
+info: Column 'TITLE': checksums ok
+info: Table 'PROT_ACC_IDX' metadata: md5 ok
+info: Column 'PROTEIN_ROW_ID': checksums ok
+info: Table 'SEQUENCE' metadata: md5 ok
+info: Column 'ALTREAD': checksums ok
+info: Column 'CLIP_LEN': checksums ok
+info: Column 'CONTIG_NAME': checksums ok
+info: Column 'DESCR': checksums ok
+info: Column 'FEAT_ROW_END': checksums ok
+info: Column 'FEAT_ROW_START': checksums ok
+info: Column 'GI': checksums ok
+info: Column 'HASH': checksums ok
+info: Column 'PROT_COUNT': checksums ok
+info: Column 'READ': checksums ok
+info: Column 'TITLE': checksums ok
+info: Database 'blob-row-gap.kar' is consistent

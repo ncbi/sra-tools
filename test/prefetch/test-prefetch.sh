@@ -1,14 +1,15 @@
+#!/bin/bash
+
 # precondition: binaries to test should be in the PATH
 
 ACC=SRR053325
 UNAME=`uname`
-echo "uname='$UNAME'"
+TAIL=release/x86_64/bin
 if [ "$UNAME" == 'Linux' ] ; then
-    OS=linux
+ BAD=/net/snowman/vol/projects/trace_software/vdb/vdb-versions/2.6.1/linux/$TAIL
 else
-    OS=mac
+ BAD=/net/traces01/trace_software/vdb/vdb-versions/2.6.1/mac/$TAIL
 fi
-BAD=/net/traces01/trace_software/vdb/vdb-versions/2.6.1/$OS/release/x86_64/bin
 if [ "$TEMPDIR" == "" ] ; then
     echo '$TEMPDIR should be set by sra-tools/test/prefetch/Makefile.'
     echo "It was not so assuming $0 is not run by Makefile."
@@ -47,6 +48,7 @@ srapath $ACC | grep ^$NCBI_HOME/public/sra/$ACC.sra\$                 || exit 10
 echo
 echo Cleaning the cache...
 cache-mgr -c                                                          || exit 11
+echo "cache-mgr does not work on Ubuntu VDB-2965" && rm -v $TEMPDIR/public/sra/*
 echo
 echo === $ACC SHOULD BE FOUND REMOTELY AFTER THE CACHE WAS CLEANED =============
 srapath $ACC | grep ^http://sra-download.ncbi.nlm.nih.gov/srapub/$ACC\$||exit 12

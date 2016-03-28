@@ -41,6 +41,7 @@ SUBDIRS =    \
 	general-loader  \
 	vschema         \
 	align-info      \
+	align-cache     \
 	vdb-dump        \
 	ref-variation   \
 	vdb-validate    \

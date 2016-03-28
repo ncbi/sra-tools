@@ -3317,6 +3317,7 @@ static rc_t MainInit(int argc, char *argv[], Main *self) {
         rc = VFSManagerGetResolver(self->vfsMgr, &resolver);
         DISP_RC(rc, "VFSManagerGetResolver");
         VResolverRemoteEnable(resolver, vrAlwaysEnable);
+        VResolverCacheEnable(resolver, vrAlwaysEnable);
         RELEASE(VResolver, resolver);
     }
 

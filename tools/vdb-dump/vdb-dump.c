@@ -229,7 +229,9 @@ rc_t CC Usage ( const Args * args )
     KOutMsg( "      fastq1 .. FASTQ( 4 lines ) for each fragment\n" );    
     KOutMsg( "      fasta ... FASTA( 2 lines ) for each fragment if possible\n" );
     KOutMsg( "      fasta1 .. one FASTA-record for the whole accession (REFSEQ)\n" );
-    KOutMsg( "      fasta2 .. one FASTA-record for each REFERENCE in cSRA\n\n" );
+    KOutMsg( "      fasta2 .. one FASTA-record for each REFERENCE in cSRA\n" );
+    KOutMsg( "      qual .... QUAL( 2 lines ) for each row\n" );    
+    KOutMsg( "      qual1 ... QUAL( 2 lines ) for each fragment if possible\n\n" );
     
     HelpOptionLine ( ALIAS_ID_RANGE,            OPTION_ID_RANGE,        NULL,           id_range_usage );
     HelpOptionLine ( ALIAS_WITHOUT_SRA,         OPTION_WITHOUT_SRA,     NULL,           without_sra_usage );
@@ -2215,7 +2217,9 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                                     case df_fastq1 : ;                                    
                                     case df_fasta  : ;
                                     case df_fasta1 : ;
-                                    case df_fasta2 : vdf_main( ctx, mgr, value ); break;
+                                    case df_fasta2 : ;
+                                    case df_qual   : ;                                    
+                                    case df_qual1  : vdf_main( ctx, mgr, value ); break; /* in vdb-dump-fastq.c */
                                     default : rc = vdm_main_one_obj( ctx, mgr, value ); break;
                                 }
                             }

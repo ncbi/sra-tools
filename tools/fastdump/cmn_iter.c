@@ -116,6 +116,8 @@ rc_t make_cmn_iter( cmn_params * params, const char * tblname, struct cmn_iter *
                             if ( rc == 0 && params->show_progress )
                                 make_progressbar( &i->progressbar, 2 );
                             i->row_range = params->row_range;
+                            i->first = params->first;
+                            i->count = params->count;
                             
                             *iter = i;
                         }
@@ -135,10 +137,12 @@ rc_t cmn_iter_add_column( struct cmn_iter * iter, const char * name, uint32_t * 
     return add_column( iter->cursor, name, id );
 }
 
+
 int64_t cmn_iter_row_id( const struct cmn_iter * iter )
 {
     return iter->row_id;
 }
+
 
 uint64_t cmn_iter_row_count( struct cmn_iter * iter )
 {
@@ -148,6 +152,7 @@ uint64_t cmn_iter_row_count( struct cmn_iter * iter )
         ErrMsg( "make_cmn_iter.num_gen_iterator_count() -> %R\n", rc );
     return res;
 }
+
 
 bool cmn_iter_next( struct cmn_iter * iter, rc_t * rc )
 {
@@ -160,6 +165,7 @@ bool cmn_iter_next( struct cmn_iter * iter, rc_t * rc )
     return res;
 }
 
+
 rc_t cmn_iter_range( struct cmn_iter * iter, uint32_t col_id )
 {
     rc_t rc = VCursorOpen( iter->cursor );
@@ -167,34 +173,42 @@ rc_t cmn_iter_range( struct cmn_iter * iter, uint32_t col_id )
         ErrMsg( "cmn_iter_range.VCursorOpen() -> %R", rc );
     else
     {
+        rc = num_gen_make_sorted( &iter->ranges, true );
+        if ( rc != 0 )
+            ErrMsg( "cmn_iter_range.num_gen_make_sorted() -> %R\n", rc );
+        else
+        {
+            if ( iter->row_range != NULL )
+            {
+                rc = num_gen_parse( iter->ranges, iter->row_range );
+                if ( rc != 0 )
+                    ErrMsg( "cmn_iter_range.num_gen_parse( %s ) -> %R\n", iter->row_range, rc );
+            }
+            else if ( iter->count > 0 )
+            {
+                rc = num_gen_add( iter->ranges, iter->first, iter->count );
+                if ( rc != 0 )
+                    ErrMsg( "cmn_iter_range.num_gen_add( %ld.%lu ) -> %R\n",
+                            iter->first, iter->count, iter->row_range, rc );
+            }
+        }
+    }
+
+    if ( rc == 0 )
+    {
         rc = VCursorIdRange( iter->cursor, col_id, &iter->first, &iter->count );
         if ( rc != 0 )
             ErrMsg( "cmn_iter_range.VCursorIdRange() -> %R", rc );
         else
         {
-            rc = num_gen_make_sorted( &iter->ranges, true );
+            rc = make_row_iter( iter->ranges, iter->first, iter->count, &iter->row_iter );
             if ( rc != 0 )
-                ErrMsg( "cmn_iter_range.num_gen_make_sorted() -> %R\n", rc );
-            else
-            {
-                if ( iter->row_range != NULL )
-                {
-                    rc = num_gen_parse( iter->ranges, iter->row_range );
-                    if ( rc != 0 )
-                        ErrMsg( "cmn_iter_range.num_gen_parse( %s ) -> %R\n", iter->row_range, rc );
-                }
-                
-                if ( rc == 0 )
-                {
-                    rc = make_row_iter( iter->ranges, iter->first, iter->count, &iter->row_iter );
-                    if ( rc != 0 )
-                        ErrMsg( "cmn_iter_range.make_row_iter( %s ) -> %R\n", iter->row_range, rc );
-                }
-            }
+                ErrMsg( "cmn_iter_range.make_row_iter( %s ) -> %R\n", iter->row_range, rc );
         }
     }
     return rc;
 }
+
 
 rc_t cmn_read_uint64( struct cmn_iter * iter, uint32_t col_id, uint64_t *value )
 {

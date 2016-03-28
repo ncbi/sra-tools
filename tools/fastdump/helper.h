@@ -43,8 +43,33 @@ extern "C" {
 #include <klib/num-gen.h>
 #endif
 
-#ifndef _h_vdb_curosr_
+#ifndef _h_vdb_cursor_
 #include <vdb/cursor.h>
+#endif
+
+#ifndef _h_kfs_directory_
+#include <kfs/directory.h>
+#endif
+
+#ifndef _h_klib_vector_
+#include <klib/vector.h>
+#endif
+
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
+#endif
+
+/* 
+    this is in interfaces/cc/XXX/YYY/atomic.h
+    XXX ... the compiler ( cc, gcc, icc, vc++ )
+    YYY ... the architecture ( fat86, i386, noarch, ppc32, x86_64 )
+ */
+#ifndef _h_atomic_
+#include <atomic.h>
+#endif
+
+#ifndef _h_kproc_thread_
+#include <kproc/thread.h>
 #endif
 
 typedef struct SBuffer
@@ -84,6 +109,30 @@ void pack_4na( const String * unpacked, SBuffer * packed );
 void unpack_4na( const String * packed, SBuffer * unpacked );
 
 uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits );
+
+bool file_exists( const KDirectory * dir, const char * fmt, ... );
+
+void join_and_release_threads( Vector * threads );
+
+rc_t concat_files( KDirectory * dir, const VNamelist * files, size_t buf_size,
+                   const char * output, bool show_progress );
+
+rc_t delete_files( KDirectory * dir, const VNamelist * files );
+
+
+typedef struct multi_progress
+{
+    atomic_t progress_done;
+    atomic_t progress_rows;
+    uint64_t row_count;
+} multi_progress;
+
+void init_progress_data( multi_progress * progress_data, uint64_t row_count );
+rc_t start_multi_progress( KThread **t, multi_progress * progress_data );
+void join_multi_progress( KThread *t, multi_progress * progress_data );
+
+rc_t make_prefixed( char * buffer, size_t bufsize, const char * prefix,
+                    const char * path, const char * postfix );
 
 #ifdef __cplusplus
 }

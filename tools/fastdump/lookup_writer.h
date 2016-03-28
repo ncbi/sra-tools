@@ -43,11 +43,15 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
+#ifndef _h_index_
+#include "index.h"
+#endif
+
 struct lookup_writer;
 
 void release_lookup_writer( struct lookup_writer * writer );
 
-rc_t make_lookup_writer( KDirectory *dir, struct lookup_writer ** writer,
+rc_t make_lookup_writer( KDirectory *dir, struct index_writer * idx, struct lookup_writer ** writer,
                          size_t buf_size, const char * fmt, ... );
 
 rc_t write_unpacked_to_lookup_writer( struct lookup_writer * writer,

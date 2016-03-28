@@ -85,14 +85,17 @@ clean: stdclean
 #
 TOOL_SRC = \
 	helper \
+	index \
 	lookup_writer \
 	lookup_reader \
 	file_printer \
+	merge_sorter \
 	sorter \
 	cmn_iter \
 	raw_read_iter \
 	special_iter \
 	fastq_iter \
+	join \
 	fastdump
 
 TOOL_OBJ = \

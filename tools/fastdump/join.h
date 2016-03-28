@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_sorter_
-#define _h_sorter_
+#ifndef _h_join_
+#define _h_join_
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,34 +39,35 @@ extern "C" {
 #include <klib/text.h>
 #endif
 
-#ifndef _h_atomic_
-#include <atomic.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
 #endif
 
-#ifndef _h_raw_read_iter_
-#include "raw_read_iter.h"
+#ifndef _h_atomic_
+#include <atomic.h>
 #endif
 
+#ifndef _h_helper_
+#include "helper.h"
+#endif
 
-typedef struct sorter_params
+typedef struct join_params
 {
     KDirectory * dir;
-    const char * acc;    
-    const char * output_filename;
+    const char * accession;
+    const char * lookup_filename;
     const char * index_filename;
+    const char * output_filename;
     const char * temp_path;
-    struct raw_read_iter * src;
-    size_t buf_size, mem_limit, prefix, num_threads, cursor_cache;
-    atomic_t * sort_progress;
+    atomic_t   * join_progress;
+    size_t buf_size, cur_cache, num_threads;
+    int64_t first;
+    uint64_t count;
     bool show_progress;
-} sorter_params;
+    format_t fmt;
+} join_params;
 
-rc_t run_sorter( const sorter_params * params );
-rc_t run_sorter_pool( const sorter_params * params );
+rc_t execute_join( const join_params * jp );
 
 #ifdef __cplusplus
 }

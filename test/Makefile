@@ -38,7 +38,6 @@ SUBDIRS =    \
 	fastq-loader    \
 	vcf-loader      \
 	kget            \
-	prefetch        \
 	general-loader  \
 	vschema         \
 	align-info      \

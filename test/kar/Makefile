@@ -46,4 +46,4 @@ runtests: kar_md5
 
 kar_md5: test-kar.sh
 	@ echo "Starting kar_md5 tests..."
-	@ bash test-kar.sh
+	@ bash test-kar.sh $(BINDIR)/kar

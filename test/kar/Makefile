@@ -26,7 +26,7 @@ default: runtests
 
 TOP ?= $(abspath ../..)
 
-MODULE = test/fastq-loader
+MODULE = test/kar
 
 TEST_TOOLS = \
 

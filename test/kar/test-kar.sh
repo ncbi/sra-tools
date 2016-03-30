@@ -24,28 +24,83 @@
 # ===========================================================================
 
 
-WORKDIR="./testsource"
+TESTDIR="./kar_testsource"
 ARCHIVE="kar.kar"
 
-kar --md5 -f -d $WORKDIR -c $ARCHIVE
+KAR=kar
+[ $# -ge 1 ] && KAR="$1"
 
-#cat $ARCHIVE.md5
+testdir_setup ()
+{
+    mkdir "kar_testsource"
+    echo "random text for test purposes" > $TESTDIR/test_file1
+    echo "random text for test purposes and more" > $TESTDIR/test_file2
+    if [ ! -d $TESTDIR ]
+    then
+        echo "Failed to create testsource"
+        exit 1
+    fi
+}
 
-case $(uname) in
-    (Linux)
-        md5sum -c $ARCHIVE.md5
-        ;;
-    (Darwin)
-        MD5=$(md5 $ARCHIVE)
-        MY_MD5=$(cut -f1 -d' ' $ARCHIVE.md5)
-        if [ "$MD5" == "$MY_MD5" ]
-        then
-            echo "$ARCHIVE: OK"
-        else
-            echo "$ARCHIVE: FAILED"
-        fi
-        ;;
-    (*)
-        echo unknown platform
-        ;;
-esac
+testdir_whack ()
+{
+    rm $TESTDIR/test_file1
+    rm $TESTDIR/test_file2
+    rm -r $TESTDIR
+    if [ -d $TESTDIR ]
+    then
+        echo "Failed to remove testsource"
+        exit 1
+    fi
+}
+
+archive_whack ()
+{
+    rm -f $ARCHIVE
+    rm $ARCHIVE.md5
+}
+
+# if test source directory doesnt exist, make it and populate it
+if [ ! -d $TESTDIR ]
+then
+    testdir_setup
+fi
+
+# run the script
+if ! $KAR --md5 -f -d $TESTDIR -c $ARCHIVE
+then
+    STATUS=$?
+    echo "KAR md5 operation failed"
+    archive_whack
+    exit $STATUS
+else
+    case $(uname) in
+        (Linux)
+            md5sum -c $ARCHIVE.md5
+            ;;
+        (Darwin)
+            MD5=$(md5 $ARCHIVE)
+            MY_MD5=$(cut -f1 -d' ' $ARCHIVE.md5)
+            if [ "$MD5" == "$MY_MD5" ]
+            then
+                echo "$ARCHIVE: OK"
+            else
+                echo "$ARCHIVE: FAILED"
+            fi
+            ;;
+        (*)
+            echo unknown platform
+            ;;
+    esac
+
+    archive_whack
+fi
+
+
+# redundant check for directory. Remove the test source
+if [ -d $TESTDIR ]
+then
+    testdir_whack
+fi
+
+exit $?

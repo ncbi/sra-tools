@@ -119,29 +119,6 @@ _IsDaemonizeToken ( const char * Param )
 
 static
 rc_t CC
-_GetProgName ( struct Args * TheArgs, WCHAR * Buf, size_t BufSz )
-{
-    rc_t RCt;
-    const char * FullPath;
-    const char * ProgName;
-
-    RCt = 0;
-    FullPath = NULL;
-    ProgName = NULL;
-
-    XFS_CAN ( TheArgs )
-    XFS_CAN ( Buf )
-
-    RCt = ArgsProgram ( TheArgs, & FullPath, & ProgName );
-    if ( RCt == 0 ) {
-        RCt = _CharToWChar ( Buf, BufSz, ProgName );
-    }
-
-    return RCt;
-}   /* _GetProgName () */
-
-static
-rc_t CC
 _MakeCommandString (
                 struct Args * TheArgs,
                 WCHAR ** Str,
@@ -194,7 +171,10 @@ _MakeCommandString (
 
     if ( RCt == 0 ) {
         ZeroMemory ( BF1, sizeof ( BF1 ) );
-        RCt = _GetProgName ( TheArgs, BF1, sizeof ( BF1 ) );
+        RCt = ArgsArgvValue ( TheArgs, 0, & Val );
+        if ( RCt == 0 ) {
+            RCt = _CheckConvert ( Val, BF1, sizeof ( BF1 ) );
+        }
     }
 
     * Str = _wcsdup ( BF );

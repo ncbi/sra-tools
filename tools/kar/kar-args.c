@@ -64,7 +64,7 @@ OptDef Options [] =
     { OPTION_LONGLIST,  ALIAS_LONGLIST,  NULL, longlist_usage, 0, false, false },
     { OPTION_DIRECTORY, ALIAS_DIRECTORY, NULL, directory_usage, 1, true,  false },
     { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage, 1, true,  false },
-    { OPTION_MD5,       NULL,            NULL, md5_usage, 1, false,  false }
+    { OPTION_MD5,       NULL,            NULL, stdout_usage, 1, true,  false },
 };
 
 const char UsageDefaultName[] = "kar";

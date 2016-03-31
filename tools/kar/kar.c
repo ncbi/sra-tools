@@ -164,6 +164,13 @@ void kar_print ( BSTNode *node, void *data )
     }
 }
 
+/*
+  this would be a good place to test the contents of the BSTree
+  write a function to walk the BSTree and print out what was found
+BSTreeForEach ( &tree, false, kar_print, &indent );
+
+
+*/
 
 /*******************************************************************************
  * Create
@@ -232,45 +239,6 @@ rc_t kar_entry_create ( KAREntry ** rtn, size_t entry_size,
 
         free ( entry );
     }
-
-    * rtn = NULL;
-    return rc;
-}
-
-static 
-rc_t kar_entry_inflate ( KAREntry **rtn, size_t entry_size, const char *name, size_t name_len, 
-                         uint64_t mod_time, uint32_t access_mode, uint8_t type )
-{
-    rc_t rc;
-
-    KAREntry * entry = calloc ( 1, entry_size + name_len );
-    if ( entry == NULL )
-    {
-        rc = RC (rcExe, rcNode, rcAllocating, rcMemory, rcExhausted);
-        pLogErr ( klogErr, rc, "Failed to allocated memory for entry $(name)",
-                  "name=%s", name );
-    }
-    else
-    {
-        /* location for string copy */
-        char * dst = & ( ( char * ) entry ) [ entry_size ];
-
-        /* sanity check */
-        assert ( entry_size >= sizeof * entry );
-
-        /* populate the name by copying to the end of structure */
-        memcpy ( dst, name, name_len );
-
-        entry -> name = dst;
-        entry -> mod_time = mod_time;
-        entry -> access_mode = access_mode;
-        entry -> type = type;
-
-        *rtn = entry;
-        return 0;
-    }
-
-    free ( entry );
 
     * rtn = NULL;
     return rc;
@@ -420,7 +388,6 @@ rc_t kar_add_dir ( const KDirectory *parent_dir, const char *name, void *data )
     return rc;
 }
 
-
 static
 rc_t kar_add_alias ( const KDirectory *dir, const char *name, void *data )
 {
@@ -484,61 +451,7 @@ rc_t kar_scan_path ( const KDirectory *dir, BSTree *tree, const char *path )
     return -1;
 }
 
-/********** md5  */
-
-static 
-rc_t kar_md5 ( KDirectory *wd, KFile **archive, const char *path, KCreateMode mode )
-{
-    rc_t rc = 0;
-    KFile *md5_f;
-
-    /* create the *.md5 file to hold md5sum-compatible checksum */
-    rc = KDirectoryCreateFile ( wd, &md5_f, false, 0664, mode, "%s.md5", path );
-    if ( rc )
-        PLOGERR (klogFatal, (klogFatal, rc, "unable to create md5 file [$(A).md5]", PLOG_S(A), path));
-    else
-    {
-        KMD5SumFmt *fmt;
-                    
-        /* create md5 formatter to write to md5_f */
-        rc = KMD5SumFmtMakeUpdate ( &fmt, md5_f );
-        if ( rc )
-            LOGERR (klogErr, rc, "failed to make KMD5SumFmt");
-        else
-        {
-            KMD5File *kmd5_f;
-
-            size_t size = string_size ( path );
-            const char *fname = string_rchr ( path, size, '/' );
-            if ( fname ++ == NULL )
-                fname = path;
-
-            /* KMD5SumFmtMakeUpdate() took over ownership of "md5_f" */
-            md5_f = NULL;
-
-            /* create a file that knows how to calculate md5 as data
-                       are written-through to archive, and then write digest
-                       result to fmt, using "fname" as description. */
-            rc = KMD5FileMakeWrite ( &kmd5_f, * archive, fmt, fname );
-            KMD5SumFmtRelease ( fmt );
-            if ( rc )
-                LOGERR (klogErr, rc, "failed to make KMD5File");
-            else
-            {
-                /* success */
-                *archive = KMD5FileToKFile ( kmd5_f );
-                return 0;
-            }
-        }
-
-        /* error cleanup */
-        KFileRelease ( md5_f );
-    }
-
-    return rc;
-}
-
-/********** write to toc and archive  */
+/********** TOC  */
 
 static
 uint64_t align_offset ( uint64_t offset, uint64_t alignment )
@@ -551,7 +464,7 @@ static
 void kar_write_header_v1 ( KARArchiveFile * af, uint64_t toc_size )
 {
     rc_t rc;
-    size_t num_writ, hdr_size;
+    size_t num_writ;
 
     KSraHeader hdr;
     memcpy ( hdr.ncbi, "NCBI", sizeof hdr.ncbi );
@@ -561,15 +474,12 @@ void kar_write_header_v1 ( KARArchiveFile * af, uint64_t toc_size )
 
     hdr.version = 1;
 
-    /* calculate header size based upon version */
-    hdr_size = sizeof hdr - sizeof hdr . u + sizeof hdr . u . v1;
-
     /* TBD - don't use hard-coded alignment - get it from cmdline */
-    hdr.u.v1.file_offset = align_offset ( hdr_size + toc_size, 4 );
+    hdr.u.v1.file_offset = align_offset ( sizeof hdr + toc_size, 4 );
     af -> starting_pos = hdr . u . v1 . file_offset;
 
-    rc = KFileWriteAll ( af -> archive, af -> pos, &hdr, hdr_size, &num_writ );
-    if ( rc != 0 || num_writ != hdr_size )
+    rc = KFileWriteAll ( af -> archive, af -> pos, &hdr, sizeof hdr, &num_writ );
+    if ( rc != 0 || num_writ != sizeof hdr )
     {
         if ( rc == 0 )
             rc = RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
@@ -581,6 +491,7 @@ void kar_write_header_v1 ( KARArchiveFile * af, uint64_t toc_size )
     af -> pos += num_writ;
 }
 
+/********** write to toc and archive  */
 
 static
 rc_t CC kar_write_archive ( void *param, const void *buffer,
@@ -632,11 +543,11 @@ rc_t kar_persist_karentry ( const KAREntry * entry, int type_code,
         + sizeof legacy_type_code
         ;
 
-    /* if just determining toc size - return */
     if ( write == NULL )
     {
         * num_writ = total_expected;
 
+        /*KOutMsg ( "[ toc_entry_size %lu ] +", *num_writ );*/
         return 0;
     }
 
@@ -690,7 +601,6 @@ rc_t kar_persist_karfile ( const KARFile * entry, size_t *num_writ, PTWriteFunc 
             + sizeof entry -> byte_size
             ;
 
-        /* if determining size of toc - return */
         if ( write == NULL )
         {
             * num_writ = total_expected;
@@ -877,9 +787,8 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
 {
     rc_t rc;
     char *buffer;
-    size_t num_read, align_size;
+    size_t num_read;
     uint64_t pos = 0;
-    char align_buffer [ 4 ] = "0000";
     size_t bsize = 128 * 1024 * 1024;
 
     const KFile *f;
@@ -922,10 +831,6 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
     }
 
     /* establish current position */
-    align_size = align_offset ( af -> pos, 4 ) - af -> pos;
-    if ( align_size != 0  )
-        rc = KFileWriteAll ( af -> archive, af -> pos, align_buffer, align_size, NULL );
-
     af -> pos = af -> starting_pos + file -> byte_offset;
 
     while ( rc == 0 && pos < file -> byte_size )
@@ -974,6 +879,7 @@ rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree )
         
         /* evaluate toc size */
         toc_size = kar_eval_toc_size ( tree );
+        /*KOutMsg ( "toc_size=%lu\n\n", toc_size );*/
 
         af . starting_pos = 0;
         af . pos = 0;
@@ -1002,7 +908,6 @@ rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree )
 
 /********** main create execution  */
 
-
 static
 rc_t kar_create ( const Params *p )
 {
@@ -1015,8 +920,8 @@ rc_t kar_create ( const Params *p )
     else
     {
         KFile *archive;
-        KCreateMode mode = ( p -> force ? kcmInit : kcmCreate ) | kcmParents;
-        rc = KDirectoryCreateFile ( wd, &archive, false, 0666, mode, 
+        rc = KDirectoryCreateFile ( wd, &archive, false, 0666, 
+                                    ( p -> force ? kcmInit : kcmCreate ) | kcmParents, 
                                     "%s", p -> archive_path );
         if ( rc != 0 )
         {
@@ -1025,38 +930,31 @@ rc_t kar_create ( const Params *p )
         }
         else
         {
-            if ( p -> md5sum )
-                rc = kar_md5 ( wd, &archive, p -> archive_path, mode );
- 
-            if ( rc == 0 )
+            BSTree tree;
+            BSTreeInit ( & tree );
+
+            /* build contents by walking input directory if given,
+               and adding the individual members if given */
+            if ( p -> dir_count != 0 )
             {
-                BSTree tree;
-                BSTreeInit ( & tree );
-                
-                /* build contents by walking input directory if given,
-                   and adding the individual members if given */
-                if ( p -> dir_count != 0 )
-                {
-                    rc = kar_scan_directory ( wd, & tree, p -> directory_path );
+                rc = kar_scan_directory ( wd, & tree, p -> directory_path );
+                if ( rc == 0 )
+                {   
+                    uint64_t i;
+                    for ( i = 1; rc == 0 && i <= p -> mem_count; ++ i )
+                        rc = kar_scan_path ( wd, & tree, p -> members [ i ] );
+
                     if ( rc == 0 )
-                    {   
-                        uint64_t i;
-                        for ( i = 1; rc == 0 && i <= p -> mem_count; ++ i )
-                            rc = kar_scan_path ( wd, & tree, p -> members [ i ] );
+                    {
+                        BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
                         
-                        if ( rc == 0 )
-                        {
-                            BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
-                            
-                            rc = kar_make ( wd, archive, &tree );
-                            if ( rc != 0 )
-                                LogErr ( klogInt, rc, "Failed to build archive" );
-                        }
+                        rc = kar_make ( wd, archive, &tree );
+                        if ( rc != 0 )
+                            LogErr ( klogInt, rc, "Failed to build archive" );
                     }
                 }
-            
-                BSTreeWhack ( & tree, kar_entry_whack, NULL );
             }
+            BSTreeWhack ( & tree, kar_entry_whack, NULL );
             
             KFileRelease ( archive );
         }
@@ -1068,419 +966,24 @@ rc_t kar_create ( const Params *p )
 }
 
 /*******************************************************************************
- * Test / Extract
+ * Extract
  */
 
 static
-uint64_t kar_verify_header ( const KFile *archive, KSraHeader *hdr )
+rc_t kar_extract ( const Params *p )
 {
-    rc_t rc;
-    
-    size_t num_read;
-   
-
-    STSMSG (1, ("Verifying header\n"));
-
-    rc = KFileReadAll ( archive, 0, hdr, sizeof * hdr, &num_read );
-    if ( rc != 0 )
-    {
-        LOGERR (klogErr, rc, "failed to access archive file");
-        exit ( 1 );
-    }
-
-    if ( num_read < sizeof * hdr - sizeof hdr -> u )
-    {
-        rc = RC ( rcExe, rcFile, rcValidating, rcOffset, rcInvalid );
-        LOGERR (klogErr, rc, "corrupt archive file - invalid header");
-        exit ( 1 );
-    }
-
-    /* verify "ncbi" and "sra" members */
-    if ( memcmp ( hdr -> ncbi, "NCBI", sizeof hdr -> ncbi ) != 0 ||
-         memcmp ( hdr -> sra, ".sra", sizeof hdr -> sra ) != 0 )
-    {
-        rc = RC ( rcExe, rcFile, rcValidating, rcFormat, rcInvalid );
-        LOGERR (klogErr, rc, "invalid file format");
-        exit ( 1 );
-    }
-
-    /* test "byte_order".
-       this is allowed to be either eSraByteOrderTag or eSraByteOrderReverse.
-       anything else, is garbage */
-    if ( hdr -> byte_order != eSraByteOrderTag && hdr -> byte_order != eSraByteOrderReverse )
-    {
-        rc = RC ( rcExe, rcFile, rcValidating, rcByteOrder, rcInvalid );
-        LOGERR (klogErr, rc, "failed to access archive file - invalid byte order");
-        exit ( 1 );
-    }
-
-    if ( hdr -> byte_order == eSraByteOrderReverse )
-    {
-        hdr -> version = bswap_32 ( hdr -> version );
-    }
-
-    /* test version */
-    if ( hdr -> version == 0 )
-    {
-        rc = RC ( rcExe, rcFile, rcValidating, rcInterface, rcInvalid );
-        LOGERR (klogErr, rc, "invalid version");
-        exit ( 1 );
-    }
-
-    if ( hdr -> version > 1 )
-    {
-        rc = RC ( rcExe, rcFile, rcValidating, rcInterface, rcUnsupported );
-        LOGERR (klogErr, rc, "version not supported");
-        exit ( 1 );
-    }
-
-    /* test actual size against specific header version */
-    if ( num_read < sizeof * hdr - sizeof hdr -> u + sizeof hdr -> u . v1 )
-    {
-        rc = RC ( rcExe, rcFile, rcValidating, rcOffset, rcIncorrect );
-        LOGERR (klogErr, rc, "failed to read header");
-        exit ( 1 );
-    }
-
-    return num_read;
+    return -1;
 }
+
+/*******************************************************************************
+ * Test
+ */
+
 
 static
-size_t toc_data_copy ( void * dst, size_t dst_size, const uint8_t * toc_data, size_t toc_data_size, size_t offset )
+rc_t kar_test ( const Params *p )
 {
-    if ( offset + dst_size > toc_data_size )
-    {
-        rc_t rc = RC ( rcExe, rcFile, rcValidating, rcOffset, rcInvalid );
-        LOGERR (klogErr, rc, "toc offset out of bounds");
-        exit ( 3 );
-    }
-
-    memcpy ( dst, & toc_data [ offset ], dst_size );
-    return offset + dst_size;
-}
-
-
-static 
-void kar_inflate_toc ( PBSTNode *node, void *data )
-{
-    rc_t rc = 0;
-
-    size_t offset = 0;
-    const uint8_t * toc_data = node -> data . addr;
-    char buffer [ 4096 ], * name = buffer;
-    uint16_t name_len = 0;
-    uint64_t mod_time = 0;
-    uint32_t access_mode = 0;
-    uint8_t type_code = 0;
-
-    offset = toc_data_copy ( & name_len, sizeof name_len, toc_data, node -> data . size, offset );
-    if ( name_len > sizeof buffer )
-        name = malloc ( name_len );
-    offset = toc_data_copy ( name, name_len, toc_data, node -> data . size, offset );
-    offset = toc_data_copy ( & mod_time, sizeof mod_time, toc_data, node -> data . size, offset );
-    offset = toc_data_copy ( & access_mode, sizeof access_mode, toc_data, node -> data . size, offset );
-    offset = toc_data_copy ( & type_code, sizeof type_code, toc_data, node -> data . size, offset );
-
-    switch ( type_code )
-    {
-    case kptFile:
-    {
-        KARFile *file;
-
-        rc = kar_entry_inflate ( ( KAREntry ** ) &file, sizeof *file, name, name_len, mod_time, access_mode, type_code );
-        if ( rc != 0 )
-        {
-            LOGERR (klogErr, rc, "failed inflate KARFile");
-            exit ( 3 );
-        }
-
-        offset = toc_data_copy ( & file -> byte_offset, sizeof file -> byte_offset, toc_data, node -> data . size, offset );
-        toc_data_copy ( & file -> byte_size, sizeof file -> byte_size, toc_data, node -> data . size, offset );
-
-        rc = BSTreeInsert ( ( BSTree * ) data, &file -> dad . dad, kar_entry_cmp );
-        if ( rc != 0 )
-        {
-            LOGERR (klogErr, rc, "failed insert KARFile into tree");
-            exit ( 3 );
-        }
-
-        break;
-    }
-    case kptDir:
-    {
-        KARDir *dir;
-        PBSTree *ptree;
-
-        rc = kar_entry_inflate ( ( KAREntry ** ) &dir, sizeof *dir, name, name_len, mod_time, access_mode, type_code );
-        if ( rc != 0 )
-        {
-            LOGERR (klogErr, rc, "failed inflate KARFile");
-            exit ( 3 );
-        }
-
-        BSTreeInit ( &dir -> contents );
-
-
-        rc = PBSTreeMake ( & ptree, & toc_data [ offset ], node -> data . size - offset, false );
-        if ( rc != 0 )
-            LOGERR (klogErr, rc, "failed make PBSTree");
-        else
-        {
-            PBSTreeForEach ( ptree, false, kar_inflate_toc, &dir -> contents );
-            
-            PBSTreeWhack ( ptree );
-        }
-        
-        break;
-    }
-    case kptFile | kptAlias:
-    case kptDir | kptAlias:
-        STATUS ( STAT_USR, "an alias exists - not handled" );
-        break;
-    default:
-        STATUS ( 0, "unknown entry type: id %u", type_code );
-        break;
-    }
-
-    if ( name != buffer )
-        free ( name );
-}
-
-static
-rc_t kar_extract_toc ( const KFile *archive, BSTree *tree, uint64_t *toc_pos, const size_t toc_size )
-{
-    rc_t rc = 0;
-
-    char *buffer;
-    buffer = malloc ( toc_size );
-    if ( buffer == NULL )
-    {
-        rc = RC ( rcExe, rcFile, rcAllocating, rcMemory, rcExhausted );
-        LOGERR (klogErr, rc, "failed allocate memory");
-    }
-    else
-    {
-        size_t num_read;
-
-        rc = KFileReadAll ( archive, *toc_pos, buffer, toc_size, &num_read );
-        if ( rc != 0 )
-        {
-            LOGERR (klogErr, rc, "failed to access archive file");
-            exit ( 2 );
-        }
-
-        if ( num_read < toc_size )
-        {
-            rc = RC ( rcExe, rcFile, rcValidating, rcOffset, rcInsufficient );
-            LOGERR (klogErr, rc, "failed to read header");
-        }
-        else
-        {
-            PBSTree *ptree;
-            
-            rc = PBSTreeMake ( &ptree, buffer, num_read, false );
-            if ( rc != 0 )
-                LOGERR (klogErr, rc, "failed make PBSTree");
-            else
-            {
-                PBSTreeForEach ( ptree, false, kar_inflate_toc, tree );
-
-                PBSTreeWhack ( ptree );
-            }
-        }
-
-        free ( buffer );
-    }
-
-    return rc;
-}
-
-typedef struct extract_block extract_block;
-struct extract_block
-{
-    uint64_t extract_pos;
-    
-    KDirectory *cdir;
-    const KFile *archive;
-
-    rc_t rc;
-
-};
-
-static bool CC kar_extract ( BSTNode *node, void *data );
-
-static
-rc_t extract_file ( const KARFile *src, const extract_block *eb )
-{
-    KFile *dst;
-    char *buffer;
-    uint64_t num_writ;
-
-    rc_t rc = KDirectoryCreateFile ( eb -> cdir, &dst, false, 0200, 
-                                     kcmCreate, "%s", src -> dad . name ); 
-    if ( rc != 0 )
-    {
-        pLogErr (klogErr, rc, "failed extract to file '$(fname)'", "fname=%s", src -> dad . name );
-        exit ( 4 );
-    }
-
-    buffer = malloc ( src -> byte_size );
-    if ( buffer == NULL )
-    {
-        rc = RC ( rcExe, rcFile, rcAllocating, rcMemory, rcExhausted );
-        pLogErr (klogErr, rc, "failed to allocate '$(mem)'", "mem=%lu", src -> byte_size );
-        exit ( 4 );
-    }
-
-    rc = KFileReadExactly ( eb -> archive, src -> byte_offset + eb -> extract_pos, buffer, src -> byte_size );
-    if ( rc != 0 )
-    {
-        pLogErr (klogErr, rc, "failed to read from archive '$(fname)'", "fname=%s", src -> dad . name );
-        exit ( 4 );
-    }
-
-    /*    rc = KFileWriteExactly ( dst, 0, buffer, src -> byte_size ); ---write exactly is apparently excluded in file.c */
-    rc = KFileWriteAll ( dst, 0, buffer, src -> byte_size, &num_writ );
-    if ( rc != 0 )
-    {
-        pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
-        exit ( 4 );
-    }
-    if ( num_writ < src -> byte_size )
-    {
-        rc = RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
-        pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
-        exit ( 4 );
-    }
-    
-    KFileRelease ( dst );
-
-    free ( buffer );
-
-    return rc;
-}
-
-static
-rc_t extract_dir ( const KARDir *src, const extract_block *eb )
-{
-    rc_t rc = KDirectoryCreateDir ( eb -> cdir, 0700, kcmCreate, "%s", src -> dad . name );
-    if ( rc == 0 )
-    {
-        extract_block c_eb = *eb;
-        rc = KDirectoryOpenDirUpdate ( eb -> cdir, &c_eb . cdir, false, "%s", src -> dad . name );
-        if ( rc == 0 )
-        {      
-            BSTreeDoUntil ( &src -> contents, false, kar_extract, &c_eb );
-
-            KDirectoryRelease ( c_eb . cdir );
-        }
-    }
-    return rc;
-}
-
-static
-bool CC kar_extract ( BSTNode *node, void *data )
-{
-    const KAREntry *entry = ( KAREntry * ) node;
-    extract_block *eb = ( extract_block * ) data;
-    eb -> rc = 0;
-
-    switch ( entry -> type )
-    {
-    case kptFile:
-        eb -> rc = extract_file ( ( const KARFile * ) entry, eb );
-        break;
-    case kptDir:
-        eb -> rc = extract_dir ( ( const KARDir * ) entry, eb ); 
-        break;
-    case kptFile | kptAlias:
-    case kptDir | kptAlias:
-        break;
-    default:
-        break;
-    }
-
-    if ( eb -> rc == 0 )
-        eb -> rc = KDirectorySetAccess ( eb -> cdir, false, entry -> access_mode, 0777, "%s", entry -> name );
-    if ( eb -> rc == 0 )
-        eb -> rc = KDirectorySetDate ( eb -> cdir, false, entry -> mod_time, "%s", entry -> name );
-
-    if ( eb -> rc != 0 )
-        return true;
-
-    return false;
-}
-
-static
-rc_t kar_test_extract ( const Params *p )
-{
-    rc_t rc;
-
-    KDirectory *wd;
-
-    STSMSG (1, ("Extracting kar\n"));
-
-    rc = KDirectoryNativeDir ( &wd );
-    if ( rc != 0 )
-        LogErr ( klogInt, rc, "Failed to create working directory" );
-    else
-    {
-        const KFile *archive;
-        rc = KDirectoryOpenFileRead ( wd, &archive, p -> archive_path );
-        if ( rc != 0 )
-            LogErr ( klogInt, rc, "Failed to open archive" );
-        else
-        {
-            BSTree tree;
-            KSraHeader hdr;
-            uint64_t toc_pos, toc_size, file_offset;
-
-            toc_pos = kar_verify_header ( archive, &hdr );            
-            file_offset = hdr . u . v1 . file_offset;
-            toc_size = file_offset - toc_pos;
-
-            BSTreeInit ( &tree );
-
-            rc = kar_extract_toc ( archive, &tree, &toc_pos, toc_size );
-            if ( rc == 0 )
-            {
-                uint32_t indent = 0;
-
-                BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
-                /* print according to options - long listing, etc. */
-
-                if ( p -> x_count == 0 )
-                    /* Finish test */
-                    BSTreeForEach ( &tree, false, kar_print, &indent );
-                else
-                {
-                    /* begin extracting */
-                    extract_block eb;
-                    eb . archive = archive;
-                    eb . extract_pos = file_offset;
-                    eb . rc = 0;
-
-                    rc = KDirectoryCreateDir ( wd, 0777, kcmInit, "%s", p -> directory_path );
-                    if ( rc == 0 )
-                    {
-                        rc = KDirectoryOpenDirUpdate ( wd, &eb . cdir, false, "%s", p -> directory_path );
-                        if ( rc == 0 )
-                        {
-                            BSTreeDoUntil ( &tree, false, kar_extract, &eb );
-                            rc = eb . rc;
-                        }
-                    }
-                }
-            }
-
-            BSTreeWhack ( & tree, kar_entry_whack, NULL );
-            KFileRelease ( archive );
-        }
-        
-        KDirectoryRelease ( wd );
-    }
-
-    return rc;
+    return -1;
 }
 
 /*******************************************************************************
@@ -1494,10 +997,10 @@ rc_t run ( const Params *p )
         return kar_create ( p );
 
     if ( p -> x_count != 0 )
-        return kar_test_extract ( p );
+        return kar_extract ( p );
 
     assert ( p -> t_count != 0 );
-    return kar_test_extract ( p );
+    return kar_test ( p );
 }
 
 ver_t CC KAppVersion (void)

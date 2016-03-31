@@ -32,33 +32,21 @@ KAR=kar
 
 testdir_setup ()
 {
-    mkdir "kar_testsource"
-    echo "random text for test purposes" > $TESTDIR/test_file1
-    echo "random text for test purposes and more" > $TESTDIR/test_file2
-    if [ ! -d $TESTDIR ]
+    if ! mkdir $TESTDIR
     then
         echo "Failed to create testsource"
         exit 1
     fi
+
+    echo "random text for test purposes" > $TESTDIR/test_file1
+    echo "random text for test purposes and more" > $TESTDIR/test_file2
 }
 
-testdir_whack ()
+cleanup ()
 {
-    rm $TESTDIR/test_file1
-    rm $TESTDIR/test_file2
-    rm -r $TESTDIR
-    if [ -d $TESTDIR ]
-    then
-        echo "Failed to remove testsource"
-        exit 1
-    fi
+    rm -rf $TESTDIR $ARCHIVE $ARCHIVE.md5
 }
 
-archive_whack ()
-{
-    rm -f $ARCHIVE
-    rm $ARCHIVE.md5
-}
 
 # if test source directory doesnt exist, make it and populate it
 if [ ! -d $TESTDIR ]
@@ -71,36 +59,37 @@ if ! $KAR --md5 -f -d $TESTDIR -c $ARCHIVE
 then
     STATUS=$?
     echo "KAR md5 operation failed"
-    archive_whack
-    exit $STATUS
 else
     case $(uname) in
         (Linux)
-            md5sum -c $ARCHIVE.md5
+            if ! md5sum -c $ARCHIVE.md5
+            then
+                STATUS=$?
+                echo "md5sum check failed with status $STATUS"
+            fi
             ;;
         (Darwin)
-            MD5=$(md5 $ARCHIVE)
-            MY_MD5=$(cut -f1 -d' ' $ARCHIVE.md5)
-            if [ "$MD5" == "$MY_MD5" ]
+            if ! MD5=$(md5 $ARCHIVE)
             then
-                echo "$ARCHIVE: OK"
+                STATUS=$?
+                echo "md5 failed with status $STATUS"
             else
-                echo "$ARCHIVE: FAILED"
+                MY_MD5=$(cut -f1 -d' ' $ARCHIVE.md5)
+                if [ "$MD5" == "$MY_MD5" ]
+                then
+                    echo "$ARCHIVE: OK"
+                else
+                    echo "$ARCHIVE: FAILED"
+                    STATUS=1
+                fi
             fi
             ;;
         (*)
+            STATUS=1
             echo unknown platform
             ;;
     esac
-
-    archive_whack
 fi
 
 
-# redundant check for directory. Remove the test source
-if [ -d $TESTDIR ]
-then
-    testdir_whack
-fi
-
-exit $?
+exit $STATUS

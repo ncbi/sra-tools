@@ -136,9 +136,9 @@ static rc_t vdfo_print_row_csv( const p_row_context r_ctx )
 {
     rc_t rc = vds_clear( &(r_ctx->s_col) );
     DISP_RC( rc, "dump_str_clear() failed" )
-	if ( rc == 0 && r_ctx->ctx->print_row_id )
-		rc = KOutMsg( "%u", r_ctx->row_id );
-	
+    if ( rc == 0 && r_ctx->ctx->print_row_id )
+        rc = KOutMsg( "%u", r_ctx->row_id );
+    
     if ( rc == 0 )
     {
         r_ctx->col_nr = 0;
@@ -350,9 +350,9 @@ static rc_t vdfo_print_row_tab( const p_row_context r_ctx )
 {
     rc_t rc = vds_clear( &(r_ctx->s_col) );
     DISP_RC( rc, "dump_str_clear() failed" )
-	if ( rc == 0 && r_ctx->ctx->print_row_id )
-		rc = KOutMsg( "%u", r_ctx->row_id );
-	
+    if ( rc == 0 && r_ctx->ctx->print_row_id )
+        rc = KOutMsg( "%u", r_ctx->row_id );
+    
     if ( rc == 0 )
     {
         r_ctx->col_nr = 0;

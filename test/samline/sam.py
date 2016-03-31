@@ -150,6 +150,15 @@ def vdb_dump( accession, params = "" ) :
         pass
     return 0
 
+def sam_dump( accession, params = "" ) :
+    try :
+        cmd = "sam-dump %s %s"%( accession, params )
+        txt = subprocess.check_output( cmd, stderr=subprocess.STDOUT, shell=True )
+        print txt
+        return 1
+    except :
+        pass
+    return 0
 
 '''===============================================================
 all 11 different SAM-Flags
@@ -261,7 +270,7 @@ def save_sam( list, filename ) :
 ==============================================================='''
 class SAM:
 
-    def __init__( self, qname, flags, refname, refalias, pos, mapq, cigar, seq, rnxt, pnxt ) :
+    def __init__( self, qname, flags, refname, refalias, pos, mapq, cigar, seq, rnxt, pnxt, tags="" ) :
         self.qname = qname
         self.flags = flags
         self.refname = refname        
@@ -274,17 +283,33 @@ class SAM:
         self.nxt_ref = rnxt
         self.nxt_pos = pnxt
         self.tlen = 0
+        self.tags = tags
 
     def __str__( self ):
-        return "%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s"%( self.qname,
-            self.flags, self.refalias, self.pos, self.mapq, self.cigar, self.nxt_ref,
-            self.nxt_pos, self.tlen, self.seq, self.qual )    
+        if len( self.tags ) > 0 :
+            return "%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s\t%s"%( self.qname,
+                self.flags, self.refalias, self.pos, self.mapq, self.cigar, self.nxt_ref,
+                self.nxt_pos, self.tlen, self.seq, self.qual, self.tags )
+        else :
+            return "%s\t%d\t%s\t%s\t%d\t%s\t%s\t%s\t%d\t%s\t%s"%( self.qname,
+                self.flags, self.refalias, self.pos, self.mapq, self.cigar, self.nxt_ref,
+                self.nxt_pos, self.tlen, self.seq, self.qual )
 
     def set_flag( self, flagbit, state ) :
         if state :
             self.flags |= flagbit
         else :
             self.flags &= ~flagbit
+
+    def set_tags( self, tag ) :
+        self.tags = tag
+
+    def add_tag( self, tag ) :
+        if len( self.tags ) > 0 :
+            self.tags += ";"
+            self.tags += tag
+        else :
+            self.tags = tag
 
     def pair_with( self, other ) :
         self.nxt_ref = other.refalias

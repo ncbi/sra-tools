@@ -45,22 +45,27 @@ typedef struct s_sequence_record {
     uint8_t *orientation;
     uint8_t *is_bad;
     uint8_t *alignmentCount;
-    char *spotGroup;
+    char const *spotGroup;
+    char const *linkageGroup;
     bool *aligned;
     char *cskey;
     uint64_t *ti;
     uint64_t keyId;
     unsigned spotGroupLen;
-    KDataBuffer storage;
-    uint8_t numreads;
+    unsigned linkageGroupLen;
+    unsigned numreads;
 } SequenceRecord;
 
-
-rc_t SequenceRecordInit(SequenceRecord *self,
-                        unsigned numreads, unsigned readLen[]);
-
-rc_t SequenceRecordAppend(SequenceRecord *self,
-                          const SequenceRecord *other);
+typedef struct s_sequence_record_storage {
+    uint64_t ti[2];
+    uint32_t readStart[2];
+    uint32_t readLen[2];
+    uint8_t orientation[2];
+    uint8_t is_bad[2];
+    uint8_t alignmentCount[2];
+    bool aligned[2];
+    char cskey[2];
+} SequenceRecordStorage;
 
 typedef struct s_sequence {
     VDatabase *db;

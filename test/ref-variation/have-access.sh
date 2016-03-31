@@ -13,7 +13,7 @@ if have_access; then
 		exit_code=$?
 	elif [ "$test_name" = "var-expand" ]; then
 		rm -f var-expand.out
-		echo "a CM000664.1:234668879:14:AT" | $BINDIR/var-expand --algorithm=ra >> var-expand.out
+		echo "a CM000664.1:234668879:14:AT" | $BINDIR/var-expand --no-user-settings --algorithm=ra >> var-expand.out
 		diff expected/var-expand.out var-expand.out
 		exit_code=$?
 		rm var-expand.out

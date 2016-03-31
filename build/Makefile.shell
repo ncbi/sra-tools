@@ -56,6 +56,13 @@ BUILD_OS = $(OS)
 ARCHITECTURES = default
 ifeq (mac,$(HOST_OS))
 	HOST_ARCH = $(shell $(TOP)/build/mac.arch.sh)
+	CONFIG_FILE_OA = $(TOP)/build/Makefile.config.$(OS).$(HOST_ARCH)
+	ifeq (no, $(shell test -f $(CONFIG_FILE_OA) && echo yes || echo no))
+    	$(error "*** File '$(CONFIG_FILE_OA)' is missing. Please run $(TOP)/configure")
+	endif
+	ifeq (no, $(shell grep CONFIGURE_FOUND_XML2 $(CONFIG_FILE_OA) && echo yes || echo no))
+    	$(error "*** 'CONFIGURE_FOUND_XML2' is missing in $(CONFIG_FILE_OA). Please run $(TOP)/configure")
+	endif
 else
 	MARCH = $(shell uname -m)
 

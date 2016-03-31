@@ -82,6 +82,8 @@ struct AlignmentRecord {
 #define AR_OFFSET(X) ((INSDC_coord_zero *)((X).data.ref_offset.buffer))
 #define AR_OFFSET_TYPE(X) ((uint8_t *)((X).data.ref_offset_type.buffer))
 
+#define AR_LINKAGE_GROUP(X) ((X).data.linkageGroup)
+
 Alignment *AlignmentMake(VDatabase *db);
 
 rc_t AlignmentWriteRecord(Alignment *self, AlignmentRecord *data);

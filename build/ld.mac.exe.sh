@@ -319,7 +319,7 @@ fi
 # add in xml
 if [ $HAVE_XML -ne 0 ]
 then
-    CMD="$CMD -lxml2"
+    CMD="$CMD -lxml2 -liconv"
 fi
 
 # add in math library

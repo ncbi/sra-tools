@@ -25,6 +25,7 @@
  */
 
 #include "bam.h"
+#include "bam-alignment.h"
 
 typedef struct BAMIndex BAMIndex;
 typedef struct BufferedFile BufferedFile;
@@ -32,7 +33,7 @@ typedef struct SAMFile SAMFile;
 typedef struct BGZFile BGZFile;
 
 #define ZLIB_BLOCK_SIZE  (64u * 1024u)
-#define RGLR_BUFFER_SIZE (256u * ZLIB_BLOCK_SIZE)
+#define RGLR_BUFFER_SIZE (16u * ZLIB_BLOCK_SIZE)
 #define PIPE_BUFFER_SIZE (4096u)
 
 typedef uint8_t zlib_block_t[ZLIB_BLOCK_SIZE];
@@ -98,54 +99,6 @@ struct BAM_File {
     zlib_block_t buffer;        /* uncompressed buffer */
 };
 
-struct bam_alignment_s {
-    uint8_t rID[4];
-    uint8_t pos[4];
-    uint8_t read_name_len;
-    uint8_t mapQual;
-    uint8_t bin[2];
-    uint8_t n_cigars[2];
-    uint8_t flags[2];
-    uint8_t read_len[4];
-    uint8_t mate_rID[4];
-    uint8_t mate_pos[4];
-    uint8_t ins_size[4];
-    char read_name[1 /* read_name_len */];
-/* if you change length of read_name,
- * adjust calculation of offsets in BAM_AlignmentSetOffsets */
-/*  uint32_t cigar[n_cigars];
- *  uint8_t seq[(read_len + 1) / 2];
- *  uint8_t qual[read_len];
- *  uint8_t extra[...];
- */
-};
-
-typedef union bam_alignment_u {
-    struct bam_alignment_s cooked;
-    uint8_t raw[sizeof(struct bam_alignment_s)];
-} bam_alignment;
-
-struct offset_size_s {
-    unsigned offset;
-    unsigned size; /* this is the total length of the tag; length of data is size - 3 */
-};
-
-struct BAM_Alignment {
-    BAM_File *parent;
-    bam_alignment const *data;
-    uint8_t *storage;
-    unsigned datasize;
-        
-    unsigned cigar;
-    unsigned seq;
-    unsigned qual;
-    unsigned numExtra;
-    unsigned hasColor;
-	uint64_t keyId;
-	bool	wasInserted;
-    struct offset_size_s extra[1];
-};
-
 #define CG_NUM_SEGS 4
 
 #ifdef __GNUC__
@@ -171,20 +124,20 @@ static inline  int64_t  LE2HI64(void const *) __attribute__((always_inline));
 #endif /* __GNUC__ */
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-static uint16_t LE2HUI16(void const *X) { uint16_t y; memcpy(&y, X, sizeof(y)); return y; }
-static uint32_t LE2HUI32(void const *X) { uint32_t y; memcpy(&y, X, sizeof(y)); return y; }
-static uint64_t LE2HUI64(void const *X) { uint64_t y; memcpy(&y, X, sizeof(y)); return y; }
-static  int16_t  LE2HI16(void const *X) {  int16_t y; memcpy(&y, X, sizeof(y)); return y; }
-static  int32_t  LE2HI32(void const *X) {  int32_t y; memcpy(&y, X, sizeof(y)); return y; }
-static  int64_t  LE2HI64(void const *X) {  int64_t y; memcpy(&y, X, sizeof(y)); return y; }
+static inline uint16_t LE2HUI16(void const *X) { uint16_t y; memcpy(&y, X, sizeof(y)); return y; }
+static inline uint32_t LE2HUI32(void const *X) { uint32_t y; memcpy(&y, X, sizeof(y)); return y; }
+static inline uint64_t LE2HUI64(void const *X) { uint64_t y; memcpy(&y, X, sizeof(y)); return y; }
+static inline  int16_t  LE2HI16(void const *X) {  int16_t y; memcpy(&y, X, sizeof(y)); return y; }
+static inline  int32_t  LE2HI32(void const *X) {  int32_t y; memcpy(&y, X, sizeof(y)); return y; }
+static inline  int64_t  LE2HI64(void const *X) {  int64_t y; memcpy(&y, X, sizeof(y)); return y; }
 #endif
 #if __BYTE_ORDER == __BIG_ENDIAN
-static uint16_t LE2HUI16(void const *X) { uint16_t y; memcpy(&y, X, sizeof(y)); return (uint16_t)bswap_16(y); }
-static uint32_t LE2HUI32(void const *X) { uint32_t y; memcpy(&y, X, sizeof(y)); return (uint32_t)bswap_32(y); }
-static uint64_t LE2HUI64(void const *X) { uint64_t y; memcpy(&y, X, sizeof(y)); return (uint64_t)bswap_64(y); }
-static  int16_t  LE2HI16(void const *X) {  int16_t y; memcpy(&y, X, sizeof(y)); return ( int16_t)bswap_16(y); }
-static  int32_t  LE2HI32(void const *X) {  int32_t y; memcpy(&y, X, sizeof(y)); return ( int32_t)bswap_32(y); }
-static  int64_t  LE2HI64(void const *X) {  int64_t y; memcpy(&y, X, sizeof(y)); return ( int64_t)bswap_64(y); }
+static inline uint16_t LE2HUI16(void const *X) { uint16_t y; memcpy(&y, X, sizeof(y)); return (uint16_t)bswap_16(y); }
+static inline uint32_t LE2HUI32(void const *X) { uint32_t y; memcpy(&y, X, sizeof(y)); return (uint32_t)bswap_32(y); }
+static inline uint64_t LE2HUI64(void const *X) { uint64_t y; memcpy(&y, X, sizeof(y)); return (uint64_t)bswap_64(y); }
+static inline  int16_t  LE2HI16(void const *X) {  int16_t y; memcpy(&y, X, sizeof(y)); return ( int16_t)bswap_16(y); }
+static inline  int32_t  LE2HI32(void const *X) {  int32_t y; memcpy(&y, X, sizeof(y)); return ( int32_t)bswap_32(y); }
+static inline  int64_t  LE2HI64(void const *X) {  int64_t y; memcpy(&y, X, sizeof(y)); return ( int64_t)bswap_64(y); }
 #endif
 
 static inline int getRefSeqId(BAM_Alignment const *const self) {

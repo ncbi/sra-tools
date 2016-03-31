@@ -2,11 +2,13 @@
           BASE_COUNT: 42
       BIO_BASE_COUNT: 42
       CMP_BASE_COUNT: 42
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CSREAD: 202311120113300010103
               CS_KEY: TT
            CS_NATIVE: false
       FIXED_SPOT_LEN: 21
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 2
          MIN_SPOT_ID: 1
                 NAME: 1
@@ -32,11 +34,13 @@ PRIMARY_ALIGNMENT_ID: 0, 0
           BASE_COUNT: 42
       BIO_BASE_COUNT: 42
       CMP_BASE_COUNT: 42
+   CMP_LINKAGE_GROUP: 
         COLOR_MATRIX: 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4
               CSREAD: 202311120113300010103
               CS_KEY: TT
            CS_NATIVE: false
       FIXED_SPOT_LEN: 21
+       LINKAGE_GROUP: 
          MAX_SPOT_ID: 2
          MIN_SPOT_ID: 1
                 NAME: 2

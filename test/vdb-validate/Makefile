@@ -58,6 +58,7 @@ vdb-validate: $(BINDIR)/vdb-validate
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra --sdc:rows 100% --sdc:plen_thold 1%" sdc_len_mismatch_1 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra --sdc:rows 100% --sdc:plen_thold 100%" sdc_len_mismatch_2 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra" no_sdc_checks 0
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/blob-row-gap.kar" ROW_GAP 0
 	@ echo "All vdb-validate tests succeed"
 	@ rm -rf actual/
-	
+

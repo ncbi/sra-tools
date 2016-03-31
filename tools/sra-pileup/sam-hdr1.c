@@ -156,8 +156,8 @@ static rc_t process_lines( headers * h, int idx, VNamelist * content, const char
 
 typedef struct buffer_range
 {
-    const char * start;
-    uint32_t processed, count, state;
+    const char * buffer;
+    size_t size, state;
 } buffer_range;
 
 
@@ -166,13 +166,13 @@ static const char empty_str[ 2 ] = { ' ', 0 };
 
 static void LoadFromBuffer( VNamelist * nl, buffer_range * range )
 {
-    uint32_t idx;
-    const char * p = range->start;
+    size_t idx;
+    const char * p = range->buffer;
     String S;
 
     S.addr = p;
-    S.len = S.size = range->processed;
-    for ( idx = range->processed; idx < range->count; ++idx )
+    S.len = S.size = 0;
+    for ( idx = 0; idx < range->size; ++idx )
     {
         switch( p[ idx ] )
         {
@@ -230,59 +230,32 @@ static void LoadFromBuffer( VNamelist * nl, buffer_range * range )
                         break;
         }
     }
-    if ( range->state == STATE_ALPHA )
-    {
-        range->start = S.addr;
-        range->count = S.len;
-    }
-    else
-        range->count = 0;
+    if ( range->state == STATE_ALPHA && S.len > 0 )
+        VNamelistAppendString ( nl, &S );
 }
 
 
-static rc_t Load_Namelist_From_Node( VNamelist * nl, const KMDataNode * node )
+static rc_t Load_Namelist_From_Node( VNamelist * dst, const KMDataNode * node )
 {
-    rc_t rc = 0;
-    size_t pos = 0, num_read, remaining = ~0;
-    char buffer[ 4096 ];
-    buffer_range range;
-
-    range.start = buffer;
-    range.count = 0;
-    range.processed = 0;
-    range.state = STATE_ALPHA;
-
-    do
+    size_t num_read, remaining;
+    char b[ 10 ];
+    rc_t rc = KMDataNodeRead( node, 0, b, sizeof( b ), &num_read, &remaining );
+    if ( rc == 0 )
     {
-        rc = KMDataNodeRead( node, pos, buffer, sizeof( buffer ), &num_read, &remaining );
-        if ( rc == 0 )
+        size_t bsize = num_read + remaining;
+        buffer_range range;
+        range.buffer = malloc( bsize );
+        if ( range.buffer != NULL )
         {
-            if ( num_read > 0 )
+            rc = KMDataNodeRead( node, 0, ( void * )range.buffer, bsize, &range.size, &remaining );
+            if ( rc == 0 )
             {
-                range.start = buffer;
-                range.count = range.processed + num_read;
-
-                LoadFromBuffer( nl, &range );
-                if ( range.count > 0 )
-                {
-                    memmove ( buffer, range.start, range.count );
-                }
-                range.start = buffer;
-                range.processed = range.count;
-
-                pos += num_read;
+                range.state = STATE_ALPHA;
+                LoadFromBuffer( dst, &range );
             }
-
-            if ( remaining == 0 && range.state == STATE_ALPHA )
-            {
-                String S;
-                S.addr = range.start;
-                S.len = S.size = range.count;
-                VNamelistAppendString ( nl, &S );
-            }
+            free( ( void * ) range.buffer );
         }
-    } while ( rc == 0 && remaining > 0 );
-
+    }
     return rc;
 }
 
@@ -676,7 +649,7 @@ static rc_t merge_header_tags( const char * line, void * context )
 typedef struct merge_ctx
 {
     VNamelist * dst;
-    VNamelist * other;
+    const VNamelist * other;
     bool unique;
 } merge_ctx;
 
@@ -713,7 +686,7 @@ static rc_t merge_callback( const char * line, void * context )
 
 /* SQ-lines have to be uniue by the SN-tag */
 /* RG-lines have to be uniue by the ID-tag */
-static rc_t merge_lines( VNamelist ** lines_1, VNamelist * lines_2, bool unique )
+static rc_t merge_lines( VNamelist ** lines_1, const VNamelist * lines_2, bool unique )
 {
     rc_t rc;
     merge_ctx mc;
@@ -790,7 +763,62 @@ static rc_t print_HD_line( const VNamelist * lines )
     return rc;
 }
 
+
 static rc_t print_callback( const char * line, void * context ) { return KOutMsg( "%s\n", line ); }
+
+/*
+static void print_header_info( const headers * h )
+{
+    uint32_t count;
+    
+    VNameListCount( h->SQ_Lines_1, &count );
+    KOutMsg( "h->SQ_Lines_1 = %d\n", count );
+
+    VNameListCount( h->SQ_Lines_2, &count );
+    KOutMsg( "h->SQ_Lines_2 = %d\n", count );
+
+    VNameListCount( h->RG_Lines_1, &count );
+    KOutMsg( "h->RG_Lines_1 = %d\n", count );
+
+    VNameListCount( h->RG_Lines_2, &count );
+    KOutMsg( "h->RG_Lines_2 = %d\n", count );
+
+    VNameListCount( h->Other_Lines, &count );
+    KOutMsg( "h->Other_Lines = %d\n", count );
+
+    VNameListCount( h->HD_Lines, &count );
+    KOutMsg( "h->HD_Lines = %d\n", count );
+}
+*/
+
+static rc_t merge_and_print( VNamelist ** L1, const VNamelist * L2 )
+{
+    uint32_t count1, count2;
+    
+    rc_t rc = VNameListCount( *L1, &count1 );
+    if ( rc == 0 )
+        rc = VNameListCount( L2, &count2 );
+    if ( rc == 0 )
+    {
+        if ( count1 > 0 && count2 > 0 )
+        {
+            if ( rc == 0 )
+                rc = merge_lines( L1, L2, true );
+            if ( rc == 0 )
+                rc = for_each_line( *L1, print_callback, NULL );
+        }
+        else if ( count1 > 0 )
+        {
+            rc = for_each_line( *L1, print_callback, NULL );
+        }
+        else if ( count2 > 0 )
+        {
+            rc = for_each_line( L2, print_callback, NULL );
+        }
+    }
+    return rc;
+}
+
 
 rc_t print_headers_1( const samdump_opts * opts, input_files * ifs )
 {
@@ -810,21 +838,31 @@ rc_t print_headers_1( const samdump_opts * opts, input_files * ifs )
 
             case hm_none    :  break; /* to not let the compiler complain about not handled enum */
         }
-        
+
+        if ( rc == 0 )
+            rc = print_HD_line( h.HD_Lines );
+
+        if ( rc == 0 )
+            rc = merge_and_print( &h.SQ_Lines_1, h.SQ_Lines_2 );
+            
+        if ( rc == 0 )
+            rc = merge_and_print( &h.RG_Lines_1, h.RG_Lines_2 );
+
         /* merge ... */
+        /*
         if ( rc == 0 )
             rc = merge_lines( &h.SQ_Lines_1, h.SQ_Lines_2, true );
         if ( rc == 0 )
             rc = merge_lines( &h.RG_Lines_1, h.RG_Lines_2, true );
-
+        */
         
         /* print ... */
-        if ( rc == 0 )
-            rc = print_HD_line( h.HD_Lines );
+        /*
         if ( rc == 0 )
             rc = for_each_line( h.SQ_Lines_1, print_callback, NULL );
         if ( rc == 0 )
             rc = for_each_line( h.RG_Lines_1, print_callback, NULL );
+        */
         if ( rc == 0 )
             rc = for_each_line( h.Other_Lines, print_callback, NULL );
         

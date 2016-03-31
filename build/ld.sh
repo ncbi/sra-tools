@@ -301,7 +301,10 @@ do
         HAVE_BZIP=1
         HAVE_KFC=1
         NEED_M=1
-        NEED_XML=1
+
+        NEED_XML=$CONFIGURE_FOUND_XML2
+                # CONFIGURE_FOUND_XML2 comes from Makefile.config.$OS.$ARCH
+
         LIBS="$LIBS $1"
         ;;
     -[lds]ncbi-ngs-c++)
@@ -311,7 +314,7 @@ do
         HAVE_BZIP=1
         HAVE_KFC=1
         NEED_M=1
-        NEED_XML=1
+        NEED_XML=$CONFIGURE_FOUND_XML2
         LIBS="$LIBS $1"
         ;;
     -[lds]ncbi-wvdb)
@@ -321,7 +324,7 @@ do
         HAVE_BZIP=1
         HAVE_KFC=1
         NEED_M=16
-        NEED_XML=1
+        NEED_XML=$CONFIGURE_FOUND_XML2
         LIBS="$LIBS $1"
         ;;
 

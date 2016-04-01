@@ -91,5 +91,7 @@ else
     esac
 fi
 
+cleanup
+
 
 exit $STATUS

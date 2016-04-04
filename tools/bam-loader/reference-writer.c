@@ -415,7 +415,10 @@ rc_t ReferenceAddCoverage(Reference *const self,
                           )
 {
     unsigned const refEnd = refStart + refLength;
-    
+
+    if (refLength == 0) /* this happens for insert-only alignments */
+        return 0;
+
     if (refEnd > self->endPos) {
         unsigned const t1 = refEnd + (G.maxSeqLen - 1);
         unsigned const adjust = t1 % G.maxSeqLen;

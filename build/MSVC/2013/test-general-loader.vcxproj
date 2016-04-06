@@ -18,4 +18,5 @@
     <MakeDir Directories="..\..\..\test\general-loader\db" />
     <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="..\..\..\test\general-loader\" />
   </Target>
+
 </Project>

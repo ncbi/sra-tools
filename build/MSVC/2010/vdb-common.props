@@ -1,7 +1,11 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     
     <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+<<<<<<< HEAD
 
+=======
+  
+>>>>>>> origin/VDB-2733-TeamCity-Windows
     <PropertyGroup Label="Configuration">
         <PlatformToolset>v100</PlatformToolset>
     </PropertyGroup>
@@ -12,6 +16,7 @@
     
         <NGS_ROOT Condition="'$(NGS_ROOT)' == ''">$(ProjectDir)..\..\..\..\ngs\ngs-sdk\</NGS_ROOT>
         <NGS_OUTDIR Condition="'$(NGS_OUTDIR)' == ''">$(NGS_ROOT)..\..\OUTDIR\</NGS_OUTDIR>
+<<<<<<< HEAD
         <NGS_TARGET Condition="'$(NGS_TARGET)' == ''">$(NGS_OUTDIR)ngs-sdk\win\$(PlatformToolset)\$(Platform)\$(Configuration)\</NGS_TARGET>
 
         <VDB_OUTDIR Condition="'$(VDB_OUTDIR)' == ''">$(NGS_OUTDIR)</VDB_OUTDIR>
@@ -20,6 +25,16 @@
 
         <SRA_OUTDIR Condition="'$(SRA_OUTDIR)' == ''">$(VDB_OUTDIR)</SRA_OUTDIR>
         <SRATOOLS_TARGET Condition="'$(SRATOOLS_TARGET)' == ''">$(SRA_OUTDIR)sra-tools\win\$(PlatformToolset)\$(Platform)\$(Configuration)\</SRATOOLS_TARGET>
+=======
+        <NGS_TARGET Condition="'$(NGS_TARGET)' == ''">$(NGS_OUTDIR)\ngs-sdk\win\$(PlatformToolset)\$(Platform)\$(Configuration)\</NGS_TARGET>
+
+        <VDB_OUTDIR Condition="'$(VDB_OUTDIR)' == ''">$(NGS_OUTDIR)</VDB_OUTDIR>
+        <VDB_ROOT Condition="'$(VDB_ROOT)' == ''">$(ProjectDir)..\..\..\..\ncbi-vdb\</VDB_ROOT>
+        <VDB_TARGET Condition="'$(VDB_TARGET)' == ''">$(VDB_OUTDIR)\ncbi-vdb\win\$(PlatformToolset)\$(Platform)\$(Configuration)\</VDB_TARGET>
+
+        <SRA_OUTDIR Condition="'$(SRA_OUTDIR)' == ''">$(VDB_OUTDIR)</SRA_OUTDIR>
+        <SRATOOLS_TARGET Condition="'$(SRATOOLS_TARGET)' == ''">$(SRA_OUTDIR)\sra-tools\win\$(PlatformToolset)\$(Platform)\$(Configuration)\</SRATOOLS_TARGET>
+>>>>>>> origin/VDB-2733-TeamCity-Windows
     </PropertyGroup>
   
     <PropertyGroup Label="Configuration">

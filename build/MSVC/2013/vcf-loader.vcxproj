@@ -3,7 +3,6 @@
   <Import Project=".\lib-project.props" />
   
   <Import Project="..\vcf-loader.files" />
-  
   <PropertyGroup Label="Globals">
     <ProjectGuid>{DA226775-67B1-4354-A5CA-7F5406E0B1E7}</ProjectGuid>
   </PropertyGroup>

@@ -13,6 +13,8 @@
 
 #include <string.h>         /* strcmp () */
 
+#include <algorithm>
+
 #include "args.hpp"
 #include "filters.hpp"
 

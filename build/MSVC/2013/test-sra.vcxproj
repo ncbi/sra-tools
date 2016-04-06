@@ -9,7 +9,6 @@
   </ItemDefinitionGroup>  
   
   <Import Project="..\test-sra.files" />
-  
   <PropertyGroup Label="Globals">
     <ProjectGuid>{11C2E25B-2CD2-4826-A574-637AD10BAAC3}</ProjectGuid>
   </PropertyGroup>

@@ -33,13 +33,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-grammar.c" />
-    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-lex.c" />
-    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-loader.c" />
-    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-reader.c" />
-    <ClCompile Include="..\..\..\tools\fastq-loader\loader-imp.c" />
-  </ItemGroup>
+  <Import Project="..\fastq-loader.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D5EDA47B-AD5A-4C2A-BDBB-EA29C61749E4}</ProjectGuid>

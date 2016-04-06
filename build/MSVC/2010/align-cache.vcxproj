@@ -25,11 +25,7 @@
       <AdditionalDependencies>$(VDB_TARGET)lib\load.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\align-cache\align-cache.cpp" />
-    <ClCompile Include="..\..\..\tools\align-cache\helper.cpp" />
-    <ClInclude Include="..\..\..\tools\align-cache\helper.h" />
-  </ItemGroup>
+  <Import Project="..\align-cache.files" />
   <PropertyGroup Label="Globals">
     <ProjectGuid>{3C8CB988-94DC-4B07-8865-B91FC52395F8}</ProjectGuid>
   </PropertyGroup>

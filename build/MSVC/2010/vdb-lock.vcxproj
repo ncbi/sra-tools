@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>    
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\util\vdb-lock.c" />
-  </ItemGroup>
+  <Import Project="..\vdb-lock.files" />
 
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4779D671-B464-4C6E-8875-CDA2081957F0}</ProjectGuid>

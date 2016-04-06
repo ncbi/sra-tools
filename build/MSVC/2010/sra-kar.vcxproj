@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\kar\sra-kar.c" />
-  </ItemGroup>
+  <Import Project="..\sra-kar.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{99FEB5EB-C150-4634-85AC-780082753D42}</ProjectGuid>

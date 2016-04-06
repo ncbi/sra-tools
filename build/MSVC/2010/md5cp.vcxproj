@@ -26,9 +26,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\util\md5cp.c" />
-  </ItemGroup>
+  <Import Project="..\md5cp.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{F14519B5-5698-4363-A734-229F2A01153D}</ProjectGuid>

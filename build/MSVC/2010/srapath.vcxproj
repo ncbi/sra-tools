@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\srapath\srapath.c" />
-  </ItemGroup>
+  <Import Project="..\srapath.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{779C36A1-2592-469C-93A1-60C0B79BA529}</ProjectGuid>

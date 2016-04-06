@@ -26,9 +26,7 @@
     </Link>
   </ItemDefinitionGroup>  
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\util\vdb-unlock.c" />
-  </ItemGroup>
+  <Import Project="..\vdb-unlock.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{452802EF-A059-4A4C-8106-ADF652ED1E1C}</ProjectGuid>

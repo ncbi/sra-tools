@@ -29,11 +29,7 @@
     </Link>
   </ItemDefinitionGroup>  
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\vdb-diff\namelist_tools.c" />
-    <ClCompile Include="..\..\..\tools\vdb-diff\coldefs.c" />
-    <ClCompile Include="..\..\..\tools\vdb-diff\vdb-diff.c" />
-  </ItemGroup>
+  <Import Project="..\vdb-diff.files" />
 
   <PropertyGroup Label="Globals">
   </PropertyGroup>

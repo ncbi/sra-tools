@@ -1,0 +1,11 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project=".\lib-project.props" />
+  
+  <Import Project="..\vcf-loader.files" />
+  
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{DA226775-67B1-4354-A5CA-7F5406E0B1E7}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

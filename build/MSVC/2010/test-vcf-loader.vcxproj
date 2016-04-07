@@ -26,7 +26,7 @@
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-wvdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\load.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(SRATOOLS_TARGET)bin\vcf-loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SRATOOLS_TARGET)lib\vcf-loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   

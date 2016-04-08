@@ -451,7 +451,61 @@ rc_t kar_scan_path ( const KDirectory *dir, BSTree *tree, const char *path )
     return -1;
 }
 
-/********** TOC  */
+/********** md5  */
+
+static 
+rc_t kar_md5 ( KDirectory *wd, KFile **archive, const char *path, KCreateMode mode )
+{
+    rc_t rc = 0;
+    KFile *md5_f;
+
+    /* create the *.md5 file to hold md5sum-compatible checksum */
+    rc = KDirectoryCreateFile ( wd, &md5_f, false, 0664, mode, "%s.md5", path );
+    if ( rc )
+        PLOGERR (klogFatal, (klogFatal, rc, "unable to create md5 file [$(A).md5]", PLOG_S(A), path));
+    else
+    {
+        KMD5SumFmt *fmt;
+                    
+        /* create md5 formatter to write to md5_f */
+        rc = KMD5SumFmtMakeUpdate ( &fmt, md5_f );
+        if ( rc )
+            LOGERR (klogErr, rc, "failed to make KMD5SumFmt");
+        else
+        {
+            KMD5File *kmd5_f;
+
+            size_t size = string_size ( path );
+            const char *fname = string_rchr ( path, size, '/' );
+            if ( fname ++ == NULL )
+                fname = path;
+
+            /* KMD5SumFmtMakeUpdate() took over ownership of "md5_f" */
+            md5_f = NULL;
+
+            /* create a file that knows how to calculate md5 as data
+                       are written-through to archive, and then write digest
+                       result to fmt, using "fname" as description. */
+            rc = KMD5FileMakeWrite ( &kmd5_f, * archive, fmt, fname );
+            KMD5SumFmtRelease ( fmt );
+            if ( rc )
+                LOGERR (klogErr, rc, "failed to make KMD5File");
+            else
+            {
+                /* success */
+                *archive = KMD5FileToKFile ( kmd5_f );
+                return 0;
+            }
+        }
+
+        /* error cleanup */
+        KFileRelease ( md5_f );
+    }
+
+    return rc;
+}
+
+/********** write to toc and archive  */
 
 static
 uint64_t align_offset ( uint64_t offset, uint64_t alignment )
@@ -787,8 +841,9 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
 {
     rc_t rc;
     char *buffer;
-    size_t num_read;
+    size_t num_read, align_size;
     uint64_t pos = 0;
+    char align_buffer [ 4 ] = "0000";
     size_t bsize = 128 * 1024 * 1024;
 
     const KFile *f;
@@ -831,6 +886,10 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
     }
 
     /* establish current position */
+    align_size = align_offset ( af -> pos, 4 ) - af -> pos;
+    if ( align_size != 0  )
+        rc = KFileWrite ( af -> archive, af -> pos, align_buffer, align_size, NULL );
+
     af -> pos = af -> starting_pos + file -> byte_offset;
 
     while ( rc == 0 && pos < file -> byte_size )
@@ -908,6 +967,7 @@ rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree )
 
 /********** main create execution  */
 
+
 static
 rc_t kar_create ( const Params *p )
 {
@@ -920,8 +980,8 @@ rc_t kar_create ( const Params *p )
     else
     {
         KFile *archive;
-        rc = KDirectoryCreateFile ( wd, &archive, false, 0666, 
-                                    ( p -> force ? kcmInit : kcmCreate ) | kcmParents, 
+        KCreateMode mode = ( p -> force ? kcmInit : kcmCreate ) | kcmParents;
+        rc = KDirectoryCreateFile ( wd, &archive, false, 0666, mode, 
                                     "%s", p -> archive_path );
         if ( rc != 0 )
         {
@@ -930,31 +990,38 @@ rc_t kar_create ( const Params *p )
         }
         else
         {
-            BSTree tree;
-            BSTreeInit ( & tree );
-
-            /* build contents by walking input directory if given,
-               and adding the individual members if given */
-            if ( p -> dir_count != 0 )
+            if ( p -> md5sum )
+                rc = kar_md5 ( wd, &archive, p -> archive_path, mode );
+ 
+            if ( rc == 0 )
             {
-                rc = kar_scan_directory ( wd, & tree, p -> directory_path );
-                if ( rc == 0 )
-                {   
-                    uint64_t i;
-                    for ( i = 1; rc == 0 && i <= p -> mem_count; ++ i )
-                        rc = kar_scan_path ( wd, & tree, p -> members [ i ] );
-
+                BSTree tree;
+                BSTreeInit ( & tree );
+                
+                /* build contents by walking input directory if given,
+                   and adding the individual members if given */
+                if ( p -> dir_count != 0 )
+                {
+                    rc = kar_scan_directory ( wd, & tree, p -> directory_path );
                     if ( rc == 0 )
-                    {
-                        BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
+                    {   
+                        uint64_t i;
+                        for ( i = 1; rc == 0 && i <= p -> mem_count; ++ i )
+                            rc = kar_scan_path ( wd, & tree, p -> members [ i ] );
                         
-                        rc = kar_make ( wd, archive, &tree );
-                        if ( rc != 0 )
-                            LogErr ( klogInt, rc, "Failed to build archive" );
+                        if ( rc == 0 )
+                        {
+                            BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
+                            
+                            rc = kar_make ( wd, archive, &tree );
+                            if ( rc != 0 )
+                                LogErr ( klogInt, rc, "Failed to build archive" );
+                        }
                     }
                 }
+            
+                BSTreeWhack ( & tree, kar_entry_whack, NULL );
             }
-            BSTreeWhack ( & tree, kar_entry_whack, NULL );
             
             KFileRelease ( archive );
         }

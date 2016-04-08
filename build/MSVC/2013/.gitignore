@@ -3,7 +3,5 @@
 *.sdf
 *.opensdf
 *.ipch
-<<<<<<< HEAD
+*.log
 ipch/
-=======
->>>>>>> origin/VDB-2733-TeamCity-Windows

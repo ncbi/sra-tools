@@ -27,7 +27,6 @@ PRIMARY_ALIGNMENT_ID: 0, 0
           SPOT_GROUP: 
              SPOT_ID: 1
             SPOT_LEN: 202
-          TMP_KEY_ID: 0
             TRIM_LEN: 202
           TRIM_START: 0
 

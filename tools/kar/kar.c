@@ -887,7 +887,7 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
     /* establish current position */
     align_size = align_offset ( af -> pos, 4 ) - af -> pos;
     if ( align_size != 0  )
-        rc = KFileWrite ( af -> archive, af -> pos, align_buffer, align_size, NULL );
+        rc = KFileWriteAll ( af -> archive, af -> pos, align_buffer, align_size, NULL );
 
     af -> pos = af -> starting_pos + file -> byte_offset;
 

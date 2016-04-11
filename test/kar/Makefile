@@ -28,22 +28,28 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/kar
 
-TEST_TOOLS = \
+TEST_TOOLS = 
 
 include $(TOP)/build/Makefile.env
 
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-.PHONY: $(TEST_TOOLS)
-
-clean: stdclean
+runtests: kar_md5 kar 
 
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-runtests: kar_md5
-
 kar_md5: test-kar.sh
 	@ echo "Starting kar_md5 tests..."
 	@ bash test-kar.sh $(BINDIR)/kar
+
+kar:
+	rm -rf actual
+	mkdir -p actual
+	$(BINDIR)/kar -c actual/1.0.kar -d input/1.0; $(BINDIR)/kar -t actual/1.0.kar >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
+	rm -rf actual
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean

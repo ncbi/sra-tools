@@ -62,12 +62,12 @@ SUBDIRS =             \
 	ccextract         \
 	pacbio-load       \
 	fuse              \
-    vdb-diff          \
-    kget              \
-    ngs-pileup        \
-    general-loader    \
-	ref-variation	  \
-
+	vdb-diff          \
+	kget              \
+	ngs-pileup        \
+	general-loader    \
+	ref-variation     \
+	fastdump          \
 
 ifneq (win,$(BUILD_OS))
 ifneq (rwin,$(BUILD_OS))

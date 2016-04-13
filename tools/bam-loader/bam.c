@@ -2105,19 +2105,66 @@ static rc_t SAM2BAM_ConvertQUAL(unsigned const insize, void /* inout */ *const d
 
 static int SAM2BAM_ScanValue(void *const dst, char const *src, bool isFloat, bool isArray)
 {
-    static char const *Fmt[] = {
-        ",%f%n",
-        ",%i%n"
-    };
-    char const *const fmt = Fmt[isFloat ? 0 : 1] + (isArray ? 0 : 1);
+    int i = 0;
     union { int i; float f; } x;
-    int n = 0;
+    int sgn = 1;
+    float scale = 1.0;
 
     x.i = 0;
-    if (sscanf(src, fmt, &x, &n) != 1)
-        return -1;
+    if (isArray) {
+        int const ch = src[i++];
+        if (ch != ',')
+            return -1;
+    }
+    if (src[i] == '-') {
+        ++i;
+        sgn = -1;
+    }
+    else if (src[i] == '+') {
+        ++i;
+    }
+    for ( ; ; ++i) {
+        int const ch = src[i];
+        int const value = ch - '0';
+
+        if (ch == '.') {
+            scale = 0.1;
+            break;
+        }
+        else if (ch == '\0')
+            break;
+
+        if (value < 0 || value > 9)
+            return -1;
+
+        x.i = x.i * 10 + value;
+    }
+
+    if (isFloat) {
+        float f = x.i;
+
+        if (scale < 1.0) {
+            for ( ; ; ++i) {
+                int const ch = src[i];
+                int const value = ch - '0';
+
+                if (ch == '\0')
+                    break;
+
+                if (value < 0 || value > 9)
+                    return -1;
+
+                f += value * scale;
+                scale /= 10.0;
+            }
+        }
+        x.f = sgn * f;
+    }
+    else {
+        x.i *= sgn;
+    }
     SAM2BAM_ConvertInt(dst, x.i);
-    return n;
+    return i;
 }
 
 static int SAM2BAM_ConvertEXTRA(unsigned const insize, void /* inout */ *const data, void const *const endp)
@@ -2149,8 +2196,8 @@ static int SAM2BAM_ConvertEXTRA(unsigned const insize, void /* inout */ *const d
                 if ((void const *)&dst[7] >= endp)
                     return -2;
                 {
-                int const n = SAM2BAM_ScanValue(&dst[3], src + 5, type == 'f', false);
-                return (n < 0 || n + 5 != insize) ? -4 : 7;
+                    int const n = SAM2BAM_ScanValue(&dst[3], src + 5, type == 'f', false);
+                    return (n < 0 || n + 5 != insize) ? -4 : 7;
                 }
             }
             case 'B':
@@ -2225,13 +2272,15 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
         char *EXTRA;
     } temp;
     unsigned field = 1;
-    char *scratch;
+    char *scratch = &raw->read_name[0];
+    int *intScratch = NULL;
+    int sgn = 1;
     unsigned i = 0;
     int n = 0;
     
     memset(raw, 0, sizeof(*raw));
     memset(&temp, 0, sizeof(temp));
-    scratch = temp.QNAME = &raw->read_name[0];
+    temp.QNAME = scratch;
     
     for ( ; ; ) {
         int const ch = SAMFileRead1(&self->file.sam);
@@ -2243,12 +2292,36 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
             return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
 
         if (!(ch == '\t' || ch == '\n')) {
-            if (field != 0)
-                scratch[i++] = ch;
+            if (field != 0) {
+                if (intScratch == NULL) {
+                    scratch[i] = ch;
+                }
+                else {
+                    int const value = ch - '0';
+                    if (ch == '-' && i == 0) {
+                        sgn = -1;
+                    }
+                    else if (ch == '-' && i == 0) {
+                        sgn = 1;
+                    }
+                    else {
+                        if (value < 0 || value > 9) {
+                            LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing integer field");
+                            return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
+                        }
+                        *intScratch = *intScratch * 10 + value * sgn;
+                    }
+                }
+            }
+            ++i;
             continue;
         }
-        scratch[i] = '\0';
-
+        if (intScratch == NULL)
+            scratch[i] = '\0';
+        else {
+            intScratch = NULL;
+            sgn = 1;
+        }
         switch (field) {
             case 0:
                 if (ch == '\n')
@@ -2267,12 +2340,9 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
                     }
                 }
                 temp.CIGAR = (void *)scratch;
+                intScratch = &temp.FLAG;
                 break;
             case 2:
-                if (sscanf(scratch, "%i%n", &temp.FLAG, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing FLAG");
-                    field = 0;
-                }
                 break;
             case 3:
                 if (i == 1 && scratch[0] == '*')
@@ -2286,18 +2356,12 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
                         field = 0;
                     }
                 }
+                intScratch = &temp.POS;
                 break;
             case 4:
-                if (sscanf(scratch, "%i%n", &temp.POS, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing POS");
-                    field = 0;
-                }
+                intScratch = &temp.MAPQ;
                 break;
             case 5:
-                if (sscanf(scratch, "%i%n", &temp.MAPQ, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing MAPQ");
-                    field = 0;
-                }
                 if (temp.MAPQ > 255) {
                     LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error MAPQ > 255");
                     field = 0;
@@ -2337,25 +2401,19 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
                         field = 0;
                     }
                 }
+                intScratch = &temp.PNEXT;
                 break;
             case 8:
-                if (sscanf(scratch, "%i%n", &temp.PNEXT, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing PNEXT");
-                    field = 0;
-                }
+                intScratch = &temp.TLEN;
                 break;
             case 9:
-                if (sscanf(scratch, "%i%n", &temp.TLEN, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing TLEN");
-                    field = 0;
-                }
                 break;
             case 10:
                 if (i == 1 && scratch[0] == '*')
                     temp.readlen = 0;
                 else {
                     temp.readlen = i;
-                    scratch += (i + 1) >> 1;
+                    scratch += (temp.readlen + 1) / 2;
                     temp.QUAL = (uint8_t *)scratch;
                     {
                         rc_t const rc = SAM2BAM_ConvertSEQ(i, temp.SEQ, endp);

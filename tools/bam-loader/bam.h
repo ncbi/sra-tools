@@ -317,9 +317,9 @@ rc_t BAM_AlignmentGetCigar ( const BAM_Alignment *self,
 rc_t BAM_AlignmentGetInsertSize ( const BAM_Alignment *self, int64_t *size );
 
 rc_t BAM_AlignmentFormatSAM(const BAM_Alignment *self,
-                                           size_t *actsize,
-                                           size_t maxsize,
-                                           char *buffer);
+                            size_t *actsize,
+                            size_t maxsize,
+                            char *buffer);
 
 /* OptDataForEach
  *  DANGER

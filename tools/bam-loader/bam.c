@@ -48,6 +48,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 #include <assert.h>
 #if 1
 /*_DEBUGGING*/
@@ -2106,64 +2107,91 @@ static rc_t SAM2BAM_ConvertQUAL(unsigned const insize, void /* inout */ *const d
 static int SAM2BAM_ScanValue(void *const dst, char const *src, bool isFloat, bool isArray)
 {
     int i = 0;
-    union { int i; float f; } x;
-    int sgn = 1;
-    float scale = 1.0;
+    int sgn = 0;
+    uint64_t mantissa = 0;
+    int shift = 0;
+    int exponent = 0;
+    int st = 0;
 
-    x.i = 0;
     if (isArray) {
         int const ch = src[i++];
         if (ch != ',')
             return -1;
     }
-    if (src[i] == '-') {
-        ++i;
-        sgn = -1;
-    }
-    else if (src[i] == '+') {
-        ++i;
-    }
     for ( ; ; ++i) {
         int const ch = src[i];
         int const value = ch - '0';
 
-        if (ch == '.') {
-            scale = 0.1;
+        if (ch == '\0')
             break;
-        }
-        else if (ch == '\0')
+        if (isArray && ch == ',')
             break;
-
-        if (value < 0 || value > 9)
-            return -1;
-
-        x.i = x.i * 10 + value;
-    }
-
-    if (isFloat) {
-        float f = x.i;
-
-        if (scale < 1.0) {
-            for ( ; ; ++i) {
-                int const ch = src[i];
-                int const value = ch - '0';
-
-                if (ch == '\0')
-                    break;
-
-                if (value < 0 || value > 9)
-                    return -1;
-
-                f += value * scale;
-                scale /= 10.0;
+        switch (st) {
+        case 0:
+            ++st;
+            if (ch == '-') {
+                sgn = -1;
+                break;
             }
+            else if (ch == '+') {
+                sgn = 1;
+                break;
+            }
+            /* fallthrough; */
+        case 1:
+            if (ch == '.') {
+                st = 2;
+                break;
+            }
+            if (ch == 'e' || ch == 'E') {
+                st = 3;
+                break;
+            }
+            if (value < 0 || value > 9)
+                return -1;
+            mantissa = mantissa * 10 + value;
+            break;
+        case 2:
+            if (ch == 'e' || ch == 'E') {
+                st = 3;
+                break;
+            }
+            if (value < 0 || value > 9)
+                return -1;
+            mantissa = mantissa * 10 + value;
+            ++shift;
+            break;
+        case 3:
+            ++st;
+            if (ch == '-') {
+                ++st;
+                break;
+            }
+            else if (ch == '+') {
+                break;
+            }
+            /* fallthrough; */
+        case 4:
+            if (value < 0 || value > 9)
+                return -1;
+            exponent = exponent * 10 + value;
+            break;
+        case 5:
+            if (value < 0 || value > 9)
+                return -1;
+            exponent = exponent * 10 - value;
+            break;
         }
-        x.f = sgn * f;
     }
-    else {
-        x.i *= sgn;
+    {
+        double const value = mantissa * pow(10, exponent - shift) * (sgn ? sgn : 1);
+        union { int i; float f; } x;
+        if (isFloat)
+            x.f = value;
+        else
+            x.i = floor(value);
+        SAM2BAM_ConvertInt(dst, x.i);
     }
-    SAM2BAM_ConvertInt(dst, x.i);
     return i;
 }
 
@@ -2222,27 +2250,25 @@ static int SAM2BAM_ConvertEXTRA(unsigned const insize, void /* inout */ *const d
                 return -3;
             }
             {
-                uint8_t *scratch = (void *)(src + insize);
+                uint8_t *const scratch = (void *)(src + insize);
                 int const subtype = src[5] == 'f' ? 'f' : 'i';
                 unsigned i;
+                unsigned j;
 
                 dst[3] = subtype;
-                for (i = 6; i < insize; ) {
-                    if ((void const *)&scratch[4] >= endp)
+                for (i = 6, j = 0; i < insize; ++j) {
+                    if ((void const *)(scratch + 4 * j + 4) >= endp)
                         return -2;
                     {
-                    int const n = SAM2BAM_ScanValue(scratch, src + 5, subtype == 'f', true);
-                    if (n < 0)
-                        return -4;
-                    i += n;
+                        int const n = SAM2BAM_ScanValue(scratch + 4 * j, src + i, subtype == 'f', true);
+                        if (n < 0)
+                            return -4;
+                        i += n;
                     }
-                    scratch += 4;
                 }
-                {
-                    unsigned const written = scratch - (uint8_t const *)(src + insize);
-                    memmove(dst + 4, src + insize, written);
-                    return written + 5;
-                }
+                SAM2BAM_ConvertInt(&dst[4], j);
+                memmove(&dst[8], scratch, 4 * j);
+                return 8 + 4 * j;
             }
         }
     }
@@ -3289,6 +3315,10 @@ static int FormatOptData(BAM_Alignment const *const self,
                 j = snprintf(buffer + cur, maxsize - cur, "%f", fi.f);
                 if ((cur += j) >= maxsize)
                     return -1;
+                while (buffer[cur - 1] == '0')
+                    --cur;
+                if (buffer[cur - 1] == '.')
+                    --cur;
                 offset += 4;
                 break;
 
@@ -3369,7 +3399,12 @@ static int FormatOptData(BAM_Alignment const *const self,
                                 j = snprintf(buffer + cur, maxsize - cur, "%f", fi.f);
                                 if ((cur += j) >= maxsize)
                                     return -1;
+                                while (buffer[cur - 1] == '0')
+                                    --cur;
+                                if (buffer[cur - 1] == '.')
+                                    --cur;
                                 offset += 4;
+                                break;
 
                             default:
                                 return -1;

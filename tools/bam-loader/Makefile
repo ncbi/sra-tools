@@ -29,6 +29,7 @@ TOP ?= $(abspath ../..)
 MODULE = tools/bam-loader
 
 INT_TOOLS = \
+	samview
 
 EXT_TOOLS = \
 	bam-load 
@@ -101,4 +102,23 @@ BAMLOAD_LIB = \
 
 $(BINDIR)/bam-load: $(BAMLOAD_OBJ)
 	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(BAMLOAD_LIB)
+
+
+#-------------------------------------------------------------------------------
+# samview
+#
+SAMVIEW_SRC = \
+	bam \
+	samview
+
+SAMVIEW_OBJ = \
+	$(addsuffix .$(OBJX),$(SAMVIEW_SRC))
+
+SAMVIEW_LIB = \
+	-lkapp \
+	-sncbi-vdb \
+	-lm
+
+$(BINDIR)/samview: $(SAMVIEW_OBJ)
+	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(SAMVIEW_LIB)
 

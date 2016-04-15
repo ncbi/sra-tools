@@ -609,7 +609,7 @@ rc_t FastqLoaderFmt_WriteData(FastqLoaderFmt* self, uint32_t argc, const SRALoad
                 }
             } else if( spot.nreads != 1 ) {
                 rc = RC(rcSRA, rcFormatter, rcReading, rcData, rcUnsupported);
-                SRALoaderFile_LOG(files[i].file, klogErr, rc, "$(msg)", "msg=multiple reads for this platform");
+                SRALoaderFile_LOG(files[g].file, klogErr, rc, "$(msg)", "msg=multiple reads for this platform");
             } else if( self->wIonTorrent != NULL ) {
                 rc = SRAWriterIonTorrent_WriteRead(self->wIonTorrent, argv[0], spot.name,
                                                    spot.reads[0].seq, spot.reads[0].qual, NULL, NULL, 0, 0, 0, 0);

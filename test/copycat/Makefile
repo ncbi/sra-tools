@@ -42,7 +42,15 @@ clean: stdclean
 #-------------------------------------------------------------------------------
 # scripted tests
 #
+ifeq (1,$(HAVE_MAGIC))
 runtests: copy
+else
+runtests:
+	@ echo "NOTE - copycat tests are skipped:"          \
+		"copycat was not built"
+	@ echo "because it requires our internal library 'libkff'" \
+		"which requires 'libmagic' and its development headers."
+endif
 
 copy: 
 	@ echo "Starting copycat tests..."

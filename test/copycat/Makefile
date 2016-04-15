@@ -22,40 +22,31 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/copycat
 
-include $(TOP)/build/Makefile.config
+TEST_TOOLS = \
+
+include $(TOP)/build/Makefile.env
+
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean
 
 #-------------------------------------------------------------------------------
-# default
+# scripted tests
 #
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-	kget            \
-	general-loader  \
-	vschema         \
-	align-info      \
-	align-cache     \
-	vdb-dump        \
-	ref-variation   \
-	vdb-validate    \
-	kar             \
-    copycat         \
+runtests: copy
 
-# under construction    
-#    ngs-pileup      \
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
+copy: 
+	@ echo "Starting copycat tests..."
+	@ rm -rf actual
+	@ $(BINDIR)/copycat -h >/dev/null
+	@ $(BINDIR)/copycat ./input/1.xml actual/ >/dev/null && diff ./input/1.xml actual/1.xml 
+	@ rm -rf actual

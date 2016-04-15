@@ -49,6 +49,8 @@ installexes:
 	@ echo "Installing executables to $(INST_BINDIR)/..."
 	@ mkdir -p $(INST_BINDIR) 
 	@ $(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.install $(TOOLS_TO_INSTALL)
+	@ printf "Installing magic file..."
+	@ $(COPY) $(TOP)/tools/copycat/magic $(INST_BINDIR) && echo "done"
 
 $(TOOLS_TO_INSTALL):
 	@ printf "Installing $@..."
@@ -66,9 +68,9 @@ endif
 install: installexes
 ifeq (true, $(LINUX_ROOT))
 	@ # install configuration file(s)
-	@ echo "Installing configuration files to $(ROOT)/etc/ncbi/"
+	@ echo "Installing configuration files to $(ROOT)/etc/ncbi/..."
 	@ mkdir -p $(ROOT)/etc/ncbi/
-	@ cp $(TOP)/tools/vdb-copy/vdb-copy.kfg $(ROOT)/etc/ncbi/
+	@ cp $(TOP)/tools/vdb-copy/vdb-copy.kfg $(ROOT)/etc/ncbi/ && echo "done"
 	@ #
 	@ echo "Updating $(PROFILE_FILE).[c]sh"
 	@ printf \
@@ -94,7 +96,7 @@ endif
 # uninstall
 # 
 
-TO_UNINSTALL = $(addsuffix *,$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_INSTALL)))
+TO_UNINSTALL = $(addsuffix *,$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_INSTALL) magic))
 TO_UNINSTALL_AS_ROOT = $(ROOT)/etc/ncbi/vdb-copy.kfg $(PROFILE_FILE).sh $(PROFILE_FILE).csh
 
 uninstall:

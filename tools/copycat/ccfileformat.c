@@ -31,11 +31,14 @@
 #include <klib/rc.h>
 #include <klib/debug.h>
 #include <klib/log.h>
+#include <klib/text.h>
+#include <klib/printf.h>
 #include <kfs/file.h>
 #include <kfs/fileformat.h>
 #include <kfs/ffext.h>
 #include <kfs/ffmagic.h>
 #include <krypto/wgaencrypt.h>
+#include <kfg/config.h>
 #include <atomic32.h>
 #include <stddef.h>
 #include "copycat-priv.h"
@@ -171,18 +174,37 @@ rc_t CCFileFormatMake (CCFileFormat ** p)
     }
     else
     {
-        rc = KExtFileFormatMake (&self->ext, exttable, sizeof (exttable) - 1,
-                                 formattable, sizeof (formattable) - 1);
-        if (rc == 0)
+        /* magic file has to be located next to the executable */
+        KConfig* kfg;
+        rc = KConfigMake ( &kfg, NULL );
+        if ( rc == 0 )
         {
-            rc = KMagicFileFormatMake (&self->magic, magicpath, magictable,
-                                       sizeof (magictable) - 1, 
-                                       formattable, sizeof (formattable) - 1);
-            if (rc == 0)
+            String* bindir;
+            rc = KConfigReadString ( kfg, "APPPATH", &bindir );
+            KConfigRelease ( kfg );
+            if ( rc == 0 )
             {
-                atomic32_set (&self->refcount , 1);
-                *p = self;
-                return 0;
+                char magicpath[1024];
+                size_t num_writ;
+                rc = string_printf ( magicpath, sizeof ( magicpath ), &num_writ, "%S/magic", bindir );
+                StringWhack ( bindir );
+                if ( rc == 0 )
+                {
+                    rc = KExtFileFormatMake (&self->ext, exttable, sizeof (exttable) - 1,
+                                             formattable, sizeof (formattable) - 1);
+                    if (rc == 0)
+                    {
+                        rc = KMagicFileFormatMake (&self->magic, magicpath, magictable,
+                                                   sizeof (magictable) - 1, 
+                                                   formattable, sizeof (formattable) - 1);
+                        if (rc == 0)
+                        {
+                            atomic32_set (&self->refcount , 1);
+                            *p = self;
+                            return 0;
+                        }
+                    }
+                }
             }
         }
         free (self);

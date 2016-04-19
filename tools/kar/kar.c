@@ -54,6 +54,8 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#include <endian.h>
+#include <byteswap.h>
 
 
 /*******************************************************************************
@@ -518,7 +520,7 @@ static
 void kar_write_header_v1 ( KARArchiveFile * af, uint64_t toc_size )
 {
     rc_t rc;
-    size_t num_writ;
+    size_t num_writ, hdr_size;
 
     KSraHeader hdr;
     memcpy ( hdr.ncbi, "NCBI", sizeof hdr.ncbi );
@@ -528,12 +530,15 @@ void kar_write_header_v1 ( KARArchiveFile * af, uint64_t toc_size )
 
     hdr.version = 1;
 
+    /* calculate header size based upon version */
+    hdr_size = sizeof hdr - sizeof hdr . u + sizeof hdr . u . v1;
+
     /* TBD - don't use hard-coded alignment - get it from cmdline */
-    hdr.u.v1.file_offset = align_offset ( sizeof hdr + toc_size, 4 );
+    hdr.u.v1.file_offset = align_offset ( hdr_size + toc_size, 4 );
     af -> starting_pos = hdr . u . v1 . file_offset;
 
-    rc = KFileWriteAll ( af -> archive, af -> pos, &hdr, sizeof hdr, &num_writ );
-    if ( rc != 0 || num_writ != sizeof hdr )
+    rc = KFileWriteAll ( af -> archive, af -> pos, &hdr, hdr_size, &num_writ );
+    if ( rc != 0 || num_writ != hdr_size )
     {
         if ( rc == 0 )
             rc = RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
@@ -1032,6 +1037,114 @@ rc_t kar_create ( const Params *p )
 }
 
 /*******************************************************************************
+ * Test
+ */
+
+static
+void kar_verify_header ( const KFile *archive )
+{
+    rc_t rc;
+    
+    size_t num_read;
+   
+    KSraHeader hdr;
+
+    STSMSG (1, ("Verifying header\n"));
+
+    rc = KFileReadAll ( archive, 0, & hdr, sizeof hdr, &num_read );
+    if ( rc != 0 )
+    {
+        LOGERR (klogErr, rc, "failed to access archive file");
+        exit ( 1 );
+    }
+
+    if ( num_read < sizeof hdr - sizeof hdr . u )
+    {
+        rc = RC ( rcExe, rcFile, rcValidating, rcOffset, rcInvalid );
+        LOGERR (klogErr, rc, "corrupt archive file - invalid header");
+        exit ( 1 );
+    }
+
+    /* verify "ncbi" and "sra" members */
+    if ( memcmp ( hdr . ncbi, "NCBI", sizeof hdr . ncbi ) != 0 ||
+         memcmp ( hdr . sra, ".sra", sizeof hdr . sra ) != 0 )
+    {
+        rc = RC ( rcExe, rcFile, rcValidating, rcFormat, rcInvalid );
+        LOGERR (klogErr, rc, "invalid file format");
+        exit ( 1 );
+    }
+
+    /* test "byte_order".
+       this is allowed to be either eSraByteOrderTag or eSraByteOrderReverse.
+       anything else, is garbage */
+    if ( hdr . byte_order != eSraByteOrderTag && hdr . byte_order != eSraByteOrderReverse )
+    {
+        rc = RC ( rcExe, rcFile, rcValidating, rcByteOrder, rcInvalid );
+        LOGERR (klogErr, rc, "failed to access archive file - invalid byte order");
+        exit ( 1 );
+    }
+
+    if ( hdr . byte_order == eSraByteOrderReverse )
+    {
+        hdr . version = bswap_32 ( hdr . version );
+    }
+
+    /* test version */
+    if ( hdr . version == 0 )
+    {
+        rc = RC ( rcExe, rcFile, rcValidating, rcInterface, rcInvalid );
+        LOGERR (klogErr, rc, "invalid version");
+        exit ( 1 );
+    }
+
+    if ( hdr . version > 1 )
+    {
+        rc = RC ( rcExe, rcFile, rcValidating, rcInterface, rcUnsupported );
+        LOGERR (klogErr, rc, "version not supported");
+        exit ( 1 );
+    }
+
+    /* test actual size against specific header version */
+    if ( num_read < sizeof hdr - sizeof hdr . u + sizeof hdr . u . v1 )
+    {
+        rc = RC ( rcExe, rcFile, rcValidating, rcOffset, rcIncorrect );
+        LOGERR (klogErr, rc, "failed to read header");
+        exit ( 1 );
+    }
+}
+
+static
+rc_t kar_test ( const Params *p )
+{
+    rc_t rc;
+
+    KDirectory *wd;
+
+    STSMSG (1, ("Extracting kar\n"));
+
+    rc = KDirectoryNativeDir ( &wd );
+    if ( rc != 0 )
+        LogErr ( klogInt, rc, "Failed to create working directory" );
+    else
+    {
+        const KFile *archive;
+        rc = KDirectoryOpenFileRead ( wd, &archive, p -> archive_path );
+        if ( rc != 0 )
+            LogErr ( klogInt, rc, "Failed to open archive" );
+        else
+        {
+            kar_verify_header ( archive );
+
+            KFileRelease ( archive );
+        }
+        
+        KDirectoryRelease ( wd );
+    }
+
+    return rc;
+}
+
+/*******************************************************************************
  * Extract
  */
 
@@ -1041,16 +1154,6 @@ rc_t kar_extract ( const Params *p )
     return -1;
 }
 
-/*******************************************************************************
- * Test
- */
-
-
-static
-rc_t kar_test ( const Params *p )
-{
-    return -1;
-}
 
 /*******************************************************************************
  * Startup

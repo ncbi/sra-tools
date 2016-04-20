@@ -11,6 +11,8 @@ Visit our [download page](https://github.com/ncbi/sra-tools/wiki/Downloads) for 
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
 
+Please see our change log in CHANGES.md.
+
 Much of the data submitted these days contain alignment information, for example
 in BAM, Illumina export.txt, and Complete Genomics formats. With aligned data,
 NCBI uses Compression by Reference, which only stores the differences in base

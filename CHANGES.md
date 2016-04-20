@@ -1,54 +1,21 @@
-# ===========================================================================
-#
-#                            PUBLIC DOMAIN NOTICE
-#               National Center for Biotechnology Information
-#
-#  This software/database is a "United States Government Work" under the
-#  terms of the United States Copyright Act.  It was written as part of
-#  the author's official duties as a United States Government employee and
-#  thus cannot be copyrighted.  This software/database is freely available
-#  to the public for use. The National Library of Medicine and the U.S.
-#  Government have not placed any restriction on its use or reproduction.
-#
-#  Although all reasonable efforts have been taken to ensure the accuracy
-#  and reliability of the software and data, the NLM and the U.S.
-#  Government do not and cannot warrant the performance or results that
-#  may be obtained by using this software or data. The NLM and the U.S.
-#  Government disclaim all warranties, express or implied, including
-#  warranties of performance, merchantability or fitness for any particular
-#  purpose.
-#
-#  Please cite the author in any work or product based on this material.
-#
-# ===========================================================================
-
-
-The NCBI SRA Software Development Kit
-Contact: sra-tools@ncbi.nlm.nih.gov
-
 NCBI External Developer Release: SRA Toolkit 2.6.2
 
   align-cache: a tool producing vdbcache that reduces effects of random access and improves speed.
-
   bam-load: Fixed bug in validation code for unsorted bam files
-  bam-load: If two (or more) local reference names refer to the same global reference,
-    bam-load will record the first one used and report the change.
+  bam-load: If two (or more) local reference names refer to the same global reference, bam-load will record the first one used and report the change.
   bam-load: Secondary alignment will be used for spot assembly if the loader is explicitly told to use them
   bam-load: The code that had invalid item in index problem was removed in the process of addressing a performance issue.
   bam-load: change reporting of fatal warnings into fatal errors
   bam-load: changed from an error to a warning if using secondary alignments to create spots
-  bam-load: low-match secondary alignments are now discarded; low-match primary alignments are logged,
-    and if too many, it will abort the load.
+  bam-load: low-match secondary alignments are now discarded; low-match primary alignments are logged, and if too many, it will abort the load.
   bam-load: records the contents of the BX tag
   bam-load: rules for spot assembly were reverted to assembling spots only on primary alignments
   blast, build: Improved blast tools: all required libraries are linked statically. 
   build: Allow to build sra-tools on systems without static c++ library
   check-corrupt, vdb-validate: Added a new set of checks that can be triggered by using one of two "--sdc:" cmd options
   copycat: now runs on Centos 7; no longer uses system-installed magic file
-  dbgap-mount: Added support for standard options  "-L" and "-o", which allow users
-    to determine the logging level and log output file
-  dbgap-mount: New optional parameter was introduced '-u' which allows user
-    to unmount FUSE/DOKAN volume. Implemented on linux and windows
+  dbgap-mount: Added support for standard options  "-L" and "-o", which allow users to determine the logging level and log output file
+  dbgap-mount: New optional parameter was introduced '-u' which allows user to unmount FUSE/DOKAN volume. Implemented on linux and windows
   fastq-load: The (old) fastq-loader will properly report multiple reads on the 454 platform (and still fail).
   kar: added '--md5' option to create md5sum compatible auxiliary file
   kdb: Fixed VTableDropColumn, so that it can drop static columns
@@ -81,4 +48,5 @@ NCBI External Developer Release: SRA Toolkit 2.6.2
   var-expand: a tool for batch variation expansion
   vdb-config: now handles standard options such as --option-file
   vdb-validate: Added code to continue with the next row when column has discontiguous blobs
+
 

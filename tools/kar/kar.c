@@ -37,6 +37,7 @@
 #include <kfs/tar.h>
 #include <kfs/toc.h>
 #include <kfs/sra.h>
+#include <kfs/md5.h>
 #include <klib/log.h>
 #include <klib/out.h>
 #include <klib/status.h>
@@ -69,6 +70,7 @@ KDirectory * kdir;
 #define OPTION_LONGLIST  "long-list"
 #define OPTION_DIRECTORY "directory"
 #define OPTION_ALIGN     "align"
+#define OPTION_MD5       "md5"
 
 #define ALIAS_CREATE    "c"
 #define ALIAS_TEST      "t"
@@ -105,6 +107,8 @@ static const char * align_usage[] =
 static const char * longlist_usage[] =
 { "more information will be given on each file",
   "in test/list mode.", NULL };
+static const char * md5_usage[] = { "create md5sum-compatible checksum file", NULL };
+
 
 OptDef Options[] = 
 {
@@ -115,7 +119,8 @@ OptDef Options[] =
     { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage, 0, false, false },
     { OPTION_LONGLIST,  ALIAS_LONGLIST,  NULL, longlist_usage, 0, false, false },
     { OPTION_DIRECTORY, ALIAS_DIRECTORY, NULL, directory_usage, 1, true,  false },
-    { OPTION_ALIGN,     ALIAS_ALIGN,     NULL, align_usage, 1, true,  false }
+    { OPTION_ALIGN,     ALIAS_ALIGN,     NULL, align_usage, 1, true,  false },
+    { OPTION_MD5,       NULL,            NULL, md5_usage, 0, false,  false }
 };
 
 const char UsageDefaultName[] = "kar";
@@ -181,6 +186,7 @@ rc_t CC Usage (const Args * args)
     HelpOptionLine (ALIAS_FORCE, OPTION_FORCE, NULL, force_usage);
     HelpOptionLine (ALIAS_ALIGN, OPTION_ALIGN, "alignment", align_usage);
     HelpOptionLine (ALIAS_LONGLIST, OPTION_LONGLIST, NULL, longlist_usage);
+    HelpOptionLine (NULL, OPTION_MD5, NULL, md5_usage);
 
     HelpOptionsStandard ();
 
@@ -228,6 +234,8 @@ static
 bool long_list;
 static
 bool force;
+static
+bool md5sum;
 
 static
 KSRAFileAlignment alignment;
@@ -541,10 +549,61 @@ rc_t open_out_file (const char * path, KFile ** fout)
     }
     if (rc == 0)
     {
-        rc = KDirectoryVCreateFile (kdir, fout, false, 0664,
-                                    mode, path, NULL);
+        rc = KDirectoryCreateFile (kdir, fout, false, 0664,
+                                   mode, "%s", path);
         if (rc)
             PLOGERR (klogFatal, (klogFatal, rc, "unable to create archive [$(A)]", PLOG_S(A), path));
+        else if ( md5sum )
+        {
+            KFile *md5_f;
+
+            /* create the *.md5 file to hold md5sum-compatible checksum */
+            rc = KDirectoryCreateFile ( kdir, &md5_f, false, 0664, mode, "%s.md5", path );
+            if ( rc )
+                PLOGERR (klogFatal, (klogFatal, rc, "unable to create md5 file [$(A).md5]", PLOG_S(A), path));
+            else
+            {
+                KMD5SumFmt *fmt;
+                    
+                /* create md5 formatter to write to md5_f */
+                rc = KMD5SumFmtMakeUpdate ( &fmt, md5_f );
+                if ( rc )
+                    LOGERR (klogErr, rc, "failed to make KMD5SumFmt");
+                else
+                {
+                    KMD5File *kmd5_f;
+
+                    size_t size = string_size ( path );
+                    const char *fname = string_rchr ( path, size, '/' );
+                    if ( fname ++ == NULL )
+                        fname = path;
+
+                    /* KMD5SumFmtMakeUpdate() took over ownership of "md5_f" */
+                    md5_f = NULL;
+
+                    /* create a file that knows how to calculate md5 as data
+                       are written-through to archive, and then write digest
+                       result to fmt, using "fname" as description. */
+                    rc = KMD5FileMakeWrite ( &kmd5_f, * fout, fmt, fname );
+                    KMD5SumFmtRelease ( fmt );
+                    if ( rc )
+                        LOGERR (klogErr, rc, "failed to make KMD5File");
+                    else
+                    {
+                        /* success */
+                        *fout = KMD5FileToKFile ( kmd5_f );
+                        return 0;
+                    }
+                }
+
+                /* error cleanup */
+                KFileRelease ( md5_f );
+            }
+
+            /* error cleanup */
+            KFileRelease ( * fout );
+            * fout = NULL;
+        }
     }
     return rc;
 }
@@ -1404,6 +1463,11 @@ rc_t CC KMain ( int argc, char *argv [] )
             if (rc)
                 break;
             force = (pcount != 0);
+
+            rc = ArgsOptionCount (args, OPTION_MD5, &pcount);
+            if (rc)
+                break;
+            md5sum = (pcount != 0);
 
             mode = OM_NONE;
 

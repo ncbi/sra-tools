@@ -201,18 +201,22 @@ void BufferedPairColWriterMapValues ( BufferedPairColWriter *self, const ctx_t *
             STATUS ( 3, "randomly mapping old=>new values" );
             for ( i = 0; i < self -> num_immed; ++ i )
             {
+                uint32_t *base;
+
                 id = self -> u . data [ i ] . val . imm;
+
+                ON_FAIL ( base = MemBankAlloc ( self -> mbank, ctx, sizeof id + sizeof * base, false ) )
+                    return;
+
                 if ( id != 0 )
                 {
-                    uint32_t *base;
-                    ON_FAIL ( base = MemBankAlloc ( self -> mbank, ctx, sizeof id + sizeof * base, false ) )
-                        return;
                     ON_FAIL ( id = MapFileMapSingleOldToNew ( self -> idx, ctx, id, assign_ids ) )
                         return;
-                    memcpy ( & base [ 1 ], & id, sizeof id );
-                    base [ 0 ] = 1;
-                    self -> u . data [ i ] . val . ptr = base;
                 }
+
+                memcpy ( & base [ 1 ], & id, sizeof id );
+                base [ 0 ] = 1;
+                self -> u . data [ i ] . val . ptr = base;
             }
             for ( self -> num_immed = 0; i < self -> num_items; ++ i )
             {

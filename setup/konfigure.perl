@@ -203,6 +203,14 @@ unless ($OSTYPE =~ /linux/i || $OSTYPE =~ /darwin/i || $OSTYPE eq 'win') {
     exit 1;
 }
 
+my $OS_DISTRIBUTOR = '';
+if ($OS eq 'linux') {
+    print "checking OS distributor... " unless ($AUTORUN);
+    $OS_DISTRIBUTOR = `lsb_release -si`;
+    chomp $OS_DISTRIBUTOR;
+    println $OS_DISTRIBUTOR unless ($AUTORUN);
+}
+
 print "checking machine architecture... " unless ($AUTORUN);
 println $MARCH unless ($AUTORUN);
 unless ($MARCH =~ /x86_64/i || $MARCH =~ /i?86/i) {
@@ -422,6 +430,11 @@ if ($JAVAC) {
 my $NO_ARRAY_BOUNDS_WARNING = '';
 if ($TOOLS =~ /gcc$/ && check_no_array_bounds()) {
     $NO_ARRAY_BOUNDS_WARNING = '-Wno-array-bounds';
+}
+
+my $STATIC_LIBSTDCPP = '';
+if ($TOOLS =~ /gcc$/) {
+    $STATIC_LIBSTDCPP = check_static_libstdcpp();
 }
 
 my @dependencies;
@@ -714,6 +727,14 @@ if ($OS ne 'win' && ! $OPT{'status'}) {
         close F;
     }
 
+    if ($TOOLS =~ /gcc$/) {
+        my $EXECMDF = File::Spec->catdir(CONFIG_OUT(), 'ld.linux.exe_cmd.sh');
+        println "configure: creating '$EXECMDF'" unless ($AUTORUN);
+        open F, ">$EXECMDF" or die "cannot open $EXECMDF to write";
+        print F "EXE_CMD=\"\$LD $STATIC_LIBSTDCPP -static-libgcc\"\n";
+        close F;
+    }
+
     # create Makefile.config
     println "configure: creating '$OUT_MAKEFILE'" unless ($AUTORUN);
     open my $F, ">$OUT_MAKEFILE" or die "cannot open $OUT_MAKEFILE to write";
@@ -773,6 +794,7 @@ BUILD = $BUILD
 # target OS
 OS    = $OS
 OSINC = $OSINC
+OS_DISTRIBUTOR = $OS_DISTRIBUTOR
 
 # prefix string for system libraries
 LPFX = $LPFX
@@ -972,6 +994,14 @@ EndText
         L($F, 'include $(wildcard $(CLSDIR)/*.d)');
     }
     L($F, $_) foreach (@dependencies);
+    L($F);
+
+    # pass HAVE_XML2 to build scripts
+    L($F, 'ifeq (,$(HAVE_XML2))');
+    L($F, '    HAVE_XML2=0');
+    L($F, 'endif');
+    L($F, 'CONFIGURE_FOUND_XML2=$(HAVE_XML2)');
+    L($F, 'export CONFIGURE_FOUND_XML2');
     L($F);
 
     if ($OS eq 'linux' || $OS eq 'mac') {
@@ -1410,6 +1440,15 @@ sub check_no_array_bounds {
     check_compiler('O', '-Wno-array-bounds');
 }
 
+sub check_static_libstdcpp {
+    my $option = '-static-libstdc++';
+    my $save = $TOOLS;
+    $TOOLS = $CPP;
+    $_ = check_compiler('O', $option);
+    $TOOLS = $save;
+    $_ ? $option : ''
+}
+
 sub find_lib {
     check_compiler('L', @_);
 }
@@ -1421,7 +1460,7 @@ sub check_compiler {
     if ($t eq 'L') {
         print "checking for $n library... ";
     } elsif ($t eq 'O') {
-        if ($tool && $tool =~ /gcc$/) {
+        if ($tool && ($tool =~ /gcc$/ || $tool =~ /g\+\+$/)) {
             print "checking whether $tool accepts $n... ";
         } else {
             return;
@@ -1452,7 +1491,8 @@ sub check_compiler {
             $library = '-lmagic';
             $log = '#include <magic.h> \n int main() { magic_open     (0); }\n'
         } elsif ($n eq 'xml2') {
-            $library = '-lxml2';
+            $library  = '-lxml2';
+            $library .=       ' -liconv' if ($OS eq 'mac');
             $log = '#include <libxml/xmlreader.h>\n' .
                                          'int main() { xmlInitParser  ( ); }\n'
         } else {

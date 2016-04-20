@@ -45,12 +45,12 @@ size_t cigar_t_string( char * buffer, size_t buf_len, const struct cigar_t * c )
 struct cigar_t * merge_cigar_t( const struct cigar_t * c );
 
 size_t md_tag( char * buffer, size_t buf_len,
-			   const struct cigar_t * c, const char * read, const char * reference );
+               const struct cigar_t * c, const char * read, const char * reference );
 
 void debug_cigar_t( const struct cigar_t * c );
 
 size_t cigar_t_2_read( char * buffer, size_t buf_len,
-					   const struct cigar_t * c, const char * ref_bases, const char * ins_bases );
+                       const struct cigar_t * c, const char * ref_bases, const char * ins_bases );
 
 #ifdef __cplusplus
 }

@@ -75,102 +75,102 @@
 #include "vdb-dump-fastq.h"
 #include "vdb-dump-redir.h"
 #include "vdb-dump-bin.h"
+#include "vdb-dump-interact.h"
 #include "vdb_info.h"
 
-static const char * row_id_on_usage[] = { "print row id", NULL };
-static const char * line_feed_usage[] = { "line-feed's inbetween rows", NULL };
-static const char * colname_off_usage[] = { "do not print column-names", NULL };
-static const char * in_hex_usage[] = { "print numbers in hex", NULL };
-static const char * table_usage[] = { "table-name", NULL };
-static const char * rows_usage[] = { "rows (default = all)", NULL };
-static const char * columns_usage[] = { "columns (default = all)", NULL };
-static const char * schema_usage[] = { "schema-name", NULL };
-static const char * schema_dump_usage[] = { "dumps the schema",  NULL };
-static const char * table_enum_usage[] = { "enumerates tables",  NULL };
-static const char * column_enum_usage[] = { "enumerates columns in extended form", NULL };
-static const char * column_short_usage[] = { "enumerates columns in short form", NULL };
-static const char * dna_bases_usage[] = { "print dna-bases", NULL };
-static const char * max_line_len_usage[] = { "limits line length", NULL };
-static const char * line_indent_usage[] = { "indents the line", NULL };
-static const char * filter_usage[] = { "filters lines", NULL };
-static const char * format_usage[] = { "output format:", NULL };
-static const char * id_range_usage[] = { "prints id-range", NULL };
-static const char * without_sra_usage[] = { "without sra-type-translation", NULL };
-static const char * excluded_columns_usage[] = { "exclude these columns", NULL };
-static const char * boolean_usage[] = { "defines how boolean's are printed (1,T)", NULL };
-static const char * objver_usage[] = { "request vdb-version", NULL };
-static const char * objts_usage[] = { "request object modification date", NULL };
-static const char * numelem_usage[] = { "print only element-count", NULL };
-static const char * numelemsum_usage[] = { "sum element-count", NULL };
-static const char * show_blobbing_usage[] = { "show blobbing", NULL };
-static const char * enum_phys_usage[] = { "enumerate physical columns", NULL };
-static const char * enum_readable_usage[] = { "enumerate readable columns", NULL };
-static const char * objtype_usage[] = { "report type of object", NULL };
-static const char * idx_enum_usage[] = { "enumerate all available index", NULL };
-static const char * idx_range_usage[] = { "enumerate values and row-ranges of one index", NULL };
-static const char * cur_cache_usage[] = { "size of cursor cache", NULL };
-static const char * out_file_usage[] = { "write output to this file", NULL };
-static const char * out_path_usage[] = { "write output to this directory", NULL };
-static const char * gzip_usage[] = { "compress output using gzip", NULL };
-static const char * bzip2_usage[] = { "compress output using bzip2", NULL };
-static const char * outbuf_size_usage[] = { "size of output-buffer, 0...none", NULL };
-static const char * disable_mt_usage[] = { "disable multithreading", NULL };
-static const char * info_usage[] = { "print info about run", NULL };
-static const char * spotgroup_usage[] = { "show spotgroups", NULL };
-/*static const char * sraschema_usage[] = { "force use of dflt. sra-schema", NULL }; */
-static const char * merge_ranges_usage[] = { "merge and sort row-ranges", NULL };
-static const char * spread_usage[] = { "show spread of integer values", NULL };
-static const char * slice_usage[] = { "find a slice of given depth", NULL };
+static const char * row_id_on_usage[]           = { "print row id",                                 NULL };
+static const char * line_feed_usage[]           = { "line-feed's inbetween rows",                   NULL };
+static const char * colname_off_usage[]         = { "do not print column-names",                    NULL };
+static const char * in_hex_usage[]              = { "print numbers in hex",                         NULL };
+static const char * table_usage[]               = { "table-name",                                   NULL };
+static const char * rows_usage[]                = { "rows (default = all)",                         NULL };
+static const char * columns_usage[]             = { "columns (default = all)",                      NULL };
+static const char * schema_usage[]              = { "schema-name",                                  NULL };
+static const char * schema_dump_usage[]         = { "dumps the schema",                             NULL };
+static const char * table_enum_usage[]          = { "enumerates tables",                            NULL };
+static const char * column_enum_usage[]         = { "enumerates columns in extended form",          NULL };
+static const char * column_short_usage[]        = { "enumerates columns in short form",             NULL };
+static const char * dna_bases_usage[]           = { "print dna-bases",                              NULL };
+static const char * max_line_len_usage[]        = { "limits line length",                           NULL };
+static const char * line_indent_usage[]         = { "indents the line",                             NULL };
+static const char * filter_usage[]              = { "filters lines",                                NULL };
+static const char * format_usage[]              = { "output format:",                               NULL };
+static const char * id_range_usage[]            = { "prints id-range",                              NULL };
+static const char * without_sra_usage[]         = { "without sra-type-translation",                 NULL };
+static const char * excluded_columns_usage[]    = { "exclude these columns",                        NULL };
+static const char * boolean_usage[]             = { "defines how boolean's are printed (1,T)",      NULL };
+static const char * objver_usage[]              = { "request vdb-version",                          NULL };
+static const char * objts_usage[]               = { "request object modification date",             NULL };
+static const char * numelem_usage[]             = { "print only element-count",                     NULL };
+static const char * numelemsum_usage[]          = { "sum element-count",                            NULL };
+static const char * show_blobbing_usage[]       = { "show blobbing",                                NULL };
+static const char * enum_phys_usage[]           = { "enumerate physical columns",                   NULL };
+static const char * enum_readable_usage[]       = { "enumerate readable columns",                   NULL };
+static const char * objtype_usage[]             = { "report type of object",                        NULL };
+static const char * idx_enum_usage[]            = { "enumerate all available index",                NULL };
+static const char * idx_range_usage[]           = { "enumerate values and row-ranges of one index", NULL };
+static const char * cur_cache_usage[]           = { "size of cursor cache",                         NULL };
+static const char * out_file_usage[]            = { "write output to this file",                    NULL };
+static const char * out_path_usage[]            = { "write output to this directory",               NULL };
+static const char * gzip_usage[]                = { "compress output using gzip",                   NULL };
+static const char * bzip2_usage[]               = { "compress output using bzip2",                  NULL };
+static const char * outbuf_size_usage[]         = { "size of output-buffer, 0...none",              NULL };
+static const char * disable_mt_usage[]          = { "disable multithreading",                       NULL };
+static const char * info_usage[]                = { "print info about run",                         NULL };
+static const char * spotgroup_usage[]           = { "show spotgroups",                              NULL };
+static const char * merge_ranges_usage[]        = { "merge and sort row-ranges",                    NULL };
+static const char * spread_usage[]              = { "show spread of integer values",                NULL };
+static const char * slice_usage[]               = { "find a slice of given depth",                  NULL };
+static const char * interactive_usage[]         = { "interactive mode",                             NULL };
 
 OptDef DumpOptions[] =
 {
-    { OPTION_ROW_ID_ON, ALIAS_ROW_ID_ON, NULL, row_id_on_usage, 1, false, false },
-    { OPTION_LINE_FEED, ALIAS_LINE_FEED, NULL, line_feed_usage, 1, true, false },
-    { OPTION_COLNAME_OFF, ALIAS_COLNAME_OFF, NULL, colname_off_usage, 1, false, false },
-    { OPTION_IN_HEX, ALIAS_IN_HEX, NULL, in_hex_usage, 1, false, false },
-    { OPTION_TABLE, ALIAS_TABLE, NULL, table_usage, 1, true, false },
-    { OPTION_ROWS, ALIAS_ROWS, NULL, rows_usage, 1, true, false },
-    { OPTION_COLUMNS, ALIAS_COLUMNS, NULL, columns_usage, 1, true, false },
-/* limit of 5 schemas? */
-    { OPTION_SCHEMA, ALIAS_SCHEMA, NULL, schema_usage, 5, true, false },
-    { OPTION_SCHEMA_DUMP, ALIAS_SCHEMA_DUMP, NULL, schema_dump_usage, 1, false, false },
-    { OPTION_TABLE_ENUM, ALIAS_TABLE_ENUM, NULL, table_enum_usage, 1, false, false },
-    { OPTION_COLUMN_ENUM, ALIAS_COLUMN_ENUM, NULL, column_enum_usage, 1, false, false },
-    { OPTION_COLUMN_SHORT, ALIAS_COLUMN_SHORT, NULL, column_short_usage, 1, false, false },
-    { OPTION_DNA_BASES, ALIAS_DNA_BASES, NULL, dna_bases_usage, 1, false, false },
-    { OPTION_MAX_LINE_LEN, ALIAS_MAX_LINE_LEN, NULL, max_line_len_usage, 1, true, false },
-    { OPTION_LINE_INDENT, ALIAS_LINE_INDENT, NULL, line_indent_usage, 1, true, false },
-    { OPTION_FILTER, ALIAS_FILTER, NULL, filter_usage, 1, true, false },
-    { OPTION_FORMAT, ALIAS_FORMAT, NULL, format_usage, 1, true, false },
-    { OPTION_ID_RANGE, ALIAS_ID_RANGE, NULL, id_range_usage, 1, false, false },
-    { OPTION_WITHOUT_SRA, ALIAS_WITHOUT_SRA, NULL, without_sra_usage, 1, false, false },
-    { OPTION_EXCLUDED_COLUMNS, ALIAS_EXCLUDED_COLUMNS, NULL, excluded_columns_usage, 1, true, false },
-    { OPTION_BOOLEAN, ALIAS_BOOLEAN, NULL, boolean_usage, 1, true, false },
-    { OPTION_NUMELEM, ALIAS_NUMELEM, NULL, numelem_usage, 1, false, false },
-    { OPTION_NUMELEMSUM, ALIAS_NUMELEMSUM, NULL, numelemsum_usage, 1, false, false },
-    { OPTION_SHOW_BLOBBING, NULL, NULL, show_blobbing_usage, 1, false, false },
-    { OPTION_ENUM_PHYS, NULL, NULL, enum_phys_usage, 1, false, false },
-    { OPTION_ENUM_READABLE, NULL, NULL, enum_readable_usage, 1, false, false },
-    { OPTION_OBJVER, ALIAS_OBJVER, NULL, objver_usage, 1, false, false },
-    { OPTION_OBJTS, NULL, NULL, objts_usage, 1, false, false },
-    { OPTION_OBJTYPE, ALIAS_OBJTYPE, NULL, objtype_usage, 1, false, false },
-    { OPTION_IDX_ENUM, NULL, NULL, idx_enum_usage, 1, false, false },
-    { OPTION_IDX_RANGE, NULL, NULL, idx_range_usage, 1, true, false },
-    { OPTION_CUR_CACHE, NULL, NULL, cur_cache_usage, 1, true, false },
-    { OPTION_OUT_FILE, NULL, NULL, out_file_usage, 1, true, false },
-    { OPTION_OUT_PATH, NULL, NULL, out_path_usage, 1, true, false },
-    { OPTION_PHASE, NULL, NULL, NULL, 1, true, false },
-    { OPTION_GZIP, NULL, NULL, gzip_usage, 1, false, false },
-    { OPTION_BZIP2, NULL, NULL, bzip2_usage, 1, false, false },
-    { OPTION_OUT_BUF_SIZE, NULL, NULL, outbuf_size_usage, 1, true, false },
-    { OPTION_NO_MULTITHREAD, NULL, NULL, disable_mt_usage, 1, false, false },
-    { OPTION_INFO, NULL, NULL, info_usage, 1, false, false },
-    { OPTION_DIFF, NULL, NULL, NULL, 1, false, false },
-	{ OPTION_SPOTGROUPS, NULL, NULL, spotgroup_usage, 1, false, false },
-	/*{ OPTION_SRASCHEMA, NULL, NULL, sraschema_usage, 1, false, false }, */
-	{ OPTION_MERGE_RANGES, NULL, NULL, merge_ranges_usage, 1, false, false },
-	{ OPTION_SPREAD, NULL, NULL, spread_usage, 1, false, false },
-	{ OPTION_SLICE, NULL, NULL, slice_usage, 1, true, false }
+    { OPTION_ROW_ID_ON,             ALIAS_ROW_ID_ON,          NULL, row_id_on_usage,         1, false,  false },
+    { OPTION_LINE_FEED,             ALIAS_LINE_FEED,          NULL, line_feed_usage,         1, true,   false },
+    { OPTION_COLNAME_OFF,           ALIAS_COLNAME_OFF,        NULL, colname_off_usage,       1, false,  false },
+    { OPTION_IN_HEX,                ALIAS_IN_HEX,             NULL, in_hex_usage,            1, false,  false },
+    { OPTION_TABLE,                 ALIAS_TABLE,              NULL, table_usage,             1, true,   false },
+    { OPTION_ROWS,                  ALIAS_ROWS,               NULL, rows_usage,              1, true,   false },
+    { OPTION_COLUMNS,               ALIAS_COLUMNS,            NULL, columns_usage,           1, true,   false },
+    { OPTION_SCHEMA,                ALIAS_SCHEMA,             NULL, schema_usage,            5, true,   false },
+    { OPTION_SCHEMA_DUMP,           ALIAS_SCHEMA_DUMP,        NULL, schema_dump_usage,       1, false,  false },
+    { OPTION_TABLE_ENUM,            ALIAS_TABLE_ENUM,         NULL, table_enum_usage,        1, false,  false },
+    { OPTION_COLUMN_ENUM,           ALIAS_COLUMN_ENUM,        NULL, column_enum_usage,       1, false,  false },
+    { OPTION_COLUMN_SHORT,          ALIAS_COLUMN_SHORT,       NULL, column_short_usage,      1, false,  false },
+    { OPTION_DNA_BASES,             ALIAS_DNA_BASES,          NULL, dna_bases_usage,         1, false,  false },
+    { OPTION_MAX_LINE_LEN,          ALIAS_MAX_LINE_LEN,       NULL, max_line_len_usage,      1, true,   false },
+    { OPTION_LINE_INDENT,           ALIAS_LINE_INDENT,        NULL, line_indent_usage,       1, true,   false },
+    { OPTION_FILTER,                ALIAS_FILTER,             NULL, filter_usage,            1, true,   false },
+    { OPTION_FORMAT,                ALIAS_FORMAT,             NULL, format_usage,            1, true,   false },
+    { OPTION_ID_RANGE,              ALIAS_ID_RANGE,           NULL, id_range_usage,          1, false,  false },
+    { OPTION_WITHOUT_SRA,           ALIAS_WITHOUT_SRA,        NULL, without_sra_usage,       1, false,  false },
+    { OPTION_EXCLUDED_COLUMNS,      ALIAS_EXCLUDED_COLUMNS,   NULL, excluded_columns_usage,  1, true,   false },
+    { OPTION_BOOLEAN,               ALIAS_BOOLEAN,            NULL, boolean_usage,           1, true,   false },
+    { OPTION_NUMELEM,               ALIAS_NUMELEM,            NULL, numelem_usage,           1, false,  false },
+    { OPTION_NUMELEMSUM,            ALIAS_NUMELEMSUM,         NULL, numelemsum_usage,        1, false,  false },
+    { OPTION_SHOW_BLOBBING,         NULL,                     NULL, show_blobbing_usage,     1, false,  false },
+    { OPTION_ENUM_PHYS,             NULL,                     NULL, enum_phys_usage,         1, false,  false },
+    { OPTION_ENUM_READABLE,         NULL,                     NULL, enum_readable_usage,     1, false,  false },
+    { OPTION_OBJVER,                ALIAS_OBJVER,             NULL, objver_usage,            1, false,  false },
+    { OPTION_OBJTS,                 NULL,                     NULL, objts_usage,             1, false,  false },
+    { OPTION_OBJTYPE,               ALIAS_OBJTYPE,            NULL, objtype_usage,           1, false,  false },
+    { OPTION_IDX_ENUM,              NULL,                     NULL, idx_enum_usage,          1, false,  false },
+    { OPTION_IDX_RANGE,             NULL,                     NULL, idx_range_usage,         1, true,   false },
+    { OPTION_CUR_CACHE,             NULL,                     NULL, cur_cache_usage,         1, true,   false },
+    { OPTION_OUT_FILE,              NULL,                     NULL, out_file_usage,          1, true,   false },
+    { OPTION_OUT_PATH,              NULL,                     NULL, out_path_usage,          1, true,   false },
+    { OPTION_PHASE,                 NULL,                     NULL, NULL,                   1, true,   false },
+    { OPTION_GZIP,                  NULL,                     NULL, gzip_usage,              1, false,  false },
+    { OPTION_BZIP2,                 NULL,                     NULL, bzip2_usage,             1, false,  false },
+    { OPTION_OUT_BUF_SIZE,          NULL,                     NULL, outbuf_size_usage,       1, true,   false },
+    { OPTION_NO_MULTITHREAD,        NULL,                     NULL, disable_mt_usage,        1, false,  false },
+    { OPTION_INFO,                  NULL,                     NULL, info_usage,              1, false,  false },
+    { OPTION_DIFF,                  NULL,                     NULL, NULL,                   1, false,  false },
+    { OPTION_SPOTGROUPS,            NULL,                     NULL, spotgroup_usage,         1, false,  false },
+    { OPTION_MERGE_RANGES,          NULL,                     NULL, merge_ranges_usage,      1, false,  false },
+    { OPTION_SPREAD,                NULL,                     NULL, spread_usage,            1, false,  false },
+    { OPTION_INTERACTIVE,           NULL,                     NULL, interactive_usage,       1, false,  false },    
+    { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false }
 };
 
 const char UsageDefaultName[] = "vdb-dump";
@@ -203,61 +203,62 @@ rc_t CC Usage ( const Args * args )
 
     KOutMsg ( "Options:\n" );
 
-    HelpOptionLine ( ALIAS_ROW_ID_ON, OPTION_ROW_ID_ON, NULL, row_id_on_usage );
-    HelpOptionLine ( ALIAS_LINE_FEED, OPTION_LINE_FEED, "line_feed", line_feed_usage );
-    HelpOptionLine ( ALIAS_COLNAME_OFF, OPTION_COLNAME_OFF, NULL, colname_off_usage );
-    HelpOptionLine ( ALIAS_IN_HEX, OPTION_IN_HEX, NULL, in_hex_usage );
-    HelpOptionLine ( ALIAS_TABLE, OPTION_TABLE, "table", table_usage );
-    HelpOptionLine ( ALIAS_ROWS, OPTION_ROWS, "rows", rows_usage );
-    HelpOptionLine ( ALIAS_COLUMNS, OPTION_COLUMNS, "columns", columns_usage );
-    HelpOptionLine ( ALIAS_SCHEMA, OPTION_SCHEMA, "schema", schema_usage );
-    HelpOptionLine ( ALIAS_SCHEMA_DUMP, OPTION_SCHEMA_DUMP, NULL, schema_dump_usage );
-    HelpOptionLine ( ALIAS_TABLE_ENUM, OPTION_TABLE_ENUM, NULL, table_enum_usage );
-    HelpOptionLine ( ALIAS_COLUMN_ENUM, OPTION_COLUMN_ENUM, NULL, column_enum_usage );
-    HelpOptionLine ( ALIAS_COLUMN_SHORT, OPTION_COLUMN_SHORT, NULL, column_short_usage );
-    HelpOptionLine ( ALIAS_DNA_BASES, OPTION_DNA_BASES, "dna_bases", dna_bases_usage );
-    HelpOptionLine ( ALIAS_MAX_LINE_LEN, OPTION_MAX_LINE_LEN, "max_length", max_line_len_usage );
-    HelpOptionLine ( ALIAS_LINE_INDENT, OPTION_LINE_INDENT, "indent_width", line_indent_usage );
-    HelpOptionLine ( ALIAS_FORMAT, OPTION_FORMAT, "format", format_usage );
-	
-	KOutMsg( "      csv ..... comma separated values on one line\n" );
-	KOutMsg( "      xml ..... xml-style without complete xml-frame\n" );
-	KOutMsg( "      json .... json-style\n" );
-	KOutMsg( "      piped ... 1 line per cell: row-id, column-name: value\n" );
-	KOutMsg( "      tab ..... 1 line per row: tab-separated values only\n" );
-	KOutMsg( "      fastq ... FASTQ( 4 lines ) for each row\n" );
-	KOutMsg( "      fastq1 .. FASTQ( 4 lines ) for each fragment\n" );	
-	KOutMsg( "      fasta ... FASTA( 2 lines ) for each fragment if possible\n" );
-	KOutMsg( "      fasta1 .. one FASTA-record for the whole accession (REFSEQ)\n" );
-	KOutMsg( "      fasta2 .. one FASTA-record for each REFERENCE in cSRA\n\n" );
-	
-    HelpOptionLine ( ALIAS_ID_RANGE, OPTION_ID_RANGE, NULL, id_range_usage );
-    HelpOptionLine ( ALIAS_WITHOUT_SRA, OPTION_WITHOUT_SRA, NULL, without_sra_usage );
-    HelpOptionLine ( ALIAS_EXCLUDED_COLUMNS, OPTION_EXCLUDED_COLUMNS, NULL, excluded_columns_usage );
-    HelpOptionLine ( ALIAS_BOOLEAN, OPTION_BOOLEAN, NULL, boolean_usage );
-    HelpOptionLine ( ALIAS_OBJVER, OPTION_OBJVER, NULL, objver_usage );
-    HelpOptionLine ( NULL, OPTION_OBJTS, NULL, objts_usage );
-    HelpOptionLine ( ALIAS_OBJTYPE, OPTION_OBJTYPE, NULL, objtype_usage );
-    HelpOptionLine ( ALIAS_NUMELEM, OPTION_NUMELEM, NULL, numelem_usage );
-    HelpOptionLine ( ALIAS_NUMELEMSUM, OPTION_NUMELEMSUM, NULL, numelemsum_usage );
-    HelpOptionLine ( NULL, OPTION_SHOW_BLOBBING, NULL, show_blobbing_usage );
-    HelpOptionLine ( NULL, OPTION_ENUM_PHYS, NULL, enum_phys_usage );
-    HelpOptionLine ( NULL, OPTION_ENUM_READABLE, NULL, enum_readable_usage );
-    HelpOptionLine ( NULL, OPTION_IDX_ENUM, NULL, idx_enum_usage );	
-    HelpOptionLine ( NULL, OPTION_IDX_RANGE, NULL, idx_range_usage );	
-    HelpOptionLine ( NULL, OPTION_CUR_CACHE, NULL, cur_cache_usage );	
-    HelpOptionLine ( NULL, OPTION_OUT_FILE, NULL, out_file_usage );
-    HelpOptionLine ( NULL, OPTION_OUT_PATH, NULL, out_path_usage );
-    HelpOptionLine ( NULL, OPTION_GZIP, NULL, gzip_usage );
-    HelpOptionLine ( NULL, OPTION_BZIP2, NULL, bzip2_usage );
-    HelpOptionLine ( NULL, OPTION_OUT_BUF_SIZE, NULL, outbuf_size_usage );
-    HelpOptionLine ( NULL, OPTION_NO_MULTITHREAD, NULL, disable_mt_usage );
-    HelpOptionLine ( NULL, OPTION_INFO, NULL, info_usage );
-    HelpOptionLine ( NULL, OPTION_SPOTGROUPS, NULL, spotgroup_usage );
-    /* HelpOptionLine ( NULL, OPTION_SRASCHEMA, NULL, sraschema_usage ); */
-    HelpOptionLine ( NULL, OPTION_MERGE_RANGES, NULL, merge_ranges_usage );
-    HelpOptionLine ( NULL, OPTION_SPREAD, NULL, spread_usage );
-	
+    HelpOptionLine ( ALIAS_ROW_ID_ON,           OPTION_ROW_ID_ON,       NULL,           row_id_on_usage );
+    HelpOptionLine ( ALIAS_LINE_FEED,           OPTION_LINE_FEED,       "line_feed",    line_feed_usage );
+    HelpOptionLine ( ALIAS_COLNAME_OFF,         OPTION_COLNAME_OFF,     NULL,           colname_off_usage );
+    HelpOptionLine ( ALIAS_IN_HEX,              OPTION_IN_HEX,          NULL,           in_hex_usage );
+    HelpOptionLine ( ALIAS_TABLE,               OPTION_TABLE,           "table",        table_usage );
+    HelpOptionLine ( ALIAS_ROWS,                OPTION_ROWS,            "rows",         rows_usage );
+    HelpOptionLine ( ALIAS_COLUMNS,             OPTION_COLUMNS,         "columns",      columns_usage );
+    HelpOptionLine ( ALIAS_SCHEMA,              OPTION_SCHEMA,          "schema",       schema_usage );
+    HelpOptionLine ( ALIAS_SCHEMA_DUMP,         OPTION_SCHEMA_DUMP,     NULL,           schema_dump_usage );
+    HelpOptionLine ( ALIAS_TABLE_ENUM,          OPTION_TABLE_ENUM,      NULL,           table_enum_usage );
+    HelpOptionLine ( ALIAS_COLUMN_ENUM,         OPTION_COLUMN_ENUM,     NULL,           column_enum_usage );
+    HelpOptionLine ( ALIAS_COLUMN_SHORT,        OPTION_COLUMN_SHORT,    NULL,           column_short_usage );
+    HelpOptionLine ( ALIAS_DNA_BASES,           OPTION_DNA_BASES,       "dna_bases",    dna_bases_usage );
+    HelpOptionLine ( ALIAS_MAX_LINE_LEN,        OPTION_MAX_LINE_LEN,    "max_length",   max_line_len_usage );
+    HelpOptionLine ( ALIAS_LINE_INDENT,         OPTION_LINE_INDENT,     "indent_width", line_indent_usage );
+    HelpOptionLine ( ALIAS_FORMAT,              OPTION_FORMAT,          "format",       format_usage );
+    
+    KOutMsg( "      csv ..... comma separated values on one line\n" );
+    KOutMsg( "      xml ..... xml-style without complete xml-frame\n" );
+    KOutMsg( "      json .... json-style\n" );
+    KOutMsg( "      piped ... 1 line per cell: row-id, column-name: value\n" );
+    KOutMsg( "      tab ..... 1 line per row: tab-separated values only\n" );
+    KOutMsg( "      fastq ... FASTQ( 4 lines ) for each row\n" );
+    KOutMsg( "      fastq1 .. FASTQ( 4 lines ) for each fragment\n" );    
+    KOutMsg( "      fasta ... FASTA( 2 lines ) for each fragment if possible\n" );
+    KOutMsg( "      fasta1 .. one FASTA-record for the whole accession (REFSEQ)\n" );
+    KOutMsg( "      fasta2 .. one FASTA-record for each REFERENCE in cSRA\n" );
+    KOutMsg( "      qual .... QUAL( 2 lines ) for each row\n" );    
+    KOutMsg( "      qual1 ... QUAL( 2 lines ) for each fragment if possible\n\n" );
+    
+    HelpOptionLine ( ALIAS_ID_RANGE,            OPTION_ID_RANGE,        NULL,           id_range_usage );
+    HelpOptionLine ( ALIAS_WITHOUT_SRA,         OPTION_WITHOUT_SRA,     NULL,           without_sra_usage );
+    HelpOptionLine ( ALIAS_EXCLUDED_COLUMNS,    OPTION_EXCLUDED_COLUMNS,NULL,           excluded_columns_usage );
+    HelpOptionLine ( ALIAS_BOOLEAN,             OPTION_BOOLEAN,         NULL,           boolean_usage );
+    HelpOptionLine ( ALIAS_OBJVER,              OPTION_OBJVER,          NULL,           objver_usage );
+    HelpOptionLine ( NULL,                      OPTION_OBJTS,           NULL,           objts_usage );
+    HelpOptionLine ( ALIAS_OBJTYPE,             OPTION_OBJTYPE,         NULL,           objtype_usage );
+    HelpOptionLine ( ALIAS_NUMELEM,             OPTION_NUMELEM,         NULL,           numelem_usage );
+    HelpOptionLine ( ALIAS_NUMELEMSUM,          OPTION_NUMELEMSUM,      NULL,           numelemsum_usage );
+    HelpOptionLine ( NULL,                      OPTION_SHOW_BLOBBING,   NULL,           show_blobbing_usage );
+    HelpOptionLine ( NULL,                      OPTION_ENUM_PHYS,       NULL,           enum_phys_usage );
+    HelpOptionLine ( NULL,                      OPTION_ENUM_READABLE,   NULL,           enum_readable_usage );
+    HelpOptionLine ( NULL,                      OPTION_IDX_ENUM,        NULL,           idx_enum_usage );    
+    HelpOptionLine ( NULL,                      OPTION_IDX_RANGE,       NULL,           idx_range_usage );    
+    HelpOptionLine ( NULL,                      OPTION_CUR_CACHE,       NULL,           cur_cache_usage );    
+    HelpOptionLine ( NULL,                      OPTION_OUT_FILE,        NULL,           out_file_usage );
+    HelpOptionLine ( NULL,                      OPTION_OUT_PATH,        NULL,           out_path_usage );
+    HelpOptionLine ( NULL,                      OPTION_GZIP,            NULL,           gzip_usage );
+    HelpOptionLine ( NULL,                      OPTION_BZIP2,           NULL,           bzip2_usage );
+    HelpOptionLine ( NULL,                      OPTION_OUT_BUF_SIZE,    NULL,           outbuf_size_usage );
+    HelpOptionLine ( NULL,                      OPTION_NO_MULTITHREAD,  NULL,           disable_mt_usage );
+    HelpOptionLine ( NULL,                      OPTION_INFO,            NULL,           info_usage );
+    HelpOptionLine ( NULL,                      OPTION_SPOTGROUPS,      NULL,           spotgroup_usage );
+    HelpOptionLine ( NULL,                      OPTION_MERGE_RANGES,    NULL,           merge_ranges_usage );
+    HelpOptionLine ( NULL,                      OPTION_SPREAD,          NULL,           spread_usage );
+    
     HelpOptionsStandard ();
 
     HelpVersion ( fullpath, KAppVersion() );
@@ -734,13 +735,13 @@ static rc_t vdm_walk_sections( const VDatabase * base_db, const VDatabase ** sub
 
 static void vdm_clear_recorded_errors( void )
 {
-	rc_t rc;
-	const char * filename;
-	const char * funcname;
-	uint32_t line_nr;
-	while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
-	{
-	}
+    rc_t rc;
+    const char * filename;
+    const char * funcname;
+    uint32_t line_nr;
+    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
+    {
+    }
 }
 
 
@@ -751,7 +752,7 @@ static rc_t vdm_check_table_empty( const VTable * tab )
     DISP_RC( rc, "VTableIsEmpty() failed" );
     if ( rc == 0 && empty )
     {
-		vdm_clear_recorded_errors();
+        vdm_clear_recorded_errors();
         KOutMsg( "the requested table is empty!\n" );
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTable, rcEmpty );
     }
@@ -815,71 +816,71 @@ static rc_t vdm_dump_opened_database( const p_dump_context ctx,
 /* ********************************************************************** */
 
 static rc_t vdm_show_tab_spread( const p_dump_context ctx,
-							     const VTable *my_table )
+                                 const VTable *my_table )
 {
-	const VCursor * cursor;
-	rc_t rc = VTableCreateCachedCursorRead( my_table, &cursor, ctx->cur_cache_size );
-	DISP_RC( rc, "VTableCreateCursorRead() failed" );
-	if ( rc == 0 )
-	{
-		col_defs * cols;
-		if ( !vdcd_init( &cols, ctx->max_line_len ) )
-		{
-			rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-			DISP_RC( rc, "col_defs_init() failed" );
-		}
-		if ( rc == 0 )
-		{
-			uint32_t n = vdm_extract_or_parse_columns( ctx, my_table, cols );
-			if ( n < 1 )
-				rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-			else
-			{
-				n = vdcd_add_to_cursor( cols, cursor );
-				if ( n < 1 )
-					rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-				else
-				{
-					rc = VCursorOpen( cursor );
-					DISP_RC( rc, "VCursorOpen() failed" );
-					if ( rc == 0 )
-					{
-						int64_t  first;
-						uint64_t count;
-						rc = VCursorIdRange( cursor, 0, &first, &count );
-						DISP_RC( rc, "VCursorIdRange( spread ) failed" );
-						if ( rc == 0 )
-						{
-							if ( ctx->rows == NULL )
-							{
-								rc = num_gen_make_from_range( &ctx->rows, first, count );
-								DISP_RC( rc, "num_gen_make_from_range() failed" );
-							}
-							else
-							{
-								if ( count > 0 )
-								{
-									rc = num_gen_trim( ctx->rows, first, count );
-									DISP_RC( rc, "num_gen_trim() failed" );
-								}
-							}
-							
-							if ( rc == 0 )
-							{
-								if ( num_gen_empty( ctx->rows ) )
-									rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
-								else
-									rc = vdcd_collect_spread( ctx->rows, cols, cursor ); /* is in vdb-dump-coldefs.c */
-							}
-						}
-					}
-				}
-			}
-			vdcd_destroy( cols );
-		}
-		VCursorRelease( cursor );
-	}
-	return rc;
+    const VCursor * cursor;
+    rc_t rc = VTableCreateCachedCursorRead( my_table, &cursor, ctx->cur_cache_size );
+    DISP_RC( rc, "VTableCreateCursorRead() failed" );
+    if ( rc == 0 )
+    {
+        col_defs * cols;
+        if ( !vdcd_init( &cols, ctx->max_line_len ) )
+        {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            DISP_RC( rc, "col_defs_init() failed" );
+        }
+        if ( rc == 0 )
+        {
+            uint32_t n = vdm_extract_or_parse_columns( ctx, my_table, cols );
+            if ( n < 1 )
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+            else
+            {
+                n = vdcd_add_to_cursor( cols, cursor );
+                if ( n < 1 )
+                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                else
+                {
+                    rc = VCursorOpen( cursor );
+                    DISP_RC( rc, "VCursorOpen() failed" );
+                    if ( rc == 0 )
+                    {
+                        int64_t  first;
+                        uint64_t count;
+                        rc = VCursorIdRange( cursor, 0, &first, &count );
+                        DISP_RC( rc, "VCursorIdRange( spread ) failed" );
+                        if ( rc == 0 )
+                        {
+                            if ( ctx->rows == NULL )
+                            {
+                                rc = num_gen_make_from_range( &ctx->rows, first, count );
+                                DISP_RC( rc, "num_gen_make_from_range() failed" );
+                            }
+                            else
+                            {
+                                if ( count > 0 )
+                                {
+                                    rc = num_gen_trim( ctx->rows, first, count );
+                                    DISP_RC( rc, "num_gen_trim() failed" );
+                                }
+                            }
+                            
+                            if ( rc == 0 )
+                            {
+                                if ( num_gen_empty( ctx->rows ) )
+                                    rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                                else
+                                    rc = vdcd_collect_spread( ctx->rows, cols, cursor ); /* is in vdb-dump-coldefs.c */
+                            }
+                        }
+                    }
+                }
+            }
+            vdcd_destroy( cols );
+        }
+        VCursorRelease( cursor );
+    }
+    return rc;
 }
 
 static rc_t vdm_show_db_spread( const p_dump_context ctx,
@@ -924,24 +925,24 @@ static rc_t vdm_dump_tab_schema( const p_dump_context ctx,
     DISP_RC( rc, "VTableOpenSchema() failed" );
     if ( rc == 0 )
     {
-		if ( ctx->columns == NULL )
-		{
-			/* the user did not ask to inspect a specific object, we look for
-			   the Typespec of the table... */
-			char buffer[ 4096 ];
-			rc = VTableTypespec ( my_table, buffer, sizeof buffer );
-			DISP_RC( rc, "VTableTypespec() failed" );
-			if ( rc == 0 )
-				rc = VSchemaDump( my_schema, sdmPrint, buffer,
-								  vdm_schema_dump_flush, stdout );
-		
-		}
-		else
-		{
-			/* the user did ask to inspect a specific object */
-			rc = VSchemaDump( my_schema, sdmPrint, ctx->columns,
-							  vdm_schema_dump_flush, stdout );
-		}
+        if ( ctx->columns == NULL )
+        {
+            /* the user did not ask to inspect a specific object, we look for
+               the Typespec of the table... */
+            char buffer[ 4096 ];
+            rc = VTableTypespec ( my_table, buffer, sizeof buffer );
+            DISP_RC( rc, "VTableTypespec() failed" );
+            if ( rc == 0 )
+                rc = VSchemaDump( my_schema, sdmPrint, buffer,
+                                  vdm_schema_dump_flush, stdout );
+        
+        }
+        else
+        {
+            /* the user did ask to inspect a specific object */
+            rc = VSchemaDump( my_schema, sdmPrint, ctx->columns,
+                              vdm_schema_dump_flush, stdout );
+        }
         DISP_RC( rc, "VSchemaDump() failed" );
         VSchemaRelease( my_schema );
     }
@@ -961,47 +962,47 @@ my_database [IN] ... open database needed for vdb-calls
 static rc_t vdm_dump_db_schema( const p_dump_context ctx,
                                 const VDatabase *my_database )
 {
-	rc_t rc = 0;
-	if ( ctx->table_defined )
-	{
-		/* the user has given a database as object, but asks to inspect a given table */
-		const VTable *my_table;
+    rc_t rc = 0;
+    if ( ctx->table_defined )
+    {
+        /* the user has given a database as object, but asks to inspect a given table */
+        const VTable *my_table;
         rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
-		if ( rc == 0 )
-		{
-			rc = vdm_dump_tab_schema( ctx, my_table );
-			VTableRelease( my_table );
-		}
-	}
-	else
-	{
-		/* the user has given a database as object, but did not ask for a specific table */
-		const VSchema * my_schema;
-		rc = VDatabaseOpenSchema( my_database, &my_schema );
-		DISP_RC( rc, "VDatabaseOpenSchema() failed" );
-		if ( rc == 0 )
-		{
-			if ( ctx->columns == NULL )
-			{
-				/* the used did not ask to inspect a specifiy object, we look for
-				   the Typespec of the database... */
-				char buffer[ 4096 ];
-				rc = VDatabaseTypespec ( my_database, buffer, sizeof buffer );
-				DISP_RC( rc, "VDatabaseTypespec() failed" );
-				if ( rc == 0 )
-					rc = VSchemaDump( my_schema, sdmPrint, buffer,
-									  vdm_schema_dump_flush, stdout );
-			}
-			else
-			{
-				/* the user did ask to inspect a specific object */
-				rc = VSchemaDump( my_schema, sdmPrint, ctx->columns,
-								  vdm_schema_dump_flush, stdout );
-			}
-			DISP_RC( rc, "VSchemaDump() failed" );
-			VSchemaRelease( my_schema );
-		}
-	}
+        if ( rc == 0 )
+        {
+            rc = vdm_dump_tab_schema( ctx, my_table );
+            VTableRelease( my_table );
+        }
+    }
+    else
+    {
+        /* the user has given a database as object, but did not ask for a specific table */
+        const VSchema * my_schema;
+        rc = VDatabaseOpenSchema( my_database, &my_schema );
+        DISP_RC( rc, "VDatabaseOpenSchema() failed" );
+        if ( rc == 0 )
+        {
+            if ( ctx->columns == NULL )
+            {
+                /* the used did not ask to inspect a specifiy object, we look for
+                   the Typespec of the database... */
+                char buffer[ 4096 ];
+                rc = VDatabaseTypespec ( my_database, buffer, sizeof buffer );
+                DISP_RC( rc, "VDatabaseTypespec() failed" );
+                if ( rc == 0 )
+                    rc = VSchemaDump( my_schema, sdmPrint, buffer,
+                                      vdm_schema_dump_flush, stdout );
+            }
+            else
+            {
+                /* the user did ask to inspect a specific object */
+                rc = VSchemaDump( my_schema, sdmPrint, ctx->columns,
+                                  vdm_schema_dump_flush, stdout );
+            }
+            DISP_RC( rc, "VSchemaDump() failed" );
+            VSchemaRelease( my_schema );
+        }
+    }
     return rc;
 }
 
@@ -1445,13 +1446,13 @@ static rc_t vdm_print_tab_id_range( const p_dump_context ctx, const VTable *my_t
                         uint64_t count;
 
                         uint32_t idx = 0;
-						
+                        
                         /* calling with idx = 0 means: let the cursor find out the min/max values of
-						   all open columns...
-						   
-						vdcd_get_first_none_static_column_idx( my_col_defs, my_cursor, &idx );
-						*/
-						
+                           all open columns...
+                           
+                        vdcd_get_first_none_static_column_idx( my_col_defs, my_cursor, &idx );
+                        */
+                        
                         rc = VCursorIdRange( my_cursor, idx, &first, &count );
                         DISP_RC( rc, "VCursorIdRange() failed" );
                         if ( rc == 0 )
@@ -1494,67 +1495,67 @@ static rc_t vdm_print_db_id_range( const p_dump_context ctx, const VDatabase *my
 
 static rc_t vdm_enum_index( const KTable * my_ktable, uint32_t idx_nr, const char * idx_name )
 {
-	rc_t rc = KOutMsg( "idx #%u: %s", idx_nr + 1, idx_name );
-	if ( rc == 0 )
-	{
-		const KIndex * my_idx;
-		rc = KTableOpenIndexRead ( my_ktable, &my_idx, "%s", idx_name );
-		if ( rc != 0 )
-			rc = KOutMsg( " (cannot open)" );
-		else
-		{
-			uint32_t idx_version;
-			rc = KIndexVersion ( my_idx, &idx_version );
-			if ( rc != 0 )
-				rc = KOutMsg( " V?.?.?" );
-			else
-				rc = KOutMsg( " V%V", idx_version );
+    rc_t rc = KOutMsg( "idx #%u: %s", idx_nr + 1, idx_name );
+    if ( rc == 0 )
+    {
+        const KIndex * my_idx;
+        rc = KTableOpenIndexRead ( my_ktable, &my_idx, "%s", idx_name );
+        if ( rc != 0 )
+            rc = KOutMsg( " (cannot open)" );
+        else
+        {
+            uint32_t idx_version;
+            rc = KIndexVersion ( my_idx, &idx_version );
+            if ( rc != 0 )
+                rc = KOutMsg( " V?.?.?" );
+            else
+                rc = KOutMsg( " V%V", idx_version );
 
-			if ( rc == 0 )
-			{
-				KIdxType idx_type;
-				rc = KIndexType ( my_idx, &idx_type );
-				if ( rc != 0 )
-					rc = KOutMsg( " type = ?" );
-				else
-				{
-					switch ( idx_type &~ kitProj )
-					{
-						case kitText : rc = KOutMsg( " type = Text" ); break;
-						case kitU64  : rc = KOutMsg( " type = U64" ); break;
-						default 	  : rc = KOutMsg( " type = unknown" ); break;
-					}
-					if ( rc == 0 && ( ( idx_type & kitProj ) == kitProj ) )
-						rc = KOutMsg( " reverse" );
-				}
-			}
-			
-			if ( rc == 0 )
-			{
-				bool locked = KIndexLocked ( my_idx );
-				if ( locked )
-					rc = KOutMsg( " locked" );
-			}
-			KIndexRelease( my_idx );
-		}
-	}
-	if ( rc == 0 )
-		rc = KOutMsg( "\n" );
-	return rc;
+            if ( rc == 0 )
+            {
+                KIdxType idx_type;
+                rc = KIndexType ( my_idx, &idx_type );
+                if ( rc != 0 )
+                    rc = KOutMsg( " type = ?" );
+                else
+                {
+                    switch ( idx_type &~ kitProj )
+                    {
+                        case kitText : rc = KOutMsg( " type = Text" ); break;
+                        case kitU64  : rc = KOutMsg( " type = U64" ); break;
+                        default       : rc = KOutMsg( " type = unknown" ); break;
+                    }
+                    if ( rc == 0 && ( ( idx_type & kitProj ) == kitProj ) )
+                        rc = KOutMsg( " reverse" );
+                }
+            }
+            
+            if ( rc == 0 )
+            {
+                bool locked = KIndexLocked ( my_idx );
+                if ( locked )
+                    rc = KOutMsg( " locked" );
+            }
+            KIndexRelease( my_idx );
+        }
+    }
+    if ( rc == 0 )
+        rc = KOutMsg( "\n" );
+    return rc;
 }
 
 
 static rc_t vdm_enum_tab_index( const p_dump_context ctx, const VTable *my_table )
 {
-	const KTable * my_ktable;
-	rc_t rc = VTableOpenKTableRead( my_table, &my_ktable );
-	DISP_RC( rc, "VTableOpenKTableRead() failed" );
-	if ( rc == 0 )
-	{
-		KNamelist *idx_names;
-		rc = KTableListIdx ( my_ktable, &idx_names );
-		if ( rc == 0 )
-		{
+    const KTable * my_ktable;
+    rc_t rc = VTableOpenKTableRead( my_table, &my_ktable );
+    DISP_RC( rc, "VTableOpenKTableRead() failed" );
+    if ( rc == 0 )
+    {
+        KNamelist *idx_names;
+        rc = KTableListIdx ( my_ktable, &idx_names );
+        if ( rc == 0 )
+        {
             uint32_t count;
             rc = KNamelistCount( idx_names, &count );
             if ( rc == 0 )
@@ -1565,16 +1566,16 @@ static rc_t vdm_enum_tab_index( const p_dump_context ctx, const VTable *my_table
                     const char * idx_name = NULL;
                     rc = KNamelistGet( idx_names, i, &idx_name );
                     if ( rc == 0 && idx_name != NULL )
-						rc = vdm_enum_index( my_ktable, i, idx_name );
+                        rc = vdm_enum_index( my_ktable, i, idx_name );
                 }
             }
-			KNamelistRelease( idx_names );
-		}
-		else
-			rc = KOutMsg( "no index available\n" );
-		KTableRelease( my_ktable );
-	}
-	return rc;
+            KNamelistRelease( idx_names );
+        }
+        else
+            rc = KOutMsg( "no index available\n" );
+        KTableRelease( my_ktable );
+    }
+    return rc;
 }
 
 static rc_t vdm_enum_db_index( const p_dump_context ctx, const VDatabase *my_database )
@@ -1594,20 +1595,21 @@ static rc_t vdm_enum_db_index( const p_dump_context ctx, const VDatabase *my_dat
 
 static rc_t vdm_range_tab_index( const p_dump_context ctx, const VTable *my_table )
 {
-	const KTable * my_ktable;
-	rc_t rc = VTableOpenKTableRead( my_table, &my_ktable );
-	DISP_RC( rc, "VTableOpenKTableRead() failed" );
-	if ( rc == 0 )
-	{
+    const KTable * my_ktable;
+    rc_t rc = VTableOpenKTableRead( my_table, &my_ktable );
+    if ( rc != 0 )
+        ErrMsg( "VTableOpenKTableRead() -> %R", rc );
+    else
+    {
         const KIndex * my_kindex;
         rc = KTableOpenIndexRead ( my_ktable, &my_kindex, "%s", ctx->idx_range );
-        DISP_RC( rc, "KTableOpenIndexRead() failed" );
-        if ( rc == 0 )
+        if ( rc != 0 )
+            ErrMsg( "KTableOpenIndexRead() -> %R", rc );
+        else
         {
             int64_t start;
             uint64_t count;
             rc_t rc2 = 0;
-
             for ( start = 1; rc2 == 0 && rc == 0; start += count )
             {
                 size_t key_size;
@@ -1617,12 +1619,11 @@ static rc_t vdm_range_tab_index( const p_dump_context ctx, const VTable *my_tabl
                 if ( rc2 == 0 )
                     rc = KOutMsg( "%.*s : %lu ... %lu\n", ( int )key_size, key, start, start + count - 1 );
             }
-
             KIndexRelease( my_kindex );
         }
-		KTableRelease( my_ktable );
-	}
-	return rc;
+        KTableRelease( my_ktable );
+    }
+    return rc;
 }
 
 
@@ -1643,71 +1644,83 @@ static rc_t vdm_range_db_index( const p_dump_context ctx, const VDatabase *my_da
 
 static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_table )
 {
-	const KMetadata * meta = NULL;
-	rc_t rc = VTableOpenMetadataRead( my_table, &meta );
-	DISP_RC( rc, "VTableOpenMetadataRead() failed" );
-	if ( rc == 0 )
-	{
-		const KMDataNode * spot_groups_node;
-		rc = KMetadataOpenNodeRead( meta, &spot_groups_node, "STATS/SPOT_GROUP" );
-		DISP_RC( rc, "KMetadataOpenNodeRead( STATS/SPOT_GROUP ) failed" );
-		if ( rc == 0 )
-		{
-			KNamelist * spot_groups;
-			rc = KMDataNodeListChildren( spot_groups_node, &spot_groups );
-			DISP_RC( rc, "KMDataNodeListChildren() failed" );
-			if ( rc == 0 )
-			{
-				uint32_t count;
-				rc = KNamelistCount( spot_groups, &count );
-				if ( rc == 0 && count > 0 )
-				{
-					uint32_t i;
-					for ( i = 0; i < count && rc == 0; ++i )
-					{
-						const char * name = NULL;
-						rc = KNamelistGet( spot_groups, i, &name );
-						if ( rc == 0 && name != NULL )
-						{
-							const KMDataNode * spot_count_node;
-							rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_count_node, "%s/SPOT_COUNT", name );
-							DISP_RC( rc, "KMDataNodeOpenNodeRead() failed" );
-							if ( rc == 0 )
-							{
-								uint64_t spot_count = 0;
-								rc = KMDataNodeReadAsU64( spot_count_node, &spot_count );
-								if ( rc == 0 )
-								{
-									if ( spot_count > 0 )
-									{
-										const KMDataNode * spot_group_node;
-										rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_group_node, name );			
-										if ( rc == 0 )
-										{
-											char name_attr[ 2048 ];
-											size_t num_writ;
-											rc = KMDataNodeReadAttr( spot_group_node, "name", name_attr, sizeof name_attr, &num_writ );
-											rc = KOutMsg( "%s\t%,lu\n", rc == 0 ? name_attr : name, spot_count );
-											KMDataNodeRelease( spot_group_node );				
-										}
+    const KMetadata * meta = NULL;
+    rc_t rc = VTableOpenMetadataRead( my_table, &meta );
+    if ( rc != 0 )
+        ErrMsg( "VTableOpenMetadataRead() -> %R", rc );
+    else
+    {
+        const KMDataNode * spot_groups_node;
+        rc = KMetadataOpenNodeRead( meta, &spot_groups_node, "STATS/SPOT_GROUP" );
+        if ( rc != 0 )
+            ErrMsg( "KMetadataOpenNodeRead( STATS/SPOT_GROUP ) -> %R", rc );
+        else
+        {
+            KNamelist * spot_groups;
+            rc = KMDataNodeListChildren( spot_groups_node, &spot_groups );
+            if ( rc != 0 )
+                ErrMsg( "KMDataNodeListChildren() -> %R", rc );
+            else
+            {
+                uint32_t count;
+                rc = KNamelistCount( spot_groups, &count );
+                if ( rc != 0 )
+                    ErrMsg( "KNamelistCount() -> %R", rc );
+                else if ( count > 0 )
+                {
+                    uint32_t i;
+                    for ( i = 0; i < count && rc == 0; ++i )
+                    {
+                        const char * name = NULL;
+                        rc = KNamelistGet( spot_groups, i, &name );
+                        if ( rc != 0 )
+                            ErrMsg( "KNamelistCount( %d) -> %R", i, rc );
+                        else if ( name != NULL )
+                        {
+                            const KMDataNode * spot_count_node;
+                            rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_count_node, "%s/SPOT_COUNT", name );
+                            if ( rc != 0 )
+                                ErrMsg( "KMDataNodeOpenNodeRead() -> %R", rc );
+                            else
+                            {
+                                uint64_t spot_count = 0;
+                                rc = KMDataNodeReadAsU64( spot_count_node, &spot_count );
+                                if ( rc != 0 )
+                                {
+                                    ErrMsg( "KMDataNodeReadAsU64() -> %R", rc );
+                                    vdm_clear_recorded_errors();
+                                }
+                                else
+                                {
+                                    if ( spot_count > 0 )
+                                    {
+                                        const KMDataNode * spot_group_node;
+                                        rc = KMDataNodeOpenNodeRead( spot_groups_node, &spot_group_node, name );
+                                        if ( rc != 0 )
+                                            ErrMsg( "KMDataNodeOpenNodeRead( '%s' ) -> %R", name, rc );
+                                        else
+                                        {
+                                            char name_attr[ 2048 ];
+                                            size_t num_writ;
+                                            rc = KMDataNodeReadAttr( spot_group_node, "name", name_attr, sizeof name_attr, &num_writ );
+                                            rc = KOutMsg( "%s\t%,lu\n", rc == 0 ? name_attr : name, spot_count );
+                                            KMDataNodeRelease( spot_group_node );                
+                                        }
 
-									}
-								}
-								else
-									vdm_clear_recorded_errors();
-
-								KMDataNodeRelease( spot_count_node );
-							}
-						}
-					}
-				}
-				KNamelistRelease( spot_groups );
-			}
-			KMDataNodeRelease( spot_groups_node );
-		}
-		KMetadataRelease ( meta );
-	}
-	return rc;
+                                    }
+                                }
+                                KMDataNodeRelease( spot_count_node );
+                            }
+                        }
+                    }
+                }
+                KNamelistRelease( spot_groups );
+            }
+            KMDataNodeRelease( spot_groups_node );
+        }
+        KMetadataRelease ( meta );
+    }
+    return rc;
 }
 
 static rc_t vdm_show_db_spotgroups( const p_dump_context ctx, const VDatabase *my_database )
@@ -1751,8 +1764,9 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /*ctx->force_sra_schema*/ );
 
     rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", ctx->path );
-    DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerOpenTableRead( '%R' ) -> %R", ctx->path, rc );
+    else
     {
         rc = vdm_check_table_empty( my_table );
         if ( rc == 0 )
@@ -1761,8 +1775,11 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
     }
 
     if ( my_schema != NULL )
-        VSchemaRelease( my_schema );
-
+    {
+        rc = VSchemaRelease( my_schema );
+        if ( rc != 0 )
+            ErrMsg( "VSchemaRelease() -> %R", rc );
+    }
     return rc;
 }
 
@@ -1798,7 +1815,7 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *my_manag
     else if ( ctx->table_enum_requested )
     {
         KOutMsg( "cannot enum tables of a table-object\n" );
-		vdm_clear_recorded_errors();
+        vdm_clear_recorded_errors();
         rc = 0;
     }
     else if ( enum_col_request( ctx ) )
@@ -1817,19 +1834,18 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *my_manag
     {
         rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_range_tab_index );
     }
-	else if ( ctx->show_spotgroups )
-	{
-		rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spotgroups );
-	}
-	else if ( ctx->show_spread )
-	{
-		rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spread );
-	}
+    else if ( ctx->show_spotgroups )
+    {
+        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spotgroups );
+    }
+    else if ( ctx->show_spread )
+    {
+        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spread );
+    }
     else
     {
         rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_opened_table );
     }
-
     return rc;
 }
 
@@ -1856,43 +1872,69 @@ ctx    [IN] ... contains source-path, tablename, columns and row-range as ascii-
 db_fkt [IN] ... function to be called if directory, manager and database are open
 *************************************************************************************/
 static rc_t vdm_dump_db_fkt( const p_dump_context ctx,
-                             const VDBManager *my_manager,
+                             const VDBManager * mgr,
                              const db_fkt_t db_fkt )
 {
-    const VDatabase *my_database;
-    VSchema *my_schema = NULL;
+    const VDatabase *db;
+    VSchema *schema = NULL;
     rc_t rc;
 
-    vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
+    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
 
-    rc = VDBManagerOpenDBRead( my_manager, &my_database, my_schema, "%s", ctx->path );
-    DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
-    if ( rc == 0 )
+    rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", ctx->path );
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerOpenDBRead( '%s' ) -> %R", ctx->path, rc );
+    else
     {
-        bool table_defined = ( ctx->table != NULL );
-        if ( !table_defined )
-        {
-            table_defined = vdh_take_this_table_from_db( ctx, my_database, "SEQUENCE" );
-            if ( !table_defined )
-                table_defined = vdh_take_1st_table_from_db( ctx, my_database );
-        }
-        if ( table_defined || ctx->table_enum_requested )
-        {
-            rc = db_fkt( ctx, my_database ); /* fkt-pointer is called */
-        }
+        KNamelist *tbl_names;
+        rc = VDatabaseListTbl( db, &tbl_names );
+        if ( rc != 0 )
+            ErrMsg( "VDatabaseListTbl( '%s' ) -> %R", ctx->path, rc );
         else
         {
-            LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
-            ctx->usage_requested = true;
+            if ( ctx->table == NULL )
+            {
+                /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
+                bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
+                /* if there is no SEQUENCE-table, just pick the first table available... */
+                if ( !table_found )
+                    vdh_take_1st_table_from_db( ctx, tbl_names );
+            }
+            else
+            {
+                /* the user DID specify a table: check if the database has a table with this name,
+                   if not try with a sub-string */
+                String value;
+                StringInitCString( &value, ctx->table );
+                if ( !list_contains_value( tbl_names, &value ) )
+                    vdh_take_this_table_from_list( ctx, tbl_names, ctx->table );
+            }
+            
+            if ( ctx->table != NULL || ctx->table_enum_requested )
+            {
+                rc = db_fkt( ctx, db ); /* fkt-pointer is called */
+            }
+            else
+            {
+                LOGMSG( klogInfo, "opened as vdb-database, but no table found" );
+                ctx->usage_requested = true;
+            }
+            rc = KNamelistRelease( tbl_names );
+            if ( rc != 0 )
+                ErrMsg( "KNamelistRelease() -> %R", rc );
         }
-        VDatabaseRelease( my_database );
+        rc = VDatabaseRelease( db );
+        if ( rc != 0 )
+            ErrMsg( "VDatabaseRelease() -> %R", rc );
     }
 
-    if ( my_schema != NULL )
+    if ( schema != NULL )
     {
-        VSchemaRelease( my_schema );
+        rc = VSchemaRelease( schema );
+        if ( rc != 0 )
+            ErrMsg( "VSchemaRelease() -> %R", rc );
     }
-
+    
     return rc;
 }
 
@@ -1955,8 +1997,9 @@ static rc_t vdm_print_objver( const p_dump_context ctx, const VDBManager *mgr )
 {
     ver_t version;
     rc_t rc = VDBManagerGetObjVersion ( mgr, &version, ctx->path );
-    DISP_RC( rc, "VDBManagerGetObjVersion() failed" );
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerGetObjVersion( '%s' ) -> %R", ctx->path, rc );
+    else
         rc = KOutMsg( "%V\n", version );
     return rc;
 }
@@ -1964,8 +2007,9 @@ static rc_t vdm_print_objver( const p_dump_context ctx, const VDBManager *mgr )
 static rc_t vdm_print_objts ( const p_dump_context ctx, const VDBManager *mgr )
 {
     KTime_t timestamp;
-    rc_t rc = VDBManagerGetObjModDate ( mgr, &timestamp, ctx-> path );
-    DISP_RC ( rc, "VDBManagerGetObjModDate () failed" );
+    rc_t rc = VDBManagerGetObjModDate ( mgr, &timestamp, ctx->path );
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerGetObjModDate( '%s' ) -> %R", ctx->path, rc  );
     if ( rc == 0 )
     {
         KTime kt;
@@ -2029,7 +2073,7 @@ static rc_t vdb_main_one_obj_by_pathtype( const p_dump_context ctx,
                                 "p=%s", ctx->path ) );
                             if ( vdco_schema_count( ctx ) == 0 )
                             {
-                            LOGERR( klogInt, rc, "Maybe it is a legacy table. If so, specify a schema with the -S option" );
+                                LOGERR( klogInt, rc, "Maybe it is a legacy table. If so, specify a schema with the -S option" );
                             }
                             break;
     }
@@ -2120,38 +2164,38 @@ ctx        [IN] ... contains path, tablename, columns, row-range etc.
 ***************************************************************************/
 static rc_t vdm_main( const p_dump_context ctx, Args * args )
 {
-    rc_t rc, rc1;
     KDirectory *dir;
-
-    rc = KDirectoryNativeDir( &dir );
-    DISP_RC( rc, "KDirectoryNativeDir() failed" );
-    if ( rc == 0 )
+    rc_t rc1, rc = KDirectoryNativeDir( &dir );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryNativeDir() -> %R", rc );
+    else
     {
         const VDBManager *mgr;
-
-        rc = VDBManagerMakeRead ( &mgr, dir );
-        DISP_RC( rc, "VDBManagerMakeRead() failed" );
-        if ( rc == 0 )
+        rc = VDBManagerMakeRead( &mgr, dir );
+        if ( rc != 0 )
+            ErrMsg( "VDBManagerMakeRead() -> %R", rc );
+        else
         {
             if ( ctx->disable_multithreading )
             {
-                rc = VDBManagerDisablePagemapThread ( mgr );
-                DISP_RC( rc, "VDBManagerDisablePagemapThread() failed" );
-                rc = 0;
+                rc = VDBManagerDisablePagemapThread( mgr );
+                if ( rc != 0 )
+                {
+                    ErrMsg( "VDBManagerDisablePagemapThread() -> %R", rc );
+                    rc = 0;
+                }
             }
             
             /* show manager is independend form db or tab */
             if ( ctx->version_requested )
-            {
                 rc = vdh_show_manager_version( mgr );
-                DISP_RC( rc, "show_manager_version() failed" );
-            }
             else
             {
                 uint32_t count;
                 rc = ArgsParamCount( args, &count );
-                DISP_RC( rc, "ArgsParamCount() failed" );
-                if ( rc == 0 )
+                if ( rc != 0 )
+                    ErrMsg( "ArgsParamCount() -> %R", rc );
+                else
                 {
                     if ( count > 0 )
                     {
@@ -2160,21 +2204,22 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                         {
                             const char *value = NULL;
                             rc = ArgsParamValue( args, idx, (const void **)&value );
-                            DISP_RC( rc, "ArgsParamValue() failed" );
-                            if ( rc == 0 )
+                            if ( rc != 0 )
+                                ErrMsg( "ArgsParamValue() -> %R", rc );
+                            else
                             {
                                 if ( ctx->print_info )
-                                {
                                     rc = vdb_info( &(ctx->schema_list), ctx->format, mgr,
                                                    value, ctx->rows );   /* in vdb_info.c */
-                                }
                                 else switch( ctx->format )
                                 {
                                     case df_fastq  : ;
-                                    case df_fastq1 : ;									
+                                    case df_fastq1 : ;                                    
                                     case df_fasta  : ;
                                     case df_fasta1 : ;
-                                    case df_fasta2 : vdf_main( ctx, mgr, value ); break;
+                                    case df_fasta2 : ;
+                                    case df_qual   : ;                                    
+                                    case df_qual1  : vdf_main( ctx, mgr, value ); break; /* in vdb-dump-fastq.c */
                                     default : rc = vdm_main_one_obj( ctx, mgr, value ); break;
                                 }
                             }
@@ -2188,10 +2233,12 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                 }
             }
             rc1 = VDBManagerRelease( mgr );
-            DISP_RC( rc1, "VDBManagerRelease() failed" );
+            if ( rc1 != 0 )
+                ErrMsg( "VDBManagerRelease() -> %R", rc );
         }
         rc1 = KDirectoryRelease( dir );
-        DISP_RC( rc1, "KDirectoryRelease() failed" );
+        if ( rc != 0 )
+            ErrMsg( "KDirectoryRelease() -> %R", rc );
     }
     return rc;
 }
@@ -2199,29 +2246,32 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
 
 static rc_t diff_files( Args * args )
 {
-	uint32_t count;
-	rc_t rc = ArgsParamCount( args, &count );
-	DISP_RC( rc, "ArgsParamCount() failed" );
-	if ( rc == 0 )
-	{
-		if ( count != 2 )
-			KOutMsg( "this function needs exactly 2 files to diff\n" );
-		else
-		{
-			const char * f1;
-			rc = ArgsParamValue( args, 0, (const void **)&f1 );
-			DISP_RC( rc, "ArgsParamValue( 0 ) failed" );
-			if ( rc == 0 )
-			{
-				const char * f2;
-				rc = ArgsParamValue( args, 1, (const void **)&f2 );
-				DISP_RC( rc, "ArgsParamValue( 1 ) failed" );
-				if ( rc == 0 )
-					rc = vds_diff( f1, f2 ); /* in vdb-dump-str.c */
-			}
-		}
-	}
-	return rc;
+    uint32_t count;
+    rc_t rc = ArgsParamCount( args, &count );
+    if ( rc != 0 )
+        ErrMsg( "ArgsParamCount() -> %R", rc );
+    else
+    {
+        if ( count != 2 )
+            KOutMsg( "this function needs exactly 2 files to diff\n" );
+        else
+        {
+            const char * f1;
+            rc = ArgsParamValue( args, 0, (const void **)&f1 );
+            if ( rc != 0 )
+                ErrMsg( "ArgsParamValue( 0 ) -> %R", rc );
+            else
+            {
+                const char * f2;
+                rc = ArgsParamValue( args, 1, (const void **)&f2 );
+                if ( rc != 0 )
+                    ErrMsg( "ArgsParamValue( 1 ) -> %R", rc );
+                else
+                    rc = vds_diff( f1, f2 ); /* in vdb-dump-str.c */
+            }
+        }
+    }
+    return rc;
 }
 
 
@@ -2246,52 +2296,54 @@ rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_w
 rc_t CC KMain ( int argc, char *argv [] )
 {
     Args * args;
-    rc_t rc;
-
-    rc = KOutHandlerSet ( write_to_FILE, stdout );
-    if ( rc == 0 )
+    rc_t rc = KOutHandlerSet( write_to_FILE, stdout );
+    if ( rc != 0 )
+        ErrMsg( "KOutHandlerSet() -> %R", rc );
+    else
     {
-        rc = ArgsMakeAndHandle (&args, argc, argv,
+        rc = ArgsMakeAndHandle( &args, argc, argv,
             1, DumpOptions, sizeof DumpOptions / sizeof DumpOptions [ 0 ] );
-    }
-    if ( rc == 0 )
-    {
-        dump_context *ctx;
-
-        rc = vdco_init( &ctx );
-        DISP_RC( rc, "dump_context_init() failed" );
-
-        if ( rc == 0 )
+        if ( rc != 0 )
+            ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
+        else
         {
-            rc = vdco_capture_arguments_and_options( args, ctx );
+            dump_context *ctx;
+
+            rc = vdco_init( &ctx );
             if ( rc == 0 )
             {
-                out_redir redir; /* vdb-dump-redir.h */
-
-                KLogHandlerSetStdErr();
-                rc = init_out_redir( &redir,
-                                     ctx->compress_mode,
-                                     ctx->output_file,
-                                     ctx->output_buffer_size ); /* vdb-dump-redir.c */
+                rc = vdco_capture_arguments_and_options( args, ctx );
                 if ( rc == 0 )
                 {
-                    if ( ctx->phase > 0 )
-                        rc = vdi_bin_phase( ctx, args ); /* vdb-dump-bin.c */
-                    else if ( ctx->diff )
-						rc = diff_files( args ); /* above calls into vdb-dump-str.c */
-					else if ( ctx->slice_depth > 0 )
-						rc = find_slice( ctx, args ); /* vdb-dump-str.c */
-					else
-                        rc = vdm_main( ctx, args );
-						
-                    release_out_redir( &redir ); /* vdb-dump-redir.c */
+                    out_redir redir; /* vdb-dump-redir.h */
+                    
+                    KLogHandlerSetStdErr();
+                    rc = init_out_redir( &redir,
+                                     ctx->compress_mode,
+                                     ctx->output_file,
+                                     ctx->interactive ? 0 : ctx->output_buffer_size ); /* vdb-dump-redir.c */
+                    
+                    if ( rc == 0 )
+                    {
+                        if ( ctx->phase > 0 )
+                            rc = vdi_bin_phase( ctx, args ); /* vdb-dump-bin.c */
+                        else if ( ctx->diff )
+                            rc = diff_files( args ); /* above calls into vdb-dump-str.c */
+                        else if ( ctx->interactive )
+                            rc = vdi_main( ctx, args ); /* vdb-dump-interact.c */
+                        else if ( ctx->slice_depth > 0 )
+                            rc = find_slice( ctx, args ); /* vdb-dump-str.c */
+                        else
+                            rc = vdm_main( ctx, args );
+                    
+                        release_out_redir( &redir ); /* vdb-dump-redir.c */
+                    }
                 }
+                vdco_destroy( ctx );
             }
-            vdco_destroy( ctx );
+            ArgsWhack( args );
         }
-        ArgsWhack (args);
     }
-
     return rc;
 }
 

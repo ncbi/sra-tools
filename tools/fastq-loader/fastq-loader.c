@@ -281,10 +281,9 @@ static rc_t PathWithBasePath(char rslt[], size_t sz, char const path[], char con
         if (string_printf(rslt, sz, NULL, "%s/%s", base, path) == 0)
             return 0;
     }
-    else if (plen < sz) {
-        strcpy(rslt, path);
-        return 0;
-    }
+    else if ( string_copy ( rslt, sz, path, plen ) < sz )
+            return 0;
+
     {
         rc_t const rc = RC(rcApp, rcArgv, rcAccessing, rcBuffer, rcInsufficient);
         (void)LOGERR(klogErr, rc, "The path to the file is too long");

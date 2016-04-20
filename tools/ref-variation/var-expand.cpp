@@ -2,7 +2,6 @@
 
 #include <kapp/main.h>
 #include <klib/rc.h>
-#include <klib/printf.h>
 
 #include <iostream>
 #include <stdio.h>
@@ -12,10 +11,15 @@
 
 #include "helper.h"
 #include "common.h"
-#include <search/grep.h>
 
 #define PARAM_ALG_SW "sw"
 #define PARAM_ALG_RA "ra"
+
+#ifdef _WIN32
+#define PRSIZE_T "I"
+#else
+#define PRSIZE_T "z"
+#endif
 
 namespace VarExpand
 {
@@ -38,6 +42,35 @@ namespace VarExpand
         { OPTION_ALG, NULL, NULL, USAGE_ALG, 1, true, false }
     };
 
+    template <class TObject, typename TKey> class CNGSObject
+    {
+        TObject* m_self;
+        TKey m_key;
+
+    public:
+        CNGSObject() : m_self(NULL) {}
+        ~CNGSObject() { Release(); }
+        CNGSObject ( CNGSObject const& x);
+        CNGSObject& operator=(CNGSObject const& x);
+
+        void Release()
+        {
+            delete m_self;
+            m_self = NULL;
+        }
+
+        void Init(TObject const& obj, TKey const& key)
+        {
+            TObject* p = new TObject(obj); // may throw ?
+
+            Release();
+            m_self = p;
+            m_key = key;
+        }
+
+        TKey const& GetKey() const { return m_key; }
+        TObject const* GetSelfPtr() const { return m_self; }
+    };
 
     bool check_ref_slice ( char const* ref, size_t ref_size )
     {
@@ -81,7 +114,7 @@ namespace VarExpand
                     (int)del_len, ref_chunk.data() + ref_pos_in_slice ));
             }
             
-            cont = Common::find_variation_core_step ( obj,
+            cont = Common::find_variation_core_step ( obj, g_Params.alg,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
                 allele, var_len, del_len,
                 chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -99,7 +132,7 @@ namespace VarExpand
                 ref_slice = ref_seq.getReferenceBases (
                     bases_start, (chunk_no_end - chunk_no_start + 1)*chunk_size );
 
-                cont = Common::find_variation_core_step ( obj,
+                cont = Common::find_variation_core_step ( obj, g_Params.alg,
                     ref_slice.c_str(), ref_slice.size(), ref_pos_in_slice,
                     allele, var_len, del_len,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -108,12 +141,30 @@ namespace VarExpand
         }
     }
 
-    void expand_variation ( ngs::ReferenceSequence const& ref_seq,
-                        char const* key, size_t key_len,
-                        char const* ref_name, size_t ref_name_len,
-                        size_t ref_pos, size_t del_len,
-                        char const* allele, size_t allele_len )
+    void expand_variation ( //ngs::ReferenceSequence const& ref_seq,
+                    CNGSObject <ngs::ReferenceSequence, ncbi::String>& ref_obj,
+                    char const* key, size_t key_len,
+                    char const* ref_name, size_t ref_name_len,
+                    size_t ref_pos, size_t del_len,
+                    char const* allele, size_t allele_len )
     {
+        ncbi::String sref_name ( ref_name, ref_name_len );
+        if ( ref_obj.GetSelfPtr() == NULL || ref_obj.GetKey() != sref_name )
+        {
+            try
+            {
+                ref_obj.Init (ncbi::NGS::openReferenceSequence(sref_name), sref_name);
+            }
+            catch (ngs::ErrorMsg const& e)
+            {
+                if ( strstr ( e.what(), "failed to open table" ) == NULL )
+                    throw;
+                return;
+            }
+        }
+
+        ngs::ReferenceSequence const& ref_seq = * ref_obj.GetSelfPtr();
+
         KSearch::CVRefVariation obj;
         std::string ref_allele;
 
@@ -122,9 +173,8 @@ namespace VarExpand
         if ( ref_allele.size() == 0 )
             ref_allele = "-";
 
-        char buf[512];
-        size_t new_allele_size;
-        char const* new_allele = obj.GetAllele ( new_allele_size );
+        size_t new_allele_size = obj.GetAlleleSize();
+        char const* new_allele = obj.GetAllele();
 
         if ( new_allele_size == 0)
         {
@@ -132,8 +182,8 @@ namespace VarExpand
             new_allele_size = 1;
         }
 
-        string_printf ( buf, countof(buf), NULL,
-            "%.*s\t%.*s:%zu:%zu:%.*s\t%.*s:%zu:%zu:%.*s\t%.*s:%zu:%zu:%s",
+        printf (
+            "%.*s\t%.*s:%"PRSIZE_T"u:%"PRSIZE_T"u:%.*s\t%.*s:%"PRSIZE_T"u:%"PRSIZE_T"u:%.*s\t%.*s:%"PRSIZE_T"u:%"PRSIZE_T"u:%s\n",
             (int)key_len, key,
 
             (int)ref_name_len, ref_name,
@@ -148,8 +198,6 @@ namespace VarExpand
             obj.GetAlleleStartAbsolute(), obj.GetAlleleLenOnRef(),
             ref_allele.c_str()
             );
-        buf [countof(buf) - 1] = '\0';
-        printf ("%s\n", buf);
     }
 
 
@@ -249,8 +297,10 @@ namespace VarExpand
 
         return true;
     }
-#if 0
-    void process_input_line ( char const* line, size_t line_size )
+
+    void process_input_line (
+        CNGSObject <ngs::ReferenceSequence, ncbi::String>& ref_obj,
+        char const* line, size_t line_size )
     {
         char const* key, *ref_name, *allele;
         size_t key_len, ref_name_len, allele_len, ref_pos, del_len;
@@ -261,96 +311,21 @@ namespace VarExpand
             & allele, & allele_len,
             & ref_pos, & del_len ) )
         {
-            expand_variation ( key, key_len,
+            expand_variation ( ref_obj, key, key_len,
                 ref_name, ref_name_len,
                 ref_pos, del_len,
                 allele, allele_len );
         }
     }
-#endif
+
     int expand_variations_impl ( )
     {
         std::string line;
-        bool end_of_stream = false;
-
-        ncbi::String sref_name, sref_name_prev;
-        char const* key, *ref_name, *allele;
-        size_t key_len, ref_name_len, allele_len, ref_pos, del_len;
-
-        while ( ! end_of_stream )
-        {
-            end_of_stream = std::getline ( std::cin, line ).eof();
-            if (line.size() > 0 && parse_input_line ( line.c_str(), line.size(),
-                                    & key, & key_len,
-                                    & ref_name, & ref_name_len,
-                                    & allele, & allele_len,
-                                    & ref_pos, & del_len ))
-            {
-                try // really only trying to open the first reference
-                {
-                    sref_name.assign ( ref_name, ref_name_len );
-                    ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence(sref_name);
-                    break;
-                }
-                catch (ngs::ErrorMsg const& e)
-                {
-                    if ( strstr ( e.what(), "failed to open table" ) == NULL )
-                        throw;
-                    else
-                        continue;
-                }
-            }
-        }
-
-        if ( end_of_stream )
-            return 0;
-
-        // here we have the first good reference name in sref_name (shall be opened with no exceptions)
-        ngs::ReferenceSequence ref_seq = ncbi::NGS::openReferenceSequence(sref_name);
-        expand_variation ( ref_seq, key, key_len,
-                ref_name, ref_name_len,
-                ref_pos, del_len,
-                allele, allele_len );
-        sref_name_prev = sref_name;
-
-        // process the next input lines
+        CNGSObject <ngs::ReferenceSequence, ncbi::String> ref_obj;
         while ( std::getline ( std::cin, line ) )
         {
-            if (line.size() > 0 && parse_input_line ( line.c_str(), line.size(),
-                                    & key, & key_len,
-                                    & ref_name, & ref_name_len,
-                                    & allele, & allele_len,
-                                    & ref_pos, & del_len ))
-            {
-                sref_name.assign ( ref_name, ref_name_len );
-                if (sref_name == sref_name_prev)
-                {
-                    expand_variation ( ref_seq, key, key_len,
-                            ref_name, ref_name_len,
-                            ref_pos, del_len,
-                            allele, allele_len );
-                }
-                else
-                {
-                    try
-                    {
-                    
-                        ref_seq = ncbi::NGS::openReferenceSequence(sref_name);
-                        expand_variation ( ref_seq, key, key_len,
-                                ref_name, ref_name_len,
-                                ref_pos, del_len,
-                                allele, allele_len );
-                        sref_name_prev = sref_name;
-                    }
-                    catch (ngs::ErrorMsg const& e)
-                    {
-                        if ( strstr ( e.what(), "failed to open table" ) == NULL )
-                            throw;
-                        else
-                            continue;
-                    }
-                }
-            }
+            if (line.size() > 0)
+                process_input_line ( ref_obj, line.c_str(), line.size() );
         }
 
         return 0;

@@ -25,6 +25,7 @@
 */
 
 #include <stdlib.h>
+#include "helper.h"
 
 namespace KSearch
 {
@@ -33,7 +34,7 @@ namespace KSearch
 
 namespace Common
 {
-    bool find_variation_core_step (KSearch::CVRefVariation& obj,
+    bool find_variation_core_step (KSearch::CVRefVariation& obj, ::RefVarAlg alg,
         char const* ref_slice, size_t ref_slice_size,
         size_t& ref_pos_in_slice,
         char const* var, size_t var_len, size_t var_len_on_ref,

@@ -862,8 +862,7 @@ GeneralLoader :: DatabaseLoader :: ErrorMessage ( const string & p_text )
 rc_t
 GeneralLoader :: DatabaseLoader :: LogMessage ( const string & p_text )
 {
-#pragma message ( "need to pass the app-name from front end" )
-    pLogMsg ( klogInfo, "general-loader: log \"$(t)\"", "t=%s", p_text . c_str () );
+    pLogMsg ( klogInfo, "general-loader: log from $(s): \"$(t)\"", "s=%s,t=%s", m_softwareName . c_str (), p_text . c_str () );
     return 0;
 }
 

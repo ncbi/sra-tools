@@ -27,6 +27,7 @@
 #include <klib/log.h>
 #include <klib/rc.h>
 #include <klib/text.h>
+#include <klib/printf.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -48,6 +49,21 @@
 #include <assert.h>
 #include <stdarg.h>
 
+rc_t ErrMsg( const char * fmt, ... )
+{
+    rc_t rc;
+    char buffer[ 4096 ];
+    size_t num_writ;
+
+    va_list list;
+    va_start( list, fmt );
+    rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
+    if ( rc == 0 )
+        rc = pLogMsg( klogErr, "$(E)", "E=%s", buffer );
+    va_end( list );
+    return rc;
+} 
+
 /********************************************************************
 helper function to display the version of the vdb-manager
 ********************************************************************/
@@ -55,8 +71,9 @@ rc_t vdh_show_manager_version( const VDBManager *my_manager )
 {
     uint32_t version;
     rc_t rc = VDBManagerVersion( my_manager, &version );
-    DISP_RC( rc, "VDBManagerVersion() failed" );
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VDBManagerVersion() -> %R", rc );
+    else
     {
         PLOGMSG ( klogInfo, ( klogInfo, "manager-version = $(maj).$(min).$(rel)",
                               "vers=0x%X,maj=%u,min=%u,rel=%u",
@@ -75,43 +92,43 @@ static void CC vdh_parse_1_schema( void *item, void *data )
     if ( ( item != NULL )&&( my_schema != NULL ) )
     {
         rc_t rc = VSchemaParseFile( my_schema, "%s", s );
-        DISP_RC( rc, "VSchemaParseFile() failed" );
+        if ( rc != 0 )
+            ErrMsg( "VSchemaParseFile() -> %R", rc );
     }
 }
 
 rc_t vdh_parse_schema( const VDBManager *my_manager,
                        VSchema **new_schema,
                        Vector *schema_list,
-					   bool with_sra_schema )
+                       bool with_sra_schema )
 {
     rc_t rc = 0;
 
     if ( my_manager == NULL )
-    {
         return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
-    }
-    if ( new_schema == NULL )
-    {
-        return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
-    }
 
-	*new_schema = NULL;
-	
-	if ( with_sra_schema )
-	{
-		rc = VDBManagerMakeSRASchema( my_manager, new_schema );
-		DISP_RC( rc, "VDBManagerMakeSRASchema() failed" );
-	}
-	
+    if ( new_schema == NULL )
+        return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+
+    *new_schema = NULL;
+    
+    if ( with_sra_schema )
+    {
+        rc = VDBManagerMakeSRASchema( my_manager, new_schema );
+        if ( rc != 0 )
+            ErrMsg( "VDBManagerMakeSRASchema() -> %R", rc );
+    }
+    
     if ( ( rc == 0 )&&( schema_list != NULL ) )
     {
-		if ( *new_schema == NULL )
-		{
-			rc = VDBManagerMakeSchema( my_manager, new_schema );
-			DISP_RC( rc, "VDBManagerMakeSchema() failed" );
-		}
-		if ( rc == 0 )
-			VectorForEach( schema_list, false, vdh_parse_1_schema, *new_schema );
+        if ( *new_schema == NULL )
+        {
+            rc = VDBManagerMakeSchema( my_manager, new_schema );
+            if ( rc != 0 )
+                ErrMsg( "VDBManagerMakeSchema() -> %R", rc );
+        }
+        if ( rc == 0 )
+            VectorForEach( schema_list, false, vdh_parse_1_schema, *new_schema );
     }
     return rc;
 }
@@ -126,24 +143,22 @@ bool vdh_is_path_table( const VDBManager *my_manager, const char *path,
     const VTable *my_table;
     VSchema *my_schema = NULL;
     rc_t rc;
-
-    rc = vdh_parse_schema( my_manager, &my_schema, schema_list, false );
-    DISP_RC( rc, "helper_parse_schema() failed" );
+    
+    vdh_parse_schema( my_manager, &my_schema, schema_list, false );
 
     rc = VDBManagerOpenTableRead( my_manager, &my_table, my_schema, "%s", path );
-    DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
     if ( rc == 0 )
-        {
+    {
         res = true; /* yes we are able to open the table ---> path is a table */
         VTableRelease( my_table );
-        }
+    }
 
     if ( my_schema != NULL )
     {
         rc = VSchemaRelease( my_schema );
-        DISP_RC( rc, "VSchemaRelease() failed" );
+        if ( rc != 0 )
+            ErrMsg( "VSchemaRelease() -> %R", rc );
     }
-
     return res;
 }
 
@@ -167,8 +182,9 @@ bool vdh_is_path_column( const VDBManager *my_manager, const char *path,
         {
             KDirectory *my_directory;
             rc_t rc = KDirectoryNativeDir( &my_directory );
-            DISP_RC( rc, "KDirectoryNativeDir() failed" );
-            if ( rc == 0 )
+            if ( rc != 0 )
+                ErrMsg( "KDirectoryNativeDir() -> %R", rc );
+            else
             {
                 string_copy( pp_path, path_len + 20, path, path_len );
                 string_copy( &pp_path[ path_len ], 20, backback, string_size( backback ) );
@@ -194,19 +210,23 @@ bool vdh_is_path_database( const VDBManager *my_manager, const char *path,
     VSchema *my_schema = NULL;
     rc_t rc;
 
-    rc = vdh_parse_schema( my_manager, &my_schema, schema_list, false );
-    DISP_RC( rc, "helper_parse_schema() failed" );
+    vdh_parse_schema( my_manager, &my_schema, schema_list, false );
 
     rc = VDBManagerOpenDBRead( my_manager, &my_database, my_schema, "%s", path );
     if ( rc == 0 )
-        {
+    {
         res = true; /* yes we are able to open the database ---> path is a database */
-        VDatabaseRelease( my_database );
-        }
+        rc = VDatabaseRelease( my_database );
+        if ( rc != 0 )
+            ErrMsg( "VDatabaseRelease() -> %R", rc );
+    }
 
     if ( my_schema != NULL )
-        VSchemaRelease( my_schema );
-
+    {
+        rc = VSchemaRelease( my_schema );
+        if ( rc != 0 )
+            ErrMsg( "VSchemaRelease() -> %R", rc );
+    }
     return res;
 }
 
@@ -215,41 +235,36 @@ bool vdh_is_path_database( const VDBManager *my_manager, const char *path,
 helper-function to extract the name of the first table of a database
 and put it into the dump-context
 *************************************************************************************/
-bool vdh_take_1st_table_from_db( dump_context *ctx, const VDatabase *my_database )
+bool vdh_take_1st_table_from_db( dump_context *ctx, const KNamelist * tbl_names )
 {
     bool we_found_a_table = false;
-    KNamelist *tbl_names;
-    rc_t rc = VDatabaseListTbl( my_database, &tbl_names );
-    DISP_RC( rc, "VDatabaseListTbl() failed" );
-    if ( rc == 0 )
+    uint32_t count;
+    rc_t rc = KNamelistCount( tbl_names, &count );
+    if ( rc != 0 )
+        ErrMsg( "KNamelistCount() -> %R", rc );
+    else if ( count > 0 )
     {
-        uint32_t n;
-        rc = KNamelistCount( tbl_names, &n );
-        DISP_RC( rc, "KNamelistCount() failed" );
-        if ( ( rc == 0 )&&( n > 0 ) )
+        const char *tbl_name;
+        rc = KNamelistGet( tbl_names, 0, &tbl_name );
+        if ( rc != 0 )
+            ErrMsg( "KNamelistGet( 0 ) -> %R", rc );
+        else
         {
-            const char *tbl_name;
-            rc = KNamelistGet( tbl_names, 0, &tbl_name );
-            DISP_RC( rc, "KNamelistGet() failed" );
-            if ( rc == 0 )
-            {
-                vdco_set_table( ctx, tbl_name );
-                we_found_a_table = true;
-            }
+            vdco_set_table( ctx, tbl_name );
+            we_found_a_table = true;
         }
-        rc = KNamelistRelease( tbl_names );
-        DISP_RC( rc, "KNamelistRelease() failed" );
     }
     return we_found_a_table;
 }
 
-
+/*
 static int vdh_str_cmp( const char *a, const char *b )
 {
     size_t asize = string_size ( a );
     size_t bsize = string_size ( b );
     return strcase_cmp ( a, asize, b, bsize, ( asize > bsize ) ? asize : bsize );
 }
+*/
 
 static bool vdh_str_starts_with( const char *a, const char *b )
 {
@@ -264,44 +279,110 @@ static bool vdh_str_starts_with( const char *a, const char *b )
     return res;
 }
 
+
+bool list_contains_value( const KNamelist * list, const String * value )
+{
+    bool found = false;
+    uint32_t count;
+    rc_t rc = KNamelistCount( list, &count );
+    if ( rc != 0 )
+        ErrMsg( "KNamelistCount() -> %R", rc );
+    else if ( count > 0 )
+    {
+        uint32_t i;
+        for ( i = 0; i < count && rc == 0 && !found; ++i )
+        {
+            const char *s;
+            rc = KNamelistGet( list, i, &s );
+            if ( rc != 0 )
+                ErrMsg( "KNamelistGet( %d ) -> %R", i, rc );
+            else
+            {
+                String item;
+                StringInitCString( &item, s );
+                found = ( StringCompare ( &item, value ) == 0 );
+            }
+        }
+    }
+    return found;
+}
+
+
+static bool list_contains_value_starting_with( const KNamelist * list, const String * value, String * found )
+{
+    bool res = false;
+    uint32_t count;
+    rc_t rc = KNamelistCount( list, &count );
+    if ( rc != 0 )
+        ErrMsg( "KNamelistCount() -> %R", rc );
+    else if ( count > 0 )
+    {
+        uint32_t i;
+        for ( i = 0; i < count && rc == 0 && !res; ++i )
+        {
+            const char *s;
+            rc = KNamelistGet( list, i, &s );
+            if ( rc != 0 )
+                ErrMsg( "KNamelistGet( %d ) -> %R", i, rc );
+            else
+            {
+                String item;
+                StringInitCString( &item, s );
+                if ( value->len <= item.len )
+                {
+                    item.len = value->len;
+                    item.size = value->size;
+                    res = ( StringCompare ( &item, value ) == 0 );
+                    if ( res )
+                        StringInitCString( found, s );
+                }
+            }
+        }
+    }
+    return res;
+}
+
 /*************************************************************************************
 helper-function to check if a given table is in the list of tables
 if found put that name into the dump-context
 *************************************************************************************/
-bool vdh_take_this_table_from_db( dump_context *ctx, const VDatabase *my_database,
+bool vdh_take_this_table_from_list( dump_context *ctx, const KNamelist * tbl_names,
+                                    const char * table_to_find )
+{
+    bool res = false;
+    String to_find;
+
+    StringInitCString( &to_find, table_to_find );
+    res = list_contains_value( tbl_names, &to_find );
+    if ( res )
+        vdco_set_table_String( ctx, &to_find );
+    else
+    {
+        String found;
+        res = list_contains_value_starting_with( tbl_names, &to_find, &found );
+        if ( res )
+            vdco_set_table_String( ctx, &found );
+    }
+    return res;
+}
+
+
+bool vdh_take_this_table_from_db( dump_context *ctx, const VDatabase * db,
                                   const char * table_to_find )
 {
-    bool we_found_a_table = false;
+    bool we_found_the_table = false;
     KNamelist *tbl_names;
-    rc_t rc = VDatabaseListTbl( my_database, &tbl_names );
-    DISP_RC( rc, "VDatabaseListTbl() failed" );
-    if ( rc == 0 )
+    rc_t rc = VDatabaseListTbl( db, &tbl_names );
+    if ( rc != 0 )
+        ErrMsg( "VDatabaseListTbl() -> %R", rc );
+    else
     {
-        uint32_t n;
-        rc = KNamelistCount( tbl_names, &n );
-        DISP_RC( rc, "KNamelistCount() failed" );
-        if ( ( rc == 0 )&&( n > 0 ) )
-        {
-            uint32_t i;
-            for ( i = 0; i < n && rc == 0 && !we_found_a_table; ++i )
-            {
-                const char *tbl_name;
-                rc = KNamelistGet( tbl_names, i, &tbl_name );
-                DISP_RC( rc, "KNamelistGet() failed" );
-                if ( rc == 0 )
-                {
-                    if ( vdh_str_cmp( tbl_name, table_to_find ) == 0 )
-                    {
-                        vdco_set_table( ctx, tbl_name );
-                        we_found_a_table = true;
-                    }
-                }
-            }
-        }
+        we_found_the_table = vdh_take_this_table_from_list( ctx, tbl_names, table_to_find );
         rc = KNamelistRelease( tbl_names );
-        DISP_RC( rc, "KNamelistRelease() failed" );
+        if ( rc != 0 )
+            ErrMsg( "KNamelistRelease() -> %R", rc );
     }
-    return we_found_a_table;
+    return we_found_the_table;
 }
 
 
@@ -332,10 +413,10 @@ static rc_t vdh_print_full_col_info( dump_context *ctx,
             if ( rc == 0 && my_schema )
             {
                 char buf[64];
-                rc = VTypedeclToText( &(col_def->type_decl), my_schema,
-                                      buf, sizeof(buf) );
-                DISP_RC( rc, "VTypedeclToText() failed" );
-                if ( rc == 0 )
+                rc = VTypedeclToText( &(col_def->type_decl), my_schema, buf, sizeof( buf ) );
+                if ( rc != 0 )
+                    ErrMsg( "VTypedeclToText() -> %R", rc );
+                else
                     rc = KOutMsg( "\n      (%s)", buf );
             }
             if ( rc == 0 )
@@ -344,20 +425,17 @@ static rc_t vdh_print_full_col_info( dump_context *ctx,
         else
         {
             if ( ctx->table == NULL )
-            {
                 rc = KOutMsg( "error: no table-name in print_column_info()" );
-            }
+
             if ( col_def->name == NULL )
-            {
                 rc = KOutMsg( "error: no column-name in print_column_info()" );
-            }
+
         }
         free( s_domain );
     }
     else
-    {
         rc = KOutMsg( "error: making domain-text in print_column_info()" );
-    }
+
     return rc;
 }
 
@@ -369,16 +447,15 @@ static rc_t vdh_print_short_col_info( const p_col_def col_def,
     if ( col_def->name != NULL )
     {
         rc = KOutMsg( "%s", col_def->name );
-        if ( my_schema )
+        if ( rc == 0 && my_schema != NULL )
         {
-            char buf[64];
+            char buf[ 64 ];
             rc = VTypedeclToText( &(col_def->type_decl), my_schema,
                                   buf, sizeof(buf) );
-            DISP_RC( rc, "VTypedeclToText() failed" );
-            if ( rc == 0 )
-            {
+            if ( rc != 0 )
+                ErrMsg( "VTypedeclToText() -> %R", rc );
+            else
                 rc = KOutMsg( " (%s)", buf );
-            }
         }
         if ( rc == 0 )
             rc = KOutMsg( "\n" );
@@ -402,22 +479,80 @@ rc_t vdh_print_col_info( dump_context *ctx,
     return rc;
 }
 
+rc_t resolve_remote_accession( const char * accession, char * dst, size_t dst_size )
+{
+    VFSManager * vfs_mgr;
+    rc_t rc = VFSManagerMake( &vfs_mgr );
+    dst[ 0 ] = 0;
+    if ( rc != 0 )
+        ErrMsg( "VFSManagerMake() -> %R", rc );
+    else
+    {
+        VResolver * resolver;
+        rc = VFSManagerGetResolver( vfs_mgr, &resolver );
+        if ( rc != 0 )
+            ErrMsg( "VFSManagerGetResolver() -> %R", rc );
+        else
+        {
+            VPath * vpath;
+            rc = VFSManagerMakePath( vfs_mgr, &vpath, "ncbi-acc:%s", accession );
+            if ( rc != 0 )
+                ErrMsg( "VFSManagerMakePath( %s ) -> %R", accession, rc );
+            else
+            {
+                const VPath * remote = NULL;
+                VResolverRemoteEnable( resolver, vrAlwaysEnable );
+                rc = VResolverQuery ( resolver, eProtocolHttp, vpath, NULL, &remote, NULL );
+                if ( rc == 0 &&  remote != NULL )
+                {
+                    const String * path;
+                    rc = VPathMakeString( remote, &path );
 
+                    if ( rc == 0 && path != NULL )
+                    {
+                        string_copy ( dst, dst_size, path->addr, path->size );
+                        dst[ path->size ] = 0;
+                        StringWhack ( path );
+                    }
+                    if ( remote != NULL )
+                        VPathRelease ( remote );
+                }
+                VPathRelease ( vpath );
+            }
+            VResolverRelease( resolver );
+        }
+        VFSManagerRelease ( vfs_mgr );
+    }
+
+    if ( rc == 0 && vdh_str_starts_with( dst, "ncbi-acc:" ) )
+    {
+        size_t l = string_size ( dst );
+        memmove( dst, &( dst[ 9 ] ), l - 9 );
+        dst[ l - 9 ] = 0;
+    }
+    return rc;
+}
 
 rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, bool remotely )
 {
     VFSManager * vfs_mgr;
     rc_t rc = VFSManagerMake( &vfs_mgr );
     dst[ 0 ] = 0;
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VFSManagerMake() -> %R", rc );
+    else
     {
         VResolver * resolver;
         rc = VFSManagerGetResolver( vfs_mgr, &resolver );
-        if ( rc == 0 )
+        if ( rc != 0 )
+            ErrMsg( "VFSManagerGetResolver() -> %R", rc );
+        else
         {
             VPath * vpath;
             rc = VFSManagerMakePath( vfs_mgr, &vpath, "ncbi-acc:%s", accession );
-            if ( rc == 0 )
+            if ( rc != 0 )
+                ErrMsg( "VFSManagerMakePath( %s ) -> %R", accession, rc );
+            else
             {
                 const VPath * local = NULL;
                 const VPath * remote = NULL;
@@ -467,24 +602,30 @@ rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
     VFSManager * vfs_mgr;
     rc_t rc = VFSManagerMake( &vfs_mgr );
     dst[ 0 ] = 0;
-    if ( rc == 0 )
+    if ( rc != 0 )
+        ErrMsg( "VFSManagerMake() -> %R", rc );
+    else
     {
         VResolver * resolver;
         rc = VFSManagerGetResolver( vfs_mgr, &resolver );
-        if ( rc == 0 )
+        if ( rc != 0 )
+            ErrMsg( "VFSManagerGetResolver() -> %R", rc );
+        else
         {
             VPath * vpath;
             rc = VFSManagerMakePath( vfs_mgr, &vpath, "ncbi-acc:%s", accession );
-            if ( rc == 0 )
+            if ( rc != 0 )
+                ErrMsg( "VFSManagerMakePath( %s ) -> %R", accession, rc );
+            else
             {
                 const VPath * local = NULL;
                 const VPath * remote = NULL;
-				const VPath * cache = NULL;
-				rc = VResolverQuery ( resolver, eProtocolHttp, vpath, &local, &remote, &cache );
+                const VPath * cache = NULL;
+                rc = VResolverQuery ( resolver, eProtocolHttp, vpath, &local, &remote, &cache );
                 if ( rc == 0 && cache != NULL )
                 {
                     const String * path;
-					rc = VPathMakeString( cache, &path );
+                    rc = VPathMakeString( cache, &path );
 
                     if ( rc == 0 && path != NULL )
                     {
@@ -512,33 +653,120 @@ rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
 
 rc_t check_cache_comleteness( const char * path, float * percent, uint64_t * bytes_in_cache )
 {
-	rc_t rc = 0;
-	if ( percent != NULL )	{ ( * percent ) = 0.0; }
-	if ( bytes_in_cache != NULL ) { ( * bytes_in_cache ) = 0; }
-	if ( path != NULL && path[ 0 ] != 0 )
-	{
-		KDirectory * dir;
-		rc_t rc = KDirectoryNativeDir( &dir );
-		if ( rc == 0 )
-		{
-			const KFile * f = NULL;
-			rc = KDirectoryOpenFileRead( dir, &f, "%s.cache", path );
-			if ( rc == 0 )
-			{
-				rc = GetCacheCompleteness( f, percent, bytes_in_cache );
-			}
-			else
-			{
-				rc = KDirectoryOpenFileRead( dir, &f, "%s", path );
-				if ( rc == 0 )
-				{
-					if ( percent != NULL )	( * percent ) = 100.0;
-					if ( bytes_in_cache != NULL ) rc = KFileSize ( f, bytes_in_cache );
-				}
-			}
-			if ( f != NULL ) KFileRelease( f );
-			KDirectoryRelease( dir );
-		}
-	}
-	return rc;
+    rc_t rc = 0;
+    if ( percent != NULL )    { ( * percent ) = 0.0; }
+    if ( bytes_in_cache != NULL ) { ( * bytes_in_cache ) = 0; }
+    if ( path != NULL && path[ 0 ] != 0 )
+    {
+        KDirectory * dir;
+        rc_t rc = KDirectoryNativeDir( &dir );
+        if ( rc != 0 )
+            ErrMsg( "KDirectoryNativeDir() -> %R", rc);
+        else
+        {
+            const KFile * f = NULL;
+            rc = KDirectoryOpenFileRead( dir, &f, "%s.cache", path );
+            if ( rc == 0 )
+                rc = GetCacheCompleteness( f, percent, bytes_in_cache );
+            else
+            {
+                rc = KDirectoryOpenFileRead( dir, &f, "%s", path );
+                if ( rc == 0 )
+                {
+                    if ( percent != NULL )    ( * percent ) = 100.0;
+                    if ( bytes_in_cache != NULL ) rc = KFileSize ( f, bytes_in_cache );
+                }
+            }
+            if ( f != NULL ) KFileRelease( f );
+            KDirectoryRelease( dir );
+        }
+    }
+    return rc;
+}
+
+
+static bool matches( const String * cmd, const String * pattern )
+{
+    char buffer[ 256 ];
+    String match;
+    uint32_t matching;
+    
+    StringInit( &match, buffer, sizeof buffer, 0 );
+    matching = StringMatch( &match, cmd, pattern );
+    return ( matching == pattern->len && matching == cmd->len );
+}
+
+
+int32_t index_of_match( const String * word, uint32_t num, ... )
+{
+    int32_t res = -1;
+    if ( word != NULL )
+    {
+        uint32_t idx;
+        va_list args;
+        
+        va_start ( args, num );
+        for ( idx = 0; idx < num && res < 0; ++idx )
+        {
+            const char * arg = va_arg ( args, const char * );
+            if ( arg != NULL )
+            {
+                String S;
+                StringInitCString( &S, arg );
+                if ( matches( word, &S ) ) res = idx;
+            }
+        }
+        va_end ( args );
+    }
+    return res;
+}
+
+
+static void CC destroy_String( void * item, void * data ) { free( item ); }
+void destroy_String_vector( Vector * v ) { VectorWhack( v, destroy_String, NULL ); }
+
+uint32_t copy_String_2_vector( Vector * v, const String * S )
+{
+    uint32_t res = 0;
+    if ( S->len > 0 && S->addr != NULL )
+    {
+        String * S1 = malloc( sizeof * S1 );
+        if ( S1 != NULL )
+        {
+            rc_t rc;
+            StringInit( S1, S->addr, S->size, S->len );
+            rc = VectorAppend( v, NULL, S1 );
+            if ( rc == 0 ) res++; else free( S1 );
+        }
+    }
+    return res;
+}
+
+
+uint32_t split_buffer( Vector * v, const String * S, const char * delim )
+{
+    uint32_t i, res = 0;
+    size_t delim_len = string_size( delim );
+    String temp;
+    
+    StringInit( &temp, NULL, 0, 0 );
+    VectorInit( v, 0, 10 );
+    for( i = 0; i < S->len; ++i )
+    {
+        if ( string_chr( delim, delim_len, S->addr[ i ] ) != NULL )
+        {
+            /* delimiter found */
+            res += copy_String_2_vector( v, &temp );
+            StringInit( &temp, NULL, 0, 0 );
+        }
+        else
+        {
+            /* normal char in line */
+            if ( temp.addr == NULL ) temp.addr = &( S->addr[ i ] );
+            temp.size++;
+            temp.len++;
+        }
+    }
+    res += copy_String_2_vector( v, &temp );
+    return res;
 }

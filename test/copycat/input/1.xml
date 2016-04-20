@@ -1,0 +1,5 @@
+<ROOT version="2.6.2">
+  <archive id="1" path="1.tar" name="1.tar" size="10240" mtime="2016-04-07T21:06:20Z" filetype="Archive/TapeArchive" md5="41fbc9b272d12c815c8a4c301a354b95"  crc32="d7b8fc09">
+    <file id="2" path="1.tar/1" name="1" size="25" lines="4" mtime="2016-04-07T19:47:13Z" filetype="Unknown/Unknown" md5="293363f5942f2ca7e4d0a1aa9ffda34f"  offset="512"/>
+  </archive>
+</ROOT>

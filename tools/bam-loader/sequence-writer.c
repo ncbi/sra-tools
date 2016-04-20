@@ -69,7 +69,7 @@ static rc_t getTable(Sequence *self, bool color)
                                G.QualQuantizer);
 }
 
-rc_t SequenceWriteRecord(Sequence *self,
+static rc_t writeRecordX(Sequence *self,
                          SequenceRecord const *rec,
                          bool color,
                          bool isDup,
@@ -193,6 +193,122 @@ rc_t SequenceWriteRecord(Sequence *self,
         free(h_readInfo);
 
     return rc;
+}
+
+static unsigned totalSequenceLength(SequenceRecord const *const rec)
+{
+    unsigned const nreads = rec->numreads;
+    unsigned rslt = 0;
+    unsigned i;
+
+    for (i = 0; i < nreads; ++i)
+        rslt += rec->readLen[i];
+
+    return rslt;
+}
+
+static rc_t writeRecord2(Sequence *self,
+                         SequenceRecord const *rec,
+                         bool color,
+                         bool isDup,
+                         INSDC_SRA_platform_id platform
+                         )
+{
+    INSDC_SRA_xread_type readType[2];
+    INSDC_SRA_read_filter readFilter[2];
+    uint8_t alcnt[2];
+
+    rc_t rc = 0;
+    unsigned const nreads = rec->numreads;
+    unsigned const seqLen = totalSequenceLength(rec);
+    unsigned i;
+    bool fullyUnaligned = true;
+
+    TableWriterSeqData data;
+
+    assert(G.mode == mode_Archive);
+
+    for (i = 0; i != nreads; ++i) {
+        int const count = rec->aligned[i] ? 1 : 0;
+        int const len = rec->readLen[i];
+        int const type = len == 0 ? SRA_READ_TYPE_TECHNICAL : SRA_READ_TYPE_BIOLOGICAL;
+        int const dir = len == 0 ? 0 : rec->orientation[i] ? SRA_READ_TYPE_REVERSE : SRA_READ_TYPE_FORWARD;
+        int const filter = isDup ? SRA_READ_FILTER_CRITERIA : rec->is_bad[i] ? SRA_READ_FILTER_REJECT : SRA_READ_FILTER_PASS;
+
+        if (rec->aligned[i])
+            fullyUnaligned = false;
+        alcnt[i] = count;
+        readType[i] = type | dir;
+        readFilter[i] = filter;
+    }
+
+    memset(&data, 0, sizeof(data));
+
+    data.sequence.buffer = rec->seq;
+    data.sequence.elements = seqLen;
+
+    data.quality.buffer = rec->qual;
+    data.quality.elements = seqLen;
+
+    data.alignment_count.buffer = alcnt;
+    data.alignment_count.elements = nreads;
+
+    data.nreads = nreads;
+
+    data.read_type.buffer = readType;
+    data.read_type.elements = nreads;
+
+    data.read_start.buffer = rec->readStart;
+    data.read_start.elements = nreads;
+
+    data.read_len.buffer = rec->readLen;
+    data.read_len.elements = nreads;
+
+    data.tmp_key_id = rec->keyId;
+
+    data.spot_group.buffer = rec->spotGroup;
+    data.spot_group.elements = rec->spotGroupLen;
+
+    data.cskey.buffer = rec->cskey;
+    data.cskey.elements = nreads;
+
+    data.read_filter.buffer = readFilter;
+    data.read_filter.elements = nreads;
+
+    data.platform.buffer = &platform;
+    data.platform.elements = 1;
+
+    data.ti.buffer = rec->ti;
+    data.ti.elements = nreads;
+
+    if (fullyUnaligned && rec->linkageGroup && rec->linkageGroupLen > 0) {
+        data.linkageGroup.buffer = rec->linkageGroup;
+        data.linkageGroup.elements = rec->linkageGroupLen;
+    }
+    if (!G.no_real_output) {
+        rc = getTable(self, color);
+        if (rc == 0) {
+            int64_t dummyRowId;
+            rc = TableWriterSeq_Write(self->tbl, &data, &dummyRowId);
+        }
+    }
+
+    return rc;
+}
+
+rc_t SequenceWriteRecord(Sequence *self,
+                         SequenceRecord const *rec,
+                         bool color,
+                         bool isDup,
+                         INSDC_SRA_platform_id platform
+                         )
+{
+    if (rec->numreads <= 2 && !G.keepMismatchQual) {
+        return writeRecord2(self, rec, color, isDup, platform);
+    }
+    else {
+        return writeRecordX(self, rec, color, isDup, platform);
+    }
 }
 
 static rc_t ReadSequenceData(TableWriterSeqData *const data, VCursor const *const curs, int64_t const row, uint32_t const colId[])
@@ -378,133 +494,4 @@ void SequenceWhack(Sequence *self, bool commit) {
         VTableRelease(tbl);
     }
     VDatabaseRelease(self->db);
-}
-
-/* MARK: SequenceRecord Object */
-static
-rc_t SequenceRecordResize(SequenceRecord *self,
-                          KDataBuffer *storage,
-                          unsigned numreads,
-                          unsigned seqLen)
-{
-    size_t sz;
-    rc_t rc;
-    
-    sz = seqLen * (sizeof(self->seq[0]) + sizeof(self->qual[0])) +
-         numreads * (sizeof(self->ti) +
-                     sizeof(self->readStart[0]) +
-                     sizeof(self->readLen[0]) +
-                     sizeof(self->aligned[0]) + 
-                     sizeof(self->orientation[0]) +
-                     sizeof(self->alignmentCount[0]) +
-                     sizeof(self->cskey[0])
-                     );
-    storage->elem_bits = 8;
-    rc = KDataBufferResize(storage, sz);
-    if (rc)
-        return rc;
-    self->numreads = numreads;
-    
-    self->ti = (uint64_t *)storage->base;
-    self->readStart = (uint32_t *)&self->ti[numreads];
-    self->readLen = (uint32_t *)&self->readStart[numreads];
-    self->aligned = (bool *)&self->readLen[numreads];
-    self->orientation = (uint8_t *)&self->aligned[numreads];
-    self->is_bad = (uint8_t *)&self->orientation[numreads];
-    self->alignmentCount = (uint8_t *)&self->is_bad[numreads];
-    self->cskey = (char *)&self->alignmentCount[numreads];
-    self->seq = (char *)&self->cskey[numreads];
-    self->qual = (uint8_t *)&self->seq[seqLen];
-
-    self->spotGroup = NULL;
-    self->spotGroupLen = 0;
-    
-    return 0;
-}
-
-rc_t SequenceRecordInit(SequenceRecord *self, unsigned numreads, unsigned readLen[])
-{
-    unsigned i;
-    unsigned seqlen = 0;
-    rc_t rc;
-    
-    for (i = 0; i != numreads; ++i) {
-        seqlen += readLen[i];
-    }
-    rc = SequenceRecordResize(self, &self->storage, numreads, seqlen);
-    if (rc)
-        return rc;
-    memset(self->storage.base, 0, KDataBufferBytes(&self->storage));
-    
-    for (seqlen = 0, i = 0; i != numreads; ++i) {
-        self->readLen[i] = readLen[i];
-        self->readStart[i] = seqlen;
-        seqlen += readLen[i];
-    }
-    self->numreads = numreads;
-    memset(self->cskey, 'T', numreads);
-    return 0;
-}
-
-rc_t SequenceRecordAppend(SequenceRecord *self,
-                          const SequenceRecord *other
-                          )
-{
-    /* save the locations of the original data */
-    unsigned const seq = (uint8_t const *)self->seq - (uint8_t const *)self->storage.base;
-    unsigned const qual = (uint8_t const *)self->qual - (uint8_t const *)self->storage.base;
-    unsigned const cskey = (uint8_t const *)self->cskey - (uint8_t const *)self->storage.base;
-    unsigned const alignmentCount = (uint8_t const *)self->alignmentCount - (uint8_t const *)self->storage.base;
-    unsigned const is_bad = (uint8_t const *)self->is_bad - (uint8_t const *)self->storage.base;
-    unsigned const orientation = (uint8_t const *)self->orientation - (uint8_t const *)self->storage.base;
-    unsigned const aligned = (uint8_t const *)self->aligned - (uint8_t const *)self->storage.base;
-    unsigned const ti = (uint8_t const *)self->ti - (uint8_t const *)self->storage.base;
-    unsigned const readLen = (uint8_t const *)self->readLen - (uint8_t const *)self->storage.base;
-    unsigned const readStart = (uint8_t const *)self->readStart - (uint8_t const *)self->storage.base;
-
-    rc_t rc;
-    unsigned seqlen;
-    unsigned otherSeqlen;
-    unsigned i;
-    unsigned numreads = self->numreads;
-    
-    for (seqlen = 0, i = 0; i != numreads; ++i) {
-        seqlen += self->readLen[i];
-    }
-    for (otherSeqlen = 0, i = 0; i != other->numreads; ++i) {
-        otherSeqlen += other->readLen[i];
-    }
-
-    rc = SequenceRecordResize(self, &self->storage, self->numreads + other->numreads, seqlen + otherSeqlen);
-    if (rc)
-        return rc;
-    /* this needs to be reverse order from assignment in Resize function
-     * these regions can overlap
-     */
-    memmove(self->qual,             &((uint8_t const *)self->storage.base)[qual],              seqlen);
-    memmove(self->seq,              &((uint8_t const *)self->storage.base)[seq],               seqlen);
-    memmove(self->cskey,            &((uint8_t const *)self->storage.base)[cskey],             numreads * sizeof(self->cskey[0]));
-    memmove(self->alignmentCount,   &((uint8_t const *)self->storage.base)[alignmentCount],    numreads * sizeof(self->alignmentCount[0]));
-    memmove(self->is_bad,           &((uint8_t const *)self->storage.base)[is_bad],            numreads * sizeof(self->is_bad[0]));
-    memmove(self->orientation,      &((uint8_t const *)self->storage.base)[orientation],       numreads * sizeof(self->orientation[0]));
-    memmove(self->aligned,          &((uint8_t const *)self->storage.base)[aligned],           numreads * sizeof(self->aligned[0]));
-    memmove(self->readLen,          &((uint8_t const *)self->storage.base)[readLen],           numreads * sizeof(self->readLen[0]));
-    memmove(self->ti,               &((uint8_t const *)self->storage.base)[ti],                numreads * sizeof(self->ti[0]));
-    
-    memcpy(&self->ti[numreads],             other->ti,              other->numreads * sizeof(self->ti[0]));
-    memcpy(&self->readLen[numreads],        other->readLen,         other->numreads * sizeof(self->readLen[0]));
-    memcpy(&self->aligned[numreads],        other->aligned,         other->numreads * sizeof(self->aligned[0]));
-    memcpy(&self->orientation[numreads],    other->orientation,     other->numreads * sizeof(self->orientation[0]));
-    memcpy(&self->is_bad[numreads],         other->is_bad,          other->numreads * sizeof(self->is_bad[0]));
-    memcpy(&self->alignmentCount[numreads], other->alignmentCount,  other->numreads * sizeof(self->alignmentCount[0]));
-    memcpy(&self->cskey[numreads],          other->cskey,           other->numreads * sizeof(self->cskey[0]));
-    memcpy(&self->seq[seqlen],              other->seq,             otherSeqlen);
-    memcpy(&self->qual[seqlen],             other->qual,            otherSeqlen);
-    
-    for (i = 0, seqlen = 0; i != self->numreads; ++i) {
-        self->readStart[i] = seqlen;
-        seqlen += self->readLen[i];
-    }
-    
-    return 0;
 }

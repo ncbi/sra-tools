@@ -39,6 +39,8 @@
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-redir.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-str.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-tools.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-interact.c" />
+    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-repo.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump.c" />
     <ClCompile Include="..\..\..\tools\vdb-dump\vdb_info.c" />
   </ItemGroup>

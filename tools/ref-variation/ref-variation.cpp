@@ -46,7 +46,6 @@
 
 #include "helper.h"
 #include "common.h"
-#include <search/grep.h>
 
 #define CPP_THREADS 0
 
@@ -76,7 +75,7 @@ public:
 
 #endif
 
-namespace RefVariation
+namespace NSRefVariation
 {
 
 #define COUNT_STRAND_NONE_STR           "none"
@@ -451,7 +450,7 @@ namespace RefVariation
                 TLock* lock_cout, size_t thread_num,
                 coverage_info* pcoverage_count, size_t index )
     {
-        if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+        if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
         {
             LOCK_GUARD l(*lock_cout);
             PLOGMSG ( klogInfo,
@@ -489,7 +488,7 @@ namespace RefVariation
             uint64_t id_count;
 
             bool found = kindex.FindText ( ref_name, & ref_id_start, & id_count, NULL, NULL );
-            if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+            if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
             {
                 LOCK_GUARD l(*lock_cout);
                 PLOGMSG ( klogInfo,
@@ -518,7 +517,7 @@ namespace RefVariation
                     // but maybe we also need to report matches and total alignments
                     // here (0 0)
 
-                    if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                    if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
                     {
                         LOCK_GUARD l(*lock_cout);
                         PLOGMSG ( klogInfo,
@@ -539,7 +538,7 @@ namespace RefVariation
 
                 if ( depth == 0 )
                 {
-                    if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                    if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
                     {
                         LOCK_GUARD l(*lock_cout);
                         PLOGMSG ( klogInfo,
@@ -569,8 +568,8 @@ namespace RefVariation
                     count = cursor.ReadItems ( pos + ref_id_start, PileupColumnIndex[idx_MISMATCH_COUNTS], mismatch, sizeof mismatch );
                     assert ( count == 0 || count == 4 );
 
-                    size_t allele_size;
-                    char const* allele = obj.GetAllele(allele_size);
+                    size_t allele_size = obj.GetAlleleSize();
+                    char const* allele = obj.GetAllele();
                     assert (count == 0 || pos - ref_pos < allele_size );
                     size_t alignments_matched = count == 0 ? 0 :
                         mismatch [base2na_to_index(allele[pos - ref_pos])];
@@ -649,14 +648,14 @@ namespace RefVariation
 #endif
             }
 
-            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+            if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_SOME_DETAILS )
             {
                 char run_name[64];
                 uint32_t count = cursor.ReadItems ( id_first, PileupColumnIndex[idx_RUN_NAME], run_name, countof(run_name)-1 );
                 assert (count < countof(run_name));
                 run_name [count] = '\0';
 
-                if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+                if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_SOME_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
                     PLOGMSG ( klogInfo,
@@ -675,7 +674,7 @@ namespace RefVariation
             if ( e.getRC() == SILENT_RC(rcVFS,rcMgr,rcOpening,rcDirectory,rcNotFound)
                 || e.getRC() == SILENT_RC(rcVFS,rcTree,rcResolving,rcPath,rcNotFound))
             {
-                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
                     PLOGMSG ( klogInfo,
@@ -688,7 +687,7 @@ namespace RefVariation
             }
             else if ( e.getRC() == SILENT_RC(rcDB,rcMgr,rcOpening,rcDatabase,rcIncorrect))
             {
-                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
                     PLOGMSG ( klogWarn,
@@ -740,7 +739,7 @@ namespace RefVariation
         TLock* lock_cout, size_t thread_num,
         coverage_info* pcoverage_count, size_t index)
     {
-        if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+        if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
         {
             LOCK_GUARD l(*lock_cout);
             PLOGMSG ( klogInfo,
@@ -825,7 +824,7 @@ namespace RefVariation
                         if (is_negative)
                             ++ alignments_matched_negative;
                     }
-                    if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+                    if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_SOME_DETAILS )
                     {
                         LOCK_GUARD l(*lock_cout);
                         PLOGMSG ( klogInfo,
@@ -850,7 +849,7 @@ BREAK_ALIGNMENT_ITER:
         }
         else
         {
-            if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+            if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
             {
                 LOCK_GUARD l(*lock_cout);
                 PLOGMSG ( klogInfo,
@@ -943,7 +942,7 @@ BREAK_ALIGNMENT_ITER:
                 char const* path = input_run.GetRunPath().c_str();
                 char const* pileup_path = input_run.GetPileupStatsPath().c_str();
 
-                if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
                 {
                     LOCK_GUARD l(*lock_cout);
                     PLOGMSG ( klogInfo,
@@ -964,7 +963,7 @@ BREAK_ALIGNMENT_ITER:
                 {
                     if ( strstr (e.what(), "Cannot open accession") == e.what() )
                     {
-                        if ( g_Params.verbosity >= RefVariation::VERBOSITY_MORE_DETAILS )
+                        if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_MORE_DETAILS )
                         {
                             LOCK_GUARD l(*lock_cout);
                             PLOGMSG ( klogWarn,
@@ -1081,7 +1080,7 @@ BREAK_ALIGNMENT_ITER:
         else
         {
             // split
-            if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+            if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_SOME_DETAILS )
             {
                 PLOGMSG ( klogInfo,
                     ( klogInfo,
@@ -1168,7 +1167,7 @@ BREAK_ALIGNMENT_ITER:
     void print_variation_specs ( char const* ref_slice, size_t ref_slice_size,
         KSearch::CVRefVariation const& obj, const char* query, size_t query_len )
     {
-        if ( g_Params.verbosity >= RefVariation::VERBOSITY_SOME_DETAILS )
+        if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_SOME_DETAILS )
         {
             size_t ref_start = obj.GetAlleleStartAbsolute();
             size_t ref_len = obj.GetAlleleLenOnRef();
@@ -1185,7 +1184,7 @@ BREAK_ALIGNMENT_ITER:
                 ));
         }
 
-        if ( g_Params.verbosity >= RefVariation::VERBOSITY_PRINT_VAR_SPEC )
+        if ( g_Params.verbosity >= NSRefVariation::VERBOSITY_PRINT_VAR_SPEC )
         {
             PLOGMSG ( klogWarn,
                 ( klogWarn,
@@ -1195,8 +1194,8 @@ BREAK_ALIGNMENT_ITER:
                 g_Params.var_len_on_ref, query_len, query
                 ));
 
-            size_t allele_size;
-            char const* allele = obj.GetAllele ( allele_size );
+            size_t allele_size = obj.GetAlleleSize();
+            char const* allele = obj.GetAllele();
             PLOGMSG ( klogWarn,
                 ( klogWarn,
                 "Adjusted variation spec: $(REFACC):$(REFPOSVAR):$(VARLENONREF):$(ALLELE)",
@@ -1233,7 +1232,7 @@ BREAK_ALIGNMENT_ITER:
                     (int)g_Params.var_len_on_ref, ref_chunk.data() + ref_pos_in_slice );
             }
             
-            cont = Common::find_variation_core_step ( obj,
+            cont = Common::find_variation_core_step ( obj, g_Params.alg,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
                 query, var_len, g_Params.var_len_on_ref,
                 chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -1253,7 +1252,7 @@ BREAK_ALIGNMENT_ITER:
                 ref_slice = ref_seq.getReferenceBases (
                     bases_start, (chunk_no_end - chunk_no_start + 1)*chunk_size );
 
-                cont = Common::find_variation_core_step ( obj,
+                cont = Common::find_variation_core_step ( obj, g_Params.alg,
                     ref_slice.c_str(), ref_slice.size(), ref_pos_in_slice,
                     query, var_len, g_Params.var_len_on_ref,
                     chunk_size, chunk_no_last, bases_start, chunk_no_start, chunk_no_end );
@@ -1292,9 +1291,11 @@ BREAK_ALIGNMENT_ITER:
                     if ( first.GetAlleleStartAbsolute() != cur.GetAlleleStartAbsolute()
                         || first.GetAlleleLenOnRef() != cur.GetAlleleLenOnRef() )
                     {
-                        size_t allele_size_first, allele_size_cur;
-                        char const* allele_first = first.GetAllele ( allele_size_first );
-                        char const* allele_cur = cur.GetAllele ( allele_size_cur );
+                        size_t allele_size_first = first.GetAlleleSize();
+                        char const* allele_first = first.GetAllele();
+
+                        size_t allele_size_cur = cur.GetAlleleSize();
+                        char const* allele_cur = cur.GetAllele();
 
                         PLOGMSG( klogWarn, (klogWarn,
                             "Inconsistent variations found: (start=$(STARTFIRST), len=$(LENFIRST), allele=$(ALLELEFIRST)) vs (start=$(STARTCUR), len=$(LENCUR), allele=$(ALLELECUR))",
@@ -2024,18 +2025,18 @@ extern "C"
 
         OUTMSG (("\nOptions:\n"));
 
-        HelpOptionLine (RefVariation::ALIAS_REFERENCE_ACC, RefVariation::OPTION_REFERENCE_ACC, "acc", RefVariation::USAGE_REFERENCE_ACC);
-        HelpOptionLine (RefVariation::ALIAS_REF_POS, RefVariation::OPTION_REF_POS, "value", RefVariation::USAGE_REF_POS);
-        HelpOptionLine (NULL, RefVariation::OPTION_QUERY, "string", RefVariation::USAGE_QUERY);
-        HelpOptionLine (RefVariation::ALIAS_VAR_LEN_ON_REF, RefVariation::OPTION_VAR_LEN_ON_REF, "value", RefVariation::USAGE_VAR_LEN_ON_REF);
-        HelpOptionLine (RefVariation::ALIAS_THREADS, RefVariation::OPTION_THREADS, "value", RefVariation::USAGE_THREADS);
-        HelpOptionLine (RefVariation::ALIAS_COVERAGE, RefVariation::OPTION_COVERAGE, "", RefVariation::USAGE_COVERAGE);
-        HelpOptionLine (RefVariation::ALIAS_INPUT_FILE, RefVariation::OPTION_INPUT_FILE, "string", RefVariation::USAGE_INPUT_FILE);
-        HelpOptionLine (NULL, RefVariation::OPTION_COUNT_STRAND, "value", RefVariation::USAGE_COUNT_STRAND);
-        HelpOptionLine (NULL, RefVariation::OPTION_ALG, "value", RefVariation::USAGE_ALG);
-        //HelpOptionLine (RefVariation::ALIAS_VERBOSITY, RefVariation::OPTION_VERBOSITY, "", RefVariation::USAGE_VERBOSITY);
+        HelpOptionLine (NSRefVariation::ALIAS_REFERENCE_ACC, NSRefVariation::OPTION_REFERENCE_ACC, "acc", NSRefVariation::USAGE_REFERENCE_ACC);
+        HelpOptionLine (NSRefVariation::ALIAS_REF_POS, NSRefVariation::OPTION_REF_POS, "value", NSRefVariation::USAGE_REF_POS);
+        HelpOptionLine (NULL, NSRefVariation::OPTION_QUERY, "string", NSRefVariation::USAGE_QUERY);
+        HelpOptionLine (NSRefVariation::ALIAS_VAR_LEN_ON_REF, NSRefVariation::OPTION_VAR_LEN_ON_REF, "value", NSRefVariation::USAGE_VAR_LEN_ON_REF);
+        HelpOptionLine (NSRefVariation::ALIAS_THREADS, NSRefVariation::OPTION_THREADS, "value", NSRefVariation::USAGE_THREADS);
+        HelpOptionLine (NSRefVariation::ALIAS_COVERAGE, NSRefVariation::OPTION_COVERAGE, "", NSRefVariation::USAGE_COVERAGE);
+        HelpOptionLine (NSRefVariation::ALIAS_INPUT_FILE, NSRefVariation::OPTION_INPUT_FILE, "string", NSRefVariation::USAGE_INPUT_FILE);
+        HelpOptionLine (NULL, NSRefVariation::OPTION_COUNT_STRAND, "value", NSRefVariation::USAGE_COUNT_STRAND);
+        HelpOptionLine (NULL, NSRefVariation::OPTION_ALG, "value", NSRefVariation::USAGE_ALG);
+        //HelpOptionLine (NSRefVariation::ALIAS_VERBOSITY, NSRefVariation::OPTION_VERBOSITY, "", NSRefVariation::USAGE_VERBOSITY);
 #if SECRET_OPTION != 0
-        HelpOptionLine (NULL, RefVariation::OPTION_SECRET, NULL, RefVariation::USAGE_SECRET);
+        HelpOptionLine (NULL, NSRefVariation::OPTION_SECRET, NULL, NSRefVariation::USAGE_SECRET);
 #endif
         XMLLogger_Usage();
 
@@ -2097,6 +2098,6 @@ extern "C"
 
        */
 
-        return RefVariation::find_variation_region ( argc, argv );
+        return NSRefVariation::find_variation_region ( argc, argv );
     }
 }

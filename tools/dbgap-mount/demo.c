@@ -174,6 +174,7 @@ rc_t run (
 
                 XFSControlSetMountPoint ( TheControl, MountPoint );
                 XFSControlSetLabel ( TheControl, "Olaffsen" );
+                XFSControlSetLogFile ( TheControl, NULL );
 
                 if ( ! Daemonize ) {
                     XFSControlSetArg ( TheControl, "-f", "-f" );
@@ -219,24 +220,29 @@ int ProjectIdInt = 0;
 char MountPoint[333];
 bool ReadOnly = true;
 bool Daemonize = false;
+bool LogToFile = false;
+char LogFile [ 777 ];
 
 #define RO_TAG   "ro"
 #define RW_TAG   "rw"
 #define DM_TAG   "-d"
+
+#define LF_TAG   "-l"
 
 static
 void
 RightUsage()
 {
     printf("\ndbGaP mount tool demo program. Will mount and show content of cart files\n");
-    printf("\nUsage: %s [%s|%s] [%s] project_id mount_point\n\n\
+    printf("\nUsage: %s [%s|%s] [%s log_file] [%s] project_id mount_point\n\n\
 Where:\n\
     project_id - usually integer greater that zero and less than twelve\n\
     %s - mount in read only mode\n\
     %s - mount in read-write mode\n\
     %s - run mounter as daemon\n\
     mount_point - point to mount\n\
-\n\n", ProgramName, RO_TAG, RW_TAG, DM_TAG, RO_TAG, RW_TAG, DM_TAG );
+    log_file - file to log logs\n\
+\n\n", ProgramName, RO_TAG, RW_TAG, LF_TAG, DM_TAG, RO_TAG, RW_TAG, DM_TAG );
 }   /* RightUsage() */
 
 static
@@ -345,6 +351,10 @@ rc_t CC UsageSummary (const char* progname) { return 0; }
 rc_t CC Usage ( const Args * args ) { return 0; }
 
 rc_t CC KMain(int argc, char *argv[]) {
+
+    // KLogLevelSet ( klogInfo );
+    KLogLevelSet ( klogDebug );
+    // XFSLogInit ( "log.log" );
 
     if ( ! ParseArgs ( argc, argv ) ) {
         RightUsage();

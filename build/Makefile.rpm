@@ -1,0 +1,165 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+#VERBOSE=-v
+
+# determine shell environment ($CONFIG_FILE)
+include $(TOP)/build/Makefile.shell
+
+# load build configuration ($TARGDIR) ($VERSION)
+include $(CONFIG_FILE)
+
+# $TOOLS_TO_INSTALL
+include $(TOP)/build/Makefile.tools
+ifeq (1,$(HAVE_HDF5))
+	TOOLS_TO_INSTALL += pacbio-load
+endif
+TOOLS_TO_INSTALL += remote-fuser
+
+REVISION=0
+PKGDIR=$(TARGDIR)/rpmbuild
+RPM =$(PKGDIR)/RPMS/$(ARCH)/sra-toolkit-$(VERSION)-$(REVISION).$(ARCH).rpm
+SRC =$(PKGDIR)/SOURCES/sra-toolkit-$(VERSION).tar.gz
+SPEC=$(PKGDIR)/SPECS/sra-toolkit.spec
+DST =$(PKGDIR)/sra-toolkit-$(VERSION)
+TGZ=$(DST).tar.gz
+
+clean_rpm:
+	echo 'DEBUGGING RPM: clean_rpm'
+	rm -rf $(DST) $(RPM) $(SPEC) $(SRC) $(TGZ)
+
+rpm: $(RPM)
+#	echo DEBUGGING RPM: rpm $(TOP)/$(MODULE)
+
+$(RPM): $(SPEC) $(SRC)
+#	echo 'DEBUGGING RPM: (RPM)'
+	rpmbuild --define "_topdir $(PKGDIR)"  --define "_tmppath %{_topdir}/tmp" \
+	    -bb $(SPEC)
+
+$(SRC): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
+		$(DST)/etc/ncbi/vdb-copy.kfg $(DST)/usr/share/ncbi/schema
+	echo 'DEBUGGING RPM: (SRC)'
+	chmod -R g-w $(DST)
+	cd $(PKGDIR) ; tar $(VERBOSE) -zcf $(TGZ) --owner 0 --group 0 \
+		sra-toolkit-$(VERSION)
+	mkdir $(VERBOSE) -p $(PKGDIR)/SOURCES
+	cp $(VERBOSE) -p $(TGZ) $@
+
+$(DST)/etc/ncbi/default.kfg: $(DST)
+	echo 'DEBUGGING RPM: (/etc/ncbi/default.kfg)'
+	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/default.kfg $@
+
+$(DST)/etc/ncbi/schema.kfg: $(DST)
+	echo 'DEBUGGING RPM: (/etc/ncbi/schema.kfg)'
+	echo '/vdb/schema/paths = "/usr/share/ncbi/schema"' > $@
+
+$(DST)/etc/ncbi/vdb-copy.kfg: $(DST)
+	echo 'DEBUGGING RPM: (/etc/ncbi/vdb-copy.kfg)'
+	rsync $(VERBOSE) -l --chmod=g-w $(BINDIR)/ncbi/vdb-copy.kfg $@
+
+$(DST): $(PKGDIR)
+#	echo 'DEBUGGING RPM: (DST)'
+	mkdir $(VERBOSE) -p $(DST)/etc/ncbi
+	mkdir $(VERBOSE) -p $(DST)/usr/bin
+	$(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.rpm \
+		$(TOOLS_TO_INSTALL)
+
+$(DST)/usr/share/ncbi/schema: $(DST)
+	echo 'DEBUGGING RPM: (/usr/share/ncbi/schema)'
+	mkdir $(VERBOSE) -p $@
+	rsync $(VERBOSE) -rmloptD --include '*.vschema' --include='*/' \
+		 --exclude '*' $(VDB_INCDIR)/* $@
+
+$(PKGDIR):
+	echo 'DEBUGGING RPM: (PKGDIR)'
+	mkdir $(VERBOSE) -p $@/{RPMS,SRPMS,BUILD,SOURCES,SPECS,tmp}
+
+$(TOOLS_TO_INSTALL):
+#	echo 'DEBUGGING RPM: (TOOLS_TO_INSTALL)'
+	- ( test -f $(BINDIR)/$@ || ( echo "$@ not found" && false ) ) && \
+		rsync $(VERBOSE) -l $(BINDIR)/$@ $(BINDIR)/$@$(VERSION_EXEX) \
+			$(BINDIR)/$@$(MAJVERS_EXEX) $(DST)/usr/bin
+
+$(SPEC): $(PKGDIR) $(TOP)/build/Makefile.rpm
+#	echo 'DEBUGGING RPM: (SPEC)'
+	mkdir -p $(PKGDIR)/SPECS
+	printf \
+"%%define        __spec_install_post %%{nil}\n"\
+"%%define          debug_package     %%{nil}\n"\
+"%%define        __os_install_post   %%{_dbpath}/brp-compress\n"\
+"\n"\
+"Summary: SRA Toolkit package\n"\
+"Name: sra-toolkit\n"\
+"Version: $(VERSION)\n"\
+"Release: $(REVISION)\n"\
+"License: Public Domain\n"\
+"Group: NCBI/VDB\n"\
+"SOURCE0 : %%{name}-%%{version}.tar.gz\n"\
+"URL: http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\n"\
+"\n"\
+"BuildRoot: %%{_tmppath}/%%{name}-%%{version}-%%{release}-root\n"\
+"\n"\
+"%%description\n"\
+"%%{summary}\n"\
+"\n"\
+"%%prep\n"\
+"%%setup -q\n"\
+"\n"\
+"%%build\n"\
+"# Empty section.\n"\
+"\n"\
+"%%install\n"\
+"rm   -rf %%{buildroot}\n"\
+"mkdir -p %%{buildroot}\n"\
+"\n"\
+"# in builddir\n"\
+"cp -a * %%{buildroot}\n"\
+"\n"\
+"%%clean\n"\
+"rm -rf %%{buildroot}\n"\
+"\n"\
+"%%files\n"\
+"%%defattr(-,root,root,-)\n"\
+"%%{_bindir}/*\n"\
+"/etc/ncbi/*\n"\
+"/usr/share/ncbi/schema/*/*\n"\
+"\n"\
+"%%post\n"\
+"if [ -e /etc/profile.d/sra-tools.csh ] || [ -e /etc/profile.d/sra-tools.sh  ]"\
+"\n"\
+"then\n"\
+"    FOUND=1\n"\
+"fi\n"\
+'if [ "$$FOUND" != "" ] ; then'\
+"\n"\
+"    echo User installation of sra-tools is found.\n"\
+"    if [ -e /etc/profile.d/sra-tools.csh ] ; then\n"\
+"        mv -v /etc/profile.d/sra-tools.csh /etc/profile.d/sra-tools.csh.bak\n"\
+"    fi\n"\
+"    if [ -e /etc/profile.d/sra-tools.sh ] ; then\n"\
+"        mv -v /etc/profile.d/sra-tools.sh /etc/profile.d/sra-tools.sh.bak\n"\
+"    fi\n"\
+"    echo /etc/profile.d/sra-tools.[c]sh was updated.\n"\
+"    echo You might need to relogin to have your PATH variable updated.\n"\
+"fi\n" > $@

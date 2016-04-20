@@ -33,8 +33,9 @@ include $(TOP)/build/Makefile.env
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	samline
-
+	samline \
+	sampart
+    
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
@@ -80,21 +81,35 @@ clean: stdclean
 
 .PHONY: clean
 
-#-------------------------------------------------------------------------------
-# TOOL_SRC
-#
-TOOL_SRC = \
-	refbases \
-	cigar \
-	alig-gen
-
-TOOL_OBJ = \
-	$(addsuffix .$(OBJX),$(TOOL_SRC))
-
-TOOL_LIB = \
+CMN_LIBS = \
 	-skapp \
 	-sncbi-vdb \
 	-lm
 
-$(BINDIR)/samline: $(TOOL_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(TOOL_LIB)
+#-------------------------------------------------------------------------------
+# SAMLINE
+#
+SAMLINE_SRC = \
+	refbases \
+	cigar \
+	alig-gen
+
+SAMLINE_OBJ = \
+	$(addsuffix .$(OBJX),$(SAMLINE_SRC))
+
+$(BINDIR)/samline: $(SAMLINE_OBJ)
+	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(CMN_LIBS)
+
+#-------------------------------------------------------------------------------
+# SAMPART
+#
+SAMPART_SRC = \
+	refbases \
+	cigar \
+	sampart
+
+SAMPART_OBJ = \
+	$(addsuffix .$(OBJX),$(SAMPART_SRC))
+
+$(BINDIR)/sampart: $(SAMPART_OBJ)
+	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(CMN_LIBS)

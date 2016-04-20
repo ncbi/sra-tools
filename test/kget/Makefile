@@ -35,6 +35,15 @@ include $(TOP)/build/Makefile.env
 .PHONY: $(TEST_TOOLS)
 
 #-------------------------------------------------------------------------------
+# runtests: 
+#
+runtests: download
+
+download:
+	$(BINDIR)/vdb-config -s /repository/remote/main/CGI/resolver-cgi=http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi
+	export PATH=$(BINDIR):$$PATH; python test_kget.py # expect rc = 0 
+
+#-------------------------------------------------------------------------------
 # slowtests: match output vs wget
 #
 
@@ -52,5 +61,6 @@ diff-vs-wget: clean
 	diff $(ACCESSION).sra ./$(ACCESSION).dat
 	#diff $(ACCESSION).sra ./$(ACCESSION).cachetee
 	rm -f $(ACCESSION)*
+
 
 .PHONY: 

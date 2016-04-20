@@ -31,6 +31,7 @@
 
 #include <kapp/main.h>
 #include <kapp/args.h>
+#include <kapp/log-xml.h>
 
 #include <kdb/manager.h>
 #include <kdb/database.h>
@@ -80,11 +81,28 @@
 #include <string.h>
 #include <ctype.h>
 #include <assert.h>
+#include <math.h>
 
 #include "vdb-validate.vers.h"
 
+#ifndef MIN
+#define MIN(a,b)    (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef MAX
+#define MAX(a,b)    (((a) > (b)) ? (a) : (b))
+#endif
+
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
+
+#define SDC_ROW_CHUNK_MAX 8ull*1024ull*1024ull
+
+#if 0
+#define DBG_MSG(args) KOutMsg args
+#else
+#define DBG_MSG(args)
+#endif
 
 static bool exhaustive;
 static bool md5_required;
@@ -704,6 +722,7 @@ static rc_t get_schema_info(KMetadata const *meta, char buffer[], size_t bsz,
                 }
             }
         }
+        KMDataNodeRelease(node);
     }
     return rc;
 }
@@ -726,7 +745,12 @@ static rc_t get_db_schema_info(VDatabase const *db, char buffer[], size_t bsz,
     rc_t rc = VDatabaseOpenMetadataRead(db, &meta);
 
     *(*vers = &buffer[0]) = '\0';
-    if (rc == 0) rc = get_schema_info(meta, buffer, bsz, vers);
+    if (rc == 0)
+    {
+        rc = get_schema_info(meta, buffer, bsz, vers);
+        KMetadataRelease(meta);
+    }
+
     return rc;
 }
 
@@ -749,6 +773,22 @@ struct vdb_validate_params
     bool index_chk;
     bool consist_check;
     bool exhaustive;
+
+    // secondary data checks parameters
+    bool sdc_enabled;
+    bool sdc_rows_in_percent;
+    union
+    {
+        double percent;
+        uint64_t number;
+    } sdc_rows;
+
+    bool sdc_pa_len_thold_in_percent;
+    union
+    {
+        double percent;
+        uint64_t number;
+    } sdc_pa_len_thold;
 };
 
 static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
@@ -1528,9 +1568,451 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
     return rc;
 }
 
+/* referential integrity and data checks for secondary alignment table */
+static rc_t ridc_align_sec(const vdb_validate_params *pb,
+                          char const dbname[],
+                          VTable const *seq,
+                          VTable const *pri,
+                          VTable const *sec)
+{
+    rc_t rc = 0, rc2;
+    VCursor const *seq_cursor = NULL;
+    VCursor const *pri_cursor = NULL;
+    VCursor const *sec_cursor = NULL;
+    VCursor const *sec_cursor2 = NULL;
+
+    uint32_t seq_read_len_idx;
+    uint32_t seq_pa_id_idx;
+    uint32_t pri_has_ref_offset_idx;
+    uint32_t sec_has_ref_offset_idx;
+    uint32_t sec_seq_spot_id_idx;
+    uint32_t sec_seq_read_id_idx;
+    uint32_t sec_tmp_mismatch_idx;
+    bool has_tmp_mismatch;
+
+    int64_t sec_id_first;
+    uint64_t sec_row_count;
+
+    size_t chunk_size;
+    id_pair_t *pri_id_pairs = NULL;
+    id_pair_t * pri_len_pairs = NULL;
+    id_pair_t *seq_spot_id_pairs = NULL;
+    id_pair_t *seq_spot_read_id_pairs = NULL;
+    uint32_t *seq_read_lens = NULL;
+
+    // SEQUENCE cursor
+    if (rc == 0)
+    {
+        rc2 = VTableCreateCursorRead(seq, &seq_cursor);
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(seq_cursor, &seq_read_len_idx, "%s", "READ_LEN");
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(seq_cursor, &seq_pa_id_idx, "%s", "PRIMARY_ALIGNMENT_ID");
+        if (rc2 == 0)
+            rc2 = VCursorOpen(seq_cursor);
+        if (rc2 != 0)
+        {
+            rc = rc2;
+            (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                        "alignment table SEQUENCE can not be read", "name=%s", dbname));
+        }
+    }
+
+    // PRIMARY_ALIGNMENT cursor
+    if (rc == 0)
+    {
+        if (rc2 == 0)
+            rc2 = VTableCreateCursorRead(pri, &pri_cursor);
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(pri_cursor, &pri_has_ref_offset_idx, "%s", "(bool)HAS_REF_OFFSET");
+        if (rc2 == 0)
+            rc2 = VCursorOpen(pri_cursor);
+        if (rc2 != 0)
+        {
+            rc = rc2;
+            (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                        "alignment table PRIMARY_ALIGNMENT can not be read", "name=%s", dbname));
+        }
+    }
+
+    // SECONDARY_ALIGNMENT cursor
+    if (rc == 0)
+    {
+        if (rc2 == 0)
+            rc2 = VTableCreateCursorRead(sec, &sec_cursor);
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(sec_cursor, &sec_has_ref_offset_idx, "%s", "(bool)HAS_REF_OFFSET");
+        if (rc2 == 0)
+        {
+            rc2 = VCursorAddColumn(sec_cursor, &sec_tmp_mismatch_idx, "%s", "TMP_MISMATCH");
+            if (rc2 == 0)
+                has_tmp_mismatch = true;
+            else
+            {
+                has_tmp_mismatch = false;
+                rc2 = 0;
+            }
+        }
+        if (rc2 == 0)
+            rc2 = VCursorOpen(sec_cursor);
+        if (rc2 != 0)
+        {
+            rc = rc2;
+            (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                        "alignment table SECONDARY_ALIGNMENT can not be read", "name=%s", dbname));
+        }
+    }
+    if (rc == 0)
+    {
+        if (rc2 == 0)
+            rc2 = VTableCreateCursorRead(sec, &sec_cursor2);
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(sec_cursor2, &sec_seq_spot_id_idx, "%s", "SEQ_SPOT_ID");
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(sec_cursor2, &sec_seq_read_id_idx, "%s", "SEQ_READ_ID");
+        if (rc2 == 0)
+            rc2 = VCursorOpen(sec_cursor2);
+        if (rc2 != 0)
+        {
+            rc = rc2;
+            (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                        "alignment table SECONDARY_ALIGNMENT can not be read", "name=%s", dbname));
+        }
+    }
+
+    if (rc == 0)
+        rc = VCursorIdRange(sec_cursor, sec_has_ref_offset_idx, &sec_id_first, &sec_row_count);
+    if (rc != 0)
+        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+            "alignment table can not be read", "name=%s", dbname));
+
+    if (rc == 0)
+    {
+        chunk_size = sec_row_count > SDC_ROW_CHUNK_MAX ? SDC_ROW_CHUNK_MAX : sec_row_count;
+
+        pri_id_pairs = malloc(sizeof(*pri_id_pairs) * chunk_size);
+        pri_len_pairs = malloc(sizeof(*pri_len_pairs) * chunk_size);
+        seq_spot_id_pairs = malloc(sizeof(*seq_spot_id_pairs) * chunk_size);
+        seq_spot_read_id_pairs = malloc(sizeof(*seq_spot_read_id_pairs) * chunk_size);
+        seq_read_lens = malloc(sizeof(*seq_read_lens) * chunk_size);
+
+        if (seq_spot_id_pairs == NULL)
+        {
+            rc = RC(rcExe, rcDatabase, rcValidating, rcMemory, rcExhausted);
+        }
+    }
+
+    if (rc == 0)
+    {
+        bool reported_about_no_pa = false;
+        uint64_t pa_longer_sa_rows = 0;
+        uint64_t pa_longer_sa_limit;
+        uint64_t sec_row_lmit;
+
+        int64_t sec_row_id_start = sec_id_first;
+        int64_t sec_row_id_end;
+
+        int64_t chunk;
+
+        // set limits from params
+        if (pb->sdc_pa_len_thold_in_percent)
+            pa_longer_sa_limit = ceil( pb->sdc_pa_len_thold.percent * sec_row_count );
+        else if (pb->sdc_pa_len_thold.number == 0 || pb->sdc_pa_len_thold.number > sec_row_count)
+            pa_longer_sa_limit = sec_row_count;
+        else
+            pa_longer_sa_limit = pb->sdc_pa_len_thold.number;
+
+        if (pb->sdc_rows_in_percent)
+            sec_row_lmit = ceil( pb->sdc_rows.percent * sec_row_count );
+        else if (pb->sdc_rows.number == 0 || pb->sdc_rows.number > sec_row_count)
+            sec_row_lmit = sec_row_count;
+        else
+            sec_row_lmit = pb->sdc_rows.number;
+
+        sec_row_id_end = sec_id_first + MIN(sec_row_count, sec_row_lmit);
+
+        for ( chunk = sec_row_id_start; chunk < sec_row_id_end; chunk += chunk_size )
+        {
+            int64_t i;
+            int64_t i_count = MIN(chunk_size, sec_row_id_end - chunk);
+            const void * data_ptr = NULL;
+            uint32_t data_len;
+            int64_t last_seq_spot_id = INT64_MIN;
+            int64_t last_pri_row_id = INT64_MIN;
+            bool ordered = true;
+
+            // Load chunk of SEQ_SPOT_ID and sort ids for faster data retrieval
+            for ( i = 0; i < i_count; ++i )
+            {
+                int64_t seq_spot_id;
+                int64_t sec_row_id = i + chunk;
+
+                // SECONDARY_ALIGNMENT:SEQ_SPOT_ID
+                rc = VCursorCellDataDirect ( sec_cursor2, sec_row_id, sec_seq_spot_id_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
+                if ( rc != 0 || data_ptr == NULL || data_len != 1 )
+                {
+                    if (rc == 0)
+                        rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                            "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, SEQ_SPOT_ID column, row_id: $(ROW_ID)",
+                                            "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                    break;
+                }
+
+                seq_spot_id = *(const int64_t *)data_ptr;
+                DBG_MSG(("SECONDARY_ALIGNMENT:%ld SEQ_SPOT_ID column = %ld\n", sec_row_id, seq_spot_id));
+                if (seq_spot_id == 0)
+                {
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "SECONDARY_ALIGNMENT:$(ROW_ID) has SEQ_SPOT_ID = 0", "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                    break;
+                }
+
+                ordered &= last_seq_spot_id <= seq_spot_id;
+                last_seq_spot_id = seq_spot_id;
+
+                seq_spot_id_pairs[i].first = seq_spot_id;
+                seq_spot_id_pairs[i].second = sec_row_id;
+
+                // SECONDARY_ALIGNMENT:SEQ_READ_ID
+                rc = VCursorCellDataDirect ( sec_cursor2, sec_row_id, sec_seq_read_id_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
+                if ( rc != 0 || data_ptr == NULL || data_len != 1 )
+                {
+                    if (rc == 0)
+                        rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, SEQ_READ_ID column, row_id: $(ROW_ID)",
+                                "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                    break;
+                }
+                DBG_MSG(("SECONDARY_ALIGNMENT:%ld SEQ_READ_ID column = %d\n", sec_row_id, *(const int32_t *)data_ptr));
+
+                // one-based read index
+                seq_spot_read_id_pairs[i].first = seq_spot_id;
+                seq_spot_read_id_pairs[i].second = *(const int32_t *)data_ptr;
+            }
+            if (rc != 0)
+                break;
+
+            if (!ordered)
+            {
+                sort_key_pairs(i_count, seq_spot_id_pairs);
+            }
+
+            // Load chunk of PRIMARY_ALIGNMENT_ID (and some other fields) and sort ids for faster data retrieval
+            ordered = true;
+            for ( i = 0; i < i_count; ++i )
+            {
+                int64_t pri_row_id;
+                int64_t sec_row_id = seq_spot_id_pairs[i].second;
+                int64_t seq_spot_id = seq_spot_id_pairs[i].first;
+                int32_t seq_read_id = seq_spot_read_id_pairs[sec_row_id - chunk].second;
+
+                // SEQUENCE:PRIMARY_ALIGNMENT_ID
+                rc = VCursorCellDataDirect ( seq_cursor, seq_spot_id, seq_pa_id_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
+                if ( rc != 0 || data_ptr == NULL )
+                {
+                    if (rc == 0)
+                        rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                            "VCursorCellDataDirect() failed on SEQUENCE table, PRIMARY_ALIGNMENT_ID column, spot_id: $(SPOT_ID)",
+                                            "name=%s,SPOT_ID=%ld", dbname, seq_spot_id));
+                    break;
+                }
+
+                if ( seq_read_id < 1 || (uint32_t)seq_read_id > data_len )
+                {
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "SECONDARY_ALIGNMENT:$(SEC_ROW_ID) SEQ_READ_ID value ($(SEQ_READ_ID)) - 1 based, is out of SEQUENCE:$(SEQ_SPOT_ID) PRIMARY_ALIGNMENT range ($(PRIMARY_ALIGNMENT_LEN))",
+                                "name=%s,SEC_ROW_ID=%ld,SEQ_READ_ID=%d,SEQ_SPOT_ID=%ld,PRIMARY_ALIGNMENT_LEN=%u", dbname, sec_row_id, seq_read_id, seq_spot_id, data_len));
+                    break;
+                }
+
+                pri_row_id = ((const int64_t *)data_ptr)[seq_read_id - 1];
+                DBG_MSG(("SEQUENCE:%ld PRIMARY_ALIGNMENT_ID column = %ld\n", seq_spot_id, pri_row_id));
+                if (pri_row_id == 0)
+                {
+                    if (!reported_about_no_pa)
+                    {
+                        PLOGMSG (klogWarn, (klogWarn, "Database '$(name)' has secondary alignments without primary", "name=%s", dbname));
+                        reported_about_no_pa = true;
+                    }
+                }
+
+                ordered &= last_pri_row_id <= pri_row_id;
+                last_pri_row_id = pri_row_id;
+
+                pri_id_pairs[i].first = pri_row_id;
+                pri_id_pairs[i].second = sec_row_id;
+
+                // SEQUENCE:READ_LEN
+                rc = VCursorCellDataDirect ( seq_cursor, seq_spot_id, seq_read_len_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
+                if ( rc != 0 || data_ptr == NULL )
+                {
+                    if (rc == 0)
+                        rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "VCursorCellDataDirect() failed on SEQUENCE table, READ_LEN column, row_id: $(ROW_ID)",
+                                "name=%s,ROW_ID=%ld", dbname, seq_spot_id));
+                    break;
+                }
+
+                if ( seq_read_id < 1 || (uint32_t)seq_read_id > data_len )
+                {
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "SECONDARY_ALIGNMENT:$(SEC_ROW_ID) SEQ_READ_ID value ($(SEQ_READ_ID)) - 1 based, is out of SEQUENCE:$(SEQ_SPOT_ID) READ_LEN range ($(SEQ_READ_LEN_LEN))",
+                                "name=%s,SEC_ROW_ID=%ld,SEQ_READ_ID=%d,SEQ_SPOT_ID=%ld,SEQ_READ_LEN_LEN=%u", dbname, sec_row_id, seq_read_id, seq_spot_id, data_len));
+                    break;
+                }
+
+                seq_read_lens[sec_row_id - chunk] = ((const uint32_t *)data_ptr)[seq_read_id - 1];
+                DBG_MSG(("SEQUENCE:%ld READ_LEN column = %u\n", seq_spot_id, seq_read_lens[sec_row_id - chunk]));
+            }
+
+            if (rc != 0)
+                break;
+
+            if (!ordered)
+            {
+                sort_key_pairs(i_count, pri_id_pairs);
+            }
+
+            for ( i = 0; i < i_count; ++i )
+            {
+                uint32_t pri_len;
+                int sec_i_orig = pri_id_pairs[i].second - chunk;
+                pri_len_pairs[sec_i_orig].first = pri_id_pairs[i].first;
+                if (pri_id_pairs[i].first == 0)
+                {
+                    pri_len_pairs[sec_i_orig].second = -1;
+                    continue;
+                }
+
+                // PRIMARY_ALIGNMENT:HAS_REF_OFFSET
+                rc = VCursorCellDataDirect ( pri_cursor, pri_len_pairs[sec_i_orig].first, pri_has_ref_offset_idx, NULL, &data_ptr, NULL, &pri_len );
+                if ( rc != 0 )
+                {
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                            "VCursorCellDataDirect() failed on PRIMARY_ALIGNMENT table, HAS_REF_OFFSET column, row_id: $(ROW_ID)",
+                                            "name=%s,ROW_ID=%ld", dbname, pri_len_pairs[sec_i_orig].first));
+                    break;
+                }
+                pri_len_pairs[sec_i_orig].second = pri_len;
+                DBG_MSG(("PRIMARY_ALIGNMENT:%ld HAS_REF_OFFSET column len = %u\n", pri_len_pairs[sec_i_orig].first, pri_len_pairs[sec_i_orig].second));
+            }
+            if (rc != 0)
+                break;
+
+            // Iterate over SECONDARY_ALIGNMENT chunk, having data from other table chunks already loaded
+            for ( i = 0; i < i_count; ++i )
+            {
+                int64_t pri_row_id = pri_len_pairs[i].first;
+                int64_t sec_row_id = i + chunk;
+
+                int64_t seq_spot_id = seq_spot_read_id_pairs[i].first;
+                int32_t seq_read_id = seq_spot_read_id_pairs[i].second;
+
+                uint32_t seq_read_len = seq_read_lens[i];
+
+                uint32_t pri_row_len = pri_len_pairs[i].second;
+                uint32_t sec_row_len;
+
+                // SECONDARY_ALIGNMENT:HAS_REF_OFFSET
+                rc = VCursorCellDataDirect ( sec_cursor, sec_row_id, sec_has_ref_offset_idx, NULL, (const void**)&data_ptr, NULL, &sec_row_len );
+                if ( rc != 0 )
+                {
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                            "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, HAS_REF_OFFSET column, row_id: $(ROW_ID)",
+                                            "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                    break;
+                }
+                DBG_MSG(("SECONDARY_ALIGNMENT:%ld HAS_REF_OFFSET column len = %u\n", sec_row_id, sec_row_len));
+
+                if ( has_tmp_mismatch )
+                {
+                    const char * p_sa_tmp_mismatch;
+                    // SECONDARY_ALIGNMENT:TMP_MISMATCH
+                    rc = VCursorCellDataDirect ( sec_cursor, sec_row_id, sec_tmp_mismatch_idx, NULL, (const void**)&p_sa_tmp_mismatch, NULL, &data_len );
+                    if ( rc != 0 || p_sa_tmp_mismatch == NULL )
+                    {
+                        if (rc == 0)
+                            rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                                "VCursorCellDataDirect() failed on SECONDARY_ALIGNMENT table, TMP_MISMATCH column, row_id: $(ROW_ID)",
+                                                "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                        break;
+                    }
+
+                    if (string_chr(p_sa_tmp_mismatch, data_len, '=') != NULL)
+                    {
+                        rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                    "SECONDARY_ALIGNMENT:$(ROW_ID) TMP_MISMATCH column contains '='",
+                                    "name=%s,ROW_ID=%ld", dbname, sec_row_id));
+                        break;
+                    }
+                }
+
+                DBG_MSG(("Performing length check SA:%ld len = %u\t PA:%ld len = %u\t SEQ:%ld len = %u\n", sec_row_id, sec_row_len, pri_row_id, pri_row_len, seq_spot_id, seq_read_len));
+                // move on when there is no primary or PRIMARY_ALIGNMENT.len equal to SECONDARY_ALIGNMENT.len
+                if (pri_row_id == 0 || pri_row_len == sec_row_len)
+                    continue;
+
+                if (pri_row_len < sec_row_len)
+                {
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "PRIMARY_ALIGNMENT:$(PRI_ROW_ID) HAS_REF_OFFSET length ($(PRI_LEN)) less than SECONDARY_ALIGNMENT:$(SEC_ROW_ID) HAS_REF_OFFSET length ($(SEC_LEN))",
+                                "name=%s,PRI_ROW_ID=%ld,SEC_ROW_ID=%ld,PRI_LEN=%u,SEC_LEN=%u", dbname, pri_row_id, sec_row_id, pri_row_len, sec_row_len));
+                    break;
+                }
+
+                // we already know that pri_row_len > sec_row_len
+                ++pa_longer_sa_rows;
+
+                if (pri_row_len != seq_read_len)
+                {
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "PRIMARY_ALIGNMENT:$(PRI_ROW_ID) HAS_REF_OFFSET length ($(PRI_LEN)) does not match its SEQUENCE:$(SEQ_SPOT_ID) READ_LEN[$(SEQ_READ_ID)] value ($(SEQ_READ_LEN))",
+                                "name=%s,PRI_ROW_ID=%ld,PRI_LEN=%u,SEQ_SPOT_ID=%ld,SEQ_READ_ID=%d,SEQ_READ_LEN=%u", dbname, pri_row_id, pri_row_len, seq_spot_id, seq_read_id, seq_read_len));
+                    break;
+                }
+
+                if (pa_longer_sa_rows >= pa_longer_sa_limit)
+                {
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                    (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                "Limit violation (pa_longer_sa): there are at least $(PA_LONGER_SA_ROWS) alignments where HAS_REF_OFFSET column is longer in PRIMARY_ALIGNMENT than in SECONDARY_ALIGNMENT",
+                                "name=%s,PA_LONGER_SA_ROWS=%lu", dbname, pa_longer_sa_rows));
+                    break;
+                }
+            }
+        }
+    }
+
+    free(pri_id_pairs);
+    free(pri_len_pairs);
+    free(seq_spot_id_pairs);
+    free(seq_spot_read_id_pairs);
+    free(seq_read_lens);
+
+    VCursorRelease(sec_cursor2);
+    VCursorRelease(sec_cursor);
+    VCursorRelease(pri_cursor);
+    VCursorRelease(seq_cursor);
+    return rc;
+
+}
+
 /* database referential integrity check for alignment database */
-static rc_t dbric_align(char const dbname[],
+static rc_t dbric_align(const vdb_validate_params *pb,
+                        char const dbname[],
                         VTable const *pri,
+                        VTable const *sec,
                         VTable const *seq,
                         VTable const *ref)
 {
@@ -1560,11 +2042,21 @@ static rc_t dbric_align(char const dbname[],
             rc = rc2;
         }
     }
+    if (pb->sdc_enabled && (rc == 0 || exhaustive) && (pri != NULL && sec != NULL && seq != NULL)) {
+        rc_t rc2 = ridc_align_sec(pb, dbname, seq, pri, sec);
+        if (rc2 == 0) {
+            (void)PLOGMSG(klogInfo, (klogInfo, "Database '$(dbname)': "
+                "SECONDARY_ALIGNMENT table checks ok", "dbname=%s", dbname));
+        }
+        if (rc == 0) {
+            rc = rc2;
+        }
+    }
     return rc;
 }
 
 
-static rc_t verify_database_align(VDatabase const *db,
+static rc_t verify_database_align(const vdb_validate_params *pb, VDatabase const *db,
     char const name[], node_t const nodes[], char const names[])
 {
     rc_t rc = 0;
@@ -1652,11 +2144,16 @@ static rc_t verify_database_align(VDatabase const *db,
     }
     while (ref_int_check) {
         VTable const *pri = NULL;
+        VTable const *sec = NULL;
         VTable const *seq = NULL;
         VTable const *ref = NULL;
 
         if ((tables & tbPrimaryAlignment) != 0) {
             rc = VDatabaseOpenTableRead(db, &pri, "PRIMARY_ALIGNMENT");
+            if (rc) break;
+        }
+        if ((tables & tbSecondaryAlignment) != 0) {
+            rc = VDatabaseOpenTableRead(db, &sec, "SECONDARY_ALIGNMENT");
             if (rc) break;
         }
         if ((tables & tbSequence) != 0) {
@@ -1667,10 +2164,11 @@ static rc_t verify_database_align(VDatabase const *db,
             rc = VDatabaseOpenTableRead(db, &ref, "REFERENCE");
             if (rc) break;
         }
-        rc = dbric_align(name, pri, seq, ref);
+        rc = dbric_align(pb, name, pri, sec, seq, ref);
 
         RELEASE(VTable, ref);
         RELEASE(VTable, seq);
+        RELEASE(VTable, sec);
         RELEASE(VTable, pri);
 
         break;
@@ -1679,7 +2177,7 @@ static rc_t verify_database_align(VDatabase const *db,
     return rc;
 }
 
-static rc_t verify_database(VDatabase const *db,
+static rc_t verify_database(const vdb_validate_params *pb, VDatabase const *db,
     char const name[], node_t const nodes[], char const names[])
 {
     char schemaName[1024];
@@ -1698,7 +2196,7 @@ static rc_t verify_database(VDatabase const *db,
         /* TODO: verify NCBI:WGS:db:* */
     }
     else if (strncmp(schemaName, "NCBI:align:db:", 14) == 0) {
-        rc = verify_database_align(db, name, nodes, names);
+        rc = verify_database_align(pb, db, name, nodes, names);
     }
     else if (strcmp(schemaName, "NCBI:SRA:PacBio:smrt:db") == 0) {
         /* TODO: verify NCBI:SRA:PacBio:smrt:db */
@@ -1726,7 +2224,7 @@ static rc_t verify_mgr_database(const vdb_validate_params *pb,
     rc = VDBManagerOpenDBRead(mgr, &child, NULL, "%s", name);
 
     if (rc == 0) {
-        rc = verify_database(child, name, nodes, names);
+        rc = verify_database(pb, child, name, nodes, names);
         VDatabaseRelease(child);
     }
 
@@ -2194,6 +2692,17 @@ static const char *USAGE_REF_INT[] =
 #define ALIAS_REF_INT  "I"
 #define OPTION_REF_INT "REFERENTIAL-INTEGRITY"
 
+#define OPTION_SDC_ROWS "sdc:rows"
+static const char *USAGE_SDC_ROWS[] =
+{ "Specify maximum amount of secondary alignment rows to look at before saying accession is good, default 100000.",
+  "Specifying 0 will iterate the whole table. Can be in percent (e.g. 5%)",
+  NULL };
+
+#define OPTION_SDC_PLEN_THOLD "sdc:plen_thold"
+static const char *USAGE_SDC_PLEN_THOLD[] =
+{ "Specify a threshold for amount of secondary alignment which are shorter (hard-clipped) than corresponding primaries, default 1%.", NULL };
+
+
 static const char *USAGE_DRI[] =
 { "Do not check data referential integrity for databases", NULL };
 
@@ -2212,6 +2721,10 @@ static OptDef options [] =
   , { OPTION_REF_INT , ALIAS_REF_INT , NULL, USAGE_REF_INT , 1, true , false }
   , { OPTION_CNS_CHK , ALIAS_CNS_CHK , NULL, USAGE_CNS_CHK , 1, true , false }
 
+    /* secondary alignment table data check options */
+  , { OPTION_SDC_ROWS, NULL          , NULL, USAGE_SDC_ROWS, 1, true , false }
+  , { OPTION_SDC_PLEN_THOLD, NULL    , NULL, USAGE_SDC_PLEN_THOLD, 1, true , false }
+
     /* not printed by --help */
   , { "dri"          , NULL          , NULL, USAGE_DRI     , 1, false, false }
   , { "index-only"   ,NULL           , NULL, USAGE_IND_ONLY, 1, false, false }
@@ -2221,6 +2734,7 @@ static OptDef options [] =
   , { OPTION_blob_crc, ALIAS_blob_crc, NULL, USAGE_BLOB_CRC, 1, false, false }
   , { OPTION_ref_int , ALIAS_ref_int , NULL, USAGE_REF_INT , 1, false, false }
 };
+
 /*
 #define NUM_SILENT_TRAILING_OPTIONS 5
 
@@ -2263,6 +2777,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine(ALIAS_REF_INT , OPTION_REF_INT , "yes | no", USAGE_REF_INT);
     HelpOptionLine(ALIAS_CNS_CHK , OPTION_CNS_CHK , "yes | no", USAGE_CNS_CHK);
     HelpOptionLine(ALIAS_EXHAUSTIVE, OPTION_EXHAUSTIVE, NULL, USAGE_EXHAUSTIVE);
+    HelpOptionLine(NULL          , OPTION_SDC_ROWS, "rows"    , USAGE_SDC_ROWS);
+    HelpOptionLine(NULL          , OPTION_SDC_PLEN_THOLD, "threshold", USAGE_SDC_PLEN_THOLD);
 
 /*
 #define NUM_LISTABLE_OPTIONS \
@@ -2297,6 +2813,10 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
     pb->consist_check = false;
     ref_int_check = pb -> blob_crc
         = pb -> md5_chk_explicit = md5_required = true;
+    pb -> sdc_rows_in_percent = false;
+    pb -> sdc_rows.number = 100000;
+    pb -> sdc_pa_len_thold_in_percent = true;
+    pb -> sdc_pa_len_thold.percent = 0.01;
 
   {
     rc = ArgsOptionCount(args, OPTION_CNS_CHK, &cnt);
@@ -2402,6 +2922,112 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
         }
     }
   }
+  {
+      rc = ArgsOptionCount ( args, OPTION_SDC_ROWS, &cnt );
+      if (rc)
+      {
+          LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_ROWS);
+          return rc;
+      }
+
+      if (cnt > 0)
+      {
+          uint64_t value;
+          size_t value_size;
+          rc = ArgsOptionValue ( args, OPTION_SDC_ROWS, 0, (const void **) &dummy );
+          if (rc)
+          {
+              LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_ROWS);
+              return rc;
+          }
+
+          pb->sdc_enabled = true;
+
+          value_size = string_size ( dummy );
+          if ( value_size >= 1 && dummy[value_size - 1] == '%' )
+          {
+              value = string_to_U64 ( dummy, value_size - 1, &rc );
+              if (rc)
+              {
+                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_ROWS);
+                  return rc;
+              }
+              else if (value == 0 || value > 100)
+              {
+                  rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                  LOGERR (klogInt, rc, OPTION_SDC_ROWS " has illegal percentage value (has to be 1-100%)" );
+                  return rc;
+              }
+
+              pb->sdc_rows_in_percent = true;
+              pb->sdc_rows.percent = (double)value / 100;
+          }
+          else
+          {
+              value = string_to_U64 ( dummy, value_size, &rc );
+              if (rc)
+              {
+                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_ROWS);
+                  return rc;
+              }
+              pb->sdc_rows_in_percent = false;
+              pb->sdc_rows.number = value;
+          }
+      }
+  }
+  {
+        rc = ArgsOptionCount ( args, OPTION_SDC_PLEN_THOLD, &cnt );
+        if (rc)
+        {
+            LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_PLEN_THOLD);
+            return rc;
+        }
+
+        if (cnt > 0)
+        {
+            uint64_t value;
+            size_t value_size;
+            rc = ArgsOptionValue ( args, OPTION_SDC_PLEN_THOLD, 0, (const void **) &dummy );
+            if (rc)
+            {
+                LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_PLEN_THOLD);
+                return rc;
+            }
+
+            pb->sdc_enabled = true;
+
+            value_size = string_size ( dummy );
+            if ( value_size >= 1 && dummy[value_size - 1] == '%' )
+            {
+                value = string_to_U64 ( dummy, value_size - 1, &rc );
+                if (rc)
+                {
+                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_PLEN_THOLD);
+                    return rc;
+                }
+                else if (value == 0 || value > 100)
+                {
+                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                    LOGERR (klogInt, rc, OPTION_SDC_PLEN_THOLD " has illegal percentage value (has to be 1-100%)" );
+                    return rc;
+                }
+
+                pb->sdc_pa_len_thold_in_percent = true;
+                pb->sdc_pa_len_thold.percent = (double)value / 100;
+            }
+            else
+            {
+                value = string_to_U64 ( dummy, value_size, &rc );
+                if (rc)
+                {
+                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_PLEN_THOLD);
+                    return rc;
+                }
+                pb->sdc_pa_len_thold_in_percent = false;
+                pb->sdc_pa_len_thold.number = value;
+            }
+        }
+    }
 
     if ( pb -> blob_crc || pb -> index_chk )
         pb -> md5_chk = pb -> md5_chk_explicit;
@@ -2445,24 +3071,19 @@ rc_t vdb_validate_params_init ( vdb_validate_params *pb )
     return rc;
 }
 
-rc_t CC KMain ( int argc, char *argv [] )
+static rc_t main_with_args(Args *const args)
 {
-    Args * args;
-    rc_t rc = ArgsMakeAndHandle ( & args, argc, argv, 1,
-        options, sizeof options / sizeof options [ 0 ] );
-    if ( rc != 0 )
-        LOGERR ( klogErr, rc, "Failed to parse command line" );
-    else
-    {
+    XMLLogger const *xlogger = NULL;
+    rc_t rc = XMLLogger_Make(&xlogger, NULL, args);
+
+    if (rc) {
+        LOGERR(klogErr, rc, "Failed to make XML logger");
+    }
+    else {
         uint32_t pcount;
         rc = ArgsParamCount ( args, & pcount );
         if ( rc != 0 )
             LOGERR ( klogErr, rc, "Failed to count command line parameters" );
-        else if ( argc <= 1 )
-        {
-            rc = RC ( rcExe, rcPath, rcValidating, rcParam, rcInsufficient );
-            MiniUsage ( args );
-        }
         else if ( pcount == 0 )
         {
             rc = RC ( rcExe, rcPath, rcValidating, rcParam, rcInsufficient );
@@ -2522,7 +3143,23 @@ rc_t CC KMain ( int argc, char *argv [] )
                 vdb_validate_params_whack ( & pb );
             }
         }
+        XMLLogger_Release(xlogger);
+    }
+    return rc;
+}
 
+rc_t CC KMain(int argc, char *argv[])
+{
+    Args *args = NULL;
+    rc_t rc = ArgsMakeAndHandle(&args, argc, argv, 2,
+                                options, sizeof(options)/sizeof(options[0]),
+                                XMLLogger_Args, XMLLogger_ArgsQty);
+
+    if ( rc != 0 )
+        LOGERR ( klogErr, rc, "Failed to parse command line" );
+    else
+    {
+        rc = main_with_args(args);
         ArgsWhack ( args );
     }
 

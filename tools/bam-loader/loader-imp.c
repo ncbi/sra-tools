@@ -63,6 +63,11 @@
 #include <kapp/log-xml.h>
 #include <kapp/progressbar.h>
 
+#include <kproc/queue.h>
+#include <kproc/thread.h>
+#include <kproc/timeout.h>
+#include <os-native.h>
+
 #include <sysalloc.h>
 #include <atomic32.h>
 
@@ -76,14 +81,20 @@
 #include <assert.h>
 #include <limits.h>
 #include <time.h>
-
+#include <zlib.h>
 #include "bam.h"
+#include "bam-alignment.h"
 #include "Globals.h"
 #include "sequence-writer.h"
 #include "reference-writer.h"
 #include "alignment-writer.h"
 #include "mem-bank.h"
 #include "low-match-count.h"
+
+#define THREADING_BAMREAD 1              /*** Reading BAM and SAM are moved to a separate thread ***/
+#if THREADING_BAMREAD
+#define THREADING_BAMREAD_PRIME_NAME2KEY 1 /*** Only valid when THREADING_BAMREAD==1. Will prime Name2Key on BAM/SAM thread ***/
+#endif
 
 #define NUM_ID_SPACES (256u)
 
@@ -129,6 +140,7 @@ typedef struct {
 typedef struct FragmentInfo {
     uint64_t ti;
     uint32_t readlen;
+    uint8_t  lglen;
     uint8_t  aligned;
     uint8_t  is_bad;
     uint8_t  orientation;
@@ -171,7 +183,7 @@ typedef struct context_t {
 
 static char const *Print_ctx_value_t(ctx_value_t const *const self)
 {
-    static char buffer[4096];
+    static char buffer[16384];
     rc_t rc = string_printf(buffer, sizeof(buffer), NULL, "pid: { %lu, %lu }, sid: %lu, fid: %u, alc: { %u, %u }, flg: %x", CTX_VALUE_GET_P_ID(*self, 0), CTX_VALUE_GET_P_ID(*self, 1), CTX_VALUE_GET_S_ID(*self), self->fragmentId, self->alignmentCount[0], self->alignmentCount[1], *(self->alignmentCount + sizeof(self->alignmentCount)/sizeof(self->alignmentCount[0])));
 
     if (rc)
@@ -637,7 +649,7 @@ static rc_t TmpfsDirectory(KDirectory **const rslt)
     KDirectory *dir;
     rc_t rc = KDirectoryNativeDir(&dir);
     if (rc == 0) {
-	    rc = KDirectoryOpenDirUpdate(dir, rslt, false, "%s", G.tmpfs);
+        rc = KDirectoryOpenDirUpdate(dir, rslt, false, "%s", G.tmpfs);
         KDirectoryRelease(dir);
     }
     return rc;
@@ -764,9 +776,35 @@ void COPY_READ(INSDC_dna_text D[], INSDC_dna_text const S[], unsigned const L, b
         memcpy(D, S, L);
 }
 
+static KFile *MakeDeferralFile() {
+    if (G.deferSecondary) {
+        char template[4096];
+        int fd;
+        KFile *f;
+        KDirectory *d;
+        size_t nwrit;
+
+        KDirectoryNativeDir(&d);
+        string_printf(template, sizeof(template), &nwrit, "%s/defer.XXXXXX", G.tmpfs);
+        fd = mkstemp(template);
+        KDirectoryOpenFileWrite(d, &f, true, template);
+        close(fd);
+        unlink(template);
+        return f;
+    }
+    return NULL;
+}
+
 static rc_t OpenBAM(const BAM_File **bam, VDatabase *db, const char bamFile[])
 {
-    rc_t rc = BAM_FileMakeWithHeader(bam, G.headerText, "%s", bamFile);
+    rc_t rc = 0;
+
+    if (strcmp(bamFile, "/dev/stdin") == 0) {
+        rc = BAM_FileMake(bam, MakeDeferralFile(), G.headerText, "/dev/stdin");
+    }
+    else {
+        rc = BAM_FileMake(bam, MakeDeferralFile(), G.headerText, "%s", bamFile);
+    }
     if (rc) {
         (void)PLOGERR(klogErr, (klogErr, rc, "Failed to open '$(file)'", "file=%s", bamFile));
     }
@@ -1347,6 +1385,53 @@ static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint
     return 0;
 }
 
+static context_t GlobalContext;
+
+#if THREADING_BAMREAD
+
+timeout_t bamq_tm;
+KQueue *bamq;
+static rc_t run_bamread_thread(const KThread *self, void *const file)
+{
+    rc_t rc = 0;
+
+    while (rc == 0) {
+        BAM_Alignment const *crec = NULL;
+        BAM_Alignment *rec = NULL;
+
+        rc = BAM_FileRead2(file, &crec);
+        if (rc) break;
+        rc = BAM_AlignmentCopy(crec, &rec);
+        BAM_AlignmentRelease(crec);
+        if (rc) break;
+
+#if THREADING_BAMREAD_PRIME_NAME2KEY
+        {
+            static char const dummy[] = "";
+            char const *spotGroup;
+            char const *name;
+            size_t namelen;
+
+            BAM_AlignmentGetReadName2(rec, &name, &namelen);
+            BAM_AlignmentGetReadGroupName(rec, &spotGroup);
+            rc = GetKeyID(&GlobalContext.keyToID, &rec->keyId, &rec->wasInserted, spotGroup ? spotGroup : dummy, name, namelen);
+            if (rc) break;
+        }
+#endif
+        for ( ; ; ) {
+            rc = KQueuePush(bamq, rec, &bamq_tm);
+            if (rc == 0 || (int)GetRCObject(rc) != rcTimeout)
+                break;
+        }
+    }
+    (void)PLOGERR(klogInfo, (klogInfo, rc, "bamread_thread done", NULL));
+    KQueueSeal(bamq);
+    return rc;
+}
+#endif
+
+
+
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                        Reference *ref, Sequence *seq, Alignment *align,
                        bool *had_alignments, bool *had_sequences)
@@ -1358,10 +1443,10 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     KDataBuffer cigBuf;
     rc_t rc;
     int32_t lastRefSeqId = -1;
+    bool wasRenamed = false;
     size_t rsize;
     uint64_t keyId = 0;
     uint64_t reccount = 0;
-    SequenceRecord srec;
     char spotGroup[512];
     size_t namelen;
     float progress = 0.0;
@@ -1380,8 +1465,25 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     char alignGroup[32];
     size_t alignGroupLen;
     AlignmentRecord data;
+#if THREADING_BAMREAD
+	KThread *bamread_thread=NULL;
+#endif
+    KDataBuffer seqBuffer;
+    KDataBuffer qualBuffer;
+    SequenceRecord srec;
+    SequenceRecordStorage srecStorage;
 
     memset(&data, 0, sizeof(data));
+    memset(&srec, 0, sizeof(srec));
+
+    srec.ti             = srecStorage.ti;
+    srec.readStart      = srecStorage.readStart;
+    srec.readLen        = srecStorage.readLen;
+    srec.orientation    = srecStorage.orientation;
+    srec.is_bad         = srecStorage.is_bad;
+    srec.alignmentCount = srecStorage.alignmentCount;
+    srec.aligned        = srecStorage.aligned;
+    srec.cskey          = srecStorage. cskey;
 
     rc = OpenBAM(&bam, db, bamFile);
     if (rc) return rc;
@@ -1412,7 +1514,6 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
             }
         }
     }
-    memset(&srec, 0, sizeof(srec));
 
     rc = KDataBufferMake(&cigBuf, 32, 0);
     if (rc)
@@ -1426,9 +1527,26 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     if (rc)
         return rc;
 
+    rc = KDataBufferMake(&seqBuffer, 8, 4096);
+    if (rc)
+        return rc;
+
+    rc = KDataBufferMake(&qualBuffer, 8, 4096);
+    if (rc)
+        return rc;
+
     if (rc == 0) {
         (void)PLOGMSG(klogInfo, (klogInfo, "Loading '$(file)'", "file=%s", bamFile));
     }
+
+#if THREADING_BAMREAD
+	TimeoutInit(&bamq_tm,10000);
+	rc = KQueueMake (&bamq,4096);
+	if(rc) return rc;
+	rc = KThreadMake(&bamread_thread, run_bamread_thread, (void*)bam);
+	if(rc) return rc;
+#endif
+
     while (rc == 0 && (rc = Quitting()) == 0) {
         bool aligned;
         uint32_t readlen;
@@ -1451,8 +1569,31 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         uint32_t csSeqLen = 0;
         int lpad = 0;
         int rpad = 0;
+        bool hardclipped = false;
+        bool revcmp = false;
+        char const *BX = NULL;
 
+#if THREADING_BAMREAD
+        for ( ; ; ) {
+            rc = KQueuePop(bamq, (void **)&rec, &bamq_tm);
+            if (rc == 0) break;
+            if ((int)GetRCObject(rc) == rcTimeout)
+                rc = 0;
+            else {
+                if ((int)GetRCObject(rc)==rcData && (int)GetRCState(rc)==rcDone)
+                    (void)PLOGMSG(klogInfo, (klogInfo, "KQueuePop Done", NULL));
+                else
+                    (void)PLOGERR(klogWarn, (klogWarn, rc, "KQueuePop Error", NULL));
+                KThreadWait(bamread_thread, &rc);
+                KThreadRelease(bamread_thread);
+                bamread_thread = NULL;
+                break;
+            }
+        }
+#else
         rc = BAM_FileRead2(bam, &rec);
+#endif
+
         if (rc) {
             if (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound) {
                 (void)PLOGMSG(klogInfo, (klogInfo, "EOF '$(file)'; read $(read); processed $(proc)", "file=%s,read=%lu,proc=%lu", bamFile, (unsigned long)recordsRead, (unsigned long)recordsProcessed));
@@ -1480,6 +1621,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
             }
         }
 
+        BAM_AlignmentGetLinkageGroup(rec, &BX);
 
         if (!G.noColorSpace) {
             if (BAM_AlignmentHasColorSpace(rec)) {
@@ -1538,7 +1680,7 @@ MIXED_BASE_AND_COLOR:
             }
             memcpy(cigBuf.base, tmp, opCount * sizeof(uint32_t));
             {
-                bool const hardclipped = isHardClipped(opCount, cigBuf.base);
+                hardclipped = isHardClipped(opCount, cigBuf.base);
                 if (hardclipped) {
                     if (isPrimary) {
                         if (!G.acceptHardClip) {
@@ -1609,7 +1751,7 @@ MIXED_BASE_AND_COLOR:
 
             seqDNA = buf.base;
             qual = (uint8_t *)&seqDNA[(readlen | csSeqLen) + lpad + rpad];
-            memset(seqDNA, '=', (readlen | csSeqLen) + lpad + rpad);
+            memset(seqDNA, 'N', (readlen | csSeqLen) + lpad + rpad);
             memset(qual, 0, (readlen | csSeqLen) + lpad + rpad);
 
             BAM_AlignmentGetSequence(rec, seqDNA + lpad);
@@ -1648,14 +1790,38 @@ MIXED_BASE_AND_COLOR:
             rc = 0;
         }
 
+        rc = KDataBufferResize(&seqBuffer, readlen);
+        if (rc) {
+            (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+            goto LOOP_END;
+        }
+        rc = KDataBufferResize(&qualBuffer, readlen);
+        if (rc) {
+            (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+            goto LOOP_END;
+        }
         AR_REF_ORIENT(data) = (flags & BAMFlags_SelfIsReverse) == 0 ? false : true;
+        originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;
+        aligned = originally_aligned;
+
+        rpos = -1;
+        if (aligned) {
+            BAM_AlignmentGetPosition(rec, &rpos);
+            BAM_AlignmentGetRefSeqId(rec, &refSeqId);
+            if (refSeqId != lastRefSeqId) {
+                refSeq = NULL;
+                BAM_FileGetRefSeqById(bam, refSeqId, &refSeq);
+            }
+        }
+
+        revcmp = (isColorSpace && !aligned) ? false : AR_REF_ORIENT(data);
+        (void)PLOGMSG(klogDebug, (klogDebug, "Read '$(name)' is $(or) at $(ref):$(pos)", "name=%s,or=%s,ref=%s,pos=%i", name, revcmp ? "reverse" : "forward", refSeq ? refSeq->name : "(none)", rpos));
+        COPY_READ(seqBuffer.base, seqDNA, readlen, revcmp);
+        COPY_QUAL(qualBuffer.base, qual, readlen, revcmp);
 
         AR_MAPQ(data) = GetMapQ(rec);
         if (!isPrimary && AR_MAPQ(data) < G.minMapQual)
             goto LOOP_END;
-
-        originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;
-        aligned = originally_aligned;
 
         if (aligned && align == NULL) {
             rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
@@ -1663,8 +1829,6 @@ MIXED_BASE_AND_COLOR:
             goto LOOP_END;
         }
         while (aligned) {
-            BAM_AlignmentGetPosition(rec, &rpos);
-            BAM_AlignmentGetRefSeqId(rec, &refSeqId);
             if (rpos >= 0 && refSeqId >= 0) {
                 if (refSeqId == skipRefSeqID) {
                     DISCARD_SKIP_REFERENCE;
@@ -1676,10 +1840,6 @@ MIXED_BASE_AND_COLOR:
                     break;
                 }
                 unmapRefSeqId = -1;
-                if (refSeqId == lastRefSeqId)
-                    break;
-                refSeq = NULL;
-                BAM_FileGetRefSeqById(bam, refSeqId, &refSeq);
                 if (refSeq == NULL) {
                     rc = SILENT_RC(rcApp, rcFile, rcReading, rcData, rcInconsistent);
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "File '$(file)': Spot '$(name)' refers to an unknown Reference number $(refSeqId)", "file=%s,refSeqId=%i,name=%s", bamFile, (int)refSeqId, name));
@@ -1689,7 +1849,6 @@ MIXED_BASE_AND_COLOR:
                 }
                 else {
                     bool shouldUnmap = false;
-                    bool wasRenamed = false;
 
                     if (G.refFilter && strcmp(G.refFilter, refSeq->name) != 0) {
                         (void)PLOGMSG(klogInfo, (klogInfo, "Skipping Reference '$(name)'", "name=%s", refSeq->name));
@@ -1705,9 +1864,6 @@ MIXED_BASE_AND_COLOR:
                             aligned = false;
                             unmapRefSeqId = refSeqId;
                             UNALIGNED_UNALIGNED_REF;
-                        }
-                        if (wasRenamed) {
-                            RENAMED_REFERENCE;
                         }
                         break;
                     }
@@ -1742,7 +1898,12 @@ MIXED_BASE_AND_COLOR:
             assert(!"this shouldn't happen");
             goto LOOP_END;
         }
-        rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
+#if THREADING_BAMREAD_PRIME_NAME2KEY
+		keyId = rec->keyId;
+		wasInserted = rec->wasInserted;
+#else
+		rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
+#endif
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
             goto LOOP_END;
@@ -1797,17 +1958,17 @@ MIXED_BASE_AND_COLOR:
             if (isPrimary || G.assembleWithSecondary) {
                 value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
                 value->platform = GetINSDCPlatform(bam, spotGroup);
-				value->primary_is_set = 1;
+                value->primary_is_set = 1;
             }
         }
         else if (isPrimary || G.assembleWithSecondary) {
             int o_pcr_dup = value->pcr_dup;
             int const n_pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
 
-			if(!value->primary_is_set){
-				o_pcr_dup = n_pcr_dup;
-				value->primary_is_set = 1;
-			}
+            if (!value->primary_is_set) {
+                o_pcr_dup = n_pcr_dup;
+                value->primary_is_set = 1;
+            }
 
             value->pcr_dup = o_pcr_dup & n_pcr_dup;
             if (o_pcr_dup != (o_pcr_dup & n_pcr_dup)) {
@@ -1858,19 +2019,22 @@ MIXED_BASE_AND_COLOR:
                 break;
             }
         }
-        if (isPrimary && (lpad != 0 || rpad != 0)) {
+        if (hardclipped) {
             value->hardclipped = 1;
         }
+#if 0 /** EY TO REVIEW **/
         if (!isPrimary && value->hardclipped) {
             DISCARD_HARDCLIP_SECONDARY;
             goto LOOP_END;
         }
+#endif
 
         ++recordsProcessed;
 
         data.isPrimary = isPrimary;
         if (aligned) {
             uint32_t matches = 0;
+            uint32_t misses = 0;
             uint8_t rna_orient = ' ';
 
             FixOverhangingAlignment(&cigBuf, &opCount, rpos, refSeq->length, readlen);
@@ -1880,14 +2044,16 @@ MIXED_BASE_AND_COLOR:
                                        rna_orient == '-' ? NCBI_align_ro_intron_minus :
                                                    hasCG ? NCBI_align_ro_complete_genomics :
                                                            NCBI_align_ro_intron_unknown;
-                rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches);
+                rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches, &misses);
             }
-			if (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch)) {
+            if (rc == 0 && (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch))) {
                 if (isPrimary) {
-                    RecordNoMatch(name, refSeq->name, rpos);
-                    rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
-                    if (rc)
-                        goto LOOP_END;
+                    if (misses > matches) {
+                        RecordNoMatch(name, refSeq->name, rpos);
+                        rc = LogNoMatch(name, refSeq->name, (unsigned)rpos, (unsigned)matches);
+                        if (rc)
+                            goto LOOP_END;
+                    }
                 }
                 else {
                     (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)' contains too few ($(count)) matching bases to reference '$(ref)' at $(pos); discarding secondary alignment",
@@ -1896,7 +2062,7 @@ MIXED_BASE_AND_COLOR:
                     rc = 0;
                     goto LOOP_END;
                 }
-			}
+            }
             if (rc) {
                 aligned = false;
 
@@ -1973,21 +2139,23 @@ WRITE_SEQUENCE:
                     int64_t pnext = 0;
 
                     if (!isPrimary) {
-                        if (!G.assembleWithSecondary) {
+                        if (!G.assembleWithSecondary || hardclipped) { 
                             goto WRITE_ALIGNMENT;
                         }
                         (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
                     }
                     memset(&fi, 0, sizeof(fi));
-                    fi.aligned = aligned;
+
+                    fi.aligned = isPrimary ? aligned:0;
                     fi.ti = ti;
                     fi.orientation = AR_REF_ORIENT(data);
                     fi.otherReadNo = AR_READNO(data);
-                    fi.sglen   = strlen(spotGroup);
+                    fi.sglen = strlen(spotGroup);
+                    fi.lglen = BX ? strlen(BX) : 0;
                     fi.readlen = readlen;
                     fi.cskey = cskey;
                     fi.is_bad = (flags & BAMFlags_IsLowQuality) != 0;
-                    sz = sizeof(fi) + 2*fi.readlen + fi.sglen;
+                    sz = sizeof(fi) + 2*fi.readlen + fi.sglen + fi.lglen;
                     if (align) {
                         BAM_AlignmentGetMateRefSeqId(rec, &mate_refSeqId);
                         BAM_AlignmentGetMatePosition(rec, &pnext);
@@ -2011,25 +2179,26 @@ WRITE_SEQUENCE:
                         goto LOOP_END;
                     }
                     {{
-                        int const revcmp = (isColorSpace && !aligned) ? 0 : fi.orientation;
                         uint8_t *dst = (uint8_t*) fragBuf.base;
                         
-                        if (revcmp) {
-                            QUAL_CHANGED_REVERSED;
-                            SEQ__CHANGED_REV_COMP;
-                        }
                         memcpy(dst,&fi,sizeof(fi));
                         dst += sizeof(fi);
-                        COPY_READ((char *)dst, seqDNA, fi.readlen, revcmp);
-                        dst += fi.readlen;
-                        COPY_QUAL(dst, qual, fi.readlen, revcmp);
+                        memcpy(dst, seqBuffer.base, readlen);
+                        dst += readlen;
+                        memcpy(dst, qualBuffer.base, readlen);
                         dst += fi.readlen;
                         memcpy(dst,spotGroup,fi.sglen);
+                        dst += fi.sglen;
+                        memcpy(dst, BX, fi.lglen);
                     }}
                     rc = MemBankWrite(ctx->frags, value->fragmentId, 0, fragBuf.base, sz, &rsize);
                     if (rc) {
                         (void)PLOGERR(klogErr, (klogErr, rc, "KMemBankWrite failed writing fragment $(id)", "id=%u", value->fragmentId));
                         goto LOOP_END;
+                    }
+                    if (revcmp) {
+                        QUAL_CHANGED_REVERSED;
+                        SEQ__CHANGED_REV_COMP;
                     }
                 }
                 else if (spotHasFragmentInfo) {
@@ -2064,67 +2233,91 @@ WRITE_SEQUENCE:
                     }
                     else {
                         /* mate found; finish spot assembly */
-                        unsigned readLen[2];
                         unsigned read1 = 0;
                         unsigned read2 = 1;
                         uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
                         
                         if (!isPrimary) {
-                            if (!G.assembleWithSecondary) {
+                            if (!G.assembleWithSecondary || hardclipped ) {
                                 goto WRITE_ALIGNMENT;
                             }
                             (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
+                        }
+                        rc = KDataBufferResize(&seqBuffer, readlen + fip->readlen);
+                        if (rc) {
+                            (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+                            goto LOOP_END;
+                        }
+                        rc = KDataBufferResize(&qualBuffer, readlen + fip->readlen);
+                        if (rc) {
+                            (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
+                            goto LOOP_END;
                         }
                         if (AR_READNO(data) < fip->otherReadNo) {
                             read1 = 1;
                             read2 = 0;
                         }
-                        readLen[read1] = fip->readlen;
-                        readLen[read2] = readlen;
-                        rc = SequenceRecordInit(&srec, 2, readLen);
-                        if (rc) {
-                            (void)PLOGERR(klogErr, (klogErr, rc, "Failed resizing sequence record buffer", ""));
-                            goto LOOP_END;
-                        }
-                        srec.ti[read1] = fip->ti;
-                        srec.aligned[read1] = fip->aligned;
-                        srec.is_bad[read1] = fip->is_bad;
-                        srec.orientation[read1] = fip->orientation;
-                        srec.cskey[read1] = fip->cskey;
-                        memcpy(srec.seq + srec.readStart[read1], src, fip->readlen);
-                        src += fip->readlen;
-                        memcpy(srec.qual + srec.readStart[read1], src, fip->readlen);
-                        src += fip->readlen;
-                        
-                        srec.orientation[read2] = AR_REF_ORIENT(data);
+
+                        memset(&srecStorage, 0, sizeof(srecStorage));
+                        srec.numreads = 2;
+                        srec.readLen[read1] = fip->readlen;
+                        srec.readLen[read2] = readlen;
+                        srec.readStart[1] = srec.readLen[0];
                         {
-                            int const revcmp = (isColorSpace && !aligned) ? 0 : srec.orientation[read2];
-                            
-                            if (revcmp) {
-                                QUAL_CHANGED_REVERSED;
-                                SEQ__CHANGED_REV_COMP;
+                            char const *const s1 = (void *)src;
+                            char const *const s2 = seqBuffer.base;
+                            char *const d = seqBuffer.base;
+                            char *const d1 = d + srec.readStart[read1];
+                            char *const d2 = d + srec.readStart[read2];
+
+                            srec.seq = seqBuffer.base;
+                            if (d2 != s2) {
+                                memcpy(d2, s2, readlen);
                             }
-                            COPY_READ(srec.seq + srec.readStart[read2], seqDNA, srec.readLen[read2], revcmp);
-                            COPY_QUAL(srec.qual + srec.readStart[read2], qual, srec.readLen[read2],  revcmp);
+                            memcpy(d1, s1, fip->readlen);
+                            src += fip->readlen;
                         }
-                        srec.keyId = keyId;
-                        srec.is_bad[read2] = (flags & BAMFlags_IsLowQuality) != 0;
-                        srec.aligned[read2] = aligned;
-                        srec.cskey[read2] = cskey;
+                        {
+                            char const *const s1 = (void *)src;
+                            char const *const s2 = qualBuffer.base;
+                            char *const d = qualBuffer.base;
+                            char *const d1 = d + srec.readStart[read1];
+                            char *const d2 = d + srec.readStart[read2];
+
+                            srec.qual = qualBuffer.base;
+                            if (d2 != s2) {
+                                memcpy(d2, s2, readlen);
+                            }
+                            memcpy(d1, s1, fip->readlen);
+                            src += fip->readlen;
+                        }
+
+                        srec.ti[read1] = fip->ti;
                         srec.ti[read2] = ti;
-                        
+
+                        srec.aligned[read1] = fip->aligned;
+                        srec.aligned[read2] = aligned;
+
+                        srec.is_bad[read1] = fip->is_bad;
+                        srec.is_bad[read2] = (flags & BAMFlags_IsLowQuality) != 0;
+
+                        srec.orientation[read1] = fip->orientation;
+                        srec.orientation[read2] = AR_REF_ORIENT(data);
+
+                        srec.cskey[read1] = fip->cskey;
+                        srec.cskey[read2] = cskey;
+
+                        srec.keyId = keyId;
+
                         srec.spotGroup = spotGroup;
                         srec.spotGroupLen = strlen(spotGroup);
-                        if (value->pcr_dup && (srec.is_bad[0] || srec.is_bad[1])) {
-                            FLAG_CHANGED_400_AND_200;
-                            filterFlagConflictRecords++;
-                            if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
-                                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
-                            }
-                            else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
-                                (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
-                            }
-                        }
+
+                        srec.linkageGroup = BX;
+                        srec.linkageGroupLen = BX ? strlen(BX) : 0;
+
+                        srec.seq = seqBuffer.base;
+                        srec.qual = qualBuffer.base;
+
                         rc = SequenceWriteRecord(seq, &srec, isColorSpace, value->pcr_dup, value->platform);
                         if (rc) {
                             (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
@@ -2143,6 +2336,20 @@ WRITE_SEQUENCE:
                             goto LOOP_END;
                         }
                         value->fragmentId = 0;
+                        if (revcmp) {
+                            QUAL_CHANGED_REVERSED;
+                            SEQ__CHANGED_REV_COMP;
+                        }
+                        if (value->pcr_dup && (srec.is_bad[0] || srec.is_bad[1])) {
+                            FLAG_CHANGED_400_AND_200;
+                            filterFlagConflictRecords++;
+                            if (filterFlagConflictRecords < MAX_WARNINGS_FLAG_CONFLICT) {
+                                (void)PLOGMSG(klogWarn, (klogWarn, "Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
+                            }
+                            else if (filterFlagConflictRecords == MAX_WARNINGS_FLAG_CONFLICT) {
+                                (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
+                            }
+                        }
                     }
                 }
                 else {
@@ -2152,40 +2359,40 @@ WRITE_SEQUENCE:
             }
             else if (CTX_VALUE_GET_S_ID(*value) == 0) {
                 /* new unmated fragment - no spot assembly */
-                unsigned readLen[1];
-
                 if (!isPrimary) {
-                    if (!G.assembleWithSecondary) {
+                    if (!G.assembleWithSecondary || hardclipped ) {
                         goto WRITE_ALIGNMENT;
                     }
                     (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
                 }
-                readLen[0] = readlen;
-                rc = SequenceRecordInit(&srec, 1, readLen);
-                if (rc) {
-                    (void)PLOGERR(klogErr, (klogErr, rc, "Failed resizing sequence record buffer", ""));
-                    goto LOOP_END;
-                }
+                memset(&srecStorage, 0, sizeof(srecStorage));
+                srec.numreads = 1;
+
+                srec.readLen[0] = readlen;
                 srec.ti[0] = ti;
-                srec.aligned[0] = aligned;
+                srec.aligned[0] = isPrimary?aligned:0;
                 srec.is_bad[0] = (flags & BAMFlags_IsLowQuality) != 0;
                 srec.orientation[0] = AR_REF_ORIENT(data);
                 srec.cskey[0] = cskey;
-                {
-                    int const revcmp = (isColorSpace && !aligned) ? 0 : srec.orientation[0];
-                    
-                    if (revcmp) {
-                        QUAL_CHANGED_REVERSED;
-                        SEQ__CHANGED_REV_COMP;
-                    }
-                    COPY_READ(srec.seq  + srec.readStart[0], seqDNA, readlen, revcmp);
-                    COPY_QUAL(srec.qual + srec.readStart[0],   qual, readlen, revcmp);
-                }
 
                 srec.keyId = keyId;
 
                 srec.spotGroup = spotGroup;
                 srec.spotGroupLen = strlen(spotGroup);
+
+                srec.linkageGroup = BX;
+                srec.linkageGroupLen = BX ? strlen(BX) : 0;
+
+                srec.seq = seqBuffer.base;
+                srec.qual = qualBuffer.base;
+
+                rc = SequenceWriteRecord(seq, &srec, isColorSpace, value->pcr_dup, value->platform);
+                if (rc) {
+                    (void)PLOGERR(klogErr, (klogErr, rc, "SequenceWriteRecord failed", ""));
+                    goto LOOP_END;
+                }
+                CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
+                value->fragmentId = 0;
                 if (value->pcr_dup && srec.is_bad[0]) {
                     FLAG_CHANGED_400_AND_200;
                     filterFlagConflictRecords++;
@@ -2196,13 +2403,10 @@ WRITE_SEQUENCE:
                         (void)PLOGMSG(klogWarn, (klogWarn, "Last reported warning: Spot '$(name)': both 0x400 and 0x200 flag bits set, only 0x400 will be saved", "name=%s", name));
                     }
                 }
-                rc = SequenceWriteRecord(seq, &srec, isColorSpace, value->pcr_dup, value->platform);
-                if (rc) {
-                    (void)PLOGERR(klogErr, (klogErr, rc, "SequenceWriteRecord failed", ""));
-                    goto LOOP_END;
+                if (revcmp) {
+                    QUAL_CHANGED_REVERSED;
+                    SEQ__CHANGED_REV_COMP;
                 }
-                CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
-                value->fragmentId = 0;
             }
         }
 WRITE_ALIGNMENT:
@@ -2243,12 +2447,20 @@ WRITE_ALIGNMENT:
                 }
             }
 
+            if (wasRenamed) {
+                RENAMED_REFERENCE;
+            }
             if (value->alignmentCount[AR_READNO(data) - 1] < 254)
                 ++value->alignmentCount[AR_READNO(data) - 1];
             ++ctx->alignCount;
 
             assert(keyId >> 32 < ctx->keyToID.key2id_count);
             assert((uint32_t)keyId < ctx->keyToID.idCount[keyId >> 32]);
+
+            if (BX) {
+                AR_LINKAGE_GROUP(data).elements = strlen(BX);
+                AR_LINKAGE_GROUP(data).buffer = BX;
+            }
 
             rc = AlignmentWriteRecord(align, &data);
             if (rc == 0) {
@@ -2286,11 +2498,22 @@ WRITE_ALIGNMENT:
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
+#if THREADING_BAMREAD
+	KQueueSeal(bamq);
+	KQueueRelease(bamq); bamq=NULL;
+	if(bamread_thread) {
+		rc_t rc1;
+		KThreadWait(bamread_thread,&rc1);
+		if(rc == 0){
+			rc=rc1;
+		}
+		KThreadRelease(bamread_thread);
+	}
+#endif
     BAM_FileRelease(bam);
     MMArrayLock(ctx->id2value);
     KDataBufferWhack(&buf);
     KDataBufferWhack(&fragBuf);
-    KDataBufferWhack(&srec.storage);
     KDataBufferWhack(&cigBuf);
     KDataBufferWhack(&data.buffer);
     return rc;
@@ -2303,10 +2526,20 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
     uint64_t idCount = 0;
     rc_t rc;
     KDataBuffer fragBuf;
+    SequenceRecordStorage srecStorage;
     SequenceRecord srec;
 
     ++ctx->pass;
     memset(&srec, 0, sizeof(srec));
+
+    srec.ti             = srecStorage.ti;
+    srec.readStart      = srecStorage.readStart;
+    srec.readLen        = srecStorage.readLen;
+    srec.orientation    = srecStorage.orientation;
+    srec.is_bad         = srecStorage.is_bad;
+    srec.alignmentCount = srecStorage.alignmentCount;
+    srec.aligned        = srecStorage.aligned;
+    srec.cskey          = srecStorage. cskey;
 
     rc = KDataBufferMake(&fragBuf, 8, 0);
     if (rc) {
@@ -2324,10 +2557,8 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
             ctx_value_t *value;
             size_t rsize;
             size_t sz;
-            unsigned readLen[2];
-            unsigned read = 0;
+            char const *src;
             FragmentInfo const *fip;
-            uint8_t const *src;
 
             rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
             if (rc)
@@ -2352,36 +2583,40 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
                 break;
             }
             assert( rsize == sz );
-            fip = (FragmentInfo const *)fragBuf.base;
-            src = (uint8_t const *)&fip[1];
 
-            readLen[0] = readLen[1] = 0;
-            if (!value->unmated && (   (fip->aligned && CTX_VALUE_GET_P_ID(*value, 0) == 0)
-                                    || (value->unaligned_2)))
-            {
-                read = 1;
+            fip = fragBuf.base;
+            src = (char const *)&fip[1];
+
+            memset(&srecStorage, 0, sizeof(srecStorage));
+            if (value->unmated) {
+                srec.numreads = 1;
+                srec.readLen[0] = fip->readlen;
+                srec.ti[0] = fip->ti;
+                srec.aligned[0] = fip->aligned;
+                srec.is_bad[0] = fip->is_bad;
+                srec.orientation[0] = fip->orientation;
+                srec.cskey[0] = fip->cskey;
             }
+            else {
+                unsigned const read = ((fip->aligned && CTX_VALUE_GET_P_ID(*value, 0) == 0) || value->unaligned_2) ? 1 : 0;
 
-            readLen[read] = fip->readlen;
-            rc = SequenceRecordInit(&srec, value->unmated ? 1 : 2, readLen);
-            if (rc) {
-                (void)LOGERR(klogErr, rc, "SequenceRecordInit failed");
-                break;
+                srec.numreads = 2;
+                srec.readLen[read] = fip->readlen;
+                srec.readStart[1] = srec.readLen[0];
+                srec.ti[read] = fip->ti;
+                srec.aligned[read] = fip->aligned;
+                srec.is_bad[read] = fip->is_bad;
+                srec.orientation[read] = fip->orientation;
+                srec.cskey[0] = srec.cskey[1] = 'N';
+                srec.cskey[read] = fip->cskey;
             }
-
-            srec.ti[read] = fip->ti;
-            srec.aligned[read] = fip->aligned;
-            srec.is_bad[read] = fip->is_bad;
-            srec.orientation[read] = fip->orientation;
-            srec.cskey[read] = fip->cskey;
-            memcpy(srec.seq + srec.readStart[read], src, srec.readLen[read]);
-            src += fip->readlen;
-            memcpy(srec.qual + srec.readStart[read], src, srec.readLen[read]);
-            src += fip->readlen;
-            srec.spotGroup = (char *)src;
+            srec.seq = (char *)src;
+            srec.qual = (uint8_t *)(src + fip->readlen);
+            srec.spotGroup = (char *)(src + 2 * fip->readlen);
             srec.spotGroupLen = fip->sglen;
+            srec.linkageGroup = (char *)(src + 2 * fip->readlen * fip->sglen);
+            srec.linkageGroupLen = fip->lglen;
             srec.keyId = keyId;
-
             rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, value->pcr_dup, value->platform);
             if (rc) {
                 (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
@@ -2393,7 +2628,6 @@ static rc_t WriteSoloFragments(context_t *ctx, Sequence *seq)
     }
     MMArrayLock(ctx->id2value);
     KDataBufferWhack(&fragBuf);
-    KDataBufferWhack(&srec.storage);
     return rc;
 }
 
@@ -2429,7 +2663,7 @@ static rc_t SequenceUpdateAlignInfo(context_t *ctx, Sequence *seq)
         }
         {{
             int64_t primaryId[2];
-            int const logLevel = G.assembleWithSecondary ? klogWarn : klogErr;
+            int const logLevel = klogWarn; /*G.assembleWithSecondary ? klogWarn : klogErr;*/
 
             primaryId[0] = CTX_VALUE_GET_P_ID(*value, 0);
             primaryId[1] = CTX_VALUE_GET_P_ID(*value, 1);
@@ -2497,6 +2731,7 @@ static rc_t AlignmentUpdateSpotInfo(context_t *ctx, Alignment *align)
     return rc;
 }
 
+
 static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
                        unsigned bamFiles, char const *bamFile[],
                        unsigned seqFiles, char const *seqFile[],
@@ -2508,8 +2743,7 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     Reference ref;
     Sequence seq;
     Alignment *align;
-    static context_t Ctx;
-    static context_t *ctx = &Ctx;
+    static context_t *ctx = &GlobalContext;
     bool has_sequences = false;
     unsigned i;
 
@@ -2685,11 +2919,7 @@ rc_t run(char const progName[],
 
                         rc = VDBManagerCreateDB(mgr, &db, schema, db_type,
                                                 kcmInit + kcmMD5, "%s", G.outpath);
-                        rc2 = VSchemaRelease(schema);
-                        if (rc2)
-                            (void)LOGERR(klogWarn, rc2, "Failed to release schema");
-                        if (rc == 0)
-                            rc = rc2;
+                        VSchemaRelease(schema);
                         if (rc == 0) {
                             rc = ArchiveBAM(mgr, db, bamFiles, bamFile, seqFiles, seqFile, &has_alignments, continuing);
                             if (rc == 0)
@@ -2720,12 +2950,7 @@ rc_t run(char const progName[],
                                 LowMatchCounterFree(lmc);
                                 lmc = NULL;
                             }
-
-                            rc2 = VDatabaseRelease(db);
-                            if (rc2)
-                                (void)LOGERR(klogWarn, rc2, "Failed to close database");
-                            if (rc == 0)
-                                rc = rc2;
+                            VDatabaseRelease(db);
 
                             if (rc == 0 && G.globalMode == mode_Remap && !continuing) {
                                 VTable *tbl = NULL;

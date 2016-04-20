@@ -1,0 +1,192 @@
+info: percent="0"
+info: processed 0%
+warn: Input variation spec   : NC_000013.10:100635036:0:ACC
+warn: Adjusted variation spec: NC_000013.10:100635007:29:CCACCACCACCACCACCACCACCACCACCACC
+SRR793062
+info: percent="33"
+info: processed 33%
+SRR795251
+info: percent="66"
+info: processed 66%
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+info: Found indel box at pos=73613071, length=1
+info: reference: ...AGGAA[G]AGGAG...
+info: var_query=C
+warn: Input variation spec   : NC_000002.11:73613071:1:C
+warn: Adjusted variation spec: NC_000002.11:73613071:1:C
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+info: Found indel box at pos=117292899, length=9
+info: reference: ...GAAAG[TATTTATTT]TTTCT...
+info: var_query=GTATTTT
+warn: Input variation spec   : NC_000007.13:117292900:4:
+warn: Adjusted variation spec: NC_000007.13:117292899:9:TATTT
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+warn: Input variation spec   : NC_000002.11:73613067:3:
+warn: Adjusted variation spec: NC_000002.11:73613031:39:GGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGA
+SRR867061	0	45
+info: percent="33"
+info: processed 33%
+SRR867131	22	50
+info: percent="66"
+info: processed 66%
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+warn: Input variation spec   : NC_000002.11:73613067:3:
+warn: Adjusted variation spec: NC_000002.11:73613031:39:GGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGAGGA
+SRR867061	0,0	45,27
+info: percent="33"
+info: processed 33%
+SRR867131	22,12	50,27
+info: percent="66"
+info: processed 66%
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+warn: Input variation spec   : CM000671.1:136131022:1:T
+warn: Adjusted variation spec: CM000671.1:136131022:2:TG
+SRR1601768	0	5
+info: percent="50"
+info: processed 50%
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+info: percent="100"
+info: processed 100%
+err: ERROR: The selected reference region [N] does not contain valid bases, exiting...
+info: percent="0"
+info: processed 0%
+warn: Input variation spec   : CM000671.1:136131021:1:T
+warn: Adjusted variation spec: CM000671.1:136131020:2:CT
+SRR1596639	0	8
+info: percent="50"
+info: processed 50%
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+info: Found indel box at pos=73613030, length=4
+info: reference: ...CGAGC[TGGA]GGAGG...
+info: var_query=CATAG
+warn: Input variation spec   : NC_000002.11:73613030:3:AT
+warn: Adjusted variation spec: NC_000002.11:73613030:4:ATA
+info: Found indel box at pos=73613030, length=4
+info: reference: ...CGAGC[TGGA]GGAGG...
+info: var_query=ATATA
+warn: Input variation spec   : NC_000002.11:73613030:3:ATAT
+warn: Adjusted variation spec: NC_000002.11:73613030:4:ATATA
+info: Found indel box at pos=73613030, length=4
+info: reference: ...CGAGC[TGGA]GGAGG...
+info: var_query=ATATATA
+warn: Input variation spec   : NC_000002.11:73613030:3:ATATAT
+warn: Adjusted variation spec: NC_000002.11:73613030:4:ATATATA
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+warn: Input variation spec   : CM000664.1:234668879:14:ATATATATATATAT
+warn: Adjusted variation spec: CM000664.1:234668879:15:ATATATATATATATA
+SRR1597895	29	31
+info: percent="50"
+info: processed 50%
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+warn: Input variation spec   : CM000664.1:234668879:14:AT
+warn: Adjusted variation spec: CM000664.1:234668879:15:ATA
+warn: Input variation spec   : CM000664.1:234668879:14:ATAT
+warn: Adjusted variation spec: CM000664.1:234668879:15:ATATA
+warn: Input variation spec   : CM000664.1:234668879:14:ATATAT
+warn: Adjusted variation spec: CM000664.1:234668879:15:ATATATA
+warn: Input variation spec   : CM000664.1:234668879:14:ATATATAT
+warn: Adjusted variation spec: CM000664.1:234668879:15:ATATATATA
+warn: Input variation spec   : CM000664.1:234668879:14:ATATATATAT
+warn: Adjusted variation spec: CM000664.1:234668879:15:ATATATATATA
+warn: Input variation spec   : CM000664.1:234668879:14:ATATATATATAT
+warn: Adjusted variation spec: CM000664.1:234668879:15:ATATATATATATA
+warn: Input variation spec   : CM000664.1:234668879:14:ATATATATATATAT
+warn: Adjusted variation spec: CM000664.1:234668879:15:ATATATATATATATA
+warn: Input variation spec   : CM000664.1:234668879:14:ATATATATATATATAT
+warn: Adjusted variation spec: CM000664.1:234668879:15:ATATATATATATATATA
+warn: Total counts don't match for SRR1597895 for query # 6 and 7: total: 31 vs 29, total positive: 31 vs 29
+SRR1597895	0	0	0	0	0	0	28	8	31
+info: percent="50"
+info: processed 50%
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+info: Found indel box at pos=1064998, length=2
+info: reference: ...GAATG[CC]GTGGC...
+info: var_query=CA
+warn: Input variation spec   : NC_000001.10:1064999:1:A
+warn: Adjusted variation spec: NC_000001.10:1064998:2:CA
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+info: Found indel box at pos=137518, length=19
+info: reference: ...GTGTG[TATATATATATATATATAT]TCCAT...
+info: var_query=GTATATATATATATATATT
+warn: Input variation spec   : NC_000020.10:137534:2:
+warn: Adjusted variation spec: NC_000020.10:137518:19:TATATATATATATATAT
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+info: Found indel box at pos=123452, length=8
+info: reference: ...GATTA[GGGAAATG]TCTCA...
+info: var_query=GGGAGAAATG
+warn: Input variation spec   : CM000663.1:123452:7:GGGAGAAAT
+warn: Adjusted variation spec: CM000663.1:123452:8:GGGAGAAATG
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+info: Found indel box at pos=36662041, length=10
+info: reference: ...CAACA[ATAATTATAA]GATTC...
+info: var_query=AATAAG
+warn: Input variation spec   : CM000684.1:36662045:6:
+warn: Adjusted variation spec: CM000684.1:36662041:10:ATAA
+info: [0] Processing parameter # 0: SRR1597729, path=[], pileup path=[]
+info: [0] Processing SRR1597729.pileup...
+info: [0] found CM000684.1 row_id=2829728721, id_count=51304566
+info: [0] SRR1597729 is suspicious
+info: [0] Processing SRR1597729
+info: [0] id=SRR1597729.PA.257963012: AATAAT
+info: [0] id=SRR1597729.PA.257963013: AATAAG MATCH!
+info: [0] id=SRR1597729.PA.257963014: AATAAT
+info: [0] id=SRR1597729.PA.257963016: AATAAG MATCH!
+info: [0] id=SRR1597729.PA.257963017: AATAAT
+info: [0] id=SRR1597729.PA.257963018: AATAAG MATCH!
+SRR1597729	3	6
+info: percent="50"
+info: processed 50%
+info: percent="100"
+info: processed 100%
+info: percent="0"
+info: processed 0%
+info: Found indel box at pos=569998, length=4
+info: reference: ...GATAC[GGGA]TAATC...
+info: var_query=GGAA
+warn: Input variation spec   : NC_000001.10:570000:1:A
+warn: Adjusted variation spec: NC_000001.10:569998:4:GGAA
+info: percent="100"
+info: processed 100%
+SRR867061	0	45
+SRR867061	0	45
+SRR867131	22	50
+SRR867131	22	50

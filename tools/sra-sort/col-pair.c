@@ -478,10 +478,12 @@ ColumnWriter *TablePairMakeColumnWriter ( TablePair *self, const ctx_t *ctx,
             ERROR ( rc, "failed to add column 'dst.%s.%s' to cursor", self -> full_spec, colspec );
         else
         {
-	    VCursorSuspendTriggers ( curs );
+            VCursorSuspendTriggers ( curs );
+
             rc = VCursorOpen ( curs );
             if ( rc != 0 )
                 ERROR ( rc, "failed to open cursor on column 'dst.%s.%s'", self -> full_spec, colspec );
+            else
             {
                 SimpleColumnWriter *col;
                 size_t full_spec_size = self -> full_spec_size + string_size ( colspec ) + sizeof "dst.." - 1;

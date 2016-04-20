@@ -175,6 +175,7 @@ static char const option_defer_secondary[] = "defer-secondary";
 #define OPTION_ACCEPT_HARD_CLIP option_accept_hard_clip
 #define OPTION_ALLOW_MULTI_MAP option_allow_multi_map
 #define OPTION_ALLOW_SECONDARY option_allow_secondary
+#define OPTION_DEFER_SECONDARY option_defer_secondary
 
 #define ALIAS_INPUT  "i"
 #define ALIAS_OUTPUT "o"
@@ -417,6 +418,13 @@ char const * use_allow_secondary[] =
     NULL
 };
 
+static
+char const * use_defer_secondary[] =
+{
+    "defer processing of secondary alignments until the end of the file",
+    NULL
+};
+
 OptDef Options[] = 
 {
     /* order here is same as in param array below!!! */
@@ -451,7 +459,8 @@ OptDef Options[] =
     { OPTION_MAX_WARN_DUP_FLAG, NULL, NULL, use_max_dup_warnings, 1, true, false },
     { OPTION_ACCEPT_HARD_CLIP, NULL, NULL, use_accept_hard_clip, 1, false, false },
     { OPTION_ALLOW_MULTI_MAP, NULL, NULL, use_allow_multi_map, 1, false, false },
-    { OPTION_ALLOW_SECONDARY, NULL, NULL, use_allow_secondary, 1, false, false }
+    { OPTION_ALLOW_SECONDARY, NULL, NULL, use_allow_secondary, 1, false, false },
+    { OPTION_DEFER_SECONDARY, NULL, NULL, use_defer_secondary, 1, false, false }
 };
 
 const char* OptHelpParam[] =
@@ -488,7 +497,8 @@ const char* OptHelpParam[] =
     "count",			/* max. duplicate warning count */
     NULL,				/* allow hard clipping */
     NULL,				/* allow multimapping */
-    NULL				/* allow secondary */
+    NULL,				/* allow secondary */
+    NULL				/* defer secondary */
 };
 
 rc_t UsageSummary (char const * progname)
@@ -974,6 +984,11 @@ static rc_t main_1(int argc, char *argv[], bool const continuing, unsigned const
         if (rc)
             break;
         G.assembleWithSecondary |= (pcount > 0);
+        
+        rc = ArgsOptionCount (args, OPTION_DEFER_SECONDARY, &pcount);
+        if (rc)
+            break;
+        G.deferSecondary |= (pcount > 0);
         
         rc = ArgsOptionCount (args, OPTION_NOMATCH_LOG, &pcount);
         if (rc)

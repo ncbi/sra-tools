@@ -93,6 +93,8 @@
 
 #define MAX_NREADS 2*1024
 
+#define DEFAULT_CURSOR_CAPACITY (1024*1024*1024UL)
+
 /********** _XMLLogger_Encode : copied from kapp/log-xml.c (-lload) ***********/
 
 static
@@ -319,6 +321,7 @@ typedef struct {
 
     bool finalized;
 } Bases;
+
 static rc_t BasesInit(Bases *self, const VTable *vtbl) {
     rc_t rc = 0;
 
@@ -334,8 +337,8 @@ static rc_t BasesInit(Bases *self, const VTable *vtbl) {
 
         self->CS_NATIVE = true;
 
-        rc = VTableCreateCursorRead(vtbl, &curs);
-        DISP_RC(rc, "Cannot VTableCreateCursorRead");
+        rc = VTableCreateCachedCursorRead(vtbl, &curs, DEFAULT_CURSOR_CAPACITY);
+        DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
 
         if (rc == 0) {
             rc = VCursorPermitPostOpenAdd(curs);
@@ -389,8 +392,8 @@ static rc_t BasesInit(Bases *self, const VTable *vtbl) {
         const char *name = self->CS_NATIVE ? "CSREAD" : "READ";
         const char *datatype
             = self->CS_NATIVE ? "INSDC:x2cs:bin" : "INSDC:x2na:bin";
-        rc = VTableCreateCursorRead(vtbl, &self->curs);
-        DISP_RC(rc, "Cannot VTableCreateCursorRead");
+        rc = VTableCreateCachedCursorRead(vtbl, &self->curs, DEFAULT_CURSOR_CAPACITY);
+        DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
         if (rc == 0) {
             rc = VCursorAddColumn(self->curs,
                 &self->idx, "(%s)%s", datatype, name);
@@ -509,15 +512,6 @@ static rc_t BasesPrint(const Bases *self,
         return rc;
     }
 
-    if (self->cnt[0] + self->cnt[1] + self->cnt[2] +
-        self->cnt[3] + self->cnt[4] != base_count)
-    {
-        rc = RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
-        LOGERR(klogErr, rc,
-            "BASE_COUNT MISMATCH DURING BASES COUNT CALCULATION");
-        return rc;
-    }
-
     name = self->CS_NATIVE ? "0123." : "ACGTN";
 
     OUTMSG(("%s<%s cs_native=\"%s\" count=\"%lu\">\n",
@@ -529,6 +523,13 @@ static rc_t BasesPrint(const Bases *self,
     }
 
     OUTMSG(("%s</%s>\n", indent, tag));
+
+    if (self->cnt[0] + self->cnt[1] + self->cnt[2] +
+        self->cnt[3] + self->cnt[4] != base_count)
+    {
+        rc = RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
+        LOGERR(klogErr, rc, "stored base count did not match observed base count");
+    }
 
     return rc;
 }
@@ -2295,15 +2296,16 @@ rc_t print_results(const Ctx* ctx)
     }
 
     if (ctx->meta->found && ! ctx->pb->quick) {
-        bool mismatch = false;
+/*      bool mismatch = false; */
         SraStats* ss = (SraStats*)BSTreeFind(ctx->tr, "", srastats_cmp);
         const SraStatsMeta* m = &ctx->meta->table;
         if (ctx->total->BASE_COUNT != m->BASE_COUNT)
         { mismatch = true; }
         if (ctx->total->BIO_BASE_COUNT != m->BIO_BASE_COUNT)
         { mismatch = true; }
-        if (ctx->total->spot_count != m->spot_count ||
-            ctx->total->total_cmp_len != m->CMP_BASE_COUNT)
+        if (ctx->total->spot_count != m->spot_count)
+        { mismatch = true; }
+        if (ctx->total->total_cmp_len != m->CMP_BASE_COUNT)
         { mismatch = true; }
         if (ss != NULL) {
             const SraStatsMeta* m = &ctx->meta->table;
@@ -2402,11 +2404,12 @@ rc_t print_results(const Ctx* ctx)
             const SraStatsMeta* m = &ctx->meta->table;
             if (ctx->pb->total.BASE_COUNT != m->BASE_COUNT
                 || ctx->pb->total.BIO_BASE_COUNT != m->BIO_BASE_COUNT
-                || ctx->pb->total.spot_count != m->spot_count
-                || ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT)
+                || ctx->pb->total.spot_count != m->spot_count)
             {
                 mismatch = true;
             }
+            if (ctx->pb->total.total_cmp_len != m->CMP_BASE_COUNT)
+            {   mismatch = true; }
         }
         if (ctx->pb->total.spot_count != ctx->total->spot_count ||
             ctx->pb->total.spot_count_mates != ctx->total->spot_count_mates ||
@@ -2565,8 +2568,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
     memset(g_totalREAD_LEN, 0, sizeof g_totalREAD_LEN);
     memset(g_nonZeroLenReads, 0, sizeof g_nonZeroLenReads);
 
-    rc = VTableCreateCursorRead(vtbl, &curs);
-    DISP_RC(rc, "Cannot VTableCreateCursorRead");
+    rc = VTableCreateCachedCursorRead(vtbl, &curs, DEFAULT_CURSOR_CAPACITY);
+    DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
 
     if (rc == 0) {
         rc = VCursorPermitPostOpenAdd(curs);
@@ -3079,8 +3082,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
             average[i] = (double)g_totalREAD_LEN[i] / n_spots;
         }
 
-        rc = VTableCreateCursorRead(vtbl, &curs);
-        DISP_RC(rc, "Cannot VTableCreateCursorRead");
+        rc = VTableCreateCachedCursorRead(vtbl, &curs, DEFAULT_CURSOR_CAPACITY);
+        DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
 
         if (rc == 0) {
             const char* name = READ_LEN;

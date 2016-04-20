@@ -111,3 +111,4 @@ COPYCAT_LIB = \
 
 $(BINDIR)/copycat: $(COPYCAT_OBJ)
 	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(COPYCAT_LIB)
+	@ cp $(SRCDIR)/magic $(BINDIR)

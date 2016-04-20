@@ -295,7 +295,7 @@ int main ( int argc, char * argv [] )
     try
     {
 
-        const char *outfile = 0;
+        const char *outfile = "./db/";
         const char *schema_path = "./test-general-writer.vschema";
         int num_columns = 0;
     
@@ -322,7 +322,7 @@ int main ( int argc, char * argv [] )
         
         if ( num_columns == 0 )
         {
-            const char * columns [ 2 ] = { "column01", "column02" };
+            const char * columns [ 2 ] = { "input/column01", "input/column02" };
             ncbi :: runTest ( 2, columns, outfile, schema_path );
         }
         else

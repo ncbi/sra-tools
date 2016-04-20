@@ -1,0 +1,3 @@
+* progress-bar in merge ( if asked for )
+* check memory if no memory-limit provided
+* check for space on scratch or current-directory

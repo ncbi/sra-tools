@@ -25,11 +25,21 @@
 */
 
 #include "vdb-dump-print.h"
+#include "vdb-dump-helper.h"
 
 #include <klib/rc.h>
 #include <klib/printf.h>
 #include <klib/out.h>
 #include <klib/pack.h>
+#include <klib/num-gen.h>
+
+#include <kfs/directory.h>
+
+#include <kdb/manager.h>
+
+#include <vdb/cursor.h>
+#include <vdb/table.h>
+#include <vdb/database.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -65,7 +75,7 @@ static rc_t vdp_print( vdp_context * vdp_ctx, const char * fmt, ... )
         size_t available = ( vdp_ctx->buf_size - vdp_ctx->printed_so_far );
 
         va_start ( args, fmt );
-        rc = string_vprintf ( &( vdp_ctx->buf[ vdp_ctx->printed_so_far ]), available, &num_writ, fmt, args );
+        rc = string_vprintf( &( vdp_ctx->buf[ vdp_ctx->printed_so_far ]), available, &num_writ, fmt, args );
         vdp_ctx->printed_so_far += num_writ;
         va_end ( args );
     }
@@ -90,7 +100,7 @@ static rc_t vdp_print_string( vdp_context * vdp_ctx, const char * s )
             size_t num_writ;
             size_t available = ( vdp_ctx->buf_size - vdp_ctx->printed_so_far );
 
-            rc = string_printf ( &( vdp_ctx->buf[ vdp_ctx->printed_so_far ]), available, &num_writ, s );
+            rc = string_printf ( &( vdp_ctx->buf[ vdp_ctx->printed_so_far ] ), available, &num_writ, s );
             vdp_ctx->printed_so_far += num_writ;
         }
 
@@ -173,7 +183,7 @@ static uint64_t vdp_bitlength_2_mask( const size_t n_bits )
 
 static void vdp_move_to_value( void* dst, vdp_context * vdp_ctx, const uint32_t n_bits )
 {
-    char *src_ptr = ( char* )vdp_ctx->buf + BYTE_OFFSET( vdp_ctx->offset_in_bits );
+    uint8_t *src_ptr = ( uint8_t * )vdp_ctx->base + BYTE_OFFSET( vdp_ctx->offset_in_bits );
     if ( BIT_OFFSET( vdp_ctx->offset_in_bits ) == 0 )
     {
         memmove( dst, src_ptr, vdp_bitlength_2_bytes( n_bits ) );
@@ -199,7 +209,6 @@ static uint64_t vdp_move_to_uint64( vdp_context * vdp_ctx )
     vdp_ctx->offset_in_bits += n_bits;
     return value;
 }
-
 
 static rc_t vdp_boolean( vdp_context * vdp_ctx )
 {
@@ -232,11 +241,28 @@ static const char * uint_hex_fmt = "0x%lX";
 static const char * uint_dec_fmt = "%lu";
 static const char * int_dec_fmt = "%ld";
 
+
+static rc_t vdp_print_uint64( vdp_context * vdp_ctx, const char * fmt, uint64_t value )
+{
+    if ( vdp_ctx->buf == NULL )
+        return KOutMsg( fmt, value );
+    else
+        return vdp_print( vdp_ctx, fmt, value );
+}
+
+static rc_t vdp_print_int64( vdp_context * vdp_ctx, const char * fmt, int64_t value )
+{
+    if ( vdp_ctx->buf == NULL )
+        return KOutMsg( fmt, value );
+    else
+        return vdp_print( vdp_ctx, fmt, value );
+}
+
 static rc_t vdp_uint( vdp_context * vdp_ctx )
 {
     rc_t rc = 0;
     uint64_t value = vdp_move_to_uint64( vdp_ctx );
-    if ( ( vdp_ctx->opts->without_sra_types == false )/*&&( def->value_trans_fct != NULL )*/ )
+    if ( ( vdp_ctx->opts->translate_sra_types )/*&&( def->value_trans_fct != NULL )*/ )
     {
 /*
         const char *txt = def->value_trans_fct( (uint32_t)value );
@@ -245,16 +271,9 @@ static rc_t vdp_uint( vdp_context * vdp_ctx )
     }
     else
     {
-        const char * fmt;
-        if ( vdp_ctx->opts->in_hex )
-            fmt = uint_hex_fmt;
-        else
-            fmt = uint_dec_fmt;
-
-        if ( vdp_ctx->buf == NULL )
-            rc = KOutMsg( fmt, value );
-        else
-            rc = vdp_print( vdp_ctx, fmt, value );
+        rc = vdp_print_uint64( vdp_ctx,
+                               vdp_ctx->opts->in_hex ? uint_hex_fmt : uint_dec_fmt,
+                               value ) ;
     }
     return rc;
 }
@@ -264,7 +283,7 @@ static rc_t vdp_int( vdp_context * vdp_ctx )
 {
     rc_t rc = 0;
     int64_t value = (int64_t)vdp_move_to_uint64( vdp_ctx );
-    if ( ( vdp_ctx->opts->without_sra_types == false )/*&&( def->value_trans_fct != NULL )*/ )
+    if ( ( vdp_ctx->opts->translate_sra_types )/*&&( def->value_trans_fct != NULL )*/ )
     {
 /*
         const char *txt = def->value_trans_fct( (uint32_t)value );
@@ -273,8 +292,6 @@ static rc_t vdp_int( vdp_context * vdp_ctx )
     }
     else
     {
-        const char * fmt;
-
         switch ( vdp_ctx->type_desc->intrinsic_bits )
         {
             case  8 : { int8_t temp = (int8_t)value;
@@ -287,16 +304,9 @@ static rc_t vdp_int( vdp_context * vdp_ctx )
                         value = temp; }
                       break;
         }
-
-        if ( vdp_ctx->opts->in_hex )
-            fmt = uint_hex_fmt;
-        else
-            fmt = int_dec_fmt;
-
-        if ( vdp_ctx->buf == NULL )
-            rc = KOutMsg( fmt, value );
-        else
-            rc = vdp_print( vdp_ctx, fmt, value );
+        rc = vdp_print_int64( vdp_ctx,
+                              vdp_ctx->opts->in_hex ? uint_hex_fmt : int_dec_fmt,
+                              value ) ;
     }
     return rc;
 }
@@ -334,9 +344,8 @@ static rc_t vdp_float( vdp_context * vdp_ctx )
                 rc = vdp_print( vdp_ctx, float_fmt, value );
         }
         else
-        {
             rc = vdp_print_string( vdp_ctx, unknown_float_fmt );
-        }
+
         vdp_ctx->offset_in_bits += n_bits;
     }
     return rc;
@@ -348,7 +357,7 @@ static const char * txt_fmt = "%.*s";
 static rc_t vdp_txt_ascii( vdp_context * vdp_ctx )
 {
     rc_t rc;
-    char *src_ptr = (char*)vdp_ctx->buf + BYTE_OFFSET( vdp_ctx->offset_in_bits );
+    char *src_ptr = (char*)vdp_ctx->base + BYTE_OFFSET( vdp_ctx->offset_in_bits );
     if ( vdp_ctx->buf == NULL )
         rc = KOutMsg( txt_fmt, vdp_ctx->row_len, src_ptr );
     else
@@ -375,20 +384,20 @@ static rc_t vdp_hex_char( char * temp, uint32_t * idx, const uint8_t c )
 static rc_t vdp_hex_ascii( vdp_context * vdp_ctx )
 {
     rc_t rc = 0;
-    char *src_ptr = (char*)vdp_ctx->buf + BYTE_OFFSET( vdp_ctx->offset_in_bits );
+    char *src_ptr = (char*)vdp_ctx->base + BYTE_OFFSET( vdp_ctx->offset_in_bits );
     char *tmp = malloc( ( vdp_ctx->row_len + 1 ) * 4 );
     if ( tmp != NULL )
     {
-        uint32_t i, dst = 0;
+        uint32_t i, dst_idx = 0;
         for ( i = 0; i < vdp_ctx->row_len && rc == 0; ++i )
-            rc = vdp_hex_char( tmp, &dst, src_ptr[ i ] );
-        src_ptr[ dst ] = 0;
+            rc = vdp_hex_char( tmp, &dst_idx, src_ptr[ i ] );
+        tmp[ dst_idx ] = 0;
         if ( rc == 0 )
         {
             if ( vdp_ctx->buf == NULL )
-                rc = KOutMsg( txt_fmt, dst, tmp );
+                rc = KOutMsg( txt_fmt, dst_idx, tmp );
             else
-                rc = vdp_print( vdp_ctx, txt_fmt, dst, tmp );
+                rc = vdp_print( vdp_ctx, txt_fmt, dst_idx, tmp );
         }
         free( tmp );
     }
@@ -433,11 +442,92 @@ vdp_fkt vdp_dispatch[] =
     vdp_unicode
 };
 
+static rc_t vdp_print_dim( vdp_context * vdp_ctx, uint32_t dimension, uint32_t selection )
+{
+    rc_t rc = 0;
+    int i = 0;
+    bool print_comma = true;
+
+    if ( selection == 0 ) /* cell-type == boolean */
+    {
+        /* if long form "false" or "true" separate elements by comma */
+        print_comma = ( vdp_ctx->opts->c_boolean == 0 );
+    }
+
+    while ( ( i < dimension )&&( rc == 0 ) )
+    {
+        /* selection 0 ... boolean */
+        if ( print_comma && ( i > 0 ) )
+            rc = vdp_print( vdp_ctx, ", " );
+
+        if ( rc == 0 )
+            rc = vdp_dispatch[ selection ]( vdp_ctx );
+
+        i++;
+    }
+    return rc;
+}
+
+
+static char dna_chars[ 4 ] = { 'A', 'C', 'G', 'T' };
+
+/* special function to translate dim=2,bits=1 into a DNA-base */
+static rc_t vdp_print_1_base( vdp_context * vdp_ctx )
+{
+    uint64_t value;
+    vdp_move_to_value( &value, vdp_ctx, 2 ); /* move 2 bits into value */
+    value &= 3;
+    if ( vdp_ctx->buf == NULL )
+        return KOutMsg( "%c", dna_chars[ value ] );
+    else
+        return vdp_print( vdp_ctx, "%c", dna_chars[ value ] );
+}
 
 static rc_t vdp_print_elem( vdp_context * vdp_ctx )
 {
     rc_t rc = 0;
 
+    uint32_t dimension   = vdp_ctx->type_desc->intrinsic_dim;
+    uint32_t selection   = vdp_ctx->type_desc->domain - 1;
+    
+    if ( dimension == 1 )
+    {
+        /* we have only 1 dimension ---> just print this value */
+        if ( selection < 6 )
+            rc = vdp_dispatch[ selection ]( vdp_ctx );
+    }
+    else
+    {
+        /* we have more than 1 dimension ---> repeat printing value's */
+        if ( vdp_ctx->print_dna_bases )
+            rc = vdp_print_1_base( vdp_ctx );
+        else
+        {
+            /*
+            bool trans = ( ( vdp_ctx->opts->without_sra_types == false )&&
+                           ( def->dim_trans_fct ) );
+            bool paren = ( ( src->number_of_elements > 1 )||( !trans ) );                           
+            */
+            bool paren = ( vdp_ctx->row_len > 1 );
+
+            if ( paren )
+                rc = vdp_print( vdp_ctx, "[" );
+            /* rc = vds_append_str( &(def->content), bracket ? "[" : "{" ); */
+
+            if ( rc == 0 )
+            {
+                /*
+                if ( trans )
+                    rc = vdt_dump_dim_trans( src, def, dimension );
+                else
+                */
+                rc = vdp_print_dim( vdp_ctx, dimension, selection );
+            }
+
+            if ( paren && ( rc == 0 ) )
+                rc = vdp_print( vdp_ctx, "]" );
+        }
+    }
     return rc;
 }
 
@@ -471,9 +561,7 @@ rc_t vdp_print_cell_cmn( char * buf, size_t buf_size, size_t *num_written,
         vdp_ctx.offset_in_bits = 0;
 
         if ( ( type_desc->domain < vtdBool ) || ( type_desc->domain > vtdUnicode ) )
-        {
             rc = vdp_print_string( &vdp_ctx, "unknown data-type" );
-        }
         else
         {
             bool print_comma = true;
@@ -484,18 +572,14 @@ rc_t vdp_print_cell_cmn( char * buf, size_t buf_size, size_t *num_written,
                         ( type_desc->intrinsic_bits == 1 ) );
 
             if ( ( type_desc->domain == vtdBool ) && opts->c_boolean )
-            {
                 print_comma = false;
-            }
 
             while( ( vdp_ctx.elem_idx < row_len ) && ( rc == 0 ) && ( !vdp_ctx.buf_filled ) )
             {
                 uint32_t eidx = vdp_ctx.elem_idx;
 
-                if ( ( eidx > 0 )&& ( vdp_ctx.print_dna_bases == false ) && print_comma )
-                {
+                if ( ( eidx > 0 ) && ( vdp_ctx.print_dna_bases == false ) && print_comma )
                     rc = vdp_print_string( &vdp_ctx, ", " );
-                }
 
                 /* dumps the basic data-types, implementation above
                    >>> that means it appends or prints to stdout the element-string
@@ -505,9 +589,7 @@ rc_t vdp_print_cell_cmn( char * buf, size_t buf_size, size_t *num_written,
 
                 /* insurance against endless loop */
                 if ( eidx == vdp_ctx.elem_idx )
-                {
                     vdp_ctx.elem_idx++;
-                }
             }
         }
     }
@@ -541,10 +623,727 @@ rc_t vdp_print_cell( const uint32_t elem_bits, const void * base, uint32_t boff,
     if ( base == NULL || type_desc == NULL || opts == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcVisiting, rcParam, rcNull );
+        KOutMsg( "base/type_desc/otps is NULL\n" );
+    }
+    else
+        rc = vdp_print_cell_cmn( NULL, 0, NULL, elem_bits, base, boff, row_len, type_desc, opts );
+    return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+
+/* -----------------------------------------------------------------------------------------------*/
+
+typedef struct vdp_src_context
+{
+    KDirectory *dir;
+    const VDBManager *mgr;
+    VSchema *schema;
+    Vector sources;
+    bool print_info;
+    vdp_opts opts;
+} vdp_src_context;
+
+
+typedef struct vdp_database
+{
+    const String * name;
+    const VDatabase *database;
+    Vector sub_databases;
+    Vector sub_tables;
+    vdp_opts * opts;
+} vdp_database;
+
+typedef struct vdp_table
+{
+    const String * name;
+    const VTable *table;
+    const VCursor *cursor;
+    vdp_opts * opts;
+    Vector columns;
+    uint32_t max_col_name_len;
+} vdp_table;
+
+
+typedef struct vdp_column
+{
+    const String * name;
+    uint32_t id;
+    vdp_table * tab;
+    struct VTypedecl type;
+    struct VTypedesc desc;
+} vdp_column;
+
+
+typedef struct vdp_source
+{
+    const String * path;
+    int path_type;
+    vdp_table * tbl;
+    vdp_database * db;
+    vdp_opts * opts;
+} vdp_source;
+
+
+/* -----------------------------------------------------------------------------------------------*/
+
+static void CC release_column( void *item, void * data )
+{
+    vdp_column * c = ( vdp_column * )item;
+    if ( c != NULL )
+        StringWhack ( c->name );
+    free( item );
+}
+
+static rc_t vdp_add_column( vdp_table * tbl, const String * name, bool print_info )
+{
+    rc_t rc = 0;
+    vdp_column * col = malloc( sizeof * col );
+    if ( col == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        KOutMsg( "vdp_add_column( '%S' ) -> %R\n", name, rc );
     }
     else
     {
-        rc = vdp_print_cell_cmn( NULL, 0, NULL, elem_bits, base, boff, row_len, type_desc, opts );
+        rc = StringCopy( &col->name, name );
+        if ( rc != 0 )
+        {
+            free( ( void * ) col );
+            KOutMsg( "StringCopy( '%S' ) -> %R\n", name, rc );
+        }
+        else
+        {
+            col->tab = tbl;
+            if ( name->len > tbl->max_col_name_len ) tbl->max_col_name_len = name->len;
+            rc = VCursorAddColumn( tbl->cursor, &col->id, "%s", name->addr );
+            if ( rc != 0 )
+                KOutMsg( "VCursorAddColumn( '%S.%S' ) -> %R\n", tbl->name, name, rc );
+            else
+                rc = VectorAppend( &tbl->columns, NULL, col );
+
+            if ( rc != 0 )
+                release_column( col, NULL );
+            else if ( print_info )
+                KOutMsg( "column: '%S.%S' added\n", tbl->name, name );
+        }
+    }
+    return rc;
+}
+
+static rc_t vdp_get_column_type( vdp_table * tbl, vdp_column * col )
+{
+    rc_t rc = VCursorDatatype( tbl->cursor, col->id, &col->type, &col->desc );
+    if ( rc != 0 )
+        KOutMsg( "VCursorDatatype( '%S.%S' ) -> %R\n", tbl->name, col->name, rc );
+    return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+static void CC release_table( void *item, void * data )
+{
+    vdp_table * tbl = ( vdp_table * ) item;
+    if ( tbl != NULL )
+    {
+        VectorWhack( &tbl->columns, release_column, NULL );
+        StringWhack ( tbl->name );
+        VCursorRelease( tbl->cursor );
+        VTableRelease ( tbl->table );
+        free( item );
+    }
+}
+
+/* we can open a table from an accession or from a database... */
+static rc_t vdp_open_table( vdp_src_context * vctx,
+                            vdp_source * acc, vdp_database * parent_db, const String * name )
+{
+    rc_t rc = 0;
+    vdp_table * tbl = malloc( sizeof * tbl );
+    if ( tbl == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        KOutMsg( "vdp_open_table( '%S' ) -> %R\n", name, rc );
+    }
+    else
+    {
+        rc = StringCopy( &tbl->name, name );
+        if ( rc != 0 )
+        {
+            free( ( void * ) tbl );
+            KOutMsg( "StringCopy( '%S' ) -> %R\n", name, rc );
+        }
+        else
+        {
+            tbl->opts = &vctx->opts;
+            VectorInit( &tbl->columns, 0, 20 );
+            tbl->max_col_name_len = 0;
+            
+            /* open the table: either from manager or from database */
+            if ( acc != NULL )
+                rc = VDBManagerOpenTableRead( vctx->mgr, &tbl->table, vctx->schema, "%s", name->addr );
+            else
+                rc = VDatabaseOpenTableRead( parent_db->database, &tbl->table, "%s", name->addr );
+            
+            /* enumerate columns, create cursor, add columns */
+            if ( rc == 0 )
+            {
+                rc = VTableCreateCursorRead( tbl->table, &tbl->cursor );
+                if ( rc == 0 )
+                {
+                    KNamelist * column_names;
+                    rc = VTableListCol( tbl->table, &column_names );
+                    if ( rc == 0 )
+                    {
+                        uint32_t count, idx;
+                        rc = KNamelistCount( column_names, &count );
+                        for ( idx = 0; rc == 0 && idx < count; ++idx )
+                        {
+                            const char * column_name;
+                            rc = KNamelistGet( column_names, idx, &column_name );
+                            if ( rc == 0 && column_name != NULL )
+                            {
+                                String temp_str;
+                                StringInitCString( &temp_str, column_name );
+                                rc = vdp_add_column( tbl, &temp_str, vctx->print_info );
+                            }
+                        }
+                        KNamelistRelease( column_names );
+                    }
+                    rc = VCursorOpen( tbl->cursor );
+                }
+            }
+            
+            if ( rc == 0 )
+            {
+                /* update the type for each column */
+                uint32_t start = VectorStart( &tbl->columns );
+                uint32_t count = VectorLength( &tbl->columns );
+                uint32_t id = start;
+                while ( id < start + count - 1 && rc == 0 )
+                {
+                    vdp_column * column = VectorGet( &tbl->columns, id );
+                    if ( column != NULL )
+                        rc = vdp_get_column_type( tbl, column );
+                    id++;
+                }
+            }
+            
+            if ( rc == 0 )
+            {
+                /* enter the new object: either into source-struct or parent-db */
+                if ( acc != NULL )
+                    acc->tbl = tbl;
+                else
+                    rc = VectorAppend( &parent_db->sub_tables, NULL, tbl );
+            }
+
+            if ( rc != 0 )
+                release_table( tbl, NULL );
+            else if ( vctx->print_info )
+                KOutMsg( "table: '%S' opened\n", name );
+                
+        }
+    }
+    return rc;
+}
+
+static rc_t vdp_table_adjust_ranges( vdp_table * tbl, struct num_gen * ranges )
+{
+    rc_t rc = 0;
+    if ( tbl == NULL || ranges == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+    else
+    {
+        int64_t first;
+        uint64_t count;
+        rc = VCursorIdRange( tbl->cursor, 0, &first, &count );
+        if ( rc != 0 )
+            KOutMsg( "VCursorIdRange( %S ) -> %R\n", tbl->name, rc );
+        else
+        {
+            if ( num_gen_empty( ranges ) )
+            {
+                rc = num_gen_add( ranges, first, count );
+                if ( rc != 0 )
+                    KOutMsg( "tbl '%S' : num_gen_add( %d, %d ) -> %R\n", tbl->name, first, count, rc );
+            }
+            else
+            {
+                rc = num_gen_trim( ranges, first, count );
+                if ( rc != 0 )
+                    KOutMsg( "tbl '%S' : num_gen_trim( %d, %d ) -> %R\n", tbl->name, first, count, rc );
+            }
+        }
+    }
+    return rc;
+}
+
+
+static rc_t vdp_print_table_row( vdp_table * tbl, int64_t row_id )
+{
+    rc_t rc = 0;
+    uint32_t start = VectorStart( &tbl->columns );
+    uint32_t count = VectorLength( &tbl->columns );
+    uint32_t id = start;
+    
+    /* rc = KOutMsg( "row#%ld:\n", row_id ); */
+    while ( id < start + count - 1 && rc == 0 )
+    {
+        vdp_column * column = VectorGet( &tbl->columns, id );
+        if ( column != NULL )
+        {
+            uint32_t w = tbl->max_col_name_len + 1 - column->name->len;
+            rc = KOutMsg( "%S:%*s", column->name, w, " " );
+            if ( rc == 0 )
+            {
+                uint32_t elem_bits, boff, row_len;
+                const void * base;
+                rc = VCursorCellDataDirect( tbl->cursor, row_id, column->id,
+                    &elem_bits, &base, &boff, &row_len );
+                if ( rc != 0 )
+                    KOutMsg( "VCursorCellDataDirect( tbl: '%s', row: %ld, col: '%s' ) -> %R\n",
+                        tbl->name, row_id, column->name, rc );
+                else
+                {
+                    if ( rc == 0 && base != NULL )
+                    {
+                        rc = vdp_print_cell( elem_bits, base, boff, row_len, &column->desc, tbl->opts );
+                    }
+                    /*
+                    KOutMsg( "elem_bits=%d, base=%p boff=%d, row_len=%d, desc=%p, opts=%p\n",
+                        elem_bits, base, boff, row_len, &column->desc, tbl->opts );
+                    */
+                }
+            }
+            if ( rc == 0 )
+                rc = KOutMsg( "\n" );
+        }
+        id++;
+    }
+    return rc;
+}
+
+static rc_t vdp_print_table( vdp_table * tbl, struct num_gen * ranges )
+{
+    const struct num_gen_iter * iter;
+    rc_t rc = num_gen_iterator_make( ranges, &iter );
+    if ( rc != 0 )
+        KOutMsg( "num_gen_iterator_make() -> %R", rc );
+    else
+    {
+        int64_t row_id;
+        while ( num_gen_iterator_next( iter, &row_id, &rc ) && rc == 0 )
+            rc = vdp_print_table_row( tbl, row_id );
+            
+        num_gen_iterator_destroy( iter );
+    }
+    return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+static void CC release_database( void *item, void * data )
+{
+    vdp_database * db = ( vdp_database * ) item;
+    if ( db != NULL )
+    {
+        StringWhack( db->name );
+        VectorWhack( &db->sub_tables, release_table, NULL );
+        VectorWhack( &db->sub_databases, release_database, NULL ); /* !! recursion */
+        VDatabaseRelease( db->database );
+        free( item );
+    }
+}
+
+/* we can open a database from an accession or from a database... */
+static rc_t vdp_open_database( vdp_src_context * vctx,
+                               vdp_source * acc, vdp_database * parent_db, const String * name )
+{
+    rc_t rc = 0;
+    vdp_database * db = malloc( sizeof * db );
+    if ( db == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        KOutMsg( "vdp_open_database( '%S' ) -> %R\n", name, rc );
+    }
+    else
+    {
+        rc = StringCopy( &db->name, name );
+        if ( rc != 0 )
+        {
+            free( ( void * ) db );
+            KOutMsg( "string_dup_measure( '%S' ) -> %R\n", name, rc );
+        }
+        else
+        {
+            VectorInit( &db->sub_databases, 0, 5 );
+            VectorInit( &db->sub_tables, 0, 5 );
+            db->opts = &vctx->opts;
+            
+            /* open the table: either from manager or from database */
+            if ( acc != NULL )
+                rc = VDBManagerOpenDBRead( vctx->mgr, &db->database, vctx->schema, "%s", name->addr );
+            else
+                rc = VDatabaseOpenDBRead( parent_db->database, &db->database, "%s", name->addr );
+
+            /* enumerate tables, open tables */
+            if ( rc == 0 )
+            {
+                KNamelist * table_names;
+                rc_t rc1 = VDatabaseListTbl( db->database, &table_names );
+                if ( rc1 == 0 )
+                {
+                    uint32_t count, idx;
+                    rc = KNamelistCount( table_names, &count );
+                    for ( idx = 0; rc == 0 && idx < count; ++idx )
+                    {
+                        const char * table_name;
+                        rc = KNamelistGet( table_names, idx, &table_name );
+                        if ( rc == 0 && table_name != NULL )
+                        {
+                            String temp_str;
+                            StringInitCString( &temp_str, table_name );
+                            rc = vdp_open_table( vctx, NULL, db, &temp_str );
+                        }
+                    }
+                    KNamelistRelease( table_names );
+                }
+            }
+            
+            /* enumerate sub-db's, open sub-db's */
+            if ( rc == 0 )    
+            {
+                KNamelist * sub_db_names;
+                rc_t rc1 = VDatabaseListDB( db->database, &sub_db_names );
+                if ( rc1 == 0 )
+                {
+                    uint32_t count, idx;
+                    rc = KNamelistCount( sub_db_names, &count );
+                    for ( idx = 0; rc == 0 && idx < count; ++idx )
+                    {
+                        const char * sub_db_name;
+                        rc = KNamelistGet( sub_db_names, idx, &sub_db_name );
+                        if ( rc == 0 && sub_db_name != NULL )
+                        {
+                            String temp_str;
+                            StringInitCString( &temp_str, sub_db_name );
+                            rc = vdp_open_database( vctx, NULL, db, &temp_str ); /* !! recursion !! */
+                        }
+                    }
+                    KNamelistRelease( sub_db_names );
+                }
+            }
+        
+            if ( rc == 0 )
+            {
+                /* enter the new object: either into source-struct or parent-db */
+                if ( acc != NULL )
+                    acc->db = db;
+                else
+                    rc = VectorAppend( &parent_db->sub_databases, NULL, db );
+            }
+            
+            if ( rc != 0 )
+                release_database( db, NULL );
+            else if ( vctx->print_info )
+                KOutMsg( "database: '%S' opened\n", name );
+        }
+    }
+    return rc;
+}
+
+/*
+KLIB_EXTERN void* CC VectorFind ( const Vector *self, const void *key, uint32_t *idx,
+    int64_t ( CC * cmp ) ( const void *key, const void *n ) );
+*/
+static int64_t CC vdp_db_find_table( const void *key, const void * n )
+{
+    const String * to_find = key;
+    const vdp_table * tbl = n;
+    return StringCompare( to_find, tbl->name );
+}
+
+static const char * DFLT_TABLE = "SEQUENCE";
+
+static vdp_table * vdp_db_get_table( vdp_database * db, const String * path )
+{
+    vdp_table * res = NULL;
+    if ( db != NULL )
+    {
+        if ( path == NULL || path->len == 0 )
+        {
+            String tmp;
+            tmp.addr = DFLT_TABLE;
+            tmp.size = tmp.len = sizeof DFLT_TABLE;
+            res = vdp_db_get_table( db, &tmp ); /* recursion */
+            if ( res == NULL )
+                res = VectorGet( &db->sub_tables, 0 );
+        }
+        else
+        {
+            uint32_t found;
+            res = VectorFind( &db->sub_tables, path, &found, vdp_db_find_table );
+        }
+    }
+    return res;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+static void CC release_source( void *item, void * data )
+{
+    vdp_source * vsrc = ( vdp_source * )item;
+    if ( vsrc != NULL )
+    {
+        if ( vsrc->tbl != NULL ) release_table( vsrc->tbl, NULL );
+        if ( vsrc->db != NULL ) release_database( vsrc->db, NULL );
+        StringWhack ( vsrc->path );
+        free( ( void * ) item );
+    }
+}
+
+static rc_t vdp_init_source( vdp_src_context * vctx, const String * path )
+{
+    rc_t rc = 0;
+    vdp_source * vsrc = malloc( sizeof * vsrc );
+    if ( vsrc == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        KOutMsg( "vdp_init_source( '%S' ) -> %R\n", path, rc );
+    }
+    else
+    {
+        rc = StringCopy ( &vsrc->path, path );
+        if ( rc != 0 )
+        {
+            free( ( void * ) vsrc );
+            KOutMsg( "StringCopy( '%S' ) -> %R\n", path, rc );
+        }
+        else
+        {
+            vsrc->path_type = ( VDBManagerPathType ( vctx->mgr, "%s", vsrc->path->addr ) & ~ kptAlias );
+            vsrc->tbl = NULL;
+            vsrc->db = NULL;
+            vsrc->opts = &vctx->opts;
+            /* types defined in <kdb/manager.h> */
+            switch ( vsrc->path_type )
+            {
+                case kptDatabase    :   rc = vdp_open_database( vctx, vsrc, NULL, vsrc->path ); break;
+                case kptPrereleaseTbl:
+                case kptTable       :   rc = vdp_open_table( vctx, vsrc, NULL, vsrc->path ); break;
+                default : rc = RC( rcVDB, rcNoTarg, rcConstructing, rcFormat, rcUnknown ); break;
+            }
+
+            if ( rc != 0 )
+                KOutMsg( "cannot open source '%S' -> %R\n", path, rc );
+            else
+                rc = VectorAppend( &vctx->sources, NULL, vsrc );
+            
+            if ( rc == 0 && vctx->print_info )
+                KOutMsg( "source '%S' opened\n", path );
+        }
+    }
+    return rc;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+
+rc_t vdp_release_ctx( vdp_src_context * vctx )
+{
+    rc_t rc = 0;
+    if ( vctx != NULL )
+    {
+        /* release all sources */
+        VectorWhack( &vctx->sources, release_source, NULL );
+        if ( vctx->dir != NULL )
+            rc = KDirectoryRelease( vctx->dir );
+        if ( rc == 0 && vctx->mgr != NULL )
+            rc = VDBManagerRelease( vctx->mgr );
+        if ( rc == 0 && vctx->schema != NULL )
+            rc = VSchemaRelease( vctx->schema );
+    }
+    return rc;
+}
+
+rc_t vdp_init_ctx( vdp_src_context ** vctx, const Args * args )
+{
+    rc_t rc = 0;
+    if ( vctx == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        KOutMsg( "vdp_init_ctx() -> %R\n", rc );
+    
+    }
+    else
+    {
+        vdp_src_context * o = malloc( sizeof *o );
+        if ( o == NULL )
+        {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            KOutMsg( "vdp_init_ctx() -> %R\n", rc );
+        }
+        else
+        {
+            VectorInit( &o->sources, 0, 5 );
+            o->schema = NULL;
+            o->print_info = false;
+            o->opts.print_dna_bases = false;
+            o->opts.in_hex = false;
+            o->opts.translate_sra_types = false;
+            o->opts.c_boolean = '1';
+
+            rc = KDirectoryNativeDir( &o->dir );
+            if ( rc != 0 )
+            {
+                KOutMsg( "KDirectoryNativeDir() -> %R\n", rc );
+                o->dir = NULL;
+            }
+            else
+            {
+                rc = VDBManagerMakeRead ( &o->mgr, o->dir );
+                if ( rc != 0 )
+                {
+                    KOutMsg( "VDBManagerMakeRead() -> %R\n", rc );
+                    o->mgr = NULL;
+                }
+                else
+                {
+                    uint32_t count, idx;
+                    vdh_parse_schema( o->mgr, &o->schema, NULL, true /*ctx->force_sra_schema*/ );
+                    rc = ArgsParamCount( args, &count );
+                    if ( rc != 0 )
+                        KOutMsg( "ArgsParamCount() -> %R\n", rc );
+                    else for ( idx = 0; rc == 0 && idx < count; ++idx )
+                    {
+                        const char *arg = NULL;
+                        rc = ArgsParamValue( args, idx, (const void **)&arg );
+                        if ( rc != 0 )
+                            KOutMsg( "ArgsParamValue() -> %R\n", rc );
+                        else if ( arg != NULL && arg[ 0 ] != 0 )
+                        {
+                            String temp_str;
+                            StringInitCString( &temp_str, arg );
+                            rc = vdp_init_source( o, &temp_str );
+                        }
+                    }
+                }
+            }
+            if ( rc == 0 )
+                *vctx = o;
+            else
+                vdp_release_ctx( o );
+        }
+    }
+    return rc;
+}
+
+
+static vdp_table * vdp_get_table( vdp_src_context * vctx, uint32_t src_id, String * path )
+{
+    vdp_table * res = NULL;
+    if ( vctx != NULL )
+    {
+        vdp_source * src = VectorGet( &vctx->sources, src_id );
+        if ( src != NULL )
+        {
+            if ( src->tbl != NULL )
+                res = src->tbl; /* source has only this table */
+            else if ( src->db != NULL )
+                res = vdp_db_get_table( src->db, path ); /* source is a database */
+        }
+    }
+    return res;
+}
+
+/* -----------------------------------------------------------------------------------------------*/
+static rc_t vdb_print_parse_range( struct num_gen * ranges, const String * range )
+{
+    rc_t rc = num_gen_parse_S( ranges, range );
+    if ( rc != 0 )
+        KOutMsg( "num_gen_parse_S( %S ) -> %R\n", range, rc );
+    return rc;
+}
+
+static rc_t vdb_print_get_src_and_ranges( const String * S,
+                struct num_gen * ranges, uint32_t * src_id )
+{
+    rc_t rc = 0;
+    if ( S != NULL )
+    {
+        char * dot = string_chr( S->addr, S->len, '.' );
+        if ( dot == NULL )
+            rc = vdb_print_parse_range( ranges, S );
+        else
+        {
+            String Sub;
+            uint32_t dot_idx = ( dot - S->addr );
+            if ( dot_idx < S->len )
+            {
+                String * tmp = StringSubstr( S, &Sub, dot_idx + 1, S->len - dot_idx );
+                if ( tmp != NULL )
+                    rc = vdb_print_parse_range( ranges, tmp );
+            }
+            if ( rc == 0 && dot_idx > 0 )
+            {
+                String * tmp = StringSubstr( S, &Sub, 0, dot_idx );
+                if ( tmp != NULL )
+                {
+                    rc_t rc1;
+                    uint64_t v = StringToU64( tmp, &rc1 );
+                    if ( rc1 != 0 || v > 0xFFFF ) v = 0;
+                    *src_id = ( v & 0xFFFF );
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+
+static rc_t vdp_print_show_src_and_ranges( struct num_gen * ranges, uint32_t src_id )
+{
+    rc_t rc;
+    char buffer[ 1024 ];
+    buffer[ 0 ] = 0;
+    rc = num_gen_as_string( ranges, buffer, sizeof buffer, NULL, true );
+    if ( rc == 0 )
+        rc = KOutMsg( "src-id = %d, ranges = %s\n", src_id, buffer );
+    return rc;
+}
+
+
+/* called from vdb-dump-interact.c, v is a vector of String-objects */
+rc_t vdp_print_interactive( const Vector * v, vdp_src_context * vctx )
+{
+    struct num_gen * ranges;
+    uint32_t src_id = 0;    /* per default use the first ( mostly only ) source */
+    rc_t rc = num_gen_make_sorted( &ranges, true );
+    if ( rc != 0 )
+        KOutMsg( "num_gen_make_sorted() -> %R\n", rc );
+    else
+    {
+        rc = vdb_print_get_src_and_ranges( VectorGet ( v, 1 ), ranges, &src_id );
+        if ( rc == 0 )
+        {
+            vdp_table * tbl = vdp_get_table( vctx, src_id, NULL );
+            if ( tbl == NULL )
+                KOutMsg( "invalid source #%d\n", src_id );
+            else
+            {
+                rc = vdp_table_adjust_ranges( tbl, ranges );
+                
+                if ( rc == 0 )
+                    rc = KOutMsg( "tbl: %S\n", tbl->name );
+                /* if ( rc == 0 )
+                    rc = vdp_print_show_src_and_ranges( ranges, src_id ); */
+                    
+                if ( rc == 0 )
+                    rc = vdp_print_table( tbl, ranges );
+            }
+        }
+        num_gen_destroy( ranges );
     }
     return rc;
 }

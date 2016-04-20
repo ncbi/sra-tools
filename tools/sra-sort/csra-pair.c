@@ -105,7 +105,8 @@ void cSRAPairExplode ( cSRAPair *self, const ctx_t *ctx )
 {
     FUNC_ENTRY ( ctx );
 
-    TablePair *tbl;
+    DirPair * dir;
+    TablePair * tbl;
 
     TRY ( tbl = cSRAPairMakeTablePair ( self, ctx, "REFERENCE", NULL, 0, true, false, cSRATblPairMakeRef ) )
     {
@@ -115,28 +116,39 @@ void cSRAPairExplode ( cSRAPair *self, const ctx_t *ctx )
         {
             self -> prim_align = tbl;
 
-            TRY ( tbl = cSRAPairMakeTablePair ( self, ctx, "SECONDARY_ALIGNMENT", NULL, 2, false, true, cSRATblPairMakeAlign ) )
+#if SEQUENCE_BEFORE_SECONDARY
+            TRY ( tbl = cSRAPairMakeTablePair ( self, ctx, NULL, "SEQUENCE", 0, false, true, cSRATblPairMakeSeq ) )
             {
-                self -> sec_align = tbl;
+                self -> sequence = tbl;
+#endif
 
-                TRY ( tbl = cSRAPairMakeTablePair ( self, ctx, NULL, "EVIDENCE_ALIGNMENT", 3, false, false, cSRATblPairMakeAlign ) )
+                TRY ( tbl = cSRAPairMakeTablePair ( self, ctx, "SECONDARY_ALIGNMENT", NULL, 2, false, true, cSRATblPairMakeAlign ) )
                 {
-                    self -> evidence_align = tbl;
+                    self -> sec_align = tbl;
 
-                    TRY ( tbl = cSRAPairMakeTablePair ( self, ctx, NULL, "SEQUENCE", 0, false, true, cSRATblPairMakeSeq ) )
+                    TRY ( tbl = cSRAPairMakeTablePair ( self, ctx, NULL, "EVIDENCE_ALIGNMENT", 3, false, false, cSRATblPairMakeAlign ) )
                     {
-                        DirPair *dir;
+                        self -> evidence_align = tbl;
 
-                        self -> sequence = tbl;
-
-                        TRY ( dir = DbPairMakeDirPair ( & self -> dad, ctx, "extra", false, DbPairMakeStdDirPair ) )
+#if ! SEQUENCE_BEFORE_SECONDARY
+                        TRY ( tbl = cSRAPairMakeTablePair ( self, ctx, NULL, "SEQUENCE", 0, false, true, cSRATblPairMakeSeq ) )
                         {
-                            ON_FAIL ( DbPairAddDirPair ( & self -> dad, ctx, dir ) )
-                                DirPairRelease ( dir, ctx );
+                            self -> sequence = tbl;
+#endif
+
+                            TRY ( dir = DbPairMakeDirPair ( & self -> dad, ctx, "extra", false, DbPairMakeStdDirPair ) )
+                            {
+                                ON_FAIL ( DbPairAddDirPair ( & self -> dad, ctx, dir ) )
+                                    DirPairRelease ( dir, ctx );
+                            }
+#if ! SEQUENCE_BEFORE_SECONDARY
                         }
+#endif
                     }
                 }
+#if SEQUENCE_BEFORE_SECONDARY
             }
+#endif
         }
     }
 }

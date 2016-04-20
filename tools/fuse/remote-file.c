@@ -43,7 +43,7 @@ typedef struct RemoteFileNode RemoteFileNode;
 #include <stdlib.h>
 #include <time.h>
 
-rc_t RemoteFileAccessor_Make(const SAccessor** accessor, const char* name, struct RCacheEntry * rentry, uint64_t size);
+rc_t RemoteFileAccessor_Make(const SAccessor** accessor, const char* name, struct RCacheEntry * rentry, const RemoteFileNode* node);
 
 struct RemoteFileNode {
     FSNode node;
@@ -92,7 +92,7 @@ rc_t RemoteFileNode_Open(
                                                 accessor,
                                                 cself->node.name,
                                                 ke,
-                                                cself->file_sz
+                                                cself
                                                 ) ) != 0 ) {
                     ReleaseComplain(RCacheEntryRelease, ke);
                 }
@@ -235,7 +235,7 @@ rc_t RemoteFileNode_Make(const KXMLNode* xml_node, FSNode** cself, char* errmsg,
 
 typedef struct RemoteFileAccessor_struct {
     struct RCacheEntry* rentry;
-    uint64_t size;
+    struct RemoteFileNode * remote_node;
 } RemoteFileAccessor;
 
 static
@@ -244,7 +244,7 @@ rc_t RemoteFileAccessor_Read(const SAccessor* cself, char* buf, size_t size, off
     rc_t rc = 0;
     RemoteFileAccessor* self = (RemoteFileAccessor*)cself;
     size_t actual = 0;
-    uint64_t actual_file_sz = self -> size;
+    uint64_t actual_file_sz = self -> remote_node -> file_sz;
 
         /* Here we are truncating size if it is needed */
     if ( actual_file_sz < offset + size ) {
@@ -256,11 +256,19 @@ rc_t RemoteFileAccessor_Read(const SAccessor* cself, char* buf, size_t size, off
                     &buf[*num_read],
                     size - * num_read,
                     offset + * num_read,
-                    &actual
+                    &actual,
+                    &actual_file_sz
                     );
-        if( rc == 0 && actual == 0 ) {
+        if( rc != 0 ) {
+            break;
+        }
+        if( actual == 0 ) {
             /* EOF */
             break;
+        }
+
+        if ( actual_file_sz != self -> remote_node -> file_sz ) {
+            self -> remote_node -> file_sz = actual_file_sz;
         }
         *num_read += actual;
     } while(rc == 0 && *num_read < size);
@@ -285,14 +293,14 @@ RemoteFileAccessor_Make (
                     const SAccessor** accessor,
                     const char* name,
                     struct RCacheEntry * rentry,
-                    uint64_t size
+                    const RemoteFileNode* node
 )
 {
     rc_t rc = 0;
 
     if( (rc = SAccessor_Make(accessor, sizeof(RemoteFileAccessor), name, RemoteFileAccessor_Read, RemoteFileAccessor_Release)) == 0 ) {
         ((RemoteFileAccessor*)(*accessor))->rentry = rentry;
-        ((RemoteFileAccessor*)(*accessor))->size = size;
+        ((RemoteFileAccessor*)(*accessor))->remote_node = ( struct RemoteFileNode * ) node;
 
         RCacheEntryAddRef ( rentry );
     }

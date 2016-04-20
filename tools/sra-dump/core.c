@@ -1134,11 +1134,11 @@ rc_t CC KMain ( int argc, char* argv[] )
         }
         else if ( SRADumper_GetArg( &fmt, "N", "minSpotId", &i, argc, argv, &arg ) )
         {
-            minSpotId = AsciiToU32( arg, NULL, NULL );
+            minSpotId = AsciiToU64( arg, NULL, NULL );
         }
         else if ( SRADumper_GetArg( &fmt, "X", "maxSpotId", &i, argc, argv, &arg ) )
         {
-            maxSpotId = AsciiToU32( arg, NULL, NULL );
+            maxSpotId = AsciiToU64( arg, NULL, NULL );
         }
         else if ( SRADumper_GetArg( &fmt, "G", "spot-group", &i, argc, argv, NULL ) )
         {

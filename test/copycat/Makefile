@@ -56,5 +56,5 @@ copy:
 	@ echo "Starting copycat tests..."
 	@ rm -rf actual
 	@ $(BINDIR)/copycat -h >/dev/null
-	@ $(BINDIR)/copycat ./input/1.xml actual/ >/dev/null && diff ./input/1.xml actual/1.xml 
+	@ export PATH=$(BINDIR):$$PATH; vdb-config | grep bin; copycat ./input/1.xml actual/ >/dev/null && diff ./input/1.xml actual/1.xml 
 	@ rm -rf actual

@@ -180,7 +180,7 @@ rc_t CCFileFormatMake (CCFileFormat ** p)
         if ( rc == 0 )
         {
             String* bindir;
-            rc = KConfigReadString ( kfg, "APPPATH", &bindir );
+            rc = KConfigReadString ( kfg, "vdb/lib/paths/kfg", &bindir );
             KConfigRelease ( kfg );
             if ( rc == 0 )
             {

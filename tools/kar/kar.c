@@ -164,13 +164,6 @@ void kar_print ( BSTNode *node, void *data )
     }
 }
 
-/*
-  this would be a good place to test the contents of the BSTree
-  write a function to walk the BSTree and print out what was found
-BSTreeForEach ( &tree, false, kar_print, &indent );
-
-
-*/
 
 /*******************************************************************************
  * Create
@@ -600,11 +593,11 @@ rc_t kar_persist_karentry ( const KAREntry * entry, int type_code,
         + sizeof legacy_type_code
         ;
 
+    /* if just determining toc size - return */
     if ( write == NULL )
     {
         * num_writ = total_expected;
 
-        /*KOutMsg ( "[ toc_entry_size %lu ] +", *num_writ );*/
         return 0;
     }
 
@@ -658,6 +651,7 @@ rc_t kar_persist_karfile ( const KARFile * entry, size_t *num_writ, PTWriteFunc 
             + sizeof entry -> byte_size
             ;
 
+        /* if determining size of toc - return */
         if ( write == NULL )
         {
             * num_writ = total_expected;
@@ -1040,24 +1034,23 @@ rc_t kar_create ( const Params *p )
  */
 
 static
-void kar_verify_header ( const KFile *archive )
+uint64_t kar_verify_header ( const KFile *archive, KSraHeader *hdr )
 {
     rc_t rc;
     
     size_t num_read;
    
-    KSraHeader hdr;
 
     STSMSG (1, ("Verifying header\n"));
 
-    rc = KFileReadAll ( archive, 0, & hdr, sizeof hdr, &num_read );
+    rc = KFileReadAll ( archive, 0, hdr, sizeof hdr, &num_read );
     if ( rc != 0 )
     {
         LOGERR (klogErr, rc, "failed to access archive file");
         exit ( 1 );
     }
 
-    if ( num_read < sizeof hdr - sizeof hdr . u )
+    if ( num_read < sizeof hdr - sizeof hdr -> u )
     {
         rc = RC ( rcExe, rcFile, rcValidating, rcOffset, rcInvalid );
         LOGERR (klogErr, rc, "corrupt archive file - invalid header");
@@ -1065,8 +1058,8 @@ void kar_verify_header ( const KFile *archive )
     }
 
     /* verify "ncbi" and "sra" members */
-    if ( memcmp ( hdr . ncbi, "NCBI", sizeof hdr . ncbi ) != 0 ||
-         memcmp ( hdr . sra, ".sra", sizeof hdr . sra ) != 0 )
+    if ( memcmp ( hdr -> ncbi, "NCBI", sizeof hdr -> ncbi ) != 0 ||
+         memcmp ( hdr -> sra, ".sra", sizeof hdr -> sra ) != 0 )
     {
         rc = RC ( rcExe, rcFile, rcValidating, rcFormat, rcInvalid );
         LOGERR (klogErr, rc, "invalid file format");
@@ -1076,27 +1069,27 @@ void kar_verify_header ( const KFile *archive )
     /* test "byte_order".
        this is allowed to be either eSraByteOrderTag or eSraByteOrderReverse.
        anything else, is garbage */
-    if ( hdr . byte_order != eSraByteOrderTag && hdr . byte_order != eSraByteOrderReverse )
+    if ( hdr -> byte_order != eSraByteOrderTag && hdr -> byte_order != eSraByteOrderReverse )
     {
         rc = RC ( rcExe, rcFile, rcValidating, rcByteOrder, rcInvalid );
         LOGERR (klogErr, rc, "failed to access archive file - invalid byte order");
         exit ( 1 );
     }
 
-    if ( hdr . byte_order == eSraByteOrderReverse )
+    if ( hdr -> byte_order == eSraByteOrderReverse )
     {
-        hdr . version = bswap_32 ( hdr . version );
+        hdr -> version = bswap_32 ( hdr -> version );
     }
 
     /* test version */
-    if ( hdr . version == 0 )
+    if ( hdr -> version == 0 )
     {
         rc = RC ( rcExe, rcFile, rcValidating, rcInterface, rcInvalid );
         LOGERR (klogErr, rc, "invalid version");
         exit ( 1 );
     }
 
-    if ( hdr . version > 1 )
+    if ( hdr -> version > 1 )
     {
         rc = RC ( rcExe, rcFile, rcValidating, rcInterface, rcUnsupported );
         LOGERR (klogErr, rc, "version not supported");
@@ -1104,12 +1097,77 @@ void kar_verify_header ( const KFile *archive )
     }
 
     /* test actual size against specific header version */
-    if ( num_read < sizeof hdr - sizeof hdr . u + sizeof hdr . u . v1 )
+    if ( num_read < sizeof hdr - sizeof hdr -> u + sizeof hdr -> u . v1 )
     {
         rc = RC ( rcExe, rcFile, rcValidating, rcOffset, rcIncorrect );
         LOGERR (klogErr, rc, "failed to read header");
         exit ( 1 );
     }
+
+    return num_read;
+}
+
+static 
+void kar_inflate_toc ( PBSTNode *node, void *data )
+{
+    const void *toc_data = node -> data . addr;
+
+    char *name;
+    uint16_t name_len = 0;
+    uint64_t mod_time = 0;
+    uint32_t access_mode = 0;
+    uint8_t type_code = 0;
+
+    memcpy ( &name_len, toc_data, sizeof name_len );
+}
+
+static
+rc_t kar_extract_toc ( const KFile *archive, BSTree *tree, uint64_t *toc_pos, const size_t toc_size )
+{
+    rc_t rc = 0;
+
+    char *buffer;
+    buffer = malloc ( toc_size );
+    if ( buffer == NULL )
+    {
+        rc = RC ( rcExe, rcFile, rcAllocating, rcMemory, rcExhausted );
+        LOGERR (klogErr, rc, "failed allocate memory");
+    }
+    else
+    {
+        size_t num_read;
+
+        rc = KFileReadAll ( archive, *toc_pos, buffer, sizeof buffer, &num_read );
+        if ( rc != 0 )
+        {
+            LOGERR (klogErr, rc, "failed to access archive file");
+            exit ( 2 );
+        }
+
+        if ( num_read < toc_size )
+        {
+            rc = RC ( rcExe, rcFile, rcValidating, rcOffset, rcInsufficient );
+            LOGERR (klogErr, rc, "failed to read header");
+        }
+        else
+        {
+            PBSTree *ptree;
+            
+            rc = PBSTreeMake ( &ptree, buffer, sizeof buffer, false );
+            if ( rc != 0 )
+                LOGERR (klogErr, rc, "failed make PBSTree");
+            else
+            {
+                PBSTreeForEach ( ptree, false, kar_inflate_toc, tree );
+            
+                PBSTreeWhack ( ptree );
+            }
+        }
+
+        free ( buffer );
+    }
+
+    return rc;
 }
 
 static
@@ -1132,7 +1190,16 @@ rc_t kar_test ( const Params *p )
             LogErr ( klogInt, rc, "Failed to open archive" );
         else
         {
-            kar_verify_header ( archive );
+            BSTree tree;
+            KSraHeader hdr;
+            uint64_t toc_pos, toc_size;
+
+            toc_pos = kar_verify_header ( archive, &hdr );            
+            toc_size = hdr . u . v1 . file_offset - toc_pos;
+
+            BSTreeInit ( &tree );
+
+            rc = kar_extract_toc ( archive, &tree, &toc_pos, toc_size );
 
             KFileRelease ( archive );
         }

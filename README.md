@@ -2,16 +2,17 @@
 
 ### Contact:
 email: sra-tools@ncbi.nlm.nih.gov
-or visit the [SRA Tools web site](http://ncbi.github.io/sra-tools) - UPDATED
+or visit the [SRA Tools web site](http://ncbi.github.io/sra-tools)
 
 ### Download
 Visit our [download page](https://github.com/ncbi/sra-tools/wiki/Downloads) for pre-built binaries.
 
+### Change Log
+Please check the CHANGES.md file for change history.
+
 ## The SRA Toolkit
 The SRA Toolkit and SDK from NCBI is a collection of tools and libraries for
 using data in the INSDC Sequence Read Archives.
-
-Please see our change log in CHANGES.md.
 
 Much of the data submitted these days contain alignment information, for example
 in BAM, Illumina export.txt, and Complete Genomics formats. With aligned data,

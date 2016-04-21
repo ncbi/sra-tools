@@ -1,5 +1,6 @@
 # NCBI External Developer Release:
 ## SRA Toolkit 2.6.2
+**April 20, 2016**
 
   **align-cache**: a tool producing vdbcache that reduces effects of random access and improves speed.  
   **bam-load**: Fixed bug in validation code for unsorted bam files  

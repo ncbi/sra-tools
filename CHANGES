@@ -27,9 +27,9 @@ The NCBI SRA Software Development Kit
 Contact: sra-tools@ncbi.nlm.nih.gov
 
 NCBI External Developer Release: SRA Toolkit 2.6.2
+April 20, 2016
 
   align-cache: a tool producing vdbcache that reduces effects of random access and improves speed.
-
   bam-load: Fixed bug in validation code for unsorted bam files
   bam-load: If two (or more) local reference names refer to the same global reference,
     bam-load will record the first one used and report the change.

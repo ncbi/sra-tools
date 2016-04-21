@@ -206,7 +206,7 @@ unless ($OSTYPE =~ /linux/i || $OSTYPE =~ /darwin/i || $OSTYPE eq 'win') {
 my $OS_DISTRIBUTOR = '';
 if ($OS eq 'linux') {
     print "checking OS distributor... " unless ($AUTORUN);
-    $OS_DISTRIBUTOR = `lsb_release -si`;
+    $OS_DISTRIBUTOR = `lsb_release -si 2> /dev/null`;
     chomp $OS_DISTRIBUTOR;
     println $OS_DISTRIBUTOR unless ($AUTORUN);
 }

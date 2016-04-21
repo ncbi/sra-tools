@@ -1,0 +1,10 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-grammar.c" />
+    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-lex.c" />
+    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-loader.c" />
+    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-reader.c" />
+    <ClCompile Include="..\..\..\tools\fastq-loader\loader-imp.c" />
+  </ItemGroup>
+</Project>

@@ -30,13 +30,7 @@
     </Link>
   </ItemDefinitionGroup>  
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\vdb-config\configure.cpp" />  
-    <ClCompile Include="..\..\..\tools\vdb-config\util.cpp" />  
-    <ClCompile Include="..\..\..\tools\vdb-config\vdb-config.c" />  
-    <ClCompile Include="..\..\..\tools\vdb-config\interactive.cpp" />  
-    <ClCompile Include="..\..\..\tools\vdb-config\vdb-config-model.cpp" />  
-  </ItemGroup>
+  <Import Project="..\vdb-config.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{7CAB9840-19BB-4B32-94BD-C29701FDBE88}</ProjectGuid>

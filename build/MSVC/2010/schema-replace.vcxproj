@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\util\schema-replace.c" />
-  </ItemGroup>
+  <Import Project="..\schema-replace.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{75A32DEA-9C0C-40CE-AE8C-CA58BAD4ADFD}</ProjectGuid>

@@ -27,12 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\sra-dump\core.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\factory.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\fasta_dump.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\sff.c" />
-  </ItemGroup>
+  <Import Project="..\sff-dump.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{11616A3B-9C1F-4760-AE77-755E06D5DFB1}</ProjectGuid>

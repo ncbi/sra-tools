@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-wvdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  
+  <Import Project="..\read-filter-redact.files" />
+  
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{B7C166D7-2B45-4E77-A608-DDBD0B588082}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

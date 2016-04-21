@@ -26,12 +26,7 @@
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\sra-dump\core.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\factory.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\fasta_dump.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\fastq.c" />
-  </ItemGroup>
+  <Import Project="..\fastq-dump.files" />
 
   <PropertyGroup Label="Globals">
     <ProjectGuid>{2182DDEE-BE67-48FB-89BA-9EF23717C128}</ProjectGuid>

@@ -9,8 +9,11 @@
 #include <kfc/rc.h>
 
 #include <sysalloc.h>
+#include <algorithm>        /* min */
 
 #include <string.h>         /* strcmp () */
+
+#include <algorithm>
 
 #include "args.hpp"
 #include "filters.hpp"

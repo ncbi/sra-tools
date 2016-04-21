@@ -27,17 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\columns.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\context.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\namelist_tools.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\qual-recalib-stat.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\reader.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\ref_exclude.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\spot_position.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\stat_mod_2.c" />
-    <ClCompile Include="..\..\..\tools\qual-recalib-stat\writer.c" />
-  </ItemGroup>
+  <Import Project="..\qual-recalib-stat.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4AF84403-70C6-4479-A701-D735E7003505}</ProjectGuid>

@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
 
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\cache-mgr\cache-mgr.c" />
-  </ItemGroup>
+  <Import Project="..\cache-mgr.files" />
 
   <PropertyGroup Label="Globals">
     <ProjectGuid>{9BFEB5F1-0101-48A6-82CD-CF5744E1EDF3}</ProjectGuid>

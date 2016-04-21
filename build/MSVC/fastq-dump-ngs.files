@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\fastq-dump\args.cpp" />
+    <ClCompile Include="..\..\..\tools\fastq-dump\fastq-dump.cpp" />
+    <ClCompile Include="..\..\..\tools\fastq-dump\filters.cpp" />
+  </ItemGroup>
+</Project>

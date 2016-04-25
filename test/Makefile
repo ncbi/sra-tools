@@ -46,6 +46,7 @@ SUBDIRS =    \
 	ref-variation   \
 	vdb-validate    \
 	kar             \
+    copycat         \
 
 # under construction    
 #    ngs-pileup      \

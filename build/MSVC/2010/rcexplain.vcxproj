@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\util\rcexplain.c" />
-  </ItemGroup>
+  <Import Project="..\rcexplain.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{799ECD99-5336-4322-B845-279B7D4B8D71}</ProjectGuid>

@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>  
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\vdb-validate\vdb-validate.c" />
-  </ItemGroup>
+  <Import Project="..\vdb-validate.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{446C2DD3-36B3-4B27-8415-951F98346E99}</ProjectGuid>

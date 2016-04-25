@@ -33,6 +33,7 @@ TOOLS_TO_INSTALL = \
     vdb-passwd      \
     vdb-unlock      \
     vdb-validate    \
+    copycat         \
 
 #    remote-fuser    \
 #    blastn_vdb      \

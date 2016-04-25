@@ -27,10 +27,7 @@
     </Link>
   </ItemDefinitionGroup>    
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\vdb-decrypt\shared.c" />
-    <ClCompile Include="..\..\..\tools\vdb-decrypt\vdb-decrypt.c" />
-  </ItemGroup>
+  <Import Project="..\vdb-decrypt.files" />
 
   <PropertyGroup Label="Globals">
     <ProjectGuid>{E4824F7B-4698-4F9B-85B1-AEFD6A81F957}</ProjectGuid>

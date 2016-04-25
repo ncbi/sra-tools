@@ -85,7 +85,6 @@ ALIGN_CACHE_OBJ = \
 ALIGN_CACHE_LIB = \
 	-skapp \
 	-sncbi-wvdb \
-	-sxml2 \
 	-sm \
 	-sload
 

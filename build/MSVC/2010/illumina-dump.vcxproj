@@ -29,12 +29,7 @@
     </Link>
   </ItemDefinitionGroup>
 
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\sra-dump\core.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\factory.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\fasta_dump.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\illumina.c" />
-  </ItemGroup>
+  <Import Project="..\illumina-dump.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{0D7E1861-6A3C-4CF3-B603-39BF841C3C82}</ProjectGuid>

@@ -1,0 +1,8 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\vdb-diff\namelist_tools.c" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\coldefs.c" />
+    <ClCompile Include="..\..\..\tools\vdb-diff\vdb-diff.c" />
+  </ItemGroup>
+</Project>

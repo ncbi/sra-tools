@@ -27,13 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\general-loader\general-loader.cpp" />
-    <ClCompile Include="..\..\..\tools\general-loader\database-loader.cpp" />
-    <ClCompile Include="..\..\..\tools\general-loader\protocol-parser.cpp" />
-    <ClCompile Include="..\..\..\tools\general-loader\utf8-like-int-codec.c" />
-    <ClCompile Include="..\..\..\tools\general-loader\main.cpp" />
-  </ItemGroup>
+  <Import Project="..\general-loader.files" />
   <PropertyGroup Label="Globals">
     <ProjectGuid>{11356540-C8F0-44B9-B6BA-01C87443A1CF}</ProjectGuid>
   </PropertyGroup>

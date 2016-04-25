@@ -28,14 +28,7 @@
       <AdditionalDependencies>$(VDB_TARGET)lib\load.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\ref-variation\ref-variation.cpp" />
-    <ClCompile Include="..\..\..\tools\ref-variation\helper.cpp" />
-    <ClCompile Include="..\..\..\tools\ref-variation\common.cpp" />
-    <ClInclude Include="..\..\..\tools\ref-variation\helper.h" />
-    <ClInclude Include="..\..\..\tools\ref-variation\common.h" />
-    <ClInclude Include="..\..\..\tools\ref-variation\ref-variation.vers.h" />
-  </ItemGroup>
+  <Import Project="..\ref-variation.files" />
   <PropertyGroup Label="Globals">
     <ProjectGuid>{17513747-C074-4DA8-AA32-41D0C5FDC230}</ProjectGuid>
   </PropertyGroup>

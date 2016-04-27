@@ -1304,19 +1304,21 @@ struct extract_block
     KDirectory *cdir;
     const KFile *archive;
 
+    rc_t rc;
+
 };
 
-static void kar_extract ( BSTNode *node, void *data );
+static bool CC kar_extract ( BSTNode *node, void *data );
 
 static
-void extract_file ( const KARFile *src, const extract_block *eb )
+rc_t extract_file ( const KARFile *src, const extract_block *eb )
 {
     KFile *dst;
     char *buffer;
     uint64_t num_writ;
 
-    rc_t rc = KDirectoryCreateFile ( eb -> cdir, &dst, false, src -> dad . access_mode, 
-                                     kcmInit|kcmParents, "%s", src -> dad . name ); 
+    rc_t rc = KDirectoryCreateFile ( eb -> cdir, &dst, false, 0200, 
+                                     kcmCreate, "%s", src -> dad . name ); 
     if ( rc != 0 )
     {
         pLogErr (klogErr, rc, "failed extract to file '$(fname)'", "fname=%s", src -> dad . name );
@@ -1355,27 +1357,42 @@ void extract_file ( const KARFile *src, const extract_block *eb )
     KFileRelease ( dst );
 
     free ( buffer );
+
+    return rc;
 }
 
 static
-void extract_dir ( const KARDir *src, const extract_block *eb )
+rc_t extract_dir ( const KARDir *src, const extract_block *eb )
 {
+    rc_t rc = KDirectoryCreateDir ( eb -> cdir, 0700, kcmCreate, "%s", src -> dad . name );
+    if ( rc == 0 )
+    {
+        extract_block c_eb = *eb;
+        rc = KDirectoryOpenDirUpdate ( eb -> cdir, &c_eb . cdir, false, "%s", src -> dad . name );
+        if ( rc == 0 )
+        {      
+            BSTreeDoUntil ( &src -> contents, false, kar_extract, &c_eb );
+
+            KDirectoryRelease ( c_eb . cdir );
+        }
+    }
+    return rc;
 }
 
 static
-void kar_extract ( BSTNode *node, void *data )
+bool CC kar_extract ( BSTNode *node, void *data )
 {
     const KAREntry *entry = ( KAREntry * ) node;
     extract_block *eb = ( extract_block * ) data;
+    eb -> rc = 0;
 
     switch ( entry -> type )
     {
     case kptFile:
-        extract_file ( ( const KARFile * ) entry, eb );
+        eb -> rc = extract_file ( ( const KARFile * ) entry, eb );
         break;
     case kptDir:
-        /*extract_dir ( ( const KARDir * ) entry, eb ); -- if extract file doesnt create missing directories */
-        BSTreeForEach ( &( ( const KARDir * ) entry ) -> contents, false, kar_extract, eb );
+        eb -> rc = extract_dir ( ( const KARDir * ) entry, eb ); 
         break;
     case kptFile | kptAlias:
     case kptDir | kptAlias:
@@ -1383,6 +1400,16 @@ void kar_extract ( BSTNode *node, void *data )
     default:
         break;
     }
+
+    if ( eb -> rc == 0 )
+        eb -> rc = KDirectorySetAccess ( eb -> cdir, false, entry -> access_mode, 0777, "%s", entry -> name );
+    if ( eb -> rc == 0 )
+        eb -> rc = KDirectorySetDate ( eb -> cdir, false, entry -> mod_time, "%s", entry -> name );
+
+    if ( eb -> rc != 0 )
+        return true;
+
+    return false;
 }
 
 static
@@ -1432,11 +1459,17 @@ rc_t kar_test_extract ( const Params *p )
                     extract_block eb;
                     eb . archive = archive;
                     eb . extract_pos = file_offset;
+                    eb . rc = 0;
 
-                    rc = KDirectoryOpenDirUpdate ( wd, &eb . cdir, false, p -> directory_path );
+                    rc = KDirectoryCreateDir ( wd, 0777, kcmInit, "%s", p -> directory_path );
                     if ( rc == 0 )
                     {
-                        BSTreeForEach ( &tree, false, kar_extract, &eb );
+                        rc = KDirectoryOpenDirUpdate ( wd, &eb . cdir, false, "%s", p -> directory_path );
+                        if ( rc == 0 )
+                        {
+                            BSTreeDoUntil ( &tree, false, kar_extract, &eb );
+                            rc = eb . rc;
+                        }
                     }
                 }
             }

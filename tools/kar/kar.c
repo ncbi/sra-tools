@@ -1069,7 +1069,7 @@ rc_t kar_create ( const Params *p )
 }
 
 /*******************************************************************************
- * Test
+ * Test / Extract
  */
 
 static
@@ -1296,8 +1296,98 @@ rc_t kar_extract_toc ( const KFile *archive, BSTree *tree, uint64_t *toc_pos, co
     return rc;
 }
 
+typedef struct extract_block extract_block;
+struct extract_block
+{
+    uint64_t extract_pos;
+    
+    KDirectory *cdir;
+    const KFile *archive;
+
+};
+
+static void kar_extract ( BSTNode *node, void *data );
+
 static
-rc_t kar_test ( const Params *p )
+void extract_file ( const KARFile *src, const extract_block *eb )
+{
+    KFile *dst;
+    char *buffer;
+    size_t num_read, num_writ;
+
+    rc_t rc = KDirectoryCreateFile ( eb -> cdir, &dst, false, src -> dad . access_mode, 
+                                     kcmInit|kcmParents, "%s", src -> dad . name ); 
+    if ( rc != 0 )
+    {
+        PLOGERR (klogErr, rc, "failed extract to file '$(fname)'", "fname=%s", src -> dad . name );
+        exit ( 4 );
+    }
+
+    buffer = malloc ( src -> byte_size );
+    if ( buffer == NULL )
+    {
+        rc = RC ();
+        PLOGERR (klogErr, rc, "failed to allocate '$(mem)'", "mem=%lu", src -> byte_size );
+        exit ( 4 );
+    }
+
+    rc = KFileReadAll ( eb -> archive, src -> byte_offset + eb -> extract_pos, buffer, src -> byte_size, &num_read );
+    if ( rc != 0 )
+    {
+        PLOGERR (klogErr, rc, "failed to read from archive '$(fname)'", "fname=%s", src -> dad . name );
+        exit ( 4 );
+    }
+    if ( num_read < src -> byte_size )
+    {
+        rc = RC ();
+        PLOGERR (klogErr, rc, "failed to read '$(mem)'bytes", "mem=%lu", src -> byte_size );
+        exit ( 4 );
+    }
+
+    rc = KFileWriteAll ( dst, 0, buffer, num_read, &num_writ );
+    if ( rc != 0 )
+    {
+        PLOGERR (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
+        exit ( 4 );
+    }
+    if ( num_writ < num_read )
+    {
+        rc = RC ();
+        PLOGERR (klogErr, rc, "failed to write '$(mem)'bytes", "mem=%lu", src -> byte_size );
+        exit ( 4 );
+    }
+    
+    KFileRelease ( dst );
+}
+
+static
+void extract_dir ()
+{
+}
+
+static
+void kar_extract ( BSTNode *node, void *data )
+{
+    const KAREntry *entry = ( KAREntry * ) node;
+    const extract_block *eb = ( extract_block * ) data;
+
+    switch ( entry -> type )
+    {
+    case kptFile:
+        extract_file ( ( const KARFile * ) entry, eb );
+        break;
+    case kptDir:
+        break;
+    case kptFile | kptAlias:
+    case kptDir | kptAlias:
+        break;
+    default:
+        break;
+    }
+}
+
+static
+rc_t kar_test_extract ( const Params *p )
 {
     rc_t rc;
 
@@ -1318,10 +1408,10 @@ rc_t kar_test ( const Params *p )
         {
             BSTree tree;
             KSraHeader hdr;
-            uint64_t toc_pos, toc_size;
+            uint64_t toc_pos, toc_size, file_offset = hdr . u . v1 . file_offset;
 
             toc_pos = kar_verify_header ( archive, &hdr );            
-            toc_size = hdr . u . v1 . file_offset - toc_pos;
+            toc_size = file_offset - toc_pos;
 
             BSTreeInit ( &tree );
 
@@ -1333,7 +1423,22 @@ rc_t kar_test ( const Params *p )
                 BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
                 /* print according to options - long listing, etc. */
 
-                BSTreeForEach ( &tree, false, kar_print, &indent );
+                if ( p -> x_count == 0 )
+                    /* Finish test */
+                    BSTreeForEach ( &tree, false, kar_print, &indent );
+                else
+                {
+                    /* begin extracting */
+                    extract_block eb;
+                    eb . archive = archive;
+                    eb . extract_pos = file_offset;
+
+                    rc = KDirectoryOpenDirUpdate ( wd, &eb . cdir, false, p -> directory_path );
+                    if ( rc == 0 )
+                    {
+                        BSTreeForEach ( &tree, false, kar_extract, &eb );
+                    }
+                }
             }
 
             BSTreeWhack ( & tree, kar_entry_whack, NULL );
@@ -1347,17 +1452,6 @@ rc_t kar_test ( const Params *p )
 }
 
 /*******************************************************************************
- * Extract
- */
-
-static
-rc_t kar_extract ( const Params *p )
-{
-    return -1;
-}
-
-
-/*******************************************************************************
  * Startup
  */
 
@@ -1368,10 +1462,10 @@ rc_t run ( const Params *p )
         return kar_create ( p );
 
     if ( p -> x_count != 0 )
-        return kar_extract ( p );
+        return kar_test_extract ( p );
 
     assert ( p -> t_count != 0 );
-    return kar_test ( p );
+    return kar_test_extract ( p );
 }
 
 ver_t CC KAppVersion (void)

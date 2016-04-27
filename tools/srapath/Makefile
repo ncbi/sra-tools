@@ -74,9 +74,11 @@ clean: stdclean
 
 #-------------------------------------------------------------------------------
 # srapath
-#  vdb table copy tool
 #
 SRAPATH_SRC = \
+	helper \
+	line_iter \
+	cgi_request \
 	srapath
 
 SRAPATH_OBJ = \

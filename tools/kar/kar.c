@@ -1313,55 +1313,52 @@ void extract_file ( const KARFile *src, const extract_block *eb )
 {
     KFile *dst;
     char *buffer;
-    size_t num_read, num_writ;
+    uint64_t num_writ;
 
     rc_t rc = KDirectoryCreateFile ( eb -> cdir, &dst, false, src -> dad . access_mode, 
                                      kcmInit|kcmParents, "%s", src -> dad . name ); 
     if ( rc != 0 )
     {
-        PLOGERR (klogErr, rc, "failed extract to file '$(fname)'", "fname=%s", src -> dad . name );
+        pLogErr (klogErr, rc, "failed extract to file '$(fname)'", "fname=%s", src -> dad . name );
         exit ( 4 );
     }
 
     buffer = malloc ( src -> byte_size );
     if ( buffer == NULL )
     {
-        rc = RC ();
-        PLOGERR (klogErr, rc, "failed to allocate '$(mem)'", "mem=%lu", src -> byte_size );
+        rc = RC ( rcExe, rcFile, rcAllocating, rcMemory, rcExhausted );
+        pLogErr (klogErr, rc, "failed to allocate '$(mem)'", "mem=%lu", src -> byte_size );
         exit ( 4 );
     }
 
-    rc = KFileReadAll ( eb -> archive, src -> byte_offset + eb -> extract_pos, buffer, src -> byte_size, &num_read );
+    rc = KFileReadExactly ( eb -> archive, src -> byte_offset + eb -> extract_pos, buffer, src -> byte_size );
     if ( rc != 0 )
     {
-        PLOGERR (klogErr, rc, "failed to read from archive '$(fname)'", "fname=%s", src -> dad . name );
-        exit ( 4 );
-    }
-    if ( num_read < src -> byte_size )
-    {
-        rc = RC ();
-        PLOGERR (klogErr, rc, "failed to read '$(mem)'bytes", "mem=%lu", src -> byte_size );
+        pLogErr (klogErr, rc, "failed to read from archive '$(fname)'", "fname=%s", src -> dad . name );
         exit ( 4 );
     }
 
-    rc = KFileWriteAll ( dst, 0, buffer, num_read, &num_writ );
+    /*    rc = KFileWriteExactly ( dst, 0, buffer, src -> byte_size ); ---write exactly is apparently excluded in file.c */
+    rc = KFileWriteAll ( dst, 0, buffer, src -> byte_size, &num_writ );
     if ( rc != 0 )
     {
-        PLOGERR (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
+        pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
         exit ( 4 );
     }
-    if ( num_writ < num_read )
+    if ( num_writ < src -> byte_size )
     {
-        rc = RC ();
-        PLOGERR (klogErr, rc, "failed to write '$(mem)'bytes", "mem=%lu", src -> byte_size );
+        rc = RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
+        pLogErr (klogErr, rc, "failed to write to file '$(fname)'", "fname=%s", src -> dad . name );
         exit ( 4 );
     }
     
     KFileRelease ( dst );
+
+    free ( buffer );
 }
 
 static
-void extract_dir ()
+void extract_dir ( const KARDir *src, const extract_block *eb )
 {
 }
 
@@ -1369,7 +1366,7 @@ static
 void kar_extract ( BSTNode *node, void *data )
 {
     const KAREntry *entry = ( KAREntry * ) node;
-    const extract_block *eb = ( extract_block * ) data;
+    extract_block *eb = ( extract_block * ) data;
 
     switch ( entry -> type )
     {
@@ -1377,6 +1374,8 @@ void kar_extract ( BSTNode *node, void *data )
         extract_file ( ( const KARFile * ) entry, eb );
         break;
     case kptDir:
+        /*extract_dir ( ( const KARDir * ) entry, eb ); -- if extract file doesnt create missing directories */
+        BSTreeForEach ( &( ( const KARDir * ) entry ) -> contents, false, kar_extract, eb );
         break;
     case kptFile | kptAlias:
     case kptDir | kptAlias:
@@ -1408,9 +1407,10 @@ rc_t kar_test_extract ( const Params *p )
         {
             BSTree tree;
             KSraHeader hdr;
-            uint64_t toc_pos, toc_size, file_offset = hdr . u . v1 . file_offset;
+            uint64_t toc_pos, toc_size, file_offset;
 
             toc_pos = kar_verify_header ( archive, &hdr );            
+            file_offset = hdr . u . v1 . file_offset;
             toc_size = file_offset - toc_pos;
 
             BSTreeInit ( &tree );

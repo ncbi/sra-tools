@@ -24,35 +24,18 @@
 # ===========================================================================
 
 
-TESTDIR="./kar_testsource"
+TESTDIR="kar_testsource"
 ARCHIVE="kar.kar"
 
 KAR=kar
 [ $# -ge 1 ] && KAR="$1"
 
-testdir_setup ()
-{
-    if ! mkdir $TESTDIR
-    then
-        echo "Failed to create testsource"
-        exit 1
-    fi
-
-    echo "random text for test purposes" > $TESTDIR/test_file1
-    echo "random text for test purposes and more" > $TESTDIR/test_file2
-}
 
 cleanup ()
 {
-    rm -rf $TESTDIR $ARCHIVE $ARCHIVE.md5
+    rm -rf $ARCHIVE $ARCHIVE.md5
 }
 
-
-# if test source directory doesnt exist, make it and populate it
-if [ ! -d $TESTDIR ]
-then
-    testdir_setup
-fi
 
 # run the script
 if ! $KAR --md5 -f -c $ARCHIVE -d $TESTDIR

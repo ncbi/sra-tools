@@ -192,7 +192,7 @@ rc_t kar_entry_create ( KAREntry ** rtn, size_t entry_size,
     if ( entry == NULL )
     {
         rc = RC (rcExe, rcNode, rcAllocating, rcMemory, rcExhausted);
-        pLogErr ( klogErr, rc, "Failed to allocated memory for entry $(name)",
+        pLogErr ( klogErr, rc, "Failed to allocated memory for entry '$(name)'",
                   "name=%s", name );
     }
     else
@@ -212,7 +212,7 @@ rc_t kar_entry_create ( KAREntry ** rtn, size_t entry_size,
         rc = KDirectoryAccess ( dir, & entry -> access_mode, "%s", entry -> name );
         if ( rc != 0 )
         {
-            pLogErr ( klogErr, rc, "Failed to get access mode for entry $(name)",
+            pLogErr ( klogErr, rc, "Failed to get access mode for entry '$(name)'",
                       "name=%s", entry -> name );
         }
         else
@@ -220,7 +220,7 @@ rc_t kar_entry_create ( KAREntry ** rtn, size_t entry_size,
             rc = KDirectoryDate ( dir, &entry -> mod_time, "%s", entry -> name );
             if ( rc != 0 )
             {
-                pLogErr ( klogErr, rc, "Failed to get modification for entry $(name)",
+                pLogErr ( klogErr, rc, "Failed to get modification for entry '$(name)'",
                           "name=%s", entry -> name );
             }
             else
@@ -247,7 +247,7 @@ rc_t kar_entry_inflate ( KAREntry **rtn, size_t entry_size, const char *name, si
     if ( entry == NULL )
     {
         rc = RC (rcExe, rcNode, rcAllocating, rcMemory, rcExhausted);
-        pLogErr ( klogErr, rc, "Failed to allocated memory for entry $(name)",
+        pLogErr ( klogErr, rc, "Failed to allocated memory for entry '$(name)'",
                   "name=%s", name );
     }
     else
@@ -859,13 +859,19 @@ rc_t kar_prepare_toc ( const BSTree *tree, KARFilePtrArray *file_array_ptr )
 }
 
 static
-size_t kar_entry_full_path ( const KAREntry * entry, char * buffer, size_t bsize )
+size_t kar_entry_full_path ( const KAREntry * entry, const char * root_dir, char * buffer, size_t bsize )
 {
     size_t offset = 0;
     if ( entry -> parentDir != NULL )
     {
-        offset = kar_entry_full_path ( & entry -> parentDir -> dad, buffer, bsize );
+        offset = kar_entry_full_path ( & entry -> parentDir -> dad, root_dir, buffer, bsize );
         if ( offset < bsize )
+            buffer [ offset ++ ] = '/';
+    }
+    else if ( root_dir != NULL && root_dir [ 0 ] != 0 )
+    {
+        offset = string_copy_measure ( buffer, bsize, root_dir );
+        if ( buffer [ offset - 1 ] != '/' && offset < bsize )
             buffer [ offset ++ ] = '/';
     }
 
@@ -873,7 +879,7 @@ size_t kar_entry_full_path ( const KAREntry * entry, char * buffer, size_t bsize
 }
 
 static
-void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *file )
+void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *file, const char * root_dir )
 {
     rc_t rc;
     char *buffer;
@@ -895,7 +901,7 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
 
     STATUS ( STAT_QA, "writing file '%s'", file -> dad . name );
 
-    path_size = kar_entry_full_path ( & file -> dad, filename, sizeof filename );
+    path_size = kar_entry_full_path ( & file -> dad, root_dir, filename, sizeof filename );
     if ( path_size == sizeof filename )
     {
         /* path name was somehow too long */
@@ -908,7 +914,7 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
     rc = KDirectoryOpenFileRead ( wd, &f, "%s", filename );
     if ( rc != 0 )
     {        
-        pLogErr ( klogInt, rc, "Failed to open file %s", file -> dad . name );
+        pLogErr ( klogInt, rc, "Failed to open file $(fname)", "fname=%s", file -> dad . name );
         exit (6);
     }
     
@@ -917,7 +923,7 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
     if ( buffer == NULL )
     {
         rc = RC ( rcExe, rcFile, rcWriting, rcMemory, rcExhausted );
-        pLogErr ( klogInt, rc, "Failed to open file %s", file -> dad . name );
+        pLogErr ( klogInt, rc, "Failed to open file $(fname)", "fname=%s", file -> dad . name );
         exit ( 7 );
     }
 
@@ -960,7 +966,7 @@ void kar_write_file ( KARArchiveFile *af, const KDirectory *wd, const KARFile *f
 }
 
 static
-rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree )
+rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree, const char * root_dir )
 {
     rc_t rc = 0;
 
@@ -971,7 +977,6 @@ rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree )
     {
         uint64_t i, toc_size;
         KARArchiveFile af;
-        
         /* evaluate toc size */
         toc_size = kar_eval_toc_size ( tree );
 
@@ -990,7 +995,7 @@ rc_t kar_make ( const KDirectory * wd, KFile *archive, const BSTree *tree )
         for ( i = 0; i < num_files; ++ i )
         {
             STATUS ( STAT_QA, "writing file %u: '%s'", i, file_array [ i ] -> dad . name );
-            kar_write_file ( & af, wd, file_array [ i ] );
+            kar_write_file ( & af, wd, file_array [ i ], root_dir );
         }
         
         free ( file_array );
@@ -1048,7 +1053,7 @@ rc_t kar_create ( const Params *p )
                         {
                             BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
                             
-                            rc = kar_make ( wd, archive, &tree );
+                            rc = kar_make ( wd, archive, &tree, p -> directory_path );
                             if ( rc != 0 )
                                 LogErr ( klogInt, rc, "Failed to build archive" );
                         }

@@ -1179,20 +1179,30 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
     uint8_t type_code = 0;
 
     offset = toc_data_copy ( & name_len, sizeof name_len, toc_data, node -> data . size, offset );
+#if _DEBUGGING
+    if ( name_len >= sizeof buffer )
+        name = malloc ( name_len + 1 );
+#else
     if ( name_len > sizeof buffer )
         name = malloc ( name_len );
+#endif
     offset = toc_data_copy ( name, name_len, toc_data, node -> data . size, offset );
+#if _DEBUGGING
+    name [ name_len ] = 0;
+#endif
+    STATUS ( STAT_QA, "inflating '%s'", name );
     offset = toc_data_copy ( & mod_time, sizeof mod_time, toc_data, node -> data . size, offset );
     offset = toc_data_copy ( & access_mode, sizeof access_mode, toc_data, node -> data . size, offset );
     offset = toc_data_copy ( & type_code, sizeof type_code, toc_data, node -> data . size, offset );
 
     switch ( type_code )
     {
-    case kptFile:
+    case ktocentrytype_file:
     {
         KARFile *file;
 
-        rc = kar_entry_inflate ( ( KAREntry ** ) &file, sizeof *file, name, name_len, mod_time, access_mode, type_code );
+        rc = kar_entry_inflate ( ( KAREntry ** ) &file, sizeof *file, name, name_len,
+             mod_time, access_mode, kptFile );
         if ( rc != 0 )
         {
             LOGERR (klogErr, rc, "failed inflate KARFile");
@@ -1211,12 +1221,12 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
 
         break;
     }
-    case kptDir:
+    case ktocentrytype_dir:
     {
         KARDir *dir;
         PBSTree *ptree;
 
-        rc = kar_entry_inflate ( ( KAREntry ** ) &dir, sizeof *dir, name, name_len, mod_time, access_mode, type_code );
+        rc = kar_entry_inflate ( ( KAREntry ** ) &dir, sizeof *dir, name, name_len, mod_time, access_mode, kptDir );
         if ( rc != 0 )
         {
             LOGERR (klogErr, rc, "failed inflate KARFile");
@@ -1234,6 +1244,13 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
             PBSTreeForEach ( ptree, false, kar_inflate_toc, &dir -> contents );
             
             PBSTreeWhack ( ptree );
+        }
+
+        rc = BSTreeInsert ( ( BSTree * ) data, &dir -> dad . dad, kar_entry_cmp );
+        if ( rc != 0 )
+        {
+            LOGERR (klogErr, rc, "failed insert KARFile into tree");
+            exit ( 3 );
         }
         
         break;

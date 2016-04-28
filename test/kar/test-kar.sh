@@ -55,7 +55,7 @@ then
 fi
 
 # run the script
-if ! $KAR --md5 -f -d $TESTDIR -c $ARCHIVE
+if ! $KAR --md5 -f -c $ARCHIVE -d $TESTDIR
 then
     STATUS=$?
     echo "KAR md5 operation failed"
@@ -91,7 +91,7 @@ else
     esac
 fi
 
-cleanup
+#cleanup
 
 
 exit $STATUS

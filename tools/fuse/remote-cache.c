@@ -303,6 +303,9 @@ rc_t CC
 _CnPoolWhack ()
 {
     if ( _sConPool . mutabor != NULL ) {
+/*
+RmOutMsg ( "[KLockRelease] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
         KLockRelease ( _sConPool . mutabor );
         _sConPool . mutabor = NULL;
     }
@@ -324,6 +327,9 @@ _CnPoolInit ( size_t MaxQty )
     RCt = 0;
 
     RCt = KLockMake ( & ( _sConPool . mutabor ) );
+/*
+RmOutMsg ( "[KLockMake] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
     if ( RCt == 0 ) {
         _sConPool . head = NULL;
         _sConPool . tail = NULL;
@@ -386,10 +392,16 @@ _CnPoolToFront ( struct RCacheEntry * Entry )
 
     if ( Entry != NULL ) {
         if ( Entry -> cn_entry != NULL ) {
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
             RCt = KLockAcquire ( _sConPool . mutabor );
             if ( RCt == 0 ) {
                 RCt = _CnPoolToFront_NoLock ( Entry -> cn_entry );
 
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
                 KLockUnlock ( _sConPool . mutabor );
             }
         }
@@ -473,10 +485,16 @@ _CnPoolDrop ( struct RCacheEntry * Entry )
 
     if ( Entry != NULL ) {
         if ( Entry -> cn_entry != NULL ) {
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
             RCt = KLockAcquire ( _sConPool . mutabor );
             if ( RCt == 0 ) {
                 RCt = _CnPoolDrop_NoLock ( Entry -> cn_entry );
 
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
                 KLockUnlock ( _sConPool . mutabor );
             }
         }
@@ -769,6 +787,8 @@ RemoteCacheInitialize ( const char * Path )
                                 sizeof ( _CacheRoot ),
                                 Path
                                 );
+
+        ReleaseComplain ( KDirectoryRelease, Directory );
     }
 
     if ( RCt == 0 ) {
@@ -891,6 +911,9 @@ RemoteCacheCreate ()
             BSTreeInit ( & _Cache );
                 /* Initializing _CacheLock */
             RCt = KLockMake ( & _CacheLock );
+/*
+RmOutMsg ( "[KLockMake] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
+*/
         }
     }
 
@@ -929,9 +952,6 @@ RemoteCacheDispose ()
 
     LOGMSG( klogInfo, "[RemoteCache] disposing\n" );
 
-        /* Who does need that check? */
-    _CnPoolWhack ();
-
     if ( RemoteCacheIsDisklessMode () ) {
         _DisklessMode = false;
 
@@ -952,6 +972,9 @@ RemoteCacheDispose ()
 
         /* Releasing Lock */
     if ( _CacheLock != NULL ) {
+/*
+RmOutMsg ( "[KLockRelease] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
+*/
         ReleaseComplain ( KLockRelease, _CacheLock );
         _CacheLock = NULL;
     }
@@ -959,6 +982,9 @@ RemoteCacheDispose ()
     _DisposeKNSManager ();
 
     BSTreeWhack ( & _Cache, _RcAcHeEnTrYwHaCk, NULL );
+
+        /* Who does need that check? */
+    _CnPoolWhack ();
 
     _CacheEntryNo = 0;
 
@@ -1056,9 +1082,9 @@ _RCacheEntryDestroy ( struct RCacheEntry * self )
 KOutMsg ( " [GGU] [EntryDestroy]\n" );
 */
     if ( self != NULL ) {
- /*
+ // JOJOBA /*
  RmOutMsg ( "++++++DL DESTROY [0x%p] entry\n", self );
- */
+ // JOJOBA */
         _CnPoolDrop ( self );
         _CnEntDispose ( self );
 
@@ -1095,6 +1121,9 @@ KOutMsg ( "[GGU] [DestroyEnty] [%s]\n", self -> Name );
             /*) mutabor
              (*/
         if ( self -> mutabor != NULL ) {
+/*
+RmOutMsg ( "[KLockRelease] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
             ReleaseComplain ( KLockRelease, self -> mutabor );
             self -> mutabor = NULL;
         }
@@ -1169,6 +1198,9 @@ _RCacheEntryMake (
                 /*) mutabor
                  (*/
             RCt = KLockMake ( & ( Entry -> mutabor ) );
+/*
+RmOutMsg ( "[KLockMake] [%p] [ %d]\n", ( void * ) Entry -> mutabor, __LINE__ );
+*/
     
             if ( RCt == 0 ) {
                     /*) Url
@@ -1273,7 +1305,7 @@ RemoteCacheFindOrCreateEntry (
         RCt = _RCacheEntryMake ( Url, & RetEntry );
         if ( RCt == 0 ) {
  /*
- RmOutMsg ( "++++++DL CREATE [0x%p][%s] entry\n", RetEntry, Url );
+ // JOJOBA RmOutMsg ( "++++++DL CREATE [0x%p][%s] entry\n", RetEntry, Url );
  */
             * Entry = RetEntry;
         }
@@ -1282,6 +1314,9 @@ RemoteCacheFindOrCreateEntry (
     }
         /*)  Here we are locking
          (*/
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
+*/
     RCt = KLockAcquire ( _CacheLock );
     if ( RCt == 0 ) {
             /*)  Here we are 'looking for' and 'fooking lor'
@@ -1292,7 +1327,7 @@ RemoteCacheFindOrCreateEntry (
                                                     _RcEnTrYcMp
                                                     );
 /*
- RmOutMsg ( "++++++ %s entry\n", RetEntry == NULL ? "Creating" : "Loading" );
+ // JOJOBA RmOutMsg ( "++++++ %s entry\n", RetEntry == NULL ? "Creating" : "Loading" );
 */
         if ( RetEntry == NULL ) {
             RCt = _RCacheEntryMake ( Url, & RetEntry );
@@ -1311,7 +1346,10 @@ RemoteCacheFindOrCreateEntry (
 
             /*)  First we are trying to find appropriate entry
              (*/
-        ReleaseComplain ( KLockUnlock, _CacheLock );
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
+*/
+        KLockUnlock ( _CacheLock );
     }
 
     return RCt;
@@ -1340,25 +1378,19 @@ RCacheEntryAddRef ( struct RCacheEntry * self )
     RCt = 0;
 
     if ( self != NULL ) {
-        RCt = KLockAcquire ( self -> mutabor );
-
-        if ( RCt == 0 ) {
  /*
- RmOutMsg ( "++++++DL ADDREF [0x%p] entry\n", self );
+ // JOJOBA RmOutMsg ( "++++++DL ADDREF [0x%p] entry\n", self );
  */
-            switch ( KRefcountAdd (
-                            & ( self -> refcount ),
-                            _CacheEntryClassName
-                            ) ) {
-                case krefLimit:
-                    RCt = RC ( rcExe, rcFile, rcAttaching, rcRange, rcExcessive );
-                case krefNegative:
-                    RCt = RC ( rcExe, rcFile, rcAttaching, rcSelf, rcInvalid );
-                default:
-                    break;
-            }
-
-            KLockUnlock ( self -> mutabor );
+        switch ( KRefcountAdd (
+                        & ( self -> refcount ),
+                        _CacheEntryClassName
+                        ) ) {
+            case krefLimit:
+                RCt = RC ( rcExe, rcFile, rcAttaching, rcRange, rcExcessive );
+            case krefNegative:
+                RCt = RC ( rcExe, rcFile, rcAttaching, rcSelf, rcInvalid );
+            default:
+                break;
         }
     }
 
@@ -1376,7 +1408,7 @@ _RCacheEntryReleaseWithoutLock ( struct RCacheEntry * self )
 KOutMsg ( "[GGU] [ReleaseEntry] [%s]\n", self -> Name );
 */
 /*
-RmOutMsg ( "|||<-- Releasing [%s][%s]\n", self -> Name, self -> Url );
+// JOJOBA RmOutMsg ( "|||<-- Releasing [%s][%s]\n", self -> Name, self -> Url );
 */
         ReleaseComplain ( KFileRelease, self -> file );
         self -> file = NULL;
@@ -1390,9 +1422,15 @@ _RCacheEntryReleaseWithLock ( struct RCacheEntry * self )
 {
     rc_t RCt = 0;
 
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
     RCt = KLockAcquire ( self -> mutabor );
     if ( RCt == 0 ) {
         RCt = _RCacheEntryReleaseWithoutLock ( self );
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
         KLockUnlock ( self -> mutabor );
     }
 
@@ -1410,27 +1448,33 @@ RCacheEntryRelease ( struct RCacheEntry * self )
 KOutMsg ( " [GGU] [Closing Entry]\n" );
 */
     if ( self != NULL ) {
-        RCt = KLockAcquire ( self -> mutabor );
-
         if ( RCt == 0 ) {
             switch ( KRefcountDrop (
                             & ( self -> refcount ),
                             _CacheEntryClassName
                             ) ) {
                 case krefWhack:
-                    _RCacheEntryReleaseWithoutLock ( self );
-                    KLockUnlock ( self -> mutabor );
-                    if ( RemoteCacheIsDisklessMode () ) {
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
+                    RCt = KLockAcquire ( self -> mutabor );
+                    if ( RCt == 0 ) {
+                        _RCacheEntryReleaseWithoutLock ( self );
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
+                        KLockUnlock ( self -> mutabor );
+                        if ( RemoteCacheIsDisklessMode () ) {
  /*
  RmOutMsg ( "++++++DL RELEASE [0x%p] entry\n", self );
  */
-                        _RCacheEntryDestroy ( self );
+                            _RCacheEntryDestroy ( self );
+                        }
                     }
                     break;
                 case krefNegative:
                     RCt = RC ( rcExe, rcFile, rcReleasing, rcRange, rcExcessive );
                 default:
-                    KLockUnlock ( self -> mutabor );
                     break;
             }
 
@@ -1463,10 +1507,10 @@ KOutMsg ( "[GGU] [OpenReadRemote] [%s]\n", self -> Name );
         return RC ( rcExe, rcFile, rcOpening, rcParam, rcNull );
     }
 
-/*
+// JOJOBA /*
 RmOutMsg ( "|||<-- Opening [R] [%s][%s]\n", self -> Name, self -> Url );
 RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
-*/
+// JOJOBA */
 
     RCt = KNSManagerMakeHttpFile (
                                 _ManagerOfKNS,
@@ -1543,10 +1587,10 @@ _RCacheEntryOpenFileReadLocal ( struct RCacheEntry * self )
 /*
 KOutMsg ( "[GGU] [OpenReadLocal] [%s]\n", self -> Name );
 */
-/*
+// JOJOBA /*
 RmOutMsg ( "|||<-- Opening [L] [%s][%s]\n", self -> Name, self -> Url );
 RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
-*/
+// JOJOBA */
 
     RCt = KDirectoryNativeDir ( & Directory );
     if ( RCt == 0 ) {
@@ -1695,9 +1739,9 @@ _RCacheEntryGetAndCheckFile (
     if ( RCt == 0 ) {
         if ( CloseFile ) {
             RCt = _RCacheEntryReleaseWithoutLock ( self );
-/*
+// JOJOBA /*
 RmOutMsg ( "|||<-- Close file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RCt );
-*/
+// JOJOBA */
         }
 
         if ( OpenLocal ) {
@@ -1708,9 +1752,9 @@ RmOutMsg ( "|||<-- Close file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RC
 
 
             RCt = _RCacheEntryOpenFileReadLocal ( self );
-/*
+// JOJOBA /*
 RmOutMsg ( "|||<-- Open LOCAL file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RCt );
-*/
+// JOJOBA */
         }
 
         if ( OpenRemote ) {
@@ -1718,9 +1762,9 @@ RmOutMsg ( "|||<-- Open LOCAL file [%s][%s] [A=%d]\n", self -> Name, self -> Pat
             self -> is_local = false;
 
             RCt = _RCacheEntryOpenFileReadRemote ( self );
-/*
+// JOJOBA /*
 RmOutMsg ( "|||<-- Open REMOTE file [%s][%s] [A=%d]\n", self -> Name, self -> Url, RCt );
-*/
+// JOJOBA */
         }
 
         if ( RCt == 0 ) {
@@ -1772,6 +1816,9 @@ _RCacheEntryDoRead (
 
         /*)  Here we are locking
          (*/
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
     RCt = KLockAcquire ( self -> mutabor );
     if ( RCt == 0 ) {
         RCt = _RCacheEntryGetAndCheckFile (
@@ -1783,6 +1830,9 @@ _RCacheEntryDoRead (
             if ( ! Synchronized ) {
                     /*) do not need synchronisation to read local file
                      (*/
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
                 KLockUnlock ( self -> mutabor );
             }
 
@@ -1793,12 +1843,15 @@ _RCacheEntryDoRead (
                             SizeToRead,
                             NumReaded
                             );
-/*
+// JOJOBA /*
 RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, self -> Url, Offset, SizeToRead, * NumReaded, RCt );
-*/
+// JOJOBA */
         }
 
         if ( Synchronized ) {
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
             KLockUnlock ( self -> mutabor );
         }
     }
@@ -1806,9 +1859,9 @@ RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, s
     if ( RCt != 0 ) {
         * NumReaded = 0;
 
-/*
-RmOutMsg ( "|||<- Failed to read file [%s][%s] at attempt [%d]\n", self -> Name, self -> Url, llp + 1 );
-*/
+// JOJOBA /*
+RmOutMsg ( "|||<- Failed to read file [%s][%s] at attempt [+1]\n", self -> Name, self -> Url );
+// JOJOBA */
         _CnPoolDrop ( self );
         _CnEntDispose ( self );
 
@@ -1854,9 +1907,9 @@ PLOGMSG ( klogErr, ( klogErr, "|||<- Trying to read file $(n) [$(u)] at attempt 
                                 Offset,
                                 NumReaded
                                 );
-/*
+// JOJOBA /*
 RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, self -> Url, Offset, SizeToRead, * NumReaded, RCt );
-*/
+// JOJOBA */
         if ( RCt == 0 ) {
             break;
         }

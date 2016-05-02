@@ -1082,9 +1082,9 @@ _RCacheEntryDestroy ( struct RCacheEntry * self )
 KOutMsg ( " [GGU] [EntryDestroy]\n" );
 */
     if ( self != NULL ) {
- // JOJOBA /*
+/*
  RmOutMsg ( "++++++DL DESTROY [0x%p] entry\n", self );
- // JOJOBA */
+*/
         _CnPoolDrop ( self );
         _CnEntDispose ( self );
 
@@ -1305,7 +1305,7 @@ RemoteCacheFindOrCreateEntry (
         RCt = _RCacheEntryMake ( Url, & RetEntry );
         if ( RCt == 0 ) {
  /*
- // JOJOBA RmOutMsg ( "++++++DL CREATE [0x%p][%s] entry\n", RetEntry, Url );
+ RmOutMsg ( "++++++DL CREATE [0x%p][%s] entry\n", RetEntry, Url );
  */
             * Entry = RetEntry;
         }
@@ -1327,7 +1327,7 @@ RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
                                                     _RcEnTrYcMp
                                                     );
 /*
- // JOJOBA RmOutMsg ( "++++++ %s entry\n", RetEntry == NULL ? "Creating" : "Loading" );
+RmOutMsg ( "++++++ %s entry\n", RetEntry == NULL ? "Creating" : "Loading" );
 */
         if ( RetEntry == NULL ) {
             RCt = _RCacheEntryMake ( Url, & RetEntry );
@@ -1378,9 +1378,9 @@ RCacheEntryAddRef ( struct RCacheEntry * self )
     RCt = 0;
 
     if ( self != NULL ) {
- /*
- // JOJOBA RmOutMsg ( "++++++DL ADDREF [0x%p] entry\n", self );
- */
+/*
+RmOutMsg ( "++++++DL ADDREF [0x%p] entry\n", self );
+*/
         switch ( KRefcountAdd (
                         & ( self -> refcount ),
                         _CacheEntryClassName
@@ -1408,7 +1408,7 @@ _RCacheEntryReleaseWithoutLock ( struct RCacheEntry * self )
 KOutMsg ( "[GGU] [ReleaseEntry] [%s]\n", self -> Name );
 */
 /*
-// JOJOBA RmOutMsg ( "|||<-- Releasing [%s][%s]\n", self -> Name, self -> Url );
+RmOutMsg ( "|||<-- Releasing [%s][%s]\n", self -> Name, self -> Url );
 */
         ReleaseComplain ( KFileRelease, self -> file );
         self -> file = NULL;
@@ -1507,10 +1507,10 @@ KOutMsg ( "[GGU] [OpenReadRemote] [%s]\n", self -> Name );
         return RC ( rcExe, rcFile, rcOpening, rcParam, rcNull );
     }
 
-// JOJOBA /*
+/*
 RmOutMsg ( "|||<-- Opening [R] [%s][%s]\n", self -> Name, self -> Url );
 RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
-// JOJOBA */
+*/
 
     RCt = KNSManagerMakeHttpFile (
                                 _ManagerOfKNS,
@@ -1587,10 +1587,10 @@ _RCacheEntryOpenFileReadLocal ( struct RCacheEntry * self )
 /*
 KOutMsg ( "[GGU] [OpenReadLocal] [%s]\n", self -> Name );
 */
-// JOJOBA /*
+/*
 RmOutMsg ( "|||<-- Opening [L] [%s][%s]\n", self -> Name, self -> Url );
 RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
-// JOJOBA */
+*/
 
     RCt = KDirectoryNativeDir ( & Directory );
     if ( RCt == 0 ) {
@@ -1739,9 +1739,9 @@ _RCacheEntryGetAndCheckFile (
     if ( RCt == 0 ) {
         if ( CloseFile ) {
             RCt = _RCacheEntryReleaseWithoutLock ( self );
-// JOJOBA /*
+/*
 RmOutMsg ( "|||<-- Close file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RCt );
-// JOJOBA */
+*/
         }
 
         if ( OpenLocal ) {
@@ -1752,9 +1752,9 @@ RmOutMsg ( "|||<-- Close file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RC
 
 
             RCt = _RCacheEntryOpenFileReadLocal ( self );
-// JOJOBA /*
+/*
 RmOutMsg ( "|||<-- Open LOCAL file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RCt );
-// JOJOBA */
+*/
         }
 
         if ( OpenRemote ) {
@@ -1762,9 +1762,9 @@ RmOutMsg ( "|||<-- Open LOCAL file [%s][%s] [A=%d]\n", self -> Name, self -> Pat
             self -> is_local = false;
 
             RCt = _RCacheEntryOpenFileReadRemote ( self );
-// JOJOBA /*
+/*
 RmOutMsg ( "|||<-- Open REMOTE file [%s][%s] [A=%d]\n", self -> Name, self -> Url, RCt );
-// JOJOBA */
+*/
         }
 
         if ( RCt == 0 ) {
@@ -1843,9 +1843,9 @@ RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
                             SizeToRead,
                             NumReaded
                             );
-// JOJOBA /*
+/*
 RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, self -> Url, Offset, SizeToRead, * NumReaded, RCt );
-// JOJOBA */
+*/
         }
 
         if ( Synchronized ) {
@@ -1859,9 +1859,9 @@ RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
     if ( RCt != 0 ) {
         * NumReaded = 0;
 
-// JOJOBA /*
+/*
 RmOutMsg ( "|||<- Failed to read file [%s][%s] at attempt [+1]\n", self -> Name, self -> Url );
-// JOJOBA */
+*/
         _CnPoolDrop ( self );
         _CnEntDispose ( self );
 
@@ -1907,9 +1907,9 @@ PLOGMSG ( klogErr, ( klogErr, "|||<- Trying to read file $(n) [$(u)] at attempt 
                                 Offset,
                                 NumReaded
                                 );
-// JOJOBA /*
+/*
 RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, self -> Url, Offset, SizeToRead, * NumReaded, RCt );
-// JOJOBA */
+*/
         if ( RCt == 0 ) {
             break;
         }

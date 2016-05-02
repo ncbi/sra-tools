@@ -79,7 +79,7 @@ typedef struct SBuffer
 } SBuffer;
 
 
-typedef enum format_t { ft_special, ft_fastq, ft_lookup, ft_test } format_t;
+typedef enum format_t { ft_special, ft_fastq } format_t;
 
 rc_t ErrMsg( const char * fmt, ... );
 

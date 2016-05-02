@@ -250,20 +250,6 @@ format_t get_format_t( const char * format )
         StringInitCString( &FastqFormat, "fastq" );
         if ( 0 == StringCaseCompare ( &Format, &FastqFormat ) )
             res = ft_fastq;
-        else
-        {
-            String LookupFormat;
-            StringInitCString( &LookupFormat, "lookup" );
-            if ( 0 == StringCaseCompare ( &Format, &LookupFormat ) )
-                res = ft_lookup;
-            else
-            {
-                String TestFormat;
-                StringInitCString( &TestFormat, "test" );
-                if ( 0 == StringCaseCompare ( &Format, &TestFormat ) )
-                    res = ft_test;
-            }
-        }
     }
     return res;
 }

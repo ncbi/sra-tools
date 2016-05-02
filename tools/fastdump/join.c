@@ -34,6 +34,7 @@
 
 #include <klib/out.h>
 #include <klib/printf.h>
+#include <klib/text.h>
 #include <kproc/thread.h>
 
 typedef struct join
@@ -374,6 +375,14 @@ typedef struct join_thread_data
 } join_thread_data;
 
 
+static const char * leaf_of( const char * src )
+{
+    const char * last_slash = string_rchr( src, string_size ( src ), '/' );
+    if ( last_slash != NULL )
+        return last_slash + 1;
+    return src;
+}
+
 static rc_t make_part_filename( const join_params * jp, char * buffer, size_t bufsize, uint32_t id )
 {
     rc_t rc;
@@ -388,12 +397,14 @@ static rc_t make_part_filename( const join_params * jp, char * buffer, size_t bu
         }
         else
         {
+            const char * output_file_leaf = leaf_of( jp->output_filename );
+            
             if ( jp->temp_path[ l-1 ] == '/' )
                 rc = string_printf( buffer, bufsize, &num_writ, "%s%s.%d",
-                        jp->temp_path, jp->output_filename, id );
+                        jp->temp_path, output_file_leaf, id );
             else
                 rc = string_printf( buffer, bufsize, &num_writ, "%s/%s.%d",
-                        jp->temp_path, jp->output_filename, id );
+                        jp->temp_path, output_file_leaf, id );
         }
     }
     else

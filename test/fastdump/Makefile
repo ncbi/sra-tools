@@ -41,7 +41,7 @@ SCRATCH = /panfs/traces01/compress/qa/
 THREADS = 4
 
 fastdump1: $(BINDIR)/fastdump $(BINDIR)/vdb-dump
-	@test_no_1.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)
+	@./test_no_1.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)
 
 fastdump2: $(BINDIR)/fastdump $(BINDIR)/vdb-dump
-	@test_no_2.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)
+	@./test_no_2.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)

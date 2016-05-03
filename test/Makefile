@@ -47,6 +47,7 @@ SUBDIRS =    \
 	vdb-validate    \
 	kar             \
     copycat         \
+	fastdump        \
 
 # under construction    
 #    ngs-pileup      \

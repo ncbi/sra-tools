@@ -44,8 +44,10 @@ extern "C" {
 
 typedef struct request_params
 {
-    const char * url;           /* NULL ... default url  */
-    const char * version;       /* NULL ... default vers */
+    const char * names_url;     /* NULL ... default url  */
+    const char * search_url;    /* NULL ... default url  */
+    const char * names_ver;     /* NULL ... default vers */
+    const char * search_ver;    /* NULL ... default vers */
     const char ** params;       /* NULL ... none */
     const char ** terms;        /* mandatory... NULL-terminated list of terms */
     size_t buffer_size;
@@ -117,7 +119,8 @@ rc_t parsed_search_request( const request_params * request,
 
 rc_t search_request_to_list( const request_params * request,
                             uint32_t * rslt_code,
-                            struct reply_obj_list ** list );
+                            struct reply_obj_list ** list,
+                            bool resolve_path );
 
 #ifdef __cplusplus
 }

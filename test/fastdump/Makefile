@@ -37,7 +37,7 @@ include $(TOP)/build/Makefile.env
 runtests: fastdump1 fastdump2
 
 ACC = SRR341578
-SCRATCH = /panfs/traces01/compress/qa/$(shell whoami)/
+SCRATCH = /tmp/$(shell whoami)/
 THREADS = 4
 
 fastdump1: $(BINDIR)/fastdump $(BINDIR)/vdb-dump

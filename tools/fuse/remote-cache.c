@@ -231,7 +231,8 @@ struct RCacheEntry {
     struct _CnEnt * cn_entry;
 };
 
-static const size_t _sConPoolMaxQty = 1024;
+// static const size_t _sConPoolMaxQty = 1024;
+static const size_t _sConPoolMaxQty = 512;
 static struct _CnPool _sConPool;
 
 rc_t CC RCacheEntryAddRef ( struct RCacheEntry * self );
@@ -371,6 +372,7 @@ _CnPoolToFront_NoLock ( struct _CnEnt * Entry )
                 /* Second we should put Entry at front */
             if ( _sConPool . head != NULL ) {
                 Entry -> next = _sConPool . head;
+                Entry -> next -> prev = Entry;
                 _sConPool . head = Entry;
             }
             else {
@@ -1085,8 +1087,11 @@ KOutMsg ( " [GGU] [EntryDestroy]\n" );
 /*
  RmOutMsg ( "++++++DL DESTROY [0x%p] entry\n", self );
 */
+RmOutMsg ( " [FFFFFFFFF] [%d] [%s]\n", __LINE__, self -> Name );
         _CnPoolDrop ( self );
+RmOutMsg ( " [FFFFFFFFF] [%d] [%s]\n", __LINE__, self -> Name );
         _CnEntDispose ( self );
+RmOutMsg ( " [FFFFFFFFF] [%d] [%s]\n", __LINE__, self -> Name );
 
         /*)) Reverse order. I suppose it will be destoryed only
          //  in particualr cases, so no locking :|

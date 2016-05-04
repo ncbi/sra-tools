@@ -1087,11 +1087,8 @@ KOutMsg ( " [GGU] [EntryDestroy]\n" );
 /*
  RmOutMsg ( "++++++DL DESTROY [0x%p] entry\n", self );
 */
-RmOutMsg ( " [FFFFFFFFF] [%d] [%s]\n", __LINE__, self -> Name );
         _CnPoolDrop ( self );
-RmOutMsg ( " [FFFFFFFFF] [%d] [%s]\n", __LINE__, self -> Name );
         _CnEntDispose ( self );
-RmOutMsg ( " [FFFFFFFFF] [%d] [%s]\n", __LINE__, self -> Name );
 
         /*)) Reverse order. I suppose it will be destoryed only
          //  in particualr cases, so no locking :|

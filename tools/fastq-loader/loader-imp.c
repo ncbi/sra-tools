@@ -45,15 +45,15 @@
 #include <vdb/schema.h>
 #include <vdb/database.h>
 #include <vdb/vdb-priv.h>
+#include <insdc/sra.h>
 
-#include <loader/common-reader.h>
-#include <loader/common-writer.h>
-#include <loader/sequence-writer.h>
-#include <loader/reference-writer.h>
+#include "common-reader.h"
+#include "common-writer.h"
+#include "sequence-writer.h"
 
 #include "fastq-reader.h"
 
-rc_t AcrhiveFASTQ(CommonWriterSettings* G, 
+rc_t ArchiveFASTQ(CommonWriterSettings* G,
                 VDBManager *mgr, 
                 VDatabase *db,
                 unsigned seqFiles, 
@@ -207,7 +207,7 @@ rc_t run ( char const progName[],
                 if (rc == 0)
                     rc = rc2;
                 if (rc == 0) {
-                    rc = AcrhiveFASTQ(G, mgr, db, seqFiles, seqFile, qualityOffset, defaultReadNumbers, ignoreSpotGroups);
+                    rc = ArchiveFASTQ(G, mgr, db, seqFiles, seqFile, qualityOffset, defaultReadNumbers, ignoreSpotGroups);
                 }
 
                 if (rc == 0) {

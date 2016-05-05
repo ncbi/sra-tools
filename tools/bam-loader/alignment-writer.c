@@ -120,18 +120,24 @@ rc_t AlignmentGetSpotKey(Alignment *const self, uint64_t * keyId)
     
     switch (self->st) {
     case 0:
-        rc = TableWriterAlgn_TmpKeyStart(self->tbl[tblPrimary]);
-        if (rc)
-            break;
+        if (self->tbl[tblPrimary]) {
+            rc = TableWriterAlgn_TmpKeyStart(self->tbl[tblPrimary]);
+            if (rc)
+                break;
+        }
         self->rowId = 0;
         ++self->st;
     case 1:
-        rc = TableWriterAlgn_TmpKey(self->tbl[tblPrimary], ++self->rowId, keyId);
-        if (rc == 0)
-            break;
-        ++self->st;
-        if (GetRCState(rc) != rcNotFound || GetRCObject(rc) != rcRow || self->tbl[tblSecondary] == NULL)
-            break;
+        if (self->tbl[tblPrimary]) {
+            rc = TableWriterAlgn_TmpKey(self->tbl[tblPrimary], ++self->rowId, keyId);
+            if (rc == 0)
+                break;
+            ++self->st;
+            if (GetRCState(rc) != rcNotFound || GetRCObject(rc) != rcRow || self->tbl[tblSecondary] == NULL)
+                break;
+        }
+        else
+            ++self->st;
     case 2:
         rc = TableWriterAlgn_TmpKeyStart(self->tbl[tblSecondary]);
         if (rc)
@@ -167,7 +173,7 @@ rc_t AlignmentWriteSpotId(Alignment * const self, int64_t const spotId)
 
 rc_t AlignmentWhack(Alignment * const self, bool const commit) 
 {
-    rc_t const rc = TableWriterAlgn_Whack(self->tbl[tblPrimary], commit, NULL);
+    rc_t const rc = self->tbl[tblPrimary] ? TableWriterAlgn_Whack(self->tbl[tblPrimary], commit, NULL) : 0;
     rc_t const rc2 = self->tbl[tblSecondary] ? TableWriterAlgn_Whack(self->tbl[tblSecondary], commit | (rc == 0), NULL) : 0;
 
     VDatabaseRelease(self->db);

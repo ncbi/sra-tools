@@ -363,6 +363,10 @@ _CnPoolToFront_NoLock ( struct _CnEnt * Entry )
         return 0;
     }
 
+/*
+RmOutMsg ( "[_CnPoolToFront_ ] [%p] [ %d]\n", Entry, __LINE__ );
+*/
+
         /* First we should drop Entry without disconnecting */
     RCt = _CnPoolDrop_NoLock ( Entry );
     if ( RCt == 0 ) {
@@ -423,6 +427,10 @@ _CnPoolDrop_NoLock ( struct _CnEnt * Entry )
         return RC ( rcExe, rcData, rcRemoving, rcParam, rcNull );
     }
 
+/*
+RmOutMsg ( "[_CnPoolDrop_] [%p] [ %d]\n", Entry, __LINE__ );
+*/
+
     if ( Entry -> next == NULL &&  Entry -> prev == NULL ) {
             /* Entry is the only member in pool
              */
@@ -467,8 +475,8 @@ _CnPoolDrop_NoLock ( struct _CnEnt * Entry )
             else {
                     /* Entry is at the middle of pool
                      */
-                Entry -> prev -> next = Entry -> next -> prev;
-                Entry -> next -> prev = Entry -> prev -> next;
+                Entry -> prev -> next = Entry -> next;
+                Entry -> next -> prev = Entry -> prev;
             }
         }
 
@@ -1085,7 +1093,7 @@ KOutMsg ( " [GGU] [EntryDestroy]\n" );
 */
     if ( self != NULL ) {
 /*
- RmOutMsg ( "++++++DL DESTROY [0x%p] entry\n", self );
+RmOutMsg ( "++++++DL DESTROY [0x%p] entry\n", self );
 */
         _CnPoolDrop ( self );
         _CnEntDispose ( self );
@@ -1306,9 +1314,9 @@ RemoteCacheFindOrCreateEntry (
     if ( RemoteCacheIsDisklessMode () ) {
         RCt = _RCacheEntryMake ( Url, & RetEntry );
         if ( RCt == 0 ) {
- /*
- RmOutMsg ( "++++++DL CREATE [0x%p][%s] entry\n", RetEntry, Url );
- */
+/*
+RmOutMsg ( "++++++DL CREATE [0x%p][%s] entry\n", RetEntry, Url );
+*/
             * Entry = RetEntry;
         }
 
@@ -1749,8 +1757,8 @@ RmOutMsg ( "|||<-- Close file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RC
         if ( OpenLocal ) {
             self -> is_complete = true;
             self -> is_local = true;
-        _CnPoolDrop ( self );
-        _CnEntDispose ( self );
+            _CnPoolDrop ( self );
+            _CnEntDispose ( self );
 
 
             RCt = _RCacheEntryOpenFileReadLocal ( self );

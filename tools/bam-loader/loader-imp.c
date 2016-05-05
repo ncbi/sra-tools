@@ -1581,7 +1581,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                 rc = 0;
             else {
                 if ((int)GetRCObject(rc)==rcData && (int)GetRCState(rc)==rcDone)
-                    (void)PLOGMSG(klogInfo, (klogInfo, "KQueuePop Done", NULL));
+                    (void)PLOGMSG(klogDebug, (klogDebug, "KQueuePop Done", NULL));
                 else
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "KQueuePop Error", NULL));
                 KThreadWait(bamread_thread, &rc);

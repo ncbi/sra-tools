@@ -22,72 +22,32 @@
 #
 # ===========================================================================
 
-
-default: std
+default: runtests
 
 TOP ?= $(abspath ../..)
-MODULE = tools/srapath
+
+MODULE = test/fastdump
+
+TEST_TOOLS = 
 
 include $(TOP)/build/Makefile.env
 
-INT_TOOLS =
+.PHONY: $(TEST_TOOLS)
 
-EXT_TOOLS = \
-	srapath
+runtests: fastdump1 fastdump2
 
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
+ACC = SRR341578
+SCRATCH = /tmp/$(shell whoami)/
+THREADS = 4
 
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+fastdump1: prepare $(BINDIR)/fastdump $(BINDIR)/vdb-dump
+	@ mkdir -p $(SCRATCH)
+	@./test_no_1.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)
 
-$(ALL_TOOLS): vers-includes
-	@ $(MAKE_CMD) $(BINDIR)/$@
+fastdump2: $(BINDIR)/fastdump $(BINDIR)/vdb-dump
+	@ mkdir -p $(SCRATCH)
+	@./test_no_2.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)
 
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
-# clean
-#
-clean: stdclean
-
-.PHONY: clean
-
-#-------------------------------------------------------------------------------
-# srapath
-#
-SRAPATH_SRC = \
-	helper \
-	line_iter \
-	cgi_request \
-	srapath
-
-SRAPATH_OBJ = \
-	$(addsuffix .$(OBJX),$(SRAPATH_SRC))
-
-SRAPATH_LIB += \
-	-lkapp \
-	-sncbi-vdb \
-
-$(BINDIR)/srapath: $(SRAPATH_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SRAPATH_LIB)
-
+prepare:
+	@ export BINDIR=$(BINDIR) ; export VDB_INCDIR=$(VDB_INCDIR) ; \
+        ./copy-default-kfg.sh

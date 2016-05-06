@@ -9,20 +9,20 @@ execute()
 }
 
 ACC="SRR341578"
-SCRATCH="/panfs/traces01/compress/qa/raetzw/fastdump/"
-THREADS="6"
+SCRATCH="-t /panfs/traces01/compress/qa/raetzw/fastdump/"
+#THREADS="-e 8"
 
 check_special()
 {
-    FASTDUMP_OUT="$SCRATCH$ACC.fastdump.special.txt"
-    VDB_DUMP_OUT="$SCRATCH$ACC.vdb_dump.special.txt"
+    FASTDUMP_OUT="$ACC.fastdump.special.txt"
+    VDB_DUMP_OUT="$ACC.vdb_dump.special.txt"
     
     #remove output
     CMD="rm -rf $FASTDUMP_OUT $VDB_DUMP_OUT"
     execute "$CMD"
 
     #produce the output using the lookup-file
-    CMD="time fastdump $ACC -t $SCRATCH -f special -o $FASTDUMP_OUT -e $THREADS -p"
+    CMD="time fastdump $ACC $SCRATCH -f special -o $FASTDUMP_OUT $THREADS -p"
     execute "$CMD"
 
     #produce the same output using vdb-dump with internal schema-joins
@@ -36,15 +36,15 @@ check_special()
 
 check_fastq()
 {
-    FASTDUMP_OUT="$SCRATCH$ACC.fastdump.fastq.txt"
-    VDB_DUMP_OUT="$SCRATCH$ACC.vdb_dump.fastq.txt"
+    FASTDUMP_OUT="$ACC.fastdump.fastq.txt"
+    VDB_DUMP_OUT="$ACC.vdb_dump.fastq.txt"
     
     #remove output
     CMD="rm -rf $FASTDUMP_OUT $VDB_DUMP_OUT"
     execute "$CMD"
 
     #produce the output using the lookup-file
-    CMD="time fastdump $ACC -t $SCRATCH -f fastq -o $FASTDUMP_OUT -e $THREADS -p"
+    CMD="time fastdump $ACC $SCRATCH -f fastq -o $FASTDUMP_OUT $THREADS -p"
     execute "$CMD"
 
     #produce the same output using vdb-dump with internal schema-joins

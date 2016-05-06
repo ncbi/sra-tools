@@ -1581,7 +1581,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                 rc = 0;
             else {
                 if ((int)GetRCObject(rc)==rcData && (int)GetRCState(rc)==rcDone)
-                    (void)PLOGMSG(klogInfo, (klogInfo, "KQueuePop Done", NULL));
+                    (void)PLOGMSG(klogDebug, (klogDebug, "KQueuePop Done", NULL));
                 else
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "KQueuePop Error", NULL));
                 KThreadWait(bamread_thread, &rc);
@@ -1955,13 +1955,13 @@ MIXED_BASE_AND_COLOR:
             }
             memset(value, 0, sizeof(*value));
             value->unmated = !mated;
-            if (isPrimary || G.assembleWithSecondary) {
+            if (isPrimary || G.assembleWithSecondary || G.deferSecondary) {
                 value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
                 value->platform = GetINSDCPlatform(bam, spotGroup);
                 value->primary_is_set = 1;
             }
         }
-        else if (isPrimary || G.assembleWithSecondary) {
+        else if (isPrimary || G.assembleWithSecondary || G.deferSecondary) {
             int o_pcr_dup = value->pcr_dup;
             int const n_pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
 
@@ -2139,7 +2139,7 @@ WRITE_SEQUENCE:
                     int64_t pnext = 0;
 
                     if (!isPrimary) {
-                        if (!G.assembleWithSecondary || hardclipped) { 
+                        if ( (!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) { 
                             goto WRITE_ALIGNMENT;
                         }
                         (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2238,7 +2238,7 @@ WRITE_SEQUENCE:
                         uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
                         
                         if (!isPrimary) {
-                            if (!G.assembleWithSecondary || hardclipped ) {
+                            if ((!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                                 goto WRITE_ALIGNMENT;
                             }
                             (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));
@@ -2360,7 +2360,7 @@ WRITE_SEQUENCE:
             else if (CTX_VALUE_GET_S_ID(*value) == 0) {
                 /* new unmated fragment - no spot assembly */
                 if (!isPrimary) {
-                    if (!G.assembleWithSecondary || hardclipped ) {
+                    if ((!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                         goto WRITE_ALIGNMENT;
                     }
                     (void)PLOGMSG(klogDebug, (klogDebug, "Spot '$(name)' (id $(id)) is being constructed from secondary alignment information", "id=%lx,name=%s", keyId, name));

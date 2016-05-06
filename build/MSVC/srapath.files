@@ -2,5 +2,8 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\..\..\tools\srapath\srapath.c" />
+    <ClCompile Include="..\..\..\tools\srapath\cgi_request.c" />
+    <ClCompile Include="..\..\..\tools\srapath\helper.c" />
+    <ClCompile Include="..\..\..\tools\srapath\line_iter.c" />
   </ItemGroup>
 </Project>

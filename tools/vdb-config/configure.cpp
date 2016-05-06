@@ -167,15 +167,9 @@ class CConfigurator : CNoncopyable {
         RELEASE(KRepositoryMgr, mgr);
         return rc;
     }
+
     rc_t CheckConfig(bool fix) {
         rc_t rc = CheckRepositories(fix);
-        if (rc == 0) {
-            const string name("/krypto/pwfile");
-            CString node(m_Cfg.ReadString(name.c_str()));
-            if (node.Empty()) {
-                rc = m_Cfg.UpdateNode(name.c_str(), "$(NCBI_HOME)/vdb-passwd");
-            }
-        }
         if (rc == 0) {
             const string name("/tools/ascp/max_rate");
             CString node(m_Cfg.ReadString(name.c_str()));
@@ -194,8 +188,10 @@ class CConfigurator : CNoncopyable {
         }
         return rc;
     }
+
 protected:
     vdbconf_model *m_Config;
+
 public:
     CConfigurator(bool fix = false, bool verbose = false): m_Config(NULL) {
 #define TODO 1

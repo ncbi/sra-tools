@@ -119,6 +119,7 @@ typedef struct {
     uint32_t primaryId[2];
     uint32_t spotId;
     uint32_t fragmentId;
+	uint8_t  fragment_len[2]; /*** lowest byte of fragment length to prevent different sizes of primary and secondary alignments **/
     uint8_t  platform;
     uint8_t  pId_ext[2];
     uint8_t  spotId_ext;
@@ -1612,6 +1613,16 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         }
         ++recordsRead;
         
+#if THREADING_BAMREAD_PRIME_NAME2KEY
+		keyId = rec->keyId;
+		wasInserted = rec->wasInserted;
+#else
+		rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
+        if (rc) {
+            (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
+            goto LOOP_END;
+        }
+#endif
         {
             float const new_value = BAM_FileGetProportionalPosition(bam) * 100.0;
             float const delta = new_value - progress;
@@ -1713,6 +1724,32 @@ MIXED_BASE_AND_COLOR:
                     }
                 }
             }
+		    if(G.deferSecondary && !isPrimary ){	/*** try to see if hard-clipped secondary alignment can be salvaged **/
+				ctx_value_t *tmp_value; 
+				rc_t rc2=MMArrayGetRead(ctx->id2value, (void **)&tmp_value, keyId);
+				if(rc2==0){
+					int i=((flags&BAMFlags_WasPaired) && (flags&BAMFlags_IsSecond))?0:1;
+					BAM_AlignmentGetReadLength(rec, &readlen);
+					if(readlen + lpad + rpad < tmp_value->fragment_len[i]){
+						opCount++;
+						rc = KDataBufferResize(&cigBuf, opCount);
+						if (rc) {
+							(void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
+							goto LOOP_END;
+						}
+						if(rpad > 0 && lpad==0){
+							uint32_t * cigar = cigBuf.base;
+							lpad =  tmp_value->fragment_len[i] - readlen - rpad;
+							memmove(cigar+1,cigar,(opCount-1)*sizeof(*cigar));
+							cigar[0] =  (((uint32_t)lpad) << 4) | 4;
+						} else {
+							uint32_t *const cigar = cigBuf.base;
+							rpad += tmp_value->fragment_len[i] - readlen - lpad;
+							cigar[opCount - 1] =  (((uint32_t)rpad) << 4) | 4;
+						}
+					}
+				}
+			}
         }
         if (hasCG) {
             rc = AlignmentRecordInit(&data, readlen);
@@ -1898,23 +1935,15 @@ MIXED_BASE_AND_COLOR:
             assert(!"this shouldn't happen");
             goto LOOP_END;
         }
-#if THREADING_BAMREAD_PRIME_NAME2KEY
-		keyId = rec->keyId;
-		wasInserted = rec->wasInserted;
-#else
-		rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
-#endif
-        if (rc) {
-            (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
-            goto LOOP_END;
-        }
+
+        AR_KEY(data) = keyId;
+
         rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
             goto LOOP_END;
         }
 
-        AR_KEY(data) = keyId;
 
         mated = false;
         if (flags & BAMFlags_WasPaired) {
@@ -2046,6 +2075,28 @@ MIXED_BASE_AND_COLOR:
                                                            NCBI_align_ro_intron_unknown;
                 rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches, &misses);
             }
+			if (rc == 0){
+				int i= (AR_READNO(data)==1)?0:(AR_READNO(data)==2)?1:-1;
+				if( i >=0 ){
+					int rl=readlen<256?readlen:255;
+					if(value->fragment_len[i]==0){
+                        value->fragment_len[i]=readlen;
+                    } else if ( value->fragment_len[i] != readlen){
+						if(isPrimary){
+							rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) then previously recorded secondary alignment with length ($(plen)). Try to defer secondary alignment processing",
+																 "name=%s,len=%d,plen=%d", name, readlen, value->fragment_len[i]));
+                            goto LOOP_END;
+						} else {
+							DISCARD_BAD_SECONDARY;
+							 (void)PLOGERR(klogWarn, (klogWarn, rc, "Secondary alignment for '$(name)' has different length ($(len)) then previously recorded primary alignment with length ($(plen)); discarding secondary alignment",
+                                                                 "name=%s,len=%d,plen=%d", name, readlen, value->fragment_len[i]));	
+							rc = CheckLimitAndLogError();
+							goto LOOP_END;
+						}
+					}
+				}
+			}
             if (rc == 0 && (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch))) {
                 if (isPrimary) {
                     if (misses > matches) {

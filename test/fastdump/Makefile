@@ -37,11 +37,17 @@ include $(TOP)/build/Makefile.env
 runtests: fastdump1 fastdump2
 
 ACC = SRR341578
-SCRATCH = /panfs/traces01/compress/qa/
+SCRATCH = /tmp/$(shell whoami)/
 THREADS = 4
 
-fastdump1: $(BINDIR)/fastdump $(BINDIR)/vdb-dump
-	@test_no_1.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)
+fastdump1: prepare $(BINDIR)/fastdump $(BINDIR)/vdb-dump
+	@ mkdir -p $(SCRATCH)
+	@./test_no_1.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)
 
 fastdump2: $(BINDIR)/fastdump $(BINDIR)/vdb-dump
-	@test_no_2.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)
+	@ mkdir -p $(SCRATCH)
+	@./test_no_2.sh $(ACC) $(SCRATCH) $(THREADS) $(BINDIR)
+
+prepare:
+	@ export BINDIR=$(BINDIR) ; export VDB_INCDIR=$(VDB_INCDIR) ; \
+        ./copy-default-kfg.sh

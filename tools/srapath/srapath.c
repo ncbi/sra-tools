@@ -313,15 +313,28 @@ typedef struct out_fmt
 
 
 static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fmt,
-                             const char * url, const char * ver )
+                             bool for_names )
 {
     rc_t rc = args_to_ptrs( args, &r->terms ); /* helper.c */
     if ( rc == 0 )
         rc = options_to_ptrs( args, OPTION_PARAM, &r->params ); /* helper.c */
     if ( rc == 0 )
     {
-        r->url = get_str_option( args, OPTION_URL, url ); /* helper.c */
-        r->version = get_str_option( args, OPTION_VERS, ver ); /* helper.c */
+        if ( for_names )
+        {
+            r->names_url  = get_str_option( args, OPTION_URL, NULL ); /* helper.c */
+            r->names_ver  = get_str_option( args, OPTION_VERS, NULL ); /* helper.c */
+            r->search_url = NULL;
+            r->search_ver = NULL;
+            
+        }
+        else
+        {
+            r->names_url  = NULL;
+            r->names_ver  = NULL;
+            r->search_url = get_str_option( args, OPTION_URL, NULL ); /* helper.c */
+            r->search_ver = get_str_option( args, OPTION_VERS, NULL ); /* helper.c */
+        }
         r->buffer_size = 4096;
         r->timeout_ms = get_uint32_t_option( args, OPTION_TIMEOUT, 5000 );
     }
@@ -352,14 +365,11 @@ static rc_t print_names_reply( const reply_obj * obj, void * data )
     return rc;
 }
 
-const char * names_cgi_url = "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
-const char * names_cgi_ver = "3.0";
-
 static rc_t names_cgi( const Args * args )
 {
     request_params r; /* cgi_request.h */
     out_fmt fmt;
-    rc_t rc = prepare_request( args, &r, &fmt, names_cgi_url, names_cgi_ver );
+    rc_t rc = prepare_request( args, &r, &fmt, true );
     if ( rc == 0 )
     {
         uint32_t rslt_code;
@@ -390,14 +400,11 @@ static rc_t print_search_reply( const reply_obj * obj, void * data )
     return KOutMsg( "(%S) %S --> %S\n", obj->obj_type, obj->id, obj->path );
 }
 
-const char * search_cgi_url = "http://www.ncbi.nlm.nih.gov/Traces/names/search.cgi";
-const char * search_cgi_ver = "1.0";
-
 static rc_t search_cgi( const Args * args )
 {
     request_params r; /* cgi_request.h */
     out_fmt fmt;
-    rc_t rc = prepare_request( args, &r, &fmt, search_cgi_url, search_cgi_ver );
+    rc_t rc = prepare_request( args, &r, &fmt, false );
     if ( rc == 0 )
     {
         uint32_t rslt_code;
@@ -407,7 +414,7 @@ static rc_t search_cgi( const Args * args )
         else
         {
             struct reply_obj_list * list; /* cgi_request.h */
-            rc = search_request_to_list( &r, &rslt_code, &list ); /* cgi_request.c */
+            rc = search_request_to_list( &r, &rslt_code, &list, true ); /* cgi_request.c */
             if ( rc == 0 )
             {
                 rc = foreach_reply_obj( list, print_search_reply, &fmt ); /* cgi_request.c */

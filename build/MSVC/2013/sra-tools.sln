@@ -1,79 +1,192 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 11.00
 # Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tk-version", "tk-version.vcxproj", "{08D430A6-B56A-42B6-8B32-E013F0A72DDF}"
+EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "rcexplain", "rcexplain.vcxproj", "{799ECD99-5336-4322-B845-279B7D4B8D71}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "md5cp", "md5cp.vcxproj", "{F14519B5-5698-4363-A734-229F2A01153D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-sra", "test-sra.vcxproj", "{11C2E25B-2CD2-4826-A574-637AD10BAAC3}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-passwd", "vdb-passwd.vcxproj", "{ABA40306-1ACE-4E66-B7A9-74F14C47BDC7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kar", "kar.vcxproj", "{E832EEE9-7EC4-4CC0-A0B4-FE65404D012D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sra-kar", "sra-kar.vcxproj", "{99FEB5EB-C150-4634-85AC-780082753D42}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-dump", "vdb-dump.vcxproj", "{5E85344A-92C9-4407-8A76-1EF0C8AB0D60}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fastq-dump", "fastq-dump.vcxproj", "{2182DDEE-BE67-48FB-89BA-9EF23717C128}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sff-dump", "sff-dump.vcxproj", "{11616A3B-9C1F-4760-AE77-755E06D5DFB1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "abi-dump", "abi-dump.vcxproj", "{9DF843FA-AA45-4EB1-BB76-84342AED550C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fastq-dump-ngs", "fastq-dump-ngs.vcxproj", "{8DA91267-49B1-4696-AF9D-2A98B697167E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "kdbmeta", "kdbmeta.vcxproj", "{D2B898E3-DDBB-4704-A932-AED218DABE18}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-lock", "vdb-lock.vcxproj", "{4779D671-B464-4C6E-8875-CDA2081957F0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-unlock", "vdb-unlock.vcxproj", "{452802EF-A059-4A4C-8106-ADF652ED1E1C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "schema-replace", "schema-replace.vcxproj", "{75A32DEA-9C0C-40CE-AE8C-CA58BAD4ADFD}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sra-pileup", "sra-pileup.vcxproj", "{9112BE22-FE04-407B-8B3B-9D7C3731E39A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sam-dump", "sam-dump.vcxproj", "{E7FAF31B-CA59-4E70-979F-E869EB45ABA0}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "fastq-loader", "fastq-loader.vcxproj", "{D5EDA47B-AD5A-4C2A-BDBB-EA29C61749E4}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "srapath", "srapath.vcxproj", "{779C36A1-2592-469C-93A1-60C0B79BA529}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sra-stat", "sra-stat.vcxproj", "{88A9A91A-4BC3-47EA-8147-944FD4909C6D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-copy", "vdb-copy.vcxproj", "{639D1E21-0C0C-4846-A71D-68DB7752833A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "read-filter-redact", "read-filter-redact.vcxproj", "{B7C166D7-2B45-4E77-A608-DDBD0B588082}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-config", "vdb-config.vcxproj", "{7CAB9840-19BB-4B32-94BD-C29701FDBE88}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "align-info", "align-info.vcxproj", "{A54C75F9-A609-4BEC-91AB-23F5119B62AE}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "align-cache", "align-cache.vcxproj", "{3C8CB988-94DC-4B07-8865-B91FC52395F8}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ref-variation", "ref-variation.vcxproj", "{17513747-C074-4DA8-AA32-41D0C5FDC230}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "var-expand", "var-expand.vcxproj", "{4F3ECB20-03D7-4DD0-B993-9AB6A8142A06}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "qual-recalib-stat", "qual-recalib-stat.vcxproj", "{4AF84403-70C6-4479-A701-D735E7003505}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "prefetch", "prefetch.vcxproj", "{2CF4BF04-4C4D-442E-A7AD-0AE5EF87C733}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-decrypt", "vdb-decrypt.vcxproj", "{E4824F7B-4698-4F9B-85B1-AEFD6A81F957}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-encrypt", "vdb-encrypt.vcxproj", "{03E85236-7CD9-4D6B-95FA-767935F8081D}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-validate", "vdb-validate.vcxproj", "{446C2DD3-36B3-4B27-8415-951F98346E99}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cache-mgr", "cache-mgr.vcxproj", "{9BFEB5F1-0101-48A6-82CD-CF5744E1EDF3}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vcf-loader", "vcf-loader.vcxproj", "{DA226775-67B1-4354-A5CA-7F5406E0B1E7}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "illumina-dump", "illumina-dump.vcxproj", "{0D7E1861-6A3C-4CF3-B603-39BF841C3C82}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-diff", "vdb-diff.vcxproj", "{B54A02A3-65A3-6E18-84CD-9003BED39F90}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "general-loader", "general-loader.vcxproj", "{11356540-C8F0-44B9-B6BA-01C87443A1CF}"
+	ProjectSection(ProjectDependencies) = postProject
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -83,6 +196,14 @@ Global
 		Release|x64 = Release|x64
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF}.Debug|Win32.ActiveCfg = Debug|Win32
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF}.Debug|Win32.Build.0 = Debug|Win32
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF}.Debug|x64.ActiveCfg = Debug|x64
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF}.Debug|x64.Build.0 = Debug|x64
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF}.Release|Win32.ActiveCfg = Release|Win32
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF}.Release|Win32.Build.0 = Release|Win32
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF}.Release|x64.ActiveCfg = Release|x64
+		{08D430A6-B56A-42B6-8B32-E013F0A72DDF}.Release|x64.Build.0 = Release|x64
 		{799ECD99-5336-4322-B845-279B7D4B8D71}.Debug|Win32.ActiveCfg = Debug|Win32
 		{799ECD99-5336-4322-B845-279B7D4B8D71}.Debug|Win32.Build.0 = Debug|Win32
 		{799ECD99-5336-4322-B845-279B7D4B8D71}.Debug|x64.ActiveCfg = Debug|x64

@@ -19,20 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   
-  <Import Project=".\exe-project.props" />
+  <Import Project=".\lib-project.props" />  
   
-  <ItemDefinitionGroup>
-    <Link>
-      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(VDB_TARGET)lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
-	  <AdditionalDependencies>$(VDB_TARGET)lib\bz2.lib;%(AdditionalDependencies)</AdditionalDependencies>
-    </Link>
-  </ItemDefinitionGroup>  
+  <Import Project="..\tk-version.files" />  
   
-  <Import Project="..\vdb-diff.files" />
-
   <PropertyGroup Label="Globals">
-  	<ProjectGuid>{B54A02A3-65A3-6E18-84CD-9003BED39F90}</ProjectGuid>
+    <ProjectGuid>{08D430A6-B56A-42B6-8B32-E013F0A72DDF}</ProjectGuid>
   </PropertyGroup>
 
 </Project>

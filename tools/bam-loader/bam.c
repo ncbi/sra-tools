@@ -1294,7 +1294,7 @@ static rc_t ProcessSAMHeader(BAM_File *self, char const substitute[])
         void *const tmp = headerText;
         int const ch = SAMFileRead1(file);
         
-        if (ch < 0)
+        if (ch == -1)
             return SAMFileLastError(file);
         
         if (st == 0) {

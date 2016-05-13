@@ -35,7 +35,6 @@
 
 #include "debug.h"
 #include "core.h"
-#include "sff-dump.vers.h"
 
 #define DATABUFFERINITSIZE 10240
 
@@ -173,12 +172,6 @@ const char UsageDefaultName[] = "sff-dump";
 rc_t CC UsageSummary (const char * progname)
 {
     return 0;
-}
-
-
-ver_t CC KAppVersion( void )
-{
-    return SFF_DUMP_VERS;
 }
 
 rc_t SFFDumper_Factories(const SRADumperFmt* fmt, const SRASplitterFactory** factory)

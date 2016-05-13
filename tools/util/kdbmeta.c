@@ -41,8 +41,6 @@
 */
 #define ALLOW_UPDATE 1
 
-#include "kdbmeta.vers.h"
-
 #include <sra/srapath.h>
 #include <kdb/manager.h>
 #include <kdb/database.h>
@@ -962,19 +960,6 @@ rc_t tool_select ( CONST KDBManager * mgr, uint32_t type, const char * targ, con
     }
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return KDBMETA_VERS;
-}
-    
 
 const char UsageDefaultName[] = "kdbmeta";
 

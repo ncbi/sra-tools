@@ -42,10 +42,10 @@ ALL_TOOLS = \
 #------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -67,13 +67,6 @@ $(TARGDIR)/std: \
 .PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
 # clean
 #
 clean: stdclean
@@ -91,12 +84,10 @@ UPDATE_SCHEMA_OBJ = \
 
 UPDATE_SCHEMA_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-wvdb \
-    
-update-schema.vers.h: update-schema.vers
-	$(TOP)/build/make-vers-inc.sh UPDATE_SCHEMA_VERS $^ > $@
 
 $(BINDIR)/vdb-update-schema: $(UPDATE_SCHEMA_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(UPDATE_SCHEMA_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(UPDATE_SCHEMA_LIB)
 
 #-------------------------------------------------------------------------------

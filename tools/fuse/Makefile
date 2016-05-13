@@ -48,10 +48,10 @@ ifeq (1,$(HAVE_FUSE))
 
 ifeq (64,$(BITS))
 
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 else
@@ -94,13 +94,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -150,12 +143,13 @@ endif
 
 SRA_FUSER_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 	-lfuse \
 	-lrt
 
 $(BINDIR)/sra-fuser: $(SRA_FUSER_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SRA_FUSER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRA_FUSER_LIB)
 
 #-------------------------------------------------------------------------------
 # remote-fuser
@@ -189,12 +183,13 @@ endif
 
 REMOTE_FUSER_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 	-lfuse \
 	-lrt
 
 $(BINDIR)/remote-fuser: $(REMOTE_FUSER_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(REMOTE_FUSER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(REMOTE_FUSER_LIB)
 
 #-------------------------------------------------------------------------------
 # sra-fuser
@@ -208,9 +203,10 @@ SRA_MAKEIDX_OBJ = \
 
 SRA_MAKEIDX_LIB = \
 	-lkapp \
+	-stk-version \
 	-lncbi-wvdb \
 	-ssrareader \
 
 $(BINDIR)/sra-makeidx: $(SRA_MAKEIDX_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SRA_MAKEIDX_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRA_MAKEIDX_LIB)
 

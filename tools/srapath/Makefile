@@ -42,10 +42,10 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -57,13 +57,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -86,8 +79,9 @@ SRAPATH_OBJ = \
 
 SRAPATH_LIB += \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 
 $(BINDIR)/srapath: $(SRAPATH_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SRAPATH_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRAPATH_LIB)
 

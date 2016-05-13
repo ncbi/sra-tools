@@ -42,10 +42,10 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -65,13 +65,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -94,8 +87,9 @@ VDB_DIFF_OBJ = \
 
 VDB_DIFF_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 	-lm
 
 $(BINDIR)/vdb-diff: $(VDB_DIFF_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_DIFF_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_DIFF_LIB)

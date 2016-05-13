@@ -45,10 +45,10 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -60,13 +60,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -85,6 +78,7 @@ DUMP_COMMON_SRC = \
 
 DUMP_COMMON_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 	-lm
 
@@ -99,7 +93,7 @@ FASTQ_DUMP_OBJ = \
 	$(addsuffix .$(OBJX),$(FASTQ_DUMP_SRC))
 
 $(BINDIR)/fastq-dump: $(FASTQ_DUMP_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(DUMP_COMMON_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(DUMP_COMMON_LIB)
 
 #-------------------------------------------------------------------------------
 # sff-dump
@@ -112,7 +106,7 @@ SFF_DUMP_OBJ = \
 	$(addsuffix .$(OBJX),$(SFF_DUMP_SRC))
 
 $(BINDIR)/sff-dump: $(SFF_DUMP_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(DUMP_COMMON_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(DUMP_COMMON_LIB)
 
 #-------------------------------------------------------------------------------
 # illumina-dump
@@ -125,7 +119,7 @@ ILLUMINA_DUMP_OBJ = \
 	$(addsuffix .$(OBJX),$(ILLUMINA_DUMP_SRC))
 
 $(BINDIR)/illumina-dump: $(ILLUMINA_DUMP_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(DUMP_COMMON_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(DUMP_COMMON_LIB)
 
 #-------------------------------------------------------------------------------
 # abi-dump
@@ -138,5 +132,5 @@ ABI_DUMP_OBJ = \
 	$(addsuffix .$(OBJX),$(ABI_DUMP_SRC))
 
 $(BINDIR)/abi-dump: $(ABI_DUMP_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(DUMP_COMMON_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(DUMP_COMMON_LIB)
 

@@ -42,10 +42,10 @@ ALL_TOOLS = \
 #------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -67,13 +67,6 @@ $(TARGDIR)/std: \
 .PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
 # clean
 #
 clean: stdclean
@@ -91,12 +84,10 @@ TABLE_VERS_OBJ = \
 
 TABLE_VERS_LIB = \
 	-lkapp \
+	-stk-version \
 	-lncbi-vdb \
 	-lm
 
-table-vers.vers.h: table-vers.vers
-	$(TOP)/build/make-vers-inc.sh TABLE_VERS_VERS $^ > $@
-
 $(BINDIR)/table-vers: $(TABLE_VERS_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(TABLE_VERS_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TABLE_VERS_LIB)
 

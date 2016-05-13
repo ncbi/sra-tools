@@ -39,11 +39,6 @@
 
 #include <sra/sradb.h>
 
-uint32_t KAppVersion(void)
-{
-    return 1;
-}
-
 rc_t KMain ( int argc, char *argv [] )
 {
     rc_t rc = 0;

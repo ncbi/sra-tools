@@ -43,10 +43,10 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -58,13 +58,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -92,12 +85,13 @@ REF_VARIATION_LIB =   \
 	-sncbi-vdb-static \
 	-sngs-c++         \
 	-skapp            \
+	-stk-version      \
 	-sncbi-vdb        \
 	-sm               \
 	-sload
 
 $(BINDIR)/ref-variation: $(REF_VARIATION_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(REF_VARIATION_LIB)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(REF_VARIATION_LIB)
 
 #-------------------------------------------------------------------------------
 # var-expand
@@ -118,9 +112,10 @@ VAR_EXPAND_LIB =   \
 	-sncbi-vdb-static \
 	-sngs-c++         \
 	-skapp            \
+	-stk-version      \
 	-sncbi-vdb        \
 	-sm               \
 	-sload
 
 $(BINDIR)/var-expand: $(VAR_EXPAND_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(VAR_EXPAND_LIB)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VAR_EXPAND_LIB)

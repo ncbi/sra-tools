@@ -39,7 +39,6 @@ typedef struct SFFLoaderFmt SFFLoaderFmt;
 
 #include "writer-454.h"
 #include "writer-ion-torrent.h"
-#include "sff-load.vers.h"
 #include "debug.h"
 
 #include <byteswap.h>
@@ -404,15 +403,10 @@ rc_t SFFLoaderFmtWriteDataFile(SFFLoaderFmt* self, const SRALoaderFile* file)
 
 const char UsageDefaultName[] = "sff-load";
 
-uint32_t KAppVersion(void)
-{
-    return SFF_LOAD_VERS;
-}
-
 static
 rc_t SFFLoaderFmtVersion( const SFFLoaderFmt*self, uint32_t *vers, const char** name )
 {
-    *vers = SFF_LOAD_VERS;
+    *vers = KAppVersion();
     *name = "SFF";
     return 0;
 }

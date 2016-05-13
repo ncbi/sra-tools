@@ -41,8 +41,6 @@
 #include "../general-loader/general-writer.hpp"
 #include <arch-impl.h>
 
-#include "pileup-stats.vers.h"
-
 #include <iostream>
 #include <string.h>
 #include <ctype.h>
@@ -137,7 +135,7 @@ namespace ncbi
                 if ( ( ref_zpos % 1000000 ) == 0 )
                 {
                     if ( ncbi :: use_gw_logmessage )
-                        out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+                        out . progMsg ( refName, KAppVersion(), ref_zpos + refLengthSubTotal , refLengthTotal );
                     else
                         std :: cerr << "#  " << std :: setw ( 9 ) << ref_zpos << '\n';
                 }
@@ -146,7 +144,7 @@ namespace ncbi
                 if ( ( ref_zpos % 5000 ) == 0 )
                 {
                     if ( ncbi :: use_gw_logmessage )
-                        out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+                        out . progMsg ( refName, KAppVersion(), ref_zpos + refLengthSubTotal , refLengthTotal );
                     else
                     {
                         if ( ( ref_zpos % 500000 ) == 0 )
@@ -453,11 +451,6 @@ namespace ncbi
 
 extern "C"
 {
-    ver_t CC KAppVersion ()
-    {
-        return PILEUP_STATS_VERS;
-    }
-
     rc_t CC Usage ( struct Args const * args )
     {
         return 0;

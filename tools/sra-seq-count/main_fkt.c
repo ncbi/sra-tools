@@ -24,8 +24,6 @@
 *
 */
 
-#include "sra-seq-count.vers.h"
-
 #include "options.h"
 
 #include <kapp/main.h>
@@ -100,12 +98,6 @@ rc_t CC Usage ( const Args * args )
 
     return rc;
 }
-
-ver_t CC KAppVersion ( void )
-{
-    return SRA_SEQ_COUNT_VERS;
-}
-
 
 static rc_t get_str_option( const Args * args, const char * option_name, const char ** dst, const char * default_value )
 {

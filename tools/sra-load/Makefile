@@ -49,10 +49,10 @@ ALL_TOOLS = \
 #
 ifeq (1,$(HAVE_XML2))
 
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 else
@@ -76,17 +76,9 @@ $(TARGDIR)/std: \
 .PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
 # clean
 #
 clean: stdclean
-	@ rm -f *.vers.h
 
 .PHONY: clean
 
@@ -110,6 +102,7 @@ LIBXML = -lkxfs -lkxml -lxml2
 
 LOADER_LIB = \
 	-lkapp \
+	-stk-version \
 	-lload \
 	-sncbi-wvdb \
 	$(LIBXML) \
@@ -129,7 +122,7 @@ SFF_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(SFF_LOAD_SRC))
 
 $(BINDIR)/sff-load: $(SFF_LOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(LOADER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(LOADER_LIB)
 
 #------------------------------------------------------------------------------
 # fastq-load
@@ -145,7 +138,7 @@ FASTQ_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(FASTQ_LOAD_SRC))
 
 $(BINDIR)/fastq-load: $(FASTQ_LOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(LOADER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(LOADER_LIB)
 
 #------------------------------------------------------------------------------
 # srf-load
@@ -166,7 +159,7 @@ SRF_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(SRF_LOAD_SRC))
 
 $(BINDIR)/srf-load: $(SRF_LOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(LOADER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(LOADER_LIB)
 
 #------------------------------------------------------------------------------
 # abi-load
@@ -180,7 +173,7 @@ ABSOLID_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(ABSOLID_LOAD_SRC))
 
 $(BINDIR)/abi-load: $(ABSOLID_LOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(LOADER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(LOADER_LIB)
 
 #------------------------------------------------------------------------------
 # illumina-load
@@ -194,7 +187,7 @@ ILLUMINA_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(ILLUMINA_LOAD_SRC))
 
 $(BINDIR)/illumina-load: $(ILLUMINA_LOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(LOADER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(LOADER_LIB)
 
 #------------------------------------------------------------------------------
 # helicos-load
@@ -208,7 +201,7 @@ HELICOS_LOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(HELICOS_LOAD_SRC))
 
 $(BINDIR)/helicos-load: $(HELICOS_LOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(LOADER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(LOADER_LIB)
 
 #------------------------------------------------------------------------------
 # pacbio-loadxml
@@ -221,4 +214,4 @@ PACBIO_LOADXML_OBJ = \
 	$(addsuffix .$(OBJX),$(PACBIO_LOADXML_SRC))
 
 $(BINDIR)/pacbio-loadxml: $(PACBIO_LOADXML_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(LOADER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(LOADER_LIB)

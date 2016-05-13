@@ -44,10 +44,10 @@ ALL_TOOLS = \
 #
 ifeq (1,$(HAVE_XML2))
 
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 else
@@ -71,13 +71,6 @@ $(TARGDIR)/std: \
 .PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
 # clean
 #
 clean: stdclean
@@ -97,9 +90,10 @@ CCEXTRACT_OBJ = \
 
 CCEXTRACT_LIB = \
 	-lkapp \
+	-stk-version \
     -lkxfs \
     -lkxml \
 	-sncbi-vdb
 
 $(BINDIR)/ccextract: $(CCEXTRACT_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(CCEXTRACT_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(CCEXTRACT_LIB)

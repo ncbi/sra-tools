@@ -47,13 +47,13 @@ ALL_TOOLS =      \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(INT_TOOLS): vers-includes
+$(INT_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-$(EXT_TOOLS): vers-includes
+$(EXT_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -67,13 +67,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -95,7 +88,7 @@ GEN_WRITER_OBJ = \
 	$(addsuffix .$(LOBX),$(GEN_WRITER_SRC))
 
 $(LIBDIR)/$(LPFX)general-writer.$(LIBX): $(GEN_WRITER_OBJ)
-	$(LD) --slib --vers $(SRCDIR) -o $@ $^
+	$(LD) --slib --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^
 
 #-------------------------------------------------------------------------------
 # gw-dumper
@@ -122,7 +115,8 @@ GEN_LOAD_LIBS = \
 	-sncbi-wvdb-static \
 	-sload \
 	-skapp \
+	-stk-version \
 
 $(BINDIR)/general-loader: $(GEN_LOAD_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(GEN_LOAD_LIBS)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(GEN_LOAD_LIBS)
 

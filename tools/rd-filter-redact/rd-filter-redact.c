@@ -23,7 +23,6 @@
  * ===========================================================================
  */
 
-#include "rd-filter-redact.vers.h" /* RD_FILTER_REDACT_VERS */
 #include <kapp/main.h> /* KMain */
 #include <kapp/log.h> /* plogmsg */
 #include <kfs/file.h> /* KFile */
@@ -1156,10 +1155,6 @@ rc_t open_and_run (Context * context)
 
     return rc;
 }
-
-
-uint32_t KAppVersion(void)
-{ return RD_FILTER_REDACT_VERS; }
 
 
 static

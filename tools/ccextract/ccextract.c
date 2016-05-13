@@ -42,7 +42,7 @@
 #include <klib/log.h>
 #include <klib/debug.h>
 #include <kapp/args.h>
-#include "ccextract.vers.h"
+#include <kapp/main.h>
 
 #include <string.h>
 #include <stdlib.h>
@@ -73,19 +73,6 @@ const char * force_usage[] =
 static
 const char * dir_usage[] = 
 { "location of output dbase directory", NULL };
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-uint32_t KAppVersion ( void )
-{
-    return CCEXTRACT_VERS;
-}
-
 
 const char UsageDefaultName [] = "ccextract";
 

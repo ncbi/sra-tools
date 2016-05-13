@@ -46,13 +46,13 @@ include $(TOP)/build/Makefile.env
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes 
+all std: makedirs 
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(INT_LIBS): vers-includes
+$(INT_LIBS): makedirs
 	@ $(MAKE_CMD) $(ILIBDIR)/$@
 
-$(EXT_TOOLS): vers-includes
+$(EXT_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@    
 
 ALL_TOOLS = \
@@ -70,13 +70,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -151,10 +144,11 @@ FASTQ_LOAD_OBJ = \
 
 FASTQ_LOADER_LIB = \
 	-skapp \
+	-stk-version \
     -sload \
 	-sncbi-wvdb \
 	-sm
 
 $(BINDIR)/latf-load: $(FASTQ_LOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/latf-load.vers -o $@ $^ $(FASTQ_LOADER_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(FASTQ_LOADER_LIB)
 

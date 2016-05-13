@@ -24,7 +24,6 @@
 *
 */
 
-#include "md5cp.vers.h"
 #include <kapp/main.h>
 #include <kapp/args.h>
 #include <klib/log.h>
@@ -112,17 +111,6 @@ rc_t CopyFileToFile( const KDirectory *top, const char *inname, KDirectory *targ
 #define BUFSIZE 8192
 
 char buffer[BUFSIZE];
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return MD5CP_VERS;
-}
 
 /*
  * out is a pre-allocated buffer.

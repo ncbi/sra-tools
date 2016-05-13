@@ -45,13 +45,13 @@ include $(TOP)/build/Makefile.env
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes 
+all std: makedirs 
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(INT_LIBS): vers-includes
+$(INT_LIBS): makedirs
 	@ $(MAKE_CMD) $(ILIBDIR)/$@
 
-$(EXT_TOOLS): vers-includes
+$(EXT_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@    
 
 ALL_TOOLS = \
@@ -69,13 +69,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -98,9 +91,10 @@ KEYRING_SRV_OBJ = \
 
 KEYRING_SRV_LIB = \
 	-skapp \
+	-stk-version \
 	-lncbi-wvdb \
 
 
 $(BINDIR)/keyring-srv: $(KEYRING_SRV_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/keyring-srv.vers -o $@ $^ $(KEYRING_SRV_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KEYRING_SRV_LIB)
 

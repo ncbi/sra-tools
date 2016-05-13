@@ -42,10 +42,10 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -65,13 +65,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -106,8 +99,9 @@ VDB_COPY_OBJ = \
 
 VDB_COPY_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-wvdb \
 	-lm
 
 $(BINDIR)/vdb-copy: $(VDB_COPY_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_COPY_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_COPY_LIB)

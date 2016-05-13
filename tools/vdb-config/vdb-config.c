@@ -24,7 +24,6 @@
 *
 */
 
-#include "vdb-config.vers.h"
 #include "configure.h"
 
 #include <kapp/main.h>
@@ -254,8 +253,6 @@ rc_t CC Usage(const Args* args) {
 }
 
 const char UsageDefaultName[] = "vdb-config";
-
-ver_t CC KAppVersion(void) { return VDB_CONFIG_VERS; }
 
 static void Indent(bool xml, int n) {
     if (!xml)

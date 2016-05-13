@@ -38,10 +38,10 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -53,13 +53,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -85,7 +78,8 @@ NGS_PILEUP_LIBS = \
 	-sncbi-vdb-static \
 	-sngs-c++         \
 	-skapp \
+	-stk-version \
     
 $(BINDIR)/ngs-pileup: $(NGS_PILEUP_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(NGS_PILEUP_LIBS)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(NGS_PILEUP_LIBS)
 

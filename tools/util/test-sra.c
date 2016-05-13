@@ -25,7 +25,6 @@
 */
 
 #include "test-sra-priv.h" /* PrintOS */
-#include "test-sra.vers.h" /* TEST_SRA_VERS */
 
 #include <kapp/main.h> /* KMain */
 
@@ -140,7 +139,6 @@ typedef struct {
     bool allowCaching;
     VResolverEnableState cacheState;
 } Main;
-uint32_t CC KAppVersion(void) { return TEST_SRA_VERS; }
 
 const char UsageDefaultName[] = "test-sra";
 

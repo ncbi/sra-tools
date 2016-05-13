@@ -42,10 +42,10 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -57,13 +57,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -84,9 +77,10 @@ ALIGN_CACHE_OBJ = \
 
 ALIGN_CACHE_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-wvdb \
 	-sm \
 	-sload
 
 $(BINDIR)/align-cache: $(ALIGN_CACHE_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(ALIGN_CACHE_LIB)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(ALIGN_CACHE_LIB)

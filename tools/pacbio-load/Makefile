@@ -56,10 +56,10 @@ endif
 #
 ifeq (1,$(HAVE_HDF5))
 
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 else
@@ -91,13 +91,6 @@ $(TARGDIR)/std: \
 .PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
 # clean
 #
 clean: stdclean
@@ -126,6 +119,7 @@ PACBIO_LOAD_OBJ = \
 
 PACBIO_LOAD_LIB = \
 	-skapp \
+	-stk-version \
 	-skdf5 \
 	-sload \
 	-shdf5 \
@@ -137,4 +131,4 @@ ifdef HDF5_LIBDIR
 endif
 
 $(BINDIR)/pacbio-load: $(PACBIO_LOAD_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(PACBIO_LOAD_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(PACBIO_LOAD_LIB)

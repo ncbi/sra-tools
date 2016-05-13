@@ -43,10 +43,10 @@ ALL_TOOLS = \
 #------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -68,13 +68,6 @@ $(TARGDIR)/std: \
 .PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
 # clean
 #
 clean: stdclean
@@ -92,14 +85,12 @@ READ_FILTER_REDACT_OBJ = \
 
 READ_FILTER_REDACT_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-wvdb \
 	-lm
 
-read-filter-redact.vers.h: read-filter-redact.vers
-	$(TOP)/build/make-vers-inc.sh READ_FILTER_REDACT_VERS $^ > $@
-
 $(BINDIR)/read-filter-redact: $(READ_FILTER_REDACT_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(READ_FILTER_REDACT_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(READ_FILTER_REDACT_LIB)
 
 #-------------------------------------------------------------------------------
 # test-read-write-cursor
@@ -112,11 +103,9 @@ TEST_READ_WRITE_CURSOR_OBJ = \
 
 TEST_READ_WRITE_CURSOR_LIB = \
 	-lkapp \
+	-stk-version \
 	-lncbi-wvdb \
 
-test-read-write-cursor.vers.h: test-read-write-cursor.vers
-	$(TOP)/build/make-vers-inc.sh TEST_READ_WRITE_CURSOR_VERS $^ > $@
-
 $(BINDIR)/test-read-write-cursor: $(TEST_READ_WRITE_CURSOR_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(TEST_READ_WRITE_CURSOR_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TEST_READ_WRITE_CURSOR_LIB)
 

@@ -29,7 +29,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "remote-fuser.vers.h"
 #include "log.h"
 #include "node.h"
 #include "accessor.h"
@@ -124,11 +123,6 @@ rc_t CC Usage ( const Args * args )
 {
     /* dummy for newer args system will be filled when system is complete!!! */
     return 0;
-}
-
-uint32_t KAppVersion(void)
-{
-    return REMOTE_FUSER_VERS;
 }
 
 void SRA_FUSER_Init(void)

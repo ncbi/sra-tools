@@ -24,8 +24,6 @@
 *
 */
 
-#include "fastdump.vers.h"
-
 #include "cmn_iter.h"
 #include "file_printer.h"
 #include "raw_read_iter.h"
@@ -143,16 +141,6 @@ rc_t CC Usage ( const Args * args )
     HelpVersion( fullpath, KAppVersion() );
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion( void ) { return FASTDUMP_VERS; }
-
 
 /* -------------------------------------------------------------------------------------------- */
 

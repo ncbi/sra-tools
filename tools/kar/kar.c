@@ -25,8 +25,6 @@
  */
 #define USE_SKEY_MD5_FIX 1
 
-#include "kar.vers.h"
-
 #include <klib/rc.h>
 #include <klib/namelist.h>
 #include <klib/vector.h>
@@ -1377,12 +1375,6 @@ rc_t	run_kar_extract (const char * archive, const char * directory)
     }
     return rc;
 }
-
-ver_t CC KAppVersion (void)
-{
-    return  KAR_VERS;
-}
-
 
 rc_t CC NextLogLevelCommon ( const char * level_parameter );
 

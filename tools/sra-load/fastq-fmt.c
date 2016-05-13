@@ -42,7 +42,6 @@ typedef struct FastqLoaderFmt FastqLoaderFmt;
 #include "writer-454.h"
 #include "writer-ion-torrent.h"
 #include "experiment-xml.h"
-#include "fastq-load.vers.h"
 #include "debug.h"
 
 typedef struct FileReadData_struct {
@@ -636,15 +635,10 @@ rc_t FastqLoaderFmt_Whack(FastqLoaderFmt *self, SRATable** table)
 
 const char UsageDefaultName[] = "fastq-load";
 
-uint32_t KAppVersion(void)
-{
-    return FASTQ_LOAD_VERS;
-}
-
 static
 rc_t FastqLoaderFmt_Version (const FastqLoaderFmt* self, uint32_t *vers, const char** name )
 {
-    *vers = FASTQ_LOAD_VERS;
+    *vers = KAppVersion();
     *name = "Fastq";
     return 0;
 }

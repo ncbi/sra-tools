@@ -43,10 +43,10 @@ ALL_TOOLS = \
 #
 ifeq (1,$(HAVE_MAGIC))
 
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 else
@@ -68,13 +68,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -104,11 +97,12 @@ COPYCAT_OBJ = \
 
 COPYCAT_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-vdb \
 	-skff \
 	-smagic-static
 
 
 $(BINDIR)/copycat: $(COPYCAT_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(COPYCAT_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(COPYCAT_LIB)
 	@ cp $(SRCDIR)/magic $(BINDIR)

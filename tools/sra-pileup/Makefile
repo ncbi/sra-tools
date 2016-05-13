@@ -43,10 +43,10 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -66,13 +66,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -110,11 +103,12 @@ TOOL_OBJ = \
 
 TOOL_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 	-lm
 
 $(BINDIR)/sra-pileup: $(TOOL_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(TOOL_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
 
 
 #-------------------------------------------------------------------------------
@@ -142,6 +136,7 @@ SAMDUMP3_OBJ = \
 
 SAMDUMP3_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 	-lm
 
@@ -150,5 +145,5 @@ CFLAGS += -DNCBI
 endif
 
 $(BINDIR)/sam-dump: $(SAMDUMP3_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SAMDUMP3_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SAMDUMP3_LIB)
 

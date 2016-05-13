@@ -41,10 +41,10 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
+all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -58,13 +58,6 @@ $(TARGDIR)/std: \
 .PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
-
-#-------------------------------------------------------------------------------
 # clean
 #
 clean: stdclean
@@ -76,8 +69,9 @@ clean: stdclean
 #
 TOOL_LIBS = \
 	-skapp	\
-	-sngs-c++ \
+	-stk-version \
 	-sncbi-ngs-c++ \
+	-sngs-c++ \
 	-sncbi-vdb-static
 
 #-------------------------------------------------------------------------------
@@ -93,4 +87,4 @@ TOOL_OBJ = \
 	$(addsuffix .$(OBJX),$(TOOL_SRC))
 
 $(BINDIR)/sra-seq-count: $(TOOL_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(TOOL_LIBS)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIBS)

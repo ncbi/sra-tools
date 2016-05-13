@@ -63,10 +63,6 @@ rc_t CC Usage (const Args * args)
     return rc;
 }
 
-
-ver_t CC KAppVersion(void) { return 0; }
-
-
 typedef struct param_block
 {
     const char * file_path;

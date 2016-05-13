@@ -25,44 +25,39 @@
 
 default: std
 
-TOP ?= $(abspath ../..)
-MODULE = tools/fastdump
+TOP ?= $(abspath ..)
 
-include $(TOP)/build/Makefile.env
+MODULE = shared
 
-INT_TOOLS = \
+INT_LIBS = \
+	libtk-version \
 
-EXT_TOOLS = \
-	fastdump
+ALL_LIBS = \
+	$(INT_LIBS)
 
-ALL_TOOLS = \
+ALL_TOOLS =      \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
+	
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets
 #
 all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@
+	@ $(MAKE_CMD) $(TARGDIR)/std
 
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
+$(INT_LIBS): makedirs
+	@ $(MAKE_CMD) $(ILIBDIR)/$@
 
-.PHONY: all std $(ALL_TOOLS)
 
-#-------------------------------------------------------------------------------
-# all
-#
-$(TARGDIR)/all: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/all
+.PHONY: all std $(ALL_LIBS)
 
 #-------------------------------------------------------------------------------
 # std
 #
 $(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
+	$(addprefix $(ILIBDIR)/,$(INT_LIBS))
 
 .PHONY: $(TARGDIR)/std
 
@@ -74,32 +69,17 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# fastdump
+# toolkit-version
 #
-TOOL_SRC = \
-	helper \
-	index \
-	lookup_writer \
-	lookup_reader \
-	file_printer \
-	merge_sorter \
-	sorter \
-	cmn_iter \
-	raw_read_iter \
-	special_iter \
-	fastq_iter \
-	join \
-	fastdump
+$(ILIBDIR)/libtk-version: $(addprefix $(ILIBDIR)/libtk-version.,$(ILIBEXT))
 
-TOOL_OBJ = \
-	$(addsuffix .$(OBJX),$(TOOL_SRC))
+TK_VERSION_SRC = \
+    toolkit.vers
 
-TOOL_LIB = \
-	-skapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
+TK_VERSION_OBJ = \
+	$(addsuffix .$(LOBX),$(TK_VERSION_SRC))
 
-$(BINDIR)/fastdump: $(TOOL_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
+$(ILIBDIR)/libtk-version.$(LIBX): $(TK_VERSION_OBJ)
+	$(LD) --slib -o $@ $^ $(KFS_LIB)
+
 

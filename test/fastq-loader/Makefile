@@ -30,9 +30,7 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/fastq-loader
 
-TEST_TOOLS = \
-	wb-test-fastq \
-    test-fastq-loader 
+TEST_TOOLS = 
 
 include $(TOP)/build/Makefile.env
 
@@ -62,10 +60,10 @@ FASTQ_TEST_LIB = \
 
 $(TEST_BINDIR)/wb-test-fastq: $(FASTQ_TEST_OBJ)
 	$(LP) --exe -o $@ $^ $(FASTQ_TEST_LIB)
-    
+
 wb: wb-test-fastq
 	$(TEST_BINDIR)/wb-test-fastq  2>&1
-    
+
 #-------------------------------------------------------------------------------
 # test-fastqtest-loader
 #
@@ -90,7 +88,6 @@ tfl:
 runtests: set_schema smalltests
 
 set_schema: $(BINDIR)/vdb-config
-	$(BINDIR)/vdb-config -on
 	find $(HOME)/ncbi -size +9999c -exec ls -l {} \; | sort -nk5 | tail
 	echo HOST=`hostname`
 	echo OS=$(OS)
@@ -100,7 +97,6 @@ set_schema: $(BINDIR)/vdb-config
 SMALLRUN = @ $(SRCDIR)/runtestcase.sh $(BINDIR) $(SRCDIR)
 smalltests: $(TEST_TOOLS)
 	-rm -rf $(SRCDIR)/actual
-	$(BINDIR)/vdb-config -on
 #   Small tests
 #   Input:
 #       Quality encoding: phred/logodds, ascii/decimal

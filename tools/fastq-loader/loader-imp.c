@@ -96,8 +96,10 @@ rc_t ArchiveFASTQ(CommonWriterSettings* G,
         if (rc != 0)
             break;
     }
-    if (rc == 0)
-        rc = CommonWriterComplete( &cw, Quitting() != 0, 0 );
+    if (rc == 0) {
+        bool const quitting = (Quitting() != 0);
+        rc = CommonWriterComplete(&cw, quitting, 0);
+    }
     else
         CommonWriterComplete( &cw, true, 0 );
         

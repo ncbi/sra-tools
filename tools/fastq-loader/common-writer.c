@@ -28,6 +28,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <ctype.h>
 
 #include <klib/log.h>
@@ -37,11 +38,16 @@
 
 #include <kdb/btree.h>
 
-#include <kfs/file.h>
-#include <kfs/pagefile.h>
-
 #include <kapp/progressbar.h>
 #include <kapp/main.h>
+
+#include <kproc/queue.h>
+#include <kproc/thread.h>
+#include <kproc/timeout.h>
+#include <os-native.h>
+
+#include <kfs/file.h>
+#include <kfs/pagefile.h>
 
 #include <vdb/manager.h>
 #include <vdb/database.h>
@@ -326,7 +332,7 @@ static rc_t OpenMMapFile(const CommonWriterSettings* settings, SpotAssembler *co
     if (rc == 0) {
         int const fd = openTempFile(fname);
         if (fd >= 0)
-            rc = MMArrayMake(&ctx->id2value, fd);
+            ctx->id2value = MMArrayMake(&rc, fd);
         else
             rc = RC(rcExe, rcFile, rcCreating, rcFile, rcNotFound);
     }
@@ -412,6 +418,7 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
     rc_t rc;
     KDataBuffer fragBuf;
     SequenceRecord srec;
+    int const pass = ctx->pass;
     
     ++ctx->pass;
     memset(&srec, 0, sizeof(srec));
@@ -424,7 +431,7 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
     for (idCount = 0, j = 0; j < ctx->key2id_count; ++j) {
         idCount += ctx->idCount[j];
     }
-    KLoadProgressbar_Append(ctx->progress[ctx->pass - 1], idCount);
+    KLoadProgressbar_Append(ctx->progress[pass], idCount);
     
     for (idCount = 0, j = 0; j < ctx->key2id_count; ++j) {
         for (i = 0; i != ctx->idCount[j]; ++i, ++idCount) {
@@ -435,14 +442,15 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
             FragmentInfo const *fip;
             uint8_t const *src;
 
-            rc = MMArrayGet(ctx->id2value, &value, keyId);
-            if (rc)
+            value = MMArrayGet(ctx->id2value, &rc, keyId);
+            if (value == NULL)
                 break;
-            KLoadProgressbar_Process(ctx->progress[ctx->pass - 1], 1, false);
+            KLoadProgressbar_Process(ctx->progress[pass], 1, false);
 
-            if (value->fragmentSize == 0)
+            if (value->written)
                 continue;
 
+            assert(!value->unmated);
             if (ctx->fragment[keyId % FRAGMENT_HOT_COUNT].id == keyId) {
                 fip = (FragmentInfo const *)ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data;
             }
@@ -465,11 +473,10 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
             src = (uint8_t const *)&fip[1];
             
             readLen[0] = readLen[1] = 0;
-            if (!value->unmated)
-                read = 1;
+            read = fip->otherReadNo - 1;
 
             readLen[read] = fip->readlen;
-            rc = SequenceRecordInit(&srec, value->unmated ? 1 : 2, readLen);
+            rc = SequenceRecordInit(&srec, 2, readLen);
             if (rc) {
                 (void)LOGERR(klogErr, rc, "SequenceRecordInit failed");
                 break;
@@ -695,10 +702,12 @@ static void PhredToPhred(unsigned const readLen, uint8_t dst[], int8_t const src
 
 struct ReadResult {
     float progress;
+    uint64_t recordNo;
     enum {
         rr_undefined = 0,
         rr_sequence,
         rr_rejected,
+        rr_done,
         rr_error
     } type;
     union {
@@ -777,7 +786,7 @@ static char const kRejectedGetError[] = "RejectedGetError";
 static char const kSequenceGetQuality[] = "SequenceGetQuality";
 static char const kGetKeyID[] = "GetKeyID";
 static char const kSequenceGetRead[] = "SequenceGetRead";
-static char const kOutOfMemory[] = "OUT OF MEMORY!!!";
+static char const kQuitting[] = "Quitting";
 
 static void readSequence(CommonWriterSettings *const G, SpotAssembler *const ctx, Sequence const *const sequence, struct ReadResult *const rslt)
 {
@@ -790,16 +799,20 @@ static void readSequence(CommonWriterSettings *const G, SpotAssembler *const ctx
     int mated = 0;
     int orientation = 0;
     int colorspace = 0;
-    char cskey = 0;
+    char cskey[2];
     uint64_t keyId = 0;
     bool wasInserted = 0;
     bool bad = 0;
     rc_t rc = 0;
 
+    memset(cskey, 0, sizeof(cskey));
     colorspace = SequenceIsColorSpace(sequence);
     orientation = SequenceGetOrientationSelf(sequence);
     bad = SequenceIsLowQuality(sequence);
-    rc = SequenceGetReadLength(sequence, &readLen);
+    if (colorspace)
+        rc = SequenceGetCSReadLength(sequence, &readLen);
+    else
+        rc = SequenceGetReadLength(sequence, &readLen);
     assert(rc == 0);
     seqDNA = malloc(readLen);
     qual = malloc(readLen);
@@ -812,21 +825,19 @@ static void readSequence(CommonWriterSettings *const G, SpotAssembler *const ctx
         || spotGroup == NULL
         )
     {
-        rslt->type = rr_error;
-        rslt->u.error.rc = RC(rcExe, rcFile, rcReading, rcMemory, rcExhausted);
-        rslt->u.error.message = kOutOfMemory;
-
-        goto CLEANUP;
+        fprintf(stderr, "OUT OF MEMORY!!!");
+        abort();
     }
 
     if (!colorspace) {
         rc = SequenceGetRead(sequence, seqDNA);
     }
     else {
-        SequenceGetCSKey(sequence, &cskey);
+        SequenceGetCSKey(sequence, cskey);
         rc = SequenceGetCSRead(sequence, seqDNA);
     }
     if (rc != 0) {
+        (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(name)': failed to get sequence", "%s", name));
         rslt->type = rr_error;
         rslt->u.error.rc = rc;
         rslt->u.error.message = kSequenceGetRead;
@@ -844,6 +855,7 @@ static void readSequence(CommonWriterSettings *const G, SpotAssembler *const ctx
             qualType = QT_Phred;
         }
         if (rc != 0) {
+            (void)PLOGERR(klogErr, (klogErr, rc, "Spot '$(name)': length of original quality does not match sequence", "name=%s", name));
             rslt->type = rr_error;
             rslt->u.error.rc = rc;
             rslt->u.error.message = kSequenceGetQuality;
@@ -857,8 +869,10 @@ static void readSequence(CommonWriterSettings *const G, SpotAssembler *const ctx
             else
                 memcpy(qual, squal, readLen);
         }
-        else
+        else if (!colorspace)
             memset(qual, 30, readLen);
+        else
+            memset(qual, 0, readLen);
     }
     if (SequenceWasPaired(sequence)) {
         if (SequenceIsFirst(sequence))
@@ -898,7 +912,7 @@ CLEANUP:
         rslt->u.sequence.bad = bad;
         rslt->u.sequence.inserted = wasInserted;
         rslt->u.sequence.colorspace = colorspace;
-        rslt->u.sequence.cskey = cskey;
+        rslt->u.sequence.cskey = cskey[0];
     }
     return;
 }
@@ -969,26 +983,37 @@ static void readRecord(CommonWriterSettings *const G, SpotAssembler *const ctx, 
     RejectedRelease(rej);
 }
 
-static struct ReadResult getNextRecord(CommonWriterSettings *const G, SpotAssembler *const ctx, struct ReaderFile const *reader)
+static struct ReadResult *threadGetNextRecord(CommonWriterSettings *const G, SpotAssembler *const ctx, struct ReaderFile const *reader, uint64_t *reccount)
 {
     rc_t rc = 0;
     Record const *record = NULL;
-    struct ReadResult rslt;
+    struct ReadResult *const rslt = calloc(1, sizeof(*rslt));
 
-    memset(&rslt, 0, sizeof(rslt));
-    rc = ReaderFileGetRecord(reader, &record);
-    rslt.progress = ReaderFileGetProportionalPosition(reader);
-    if (rc != 0) {
-        rslt.type = rr_error;
-        rslt.u.error.rc = rc;
-        rslt.u.error.message = kReaderFileGetRecord;
-        return rslt;
-    }
-    assert(record != NULL);
-    if (record != NULL) {
-        readRecord(G, ctx, record, &rslt);
-        RecordRelease(record);
-        return rslt;
+    assert(rslt != NULL);
+    if (rslt != NULL) {
+        rslt->progress = ReaderFileGetProportionalPosition(reader);
+        rslt->recordNo = ++*reccount;
+        if (G->maxAlignCount > 0 && rslt->recordNo > G->maxAlignCount) {
+            (void)PLOGMSG(klogDebug, (klogDebug, "reached limit of $(max) records read", "max=%u", (unsigned)G->maxAlignCount));
+            rslt->type = rr_done;
+            return rslt;
+        }
+        rc = ReaderFileGetRecord(reader, &record);
+        if (rc != 0) {
+            rslt->type = rr_error;
+            rslt->u.error.rc = rc;
+            rslt->u.error.message = kReaderFileGetRecord;
+            return rslt;
+        }
+        if (record != NULL) {
+            readRecord(G, ctx, record, rslt);
+            RecordRelease(record);
+            return rslt;
+        }
+        else {
+            rslt->type = rr_done;
+            return rslt;
+        }
     }
     abort();
 }
@@ -1008,6 +1033,106 @@ static void freeReadResult(struct ReadResult const *const rslt)
         freeReadResultError(rslt);
 }
 
+struct ReadThreadContext {
+    timeout_t tm;
+    KThread *th;
+    KQueue *que;
+    CommonWriterSettings *settings;
+    SpotAssembler *ctx;
+    ReaderFile const *reader;
+    uint64_t reccount;
+};
+
+static rc_t readThread(KThread const *const th, void *const ctx)
+{
+    struct ReadThreadContext *const self = ctx;
+    timeout_t tm;
+    rc_t rc = 0;
+
+    TimeoutInit(&tm, 10000);
+    while (Quitting() == 0) {
+        struct ReadResult *const rr = threadGetNextRecord(self->settings, self->ctx, self->reader, &self->reccount);
+        int const rr_type = rr->type;
+
+        for ( ;; ) {
+            rc = KQueuePush(self->que, rr, &tm);
+            if (rc == 0)
+                break;
+            if ((int)GetRCObject(rc) == rcTimeout) {
+                continue;
+            }
+            break;
+        }
+        if (rc) {
+            (void)LOGERR(klogErr, rc, "readThread: failed to push next record into queue");
+            free(rr);
+            break;
+        }
+        else if (rr_type == rr_done) {
+            /* normal exit from end of file */
+            (void)LOGMSG(klogDebug, "readThread done : end of file");
+            break;
+        }
+    }
+    KQueueSeal(self->que);
+    return rc;
+}
+
+static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
+{
+    struct ReadResult rslt;
+
+    memset(&rslt, 0, sizeof(rslt));
+#if 1
+    if (self->th == NULL) {
+        TimeoutInit(&self->tm, 1000000);
+        rslt.u.error.rc = KQueueMake(&self->que, 1024);
+        if (rslt.u.error.rc)
+            return rslt;
+        rslt.u.error.rc = KThreadMake(&self->th, readThread, (void *)self);
+        if (rslt.u.error.rc)
+            return rslt;
+    }
+    while ((rslt.u.error.rc = Quitting()) == 0) {
+        void *rr = NULL;
+        rslt.u.error.rc = KQueuePop(self->que, &rr, &self->tm);
+        if (rslt.u.error.rc == 0) {
+            memcpy(&rslt, rr, sizeof(rslt));
+            free(rr);
+            if (rslt.type == rr_done)
+                goto DONE;
+            return rslt;
+        }
+        if ((int)GetRCObject(rslt.u.error.rc) == rcTimeout) {
+            (void)LOGMSG(klogDebug, "KQueuePop timed out");
+        }
+        else {
+            (void)LOGERR(klogErr, rslt.u.error.rc, "KQueuePop failed");
+            rslt.type = rr_done;
+            goto DONE;
+        }
+    }
+    rslt.type = rr_error;
+    rslt.u.error.message = kQuitting;
+DONE:
+    {
+        rc_t rc = 0;
+        KThreadWait(self->th, &rc);
+        KThreadRelease(self->th);
+        KQueueRelease(self->que);
+        self->que = NULL;
+        self->th = NULL;
+    }
+#else
+    if ((rslt.u.error.rc = Quitting()) == 0) {
+        struct ReadResult *const rr = threadGetNextRecord(self->settings, self->ctx, self->reader, &self->reccount);
+        rslt = *rr;
+        free(rr);
+    }
+#endif
+    return rslt;
+}
+
 rc_t ArchiveFile(const struct ReaderFile *const reader,
                  CommonWriterSettings *const G,
                  struct SpotAssembler *const ctx,
@@ -1017,7 +1142,6 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     KDataBuffer buf;
     KDataBuffer fragBuf;
     rc_t rc;
-    uint64_t reccount = 0;
     SequenceRecord srec;
     unsigned progress = 0;
     uint64_t recordsProcessed = 0;
@@ -1027,13 +1151,21 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     bool isColorSpace = false;
     bool isNotColorSpace = G->noColorSpace;
     char const *const fileName = ReaderFileGetPathname(reader);
+    struct ReadThreadContext threadCtx;
+    uint64_t fragmentsAdded = 0;
+    uint64_t spotsCompleted = 0;
+    uint64_t fragmentsEvicted = 0;
 
     if (ctx->key2id_max == 0) {
         ctx->key2id_max = 1;
     }
     
     memset(&srec, 0, sizeof(srec));
-    
+    memset(&threadCtx, 0, sizeof(threadCtx));
+    threadCtx.settings = G;
+    threadCtx.ctx = ctx;
+    threadCtx.reader = reader;
+
     rc = KDataBufferMake(&fragBuf, 8, 4096);
     if (rc)
         return rc;
@@ -1048,25 +1180,33 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     
     *had_sequences = false;
     
-    while (rc == 0 && (rc = Quitting()) == 0) {
+    while (rc == 0) {
         ctx_value_t *value;
-        struct ReadResult const rr = getNextRecord(G, ctx, reader);
+        struct ReadResult const rr = getNextRecord(&threadCtx);
 
         if ((unsigned)(rr.progress * 100.0) > progress) {
             unsigned new_value = rr.progress * 100.0;
             KLoadProgressbar_Process(ctx->progress[0], new_value - progress, false);
             progress = new_value;
         }
+        if (rr.type == rr_done)
+            break;
         if (rr.type == rr_error) {
             rc = rr.u.error.rc;
+            if (rr.u.error.message == kQuitting) {
+                (void)LOGMSG(klogInfo, "Exiting read loop");
+                break;
+            }
             if (rr.u.error.message == kReaderFileGetRecord) {
                 if (GetRCObject(rc) == rcRow && (GetRCState(rc) == rcInvalid || GetRCState(rc) == rcEmpty)) {
-                    (void)PLOGERR(klogWarn, (klogWarn, rc, "ArchiveFile: '$(file)' - row $(row)", "file=%s,row=%lu", fileName, reccount + 1));
+                    (void)PLOGERR(klogWarn, (klogWarn, rc, "ArchiveFile: '$(file)' - row $(row)", "file=%s,row=%lu", fileName, rr.recordNo));
                     rc = CheckLimitAndLogError(G);
                 }
+                /* else fail */
             }
             else {
-                (void)PLOGERR(klogErr, (klogErr, rc, "ArchiveFile: %(func) failed", "func=%s", rr.u.error.message));
+                (void)PLOGERR(klogErr, (klogErr, rc, "ArchiveFile: $(func) failed", "func=%s", rr.u.error.message));
+                rc = CheckLimitAndLogError(G);
             }
             goto LOOP_END;
         }
@@ -1117,8 +1257,8 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                     isNotColorSpace = true;
             }
 
-            rc = MMArrayGet(ctx->id2value, &value, keyId);
-            if (rc) {
+            value = MMArrayGet(ctx->id2value, &rc, keyId);
+            if (value == NULL) {
                 (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
                 goto LOOP_END;
             }
@@ -1150,6 +1290,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                     void *const victimData = ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data;
                     void *myData = NULL;
 
+                    ++fragmentsAdded;
                     value->seqHash[readNo - 1] = SeqHashKey(seqDNA, readlen);
 
                     memset(&fi, 0, sizeof(fi));
@@ -1181,11 +1322,11 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                     ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data = myData;
                     value->has_a_read = 1;
                     value->fragmentSize = sz;
+                    *had_sequences = true;
 
                     if (victimData != NULL) {
-                        ctx_value_t *victim = NULL;
-                        rc = MMArrayGet(ctx->id2value, &victim, victimId);
-                        if (rc) {
+                        ctx_value_t *const victim = MMArrayGet(ctx->id2value, &rc, victimId);
+                        if (victim == NULL) {
                             (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", victimId));
                             abort();
                             goto LOOP_END;
@@ -1198,6 +1339,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                                 ctx->nextFragment += victim->fragmentSize;
                                 victim->fragmentOffset = pos;
                                 free(victimData);
+                                ++fragmentsEvicted;
                             }
                             else {
                                 (void)LOGMSG(klogFatal, "Failed to write fragment data");
@@ -1231,11 +1373,13 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                             goto LOOP_END;
                         }
                         nread = pread(ctx->fragmentFd, fragBuf.base, sz, value->fragmentOffset);
-                        if (nread == value->fragmentOffset) {
+                        if (nread == sz) {
                             fip = (FragmentInfo *) fragBuf.base;
                         }
                         else {
-                            (void)LOGMSG(klogFatal, "Failed to read fragment data");
+                            (void)PLOGMSG(klogFatal, (klogFatal, "Failed to read fragment data; spot:'$(name)'; "
+                                "size: $(size); pos: $(pos); read: $(read)", "name=%s,size=%lu,pos=%lu,read=%lu",
+                                name, sz, value->fragmentOffset, nread));
                             abort();
                             goto LOOP_END;
                         }
@@ -1247,6 +1391,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                         unsigned read2 = 1;
                         uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
 
+                        ++spotsCompleted;
                         value->seqHash[readNo - 1] = SeqHashKey(seqDNA, readlen);
 
                         if (readNo < fip->otherReadNo) {
@@ -1286,16 +1431,16 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                         srec.spotGroupLen = strlen(spotGroup);
                         rc = SequenceWriteRecord(seq, &srec, isColorSpace, false, G->platform,
                                                  G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer);
-                        if (rc) {
-                            (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
-                            goto LOOP_END;
-                        }
                         if (freeFip) {
                             free(fip);
                             ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data = NULL;
                         }
-                        value->written = 1;
+                        if (rc) {
+                            (void)LOGERR(klogErr, rc, "SequenceWriteRecord failed");
+                            goto LOOP_END;
+                        }
                         CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
+                        value->written = 1;
                     }
                 }
             }
@@ -1346,6 +1491,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                 }
                 CTX_VALUE_SET_S_ID(*value, ++ctx->spotId);
                 value->written = 1;
+                *had_sequences = true;
             }
         }
         else
@@ -1353,13 +1499,12 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
 
 LOOP_END:
         freeReadResult(&rr);
-        ++reccount;
-        if (rc == 0)
-            *had_sequences = true;
-        if (reccount >= G->maxAlignCount && G->maxAlignCount > 0)
-            break;
     }
-    
+
+    KThreadCancel(threadCtx.th);
+    KThreadRelease(threadCtx.th);
+    KQueueRelease(threadCtx.que);
+
     if (filterFlagConflictRecords > 0) {
         (void)PLOGMSG(klogWarn, (klogWarn, "$(cnt1) out of $(cnt2) records contained warning : both 'duplicate' and 'lowQuality' flag bits set, only 'duplicate' will be saved", "cnt1=%lu,cnt2=%lu", filterFlagConflictRecords,recordsProcessed));
     }
@@ -1369,9 +1514,10 @@ LOOP_END:
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
-    if (rc == 0 && reccount > 0) {
-        double percentage = ((double)G->errCount) / reccount; 
-        double allowed = G->maxErrPct/ 100.0;
+    if (rc == 0 && threadCtx.reccount > 0) {
+        uint64_t const reccount = threadCtx.reccount - 1;
+        double const percentage = ((double)G->errCount) / reccount;
+        double const allowed = G->maxErrPct/ 100.0;
         if (percentage > allowed) {
             rc = RC(rcExe, rcTable, rcClosing, rcData, rcInvalid);
             (void)PLOGERR(klogErr, 
@@ -1384,6 +1530,8 @@ LOOP_END:
                              reccount, G->errCount, percentage, allowed));
         }
     }
+    (void)PLOGMSG(klogDebug, (klogDebug, "Fragments added to spot assembler: $(added). Fragments evicted to disk: $(evicted). Spots completed: $(completed)",
+        "added=%lu,evicted=%lu,completed=%lu", fragmentsAdded, fragmentsEvicted, spotsCompleted));
 
     KDataBufferWhack(&buf);
     KDataBufferWhack(&fragBuf);
@@ -1428,16 +1576,19 @@ rc_t CommonWriterArchive(CommonWriter *const self,
                          const struct ReaderFile *const reader)
 {
     rc_t rc;
+    bool has_sequences = false;
 
     assert(self);
     rc = ArchiveFile(reader,
                      &self->settings,
                      &self->ctx,
                      self->seq,
-                     &self->had_sequences);
+                     &has_sequences);
     if (rc)
         self->commit = false;
-    
+    else
+        self->had_sequences |= has_sequences;
+
     self->err_count += self->settings.errCount;
     return rc;
 }

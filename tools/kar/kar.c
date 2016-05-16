@@ -120,6 +120,7 @@ enum
 
 
 static rc_t kar_scan_directory ( const KDirectory *dir, BSTree *tree, const char *path );
+static size_t kar_entry_full_path ( const KAREntry * entry, const char * root_dir, char * buffer, size_t bsize );
 
 
 /*******************************************************************************
@@ -129,13 +130,38 @@ static rc_t kar_scan_directory ( const KDirectory *dir, BSTree *tree, const char
 static void kar_print ( BSTNode *node, void *data );
 
 static
-void printFile ( const KARFile * file, uint32_t *indent )
+void printEntry ( const KAREntry *entry )
+{
+    char buffer [ 4096 ];
+    size_t bsize = sizeof buffer;
+
+    size_t num_writ = kar_entry_full_path ( entry, NULL, buffer, bsize );
+    if ( num_writ >= bsize )
+    {
+        rc_t rc = RC (rcExe, rcPath, rcWriting, rcBuffer, rcInsufficient);
+        pLogErr ( klogErr, rc, "Failed to write path for entry '$(name)'",
+                  "name=%s", entry -> name );
+        exit ( 3 );
+    }        
+
+    KOutMsg ( "%s\n", buffer );
+}
+
+static
+void printDir ( const KARDir *dir )
+{
+    printEntry ( & dir -> dad );
+    BSTreeForEach ( &dir -> contents, false, kar_print, NULL );
+}
+
+static
+void printFile_indent ( const KARFile * file, uint32_t *indent )
 {
     KOutMsg ( "%*s%s [ %lu, %lu ]\n", *indent, "", file -> dad . name, file -> byte_offset, file -> byte_size );
 }
 
 static
-void printDir ( const KARDir *dir, uint32_t *indent )
+void printDir_indent ( const KARDir *dir, uint32_t *indent )
 {
     KOutMsg ( "%*s%s\n", *indent, "", dir -> dad . name );
     *indent += 4;
@@ -151,10 +177,10 @@ void kar_print ( BSTNode *node, void *data )
     switch ( entry -> type )
     {
     case kptFile:
-        printFile ( ( KARFile * ) entry, data );
+        printEntry ( entry );
         break;
     case kptDir:
-        printDir ( ( KARDir * ) entry, data );
+        printDir ( ( KARDir * ) entry );
         break;
     case kptFile | kptAlias:
     case kptDir | kptAlias:
@@ -163,6 +189,7 @@ void kar_print ( BSTNode *node, void *data )
         break;
     }
 }
+
 
 
 /*******************************************************************************
@@ -768,7 +795,6 @@ rc_t CC kar_persist ( void *param, const void *node,
         STATUS ( 0, "unknown entry type: id %u", entry -> type );
         break;
     }
-    KOutMsg ( "\n" );
 
     return rc;
 }
@@ -844,15 +870,6 @@ rc_t kar_prepare_toc ( const BSTree *tree, KARFilePtrArray *file_array_ptr )
             /* perform aligning to boundary */
             offset = align_offset ( offset, 4 );
         }
-
-        if ( KStsLevelGet () >= STAT_PRG )
-        {
-            BSTreeForEach ( tree, false, kar_print, &indent );
-
-            for ( i = 0; i < num_files; ++ i )
-                printFile ( file_array [ i ], & indent );
-        }
-
     }
     
     return rc;
@@ -1014,6 +1031,7 @@ rc_t kar_create ( const Params *p )
     rc_t rc;
 
     KDirectory *wd;
+
     rc = KDirectoryNativeDir ( &wd );
     if ( rc != 0 )
         LogErr ( klogInt, rc, "Failed to create working directory" );
@@ -1466,14 +1484,15 @@ rc_t kar_test_extract ( const Params *p )
             rc = kar_extract_toc ( archive, &tree, &toc_pos, toc_size );
             if ( rc == 0 )
             {
-                uint32_t indent = 0;
-
                 BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
                 /* print according to options - long listing, etc. */
 
+                /* Finish test */
                 if ( p -> x_count == 0 )
-                    /* Finish test */
-                    BSTreeForEach ( &tree, false, kar_print, &indent );
+                {
+                    uint32_t indent = 0;
+                    BSTreeForEach ( &tree, false, kar_print, NULL );
+                }
                 else
                 {
                     /* begin extracting */

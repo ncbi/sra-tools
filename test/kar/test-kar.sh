@@ -24,8 +24,9 @@
 # ===========================================================================
 
 
-TESTDIR="kar_testsource"
 ARCHIVE="kar.kar"
+INPUT="kar_testsource"
+OUTPUT="output"
 
 KAR=kar
 [ $# -ge 1 ] && KAR="$1"
@@ -36,45 +37,126 @@ cleanup ()
     rm -rf $ARCHIVE $ARCHIVE.md5
 }
 
+test_create ()
+{
+    echo "Testing create mode..."
+    if ! $KAR -c $ARCHIVE -d $INPUT
+    then
+        STATUS=$?
+        echo "KAR create operation failed"
+        cleanup
+        exit
+    fi
+    echo "Passed"
+
+    echo "Testing create mode with existing archive..."
+    if $KAR -c $ARCHIVE -d $INPUT
+    then
+        STATUS=$?
+        echo "KAR create operation with existing archive failed fail"
+        cleanup
+        exit
+    fi
+    echo "Passed"
+
+    echo "Testing force create mode..."
+    if ! $KAR -f -c $ARCHIVE -d $INPUT
+    then
+        STATUS=$?
+        echo "KAR force create operation failed"
+        cleanup
+        exit
+    fi
+    echo "Passed"    
+
+    cleanup
+}
+
+test_test ()
+{
+    echo "Testing test mode..."
+    if ! $KAR -c $ARCHIVE -d $INPUT
+    then
+        STATUS=$?
+        echo "KAR test operation failed"
+    else
+        $KAR -t $ARCHIVE
+    fi
+    echo "Passed"
+
+    cleanup
+}
+
+test_extract ()
+{
+    echo "Testing extract mode..."
+
+    if ! $KAR -c $ARCHIVE -d $INPUT
+    then
+        STATUS=$?
+        echo "KAR create operation failed"
+    else
+        $KAR -x $ARCHIVE -d $OUTPUT
+        tree output/
+    fi
+
+    echo "Passed"
+
+    cleanup
+    chmod -R +w $OUTPUT
+    rm -rf $OUTPUT
+}
+
+test_md5 ()
+{
+    echo "Testing create mode with md5..."
+    if ! $KAR --md5 -f -c $ARCHIVE -d $INPUT
+    then
+        STATUS=$?
+        echo "KAR md5 operation failed"
+    else
+        case $(uname) in
+            (Linux)
+                if ! md5sum -c $ARCHIVE.md5
+                then
+                    STATUS=$?
+                    echo "md5sum check failed with status $STATUS"
+                fi
+                ;;
+            (Darwin)
+                if ! MD5=$(md5 $ARCHIVE)
+                then
+                    STATUS=$?
+                    echo "md5 failed with status $STATUS"
+                else
+                    MY_MD5=$(cut -f1 -d' ' $ARCHIVE.md5)
+                    if [ "$MD5" == "$MY_MD5" ]
+                    then
+                        echo "$ARCHIVE: OK"
+                    else
+                        echo "$ARCHIVE: FAILED"
+                        STATUS=1
+                    fi
+                fi
+                ;;
+            (*)
+                STATUS=1
+                echo unknown platform
+                ;;
+        esac
+    fi
+
+    echo "Passed"
+
+    cleanup
+}
 
 # run the script
-if ! $KAR --md5 -f -c $ARCHIVE -d $TESTDIR
-then
-    STATUS=$?
-    echo "KAR md5 operation failed"
-else
-    case $(uname) in
-        (Linux)
-            if ! md5sum -c $ARCHIVE.md5
-            then
-                STATUS=$?
-                echo "md5sum check failed with status $STATUS"
-            fi
-            ;;
-        (Darwin)
-            if ! MD5=$(md5 $ARCHIVE)
-            then
-                STATUS=$?
-                echo "md5 failed with status $STATUS"
-            else
-                MY_MD5=$(cut -f1 -d' ' $ARCHIVE.md5)
-                if [ "$MD5" == "$MY_MD5" ]
-                then
-                    echo "$ARCHIVE: OK"
-                else
-                    echo "$ARCHIVE: FAILED"
-                    STATUS=1
-                fi
-            fi
-            ;;
-        (*)
-            STATUS=1
-            echo unknown platform
-            ;;
-    esac
-fi
+test_create
+test_test
+test_extract
+test_md5
 
-#cleanup
 
 
 exit $STATUS

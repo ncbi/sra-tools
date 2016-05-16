@@ -40,18 +40,19 @@ typedef struct MMArray {
     int fd;
 } MMArray;
 
-static rc_t MMArrayMake(MMArray **const rslt, int fd)
+static MMArray *MMArrayMake(rc_t *const prc, int fd)
 {
     MMArray *const self = calloc(1, sizeof(*self));
 
-    if (self == NULL)
-        return RC(rcExe, rcMemMap, rcConstructing, rcMemory, rcExhausted);
-    self->fd = fd;
-    *rslt = self;
-    return 0;
+    if (self) {
+        self->fd = fd;
+        return self;
+    }
+    *prc = RC(rcExe, rcMemMap, rcConstructing, rcMemory, rcExhausted);
+    return NULL;
 }
 
-static rc_t MMArrayGet(MMArray *const self, MMA_ELEM_T **const value, uint64_t const element)
+static MMA_ELEM_T *MMArrayGet(MMArray *const self, rc_t *const prc, uint64_t const element)
 {
     size_t const chunk = MMA_SUBCHUNK_SIZE * MMA_ELEM_SIZE;
     unsigned const bin_no = element >> 32;
@@ -60,10 +61,8 @@ static rc_t MMArrayGet(MMArray *const self, MMA_ELEM_T **const value, uint64_t c
 
     while (bin_no < sizeof(self->map)/sizeof(self->map[0])) {
         MMA_ELEM_T *const next = self->map[bin_no].submap[subbin].base;
-        if (next != NULL) {
-            *value = &next[in_bin];
-            return 0;
-        }
+        if (next != NULL)
+            return &next[in_bin];
         else {
             off_t const cur_fsize = self->fsize;
             off_t const new_fsize = cur_fsize + chunk;
@@ -77,14 +76,18 @@ static rc_t MMArrayGet(MMArray *const self, MMA_ELEM_T **const value, uint64_t c
                     self->map[bin_no].submap[subbin].base = base;
                 else {
                     PLOGMSG(klogErr, (klogErr, "Failed to construct map for bin $(bin), subbin $(subbin)", "bin=%u,subbin=%u", bin_no, subbin));
-                    return RC(rcExe, rcMemMap, rcConstructing, rcMemory, rcExhausted);
+                    *prc = RC(rcExe, rcMemMap, rcConstructing, rcMemory, rcExhausted);
+                    return NULL;
                 }
             }
-            else
-                return RC(rcExe, rcMemMap, rcResizing, rcSize, rcExcessive);
+            else {
+                *prc = RC(rcExe, rcMemMap, rcResizing, rcSize, rcExcessive);
+                return NULL;
+            }
         }
     }
-    return RC(rcExe, rcMemMap, rcResizing, rcId, rcExcessive);
+    *prc = RC(rcExe, rcMemMap, rcResizing, rcId, rcExcessive);
+    return NULL;
 }
 
 static void MMArrayWhack(MMArray *self)

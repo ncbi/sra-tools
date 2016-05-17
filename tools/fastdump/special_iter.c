@@ -82,7 +82,7 @@ bool get_from_special_iter( struct special_iter * iter, special_rec * rec, rc_t 
     if ( res )
     {
         rec->row_id = cmn_iter_row_id( iter->cmn );
-        *rc = cmn_read_uint64_array( iter->cmn, iter->prim_alig_id, rec->prim_alig_id, 2 );
+        *rc = cmn_read_uint64_array( iter->cmn, iter->prim_alig_id, rec->prim_alig_id, 2, &rec->num_reads );
         if ( *rc == 0 )
             *rc = cmn_read_String( iter->cmn, iter->cmp_read_id, &rec->cmp_read );
         if ( *rc == 0 )

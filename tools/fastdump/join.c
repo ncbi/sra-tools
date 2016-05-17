@@ -118,7 +118,37 @@ static void init_cmn_params( const join_params * jp, cmn_params * cmn )
     cmn->show_progress  = jp->show_progress;
 }
 
-static rc_t print_special( special_rec * rec, join * j )
+
+static rc_t print_special_1_read( special_rec * rec, join * j )
+{
+    rc_t rc = 0;
+    int64_t row_id = rec->row_id;
+    
+    if ( rec->prim_alig_id[ 0 ] == 0 )
+    {
+        /* read is unaligned, print what is in row->cmp_read ( !!! no lookup !!! ) */
+        if ( j->printer != NULL )
+            rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
+        else
+            rc = KOutMsg( "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
+    }
+    else
+    {
+        /* read is aligned ( 1 lookup ) */
+        rc = lookup_bases( j->lookup, row_id, 1, &j->B1 );
+        if ( rc == 0 )
+        {
+            if ( j->printer != NULL )
+                rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &j->B1.S, &rec->spot_group );
+            else
+                rc = KOutMsg( "%ld\t%S\t%S\n", row_id, &j->B1.S, &rec->spot_group );
+        }
+    }
+    return rc;
+}
+
+
+static rc_t print_special_2_reads( special_rec * rec, join * j )
 {
     rc_t rc = 0;
     int64_t row_id = rec->row_id;
@@ -179,7 +209,46 @@ static rc_t print_special( special_rec * rec, join * j )
 }
 
 
-static rc_t print_fastq( fastq_rec * rec, join * j, const char * acc )
+static rc_t print_fastq_1_read( fastq_rec * rec, join * j, const char * acc )
+{
+    rc_t rc = 0;
+    int64_t row_id = rec->row_id;
+    
+    if ( rec->prim_alig_id[ 0 ] == 0 )
+    {
+        /* read is unaligned, print what is in row->cmp_read (no lookup)*/
+        const char * fmt = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
+        if ( j->printer != NULL )
+            rc = file_print( j->printer, fmt,
+                acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
+                acc, row_id, row_id, rec->quality.len, &rec->quality );
+        else
+            rc = KOutMsg( fmt,
+                acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
+                acc, row_id, row_id, rec->quality.len, &rec->quality );
+    }
+    else
+    {
+        /* read is aligned, ( 1 lookup ) */    
+        rc = lookup_bases( j->lookup, row_id, 1, &j->B1 );
+        if ( rc == 0 )
+        {
+            const char * fmt = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
+            if ( j->printer != NULL )
+                rc = file_print( j->printer, fmt,
+                    acc, row_id, row_id, j->B1.S.len, &j->B1.S,
+                    acc, row_id, row_id, rec->quality.len, &rec->quality );
+            else
+                rc = KOutMsg( fmt,
+                    acc, row_id, row_id, j->B1.S.len, &j->B1.S,
+                    acc, row_id, row_id, rec->quality.len, &rec->quality );
+        }
+    }
+    return rc;
+}
+
+
+static rc_t print_fastq_2_reads( fastq_rec * rec, join * j, const char * acc )
 {
     rc_t rc = 0;
     int64_t row_id = rec->row_id;
@@ -317,7 +386,11 @@ static rc_t perform_special_join( const join_params * jp, struct index_reader * 
                 rc = Quitting();
                 if ( rc == 0 )
                 {
-                    rc = print_special( &rec, &j );
+                    if ( rec.num_reads == 1 )
+                        rc = print_special_1_read( &rec, &j );
+                    else
+                        rc = print_special_2_reads( &rec, &j );
+
                     if ( jp->join_progress != NULL )
                         atomic_inc( jp->join_progress );
                 }
@@ -350,7 +423,11 @@ static rc_t perform_fastq_join( const join_params * jp, struct index_reader * in
                 rc = Quitting();
                 if ( rc == 0 )
                 {
-                    rc = print_fastq( &rec, &j, jp->accession );
+                    if ( rec.num_reads == 1 )
+                        rc = print_fastq_1_read( &rec, &j, jp->accession );
+                    else
+                        rc = print_fastq_2_reads( &rec, &j, jp->accession );
+
                     if ( jp->join_progress != NULL )
                         atomic_inc( jp->join_progress );
                 }

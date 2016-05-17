@@ -8,12 +8,31 @@ execute()
     echo "."
 }
 
-ACC="SRR341578"
+ACC1="SRR341578"
+
+#size is about 20 MB
+ACC2="SRR1172940"
+
+#size is about 200 MB
+# special: 13s vs 48s, fastq: 17s vs 57s
+ACC3="SRR353895"
+
+#size is about 2 GB
+#special: 1m13s vs 11m25s, fastq: 1m38s vs 11m56s
+ACC4="SRR392046"
+
+#size is about 20 GB
+#special: 21m34s vs 
+ACC5="SRR534041"
+
+ACC_ONLY_1_READ="SRR449498"
+
 SCRATCH="/panfs/traces01/compress/qa/raetzw/fastdump/"
 THREADS="6"
 
 check_special()
 {
+    ACC="$1"
     FASTDUMP_OUT="$SCRATCH$ACC.fastdump.special.txt"
     VDB_DUMP_OUT="$SCRATCH$ACC.vdb_dump.special.txt"
     
@@ -36,6 +55,7 @@ check_special()
 
 check_fastq()
 {
+    ACC="$1"
     FASTDUMP_OUT="$SCRATCH$ACC.fastdump.fastq.txt"
     VDB_DUMP_OUT="$SCRATCH$ACC.vdb_dump.fastq.txt"
     
@@ -56,5 +76,5 @@ check_fastq()
     execute "$CMD"
 }
 
-check_special
-check_fastq
+check_special "$ACC5"
+check_fastq "$ACC5"

@@ -111,6 +111,8 @@ bool CC XTaskerIsDone ( const struct XTasker * self );
 
 rc_t CC XTaskerWait ( const struct XTasker * self );
 
+void CC XTaskerSigIntHandler ( int SigNo );
+
 #ifdef __cplusplus 
 }
 #endif /* __cplusplus */

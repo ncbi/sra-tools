@@ -42,6 +42,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+#include <signal.h>
 
  /*))))
    |||| XStats implementation
@@ -796,6 +797,18 @@ XTaskerIsDone ( const struct XTasker * self )
     return XTaskerIsDoneSet ( self ) && ! XTaskerIsRunning ( self );
 }   /* XTaskerIsDone () */
 
+static bool _sSigIntHandled = false;
+
+void CC
+XTaskerSigIntHandler ( int SigNo )
+{
+    if ( SigNo == SIGINT ) {
+        printf ( "SIGINT handled, ignored, but we will exit\n" );
+
+        _sSigIntHandled = true;
+    }
+}   /* XTaskerSigIntHandler () */
+
 rc_t CC
 XTaskerWait ( const struct XTasker * self )
 {
@@ -817,6 +830,10 @@ XTaskerWait ( const struct XTasker * self )
 
         while ( true ) {
             nanosleep ( & t_spec, & t_rem );
+
+            if ( _sSigIntHandled ) {
+                XTaskerSetDone ( self );
+            }
 
             Now = XTmNow ();
 

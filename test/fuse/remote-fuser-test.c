@@ -45,7 +45,7 @@
 #include <string.h>
 #include <math.h>
 #include <sys/time.h>
-
+#include <signal.h> 
 
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
 
@@ -783,6 +783,11 @@ rc_t CC KMain(int argc, char *argv[]) {
     if ( ! ParseArgs ( argc, argv ) ) {
         RightUsage();
         return 1;
+    }
+
+    if ( signal ( SIGINT, XTaskerSigIntHandler ) == SIG_ERR ) {
+        printf ( "Can not instal signal handlers\n" );
+        return RC ( rcExe, rcFile, rcReading, rcParam, rcInvalid );
     }
 
     return run ( NumThr, RunTime, FilePath, PathIsList );

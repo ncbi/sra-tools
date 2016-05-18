@@ -292,10 +292,6 @@ $INS_MAKEFILE = File::Spec->catdir(CONFIG_OUT(), "$INS_MAKEFILE.$OS.$ARCH.prl");
 my $TOOLS = "";
 $TOOLS = "jdk" if ($PKG{LNG} eq 'JAVA');
 
-print "checking $PACKAGE_NAME version... " unless ($AUTORUN);
-my $FULL_VERSION = VERSION();
-println $FULL_VERSION unless ($AUTORUN);
-
 # determine architecture
 
 print "checking for supported architecture... " unless ($AUTORUN);
@@ -720,8 +716,8 @@ foreach my $href (@REQ) {
     }
 }
 
-my ($E_BINDIR, $E_LIBDIR, $VERSION, $MAJVERS, $E_VERSION_LIBX, $E_MAJVERS_LIBX,
-                                              $E_VERSION_EXEX, $E_MAJVERS_EXEX)
+my ($E_BINDIR, $E_LIBDIR, $E_VERSION_LIBX, $E_MAJVERS_LIBX,
+                          $E_VERSION_EXEX, $E_MAJVERS_EXEX)
     = (''    , '');
 
 println unless ($AUTORUN);
@@ -896,23 +892,14 @@ EndText
     L($F, "NO_ARRAY_BOUNDS_WARNING = $NO_ARRAY_BOUNDS_WARNING");
     L($F);
 
-    # version information
+        print $F <<EndText;
+# \$(VERSION) is defined in a separate file which is updated every release
+include \$(TOP)/build/Makefile.vers
 
-    my $MAJMIN;
-
-    if ($FULL_VERSION =~ /(\d+)\.(\d+)\.(\d+)-?\w*\d*/) {
-        $VERSION = "$1.$2.$3";
-        $MAJMIN = "$1.$2";
-        $MAJVERS = $1;
-    } else {
-        die $VERSION;
-    }
-
-    print $F <<EndText;
-# $PACKAGE_NAME and library version
-VERSION = $VERSION
-MAJMIN  = $MAJMIN
-MAJVERS = $MAJVERS
+empty :=
+space := \$(empty) \$(empty)
+MAJMIN  = \$(subst \$(space),.,\$(wordlist 1,2,\$(subst .,\$(space),\$(VERSION))))
+MAJVERS = \$(firstword \$(subst .,\$(space),\$(VERSION)))
 
 # output path
 BUILD_PREFIX = $BUILD_PREFIX
@@ -1090,11 +1077,11 @@ EndText
 	
 	    print $F "sub CONFIGURE {\n";
 	    print $F "    \$_{PACKAGE_NAME } = '$PACKAGE_NAME';\n";
-	    print $F "    \$_{VERSION      } = '$VERSION';\n";
+	    print $F "    \$_{VERSION      } = '\$VERSION';\n";
 	    print $F "    \$_{LNG          } = '$PKG{LNG}';\n";
 	    print $F "    \$_{OS           } = '$OS';\n";
 	    print $F "    \$_{BITS         } =  $BITS;\n";
-	    print $F "    \$_{MAJVERS      } =  $MAJVERS;\n";
+	    print $F "    \$_{MAJVERS      } =  \$MAJVERS;\n";
 	    print $F "    \$_{LPFX         } = '$LPFX';\n";
 	    print $F "    \$_{LIBX         } = '$LIBX';\n";
 	    print $F "    \$_{MAJVERS_LIBX } = '" . expand($E_MAJVERS_LIBX) . "';\n";
@@ -1560,7 +1547,6 @@ sub check {
     die "No PACKAGE_NAME" unless PACKAGE_NAME();
     die "No PACKAGE_NAMW" unless PACKAGE_NAMW();
     die "No PACKAGE_TYPE" unless PACKAGE_TYPE();
-    die "No VERSION"      unless VERSION();
 
     my %PKG = PKG();
 

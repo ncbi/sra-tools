@@ -24,9 +24,11 @@
 # ===========================================================================
 
 
-ARCHIVE="kar.kar"
-INPUT="kar_testsource"
+ARCHIVE="newkar.kar"
+INPUT="testsource"
 OUTPUT="output"
+EXPECTED="expected/old-kar"
+
 
 KAR=kar
 [ $# -ge 1 ] && KAR="$1"
@@ -37,6 +39,7 @@ cleanup ()
     rm -rf $ARCHIVE $ARCHIVE.md5
 }
 
+
 test_create ()
 {
     echo "Testing create mode..."
@@ -46,20 +49,29 @@ test_create ()
         echo "KAR create operation failed"
         cleanup
         exit
+    else
+        # compare against legacy output
+        RESULT="stat.txt"
+        stat $ARCHIVE | grep -w "Size" > $RESULT
+        if ! diff -q -w $EXPECTED/stat.txt $RESULT > /dev/null
+        then
+            echo "KAR file differs from legacy...test failed"
+            cleanup
+            exit
+        fi
+        rm $RESULT
     fi
-    echo "Passed"
 
-    echo "Testing create mode with existing archive..."
-    if $KAR -c $ARCHIVE -d $INPUT
+    echo "   Testing create mode with existing archive..."
+    if $KAR -c $ARCHIVE -d $INPUT 2> /dev/null
     then
         STATUS=$?
-        echo "KAR create operation with existing archive failed fail"
+        echo "KAR create operation with existing archive failed to produce an error"
         cleanup
         exit
     fi
-    echo "Passed"
 
-    echo "Testing force create mode..."
+    echo "   Testing force create mode..."
     if ! $KAR -f -c $ARCHIVE -d $INPUT
     then
         STATUS=$?
@@ -67,44 +79,106 @@ test_create ()
         cleanup
         exit
     fi
-    echo "Passed"    
 
-    cleanup
+    echo "   Testing option variation --create ..."
+    if ! $KAR -f --create $ARCHIVE -d $INPUT
+    then
+        STATUS=$?
+        echo "KAR create operation failed"
+        cleanup
+        exit
+    fi
+
+    echo "   Testing option variation --directory ..."
+    if ! $KAR -f --create $ARCHIVE --directory $INPUT
+    then
+        STATUS=$?
+        echo "KAR create operation failed"
+        cleanup
+        exit
+    fi
+
+    echo "   Testing option variation --force ..."
+    if ! $KAR --force --create $ARCHIVE --directory $INPUT
+    then
+        STATUS=$?
+        echo "KAR create operation failed"
+        cleanup
+        exit
+    fi
+    echo "Passed"
+
 }
 
 test_test ()
 {
     echo "Testing test mode..."
-    if ! $KAR -c $ARCHIVE -d $INPUT
-    then
-        STATUS=$?
-        echo "KAR test operation failed"
-    else
-        $KAR -t $ARCHIVE
-    fi
-    echo "Passed"
 
-    cleanup
+    RESULT="newkar.txt"
+    $KAR -t $ARCHIVE > $RESULT
+    if ! diff -q -w $EXPECTED/list.txt $RESULT > /dev/null
+    then
+        echo "KAR listing differs from legacy...test failed"
+        cat $RESULT
+        cleanup
+        exit
+    fi
+    rm $RESULT
+
+    echo "   Testing option variation --test ..."
+    $KAR --test $ARCHIVE > $RESULT
+    if ! diff -q -w $EXPECTED/list.txt $RESULT > /dev/null
+    then
+        echo "KAR listing differs from legacy...test failed"
+        cat $RESULT
+        cleanup
+        exit
+    fi
+    rm $RESULT
+
+    echo "   Testing legacy longlist mode..."
+    $KAR -l -t $ARCHIVE | tr -s [' '] | cut -d' '  -f 2,4,5 > $RESULT
+    if ! diff -q -w $EXPECTED/longlist.txt $RESULT > /dev/null
+    then
+        echo "KAR listing differs from legacy...test failed"
+        cat $RESULT
+        cleanup
+        exit
+    fi
+    rm $RESULT
+
+    echo "Passed"
 }
 
 test_extract ()
 {
     echo "Testing extract mode..."
 
-    if ! $KAR -c $ARCHIVE -d $INPUT
+    RESULT="extracted"
+    $KAR -x $ARCHIVE -d $RESULT
+    if ! diff -q -r $EXPECTED/extracted $RESULT > /dev/null
     then
-        STATUS=$?
-        echo "KAR create operation failed"
-    else
-        $KAR -x $ARCHIVE -d $OUTPUT
-        tree output/
+        echo "KAR extracting content differs from legacy...test failed"
+        cleanup
+        exit
+    fi
+    chmod -R +w $RESULT
+    rm -rf $RESULT
+
+    echo "   Testing option variation --extract ..."
+    $KAR --extract $ARCHIVE -d $RESULT
+    if ! diff -q -r $EXPECTED/extracted $RESULT > /dev/null
+    then
+        echo "KAR extracting content differs from legacy...test failed"
+        cleanup
+        exit
     fi
 
-    echo "Passed"
-
+    chmod -R +w $RESULT
+    rm -rf $RESULT
     cleanup
-    chmod -R +w $OUTPUT
-    rm -rf $OUTPUT
+
+    echo "Passed"
 }
 
 test_md5 ()

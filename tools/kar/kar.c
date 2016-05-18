@@ -31,20 +31,20 @@
 #include <klib/vector.h>
 #include <klib/container.h>
 #include <klib/sort.h>
-#include <kfs/directory.h>
-#include <kfs/file.h>
-#include <kfs/toc.h>
-#include <kfs/sra.h>
-#include <kfs/md5.h>
 #include <klib/log.h>
 #include <klib/out.h>
 #include <klib/status.h>
 #include <klib/text.h>
 #include <klib/printf.h>
+#include <klib/time.h>
 #include <sysalloc.h>
+#include <kfs/directory.h>
+#include <kfs/file.h>
+#include <kfs/toc.h>
+#include <kfs/sra.h>
+#include <kfs/md5.h>
 
 #include <kapp/main.h>
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -105,6 +105,7 @@ struct KARArchiveFile
     KFile * archive;
 };
 
+
 enum
 {
     ktocentrytype_unknown = -1,
@@ -116,6 +117,19 @@ enum
     ktocentrytype_hardlink,
     ktocentrytype_emptyfile,
     ktocentrytype_zombiefile
+};
+
+enum PrintMode
+{
+    pm_normal,
+    pm_longlist
+};
+
+typedef struct KARPrintMode KARPrintMode;
+struct KARPrintMode
+{
+    enum PrintMode pm;
+    uint32_t indent;
 };
 
 
@@ -130,7 +144,7 @@ static size_t kar_entry_full_path ( const KAREntry * entry, const char * root_di
 static void kar_print ( BSTNode *node, void *data );
 
 static
-void printEntry ( const KAREntry *entry )
+void printEntry ( const KAREntry *entry, KARPrintMode *kpm )
 {
     char buffer [ 4096 ];
     size_t bsize = sizeof buffer;
@@ -144,24 +158,65 @@ void printEntry ( const KAREntry *entry )
         exit ( 3 );
     }        
 
-    KOutMsg ( "%s\n", buffer );
+    switch ( kpm -> pm )
+    {
+    case pm_normal:
+        KOutMsg ( "%s\n", buffer );
+        break;
+    case pm_longlist:
+    {
+        KTime tm;
+        uint32_t mode = entry -> access_mode;
+        KTimeLocal ( &tm, entry -> mod_time );
+
+        KOutMsg ( "%04u-%02u-%02u %02u:%02u:%02u %s\n", 
+                  
+                  tm . year, tm . month + 1, tm . day + 1, 
+                  tm . hour, tm . minute, tm . second, buffer);
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 static
-void printDir ( const KARDir *dir )
+void printFile ( const KARFile *file, KARPrintMode *kpm )
 {
-    printEntry ( & dir -> dad );
-    BSTreeForEach ( &dir -> contents, false, kar_print, NULL );
+    if ( kpm -> pm == pm_longlist )
+    {
+        if ( file -> byte_size == 0 )
+            KOutMsg ( "%03c ", '-' );
+        else
+            KOutMsg ( "% 3u ", file -> byte_size );
+            
+        KOutMsg ( "%u ", file -> byte_offset );
+    }
+
+    printEntry ( ( KAREntry * ) file, kpm );
 }
 
 static
-void printFile_indent ( const KARFile * file, uint32_t *indent )
+void printDir ( const KARDir *dir, KARPrintMode *kpm )
+{
+    if ( kpm -> pm == pm_longlist )
+    {
+        KOutMsg ( "%03c ", '-' );
+        KOutMsg ( "%03c ", '-' );
+    }
+
+    printEntry ( & dir -> dad, kpm );
+    BSTreeForEach ( &dir -> contents, false, kar_print, kpm );
+}
+
+static
+void printFile_tree ( const KARFile * file, uint32_t *indent )
 {
     KOutMsg ( "%*s%s [ %lu, %lu ]\n", *indent, "", file -> dad . name, file -> byte_offset, file -> byte_size );
 }
 
 static
-void printDir_indent ( const KARDir *dir, uint32_t *indent )
+void printDir_tree ( const KARDir *dir, uint32_t *indent )
 {
     KOutMsg ( "%*s%s\n", *indent, "", dir -> dad . name );
     *indent += 4;
@@ -170,24 +225,75 @@ void printDir_indent ( const KARDir *dir, uint32_t *indent )
 }
 
 static
+void print_mode ( uint32_t grp )
+{
+    char r = ( grp & 4 ) ? 'r' : '-';
+    char w = ( grp & 2 ) ? 'w' : '-';
+    char x = ( grp & 1 ) ? 'x' : '-';
+
+    KOutMsg ( "%c%c%c", r, w, x );
+}
+
+static
 void kar_print ( BSTNode *node, void *data )
 {
     const KAREntry *entry = ( KAREntry * ) node;
 
-    switch ( entry -> type )
+
+    KARPrintMode *kpm = ( KARPrintMode * ) data;
+
+    switch ( kpm -> pm )
     {
-    case kptFile:
-        printEntry ( entry );
+    case pm_normal:
+    {
+        switch ( entry -> type )
+        {
+        case kptFile:
+            printFile ( ( KARFile * ) entry, kpm );
+            break;
+        case kptDir:
+            printDir ( ( KARDir * ) entry, kpm );
+            break;
+        case kptFile | kptAlias:
+        case kptDir | kptAlias:
+            break;
+        default:
+            break;
+        }
         break;
-    case kptDir:
-        printDir ( ( KARDir * ) entry );
+    }
+    case pm_longlist:
+    {
+        switch ( entry -> type )
+        {
+        case kptFile:
+            KOutMsg ( "-" );
+            print_mode ( ( entry -> access_mode >> 6 ) & 7 );
+            print_mode ( ( entry -> access_mode >> 3 ) & 7 );
+            print_mode ( entry -> access_mode & 7 );
+            KOutMsg ( " " );
+            printFile ( ( KARFile * ) entry, kpm );
+            break;
+        case kptDir:
+            KOutMsg ( "d" );
+            print_mode ( ( entry -> access_mode >> 6 ) & 7 );
+            print_mode ( ( entry -> access_mode >> 3 ) & 7 );
+            print_mode ( entry -> access_mode & 7 );
+            KOutMsg ( " " );
+            printDir ( ( KARDir * ) entry, kpm );
+            break;
+        case kptFile | kptAlias:
+        case kptDir | kptAlias:
+            break;
+        default:
+            break;
+        }
         break;
-    case kptFile | kptAlias:
-    case kptDir | kptAlias:
-        break;
+    }
     default:
         break;
     }
+
 }
 
 
@@ -845,7 +951,6 @@ rc_t kar_prepare_toc ( const BSTree *tree, KARFilePtrArray *file_array_ptr )
         rc = RC ( rcExe, rcBuffer, rcAllocating, rcMemory, rcExhausted );
     else
     {
-        uint32_t indent = 0;
         uint64_t i, offset;
 
         /* pass back output param */
@@ -1490,8 +1595,18 @@ rc_t kar_test_extract ( const Params *p )
                 /* Finish test */
                 if ( p -> x_count == 0 )
                 {
-                    uint32_t indent = 0;
-                    BSTreeForEach ( &tree, false, kar_print, NULL );
+                    KARPrintMode kpm;
+                    kpm . indent = 0;
+
+                    if ( p -> long_list )
+                    {
+                        KOutMsg ( "TypeAccess Size Offset ModDateTime         Path Name\n" );
+                        kpm . pm = pm_longlist;
+                    }
+                    else
+                        kpm . pm = pm_normal;
+
+                    BSTreeForEach ( &tree, false, kar_print, &kpm );
                 }
                 else
                 {

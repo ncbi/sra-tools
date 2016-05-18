@@ -1078,50 +1078,54 @@ EndText
     }
     close $F;
 
-    # create Makefile.config.install
-    println "configure: creating '$INS_MAKEFILE'" unless ($AUTORUN);
-    open $F, ">$INS_MAKEFILE" or die "cannot open $INS_MAKEFILE to write";
-
-    $OPT{'javadir' } = '' unless ($OPT{'javadir' });
-    $OPT{'sharedir'} = '' unless ($OPT{'sharedir'});
-
-    print $F "sub CONFIGURE {\n";
-    print $F "    \$_{PACKAGE_NAME } = '$PACKAGE_NAME';\n";
-    print $F "    \$_{VERSION      } = '$VERSION';\n";
-    print $F "    \$_{LNG          } = '$PKG{LNG}';\n";
-    print $F "    \$_{OS           } = '$OS';\n";
-    print $F "    \$_{BITS         } =  $BITS;\n";
-    print $F "    \$_{MAJVERS      } =  $MAJVERS;\n";
-    print $F "    \$_{LPFX         } = '$LPFX';\n";
-    print $F "    \$_{LIBX         } = '$LIBX';\n";
-    print $F "    \$_{MAJVERS_LIBX } = '" . expand($E_MAJVERS_LIBX) . "';\n";
-    print $F "    \$_{VERSION_LIBX } = '" . expand($E_VERSION_LIBX) . "';\n";
-    print $F "    \$_{SHLX         } = '$SHLX';\n";
-    print $F "    \$_{MAJVERS_SHLX } = '" . expand($E_MAJVERS_SHLX) . "';\n";
-    print $F "    \$_{VERSION_SHLX } = '" . expand($E_VERSION_SHLX) . "';\n";
-    print $F "    \$_{VERSION_EXEX } = '" . expand($E_VERSION_EXEX) . "';\n";
-    print $F "    \$_{MAJVERS_EXEX } = '" . expand($E_MAJVERS_EXEX) . "';\n";
-    print $F "    \$_{INCDIR       } = '" . expand("$Bin/.."      ) . "';\n";
-    if ($PKG{LNG} ne 'PYTHON') {
-        print $F "  \$_{BINDIR$BITS} = '" . expand($E_BINDIR      ) . "';\n";
-        print $F "  \$_{LIBDIR$BITS} = '" . expand($E_LIBDIR      ) . "';\n";
-    } elsif ($OPT{PYTHON_LIB_PATH}) {
-        print $F "  \$_{LIBDIR$BITS} = '$OPT{PYTHON_LIB_PATH}';\n";
+	# creation of Makefile.config.install is disabled, since nobody uses it now 
+	# and I need to remove versions from prl scripts
+	if (0) {
+	    # create Makefile.config.install
+	    println "configure: creating '$INS_MAKEFILE'" unless ($AUTORUN);
+	    open $F, ">$INS_MAKEFILE" or die "cannot open $INS_MAKEFILE to write";
+	
+	    $OPT{'javadir' } = '' unless ($OPT{'javadir' });
+	    $OPT{'sharedir'} = '' unless ($OPT{'sharedir'});
+	
+	    print $F "sub CONFIGURE {\n";
+	    print $F "    \$_{PACKAGE_NAME } = '$PACKAGE_NAME';\n";
+	    print $F "    \$_{VERSION      } = '$VERSION';\n";
+	    print $F "    \$_{LNG          } = '$PKG{LNG}';\n";
+	    print $F "    \$_{OS           } = '$OS';\n";
+	    print $F "    \$_{BITS         } =  $BITS;\n";
+	    print $F "    \$_{MAJVERS      } =  $MAJVERS;\n";
+	    print $F "    \$_{LPFX         } = '$LPFX';\n";
+	    print $F "    \$_{LIBX         } = '$LIBX';\n";
+	    print $F "    \$_{MAJVERS_LIBX } = '" . expand($E_MAJVERS_LIBX) . "';\n";
+	    print $F "    \$_{VERSION_LIBX } = '" . expand($E_VERSION_LIBX) . "';\n";
+	    print $F "    \$_{SHLX         } = '$SHLX';\n";
+	    print $F "    \$_{MAJVERS_SHLX } = '" . expand($E_MAJVERS_SHLX) . "';\n";
+	    print $F "    \$_{VERSION_SHLX } = '" . expand($E_VERSION_SHLX) . "';\n";
+	    print $F "    \$_{VERSION_EXEX } = '" . expand($E_VERSION_EXEX) . "';\n";
+	    print $F "    \$_{MAJVERS_EXEX } = '" . expand($E_MAJVERS_EXEX) . "';\n";
+	    print $F "    \$_{INCDIR       } = '" . expand("$Bin/.."      ) . "';\n";
+	    if ($PKG{LNG} ne 'PYTHON') {
+	        print $F "  \$_{BINDIR$BITS} = '" . expand($E_BINDIR      ) . "';\n";
+	        print $F "  \$_{LIBDIR$BITS} = '" . expand($E_LIBDIR      ) . "';\n";
+	    } elsif ($OPT{PYTHON_LIB_PATH}) {
+	        print $F "  \$_{LIBDIR$BITS} = '$OPT{PYTHON_LIB_PATH}';\n";
+	    }
+	    print $F "    \$_{OTHER_PREFIX } = '$PKG{UPATH}';\n";
+	    print $F "    \$_{PREFIX       } = '$OPT{'prefix'}';\n";
+	    print $F "    \$_{INST_INCDIR  } = '$OPT{'includedir'}';\n";
+	    print $F "    \$_{INST_BINDIR  } = '$OPT{'bindir'}';\n";
+	    print $F "    \$_{INST_LIBDIR  } = '$OPT{'libdir'}';\n";
+	    print $F "    \$_{INST_JARDIR  } = '$OPT{'javadir'}';\n";
+	    print $F "    \$_{INST_SHAREDIR} = '$OPT{'sharedir'}';\n";
+	    print $F "\n";
+	    print $F "    \@_\n";
+	    print $F "}\n";
+	    print $F "\n";
+	    print $F "1\n";
+	
+	    close $F;
     }
-    print $F "    \$_{OTHER_PREFIX } = '$PKG{UPATH}';\n";
-    print $F "    \$_{PREFIX       } = '$OPT{'prefix'}';\n";
-    print $F "    \$_{INST_INCDIR  } = '$OPT{'includedir'}';\n";
-    print $F "    \$_{INST_BINDIR  } = '$OPT{'bindir'}';\n";
-    print $F "    \$_{INST_LIBDIR  } = '$OPT{'libdir'}';\n";
-    print $F "    \$_{INST_JARDIR  } = '$OPT{'javadir'}';\n";
-    print $F "    \$_{INST_SHAREDIR} = '$OPT{'sharedir'}';\n";
-    print $F "\n";
-    print $F "    \@_\n";
-    print $F "}\n";
-    print $F "\n";
-    print $F "1\n";
-
-    close $F;
 }
 
 if (! $OPT{'status'} ) {

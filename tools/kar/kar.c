@@ -105,6 +105,14 @@ struct KARArchiveFile
     KFile * archive;
 };
 
+typedef struct KARAlias KARAlias;
+struct KARAlias
+{
+    KAREntry dad;
+
+    const char *link;
+};
+
 
 enum
 {
@@ -166,7 +174,6 @@ void printEntry ( const KAREntry *entry, KARPrintMode *kpm )
     case pm_longlist:
     {
         KTime tm;
-        uint32_t mode = entry -> access_mode;
         KTimeLocal ( &tm, entry -> mod_time );
 
         KOutMsg ( "%04u-%02u-%02u %02u:%02u:%02u %s\n", 
@@ -311,6 +318,14 @@ void kar_entry_whack ( BSTNode *node, void *data )
     KAREntry *entry = ( KAREntry * ) node;
 
     /* do the cleanup */
+    switch ( entry -> type )
+    {
+    case kptFile | kptAlias:
+    case kptDir | kptAlias:
+        free ( ( ( KARAlias * ) entry ) -> link );
+        break;
+    }
+
     free ( entry );
 }
 
@@ -557,8 +572,43 @@ rc_t kar_add_dir ( const KDirectory *parent_dir, const char *name, void *data )
 static
 rc_t kar_add_alias ( const KDirectory *dir, const char *name, void *data )
 {
-    /* need to call KDirectoryResolveAlias() to map "name" into a substitution path */
-    return -1;
+    KARAlias *alias;
+    rc_t rc = kar_entry_create ( ( KAREntry ** ) & alias, sizeof * alias, dir, name, kptAlias );
+    if ( rc == 0 )
+    {
+        char resolved [ 4096 ];
+        rc = KDirectoryResolveAlias ( dir, false, resolved, sizeof resolved, "%s", name );
+        if ( rc == 0 )
+        {
+            size_t rsize = string_size ( resolved );
+            char * copy = malloc ( rsize + 1 );
+            if ( copy == NULL )
+            {
+                rc = RC (rcExe, rcNode, rcAllocating, rcMemory, rcExhausted);
+                pLogErr ( klogErr, rc, "Failed to allocated memory for entry '$(name)'",
+                          "name=%s", name );
+            }
+            else
+            {
+                string_copy ( copy, rsize + 1, resolved, rsize );
+                alias -> link = copy;
+
+                rc = BSTreeInsert ( ( BSTree * ) data, &alias -> dad . dad, kar_entry_cmp );
+                if ( rc == 0 )
+                {
+                    /* TBD - separate count for aliases? */
+                    ++ num_files;
+                    return 0;
+                }
+                
+                
+                pLogErr ( klogErr, rc, "Failed to insert file '$(name)' into tree",
+                      "name=%s", alias -> dad . name );
+                
+            }
+        }
+    }
+    return rc;
 }
 
 static

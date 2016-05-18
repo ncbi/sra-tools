@@ -221,8 +221,6 @@ test_md5 ()
     fi
 
     echo "Passed"
-
-    cleanup
 }
 
 # run the script
@@ -231,6 +229,7 @@ test_test
 test_extract
 test_md5
 
+cleanup
 
 
 exit $STATUS

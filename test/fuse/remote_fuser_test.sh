@@ -29,6 +29,16 @@ SCR_SNAME=`basename $0 .sh`
 ##  Some interesting stuff
 #
 
+_bump ()
+{
+    echo "####################################################################"
+    echo "####################################################################"
+    echo "##"
+    echo "## `date`"
+    echo "##"
+    echo "####################################################################"
+}
+
 _msg ( )
 {
     echo "INF[$SCR_SNAME][`date +%Y-%m-%d_%H:%M:%S`] $@"
@@ -174,6 +184,20 @@ then
     _err_exit "Can not stat BIN_DIR directory '$BIN_DIR'"
 fi
 
+BIN_DIR=$BIN_DIR/../bin
+if [ ! -d "$BIN_DIR" ]
+then
+    _err_exit "Can not stat BIN_DIR directory '$BIN_DIR'"
+fi
+BIN_DIR=`cd $BIN_DIR; pwd`
+
+TESTBIN_DIR=$BIN_DIR/../test-bin
+if [ ! -d "$TESTBIN_DIR" ]
+then
+    _err_exit "Can not stat TESTBIN_DIR directory '$TESTBIN_DIR'"
+fi
+TESTBIN_DIR=`cd $TESTBIN_DIR; pwd`
+
 ####
 ##  Loading fonfig file
 #
@@ -201,6 +225,7 @@ if [ ! -d "$F_TEST_DIR" ]
 then
     _msg "Creating directory '$F_TEST_DIR'"
     _exec mkdir $F_TEST_DIR
+    _exec chmod ugoa+rwx $F_TEST_DIR
 fi
 F_TEST_DIR=`cd $F_TEST_DIR; pwd`
 
@@ -285,32 +310,33 @@ echo Log file: $F_LOG_FILE
 ##
 _copy_assign_app ()
 {
-    if [ $# -ne 2 ]
+    if [ $# -ne 3 ]
     then
         _err_exit "_copy_assign_app(): requires two arguments"
     fi
 
-    SRC=$BIN_DIR/$1
+    SRC=$1/$2
     if [ ! -x "$SRC" ]
     then
         _err_exit "_copy_assign_app(): can not stat file '$SRC'"
     fi
 
-    LNK=$F_BIN_DIR/$1
+    LNK=$F_BIN_DIR/$2
 
     eval cmp $SRC $LNK
     if [ $? -ne 0 ]
     then
-        DST=$F_DEPOT_DIR/${1}.${F_TIME_STAMP}
+        DST=$F_DEPOT_DIR/${2}.${F_TIME_STAMP}
         _exec cp -p $SRC $DST
         _exec rm -f $LNK
         _exec ln -s $DST $LNK
     fi
 
-    eval "$2=$LNK"
+    eval "$3=$LNK"
 }
 
-_copy_assign_app remote-fuser REMOTE_FUSER_APP
+_copy_assign_app $BIN_DIR remote-fuser REMOTE_FUSER_APP
+_copy_assign_app $TESTBIN_DIR remote-fuser-test REMOTE_FUSER_TEST_APP
 
 ###
 ##  Here we are checking and pre-processing XML file
@@ -465,6 +491,8 @@ done
 #####
 ### First test is checking that file downloads full and correctly
 #
+
+_bump
 _msg TEST 1: Downloading single file
 
 ## First we are trying to choose not big file to download
@@ -521,7 +549,41 @@ _msg TEST 1: Passed
 #####
 ### Second multithread access to singe file
 #
+
+_bump
 _msg TEST 2: Multithread acces to single file
+
+R_TM=2
+N_THR=30
+
+## First we should choose file big enough for a test ...
+## couple hundred megs is OK
+##
+
+for i in `ls $F_MOUNT_DIR`
+do
+    if [ `stat --print="%s" $F_MOUNT_DIR/$i` -gt 200000000 ]
+    then
+        FILE_NAME=$i
+        break
+    fi
+done
+
+if [ -z "$FILE_NAME" ]
+then
+    _test_failed "Can not find file with suitable size"
+fi
+
+## TEST_LOG="$F_LOG_DIR/remote-fuser-test-single.log.$F_TIME_STAMP"
+## TEST_CMD="$REMOTE_FUSER_TEST_APP -t $N_THR -r $R_TM $F_MOUNT_DIR/$FILE_NAME >$TEST_LOG 2>&1"
+TEST_CMD="$REMOTE_FUSER_TEST_APP -t $N_THR -r $R_TM $F_MOUNT_DIR/$FILE_NAME"
+_msg "## $TEST_CMD"
+eval "$TEST_CMD"
+if [ $? -ne 0 ]
+then
+    _test_failed "Single file test failed"
+fi
+
 _msg TEST 2: Passed
 
 #####################################################################
@@ -529,10 +591,33 @@ _msg TEST 2: Passed
 #####
 ### Second multithread access to set of files
 #
+
+_bump
 _msg TEST 3: Multithread acces to set of files
+
+## First we should create list of files with limitation
+##
+
+LIST_FILE=$F_TEMP_DIR/listfile.$F_TIME_STAMP
+for i in `ls $F_MOUNT_DIR`
+do
+    echo $F_MOUNT_DIR/$i >>$LIST_FILE
+done
+
+TEST_CMD="$REMOTE_FUSER_TEST_APP -t $N_THR -r $RUN_TIME -l $LIST_FILE"
+_msg "## $TEST_CMD"
+eval "$TEST_CMD"
+if [ $? -ne 0 ]
+then
+    _test_failed "Multiply files test failed"
+fi
+
+
 _msg TEST 2: Passed
 
 #####
 ### Here we are stopping fuser
 #
 _stop_fuser
+
+_msg TEST PASSED!

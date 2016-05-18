@@ -572,9 +572,9 @@ rc_t run_many_files ( int NumThr, int TumeRun, const char * Path )
         if ( RCt == 0 ) {
 
             printf (
-                    "Run test in [%lu] threads on [%d] files\n",
-                    Test -> files_qty,
-                    NumThr
+                    "Run test in [%d] threads on [%lu] files\n",
+                    NumThr,
+                    Test -> files_qty
                     );
 
             XTaskerRun ( Tasker, TumeRun * 60 );

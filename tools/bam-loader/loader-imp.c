@@ -1006,9 +1006,10 @@ INSDC_SRA_platform_id GetINSDCPlatform(BAM_File const *bam, char const name[]) {
 static
 rc_t CheckLimitAndLogError(void)
 {
-    ++G.errCount;
-    if (G.maxErrCount > 0 && G.errCount > G.maxErrCount) {
-        (void)PLOGERR(klogErr, (klogErr, SILENT_RC(rcAlign, rcFile, rcReading, rcError, rcExcessive), "Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%u,max=%u", G.errCount, G.maxErrCount));
+    unsigned const count = ++G.errCount;
+
+    if (G.maxErrCount > 0 && count > G.maxErrCount) {
+        (void)PLOGERR(klogErr, (klogErr, SILENT_RC(rcAlign, rcFile, rcReading, rcError, rcExcessive), "Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%u,max=%u", count, G.maxErrCount));
         return RC(rcAlign, rcFile, rcReading, rcError, rcExcessive);
     }
     return 0;
@@ -1395,12 +1396,23 @@ KQueue *bamq;
 static rc_t run_bamread_thread(const KThread *self, void *const file)
 {
     rc_t rc = 0;
+    size_t NR = 0;
 
     while (rc == 0) {
         BAM_Alignment const *crec = NULL;
         BAM_Alignment *rec = NULL;
 
+        ++NR;
         rc = BAM_FileRead2(file, &crec);
+        if ((int)GetRCObject(rc) == rcRow && (int)GetRCState(rc) == rcEmpty) {
+            rc = CheckLimitAndLogError();
+            continue;
+        }
+        if ((int)GetRCObject(rc) == rcRow && (int)GetRCState(rc) == rcNotFound) {
+            /* EOF */
+            rc = 0;
+            break;
+        }
         if (rc) break;
         rc = BAM_AlignmentCopy(crec, &rec);
         BAM_AlignmentRelease(crec);
@@ -1425,8 +1437,13 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
                 break;
         }
     }
-    (void)PLOGERR(klogInfo, (klogInfo, rc, "bamread_thread done", NULL));
     KQueueSeal(bamq);
+    if (rc) {
+        (void)LOGERR(klogErr, rc, "bamread_thread done");
+    }
+    else {
+        (void)PLOGMSG(klogInfo, (klogInfo, "bamread_thread done; read $(NR) records", "NR=%lu", NR));
+    }
     return rc;
 }
 #endif
@@ -1581,11 +1598,14 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
             if ((int)GetRCObject(rc) == rcTimeout)
                 rc = 0;
             else {
-                if ((int)GetRCObject(rc)==rcData && (int)GetRCState(rc)==rcDone)
-                    (void)PLOGMSG(klogDebug, (klogDebug, "KQueuePop Done", NULL));
+                rc_t rc2 = 0;
+                if ((int)GetRCObject(rc) == rcData && (int)GetRCState(rc) == rcDone)
+                    (void)LOGMSG(klogDebug, "KQueuePop Done");
                 else
                     (void)PLOGERR(klogWarn, (klogWarn, rc, "KQueuePop Error", NULL));
-                KThreadWait(bamread_thread, &rc);
+                KThreadWait(bamread_thread, &rc2);
+                if (rc2 != 0)
+                    rc = rc2;
                 KThreadRelease(bamread_thread);
                 bamread_thread = NULL;
                 break;
@@ -1596,8 +1616,10 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
 #endif
 
         if (rc) {
-            if (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound) {
-                (void)PLOGMSG(klogInfo, (klogInfo, "EOF '$(file)'; read $(read); processed $(proc)", "file=%s,read=%lu,proc=%lu", bamFile, (unsigned long)recordsRead, (unsigned long)recordsProcessed));
+            if (   (GetRCModule(rc) == rcCont && (int)GetRCObject(rc) == rcData && GetRCState(rc) == rcDone)
+                || (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound))
+            {
+                (void)PLOGMSG(klogInfo, (klogInfo, "EOF '$(file)'; processed $(proc)", "file=%s,read=%lu,proc=%lu", bamFile, (unsigned long)recordsRead, (unsigned long)recordsProcessed));
                 rc = 0;
             }
             else if (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcEmpty) {
@@ -1613,6 +1635,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         }
         ++recordsRead;
         
+        BAM_AlignmentGetReadName2(rec, &name, &namelen);
 #if THREADING_BAMREAD_PRIME_NAME2KEY
 		keyId = rec->keyId;
 		wasInserted = rec->wasInserted;
@@ -1651,7 +1674,6 @@ MIXED_BASE_AND_COLOR:
                 isNotColorSpace = true;
         }
         BAM_AlignmentGetFlags(rec, &flags);
-        BAM_AlignmentGetReadName2(rec, &name, &namelen);
         isPrimary = (flags & (BAMFlags_IsNotPrimary|BAMFlags_IsSupplemental)) == 0 ? true : false;
         if (!isPrimary && G.noSecondary)
             goto LOOP_END;
@@ -3011,6 +3033,7 @@ rc_t run(char const progName[],
                                 VDatabaseRelease(db);
                                 VTableDropColumn(tbl, "TMP_KEY_ID");
                                 VTableDropColumn(tbl, "READ");
+                                VTableDropColumn(tbl, "ALTREAD");
                                 VTableRelease(tbl);
                             }
 

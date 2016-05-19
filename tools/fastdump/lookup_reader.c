@@ -167,10 +167,73 @@ static rc_t loop_until_key_found( struct lookup_reader * reader, uint64_t key_to
 }
 
 
+static rc_t full_table_seek( struct lookup_reader * reader, uint64_t key_to_find, uint64_t * key_found )
+{
+    /* we have no index! search the whole thing... */
+    uint64_t offset = 0;
+    rc_t rc = loop_until_key_found( reader, key_to_find, key_found, &offset );
+    if ( rc == 0 )
+    {
+        if ( keys_equal( key_to_find, *key_found ) )
+            reader->pos = offset;
+        else
+        {
+            rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+            ErrMsg( "seek_lookup_reader( key: %ld ) -> %R", key_to_find, rc );
+        }
+    }
+    return rc;
+}
+
+
+static rc_t indexed_seek( struct lookup_reader * reader, uint64_t key_to_find, uint64_t * key_found, bool exactly )
+{
+    /* we have a index! find set pos to the found offset */
+    uint64_t offset = 0;
+    uint64_t max_key;
+    rc_t rc = get_max_key( reader->index, &max_key );
+    if ( rc == 0 )
+    {
+        if ( key_to_find > max_key )
+            rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcTooBig );
+        else
+        {
+            rc = get_nearest_offset( reader->index, key_to_find, key_found, &offset ); /* in index.c */
+            if ( rc == 0 )
+            {
+                if ( keys_equal( key_to_find, *key_found ) )
+                    reader->pos = offset;
+                else
+                {
+                    if ( exactly )
+                    {
+                        rc = loop_until_key_found( reader, key_to_find, key_found, &offset );
+                        if ( rc == 0 )
+                        {
+                            if ( keys_equal( key_to_find, *key_found ) )
+                                reader->pos = offset;
+                            else
+                                rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+                        }
+                        else
+                            rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+                    }
+                    else
+                    {
+                        reader->pos = offset;
+                        rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+                    }
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+
 rc_t seek_lookup_reader( struct lookup_reader * reader, uint64_t key_to_find, uint64_t * key_found, bool exactly )
 {
     rc_t rc = 0;
-    uint64_t offset = 0;
     if ( reader == NULL || key_found == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
@@ -178,57 +241,12 @@ rc_t seek_lookup_reader( struct lookup_reader * reader, uint64_t key_to_find, ui
     }
     else if ( reader->index != NULL )
     {
-        /* we have a index! find set pos to the found offset */
-        uint64_t max_key;
-        rc = get_max_key( reader->index, &max_key );
-        if ( rc == 0 )
-        {
-            if ( key_to_find > max_key )
-                rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcTooBig );
-            else
-            {
-                rc = get_nearest_offset( reader->index, key_to_find, key_found, &offset ); /* in index.c */
-                if ( rc == 0 )
-                {
-                    if ( keys_equal( key_to_find, *key_found ) )
-                        reader->pos = offset;
-                    else
-                    {
-                        if ( exactly )
-                        {
-                            rc = loop_until_key_found( reader, key_to_find, key_found, &offset );
-                            if ( rc == 0 )
-                            {
-                                if ( keys_equal( key_to_find, *key_found ) )
-                                    reader->pos = offset;
-                                else
-                                {
-                                    rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
-                                    ErrMsg( "seek_lookup_reader( key: %ld ) -> %R", key_to_find, rc );
-                                }
-                            }
-                        }
-                        else
-                            reader->pos = offset;
-                    }
-                }
-            }
-        }
+        rc = indexed_seek( reader, key_to_find, key_found, exactly );
+        if ( rc != 0 )
+            rc = full_table_seek( reader, key_to_find, key_found );
     }
     else
-    {
-        rc = loop_until_key_found( reader, key_to_find, key_found, &offset );
-        if ( rc == 0 )
-        {
-            if ( keys_equal( key_to_find, *key_found ) )
-                reader->pos = offset;
-            else
-            {
-                rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
-                ErrMsg( "seek_lookup_reader( key: %ld ) -> %R", key_to_find, rc );
-            }
-        }
-    }
+        rc = full_table_seek( reader, key_to_find, key_found );
     return rc;
 }
 

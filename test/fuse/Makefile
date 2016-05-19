@@ -22,8 +22,7 @@
 #
 # ===========================================================================
 
-# default: runtests
-default: remote-fuser-test
+default: slowtests
 
 TOP ?= $(abspath ../..)
 
@@ -52,11 +51,8 @@ REMOTE_FUSER_TEST_OBJ = \
 	$(addsuffix .$(OBJX),$(REMOTE_FUSER_TEST_SRC))
     
 REMOTE_FUSER_TEST_LIB =   \
-	-sngs-c++           \
-	-sncbi-ngs-c++      \
 	-sncbi-vdb-static   \
-	-skapp              \
-    -sktst              \
+	-skapp
 
 $(TEST_BINDIR)/remote-fuser-test: $(REMOTE_FUSER_TEST_OBJ)
 	$(LP) --exe -o $@ $^ $(REMOTE_FUSER_TEST_LIB)
@@ -65,12 +61,9 @@ $(TEST_BINDIR)/remote-fuser-test: $(REMOTE_FUSER_TEST_OBJ)
 # slowtests: match output vs sra-pileup
 #
 
-slowtests: run-remote-fuser-test
+slowtests: run-test
 
-run-remote-fuser-test:
-	@ echo JOOOOOPPAAA
-	@ echo JOOOOOPPAAA
-	@ echo JOOOOOPPAAA
+run-test: remote-fuser-test
+	@$(SRCDIR)/remote_fuser_test.sh standard 180 $(TARGDIR)/bin
 
-
-.PHONY: run-remote-fuser-test
+.PHONY: run-test

@@ -31,6 +31,7 @@ SCR_SNAME=`basename $0 .sh`
 
 _bump ()
 {
+    echo ""
     echo "####################################################################"
     echo "####################################################################"
     echo "##"
@@ -304,7 +305,7 @@ fi
 F_TIME_STAMP=`date +%Y-%m-%d_%H-%M-%S`
 F_LOG_FILE=$F_LOG_DIR/${SCR_SNAME}.log.${F_TIME_STAMP}
 echo Log file: $F_LOG_FILE
-## exec >$F_LOG_FILE 2>&1
+exec >$F_LOG_FILE 2>&1
 
 ## Here we are copying binaries
 ##
@@ -378,6 +379,7 @@ _is_fuser_run ()
         ps -p $FUSER_PID >/dev/null 2>&1
         if [ $? -eq 0 ]
         then
+            _wrn PROCESS WITH PID $FUSER_PID EXISTS
             return 0
         fi
     fi
@@ -385,7 +387,7 @@ _is_fuser_run ()
     _check_mount $F_MOUNT_DIR
     if [ $? -eq 0 ]
     then
-echo MOUNT_EXISTS
+        _wrn MOUNT STILL EXISTS
         return 0
     fi
 
@@ -417,7 +419,7 @@ _shutdown_exit ()
         fi
     fi
 
-    sleep 1
+    sleep 3
 
     if [ -n "$FUSER_PID" ]
     then
@@ -613,7 +615,7 @@ then
 fi
 
 
-_msg TEST 2: Passed
+_msg TEST 3: Passed
 
 #####
 ### Here we are stopping fuser

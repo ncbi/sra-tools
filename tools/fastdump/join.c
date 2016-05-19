@@ -80,7 +80,7 @@ static rc_t init_join( const join_params * jp, struct join *j, struct index_read
         uint64_t key_to_find = jp->first << 1;
         uint64_t key_found = 0;
         rc_t rc1 = seek_lookup_reader( j->lookup, key_to_find, &key_found, true );
-        if ( GetRCState( rc1 ) != rcTooBig )
+        if ( GetRCState( rc1 ) != rcTooBig /* && GetRCState( rc1 ) != rcNotFound */ )
             rc = rc1;
     }
     if ( rc != 0 )
@@ -334,32 +334,31 @@ static rc_t extract_row_count_cmn( const join_params * jp, uint64_t * row_count 
 {
     rc_t rc = 0;
     cmn_params cmn;
-    init_cmn_params( jp, &cmn );
+    
+    init_cmn_params( jp, &cmn ); /* above */
+    switch( jp->fmt )
     {
-        switch( jp->fmt )
-        {
-            case ft_special : {
-                                    struct special_iter * iter;
-                                    rc = make_special_iter( &cmn, &iter );
-                                    if ( rc == 0 )
-                                    {
-                                        *row_count = get_row_count_of_special_iter( iter );
-                                        destroy_special_iter( iter );
-                                    }
-                               } break;
-                               
-            case ft_fastq   : {
-                                    struct fastq_iter * iter;
-                                    rc = make_fastq_iter( &cmn, &iter );
-                                    if ( rc == 0 )
-                                    {
-                                        *row_count = get_row_count_of_fastq_iter( iter );
-                                        destroy_fastq_iter( iter );
-                                    }
-                               } break;
-                               
-            default : break;
-        }
+        case ft_special : {
+                                struct special_iter * iter;
+                                rc = make_special_iter( &cmn, &iter );
+                                if ( rc == 0 )
+                                {
+                                    *row_count = get_row_count_of_special_iter( iter );
+                                    destroy_special_iter( iter );
+                                }
+                           } break;
+                           
+        case ft_fastq   : {
+                                struct fastq_iter * iter;
+                                rc = make_fastq_iter( &cmn, &iter ); /* fastq_iter.c */
+                                if ( rc == 0 )
+                                {
+                                    *row_count = get_row_count_of_fastq_iter( iter );
+                                    destroy_fastq_iter( iter );
+                                }
+                           } break;
+                           
+        default : break;
     }
     return rc;
 }
@@ -372,7 +371,7 @@ static rc_t perform_special_join( const join_params * jp, struct index_reader * 
     struct special_iter * iter;
     cmn_params cmn;
 
-    init_cmn_params( jp, &cmn );
+    init_cmn_params( jp, &cmn ); /* above */
     rc = make_special_iter( &cmn, &iter );
     if ( rc == 0 )
     {
@@ -397,8 +396,12 @@ static rc_t perform_special_join( const join_params * jp, struct index_reader * 
             }
             release_join_ctx( &j );
         }
+        else
+            ErrMsg( "init_join() -> %R", rc );
         destroy_special_iter( iter );
     }
+    else
+        ErrMsg( "make_special_iter() -> %R", rc );
     return rc;
 }
 
@@ -409,15 +412,18 @@ static rc_t perform_fastq_join( const join_params * jp, struct index_reader * in
     struct fastq_iter * iter;
     cmn_params cmn;
 
-    init_cmn_params( jp, &cmn );
+    init_cmn_params( jp, &cmn ); /* above */
     rc = make_fastq_iter( &cmn, &iter );
     if ( rc == 0 )
     {
         join j;
+        
         rc = init_join( jp, &j, index );
         if ( rc == 0 )
         {
             fastq_rec rec;
+            uint64_t n = 0;
+            
             while ( get_from_fastq_iter( iter, &rec, &rc ) && rc == 0 )
             {
                 rc = Quitting();
@@ -430,12 +436,17 @@ static rc_t perform_fastq_join( const join_params * jp, struct index_reader * in
 
                     if ( jp->join_progress != NULL )
                         atomic_inc( jp->join_progress );
+                    n++;
                 }
             }
             release_join_ctx( &j );
         }
+        else
+            ErrMsg( "init_join() -> %R", rc );
         destroy_fastq_iter( iter );
     }
+    else
+        ErrMsg( "make_fastq_iter() -> %R", rc );
     return rc;
 }
 
@@ -474,7 +485,7 @@ static rc_t make_part_filename( const join_params * jp, char * buffer, size_t bu
         }
         else
         {
-            const char * output_file_leaf = leaf_of( jp->output_filename );
+            const char * output_file_leaf = leaf_of( jp->output_filename ); /* above */
             
             if ( jp->temp_path[ l-1 ] == '/' )
                 rc = string_printf( buffer, bufsize, &num_writ, "%s%s.%d",
@@ -503,12 +514,12 @@ static rc_t concat_part_files( const join_params * jp, uint32_t count )
         for ( idx = 0; rc == 0 && idx < count; ++idx )
         {
             char part_file[ 4096 ];
-            rc = make_part_filename( jp, part_file, sizeof part_file, idx );
+            rc = make_part_filename( jp, part_file, sizeof part_file, idx ); /* above */
             if ( rc == 0 )
                 rc = VNamelistAppend( files, part_file );
         }
         if ( rc == 0 )
-            rc = concat_files( jp->dir, files, jp->buf_size, jp->output_filename, jp->show_progress );
+            rc = concat_files( jp->dir, files, jp->buf_size, jp->output_filename, jp->show_progress ); /* helper.c */
         if ( rc == 0 )
             rc = delete_files( jp->dir, files );
         VNamelistRelease( files );
@@ -528,13 +539,13 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
     if ( jp->index_filename != NULL )
     {
         if ( file_exists( jp->dir, "%s", jp->index_filename ) )
-            rc = make_index_reader( jp->dir, &index, jp->buf_size, "%s", jp->index_filename );
+            rc = make_index_reader( jp->dir, &index, jp->buf_size, "%s", jp->index_filename ); /* index.c */
     }
 
-    if ( rc == 0 )
+    if ( rc == 0 && index != NULL )
     {
         char part_file[ 4096 ];
-        rc = make_part_filename( jp, part_file, sizeof part_file, jtd->idx );
+        rc = make_part_filename( jp, part_file, sizeof part_file, jtd->idx ); /* above */
         if ( rc == 0 )
         {
             join_params cjp;
@@ -548,15 +559,15 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
             
             switch( jp->fmt )
             {
-                case ft_special : rc = perform_special_join( &cjp, index ); break;
-                case ft_fastq   : rc = perform_fastq_join( &cjp, index ); break;
+                case ft_special : rc = perform_special_join( &cjp, index ); break; /* above */
+                case ft_fastq   : rc = perform_fastq_join( &cjp, index ); break; /* above */
                 default : break;
                 
             }
         }
+        release_index_reader( index ); /* index.c */    
     }
     
-    release_index_reader( index );
     free( ( void * ) data );
     return rc;
 }
@@ -565,20 +576,24 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
 rc_t execute_join( const join_params * jp )
 {
     rc_t rc = 0;
+    
+    if ( jp->show_progress )
+        KOutMsg( "join   :" );
+
     if ( jp->num_threads < 2 )
     {
         /* on the main thread */
         switch( jp->fmt )
         {
-            case ft_special : rc = perform_special_join( jp, NULL ); break;
-            case ft_fastq   : rc = perform_fastq_join( jp, NULL ); break;
+            case ft_special : rc = perform_special_join( jp, NULL ); break; /* above */
+            case ft_fastq   : rc = perform_fastq_join( jp, NULL ); break; /* above */
             default : break;
         }
     }
     else
     {
         uint64_t row_count = 0;
-        rc = extract_row_count_cmn( jp, &row_count );
+        rc = extract_row_count_cmn( jp, &row_count ); /* above */
         if ( rc == 0 && row_count > 0 )
         {
             Vector threads;
@@ -587,15 +602,14 @@ rc_t execute_join( const join_params * jp )
             KThread * progress_thread = NULL;
             multi_progress progress;
             
-            init_progress_data( &progress, row_count );
+            init_progress_data( &progress, row_count ); /* helper.c */
             VectorInit( &threads, 0, jp->num_threads );
             
             if ( jp->show_progress )
             {
                 join_params * nc_jp = ( join_params * )jp;
                 nc_jp->join_progress = &progress.progress_rows;
-                rc = start_multi_progress( &progress_thread, &progress );
-                
+                rc = start_multi_progress( &progress_thread, &progress ); /* helper.c */
             }
             for ( i = 0; rc == 0 && i < jp->num_threads; ++i )
             {
@@ -622,9 +636,13 @@ rc_t execute_join( const join_params * jp )
                 }
             }
             
-            join_and_release_threads( &threads );
-            join_multi_progress( progress_thread, &progress );
-            rc = concat_part_files( jp, jp->num_threads );
+            join_and_release_threads( &threads ); /* helper.c */
+            join_multi_progress( progress_thread, &progress ); /* helper.c */
+            
+            if ( jp->show_progress )
+                KOutMsg( "concat :" );
+            
+            rc = concat_part_files( jp, jp->num_threads ); /* above */
         }
     }
     return rc;

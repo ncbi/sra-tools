@@ -61,10 +61,8 @@ void destroy_cmn_iter( struct cmn_iter * iter )
     if ( iter != NULL )
     {
         if ( iter->progressbar != NULL )
-        {
             destroy_progressbar( iter->progressbar );
-            KOutMsg( "\n" );
-        }
+
         if ( iter->row_iter != NULL ) num_gen_iterator_destroy( iter->row_iter );
         if ( iter->ranges != NULL ) num_gen_destroy( iter->ranges );
         if ( iter->cursor != NULL ) VCursorRelease( iter->cursor );

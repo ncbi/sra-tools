@@ -41,6 +41,7 @@
 #include <kapp/args.h>
 #include <klib/out.h>
 #include <klib/vector.h>
+#include <klib/log.h>
 #include <kfs/directory.h>
 #include <kproc/thread.h>
 
@@ -239,6 +240,9 @@ static rc_t perform_join( fd_ctx * fd_ctx, format_t fmt )
     {
         const char * temp = fd_ctx->output_filename;
         
+        if ( fd_ctx->cmn.show_progress )
+            KOutMsg( "lookup :" );
+        
         fd_ctx->output_filename = fd_ctx->lookup_filename;
         if ( fd_ctx->num_threads > 1 )
             rc = multi_threaded_make_lookup( fd_ctx );
@@ -277,9 +281,11 @@ static rc_t perform_join( fd_ctx * fd_ctx, format_t fmt )
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
+    rc_t rc;
     Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
-    rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
+
+    rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
     if ( rc != 0 )
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
     if ( rc == 0 )

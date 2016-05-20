@@ -28,9 +28,6 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/dbgap-mount
 
-include $(TOP)/build/Makefile.env
-
-
 ifeq (win,$(OS))
     DOCAN_LIBS = -lDOKAN
 else
@@ -52,32 +49,19 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #-------------------------------------------------------------------------------
 # outer targets
 #
+
 all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# all
-#
-$(TARGDIR)/all: \
-        $(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/all
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
 # clean

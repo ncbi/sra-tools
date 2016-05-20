@@ -28,8 +28,6 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/vdb-config
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS =
 
 EXT_TOOLS = \
@@ -38,25 +36,19 @@ EXT_TOOLS = \
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
+	
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets
 #
 all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/std
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
 # clean

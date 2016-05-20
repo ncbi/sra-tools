@@ -28,8 +28,7 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/sra-sort
 
-include $(TOP)/build/Makefile.env
-include $(SRCDIR)/Makefile.$(COMP)
+include $(TOP)/build/Makefile.shell
 
 INT_TOOLS = \
 	dump-blob-boundaries
@@ -44,32 +43,19 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+include $(SRCDIR)/Makefile.$(COMP)
+
 #------------------------------------------------------------------------------
 # outer targets
 #
 all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# all
-#
-$(TARGDIR)/all: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/all
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
 # clean

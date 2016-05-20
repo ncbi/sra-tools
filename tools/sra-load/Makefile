@@ -27,8 +27,6 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/sra-load
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS =
 
 EXT_TOOLS = \
@@ -44,13 +42,15 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #-------------------------------------------------------------------------------
 # outer targets
 #
 ifeq (1,$(HAVE_XML2))
 
 all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/std
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
@@ -66,14 +66,6 @@ $(ALL_TOOLS):
 endif
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
 # clean

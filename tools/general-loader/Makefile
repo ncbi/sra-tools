@@ -29,8 +29,6 @@ TOP ?= $(abspath ../..)
 
 MODULE = tools/general-loader
 
-include $(TOP)/build/Makefile.env
-
 ALL_LIBS = \
 	general-writer
 
@@ -44,11 +42,13 @@ ALL_TOOLS =      \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #-------------------------------------------------------------------------------
 # outer targets
 #
 all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/std
+	@ $(MAKE_CMD) $(TARGDIR)/$@
 
 $(INT_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
@@ -62,6 +62,15 @@ $(EXT_TOOLS): makedirs
 # std
 #
 $(TARGDIR)/std: \
+	$(addprefix $(LIBDIR)/,$(ALL_LIBS)) \
+	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
+
+.PHONY: $(TARGDIR)/std
+
+#-------------------------------------------------------------------------------
+# all
+#
+$(TARGDIR)/all: \
 	$(addprefix $(LIBDIR)/,$(ALL_LIBS)) \
 	$(addprefix $(TEST_BINDIR)/,$(INT_TOOLS)) \
 	$(addprefix $(BINDIR)/,$(EXT_TOOLS))

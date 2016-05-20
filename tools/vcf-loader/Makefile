@@ -46,7 +46,7 @@ include $(TOP)/build/Makefile.env
 # outer targets
 #
 all std: makedirs 
-	@ $(MAKE_CMD) $(TARGDIR)/std
+	@ $(MAKE_CMD) $(TARGDIR)/$@
 
 $(INT_LIBS): makedirs
 	@ $(MAKE_CMD) $(ILIBDIR)/$@
@@ -66,9 +66,19 @@ ALL_TOOLS = \
 $(TARGDIR)/std: \
 	$(addprefix $(ILIBDIR)/,$(INT_LIBS)) \
 	$(addprefix $(LIBDIR)/,$(EXT_LIBS)) \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
 .PHONY: $(TARGDIR)/std
+
+#-------------------------------------------------------------------------------
+# all
+#
+$(TARGDIR)/all: \
+	$(addprefix $(ILIBDIR)/,$(INT_LIBS)) \
+	$(addprefix $(LIBDIR)/,$(EXT_LIBS)) \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/all
 
 #-------------------------------------------------------------------------------
 # clean

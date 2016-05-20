@@ -2097,28 +2097,31 @@ MIXED_BASE_AND_COLOR:
                                                            NCBI_align_ro_intron_unknown;
                 rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches, &misses);
             }
-			if (rc == 0){
-				int i= (AR_READNO(data)==1)?0:(AR_READNO(data)==2)?1:-1;
-				if( i >=0 ){
-					int rl=readlen<256?readlen:255;
-					if(value->fragment_len[i]==0){
-                        value->fragment_len[i]=readlen;
-                    } else if ( value->fragment_len[i] != readlen){
-						if(isPrimary){
-							rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) then previously recorded secondary alignment with length ($(plen)). Try to defer secondary alignment processing",
-																 "name=%s,len=%d,plen=%d", name, readlen, value->fragment_len[i]));
-                            goto LOOP_END;
-						} else {
-							DISCARD_BAD_SECONDARY;
-							 (void)PLOGERR(klogWarn, (klogWarn, rc, "Secondary alignment for '$(name)' has different length ($(len)) then previously recorded primary alignment with length ($(plen)); discarding secondary alignment",
-                                                                 "name=%s,len=%d,plen=%d", name, readlen, value->fragment_len[i]));	
-							rc = CheckLimitAndLogError();
-							goto LOOP_END;
-						}
-					}
-				}
-			}
+            if (rc == 0) {
+                int const i= AR_READNO(data) - 1;
+                int const clipped_rl = (uint8_t)readlen;
+                if (i >= 0 && i < 2) {
+                    int const rl = value->fragment_len[i];
+
+                    if (rl == 0)
+                        value->fragment_len[i] = clipped_rl;
+                    else if (rl != clipped_rl) {
+                        if (isPrimary) {
+                            rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) then previously recorded secondary alignment. Try to defer secondary alignment processing.",
+                                                    "name=%s,len=%d", name, readlen));
+                        }
+                        else {
+                            rc = SILENT_RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+                            (void)PLOGERR(klogWarn, (klogWarn, rc, "Secondary alignment for '$(name)' has different length ($(len)) then previously recorded primary alignment; discarding secondary alignment.",
+                                                     "name=%s,len=%d", name, readlen));
+                            DISCARD_BAD_SECONDARY;
+                            rc = CheckLimitAndLogError();
+                        }
+                        goto LOOP_END;
+                    }
+                }
+            }
             if (rc == 0 && (matches < G.minMatchCount || (matches == 0 && !G.acceptNoMatch))) {
                 if (isPrimary) {
                     if (misses > matches) {

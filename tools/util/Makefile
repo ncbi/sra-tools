@@ -37,7 +37,8 @@ INT_TOOLS = \
 	crc32sum \
 	samview \
 	kdb-index \
-	pseudo-aligner
+	pseudo-aligner \
+	schema-replace \
 
 EXT_TOOLS = \
 	rcexplain \
@@ -45,9 +46,8 @@ EXT_TOOLS = \
 	md5cp \
 	vdb-lock \
 	vdb-unlock \
-	schema-replace \
 	test-sra \
-	vdb-passwd
+	vdb-passwd \
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \

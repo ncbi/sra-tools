@@ -28,10 +28,10 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/qual-recalib-stat
 
-INT_TOOLS =
+INT_TOOLS = \
+	qual-recalib-stat
 
 EXT_TOOLS = \
-	qual-recalib-stat
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \

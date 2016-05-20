@@ -29,9 +29,9 @@ TOP ?= $(abspath ../..)
 MODULE = tools/kget
 
 INT_TOOLS = \
+	kget
 
 EXT_TOOLS = \
-	kget
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \

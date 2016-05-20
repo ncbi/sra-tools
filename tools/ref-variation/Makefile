@@ -28,11 +28,11 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/ref-variation
 
-INT_TOOLS =
+INT_TOOLS = \
+	ref-variation \
 
 EXT_TOOLS = \
-	ref-variation \
-	var-expand
+	var-expand \
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \

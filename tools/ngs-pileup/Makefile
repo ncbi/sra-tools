@@ -29,10 +29,10 @@ TOP ?= $(abspath ../..)
 
 MODULE = tools/ngs-pileup
 
-INT_TOOLS = 
+INT_TOOLS = \
+	ngs-pileup \
 
 EXT_TOOLS = \
-	ngs-pileup \
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \

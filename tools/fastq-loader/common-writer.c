@@ -60,6 +60,8 @@
 #include <fcntl.h>
 #include <sys/mman.h>
 
+#define USE_READER_THREAD (1)
+
 /*--------------------------------------------------------------------------
  * ctx_value_t, FragmentInfo
  */
@@ -1083,15 +1085,21 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
     struct ReadResult rslt;
 
     memset(&rslt, 0, sizeof(rslt));
-#if 1
+#if USE_READER_THREAD
     if (self->th == NULL) {
         TimeoutInit(&self->tm, 1000000);
         rslt.u.error.rc = KQueueMake(&self->que, 1024);
-        if (rslt.u.error.rc)
+        if (rslt.u.error.rc) {
+            rslt.type = rr_error;
+            rslt.u.error.message = "KQueueMake";
             return rslt;
+        }
         rslt.u.error.rc = KThreadMake(&self->th, readThread, (void *)self);
-        if (rslt.u.error.rc)
+        if (rslt.u.error.rc) {
+            rslt.type = rr_error;
+            rslt.u.error.message = "KThreadMake";
             return rslt;
+        }
     }
     while ((rslt.u.error.rc = Quitting()) == 0) {
         void *rr = NULL;
@@ -1128,6 +1136,10 @@ DONE:
         struct ReadResult *const rr = threadGetNextRecord(self->settings, self->ctx, self->reader, &self->reccount);
         rslt = *rr;
         free(rr);
+    }
+    else {
+        rslt.type = rr_error;
+        rslt.u.error.message = kQuitting;
     }
 #endif
     return rslt;

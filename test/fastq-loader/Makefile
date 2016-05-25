@@ -30,7 +30,9 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/fastq-loader
 
-TEST_TOOLS = 
+TEST_TOOLS = \
+	wb-test-fastq \
+	test-fastq-loader
 
 include $(TOP)/build/Makefile.env
 
@@ -45,7 +47,7 @@ clean: stdclean
 # white-box test
 #
 FASTQ_TEST_SRC = \
-	wb-test-fastq
+	wb-test-fastq 
 
 FASTQ_TEST_OBJ = \
 	$(addsuffix .$(OBJX),$(FASTQ_TEST_SRC))
@@ -54,7 +56,6 @@ FASTQ_TEST_LIB = \
 	-skapp \
 	-sktst \
 	-sfastqloader \
-	-sloader \
 	-sload \
 	-sncbi-wvdb \
 

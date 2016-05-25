@@ -98,6 +98,9 @@ clean: stdclean
 $(ILIBDIR)/libfastqloader: $(ILIBDIR)/libfastqloader.$(LIBX)
 
 FASTQ_SRC = \
+    common-writer \
+    sequence-writer \
+    common-reader \
     fastq-reader \
 	fastq-grammar \
 	fastq-lex
@@ -119,7 +122,6 @@ FASTQ_OBJ = \
 
 FASTQ_LIB = \
     -lload \
-    -lloader \
 	-dkfs \
 	-dklib \
 

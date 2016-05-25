@@ -9,6 +9,7 @@
   **bam-load**: non-fatal result codes no longer cause the reader thread to quit early
   **bam-load**: will NOT do spot assembly using hard clipped secondary alignments even when make-spots-with-secondary is enabled; WILL do spot assembly using hard-clipped secondary alignments when defer-secondary is enabled
   **build**: MSVS 2013 toolset (12.0) is now supported across all repositories
+  **vdb**: Fixed a bound on memory cache that would never flush under certain access modes
 
 ## SRA Toolkit 2.6.2
 **April 20, 2016**

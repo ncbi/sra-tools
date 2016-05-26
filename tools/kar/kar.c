@@ -322,7 +322,7 @@ void kar_entry_whack ( BSTNode *node, void *data )
     {
     case kptFile | kptAlias:
     case kptDir | kptAlias:
-        free ( ( ( KARAlias * ) entry ) -> link );
+        free ( ( void * ) ( ( KARAlias * ) entry ) -> link );
         break;
     }
 
@@ -451,7 +451,6 @@ void kar_entry_insert_file ( BSTNode *node, void *data )
         file_array [ num_files ++ ] = ( KARFile * ) entry;
         break;
     }
-
     case kptDir:
     {
         KARDir *dir = ( KARDir * ) entry;
@@ -570,10 +569,10 @@ rc_t kar_add_dir ( const KDirectory *parent_dir, const char *name, void *data )
 
 
 static
-rc_t kar_add_alias ( const KDirectory *dir, const char *name, void *data )
+rc_t kar_add_alias ( const KDirectory *dir, const char *name, void *data, uint32_t type )
 {
     KARAlias *alias;
-    rc_t rc = kar_entry_create ( ( KAREntry ** ) & alias, sizeof * alias, dir, name, kptAlias );
+    rc_t rc = kar_entry_create ( ( KAREntry ** ) & alias, sizeof * alias, dir, name, type );
     if ( rc == 0 )
     {
         char resolved [ 4096 ];
@@ -595,11 +594,7 @@ rc_t kar_add_alias ( const KDirectory *dir, const char *name, void *data )
 
                 rc = BSTreeInsert ( ( BSTree * ) data, &alias -> dad . dad, kar_entry_cmp );
                 if ( rc == 0 )
-                {
-                    /* TBD - separate count for aliases? */
-                    ++ num_files;
                     return 0;
-                }
                 
                 
                 pLogErr ( klogErr, rc, "Failed to insert file '$(name)' into tree",
@@ -626,9 +621,10 @@ rc_t CC kar_populate_tree ( const KDirectory *dir, uint32_t type, const char *na
     case kptDir:
         return kar_add_dir ( dir, name, data );
 
+    case kptAlias:
     case kptFile | kptAlias:
     case kptDir | kptAlias:
-        return kar_add_alias ( dir, name, data );
+        return kar_add_alias ( dir, name, data, type );
 
     default:
         LogMsg ( klogWarn, "Unsupported file type" );
@@ -918,6 +914,58 @@ rc_t kar_persist_kardir ( const KARDir * entry, size_t *num_writ, PTWriteFunc wr
 }
 
 static
+rc_t kar_persist_karalias ( const KARAlias *entry, size_t *num_writ, PTWriteFunc write, void *write_param )
+{
+    size_t total_expected, total_written;
+    rc_t rc = kar_persist_karentry ( & entry -> dad, ktocentrytype_softlink, num_writ, write, write_param );
+    if ( rc == 0 )
+    {
+        size_t link_size = string_size ( entry -> link );
+        uint16_t legacy_link_len = ( uint16_t ) link_size;
+
+        if ( link_size > UINT16_MAX )
+            return RC (rcExe, rcNode, rcWriting, rcPath, rcExcessive);
+
+        total_written = * num_writ;
+        
+        /* determine size */
+        total_expected
+            = total_written               /* from KAREntry       */
+            + sizeof legacy_link_len
+            + link_size  /* specific to KARAlias */
+            ;
+
+        /* if determining size of toc - return */
+        if ( write == NULL )
+        {
+            * num_writ = total_expected;
+            return 0;
+        }
+
+        /* actually write the toc file entry */
+        rc = ( * write ) ( write_param, &legacy_link_len, sizeof legacy_link_len, num_writ );
+        if ( rc == 0 )
+        {
+            total_written += * num_writ;
+
+            rc = ( * write ) ( write_param, entry -> link, link_size, num_writ );
+            if ( rc == 0 )
+                total_written += * num_writ;
+        }
+    }
+
+    if ( rc == 0 && total_written != total_expected )
+    {
+        STATUS ( STAT_QA, "total_written ( %zu ) != total_expected ( %zu )", total_written, total_expected );
+        rc = RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncorrect );
+    }
+
+    *num_writ = total_written;
+
+    return rc;
+}
+
+static
 rc_t CC kar_persist ( void *param, const void *node,
     size_t *num_writ, PTWriteFunc write, void *write_param )
 {
@@ -943,9 +991,11 @@ rc_t CC kar_persist ( void *param, const void *node,
         rc = kar_persist_kardir ( ( const KARDir* ) entry, num_writ, write, write_param );
         break;
     }
+    case kptAlias:
     case kptFile | kptAlias:
     case kptDir | kptAlias:
-        STATUS ( STAT_USR, "an alias exists - not handled" );
+        STATUS ( STAT_USR, "alias entry" );
+        rc = kar_persist_karalias ( ( const KARAlias * ) entry, num_writ, write, write_param );
         break;
     default:
         STATUS ( 0, "unknown entry type: id %u", entry -> type );

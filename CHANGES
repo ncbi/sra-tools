@@ -26,6 +26,19 @@
 The NCBI SRA Software Development Kit
 Contact: sra-tools@ncbi.nlm.nih.gov
 
+NCBI External Developer Release: SRA Toolkit 2.6.3
+May 25, 2016
+
+  bam-load: Corrects an optimization used to compare read lengths when lengths are greater than 255
+  bam-load: alignments which are below the minimum match count but with at least 1/2 of the aligned bases matching are accepted
+  bam-load: improved performance of SAM parsing code
+  bam-load: non-fatal result codes no longer cause the reader thread to quit early
+  bam-load: will NOT do spot assembly using hard clipped secondary alignments even when make-spots-with-secondary is enabled;
+            WILL do spot assembly using hard-clipped secondary alignments when defer-secondary is enabled
+  build: MSVS 2013 toolset (12.0) is now supported across all repositories
+  vdb: Fixed a bound on memory cache that would never flush under certain access modes
+
+
 NCBI External Developer Release: SRA Toolkit 2.6.2
 April 20, 2016
 

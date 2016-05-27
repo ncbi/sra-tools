@@ -48,6 +48,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <math.h>
 #include <assert.h>
 #if 1
 /*_DEBUGGING*/
@@ -1293,7 +1294,7 @@ static rc_t ProcessSAMHeader(BAM_File *self, char const substitute[])
         void *const tmp = headerText;
         int const ch = SAMFileRead1(file);
         
-        if (ch < 0)
+        if (ch == -1)
             return SAMFileLastError(file);
         
         if (st == 0) {
@@ -1797,12 +1798,12 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self, unsigned actsize[], BAM_Alignment 
         if ((int)GetRCObject(rc) == rcData && GetRCState(rc) == rcInsufficient)
         {
             self->eof = true;
-            return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
+            return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
         }
         return rc;
     }
     if (maxPeek < 4)
-        return RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
     else {
         int32_t const i32 = BAM_FilePeekI32(self);
 
@@ -1810,14 +1811,14 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self, unsigned actsize[], BAM_Alignment 
             return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
         
         if (maxPeek < i32 + 4)
-            return RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
-        
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
+
         isgood = BAM_AlignmentInitLog(rhs, maxsize, i32, BAM_FilePeek(self, 4));
         rhs[0].parent = self;
     }
     *actsize = BAM_AlignmentSize(rhs[0].numExtra);
     if (isgood && *actsize > maxsize)
-        return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
 
     BAM_FileAdvance(self, 4 + rhs->datasize);
     return isgood ? 0 : RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid);
@@ -1836,6 +1837,8 @@ unsigned BAM_AlignmentSizeFromData(unsigned const datasize, void const *data)
 static bool BAM_AlignmentIsEmpty(BAM_Alignment const *const self)
 {
     if (getReadNameLength(self) == 0)
+        return true;
+    if (getReadName(self)[0] == '\0')
         return true;
     if (self->hasColor == 3)
         return false;
@@ -1864,7 +1867,7 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment const *rslt[], bool co
             if ((int)GetRCObject(rc) == rcData && GetRCState(rc) == rcInsufficient)
             {
                 self->eof = true;
-                rc = RC( rcAlign, rcFile, rcReading, rcRow, rcNotFound );
+                rc = SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
             }
             return rc;
         }
@@ -2105,19 +2108,93 @@ static rc_t SAM2BAM_ConvertQUAL(unsigned const insize, void /* inout */ *const d
 
 static int SAM2BAM_ScanValue(void *const dst, char const *src, bool isFloat, bool isArray)
 {
-    static char const *Fmt[] = {
-        ",%f%n",
-        ",%i%n"
-    };
-    char const *const fmt = Fmt[isFloat ? 0 : 1] + (isArray ? 0 : 1);
-    union { int i; float f; } x;
-    int n = 0;
+    int i = 0;
+    int sgn = 0;
+    uint64_t mantissa = 0;
+    int shift = 0;
+    int exponent = 0;
+    int st = 0;
 
-    x.i = 0;
-    if (sscanf(src, fmt, &x, &n) != 1)
-        return -1;
-    SAM2BAM_ConvertInt(dst, x.i);
-    return n;
+    if (isArray) {
+        int const ch = src[i++];
+        if (ch != ',')
+            return -1;
+    }
+    for ( ; ; ++i) {
+        int const ch = src[i];
+        int const value = ch - '0';
+
+        if (ch == '\0')
+            break;
+        if (isArray && ch == ',')
+            break;
+        switch (st) {
+        case 0:
+            ++st;
+            if (ch == '-') {
+                sgn = -1;
+                break;
+            }
+            else if (ch == '+') {
+                sgn = 1;
+                break;
+            }
+            /* fallthrough; */
+        case 1:
+            if (ch == '.') {
+                st = 2;
+                break;
+            }
+            if (ch == 'e' || ch == 'E') {
+                st = 3;
+                break;
+            }
+            if (value < 0 || value > 9)
+                return -1;
+            mantissa = mantissa * 10 + value;
+            break;
+        case 2:
+            if (ch == 'e' || ch == 'E') {
+                st = 3;
+                break;
+            }
+            if (value < 0 || value > 9)
+                return -1;
+            mantissa = mantissa * 10 + value;
+            ++shift;
+            break;
+        case 3:
+            ++st;
+            if (ch == '-') {
+                ++st;
+                break;
+            }
+            else if (ch == '+') {
+                break;
+            }
+            /* fallthrough; */
+        case 4:
+            if (value < 0 || value > 9)
+                return -1;
+            exponent = exponent * 10 + value;
+            break;
+        case 5:
+            if (value < 0 || value > 9)
+                return -1;
+            exponent = exponent * 10 - value;
+            break;
+        }
+    }
+    {
+        double const value = mantissa * pow(10, exponent - shift) * (sgn ? sgn : 1);
+        union { int i; float f; } x;
+        if (isFloat)
+            x.f = value;
+        else
+            x.i = floor(value);
+        SAM2BAM_ConvertInt(dst, x.i);
+    }
+    return i;
 }
 
 static int SAM2BAM_ConvertEXTRA(unsigned const insize, void /* inout */ *const data, void const *const endp)
@@ -2149,8 +2226,8 @@ static int SAM2BAM_ConvertEXTRA(unsigned const insize, void /* inout */ *const d
                 if ((void const *)&dst[7] >= endp)
                     return -2;
                 {
-                int const n = SAM2BAM_ScanValue(&dst[3], src + 5, type == 'f', false);
-                return (n < 0 || n + 5 != insize) ? -4 : 7;
+                    int const n = SAM2BAM_ScanValue(&dst[3], src + 5, type == 'f', false);
+                    return (n < 0 || n + 5 != insize) ? -4 : 7;
                 }
             }
             case 'B':
@@ -2175,27 +2252,25 @@ static int SAM2BAM_ConvertEXTRA(unsigned const insize, void /* inout */ *const d
                 return -3;
             }
             {
-                uint8_t *scratch = (void *)(src + insize);
+                uint8_t *const scratch = (void *)(src + insize);
                 int const subtype = src[5] == 'f' ? 'f' : 'i';
                 unsigned i;
+                unsigned j;
 
                 dst[3] = subtype;
-                for (i = 6; i < insize; ) {
-                    if ((void const *)&scratch[4] >= endp)
+                for (i = 6, j = 0; i < insize; ++j) {
+                    if ((void const *)(scratch + 4 * j + 4) >= endp)
                         return -2;
                     {
-                    int const n = SAM2BAM_ScanValue(scratch, src + 5, subtype == 'f', true);
-                    if (n < 0)
-                        return -4;
-                    i += n;
+                        int const n = SAM2BAM_ScanValue(scratch + 4 * j, src + i, subtype == 'f', true);
+                        if (n < 0)
+                            return -4;
+                        i += n;
                     }
-                    scratch += 4;
                 }
-                {
-                    unsigned const written = scratch - (uint8_t const *)(src + insize);
-                    memmove(dst + 4, src + insize, written);
-                    return written + 5;
-                }
+                SAM2BAM_ConvertInt(&dst[4], j);
+                memmove(&dst[8], scratch, 4 * j);
+                return 8 + 4 * j;
             }
         }
     }
@@ -2225,30 +2300,56 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
         char *EXTRA;
     } temp;
     unsigned field = 1;
-    char *scratch;
+    char *scratch = &raw->read_name[0];
+    int *intScratch = NULL;
+    int sgn = 1;
     unsigned i = 0;
     int n = 0;
     
     memset(raw, 0, sizeof(*raw));
     memset(&temp, 0, sizeof(temp));
-    scratch = temp.QNAME = &raw->read_name[0];
+    temp.QNAME = scratch;
     
     for ( ; ; ) {
         int const ch = SAMFileRead1(&self->file.sam);
         if (ch < 0) {
             rc_t const rc = SAMFileLastError(&self->file.sam);
-            return (i == 0 && field == 1 && (rc == 0 || GetRCState(rc) == rcInsufficient)) ? RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound) : rc;
+            return (i == 0 && field == 1 && (rc == 0 || GetRCState(rc) == rcInsufficient)) ? SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound) : rc;
         }
         if ((void const *)&scratch[i] >= endp)
             return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
 
         if (!(ch == '\t' || ch == '\n')) {
-            if (field != 0)
-                scratch[i++] = ch;
+            if (field != 0) {
+                if (intScratch == NULL) {
+                    scratch[i] = ch;
+                }
+                else {
+                    int const value = ch - '0';
+                    if (ch == '-' && i == 0) {
+                        sgn = -1;
+                    }
+                    else if (ch == '-' && i == 0) {
+                        sgn = 1;
+                    }
+                    else {
+                        if (value < 0 || value > 9) {
+                            LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing integer field");
+                            return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
+                        }
+                        *intScratch = *intScratch * 10 + value * sgn;
+                    }
+                }
+            }
+            ++i;
             continue;
         }
-        scratch[i] = '\0';
-
+        if (intScratch == NULL)
+            scratch[i] = '\0';
+        else {
+            intScratch = NULL;
+            sgn = 1;
+        }
         switch (field) {
             case 0:
                 if (ch == '\n')
@@ -2267,12 +2368,9 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
                     }
                 }
                 temp.CIGAR = (void *)scratch;
+                intScratch = &temp.FLAG;
                 break;
             case 2:
-                if (sscanf(scratch, "%i%n", &temp.FLAG, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing FLAG");
-                    field = 0;
-                }
                 break;
             case 3:
                 if (i == 1 && scratch[0] == '*')
@@ -2286,18 +2384,12 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
                         field = 0;
                     }
                 }
+                intScratch = &temp.POS;
                 break;
             case 4:
-                if (sscanf(scratch, "%i%n", &temp.POS, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing POS");
-                    field = 0;
-                }
+                intScratch = &temp.MAPQ;
                 break;
             case 5:
-                if (sscanf(scratch, "%i%n", &temp.MAPQ, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing MAPQ");
-                    field = 0;
-                }
                 if (temp.MAPQ > 255) {
                     LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error MAPQ > 255");
                     field = 0;
@@ -2337,25 +2429,19 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
                         field = 0;
                     }
                 }
+                intScratch = &temp.PNEXT;
                 break;
             case 8:
-                if (sscanf(scratch, "%i%n", &temp.PNEXT, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing PNEXT");
-                    field = 0;
-                }
+                intScratch = &temp.TLEN;
                 break;
             case 9:
-                if (sscanf(scratch, "%i%n", &temp.TLEN, &n) != 1 || n != i) {
-                    LOGERR(klogErr, RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid), "SAM Record error parsing TLEN");
-                    field = 0;
-                }
                 break;
             case 10:
                 if (i == 1 && scratch[0] == '*')
                     temp.readlen = 0;
                 else {
                     temp.readlen = i;
-                    scratch += (i + 1) >> 1;
+                    scratch += (temp.readlen + 1) / 2;
                     temp.QUAL = (uint8_t *)scratch;
                     {
                         rc_t const rc = SAM2BAM_ConvertSEQ(i, temp.SEQ, endp);
@@ -2450,7 +2536,7 @@ static rc_t read2(BAM_File *const self, BAM_Alignment const **const rhs)
     rc_t rc;
     
     if (self->bufCurrent >= self->bufSize && self->eof)
-        return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
 
     if (self->isSAM) {
         rc = BAM_FileReadSAM(self, rhs);
@@ -2501,7 +2587,7 @@ static rc_t readDefer(BAM_File *const self, BAM_Alignment const **const rslt)
     if (nread == 0) {
         KFileRelease(self->defer);
         self->defer = NULL;
-        return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
     }
     assert(nread == 4);
     assert(datasize < 64u * 1024u);
@@ -3231,6 +3317,10 @@ static int FormatOptData(BAM_Alignment const *const self,
                 j = snprintf(buffer + cur, maxsize - cur, "%f", fi.f);
                 if ((cur += j) >= maxsize)
                     return -1;
+                while (buffer[cur - 1] == '0')
+                    --cur;
+                if (buffer[cur - 1] == '.')
+                    --cur;
                 offset += 4;
                 break;
 
@@ -3311,7 +3401,12 @@ static int FormatOptData(BAM_Alignment const *const self,
                                 j = snprintf(buffer + cur, maxsize - cur, "%f", fi.f);
                                 if ((cur += j) >= maxsize)
                                     return -1;
+                                while (buffer[cur - 1] == '0')
+                                    --cur;
+                                if (buffer[cur - 1] == '.')
+                                    --cur;
                                 offset += 4;
+                                break;
 
                             default:
                                 return -1;
@@ -3662,7 +3757,7 @@ rc_t BAM_AlignmentCGReadLength(BAM_Alignment const *self, uint32_t *readlen)
         *readlen = di;
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 static unsigned BAM_AlignmentParseCGTag(BAM_Alignment const *self, size_t const max_cg_segs, unsigned cg_segs[/* max_cg_segs */])
@@ -3735,7 +3830,7 @@ rc_t ExtractInt32(BAM_Alignment const *self, int32_t *result,
             return RC(rcAlign, rcRow, rcReading, rcData, rcInvalid);
         break;
     default:
-        return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+        return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
     }
     if (INT32_MIN <= y && y <= INT32_MAX) {
         *result = (int32_t)y;
@@ -3761,7 +3856,7 @@ rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
         rc = ExtractInt32(self, &zi, ZI); if (rc) return rc;
         return string_printf(buffer, max_size, act_size, "%i_%i", zi, za);
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
@@ -3816,7 +3911,7 @@ rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
         }
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 
@@ -3945,7 +4040,7 @@ rc_t BAM_AlignmentGetCGCigar(BAM_Alignment const *self,
         *cig_act = GetCGCigar(self, cig_max, cigar);
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 /* MARK: end CG stuff */
@@ -3959,7 +4054,7 @@ rc_t BAM_AlignmentGetTI(BAM_Alignment const *self, uint64_t *ti)
         *ti = (uint64_t)temp;
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const rslt)

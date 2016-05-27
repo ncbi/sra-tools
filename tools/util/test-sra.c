@@ -108,11 +108,12 @@ typedef enum {
     eAscp        = 4096,
     eAscpVerbose = 8192,
     eNgs        = 16384,
-    eAll        = 32768,
-    eNoTestArg  = 65536,
+    ePrintFile  = 32768,
+    eAll        = 65536,
+    eNoTestArg = 131072,
 } Type;
-typedef uint16_t TTest;
-static const char TESTS[] = "crdDwsSoOtnufFga";
+typedef uint64_t TTest;
+static const char TESTS[] = "crdDwsSoOtnufFgpa";
 typedef struct {
     KConfig *cfg;
     KDirectory *dir;
@@ -133,6 +134,8 @@ typedef struct {
     bool full;
     bool xml;
     bool network;
+
+    size_t bytes;
 
     bool allowCaching;
     VResolverEnableState cacheState;
@@ -183,7 +186,10 @@ rc_t CC Usage(const Args *args) {
         "  f - print ascp information\n"
         "  F - print verbose ascp information\n"
         "  t - print object types\n"
-        "  w - run network test\n");
+        "  g - print NGS information\n"
+        "  p - print content of resolved remote HTTP file\n"
+        "  w - run network test\n"
+    );
     if (rc == 0 && rc2 != 0) {
         rc = rc2;
     }
@@ -205,7 +211,10 @@ rc_t CC Usage(const Args *args) {
         "-X < xml | text > - whether to generate well-formed XML\n"
         "-R - check objects recursively\n"
         "-N - do not call VDBManagerPathType\n"
-        "-C - do not disable caching (default: from configuration)\n\n"
+        "-C - do not disable caching (default: from configuration)\n"
+        "-b --bytes=K - print the first K bytes of resolved remote HTTP file)\n"
+        "                                                      (default: 256)\n"
+        "\n"
         "More options:\n");
     if (rc == 0 && rc2 != 0) {
         rc = rc2;
@@ -279,9 +288,9 @@ static TTest processTests(TTest testsOn, TTest testsOff) {
     if (allOn) {
         tests = ~0;
         tests = Turn(tests, testsOff, false);
-        tests = Turn(tests, eOpenTable, testsOn & eOpenTable);
-        tests = Turn(tests, eOpenDB, testsOn & eOpenDB);
-        tests = Turn(tests, eOpenDB, testsOn & eAscpVerbose);
+        tests = Turn(tests, eOpenTable  , testsOn & eOpenTable);
+        tests = Turn(tests, eOpenDB     , testsOn & eOpenDB);
+        tests = Turn(tests, eAscpVerbose, testsOn & eAscpVerbose);
     }
     else if (allOff) {
         tests = Turn(tests, testsOn, true);
@@ -295,10 +304,15 @@ static TTest processTests(TTest testsOn, TTest testsOff) {
         tests = Turn(tests, eOpenTable, false);
         tests = Turn(tests, eOpenDB, false);
         tests = Turn(tests, eAscpVerbose, false);
+        tests = Turn(tests, ePrintFile, false);
     }
 
     if (tests & eAscpVerbose) {
         tests = Turn(tests, eAscp, true);
+    }
+
+    if (tests & ePrintFile) {
+        tests = Turn(tests, eResolve, true);
     }
 
     if (tests & eNcbiReport) {
@@ -1055,6 +1069,32 @@ typedef enum {
     , ePathRemote
     , ePathCache
 } EPathType;
+static rc_t PrintContent(const KFile *f, uint64_t sz, size_t bytes)
+{
+    unsigned char buffer[PATH_MAX];
+    size_t num_read = 0;
+    rc_t rc = KFileRead(f, 0, buffer, sizeof buffer, &num_read);
+    if (bytes > sizeof buffer) {
+        bytes = sizeof buffer;
+    }
+    if (rc == 0) {
+        size_t i = 0;
+        OUTMSG(("\n", 0));
+        for (i = 0; i < num_read && i < bytes; ++i) {
+            if ((i % 16) == 0) {
+                OUTMSG(("%04X:", i));
+            }
+            OUTMSG((" %02X", buffer[i]));
+            if ((i % 16) == 7) {
+                OUTMSG((" |"));
+            }
+            if ((i % 16) == 15) {
+                OUTMSG(("\n"));
+            }
+        }
+    }
+    return rc;
+}
 static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
     EPathType type, const char *name, const VPath* remote, int64_t *size,
     bool fasp, const KFile *fRemote)
@@ -1135,6 +1175,15 @@ static rc_t MainPathReport(const Main *self, rc_t rc, const VPath *path,
                         else {
                             MainReportRemote(self, fPath, sz);
                             *size = sz;
+                            if (MainHasTest(self, ePrintFile)) {
+                                if (self->xml) {
+                                    OUTMSG(("\n<bytes>"));
+                                }
+                                PrintContent(fRemote, sz, self->bytes);
+                                if (self->xml) {
+                                    OUTMSG(("</bytes>"));
+                                }
+                            }
                         }
                     }
                     break;
@@ -3022,6 +3071,11 @@ static rc_t MainFini(Main *self) {
 #define ALIAS_CACHE  "C"
 static const char* USAGE_CACHE[] = { "do not disable caching", NULL };
 
+#define OPTION_BYTES "bytes"
+#define ALIAS_BYTES  "b"
+static const char* USAGE_BYTES[]
+    = { "print the first <K> bytes of resolved remote HTTP file", NULL };
+
 #define OPTION_FULL "full"
 #define ALIAS_FULL  NULL
 static const char* USAGE_FULL[] = { "full test mode", NULL };
@@ -3051,6 +3105,7 @@ static const char* USAGE_REC[] = { "check object type recursively", NULL };
 static const char* USAGE_OUT[] = { "output type: one of (xml text)", NULL };
 
 OptDef Options[] = {                             /* needs_value, required */
+    { OPTION_BYTES , ALIAS_BYTES , NULL, USAGE_BYTES , 1, true, false },
     { OPTION_CACHE , ALIAS_CACHE , NULL, USAGE_CACHE , 1, false, false },
     { OPTION_FULL  , ALIAS_FULL  , NULL, USAGE_FULL  , 1, false, false },
     { OPTION_NO_RFS, NULL        , NULL, USAGE_NO_RFS, 1, false, false },
@@ -3097,7 +3152,8 @@ rc_t CC KMain(int argc, char *argv[]) {
         else {
             if (pcount > 0) {
                 const char *dummy = NULL;
-                rc = ArgsOptionValue(args, OPTION_PRJ, 0, (const void **)&dummy);
+                rc = ArgsOptionValue
+                    (args, OPTION_PRJ, 0, (const void **)&dummy);
                 if (rc != 0) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_PRJ "' argument");
@@ -3131,6 +3187,31 @@ rc_t CC KMain(int argc, char *argv[]) {
         else {
             if (pcount > 0) {
                 prms.full = true;
+            }
+        }
+    }
+
+    if (rc == 0) {
+        prms.bytes = 256;
+        rc = ArgsOptionCount(args, OPTION_BYTES, &pcount);
+        if (rc) {
+            LOGERR(klogErr, rc, "Failure to get '" OPTION_BYTES "' argument");
+        }
+        else {
+            if (pcount > 0) {
+                const char *val = NULL;
+                rc = ArgsOptionValue
+                    (args, OPTION_BYTES, 0, (const void **)&val);
+                if (rc == 0) {
+                    int bytes = atoi(val);
+                    if (bytes > 0) {
+                        prms.bytes = bytes;
+                        MainAddTest(&prms, ePrintFile);
+                    }
+                } else {
+                    LOGERR(klogErr, rc,
+                        "Failure to get '" OPTION_BYTES "' argument value");
+                }
             }
         }
     }

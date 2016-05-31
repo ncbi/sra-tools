@@ -45,8 +45,9 @@ rc_t ErrMsg( const char * fmt, ... )
     va_start( list, fmt );
     rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
     if ( rc == 0 )
-        rc = KOutMsg( "%s\n", buffer );
+        /* rc = KOutMsg( "%s\n", buffer ); */
         /* rc = pLogErr( klogErr, 1, "$(E)", "E=%s", buffer ); */
+        rc = pLogMsg( klogErr, "$(E)", "E=%s", buffer );
     va_end( list );
     return rc;
 } 

@@ -1071,26 +1071,32 @@ typedef enum {
 } EPathType;
 static rc_t PrintContent(const KFile *f, uint64_t sz, size_t bytes)
 {
-    unsigned char buffer[PATH_MAX];
-    size_t num_read = 0;
-    rc_t rc = KFileRead(f, 0, buffer, sizeof buffer, &num_read);
-    if (bytes > sizeof buffer) {
-        bytes = sizeof buffer;
-    }
-    if (rc == 0) {
-        size_t i = 0;
-        OUTMSG(("\n", 0));
-        for (i = 0; i < num_read && i < bytes; ++i) {
-            if ((i % 16) == 0) {
-                OUTMSG(("%04X:", i));
+    rc_t rc = 0;
+    size_t total = 0;
+    while (total < bytes) {
+        uint64_t pos = total;
+        unsigned char buffer[1024];
+        size_t num_read = 0;
+        rc = KFileRead(f, pos, buffer, sizeof buffer, &num_read);
+        if (rc == 0) {
+            size_t i = 0;
+            if (total == 0) {
+                OUTMSG(("\n", 0));
             }
-            OUTMSG((" %02X", buffer[i]));
-            if ((i % 16) == 7) {
-                OUTMSG((" |"));
+            for (i = 0; i < num_read && total < bytes; ++i, ++total) {
+                if ((total % 16) == 0) {
+                    OUTMSG(("%04X:", total));
+                }
+                OUTMSG((" %02X", buffer[i]));
+                if ((total % 16) == 7) {
+                    OUTMSG((" |"));
+                }
+                if ((total % 16) == 15) {
+                    OUTMSG(("\n"));
+                }
             }
-            if ((i % 16) == 15) {
-                OUTMSG(("\n"));
-            }
+        } else {
+            break;
         }
     }
     return rc;
@@ -3207,6 +3213,7 @@ rc_t CC KMain(int argc, char *argv[]) {
                     if (bytes > 0) {
                         prms.bytes = bytes;
                         MainAddTest(&prms, ePrintFile);
+                        MainAddTest(&prms, eResolve);
                     }
                 } else {
                     LOGERR(klogErr, rc,

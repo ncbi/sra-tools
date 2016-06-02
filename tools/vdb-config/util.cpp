@@ -305,7 +305,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     }
 
     rc_t r2 = UpdateNode("/repository/remote/aux/NCBI/root",
-        "http://ftp-trace.ncbi.nlm.nih.gov/sra");
+        "http://sra-download.ncbi.nlm.nih.gov");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }
@@ -330,8 +330,8 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
         rc = r2;
     }
 
-    r2 = UpdateNode("/repository/remote/aux/NCBI/apps/sra/volumes/fuse1000",
-        "sra-instant/reads/ByRun/sra");
+    r2 = UpdateNode("/repository/remote/aux/NCBI/apps/sra/volumes/flat",
+        "srapub");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }

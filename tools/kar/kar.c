@@ -169,14 +169,14 @@ void printEntry ( const KAREntry *entry, KARPrintMode *kpm )
     switch ( kpm -> pm )
     {
     case pm_normal:
-        KOutMsg ( "%s\n", buffer );
+        KOutMsg ( "%s", buffer );
         break;
     case pm_longlist:
     {
         KTime tm;
         KTimeLocal ( &tm, entry -> mod_time );
 
-        KOutMsg ( "%04u-%02u-%02u %02u:%02u:%02u %s\n", 
+        KOutMsg ( "%04u-%02u-%02u %02u:%02u:%02u %s", 
                   
                   tm . year, tm . month + 1, tm . day + 1, 
                   tm . hour, tm . minute, tm . second, buffer);
@@ -201,6 +201,7 @@ void printFile ( const KARFile *file, KARPrintMode *kpm )
     }
 
     printEntry ( ( KAREntry * ) file, kpm );
+    KOutMsg ( "\n" );
 }
 
 static
@@ -213,9 +214,37 @@ void printDir ( const KARDir *dir, KARPrintMode *kpm )
     }
 
     printEntry ( & dir -> dad, kpm );
+    KOutMsg ( "\n" );
     BSTreeForEach ( &dir -> contents, false, kar_print, kpm );
 }
 
+static
+void printAlias ( const KARAlias *alias, KARPrintMode *kpm, uint8_t type )
+{
+    if ( kpm -> pm == pm_longlist )
+    {
+        switch ( type )
+        {
+        case kptFile | kptAlias:
+            KOutMsg ( "%03c ", '0' );
+            KOutMsg ( "%03c ", '-' );
+            break;
+        case kptDir | kptAlias:
+            KOutMsg ( "%03c ", '-' );
+            KOutMsg ( "%03c ", '-' );
+            break;
+        default:
+            break;
+        }
+    }
+
+    printEntry ( ( KAREntry * ) alias, kpm );
+    
+    KOutMsg ( " -> %s", alias -> link );
+    KOutMsg ( "\n" );
+}
+
+/*
 static
 void printFile_tree ( const KARFile * file, uint32_t *indent )
 {
@@ -230,7 +259,7 @@ void printDir_tree ( const KARDir *dir, uint32_t *indent )
     BSTreeForEach ( &dir -> contents, false, kar_print, indent );
     *indent -= 4;
 }
-
+*/
 static
 void print_mode ( uint32_t grp )
 {
@@ -261,8 +290,10 @@ void kar_print ( BSTNode *node, void *data )
         case kptDir:
             printDir ( ( KARDir * ) entry, kpm );
             break;
+        case kptAlias:
         case kptFile | kptAlias:
         case kptDir | kptAlias:
+            printAlias ( ( KARAlias * ) entry, kpm, entry -> type );
             break;
         default:
             break;
@@ -289,8 +320,15 @@ void kar_print ( BSTNode *node, void *data )
             KOutMsg ( " " );
             printDir ( ( KARDir * ) entry, kpm );
             break;
+        case kptAlias:
         case kptFile | kptAlias:
         case kptDir | kptAlias:
+            KOutMsg ( "l" );
+            print_mode ( ( entry -> access_mode >> 6 ) & 7 );
+            print_mode ( ( entry -> access_mode >> 3 ) & 7 );
+            print_mode ( entry -> access_mode & 7 );
+            KOutMsg ( " " );
+            printAlias ( ( KARAlias * ) entry, kpm, entry -> type );
             break;
         default:
             break;
@@ -320,6 +358,7 @@ void kar_entry_whack ( BSTNode *node, void *data )
     /* do the cleanup */
     switch ( entry -> type )
     {
+    case kptAlias:
     case kptFile | kptAlias:
     case kptDir | kptAlias:
         free ( ( void * ) ( ( KARAlias * ) entry ) -> link );
@@ -1387,6 +1426,35 @@ size_t toc_data_copy ( void * dst, size_t dst_size, const uint8_t * toc_data, si
     return offset + dst_size;
 }
 
+static
+int64_t kar_alias_find_link ( const void *item, const BSTNode *node )
+{
+    const char *link = ( const char * ) item;
+    KAREntry *entry = ( KAREntry * ) node;
+    
+    uint64_t link_size = string_size ( link );
+    uint64_t name_size = string_size ( entry -> name );
+
+    return string_cmp ( item, link_size, entry -> name, name_size, link_size );
+}
+
+
+static
+void kar_alias_link_type ( BSTNode *node, void *data )
+{
+    KAREntry *entry = ( KAREntry * ) node ;
+    KARAlias *alias = ( KARAlias * ) entry;
+
+    const char *link = alias -> link;
+
+    if ( entry -> type == kptAlias )
+    {
+        /* somehow find out what the type really is */
+        BSTNode *n = BSTreeFind ( ( const BSTree * ) data, link, kar_alias_find_link );
+        
+        entry -> type = ( ( KAREntry * ) n ) -> type | kptAlias;
+    }
+}
 
 static 
 void kar_inflate_toc ( PBSTNode *node, void *data )
@@ -1402,17 +1470,14 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
     uint8_t type_code = 0;
 
     offset = toc_data_copy ( & name_len, sizeof name_len, toc_data, node -> data . size, offset );
-#if _DEBUGGING
     if ( name_len >= sizeof buffer )
+    {
         name = malloc ( name_len + 1 );
-#else
-    if ( name_len > sizeof buffer )
-        name = malloc ( name_len );
-#endif
+        if ( name == NULL )
+            exit ( 10 );
+    }
     offset = toc_data_copy ( name, name_len, toc_data, node -> data . size, offset );
-#if _DEBUGGING
     name [ name_len ] = 0;
-#endif
     STATUS ( STAT_QA, "inflating '%s'", name );
     offset = toc_data_copy ( & mod_time, sizeof mod_time, toc_data, node -> data . size, offset );
     offset = toc_data_copy ( & access_mode, sizeof access_mode, toc_data, node -> data . size, offset );
@@ -1452,7 +1517,7 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
         rc = kar_entry_inflate ( ( KAREntry ** ) &dir, sizeof *dir, name, name_len, mod_time, access_mode, kptDir );
         if ( rc != 0 )
         {
-            LOGERR (klogErr, rc, "failed inflate KARFile");
+            LOGERR (klogErr, rc, "failed inflate KARDir");
             exit ( 3 );
         }
 
@@ -1472,16 +1537,45 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
         rc = BSTreeInsert ( ( BSTree * ) data, &dir -> dad . dad, kar_entry_cmp );
         if ( rc != 0 )
         {
-            LOGERR (klogErr, rc, "failed insert KARFile into tree");
+            LOGERR (klogErr, rc, "failed insert KARDir into tree");
             exit ( 3 );
         }
         
         break;
     }
-    case kptFile | kptAlias:
-    case kptDir | kptAlias:
-        STATUS ( STAT_USR, "an alias exists - not handled" );
+    case ktocentrytype_softlink:
+    {
+        KARAlias *alias;
+
+        rc = kar_entry_inflate ( ( KAREntry ** ) &alias, sizeof *alias, name, name_len, mod_time, access_mode, kptAlias );
+        if ( rc != 0 )
+        {
+            LOGERR (klogErr, rc, "failed inflate KARAlias");
+            exit ( 3 );
+        }
+
+        /* need to reuse name* for soft-link string */
+        if ( name != buffer )
+            free ( name );
+        
+        offset = toc_data_copy ( & name_len, sizeof name_len, toc_data, node -> data . size, offset );
+        name = malloc ( name_len + 1 );
+        if ( name == NULL )
+            exit ( 10 );
+        offset = toc_data_copy ( name, name_len, toc_data, node -> data . size, offset );
+        name [ name_len ] = 0;
+
+        alias -> link = name;
+        name = buffer;
+
+        rc = BSTreeInsert ( ( BSTree * ) data, &alias -> dad . dad, kar_entry_cmp );
+        if ( rc != 0 )
+        {
+            LOGERR (klogErr, rc, "failed insert KARAlias into tree");
+            exit ( 3 );
+        }
         break;
+    }
     default:
         STATUS ( 0, "unknown entry type: id %u", type_code );
         break;
@@ -1690,7 +1784,9 @@ rc_t kar_test_extract ( const Params *p )
             if ( rc == 0 )
             {
                 BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
-                /* print according to options - long listing, etc. */
+
+                /* find what the alias points to */
+                BSTreeForEach ( &tree, false, kar_alias_link_type, &tree );
 
                 /* Finish test */
                 if ( p -> x_count == 0 )

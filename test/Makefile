@@ -47,7 +47,11 @@ SUBDIRS =    \
 	vdb-validate    \
 	kar             \
     copycat         \
+<<<<<<< HEAD
     fuse
+=======
+	fastdump        \
+>>>>>>> engineering
 
 # under construction    
 #    ngs-pileup      \

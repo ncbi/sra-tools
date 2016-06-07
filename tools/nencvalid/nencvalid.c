@@ -109,9 +109,7 @@ const char * param_usage[] =
     "file which might not be the intention.",
     "The password if needed for validation will",
     "have to be in the standard NCBI VDB",
-    "configuration as 'krypto/pwfile' or ",
-    "referenced by the environment variable",
-    "VDB_PWFILE or Config parameter", NULL
+    "configuration as 'krypto/pwfile'.", NULL
 };
 
 rc_t CC Usage (const Args * args)

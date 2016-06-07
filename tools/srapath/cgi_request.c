@@ -301,6 +301,7 @@ typedef struct reply_obj_list
     Vector v;
 } reply_obj_list;
 
+
 void release_reply_obj_list( struct reply_obj_list * list )
 {
     VectorWhack( &list->v, free_reply_obj, NULL );
@@ -361,13 +362,80 @@ rc_t foreach_reply_obj( struct reply_obj_list * list,
     return rctx.rc;
 }
 
+
+static int64_t find_obj_cmp( const void *key, const void *n )
+{
+    const String * id = key;
+    const reply_obj * obj = n;
+    return StringCompare( id, obj->id );
+}
+
+static reply_obj * find_obj( struct reply_obj_list * list, const String * id )
+{
+    return VectorFind( &list->v, id, NULL, find_obj_cmp );
+}
+
 typedef struct reply_parse_ctx
 {
     on_reply_obj_t on_obj;
     void * data;
     ver_maj_min version;
 } reply_parse_ctx;
-                        
+
+
+/* ------------------------------------------------------------------------ */
+
+enum request_type { request_type_names, request_type_search };
+
+static const char * names_cgi_url = "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
+static const char * search_cgi_url = "http://www.ncbi.nlm.nih.gov/Traces/names/search.cgi";
+
+static const char * validate_url( const char * src, enum request_type request_type )
+{
+    const char * res = src;
+    if ( src == NULL )
+    {
+        switch( request_type )
+        {
+            case request_type_names  : res = names_cgi_url; break;
+            case request_type_search : res = search_cgi_url; break;
+        }
+    }
+    return res;
+}
+
+
+static const char * names_cgi_ver = "3.0";
+static const char * search_cgi_ver = "1.0";
+
+static const char * validate_ver( const char * src, enum request_type request_type )
+{
+    const char * res = src;
+    if ( src == NULL )
+    {
+        switch( request_type )
+        {
+            case request_type_names  : res = names_cgi_ver; break;
+            case request_type_search : res = search_cgi_ver; break;
+        }
+    }
+    return res;
+}
+
+
+static void validate_request_params( const request_params * src, request_params * dst )
+{
+    dst->names_url      = validate_url( src->names_url,  request_type_names );
+    dst->names_ver      = validate_ver( src->names_ver,  request_type_names );
+    dst->search_url     = validate_url( src->search_url, request_type_search );
+    dst->search_ver     = validate_ver( src->search_ver, request_type_search );
+
+    dst->params         = src->params;
+    dst->terms          = src->terms;
+    dst->buffer_size    = src->buffer_size;
+    dst->timeout_ms     = src->timeout_ms;
+}
+
 /* ------------------------------------------------------------------------ */
 
 
@@ -376,18 +444,22 @@ rc_t raw_names_request( const request_params * request,
                         uint32_t * rslt_code,
                         void * data )
 {
+    rc_t rc;
     cgi_request * req;
-    rc_t rc = make_cgi_request( &req, request->url );
+    request_params validated_request;
+
+    validate_request_params( request, &validated_request );
+    rc = make_cgi_request( &req, validated_request.names_url );
     if ( rc == 0 )
     {
-        const char ** ptr = request->terms;
-        rc = add_cgi_request_param( req, "version=%s", request->version );
+        const char ** ptr = validated_request.terms;
+        rc = add_cgi_request_param( req, "version=%s", validated_request.names_ver );
         while ( rc == 0 && *ptr != NULL )
         {
             rc = add_cgi_request_param( req, "acc=%s", *ptr );
             ptr++;
         }
-        ptr = request->params;
+        ptr = validated_request.params;
         while ( rc == 0 && *ptr != NULL )
         {
             rc = add_cgi_request_param( req, "%s", *ptr );
@@ -399,7 +471,8 @@ rc_t raw_names_request( const request_params * request,
             rc = perform_cgi_request( req, &stream, rslt_code );
             if ( rc == 0 )
             {
-                rc = stream_line_read( stream, on_line, request->buffer_size, request->timeout_ms, data );
+                rc = stream_line_read( stream, on_line,
+                    validated_request.buffer_size, validated_request.timeout_ms, data );
                 KStreamRelease( stream );
             }
         }
@@ -542,18 +615,22 @@ rc_t raw_search_request( const request_params * request,
                         uint32_t * rslt_code,
                         void * data )
 {
+    rc_t rc;
     cgi_request * req;
-    rc_t rc = make_cgi_request( &req, request->url );
+    request_params validated_request;
+
+    validate_request_params( request, &validated_request );
+    rc = make_cgi_request( &req, validated_request.search_url );
     if ( rc == 0 )
     {
-        const char ** ptr = request->terms;
-        rc = add_cgi_request_param( req, "version=%s", request->version );
+        const char ** ptr = validated_request.terms;
+        rc = add_cgi_request_param( req, "version=%s", validated_request.search_ver );
         while ( rc == 0 && *ptr != NULL )
         {
             rc = add_cgi_request_param( req, "term=%s", *ptr );
             ptr++;
         }
-        ptr = request->params;
+        ptr = validated_request.params;
         while ( rc == 0 && *ptr != NULL )
         {
             rc = add_cgi_request_param( req, "%s", *ptr );
@@ -565,7 +642,8 @@ rc_t raw_search_request( const request_params * request,
             rc = perform_cgi_request( req, &stream, rslt_code );
             if ( rc == 0 )
             {
-                rc = stream_line_read( stream, on_line, request->buffer_size, request->timeout_ms, data );
+                rc = stream_line_read( stream, on_line,
+                    validated_request.buffer_size, validated_request.timeout_ms, data );
                 KStreamRelease( stream );
             }
         }
@@ -633,9 +711,122 @@ rc_t parsed_search_request( const request_params * request,
     return raw_search_request( request, on_search_line, rslt_code, &rctx );
 }
 
+
+static rc_t on_obj_for_count( const reply_obj * obj, void * data )
+{
+    if ( obj != NULL && data != NULL )
+    {
+        uint32_t * count = data;
+        if ( obj->id != NULL ) *count += 1;
+    }
+    return 0;
+}
+
+
+typedef struct obj_add_ptr
+{
+    const char ** ptr;
+    uint32_t idx;
+} obj_add_ptr;
+
+static rc_t on_obj_for_add_ptr( const reply_obj * obj, void * data )
+{
+    if ( obj != NULL && data != NULL )
+    {
+        obj_add_ptr * o = data;
+        if ( obj->id != NULL )
+        {
+            o->ptr[ o->idx ] = obj->id->addr;
+            o->idx++;
+        }
+    }
+    return 0;
+}
+
+static rc_t reply_obj_list_2_ptrs( struct reply_obj_list * list, const char *** ptr )
+{
+    uint32_t count = 0;
+    rc_t rc = foreach_reply_obj( list, on_obj_for_count, &count );
+    *ptr = NULL;
+    if ( rc == 0 )
+    {
+        if ( count > 0 )
+        {
+            const char ** x = calloc( count + 1, sizeof *x );
+            if ( x == NULL )
+            {
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                ErrMsg( "calloc( %d ) -> %R", count * ( sizeof * x ), rc );
+            }
+            else
+            {
+                obj_add_ptr o = { x, 0 };
+                rc = foreach_reply_obj( list, on_obj_for_add_ptr, &o );
+                if ( rc == 0 )
+                    *ptr = x;
+                else
+                    free( ( void * ) x );
+            }
+        }
+    }
+    return rc;
+}
+
+
+static rc_t on_enter_path( const reply_obj * obj, void * data )
+{
+    rc_t rc = 0;
+    if ( obj != NULL && data != NULL )
+    {
+        reply_obj_list * list = data;
+        reply_obj * found = find_obj( list, obj->id );
+        if ( found != NULL )
+        {
+            if ( found->path != NULL ) StringWhack( found->path );
+            rc = StringCopy( &found->path, obj->path );
+        }
+    }
+    return rc;
+}
+
+
+static rc_t perform_sub_request( const request_params * request,
+                                 uint32_t * rslt_code,
+                                 struct reply_obj_list * list )
+{
+    rc_t rc;
+    request_params sub_request;
+    
+    sub_request.names_url   = request->names_url;
+    sub_request.search_url  = request->search_url;
+    sub_request.names_ver   = request->names_ver;
+    sub_request.search_ver  = request->search_ver;
+    sub_request.params      = request->params;
+    sub_request.terms       = NULL;
+    sub_request.buffer_size = request->buffer_size;
+    sub_request.timeout_ms  = request->timeout_ms;
+
+    rc = reply_obj_list_2_ptrs( list, &sub_request.terms );
+    if ( rc == 0 && sub_request.terms != NULL )
+    {
+        struct reply_obj_list * sub_list;
+        rc = names_request_to_list( &sub_request, rslt_code, &sub_list );
+        if ( rc == 0 )
+        {
+            /* walk the sub-list and enter the paths found into the list */
+            rc = foreach_reply_obj( sub_list, on_enter_path, list );
+            release_reply_obj_list( sub_list );
+        }
+        free( ( void * )sub_request.terms );
+    }
+    return rc;
+}
+
+
 rc_t search_request_to_list( const request_params * request,
                             uint32_t * rslt_code,
-                            struct reply_obj_list ** list )
+                            struct reply_obj_list ** list,
+                            bool resolve_path )
 {
     reply_obj_list * l;
     rc_t rc = make_reply_obj_list( &l );
@@ -643,7 +834,18 @@ rc_t search_request_to_list( const request_params * request,
     {
         rc = parsed_search_request( request, add_reply_to_list_cb, rslt_code, l );
         if ( rc == 0 )
-            *list = l;
+        {
+            if ( resolve_path )
+            {
+                rc = perform_sub_request( request, rslt_code, l );
+                if ( rc == 0 )
+                    *list = l;
+                else
+                    release_reply_obj_list( l );
+            }
+            else
+                *list = l;
+        }
         else
             release_reply_obj_list( l );
     }

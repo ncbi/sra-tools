@@ -83,7 +83,7 @@ if [ "$rc" == "0" ] ; then
     
     diff $WORKDIR/expected/$CASEID.stdout $TEMPDIR/dump.stdout >$TEMPDIR/diff
     rc="$?"
-else    
+else
     # remove timestamps
     sed -i -e 's/^....-..-..T..:..:.. //g' $TEMPDIR/load.stderr
     # remove pathnames
@@ -91,7 +91,7 @@ else
     # remove source locations
     sed -i -e 's=: .*:[0-9]*:[^ ]*:=:=g' $TEMPDIR/load.stderr
     # remove version number
-    sed -i -e 's=latf-load\(\.[0-9]*\)*=latf-load=g' $TEMPDIR/load.stderr
+    sed -i -e 's=general-loader\(\.[0-9]*\)*=general-loader=g' $TEMPDIR/load.stderr
     diff $WORKDIR/expected/$CASEID.stderr $TEMPDIR/load.stderr >$TEMPDIR/diff
     rc="$?"
 fi

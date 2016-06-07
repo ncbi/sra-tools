@@ -607,18 +607,6 @@ FIXTURE_TEST_CASE(ErrorLineNumber, LoaderFixture)
     REQUIRE_EQ(column, (uint64_t)49);
 }
 
-
-//////////////////// platform specification
-TEST_CASE(PlatformValid)
-{
-    REQUIRE_EQ((uint8_t)SRA_PLATFORM_ILLUMINA, PlatformToId("ILLUMINA"));
-}    
-
-TEST_CASE(PlatformInvalid)
-{
-    REQUIRE_EQ((uint8_t)SRA_PLATFORM_UNDEFINED, PlatformToId("FOO"));
-}    
-
 //////////////////// tag line parsing
 #define TEST_TAGLINE(line)\
     CreateFileGetRecord(GetName(), line "\n" "GATT\n" "+\n" "!''*\n");\

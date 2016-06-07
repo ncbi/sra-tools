@@ -1370,9 +1370,16 @@ static rc_t ric_align_generic(int64_t const startId,
                                            &dummy, (void const **)&id,
                                            NULL, &elem_count);
 
-                if (GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound)
+                if (GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound){
+					(void)PLOGMSG(klogWarn, (klogWarn, "Referential Integrity: "
+                                     "$(aname) <-> $(bname)"
+                                     " failed to retrieve pair $(first) -> $(second)",
+                                     "aname=%s,bname=%s,first=%ld,second=%ld",
+                                     aci->name, bci->name,
+                                     pair[i].first,pair[i].second));
+
                     return RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
-                else if (rc)
+                } else if (rc) 
                     return rc;
                 
                 if (!is_sorted(elem_count, id)) {
@@ -1395,8 +1402,16 @@ static rc_t ric_align_generic(int64_t const startId,
                     ++current;
                 }
             }
-            if (current >= elem_count || id[current] != row)
+            if (current >= elem_count || id[current] != row){
+				  (void)PLOGMSG(klogWarn, (klogWarn, "Referential Integrity: "
+                                     "$(aname) <-> $(bname)"
+                                     " inconsistens pair $(first) -> $(second)",
+                                     "aname=%s,bname=%s,first=%ld,second=%ld",
+                                     aci->name, bci->name,
+                                     pair[i].first,pair[i].second));
+
                 return RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+			}
             ++current;
         }
     }

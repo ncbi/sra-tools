@@ -416,16 +416,14 @@ rc_t ReferenceAddCoverage(Reference *const self,
 {
     unsigned const refEnd = refStart + refLength;
 
-    if (refLength == 0) /* this happens for insert-only alignments */
-        return 0;
-
-    if (refEnd > self->endPos) {
+    if (refEnd > self->endPos || self->endPos == 0) {
         unsigned const t1 = refEnd + (G.maxSeqLen - 1);
         unsigned const adjust = t1 % G.maxSeqLen;
-        unsigned const newEndPos = t1 - adjust;
+        unsigned const t2 = t1 - adjust;
+        unsigned const newEndPos = t2 != 0 ? t2 : G.maxSeqLen;
         unsigned const baseCount = self->endPos - self->curPos;
         unsigned const newBaseCount = newEndPos - self->curPos;
-        
+
         BAIL_ON_FAIL(KDataBufferResize(&self->coverage, newBaseCount));
         BAIL_ON_FAIL(KDataBufferResize(&self->mismatches, newBaseCount));
         BAIL_ON_FAIL(KDataBufferResize(&self->indels, newBaseCount));

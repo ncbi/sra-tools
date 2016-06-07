@@ -61,10 +61,8 @@ void destroy_cmn_iter( struct cmn_iter * iter )
     if ( iter != NULL )
     {
         if ( iter->progressbar != NULL )
-        {
             destroy_progressbar( iter->progressbar );
-            KOutMsg( "\n" );
-        }
+
         if ( iter->row_iter != NULL ) num_gen_iterator_destroy( iter->row_iter );
         if ( iter->ranges != NULL ) num_gen_destroy( iter->ranges );
         if ( iter->cursor != NULL ) VCursorRelease( iter->cursor );
@@ -229,7 +227,8 @@ rc_t cmn_read_uint64( struct cmn_iter * iter, uint32_t col_id, uint64_t *value )
 }
 
 
-rc_t cmn_read_uint64_array( struct cmn_iter * iter, uint32_t col_id, uint64_t *value, uint32_t num_values )
+rc_t cmn_read_uint64_array( struct cmn_iter * iter, uint32_t col_id, uint64_t *value,
+                            uint32_t num_values, uint32_t * values_read )
 {
     uint32_t elem_bits, boff, row_len;
     const uint64_t * value_ptr;
@@ -245,6 +244,7 @@ rc_t cmn_read_uint64_array( struct cmn_iter * iter, uint32_t col_id, uint64_t *v
     else
     {
         if ( row_len > num_values ) row_len = num_values;
+        * values_read = row_len;
         memmove( (void *)value, (void *)value_ptr, row_len * 8 );
     }
     return rc;

@@ -1294,7 +1294,7 @@ static rc_t ProcessSAMHeader(BAM_File *self, char const substitute[])
         void *const tmp = headerText;
         int const ch = SAMFileRead1(file);
         
-        if (ch < 0)
+        if (ch == -1)
             return SAMFileLastError(file);
         
         if (st == 0) {
@@ -1798,12 +1798,12 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self, unsigned actsize[], BAM_Alignment 
         if ((int)GetRCObject(rc) == rcData && GetRCState(rc) == rcInsufficient)
         {
             self->eof = true;
-            return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
+            return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
         }
         return rc;
     }
     if (maxPeek < 4)
-        return RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
     else {
         int32_t const i32 = BAM_FilePeekI32(self);
 
@@ -1811,14 +1811,14 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self, unsigned actsize[], BAM_Alignment 
             return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
         
         if (maxPeek < i32 + 4)
-            return RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
-        
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
+
         isgood = BAM_AlignmentInitLog(rhs, maxsize, i32, BAM_FilePeek(self, 4));
         rhs[0].parent = self;
     }
     *actsize = BAM_AlignmentSize(rhs[0].numExtra);
     if (isgood && *actsize > maxsize)
-        return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
 
     BAM_FileAdvance(self, 4 + rhs->datasize);
     return isgood ? 0 : RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid);
@@ -1837,6 +1837,8 @@ unsigned BAM_AlignmentSizeFromData(unsigned const datasize, void const *data)
 static bool BAM_AlignmentIsEmpty(BAM_Alignment const *const self)
 {
     if (getReadNameLength(self) == 0)
+        return true;
+    if (getReadName(self)[0] == '\0')
         return true;
     if (self->hasColor == 3)
         return false;
@@ -1865,7 +1867,7 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment const *rslt[], bool co
             if ((int)GetRCObject(rc) == rcData && GetRCState(rc) == rcInsufficient)
             {
                 self->eof = true;
-                rc = RC( rcAlign, rcFile, rcReading, rcRow, rcNotFound );
+                rc = SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
             }
             return rc;
         }
@@ -2312,7 +2314,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
         int const ch = SAMFileRead1(&self->file.sam);
         if (ch < 0) {
             rc_t const rc = SAMFileLastError(&self->file.sam);
-            return (i == 0 && field == 1 && (rc == 0 || GetRCState(rc) == rcInsufficient)) ? RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound) : rc;
+            return (i == 0 && field == 1 && (rc == 0 || GetRCState(rc) == rcInsufficient)) ? SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound) : rc;
         }
         if ((void const *)&scratch[i] >= endp)
             return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
@@ -2534,7 +2536,7 @@ static rc_t read2(BAM_File *const self, BAM_Alignment const **const rhs)
     rc_t rc;
     
     if (self->bufCurrent >= self->bufSize && self->eof)
-        return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
 
     if (self->isSAM) {
         rc = BAM_FileReadSAM(self, rhs);
@@ -2585,7 +2587,7 @@ static rc_t readDefer(BAM_File *const self, BAM_Alignment const **const rslt)
     if (nread == 0) {
         KFileRelease(self->defer);
         self->defer = NULL;
-        return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
     }
     assert(nread == 4);
     assert(datasize < 64u * 1024u);
@@ -3755,7 +3757,7 @@ rc_t BAM_AlignmentCGReadLength(BAM_Alignment const *self, uint32_t *readlen)
         *readlen = di;
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 static unsigned BAM_AlignmentParseCGTag(BAM_Alignment const *self, size_t const max_cg_segs, unsigned cg_segs[/* max_cg_segs */])
@@ -3828,7 +3830,7 @@ rc_t ExtractInt32(BAM_Alignment const *self, int32_t *result,
             return RC(rcAlign, rcRow, rcReading, rcData, rcInvalid);
         break;
     default:
-        return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+        return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
     }
     if (INT32_MIN <= y && y <= INT32_MAX) {
         *result = (int32_t)y;
@@ -3854,7 +3856,7 @@ rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
         rc = ExtractInt32(self, &zi, ZI); if (rc) return rc;
         return string_printf(buffer, max_size, act_size, "%i_%i", zi, za);
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
@@ -3909,7 +3911,7 @@ rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
         }
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 
@@ -4038,7 +4040,7 @@ rc_t BAM_AlignmentGetCGCigar(BAM_Alignment const *self,
         *cig_act = GetCGCigar(self, cig_max, cigar);
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 /* MARK: end CG stuff */
@@ -4052,7 +4054,7 @@ rc_t BAM_AlignmentGetTI(BAM_Alignment const *self, uint64_t *ti)
         *ti = (uint64_t)temp;
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const rslt)

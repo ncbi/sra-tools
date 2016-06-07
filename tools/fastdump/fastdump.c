@@ -41,6 +41,7 @@
 #include <kapp/args.h>
 #include <klib/out.h>
 #include <klib/vector.h>
+#include <klib/log.h>
 #include <kfs/directory.h>
 #include <kproc/thread.h>
 
@@ -201,15 +202,15 @@ static void init_sorter_params( const fd_ctx * fd_ctx, sorter_params * sp )
 -------------------------------------------------------------------------------------------- */
 static rc_t single_threaded_make_lookup( fd_ctx * fd_ctx )
 {
+    sorter_params sp;
     struct raw_read_iter * iter;
+    
+    init_sorter_params( fd_ctx, &sp );
     rc_t rc = make_raw_read_iter( &fd_ctx->cmn, &iter );
     if ( rc == 0 )
     {
-        sorter_params sp;
-
-        init_sorter_params( fd_ctx, &sp );
         sp.src = iter; /* sorter takes ownership! */
-        rc = run_sorter( &sp );
+        rc = run_sorter( &sp ); /* sorter.c */
     }
     return rc;
 }
@@ -221,33 +222,7 @@ static rc_t multi_threaded_make_lookup( fd_ctx * fd_ctx )
 
     init_sorter_params( fd_ctx, &sp );
     sp.num_threads = fd_ctx->num_threads;
-    return run_sorter_pool( &sp );
-}
-
-
-/* --------------------------------------------------------------------------------------------
-    produce the lookup-table by iterating over the PRIMARY_ALIGNMENT - table:
-   -------------------------------------------------------------------------------------------- 
-    reading SEQ_SPOT_ID, SEQ_READ_ID and RAW_READ
-    SEQ_SPOT_ID and SEQ_READ_ID is merged into a 64-bit-key
-    RAW_READ is read as 4na-unpacked ( Schema does not provide 4na-packed for this column )
-    these key-pairs are temporarely stored in a KVector until a limit is reached
-    after that limit is reached they are writen sorted into the file-system as sub-files
-    this repeats until the requested row-range is exhausted ( row_range ... NULL -> all rows )
-    These sub-files are than merge-sorted into the final output-file.
-    This output-file is a binary data-file:
-    content: [KEY][RAW_READ]
-    KEY... 64-bit value as SEQ_SPOT_ID shifted left by 1 bit, zero-bit contains SEQ_READ_ID
-    RAW_READ... 16-bit binary-chunk-lenght, followed by n bytes of packed 4na
--------------------------------------------------------------------------------------------- */
-static rc_t fastdump_make_lookup( fd_ctx * fd_ctx )
-{
-    rc_t rc;
-    if ( fd_ctx->num_threads > 1 )
-        rc = multi_threaded_make_lookup( fd_ctx );
-    else
-        rc = single_threaded_make_lookup( fd_ctx );
-    return rc;
+    return run_sorter_pool( &sp ); /* sorter.c */
 }
 
 
@@ -264,8 +239,16 @@ static rc_t perform_join( fd_ctx * fd_ctx, format_t fmt )
     if ( !file_exists( fd_ctx->cmn.dir, "%s", fd_ctx->lookup_filename ) )
     {
         const char * temp = fd_ctx->output_filename;
+        
+        if ( fd_ctx->cmn.show_progress )
+            KOutMsg( "lookup :" );
+        
         fd_ctx->output_filename = fd_ctx->lookup_filename;
-        rc = fastdump_make_lookup( fd_ctx );
+        if ( fd_ctx->num_threads > 1 )
+            rc = multi_threaded_make_lookup( fd_ctx );
+        else
+            rc = single_threaded_make_lookup( fd_ctx );
+
         fd_ctx->output_filename = temp;
     }
     
@@ -288,66 +271,21 @@ static rc_t perform_join( fd_ctx * fd_ctx, format_t fmt )
         jp.count            = 0;
         jp.fmt              = fmt;
         
-        rc = execute_join( &jp );
+        rc = execute_join( &jp ); /* join.c */
     }
     return rc;
 }
 
-
-/*
-static rc_t fastdump_test( fd_ctx * fd_ctx )
-{
-    rc_t rc = 0;
-    struct index_reader * index = NULL;
-
-    if ( !file_exists( fd_ctx->cmn.dir, "%s", fd_ctx->lookup_filename ) )
-    {
-        const char * temp = fd_ctx->output_filename;
-        fd_ctx->output_filename = fd_ctx->lookup_filename;
-        rc = fastdump_make_lookup( fd_ctx );
-        fd_ctx->output_filename = temp;
-    }
-    
-    if ( fd_ctx->index_filename != NULL )
-    {
-        if ( file_exists( fd_ctx->cmn.dir, "%s", fd_ctx->index_filename ) )
-            rc = make_index_reader( fd_ctx->cmn.dir, &index, fd_ctx->buf_size, "%s", fd_ctx->index_filename );
-    }
-    if ( rc == 0 )
-    {
-        struct lookup_reader * lookup;
-        rc = make_lookup_reader( fd_ctx->cmn.dir, index, &lookup, fd_ctx->buf_size,
-                        "%s", fd_ctx->lookup_filename );
-        if ( rc == 0 )
-        {
-            uint64_t max_key = 0;
-            rc = get_max_key( index, &max_key );
-            if ( rc == 0 )
-            {
-                uint64_t key_to_find = 7549714;
-                uint64_t key_found = 0;
-                KOutMsg( "max-key = %ld\n", max_key );
-                rc_t rc1 = seek_lookup_reader( lookup, key_to_find, &key_found, true );
-                if ( rc1 == 0 )
-                    KOutMsg( "key '%ld' found\n", key_to_find );
-                else
-                    KOutMsg( "key '%ld' not found, nearest: %ld\n", key_to_find, key_found );
-            }
-            release_lookup_reader( lookup );
-        }
-        release_index_reader( index );
-    }
-    return rc;
-}
-*/
 
 /* -------------------------------------------------------------------------------------------- */
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
+    rc_t rc;
     Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
-    rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
+
+    rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
     if ( rc != 0 )
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
     if ( rc == 0 )
@@ -410,13 +348,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 ErrMsg( "KDirectoryNativeDir() -> %R", rc );
             else
             {
-                switch( fmt )
-                {
-                    case ft_special : rc = perform_join( &fd_ctx, fmt ); break;
-                    case ft_fastq   : rc = perform_join( &fd_ctx, fmt ); break;
-                    case ft_lookup  : rc = fastdump_make_lookup( &fd_ctx ); break;
-                    case ft_test    : /* rc = fastdump_test( &fd_ctx ); */ break;
-                }
+                rc = perform_join( &fd_ctx, fmt );
 
                 if ( dflt_lookup[ 0 ] != 0 )
                     KDirectoryRemove( fd_ctx.cmn.dir, true, "%s", dflt_lookup );

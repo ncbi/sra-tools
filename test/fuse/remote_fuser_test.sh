@@ -211,6 +211,11 @@ fi
 ####
 ##  Checking config file data and prepareing environment
 #
+if [ -z "$USER" ]
+then
+    _err_exit "Environment variable \$USER is not set"
+fi
+
 if [ -z "$TEST_DIR" ]
 then
     _err_exit "Config does not have definition for variable TEST_DIR"
@@ -221,7 +226,7 @@ then
     _err_exit "Can not stat directory '$TEST_DIR'"
 fi
 
-F_TEST_DIR=$TEST_DIR/remote_fuser
+F_TEST_DIR=$TEST_DIR/$USER
 if [ ! -d "$F_TEST_DIR" ]
 then
     _msg "Creating directory '$F_TEST_DIR'"
@@ -446,7 +451,7 @@ _stop_fuser ()
     _msg "## $MCD"
     $MCD
 
-    sleep 10
+    sleep 50
 
     _is_fuser_run
     if [ $? -eq 0 ]

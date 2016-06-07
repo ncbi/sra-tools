@@ -61,7 +61,9 @@ $(TEST_BINDIR)/remote-fuser-test: $(REMOTE_FUSER_TEST_OBJ)
 # slowtests: match output vs sra-pileup
 #
 
-slowtests: run-test
+slowtests: runtests
+
+runtests: run-test
 
 run-test: remote-fuser-test
 	@$(SRCDIR)/remote_fuser_test.sh standard 180 $(TARGDIR)/bin

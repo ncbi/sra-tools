@@ -47,6 +47,7 @@ SUBDIRS =    \
 	vdb-validate    \
 	kar             \
     copycat         \
+    fuse
 
 # under construction    
 #    ngs-pileup      \

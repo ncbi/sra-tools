@@ -32,6 +32,7 @@ for i in @ USER REMOTE_USER HOME HOST HOSTNAME HOSTTYPE
 do
     echo "[$i] [${!i}]"
 done
+echo "[groups] [`groups`]"
 
 ####
 ##  Some interesting stuff

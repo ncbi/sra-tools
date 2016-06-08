@@ -477,7 +477,8 @@ foreach my $href (@REQ) {
     $href->{locbldpath} = expand($href->{locbldpath}) if ($href->{locbldpath});
 
     # found directories
-    my ($found_itf, $found_bin, $found_lib, $found_ilib, $found_jar);
+    my
+      ($found_itf, $found_bin, $found_lib, $found_ilib, $found_jar, $found_src);
 
     my %a = %$href;
     next if ($a{option} && $DEPEND_OPTIONS{$a{option}});
@@ -490,8 +491,8 @@ foreach my $href (@REQ) {
     my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /E/ || $a{type} =~ /J/);
     my $need_jar = $a{type} =~ /J/;
 
-    my ($bin, $inc, $lib, $ilib)
-        = ($a{bin}, $a{include}, $a{lib}); # file names to check
+    my ($bin, $inc, $lib, $ilib, $src)
+        = ($a{bin}, $a{include}, $a{lib}, undef, $a{src}); # file names to check
     $lib = '' unless ($lib);
     $lib = expand($lib);
 
@@ -533,7 +534,8 @@ foreach my $href (@REQ) {
                     undef $il;
                     ++$has_option{sources};
                 }
-                my ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                my ($fi, $fl, $fil)
+                    = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                 if ($fi || $fl || $fil) {
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
@@ -554,7 +556,8 @@ foreach my $href (@REQ) {
     }
     if (! $found_itf && ! $has_option{sources} && $a{srcpath}) {
         my $try = $a{srcpath};
-        ($found_itf) = find_in_dir($try, $inc);
+        ($found_itf, undef, undef, $found_src)
+            = find_in_dir($try, $inc, undef, undef, undef, undef, $src);
     }
     if (! $has_option{prefix}) {
         my $try = $a{pkgpath};
@@ -680,6 +683,11 @@ foreach my $href (@REQ) {
             $found_itf = abs_path($found_itf);
             push(@dependencies, "$a{aname}_INCDIR = $found_itf");
             println "includes: $found_itf";
+        }
+        if ($found_src) {
+            $found_src = abs_path($found_src);
+            push(@dependencies, "$a{aname}_SRCDIR = $found_src");
+            println "sources: $found_src";
         }
         if ($found_lib) {
             $found_lib = abs_path($found_lib);
@@ -1284,15 +1292,12 @@ sub expand_path {
 }
 
 sub find_in_dir {
-    my ($dir, $include, $lib, $ilib, $jar, $bin) = @_;
+    my ($dir, $include, $lib, $ilib, $jar, $bin, $src) = @_;
     unless (-d $dir) {
-#       println "no" unless ($AUTORUN);
         println "\t\tnot found $dir" if ($OPT{'debug'});
         return;
     }
-#   print "\t$dir... " unless ($AUTORUN);
-#   print "[found] " if ($OPT{'debug'});
-    my ($found_inc, $found_lib, $found_ilib);
+    my ($found_inc, $found_lib, $found_ilib, $found_src);
     if ($include) {
         print "\tincludes... " unless ($AUTORUN);
         if (-e "$dir/$include") {
@@ -1310,7 +1315,6 @@ sub find_in_dir {
         }
     }
     if ($lib || $ilib) {
-#       print "\n\t" if ($nl && !$AUTORUN);
         print "\tlibraries... " unless ($AUTORUN);
         if ($lib) {
             my $builddir = File::Spec->catdir($dir, $OS, $TOOLS, $ARCH, $BUILD);
@@ -1402,7 +1406,15 @@ sub find_in_dir {
             $found_lib = $try;
         }
     }
-    return ($found_inc, $found_lib, $found_ilib);
+    if ($src) {
+        print "\tsrc... " unless ($AUTORUN);
+        my $try = "$dir/$src";
+        if (-e "$try") {
+            println $dir unless ($AUTORUN);
+            $found_src = $dir;
+        }
+    }
+    return ($found_inc, $found_lib, $found_ilib, $found_src);
 }
 
 sub reverse_build {

@@ -26,6 +26,16 @@ SCR_NAME=`basename $0`
 SCR_SNAME=`basename $0 .sh`
 
 ####
+##  Environment: Jy's a mal naaier maar ek hou van jou baie
+#
+for i in @ USER REMOTE_USER HOME HOST HOSTNAME HOSTTYPE
+do
+    echo "[$i] [${!i}]"
+done
+
+exit 1
+
+####
 ##  Some interesting stuff
 #
 

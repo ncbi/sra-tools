@@ -33,8 +33,6 @@ do
     echo "[$i] [${!i}]"
 done
 
-exit 1
-
 ####
 ##  Some interesting stuff
 #

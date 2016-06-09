@@ -26,23 +26,24 @@ default: runtests
 
 TOP ?= $(abspath ../..)
 
-MODULE = test/vdb-dump
+MODULE = test/vdb-copy
 
 TEST_TOOLS = 
 
 include $(TOP)/build/Makefile.env
 
-.PHONY: $(TEST_TOOLS)
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: vdb-dump 
+runtests: check_exit_code
 
-vdb-dump:
-	rm -rf actual
-	mkdir -p actual
-	$(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
-	$(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout; diff expected/1.1.stdout actual/1.1.stdout
-	rm -rf actual
+#-------------------------------------------------------------------------------
+# scripted tests
+#
+
+check_exit_code:
 	@ python check-exit-code.py $(BINDIR)/vdb-copy
 
-.PHONY: kar 
+.PHONY: $(TEST_TOOLS)
 
+clean: stdclean

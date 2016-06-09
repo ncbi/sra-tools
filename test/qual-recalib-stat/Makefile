@@ -26,23 +26,24 @@ default: runtests
 
 TOP ?= $(abspath ../..)
 
-MODULE = test/vdb-dump
+MODULE = test/qual-recalib-stat
 
 TEST_TOOLS = 
 
 include $(TOP)/build/Makefile.env
 
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+runtests: check_exit_code
+
+#-------------------------------------------------------------------------------
+# scripted tests
+#
+
+check_exit_code:
+	@ python check-exit-code.py $(BINDIR)/qual-recalib-stat
+
 .PHONY: $(TEST_TOOLS)
 
-runtests: vdb-dump 
-
-vdb-dump:
-	rm -rf actual
-	mkdir -p actual
-	$(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
-	$(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout; diff expected/1.1.stdout actual/1.1.stdout
-	rm -rf actual
-	@ python check-exit-code.py $(BINDIR)/vdb-copy
-
-.PHONY: kar 
-
+clean: stdclean

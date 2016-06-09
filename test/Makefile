@@ -35,6 +35,7 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =    \
+    fuse            \
 	fastq-loader    \
 	vcf-loader      \
 	kget            \
@@ -48,7 +49,6 @@ SUBDIRS =    \
 	kar             \
     copycat         \
 	fastdump        \
-    fuse
 
 # under construction    
 #    ngs-pileup      \

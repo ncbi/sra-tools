@@ -1474,7 +1474,7 @@ void kar_alias_link_type ( BSTNode *node, void *data )
         /* establish root for search */
         dir = entry -> parentDir;
         if ( dir == NULL )
-            dir = ( const KARDir * ) data;
+            dir = root;
         e = & dir -> dad;
 
         /* walk the path */
@@ -1506,7 +1506,8 @@ void kar_alias_link_type ( BSTNode *node, void *data )
                 else
                 {
                     e = & e -> parentDir -> dad;
-                    assert ( e != NULL );
+                    if ( e == NULL )
+                        e = & root -> dad;
                 }
             }
             else
@@ -1823,7 +1824,7 @@ rc_t extract_dir ( const KARDir *src, const extract_block *eb )
 static
 rc_t extract_alias ( const KARAlias *src, const extract_block *eb )
 {
-    return KDirectoryCreateAlias ( eb -> cdir, 0700, kcmCreate, src -> link, src -> dad . name );
+    return KDirectoryCreateAlias ( eb -> cdir, 0777, kcmCreate, src -> link, src -> dad . name );
 }
 
 static
@@ -1943,6 +1944,8 @@ rc_t kar_test_extract ( const Params *p )
                             BSTreeDoUntil ( tree, false, kar_extract, &eb );
                             rc = eb . rc;
                         }
+                        
+                        KDirectoryRelease ( eb . cdir );
                     }
                 }
             }

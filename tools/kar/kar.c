@@ -110,6 +110,7 @@ struct KARAlias
 {
     KAREntry dad;
 
+    KAREntry * resolved;
     const char *link;
 };
 
@@ -1442,17 +1443,120 @@ int64_t kar_alias_find_link ( const void *item, const BSTNode *node )
 static
 void kar_alias_link_type ( BSTNode *node, void *data )
 {
-    KAREntry *entry = ( KAREntry * ) node ;
-    KARAlias *alias = ( KARAlias * ) entry;
+    /* archive fake root directory node */
+    const KARDir * root = ( const KARDir * ) data;
 
-    const char *link = alias -> link;
+    const KARDir *dir;
+    KAREntry *entry = ( KAREntry * ) node;
 
-    if ( entry -> type == kptAlias )
+    if ( entry -> type == kptDir )
     {
-        /* somehow find out what the type really is */
-        BSTNode *n = BSTreeFind ( ( const BSTree * ) data, link, kar_alias_find_link );
-        
-        entry -> type = ( ( KAREntry * ) n ) -> type | kptAlias;
+        /* need to go recursive on contents */
+        dir = ( const KARDir * ) entry;
+        BSTreeForEach ( &dir -> contents, false, kar_alias_link_type, ( void * ) root );
+    }
+    else if ( entry -> type == kptAlias )
+    {
+        const KAREntry *e;
+
+        size_t lsize;
+        const char *link, *end;
+        KARAlias *alias = ( KARAlias * ) entry;
+
+        link = alias -> link;
+        lsize = string_size ( link );
+        end = link + lsize;
+
+        /* if the link is an absolute path, it's outside of archive */
+        if ( link [ 0 ] == '/' )
+            return;
+
+        /* establish root for search */
+        dir = entry -> parentDir;
+        if ( dir == NULL )
+            dir = ( const KARDir * ) data;
+        e = & dir -> dad;
+
+        /* walk the path */
+        while ( e != NULL && link < end )
+        {
+            /* get the segment */
+            const char *seg = link;
+            char *sep = string_chr ( link, lsize, '/' );
+            if ( sep == NULL )
+                link = end;
+            else
+            {
+                *sep = 0;
+                link = sep + 1;
+            }
+
+            /* if the segment is empty, then we saw '/'.
+               if the segment is a single '.', then it means same thing */
+            if ( seg [ 0 ] == 0  ||
+                 ( seg [ 0 ] == '.' && seg [ 1 ] == 0 ) )
+            {
+                /* do nothing */
+            }
+            else if ( seg [ 0 ] == '.' && seg [ 1 ] == '.' && seg [ 2 ] == 0 )
+            {
+                /* move up to parent */
+                if ( e == & root -> dad )
+                    e = NULL;
+                else
+                {
+                    e = & e -> parentDir -> dad;
+                    assert ( e != NULL );
+                }
+            }
+            else
+            {
+                rc_t rc;
+
+                while ( e != NULL && e -> type == kptAlias )
+                {
+                    assert ( ( ( KARAlias * ) e ) -> resolved == NULL );
+                    kar_alias_link_type ( ( BSTNode * ) & e -> dad, ( void * ) root );
+                    e = ( ( KARAlias * ) e ) -> resolved;
+                }
+
+                if ( e -> type == ( kptDir | kptAlias ) )
+                {
+                    assert ( ( ( KARAlias * ) e ) -> resolved != NULL );
+                    e = ( ( KARAlias * ) e ) -> resolved;
+                }
+
+                /* move down */
+                if ( e -> type == kptDir )
+                {
+                    dir = ( KARDir * ) e;
+                    e = ( KAREntry * ) BSTreeFind ( & dir -> contents, seg, kar_alias_find_link );
+
+                    while ( e != NULL && ( e -> type & kptAlias ) != 0 )
+                    {
+                        if ( ( ( const KARAlias * ) e ) -> resolved == NULL )
+                            break;
+                        e = ( ( const KARAlias * ) e ) -> resolved;
+                    }
+                }
+                else
+                {
+                    e = NULL;
+                    rc = RC ( rcExe, rcPath, rcValidating, rcPath, rcInvalid );
+                    LOGERR (klogErr, rc, "unable to locate symlink reference");
+                }
+            }
+
+            if ( sep != NULL )
+                *sep = '/';
+        }
+
+        if ( e != NULL )
+        {
+            assert ( link == end );
+            alias -> dad . type = e -> type | kptAlias;
+            alias -> resolved = ( KAREntry * ) e;
+        }
     }
 }
 
@@ -1678,7 +1782,6 @@ rc_t extract_file ( const KARFile *src, const extract_block *eb )
         exit ( 4 );
     }
 
-    /*    rc = KFileWriteExactly ( dst, 0, buffer, src -> byte_size ); ---write exactly is apparently excluded in file.c */
     rc = KFileWriteAll ( dst, 0, buffer, src -> byte_size, &num_writ );
     if ( rc != 0 )
     {
@@ -1718,6 +1821,12 @@ rc_t extract_dir ( const KARDir *src, const extract_block *eb )
 }
 
 static
+rc_t extract_alias ( const KARAlias *src, const extract_block *eb )
+{
+    return KDirectoryCreateAlias ( eb -> cdir, 0700, kcmCreate, src -> link, src -> dad . name );
+}
+
+static
 bool CC kar_extract ( BSTNode *node, void *data )
 {
     const KAREntry *entry = ( KAREntry * ) node;
@@ -1732,8 +1841,16 @@ bool CC kar_extract ( BSTNode *node, void *data )
     case kptDir:
         eb -> rc = extract_dir ( ( const KARDir * ) entry, eb ); 
         break;
+    case kptAlias:
     case kptFile | kptAlias:
     case kptDir | kptAlias:
+        eb -> rc = extract_alias ( ( const KARAlias * ) entry, eb );
+        if ( eb -> rc != 0 )
+            return true;
+        else
+            return false;
+        /* TBD - need to mdify the timestamp of the symlink without dereferencing using lutimes - requires library code handling*/
+        /* should not get down below to setaccess or setdate */
         break;
     default:
         break;
@@ -1770,7 +1887,8 @@ rc_t kar_test_extract ( const Params *p )
             LogErr ( klogInt, rc, "Failed to open archive" );
         else
         {
-            BSTree tree;
+            KARDir root;
+            BSTree *tree;
             KSraHeader hdr;
             uint64_t toc_pos, toc_size, file_offset;
 
@@ -1778,15 +1896,19 @@ rc_t kar_test_extract ( const Params *p )
             file_offset = hdr . u . v1 . file_offset;
             toc_size = file_offset - toc_pos;
 
-            BSTreeInit ( &tree );
+            memset ( & root, 0, sizeof root );
+            root . dad . type = kptDir;
 
-            rc = kar_extract_toc ( archive, &tree, &toc_pos, toc_size );
+            tree = & root . contents;
+            BSTreeInit ( tree );
+
+            rc = kar_extract_toc ( archive, tree, &toc_pos, toc_size );
             if ( rc == 0 )
             {
-                BSTreeForEach ( &tree, false, kar_entry_link_parent_dir, NULL );
+                BSTreeForEach ( tree, false, kar_entry_link_parent_dir, NULL );
 
                 /* find what the alias points to */
-                BSTreeForEach ( &tree, false, kar_alias_link_type, &tree );
+                BSTreeForEach ( tree, false, kar_alias_link_type, &root );
 
                 /* Finish test */
                 if ( p -> x_count == 0 )
@@ -1802,7 +1924,7 @@ rc_t kar_test_extract ( const Params *p )
                     else
                         kpm . pm = pm_normal;
 
-                    BSTreeForEach ( &tree, false, kar_print, &kpm );
+                    BSTreeForEach ( tree, false, kar_print, &kpm );
                 }
                 else
                 {
@@ -1818,14 +1940,14 @@ rc_t kar_test_extract ( const Params *p )
                         rc = KDirectoryOpenDirUpdate ( wd, &eb . cdir, false, "%s", p -> directory_path );
                         if ( rc == 0 )
                         {
-                            BSTreeDoUntil ( &tree, false, kar_extract, &eb );
+                            BSTreeDoUntil ( tree, false, kar_extract, &eb );
                             rc = eb . rc;
                         }
                     }
                 }
             }
 
-            BSTreeWhack ( & tree, kar_entry_whack, NULL );
+            BSTreeWhack ( tree, kar_entry_whack, NULL );
             KFileRelease ( archive );
         }
         

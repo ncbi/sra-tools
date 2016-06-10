@@ -28,8 +28,7 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/fuse
 
-TEST_TOOLS = \
-    remote-fuser-test
+TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
@@ -65,7 +64,7 @@ slowtests: runtests
 
 runtests: run-test
 
-run-test: remote-fuser-test
+run-test: $(TEST_BINDIR)/remote-fuser-test
 	@$(SRCDIR)/remote_fuser_test.sh standard 180 $(TARGDIR)/bin
 
 .PHONY: run-test

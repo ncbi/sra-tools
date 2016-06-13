@@ -77,5 +77,3 @@ def listDirectory ( path, sep = "" ):
             elif os.path.isfile ( new_path ):
                 print ( sep + "[" + name + "]")
 
-
-

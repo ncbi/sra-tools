@@ -35,14 +35,14 @@ include $(TOP)/build/Makefile.env
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: kar_md5 
+runtests: kar_test 
 
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-kar_md5: test-kar.sh
+kar_test: kar-test.sh
 	@ echo "Starting kar tests..."
-	@ bash test-kar.sh $(BINDIR)/kar
+	@ bash kar-test.sh $(BINDIR)/kar
 
 kar:
 	rm -rf actual

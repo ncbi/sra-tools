@@ -1,1 +1,0 @@
-  Size: 2634      	Blocks: 8          IO Block: 65536  regular file

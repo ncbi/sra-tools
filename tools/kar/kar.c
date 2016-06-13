@@ -224,24 +224,14 @@ void printAlias ( const KARAlias *alias, KARPrintMode *kpm, uint8_t type )
 {
     if ( kpm -> pm == pm_longlist )
     {
-        switch ( type )
-        {
-        case kptFile | kptAlias:
-            KOutMsg ( "%03c ", '0' );
-            KOutMsg ( "%03c ", '-' );
-            break;
-        case kptDir | kptAlias:
-            KOutMsg ( "%03c ", '-' );
-            KOutMsg ( "%03c ", '-' );
-            break;
-        default:
-            break;
-        }
+        KOutMsg ( "% 3u ", string_size ( alias -> link ) );
+        KOutMsg ( "%03c ", '-' );
+        printEntry ( ( KAREntry * ) alias, kpm );
+        KOutMsg ( " -> %s", alias -> link );
     }
-
-    printEntry ( ( KAREntry * ) alias, kpm );
+    else
+        printEntry ( ( KAREntry * ) alias, kpm );
     
-    KOutMsg ( " -> %s", alias -> link );
     KOutMsg ( "\n" );
 }
 

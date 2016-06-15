@@ -42,7 +42,7 @@ runtests: check_exit_code
 #
 
 check_exit_code:
-	@ python check-exit-code.py $(BINDIR)/sra-pileup
+	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/sra-pileup
 
 .PHONY: $(TEST_TOOLS)
 

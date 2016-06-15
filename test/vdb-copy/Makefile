@@ -42,7 +42,7 @@ runtests: check_exit_code
 #
 
 check_exit_code:
-	@ python check-exit-code.py $(BINDIR)/vdb-copy
+	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-copy
 
 .PHONY: $(TEST_TOOLS)
 

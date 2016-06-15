@@ -2,26 +2,40 @@ import sys
 import os.path
 import subprocess
 
-if len ( sys.argv ) != 2 :
+def usage ( message ):
     print ( "\n" )
     print ( "This program will check correct program behaviour when it called" )
     print ( "without arguments, or with argument '-h'. In the first case it" )
     print ( "should print help message and exit non zero code. In the second" )
     print ( "case it should print help message and exit with zero code.\n" )
 
-    print ( "Invalid arguments\n" )
+    print ( str ( message ) + "\n" )
     print ( "Usage:\n" )
-    print ( "  " + os.path.basename ( __file__ ) + " program_path\n" )
-    print ( "Where:\n" );
-    print ( "  program_path - path to program to test\n" );
+    print ( "  " + os.path.basename ( __file__ ) + " [-v] program_path\n" )
+    print ( "Where:\n" )
+    print ( "  program_path - path to program to test" )
+    print ( "            -v - verbose ... more talkative\n" )
 
-    exit ( 1 )
+ANANASA = False
+LEMONA = 1
+
+if len ( sys.argv ) == 3 :
+    if sys.argv [ 1 ] == "-v" :
+        ANANASA = True
+        LEMONA = 2
+    else :
+        usage ( "Invalid arguments. Flag [-v] expected" )
+        exit ( 1 )
+else :
+    if not len ( sys.argv ) == 2 :
+        usage ( "Invalid arguments" )
+        exit ( 1 )
+
+BANANA = sys.argv [ LEMONA ]
 
 ##
 ## First checking if file exists and executable
 ##
-
-BANANA = sys.argv [ 1 ]
 
 if not os.path.exists ( BANANA ):
     print ( "\nERROR: Can not stat file [" + BANANA + "]\n" )
@@ -42,9 +56,11 @@ def check_stream ( stream ):
 ## Run command without arguments: should return non zero RC and print
 ## help message.
 ##
-print ( "======================================" )
-print ( "TEST1: start command without arguments" )
-print ( "--------------------------------------" )
+
+if ANANASA:
+    print ( "======================================" )
+    print ( "TEST1: start command without arguments" )
+    print ( "--------------------------------------" )
 
 popca = subprocess.Popen (
                     [ BANANA ],
@@ -67,18 +83,19 @@ if rc == 0:
 if in_out:
     print ( "WARNING[TEST1] help message is in 'STDOUT'" )
 
-print ( "Help message detected" )
-print ( "Return code is [" + str ( rc ) + "]" );
-
-print ( "Passed\n" )
+if ANANASA:
+    print ( "Help message detected" )
+    print ( "Return code is [" + str ( rc ) + "]" )
+    print ( "Passed\n" )
 
 ##
 ## Run command with '-h' argument: should return zero RC and print
 ## help message.
 ##
-print ( "=======================================" )
-print ( "TEST2: start command with '-h' argument" )
-print ( "---------------------------------------" )
+if ANANASA:
+    print ( "=======================================" )
+    print ( "TEST2: start command with '-h' argument" )
+    print ( "---------------------------------------" )
 
 popca = subprocess.Popen (
                     [ BANANA, "-h" ],
@@ -101,7 +118,14 @@ if not rc == 0:
 if in_err:
     print ( "WARNING[TEST2] help message is in 'STDERR'" )
 
-print ( "Help message detected" )
-print ( "Return code is [" + str ( rc ) + "]" );
+if ANANASA:
+    print ( "Help message detected" )
+    print ( "Return code is [" + str ( rc ) + "]" )
+    print ( "Passed\n" )
 
-print ( "Passed\n" )
+
+##
+## C'onclusion
+##
+
+print ( "[" + os.path.basename ( __file__ ) + "] test passed for [" + BANANA + "]\n" )

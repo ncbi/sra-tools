@@ -42,7 +42,7 @@ runtests: check_exit_code
 #
 
 check_exit_code:
-	@ python check-exit-code.py $(BINDIR)/qual-recalib-stat
+	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/qual-recalib-stat
 
 .PHONY: $(TEST_TOOLS)
 

@@ -61,6 +61,11 @@
  */
 
 static uint64_t num_files;
+static uint64_t max_size = 0; 
+static uint64_t max_offset = 0;
+static uint32_t max_size_fw;
+static uint32_t max_offset_fw;
+
 
 typedef struct KARDir KARDir;
 
@@ -189,16 +194,29 @@ void printEntry ( const KAREntry *entry, KARPrintMode *kpm )
 }
 
 static
+uint32_t get_field_width ( uint64_t num )
+{
+    uint64_t count;
+    if ( num == 0 )
+        return 3;
+
+    for ( count = 0; num != 0; ++ count )
+        num /= 10;
+
+    return count;
+}
+
+static
 void printFile ( const KARFile *file, KARPrintMode *kpm )
 {
     if ( kpm -> pm == pm_longlist )
     {
         if ( file -> byte_size == 0 )
-            KOutMsg ( "%03c ", '-' );
+            KOutMsg ( "%*c ", max_size_fw, '-' );
         else
-            KOutMsg ( "% 3u ", file -> byte_size );
+            KOutMsg ( "%*lu ", max_size_fw, file -> byte_size );
             
-        KOutMsg ( "%u ", file -> byte_offset );
+        KOutMsg ( "%*lu ", max_offset_fw, file -> byte_offset );
     }
 
     printEntry ( ( KAREntry * ) file, kpm );
@@ -210,8 +228,8 @@ void printDir ( const KARDir *dir, KARPrintMode *kpm )
 {
     if ( kpm -> pm == pm_longlist )
     {
-        KOutMsg ( "%03c ", '-' );
-        KOutMsg ( "%03c ", '-' );
+        KOutMsg ( "%*c ", max_size_fw, '-' );
+        KOutMsg ( "%*c ", max_offset_fw, '-' );
     }
 
     printEntry ( & dir -> dad, kpm );
@@ -224,8 +242,8 @@ void printAlias ( const KARAlias *alias, KARPrintMode *kpm, uint8_t type )
 {
     if ( kpm -> pm == pm_longlist )
     {
-        KOutMsg ( "% 3u ", string_size ( alias -> link ) );
-        KOutMsg ( "%03c ", '-' );
+        KOutMsg ( "% *u ", max_size_fw, string_size ( alias -> link ) );
+        KOutMsg ( "% *c ", max_offset_fw, '-' );
         printEntry ( ( KAREntry * ) alias, kpm );
         KOutMsg ( " -> %s", alias -> link );
     }
@@ -420,8 +438,11 @@ rc_t kar_entry_inflate ( KAREntry **rtn, size_t entry_size, const char *name, si
                          uint64_t mod_time, uint32_t access_mode, uint8_t type )
 {
     rc_t rc;
+    KAREntry * entry;
 
-    KAREntry * entry = calloc ( 1, entry_size + name_len );
+    STATUS ( STAT_QA, "inflating entry for '%s' with name_len: %u + entry_size: %u", 
+             name, ( uint32_t ) name_len, ( uint32_t ) entry_size );
+    entry = calloc ( 1, entry_size + name_len + 1 );
     if ( entry == NULL )
     {
         rc = RC (rcExe, rcNode, rcAllocating, rcMemory, rcExhausted);
@@ -437,7 +458,7 @@ rc_t kar_entry_inflate ( KAREntry **rtn, size_t entry_size, const char *name, si
         assert ( entry_size >= sizeof * entry );
 
         /* populate the name by copying to the end of structure */
-        memcpy ( dst, name, name_len );
+        memcpy ( dst, name, name_len + 1 );
 
         entry -> name = dst;
         entry -> mod_time = mod_time;
@@ -445,6 +466,7 @@ rc_t kar_entry_inflate ( KAREntry **rtn, size_t entry_size, const char *name, si
         entry -> type = type;
 
         *rtn = entry;
+        STATUS ( STAT_QA, "finished inflating entry for '%s'", entry -> name );
         return 0;
     }
 
@@ -887,33 +909,41 @@ static
 rc_t kar_persist_karfile ( const KARFile * entry, size_t *num_writ, PTWriteFunc write, void *write_param )
 {
     size_t total_expected, total_written;
-    rc_t rc = kar_persist_karentry ( & entry -> dad, ktocentrytype_file, num_writ, write, write_param );
+    rc_t rc = kar_persist_karentry ( & entry -> dad,
+                                     entry -> byte_size == 0 ? ktocentrytype_emptyfile : ktocentrytype_file,
+                                     num_writ, write, write_param );
     if ( rc == 0 )
     {
         total_written = * num_writ;
-        
-        /* determine size */
-        total_expected
-            = total_written               /* from KAREntry       */
-            + sizeof entry -> byte_offset  /* specific to KARFile */
-            + sizeof entry -> byte_size
-            ;
 
-        /* if determining size of toc - return */
-        if ( write == NULL )
+        /* empty files are given a special type in the toc */
+        if ( entry -> byte_size == 0 )
+            total_expected = total_written;
+        else
         {
-            * num_writ = total_expected;
-            return 0;
-        }
+            /* determine size */
+            total_expected
+                = total_written               /* from KAREntry       */
+                + sizeof entry -> byte_offset  /* specific to KARFile */
+                + sizeof entry -> byte_size
+                ;
 
-        /* actually write the toc file entry */
-        rc = ( * write ) ( write_param, &entry -> byte_offset, sizeof entry -> byte_offset, num_writ );
-        if ( rc == 0 )
-        {
-            total_written += * num_writ;
-            rc = ( * write ) ( write_param, &entry -> byte_size, sizeof entry -> byte_size, num_writ );
+            /* if determining size of toc - return */
+            if ( write == NULL )
+            {
+                * num_writ = total_expected;
+                return 0;
+            }
+
+            /* actually write the toc file entry */
+            rc = ( * write ) ( write_param, &entry -> byte_offset, sizeof entry -> byte_offset, num_writ );
             if ( rc == 0 )
-                total_written += *num_writ;
+            {
+                total_written += * num_writ;
+                rc = ( * write ) ( write_param, &entry -> byte_size, sizeof entry -> byte_size, num_writ );
+                if ( rc == 0 )
+                    total_written += *num_writ;
+            }
         }
     }
 
@@ -1595,6 +1625,37 @@ void kar_inflate_toc ( PBSTNode *node, void *data )
         offset = toc_data_copy ( & file -> byte_offset, sizeof file -> byte_offset, toc_data, node -> data . size, offset );
         toc_data_copy ( & file -> byte_size, sizeof file -> byte_size, toc_data, node -> data . size, offset );
 
+        if ( file -> byte_size > max_size )
+            max_size = file -> byte_size;
+        if ( file -> byte_offset > max_offset )
+            max_offset = file -> byte_offset;
+
+        STATUS ( STAT_QA, "inserting '%s'", file -> dad . name );
+        rc = BSTreeInsert ( ( BSTree * ) data, &file -> dad . dad, kar_entry_cmp );
+        if ( rc != 0 )
+        {
+            LOGERR (klogErr, rc, "failed insert KARFile into tree");
+            exit ( 3 );
+        }
+
+        break;
+    }
+    case ktocentrytype_emptyfile:
+    {
+        KARFile *file;
+
+        rc = kar_entry_inflate ( ( KAREntry ** ) &file, sizeof *file, name, name_len,
+             mod_time, access_mode, kptFile );
+        if ( rc != 0 )
+        {
+            LOGERR (klogErr, rc, "failed inflate KARFile");
+            exit ( 3 );
+        }
+
+        file -> byte_offset = 0;
+        file -> byte_size = 0;
+
+        STATUS ( STAT_QA, "inserting '%s'", file -> dad . name );
         rc = BSTreeInsert ( ( BSTree * ) data, &file -> dad . dad, kar_entry_cmp );
         if ( rc != 0 )
         {
@@ -1796,6 +1857,7 @@ rc_t extract_file ( const KARFile *src, const extract_block *eb )
 static
 rc_t extract_dir ( const KARDir *src, const extract_block *eb )
 {
+    STATUS ( STAT_QA, "extracting dir: %s", src -> dad . name );
     rc_t rc = KDirectoryCreateDir ( eb -> cdir, 0700, kcmCreate, "%s", src -> dad . name );
     if ( rc == 0 )
     {
@@ -1823,6 +1885,7 @@ bool CC kar_extract ( BSTNode *node, void *data )
     const KAREntry *entry = ( KAREntry * ) node;
     extract_block *eb = ( extract_block * ) data;
     eb -> rc = 0;
+    STATUS ( STAT_QA, "Entry to extract: %s", entry -> name );
 
     switch ( entry -> type )
     {
@@ -1893,6 +1956,7 @@ rc_t kar_test_extract ( const Params *p )
             tree = & root . contents;
             BSTreeInit ( tree );
 
+            STATUS ( STAT_QA, "extracting toc" );
             rc = kar_extract_toc ( archive, tree, &toc_pos, toc_size );
             if ( rc == 0 )
             {
@@ -1904,7 +1968,12 @@ rc_t kar_test_extract ( const Params *p )
                 /* Finish test */
                 if ( p -> x_count == 0 )
                 {
+                    STATUS ( STAT_QA, "Test Mode" );
                     KARPrintMode kpm;
+
+                    max_size_fw = get_field_width ( max_size );
+                    max_offset_fw = get_field_width ( max_offset );
+
                     kpm . indent = 0;
 
                     if ( p -> long_list )
@@ -1920,14 +1989,17 @@ rc_t kar_test_extract ( const Params *p )
                 else
                 {
                     /* begin extracting */
+                    STATUS ( STAT_QA, "Extract Mode" );
                     extract_block eb;
                     eb . archive = archive;
                     eb . extract_pos = file_offset;
                     eb . rc = 0;
 
+                    STATUS ( STAT_QA, "creating directory from path: %s", p -> directory_path );
                     rc = KDirectoryCreateDir ( wd, 0777, kcmInit, "%s", p -> directory_path );
                     if ( rc == 0 )
                     {
+                        STATUS ( STAT_QA, "opening directory"  );
                         rc = KDirectoryOpenDirUpdate ( wd, &eb . cdir, false, "%s", p -> directory_path );
                         if ( rc == 0 )
                         {

@@ -27,7 +27,7 @@ KAR=kar
 [ $# -ge 1 ] && KAR="$1"
 
 ACCLIST="acc.txt"
-acc=""
+acc="tmp"
 
 cleanup ()
 {
@@ -35,7 +35,7 @@ cleanup ()
     rm -rf $acc* *-dump.txt
 }
 
-trap 'echo " quitting" && cleanup && exit 1' 2
+trap 'echo " quitting $acc test" && cleanup && exit 1' 2
 
 for acc in `shuf -n 1 $ACCLIST | cut -d',' -f2`
 do

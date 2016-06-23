@@ -28,20 +28,50 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/vdb-dump
 
-TEST_TOOLS = 
+TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
 .PHONY: $(TEST_TOOLS)
 
-runtests: vdb-dump 
+runtests: vdb-dump
 
-vdb-dump:
-	rm -rf actual
-	mkdir -p actual
-	$(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
-	$(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout; diff expected/1.1.stdout actual/1.1.stdout
-	rm -rf actual
+#-------------------------------------------------------------------------------
+# vdb-dump-makedb
+# Create test databases
+MAKEDB_SRC = \
+	makedb
 
-.PHONY: kar 
+MAKEDB_OBJ = \
+	$(addsuffix .$(OBJX),$(MAKEDB_SRC))
+
+MAKEDB_LIB = \
+    -skapp \
+	-sktst \
+    -sncbi-wvdb
+
+$(TEST_BINDIR)/vdb-dump-makedb: $(MAKEDB_OBJ)
+	$(LP) --exe -o $@ $^ $(MAKEDB_LIB)
+
+makedb: $(TEST_BINDIR)/vdb-dump-makedb
+	@ cd $(SRCDIR); rm -rf data; mkdir -p data; $(TEST_BINDIR)/vdb-dump-makedb
+
+#-------------------------------------------------------------------------------
+# run tests for vdb-dump
+vdb-dump: makedb
+	@ rm -rf actual
+	@ mkdir -p actual
+	@ echo "testing vdb-dump..."
+	@ # output format
+	@ $(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
+	@ $(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
+	@ # nested databases
+	@ $(BINDIR)/vdb-dump -E data/NestedDatabase >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
+	@ $(BINDIR)/vdb-dump -T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase >actual/2.1.stdout && diff expected/2.1.stdout actual/2.1.stdout
+	@ $(BINDIR)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase >actual/2.2.stdout && diff expected/2.2.stdout actual/2.2.stdout
+	@ rm -rf actual
+	@ rm -rf data
+	@ echo "...all tests passed"
+
+.PHONY: kar
 

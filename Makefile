@@ -42,7 +42,7 @@ include $(TOP)/build/Makefile.targets
 
 default: $(SUBDIRS)
 
-test: $(SUBDIRS)
+test: all
 
 $(SUBDIRS) test:
 	@ $(MAKE) -C $@

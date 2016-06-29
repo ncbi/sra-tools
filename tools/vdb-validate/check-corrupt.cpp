@@ -334,7 +334,7 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
             throw DATA_ERROR(ss.str());
         }
 
-        int64_t sum_unaligned_read_len = 0;
+        uint64_t sum_unaligned_read_len = 0;
         for ( uint32_t j = 0; j < seq_pa_id_len; ++j )
         {
             if ( p_seq_pa_id[j] == 0 )

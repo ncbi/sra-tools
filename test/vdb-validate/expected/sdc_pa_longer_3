@@ -22,5 +22,5 @@ info: Column 'QUALITY': checksums ok
 info: Column 'READ_LEN': checksums ok
 info: Database 'db/sdc_pa_longer.csra': SEQUENCE.PRIMARY_ALIGNMENT_ID <-> PRIMARY_ALIGNMENT.SEQ_SPOT_ID referential integrity ok
 info: Database 'db/sdc_pa_longer.csra': REFERENCE.PRIMARY_ALIGNMENT_IDS <-> PRIMARY_ALIGNMENT.REF_ID referential integrity ok
-info: Database 'db/sdc_pa_longer.csra': SECONDARY_ALIGNMENT table checks ok
+info: Database 'db/sdc_pa_longer.csra': SEQUENCE and SECONDARY_ALIGNMENT tables data integrity checks ok
 info: Database 'sdc_pa_longer.csra' is consistent

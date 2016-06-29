@@ -24,8 +24,6 @@
 *
 */
 
-#include "demo.vers.h" /* VDB_PASSWD_VERS */
-
 #include <sysalloc.h>
 #include <kapp/main.h> /* KMain */
 
@@ -208,8 +206,6 @@ rc_t run (
 
     return RCt;
 }
-
-ver_t CC KAppVersion(void) { return DEMO_VERS; }
 
 /*  Here I will temporarily parce arguments, and will attach
  *  toolkit ones later ... test program :)

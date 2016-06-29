@@ -28,8 +28,7 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/sra-sort
 
-include $(TOP)/build/Makefile.env
-include $(SRCDIR)/Makefile.$(COMP)
+include $(TOP)/build/Makefile.shell
 
 INT_TOOLS = \
 	dump-blob-boundaries
@@ -44,39 +43,19 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+include $(SRCDIR)/Makefile.$(COMP)
+
 #------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/$@
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# all
-#
-$(TARGDIR)/all: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/all
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -123,11 +102,12 @@ SRA_SORT_OBJ = \
 
 SRA_SORT_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-wvdb \
 	-lm
 
 $(BINDIR)/sra-sort: $(SRA_SORT_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SRA_SORT_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRA_SORT_LIB)
 
 #-------------------------------------------------------------------------------
 # dump-blob-boundaries

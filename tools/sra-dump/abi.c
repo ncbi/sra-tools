@@ -39,7 +39,6 @@
 #include <string.h>
 
 #include "core.h"
-#include "abi-dump.vers.h"
 #include "debug.h"
 
 #define DATABUFFERINITSIZE 10240
@@ -739,12 +738,6 @@ const char UsageDefaultName[] = "abi-dump";
 rc_t CC UsageSummary (const char * progname)
 {
     return 0;
-}
-
-
-ver_t CC KAppVersion( void )
-{
-    return ABI_DUMP_VERS;
 }
 
 struct AbsolidArgs_struct {

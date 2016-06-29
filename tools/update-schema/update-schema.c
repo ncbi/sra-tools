@@ -24,7 +24,6 @@
 *
 */
 
-#include "vdb-update-schema.vers.h"
 #include <kapp/main.h>
 #include <vdb/vdb-priv.h> /* VTableStoreSchema */
 #include <vdb/manager.h> /* VDBManager */
@@ -62,7 +61,6 @@ typedef struct Db {
     bool updatedPlatf;
     bool deletedSchema;
 } Db;
-ver_t CC KAppVersion(void) { return VDB_UPDATE_SCHEMA_VERS; }
 #define OPTION_PLATF "platform"
 #define ALIAS_PLATF  "p"
 static const char* platf_usage[] = { "Platform: LS454 | ILLUMINA | HELICOS",

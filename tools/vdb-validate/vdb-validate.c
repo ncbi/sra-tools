@@ -83,8 +83,6 @@
 #include <assert.h>
 #include <math.h>
 
-#include "vdb-validate.vers.h"
-
 #ifndef MIN
 #define MIN(a,b)    (((a) < (b)) ? (a) : (b))
 #endif
@@ -2810,11 +2808,6 @@ rc_t CC Usage ( const Args * args )
     HelpVersion ( fullpath, KAppVersion () );
 
     return 0;
-}
-
-uint32_t CC KAppVersion ( void )
-{
-    return VDB_VALIDATE_VERS;
 }
 
 static

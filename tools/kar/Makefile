@@ -28,8 +28,6 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/kar
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS = \
 
 EXT_TOOLS = \
@@ -40,31 +38,18 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -85,11 +70,12 @@ KAR_OBJ = \
 
 KAR_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 
 
 $(BINDIR)/kar: $(KAR_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(KAR_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KAR_LIB)
 
 
 #----------------------------------------------------------------
@@ -104,9 +90,10 @@ SRA_KAR_OBJ = \
 
 SRA_KAR_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-vdb \
 
 $(BINDIR)/sra-kar: $(SRA_KAR_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SRA_KAR_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRA_KAR_LIB)
 
 

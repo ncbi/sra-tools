@@ -24,8 +24,6 @@
 *
 */
 
-#include "sra-stat.vers.h"
-
 #include "sra-stat.h" /* VTableMakeSingleFileArchive_ */
 
 #include <insdc/sra.h> /* SRA_READ_TYPE_BIOLOGICAL */
@@ -3278,18 +3276,6 @@ rc_t run(srastat_parms* pb)
 
     return rc;
 }
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return SRA_STAT_VERS;
-}
-
 
 /* Usage */
 #define ALIAS_ALIGN    "a"

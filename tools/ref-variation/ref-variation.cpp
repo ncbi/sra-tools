@@ -26,8 +26,6 @@
 
 #define SECRET_OPTION 0
 
-#include "ref-variation.vers.h"
-
 #include <iostream>
 #include <string.h>
 #include <stdio.h>
@@ -1990,10 +1988,6 @@ BREAK_ALIGNMENT_ITER:
 extern "C"
 {
     const char UsageDefaultName[] = "ref-variation";
-    ver_t CC KAppVersion ()
-    {
-        return REF_VARIATION_VERS;
-    }
 
     rc_t CC UsageSummary (const char * progname)
     {

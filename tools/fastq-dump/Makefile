@@ -27,21 +27,26 @@ default: std
 
 TOP ?= $(abspath ../..)
 
-
 MODULE = tools/fastq-dump
 
-include $(TOP)/build/Makefile.env
+INT_TOOLS = 
+
+EXT_TOOLS = \
+	fastq-dump-new \
 
 ALL_TOOLS = \
-	fastq-dump-new \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
+
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -53,13 +58,6 @@ $(TARGDIR)/std: \
 	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
 
 .PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -76,6 +74,7 @@ DUMP_LIBS = \
 	-lngs-c++         \
 	-lncbi-vdb-static \
 	-lkapp \
+	-stk-version
 
 #-------------------------------------------------------------------------------
 # fastq-dump
@@ -91,4 +90,4 @@ FASTQ_DUMP_OBJ = \
 	$(addsuffix .$(OBJX),$(FASTQ_DUMP_SRC))
 
 $(BINDIR)/fastq-dump-new: $(FASTQ_DUMP_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(DUMP_LIBS)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(DUMP_LIBS)

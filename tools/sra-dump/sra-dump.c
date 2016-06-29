@@ -24,8 +24,6 @@
 *
 */
 
-#include "sra-dump.vers.h"
-
 #include <sra/sradb.h>
 #include <sra/srapath.h>
 #include <sra/types.h>
@@ -788,18 +786,6 @@ rc_t run ( sradump_parms *pb )
 
     return rc;
 }
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-uint32_t CC KAppVersion ( void )
-{
-    return SRA_DUMP_VERS;
-}
-
 
 /* Usage
  */

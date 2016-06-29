@@ -24,8 +24,6 @@
  * 
  */
 
-#include "latf-load.vers.h"
-
 #include <sysalloc.h>
 
 #include <string.h>
@@ -258,11 +256,6 @@ rc_t CC Usage (const Args * args)
 #define SCHEMAFILE "align/align.vschema"
 
 CommonWriterSettings G;
-
-uint32_t CC KAppVersion (void)
-{
-    return LATF_LOAD_VERS;
-}
 
 #ifdef _WIN32
 #include <process.h>

@@ -27,7 +27,6 @@ default: std
 
 TOP ?= $(abspath ../..)
 MODULE = tools/sra-seq-count
-include $(TOP)/build/Makefile.env
 
 INT_TOOLS = \
 
@@ -38,31 +37,18 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -76,8 +62,9 @@ clean: stdclean
 #
 TOOL_LIBS = \
 	-skapp	\
-	-sngs-c++ \
+	-stk-version \
 	-sncbi-ngs-c++ \
+	-sngs-c++ \
 	-sncbi-vdb-static
 
 #-------------------------------------------------------------------------------
@@ -93,4 +80,4 @@ TOOL_OBJ = \
 	$(addsuffix .$(OBJX),$(TOOL_SRC))
 
 $(BINDIR)/sra-seq-count: $(TOOL_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(TOOL_LIBS)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIBS)

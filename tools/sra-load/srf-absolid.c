@@ -37,7 +37,6 @@ typedef struct SRFAbsolidLoaderFmt SRFAbsolidLoaderFmt;
 #include "srf-fmt.h"
 #include "pstring.h"
 #include "writer-absolid.h"
-#include "srf-load.vers.h"
 #include "debug.h"
 
 #include <endian.h>
@@ -454,7 +453,7 @@ rc_t SRFAbsolidLoaderFmt_Whack(SRFAbsolidLoaderFmt* self, SRATable** table)
 static
 rc_t SRFAbsolidLoaderFmt_Version( const SRFAbsolidLoaderFmt* self, uint32_t* vers, const char** name )
 {
-    *vers = SRF_LOAD_VERS;
+    *vers = KAppVersion();
     *name = "AB SOLiD SRF";
     return 0;
 }

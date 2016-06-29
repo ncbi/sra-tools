@@ -24,8 +24,6 @@
 *
 */
 
-#include "pacbio-load.vers.h"
-
 #include "pl-context.h"
 #include "pl-tools.h"
 #include "pl-zmw.h"
@@ -118,19 +116,6 @@ rc_t CC Usage ( const Args * args )
     HelpVersion ( fullpath, KAppVersion() );
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return PACBIO_LOAD_VERS;
-}
-
 
 static bool pacbio_is_schema_dflt( const char * schema )
 {
@@ -230,7 +215,7 @@ static rc_t pacbio_meta_entry( VDatabase * db, const char * toolname )
         }
         else
         {
-            rc = KLoaderMeta_Write( node, toolname, __DATE__, "PacBio HDF5", PACBIO_LOAD_VERS );
+            rc = KLoaderMeta_Write( node, toolname, __DATE__, "PacBio HDF5", KAppVersion() );
             if ( rc != 0 )
             {
                 LOGERR( klogErr, rc, "Cannot write pacbio metadata node" );

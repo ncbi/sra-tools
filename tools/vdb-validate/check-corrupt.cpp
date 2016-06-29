@@ -24,8 +24,6 @@
 *
 */
 
-#include "check-corrupt.vers.h"
-
 #include <klib/rc.h>
 #include <klib/log.h>
 #include <klib/out.h>
@@ -410,8 +408,8 @@ extern "C"
 {
 
 #include <kapp/args.h>
+#include <kapp/main.h>
 #include <kapp/log-xml.h>
-#include "check-corrupt.vers.h"
 
 const char UsageDefaultName[] = "test-general-loader";
 
@@ -432,10 +430,6 @@ OptDef Options[] = {
       { OPTION_SA_SHORT_THRESHOLD , ALIAS_SA_SHORT_THRESHOLD , NULL, sa_short_threshold_usage , 1, true , false }
 };
 
-ver_t CC KAppVersion ( void )
-{
-    return CHECK_CORRUPT_VERS;
-}
 rc_t CC UsageSummary (const char * progname)
 {
     return KOutMsg (

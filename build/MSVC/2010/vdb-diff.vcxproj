@@ -32,6 +32,7 @@
   <Import Project="..\vdb-diff.files" />
 
   <PropertyGroup Label="Globals">
+  	<ProjectGuid>{B54A02A3-65A3-6E18-84CD-9003BED39F90}</ProjectGuid>
   </PropertyGroup>
 
 </Project>

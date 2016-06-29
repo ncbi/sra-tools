@@ -24,8 +24,6 @@
 *
 */
 
-#include "nenctest.vers.h"
-
 #include <kapp/main.h>
 
 #include <vfs/manager.h>
@@ -41,19 +39,6 @@
 #include <klib/rc.h>
 
 #include <assert.h>
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return NENCTEST_VERS;
-}
-
 
 #define OPTION_FORCE   "force"
 #define ALIAS_FORCE   "f"

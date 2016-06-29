@@ -29,13 +29,6 @@
 #include <kapp/main.h>
 #include <kapp/args.h>
 
-#include "sra-gui.vers.h"
-
-uint32_t CC KAppVersion ( void )
-{
-    return SRA_GUI_VERS;
-}
-
 rc_t CC Usage ( const Args * args )
 {
     return 0;

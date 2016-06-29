@@ -41,8 +41,6 @@
  *          - "IN" init failed (bad password?)
  */
 
-#include "keyring-srv.vers.h"
-
 #include "keyring-srv.h"
 
 #include <klib/text.h>
@@ -269,11 +267,6 @@ char const UsageDefaultName[] = "keyring-srv";
 rc_t CC Usage (const Args * args)
 {
     return 0;
-}
-
-uint32_t CC KAppVersion (void)
-{
-    return KEYRING_SRV_VERS;
 }
 
 /*TODO: handle signals */

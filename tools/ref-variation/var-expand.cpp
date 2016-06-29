@@ -1,5 +1,3 @@
-#include "var-expand.vers.h"
-
 #include <kapp/main.h>
 #include <klib/rc.h>
 
@@ -377,10 +375,6 @@ namespace VarExpand
 extern "C"
 {
     const char UsageDefaultName[] = "var-expand";
-    ver_t CC KAppVersion ()
-    {
-        return VAR_EXPAND_VERS;
-    }
 
     rc_t CC UsageSummary (const char * progname)
     {

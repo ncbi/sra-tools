@@ -24,8 +24,6 @@
  *
  */
 
-#include "bam-load.vers.h"
-
 #include <kapp/main.h>
 #include <kapp/args.h>
 #include <klib/text.h>
@@ -558,11 +556,6 @@ rc_t CC Usage (const Args * args)
 #define SCHEMAFILE "align/align.vschema"
 
 Globals G;
-
-uint32_t CC KAppVersion (void)
-{
-    return BAM_LOAD_VERS;
-}
 
 #ifdef _WIN32
 #include <process.h>

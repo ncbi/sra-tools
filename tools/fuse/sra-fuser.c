@@ -29,7 +29,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sra-fuser.vers.h"
 #include "xml.h"
 #include "sra-fuser.h"
 #include "log.h"
@@ -114,11 +113,6 @@ rc_t CC Usage ( const Args * args )
 {
     /* dummy for newer args system will be filled when system is complete!!! */
     return 0;
-}
-
-uint32_t KAppVersion(void)
-{
-    return SRA_FUSER_VERS;
 }
 
 void SRA_FUSER_Init(void)

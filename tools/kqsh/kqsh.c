@@ -24,7 +24,6 @@
 *
 */
 
-#include "kqsh.vers.h"
 #include "kqsh-priv.h"
 #include "kqsh-tok.h"
 
@@ -304,19 +303,6 @@ rc_t kqsh_init_console ( KTokenText *console )
     }
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-rc_t CC KAppVersion ( void )
-{
-    return KQSH_VERS;
-}
-    
 
 #define OPTION_UPDATE  "update"
 #define OPTION_LIBPATH "lib-path"

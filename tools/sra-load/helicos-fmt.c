@@ -42,7 +42,6 @@ typedef struct HelicosLoaderFmt HelicosLoaderFmt;
 
 #include "pstring.h"
 #include "writer-helicos.h"
-#include "helicos-load.vers.h"
 #include "debug.h"
 
 typedef enum EFileType_enum {
@@ -227,15 +226,10 @@ rc_t HelicosLoaderFmt_Whack(HelicosLoaderFmt *self, SRATable** table)
 
 const char UsageDefaultName[] = "helicos-load";
 
-uint32_t KAppVersion(void)
-{
-    return HELICOS_LOAD_VERS;
-}
-
 static
 rc_t HelicosLoaderFmt_Version (const HelicosLoaderFmt* self, uint32_t *vers, const char** name )
 {
-    *vers = HELICOS_LOAD_VERS;
+    *vers = KAppVersion();
     *name = "Helicos";
     return 0;
 }

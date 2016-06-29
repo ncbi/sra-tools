@@ -24,8 +24,6 @@
 *
 */
 
-#include "vdb-passwd.vers.h" /* VDB_PASSWD_VERS */
-
 #include "syspass-priv.h" /* get_pass */
 
 #include <kapp/main.h> /* KMain */
@@ -249,7 +247,6 @@ rc_t CC Usage(const Args *args) {
     return 0;
 }
 
-ver_t CC KAppVersion(void) { return VDB_PASSWD_VERS; }
 #if 0
 rc_t CC KMain(int argc, char *argv[]) {
     Args *args;

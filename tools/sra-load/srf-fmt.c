@@ -33,17 +33,11 @@
 #include "srf.h"
 #include "ztr.h"
 #include "srf-fmt.h"
-#include "srf-load.vers.h"
 #include "experiment-xml.h"
 #include "debug.h"
 
 
 const char UsageDefaultName[] = "srf-load";
-
-uint32_t KAppVersion(void)
-{
-    return SRF_LOAD_VERS;
-}
 
 extern rc_t SRFIlluminaLoaderFmt_Make(SRALoaderFmt **self, const SRALoaderConfig *config);
 

@@ -23,8 +23,6 @@
  * =============================================================================
  */
 
-#include "read-filter-redact.vers.h" /* READ_FILTER_REDACT_VERS */
-
 #include <kapp/main.h>
 
 #include <sra/wsradb.h> /* spotid_t */
@@ -720,8 +718,6 @@ static rc_t Run(const CmdLine* args)
 
     return rc;
 }
-
-ver_t CC KAppVersion(void) { return READ_FILTER_REDACT_VERS; }
 
 #define OPTION_FILE  "file"
 #define ALIAS_FILE   "F"

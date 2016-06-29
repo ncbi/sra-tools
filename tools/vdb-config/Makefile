@@ -28,8 +28,6 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/vdb-config
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS =
 
 EXT_TOOLS = \
@@ -38,32 +36,19 @@ EXT_TOOLS = \
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
+	
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -89,8 +74,9 @@ VDB_CONFIG_LIB = \
 	-stui_cpp    \
 	-stui        \
 	-skapp       \
+	-stk-version \
 	-sncbi-vdb   \
 	-sm
 
 $(BINDIR)/vdb-config: $(VDB_CONFIG_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_CONFIG_LIB)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_CONFIG_LIB)

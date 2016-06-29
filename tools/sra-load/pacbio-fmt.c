@@ -39,7 +39,6 @@ typedef struct PacBioLoaderXmlFmt PacBioLoaderXmlFmt;
 #define SRALOADERFMT_IMPL PacBioLoaderXmlFmt
 #include "loader-fmt.h"
 
-#include "pacbio-loadxml.vers.h"
 #include "debug.h"
 
 struct PacBioLoaderXmlFmt {
@@ -95,15 +94,10 @@ rc_t PacBioLoaderXmlFmt_Whack(PacBioLoaderXmlFmt *self, SRATable** table)
 
 const char UsageDefaultName[] = "pacbio-loadxml";
 
-uint32_t KAppVersion(void)
-{
-    return PACBIO_LOADXML_VERS;
-}
-
 static
 rc_t PacBioLoaderXmlFmt_Version (const PacBioLoaderXmlFmt* self, uint32_t *vers, const char** name )
 {
-    *vers = PACBIO_LOADXML_VERS;
+    *vers = KAppVersion();
     *name = "PacBioXml";
     return 0;
 }

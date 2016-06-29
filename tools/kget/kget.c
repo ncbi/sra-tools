@@ -24,8 +24,6 @@
 *
 */
 
-#include "kget.vers.h"
-
 #include <kapp/main.h>
 #include <kapp/args.h>
 
@@ -194,19 +192,6 @@ rc_t CC Usage ( const Args * args )
 
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return KGET_VERS;
-}
-
 
 typedef struct fetch_ctx
 {

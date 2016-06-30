@@ -2060,6 +2060,7 @@ static rc_t ridc_align_seq_pri_sec(const vdb_validate_params *pb,
             uint32_t seq_pa_id_len;
 
             uint64_t sum_unaligned_read_len;
+            uint32_t j;
 
             // SEQUENCE:PRIMARY_ALIGNMENT_ID
             rc = VCursorCellDataDirect ( seq_cursor, seq_row_id, seq_pa_id_idx, NULL, (const void**)&p_seq_pa_id, NULL, &seq_pa_id_len );
@@ -2094,7 +2095,7 @@ static rc_t ridc_align_seq_pri_sec(const vdb_validate_params *pb,
             }
 
             sum_unaligned_read_len = 0;
-            for ( uint32_t j = 0; j < seq_pa_id_len; ++j )
+            for ( j = 0; j < seq_pa_id_len; ++j )
             {
                 if ( p_seq_pa_id[j] == 0 )
                 {

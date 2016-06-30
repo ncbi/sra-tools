@@ -5,6 +5,7 @@ TOOLS_TO_INSTALL = \
     bam-load        \
     cache-mgr       \
     cg-load         \
+	fastdump        \
     fastq-dump      \
     fastq-load      \
     helicos-load    \

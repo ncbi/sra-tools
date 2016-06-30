@@ -621,6 +621,10 @@ extern "C"
                 case 'V':
                     handle_version ( argv [ 0 ] );
                     return 0;
+                case 'L': // eat it and do nothing
+                    break;
+                case 'z': // eat it and do nothing
+                    break;
                 case '-':
                     ++ arg;
                     if ( strcmp ( arg, "output-file" ) == 0 )
@@ -689,6 +693,23 @@ extern "C"
                     {
                         handle_help ( argv [ 0 ] );
                         return 0;
+                    }
+                    else if ( strcmp ( arg, "version" ) == 0 )
+                    {
+                        handle_version ( argv [ 0 ] );
+                        return 0;
+                    }
+                    else if ( strcmp ( arg, "log-level" ) == 0 )
+                    {
+                        /* eat it and do nothing */
+                    }
+                    else if ( strcmp ( arg, "xml-log" ) == 0 )
+                    {
+                        /* eat it and do nothing */
+                    }
+                    else if ( strcmp ( arg, "xml-log-fd" ) == 0 )
+                    {
+                        /* eat it and do nothing */
                     }
                     else if ( strcmp ( arg, "version" ) == 0 )
                     {

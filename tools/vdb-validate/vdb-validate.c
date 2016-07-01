@@ -772,14 +772,21 @@ struct vdb_validate_params
     bool consist_check;
     bool exhaustive;
 
-    // secondary data checks parameters
+    // data integrity checks parameters
     bool sdc_enabled;
-    bool sdc_rows_in_percent;
+    bool sdc_sec_rows_in_percent;
     union
     {
         double percent;
         uint64_t number;
-    } sdc_rows;
+    } sdc_sec_rows;
+
+    bool sdc_seq_rows_in_percent;
+    union
+    {
+        double percent;
+        uint64_t number;
+    } sdc_seq_rows;
 
     bool sdc_pa_len_thold_in_percent;
     union
@@ -1581,8 +1588,8 @@ static rc_t ric_align_seq_and_pri(char const dbname[],
     return rc;
 }
 
-/* referential integrity and data checks for secondary alignment table */
-static rc_t ridc_align_sec(const vdb_validate_params *pb,
+/* referential integrity and data checks for sequence, primary and secondary alignment tables */
+static rc_t ridc_align_seq_pri_sec(const vdb_validate_params *pb,
                           char const dbname[],
                           VTable const *seq,
                           VTable const *pri,
@@ -1595,6 +1602,7 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
     VCursor const *sec_cursor2 = NULL;
 
     uint32_t seq_read_len_idx;
+    uint32_t seq_cmp_read_idx;
     uint32_t seq_pa_id_idx;
     uint32_t pri_has_ref_offset_idx;
     uint32_t sec_has_ref_offset_idx;
@@ -1604,7 +1612,9 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
     bool has_tmp_mismatch;
 
     int64_t sec_id_first;
+    int64_t seq_id_first;
     uint64_t sec_row_count;
+    uint64_t seq_row_count;
 
     size_t chunk_size;
     id_pair_t *pri_id_pairs = NULL;
@@ -1619,6 +1629,8 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
         rc2 = VTableCreateCursorRead(seq, &seq_cursor);
         if (rc2 == 0)
             rc2 = VCursorAddColumn(seq_cursor, &seq_read_len_idx, "%s", "READ_LEN");
+        if (rc2 == 0)
+            rc2 = VCursorAddColumn(seq_cursor, &seq_cmp_read_idx, "%s", "CMP_READ");
         if (rc2 == 0)
             rc2 = VCursorAddColumn(seq_cursor, &seq_pa_id_idx, "%s", "PRIMARY_ALIGNMENT_ID");
         if (rc2 == 0)
@@ -1693,11 +1705,19 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
         }
     }
 
+    // SECONDARY_ALIGNMENT row range
     if (rc == 0)
         rc = VCursorIdRange(sec_cursor, sec_has_ref_offset_idx, &sec_id_first, &sec_row_count);
     if (rc != 0)
         (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
-            "alignment table can not be read", "name=%s", dbname));
+            "secondary alignment table can not be read", "name=%s", dbname));
+
+    // SEQUENCE row range
+    if (rc == 0)
+        rc = VCursorIdRange(seq_cursor, seq_pa_id_idx, &seq_id_first, &seq_row_count);
+    if (rc != 0)
+        (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+            "sequence table can not be read", "name=%s", dbname));
 
     if (rc == 0)
     {
@@ -1735,12 +1755,12 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
         else
             pa_longer_sa_limit = pb->sdc_pa_len_thold.number;
 
-        if (pb->sdc_rows_in_percent)
-            sec_row_lmit = ceil( pb->sdc_rows.percent * sec_row_count );
-        else if (pb->sdc_rows.number == 0 || pb->sdc_rows.number > sec_row_count)
+        if (pb->sdc_sec_rows_in_percent)
+            sec_row_lmit = ceil( pb->sdc_sec_rows.percent * sec_row_count );
+        else if (pb->sdc_sec_rows.number == 0 || pb->sdc_sec_rows.number > sec_row_count)
             sec_row_lmit = sec_row_count;
         else
-            sec_row_lmit = pb->sdc_rows.number;
+            sec_row_lmit = pb->sdc_sec_rows.number;
 
         sec_row_id_end = sec_id_first + MIN(sec_row_count, sec_row_lmit);
 
@@ -1935,6 +1955,7 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
 
                 // SECONDARY_ALIGNMENT:HAS_REF_OFFSET
                 rc = VCursorCellDataDirect ( sec_cursor, sec_row_id, sec_has_ref_offset_idx, NULL, (const void**)&data_ptr, NULL, &sec_row_len );
+
                 if ( rc != 0 )
                 {
                     (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
@@ -2013,6 +2034,98 @@ static rc_t ridc_align_sec(const vdb_validate_params *pb,
     free(seq_spot_read_id_pairs);
     free(seq_read_lens);
 
+    if ( rc == 0 )
+    {
+        int64_t i;
+        int64_t i_count;
+        uint64_t seq_row_lmit;
+        // set limits from params
+        if (pb->sdc_seq_rows_in_percent)
+            seq_row_lmit = ceil( pb->sdc_seq_rows.percent * sec_row_count );
+        else if (pb->sdc_seq_rows.number == 0 || pb->sdc_seq_rows.number > sec_row_count)
+            seq_row_lmit = sec_row_count;
+        else
+            seq_row_lmit = pb->sdc_seq_rows.number;
+
+        i_count = MIN(seq_row_lmit, seq_row_count);
+
+        for ( i = 0; i < i_count; ++i )
+        {
+            int64_t seq_row_id = i + seq_id_first;
+
+            const void * data_ptr = NULL;
+            uint32_t data_len;
+            const int64_t * p_seq_pa_id;
+            const uint32_t * p_seq_read_len;
+            uint32_t seq_pa_id_len;
+
+            uint64_t sum_unaligned_read_len;
+            uint32_t j;
+
+            // SEQUENCE:PRIMARY_ALIGNMENT_ID
+            rc = VCursorCellDataDirect ( seq_cursor, seq_row_id, seq_pa_id_idx, NULL, (const void**)&p_seq_pa_id, NULL, &seq_pa_id_len );
+            if ( rc != 0 || p_seq_pa_id == NULL )
+            {
+                if (rc == 0)
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                        "VCursorCellDataDirect() failed on SEQUENCE table, PRIMARY_ALIGNMENT_ID column, spot_id: $(SPOT_ID)",
+                                        "name=%s,SPOT_ID=%ld", dbname, seq_row_id));
+                break;
+            }
+
+            // SEQUENCE:READ_LEN
+            rc = VCursorCellDataDirect ( seq_cursor, seq_row_id, seq_read_len_idx, NULL, (const void**)&p_seq_read_len, NULL, &data_len );
+            if ( rc != 0 || p_seq_read_len == NULL )
+            {
+                if (rc == 0)
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                        "VCursorCellDataDirect() failed on SEQUENCE table, READ_LEN column, spot_id: $(SPOT_ID)",
+                                        "name=%s,SPOT_ID=%ld", dbname, seq_row_id));
+                break;
+            }
+            if ( seq_pa_id_len != data_len )
+            {
+                rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                            "SEQUENCE:$(SEQ_SPOT_ID) PRIMARY_ALIGNMENT_ID length ($(SEQ_PA_LEN)) does not match SEQUENCE:$(SEQ_SPOT_ID) READ_LEN length ($(SEQ_READ_LEN_LEN))",
+                            "name=%s,SEQ_SPOT_ID=%ld,SEQ_PA_LEN=%u,SEQ_READ_LEN_LEN=%u", dbname, seq_row_id, seq_pa_id_len, data_len));
+                break;
+            }
+
+            sum_unaligned_read_len = 0;
+            for ( j = 0; j < seq_pa_id_len; ++j )
+            {
+                if ( p_seq_pa_id[j] == 0 )
+                {
+                    sum_unaligned_read_len += p_seq_read_len[j];
+                }
+            }
+
+            // SEQUENCE:CMP_READ
+            rc = VCursorCellDataDirect ( seq_cursor, seq_row_id, seq_cmp_read_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
+            if ( rc != 0 || data_ptr == NULL )
+            {
+                if (rc == 0)
+                    rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                                        "VCursorCellDataDirect() failed on SEQUENCE table, CMP_READ column, spot_id: $(SPOT_ID)",
+                                        "name=%s,SPOT_ID=%ld", dbname, seq_row_id));
+                break;
+            }
+
+            if ( sum_unaligned_read_len != data_len )
+            {
+                rc = RC(rcExe, rcDatabase, rcValidating, rcData, rcInconsistent);
+                (void)PLOGERR(klogErr, (klogErr, rc, "Database '$(name)': "
+                            "SEQUENCE:$(SEQ_SPOT_ID) CMP_READ length ($(CMD_READ_LEN)) does not match sum of unaligned READ_LEN values ($(SUM_UNALIGNED_READ_LEN))",
+                            "name=%s,SEQ_SPOT_ID=%ld,CMD_READ_LEN=%u,SUM_UNALIGNED_READ_LEN=%lu", dbname, seq_row_id, data_len, sum_unaligned_read_len));
+                break;
+            }
+        }
+    }
+
     VCursorRelease(sec_cursor2);
     VCursorRelease(sec_cursor);
     VCursorRelease(pri_cursor);
@@ -2056,10 +2169,10 @@ static rc_t dbric_align(const vdb_validate_params *pb,
         }
     }
     if (pb->sdc_enabled && (rc == 0 || exhaustive) && (pri != NULL && sec != NULL && seq != NULL)) {
-        rc_t rc2 = ridc_align_sec(pb, dbname, seq, pri, sec);
+        rc_t rc2 = ridc_align_seq_pri_sec(pb, dbname, seq, pri, sec);
         if (rc2 == 0) {
             (void)PLOGMSG(klogInfo, (klogInfo, "Database '$(dbname)': "
-                "SECONDARY_ALIGNMENT table checks ok", "dbname=%s", dbname));
+                "SEQUENCE and SECONDARY_ALIGNMENT tables data integrity checks ok", "dbname=%s", dbname));
         }
         if (rc == 0) {
             rc = rc2;
@@ -2705,9 +2818,15 @@ static const char *USAGE_REF_INT[] =
 #define ALIAS_REF_INT  "I"
 #define OPTION_REF_INT "REFERENTIAL-INTEGRITY"
 
-#define OPTION_SDC_ROWS "sdc:rows"
-static const char *USAGE_SDC_ROWS[] =
-{ "Specify maximum amount of secondary alignment rows to look at before saying accession is good, default 100000.",
+#define OPTION_SDC_SEC_ROWS "sdc:rows"
+static const char *USAGE_SDC_SEC_ROWS[] =
+{ "Specify maximum amount of secondary alignment table rows to look at before saying accession is good, default 100000.",
+  "Specifying 0 will iterate the whole table. Can be in percent (e.g. 5%)",
+  NULL };
+
+#define OPTION_SDC_SEQ_ROWS "sdc:seq-rows"
+static const char *USAGE_SDC_SEQ_ROWS[] =
+{ "Specify maximum amount of sequence table rows to look at before saying accession is good, default 100000.",
   "Specifying 0 will iterate the whole table. Can be in percent (e.g. 5%)",
   NULL };
 
@@ -2735,7 +2854,8 @@ static OptDef options [] =
   , { OPTION_CNS_CHK , ALIAS_CNS_CHK , NULL, USAGE_CNS_CHK , 1, true , false }
 
     /* secondary alignment table data check options */
-  , { OPTION_SDC_ROWS, NULL          , NULL, USAGE_SDC_ROWS, 1, true , false }
+  , { OPTION_SDC_SEC_ROWS, NULL      , NULL, USAGE_SDC_SEC_ROWS, 1, true , false }
+  , { OPTION_SDC_SEQ_ROWS, NULL      , NULL, USAGE_SDC_SEQ_ROWS, 1, true , false }
   , { OPTION_SDC_PLEN_THOLD, NULL    , NULL, USAGE_SDC_PLEN_THOLD, 1, true , false }
 
     /* not printed by --help */
@@ -2790,7 +2910,8 @@ rc_t CC Usage ( const Args * args )
     HelpOptionLine(ALIAS_REF_INT , OPTION_REF_INT , "yes | no", USAGE_REF_INT);
     HelpOptionLine(ALIAS_CNS_CHK , OPTION_CNS_CHK , "yes | no", USAGE_CNS_CHK);
     HelpOptionLine(ALIAS_EXHAUSTIVE, OPTION_EXHAUSTIVE, NULL, USAGE_EXHAUSTIVE);
-    HelpOptionLine(NULL          , OPTION_SDC_ROWS, "rows"    , USAGE_SDC_ROWS);
+    HelpOptionLine(NULL          , OPTION_SDC_SEC_ROWS, "rows"    , USAGE_SDC_SEC_ROWS);
+    HelpOptionLine(NULL          , OPTION_SDC_SEQ_ROWS, "rows"    , USAGE_SDC_SEQ_ROWS);
     HelpOptionLine(NULL          , OPTION_SDC_PLEN_THOLD, "threshold", USAGE_SDC_PLEN_THOLD);
 
 /*
@@ -2821,8 +2942,10 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
     pb->consist_check = false;
     ref_int_check = pb -> blob_crc
         = pb -> md5_chk_explicit = md5_required = true;
-    pb -> sdc_rows_in_percent = false;
-    pb -> sdc_rows.number = 100000;
+    pb -> sdc_sec_rows_in_percent = false;
+    pb -> sdc_sec_rows.number = 100000;
+    pb -> sdc_seq_rows_in_percent = false;
+    pb -> sdc_seq_rows.number = 100000;
     pb -> sdc_pa_len_thold_in_percent = true;
     pb -> sdc_pa_len_thold.percent = 0.01;
 
@@ -2931,10 +3054,10 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
     }
   }
   {
-      rc = ArgsOptionCount ( args, OPTION_SDC_ROWS, &cnt );
+      rc = ArgsOptionCount ( args, OPTION_SDC_SEC_ROWS, &cnt );
       if (rc)
       {
-          LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_ROWS);
+          LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_SEC_ROWS);
           return rc;
       }
 
@@ -2942,10 +3065,10 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
       {
           uint64_t value;
           size_t value_size;
-          rc = ArgsOptionValue ( args, OPTION_SDC_ROWS, 0, (const void **) &dummy );
+          rc = ArgsOptionValue ( args, OPTION_SDC_SEC_ROWS, 0, (const void **) &dummy );
           if (rc)
           {
-              LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_ROWS);
+              LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_SEC_ROWS);
               return rc;
           }
 
@@ -2957,33 +3080,86 @@ rc_t parse_args ( vdb_validate_params *pb, Args *args )
               value = string_to_U64 ( dummy, value_size - 1, &rc );
               if (rc)
               {
-                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_ROWS);
+                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_SEC_ROWS);
                   return rc;
               }
               else if (value == 0 || value > 100)
               {
                   rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-                  LOGERR (klogInt, rc, OPTION_SDC_ROWS " has illegal percentage value (has to be 1-100%)" );
+                  LOGERR (klogInt, rc, OPTION_SDC_SEC_ROWS " has illegal percentage value (has to be 1-100%)" );
                   return rc;
               }
 
-              pb->sdc_rows_in_percent = true;
-              pb->sdc_rows.percent = (double)value / 100;
+              pb->sdc_sec_rows_in_percent = true;
+              pb->sdc_sec_rows.percent = (double)value / 100;
           }
           else
           {
               value = string_to_U64 ( dummy, value_size, &rc );
               if (rc)
               {
-                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_ROWS);
+                  LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_SEC_ROWS);
                   return rc;
               }
-              pb->sdc_rows_in_percent = false;
-              pb->sdc_rows.number = value;
+              pb->sdc_sec_rows_in_percent = false;
+              pb->sdc_sec_rows.number = value;
           }
       }
   }
   {
+        rc = ArgsOptionCount ( args, OPTION_SDC_SEQ_ROWS, &cnt );
+        if (rc)
+        {
+            LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SDC_SEQ_ROWS);
+            return rc;
+        }
+
+        if (cnt > 0)
+        {
+            uint64_t value;
+            size_t value_size;
+            rc = ArgsOptionValue ( args, OPTION_SDC_SEQ_ROWS, 0, (const void **) &dummy );
+            if (rc)
+            {
+                LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SDC_SEQ_ROWS);
+                return rc;
+            }
+
+            pb->sdc_enabled = true;
+
+            value_size = string_size ( dummy );
+            if ( value_size >= 1 && dummy[value_size - 1] == '%' )
+            {
+                value = string_to_U64 ( dummy, value_size - 1, &rc );
+                if (rc)
+                {
+                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_SEQ_ROWS);
+                    return rc;
+                }
+                else if (value == 0 || value > 100)
+                {
+                    rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
+                    LOGERR (klogInt, rc, OPTION_SDC_SEQ_ROWS " has illegal percentage value (has to be 1-100%)" );
+                    return rc;
+                }
+
+                pb->sdc_seq_rows_in_percent = true;
+                pb->sdc_seq_rows.percent = (double)value / 100;
+            }
+            else
+            {
+                value = string_to_U64 ( dummy, value_size, &rc );
+                if (rc)
+                {
+                    LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SDC_SEQ_ROWS);
+                    return rc;
+                }
+                pb->sdc_seq_rows_in_percent = false;
+                pb->sdc_seq_rows.number = value;
+            }
+        }
+    }
+    {
         rc = ArgsOptionCount ( args, OPTION_SDC_PLEN_THOLD, &cnt );
         if (rc)
         {

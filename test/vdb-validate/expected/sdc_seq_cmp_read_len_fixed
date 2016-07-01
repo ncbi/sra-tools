@@ -1,0 +1,43 @@
+info: Database 'sdc_seq_cmp_read_len_fixed.csra' metadata: md5 ok
+info: Table 'PRIMARY_ALIGNMENT' metadata: md5 ok
+info: Column 'GLOBAL_REF_START': checksums ok
+info: Column 'HAS_MISMATCH': checksums ok
+info: Column 'HAS_REF_OFFSET': checksums ok
+info: Column 'MISMATCH': checksums ok
+info: Column 'REF_LEN': checksums ok
+info: Column 'REF_ORIENTATION': checksums ok
+info: Column 'SEQ_READ_ID': checksums ok
+info: Column 'SEQ_SPOT_ID': checksums ok
+info: Table 'REFERENCE' metadata: md5 ok
+info: Column 'CGRAPH_HIGH': checksums ok
+info: Column 'CGRAPH_MISMATCHES': checksums ok
+info: Column 'CS_KEY': checksums ok
+info: Column 'PRIMARY_ALIGNMENT_IDS': checksums ok
+info: Column 'SECONDARY_ALIGNMENT_IDS': checksums ok
+info: Column 'SEQ_LEN': checksums ok
+info: Column 'SEQ_START': checksums ok
+info: Table 'SECONDARY_ALIGNMENT' metadata: md5 ok
+info: Column 'GLOBAL_REF_START': checksums ok
+info: Column 'HAS_REF_OFFSET': checksums ok
+info: Column 'MATE_REF_ORIENTATION': checksums ok
+info: Column 'MATE_REF_POS': checksums ok
+info: Column 'REF_LEN': checksums ok
+info: Column 'REF_ORIENTATION': checksums ok
+info: Column 'SEQ_READ_ID': checksums ok
+info: Column 'SEQ_SPOT_ID': checksums ok
+info: Column 'TEMPLATE_LEN': checksums ok
+info: Column 'TMP_HAS_MISMATCH': checksums ok
+info: Column 'TMP_MISMATCH': checksums ok
+info: Table 'SEQUENCE' metadata: md5 ok
+info: Column 'CMP_READ': checksums ok
+info: Column 'PRIMARY_ALIGNMENT_ID': checksums ok
+info: Column 'QUALITY': checksums ok
+info: Column 'READ_LEN': checksums ok
+info: Column 'READ_START': checksums ok
+info: Column 'READ_TYPE': checksums ok
+info: Column 'SPOT_GROUP': checksums ok
+info: Database 'db/sdc_seq_cmp_read_len_fixed.csra': SEQUENCE.PRIMARY_ALIGNMENT_ID <-> PRIMARY_ALIGNMENT.SEQ_SPOT_ID referential integrity ok
+info: Database 'db/sdc_seq_cmp_read_len_fixed.csra': REFERENCE.PRIMARY_ALIGNMENT_IDS <-> PRIMARY_ALIGNMENT.REF_ID referential integrity ok
+warn: Database 'db/sdc_seq_cmp_read_len_fixed.csra' has secondary alignments without primary
+info: Database 'db/sdc_seq_cmp_read_len_fixed.csra': SEQUENCE and SECONDARY_ALIGNMENT tables data integrity checks ok
+info: Database 'sdc_seq_cmp_read_len_fixed.csra' is consistent

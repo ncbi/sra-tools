@@ -41,12 +41,16 @@
 #include <cmath>
 
 #define SA_TABLE_LOOKUP_LIMIT 100000
+#define SEQ_TABLE_LOOKUP_LIMIT 100000
 #define PA_LONGER_SA_LIMIT 0.01
 
 typedef struct CheckCorruptConfig
 {
-    double cutoff_percent; // negative when not used
-    uint64_t cutoff_number; // only used when cutoff_percent is negative
+    double sa_cutoff_percent; // negative when not used
+    uint64_t sa_cutoff_number; // only used when sa_cutoff_percent is negative
+
+    double seq_cutoff_percent; // negative when not used
+    uint64_t seq_cutoff_number; // only used when seq_cutoff_percent is negative
 
     double pa_len_threshold_percent; // negative when not used
     uint64_t pa_len_threshold_number; // only used when pa_len_threshold_percent is negative
@@ -94,7 +98,9 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
     uint32_t sa_seq_read_id_idx;
     uint32_t sa_pa_id_idx;
     uint32_t sa_tmp_mismatch_idx;
+    uint32_t seq_pa_id_idx;
     uint32_t seq_read_len_idx;
+    uint32_t seq_cmp_read_idx;
     bool has_tmp_mismatch;
 
     /* add columns to cursor */
@@ -108,7 +114,9 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_seq_spot_id_idx, "SEQ_SPOT_ID" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_seq_read_id_idx, "SEQ_READ_ID" );
     add_column( "SECONDARY_ALIGNMENT", sa_cursor, sa_pa_id_idx, "PRIMARY_ALIGNMENT_ID" );
+    add_column( "SEQUENCE", seq_cursor, seq_pa_id_idx, "PRIMARY_ALIGNMENT_ID" );
     add_column( "SEQUENCE", seq_cursor, seq_read_len_idx, "READ_LEN" );
+    add_column( "SEQUENCE", seq_cursor, seq_cmp_read_idx, "CMP_READ" );
 
     // optional columns
     rc = VCursorAddColumn( sa_cursor, &sa_tmp_mismatch_idx, "TMP_MISMATCH" );
@@ -151,12 +159,12 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
         pa_longer_sa_limit = config->pa_len_threshold_number;
 
     uint64_t sa_row_limit;
-    if (config->cutoff_percent > 0)
-        sa_row_limit = ceil( config->cutoff_percent * sa_row_count );
-    else if (config->cutoff_number == 0 || config->cutoff_number > sa_row_count)
+    if (config->sa_cutoff_percent > 0)
+        sa_row_limit = ceil( config->sa_cutoff_percent * sa_row_count );
+    else if (config->sa_cutoff_number == 0 || config->sa_cutoff_number > sa_row_count)
         sa_row_limit = sa_row_count;
     else
-        sa_row_limit = config->cutoff_number;
+        sa_row_limit = config->sa_cutoff_number;
 
     for ( uint64_t i = 0; i < sa_row_count && i < sa_row_limit; ++i )
     {
@@ -284,6 +292,75 @@ void runChecks ( const char * accession, const CheckCorruptConfig * config, cons
             throw DATA_ERROR(ss.str());
         }
     }
+
+    int64_t seq_id_first;
+    uint64_t seq_row_count;
+
+    rc = VCursorIdRange( seq_cursor, seq_pa_id_idx, &seq_id_first, &seq_row_count );
+    if (rc != 0)
+        throw VDB_ERROR("VCursorIdRange() failed for SEQUENCE table, PRIMARY_ALIGNMENT_ID column", rc);
+
+    uint64_t seq_row_limit;
+    if (config->seq_cutoff_percent > 0)
+        seq_row_limit = ceil( config->seq_cutoff_percent * seq_row_count );
+    else if (config->seq_cutoff_number == 0 || config->seq_cutoff_number > seq_row_count)
+        seq_row_limit = seq_row_count;
+    else
+        seq_row_limit = config->seq_cutoff_number;
+
+    for ( uint64_t i = 0; i < seq_row_count && i < seq_row_limit; ++i )
+    {
+        int64_t seq_row_id = i + seq_id_first;
+        const void * data_ptr = NULL;
+        uint32_t data_len;
+
+        const int64_t * p_seq_pa_id;
+        uint32_t seq_pa_id_len;
+        // SEQ:PRIMARY_ALIGNMENT_ID
+        rc = VCursorCellDataDirect ( seq_cursor, seq_row_id, seq_pa_id_idx, NULL, (const void**)&p_seq_pa_id, NULL, &seq_pa_id_len );
+        if ( rc != 0 || p_seq_pa_id == NULL )
+            throw VDB_ROW_ERROR("VCursorCellDataDirect() failed on SEQUENCE table, PRIMARY_ALIGNMENT_ID column", seq_row_id, rc);
+
+        const uint32_t * p_seq_read_len;
+        // SEQ:READ_LEN
+        rc = VCursorCellDataDirect ( seq_cursor, seq_row_id, seq_read_len_idx, NULL, (const void**)&p_seq_read_len, NULL, &data_len );
+        if ( rc != 0 || p_seq_read_len == NULL )
+            throw VDB_ROW_ERROR("VCursorCellDataDirect() failed on SEQUENCE table, READ_LEN column", seq_row_id, rc);
+        if ( seq_pa_id_len != data_len )
+        {
+            std::stringstream ss;
+            ss << "SEQUENCE:" << seq_row_id << " PRIMARY_ALIGNMENT_ID length (" << seq_pa_id_len << ") does not match SEQUENCE:" << seq_row_id << " READ_LEN length (" << data_len << ")";
+
+            throw DATA_ERROR(ss.str());
+        }
+
+        uint64_t sum_unaligned_read_len = 0;
+        for ( uint32_t j = 0; j < seq_pa_id_len; ++j )
+        {
+            if ( p_seq_pa_id[j] == 0 )
+            {
+                sum_unaligned_read_len += p_seq_read_len[j];
+            }
+        }
+
+        // SEQ:CMP_READ
+        rc = VCursorCellDataDirect ( seq_cursor, seq_row_id, seq_cmp_read_idx, NULL, (const void**)&data_ptr, NULL, &data_len );
+        if ( rc != 0 || data_ptr == NULL )
+            throw VDB_ROW_ERROR("VCursorCellDataDirect() failed on SEQUENCE table, SEQ:CMP_READ column", seq_row_id, rc);
+
+        if ( sum_unaligned_read_len != data_len )
+        {
+            std::stringstream ss;
+            ss << "SEQUENCE:" << seq_row_id << " CMP_READ length (" << data_len << ") does not match sum of unaligned READ_LEN values (" << sum_unaligned_read_len << ")";
+
+            throw DATA_ERROR(ss.str());
+        }
+    }
+
+    if (sa_row_limit < sa_row_count || seq_row_limit < seq_row_count)
+        PLOGMSG (klogInfo, (klogInfo, "$(ACC) looks good (based on first $(SA_CUTOFF) of SECONDARY_ALIGNMENT and $(SEQ_CUTOFF) SEQUENCE rows)", "ACC=%s,SA_CUTOFF=%lu,SEQ_CUTOFF=%lu", accession, sa_row_limit, seq_row_limit));
+    else
+        PLOGMSG (klogInfo, (klogInfo, "$(ACC) looks good", "ACC=%s", accession));
 }
 
 /**
@@ -364,12 +441,6 @@ bool checkAccession ( const char * accession, const CheckCorruptConfig * config 
                                         {
                                             try {
                                                 runChecks( accession, config, pa_cursor, sa_cursor, seq_cursor );
-                                                if (config->cutoff_percent > 0)
-                                                    PLOGMSG (klogInfo, (klogInfo, "$(ACC) looks good (based on first $(CUTOFF)% of SECONDARY_ALIGNMENT rows)", "ACC=%s,CUTOFF=%f", accession, config->cutoff_percent * 100));
-                                                else if (config->cutoff_number == 0)
-                                                    PLOGMSG (klogInfo, (klogInfo, "$(ACC) looks good", "ACC=%s", accession));
-                                                else
-                                                    PLOGMSG (klogInfo, (klogInfo, "$(ACC) looks good (based on first $(CUTOFF) SECONDARY_ALIGNMENT rows)", "ACC=%s,CUTOFF=%lu", accession, config->cutoff_number));
                                             } catch ( VDB_ERROR & x ) {
                                                 PLOGERR (klogErr, (klogInfo, x.rc, "$(ACC) VDB error: $(MSG)", "ACC=%s,MSG=%s", accession, x.msg));
                                                 rc = 1;
@@ -420,6 +491,13 @@ static const char * sa_cutoff_usage[] = { "specify maximum amount of secondary a
         "Specifying '0' will iterate the whole table. Can be in percent (e.g. 5%)",
         NULL };
 
+#define ALIAS_SEQ_CUTOFF    NULL
+#define OPTION_SEQ_CUTOFF   "seq-cutoff"
+
+static const char * seq_cutoff_usage[] = { "specify maximum amount of sequence table rows to look at before saying accession is good, default 100000.",
+        "Specifying '0' will iterate the whole table. Can be in percent (e.g. 5%)",
+        NULL };
+
 #define ALIAS_SA_SHORT_THRESHOLD NULL
 #define OPTION_SA_SHORT_THRESHOLD "sa-short-threshold"
 static const char * sa_short_threshold_usage[] = { "specify amount of secondary alignment which are shorter (hard-clipped) than corresponding primaries, default 1%.",
@@ -427,7 +505,8 @@ static const char * sa_short_threshold_usage[] = { "specify amount of secondary 
 
 OptDef Options[] = {
       { OPTION_SA_CUTOFF          , ALIAS_SA_CUTOFF          , NULL, sa_cutoff_usage            , 1, true , false },
-      { OPTION_SA_SHORT_THRESHOLD , ALIAS_SA_SHORT_THRESHOLD , NULL, sa_short_threshold_usage , 1, true , false }
+      { OPTION_SEQ_CUTOFF         , ALIAS_SEQ_CUTOFF         , NULL, seq_cutoff_usage           , 1, true , false },
+      { OPTION_SA_SHORT_THRESHOLD , ALIAS_SA_SHORT_THRESHOLD , NULL, sa_short_threshold_usage   , 1, true , false }
 };
 
 rc_t CC UsageSummary (const char * progname)
@@ -461,6 +540,7 @@ rc_t CC Usage ( const Args * args )
     KOutMsg ("Options:\n");
 
     HelpOptionLine(ALIAS_SA_CUTOFF          , OPTION_SA_CUTOFF           , "cutoff"    , sa_cutoff_usage);
+    HelpOptionLine(ALIAS_SEQ_CUTOFF         , OPTION_SEQ_CUTOFF          , "cutoff"    , seq_cutoff_usage);
     HelpOptionLine(ALIAS_SA_SHORT_THRESHOLD , OPTION_SA_SHORT_THRESHOLD  , "threshold" , sa_short_threshold_usage);
     XMLLogger_Usage();
 
@@ -498,26 +578,72 @@ rc_t parseArgs ( Args * args, CheckCorruptConfig * config )
         value_size = string_size ( value );
         if ( value_size >= 1 && value[value_size - 1] == '%' )
         {
-            config->cutoff_percent = string_to_U64 ( value, value_size - 1, &rc );
+            config->sa_cutoff_percent = string_to_U64 ( value, value_size - 1, &rc );
             if (rc)
             {
                 LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SA_CUTOFF);
                 return rc;
             }
-            else if (config->cutoff_percent == 0 || config->cutoff_percent > 100)
+            else if (config->sa_cutoff_percent == 0 || config->sa_cutoff_percent > 100)
             {
                 LOGERR (klogInt, rc, OPTION_SA_CUTOFF " has illegal percentage value (has to be 1-100%)" );
                 return 1;
             }
-            config->cutoff_percent /= 100;
+            config->sa_cutoff_percent /= 100;
         }
         else
         {
-            config->cutoff_percent = -1;
-            config->cutoff_number = string_to_U64 ( value, value_size, &rc );
+            config->sa_cutoff_percent = -1;
+            config->sa_cutoff_number = string_to_U64 ( value, value_size, &rc );
             if (rc)
             {
                 LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SA_CUTOFF);
+                return rc;
+            }
+        }
+    }
+
+    rc = ArgsOptionCount ( args, OPTION_SEQ_CUTOFF, &opt_count );
+    if (rc)
+    {
+        LOGERR (klogInt, rc, "ArgsOptionCount() failed for " OPTION_SEQ_CUTOFF);
+        return rc;
+    }
+
+    if (opt_count > 0)
+    {
+        const char * value;
+        size_t value_size;
+        rc = ArgsOptionValue ( args, OPTION_SEQ_CUTOFF, 0, (const void **) &value );
+        if (rc)
+        {
+            LOGERR (klogInt, rc, "ArgsOptionValue() failed for " OPTION_SEQ_CUTOFF);
+            return rc;
+        }
+
+        value_size = string_size ( value );
+        if ( value_size >= 1 && value[value_size - 1] == '%' )
+        {
+            config->seq_cutoff_percent = string_to_U64 ( value, value_size - 1, &rc );
+            if (rc)
+            {
+                LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SEQ_CUTOFF);
+                return rc;
+            }
+            else if (config->seq_cutoff_percent == 0 || config->seq_cutoff_percent > 100)
+            {
+                LOGERR (klogInt, rc, OPTION_SEQ_CUTOFF " has illegal percentage value (has to be 1-100%)" );
+                return 1;
+            }
+            config->seq_cutoff_percent /= 100;
+        }
+        else
+        {
+            config->seq_cutoff_percent = -1;
+            config->seq_cutoff_number = string_to_U64 ( value, value_size, &rc );
+            if (rc)
+            {
+                LOGERR (klogInt, rc, "string_to_U64() failed for " OPTION_SEQ_CUTOFF);
                 return rc;
             }
         }
@@ -578,7 +704,7 @@ rc_t CC KMain ( int argc, char *argv [] )
     Args * args;
     rc_t rc;
     bool any_failed = false;
-    CheckCorruptConfig config = { -1.0, SA_TABLE_LOOKUP_LIMIT, PA_LONGER_SA_LIMIT, 0 };
+    CheckCorruptConfig config = { -1.0, SA_TABLE_LOOKUP_LIMIT, -1.0, SEQ_TABLE_LOOKUP_LIMIT, PA_LONGER_SA_LIMIT, 0 };
 
     KLogLevelSet(klogInfo);
 

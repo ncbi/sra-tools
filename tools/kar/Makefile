@@ -32,7 +32,6 @@ INT_TOOLS = \
 
 EXT_TOOLS = \
 	kar \
-	sra-kar
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \

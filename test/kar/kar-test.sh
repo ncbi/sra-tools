@@ -37,7 +37,7 @@ OLDKAR=./old-kar
 
 cleanup ()
 {
-    rm -rf $ARCHIVE $ARCHIVE.md5 $RESULT/*
+    rm -rf $ARCHIVE $ARCHIVE.md5 $RESULT/* $RESULT
 
 }
 
@@ -200,6 +200,8 @@ test_cNew_txOld_cmp ()
 {
     echo "Testing new archive - list and extract with old..."
 
+    mkdir $RESULT
+
     $KAR -f -c $ARCHIVE -d $INPUT
     
     if ! $OLDKAR -t $ARCHIVE > $RESULT/olist.txt
@@ -264,15 +266,18 @@ test_cOld_txNew_cmp ()
     echo "Testing legacy archive - list and extract with new..."
     SS="simple_source"
 
+    mkdir $RESULT
+
     # create new source and remove aliases legacy kar doesnt handle
     cp -r $INPUT $SS
-    rm -rf simple_source/alias_subdir simple_source/local_f_subdir_alias
+    rm -rf $SS/alias_subdir $SS/local_f_subdir_alias
 
-    $OLDKAR -f -c $ARCHIVE -d simple_source
+    $OLDKAR -f -c $ARCHIVE -d $SS
     
     if ! $KAR -t $ARCHIVE > $RESULT/nlist.txt
     then
         echo "      KAR could not test the archive...failed"
+        rm -rf $SS
         cleanup
         exit
     fi
@@ -280,6 +285,7 @@ test_cOld_txNew_cmp ()
     if ! $KAR -l -t $ARCHIVE > $RESULT/nllist.txt
     then
         echo "      KAR could not test the archive with longlist...failed"
+        rm -rf $SS
         cleanup
         exit
     fi
@@ -287,6 +293,7 @@ test_cOld_txNew_cmp ()
     if ! $KAR -x $ARCHIVE -d $RESULT/n_extracted
     then
         echo "      KAR could not extract the archive...failed"
+        rm -rf $SS
         cleanup
         exit
     fi

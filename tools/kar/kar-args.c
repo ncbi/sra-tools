@@ -72,8 +72,7 @@ const char UsageDefaultName[] = "kar";
 
 rc_t CC UsageSummary (const char * progname)
 {
-    return KOutMsg ("THIS IS CLEARLY THE NEW KAR\n"
-                    "Usage:\n"
+    return KOutMsg ("Usage:\n"
                     "  %s [OPTIONS] -%s|--%s <Archive> -%s|--%s <Directory> [Filter ...]\n"
                     "  %s [OPTIONS] -%s|--%s <Archive> -%s|--%s <Directory>\n"
                     "  %s [OPTIONS] -%s|--%s|--%s <Archive>\n"

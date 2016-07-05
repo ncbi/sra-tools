@@ -42,10 +42,11 @@ $(ALL_TOOLS): makedirs
 
 clean: stdclean
 
+runtests: pileup-stats ignore-args
+
 #-------------------------------------------------------------------------------
 # pileup-stats tool tests
 #
-runtests: pileup-stats
 
 pileup-stats: $(BINDIR)/pileup-stats
 	@ # The line below is the test for --version output. Yes, this is ridiculous to make tests like this (especially the one depending on the path to the sources of the binary being tested) but Anatoly insisted on it here: VDB-2837
@@ -59,3 +60,7 @@ optional-column-ref-offset-type:
 vg: $(BINDIR)/pileup-stats
 	@ # TODO: a better command line options should be chosen to test for memory leaks
 	valgrind --ncbi --suppressions=$(SRCDIR)/valgrind.suppress $(BINDIR)/pileup-stats -V
+
+ignore-args: test-ignore-args.sh
+	@ echo "starting test-ignore-args..."
+	@ bash test-ignore-args.sh

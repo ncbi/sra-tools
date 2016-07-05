@@ -63,6 +63,7 @@ clean: stdclean
 #
 
 KAR_SRC = \
+	kar-args \
 	kar
 
 KAR_OBJ = \

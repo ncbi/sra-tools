@@ -622,8 +622,10 @@ extern "C"
                     handle_version ( argv [ 0 ] );
                     return 0;
                 case 'L': // eat it and do nothing
+                    findArg ( arg, i, argc, argv );
                     break;
                 case 'z': // eat it and do nothing
+                    findArg ( arg, i, argc, argv );
                     break;
                 case '-':
                     ++ arg;
@@ -702,14 +704,17 @@ extern "C"
                     else if ( strcmp ( arg, "log-level" ) == 0 )
                     {
                         /* eat it and do nothing */
+                        getArg ( i, argc, argv );
                     }
                     else if ( strcmp ( arg, "xml-log" ) == 0 )
                     {
                         /* eat it and do nothing */
+                        getArg ( i, argc, argv );
                     }
                     else if ( strcmp ( arg, "xml-log-fd" ) == 0 )
                     {
                         /* eat it and do nothing */
+                        getArg ( i, argc, argv );
                     }
                     else if ( strcmp ( arg, "version" ) == 0 )
                     {

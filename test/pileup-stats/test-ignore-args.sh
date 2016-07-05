@@ -26,27 +26,27 @@
 
 test_ignore_args ()
 {
-    if ! pileup-stats -L 2> /dev/null
+    if ! pileup-stats -L 1 2> /dev/null
     then
         echo $?...test failed on option -L
     fi
 
-    if ! pileup-stats -z 2> /dev/null
+    if ! pileup-stats -z ignore.txt 2> /dev/null
     then
         echo $?...test failed on option -z
     fi
 
-    if ! pileup-stats --log-level 2> /dev/null
+    if ! pileup-stats --log-level 1 2> /dev/null
     then
         echo $?...test failed on option --log-level
     fi
 
-    if ! pileup-stats --xml-log 2> /dev/null
+    if ! pileup-stats --xml-log ignore.txt 2> /dev/null
     then
         echo $?...test failed on option --xml-log
     fi
 
-    if ! pileup-stats --xml-log-fd 2> /dev/null
+    if ! pileup-stats --xml-log-fd ignore.txt 2> /dev/null
     then
         echo $?...test failed on option --xml-log-fd
     fi

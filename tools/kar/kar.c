@@ -23,7 +23,7 @@
  * ===========================================================================
  *
  */
-#include "kar.vers.h"
+
 #include "kar-args.h"
 
 #include <klib/rc.h>
@@ -2038,11 +2038,6 @@ rc_t run ( const Params *p )
 
     assert ( p -> t_count != 0 );
     return kar_test_extract ( p );
-}
-
-ver_t CC KAppVersion (void)
-{
-    return  KAR_VERS;
 }
     
 rc_t CC KMain ( int argc, char *argv [] )

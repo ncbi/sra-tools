@@ -22,46 +22,49 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: slowtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+MODULE = test/fuse
 
-include $(TOP)/build/Makefile.config
+TEST_TOOLS =
+
+include $(TOP)/build/Makefile.env
+
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean
 
 #-------------------------------------------------------------------------------
-# default
+# remote-fuser-test
 #
-SUBDIRS =    \
-	fastq-loader    \
-	vcf-loader      \
-	kget            \
-	general-loader  \
-	vschema         \
-	align-info      \
-	align-cache     \
-	vdb-dump        \
-	ref-variation   \
-	vdb-validate    \
-	kar             \
-    copycat         \
-	fastdump        \
-	vdb-copy        \
-	qual-recalib-stat        \
-	sra-pileup      \
-	srapath         \
-    fuse            \
+REMOTE_FUSER_TEST_SRC = \
+	remote-fuser-test   \
+	utils
 
-# under construction    
-#    ngs-pileup      \
+REMOTE_FUSER_TEST_OBJ = \
+	$(addsuffix .$(OBJX),$(REMOTE_FUSER_TEST_SRC))
+    
+REMOTE_FUSER_TEST_LIB =   \
+	-sncbi-vdb-static   \
+	-skapp
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+$(TEST_BINDIR)/remote-fuser-test: $(REMOTE_FUSER_TEST_OBJ)
+	$(LP) --exe -o $@ $^ $(REMOTE_FUSER_TEST_LIB)
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
+#-------------------------------------------------------------------------------
+# slowtests: match output vs sra-pileup
+#
 
-.PHONY: default $(SUBDIRS)
+slowtests: runtests
 
+runtests: run-test
+
+run-test: $(TEST_BINDIR)/remote-fuser-test
+	@$(SRCDIR)/remote_fuser_test.sh standard 180 $(TARGDIR)/bin
+
+.PHONY: run-test

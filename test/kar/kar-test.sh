@@ -49,7 +49,7 @@ test_create ()
         STATUS=$?
         echo "KAR create operation failed"
         cleanup
-        exit
+        exit $STATUS
     fi
 
     echo "   Testing create mode with existing archive..."
@@ -58,7 +58,7 @@ test_create ()
         STATUS=$?
         echo "KAR create operation with existing archive failed to produce an error"
         cleanup
-        exit
+        exit $STATUS
     fi
 }
 
@@ -70,7 +70,7 @@ test_create_options ()
         STATUS=$?
         echo "KAR force create operation failed"
         cleanup
-        exit
+        exit $STATUS
     fi
     
     echo "   Testing option variation --create ..."
@@ -79,7 +79,7 @@ test_create_options ()
         STATUS=$?
         echo "KAR create operation failed"
         cleanup
-        exit
+        exit $STATUS
     fi
     
     echo "   Testing option variation --directory ..."
@@ -88,7 +88,7 @@ test_create_options ()
         STATUS=$?
         echo "KAR create operation failed"
         cleanup
-        exit
+        exit $STATUS
     fi
     
     echo "   Testing option variation --force ..."
@@ -97,7 +97,7 @@ test_create_options ()
         STATUS=$?
         echo "KAR create operation failed"
         cleanup
-        exit
+        exit $STATUS
     fi
 
     echo "   Testing md5: --md5 mode..."
@@ -145,7 +145,7 @@ test_list ()
     then
         echo "KAR listing failed"
         cleanup
-        exit
+        exit $STATUS
     fi
 
     echo "   Testing option variation --test ..."
@@ -153,7 +153,7 @@ test_list ()
     then
         echo "KAR listing failed"
         cleanup
-        exit
+        exit $STATUS
     fi
 }
 
@@ -164,7 +164,7 @@ test_list_options ()
     then
         echo "KAR long listing failed"
         cleanup
-        exit
+        exit $STATUS
     fi
 }
 
@@ -176,7 +176,7 @@ test_extract ()
     then
         echo "KAR extraction failed"
         cleanup
-        exit
+        exit $STATUS
     fi
 
     rm -rf $DIR
@@ -186,8 +186,8 @@ test_extract ()
     if ! $KAR --extract $ARCHIVE -d $DIR
     then
         echo "KAR extraction failed"
-        cleanup
-        exit
+        cleanup 
+        exit $STATUS
     fi
 
     rm -rf $DIR
@@ -208,21 +208,21 @@ test_cNew_txOld_cmp ()
     then
         echo "      legacy-KAR could not test the archive...failed"
         cleanup
-        exit
+        exit $STATUS
     fi
 
     if ! $OLDKAR -l -t $ARCHIVE > $RESULT/ollist.txt
     then
         echo "      legacy-KAR could not test the archive with longlist...failed"
         cleanup
-        exit
+        exit $STATUS
     fi
 
     if ! $OLDKAR -x $ARCHIVE -d $RESULT/o_extracted
     then
         echo "      legacy-KAR could not extract the archive...failed"
         cleanup
-        exit
+        exit $STATUS
     fi
 
 
@@ -234,7 +234,7 @@ test_cNew_txOld_cmp ()
         echo "      KAR listing differs from legacy...test failed"
         cat $RESULT/diff.txt
         cleanup
-        exit
+        exit $STATUS
     fi
 
     # there is no purpose in testing long list mode. 
@@ -251,7 +251,7 @@ test_cNew_txOld_cmp ()
             echo "      KAR extracting content differs from legacy...test failed"
             cat $RESULT/diff.txt
             cleanup
-            exit
+            exit $STATUS
         fi
     fi
 
@@ -279,7 +279,7 @@ test_cOld_txNew_cmp ()
         echo "      KAR could not test the archive...failed"
         rm -rf $SS
         cleanup
-        exit
+        exit $STATUS
     fi
 
     if ! $KAR -l -t $ARCHIVE > $RESULT/nllist.txt
@@ -287,7 +287,7 @@ test_cOld_txNew_cmp ()
         echo "      KAR could not test the archive with longlist...failed"
         rm -rf $SS
         cleanup
-        exit
+        exit $STATUS
     fi
 
     if ! $KAR -x $ARCHIVE -d $RESULT/n_extracted
@@ -295,7 +295,7 @@ test_cOld_txNew_cmp ()
         echo "      KAR could not extract the archive...failed"
         rm -rf $SS
         cleanup
-        exit
+        exit $STATUS
     fi
 
 
@@ -307,7 +307,7 @@ test_cOld_txNew_cmp ()
         echo "      KAR listing differs from legacy...test failed"
         cat $RESULT/diff.txt
         cleanup
-        exit
+        exit $STATUS
     fi
 
     # there is no purpose in testing long list mode. 
@@ -324,7 +324,7 @@ test_cOld_txNew_cmp ()
             echo "      KAR extracting content differs from legacy...test failed"
             cat $RESULT/diff.txt
             cleanup
-            exit
+            exit $STATUS
         fi
     fi
 

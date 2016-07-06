@@ -220,9 +220,15 @@ fi
 ####
 ##  Checking config file data and prepareing environment
 #
-if [ -z "$USER" ]
+EFF_USER=$USER
+if [ -z "$EFF_USER" ]
 then
-    _err_exit "Environment variable \$USER is not set"
+    EFF_USER=`id -n -u`
+    if [ -z "$EFF_USER" ]
+    then
+        EFF_USER="undefined-user"
+        # _err_exit "Environment variable \$USER is not set"
+    fi
 fi
 
 if [ -z "$TEST_DIR" ]
@@ -235,7 +241,7 @@ then
     _err_exit "Can not stat directory '$TEST_DIR'"
 fi
 
-F_TEST_DIR=$TEST_DIR/$USER
+F_TEST_DIR=$TEST_DIR/$EFF_USER
 if [ ! -d "$F_TEST_DIR" ]
 then
     _msg "Creating directory '$F_TEST_DIR'"

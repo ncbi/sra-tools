@@ -22,7 +22,9 @@
 #
 # ===========================================================================
 
-default: slowtests
+default: runtests
+
+runtests:
 
 TOP ?= $(abspath ../..)
 
@@ -60,11 +62,18 @@ $(TEST_BINDIR)/remote-fuser-test: $(REMOTE_FUSER_TEST_OBJ)
 # slowtests: match output vs sra-pileup
 #
 
-slowtests: runtests
-
-runtests: run-test
+ifeq (linux,$(BUILD_OS))
+    ifneq (Ubuntu,$(OS_DISTRIBUTOR))
+slowtests: run-test
 
 run-test: $(TEST_BINDIR)/remote-fuser-test
 	@$(SRCDIR)/remote_fuser_test.sh standard 180 $(TARGDIR)/bin
+
+    else
+slowtests:
+    endif
+else
+slowtests:
+endif
 
 .PHONY: run-test

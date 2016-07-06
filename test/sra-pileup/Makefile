@@ -26,7 +26,7 @@ default: runtests
 
 TOP ?= $(abspath ../..)
 
-MODULE = test/kar
+MODULE = test/sra-pileup
 
 TEST_TOOLS = 
 
@@ -35,21 +35,14 @@ include $(TOP)/build/Makefile.env
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: kar_test 
+runtests: check_exit_code
 
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-kar_test: kar-test.sh
-	@ echo "Starting kar tests..."
-	@ bash kar-test.sh $(BINDIR)/kar
 
-kar:
-	rm -rf actual
-	mkdir -p actual
-	$(BINDIR)/kar -c actual/1.0.kar -d input/1.0; $(BINDIR)/kar -t actual/1.0.kar >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
-	rm -rf actual
-	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/kar
+check_exit_code:
+	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/sra-pileup
 
 .PHONY: $(TEST_TOOLS)
 

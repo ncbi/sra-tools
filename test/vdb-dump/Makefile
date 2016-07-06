@@ -71,6 +71,7 @@ vdb-dump: makedb
 	@ $(BINDIR)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase >actual/2.2.stdout && diff expected/2.2.stdout actual/2.2.stdout
 	@ rm -rf actual
 	@ rm -rf data
+	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-dump
 	@ echo "...all tests passed"
 
 .PHONY: kar

@@ -48,6 +48,10 @@ SUBDIRS =    \
 	kar             \
     copycat         \
 	fastdump        \
+	vdb-copy        \
+	qual-recalib-stat        \
+	sra-pileup      \
+	srapath         \
 
 # under construction    
 #    ngs-pileup      \

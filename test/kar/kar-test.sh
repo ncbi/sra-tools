@@ -160,6 +160,7 @@ test_list ()
     echo "Testing test mode..."    
     if ! $KAR -t $ARCHIVE > /dev/null
     then
+        STATUS=$?
         echo "KAR listing failed"
         cleanup
         exit 1
@@ -168,6 +169,7 @@ test_list ()
     echo "   Testing option variation --test ..."
     if ! $KAR --test $ARCHIVE > /dev/null
     then
+        STATUS=$?
         echo "KAR listing failed"
         cleanup
         exit 1
@@ -179,6 +181,7 @@ test_list_options ()
     echo "   Testing longlist: -l mode..."
     if ! $KAR -l -t $ARCHIVE > /dev/null
     then
+        STATUS=$?
         echo "KAR long listing failed"
         cleanup
         exit 1
@@ -191,6 +194,7 @@ test_extract ()
     DIR="extracted"
     if ! $KAR -x $ARCHIVE -d $DIR
     then
+        STATUS=$?
         echo "KAR extraction failed"
         cleanup
         exit 1
@@ -202,6 +206,7 @@ test_extract ()
     DIR="extracted"
     if ! $KAR --extract $ARCHIVE -d $DIR
     then
+        STATUS=$?
         echo "KAR extraction failed"
         cleanup 
         exit 1
@@ -223,6 +228,7 @@ test_cNew_txOld_cmp ()
     
     if ! $OLDKAR -t $ARCHIVE > $RESULT/olist.txt
     then
+        STATUS=$?
         echo "      legacy-KAR could not test the archive...failed"
         cleanup
         exit 1
@@ -230,6 +236,7 @@ test_cNew_txOld_cmp ()
 
     if ! $OLDKAR -l -t $ARCHIVE > $RESULT/ollist.txt
     then
+        STATUS=$?
         echo "      legacy-KAR could not test the archive with longlist...failed"
         cleanup
         exit 1
@@ -237,6 +244,7 @@ test_cNew_txOld_cmp ()
 
     if ! $OLDKAR -x $ARCHIVE -d $RESULT/o_extracted
     then
+        STATUS=$?
         echo "      legacy-KAR could not extract the archive...failed"
         cleanup
         exit 1
@@ -248,6 +256,7 @@ test_cNew_txOld_cmp ()
     $KAR -t $ARCHIVE > $RESULT/nlist.txt
     if ! diff -w $RESULT/olist.txt $RESULT/nlist.txt > $RESULT/diff.txt
     then
+        STATUS=$?
         echo "      KAR listing differs from legacy...test failed"
         cat $RESULT/diff.txt
         cleanup
@@ -265,6 +274,7 @@ test_cNew_txOld_cmp ()
 
         if [ -s $RESULT/diff.txt ] 
         then
+            STATUS=$?
             echo "      KAR extracting content differs from legacy...test failed"
             cat $RESULT/diff.txt
             cleanup
@@ -293,6 +303,7 @@ test_cOld_txNew_cmp ()
     
     if ! $KAR -t $ARCHIVE > $RESULT/nlist.txt
     then
+        STATUS=$?
         echo "      KAR could not test the archive...failed"
         rm -rf $SS
         cleanup
@@ -301,6 +312,7 @@ test_cOld_txNew_cmp ()
 
     if ! $KAR -l -t $ARCHIVE > $RESULT/nllist.txt
     then
+        STATUS=$?
         echo "      KAR could not test the archive with longlist...failed"
         rm -rf $SS
         cleanup
@@ -309,6 +321,7 @@ test_cOld_txNew_cmp ()
 
     if ! $KAR -x $ARCHIVE -d $RESULT/n_extracted
     then
+        STATUS=$?
         echo "      KAR could not extract the archive...failed"
         rm -rf $SS
         cleanup
@@ -321,6 +334,7 @@ test_cOld_txNew_cmp ()
     $OLDKAR -t $ARCHIVE > $RESULT/olist.txt
     if ! diff -w $RESULT/nlist.txt $RESULT/olist.txt > $RESULT/diff.txt
     then
+        STATUS=$?
         echo "      KAR listing differs from legacy...test failed"
         cat $RESULT/diff.txt
         cleanup
@@ -338,6 +352,7 @@ test_cOld_txNew_cmp ()
 
         if [ -s $RESULT/diff.txt ] 
         then
+            STATUS=$?
             echo "      KAR extracting content differs from legacy...test failed"
             cat $RESULT/diff.txt
             cleanup

@@ -33,7 +33,26 @@ OUTPUT="output"
 KAR=kar
 [ $# -ge 1 ] && KAR="$1"
 
-OLDKAR=./old-kar
+UNAME=$(uname -s)
+case $UNAME in
+    (Linux)
+        OS=linux
+        ;;
+    (Darwin)
+        OS=mac
+        ;;
+    (*)
+        echo "unsupported platform: $UNAME"
+        exit 1
+        ;;
+esac
+
+
+OLDKAR=/net/snowman/vol/projects/trace_software/vdb/$OS/debug/x86_64/bin/kar.2.6.3
+if [ ! -x $OLDKAR ]
+then
+    OLDKAR=/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/vdb/vdb-versions/2.6.3/$OS/debug/x86_64/bin/kar.2.6.3
+fi
 
 cleanup ()
 {
@@ -46,19 +65,17 @@ test_create ()
     echo "Testing create mode..."
     if ! $KAR -c $ARCHIVE -d $INPUT
     then
-        STATUS=$?
         echo "KAR create operation failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     echo "   Testing create mode with existing archive..."
     if $KAR -c $ARCHIVE -d $INPUT 2> /dev/null
     then
-        STATUS=$?
         echo "KAR create operation with existing archive failed to produce an error"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 }
 
@@ -67,58 +84,56 @@ test_create_options ()
     echo "   Testing force: -f create mode..."
     if ! $KAR -f -c $ARCHIVE -d $INPUT
     then
-        STATUS=$?
         echo "KAR force create operation failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
     
     echo "   Testing option variation --create ..."
     if ! $KAR -f --create $ARCHIVE -d $INPUT
     then
-        STATUS=$?
         echo "KAR create operation failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
     
     echo "   Testing option variation --directory ..."
     if ! $KAR -f --create $ARCHIVE --directory $INPUT
     then
-        STATUS=$?
         echo "KAR create operation failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
     
     echo "   Testing option variation --force ..."
     if ! $KAR --force --create $ARCHIVE --directory $INPUT
     then
-        STATUS=$?
         echo "KAR create operation failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     echo "   Testing md5: --md5 mode..."
     if ! $KAR --md5 -f -c $ARCHIVE -d $INPUT
     then
-        STATUS=$?
         echo "KAR md5 operation failed"
+        exit 1
     else
-        case $(uname) in
+        case $UNAME in
             (Linux)
                 if ! md5sum -c $ARCHIVE.md5 > /dev/null
                 then
-                    STATUS=$?
                     echo "md5sum check failed with status $STATUS"
+                    cleanup
+                    exit 1
                 fi
                 ;;
             (Darwin)
                 if ! MD5=$(md5 $ARCHIVE)
                 then
-                    STATUS=$?
                     echo "md5 failed with status $STATUS"
+                    cleanup
+                    exit 1
                 else
                     MY_MD5=$(cut -f1 -d' ' $ARCHIVE.md5)
                     if [ "$MD5" == "$MY_MD5" ]
@@ -126,13 +141,15 @@ test_create_options ()
                         echo "$ARCHIVE: OK"
                     else
                         echo "$ARCHIVE: FAILED"
-                        STATUS=1
+                        cleanup
+                        exit 1
                     fi
                 fi
                 ;;
             (*)
-                STATUS=1
                 echo unknown platform
+                cleanup
+                exit 1
                 ;;
         esac
     fi
@@ -145,7 +162,7 @@ test_list ()
     then
         echo "KAR listing failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     echo "   Testing option variation --test ..."
@@ -153,7 +170,7 @@ test_list ()
     then
         echo "KAR listing failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 }
 
@@ -164,7 +181,7 @@ test_list_options ()
     then
         echo "KAR long listing failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 }
 
@@ -176,7 +193,7 @@ test_extract ()
     then
         echo "KAR extraction failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     rm -rf $DIR
@@ -187,7 +204,7 @@ test_extract ()
     then
         echo "KAR extraction failed"
         cleanup 
-        exit $STATUS
+        exit 1
     fi
 
     rm -rf $DIR
@@ -208,21 +225,21 @@ test_cNew_txOld_cmp ()
     then
         echo "      legacy-KAR could not test the archive...failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     if ! $OLDKAR -l -t $ARCHIVE > $RESULT/ollist.txt
     then
         echo "      legacy-KAR could not test the archive with longlist...failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     if ! $OLDKAR -x $ARCHIVE -d $RESULT/o_extracted
     then
         echo "      legacy-KAR could not extract the archive...failed"
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
 
@@ -234,7 +251,7 @@ test_cNew_txOld_cmp ()
         echo "      KAR listing differs from legacy...test failed"
         cat $RESULT/diff.txt
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     # there is no purpose in testing long list mode. 
@@ -251,7 +268,7 @@ test_cNew_txOld_cmp ()
             echo "      KAR extracting content differs from legacy...test failed"
             cat $RESULT/diff.txt
             cleanup
-            exit $STATUS
+            exit 1
         fi
     fi
 
@@ -279,7 +296,7 @@ test_cOld_txNew_cmp ()
         echo "      KAR could not test the archive...failed"
         rm -rf $SS
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     if ! $KAR -l -t $ARCHIVE > $RESULT/nllist.txt
@@ -287,7 +304,7 @@ test_cOld_txNew_cmp ()
         echo "      KAR could not test the archive with longlist...failed"
         rm -rf $SS
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     if ! $KAR -x $ARCHIVE -d $RESULT/n_extracted
@@ -295,7 +312,7 @@ test_cOld_txNew_cmp ()
         echo "      KAR could not extract the archive...failed"
         rm -rf $SS
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
 
@@ -307,7 +324,7 @@ test_cOld_txNew_cmp ()
         echo "      KAR listing differs from legacy...test failed"
         cat $RESULT/diff.txt
         cleanup
-        exit $STATUS
+        exit 1
     fi
 
     # there is no purpose in testing long list mode. 
@@ -324,7 +341,7 @@ test_cOld_txNew_cmp ()
             echo "      KAR extracting content differs from legacy...test failed"
             cat $RESULT/diff.txt
             cleanup
-            exit $STATUS
+            exit 1
         fi
     fi
 
@@ -345,8 +362,13 @@ run_basic ()
 
 run_compare ()
 {
-    test_cNew_txOld_cmp
-    test_cOld_txNew_cmp
+    if [ -x $OLDKAR ]
+    then
+        test_cNew_txOld_cmp
+        test_cOld_txNew_cmp
+    else
+        echo "could not locate old kar tool to run comparisons"
+    fi
 }
 
 
@@ -358,4 +380,4 @@ run_compare
 cleanup
 
 
-exit $STATUS
+exit 0

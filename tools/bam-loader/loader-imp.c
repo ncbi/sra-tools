@@ -2108,12 +2108,12 @@ MIXED_BASE_AND_COLOR:
                     else if (rl != clipped_rl) {
                         if (isPrimary) {
                             rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) then previously recorded secondary alignment. Try to defer secondary alignment processing.",
+                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) than previously recorded secondary alignment. Try to defer secondary alignment processing.",
                                                     "name=%s,len=%d", name, readlen));
                         }
                         else {
                             rc = SILENT_RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogWarn, (klogWarn, rc, "Secondary alignment for '$(name)' has different length ($(len)) then previously recorded primary alignment; discarding secondary alignment.",
+                            (void)PLOGERR(klogWarn, (klogWarn, rc, "Secondary alignment for '$(name)' has different length ($(len)) than previously recorded primary alignment; discarding secondary alignment.",
                                                      "name=%s,len=%d", name, readlen));
                             DISCARD_BAD_SECONDARY;
                             rc = CheckLimitAndLogError();

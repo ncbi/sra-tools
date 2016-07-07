@@ -40,6 +40,7 @@ case $UNAME in
         ;;
     (Darwin)
         OS=mac
+        MD5TOOL=/sbin/md5
         ;;
     (*)
         echo "unsupported platform: $UNAME"
@@ -129,7 +130,10 @@ test_create_options ()
                 fi
                 ;;
             (Darwin)
-                if ! MD5=$(md5sum $ARCHIVE | cut -f1 -d' ')
+                if [ ! -x $MD5TOOL ]
+                then
+                    echo "could not locate executable md5 tool"
+                elif ! MD5=$($MD5TOOL $ARCHIVE | cut -f1 -d' ')
                 then
                     echo "md5 failed with status $?"
                     cleanup

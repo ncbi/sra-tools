@@ -133,7 +133,7 @@ test_create_options ()
                 if [ ! -x $MD5TOOL ]
                 then
                     echo "could not locate executable md5 tool"
-                elif ! MD5=$($MD5TOOL $ARCHIVE | cut -f1 -d' ')
+                elif ! MD5=$($MD5TOOL $ARCHIVE | cut -f4 -d' ')
                 then
                     echo "md5 failed with status $?"
                     cleanup

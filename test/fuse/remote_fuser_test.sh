@@ -320,6 +320,46 @@ then
     _err_exit "Mount point is in use '$F_MOUNT_DIR'"
 fi
 
+
+##  Here we are clearing old logs
+##
+DAYS_KEEP_LOG=10
+
+SEC_IN_DAY=$(( 60 * 60 * 24 ))
+NOW_DAY=$(( `date +%s` / $SEC_IN_DAY ))
+
+check_remove ()
+{
+    F2R=$1
+
+    if [ -n "$F2R" ]
+    then
+        FILE_DAY=$(( `stat --print="%X" $F2R` / $SEC_IN_DAY ))
+        DALT=$(( $NOW_DAY - $FILE_DAY ))
+        if [ $DAYS_KEEP_LOG -le $DALT ]
+        then
+            _msg Log file is $DALT days old, removing \'$F2R\'
+            echo rm -f $F2R
+            if [ $? -ne 0 ]
+            then
+                _wrn Can not remove file \'$F2R\'
+            fi
+        fi
+    fi
+}
+
+clear_old_logs ()
+{
+    _msg Clearing old logs ...
+
+    for i in `ls $F_LOG_DIR`
+    do
+        check_remove $F_LOG_DIR/$i
+    done
+}
+
+clear_old_logs
+
 ##  Here we are logging and execing
 ##
 F_TIME_STAMP=`date +%Y-%m-%d_%H-%M-%S`

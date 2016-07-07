@@ -37,6 +37,9 @@ include $(TOP)/build/Makefile.$(OS)
 
 # $TOOLS_TO_INSTALL
 include $(TOP)/build/Makefile.tools
+ifeq (1,$(HAVE_HDF5))
+        TOOLS_TO_INSTALL += pacbio-load
+endif
 
 #fake root for debugging
 #uncomment this line and change the test for root ( see under install: ) to succeed:

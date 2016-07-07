@@ -123,23 +123,21 @@ test_create_options ()
             (Linux)
                 if ! md5sum -c $ARCHIVE.md5 > /dev/null
                 then
-                    echo "md5sum check failed with status $STATUS"
+                    echo "md5sum check failed with status $?"
                     cleanup
                     exit 1
                 fi
                 ;;
             (Darwin)
-                if ! MD5=$(md5 $ARCHIVE)
+                if ! MD5=$(md5sum $ARCHIVE | cut -f1 -d' ')
                 then
-                    echo "md5 failed with status $STATUS"
+                    echo "md5 failed with status $?"
                     cleanup
                     exit 1
                 else
                     MY_MD5=$(cut -f1 -d' ' $ARCHIVE.md5)
-                    if [ "$MD5" == "$MY_MD5" ]
+                    if [ "$MD5" != "$MY_MD5" ]
                     then
-                        echo "$ARCHIVE: OK"
-                    else
                         echo "$ARCHIVE: FAILED"
                         cleanup
                         exit 1

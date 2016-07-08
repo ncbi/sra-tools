@@ -34,7 +34,7 @@ include $(TOP)/build/Makefile.env
 
 .PHONY: $(TEST_TOOLS)
 
-runtests: fastdump1 fastdump2
+slowtests: fastdump1 fastdump2
 
 ACC = SRR341578
 SCRATCH = /tmp/$(shell whoami)/

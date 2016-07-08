@@ -1858,8 +1858,10 @@ rc_t extract_file ( const KARFile *src, const extract_block *eb )
 static
 rc_t extract_dir ( const KARDir *src, const extract_block *eb )
 {
+    rc_t rc;
+
     STATUS ( STAT_QA, "extracting dir: %s", src -> dad . name );
-    rc_t rc = KDirectoryCreateDir ( eb -> cdir, 0700, kcmCreate, "%s", src -> dad . name );
+    rc = KDirectoryCreateDir ( eb -> cdir, 0700, kcmCreate, "%s", src -> dad . name );
     if ( rc == 0 )
     {
         extract_block c_eb = *eb;

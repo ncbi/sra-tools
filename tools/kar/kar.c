@@ -1971,8 +1971,8 @@ rc_t kar_test_extract ( const Params *p )
                 /* Finish test */
                 if ( p -> x_count == 0 )
                 {
-                    STATUS ( STAT_QA, "Test Mode" );
                     KARPrintMode kpm;
+                    STATUS ( STAT_QA, "Test Mode" );
 
                     max_size_fw = get_field_width ( max_size );
                     max_offset_fw = get_field_width ( max_offset );
@@ -1991,9 +1991,9 @@ rc_t kar_test_extract ( const Params *p )
                 }
                 else
                 {
+                    extract_block eb;
                     /* begin extracting */
                     STATUS ( STAT_QA, "Extract Mode" );
-                    extract_block eb;
                     eb . archive = archive;
                     eb . extract_pos = file_offset;
                     eb . rc = 0;

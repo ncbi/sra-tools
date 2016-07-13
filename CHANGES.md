@@ -12,7 +12,7 @@
   **fastdump, sra-tools**: new tool to perform fast dumps of a whole run in either fastq or a custom format for one of our customers.  
   **kar**: Alter the default ordering of components of an SRA archive for better network performance  
   **kdb, kfs, kns**: Added blob validation for data being fetched remotely  
-  **kfg**: When loading configuration files on Windows USERPROFILE environmnet variable is used before HOME  
+  **kfg**: When loading configuration files on Windows USERPROFILE environment variable is used before HOME  
   **kfg**: modified auxiliary remote access configuration to use load-balanced servers  
   **kns**: Fixed a bug when KHttpRequestPOST generated an incorrect Content-Length after retry  
   **ngs, search, sra-search**: sra-search was modified to support multiple threads.  

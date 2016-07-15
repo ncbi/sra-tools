@@ -8,21 +8,41 @@ execute()
     echo "."
 }
 
-ACC="SRR341578"
-SCRATCH="-t /panfs/traces01/compress/qa/raetzw/fastdump/"
-THREADS="-e 4"
+ACC1="SRR341578"
+
+# size is about 20 MB
+# special: 2s vs 3.8s, fastq: 2.3s vs 4.7s
+ACC2="SRR1172940"
+
+# size is about 200 MB
+# special: 13s vs 48s, fastq: 17s vs 57s
+ACC3="SRR353895"
+
+# size is about 2 GB
+# special: 1m13s vs 11m25s, fastq: 1m38s vs 11m56s
+ACC4="SRR392046"
+
+#size is about 20 GB
+#special: 21m34s vs ???, fastq: 34m17s vs 124m20s
+ACC5="SRR534041"
+
+ACC_ONLY_1_READ="SRR449498"
+
+SCRATCH="/panfs/traces01/compress/qa/raetzw/fastdump/"
+THREADS="6"
 
 check_special()
 {
-    FASTDUMP_OUT="$ACC.fastdump.special.txt"
-    VDB_DUMP_OUT="$ACC.vdb_dump.special.txt"
+    ACC="$1"
+    FASTDUMP_OUT="$SCRATCH$ACC.fastdump.special.txt"
+    VDB_DUMP_OUT="$SCRATCH$ACC.vdb_dump.special.txt"
     
     #remove output
     CMD="rm -rf $FASTDUMP_OUT $VDB_DUMP_OUT"
     execute "$CMD"
 
     #produce the output using the lookup-file
-    CMD="time fastdump $ACC $SCRATCH -f special -o $FASTDUMP_OUT $THREADS -p"
+    CMD="time fastdump $ACC -t $SCRATCH -f special -o $FASTDUMP_OUT -e $THREADS -p"
     execute "$CMD"
 
     #produce the same output using vdb-dump with internal schema-joins
@@ -30,21 +50,22 @@ check_special()
     execute "$CMD"
 
     #verify that the output of fastdump via vdb-dump
-    CMD="time diff $FASTDUMP_OUT $VDB_DUMP_OUT"
+    CMD="time diff -q $FASTDUMP_OUT $VDB_DUMP_OUT"
     execute "$CMD"
 }
 
 check_fastq()
 {
-    FASTDUMP_OUT="$ACC.fastdump.fastq.txt"
-    VDB_DUMP_OUT="$ACC.vdb_dump.fastq.txt"
+    ACC="$1"
+    FASTDUMP_OUT="$SCRATCH$ACC.fastdump.fastq.txt"
+    VDB_DUMP_OUT="$SCRATCH$ACC.vdb_dump.fastq.txt"
     
     #remove output
     CMD="rm -rf $FASTDUMP_OUT $VDB_DUMP_OUT"
     execute "$CMD"
 
     #produce the output using the lookup-file
-    CMD="time fastdump $ACC $SCRATCH -f fastq -o $FASTDUMP_OUT $THREADS -p"
+    CMD="time fastdump $ACC -t $SCRATCH -f fastq -o $FASTDUMP_OUT -e $THREADS -p"
     execute "$CMD"
 
     #produce the same output using vdb-dump with internal schema-joins
@@ -52,9 +73,9 @@ check_fastq()
     execute "$CMD"
 
     #verify that the output of fastdump via vdb-dump
-    CMD="time diff $FASTDUMP_OUT $VDB_DUMP_OUT"
+    CMD="time diff -q $FASTDUMP_OUT $VDB_DUMP_OUT"
     execute "$CMD"
 }
 
-check_special
-check_fastq
+check_special "$ACC2"
+check_fastq "$ACC2"

@@ -24,8 +24,6 @@
 *
 */
 
-#include "nencvalid.vers.h"
-
 #include <kapp/main.h>
 
 #include <vfs/manager.h>
@@ -46,17 +44,6 @@
 
 #include <assert.h>
 #include <stdlib.h>
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return NENCVALID_VERS;
-}
 
 #define OPTION_DECRYPT_BIN_COMPATIBILITY "compatibility-mode"
 /* "decrypt.bin" */
@@ -109,9 +96,7 @@ const char * param_usage[] =
     "file which might not be the intention.",
     "The password if needed for validation will",
     "have to be in the standard NCBI VDB",
-    "configuration as 'krypto/pwfile' or ",
-    "referenced by the environment variable",
-    "VDB_PWFILE or Config parameter", NULL
+    "configuration as 'krypto/pwfile'.", NULL
 };
 
 rc_t CC Usage (const Args * args)

@@ -30,8 +30,6 @@ USE_GCC_IF_ICC = 1
 TOP ?= $(abspath ../..)
 MODULE = tools/vdb-decrypt
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS =
 
 EXT_TOOLS = \
@@ -42,34 +40,18 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
-
-
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -92,10 +74,11 @@ VDB_DECRYPT_OBJ = \
 
 VDB_DECRYPT_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb
 
 $(BINDIR)/vdb-decrypt: $(VDB_DECRYPT_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_DECRYPT_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_DECRYPT_LIB)
 
 #-------------------------------------------------------------------------------
 # vdb-encrypt
@@ -111,8 +94,9 @@ VDB_ENCRYPT_OBJ = \
 
 VDB_ENCRYPT_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb
 
 $(BINDIR)/vdb-encrypt: $(VDB_ENCRYPT_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_ENCRYPT_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_ENCRYPT_LIB)
 

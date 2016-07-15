@@ -24,17 +24,15 @@
  * 
  */
 
-#include "latf-load.vers.h"
-
 #include <sysalloc.h>
 
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <ctype.h>
 
 #include <kapp/main.h>
 #include <kapp/args.h>
-#include <loader/common-writer.h>
 #include <klib/rc.h>
 #include <klib/out.h>
 #include <klib/log.h>
@@ -42,6 +40,9 @@
 #include <klib/printf.h>
 #include <kapp/log-xml.h>
 #include <align/writer-refseq.h>
+#include <insdc/sra.h>
+#include <sra/sradb.h>
+#include "common-writer.h"
 
 #include "fastq-parse.h"
 
@@ -256,11 +257,6 @@ rc_t CC Usage (const Args * args)
 
 CommonWriterSettings G;
 
-uint32_t CC KAppVersion (void)
-{
-    return LATF_LOAD_VERS;
-}
-
 #ifdef _WIN32
 #include <process.h>
 #else
@@ -269,6 +265,72 @@ uint32_t CC KAppVersion (void)
 static void set_pid(void)
 {
     G.pid = getpid();
+}
+
+static bool platform_cmp(char const platform[], char const test[])
+{
+    unsigned i;
+
+    for (i = 0; ; ++i) {
+        int ch1 = test[i];
+        int ch2 = toupper(platform[i]);
+        
+        if (ch1 != ch2)
+            break;
+        if (ch1 == 0)
+            return true;
+    }
+    return false;
+}
+
+static INSDC_SRA_platform_id PlatformToId(const char* name)
+{
+    if (name != NULL)
+    {
+        switch (toupper(name[0])) {
+        case 'C':
+            if (platform_cmp(name, "CAPILLARY"))
+                return SRA_PLATFORM_CAPILLARY;
+            if (platform_cmp(name, "COMPLETE GENOMICS") || platform_cmp(name, "COMPLETE_GENOMICS"))
+                return SRA_PLATFORM_COMPLETE_GENOMICS;
+            break;
+        case 'H':
+            if (platform_cmp(name, "HELICOS"))
+                return SRA_PLATFORM_HELICOS;
+            break;
+        case 'I':
+            if (platform_cmp(name, "ILLUMINA"))
+                return SRA_PLATFORM_ILLUMINA;
+            if (platform_cmp(name, "IONTORRENT"))
+                return SRA_PLATFORM_ION_TORRENT;
+            break;
+        case 'L':
+            if (platform_cmp(name, "LS454"))
+                return SRA_PLATFORM_454;
+            break;
+        case 'N':
+            if (platform_cmp(name, "NANOPORE"))
+                return SRA_PLATFORM_OXFORD_NANOPORE;
+            break;
+        case 'O':
+            if (platform_cmp(name, "OXFORD_NANOPORE"))
+                return SRA_PLATFORM_OXFORD_NANOPORE;
+            break;
+        case 'P':
+            if (platform_cmp(name, "PACBIO"))
+                return SRA_PLATFORM_PACBIO_SMRT;
+            break;
+        case 'S':
+            if (platform_cmp(name, "SOLID"))
+                return SRA_PLATFORM_ABSOLID;
+            if (platform_cmp(name, "SANGER"))
+                return SRA_PLATFORM_CAPILLARY;
+            break;
+        default:
+            break;
+        }
+    }
+    return SRA_PLATFORM_UNDEFINED;
 }
 
 static rc_t PathWithBasePath(char rslt[], size_t sz, char const path[], char const base[])

@@ -1,0 +1,19 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(VDB_TARGET)lib\bz2.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <Import Project="..\illumina-dump.files" />
+  
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{0D7E1861-6A3C-4CF3-B603-39BF841C3C82}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

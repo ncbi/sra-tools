@@ -47,29 +47,14 @@ ifeq (win,$(OS))
 all std:
 	@ echo "not building bam-load under Windows"
 else
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 endif
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -96,12 +81,33 @@ BAMLOAD_OBJ = \
 
 BAMLOAD_LIB = \
 	-lkapp \
+	-stk-version \
 	-lload \
 	-sncbi-wvdb \
 	-lm
 
 $(BINDIR)/bam-load: $(BAMLOAD_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(BAMLOAD_LIB)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(BAMLOAD_LIB)
+
+
+#-------------------------------------------------------------------------------
+# samview
+#
+SAMVIEW_SRC = \
+	bam \
+	samview
+
+SAMVIEW_OBJ = \
+	$(addsuffix .$(OBJX),$(SAMVIEW_SRC))
+
+SAMVIEW_LIB = \
+	-lkapp \
+	-stk-version \
+	-sncbi-vdb \
+	-lm
+
+$(BINDIR)/samview: $(SAMVIEW_OBJ)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SAMVIEW_LIB)
 
 
 #-------------------------------------------------------------------------------

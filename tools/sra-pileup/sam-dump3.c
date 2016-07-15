@@ -23,8 +23,6 @@
 * ===========================================================================
 *
 */
-#include "sam-dump.vers.h"
-
 #include <kapp/main.h>
 #include <vdb/report.h> /* ReportSetVDBManager */
 #include <vdb/vdb-priv.h> /* VDBManagerDisablePagemapThread() */
@@ -267,11 +265,6 @@ char const *sd_usage_params[] =
     NULL,                       /* force new code path */
     NULL                        /* optional timing */
 };
-
-ver_t CC KAppVersion( void )
-{
-    return SAM_DUMP_VERS;
-}
 
 const char UsageDefaultName[] = "sam-dump";
 

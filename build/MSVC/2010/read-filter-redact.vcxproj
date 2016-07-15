@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\rd-filter-redact\read-filter-redact.c" />
-  </ItemGroup>
+  <Import Project="..\read-filter-redact.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{B7C166D7-2B45-4E77-A608-DDBD0B588082}</ProjectGuid>

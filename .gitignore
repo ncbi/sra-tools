@@ -16,3 +16,7 @@
 /schema
 /test-bin64
 /win
+*.log
+/.cproject
+/.project
+/.pydevproject

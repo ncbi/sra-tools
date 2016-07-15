@@ -26,8 +26,6 @@
 
 /********** includes **********/
 
-#include "prefetch.vers.h"
-
 #include <kapp/args-conv.h> /* ArgsConvFilepath */
 #include <kapp/main.h> /* KAppVersion */
 
@@ -3204,8 +3202,6 @@ rc_t CC Usage(const Args *args) {
 
     return rc;
 }
-
-ver_t CC KAppVersion(void) { return PREFETCH_VERS; }
 
 /******************************************************************************/
 

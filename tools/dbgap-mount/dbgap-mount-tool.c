@@ -24,8 +24,6 @@
 *
 */
 
-#include "dbgap-mount-tool.vers.h" /* VDB_PASSWD_VERS */
-
 #include <kapp/main.h> /* KMain */
 #include <kapp/args.h> /* KMain */
 
@@ -432,8 +430,6 @@ DoUnmount ( const char * MountPoint )
 /*)))
   \\\   KApp and Options ...
   (((*/
-
-ver_t CC KAppVersion(void) { return MOUNT_TOOL_VERS; }
 
 struct OptDef ToolOpts [] = {
     { OPT_DAEMONIZE, ALS_DAEMONIZE, NULL, UsgDaemonize, 1, false, false },

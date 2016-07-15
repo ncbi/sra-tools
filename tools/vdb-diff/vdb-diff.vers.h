@@ -1,1 +1,0 @@
-#define VDB_DIFF_VERS 0x01000000

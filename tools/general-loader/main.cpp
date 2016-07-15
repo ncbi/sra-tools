@@ -24,8 +24,6 @@
  * 
  */
 
-#include "general-loader.vers.h"
-
 #include "general-loader.hpp"
 
 #include <sysalloc.h>
@@ -140,11 +138,6 @@ rc_t CC Usage (const Args * args)
     HelpOptionsStandard ();
     HelpVersion (fullpath, KAppVersion());
     return rc;
-}
-
-uint32_t CC KAppVersion (void)
-{
-    return GENERAL_LOADER_VERS;
 }
 
 rc_t CC KMain (int argc, char * argv[])

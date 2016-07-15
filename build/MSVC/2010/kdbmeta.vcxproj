@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-   <ItemGroup>
-    <ClCompile Include="..\..\..\tools\util\kdbmeta.c" />
-  </ItemGroup>
+  <Import Project="..\kdbmeta.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{D2B898E3-DDBB-4704-A932-AED218DABE18}</ProjectGuid>

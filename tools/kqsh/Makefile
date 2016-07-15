@@ -42,28 +42,13 @@ ALL_TOOLS = \
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes kqsh-thunks
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs kqsh-thunks
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes kqsh-thunks
+$(ALL_TOOLS): makedirs kqsh-thunks
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -214,8 +199,9 @@ KQSH_OBJ = \
 
 KQSH_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-vdb \
 
 
 $(BINDIR)/kqsh: $(KQSH_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(KQSH_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KQSH_LIB)

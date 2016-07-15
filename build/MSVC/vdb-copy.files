@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="..\..\..\tools\vdb-copy\coldefs.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\config_values.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\context.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\copy_meta.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\get_platform.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\helper.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\namelist_tools.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\num-gen.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\redactval.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\type_matcher.c" />
+    <ClCompile Include="..\..\..\tools\vdb-copy\vdb-copy.c" />
+  </ItemGroup>
+</Project>

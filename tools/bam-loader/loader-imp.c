@@ -2108,12 +2108,12 @@ MIXED_BASE_AND_COLOR:
                     else if (rl != clipped_rl) {
                         if (isPrimary) {
                             rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) then previously recorded secondary alignment. Try to defer secondary alignment processing.",
+                            (void)PLOGERR(klogErr, (klogErr, rc, "Primary alignment for '$(name)' has different length ($(len)) than previously recorded secondary alignment. Try to defer secondary alignment processing.",
                                                     "name=%s,len=%d", name, readlen));
                         }
                         else {
                             rc = SILENT_RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogWarn, (klogWarn, rc, "Secondary alignment for '$(name)' has different length ($(len)) then previously recorded primary alignment; discarding secondary alignment.",
+                            (void)PLOGERR(klogWarn, (klogWarn, rc, "Secondary alignment for '$(name)' has different length ($(len)) than previously recorded primary alignment; discarding secondary alignment.",
                                                      "name=%s,len=%d", name, readlen));
                             DISCARD_BAD_SECONDARY;
                             rc = CheckLimitAndLogError();
@@ -2222,7 +2222,7 @@ WRITE_SEQUENCE:
                     }
                     memset(&fi, 0, sizeof(fi));
 
-                    fi.aligned = isPrimary ? aligned:0;
+                    fi.aligned = isPrimary ? aligned : 0;
                     fi.ti = ti;
                     fi.orientation = AR_REF_ORIENT(data);
                     fi.otherReadNo = AR_READNO(data);
@@ -2372,7 +2372,7 @@ WRITE_SEQUENCE:
                         srec.ti[read2] = ti;
 
                         srec.aligned[read1] = fip->aligned;
-                        srec.aligned[read2] = aligned;
+                        srec.aligned[read2] = isPrimary ? aligned : 0;
 
                         srec.is_bad[read1] = fip->is_bad;
                         srec.is_bad[read2] = (flags & BAMFlags_IsLowQuality) != 0;
@@ -2446,7 +2446,7 @@ WRITE_SEQUENCE:
 
                 srec.readLen[0] = readlen;
                 srec.ti[0] = ti;
-                srec.aligned[0] = isPrimary?aligned:0;
+                srec.aligned[0] = isPrimary ? aligned : 0;
                 srec.is_bad[0] = (flags & BAMFlags_IsLowQuality) != 0;
                 srec.orientation[0] = AR_REF_ORIENT(data);
                 srec.cskey[0] = cskey;

@@ -25,7 +25,6 @@
 */
 
 #include "vdb-copy-includes.h"
-#include "vdb-copy.vers.h"
 #include "definitions.h"
 #include <klib/text.h>
 #include <klib/printf.h>
@@ -324,7 +323,7 @@ static rc_t enter_version( KMDataNode *node, const char * key )
     char buff[ 32 ];
     rc_t rc;
 
-    rc = string_printf ( buff, sizeof( buff ), NULL, "%.3V", VDB_COPY_VERS );
+    rc = string_printf ( buff, sizeof( buff ), NULL, "%.3V", KAppVersion() );
     assert ( rc == 0 );
     rc = KMDataNodeWriteAttr ( node, key, buff );
     DISP_RC( rc, "enter_version:KMDataNodeWriteAttr() failed" );

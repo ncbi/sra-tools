@@ -46,8 +46,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sra-dbcc.vers.h"
-
 rc_t CC Usage ( struct Args const * args ) { return 0; }
 
 static rc_t ValidateColumn(const KColumn *col,
@@ -363,11 +361,6 @@ static void usage(const char *progName)
            "    -h, --help       This help\n"
            "    -v, --version    Program version\n"
            "\n");
-}
-
-uint32_t CC KAppVersion(void)
-{
-    return SRA_DBCC_VERS;
 }
 
 rc_t CC KMain ( int argc, char *argv [] )

@@ -28,10 +28,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\sra-stat\sra.c" />
-    <ClCompile Include="..\..\..\tools\sra-stat\sra-stat.c" />
-  </ItemGroup>
+  <Import Project="..\sra-stat.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{88A9A91A-4BC3-47EA-8147-944FD4909C6D}</ProjectGuid>

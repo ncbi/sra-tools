@@ -1,0 +1,24 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup>
+    <ClCompile Include="..\..\..\tools\sra-pileup\4na_ascii.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\cg_tools.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\cmdline_cmn.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\dyn_string.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\perf_log.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_counters.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_index.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_indels.c" />	
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_stat.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_v2.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_varcount.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\ref_regions.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\ref_walker.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\ref_walker_0.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\report_deletes.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\reref.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\sra-pileup.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\walk_debug.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\out_redir.c" />	
+  </ItemGroup>
+</Project>

@@ -27,9 +27,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\align-info\align-info.c" />
-  </ItemGroup>
+  <Import Project="..\align-info.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{A54C75F9-A609-4BEC-91AB-23F5119B62AE}</ProjectGuid>

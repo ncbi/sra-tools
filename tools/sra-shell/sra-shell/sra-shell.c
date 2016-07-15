@@ -29,13 +29,6 @@
 #include <kapp/main.h>
 #include <kapp/args.h>
 
-#include "sra-shell.vers.h"
-
-uint32_t CC KAppVersion ( void )
-{
-    return SRA_SHELL_VERS;
-}
-
 rc_t CC Usage ( const Args * args )
 {
     return 0;

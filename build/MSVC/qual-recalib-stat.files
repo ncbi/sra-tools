@@ -1,0 +1,14 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup>
+    <ClCompile Include="..\..\..\tools\qual-recalib-stat\columns.c" />
+    <ClCompile Include="..\..\..\tools\qual-recalib-stat\context.c" />
+    <ClCompile Include="..\..\..\tools\qual-recalib-stat\namelist_tools.c" />
+    <ClCompile Include="..\..\..\tools\qual-recalib-stat\qual-recalib-stat.c" />
+    <ClCompile Include="..\..\..\tools\qual-recalib-stat\reader.c" />
+    <ClCompile Include="..\..\..\tools\qual-recalib-stat\ref_exclude.c" />
+    <ClCompile Include="..\..\..\tools\qual-recalib-stat\spot_position.c" />
+    <ClCompile Include="..\..\..\tools\qual-recalib-stat\stat_mod_2.c" />
+    <ClCompile Include="..\..\..\tools\qual-recalib-stat\writer.c" />
+  </ItemGroup>
+</Project>

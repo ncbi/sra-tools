@@ -24,8 +24,6 @@
  * 
  */
 
-#include "vcf-load.vers.h"
-
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
@@ -118,11 +116,6 @@ rc_t CC Usage (const Args * args)
     HelpOptionsStandard ();
     HelpVersion (fullpath, KAppVersion());
     return rc;
-}
-
-uint32_t CC KAppVersion (void)
-{
-    return VCF_LOAD_VERS;
 }
 
 rc_t CC KMain (int argc, char * argv[])

@@ -1,5 +1,35 @@
 # NCBI External Developer Release:
 
+## SRA Toolkit 2.7.0
+**June 12, 2016**
+
+  **align, bam-load**: Insert-only alignments no longer cause incorrect binning  
+  **bam-load**: fixed case where WGS accessions where not being read correctly  
+  **bam-load**: will NOT perform spot assembly using hard clipped secondary alignments, even when 'make-spots-with-secondary' is enabled; WILL perform spot assembly using hard-clipped secondary alignments when 'defer-secondary' is enabled  
+  **blast, kfg, ncbi-vdb, sra-tools, vfs**: restored possibility to disable local caching  
+  **build, sra-tools**: Running make and make install in sra-tools repository prepares all configuration files required to access NCBI repository  
+  **doc, ncbi-vdb**: created a Wiki page illustrating how to use the API to set up logging  
+  **fastdump, sra-tools**: new tool to perform fast dumps of a whole run in either fastq or a custom format for one of our customers.  
+  **kar**: Alter the default ordering of components of an SRA archive for better network performance  
+  **kdb, kfs, kns**: Added blob validation for data being fetched remotely  
+  **kfg**: When loading configuration files on Windows USERPROFILE environment variable is used before HOME  
+  **kfg**: modified auxiliary remote access configuration to use load-balanced servers  
+  **kns**: Fixed a bug when KHttpRequestPOST generated an incorrect Content-Length after retry  
+  **ngs, search, sra-search**: sra-search was modified to support multiple threads.  
+  **ngs-engine, ngs-tools, sra-tools, vfs**: The "auxiliary" nodes in configuration are now ignored  
+  **pileup-stats**: updated commandline parser to eat unprocessed parameters  
+  **sam-dump**: updated to append asterisks to quality field of SAM output when corrupt original BAM has secondary alignment is shorter than the primary.  
+  **search**: now supports multi-threaded search  
+  **sra-search**: now supports sorted output  
+  **sra-tools**: added possibility to build rpm package in sra-toolkit  
+  **sra-tools**: fixed exit codes for a number of applications in response to command line options  
+  **vdb-dump**: added tests to verify vdb-dump operation on nested databases  
+  **vdb-validate**: A new checks were added for SEQUENCE table  
+  **vdb**: fixed a bug in VCursorFindNextRowIdDirect where it returned a wrong rowId  
+  **vdb**: fixed a bug in the code used to iterate over blobs where rowmap expansion cache would reset iteration to initial row instead of respecting sequence  
+  **vfs**: environment variable VDB_PWFILE is no longer used  
+
+
 ## SRA Toolkit 2.6.3
 **May 25, 2016**
 

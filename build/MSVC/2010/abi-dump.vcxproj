@@ -24,12 +24,7 @@
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\sra-dump\abi.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\core.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\factory.c" />
-    <ClCompile Include="..\..\..\tools\sra-dump\fasta_dump.c" />
-  </ItemGroup>
+  <Import Project="..\abi-dump.files" />
   <PropertyGroup Label="Globals">
     <ProjectGuid>{9DF843FA-AA45-4EB1-BB76-84342AED550C}</ProjectGuid>
   </PropertyGroup>

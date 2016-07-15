@@ -34,7 +34,10 @@
 
 #include <klib/out.h>
 #include <klib/printf.h>
+#include <klib/text.h>
 #include <kproc/thread.h>
+
+#include <stdio.h>
 
 typedef struct join
 {
@@ -59,17 +62,34 @@ static void release_join_ctx( join * j )
 static rc_t init_join( const join_params * jp, struct join *j, struct index_reader * index )
 {
     rc_t rc;
+    
     j->lookup = NULL;
     j->printer = NULL;
     j->B1.S.addr = NULL;
     j->B2.S.addr = NULL;
+    
     rc = make_lookup_reader( jp->dir, index, &j->lookup, jp->buf_size, "%s", jp->lookup_filename );
-    if ( rc == 0 && jp->output_filename != NULL )
-        rc = make_file_printer( jp->dir, &j->printer, jp->buf_size, 4096 * 4, "%s", jp->output_filename );
     if ( rc == 0 )
+    {
+        if ( jp->output_filename != NULL )
+            rc = make_file_printer( jp->dir, &j->printer, jp->buf_size, 4096 * 4, "%s", jp->output_filename );
+        if ( rc != 0 )
+            ErrMsg( "init_join().make_file_printer() -> %R", rc );
+    }
+    else
+        ErrMsg( "init_join().make_lookup_reader() -> %R", rc );
+    if ( rc == 0 )
+    {
         rc = make_SBuffer( &j->B1, 4096 );
+        if ( rc != 0 )
+            ErrMsg( "init_join().make_SBuffer( B1 ) -> %R", rc );
+    }
     if ( rc == 0 )
+    {
         rc = make_SBuffer( &j->B2, 4096 );
+        if ( rc != 0 )
+            ErrMsg( "init_join().make_SBuffer( B2 ) -> %R", rc );
+    }
 
     /* the rc-code of seek_lookup_reader is not checked, because if the row-id to be seeked to is in
        the range of the fully unaligned data - seek will fail, because the are no alignments = lookup-records
@@ -79,8 +99,10 @@ static rc_t init_join( const join_params * jp, struct join *j, struct index_read
         uint64_t key_to_find = jp->first << 1;
         uint64_t key_found = 0;
         rc_t rc1 = seek_lookup_reader( j->lookup, key_to_find, &key_found, true );
-        if ( GetRCState( rc1 ) != rcTooBig )
+        if ( GetRCState( rc1 ) != rcTooBig && GetRCState( rc1 ) != rcNotFound )
             rc = rc1;
+        if ( rc != 0 )
+            ErrMsg( "init_join().seek_lookup_reader( %lu ) -> %R", key_to_find, rc );
     }
     if ( rc != 0 )
         release_join_ctx( j );
@@ -117,7 +139,37 @@ static void init_cmn_params( const join_params * jp, cmn_params * cmn )
     cmn->show_progress  = jp->show_progress;
 }
 
-static rc_t print_special( special_rec * rec, join * j )
+
+static rc_t print_special_1_read( special_rec * rec, join * j )
+{
+    rc_t rc = 0;
+    int64_t row_id = rec->row_id;
+    
+    if ( rec->prim_alig_id[ 0 ] == 0 )
+    {
+        /* read is unaligned, print what is in row->cmp_read ( !!! no lookup !!! ) */
+        if ( j->printer != NULL )
+            rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
+        else
+            rc = KOutMsg( "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
+    }
+    else
+    {
+        /* read is aligned ( 1 lookup ) */
+        rc = lookup_bases( j->lookup, row_id, 1, &j->B1 );
+        if ( rc == 0 )
+        {
+            if ( j->printer != NULL )
+                rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &j->B1.S, &rec->spot_group );
+            else
+                rc = KOutMsg( "%ld\t%S\t%S\n", row_id, &j->B1.S, &rec->spot_group );
+        }
+    }
+    return rc;
+}
+
+
+static rc_t print_special_2_reads( special_rec * rec, join * j )
 {
     rc_t rc = 0;
     int64_t row_id = rec->row_id;
@@ -178,7 +230,46 @@ static rc_t print_special( special_rec * rec, join * j )
 }
 
 
-static rc_t print_fastq( fastq_rec * rec, join * j, const char * acc )
+static rc_t print_fastq_1_read( fastq_rec * rec, join * j, const char * acc )
+{
+    rc_t rc = 0;
+    int64_t row_id = rec->row_id;
+    
+    if ( rec->prim_alig_id[ 0 ] == 0 )
+    {
+        /* read is unaligned, print what is in row->cmp_read (no lookup)*/
+        const char * fmt = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
+        if ( j->printer != NULL )
+            rc = file_print( j->printer, fmt,
+                acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
+                acc, row_id, row_id, rec->quality.len, &rec->quality );
+        else
+            rc = KOutMsg( fmt,
+                acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
+                acc, row_id, row_id, rec->quality.len, &rec->quality );
+    }
+    else
+    {
+        /* read is aligned, ( 1 lookup ) */    
+        rc = lookup_bases( j->lookup, row_id, 1, &j->B1 );
+        if ( rc == 0 )
+        {
+            const char * fmt = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
+            if ( j->printer != NULL )
+                rc = file_print( j->printer, fmt,
+                    acc, row_id, row_id, j->B1.S.len, &j->B1.S,
+                    acc, row_id, row_id, rec->quality.len, &rec->quality );
+            else
+                rc = KOutMsg( fmt,
+                    acc, row_id, row_id, j->B1.S.len, &j->B1.S,
+                    acc, row_id, row_id, rec->quality.len, &rec->quality );
+        }
+    }
+    return rc;
+}
+
+
+static rc_t print_fastq_2_reads( fastq_rec * rec, join * j, const char * acc )
 {
     rc_t rc = 0;
     int64_t row_id = rec->row_id;
@@ -264,32 +355,31 @@ static rc_t extract_row_count_cmn( const join_params * jp, uint64_t * row_count 
 {
     rc_t rc = 0;
     cmn_params cmn;
-    init_cmn_params( jp, &cmn );
+    
+    init_cmn_params( jp, &cmn ); /* above */
+    switch( jp->fmt )
     {
-        switch( jp->fmt )
-        {
-            case ft_special : {
-                                    struct special_iter * iter;
-                                    rc = make_special_iter( &cmn, &iter );
-                                    if ( rc == 0 )
-                                    {
-                                        *row_count = get_row_count_of_special_iter( iter );
-                                        destroy_special_iter( iter );
-                                    }
-                               } break;
-                               
-            case ft_fastq   : {
-                                    struct fastq_iter * iter;
-                                    rc = make_fastq_iter( &cmn, &iter );
-                                    if ( rc == 0 )
-                                    {
-                                        *row_count = get_row_count_of_fastq_iter( iter );
-                                        destroy_fastq_iter( iter );
-                                    }
-                               } break;
-                               
-            default : break;
-        }
+        case ft_special : {
+                                struct special_iter * iter;
+                                rc = make_special_iter( &cmn, &iter ); /* special_iter.c */
+                                if ( rc == 0 )
+                                {
+                                    *row_count = get_row_count_of_special_iter( iter );
+                                    destroy_special_iter( iter );
+                                }
+                           } break;
+                           
+        case ft_fastq   : {
+                                struct fastq_iter * iter;
+                                rc = make_fastq_iter( &cmn, &iter ); /* fastq_iter.c */
+                                if ( rc == 0 )
+                                {
+                                    *row_count = get_row_count_of_fastq_iter( iter );
+                                    destroy_fastq_iter( iter );
+                                }
+                           } break;
+                           
+        default : break;
     }
     return rc;
 }
@@ -302,7 +392,7 @@ static rc_t perform_special_join( const join_params * jp, struct index_reader * 
     struct special_iter * iter;
     cmn_params cmn;
 
-    init_cmn_params( jp, &cmn );
+    init_cmn_params( jp, &cmn ); /* above */
     rc = make_special_iter( &cmn, &iter );
     if ( rc == 0 )
     {
@@ -316,15 +406,23 @@ static rc_t perform_special_join( const join_params * jp, struct index_reader * 
                 rc = Quitting();
                 if ( rc == 0 )
                 {
-                    rc = print_special( &rec, &j );
+                    if ( rec.num_reads == 1 )
+                        rc = print_special_1_read( &rec, &j );
+                    else
+                        rc = print_special_2_reads( &rec, &j );
+
                     if ( jp->join_progress != NULL )
                         atomic_inc( jp->join_progress );
                 }
             }
             release_join_ctx( &j );
         }
+        else
+            ErrMsg( "init_join() -> %R", rc );
         destroy_special_iter( iter );
     }
+    else
+        ErrMsg( "make_special_iter() -> %R", rc );
     return rc;
 }
 
@@ -335,29 +433,41 @@ static rc_t perform_fastq_join( const join_params * jp, struct index_reader * in
     struct fastq_iter * iter;
     cmn_params cmn;
 
-    init_cmn_params( jp, &cmn );
+    init_cmn_params( jp, &cmn ); /* above */
     rc = make_fastq_iter( &cmn, &iter );
     if ( rc == 0 )
     {
         join j;
+        
         rc = init_join( jp, &j, index );
         if ( rc == 0 )
         {
             fastq_rec rec;
+            uint64_t n = 0;
+            
             while ( get_from_fastq_iter( iter, &rec, &rc ) && rc == 0 )
             {
                 rc = Quitting();
                 if ( rc == 0 )
                 {
-                    rc = print_fastq( &rec, &j, jp->accession );
+                    if ( rec.num_reads == 1 )
+                        rc = print_fastq_1_read( &rec, &j, jp->accession );
+                    else
+                        rc = print_fastq_2_reads( &rec, &j, jp->accession );
+
                     if ( jp->join_progress != NULL )
                         atomic_inc( jp->join_progress );
+                    n++;
                 }
             }
             release_join_ctx( &j );
         }
+        else
+            ErrMsg( "init_join() -> %R", rc );
         destroy_fastq_iter( iter );
     }
+    else
+        ErrMsg( "make_fastq_iter() -> %R", rc );
     return rc;
 }
 
@@ -374,6 +484,14 @@ typedef struct join_thread_data
 } join_thread_data;
 
 
+static const char * leaf_of( const char * src )
+{
+    const char * last_slash = string_rchr( src, string_size ( src ), '/' );
+    if ( last_slash != NULL )
+        return last_slash + 1;
+    return src;
+}
+
 static rc_t make_part_filename( const join_params * jp, char * buffer, size_t bufsize, uint32_t id )
 {
     rc_t rc;
@@ -388,12 +506,14 @@ static rc_t make_part_filename( const join_params * jp, char * buffer, size_t bu
         }
         else
         {
+            const char * output_file_leaf = leaf_of( jp->output_filename ); /* above */
+            
             if ( jp->temp_path[ l-1 ] == '/' )
                 rc = string_printf( buffer, bufsize, &num_writ, "%s%s.%d",
-                        jp->temp_path, jp->output_filename, id );
+                        jp->temp_path, output_file_leaf, id );
             else
                 rc = string_printf( buffer, bufsize, &num_writ, "%s/%s.%d",
-                        jp->temp_path, jp->output_filename, id );
+                        jp->temp_path, output_file_leaf, id );
         }
     }
     else
@@ -415,12 +535,12 @@ static rc_t concat_part_files( const join_params * jp, uint32_t count )
         for ( idx = 0; rc == 0 && idx < count; ++idx )
         {
             char part_file[ 4096 ];
-            rc = make_part_filename( jp, part_file, sizeof part_file, idx );
+            rc = make_part_filename( jp, part_file, sizeof part_file, idx ); /* above */
             if ( rc == 0 )
                 rc = VNamelistAppend( files, part_file );
         }
         if ( rc == 0 )
-            rc = concat_files( jp->dir, files, jp->buf_size, jp->output_filename, jp->show_progress );
+            rc = concat_files( jp->dir, files, jp->buf_size, jp->output_filename, jp->show_progress ); /* helper.c */
         if ( rc == 0 )
             rc = delete_files( jp->dir, files );
         VNamelistRelease( files );
@@ -440,13 +560,13 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
     if ( jp->index_filename != NULL )
     {
         if ( file_exists( jp->dir, "%s", jp->index_filename ) )
-            rc = make_index_reader( jp->dir, &index, jp->buf_size, "%s", jp->index_filename );
+            rc = make_index_reader( jp->dir, &index, jp->buf_size, "%s", jp->index_filename ); /* index.c */
     }
 
-    if ( rc == 0 )
+    if ( rc == 0 && index != NULL )
     {
         char part_file[ 4096 ];
-        rc = make_part_filename( jp, part_file, sizeof part_file, jtd->idx );
+        rc = make_part_filename( jp, part_file, sizeof part_file, jtd->idx ); /* above */
         if ( rc == 0 )
         {
             join_params cjp;
@@ -460,15 +580,15 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
             
             switch( jp->fmt )
             {
-                case ft_special : rc = perform_special_join( &cjp, index ); break;
-                case ft_fastq   : rc = perform_fastq_join( &cjp, index ); break;
+                case ft_special : rc = perform_special_join( &cjp, index ); break; /* above */
+                case ft_fastq   : rc = perform_fastq_join( &cjp, index ); break; /* above */
                 default : break;
                 
             }
         }
+        release_index_reader( index ); /* index.c */    
     }
     
-    release_index_reader( index );
     free( ( void * ) data );
     return rc;
 }
@@ -477,20 +597,24 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
 rc_t execute_join( const join_params * jp )
 {
     rc_t rc = 0;
+    
+    if ( jp->show_progress )
+        KOutMsg( "join   :" );
+
     if ( jp->num_threads < 2 )
     {
         /* on the main thread */
         switch( jp->fmt )
         {
-            case ft_special : rc = perform_special_join( jp, NULL ); break;
-            case ft_fastq   : rc = perform_fastq_join( jp, NULL ); break;
+            case ft_special : rc = perform_special_join( jp, NULL ); break; /* above */
+            case ft_fastq   : rc = perform_fastq_join( jp, NULL ); break; /* above */
             default : break;
         }
     }
     else
     {
         uint64_t row_count = 0;
-        rc = extract_row_count_cmn( jp, &row_count );
+        rc = extract_row_count_cmn( jp, &row_count ); /* above */
         if ( rc == 0 && row_count > 0 )
         {
             Vector threads;
@@ -498,16 +622,15 @@ rc_t execute_join( const join_params * jp )
             uint64_t i, per_thread = ( row_count / jp->num_threads ) + 1;
             KThread * progress_thread = NULL;
             multi_progress progress;
-            
-            init_progress_data( &progress, row_count );
+
+            init_progress_data( &progress, row_count ); /* helper.c */
             VectorInit( &threads, 0, jp->num_threads );
             
             if ( jp->show_progress )
             {
                 join_params * nc_jp = ( join_params * )jp;
                 nc_jp->join_progress = &progress.progress_rows;
-                rc = start_multi_progress( &progress_thread, &progress );
-                
+                rc = start_multi_progress( &progress_thread, &progress ); /* helper.c */
             }
             for ( i = 0; rc == 0 && i < jp->num_threads; ++i )
             {
@@ -534,9 +657,13 @@ rc_t execute_join( const join_params * jp )
                 }
             }
             
-            join_and_release_threads( &threads );
-            join_multi_progress( progress_thread, &progress );
-            rc = concat_part_files( jp, jp->num_threads );
+            join_and_release_threads( &threads ); /* helper.c */
+            join_multi_progress( progress_thread, &progress ); /* helper.c */
+            
+            if ( jp->show_progress )
+                KOutMsg( "concat :" );
+            
+            rc = concat_part_files( jp, jp->num_threads ); /* above */
         }
     }
     return rc;

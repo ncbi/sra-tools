@@ -47,6 +47,12 @@ SUBDIRS =    \
 	vdb-validate    \
 	kar             \
     copycat         \
+	fastdump        \
+	vdb-copy        \
+	qual-recalib-stat        \
+	sra-pileup      \
+	srapath         \
+    fuse            \
 
 # under construction    
 #    ngs-pileup      \

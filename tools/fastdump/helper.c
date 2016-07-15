@@ -45,6 +45,8 @@ rc_t ErrMsg( const char * fmt, ... )
     va_start( list, fmt );
     rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
     if ( rc == 0 )
+        /* rc = KOutMsg( "%s\n", buffer ); */
+        /* rc = pLogErr( klogErr, 1, "$(E)", "E=%s", buffer ); */
         rc = pLogMsg( klogErr, "$(E)", "E=%s", buffer );
     va_end( list );
     return rc;
@@ -250,20 +252,6 @@ format_t get_format_t( const char * format )
         StringInitCString( &FastqFormat, "fastq" );
         if ( 0 == StringCaseCompare ( &Format, &FastqFormat ) )
             res = ft_fastq;
-        else
-        {
-            String LookupFormat;
-            StringInitCString( &LookupFormat, "lookup" );
-            if ( 0 == StringCaseCompare ( &Format, &LookupFormat ) )
-                res = ft_lookup;
-            else
-            {
-                String TestFormat;
-                StringInitCString( &TestFormat, "test" );
-                if ( 0 == StringCaseCompare ( &Format, &TestFormat ) )
-                    res = ft_test;
-            }
-        }
     }
     return res;
 }

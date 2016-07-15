@@ -26,13 +26,11 @@
       <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-wvdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\load.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalDependencies>$(VDB_TARGET)lib\vcf-loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SRATOOLS_TARGET)lib\vcf-loader.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\test\vcf-loader\test-vcf-loader.cpp" />
-  </ItemGroup>
+  <Import Project="..\test-vcf-loader.files" />
 
     <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
         <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="$(ProjectDir)"/>

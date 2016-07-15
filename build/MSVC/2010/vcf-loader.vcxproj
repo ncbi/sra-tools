@@ -21,12 +21,7 @@
   
   <Import Project=".\lib-project.props" />
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\vcf-loader\vcf-database.c" />
-    <ClCompile Include="..\..\..\tools\vcf-loader\vcf-grammar.c" />
-    <ClCompile Include="..\..\..\tools\vcf-loader\vcf-lex.c" />
-    <ClCompile Include="..\..\..\tools\vcf-loader\vcf-reader.c" />
-  </ItemGroup>
+  <Import Project="..\vcf-loader.files" />
   
   <PropertyGroup Label="Globals">
     <ProjectGuid>{DA226775-67B1-4354-A5CA-7F5406E0B1E7}</ProjectGuid>

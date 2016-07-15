@@ -167,15 +167,9 @@ class CConfigurator : CNoncopyable {
         RELEASE(KRepositoryMgr, mgr);
         return rc;
     }
+
     rc_t CheckConfig(bool fix) {
         rc_t rc = CheckRepositories(fix);
-        if (rc == 0) {
-            const string name("/krypto/pwfile");
-            CString node(m_Cfg.ReadString(name.c_str()));
-            if (node.Empty()) {
-                rc = m_Cfg.UpdateNode(name.c_str(), "$(NCBI_HOME)/vdb-passwd");
-            }
-        }
         if (rc == 0) {
             const string name("/tools/ascp/max_rate");
             CString node(m_Cfg.ReadString(name.c_str()));
@@ -194,8 +188,10 @@ class CConfigurator : CNoncopyable {
         }
         return rc;
     }
+
 protected:
     vdbconf_model *m_Config;
+
 public:
     CConfigurator(bool fix = false, bool verbose = false): m_Config(NULL) {
 #define TODO 1
@@ -301,6 +297,7 @@ struct SData {
     public:
         bool site_enabled;
         bool remote_enabled;
+        bool cache_disabled;
         SUserRepo userR;
         CProtectedRepos protectedR;
         SCrntData(const vdbconf_model *kfg)
@@ -312,6 +309,7 @@ struct SData {
             assert(m_Kfg);
             site_enabled = m_Kfg->is_site_enabled();
             remote_enabled = m_Kfg->is_remote_enabled();
+            cache_disabled = ! m_Kfg->is_global_cache_enabled();
             userR.Reload(m_Kfg);
             protectedR.Reload(m_Kfg);
         }
@@ -397,6 +395,7 @@ class CTextualConfigurator : public CConfigurator {
         eSite,
         eUnknown,
         eUserCacheEnable,
+        eGlobalCacheEnable,
 //      eUserEnable,
         eUserRoot,
     };
@@ -472,7 +471,14 @@ class CTextualConfigurator : public CConfigurator {
                 OUTMSG(("disabled (not recommended) (2)\n\n"));
             }
         }
-        OUTMSG(("\n  local workspaces\n\n  Open Access Data\n"));
+        OUTMSG(("\n  local workspaces: local file caching: "));
+        if (d.crnt.cache_disabled) {
+            OUTMSG(("disabled (not recommended) (6)\n"));
+        }
+        else {
+            OUTMSG(("enabled (recommended) (6)\n"));
+        }
+        OUTMSG(("\n  Open Access Data\n"));
 /*      if (d.crnt.userR.enabled) {
             OUTMSG(("enabled (recommended) (6)\n"));
         }
@@ -533,7 +539,7 @@ class CTextualConfigurator : public CConfigurator {
             case  'Y': return SChoice(eExit);
             case  '2': //            case  'O':
                 return d.site ? SChoice(eSite) : SChoice(eUnknown);
-//          case  '6': return SChoice(eUserEnable);
+            case  '6': return SChoice(eGlobalCacheEnable);
             case  '3': return SChoice(eUserCacheEnable);
             case  '4': return SChoice(eUserRoot);
             default  : return CSymGen::Seq2Choice(string(1, answer), id);
@@ -637,6 +643,16 @@ class CTextualConfigurator : public CConfigurator {
                         OUTMSG(("Enabling remote repository..."));
                     }
                     m_Config->set_remote_enabled(!d.crnt.remote_enabled);
+                    d.updated = true;
+                    break;
+                case eGlobalCacheEnable:
+                    if (d.crnt.cache_disabled) {
+                        OUTMSG(("Enabling local file caching..."));
+                    }
+                    else {
+                        OUTMSG(("WARNING: DISABLING LOCAL FILE CACHING!!!"));
+                    }
+                    m_Config->set_global_cache_enabled(d.crnt.cache_disabled);
                     d.updated = true;
                     break;
                 case eUserCacheEnable:

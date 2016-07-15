@@ -9,8 +9,11 @@
 #include <kfc/rc.h>
 
 #include <sysalloc.h>
+#include <algorithm>        /* min */
 
 #include <string.h>         /* strcmp () */
+
+#include <algorithm>
 
 #include "args.hpp"
 #include "filters.hpp"
@@ -359,7 +362,6 @@ DumpArgs :: __customParse ()
 
 using namespace ngs;
 
-ver_t CC KAppVersion ( void ) { return 0; }
 const char UsageDefaultName[] = "fq-d";
 
 rc_t CC

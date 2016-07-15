@@ -27,23 +27,7 @@
     </Link>
   </ItemDefinitionGroup>  
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-bin.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-coldefs.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-context.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-fastq.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-filter.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-formats.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-helper.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-print.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-redir.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-str.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-tools.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-interact.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump-repo.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb-dump.c" />
-    <ClCompile Include="..\..\..\tools\vdb-dump\vdb_info.c" />
-  </ItemGroup>
+  <Import Project="..\vdb-dump.files" />
 
   <PropertyGroup Label="Globals">
     <ProjectGuid>{5E85344A-92C9-4407-8A76-1EF0C8AB0D60}</ProjectGuid>

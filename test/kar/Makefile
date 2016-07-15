@@ -35,20 +35,21 @@ include $(TOP)/build/Makefile.env
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: kar_md5 kar 
+runtests: kar_test 
 
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-kar_md5: test-kar.sh
-	@ echo "Starting kar_md5 tests..."
-	@ bash test-kar.sh $(BINDIR)/kar
+kar_test: kar-test.sh
+	@ echo "Starting kar tests..."
+	@ bash kar-test.sh $(BINDIR)/kar
 
 kar:
 	rm -rf actual
 	mkdir -p actual
 	$(BINDIR)/kar -c actual/1.0.kar -d input/1.0; $(BINDIR)/kar -t actual/1.0.kar >actual/1.0.stdout; diff expected/1.0.stdout actual/1.0.stdout
 	rm -rf actual
+	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/kar
 
 .PHONY: $(TEST_TOOLS)
 

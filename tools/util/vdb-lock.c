@@ -24,8 +24,6 @@
 *
 */
 
-#include "vdb-lock.vers.h"
-
 #include <kapp/main.h>
 #include <kapp/args.h>
 #include <sra/srapath.h>
@@ -35,12 +33,6 @@
 #include <klib/rc.h>
 
 #include <assert.h>
-
-
-ver_t CC KAppVersion ( void )
-{
-    return VDB_LOCK_VERS;
-}
 
 const char UsageDefaultName[] = "vdb-lock";
 

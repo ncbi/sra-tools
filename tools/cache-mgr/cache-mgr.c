@@ -24,8 +24,6 @@
 *
 */
 
-#include "cache-mgr.vers.h"
-
 #include <kapp/main.h>
 #include <kapp/args.h>
 
@@ -106,7 +104,7 @@ OptDef ToolOptions[] =
     { OPTION_CREPORT,   ALIAS_CREPORT,  NULL,   report_usage,   1,  false,  false },
     { OPTION_RREPORT,   ALIAS_RREPORT,  NULL,   rreport_usage,  1,  false,  false },
     { OPTION_DETAIL,    ALIAS_DETAIL,   NULL,   detail_usage,   1,  false,  false },
-    { OPTION_TSTZERO,   ALIAS_TSTZERO,  NULL,   tstzero_usage,  1,  false,  false },	
+    { OPTION_TSTZERO,   ALIAS_TSTZERO,  NULL,   tstzero_usage,  1,  false,  false },    
     { OPTION_UNLOCK,    ALIAS_UNLOCK,   NULL,   unlock_usage,   1,  false,  false },
     { OPTION_CLEAR,     ALIAS_CLEAR,    NULL,   clear_usage,    1,  false,  false },
     { OPTION_MAXREM,    ALIAS_MAXREM,   NULL,   max_rem_usage,  1,  true,   false },
@@ -175,19 +173,6 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return CACHE_MGR_VERS;
-}
-
-
 typedef enum tool_main_function
 {
     tf_report,
@@ -212,7 +197,7 @@ typedef struct tool_options
     KRepCategory category;
 
     bool detailed;
-	bool tstzero;
+    bool tstzero;
     bool remove_dirs;
 } tool_options;
 
@@ -398,7 +383,7 @@ static rc_t get_tool_options( Args * args, tool_options * options )
 
     options->main_function = tf_unknown;
     options->detailed = get_bool_option( args, OPTION_DETAIL );
-	options->tstzero = get_bool_option( args, OPTION_TSTZERO );
+    options->tstzero = get_bool_option( args, OPTION_TSTZERO );
     options->remove_dirs = get_bool_option( args, OPTION_REMDIR );
 
     if ( get_bool_option( args, OPTION_CREPORT ) )
@@ -583,11 +568,11 @@ static rc_t on_report_cache_file( visit_ctx * obj )
 {
     rc_t rc = 0;
     uint64_t file_size = 0;
-	uint64_t used_size = 0;
-	uint64_t checked_blocks = 0;
-	uint64_t empty_blocks = 0;
+    uint64_t used_size = 0;
+    uint64_t checked_blocks = 0;
+    uint64_t empty_blocks = 0;
     float completeness = 0.0;
-	
+    
     bool locked = false;
     report_data * data = obj->data;
 
@@ -618,22 +603,22 @@ static rc_t on_report_cache_file( visit_ctx * obj )
                          "GetCacheCompleteness( $(path) ) failed in $(func)", "path=%s,func=%s", obj->path, __func__ ) );
             }
             else
-			{
-				data->used_file_size += used_size;
-			}
-			
-			if ( rc == 0 && obj->options->tstzero )
-			{
-				rc = Has_Cache_Zero_Blocks( f, &checked_blocks, &empty_blocks ); /* libs/kfs/cacheteefile.c */
-				if ( rc != 0 )
-				{
-					PLOGERR( klogErr, ( klogErr, rc,
-							 "Has_Cache_Zero_Blocks( $(path) ) failed in $(func)", "path=%s,func=%s", obj->path, __func__ ) );
-				}
-			}
-			
-			KFileRelease( f );
-		}
+            {
+                data->used_file_size += used_size;
+            }
+            
+            if ( rc == 0 && obj->options->tstzero )
+            {
+                rc = Has_Cache_Zero_Blocks( f, &checked_blocks, &empty_blocks ); /* libs/kfs/cacheteefile.c */
+                if ( rc != 0 )
+                {
+                    PLOGERR( klogErr, ( klogErr, rc,
+                             "Has_Cache_Zero_Blocks( $(path) ) failed in $(func)", "path=%s,func=%s", obj->path, __func__ ) );
+                }
+            }
+            
+            KFileRelease( f );
+        }
     }
     if ( rc == 0 )
     {
@@ -650,13 +635,13 @@ static rc_t on_report_cache_file( visit_ctx * obj )
             rc = KOutMsg( "%s complete by %.02f %% [%,lu of %,lu]bytes\n",
                           obj->path, completeness, used_size, file_size );
     }
-	
+    
     if ( rc == 0 && obj->options->tstzero )
-	{
-		rc = KOutMsg( "%s has %lu blocks set in bitmap where %lu are empty\n",
+    {
+        rc = KOutMsg( "%s has %lu blocks set in bitmap where %lu are empty\n",
                           obj->path, checked_blocks, empty_blocks );
-	}
-	
+    }
+    
     return rc;
 }
 
@@ -1226,6 +1211,14 @@ static rc_t perform( tool_options * options, Args * args )
     Main:
 ***************************************************************************/
 
+static rc_t CC on_history_path( const String * part, void *data )
+{
+    tool_options * options = data;
+    rc_t rc = add_tool_options_path( options, part->addr );
+    if ( options -> detailed )
+        KOutMsg( "source: %S\n", part );
+    return rc;
+}
 
 static rc_t get_cache_path_from_repo_mgr( tool_options * options )
 {
@@ -1259,36 +1252,45 @@ static rc_t get_cache_path_from_repo_mgr( tool_options * options )
                 uint32_t idx;
                 for ( idx = 0; idx < VectorLength( &repos ) && rc == 0; ++idx )
                 {
-                    const KRepository *repo = VectorGet( &repos, idx );
-                    if ( repo != 0 )
+                    bool add = true;
+                    KRepository * repo = VectorGet ( &repos, idx );
+                    if ( repo != NULL )
                     {
-                        char path[ 4096 ];
-                        rc = KRepositoryRoot ( repo, path, sizeof path, NULL );
-                        if ( rc != 0 )
+                        if ( options->user_repo_name != NULL )
                         {
-                            PLOGERR( klogErr, ( klogErr, rc,
-                                     "KRepositoryRoot( for repo # $(idx) ) failed in $(func)", "idx=%u,func=%s", idx, __func__ ) );
-                        }
-                        else
-                        {
-                            bool add = true;
-                            if ( options->user_repo_name != NULL )
+                            char name[ 1024 ];
+                            rc = KRepositoryName( repo, name, sizeof name, NULL );
+                            if ( rc != 0 )
                             {
-                                char name[ 1024 ];
-                                rc = KRepositoryName ( repo, name, sizeof name, NULL );
-                                if ( rc != 0 )
-                                {
-                                    PLOGERR( klogErr, ( klogErr, rc,
-                                             "KRepositoryName( for repo # $(idx) ) failed in $(func)", "idx=%u,func=%s", idx, __func__ ) );
-                                }
-                                else
-                                    add = string_cmp_1( options->user_repo_name, name );
+                                PLOGERR( klogErr, ( klogErr, rc,
+                                         "KRepositoryName( for repo # $(idx) ) failed in $(func)", "idx=%u,func=%s", idx, __func__ ) );
                             }
-                            if ( add )
+                            else
+                                add = string_cmp_1( options->user_repo_name, name );
+                        }
+                        if ( add )
+                        {
+                            rc_t rc1;
+                            char path[ 4096 ];
+                            size_t path_size;
+                            rc = KRepositoryRoot ( repo, path, sizeof path, &path_size );
+                            if ( rc != 0 )
                             {
+                                PLOGERR( klogErr, ( klogErr, rc,
+                                         "KRepositoryRoot( for repo # $(idx) ) failed in $(func)", "idx=%u,func=%s", idx, __func__ ) );
+                            }
+                            else
+                            {
+                                path[ path_size ] = 0;
                                 rc = add_tool_options_path( options, path );
                                 if ( options->detailed )
                                     KOutMsg( "source: %s\n", path );
+                            }
+                            rc1 = KRepositoryRootHistory ( repo, path, sizeof path, &path_size );
+                            if ( rc1 == 0 ) /* it is not an error if we have no repository-root */
+                            {
+                                path[ path_size ] = 0;
+                                foreach_Str_part( path, ':', on_history_path, options );
                             }
                         }
                     }

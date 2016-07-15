@@ -29,12 +29,7 @@
     </Link>
   </ItemDefinitionGroup>
   
-  <ItemGroup>
-    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-lex.c" />
-    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-grammar.c" />
-    <ClCompile Include="..\..\..\tools\fastq-loader\fastq-reader.c" />
-    <ClCompile Include="..\..\..\test\fastq-loader\test-fastq-loader.cpp" />
-  </ItemGroup>
+  <Import Project="..\test-fastq-loader.files" />
 
     <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
         <Exec Command="$(OutDir)vdb-config$(TargetExt) --root -s vdb/schema/paths=&quot;../../../../ncbi-vdb/interfaces&quot;"/>

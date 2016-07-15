@@ -109,22 +109,3 @@ SAMVIEW_LIB = \
 $(BINDIR)/samview: $(SAMVIEW_OBJ)
 	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SAMVIEW_LIB)
 
-
-#-------------------------------------------------------------------------------
-# samview
-#
-SAMVIEW_SRC = \
-	bam \
-	samview
-
-SAMVIEW_OBJ = \
-	$(addsuffix .$(OBJX),$(SAMVIEW_SRC))
-
-SAMVIEW_LIB = \
-	-lkapp \
-	-sncbi-vdb \
-	-lm
-
-$(BINDIR)/samview: $(SAMVIEW_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(SAMVIEW_LIB)
-

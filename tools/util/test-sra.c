@@ -148,8 +148,8 @@ rc_t CC UsageSummary(const char *prog_name) {
         "  quick check mode:\n"
         "   %s -Q [ name... ]\n\n"
         "  full test mode:\n"
-        "   %s [+crdDa] [-crdDa] [-R] [-N] [-C] [-X <type>] [options] "
-                                                   "name [ name... ]\n"
+        "   %s [+acdDfFgnoOprsStuw] [-acdDfFgnoOprsStuw] [-R] [-N] [-C]\n"
+        "            [-X <type>] [-L <path>] [options] name [ name... ]\n"
         , prog_name, prog_name);
 }
 
@@ -212,6 +212,7 @@ rc_t CC Usage(const Args *args) {
         "-C - do not disable caching (default: from configuration)\n"
         "-b --bytes=K - print the first K bytes of resolved remote HTTP file)\n"
         "                                                      (default: 256)\n"
+        "-l --library=<path to library> - print version of dynamic library\n"
         "\n"
         "More options:\n");
     if (rc == 0 && rc2 != 0) {
@@ -3084,6 +3085,10 @@ static const char* USAGE_BYTES[]
 #define ALIAS_FULL  NULL
 static const char* USAGE_FULL[] = { "full test mode", NULL };
 
+#define OPTION_LIB "library"
+#define ALIAS_LIB  "l"
+static const char* USAGE_LIB[] = { "report version of dynamic library", NULL };
+
 #define OPTION_QUICK "quick"
 #define ALIAS_QUICK  "Q"
 static const char* USAGE_QUICK[] = { "quick test mode", NULL };
@@ -3109,9 +3114,10 @@ static const char* USAGE_REC[] = { "check object type recursively", NULL };
 static const char* USAGE_OUT[] = { "output type: one of (xml text)", NULL };
 
 OptDef Options[] = {                             /* needs_value, required */
-    { OPTION_BYTES , ALIAS_BYTES , NULL, USAGE_BYTES , 1, true, false },
+    { OPTION_BYTES , ALIAS_BYTES , NULL, USAGE_BYTES , 1, true , false },
     { OPTION_CACHE , ALIAS_CACHE , NULL, USAGE_CACHE , 1, false, false },
     { OPTION_FULL  , ALIAS_FULL  , NULL, USAGE_FULL  , 1, false, false },
+    { OPTION_LIB   , ALIAS_LIB   , NULL, USAGE_LIB   , 0, true , false },
     { OPTION_NO_RFS, NULL        , NULL, USAGE_NO_RFS, 1, false, false },
     { OPTION_NO_VDB, ALIAS_NO_VDB, NULL, USAGE_NO_VDB, 1, false, false },
     { OPTION_OUT   , ALIAS_OUT   , NULL, USAGE_OUT   , 1, true , false },
@@ -3119,6 +3125,77 @@ OptDef Options[] = {                             /* needs_value, required */
     { OPTION_QUICK , ALIAS_QUICK , NULL, USAGE_QUICK , 1, false, false },
     { OPTION_REC   , ALIAS_REC   , NULL, USAGE_REC   , 1, false, false },
 };
+
+static rc_t PrintLib ( const char * path, bool xml ) {
+    const char root[] = "dll";
+    KDyld * dl = NULL;
+    KDylib * lib = NULL;
+    KSymAddr * sym = NULL;
+    const char * ( CC * getPackageVersion ) ( void ) = NULL;
+    const char * version = NULL;
+    const char * name = NULL;
+    rc_t rc = KDyldMake ( & dl );
+    if ( xml ) {
+        OUTMSG(("  <%s path=\"%s\">", root, path));
+    } else {
+        OUTMSG(("dll path=\"%s\"\n", path));
+    }
+    if ( rc == 0 ) {
+        rc = KDyldLoadLib ( dl, & lib, path );
+        if ( rc != 0 ) {
+            if ( xml ) {
+                OUTMSG(("<KDyldLoadLib=\"%R\"/>", rc));
+            } else {
+                OUTMSG(("KDyldLoadLib=\"%R\"\n", rc));
+            }
+        }
+    }
+    if ( rc == 0 ) {
+        rc = KDylibSymbol ( lib, & sym, "ngs_PackageItf_getPackageVersion" );
+        if ( rc == 0 ) {
+            KSymAddrAsFunc ( sym, ( fptr_t * ) & getPackageVersion );
+            version = getPackageVersion ();
+            name = "ngs-sdk";
+        }
+        else {
+            rc = KDylibSymbol ( lib, & sym, "GetPackageVersion" );
+            if ( rc == 0 ) {
+                KSymAddrAsFunc ( sym, ( fptr_t * )&  getPackageVersion );
+                version = getPackageVersion ();
+                name = "ncbi-vdb";
+            } else {
+                if ( xml ) {
+                    OUTMSG(("<KDylibSymbol=\"%R\"/>", rc));
+                } else {
+                    OUTMSG(("KDylibSymbol=\"%R\"\n", rc));
+                }
+            }
+        }
+    }
+    if ( rc == 0 ) {
+        if (version == NULL ) {
+            if ( xml ) {
+                OUTMSG(("<version found=\"false\"/>"));
+            } else {
+                OUTMSG(("version: not found\n"));
+            }
+        } else {
+            if ( xml ) {
+                OUTMSG(("<version name=\"%s\">%s</version>", name, version));
+            } else {
+                OUTMSG(("%s: \"%s\"\n", name, version));
+            }
+        }
+    }
+    if ( xml ) {
+        OUTMSG(("</%s>", root));
+    }
+    OUTMSG(("\n"));
+    RELEASE ( KSymAddr, sym );
+    RELEASE ( KDylib, lib );
+    RELEASE ( KDyld, dl );
+    return rc;
+}
 
 rc_t CC KMain(int argc, char *argv[]) {
     rc_t rc = 0;
@@ -3230,6 +3307,13 @@ rc_t CC KMain(int argc, char *argv[]) {
     }
 
     if (rc == 0) {
+        rc = ArgsOptionCount(args, OPTION_LIB, &pcount);
+        if (rc == 0 && pcount > 0 && ! prms.xml) {
+            prms . tests = 0;
+        }
+    }
+
+    if (rc == 0) {
         const char root[] = "Test-sra";
         rc = ArgsOptionCount(args, OPTION_OUT, &pcount);
         if (rc) {
@@ -3323,6 +3407,28 @@ rc_t CC KMain(int argc, char *argv[]) {
             else {
                 if (pcount > 0) {
                     prms.recursive = true;
+                }
+            }
+        }
+
+        if (rc == 0) {
+            rc = ArgsOptionCount(args, OPTION_LIB, &pcount);
+            if (rc != 0) {
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_LIB "' argument");
+            }
+            else {
+                int i = 0;
+                for (i = 0; i < pcount; ++i) {
+                    const char * lib = NULL;
+                    rc = ArgsOptionValue
+                        ( args, OPTION_LIB, i, ( const void ** ) & lib );
+                    if ( rc != 0 ) {
+                        LOGERR(klogErr, rc,
+                            "Failure to get '" OPTION_LIB "' argument");
+                    }
+                    else {
+                        PrintLib ( lib, prms.xml );
+                    }
                 }
             }
         }

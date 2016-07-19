@@ -1,6 +1,8 @@
 #!/usr/bin/perl -w
 use strict;
 
+print STDERR "starting tests of test-sra dll-version...\n";
+
 my $failures = 0;
 my $testsra = 'test-sra';
 
@@ -277,5 +279,5 @@ if ($failures) {
     print STDERR "\n$failures test failed\n";
     exit 1;
 } else {
-    print STDERR "\nall test passed\n"
+    print STDERR "...all tests of test-sra dll-version passed\n"
 }

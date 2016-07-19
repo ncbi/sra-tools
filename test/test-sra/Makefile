@@ -83,7 +83,7 @@ clean: stdclean
 
 #-------------------------------------------------------------------------------
 cmdline: all
-	 PATH=$(BINDIR):$(BINDIR) ; ./test.pl $(VDB_LIBDIR) $(NGS_LIBDIR)
+	 PATH=$(BINDIR):$(BINDIR); ./dll-version-test.pl $(VDB_LIBDIR) $(NGS_LIBDIR)
 
 #-------------------------------------------------------------------------------
 # TOOL_SRC

@@ -52,7 +52,8 @@ SUBDIRS =    \
 	qual-recalib-stat        \
 	sra-pileup      \
 	srapath         \
-    fuse            \
+	test-sra        \
+	fuse            \
 
 # under construction    
 #    ngs-pileup      \

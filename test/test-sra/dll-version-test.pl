@@ -245,8 +245,11 @@ if ($ARGV[0]) {
 }
 
 if ($ARGV[1]) {
+    open IN, "ngs.version" or die;
+    my $version = <IN>;
+    close IN;
     print STDERR
-        "`test-sra -l <NGS_LIBDIR/libngs-sdk>` should report <1.2.4>: ";
+        "`test-sra -l <NGS_LIBDIR/libngs-sdk>` should report <$version>: ";
     my $path = "$ARGV[1]/";
     if ($^O =~ /^darwin$/) {
         $path .= 'libngs-sdk.dylib';
@@ -264,7 +267,7 @@ if ($ARGV[1]) {
                 ++$failures;
                 last;
             }
-            unless ($_[1] =~ /^ngs-sdk: "1.2.4"$/) {
+            unless ($_[1] =~ /^ngs-sdk: "$version"$/) {
                 print STDERR "ERROR\n";
                 ++$failures;
                 last;

@@ -51,8 +51,8 @@ SUBDIRS =    \
 	vdb-copy        \
 	qual-recalib-stat        \
 	sra-pileup      \
-	srapath         \
 	test-sra        \
+	srapath         \
 	fuse            \
 
 # under construction    

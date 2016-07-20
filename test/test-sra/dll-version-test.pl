@@ -3,6 +3,27 @@ use strict;
 
 print STDERR "starting tests of test-sra dll-version...\n";
 
+my $path;
+$path = '/';
+print "\n$path\n";
+print `/bin/ls $path`;
+
+$path = '/net';
+print "\n$path\n";
+print `/bin/ls $path`;
+
+$path = '/panfs';
+print "\n$path\n";
+print `/bin/ls $path`;
+
+$path = '/net/traces01';
+print "\n$path\n";
+print `/bin/ls $path`;
+
+$path = '/panfs/traces01';
+print "\n$path\n";
+print `/bin/ls $path`;
+
 my $failures = 0;
 my $testsra = 'test-sra';
 

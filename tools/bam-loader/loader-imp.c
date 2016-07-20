@@ -1411,6 +1411,7 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
         if ((int)GetRCObject(rc) == rcRow && (int)GetRCState(rc) == rcNotFound) {
             /* EOF */
             rc = 0;
+            --NR;
             break;
         }
         if (rc) break;
@@ -1750,7 +1751,7 @@ MIXED_BASE_AND_COLOR:
 				ctx_value_t *tmp_value; 
 				rc_t rc2=MMArrayGetRead(ctx->id2value, (void **)&tmp_value, keyId);
 				if(rc2==0){
-					int i=((flags&BAMFlags_WasPaired) && (flags&BAMFlags_IsSecond))?0:1;
+					int i=((flags&BAMFlags_WasPaired) && (flags&BAMFlags_IsSecond))?1:0;
 					BAM_AlignmentGetReadLength(rec, &readlen);
 					if(readlen + lpad + rpad < tmp_value->fragment_len[i]){
 						opCount++;
@@ -2099,7 +2100,7 @@ MIXED_BASE_AND_COLOR:
             }
             if (rc == 0) {
                 int const i= AR_READNO(data) - 1;
-                int const clipped_rl = (uint8_t)readlen;
+                int const clipped_rl = readlen < 255 ? readlen : 255;
                 if (i >= 0 && i < 2) {
                     int const rl = value->fragment_len[i];
 

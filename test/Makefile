@@ -50,7 +50,6 @@ SUBDIRS =    \
 	fastdump        \
 	vdb-copy        \
 	qual-recalib-stat \
-	test-sra	\
 	sra-pileup      \
 	srapath         \
 	fuse            \

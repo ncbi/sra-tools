@@ -6,7 +6,6 @@ print STDERR "starting tests of test-sra dll-version...\n";
 my $path;
 $path = '/';
 print "\n$path\n";
-print `/bin/ls $path`;
 
 $path = '/net';
 print "\n$path\n";
@@ -18,11 +17,9 @@ print `/bin/ls $path`;
 
 $path = '/net/traces01';
 print "\n$path\n";
-print `/bin/ls $path`;
 
 $path = '/panfs/traces01';
 print "\n$path\n";
-print `/bin/ls $path`;
 
 my $failures = 0;
 my $testsra = 'test-sra';
@@ -105,11 +102,11 @@ if (1) {
 if (1) {
     print STDERR
         "`test-sra -l <old libngs-sdk>` should report <rcName,rcNotFound>: ";
-    my $path = '/net/traces01/trace_software/toolkit-versions/jni/2.5.5/';
+    my $path = '/net/pan1/sra-test/TOOLKIT/src/NGS/1.2.3/ngs-sdk/ngs-sdk.1.2.3';
     if ($^O =~ /^darwin$/) {
-        $path .= 'libngs-sdk.1.2.3.dylib';
+        $path .= '-mac/lib64/libngs-sdk.1.2.3.dylib';
     } else {
-        $path .= 'libngs-sdk.so.1.2.3';
+        $path .= '-linux/lib64/libngs-sdk.so.1.2.3';
     }
     @_ = `$testsra -l $path`;
     if ($? != 0) {
@@ -139,11 +136,11 @@ if (1) {
 if (1) {
     print STDERR
         "`test-sra -l <old libncbi-vdb>` should report <rcName,rcNotFound>: ";
-    my $path = '/net/traces01/trace_software/toolkit-versions/jni/2.5.2/';
+    my $path = '/net/pan1/sra-test/TOOLKIT/src/NGS/1.1.1/ngs-sdk/ngs-sdk.1.1.1';
     if ($^O =~ /^darwin$/) {
-        $path .= 'libncbi-vdb.2.5.2.dylib';
+        $path .= '-mac/lib64/libncbi-vdb.2.5.0.dylib';
     } else {
-        $path .= 'libncbi-vdb.so.2.5.2';
+        $path .= '-linux/lib64/libncbi-vdb.so.2.5.0';
     }
     @_ = `$testsra -l $path`;
     if ($? != 0) {
@@ -173,12 +170,12 @@ if (1) {
 if (1) {
     print STDERR
         "`test-sra -l <libncbi-vdb.2.5.3>` should report <ncbi-vdb: 2.5.3>: ";
-    my $path = '/net/traces01/trace_software/toolkit-versions/jni/2.5.3/';
+    my $path = '/net/pan1/sra-test/TOOLKIT/src/NGS/1.2.0/ngs-sdk/ngs-sdk.1.2.0';
     if ($^O =~ /^darwin$/) {
-        $path .= 'libncbi-vdb.2.5.3.dylib';
+        $path .= '-mac/lib64/libncbi-vdb.2.5.3.dylib';
         @_ = `GetPackageVersion $path`;
     } else {
-        $path .= 'libncbi-vdb.so.2.5.3';
+        $path .= '-linux/lib64/libncbi-vdb.so.2.5.3';
         @_ = `$testsra -l $path`;
     }
     if ($? != 0) {
@@ -205,11 +202,11 @@ if (1) {
 if (1) {
     print STDERR
         "`test-sra -l <libngs-sdk.1.2.4>` should report <ngs-sdk: 1.2.4>: ";
-    my $path = '/net/traces01/trace_software/toolkit-versions/jni/2.6.3/';
+    my $path = '/net/pan1/sra-test/TOOLKIT/src/NGS/1.2.4/ngs-sdk/ngs-sdk.1.2.4';
     if ($^O =~ /^darwin$/) {
-        $path .= 'libngs-sdk.1.2.4.dylib';
+        $path .= '-mac/lib64/libngs-sdk.1.2.4.dylib';
     } else {
-        $path .= 'libngs-sdk.so.1.2.4';
+        $path .= '-linux/lib64/libngs-sdk.so.1.2.4';
     }
     @_ = `$testsra -l $path`;
     if ($? != 0) {

@@ -46,12 +46,12 @@ SUBDIRS =    \
 	ref-variation   \
 	vdb-validate    \
 	kar             \
-    copycat         \
+	copycat         \
 	fastdump        \
 	vdb-copy        \
-	qual-recalib-stat        \
+	qual-recalib-stat \
+	test-sra	\
 	sra-pileup      \
-	test-sra        \
 	srapath         \
 	fuse            \
 

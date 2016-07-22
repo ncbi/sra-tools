@@ -1753,7 +1753,7 @@ MIXED_BASE_AND_COLOR:
 				if(rc2==0){
 					int i=((flags&BAMFlags_WasPaired) && (flags&BAMFlags_IsSecond))?1:0;
 					BAM_AlignmentGetReadLength(rec, &readlen);
-					if(readlen + lpad + rpad < tmp_value->fragment_len[i]){
+					if(readlen + lpad + rpad < 256 && readlen + lpad + rpad < tmp_value->fragment_len[i]){
 						opCount++;
 						rc = KDataBufferResize(&cigBuf, opCount);
 						if (rc) {

@@ -32,6 +32,30 @@ TEST_TOOLS =
 
 include $(TOP)/build/Makefile.env
 
+EXT_TOOLS = \
+	vdb-dump-makedb
+
+ALL_TOOLS = \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
+
+#-------------------------------------------------------------------------------
+# outer targets
+#
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@
+
+$(ALL_TOOLS): makedirs
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
+
+#-------------------------------------------------------------------------------
+# std
+#
+$(TARGDIR)/std: \
+	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
+
 .PHONY: $(TEST_TOOLS)
 
 runtests: vdb-dump
@@ -46,15 +70,15 @@ MAKEDB_OBJ = \
 	$(addsuffix .$(OBJX),$(MAKEDB_SRC))
 
 MAKEDB_LIB = \
-    -skapp \
+	-skapp \
 	-sktst \
-    -sncbi-wvdb
+	-sncbi-wvdb \
 
-$(TEST_BINDIR)/vdb-dump-makedb: $(MAKEDB_OBJ)
+$(BINDIR)/vdb-dump-makedb: $(MAKEDB_OBJ)
 	$(LP) --exe -o $@ $^ $(MAKEDB_LIB)
 
-makedb: $(TEST_BINDIR)/vdb-dump-makedb
-	@ cd $(SRCDIR); rm -rf data; mkdir -p data; $(TEST_BINDIR)/vdb-dump-makedb
+makedb:
+	@ cd $(SRCDIR); rm -rf data; mkdir -p data; $(BINDIR)/vdb-dump-makedb
 
 #-------------------------------------------------------------------------------
 # run tests for vdb-dump

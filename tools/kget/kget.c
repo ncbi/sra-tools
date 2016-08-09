@@ -665,7 +665,9 @@ static rc_t full_download( KDirectory *dir, fetch_ctx *ctx )
             if ( rc == 0 )
             {
                 KClientHttp * http;
-                rc = KNSManagerMakeClientHttp( kns_mgr, &http, NULL, 0x01010000, &url.host, url.port );
+                rc = url.tls ?
+                    KNSManagerMakeClientHttps( kns_mgr, &http, NULL, 0x01010000, &url.host, url.port ):
+                    KNSManagerMakeClientHttp( kns_mgr, &http, NULL, 0x01010000, &url.host, url.port );
                 if ( rc == 0 )
                 {
                     KClientHttpRequest * req;

@@ -14,6 +14,7 @@ TOOLS_TO_INSTALL = \
 	illumina-load   \
 	kar             \
 	kdbmeta         \
+	kget            \
 	latf-load       \
 	prefetch        \
 	rcexplain       \

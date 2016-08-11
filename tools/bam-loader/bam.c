@@ -377,7 +377,8 @@ static int64_t OptTag_sort(void const *A, void const *B, void *ctx)
         return a > b;
 }
 
-static unsigned tag_findfirst(BAM_Alignment const *const self, char const tag[2])
+/* find the first occurence of tag OR if tag doesn't exist, where it should have been. */
+static unsigned tag_search(BAM_Alignment const *const self, char const tag[2])
 {
     unsigned f = 0;
     unsigned e = self->numExtra;
@@ -395,7 +396,7 @@ static unsigned tag_findfirst(BAM_Alignment const *const self, char const tag[2]
     return f;
 }
 
-static unsigned tag_runlength(BAM_Alignment const *const self,
+static unsigned tag_count(BAM_Alignment const *const self,
                               char const tag[2],
                               unsigned const at)
 {
@@ -408,101 +409,105 @@ static unsigned tag_runlength(BAM_Alignment const *const self,
     return n;
 }
 
-static struct offset_size_s const *tag_search(BAM_Alignment const *const self,
-                                              char const tag[2],
-                                              int const which)
+static unsigned Modulus(int i, unsigned N)
 {
-    unsigned const fnd = tag_findfirst(self, tag);
-    unsigned const run = tag_runlength(self, tag, fnd);
-    unsigned const want = which < 0 ? (run + which) : which;
-    
-    return run == 0 ? NULL : &self->extra[fnd + (want % run)];
+    while (i < 0)
+        i += N;
+    return i % N;
 }
 
-static char const *get_RG(BAM_Alignment const *cself)
+static struct offset_size_s const *getTag(BAM_Alignment const *const self,
+                                          char const tag[2],
+                                          int const which)
 {
-    struct offset_size_s const *const x = tag_search(cself, "RG", 0);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    unsigned const fnd = tag_search(self, tag);
+    unsigned const run = tag_count(self, tag, fnd);
+    return run > 0 ? &self->extra[fnd + Modulus(which, run)] : NULL;
 }
 
 static struct offset_size_s const *get_CS_info(BAM_Alignment const *cself)
 {
-    return tag_search(cself, "CS", 0);
+    return getTag(cself, "CS", 0);
 }
 
 static struct offset_size_s const *get_CQ_info(BAM_Alignment const *cself)
 {
-    return tag_search(cself, "CQ", 0);
+    return getTag(cself, "CQ", 0);
+}
+
+static struct offset_size_s const *get_RG_info(BAM_Alignment const *cself)
+{
+    return getTag(cself, "RG", 0);
 }
 
 static char const *get_CS(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = get_CS_info(cself);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    return (char const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static uint8_t const *get_CQ(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = get_CQ_info(cself);
-    return (uint8_t const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    return (uint8_t const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static struct offset_size_s const *get_OQ_info(BAM_Alignment const *cself)
 {
-    return tag_search(cself, "OQ", 0);
+    return getTag(cself, "OQ", 0);
 }
 
 static uint8_t const *get_OQ(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = get_OQ_info(cself);
-    return (uint8_t const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    return (uint8_t const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static char const *get_XT(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "XT", 0);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    struct offset_size_s const *const x = getTag(cself, "XT", 0);
+    return (char const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static uint8_t const *get_XS(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "XS", -1); /* want last one */
-    return (uint8_t const *)(x && cself->data->raw[x->offset + 2] == 'A' ? &cself->data->raw[x->offset + 3] : NULL);
+    struct offset_size_s const *const x = getTag(cself, "XS", -1); /* want last one */
+    return (uint8_t const *)((x != NULL && cself->data->raw[x->offset + 2] == 'A') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static struct offset_size_s const *get_CG_ZA_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "ZA", 0);
+    struct offset_size_s const *const x = getTag(cself, "ZA", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_ZI_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "ZI", 0);
+    struct offset_size_s const *const x = getTag(cself, "ZI", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_GC_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "GC", 0);
+    struct offset_size_s const *const x = getTag(cself, "GC", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_GS_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "GS", 0);
+    struct offset_size_s const *const x = getTag(cself, "GS", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_GQ_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "GQ", 0);
+    struct offset_size_s const *const x = getTag(cself, "GQ", 0);
     return x;
 }
 
 static char const *get_BX(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "BX", 0);
+    struct offset_size_s const *const x = getTag(cself, "BX", 0);
     return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
@@ -2304,8 +2309,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
     int *intScratch = NULL;
     int sgn = 1;
     unsigned i = 0;
-    int n = 0;
-    
+
     memset(raw, 0, sizeof(*raw));
     memset(&temp, 0, sizeof(temp));
     temp.QNAME = scratch;
@@ -4068,8 +4072,8 @@ rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const r
 }
 
 rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
-                                  char const **name)
+                                  char const **const BX)
 {
-    *name = get_BX(self);
+    *BX = get_BX(self);
     return 0;
 }

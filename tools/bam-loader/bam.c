@@ -435,9 +435,10 @@ static struct offset_size_s const *get_CQ_info(BAM_Alignment const *cself)
     return getTag(cself, "CQ", 0);
 }
 
-static struct offset_size_s const *get_RG_info(BAM_Alignment const *cself)
+static char const *get_RG(BAM_Alignment const *cself)
 {
-    return getTag(cself, "RG", 0);
+    struct offset_size_s const *const x = getTag(cself, "RG", 0);
+    return (char const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static char const *get_CS(BAM_Alignment const *cself)

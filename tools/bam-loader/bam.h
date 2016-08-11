@@ -437,7 +437,9 @@ rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
                                               size_t *act_size);
 
 rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
-                                  char const **name);
+                                  char const ** BX,
+                                  char const ** CB,
+                                  char const ** UB);
     
 rc_t BAM_AlignmentGetBarCode(BAM_Alignment const *self,
                                   char const **BC);

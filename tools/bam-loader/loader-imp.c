@@ -1591,6 +1591,8 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         bool hardclipped = false;
         bool revcmp = false;
         char const *BX = NULL;
+        char const *CB = NULL;
+        char const *UB = NULL;
         char const *barCode = NULL;
 
 #if THREADING_BAMREAD
@@ -1666,7 +1668,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
             }
         }
 
-        BAM_AlignmentGetLinkageGroup(rec, &BX);
+        BAM_AlignmentGetLinkageGroup(rec, &BX, &CB, &UB);
 
         if (!G.noColorSpace) {
             if (BAM_AlignmentHasColorSpace(rec)) {
@@ -2248,7 +2250,12 @@ WRITE_SEQUENCE:
                         if (fi.sglen > 0)
                             useBarCode = true;
                     }
-                    fi.lglen = BX ? strlen(BX) : 0;
+                    if (BX == NULL && CB != NULL && UB != NULL) {
+                        fi.lglen = strlen(CB) + strlen(UB) + 7; /* strlen("CB:|UB:"); */
+                    }
+                    else {
+                        fi.lglen = BX ? strlen(BX) : 0;
+                    }
 
                     fi.readlen = readlen;
                     fi.cskey = cskey;
@@ -2287,7 +2294,18 @@ WRITE_SEQUENCE:
                         dst += fi.readlen;
                         memcpy(dst, useBarCode ? barCode : spotGroup,fi.sglen);
                         dst += fi.sglen;
-                        memcpy(dst, BX, fi.lglen);
+                        if (BX == NULL && CB != NULL && UB != NULL) {
+                            unsigned const l1 = strlen(CB);
+                            unsigned const l2 = strlen(UB);
+                            memcpy(dst, "CB:", 3); dst += 3;
+                            memcpy(dst, CB, l1); dst += l1;
+                            memcpy(dst, "|UB:", 4); dst += 4;
+                            memcpy(dst, UB, l2); dst += l2;
+                        }
+                        else {
+                            memcpy(dst, BX, fi.lglen);
+                            dst += fi.lglen;
+                        }
                     }}
                     rc = MemBankWrite(ctx->frags, value->fragmentId, 0, fragBuf.base, sz, &rsize);
                     if (rc) {

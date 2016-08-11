@@ -512,6 +512,18 @@ static char const *get_BX(BAM_Alignment const *cself)
     return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
+static char const *get_CB(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = getTag(cself, "CB", 0);
+    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+}
+
+static char const *get_UB(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = getTag(cself, "UB", 0);
+    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+}
+
 static char const *get_BC(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = getTag(cself, "BC", 0);
@@ -4079,9 +4091,13 @@ rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const r
 }
 
 rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
-                                  char const **const BX)
+                                  char const **const BX,
+                                  char const ** CB,
+                                  char const ** UB)
 {
     *BX = get_BX(self);
+    *CB = get_CB(self);
+    *UB = get_UB(self);
     return 0;
 }
 

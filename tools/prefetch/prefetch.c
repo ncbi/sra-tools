@@ -46,6 +46,7 @@
 
 #include <kns/ascp.h> /* ascp_locate */
 #include <kns/manager.h>
+#include <kns/stream.h> /* KStreamRelease */
 #include <kns/kns-mgr-priv.h>
 #include <kns/http.h>
 
@@ -974,7 +975,9 @@ static rc_t MainDownloadFile(Resolved *self,
     uint64_t opos = 0;
     size_t num_writ = 0;
     uint64_t pos = 0;
+#if USE_KFILE_FOR_HTTP_DOWNLOADS
     uint64_t prevPos = 0;
+#endif
 
     assert(self && main);
     assert(!main->eliminateQuals);
@@ -1009,6 +1012,7 @@ static rc_t MainDownloadFile(Resolved *self,
     }
     
     STSMSG(STS_INFO, ("%S -> %s", self->remote.str, to));
+#if USE_KFILE_FOR_HTTP_DOWNLOADS
     do {
         bool print = pos - prevPos > 200000000;
         rc = Quitting();
@@ -1038,6 +1042,56 @@ static rc_t MainDownloadFile(Resolved *self,
             opos += num_writ;
         }
     } while (rc == 0 && num_read > 0);
+
+#else
+    {
+        ver_t http_vers = 0x01010000;
+        KClientHttpRequest * kns_req = NULL;
+        rc = KNSManagerMakeClientRequest ( main -> kns,
+            & kns_req, http_vers, NULL, "%S", self -> remote . str );
+        DISP_RC2
+            ( rc, "Cannot KNSManagerMakeClientRequest", self -> remote . str );
+
+        if ( rc == 0 ) {
+            KClientHttpResult * rslt = NULL;
+            rc = KClientHttpRequestGET ( kns_req, & rslt );
+            DISP_RC2
+                ( rc, "Cannot KClientHttpRequestGET", self -> remote . str );
+
+            if ( rc == 0 ) {
+                KStream * s = NULL;
+                rc = KClientHttpResultGetInputStream ( rslt, & s );
+                DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
+                    self -> remote . str );
+
+                while ( rc == 0 ) {
+                    rc = KStreamRead
+                        ( s, main -> buffer, main -> bsize, & num_read );
+                    if ( rc != 0 || num_read == 0) {
+                        DISP_RC2 ( rc, "Cannot KStreamRead",
+                            self -> remote . str );
+                        break;
+                    }
+
+                    rc = KFileWriteAll
+                        ( out, opos, main -> buffer, num_read, & num_writ);
+                    DISP_RC2 ( rc, "Cannot KFileWrite", to );
+                    if ( rc == 0 && num_writ != num_read ) {
+                        rc = RC ( rcExe,
+                            rcFile, rcCopying, rcTransfer, rcIncomplete );
+                    }
+                    opos += num_writ;
+                }
+
+                RELEASE ( KStream, s );
+            }
+
+            RELEASE ( KClientHttpResult, rslt );
+        }
+
+        RELEASE ( KClientHttpRequest, kns_req );
+    }
+#endif
 
     RELEASE(KFile, out);
 

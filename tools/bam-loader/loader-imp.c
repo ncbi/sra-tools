@@ -141,12 +141,12 @@ typedef struct {
 typedef struct FragmentInfo {
     uint64_t ti;
     uint32_t readlen;
-    uint8_t  lglen;
     uint8_t  aligned;
     uint8_t  is_bad;
     uint8_t  orientation;
-    uint8_t  otherReadNo;
+    uint8_t  readNo;
     uint8_t  sglen;
+    uint8_t  lglen;
     uint8_t  cskey;
 } FragmentInfo;
 
@@ -1641,6 +1641,15 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
 		keyId = rec->keyId;
 		wasInserted = rec->wasInserted;
 #else
+        {
+            char const *rgname;
+
+            BAM_AlignmentGetReadGroupName(rec, &rgname);
+            if (rgname)
+                strcpy(spotGroup, rgname);
+            else
+                spotGroup[0] = '\0';
+        }
 		rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
         if (rc) {
             (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
@@ -1678,7 +1687,7 @@ MIXED_BASE_AND_COLOR:
         isPrimary = (flags & (BAMFlags_IsNotPrimary|BAMFlags_IsSupplemental)) == 0 ? true : false;
         if (!isPrimary && G.noSecondary)
             goto LOOP_END;
-
+#if THREADING_BAMREAD_PRIME_NAME2KEY
         {
             char const *rgname;
 
@@ -1688,6 +1697,7 @@ MIXED_BASE_AND_COLOR:
             else
                 spotGroup[0] = '\0';
         }
+#endif
 
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
@@ -2204,7 +2214,7 @@ WRITE_SEQUENCE:
                 bool const spotHasBeenWritten = (spotId != 0);
                 bool const spotHasFragmentInfo = (fragmentId != 0);
                 bool const spotIsFirstSeen = (spotHasBeenWritten || spotHasFragmentInfo) ? false : true;
-                
+
                 if (spotHasBeenWritten) {
                     /* do nothing */
                 }
@@ -2226,9 +2236,10 @@ WRITE_SEQUENCE:
                     fi.aligned = isPrimary ? aligned : 0;
                     fi.ti = ti;
                     fi.orientation = AR_REF_ORIENT(data);
-                    fi.otherReadNo = AR_READNO(data);
+                    fi.readNo = AR_READNO(data);
                     fi.sglen = strlen(spotGroup);
                     fi.lglen = BX ? strlen(BX) : 0;
+
                     fi.readlen = readlen;
                     fi.cskey = cskey;
                     fi.is_bad = (flags & BAMFlags_IsLowQuality) != 0;
@@ -2264,7 +2275,7 @@ WRITE_SEQUENCE:
                         dst += readlen;
                         memcpy(dst, qualBuffer.base, readlen);
                         dst += fi.readlen;
-                        memcpy(dst,spotGroup,fi.sglen);
+                        memcpy(dst, spotGroup, fi.sglen);
                         dst += fi.sglen;
                         memcpy(dst, BX, fi.lglen);
                     }}
@@ -2305,15 +2316,18 @@ WRITE_SEQUENCE:
                         }
                         assert(size1 == size2);
                     }
-                    if (AR_READNO(data) == fip->otherReadNo) {
+                    if (AR_READNO(data) == fip->readNo) {
                         /* is a repeat of the same read; do nothing */
                     }
                     else {
                         /* mate found; finish spot assembly */
                         unsigned read1 = 0;
                         unsigned read2 = 1;
-                        uint8_t  *src  = (uint8_t*) fip + sizeof(*fip);
-                        
+                        char const *const seq1 = (void *)&fip[1];
+                        char const *const qual1 = (void *)(seq1 + fip->readlen);
+                        char const *const sg1 = (void *)(qual1 + fip->readlen);
+                        char const *const bx1 = (void *)(sg1 + fip->sglen);
+
                         if (!isPrimary) {
                             if ((!G.assembleWithSecondary || hardclipped) && !G.deferSecondary ) {
                                 goto WRITE_ALIGNMENT;
@@ -2330,7 +2344,7 @@ WRITE_SEQUENCE:
                             (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
                             goto LOOP_END;
                         }
-                        if (AR_READNO(data) < fip->otherReadNo) {
+                        if (AR_READNO(data) < fip->readNo) {
                             read1 = 1;
                             read2 = 0;
                         }
@@ -2341,7 +2355,7 @@ WRITE_SEQUENCE:
                         srec.readLen[read2] = readlen;
                         srec.readStart[1] = srec.readLen[0];
                         {
-                            char const *const s1 = (void *)src;
+                            char const *const s1 = seq1;
                             char const *const s2 = seqBuffer.base;
                             char *const d = seqBuffer.base;
                             char *const d1 = d + srec.readStart[read1];
@@ -2352,10 +2366,9 @@ WRITE_SEQUENCE:
                                 memcpy(d2, s2, readlen);
                             }
                             memcpy(d1, s1, fip->readlen);
-                            src += fip->readlen;
                         }
                         {
-                            char const *const s1 = (void *)src;
+                            char const *const s1 = qual1;
                             char const *const s2 = qualBuffer.base;
                             char *const d = qualBuffer.base;
                             char *const d1 = d + srec.readStart[read1];
@@ -2366,7 +2379,6 @@ WRITE_SEQUENCE:
                                 memcpy(d2, s2, readlen);
                             }
                             memcpy(d1, s1, fip->readlen);
-                            src += fip->readlen;
                         }
 
                         srec.ti[read1] = fip->ti;
@@ -2386,11 +2398,11 @@ WRITE_SEQUENCE:
 
                         srec.keyId = keyId;
 
-                        srec.spotGroup = spotGroup;
-                        srec.spotGroupLen = strlen(spotGroup);
+                        srec.spotGroup = sg1;
+                        srec.spotGroupLen = fip->sglen;
 
-                        srec.linkageGroup = BX;
-                        srec.linkageGroupLen = BX ? strlen(BX) : 0;
+                        srec.linkageGroup = bx1;
+                        srec.linkageGroupLen = fip->lglen;
 
                         srec.seq = seqBuffer.base;
                         srec.qual = qualBuffer.base;

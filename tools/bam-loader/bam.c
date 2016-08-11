@@ -512,6 +512,12 @@ static char const *get_BX(BAM_Alignment const *cself)
     return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
+static char const *get_BC(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = getTag(cself, "BC", 0);
+    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+}
+
 /* MARK: BAM_File Reading functions */
 
 /* returns (rcData, rcInsufficient) if eof */
@@ -4076,5 +4082,12 @@ rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
                                   char const **const BX)
 {
     *BX = get_BX(self);
+    return 0;
+}
+
+rc_t BAM_AlignmentGetBarCode(BAM_Alignment const *self,
+                                  char const **const BC)
+{
+    *BC = get_BC(self);
     return 0;
 }

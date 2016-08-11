@@ -1591,6 +1591,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         bool hardclipped = false;
         bool revcmp = false;
         char const *BX = NULL;
+        char const *barCode = NULL;
 
 #if THREADING_BAMREAD
         for ( ; ; ) {
@@ -1698,6 +1699,7 @@ MIXED_BASE_AND_COLOR:
                 spotGroup[0] = '\0';
         }
 #endif
+        BAM_AlignmentGetBarCode(rec, &barCode);
 
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
@@ -2214,6 +2216,7 @@ WRITE_SEQUENCE:
                 bool const spotHasBeenWritten = (spotId != 0);
                 bool const spotHasFragmentInfo = (fragmentId != 0);
                 bool const spotIsFirstSeen = (spotHasBeenWritten || spotHasFragmentInfo) ? false : true;
+                bool useBarCode = false;
 
                 if (spotHasBeenWritten) {
                     /* do nothing */
@@ -2238,6 +2241,13 @@ WRITE_SEQUENCE:
                     fi.orientation = AR_REF_ORIENT(data);
                     fi.readNo = AR_READNO(data);
                     fi.sglen = strlen(spotGroup);
+
+                    /* if have bar code and platform is Illumina or read group is empty, then use bar code instead of read group */
+                    if (barCode && (value->platform == SRA_PLATFORM_ILLUMINA || fi.sglen == 0)) {
+                        fi.sglen = strlen(barCode);
+                        if (fi.sglen > 0)
+                            useBarCode = true;
+                    }
                     fi.lglen = BX ? strlen(BX) : 0;
 
                     fi.readlen = readlen;
@@ -2275,7 +2285,7 @@ WRITE_SEQUENCE:
                         dst += readlen;
                         memcpy(dst, qualBuffer.base, readlen);
                         dst += fi.readlen;
-                        memcpy(dst, spotGroup, fi.sglen);
+                        memcpy(dst, useBarCode ? barCode : spotGroup,fi.sglen);
                         dst += fi.sglen;
                         memcpy(dst, BX, fi.lglen);
                     }}

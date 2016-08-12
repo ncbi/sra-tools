@@ -29,9 +29,9 @@ TOP ?= $(abspath ../..)
 MODULE = tools/ref-variation
 
 INT_TOOLS = \
-	ref-variation \
 
 EXT_TOOLS = \
+	ref-variation \
 	var-expand \
 
 ALL_TOOLS = \
@@ -62,7 +62,7 @@ clean: stdclean
 # ref-variation
 #
 
-CPFLAGS += -pthread 
+CPFLAGS += -pthread
 
 REF_VARIATION_SRC = \
 	ref-variation \
@@ -89,7 +89,7 @@ $(BINDIR)/ref-variation: $(REF_VARIATION_OBJ)
 # var-expand
 #
 
-#CPFLAGS += -pthread 
+#CPFLAGS += -pthread
 
 VAR_EXPAND_SRC = \
 	var-expand \

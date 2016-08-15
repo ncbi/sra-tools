@@ -1388,11 +1388,8 @@ static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint
 }
 
 static context_t GlobalContext;
-
-#if THREADING_BAMREAD
-
-timeout_t bamq_tm;
-KQueue *bamq;
+static timeout_t bamq_tm;
+static KQueue *bamq;
 static rc_t run_bamread_thread(const KThread *self, void *const file)
 {
     rc_t rc = 0;
@@ -1419,7 +1416,6 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
         BAM_AlignmentRelease(crec);
         if (rc) break;
 
-#if THREADING_BAMREAD_PRIME_NAME2KEY
         {
             static char const dummy[] = "";
             char const *spotGroup;
@@ -1431,7 +1427,7 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
             rc = GetKeyID(&GlobalContext.keyToID, &rec->keyId, &rec->wasInserted, spotGroup ? spotGroup : dummy, name, namelen);
             if (rc) break;
         }
-#endif
+
         for ( ; ; ) {
             rc = KQueuePush(bamq, rec, &bamq_tm);
             if (rc == 0 || (int)GetRCObject(rc) != rcTimeout)
@@ -1447,8 +1443,17 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
     }
     return rc;
 }
-#endif
 
+static void getReadGroupName(BAM_Alignment const *const rec, char spotGroup[])
+{
+    char const *rgname;
+
+    BAM_AlignmentGetReadGroupName(rec, &rgname);
+    if (rgname)
+        strcpy(spotGroup, rgname);
+    else
+        spotGroup[0] = '\0';
+}
 
 
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
@@ -1484,9 +1489,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     char alignGroup[32];
     size_t alignGroupLen;
     AlignmentRecord data;
-#if THREADING_BAMREAD
-	KThread *bamread_thread=NULL;
-#endif
+	KThread *bamread_thread = NULL;
     KDataBuffer seqBuffer;
     KDataBuffer qualBuffer;
     SequenceRecord srec;
@@ -1558,13 +1561,11 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         (void)PLOGMSG(klogInfo, (klogInfo, "Loading '$(file)'", "file=%s", bamFile));
     }
 
-#if THREADING_BAMREAD
 	TimeoutInit(&bamq_tm,10000);
 	rc = KQueueMake (&bamq,4096);
 	if(rc) return rc;
 	rc = KThreadMake(&bamread_thread, run_bamread_thread, (void*)bam);
-	if(rc) return rc;
-#endif
+	if (rc) return rc;
 
     while (rc == 0 && (rc = Quitting()) == 0) {
         bool aligned;
@@ -1592,7 +1593,6 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         bool revcmp = false;
         char const *BX = NULL;
 
-#if THREADING_BAMREAD
         for ( ; ; ) {
             rc = KQueuePop(bamq, (void **)&rec, &bamq_tm);
             if (rc == 0) break;
@@ -1612,9 +1612,6 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                 break;
             }
         }
-#else
-        rc = BAM_FileRead2(bam, &rec);
-#endif
 
         if (rc) {
             if (   (GetRCModule(rc) == rcCont && (int)GetRCObject(rc) == rcData && GetRCState(rc) == rcDone)
@@ -1637,16 +1634,10 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         ++recordsRead;
         
         BAM_AlignmentGetReadName2(rec, &name, &namelen);
-#if THREADING_BAMREAD_PRIME_NAME2KEY
+
 		keyId = rec->keyId;
 		wasInserted = rec->wasInserted;
-#else
-		rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
-        if (rc) {
-            (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
-            goto LOOP_END;
-        }
-#endif
+
         {
             float const new_value = BAM_FileGetProportionalPosition(bam) * 100.0;
             float const delta = new_value - progress;
@@ -1679,15 +1670,7 @@ MIXED_BASE_AND_COLOR:
         if (!isPrimary && G.noSecondary)
             goto LOOP_END;
 
-        {
-            char const *rgname;
-
-            BAM_AlignmentGetReadGroupName(rec, &rgname);
-            if (rgname)
-                strcpy(spotGroup, rgname);
-            else
-                spotGroup[0] = '\0';
-        }
+        getReadGroupName(rec, spotGroup);
 
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
@@ -2575,7 +2558,7 @@ WRITE_ALIGNMENT:
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
-#if THREADING_BAMREAD
+
 	KQueueSeal(bamq);
 	KQueueRelease(bamq); bamq=NULL;
 	if(bamread_thread) {
@@ -2586,7 +2569,7 @@ WRITE_ALIGNMENT:
 		}
 		KThreadRelease(bamread_thread);
 	}
-#endif
+
     BAM_FileRelease(bam);
     MMArrayLock(ctx->id2value);
     KDataBufferWhack(&buf);

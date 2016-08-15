@@ -1444,7 +1444,7 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
     return rc;
 }
 
-static void getReadGroupName(BAM_Alignment const *const rec, char spotGroup[])
+static void getSpotGroup(BAM_Alignment const *const rec, char spotGroup[])
 {
     char const *rgname;
 
@@ -1670,7 +1670,7 @@ MIXED_BASE_AND_COLOR:
         if (!isPrimary && G.noSecondary)
             goto LOOP_END;
 
-        getReadGroupName(rec, spotGroup);
+        getSpotGroup(rec, spotGroup);
 
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {

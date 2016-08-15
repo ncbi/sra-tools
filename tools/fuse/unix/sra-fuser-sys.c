@@ -134,8 +134,11 @@ int UX_FUSE_getxattr ( const char * ThePath, const char * TheName, char * TheVal
 {
     DEBUG_MSG(8, ("%s: %s [%s]\n", __func__, ThePath, TheName));
 
-    /* return -ENOATTR; */ /* xattr.h does not exist on that machine */
-    return -ENODATA;
+#ifndef ENOATTR
+    return -ENODATA; /* mb xattr.h does not exist on that machine */
+#else /* ENOATR */
+    return -ENOATTR;
+#endif /* ENOATR */
 }   /* UX_FUSE_getxattr() */
 /* JOJOBA */
 

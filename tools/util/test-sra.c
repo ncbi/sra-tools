@@ -2213,7 +2213,7 @@ static rc_t perfrom_dns_test(const Main *self, const char *eol) {
         char s_endpoint[1024] = "";
         rc = endpoint_to_string(s_endpoint, sizeof s_endpoint, &ep);
         if (self->xml) {
-            OUTMSG(("  <%s "
+            OUTMSG(("    <%s "
                 "domain=\"%s\" port=\"%d\" address=\"%s\" time=\"%d ms\"/>\n",
                 root, domain, port, s_endpoint, time));
         }
@@ -2363,7 +2363,7 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
     assert(self);
     memset(&databuffer, 0, sizeof databuffer);
     if (self->xml) {
-        OUTMSG(("  <%s>\n", root));
+        OUTMSG(("    <%s>\n", root));
     }
     {
         KTimeMs_t time = 0;
@@ -2393,7 +2393,7 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
         }
     }
     if (self->xml) {
-        OUTMSG(("  </%s>\n", root));
+        OUTMSG(("    </%s>\n", root));
     }
     return rc;
 }
@@ -2403,49 +2403,61 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
     const char root[] = "Network";
     assert(self);
     if (self->xml) {
-        OUTMSG(("<%s>\n", root));
+        OUTMSG(("  <%s>\n", root));
     }
-    {
-        const char root[] = "HttpProxy";
+    if (arg == NULL) {
+        const char root[] = "KNSManager";
         bool enabled = KNSManagerGetHTTPProxyEnabled(self->knsMgr);
         if (!enabled) {
             if (self->xml) {
-                OUTMSG(("  <%s enabled=\"false\">\n", root));
+                OUTMSG(("    <%s GetHTTPProxyEnabled=\"false\">\n", root));
             }
             else {
-                OUTMSG(("HTTPProxyEnabled=\"false\"\n", root));
+                OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"false\"\n", root));
             }
         }
         else {
             if (self->xml) {
-                OUTMSG(("  <%s enabled=\"true\">\n", root));
+                OUTMSG(("    <%s GetHTTPProxyEnabled=\"true\">\n", root));
             }
             else {
-                OUTMSG(("HTTPProxyEnabled=\"true\"\n", root));
+                OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"true\"\n", root));
             }
         }
         {
-            const String *proxy = NULL;
-            rc_t rc = KNSManagerGetHTTPProxyPath(self->knsMgr, &proxy);
-            if (rc != 0) {
-                OUTMSG(("KNSManagerGetHTTPProxyPath()=%R%s", rc, eol));
-            }
-            else {
-                const char root[] = "Path";
+            const HttpProxy *p = KNSManagerGetHttpProxy(self->knsMgr);
+            while (p) {
+                const char root[] = "HttpProxy";
+                const String *http_proxy = NULL;
+                uint16_t http_proxy_port = 0;
+                HttpProxyGet(p, &http_proxy, &http_proxy_port);
                 if (self->xml) {
-                    OUTMSG(("    <%s>%S</%s>\n", root, proxy, root));
+                    if ( http_proxy_port == 0) {
+                        OUTMSG(("      <%s path=\"%S\"/>\n", root, http_proxy));
+                    }
+                    else {
+                        OUTMSG(("      <%s path=\"%S\" port=\"%d\"/>\n",
+                            root, http_proxy, http_proxy_port));
+                    }
                 }
                 else {
-                    OUTMSG(("HTTPProxyPath=\"%S\"\n", proxy));
+                    if ( http_proxy_port == 0) {
+                        OUTMSG(("HTTPProxy=\"%S\"\n", http_proxy));
+                    }
+                    else {
+                        OUTMSG(("HTTPProxy=\"%S\":%d\n",
+                            http_proxy, http_proxy_port));
+                    }
                 }
+                p = HttpProxyGetNextHttpProxy ( p );
             }
         }
         if (self->xml) {
-            OUTMSG(("  </%s>\n", root));
+            OUTMSG(("    </%s>\n", root));
         }
     }
-    {
-		const char *user_agent = NULL;
+    if (arg == NULL) {
+        const char *user_agent = NULL;
         rc_t rc = KNSManagerGetUserAgent(&user_agent);
         if (rc != 0) {
             OUTMSG(("KNSManagerGetUserAgent()=%R%s", rc, eol));
@@ -2453,17 +2465,20 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
         else {
             const char root[] = "UserAgent";
             if (self->xml) {
-                OUTMSG(("  <%s>%s</%s>\n", root, user_agent, root));
+                OUTMSG(("    <%s>%s</%s>\n", root, user_agent, root));
             }
             else {
                 OUTMSG(("UserAgent=\"%s\"\n", user_agent));
             }
         }
+
+        perfrom_dns_test(self, eol);
     }
-    perfrom_dns_test(self, eol);
-    perform_cgi_test(self, eol, arg);
+    if (arg != NULL) {
+        perform_cgi_test(self, eol, arg);
+    }
     if (self->xml) {
-        OUTMSG(("</%s>\n", root));
+        OUTMSG(("  </%s>\n", root));
     }
     return 0;
 }
@@ -3364,6 +3379,11 @@ rc_t CC KMain(int argc, char *argv[]) {
 
         if (MainHasTest(&prms, eAscp)) {
             MainPrintAscp(&prms);
+        }
+
+        if (MainHasTest(&prms, eNetwork)) {
+            const char *eol = prms.xml ? "<br/>\n" : "\n";
+            MainNetwotk(&prms, NULL, eol);
         }
 
         if (!prms.full) {

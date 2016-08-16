@@ -129,16 +129,6 @@ int UX_FUSE_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     return 0;
 }
 
-/* JOJOBA */
-int UX_FUSE_getxattr ( const char * ThePath, const char * TheName, char * TheValue, size_t TheValueSize )
-{
-    DEBUG_MSG(8, ("%s: %s [%s]\n", __func__, ThePath, TheName));
-
-    /* return -ENOATTR; */ /* xattr.h does not exist on that machine */
-    return -ENODATA;
-}   /* UX_FUSE_getxattr() */
-/* JOJOBA */
-
 int UX_FUSE_getattr(const char *path, struct stat *stbuf)
 {
     rc_t rc = 0;
@@ -621,9 +611,6 @@ rc_t CC KMain(int argc, char *argv[])
         ops.init     = UX_FUSE_init;
         ops.destroy  = UX_FUSE_destroy;
         ops.getattr  = UX_FUSE_getattr;
-/* JOJOBA */
-        ops.getxattr  = UX_FUSE_getxattr;
-/* JOJOBA */
         ops.readdir  = UX_FUSE_readdir;
         ops.readlink = UX_FUSE_readlink;
         ops.open     = UX_FUSE_open;

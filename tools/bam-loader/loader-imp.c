@@ -91,11 +91,6 @@
 #include "mem-bank.h"
 #include "low-match-count.h"
 
-#define THREADING_BAMREAD 1              /*** Reading BAM and SAM are moved to a separate thread ***/
-#if THREADING_BAMREAD
-#define THREADING_BAMREAD_PRIME_NAME2KEY 1 /*** Only valid when THREADING_BAMREAD==1. Will prime Name2Key on BAM/SAM thread ***/
-#endif
-
 #define NUM_ID_SPACES (256u)
 
 #define MMA_NUM_CHUNKS_BITS (20u)
@@ -1388,11 +1383,8 @@ static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint
 }
 
 static context_t GlobalContext;
-
-#if THREADING_BAMREAD
-
-timeout_t bamq_tm;
-KQueue *bamq;
+static timeout_t bamq_tm;
+static KQueue *bamq;
 static rc_t run_bamread_thread(const KThread *self, void *const file)
 {
     rc_t rc = 0;
@@ -1419,7 +1411,6 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
         BAM_AlignmentRelease(crec);
         if (rc) break;
 
-#if THREADING_BAMREAD_PRIME_NAME2KEY
         {
             static char const dummy[] = "";
             char const *spotGroup;
@@ -1431,7 +1422,7 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
             rc = GetKeyID(&GlobalContext.keyToID, &rec->keyId, &rec->wasInserted, spotGroup ? spotGroup : dummy, name, namelen);
             if (rc) break;
         }
-#endif
+
         for ( ; ; ) {
             rc = KQueuePush(bamq, rec, &bamq_tm);
             if (rc == 0 || (int)GetRCObject(rc) != rcTimeout)
@@ -1447,8 +1438,17 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
     }
     return rc;
 }
-#endif
 
+static void getSpotGroup(BAM_Alignment const *const rec, char spotGroup[])
+{
+    char const *rgname;
+
+    BAM_AlignmentGetReadGroupName(rec, &rgname);
+    if (rgname)
+        strcpy(spotGroup, rgname);
+    else
+        spotGroup[0] = '\0';
+}
 
 
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
@@ -1484,9 +1484,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     char alignGroup[32];
     size_t alignGroupLen;
     AlignmentRecord data;
-#if THREADING_BAMREAD
-	KThread *bamread_thread=NULL;
-#endif
+	KThread *bamread_thread = NULL;
     KDataBuffer seqBuffer;
     KDataBuffer qualBuffer;
     SequenceRecord srec;
@@ -1558,13 +1556,11 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         (void)PLOGMSG(klogInfo, (klogInfo, "Loading '$(file)'", "file=%s", bamFile));
     }
 
-#if THREADING_BAMREAD
 	TimeoutInit(&bamq_tm,10000);
 	rc = KQueueMake (&bamq,4096);
 	if(rc) return rc;
 	rc = KThreadMake(&bamread_thread, run_bamread_thread, (void*)bam);
-	if(rc) return rc;
-#endif
+	if (rc) return rc;
 
     while (rc == 0 && (rc = Quitting()) == 0) {
         bool aligned;
@@ -1591,11 +1587,12 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         bool hardclipped = false;
         bool revcmp = false;
         char const *BX = NULL;
+        unsigned readNo = 0;
+        bool wasPromoted = false;
         char const *CB = NULL;
         char const *UB = NULL;
         char const *barCode = NULL;
 
-#if THREADING_BAMREAD
         for ( ; ; ) {
             rc = KQueuePop(bamq, (void **)&rec, &bamq_tm);
             if (rc == 0) break;
@@ -1615,9 +1612,6 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
                 break;
             }
         }
-#else
-        rc = BAM_FileRead2(bam, &rec);
-#endif
 
         if (rc) {
             if (   (GetRCModule(rc) == rcCont && (int)GetRCObject(rc) == rcData && GetRCState(rc) == rcDone)
@@ -1640,25 +1634,16 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         ++recordsRead;
         
         BAM_AlignmentGetReadName2(rec, &name, &namelen);
-#if THREADING_BAMREAD_PRIME_NAME2KEY
+
 		keyId = rec->keyId;
 		wasInserted = rec->wasInserted;
-#else
-        {
-            char const *rgname;
 
-            BAM_AlignmentGetReadGroupName(rec, &rgname);
-            if (rgname)
-                strcpy(spotGroup, rgname);
-            else
-                spotGroup[0] = '\0';
-        }
-		rc = GetKeyID(&ctx->keyToID, &keyId, &wasInserted, spotGroup, name, namelen);
+        rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
         if (rc) {
-            (void)PLOGERR(klogErr, (klogErr, rc, "KBTreeEntry: failed on key '$(key)'", "key=%.*s", namelen, name));
+            (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
             goto LOOP_END;
         }
-#endif
+
         {
             float const new_value = BAM_FileGetProportionalPosition(bam) * 100.0;
             float const delta = new_value - progress;
@@ -1669,6 +1654,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         }
 
         BAM_AlignmentGetLinkageGroup(rec, &BX, &CB, &UB);
+        BAM_AlignmentGetBarCode(rec, &barCode);
 
         if (!G.noColorSpace) {
             if (BAM_AlignmentHasColorSpace(rec)) {
@@ -1687,21 +1673,50 @@ MIXED_BASE_AND_COLOR:
                 isNotColorSpace = true;
         }
         BAM_AlignmentGetFlags(rec, &flags);
+
+        originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;
+        aligned = originally_aligned;
+
+        mated = false;
+        if (flags & BAMFlags_WasPaired) {
+            if ((flags & BAMFlags_IsFirst) != 0)
+                readNo |= 1;
+            if ((flags & BAMFlags_IsSecond) != 0)
+                readNo |= 2;
+            switch (readNo) {
+            case 1:
+            case 2:
+                mated = true;
+                break;
+            case 0:
+                if ((warned & 1) == 0) {
+                    (void)LOGMSG(klogWarn, "Spots without fragment info have been encountered");
+                    warned |= 1;
+                }
+                UNFRAGMENT_MISSING_INFO;
+                break;
+            case 3:
+                if ((warned & 2) == 0) {
+                    (void)LOGMSG(klogWarn, "Spots with more than two fragments have been encountered");
+                    warned |= 2;
+                }
+                UNFRAGMENT_TOO_MANY;
+                break;
+            }
+        }
+        if (!mated)
+            readNo = 1;
+
         isPrimary = (flags & (BAMFlags_IsNotPrimary|BAMFlags_IsSupplemental)) == 0 ? true : false;
+        if (G.deferSecondary && !isPrimary && aligned && CTX_VALUE_GET_P_ID(*value, readNo - 1) == 0) {
+            /* promote to primary alignment */
+            isPrimary = true;
+            wasPromoted = true;
+        }
         if (!isPrimary && G.noSecondary)
             goto LOOP_END;
-#if THREADING_BAMREAD_PRIME_NAME2KEY
-        {
-            char const *rgname;
 
-            BAM_AlignmentGetReadGroupName(rec, &rgname);
-            if (rgname)
-                strcpy(spotGroup, rgname);
-            else
-                spotGroup[0] = '\0';
-        }
-#endif
-        BAM_AlignmentGetBarCode(rec, &barCode);
+        getSpotGroup(rec, spotGroup);
 
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
@@ -1716,79 +1731,6 @@ MIXED_BASE_AND_COLOR:
                 (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
                 goto LOOP_END;
             }
-        }
-        else {
-            uint32_t const *tmp;
-
-            BAM_AlignmentGetRawCigar(rec, &tmp, &opCount);
-            rc = KDataBufferResize(&cigBuf, opCount);
-            if (rc) {
-                (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
-                goto LOOP_END;
-            }
-            memcpy(cigBuf.base, tmp, opCount * sizeof(uint32_t));
-            {
-                hardclipped = isHardClipped(opCount, cigBuf.base);
-                if (hardclipped) {
-                    if (isPrimary) {
-                        if (!G.acceptHardClip) {
-                            rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-                            (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains hard clipped primary alignments", "file=%s", bamFile));
-                            goto LOOP_END;
-                        }
-                    }
-                    else if (!G.acceptHardClip) { /* convert to soft clip */
-                        uint32_t *const cigar = cigBuf.base;
-                        uint32_t const lOp = cigar[0];
-                        uint32_t const rOp = cigar[opCount - 1];
-
-                        lpad = (lOp & 0xF) == 5 ? (lOp >> 4) : 0;
-                        rpad = (rOp & 0xF) == 5 ? (rOp >> 4) : 0;
-
-                        if (lpad + rpad == 0) {
-                            rc = RC(rcApp, rcFile, rcReading, rcData, rcInvalid);
-                            (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains invalid CIGAR", "file=%s", bamFile));
-                            goto LOOP_END;
-                        }
-                        if (lpad != 0) {
-                            uint32_t const new_lOp = (((uint32_t)lpad) << 4) | 4;
-                            cigar[0] = new_lOp;
-                        }
-                        if (rpad != 0) {
-                            uint32_t const new_rOp = (((uint32_t)rpad) << 4) | 4;
-                            cigar[opCount - 1] = new_rOp;
-                        }
-                    }
-                }
-            }
-		    if(G.deferSecondary && !isPrimary ){	/*** try to see if hard-clipped secondary alignment can be salvaged **/
-				ctx_value_t *tmp_value; 
-				rc_t rc2=MMArrayGetRead(ctx->id2value, (void **)&tmp_value, keyId);
-				if(rc2==0){
-					int i=((flags&BAMFlags_WasPaired) && (flags&BAMFlags_IsSecond))?1:0;
-					BAM_AlignmentGetReadLength(rec, &readlen);
-					if(readlen + lpad + rpad < 256 && readlen + lpad + rpad < tmp_value->fragment_len[i]){
-						opCount++;
-						rc = KDataBufferResize(&cigBuf, opCount);
-						if (rc) {
-							(void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
-							goto LOOP_END;
-						}
-						if(rpad > 0 && lpad==0){
-							uint32_t * cigar = cigBuf.base;
-							lpad =  tmp_value->fragment_len[i] - readlen - rpad;
-							memmove(cigar+1,cigar,(opCount-1)*sizeof(*cigar));
-							cigar[0] =  (((uint32_t)lpad) << 4) | 4;
-						} else {
-							uint32_t *const cigar = cigBuf.base;
-							rpad += tmp_value->fragment_len[i] - readlen - lpad;
-							cigar[opCount - 1] =  (((uint32_t)rpad) << 4) | 4;
-						}
-					}
-				}
-			}
-        }
-        if (hasCG) {
             rc = AlignmentRecordInit(&data, readlen);
             if (rc == 0)
                 rc = KDataBufferResize(&buf, readlen);
@@ -1814,10 +1756,80 @@ MIXED_BASE_AND_COLOR:
                 data.data.align_group.elements = alignGroupLen;
         }
         else {
+            uint32_t const *tmp;
+
             BAM_AlignmentGetReadLength(rec, &readlen);
+            BAM_AlignmentGetRawCigar(rec, &tmp, &opCount);
+            rc = KDataBufferResize(&cigBuf, opCount);
+            assert(rc == 0);
+            if (rc) {
+                (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
+                goto LOOP_END;
+            }
+            memcpy(cigBuf.base, tmp, opCount * sizeof(uint32_t));
+
+            hardclipped = isHardClipped(opCount, cigBuf.base);
+            if (hardclipped) {
+                if (isPrimary && !wasPromoted) {
+                    /* when we promote a secondary to primary and it is hardclipped, we want to "fix" it */
+                    if (!G.acceptHardClip) {
+                        rc = RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
+                        (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains hard clipped primary alignments", "file=%s", bamFile));
+                        goto LOOP_END;
+                    }
+                }
+                else if (!G.acceptHardClip) { /* convert to soft clip */
+                    uint32_t *const cigar = cigBuf.base;
+                    uint32_t const lOp = cigar[0];
+                    uint32_t const rOp = cigar[opCount - 1];
+
+                    lpad = (lOp & 0xF) == 5 ? (lOp >> 4) : 0;
+                    rpad = (rOp & 0xF) == 5 ? (rOp >> 4) : 0;
+
+                    if (lpad + rpad == 0) {
+                        rc = RC(rcApp, rcFile, rcReading, rcData, rcInvalid);
+                        (void)PLOGERR(klogErr, (klogErr, rc, "File '$(file)' contains invalid CIGAR", "file=%s", bamFile));
+                        goto LOOP_END;
+                    }
+                    if (lpad != 0) {
+                        uint32_t const new_lOp = (((uint32_t)lpad) << 4) | 4;
+                        cigar[0] = new_lOp;
+                    }
+                    if (rpad != 0) {
+                        uint32_t const new_rOp = (((uint32_t)rpad) << 4) | 4;
+                        cigar[opCount - 1] = new_rOp;
+                    }
+                }
+            }
+
+            if (G.deferSecondary && !isPrimary) {
+                /*** try to see if hard-clipped secondary alignment can be salvaged **/
+                if (readlen + lpad + rpad < 256 && readlen + lpad + rpad < value->fragment_len[readNo - 1]) {
+                    rc = KDataBufferResize(&cigBuf, opCount + 1);
+                    assert(rc == 0);
+                    if (rc) {
+                        (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
+                        goto LOOP_END;
+                    }
+                    if (rpad > 0 && lpad == 0) {
+                        uint32_t *const cigar = cigBuf.base;
+                        lpad =  value->fragment_len[readNo - 1] - readlen - rpad;
+                        memmove(cigar + 1, cigar, opCount * sizeof(*cigar));
+                        cigar[0] = (uint32_t)((lpad << 4) | 4);
+                    }
+                    else {
+                        uint32_t *const cigar = cigBuf.base;
+                        rpad += value->fragment_len[readNo - 1] - readlen - lpad;
+                        cigar[opCount] = (uint32_t)((rpad << 4) | 4);
+                    }
+                    opCount++;
+                }
+            }
             rc = AlignmentRecordInit(&data, readlen + lpad + rpad);
+            assert(rc == 0);
             if (rc == 0)
                 rc = KDataBufferResize(&buf, readlen + lpad + rpad);
+            assert(rc == 0);
             if (rc) {
                 (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
                 goto LOOP_END;
@@ -1875,8 +1887,6 @@ MIXED_BASE_AND_COLOR:
             goto LOOP_END;
         }
         AR_REF_ORIENT(data) = (flags & BAMFlags_SelfIsReverse) == 0 ? false : true;
-        originally_aligned = (flags & BAMFlags_SelfIsUnmapped) == 0;
-        aligned = originally_aligned;
 
         rpos = -1;
         if (aligned) {
@@ -1974,43 +1984,7 @@ MIXED_BASE_AND_COLOR:
         }
 
         AR_KEY(data) = keyId;
-
-        rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
-        if (rc) {
-            (void)PLOGERR(klogErr, (klogErr, rc, "MMArrayGet: failed on id '$(id)'", "id=%u", keyId));
-            goto LOOP_END;
-        }
-
-
-        mated = false;
-        if (flags & BAMFlags_WasPaired) {
-            if ((flags & BAMFlags_IsFirst) != 0)
-                AR_READNO(data) |= 1;
-            if ((flags & BAMFlags_IsSecond) != 0)
-                AR_READNO(data) |= 2;
-            switch (AR_READNO(data)) {
-            case 1:
-            case 2:
-                mated = true;
-                break;
-            case 0:
-                if ((warned & 1) == 0) {
-                    (void)LOGMSG(klogWarn, "Spots without fragment info have been encountered");
-                    warned |= 1;
-                }
-                UNFRAGMENT_MISSING_INFO;
-                break;
-            case 3:
-                if ((warned & 2) == 0) {
-                    (void)LOGMSG(klogWarn, "Spots with more than two fragments have been encountered");
-                    warned |= 2;
-                }
-                UNFRAGMENT_TOO_MANY;
-                break;
-            }
-        }
-        if (!mated)
-            AR_READNO(data) = 1;
+        AR_READNO(data) = readNo;
 
         if (wasInserted) {
             if (G.mode == mode_Remap) {
@@ -2058,7 +2032,7 @@ MIXED_BASE_AND_COLOR:
             }
         }
         if (isPrimary) {
-            switch (AR_READNO(data)) {
+            switch (readNo) {
             case 1:
                 if (CTX_VALUE_GET_P_ID(*value, 0) != 0) {
                     isPrimary = false;
@@ -2113,7 +2087,7 @@ MIXED_BASE_AND_COLOR:
                 rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches, &misses);
             }
             if (rc == 0) {
-                int const i= AR_READNO(data) - 1;
+                int const i= readNo - 1;
                 int const clipped_rl = readlen < 255 ? readlen : 255;
                 if (i >= 0 && i < 2) {
                     int const rl = value->fragment_len[i];
@@ -2177,7 +2151,7 @@ MIXED_BASE_AND_COLOR:
         }
 
         if (!aligned && isPrimary) {
-            switch (AR_READNO(data)) {
+            switch (readNo) {
             case 1:
                 value->unaligned_1 = 1;
                 break;
@@ -2189,7 +2163,7 @@ MIXED_BASE_AND_COLOR:
             }
         }
         if (isPrimary) {
-            switch (AR_READNO(data)) {
+            switch (readNo) {
             case 1:
                 if (CTX_VALUE_GET_P_ID(*value, 0) == 0 && aligned) {
                     data.alignId = ++ctx->primaryId;
@@ -2241,7 +2215,7 @@ WRITE_SEQUENCE:
                     fi.aligned = isPrimary ? aligned : 0;
                     fi.ti = ti;
                     fi.orientation = AR_REF_ORIENT(data);
-                    fi.readNo = AR_READNO(data);
+                    fi.readNo = readNo;
                     fi.sglen = strlen(spotGroup);
 
                     /* if have bar code and platform is Illumina or read group is empty, then use bar code instead of read group */
@@ -2344,7 +2318,7 @@ WRITE_SEQUENCE:
                         }
                         assert(size1 == size2);
                     }
-                    if (AR_READNO(data) == fip->readNo) {
+                    if (readNo == fip->readNo) {
                         /* is a repeat of the same read; do nothing */
                     }
                     else {
@@ -2372,7 +2346,7 @@ WRITE_SEQUENCE:
                             (void)LOGERR(klogErr, rc, "Failed to resize record buffer");
                             goto LOOP_END;
                         }
-                        if (AR_READNO(data) < fip->readNo) {
+                        if (readNo < fip->readNo) {
                             read1 = 1;
                             read2 = 0;
                         }
@@ -2567,8 +2541,8 @@ WRITE_ALIGNMENT:
             if (wasRenamed) {
                 RENAMED_REFERENCE;
             }
-            if (value->alignmentCount[AR_READNO(data) - 1] < 254)
-                ++value->alignmentCount[AR_READNO(data) - 1];
+            if (value->alignmentCount[readNo - 1] < 254)
+                ++value->alignmentCount[readNo - 1];
             ++ctx->alignCount;
 
             assert(keyId >> 32 < ctx->keyToID.key2id_count);

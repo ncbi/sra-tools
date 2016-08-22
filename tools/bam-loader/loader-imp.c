@@ -2087,7 +2087,7 @@ MIXED_BASE_AND_COLOR:
                 rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches, &misses);
             }
             if (rc == 0) {
-                int const i= readNo - 1;
+                int const i = readNo - 1;
                 int const clipped_rl = readlen < 255 ? readlen : 255;
                 if (i >= 0 && i < 2) {
                     int const rl = value->fragment_len[i];
@@ -2589,7 +2589,7 @@ WRITE_ALIGNMENT:
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
     }
-#if THREADING_BAMREAD
+
 	KQueueSeal(bamq);
 	KQueueRelease(bamq); bamq=NULL;
 	if(bamread_thread) {
@@ -2600,7 +2600,7 @@ WRITE_ALIGNMENT:
 		}
 		KThreadRelease(bamread_thread);
 	}
-#endif
+
     BAM_FileRelease(bam);
     MMArrayLock(ctx->id2value);
     KDataBufferWhack(&buf);

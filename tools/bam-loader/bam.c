@@ -2324,6 +2324,10 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
         if ((void const *)&scratch[i] >= endp)
             return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
 
+        if (ch == '\n' && i > 0 && scratch[i - 1] == '\r') {
+            /* handle \r\n line endings */
+            --i;
+        }
         if (!(ch == '\t' || ch == '\n')) {
             if (field != 0) {
                 if (intScratch == NULL) {

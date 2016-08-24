@@ -512,24 +512,6 @@ static char const *get_BX(BAM_Alignment const *cself)
     return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
-static char const *get_CB(BAM_Alignment const *cself)
-{
-    struct offset_size_s const *const x = getTag(cself, "CB", 0);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
-}
-
-static char const *get_UB(BAM_Alignment const *cself)
-{
-    struct offset_size_s const *const x = getTag(cself, "UB", 0);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
-}
-
-static char const *get_BC(BAM_Alignment const *cself)
-{
-    struct offset_size_s const *const x = getTag(cself, "BC", 0);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
-}
-
 /* MARK: BAM_File Reading functions */
 
 /* returns (rcData, rcInsufficient) if eof */
@@ -2342,6 +2324,10 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
         if ((void const *)&scratch[i] >= endp)
             return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
 
+        if (ch == '\n' && i > 0 && scratch[i - 1] == '\r') {
+            /* handle \r\n line endings */
+            --i;
+        }
         if (!(ch == '\t' || ch == '\n')) {
             if (field != 0) {
                 if (intScratch == NULL) {
@@ -4091,19 +4077,8 @@ rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const r
 }
 
 rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
-                                  char const **const BX,
-                                  char const ** CB,
-                                  char const ** UB)
+                                  char const **const BX)
 {
     *BX = get_BX(self);
-    *CB = get_CB(self);
-    *UB = get_UB(self);
-    return 0;
-}
-
-rc_t BAM_AlignmentGetBarCode(BAM_Alignment const *self,
-                                  char const **const BC)
-{
-    *BC = get_BC(self);
     return 0;
 }

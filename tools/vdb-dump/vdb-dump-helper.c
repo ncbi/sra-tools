@@ -502,7 +502,7 @@ rc_t resolve_remote_accession( const char * accession, char * dst, size_t dst_si
             {
                 const VPath * remote = NULL;
                 VResolverRemoteEnable( resolver, vrAlwaysEnable );
-                rc = VResolverQuery ( resolver, eProtocolHttp, vpath, NULL, &remote, NULL );
+                rc = VResolverQuery ( resolver, 0, vpath, NULL, &remote, NULL );
                 if ( rc == 0 &&  remote != NULL )
                 {
                     const String * path;
@@ -557,9 +557,9 @@ rc_t resolve_accession( const char * accession, char * dst, size_t dst_size, boo
                 const VPath * local = NULL;
                 const VPath * remote = NULL;
                 if ( remotely )
-                    rc = VResolverQuery ( resolver, eProtocolHttp, vpath, &local, &remote, NULL );
+                    rc = VResolverQuery ( resolver, 0, vpath, &local, &remote, NULL );
                 else
-                    rc = VResolverQuery ( resolver, eProtocolHttp, vpath, &local, NULL, NULL );
+                    rc = VResolverQuery ( resolver, 0, vpath, &local, NULL, NULL );
                 if ( rc == 0 && ( local != NULL || remote != NULL ) )
                 {
                     const String * path;
@@ -621,7 +621,7 @@ rc_t resolve_cache( const char * accession, char * dst, size_t dst_size )
                 const VPath * local = NULL;
                 const VPath * remote = NULL;
                 const VPath * cache = NULL;
-                rc = VResolverQuery ( resolver, eProtocolHttp, vpath, &local, &remote, &cache );
+                rc = VResolverQuery ( resolver, 0, vpath, &local, &remote, &cache );
                 if ( rc == 0 && cache != NULL )
                 {
                     const String * path;

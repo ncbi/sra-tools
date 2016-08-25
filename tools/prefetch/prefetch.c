@@ -508,7 +508,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
 static rc_t V_ResolverLocal(const VResolver *self,
     struct VPath const * accession, struct VPath const ** path )
 {
-    return VResolverQuery(self, eProtocolHttp, accession, path, NULL, NULL);
+    return VResolverQuery(self, 0, accession, path, NULL, NULL);
 }
 
 static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
@@ -1247,7 +1247,7 @@ static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
                 }
                 RELEASE(KFile, self->file);
                 rc = _VResolverRemote(self->resolver,
-                    eProtocolHttp, self->name, self->accession,
+                    0, self->name, self->accession,
                     &self->remote.path, &self->remote.str, &self->cache);
             }
             if (rc == 0) {
@@ -1505,6 +1505,12 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
     rc_t rc = 0;
     rc_t rc2 = 0;
 
+    uint32_t i;
+    bool has_proto [ eProtocolMask + 1 ];
+    memset ( has_proto, 0, sizeof has_proto );
+    for ( i = 0; i < eProtocolMaxPref; ++ i )
+        has_proto [ ( protocols >> ( i * 3 ) ) & eProtocolMask ] = true;
+
     assert(resolver && item);
 
     resolved = &item->resolved;
@@ -1537,10 +1543,9 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         resolved->remoteSz = 0;
         assert(item->main);
         if ((minSize > 0 || maxSize > 0 || item->main->order == eOrderSize)
-            && (protocols == eProtocolFasp ||
-                protocols == eProtocolFaspHttp))
+            && has_proto [ eProtocolFasp ])
         {
-            rc2 = _VResolverRemote(resolved->resolver, eProtocolHttp,
+            rc2 = _VResolverRemote(resolved->resolver, 0,
                 resolved->name, resolved->accession, &resolved->remote.path,
                 &resolved->remote.str, &resolved->cache);
             if (rc2 != 0 && rc == 0) {
@@ -1606,7 +1611,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 {
     Resolved *resolved = NULL;
     rc_t rc = 0;
-    VRemoteProtocols protocols = ascp ? eProtocolFaspHttp : eProtocolHttp;
+    VRemoteProtocols protocols = ascp ? eProtocolFaspHttpHttps : 0;
 
     assert(self);
 
@@ -2324,7 +2329,7 @@ static rc_t ItemDownloadVdbcache(Item *item) {
                 rc = rc2;
             }
             RELEASE(KFile, resolved->file);
-            rc = _VResolverRemote(resolved->resolver, eProtocolHttp,
+            rc = _VResolverRemote(resolved->resolver, 0,
                 resolved->name, resolved->accession, &resolved->remote.path,
                 &resolved->remote.str, &resolved->cache);
         }

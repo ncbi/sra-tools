@@ -648,7 +648,7 @@ static rc_t MainQuickResolveQuery(const Main *self, const char *acc) {
         if (!self->allowCaching) {
             VResolverCacheEnable(self->resolver, self->cacheState);
         }
-        rc = VResolverQuery(self->resolver, eProtocolHttp, query,
+        rc = VResolverQuery(self->resolver, 0, query,
             NULL, &remote, &cache);
         if (!self->allowCaching) {
             VResolverCacheEnable(self->resolver, vrAlwaysDisable);
@@ -1274,7 +1274,7 @@ static rc_t MainResolveRemote(const Main *self, VResolver *resolver,
     }
 
     rc = VResolverRemote(resolver,
-        fasp ? eProtocolFaspHttp : eProtocolHttp, acc, remote);
+        fasp ? eProtocolFaspHttpHttps : 0, acc, remote);
 
     if (rc == 0) {
         rc_t rc = 0;
@@ -1328,7 +1328,7 @@ static rc_t MainResolveCache(const Main *self, const VResolver *resolver,
         if (!self->allowCaching) {
             VResolverCacheEnable(resolver, self->cacheState);
         }
-        rc = VResolverQuery(resolver, fasp ? eProtocolFasp : eProtocolHttp,
+        rc = VResolverQuery(resolver, fasp ? eProtocolFasp : 0,
             remote, NULL, NULL, &cache);
         rc = MainPathReport(self,
             rc, cache, ePathCache, name, remote, NULL, fasp, NULL);
@@ -1363,6 +1363,10 @@ static rc_t VResolverQueryByType(const Main *self, const VResolver *resolver,
     const VPath **pRemote = NULL;
     const VPath **pCache = NULL;
 
+    uint32_t i;
+    VRemoteProtocols protos;
+    const char * proto [ eProtocolMaxPref ];
+
     assert(self);
 
     if (self->xml) {
@@ -1391,11 +1395,38 @@ static rc_t VResolverQueryByType(const Main *self, const VResolver *resolver,
         VResolverCacheEnable(resolver, vrAlwaysEnable);
     }
 
+    proto [ 0 ] = NULL;
+    proto [ 1 ] = proto [ 2 ] = "";
+
+    for ( i = 0, protos = protocols; i < sizeof proto / sizeof proto [ 0 ] && protos != 0; protos >>= 3 )
+    {
+        switch ( protos & eProtocolMask )
+        {
+        case eProtocolHttp:
+            proto [ i ++ ] = "Http";
+            break;
+        case eProtocolFasp:
+            proto [ i ++ ] = "Fasp";
+            break;
+        case eProtocolHttps:
+            proto [ i ++ ] = "Https";
+            break;
+        }
+    }
+
     rc = VResolverQuery(resolver, protocols, query, pLocal, pRemote, pCache);
-    OUTMSG(("%sVResolverQuery(%s, %s, local%s, remote%s, cache%s)= %R%s",
-        bol, name, protocols == eProtocolHttp ? "Http" : "FaspHttp", 
-        pLocal == NULL ? "=NULL" : "", pRemote == NULL ? "=NULL" : "",
-        pCache == NULL ? "=NULL" : "", rc, eol));
+    OUTMSG(("%sVResolverQuery(%s, %s%s%s, local%s, remote%s, cache%s)= %R%s"
+            , bol
+            , name
+            , proto [ 0 ]
+            , proto [ 1 ]
+            , proto [ 2 ]
+            , pLocal == NULL ? "=NULL" : ""
+            , pRemote == NULL ? "=NULL" : ""
+            , pCache == NULL ? "=NULL" : ""
+            , rc
+            , eol
+      ));
     if (rc == 0) {
         if (local != NULL) {
 /*          rc2 =*/ MainPathReport(self,
@@ -1433,12 +1464,9 @@ static rc_t MainResolveQuery(const Main *self, const VResolver *resolver,
     KTimeMs_t time = 0;
     KTimeMs_t start_time = 0;
 
-    VRemoteProtocols protocols = eProtocolHttp;
+    VRemoteProtocols protocols = 0;
     if (fasp) {
-        protocols = eProtocolFaspHttp;
-    }
-    else {
-        protocols = eProtocolHttp;
+        protocols = eProtocolFaspHttpHttps;
     }
 
     if (resolver == NULL) {

@@ -206,7 +206,7 @@ typedef struct {
     bool stripQuals; /* this will download file without quality columns */
     bool eliminateQuals; /* this will download cache file with eliminated quality columns which could filled later */
     
-#ifdef _DEBUGGING
+#if _DEBUGGING
     const char *textkart;
 #endif
 } Main;
@@ -216,7 +216,7 @@ typedef struct {
 
     const KartItem *item;
 
-#ifdef _DEBUGGING
+#if _DEBUGGING
     const char *textkart;
 #endif
 
@@ -2470,7 +2470,7 @@ rc_t IteratorInit(Iterator *self, const char *obj, const Main *main)
     assert(self && main);
     memset(self, 0, sizeof *self);
 
-#ifdef _DEBUGGING
+#if _DEBUGGING
     if (obj == NULL && main->textkart) {
         type = KDirectoryPathType(main->dir, "%s", main->textkart);
         if ((type & ~kptAlias) != kptFile) {
@@ -2685,7 +2685,7 @@ static const char* STRIP_QUALS_USAGE[] =
 static const char* ELIM_QUALS_USAGE[] =
 { "don't download QUALITY column", NULL };
 
-#ifdef _DEBUGGING
+#if _DEBUGGING
 #define TEXTKART_OPTION "text-kart"
 static const char* TEXTKART_USAGE[] =
 { "To read a textual format kart file (DEBUG ONLY)", NULL };
@@ -2710,7 +2710,7 @@ static OptDef Options[] = {
    ,{ STRIP_QUALS_OPTION , STRIP_QUALS_ALIAS , NULL, STRIP_QUALS_USAGE , 1, false, false }
 #endif
    ,{ ELIM_QUALS_OPTION  , ELIM_QUALS_ALIAS  , NULL, ELIM_QUALS_USAGE , 1, false, false }
-#ifdef _DEBUGGING
+#if _DEBUGGING
    ,{ TEXTKART_OPTION    , NULL              , NULL, TEXTKART_USAGE , 1, true , false}
 #endif
    ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
@@ -3085,7 +3085,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         }
 #endif
         
-#ifdef _DEBUGGING
+#if _DEBUGGING
 /* TEXTKART_OPTION */
         rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);
         if (rc != 0) {
@@ -3179,7 +3179,7 @@ rc_t CC Usage(const Args *args) {
         else if (strcmp(Options[i].name, ASCP_PAR_OPTION) == 0) {
             param = "value";
         }
-#ifdef _DEBUGGING
+#if _DEBUGGING
         else if (strcmp(Options[i].name, TEXTKART_OPTION) == 0) {
             param = "value";
         }
@@ -3544,7 +3544,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         rc = ArgsParamCount(pars.args, &pcount);
     }
     if (rc == 0 && pcount == 0) {
-#ifdef _DEBUGGING
+#if _DEBUGGING
         if (!pars.textkart)
 #endif
           rc = UsageSummary(UsageDefaultName);
@@ -3553,7 +3553,7 @@ rc_t CC KMain(int argc, char *argv[]) {
     if (rc == 0) {
         uint32_t i = ~0;
 
-#ifdef _DEBUGGING
+#if _DEBUGGING
         if (pars.textkart) {
             rc = MainRun(&pars, NULL, pars.textkart);
         }

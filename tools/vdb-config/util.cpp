@@ -292,7 +292,7 @@ rc_t CKConfig::Commit(void) const {
 
 rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     rc_t rc = UpdateNode("/repository/remote/main/CGI/resolver-cgi",
-        "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
+        "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
 
     if (fix) {
         const string name("/repository/remote/main/CGI/disabled");
@@ -305,7 +305,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     }
 
     rc_t r2 = UpdateNode("/repository/remote/aux/NCBI/root",
-        "http://sra-download.ncbi.nlm.nih.gov");
+        "https://sra-download.ncbi.nlm.nih.gov");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }
@@ -353,7 +353,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     }
 
     r2 = UpdateNode("/repository/remote/protected/CGI/resolver-cgi",
-        "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
+        "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }
@@ -864,13 +864,13 @@ rc_t CRemoteRepository::Fix(CKConfig &kfg, bool disable, bool verbose) {
 
     if (Is("main")) {
         m_ResolverCgi
-            = "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
+            = "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
         ClearApps();
     }
     else {
         m_ResolverCgi = "";
         FixApps();
-        SetRoot("http://ftp-trace.ncbi.nlm.nih.gov/sra");
+        SetRoot("https://ftp-trace.ncbi.nlm.nih.gov/sra");
     }
 
     return Update(kfg);
@@ -1098,7 +1098,7 @@ void CRemoteRepositories::Fix(CKConfig &kfg, bool disable, bool verbose) {
     }
 
     const string cgi
-        ("http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
+        ("https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
     if (main == NULL) {
         main = new CRemoteRepository("main", "CGI", cgi);
         main->Fix(kfg, disable);
@@ -1107,7 +1107,7 @@ void CRemoteRepositories::Fix(CKConfig &kfg, bool disable, bool verbose) {
 
     if (aux == NULL) {
         aux = new CRemoteRepository("aux", "NCBI",
-            "http://ftp-trace.ncbi.nlm.nih.gov/sra");
+            "https://ftp-trace.ncbi.nlm.nih.gov/sra");
         aux->Fix(kfg, disable);
         push_back(aux);
     }

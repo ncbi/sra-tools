@@ -2396,8 +2396,8 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
     {
         KTimeMs_t time = 0;
         const char root[] = "Response";
-        rc = call_cgi(self, "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi"
-            , 1, 1, "http", acc, &databuffer, eol);
+        rc = call_cgi(self, "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi"
+            , 1, 1, "http,https", acc, &databuffer, eol);
         time = KTimeMsStamp() - start_time;
         if (rc == 0) {
             const char *start = databuffer.base;
@@ -2830,7 +2830,7 @@ rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
     buffer[0] = '\0';
 
     rc = KNSManagerMakeRequest(self->knsMgr, &req, 0x01000000, NULL,
-        "http://trace.ncbi.nlm.nih.gov/Traces/sratoolkit/sratoolkit.cgi");
+        "https://trace.ncbi.nlm.nih.gov/Traces/sratoolkit/sratoolkit.cgi");
 
     if (rc == 0) {
         rc = KHttpRequestAddPostParam(req, "cmd=vers");
@@ -3074,7 +3074,7 @@ static rc_t MainPrintVersion(Main *self) {
             if (isNew > 0) {
                 OUTMSG((
            "A new version of SRA Toolkit is available for download from\n"
-           "\"http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\".\n"
+           "\"https://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\".\n"
                 ));
             }
             else if (isNew == 0) {

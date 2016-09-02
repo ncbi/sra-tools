@@ -1096,7 +1096,7 @@ static rc_t MainDownloadCacheFile(Resolved *self,
     return rc;
 }
 
-/*  http://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByR.../SRR125365.sra
+/*  https://sra-download.ncbi.nlm.nih.gov/srapub/SRR125365.sra
 anonftp@ftp-private.ncbi.nlm.nih.gov:/sra/sra-instant/reads/ByR.../SRR125365.sra
 */
 static rc_t MainDownloadAscp(const Resolved *self, Main *main,

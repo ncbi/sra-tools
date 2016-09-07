@@ -55,9 +55,6 @@
 #include <unistd.h>
 #endif
 
-#include "sra-sort.vers.h"
-
-
 FILE_ENTRY ( sra-sort );
 
 
@@ -197,11 +194,6 @@ rc_t CC Usage ( const Args *args )
     HelpVersion ( fullpath, KAppVersion () );
 
     return 0;
-}
-
-uint32_t CC KAppVersion ( void )
-{
-    return SRA_SORT_VERS;
 }
 
 static

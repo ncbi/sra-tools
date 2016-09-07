@@ -164,11 +164,6 @@ struct txt2kdbglobals
     bool end_seen;
 } G;
 
-ver_t CC KAppVersion (void)
-{
-    return  0;
-}
-
 void txt2kdb_release (void)
 {
     KDirectoryRelease (G.dir);

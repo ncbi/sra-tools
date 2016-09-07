@@ -49,6 +49,7 @@ typedef struct special_rec
 {
     int64_t row_id;
     uint64_t prim_alig_id[ 2 ];
+    uint32_t num_reads;
     String cmp_read;
     String spot_group;
 } special_rec;

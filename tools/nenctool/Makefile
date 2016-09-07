@@ -30,8 +30,6 @@ USE_GCC_IF_ICC = 1
 TOP ?= $(abspath ../..)
 MODULE = tools/nenctool
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS =
 
 EXT_TOOLS = \
@@ -46,34 +44,18 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
-
-
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -95,16 +77,18 @@ NENCTOOL_OBJ = \
 
 NENCTOOL_LIB = \
 	-lkapp \
+	-stk-version \
 	-lvfs \
 	-lkns \
 	-lkrypto \
 	-lkfg \
 	-lkfs \
+	-lkq \
 	-lkproc \
 	-lklib
 
 $(BINDIR)/nenctool: $(NENCTOOL_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(NENCTOOL_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(NENCTOOL_LIB)
 
 
 #-------------------------------------------------------------------------------
@@ -120,14 +104,16 @@ NENCTEST_OBJ = \
 
 NENCTEST_LIB = \
 	-lkapp \
+	-stk-version \
 	-lvfs \
 	-lkns \
-	-lkryptotest \
+	-lkrypto \
 	-lkfg \
 	-lkfs \
+	-lkq \
 	-lkproc \
 	-lklib
 
 $(BINDIR)/nenctest: $(NENCTEST_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(NENCTEST_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(NENCTEST_LIB)
 

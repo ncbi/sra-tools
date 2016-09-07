@@ -24,8 +24,6 @@
 *
 */
 
-#include "fastdump.vers.h"
-
 #include "cmn_iter.h"
 #include "file_printer.h"
 #include "raw_read_iter.h"
@@ -41,6 +39,7 @@
 #include <kapp/args.h>
 #include <klib/out.h>
 #include <klib/vector.h>
+#include <klib/log.h>
 #include <kfs/directory.h>
 #include <kproc/thread.h>
 
@@ -75,7 +74,7 @@ static const char * curcache_usage[] = { "size of cursor-cache ( default=10MB )"
 #define OPTION_CURCACHE "curcache"
 #define ALIAS_CURCACHE  "c"
 
-static const char * mem_usage[] = { "memory limit for sorting ( default=2GB )", NULL };
+static const char * mem_usage[] = { "memory limit for sorting ( default=100MB )", NULL };
 #define OPTION_MEM      "mem"
 #define ALIAS_MEM       "m"
 
@@ -91,6 +90,10 @@ static const char * index_usage[] = { "name of index-file", NULL };
 #define OPTION_INDEX    "index"
 #define ALIAS_INDEX     "i"
 
+static const char * detail_usage[] = { "print details", NULL };
+#define OPTION_DETAILS  "details"
+#define ALIAS_DETAILS    "x"
+
 OptDef ToolOptions[] =
 {
     { OPTION_RANGE,     ALIAS_RANGE,     NULL, range_usage,      1, true,   false },
@@ -103,7 +106,8 @@ OptDef ToolOptions[] =
     { OPTION_TEMP,      ALIAS_TEMP,      NULL, temp_usage,       1, true,   false },
     { OPTION_THREADS,   ALIAS_THREADS,   NULL, threads_usage,    1, true,   false },
     { OPTION_INDEX,     ALIAS_INDEX,     NULL, index_usage,      1, true,   false },
-    { OPTION_PROGRESS,  ALIAS_PROGRESS,  NULL, progress_usage,   1, false,  false }
+    { OPTION_PROGRESS,  ALIAS_PROGRESS,  NULL, progress_usage,   1, false,  false },
+    { OPTION_DETAILS,   ALIAS_DETAILS,   NULL, detail_usage,     1, false,  false }
 };
 
 const char UsageDefaultName[] = "fastdump";
@@ -142,16 +146,6 @@ rc_t CC Usage ( const Args * args )
     HelpVersion( fullpath, KAppVersion() );
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion( void ) { return FASTDUMP_VERS; }
-
 
 /* -------------------------------------------------------------------------------------------- */
 
@@ -239,6 +233,9 @@ static rc_t perform_join( fd_ctx * fd_ctx, format_t fmt )
     {
         const char * temp = fd_ctx->output_filename;
         
+        if ( fd_ctx->cmn.show_progress )
+            KOutMsg( "lookup :" );
+        
         fd_ctx->output_filename = fd_ctx->lookup_filename;
         if ( fd_ctx->num_threads > 1 )
             rc = multi_threaded_make_lookup( fd_ctx );
@@ -277,9 +274,11 @@ static rc_t perform_join( fd_ctx * fd_ctx, format_t fmt )
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
+    rc_t rc;
     Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
-    rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
+
+    rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
     if ( rc != 0 )
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
     if ( rc == 0 )
@@ -303,6 +302,7 @@ rc_t CC KMain ( int argc, char *argv [] )
             fd_ctx.cmn.row_range = get_str_option( args, OPTION_RANGE, NULL );
             fd_ctx.cmn.cursor_cache = get_size_t_option( args, OPTION_CURCACHE, 5 * 1024 * 1024 );            
             fd_ctx.cmn.show_progress = get_bool_option( args, OPTION_PROGRESS );
+			fd_ctx.cmn.show_details = get_bool_option( args, OPTION_DETAILS );
             fd_ctx.cmn.count = 0;
 
             fd_ctx.temp_path = get_str_option( args, OPTION_TEMP, NULL );
@@ -313,6 +313,15 @@ rc_t CC KMain ( int argc, char *argv [] )
             fd_ctx.mem_limit = get_size_t_option( args, OPTION_MEM, 1024L * 1024 * 100 );
             fd_ctx.num_threads = get_uint64_t_option( args, OPTION_THREADS, 1 );
 
+			if ( fd_ctx.cmn.show_details )
+			{
+				KOutMsg( "cursor-cache : %ld\n", fd_ctx.cmn.cursor_cache );
+				KOutMsg( "buf-size     : %ld\n", fd_ctx.buf_size );
+				KOutMsg( "mem-limit    : %ld\n", fd_ctx.mem_limit );
+				KOutMsg( "threadsit    : %d\n", fd_ctx.num_threads );
+				KOutMsg( "scratch-path : '%s'\n", fd_ctx.temp_path );
+			}
+			
             if ( fd_ctx.lookup_filename == NULL )
             {
                 rc = make_prefixed( dflt_lookup, sizeof dflt_lookup, fd_ctx.temp_path,

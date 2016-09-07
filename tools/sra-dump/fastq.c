@@ -44,7 +44,6 @@
 #include <strtol.h>
 
 #include "core.h"
-#include "fastq-dump.vers.h"
 #include "debug.h"
 
 #define DATABUFFERINITSIZE 10240
@@ -2944,12 +2943,6 @@ rc_t CC UsageSummary ( const char * progname )
 {
     return 0;
 }
-
-ver_t CC KAppVersion( void )
-{
-    return FASTQ_DUMP_VERS;
-}
-
 
 #define H_splip_sot 0
 #define H_clip 1

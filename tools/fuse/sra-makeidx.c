@@ -41,7 +41,6 @@
 #include <sra/fastq.h>
 #include <sra/sff.h>
 
-#include "sra-makeidx.vers.h"
 #include "zlib-simple.h"
 #include "debug.h"
 
@@ -759,10 +758,6 @@ rc_t MakeIndexes(const SRATable* stbl, KTable* ktbl, KMetadata* meta)
     return rc;
 }
 
-ver_t CC KAppVersion(void)
-{
-    return SRA_MAKEIDX_VERS;
-}
 const char* blocksize_usage[] = {"Index block size", NULL};
 const char* accession_usage[] = {"Accession", NULL};
 

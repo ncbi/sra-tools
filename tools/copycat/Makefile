@@ -28,8 +28,6 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/copycat
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS =
 
 EXT_TOOLS = copycat
@@ -38,15 +36,17 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #-------------------------------------------------------------------------------
 # outer targets
 #
 ifeq (1,$(HAVE_MAGIC))
 
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 else
@@ -60,21 +60,6 @@ $(ALL_TOOLS):
 endif
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -104,11 +89,12 @@ COPYCAT_OBJ = \
 
 COPYCAT_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-vdb \
 	-skff \
 	-smagic-static
 
 
 $(BINDIR)/copycat: $(COPYCAT_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(COPYCAT_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(COPYCAT_LIB)
 	@ cp $(SRCDIR)/magic $(BINDIR)

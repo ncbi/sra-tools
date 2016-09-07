@@ -28,9 +28,6 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/dbgap-mount
 
-include $(TOP)/build/Makefile.env
-
-
 ifeq (win,$(OS))
     DOCAN_LIBS = -lDOKAN
 else
@@ -52,39 +49,19 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(ALL_TOOLS): vers-includes
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
+
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# all
-#
-$(TARGDIR)/all: \
-        $(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/all
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -112,10 +89,10 @@ ZDB_DEMO_SRC = \
 ZDB_DEMO_OBJ = \
 	$(addsuffix .$(OBJX),$(ZDB_DEMO_SRC))
 
-ZDB_DEMO_LIB = -lkapp -lncbi-vdb -lxfs $(DOCAN_LIBS)
+ZDB_DEMO_LIB = -lkapp -stk-version -lncbi-vdb -lxfs $(DOCAN_LIBS)
 
 $(BINDIR)/demo: $(ZDB_DEMO_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(ZDB_DEMO_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(ZDB_DEMO_LIB)
 
 demo_tag:
 	@ $(TOP)/build/tag-module.sh $(MODULE) demo $(ZDB_DEMO_OBJ)
@@ -132,10 +109,10 @@ ZDB_TOOL_OBJ = \
 	$(addsuffix .$(OBJX),$(ZDB_TOOL_SRC))
 
 # ZDB_TOOL_LIB = -lkapp -lncbi-vdb -lxfs $(DOCAN_LIBS)
-ZDB_TOOL_LIB = -sxfs -skapp -sncbi-vdb -skfg $(DOCAN_LIBS)
+ZDB_TOOL_LIB = -sxfs -skapp -stk-version -sncbi-vdb -skfg $(DOCAN_LIBS)
 
 $(BINDIR)/dbgap-mount-tool: $(ZDB_TOOL_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(ZDB_TOOL_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(ZDB_TOOL_LIB)
 
 dbgap-mount-tool_tag:
 	@ $(TOP)/build/tag-module.sh $(MODULE) dbgap-mount-tool $(ZDB_TOOL_OBJ)

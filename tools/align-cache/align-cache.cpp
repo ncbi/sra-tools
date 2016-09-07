@@ -24,7 +24,6 @@
 *
 */
 
-#include "align-cache.vers.h"
 #include "helper.h"
 
 #include <stdio.h>
@@ -498,10 +497,6 @@ namespace AlignCache
 extern "C"
 {
     const char UsageDefaultName[] = "align-cache";
-    ver_t CC KAppVersion()
-    {
-        return ALIGN_CACHE_VERS;
-    }
     rc_t CC UsageSummary (const char * progname)
     {
         printf (

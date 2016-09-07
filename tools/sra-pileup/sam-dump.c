@@ -75,7 +75,6 @@
 #include <assert.h>
 
 #include "debug.h"
-/* #include "sam-dump.vers.h" */
 
 #if _ARCH_BITS == 64
 #define USE_MATE_CACHE 1

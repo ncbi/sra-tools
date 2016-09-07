@@ -26,8 +26,6 @@
 
 #define USE_FORCE 0
 
-#include "sra-kar.vers.h"
-
 #include <klib/rc.h>
 #include <klib/text.h>
 #include <klib/printf.h>
@@ -188,18 +186,6 @@ rc_t run ( srakar_parms *pb )
 */
     return rc;
 }
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return SRA_KAR_VERS;
-}
-
 
 /* Usage
  */

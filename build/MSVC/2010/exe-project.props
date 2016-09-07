@@ -14,6 +14,7 @@
     <Link>
       <EntryPointSymbol>wmainCRTStartup</EntryPointSymbol>
       <AdditionalDependencies>Ws2_32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(SRATOOLS_TARGET)lib\tk-version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\kapp.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\zlib.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <AdditionalDependencies>$(VDB_TARGET)lib\bz2.lib;%(AdditionalDependencies)</AdditionalDependencies>

@@ -22,8 +22,10 @@ else
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -vvv -r CM000684.1 -p 36662045 --query - -l 6 -vvv -c SRR1597729 2>&1 | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L info -vv -r NC_000001.10 -p 570000 -l 1 --query A 2>&1 | sed "s/[0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}T[0-9]\{2\}\:[0-9]\{2\}\:[0-9]\{2\}[ \t]*ref-variation\.[0-9]\+\.[0-9]\+\(\.[0-9]\+\)\?[ \t]*//" >> ref-variation.out
 	$BINDIR/ref-variation --no-user-settings --algorithm=ra -L err -v -c -t 1 -r NC_000002.11 -p 73613067 --query "-" -l 3 -i ref-variation.in >> ref-variation.out 2>&1
-	diff expected/ref-variation.out ref-variation.out
+	# fix stray log entries from other subsystems
+    grep -v "^:" ref-variation.out >ref-variation.out.filtered
+	diff expected/ref-variation.out ref-variation.out.filtered
 	EXIT_CODE=$?
-	rm ref-variation.out
+	rm ref-variation.out*
 	exit $EXIT_CODE
 fi

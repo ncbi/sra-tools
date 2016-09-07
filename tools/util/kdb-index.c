@@ -36,8 +36,6 @@
 #include <string.h>
 #include <stdio.h>
 
-#include "kdb-index.vers.h"
-
 static bool keys_only;
 static const char * app_name;
 
@@ -159,11 +157,6 @@ rc_t run ( const KDBManager * mgr, const char * spec )
         rc = RC ( rcApp, rcMgr, rcAccessing, rcPath, rcIncorrect );
     }
     return rc;
-}
-
-ver_t CC KAppVersion ( void )
-{
-    return KDB_INDEX_VERS;
 }
 
 static

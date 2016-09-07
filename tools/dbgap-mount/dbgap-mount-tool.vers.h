@@ -1,1 +1,0 @@
-#define MOUNT_TOOL_VERS 0x00000001

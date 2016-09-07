@@ -23,8 +23,6 @@
  * =============================================================================
  */
 
-#include "table-vers.vers.h" /* TABLE_VERS_VERS */
-
 #include <kapp/main.h>
 
 #include <vdb/manager.h> /* VDBManager */
@@ -54,8 +52,6 @@ typedef struct CmdLine {
 	const char* table;
     EOutType outType;
 } CmdLine;
-
-ver_t CC KAppVersion(void) { return TABLE_VERS_VERS; }
 
 #define OPTION_OUTPUT  "output"
 #define ALIAS_OUTPUT   "o"

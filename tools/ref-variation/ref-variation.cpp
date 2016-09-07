@@ -26,8 +26,6 @@
 
 #define SECRET_OPTION 0
 
-#include "ref-variation.vers.h"
-
 #include <iostream>
 #include <string.h>
 #include <stdio.h>
@@ -395,10 +393,10 @@ namespace NSRefVariation
         matched_count.count = alignments_matched;
         matched_count.count_posititve = alignments_matched_positive;
     }
-    
+
 
     template <class TLock> void report_run_coverage ( char const* acc,
-        coverage_info const* pcoverage_count, TLock* lock_cout) 
+        coverage_info const* pcoverage_count, TLock* lock_cout)
     {
         coverage_info const& counts = *pcoverage_count;
         if ( g_Params.calc_coverage )
@@ -413,16 +411,16 @@ namespace NSRefVariation
             {
                 count_pair const& c = *cit;
                 OUTMSG (( "\t%zu", c.count ));
-        
+
                 if ( g_Params.count_strand != COUNT_STRAND_NONE )
                     OUTMSG (( ",%zu", c.count_posititve ));
             }
 
             OUTMSG (( "\t%zu", counts.count_total.count ));
-        
+
             if ( g_Params.count_strand != COUNT_STRAND_NONE )
                 OUTMSG (( ",%zu", counts.count_total.count_posititve ));
-            
+
             OUTMSG (("\n"));
         }
         else
@@ -633,7 +631,7 @@ namespace NSRefVariation
                     assert ( count == 0 || count == 1 );
 
                     std::cout << ", deletions=";
-                    if ( count > 0 ) 
+                    if ( count > 0 )
                         std::cout << counts[0];
                     else
                         std::cout << "<none>";
@@ -1211,7 +1209,7 @@ BREAK_ALIGNMENT_ITER:
     {
         size_t var_len = query_len;
 
-        size_t chunk_size = 5000; // TODO: add the method Reference[Sequence].getChunkSize() to the API
+        size_t chunk_size = 5000; // this corresponds to VDB's internal chunk size, but does not have to
         size_t chunk_no = g_Params.ref_pos_var / chunk_size;
         size_t ref_pos_in_slice = g_Params.ref_pos_var % chunk_size;
         size_t bases_start = chunk_no * chunk_size;
@@ -1222,8 +1220,7 @@ BREAK_ALIGNMENT_ITER:
 
         // optimization: first look into the current chunk only (using ngs::StringRef)
         {
-            ngs::StringRef ref_chunk = ref_seq.getReferenceChunk ( bases_start );
-
+            ngs::StringRef ref_chunk = ref_seq.getReferenceChunk ( bases_start, chunk_size ); // returns up to chunk_size bases
             if ( ! check_ref_slice (ref_chunk.data() + ref_pos_in_slice, g_Params.var_len_on_ref) )
             {
                 throw Utils::CErrorMsg (
@@ -1231,7 +1228,7 @@ BREAK_ALIGNMENT_ITER:
                     "exiting...",
                     (int)g_Params.var_len_on_ref, ref_chunk.data() + ref_pos_in_slice );
             }
-            
+
             cont = Common::find_variation_core_step ( obj, g_Params.alg,
                 ref_chunk.data(), ref_chunk.size(), ref_pos_in_slice,
                 query, var_len, g_Params.var_len_on_ref,
@@ -1847,7 +1844,7 @@ BREAK_ALIGNMENT_ITER:
         {
             ret = 3;
         }
-        
+
         return ret;
     }
 
@@ -1865,7 +1862,7 @@ BREAK_ALIGNMENT_ITER:
     {
         m_param_index.counter = 0;
     }
-    
+
 
     bool is_eol (char ch)
     {
@@ -1990,10 +1987,6 @@ BREAK_ALIGNMENT_ITER:
 extern "C"
 {
     const char UsageDefaultName[] = "ref-variation";
-    ver_t CC KAppVersion ()
-    {
-        return REF_VARIATION_VERS;
-    }
 
     rc_t CC UsageSummary (const char * progname)
     {
@@ -2053,7 +2046,7 @@ extern "C"
           -r NC_011752.1 -p 2018 --query CA -l 0
           -r NC_011752.1 -p 2020 --query CA -l 0
           -r NC_011752.1 -p 5000 --query CA -l 0
-       
+
        find insertion:
           ref-variation -r NC_000013.10 -p 100635036 --query 'ACC' -l 0 /netmnt/traces04/sra33/SRZ/000793/SRR793062/SRR793062.pileup /netmnt/traces04/sra33/SRZ/000795/SRR795251/SRR795251.pileup
           NEW: -r NC_000013.10 -p 100635036 --query ACC -l 0 SRR793062 SRR795251
@@ -2061,7 +2054,7 @@ extern "C"
        windows example: -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR618508.pileup
 
        -r NC_000002.11 -p 73613071 --query "C" -l 1
-       -vv -t 16 -r NC_000007.13 -p 117292900 --query "-" -l 4          
+       -vv -t 16 -r NC_000007.13 -p 117292900 --query "-" -l 4
 
        -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 /netmnt/traces04/sra33/SRZ/000867/SRR867061/SRR867061.pileup /netmnt/traces04/sra33/SRZ/000867/SRR867131/SRR867131.pileup
        -vv -c -t 16 -r NC_000002.11 -p 73613067 --query "-" -l 3 ..\..\..\tools\ref-variation\SRR867061.pileup ..\..\..\tools\ref-variation\SRR867131.pileup
@@ -2079,7 +2072,7 @@ extern "C"
        -vvv -r NC_000002.11 -p 73613030 --query "AT[1-3]" -l 3
        Inconsistent variations found
 
-       NEW problem - FIXED (not completely): 
+       NEW problem - FIXED (not completely):
        -c -r CM000664.1 -p 234668879  -l 14 --query "ATATATATATATAT" SRR1597895 ok, non zero 30/33
        -c -r CM000664.1 -p 234668879  -l 14 --query "AT[1-8]" SRR1597895 - all counts 0 - FIXED
        was different total count because of SRR1597895.PA.26088404

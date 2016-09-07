@@ -29,8 +29,6 @@ TOP ?= $(abspath ../..)
 
 MODULE = tools/general-loader
 
-include $(TOP)/build/Makefile.env
-
 ALL_LIBS = \
 	general-writer
 
@@ -44,16 +42,18 @@ ALL_TOOLS =      \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@
 
-$(INT_TOOLS): vers-includes
+$(INT_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-$(EXT_TOOLS): vers-includes
+$(EXT_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
@@ -63,17 +63,19 @@ $(EXT_TOOLS): vers-includes
 #
 $(TARGDIR)/std: \
 	$(addprefix $(LIBDIR)/,$(ALL_LIBS)) \
-	$(addprefix $(TEST_BINDIR)/,$(INT_TOOLS)) \
 	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
 .PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
-# vers-includes
+# all
 #
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
+$(TARGDIR)/all: \
+	$(addprefix $(LIBDIR)/,$(ALL_LIBS)) \
+	$(addprefix $(TEST_BINDIR)/,$(INT_TOOLS)) \
+	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
 
-.PHONY: $(TARGDIR)/vers-includes
+.PHONY: $(TARGDIR)/std
 
 #-------------------------------------------------------------------------------
 # clean
@@ -95,7 +97,7 @@ GEN_WRITER_OBJ = \
 	$(addsuffix .$(LOBX),$(GEN_WRITER_SRC))
 
 $(LIBDIR)/$(LPFX)general-writer.$(LIBX): $(GEN_WRITER_OBJ)
-	$(LD) --slib --vers $(SRCDIR) -o $@ $^
+	$(LD) --slib --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^
 
 #-------------------------------------------------------------------------------
 # gw-dumper
@@ -122,7 +124,8 @@ GEN_LOAD_LIBS = \
 	-sncbi-wvdb-static \
 	-sload \
 	-skapp \
+	-stk-version \
 
 $(BINDIR)/general-loader: $(GEN_LOAD_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(GEN_LOAD_LIBS)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(GEN_LOAD_LIBS)
 

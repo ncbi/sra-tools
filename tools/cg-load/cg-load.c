@@ -25,7 +25,6 @@
 */
 
 
-#include "cg-load.vers.h" /* CG_LOAD_VERS */
 #include "debug.h" /* DEBUG_MSG */
 #include "file.h" /* FGroupMAP_LoadReads */
 #include "formats.h" /* get_cg_reads_ngaps */
@@ -944,12 +943,6 @@ static rc_t Load( SParam* param )
     BSTreeWhack( &slides, FGroupMAP_Whack, NULL );
     BSTreeWhack( &evidence, FGroupMAP_Whack, NULL );
     return rc;
-}
-
-
-ver_t CC KAppVersion( void )
-{
-    return CG_LOAD_VERS;
 }
 
 const char* map_usage[] = {"MAP input directory path containing files", NULL};

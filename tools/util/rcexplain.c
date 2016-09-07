@@ -24,8 +24,6 @@
 *
 */
 
-#include "rcexplain.vers.h"
-
 #include <kapp/main.h>
 #include <kapp/args.h>
 #include <klib/log.h>
@@ -44,13 +42,6 @@
  * KMain
  *  invoked by platform specific "main" entrypoint
  */
-
-ver_t CC KAppVersion ( void )
-{
-    return RCEXPLAIN_VERS;
-}
-
-
 const char UsageDefaultName[] = "rcexplain";
 
 

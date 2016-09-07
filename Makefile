@@ -34,6 +34,7 @@ include $(TOP)/build/Makefile.shell
 # default
 #
 SUBDIRS = \
+	shared \
 	tools \
 
 # common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
@@ -41,7 +42,7 @@ include $(TOP)/build/Makefile.targets
 
 default: $(SUBDIRS)
 
-test: $(SUBDIRS)
+test: all
 
 $(SUBDIRS) test:
 	@ $(MAKE) -C $@

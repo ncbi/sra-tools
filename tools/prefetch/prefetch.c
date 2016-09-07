@@ -26,8 +26,6 @@
 
 /********** includes **********/
 
-#include "prefetch.vers.h"
-
 #include <kapp/args-conv.h> /* ArgsConvFilepath */
 #include <kapp/main.h> /* KAppVersion */
 
@@ -208,7 +206,7 @@ typedef struct {
     bool stripQuals; /* this will download file without quality columns */
     bool eliminateQuals; /* this will download cache file with eliminated quality columns which could filled later */
     
-#ifdef _DEBUGGING
+#if _DEBUGGING
     const char *textkart;
 #endif
 } Main;
@@ -218,7 +216,7 @@ typedef struct {
 
     const KartItem *item;
 
-#ifdef _DEBUGGING
+#if _DEBUGGING
     const char *textkart;
 #endif
 
@@ -510,7 +508,7 @@ static rc_t V_ResolverRemote(const VResolver *self,
 static rc_t V_ResolverLocal(const VResolver *self,
     struct VPath const * accession, struct VPath const ** path )
 {
-    return VResolverQuery(self, eProtocolHttp, accession, path, NULL, NULL);
+    return VResolverQuery(self, 0, accession, path, NULL, NULL);
 }
 
 static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
@@ -1098,7 +1096,7 @@ static rc_t MainDownloadCacheFile(Resolved *self,
     return rc;
 }
 
-/*  http://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByR.../SRR125365.sra
+/*  https://sra-download.ncbi.nlm.nih.gov/srapub/SRR125365.sra
 anonftp@ftp-private.ncbi.nlm.nih.gov:/sra/sra-instant/reads/ByR.../SRR125365.sra
 */
 static rc_t MainDownloadAscp(const Resolved *self, Main *main,
@@ -1249,7 +1247,7 @@ static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
                 }
                 RELEASE(KFile, self->file);
                 rc = _VResolverRemote(self->resolver,
-                    eProtocolHttp, self->name, self->accession,
+                    0, self->name, self->accession,
                     &self->remote.path, &self->remote.str, &self->cache);
             }
             if (rc == 0) {
@@ -1507,6 +1505,12 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
     rc_t rc = 0;
     rc_t rc2 = 0;
 
+    uint32_t i;
+    bool has_proto [ eProtocolMask + 1 ];
+    memset ( has_proto, 0, sizeof has_proto );
+    for ( i = 0; i < eProtocolMaxPref; ++ i )
+        has_proto [ ( protocols >> ( i * 3 ) ) & eProtocolMask ] = true;
+
     assert(resolver && item);
 
     resolved = &item->resolved;
@@ -1539,10 +1543,9 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         resolved->remoteSz = 0;
         assert(item->main);
         if ((minSize > 0 || maxSize > 0 || item->main->order == eOrderSize)
-            && (protocols == eProtocolFasp ||
-                protocols == eProtocolFaspHttp))
+            && has_proto [ eProtocolFasp ])
         {
-            rc2 = _VResolverRemote(resolved->resolver, eProtocolHttp,
+            rc2 = _VResolverRemote(resolved->resolver, 0,
                 resolved->name, resolved->accession, &resolved->remote.path,
                 &resolved->remote.str, &resolved->cache);
             if (rc2 != 0 && rc == 0) {
@@ -1608,7 +1611,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
 {
     Resolved *resolved = NULL;
     rc_t rc = 0;
-    VRemoteProtocols protocols = ascp ? eProtocolFaspHttp : eProtocolHttp;
+    VRemoteProtocols protocols = ascp ? eProtocolFaspHttpHttps : 0;
 
     assert(self);
 
@@ -2326,7 +2329,7 @@ static rc_t ItemDownloadVdbcache(Item *item) {
                 rc = rc2;
             }
             RELEASE(KFile, resolved->file);
-            rc = _VResolverRemote(resolved->resolver, eProtocolHttp,
+            rc = _VResolverRemote(resolved->resolver, 0,
                 resolved->name, resolved->accession, &resolved->remote.path,
                 &resolved->remote.str, &resolved->cache);
         }
@@ -2472,7 +2475,7 @@ rc_t IteratorInit(Iterator *self, const char *obj, const Main *main)
     assert(self && main);
     memset(self, 0, sizeof *self);
 
-#ifdef _DEBUGGING
+#if _DEBUGGING
     if (obj == NULL && main->textkart) {
         type = KDirectoryPathType(main->dir, "%s", main->textkart);
         if ((type & ~kptAlias) != kptFile) {
@@ -2687,7 +2690,7 @@ static const char* STRIP_QUALS_USAGE[] =
 static const char* ELIM_QUALS_USAGE[] =
 { "don't download QUALITY column", NULL };
 
-#ifdef _DEBUGGING
+#if _DEBUGGING
 #define TEXTKART_OPTION "text-kart"
 static const char* TEXTKART_USAGE[] =
 { "To read a textual format kart file (DEBUG ONLY)", NULL };
@@ -2712,7 +2715,7 @@ static OptDef Options[] = {
    ,{ STRIP_QUALS_OPTION , STRIP_QUALS_ALIAS , NULL, STRIP_QUALS_USAGE , 1, false, false }
 #endif
    ,{ ELIM_QUALS_OPTION  , ELIM_QUALS_ALIAS  , NULL, ELIM_QUALS_USAGE , 1, false, false }
-#ifdef _DEBUGGING
+#if _DEBUGGING
    ,{ TEXTKART_OPTION    , NULL              , NULL, TEXTKART_USAGE , 1, true , false}
 #endif
    ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
@@ -3087,7 +3090,7 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         }
 #endif
         
-#ifdef _DEBUGGING
+#if _DEBUGGING
 /* TEXTKART_OPTION */
         rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);
         if (rc != 0) {
@@ -3181,7 +3184,7 @@ rc_t CC Usage(const Args *args) {
         else if (strcmp(Options[i].name, ASCP_PAR_OPTION) == 0) {
             param = "value";
         }
-#ifdef _DEBUGGING
+#if _DEBUGGING
         else if (strcmp(Options[i].name, TEXTKART_OPTION) == 0) {
             param = "value";
         }
@@ -3204,8 +3207,6 @@ rc_t CC Usage(const Args *args) {
 
     return rc;
 }
-
-ver_t CC KAppVersion(void) { return PREFETCH_VERS; }
 
 /******************************************************************************/
 
@@ -3548,7 +3549,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         rc = ArgsParamCount(pars.args, &pcount);
     }
     if (rc == 0 && pcount == 0) {
-#ifdef _DEBUGGING
+#if _DEBUGGING
         if (!pars.textkart)
 #endif
           rc = UsageSummary(UsageDefaultName);
@@ -3557,7 +3558,7 @@ rc_t CC KMain(int argc, char *argv[]) {
     if (rc == 0) {
         uint32_t i = ~0;
 
-#ifdef _DEBUGGING
+#if _DEBUGGING
         if (pars.textkart) {
             rc = MainRun(&pars, NULL, pars.textkart);
         }

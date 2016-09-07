@@ -1,1 +1,0 @@
-#define VDB_UNLOCK_VERS 0x02060002

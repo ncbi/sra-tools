@@ -377,7 +377,8 @@ static int64_t OptTag_sort(void const *A, void const *B, void *ctx)
         return a > b;
 }
 
-static unsigned tag_findfirst(BAM_Alignment const *const self, char const tag[2])
+/* find the first occurence of tag OR if tag doesn't exist, where it should have been. */
+static unsigned tag_search(BAM_Alignment const *const self, char const tag[2])
 {
     unsigned f = 0;
     unsigned e = self->numExtra;
@@ -395,7 +396,7 @@ static unsigned tag_findfirst(BAM_Alignment const *const self, char const tag[2]
     return f;
 }
 
-static unsigned tag_runlength(BAM_Alignment const *const self,
+static unsigned tag_count(BAM_Alignment const *const self,
                               char const tag[2],
                               unsigned const at)
 {
@@ -408,101 +409,106 @@ static unsigned tag_runlength(BAM_Alignment const *const self,
     return n;
 }
 
-static struct offset_size_s const *tag_search(BAM_Alignment const *const self,
-                                              char const tag[2],
-                                              int const which)
+static unsigned Modulus(int i, unsigned N)
 {
-    unsigned const fnd = tag_findfirst(self, tag);
-    unsigned const run = tag_runlength(self, tag, fnd);
-    unsigned const want = which < 0 ? (run + which) : which;
-    
-    return run == 0 ? NULL : &self->extra[fnd + (want % run)];
+    while (i < 0)
+        i += N;
+    return i % N;
 }
 
-static char const *get_RG(BAM_Alignment const *cself)
+static struct offset_size_s const *getTag(BAM_Alignment const *const self,
+                                          char const tag[2],
+                                          int const which)
 {
-    struct offset_size_s const *const x = tag_search(cself, "RG", 0);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    unsigned const fnd = tag_search(self, tag);
+    unsigned const run = tag_count(self, tag, fnd);
+    return run > 0 ? &self->extra[fnd + Modulus(which, run)] : NULL;
 }
 
 static struct offset_size_s const *get_CS_info(BAM_Alignment const *cself)
 {
-    return tag_search(cself, "CS", 0);
+    return getTag(cself, "CS", 0);
 }
 
 static struct offset_size_s const *get_CQ_info(BAM_Alignment const *cself)
 {
-    return tag_search(cself, "CQ", 0);
+    return getTag(cself, "CQ", 0);
+}
+
+static char const *get_RG(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = getTag(cself, "RG", 0);
+    return (char const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static char const *get_CS(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = get_CS_info(cself);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    return (char const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static uint8_t const *get_CQ(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = get_CQ_info(cself);
-    return (uint8_t const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    return (uint8_t const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static struct offset_size_s const *get_OQ_info(BAM_Alignment const *cself)
 {
-    return tag_search(cself, "OQ", 0);
+    return getTag(cself, "OQ", 0);
 }
 
 static uint8_t const *get_OQ(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = get_OQ_info(cself);
-    return (uint8_t const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    return (uint8_t const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static char const *get_XT(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "XT", 0);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    struct offset_size_s const *const x = getTag(cself, "XT", 0);
+    return (char const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static uint8_t const *get_XS(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "XS", -1); /* want last one */
-    return (uint8_t const *)(x && cself->data->raw[x->offset + 2] == 'A' ? &cself->data->raw[x->offset + 3] : NULL);
+    struct offset_size_s const *const x = getTag(cself, "XS", -1); /* want last one */
+    return (uint8_t const *)((x != NULL && cself->data->raw[x->offset + 2] == 'A') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static struct offset_size_s const *get_CG_ZA_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "ZA", 0);
+    struct offset_size_s const *const x = getTag(cself, "ZA", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_ZI_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "ZI", 0);
+    struct offset_size_s const *const x = getTag(cself, "ZI", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_GC_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "GC", 0);
+    struct offset_size_s const *const x = getTag(cself, "GC", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_GS_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "GS", 0);
+    struct offset_size_s const *const x = getTag(cself, "GS", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_GQ_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "GQ", 0);
+    struct offset_size_s const *const x = getTag(cself, "GQ", 0);
     return x;
 }
 
 static char const *get_BX(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "BX", 0);
+    struct offset_size_s const *const x = getTag(cself, "BX", 0);
     return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
@@ -1294,7 +1300,7 @@ static rc_t ProcessSAMHeader(BAM_File *self, char const substitute[])
         void *const tmp = headerText;
         int const ch = SAMFileRead1(file);
         
-        if (ch < 0)
+        if (ch == -1)
             return SAMFileLastError(file);
         
         if (st == 0) {
@@ -1798,12 +1804,12 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self, unsigned actsize[], BAM_Alignment 
         if ((int)GetRCObject(rc) == rcData && GetRCState(rc) == rcInsufficient)
         {
             self->eof = true;
-            return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
+            return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
         }
         return rc;
     }
     if (maxPeek < 4)
-        return RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
     else {
         int32_t const i32 = BAM_FilePeekI32(self);
 
@@ -1811,14 +1817,14 @@ rc_t BAM_FileReadNoCopy(BAM_File *const self, unsigned actsize[], BAM_Alignment 
             return RC(rcAlign, rcFile, rcReading, rcData, rcInvalid);
         
         if (maxPeek < i32 + 4)
-            return RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
-        
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcNotAvailable);
+
         isgood = BAM_AlignmentInitLog(rhs, maxsize, i32, BAM_FilePeek(self, 4));
         rhs[0].parent = self;
     }
     *actsize = BAM_AlignmentSize(rhs[0].numExtra);
     if (isgood && *actsize > maxsize)
-        return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
 
     BAM_FileAdvance(self, 4 + rhs->datasize);
     return isgood ? 0 : RC(rcAlign, rcFile, rcReading, rcRow, rcInvalid);
@@ -1837,6 +1843,8 @@ unsigned BAM_AlignmentSizeFromData(unsigned const datasize, void const *data)
 static bool BAM_AlignmentIsEmpty(BAM_Alignment const *const self)
 {
     if (getReadNameLength(self) == 0)
+        return true;
+    if (getReadName(self)[0] == '\0')
         return true;
     if (self->hasColor == 3)
         return false;
@@ -1865,7 +1873,7 @@ rc_t BAM_FileReadCopy(BAM_File *const self, BAM_Alignment const *rslt[], bool co
             if ((int)GetRCObject(rc) == rcData && GetRCState(rc) == rcInsufficient)
             {
                 self->eof = true;
-                rc = RC( rcAlign, rcFile, rcReading, rcRow, rcNotFound );
+                rc = SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
             }
             return rc;
         }
@@ -2302,8 +2310,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
     int *intScratch = NULL;
     int sgn = 1;
     unsigned i = 0;
-    int n = 0;
-    
+
     memset(raw, 0, sizeof(*raw));
     memset(&temp, 0, sizeof(temp));
     temp.QNAME = scratch;
@@ -2312,11 +2319,15 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
         int const ch = SAMFileRead1(&self->file.sam);
         if (ch < 0) {
             rc_t const rc = SAMFileLastError(&self->file.sam);
-            return (i == 0 && field == 1 && (rc == 0 || GetRCState(rc) == rcInsufficient)) ? RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound) : rc;
+            return (i == 0 && field == 1 && (rc == 0 || GetRCState(rc) == rcInsufficient)) ? SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound) : rc;
         }
         if ((void const *)&scratch[i] >= endp)
             return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
 
+        if (ch == '\n' && i > 0 && scratch[i - 1] == '\r') {
+            /* handle \r\n line endings */
+            --i;
+        }
         if (!(ch == '\t' || ch == '\n')) {
             if (field != 0) {
                 if (intScratch == NULL) {
@@ -2534,7 +2545,7 @@ static rc_t read2(BAM_File *const self, BAM_Alignment const **const rhs)
     rc_t rc;
     
     if (self->bufCurrent >= self->bufSize && self->eof)
-        return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
 
     if (self->isSAM) {
         rc = BAM_FileReadSAM(self, rhs);
@@ -2585,7 +2596,7 @@ static rc_t readDefer(BAM_File *const self, BAM_Alignment const **const rslt)
     if (nread == 0) {
         KFileRelease(self->defer);
         self->defer = NULL;
-        return RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
+        return SILENT_RC(rcAlign, rcFile, rcReading, rcRow, rcNotFound);
     }
     assert(nread == 4);
     assert(datasize < 64u * 1024u);
@@ -3755,7 +3766,7 @@ rc_t BAM_AlignmentCGReadLength(BAM_Alignment const *self, uint32_t *readlen)
         *readlen = di;
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 static unsigned BAM_AlignmentParseCGTag(BAM_Alignment const *self, size_t const max_cg_segs, unsigned cg_segs[/* max_cg_segs */])
@@ -3828,7 +3839,7 @@ rc_t ExtractInt32(BAM_Alignment const *self, int32_t *result,
             return RC(rcAlign, rcRow, rcReading, rcData, rcInvalid);
         break;
     default:
-        return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+        return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
     }
     if (INT32_MIN <= y && y <= INT32_MAX) {
         *result = (int32_t)y;
@@ -3854,7 +3865,7 @@ rc_t BAM_AlignmentGetCGAlignGroup(BAM_Alignment const *self,
         rc = ExtractInt32(self, &zi, ZI); if (rc) return rc;
         return string_printf(buffer, max_size, act_size, "%i_%i", zi, za);
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
@@ -3909,7 +3920,7 @@ rc_t BAM_AlignmentGetCGSeqQual(BAM_Alignment const *self,
         }
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 
@@ -4038,7 +4049,7 @@ rc_t BAM_AlignmentGetCGCigar(BAM_Alignment const *self,
         *cig_act = GetCGCigar(self, cig_max, cigar);
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 /* MARK: end CG stuff */
@@ -4052,7 +4063,7 @@ rc_t BAM_AlignmentGetTI(BAM_Alignment const *self, uint64_t *ti)
         *ti = (uint64_t)temp;
         return 0;
     }
-    return RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
+    return SILENT_RC(rcAlign, rcRow, rcReading, rcData, rcNotFound);
 }
 
 rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const rslt)
@@ -4066,8 +4077,8 @@ rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const r
 }
 
 rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
-                                  char const **name)
+                                  char const **const BX)
 {
-    *name = get_BX(self);
+    *BX = get_BX(self);
     return 0;
 }

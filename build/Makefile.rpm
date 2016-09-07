@@ -35,7 +35,6 @@ include $(TOP)/build/Makefile.tools
 ifeq (1,$(HAVE_HDF5))
 	TOOLS_TO_INSTALL += pacbio-load
 endif
-TOOLS_TO_INSTALL += remote-fuser
 
 REVISION=0
 PKGDIR=$(TARGDIR)/rpmbuild

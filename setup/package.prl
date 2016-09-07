@@ -1,6 +1,5 @@
 ################################################################################
 sub PACKAGE      { 'sra-tools' }
-sub VERSION      { '2.6.2' }
 sub PACKAGE_TYPE { 'B' }
 sub PACKAGE_NAME { 'SRA-TOOLS' }
 sub PACKAGE_NAMW { 'SRATOOLS' }
@@ -40,6 +39,7 @@ sub REQ { (
               bldpath => '$HOME/ncbi-outdir/ncbi-vdb',
               locbldpath=>'$Bin/../../OUTDIR/ncbi-vdb',
               include => 'klib/rc.h',
+              src     => 'libs/kfg/default.kfg',
               lib     => 'libncbi-vdb.a',
               ilib    => 'libkapp.a',
             },

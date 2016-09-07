@@ -24,7 +24,6 @@
  *
  */
 
-#include "copycat.vers.h"
 #include "copycat-priv.h"
 #include "cctree-priv.h"
 
@@ -917,17 +916,6 @@ static
 void param_whack (void * path, void * ignored)
 {
     (void)VPathRelease ((const VPath*)path);
-}
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-uint32_t KAppVersion ( void )
-{
-    return COPYCAT_VERS;
 }
 
 /* KMain

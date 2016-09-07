@@ -71,11 +71,6 @@ rc_t CC Usage(Args const *args)
     return 0;
 }
 
-ver_t CC KAppVersion(void)
-{
-    return 0;
-}
-
 rc_t CC KMain(int argc, char *argv[])
 {
     while (--argc) {

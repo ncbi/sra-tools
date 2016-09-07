@@ -51,13 +51,15 @@ vdb-validate: $(BINDIR)/vdb-validate
 	@ echo "Starting vdb-validate tests..."
 	@ rm -rf actual/
 	@ mkdir actual/
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra" no_sdc_checks 0
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_tmp_mismatch.csra --sdc:rows 100%" sdc_tmp_mismatch 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_pa_longer.csra --sdc:rows 100%" sdc_pa_longer_1 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_pa_longer.csra --sdc:rows 100% --sdc:plen_thold 50%" sdc_pa_longer_2 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_pa_longer.csra --sdc:rows 100% --sdc:plen_thold 51%" sdc_pa_longer_3 0
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra --sdc:rows 100% --sdc:plen_thold 1%" sdc_len_mismatch_1 3
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra --sdc:rows 100% --sdc:plen_thold 100%" sdc_len_mismatch_2 3
-	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_len_mismatch.csra" no_sdc_checks 0
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_seq_cmp_read_len_corrupt.csra --sdc:seq-rows 100%" sdc_seq_cmp_read_len_corrupt 3
+	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/sdc_seq_cmp_read_len_fixed.csra --sdc:seq-rows 100%" sdc_seq_cmp_read_len_fixed 0
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/blob-row-gap.kar" ROW_GAP 0
 	@ echo "All vdb-validate tests succeed"
 	@ rm -rf actual/

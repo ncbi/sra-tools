@@ -23,7 +23,6 @@
 * ===========================================================================
 *
 */
-#include "qual-recalib-stat.vers.h"
 #include <kapp/main.h>
 
 #include <vdb/manager.h>
@@ -112,19 +111,6 @@ rc_t CC Usage( const Args * args  )
     HelpVersion( fullpath, KAppVersion() );
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return QUAL_RECALIB_STAT_VERS;
-}
-
 
 static uint8_t calc_fract_digits( const struct num_gen_iter *iter )
 {

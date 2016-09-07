@@ -362,7 +362,6 @@ DumpArgs :: __customParse ()
 
 using namespace ngs;
 
-ver_t CC KAppVersion ( void ) { return 0; }
 const char UsageDefaultName[] = "fq-d";
 
 rc_t CC

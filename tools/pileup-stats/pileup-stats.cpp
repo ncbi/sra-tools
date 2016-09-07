@@ -41,8 +41,6 @@
 #include "../general-loader/general-writer.hpp"
 #include <arch-impl.h>
 
-#include "pileup-stats.vers.h"
-
 #include <iostream>
 #include <string.h>
 #include <ctype.h>
@@ -137,7 +135,7 @@ namespace ncbi
                 if ( ( ref_zpos % 1000000 ) == 0 )
                 {
                     if ( ncbi :: use_gw_logmessage )
-                        out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+                        out . progMsg ( refName, KAppVersion(), ref_zpos + refLengthSubTotal , refLengthTotal );
                     else
                         std :: cerr << "#  " << std :: setw ( 9 ) << ref_zpos << '\n';
                 }
@@ -146,7 +144,7 @@ namespace ncbi
                 if ( ( ref_zpos % 5000 ) == 0 )
                 {
                     if ( ncbi :: use_gw_logmessage )
-                        out . progMsg ( refName, PILEUP_STATS_VERS, ref_zpos + refLengthSubTotal , refLengthTotal );
+                        out . progMsg ( refName, KAppVersion(), ref_zpos + refLengthSubTotal , refLengthTotal );
                     else
                     {
                         if ( ( ref_zpos % 500000 ) == 0 )
@@ -453,11 +451,6 @@ namespace ncbi
 
 extern "C"
 {
-    ver_t CC KAppVersion ()
-    {
-        return PILEUP_STATS_VERS;
-    }
-
     rc_t CC Usage ( struct Args const * args )
     {
         return 0;
@@ -628,6 +621,12 @@ extern "C"
                 case 'V':
                     handle_version ( argv [ 0 ] );
                     return 0;
+                case 'L': // eat it and do nothing
+                    findArg ( arg, i, argc, argv );
+                    break;
+                case 'z': // eat it and do nothing
+                    findArg ( arg, i, argc, argv );
+                    break;
                 case '-':
                     ++ arg;
                     if ( strcmp ( arg, "output-file" ) == 0 )
@@ -696,6 +695,26 @@ extern "C"
                     {
                         handle_help ( argv [ 0 ] );
                         return 0;
+                    }
+                    else if ( strcmp ( arg, "version" ) == 0 )
+                    {
+                        handle_version ( argv [ 0 ] );
+                        return 0;
+                    }
+                    else if ( strcmp ( arg, "log-level" ) == 0 )
+                    {
+                        /* eat it and do nothing */
+                        getArg ( i, argc, argv );
+                    }
+                    else if ( strcmp ( arg, "xml-log" ) == 0 )
+                    {
+                        /* eat it and do nothing */
+                        getArg ( i, argc, argv );
+                    }
+                    else if ( strcmp ( arg, "xml-log-fd" ) == 0 )
+                    {
+                        /* eat it and do nothing */
+                        getArg ( i, argc, argv );
                     }
                     else if ( strcmp ( arg, "version" ) == 0 )
                     {

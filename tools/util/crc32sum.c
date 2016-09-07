@@ -200,13 +200,6 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-
-ver_t CC KAppVersion ( void )
-{
-    return 0;
-}
-
-
 rc_t CC KMain (int argc, char * argv [])
 {
     Args *args;

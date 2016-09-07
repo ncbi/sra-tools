@@ -239,7 +239,7 @@ static rc_t perform_cgi_test( KNSManager const * kns_mgr, const char * acc )
 	KTimeMs_t start_time = KTimeMsStamp();
 
 	memset( &databuffer, 0, sizeof databuffer );
-	rc = call_cgi( kns_mgr, "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi", 1, 1, "http", acc, &databuffer );
+	rc = call_cgi( kns_mgr, "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi", 1, 1, "http,https", acc, &databuffer );
 	if ( rc == 0 )
 	{
 	    const char *start = ( const void* ) databuffer.base;
@@ -295,7 +295,7 @@ static rc_t perform_resolve_test( const char * acc, char * buffer, size_t buflen
 				
 				KTimeMs_t start_time = KTimeMsStamp();
 				
-				rc = VResolverQuery( resolver, eProtocolHttp, query_path, &local, NULL, NULL );
+				rc = VResolverQuery( resolver, 0, query_path, &local, NULL, NULL );
 				if ( rc != 0 )
 					LogErr( klogErr, rc, "VResolverQuery (local) failed" );
                 else
@@ -303,7 +303,7 @@ static rc_t perform_resolve_test( const char * acc, char * buffer, size_t buflen
 					rc = print_vpath( "local ", local, NULL, 0 );
 					VPathRelease ( local );
                 }
-				rc = VResolverQuery( resolver, eProtocolHttp, query_path, NULL, &remote, &cache );
+				rc = VResolverQuery( resolver, 0, query_path, NULL, &remote, &cache );
 				if ( rc != 0 )
 					LogErr( klogErr, rc, "VResolverQuery (remote/cache) failed" );
                 else

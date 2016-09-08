@@ -132,6 +132,16 @@ class vdbconf_model
 			_config_changed = true;
         }
 
+        bool has_http_proxy_env_higher_priority( void ) const {
+            bool enabled = false;
+            KConfig_Has_Http_Proxy_Env_Higher_Priority(_config, &enabled);
+            return enabled;
+        }
+        void set_http_proxy_env_higher_priority( bool value ) {
+            KConfig_Set_Http_Proxy_Env_Higher_Priority(_config, value);
+			_config_changed = true;
+        }
+
         // ----------------------------------------------------------------
         bool is_remote_enabled( void ) const
         {

@@ -287,7 +287,7 @@ void vdbconf_view::populate_top_left( Tui_Rect const &r, bool resize )
 	setup_checkbox( proxy_cb_rect( r ), resize, ID_CB_PROXY, CB_TXT_PROXY, priv_model.is_http_proxy_enabled() );
 	setup_button( proxy_btn_rect( r ), resize, ID_B_PROXY, BTN_TXT_CHANGE );
 	setup_label( proxy_lb_rect( r ), resize, ID_L_PROXY, priv_model.get_http_proxy_path().c_str() );
-    setup_checkbox( proxy_cb_env_rect( r ), resize, ID_CB_PROXY_ENV, CB_TXT_PROXY_ENV, false );
+    setup_checkbox( proxy_cb_env_rect( r ), resize, ID_CB_PROXY_ENV, CB_TXT_PROXY_ENV, priv_model.has_http_proxy_env_higher_priority() );
 }
 
 
@@ -1015,7 +1015,7 @@ bool vdbconf_controller::on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
 		case ID_CB_PROXY     : m.set_http_proxy_enabled( dev.get_value_1() == 1 ); res = true; break;
 		case ID_B_PROXY      : res = change_proxy( dlg ); break;
 		
-        case ID_CB_PROXY_ENV : /* m.set_http_proxy_enabled( dev.get_value_1() == 1 ); */ res = true; break;
+        case ID_CB_PROXY_ENV : m.set_http_proxy_env_higher_priority( dev.get_value_1() == 1 ); res = true; break;
         
         case ID_B_PUBLIC_LOC : res = on_pick_public_location( dlg ); break;
 

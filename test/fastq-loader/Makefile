@@ -47,7 +47,7 @@ clean: stdclean
 # white-box test
 #
 FASTQ_TEST_SRC = \
-	wb-test-fastq 
+	wb-test-fastq
 
 FASTQ_TEST_OBJ = \
 	$(addsuffix .$(OBJX),$(FASTQ_TEST_SRC))
@@ -69,7 +69,7 @@ wb: wb-test-fastq
 # test-fastqtest-loader
 #
 FASTQTEST_LOADER_SRC = \
-	test-fastq-loader 
+	test-fastq-loader
 
 FASTQTEST_LOADER_OBJ = \
 	$(addsuffix .$(OBJX),$(FASTQTEST_LOADER_SRC))
@@ -77,7 +77,7 @@ FASTQTEST_LOADER_OBJ = \
 $(TEST_BINDIR)/test-fastq-loader: $(FASTQTEST_LOADER_OBJ)
 	$(LP) --exe -o $@ $^ $(FASTQ_TEST_LIB)
 
-tfl: 
+tfl:
 	$(MAKE) -C $(OBJDIR) -f $(SRCDIR)/Makefile test-fastq-loader
 	$(TEST_BINDIR)/test-fastq-loader
 
@@ -101,15 +101,15 @@ smalltests: $(TEST_TOOLS)
 #   Small tests
 #   Input:
 #       Quality encoding: phred/logodds, ascii/decimal
-#           1.1 phred 33 
+#           1.1 phred 33
 	$(SMALLRUN) 1.1 0 $(SRCDIR)/input/1.1.fastq --quality PHRED_33
-#           1.2 phred 64 
+#           1.2 phred 64
 	$(SMALLRUN) 1.2 0 $(SRCDIR)/input/1.2.fastq --quality PHRED_64
 #           1.3 phred 33, decimal qualities
 	$(SMALLRUN) 1.3 3 $(SRCDIR)/input/1.3.fastq --quality PHRED_33
 #           1.4 logodds 64
 	$(SMALLRUN) 1.4 0 $(SRCDIR)/input/1.4.fastq --quality LOGODDS
-#       
+#
 #       Single input file
 #           2.1 reads only, basespace
 	$(SMALLRUN) 2.1 0 $(SRCDIR)/input/2.1.fastq --quality PHRED_33
@@ -144,7 +144,7 @@ smalltests: $(TEST_TOOLS)
 	-$(SMALLRUN) 3.2 0 $(SRCDIR)/input/3.2a.fastq $(SRCDIR)/input/3.2b.fastq --quality PHRED_33
 #           3.3 qualities separately from reads, qualities file comes first (reject?)
 	-$(SMALLRUN) 3.3 0 $(SRCDIR)/input/3.3a.fastq $(SRCDIR)/input/3.3b.fastq --quality PHRED_33
-#           3.4 default read number 
+#           3.4 default read number
 #	$(SMALLRUN) 3.4 0 -r 1 $(SRCDIR)/input/3.4a.fastq -r 2 $(SRCDIR)/input/3.4b.fastq --quality PHRED_33
 #
 #   Command line options:
@@ -162,7 +162,7 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 4.5 3 $(SRCDIR)/input/4.5.fastq --max-err-count 2 --quality PHRED_33
 #           4.5.1 --max-err-pct     fails if % of error records is too high
 	$(SMALLRUN) 4.5.1 3 $(SRCDIR)/input/4.5.1.fastq --quality PHRED_33  --max-err-count 10 --max-err-pct 20
-#           4.6 --platform          saves correct value in the PLATFORM column 
+#           4.6 --platform          saves correct value in the PLATFORM column
 	$(SMALLRUN) 4.6 0 $(SRCDIR)/input/4.fastq -p LS454 --quality PHRED_33
 #           4.6.1 --platform        rejects invalid values
 	$(SMALLRUN) 4.6.1 3 $(SRCDIR)/input/4.fastq -p SOMETHINGELSE --quality PHRED_33
@@ -178,7 +178,7 @@ smalltests: $(TEST_TOOLS)
 	$(SMALLRUN) 7.3 0 $(SRCDIR)/input/7.3.fastq --platform=PACBIO --quality PHRED_33
 #   secondary read numbers other than 3
 	$(SMALLRUN) 8.0 0 $(SRCDIR)/input/8.0.fastq --quality PHRED_33
-#   reject inconsistent secondary read numbers 
+#   reject inconsistent secondary read numbers
 	$(SMALLRUN) 8.1 3 $(SRCDIR)/input/8.1.fastq --quality PHRED_33
 #   newest Illumina tag line variation ("_" instead of " /")
 	$(SMALLRUN) 9.0 0 $(SRCDIR)/input/9.0.fastq --quality PHRED_33
@@ -191,18 +191,19 @@ smalltests: $(TEST_TOOLS)
     # Illumina, ignore barcodes
 	$(SMALLRUN) 12.0 0 $(SRCDIR)/input/12.0.fastq --quality PHRED_33 --ignore-illumina-tags
     # Illumina, use barcodes as spotgroups
-	$(SMALLRUN) 12.1 0 $(SRCDIR)/input/12.1.fastq --quality PHRED_33 
+	$(SMALLRUN) 12.1 0 $(SRCDIR)/input/12.1.fastq --quality PHRED_33
     # Illumina, use barcodes as spotgroups, alternative format
 	$(SMALLRUN) 12.2 0 $(SRCDIR)/input/12.2.fastq --quality PHRED_33
     # Consume our own dog food (13.0.fastq created by fastq-dump )
-	$(SMALLRUN) 13.0 0 $(SRCDIR)/input/13.0.fastq --quality PHRED_33 
+	$(SMALLRUN) 13.0 0 $(SRCDIR)/input/13.0.fastq --quality PHRED_33
     # Consume our own dog food (13.1.fastq created by fastq-dump -F )
-	$(SMALLRUN) 13.1 0 $(SRCDIR)/input/13.1.fastq --quality PHRED_33 
+	$(SMALLRUN) 13.1 0 $(SRCDIR)/input/13.1.fastq --quality PHRED_33
     # SRA-2932: 30 is the preferred value for qualities when reading FASTA
 	$(SMALLRUN) 14.0 0 $(SRCDIR)/input/14.0.fasta $(SRCDIR)/input/14.0.fasta --quality PHRED_33
 	rm -rf $(SRCDIR)/actual
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 13.1 0 $(SRCDIR)/input/13.1.fastq --quality PHRED_33 
-    
+    # VDB-3154: buffer insufficient
+	$(SMALLRUN) 15.0 0 $(SRCDIR)/input/15.0.fastq --quality PHRED_33
+

@@ -201,6 +201,8 @@ smalltests: $(TEST_TOOLS)
     # SRA-2932: 30 is the preferred value for qualities when reading FASTA
 	$(SMALLRUN) 14.0 0 $(SRCDIR)/input/14.0.fasta $(SRCDIR)/input/14.0.fasta --quality PHRED_33
 	rm -rf $(SRCDIR)/actual
+    # VDB-3154: buffer insufficient
+	$(SMALLRUN) 15.0 0 $(SRCDIR)/input/15.0.fastq --quality PHRED_33
 
 onetest:
 	rm -rf $(SRCDIR)/actual

@@ -1,0 +1,1 @@
+2016-09-08T19:48:43 vdb-dump.2.7 int: libs/vdb/cast.c:127:cast_num: range excessive while type-casting type within virtual database module - VCursorCellData( col:READ_SEG at row #1 ) failed

@@ -389,6 +389,7 @@ static bool vdbconf_question( Dlg &dlg, Tui_Rect r, const char * msg )
 static bool vdbconf_input( Dlg &dlg, Tui_Rect r, const char * caption, std::string & txt )
 {
     bool res;
+    std::string prev_txt = txt;
     Std_Dlg_Input q;
     q.set_parent( &dlg );
     dlg.center( r );
@@ -396,6 +397,8 @@ static bool vdbconf_input( Dlg &dlg, Tui_Rect r, const char * caption, std::stri
     q.set_caption( caption );
     q.set_text2( txt );
     res = q.execute();
+    if ( res )
+        res = ( prev_txt != q.get_text2() );
     if ( res )
         txt = q.get_text2();
     return res;

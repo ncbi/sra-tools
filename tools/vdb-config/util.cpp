@@ -24,8 +24,10 @@
 *
 */
 
-#include "util.hpp" // CStdIn
+#include <kfg/kfg-priv.h> /* KConfigFixMainResolverCgiNode */
 #include <klib/printf.h> /* string_printf */
+
+#include "util.hpp" // CStdIn
 
 #include <sstream> // ostringstream
 
@@ -639,6 +641,19 @@ rc_t CKConfig::UpdateNode(bool verbose,
 
     va_end(args);
 
+    return rc;
+}
+
+rc_t CKConfig::FixResolverCgiNodes ( void ) {
+    rc_t rc = KConfigFixMainResolverCgiNode ( m_Self );
+    rc_t r2 = KConfigFixProtectedResolverCgiNode  ( m_Self );
+    if ( rc == 0 && r2 == 0 ) {
+        m_Updated = true;
+    } else {
+        if ( rc == 0 ) {
+            rc = r2;
+        }
+    }
     return rc;
 }
 

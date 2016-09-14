@@ -454,9 +454,6 @@ bool vdbconf_model::import_ngc( const std::string &native_location,
 
             rc = KRepositoryMgrImportNgcObj( repo_mgr, ngc,
                 location.c_str(), permissions, result_flags );
-            if ( rc == 0 ) {
-                rc = KConfigFixResolverCgiNode ( _config );
-            }
             res = ( rc == 0 );
             KRepositoryMgrRelease( repo_mgr );
         }

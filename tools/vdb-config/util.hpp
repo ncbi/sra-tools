@@ -278,6 +278,7 @@ public:
     rc_t UpdateUserRepositoryRootPath(const char *buffer, size_t size) {
         return UpdateNode(m_RepositoryUserRoot, buffer, false, size);
     }
+    rc_t FixResolverCgiNodes ( void );
     bool NodeExists(const std::string &path) const;
     rc_t UpdateNode(bool verbose, const char *value, const char *name, ...);
     rc_t UpdateNode(const char *path, const char *buffer,

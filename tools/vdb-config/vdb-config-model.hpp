@@ -28,7 +28,6 @@
 #define _h_vdb_config_model_
 
 #include <kfg/config.h>
-#include <kfg/kfg-priv.h> /* KConfigFixResolverCgiNode */
 #include <kfg/properties.h>
 #include <kfg/repository.h>
 #include <kfg/ngc.h>

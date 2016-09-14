@@ -98,7 +98,6 @@ class CConfigurator : CNoncopyable {
         rc = KConfigMakeRepositoryMgrRead(m_Cfg.Get(), &mgr);
         KRepositoryVector repositories;
         memset(&repositories, 0, sizeof repositories);
-        bool created = false;
         if (rc == 0) {
             rc = KRepositoryMgrRemoteRepositories(mgr, &repositories);
             if (rc == 0) {
@@ -108,10 +107,9 @@ class CConfigurator : CNoncopyable {
                 (rc == SILENT_RC(rcKFG, rcNode, rcOpening, rcPath, rcNotFound))
             {
                 rc = m_Cfg.CreateRemoteRepositories();
-                created = true;
             }
         }
-        if (rc == 0 && fix && !created) {
+        if ( rc == 0 && fix ) {
             rc = m_Cfg.CreateRemoteRepositories(fix);
         }
         if (rc == 0) {
@@ -193,7 +191,7 @@ protected:
     vdbconf_model *m_Config;
 
 public:
-    CConfigurator(bool fix = false, bool verbose = false): m_Config(NULL) {
+    CConfigurator(bool fix = true, bool verbose = false): m_Config(NULL) {
 #define TODO 1
         bool updated = false;
         rc_t rc = CheckNcbiHome(updated, verbose);

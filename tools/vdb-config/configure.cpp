@@ -191,7 +191,7 @@ protected:
     vdbconf_model *m_Config;
 
 public:
-    CConfigurator(bool fix = true, bool verbose = false): m_Config(NULL) {
+    CConfigurator(bool fix = false, bool verbose = false): m_Config(NULL) {
 #define TODO 1
         bool updated = false;
         rc_t rc = CheckNcbiHome(updated, verbose);

@@ -387,7 +387,7 @@ rc_t XMLThread( const KThread *self, void *data )
             LOGERR(klogErr, rc, g_xml_path);
         }
         SRAList_PostRefresh();
-        sleep(g_xml_sync);
+        KSleepMs(g_xml_sync * 1000);
     } while( g_xml_sync > 0 );
     LOGMSG(klogInfo, "XML sync thread ended");
     return 0;

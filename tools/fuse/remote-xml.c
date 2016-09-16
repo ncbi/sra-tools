@@ -425,7 +425,7 @@ rc_t XMLThread( const KThread *self, void *data )
     PLOGMSG(klogInfo, (klogInfo, "Heart beat thread started with $(s) sec", PLOG_U32(s), g_xml_sync));
 
     do {
-        sleep(g_xml_sync);
+        KSleepMs(g_xml_sync * 1000);
 
         PLOGMSG(klogInfo, (klogInfo, "Heart beat working $(s)", PLOG_S(s), g_heart_beat_url_complete_p));
 

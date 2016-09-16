@@ -32,6 +32,7 @@
 #include <klib/out.h> /* OUTMSG */
 #include <klib/refcount.h>
 #include <klib/rc.h>
+#include <klib/time.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -43,14 +44,6 @@
 
 #include <stdio.h>
 #include <string.h>
-
-#ifdef WINDOWS
-
-#include <windows.h>    /* Sleep () */
-
-#else
-
-#include <unistd.h>     /* sleep () */
 
 #endif /* WINDOWS */
 
@@ -65,11 +58,7 @@ SLEPOY ( int Sec )
 {
 
 printf ( "Sleeping %d seconds\n", Sec );
-#ifdef WINDOWS
-    Sleep ( Sec * 1000 );
-#else
-    sleep ( Sec );
-#endif
+KSleepMs ( Sec * 1000 );
 
 printf ( "    DONE [ Sleeping %d seconds ]\n", Sec );
 

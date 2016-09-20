@@ -29,6 +29,7 @@
 #include <klib/container.h>
 #include <klib/log.h>
 #include <klib/printf.h>
+#include <klib/time.h>
 #include <klib/out.h>
 #include <kproc/lock.h>
 #include <kproc/thread.h>

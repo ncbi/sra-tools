@@ -24,6 +24,7 @@
  *
  */
 #include <kfs/directory.h>
+#include <klib/time.h>
 #include <klib/out.h>
 #include <klib/status.h>
 #include <kproc/thread.h>

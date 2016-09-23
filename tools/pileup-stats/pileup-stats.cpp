@@ -456,6 +456,8 @@ extern "C"
         return 0;
     }
 
+    const char UsageDefaultName [] = "pileup-stats";
+
     static 
     const char * getArg ( int & i, int argc, char * argv [] )
     {
@@ -523,33 +525,19 @@ extern "C"
 
     static void handle_version ( const char *progname )
     {
-        char cSra [ 512 ] = "";
-        SraReleaseVersion sraVersion;
-        memset ( & sraVersion, 0, sizeof sraVersion );
-
-        rc_t rc = SraReleaseVersionGet ( & sraVersion );
-        if ( rc == 0 )
-        {
-            rc = SraReleaseVersionPrint ( & sraVersion, cSra, sizeof cSra, NULL );
-        }
-
         ::ver_t vers = ::KAppVersion();
 
-        std::cout
-            << std::endl
-            << progname << " : "
-            << ( vers >> 24 )
-            << '.'
-            << ( ( vers >> 16 ) & 0xFF )
-            << '.'
-            << ( vers & 0xFFFF )
-            << " ( " << cSra << " )"
-            << std::endl << std::endl;
+        HelpVersion ( progname, vers );
     }
 
     static void CC handle_error ( const char *arg, void *message )
     {
         throw ( const char * ) message;
+    }
+
+    rc_t CC UsageSummary ( const char * progname ) {
+        handle_help ( progname );
+        return 0;
     }
 
     rc_t CC KMain ( int argc, char *argv [] )

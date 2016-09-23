@@ -320,7 +320,7 @@ static rc_t KConfigNodePrintChildNames(bool xml, const KConfigNode* self,
     rc_t rc = 0;
     uint32_t count = 0;
     int i = 0;
-    char buffer[512] = "";
+    char buffer[8192] = "";
     size_t num_read = 0;
     bool hasChildren = false;
     bool hasData = false;

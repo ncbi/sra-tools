@@ -3129,7 +3129,7 @@ rc_t CC UsageSummary(const char *progname) {
                                            "and download them\n"
         "\n"
         "  %s --list <kart file> [...]\n"
-        "  List the content of a kart file\n"
+        "  List the content of a kart file\n\n"
         , progname, progname, progname));
 }
 
@@ -3540,6 +3540,7 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
 /*********** Main **********/
 rc_t CC KMain(int argc, char *argv[]) {
     rc_t rc = 0;
+    bool insufficient = false;
     uint32_t pcount = 0;
 
     Main pars;
@@ -3553,6 +3554,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         if (!pars.textkart)
 #endif
           rc = UsageSummary(UsageDefaultName);
+          insufficient = true;
     }
 
     if (rc == 0) {
@@ -3600,6 +3602,10 @@ rc_t CC KMain(int argc, char *argv[]) {
         if (rc2 != 0 && rc == 0) {
             rc = rc2;
         }
+    }
+
+    if ( rc == 0 && insufficient ) {
+        rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInsufficient );
     }
 
     return rc;

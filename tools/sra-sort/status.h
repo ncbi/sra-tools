@@ -41,6 +41,8 @@
  *  give feedback
  */
 void Status ( const ctx_t *ctx, uint32_t lineno, uint32_t level, const char *msg, ... );
+
+#undef STATUS
 #define STATUS( lvl, msg, ... ) \
     Status ( ctx, __LINE__, lvl, msg, ## __VA_ARGS__ )
 

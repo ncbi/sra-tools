@@ -39,6 +39,8 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+clean: stdclean
+
 #-------------------------------------------------------------------------------
 # outer targets
 #

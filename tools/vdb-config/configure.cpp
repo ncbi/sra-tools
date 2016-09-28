@@ -98,7 +98,6 @@ class CConfigurator : CNoncopyable {
         rc = KConfigMakeRepositoryMgrRead(m_Cfg.Get(), &mgr);
         KRepositoryVector repositories;
         memset(&repositories, 0, sizeof repositories);
-        bool created = false;
         if (rc == 0) {
             rc = KRepositoryMgrRemoteRepositories(mgr, &repositories);
             if (rc == 0) {
@@ -108,13 +107,15 @@ class CConfigurator : CNoncopyable {
                 (rc == SILENT_RC(rcKFG, rcNode, rcOpening, rcPath, rcNotFound))
             {
                 rc = m_Cfg.CreateRemoteRepositories();
-                created = true;
             }
         }
-        if (rc == 0 && fix && !created) {
+        if ( rc == 0 && fix ) {
             rc = m_Cfg.CreateRemoteRepositories(fix);
         }
         if (rc == 0) {
+
+            m_Cfg . FixResolverCgiNodes ( );
+
             bool noUser = false;
             rc = KRepositoryMgrUserRepositories(mgr, &repositories);
             if (rc == 0) {

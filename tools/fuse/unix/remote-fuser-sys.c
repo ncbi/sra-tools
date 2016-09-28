@@ -540,7 +540,7 @@ rc_t CC KMain(int argc, char *argv[])
                 CoreUsage(log_fd, argv[0], true, false, true);
             }
         } else if(!strcmp(argv[i], "-+") || !strcmp (argv[i], "--debug")) {
-#ifdef _DEBUGGING
+#if _DEBUGGING
             if( i == argc - 1 ) {
                 rc = RC(rcExe, rcArgv, rcValidating, rcParam, rcInsufficient);
                 LOGERR(klogErr, rc, "missing debug level");

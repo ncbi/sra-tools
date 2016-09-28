@@ -1413,7 +1413,47 @@ static rc_t opt_field_lnk_group( const VCursor * cursor, uint32_t col_id, int64_
     uint32_t len;    
     rc_t rc = read_char_ptr( row_id, cursor, col_id, &value, &len, "LINKAGE_GROUP" );
     if ( rc == 0 && len > 0 )
-        rc = KOutMsg( "\tBX:Z:%.*s", len, value );
+    {
+        enum { ofl_norm, ofl_cb1, ofl_cb2, ofl_cb3, ofl_cb4, ofl_ub1, ofl_ub2, ofl_ub3, ofl_ub4 };
+        
+        String CB, UB;
+        uint32_t idx, state;
+        
+        StringInit( &CB, NULL, 0, 0 );
+        StringInit( &UB, NULL, 0, 0 );
+        for ( idx = 0, state = ofl_norm; idx < len; ++idx )
+        {
+            switch ( state )
+            {
+                case ofl_norm : state = ( value[ idx ] == 'C' ) ? ofl_cb1 : ofl_norm; break;
+                case ofl_cb1  : state = ( value[ idx ] == 'B' ) ? ofl_cb2 : ofl_norm; break;
+                case ofl_cb2  : state = ( value[ idx ] == ':' ) ? ofl_cb3 : ofl_norm; break;
+                case ofl_cb3  : if ( value[ idx ] == '|' )
+                                    state = ofl_ub1;
+                                else
+                                {
+                                    if ( CB.addr == NULL )
+                                        { StringInit( &CB, &value[ idx ], 1, 1 ); }
+                                    else
+                                        { CB.len += 1; CB.size += 1; }
+                                }
+                                break;
+                case ofl_ub1  : state = ( value[ idx ] == 'U' ) ? ofl_ub2 : ofl_norm; break;
+                case ofl_ub2  : state = ( value[ idx ] == 'B' ) ? ofl_ub3 : ofl_norm; break;
+                case ofl_ub3  : state = ( value[ idx ] == ':' ) ? ofl_ub4 : ofl_norm; break;
+                case ofl_ub4  : if ( UB.addr == NULL )
+                                    { StringInit( &UB, &value[ idx ], 1, 1 ); }
+                                else
+                                    { UB.len += 1; UB.size += 1; }
+                                break;
+            }
+        }
+        
+        if ( CB.addr == NULL && UB.addr == NULL )
+            { rc = KOutMsg( "\tBX:Z:%.*s", len, value ); }
+        else
+            { rc = KOutMsg( "\tCB:Z:%S\tUB:Z:%S", &CB, &UB ); }
+    }
     return rc;
 }
 

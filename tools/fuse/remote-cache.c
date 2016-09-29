@@ -156,12 +156,10 @@ IsRemotePath ( const char * Path )
     }
 
     IsRemote = _MatchSchemas ( Schema, "http" );
-
-/* Just for case, he-he ... YAGNI - S!CKS
     if ( IsRemote == false ) {
         IsRemote = _MatchSchemas ( Schema, "https" );
     }
-*/
+
     return IsRemote;
 }   /* IsRemotePath () */
 

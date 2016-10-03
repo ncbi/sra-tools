@@ -76,6 +76,8 @@ ifeq (true, $(LINUX_ROOT))
 	  cp -p $(TOP)/tools/vdb-copy/vdb-copy.kfg $(ROOT)/etc/ncbi ; \
 	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; \
 	    then cp -p $(BINDIR)/ncbi/default.kfg $(ROOT)/etc/ncbi ; \
+	  fi; if [ -f $(BINDIR)/ncbi/certs.kfg ] ; \
+	    then cp -p $(BINDIR)/ncbi/certs.kfg $(ROOT)/etc/ncbi ; \
 	  fi ) && echo done
 	@ #
 	@ echo "Updating $(PROFILE_FILE).[c]sh"
@@ -98,6 +100,8 @@ else
 	  cp -p $(TOP)/tools/vdb-copy/vdb-copy.kfg $(INST_BINDIR)/ncbi/ ; \
 	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; \
 	    then cp -p $(BINDIR)/ncbi/default.kfg $(INST_BINDIR)/ncbi ; \
+	  fi; if [ -f $(BINDIR)/ncbi/certs.kfg ] ; \
+	    then cp -p $(BINDIR)/ncbi/certs.kfg $(INST_BINDIR)/ncbi ; \
 	  fi ) && echo done
 endif
 

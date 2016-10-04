@@ -36,8 +36,14 @@
 
 #include <klib/time.h> /* KTimeMsStamp */
 
+#include <kns/ascp.h> /* ascp_locate */
 #include <kns/endpoint.h> /* KEndPoint */
+#include <kns/http.h>
+#include <kns/http-priv.h> /* KClientHttpResultFormatMsg */
 #include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequest */
+#include <kns/manager.h>
+#include <kns/manager-ext.h> /* KNSManagerNewReleaseVersion */
+#include <kns/stream.h>
 
 #include <vfs/manager.h> /* VFSManager */
 #include <vfs/path.h> /* VPath */
@@ -52,12 +58,6 @@
 #include <vdb/schema.h> /* VSchemaRelease */
 #include <vdb/table.h> /* VDBManagerOpenTableRead */
 #include <vdb/vdb-priv.h> /* VDBManagerSetResolver */
-
-#include <kns/ascp.h> /* ascp_locate */
-#include <kns/http.h>
-#include <kns/manager.h>
-#include <kns/manager-ext.h> /* KNSManagerNewReleaseVersion */
-#include <kns/stream.h>
 
 #include <kdb/manager.h> /* kptDatabase */
 
@@ -177,7 +177,7 @@ rc_t CC Usage(const Args *args) {
     rc2 = KOutMsg(
         "Tests:\n"
         "  s - print SRA software information\n"
-        "  S - print SRA software information and last SRA toolkit versions\n"
+        "  S - print SRA software information and latest SRA toolkit version\n"
         "  u - print operation system information\n"
         "  c - print configuration\n"
         "  n - print NCBI error report\n"
@@ -521,6 +521,8 @@ static char** MainInit(Main *self, int argc, char *argv[], int *argi) {
     return argv2;
 }
 
+#define HTTP_VERSION 0x01010000
+
 static rc_t MainCallCgiImpl(const Main *self,
     const KConfigNode *node, const char *acc)
 {
@@ -538,7 +540,7 @@ static rc_t MainCallCgiImpl(const Main *self,
     }
     if (rc == 0) {
         rc = KNSManagerMakeRequest(self->knsMgr,
-            &req, 0x01000000, NULL, url->addr);
+            &req, HTTP_VERSION, NULL, url->addr);
     }
     if (rc == 0) {
         rc = KHttpRequestAddPostParam ( req, "acc=%s", acc );
@@ -1295,7 +1297,7 @@ static rc_t MainResolveRemote(const Main *self, VResolver *resolver,
                 }
                 else {
                     rc = KNSManagerMakeHttpFile
-                        (self->knsMgr, &f, NULL, 0x01010000, path_str);
+                        (self->knsMgr, &f, NULL, HTTP_VERSION, path_str);
                 }
             }
         }
@@ -1847,7 +1849,8 @@ rc_t MainDepend(const Main *self, const char *name, bool missing)
                     OUTMSG(("%s\tpathRemote: %s ", eol, s));
                     if (!self->noRfs) {
                         const KFile *f = NULL;
-                        rc2 = KNSManagerMakeHttpFile ( self->knsMgr, & f, NULL, 0x01010000, s );
+                        rc2 = KNSManagerMakeHttpFile
+                            ( self->knsMgr, & f, NULL, HTTP_VERSION, s );
                         if (rc2 != 0) {
                             OUTMSG(("KNSManagerMakeHttpFile=%R", rc2));
                             if (rc == 0) {
@@ -2206,7 +2209,8 @@ static rc_t ipc_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
 	return string_printf( buffer, buflen, NULL, "ipc: %s", ep->u.ipc_name );
 }
 
-static rc_t endpoint_to_string( char * buffer, size_t buflen, KEndPoint * ep )
+static
+rc_t endpoint_to_string( char * buffer, size_t buflen, KEndPoint * ep )
 {
 	rc_t rc;
 	switch( ep->type )
@@ -2306,25 +2310,25 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     uint32_t ver_major, uint32_t ver_minor, const char *protocol,
     const char *acc, KDataBuffer *databuffer, const char *eol)
 {
-	KHttpRequest *req = NULL;
+    KClientHttpRequest * req = NULL;
     rc_t rc = 0;
     assert(self);
     rc = KNSManagerMakeReliableClientRequest
-        (self->knsMgr, &req, 0x01000000, NULL, cgi_url);
+        (self->knsMgr, &req, HTTP_VERSION, NULL, cgi_url);
     if (rc != 0) {
         OUTMSG(
             ("KNSManagerMakeReliableClientRequest(%s)=%R%s", cgi_url, rc, eol));
     }
     if (rc == 0) {
         const char param[] = "acc";
-		rc = KHttpRequestAddPostParam( req, "%s=%s", param, acc);
+        rc = KHttpRequestAddPostParam( req, "%s=%s", param, acc);
         if (rc != 0) {
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
     }
     if (rc == 0) {
         const char param[] = "accept-proto";
-		rc = KHttpRequestAddPostParam( req, "%s=%s", param, protocol);
+        rc = KHttpRequestAddPostParam( req, "%s=%s", param, protocol);
         if (rc != 0) {
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
@@ -2336,6 +2340,11 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
         if (rc != 0) {
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
+    }
+    char b [1024 ] = "";
+    if (rc == 0) {
+        rc = KClientHttpRequestFormatMsg
+            ( req, b, sizeof b, "POST", NULL );
     }
     if (rc == 0) {
         KHttpResult *rslt = NULL;
@@ -2379,7 +2388,8 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     return rc;
 }
 
-static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
+static rc_t perform_cgi_test ( const Main * self,
+    const char * eol, const char * acc )
 {
     rc_t rc = 0;
     const char root[] = "Cgi";
@@ -2396,8 +2406,9 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
     {
         KTimeMs_t time = 0;
         const char root[] = "Response";
-        rc = call_cgi(self, "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi"
-            , 1, 1, "http,https", acc, &databuffer, eol);
+        rc = call_cgi ( self,
+            "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi",
+            1, 2, "http,https", acc, & databuffer, eol );
         time = KTimeMsStamp() - start_time;
         if (rc == 0) {
             const char *start = databuffer.base;
@@ -2411,14 +2422,6 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
                     root, size, start, time));
             }
         }
-        else {/*
-            if (self->xml) {
-                //OUTMSG(("    <%s/>\n", root, size, start, root));
-            }
-            else {
-                //OUTMSG(("%s = '%.*s'\n", root, size, start));
-            }*/
-        }
     }
     if (self->xml) {
         OUTMSG(("    </%s>\n", root));
@@ -2426,19 +2429,20 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
     return rc;
 }
 
-static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
+static rc_t MainNetwotk ( const Main * self,
+    const char * arg, const char * bol, const char * eol )
 {
     const char root[] = "Network";
     assert(self);
     if (self->xml) {
-        OUTMSG(("  <%s>\n", root));
+        OUTMSG(("%s<%s>\n", bol, root));
     }
     if (arg == NULL) {
         const char root[] = "KNSManager";
         bool enabled = KNSManagerGetHTTPProxyEnabled(self->knsMgr);
         if (!enabled) {
             if (self->xml) {
-                OUTMSG(("    <%s GetHTTPProxyEnabled=\"false\">\n", root));
+                OUTMSG(("%s  <%s GetHTTPProxyEnabled=\"false\">\n", bol, root));
             }
             else {
                 OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"false\"\n", root));
@@ -2446,7 +2450,7 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
         }
         else {
             if (self->xml) {
-                OUTMSG(("    <%s GetHTTPProxyEnabled=\"true\">\n", root));
+                OUTMSG(("%s  <%s GetHTTPProxyEnabled=\"true\">\n", bol, root));
             }
             else {
                 OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"true\"\n", root));
@@ -2461,11 +2465,12 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
                 HttpProxyGet(p, &http_proxy, &http_proxy_port);
                 if (self->xml) {
                     if ( http_proxy_port == 0) {
-                        OUTMSG(("      <%s path=\"%S\"/>\n", root, http_proxy));
+                        OUTMSG ( ( "%s    <%s path=\"%S\"/>\n",
+                            bol, root, http_proxy ) );
                     }
                     else {
-                        OUTMSG(("      <%s path=\"%S\" port=\"%d\"/>\n",
-                            root, http_proxy, http_proxy_port));
+                        OUTMSG(("%s    <%s path=\"%S\" port=\"%d\"/>\n",
+                            bol, root, http_proxy, http_proxy_port));
                     }
                 }
                 else {
@@ -2481,7 +2486,7 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
             }
         }
         if (self->xml) {
-            OUTMSG(("    </%s>\n", root));
+            OUTMSG(("%s  </%s>\n", bol, root));
         }
     }
     if (arg == NULL) {
@@ -2493,7 +2498,7 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
         else {
             const char root[] = "UserAgent";
             if (self->xml) {
-                OUTMSG(("    <%s>%s</%s>\n", root, user_agent, root));
+                OUTMSG(("%s  <%s>%s</%s>\n", bol, root, user_agent, root));
             }
             else {
                 OUTMSG(("UserAgent=\"%s\"\n", user_agent));
@@ -2505,14 +2510,119 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
     if (arg != NULL) {
         perform_cgi_test(self, eol, arg);
     }
+    if ( arg != NULL ) {
+        const char root [] = "Ranges";
+        if (self->xml) {
+            OUTMSG(("%s  <%s>\n", bol, root));
+        } else {
+            OUTMSG(("\n%s\n", root));
+        }
+        {
+            rc_t rc = 0;
+            char buffer [ 10 ] = "";
+            KClientHttp * http = NULL;
+            KClientHttpRequest * req = NULL;
+            KClientHttpResult * rslt = NULL;
+            const char root [] = "Request";
+            size_t len = 0;
+            char * b = buffer;
+            size_t sizeof_b = sizeof buffer;
+            char * allocated = NULL;
+            String host;
+            CONST_STRING ( & host, "sra-download.ncbi.nlm.nih.gov" );
+            if (self->xml) {
+                OUTMSG ( ( "%s    <%s host=\"%S\">\n", bol, root, & host ) );
+            } else {
+                OUTMSG ( ( "%s host=\"%S\"\n", root, & host ) );
+            }
+            rc = KNSManagerMakeClientHttp
+                ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
+            if ( rc == 0 ) {
+                rc = KClientHttpMakeRequest( http, & req, "/srapub/%s", arg );
+            }
+            if ( rc == 0 ) {
+                rc = KClientHttpRequestByteRange ( req, 0, 4096 );
+            }
+            if ( rc == 0 ) {
+                rc = KClientHttpRequestFormatMsg
+                    ( req, b, sizeof_b, "GET", & len );
+                if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
+                     GetRCState ( rc ) == rcInsufficient )
+                {
+                    free ( allocated );
+                    sizeof_b = 0;
+                    allocated = b = malloc ( len );
+                    if ( allocated == NULL ) {
+                        rc = RC
+                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
+                    } else {
+                        sizeof_b = len;
+                        rc = KClientHttpRequestFormatMsg
+                            ( req, b, sizeof_b, "GET", & len );
+                    }
+                    if ( rc == 0 ) {
+                        OUTMSG ( ( "%s", b ) );
+                    }
+                }
+            }
+            if ( rc == 0 ) {
+                rc = KClientHttpRequestGET ( req, & rslt ); 
+            }
+            if ( rc == 0 ) {
+                rc = KClientHttpResultFormatMsg
+                    ( rslt, b, sizeof_b, & len, "", "\n" );
+                if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
+                     GetRCState ( rc ) == rcInsufficient )
+                {
+                    free ( allocated );
+                    sizeof_b = 0;
+                    allocated = b = malloc ( len );
+                    if ( allocated == NULL ) {
+                        rc = RC
+                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
+                    } else {
+                        sizeof_b = len;
+                        rc = KClientHttpResultFormatMsg
+                            ( rslt, b, sizeof_b, & len, "", "\n" );
+                    }
+                }
+            }
+            if (self->xml) {
+                OUTMSG(("%s    </%s>\n", bol, root));
+            }
+            if ( rc == 0 ) {
+                const char root [] = "Response";
+                if (self->xml) {
+                    OUTMSG(("%s    <%s>\n", bol, root));
+                } else {
+                    OUTMSG(("%s\n", root));
+                }
+                OUTMSG ( ( "%s", b ) );
+                if (self->xml) {
+                    OUTMSG(("%s    </%s>\n", bol, root));
+                } else {
+                    OUTMSG ( ( "\n" ) );
+                }
+            }
+            free ( allocated );
+            allocated = NULL;
+            b = buffer;
+            RELEASE ( KClientHttpResult, rslt );
+            RELEASE ( KClientHttpRequest, req );
+            RELEASE ( KClientHttp, http );
+        }
+        if (self->xml) {
+            OUTMSG(("%s  </%s>\n", bol, root));
+        }
+    }
     if (self->xml) {
-        OUTMSG(("  </%s>\n", root));
+        OUTMSG(("%s</%s>\n", bol, root));
     }
     return 0;
 }
 
-static
-rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
+static rc_t MainExec ( const Main * self,
+    const KartItem * item, const char * aArg, ... )
 {
     const char root[] = "Object";
 
@@ -2669,7 +2779,7 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
             }
 
             if (MainHasTest(self, eNetwork)) {
-                MainNetwotk(self, arg, eol);
+                MainNetwotk(self, arg, "  ", eol);
             }
 
             if (item == NULL) { /* TODO || kartitem & database */
@@ -2761,8 +2871,9 @@ static rc_t _KDyldLoadLib(KDyld *self, char *name, size_t sz,
     return rc;
 }
 
-static
-rc_t _KHttpRequestPOST(KHttpRequest *self, KDataBuffer *result, size_t *total) {
+static rc_t _KHttpRequestPOST ( KHttpRequest * self,
+    KDataBuffer * result, size_t * total )
+{
     rc_t rc = 0;
     KHttpResult *rslt = NULL;
     assert(result && total);
@@ -2815,8 +2926,8 @@ rc_t _KHttpRequestPOST(KHttpRequest *self, KDataBuffer *result, size_t *total) {
     return rc;
 }
 
-static
-rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
+static rc_t _MainPost ( const Main * self,
+    const char * name, char * buffer, size_t sz )
 {
     rc_t rc = 0;
 
@@ -2829,7 +2940,7 @@ rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
 
     buffer[0] = '\0';
 
-    rc = KNSManagerMakeRequest(self->knsMgr, &req, 0x01000000, NULL,
+    rc = KNSManagerMakeRequest(self->knsMgr, &req, HTTP_VERSION, NULL,
         "https://trace.ncbi.nlm.nih.gov/Traces/sratoolkit/sratoolkit.cgi");
 
     if (rc == 0) {
@@ -3247,13 +3358,23 @@ rc_t CC KMain(int argc, char *argv[]) {
     Args *args = NULL;
     rc_t rc3 = 0;
     int argi = 0;
+    uint32_t params = 0;
+    const char * eol = "\n";
 
     Main prms;
     char **argv2 = MainInit(&prms, argc, argv, &argi);
 
+    if ( rc == 0 && prms . xml ) {
+        eol = "<br/>\n";
+    }
+
     if (rc == 0) {
         rc = ArgsMakeAndHandle(&args, argi, argv2, 1,
             Options, sizeof Options / sizeof Options[0]);
+    }
+
+    if ( rc == 0 ) {
+        rc = ArgsParamCount ( args, & params );
     }
 
     if (rc == 0) {
@@ -3410,8 +3531,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
 
         if (MainHasTest(&prms, eNetwork)) {
-            const char *eol = prms.xml ? "<br/>\n" : "\n";
-            MainNetwotk(&prms, NULL, eol);
+            MainNetwotk(&prms, NULL, prms.xml ? "  " : "", eol);
         }
 
         if (!prms.full) {
@@ -3481,11 +3601,10 @@ rc_t CC KMain(int argc, char *argv[]) {
             }
         }
 
-        if (rc == 0) {
-            rc = ArgsParamCount(args, &pcount);
+        if ( params == 0 && MainHasTest ( & prms, eNetwork ) ) {
+            MainNetwotk ( & prms, "SRR000001", prms . xml ? "  " : "", eol );
         }
-/* TODO if pcount == 0 && there are no test type options use a small run as name[0]*/
-        for (i = 0; i < pcount; ++i) {
+        for (i = 0; i < params; ++i) {
             const char *name = NULL;
             rc3 = ArgsParamValue(args, i, (const void **)&name);
             if (rc3 == 0) {

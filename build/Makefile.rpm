@@ -56,8 +56,14 @@ $(RPM): $(SPEC) $(SRC)
 	rpmbuild --define "_topdir $(PKGDIR)"  --define "_tmppath %{_topdir}/tmp" \
 	    -bb $(SPEC)
 
-$(SRC): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
-		$(DST)/etc/ncbi/vdb-copy.kfg $(DST)/usr/share/ncbi/schema
+SRC_DEPS =                       \
+	$(DST)/etc/ncbi/default.kfg  \
+	$(DST)/etc/ncbi/certs.kfg    \
+	$(DST)/etc/ncbi/schema.kfg   \
+	$(DST)/etc/ncbi/vdb-copy.kfg \
+	$(DST)/usr/share/ncbi/schema
+
+$(SRC): $(SRC_DEPS)
 	echo 'DEBUGGING RPM: (SRC)'
 	chmod -R g-w $(DST)
 	cd $(PKGDIR) ; tar $(VERBOSE) -zcf $(TGZ) --owner 0 --group 0 \
@@ -68,6 +74,10 @@ $(SRC): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
 $(DST)/etc/ncbi/default.kfg: $(DST)
 	echo 'DEBUGGING RPM: (/etc/ncbi/default.kfg)'
 	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/default.kfg $@
+
+$(DST)/etc/ncbi/certs.kfg: $(DST)
+	echo 'DEBUGGING RPM: (/etc/ncbi/certs.kfg)'
+	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/certs.kfg $@
 
 $(DST)/etc/ncbi/schema.kfg: $(DST)
 	echo 'DEBUGGING RPM: (/etc/ncbi/schema.kfg)'

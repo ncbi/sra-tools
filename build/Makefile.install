@@ -76,13 +76,13 @@ ifeq (true, $(LINUX_ROOT))
 	  cp -p $(TOP)/tools/vdb-copy/vdb-copy.kfg $(ROOT)/etc/ncbi ; \
 	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; then \
 	    if [ -f $(ROOT)/etc/ncbi/default.kfg ] ; then \
-          mv -v $(ROOT)/etc/ncbi/default.kfg $(ROOT)/etc/ncbi/default.kfg.bak; \
+          mv -v $(ROOT)/etc/ncbi/default.kfg $(ROOT)/etc/ncbi/default.kfg.orig;\
 	    fi; \
 	    cp -p $(BINDIR)/ncbi/default.kfg $(ROOT)/etc/ncbi ; \
 	  fi; \
 	  if [ -f $(BINDIR)/ncbi/certs.kfg ] ; then \
 	    if [ -f $(ROOT)/etc/ncbi/certs.kfg ] ; then \
-          mv -v $(ROOT)/etc/ncbi/certs.kfg $(ROOT)/etc/ncbi/certs.kfg.bak; \
+          mv -v $(ROOT)/etc/ncbi/certs.kfg $(ROOT)/etc/ncbi/certs.kfg.orig; \
 	    fi; \
 	    cp -p $(BINDIR)/ncbi/certs.kfg $(ROOT)/etc/ncbi ; \
 	  fi ) && echo done
@@ -108,14 +108,14 @@ else
 	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; then \
 	    if [ -f $(INST_BINDIR)/ncbi/default.kfg ] ; then \
           mv -v $(INST_BINDIR)/ncbi/default.kfg \
-                $(INST_BINDIR)/ncbi/default.kfg.bak; \
+                $(INST_BINDIR)/ncbi/default.kfg.orig; \
 	    fi; \
 	    cp -p $(BINDIR)/ncbi/default.kfg $(INST_BINDIR)/ncbi ; \
 	  fi; \
 	  if [ -f $(BINDIR)/ncbi/certs.kfg ] ; then \
 	    if [ -f $(INST_BINDIR)/ncbi/certs.kfg ] ; then \
           mv -v $(INST_BINDIR)/ncbi/certs.kfg \
-                $(INST_BINDIR)/ncbi/certs.kfg.bak; \
+                $(INST_BINDIR)/ncbi/certs.kfg.orig; \
 	    fi; \
 	    cp -p $(BINDIR)/ncbi/certs.kfg $(INST_BINDIR)/ncbi ; \
 	  fi ) && echo done

@@ -2426,6 +2426,7 @@ static rc_t perform_cgi_test ( const Main * self,
     if (self->xml) {
         OUTMSG(("    </%s>\n", root));
     }
+    KDataBufferWhack ( & databuffer );
     return rc;
 }
 
@@ -2519,7 +2520,7 @@ static rc_t MainNetwotk ( const Main * self,
         }
         {
             rc_t rc = 0;
-            char buffer [ 10 ] = "";
+            char buffer [ 1024 ] = "";
             KClientHttp * http = NULL;
             KClientHttpRequest * req = NULL;
             KClientHttpResult * rslt = NULL;
@@ -2560,9 +2561,9 @@ static rc_t MainNetwotk ( const Main * self,
                         rc = KClientHttpRequestFormatMsg
                             ( req, b, sizeof_b, "GET", & len );
                     }
-                    if ( rc == 0 ) {
-                        OUTMSG ( ( "%s", b ) );
-                    }
+                }
+                if ( rc == 0 ) {
+                    OUTMSG ( ( "%s", b ) );
                 }
             }
             if ( rc == 0 ) {
@@ -2877,7 +2878,6 @@ static rc_t _KHttpRequestPOST ( KHttpRequest * self,
     rc_t rc = 0;
     KHttpResult *rslt = NULL;
     assert(result && total);
-    memset(result, 0, sizeof *result);
     *total = 0;
     rc = KHttpRequestPOST(self, &rslt);
     if (rc == 0) {
@@ -2938,6 +2938,7 @@ static rc_t _MainPost ( const Main * self,
 
     assert(self && buffer && sz);
 
+    memset ( & result, 0, sizeof result );
     buffer[0] = '\0';
 
     rc = KNSManagerMakeRequest(self->knsMgr, &req, HTTP_VERSION, NULL,
@@ -2956,10 +2957,7 @@ static rc_t _MainPost ( const Main * self,
     if (rc == 0) {
         const char *start = (const void*)(result.base);
         if (total > 0) {
-            if (*(start + total) != '\0') {
-                rc = RC(rcExe, rcString, rcParsing, rcString, rcUnexpected);
-            }
-            else if (*(start + total - 1) != '\n') {
+            if (*(start + total - 1) != '\n') {
                 rc = RC(rcExe, rcString, rcParsing, rcString, rcUnexpected);
             }
             else {

@@ -3,7 +3,7 @@
 ## SRA Toolkit 2.8.0
 **October 7, 2016**
 
-### HTTPS ENABLED RELEASE
+### HTTPS-ENABLED RELEASE
 
   **bam-load**: 10x Genomics CB and UB tags are preserved  
   **bam-load**: Orphaned secondary alignments will be converted to primary alignments  

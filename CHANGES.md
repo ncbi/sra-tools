@@ -1,5 +1,46 @@
 # NCBI External Developer Release:
 
+## SRA Toolkit 2.8.0
+**October 7, 2016**
+
+### HTTPS-ENABLED RELEASE
+
+  **bam-load**: 10x Genomics CB and UB tags are preserved  
+  **bam-load**: Orphaned secondary alignments will be converted to primary alignments  
+  **bam-load**: READ_GROUP is populated from 'BC' if 'RG' has no value  
+  **bam-load**: fixed support for '-V' and '--version' command-line options  
+  **blast**: Updated BLAST engine to 2.5.0+ version  
+  **build, ngs-tools**: Now ngs-tools look for its dependencies using their normal build paths and does not reconfigure them  
+  **build, ngs-tools**: Now ngs-tools use CMAKE_INSTALL_PREFIX for installation path  
+  **build, sra-tools**: Now makefile copies default.kfg file when it is updated  
+  **build, sra-tools**: separate decryption package was removed - decryption tools are included as part of sratoolkit.  
+  **kfg, kns**: Use environment variables to determine the proxy for a http protocol  
+  **kfg, vdb-config**: vdb-config-GUI has now option to pick up proxy-setting from environment  
+  **kns**: All tools and libraries now support https  
+  **kns**: replaced all direct uses of sleep() within code to enforce standardization upon mS.  
+  **kproc, ncbi-vdb**: Fixed KCondition to generate timeout error on Windows when timeout exhausted  
+  **latf-load**: now handles column values up to 64MB long  
+  **ngs**: Fixed all crashes when using null as string in ngs-java APIs  
+  **ngs**: NGS_ReferenceGetChunk() will now return chunks potentially exceeding 5000 bases  
+  **ngs**: fixed potential concurrency issues at exit, when called from Java  
+  **ngs**: ngs-java and ngs-python auto-download (of native libraries) now works through HTTPS  
+  **ngs**: read fragments of length 0 are now ignored  
+  **ngs, ngs-tools, ref-variation**: added class ngs-vdb::VdbAlignment, featuring method IsFirst()  
+  **ngs-engine**: improved diagnostic messages  
+  **ngs-tools**: Fixed Makefiles to keep supporting "./configure; make" build of sra-search, alongside CMake-based build.  
+  **prefetch**: Fixed prefetch not to print misleading 'unknown integer storage type' error messages  
+  **sam-dump**: CB and UB tags are now created if loaded via bam-load from 10xSingleCell  
+  **sra-tools**: presence of ./ncbi (even if empty) subdirectory next to the executable files is no longer required, unless configuration files are needed.  
+  **test**: updated tests to not fail outside of NCBI  
+  **test-sra**: test-sra prints network information  
+  **test-sra**: test-sra prints version of ncbi-vdb or ngs-sdk dynamic library  
+  **vdb**: improved parameter checking on VDatabaseOpenTableRead()  
+  **vdb**: new function: "VDBManagerDeleteCacheOlderThan()"  
+  **vdb**: problem with buffer-overrun when compressing random data fixed  
+  **vdb**: remote/aux nodes have been removed from configuration  
+  **vdb-dump**: does not ignore table-argument on plain table any more, has to be SEQUENCE on plain tables if used  
+
+
 ## SRA Toolkit 2.7.0
 **June 12, 2016**
 

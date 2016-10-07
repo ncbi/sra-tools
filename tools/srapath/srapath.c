@@ -164,7 +164,7 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver, const 
         const VPath * local;
         const VPath * remote;
 
-        rc = VResolverQuery( resolver, eProtocolHttp, upath, &local, &remote, NULL );
+        rc = VResolverQuery( resolver, 0, upath, &local, &remote, NULL );
         if ( rc == 0 )
         {
             const String * s;

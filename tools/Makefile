@@ -66,7 +66,6 @@ SUBDIRS =             \
 	kget              \
 	ngs-pileup        \
 	general-loader    \
-	ref-variation     \
 	fastdump          \
 
 ifneq (win,$(BUILD_OS))
@@ -81,7 +80,7 @@ include $(TOP)/build/Makefile.targets
 $(SUBDIRS):
 	@ $(MAKE) -C $@
 
-.PHONY: default $(SUBDIRS) 
+.PHONY: default $(SUBDIRS)
 
 #-------------------------------------------------------------------------------
 # pass-through

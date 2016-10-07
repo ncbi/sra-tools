@@ -74,8 +74,17 @@ ifeq (true, $(LINUX_ROOT))
 	@ printf "Installing configuration files to $(ROOT)/etc/ncbi/..."
 	( mkdir -p $(ROOT)/etc/ncbi && \
 	  cp -p $(TOP)/tools/vdb-copy/vdb-copy.kfg $(ROOT)/etc/ncbi ; \
-	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; \
-	    then cp -p $(BINDIR)/ncbi/default.kfg $(ROOT)/etc/ncbi ; \
+	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; then \
+	    if [ -f $(ROOT)/etc/ncbi/default.kfg ] ; then \
+          mv -v $(ROOT)/etc/ncbi/default.kfg $(ROOT)/etc/ncbi/default.kfg.orig;\
+	    fi; \
+	    cp -p $(BINDIR)/ncbi/default.kfg $(ROOT)/etc/ncbi ; \
+	  fi; \
+	  if [ -f $(BINDIR)/ncbi/certs.kfg ] ; then \
+	    if [ -f $(ROOT)/etc/ncbi/certs.kfg ] ; then \
+          mv -v $(ROOT)/etc/ncbi/certs.kfg $(ROOT)/etc/ncbi/certs.kfg.orig; \
+	    fi; \
+	    cp -p $(BINDIR)/ncbi/certs.kfg $(ROOT)/etc/ncbi ; \
 	  fi ) && echo done
 	@ #
 	@ echo "Updating $(PROFILE_FILE).[c]sh"
@@ -96,8 +105,19 @@ else
 	@ printf "Installing configuration files to $(INST_BINDIR)/ncbi/..."
 	( mkdir -p $(INST_BINDIR)/ncbi && \
 	  cp -p $(TOP)/tools/vdb-copy/vdb-copy.kfg $(INST_BINDIR)/ncbi/ ; \
-	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; \
-	    then cp -p $(BINDIR)/ncbi/default.kfg $(INST_BINDIR)/ncbi ; \
+	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; then \
+	    if [ -f $(INST_BINDIR)/ncbi/default.kfg ] ; then \
+          mv -v $(INST_BINDIR)/ncbi/default.kfg \
+                $(INST_BINDIR)/ncbi/default.kfg.orig; \
+	    fi; \
+	    cp -p $(BINDIR)/ncbi/default.kfg $(INST_BINDIR)/ncbi ; \
+	  fi; \
+	  if [ -f $(BINDIR)/ncbi/certs.kfg ] ; then \
+	    if [ -f $(INST_BINDIR)/ncbi/certs.kfg ] ; then \
+          mv -v $(INST_BINDIR)/ncbi/certs.kfg \
+                $(INST_BINDIR)/ncbi/certs.kfg.orig; \
+	    fi; \
+	    cp -p $(BINDIR)/ncbi/certs.kfg $(INST_BINDIR)/ncbi ; \
 	  fi ) && echo done
 endif
 
@@ -106,7 +126,10 @@ endif
 # 
 
 TO_UNINSTALL = $(addsuffix *,$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_INSTALL) magic))
-TO_UNINSTALL_AS_ROOT = $(ROOT)/etc/ncbi/vdb-copy.kfg $(PROFILE_FILE).sh $(PROFILE_FILE).csh
+ifneq (true, $(LINUX_ROOT))
+    TO_UNINSTALL += $(INST_BINDIR)/ncbi/certs.kfg $(INST_BINDIR)/ncbi/ncbi-vdb.kfg $(INST_BINDIR)/ncbi/default.kfg $(INST_BINDIR)/ncbi/vdb-copy.kfg
+endif
+TO_UNINSTALL_AS_ROOT = $(ROOT)/etc/ncbi/certs.kfg $(ROOT)/etc/ncbi/default.kfg $(ROOT)/etc/ncbi/vdb-copy.kfg $(PROFILE_FILE).sh $(PROFILE_FILE).csh
 
 uninstall:
 	@ echo "Uninstalling sra-tools from $(INST_BINDIR)..."

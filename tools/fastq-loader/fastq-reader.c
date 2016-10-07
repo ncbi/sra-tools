@@ -318,7 +318,7 @@ static rc_t FastqSequenceGetQuality ( const FastqSequence *self, const int8_t **
     {
         uint32_t length = self->read.len;
         if (self->quality.size != length)
-            return RC(rcAlign, rcRow, rcReading, rcData, rcInconsistent);
+            return RC( RC_MODULE, rcData, rcReading, rcData, rcInconsistent);
             
         *quality = (const int8_t *)self->quality.addr;
         *offset = self->qualityAsciiOffset;

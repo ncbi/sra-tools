@@ -24,8 +24,10 @@
 *
 */
 
-#include "util.hpp" // CStdIn
+#include <kfg/kfg-priv.h> /* KConfigFixMainResolverCgiNode */
 #include <klib/printf.h> /* string_printf */
+
+#include "util.hpp" // CStdIn
 
 #include <sstream> // ostringstream
 
@@ -292,7 +294,7 @@ rc_t CKConfig::Commit(void) const {
 
 rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     rc_t rc = UpdateNode("/repository/remote/main/CGI/resolver-cgi",
-        "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
+        "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
 
     if (fix) {
         const string name("/repository/remote/main/CGI/disabled");
@@ -304,56 +306,8 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
         }
     }
 
-    rc_t r2 = UpdateNode("/repository/remote/aux/NCBI/root",
-        "http://sra-download.ncbi.nlm.nih.gov");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode(
-        "/repository/remote/aux/NCBI/apps/nakmer/volumes/fuseNAKMER",
-        "sadb");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode(
-        "/repository/remote/aux/NCBI/apps/nannot/volumes/fuseNANNOT",
-        "sadb");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode("/repository/remote/aux/NCBI/apps/refseq/volumes/refseq",
-        "refseq");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode("/repository/remote/aux/NCBI/apps/sra/volumes/flat",
-        "srapub");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode("/repository/remote/aux/NCBI/apps/wgs/volumes/fuseWGS",
-        "wgs");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    if (fix) {
-        const string name("/repository/remote/aux/NCBI/disabled");
-        if (NodeExists(name)) {
-            rc_t r2 = UpdateNode(name.c_str(), "false");
-            if (r2 != 0 && rc == 0) {
-                rc = r2;
-            }
-        }
-    }
-
-    r2 = UpdateNode("/repository/remote/protected/CGI/resolver-cgi",
-        "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
+    rc_t r2 = UpdateNode("/repository/remote/protected/CGI/resolver-cgi",
+        "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }
@@ -690,6 +644,19 @@ rc_t CKConfig::UpdateNode(bool verbose,
     return rc;
 }
 
+rc_t CKConfig::FixResolverCgiNodes ( void ) {
+    rc_t rc = KConfigFixMainResolverCgiNode ( m_Self );
+    rc_t r2 = KConfigFixProtectedResolverCgiNode  ( m_Self );
+    if ( rc == 0 && r2 == 0 ) {
+        m_Updated = true;
+    } else {
+        if ( rc == 0 ) {
+            rc = r2;
+        }
+    }
+    return rc;
+}
+
 CApp::CApp(const CKDirectory &dir, const CKConfigNode &rep,
         const string &root, const string &name)
     : m_HasVolume(false)
@@ -864,13 +831,13 @@ rc_t CRemoteRepository::Fix(CKConfig &kfg, bool disable, bool verbose) {
 
     if (Is("main")) {
         m_ResolverCgi
-            = "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
+            = "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
         ClearApps();
     }
     else {
         m_ResolverCgi = "";
         FixApps();
-        SetRoot("http://ftp-trace.ncbi.nlm.nih.gov/sra");
+        SetRoot("https://ftp-trace.ncbi.nlm.nih.gov/sra");
     }
 
     return Update(kfg);
@@ -1076,7 +1043,6 @@ rc_t CRemoteRepositories::Load(const CKConfig &kfg, const CKDirectory &dir) {
 
 void CRemoteRepositories::Fix(CKConfig &kfg, bool disable, bool verbose) {
     CRemoteRepository *main = NULL;
-    CRemoteRepository *aux = NULL;
     CRemoteRepository *protectd = NULL;
 
     for (TCI it = begin(); it != end(); ++it) {
@@ -1085,7 +1051,7 @@ void CRemoteRepositories::Fix(CKConfig &kfg, bool disable, bool verbose) {
         bool toDisable = disable;
         const string category(r->GetCategory());
         if (category == "aux") {
-            aux = r;
+            continue;
         }
         else if (category == "main") {
             main = r;
@@ -1098,18 +1064,11 @@ void CRemoteRepositories::Fix(CKConfig &kfg, bool disable, bool verbose) {
     }
 
     const string cgi
-        ("http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
+        ("https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
     if (main == NULL) {
         main = new CRemoteRepository("main", "CGI", cgi);
         main->Fix(kfg, disable);
         push_back(main);
-    }
-
-    if (aux == NULL) {
-        aux = new CRemoteRepository("aux", "NCBI",
-            "http://ftp-trace.ncbi.nlm.nih.gov/sra");
-        aux->Fix(kfg, disable);
-        push_back(aux);
     }
 
     if (protectd == NULL) {

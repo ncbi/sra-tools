@@ -27,7 +27,7 @@ Setlocal
 Setlocal EnableDelayedExpansion
 
 set TOOLS=abi-dump align-info blastn_vdb cache-mgr fastq-dump illumina-dump kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump ^
-          sra-kar sra-pileup sra-stat srapath tblastn_vdb test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock ^
+          sra-pileup sra-stat srapath tblastn_vdb test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock ^
           vdb-unlock vdb-validate   
 
 :: vdb-passwd is obsolete but still in the package

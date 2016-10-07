@@ -438,3 +438,26 @@ bool check_locations_unique(KRepositoryVector *nonUniqueRepos,
     KRepositoryVectorWhack( &repositories );
 }
 #endif
+
+bool vdbconf_model::import_ngc( const std::string &native_location,
+    const KNgcObj *ngc, uint32_t permissions, uint32_t * result_flags )
+{
+    bool res = false;
+
+    if ( _config_valid )
+    {
+        KRepositoryMgr * repo_mgr;
+        rc_t rc = KConfigMakeRepositoryMgrUpdate ( _config, &repo_mgr );
+        if ( rc == 0 )
+        {
+            std::string location = native_to_internal( native_location);
+
+            rc = KRepositoryMgrImportNgcObj( repo_mgr, ngc,
+                location.c_str(), permissions, result_flags );
+            res = ( rc == 0 );
+            KRepositoryMgrRelease( repo_mgr );
+        }
+    }
+
+    return res;
+}

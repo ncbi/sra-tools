@@ -295,9 +295,12 @@ static void CC vdm_read_cell_data( void *item, void *data )
                                  &src.offset_in_bits, &src.number_of_elements );
     if ( r_ctx->rc != 0 )
     {
-        if( UIError(r_ctx->rc, NULL, r_ctx->table) ) {
-            UITableLOGError(r_ctx->rc, r_ctx->table, true);
-        } else {
+        if ( UIError( r_ctx->rc, NULL, r_ctx->table ) )
+        {
+            UITableLOGError( r_ctx->rc, r_ctx->table, true );
+        }
+        else
+        {
             PLOGERR( klogInt,
                      (klogInt,
                      r_ctx->rc,
@@ -1776,6 +1779,15 @@ static bool enum_col_request( const p_dump_context ctx )
              ctx->show_blobbing || ctx->enum_phys || ctx->enum_readable );
 }
 
+
+static const char * SEQUENCE_TAB = "SEQUENCE";
+
+static bool is_sequence( const char * tbl )
+{
+    return string_cmp ( tbl, string_size( tbl ),
+                         SEQUENCE_TAB, string_size( SEQUENCE_TAB ), 0xFFFF ) == 0;
+}
+
 /***************************************************************************
     dump_table:
     * called by "dump_main()" to handle a table
@@ -1789,48 +1801,52 @@ static rc_t vdm_dump_table( const p_dump_context ctx, const VDBManager *my_manag
 {
     rc_t rc;
 
-    /* take ctx->path as table ( if ctx->table is empty ) */
-    if ( ctx->table == NULL )
+    bool table_valid = ( ctx->table == NULL )||( is_sequence( ctx->table ) );
+    if ( !table_valid )
     {
-        ctx->table = string_dup_measure ( ctx->path, NULL );
-    }
-    if ( ctx->schema_dump_requested )
-    {
-        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_tab_schema );
-    }
-    else if ( ctx->table_enum_requested )
-    {
-        KOutMsg( "cannot enum tables of a table-object\n" );
-        vdm_clear_recorded_errors();
-        rc = 0;
-    }
-    else if ( enum_col_request( ctx ) )
-    {
-        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_enum_tab_columns );
-    }
-    else if ( ctx->id_range_requested )
-    {
-        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_print_tab_id_range );
-    }
-    else if ( ctx->idx_enum_requested )
-    {
-        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_enum_tab_index );
-    }
-    else if ( ctx->idx_range_requested )
-    {
-        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_range_tab_index );
-    }
-    else if ( ctx->show_spotgroups )
-    {
-        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spotgroups );
-    }
-    else if ( ctx->show_spread )
-    {
-        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spread );
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcItem, rcNotFound );
+        ErrMsg( "Table '%s' not found-> %R", ctx->table, rc );
     }
     else
     {
-        rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_opened_table );
+        if ( ctx->schema_dump_requested )
+        {
+            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_tab_schema );
+        }
+        else if ( ctx->table_enum_requested )
+        {
+            KOutMsg( "cannot enum tables of a table-object\n" );
+            vdm_clear_recorded_errors();
+            rc = 0;
+        }
+        else if ( enum_col_request( ctx ) )
+        {
+            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_enum_tab_columns );
+        }
+        else if ( ctx->id_range_requested )
+        {
+            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_print_tab_id_range );
+        }
+        else if ( ctx->idx_enum_requested )
+        {
+            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_enum_tab_index );
+        }
+        else if ( ctx->idx_range_requested )
+        {
+            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_range_tab_index );
+        }
+        else if ( ctx->show_spotgroups )
+        {
+            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spotgroups );
+        }
+        else if ( ctx->show_spread )
+        {
+            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spread );
+        }
+        else
+        {
+            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_opened_table );
+        }
     }
     return rc;
 }
@@ -2223,7 +2239,7 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                 ErrMsg( "VDBManagerRelease() -> %R", rc );
         }
         rc1 = KDirectoryRelease( dir );
-        if ( rc != 0 )
+        if ( rc1 != 0 )
             ErrMsg( "KDirectoryRelease() -> %R", rc );
     }
     return rc;

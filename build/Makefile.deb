@@ -54,8 +54,15 @@ else
 deb: $(DEB)
 endif
 
-$(DEB): $(DST)/etc/ncbi/default.kfg $(DST)/etc/ncbi/schema.kfg \
-	$(DST)/etc/ncbi/vdb-copy.kfg $(DST)/usr/bin $(DST)/DEBIAN/control
+DEB_DEPS =                       \
+	$(DST)/etc/ncbi/default.kfg  \
+	$(DST)/etc/ncbi/certs.kfg    \
+	$(DST)/etc/ncbi/schema.kfg   \
+	$(DST)/etc/ncbi/vdb-copy.kfg \
+	$(DST)/usr/bin               \
+	$(DST)/DEBIAN/control
+
+$(DEB): $(DEB_DEPS)
 ifeq (mac,$(OS))
 	         dpkg-deb --build $(DST)
 else
@@ -74,6 +81,9 @@ $(DST)/etc/ncbi:
 
 $(DST)/etc/ncbi/default.kfg: $(DST)/etc/ncbi
 	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/default.kfg $@
+
+$(DST)/etc/ncbi/certs.kfg: $(DST)/etc/ncbi
+	rsync $(VERBOSE) -l --chmod=g-w $(VDB_LIBDIR)/ncbi/certs.kfg $@
 
 $(DST)/etc/ncbi/schema.kfg: $(DST)/etc/ncbi
 	echo '/vdb/schema/paths = "/usr/share/ncbi/schema"' > $@

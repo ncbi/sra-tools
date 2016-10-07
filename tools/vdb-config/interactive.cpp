@@ -55,9 +55,10 @@ using namespace tui;
 #define CB_COLOR_BG		KTUI_c_cyan
 #define BTN_COLOR_BG	KTUI_c_cyan
 
-#define TOP_H			9
+#define TOP_H			11
 #define SRC_W		    36
 #define PROXY_EN_W		15
+#define PROXY_EN_W_ENV	43
 #define SAVE_W		    14
 #define EXIT_W		    14
 #define WKSP_NAME_W		32
@@ -67,6 +68,7 @@ using namespace tui;
 #define CB_TXT_CACHE   	            "Enable Local File Caching (2)"
 #define CB_TXT_SITE   	            "Use Site Installation (3)"
 #define CB_TXT_PROXY        		"Use Proxy"
+#define CB_TXT_PROXY_ENV       		"Prioritize Env. Variable \'http_proxy\'"
 
 #define BTN_TXT_IMPORT_NGC 			"Import Repository Key (4)"
 #define BTN_TXT_DFLT_IMPORT_PATH	"Set Default Import Path (5)"
@@ -87,6 +89,7 @@ using namespace tui;
 #define FOCUS_TXT_CB_SITE           "Press SPACE | ENTER to enable/disable access to site repositories"
 #define FOCUS_TXT_CB_PROXY          "Press SPACE | ENTER to enable/disable http proxy"
 #define FOCUS_TXT_B_PROXY			"Press SPACE | ENTER to edit proxy"
+#define FOCUS_TXT_B_PROXY_ENV 	    "Press SPACE | ENTER to prioritize environment variable \'http_proxy\'"
 #define FOCUS_TXT_B_PUBLIC_LOC      "Press SPACE | ENTER to change location of public data"
 #define FOCUS_TXT_B_IMPORT_NGC      "Press SPACE | ENTER to import a dbGaP project"
 #define FOCUS_TXT_B_USR_DFLT_PATH   "Press SPACE | ENTER to change default repository location"
@@ -107,6 +110,7 @@ using namespace tui;
 #define ID_CB_PROXY          		107
 #define ID_B_PROXY          		108
 #define ID_L_PROXY          		109
+#define ID_CB_PROXY_ENV        		110
 
 #define ID_B_IMPORT_NGC             120
 #define ID_B_USR_DFLT_PATH          121
@@ -172,6 +176,7 @@ class vdbconf_view : public Dlg
         Tui_Rect cache_cb_rect( Tui_Rect const &r ) const { return h1_w_rect( r, 1, 3, SRC_W ); }
         Tui_Rect site_cb_rect( Tui_Rect const &r ) const { return h1_w_rect( r, 1, 5, SRC_W ); }
         Tui_Rect proxy_cb_rect( Tui_Rect const &r ) const { return h1_w_rect( r, 1, 7, PROXY_EN_W ); }
+        Tui_Rect proxy_cb_env_rect( Tui_Rect const &r ) const { return h1_w_rect( r, 1, 9, PROXY_EN_W_ENV ); }
         Tui_Rect proxy_btn_rect( Tui_Rect const &r ) const { return h1_w_rect( r, PROXY_EN_W + 2, 7, WKSP_B_LOC_W ); }
         Tui_Rect proxy_lb_rect( Tui_Rect const &r ) const
 		{ return h1_w_rect( r, PROXY_EN_W + 3 + WKSP_B_LOC_W, 7, r.get_w() - ( PROXY_EN_W + 4 + WKSP_B_LOC_W ) ); }
@@ -282,6 +287,7 @@ void vdbconf_view::populate_top_left( Tui_Rect const &r, bool resize )
 	setup_checkbox( proxy_cb_rect( r ), resize, ID_CB_PROXY, CB_TXT_PROXY, priv_model.is_http_proxy_enabled() );
 	setup_button( proxy_btn_rect( r ), resize, ID_B_PROXY, BTN_TXT_CHANGE );
 	setup_label( proxy_lb_rect( r ), resize, ID_L_PROXY, priv_model.get_http_proxy_path().c_str() );
+    setup_checkbox( proxy_cb_env_rect( r ), resize, ID_CB_PROXY_ENV, CB_TXT_PROXY_ENV, priv_model.has_http_proxy_env_higher_priority() );
 }
 
 
@@ -383,6 +389,7 @@ static bool vdbconf_question( Dlg &dlg, Tui_Rect r, const char * msg )
 static bool vdbconf_input( Dlg &dlg, Tui_Rect r, const char * caption, std::string & txt )
 {
     bool res;
+    std::string prev_txt = txt;
     Std_Dlg_Input q;
     q.set_parent( &dlg );
     dlg.center( r );
@@ -390,6 +397,8 @@ static bool vdbconf_input( Dlg &dlg, Tui_Rect r, const char * caption, std::stri
     q.set_caption( caption );
     q.set_text2( txt );
     res = q.execute();
+    if ( res )
+        res = ( prev_txt != q.get_text2() );
     if ( res )
         txt = q.get_text2();
     return res;
@@ -1006,9 +1015,11 @@ bool vdbconf_controller::on_select( Dlg &dlg, void * data, Tui_Dlg_Event &dev )
                              res = true;
                              break;
 
-		case ID_CB_PROXY  : m.set_http_proxy_enabled( dev.get_value_1() == 1 ); res = true; break;
-		case ID_B_PROXY   : res = change_proxy( dlg ); break;
+		case ID_CB_PROXY     : m.set_http_proxy_enabled( dev.get_value_1() == 1 ); res = true; break;
+		case ID_B_PROXY      : res = change_proxy( dlg ); break;
 		
+        case ID_CB_PROXY_ENV : m.set_http_proxy_env_higher_priority( dev.get_value_1() == 1 ); res = true; break;
+        
         case ID_B_PUBLIC_LOC : res = on_pick_public_location( dlg ); break;
 
         case ID_B_IMPORT_NGC : res = on_import_ngc( dlg ); break;
@@ -1045,7 +1056,8 @@ bool vdbconf_controller::on_focused( Dlg &dlg, uint32_t widget_id )
         case ID_CB_SITE         : status_txt( dlg, FOCUS_TXT_CB_SITE ); break;
 		case ID_CB_PROXY        : status_txt( dlg, FOCUS_TXT_CB_PROXY ); break;
 		case ID_B_PROXY         : status_txt( dlg, FOCUS_TXT_B_PROXY ); break;
-		
+		case ID_CB_PROXY_ENV    : status_txt( dlg, FOCUS_TXT_B_PROXY_ENV ); break;
+        
         case ID_B_PUBLIC_LOC    : status_txt( dlg, FOCUS_TXT_B_PUBLIC_LOC ); break;
         case ID_B_IMPORT_NGC    : status_txt( dlg, FOCUS_TXT_B_IMPORT_NGC ); break;
         case ID_B_USR_DFLT_PATH : status_txt( dlg, FOCUS_TXT_B_USR_DFLT_PATH ); break;

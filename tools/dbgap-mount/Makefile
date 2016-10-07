@@ -26,18 +26,8 @@
 default: std
 
 TOP ?= $(abspath ../..)
+
 MODULE = tools/dbgap-mount
-
-ifeq (win,$(OS))
-    DOCAN_LIBS = -lDOKAN
-else
-    DOCAN_LIBS = -lfuse
-endif
-
-ifeq (mac,$(OS))
-TOP = $(shell cd ../.. && pwd )
-DOCAN_LIBS = -L/usr/local/lib -losxfuse
-endif
 
 INT_TOOLS = \
 
@@ -50,6 +40,17 @@ ALL_TOOLS = \
 	$(EXT_TOOLS)
 
 include $(TOP)/build/Makefile.env
+
+ifeq (win,$(OS))
+    DOCAN_LIBS = -lDOKAN
+else
+    DOCAN_LIBS = -lfuse
+endif
+
+ifeq (mac,$(OS))
+	DOCAN_LIBS = -L/usr/local/lib -losxfuse
+endif
+
 
 #-------------------------------------------------------------------------------
 # outer targets
@@ -92,6 +93,9 @@ ZDB_DEMO_OBJ = \
 ZDB_DEMO_LIB = -lkapp -stk-version -lncbi-vdb -lxfs $(DOCAN_LIBS)
 
 $(BINDIR)/demo: $(ZDB_DEMO_OBJ)
+	@echo $(TOP)
+	@echo $(OS)
+	@echo $(HOST_OS)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(ZDB_DEMO_LIB)
 
 demo_tag:

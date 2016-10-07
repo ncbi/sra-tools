@@ -1230,7 +1230,7 @@ rc_t CC KMain(int argc, char *argv[])
     }
     if (has_vers) {
         argc = 2;
-        argv[1] = "--vers";
+        argv[1] = "--version";
         return main_help_vers(argc, argv);
     }
 

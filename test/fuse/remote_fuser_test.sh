@@ -25,14 +25,23 @@ SCR_DIR=`cd $SCR_DIR; pwd`
 SCR_NAME=`basename $0`
 SCR_SNAME=`basename $0 .sh`
 
+DAS_CTX=$HOSTNAME
+
 ####
 ##  Environment: Jy's a mal naaier maar ek hou van jou baie
 #
-for i in @ USER REMOTE_USER HOME HOST HOSTNAME HOSTTYPE
-do
-    echo "[$i] [${!i}]"
-done
-echo "[groups] [`groups`]"
+
+_print_env ()
+{
+    echo "[ARGS] [$@]"
+    for i in @ USER REMOTE_USER HOME HOST HOSTNAME HOSTTYPE
+    do
+        echo "[$i] [${!i}]"
+    done
+    echo "[groups] [`groups`]"
+}
+
+_print_env
 
 ####
 ##  Some interesting stuff
@@ -269,8 +278,8 @@ _check_assign_dir ()
 }
 
 _check_assign_dir bin F_BIN_DIR
-_check_assign_dir cache F_CACHE_DIR
-_check_assign_dir mount F_MOUNT_DIR
+_check_assign_dir cache.${DAS_CTX} F_CACHE_DIR
+_check_assign_dir mount.${DAS_CTX} F_MOUNT_DIR
 _check_assign_dir temp F_TEMP_DIR
 _check_assign_dir log F_LOG_DIR
 _check_assign_dir depot F_DEPOT_DIR
@@ -363,9 +372,13 @@ clear_old_logs
 ##  Here we are logging and execing
 ##
 F_TIME_STAMP=`date +%Y-%m-%d_%H-%M-%S`
-F_LOG_FILE=$F_LOG_DIR/${SCR_SNAME}.log.${F_TIME_STAMP}
+F_LOG_FILE=$F_LOG_DIR/${SCR_SNAME}.log.${DAS_CTX}.${F_TIME_STAMP}
 echo Log file: $F_LOG_FILE
 exec >$F_LOG_FILE 2>&1
+
+## One more time for log file
+##
+_print_env
 
 ## Here we are copying binaries
 ##
@@ -413,7 +426,7 @@ then
     _err_exit "Can not stat XML file from '$XML_URL'"
 fi
 
-F_FUSE_XML=$F_TEMP_DIR/FUSE.xml.$F_TIME_STAMP
+F_FUSE_XML=$F_TEMP_DIR/FUSE.xml.${DAS_CTX}.${F_TIME_STAMP}
 eval GET "$XML_URL" >$F_FUSE_XML
 if [ $? -ne 0 ]
 then
@@ -425,7 +438,7 @@ fi
 #
 _msg Starting Fuse
 
-FUSER_LOG=$F_LOG_DIR/remote-fuser.log.$F_TIME_STAMP
+FUSER_LOG=$F_LOG_DIR/remote-fuser.log.${DAS_CTX}.${F_TIME_STAMP}
 FUSER_CMD="$REMOTE_FUSER_APP -d -x $XML_URL -m $F_MOUNT_DIR -e $F_CACHE_DIR -L 5 -B 4 -o kernel_cache"
 
 _msg "## $FUSER_CMD"
@@ -567,7 +580,7 @@ fi
 
 REMOTE_URL=`echo $LINF | awk ' { print $3 } ' `
 LOCAL_FILE=`echo $LINF | awk ' { print $1 } ' `
-TEMP_FILE=$F_TEMP_DIR/${LOCAL_FILE}.${F_TIME_STAMP}
+TEMP_FILE=$F_TEMP_DIR/${LOCAL_FILE}.${DAS_CTX}.${F_TIME_STAMP}
 
 ## Downloading copy of proxied file
 ##
@@ -660,7 +673,7 @@ _msg TEST 3: Multithread acces to set of files
 ## First we should create list of files with limitation
 ##
 
-LIST_FILE=$F_TEMP_DIR/listfile.$F_TIME_STAMP
+LIST_FILE=$F_TEMP_DIR/listfile.${DAS_CTX}.$F_TIME_STAMP
 for i in `ls $F_MOUNT_DIR`
 do
     echo $F_MOUNT_DIR/$i >>$LIST_FILE

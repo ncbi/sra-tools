@@ -27,7 +27,6 @@
 #include "caps.h"
 #include "ctx.h"
 #include "except.h"
-#include "status.h"
 
 #include <klib/rc.h>
 #include <klib/log.h>
@@ -37,6 +36,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
+
+#include "status.h"
 
 FILE_ENTRY ( except );
 

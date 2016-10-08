@@ -25,7 +25,7 @@ If you use software that accesses NCBI SRA data in any way, your software will l
  
 If you develop software that relies on `sra-tools`, `ncbi-vdb` or `ngs` in any way, you will likely need to update your code so that it accesses NCBI using HTTPS.
 
-We will be releasing new tools that are HTTPS compatible and `M-15-13` compliant in early September, 2016. Please be certain to update all of your binaries and configuration files.
+We have released new tools with version 2.8.0 that are HTTPS compatible and `M-15-13` compliant as of October 7, 2016. Please be certain to [update all of your binaries](https://github.com/ncbi/sra-tools/wiki/Downloads) and configuration files.
 
 For additional information on using, configuring, and building the toolkit,
 please visit our [wiki](https://github.com/ncbi/sra-tools/wiki)

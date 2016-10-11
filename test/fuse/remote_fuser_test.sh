@@ -25,7 +25,8 @@ SCR_DIR=`cd $SCR_DIR; pwd`
 SCR_NAME=`basename $0`
 SCR_SNAME=`basename $0 .sh`
 
-DAS_CTX=$HOSTNAME
+DAS_PID=$$
+DAS_CTX=${HOSTNAME}.${DAS_PID}
 
 ####
 ##  Environment: Jy's a mal naaier maar ek hou van jou baie

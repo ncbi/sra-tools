@@ -23,6 +23,7 @@
 # ===========================================================================
 
 default: runtests
+	rm tmp.kfg
 
 TOP ?= $(abspath ../..)
 
@@ -35,6 +36,9 @@ TEST_TOOLS = \
 
 ALL_TOOLS = \
 	$(TEST_TOOLS) \
+
+$(shell echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg)
+VDB_CONFIG = $(shell pwd)
 
 include $(TOP)/build/Makefile.env
 

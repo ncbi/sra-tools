@@ -852,9 +852,7 @@ rc_t CC Usage( const Args* args )
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
-    // need user settings to pick up the correct schema include directory,
-    // so do not disable them
-    //KConfigDisableUserSettings();
+    KConfigDisableUserSettings();
     
     rc_t rc = VcfLoaderTestSuite(argc, argv);
     return rc;

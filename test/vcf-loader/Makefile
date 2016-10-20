@@ -23,7 +23,7 @@
 # ===========================================================================
 
 default: runtests
-	rm ../tmp.kfg
+	@ rm tmp.kfg
 
 TOP ?= $(abspath ../..)
 
@@ -35,17 +35,17 @@ TEST_TOOLS = \
 include $(TOP)/build/Makefile.env
 
 
-$(shell echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > ../tmp.kfg)
+$(shell echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg)
 
 # make sure runs are not cached in the user repository when running tests
 ifeq ($(wildcard ../../../asm-trace),)
 	ifeq (,$(VDB_CONFIG))
-		VDB_CONFIG = $(shell pwd)/..
+		VDB_CONFIG = $(shell pwd)
 	endif
 endif
 
 ifeq (,$(VDB_CONFIG))
-	VDB_CONFIG = $(shell pwd)/..
+	VDB_CONFIG = $(shell pwd)
 endif
 
 $(TEST_TOOLS): makedirs

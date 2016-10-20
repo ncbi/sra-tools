@@ -23,12 +23,15 @@
 # ===========================================================================
 
 default: runtests
+	@ rm tmp.kfg
 
 TOP ?= $(abspath ../..)
 
 MODULE = test/vschema
 
 include $(TOP)/build/Makefile.env
+
+$(shell echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg)
 
 clean: stdclean
 

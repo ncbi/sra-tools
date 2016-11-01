@@ -23,7 +23,7 @@
  * ===========================================================================
  *
  */
- 
+
 #include <sysalloc.h>
 #include <string.h>
 #include <assert.h>
@@ -102,7 +102,7 @@ rc_t OpenKBTree(const CommonWriterSettings* settings, struct KBTree **const rslt
     rc = KDirectoryNativeDir(&dir);
     if (rc)
         return rc;
-    
+
     rc = string_printf(fname, sizeof(fname), NULL, "%s/key2id.%u.%u", settings->tmpfs, settings->pid, n); if (rc) return rc;
     STSMSG(1, ("Path for scratch files: %s\n", fname));
     rc = KDirectoryCreateFile(dir, &file, true, 0600, kcmInit, "%s", fname);
@@ -141,7 +141,7 @@ rc_t GetKeyIDOld(const CommonWriterSettings* settings, SpotAssembler* const ctx,
         char *hbuf = NULL;
         size_t bsize = sizeof(sbuf);
         size_t actsize;
-        
+
         if (keylen + namelen + 2 > bsize) {
             hbuf = malloc(bsize = keylen + namelen + 2);
             if (hbuf == NULL)
@@ -149,7 +149,7 @@ rc_t GetKeyIDOld(const CommonWriterSettings* settings, SpotAssembler* const ctx,
             buf = hbuf;
         }
         rc = string_printf(buf, bsize, &actsize, "%s\t%.*s", key, (int)namelen, name);
-        
+
         tmpKey = ctx->idCount[0];
         rc = KBTreeEntry(ctx->key2id[0], &tmpKey, wasInserted, buf, actsize);
         if (hbuf)
@@ -192,7 +192,7 @@ static size_t GetFixedNameLength(char const name[], size_t const namelen)
 {
 #if USE_ILLUMINA_NAMING_POUND_NUMBER_SLASH_HACK
     char const *const pound = string_chr(name, namelen, '#');
-    
+
     if (pound && pound + 2u < name + namelen && pound[1] >= '0' && pound[1] <= '9' && pound[2] == '/') {
         return (size_t)(pound - name) + 2u;
     }
@@ -218,7 +218,7 @@ rc_t GetKeyID(CommonWriterSettings *const settings,
         size_t f;
         size_t e = ctx->key2id_count;
         uint64_t tmpKey;
-        
+
         *rslt = 0;
         {{
             uint32_t const bucket_value = ctx->key2id_hash[h];
@@ -226,7 +226,7 @@ rc_t GetKeyID(CommonWriterSettings *const settings,
             unsigned const i1 = (uint8_t)(bucket_value >>  8);
             unsigned const i2 = (uint8_t)(bucket_value >> 16);
             unsigned const i3 = (uint8_t)(bucket_value >> 24);
-            
+
             if (n > 0 && strcmp(key, ctx->key2id_names + ctx->key2id_name[i1]) == 0) {
                 f = i1;
                 /*
@@ -250,7 +250,7 @@ rc_t GetKeyID(CommonWriterSettings *const settings,
             size_t const m = (f + e) / 2;
             size_t const oid = ctx->key2id_oid[m];
             int const diff = strcmp(key, ctx->key2id_names + ctx->key2id_name[oid]);
-            
+
             if (diff < 0)
                 e = m;
             else if (diff > 0)
@@ -264,13 +264,13 @@ rc_t GetKeyID(CommonWriterSettings *const settings,
             size_t const name_max = ctx->key2id_name_max + keylen + 1;
             KBTree *tree;
             rc_t rc = OpenKBTree(settings, &tree, ctx->key2id_count + 1, 1); /* ctx->key2id_max); */
-            
+
             if (rc) return rc;
-            
+
             if (ctx->key2id_name_alloc < name_max) {
                 size_t alloc = ctx->key2id_name_alloc;
                 void *tmp;
-                
+
                 if (alloc == 0)
                     alloc = 4096;
                 while (alloc < name_max)
@@ -295,7 +295,7 @@ rc_t GetKeyID(CommonWriterSettings *const settings,
             ctx->idCount[f] = 0;
             if ((uint8_t)ctx->key2id_hash[h] < 3) {
                 unsigned const n = (uint8_t)ctx->key2id_hash[h] + 1;
-                
+
                 ctx->key2id_hash[h] = (uint32_t)((((ctx->key2id_hash[h] & ~(0xFFu)) | f) << 8) | n);
             }
             else {
@@ -345,7 +345,7 @@ static rc_t OpenMBankFile(const CommonWriterSettings* settings, SpotAssembler *c
 {
     char fname[4096];
     rc_t rc = string_printf(fname, sizeof(fname), NULL, "%s/fragments.%u", settings->tmpfs, settings->pid);
-    
+
     if (rc == 0) {
         int const fd = openTempFile(fname);
         if (fd < 0)
@@ -368,19 +368,19 @@ rc_t SetupContext(const CommonWriterSettings* settings, SpotAssembler *ctx)
         abort();
 
     ctx->pass = 1;
-    
+
     if (settings->mode == mode_Archive) {
         KDirectory *dir;
 
         STSMSG(1, ("Cache size: %uM\n", settings->cache_size / 1024 / 1024));
-        
+
         rc = KLoadProgressbar_Make(&ctx->progress[0], 0); if (rc) return rc;
         rc = KLoadProgressbar_Make(&ctx->progress[1], 0); if (rc) return rc;
         rc = KLoadProgressbar_Make(&ctx->progress[2], 0); if (rc) return rc;
         rc = KLoadProgressbar_Make(&ctx->progress[3], 0); if (rc) return rc;
-        
+
         KLoadProgressbar_Append(ctx->progress[0], 100 * settings->numfiles);
-        
+
         rc = KDirectoryNativeDir(&dir);
         if (rc == 0)
             rc = OpenMMapFile(settings, ctx, dir);
@@ -421,10 +421,10 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
     KDataBuffer fragBuf;
     SequenceRecord srec;
     int const pass = ctx->pass;
-    
+
     ++ctx->pass;
     memset(&srec, 0, sizeof(srec));
-    
+
     rc = KDataBufferMake(&fragBuf, 8, 0);
     if (rc) {
         (void)LOGERR(klogErr, rc, "KDataBufferMake failed");
@@ -434,7 +434,7 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
         idCount += ctx->idCount[j];
     }
     KLoadProgressbar_Append(ctx->progress[pass], idCount);
-    
+
     for (idCount = 0, j = 0; j < ctx->key2id_count; ++j) {
         for (i = 0; i != ctx->idCount[j]; ++i, ++idCount) {
             uint64_t const keyId = ((uint64_t)j << 32) | i;
@@ -473,7 +473,7 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
                 }
             }
             src = (uint8_t const *)&fip[1];
-            
+
             readLen[0] = readLen[1] = 0;
             read = fip->otherReadNo - 1;
 
@@ -483,19 +483,19 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
                 (void)LOGERR(klogErr, rc, "SequenceRecordInit failed");
                 break;
             }
-            
+
             srec.is_bad[read] = fip->is_bad;
             srec.orientation[read] = fip->orientation;
             srec.cskey[read] = fip->cskey;
             memcpy(srec.seq + srec.readStart[read], src, srec.readLen[read]);
             src += fip->readlen;
-            
+
             memcpy(srec.qual + srec.readStart[read], src, srec.readLen[read]);
             src += fip->readlen;
             srec.spotGroup = (char *)src;
             srec.spotGroupLen = fip->sglen;
             srec.keyId = keyId;
-            
+
             rc = SequenceWriteRecord(seq, &srec, ctx->isColorSpace, false, settings->platform,
                                     settings->keepMismatchQual, settings->no_real_output, settings->hasTI, settings->QualQuantizer);
             if (rc) {
@@ -516,10 +516,10 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
 void EditAlignedQualities(const CommonWriterSettings* settings, uint8_t qual[], bool const hasMismatch[], unsigned readlen) /* generic */
 {
     unsigned i;
-    
+
     for (i = 0; i < readlen; ++i) {
         uint8_t const q = hasMismatch[i] ? settings->alignedQualValue : qual[i];
-        
+
         qual[i] = q;
     }
 }
@@ -527,10 +527,10 @@ void EditAlignedQualities(const CommonWriterSettings* settings, uint8_t qual[], 
 void EditUnalignedQualities(uint8_t qual[], bool const hasMismatch[], unsigned readlen) /* generic */
 {
     unsigned i;
-    
+
     for (i = 0; i < readlen; ++i) {
         uint8_t const q = (qual[i] & 0x7F) | (hasMismatch[i] ? 0x80 : 0);
-        
+
         qual[i] = q;
     }
 }
@@ -539,8 +539,8 @@ rc_t CheckLimitAndLogError(CommonWriterSettings* settings)
 {
     ++settings->errCount;
     if (settings->maxErrCount > 0 && settings->errCount > settings->maxErrCount) {
-        (void)PLOGERR(klogErr, (klogErr, RC(rcAlign, rcFile, rcReading, rcError, rcExcessive), 
-                                "Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%lu,max=%lu", 
+        (void)PLOGERR(klogErr, (klogErr, RC(rcAlign, rcFile, rcReading, rcError, rcExcessive),
+                                "Number of errors $(cnt) exceeds limit of $(max): Exiting", "cnt=%lu,max=%lu",
                                 settings->errCount, settings->maxErrCount));
         return RC(rcAlign, rcFile, rcReading, rcError, rcExcessive);
     }
@@ -553,7 +553,7 @@ void RecordNoMatch(const CommonWriterSettings* settings, char const readName[], 
         static uint64_t lpos = 0;
         char logbuf[256];
         size_t len;
-        
+
         if (string_printf(logbuf, sizeof(logbuf), &len, "%s\t%s\t%u\n", readName, refName, refPos) == 0) {
             KFileWrite(settings->noMatchLog, lpos, logbuf, len, NULL);
             lpos += len;
@@ -565,7 +565,7 @@ rc_t LogNoMatch(CommonWriterSettings* settings, char const readName[], char cons
 {
     rc_t const rc = CheckLimitAndLogError(settings);
     static unsigned count = 0;
-    
+
     ++count;
     if (rc) {
         (void)PLOGMSG(klogInfo, (klogInfo, "This is the last warning; this class of warning occurred $(occurred) times",
@@ -583,7 +583,7 @@ rc_t LogDupConflict(CommonWriterSettings* settings, char const readName[])
 {
     rc_t const rc = CheckLimitAndLogError(settings);
     static unsigned count = 0;
-    
+
     ++count;
     if (rc) {
         (void)PLOGMSG(klogInfo, (klogInfo, "This is the last warning; this class of warning occurred $(occurred) times",
@@ -604,7 +604,7 @@ void COPY_QUAL(uint8_t D[], uint8_t const S[], unsigned const L, bool const R)
     if (R) {
         unsigned i;
         unsigned j;
-        
+
         for (i = 0, j = L - 1; i != L; ++i, --j)
             D[i] = S[j];
     }
@@ -615,43 +615,43 @@ void COPY_QUAL(uint8_t D[], uint8_t const S[], unsigned const L, bool const R)
 void COPY_READ(INSDC_dna_text D[], INSDC_dna_text const S[], unsigned const L, bool const R)
 {
     static INSDC_dna_text const compl[] = {
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 , '.',  0 , 
-        '0', '1', '2', '3',  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 , 'T', 'V', 'G', 'H',  0 ,  0 , 'C', 
-        'D',  0 ,  0 , 'M',  0 , 'K', 'N',  0 , 
-         0 ,  0 , 'Y', 'S', 'A', 'A', 'B', 'W', 
-         0 , 'R',  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 , 'T', 'V', 'G', 'H',  0 ,  0 , 'C', 
-        'D',  0 ,  0 , 'M',  0 , 'K', 'N',  0 , 
-         0 ,  0 , 'Y', 'S', 'A', 'A', 'B', 'W', 
-         0 , 'R',  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
-         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 , 
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 , '.',  0 ,
+        '0', '1', '2', '3',  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 , 'T', 'V', 'G', 'H',  0 ,  0 , 'C',
+        'D',  0 ,  0 , 'M',  0 , 'K', 'N',  0 ,
+         0 ,  0 , 'Y', 'S', 'A', 'A', 'B', 'W',
+         0 , 'R',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 , 'T', 'V', 'G', 'H',  0 ,  0 , 'C',
+        'D',  0 ,  0 , 'M',  0 , 'K', 'N',  0 ,
+         0 ,  0 , 'Y', 'S', 'A', 'A', 'B', 'W',
+         0 , 'R',  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
+         0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,
          0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0 ,  0
     };
     if (R) {
         unsigned i;
         unsigned j;
-        
+
         for (i = 0, j = L - 1; i != L; ++i, --j)
             D[i] = compl[((uint8_t const *)S)[j]];
     }
@@ -1171,7 +1171,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     if (ctx->key2id_max == 0) {
         ctx->key2id_max = 1;
     }
-    
+
     memset(&srec, 0, sizeof(srec));
     memset(&threadCtx, 0, sizeof(threadCtx));
     threadCtx.settings = G;
@@ -1181,17 +1181,17 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
     rc = KDataBufferMake(&fragBuf, 8, 4096);
     if (rc)
         return rc;
-    
+
     rc = KDataBufferMake(&buf, 16, 0);
     if (rc)
         return rc;
-    
+
     if (rc == 0) {
         (void)PLOGMSG(klogInfo, (klogInfo, "Loading '$(file)'", "file=%s", fileName));
     }
-    
+
     *had_sequences = false;
-    
+
     while (rc == 0) {
         ctx_value_t *value;
         struct ReadResult const rr = getNextRecord(&threadCtx);
@@ -1288,7 +1288,7 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                     goto LOOP_END;
                 }
             }
-            
+
             ++recordsProcessed;
             if (mated) {
                 if (value->written) {
@@ -1486,15 +1486,15 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                 srec.cskey[0] = cskey;
                 COPY_READ(srec.seq  + srec.readStart[0], seqDNA, readlen, false);
                 COPY_QUAL(srec.qual + srec.readStart[0], qual, readlen, false);
-                
+
                 srec.keyId = keyId;
-                
+
                 srec.spotGroup = (char *)spotGroup;
                 srec.spotGroupLen = strlen(spotGroup);
-                
+
                 srec.spotName = (char *)name;
                 srec.spotNameLen = namelen;
-                
+
                 rc = SequenceWriteRecord(seq, &srec, isColorSpace, false, G->platform,
                                          G->keepMismatchQual, G->no_real_output, G->hasTI, G->QualQuantizer);
                 if (rc) {
@@ -1514,6 +1514,7 @@ LOOP_END:
     }
 
     KThreadCancel(threadCtx.th);
+    KThreadWait ( threadCtx.th, NULL );
     KThreadRelease(threadCtx.th);
     KQueueRelease(threadCtx.que);
 
@@ -1521,7 +1522,7 @@ LOOP_END:
         (void)PLOGMSG(klogWarn, (klogWarn, "$(cnt1) out of $(cnt2) records contained warning : both 'duplicate' and 'lowQuality' flag bits set, only 'duplicate' will be saved", "cnt1=%lu,cnt2=%lu", filterFlagConflictRecords,recordsProcessed));
     }
     if (rc == 0 && recordsProcessed == 0) {
-        (void)LOGMSG(klogWarn, (G->limit2config || G->refFilter != NULL) ? 
+        (void)LOGMSG(klogWarn, (G->limit2config || G->refFilter != NULL) ?
                      "All records from the file were filtered out" :
                      "The file contained no records that were processed.");
         rc = RC(rcAlign, rcFile, rcReading, rcData, rcEmpty);
@@ -1532,7 +1533,7 @@ LOOP_END:
         double const allowed = G->maxErrPct/ 100.0;
         if (percentage > allowed) {
             rc = RC(rcExe, rcTable, rcClosing, rcData, rcInvalid);
-            (void)PLOGERR(klogErr, 
+            (void)PLOGERR(klogErr,
                             (klogErr, rc,
                              "Too many bad records: "
                                  "records: $(records), bad records: $(bad_records), "
@@ -1554,14 +1555,14 @@ LOOP_END:
 /*--------------------------------------------------------------------------
  * CommonWriter
  */
- 
+
 rc_t CommonWriterInit(CommonWriter* self, struct VDBManager *mgr, struct VDatabase *db, const CommonWriterSettings* G)
 {
     rc_t rc = 0;
     assert(self);
     assert(mgr);
     assert(db);
-    
+
     memset(self, 0, sizeof(*self));
     if (G)
         self->settings = *G;
@@ -1573,14 +1574,14 @@ rc_t CommonWriterInit(CommonWriter* self, struct VDBManager *mgr, struct VDataba
             return RC(rcAlign, rcArc, rcAllocating, rcMemory, rcExhausted);
         }
         SequenceWriterInit(self->seq, db);
-        
+
         rc = SetupContext(&self->settings, &self->ctx);
     }
     if (self->settings.tmpfs == NULL)
         self->settings.tmpfs = "/tmp";
 
     self->commit = true;
-    
+
     return rc;
 }
 
@@ -1639,9 +1640,9 @@ rc_t CommonWriterWhack(CommonWriter* self)
 {
     rc_t rc = 0;
     assert(self);
-    
+
     ContextRelease(&self->ctx);
-    
+
     if (self->seq)
     {
         SequenceWhack(self->seq, self->commit);

@@ -25,6 +25,7 @@
  */
 #include <klib/log.h>
 #include <klib/rc.h>
+#include <kapp/main.h>      /* for KAppVersion()*/
 #include <os-native.h>
 
 #include <stdlib.h>

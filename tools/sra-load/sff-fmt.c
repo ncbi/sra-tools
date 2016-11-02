@@ -25,6 +25,7 @@
 */
 #include <klib/rc.h>
 #include <klib/log.h>
+#include <kapp/main.h>      /* for KAppVersion()*/
 #include <sra/sff-file.h>
 
 #include <stdio.h>

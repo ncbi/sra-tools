@@ -2430,6 +2430,111 @@ static rc_t perform_cgi_test ( const Main * self,
     return rc;
 }
 
+static
+rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
+    bool get )
+{
+    rc_t rc = 0;
+    const char * method = "Head";
+    if ( get )
+        method = "Get";
+    if ( self -> xml )
+        OUTMSG ( ( "%s    <%s>\n", bol, method ) );
+    {
+        char buffer [ 1024 ] = "";
+        KClientHttp * http = NULL;
+        KClientHttpRequest * req = NULL;
+        KClientHttpResult * rslt = NULL;
+        const char root [] = "Request";
+        size_t len = 0;
+        char * b = buffer;
+        size_t sizeof_b = sizeof buffer;
+        char * allocated = NULL;
+        String host;
+        CONST_STRING ( & host, "sra-download.ncbi.nlm.nih.gov" );
+        if ( self -> xml )
+            OUTMSG ( ( "%s      <%s host=\"%S\">\n", bol, root, & host ) );
+        else
+            OUTMSG ( ( "%s %s host=\"%S\"\n", method, root, & host ) );
+        rc = KNSManagerMakeClientHttp
+            ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
+        if ( rc == 0 )
+            rc = KClientHttpMakeRequest( http, & req, "/srapub/%s", arg );
+        if ( get && rc == 0 )
+            rc = KClientHttpRequestByteRange ( req, 0, 4096 );
+        if ( rc == 0 ) {
+            rc = KClientHttpRequestFormatMsg
+                ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
+            if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
+                    GetRCState ( rc ) == rcInsufficient )
+            {
+                free ( allocated );
+                sizeof_b = 0;
+                allocated = b = malloc ( len );
+                if ( allocated == NULL ) {
+                    rc = RC
+                    ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
+                } else {
+                    sizeof_b = len;
+                    rc = KClientHttpRequestFormatMsg
+                        ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
+                }
+            }
+            if ( rc == 0 ) {
+                OUTMSG ( ( "%s", b ) );
+            }
+        }
+        if ( rc == 0 ) {
+            if ( get )
+                rc = KClientHttpRequestGET ( req, & rslt );
+            else
+                rc = KClientHttpRequestHEAD ( req, & rslt );
+        }
+        if ( rc == 0 ) {
+            rc = KClientHttpResultFormatMsg
+                ( rslt, b, sizeof_b, & len, "", "\n" );
+            if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
+                 GetRCState ( rc ) == rcInsufficient )
+            {
+                free ( allocated );
+                sizeof_b = 0;
+                allocated = b = malloc ( len );
+                if ( allocated == NULL ) {
+                    rc = RC
+                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
+                } else {
+                    sizeof_b = len;
+                    rc = KClientHttpResultFormatMsg
+                        ( rslt, b, sizeof_b, & len, "", "\n" );
+                }
+            }
+        }
+        if ( self -> xml )
+            OUTMSG ( ( "%s      </%s>\n", bol, root ) );
+        if ( rc == 0 ) {
+            const char root [] = "Response";
+            if (self->xml)
+                OUTMSG(("%s      <%s>\n", bol, root));
+            else
+                OUTMSG(("%s\n", root));
+            OUTMSG ( ( "%s", b ) );
+            if (self->xml)
+                OUTMSG(("%s      </%s>\n", bol, root));
+            else
+                OUTMSG ( ( "\n" ) );
+        }
+        free ( allocated );
+        allocated = NULL;
+        b = buffer;
+        RELEASE ( KClientHttpResult, rslt );
+        RELEASE ( KClientHttpRequest, req );
+        RELEASE ( KClientHttp, http );
+    }
+    if ( self -> xml )
+        OUTMSG ( ( "%s    </%s>\n", bol, method ) );
+    return rc;
+}
+
 static rc_t MainNetwotk ( const Main * self,
     const char * arg, const char * bol, const char * eol )
 {
@@ -2490,6 +2595,7 @@ static rc_t MainNetwotk ( const Main * self,
             OUTMSG(("%s  </%s>\n", bol, root));
         }
     }
+
     if (arg == NULL) {
         const char *user_agent = NULL;
         rc_t rc = KNSManagerGetUserAgent(&user_agent);
@@ -2508,116 +2614,25 @@ static rc_t MainNetwotk ( const Main * self,
 
         perfrom_dns_test(self, eol);
     }
-    if (arg != NULL) {
+
+    if (arg != NULL)
         perform_cgi_test(self, eol, arg);
-    }
+
     if ( arg != NULL ) {
         const char root [] = "Ranges";
-        if (self->xml) {
-            OUTMSG(("%s  <%s>\n", bol, root));
-        } else {
-            OUTMSG(("\n%s\n", root));
-        }
-        {
-            rc_t rc = 0;
-            char buffer [ 1024 ] = "";
-            KClientHttp * http = NULL;
-            KClientHttpRequest * req = NULL;
-            KClientHttpResult * rslt = NULL;
-            const char root [] = "Request";
-            size_t len = 0;
-            char * b = buffer;
-            size_t sizeof_b = sizeof buffer;
-            char * allocated = NULL;
-            String host;
-            CONST_STRING ( & host, "sra-download.ncbi.nlm.nih.gov" );
-            if (self->xml) {
-                OUTMSG ( ( "%s    <%s host=\"%S\">\n", bol, root, & host ) );
-            } else {
-                OUTMSG ( ( "%s host=\"%S\"\n", root, & host ) );
-            }
-            rc = KNSManagerMakeClientHttp
-                ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
-            if ( rc == 0 ) {
-                rc = KClientHttpMakeRequest( http, & req, "/srapub/%s", arg );
-            }
-            if ( rc == 0 ) {
-                rc = KClientHttpRequestByteRange ( req, 0, 4096 );
-            }
-            if ( rc == 0 ) {
-                rc = KClientHttpRequestFormatMsg
-                    ( req, b, sizeof_b, "GET", & len );
-                if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
-                     GetRCState ( rc ) == rcInsufficient )
-                {
-                    free ( allocated );
-                    sizeof_b = 0;
-                    allocated = b = malloc ( len );
-                    if ( allocated == NULL ) {
-                        rc = RC
-                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
-                    } else {
-                        sizeof_b = len;
-                        rc = KClientHttpRequestFormatMsg
-                            ( req, b, sizeof_b, "GET", & len );
-                    }
-                }
-                if ( rc == 0 ) {
-                    OUTMSG ( ( "%s", b ) );
-                }
-            }
-            if ( rc == 0 ) {
-                rc = KClientHttpRequestGET ( req, & rslt ); 
-            }
-            if ( rc == 0 ) {
-                rc = KClientHttpResultFormatMsg
-                    ( rslt, b, sizeof_b, & len, "", "\n" );
-                if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
-                     GetRCState ( rc ) == rcInsufficient )
-                {
-                    free ( allocated );
-                    sizeof_b = 0;
-                    allocated = b = malloc ( len );
-                    if ( allocated == NULL ) {
-                        rc = RC
-                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
-                    } else {
-                        sizeof_b = len;
-                        rc = KClientHttpResultFormatMsg
-                            ( rslt, b, sizeof_b, & len, "", "\n" );
-                    }
-                }
-            }
-            if (self->xml) {
-                OUTMSG(("%s    </%s>\n", bol, root));
-            }
-            if ( rc == 0 ) {
-                const char root [] = "Response";
-                if (self->xml) {
-                    OUTMSG(("%s    <%s>\n", bol, root));
-                } else {
-                    OUTMSG(("%s\n", root));
-                }
-                OUTMSG ( ( "%s", b ) );
-                if (self->xml) {
-                    OUTMSG(("%s    </%s>\n", bol, root));
-                } else {
-                    OUTMSG ( ( "\n" ) );
-                }
-            }
-            free ( allocated );
-            allocated = NULL;
-            b = buffer;
-            RELEASE ( KClientHttpResult, rslt );
-            RELEASE ( KClientHttpRequest, req );
-            RELEASE ( KClientHttp, http );
-        }
-        if (self->xml) {
-            OUTMSG(("%s  </%s>\n", bol, root));
+        if ( self -> xml )
+            OUTMSG ( ( "%s  <%s>\n", bol, root ) );
+        else
+            OUTMSG ( ( "\n%s\n", root ) );
+        MainRanges ( self, arg, bol, false );
+        MainRanges ( self, arg, bol, true );
+        if ( self-> xml )
+            OUTMSG ( ( "%s  </%s>\n", bol, root ) );
         }
     }
-    if (self->xml) {
-        OUTMSG(("%s</%s>\n", bol, root));
+
+    if ( self -> xml )
+        OUTMSG ( ( "%s</%s>\n", bol, root ) );
     }
     return 0;
 }

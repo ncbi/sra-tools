@@ -24,7 +24,11 @@
  *
  */
 
+#include <kfs/file.h>
+
 #include "var-expand-module.h"
+#include "Globals.h" // defines global variable G which has things like command line options
+#include "bam.h"
 
 rc_t var_expand_init( var_expand_data ** data )
 {
@@ -51,10 +55,10 @@ rc_t var_expand_init( var_expand_data ** data )
 }
 
 
-rc_t var_expand_handle( var_expand_data * data, void * some_data )
+rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, char const refSequence[] )
 {
     rc_t rc = 0;
-    if ( data == NULL || some_data == NULL )
+    if ( data == NULL || alignment == NULL || refSequence == NULL )
     {
         rc = RC ( rcApp, rcNoTarg, rcAccessing, rcParam, rcNull );
     }

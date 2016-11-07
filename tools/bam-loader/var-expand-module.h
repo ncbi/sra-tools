@@ -28,6 +28,8 @@
 
 #include <klib/rc.h>
 
+struct BAM_Alignment;
+
 typedef struct var_expand_data
 {
     uint64_t something;
@@ -35,7 +37,7 @@ typedef struct var_expand_data
 
 rc_t var_expand_init( var_expand_data ** data );
 
-rc_t var_expand_handle( var_expand_data * data, void * some_data );
+rc_t var_expand_handle( var_expand_data * data, struct BAM_Alignment const *alignment, char const refSequence[] );
 
 rc_t var_expand_finish( var_expand_data * data );
 

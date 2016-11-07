@@ -25,92 +25,39 @@ SCR_DIR=`cd $SCR_DIR; pwd`
 SCR_NAME=`basename $0`
 SCR_SNAME=`basename $0 .sh`
 
-DAS_PID=$$
-DAS_CTX=${HOSTNAME}.${DAS_PID}
-
-####
-##  Environment: Jy's a mal naaier maar ek hou van jou baie
-#
-
-_print_env ()
-{
-    echo "[ARGS] [$@]"
-    for i in @ USER REMOTE_USER HOME HOST HOSTNAME HOSTTYPE
-    do
-        echo "[$i] [${!i}]"
-    done
-    echo "[groups] [`groups`]"
-}
-
-_print_env
-
-####
-##  Some interesting stuff
-#
-
-_bump ()
-{
-    echo ""
-    echo "####################################################################"
-    echo "####################################################################"
-    echo "##"
-    echo "## `date`"
-    echo "##"
-    echo "####################################################################"
-}
-
-_msg ( )
-{
-    echo "INF[$SCR_SNAME][`date +%Y-%m-%d_%H:%M:%S`] $@"
-}
-
-_wrn ( )
-{
-    echo "WRN[$SCR_SNAME][`date +%Y-%m-%d_%H:%M:%S`] $@" >&2
-}
-
-_err ( )
-{
-    echo "ERR[$SCR_SNAME][`date +%Y-%m-%d_%H:%M:%S`] $@" >&2
-}
-
-_err_exit ( )
-{
-    _err $@
-    _err Exiting ...
+##  Loading common things to live
+##
+CMN_SCR="$SCR_DIR/remote_fuser_common.sh"
+if [ ! -f "$CMN_SCR" ]
+then
+    echo "ERROR: Can not stat script '$CMN_SCR' ... exiting"
     exit 1
-}
+fi
 
-_exec ()
-{
-    CDM="$@"
-    _msg "## $CDM"
-    eval "$CDM"
-    if [ $? -ne 0 ]
-    then
-        _err_exit "FAILED: $CDM"
-    fi
-}
+. $CMN_SCR
 
-check_dir ( )
-{
-    if [ -n "$1" ]
-    then
-        if [ -d "$1" ]
-        then
-            return 0
-        else
-            _err_exit "check_dir(): can not stat directory '$1'"
-        fi
-    else
-        _err_exit "cneck_dir(): missed parameters"
-    fi
-}
+#####################################################################
+##
+## Simple setup : directory
+##
+## TEST_DIR ---/ USER ---/ HOST ---/ PID ---/ cache_dir /
+##                 |-/ logs           |-/ mount_point /
+##                 |-/ bin            |-/ tmp_dir /
+##                 |-/ depot          |-/ status_file
+##
+## depot - directory with test binaries, just a history
+## bin - test binaries in work
+## status_file - says a lot ... but heart-bot
+##
+#####################################################################
 
-##  Some usefuls
+##  Config file
 ##
 CFG_DIR=$SCR_DIR/cfg
-check_dir $CFG_DIR
+if [ ! -d "$CFG_DIR" ]
+then
+    _err_exit "Can not stat directory '$CFG_DIR'"
+fi
 
 ####
 ##  Here the usage and Arguments processing
@@ -128,6 +75,7 @@ usage ( )
     cat >&2 <<EOF
 
 This script will test remote_fuser utility. 
+
 Syntax is :
 
     $SCR_NAME [ config_name ] [ run_time ] binary_directory
@@ -230,17 +178,6 @@ fi
 ####
 ##  Checking config file data and prepareing environment
 #
-EFF_USER=$USER
-if [ -z "$EFF_USER" ]
-then
-    EFF_USER=`id -n -u`
-    if [ -z "$EFF_USER" ]
-    then
-        EFF_USER="undefined-user"
-        # _err_exit "Environment variable \$USER is not set"
-    fi
-fi
-
 if [ -z "$TEST_DIR" ]
 then
     _err_exit "Config does not have definition for variable TEST_DIR"
@@ -251,135 +188,54 @@ then
     _err_exit "Can not stat directory '$TEST_DIR'"
 fi
 
-F_TEST_DIR=$TEST_DIR/$EFF_USER
-if [ ! -d "$F_TEST_DIR" ]
-then
-    _msg "Creating directory '$F_TEST_DIR'"
-    _exec mkdir $F_TEST_DIR
-    _exec chmod ugoa+rwx $F_TEST_DIR
-fi
-F_TEST_DIR=`cd $F_TEST_DIR; pwd`
+###
+### Prefixes U_(ser), H_(ost), P_(rocess), F_(inal) - is what we use
+###
 
-_check_assign_dir ()
-{
-    if [ $# -ne 2 ]
-    then
-        _err_exit "_check_assign_dir(): requires two arguments"
-    fi
+_assign_create_dir $TEST_DIR/$DAS_USER U_TEST_DIR
+_assign_create_dir $U_TEST_DIR/$DAS_HOST H_TEST_DIR
+_assign_create_dir $H_TEST_DIR/$DAS_PID P_TEST_DIR
 
-    VAL=$F_TEST_DIR/$1
-    if [ ! -d "$VAL" ]
-    then
-        _msg "_check_assign_dir(): creating directory '$VAL'"
+###
+## There are logs, bin and depot on user level of test direcotry
+#
+_assign_create_dir $U_TEST_DIR/bin   F_BIN_DIR
+_assign_create_dir $U_TEST_DIR/depot F_DEPOT_DIR
+_assign_create_dir $U_TEST_DIR/log   F_LOG_DIR
 
-        _exec mkdir $VAL
-    fi
+###
+## There are cache, mount and temp on process level of test direcotry
+#
+_assign_create_dir $P_TEST_DIR/cache F_CACHE_DIR
+_assign_create_dir $P_TEST_DIR/mount F_MOUNT_DIR
+_assign_create_dir $P_TEST_DIR/temp  F_TEMP_DIR
 
-    eval "$2=$VAL"
-}
+F_STATUS_FILE=$P_TEST_DIR/status.file
 
-_check_assign_dir bin F_BIN_DIR
-_check_assign_dir cache.${DAS_CTX} F_CACHE_DIR
-_check_assign_dir mount.${DAS_CTX} F_MOUNT_DIR
-_check_assign_dir temp F_TEMP_DIR
-_check_assign_dir log F_LOG_DIR
-_check_assign_dir depot F_DEPOT_DIR
-
-## Here we are checking that there is no remote-fuser mount
+##  Checking mounts and old logs are moved to outside script
 ##
-_same_dir ()
-{
-    if [ $# -ne 2 ]
-    then
-        _err_exit "_same_dir(): requires two arguments"
-    fi
-
-    N1=`basename $1`
-    N2=`basename $2`
-    if [ "$N1" == "$N2" ]
-    then
-        N1=`dirname $1`
-        N2=`dirname $2`
-        if [ "$N1" -ef "$N2" ]
-        then
-            return 0
-        fi
-    fi
-
-    return 1
-}
-
-_check_mount ()
-{
-        ## We are simple not check an mount directory.
-    for i in `mount | awk ' { print $3 } ' `
-    do
-        _same_dir $1 $i
-        if [ $? -eq 0 ]
-        then
-            return 0
-        fi
-    done
-
-    return 1
-}
-
-_check_mount $F_MOUNT_DIR
-if [ $? -eq 0 ]
-then
-    _err_exit "Mount point is in use '$F_MOUNT_DIR'"
-fi
-
-
-##  Here we are clearing old logs
-##
-DAYS_KEEP_LOG=10
-
-SEC_IN_DAY=$(( 60 * 60 * 24 ))
-NOW_DAY=$(( `date +%s` / $SEC_IN_DAY ))
-
-check_remove ()
-{
-    F2R=$1
-
-    if [ -n "$F2R" ]
-    then
-        FILE_DAY=$(( `stat --print="%X" $F2R` / $SEC_IN_DAY ))
-        DALT=$(( $NOW_DAY - $FILE_DAY ))
-        if [ $DAYS_KEEP_LOG -le $DALT ]
-        then
-            _msg Log file is $DALT days old, removing \'$F2R\'
-            echo rm -f $F2R
-            if [ $? -ne 0 ]
-            then
-                _wrn Can not remove file \'$F2R\'
-            fi
-        fi
-    fi
-}
-
-clear_old_logs ()
-{
-    _msg Clearing old logs ...
-
-    for i in `ls $F_LOG_DIR`
-    do
-        check_remove $F_LOG_DIR/$i
-    done
-}
-
-clear_old_logs
 
 ##  Here we are logging and execing
 ##
-F_TIME_STAMP=`date +%Y-%m-%d_%H-%M-%S`
-F_LOG_FILE=$F_LOG_DIR/${SCR_SNAME}.log.${DAS_CTX}.${F_TIME_STAMP}
+F_LOG_FILE=$F_LOG_DIR/${SCR_SNAME}.log.${DAS_CTX}.${DAS_TSTAMP}
 echo Log file: $F_LOG_FILE
+
 exec >$F_LOG_FILE 2>&1
 
 ## One more time for log file
 ##
-_print_env
+_print_env $@
+
+## Cleaning old data
+##
+_bump
+_msg Cleaning old data
+
+CLN_CMD="$SCR_DIR/remote_fuser_clean.sh"
+if [ -f "$CLN_CMD" ]
+then
+    nohup $CLN_CMD $CFG_NAME &
+fi
 
 ## Here we are copying binaries
 ##
@@ -401,7 +257,7 @@ _copy_assign_app ()
     eval cmp $SRC $LNK
     if [ $? -ne 0 ]
     then
-        DST=$F_DEPOT_DIR/${2}.${F_TIME_STAMP}
+        DST=$F_DEPOT_DIR/${2}.${DAS_TSTAMP}
         _exec cp -p $SRC $DST
         _exec rm -f $LNK
         _exec ln -s $DST $LNK
@@ -427,7 +283,7 @@ then
     _err_exit "Can not stat XML file from '$XML_URL'"
 fi
 
-F_FUSE_XML=$F_TEMP_DIR/FUSE.xml.${DAS_CTX}.${F_TIME_STAMP}
+F_FUSE_XML=$F_TEMP_DIR/FUSE.xml.${DAS_CTX}.${DAS_TSTAMP}
 eval GET "$XML_URL" >$F_FUSE_XML
 if [ $? -ne 0 ]
 then
@@ -439,94 +295,57 @@ fi
 #
 _msg Starting Fuse
 
-FUSER_LOG=$F_LOG_DIR/remote-fuser.log.${DAS_CTX}.${F_TIME_STAMP}
+FUSER_LOG=$F_LOG_DIR/remote-fuser.log.${DAS_CTX}.${DAS_TSTAMP}
 FUSER_CMD="$REMOTE_FUSER_APP -d -x $XML_URL -m $F_MOUNT_DIR -e $F_CACHE_DIR -L 5 -B 4 -o kernel_cache"
 
 _msg "## $FUSER_CMD"
 $FUSER_CMD >$FUSER_LOG 2>&1 &
 FUSER_PID=$!
 
-_is_fuser_run ()
+## Because!
+
+_store_fuser_params $F_STATUS_FILE $FUSER_PID $F_MOUNT_DIR
+
+_clear_data ()
 {
-    if [ -n "$FUSER_PID" ]
+    _msg "Removing test data"
+
+    _exec_plain rm -rf $P_TEST_DIR
+    if [ $? -ne 0 ]
     then
-        ps -p $FUSER_PID >/dev/null 2>&1
-        if [ $? -eq 0 ]
+        _err "Can not remove test data"
+
+        sleep 2
+
+        _msg "Removing test data attempt 2"
+
+        _exec_plain rm -rf $P_TEST_DIR
+        if [ $? -ne 0 ]
         then
-            _wrn PROCESS WITH PID $FUSER_PID EXISTS
-            return 0
+            _err "Can not remove test data"
+            return 1
         fi
     fi
 
-    _check_mount $F_MOUNT_DIR
-    if [ $? -eq 0 ]
-    then
-        _wrn MOUNT STILL EXISTS
-        return 0
-    fi
-
-    return 1
-}
-
-_shutdown_exit ()
-{
-    _err Shutdown FUSER and exit
-        ##  Check if there is still mount
-        ##
-    _check_mount $F_MOUNT_DIR
-    if [ $? -eq 0 ]
-    then
-        /bin/fusermount -u $F_MOUNT_DIR
-    fi
-
-    sleep 1
-
-        ##  Check that process is still in the memory
-        ##
-    if [ -n "$FUSER_PID" ]
-    then
-        ps -p $FUSER_PID >/dev/null 2>&1
-        if [ $? -eq 0 ]
-        then
-            _err Killing FUSER process $FUSER_PID
-            kill -9 $FUSER_PID
-        fi
-    fi
-
-    sleep 3
-
-    if [ -n "$FUSER_PID" ]
-    then
-        ps -p $FUSER_PID >/dev/null 2>&1
-        if [ $? -eq 0 ]
-        then
-            _err_exit Failed to shutdown FUSER
-        fi
-    fi
-
-    _check_mount $F_MOUNT_DIR
-    if [ $? -eq 0 ]
-    then
-        _err_exit Failed to shutdown FUSER
-    fi
-
-    _err_exit FUSER was shut down
+    _msg "Test data removed"
 }
 
 _stop_fuser ()
 {
-    _msg "Stopping Fule"
+    _msg "Stopping Fuse"
     MCD="$REMOTE_FUSER_APP -u -m $F_MOUNT_DIR"
     _msg "## $MCD"
     $MCD
 
-    sleep 50
+    sleep 100
 
-    _is_fuser_run
+    _is_fuser_run $FUSER_PID $F_MOUNT_DIR
     if [ $? -eq 0 ]
     then
-        _shutdown_exit
+        _shutdown_fuser $FUSER_PID $F_MOUNT_DIR
     fi
+
+    _clear_data
 }
 
 _test_failed ()
@@ -547,12 +366,12 @@ do
     case $i in
         THE_END)
             _err Can not start fuser
-            _shutdown_exit
+            _shutdown_fuser $FUSER_PID $F_MOUNT_DIR
             ;;
         *)
             echo -n "$i "
             sleep 1
-            _check_mount $F_MOUNT_DIR
+            _check_dir_mounted $F_MOUNT_DIR
             if [ $? -eq 0 ]
             then
                 echo ...
@@ -581,7 +400,7 @@ fi
 
 REMOTE_URL=`echo $LINF | awk ' { print $3 } ' `
 LOCAL_FILE=`echo $LINF | awk ' { print $1 } ' `
-TEMP_FILE=$F_TEMP_DIR/${LOCAL_FILE}.${DAS_CTX}.${F_TIME_STAMP}
+TEMP_FILE=$F_TEMP_DIR/${LOCAL_FILE}.${DAS_CTX}.${DAS_TSTAMP}
 
 ## Downloading copy of proxied file
 ##
@@ -650,8 +469,6 @@ then
     _test_failed "Can not find file with suitable size"
 fi
 
-## TEST_LOG="$F_LOG_DIR/remote-fuser-test-single.log.$F_TIME_STAMP"
-## TEST_CMD="$REMOTE_FUSER_TEST_APP -t $N_THR -r $R_TM $F_MOUNT_DIR/$FILE_NAME >$TEST_LOG 2>&1"
 TEST_CMD="$REMOTE_FUSER_TEST_APP -t $N_THR -r $R_TM $F_MOUNT_DIR/$FILE_NAME"
 _msg "## $TEST_CMD"
 eval "$TEST_CMD"
@@ -674,7 +491,7 @@ _msg TEST 3: Multithread acces to set of files
 ## First we should create list of files with limitation
 ##
 
-LIST_FILE=$F_TEMP_DIR/listfile.${DAS_CTX}.$F_TIME_STAMP
+LIST_FILE=$F_TEMP_DIR/listfile.${DAS_CTX}.$DAS_TSTAMP
 for i in `ls $F_MOUNT_DIR`
 do
     echo $F_MOUNT_DIR/$i >>$LIST_FILE

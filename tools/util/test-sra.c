@@ -2628,11 +2628,11 @@ static rc_t MainNetwotk ( const Main * self,
         MainRanges ( self, arg, bol, true );
         if ( self-> xml )
             OUTMSG ( ( "%s  </%s>\n", bol, root ) );
-        }
     }
 
     if ( self -> xml )
         OUTMSG ( ( "%s</%s>\n", bol, root ) );
+
     return 0;
 }
 

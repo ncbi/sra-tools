@@ -2633,7 +2633,6 @@ static rc_t MainNetwotk ( const Main * self,
 
     if ( self -> xml )
         OUTMSG ( ( "%s</%s>\n", bol, root ) );
-    }
     return 0;
 }
 

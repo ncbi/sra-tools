@@ -1472,6 +1472,7 @@ static BAM_Alignment const *getNextRecord(BAM_File const *const bam, rc_t *const
                 (void)PLOGERR(klogWarn, (klogWarn, *rc, "KQueuePop Error", NULL));
         }
     }
+	KQueueSeal(bamq);
     {
         rc_t rc2 = 0;
         KThreadWait(bamread_thread, &rc2);
@@ -1480,7 +1481,6 @@ static BAM_Alignment const *getNextRecord(BAM_File const *const bam, rc_t *const
     }
     KThreadRelease(bamread_thread);
     bamread_thread = NULL;
-	KQueueSeal(bamq);
 	KQueueRelease(bamq);
     bamq = NULL;
     return NULL;

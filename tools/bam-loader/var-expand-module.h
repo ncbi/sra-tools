@@ -27,12 +27,19 @@
 #define VAR_EXPAND_MODULE_H_
 
 #include <klib/rc.h>
+#include <kfs/directory.h>
+#include <kfs/file.h>
 
 struct BAM_Alignment;
 
 typedef struct var_expand_data
 {
-    uint64_t something;
+    KDirectory * dir;
+    KFile * log;
+    uint64_t log_pos;
+    char * seq_buffer;
+    uint64_t alignments_seen;
+    uint32_t seq_buffer_len;
 } var_expand_data;
 
 rc_t var_expand_init( var_expand_data ** data );

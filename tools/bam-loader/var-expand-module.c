@@ -24,11 +24,47 @@
  *
  */
 
-#include <kfs/file.h>
-
 #include "var-expand-module.h"
 #include "Globals.h" // defines global variable G which has things like command line options
 #include "bam.h"
+#include <klib/printf.h>
+
+static rc_t log_this( var_expand_data * data, const char * fmt, ... )
+{
+    rc_t rc;
+    char buffer[ 4096 ];
+    size_t num_writ;
+
+    va_list list;
+    va_start( list, fmt );
+    rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
+    if ( rc == 0 )
+    {
+        size_t num_writ2;
+        rc = KFileWrite( data->log, data->log_pos, buffer, num_writ, &num_writ2 );
+        if ( rc == 0 )
+            data->log_pos += num_writ2;
+    }   
+    va_end( list );
+    return rc;
+} 
+
+static rc_t realloc_seq_buffer( var_expand_data * data, uint32_t new_len )
+{
+    rc_t rc = 0;
+    if ( data->seq_buffer_len < new_len )
+    {
+        if ( data->seq_buffer != NULL )
+            free( ( void * )data->seq_buffer );
+        data->seq_buffer = malloc( new_len * 2 );
+        if ( data->seq_buffer == NULL )
+            rc = RC ( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        else
+            data->seq_buffer_len = new_len * 2;
+    }
+    return rc;
+}
+
 
 rc_t var_expand_init( var_expand_data ** data )
 {
@@ -46,8 +82,30 @@ rc_t var_expand_init( var_expand_data ** data )
         }
         else
         {
-            tmp->something = 0;
-            *data = tmp;
+            rc = KDirectoryNativeDir_v1( &tmp->dir );
+            if ( rc == 0 )
+            {
+                rc = KDirectoryCreateFile ( tmp->dir, &tmp->log, false, 0664, kcmInit, "var-expand.log" );
+                if ( rc == 0 )
+                {
+                    tmp->log_pos = 0;
+                    tmp->alignments_seen = 0;
+                    tmp->seq_buffer = NULL;
+                    tmp->seq_buffer_len = 0;
+                   
+                    log_this( tmp, "started\n" );
+                    *data = tmp;
+                }
+                else
+                    tmp->log = NULL;
+            }
+            else
+                tmp->dir = NULL;
+
+            if ( rc != 0 )
+            {
+                var_expand_finish( tmp );
+            }
         }
     }
     return rc;
@@ -58,9 +116,28 @@ rc_t var_expand_init( var_expand_data ** data )
 rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, char const refSequence[] )
 {
     rc_t rc = 0;
-    if ( data == NULL || alignment == NULL || refSequence == NULL )
+    if ( data == NULL || alignment == NULL /*|| refSequence == NULL*/ )
     {
         rc = RC ( rcApp, rcNoTarg, rcAccessing, rcParam, rcNull );
+    }
+    else
+    {
+        uint32_t seq_len;
+        
+        data->alignments_seen++;
+        rc = BAM_AlignmentGetReadLength( alignment, &seq_len );
+        if ( rc == 0 )
+        {
+            rc = realloc_seq_buffer( data, seq_len );
+            if ( rc == 0 )
+            {
+                rc = BAM_AlignmentGetSequence( alignment, data->seq_buffer );
+                if ( rc == 0 )
+                {
+                    log_this( data, "seq = '%.*s'\n", seq_len, data->seq_buffer );
+                }
+            }
+        }
     }
     return rc;
 }
@@ -75,6 +152,13 @@ rc_t var_expand_finish( var_expand_data * data )
     }
     else
     {
+        log_this( data, "%ld alignments seen\n", data->alignments_seen );
+        if ( data->log != NULL )
+            KFileRelease( data->log );
+        if ( data->dir != NULL )
+            KDirectoryRelease( data->dir );
+        if ( data->seq_buffer != NULL )
+            free( ( void * )data->seq_buffer );
         free( ( void * ) data );
     }
     return rc;

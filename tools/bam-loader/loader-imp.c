@@ -2213,9 +2213,13 @@ MIXED_BASE_AND_COLOR:
                 break;
             }
         }
-        if (isPrimary && aligned) {
-            (void)var_expand_handle(var_expand_object, rec, referenceSequence);
-        }
+
+        /* here is the hook for the VAR-EXPAND-module... */
+        if ( isPrimary && aligned )
+        {
+            rc_t rc1 = var_expand_handle( var_expand_object, rec, referenceSequence );
+       }
+        
         if (G.mode == mode_Archive)
             goto WRITE_SEQUENCE;
         else
@@ -2882,8 +2886,9 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     if (rc)
         return rc;
 
-    rc = var_expand_init(&var_expand_object);
-    if (rc)
+    /* VAR-EXPAND initialization */
+    rc = var_expand_init( &var_expand_object );
+    if ( rc != 0 )
         return rc;
 
     ctx->pass = 1;
@@ -2947,7 +2952,9 @@ static rc_t ArchiveBAM(VDBManager *mgr, VDatabase *db,
     SequenceWhack(&seq, rc == 0);
 
     ContextRelease(ctx, continuing);
-    var_expand_finish(var_expand_object);
+    
+    /* VAR-EXPAND finished */
+    var_expand_finish( var_expand_object );
 
     if (rc == 0) {
         (void)LOGMSG(klogInfo, "Successfully loaded all files");

@@ -321,7 +321,7 @@ rc_t ReferenceSetFile(Reference *const self, char const id[],
                       bool *const shouldUnmap,
                       bool *const wasRenamed)
 {
-    ReferenceSeq const *rseq;
+    ReferenceSeq const *rseq = NULL;
     int found = 0;
     unsigned at = 0;
 
@@ -520,12 +520,14 @@ static void GetCounts(AlignmentRecord const *data, unsigned const seqLen,
 rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
                    uint32_t const rawCigar[], uint32_t const cigCount,
                    char const seqDNA[], uint32_t const seqLen,
-                   uint8_t rna_orient, uint32_t *matches, uint32_t *misses)
+                   uint8_t rna_orient, uint32_t *matches, uint32_t *misses, ReferenceSeq const **rseq)
 {
     unsigned nmis = 0;
     unsigned nmatch = 0;
     unsigned indels = 0;
-       
+
+    *rseq = self->rseq;
+
     *matches = 0;
     BAIL_ON_FAIL(ReferenceSeq_Compress(self->rseq,
                                        (G.acceptHardClip ? ewrefmgr_co_AcceptHardClip : 0) + ewrefmgr_cmp_Binary,

@@ -113,7 +113,7 @@ rc_t var_expand_init( var_expand_data ** data )
 }
 
 
-rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, char const refSequence[] )
+rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, struct ReferenceSeq const *refSequence )
 {
     rc_t rc = 0;
     if ( data == NULL || alignment == NULL /*|| refSequence == NULL*/ )

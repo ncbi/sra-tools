@@ -70,7 +70,8 @@ rc_t ReferenceAddAlignId(Reference *self,
 rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t pos,
                    uint32_t const rawCigar[], uint32_t cigCount,
                    char const seqDNA[], uint32_t seqLen,
-                   uint8_t rna_orient, uint32_t *matches, uint32_t *misses);
+                   uint8_t rna_orient, uint32_t *matches, uint32_t *misses,
+                   ReferenceSeq const **rseq);
 rc_t ReferenceWhack(Reference *self, bool commit);
 
 #endif

@@ -1666,7 +1666,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         bool wasPromoted = false;
         char const *barCode = NULL;
         char const *linkageGroup;
-        char *referenceSequence = NULL;
+        ReferenceSeq const *referenceSequence = NULL;
 
         ++recordsRead;
         
@@ -2126,7 +2126,7 @@ MIXED_BASE_AND_COLOR:
                                        rna_orient == '-' ? NCBI_align_ro_intron_minus :
                                                    hasCG ? NCBI_align_ro_complete_genomics :
                                                            NCBI_align_ro_intron_unknown;
-                rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches, &misses /*, &referenceSequence */);
+                rc = ReferenceRead(ref, &data, rpos, cigBuf.base, opCount, seqDNA, readlen, intronType, &matches, &misses, &referenceSequence);
             }
             if (rc == 0) {
                 int const i = readNo - 1;
@@ -2609,7 +2609,6 @@ WRITE_ALIGNMENT:
         /**************************************************************/
 
     LOOP_END:
-        free(referenceSequence);
         BAM_AlignmentRelease(rec);
         ++reccount;
         if (G.maxAlignCount > 0 && reccount >= G.maxAlignCount)

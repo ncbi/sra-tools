@@ -31,6 +31,7 @@
 #include <kfs/file.h>
 
 struct BAM_Alignment;
+struct ReferenceSeq;
 
 typedef struct var_expand_data
 {
@@ -44,7 +45,7 @@ typedef struct var_expand_data
 
 rc_t var_expand_init( var_expand_data ** data );
 
-rc_t var_expand_handle( var_expand_data * data, struct BAM_Alignment const *alignment, char const refSequence[] );
+rc_t var_expand_handle( var_expand_data * data, struct BAM_Alignment const *alignment, struct ReferenceSeq const *refSequence );
 
 rc_t var_expand_finish( var_expand_data * data );
 

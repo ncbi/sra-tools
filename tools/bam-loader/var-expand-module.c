@@ -134,7 +134,10 @@ rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, 
                 rc = BAM_AlignmentGetSequence( alignment, data->seq_buffer );
                 if ( rc == 0 )
                 {
-                    log_this( data, "seq = '%.*s'\n", seq_len, data->seq_buffer );
+                    int64_t pos_on_ref;
+                    uint32_t len_on_ref;
+                    rc = BAM_AlignmentGetPosition2( alignment, &pos_on_ref, &len_on_ref );
+                    log_this( data, "seq = '%.*s' [%ld.%d]\n", seq_len, data->seq_buffer, pos_on_ref, len_on_ref );
                 }
             }
         }

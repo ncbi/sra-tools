@@ -1475,6 +1475,7 @@ static BAM_Alignment const *getNextRecord(BAM_File const *const bam, rc_t *const
                 (void)PLOGERR(klogWarn, (klogWarn, *rc, "KQueuePop Error", NULL));
         }
     }
+	KQueueSeal(bamq);
     {
         rc_t rc2 = 0;
         KThreadWait(bamread_thread, &rc2);
@@ -1483,7 +1484,6 @@ static BAM_Alignment const *getNextRecord(BAM_File const *const bam, rc_t *const
     }
     KThreadRelease(bamread_thread);
     bamread_thread = NULL;
-	KQueueSeal(bamq);
 	KQueueRelease(bamq);
     bamq = NULL;
     return NULL;
@@ -1530,8 +1530,10 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
 }
 
 static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
+                        /* data outputs */
                        Reference *ref, Sequence *seq, Alignment *align,
                        var_expand_data *var_expand_object,
+                       /* output parameters */
                        bool *had_alignments, bool *had_sequences)
 {
     const BAM_File *bam;
@@ -1568,6 +1570,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     SequenceRecord srec;
     SequenceRecordStorage srecStorage;
 
+    /* setting up buffers */
     memset(&data, 0, sizeof(data));
     memset(&srec, 0, sizeof(srec));
 
@@ -1610,6 +1613,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         }
     }
 
+    /* setting up more buffers */
     rc = KDataBufferMake(&cigBuf, 32, 0);
     if (rc)
         return rc;
@@ -1789,8 +1793,10 @@ MIXED_BASE_AND_COLOR:
                 data.data.align_group.elements = alignGroupLen;
         }
         else {
+            /* normal flow i.e. NOT CG */
             uint32_t const *tmp;
 
+            /* resize buffers */
             BAM_AlignmentGetReadLength(rec, &readlen);
             BAM_AlignmentGetRawCigar(rec, &tmp, &opCount);
             rc = KDataBufferResize(&cigBuf, opCount);
@@ -2020,6 +2026,7 @@ MIXED_BASE_AND_COLOR:
         AR_READNO(data) = readNo;
 
         if (wasInserted) {
+            /* first time spot is seen */
             if (G.mode == mode_Remap) {
                 (void)PLOGERR(klogErr, (klogErr, rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
                                          "Spot '$(name)' is a new spot, not a remapping",
@@ -2035,6 +2042,7 @@ MIXED_BASE_AND_COLOR:
             }
         }
         else if (isPrimary || G.assembleWithSecondary || G.deferSecondary) {
+            /* other times */
             int o_pcr_dup = value->pcr_dup;
             int const n_pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
 
@@ -2102,6 +2110,7 @@ MIXED_BASE_AND_COLOR:
         }
 #endif
 
+        /* input is clean */
         ++recordsProcessed;
 
         data.isPrimary = isPrimary;

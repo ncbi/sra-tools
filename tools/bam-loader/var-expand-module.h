@@ -36,11 +36,18 @@ struct ReferenceSeq;
 typedef struct var_expand_data
 {
     KDirectory * dir;
+    
     KFile * log;
     uint64_t log_pos;
-    char * seq_buffer;
+
     uint64_t alignments_seen;
+    
+    char * seq_buffer;
     uint32_t seq_buffer_len;
+    
+    char * ref_buffer;
+    uint32_t ref_buffer_len;
+
 } var_expand_data;
 
 rc_t var_expand_init( var_expand_data ** data );

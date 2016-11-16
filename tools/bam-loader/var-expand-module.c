@@ -29,6 +29,10 @@
 #include "bam.h"
 #include <klib/printf.h>
 
+#include <vdb/manager.h>
+#include <vdb/database.h>
+#include <align/writer-reference.h>
+
 static rc_t log_this( var_expand_data * data, const char * fmt, ... )
 {
     rc_t rc;
@@ -49,9 +53,10 @@ static rc_t log_this( var_expand_data * data, const char * fmt, ... )
     return rc;
 } 
 
-static rc_t realloc_seq_buffer( var_expand_data * data, uint32_t new_len )
+static rc_t realloc_buffers( var_expand_data * data, uint32_t new_len )
 {
     rc_t rc = 0;
+
     if ( data->seq_buffer_len < new_len )
     {
         if ( data->seq_buffer != NULL )
@@ -62,6 +67,18 @@ static rc_t realloc_seq_buffer( var_expand_data * data, uint32_t new_len )
         else
             data->seq_buffer_len = new_len * 2;
     }
+    
+    if ( data->ref_buffer_len < new_len )
+    {
+        if ( data->ref_buffer != NULL )
+            free( ( void * )data->ref_buffer );
+        data->ref_buffer = malloc( new_len * 2 );
+        if ( data->ref_buffer == NULL )
+            rc = RC ( rcApp, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        else
+            data->ref_buffer_len = new_len * 2;
+    }
+
     return rc;
 }
 
@@ -92,7 +109,9 @@ rc_t var_expand_init( var_expand_data ** data )
                     tmp->alignments_seen = 0;
                     tmp->seq_buffer = NULL;
                     tmp->seq_buffer_len = 0;
-                   
+                    tmp->ref_buffer = NULL;
+                    tmp->ref_buffer_len = 0;
+
                     log_this( tmp, "started\n" );
                     *data = tmp;
                 }
@@ -116,7 +135,7 @@ rc_t var_expand_init( var_expand_data ** data )
 rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, struct ReferenceSeq const *refSequence )
 {
     rc_t rc = 0;
-    if ( data == NULL || alignment == NULL /*|| refSequence == NULL*/ )
+    if ( data == NULL || alignment == NULL || refSequence == NULL )
     {
         rc = RC ( rcApp, rcNoTarg, rcAccessing, rcParam, rcNull );
     }
@@ -124,23 +143,57 @@ rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, 
     {
         uint32_t seq_len;
         
+        /* increment how many alignments we have seen - for testing purpose */
         data->alignments_seen++;
+        
+        /* get the length of the read out of the alignment */
         rc = BAM_AlignmentGetReadLength( alignment, &seq_len );
         if ( rc == 0 )
         {
-            rc = realloc_seq_buffer( data, seq_len );
+            /* ( eventually ) expand the 2 buffers in our var_expand_data buffer to fit the read and reference */
+            rc = realloc_buffers( data, seq_len );
             if ( rc == 0 )
             {
+                /* get the read out of the alignment and put it in our single buffer */
                 rc = BAM_AlignmentGetSequence( alignment, data->seq_buffer );
                 if ( rc == 0 )
                 {
                     int64_t pos_on_ref;
                     uint32_t len_on_ref;
+                    /* get the position on the reference out of the alignment */
                     rc = BAM_AlignmentGetPosition2( alignment, &pos_on_ref, &len_on_ref );
-                    log_this( data, "seq = '%.*s' [%ld.%d]\n", seq_len, data->seq_buffer, pos_on_ref, len_on_ref );
+                    if ( rc == 0 )
+                    {
+                        uint32_t cigar_op_count;
+                        /* get how many cigar-operations we have for this alignment */
+                        rc = BAM_AlignmentGetCigarCount( alignment, &cigar_op_count );
+                        if ( rc == 0 )
+                        {
+
+                            INSDC_coord_zero ref_offset = pos_on_ref;
+                            INSDC_coord_len ref_len = len_on_ref;
+                            INSDC_coord_len actual_ref_len = 0;
+                            
+                            rc = ReferenceSeq_Read( refSequence, ref_offset, ref_len, data->ref_buffer, &actual_ref_len );
+                        
+                            if ( rc == 0 )
+                            {
+                                log_this( data, "#%d:\n", data->alignments_seen );
+                                log_this( data, "\t'%.*s' at [%ld.%d], len=%d, cig-ops=%d\n",
+                                    seq_len, data->seq_buffer, pos_on_ref, len_on_ref, seq_len, cigar_op_count );
+                                log_this( data, "\t'%.*s' at [%ld.%d]\n\n",
+                                    ref_len, data->ref_buffer, pos_on_ref, actual_ref_len );
+                                
+                            }
+/*
+                            rc_t BAM_AlignmentGetCigar ( const BAM_Alignment *self,
+    uint32_t n, BAMCigarType *type, uint32_t *length );
+*/
+                        }
+                    }
                 }
             }
-        }
+        } 
     }
     return rc;
 }
@@ -162,6 +215,8 @@ rc_t var_expand_finish( var_expand_data * data )
             KDirectoryRelease( data->dir );
         if ( data->seq_buffer != NULL )
             free( ( void * )data->seq_buffer );
+        if ( data->ref_buffer != NULL )
+            free( ( void * )data->ref_buffer );
         free( ( void * ) data );
     }
     return rc;

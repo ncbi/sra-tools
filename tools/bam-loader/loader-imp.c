@@ -2389,7 +2389,7 @@ WRITE_SEQUENCE:
 
                             srec.seq = seqBuffer.base;
                             if (d2 != s2) {
-                                memcpy(d2, s2, readlen);
+                                memmove(d2, s2, readlen);
                             }
                             memcpy(d1, s1, fip->readlen);
                         }
@@ -2402,7 +2402,7 @@ WRITE_SEQUENCE:
 
                             srec.qual = qualBuffer.base;
                             if (d2 != s2) {
-                                memcpy(d2, s2, readlen);
+                                memmove(d2, s2, readlen);
                             }
                             memcpy(d1, s1, fip->readlen);
                         }

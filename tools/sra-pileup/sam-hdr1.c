@@ -441,7 +441,7 @@ static rc_t collect_from_file( headers * h, int hdr_idx, const char * filename )
 }
 
 
-static rc_t collect_from_references( headers * h, int hdr_idx, input_files * ifs )
+static rc_t collect_from_references( headers * h, int hdr_idx, input_files * ifs , bool use_seqid)
 {
     rc_t rc = 0;
     uint32_t i;
@@ -475,7 +475,7 @@ static rc_t collect_from_references( headers * h, int hdr_idx, input_files * ifs
                                 {
                                     char buffer[ 2048 ];
                                     size_t num_writ;
-                                    rc = string_printf( buffer, sizeof buffer, &num_writ, "@SQ\tSN:%s\tLN:%lu", name, seq_len );
+                                    rc = string_printf( buffer, sizeof buffer, &num_writ, "@SQ\tSN:%s\tLN:%lu", use_seqid?seqid:name, seq_len );
                                     if ( rc == 0 )
                                         process_line( h, hdr_idx, buffer, num_writ );
                                 }
@@ -707,15 +707,15 @@ static rc_t merge_lines( VNamelist ** lines_1, const VNamelist * lines_2, bool u
 }
 
 
-static rc_t collect_from_bam_hdr( headers * h, input_files * ifs )
+static rc_t collect_from_bam_hdr( headers * h, input_files * ifs, bool use_seqid )
 {
     uint32_t count;
     rc_t rc = collect_from_BAM_HEADER( h, 1, ifs );
     if ( rc == 0 )
     {
         rc = VNameListCount( h->SQ_Lines_1, &count );
-        if ( rc == 0 && count == 0 )
-            rc = collect_from_references( h, 1, ifs );    
+        if ( rc == 0 && (count == 0 || use_seqid) )
+            rc = collect_from_references( h, 2, ifs , use_seqid);    
     }
     if ( rc == 0 )
     {
@@ -727,18 +727,18 @@ static rc_t collect_from_bam_hdr( headers * h, input_files * ifs )
 }
 
 
-static rc_t collect_by_recalc( headers * h, input_files * ifs )
+static rc_t collect_by_recalc( headers * h, input_files * ifs, bool use_seqid )
 {
-    rc_t rc = collect_from_references( h, 1, ifs );
+    rc_t rc = collect_from_references( h, 1, ifs, use_seqid );
     if ( rc == 0 )
         rc = collect_from_stats( h, 1, ifs );
     return rc;
 }
 
 
-static rc_t collect_from_src_and_files( headers * h, input_files * ifs, const char * filename )
+static rc_t collect_from_src_and_files( headers * h, input_files * ifs, const char * filename, bool use_seqid )
 {
-    rc_t rc = collect_from_bam_hdr( h, ifs );
+    rc_t rc = collect_from_bam_hdr( h, ifs, use_seqid );
     if ( rc == 0 && filename != NULL )
         rc = collect_from_file( h, 2, filename );
     return rc;
@@ -830,11 +830,11 @@ rc_t print_headers_1( const samdump_opts * opts, input_files * ifs )
         
         switch( opts->header_mode )
         {
-            case hm_dump    :  rc = collect_from_bam_hdr( &h, ifs ); break;
+            case hm_dump    :  rc = collect_from_bam_hdr( &h, ifs, opts->use_seqid_as_refname ); break;
 
-            case hm_recalc  :  rc = collect_by_recalc( &h, ifs ); break;
+            case hm_recalc  :  rc = collect_by_recalc( &h, ifs, opts->use_seqid_as_refname ); break;
 
-            case hm_file    :  rc = collect_from_src_and_files( &h, ifs, opts->header_file ); break;
+            case hm_file    :  rc = collect_from_src_and_files( &h, ifs, opts->header_file, opts->use_seqid_as_refname ); break;
 
             case hm_none    :  break; /* to not let the compiler complain about not handled enum */
         }

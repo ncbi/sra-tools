@@ -39,9 +39,11 @@ typedef struct headers
 {
     VNamelist * SQ_Lines_1;
     VNamelist * SQ_Lines_2;
+    VNamelist * SQ_Lines_3;
     
     VNamelist * RG_Lines_1;
     VNamelist * RG_Lines_2;
+    VNamelist * RG_Lines_3;
     
     VNamelist * Other_Lines;
     VNamelist * HD_Lines;
@@ -62,20 +64,29 @@ static void release_headers( headers * h )
 {
     release_lines( &h->HD_Lines );
     release_lines( &h->Other_Lines );
+    
     release_lines( &h->RG_Lines_1 );
     release_lines( &h->RG_Lines_2 );    
+    release_lines( &h->RG_Lines_3 );
+    
     release_lines( &h->SQ_Lines_1 );
-    release_lines( &h->SQ_Lines_2 );    
+    release_lines( &h->SQ_Lines_2 );
+    release_lines( &h->SQ_Lines_3 );
 }
 
 
 static rc_t init_headers( headers * h, uint32_t blocksize )
 {
     rc_t rc;
+    
     h->SQ_Lines_1 = NULL;
-    h->SQ_Lines_2 = NULL;    
+    h->SQ_Lines_2 = NULL;
+    h->SQ_Lines_3 = NULL;
+    
     h->RG_Lines_1 = NULL;
     h->RG_Lines_2 = NULL;
+    h->RG_Lines_3 = NULL;
+    
     h->Other_Lines = NULL;
     h->HD_Lines = NULL;
     
@@ -83,9 +94,15 @@ static rc_t init_headers( headers * h, uint32_t blocksize )
     if ( rc == 0 )
         rc = VNamelistMake( &h->SQ_Lines_2, blocksize );
     if ( rc == 0 )
+        rc = VNamelistMake( &h->SQ_Lines_3, blocksize );
+
+    if ( rc == 0 )
         rc = VNamelistMake( &h->RG_Lines_1, blocksize );
     if ( rc == 0 )
         rc = VNamelistMake( &h->RG_Lines_2, blocksize );
+    if ( rc == 0 )
+        rc = VNamelistMake( &h->RG_Lines_3, blocksize );
+
     if ( rc == 0 )
         rc = VNamelistMake( &h->Other_Lines, blocksize );
     if ( rc == 0 )
@@ -98,23 +115,27 @@ static rc_t init_headers( headers * h, uint32_t blocksize )
 }
 
 
-static void process_line( headers * h, int idx, const char * line, size_t len )
+static void process_line( headers * h, int hdr_idx, const char * line, size_t len )
 {
     if ( len > 3 && line[ 0 ] == '@' )
     {
         if ( line[ 1 ] == 'S' && line[ 2 ] == 'Q' )
         {
-            if ( idx == 1 )
-                VNamelistAppend( h->SQ_Lines_1, line );
-            else
-                VNamelistAppend( h->SQ_Lines_2, line );            
+            switch( hdr_idx )
+            {
+                case 1 : VNamelistAppend( h->SQ_Lines_1, line ); break;
+                case 2 : VNamelistAppend( h->SQ_Lines_2, line ); break;
+                case 3 : VNamelistAppend( h->SQ_Lines_3, line ); break;
+            }
         }
         else if ( line[ 1 ] == 'R' && line[ 2 ] == 'G' )
         {
-            if ( idx == 1 )
-                VNamelistAppend( h->RG_Lines_1, line );
-            else
-                VNamelistAppend( h->RG_Lines_2, line );
+            switch( hdr_idx )
+            {
+                case 1 : VNamelistAppend( h->RG_Lines_1, line ); break;
+                case 2 : VNamelistAppend( h->RG_Lines_2, line ); break;
+                case 3 : VNamelistAppend( h->RG_Lines_3, line ); break;
+            }
         }
         else if ( line[ 1 ] == 'H' && line[ 2 ] == 'D' )
             VNamelistAppend( h->HD_Lines, line );
@@ -124,7 +145,7 @@ static void process_line( headers * h, int idx, const char * line, size_t len )
 }
 
 
-static rc_t process_lines( headers * h, int idx, VNamelist * content, const char * identifier )
+static rc_t process_lines( headers * h, int hdr_idx, VNamelist * content, const char * identifier )
 {
     uint32_t i, count;
     rc_t rc = VNameListCount( content, &count );
@@ -143,7 +164,7 @@ static rc_t process_lines( headers * h, int idx, VNamelist * content, const char
                 (void)PLOGERR( klogErr, ( klogErr, rc, "cant get line #$(t) from content", "t=%u", i ) );
             }
             else
-                process_line( h, idx, line, string_measure( line, NULL ) );
+                process_line( h, hdr_idx, line, string_measure( line, NULL ) );
         }
     }
     return rc;
@@ -654,7 +675,7 @@ typedef struct merge_ctx
 } merge_ctx;
 
 
-static rc_t merge_callback( const char * line, void * context )
+static rc_t merge_header_tags_callback( const char * line, void * context )
 {
     rc_t rc = 0;
     merge_ctx * mc = context;
@@ -686,7 +707,7 @@ static rc_t merge_callback( const char * line, void * context )
 
 /* SQ-lines have to be uniue by the SN-tag */
 /* RG-lines have to be uniue by the ID-tag */
-static rc_t merge_lines( VNamelist ** lines_1, const VNamelist * lines_2, bool unique )
+static rc_t merge_header_tags_of_2_lists( VNamelist ** lines_1, const VNamelist * lines_2, bool unique )
 {
     rc_t rc;
     merge_ctx mc;
@@ -696,7 +717,7 @@ static rc_t merge_lines( VNamelist ** lines_1, const VNamelist * lines_2, bool u
     if ( rc == 0 )
     {
         mc.other = lines_2;
-        rc = for_each_line( *lines_1, merge_callback, &mc );
+        rc = for_each_line( *lines_1, merge_header_tags_callback, &mc );
         if ( rc == 0 )
         {
             VNamelistRelease( *lines_1 );
@@ -707,21 +728,21 @@ static rc_t merge_lines( VNamelist ** lines_1, const VNamelist * lines_2, bool u
 }
 
 
-static rc_t collect_from_bam_hdr( headers * h, input_files * ifs, bool use_seqid )
+static rc_t collect_from_bam_hdr( headers * dst, input_files * ifs, bool use_seqid )
 {
     uint32_t count;
-    rc_t rc = collect_from_BAM_HEADER( h, 1, ifs );
+    rc_t rc = collect_from_BAM_HEADER( dst, 1, ifs );
     if ( rc == 0 )
     {
-        rc = VNameListCount( h->SQ_Lines_1, &count );
-        if ( rc == 0 && (count == 0 || use_seqid) )
-            rc = collect_from_references( h, 2, ifs , use_seqid);    
+        rc = VNameListCount( dst->SQ_Lines_1, &count );
+        if ( rc == 0 && ( count == 0 || use_seqid ) )
+            rc = collect_from_references( dst, 2, ifs , use_seqid);    
     }
     if ( rc == 0 )
     {
-        rc = VNameListCount( h->RG_Lines_1, &count );
+        rc = VNameListCount( dst->RG_Lines_1, &count );
         if ( rc == 0 && count == 0 )
-            rc = collect_from_stats( h, 1, ifs );    
+            rc = collect_from_stats( dst, 1, ifs );    
     }
     return rc;
 }
@@ -740,7 +761,7 @@ static rc_t collect_from_src_and_files( headers * h, input_files * ifs, const ch
 {
     rc_t rc = collect_from_bam_hdr( h, ifs, use_seqid );
     if ( rc == 0 && filename != NULL )
-        rc = collect_from_file( h, 2, filename );
+        rc = collect_from_file( h, 3, filename );
     return rc;
 }
 
@@ -766,32 +787,8 @@ static rc_t print_HD_line( const VNamelist * lines )
 
 static rc_t print_callback( const char * line, void * context ) { return KOutMsg( "%s\n", line ); }
 
-/*
-static void print_header_info( const headers * h )
-{
-    uint32_t count;
-    
-    VNameListCount( h->SQ_Lines_1, &count );
-    KOutMsg( "h->SQ_Lines_1 = %d\n", count );
 
-    VNameListCount( h->SQ_Lines_2, &count );
-    KOutMsg( "h->SQ_Lines_2 = %d\n", count );
-
-    VNameListCount( h->RG_Lines_1, &count );
-    KOutMsg( "h->RG_Lines_1 = %d\n", count );
-
-    VNameListCount( h->RG_Lines_2, &count );
-    KOutMsg( "h->RG_Lines_2 = %d\n", count );
-
-    VNameListCount( h->Other_Lines, &count );
-    KOutMsg( "h->Other_Lines = %d\n", count );
-
-    VNameListCount( h->HD_Lines, &count );
-    KOutMsg( "h->HD_Lines = %d\n", count );
-}
-*/
-
-static rc_t merge_and_print( VNamelist ** L1, const VNamelist * L2 )
+static rc_t merge_and_print( VNamelist ** L1, const VNamelist * L2, bool print_L2_if_only_src )
 {
     uint32_t count1, count2;
     
@@ -803,7 +800,7 @@ static rc_t merge_and_print( VNamelist ** L1, const VNamelist * L2 )
         if ( count1 > 0 && count2 > 0 )
         {
             if ( rc == 0 )
-                rc = merge_lines( L1, L2, true );
+                rc = merge_header_tags_of_2_lists( L1, L2, true );
             if ( rc == 0 )
                 rc = for_each_line( *L1, print_callback, NULL );
         }
@@ -811,7 +808,7 @@ static rc_t merge_and_print( VNamelist ** L1, const VNamelist * L2 )
         {
             rc = for_each_line( *L1, print_callback, NULL );
         }
-        else if ( count2 > 0 )
+        else if ( print_L2_if_only_src && ( count2 > 0 ) )
         {
             rc = for_each_line( L2, print_callback, NULL );
         }
@@ -830,42 +827,67 @@ rc_t print_headers_1( const samdump_opts * opts, input_files * ifs )
         
         switch( opts->header_mode )
         {
-            case hm_dump    :  rc = collect_from_bam_hdr( &h, ifs, opts->use_seqid_as_refname ); break;
+            /* collect the headers that were written by the loader
+               with special case if the user requested the seq-id to be used
+               the bam-header-lines will be in list#1
+               the recalculated-lines ( if requested via --seqid ) will be in list #2
+            */
+            case hm_dump    :  rc = collect_from_bam_hdr( &h, ifs, opts->use_seqid_as_refname );
 
-            case hm_recalc  :  rc = collect_by_recalc( &h, ifs, opts->use_seqid_as_refname ); break;
+                                if ( rc == 0 )
+                                    rc = print_HD_line( h.HD_Lines );
 
-            case hm_file    :  rc = collect_from_src_and_files( &h, ifs, opts->header_file, opts->use_seqid_as_refname ); break;
+                                if ( rc == 0 )
+                                    rc = for_each_line( h.SQ_Lines_1, print_callback, NULL );
+                                if ( rc == 0 )
+                                    rc = for_each_line( h.SQ_Lines_2, print_callback, NULL );
+
+                                if ( rc == 0 )
+                                    rc = for_each_line( h.RG_Lines_1, print_callback, NULL );
+                                if ( rc == 0 )
+                                    rc = for_each_line( h.RG_Lines_2, print_callback, NULL );
+
+                                break;
+
+            /* collect the headers by iterating over the REFERENCE-table
+               the recalculated-lines will be in list #1
+            */
+            case hm_recalc  :  rc = collect_by_recalc( &h, ifs, opts->use_seqid_as_refname );
+                                if ( rc == 0 )
+                                    rc = print_HD_line( h.HD_Lines );
+
+                                if ( rc == 0 )
+                                    rc = for_each_line( h.SQ_Lines_1, print_callback, NULL );
+                                if ( rc == 0 )
+                                    rc = for_each_line( h.RG_Lines_1, print_callback, NULL );
+
+                                break;
+
+            /* collect the headers that were written by the loader ( list #1 )
+               with special case if the user requested the seqid to be used ( list #2 )
+               and merge header-fields with the ones from a user-supplied file ( list #3 )
+            */
+            case hm_file    :  rc = collect_from_src_and_files( &h, ifs, opts->header_file, opts->use_seqid_as_refname );
+                                if ( rc == 0 )
+                                    rc = print_HD_line( h.HD_Lines );
+                                if ( rc == 0 )
+                                    rc = merge_and_print( &h.SQ_Lines_1, h.SQ_Lines_3, true );
+                                if ( rc == 0 )
+                                    rc = merge_and_print( &h.RG_Lines_1, h.RG_Lines_3, true );
+                                if ( rc == 0 )
+                                    rc = merge_and_print( &h.SQ_Lines_2, h.SQ_Lines_3, false );
+                                if ( rc == 0 )
+                                    rc = merge_and_print( &h.RG_Lines_2, h.RG_Lines_3, false );
+                                    
+                                break;
 
             case hm_none    :  break; /* to not let the compiler complain about not handled enum */
         }
 
-        if ( rc == 0 )
-            rc = print_HD_line( h.HD_Lines );
-
-        if ( rc == 0 )
-            rc = merge_and_print( &h.SQ_Lines_1, h.SQ_Lines_2 );
-            
-        if ( rc == 0 )
-            rc = merge_and_print( &h.RG_Lines_1, h.RG_Lines_2 );
-
-        /* merge ... */
-        /*
-        if ( rc == 0 )
-            rc = merge_lines( &h.SQ_Lines_1, h.SQ_Lines_2, true );
-        if ( rc == 0 )
-            rc = merge_lines( &h.RG_Lines_1, h.RG_Lines_2, true );
-        */
-        
-        /* print ... */
-        /*
-        if ( rc == 0 )
-            rc = for_each_line( h.SQ_Lines_1, print_callback, NULL );
-        if ( rc == 0 )
-            rc = for_each_line( h.RG_Lines_1, print_callback, NULL );
-        */
+        /* all other lines collected: ( not HD,SQ,RG ) */
         if ( rc == 0 )
             rc = for_each_line( h.Other_Lines, print_callback, NULL );
-        
+
         release_headers( &h );
     }
     return rc;

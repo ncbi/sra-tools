@@ -402,7 +402,7 @@ static rc_t prepare_prim_sec_table_cursor( const samdump_opts * const opts,
                 if ( rc == 0 )
                     rc = add_column( cursor, COL_MATE_ALIGN_ID, &atx->mate_align_id_idx ); /* read_fkt.c */
                 if ( rc == 0 )
-                    rc = add_column( cursor, opts->use_seqid_as_refname?COL_MATE_REF_SEQ_ID:COL_MATE_REF_NAME, &atx->mate_ref_name_idx ); /* read_fkt.c */
+                    rc = add_column( cursor, opts->use_seqid_as_refname ? COL_MATE_REF_SEQ_ID : COL_MATE_REF_NAME, &atx->mate_ref_name_idx ); /* read_fkt.c */
                 if ( rc == 0 )
                     rc = add_column( cursor, COL_MATE_REF_POS, &atx->mate_ref_pos_idx ); /* read_fkt.c */
                 if ( rc == 0 )

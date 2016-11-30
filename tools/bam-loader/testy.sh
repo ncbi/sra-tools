@@ -13,12 +13,21 @@ produce_SAM()
 {
     SAMLINE_BINARY="samline"
     REFNAME="NC_011752.1"
+
     REFPOS1=1000
     REFPOS2=3500
     CIGAR1="30MAAA20M"
     CIGAR2="50M2D10M"
     QNAME="1"
-    execute "$SAMLINE_BINARY --qname $QNAME --qname $QNAME -r $REFNAME -p $REFPOS1 -p $REFPOS2 -c $CIGAR1 -c $CIGAR2 -n $1 -d > $2"
+    execute "$SAMLINE_BINARY --qname $QNAME --qname $QNAME -r $REFNAME -p $REFPOS1 -p $REFPOS2 -c $CIGAR1 -c $CIGAR2 -n $1 -d >> $2"
+    
+    REFPOS1=4200
+    REFPOS2=4300
+    CIGAR1="30M3I10M"
+    CIGAR2="70M"
+    QNAME="2"
+    execute "$SAMLINE_BINARY --qname $QNAME --qname $QNAME -r $REFNAME -p $REFPOS1 -p $REFPOS2 -c $CIGAR1 -c $CIGAR2 -i TTT >> $2"
+    
 }
 
 # call: convert_SAM_to_BAM "$SAMFILE" "$BAMFILE"

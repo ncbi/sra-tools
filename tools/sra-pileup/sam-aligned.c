@@ -402,7 +402,7 @@ static rc_t prepare_prim_sec_table_cursor( const samdump_opts * const opts,
                 if ( rc == 0 )
                     rc = add_column( cursor, COL_MATE_ALIGN_ID, &atx->mate_align_id_idx ); /* read_fkt.c */
                 if ( rc == 0 )
-                    rc = add_column( cursor, opts->use_seqid_as_refname?COL_MATE_REF_SEQ_ID:COL_MATE_REF_NAME, &atx->mate_ref_name_idx ); /* read_fkt.c */
+                    rc = add_column( cursor, opts->use_seqid_as_refname ? COL_MATE_REF_SEQ_ID : COL_MATE_REF_NAME, &atx->mate_ref_name_idx ); /* read_fkt.c */
                 if ( rc == 0 )
                     rc = add_column( cursor, COL_MATE_REF_POS, &atx->mate_ref_pos_idx ); /* read_fkt.c */
                 if ( rc == 0 )
@@ -723,14 +723,15 @@ static rc_t prepare_whole_files( const samdump_opts * const opts,
                         INSDC_coord_len ref_len;
                         rc = ReferenceObj_SeqLength( ref_obj, &ref_len );
                         if ( rc == 0 )
-                            rc = add_pl_iters( opts,
-                                set_iter,
-                                ref_obj,
-                                idb,
+                            rc = add_pl_iters(
+                                opts,               /* the the sam-dump-options */
+                                set_iter,           /* the placement-set iterator, to be added to */
+                                ref_obj,            /* the reference-object */
+                                idb,                /* the input-database ( has pointer to reflist ) */
                                 0,                  /* where it starts on the reference */
                                 ref_len,            /* the whole length of this reference/chromosome */
                                 NULL,               /* no spotgroup re-grouping (yet) */
-                                context_list
+                                context_list        /* */
                                 );
                         ReferenceObj_Release( ref_obj );
                     }
@@ -782,11 +783,15 @@ static void CC on_region( BSTNode *n, void *data )
                     }
                     if ( rctx->rc == 0 )
                     {
-                        rctx->rc = add_pl_iters( rctx->opts, rctx->set_iter, ref_obj, rctx->idb,
+                        rctx->rc = add_pl_iters( 
+                            rctx->opts,         /* the the sam-dump-options */
+                            rctx->set_iter,     /* the placement-set iterator, to be added to */
+                            ref_obj,            /* the reference-object */
+                            rctx->idb,          /* the input-database ( has pointer to reflist ) */
                             r->start,           /* where the range starts on the reference */
                             len,                /* the length of this range */
                             NULL,               /* no spotgroup re-grouping (yet) */
-                            rctx->context_list
+                            rctx->context_list  /* */
                             );
                     }
                 }

@@ -2542,7 +2542,7 @@ static rc_t FastqFormatterSplitter_WrapLine( const KDataBuffer* src, size_t src_
         *dst_sz = sz = src_sz;
         while ( sz > 0 )
         {
-            memcpy( d, s, sz > width ? width : sz );
+            memmove( d, s, sz > width ? width : sz );
             if ( sz <= width )
             {
                 break;

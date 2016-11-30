@@ -290,7 +290,7 @@ rc_t GetKeyID(CommonWriterSettings *const settings,
             ctx->key2id_name[f] = ctx->key2id_name_max;
             ctx->key2id_name_max = name_max;
 
-            memcpy(&ctx->key2id_names[ctx->key2id_name[f]], key, keylen + 1);
+            memmove(&ctx->key2id_names[ctx->key2id_name[f]], key, keylen + 1);
             ctx->key2id[f] = tree;
             ctx->idCount[f] = 0;
             if ((uint8_t)ctx->key2id_hash[h] < 3) {
@@ -487,10 +487,10 @@ rc_t WriteSoloFragments(const CommonWriterSettings* settings, SpotAssembler* ctx
             srec.is_bad[read] = fip->is_bad;
             srec.orientation[read] = fip->orientation;
             srec.cskey[read] = fip->cskey;
-            memcpy(srec.seq + srec.readStart[read], src, srec.readLen[read]);
+            memmove(srec.seq + srec.readStart[read], src, srec.readLen[read]);
             src += fip->readlen;
 
-            memcpy(srec.qual + srec.readStart[read], src, srec.readLen[read]);
+            memmove(srec.qual + srec.readStart[read], src, srec.readLen[read]);
             src += fip->readlen;
             srec.spotGroup = (char *)src;
             srec.spotGroupLen = fip->sglen;
@@ -609,7 +609,7 @@ void COPY_QUAL(uint8_t D[], uint8_t const S[], unsigned const L, bool const R)
             D[i] = S[j];
     }
     else
-        memcpy(D, S, L);
+        memmove(D, S, L);
 }
 
 void COPY_READ(INSDC_dna_text D[], INSDC_dna_text const S[], unsigned const L, bool const R)
@@ -656,7 +656,7 @@ void COPY_READ(INSDC_dna_text D[], INSDC_dna_text const S[], unsigned const L, b
             D[i] = compl[((uint8_t const *)S)[j]];
     }
     else
-        memcpy(D, S, L);
+        memmove(D, S, L);
 }
 
 /*--------------------------------------------------------------------------
@@ -751,7 +751,7 @@ static char *getSpotGroup(Sequence const *const sequence)
     if (tmp) {
         rslt = malloc(len + 1);
         if (rslt) {
-            memcpy(rslt, tmp, len);
+            memmove(rslt, tmp, len);
             rslt[len] = '\0';
         }
     }
@@ -775,7 +775,7 @@ static char *getName(Sequence const *const sequence, bool const parseSpotName)
         ParseSpotName(tmp, &len);
     rslt = malloc(len + 1);
     if (rslt) {
-        memcpy(rslt, tmp, len);
+        memmove(rslt, tmp, len);
         rslt[len] = '\0';
     }
     return rslt;
@@ -869,7 +869,7 @@ static void readSequence(CommonWriterSettings *const G, SpotAssembler *const ctx
             else if (qualType == QT_LogOdds)
                 LogOddsToPhred(readLen, qual, squal, qoffset);
             else
-                memcpy(qual, squal, readLen);
+                memmove(qual, squal, readLen);
         }
         else if (!colorspace)
             memset(qual, 30, readLen);
@@ -1105,7 +1105,7 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
         void *rr = NULL;
         rslt.u.error.rc = KQueuePop(self->que, &rr, &self->tm);
         if (rslt.u.error.rc == 0) {
-            memcpy(&rslt, rr, sizeof(rslt));
+            memmove(&rslt, rr, sizeof(rslt));
             free(rr);
             if (rslt.type == rr_done)
                 goto DONE;
@@ -1322,13 +1322,13 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                     {{
                         uint8_t *dst = (uint8_t*)myData;
 
-                        memcpy(dst,&fi,sizeof(fi));
+                        memmove(dst,&fi,sizeof(fi));
                         dst += sizeof(fi);
                         COPY_READ((char *)dst, seqDNA, fi.readlen, reverse);
                         dst += fi.readlen;
                         COPY_QUAL(dst, qual, fi.readlen, reverse);
                         dst += fi.readlen;
-                        memcpy(dst,spotGroup,fi.sglen);
+                        memmove(dst,spotGroup,fi.sglen);
                     }}
                     ctx->fragment[keyId % FRAGMENT_HOT_COUNT].id = keyId;
                     ctx->fragment[keyId % FRAGMENT_HOT_COUNT].data = myData;
@@ -1420,9 +1420,9 @@ rc_t ArchiveFile(const struct ReaderFile *const reader,
                         srec.is_bad[read1] = fip->is_bad;
                         srec.orientation[read1] = fip->orientation;
                         srec.cskey[read1] = fip->cskey;
-                        memcpy(srec.seq + srec.readStart[read1], src, fip->readlen);
+                        memmove(srec.seq + srec.readStart[read1], src, fip->readlen);
                         src += fip->readlen;
-                        memcpy(srec.qual + srec.readStart[read1], src, fip->readlen);
+                        memmove(srec.qual + srec.readStart[read1], src, fip->readlen);
                         src += fip->readlen;
 
                         srec.orientation[read2] = readOrientation;

@@ -71,7 +71,7 @@ rc_t str2buf(const char* str, const size_t len, char* buf, const size_t buf_sz)
         }
         return rc;
     }
-    memcpy(buf, str, len);
+    memmove(buf, str, len);
     buf[len] = '\0';
     return 0;
 }

@@ -131,7 +131,7 @@ rc_t KFileMakeChunkRead (const struct KFile ** pself,
 	    self->size = size;
 	    self->original = original;
 	    self->num_chunks = num_chunks;
-	    memcpy ((struct KTocChunk*)self->chunks, chunks, num_chunks * sizeof (KTocChunk));
+	    memmove ((struct KTocChunk*)self->chunks, chunks, num_chunks * sizeof (KTocChunk));
 	    *pself = &self->dad;
 	    return 0;
 	}

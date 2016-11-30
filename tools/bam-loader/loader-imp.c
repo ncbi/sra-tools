@@ -595,7 +595,7 @@ rc_t GetKeyID(KeyToID *const ctx,
             ctx->key2id_name[f] = ctx->key2id_name_max;
             ctx->key2id_name_max = name_max;
 
-            memcpy(&ctx->key2id_names[ctx->key2id_name[f]], key, keylen + 1);
+            memmove(&ctx->key2id_names[ctx->key2id_name[f]], key, keylen + 1);
             ctx->key2id[f] = tree;
             ctx->idCount[f] = 0;
             if ((uint8_t)ctx->key2id_hash[h] < 3) {
@@ -722,7 +722,7 @@ void COPY_QUAL(uint8_t D[], uint8_t const S[], unsigned const L, bool const R)
             D[i] = S[j];
     }
     else
-        memcpy(D, S, L);
+        memmove(D, S, L);
 }
 
 static
@@ -770,7 +770,7 @@ void COPY_READ(INSDC_dna_text D[], INSDC_dna_text const S[], unsigned const L, b
             D[i] = compl[((uint8_t const *)S)[j]];
     }
     else
-        memcpy(D, S, L);
+        memmove(D, S, L);
 }
 
 static KFile *MakeDeferralFile() {
@@ -1511,17 +1511,17 @@ static char const *getLinkageGroup(BAM_Alignment const *const rec)
             unsigned const cblen = strlen(CB);
             unsigned const ublen = strlen(UB);
             if (cblen + ublen + 8 < sizeof(linkageGroup)) {
-                memcpy(&linkageGroup[        0], "CB:", 3);
-                memcpy(&linkageGroup[        3], CB, cblen);
-                memcpy(&linkageGroup[cblen + 3], "|UB:", 4);
-                memcpy(&linkageGroup[cblen + 7], UB, ublen + 1);
+                memmove(&linkageGroup[        0], "CB:", 3);
+                memmove(&linkageGroup[        3], CB, cblen);
+                memmove(&linkageGroup[cblen + 3], "|UB:", 4);
+                memmove(&linkageGroup[cblen + 7], UB, ublen + 1);
             }
         }
     }
     else {
         unsigned const bxlen = strlen(BX);
         if (bxlen + 1 < sizeof(linkageGroup))
-            memcpy(linkageGroup, BX, bxlen + 1);
+            memmove(linkageGroup, BX, bxlen + 1);
     }
     return linkageGroup;
 }
@@ -1800,7 +1800,7 @@ MIXED_BASE_AND_COLOR:
                 (void)LOGERR(klogErr, rc, "Failed to resize CIGAR buffer");
                 goto LOOP_END;
             }
-            memcpy(cigBuf.base, tmp, opCount * sizeof(uint32_t));
+            memmove(cigBuf.base, tmp, opCount * sizeof(uint32_t));
 
             hardclipped = isHardClipped(opCount, cigBuf.base);
             if (hardclipped) {
@@ -1879,7 +1879,7 @@ MIXED_BASE_AND_COLOR:
                 uint8_t const *squal;
 
                 BAM_AlignmentGetQuality(rec, &squal);
-                memcpy(qual + lpad, squal, readlen);
+                memmove(qual + lpad, squal, readlen);
             }
             else {
                 uint8_t const *squal;
@@ -1897,7 +1897,7 @@ MIXED_BASE_AND_COLOR:
                     QUAL_CHANGED_OQ;
                 }
                 else
-                    memcpy(qual + lpad, squal, readlen);
+                    memmove(qual + lpad, squal, readlen);
             }
             readlen = readlen + lpad + rpad;
             data.data.align_group.elements = 0;
@@ -2230,7 +2230,7 @@ WRITE_SEQUENCE:
                 else {
                     unsigned const sglen = strlen(barCode);
                     if (sglen + 1 < sizeof(spotGroup))
-                        memcpy(spotGroup, barCode, sglen + 1);
+                        memmove(spotGroup, barCode, sglen + 1);
                 }
             }
             if (mated) {
@@ -2294,15 +2294,15 @@ WRITE_SEQUENCE:
                     {{
                         uint8_t *dst = (uint8_t*) fragBuf.base;
                         
-                        memcpy(dst,&fi,sizeof(fi));
+                        memmove(dst,&fi,sizeof(fi));
                         dst += sizeof(fi);
-                        memcpy(dst, seqBuffer.base, readlen);
+                        memmove(dst, seqBuffer.base, readlen);
                         dst += readlen;
-                        memcpy(dst, qualBuffer.base, readlen);
+                        memmove(dst, qualBuffer.base, readlen);
                         dst += fi.readlen;
-                        memcpy(dst, spotGroup, fi.sglen);
+                        memmove(dst, spotGroup, fi.sglen);
                         dst += fi.sglen;
-                        memcpy(dst, linkageGroup, fi.lglen);
+                        memmove(dst, linkageGroup, fi.lglen);
                         dst += fi.lglen;
                     }}
                     rc = MemBankWrite(ctx->frags, value->fragmentId, 0, fragBuf.base, sz, &rsize);
@@ -2391,7 +2391,7 @@ WRITE_SEQUENCE:
                             if (d2 != s2) {
                                 memmove(d2, s2, readlen);
                             }
-                            memcpy(d1, s1, fip->readlen);
+                            memmove(d1, s1, fip->readlen);
                         }
                         {
                             char const *const s1 = qual1;
@@ -2404,7 +2404,7 @@ WRITE_SEQUENCE:
                             if (d2 != s2) {
                                 memmove(d2, s2, readlen);
                             }
-                            memcpy(d1, s1, fip->readlen);
+                            memmove(d1, s1, fip->readlen);
                         }
 
                         srec.ti[read1] = fip->ti;

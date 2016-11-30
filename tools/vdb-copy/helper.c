@@ -300,7 +300,7 @@ rc_t helper_read_vdb_string( const VCursor* src_cursor,
                 *dst = malloc( element_count + 1 );
                 if ( *dst != NULL )
                 {
-                    memcpy( *dst, src_ptr, element_count );
+                    memmove( *dst, src_ptr, element_count );
                     (*dst)[ element_count ] = 0;
                 }
                 else

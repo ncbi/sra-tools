@@ -581,7 +581,7 @@ static rc_t CC populate_tooldata( void *obj, const PlacementRecord *placement,
         {
             rec->quality = ( uint8_t * )rec;
             rec->quality += sizeof ( * rec );
-            memcpy( rec->quality, quality, rec->quality_len );
+            memmove( rec->quality, quality, rec->quality_len );
         }
     }
 

@@ -400,7 +400,7 @@ rc_t kar_entry_create ( KAREntry ** rtn, size_t entry_size,
         assert ( entry_size >= sizeof * entry );
 
         /* populate the name by copying to the end of structure */
-        memcpy ( dst, name, name_len );
+        memmove ( dst, name, name_len );
         entry -> name = dst;
 
         entry -> type = type;
@@ -458,7 +458,7 @@ rc_t kar_entry_inflate ( KAREntry **rtn, size_t entry_size, const char *name, si
         assert ( entry_size >= sizeof * entry );
 
         /* populate the name by copying to the end of structure */
-        memcpy ( dst, name, name_len + 1 );
+        memmove ( dst, name, name_len + 1 );
 
         entry -> name = dst;
         entry -> mod_time = mod_time;
@@ -785,8 +785,8 @@ void kar_write_header_v1 ( KARArchiveFile * af, uint64_t toc_size )
     size_t num_writ, hdr_size;
 
     KSraHeader hdr;
-    memcpy ( hdr.ncbi, "NCBI", sizeof hdr.ncbi );
-    memcpy ( hdr.sra, ".sra", sizeof hdr.sra );
+    memmove ( hdr.ncbi, "NCBI", sizeof hdr.ncbi );
+    memmove ( hdr.sra, ".sra", sizeof hdr.sra );
 
     hdr.byte_order = eSraByteOrderTag;
 
@@ -1444,7 +1444,7 @@ size_t toc_data_copy ( void * dst, size_t dst_size, const uint8_t * toc_data, si
         exit ( 3 );
     }
 
-    memcpy ( dst, & toc_data [ offset ], dst_size );
+    memmove ( dst, & toc_data [ offset ], dst_size );
     return offset + dst_size;
 }
 

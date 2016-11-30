@@ -141,7 +141,7 @@ size_t SortingRowSetNextPhys ( SortingRowSet *self, const ctx_t *ctx,
         to_copy = max_ids;
 
     /* copy out old-ids */
-    memcpy ( ids, & self -> src_ids [ self -> cur_elem ], to_copy * sizeof ids [ 0 ] );
+    memmove ( ids, & self -> src_ids [ self -> cur_elem ], to_copy * sizeof ids [ 0 ] );
 
     /* advance counter */
     self -> cur_elem += to_copy;

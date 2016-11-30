@@ -581,7 +581,7 @@ rc_t AbsolidFormatterSplitter_Dump(const SRASplitter* cself, spotid_t spot, cons
                             rc = RC(rcSRA, rcString, rcCopying, rcBuffer, rcInsufficient);
                         } else {
                             self->pfx_sz = head_sz;
-                            memcpy(self->pfx, prefix, head_sz);
+                            memmove(self->pfx, prefix, head_sz);
                             IF_BUF((string_printf(self->hb->base, KDataBufferBytes(self->hb), &head_sz,
                                    "#\n# Title: %.*s\n#\n", self->pfx_sz, self->pfx)), self->hb, head_sz);
                         }

@@ -1397,7 +1397,7 @@ static rc_t ric_align_generic(int64_t const startId,
                         scratch[0] = temp;
                         scratch_size = elem_count;
                     }
-                    memcpy(scratch[0], id, elem_count * sizeof(id[0]));
+                    memmove(scratch[0], id, elem_count * sizeof(id[0]));
                     sort_keys(elem_count, scratch[0]);
                     id = scratch[0];
                 }

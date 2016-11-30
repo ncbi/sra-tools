@@ -153,7 +153,7 @@ int UX_FUSE_getattr(const char *path, struct stat *stbuf)
         rc = RC(rcExe, rcFileDesc, rcClassifying, rcParam, rcNull);
     } else if( strcmp(path, "/") == 0 ) {
         /* root is known as mount point */
-        memcpy(stbuf, &g_mount_point_stat, sizeof(g_mount_point_stat));
+        memmove(stbuf, &g_mount_point_stat, sizeof(g_mount_point_stat));
     } else {
         uint32_t type = kptBadPath, access = 0;
         KTime_t ts = 0;
@@ -164,10 +164,10 @@ int UX_FUSE_getattr(const char *path, struct stat *stbuf)
                 type = type & ~kptAlias;
             }
             if( type == kptDir ) {
-                memcpy(stbuf, &g_mount_point_stat, sizeof(g_mount_point_stat));
+                memmove(stbuf, &g_mount_point_stat, sizeof(g_mount_point_stat));
                 stbuf->st_mode = S_IFDIR | (0007555 & (access == 0 ? stbuf->st_mode : access));
             } else {
-                memcpy(stbuf, &g_dflt_file_stat, sizeof(g_dflt_file_stat));
+                memmove(stbuf, &g_dflt_file_stat, sizeof(g_dflt_file_stat));
                 if( access == 0 ) {
                     access = stbuf->st_mode;
                 }

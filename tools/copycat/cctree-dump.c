@@ -140,7 +140,7 @@ rc_t CCDumperWrite ( CCDumper *self, const char *buffer, size_t size )
         if ( num_writ > sizeof self -> buffer - self -> total )
             num_writ = sizeof self -> buffer - self -> total;
 
-        memcpy ( & self -> buffer [ self -> total ], & buffer [ total ], num_writ );
+        memmove ( & self -> buffer [ self -> total ], & buffer [ total ], num_writ );
         self -> total += num_writ;
     }
 
@@ -231,7 +231,7 @@ rc_t StringPrint ( const String *self, CCDumper *d )
     case C: \
         sp++;\
         count--;\
-        memcpy (bp,(S),sizeof(S)-1);\
+        memmove (bp,(S),sizeof(S)-1);\
         bp += sizeof(S)-1;\
         break
 

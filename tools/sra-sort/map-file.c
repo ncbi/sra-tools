@@ -720,7 +720,7 @@ int64_t MapFileAllocMissingNewIds ( MapFile *self, const ctx_t *ctx )
                             for ( num_read *= self -> id_size, j = 0; j < num_read; j += self -> id_size )
                             {
                                 new_id = 0;
-                                memcpy ( & new_id, & ( ( const uint8_t* ) scan_buffer ) [ j ], self -> id_size );
+                                memmove ( & new_id, & ( ( const uint8_t* ) scan_buffer ) [ j ], self -> id_size );
                                 if ( new_id == 0 )
                                 {
                                     ON_FAIL ( i = make_missing_entry ( self, ctx, missing,
@@ -813,7 +813,7 @@ size_t MapFileReadNewToOld ( const MapFile *self, const ctx_t *ctx,
                     num_read -= self -> id_size;
                     -- i;
 
-                    memcpy ( & unpacked, & packed [ num_read ], self -> id_size );
+                    memmove ( & unpacked, & packed [ num_read ], self -> id_size );
 #if __BYTE_ORDER == __BIG_ENDIAN
                     unpacked = bswap_64 ( unpacked );
 #endif
@@ -890,7 +890,7 @@ size_t MapFileSelectOldToNewPairs ( const MapFile *self, const ctx_t *ctx,
         for ( off = j = 0; j < num_read; off += self -> id_size, ++ j )
         {
             int64_t unpacked = 0;
-            memcpy ( & unpacked, & buff [ off ], self -> id_size );
+            memmove ( & unpacked, & buff [ off ], self -> id_size );
 #if __BYTE_ORDER == __BIG_ENDIAN
             unpacked = bswap_64 ( unpacked );
 #endif
@@ -972,7 +972,7 @@ size_t MapFileSelectOldToNewSingle ( const MapFile *self, const ctx_t *ctx,
         for ( off = j = 0; j < num_read; off += self -> id_size, ++ j )
         {
             int64_t unpacked = 0;
-            memcpy ( & unpacked, & buff [ off ], self -> id_size );
+            memmove ( & unpacked, & buff [ off ], self -> id_size );
 #if __BYTE_ORDER == __BIG_ENDIAN
             unpacked = bswap_64 ( unpacked );
 #endif

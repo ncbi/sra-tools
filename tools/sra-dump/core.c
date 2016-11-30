@@ -467,7 +467,7 @@ static rc_t SpotGroupSplitter_GetKey( const SRASplitter* cself,
                 {
                     int i;
                     bool found = false;
-                    memcpy( self->cur_key, g, sz );
+                    memmove( self->cur_key, g, sz );
                     self->cur_key[ sz ] = '\0';
                     for ( i = 0; self->spot_group[ i ] != NULL; i++ )
                     {

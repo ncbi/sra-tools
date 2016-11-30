@@ -1055,7 +1055,7 @@ void SRAList_Init(void)
                                         /* old struct size */
                                         obj_sz = sizeof(FileOptionsOld);
                                         for(i = 0; i < found->files_count; i++ ) {
-                                            memcpy(&found->files[i], &fOld[i], obj_sz);
+                                            memmove(&found->files[i], &fOld[i], obj_sz);
                                             memset(found->files[i].md5, 0, sizeof(found->files[i].md5));
                                             found->files[i].md5_file = 0;
                                         }

@@ -361,7 +361,7 @@ rc_t array_file_read_dim1( af_data * af, const uint64_t pos,
             size_t num = ( af->element_bits >> 3 ) * count;
             char * src = af->content;
             src+=buf_idx;
-            memcpy( dst, src, num );
+            memmove( dst, src, num );
             *n_read = count;
         }
     }
@@ -403,7 +403,7 @@ rc_t array_file_read_dim2( af_data * af, const uint64_t pos,
             size_t num = ( af->element_bits >> 3 ) * count * af->extents[ 1 ];
             char * src = af->content;
             src+=buf_idx;
-            memcpy( dst, src, num );
+            memmove( dst, src, num );
             *n_read = count * af->extents[ 1 ];
         }
     }

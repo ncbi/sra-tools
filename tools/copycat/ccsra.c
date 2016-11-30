@@ -978,14 +978,14 @@ rc_t step_through_dir (const KDirectory * dir, const char * path,
                         char * recur_path;
                         if (pathlen == 0)
                         {
-                            memcpy (new_path, name, namelen);
+                            memmove (new_path, name, namelen);
                             new_path[namelen] = '\0';
                         }
                         else
                         {
-                            memcpy (new_path, path, pathlen);
+                            memmove (new_path, path, pathlen);
                             new_path[pathlen] = '/';
-                            memcpy (new_path + pathlen + 1, name, namelen);
+                            memmove (new_path + pathlen + 1, name, namelen);
                             new_path[pathlen+1+namelen] = '\0';
                         }
                         recur_path = malloc (pathlen + 1 + namelen + 1);

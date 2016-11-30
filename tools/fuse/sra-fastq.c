@@ -156,7 +156,7 @@ rc_t SRAFastqFile_Read(const SRAFastqFile* self, uint64_t pos, void *buffer, siz
                 off_t from = pos - self->from;
                 size_t q = (self->size - from) > (size - *num_read) ? (size - *num_read) : (self->size - from);
                 DEBUG_MSG(10, ("Copying from %lu %u bytes\n", from, q));
-                memcpy(&((char*)buffer)[*num_read], &self->buf[from], q);
+                memmove(&((char*)buffer)[*num_read], &self->buf[from], q);
                 *num_read = *num_read + q;
                 pos += q;
             }

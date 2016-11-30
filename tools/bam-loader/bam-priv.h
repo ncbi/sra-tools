@@ -124,20 +124,20 @@ static inline  int64_t  LE2HI64(void const *) __attribute__((always_inline));
 #endif /* __GNUC__ */
 
 #if __BYTE_ORDER == __LITTLE_ENDIAN
-static inline uint16_t LE2HUI16(void const *X) { uint16_t y; memcpy(&y, X, sizeof(y)); return y; }
-static inline uint32_t LE2HUI32(void const *X) { uint32_t y; memcpy(&y, X, sizeof(y)); return y; }
-static inline uint64_t LE2HUI64(void const *X) { uint64_t y; memcpy(&y, X, sizeof(y)); return y; }
-static inline  int16_t  LE2HI16(void const *X) {  int16_t y; memcpy(&y, X, sizeof(y)); return y; }
-static inline  int32_t  LE2HI32(void const *X) {  int32_t y; memcpy(&y, X, sizeof(y)); return y; }
-static inline  int64_t  LE2HI64(void const *X) {  int64_t y; memcpy(&y, X, sizeof(y)); return y; }
+static inline uint16_t LE2HUI16(void const *X) { uint16_t y; memmove(&y, X, sizeof(y)); return y; }
+static inline uint32_t LE2HUI32(void const *X) { uint32_t y; memmove(&y, X, sizeof(y)); return y; }
+static inline uint64_t LE2HUI64(void const *X) { uint64_t y; memmove(&y, X, sizeof(y)); return y; }
+static inline  int16_t  LE2HI16(void const *X) {  int16_t y; memmove(&y, X, sizeof(y)); return y; }
+static inline  int32_t  LE2HI32(void const *X) {  int32_t y; memmove(&y, X, sizeof(y)); return y; }
+static inline  int64_t  LE2HI64(void const *X) {  int64_t y; memmove(&y, X, sizeof(y)); return y; }
 #endif
 #if __BYTE_ORDER == __BIG_ENDIAN
-static inline uint16_t LE2HUI16(void const *X) { uint16_t y; memcpy(&y, X, sizeof(y)); return (uint16_t)bswap_16(y); }
-static inline uint32_t LE2HUI32(void const *X) { uint32_t y; memcpy(&y, X, sizeof(y)); return (uint32_t)bswap_32(y); }
-static inline uint64_t LE2HUI64(void const *X) { uint64_t y; memcpy(&y, X, sizeof(y)); return (uint64_t)bswap_64(y); }
-static inline  int16_t  LE2HI16(void const *X) {  int16_t y; memcpy(&y, X, sizeof(y)); return ( int16_t)bswap_16(y); }
-static inline  int32_t  LE2HI32(void const *X) {  int32_t y; memcpy(&y, X, sizeof(y)); return ( int32_t)bswap_32(y); }
-static inline  int64_t  LE2HI64(void const *X) {  int64_t y; memcpy(&y, X, sizeof(y)); return ( int64_t)bswap_64(y); }
+static inline uint16_t LE2HUI16(void const *X) { uint16_t y; memmove(&y, X, sizeof(y)); return (uint16_t)bswap_16(y); }
+static inline uint32_t LE2HUI32(void const *X) { uint32_t y; memmove(&y, X, sizeof(y)); return (uint32_t)bswap_32(y); }
+static inline uint64_t LE2HUI64(void const *X) { uint64_t y; memmove(&y, X, sizeof(y)); return (uint64_t)bswap_64(y); }
+static inline  int16_t  LE2HI16(void const *X) {  int16_t y; memmove(&y, X, sizeof(y)); return ( int16_t)bswap_16(y); }
+static inline  int32_t  LE2HI32(void const *X) {  int32_t y; memmove(&y, X, sizeof(y)); return ( int32_t)bswap_32(y); }
+static inline  int64_t  LE2HI64(void const *X) {  int64_t y; memmove(&y, X, sizeof(y)); return ( int64_t)bswap_64(y); }
 #endif
 
 static inline int getRefSeqId(BAM_Alignment const *const self) {

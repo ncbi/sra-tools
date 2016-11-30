@@ -118,7 +118,7 @@ rc_t CC copycat_log_writer (void * self, const char * buffer, size_t buffer_size
             else
                 pc = buffer;
             z = buffer_size - (pc - buffer);
-            memcpy ( (void*)(((SLNode*)bf)+1), pc, z);
+            memmove ( (void*)(((SLNode*)bf)+1), pc, z);
             ((char*)(((SLNode*)bf)+1))[z-1] = '\0';
             SLListPushTail (self, bf);
         }
@@ -149,7 +149,7 @@ rc_t CC copycat_log_lib_writer  (void * self, const char * buffer, size_t buffer
             else
                 pc = buffer;
             z = buffer_size - (pc - buffer);
-            memcpy ( (void*)(((SLNode*)bf)+1), pc, z);
+            memmove ( (void*)(((SLNode*)bf)+1), pc, z);
             ((char*)(((SLNode*)bf)+1))[z-1] = '\0';
             SLListPushTail (self, bf);
         }
@@ -511,7 +511,7 @@ rc_t copycat_file2file (CCTree * tree,
                         dleaf = dpath;
 
                     xz = strlen (leaf);
-                    memcpy (xpath, leaf, xz + 1);
+                    memmove (xpath, leaf, xz + 1);
 
                     /* if we are encrypting the output make sure we have an encryption
                      * extension on the destination.

@@ -64,7 +64,7 @@ extern uint32_t quality_N_limit;
 extern bool g_legacy_report;
 
 #define make_readmask(m) readmask_t m[NREADS_MAX]
-#define copy_readmask(src,dst) (memcpy(dst, src, sizeof(readmask_t) * nreads_max))
+#define copy_readmask(src,dst) (memmove(dst, src, sizeof(readmask_t) * nreads_max))
 #define reset_readmask(m) (memset(m, ~0, sizeof(readmask_t) * nreads_max))
 #define clear_readmask(m) (memset(m,  0, sizeof(readmask_t)  * nreads_max))
 #define set_readmask(m,id) (id < nreads_max ? (m)[id] = 1 : 0)

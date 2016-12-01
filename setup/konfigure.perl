@@ -893,9 +893,11 @@ EndText
     L($F, "NO_ARRAY_BOUNDS_WARNING = $NO_ARRAY_BOUNDS_WARNING");
     L($F);
 
-        print $F <<EndText;
+# $PACKAGE_NAME and library version
 # \$(VERSION) is defined in a separate file which is updated every release
-include \$(TOP)/build/Makefile.vers
+    L($F, "include \$(TOP)/" . CONFIG_OUT() . "/Makefile.vers" );
+
+    print $F <<EndText;
 
 empty :=
 space := \$(empty) \$(empty)

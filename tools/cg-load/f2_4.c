@@ -1,4 +1,4 @@
-/*===========================================================================
+/*==============================================================================
 *
 *                            PUBLIC DOMAIN NOTICE
 *               National Center for Biotechnology Information
@@ -21,29 +21,13 @@
 *  Please cite the author in any work or product based on this material.
 *
 * ===========================================================================
-*
 */
-#ifndef _tools_cg_load_factory_file_h_
-#define _tools_cg_load_factory_file_h_
 
-#include <klib/defs.h>
+#include "factory-file.h" /* CGFile22_Make */
+#include "file.h" /* CGFileType */
 
-struct CGFileType;
-struct CGLoaderFile;
-
-rc_t CGFile13_Make(const struct CGFileType** self,
-                   const char* type, const struct CGLoaderFile* file);
-rc_t CGFile15_Make(const struct CGFileType** self,
-                   const char* type, const struct CGLoaderFile* file);
-rc_t CGFile17_Make(const struct CGFileType** self,
-                   const char* type, const struct CGLoaderFile* file);
-rc_t CGFile20_Make(const struct CGFileType** self,
-                   const char* type, const struct CGLoaderFile* file);
-rc_t CGFile22_Make(const struct CGFileType** self,
-                   const char* type, const struct CGLoaderFile* file);
-rc_t CGFile24_Make(const struct CGFileType** self,
-                   const char* type, const struct CGLoaderFile* file);
-rc_t CGFile25_Make(const struct CGFileType** self,
-                   const char* type, const struct CGLoaderFile* file);
-
-#endif /* _tools_cg_load_factory_file_h_ */
+rc_t CGFile24_Make(const CGFileType** self,
+    const char* type, const CGLoaderFile* file)
+{
+    return CGFile22_Make ( self, type, file );
+}

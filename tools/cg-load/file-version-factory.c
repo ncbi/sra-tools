@@ -50,6 +50,8 @@ rc_t CGLoaderFile_CreateCGFile(CGLoaderFile* self,
             return CGFile20_Make(&self->cg_file, TYPE, self);
         case 0x02020000:
             return CGFile22_Make(&self->cg_file, TYPE, self);
+        case 0x02040000:
+            return CGFile24_Make(&self->cg_file, TYPE, self);
         case 0x02050000:
             return CGFile25_Make(&self->cg_file, TYPE, self);
         default: {

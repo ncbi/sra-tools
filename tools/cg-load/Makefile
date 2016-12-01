@@ -72,6 +72,7 @@ CGLOAD_SRC = \
 	f1_7 \
 	f2_0 \
 	f2_2 \
+	f2_4 \
 	f2_5 \
 	file \
 	file-version-factory \

@@ -1667,8 +1667,8 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         
         BAM_AlignmentGetReadName2(rec, &name, &namelen);
 
-		keyId = rec->keyId;
-		wasInserted = rec->wasInserted;
+        keyId = rec->keyId;
+        wasInserted = rec->wasInserted;
 
         rc = MMArrayGet(ctx->id2value, (void **)&value, keyId);
         if (rc) {
@@ -1745,10 +1745,29 @@ MIXED_BASE_AND_COLOR:
             isPrimary = true;
             wasPromoted = true;
         }
-        if (!isPrimary && G.noSecondary)
-            goto LOOP_END;
 
         getSpotGroup(rec, spotGroup);
+        if (wasInserted) {
+            if (G.mode == mode_Remap) {
+                (void)PLOGERR(klogErr, (klogErr, rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
+                                         "Spot '$(name)' is a new spot, not a remapping",
+                                         "name=%s", name));
+                goto LOOP_END;
+            }
+            /* first time spot is seen                    */
+            /* need to make sure that every goto LOOP_END */
+            /* above this point is with rc != 0           */
+            /* else this structure won't get initialized  */
+            memset(value, 0, sizeof(*value));
+            value->unmated = !mated;
+            if (isPrimary || G.assembleWithSecondary || G.deferSecondary) {
+                value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
+                value->platform = GetINSDCPlatform(bam, spotGroup);
+                value->primary_is_set = 1;
+            }
+        }
+        if (!isPrimary && G.noSecondary)
+            goto LOOP_END;
 
         rc = BAM_AlignmentCGReadLength(rec, &readlen);
         if (rc != 0 && GetRCState(rc) != rcNotFound) {
@@ -2021,20 +2040,6 @@ MIXED_BASE_AND_COLOR:
         AR_READNO(data) = readNo;
 
         if (wasInserted) {
-            /* first time spot is seen */
-            if (G.mode == mode_Remap) {
-                (void)PLOGERR(klogErr, (klogErr, rc = RC(rcApp, rcFile, rcReading, rcData, rcInconsistent),
-                                         "Spot '$(name)' is a new spot, not a remapping",
-                                         "name=%s", name));
-                goto LOOP_END;
-            }
-            memset(value, 0, sizeof(*value));
-            value->unmated = !mated;
-            if (isPrimary || G.assembleWithSecondary || G.deferSecondary) {
-                value->pcr_dup = (flags & BAMFlags_IsDuplicate) == 0 ? 0 : 1;
-                value->platform = GetINSDCPlatform(bam, spotGroup);
-                value->primary_is_set = 1;
-            }
         }
         else if (isPrimary || G.assembleWithSecondary || G.deferSecondary) {
             /* other times */

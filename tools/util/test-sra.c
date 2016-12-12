@@ -2220,37 +2220,43 @@ static rc_t endpoint_to_string( char * buffer, size_t buflen, KEndPoint * ep )
 	return rc;
 }
 
-static rc_t perfrom_dns_test(const Main *self, const char *eol) {
+/* TODO: MAKE A DEEPER TEST; RESOLVE; PRINT HEADERS;
+         MAKE SURE UNDETECTED/UNACCESSIBLE URL IS REPORTED */
+static rc_t perform_dns_test(const Main *self, const char *eol, uint16_t port) {
     rc_t rc = 0;
+
     const char domain[] = "www.ncbi.nlm.nih.gov";
-    const uint16_t port = 80;
-	KEndPoint ep;
+    KEndPoint ep;
     String s_domain;
     KTimeMs_t time = 0;
-	KTimeMs_t start_time = KTimeMsStamp();
+
+    KTimeMs_t start_time = KTimeMsStamp();
+
     assert(self);
+
     StringInitCString(&s_domain, domain);
+
     rc = KNSManagerInitDNSEndpoint(self->knsMgr, &ep, &s_domain, port);
     time = KTimeMsStamp() - start_time;
-    if (rc != 0) {
+
+    if (rc != 0)
         OUTMSG
             (("KNSManagerInitDNSEndpoint(%s, %d)=%R%s", domain, port, rc, eol));
-    }
     else {
-        const char root[] = "DnsEndpoint";/*"www.ncbi.nlm.nih.gov", 80*/
+        const char root[] = "DnsEndpoint";
         char s_endpoint[1024] = "";
         rc = endpoint_to_string(s_endpoint, sizeof s_endpoint, &ep);
-        if (self->xml) {
+
+        if (self->xml)
             OUTMSG(("    <%s "
                 "domain=\"%s\" port=\"%d\" address=\"%s\" time=\"%d ms\"/>\n",
                 root, domain, port, s_endpoint, time));
-        }
-        else {
+        else
             OUTMSG((
                 "%s domain=\"%s\" port=\"%d\" address=\"%s\" time=\"%d ms\"\n",
                 root, domain, port, s_endpoint, time));
-        }
     }
+
     return rc;
 }
 
@@ -2500,7 +2506,8 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
             }
         }
 
-        perfrom_dns_test(self, eol);
+        perform_dns_test(self, eol,  80);
+        perform_dns_test(self, eol, 443);
     }
     if (arg != NULL) {
         perform_cgi_test(self, eol, arg);

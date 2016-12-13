@@ -2459,14 +2459,17 @@ static rc_t perform_cgi_test ( const Main * self,
 
 static
 rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
-    bool get )
+    bool get, bool https )
 {
     rc_t rc = 0;
     const char * method = "Head";
+    const char * protocol = "http";
     if ( get )
         method = "Get";
+    if ( https )
+        protocol = "https";
     if ( self -> xml )
-        OUTMSG ( ( "%s    <%s>\n", bol, method ) );
+        OUTMSG ( ( "%s    <%s protocol=\"%s\">\n", bol, method, protocol ) );
     {
         char buffer [ 1024 ] = "";
         KClientHttp * http = NULL;
@@ -2482,9 +2485,14 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
         if ( self -> xml )
             OUTMSG ( ( "%s      <%s host=\"%S\">\n", bol, root, & host ) );
         else
-            OUTMSG ( ( "%s %s host=\"%S\"\n", method, root, & host ) );
-        rc = KNSManagerMakeClientHttp
-            ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
+            OUTMSG ( ( "%s %s host=\"%S\" protocol=\"%s\"\n",
+                       method, root, & host, protocol ) );
+        if ( https )
+            rc = KNSManagerMakeClientHttps
+                ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
+        else
+            rc = KNSManagerMakeClientHttp
+                ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
         if ( rc == 0 ) {
             rc = KClientHttpMakeRequest( http, & req, "/srapub/%s", arg );
             if ( rc != 0 )
@@ -2673,8 +2681,10 @@ static rc_t MainNetwotk ( const Main * self,
             OUTMSG ( ( "%s  <%s>\n", bol, root ) );
         else
             OUTMSG ( ( "\n%s\n", root ) );
-        MainRanges ( self, arg, bol, false );
-        MainRanges ( self, arg, bol, true );
+        MainRanges ( self, arg, bol, true , false );
+        MainRanges ( self, arg, bol, true , true  );
+        MainRanges ( self, arg, bol, false, false );
+        MainRanges ( self, arg, bol, false, true  );
         if ( self-> xml )
             OUTMSG ( ( "%s  </%s>\n", bol, root ) );
     }

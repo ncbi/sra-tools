@@ -58,7 +58,9 @@ clean:
 diff-vs-wget: clean
 	$(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat --progress
 	wget --no-check-certificate $(URL)
-	diff $(ACCESSION) ./$(ACCESSION).dat
+	ls -ld ./$(ACCESSION) ./$(ACCESSION).dat
+	echo diff ./$(ACCESSION) ./$(ACCESSION).dat
+	diff ./$(ACCESSION) ./$(ACCESSION).dat
 	#diff $(ACCESSION).sra ./$(ACCESSION).cachetee
 	rm -f $(ACCESSION)*
 

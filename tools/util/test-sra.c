@@ -2338,6 +2338,7 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     const char *acc, KDataBuffer *databuffer, const char *eol)
 {
     KClientHttpRequest * req = NULL;
+    char b [1024 ] = "";
     rc_t rc = 0;
     assert(self);
     rc = KNSManagerMakeReliableClientRequest
@@ -2368,7 +2369,6 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
     }
-    char b [1024 ] = "";
     if (rc == 0) {
         rc = KClientHttpRequestFormatMsg
             ( req, b, sizeof b, "POST", NULL );

@@ -2403,7 +2403,7 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
         KTimeMs_t time = 0;
         const char root[] = "Response";
         rc = call_cgi(self, "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi"
-            , 1, 1, "http,https", acc, &databuffer, eol);
+            , 1, 2, "http,https", acc, &databuffer, eol);
         time = KTimeMsStamp() - start_time;
         if (rc == 0) {
             const char *start = databuffer.base;

@@ -91,6 +91,8 @@ VFS_EXTERN rc_t CC VResolverProtocols ( VResolver * self,
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
 
+#define HTTP_VERS 0x01010000
+
 typedef enum {
     eCfg            = 1,
     eResolve        = 2,
@@ -537,8 +539,8 @@ static rc_t MainCallCgiImpl(const Main *self,
         }
     }
     if (rc == 0) {
-        rc = KNSManagerMakeRequest(self->knsMgr,
-            &req, 0x01010000, NULL, url->addr);
+        rc = KNSManagerMakeRequest(self->knsMgr, &req, HTTP_VERS, NULL,
+                                   url->addr);
     }
     if (rc == 0) {
         rc = KHttpRequestAddPostParam ( req, "acc=%s", acc );
@@ -1295,7 +1297,7 @@ static rc_t MainResolveRemote(const Main *self, VResolver *resolver,
                 }
                 else {
                     rc = KNSManagerMakeHttpFile
-                        (self->knsMgr, &f, NULL, 0x01010000, path_str);
+                        (self->knsMgr, &f, NULL, HTTP_VERS, path_str);
                 }
             }
         }
@@ -1847,7 +1849,8 @@ rc_t MainDepend(const Main *self, const char *name, bool missing)
                     OUTMSG(("%s\tpathRemote: %s ", eol, s));
                     if (!self->noRfs) {
                         const KFile *f = NULL;
-                        rc2 = KNSManagerMakeHttpFile ( self->knsMgr, & f, NULL, 0x01010000, s );
+                        rc2 = KNSManagerMakeHttpFile ( self->knsMgr, & f, NULL,
+                                                       HTTP_VERS, s );
                         if (rc2 != 0) {
                             OUTMSG(("KNSManagerMakeHttpFile=%R", rc2));
                             if (rc == 0) {
@@ -2272,7 +2275,7 @@ static rc_t ClientRequestTest(const Main *self, const char *eol,
 
     assert(self);
 
-    rc = KNSManagerMakeRequest(self->knsMgr, &req, 0x01010000, NULL, url);
+    rc = KNSManagerMakeRequest(self->knsMgr, &req, HTTP_VERS, NULL, url);
 
     time = KTimeMsStamp() - start_time;
 
@@ -2347,7 +2350,7 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     rc_t rc = 0;
     assert(self);
     rc = KNSManagerMakeReliableClientRequest
-        (self->knsMgr, &req, 0x01010000, NULL, cgi_url);
+        (self->knsMgr, &req, HTTP_VERS, NULL, cgi_url);
     if (rc != 0) {
         OUTMSG(
             ("KNSManagerMakeReliableClientRequest(%s)=%R%s", cgi_url, rc, eol));
@@ -2870,7 +2873,7 @@ rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
 
     buffer[0] = '\0';
 
-    rc = KNSManagerMakeRequest(self->knsMgr, &req, 0x01010000, NULL,
+    rc = KNSManagerMakeRequest(self->knsMgr, &req, HTTP_VERS, NULL,
         "https://trace.ncbi.nlm.nih.gov/Traces/sratoolkit/sratoolkit.cgi");
 
     if (rc == 0) {

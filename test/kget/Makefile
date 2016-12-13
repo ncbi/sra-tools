@@ -50,7 +50,7 @@ download:
 slowtests: diff-vs-wget
 
 ACCESSION = SRR072810
-URL = http://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByRun/sra/SRR/SRR072/SRR072810/SRR072810.sra
+URL = http://sra-download.ncbi.nlm.nih.gov/srapub/SRR072810
 
 clean:
 	rm -f $(ACCESSION)*

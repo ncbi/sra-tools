@@ -538,7 +538,7 @@ static rc_t MainCallCgiImpl(const Main *self,
     }
     if (rc == 0) {
         rc = KNSManagerMakeRequest(self->knsMgr,
-            &req, 0x01000000, NULL, url->addr);
+            &req, 0x01010000, NULL, url->addr);
     }
     if (rc == 0) {
         rc = KHttpRequestAddPostParam ( req, "acc=%s", acc );
@@ -2260,6 +2260,37 @@ static rc_t perform_dns_test(const Main *self, const char *eol, uint16_t port) {
     return rc;
 }
 
+static rc_t ClientRequestTest(const Main *self, const char *eol,
+                              const char *url)
+{
+    rc_t rc = 0;
+
+    KClientHttpRequest *req = NULL;
+
+    KTimeMs_t time = 0;
+    KTimeMs_t start_time = KTimeMsStamp();
+
+    assert(self);
+
+    rc = KNSManagerMakeRequest(self->knsMgr, &req, 0x01010000, NULL, url);
+
+    time = KTimeMsStamp() - start_time;
+
+    if (rc != 0)
+        OUTMSG(("KNSManagerMakeRequest(%s)=%R%s", url, rc, eol));
+    else {
+        const char root[] = "KNSManagerMakeRequest";
+        if (self->xml)
+            OUTMSG(("    <%s url=\"%s\" time=\"%d ms\"/>\n", root, url, time));
+        else
+            OUTMSG((     "%s url=\"%s\" time=\"%d ms\"\n"  , root, url, time));
+    }
+
+    RELEASE(KClientHttpRequest, req);
+
+    return rc;
+}
+
 static rc_t read_stream_into_databuffer(
     KStream *stream, KDataBuffer *databuffer)
 {
@@ -2316,7 +2347,7 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     rc_t rc = 0;
     assert(self);
     rc = KNSManagerMakeReliableClientRequest
-        (self->knsMgr, &req, 0x01000000, NULL, cgi_url);
+        (self->knsMgr, &req, 0x01010000, NULL, cgi_url);
     if (rc != 0) {
         OUTMSG(
             ("KNSManagerMakeReliableClientRequest(%s)=%R%s", cgi_url, rc, eol));
@@ -2506,8 +2537,11 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
             }
         }
 
-        perform_dns_test(self, eol,  80);
-        perform_dns_test(self, eol, 443);
+        perform_dns_test (self, eol,  80);
+        perform_dns_test (self, eol, 443);
+        ClientRequestTest(self, eol,
+ "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current.version"
+            );
     }
     if (arg != NULL) {
         perform_cgi_test(self, eol, arg);
@@ -2836,7 +2870,7 @@ rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
 
     buffer[0] = '\0';
 
-    rc = KNSManagerMakeRequest(self->knsMgr, &req, 0x01000000, NULL,
+    rc = KNSManagerMakeRequest(self->knsMgr, &req, 0x01010000, NULL,
         "https://trace.ncbi.nlm.nih.gov/Traces/sratoolkit/sratoolkit.cgi");
 
     if (rc == 0) {

@@ -2458,10 +2458,19 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
             OUTMSG ( ( "%s %s host=\"%S\"\n", method, root, & host ) );
         rc = KNSManagerMakeClientHttp
             ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
-        if ( rc == 0 )
+        if ( rc == 0 ) {
             rc = KClientHttpMakeRequest( http, & req, "/srapub/%s", arg );
-        if ( get && rc == 0 )
+            if ( rc != 0 )
+                OUTMSG ( ( "KClientHttpMakeRequest(%S,/srapub/%s)=%R\n",
+                           & host, arg, rc ) );
+        }
+        else
+            OUTMSG ( ( "KClientHttpMakeRequest(%S)=%R\n", & host, rc ) );
+        if ( get && rc == 0 ) {
             rc = KClientHttpRequestByteRange ( req, 0, 4096 );
+            if ( rc != 0 )
+                OUTMSG ( ( "KClientHttpRequestByteRange(0,4096)=%R\n", rc ) );
+        }
         if ( rc == 0 ) {
             rc = KClientHttpRequestFormatMsg
                 ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
@@ -2471,24 +2480,31 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                 free ( allocated );
                 sizeof_b = 0;
                 allocated = b = malloc ( len );
-                if ( allocated == NULL ) {
+                if ( allocated == NULL )
                     rc = RC
-                    ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
-                } else {
+                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
+                else {
                     sizeof_b = len;
                     rc = KClientHttpRequestFormatMsg
                         ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
                 }
             }
-            if ( rc == 0 ) {
+            if ( rc == 0 )
                 OUTMSG ( ( "%s", b ) );
-            }
+            else
+                OUTMSG ( ( "KClientHttpRequestFormatMsg()=%R\n", rc ) );
         }
         if ( rc == 0 ) {
-            if ( get )
+            if ( get ) {
                 rc = KClientHttpRequestGET ( req, & rslt );
-            else
+                if ( rc != 0 )
+                    OUTMSG ( ( "KClientHttpRequestGET()=%R\n", rc ) );
+            }
+            else {
                 rc = KClientHttpRequestHEAD ( req, & rslt );
+                if ( rc != 0 )
+                    OUTMSG ( ( "KClientHttpRequestHEAD()=%R\n", rc ) );
+            }
         }
         if ( rc == 0 ) {
             rc = KClientHttpResultFormatMsg
@@ -2499,15 +2515,17 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                 free ( allocated );
                 sizeof_b = 0;
                 allocated = b = malloc ( len );
-                if ( allocated == NULL ) {
+                if ( allocated == NULL )
                     rc = RC
                         ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
-                } else {
+                else {
                     sizeof_b = len;
                     rc = KClientHttpResultFormatMsg
                         ( rslt, b, sizeof_b, & len, "", "\n" );
                 }
             }
+            if ( rc != 0 )            
+                OUTMSG ( ( "KClientHttpResultFormatMsg()=%R\n", rc ) );
         }
         if ( self -> xml )
             OUTMSG ( ( "%s      </%s>\n", bol, root ) );

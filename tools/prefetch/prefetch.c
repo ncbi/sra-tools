@@ -254,9 +254,8 @@ static char* StringCheck(const String *self, rc_t rc) {
 }
 
 static
-bool _StringIsFasp(const String *self, const char **withoutScheme)
+bool _StringIsXYZ(const String *self, const char **withoutScheme, const char * scheme, size_t scheme_size)
 {
-    const char fasp[] = "fasp://";
     const char *dummy = NULL;
 
     assert(self && self->addr);
@@ -267,15 +266,28 @@ bool _StringIsFasp(const String *self, const char **withoutScheme)
 
     *withoutScheme = NULL;
 
-    if (string_cmp(self->addr, self->len, fasp, sizeof fasp - 1,
-                                                sizeof fasp - 1) == 0)
+    if (string_cmp(self->addr, self->len, scheme, scheme_size,
+                                                scheme_size) == 0)
     {
-        *withoutScheme = self->addr + sizeof fasp - 1;
+        *withoutScheme = self->addr + scheme_size;
         return true;
     }
     return false;
 }
 
+static
+bool _StringIsFasp(const String *self, const char **withoutScheme)
+{
+    const char fasp[] = "fasp://";
+    return _StringIsXYZ ( self, withoutScheme, fasp, sizeof fasp - 1 );
+}
+
+static
+bool _StringIsHttps(const String *self, const char **withoutScheme)
+{
+    const char https[] = "https://";
+    return _StringIsXYZ ( self, withoutScheme, https, sizeof https - 1 );
+}
 /********** KFile extension **********/
 static
 rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const char *path)
@@ -1290,7 +1302,8 @@ static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
         if (!ascp || (rc != 0 && GetRCObject(rc) != rcMemory
                               && !canceled && !main->noHttp))
         {
-            STSMSG(STS_TOP, (" Downloading via http..."));
+            bool https = _StringIsHttps(self->remote.str, NULL);
+            STSMSG(STS_TOP, (" Downloading via %s...", https ? "https" : "http"));
             if (ascp) {
                 assert(self->resolver);
                 {

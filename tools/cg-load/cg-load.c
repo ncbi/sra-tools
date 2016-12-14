@@ -583,7 +583,7 @@ rc_t CC DirVisitor(const KDirectory *dir, uint32_t type, const char *name, void 
                                     rcFile, rcInserting, rcMemory, rcExhausted);
                             }
                             else {
-                                memcpy(&x->key, &key, sizeof(key));
+                                memmove(&x->key, &key, sizeof(key));
                                 if ((rc = FGroupMAP_Set(x, file)) == 0) {
                                     rc = BSTreeInsertUnique(d->tree,
                                         &x->dad, NULL, FGroupMAP_Sort);

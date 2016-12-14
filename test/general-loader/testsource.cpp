@@ -75,7 +75,7 @@ TestSource::Buffer::Write ( const void * p_data, size_t p_size )
     if ( m_buffer == 0 )
         throw logic_error ( "TestSource::Buffer::Write: realloc failed" );
         
-    memcpy ( m_buffer + m_bufSize, p_data, p_size );
+    memmove ( m_buffer + m_bufSize, p_data, p_size );
     m_bufSize += p_size;
 }
 

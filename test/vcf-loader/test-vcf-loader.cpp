@@ -99,7 +99,7 @@ public:
         if (to_copy == 0)
             return 0;
 
-        memcpy(buf, self->input.c_str(), to_copy);
+        memmove(buf, self->input.c_str(), to_copy);
         if (to_copy < max_size && buf[to_copy-1] != '\n')
         {
             buf[to_copy] = '\n';

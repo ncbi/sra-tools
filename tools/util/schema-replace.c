@@ -250,7 +250,7 @@ static rc_t CC schema_dump_flush( void *dst, const void *buffer, size_t bsize )
         ctx->buffer = malloc( ctx->size );
         if ( ctx->buffer != NULL )
         {
-            memcpy ( ctx->buffer, buffer, bsize );
+            memmove ( ctx->buffer, buffer, bsize );
             ctx->len = bsize;
             rc = 0;
         }
@@ -261,7 +261,7 @@ static rc_t CC schema_dump_flush( void *dst, const void *buffer, size_t bsize )
         ctx->buffer = realloc( ctx->buffer, ctx->size );
         if ( ctx->buffer != NULL )
         {
-            memcpy ( &(ctx->buffer[ctx->len]), buffer, bsize );
+            memmove ( &(ctx->buffer[ctx->len]), buffer, bsize );
             ctx->len += bsize;
             rc = 0;
         }

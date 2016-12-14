@@ -24,6 +24,8 @@
 *
 */
 
+#include "../general-loader/general-writer.hpp"
+
 #include <ngs/ncbi/NGS.hpp>
 #include <ngs/ReadCollection.hpp>
 #include <ngs/Reference.hpp>
@@ -38,7 +40,6 @@
 
 #define DFLT_BUFFER_SIZE ( 32 * 1024 )
 
-#include "../general-loader/general-writer.hpp"
 #include <arch-impl.h>
 
 #include <iostream>

@@ -463,7 +463,7 @@ rc_t md_select_expr ( const KMDataNode *node, char *path, size_t psize, int plen
                     PLOGERR ( klogInt,  (klogInt, rc, "failed to read value of '$(path)'", "path=%s", path ));
                     return rc;
                 }
-                memcpy ( vp, value, vsize );
+                memmove ( vp, value, vsize );
                 rc = KMDataNodeRead ( node, vsize, & vp [ vsize ], remaining, & remaining_vsize, & remaining );
                 if ( rc == 0 && remaining != 0 )
                     rc = RC ( rcExe, rcMetadata, rcReading, rcTransfer, rcIncomplete );

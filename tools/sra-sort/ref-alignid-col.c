@@ -436,7 +436,7 @@ const void *AlignIdColReaderRead ( AlignIdColReader *self, const ctx_t *ctx,
                 }
 
                 /* bring them in */
-                memcpy ( & self -> u . ids [ self -> num_elems ], base, num_read * sizeof self -> u . ids [ 0 ] );
+                memmove ( & self -> u . ids [ self -> num_elems ], base, num_read * sizeof self -> u . ids [ 0 ] );
             }
 
             /* sort to produce sparse but ordered list */

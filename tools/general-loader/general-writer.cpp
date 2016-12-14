@@ -1141,7 +1141,7 @@ namespace ncbi
                     to_write = avail;
 
                 assert ( to_write != 0 );
-                memcpy ( & output_buffer [ output_marker ], & p [ total ], to_write );
+                memmove ( & output_buffer [ output_marker ], & p [ total ], to_write );
                 output_marker += to_write;
                 total += to_write;
             }

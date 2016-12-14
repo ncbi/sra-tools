@@ -460,7 +460,7 @@ bool Experiment_ExpectedTableMatch(const ReadSpecXML_read_BASECALL_TABLE* table,
                        data->left_adjusted ? " left adjusted" : "",
                        match.position, match.length, match.score));
             if( (data->match.score < 0 || data->match.score > match.score) ) {
-                memcpy(&data->match, &match, sizeof(data->match));
+                memmove(&data->match, &match, sizeof(data->match));
                 data->bc = bc;
             }
         }

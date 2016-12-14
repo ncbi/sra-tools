@@ -59,7 +59,7 @@ static uint32_t read_buffer( const VCursor * cur, char * buffer, int64_t row_id,
     {
         res = ( row_len - offset );
         if ( res > buflen ) res = buflen;
-        memcpy ( buffer, &value[ offset ], res );
+        memmove ( buffer, &value[ offset ], res );
     }
     return res;
 }

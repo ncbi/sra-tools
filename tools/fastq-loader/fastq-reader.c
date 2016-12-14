@@ -628,7 +628,7 @@ size_t CC FASTQ_input(FASTQParseBlock* pb, char* buf, size_t max_size)
         }
     }
 
-    memcpy(buf, self->recordStart + self->curPos, length);
+    memmove(buf, self->recordStart + self->curPos, length);
 
     self->lastEol = ( buf[length-1] == '\n' );
     self->curPos += length;

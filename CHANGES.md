@@ -1,5 +1,14 @@
 # NCBI External Developer Release:
 
+## SRA Toolkit 2.8.0-2
+**December 8, 2016**
+
+  **bam-load**: changed memcpy to memmove when regions overlap - seems to corrupt data on centos7
+  **blastn_vdb, tblastn_vdb**: removed library dependencies that were preventing users from launching these tools
+  **build**: fixed a bug in 'configure' when in could not find source files in repository saved with non-standard name
+  **cg-load**: added loading of CG File format v2.4
+
+
 ## SRA Toolkit 2.8.0
 **October 7, 2016**
 

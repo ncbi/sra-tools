@@ -141,7 +141,7 @@ rc_t LoadAnalysis(const char *fileName) {
         if (lines > 0 && buf.elem_count > 0) {
             G.analysis = malloc(sizeof(*G.analysis) + (lines - 1) * sizeof(G.analysis->line[0]) + buf.elem_count);
             if (G.analysis)
-                memcpy(&G.analysis->line[lines], buf.base, buf.elem_count);
+                memmove(&G.analysis->line[lines], buf.base, buf.elem_count);
             else
                 rc = RC(rcApp, rcFile, rcReading, rcMemory, rcExhausted);
         }

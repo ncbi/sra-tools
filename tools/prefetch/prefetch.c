@@ -46,6 +46,7 @@
 
 #include <kns/ascp.h> /* ascp_locate */
 #include <kns/manager.h>
+#include <kns/stream.h> /* KStreamRelease */
 #include <kns/kns-mgr-priv.h>
 #include <kns/http.h>
 
@@ -253,9 +254,8 @@ static char* StringCheck(const String *self, rc_t rc) {
 }
 
 static
-bool _StringIsFasp(const String *self, const char **withoutScheme)
+bool _StringIsXYZ(const String *self, const char **withoutScheme, const char * scheme, size_t scheme_size)
 {
-    const char fasp[] = "fasp://";
     const char *dummy = NULL;
 
     assert(self && self->addr);
@@ -266,15 +266,28 @@ bool _StringIsFasp(const String *self, const char **withoutScheme)
 
     *withoutScheme = NULL;
 
-    if (string_cmp(self->addr, self->len, fasp, sizeof fasp - 1,
-                                                sizeof fasp - 1) == 0)
+    if (string_cmp(self->addr, self->len, scheme, scheme_size,
+                                                scheme_size) == 0)
     {
-        *withoutScheme = self->addr + sizeof fasp - 1;
+        *withoutScheme = self->addr + scheme_size;
         return true;
     }
     return false;
 }
 
+static
+bool _StringIsFasp(const String *self, const char **withoutScheme)
+{
+    const char fasp[] = "fasp://";
+    return _StringIsXYZ ( self, withoutScheme, fasp, sizeof fasp - 1 );
+}
+
+static
+bool _StringIsHttps(const String *self, const char **withoutScheme)
+{
+    const char https[] = "https://";
+    return _StringIsXYZ ( self, withoutScheme, https, sizeof https - 1 );
+}
 /********** KFile extension **********/
 static
 rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const char *path)
@@ -974,7 +987,9 @@ static rc_t MainDownloadFile(Resolved *self,
     uint64_t opos = 0;
     size_t num_writ = 0;
     uint64_t pos = 0;
+#if USE_KFILE_FOR_HTTP_DOWNLOADS
     uint64_t prevPos = 0;
+#endif
 
     assert(self && main);
     assert(!main->eliminateQuals);
@@ -1009,6 +1024,7 @@ static rc_t MainDownloadFile(Resolved *self,
     }
     
     STSMSG(STS_INFO, ("%S -> %s", self->remote.str, to));
+#if USE_KFILE_FOR_HTTP_DOWNLOADS
     do {
         bool print = pos - prevPos > 200000000;
         rc = Quitting();
@@ -1038,6 +1054,56 @@ static rc_t MainDownloadFile(Resolved *self,
             opos += num_writ;
         }
     } while (rc == 0 && num_read > 0);
+
+#else
+    {
+        ver_t http_vers = 0x01010000;
+        KClientHttpRequest * kns_req = NULL;
+        rc = KNSManagerMakeClientRequest ( main -> kns,
+            & kns_req, http_vers, NULL, "%S", self -> remote . str );
+        DISP_RC2
+            ( rc, "Cannot KNSManagerMakeClientRequest", self -> remote . str );
+
+        if ( rc == 0 ) {
+            KClientHttpResult * rslt = NULL;
+            rc = KClientHttpRequestGET ( kns_req, & rslt );
+            DISP_RC2
+                ( rc, "Cannot KClientHttpRequestGET", self -> remote . str );
+
+            if ( rc == 0 ) {
+                KStream * s = NULL;
+                rc = KClientHttpResultGetInputStream ( rslt, & s );
+                DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
+                    self -> remote . str );
+
+                while ( rc == 0 ) {
+                    rc = KStreamRead
+                        ( s, main -> buffer, main -> bsize, & num_read );
+                    if ( rc != 0 || num_read == 0) {
+                        DISP_RC2 ( rc, "Cannot KStreamRead",
+                            self -> remote . str );
+                        break;
+                    }
+
+                    rc = KFileWriteAll
+                        ( out, opos, main -> buffer, num_read, & num_writ);
+                    DISP_RC2 ( rc, "Cannot KFileWrite", to );
+                    if ( rc == 0 && num_writ != num_read ) {
+                        rc = RC ( rcExe,
+                            rcFile, rcCopying, rcTransfer, rcIncomplete );
+                    }
+                    opos += num_writ;
+                }
+
+                RELEASE ( KStream, s );
+            }
+
+            RELEASE ( KClientHttpResult, rslt );
+        }
+
+        RELEASE ( KClientHttpRequest, kns_req );
+    }
+#endif
 
     RELEASE(KFile, out);
 
@@ -1236,7 +1302,8 @@ static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
         if (!ascp || (rc != 0 && GetRCObject(rc) != rcMemory
                               && !canceled && !main->noHttp))
         {
-            STSMSG(STS_TOP, (" Downloading via http..."));
+            bool https = _StringIsHttps(self->remote.str, NULL);
+            STSMSG(STS_TOP, (" Downloading via %s...", https ? "https" : "http"));
             if (ascp) {
                 assert(self->resolver);
                 {

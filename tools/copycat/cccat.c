@@ -721,7 +721,7 @@ rc_t ccat_path_append (const char * name)
     DEBUG_STATUS (("%s:in epath %s name %s z %zu \n",__func__, epath, name, z));
     if (ehere + z + 1 >= epath + sizeof (epath))
         return RC (rcExe, rcNoTarg, rcConcatenating, rcBuffer, rcTooShort);
-    memcpy(ehere, name, z);
+    memmove(ehere, name, z);
     ehere += z;
     *ehere++ = '/';
     *ehere = '\0';
@@ -1164,7 +1164,7 @@ rc_t copycat_add_node (const copycat_pb * ppb)
                  */
                 if (strcmp (ncbi_encryption_extension, pb.name + clen) == 0)
                 {
-                    memcpy (name, pb.name, clen);
+                    memmove (name, pb.name, clen);
                     name[clen] = '\0';
                 }
                 /*

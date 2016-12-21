@@ -29,16 +29,17 @@ TOP ?= $(abspath ../..)
 MODULE = tools/util
 
 INT_TOOLS = \
-	testld \
-	txt2kdb \
-	rowwritetest \
-	sortreadtest \
-	pacbio-correct \
-	crc32sum \
-	samview \
-	kdb-index \
-	pseudo-aligner \
-	schema-replace \
+    crc32sum \
+    kdb-index \
+    pacbio-correct \
+    schema-replace \
+    sortreadtest \
+    rowwritetest \
+    samview \
+    testld \
+    txt2kdb \
+#   pseudo-aligner \
+
 
 EXT_TOOLS = \
 	rcexplain \

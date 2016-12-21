@@ -391,9 +391,9 @@ rc_t RunXML_Make(RunXML** rslt, const KXMLNode* RUN)
                             for(i = 1; i < obj->datablock_count; i++) {
                                 if( obj->datablocks[i].serial < obj->datablocks[i - 1].serial ) {
                                     DataBlock db;
-                                    memcpy(&db, &obj->datablocks[i], sizeof(db));
-                                    memcpy(&obj->datablocks[i], &obj->datablocks[i - 1], sizeof(db));
-                                    memcpy(&obj->datablocks[i - 1], &db, sizeof(db));
+                                    memmove(&db, &obj->datablocks[i], sizeof(db));
+                                    memmove(&obj->datablocks[i], &obj->datablocks[i - 1], sizeof(db));
+                                    memmove(&obj->datablocks[i - 1], &db, sizeof(db));
                                     swapped = true;
                                 }
                             }

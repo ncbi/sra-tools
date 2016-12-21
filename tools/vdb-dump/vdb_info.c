@@ -830,7 +830,7 @@ static rc_t vdb_info_print_xml_s( const char * tag, const char * value )
 static rc_t vdb_info_print_xml_uint64( const char * tag, const uint64_t value )
 {
     if ( value != 0 )
-        return KOutMsg( "<%s>%lu<%s>\n", tag, value, tag );
+        return KOutMsg( "<%s>%lu</%s>\n", tag, value, tag );
     else
         return 0;
 }

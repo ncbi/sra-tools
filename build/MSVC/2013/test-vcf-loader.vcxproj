@@ -14,6 +14,6 @@
   </ItemDefinitionGroup>
   <Import Project="..\test-vcf-loader.files" />
   <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
-    <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="$(ProjectDir)" />
+    <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="..\..\..\test\vcf-loader\" />
   </Target>
 </Project>

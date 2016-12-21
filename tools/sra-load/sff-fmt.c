@@ -25,6 +25,7 @@
 */
 #include <klib/rc.h>
 #include <klib/log.h>
+#include <kapp/main.h>      /* for KAppVersion()*/
 #include <sra/sff-file.h>
 
 #include <stdio.h>
@@ -108,7 +109,7 @@ SkipIndexPad:
     }
     if( self->header.magic_number != 0 ) {
         /* next file in stream, remember prev to sync to each */
-        memcpy(&prev_head, &self->header, sizeof(SFFCommonHeader));
+        memmove(&prev_head, &self->header, sizeof(SFFCommonHeader));
         pstring_copy(&prev_flow_chars, &self->flow_chars);
         pstring_copy(&prev_key_seq, &self->key_seq);
     } else {
@@ -116,7 +117,7 @@ SkipIndexPad:
         prev_head.index_length = 0;
     }
 
-    memcpy(&self->header, self->file_buf, SFFCommonHeader_size);
+    memmove(&self->header, self->file_buf, SFFCommonHeader_size);
 #if __BYTE_ORDER == __LITTLE_ENDIAN
     self->header.magic_number = bswap_32(self->header.magic_number);
     self->header.version = bswap_32(self->header.version);
@@ -208,7 +209,7 @@ rc_t SFFLoaderFmtReadDataHeader(SFFLoaderFmt* self, const SRALoaderFile* file)
     if( (rc = SFFLoaderFmt_ReadBlock(self, file, SFFReadHeader_size, "read header", false)) != 0 ) {
         return rc;
     }
-    memcpy(&self->read_header, self->file_buf, SFFReadHeader_size);
+    memmove(&self->read_header, self->file_buf, SFFReadHeader_size);
 #if __BYTE_ORDER == __LITTLE_ENDIAN
     self->read_header.header_length = bswap_16(self->read_header.header_length);
     self->read_header.name_length = bswap_16(self->read_header.name_length);

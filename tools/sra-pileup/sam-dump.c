@@ -2277,8 +2277,8 @@ static rc_t GenerateCGData( SCol cols[], unsigned style )
             
             if ( 0 < B_len && B_len < 5 )
             {
-                memcpy( newSeq, cols[ alg_READ ].base.v, 35 );
-                memcpy( newQual, cols[ alg_SAM_QUALITY ].base.v, 35 );
+                memmove( newSeq, cols[ alg_READ ].base.v, 35 );
+                memmove( newQual, cols[ alg_SAM_QUALITY ].base.v, 35 );
                 
                 cols[ alg_CG_TAGS_STR ].base.v = tags;
                 
@@ -3287,9 +3287,9 @@ static rc_t DumpUnaligned( SAM_dump_ctx_t *const ctx, bool const aligned )
                                 Cache_Unpack( val, 0, &ctx->pri.curs, ctx->pri.cols );
                                 ctx->pri.cols[ alg_SEQ_SPOT_ID ].base.i64 = &start;
                                 ctx->pri.cols[ alg_SEQ_SPOT_ID ].len = 1;
-                                memcpy( &ctx->pri.cols[ alg_REF_NAME ], &ctx->pri.cols[ alg_MATE_REF_NAME ], sizeof( SCol ) );
-                                memcpy( &ctx->pri.cols[ alg_REF_SEQ_ID ], &ctx->pri.cols[ alg_MATE_REF_NAME ], sizeof( SCol ) );
-                                memcpy( &ctx->pri.cols[ alg_REF_POS ], &ctx->pri.cols[ alg_MATE_REF_POS ], sizeof( SCol ) );
+                                memmove( &ctx->pri.cols[ alg_REF_NAME ], &ctx->pri.cols[ alg_MATE_REF_NAME ], sizeof( SCol ) );
+                                memmove( &ctx->pri.cols[ alg_REF_SEQ_ID ], &ctx->pri.cols[ alg_MATE_REF_NAME ], sizeof( SCol ) );
+                                memmove( &ctx->pri.cols[ alg_REF_POS ], &ctx->pri.cols[ alg_MATE_REF_POS ], sizeof( SCol ) );
                             }
                             else if ( !( GetRCState( rc ) == rcNotFound && GetRCObject( rc ) == rcItem ) )
                             {
@@ -3346,9 +3346,9 @@ static rc_t FlushUnalignedRead_cb (uint64_t key, bool value,void *user_data)
 			Cache_Unpack( val, 0, &ctx->pri.curs, ctx->pri.cols );
 			ctx->pri.cols[ alg_SEQ_SPOT_ID ].base.i64 = &spot_id;
 			ctx->pri.cols[ alg_SEQ_SPOT_ID ].len = 1;
-			memcpy( &ctx->pri.cols[ alg_REF_NAME ], &ctx->pri.cols[ alg_MATE_REF_NAME ], sizeof( SCol ) );
-			memcpy( &ctx->pri.cols[ alg_REF_SEQ_ID ], &ctx->pri.cols[ alg_MATE_REF_NAME ], sizeof( SCol ) );
-			memcpy( &ctx->pri.cols[ alg_REF_POS ], &ctx->pri.cols[ alg_MATE_REF_POS ], sizeof( SCol ) );
+			memmove( &ctx->pri.cols[ alg_REF_NAME ], &ctx->pri.cols[ alg_MATE_REF_NAME ], sizeof( SCol ) );
+			memmove( &ctx->pri.cols[ alg_REF_SEQ_ID ], &ctx->pri.cols[ alg_MATE_REF_NAME ], sizeof( SCol ) );
+			memmove( &ctx->pri.cols[ alg_REF_POS ], &ctx->pri.cols[ alg_MATE_REF_POS ], sizeof( SCol ) );
 			rc =DumpUnalignedReads( ctx, ctx->pri.cols, aligned_mate_id, &rcount );
 		}
 	}
@@ -3529,7 +3529,7 @@ static rc_t ProcessTable( VDBManager const *mgr, char const fullPath[],
         ReportResetTable( fullPath, tbl );
 
         ctx.seq.cols = seq_cols;
-        memcpy( ctx.seq.cols, gSeqCol, sizeof( gSeqCol ) );
+        memmove( ctx.seq.cols, gSeqCol, sizeof( gSeqCol ) );
         rc = Cursor_Open( &ctx.seq.tbl, &ctx.seq.curs, ctx.seq.cols, NULL );
         if ( rc == 0 ) {
             rc = DumpTable( &ctx );
@@ -3543,7 +3543,7 @@ static rc_t ProcessTable( VDBManager const *mgr, char const fullPath[],
 
 static void SetupColumns( DataSource *ds, enum eDSTableType type )
 {
-    memcpy( ds->cols, g_alg_col_tmpl, sizeof( g_alg_col_tmpl ) );
+    memmove( ds->cols, g_alg_col_tmpl, sizeof( g_alg_col_tmpl ) );
     
     ds->type = type;
     if ( param->use_seqid )
@@ -3657,7 +3657,7 @@ static rc_t ProcessDB( VDatabase const *db, char const fullPath[],
         if ( rc == 0 )
         {
             ctx.seq.cols = seq_cols;
-            memcpy(seq_cols, gSeqCol, sizeof(gSeqCol));
+            memmove(seq_cols, gSeqCol, sizeof(gSeqCol));
             rc = Cursor_Open( &ctx.seq.tbl, &ctx.seq.curs, ctx.seq.cols, NULL );
         }
     }
@@ -3694,7 +3694,7 @@ static rc_t ProcessDB( VDatabase const *db, char const fullPath[],
         if ( rc == 0 )
         {
             ctx.seq.cols = seq_cols;
-            memcpy(seq_cols, gSeqCol, sizeof(gSeqCol));
+            memmove(seq_cols, gSeqCol, sizeof(gSeqCol));
             rc = Cursor_Open(&ctx.seq.tbl, &ctx.seq.curs, ctx.seq.cols, NULL);
             if ( rc == 0 )
             {
@@ -3828,7 +3828,7 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] )
             readGroup = malloc( len + 1 );
             if ( readGroup == NULL )
                 return RC( rcExe, rcArgv, rcProcessing, rcMemory, rcExhausted );
-            memcpy( readGroup, &Path[ pos ], len );
+            memmove( readGroup, &Path[ pos ], len );
             readGroup[ len ] = '\0';
             break;
         }
@@ -3837,7 +3837,7 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] )
     path = malloc( pathlen + 1 );
     if ( path == NULL )
         return RC( rcExe, rcArgv, rcProcessing, rcMemory, rcExhausted );
-    memcpy( path, Path, pathlen );
+    memmove( path, Path, pathlen );
     path[ pathlen ] = '\0';
     
     rc = ReportResetObject( path );
@@ -3918,7 +3918,7 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] )
                 readGroup = malloc( len + 1 );
                 if ( readGroup == NULL )
                     return RC( rcExe, rcArgv, rcProcessing, rcMemory, rcExhausted );
-                memcpy( readGroup, &Path[ pos ], len );
+                memmove( readGroup, &Path[ pos ], len );
                 readGroup[ len ] = '\0';
                 break;
             }
@@ -3927,7 +3927,7 @@ static rc_t ProcessPath( VDBManager const *mgr, char const Path[] )
         path = malloc( pathlen + 1 );
         if ( path == NULL )
             return RC( rcExe, rcArgv, rcProcessing, rcMemory, rcExhausted );
-        memcpy( path, Path, pathlen );
+        memmove( path, Path, pathlen );
         path[ pathlen ] = '\0';
     
         rc = ReportResetObject( path );
@@ -4527,7 +4527,7 @@ static rc_t GetRegion( Args const *const args, struct params_s *const parms, uns
             if ( namelen >= sizeof( r.name ) )
                 return RC( rcExe, rcArgv, rcProcessing, rcParam, rcTooLong );
             
-            memcpy( r.name, valstr, namelen );
+            memmove( r.name, valstr, namelen );
             r.name[ namelen ] = '\0';
             
             r.rq = UINT_MAX;

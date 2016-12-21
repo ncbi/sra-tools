@@ -13,6 +13,6 @@
   </ItemDefinitionGroup>
   <Import Project="..\test-fastq-loader.files" />
   <Target Name="AfterBuild" Condition="'$(Autorun)'=='true'">
-    <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="$(ProjectDir)" />
+    <Exec Command="$(OutDir)$(TargetName)$(TargetExt)" WorkingDirectory="..\..\..\test\fastq-loader\" />
   </Target>
 </Project>

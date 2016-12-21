@@ -379,7 +379,7 @@ static rc_t read_from_ref_node( ref_node * node,
                 }
                 src += src_ofs;
 
-                memcpy( dst, src, to_copy );
+                memmove( dst, src, to_copy );
                 dst += to_copy;
                 remaining -= to_copy;
                 src_ofs = 0;

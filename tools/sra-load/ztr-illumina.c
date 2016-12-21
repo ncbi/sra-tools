@@ -77,7 +77,7 @@ static int ztr_read(ZTR_Context *ctx, void *Dst, size_t n) {
         i = ctx->buflen[0] - ctx->current;
         if (i > n)
             i = n;
-        memcpy(dst + j, ctx->buf[0] + ctx->current, i);
+        memmove(dst + j, ctx->buf[0] + ctx->current, i);
         ctx->current += i;
         n -= i;
         j += i;
@@ -316,19 +316,19 @@ static rc_t undo_mode_4(uint8_t **Data, size_t *datasize) {
         switch (st) {
             case 0:
                 st = 1;
-                memcpy(dst, src, esize);
+                memmove(dst, src, esize);
                 break;
             case 1:
                 if (memcmp(dst, src, esize) == 0)
                     st = 2;
                 dst += esize;
-                memcpy(dst, src, esize);
+                memmove(dst, src, esize);
                 break;
             case 2:
                 st = 0;
                 dst += esize;
                 for (i = 0; i != dup; ++i) {
-                    memcpy(dst, src - esize, esize);
+                    memmove(dst, src - esize, esize);
                     dst += esize;
                 }
                 break;
@@ -370,7 +370,7 @@ static rc_t undo_mode_79(uint8_t **Data, size_t *datasize) {
         dst1[k + 2] = src[j + 3];
     }
 
-    memcpy(Dst + 1, scratch, n << 2);
+    memmove(Dst + 1, scratch, n << 2);
 	*Data = Dst;
 	*datasize = (n << 2) + 1;
 	return rc;
@@ -424,7 +424,7 @@ static rc_t undo_mode_80(uint8_t **Data, size_t *datasize, const uint8_t *sequen
 				break;
 		}
 	}
-	memcpy(dst + 2, temp, 8 * basecount);
+	memmove(dst + 2, temp, 8 * basecount);
 	*datasize = 2 + 8 * basecount;
 	return 0;
 }
@@ -539,7 +539,7 @@ static rc_t fixup_quality4(uint8_t *qual, const uint8_t *read, size_t bases) {
 	int i, j, k;
 	
 	assert(bases < 1024);
-	memcpy(src, qual, bases * 4);
+	memmove(src, qual, bases * 4);
 	
 	for (k = j = i = 0; i != bases; ++i, j += 3, k += 4) {
 		switch (read[i]) {

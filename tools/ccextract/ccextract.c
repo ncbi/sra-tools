@@ -674,7 +674,7 @@ void CC handle_path (void * item_, void * data_)
                 }
                 else
                 {
-                    memcpy (tbuff, pbuff, sizeof pbuff);
+                    memmove (tbuff, pbuff, sizeof pbuff);
                     z = string_size (pbuff);
                     kpt = KDirectoryPathType (options.root, "%s", pbuff);
                 }

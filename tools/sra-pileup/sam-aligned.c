@@ -85,6 +85,7 @@ const char * EV_AL_TABLE = "EVIDENCE_ALIGNMENT";
 #define COL_SHORT_CIGAR "(ascii)CIGAR_SHORT"
 #define COL_MATE_ALIGN_ID "(I64)MATE_ALIGN_ID"
 #define COL_MATE_REF_NAME "(ascii)MATE_REF_NAME"
+#define COL_MATE_REF_SEQ_ID "(ascii)MATE_REF_SEQ_ID"
 #define COL_MATE_REF_POS "(INSDC:coord:zero)MATE_REF_POS"
 #define COL_TEMPLATE_LEN "(I32)TEMPLATE_LEN"
 #define COL_MISMATCH_READ "(ascii)MISMATCH_READ"
@@ -401,7 +402,7 @@ static rc_t prepare_prim_sec_table_cursor( const samdump_opts * const opts,
                 if ( rc == 0 )
                     rc = add_column( cursor, COL_MATE_ALIGN_ID, &atx->mate_align_id_idx ); /* read_fkt.c */
                 if ( rc == 0 )
-                    rc = add_column( cursor, COL_MATE_REF_NAME, &atx->mate_ref_name_idx ); /* read_fkt.c */
+                    rc = add_column( cursor, opts->use_seqid_as_refname ? COL_MATE_REF_SEQ_ID : COL_MATE_REF_NAME, &atx->mate_ref_name_idx ); /* read_fkt.c */
                 if ( rc == 0 )
                     rc = add_column( cursor, COL_MATE_REF_POS, &atx->mate_ref_pos_idx ); /* read_fkt.c */
                 if ( rc == 0 )

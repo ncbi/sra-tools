@@ -375,9 +375,9 @@ rc_t SRAWriterIllumina_Check(SRAWriterIllumina* self,
         done = true;
         for(i = 1; i < spot->nreads; i++) {
             if( spot->reads[i].read_id < spot->reads[i - 1].read_id ) {
-                memcpy(&tmp.reads[0], &spot->reads[i], sizeof(tmp.reads[0]));
-                memcpy(&spot->reads[i], &spot->reads[i - 1], sizeof(tmp.reads[0]));
-                memcpy(&spot->reads[i - 1], &tmp.reads[0], sizeof(tmp.reads[0]));
+                memmove(&tmp.reads[0], &spot->reads[i], sizeof(tmp.reads[0]));
+                memmove(&spot->reads[i], &spot->reads[i - 1], sizeof(tmp.reads[0]));
+                memmove(&spot->reads[i - 1], &tmp.reads[0], sizeof(tmp.reads[0]));
                 done = false;
             }
         }

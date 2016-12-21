@@ -107,7 +107,7 @@ static p_redact_val redact_val_init( const char* name,
                 res->len = sizeof x;
             res->value = malloc( len );
             if ( res->value )
-                memcpy( res->value, &x, res->len );
+                memmove( res->value, &x, res->len );
         }
     }
     return res;
@@ -124,7 +124,7 @@ void redact_val_fill_buffer( const p_redact_val r_val,
     {
         size_t l = r_val->len;
         if ( ( idx + l ) > buffsize ) l = ( buffsize - idx );
-        memcpy( dst, r_val->value, l );
+        memmove( dst, r_val->value, l );
         dst += l;
     }
 }

@@ -58,7 +58,7 @@ rc_t StrDup(const char* src, char** dst)
         if( dst == NULL ) {
             return RC(rcExe, rcString, rcCopying, rcMemory, rcExhausted);
         }
-        memcpy(*dst, src, sz);
+        memmove(*dst, src, sz);
         (*dst)[sz] = '\0';
     }
     return 0;
@@ -124,7 +124,7 @@ rc_t LogFileWrite(void *self, const char *buffer, size_t bufsize, size_t *num_wr
         char tid[64 * 1024];
         if( bufsize <= (sizeof(tid) - (1 + 5 + 1 + 15 + 2)) ) {
             int x = sprintf(tid, "[%i/%x] ", getpid(), (unsigned int)pthread_self());
-            memcpy(&tid[x], buffer, bufsize);
+            memmove(&tid[x], buffer, bufsize);
             bufsize += x;
             if( pwrite(g_fd, tid, bufsize, SEEK_END) != bufsize ) {
                 rc = RC(rcExe, rcLog, rcWriting, rcNoObj, rcIncomplete);

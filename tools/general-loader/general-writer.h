@@ -461,7 +461,7 @@ namespace ncbi
     // gw_header
     inline void init ( :: gw_header & hdr )
     {
-        memcpy ( hdr . signature, GW_SIGNATURE, sizeof hdr . signature );
+        memmove ( hdr . signature, GW_SIGNATURE, sizeof hdr . signature );
         hdr . endian = GW_GOOD_ENDIAN;
         hdr . version = GW_CURRENT_VERSION;
         hdr . hdr_size = sizeof ( :: gw_header );
@@ -619,13 +619,13 @@ namespace ncbi
     inline uint64_t get_nrows ( const :: gw_move_ahead_evt_v1 & self )
     {
         uint64_t nrows;
-        memcpy ( & nrows, & self . nrows, sizeof nrows );
+        memmove ( & nrows, & self . nrows, sizeof nrows );
         return nrows;
     }
 
     inline void set_nrows ( :: gw_move_ahead_evt_v1 & self, uint64_t nrows )
     {
-        memcpy ( & self . nrows, & nrows, sizeof self . nrows );
+        memmove ( & self . nrows, & nrows, sizeof self . nrows );
     }
 
     // gw_add_mbr_evt
@@ -884,13 +884,13 @@ namespace ncbi
     inline uint64_t get_nrows ( const :: gwp_move_ahead_evt_v1 & self )
     {
         uint64_t nrows;
-        memcpy ( & nrows, & self . nrows, sizeof nrows );
+        memmove ( & nrows, & self . nrows, sizeof nrows );
         return nrows;
     }
 
     inline void set_nrows ( :: gwp_move_ahead_evt_v1 & self, uint64_t nrows )
     {
-        memcpy ( & self . nrows, & nrows, sizeof self . nrows );
+        memmove ( & self . nrows, & nrows, sizeof self . nrows );
     }
 
 

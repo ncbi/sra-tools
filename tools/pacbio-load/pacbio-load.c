@@ -463,7 +463,7 @@ static rc_t pacbio_load( context *ctx, KDirectory * wd, ld_context *lctx, const 
                             if ( rc == 0 )
                             {
                                 uint32_t p_count, p_idx;                            
-                                rc = VNameListCount ( ctx->src_paths, &p_count );
+                                rc = VNameListCount ( parts, &p_count );
                                 for ( p_idx = 0; rc == 0 && p_idx < p_count; ++p_idx )
                                     rc = add_unique_to_namelist( parts, to_process, p_idx );
                             }

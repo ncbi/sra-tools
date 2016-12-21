@@ -26,7 +26,7 @@
 #include "get_platform.h"
 #include <sysalloc.h>
 #include <stdlib.h> /* for malloc */
-#include <string.h> /* for memcpy */
+#include <string.h> /* for memmove */
 
 #define PLATFORM_COL "(ascii)PLATFORM"
 
@@ -68,13 +68,13 @@ static rc_t get_platform_from_table( const VTable *my_table, char ** dst,
                                 if ( pre_and_postfix != 0 )
                                 {
                                     (*dst)[ 0 ] = pre_and_postfix;
-                                    memcpy( &(*dst)[1], src_ptr, element_count );
+                                    memmove( &(*dst)[1], src_ptr, element_count );
                                     (*dst)[ element_count + 1 ] = pre_and_postfix;
                                     (*dst)[ element_count + 2 ] = 0;
                                 }
                                 else
                                 {
-                                    memcpy( *dst, src_ptr, element_count );
+                                    memmove( *dst, src_ptr, element_count );
                                     (*dst)[ element_count ] = 0;
                                 }
                             }

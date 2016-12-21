@@ -296,7 +296,7 @@ rc_t SFFGzip_Idx(const SRATable* sratbl, SIndexObj* obj, char* buffer, const siz
                                 rc = RC(rcExe, rcIndex, rcConstructing, rcMemory, rcInsufficient);
                                 break;
                             }
-                            memcpy(&spots_buf[blk], hd, hd_sz);
+                            memmove(&spots_buf[blk], hd, hd_sz);
                             blk += hd_sz;
                             if( g_dump ) {
                                 fwrite(hd, hd_sz, 1, stderr);
@@ -310,7 +310,7 @@ rc_t SFFGzip_Idx(const SRATable* sratbl, SIndexObj* obj, char* buffer, const siz
                     break;
                 }
                 inode->id_qty++;
-                memcpy(&spots_buf[blk], buffer, written);
+                memmove(&spots_buf[blk], buffer, written);
                 blk += written;
                 if( g_dump ) {
                     fwrite(buffer, written, 1, stderr);
@@ -589,7 +589,7 @@ rc_t FastqGzip_Idx(const SRATable* sratbl, SIndexObj* obj, char* buffer, const s
                     break;
                 }
                 inode->id_qty++;
-                memcpy(&spots_buf[blk], buffer, written);
+                memmove(&spots_buf[blk], buffer, written);
                 blk += written;
                 if( g_dump ) {
                     fwrite(buffer, written, 1, stderr);

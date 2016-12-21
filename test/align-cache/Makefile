@@ -50,8 +50,10 @@ runtests: align-cache
 
 align-cache: $(BINDIR)/align-cache
 	@ rm -rf CSRA_file.cache
-	@ $(BINDIR)/align-cache -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache
+	@ echo "vdb/schema/paths = \"$(VDB_INCDIR)\"" > tmp.kfg
+	@ export VDB_CONFIG=`pwd`; $(BINDIR)/align-cache -t 10 --min-cache-count 1 CSRA_file CSRA_file.cache
 	@ $(BINDIR)/vdb-validate CSRA_file.cache/ 2>&1 | grep --quiet "is consistent"
+	@ rm tmp.kfg
 	@ rm -rf CSRA_file.cache
 	
 vg: $(BINDIR)/align-cache

@@ -220,8 +220,8 @@ rc_t TarEntry_PackName(const TarEntry* e, TarBlock* block)
         strcpy(h->name, e->name);
     } else if( e->name_fmt > 0 ) {
         /* to split the long name into a prefix and a short name (POSIX) */
-        memcpy(h->x.prefix, e->name, e->name_fmt);
-        memcpy(h->name, e->name + e->name_fmt + 1, strlen(e->name) - e->name_fmt - 1);
+        memmove(h->x.prefix, e->name, e->name_fmt);
+        memmove(h->name, e->name + e->name_fmt + 1, strlen(e->name) - e->name_fmt - 1);
     } else {
         strcpy(h->name, "././@LongLink");
         TarEntry_NumToOctal(0, h->mode, sizeof(h->mode) - 1);
@@ -234,13 +234,13 @@ rc_t TarEntry_PackName(const TarEntry* e, TarBlock* block)
         TarEntry_NumToOctal(0, h->mtime, sizeof(h->mtime)- 1);
         h->typeflag[0] = 'L';
         /* Old GNU magic protrudes into adjacent version field */
-        memcpy(h->magic, "ustar  ", 8); /* 2 spaces and '\0'-terminated */
+        memmove(h->magic, "ustar  ", 8); /* 2 spaces and '\0'-terminated */
         TarEntry_TarChecksum(block, true);
         strcpy((char*)(&block[1]), e->name);
 
         /* Still, store the initial part in the original header */
         h = &block[-e->name_fmt - 1].header;
-        memcpy(h->name, e->name, sizeof(h->name));
+        memmove(h->name, e->name, sizeof(h->name));
     }
     return 0;
 }
@@ -287,8 +287,8 @@ rc_t TarEntry_Header(const TarEntry* e, TarBlock* block)
         /* limited version: expect only normal files !!! */
         h->typeflag[0] = '0';
         /* User and group */
-        memcpy(h->uname, "anyone", 6);
-        /* memcpy(h->gname, "?????", 5); */
+        memmove(h->uname, "anyone", 6);
+        /* memmove(h->gname, "?????", 5); */
 
         /* Device nos to complete the ustar header protocol (all fields ok) */
         if( fmt != eTar_OldGNU ) {
@@ -299,10 +299,10 @@ rc_t TarEntry_Header(const TarEntry* e, TarBlock* block)
             /* Magic */
             strcpy(h->magic, "ustar");
             /* Version (EXCEPTION:  not '\0' terminated) */
-            memcpy(h->version, "00", 2);
+            memmove(h->version, "00", 2);
         } else {
             /* Old GNU magic protrudes into adjacent version field */
-            memcpy(h->magic, "ustar  ", 8); /* 2 spaces and '\0'-terminated */
+            memmove(h->magic, "ustar  ", 8); /* 2 spaces and '\0'-terminated */
         }
 
         if( !TarEntry_TarChecksum(&block[size - 1], fmt == eTar_OldGNU ? true : false) ) {
@@ -324,7 +324,7 @@ rc_t TarEntry_Read(const TarEntry* entry, TarBlock* header_buf, const KFile* kfi
             if( q > (size - *num_read) ) {
                 q = size - *num_read;
             }
-            memcpy(&buffer[*num_read], &header_buf->buffer[pos - entry->start], q);
+            memmove(&buffer[*num_read], &header_buf->buffer[pos - entry->start], q);
             *num_read = *num_read + q;
             pos += q;
             DEBUG_LINE(8, "header: %u bytes", q);

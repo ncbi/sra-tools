@@ -29,6 +29,7 @@
 #include <klib/text.h>
 #include <klib/printf.h>
 #include <klib/time.h>
+#include <kapp/main.h>      /* for KAppVersion()*/
 #include <kdb/meta.h>
 #include <kdb/namelist.h>
 #include <sysalloc.h>

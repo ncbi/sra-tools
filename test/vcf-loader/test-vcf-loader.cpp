@@ -99,7 +99,7 @@ public:
         if (to_copy == 0)
             return 0;
 
-        memcpy(buf, self->input.c_str(), to_copy);
+        memmove(buf, self->input.c_str(), to_copy);
         if (to_copy < max_size && buf[to_copy-1] != '\n')
         {
             buf[to_copy] = '\n';
@@ -852,9 +852,7 @@ rc_t CC Usage( const Args* args )
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
-    // need user settings to pick up the correct schema include directory,
-    // so do not disable them
-    //KConfigDisableUserSettings();
+    KConfigDisableUserSettings();
     
     rc_t rc = VcfLoaderTestSuite(argc, argv);
     return rc;

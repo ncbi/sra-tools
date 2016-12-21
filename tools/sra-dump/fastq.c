@@ -2542,7 +2542,7 @@ static rc_t FastqFormatterSplitter_WrapLine( const KDataBuffer* src, size_t src_
         *dst_sz = sz = src_sz;
         while ( sz > 0 )
         {
-            memcpy( d, s, sz > width ? width : sz );
+            memmove( d, s, sz > width ? width : sz );
             if ( sz <= width )
             {
                 break;
@@ -3694,7 +3694,7 @@ rc_t SRADumper_Init( SRADumperFmt* fmt )
             /* DO NOT ADD IN THE MIDDLE ORDER IS IMPORTANT IN USAGE FUNCTION ABOVE!!! */
             {NULL, "split-spot", NULL, {"Split spots into individual reads", NULL}},            /* H_splip_sot = 0 */
 
-            {"W", "clip", NULL, {"Apply left and right clips", NULL}},                          /* H_clip = 1 */
+            {"W", "clip", NULL, {"Clip adapter sequences", NULL}},                          /* H_clip = 1 */
 
             {"M", "minReadLen", "len", {"Filter by sequence length >= <len>", NULL}},           /* H_minReadLen = 2 */
             {"E", "qual-filter", NULL, {"Filter used in early 1000 Genomes data:",              /* H_qual_filter = 3 */

@@ -84,7 +84,7 @@ rc_t FileOptions_Clone(FileOptions** self, const FileOptions* src, uint32_t coun
     if( self == NULL || src == NULL ) {
         rc = RC(rcExe, rcTable, rcCopying, rcParam, rcNull);
     } else if( (rc = FileOptions_Make(self, count)) == 0 ) {
-        memcpy(*self, src, sizeof(**self) * count);
+        memmove(*self, src, sizeof(**self) * count);
     }
     return rc;
 }
@@ -134,7 +134,7 @@ rc_t FileOptions_SRAArchiveInstant(FileOptions* self, FileOptions* fmd5,
             self->file_sz = size;
             self->type = lite ? eSRAFuseFmtArcLite : eSRAFuseFmtArc;
             self->f.sra.lite = lite;
-            memcpy(self->md5, md5, sizeof(self->md5));
+            memmove(self->md5, md5, sizeof(self->md5));
             if( (rc = FileOptions_AttachMD5(self, accession, fmd5)) == 0 ) {
                 rc = FileOptions_UpdateMD5(self, accession);
             }
@@ -155,7 +155,7 @@ rc_t FileOptions_SRAArchiveUpdate(FileOptions* self, const char* name,
         if( md5 == NULL ) {
             memset(self->md5, 0, sizeof(self->md5));
         } else {
-            memcpy(self->md5, md5, sizeof(self->md5));
+            memmove(self->md5, md5, sizeof(self->md5));
         }
         rc = FileOptions_UpdateMD5(self, name);
     }
@@ -228,7 +228,7 @@ rc_t FileOptions_CalcMD5(FileOptions* self, const char* name, const SRAListNode*
                     rc = string_printf(&smd5[x], sizeof(smd5) - x, &num_read, "%02x", digest[pos]);
                     x += num_read;
                 }
-                memcpy(self->md5, smd5, sizeof(self->md5));
+                memmove(self->md5, smd5, sizeof(self->md5));
                 DEBUG_LINE(10, "%s %s %.*s", self->suffix, name, sizeof(self->md5), self->md5);
             }
             KFileRelease(kfile);

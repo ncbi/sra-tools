@@ -66,7 +66,7 @@ TARGET=sratoolkit.current-${OS}
 mkdir -p ${WORKDIR}
 cd ${WORKDIR}
 
-wget -nv ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
+wget --no-check-certificate ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
 gunzip -f ${TARGET}.tar.gz || exit 2
 PACKAGE=$(tar tf ${TARGET}.tar | head -n 1)
 rm -rf ${PACKAGE}

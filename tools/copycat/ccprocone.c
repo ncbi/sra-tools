@@ -90,7 +90,7 @@ rc_t ProcessOneMake (ProcessOne ** ppo, const KDirectory * dir, KDirectory * xml
 	self->md5 = md5;
 	self->file = file;
 	self->ff = ff;
-	memcpy (self->path, path, pathlen);
+	memmove (self->path, path, pathlen);
 	self->path[pathlen] = '\0';
 	rc = 0;
     }

@@ -359,7 +359,7 @@ void PoslenColWriterWrite ( PoslenColWriter *self, const ctx_t *ctx,
     assert ( boff == 0 );
     assert ( row_len == 1 );
 
-    memcpy ( & poslen, data, sizeof poslen );
+    memmove ( & poslen, data, sizeof poslen );
     global_ref_start = decode_pos_len ( poslen );
     ref_len = poslen_to_len ( poslen );
 
@@ -405,7 +405,7 @@ void PoslenColWriterWriteStatic ( PoslenColWriter *self, const ctx_t *ctx,
     assert ( boff == 0 );
     assert ( row_len == 1 );
 
-    memcpy ( & poslen, data, sizeof poslen );
+    memmove ( & poslen, data, sizeof poslen );
     global_ref_start = decode_pos_len ( poslen );
     ref_len = poslen_to_len ( poslen );
 

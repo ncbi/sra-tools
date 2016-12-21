@@ -556,7 +556,7 @@ static rc_t BAM_FileReadn(BAM_File *self, const unsigned len, uint8_t dst[/* len
             n = self->bufSize - self->bufCurrent;
             if (cur + n > len)
                 n = len - cur;
-            memcpy(&dst[cur], &self->buffer[self->bufCurrent], n);
+            memmove(&dst[cur], &self->buffer[self->bufCurrent], n);
             self->bufCurrent += n;
         }
         if (self->bufCurrent != self->bufSize && self->bufSize != 0)
@@ -1029,7 +1029,7 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
         if (tmp == NULL)
             return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
         self->header = tmp;  /* a const copy of the original */
-        memcpy(tmp, text, size + 1);
+        memmove(tmp, text, size + 1);
     }
     else
         self->header = text;
@@ -1038,7 +1038,7 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
     if (copy == NULL)
         return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
     self->headerData1 = copy; /* so it's not leaked */
-    memcpy(copy, text, size + 1);
+    memmove(copy, text, size + 1);
     
     {
     bool const parsed = ParseHeader(self, copy, size);
@@ -1191,12 +1191,12 @@ static rc_t ReadHeaders(BAM_File *self,
                 }
                 rdat = tmp;
             }
-            memcpy(rdat + rdsz, &i32, 4);
+            memmove(rdat + rdsz, &i32, 4);
             rdsz += 4;
             rc = BAM_FileReadn(self, i32, (uint8_t *)&rdat[rdsz]); if (rc) goto BAILOUT;
             rdsz += i32;
             rc = BAM_FileReadI32(self, &i32); if (rc) goto BAILOUT;
-            memcpy(rdat + rdsz, &i32, 4);
+            memmove(rdat + rdsz, &i32, 4);
             rdsz += 4;
         }
     }
@@ -1245,7 +1245,7 @@ static void FindAndSetupRefSeq(BAMRefSeq *rs, unsigned const refSeqs, BAMRefSeq 
         rs->species = refSeq[fnd].species;
         if (refSeq[fnd].checksum) {
             rs->checksum = &rs->checksum_array[0];
-            memcpy(rs->checksum_array, refSeq[fnd].checksum_array, 16);
+            memmove(rs->checksum_array, refSeq[fnd].checksum_array, 16);
         }
         else
             rs->checksum = NULL;
@@ -2800,8 +2800,8 @@ rc_t BAM_AlignmentCopy(const BAM_Alignment *self, BAM_Alignment **rslt)
         LOGMSG(klogFatal, "OUT OF MEMORY");
         abort();
     }
-    memcpy(tmp, self, rsltsize);
-    memcpy(tmp2, self->data, self->datasize);
+    memmove(tmp, self, rsltsize);
+    memmove(tmp2, self->data, self->datasize);
     *rslt = tmp;
     (**rslt).data = tmp2;
     (**rslt).storage = NULL;
@@ -3558,7 +3558,7 @@ static rc_t FormatSAMBuffer(BAM_Alignment const *self,
     if (actsize > maxsize)
         return RC(rcAlign, rcReading, rcRow, rcBuffer, rcInsufficient);
 
-    memcpy(buffer, scratch, actsize);
+    memmove(buffer, scratch, actsize);
     return 0;
 }
 
@@ -3607,7 +3607,7 @@ static bool i_OptDataForEach(BAM_Alignment const *cself, void *Ctx, char const t
     ctx->val->type = type;
     ctx->val->element_count = (type == dt_CSTRING || type == dt_HEXSTRING) ? size - 1 : count;
     
-    memcpy(ctx->val->u.u8, value, size * count);
+    memmove(ctx->val->u.u8, value, size * count);
 #if __BYTE_ORDER == __BIG_ENDIAN
     {{
         unsigned di;
@@ -3947,7 +3947,7 @@ static unsigned splice(uint32_t cigar[], unsigned n, unsigned at, unsigned out, 
     assert(at + out <= n);
     memmove(&cigar[at + in], &cigar[at + out], (n - at - out) * 4);
     if (in)
-        memcpy(&cigar[at], new_values, in * 4);
+        memmove(&cigar[at], new_values, in * 4);
     return n + in - out;
 }
 
@@ -4037,7 +4037,7 @@ static unsigned GetCGCigar(BAM_Alignment const *self, unsigned const N, uint32_t
     if (N < n + 2 * gaps)
         return RC(rcAlign, rcRow, rcReading, rcBuffer, rcInsufficient);
     
-    memcpy(cigar, getCigarBase(self), n * 4);
+    memmove(cigar, getCigarBase(self), n * 4);
 
     if (n > 1)
         n = canonicalize(cigar, n); /* just in case */

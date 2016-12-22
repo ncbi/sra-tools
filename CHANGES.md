@@ -1,5 +1,17 @@
 # NCBI External Developer Release:
 
+## SRA Toolkit 2.8.1
+**December 22, 2016**
+
+  **bam-load**: the result code updated to indicate empty slice rather than EOF  
+  **kfg**: added possibility to create an empty KConfig object that does not try to load any file  
+  **latf-load**: fixed an occasional crash on Ubuntu  
+  **latf-load, test**: test script no longer executes failing tests for unimplemented features  
+  **prefetch**: uses KStream rather than KHttpFile - it fixed environments with proxies non supporting HTTP Range  
+  **sam-dump**: use of --seqid options creates now headers consistent with sam-lines  
+  **test-sra**: added ability to print http response headers  
+
+
 ## SRA Toolkit 2.8.0-2
 **December 8, 2016**
 

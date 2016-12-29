@@ -2335,7 +2335,7 @@ static rc_t read_stream_into_databuffer(
 
 static rc_t call_cgi(const Main *self, const char *cgi_url,
     uint32_t ver_major, uint32_t ver_minor, const char *protocol,
-    const char *acc, KDataBuffer *databuffer, const char *eol)
+    const char *aAcc, KDataBuffer *databuffer, const char *eol)
 {
     KClientHttpRequest * req = NULL;
     char b [1024 ] = "";
@@ -2343,32 +2343,43 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     assert(self);
     rc = KNSManagerMakeReliableClientRequest
         (self->knsMgr, &req, HTTP_VERSION, NULL, cgi_url);
-    if (rc != 0) {
+    if (rc != 0)
         OUTMSG(
             ("KNSManagerMakeReliableClientRequest(%s)=%R%s", cgi_url, rc, eol));
-    }
+
     if (rc == 0) {
         const char param[] = "acc";
+        const char * acc = aAcc;
+        if ( acc == NULL )
+            acc = "SRR1219908";
         rc = KHttpRequestAddPostParam( req, "%s=%s", param, acc);
-        if (rc != 0) {
+        if (rc != 0)
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
-        }
     }
+
     if (rc == 0) {
         const char param[] = "accept-proto";
         rc = KHttpRequestAddPostParam( req, "%s=%s", param, protocol);
-        if (rc != 0) {
+        if (rc != 0)
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
-        }
     }
+
     if (rc == 0) {
         const char param[] = "version";
         rc = KHttpRequestAddPostParam
             (req, "%s=%u.%u", param, ver_major, ver_minor);
-        if (rc != 0) {
+        if (rc != 0)
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
-        }
     }
+
+    if ( rc == 0 && aAcc == NULL ) {
+        const char param[] = "tic";
+        rc = KHttpRequestAddPostParam
+            ( req, "%s=6D142524-0F4B-4EB6-A872-F1D66BF63F10", param );
+        if (rc != 0)
+            OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
+    }
+
     if (rc == 0) {
         rc = KClientHttpRequestFormatMsg
             ( req, b, sizeof b, "POST", NULL );
@@ -2415,59 +2426,138 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     return rc;
 }
 
-static rc_t perform_cgi_test ( const Main * self,
-    const char * eol, const char * acc )
+static bool perform_cgi_test ( const Main * self,
+    const char * eol, const char * acc, String * path, bool http )
 {
+    bool denied = false;
     rc_t rc = 0;
     const char root[] = "Cgi";
+
     KDataBuffer databuffer;
     KTimeMs_t start_time = KTimeMsStamp();
-    if (acc == NULL) {
-        return 0;
-    }
+
     assert(self);
+
     memset(&databuffer, 0, sizeof databuffer);
-    if (self->xml) {
-        OUTMSG(("    <%s>\n", root));
-    }
+    if (self->xml)
+      OUTMSG(("    <%s>\n", root));
+
     {
         KTimeMs_t time = 0;
         const char root[] = "Response";
         rc = call_cgi ( self,
             "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi",
-            1, 2, "http,https", acc, & databuffer, eol );
+            1, 2, http ? "http" : "https", acc, & databuffer, eol );
         time = KTimeMsStamp() - start_time;
         if (rc == 0) {
+            size_t i = 0;
             const char *start = databuffer.base;
             size_t size = KDataBufferBytes(&databuffer);
-            if (self->xml) {
-                OUTMSG(("    <%s time=\"%d ms\">%.*s</%s>\n",
-                    root, time, size, start, root));
-            }
-            else {
+            if (self->xml)
+                OUTMSG( ("      <%s protocol=\"%s\" time=\"%d ms\">%.*s</%s>\n",
+                    root, http ? "http" : "https", time, size, start, root) );
+            else
                 OUTMSG(("%s = \"%.*s\"  time=\"%d ms\"\n",
                     root, size, start, time));
+            {
+                const char Access_denied []
+                    = "Access denied - please request permission to access ";
+                for ( i = 0; i + sizeof Access_denied - 1 < size && ! denied;
+                      ++ i )
+                {
+                    assert ( size >= i );
+                    char * c =
+                        string_chr ( start + i, size - i, Access_denied [ 0 ] );
+                    if  ( c != NULL ) {
+                        i = c - start;
+                        denied = string_cmp ( start + i, size - i,
+                              Access_denied,  sizeof Access_denied - 1,
+                                sizeof Access_denied - 1 )
+                            == 0;
+                    }
+                    else
+                        break;
+                }
+            }
+            if ( ! denied ) {
+                const char http  [] = "|http://" ;
+                const char https [] = "|https://";
+                const char * found = NULL;
+                assert ( path );
+                for ( i = 0; i + sizeof http - 1 < size && ! denied; ++ i ) {
+                    assert ( size >= i );
+                    found = string_chr ( start + i, size - i, http [ 0 ] );
+                    if ( found != NULL ) {
+                        i = found - start;
+                        bool proto = string_cmp ( start + i, size - i,
+                                    http,  sizeof http - 1, sizeof http - 1 )
+                                == 0;
+                        if ( ! proto )
+                            proto = string_cmp ( start + i, size - i,
+                                    https,  sizeof https - 1, sizeof https - 1 )
+                                == 0;
+                        if ( proto ) {
+                            ++ found;
+                            ++ i;
+                            {
+                                const char * s
+                                    = string_chr ( start + i, size - i, '|' );
+                                if ( s != NULL ) {
+                                    path -> size = s - start - i;
+                                    if ( path -> size <= path -> len )
+                                        string_copy ( ( char * ) path -> addr, 
+                                            path -> len, found, path -> size );
+                                    else
+                                        path -> size = 0;
+                                }
+                                else
+                                    path -> size = 0;
+                            }
+                            break;
+                        }
+                    }
+                    else
+                        break;
+                }
             }
         }
     }
-    if (self->xml) {
+
+    if (self->xml)
         OUTMSG(("    </%s>\n", root));
-    }
+
     KDataBufferWhack ( & databuffer );
-    return rc;
+
+    return denied;
 }
 
 static
 rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
-    bool get, bool https )
+    bool get, const char * path, size_t len )
 {
+    bool https = false;
     rc_t rc = 0;
-    const char * method = "Head";
     const char * protocol = "http";
+    const char sHttp  [] = "http://";
+    const char sHttps [] = "https://";
+    const char * method = "Head";
     if ( get )
         method = "Get";
-    if ( https )
+    if ( string_cmp ( path, len,
+        sHttps, sizeof sHttps - 1, sizeof sHttps - 1 ) == 0 )
+    {
         protocol = "https";
+        https = true;
+    }
+    else if ( string_cmp ( path, len,
+        sHttp, sizeof sHttp - 1, sizeof sHttp - 1 ) == 0 )
+    {
+        protocol = "http";
+        https = false;
+    }
+    else
+        return true;
+
     if ( self -> xml )
         OUTMSG ( ( "%s    <%s protocol=\"%s\">\n", bol, method, protocol ) );
     {
@@ -2480,8 +2570,18 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
         char * b = buffer;
         size_t sizeof_b = sizeof buffer;
         char * allocated = NULL;
+        size_t protoLen = sizeof sHttp - 1 + ( https ? 1 : 0 );
+        const char * sHost = path + protoLen;
+
+        const char * sPath = string_chr ( sHost, len - protoLen, '/' ) ;
+
         String host;
-        CONST_STRING ( & host, "sra-download.ncbi.nlm.nih.gov" );
+
+        if ( sPath == NULL )
+            return true;
+
+        StringInit ( & host, sHost, sPath - sHost, sPath - sHost );
+
         if ( self -> xml )
             OUTMSG ( ( "%s      <%s host=\"%S\">\n", bol, root, & host ) );
         else
@@ -2493,19 +2593,24 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
         else
             rc = KNSManagerMakeClientHttp
                 ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
+
         if ( rc == 0 ) {
-            rc = KClientHttpMakeRequest( http, & req, "/srapub/%s", arg );
+            const char * url = sPath;
+            rc = KClientHttpMakeRequest
+                ( http, & req, "%.*s", len - ( sPath - path) + 1, url );
             if ( rc != 0 )
                 OUTMSG ( ( "KClientHttpMakeRequest(%S,/srapub/%s)=%R\n",
                            & host, arg, rc ) );
         }
         else
             OUTMSG ( ( "KClientHttpMakeRequest(%S)=%R\n", & host, rc ) );
+
         if ( get && rc == 0 ) {
             rc = KClientHttpRequestByteRange ( req, 0, 4096 );
             if ( rc != 0 )
                 OUTMSG ( ( "KClientHttpRequestByteRange(0,4096)=%R\n", rc ) );
         }
+
         if ( rc == 0 ) {
             rc = KClientHttpRequestFormatMsg
                 ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
@@ -2529,6 +2634,7 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
             else
                 OUTMSG ( ( "KClientHttpRequestFormatMsg()=%R\n", rc ) );
         }
+
         if ( rc == 0 ) {
             if ( get ) {
                 rc = KClientHttpRequestGET ( req, & rslt );
@@ -2541,6 +2647,7 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
                     OUTMSG ( ( "KClientHttpRequestHEAD()=%R\n", rc ) );
             }
         }
+
         if ( rc == 0 ) {
             rc = KClientHttpResultFormatMsg
                 ( rslt, b, sizeof_b, & len, "", "\n" );
@@ -2562,8 +2669,10 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
             if ( rc != 0 )            
                 OUTMSG ( ( "KClientHttpResultFormatMsg()=%R\n", rc ) );
         }
+
         if ( self -> xml )
             OUTMSG ( ( "%s      </%s>\n", bol, root ) );
+
         if ( rc == 0 ) {
             const char root [] = "Response";
             if (self->xml)
@@ -2576,6 +2685,7 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
             else
                 OUTMSG ( ( "\n" ) );
         }
+
         free ( allocated );
         allocated = NULL;
         b = buffer;
@@ -2583,9 +2693,55 @@ rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
         RELEASE ( KClientHttpRequest, req );
         RELEASE ( KClientHttp, http );
     }
+
     if ( self -> xml )
         OUTMSG ( ( "%s    </%s>\n", bol, method ) );
+
     return rc;
+}
+
+static
+bool MainNetwotkByAcc ( const Main * self, const char * bol, const char * eol,
+                        const char * arg )
+{
+    int i = 0;
+    const char pth [] = "http://sra-download.ncbi.nlm.nih.gov/srapub/SRR000001";
+    const char st [] = "https://sra-download.ncbi.nlm.nih.gov/srapub/SRR000001";
+    const char root [] = "Ranges";
+    const char path [ PATH_MAX ] = "";
+    String sPath;
+    CONST_STRING ( & sPath, path );
+
+    for ( i = 0; i < 2; ++ i ) {
+        bool denied = perform_cgi_test ( self, eol, arg, & sPath, i );
+        if ( denied )
+            return denied;
+
+        if ( self -> xml )
+            OUTMSG ( ( "%s  <%s>\n", bol, root ) );
+        else
+            OUTMSG ( ( "\n%s\n", root ) );
+
+        if ( sPath . size != 0 ) {
+            MainRanges ( self, arg, bol, true , sPath . addr , sPath . size );
+            MainRanges ( self, arg, bol, false, sPath . addr , sPath . size );
+        }
+        else {
+            if ( i == 0 ) {
+                MainRanges ( self, arg, bol, true , st , sizeof st  -1 );
+                MainRanges ( self, arg, bol, false, st , sizeof st  -1 );
+            }
+            else {
+                MainRanges ( self, arg, bol, true , pth, sizeof pth -1 );
+                MainRanges ( self, arg, bol, false, pth, sizeof pth -1 );
+            }
+        }
+
+        if ( self-> xml )
+            OUTMSG ( ( "%s  </%s>\n", bol, root ) );
+    }
+
+    return false;
 }
 
 static rc_t MainNetwotk ( const Main * self,
@@ -2623,46 +2779,38 @@ static rc_t MainNetwotk ( const Main * self,
                 uint16_t http_proxy_port = 0;
                 HttpProxyGet(p, &http_proxy, &http_proxy_port);
                 if (self->xml) {
-                    if ( http_proxy_port == 0) {
+                    if ( http_proxy_port == 0)
                         OUTMSG ( ( "%s    <%s path=\"%S\"/>\n",
                             bol, root, http_proxy ) );
-                    }
-                    else {
+                    else
                         OUTMSG(("%s    <%s path=\"%S\" port=\"%d\"/>\n",
                             bol, root, http_proxy, http_proxy_port));
-                    }
                 }
                 else {
-                    if ( http_proxy_port == 0) {
+                    if ( http_proxy_port == 0)
                         OUTMSG(("HTTPProxy=\"%S\"\n", http_proxy));
-                    }
-                    else {
+                    else
                         OUTMSG(("HTTPProxy=\"%S\":%d\n",
                             http_proxy, http_proxy_port));
-                    }
                 }
                 p = HttpProxyGetNextHttpProxy ( p );
             }
         }
-        if (self->xml) {
+        if (self->xml)
             OUTMSG(("%s  </%s>\n", bol, root));
-        }
     }
 
     if (arg == NULL) {
         const char *user_agent = NULL;
         rc_t rc = KNSManagerGetUserAgent(&user_agent);
-        if (rc != 0) {
+        if (rc != 0)
             OUTMSG(("KNSManagerGetUserAgent()=%R%s", rc, eol));
-        }
         else {
             const char root[] = "UserAgent";
-            if (self->xml) {
+            if (self->xml)
                 OUTMSG(("%s  <%s>%s</%s>\n", bol, root, user_agent, root));
-            }
-            else {
+            else
                 OUTMSG(("UserAgent=\"%s\"\n", user_agent));
-            }
         }
 
         perform_dns_test (self, eol,  80);
@@ -2672,21 +2820,10 @@ static rc_t MainNetwotk ( const Main * self,
             );
     }
 
-    if (arg != NULL)
-        perform_cgi_test(self, eol, arg);
-
     if ( arg != NULL ) {
-        const char root [] = "Ranges";
-        if ( self -> xml )
-            OUTMSG ( ( "%s  <%s>\n", bol, root ) );
-        else
-            OUTMSG ( ( "\n%s\n", root ) );
-        MainRanges ( self, arg, bol, true , false );
-        MainRanges ( self, arg, bol, true , true  );
-        MainRanges ( self, arg, bol, false, false );
-        MainRanges ( self, arg, bol, false, true  );
-        if ( self-> xml )
-            OUTMSG ( ( "%s  </%s>\n", bol, root ) );
+        bool dbGaP = MainNetwotkByAcc ( self, bol, eol, arg );
+        if ( dbGaP )
+            MainNetwotkByAcc ( self, bol, eol, NULL );
     }
 
     if ( self -> xml )

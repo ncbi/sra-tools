@@ -170,6 +170,8 @@ tool-tests: $(TEST_BINDIR)/makeinputs
 	@$(SRCDIR)/runtestcase.sh $(BINDIR) kdbmeta $(SRCDIR) 6packed 0 "-L=info -I=$(VDB_INCDIR)" SOFTWARE/formatter
 	@#    
 	@rm -rf input/*.gl actual/*
+	@#
+	@$(TOP)/$(MODULE)/VDB-3250/prepare_test_data.sh $(TOP) $(TEST_BINDIR)
 
 one-tool: $(TEST_BINDIR)/makeinputs
 	@mkdir -p input && $(TEST_BINDIR)/makeinputs && rm $(TEST_BINDIR)/makeinputs

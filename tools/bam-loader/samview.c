@@ -22,6 +22,7 @@
  *
  * ===========================================================================
  *
+ * Primarily, this exists to drive our BAM/SAM parsing code
  */
 
 #include <kapp/args.h>

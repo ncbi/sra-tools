@@ -35,6 +35,8 @@
 struct BAM_Alignment;
 struct ReferenceSeq;
 
+#define REF_ID_LEN 4096
+
 typedef struct variation
 {
     DLNode node;
@@ -56,10 +58,10 @@ typedef struct var_expand_data
     
     uint8_t * seq_buffer;
     uint32_t seq_buffer_len;
-    uint32_t seq_len;
-    int64_t seq_pos_on_ref;
     int64_t last_seq_pos_on_ref;
     uint32_t seq_len_on_ref;
+
+    char ref_id[ REF_ID_LEN ];
     
     uint8_t * ref_buffer;
     uint32_t ref_buffer_len;

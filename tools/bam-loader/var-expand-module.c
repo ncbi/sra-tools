@@ -54,14 +54,14 @@ static rc_t log_this( var_expand_data * data, const char * fmt, ... )
     return rc;
 } 
 
-static rc_t realloc_seq_buffer( var_expand_data * data )
+static rc_t realloc_seq_buffer( var_expand_data * data, uint32_t seq_len )
 {
     rc_t rc = 0;
-    if ( data->seq_buffer_len < data->seq_len )
+    if ( data->seq_buffer_len < seq_len )
     {
         if ( data->seq_buffer != NULL )
             free( ( void * )data->seq_buffer );
-        data->seq_buffer_len = data->seq_len * 2;
+        data->seq_buffer_len = seq_len * 2;
         data->seq_buffer = malloc( data->seq_buffer_len );
         if ( data->seq_buffer == NULL )
         {
@@ -90,7 +90,9 @@ static rc_t realloc_ref_buffer( var_expand_data * data )
     return rc;
 }
 
-
+/* --------------------------------------------------------------------------------------
+called by ArchiveBAM(...) in loader-imp.c#2903
+-------------------------------------------------------------------------------------- */
 rc_t var_expand_init( var_expand_data ** data )
 {
     rc_t rc = 0;
@@ -132,7 +134,7 @@ rc_t var_expand_init( var_expand_data ** data )
 }
 
 
-variation * make_variation( const char * bases, INSDC_coord_len len, INSDC_coord_zero offset )
+static variation * make_variation( const char * bases, INSDC_coord_len len, INSDC_coord_zero offset )
 {
     variation * res;
     size_t vs = len + sizeof( *res );
@@ -142,17 +144,21 @@ variation * make_variation( const char * bases, INSDC_coord_len len, INSDC_coord
         res->offset = offset;
         res->len = len;
         res->count = 1;
-        memcpy( &( res->bases[ 0 ] ), bases, ( size_t )len );
+        memmove( &( res->bases[ 0 ] ), bases, ( size_t )len );
     }
     return res;
 }
 
 
-static void var_on_event( var_expand_data * data, BAMCigarType cigar_op, uint32_t cigar_op_len,
-                          INSDC_coord_zero * offset_into_ref, INSDC_coord_zero *offset_into_read )
+static void var_on_event( var_expand_data * data,
+                         int64_t seq_pos_on_ref,
+                          BAMCigarType cigar_op,
+                          uint32_t cigar_op_len,
+                          INSDC_coord_zero * offset_into_ref,
+                          INSDC_coord_zero *offset_into_read )
 {
     const uint8_t * p;
-    const INSDC_coord_zero abs_offset_into_ref = *offset_into_ref + data->seq_pos_on_ref;
+    const INSDC_coord_zero abs_offset_into_ref = *offset_into_ref + seq_pos_on_ref;
     uint32_t variation_len = cigar_op_len;
     
     if ( cigar_op == ct_Delete )
@@ -198,8 +204,15 @@ static void var_on_event( var_expand_data * data, BAMCigarType cigar_op, uint32_
 
 }
 
-
-rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, struct ReferenceSeq const *refSequence )
+/* -------------------------------------------------------------------------------------------------------
+called by ProcessBAM(...) aka the monster-loop in loader-imp.c#2234
+    var_expand_data ....... var-expand-module.h
+    BAM_Alignment ......... bam.h ( opaque handle for BAM_AlignmentGetXXXX-functions )
+    ReferenceSeq .......... <align/writer-reference.h> ( opague handle for ReferenceSeq_XXX-functions )
+------------------------------------------------------------------------------------------------------- */
+rc_t var_expand_handle( var_expand_data * data,
+                        BAM_Alignment const *alignment,
+                        struct ReferenceSeq const *refSequence )
 {
     rc_t rc = 0;
     if ( data == NULL || alignment == NULL || refSequence == NULL )
@@ -208,39 +221,82 @@ rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, 
     }
     else
     {
+        uint32_t seq_len;
+        
         /* increment how many alignments we have seen - for testing purpose */
         data->alignments_seen++;
         log_this( data, "------------------------------#%d:\n", data->alignments_seen );
         
         /* get the length of the read out of the alignment */
-        rc = BAM_AlignmentGetReadLength( alignment, &data->seq_len );
+        rc = BAM_AlignmentGetReadLength( alignment, &seq_len );
         if ( rc == 0 )
         {
             /* ( eventually ) expand the 2 buffers in our var_expand_data buffer to fit the read and reference */
-            rc = realloc_seq_buffer( data );
+            rc = realloc_seq_buffer( data, seq_len );
             if ( rc == 0 )
             {
                 /* get the read out of the alignment and put it in our single buffer */
                 rc = BAM_AlignmentGetSequence( alignment, ( char * )data->seq_buffer );
                 if ( rc == 0 )
                 {
+                    int64_t seq_pos_on_ref;
+                    
                     /* get the position on the reference out of the alignment */
-                    rc = BAM_AlignmentGetPosition2( alignment, &data->seq_pos_on_ref, &data->seq_len_on_ref );
+                    rc = BAM_AlignmentGetPosition2( alignment, &seq_pos_on_ref, &data->seq_len_on_ref );
                     if ( rc == 0 )
                     {
-                        INSDC_coord_zero ref_offset = data->seq_pos_on_ref;
+                        INSDC_coord_zero ref_offset = seq_pos_on_ref;
                         INSDC_coord_len actual_ref_len = 0;
-
-                        if ( data->seq_pos_on_ref < data->last_seq_pos_on_ref )
-                        {
-                            log_this( data, "!!!alignments out of order!!! %ld->%ld\n",
-                                data->last_seq_pos_on_ref, data->seq_pos_on_ref );
-                        }
-                        data->last_seq_pos_on_ref = data->seq_pos_on_ref;
+                        const char * curr_ref_id;
                         
+                        rc = ReferenceSeq_GetID( refSequence, &curr_ref_id );
+                        
+                        
+                        /* detect if the data violates one of our most important assumptions: beeing in order! */
+                        if ( seq_pos_on_ref < data->last_seq_pos_on_ref )
+                        {
+                            rc = ReferenceSeq_GetID( refSequence, &curr_ref_id );
+                            if ( rc == 0 )
+                            {
+                                size_t curr_ref_id_size = string_size( curr_ref_id );
+                                if ( data->ref_id[ 0 ] == 0 )
+                                {
+                                    string_copy( data->ref_id, sizeof data->ref_id, curr_ref_id, curr_ref_id_size );
+                                }
+                                else
+                                {
+                                    size_t ref_id_size = string_size( data->ref_id );    
+                                    int cmp = string_cmp( data->ref_id, ref_id_size,
+                                        curr_ref_id, curr_ref_id_size,
+                                        ref_id_size > curr_ref_id_size ? ref_id_size : curr_ref_id_size );
+                                    if ( cmp == 0 )
+                                    {
+                                        log_this( data, "!!!alignments out of order!!! %ld->%ld\n",
+                                            data->last_seq_pos_on_ref, seq_pos_on_ref );
+                                    }
+                                    else
+                                    {
+                                        string_copy( data->ref_id, sizeof data->ref_id, curr_ref_id, ref_id_size );
+                                    }
+                                }
+                            }
+                        }
+                        else if ( data->ref_id[ 0 ] == 0 )
+                        {
+                            rc = ReferenceSeq_GetID( refSequence, &curr_ref_id );
+                            if ( rc == 0 )
+                            {
+                                size_t curr_ref_id_size = string_size( curr_ref_id );
+                                string_copy( data->ref_id, sizeof data->ref_id, curr_ref_id, curr_ref_id_size );
+                            }
+                        }
+                        
+                        data->last_seq_pos_on_ref = seq_pos_on_ref;
+                        
+                        /* log sequence and */
                         data->ref_len = data->seq_len_on_ref;
                         log_this( data, "\tseq: '%.*s' at [%ld.%d], len=%d\n",
-                            data->seq_len, data->seq_buffer, data->seq_pos_on_ref, data->seq_len_on_ref, data->seq_len );
+                            seq_len, data->seq_buffer, seq_pos_on_ref, data->seq_len_on_ref, seq_len );
 
                         rc = realloc_ref_buffer( data );
                         if ( rc == 0 )
@@ -249,7 +305,7 @@ rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, 
                             if ( rc == 0 )
                             {
                                 log_this( data, "\tref: '%.*s' at [%ld.%d]\n",
-                                    data->ref_len, data->ref_buffer, data->seq_pos_on_ref, actual_ref_len );
+                                    data->ref_len, data->ref_buffer, seq_pos_on_ref, actual_ref_len );
                             
                                 {
                                     uint32_t cigar_op_count, idx;
@@ -265,7 +321,12 @@ rc_t var_expand_handle( var_expand_data * data, BAM_Alignment const *alignment, 
                                         rc = BAM_AlignmentGetCigar( alignment, idx, &cigar_op, &cigar_op_len );
                                         if ( rc == 0 )
                                         {
-                                            var_on_event( data, cigar_op, cigar_op_len, &offset_into_ref, &offset_into_read );
+                                            var_on_event( data,
+                                                          seq_pos_on_ref,
+                                                          cigar_op,
+                                                          cigar_op_len,
+                                                          &offset_into_ref,
+                                                          &offset_into_read );
                                         }
                                     }
                                 }
@@ -293,6 +354,10 @@ static void cleanup_variations( var_expand_data * data )
     }
 }
 
+
+/* --------------------------------------------------------------------------------------
+called by ArchiveBAM(...) in loader-imp.c#2970
+-------------------------------------------------------------------------------------- */
 rc_t var_expand_finish( var_expand_data * data )
 {
     rc_t rc = 0;

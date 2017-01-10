@@ -653,8 +653,26 @@ static rc_t dump_seq_row_sam_filtered( const samdump_opts * const opts,
 
                             /* SAM-FIELD: QNAME     SRA-column: SPOT_ID ( int64 ) */
                             if ( rc == 0 )
-                                rc = KOutMsg( "%ld\t", seq_spot_id );
-
+                            {
+                                bool print_just_seq_spot_id = true;
+                                
+                                if ( opts->print_spot_group_in_name )
+                                {
+                                    const char * spot_group;
+                                    uint32_t spot_group_len;
+                                    rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                                    if ( rc == 0 && spot_group_len > 0 )
+                                    {
+                                        rc = KOutMsg( "%ld.%.*s\t", seq_spot_id, spot_group_len, spot_group );
+                                        print_just_seq_spot_id = false;
+                                    }
+                                }
+                                if ( print_just_seq_spot_id )
+                                {
+                                    rc = KOutMsg( "%ld\t", seq_spot_id );
+                                }
+                            }
+                            
                             if ( rc == 0 && read_type == NULL )
                                 rc = read_read_type( stx, row_id, &read_type, nreads );
 
@@ -787,8 +805,26 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
 
             /* SAM-FIELD: QNAME     SRA-column: SPOT_ID ( int64 ) */
             if ( rc == 0 )
-                rc = KOutMsg( "%ld\t", row_id );
-
+            {
+                bool print_just_seq_spot_id = true;
+                
+                if ( opts->print_spot_group_in_name )
+                {
+                    const char * spot_group;
+                    uint32_t spot_group_len;
+                    rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                    if ( rc == 0 && spot_group_len > 0 )
+                    {
+                        rc = KOutMsg( "%ld.%.*s\t", row_id, spot_group_len, spot_group );
+                        print_just_seq_spot_id = false;
+                    }
+                }
+                if ( print_just_seq_spot_id )
+                {
+                    rc = KOutMsg( "%ld\t", row_id );
+                }
+            }
+            
             /* SAM-FIELD: FLAG      SRA-column: calculated from READ_TYPE, READ_FILTER etc. */
             if ( rc == 0 )
             {
@@ -939,10 +975,30 @@ static rc_t dump_seq_row_sam( const samdump_opts * const opts,
             /* SAM-FIELD: QNAME     SRA-column: SPOT_ID ( int64 ) */
             if ( rc == 0 )
             {
-                if ( name != NULL && name_len > 0 )
-                    rc = KOutMsg( "%.*s\t", name_len, name );
-                else
-                    rc = KOutMsg( "%lu\t", row_id );
+                bool print_just_seq_spot_id = true;
+                
+                if ( opts->print_spot_group_in_name )
+                {
+                    const char * spot_group;
+                    uint32_t spot_group_len;
+                    rc = read_char_ptr( row_id, stx->cursor, stx->spot_group_idx, &spot_group, &spot_group_len, "SPOT_GROUP" );
+                    if ( rc == 0 && spot_group_len > 0 )
+                    {
+                        if ( name != NULL && name_len > 0 )
+                            rc = KOutMsg( "%.*s.%.*s\t", name_len, name, spot_group_len, spot_group );
+                        else
+                            rc = KOutMsg( "%ld.%.*s\t", row_id, spot_group_len, spot_group );
+                        print_just_seq_spot_id = false;
+                    }
+                }
+
+                if ( print_just_seq_spot_id )
+                {
+                    if ( name != NULL && name_len > 0 )
+                        rc = KOutMsg( "%.*s\t", name_len, name );
+                    else
+                        rc = KOutMsg( "%lu\t", row_id );
+                }
             }
 
             /* SAM-FIELD: FLAG      SRA-column: calculated from READ_TYPE, READ_FILTER etc. */
@@ -1040,7 +1096,7 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
                 rc = matecache_lookup_unaligned( mc, ids->db_idx, align_id, &mate_ref_pos, &ref_idx, &seq_spot_id );
                 if ( rc == 0 )
                 {
-                    bool reverse;
+                    /* bool reverse; */
 
                     /* the NAME */
                     if ( opts->output_format == of_fastq )
@@ -1064,14 +1120,16 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
                         rc = read_quality( stx, row_id, &quality, rd_len );
                     if ( rc == 0 && read_type == NULL )
                         rc = read_read_type( stx, row_id, &read_type, nreads );
+                    /*
                     if ( rc == 0 )
                         reverse = ( ( read_type[ read_idx ] & READ_TYPE_REVERSE ) == READ_TYPE_REVERSE );
+                    */
                     if ( rc == 0 && read_start == NULL )
                         rc = read_read_start( stx, row_id, &read_start, nreads );
 
                     /* the READ */
                     if ( rc == 0 )
-                        rc = print_sliced_read( read, read_idx, reverse, read_start, read_len );
+                        rc = print_sliced_read( read, read_idx, /* reverse */ false, read_start, read_len );
                     if ( rc == 0 )
                         rc = KOutMsg( "\n" );
 
@@ -1080,7 +1138,7 @@ static rc_t dump_seq_row_fastx_filtered( const samdump_opts * const opts,
                     {
                         rc = KOutMsg( "+\n" );
                         if ( rc == 0 )
-                            rc = print_sliced_quality( opts, quality, read_idx, reverse, read_start, read_len );
+                            rc = print_sliced_quality( opts, quality, read_idx, /* reverse */ false, read_start, read_len );
                         if ( rc == 0 )
                             rc = KOutMsg( "\n" );
                     }
@@ -1121,7 +1179,7 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
         if ( prim_align_ids[ read_idx ] == 0 &&    /* read is NOT aligned! */
              read_len[ read_idx ] > 0 )            /* and has a length! */
         {
-            bool reverse;
+            /* bool reverse; */
 
             /* the NAME */
             if ( opts->output_format == of_fastq )
@@ -1144,14 +1202,16 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
                 rc = read_quality( stx, row_id, &quality, rd_len );
             if ( rc == 0 && read_type == NULL )
                 rc = read_read_type( stx, row_id, &read_type, nreads );
+            /*
             if ( rc == 0 )
                 reverse = ( ( read_type[ read_idx ] & READ_TYPE_REVERSE ) == READ_TYPE_REVERSE );
+            */
             if ( rc == 0 && read_start == NULL )
                 rc = read_read_start( stx, row_id, &read_start, nreads );
 
             /* the READ */
             if ( rc == 0 )
-                rc = print_sliced_read( read, read_idx, reverse, read_start, read_len );
+                rc = print_sliced_read( read, read_idx, /*reverse*/ false, read_start, read_len );
             if ( rc == 0 )
                 rc = KOutMsg( "\n" );
 
@@ -1160,7 +1220,7 @@ static rc_t dump_seq_row_fastx( const samdump_opts * const opts,
             {
                 rc = KOutMsg( "+\n" );
                 if ( rc == 0 )
-                    rc = print_sliced_quality( opts, quality, read_idx, reverse, read_start, read_len );
+                    rc = print_sliced_quality( opts, quality, read_idx, /*reverse*/ false, read_start, read_len );
                 if ( rc == 0 )
                     rc = KOutMsg( "\n" );
             }
@@ -1195,7 +1255,7 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
         if ( ( read_len[ read_idx ] > 0 ) &&            /* has a length! */
              ( ( read_type[ read_idx ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL ) )
         {
-            bool reverse;
+            /* bool reverse; */
 
             /* the NAME */
             if ( opts->output_format == of_fastq )
@@ -1218,14 +1278,16 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
                 rc = read_INSDC_dna_text_ptr( row_id, stx->cursor, stx->read_idx, &read, &rd_len, "READ" );
             if ( rc == 0 && quality == NULL )
                 rc = read_quality( stx, row_id, &quality, rd_len );
+            /*
             if ( rc == 0 )
                 reverse = ( ( read_type[ read_idx ] & READ_TYPE_REVERSE ) == READ_TYPE_REVERSE );
+            */
             if ( rc == 0 && read_start == NULL )
                 rc = read_read_start( stx, row_id, &read_start, nreads );
 
             /* the READ */
             if ( rc == 0 )
-                rc = print_sliced_read( read, read_idx, reverse, read_start, read_len );
+                rc = print_sliced_read( read, read_idx, /* reverse */ false, read_start, read_len );
             if ( rc == 0 )
                 rc = KOutMsg( "\n" );
 
@@ -1237,7 +1299,7 @@ static rc_t dump_seq_tab_row_fastx( const samdump_opts * const opts,
                 if ( rc == 0 )
                     rc = KOutMsg( "+\n" );
                 if ( rc == 0 )
-                    rc = print_sliced_quality( opts, quality, read_idx, reverse, read_start, read_len );
+                    rc = print_sliced_quality( opts, quality, read_idx, /* reverse */ false, read_start, read_len );
                 if ( rc == 0 )
                     rc = KOutMsg( "\n" );
             }

@@ -11,6 +11,8 @@ my $SYMLINK   = 1;
 my $DIR       = 2;
 my $BAD_TYPE  = 3;
 
+my @saved;
+
 my %OPT;
 my @options
     = qw ( add dry-run help move use-new-volume-as-root volumes workspaces );
@@ -42,10 +44,12 @@ unless ( $OPT{workspaces} || $OPT{volumes} || $OPT{add} || $OPT{move} ) {
 die 'error. vdb-config is not found. Add its directory to $PATH' if ( $? );
 
 my %workspace;
-foreach ( `vdb-config -on / | grep ^/repository/user` ) {
-    if      (m|/repository/user/main/public/root = "(.*)"$|) {
+my @out = `vdb-config -on / | grep ^/repository/user`;
+foreach ( @out ) {
+    if    (m|/repository/user/main/public/root = "(.*)"$|) {
         $workspace{public} = $1;
-    } elsif (m|/repository/user/protected/(.*)/root = "(.*)"$|) {
+    }
+    elsif (m|/repository/user/protected/(.*)/root = "(.*)"$|) {
         $workspace{$1} = $2;
     }
 }
@@ -175,6 +179,7 @@ sub add_volume {
     my $p = $OPT{use_new_volume_as_root}
             ? $new_root_path : $workspace{$wrksp_name};
     if ( $need_update ) {
+        mk_dir ( $p ) unless ( $OPT{use_new_volume_as_root} || -e $p );
         chdir $p || die "FATAL: cannot cd $p";
 #   print "dbg: making symlinks from current root to new volume...\n";
         print "dbg: cd $p: ok\n";
@@ -605,6 +610,9 @@ sub set_volumes {
 
 sub set {
     my ( $n, $v ) = @_;
+
+    my $old = `vdb-config -on $n`;
+
     run ( "vdb-config -s $n=$v", "Setting $n=$v" );
 }
 

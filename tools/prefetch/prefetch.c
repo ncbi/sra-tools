@@ -532,9 +532,9 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
     rc_t rc = 0;
     const VPath *vcache = NULL;
     assert(vaccession && vremote);
-    if (*vremote != NULL) {
+    if (*vremote != NULL)
         RELEASE(VPath, *vremote);
-    }
+
     rc = V_ResolverRemote(self, protocols, vaccession, vremote, &vcache);
     if (rc == 0) {
         char path[PATH_MAX] = "";
@@ -546,6 +546,7 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
             char *query = string_chr(path, len, '?');
             if (query != NULL) {
                 *query = '\0';
+                len = query - path;
             }
             StringInit(&local_str, path, len, (uint32_t)len);
             RELEASE(String, *remote);
@@ -553,13 +554,12 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
             DISP_RC2(rc, "StringCopy(VResolverRemote)", name);
         }
     }
-    else if (NotFoundByResolver(rc)) {
+    else if (NotFoundByResolver(rc))
         PLOGERR(klogErr, (klogErr, rc, "'$(acc)' cannot be found.",
             "acc=%s", name));
-    }
-    else {
+    else
         DISP_RC2(rc, "Cannot resolve remote", name);
-    }
+
     if (rc == 0 && cache != NULL) {
         String path_str;
         if (vcache == NULL) {
@@ -568,19 +568,22 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
                 "for $(acc).", /* Try to cd out of protected repository.", */
                 "acc=%s" , name));
         }
+
         if (rc == 0) {
             rc = VPathGetPath(vcache, &path_str);
             DISP_RC2(rc, "VPathGetPath(VResolverCache)", name);
         }
+
         if (rc == 0) {
-            if (*cache != NULL) {
+            if (*cache != NULL)
                 free((void*)*cache);
-            }
             rc = StringCopy(cache, &path_str);
             DISP_RC2(rc, "StringCopy(VResolverCache)", name);
         }
     }
+
     RELEASE(VPath, vcache);
+
     return rc;
 }
 

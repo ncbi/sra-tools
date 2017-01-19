@@ -1,5 +1,12 @@
 # NCBI External Developer Release:
 
+
+## SRA Toolkit 2.8.1-2
+**January 19, 2017**
+
+  **prefetch**: fixed download of dbGaP files via HTTP
+
+
 ## SRA Toolkit 2.8.1
 **December 22, 2016**
 

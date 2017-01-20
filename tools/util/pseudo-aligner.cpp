@@ -125,7 +125,11 @@ class Quality {
             return value + 33;
         }
         static Phred random() {
-            return Phred(max(3, min(40, int(33 + normalRandom().first * 5))));
+            for (;;) {
+                auto const value = int(33 + normalRandom().first * 5);
+                if (3 <= value && value <= 40)
+                    return Phred(value);
+            }
         }
     };
     typedef vector<Phred> vector_t;
@@ -148,9 +152,8 @@ public:
     }
     static Quality random() {
         auto rslt = vector_t(settings->readLength);
-        
-        for (auto i : rslt) {
-            i = Phred::random();
+        for (auto i = 0; i < settings->readLength; ++i) {
+            rslt[i] = Phred::random();
         }
         return Quality(rslt);
     }
@@ -169,7 +172,7 @@ struct Base {
         return Base(value == 0 ? 0 : (5 - value));
     }
     static Base random() {
-        auto const GC = frand() > 0.2; // GC or AT
+        auto const GC = frand() > 0.2; // GC or AT; is biased, target GC content is 40%
         auto const AC = frand() > 0.0; // A or C
         return Base(GC ? (AC ? 2 : 3) : (AC ? 1 : 4));
     }
@@ -356,25 +359,17 @@ static uint64_t scramble(uint64_t const serialNo)
     static uint8_t const *mixer = NULL;
     
     if (mixer == NULL) {
-        for (int i = 0; i < 256; ++i)
-            scramble[i] = i;
-        for (int k = 0; k < 256; ++k) {
-            for (int i = 0; i < 256; ++i) {
-                auto const j = random() % 256;
-                auto const xi = scramble[i];
-                auto const xj = scramble[j];
-                
-                scramble[i] = xj;
-                scramble[j] = xi;
-            }
+        for (int i = 0; i < 256; ++i) {
+            auto const j = random() % (i + 1);
+            scramble[i] = scramble[j];
+            scramble[j] = i;
         }
         mixer = scramble;
     }
-    uint64_t rslt = 0;
+    auto rslt = serialNo;
     auto carry = 0x55;
     for (auto i = 0; i < 8; ++i) {
-        auto const j = serialNo >> (8 * i);
-        auto const k = mixer[(uint8_t)(j ^ carry)];
+        auto const k = mixer[uint8_t(rslt ^ carry)];
         rslt = (uint64_t(k) << 56) | (rslt >> 8);
         carry = k;
     }
@@ -422,7 +417,7 @@ static void run(void)
     auto ref = RefSequence();
     uint64_t serialNo = 0;
     
-    for (double coverage = 0.0; coverage/double(ref.size()) > settings->coverageTarget; ) {
+    for (double coverage = 0.0; coverage/double(ref.size()) < settings->coverageTarget; ) {
         auto const ipd = make_ipd_pair();
         auto const pos = make_read_pair(ipd.first);
         auto const rev = pos.first > pos.second;

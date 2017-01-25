@@ -2180,6 +2180,7 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
             char *query = string_chr(remotePath, len, '?');
             if (query != NULL) {
                 *query = '\0';
+                len = query - remotePath;
             }
             STSMSG(STS_DBG, ("'%s' exists", remotePath));
             STSMSG(STS_TOP, ("'%s' has remote vdbcache", resolved->name));
@@ -2443,6 +2444,8 @@ static rc_t ItemDownloadVdbcache(Item *item) {
     if (localExists) {
         download = MainNeedDownload(item->main, local ? local : cache,
             remotePath, resolved->file, &resolved->remoteSz);
+        if ( ! download )
+            STSMSG(STS_TOP, (" vdbcache is found locally"));
     }
     RELEASE(String, local);
     RELEASE(String, resolved->cache);
@@ -2452,8 +2455,10 @@ static rc_t ItemDownloadVdbcache(Item *item) {
      /* ignore fasp transport request while ascp vdbcache address is unknown */
         item->main->noHttp = false;
 
+        STSMSG(STS_TOP, (" Downloading vdbcache..."));
         rc = MainDownload(&item->resolved, item->main, item->isDependency);
         if (rc == 0) {
+            STSMSG(STS_TOP, (" vdbcache was downloaded successfully"));
             if (local && StringCompare(local, cache) != 0) {
                 STSMSG(STS_DBG, ("Removing '%S'", local));
                 /* TODO rm local vdbcache file
@@ -2461,7 +2466,8 @@ static rc_t ItemDownloadVdbcache(Item *item) {
                 rc = KDirectoryRemove(item->main->dir, false, "%S", local);
                     */
             }
-        }
+        } else
+            STSMSG(STS_TOP, (" failed to download vdbcache"));
     }
     return rc;
 }

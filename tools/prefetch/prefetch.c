@@ -2298,7 +2298,7 @@ static bool MainNeedDownload(const Main *self, const String *local,
         }
         {
             const KFile *f = NULL;
-            rc = KDirectoryOpenFileRead(self->dir, &f, "%S", local);
+            rc = KDirectoryOpenFileRead(self->dir, &f, "%s", local->addr);
             if (rc != 0) {
                 DISP_RC2(rc, "KDirectoryOpenFileRead", local->addr);
                 return true;

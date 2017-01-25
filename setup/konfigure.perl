@@ -485,6 +485,7 @@ foreach my $href (@REQ) {
     my $need_build = $a{type} =~ /B/;
     my $need_lib = $a{type} =~ /L|D/;
     my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /E/ || $a{type} =~ /J/);
+    $need_itf = 1 if ($a{type} =~ /I/);
     my $need_jar = $a{type} =~ /J/;
 
     my ($bin, $inc, $lib, $ilib, $src)

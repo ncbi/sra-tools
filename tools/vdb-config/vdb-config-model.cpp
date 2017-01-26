@@ -24,13 +24,15 @@
 *
 */
 
-#include "vdb-config-model.hpp" // vdbconf_model
-
+#include <klib/text.h> /* string_cmp */
 #include <klib/vector.h> /* Vector */
 
 #include <cstring> // memset
 
 #include <climits> /* PATH_MAX */
+
+#include "vdb-config-model.hpp" // vdbconf_model
+
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
@@ -44,6 +46,7 @@ const int32_t vdbconf_model::kInvalidRepoId = -2;
 std::string vdbconf_model::native_to_internal( const std::string &s ) const
 {
     std::string res = "";
+
     VPath * temp_v_path;
     rc_t rc = VFSManagerMakeSysPath ( _vfs_mgr, &temp_v_path, s.c_str() );
     if ( rc == 0 )
@@ -51,10 +54,24 @@ std::string vdbconf_model::native_to_internal( const std::string &s ) const
         size_t written;
         char buffer[ PATH_MAX ];
         rc = VPathReadPath ( temp_v_path, buffer, sizeof buffer, &written );
-        if ( rc == 0 )
-            res.assign( buffer, written );
+        if ( rc == 0 ) {
+            char resolved [ PATH_MAX ] = "";
+            rc_t rc = KDirectoryResolvePath
+                ( _dir, true, resolved, sizeof resolved, buffer );
+            if ( rc == 0 ) {
+                if ( string_cmp ( buffer, written, resolved,
+                            string_measure ( resolved, NULL ), PATH_MAX ) != 0 )
+                {   // make sure the path is canonic
+                    res = resolved;
+                }
+                else {
+                    res.assign( buffer, written );
+                }
+            }
+        }
         VPathRelease ( temp_v_path );
     }
+
     return res;
 }
 

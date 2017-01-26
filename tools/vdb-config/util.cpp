@@ -626,6 +626,20 @@ rc_t CKDirectory::CheckPublicAccess(const CString &path, bool verbose) const {
     return CheckAccess(path, updated, false, verbose);
 }
 
+std::string CKDirectory::Canonical ( const char * path ) const {
+    char resolved [ PATH_MAX ] = "";
+    rc_t rc =
+        KDirectoryResolvePath ( m_Self, true, resolved, sizeof resolved, path );
+    if ( rc != 0 )
+        return "";
+    size_t size  = string_measure ( path, NULL );
+    if ( string_cmp
+        ( path, size, resolved, string_measure ( resolved, NULL ), size ) == 0 )
+        return "";
+    return resolved;
+}
+
+
 rc_t CKConfig::UpdateNode(bool verbose,
     const char *value, const char *name, ...)
 {
@@ -656,6 +670,7 @@ rc_t CKConfig::FixResolverCgiNodes ( void ) {
     }
     return rc;
 }
+
 
 CApp::CApp(const CKDirectory &dir, const CKConfigNode &rep,
         const string &root, const string &name)

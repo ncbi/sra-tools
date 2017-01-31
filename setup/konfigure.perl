@@ -1456,7 +1456,7 @@ sub check_static_libstdcpp {
     my $out = `$gcc`;
     my $ok = $? == 0;
     if ( $ok && $out ) {
-        $ok = 0 if ( $out =~ /unrecognized option '-static-libstdc++/ );
+        $ok = 0 if ( $out =~ /unrecognized option '-static-libstdc\+\+'/ );
     }
     print "$out\t" if ($OPT{'debug'});
     println $ok ? 'yes' : 'no';

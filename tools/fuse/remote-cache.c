@@ -57,6 +57,60 @@
 
 /*) There are methods which are using VPath to get schema and host
  (*/
+static VFSManager * _sManagerOfVFS = NULL;
+
+rc_t CC
+_InitVFSManager ()
+{
+    rc_t RCt;
+    VFSManager * Manager;
+
+    RCt = 0;
+    Manager = NULL;
+
+    if ( _sManagerOfVFS != NULL ) {
+        return 0;
+    }
+
+    RCt = VFSManagerMake ( & Manager );
+    if ( RCt == 0 ) {
+        _sManagerOfVFS = Manager;
+    }
+
+    return RCt;
+}   /* _InitVFSManager () */
+
+rc_t CC
+_GetVFSManager ( VFSManager ** Manager )
+{
+    rc_t RCt = 0;
+
+    * Manager = NULL;
+
+    if ( _sManagerOfVFS == NULL ) {
+        RCt = _InitVFSManager ();
+    }
+
+    * Manager = _sManagerOfVFS;
+
+    return RCt;
+}   /* _GetVFSManager () */
+
+rc_t CC
+_DisposeVFSManager ()
+{
+    VFSManager * Manager = _sManagerOfVFS;
+
+    _sManagerOfVFS = NULL;
+
+    if ( Manager == NULL ) {
+        return 0;
+    }
+
+    ReleaseComplain (VFSManagerRelease, Manager );
+
+    return 0;
+}   /* _DisposeVFSManager () */
 
 typedef rc_t ( CC * _PathReader ) (
                                 const VPath * self,
@@ -89,7 +143,7 @@ _ReadSomething (
 
     * Buffer = 0;
 
-    RCt = VFSManagerMake ( & Manager );
+    RCt = _GetVFSManager ( & Manager );
     if ( RCt == 0 ) {
         RCt = VFSManagerMakePath ( Manager, & ThePath, Path );
         if ( RCt == 0 ) {
@@ -97,8 +151,6 @@ _ReadSomething (
 
             ReleaseComplain ( VPathRelease, ThePath );
         }
-
-        ReleaseComplain ( VFSManagerRelease, Manager );
     }
 
     return RCt;
@@ -872,6 +924,13 @@ RemoteCacheCreate ()
     RCt = 0;
     * Buffer = 0;
 
+    RCt = _InitVFSManager ();
+    if ( RCt != 0 ) {
+        LOGMSG( klogErr, "[RemoteCache] can not create instance of VFSManater\n" );
+        return RC ( rcExe, rcPath, rcInitializing, rcSelf, rcNull );
+    }
+
+
     if ( RemoteCacheIsDisklessMode () ) {
         LOGMSG( klogInfo, "[RemoteCache] entering diskless mode\n" );
         return 0;
@@ -998,6 +1057,8 @@ RmOutMsg ( "[KLockRelease] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
 
     * _CacheRoot = 0;
     _PCacheRoot = NULL;
+
+    _DisposeVFSManager ();
 
     return RCt;
 }   /* RemoteCacheDispose () */

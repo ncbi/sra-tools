@@ -532,9 +532,9 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
     rc_t rc = 0;
     const VPath *vcache = NULL;
     assert(vaccession && vremote);
-    if (*vremote != NULL) {
+    if (*vremote != NULL)
         RELEASE(VPath, *vremote);
-    }
+
     rc = V_ResolverRemote(self, protocols, vaccession, vremote, &vcache);
     if (rc == 0) {
         char path[PATH_MAX] = "";
@@ -546,6 +546,7 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
             char *query = string_chr(path, len, '?');
             if (query != NULL) {
                 *query = '\0';
+                len = query - path;
             }
             StringInit(&local_str, path, len, (uint32_t)len);
             RELEASE(String, *remote);
@@ -553,13 +554,12 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
             DISP_RC2(rc, "StringCopy(VResolverRemote)", name);
         }
     }
-    else if (NotFoundByResolver(rc)) {
+    else if (NotFoundByResolver(rc))
         PLOGERR(klogErr, (klogErr, rc, "'$(acc)' cannot be found.",
             "acc=%s", name));
-    }
-    else {
+    else
         DISP_RC2(rc, "Cannot resolve remote", name);
-    }
+
     if (rc == 0 && cache != NULL) {
         String path_str;
         if (vcache == NULL) {
@@ -568,19 +568,22 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
                 "for $(acc).", /* Try to cd out of protected repository.", */
                 "acc=%s" , name));
         }
+
         if (rc == 0) {
             rc = VPathGetPath(vcache, &path_str);
             DISP_RC2(rc, "VPathGetPath(VResolverCache)", name);
         }
+
         if (rc == 0) {
-            if (*cache != NULL) {
+            if (*cache != NULL)
                 free((void*)*cache);
-            }
             rc = StringCopy(cache, &path_str);
             DISP_RC2(rc, "StringCopy(VResolverCache)", name);
         }
     }
+
     RELEASE(VPath, vcache);
+
     return rc;
 }
 
@@ -2177,6 +2180,7 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
             char *query = string_chr(remotePath, len, '?');
             if (query != NULL) {
                 *query = '\0';
+                len = query - remotePath;
             }
             STSMSG(STS_DBG, ("'%s' exists", remotePath));
             STSMSG(STS_TOP, ("'%s' has remote vdbcache", resolved->name));
@@ -2294,7 +2298,7 @@ static bool MainNeedDownload(const Main *self, const String *local,
         }
         {
             const KFile *f = NULL;
-            rc = KDirectoryOpenFileRead(self->dir, &f, "%S", local);
+            rc = KDirectoryOpenFileRead(self->dir, &f, "%s", local->addr);
             if (rc != 0) {
                 DISP_RC2(rc, "KDirectoryOpenFileRead", local->addr);
                 return true;
@@ -2440,6 +2444,8 @@ static rc_t ItemDownloadVdbcache(Item *item) {
     if (localExists) {
         download = MainNeedDownload(item->main, local ? local : cache,
             remotePath, resolved->file, &resolved->remoteSz);
+        if ( ! download )
+            STSMSG(STS_TOP, (" vdbcache is found locally"));
     }
     RELEASE(String, local);
     RELEASE(String, resolved->cache);
@@ -2449,8 +2455,10 @@ static rc_t ItemDownloadVdbcache(Item *item) {
      /* ignore fasp transport request while ascp vdbcache address is unknown */
         item->main->noHttp = false;
 
+        STSMSG(STS_TOP, (" Downloading vdbcache..."));
         rc = MainDownload(&item->resolved, item->main, item->isDependency);
         if (rc == 0) {
+            STSMSG(STS_TOP, (" vdbcache was downloaded successfully"));
             if (local && StringCompare(local, cache) != 0) {
                 STSMSG(STS_DBG, ("Removing '%S'", local));
                 /* TODO rm local vdbcache file
@@ -2458,7 +2466,8 @@ static rc_t ItemDownloadVdbcache(Item *item) {
                 rc = KDirectoryRemove(item->main->dir, false, "%S", local);
                     */
             }
-        }
+        } else
+            STSMSG(STS_TOP, (" failed to download vdbcache"));
     }
     return rc;
 }

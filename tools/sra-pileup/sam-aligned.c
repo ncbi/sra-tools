@@ -1964,7 +1964,7 @@ static rc_t print_alignment_fastx( const samdump_opts * const opts,
             if ( rc == 0 )
             {
                 if ( quality_size > 0 )
-                    rc = dump_quality_33( opts, quality, quality_size, false );
+                    rc = dump_quality_33( opts, quality, quality_size, orientation );  /* sam-dump-opts.c */
                 else
                     rc = KOutMsg( "*" );
             }

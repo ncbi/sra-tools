@@ -2094,6 +2094,45 @@ rc_t get_stats_meta(const KMetadata* meta,
     return rc;
 }
 
+static bool needEscaping ( const char * c ) {
+    return string_chr ( c, string_measure ( c, NULL), '"' ) != NULL
+        || string_chr ( c, string_measure ( c, NULL), '\'' ) != NULL
+        || string_chr ( c, string_measure ( c, NULL), '&' ) != NULL
+        || string_chr ( c, string_measure ( c, NULL), '<' ) != NULL
+        || string_chr ( c, string_measure ( c, NULL), '>' ) != NULL;
+}
+
+static rc_t printXmlEscaped ( const char * c ) {
+    rc_t rc = 0;
+    rc_t r2 = 0;
+    while ( * c ) {
+        switch  ( * c ) {
+            case '"':
+                r2 = OUTMSG ( ( "&quot;" ) );
+                break;
+            case '\'':
+                r2 = OUTMSG ( ( "&apos;" ) );
+                break;
+            case '&':
+                r2 = OUTMSG ( ( "&amp;" ) );
+                break;
+            case '<':
+                r2 = OUTMSG ( ( "&lt;" ) );
+                break;
+            case '>':
+                r2 = OUTMSG ( ( "&gt;" ) );
+                break;
+            default:
+                r2 = OUTMSG ( ( "%c", *c ) );
+                break;
+        }
+        if ( rc == 0 )
+            rc = r2;
+        ++ c;;
+    }
+    return rc;
+}
+
 static
 void srastatmeta_print(const MetaDataStats* meta, srastat_parms *pb)
 {
@@ -2117,7 +2156,14 @@ void srastatmeta_print(const MetaDataStats* meta, srastat_parms *pb)
                 }
                 if (pb->xml) {
                     if (pb->hasSPOT_GROUP) {
-                       OUTMSG(("  <Member member_name=\"%s\"", ss->spot_group));
+                       if (needEscaping(ss->spot_group)) {
+                           OUTMSG(("  <Member member_name=\""));
+                           printXmlEscaped(                 ss->spot_group);
+                           OUTMSG((                                      "\""));
+                       }
+                       else
+                            OUTMSG(("  <Member member_name=\"%s\"",
+                                    ss->spot_group));
                        OUTMSG((" spot_count=\"%ld\" base_count=\"%ld\"",
                             ss->spot_count, ss->BASE_COUNT));
                        OUTMSG((" base_count_bio=\"%ld\"", ss->BIO_BASE_COUNT));

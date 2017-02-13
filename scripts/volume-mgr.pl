@@ -589,7 +589,7 @@ sub log_ {
     my ( $msg ) = @_;
     my $filename = "$NCBI_SETTINGS.log.$TIMESTAMP";
     open ( my $fh, ">>$filename" ) or die "Cannot open file '$filename' $!";
-    print $fh `pwd`;
+    print $fh "cd " . `pwd`;
     print $fh "$msg\n\n";
     close $fh;
 }

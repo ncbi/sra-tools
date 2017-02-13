@@ -3,8 +3,12 @@
 ################################################################################
 
 use strict;
+
 use Cwd "abs_path";
+use File::Copy "copy";
+use File::Path "make_path";
 use Getopt::Long "GetOptions";
+use POSIX "strftime";
 
 my $NOT_FOUND = 0;
 my $SYMLINK   = 1;
@@ -75,6 +79,12 @@ if ( $OPT{volumes} ) {
     volumes ( $wrksp_name );
 }
 
+my $t = `date +%s.%N`;
+my $TIMESTAMP = strftime ( "%Y%m%d-%H%M%S", localtime $t );
+$TIMESTAMP   .= sprintf ( ".%01d", ( $t - int ( $t ) ) * 10 );
+my $NCBI_SETTINGS = ncbi_settings();
+my $saved;
+
 my $added;
 
 if ( $OPT{add} ) {
@@ -107,6 +117,12 @@ if ( $OPT{move} ) {
         move ( $wrksp_name ) ;
     }
 }
+
+if ( $saved ) {
+    print "Old configuration was saved to '$NCBI_SETTINGS.$TIMESTAMP'\n";
+    print "Update log was saved to '$NCBI_SETTINGS.log.$TIMESTAMP'\n";
+}
+
 ################################################################################
 
 
@@ -412,6 +428,7 @@ sub volumes {
 
     my $cmd = 'vdb-config -on | grep ' . volumes_node ( $wrksp_name );
     my $volumes = `$cmd`;
+    die if ( $? );
     my @volumes;
     $volumes =~ /^.* = "(.*)"$/;
     @volumes = split ':', $1 if ( $1 );
@@ -523,11 +540,20 @@ sub root {
 
     my %roots;
     my @roots = `vdb-config -on | grep '$node '`;
+    die if ( $? );
     die 'inclompete configuration' if ( $#roots == -1 );
     die if ( $#roots != 0 );
     die unless ( $roots[0] =~/^$node = "(.*)"$/ );
     $1;
 }
+
+
+sub ncbi_settings {
+    $_ = `vdb-config -on NCBI_SETTINGS`;
+    die if ( $? );
+    die unless ( /^NCBI_SETTINGS = "(.*)"/ );
+    $1;
+};
 
 
 sub save_new_root_in_configuration {
@@ -556,6 +582,16 @@ sub run {
 }
 
 
+sub log_ {
+    my ( $msg ) = @_;
+    my $filename = "$NCBI_SETTINGS.log.$TIMESTAMP";
+    open ( my $fh, ">>$filename" ) or die "Cannot open file '$filename' $!";
+    print $fh `pwd`;
+    print $fh "$msg\n\n";
+    close $fh;
+}
+
+
 sub sym_link {
     my ( $old, $new ) = @_;
     print "dbg: symlink '$old' '$new'... ";
@@ -564,6 +600,8 @@ sub sym_link {
         print "ok";
     }
     print "\n";
+
+    log_ ( "ln -s $old $new" );
 }
 
 
@@ -571,10 +609,12 @@ sub mk_dir {
     my ( $path ) = @_;
     print "dbg: mkdir '$path'... ";
     unless ($OPT{dry}) {
-        mkdir ( $path ) or die;
+        make_path ( $path ) or die;
         print "ok";
     }
     print "\n";
+
+    log_ ( "mkdir -p $path" );
 }
 
 
@@ -612,6 +652,13 @@ sub set {
     my ( $n, $v ) = @_;
 
     my $old = `vdb-config -on $n`;
+
+    unless ( $saved ) {
+        if ( -e $NCBI_SETTINGS ) {
+            copy ( $NCBI_SETTINGS, "$NCBI_SETTINGS.$TIMESTAMP" ) or die;
+        }
+        ++ $saved;
+    }
 
     run ( "vdb-config -s $n=$v", "Setting $n=$v" );
 }

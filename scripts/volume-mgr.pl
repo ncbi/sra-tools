@@ -31,6 +31,9 @@ if ($OPT{'use-new-volume-as-root'}) {
     $OPT{use_new_volume_as_root} = 1;
 }
 
+print "WARNING: " .
+    "THIS SCRIPT IS EXPERIMENTAL AND MIGHT NOT BE SUPPORTED IN THE FUTURE\n\n";
+
 if ( $OPT{'help'} ) {
     help();
     exit 0;

@@ -3422,31 +3422,162 @@ static rc_t PrintLib ( const char * path, bool xml ) {
     return rc;
 }
 
-rc_t CC KMain(int argc, char *argv[]) {
-    rc_t rc = 0;
-    uint32_t pcount = 0;
-    uint32_t i = 0;
-    Args *args = NULL;
-    rc_t rc3 = 0;
-    int argi = 0;
-    uint32_t params = 0;
-    const char * eol = "\n";
+/******************************************************************************/
+static rc_t MainFreeSpace ( const Main * self, const KDirectory * dir ) {
+    uint64_t free_bytes_available = 0;
+    uint64_t total_number_of_bytes = 0;
+    rc_t rc = KDirectoryGetDiskFreeSpace ( dir, & free_bytes_available,
+                                           & total_number_of_bytes );
+    if ( rc != 0 ) 
+        return rc;
 
-    Main prms;
-    char **argv2 = MainInit(&prms, argc, argv, &argi);
+    assert ( self );
 
-    if ( rc == 0 && prms . xml ) {
-        eol = "<br/>\n";
-    }
+    free_bytes_available /= 1024;
+    total_number_of_bytes /= 1024;
 
-    if (rc == 0) {
-        rc = ArgsMakeAndHandle(&args, argi, argv2, 1,
-            Options, sizeof Options / sizeof Options[0]);
-    }
+    if ( self -> xml )
+        OUTMSG ( (
+            "      <Space free=\"%d\" total=\"%d\" units=\"KBytes\"/>\n",
+            free_bytes_available, total_number_of_bytes ) );
+    else
+        OUTMSG ( (
+            "    Space free=\"%d\" total=\"%d\" units=\"KBytes\"\n",
+            free_bytes_available, total_number_of_bytes ) );
+
+    return rc;
+}
+
+static rc_t MainRepository ( const Main * self, const KRepository * repo ) {
+    const char tag [] = "User";
+    char buffer [ PATH_MAX ] = "";
+    size_t size = 0;
+    rc_t rc = KRepositoryName ( repo, buffer, sizeof buffer, & size );
+
+    assert ( self );
 
     if ( rc == 0 ) {
-        rc = ArgsParamCount ( args, & params );
+        if ( self -> xml )
+            OUTMSG ( ( "    <%s name=\"%s\"/>\n", tag, buffer ) );
+        else
+            OUTMSG (( "  %s name=\"%s\"\n", tag, buffer ));
+
+        rc = KRepositoryRoot ( repo, buffer, sizeof buffer, & size );
+        if ( rc == 0 ) {
+            bool found = true;
+            const KDirectory * dir = NULL;
+            rc_t rc = KDirectoryOpenDirRead ( self -> dir, & dir, false,
+                                              buffer );
+            if ( rc == SILENT_RC
+                ( rcFS, rcDirectory, rcOpening, rcPath, rcNotFound ) )
+            {
+                found = false;
+                rc = 0;
+            }
+    
+            if ( rc == 0 ) {
+                char b1 [ PATH_MAX ] = "";
+                char b2 [ PATH_MAX ] = "";
+                char * current = b1;
+                char * resolved = b2;
+                int i = 0;
+                string_copy ( b1, sizeof b1, buffer, size );
+                if ( self -> xml )
+                    OUTMSG ( ( "      <Root found=\"%s\">%s</Root>\n",
+                               found ? "true" : "false", current ) );
+                else
+                    OUTMSG ( ( "    Root=\"%s\" found=\"%s\"\n",
+                               current, found ? "true" : "false" ) );
+                for ( i = 0; i < 9 && ! found; ++ i ) {
+                    rc = KDirectoryResolvePath ( self -> dir, true, resolved,
+                                                 sizeof b1, "%s/..", current );
+                    if ( rc == 0 ) {
+                        rc = KDirectoryOpenDirRead ( self -> dir, & dir, false,
+                                                     resolved );
+                        if ( rc == 0 ) {
+                            found = true;
+                            current = resolved;
+                            if ( self -> xml )
+                                OUTMSG ( ( "      <Found>%s</Found>\n",
+                                           current ) );
+                            else
+                                OUTMSG ( ( "    Found=\"%s\"\n", current ) );
+                        }
+                        else if ( rc == SILENT_RC ( rcFS, rcDirectory,
+                                               rcOpening, rcPath, rcNotFound ) )
+                        {
+                            char * t = current;
+                            current = resolved;
+                            resolved = t;
+                        }
+                        else
+                            break;
+                    }
+                }
+                if ( found )
+                    MainFreeSpace ( self, dir );
+                RELEASE ( KDirectory, dir );
+            }
+            else {
+                if ( self -> xml )
+                    OUTMSG ( (
+                        "      <Root KDirectoryOpenDirRead=\"%R\">%s<Root>\n",
+                        rc, buffer ) );
+                else
+                    OUTMSG ( ( "  Root=\"%s\" KDirectoryOpenDirRead=\"%R\"\n",
+                               buffer, rc ));
+            }
+        }
     }
+
+    if ( rc == 0 && self -> xml )
+        OUTMSG ( ( "    </%s>\n", tag ) );
+
+    return rc;
+}
+
+static rc_t MainRepositories ( const Main * self, const char * bol ) {
+    rc_t rc = 0;
+
+    const char tag [] = "Repositories";
+
+    KRepositoryVector user_repositories;
+    memset ( & user_repositories, 0, sizeof user_repositories );
+
+    assert ( self );
+
+    if ( self -> xml )
+        OUTMSG (( "%s<%s>\n", bol, tag ));
+    else
+        OUTMSG ( ( "\n%s\n", tag ));
+
+    rc = KRepositoryMgrUserRepositories ( self -> repoMgr,
+                                          & user_repositories );
+
+    if ( rc == 0) {
+        uint32_t len = VectorLength ( & user_repositories );
+        uint32_t i = 0;
+        for ( i = 0; i < len; ++ i ) {
+            const KRepository * repo = VectorGet ( & user_repositories, i );
+            if ( repo != NULL )
+                MainRepository ( self, repo );
+        }
+    }
+
+    KRepositoryVectorWhack ( & user_repositories );
+
+    if ( self -> xml )
+        OUTMSG (( "%s</%s>\n", bol, tag ));
+
+    return rc;
+}
+/******************************************************************************/
+
+static rc_t MainFromArgs ( Main * self, const Args * args ) {
+    rc_t rc = 0;
+    uint32_t pcount = 0;
+
+    assert ( self );
 
     if (rc == 0) {
         rc = ArgsOptionCount(args, OPTION_CACHE, &pcount);
@@ -3455,7 +3586,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
         else {
             if (pcount > 0) {
-                prms.allowCaching = true;
+                self -> allowCaching = true;
             }
         }
     }
@@ -3475,13 +3606,13 @@ rc_t CC KMain(int argc, char *argv[]) {
                         "Failure to get '" OPTION_PRJ "' argument");
                 }
                 else {
-                    prms.projectId = AsciiToU32(dummy, NULL, NULL);
+                    self->projectId = AsciiToU32(dummy, NULL, NULL);
                 }
             }
         }
     }
 
-    prms.full = true;
+    self->full = true;
 
     if (rc == 0) {
         rc = ArgsOptionCount(args, OPTION_QUICK, &pcount);
@@ -3490,7 +3621,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
         else {
             if (pcount > 0) {
-                prms.full = false;
+                self->full = false;
             }
         }
     }
@@ -3502,13 +3633,13 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
         else {
             if (pcount > 0) {
-                prms.full = true;
+                self->full = true;
             }
         }
     }
 
     if (rc == 0) {
-        prms.bytes = 256;
+        self->bytes = 256;
         rc = ArgsOptionCount(args, OPTION_BYTES, &pcount);
         if (rc) {
             LOGERR(klogErr, rc, "Failure to get '" OPTION_BYTES "' argument");
@@ -3521,9 +3652,9 @@ rc_t CC KMain(int argc, char *argv[]) {
                 if (rc == 0) {
                     int bytes = atoi(val);
                     if (bytes > 0) {
-                        prms.bytes = bytes;
-                        MainAddTest(&prms, ePrintFile);
-                        MainAddTest(&prms, eResolve);
+                        self->bytes = bytes;
+                        MainAddTest(self, ePrintFile);
+                        MainAddTest(self, eResolve);
                     }
                 } else {
                     LOGERR(klogErr, rc,
@@ -3533,27 +3664,90 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
     }
 
-    if (!prms.full) {
-        MainMakeQuick(&prms);
+    if (rc == 0) {
+        rc = ArgsOptionCount(args, OPTION_NO_RFS, &pcount);
+        if (rc) {
+            LOGERR(klogErr, rc,
+                "Failure to get '" OPTION_NO_RFS "' argument");
+        }
+        else {
+            if (pcount > 0) {
+                self->noRfs = true;
+            }
+        }
     }
 
     if (rc == 0) {
-        rc = MainInitObjects(&prms);
+        rc = ArgsOptionCount(args, OPTION_NO_VDB, &pcount);
+        if (rc) {
+            LOGERR(klogErr, rc,
+                "Failure to get '" OPTION_NO_VDB "' argument");
+        }
+        else {
+            if (pcount > 0) {
+                self->noVDBManagerPathType = true;
+            }
+        }
     }
+
+    if (rc == 0) {
+        rc = ArgsOptionCount(args, OPTION_REC, &pcount);
+        if (rc) {
+            LOGERR(klogErr, rc, "Failure to get '" OPTION_REC "' argument");
+        }
+        else {
+            if (pcount > 0) {
+                self->recursive = true;
+            }
+        }
+    }
+
+    return rc;
+}
+
+rc_t CC KMain(int argc, char *argv[]) {
+    rc_t rc = 0;
+    uint32_t pcount = 0;
+    uint32_t i = 0;
+    Args *args = NULL;
+    rc_t rc3 = 0;
+    int argi = 0;
+    uint32_t params = 0;
+    const char * eol = "\n";
+
+    Main prms;
+    char **argv2 = MainInit(&prms, argc, argv, &argi);
+
+    if ( rc == 0 && prms . xml )
+        eol = "<br/>\n";
+
+    if (rc == 0)
+        rc = ArgsMakeAndHandle(&args, argi, argv2, 1,
+            Options, sizeof Options / sizeof Options[0]);
+
+    if ( rc == 0 )
+        rc = ArgsParamCount ( args, & params );
+
+    if ( rc == 0 )
+        rc = MainFromArgs ( & prms, args );
+
+    if (!prms.full)
+        MainMakeQuick(&prms);
+
+    if (rc == 0)
+        rc = MainInitObjects(&prms);
 
     if (rc == 0) {
         rc = ArgsOptionCount(args, OPTION_LIB, &pcount);
-        if (rc == 0 && pcount > 0 && ! prms.xml) {
+        if (rc == 0 && pcount > 0 && ! prms.xml)
             prms . tests = 0;
-        }
     }
 
     if (rc == 0) {
         const char root[] = "Test-sra";
         rc = ArgsOptionCount(args, OPTION_OUT, &pcount);
-        if (rc) {
+        if (rc)
             LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
-        }
         else {
             if (pcount > 0) {
                 const char *dummy = NULL;
@@ -3563,12 +3757,10 @@ rc_t CC KMain(int argc, char *argv[]) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_OUT "' argument");
                 }
-                else if (strcmp(dummy, "x") == 0 || strcmp(dummy, "X") == 0) {
+                else if (strcmp(dummy, "x") == 0 || strcmp(dummy, "X") == 0)
                     prms.xml = true;
-                }
-                else {
+                else
                     prms.xml = false;
-                }
             }
             else {
                 prms.xml = MainHasTest(&prms, eCfg)
@@ -3576,130 +3768,80 @@ rc_t CC KMain(int argc, char *argv[]) {
             }
         }
 
-        if (prms.xml) {
+        if (prms.xml)
             OUTMSG(("<%s>\n", root));
-        }
 
-        if (MainHasTest(&prms, eNgs)) {
+        if (MainHasTest(&prms, eNgs))
             _MainPrintNgsInfo(&prms);
-        }
 
         MainPrintVersion(&prms);
 
         if (MainHasTest(&prms, eCfg)) {
             rc_t rc2 = MainPrintConfig(&prms);
-            if (rc == 0 && rc2 != 0) {
+            if (rc == 0 && rc2 != 0)
                 rc = rc2;
-            }
         }
 
-        if (MainHasTest(&prms, eOS)) {
+        if (MainHasTest(&prms, eOS))
             PrintOS(prms.xml);
-        }
 
-        if (MainHasTest(&prms, eAscp)) {
+        if (MainHasTest(&prms, eAscp))
             MainPrintAscp(&prms);
-        }
 
-        if (MainHasTest(&prms, eNetwork)) {
+        if (MainHasTest(&prms, eNetwork))
             MainNetwotk(&prms, NULL, prms.xml ? "  " : "", eol);
-        }
 
         if (!prms.full) {
             rc_t rc2 = MainQuickCheck(&prms);
-            if (rc == 0 && rc2 != 0) {
+            if (rc == 0 && rc2 != 0)
                 rc = rc2;
-            }
-        }
-
-        if (rc == 0) {
-            rc = ArgsOptionCount(args, OPTION_NO_RFS, &pcount);
-            if (rc) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OPTION_NO_RFS "' argument");
-            }
-            else {
-                if (pcount > 0) {
-                    prms.noRfs = true;
-                }
-            }
-        }
-
-        if (rc == 0) {
-            rc = ArgsOptionCount(args, OPTION_NO_VDB, &pcount);
-            if (rc) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OPTION_NO_VDB "' argument");
-            }
-            else {
-                if (pcount > 0) {
-                    prms.noVDBManagerPathType = true;
-                }
-            }
-        }
-
-        if (rc == 0) {
-            rc = ArgsOptionCount(args, OPTION_REC, &pcount);
-            if (rc) {
-                LOGERR(klogErr, rc, "Failure to get '" OPTION_REC "' argument");
-            }
-            else {
-                if (pcount > 0) {
-                    prms.recursive = true;
-                }
-            }
         }
 
         if (rc == 0) {
             rc = ArgsOptionCount(args, OPTION_LIB, &pcount);
-            if (rc != 0) {
+            if (rc != 0)
                 LOGERR(klogErr, rc, "Failure to get '" OPTION_LIB "' argument");
-            }
             else {
                 int i = 0;
                 for (i = 0; i < pcount; ++i) {
                     const char * lib = NULL;
                     rc = ArgsOptionValue
                         ( args, OPTION_LIB, i, ( const void ** ) & lib );
-                    if ( rc != 0 ) {
+                    if ( rc != 0 )
                         LOGERR(klogErr, rc,
                             "Failure to get '" OPTION_LIB "' argument");
-                    }
-                    else {
+                    else
                         PrintLib ( lib, prms.xml );
-                    }
                 }
             }
         }
 
-        if ( params == 0 && MainHasTest ( & prms, eNetwork ) ) {
+        if ( params == 0 && MainHasTest ( & prms, eNetwork ) )
             MainNetwotk ( & prms, "SRR000001", prms . xml ? "  " : "", eol );
-        }
+
+        MainRepositories ( & prms, "  " );
+
         for (i = 0; i < params; ++i) {
             const char *name = NULL;
             rc3 = ArgsParamValue(args, i, (const void **)&name);
             if (rc3 == 0) {
                 rc_t rc2 = Quitting();
                 if (rc2 != 0) {
-                    if (rc == 0 && rc2 != 0) {
+                    if (rc == 0 && rc2 != 0)
                         rc = rc2;
-                    }
                     break;
                 }
                 ReportResetObject(name);
                 rc2 = MainExec(&prms, NULL, name);
-                if (rc == 0 && rc2 != 0) {
+                if (rc == 0 && rc2 != 0)
                     rc = rc2;
-                }
             }
         }
-        if (rc == 0 && rc3 != 0) {
+        if (rc == 0 && rc3 != 0)
             rc = rc3;
-        }
 
-        if (MainHasTest(&prms, eNcbiReport)) {
+        if (MainHasTest(&prms, eNcbiReport))
             ReportForceFinalize();
-        }
 
         if (!prms.full) {
             OUTMSG(("\nAdd -F option to try all the tests."));

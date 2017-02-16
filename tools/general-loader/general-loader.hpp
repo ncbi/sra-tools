@@ -215,7 +215,7 @@ private:
     private:
         // read p_dataSize bytes and use one of the decoder functions in utf8-like-int-codec.h to unpack a sequence of integer values, 
         // stored in m_unpackingBuf as a collection of bytes
-        template < typename T_uintXX > rc_t UncompressInt ( Reader& p_reader, uint16_t p_dataSize, int ( * p_decode ) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded ) );
+        template < typename T_uintXX > rc_t UncompressInt ( Reader& p_reader, uint32_t p_dataSize, int ( * p_decode ) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded ) );
         
         rc_t ParseData ( Reader& p_reader, DatabaseLoader& p_dbLoader, uint32_t p_columnId, uint32_t p_dataSize );
         

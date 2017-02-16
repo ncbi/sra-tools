@@ -460,7 +460,7 @@ GeneralLoader :: UnpackedProtocolParser :: ParseEvents ( Reader& p_reader, Datab
 
 template < typename T_uintXX > 
 rc_t 
-GeneralLoader :: PackedProtocolParser :: UncompressInt (  Reader& p_reader, uint16_t p_dataSize, int (*p_decode) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded )  )
+GeneralLoader :: PackedProtocolParser :: UncompressInt (  Reader& p_reader, uint32_t p_dataSize, int (*p_decode) ( uint8_t const* buf_start, uint8_t const* buf_xend, T_uintXX* ret_decoded )  )
 {
     m_unpackingBuf . clear();
     // reserve enough for the best-packed case, when each element is represented with 1 byte

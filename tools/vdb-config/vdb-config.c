@@ -1385,9 +1385,8 @@ static rc_t ShowFiles(const KConfig* cfg, const Params* prm) {
 
         for (i = 0; i < count && rc == 0; ++i) {
             const char* name = NULL;
-            if (rc == 0) {
+            if (rc == 0)
                 rc = KNamelistGet(names, i, &name);
-            }
             if (rc == 0) {
                 OUTMSG(("%s\n", name));
                 hasAny = true;

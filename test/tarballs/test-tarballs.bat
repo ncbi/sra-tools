@@ -26,9 +26,11 @@ echo on
 Setlocal
 Setlocal EnableDelayedExpansion
 
-set TOOLS=abi-dump align-info blastn_vdb cache-mgr fastq-dump illumina-dump kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump ^
-          sra-pileup sra-stat srapath tblastn_vdb test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock ^
-          vdb-unlock vdb-validate   
+set TOOLS=abi-dump align-info cache-mgr fastq-dump illumina-dump kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump ^
+          sra-pileup sra-stat srapath test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock ^
+          vdb-unlock vdb-validate
+rem Temporarily removed from 2.8.0 due to an HTTPS bug in C++Toolkit. To be restored later
+rem blastn_vdb tblastn_vdb
 
 :: vdb-passwd is obsolete but still in the package
 

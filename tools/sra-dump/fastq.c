@@ -3740,13 +3740,13 @@ rc_t SRADumper_Init( SRADumperFmt* fmt )
                             "Name can either be accession.version (ex: NC_000001.10) or",
                             "file specific name (ex: \"chr1\" or \"1\").",
                             "\"from\" and \"to\" are 1-based coordinates", NULL}},
-            {NULL, "matepair-distance", "from-to|unknown", {"Filter by distance beiween matepairs.", /* H_matepair-distance = 19 */
+            {NULL, "matepair-distance", "from-to|unknown", {"Filter by distance between matepairs.", /* H_matepair-distance = 19 */
                             "Use \"unknown\" to find matepairs split between the references.",
                             "Use from-to to limit matepair distance on the same reference", NULL}},
 
             {NULL, "qual-filter-1", NULL, {"Filter used in current 1000 Genomes data", NULL}}, /* H_qual_filter_1 = 20 */
 
-            {NULL, "suppress-qual-for-cskey", NULL, {"supress quality-value for cskey", NULL}}, /* H_SuppressQualForCSKey = 21 */
+            {NULL, "suppress-qual-for-cskey", NULL, {"suppress quality-value for cskey", NULL}}, /* H_SuppressQualForCSKey = 21 */
 
             {NULL, NULL, NULL, {NULL}}
         };

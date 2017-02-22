@@ -8,7 +8,8 @@
     <ClCompile Include="..\..\..\tools\sra-pileup\perf_log.c" />
     <ClCompile Include="..\..\..\tools\sra-pileup\pileup_counters.c" />
     <ClCompile Include="..\..\..\tools\sra-pileup\pileup_index.c" />
-    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_indels.c" />	
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_indels.c" />
+    <ClCompile Include="..\..\..\tools\sra-pileup\pileup_events.c" />
     <ClCompile Include="..\..\..\tools\sra-pileup\pileup_stat.c" />
     <ClCompile Include="..\..\..\tools\sra-pileup\pileup_v2.c" />
     <ClCompile Include="..\..\..\tools\sra-pileup\pileup_varcount.c" />

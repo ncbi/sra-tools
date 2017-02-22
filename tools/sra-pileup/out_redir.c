@@ -45,7 +45,7 @@ static rc_t CC out_redir_callback( void * self, const char * buffer, size_t bufs
 rc_t init_out_redir( out_redir * self, enum out_redir_mode mode, const char * filename, size_t bufsize )
 {
     rc_t rc;
-    KFile *output_file;
+    KFile *output_file = NULL;
 
     if ( filename != NULL )
     {
@@ -59,7 +59,7 @@ rc_t init_out_redir( out_redir * self, enum out_redir_mode mode, const char * fi
             KDirectoryRelease( dir );
         }
     }
-    else
+    else if ( bufsize > 0 )
         rc = KFileMakeStdOut ( &output_file );
 
     if ( rc == 0 )
@@ -69,18 +69,21 @@ rc_t init_out_redir( out_redir * self, enum out_redir_mode mode, const char * fi
         /* wrap the output-file in compression, if requested */
         switch ( mode )
         {
-            case orm_gzip  : rc = KFileMakeGzipForWrite( &temp_file, output_file ); break;
-            case orm_bzip2 : rc = KFileMakeBzip2ForWrite( &temp_file, output_file ); break;
+            case orm_gzip  : rc = KFileMakeGzipForWrite( &temp_file, output_file );
+                              KFileRelease( output_file );
+                              output_file = temp_file;
+                              break;
+                              
+            case orm_bzip2 : rc = KFileMakeBzip2ForWrite( &temp_file, output_file );
+                              KFileRelease( output_file );
+                              output_file = temp_file;
+                              break;
+
             case orm_uncompressed : break;
         }
+        
         if ( rc == 0 )
         {
-            if ( mode != orm_uncompressed )
-            {
-                KFileRelease( output_file );
-                output_file = temp_file;
-            }
-
             /* wrap the output/compressed-file in buffering, if requested */
             if ( bufsize != 0 )
             {
@@ -92,7 +95,7 @@ rc_t init_out_redir( out_redir * self, enum out_redir_mode mode, const char * fi
                 }
             }
 
-            if ( rc == 0 )
+            if ( rc == 0 && output_file != NULL )
             {
                 self->kfile = output_file;
                 self->org_writer = KOutWriterGet();
@@ -102,6 +105,11 @@ rc_t init_out_redir( out_redir * self, enum out_redir_mode mode, const char * fi
                 if ( rc != 0 )
                     LOGERR( klogInt, rc, "KOutHandlerSet() failed" );
             }
+            else
+            {
+                self->kfile = NULL;
+                self->org_writer = NULL;
+            }
         }
     }
     return rc;
@@ -110,7 +118,9 @@ rc_t init_out_redir( out_redir * self, enum out_redir_mode mode, const char * fi
 
 void release_out_redir( out_redir * self )
 {
-    KFileRelease( self->kfile );
+    if ( self->kfile != NULL )
+        KFileRelease( self->kfile );
+        
     if( self->org_writer != NULL )
     {
         KOutHandlerSet( self->org_writer, self->org_data );

@@ -77,6 +77,7 @@ TOOL_SRC = \
 	pileup_counters \
 	pileup_index \
 	pileup_indels \
+	pileup_events \
 	pileup_varcount \
 	pileup_stat \
 	pileup_v2 \

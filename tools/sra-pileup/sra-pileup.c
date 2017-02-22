@@ -39,6 +39,7 @@
 #include "pileup_index.h"
 #include "pileup_varcount.h"
 #include "pileup_indels.h"
+#include "pileup_events.h"
 #include "pileup_stat.h"
 #include "pileup_v2.h"
 
@@ -96,6 +97,9 @@
 #define OPTION_SEQNAME "seqname"
 #define ALIAS_SEQNAME  "e"
 
+#define OPTION_OUTBUF  "outbuf"
+#define ALIAS_OUTBUF   "b"
+
 #define OPTION_MIN_M   "minmismatch"
 #define OPTION_MERGE   "merge-dist"
 
@@ -115,6 +119,7 @@
 #define FUNC_VARCOUNT   "varcount"
 #define FUNC_DELETES    "deletes"
 #define FUNC_INDELS     "indels"
+#define FUNC_EVENTS     "events"
 
 enum
 {
@@ -129,7 +134,8 @@ enum
     sra_pileup_test = 8,
     sra_pileup_varcount = 9,
     sra_pileup_deletes = 10,
-	sra_pileup_indels = 11
+	sra_pileup_indels = 11,
+	sra_pileup_events = 12
 };
 
 static const char * minmapq_usage[]         = { "Minimum mapq-value, ", 
@@ -149,6 +155,8 @@ static const char * spotgrp_usage[]         = { "divide by spotgroups", NULL };
 static const char * dpgrp_usage[]         	= { "print depth per spotgroup", NULL };
 
 static const char * seqname_usage[]         = { "use original seq-name", NULL };
+
+static const char * outbuf_usage[]          = { "size of output-buffer", NULL };
 
 static const char * min_m_usage[]           = { "min percent of mismatches used in function mismatch, default is 5%", NULL };
 
@@ -187,6 +195,7 @@ OptDef MyOptions[] =
     { OPTION_SPOTGRP,	ALIAS_SPOTGRP,	NULL,	spotgrp_usage,	1,        false,       false },
 	{ OPTION_DEPTH_PER_SPOTGRP, NULL,	NULL,	dpgrp_usage,	1,        false,       false },
     { OPTION_SEQNAME,	ALIAS_SEQNAME,	NULL,	seqname_usage,	1,        false,       false },
+    { OPTION_OUTBUF,	ALIAS_OUTBUF,	NULL,	outbuf_usage,	1,        true,        false },    
     { OPTION_MIN_M,		NULL,			NULL,	min_m_usage,	1,        true,        false },
     { OPTION_MERGE,		NULL,			NULL,	merge_usage,	1,        true,        false },
     { OPTION_FUNC,		ALIAS_FUNC,		NULL,	func_usage,		1,        true,        false }
@@ -284,7 +293,10 @@ static rc_t get_pileup_options( Args * args, pileup_options *opts )
 
     if ( rc == 0 )
         rc = get_uint32_option( args, OPTION_MERGE, &opts->merge_dist, 10000 );
-        
+
+    if ( rc == 0 )
+        rc = get_uint32_option( args, OPTION_OUTBUF, &opts->out_buffer_size,  32 * 1024 );
+
     if ( rc == 0 )
         rc = get_bool_option( args, OPTION_DUPS, &opts->process_dups, false );
 
@@ -334,6 +346,9 @@ static rc_t get_pileup_options( Args * args, pileup_options *opts )
                 opts->function = sra_pileup_deletes;
             else if ( cmp_pchar( fkt, FUNC_INDELS ) == 0 )
                 opts->function = sra_pileup_indels;
+            else if ( cmp_pchar( fkt, FUNC_EVENTS ) == 0 )
+                opts->function = sra_pileup_events;
+                
         }
     }
     return rc;
@@ -1483,6 +1498,10 @@ static rc_t pileup_main( Args * args, pileup_options *options )
                                           options->read_tlen = false;
                                           break;
 
+            case sra_pileup_events     : options->omit_qualities = true;
+                                          options->read_tlen = false;
+                                          break;
+
             case sra_pileup_varcount   : options->omit_qualities = true;
                                           options->read_tlen = false;
                                           break;
@@ -1525,6 +1544,7 @@ static rc_t pileup_main( Args * args, pileup_options *options )
             case sra_pileup_index       : rc = walk_index( arg_ctx.ref_iter, options ); break;
             case sra_pileup_varcount    : rc = walk_varcount( arg_ctx.ref_iter, options ); break;
 			case sra_pileup_indels      : rc = walk_indels( arg_ctx.ref_iter, options ); break;
+            case sra_pileup_events      : rc = walk_events( arg_ctx.ref_iter, options ); break;
             default :  rc = walk_ref_iter( arg_ctx.ref_iter, options ); break;
         }
         /* ============================================== */
@@ -1581,7 +1601,7 @@ rc_t CC KMain( int argc, char *argv [] )
 					else
 						mode = orm_uncompressed;
 
-					rc = init_out_redir( &redir, mode, options.cmn.output_file, 32 * 1024 ); /* from out_redir.c */
+					rc = init_out_redir( &redir, mode, options.cmn.output_file, options.out_buffer_size ); /* from out_redir.c */
 					
 					/*
                     if ( options.cmn.output_file != NULL )

@@ -49,6 +49,7 @@ typedef struct pileup_options
     uint32_t min_mismatch;
     uint32_t merge_dist;
     uint32_t source_table;
+    uint32_t out_buffer_size;
     uint32_t function;  /* sra_pileup_samtools, sra_pileup_counters, sra_pileup_stat, 
                            sra_pileup_report_ref, sra_pileup_report_ref_ext, sra_pileup_debug, etc */
     struct skiplist * skiplist;     /* from ref_regions.h */

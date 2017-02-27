@@ -111,7 +111,11 @@ static void testExpand()
 
 static void testCIGAR()
 {
-    assert(validateCIGAR(0, "70M", NULL, NULL) == 0);
+    unsigned reflen = 0;
+    unsigned seqlen = 0;
+    assert(validateCIGAR(0, "70M", &reflen, &seqlen) == 0);
+    assert(reflen == 70);
+    assert(seqlen == 70);
     
     /* not a valid CIGAR */
     assert(validateCIGAR(0, "70Z", NULL, NULL) != 0);

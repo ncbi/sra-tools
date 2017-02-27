@@ -29,11 +29,11 @@
 
 #include "expandCIGAR.h"
 
-static void testExpandMatch(struct cFastaFile *file, int index)
+static void testExpandMatch(struct cFastaFile *file, int refNo)
 {
     char const seq[] = "GGACAACGGGACTATCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTTAAAA";
     struct Event *event = NULL;
-    int events = expandCIGAR(&event, 0, "70M", seq, 70 * 3, file, index);
+    int events = expandCIGAR(&event, 0, "70M", seq, 70 * 3, file, refNo);
     assert(events == 1);
     
     assert(event[0].type == match);
@@ -44,11 +44,11 @@ static void testExpandMatch(struct cFastaFile *file, int index)
     free(event);
 }
 
-static void testExpandInsert(struct cFastaFile *file, int index)
+static void testExpandInsert(struct cFastaFile *file, int refNo)
 {
     char const seq[] = "GGACAACGGGACTAACTATCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTT";
     struct Event *event = NULL;
-    int events = expandCIGAR(&event, 0, "10M4I56M", seq, 70 * 3, file, index);
+    int events = expandCIGAR(&event, 0, "10M4I56M", seq, 70 * 3, file, refNo);
     assert(events == 3);
     
     assert(event[0].type == match);
@@ -69,11 +69,11 @@ static void testExpandInsert(struct cFastaFile *file, int index)
     free(event);
 }
 
-static void testExpandDelete(struct cFastaFile *file, int index)
+static void testExpandDelete(struct cFastaFile *file, int refNo)
 {
     char const seq[] = "GGACAACGGGTCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTTAAAAGAGA";
     struct Event *event = NULL;
-    int events = expandCIGAR(&event, 0, "10M4D60M", seq, 70 * 3, file, index);
+    int events = expandCIGAR(&event, 0, "10M4D60M", seq, 70 * 3, file, refNo);
     assert(events == 3);
     
     assert(event[0].type == match);
@@ -99,8 +99,8 @@ static void testExpand()
     struct cFastaFile *file = loadFastaFile(0, "tiny.fasta");
     assert(file != NULL);
     
-    int index = FastaFile_getNamedSequence(file, 0, "R");
-    assert(index == 0);
+    int refNo = FastaFile_getNamedSequence(file, 0, "R");
+    assert(refNo == 0);
     
     testExpandMatch(file, index);
     testExpandInsert(file, index);

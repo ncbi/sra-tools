@@ -24,156 +24,217 @@
  */
 
 #include <vector>
+#include <map>
 #include <string>
 #include <cstdint>
 #include <cassert>
-
+#include <utility>
 #include <sstream>
+#include <stdexcept>
+#include <cstring>
 
 #include "fasta-file.hpp"
+#include "cigar2events.hpp"
 
-struct CIGAR{
-    enum OpCode {
-        M = 0,
-        I = 1,
-        D = 2,
-        N = 3,
-        S = 4,
-        H = 5,
-        P = 6,
-        match = 7,
-        mismatch = 8,
-        lastDefined = mismatch,
-        invalid
-    };
-    struct packed {
-        uint32_t value;
-        
-        enum OpCode opCode() const {
-            auto const result = value & 0x0F;
-            return (OpCode)result;
-        }
-        unsigned length() const {
-            return value >> 4;
-        }
-        packed(unsigned length, int code) : value(0) {
-            if (length << 4 == 0)
-                return;
-            
-            switch (code) {
-                case 'M': value = (length << 4) | OpCode::M; break;
-                case 'I': value = (length << 4) | OpCode::I; break;
-                case 'D': value = (length << 4) | OpCode::D; break;
-                case 'N': value = (length << 4) | OpCode::N; break;
-                case 'S': value = (length << 4) | OpCode::S; break;
-                case 'H': value = (length << 4) | OpCode::H; break;
-                case 'P': value = (length << 4) | OpCode::P; break;
-                case '=': value = (length << 4) | OpCode::match; break;
-                case 'X': value = (length << 4) | OpCode::mismatch; break;
-            }
-        }
-    };
-    std::vector<packed> value;
+using namespace CPP;
+
+#define UNREACHABLE do { (void)0; } while(0)
+
+static int verbose = 0;
+
+enum OpCode {
+    M, I, D, N, S, H, P, match, mismatch
+};
+
+struct Operation {
+    unsigned length;
+    int opcode;
     
-    CIGAR(std::string const &cigarString) {
-        auto value = std::vector<packed>();
-        auto strm = std::istringstream(cigarString);
-        while (strm.good()) {
-            unsigned length = 0;
-            
-            if (strm >> length) {
-                char code = 0;
+    Operation(unsigned len = 0, int code = 0) : length(len), opcode(code) {}
+    operator bool() const { return length != 0; }
+};
 
-                if(strm >> code) {
-                    auto const op = packed(length, code);
-                    if (op.value == 0)
-                        return; // parsable but invalid
-                    value.push_back(op);
+struct CIGAR_String {
+    std::string const &string;
+    
+    CIGAR_String(std::string const &s) : string(s) {}
+    
+    class iterator {
+        friend CIGAR_String;
+        
+        std::istringstream iss;
+        Operation currentValue;
+        
+        iterator() : iss(std::string()) {}
+        iterator(std::string const &s) : iss(s) {
+            operator ++();
+        }
+    public:
+        Operation const &operator *() const {
+            return currentValue;
+        }
+        bool operator !=(iterator const &) const {
+            return iss.good() && !iss.eof();
+        }
+        iterator &operator ++() {
+            unsigned length;
+            if (iss >> length) {
+                char code;
+                if (iss >> code) {
+                    int opcode;
+                    switch (code) {
+                        case 'M': opcode = OpCode::M; break;
+                        case 'I': opcode = OpCode::I; break;
+                        case 'D': opcode = OpCode::D; break;
+                        case 'N': opcode = OpCode::N; break;
+                        case 'S': opcode = OpCode::S; break;
+                        case 'H': opcode = OpCode::H; break;
+                        case 'P': opcode = OpCode::P; break;
+                        case '=': opcode = OpCode::match; break;
+                        case 'X': opcode = OpCode::mismatch; break;
+                        default:
+                            throw std::domain_error("invalid op code");
+                    }
+                    currentValue = Operation(length, opcode);
                 }
                 else
-                    return;
+                    throw std::domain_error("expected an op code");
             }
-            else if (strm.eof()) {
-                this->value = value;
-                return; // returns here if no error
-            }
-            else
-                return; // not parsable
+            else if (!iss.eof())
+                throw std::domain_error("expected a number");
+            return *this;
         }
+    };
+    iterator begin() const {
+        return iterator(string);
+    }
+    iterator end() const {
+        return iterator();
     }
 };
 
-#if TESTING_CIGAR
-// test single operation; expects success
-static void test1(void) {
-    auto const cigar = CIGAR("35M");
-    assert(cigar.value.size() == 1);
-    assert(cigar.value[0].length() == 35);
-    assert(cigar.value[0].opCode() == CIGAR::OpCode::M);
-}
-
-// test multiple operations; expects success
-static void test2(void) {
-    auto const cigar = CIGAR("5S35M20I5M");
-    assert(cigar.value.size() == 4);
-
-    assert(cigar.value[0].length() == 5);
-    assert(cigar.value[0].opCode() == CIGAR::OpCode::S);
-
-    assert(cigar.value[1].length() == 35);
-    assert(cigar.value[1].opCode() == CIGAR::OpCode::M);
+std::pair<unsigned, unsigned> CPP::measureCIGAR(std::string const &cigar)
+{
+    unsigned rpos = 0;
+    unsigned spos = 0;
+    unsigned count = 0;
+    int lclip = -1;
+    int rclip = -1;
     
-    assert(cigar.value[2].length() == 20);
-    assert(cigar.value[2].opCode() == CIGAR::OpCode::I);
+    for (auto &&op : CIGAR_String(cigar)) {
+        if (op.length == 0)
+            throw std::domain_error("invalid length");
+        
+        switch (op.opcode) {
+            case OpCode::M:
+            case OpCode::match:
+            case OpCode::mismatch:
+                spos += op.length;
+                rpos += op.length;
+                break;
+            case OpCode::D:
+            case OpCode::N:
+                rpos += op.length;
+                break;
+            case OpCode::S:
+                if (lclip < 0)
+                    lclip = count;
+                else
+                    rclip = count;
+            case OpCode::I:
+                spos += op.length;
+                break;
+            case OpCode::H:
+                if (lclip < 0)
+                    lclip = count;
+                else
+                    rclip = count;
+                break;
+            default:
+                break;
+        }
+        ++count;
+    }
+    if (lclip > 0 || !(rclip == -1 || rclip == count - 1))
+        throw std::domain_error("invalid clipping");
+
+    return std::make_pair(rpos, spos);
+}
+
+
+std::vector<Event> CPP::expandAlignment(  FastaFile::Sequence const &reference
+                                   , unsigned const position
+                                   , std::string const &cigar
+                                   , char const *const querySequence)
+{
+    auto result = std::vector<Event>();
+    unsigned rpos = 0;
+    unsigned spos = 0;
     
-    assert(cigar.value[3].length() == 5);
-    assert(cigar.value[3].opCode() == CIGAR::OpCode::M);
-}
+    for (auto &&op : CIGAR_String(cigar)) {
+        unsigned end_rpos = rpos;
+        unsigned end_spos = spos;
 
-// test invalid opcode; expects failure
-static void test3(void) {
-    auto const cigar = CIGAR("35Z");
-    assert(cigar.value.size() == 0);
-}
-
-// test invalid length; expects failure
-static void test4(void) {
-    {
-        auto const cigar = CIGAR("35M0M");
-        assert(cigar.value.size() == 0);
+        switch (op.opcode) {
+            case OpCode::M:
+            case OpCode::match:
+            case OpCode::mismatch:
+                end_spos += op.length;
+                end_rpos += op.length;
+                break;
+            case OpCode::I:
+                end_spos += op.length;
+                end_rpos += 1;
+                break;
+            case OpCode::D:
+                end_spos += 1;
+                end_rpos += op.length;
+                break;
+            case OpCode::N:
+                rpos += op.length;
+                continue; // N's don't generate an event
+            case OpCode::S:
+                spos += op.length;
+                continue; // S's don't generate an event
+            default:
+                continue; // all other operations are no-ops
+        }
+        while (rpos < end_rpos && spos < end_spos) {
+            Event e;
+            
+            e.type = Event::Type::none;
+            e.length = op.length;
+            e.refPos = rpos;
+            e.seqPos = spos;
+            switch (op.opcode) {
+                case OpCode::M:
+                case OpCode::match:
+                case OpCode::mismatch:
+                    e.type = reference.data[position + rpos] == querySequence[spos] ? Event::Type::match : Event::Type::mismatch;
+                    e.length = 1;
+                    ++spos;
+                    ++rpos;
+                    break;
+                case OpCode::I:
+                    e.type = Event::Type::insertion;
+                    spos += op.length;
+                    break;
+                case OpCode::D:
+                    e.type = Event::Type::deletion;
+                    rpos += op.length;
+                    break;
+                default:
+                    UNREACHABLE;
+            }
+            if (result.size() > 0) {
+                auto &last = result.back();
+                if (last.type == e.type && last.refEnd() == e.refPos && last.seqEnd() == e.seqPos) {
+                    last.length += e.length;
+                    continue;
+                }
+            }
+            result.push_back(e);
+        }
     }
-    {
-        auto const cigar = CIGAR("35M+M");
-        assert(cigar.value.size() == 0);
-    }
-    {
-        auto const cigar = CIGAR("35M-M");
-        assert(cigar.value.size() == 0);
-    }
-    {
-        auto const cigar = CIGAR("35MOM");
-        assert(cigar.value.size() == 0);
-    }
+    return result;
 }
-
-// test garbage; expects failure
-static void test5(void) {
-    auto const cigar = CIGAR("foobar");
-    assert(cigar.value.size() == 0);
-}
-
-// test '*'; expects failure; strangely, it's not really an error
-static void test6(void) {
-    auto const cigar = CIGAR("*");
-    assert(cigar.value.size() == 0);
-}
-
-int main(int argc, char *argv[]) {
-    test1();
-    test2();
-    test3();
-    test4();
-    test5();
-    test6();
-}
-#endif

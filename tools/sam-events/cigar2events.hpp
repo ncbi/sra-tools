@@ -22,3 +22,47 @@
  *
  * =============================================================================
  */
+
+namespace CPP {
+struct Event {
+    enum Type {
+        none = 0,
+        match,
+        mismatch,
+        insertion,
+        deletion
+    } type;
+    unsigned length;
+    unsigned refPos; // position in reference relative to start of alignment
+    unsigned seqPos; // position in query sequence
+    
+    unsigned refEnd() const {
+        switch (type) {
+            case match:
+            case mismatch:
+            case deletion:
+                return refPos + length;
+            default:
+                return refPos;
+        }
+    }
+    
+    unsigned seqEnd() const {
+        switch (type) {
+            case match:
+            case mismatch:
+            case insertion:
+                return seqPos + length;
+            default:
+                return seqPos;
+        }
+    }
+};
+
+std::vector<Event> expandAlignment(  FastaFile::Sequence const &reference
+                                   , unsigned position
+                                   , std::string const &cigar
+                                   , char const querySequence[]);
+
+std::pair<unsigned, unsigned> measureCIGAR(std::string const &cigar);
+}

@@ -23,13 +23,15 @@
  * =============================================================================
  */
 
-#include "fasta-file.hpp"
 #include <string>
 #include <vector>
 #include <map>
 #include <iostream>
 #include <fstream>
 #include <cctype>
+#include "fasta-file.hpp"
+
+using namespace CPP;
 
 /*
  * Fasta files:
@@ -63,7 +65,10 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
         else
             throw std::bad_alloc();
 
-        while ((auto const ch = is.get()) != std::char_traits<char>::eof()) {
+        for ( ; ; ) {
+            auto const ch = is.get();
+            if (ch == std::char_traits<char>::eof())
+                break;
             if (size + 1 < limit)
                 data[size++] = char(ch);
             else {
@@ -124,14 +129,17 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
             auto dst = base;
             {
                 int j = 1;
-                while (j < defline.size() && isspace(defline[j]))
+                while (j < seq.defline.size() && isspace(seq.defline[j]))
                     ++j;
-                while (j < defline.size() && !isspace(defline[j]))
-                    seq.SEQID += defline[j++];
+                while (j < seq.defline.size() && !isspace(seq.defline[j]))
+                    seq.SEQID += seq.defline[j++];
             }
 
             while (base < endp) {
-                auto const ch = tr4na[*base++];
+                auto const chi = *base++;
+                if (chi == '\r' || chi == '\n')
+                    continue;
+                auto const ch = tr4na[chi];
                 if (ch != ' ')
                     *dst++ = ch;
                 else {
@@ -148,48 +156,16 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
 
 std::map<std::string, unsigned> FastaFile::index() const {
     std::map<std::string, unsigned> rslt;
-    for (unsigned i = 0; i < file.sequences.count; ++i) {
-        auto const val = std::make_pair(file.sequences[i].SEQID, i);
+    for (unsigned i = 0; i < sequences.size(); ++i) {
+        auto const val = std::make_pair(sequences[i].SEQID, i);
         rslt.insert(val);
     }
     return rslt;
 }
 
-
-FastaFile FastaFile::load(std::string const filename)
+FastaFile FastaFile::load(std::string const &filename)
 {
     std::ifstream ifs(filename);
 
     return ifs.is_open() ? FastaFile::load(ifs) : FastaFile();
 }
-
-#ifdef TESTING
-void wait(std::string const &msg = "Waiting") {
-    std::string s;
-    
-    std::cout << msg << "... [Press enter]" << std::endl;
-    std::getline(std::cin, s);
-}
-
-void test(std::string const &filename) {
-    auto const test = FastaFile::load(filename);
-    
-    std::cout << "Loaded " << test.sequences.size() << " sequences" << std::endl;
-    
-    size_t total = 0;
-    for (auto i = test.sequences.begin(); i != test.sequences.end(); ++i)
-        total += i->length;
-    
-    std::cout << "Loaded " << total << " bases" << std::endl;
-    
-//    wait("Run leaks");
-}
-
-int main(int argc, char *argv[])
-{
-    if (argc > 1) {
-        test(argv[1]);
-    }
-//    wait("Run leaks again");
-}
-#endif

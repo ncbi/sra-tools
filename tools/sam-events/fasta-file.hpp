@@ -23,11 +23,6 @@
  * ===========================================================================
  */
 
-#include <string>
-#include <vector>
-#include <iostream>
-#include <map>
-
 /*
  * Fasta files:
  *  Fasta file consists of one of more sequences.  A sequence in a fasta file
@@ -36,11 +31,20 @@
  *  delimited) is the seqid.
  */
 
+namespace CPP {
 class FastaFile {
     FastaFile() : data(NULL) {}
     explicit FastaFile(std::istream &is);
     
     void *data;
+
+protected:
+    FastaFile(FastaFile &&other)
+    : data(other.data)
+    , sequences(std::move(other.sequences))
+    {
+        other.data = nullptr;
+    }
 
 public:
     std::map<std::string, unsigned> index() const;
@@ -51,11 +55,27 @@ public:
         char const *data;
         unsigned length;
         bool hadErrors; // erroneous base values are replaced with N
+        
+        std::ostream &print(std::ostream &os) const {
+            unsigned ln = 0;
+            
+            os << defline << std::endl;
+            for (unsigned i = 0; i < length; ++i) {
+                os << data[i];
+                if (++ln == 75) {
+                    os << std::endl;
+                    ln = 0;
+                }
+            }
+            if (ln > 0)
+                os << std::endl;
+            return os;
+        }
     };
 
     std::vector<Sequence const> sequences;
 
-    ~FastaFile() {
+    virtual ~FastaFile() {
         free(data);
         data = nullptr;
     }
@@ -70,7 +90,7 @@ class IndexedFastaFile : public FastaFile {
     std::map<std::string, unsigned> index;
 
     explicit IndexedFastaFile(FastaFile &&ff)
-    : FastaFile(ff)
+    : FastaFile(std::move(ff))
     , index(ff.index())
     {}
 public:
@@ -86,3 +106,4 @@ public:
         return IndexedFastaFile(FastaFile::load(filename));
     }
 };
+}

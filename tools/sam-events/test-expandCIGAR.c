@@ -29,51 +29,97 @@
 
 #include "expandCIGAR.h"
 
-int main(int argc, char *argv[])
+static void testExpandMatch(struct cFastaFile *file, int index)
 {
-    static char const *const eventTypes[] = {
-        "none", "match", "mismatch", "insert", "delete"
-    };
+    char const seq[] = "GGACAACGGGACTATCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTTAAAA";
     struct Event *event = NULL;
-    int events = 0;
+    int events = expandCIGAR(&event, 0, "70M", seq, 70 * 3, file, index);
+    assert(events == 1);
     
+    assert(event[0].type == match);
+    assert(event[0].length == 70);
+    assert(event[0].refPos == 0);
+    assert(event[0].seqPos == 0);
+    
+    free(event);
+}
+
+static void testExpandInsert(struct cFastaFile *file, int index)
+{
+    char const seq[] = "GGACAACGGGACTAACTATCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTT";
+    struct Event *event = NULL;
+    int events = expandCIGAR(&event, 0, "10M4I56M", seq, 70 * 3, file, index);
+    assert(events == 3);
+    
+    assert(event[0].type == match);
+    assert(event[0].length == 10);
+    assert(event[0].refPos == 0);
+    assert(event[0].seqPos == 0);
+    
+    assert(event[1].type == insertion);
+    assert(event[1].length == 4);
+    assert(event[1].refPos == 10);
+    assert(event[1].seqPos == 10);
+    
+    assert(event[2].type == match);
+    assert(event[2].length == 56);
+    assert(event[2].refPos == 10);
+    assert(event[2].seqPos == 14);
+    
+    free(event);
+}
+
+static void testExpandDelete(struct cFastaFile *file, int index)
+{
+    char const seq[] = "GGACAACGGGTCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTTAAAAGAGA";
+    struct Event *event = NULL;
+    int events = expandCIGAR(&event, 0, "10M4D60M", seq, 70 * 3, file, index);
+    assert(events == 3);
+    
+    assert(event[0].type == match);
+    assert(event[0].length == 10);
+    assert(event[0].refPos == 0);
+    assert(event[0].seqPos == 0);
+    
+    assert(event[1].type == deletion);
+    assert(event[1].length == 4);
+    assert(event[1].refPos == 10);
+    assert(event[1].seqPos == 10);
+    
+    assert(event[2].type == match);
+    assert(event[2].length == 60);
+    assert(event[2].refPos == 14);
+    assert(event[2].seqPos == 10);
+    
+    free(event);
+}
+
+static void testExpand()
+{
     struct cFastaFile *file = loadFastaFile(0, "tiny.fasta");
     assert(file != NULL);
-    assert(validateCIGAR(0, "70M", NULL, NULL) == 0);
-    {
-        char const seq[] = "GGACAACGGGACTATCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTTAAAA";
-        events = expandCIGAR(&event, 0, "70M", seq, 70 * 3, file, 0);
-        assert(events == 1);
-
-        assert(event[0].type == match);
-        assert(event[0].length == 70);
-        assert(event[0].refPos == 0);
-        assert(event[0].seqPos == 0);
-        
-        free(event);
-    }
-    {
-        char const seq[] = "GGACAACGGGACTAACTATCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTT";
-        events = expandCIGAR(&event, 0, "10M4I56M", seq, 70 * 3, file, 0);
-        assert(events == 3);
-
-        assert(event[0].type == match);
-        assert(event[0].length == 10);
-        assert(event[0].refPos == 0);
-        assert(event[0].seqPos == 0);
-        
-        assert(event[1].type == insertion);
-        assert(event[1].length == 4);
-        assert(event[1].refPos == 10);
-        assert(event[1].seqPos == 10);
-        
-        assert(event[2].type == match);
-        assert(event[2].length == 56);
-        assert(event[2].refPos == 10);
-        assert(event[2].seqPos == 14);
-        
-        free(event);
-    }
+    
+    int index = FastaFile_getNamedSequence(file, 0, "R");
+    assert(index == 0);
+    
+    testExpandMatch(file, index);
+    testExpandInsert(file, index);
+    testExpandDelete(file, index);
+    
     unloadFastaFile(file);
+}
+
+static void testCIGAR()
+{
+    assert(validateCIGAR(0, "70M", NULL, NULL) == 0);
+    
+    /* not a valid CIGAR */
+    assert(validateCIGAR(0, "70Z", NULL, NULL) != 0);
+}
+
+int main(int argc, char *argv[])
+{
+    testCIGAR();
+    testExpand();
     return 0;
 }

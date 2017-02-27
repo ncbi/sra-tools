@@ -154,7 +154,7 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
     }
 }
 
-std::map<std::string, unsigned> FastaFile::index() const {
+std::map<std::string, unsigned> FastaFile::makeIndex() const {
     std::map<std::string, unsigned> rslt;
     for (unsigned i = 0; i < sequences.size(); ++i) {
         auto const val = std::make_pair(sequences[i].SEQID, i);

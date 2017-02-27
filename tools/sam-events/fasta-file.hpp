@@ -47,7 +47,7 @@ protected:
     }
 
 public:
-    std::map<std::string, unsigned> index() const;
+    std::map<std::string, unsigned> makeIndex() const;
     
     struct Sequence {
         std::string SEQID;
@@ -91,7 +91,7 @@ class IndexedFastaFile : public FastaFile {
 
     explicit IndexedFastaFile(FastaFile &&ff)
     : FastaFile(std::move(ff))
-    , index(ff.index())
+    , index(makeIndex())
     {}
 public:
     int find(std::string const &SEQID) const {

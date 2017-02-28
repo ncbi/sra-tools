@@ -2987,6 +2987,7 @@ unsigned ReferenceLengthFromCIGAR(const BAM_Alignment *self)
     return y;
 }
 
+#if 0
 static unsigned SequenceLengthFromCIGAR(const BAM_Alignment *self)
 {
     unsigned i;
@@ -3010,6 +3011,7 @@ static unsigned SequenceLengthFromCIGAR(const BAM_Alignment *self)
     }
     return y;
 }
+#endif
 
 rc_t BAM_AlignmentGetPosition2(const BAM_Alignment *cself, int64_t *rhs, uint32_t *length)
 {

@@ -177,6 +177,7 @@ typedef struct context_t {
     bool isColorSpace;
 } context_t;
 
+#if 0
 static char const *Print_ctx_value_t(ctx_value_t const *const self)
 {
     static char buffer[16384];
@@ -186,6 +187,7 @@ static char const *Print_ctx_value_t(ctx_value_t const *const self)
         return 0;
     return buffer;
 }
+#endif
 
 static rc_t MMArrayMake(MMArray **rslt, int fd, uint32_t elemSize)
 {
@@ -252,6 +254,7 @@ static rc_t MMArrayGet(MMArray *const self, void **const value, uint64_t const e
     return 0;
 }
 
+#if 0
 static rc_t MMArrayGetRead(MMArray *const self, void const **const value, uint64_t const element)
 {
     unsigned const bin_no = element >> 32;
@@ -279,6 +282,7 @@ static rc_t MMArrayGetRead(MMArray *const self, void const **const value, uint64
     *value = &next[(size_t)in_bin * self->elemSize];
     return 0;
 }
+#endif
 
 static void MMArrayLock(MMArray *const self)
 {
@@ -879,6 +883,7 @@ static uint8_t GetMapQ(BAM_Alignment const *rec)
     return mapQ;
 }
 
+#if 0
 static bool EditAlignedQualities(uint8_t qual[], bool const hasMismatch[], unsigned readlen)
 {
     unsigned i;
@@ -903,7 +908,9 @@ static bool EditAlignedQualities(uint8_t qual[], bool const hasMismatch[], unsig
     }
     return true;
 }
+#endif
 
+#if 0
 static bool EditUnalignedQualities(uint8_t qual[], bool const hasMismatch[], unsigned readlen)
 {
     unsigned i;
@@ -928,6 +935,7 @@ static bool EditUnalignedQualities(uint8_t qual[], bool const hasMismatch[], uns
     }
     return true;
 }
+#endif
 
 static bool platform_cmp(char const platform[], char const test[])
 {
@@ -1093,6 +1101,7 @@ static rc_t RecordLowMatchCounts(KMDataNode *const node)
     return ctx.rc;
 }
 
+#if 0
 static
 rc_t LogDupConflict(char const readName[])
 {
@@ -1113,6 +1122,7 @@ rc_t LogDupConflict(char const readName[])
                                  "name=%s", readName));
     return rc;
 }
+#endif
 
 static char const *const CHANGED[] = {
     "FLAG changed",

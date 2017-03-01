@@ -1443,17 +1443,33 @@ sub check_tool {
     }
 }
 
-sub check_no_array_bounds {
-    check_compiler('O', '-Wno-array-bounds');
-}
-
 sub check_static_libstdcpp {
     my $option = '-static-libstdc++';
-    my $save = $TOOLS;
-    $TOOLS = $CPP;
-    $_ = check_compiler('O', $option);
-    $TOOLS = $save;
-    $_ ? $option : ''
+
+    print "checking whether $CPP accepts $option... ";
+
+    my $log = 'int main() {}\n';
+    my $cmd = $log;
+    $cmd =~ s/\\n/\n/g;
+    my $gcc = "echo -e '$log' | $CPP -xc $option - 2>&1";
+    print "\n\t\trunning $gcc\n" if ($OPT{'debug'});
+    my $out = `$gcc`;
+    my $ok = $? == 0;
+    if ( $ok && $out ) {
+        $ok = 0 if ( $out =~ /unrecognized option '-static-libstdc\+\+'/ );
+    }
+    print "$out\t" if ($OPT{'debug'});
+    println $ok ? 'yes' : 'no';
+
+    unlink 'a.out';
+
+    return '' if (!$ok);
+
+    return $option;
+}
+
+sub check_no_array_bounds {
+    check_compiler('O', '-Wno-array-bounds');
 }
 
 sub find_lib {

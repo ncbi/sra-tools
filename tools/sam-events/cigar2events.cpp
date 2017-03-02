@@ -163,9 +163,9 @@ std::pair<unsigned, unsigned> CPP::measureCIGAR(std::string const &cigar)
 
 
 std::vector<Event> CPP::expandAlignment(  FastaFile::Sequence const &reference
-                                   , unsigned const position
-                                   , std::string const &cigar
-                                   , char const *const querySequence)
+                                        , unsigned const position
+                                        , std::string const &cigar
+                                        , char const *const querySequence)
 {
     auto result = std::vector<Event>();
     unsigned rpos = 0;

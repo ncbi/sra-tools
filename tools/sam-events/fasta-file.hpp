@@ -70,14 +70,14 @@ public:
 
     virtual ~FastaFile() {
         free(data);
-        data = nullptr;
+        data = 0;
     }
 
     static FastaFile load(std::istream &is) {
         return FastaFile(is);
     }
     static FastaFile load(std::string const &filename) {
-        std::ifstream ifs(filename);
+        std::ifstream ifs(filename.c_str());
         
         return ifs.is_open() ? FastaFile::load(ifs) : FastaFile();
     }
@@ -101,7 +101,7 @@ public:
         return IndexedFastaFile(is);
     }
     static IndexedFastaFile load(std::string const &filename) {
-        std::ifstream ifs(filename);
+        std::ifstream ifs(filename.c_str());
         
         return ifs.is_open() ? IndexedFastaFile(ifs) : IndexedFastaFile();
     }

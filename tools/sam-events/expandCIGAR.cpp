@@ -28,6 +28,7 @@
 #include <iostream>
 #include <fstream>
 #include <map>
+#include <cstdlib>
 
 #include "fasta-file.hpp"
 #include "cigar2events.hpp"

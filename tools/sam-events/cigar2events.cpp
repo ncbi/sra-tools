@@ -26,13 +26,13 @@
 #include <vector>
 #include <map>
 #include <string>
-#include <cstdint>
 #include <cassert>
 #include <utility>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <cstring>
+#include <cstdlib>
 
 #include "fasta-file.hpp"
 #include "cigar2events.hpp"

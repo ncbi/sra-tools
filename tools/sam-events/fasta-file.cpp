@@ -29,6 +29,8 @@
 #include <iostream>
 #include <fstream>
 #include <cctype>
+#include <cstdlib>
+
 #include "fasta-file.hpp"
 
 using namespace CPP;

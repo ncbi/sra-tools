@@ -29,21 +29,21 @@
 
 #include <klib/rc.h>
 
-struct Ref_Reader;
+struct Refseq_Reader;
 
 /* construct a reference-reader from a refseq-accession */
-rc_t ref_reader_make( struct Ref_Reader ** rr, const char * acc );
+rc_t refseq_reader_make( struct Refseq_Reader ** rr, const char * acc );
 
 /* releae a reference-reader */
-rc_t ref_reader_release( struct Ref_Reader * rr );
+rc_t refseq_reader_release( struct Refseq_Reader * rr );
 
 /* check if the reference-reader was created with this name */
-rc_t ref_reader_has_name( struct Ref_Reader * rr, const char * acc, bool * has_name );
+rc_t refseq_reader_has_name( struct Refseq_Reader * rr, const char * acc, bool * has_name );
 
 /* get the total len of the reference */
-rc_t ref_reader_get_len( struct Ref_Reader * rr, uint64_t * len );
+rc_t refseq_reader_get_len( struct Refseq_Reader * rr, uint64_t * len );
 
 /* read a chunk of bases from the reference */
-rc_t ref_reader_get( struct Ref_Reader * rr, char ** buffer, uint64_t pos, size_t * available );
+rc_t refseq_reader_get( struct Refseq_Reader * rr, char ** buffer, uint64_t pos, size_t * available );
 
 #endif

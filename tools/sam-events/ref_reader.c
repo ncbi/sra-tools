@@ -34,7 +34,7 @@
 
 /* the ref-reader is a representation of a refseq-accession */ 
 
-typedef struct Ref_Reader
+typedef struct Refseq_Reader
 {
     const VCursor * curs;
     char * acc;
@@ -44,10 +44,10 @@ typedef struct Ref_Reader
     uint64_t total_seq_len;
     uint32_t max_seq_len, read_idx;
     uint64_t row_id;
-} Ref_Reader;
+} Refseq_Reader;
 
 
-rc_t ref_reader_release( struct Ref_Reader * rr )
+rc_t refseq_reader_release( struct Refseq_Reader * rr )
 {
     rc_t rc = 0;
     if ( rr == NULL )
@@ -65,7 +65,7 @@ rc_t ref_reader_release( struct Ref_Reader * rr )
 }
 
 
-rc_t ref_reader_make( struct Ref_Reader ** rr, const char * acc )
+rc_t refseq_reader_make( struct Refseq_Reader ** rr, const char * acc )
 {
     rc_t rc = 0;
 
@@ -77,7 +77,7 @@ rc_t ref_reader_make( struct Ref_Reader ** rr, const char * acc )
     }
     else
     {
-        Ref_Reader * o = calloc( 1, sizeof *o );
+        Refseq_Reader * o = calloc( 1, sizeof *o );
         if ( o == NULL )
             rc = RC( rcApp, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
         else
@@ -140,7 +140,7 @@ rc_t ref_reader_make( struct Ref_Reader ** rr, const char * acc )
             }
             
             if ( rc != 0 )
-                ref_reader_release( o );
+                refseq_reader_release( o );
             else
                 *rr = o;
         }
@@ -149,7 +149,7 @@ rc_t ref_reader_make( struct Ref_Reader ** rr, const char * acc )
 }
 
 
-rc_t ref_reader_has_name( struct Ref_Reader * rr, const char * acc, bool * has_name )
+rc_t refseq_reader_has_name( struct Refseq_Reader * rr, const char * acc, bool * has_name )
 {
     rc_t rc = 0;
     
@@ -169,7 +169,7 @@ rc_t ref_reader_has_name( struct Ref_Reader * rr, const char * acc, bool * has_n
 }
 
 
-rc_t ref_reader_get_len( struct Ref_Reader * rr, uint64_t * len )
+rc_t refseq_reader_get_len( struct Refseq_Reader * rr, uint64_t * len )
 {
     rc_t rc = 0;
 
@@ -188,7 +188,7 @@ rc_t ref_reader_get_len( struct Ref_Reader * rr, uint64_t * len )
 }
 
 
-static rc_t ref_reader_read( struct Ref_Reader * rr, int64_t row_id, char * dst, uint32_t * written )
+static rc_t refseq_reader_read( struct Refseq_Reader * rr, int64_t row_id, char * dst, uint32_t * written )
 {
     uint32_t elem_bits, boff;
     const void * base;
@@ -199,7 +199,7 @@ static rc_t ref_reader_read( struct Ref_Reader * rr, int64_t row_id, char * dst,
 }
 
 
-rc_t ref_reader_get( struct Ref_Reader * rr, char ** buffer, uint64_t pos, size_t * available )
+rc_t refseq_reader_get( struct Refseq_Reader * rr, char ** buffer, uint64_t pos, size_t * available )
 {
     rc_t rc = 0;
     
@@ -228,7 +228,7 @@ rc_t ref_reader_get( struct Ref_Reader * rr, char ** buffer, uint64_t pos, size_
             rc_t rc2;
             
             memmove( rr->buffer, rr->buffer + rr->max_seq_len, rr->max_seq_len );
-            rc2 = ref_reader_read( rr, row_id + 1, rr->buffer + rr->max_seq_len, &written2 );
+            rc2 = refseq_reader_read( rr, row_id + 1, rr->buffer + rr->max_seq_len, &written2 );
             if ( rc2 == 0 )
             {
                 rr->buffer_data = rr->max_seq_len + written2;
@@ -243,13 +243,13 @@ rc_t ref_reader_get( struct Ref_Reader * rr, char ** buffer, uint64_t pos, size_
         {
             /* it is not in the internal buffer, we read 2 blocks in */
             uint32_t written1;
-            rc = ref_reader_read( rr, row_id, rr->buffer, &written1 );
+            rc = refseq_reader_read( rr, row_id, rr->buffer, &written1 );
             if ( rc == 0 )
             {
                 if ( written1 == rr->max_seq_len )
                 {
                     uint32_t written2;
-                    rc_t rc2 = ref_reader_read( rr, row_id + 1, rr->buffer + written1, &written2 );
+                    rc_t rc2 = refseq_reader_read( rr, row_id + 1, rr->buffer + written1, &written2 );
                     if ( rc2 == 0 )
                         rr->buffer_data = written1 + written2;
                     else

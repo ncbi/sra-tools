@@ -58,11 +58,16 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# kget
+# tool
 #
-TOOL_SRC = \
-	sam-events
 
+TOOL_SRC = \
+	ref_reader \
+	fasta-file \
+	cigar2events \
+	expandCIGAR \
+	sam-events
+    
 TOOL_OBJ = \
 	$(addsuffix .$(OBJX),$(TOOL_SRC))
 
@@ -70,7 +75,9 @@ TOOL_LIB = \
 	-skapp \
 	-stk-version \
 	-sncbi-vdb \
+	-ssam-extract \
 	-lm
 
 $(BINDIR)/sam-events: $(TOOL_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
+

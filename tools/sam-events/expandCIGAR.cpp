@@ -63,6 +63,12 @@ extern "C" {
         auto const name = length ? std::string(seqId, seqId + length) : std::string(seqId);
         return file->file.find(name);
     }
+
+    unsigned FastaFile_getSequenceData(struct cFastaFile *file, int referenceNumber, char const **sequence) {
+        auto const &seq = file->file.sequences[referenceNumber];
+        *sequence = seq.data;
+        return seq.length;
+    }
     
     int validateCIGAR(unsigned length, char const CIGAR[/* length */], unsigned *refLength, unsigned *seqLength)
     {
@@ -106,5 +112,4 @@ extern "C" {
             return -1;
         }
     }
-
 }

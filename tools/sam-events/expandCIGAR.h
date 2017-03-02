@@ -56,6 +56,8 @@ void unloadFastaFile(struct cFastaFile *file);
  */
 int FastaFile_getNamedSequence(struct cFastaFile *file, unsigned length, char const name[/* length */]);
 
+unsigned FastaFile_getSequenceData(struct cFastaFile *file, int referenceNumber, char const **sequence);
+
 /* validate that a CIGAR string is parseable
  * returns 0 if good
  * if refLength is not null, then *refLength will be the reference length computed from the CIGAR string

@@ -102,9 +102,25 @@ static void testExpand()
     int refNo = FastaFile_getNamedSequence(file, 0, "R");
     assert(refNo == 0);
     
-    testExpandMatch(file, index);
-    testExpandInsert(file, index);
-    testExpandDelete(file, index);
+    testExpandMatch(file, refNo);
+    testExpandInsert(file, refNo);
+    testExpandDelete(file, refNo);
+    
+    unloadFastaFile(file);
+}
+
+static void testReference()
+{
+    struct cFastaFile *file = loadFastaFile(0, "tiny.fasta");
+    assert(file != NULL);
+    
+    int refNo = FastaFile_getNamedSequence(file, 0, "R");
+    assert(refNo == 0);
+    
+    char const *sequence;
+    unsigned length = FastaFile_getSequenceData(file, refNo, &sequence);
+    printf("length: %u\n", length);
+    printf("%.70s\n", sequence);
     
     unloadFastaFile(file);
 }
@@ -125,5 +141,6 @@ int main(int argc, char *argv[])
 {
     testCIGAR();
     testExpand();
+    testReference();
     return 0;
 }

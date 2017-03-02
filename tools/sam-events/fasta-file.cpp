@@ -54,7 +54,7 @@ static char const tr4na[] = {
     ' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',' ',
 };
 
-FastaFile::FastaFile(std::istream &is) : data(nullptr)
+FastaFile::FastaFile(std::istream &is) : data(0)
 {
     char *data = 0;
     size_t size = 0;

@@ -50,7 +50,7 @@ extern "C" {
             return new cFastaFile(filepath);
         }
         catch (...) {
-            return nullptr;
+            return 0;
         }
     }
     

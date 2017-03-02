@@ -174,6 +174,7 @@ public:
         return IsDirectory(path.c_str());
     }
     bool IsDirectory(const char *path, ...) const;
+    std::string Canonical ( const char * path ) const;
 private:
     bool Exists(const char *path) const
     {   return KDirectoryPathType(m_Self, path) != kptNotFound; }
@@ -264,6 +265,7 @@ public:
     { KConfigRelease(m_Self); }
     KConfig* Get(void) const { return m_Self; }
     void Reload(bool verbose = false);
+    void Updated ( void ) { m_Updated = true; }
     rc_t Commit(void) const;
     const KConfigNode* OpenNodeRead(const char *path, ...) const;
     bool IsRemoteRepositoryDisabled(void) const;
@@ -285,6 +287,9 @@ public:
         bool verbose = false, size_t size = ~0);
     rc_t UpdateNode(const std::string &path, const char *buffer) {
         return UpdateNode(path.c_str(), buffer);
+    }
+    rc_t UpdateNode(const std::string &path, const std::string &buffer) {
+        return UpdateNode(path.c_str(), buffer.c_str());
     }
     rc_t CreateRemoteRepositories(bool fix = false);
     rc_t CreateUserRepository(std::string name = "", bool fix = false);

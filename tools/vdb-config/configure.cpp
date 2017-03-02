@@ -83,15 +83,20 @@ class CConfigurator : CNoncopyable {
                     m_Cfg.UpdateNode(name.c_str(), "$(HOME)/ncbi");
                 }
             }
+            else {
+                const string canonical
+                    ( m_Dir . Canonical ( node . GetCString () ) );
+                if ( ! canonical . empty () )
+                    m_Cfg.UpdateNode ( name, canonical );
+            }
         }
         rc_t rc = 0;
         if (fix) {
             const string name("/repository/site/disabled");
             if (m_Cfg.NodeExists(name)) {
                 rc_t r2 = m_Cfg.UpdateNode(name.c_str(), "false");
-                if (r2 != 0 && rc == 0) {
+                if (r2 != 0 && rc == 0)
                     rc = r2;
-                }
             }
         }
         const KRepositoryMgr *mgr = NULL;
@@ -100,18 +105,16 @@ class CConfigurator : CNoncopyable {
         memset(&repositories, 0, sizeof repositories);
         if (rc == 0) {
             rc = KRepositoryMgrRemoteRepositories(mgr, &repositories);
-            if (rc == 0) {
+            if (rc == 0)
                 KRepositoryVectorWhack(&repositories);
-            }
             else if
                 (rc == SILENT_RC(rcKFG, rcNode, rcOpening, rcPath, rcNotFound))
             {
                 rc = m_Cfg.CreateRemoteRepositories();
             }
         }
-        if ( rc == 0 && fix ) {
+        if ( rc == 0 && fix )
             rc = m_Cfg.CreateRemoteRepositories(fix);
-        }
         if (rc == 0) {
 
             m_Cfg . FixResolverCgiNodes ( );
@@ -120,34 +123,45 @@ class CConfigurator : CNoncopyable {
             rc = KRepositoryMgrUserRepositories(mgr, &repositories);
             if (rc == 0) {
                 uint32_t len = 0;
-                if (rc == 0) {
+                if (rc == 0)
                     len = VectorLength(&repositories);
-                }
-                if (len == 0) {
+                if (len == 0)
                     noUser = true;
-                }
                 else {
                     uint32_t i = 0;
                     noUser = true;
                     for (i = 0; i < len; ++i) {
-                        const KRepository *repo
-                            = static_cast<const KRepository*>
-                                (VectorGet(&repositories, i));
+                        KRepository *repo = static_cast<KRepository*>
+                            (VectorGet(&repositories, i));
                         if (repo != NULL) {
-                            char buffer[PATH_MAX] = "";
+                            char name[PATH_MAX] = "";
                             size_t size = 0;
                             rc = KRepositoryName(repo,
-                                buffer, sizeof buffer, &size);
+                                name, sizeof name, &size);
                             if (rc == 0) {
                                 const char p[] = "public";
-                                if (strcase_cmp(p, sizeof p - 1, buffer,
-                                    size, sizeof buffer) == 0)
+                                if (strcase_cmp(p, sizeof p - 1, name,
+                                    size, sizeof name) == 0)
                                 {
                                     noUser = false;
                                 }
                                 if (fix) {
-                                    rc = m_Cfg.CreateUserRepository
-                                        (buffer, fix);
+                                    rc = m_Cfg.CreateUserRepository (name, fix);
+                                }
+                            }
+
+                            char root[PATH_MAX] = "";
+                            rc = KRepositoryRoot ( repo,
+                                                   root, sizeof root, &size);
+                            if (rc == 0) {
+                                const string canonical
+                                    ( m_Dir . Canonical ( root ) );
+                                if ( ! canonical . empty () ) {
+                                    rc = KRepositorySetRoot ( repo,
+                                        canonical . c_str (),
+                                        canonical . size () );
+                                    if ( rc == 0 )
+                                        m_Cfg . Updated ();
                                 }
                             }
                         }

@@ -37,6 +37,8 @@
 #include <klib/text.h>
 #include <kproc/thread.h>
 
+#include <stdio.h>
+
 typedef struct join
 {
     struct lookup_reader * lookup;
@@ -60,17 +62,34 @@ static void release_join_ctx( join * j )
 static rc_t init_join( const join_params * jp, struct join *j, struct index_reader * index )
 {
     rc_t rc;
+    
     j->lookup = NULL;
     j->printer = NULL;
     j->B1.S.addr = NULL;
     j->B2.S.addr = NULL;
+    
     rc = make_lookup_reader( jp->dir, index, &j->lookup, jp->buf_size, "%s", jp->lookup_filename );
-    if ( rc == 0 && jp->output_filename != NULL )
-        rc = make_file_printer( jp->dir, &j->printer, jp->buf_size, 4096 * 4, "%s", jp->output_filename );
     if ( rc == 0 )
+    {
+        if ( jp->output_filename != NULL )
+            rc = make_file_printer( jp->dir, &j->printer, jp->buf_size, 4096 * 4, "%s", jp->output_filename );
+        if ( rc != 0 )
+            ErrMsg( "init_join().make_file_printer() -> %R", rc );
+    }
+    else
+        ErrMsg( "init_join().make_lookup_reader() -> %R", rc );
+    if ( rc == 0 )
+    {
         rc = make_SBuffer( &j->B1, 4096 );
+        if ( rc != 0 )
+            ErrMsg( "init_join().make_SBuffer( B1 ) -> %R", rc );
+    }
     if ( rc == 0 )
+    {
         rc = make_SBuffer( &j->B2, 4096 );
+        if ( rc != 0 )
+            ErrMsg( "init_join().make_SBuffer( B2 ) -> %R", rc );
+    }
 
     /* the rc-code of seek_lookup_reader is not checked, because if the row-id to be seeked to is in
        the range of the fully unaligned data - seek will fail, because the are no alignments = lookup-records
@@ -80,8 +99,10 @@ static rc_t init_join( const join_params * jp, struct join *j, struct index_read
         uint64_t key_to_find = jp->first << 1;
         uint64_t key_found = 0;
         rc_t rc1 = seek_lookup_reader( j->lookup, key_to_find, &key_found, true );
-        if ( GetRCState( rc1 ) != rcTooBig /* && GetRCState( rc1 ) != rcNotFound */ )
+        if ( GetRCState( rc1 ) != rcTooBig && GetRCState( rc1 ) != rcNotFound )
             rc = rc1;
+        if ( rc != 0 )
+            ErrMsg( "init_join().seek_lookup_reader( %lu ) -> %R", key_to_find, rc );
     }
     if ( rc != 0 )
         release_join_ctx( j );
@@ -340,7 +361,7 @@ static rc_t extract_row_count_cmn( const join_params * jp, uint64_t * row_count 
     {
         case ft_special : {
                                 struct special_iter * iter;
-                                rc = make_special_iter( &cmn, &iter );
+                                rc = make_special_iter( &cmn, &iter ); /* special_iter.c */
                                 if ( rc == 0 )
                                 {
                                     *row_count = get_row_count_of_special_iter( iter );
@@ -601,7 +622,7 @@ rc_t execute_join( const join_params * jp )
             uint64_t i, per_thread = ( row_count / jp->num_threads ) + 1;
             KThread * progress_thread = NULL;
             multi_progress progress;
-            
+
             init_progress_data( &progress, row_count ); /* helper.c */
             VectorInit( &threads, 0, jp->num_threads );
             

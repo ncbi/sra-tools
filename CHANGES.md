@@ -1,5 +1,104 @@
 # NCBI External Developer Release:
 
+
+## SRA Toolkit 2.8.1-2
+**January 19, 2017**
+
+  **prefetch**: fixed download of dbGaP files via HTTP
+
+
+## SRA Toolkit 2.8.1
+**December 22, 2016**
+
+  **bam-load**: the result code updated to indicate empty slice rather than EOF  
+  **kfg**: added possibility to create an empty KConfig object that does not try to load any file  
+  **latf-load**: fixed an occasional crash on Ubuntu  
+  **latf-load, test**: test script no longer executes failing tests for unimplemented features  
+  **prefetch**: uses KStream rather than KHttpFile - it fixed environments with proxies non supporting HTTP Range  
+  **sam-dump**: use of --seqid options creates now headers consistent with sam-lines  
+  **test-sra**: added ability to print http response headers  
+
+
+## SRA Toolkit 2.8.0-2
+**December 8, 2016**
+
+  **bam-load**: changed memcpy to memmove when regions overlap - seems to corrupt data on centos7
+  **blastn_vdb, tblastn_vdb**: removed library dependencies that were preventing users from launching these tools
+  **build**: fixed a bug in 'configure' when in could not find source files in repository saved with non-standard name
+  **cg-load**: added loading of CG File format v2.4
+
+
+## SRA Toolkit 2.8.0
+**October 7, 2016**
+
+### HTTPS-ENABLED RELEASE
+
+  **bam-load**: 10x Genomics CB and UB tags are preserved  
+  **bam-load**: Orphaned secondary alignments will be converted to primary alignments  
+  **bam-load**: READ_GROUP is populated from 'BC' if 'RG' has no value  
+  **bam-load**: fixed support for '-V' and '--version' command-line options  
+  **blast**: Updated BLAST engine to 2.5.0+ version  
+  **build, ngs-tools**: Now ngs-tools look for its dependencies using their normal build paths and does not reconfigure them  
+  **build, ngs-tools**: Now ngs-tools use CMAKE_INSTALL_PREFIX for installation path  
+  **build, sra-tools**: Now makefile copies default.kfg file when it is updated  
+  **build, sra-tools**: separate decryption package was removed - decryption tools are included as part of sratoolkit.  
+  **kfg, kns**: Use environment variables to determine the proxy for a http protocol  
+  **kfg, vdb-config**: vdb-config-GUI has now option to pick up proxy-setting from environment  
+  **kns**: All tools and libraries now support https  
+  **kns**: replaced all direct uses of sleep() within code to enforce standardization upon mS.  
+  **kproc, ncbi-vdb**: Fixed KCondition to generate timeout error on Windows when timeout exhausted  
+  **latf-load**: now handles column values up to 64MB long  
+  **ngs**: Fixed all crashes when using null as string in ngs-java APIs  
+  **ngs**: NGS_ReferenceGetChunk() will now return chunks potentially exceeding 5000 bases  
+  **ngs**: fixed potential concurrency issues at exit, when called from Java  
+  **ngs**: ngs-java and ngs-python auto-download (of native libraries) now works through HTTPS  
+  **ngs**: read fragments of length 0 are now ignored  
+  **ngs, ngs-tools, ref-variation**: added class ngs-vdb::VdbAlignment, featuring method IsFirst()  
+  **ngs-engine**: improved diagnostic messages  
+  **ngs-tools**: Fixed Makefiles to keep supporting "./configure; make" build of sra-search, alongside CMake-based build.  
+  **prefetch**: Fixed prefetch not to print misleading 'unknown integer storage type' error messages  
+  **sam-dump**: CB and UB tags are now created if loaded via bam-load from 10xSingleCell  
+  **sra-tools**: presence of ./ncbi (even if empty) subdirectory next to the executable files is no longer required, unless configuration files are needed.  
+  **test**: updated tests to not fail outside of NCBI  
+  **test-sra**: test-sra prints network information  
+  **test-sra**: test-sra prints version of ncbi-vdb or ngs-sdk dynamic library  
+  **vdb**: improved parameter checking on VDatabaseOpenTableRead()  
+  **vdb**: new function: "VDBManagerDeleteCacheOlderThan()"  
+  **vdb**: problem with buffer-overrun when compressing random data fixed  
+  **vdb**: remote/aux nodes have been removed from configuration  
+  **vdb-dump**: does not ignore table-argument on plain table any more, has to be SEQUENCE on plain tables if used  
+
+
+## SRA Toolkit 2.7.0
+**June 12, 2016**
+
+  **align, bam-load**: Insert-only alignments no longer cause incorrect binning  
+  **bam-load**: fixed case where WGS accessions where not being read correctly  
+  **bam-load**: will NOT perform spot assembly using hard clipped secondary alignments, even when 'make-spots-with-secondary' is enabled; WILL perform spot assembly using hard-clipped secondary alignments when 'defer-secondary' is enabled  
+  **blast, kfg, ncbi-vdb, sra-tools, vfs**: restored possibility to disable local caching  
+  **build, sra-tools**: Running make and make install in sra-tools repository prepares all configuration files required to access NCBI repository  
+  **doc, ncbi-vdb**: created a Wiki page illustrating how to use the API to set up logging  
+  **fastdump, sra-tools**: new tool to perform fast dumps of a whole run in either fastq or a custom format for one of our customers.  
+  **kar**: Alter the default ordering of components of an SRA archive for better network performance  
+  **kdb, kfs, kns**: Added blob validation for data being fetched remotely  
+  **kfg**: When loading configuration files on Windows USERPROFILE environment variable is used before HOME  
+  **kfg**: modified auxiliary remote access configuration to use load-balanced servers  
+  **kns**: Fixed a bug when KHttpRequestPOST generated an incorrect Content-Length after retry  
+  **ngs, search, sra-search**: sra-search was modified to support multiple threads.  
+  **ngs-engine, ngs-tools, sra-tools, vfs**: The "auxiliary" nodes in configuration are now ignored  
+  **pileup-stats**: updated commandline parser to eat unprocessed parameters  
+  **sam-dump**: updated to append asterisks to quality field of SAM output when corrupt original BAM has secondary alignment is shorter than the primary.  
+  **search**: now supports multi-threaded search  
+  **sra-search**: now supports sorted output  
+  **sra-tools**: added possibility to build rpm package in sra-toolkit  
+  **sra-tools**: fixed exit codes for a number of applications in response to command line options  
+  **vdb-dump**: added tests to verify vdb-dump operation on nested databases  
+  **vdb-validate**: A new checks were added for SEQUENCE table  
+  **vdb**: fixed a bug in VCursorFindNextRowIdDirect where it returned a wrong rowId  
+  **vdb**: fixed a bug in the code used to iterate over blobs where rowmap expansion cache would reset iteration to initial row instead of respecting sequence  
+  **vfs**: environment variable VDB_PWFILE is no longer used  
+
+
 ## SRA Toolkit 2.6.3
 **May 25, 2016**
 

@@ -132,6 +132,16 @@ class vdbconf_model
 			_config_changed = true;
         }
 
+        bool has_http_proxy_env_higher_priority( void ) const {
+            bool enabled = false;
+            KConfig_Has_Http_Proxy_Env_Higher_Priority(_config, &enabled);
+            return enabled;
+        }
+        void set_http_proxy_env_higher_priority( bool value ) {
+            KConfig_Set_Http_Proxy_Env_Higher_Priority(_config, value);
+			_config_changed = true;
+        }
+
         // ----------------------------------------------------------------
         bool is_remote_enabled( void ) const
         {
@@ -379,27 +389,8 @@ class vdbconf_model
 
         // ----------------------------------------------------------------
         bool import_ngc( const std::string &native_location,
-            const KNgcObj *ngc, uint32_t permissions, uint32_t * result_flags )
-        {
-            bool res = false;
-
-            if ( _config_valid )
-            {
-                KRepositoryMgr * repo_mgr;
-                rc_t rc = KConfigMakeRepositoryMgrUpdate ( _config, &repo_mgr );
-                if ( rc == 0 )
-                {
-                    std::string location = native_to_internal( native_location);
-
-                    rc = KRepositoryMgrImportNgcObj( repo_mgr, ngc,
-                        location.c_str(), permissions, result_flags );
-                    res = ( rc == 0 );
-                    KRepositoryMgrRelease( repo_mgr );
-                }
-            }
-
-            return res;
-        }
+            const KNgcObj *ngc, uint32_t permissions,
+            uint32_t * result_flags );
 
         bool get_id_of_ngc_obj( const KNgcObj *ngc, uint32_t * id )
         {

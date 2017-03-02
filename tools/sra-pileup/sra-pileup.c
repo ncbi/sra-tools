@@ -24,8 +24,6 @@
 *
 */
 
-#include "sra-pileup.vers.h"
-
 #include "ref_regions.h"
 #include "cmdline_cmn.h"
 #include "out_redir.h"
@@ -405,18 +403,6 @@ rc_t CC Usage ( const Args * args )
 }
 
 
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return SRA_PILEUP_VERS;
-}
-
-
 /* =========================================================================================== */
 
 /*
@@ -595,7 +581,7 @@ static rc_t CC populate_tooldata( void *obj, const PlacementRecord *placement,
         {
             rec->quality = ( uint8_t * )rec;
             rec->quality += sizeof ( * rec );
-            memcpy( rec->quality, quality, rec->quality_len );
+            memmove( rec->quality, quality, rec->quality_len );
         }
     }
 

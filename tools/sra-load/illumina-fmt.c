@@ -25,6 +25,7 @@
  */
 #include <klib/log.h>
 #include <klib/rc.h>
+#include <kapp/main.h>      /* for KAppVersion()*/
 #include <os-native.h>
 
 #include <stdlib.h>
@@ -40,7 +41,6 @@ typedef struct IlluminaLoaderFmt IlluminaLoaderFmt;
 #include "loader-fmt.h"
 
 #include "writer-illumina.h"
-#include "illumina-load.vers.h"
 #include "debug.h"
 
 typedef enum EIlluminaNativeFileType_enum {
@@ -797,15 +797,10 @@ rc_t IlluminaLoaderFmt_Whack(IlluminaLoaderFmt *self, SRATable** table)
 
 const char UsageDefaultName[] = "illumina-load";
 
-uint32_t KAppVersion(void)
-{
-    return ILLUMINA_LOAD_VERS;
-}
-
 static
 rc_t IlluminaLoaderFmt_Version (const IlluminaLoaderFmt* self, uint32_t *vers, const char** name )
 {
-    *vers = ILLUMINA_LOAD_VERS;
+    *vers = KAppVersion();
     *name = "Illumina native";
     return 0;
 }

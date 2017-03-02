@@ -34,7 +34,6 @@ typedef struct AbiLoaderFmt AbiLoaderFmt;
 
 #include "pstring.h"
 #include "writer-absolid.h"
-#include "abi-load.vers.h"
 #include "debug.h"
 
 #include <stdlib.h>
@@ -526,15 +525,10 @@ rc_t AbiLoaderFmt_Whack(AbiLoaderFmt *self, SRATable** table)
 
 const char UsageDefaultName[] = "abi-load";
 
-uint32_t KAppVersion(void)
-{
-    return ABI_LOAD_VERS;
-}
-
 static
 rc_t AbiLoaderFmt_Version (const AbiLoaderFmt* self, uint32_t *vers, const char** name )
 {
-    *vers = ABI_LOAD_VERS;
+    *vers = KAppVersion();
     *name = "AB SOLiD native";
     return 0;
 }

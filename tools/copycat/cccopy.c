@@ -130,7 +130,7 @@ rc_t CCCopyMake (CCCopy ** p, const KDirectory * in,  KDirectory * out,
 	self->md5 = md5;
 	self->ff = ff;
 	self->tree = tree;
-	memcpy (self->path, relpath, pathlen+1);
+	memmove (self->path, relpath, pathlen+1);
 	*p = self;
     }
     return rc;

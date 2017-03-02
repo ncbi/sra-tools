@@ -204,10 +204,24 @@ rc_t CC Usage( const Args* args )
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
-	// need to use user settings in order to get to the current schema
-    //KConfigDisableUserSettings();
-	
-    rc_t rc = LoaderFastqTestSuite(argc, argv);
+    KConfigDisableUserSettings();
+
+    KDirectory * native = NULL;	
+    rc_t rc = KDirectoryNativeDir( &native);
+
+    const KDirectory * dir = NULL;	
+    if (rc == 0)
+        rc = KDirectoryOpenDirRead ( native, &dir, false, "." );
+    KConfig * cfg = NULL;
+    if (rc == 0)
+        rc = KConfigMake ( &cfg, dir ) ;
+    if (rc == 0)
+        rc=LoaderFastqTestSuite(argc, argv);
+
+    KConfigRelease(cfg);
+    KDirectoryRelease(dir);
+    KDirectoryRelease(native);
+
     return rc;
 }
 

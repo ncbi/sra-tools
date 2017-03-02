@@ -54,6 +54,7 @@ typedef struct cmn_params
     uint64_t count;
     size_t cursor_cache;
     bool show_progress;
+	bool show_details;
 } cmn_params;
 
 void destroy_cmn_iter( struct cmn_iter * iter );

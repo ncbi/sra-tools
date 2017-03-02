@@ -24,7 +24,6 @@
 *
 */
 
-#include "vdb-config.vers.h"
 #include "configure.h"
 
 #include <kapp/main.h>
@@ -255,8 +254,6 @@ rc_t CC Usage(const Args* args) {
 
 const char UsageDefaultName[] = "vdb-config";
 
-ver_t CC KAppVersion(void) { return VDB_CONFIG_VERS; }
-
 static void Indent(bool xml, int n) {
     if (!xml)
     {   return; }
@@ -323,7 +320,7 @@ static rc_t KConfigNodePrintChildNames(bool xml, const KConfigNode* self,
     rc_t rc = 0;
     uint32_t count = 0;
     int i = 0;
-    char buffer[512] = "";
+    char buffer[8192] = "";
     size_t num_read = 0;
     bool hasChildren = false;
     bool hasData = false;
@@ -1388,9 +1385,8 @@ static rc_t ShowFiles(const KConfig* cfg, const Params* prm) {
 
         for (i = 0; i < count && rc == 0; ++i) {
             const char* name = NULL;
-            if (rc == 0) {
+            if (rc == 0)
                 rc = KNamelistGet(names, i, &name);
-            }
             if (rc == 0) {
                 OUTMSG(("%s\n", name));
                 hasAny = true;
@@ -1528,7 +1524,6 @@ static rc_t DoImportNgc(KConfig *cfg, Params *prm,
     const KNgcObj *ngc = NULL;
     static char buffer[PATH_MAX] = "";
     const char *root = NULL;
-    KRepositoryMgr *rmgr = NULL;
 
     assert(prm);
     if (rc == 0) {
@@ -1564,18 +1559,9 @@ static rc_t DoImportNgc(KConfig *cfg, Params *prm,
     }
     RELEASE(KDirectory, dir);
     if (rc == 0) {
-        rc = KConfigMakeRepositoryMgrUpdate(cfg, &rmgr);
+        rc = KConfigImportNgc ( cfg, prm -> ngc, root, newRepoParentPath );
     }
-    if (rc == 0) {
-        assert(root);
-        rc = KRepositoryMgrImportNgcObj(rmgr, ngc, root,
-            INP_CREATE_REPOSITORY | INP_UPDATE_DNLD_TICKET | INP_UPDATE_ROOT,
-            result_flags);
-    }
-
-    *newRepoParentPath = root;
     RELEASE(KNgcObj, ngc);
-    RELEASE(KRepositoryMgr, rmgr);
     return rc;
 }
 
@@ -1586,7 +1572,7 @@ static rc_t ImportNgc(KConfig *cfg, Params *prm) {
     assert(prm);
     rc = DoImportNgc(cfg, prm, &newRepoParentPath, &result_flags);
     DISP_RC2(rc, "cannot import ngc file", prm->ngc);
-    if (rc == 0 && result_flags != 0) {
+    if ( rc == 0 ) {
         rc = KConfigCommit(cfg);
     }
     if (rc == 0) {
@@ -1620,26 +1606,8 @@ static rc_t ImportNgc(KConfig *cfg, Params *prm) {
             }
         }
 
-        if (result_flags == 0) {
-            OUTMSG((
-                "%s was already imported.\nProtected repository is: '%s'.\n",
-                ngc, newRepoParentPath));
-        }
-        else {
-            if (result_flags & INP_CREATE_REPOSITORY) {
-                OUTMSG((
-                    "%s was imported.\nNew protected repository was created.\n"
-                    "Repository directory is: '%s'.\n",
-                    ngc, newRepoParentPath));
-            }
-            else {
-                OUTMSG((
-                    "%s was imported.\nProtected repository was updated.\n"
-                    "Repository directory is: '%s'.\n",
-                    ngc, newRepoParentPath));
-            }
-        }
-
+        OUTMSG ( ( "%s was imported.\nRepository directory is: '%s'.\n",
+            ngc, newRepoParentPath ) );
         RELEASE(KDirectory, wd);
     }
     return rc;

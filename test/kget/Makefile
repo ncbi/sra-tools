@@ -40,8 +40,8 @@ include $(TOP)/build/Makefile.env
 runtests: download
 
 download:
-	$(BINDIR)/vdb-config -s /repository/remote/main/CGI/resolver-cgi=http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi
-	export PATH=$(BINDIR):$$PATH; python test_kget.py # expect rc = 0 
+	export PATH=$(BINDIR):$$PATH; export VDB_CONFIG=`pwd` ; \
+		python test_kget.py # expect rc = 0 
 
 #-------------------------------------------------------------------------------
 # slowtests: match output vs wget
@@ -50,15 +50,15 @@ download:
 slowtests: diff-vs-wget
 
 ACCESSION = SRR072810
-URL = http://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByRun/sra/SRR/SRR072/SRR072810/SRR072810.sra
+URL = http://sra-download.ncbi.nlm.nih.gov/srapub/$(ACCESSION)
 
 clean:
 	rm -f $(ACCESSION)*
 
 diff-vs-wget: clean
 	$(BINDIR)/kget --reliable -c ./$(ACCESSION).cachetee $(URL) $(ACCESSION).dat --progress
-	wget $(URL)
-	diff $(ACCESSION).sra ./$(ACCESSION).dat
+	wget --no-check-certificate $(URL)
+	diff ./$(ACCESSION) ./$(ACCESSION).dat
 	#diff $(ACCESSION).sra ./$(ACCESSION).cachetee
 	rm -f $(ACCESSION)*
 

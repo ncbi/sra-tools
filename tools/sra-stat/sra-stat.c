@@ -24,8 +24,6 @@
 *
 */
 
-#include "sra-stat.vers.h"
-
 #include "sra-stat.h" /* VTableMakeSingleFileArchive_ */
 
 #include <insdc/sra.h> /* SRA_READ_TYPE_BIOLOGICAL */
@@ -142,7 +140,7 @@ rc_t CC _XMLLogger_Encode(const char* src,
             if( (*num_writ + bytes) > dst_sz ) {
                 rc = RC(rcExe, rcLog, rcEncoding, rcBuffer, rcInsufficient);
             } else {
-                memcpy(dst, p, bytes);
+                memmove(dst, p, bytes);
                 *num_writ = *num_writ + bytes;
                 dst += bytes;
             }
@@ -2096,6 +2094,45 @@ rc_t get_stats_meta(const KMetadata* meta,
     return rc;
 }
 
+static bool needEscaping ( const char * c ) {
+    return string_chr ( c, string_measure ( c, NULL), '"' ) != NULL
+        || string_chr ( c, string_measure ( c, NULL), '\'' ) != NULL
+        || string_chr ( c, string_measure ( c, NULL), '&' ) != NULL
+        || string_chr ( c, string_measure ( c, NULL), '<' ) != NULL
+        || string_chr ( c, string_measure ( c, NULL), '>' ) != NULL;
+}
+
+static rc_t printXmlEscaped ( const char * c ) {
+    rc_t rc = 0;
+    rc_t r2 = 0;
+    while ( * c ) {
+        switch  ( * c ) {
+            case '"':
+                r2 = OUTMSG ( ( "&quot;" ) );
+                break;
+            case '\'':
+                r2 = OUTMSG ( ( "&apos;" ) );
+                break;
+            case '&':
+                r2 = OUTMSG ( ( "&amp;" ) );
+                break;
+            case '<':
+                r2 = OUTMSG ( ( "&lt;" ) );
+                break;
+            case '>':
+                r2 = OUTMSG ( ( "&gt;" ) );
+                break;
+            default:
+                r2 = OUTMSG ( ( "%c", *c ) );
+                break;
+        }
+        if ( rc == 0 )
+            rc = r2;
+        ++ c;;
+    }
+    return rc;
+}
+
 static
 void srastatmeta_print(const MetaDataStats* meta, srastat_parms *pb)
 {
@@ -2119,7 +2156,14 @@ void srastatmeta_print(const MetaDataStats* meta, srastat_parms *pb)
                 }
                 if (pb->xml) {
                     if (pb->hasSPOT_GROUP) {
-                       OUTMSG(("  <Member member_name=\"%s\"", ss->spot_group));
+                       if (needEscaping(ss->spot_group)) {
+                           OUTMSG(("  <Member member_name=\""));
+                           printXmlEscaped(                 ss->spot_group);
+                           OUTMSG((                                      "\""));
+                       }
+                       else
+                            OUTMSG(("  <Member member_name=\"%s\"",
+                                    ss->spot_group));
                        OUTMSG((" spot_count=\"%ld\" base_count=\"%ld\"",
                             ss->spot_count, ss->BASE_COUNT));
                        OUTMSG((" base_count_bio=\"%ld\"", ss->BIO_BASE_COUNT));
@@ -2724,7 +2768,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                         }
                         if (rc == 0) {
                             int i, bio_len, bio_count, bad_cnt, filt_cnt;
-                            memcpy(dREAD_LEN,
+                            memmove(dREAD_LEN,
                                 ((const char*)base) + (boff>>3), row_bits >> 3);
                             nreads = (row_bits >> 3) / sizeof(*dREAD_LEN);
                             if (spotid == start) {
@@ -2765,7 +2809,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                 }
                             }
                             if (rc == 0) {
-                                memcpy(dREAD_TYPE,
+                                memmove(dREAD_TYPE,
                                     ((const char*)base) + (boff >> 3),
                                     row_bits >> 3);
                                 if (idxSPOT_GROUP != 0) {
@@ -2796,7 +2840,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                                );
                                             if (rc == 0) {
                                                 int n = row_bits >> 3;
-                                                memcpy(dSPOT_GROUP,
+                                                memmove(dSPOT_GROUP,
                                                   ((const char*)base)+(boff>>3),
                                                   row_bits>>3);
                                                 dSPOT_GROUP[n]='\0';
@@ -2839,7 +2883,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         DISP_RC_Read(rc, RD_FILTER, spotid,
                                             "after calling VCursorColumnRead");
                                         if (rc == 0) {
-                                            memcpy(dRD_FILTER,
+                                            memmove(dRD_FILTER,
                                                 ((const char*)base) + (boff>>3),
                                                 size);
                                             if (size < nreads) {
@@ -2850,7 +2894,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                                     for (i = 1; i < nreads;
                                                         ++i)
                                                     {
-                                                        memcpy(dRD_FILTER + i,
+                                                        memmove(dRD_FILTER + i,
                                                   ((const char*)base)+(boff>>3),
                                                   1);
                                                     }
@@ -3109,7 +3153,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     "while calling VCursorColumnRead");
             }
             if (rc == 0) {
-                memcpy(dREAD_LEN, ((const char*)base) + (boff>>3), row_bits>>3);
+                memmove(dREAD_LEN, ((const char*)base) + (boff>>3), row_bits>>3);
             }
             for (i = 0; i < g_nreads; ++i) {
                 diff_sq[i] +=
@@ -3278,18 +3322,6 @@ rc_t run(srastat_parms* pb)
 
     return rc;
 }
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return SRA_STAT_VERS;
-}
-
 
 /* Usage */
 #define ALIAS_ALIGN    "a"

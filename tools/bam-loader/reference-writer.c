@@ -559,11 +559,6 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
     return 0;
 }
 
-rc_t ReferenceGetSequence(Reference *self, char *rslt, unsigned position, unsigned nCIGAR, unsigned *CIGAR)
-{
-    return ReferenceSeq_Read(self->rseq, rslt, position, nCIGAR, CIGAR);
-}
-
 static rc_t IdVecAppend(KDataBuffer *vec, uint64_t id)
 {
     uint64_t const end = vec->elem_count;

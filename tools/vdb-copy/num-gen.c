@@ -605,7 +605,7 @@ static void string_ctx_add( p_string_ctx ctx, char *s )
             ctx->s = malloc( len + 1 );
         else
             ctx->s = realloc( ctx->s, ctx->len + len );
-        memcpy( &(ctx->s[ctx->len]), s, len );
+        memmove( &(ctx->s[ctx->len]), s, len );
         ctx->len += len;
     }
 }

@@ -156,12 +156,10 @@ IsRemotePath ( const char * Path )
     }
 
     IsRemote = _MatchSchemas ( Schema, "http" );
-
-/* Just for case, he-he ... YAGNI - S!CKS
     if ( IsRemote == false ) {
         IsRemote = _MatchSchemas ( Schema, "https" );
     }
-*/
+
     return IsRemote;
 }   /* IsRemotePath () */
 
@@ -187,6 +185,349 @@ IsLocalPath ( const char * Path )
     return PathType == kptFile;
 }   /* IsLocalPath () */
 
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+/* something unusual                                                 */
+/* we are going to keep remote connections                           */
+/*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/
+
+struct RCacheEntry;
+
+struct _CnEnt {
+    struct _CnEnt * prev;
+    struct _CnEnt * next;
+
+    struct RCacheEntry * entry;
+};
+
+struct _CnPool {
+    struct KLock * mutabor;
+
+    struct _CnEnt * head;
+    struct _CnEnt * tail;
+
+    size_t qty;
+    size_t max_qty;
+};
+
+struct RCacheEntry {
+    BSTNode AsIs;
+
+    KRefcount refcount;
+    KLock * mutabor;
+
+    char * Name;
+    char * Url;
+    char * Path;
+
+    bool is_local;
+    bool is_complete;
+
+    uint64_t actual_size;
+
+    const struct KFile * file;
+
+    struct _CnEnt * cn_entry;
+};
+
+// static const size_t _sConPoolMaxQty = 1024;
+static const size_t _sConPoolMaxQty = 512;
+static struct _CnPool _sConPool;
+
+rc_t CC RCacheEntryAddRef ( struct RCacheEntry * self );
+rc_t CC RCacheEntryRelease ( struct RCacheEntry * self );
+
+static
+rc_t CC
+_CnEntMake ( struct RCacheEntry * Entry )
+{
+    rc_t RCt;
+    struct _CnEnt * Ent;
+
+    RCt = 0;
+    Ent = NULL;
+
+    if ( Entry == NULL ) {
+        return RC ( rcExe, rcData, rcInitializing, rcParam, rcNull );
+    }
+
+    if ( Entry -> cn_entry != NULL ) {
+        return RC ( rcExe, rcData, rcInitializing, rcParam, rcInvalid );
+    }
+
+    Ent = calloc ( 1, sizeof ( struct _CnEnt ) );
+    if ( Ent == NULL ) {
+        return RC ( rcExe, rcData, rcInitializing, rcParam, rcExhausted );
+    }
+
+    RCt = RCacheEntryAddRef ( Entry );
+    if ( RCt == 0 ) {
+        Ent -> next = NULL;
+        Ent -> prev = NULL;
+        Ent -> entry = Entry;
+        Entry -> cn_entry = Ent;
+    }
+    else {
+        free ( Ent );
+    }
+
+    return RCt;
+}   /* _CnEntMake () */
+
+static
+rc_t CC
+_CnEntDispose ( struct RCacheEntry * Entry )
+{
+    struct _CnEnt * Ent = NULL;
+
+    if ( Entry != NULL ) {
+        Ent = Entry -> cn_entry;
+        Entry -> cn_entry = NULL;
+
+        if ( Ent != NULL ) {
+            RCacheEntryRelease ( Entry );
+
+            Ent -> entry = NULL;
+            Ent -> prev = NULL;
+            Ent -> next = NULL;
+
+            free ( Ent );
+        }
+    }
+
+    return 0;
+}   /* _CnEntDipose () */
+
+static
+rc_t CC
+_CnPoolWhack ()
+{
+    if ( _sConPool . mutabor != NULL ) {
+/*
+RmOutMsg ( "[KLockRelease] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
+        KLockRelease ( _sConPool . mutabor );
+        _sConPool . mutabor = NULL;
+    }
+
+    _sConPool . head = NULL;
+    _sConPool . tail = NULL;
+    _sConPool . qty = 0;
+    _sConPool . max_qty = _sConPoolMaxQty;
+
+    return 0;
+}   /* _CnPoolWhack () */
+
+static
+rc_t CC
+_CnPoolInit ( size_t MaxQty )
+{
+    rc_t RCt;
+
+    RCt = 0;
+
+    RCt = KLockMake ( & ( _sConPool . mutabor ) );
+/*
+RmOutMsg ( "[KLockMake] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
+    if ( RCt == 0 ) {
+        _sConPool . head = NULL;
+        _sConPool . tail = NULL;
+        _sConPool . qty = 0;
+        _sConPool . max_qty = MaxQty == 0 ? _sConPoolMaxQty : MaxQty;
+    }
+
+    return RCt;
+}   /* _CnPoolInit () */
+
+/*|\     _CnPool has only three methods: ToFront, Drop and Prune,
+  |/     where prune is series of drops.
+  |\     I made that comment to show that DLList is not used for
+  |/     purpose
+  |\*/
+static rc_t CC _CnPoolToFront_NoLock ( struct _CnEnt * entry );
+static rc_t CC _CnPoolDrop_NoLock ( struct _CnEnt * entry );
+static rc_t CC _CnPoolPrune_NoLock ( size_t PruneS );
+
+rc_t CC
+_CnPoolToFront_NoLock ( struct _CnEnt * Entry )
+{
+    rc_t RCt = 0;
+
+    if ( Entry == NULL ) {
+        return RC ( rcExe, rcData, rcInserting, rcParam, rcNull );
+    }
+
+    if ( Entry == _sConPool . head ) {
+        return 0;
+    }
+
+/*
+RmOutMsg ( "[_CnPoolToFront_ ] [%p] [ %d]\n", Entry, __LINE__ );
+*/
+
+        /* First we should drop Entry without disconnecting */
+    RCt = _CnPoolDrop_NoLock ( Entry );
+    if ( RCt == 0 ) {
+            /* Second we should Prune old connections */
+        RCt = _CnPoolPrune_NoLock ( 1 );
+        if ( RCt == 0 ) {
+                /* Second we should put Entry at front */
+            if ( _sConPool . head != NULL ) {
+                Entry -> next = _sConPool . head;
+                Entry -> next -> prev = Entry;
+                _sConPool . head = Entry;
+            }
+            else {
+                _sConPool . tail = Entry;
+            }
+            _sConPool . head  = Entry;
+            _sConPool . qty ++;
+        }
+    }
+
+    return RCt;
+}   /* _CnPooltoFront_NoLock () */
+
+static
+rc_t CC
+_CnPoolToFront ( struct RCacheEntry * Entry )
+{
+    rc_t RCt = 0;
+
+    if ( Entry != NULL ) {
+        if ( Entry -> cn_entry != NULL ) {
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
+            RCt = KLockAcquire ( _sConPool . mutabor );
+            if ( RCt == 0 ) {
+                RCt = _CnPoolToFront_NoLock ( Entry -> cn_entry );
+
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
+                KLockUnlock ( _sConPool . mutabor );
+            }
+        }
+    }
+
+    return RCt;
+}   /* _CnPoolToFront () */
+
+rc_t CC
+_CnPoolDrop_NoLock ( struct _CnEnt * Entry )
+{
+    rc_t RCt;
+
+    RCt = 0;
+
+    if ( Entry == NULL ) {
+        return RC ( rcExe, rcData, rcRemoving, rcParam, rcNull );
+    }
+
+/*
+RmOutMsg ( "[_CnPoolDrop_] [%p] [ %d]\n", Entry, __LINE__ );
+*/
+
+    if ( Entry -> next == NULL &&  Entry -> prev == NULL ) {
+            /* Entry is the only member in pool
+             */
+        if ( _sConPool . head == Entry ) {
+            _sConPool . head = _sConPool . tail = NULL;
+            _sConPool . qty = 0;
+        } 
+    }
+    else {
+        if ( Entry -> prev == NULL ) {
+                /* Entry is at the head of pool
+                 */
+            if ( _sConPool . head != Entry ) {
+                return RC ( rcExe, rcData, rcRemoving, rcParam, rcInvalid );
+            }
+
+            if ( Entry -> next != NULL ) {
+                Entry -> next -> prev = NULL;
+                _sConPool . head = Entry -> next;
+            }
+            else {
+                _sConPool . head = _sConPool . tail = NULL;
+            }
+        }
+        else {
+            if ( Entry -> next == NULL ) {
+                    /* Entry is at the tail of pool
+                     */
+                if ( _sConPool . tail != Entry ) {
+                    return RC ( rcExe, rcData, rcRemoving, rcParam, rcInvalid );
+
+                }
+
+                if ( Entry -> prev != NULL ) {
+                    Entry -> prev -> next = NULL;
+                    _sConPool . tail = Entry -> prev;
+                }
+                else {
+                    _sConPool . head = _sConPool . tail = NULL;
+                }
+            }
+            else {
+                    /* Entry is at the middle of pool
+                     */
+                Entry -> prev -> next = Entry -> next;
+                Entry -> next -> prev = Entry -> prev;
+            }
+        }
+
+        _sConPool . qty --;
+        Entry -> next = Entry -> prev = NULL;
+    }
+
+    return RCt;
+}   /* _CnPoolDrop_NoLock () */
+
+static
+rc_t CC
+_CnPoolDrop ( struct RCacheEntry * Entry )
+{
+    rc_t RCt = 0;
+
+    if ( Entry != NULL ) {
+        if ( Entry -> cn_entry != NULL ) {
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
+            RCt = KLockAcquire ( _sConPool . mutabor );
+            if ( RCt == 0 ) {
+                RCt = _CnPoolDrop_NoLock ( Entry -> cn_entry );
+
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) _sConPool . mutabor, __LINE__ );
+*/
+                KLockUnlock ( _sConPool . mutabor );
+            }
+        }
+    }
+
+    return RCt;
+}   /* _CnPoolDrop () */
+
+rc_t CC
+_CnPoolPrune_NoLock ( size_t PruneS )
+{
+    rc_t RCt = 0;
+
+    size_t max_qty = _sConPool . max_qty - PruneS;
+
+    while ( max_qty < _sConPool . qty ) {
+        RCt = _CnPoolDrop_NoLock ( _sConPool . tail );
+        if ( RCt != 0 ) {
+            break;
+        }
+    }
+
+    return RCt;
+}   /* _CnPoolPrune_NoLock () */
+
 /*)))
  ///  Cache ... hmmm
 (((*/
@@ -202,25 +543,6 @@ static char * _PCacheRoot = NULL;
 static size_t _CacheEntryNo = 0;
 static uint32_t _HttpBlockSize = 0;
 static bool _DisklessMode = false;
-
-struct RCacheEntry {
-    BSTNode AsIs;
-
-    KRefcount refcount;
-    KLock * mutabor;
-
-    char * Name;
-    char * Url;
-    char * Path;
-
-    int read_qty;
-    bool is_local;
-    bool is_complete;
-
-    uint64_t actual_size;
-
-    const struct KFile * File;
-};
 
 /*))
  //  Some extremely useful methods
@@ -473,6 +795,8 @@ RemoteCacheInitialize ( const char * Path )
                                 sizeof ( _CacheRoot ),
                                 Path
                                 );
+
+        ReleaseComplain ( KDirectoryRelease, Directory );
     }
 
     if ( RCt == 0 ) {
@@ -545,6 +869,9 @@ RemoteCacheCreate ()
     rc_t RCt;
     char Buffer [ 4096 ];
 
+    RCt = 0;
+    * Buffer = 0;
+
     if ( RemoteCacheIsDisklessMode () ) {
         LOGMSG( klogInfo, "[RemoteCache] entering diskless mode\n" );
         return 0;
@@ -552,8 +879,11 @@ RemoteCacheCreate ()
 
     LOGMSG( klogInfo, "[RemoteCache] creating\n" );
 
-    RCt = 0;
-    * Buffer = 0;
+        /* we shoud do it here */
+    RCt = _CnPoolInit ( 0 ); /* Not sure about 0 8-| */
+    if ( RCt != 0 ) {
+        return RCt;
+    }
 
         /* standard c=ecks */
         /* we are checking that cache directory already initialized */
@@ -589,6 +919,9 @@ RemoteCacheCreate ()
             BSTreeInit ( & _Cache );
                 /* Initializing _CacheLock */
             RCt = KLockMake ( & _CacheLock );
+/*
+RmOutMsg ( "[KLockMake] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
+*/
         }
     }
 
@@ -619,15 +952,13 @@ _RcAcHeEnTrYwHaCk ( BSTNode * Node, void * UnusedParam )
 rc_t CC
 RemoteCacheDispose ()
 {
-    rc_t RCt;
+    rc_t RCt = 0;
 
     if ( RemoteCacheIsDisklessMode () ) {
         LOGMSG( klogInfo, "[RemoteCache] leaving diskless mode\n" );
     }
 
     LOGMSG( klogInfo, "[RemoteCache] disposing\n" );
-
-    RCt = 0;
 
     if ( RemoteCacheIsDisklessMode () ) {
         _DisklessMode = false;
@@ -649,6 +980,9 @@ RemoteCacheDispose ()
 
         /* Releasing Lock */
     if ( _CacheLock != NULL ) {
+/*
+RmOutMsg ( "[KLockRelease] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
+*/
         ReleaseComplain ( KLockRelease, _CacheLock );
         _CacheLock = NULL;
     }
@@ -656,6 +990,9 @@ RemoteCacheDispose ()
     _DisposeKNSManager ();
 
     BSTreeWhack ( & _Cache, _RcAcHeEnTrYwHaCk, NULL );
+
+        /* Who does need that check? */
+    _CnPoolWhack ();
 
     _CacheEntryNo = 0;
 
@@ -753,20 +1090,23 @@ _RCacheEntryDestroy ( struct RCacheEntry * self )
 KOutMsg ( " [GGU] [EntryDestroy]\n" );
 */
     if ( self != NULL ) {
- /*
- RmOutMsg ( "++++++DL DESTROY [0x%p] entry\n", self );
- */
+/*
+RmOutMsg ( "++++++DL DESTROY [0x%p] entry\n", self );
+*/
+        _CnPoolDrop ( self );
+        _CnEntDispose ( self );
+
         /*)) Reverse order. I suppose it will be destoryed only
          //  in particualr cases, so no locking :|
         ((*/
             /*) File
              (*/
-        if ( self -> File != NULL ) {
+        if ( self -> file != NULL ) {
 /*
 KOutMsg ( "[GGU] [DestroyEnty] [%s]\n", self -> Name );
 */
-            ReleaseComplain ( KFileRelease, self -> File );
-            self -> File = 0;
+            ReleaseComplain ( KFileRelease, self -> file );
+            self -> file = 0;
         }
             /*) Url
              (*/
@@ -789,6 +1129,9 @@ KOutMsg ( "[GGU] [DestroyEnty] [%s]\n", self -> Name );
             /*) mutabor
              (*/
         if ( self -> mutabor != NULL ) {
+/*
+RmOutMsg ( "[KLockRelease] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
             ReleaseComplain ( KLockRelease, self -> mutabor );
             self -> mutabor = NULL;
         }
@@ -796,7 +1139,6 @@ KOutMsg ( "[GGU] [DestroyEnty] [%s]\n", self -> Name );
              (*/
         KRefcountWhack ( & ( self -> refcount ), _CacheEntryClassName );
 
-        self -> read_qty = 0;
         self -> is_local = false;
         self -> is_complete = false;
         self -> actual_size = 0;
@@ -838,7 +1180,6 @@ _RCacheEntryMake (
         RCt = RC ( rcExe, rcFile, rcInitializing, rcMemory, rcExhausted );
     }
     else {
-        Entry -> read_qty = 0;
         Entry -> is_local = false;
         Entry -> is_complete = false;
         Entry -> actual_size = 0;
@@ -865,6 +1206,9 @@ _RCacheEntryMake (
                 /*) mutabor
                  (*/
             RCt = KLockMake ( & ( Entry -> mutabor ) );
+/*
+RmOutMsg ( "[KLockMake] [%p] [ %d]\n", ( void * ) Entry -> mutabor, __LINE__ );
+*/
     
             if ( RCt == 0 ) {
                     /*) Url
@@ -968,9 +1312,9 @@ RemoteCacheFindOrCreateEntry (
     if ( RemoteCacheIsDisklessMode () ) {
         RCt = _RCacheEntryMake ( Url, & RetEntry );
         if ( RCt == 0 ) {
- /*
- RmOutMsg ( "++++++DL CREATE [0x%p][%s] entry\n", RetEntry, Url );
- */
+/*
+RmOutMsg ( "++++++DL CREATE [0x%p][%s] entry\n", RetEntry, Url );
+*/
             * Entry = RetEntry;
         }
 
@@ -978,6 +1322,9 @@ RemoteCacheFindOrCreateEntry (
     }
         /*)  Here we are locking
          (*/
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
+*/
     RCt = KLockAcquire ( _CacheLock );
     if ( RCt == 0 ) {
             /*)  Here we are 'looking for' and 'fooking lor'
@@ -988,7 +1335,7 @@ RemoteCacheFindOrCreateEntry (
                                                     _RcEnTrYcMp
                                                     );
 /*
- RmOutMsg ( "++++++ %s entry\n", RetEntry == NULL ? "Creating" : "Loading" );
+RmOutMsg ( "++++++ %s entry\n", RetEntry == NULL ? "Creating" : "Loading" );
 */
         if ( RetEntry == NULL ) {
             RCt = _RCacheEntryMake ( Url, & RetEntry );
@@ -1007,7 +1354,10 @@ RemoteCacheFindOrCreateEntry (
 
             /*)  First we are trying to find appropriate entry
              (*/
-        ReleaseComplain ( KLockUnlock, _CacheLock );
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) _CacheLock, __LINE__ );
+*/
+        KLockUnlock ( _CacheLock );
     }
 
     return RCt;
@@ -1036,25 +1386,19 @@ RCacheEntryAddRef ( struct RCacheEntry * self )
     RCt = 0;
 
     if ( self != NULL ) {
-        RCt = KLockAcquire ( self -> mutabor );
-
-        if ( RCt == 0 ) {
- /*
- RmOutMsg ( "++++++DL ADDREF [0x%p] entry\n", self );
- */
-            switch ( KRefcountAdd (
-                            & ( self -> refcount ),
-                            _CacheEntryClassName
-                            ) ) {
-                case krefLimit:
-                    RCt = RC ( rcExe, rcFile, rcAttaching, rcRange, rcExcessive );
-                case krefNegative:
-                    RCt = RC ( rcExe, rcFile, rcAttaching, rcSelf, rcInvalid );
-                default:
-                    break;
-            }
-
-            KLockUnlock ( self -> mutabor );
+/*
+RmOutMsg ( "++++++DL ADDREF [0x%p] entry\n", self );
+*/
+        switch ( KRefcountAdd (
+                        & ( self -> refcount ),
+                        _CacheEntryClassName
+                        ) ) {
+            case krefLimit:
+                RCt = RC ( rcExe, rcFile, rcAttaching, rcRange, rcExcessive );
+            case krefNegative:
+                RCt = RC ( rcExe, rcFile, rcAttaching, rcSelf, rcInvalid );
+            default:
+                break;
         }
     }
 
@@ -1067,15 +1411,15 @@ _RCacheEntryReleaseWithoutLock ( struct RCacheEntry * self )
     /*)) This method called from special place, so no NULL checks
      ((*/
 
-    if ( self -> File != NULL ) {
+    if ( self -> file != NULL ) {
 /*
 KOutMsg ( "[GGU] [ReleaseEntry] [%s]\n", self -> Name );
 */
 /*
 RmOutMsg ( "|||<-- Releasing [%s][%s]\n", self -> Name, self -> Url );
 */
-        ReleaseComplain ( KFileRelease, self -> File );
-        self -> File = NULL;
+        ReleaseComplain ( KFileRelease, self -> file );
+        self -> file = NULL;
     }
 
     return 0;
@@ -1086,9 +1430,15 @@ _RCacheEntryReleaseWithLock ( struct RCacheEntry * self )
 {
     rc_t RCt = 0;
 
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
     RCt = KLockAcquire ( self -> mutabor );
     if ( RCt == 0 ) {
         RCt = _RCacheEntryReleaseWithoutLock ( self );
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
         KLockUnlock ( self -> mutabor );
     }
 
@@ -1106,27 +1456,33 @@ RCacheEntryRelease ( struct RCacheEntry * self )
 KOutMsg ( " [GGU] [Closing Entry]\n" );
 */
     if ( self != NULL ) {
-        RCt = KLockAcquire ( self -> mutabor );
-
         if ( RCt == 0 ) {
             switch ( KRefcountDrop (
                             & ( self -> refcount ),
                             _CacheEntryClassName
                             ) ) {
                 case krefWhack:
-//                     _RCacheEntryReleaseWithoutLock ( self );
-                    KLockUnlock ( self -> mutabor );
-                    if ( RemoteCacheIsDisklessMode () ) {
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
+                    RCt = KLockAcquire ( self -> mutabor );
+                    if ( RCt == 0 ) {
+                        _RCacheEntryReleaseWithoutLock ( self );
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
+                        KLockUnlock ( self -> mutabor );
+                        if ( RemoteCacheIsDisklessMode () ) {
  /*
  RmOutMsg ( "++++++DL RELEASE [0x%p] entry\n", self );
  */
-                        _RCacheEntryDestroy ( self );
+                            _RCacheEntryDestroy ( self );
+                        }
                     }
                     break;
                 case krefNegative:
                     RCt = RC ( rcExe, rcFile, rcReleasing, rcRange, rcExcessive );
                 default:
-                    KLockUnlock ( self -> mutabor );
                     break;
             }
 
@@ -1173,7 +1529,7 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
                                 );
     if ( RCt == 0 ) {
         if ( RemoteCacheIsDisklessMode () ) {
-            self -> File = ( KFile * ) HttpFile;
+            self -> file = ( KFile * ) HttpFile;
         }
         else {
             RCt = KDirectoryNativeDir ( & Directory );
@@ -1186,7 +1542,11 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
                                     self -> Path
                                     );
                 if ( RCt == 0 ) {
-                    self -> File = ( KFile * ) TeeFile;
+                    self -> file = ( KFile * ) TeeFile;
+
+                        /*  We should create connection entry for pool
+                         */
+                    RCt = _CnEntMake ( self );
                 }
 
                 ReleaseComplain ( KDirectoryRelease, Directory );
@@ -1195,9 +1555,18 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
         }
     }
 
+    if ( RCt != 0 ) {
+        if ( self -> file != NULL ) {
+            ReleaseComplain ( KFileRelease, self -> file );
+            self -> file = NULL;
+        }
+
+        _CnEntDispose ( self );
+    }
+
     if ( RCt == 0 ) {
         if ( self -> actual_size == 0 ) {
-            RCt = KFileSize ( self -> File, & ( self -> actual_size ) );
+            RCt = KFileSize ( self -> file, & ( self -> actual_size ) );
         }
     }
 
@@ -1235,7 +1604,7 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
     if ( RCt == 0 ) {
         RCt = KDirectoryOpenFileRead ( Directory, & File, self -> Path );
         if ( RCt == 0 ) {
-            self -> File = File;
+            self -> file = File;
         }
 
         ReleaseComplain ( KDirectoryRelease, Directory );
@@ -1243,7 +1612,7 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
 
     if ( RCt == 0 ) {
         if ( self -> actual_size == 0 ) {
-            RCt = KFileSize ( self -> File, & ( self -> actual_size ) );
+            RCt = KFileSize ( self -> file, & ( self -> actual_size ) );
         }
     }
 
@@ -1296,10 +1665,10 @@ _RCacheEntryGetAndCheckFile (
          *  if file exists, it is complete and local, just open it
          *  any read operation should be unsynchronized.
          *
-         *  if file does not exists, but opened, and it is 100th read
-         *  we should call IsCacheFileComplete () and if it is complete
-         *  we should close file and open it as regular. Any reed
-         *  operation will be unsynchronized.
+         *  if file does not exists, but opened, we should call
+         *  IsCacheTeeComplete () and if it is complete we should
+         *  close file and open it as regular. Any reed operation
+         *  will be unsynchronized.
          *
          *  all other situations, it is not complete, open tee
          *  all read operations are synchronized.
@@ -1310,12 +1679,12 @@ _RCacheEntryGetAndCheckFile (
         /*) Diskless mode.
          (*/
     if ( RemoteCacheIsDisklessMode () ) {
-        if ( self -> File == NULL ) {
+        if ( self -> file == NULL ) {
             RCt = _RCacheEntryOpenFileReadRemote ( self );
         }
 
         if ( RCt == 0 ) {
-            * File = self -> File;
+            * File = self -> file;
             * Synchronized = true;
         }
 
@@ -1324,7 +1693,7 @@ _RCacheEntryGetAndCheckFile (
 
         /*) Normal mode
          (*/
-    if ( self -> File == NULL ) {
+    if ( self -> file == NULL ) {
             /* Checking if it is known that file complete */
         if ( self -> is_complete ) {
             OpenLocal = true;
@@ -1354,7 +1723,7 @@ _RCacheEntryGetAndCheckFile (
         }
         else {
                 /* checking completiness is quite heavy operation */
-            RCt = IsCacheTeeComplete ( self -> File, & IsComplete );
+            RCt = IsCacheTeeComplete ( self -> file, & IsComplete );
             if ( RCt == 0 ) {
                 if ( IsComplete ) {
                     CloseFile = true;
@@ -1369,7 +1738,7 @@ _RCacheEntryGetAndCheckFile (
         RCt = RC ( rcExe, rcFile, rcReading, rcParam, rcInvalid );
     }
 
-    if ( CloseFile && self -> File == NULL ) {
+    if ( CloseFile && self -> file == NULL ) {
         RCt = RC ( rcExe, rcFile, rcReading, rcParam, rcInvalid );
     }
 
@@ -1377,8 +1746,6 @@ _RCacheEntryGetAndCheckFile (
          (*/
     if ( RCt == 0 ) {
         if ( CloseFile ) {
-            self -> read_qty = 0;
-
             RCt = _RCacheEntryReleaseWithoutLock ( self );
 /*
 RmOutMsg ( "|||<-- Close file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RCt );
@@ -1388,7 +1755,9 @@ RmOutMsg ( "|||<-- Close file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RC
         if ( OpenLocal ) {
             self -> is_complete = true;
             self -> is_local = true;
-            self -> read_qty = 0;
+            _CnPoolDrop ( self );
+            _CnEntDispose ( self );
+
 
             RCt = _RCacheEntryOpenFileReadLocal ( self );
 /*
@@ -1399,7 +1768,6 @@ RmOutMsg ( "|||<-- Open LOCAL file [%s][%s] [A=%d]\n", self -> Name, self -> Pat
         if ( OpenRemote ) {
             self -> is_complete = false;
             self -> is_local = false;
-            self -> read_qty = 1;
 
             RCt = _RCacheEntryOpenFileReadRemote ( self );
 /*
@@ -1408,8 +1776,13 @@ RmOutMsg ( "|||<-- Open REMOTE file [%s][%s] [A=%d]\n", self -> Name, self -> Ur
         }
 
         if ( RCt == 0 ) {
-            * File = self -> File;
-            * Synchronized = ! self -> is_local;
+                /*  We should put connection to the front of pool
+                 */
+            RCt = _CnPoolToFront ( self );
+            if ( RCt == 0 ) {
+                * File = self -> file;
+                * Synchronized = ! self -> is_local;
+            }
         }
     }
 
@@ -1430,6 +1803,7 @@ _RCacheEntryDoRead (
     bool Synchronized;
 
     RCt = 0;
+    File = NULL;
     Synchronized = true;
 
     if ( NumReaded != NULL ) {
@@ -1450,6 +1824,9 @@ _RCacheEntryDoRead (
 
         /*)  Here we are locking
          (*/
+/*
+RmOutMsg ( "[KLockAcquire] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
     RCt = KLockAcquire ( self -> mutabor );
     if ( RCt == 0 ) {
         RCt = _RCacheEntryGetAndCheckFile (
@@ -1461,11 +1838,14 @@ _RCacheEntryDoRead (
             if ( ! Synchronized ) {
                     /*) do not need synchronisation to read local file
                      (*/
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
                 KLockUnlock ( self -> mutabor );
             }
 
             RCt = KFileRead (
-                            self -> File,
+                            self -> file,
                             Offset,
                             Buffer,
                             SizeToRead,
@@ -1477,6 +1857,9 @@ RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, s
         }
 
         if ( Synchronized ) {
+/*
+RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
+*/
             KLockUnlock ( self -> mutabor );
         }
     }
@@ -1485,9 +1868,12 @@ RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, s
         * NumReaded = 0;
 
 /*
-RmOutMsg ( "|||<- Failed to read file [%s][%s] at attempt [%d]\n", self -> Name, self -> Url, llp + 1 );
+RmOutMsg ( "|||<- Failed to read file [%s][%s] at attempt [+1]\n", self -> Name, self -> Url );
 */
-        _RCacheEntryReleaseWithLock ( self );
+        _CnPoolDrop ( self );
+        _CnEntDispose ( self );
+
+        // _RCacheEntryReleaseWithLock ( self );
     }
 
     return RCt;
@@ -1739,3 +2125,5 @@ ExecuteCGI ( const char * CGICommand )
 
     return RCt;
 }   /* ExecuteCGI () */
+
+/* just a test */

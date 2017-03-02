@@ -1,0 +1,15 @@
+enumerating the tables of database 'data/NestedDatabase'
+db  : SUBDB_1
+   db  : SUBSUBDB_1
+      tbl : TABLE1
+   db  : SUBSUBDB_2
+      tbl : TABLE2
+   tbl : TABLE1
+db  : SUBDB_2
+   db  : SUBSUBDB_1
+      tbl : TABLE1
+   db  : SUBSUBDB_2
+      tbl : TABLE2
+   tbl : TABLE2
+tbl : TABLE1
+tbl : TABLE2

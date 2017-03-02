@@ -207,7 +207,7 @@ static rc_t CC CGEvidenceDnbs_Read(
             return rc;
         }
         m = &data->dnbs[data->qty++];
-        memcpy(m, &next_rec, sizeof(next_rec));
+        memmove(m, &next_rec, sizeof(next_rec));
         DEBUG_MSG(10, ("%3u evidenceDnbs: '%s'\t'%s'\t'%s'\t'%s'\t%u\t%lu\t%hu\t%c\t%c\t%i\t'%.*s'"
                         "\t%i\tnot_used\t0\tnot_used\t%c\t0\t0\t0\t'%.*s'\t'--'\n",
             data->qty, next_interval_id, m->chr, m->slide, m->lane, m->file_num_in_lane,
@@ -326,7 +326,7 @@ static rc_t CC CGEvidenceDnbs_Read(
         }
         if( strcmp(next_interval_id, data->interval_id) != 0 ) {
             /* next record is from next interval, remeber it and stop */
-            memcpy(&next_rec, m, sizeof(next_rec));
+            memmove(&next_rec, m, sizeof(next_rec));
             data->qty--;
             break;
         }
@@ -363,7 +363,7 @@ static rc_t CC CGEvidenceDnbs25_Read(const CGEvidenceDnbs15 *cself,
             return rc;
         }
         m = &data->dnbs[data->qty++];
-        memcpy(m, &next_rec, sizeof(next_rec));
+        memmove(m, &next_rec, sizeof(next_rec));
         DEBUG_MSG(10, ("%3u evidenceDnbs: '%s'\t'%s'\t'%s'\t'%s'\t%u\t%lu\t%hu\t%c\t%c\t%i\t'%.*s'"
                         "\t%i\tnot_used\t0\tnot_used\t%c\t0\t0\t0\t'%.*s'\t'--'\n",
             data->qty, next_interval_id, m->chr, m->slide, m->lane, m->file_num_in_lane,
@@ -509,7 +509,7 @@ static rc_t CC CGEvidenceDnbs25_Read(const CGEvidenceDnbs15 *cself,
         }
         if( strcmp(next_interval_id, data->interval_id) != 0 ) {
             /* next record is from next interval, remeber it and stop */
-            memcpy(&next_rec, m, sizeof(next_rec));
+            memmove(&next_rec, m, sizeof(next_rec));
             data->qty--;
             break;
         }

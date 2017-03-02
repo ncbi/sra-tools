@@ -174,7 +174,7 @@ rc_t CC DirectoryNode_AddTar( const KDirectory *dir, uint32_t type, const char *
                         rc = RC(rcExe, rcArc, rcInserting, rcMemory, rcExhausted);
                     } else {
                         char* x = (char*)&n[1];
-                        memcpy(x, resolved, lrs);
+                        memmove(x, resolved, lrs);
                         x[lrs] = '\0';
                         n->full_name = x;
                         n->name = &n->full_name[lrs - lnm];

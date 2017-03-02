@@ -46,8 +46,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sra-dbcc.vers.h"
-
 rc_t CC Usage ( struct Args const * args ) { return 0; }
 
 static rc_t ValidateColumn(const KColumn *col,
@@ -236,13 +234,13 @@ rc_t CC CheckMD5Visitor(const KDirectory *dir, uint32_t type, const char *name, 
                     DBGMSG(DBG_APP, 0, ("adding $(nm) ", PLOG_S(nm), node->file));
                     if( d->md5 ) {
                         node->md5 = true;
-                        memcpy(node->digest, d->digest, sizeof(d->digest));
+                        memmove(node->digest, d->digest, sizeof(d->digest));
                     }
                 } else if( GetRCState(rc) == rcExists ) {
                     DBGMSG(DBG_APP, 0, ("updating $(nm) ", PLOG_S(nm), node->file));
                     if( d->md5 ) {
                         ((CheckMD5Node*)existing)->md5 = true;
-                        memcpy(((CheckMD5Node*)existing)->digest, d->digest, sizeof(d->digest));
+                        memmove(((CheckMD5Node*)existing)->digest, d->digest, sizeof(d->digest));
                     }
                     free(node);
                     rc = 0;
@@ -363,11 +361,6 @@ static void usage(const char *progName)
            "    -h, --help       This help\n"
            "    -v, --version    Program version\n"
            "\n");
-}
-
-uint32_t CC KAppVersion(void)
-{
-    return SRA_DBCC_VERS;
 }
 
 rc_t CC KMain ( int argc, char *argv [] )

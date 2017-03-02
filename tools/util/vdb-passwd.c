@@ -24,8 +24,6 @@
 *
 */
 
-#include "vdb-passwd.vers.h" /* VDB_PASSWD_VERS */
-
 #include "syspass-priv.h" /* get_pass */
 
 #include <kapp/main.h> /* KMain */
@@ -137,7 +135,7 @@ rc_t SetPwd(const char *password, bool no_prompt)
             else {
                 OUTMSG(("\nCannot set the password. Please consult\n"
                  "configuration page at\n"
-                 "http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=std or\n"
+                 "https://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=std or\n"
                  "https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration\n"));
             }
         }
@@ -223,7 +221,7 @@ rc_t run(bool quiet)
 #define SL_OPTION "noprompt"
 #define SL_ALIAS "n"
 static const char *SL_USAGE[]
-    = { "Do not suggest consulting configuration page at http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=std or https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration", NULL };
+    = { "Do not suggest consulting configuration page at https://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=std or https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration", NULL };
 
 OptDef Options[] = { { SL_OPTION, SL_ALIAS, NULL, SL_USAGE, 1, false, false } };
 
@@ -249,7 +247,6 @@ rc_t CC Usage(const Args *args) {
     return 0;
 }
 
-ver_t CC KAppVersion(void) { return VDB_PASSWD_VERS; }
 #if 0
 rc_t CC KMain(int argc, char *argv[]) {
     Args *args;
@@ -303,7 +300,7 @@ rc_t CC KMain(int argc, char *argv[]) {
 "there is no need to decrypt the read data.\n"
 "\n"
 "The complete instructions are:\n"
-"http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=dbgap_use\n"
+"https://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=toolkit_doc&f=dbgap_use\n"
 "\n"
 "Send questions/bug reports to sra-tools@ncbi.nlm.nih.gov\n"));
     return RC(rcExe, rcProcess, rcExecuting, rcProcess, rcUnsupported);

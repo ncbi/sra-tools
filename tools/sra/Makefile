@@ -28,8 +28,6 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/sra
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS = \
 
 EXT_TOOLS = \
@@ -39,39 +37,18 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/$@
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# all
-#
-$(TARGDIR)/all: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/all
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -91,12 +68,10 @@ TABLE_VERS_OBJ = \
 
 TABLE_VERS_LIB = \
 	-lkapp \
+	-stk-version \
 	-lncbi-vdb \
 	-lm
 
-table-vers.vers.h: table-vers.vers
-	$(TOP)/build/make-vers-inc.sh TABLE_VERS_VERS $^ > $@
-
 $(BINDIR)/table-vers: $(TABLE_VERS_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(TABLE_VERS_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TABLE_VERS_LIB)
 

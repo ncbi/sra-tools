@@ -27,39 +27,29 @@ default: std
 
 TOP ?= $(abspath ../..)
 
-
 MODULE = tools/ngs-pileup
 
-include $(TOP)/build/Makefile.env
+INT_TOOLS = \
+	ngs-pileup \
+
+EXT_TOOLS = \
 
 ALL_TOOLS = \
-	ngs-pileup \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
+
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/std
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -85,7 +75,8 @@ NGS_PILEUP_LIBS = \
 	-sncbi-vdb-static \
 	-sngs-c++         \
 	-skapp \
+	-stk-version \
     
 $(BINDIR)/ngs-pileup: $(NGS_PILEUP_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(NGS_PILEUP_LIBS)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(NGS_PILEUP_LIBS)
 

@@ -33,17 +33,11 @@
 #include "srf.h"
 #include "ztr.h"
 #include "srf-fmt.h"
-#include "srf-load.vers.h"
 #include "experiment-xml.h"
 #include "debug.h"
 
 
 const char UsageDefaultName[] = "srf-load";
-
-uint32_t KAppVersion(void)
-{
-    return SRF_LOAD_VERS;
-}
 
 extern rc_t SRFIlluminaLoaderFmt_Make(SRALoaderFmt **self, const SRALoaderConfig *config);
 
@@ -124,7 +118,7 @@ rc_t SRF_parse_prepdata(SRF_context* ctx, uint64_t bsize, const uint8_t** data, 
         }
         while( rc == 0 && to_read > 0 ) {
             size_t x = to_read > ctx->file_buf_sz ? ctx->file_buf_sz : to_read;
-            memcpy(&big_buffer[inbuf], ctx->file_buf, x);
+            memmove(&big_buffer[inbuf], ctx->file_buf, x);
             to_read -= x;
             inbuf += x;
             rc = SRALoaderFileRead(ctx->file, x, to_read, (const void**)&ctx->file_buf, &ctx->file_buf_sz);

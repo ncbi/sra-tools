@@ -28,18 +28,18 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/util
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS = \
-	testld \
-	txt2kdb \
-	rowwritetest \
-	sortreadtest \
-	pacbio-correct \
-	crc32sum \
-	samview \
-	kdb-index \
-	pseudo-aligner
+    crc32sum \
+    kdb-index \
+    pacbio-correct \
+    schema-replace \
+    sortreadtest \
+    rowwritetest \
+    samview \
+    testld \
+    txt2kdb \
+#   pseudo-aligner \
+
 
 EXT_TOOLS = \
 	rcexplain \
@@ -47,47 +47,25 @@ EXT_TOOLS = \
 	md5cp \
 	vdb-lock \
 	vdb-unlock \
-	schema-replace \
 	test-sra \
-	vdb-passwd
+	vdb-passwd \
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
+	
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/$@
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# all
-#
-$(TARGDIR)/all: \
-        $(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/all
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS) kdb-index)
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -107,10 +85,11 @@ RCEXPLAIN_OBJ = \
 
 RCEXPLAIN_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-vdb \
 
 $(BINDIR)/rcexplain: $(RCEXPLAIN_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(RCEXPLAIN_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(RCEXPLAIN_LIB)
 
 
 #-------------------------------------------------------------------------------
@@ -124,11 +103,12 @@ KDBMETA_OBJ = \
 
 KDBMETA_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-wvdb \
 	-lm
 
 $(BINDIR)/kdbmeta: $(KDBMETA_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(KDBMETA_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KDBMETA_LIB)
 
 
 #-------------------------------------------------------------------------------
@@ -143,11 +123,12 @@ VDB_LOCK_OBJ = \
 
 VDB_LOCK_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-wvdb \
 	-lm
 
 $(BINDIR)/vdb-lock: $(VDB_LOCK_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_LOCK_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_LOCK_LIB)
 
 
 #-------------------------------------------------------------------------------
@@ -162,11 +143,12 @@ VDB_UNLOCK_OBJ = \
 
 VDB_UNLOCK_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-wvdb \
 	-lm
 
 $(BINDIR)/vdb-unlock: $(VDB_UNLOCK_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_UNLOCK_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_UNLOCK_LIB)
 
 
 #-------------------------------------------------------------------------------
@@ -180,6 +162,7 @@ TESTLD_OBJ = \
 
 TESTLD_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-vdb \
 
 
@@ -200,11 +183,12 @@ T_OBJ = \
 
 T_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 	-lm
 
 $(BINDIR)/test-sra: $(T_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(T_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(T_LIB)
 
 #-------------------------------------------------------------------------------
 # txt2kdb - test dynamic load of libraries
@@ -217,6 +201,7 @@ TXT2KDB_OBJ = \
 
 TXT2KDB_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-wvdb \
 
 
@@ -234,11 +219,12 @@ MD5CP_OBJ = \
 
 MD5CP_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-vdb \
 
 
 $(BINDIR)/md5cp: $(MD5CP_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(MD5CP_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(MD5CP_LIB)
 
 
 #----------------------------------------------------------------
@@ -252,6 +238,7 @@ ROWWRITETEST_OBJ = \
 
 ROWWRITETEST_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-wvdb \
 
 
@@ -271,6 +258,7 @@ CRC32SUM_OBJ = \
 
 CRC32SUM_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 
 
@@ -290,6 +278,7 @@ SAMVIEW_OBJ = \
 
 SAMVIEW_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 
 
@@ -322,6 +311,7 @@ SORTREADTEST_OBJ = \
 
 SORTREADTEST_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-wvdb \
 
 
@@ -341,11 +331,12 @@ VDB_PASSWD_OBJ = \
 
 VDB_PASSWD_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-vdb \
 
 
 $(BINDIR)/vdb-passwd: $(VDB_PASSWD_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_PASSWD_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_PASSWD_LIB)
 
 
 #----------------------------------------------------------------
@@ -359,11 +350,12 @@ SCHEMA_REPLACE_OBJ = \
 
 SCHEMA_REPLACE_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-wvdb \
 	-lm
 
 $(BINDIR)/schema-replace: $(SCHEMA_REPLACE_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(SCHEMA_REPLACE_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SCHEMA_REPLACE_LIB)
 
 #-------------------------------------------------------------------------------
 # pacbio-correct-tool
@@ -376,11 +368,12 @@ PACBIO_CORRECT_OBJ = \
 
 PACBIO_CORRECT_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-wvdb \
 
 
 $(BINDIR)/pacbio-correct: $(PACBIO_CORRECT_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(PACBIO_CORRECT_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(PACBIO_CORRECT_LIB)
 
 #-------------------------------------------------------------------------------
 # kdb-index
@@ -393,7 +386,8 @@ KDBINDEX_OBJ = \
 
 KDBINDEX_LIB = \
 	-skapp \
+	-stk-version \
 	-sncbi-vdb \
 
 $(BINDIR)/kdb-index: $(KDBINDEX_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(KDBINDEX_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(KDBINDEX_LIB)

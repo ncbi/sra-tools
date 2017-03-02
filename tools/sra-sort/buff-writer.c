@@ -187,7 +187,7 @@ void BufferedPairColWriterMapValues ( BufferedPairColWriter *self, const ctx_t *
             {
                 base = self -> u . data [ i ] . val . ptr;
                 if ( base != NULL )
-                    memcpy ( & self -> u . data [ i ] . val . imm, & base [ 1 ], 8 );
+                    memmove ( & self -> u . data [ i ] . val . imm, & base [ 1 ], 8 );
             }
 
             MemBankRelease ( self -> mbank, ctx );
@@ -214,7 +214,7 @@ void BufferedPairColWriterMapValues ( BufferedPairColWriter *self, const ctx_t *
                         return;
                 }
 
-                memcpy ( & base [ 1 ], & id, sizeof id );
+                memmove ( & base [ 1 ], & id, sizeof id );
                 base [ 0 ] = 1;
                 self -> u . data [ i ] . val . ptr = base;
             }
@@ -318,7 +318,7 @@ void BufferedPairColWriterWriteMapped ( BufferedPairColWriter *self, const ctx_t
             }
             else
             {
-                memcpy ( & self -> u . data [ self -> cur_item ] . val . imm, data, row_bytes );
+                memmove ( & self -> u . data [ self -> cur_item ] . val . imm, data, row_bytes );
             }
 
             /* record another immediate row */
@@ -378,11 +378,11 @@ void BufferedPairColWriterWriteMapped ( BufferedPairColWriter *self, const ctx_t
         TRY ( base = MemBankAlloc ( self -> mbank, ctx, row_bytes + sizeof row_len, false ) )
         {
             /* copy it in */
-            memcpy ( base, & row_len, sizeof row_len );
+            memmove ( base, & row_len, sizeof row_len );
             if ( boff != 0 )
                 bitcpy ( & base [ 1 ], 0, data, boff, ( bitsz_t ) elem_bits * row_len );
             else
-                memcpy ( & base [ 1 ], data, row_bytes );
+                memmove ( & base [ 1 ], data, row_bytes );
 
             /* remember its location in the map */
             self -> u . data [ self -> cur_item ] . val . ptr = base;
@@ -501,7 +501,7 @@ void BufferedPairColWriterWriteUnmapped ( BufferedPairColWriter *self, const ctx
             }
             else
             {
-                memcpy ( & self -> u . ids [ self -> cur_item ], data, row_bytes );
+                memmove ( & self -> u . ids [ self -> cur_item ], data, row_bytes );
             }
 
             /* record another immediate row */
@@ -579,7 +579,7 @@ void BufferedPairColWriterWriteUnmapped ( BufferedPairColWriter *self, const ctx
 				    /* copy it in */
 				    base[0] = row_len;
 				    if ( boff != 0 ) bitcpy ( & base [ 1 ], 0, data, boff, ( bitsz_t ) elem_bits * row_len );
-				    else memcpy ( & base [ 1 ], data, row_bytes );
+				    else memmove ( & base [ 1 ], data, row_bytes );
 				    self -> vocab_id2val[self -> vocab_cnt++] = base; 
 				}
 			} else { /** get from vocabulary **/
@@ -597,7 +597,7 @@ void BufferedPairColWriterWriteUnmapped ( BufferedPairColWriter *self, const ctx
 		    if ( boff != 0 )
 			bitcpy ( & base [ 1 ], 0, data, boff, ( bitsz_t ) elem_bits * row_len );
 		    else
-			memcpy ( & base [ 1 ], data, row_bytes );
+			memmove ( & base [ 1 ], data, row_bytes );
 		}
 
 	}

@@ -32,6 +32,7 @@
 #include <kfs/buffile.h>
 
 #include <string.h>
+#include <stdio.h>
 
 typedef struct lookup_reader
 {
@@ -114,9 +115,16 @@ static rc_t read_key_and_len( struct lookup_reader * reader, uint64_t pos, uint6
     char buffer[ 10 ];
     rc_t rc = KFileRead( reader->f, pos, buffer, sizeof buffer, &num_read );
     if ( rc != 0 )
+    {
         ErrMsg( "read_key_and_len.KFileRead( at %ld, to_read %u ) -> %R", pos, sizeof buffer, rc );
+    }
     else if ( num_read != sizeof buffer )
-        rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+    {
+        if ( num_read == 0 )
+            rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+        else
+            rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+    }
     else
     {
         uint16_t dna_len;
@@ -239,14 +247,17 @@ rc_t seek_lookup_reader( struct lookup_reader * reader, uint64_t key_to_find, ui
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
         ErrMsg( "seek_lookup_reader() -> %R", rc );
     }
-    else if ( reader->index != NULL )
+    else
     {
-        rc = indexed_seek( reader, key_to_find, key_found, exactly );
-        if ( rc != 0 )
+        if ( reader->index != NULL )
+        {
+            rc = indexed_seek( reader, key_to_find, key_found, exactly );
+            if ( rc != 0 )
+                rc = full_table_seek( reader, key_to_find, key_found );
+        }
+        else
             rc = full_table_seek( reader, key_to_find, key_found );
     }
-    else
-        rc = full_table_seek( reader, key_to_find, key_found );
     return rc;
 }
 

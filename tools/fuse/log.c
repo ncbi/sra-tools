@@ -24,6 +24,7 @@
  *
  */
 #include <kfs/directory.h>
+#include <klib/time.h>
 #include <klib/out.h>
 #include <klib/status.h>
 #include <kproc/thread.h>
@@ -57,7 +58,7 @@ rc_t StrDup(const char* src, char** dst)
         if( dst == NULL ) {
             return RC(rcExe, rcString, rcCopying, rcMemory, rcExhausted);
         }
-        memcpy(*dst, src, sz);
+        memmove(*dst, src, sz);
         (*dst)[sz] = '\0';
     }
     return 0;
@@ -91,7 +92,7 @@ rc_t LogFileOpen(void)
         }
     }
     if( old_fd > -1 ) {
-        sleep(2);
+        KSleepMs(2000);
         close(old_fd);
     }
     return rc;
@@ -102,7 +103,7 @@ rc_t LogThread( const KThread *self, void *data )
 {
     PLOGMSG(klogInfo, (klogInfo, "Log rotation thread started with $(s) sec", PLOG_U32(s), g_sync));
     while( g_sync > 0 ) {
-        sleep(g_sync);
+        KSleepMs(g_sync * 1000);
         DEBUG_MSG(1, ("Log rotation thread checking %s\n", g_path));
         if( g_sync < 1 || g_path == NULL ) {
             break;
@@ -123,7 +124,7 @@ rc_t LogFileWrite(void *self, const char *buffer, size_t bufsize, size_t *num_wr
         char tid[64 * 1024];
         if( bufsize <= (sizeof(tid) - (1 + 5 + 1 + 15 + 2)) ) {
             int x = sprintf(tid, "[%i/%x] ", getpid(), (unsigned int)pthread_self());
-            memcpy(&tid[x], buffer, bufsize);
+            memmove(&tid[x], buffer, bufsize);
             bufsize += x;
             if( pwrite(g_fd, tid, bufsize, SEEK_END) != bufsize ) {
                 rc = RC(rcExe, rcLog, rcWriting, rcNoObj, rcIncomplete);

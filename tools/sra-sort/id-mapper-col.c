@@ -158,7 +158,7 @@ void MapRowIdColWriterWrite ( MapRowIdColWriter *self, const ctx_t *ctx,
     }
 
     /* copy row */
-    memcpy ( self -> row, data, row_len * sizeof * self -> row );
+    memmove ( self -> row, data, row_len * sizeof * self -> row );
 
     /* map ids */
     for ( i = 0; i < row_len; ++ i )

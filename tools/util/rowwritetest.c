@@ -79,8 +79,6 @@ rc_t CC Usage (const Args * args)
     return rc;
 }
 
-ver_t CC KAppVersion(void) { return 0; }
-
 #define BUFFERS 3
 
 rc_t run (const char * table_path, uint64_t N )

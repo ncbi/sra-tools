@@ -830,8 +830,8 @@ rc_t make_cg_merge( const cg_cigar_input * input, cg_cigar_output * output )
             
         if ( 0 < B_len && B_len < 5 )
         {
-            memcpy( output->newSeq,  input->p_read.ptr, MAX_READ_LEN );
-            memcpy( output->newQual, input->p_quality.ptr, MAX_READ_LEN );
+            memmove( output->newSeq,  input->p_read.ptr, MAX_READ_LEN );
+            memmove( output->newQual, input->p_quality.ptr, MAX_READ_LEN );
             
             output->p_read.ptr = output->newSeq;
             output->p_read.len = ( MAX_READ_LEN - B_len );

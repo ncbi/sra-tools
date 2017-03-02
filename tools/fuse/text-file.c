@@ -86,7 +86,7 @@ rc_t TextFile_Read(const TextFile *self, uint64_t pos, void *buffer, size_t bsiz
     *num_read = strlen(self->data);
     if( pos < *num_read ) {
         *num_read = (*num_read < bsize) ? *num_read : bsize;
-        memcpy(buffer, &self->data[pos], *num_read);
+        memmove(buffer, &self->data[pos], *num_read);
     } else {
         *num_read = 0;
     }

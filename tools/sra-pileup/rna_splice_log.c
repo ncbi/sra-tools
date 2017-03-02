@@ -295,12 +295,12 @@ static rc_t print_edge( struct rna_splice_log * sl,
             copy_read_and_reverse_complement( complement, buffer, from_ref_obj );
             ref_bytes = complement;
         }
-        memcpy( to_write, ref_bytes, pre_len );
+        memmove( to_write, ref_bytes, pre_len );
         to_write[ pre_len ] = '\t';
         to_write[ pre_len + 1 ] = ref_bytes[ pre_len ];
         to_write[ pre_len + 2 ] = ref_bytes[ pre_len + 1 ];
         to_write[ pre_len + 3 ] = '\t';
-        memcpy( &( to_write[ pre_len + 4 ] ), &( ref_bytes[ pre_len + 2 ] ), post_len );
+        memmove( &( to_write[ pre_len + 4 ] ), &( ref_bytes[ pre_len + 2 ] ), post_len );
 
         if ( add_newline )
             to_write[ pre_len + post_len + 4 ] = '\n';

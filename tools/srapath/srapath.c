@@ -24,8 +24,6 @@
 *
 */
 
-#include "srapath.vers.h"
-
 #include "helper.h"
 #include "cgi_request.h"
 #include "line_iter.h"
@@ -95,18 +93,6 @@ OptDef ToolOptions[] =
     { OPTION_DATE,      ALIAS_DATE,      NULL, date_usage,       1,  false,  false },
     { OPTION_RAW,       ALIAS_RAW,       NULL, raw_usage,        1,  false,  false }
 };
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return SRAPATH_VERS;
-}
 
 const char UsageDefaultName[] = "srapath";
 
@@ -178,7 +164,7 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver, const 
         const VPath * local;
         const VPath * remote;
 
-        rc = VResolverQuery( resolver, eProtocolHttp, upath, &local, &remote, NULL );
+        rc = VResolverQuery( resolver, 0, upath, &local, &remote, NULL );
         if ( rc == 0 )
         {
             const String * s;

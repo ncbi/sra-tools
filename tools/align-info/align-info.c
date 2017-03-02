@@ -24,8 +24,6 @@
 *
 */
 
-#include "align-info.vers.h"
-
 #include <sra/sraschema.h> /* VDBManagerMakeSRASchema */
 
 #include <vdb/manager.h> /* VDBManager */
@@ -149,8 +147,6 @@ rc_t CC Usage(const Args* args) {
 }
 
 const char UsageDefaultName[] = "align-info";
-
-ver_t CC KAppVersion(void) { return ALIGN_INFO_VERS; }
 
 static rc_t bam_header(const VDatabase* db) {
     rc_t rc = 0;

@@ -73,6 +73,4 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t pos,
                    uint8_t rna_orient, uint32_t *matches, uint32_t *misses);
 rc_t ReferenceWhack(Reference *self, bool commit);
 
-rc_t ReferenceGetSequence(Reference *self, char *rslt, unsigned position, unsigned nCIGAR, unsigned *CIGAR);
-
 #endif

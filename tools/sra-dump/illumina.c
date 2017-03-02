@@ -36,7 +36,6 @@
 
 #include "debug.h"
 #include "core.h"
-#include "illumina-dump.vers.h"
 
 #define DATABUFFERINITSIZE 10240
 
@@ -415,11 +414,6 @@ const char UsageDefaultName[] = "illumina-dump";
 rc_t CC UsageSummary (const char * progname)
 {
     return 0;
-}
-
-ver_t CC KAppVersion( void )
-{
-    return ILLUMINA_DUMP_VERS;
 }
 
 rc_t IlluminaDumper_Release(const SRADumperFmt* fmt)

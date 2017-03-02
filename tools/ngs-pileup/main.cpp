@@ -24,8 +24,6 @@
 *
 */
 
-#include "ngs-pileup.vers.h"
-
 #include "ngs-pileup.hpp"
 
 #include <ngs/ErrorMsg.hpp>
@@ -87,16 +85,6 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return NGS_PILEUP_VERS;
-}
 rc_t CC KMain( int argc, char *argv [] )
 {
     Args * args;

@@ -41,6 +41,8 @@ rc_t CGFile20_Make(const struct CGFileType** self,
                    const char* type, const struct CGLoaderFile* file);
 rc_t CGFile22_Make(const struct CGFileType** self,
                    const char* type, const struct CGLoaderFile* file);
+rc_t CGFile24_Make(const struct CGFileType** self,
+                   const char* type, const struct CGLoaderFile* file);
 rc_t CGFile25_Make(const struct CGFileType** self,
                    const char* type, const struct CGLoaderFile* file);
 

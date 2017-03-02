@@ -318,7 +318,7 @@ static rc_t FastqSequenceGetQuality ( const FastqSequence *self, const int8_t **
     {
         uint32_t length = self->read.len;
         if (self->quality.size != length)
-            return RC(rcAlign, rcRow, rcReading, rcData, rcInconsistent);
+            return RC( RC_MODULE, rcData, rcReading, rcData, rcInconsistent);
             
         *quality = (const int8_t *)self->quality.addr;
         *offset = self->qualityAsciiOffset;
@@ -628,7 +628,7 @@ size_t CC FASTQ_input(FASTQParseBlock* pb, char* buf, size_t max_size)
         }
     }
 
-    memcpy(buf, self->recordStart + self->curPos, length);
+    memmove(buf, self->recordStart + self->curPos, length);
 
     self->lastEol = ( buf[length-1] == '\n' );
     self->curPos += length;

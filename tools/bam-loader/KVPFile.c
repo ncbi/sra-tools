@@ -312,7 +312,7 @@ rc_t KVPFileFindOrInsert(KVPFile *self, KVPValue *xval,
         my_key_t *new_key = KTempMMapPointer(&self->keys, new_id, 1);
         
         new_key->len = ksize;
-        memcpy(new_key->key, key, ksize);
+        memmove(new_key->key, key, ksize);
         
         *was_inserted = true;
         val->file = (void *)self;

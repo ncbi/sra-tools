@@ -252,7 +252,7 @@ void AbsolidSpot_Init(AbsolidSpot* spot, const pstring* spot_name,
 
     spot->spot_name = spot_name;
     pstring_clear(&spot->label);
-    memcpy(spot->read_seg, read_seg, sizeof(spot->read_seg[0]) * nreads);
+    memmove(spot->read_seg, read_seg, sizeof(spot->read_seg[0]) * nreads);
     memset(spot->label_start, 0, sizeof(spot->label_start[0]) * nreads);
     memset(spot->label_len, 0, sizeof(spot->label_len[0]) * nreads);
     memset(spot->cs_key, 0, sizeof(spot->cs_key[0]) * nreads);

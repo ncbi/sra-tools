@@ -22,6 +22,7 @@
  *
  * ===========================================================================
  *
+ * Primarily, this exists to drive our BAM/SAM parsing code
  */
 
 #include <kapp/args.h>
@@ -87,11 +88,6 @@ rc_t CC UsageSummary(char const *name)
 }
 
 rc_t CC Usage(Args const *args)
-{
-    return 0;
-}
-
-ver_t CC KAppVersion(void)
 {
     return 0;
 }

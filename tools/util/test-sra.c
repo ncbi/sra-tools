@@ -25,7 +25,6 @@
 */
 
 #include "test-sra-priv.h" /* PrintOS */
-#include "test-sra.vers.h" /* TEST_SRA_VERS */
 
 #include <kapp/main.h> /* KMain */
 
@@ -37,8 +36,14 @@
 
 #include <klib/time.h> /* KTimeMsStamp */
 
+#include <kns/ascp.h> /* ascp_locate */
 #include <kns/endpoint.h> /* KEndPoint */
+#include <kns/http.h>
+#include <kns/http-priv.h> /* KClientHttpResultFormatMsg */
 #include <kns/kns-mgr-priv.h> /* KNSManagerMakeReliableClientRequest */
+#include <kns/manager.h>
+#include <kns/manager-ext.h> /* KNSManagerNewReleaseVersion */
+#include <kns/stream.h>
 
 #include <vfs/manager.h> /* VFSManager */
 #include <vfs/path.h> /* VPath */
@@ -53,12 +58,6 @@
 #include <vdb/schema.h> /* VSchemaRelease */
 #include <vdb/table.h> /* VDBManagerOpenTableRead */
 #include <vdb/vdb-priv.h> /* VDBManagerSetResolver */
-
-#include <kns/ascp.h> /* ascp_locate */
-#include <kns/http.h>
-#include <kns/manager.h>
-#include <kns/manager-ext.h> /* KNSManagerNewReleaseVersion */
-#include <kns/stream.h>
 
 #include <kdb/manager.h> /* kptDatabase */
 
@@ -91,6 +90,8 @@ VFS_EXTERN rc_t CC VResolverProtocols ( VResolver * self,
 
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 != 0 && rc == 0) { rc = rc2; } obj = NULL; } while (false)
+
+#define HTTP_VERSION 0x01010000
 
 typedef enum {
     eCfg            = 1,
@@ -140,7 +141,6 @@ typedef struct {
     bool allowCaching;
     VResolverEnableState cacheState;
 } Main;
-uint32_t CC KAppVersion(void) { return TEST_SRA_VERS; }
 
 const char UsageDefaultName[] = "test-sra";
 
@@ -150,8 +150,8 @@ rc_t CC UsageSummary(const char *prog_name) {
         "  quick check mode:\n"
         "   %s -Q [ name... ]\n\n"
         "  full test mode:\n"
-        "   %s [+crdDa] [-crdDa] [-R] [-N] [-C] [-X <type>] [options] "
-                                                   "name [ name... ]\n"
+        "   %s [+acdDfFgnoOprsStuw] [-acdDfFgnoOprsStuw] [-R] [-N] [-C]\n"
+        "            [-X <type>] [-L <path>] [options] name [ name... ]\n"
         , prog_name, prog_name);
 }
 
@@ -179,7 +179,7 @@ rc_t CC Usage(const Args *args) {
     rc2 = KOutMsg(
         "Tests:\n"
         "  s - print SRA software information\n"
-        "  S - print SRA software information and last SRA toolkit versions\n"
+        "  S - print SRA software information and latest SRA toolkit version\n"
         "  u - print operation system information\n"
         "  c - print configuration\n"
         "  n - print NCBI error report\n"
@@ -214,6 +214,7 @@ rc_t CC Usage(const Args *args) {
         "-C - do not disable caching (default: from configuration)\n"
         "-b --bytes=K - print the first K bytes of resolved remote HTTP file)\n"
         "                                                      (default: 256)\n"
+        "-l --library=<path to library> - print version of dynamic library\n"
         "\n"
         "More options:\n");
     if (rc == 0 && rc2 != 0) {
@@ -533,42 +534,37 @@ static rc_t MainCallCgiImpl(const Main *self,
     assert(self && node && acc);
     if (rc == 0) {
         rc = KConfigNodeReadString(node, &url);
-        if (url == NULL) {
+        if (url == NULL)
             rc = RC(rcExe, rcNode, rcReading, rcString, rcNull);
-        }
     }
-    if (rc == 0) {
+
+    if (rc == 0)
         rc = KNSManagerMakeRequest(self->knsMgr,
-            &req, 0x01000000, NULL, url->addr);
-    }
-    if (rc == 0) {
+            &req, HTTP_VERSION, NULL, url->addr);
+
+    if (rc == 0)
         rc = KHttpRequestAddPostParam ( req, "acc=%s", acc );
-    }
+
     if (rc == 0) {
         KHttpResult *rslt;
         rc = KHttpRequestPOST ( req, & rslt );
-        if ( rc == 0 )
-        {
+        if ( rc == 0 ) {
             uint32_t code;
             size_t msg_size;
             char msg_buff [ 256 ];
             rc = KHttpResultStatus(rslt,
                 & code, msg_buff, sizeof msg_buff, & msg_size);
-            if ( rc == 0 && code == 200 )
-            {
+            if ( rc == 0 && code == 200 ) {
                 KStream * response;
                 rc = KHttpResultGetInputStream ( rslt, & response );
-                if ( rc == 0 )
-                {
+                if ( rc == 0 ) {
                     size_t num_read;
                     size_t total = 0;
                     KDataBufferMakeBytes ( & result, 4096 );
-                    while ( 1 )
-                    {
+                    while ( 1 ) {
                         uint8_t *base;
                         uint64_t avail = result . elem_count - total;
-                        if ( avail < 256 )
-                        {
+                        if ( avail < 256 ) {
                             rc = KDataBufferResize
                                 (&result, result.elem_count + 4096);
                             if ( rc != 0 )
@@ -578,8 +574,7 @@ static rc_t MainCallCgiImpl(const Main *self,
                         base = result . base;
                         rc = KStreamRead(response, &base[total],
                             result.elem_count - total, &num_read);
-                        if ( rc != 0 )
-                        {
+                        if ( rc != 0 ) {
                             if ( num_read > 0 )
                                 rc = 0;
                             else
@@ -602,22 +597,18 @@ static rc_t MainCallCgiImpl(const Main *self,
     if (rc == 0) {
         const char *start = (const void*)(result.base);
         size_t size = KDataBufferBytes(&result);
-        if (*(start + size) != '\0') {
+        if (*(start + size) != '\0')
             rc = RC(rcExe, rcString, rcParsing, rcString, rcUnexpected);
-        }
-        if (strstr(start, "200|ok") == NULL) {
+        if (strstr(start, "200|ok") == NULL)
             rc = RC(rcExe, rcString, rcParsing, rcParam, rcIncorrect);
-        }
     }
     KDataBufferWhack(&result);
     RELEASE(KHttpRequest, req);
     free(url);
-    if (rc == 0) {
+    if (rc == 0)
         OUTMSG(("NCBI access: ok\n"));
-    }
-    else {
+    else
         OUTMSG(("ERROR: cannot access NCBI Website\n"));
-    }
     return rc;
 }
 
@@ -649,7 +640,7 @@ static rc_t MainQuickResolveQuery(const Main *self, const char *acc) {
         if (!self->allowCaching) {
             VResolverCacheEnable(self->resolver, self->cacheState);
         }
-        rc = VResolverQuery(self->resolver, eProtocolHttp, query,
+        rc = VResolverQuery(self->resolver, 0, query,
             NULL, &remote, &cache);
         if (!self->allowCaching) {
             VResolverCacheEnable(self->resolver, vrAlwaysDisable);
@@ -1275,7 +1266,7 @@ static rc_t MainResolveRemote(const Main *self, VResolver *resolver,
     }
 
     rc = VResolverRemote(resolver,
-        fasp ? eProtocolFaspHttp : eProtocolHttp, acc, remote);
+        fasp ? eProtocolFaspHttpHttps : 0, acc, remote);
 
     if (rc == 0) {
         rc_t rc = 0;
@@ -1296,7 +1287,7 @@ static rc_t MainResolveRemote(const Main *self, VResolver *resolver,
                 }
                 else {
                     rc = KNSManagerMakeHttpFile
-                        (self->knsMgr, &f, NULL, 0x01010000, path_str);
+                        (self->knsMgr, &f, NULL, HTTP_VERSION, path_str);
                 }
             }
         }
@@ -1329,7 +1320,7 @@ static rc_t MainResolveCache(const Main *self, const VResolver *resolver,
         if (!self->allowCaching) {
             VResolverCacheEnable(resolver, self->cacheState);
         }
-        rc = VResolverQuery(resolver, fasp ? eProtocolFasp : eProtocolHttp,
+        rc = VResolverQuery(resolver, fasp ? eProtocolFasp : 0,
             remote, NULL, NULL, &cache);
         rc = MainPathReport(self,
             rc, cache, ePathCache, name, remote, NULL, fasp, NULL);
@@ -1364,6 +1355,10 @@ static rc_t VResolverQueryByType(const Main *self, const VResolver *resolver,
     const VPath **pRemote = NULL;
     const VPath **pCache = NULL;
 
+    uint32_t i;
+    VRemoteProtocols protos;
+    const char * proto [ eProtocolMaxPref ];
+
     assert(self);
 
     if (self->xml) {
@@ -1392,11 +1387,38 @@ static rc_t VResolverQueryByType(const Main *self, const VResolver *resolver,
         VResolverCacheEnable(resolver, vrAlwaysEnable);
     }
 
+    proto [ 0 ] = NULL;
+    proto [ 1 ] = proto [ 2 ] = "";
+
+    for ( i = 0, protos = protocols; i < sizeof proto / sizeof proto [ 0 ] && protos != 0; protos >>= 3 )
+    {
+        switch ( protos & eProtocolMask )
+        {
+        case eProtocolHttp:
+            proto [ i ++ ] = "Http";
+            break;
+        case eProtocolFasp:
+            proto [ i ++ ] = "Fasp";
+            break;
+        case eProtocolHttps:
+            proto [ i ++ ] = "Https";
+            break;
+        }
+    }
+
     rc = VResolverQuery(resolver, protocols, query, pLocal, pRemote, pCache);
-    OUTMSG(("%sVResolverQuery(%s, %s, local%s, remote%s, cache%s)= %R%s",
-        bol, name, protocols == eProtocolHttp ? "Http" : "FaspHttp", 
-        pLocal == NULL ? "=NULL" : "", pRemote == NULL ? "=NULL" : "",
-        pCache == NULL ? "=NULL" : "", rc, eol));
+    OUTMSG(("%sVResolverQuery(%s, %s%s%s, local%s, remote%s, cache%s)= %R%s"
+            , bol
+            , name
+            , proto [ 0 ]
+            , proto [ 1 ]
+            , proto [ 2 ]
+            , pLocal == NULL ? "=NULL" : ""
+            , pRemote == NULL ? "=NULL" : ""
+            , pCache == NULL ? "=NULL" : ""
+            , rc
+            , eol
+      ));
     if (rc == 0) {
         if (local != NULL) {
 /*          rc2 =*/ MainPathReport(self,
@@ -1434,12 +1456,9 @@ static rc_t MainResolveQuery(const Main *self, const VResolver *resolver,
     KTimeMs_t time = 0;
     KTimeMs_t start_time = 0;
 
-    VRemoteProtocols protocols = eProtocolHttp;
+    VRemoteProtocols protocols = 0;
     if (fasp) {
-        protocols = eProtocolFaspHttp;
-    }
-    else {
-        protocols = eProtocolHttp;
+        protocols = eProtocolFaspHttpHttps;
     }
 
     if (resolver == NULL) {
@@ -1820,7 +1839,8 @@ rc_t MainDepend(const Main *self, const char *name, bool missing)
                     OUTMSG(("%s\tpathRemote: %s ", eol, s));
                     if (!self->noRfs) {
                         const KFile *f = NULL;
-                        rc2 = KNSManagerMakeHttpFile ( self->knsMgr, & f, NULL, 0x01010000, s );
+                        rc2 = KNSManagerMakeHttpFile
+                            ( self->knsMgr, & f, NULL, HTTP_VERSION, s );
                         if (rc2 != 0) {
                             OUTMSG(("KNSManagerMakeHttpFile=%R", rc2));
                             if (rc == 0) {
@@ -2179,7 +2199,8 @@ static rc_t ipc_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
 	return string_printf( buffer, buflen, NULL, "ipc: %s", ep->u.ipc_name );
 }
 
-static rc_t endpoint_to_string( char * buffer, size_t buflen, KEndPoint * ep )
+static
+rc_t endpoint_to_string( char * buffer, size_t buflen, KEndPoint * ep )
 {
 	rc_t rc;
 	switch( ep->type )
@@ -2193,37 +2214,74 @@ static rc_t endpoint_to_string( char * buffer, size_t buflen, KEndPoint * ep )
 	return rc;
 }
 
-static rc_t perfrom_dns_test(const Main *self, const char *eol) {
+/* TODO: MAKE A DEEPER TEST; RESOLVE; PRINT HEADERS;
+         MAKE SURE UNDETECTED/UNACCESSIBLE URL IS REPORTED */
+static rc_t perform_dns_test(const Main *self, const char *eol, uint16_t port) {
     rc_t rc = 0;
+
     const char domain[] = "www.ncbi.nlm.nih.gov";
-    const uint16_t port = 80;
-	KEndPoint ep;
+    KEndPoint ep;
     String s_domain;
     KTimeMs_t time = 0;
-	KTimeMs_t start_time = KTimeMsStamp();
+
+    KTimeMs_t start_time = KTimeMsStamp();
+
     assert(self);
+
     StringInitCString(&s_domain, domain);
+
     rc = KNSManagerInitDNSEndpoint(self->knsMgr, &ep, &s_domain, port);
     time = KTimeMsStamp() - start_time;
-    if (rc != 0) {
+
+    if (rc != 0)
         OUTMSG
             (("KNSManagerInitDNSEndpoint(%s, %d)=%R%s", domain, port, rc, eol));
-    }
     else {
-        const char root[] = "DnsEndpoint";/*"www.ncbi.nlm.nih.gov", 80*/
+        const char root[] = "DnsEndpoint";
         char s_endpoint[1024] = "";
         rc = endpoint_to_string(s_endpoint, sizeof s_endpoint, &ep);
-        if (self->xml) {
-            OUTMSG(("  <%s "
+
+        if (self->xml)
+            OUTMSG(("    <%s "
                 "domain=\"%s\" port=\"%d\" address=\"%s\" time=\"%d ms\"/>\n",
                 root, domain, port, s_endpoint, time));
-        }
-        else {
+        else
             OUTMSG((
                 "%s domain=\"%s\" port=\"%d\" address=\"%s\" time=\"%d ms\"\n",
                 root, domain, port, s_endpoint, time));
-        }
     }
+
+    return rc;
+}
+
+static rc_t ClientRequestTest(const Main *self, const char *eol,
+                              const char *url)
+{
+    rc_t rc = 0;
+
+    KClientHttpRequest *req = NULL;
+
+    KTimeMs_t time = 0;
+    KTimeMs_t start_time = KTimeMsStamp();
+
+    assert(self);
+
+    rc = KNSManagerMakeRequest(self->knsMgr, &req, HTTP_VERSION, NULL, url);
+
+    time = KTimeMsStamp() - start_time;
+
+    if (rc != 0)
+        OUTMSG(("KNSManagerMakeRequest(%s)=%R%s", url, rc, eol));
+    else {
+        const char root[] = "KNSManagerMakeRequest";
+        if (self->xml)
+            OUTMSG(("    <%s url=\"%s\" time=\"%d ms\"/>\n", root, url, time));
+        else
+            OUTMSG((     "%s url=\"%s\" time=\"%d ms\"\n"  , root, url, time));
+    }
+
+    RELEASE(KClientHttpRequest, req);
+
     return rc;
 }
 
@@ -2279,25 +2337,26 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     uint32_t ver_major, uint32_t ver_minor, const char *protocol,
     const char *acc, KDataBuffer *databuffer, const char *eol)
 {
-	KHttpRequest *req = NULL;
+    KClientHttpRequest * req = NULL;
+    char b [1024 ] = "";
     rc_t rc = 0;
     assert(self);
     rc = KNSManagerMakeReliableClientRequest
-        (self->knsMgr, &req, 0x01000000, NULL, cgi_url);
+        (self->knsMgr, &req, HTTP_VERSION, NULL, cgi_url);
     if (rc != 0) {
         OUTMSG(
             ("KNSManagerMakeReliableClientRequest(%s)=%R%s", cgi_url, rc, eol));
     }
     if (rc == 0) {
         const char param[] = "acc";
-		rc = KHttpRequestAddPostParam( req, "%s=%s", param, acc);
+        rc = KHttpRequestAddPostParam( req, "%s=%s", param, acc);
         if (rc != 0) {
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
     }
     if (rc == 0) {
         const char param[] = "accept-proto";
-		rc = KHttpRequestAddPostParam( req, "%s=%s", param, protocol);
+        rc = KHttpRequestAddPostParam( req, "%s=%s", param, protocol);
         if (rc != 0) {
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
@@ -2309,6 +2368,10 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
         if (rc != 0) {
             OUTMSG(("KHttpRequestAddPostParam(%s)=%R%s", param, rc, eol));
         }
+    }
+    if (rc == 0) {
+        rc = KClientHttpRequestFormatMsg
+            ( req, b, sizeof b, "POST", NULL );
     }
     if (rc == 0) {
         KHttpResult *rslt = NULL;
@@ -2352,7 +2415,8 @@ static rc_t call_cgi(const Main *self, const char *cgi_url,
     return rc;
 }
 
-static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
+static rc_t perform_cgi_test ( const Main * self,
+    const char * eol, const char * acc )
 {
     rc_t rc = 0;
     const char root[] = "Cgi";
@@ -2364,13 +2428,14 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
     assert(self);
     memset(&databuffer, 0, sizeof databuffer);
     if (self->xml) {
-        OUTMSG(("  <%s>\n", root));
+        OUTMSG(("    <%s>\n", root));
     }
     {
         KTimeMs_t time = 0;
         const char root[] = "Response";
-        rc = call_cgi(self, "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi"
-            , 1, 1, "http", acc, &databuffer, eol);
+        rc = call_cgi ( self,
+            "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi",
+            1, 2, "http,https", acc, & databuffer, eol );
         time = KTimeMsStamp() - start_time;
         if (rc == 0) {
             const char *start = databuffer.base;
@@ -2384,69 +2449,208 @@ static rc_t perform_cgi_test(const Main *self, const char *eol, const char *acc)
                     root, size, start, time));
             }
         }
-        else {/*
-            if (self->xml) {
-                //OUTMSG(("    <%s/>\n", root, size, start, root));
-            }
-            else {
-                //OUTMSG(("%s = '%.*s'\n", root, size, start));
-            }*/
-        }
     }
     if (self->xml) {
-        OUTMSG(("  </%s>\n", root));
+        OUTMSG(("    </%s>\n", root));
     }
+    KDataBufferWhack ( & databuffer );
     return rc;
 }
 
-static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
+static
+rc_t MainRanges ( const Main * self, const char * arg, const char * bol,
+    bool get, bool https )
+{
+    rc_t rc = 0;
+    const char * method = "Head";
+    const char * protocol = "http";
+    if ( get )
+        method = "Get";
+    if ( https )
+        protocol = "https";
+    if ( self -> xml )
+        OUTMSG ( ( "%s    <%s protocol=\"%s\">\n", bol, method, protocol ) );
+    {
+        char buffer [ 1024 ] = "";
+        KClientHttp * http = NULL;
+        KClientHttpRequest * req = NULL;
+        KClientHttpResult * rslt = NULL;
+        const char root [] = "Request";
+        size_t len = 0;
+        char * b = buffer;
+        size_t sizeof_b = sizeof buffer;
+        char * allocated = NULL;
+        String host;
+        CONST_STRING ( & host, "sra-download.ncbi.nlm.nih.gov" );
+        if ( self -> xml )
+            OUTMSG ( ( "%s      <%s host=\"%S\">\n", bol, root, & host ) );
+        else
+            OUTMSG ( ( "%s %s host=\"%S\" protocol=\"%s\"\n",
+                       method, root, & host, protocol ) );
+        if ( https )
+            rc = KNSManagerMakeClientHttps
+                ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
+        else
+            rc = KNSManagerMakeClientHttp
+                ( self -> knsMgr, & http, NULL, HTTP_VERSION, & host, 0 );
+        if ( rc == 0 ) {
+            rc = KClientHttpMakeRequest( http, & req, "/srapub/%s", arg );
+            if ( rc != 0 )
+                OUTMSG ( ( "KClientHttpMakeRequest(%S,/srapub/%s)=%R\n",
+                           & host, arg, rc ) );
+        }
+        else
+            OUTMSG ( ( "KClientHttpMakeRequest(%S)=%R\n", & host, rc ) );
+        if ( get && rc == 0 ) {
+            rc = KClientHttpRequestByteRange ( req, 0, 4096 );
+            if ( rc != 0 )
+                OUTMSG ( ( "KClientHttpRequestByteRange(0,4096)=%R\n", rc ) );
+        }
+        if ( rc == 0 ) {
+            rc = KClientHttpRequestFormatMsg
+                ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
+            if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
+                    GetRCState ( rc ) == rcInsufficient )
+            {
+                free ( allocated );
+                sizeof_b = 0;
+                allocated = b = malloc ( len );
+                if ( allocated == NULL )
+                    rc = RC
+                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
+                else {
+                    sizeof_b = len;
+                    rc = KClientHttpRequestFormatMsg
+                        ( req, b, sizeof_b, get ? "GET" : "HEAD", & len );
+                }
+            }
+            if ( rc == 0 )
+                OUTMSG ( ( "%s", b ) );
+            else
+                OUTMSG ( ( "KClientHttpRequestFormatMsg()=%R\n", rc ) );
+        }
+        if ( rc == 0 ) {
+            if ( get ) {
+                rc = KClientHttpRequestGET ( req, & rslt );
+                if ( rc != 0 )
+                    OUTMSG ( ( "KClientHttpRequestGET()=%R\n", rc ) );
+            }
+            else {
+                rc = KClientHttpRequestHEAD ( req, & rslt );
+                if ( rc != 0 )
+                    OUTMSG ( ( "KClientHttpRequestHEAD()=%R\n", rc ) );
+            }
+        }
+        if ( rc == 0 ) {
+            rc = KClientHttpResultFormatMsg
+                ( rslt, b, sizeof_b, & len, "", "\n" );
+            if ( GetRCObject ( rc ) == ( enum RCObject ) rcBuffer &&
+                 GetRCState ( rc ) == rcInsufficient )
+            {
+                free ( allocated );
+                sizeof_b = 0;
+                allocated = b = malloc ( len );
+                if ( allocated == NULL )
+                    rc = RC
+                        ( rcExe, rcData, rcAllocating, rcMemory, rcExhausted );
+                else {
+                    sizeof_b = len;
+                    rc = KClientHttpResultFormatMsg
+                        ( rslt, b, sizeof_b, & len, "", "\n" );
+                }
+            }
+            if ( rc != 0 )            
+                OUTMSG ( ( "KClientHttpResultFormatMsg()=%R\n", rc ) );
+        }
+        if ( self -> xml )
+            OUTMSG ( ( "%s      </%s>\n", bol, root ) );
+        if ( rc == 0 ) {
+            const char root [] = "Response";
+            if (self->xml)
+                OUTMSG(("%s      <%s>\n", bol, root));
+            else
+                OUTMSG(("%s\n", root));
+            OUTMSG ( ( "%s", b ) );
+            if (self->xml)
+                OUTMSG(("%s      </%s>\n", bol, root));
+            else
+                OUTMSG ( ( "\n" ) );
+        }
+        free ( allocated );
+        allocated = NULL;
+        b = buffer;
+        RELEASE ( KClientHttpResult, rslt );
+        RELEASE ( KClientHttpRequest, req );
+        RELEASE ( KClientHttp, http );
+    }
+    if ( self -> xml )
+        OUTMSG ( ( "%s    </%s>\n", bol, method ) );
+    return rc;
+}
+
+static rc_t MainNetwotk ( const Main * self,
+    const char * arg, const char * bol, const char * eol )
 {
     const char root[] = "Network";
     assert(self);
     if (self->xml) {
-        OUTMSG(("<%s>\n", root));
+        OUTMSG(("%s<%s>\n", bol, root));
     }
-    {
-        const char root[] = "HttpProxy";
+    if (arg == NULL) {
+        const char root[] = "KNSManager";
         bool enabled = KNSManagerGetHTTPProxyEnabled(self->knsMgr);
         if (!enabled) {
             if (self->xml) {
-                OUTMSG(("  <%s enabled=\"false\">\n", root));
+                OUTMSG(("%s  <%s GetHTTPProxyEnabled=\"false\">\n", bol, root));
             }
             else {
-                OUTMSG(("HTTPProxyEnabled=\"false\"\n", root));
+                OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"false\"\n", root));
             }
         }
         else {
             if (self->xml) {
-                OUTMSG(("  <%s enabled=\"true\">\n", root));
+                OUTMSG(("%s  <%s GetHTTPProxyEnabled=\"true\">\n", bol, root));
             }
             else {
-                OUTMSG(("HTTPProxyEnabled=\"true\"\n", root));
+                OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"true\"\n", root));
             }
         }
         {
-            const String *proxy = NULL;
-            rc_t rc = KNSManagerGetHTTPProxyPath(self->knsMgr, &proxy);
-            if (rc != 0) {
-                OUTMSG(("KNSManagerGetHTTPProxyPath()=%R%s", rc, eol));
-            }
-            else {
-                const char root[] = "Path";
+            const HttpProxy *p = KNSManagerGetHttpProxy(self->knsMgr);
+            while (p) {
+                const char root[] = "HttpProxy";
+                const String *http_proxy = NULL;
+                uint16_t http_proxy_port = 0;
+                HttpProxyGet(p, &http_proxy, &http_proxy_port);
                 if (self->xml) {
-                    OUTMSG(("    <%s>%S</%s>\n", root, proxy, root));
+                    if ( http_proxy_port == 0) {
+                        OUTMSG ( ( "%s    <%s path=\"%S\"/>\n",
+                            bol, root, http_proxy ) );
+                    }
+                    else {
+                        OUTMSG(("%s    <%s path=\"%S\" port=\"%d\"/>\n",
+                            bol, root, http_proxy, http_proxy_port));
+                    }
                 }
                 else {
-                    OUTMSG(("HTTPProxyPath=\"%S\"\n", proxy));
+                    if ( http_proxy_port == 0) {
+                        OUTMSG(("HTTPProxy=\"%S\"\n", http_proxy));
+                    }
+                    else {
+                        OUTMSG(("HTTPProxy=\"%S\":%d\n",
+                            http_proxy, http_proxy_port));
+                    }
                 }
+                p = HttpProxyGetNextHttpProxy ( p );
             }
         }
         if (self->xml) {
-            OUTMSG(("  </%s>\n", root));
+            OUTMSG(("%s  </%s>\n", bol, root));
         }
     }
-    {
-		const char *user_agent = NULL;
+
+    if (arg == NULL) {
+        const char *user_agent = NULL;
         rc_t rc = KNSManagerGetUserAgent(&user_agent);
         if (rc != 0) {
             OUTMSG(("KNSManagerGetUserAgent()=%R%s", rc, eol));
@@ -2454,23 +2658,45 @@ static rc_t MainNetwotk(const Main *self, const char *arg, const char *eol)
         else {
             const char root[] = "UserAgent";
             if (self->xml) {
-                OUTMSG(("  <%s>%s</%s>\n", root, user_agent, root));
+                OUTMSG(("%s  <%s>%s</%s>\n", bol, root, user_agent, root));
             }
             else {
                 OUTMSG(("UserAgent=\"%s\"\n", user_agent));
             }
         }
+
+        perform_dns_test (self, eol,  80);
+        perform_dns_test (self, eol, 443);
+        ClientRequestTest(self, eol,
+ "https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current.version"
+            );
     }
-    perfrom_dns_test(self, eol);
-    perform_cgi_test(self, eol, arg);
-    if (self->xml) {
-        OUTMSG(("</%s>\n", root));
+
+    if (arg != NULL)
+        perform_cgi_test(self, eol, arg);
+
+    if ( arg != NULL ) {
+        const char root [] = "Ranges";
+        if ( self -> xml )
+            OUTMSG ( ( "%s  <%s>\n", bol, root ) );
+        else
+            OUTMSG ( ( "\n%s\n", root ) );
+        MainRanges ( self, arg, bol, true , false );
+        MainRanges ( self, arg, bol, true , true  );
+        MainRanges ( self, arg, bol, false, false );
+        MainRanges ( self, arg, bol, false, true  );
+        if ( self-> xml )
+            OUTMSG ( ( "%s  </%s>\n", bol, root ) );
     }
+
+    if ( self -> xml )
+        OUTMSG ( ( "%s</%s>\n", bol, root ) );
+
     return 0;
 }
 
-static
-rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
+static rc_t MainExec ( const Main * self,
+    const KartItem * item, const char * aArg, ... )
 {
     const char root[] = "Object";
 
@@ -2627,7 +2853,7 @@ rc_t MainExec(const Main *self, const KartItem *item, const char *aArg, ...)
             }
 
             if (MainHasTest(self, eNetwork)) {
-                MainNetwotk(self, arg, eol);
+                MainNetwotk(self, arg, "  ", eol);
             }
 
             if (item == NULL) { /* TODO || kartitem & database */
@@ -2719,12 +2945,12 @@ static rc_t _KDyldLoadLib(KDyld *self, char *name, size_t sz,
     return rc;
 }
 
-static
-rc_t _KHttpRequestPOST(KHttpRequest *self, KDataBuffer *result, size_t *total) {
+static rc_t _KHttpRequestPOST ( KHttpRequest * self,
+    KDataBuffer * result, size_t * total )
+{
     rc_t rc = 0;
     KHttpResult *rslt = NULL;
     assert(result && total);
-    memset(result, 0, sizeof *result);
     *total = 0;
     rc = KHttpRequestPOST(self, &rslt);
     if (rc == 0) {
@@ -2773,8 +2999,8 @@ rc_t _KHttpRequestPOST(KHttpRequest *self, KDataBuffer *result, size_t *total) {
     return rc;
 }
 
-static
-rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
+static rc_t _MainPost ( const Main * self,
+    const char * name, char * buffer, size_t sz )
 {
     rc_t rc = 0;
 
@@ -2785,10 +3011,11 @@ rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
 
     assert(self && buffer && sz);
 
+    memset ( & result, 0, sizeof result );
     buffer[0] = '\0';
 
-    rc = KNSManagerMakeRequest(self->knsMgr, &req, 0x01000000, NULL,
-        "http://trace.ncbi.nlm.nih.gov/Traces/sratoolkit/sratoolkit.cgi");
+    rc = KNSManagerMakeRequest(self->knsMgr, &req, HTTP_VERSION, NULL,
+        "https://trace.ncbi.nlm.nih.gov/Traces/sratoolkit/sratoolkit.cgi");
 
     if (rc == 0) {
         rc = KHttpRequestAddPostParam(req, "cmd=vers");
@@ -2803,10 +3030,7 @@ rc_t _MainPost(const Main *self, const char *name, char *buffer, size_t sz)
     if (rc == 0) {
         const char *start = (const void*)(result.base);
         if (total > 0) {
-            if (*(start + total) != '\0') {
-                rc = RC(rcExe, rcString, rcParsing, rcString, rcUnexpected);
-            }
-            else if (*(start + total - 1) != '\n') {
+            if (*(start + total - 1) != '\n') {
                 rc = RC(rcExe, rcString, rcParsing, rcString, rcUnexpected);
             }
             else {
@@ -3032,7 +3256,7 @@ static rc_t MainPrintVersion(Main *self) {
             if (isNew > 0) {
                 OUTMSG((
            "A new version of SRA Toolkit is available for download from\n"
-           "\"http://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\".\n"
+           "\"https://www.ncbi.nlm.nih.gov/Traces/sra/sra.cgi?view=software\".\n"
                 ));
             }
             else if (isNew == 0) {
@@ -3086,6 +3310,10 @@ static const char* USAGE_BYTES[]
 #define ALIAS_FULL  NULL
 static const char* USAGE_FULL[] = { "full test mode", NULL };
 
+#define OPTION_LIB "library"
+#define ALIAS_LIB  "l"
+static const char* USAGE_LIB[] = { "report version of dynamic library", NULL };
+
 #define OPTION_QUICK "quick"
 #define ALIAS_QUICK  "Q"
 static const char* USAGE_QUICK[] = { "quick test mode", NULL };
@@ -3111,9 +3339,10 @@ static const char* USAGE_REC[] = { "check object type recursively", NULL };
 static const char* USAGE_OUT[] = { "output type: one of (xml text)", NULL };
 
 OptDef Options[] = {                             /* needs_value, required */
-    { OPTION_BYTES , ALIAS_BYTES , NULL, USAGE_BYTES , 1, true, false },
+    { OPTION_BYTES , ALIAS_BYTES , NULL, USAGE_BYTES , 1, true , false },
     { OPTION_CACHE , ALIAS_CACHE , NULL, USAGE_CACHE , 1, false, false },
     { OPTION_FULL  , ALIAS_FULL  , NULL, USAGE_FULL  , 1, false, false },
+    { OPTION_LIB   , ALIAS_LIB   , NULL, USAGE_LIB   , 0, true , false },
     { OPTION_NO_RFS, NULL        , NULL, USAGE_NO_RFS, 1, false, false },
     { OPTION_NO_VDB, ALIAS_NO_VDB, NULL, USAGE_NO_VDB, 1, false, false },
     { OPTION_OUT   , ALIAS_OUT   , NULL, USAGE_OUT   , 1, true , false },
@@ -3122,21 +3351,233 @@ OptDef Options[] = {                             /* needs_value, required */
     { OPTION_REC   , ALIAS_REC   , NULL, USAGE_REC   , 1, false, false },
 };
 
-rc_t CC KMain(int argc, char *argv[]) {
+static rc_t PrintLib ( const char * path, bool xml ) {
+    const char root[] = "dll";
+    KDyld * dl = NULL;
+    KDylib * lib = NULL;
+    KSymAddr * sym = NULL;
+    const char * ( CC * getPackageVersion ) ( void ) = NULL;
+    const char * version = NULL;
+    const char * name = NULL;
+    rc_t rc = KDyldMake ( & dl );
+    if ( xml ) {
+        OUTMSG(("  <%s path=\"%s\">", root, path));
+    } else {
+        OUTMSG(("dll path=\"%s\"\n", path));
+    }
+    if ( rc == 0 ) {
+        rc = KDyldLoadLib ( dl, & lib, path );
+        if ( rc != 0 ) {
+            if ( xml ) {
+                OUTMSG(("<KDyldLoadLib=\"%R\"/>", rc));
+            } else {
+                OUTMSG(("KDyldLoadLib=\"%R\"\n", rc));
+            }
+        }
+    }
+    if ( rc == 0 ) {
+        rc = KDylibSymbol ( lib, & sym, "ngs_PackageItf_getPackageVersion" );
+        if ( rc == 0 ) {
+            KSymAddrAsFunc ( sym, ( fptr_t * ) & getPackageVersion );
+            version = getPackageVersion ();
+            name = "ngs-sdk";
+        }
+        else {
+            rc = KDylibSymbol ( lib, & sym, "GetPackageVersion" );
+            if ( rc == 0 ) {
+                KSymAddrAsFunc ( sym, ( fptr_t * )&  getPackageVersion );
+                version = getPackageVersion ();
+                name = "ncbi-vdb";
+            } else {
+                if ( xml ) {
+                    OUTMSG(("<KDylibSymbol=\"%R\"/>", rc));
+                } else {
+                    OUTMSG(("KDylibSymbol=\"%R\"\n", rc));
+                }
+            }
+        }
+    }
+    if ( rc == 0 ) {
+        if (version == NULL ) {
+            if ( xml ) {
+                OUTMSG(("<version found=\"false\"/>"));
+            } else {
+                OUTMSG(("version: not found\n"));
+            }
+        } else {
+            if ( xml ) {
+                OUTMSG(("<version name=\"%s\">%s</version>", name, version));
+            } else {
+                OUTMSG(("%s: \"%s\"\n", name, version));
+            }
+        }
+    }
+    if ( xml ) {
+        OUTMSG(("</%s>", root));
+    }
+    OUTMSG(("\n"));
+    RELEASE ( KSymAddr, sym );
+    RELEASE ( KDylib, lib );
+    RELEASE ( KDyld, dl );
+    return rc;
+}
+
+/******************************************************************************/
+static rc_t MainFreeSpace ( const Main * self, const KDirectory * dir ) {
+    uint64_t free_bytes_available = 0;
+    uint64_t total_number_of_bytes = 0;
+    rc_t rc = KDirectoryGetDiskFreeSpace ( dir, & free_bytes_available,
+                                           & total_number_of_bytes );
+    if ( rc != 0 ) 
+        return rc;
+
+    assert ( self );
+
+    free_bytes_available /= 1024;
+    total_number_of_bytes /= 1024;
+
+    if ( self -> xml )
+        OUTMSG ( (
+            "      <Space free=\"%d\" total=\"%d\" units=\"KBytes\"/>\n",
+            free_bytes_available, total_number_of_bytes ) );
+    else
+        OUTMSG ( (
+            "    Space free=\"%d\" total=\"%d\" units=\"KBytes\"\n",
+            free_bytes_available, total_number_of_bytes ) );
+
+    return rc;
+}
+
+static rc_t MainRepository ( const Main * self, const KRepository * repo ) {
+    const char tag [] = "User";
+    char buffer [ PATH_MAX ] = "";
+    size_t size = 0;
+    rc_t rc = KRepositoryName ( repo, buffer, sizeof buffer, & size );
+
+    assert ( self );
+
+    if ( rc == 0 ) {
+        if ( self -> xml )
+            OUTMSG ( ( "    <%s name=\"%s\"/>\n", tag, buffer ) );
+        else
+            OUTMSG (( "  %s name=\"%s\"\n", tag, buffer ));
+
+        rc = KRepositoryRoot ( repo, buffer, sizeof buffer, & size );
+        if ( rc == 0 ) {
+            bool found = true;
+            const KDirectory * dir = NULL;
+            rc_t rc = KDirectoryOpenDirRead ( self -> dir, & dir, false,
+                                              buffer );
+            if ( rc == SILENT_RC
+                ( rcFS, rcDirectory, rcOpening, rcPath, rcNotFound ) )
+            {
+                found = false;
+                rc = 0;
+            }
+    
+            if ( rc == 0 ) {
+                char b1 [ PATH_MAX ] = "";
+                char b2 [ PATH_MAX ] = "";
+                char * current = b1;
+                char * resolved = b2;
+                int i = 0;
+                string_copy ( b1, sizeof b1, buffer, size );
+                if ( self -> xml )
+                    OUTMSG ( ( "      <Root found=\"%s\">%s</Root>\n",
+                               found ? "true" : "false", current ) );
+                else
+                    OUTMSG ( ( "    Root=\"%s\" found=\"%s\"\n",
+                               current, found ? "true" : "false" ) );
+                for ( i = 0; i < 9 && ! found; ++ i ) {
+                    rc = KDirectoryResolvePath ( self -> dir, true, resolved,
+                                                 sizeof b1, "%s/..", current );
+                    if ( rc == 0 ) {
+                        rc = KDirectoryOpenDirRead ( self -> dir, & dir, false,
+                                                     resolved );
+                        if ( rc == 0 ) {
+                            found = true;
+                            current = resolved;
+                            if ( self -> xml )
+                                OUTMSG ( ( "      <Found>%s</Found>\n",
+                                           current ) );
+                            else
+                                OUTMSG ( ( "    Found=\"%s\"\n", current ) );
+                        }
+                        else if ( rc == SILENT_RC ( rcFS, rcDirectory,
+                                               rcOpening, rcPath, rcNotFound ) )
+                        {
+                            char * t = current;
+                            current = resolved;
+                            resolved = t;
+                        }
+                        else
+                            break;
+                    }
+                }
+                if ( found )
+                    MainFreeSpace ( self, dir );
+                RELEASE ( KDirectory, dir );
+            }
+            else {
+                if ( self -> xml )
+                    OUTMSG ( (
+                        "      <Root KDirectoryOpenDirRead=\"%R\">%s<Root>\n",
+                        rc, buffer ) );
+                else
+                    OUTMSG ( ( "  Root=\"%s\" KDirectoryOpenDirRead=\"%R\"\n",
+                               buffer, rc ));
+            }
+        }
+    }
+
+    if ( rc == 0 && self -> xml )
+        OUTMSG ( ( "    </%s>\n", tag ) );
+
+    return rc;
+}
+
+static rc_t MainRepositories ( const Main * self, const char * bol ) {
+    rc_t rc = 0;
+
+    const char tag [] = "Repositories";
+
+    KRepositoryVector user_repositories;
+    memset ( & user_repositories, 0, sizeof user_repositories );
+
+    assert ( self );
+
+    if ( self -> xml )
+        OUTMSG (( "%s<%s>\n", bol, tag ));
+    else
+        OUTMSG ( ( "\n%s\n", tag ));
+
+    rc = KRepositoryMgrUserRepositories ( self -> repoMgr,
+                                          & user_repositories );
+
+    if ( rc == 0) {
+        uint32_t len = VectorLength ( & user_repositories );
+        uint32_t i = 0;
+        for ( i = 0; i < len; ++ i ) {
+            const KRepository * repo = VectorGet ( & user_repositories, i );
+            if ( repo != NULL )
+                MainRepository ( self, repo );
+        }
+    }
+
+    KRepositoryVectorWhack ( & user_repositories );
+
+    if ( self -> xml )
+        OUTMSG (( "%s</%s>\n", bol, tag ));
+
+    return rc;
+}
+/******************************************************************************/
+
+static rc_t MainFromArgs ( Main * self, const Args * args ) {
     rc_t rc = 0;
     uint32_t pcount = 0;
-    uint32_t i = 0;
-    Args *args = NULL;
-    rc_t rc3 = 0;
-    int argi = 0;
 
-    Main prms;
-    char **argv2 = MainInit(&prms, argc, argv, &argi);
-
-    if (rc == 0) {
-        rc = ArgsMakeAndHandle(&args, argi, argv2, 1,
-            Options, sizeof Options / sizeof Options[0]);
-    }
+    assert ( self );
 
     if (rc == 0) {
         rc = ArgsOptionCount(args, OPTION_CACHE, &pcount);
@@ -3145,7 +3586,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
         else {
             if (pcount > 0) {
-                prms.allowCaching = true;
+                self -> allowCaching = true;
             }
         }
     }
@@ -3165,13 +3606,13 @@ rc_t CC KMain(int argc, char *argv[]) {
                         "Failure to get '" OPTION_PRJ "' argument");
                 }
                 else {
-                    prms.projectId = AsciiToU32(dummy, NULL, NULL);
+                    self->projectId = AsciiToU32(dummy, NULL, NULL);
                 }
             }
         }
     }
 
-    prms.full = true;
+    self->full = true;
 
     if (rc == 0) {
         rc = ArgsOptionCount(args, OPTION_QUICK, &pcount);
@@ -3180,7 +3621,7 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
         else {
             if (pcount > 0) {
-                prms.full = false;
+                self->full = false;
             }
         }
     }
@@ -3192,13 +3633,13 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
         else {
             if (pcount > 0) {
-                prms.full = true;
+                self->full = true;
             }
         }
     }
 
     if (rc == 0) {
-        prms.bytes = 256;
+        self->bytes = 256;
         rc = ArgsOptionCount(args, OPTION_BYTES, &pcount);
         if (rc) {
             LOGERR(klogErr, rc, "Failure to get '" OPTION_BYTES "' argument");
@@ -3211,9 +3652,9 @@ rc_t CC KMain(int argc, char *argv[]) {
                 if (rc == 0) {
                     int bytes = atoi(val);
                     if (bytes > 0) {
-                        prms.bytes = bytes;
-                        MainAddTest(&prms, ePrintFile);
-                        MainAddTest(&prms, eResolve);
+                        self->bytes = bytes;
+                        MainAddTest(self, ePrintFile);
+                        MainAddTest(self, eResolve);
                     }
                 } else {
                     LOGERR(klogErr, rc,
@@ -3223,20 +3664,90 @@ rc_t CC KMain(int argc, char *argv[]) {
         }
     }
 
-    if (!prms.full) {
-        MainMakeQuick(&prms);
+    if (rc == 0) {
+        rc = ArgsOptionCount(args, OPTION_NO_RFS, &pcount);
+        if (rc) {
+            LOGERR(klogErr, rc,
+                "Failure to get '" OPTION_NO_RFS "' argument");
+        }
+        else {
+            if (pcount > 0) {
+                self->noRfs = true;
+            }
+        }
     }
 
     if (rc == 0) {
+        rc = ArgsOptionCount(args, OPTION_NO_VDB, &pcount);
+        if (rc) {
+            LOGERR(klogErr, rc,
+                "Failure to get '" OPTION_NO_VDB "' argument");
+        }
+        else {
+            if (pcount > 0) {
+                self->noVDBManagerPathType = true;
+            }
+        }
+    }
+
+    if (rc == 0) {
+        rc = ArgsOptionCount(args, OPTION_REC, &pcount);
+        if (rc) {
+            LOGERR(klogErr, rc, "Failure to get '" OPTION_REC "' argument");
+        }
+        else {
+            if (pcount > 0) {
+                self->recursive = true;
+            }
+        }
+    }
+
+    return rc;
+}
+
+rc_t CC KMain(int argc, char *argv[]) {
+    rc_t rc = 0;
+    uint32_t pcount = 0;
+    uint32_t i = 0;
+    Args *args = NULL;
+    rc_t rc3 = 0;
+    int argi = 0;
+    uint32_t params = 0;
+    const char * eol = "\n";
+
+    Main prms;
+    char **argv2 = MainInit(&prms, argc, argv, &argi);
+
+    if ( rc == 0 && prms . xml )
+        eol = "<br/>\n";
+
+    if (rc == 0)
+        rc = ArgsMakeAndHandle(&args, argi, argv2, 1,
+            Options, sizeof Options / sizeof Options[0]);
+
+    if ( rc == 0 )
+        rc = ArgsParamCount ( args, & params );
+
+    if ( rc == 0 )
+        rc = MainFromArgs ( & prms, args );
+
+    if (!prms.full)
+        MainMakeQuick(&prms);
+
+    if (rc == 0)
         rc = MainInitObjects(&prms);
+
+    if (rc == 0) {
+        rc = ArgsOptionCount(args, OPTION_LIB, &pcount);
+        if (rc == 0 && pcount > 0 && ! prms.xml)
+            prms . tests = 0;
     }
 
     if (rc == 0) {
         const char root[] = "Test-sra";
         rc = ArgsOptionCount(args, OPTION_OUT, &pcount);
-        if (rc) {
+        if (rc)
             LOGERR(klogErr, rc, "Failure to get '" OPTION_OUT "' argument");
-        }
         else {
             if (pcount > 0) {
                 const char *dummy = NULL;
@@ -3246,12 +3757,10 @@ rc_t CC KMain(int argc, char *argv[]) {
                     LOGERR(klogErr, rc,
                         "Failure to get '" OPTION_OUT "' argument");
                 }
-                else if (strcmp(dummy, "x") == 0 || strcmp(dummy, "X") == 0) {
+                else if (strcmp(dummy, "x") == 0 || strcmp(dummy, "X") == 0)
                     prms.xml = true;
-                }
-                else {
+                else
                     prms.xml = false;
-                }
             }
             else {
                 prms.xml = MainHasTest(&prms, eCfg)
@@ -3259,105 +3768,80 @@ rc_t CC KMain(int argc, char *argv[]) {
             }
         }
 
-        if (prms.xml) {
+        if (prms.xml)
             OUTMSG(("<%s>\n", root));
-        }
 
-        if (MainHasTest(&prms, eNgs)) {
+        if (MainHasTest(&prms, eNgs))
             _MainPrintNgsInfo(&prms);
-        }
 
         MainPrintVersion(&prms);
 
         if (MainHasTest(&prms, eCfg)) {
             rc_t rc2 = MainPrintConfig(&prms);
-            if (rc == 0 && rc2 != 0) {
+            if (rc == 0 && rc2 != 0)
                 rc = rc2;
-            }
         }
 
-        if (MainHasTest(&prms, eOS)) {
+        if (MainHasTest(&prms, eOS))
             PrintOS(prms.xml);
-        }
 
-        if (MainHasTest(&prms, eAscp)) {
+        if (MainHasTest(&prms, eAscp))
             MainPrintAscp(&prms);
-        }
+
+        if (MainHasTest(&prms, eNetwork))
+            MainNetwotk(&prms, NULL, prms.xml ? "  " : "", eol);
 
         if (!prms.full) {
             rc_t rc2 = MainQuickCheck(&prms);
-            if (rc == 0 && rc2 != 0) {
+            if (rc == 0 && rc2 != 0)
                 rc = rc2;
-            }
         }
 
         if (rc == 0) {
-            rc = ArgsOptionCount(args, OPTION_NO_RFS, &pcount);
-            if (rc) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OPTION_NO_RFS "' argument");
-            }
+            rc = ArgsOptionCount(args, OPTION_LIB, &pcount);
+            if (rc != 0)
+                LOGERR(klogErr, rc, "Failure to get '" OPTION_LIB "' argument");
             else {
-                if (pcount > 0) {
-                    prms.noRfs = true;
+                int i = 0;
+                for (i = 0; i < pcount; ++i) {
+                    const char * lib = NULL;
+                    rc = ArgsOptionValue
+                        ( args, OPTION_LIB, i, ( const void ** ) & lib );
+                    if ( rc != 0 )
+                        LOGERR(klogErr, rc,
+                            "Failure to get '" OPTION_LIB "' argument");
+                    else
+                        PrintLib ( lib, prms.xml );
                 }
             }
         }
 
-        if (rc == 0) {
-            rc = ArgsOptionCount(args, OPTION_NO_VDB, &pcount);
-            if (rc) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" OPTION_NO_VDB "' argument");
-            }
-            else {
-                if (pcount > 0) {
-                    prms.noVDBManagerPathType = true;
-                }
-            }
-        }
+        if ( params == 0 && MainHasTest ( & prms, eNetwork ) )
+            MainNetwotk ( & prms, "SRR000001", prms . xml ? "  " : "", eol );
 
-        if (rc == 0) {
-            rc = ArgsOptionCount(args, OPTION_REC, &pcount);
-            if (rc) {
-                LOGERR(klogErr, rc, "Failure to get '" OPTION_REC "' argument");
-            }
-            else {
-                if (pcount > 0) {
-                    prms.recursive = true;
-                }
-            }
-        }
+        MainRepositories ( & prms, "  " );
 
-        if (rc == 0) {
-            rc = ArgsParamCount(args, &pcount);
-        }
-/* TODO if pcount == 0 && there are no test type options use a small run as name[0]*/
-        for (i = 0; i < pcount; ++i) {
+        for (i = 0; i < params; ++i) {
             const char *name = NULL;
             rc3 = ArgsParamValue(args, i, (const void **)&name);
             if (rc3 == 0) {
                 rc_t rc2 = Quitting();
                 if (rc2 != 0) {
-                    if (rc == 0 && rc2 != 0) {
+                    if (rc == 0 && rc2 != 0)
                         rc = rc2;
-                    }
                     break;
                 }
                 ReportResetObject(name);
                 rc2 = MainExec(&prms, NULL, name);
-                if (rc == 0 && rc2 != 0) {
+                if (rc == 0 && rc2 != 0)
                     rc = rc2;
-                }
             }
         }
-        if (rc == 0 && rc3 != 0) {
+        if (rc == 0 && rc3 != 0)
             rc = rc3;
-        }
 
-        if (MainHasTest(&prms, eNcbiReport)) {
+        if (MainHasTest(&prms, eNcbiReport))
             ReportForceFinalize();
-        }
 
         if (!prms.full) {
             OUTMSG(("\nAdd -F option to try all the tests."));

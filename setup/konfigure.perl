@@ -292,10 +292,6 @@ $INS_MAKEFILE = File::Spec->catdir(CONFIG_OUT(), "$INS_MAKEFILE.$OS.$ARCH.prl");
 my $TOOLS = "";
 $TOOLS = "jdk" if ($PKG{LNG} eq 'JAVA');
 
-print "checking $PACKAGE_NAME version... " unless ($AUTORUN);
-my $FULL_VERSION = VERSION();
-println $FULL_VERSION unless ($AUTORUN);
-
 # determine architecture
 
 print "checking for supported architecture... " unless ($AUTORUN);
@@ -489,6 +485,7 @@ foreach my $href (@REQ) {
     my $need_build = $a{type} =~ /B/;
     my $need_lib = $a{type} =~ /L|D/;
     my $need_itf = ! ($a{type} =~ /D/ || $a{type} =~ /E/ || $a{type} =~ /J/);
+    $need_itf = 1 if ($a{type} =~ /I/);
     my $need_jar = $a{type} =~ /J/;
 
     my ($bin, $inc, $lib, $ilib, $src)
@@ -534,12 +531,13 @@ foreach my $href (@REQ) {
                     undef $il;
                     ++$has_option{sources};
                 }
-                my ($fi, $fl, $fil)
+                my ($fi, $fl, $fil, $fs)
                     = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                 if ($fi || $fl || $fil) {
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
                     $found_ilib = $fil if (! $found_ilib && $fil);
+                    $found_src  = $fs  if (! $found_src  && $fs);
                 } elsif (! ($try =~ /$a{name}$/)) {
                     $try = File::Spec->catdir($try, $a{name});
                     ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
@@ -720,8 +718,8 @@ foreach my $href (@REQ) {
     }
 }
 
-my ($E_BINDIR, $E_LIBDIR, $VERSION, $MAJVERS, $E_VERSION_LIBX, $E_MAJVERS_LIBX,
-                                              $E_VERSION_EXEX, $E_MAJVERS_EXEX)
+my ($E_BINDIR, $E_LIBDIR, $E_VERSION_LIBX, $E_MAJVERS_LIBX,
+                          $E_VERSION_EXEX, $E_MAJVERS_EXEX)
     = (''    , '');
 
 println unless ($AUTORUN);
@@ -896,23 +894,16 @@ EndText
     L($F, "NO_ARRAY_BOUNDS_WARNING = $NO_ARRAY_BOUNDS_WARNING");
     L($F);
 
-    # version information
-
-    my $MAJMIN;
-
-    if ($FULL_VERSION =~ /(\d+)\.(\d+)\.(\d+)-?\w*\d*/) {
-        $VERSION = "$1.$2.$3";
-        $MAJMIN = "$1.$2";
-        $MAJVERS = $1;
-    } else {
-        die $VERSION;
-    }
+# $PACKAGE_NAME and library version
+# \$(VERSION) is defined in a separate file which is updated every release
+    L($F, "include \$(TOP)/" . CONFIG_OUT() . "/Makefile.vers" );
 
     print $F <<EndText;
-# $PACKAGE_NAME and library version
-VERSION = $VERSION
-MAJMIN  = $MAJMIN
-MAJVERS = $MAJVERS
+
+empty :=
+space := \$(empty) \$(empty)
+MAJMIN  = \$(subst \$(space),.,\$(wordlist 1,2,\$(subst .,\$(space),\$(VERSION))))
+MAJVERS = \$(firstword \$(subst .,\$(space),\$(VERSION)))
 
 # output path
 BUILD_PREFIX = $BUILD_PREFIX
@@ -1078,50 +1069,54 @@ EndText
     }
     close $F;
 
-    # create Makefile.config.install
-    println "configure: creating '$INS_MAKEFILE'" unless ($AUTORUN);
-    open $F, ">$INS_MAKEFILE" or die "cannot open $INS_MAKEFILE to write";
-
-    $OPT{'javadir' } = '' unless ($OPT{'javadir' });
-    $OPT{'sharedir'} = '' unless ($OPT{'sharedir'});
-
-    print $F "sub CONFIGURE {\n";
-    print $F "    \$_{PACKAGE_NAME } = '$PACKAGE_NAME';\n";
-    print $F "    \$_{VERSION      } = '$VERSION';\n";
-    print $F "    \$_{LNG          } = '$PKG{LNG}';\n";
-    print $F "    \$_{OS           } = '$OS';\n";
-    print $F "    \$_{BITS         } =  $BITS;\n";
-    print $F "    \$_{MAJVERS      } =  $MAJVERS;\n";
-    print $F "    \$_{LPFX         } = '$LPFX';\n";
-    print $F "    \$_{LIBX         } = '$LIBX';\n";
-    print $F "    \$_{MAJVERS_LIBX } = '" . expand($E_MAJVERS_LIBX) . "';\n";
-    print $F "    \$_{VERSION_LIBX } = '" . expand($E_VERSION_LIBX) . "';\n";
-    print $F "    \$_{SHLX         } = '$SHLX';\n";
-    print $F "    \$_{MAJVERS_SHLX } = '" . expand($E_MAJVERS_SHLX) . "';\n";
-    print $F "    \$_{VERSION_SHLX } = '" . expand($E_VERSION_SHLX) . "';\n";
-    print $F "    \$_{VERSION_EXEX } = '" . expand($E_VERSION_EXEX) . "';\n";
-    print $F "    \$_{MAJVERS_EXEX } = '" . expand($E_MAJVERS_EXEX) . "';\n";
-    print $F "    \$_{INCDIR       } = '" . expand("$Bin/.."      ) . "';\n";
-    if ($PKG{LNG} ne 'PYTHON') {
-        print $F "  \$_{BINDIR$BITS} = '" . expand($E_BINDIR      ) . "';\n";
-        print $F "  \$_{LIBDIR$BITS} = '" . expand($E_LIBDIR      ) . "';\n";
-    } elsif ($OPT{PYTHON_LIB_PATH}) {
-        print $F "  \$_{LIBDIR$BITS} = '$OPT{PYTHON_LIB_PATH}';\n";
+	# creation of Makefile.config.install is disabled, since nobody uses it now 
+	# and I need to remove versions from prl scripts
+	if (0) {
+	    # create Makefile.config.install
+	    println "configure: creating '$INS_MAKEFILE'" unless ($AUTORUN);
+	    open $F, ">$INS_MAKEFILE" or die "cannot open $INS_MAKEFILE to write";
+	
+	    $OPT{'javadir' } = '' unless ($OPT{'javadir' });
+	    $OPT{'sharedir'} = '' unless ($OPT{'sharedir'});
+	
+	    print $F "sub CONFIGURE {\n";
+	    print $F "    \$_{PACKAGE_NAME } = '$PACKAGE_NAME';\n";
+	    print $F "    \$_{VERSION      } = '\$VERSION';\n";
+	    print $F "    \$_{LNG          } = '$PKG{LNG}';\n";
+	    print $F "    \$_{OS           } = '$OS';\n";
+	    print $F "    \$_{BITS         } =  $BITS;\n";
+	    print $F "    \$_{MAJVERS      } =  \$MAJVERS;\n";
+	    print $F "    \$_{LPFX         } = '$LPFX';\n";
+	    print $F "    \$_{LIBX         } = '$LIBX';\n";
+	    print $F "    \$_{MAJVERS_LIBX } = '" . expand($E_MAJVERS_LIBX) . "';\n";
+	    print $F "    \$_{VERSION_LIBX } = '" . expand($E_VERSION_LIBX) . "';\n";
+	    print $F "    \$_{SHLX         } = '$SHLX';\n";
+	    print $F "    \$_{MAJVERS_SHLX } = '" . expand($E_MAJVERS_SHLX) . "';\n";
+	    print $F "    \$_{VERSION_SHLX } = '" . expand($E_VERSION_SHLX) . "';\n";
+	    print $F "    \$_{VERSION_EXEX } = '" . expand($E_VERSION_EXEX) . "';\n";
+	    print $F "    \$_{MAJVERS_EXEX } = '" . expand($E_MAJVERS_EXEX) . "';\n";
+	    print $F "    \$_{INCDIR       } = '" . expand("$Bin/.."      ) . "';\n";
+	    if ($PKG{LNG} ne 'PYTHON') {
+	        print $F "  \$_{BINDIR$BITS} = '" . expand($E_BINDIR      ) . "';\n";
+	        print $F "  \$_{LIBDIR$BITS} = '" . expand($E_LIBDIR      ) . "';\n";
+	    } elsif ($OPT{PYTHON_LIB_PATH}) {
+	        print $F "  \$_{LIBDIR$BITS} = '$OPT{PYTHON_LIB_PATH}';\n";
+	    }
+	    print $F "    \$_{OTHER_PREFIX } = '$PKG{UPATH}';\n";
+	    print $F "    \$_{PREFIX       } = '$OPT{'prefix'}';\n";
+	    print $F "    \$_{INST_INCDIR  } = '$OPT{'includedir'}';\n";
+	    print $F "    \$_{INST_BINDIR  } = '$OPT{'bindir'}';\n";
+	    print $F "    \$_{INST_LIBDIR  } = '$OPT{'libdir'}';\n";
+	    print $F "    \$_{INST_JARDIR  } = '$OPT{'javadir'}';\n";
+	    print $F "    \$_{INST_SHAREDIR} = '$OPT{'sharedir'}';\n";
+	    print $F "\n";
+	    print $F "    \@_\n";
+	    print $F "}\n";
+	    print $F "\n";
+	    print $F "1\n";
+	
+	    close $F;
     }
-    print $F "    \$_{OTHER_PREFIX } = '$PKG{UPATH}';\n";
-    print $F "    \$_{PREFIX       } = '$OPT{'prefix'}';\n";
-    print $F "    \$_{INST_INCDIR  } = '$OPT{'includedir'}';\n";
-    print $F "    \$_{INST_BINDIR  } = '$OPT{'bindir'}';\n";
-    print $F "    \$_{INST_LIBDIR  } = '$OPT{'libdir'}';\n";
-    print $F "    \$_{INST_JARDIR  } = '$OPT{'javadir'}';\n";
-    print $F "    \$_{INST_SHAREDIR} = '$OPT{'sharedir'}';\n";
-    print $F "\n";
-    print $F "    \@_\n";
-    print $F "}\n";
-    print $F "\n";
-    print $F "1\n";
-
-    close $F;
 }
 
 if (! $OPT{'status'} ) {
@@ -1448,17 +1443,33 @@ sub check_tool {
     }
 }
 
-sub check_no_array_bounds {
-    check_compiler('O', '-Wno-array-bounds');
-}
-
 sub check_static_libstdcpp {
     my $option = '-static-libstdc++';
-    my $save = $TOOLS;
-    $TOOLS = $CPP;
-    $_ = check_compiler('O', $option);
-    $TOOLS = $save;
-    $_ ? $option : ''
+
+    print "checking whether $CPP accepts $option... ";
+
+    my $log = 'int main() {}\n';
+    my $cmd = $log;
+    $cmd =~ s/\\n/\n/g;
+    my $gcc = "echo -e '$log' | $CPP -xc $option - 2>&1";
+    print "\n\t\trunning $gcc\n" if ($OPT{'debug'});
+    my $out = `$gcc`;
+    my $ok = $? == 0;
+    if ( $ok && $out ) {
+        $ok = 0 if ( $out =~ /unrecognized option '-static-libstdc\+\+'/ );
+    }
+    print "$out\t" if ($OPT{'debug'});
+    println $ok ? 'yes' : 'no';
+
+    unlink 'a.out';
+
+    return '' if (!$ok);
+
+    return $option;
+}
+
+sub check_no_array_bounds {
+    check_compiler('O', '-Wno-array-bounds');
 }
 
 sub find_lib {
@@ -1556,7 +1567,6 @@ sub check {
     die "No PACKAGE_NAME" unless PACKAGE_NAME();
     die "No PACKAGE_NAMW" unless PACKAGE_NAMW();
     die "No PACKAGE_TYPE" unless PACKAGE_TYPE();
-    die "No VERSION"      unless VERSION();
 
     my %PKG = PKG();
 

@@ -269,7 +269,7 @@ static rc_t resolve_accession( VFSManager * vfs_mgr, const char * accession, con
             const VPath * local;
             const VPath * remote;
 
-            rc = VResolverQuery ( resolver, eProtocolHttp, vpath, &local, &remote, NULL );
+            rc = VResolverQuery ( resolver, 0, vpath, &local, &remote, NULL );
             if ( rc != 0 )
                 KOutMsg( "cannot resolve '%s'\n", accession );
             else
@@ -311,7 +311,7 @@ static rc_t resolve_accession( VFSManager * vfs_mgr, const char * acc, const Str
 		{
 			const VPath * local = NULL;
 			const VPath * remote = NULL;
-			rc = VResolverQuery ( resolver, eProtocolHttp, acc_vpath, &local, &remote, NULL );
+			rc = VResolverQuery ( resolver, 0, acc_vpath, &local, &remote, NULL );
 			if ( rc != 0 )
 			{
 				(void)LOGERR( klogErr, rc, "VResolverQuery() failed" );

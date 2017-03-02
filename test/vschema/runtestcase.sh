@@ -64,7 +64,7 @@ if [ "$?" != "0" ] ; then
     exit 1
 fi
 
-CMD="cat $SUITEID/input/$CASEID.gl | $LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
+CMD="export VDB_CONFIG=`pwd`; cat $SUITEID/input/$CASEID.gl | $LOAD $CMDLINE 1>$TEMPDIR/load.stdout 2>$TEMPDIR/load.stderr"
 #echo $CMD
 eval $CMD
 rc="$?"

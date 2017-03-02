@@ -41,8 +41,6 @@
 */
 #define ALLOW_UPDATE 1
 
-#include "kdbmeta.vers.h"
-
 #include <sra/srapath.h>
 #include <kdb/manager.h>
 #include <kdb/database.h>
@@ -465,7 +463,7 @@ rc_t md_select_expr ( const KMDataNode *node, char *path, size_t psize, int plen
                     PLOGERR ( klogInt,  (klogInt, rc, "failed to read value of '$(path)'", "path=%s", path ));
                     return rc;
                 }
-                memcpy ( vp, value, vsize );
+                memmove ( vp, value, vsize );
                 rc = KMDataNodeRead ( node, vsize, & vp [ vsize ], remaining, & remaining_vsize, & remaining );
                 if ( rc == 0 && remaining != 0 )
                     rc = RC ( rcExe, rcMetadata, rcReading, rcTransfer, rcIncomplete );
@@ -962,19 +960,6 @@ rc_t tool_select ( CONST KDBManager * mgr, uint32_t type, const char * targ, con
     }
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return KDBMETA_VERS;
-}
-    
 
 const char UsageDefaultName[] = "kdbmeta";
 

@@ -44,7 +44,7 @@ then
 fi
 
 TOOLS="abi-dump abi-load align-info bam-load blastn_vdb cache-mgr cg-load fastq-dump fastq-load helicos-load illumina-dump \
-illumina-load kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump sff-load sra-kar sra-pileup \
+illumina-load kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump sff-load sra-pileup \
 sra-sort sra-stat srapath srf-load tblastn_vdb test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock \
 vdb-unlock vdb-validate"
 
@@ -66,7 +66,7 @@ TARGET=sratoolkit.current-${OS}
 mkdir -p ${WORKDIR}
 cd ${WORKDIR}
 
-wget -nv ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
+wget --no-check-certificate ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
 gunzip -f ${TARGET}.tar.gz || exit 2
 PACKAGE=$(tar tf ${TARGET}.tar | head -n 1)
 rm -rf ${PACKAGE}

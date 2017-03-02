@@ -23,8 +23,6 @@
 #define DISP_RC(lvl,rc,msg) (void)((rc == 0) ? 0 : LOGERR(lvl, rc, msg))
 #define DISP_RC_INT(rc,msg) DISP_RC(klogInt,rc,msg)
 
-ver_t CC KAppVersion(void) { return 0; }
-
 const char UsageDefaultName[] = "test-read-write-cursor";
 rc_t CC UsageSummary (const char * progname)
 {

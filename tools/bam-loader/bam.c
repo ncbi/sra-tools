@@ -377,7 +377,8 @@ static int64_t OptTag_sort(void const *A, void const *B, void *ctx)
         return a > b;
 }
 
-static unsigned tag_findfirst(BAM_Alignment const *const self, char const tag[2])
+/* find the first occurence of tag OR if tag doesn't exist, where it should have been. */
+static unsigned tag_search(BAM_Alignment const *const self, char const tag[2])
 {
     unsigned f = 0;
     unsigned e = self->numExtra;
@@ -395,7 +396,7 @@ static unsigned tag_findfirst(BAM_Alignment const *const self, char const tag[2]
     return f;
 }
 
-static unsigned tag_runlength(BAM_Alignment const *const self,
+static unsigned tag_count(BAM_Alignment const *const self,
                               char const tag[2],
                               unsigned const at)
 {
@@ -408,101 +409,124 @@ static unsigned tag_runlength(BAM_Alignment const *const self,
     return n;
 }
 
-static struct offset_size_s const *tag_search(BAM_Alignment const *const self,
-                                              char const tag[2],
-                                              int const which)
+static unsigned Modulus(int i, unsigned N)
 {
-    unsigned const fnd = tag_findfirst(self, tag);
-    unsigned const run = tag_runlength(self, tag, fnd);
-    unsigned const want = which < 0 ? (run + which) : which;
-    
-    return run == 0 ? NULL : &self->extra[fnd + (want % run)];
+    while (i < 0)
+        i += N;
+    return i % N;
 }
 
-static char const *get_RG(BAM_Alignment const *cself)
+static struct offset_size_s const *getTag(BAM_Alignment const *const self,
+                                          char const tag[2],
+                                          int const which)
 {
-    struct offset_size_s const *const x = tag_search(cself, "RG", 0);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    unsigned const fnd = tag_search(self, tag);
+    unsigned const run = tag_count(self, tag, fnd);
+    return run > 0 ? &self->extra[fnd + Modulus(which, run)] : NULL;
 }
 
 static struct offset_size_s const *get_CS_info(BAM_Alignment const *cself)
 {
-    return tag_search(cself, "CS", 0);
+    return getTag(cself, "CS", 0);
 }
 
 static struct offset_size_s const *get_CQ_info(BAM_Alignment const *cself)
 {
-    return tag_search(cself, "CQ", 0);
+    return getTag(cself, "CQ", 0);
+}
+
+static char const *get_RG(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = getTag(cself, "RG", 0);
+    return (char const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static char const *get_CS(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = get_CS_info(cself);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    return (char const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static uint8_t const *get_CQ(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = get_CQ_info(cself);
-    return (uint8_t const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    return (uint8_t const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static struct offset_size_s const *get_OQ_info(BAM_Alignment const *cself)
 {
-    return tag_search(cself, "OQ", 0);
+    return getTag(cself, "OQ", 0);
 }
 
 static uint8_t const *get_OQ(BAM_Alignment const *cself)
 {
     struct offset_size_s const *const x = get_OQ_info(cself);
-    return (uint8_t const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    return (uint8_t const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static char const *get_XT(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "XT", 0);
-    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+    struct offset_size_s const *const x = getTag(cself, "XT", 0);
+    return (char const *)((x != NULL && cself->data->raw[x->offset + 2] == 'Z') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static uint8_t const *get_XS(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "XS", -1); /* want last one */
-    return (uint8_t const *)(x && cself->data->raw[x->offset + 2] == 'A' ? &cself->data->raw[x->offset + 3] : NULL);
+    struct offset_size_s const *const x = getTag(cself, "XS", -1); /* want last one */
+    return (uint8_t const *)((x != NULL && cself->data->raw[x->offset + 2] == 'A') ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
 static struct offset_size_s const *get_CG_ZA_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "ZA", 0);
+    struct offset_size_s const *const x = getTag(cself, "ZA", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_ZI_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "ZI", 0);
+    struct offset_size_s const *const x = getTag(cself, "ZI", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_GC_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "GC", 0);
+    struct offset_size_s const *const x = getTag(cself, "GC", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_GS_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "GS", 0);
+    struct offset_size_s const *const x = getTag(cself, "GS", 0);
     return x;
 }
 
 static struct offset_size_s const *get_CG_GQ_info(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "GQ", 0);
+    struct offset_size_s const *const x = getTag(cself, "GQ", 0);
     return x;
 }
 
 static char const *get_BX(BAM_Alignment const *cself)
 {
-    struct offset_size_s const *const x = tag_search(cself, "BX", 0);
+    struct offset_size_s const *const x = getTag(cself, "BX", 0);
+    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+}
+
+static char const *get_CB(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = getTag(cself, "CB", 0);
+    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+}
+
+static char const *get_UB(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = getTag(cself, "UB", 0);
+    return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
+}
+
+static char const *get_BC(BAM_Alignment const *cself)
+{
+    struct offset_size_s const *const x = getTag(cself, "BC", 0);
     return (char const *)(x && cself->data->raw[x->offset + 2] == 'Z' ? &cself->data->raw[x->offset + 3] : NULL);
 }
 
@@ -532,7 +556,7 @@ static rc_t BAM_FileReadn(BAM_File *self, const unsigned len, uint8_t dst[/* len
             n = self->bufSize - self->bufCurrent;
             if (cur + n > len)
                 n = len - cur;
-            memcpy(&dst[cur], &self->buffer[self->bufCurrent], n);
+            memmove(&dst[cur], &self->buffer[self->bufCurrent], n);
             self->bufCurrent += n;
         }
         if (self->bufCurrent != self->bufSize && self->bufSize != 0)
@@ -1005,7 +1029,7 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
         if (tmp == NULL)
             return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
         self->header = tmp;  /* a const copy of the original */
-        memcpy(tmp, text, size + 1);
+        memmove(tmp, text, size + 1);
     }
     else
         self->header = text;
@@ -1014,7 +1038,7 @@ static rc_t ProcessHeaderText(BAM_File *self, char const text[], bool makeCopy)
     if (copy == NULL)
         return RC(rcAlign, rcFile, rcConstructing, rcMemory, rcExhausted);
     self->headerData1 = copy; /* so it's not leaked */
-    memcpy(copy, text, size + 1);
+    memmove(copy, text, size + 1);
     
     {
     bool const parsed = ParseHeader(self, copy, size);
@@ -1167,12 +1191,12 @@ static rc_t ReadHeaders(BAM_File *self,
                 }
                 rdat = tmp;
             }
-            memcpy(rdat + rdsz, &i32, 4);
+            memmove(rdat + rdsz, &i32, 4);
             rdsz += 4;
             rc = BAM_FileReadn(self, i32, (uint8_t *)&rdat[rdsz]); if (rc) goto BAILOUT;
             rdsz += i32;
             rc = BAM_FileReadI32(self, &i32); if (rc) goto BAILOUT;
-            memcpy(rdat + rdsz, &i32, 4);
+            memmove(rdat + rdsz, &i32, 4);
             rdsz += 4;
         }
     }
@@ -1221,7 +1245,7 @@ static void FindAndSetupRefSeq(BAMRefSeq *rs, unsigned const refSeqs, BAMRefSeq 
         rs->species = refSeq[fnd].species;
         if (refSeq[fnd].checksum) {
             rs->checksum = &rs->checksum_array[0];
-            memcpy(rs->checksum_array, refSeq[fnd].checksum_array, 16);
+            memmove(rs->checksum_array, refSeq[fnd].checksum_array, 16);
         }
         else
             rs->checksum = NULL;
@@ -2304,8 +2328,7 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
     int *intScratch = NULL;
     int sgn = 1;
     unsigned i = 0;
-    int n = 0;
-    
+
     memset(raw, 0, sizeof(*raw));
     memset(&temp, 0, sizeof(temp));
     temp.QNAME = scratch;
@@ -2319,6 +2342,10 @@ static rc_t BAM_FileReadSAM(BAM_File *const self, BAM_Alignment const **const rs
         if ((void const *)&scratch[i] >= endp)
             return RC(rcAlign, rcFile, rcReading, rcBuffer, rcInsufficient);
 
+        if (ch == '\n' && i > 0 && scratch[i - 1] == '\r') {
+            /* handle \r\n line endings */
+            --i;
+        }
         if (!(ch == '\t' || ch == '\n')) {
             if (field != 0) {
                 if (intScratch == NULL) {
@@ -2773,8 +2800,8 @@ rc_t BAM_AlignmentCopy(const BAM_Alignment *self, BAM_Alignment **rslt)
         LOGMSG(klogFatal, "OUT OF MEMORY");
         abort();
     }
-    memcpy(tmp, self, rsltsize);
-    memcpy(tmp2, self->data, self->datasize);
+    memmove(tmp, self, rsltsize);
+    memmove(tmp2, self->data, self->datasize);
     *rslt = tmp;
     (**rslt).data = tmp2;
     (**rslt).storage = NULL;
@@ -2960,6 +2987,7 @@ unsigned ReferenceLengthFromCIGAR(const BAM_Alignment *self)
     return y;
 }
 
+#if 0
 static unsigned SequenceLengthFromCIGAR(const BAM_Alignment *self)
 {
     unsigned i;
@@ -2983,6 +3011,7 @@ static unsigned SequenceLengthFromCIGAR(const BAM_Alignment *self)
     }
     return y;
 }
+#endif
 
 rc_t BAM_AlignmentGetPosition2(const BAM_Alignment *cself, int64_t *rhs, uint32_t *length)
 {
@@ -3531,7 +3560,7 @@ static rc_t FormatSAMBuffer(BAM_Alignment const *self,
     if (actsize > maxsize)
         return RC(rcAlign, rcReading, rcRow, rcBuffer, rcInsufficient);
 
-    memcpy(buffer, scratch, actsize);
+    memmove(buffer, scratch, actsize);
     return 0;
 }
 
@@ -3580,7 +3609,7 @@ static bool i_OptDataForEach(BAM_Alignment const *cself, void *Ctx, char const t
     ctx->val->type = type;
     ctx->val->element_count = (type == dt_CSTRING || type == dt_HEXSTRING) ? size - 1 : count;
     
-    memcpy(ctx->val->u.u8, value, size * count);
+    memmove(ctx->val->u.u8, value, size * count);
 #if __BYTE_ORDER == __BIG_ENDIAN
     {{
         unsigned di;
@@ -3920,7 +3949,7 @@ static unsigned splice(uint32_t cigar[], unsigned n, unsigned at, unsigned out, 
     assert(at + out <= n);
     memmove(&cigar[at + in], &cigar[at + out], (n - at - out) * 4);
     if (in)
-        memcpy(&cigar[at], new_values, in * 4);
+        memmove(&cigar[at], new_values, in * 4);
     return n + in - out;
 }
 
@@ -4010,7 +4039,7 @@ static unsigned GetCGCigar(BAM_Alignment const *self, unsigned const N, uint32_t
     if (N < n + 2 * gaps)
         return RC(rcAlign, rcRow, rcReading, rcBuffer, rcInsufficient);
     
-    memcpy(cigar, getCigarBase(self), n * 4);
+    memmove(cigar, getCigarBase(self), n * 4);
 
     if (n > 1)
         n = canonicalize(cigar, n); /* just in case */
@@ -4067,9 +4096,20 @@ rc_t BAM_AlignmentGetRNAStrand(BAM_Alignment const *const self, uint8_t *const r
     return 0;
 }
 
-rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *self,
-                                  char const **name)
+rc_t BAM_AlignmentGetLinkageGroup(BAM_Alignment const *const self,
+                                  char const **const BX,
+                                  char const **const CB,
+                                  char const **const UB)
 {
-    *name = get_BX(self);
+    *BX = get_BX(self);
+    *CB = get_CB(self);
+    *UB = get_UB(self);
+    return 0;
+}
+
+rc_t BAM_AlignmentGetBarCode(BAM_Alignment const *self,
+                                  char const **const BC)
+{
+    *BC = get_BC(self);
     return 0;
 }

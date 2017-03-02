@@ -330,7 +330,7 @@ static rc_t ReadSequenceData(TableWriterSeqData *const data, VCursor const *cons
                 case 0:
                     assert(elem_bits == sizeof(data->tmp_key_id) * 8);
                     assert(row_len == 1);
-                    memcpy(&data->tmp_key_id, base, sizeof(data->tmp_key_id));
+                    memmove(&data->tmp_key_id, base, sizeof(data->tmp_key_id));
                     break;
                 case 1:
                     tdata = &data->sequence;

@@ -25,8 +25,6 @@
  */
 
 
-#include "vdb-encrypt.vers.h"
-
 #include "shared.h"
 
 #include <krypto/wgaencrypt.h>
@@ -39,18 +37,6 @@
 
 #include <assert.h>
 #include <string.h>
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return VDB_ENCRYPT_VERS;
-}
-
 
 /* Usage
  */

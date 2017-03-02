@@ -28,10 +28,7 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/vdb-validate
 
-include $(TOP)/build/Makefile.env
-
 INT_TOOLS = \
-
 
 EXT_TOOLS = \
 	vdb-validate \
@@ -41,39 +38,18 @@ ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
 
+include $(TOP)/build/Makefile.env
+
 #------------------------------------------------------------------------------
 # outer targets
 #
-all std: vers-includes
-	@ $(MAKE_CMD) $(TARGDIR)/$@
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): vers-includes
+$(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
 
 .PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# all
-#
-$(TARGDIR)/all: \
-	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
-
-.PHONY: $(TARGDIR)/all
-
-#-------------------------------------------------------------------------------
-# std
-#
-$(TARGDIR)/std: \
-	$(addprefix $(BINDIR)/,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/std
-
-#-------------------------------------------------------------------------------
-# vers-includes
-#
-$(TARGDIR)/vers-includes: $(addsuffix .vers.h,$(EXT_TOOLS))
-
-.PHONY: $(TARGDIR)/vers-includes
 
 #-------------------------------------------------------------------------------
 # clean
@@ -93,14 +69,12 @@ VDB_VALIDATE_OBJ = \
 
 VDB_VALIDATE_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 	-lm
 
-vdb-validate.vers.h: vdb-validate.vers
-	$(TOP)/build/make-vers-inc.sh VDB_VALIDATE_VERS $^ > $@
-
 $(BINDIR)/vdb-validate: $(VDB_VALIDATE_OBJ)
-	$(LD) --exe --vers $(SRCDIR) -o $@ $^ $(VDB_VALIDATE_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_VALIDATE_LIB)
 
 
 #-------------------------------------------------------------------------------
@@ -114,8 +88,9 @@ CHECK_CORRUPT_OBJ = \
 
 CHECK_CORRUPT_LIB = \
 	-lkapp \
+	-stk-version \
 	-sncbi-vdb \
 	-lm
 
 $(BINDIR)/check-corrupt: $(CHECK_CORRUPT_OBJ)
-	$(LP) --exe --vers $(SRCDIR) -o $@ $^ $(CHECK_CORRUPT_LIB)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(CHECK_CORRUPT_LIB)

@@ -24,8 +24,6 @@
 *
 */
 
-#include "schema-replace.vers.h"
-
 #include <vdb/manager.h>
 #include <vdb/schema.h>
 #include <vdb/database.h>
@@ -110,19 +108,6 @@ rc_t CC Usage( const Args * args  )
     HelpVersion( fullpath, KAppVersion() );
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return SCHEMA_REPLACE_VERS;
-}
-
 
 static const char* get_str_option( const Args *my_args,
                                    const char *name )
@@ -265,7 +250,7 @@ static rc_t CC schema_dump_flush( void *dst, const void *buffer, size_t bsize )
         ctx->buffer = malloc( ctx->size );
         if ( ctx->buffer != NULL )
         {
-            memcpy ( ctx->buffer, buffer, bsize );
+            memmove ( ctx->buffer, buffer, bsize );
             ctx->len = bsize;
             rc = 0;
         }
@@ -276,7 +261,7 @@ static rc_t CC schema_dump_flush( void *dst, const void *buffer, size_t bsize )
         ctx->buffer = realloc( ctx->buffer, ctx->size );
         if ( ctx->buffer != NULL )
         {
-            memcpy ( &(ctx->buffer[ctx->len]), buffer, bsize );
+            memmove ( &(ctx->buffer[ctx->len]), buffer, bsize );
             ctx->len += bsize;
             rc = 0;
         }

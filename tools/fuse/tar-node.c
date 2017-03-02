@@ -83,7 +83,7 @@ rc_t TarNode_MakeFileList(const KXMLNode* xml_node, const TarFileList** files, c
                             if( name[0] == '\0' ) {
                                 rc = RC(rcExe, rcDoc, rcValidating, rcAttr, rcEmpty);
                             } else if( name[0] == '/' ) {
-                                memcpy(path, name, sz_read + 1);
+                                memmove(path, name, sz_read + 1);
                             } else {
                                 KDirectory* dir = NULL;
                                 if( (rc = KDirectoryNativeDir(&dir)) == 0 &&

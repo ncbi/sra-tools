@@ -347,15 +347,15 @@ rc_t SequenceRecordAppend(SequenceRecord *self,
     memmove(self->readLen,          &((uint8_t const *)self->storage.base)[readLen],           numreads * sizeof(self->readLen[0]));
     memmove(self->ti,               &((uint8_t const *)self->storage.base)[ti],                numreads * sizeof(self->ti[0]));
     
-    memcpy(&self->ti[numreads],             other->ti,              other->numreads * sizeof(self->ti[0]));
-    memcpy(&self->readLen[numreads],        other->readLen,         other->numreads * sizeof(self->readLen[0]));
-    memcpy(&self->aligned[numreads],        other->aligned,         other->numreads * sizeof(self->aligned[0]));
-    memcpy(&self->orientation[numreads],    other->orientation,     other->numreads * sizeof(self->orientation[0]));
-    memcpy(&self->is_bad[numreads],         other->is_bad,          other->numreads * sizeof(self->is_bad[0]));
-    memcpy(&self->alignmentCount[numreads], other->alignmentCount,  other->numreads * sizeof(self->alignmentCount[0]));
-    memcpy(&self->cskey[numreads],          other->cskey,           other->numreads * sizeof(self->cskey[0]));
-    memcpy(&self->seq[seqlen],              other->seq,             otherSeqlen);
-    memcpy(&self->qual[seqlen],             other->qual,            otherSeqlen);
+    memmove(&self->ti[numreads],             other->ti,              other->numreads * sizeof(self->ti[0]));
+    memmove(&self->readLen[numreads],        other->readLen,         other->numreads * sizeof(self->readLen[0]));
+    memmove(&self->aligned[numreads],        other->aligned,         other->numreads * sizeof(self->aligned[0]));
+    memmove(&self->orientation[numreads],    other->orientation,     other->numreads * sizeof(self->orientation[0]));
+    memmove(&self->is_bad[numreads],         other->is_bad,          other->numreads * sizeof(self->is_bad[0]));
+    memmove(&self->alignmentCount[numreads], other->alignmentCount,  other->numreads * sizeof(self->alignmentCount[0]));
+    memmove(&self->cskey[numreads],          other->cskey,           other->numreads * sizeof(self->cskey[0]));
+    memmove(&self->seq[seqlen],              other->seq,             otherSeqlen);
+    memmove(&self->qual[seqlen],             other->qual,            otherSeqlen);
     
     for (i = 0, seqlen = 0; i != self->numreads; ++i) {
         self->readStart[i] = seqlen;

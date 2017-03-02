@@ -128,7 +128,7 @@ rc_t ProcessMake (Process ** p, const KDirectory * in,  KDirectory * out,
 	self->force = force;
 	self->md5 = md5;
 	self->ff = ff;
-	memcpy (self->path, relpath, pathlen+1);
+	memmove (self->path, relpath, pathlen+1);
 	*p = self;
     }
     return rc;

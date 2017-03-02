@@ -24,8 +24,6 @@
 *
 */
 
-#include "kget.vers.h"
-
 #include <kapp/main.h>
 #include <kapp/args.h>
 
@@ -194,19 +192,6 @@ rc_t CC Usage ( const Args * args )
 
     return rc;
 }
-
-
-/* Version  EXTERN
- *  return 4-part version code: 0xMMmmrrrr, where
- *      MM = major release
- *      mm = minor release
- *    rrrr = bug-fix release
- */
-ver_t CC KAppVersion ( void )
-{
-    return KGET_VERS;
-}
-
 
 typedef struct fetch_ctx
 {
@@ -661,35 +646,6 @@ static rc_t check_cache_completeness( KDirectory *dir, fetch_ctx *ctx )
 
 /* -------------------------------------------------------------------------------------------------------------------- */
 
-/* this is 'borrowed' from libs/kns/http-priv.h :
-    - this is a private header inside the source-directory
-    - without it KNSManagerMakeClientHttp( ... ) a public function cannot be used
-        ( or the user writes it's own URL-parsing )
-*/
-
-typedef enum 
-{
-    st_NONE,
-    st_HTTP,
-    st_S3
-} SchemeType;
-
-typedef struct URLBlock URLBlock;
-struct URLBlock
-{
-    String scheme;
-    String host;
-    String path; /* Path includes any parameter portion */
-    String query;
-    String fragment;
-
-    uint32_t port;
-
-    SchemeType scheme_type;
-};
-extern void URLBlockInit ( URLBlock *self );
-extern rc_t ParseUrl ( URLBlock * b, const char * url, size_t url_size );
-
 
 /* check cache completeness on a open cacheteefile */
 static rc_t full_download( KDirectory *dir, fetch_ctx *ctx )
@@ -709,7 +665,9 @@ static rc_t full_download( KDirectory *dir, fetch_ctx *ctx )
             if ( rc == 0 )
             {
                 KClientHttp * http;
-                rc = KNSManagerMakeClientHttp( kns_mgr, &http, NULL, 0x01010000, &url.host, url.port );
+                rc = url.tls ?
+                    KNSManagerMakeClientHttps( kns_mgr, &http, NULL, 0x01010000, &url.host, url.port ):
+                    KNSManagerMakeClientHttp( kns_mgr, &http, NULL, 0x01010000, &url.host, url.port );
                 if ( rc == 0 )
                 {
                     KClientHttpRequest * req;

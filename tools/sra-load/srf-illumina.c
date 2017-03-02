@@ -25,6 +25,7 @@
 */
 #include <klib/log.h>
 #include <klib/rc.h>
+#include <kapp/main.h>      /* for KAppVersion()*/
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,7 +42,6 @@ typedef struct SRFIlluminaLoaderFmt SRFIlluminaLoaderFmt;
 #include "ztr.h"
 #include "srf-fmt.h"
 #include "ztr-illumina.h"
-#include "srf-load.vers.h"
 #include "writer-illumina.h"
 #include "debug.h"
 
@@ -397,7 +397,7 @@ rc_t SRFIlluminaLoaderFmt_Whack(SRFIlluminaLoaderFmt *self, SRATable** table)
 static
 rc_t SRFIlluminaLoaderFmt_Version( const SRFIlluminaLoaderFmt *self, uint32_t *vers, const char** name )
 {
-    *vers = SRF_LOAD_VERS;
+    *vers = KAppVersion();
     *name = "Illumina SRF";
     return 0;
 }

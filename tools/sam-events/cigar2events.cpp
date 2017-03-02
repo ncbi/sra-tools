@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <cassert>
 #include <utility>
+#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <cstring>
@@ -60,38 +61,42 @@ struct CIGAR_String {
     CIGAR_String(std::string const &s) : string(s) {}
     
     class iterator {
-        friend CIGAR_String;
+        friend struct CIGAR_String;
         
-        std::istringstream iss;
+        std::istringstream *iss;
         Operation currentValue;
         
-        iterator() : iss(std::string()) {}
-        iterator(std::string const &s) : iss(s) {
+        iterator() : iss(0) {}
+        explicit iterator(std::string const &s) {
+            iss = new std::istringstream(s);
             operator ++();
         }
     public:
+        ~iterator() {
+            delete iss;
+        }
         Operation const &operator *() const {
             return currentValue;
         }
         bool operator !=(iterator const &) const {
-            return iss.good() && !iss.eof();
+            return iss && iss->good() && !iss->eof();
         }
         iterator &operator ++() {
             unsigned length;
-            if (iss >> length) {
+            if (*iss >> length) {
                 char code;
-                if (iss >> code) {
+                if (*iss >> code) {
                     int opcode;
                     switch (code) {
-                        case 'M': opcode = OpCode::M; break;
-                        case 'I': opcode = OpCode::I; break;
-                        case 'D': opcode = OpCode::D; break;
-                        case 'N': opcode = OpCode::N; break;
-                        case 'S': opcode = OpCode::S; break;
-                        case 'H': opcode = OpCode::H; break;
-                        case 'P': opcode = OpCode::P; break;
-                        case '=': opcode = OpCode::match; break;
-                        case 'X': opcode = OpCode::mismatch; break;
+                        case 'M': opcode = M; break;
+                        case 'I': opcode = I; break;
+                        case 'D': opcode = D; break;
+                        case 'N': opcode = N; break;
+                        case 'S': opcode = S; break;
+                        case 'H': opcode = H; break;
+                        case 'P': opcode = P; break;
+                        case '=': opcode = match; break;
+                        case 'X': opcode = mismatch; break;
                         default:
                             throw std::domain_error("invalid op code");
                     }
@@ -100,7 +105,7 @@ struct CIGAR_String {
                 else
                     throw std::domain_error("expected an op code");
             }
-            else if (!iss.eof())
+            else if (!iss->eof())
                 throw std::domain_error("expected a number");
             return *this;
         }
@@ -121,30 +126,35 @@ std::pair<unsigned, unsigned> CPP::measureCIGAR(std::string const &cigar)
     int lclip = -1;
     int rclip = -1;
     
-    for (auto &&op : CIGAR_String(cigar)) {
+    CIGAR_String const &C = CIGAR_String(cigar);
+    CIGAR_String::iterator const &e = C.end();
+    
+    for (CIGAR_String::iterator i = C.begin(); i != e; ++i) {
+        Operation const &op = *i;
+        
         if (op.length == 0)
             throw std::domain_error("invalid length");
         
         switch (op.opcode) {
-            case OpCode::M:
-            case OpCode::match:
-            case OpCode::mismatch:
+            case M:
+            case match:
+            case mismatch:
                 spos += op.length;
                 rpos += op.length;
                 break;
-            case OpCode::D:
-            case OpCode::N:
+            case D:
+            case N:
                 rpos += op.length;
                 break;
-            case OpCode::S:
+            case S:
                 if (lclip < 0)
                     lclip = count;
                 else
                     rclip = count;
-            case OpCode::I:
+            case I:
                 spos += op.length;
                 break;
-            case OpCode::H:
+            case H:
                 if (lclip < 0)
                     lclip = count;
                 else
@@ -167,33 +177,37 @@ std::vector<Event> CPP::expandAlignment(  FastaFile::Sequence const &reference
                                         , std::string const &cigar
                                         , char const *const querySequence)
 {
-    auto result = std::vector<Event>();
+    std::vector<Event> result;
     unsigned rpos = 0;
     unsigned spos = 0;
     
-    for (auto &&op : CIGAR_String(cigar)) {
+    CIGAR_String const &C = CIGAR_String(cigar);
+    CIGAR_String::iterator const &e = C.end();
+    
+    for (CIGAR_String::iterator i = C.begin(); i != e; ++i) {
+        Operation const &op = *i;
         unsigned end_rpos = rpos;
         unsigned end_spos = spos;
 
         switch (op.opcode) {
-            case OpCode::M:
-            case OpCode::match:
-            case OpCode::mismatch:
+            case M:
+            case match:
+            case mismatch:
                 end_spos += op.length;
                 end_rpos += op.length;
                 break;
-            case OpCode::I:
+            case I:
                 end_spos += op.length;
                 end_rpos += 1;
                 break;
-            case OpCode::D:
+            case D:
                 end_spos += 1;
                 end_rpos += op.length;
                 break;
-            case OpCode::N:
+            case N:
                 rpos += op.length;
                 continue; // N's don't generate an event
-            case OpCode::S:
+            case S:
                 spos += op.length;
                 continue; // S's don't generate an event
             default:
@@ -202,32 +216,32 @@ std::vector<Event> CPP::expandAlignment(  FastaFile::Sequence const &reference
         while (rpos < end_rpos && spos < end_spos) {
             Event e;
             
-            e.type = Event::Type::none;
+            e.type = Event::none;
             e.length = op.length;
             e.refPos = rpos;
             e.seqPos = spos;
             switch (op.opcode) {
-                case OpCode::M:
-                case OpCode::match:
-                case OpCode::mismatch:
-                    e.type = reference.data[position + rpos] == querySequence[spos] ? Event::Type::match : Event::Type::mismatch;
+                case M:
+                case match:
+                case mismatch:
+                    e.type = reference.data[position + rpos] == querySequence[spos] ? Event::match : Event::mismatch;
                     e.length = 1;
                     ++spos;
                     ++rpos;
                     break;
-                case OpCode::I:
-                    e.type = Event::Type::insertion;
+                case I:
+                    e.type = Event::insertion;
                     spos += op.length;
                     break;
-                case OpCode::D:
-                    e.type = Event::Type::deletion;
+                case D:
+                    e.type = Event::deletion;
                     rpos += op.length;
                     break;
                 default:
                     UNREACHABLE;
             }
             if (result.size() > 0) {
-                auto &last = result.back();
+                Event &last = result.back();
                 if (last.type == e.type && last.refEnd() == e.refPos && last.seqEnd() == e.seqPos) {
                     last.length += e.length;
                     continue;

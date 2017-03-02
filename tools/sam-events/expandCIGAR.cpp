@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <fstream>
 #include <map>
 
 #include "fasta-file.hpp"
@@ -43,10 +44,9 @@ extern "C" {
     
     struct cFastaFile *loadFastaFile(unsigned const length, char const *const path)
     {
-        auto const filepath = length ? std::string(path, path + length) : std::string(path);
+        std::string const &filepath = length ? std::string(path, path + length) : std::string(path);
         try {
-            auto const result = new cFastaFile(filepath);
-            return result;
+            return new cFastaFile(filepath);
         }
         catch (...) {
             return nullptr;
@@ -60,21 +60,21 @@ extern "C" {
     
     int FastaFile_getNamedSequence(struct cFastaFile *const file, unsigned const length, char const *const seqId)
     {
-        auto const name = length ? std::string(seqId, seqId + length) : std::string(seqId);
+        std::string const &name = length ? std::string(seqId, seqId + length) : std::string(seqId);
         return file->file.find(name);
     }
 
     unsigned FastaFile_getSequenceData(struct cFastaFile *file, int referenceNumber, char const **sequence) {
-        auto const &seq = file->file.sequences[referenceNumber];
+        CPP::FastaFile::Sequence const &seq = file->file.sequences[referenceNumber];
         *sequence = seq.data;
         return seq.length;
     }
     
     int validateCIGAR(unsigned length, char const CIGAR[/* length */], unsigned *refLength, unsigned *seqLength)
     {
-        auto const cigar = length ? std::string(CIGAR, CIGAR + length) : std::string(CIGAR);
+        std::string const &cigar = length ? std::string(CIGAR, CIGAR + length) : std::string(CIGAR);
         try {
-            auto const lengths = CPP::measureCIGAR(cigar);
+            std::pair<unsigned, unsigned> const &lengths = CPP::measureCIGAR(cigar);
             if (refLength)
                 *refLength = lengths.first;
             if (seqLength)
@@ -94,11 +94,11 @@ extern "C" {
                     , struct cFastaFile *const file
                     , int referenceNumber)
     {
-        auto const cigar = length ? std::string(CIGAR, CIGAR + length) : std::string(CIGAR);
+        std::string const &cigar = length ? std::string(CIGAR, CIGAR + length) : std::string(CIGAR);
         try {
-            auto const events = CPP::expandAlignment(file->file.sequences[referenceNumber], position, cigar, sequence);
-            auto const N = int(events.size());
-            auto const rslt = (struct Event *)malloc(N * sizeof(**result));
+            std::vector<CPP::Event> const &events = CPP::expandAlignment(file->file.sequences[referenceNumber], position, cigar, sequence);
+            int const N = int(events.size());
+            struct Event *const rslt = (struct Event *)malloc(N * sizeof(**result));
             for (int i = 0; i < N; ++i) {
                 rslt[i].type = events[i].type;
                 rslt[i].length = events[i].length;

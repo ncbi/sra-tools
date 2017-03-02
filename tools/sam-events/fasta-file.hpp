@@ -33,19 +33,12 @@
 
 namespace CPP {
 class FastaFile {
+    void *data;
+    
+protected:
     FastaFile() : data(NULL) {}
     explicit FastaFile(std::istream &is);
     
-    void *data;
-
-protected:
-    FastaFile(FastaFile &&other)
-    : data(other.data)
-    , sequences(std::move(other.sequences))
-    {
-        other.data = nullptr;
-    }
-
 public:
     std::map<std::string, unsigned> makeIndex() const;
     
@@ -73,7 +66,7 @@ public:
         }
     };
 
-    std::vector<Sequence const> sequences;
+    std::vector<Sequence> sequences;
 
     virtual ~FastaFile() {
         free(data);
@@ -83,27 +76,34 @@ public:
     static FastaFile load(std::istream &is) {
         return FastaFile(is);
     }
-    static FastaFile load(std::string const &filename);
+    static FastaFile load(std::string const &filename) {
+        std::ifstream ifs(filename);
+        
+        return ifs.is_open() ? FastaFile::load(ifs) : FastaFile();
+    }
 };
 
 class IndexedFastaFile : public FastaFile {
     std::map<std::string, unsigned> index;
 
-    explicit IndexedFastaFile(FastaFile &&ff)
-    : FastaFile(std::move(ff))
+    IndexedFastaFile() {}
+    explicit IndexedFastaFile(std::istream &is)
+    : FastaFile(is)
     , index(makeIndex())
     {}
 public:
     int find(std::string const &SEQID) const {
-        auto const iter = index.find(SEQID);
+        std::map<std::string, unsigned>::const_iterator const iter = index.find(SEQID);
         return iter != index.end() ? iter->second : -1;
     }
     
     static IndexedFastaFile load(std::istream &is) {
-        return IndexedFastaFile(FastaFile::load(is));
+        return IndexedFastaFile(is);
     }
     static IndexedFastaFile load(std::string const &filename) {
-        return IndexedFastaFile(FastaFile::load(filename));
+        std::ifstream ifs(filename);
+        
+        return ifs.is_open() ? IndexedFastaFile(ifs) : IndexedFastaFile();
     }
 };
 }

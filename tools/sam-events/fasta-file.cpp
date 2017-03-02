@@ -59,20 +59,20 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
     
     {
         size_t limit = 1024u;
-        auto mem = malloc(limit);
+        void *mem = malloc(limit);
         if (mem)
             data = reinterpret_cast<char *>(mem);
         else
             throw std::bad_alloc();
 
         for ( ; ; ) {
-            auto const ch = is.get();
+            int const ch = is.get();
             if (ch == std::char_traits<char>::eof())
                 break;
             if (size + 1 < limit)
                 data[size++] = char(ch);
             else {
-                auto const newLimit = limit << 1;
+                size_t const newLimit = limit << 1;
                 
                 mem = realloc(mem, newLimit);
                 if (mem) {
@@ -94,9 +94,9 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
     }
     std::vector<size_t> defline;
     {
-        auto st = 0;
-        for (auto i = 0; i < size; ++i) {
-            auto const ch = data[i];
+        int st = 0;
+        for (size_t i = 0; i < size; ++i) {
+            int const ch = data[i];
             if (st == 0) {
                 if (ch == '\r' || ch == '\n')
                     continue;
@@ -109,24 +109,24 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
         }
         defline.push_back(size);
     }
-    auto const deflines = defline.size() - 1;
+    unsigned const deflines = defline.size() - 1;
     {
-        for (auto i = 0; i < deflines; ++i) {
-            auto seq = Sequence();
+        for (unsigned i = 0; i < deflines; ++i) {
+            Sequence seq = Sequence();
             
-            auto const offset = defline[i];
-            auto const length = defline[i + 1] - offset;
-            auto base = data + offset;
-            auto const endp = base + length;
+            size_t const offset = defline[i];
+            size_t const length = defline[i + 1] - offset;
+            char *base = data + offset;
+            char *const endp = base + length;
             
             while (base < endp) {
-                auto const ch = *base++;
+                int const ch = *base++;
                 if (ch == '\r' || ch == '\n')
                     break;
                 seq.defline += ch;
             }
             seq.data = base;
-            auto dst = base;
+            char *dst = base;
             {
                 int j = 1;
                 while (j < seq.defline.size() && isspace(seq.defline[j]))
@@ -136,10 +136,10 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
             }
 
             while (base < endp) {
-                auto const chi = *base++;
+                int const chi = *base++;
                 if (chi == '\r' || chi == '\n')
                     continue;
-                auto const ch = tr4na[chi];
+                int const ch = tr4na[chi];
                 if (ch != ' ')
                     *dst++ = ch;
                 else {
@@ -157,15 +157,7 @@ FastaFile::FastaFile(std::istream &is) : data(nullptr)
 std::map<std::string, unsigned> FastaFile::makeIndex() const {
     std::map<std::string, unsigned> rslt;
     for (unsigned i = 0; i < sequences.size(); ++i) {
-        auto const val = std::make_pair(sequences[i].SEQID, i);
-        rslt.insert(val);
+        rslt.insert(std::make_pair(sequences[i].SEQID, i));
     }
     return rslt;
-}
-
-FastaFile FastaFile::load(std::string const &filename)
-{
-    std::ifstream ifs(filename);
-
-    return ifs.is_open() ? FastaFile::load(ifs) : FastaFile();
 }

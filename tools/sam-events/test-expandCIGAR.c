@@ -44,6 +44,21 @@ static void testExpandMatch(struct cFastaFile *file, int refNo)
     free(event);
 }
 
+static void testSoftClip(struct cFastaFile *file, int refNo)
+{
+    char const seq[] = "GGACAACGGGACTATCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTTAAAA";
+    struct Event *event = NULL;
+    int events = expandCIGAR(&event, 0, "65M5S", seq, 70 * 3, file, refNo);
+    assert(events == 1);
+    
+    assert(event[0].type == match);
+    assert(event[0].length == 65);
+    assert(event[0].refPos == 0);
+    assert(event[0].seqPos == 0);
+    
+    free(event);
+}
+
 static void testExpandInsert(struct cFastaFile *file, int refNo)
 {
     char const seq[] = "GGACAACGGGACTAACTATCTAAAAGAGCTAAAATTGGAAACATTCTATTATCATTTAGGACGCAAAGTT";
@@ -103,6 +118,7 @@ static void testExpand()
     assert(refNo == 0);
     
     testExpandMatch(file, refNo);
+    testSoftClip(file, refNo);
     testExpandInsert(file, refNo);
     testExpandDelete(file, refNo);
     

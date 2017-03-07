@@ -326,67 +326,88 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
 }
 
 rc_t CKConfig::CreateUserRepository(string repoName, bool fix) {
-    if (repoName.size() == 0) {
+    if (repoName.size() == 0)
         repoName = "public";
-    }
+
     CString cRoot(ReadString("/repository/user/default-path"));
+
     string root;
-    if (cRoot.Empty()) {
+    if (cRoot.Empty())
         root = "$(HOME)/ncbi";
-    }
-    else {
+    else
         root = cRoot.GetString();
-    }
 
     std::ostringstream s;
     s << "/repository/user/" << (repoName == "public" ? "main" : "protected")
         << "/" << repoName;
     string repoNode(s.str());
     string name(repoNode + "/root");
+
     bool toFix = true;
-    if (fix) {
+    if (fix)
         toFix = !NodeExists(name);
-    }
+
     rc_t rc = 0;
-    if (toFix) {
+    if (toFix)
         rc = UpdateNode(name, (root + "/public").c_str());
-    }
 
-    rc_t r2 = UpdateNode(repoNode + "/apps/file/volumes/flat", "files");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    r2 = UpdateNode(repoNode + "/apps/sra/volumes/sraFlat", "sra");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
-    }
-
-    if (repoName == "public") {
-        r2 = UpdateNode(repoNode + "/apps/nakmer/volumes/nakmerFlat", "nannot");
-        if (r2 != 0 && rc == 0) {
-            rc = r2;
+    {
+        string name ( repoNode + "/apps/file/volumes/flat" );
+        if ( ! NodeExists ( name ) ) {
+            rc_t r2 = UpdateNode ( name, "files" );
+            if ( r2 != 0 && rc == 0 )
+                rc = r2;
         }
-
-        r2 = UpdateNode(repoNode + "/apps/nannot/volumes/nannotFlat", "nannot");
-        if (r2 != 0 && rc == 0) {
-            rc = r2;
-        }
-
-        r2 = UpdateNode(repoNode + "/apps/refseq/volumes/refseq", "refseq");
-        if (r2 != 0 && rc == 0) {
-            rc = r2;
-        }
-
-        r2 = UpdateNode(repoNode + "/apps/wgs/volumes/wgsFlat", "wgs");
-        if (r2 != 0 && rc == 0) {
-            rc = r2;
+    }
+    {
+        string name ( repoNode + "/apps/sra/volumes/sraFlat" );
+        if ( ! NodeExists ( name ) ) {
+            rc_t r2 = UpdateNode ( name, "sra" );
+            if ( r2 != 0 && rc == 0 )
+                rc = r2;
         }
     }
 
-    r2 = UpdateNode(repoNode + "/cache-enabled", "true");
-    if (r2 != 0 && rc == 0) {
-        rc = r2;
+    {
+        rc_t r2 = UpdateNode ( repoNode + "/cache-enabled", "true" );
+        if ( r2 != 0 && rc == 0 )
+            rc = r2;
+    }
+
+    if ( repoName != "public" )
+        return rc;
+
+    {
+        string name ( repoNode + "/apps/nakmer/volumes/nakmerFlat" );
+        if ( ! NodeExists ( name ) ) {
+            rc_t r2 = UpdateNode ( name, "nannot" );
+            if ( r2 != 0 && rc == 0 )
+                rc = r2;
+        }
+    }
+    {
+        string name ( repoNode + "/apps/nannot/volumes/nannotFlat" );
+        if ( ! NodeExists ( name ) ) {
+            rc_t r2 = UpdateNode ( name, "nannot" );
+            if ( r2 != 0 && rc == 0 )
+                rc = r2;
+        }
+    }
+    {
+        string name ( repoNode + "/apps/refseq/volumes/refseq" );
+        if ( ! NodeExists ( name ) ) {
+            rc_t r2 = UpdateNode ( name, "refseq" );
+            if ( r2 != 0 && rc == 0 )
+                rc = r2;
+        }
+    }
+    {
+        string name ( repoNode + "/apps/wgs/volumes/wgsFlat" );
+        if ( ! NodeExists ( name ) ) {
+            rc_t r2 = UpdateNode ( name, "wgs" );
+            if ( r2 != 0 && rc == 0 )
+                rc = r2;
+        }
     }
 
     return rc;
@@ -626,6 +647,20 @@ rc_t CKDirectory::CheckPublicAccess(const CString &path, bool verbose) const {
     return CheckAccess(path, updated, false, verbose);
 }
 
+std::string CKDirectory::Canonical ( const char * path ) const {
+    char resolved [ PATH_MAX ] = "";
+    rc_t rc =
+        KDirectoryResolvePath ( m_Self, true, resolved, sizeof resolved, path );
+    if ( rc != 0 )
+        return "";
+    size_t size  = string_measure ( path, NULL );
+    if ( string_cmp
+        ( path, size, resolved, string_measure ( resolved, NULL ), size ) == 0 )
+        return "";
+    return resolved;
+}
+
+
 rc_t CKConfig::UpdateNode(bool verbose,
     const char *value, const char *name, ...)
 {
@@ -656,6 +691,7 @@ rc_t CKConfig::FixResolverCgiNodes ( void ) {
     }
     return rc;
 }
+
 
 CApp::CApp(const CKDirectory &dir, const CKConfigNode &rep,
         const string &root, const string &name)

@@ -1,6 +1,36 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.8.2
+**March 6, 2017**
+
+  **blast**: Updated blast library to be able to process runs having empty rows  
+  **blast, build**: removed library dependencies that were preventing users from launching these tools  
+  **blast, sra-tools**: Prepared completely static build of blast tools for windows with HTTPS support  
+  **build**: **bam-load**: changed memcpy to memmove when regions overlap - seems to corrupt data on centos7  
+  **build**: Added ability to specify ncbi-vdb/configure --with-magic-prefix. Look for libraries in (lib lib64) when running "configure --with-...-prefix"  
+  **build**: configure detects location of ngs libraries  
+  **build**: configure was fixed to skip options unrecognized by gcc 4.4.7  
+  **build**: created sra-toolkit Debian package  
+  **build**: fixed a bug in 'configure' when in could not find source files in repository saved with non-standard name  
+  **build, ncbi-vdb, sra-tools**: installation will back up old configuration files if they differ from the ones being installed  
+  **cg-load**: added loading of CG File format v2.4  
+  **kns**: SRA tools respect standard set of environment variables for proxy specification  
+  **kns**: updated mbedtls library to version 2.4.1  
+  **ncbi-vdb, ngs, ngs-tools, sra-tools**: eliminated memcpy from sources due to potential for overlap  
+  **ngs, sra-search**: now supports search on reference  
+  **ngs-tools**: updated the NCBI download page to incorporate ngs versions into 3rd party package names  
+  **prefetch**: Fixed error message "path excessive while opening directory" when prefetch is trying to get vdbcache  
+  **prefetch**: Fixed regression in prefetch-2.8.1 when downloading dbGaP files via HTTP  
+  **prefetch**: Fixed regression in prefetch-2.8.1 when downloading vdbcache files from dbGaP via HTTP  
+  **sam-dump**: consistency of sam-dump in fastq-mod improved  
+  **sam-dump**: consistency of sam-dump in fastq-mode improved  
+  **sra-stat**: sra-stat does XML-escaping when printing spot-groups  
+  **test-sra**: extended test-sra to debug user problems with https connections to NCBI  
+  **test-sra**: test-sra print amount of available disk space in user repositories  
+  **vdb-config**: vdb-config correctly works when there is non-canonical path in configuration  
+
+
 ## SRA Toolkit 2.8.1-2
 **January 19, 2017**
 

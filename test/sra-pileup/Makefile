@@ -37,6 +37,8 @@ $(TEST_TOOLS): makedirs
 
 runtests: check_exit_code
 
+slowtests: fastq_dump_vs_sam_dump sam_dump_spotgroup_for_all
+
 #-------------------------------------------------------------------------------
 # scripted tests
 #
@@ -44,6 +46,22 @@ runtests: check_exit_code
 check_exit_code:
 	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/sra-pileup
 
+
+ACC = SRR3332402
+
+#-------------------------------------------------------------------------------
+# testing if sam-dump and fastq-dump produce the same READ/QUALITY values
+#
+fastq_dump_vs_sam_dump :
+	@ python test_diff_fastq_dump_vs_sam_dump.py -a $(ACC) -f $(BINDIR)/fastq-dump -m $(BINDIR)/sam-dump
+
+#-------------------------------------------------------------------------------
+# testing if sam-dump and fastq-dump produce the same READ/QUALITY values
+#
+sam_dump_spotgroup_for_all :
+	@ python test_all_sam_dump_has_spotgroup.py -a $(ACC) -m $(BINDIR)/sam-dump
+
+    
 .PHONY: $(TEST_TOOLS)
 
 clean: stdclean

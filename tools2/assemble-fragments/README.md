@@ -13,7 +13,8 @@ Assemble paired-end reads into fragments, ordered by reference position
 1. Reorder fragments to aligned positions on the virtual references
 
 # Output:
-A vdb-database containing:
+A vdb database containing
+
 1. a table of ordered aligned fragments
 1. a table describing virtual references
 1. a table of unaligned fragments

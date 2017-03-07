@@ -1650,7 +1650,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         uint16_t flags;
         int64_t rpos=0;
         char *seqDNA;
-        const BAMRefSeq *refSeq;
+        const BAMRefSeq *refSeq = NULL;
         ctx_value_t *value;
         bool wasInserted;
         int32_t refSeqId=-1;

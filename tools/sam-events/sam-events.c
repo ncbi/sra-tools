@@ -69,10 +69,6 @@ rc_t CC UsageSummary ( const char * progname )
 #define ALIAS_CANON    "c"
 static const char * canon_usage[]     = { "canonicalize events", NULL };
 
-#define OPTION_HDRS    "show-headers"
-#define ALIAS_HDRS     "d"
-static const char * headers_usage[]   = { "show headers", NULL };
-
 #define OPTION_SOURCE  "show-source"
 #define ALIAS_SOURCE   "s"
 static const char * source_usage[]    = { "show source from sam-extractor", NULL };
@@ -110,7 +106,6 @@ OptDef ToolOptions[] =
 /*    name              alias           fkt    usage-txt,       cnt, needs value, required */
     { OPTION_CANON,     ALIAS_CANON,    NULL, canon_usage,     1,   false,       false },
     { OPTION_SOURCE,    ALIAS_SOURCE,   NULL, source_usage,    1,   false,       false },
-    { OPTION_HDRS,      ALIAS_HDRS,     NULL, headers_usage,   1,   false,       false },
     { OPTION_VALID,     ALIAS_VALID,    NULL, valid_usage,     1,   false,       false },
     { OPTION_REDUCE,    ALIAS_REDUCE,   NULL, reduce_usage,    1,   false,       false },
     { OPTION_FAST,      ALIAS_FAST,     NULL, fast_usage,      1,   false,       false },    
@@ -153,7 +148,6 @@ typedef struct tool_ctx
     bool canonicalize;
     bool show_source;
     bool validate_cigar;
-    bool show_headers;
     bool reduce;
     bool fast;
     const char * ref;
@@ -196,8 +190,6 @@ static rc_t get_tool_ctx( const Args * args, tool_ctx * ctx )
     if ( rc == 0 )
         rc = get_bool( args, OPTION_SOURCE, &ctx->show_source );
     if ( rc == 0 )
-        rc = get_bool( args, OPTION_HDRS, &ctx->show_headers );
-    if ( rc == 0 )
         rc = get_bool( args, OPTION_VALID, &ctx->validate_cigar );
     if ( rc == 0 )
         rc = get_bool( args, OPTION_REDUCE, &ctx->reduce );
@@ -231,57 +223,6 @@ static rc_t log_err( const char * t_fmt, ... )
     va_end( args );
     if ( rc == 0 )
         rc = LogMsg( klogErr, buffer );
-    return rc;
-}
-
-
-/* ----------------------------------------------------------------------------------------------- */
-
-
-static rc_t print_hdr( Header * hdr )
-{
-    rc_t rc = KOutMsg( "%s: ", hdr->headercode );
-    if ( rc == 0 )
-    {
-        uint32_t len = VectorLength( &hdr->tagvalues );
-        uint32_t idx;
-        uint32_t start = VectorStart( &hdr->tagvalues );
-        for ( idx = start; rc == 0 && idx < ( start + len ); ++idx )
-        {
-            TagValue * tag = VectorGet( &hdr->tagvalues, idx );
-            if ( tag != NULL )
-                rc = KOutMsg( "%s = %s ", tag->tag, tag->value );
-        }
-        if ( rc == 0 )
-            rc = KOutMsg( "\n" );
-    }
-    return rc;
-}
-
-static rc_t print_hdrs( Vector * hdrs )
-{
-    rc_t rc = 0;
-    uint32_t len = VectorLength( hdrs );
-    uint32_t idx;
-    uint32_t start = VectorStart( hdrs );
-    for ( idx = start; rc == 0 && idx < ( start + len ); ++idx )
-    {
-        Header *hdr = VectorGet( hdrs, idx );
-        if ( hdr != NULL )
-            rc = print_hdr( hdr );
-    }
-    return rc;
-}
-
-static rc_t enumerate_headers( const tool_ctx * ctx, Extractor * extractor )
-{
-    rc_t rc = 0;
-    Vector headers;
-    rc = SAMExtractorGetHeaders( extractor, &headers );
-    if ( rc != 0 )
-        log_err( "SAMExtractorGetHeaders() failed rc = %R", rc );
-    else
-        rc = print_hdrs( &headers );
     return rc;
 }
 
@@ -710,10 +651,9 @@ static rc_t produce_events_from_file_checked( const tool_ctx * ctx, const char *
         log_err( "error (%R) creating sam-extractor from %s", rc, file_name );
     else
     {
-        if ( ctx->show_headers )
-            rc = enumerate_headers( ctx, extractor );
-        if ( rc == 0 )
-            rc = SAMExtractorInvalidateHeaders( extractor );
+        /* we have to invalidate ( ask the the extractor to internally destroy ) the headers
+           even if we did not ask for them!!! */
+        rc = SAMExtractorInvalidateHeaders( extractor );
             
         if ( rc == 0 )
             rc = process_alignments( ctx, extractor );

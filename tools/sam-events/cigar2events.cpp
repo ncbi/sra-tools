@@ -123,8 +123,6 @@ std::pair<unsigned, unsigned> CPP::measureCIGAR(std::string const &cigar)
     unsigned rpos = 0;
     unsigned spos = 0;
     unsigned count = 0;
-    int lclip = -1;
-    int rclip = -1;
     
     CIGAR_String const &C = CIGAR_String(cigar);
     CIGAR_String::iterator const &e = C.end();
@@ -147,26 +145,15 @@ std::pair<unsigned, unsigned> CPP::measureCIGAR(std::string const &cigar)
                 rpos += op.length;
                 break;
             case S:
-                if (lclip < 0)
-                    lclip = count;
-                else
-                    rclip = count;
             case I:
                 spos += op.length;
                 break;
             case H:
-                if (lclip < 0)
-                    lclip = count;
-                else
-                    rclip = count;
-                break;
             default:
                 break;
         }
         ++count;
     }
-    if (lclip > 0 || !(rclip == -1 || rclip == count - 1))
-        throw std::domain_error("invalid clipping");
 
     return std::make_pair(rpos, spos);
 }

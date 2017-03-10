@@ -71,7 +71,14 @@ int validateCIGAR(unsigned length, char const CIGAR[/* length */], unsigned *ref
 /* expand the CIGAR string into an array of events
  * returns the number of events computed
  * returns -1 if there was an error
- *
- * you can free(result) when done
+ * result is a pre-allocated array
  */
-int expandCIGAR(struct Event **result, unsigned length, char const CIGAR[/* length */], char const sequence[], unsigned position, struct cFastaFile *file, int referenceNumber);
+int expandCIGAR(  struct Event * const result       /* the event-vector to be filled out */
+                , int result_len                    /* how many events we have in the result-vector */
+                , int result_offset                 /* at which offset do we want the result */
+                , int * remaining                   /* if the result-vector was not big enough */
+                , char const * const CIGAR          /* the cigar of the alignment */
+                , char const * const sequence       /* the sequence-bases of the alignment */
+                , unsigned const position           /* the position of the alignment ( 0-based ) relative to the reference */
+                , struct cFastaFile * const file    /* the reference-object */    
+                , int referenceNumber );            /* the index into the reference-object */

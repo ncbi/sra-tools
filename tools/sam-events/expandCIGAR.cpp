@@ -87,30 +87,44 @@ extern "C" {
         }
     }
     
-    int expandCIGAR(  struct Event **const result
-                    , unsigned const length
+    int expandCIGAR(  struct Event * const result
+                    , int result_len
+                    , int result_offset
+                    , int * remaining
                     , char const *const CIGAR
                     , char const *const sequence
                     , unsigned const position
                     , struct cFastaFile *const file
                     , int referenceNumber)
     {
-        std::string const &cigar = length ? std::string(CIGAR, CIGAR + length) : std::string(CIGAR);
-        try {
-            std::vector<CPP::Event> const &events = CPP::expandAlignment(file->file.sequences[referenceNumber], position, cigar, sequence);
-            int const N = int(events.size());
-            struct Event *const rslt = (struct Event *)malloc(N * sizeof(**result));
-            for (int i = 0; i < N; ++i) {
-                rslt[i].type = events[i].type;
-                rslt[i].length = events[i].length;
-                rslt[i].refPos = events[i].refPos;
-                rslt[i].seqPos = events[i].seqPos;
+        *remaining = 0;
+        int res = 0;
+        std::string const &cigar = std::string( CIGAR );
+        try
+        {
+            std::vector< CPP::Event > const &events = 
+                CPP::expandAlignment( file->file.sequences[ referenceNumber ], position, cigar, sequence );
+            int NV = int( events.size() );
+            int N = ( NV - result_offset );
+            if ( N > result_len )
+            {
+                *remaining = ( N - result_len );
+                N = result_len;
             }
-            *result = rslt;
+            for ( int dst_idx = 0; dst_idx < N; ++dst_idx )
+            {
+                int src_idx = dst_idx + result_offset;
+                result[ dst_idx ].type   = events[ src_idx ].type;
+                result[ dst_idx ].length = events[ src_idx ].length;
+                result[ dst_idx ].refPos = events[ src_idx ].refPos;
+                result[ dst_idx ].seqPos = events[ src_idx ].seqPos;
+            }
             return N;
         }
-        catch (...) {
-            return -1;
+        catch (...)
+        {
+            res = -1;
         }
+        return res;
     }
 }

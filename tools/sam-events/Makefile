@@ -62,10 +62,10 @@ clean: stdclean
 #
 
 TOOL_SRC = \
-	ref_reader \
 	fasta-file \
 	cigar2events \
 	expandCIGAR \
+	allele_dict \
 	sam-events
     
 TOOL_OBJ = \
@@ -79,5 +79,5 @@ TOOL_LIB = \
 	-lm
 
 $(BINDIR)/sam-events: $(TOOL_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
 

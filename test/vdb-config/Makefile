@@ -22,46 +22,14 @@
 #
 # ===========================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
+include $(TOP)/build/Makefile.env # BINDIR
 
-include $(TOP)/build/Makefile.shell
+runtests: test-vdb-config
 
-include $(TOP)/build/Makefile.config
-
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	vdb-config      \
-	fastq-loader    \
-	vcf-loader      \
-	kget            \
-	general-loader  \
-	vschema         \
-	align-info      \
-	align-cache     \
-	vdb-dump        \
-	vdb-validate    \
-	kar             \
-	copycat         \
-	fastdump        \
-	vdb-copy        \
-	qual-recalib-stat \
-	sra-pileup      \
-	srapath         \
-	fuse            \
-
-# under construction
-#    ngs-pileup      \
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
-
+test-vdb-config:
+	@ printf "Testing exit code vdb-config of vdb-config... "
+	@ PATH=$(BINDIR):$(PATH) ; ./test-vdb-config.pl
+	@ echo OK

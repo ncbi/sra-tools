@@ -1672,6 +1672,8 @@ rc_t CC KMain(int argc, char* argv[]) {
                     }
                 }
             }
+            else
+                rc = 0;
         }
 
         RELEASE ( KDirectory, d );

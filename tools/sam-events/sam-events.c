@@ -651,6 +651,7 @@ static rc_t produce_events_from_file_checked( const tool_ctx * ctx, const char *
         log_err( "error (%R) creating sam-extractor from %s", rc, file_name );
     else
     {
+        rc_t rc2;
         /* we have to invalidate ( ask the the extractor to internally destroy ) the headers
            even if we did not ask for them!!! */
         rc = SAMExtractorInvalidateHeaders( extractor );
@@ -658,7 +659,7 @@ static rc_t produce_events_from_file_checked( const tool_ctx * ctx, const char *
         if ( rc == 0 )
             rc = process_alignments( ctx, extractor );
 
-        rc_t rc2 = SAMExtractorRelease( extractor );
+        rc2 = SAMExtractorRelease( extractor );
         if ( rc2 != 0 )
             log_err( "error (%R) releasing sam-extractor from %s", rc, file_name );
     }

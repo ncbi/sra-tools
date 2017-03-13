@@ -1548,6 +1548,7 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
     KDataBuffer fragBuf;
     KDataBuffer cigBuf;
     rc_t rc;
+    const BAMRefSeq *refSeq = NULL;
     int32_t lastRefSeqId = -1;
     bool wasRenamed = false;
     size_t rsize;
@@ -1650,7 +1651,6 @@ static rc_t ProcessBAM(char const bamFile[], context_t *ctx, VDatabase *db,
         uint16_t flags;
         int64_t rpos=0;
         char *seqDNA;
-        const BAMRefSeq *refSeq = NULL;
         ctx_value_t *value;
         bool wasInserted;
         int32_t refSeqId=-1;

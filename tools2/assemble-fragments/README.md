@@ -1,25 +1,25 @@
-# Purpose:
+## Purpose:
 Assemble paired-end reads into fragments, ordered by reference position
 
-# Input:
+## Input:
 1. SRA aligned archive
 1. SAM/BAM
 
-# Stages:
+## Stages:
 1. Group all of fragments' alignments by spot name / spot id
 1. Remove problematic fragments
 1. Create virtual references
 1. Translate alignments to the virtual references
 1. Reorder fragments to aligned positions on the virtual references
 
-# Output:
+## Output:
 A vdb database containing
 
 1. a table of ordered aligned fragments
 1. a table describing virtual references
 1. a table of unaligned fragments
 
-# Virtual references
+## Virtual references
 > There's no problem in computer science that can't be simplified by yet another indirection
 
 And virtual references are yet another indirection, designed to simplify the problem that

@@ -34,6 +34,9 @@
 #include <klib/namelist.h>
 #include <klib/printf.h>
 
+#include <vdb/manager.h>
+#include <vdb/database.h>
+
 #include <kfs/file.h>
 #include <kfs/directory.h>
 #include <kfs/filetools.h>
@@ -78,7 +81,6 @@ static const char * source_usage[]    = { "show source from sam-extractor", NULL
 static const char * valid_usage[]     = { "validate cigar-string", NULL };
 
 #define OPTION_REDUCE  "reduce"
-#define ALIAS_REDUCE   "u"
 static const char * reduce_usage[]     = { "reduce ( count ) the events", NULL };
 
 #define OPTION_LIMIT   "limit"
@@ -94,8 +96,10 @@ static const char * mincnt_usage[]    = { "minimum count per event", NULL };
 static const char * purge_usage[]     = { "after how many ref-pos in dict perform pureg", NULL };
 
 #define OPTION_FAST    "fast"
-#define ALIAS_FAST     "f"
 static const char * fast_usage[]      = { "bypass SAM validation", NULL };
+
+#define OPTION_CSRA    "csra"
+static const char * csra_usage[]      = { "take input as csra not as sam-file", NULL };
 
 #define OPTION_REF     "reference"
 #define ALIAS_REF      "r"
@@ -107,8 +111,9 @@ OptDef ToolOptions[] =
     { OPTION_CANON,     ALIAS_CANON,    NULL, canon_usage,     1,   false,       false },
     { OPTION_SOURCE,    ALIAS_SOURCE,   NULL, source_usage,    1,   false,       false },
     { OPTION_VALID,     ALIAS_VALID,    NULL, valid_usage,     1,   false,       false },
-    { OPTION_REDUCE,    ALIAS_REDUCE,   NULL, reduce_usage,    1,   false,       false },
-    { OPTION_FAST,      ALIAS_FAST,     NULL, fast_usage,      1,   false,       false },    
+    { OPTION_REDUCE,    NULL,          NULL, reduce_usage,    1,   false,       false },
+    { OPTION_FAST,      NULL,          NULL, fast_usage,      1,   false,       false },
+    { OPTION_CSRA,      NULL,          NULL, csra_usage,      1,   false,       false },
     { OPTION_LIMIT,     ALIAS_LIMIT,    NULL, limit_usage,     1,   true,        false },
     { OPTION_MINCNT,    ALIAS_MINCNT,   NULL, mincnt_usage,    1,   true,        false },
     { OPTION_PURGE,     ALIAS_PURGE,    NULL, purge_usage,     1,   true,        false },
@@ -150,6 +155,7 @@ typedef struct tool_ctx
     bool validate_cigar;
     bool reduce;
     bool fast;
+    bool csra;
     const char * ref;
     struct cFastaFile * fasta;
 } tool_ctx;
@@ -196,6 +202,8 @@ static rc_t get_tool_ctx( const Args * args, tool_ctx * ctx )
     if ( rc == 0 )
         rc = get_bool( args, OPTION_FAST, &ctx->fast );
     if ( rc == 0 )
+        rc = get_bool( args, OPTION_CSRA, &ctx->csra );
+    if ( rc == 0 )
         rc = get_charptr( args, OPTION_REF, &ctx->ref );
     if ( rc == 0 )
         rc = get_uint32( args, OPTION_LIMIT, &ctx->limit, 0 );
@@ -234,13 +242,12 @@ static rc_t log_err( const char * t_fmt, ... )
 
 typedef struct current_ref
 {
-    int idx;
-    char name[ REF_NAME_LEN ];
-    size_t name_size;
-    uint32_t min_count;
+    const String * rname;
     const char * ref_bases;
     unsigned ref_bases_count;
     struct Allele_Dict * ad;
+    int idx;
+    uint32_t min_count;    
 } current_ref;
 
 
@@ -253,7 +260,7 @@ static rc_t CC print_event( size_t position,
     current_ref * ref = user_data;
     /*COUNT - REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
     if ( count >= ref->min_count )
-        return KOutMsg( "%d\t%s\t%d\t%d\t%d\t%s\n", count, ref->name, position, deletes, inserts, bases );
+        return KOutMsg( "%d\t%S\t%d\t%d\t%d\t%s\n", count, ref->rname, position, deletes, inserts, bases );
     else
         return 0;
 }
@@ -262,7 +269,7 @@ static rc_t CC print_event( size_t position,
 /* ----------------------------------------------------------------------------------------------- */
 
 static rc_t process_mismatch( const tool_ctx * ctx,
-                             Alignment * al,
+                             AlignmentT * al,
                              struct Event * ev,
                              const current_ref * current )
 {
@@ -272,7 +279,7 @@ static rc_t process_mismatch( const tool_ctx * ctx,
                                      current->ref_bases_count,      /* length of the reference */
                                      ( al->pos - 1 ) + ev->refPos, /* position of event */
                                      ev->length,                    /* length of deletion */
-                                     &( al->read[ ev->seqPos ] ),  /* inserted bases */
+                                     &( al->read.addr[ ev->seqPos ] ),  /* inserted bases */
                                      ev->length,                    /* number of inserted bases */
                                      refvarAlgRA );
     if ( rc != 0 )
@@ -290,7 +297,7 @@ static rc_t process_mismatch( const tool_ctx * ctx,
         {
             if ( current->ad == NULL )
                 /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
-                rc = KOutMsg( "%s\t%d\t%d\t%d\t%s\n", al->rname, allele_start, allele_len, allele_len, allele );
+                rc = KOutMsg( "%S\t%d\t%d\t%d\t%s\n", al->rname, allele_start, allele_len, allele_len, allele );
             else
                 rc = allele_dict_put( current->ad, allele_start, allele_len, allele_len, allele );
         }   
@@ -303,7 +310,7 @@ static rc_t process_mismatch( const tool_ctx * ctx,
 
 
 static rc_t process_insert( const tool_ctx * ctx,
-                             Alignment * al,
+                             AlignmentT * al,
                              struct Event * ev,
                              const current_ref * current )
 {
@@ -313,7 +320,7 @@ static rc_t process_insert( const tool_ctx * ctx,
                                      current->ref_bases_count,      /* length of the reference */
                                      ( al->pos - 1 ) + ev->refPos, /* position of event */
                                      0,                             /* length of deletion */
-                                     &( al->read[ ev->seqPos ] ),  /* inserted bases */
+                                     &( al->read.addr[ ev->seqPos ] ),  /* inserted bases */
                                      ev->length,                    /* number of inserted bases */
                                      refvarAlgRA );
     if ( rc != 0 )
@@ -331,7 +338,7 @@ static rc_t process_insert( const tool_ctx * ctx,
         {
             if ( current->ad == NULL )
                 /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
-                rc = KOutMsg( "%s\t%d\t%d\t%d\t%s\n", al->rname, allele_start, 0, allele_len, allele );
+                rc = KOutMsg( "%S\t%d\t%d\t%d\t%s\n", al->rname, allele_start, 0, allele_len, allele );
             else
                 rc = allele_dict_put( current->ad, allele_start, 0, allele_len, allele );
         }   
@@ -344,7 +351,7 @@ static rc_t process_insert( const tool_ctx * ctx,
 
 
 static rc_t process_delete( const tool_ctx * ctx,
-                             Alignment * al,
+                             AlignmentT * al,
                              struct Event * ev,
                              const current_ref * current )
 {
@@ -372,7 +379,7 @@ static rc_t process_delete( const tool_ctx * ctx,
         {
             if ( current->ad == NULL )
                 /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */        
-                rc = KOutMsg( "%s\t%d\t%d\t%d\t\n", al->rname, allele_start, ev->length );
+                rc = KOutMsg( "%S\t%d\t%d\t%d\t\n", al->rname, allele_start, ev->length );
             else
                 rc = allele_dict_put( current->ad, allele_start, ev->length, 0, NULL );
         }   
@@ -388,7 +395,7 @@ static rc_t process_delete( const tool_ctx * ctx,
 const char * const ev_txt[] = { "none", "match", "mismatch", "insert", "delete" };
 
 static rc_t process_events( const tool_ctx * ctx,
-                            Alignment * al,
+                            AlignmentT * al,
                             unsigned refLength,
                             struct Event * const events,
                             int num_events,
@@ -429,7 +436,7 @@ static rc_t process_events( const tool_ctx * ctx,
 #define NUM_EVENTS 1024
 
 static rc_t process_alignment( const tool_ctx * ctx,
-                               Alignment * al,
+                               AlignmentT * al,
                                current_ref * current )
 {
     rc_t rc = 0;
@@ -437,27 +444,26 @@ static rc_t process_alignment( const tool_ctx * ctx,
     unsigned refLength;
     
     if ( ctx->show_source )
-        rc = KOutMsg( "\n\t[%s].%u\t%s\t%s\n", al->rname, al->pos, al->cigar, al->read );
+        rc = KOutMsg( "\n\t[%S].%u\t%S\t%S\n", al->rname, al->pos, al->cigar, al->read );
     
     /* validate the cigar: */
     if ( rc == 0 )
     {
         unsigned seqLength;
-        valid = validateCIGAR( 0, al->cigar, &refLength, &seqLength );
+        valid = validateCIGAR( 0, al->cigar.addr, &refLength, &seqLength );
         if ( ctx->validate_cigar )
         {
             if ( valid == 0 )
             {
-                size_t seq_len = string_size( al->read );
-                if ( seq_len != seqLength )
+                if ( al->read.len != seqLength )
                 {
-                    log_err( "cigar '%s' invalid ( %d != %d )", al->cigar, seq_len, seqLength );
+                    log_err( "cigar '%S' invalid ( %d != %d )", &al->cigar, al->read.len, seqLength );
                     rc = RC( rcApp, rcNoTarg, rcDecoding, rcParam, rcInvalid );
                 }
             }
             else
             {
-                log_err( "cigar '%s' invalid", al->cigar );
+                log_err( "cigar '%S' invalid", &al->cigar );
                 rc = RC( rcApp, rcNoTarg, rcDecoding, rcParam, rcInvalid );
             }
         }
@@ -475,13 +481,13 @@ static rc_t process_alignment( const tool_ctx * ctx,
                                           NUM_EVENTS,
                                           offset,
                                           &remaining,
-                                          al->cigar,
-                                          al->read,
+                                          al->cigar.addr,
+                                          al->read.addr,
                                           al->pos - 1,
                                           ctx->fasta,
                                           current->idx );
             if ( num_events < 0 )
-                log_err( "expandCIGRAR failed for cigar '%s'", al->cigar );
+                log_err( "expandCIGRAR failed for cigar '%S'", &al->cigar );
             else
             {
                 rc = process_events( ctx, al, refLength, events, num_events, current );
@@ -495,19 +501,19 @@ static rc_t process_alignment( const tool_ctx * ctx,
 
 static rc_t enter_reference( struct cFastaFile * fasta, 
                              current_ref * current,
-                             const char * new_name,
-                             size_t new_name_size )
+                             const String * rname )
 {
     rc_t rc = 0;
     
     /* prime the current-ref-name with the ref-name of the alignment */
-    string_copy( current->name, sizeof current->name, new_name, new_name_size );
-    current->name_size = new_name_size;
-    current->idx = FastaFile_getNamedSequence( fasta, 0, new_name );
+    if ( current->rname != NULL )
+        StringWhack ( current->rname );
+    rc = StringCopy( &current->rname, rname );
+    current->idx = FastaFile_getNamedSequence( fasta, 0, rname->addr );
     if ( current->idx < 0 )
     {
         rc = RC( rcExe, rcNoTarg, rcVisiting, rcId, rcInvalid );
-        log_err( "'%s' not found in fasta-file", new_name );
+        log_err( "'%S' not found in fasta-file", rname );
     }
     else
         current->ref_bases_count = FastaFile_getSequenceData( fasta, current->idx, &current->ref_bases );
@@ -515,48 +521,31 @@ static rc_t enter_reference( struct cFastaFile * fasta,
 }
 
 
-static rc_t new_allele_dict( current_ref * current )
+static rc_t check_rname( const tool_ctx * ctx, const String * rname, current_ref * current )
 {
     rc_t rc = 0;
-    /* create a new allele-dictionary with each reference we enter */
-    if ( current->ad != NULL )
-    {
-        rc = allele_dict_visit( current->ad, 0, print_event, current );
-        if ( rc == 0 )
-            rc = allele_dict_release( current->ad );
-    }
-    if ( rc == 0 )
-        rc = allele_dict_make( &current->ad );
-    return rc;
-}
-
-
-static rc_t check_rname( const tool_ctx * ctx, const char * rname, current_ref * current )
-{
-    rc_t rc = 0;
+    int cmp = 1;
     
-    /* check if we have entered a new reference... */
-    size_t rname_size = string_size( rname );
-    if ( current->idx < 0 )
+    if ( current->idx >= 0 )
+        cmp = StringCompare( current->rname, rname );
+    
+    if ( cmp != 0 )
     {
-        rc = enter_reference( ctx->fasta, current, rname, rname_size );
+        /* we are entering a new reference */
+        rc = enter_reference( ctx->fasta, current, rname );
         if ( rc == 0 && ctx->reduce )
-            rc = new_allele_dict( current );
-    }
-    else
-    {
-        /* check if we enter a new reference */
-        int cmp = string_cmp( current->name, current->name_size,
-                              rname, rname_size,
-                              current->name_size > rname_size ? current->name_size : rname_size );
-        if ( cmp != 0 )
         {
-            /* we are entering a new reference */
-            rc = enter_reference( ctx->fasta, current, rname, rname_size );
-            if ( rc == 0 && ctx->reduce )
-                rc = new_allele_dict( current );
+            if ( current->ad != NULL )
+            {
+                rc = allele_dict_visit( current->ad, 0, print_event, current );
+                if ( rc == 0 )
+                    rc = allele_dict_release( current->ad );
+            }
+            if ( rc == 0 )
+                rc = allele_dict_make( &current->ad, rname->addr );
         }
     }
+    
     return rc;
 }
 
@@ -577,7 +566,7 @@ static rc_t finish_alignement_dict( current_ref * current )
 }
 
 
-static rc_t process_alignments( const tool_ctx * ctx, Extractor * extractor )
+static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor * extractor )
 {
     rc_t rc = 0;
     bool done = false;
@@ -586,6 +575,7 @@ static rc_t process_alignments( const tool_ctx * ctx, Extractor * extractor )
     
     current.idx = -1;
     current.ad = NULL;
+    current.rname = NULL;
     current.min_count = ctx->min_count;
 
     while ( rc == 0 && !done )
@@ -603,12 +593,19 @@ static rc_t process_alignments( const tool_ctx * ctx, Extractor * extractor )
                 Alignment *al = VectorGet( &alignments, idx );
                 if ( al != NULL )
                 {
-                    rc = check_rname( ctx, al->rname, &current );
+                    AlignmentT alt;
+                    
+                    StringInitCString( &alt.rname, al->rname );
+                    StringInitCString( &alt.cigar, al->cigar );
+                    StringInitCString( &alt.read, al->read );
+                    alt.pos = al->pos;
+
+                    rc = check_rname( ctx, &alt.rname, &current );
                     
                     /* this is the meat!!! */
                     if ( rc == 0 )
-                        rc = process_alignment( ctx, al, &current );
-                    
+                        rc = process_alignment( ctx, &alt, &current );
+
                     /* use the limit for testing */
                     if ( ctx->limit > 0 )
                         done = ( ++counter >= ctx->limit );
@@ -657,7 +654,7 @@ static rc_t produce_events_from_file_checked( const tool_ctx * ctx, const char *
         rc = SAMExtractorInvalidateHeaders( extractor );
             
         if ( rc == 0 )
-            rc = process_alignments( ctx, extractor );
+            rc = process_alignments_from_extractor( ctx, extractor );
 
         rc2 = SAMExtractorRelease( extractor );
         if ( rc2 != 0 )
@@ -690,23 +687,25 @@ static rc_t CC on_stdin_line( const String * line, void * data )
             rc2 = VNameListCount( l, &count );
             if ( rc2 == 0 && count > 10 )
             {
-                Alignment al;
-                
-                rc2 = VNameListGet( l, 2, &( al.rname ) );
+                AlignmentT al;
+                const char * s;
+                rc2 = VNameListGet( l, 2, &s );
                 if ( rc2 == 0 )
                 {
-                    const char * spos;
-                    rc2 = VNameListGet( l, 3, &spos );
+                    StringInitCString( &( al.rname ), s );
+                    rc2 = VNameListGet( l, 3, &s );
                     if ( rc2 == 0 )
                     {
-                        al.pos = atoi( spos );
-                        rc2 = VNameListGet( l, 5, &( al.cigar ) );
+                        al.pos = atoi( s );
+                        rc2 = VNameListGet( l, 5, &s );
                         if ( rc2 == 0 )
                         {
-                            rc2 = VNameListGet( l, 9, &( al.read ) );
+                            StringInitCString( &( al.cigar ), s );
+                            rc2 = VNameListGet( l, 9, &s );
                             if ( rc == 0 )
                             {
-                                rc2 = check_rname( lhctx->ctx, al.rname, &( lhctx->current ) );
+                                StringInitCString( &( al.read ), s );
+                                rc2 = check_rname( lhctx->ctx, &al.rname, &( lhctx->current ) );
                                 
                                 /* this is the meat!!! */
                                 if ( rc2 == 0 )
@@ -776,6 +775,121 @@ static rc_t produce_events_from_file_unchecked( const tool_ctx * ctx, const KDir
     return rc;
 }
 
+
+/* ----------------------------------------------------------------------------------------------- */
+static rc_t main_sam_input( const Args * args, tool_ctx * ctx )
+{
+    rc_t rc = 0;
+
+    ctx->fasta = loadFastaFile( 0, ctx->ref );
+    if ( ctx->fasta == NULL )
+    {
+        log_err( "cannot open reference '%s'", ctx->ref );
+        RC ( rcApp, rcArgv, rcConstructing, rcParam, rcInvalid );
+    }
+    else
+    {
+        uint32_t count;
+        rc = ArgsParamCount( args, &count );
+        if ( rc == 0 )
+        {
+            if ( count < 1 )
+            {
+                /* no filename(s) given at commandline ... assuming stdin as source */
+                rc = produce_events_from_stdin( ctx );
+            }
+            else
+            {
+                uint32_t idx;
+                const char * filename;
+                
+                if ( ctx->fast )
+                {
+                    KDirectory * dir = NULL;
+                    rc = KDirectoryNativeDir( &dir );
+                    if ( rc == 0 )
+                    {
+                        for ( idx = 0; rc == 0 && idx < count; ++idx )
+                        {
+                            rc = ArgsParamValue( args, idx, ( const void ** )&filename );
+                            if ( rc == 0 )
+                                rc = produce_events_from_file_unchecked( ctx, dir, filename );
+                        }
+                        KDirectoryRelease( dir );
+                    }
+                }
+                else
+                {
+                    for ( idx = 0; rc == 0 && idx < count; ++idx )
+                    {
+                        rc = ArgsParamValue( args, idx, ( const void ** )&filename );
+                        if ( rc == 0 )
+                            rc = produce_events_from_file_checked( ctx, filename );
+                    }
+                }
+            }
+        }
+        unloadFastaFile( ctx->fasta );
+    }
+    return rc;
+}
+
+
+/* ----------------------------------------------------------------------------------------------- */
+
+static rc_t produce_events_from_accession( const tool_ctx * ctx, const VDBManager * mgr, const char * acc )
+{
+    const VDatabase *db;
+    rc_t rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", acc );
+    if ( rc != 0 )
+        log_err( "cannot open '%s' as vdb-database %R", acc, rc );
+    else
+    {
+        
+        VDatabaseRelease( db );
+    }
+    return rc;
+}
+
+
+static rc_t main_csra_input( const Args * args, const tool_ctx * ctx )
+{
+    rc_t rc = 0;
+    uint32_t count;
+    rc = ArgsParamCount( args, &count );
+    if ( rc == 0 )
+    {
+        if ( count < 1 )
+        {
+            /* no accession(s) given at commandline ... */
+            rc = RC( rcApp, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+            log_err( "not accessins given" );
+        }
+        else
+        {
+            const VDBManager * mgr;
+
+            rc = VDBManagerMakeRead( &mgr, NULL );
+            if ( rc != 0 )
+                log_err( "cannot create vdb-manager %R", rc );
+            else
+            {
+                uint32_t idx;
+                const char * acc;
+                for ( idx = 0; rc == 0 && idx < count; ++idx )
+                {
+                    rc = ArgsParamValue( args, idx, ( const void ** )&acc );
+                    if ( rc == 0 )
+                        rc = produce_events_from_accession( ctx, mgr, acc );
+                }
+                VDBManagerRelease ( mgr );
+            }
+        }
+    }
+    return rc;
+}
+
+
 /* ----------------------------------------------------------------------------------------------- */
 
 
@@ -790,57 +904,10 @@ rc_t CC KMain ( int argc, char *argv [] )
         rc = get_tool_ctx( args, &ctx );
         if ( rc == 0 )
         {
-            uint32_t count;
-
-            ctx.fasta = loadFastaFile( 0, ctx.ref );        
-            if ( ctx.fasta == NULL )
-            {
-                log_err( "cannot open reference '%s'", ctx.ref );
-                RC ( rcApp, rcArgv, rcConstructing, rcParam, rcInvalid );
-            }
+            if ( ctx.csra )
+                rc = main_csra_input( args, &ctx );
             else
-            {
-                rc = ArgsParamCount( args, &count );
-                if ( rc == 0 )
-                {
-                    if ( count < 1 )
-                    {
-                        /* no filename(s) given at commandline ... assuming stdin as source */
-                        rc = produce_events_from_stdin( &ctx );
-                    }
-                    else
-                    {
-                        uint32_t idx;
-                        const char * filename;
-                        
-                        if ( ctx.fast )
-                        {
-                            KDirectory * dir = NULL;
-                            rc = KDirectoryNativeDir( &dir );
-                            if ( rc == 0 )
-                            {
-                                for ( idx = 0; rc == 0 && idx < count; ++idx )
-                                {
-                                    rc = ArgsParamValue( args, idx, ( const void ** )&filename );
-                                    if ( rc == 0 )
-                                        rc = produce_events_from_file_unchecked( &ctx, dir, filename );
-                                }
-                                KDirectoryRelease( dir );
-                            }
-                        }
-                        else
-                        {
-                            for ( idx = 0; rc == 0 && idx < count; ++idx )
-                            {
-                                rc = ArgsParamValue( args, idx, ( const void ** )&filename );
-                                if ( rc == 0 )
-                                    rc = produce_events_from_file_checked( &ctx, filename );
-                            }
-                        }
-                    }
-                }
-                unloadFastaFile( ctx.fasta );
-            }
+                rc = main_sam_input( args, &ctx );
         }
         ArgsWhack ( args );
     }

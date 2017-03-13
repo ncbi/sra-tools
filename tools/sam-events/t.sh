@@ -45,11 +45,13 @@ ACC=SRR834507
 #-----------------------------------------------------------------------
 #                      compare fasts vs validated
 #-----------------------------------------------------------------------
-echo "validated SAM:"
-time sam-events 1.sam --reference CM000459_1.fasta --reduce > 1.txt
 echo "not validated SAM:"
 time sam-events 1.sam --reference CM000459_1.fasta --reduce --fast > 2.txt
-diff -q 1.txt 2.txt
+
+echo "validated SAM:"
+time sam-events 1.sam --reference CM000459_1.fasta --reduce > 1.txt
+
+diff -qs 1.txt 2.txt
 
 #cc -g -c test-expandCIGAR.c && c++ -g -o test-expandCIGAR expandCIGAR.cpp cigar2events.cpp fasta-file.cpp test-expandCIGAR.o
 #g++ expandCIGAR.cpp fasta-file.cpp cigar2events.cpp test-expandCIGAR.c

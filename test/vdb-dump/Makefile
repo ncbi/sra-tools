@@ -53,6 +53,14 @@ $(ALL_TOOLS): makedirs
 .PHONY: all std $(ALL_TOOLS)
 
 #-------------------------------------------------------------------------------
+# all
+#
+$(TARGDIR)/all: \
+	$(addprefix $(BINDIR)/,$(ALL_TOOLS))
+
+.PHONY: $(TARGDIR)/all
+
+#-------------------------------------------------------------------------------
 # std
 #
 $(TARGDIR)/std: \

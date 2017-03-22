@@ -31,79 +31,112 @@
  *  delimited) is the seqid.
  */
 
-namespace CPP {
-class FastaFile {
-    void *data;
-    
-protected:
-    FastaFile() : data(NULL) {}
-    explicit FastaFile(std::istream &is);
-    
-public:
-    std::map<std::string, unsigned> makeIndex() const;
-    
-    struct Sequence {
-        std::string SEQID;
-        std::string defline;
-        char const *data;
-        unsigned length;
-        bool hadErrors; // erroneous base values are replaced with N
+namespace CPP
+{
+    class FastaFile
+    {
+        void * data;
         
-        std::ostream &print(std::ostream &os) const {
-            unsigned ln = 0;
+        protected:
+            FastaFile() : data( NULL ) {}
             
-            os << defline << std::endl;
-            for (unsigned i = 0; i < length; ++i) {
-                os << data[i];
-                if (++ln == 75) {
-                    os << std::endl;
-                    ln = 0;
+            // the code of these 2 constructors is in fasta-file.cpp
+            explicit FastaFile( std::istream &is );
+            explicit FastaFile( std::string const &accession );
+        
+            unsigned Create_From_Reftable_Cursor( void * p );
+
+        public:
+            std::map< std::string, unsigned > makeIndex() const;
+        
+            struct Sequence
+            {
+                std::string SEQID;
+                std::string defline;
+                char const *data;
+                unsigned length;
+                bool hadErrors; // erroneous base values are replaced with N
+            
+                std::ostream &print( std::ostream &os ) const
+                {
+                    unsigned ln = 0;
+                
+                    os << defline << std::endl;
+                    for( unsigned i = 0; i < length; ++i )
+                    {
+                        os << data[i];
+                        if ( ++ln == 75 )
+                        {
+                            os << std::endl;
+                            ln = 0;
+                        }
+                    }
+                    if ( ln > 0 )
+                        os << std::endl;
+                    return os;
                 }
+            };
+
+            std::vector<Sequence> sequences;
+
+            virtual ~FastaFile()
+            {
+                free( data );
+                data = 0;
             }
-            if (ln > 0)
-                os << std::endl;
-            return os;
-        }
+
+            static FastaFile load( std::istream &is )
+            {
+                return FastaFile( is );
+            }
+            
+            static FastaFile load_from_file( std::string const &filename )
+            {
+                std::ifstream ifs( filename.c_str() );
+            
+                return ifs.is_open() ? FastaFile::load( ifs ) : FastaFile();
+            }
+
+            static FastaFile load_from_accession( std::string const &accession )
+            {
+                return FastaFile( accession );
+            }
+
     };
 
-    std::vector<Sequence> sequences;
+    class IndexedFastaFile : public FastaFile
+    {
+        std::map< std::string, unsigned > index;
 
-    virtual ~FastaFile() {
-        free(data);
-        data = 0;
-    }
-
-    static FastaFile load(std::istream &is) {
-        return FastaFile(is);
-    }
-    static FastaFile load(std::string const &filename) {
-        std::ifstream ifs(filename.c_str());
+        IndexedFastaFile() {}
         
-        return ifs.is_open() ? FastaFile::load(ifs) : FastaFile();
-    }
-};
-
-class IndexedFastaFile : public FastaFile {
-    std::map<std::string, unsigned> index;
-
-    IndexedFastaFile() {}
-    explicit IndexedFastaFile(std::istream &is)
-    : FastaFile(is)
-    , index(makeIndex())
-    {}
-public:
-    int find(std::string const &SEQID) const {
-        std::map<std::string, unsigned>::const_iterator const iter = index.find(SEQID);
-        return iter != index.end() ? iter->second : -1;
-    }
-    
-    static IndexedFastaFile load(std::istream &is) {
-        return IndexedFastaFile(is);
-    }
-    static IndexedFastaFile load(std::string const &filename) {
-        std::ifstream ifs(filename.c_str());
+        explicit IndexedFastaFile( std::istream &is ) : FastaFile( is ), index( makeIndex() ) {}
+        explicit IndexedFastaFile( std::string const &accession ) : FastaFile( accession ), index( makeIndex() ) {}
         
-        return ifs.is_open() ? IndexedFastaFile(ifs) : IndexedFastaFile();
-    }
-};
-}
+        public:
+            int find( std::string const &SEQID ) const
+            {
+                std::map< std::string, unsigned >::const_iterator const iter = index.find( SEQID );
+                return iter != index.end() ? iter->second : -1;
+            }
+        
+            /*
+            static IndexedFastaFile load_from_stream( std::istream &is )
+            {
+                return IndexedFastaFile( is );
+            }
+            */
+            
+            static IndexedFastaFile load_from_file( std::string const &filename )
+            {
+                std::ifstream ifs( filename.c_str() );
+                return ifs.is_open() ? IndexedFastaFile( ifs ) : IndexedFastaFile();
+            }
+
+            static IndexedFastaFile load_from_accession( std::string const &accession )
+            {
+                return IndexedFastaFile( accession );
+            }
+    };
+
+} // namespace CPP

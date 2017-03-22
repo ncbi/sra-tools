@@ -33,36 +33,63 @@
 #include "fasta-file.hpp"
 #include "cigar2events.hpp"
 
-struct cFastaFile {
+struct cFastaFile
+{
     CPP::IndexedFastaFile file;
     
-    cFastaFile(std::string const &filepath) : file(CPP::IndexedFastaFile::load(filepath)) {}
+    cFastaFile( std::string const &path_or_acc, bool acc = false ) 
+        : file( acc
+                ?
+                CPP::IndexedFastaFile::load_from_accession( path_or_acc )
+                :
+                CPP::IndexedFastaFile::load_from_file( path_or_acc ) ) {}
 };
 
-extern "C" {
+extern "C"
+{
 #include <stdlib.h>
 #include "expandCIGAR.h"
     
-    struct cFastaFile *loadFastaFile(unsigned const length, char const *const path)
+    struct cFastaFile* loadFastaFile( unsigned const length, char const *const path )
     {
-        std::string const &filepath = length ? std::string(path, path + length) : std::string(path);
-        try {
-            return new cFastaFile(filepath);
+        std::string const &filepath = length ? std::string( path, length ) : std::string( path );
+        try
+        {
+            return new cFastaFile( filepath, false );
         }
-        catch (...) {
-            return 0;
+        catch (...)
+        {
+            return NULL;
         }
     }
     
-    void unloadFastaFile(struct cFastaFile *const file)
+    struct cFastaFile* loadcSRA( char const * accession )
+    {
+        std::string const &acc = std::string( accession );
+        try
+        {
+            return new cFastaFile( acc, true );
+        }
+        catch (...)
+        {
+            return NULL;
+        }
+    }
+    
+    void unloadFastaFile( struct cFastaFile* const file )
     {
         delete file;
     }
     
-    int FastaFile_getNamedSequence(struct cFastaFile *const file, unsigned const length, char const *const seqId)
+    int FastaFile_getNamedSequence( struct cFastaFile* const file, unsigned const length, char const *const seqId )
     {
-        std::string const &name = length ? std::string(seqId, seqId + length) : std::string(seqId);
-        return file->file.find(name);
+        int res = -1;
+        if ( file != NULL )
+        {
+            std::string const &name = length ? std::string( seqId, length ) : std::string( seqId );
+            res = file->file.find( name );
+        }
+        return res;
     }
 
     unsigned FastaFile_getSequenceData(struct cFastaFile *file, int referenceNumber, char const **sequence) {
@@ -71,14 +98,14 @@ extern "C" {
         return seq.length;
     }
     
-    int validateCIGAR(unsigned length, char const CIGAR[/* length */], unsigned *refLength, unsigned *seqLength)
+    int validateCIGAR( unsigned length, char const CIGAR[/* length */], unsigned * refLength, unsigned * seqLength )
     {
-        std::string const &cigar = length ? std::string(CIGAR, CIGAR + length) : std::string(CIGAR);
+        std::string const &cigar = ( length > 0 ) ? std::string( CIGAR, length ) : std::string( CIGAR );
         try {
-            std::pair<unsigned, unsigned> const &lengths = CPP::measureCIGAR(cigar);
-            if (refLength)
+            std::pair<unsigned, unsigned> const &lengths = CPP::measureCIGAR( cigar );
+            if ( refLength != NULL )
                 *refLength = lengths.first;
-            if (seqLength)
+            if ( seqLength !=NULL )
                 *seqLength = lengths.second;
             return 0;
         }
@@ -91,6 +118,7 @@ extern "C" {
                     , int result_len
                     , int result_offset
                     , int * remaining
+                    , unsigned cigar_len
                     , char const *const CIGAR
                     , char const *const sequence
                     , unsigned const position
@@ -99,7 +127,7 @@ extern "C" {
     {
         *remaining = 0;
         int res = 0;
-        std::string const &cigar = std::string( CIGAR );
+        std::string const &cigar = std::string( CIGAR, cigar_len );
         try
         {
             std::vector< CPP::Event > const &events = 

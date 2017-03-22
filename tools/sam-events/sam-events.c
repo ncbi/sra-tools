@@ -36,6 +36,8 @@
 
 #include <vdb/manager.h>
 #include <vdb/database.h>
+#include <vdb/table.h>
+#include <vdb/cursor.h>
 
 #include <kfs/file.h>
 #include <kfs/directory.h>
@@ -150,12 +152,7 @@ rc_t CC Usage ( const Args * args )
 typedef struct tool_ctx
 {
     uint32_t limit, min_count, purge;
-    bool canonicalize;
-    bool show_source;
-    bool validate_cigar;
-    bool reduce;
-    bool fast;
-    bool csra;
+    bool canonicalize, show_source, validate_cigar, reduce, fast, csra;
     const char * ref;
     struct cFastaFile * fasta;
 } tool_ctx;
@@ -172,8 +169,15 @@ static rc_t get_bool( const Args * args, const char *option, bool *value )
 
 static rc_t get_charptr( const Args * args, const char *option, const char ** value )
 {
-    rc_t rc = ArgsOptionValue( args, option, 0, ( const void ** )value );
-    if ( rc != 0 )
+    uint32_t count;
+    rc_t rc = ArgsOptionCount( args, option, &count );
+    if ( rc == 0 && count > 0 )
+    {
+        rc = ArgsOptionValue( args, option, 0, ( const void ** )value );
+        if ( rc != 0 )
+            *value = NULL;
+    }
+    else
         *value = NULL;
     return rc;
 }
@@ -253,14 +257,14 @@ typedef struct current_ref
 
 
 /* ----------------------------------------------------------------------------------------------- */
-static rc_t CC print_event( size_t position,
-                            uint32_t deletes, uint32_t inserts, uint32_t count,
-                            const char * bases, void * user_data )
+static rc_t CC print_event( uint32_t count, const String * rname, size_t position,
+                            uint32_t deletes, uint32_t inserts, const char * bases,
+                            void * user_data )
 {
     current_ref * ref = user_data;
     /*COUNT - REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
     if ( count >= ref->min_count )
-        return KOutMsg( "%d\t%S\t%d\t%d\t%d\t%s\n", count, ref->rname, position, deletes, inserts, bases );
+        return KOutMsg( "%d\t%S\t%d\t%d\t%d\t%s\n", count, rname, position, deletes, inserts, bases );
     else
         return 0;
 }
@@ -295,11 +299,11 @@ static rc_t process_mismatch( const tool_ctx * ctx,
             log_err( "RefVariationGetAllele() failed rc=%R", rc );
         else
         {
-            if ( current->ad == NULL )
-                /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
-                rc = KOutMsg( "%S\t%d\t%d\t%d\t%s\n", al->rname, allele_start, allele_len, allele_len, allele );
-            else
+            if ( ctx->reduce )
                 rc = allele_dict_put( current->ad, allele_start, allele_len, allele_len, allele );
+            else
+                /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
+                rc = KOutMsg( "%S\t%d\t%d\t%d\t%s\n", &al->rname, allele_start, allele_len, allele_len, allele );
         }   
         rc2 = RefVariationRelease( ref_var );
         if ( rc2 != 0 )
@@ -336,11 +340,11 @@ static rc_t process_insert( const tool_ctx * ctx,
             log_err( "RefVariationGetAllele() failed rc=%R", rc );
         else
         {
-            if ( current->ad == NULL )
-                /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
-                rc = KOutMsg( "%S\t%d\t%d\t%d\t%s\n", al->rname, allele_start, 0, allele_len, allele );
-            else
+            if ( ctx->reduce )
                 rc = allele_dict_put( current->ad, allele_start, 0, allele_len, allele );
+            else
+                /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
+                rc = KOutMsg( "%S\t%d\t%d\t%d\t%s\n", &al->rname, allele_start, 0, allele_len, allele );
         }   
         rc2 = RefVariationRelease( ref_var );
         if ( rc2 != 0 )
@@ -377,11 +381,11 @@ static rc_t process_delete( const tool_ctx * ctx,
             log_err( "RefVariationGetAllele() failed rc=%R", rc );
         else
         {
-            if ( current->ad == NULL )
-                /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */        
-                rc = KOutMsg( "%S\t%d\t%d\t%d\t\n", al->rname, allele_start, ev->length );
-            else
+            if ( ctx->reduce )
                 rc = allele_dict_put( current->ad, allele_start, ev->length, 0, NULL );
+            else
+                /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */        
+                rc = KOutMsg( "%S\t%d\t%d\t%d\t\n", &al->rname, allele_start, ev->length );
         }   
         
         rc2 = RefVariationRelease( ref_var );
@@ -450,7 +454,8 @@ static rc_t process_alignment( const tool_ctx * ctx,
     if ( rc == 0 )
     {
         unsigned seqLength;
-        valid = validateCIGAR( 0, al->cigar.addr, &refLength, &seqLength );
+        /* in expandCIGAR.h ( expandCIGAR.cpp ) */
+        valid = validateCIGAR( al->cigar.len, al->cigar.addr, &refLength, &seqLength );
         if ( ctx->validate_cigar )
         {
             if ( valid == 0 )
@@ -477,10 +482,12 @@ static rc_t process_alignment( const tool_ctx * ctx,
         
         while ( rc == 0 && remaining > 0 )
         {
+            /* in expandCIGAR.h ( expandCIGAR.cpp ) */
             int num_events = expandCIGAR( events,
                                           NUM_EVENTS,
                                           offset,
                                           &remaining,
+                                          al->cigar.len,
                                           al->cigar.addr,
                                           al->read.addr,
                                           al->pos - 1,
@@ -509,7 +516,12 @@ static rc_t enter_reference( struct cFastaFile * fasta,
     if ( current->rname != NULL )
         StringWhack ( current->rname );
     rc = StringCopy( &current->rname, rname );
-    current->idx = FastaFile_getNamedSequence( fasta, 0, rname->addr );
+    
+    if ( fasta != NULL )
+        current->idx = FastaFile_getNamedSequence( fasta, rname->size, rname->addr );
+    else
+        current->idx = -1;
+        
     if ( current->idx < 0 )
     {
         rc = RC( rcExe, rcNoTarg, rcVisiting, rcId, rcInvalid );
@@ -532,18 +544,21 @@ static rc_t check_rname( const tool_ctx * ctx, const String * rname, current_ref
     if ( cmp != 0 )
     {
         /* we are entering a new reference */
-        rc = enter_reference( ctx->fasta, current, rname );
-        if ( rc == 0 && ctx->reduce )
+
+        if ( ctx->reduce && current->ad != NULL )
         {
-            if ( current->ad != NULL )
-            {
-                rc = allele_dict_visit( current->ad, 0, print_event, current );
-                if ( rc == 0 )
-                    rc = allele_dict_release( current->ad );
-            }
+            uint64_t max_pos;
+            rc = allele_get_min_max( current->ad, NULL, &max_pos );
             if ( rc == 0 )
-                rc = allele_dict_make( &current->ad, rname->addr );
+                rc = allele_dict_visit( current->ad, max_pos + 1, print_event, current );
+            if ( rc == 0 )
+                rc = allele_dict_release( current->ad );
         }
+        
+        if ( rc == 0 )
+            rc = enter_reference( ctx->fasta, current, rname );
+        if ( rc == 0 && ctx->reduce )
+            rc = allele_dict_make( &current->ad, rname );
     }
     
     return rc;
@@ -571,12 +586,7 @@ static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor *
     rc_t rc = 0;
     bool done = false;
     uint32_t counter = 0;
-    current_ref current;
-    
-    current.idx = -1;
-    current.ad = NULL;
-    current.rname = NULL;
-    current.min_count = ctx->min_count;
+    current_ref current = { .idx = -1, .ad = NULL, .rname = NULL, .min_count = ctx->min_count };
 
     while ( rc == 0 && !done )
     {
@@ -590,21 +600,21 @@ static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor *
             done = ( len == 0 );
             for ( idx = start; !done && idx < ( start + len ); ++idx )
             {
-                Alignment *al = VectorGet( &alignments, idx );
-                if ( al != NULL )
+                Alignment * ex_al = VectorGet( &alignments, idx );
+                if ( ex_al != NULL )
                 {
-                    AlignmentT alt;
+                    AlignmentT al;
                     
-                    StringInitCString( &alt.rname, al->rname );
-                    StringInitCString( &alt.cigar, al->cigar );
-                    StringInitCString( &alt.read, al->read );
-                    alt.pos = al->pos;
+                    StringInitCString( &al.rname, ex_al->rname );
+                    StringInitCString( &al.cigar, ex_al->cigar );
+                    StringInitCString( &al.read, ex_al->read );
+                    al.pos = ex_al->pos;
 
-                    rc = check_rname( ctx, &alt.rname, &current );
+                    rc = check_rname( ctx, &al.rname, &current );
                     
                     /* this is the meat!!! */
                     if ( rc == 0 )
-                        rc = process_alignment( ctx, &alt, &current );
+                        rc = process_alignment( ctx, &al, &current );
 
                     /* use the limit for testing */
                     if ( ctx->limit > 0 )
@@ -613,7 +623,7 @@ static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor *
             }
 
             /* if we are reducing, purge the allele-dict if the spread exeeds max. alignment-length */
-            if ( rc == 0 && ctx->reduce )
+            if ( rc == 0 && ctx->reduce && current.ad != NULL )
             {
                 uint64_t min_pos, max_pos;
                 rc = allele_get_min_max( current.ad, &min_pos, &max_pos );
@@ -626,7 +636,7 @@ static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor *
                     }
                 }
             }
-
+            
             /* now we are telling the extractor that we are done the alignments.... */
             rc = SAMExtractorInvalidateAlignments( extractor );
         }
@@ -673,7 +683,7 @@ typedef struct line_handler_ctx
     rc_t rc;
 } line_handler_ctx;
 
-static rc_t CC on_stdin_line( const String * line, void * data )
+static rc_t CC on_file_line( const String * line, void * data )
 {
     rc_t rc = 0;
     if ( line->addr[ 0 ] != '@' )
@@ -702,9 +712,11 @@ static rc_t CC on_stdin_line( const String * line, void * data )
                         {
                             StringInitCString( &( al.cigar ), s );
                             rc2 = VNameListGet( l, 9, &s );
-                            if ( rc == 0 )
+                            if ( rc2 == 0 )
                             {
                                 StringInitCString( &( al.read ), s );
+                                
+                                /* KOutMsg( "---%S\t%d\t%S\t%S\n", &al.rname, al.pos, &al.cigar, &al.read ); */
                                 rc2 = check_rname( lhctx->ctx, &al.rname, &( lhctx->current ) );
                                 
                                 /* this is the meat!!! */
@@ -736,7 +748,7 @@ static rc_t produce_events_from_KFile( const tool_ctx * ctx, const KFile * f )
     line_handler_ctx lhctx = { .ctx = ctx, .counter = 0, .rc = 0,
             .current.idx = -1, .current.ad = NULL, .current.min_count = ctx->min_count };
 
-    ProcessFileLineByLine( f, on_stdin_line, &lhctx );
+    ProcessFileLineByLine( f, on_file_line, &lhctx );
     
     /* print the final dictionary content and release the dictionary */
     if ( lhctx.rc == 0 )
@@ -785,7 +797,7 @@ static rc_t main_sam_input( const Args * args, tool_ctx * ctx )
     if ( ctx->fasta == NULL )
     {
         log_err( "cannot open reference '%s'", ctx->ref );
-        RC ( rcApp, rcArgv, rcConstructing, rcParam, rcInvalid );
+        rc = RC ( rcApp, rcArgv, rcConstructing, rcParam, rcInvalid );
     }
     else
     {
@@ -836,23 +848,196 @@ static rc_t main_sam_input( const Args * args, tool_ctx * ctx )
 
 
 /* ----------------------------------------------------------------------------------------------- */
-
-static rc_t produce_events_from_accession( const tool_ctx * ctx, const VDBManager * mgr, const char * acc )
+typedef struct tbl_src
 {
-    const VDatabase *db;
-    rc_t rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", acc );
-    if ( rc != 0 )
-        log_err( "cannot open '%s' as vdb-database %R", acc, rc );
-    else
+    const VCursor *curs;
+    const char * acc;
+    int64_t first_row;
+    uint64_t row_count;
+    uint32_t cigar_idx, rname_idx, rpos_idx, read_idx;
+
+} tbl_src;
+
+
+static rc_t produce_events_from_tbl_src( const tool_ctx * ctx, const tbl_src * tsrc )
+{
+    rc_t rc = 0;
+    bool done = false;
+    int64_t row_id = tsrc->first_row;
+    uint64_t rows_processed = 0;
+    current_ref current = { .idx = -1, .ad = NULL, .rname = NULL, .min_count = ctx->min_count };
+    
+    while ( rc == 0 && !done )
     {
+        AlignmentT al;
+        uint32_t elem_bits, boff, row_len;
+
+        /* get the CIGAR */
+        rc = VCursorCellDataDirect( tsrc->curs, row_id, tsrc->cigar_idx, &elem_bits, ( const void ** )&al.cigar.addr, &boff, &row_len );
+        if ( rc != 0 )
+            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.CIGAR[ %ld ] %R", tsrc->acc, row_id, rc );
+        else
+            al.cigar.len = al.cigar.size = row_len;
         
-        VDatabaseRelease( db );
+        if ( rc == 0 )
+        {
+            /* get the REFERENCE-NAME */
+            rc = VCursorCellDataDirect( tsrc->curs, row_id, tsrc->rname_idx, &elem_bits, ( const void ** )&al.rname.addr, &boff, &row_len );
+            if ( rc != 0 )
+                log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.REF_SEQ_ID[ %ld ] %R", tsrc->acc, row_id, rc );
+            else
+                al.rname.len = al.rname.size = row_len;
+        }
+
+        if ( rc == 0 )
+        {
+            /* get the READ */
+            rc = VCursorCellDataDirect( tsrc->curs, row_id, tsrc->read_idx, &elem_bits, ( const void ** )&al.read.addr, &boff, &row_len );
+            if ( rc != 0 )
+                log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.READ[ %ld ] %R", tsrc->acc, row_id, rc );
+            else
+                al.read.len = al.read.size = row_len;
+        }
+        
+        if ( rc == 0 )
+        {
+            /* get the REFERENCE-POSITION */
+            uint32_t * pp;
+            rc = VCursorCellDataDirect( tsrc->curs, row_id, tsrc->rpos_idx, &elem_bits, ( const void ** )&pp, &boff, &row_len );
+            if ( rc != 0 )
+                log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.REF_POS[ %ld ] %R", tsrc->acc, row_id, rc );
+            else
+                al.pos = pp[ 0 ] + 1; /* to produce the same as the SAM-spec, a 1-based postion! */
+        }
+        
+        /* check if the REFERENCE-NAME has changed, flush the allele-dict if so, make a new one */
+        if ( rc == 0 )
+            rc = check_rname( ctx, &al.rname, &current );
+
+        /* the common alignment-processing: get the cigar-events, canonicalize the events, put them into the allele-dictionary */
+        if ( rc == 0 )
+            rc = process_alignment( ctx, &al, &current );
+
+        /* if we are reducing, purge the allele-dict if the spread exeeds the purge-value * 2 */
+        if ( rc == 0 && ctx->reduce && current.ad != NULL )
+        {
+            uint64_t min_pos, max_pos;
+            rc = allele_get_min_max( current.ad, &min_pos, &max_pos );
+            {
+                if ( ( max_pos - min_pos ) > ( ctx->purge * 2 ) )
+                {
+                    rc = allele_dict_visit( current.ad, min_pos + ctx->purge, print_event, &current );
+                    if ( rc == 0 )
+                        rc = allele_dict_purge( current.ad, min_pos + ctx->purge );
+                }
+            }
+        }
+        
+        /* handle the loop-termination and find the next row to handle... */
+        if ( rc == 0 )
+        {
+            rows_processed++;
+    
+            if ( rows_processed >= tsrc->row_count )
+                done = true;
+            else if ( ctx->limit > 0 && ( rows_processed >= ctx->limit ) )
+                done = true;
+            else
+            {
+                /* find the next row ( to skip over empty rows... ) */
+                int64_t nxt;
+                rc = VCursorFindNextRowIdDirect( tsrc->curs, tsrc->read_idx, row_id + 1, &nxt );
+                if ( rc != 0 )
+                    log_err( "cannot find next row-id of '%s'.PRIMARY_ALIGNMENT.REF_POS[ %ld ] %R", tsrc->acc, row_id, rc );
+                else
+                    row_id = nxt;
+            }
+        }
+    } /* while !done */
+    
+    /* print what is left in the allele-dictionary */
+    if ( rc == 0 )
+        rc = finish_alignement_dict( &current );
+
+    return rc;
+}
+
+static rc_t add_col_to_cursor( const VCursor *curs, uint32_t * idx, const char * colname, const char * acc )
+{
+    rc_t rc = VCursorAddColumn( curs, idx, colname );
+    if ( rc != 0 )
+        log_err( "cannot add '%s' to cursor for '%s'.PRIMARY_ALIGNMENT %R", colname, acc, rc );
+    return rc;
+}
+
+static rc_t produce_events_from_accession( tool_ctx * ctx, const VDBManager * mgr, const char * acc )
+{
+    rc_t rc = 0;
+    
+    if ( ctx->ref == NULL )
+    {
+        /* no fasta-file given, get the fasta out of the accession! */
+        /* header in expandCIGAR.h code in fasta-file.[hpp/cpp]*/
+        ctx->fasta = loadcSRA( acc );
+    }
+
+    if ( ctx->fasta != NULL )
+    {
+        const VDatabase *db;
+        rc_t rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", acc );
+        if ( rc != 0 )
+            log_err( "cannot open '%s' as vdb-database %R", acc, rc );
+        else
+        {
+            const VTable *tbl;
+            rc = VDatabaseOpenTableRead( db, &tbl, "%s", "PRIMARY_ALIGNMENT" );
+            if ( rc != 0 )
+                log_err( "cannot open '%s'.PRIMARY_ALIGNMENT as vdb-table %R", acc, rc );
+            else
+            {
+                tbl_src tsrc;
+                tsrc.acc = acc;
+                rc = VTableCreateCursorRead( tbl, &tsrc.curs );
+                if ( rc != 0 )
+                    log_err( "cannot create cursor for '%s'.PRIMARY_ALIGNMENT %R", acc, rc );
+                else
+                {
+                    rc = add_col_to_cursor( tsrc.curs, &tsrc.cigar_idx, "CIGAR_SHORT", acc );
+                    if ( rc == 0 )
+                        rc = add_col_to_cursor( tsrc.curs, &tsrc.rname_idx, "REF_SEQ_ID", acc );
+                    if ( rc == 0 )
+                        rc = add_col_to_cursor( tsrc.curs, &tsrc.rpos_idx, "REF_POS", acc );
+                    if ( rc == 0 )
+                        rc = add_col_to_cursor( tsrc.curs, &tsrc.read_idx, "READ", acc );
+                    if ( rc == 0 )
+                    {
+                        rc = VCursorOpen( tsrc.curs );
+                        if ( rc != 0 )
+                            log_err( "cannot open cursor for '%s'.PRIMARY_ALIGNMENT %R", acc, rc );
+                        else
+                        {
+                            rc = VCursorIdRange( tsrc.curs, tsrc.read_idx, &tsrc.first_row, &tsrc.row_count );
+                            if ( rc != 0 )
+                                log_err( "cannot query row-range for '%s'.PRIMARY_ALIGNMENT %R", acc, rc );
+                            else
+                                rc = produce_events_from_tbl_src( ctx, &tsrc );
+                        }
+                    }
+                    VCursorRelease( tsrc.curs );
+                }
+                VTableRelease( tbl );
+            }
+            VDatabaseRelease( db );
+        }
+        
+        unloadFastaFile( ctx->fasta );
+        ctx->fasta = NULL;
     }
     return rc;
 }
 
 
-static rc_t main_csra_input( const Args * args, const tool_ctx * ctx )
+static rc_t main_csra_input( const Args * args, tool_ctx * ctx )
 {
     rc_t rc = 0;
     uint32_t count;
@@ -867,23 +1052,40 @@ static rc_t main_csra_input( const Args * args, const tool_ctx * ctx )
         }
         else
         {
-            const VDBManager * mgr;
-
-            rc = VDBManagerMakeRead( &mgr, NULL );
-            if ( rc != 0 )
-                log_err( "cannot create vdb-manager %R", rc );
-            else
+            if ( ctx->ref != NULL )
             {
-                uint32_t idx;
-                const char * acc;
-                for ( idx = 0; rc == 0 && idx < count; ++idx )
+                /* we are processing cSRA-accessions, but the user gave as a FASTA-file as reference! */
+                ctx->fasta = loadFastaFile( 0, ctx->ref );
+                if ( ctx->fasta == NULL )
                 {
-                    rc = ArgsParamValue( args, idx, ( const void ** )&acc );
-                    if ( rc == 0 )
-                        rc = produce_events_from_accession( ctx, mgr, acc );
+                    log_err( "cannot open reference '%s'", ctx->ref );
+                    rc = RC ( rcApp, rcArgv, rcConstructing, rcParam, rcInvalid );
                 }
-                VDBManagerRelease ( mgr );
             }
+            
+            if ( rc == 0 )
+            {
+                const VDBManager * mgr;
+
+                rc = VDBManagerMakeRead( &mgr, NULL );
+                if ( rc != 0 )
+                    log_err( "cannot create vdb-manager %R", rc );
+                else
+                {
+                    uint32_t idx;
+                    const char * acc;
+                    for ( idx = 0; rc == 0 && idx < count; ++idx )
+                    {
+                        rc = ArgsParamValue( args, idx, ( const void ** )&acc );
+                        if ( rc == 0 )
+                            rc = produce_events_from_accession( ctx, mgr, acc );
+                    }
+                    VDBManagerRelease ( mgr );
+                }
+            }
+            
+            if ( ctx->ref != NULL && ctx->fasta != NULL )
+                unloadFastaFile( ctx->fasta );
         }
     }
     return rc;

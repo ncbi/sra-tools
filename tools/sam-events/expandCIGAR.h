@@ -44,7 +44,8 @@ struct cFastaFile;
 /* load - open and parse a FASTA file
  *   NB: this is NCBI's FASTA format; see https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=BlastHelp
  */
-struct cFastaFile *loadFastaFile(unsigned length, char const path[/* length */]);
+struct cFastaFile* loadFastaFile( unsigned length, char const path[ /* length */ ] );
+struct cFastaFile* loadcSRA( char const * accession );
 
 /* unload - free the resources associated with the file
  * this call invalides all references to the file object
@@ -54,7 +55,7 @@ void unloadFastaFile(struct cFastaFile *file);
 /* find the named sequence in the file
  * returns the index of the sequence or -1 if not found
  */
-int FastaFile_getNamedSequence(struct cFastaFile *file, unsigned length, char const name[/* length */]);
+int FastaFile_getNamedSequence( struct cFastaFile *file, unsigned length, char const name[/* length */] );
 
 /* get the reference sequence
  * returns the length
@@ -77,6 +78,7 @@ int expandCIGAR(  struct Event * const result       /* the event-vector to be fi
                 , int result_len                    /* how many events we have in the result-vector */
                 , int result_offset                 /* at which offset do we want the result */
                 , int * remaining                   /* if the result-vector was not big enough */
+                , unsigned cigar_len
                 , char const * const CIGAR          /* the cigar of the alignment */
                 , char const * const sequence       /* the sequence-bases of the alignment */
                 , unsigned const position           /* the position of the alignment ( 0-based ) relative to the reference */

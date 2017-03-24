@@ -31,7 +31,8 @@
 #include <klib/log.h>
 #include <klib/printf.h>
 
-#define NUM_ENTRY_BASES 12
+#include <kfs/directory.h>
+#include <kfs/file.h>
 
 /* ----------------------------------------------------------------------------------------------- */
 
@@ -53,9 +54,102 @@ static rc_t log_err( const char * t_fmt, ... )
 
 /* ----------------------------------------------------------------------------------------------- */
 
+
+typedef struct Writer
+{
+    KFile * f;
+    uint64_t pos;
+} Writer;
+
+
+rc_t writer_release( struct Writer * wr )
+{
+    rc_t rc = 0;
+    if ( wr != NULL )
+    {
+        if ( wr->f != NULL )
+            rc = KFileRelease( wr->f );
+        free( ( void * ) wr );
+    }
+    return rc;
+}
+
+
+rc_t writer_make( struct Writer ** wr, const char * filename )
+{
+    rc_t rc = 0;
+    if ( wr == NULL || filename == NULL )
+    {
+        rc = RC( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        log_err( "writer_make() given a NULL-ptr" );
+    }
+    else
+    {
+        KDirectory * dir;
+        rc = KDirectoryNativeDir( &dir );
+        if ( rc != 0 )
+            log_err( "writer_make() : KDirectoryNativeDir() failed %R", rc );
+        else
+        {
+            KFile * f;
+            rc = KDirectoryCreateFile( dir, &f, false, 0664, kcmInit, "%s", filename );
+            if ( rc != 0 )
+                log_err( "writer_make() : KDirectoryCreateFile( '%s' ) failed %R", filename, rc );
+            else
+            {
+                Writer * w = calloc( 1, sizeof *w );
+                if ( w == NULL )
+                {
+                    log_err( "writer_make() memory exhausted" );
+                    rc = RC( rcApp, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
+                }
+                else
+                {
+                    w->f = f;
+                    *wr = w;
+                }
+            }
+            KDirectoryRelease( dir );
+        }
+    }
+    return rc;
+}
+
+
+rc_t writer_write( struct Writer * wr, const char * fmt, ... )
+{
+    rc_t rc;
+    char buffer[ 4096 ];
+    size_t num_writ_printf;
+    
+    va_list args;
+    va_start( args, fmt );
+    rc = string_vprintf( buffer, sizeof buffer, &num_writ_printf, fmt, args );
+    va_end( args );
+    if ( rc != 0 )
+        log_err( "writer_write() : string_vprintf() failed %R", rc );
+    else
+    {
+        size_t num_writ_file_write;
+        rc = KFileWriteAll( wr->f, wr->pos, buffer, num_writ_printf, &num_writ_file_write );
+        if ( rc != 0 )
+            log_err( "writer_write() : KFileWriteAll() failed %R", rc );
+        else
+            wr->pos += num_writ_file_write;
+    }
+    return rc;
+
+}
+
+
+/* ----------------------------------------------------------------------------------------------- */
+
+#define NUM_ENTRY_BASES 12
+
 typedef struct Dict_Entry
 {
-    uint32_t deletes, inserts, count;
+    uint32_t deletes, inserts;
+    counters count;
     char bases[ NUM_ENTRY_BASES ];
     char * base_ptr;
 } Dict_Entry;
@@ -71,21 +165,40 @@ static void release_dict_entry( Dict_Entry * e )
     }
 }
 
+static void count_dict_entry( counters * count, bool fwd, bool first )
+{
+    if ( fwd )
+    {
+        count->fwd += 1;
+        if ( first )
+            count->t_pos += 1;
+        else
+            count->t_neg += 1;
+    }
+    else
+    {
+        count->rev += 1;
+        if ( first )
+            count->t_neg += 1;
+        else
+            count->t_pos += 1;
+    }
 
-static Dict_Entry * make_dict_entry( uint32_t deletes, uint32_t inserts, const char * bases )
+}
+
+static Dict_Entry * make_dict_entry( uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first )
 {
     Dict_Entry * o = calloc( 1, sizeof *o );
     if ( o == NULL )
         log_err( "allele_dict.make_dict_entry() memory exhausted" );
     else
     {
-        o->count = 1;
         o->deletes = deletes;
         o->inserts = inserts;   /* inserts is also the lenght of bases */
+        count_dict_entry( &( o->count ), fwd, first );
         if ( inserts > 0 )
         {
             uint32_t i;
-            
             if ( inserts >= NUM_ENTRY_BASES )
             {
                 o->base_ptr = malloc( inserts + 1 );
@@ -130,12 +243,6 @@ static int equal_dict_entry( const Dict_Entry * e, uint32_t deletes, uint32_t in
     return res;
 }
 
-static rc_t visit_dict_entry( const Dict_Entry * e, const String * rname, 
-                              uint64_t pos, on_ad_event f, void * user_data )
-{
-    return f( e->count, rname, pos, e->deletes, e->inserts, e->base_ptr, user_data );
-}
-
 /* --------------------------------------------------------------------------------------------------- */
 
 typedef struct Pos_Entry
@@ -161,14 +268,14 @@ static void release_pos_entry( Pos_Entry * pe )
     }
 }
 
-static Pos_Entry * make_pos_entry( uint32_t deletes, uint32_t inserts, const char * bases )
+static Pos_Entry * make_pos_entry( uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first )
 {
     Pos_Entry * o = calloc( 1, sizeof *o );
     if ( o == NULL )
         log_err( "allele_dict.make_pos_entry() memory exhausted" );
     else
     {
-        o->e = make_dict_entry( deletes, inserts, bases );
+        o->e = make_dict_entry( deletes, inserts, bases, fwd, first );
         if ( o->e == NULL )
         {
             release_pos_entry( o );
@@ -185,17 +292,10 @@ typedef struct lookup_key
     const char * bases;
 } lookup_key;
 
-static int64_t CC key_lookup( const void *key, const void *n )
-{
-    const lookup_key * lk = key;
-    const Dict_Entry * e = n;
-    return equal_dict_entry( e, lk->deletes, lk->inserts, lk->bases );
-}
-
-static rc_t insert_event( Vector * v, uint32_t deletes, uint32_t inserts, const char * bases )
+static rc_t insert_event( Vector * v, uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first )
 {
     rc_t rc = 0;
-    Dict_Entry * e = make_dict_entry( deletes, inserts, bases );
+    Dict_Entry * e = make_dict_entry( deletes, inserts, bases, fwd, first );
     if ( e != NULL )
     {
         rc = VectorAppend( v, NULL, e );
@@ -210,7 +310,7 @@ static rc_t insert_event( Vector * v, uint32_t deletes, uint32_t inserts, const 
     return rc;
 }
 
-static Dict_Entry * vector_lookup( Vector * v, lookup_key * key )
+static Dict_Entry * vector_lookup( Vector * v, uint32_t deletes, uint32_t inserts, const char * bases )
 {
     Dict_Entry * res = NULL;
     uint32_t i, n = VectorLength( v );
@@ -218,13 +318,13 @@ static Dict_Entry * vector_lookup( Vector * v, lookup_key * key )
     for ( i = 0; res == NULL && i < n; ++i )
     {
         Dict_Entry * e = VectorGet( v, i );
-        if ( equal_dict_entry( e, key->deletes, key->inserts, key->bases ) == 0 )
+        if ( equal_dict_entry( e, deletes, inserts, bases ) == 0 )
             res = e;
     }
     return res;
 }
 
-static rc_t new_pos_event( Pos_Entry * pe, uint32_t deletes, uint32_t inserts, const char * bases )
+static rc_t new_pos_event( Pos_Entry * pe, uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first )
 {
     rc_t rc = 0;
     if ( pe == NULL )
@@ -237,7 +337,7 @@ static rc_t new_pos_event( Pos_Entry * pe, uint32_t deletes, uint32_t inserts, c
         if ( equal_dict_entry( pe->e, deletes, inserts, bases ) == 0 )
         {
             /* the key ( deletes,inserts,bases ) matches the single ( common-case ) event */
-            pe->e->count += 1;
+            count_dict_entry( &( pe->e->count ) , fwd, first );
         }
         else
         {
@@ -247,26 +347,21 @@ static rc_t new_pos_event( Pos_Entry * pe, uint32_t deletes, uint32_t inserts, c
                 /* vector has not been used: initialize it */
                 VectorInit( &( pe->entries ), 0, 5 );
                 /* put new event into it */
-                rc = insert_event( &( pe->entries ), deletes, inserts, bases );
+                rc = insert_event( &( pe->entries ), deletes, inserts, bases, fwd, first );
             }
             else
             {
                 /* vector has been used... , try to find entry */
-                
-                /* Vectorfind implies that the vector is sorted!!!!, let's just scan the vector... */
-                lookup_key key = { .deletes = deletes, .inserts = inserts, .bases = bases };
-                
-                /* e = VectorFind( &( pe->entries ), &key, NULL, key_lookup ); */
-                e = vector_lookup( &( pe->entries ), &key );
+                e = vector_lookup( &( pe->entries ), deletes, inserts, bases );
                 if ( e != NULL )
                 {
-                    /* we do have a entry already, just increase count */
-                    e->count += 1;        
+                    /* we do have an entry already, just increase count */
+                    count_dict_entry( &( e->count ), fwd, first );
                 }
                 else
                 {
                     /* we do not have one already, make a new one */
-                    rc = insert_event( &( pe->entries ), deletes, inserts, bases );    
+                    rc = insert_event( &( pe->entries ), deletes, inserts, bases, fwd, first );
                 }
             }
         }
@@ -275,19 +370,20 @@ static rc_t new_pos_event( Pos_Entry * pe, uint32_t deletes, uint32_t inserts, c
 }
 
 
-static rc_t visit_pos_entry( const String * rname, uint64_t pos,
+static rc_t visit_pos_entry( const String * rname, uint32_t pos,
                              const Pos_Entry * pe, on_ad_event f, void * user_data )
 {
     /* first we visit the mandatory pos-event */
-    rc_t rc = visit_dict_entry( pe->e, rname, pos, f, user_data );
+    Dict_Entry * e = pe->e;
+    rc_t rc = f( &( e->count ), rname, pos, e->deletes, e->inserts, e->base_ptr, user_data );
     if ( rc == 0 )
     {
         uint32_t i, n = VectorLength( &( pe->entries ) );
         /* if we have more of them in the vectory, visit them too */
         for ( i = 0; rc == 0 && i < n; ++i )
         {
-            Dict_Entry * e = VectorGet( &( pe->entries ), i );
-            rc = visit_dict_entry( e, rname, pos, f, user_data );
+            e = VectorGet( &( pe->entries ), i );
+            rc = f( &( e->count ), rname, pos, e->deletes, e->inserts, e->base_ptr, user_data );
         }
     }
     return rc;
@@ -301,8 +397,6 @@ typedef struct Allele_Dict
     
     uint64_t min_pos;
     uint64_t max_pos;
-    
-    uint32_t count;    
 } Allele_Dict;
 
 
@@ -365,7 +459,10 @@ rc_t allele_dict_make( struct Allele_Dict ** ad, const String * rname )
             }
         }
         if ( rc == 0 )
+        {
+            o->min_pos = 0xFFFFFFFFFFFFFFFF;
             *ad = o;
+        }
         else
             allele_dict_release( o );
     }
@@ -374,7 +471,7 @@ rc_t allele_dict_make( struct Allele_Dict ** ad, const String * rname )
 
 
 rc_t allele_dict_put( struct Allele_Dict * ad,
-                      size_t position, uint32_t deletes, uint32_t inserts, const char * bases )
+                      uint64_t position, uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first )
 {
     rc_t rc = 0;
     if ( ad == NULL )
@@ -389,12 +486,12 @@ rc_t allele_dict_put( struct Allele_Dict * ad,
         if ( rc == 0 && pe != NULL )
         {
             /* entry for position found */
-            rc = new_pos_event( pe, deletes, inserts, bases );
+            rc = new_pos_event( pe, deletes, inserts, bases, fwd, first );
         }
         else
         {
             /* entry for position not found */
-            pe = make_pos_entry( deletes, inserts, bases );
+            pe = make_pos_entry( deletes, inserts, bases, fwd, first );
             if ( pe != NULL )
                 rc = KVectorSetPtr( ad->v, position, pe );
             else
@@ -402,85 +499,17 @@ rc_t allele_dict_put( struct Allele_Dict * ad,
         }
         if ( rc == 0 )
         {
-            if ( ad->count == 0 )
-            {
+            if ( position < ad->min_pos )
                 ad->min_pos = position;
-                ad->max_pos = position;
-            }
-            else
-            {
-                if ( position < ad->min_pos )
-                    ad->min_pos = position;
-                else if ( position > ad->max_pos )
-                    ad->max_pos = position;                
-            }
-            ad->count += 1;
+            else if ( position > ad->max_pos )
+                ad->max_pos = position;                
         }
     }
     return rc;
 }
 
 
-typedef struct visit_pos_entry_ctx
-{
-    on_ad_event f;
-    const String * rname;
-    void * user_data;
-    uint64_t filter_pos;
-} visit_pos_entry_ctx;
-
-
-static rc_t visit_pos_entry_cb( uint64_t key, const void *value, void *user_data )
-{
-    const Pos_Entry * pe = value;
-    visit_pos_entry_ctx * vpec = user_data;
-    if ( key < vpec->filter_pos )
-        return visit_pos_entry( vpec->rname, key, pe, vpec->f, vpec->user_data );
-    else
-        return 0;
-}
-
-
-/* call a callback for each event in the allele_dictionary */
-rc_t allele_dict_visit( struct Allele_Dict * ad, uint64_t pos, on_ad_event f, void * user_data )
-{
-    rc_t rc = 0;
-    if ( ad == NULL || f == NULL )
-    {
-        rc = RC( rcApp, rcNoTarg, rcInserting, rcParam, rcNull );
-        log_err( "allele_dict.allele_dict_visit() given a NULL-ptr" );
-    }
-    else
-    {
-        visit_pos_entry_ctx vpec;
-        vpec.f = f;
-        vpec.rname = ad->rname;
-        vpec.user_data = user_data;
-        vpec.filter_pos = pos;
-        KVectorVisitPtr( ad->v, false, visit_pos_entry_cb, &vpec );        
-    }
-    return rc;
-}
-
-
-rc_t allele_get_min_max( struct Allele_Dict * ad, uint64_t * min_pos, uint64_t * max_pos )
-{
-    rc_t rc = 0;
-    if ( ad == NULL )
-    {
-        rc = RC( rcApp, rcNoTarg, rcInserting, rcParam, rcNull );
-        log_err( "allele_dict.allele_get_min_max() given a NULL-ptr" );
-    }
-    else
-    {
-        if ( min_pos != NULL ) *min_pos = ad->min_pos;
-        if ( max_pos != NULL ) *max_pos = ad->max_pos;
-    }
-    return rc;
-}
-
-
-rc_t allele_dict_purge( struct Allele_Dict * ad, uint64_t pos )
+rc_t allele_dict_visit_all_and_release( struct Allele_Dict * ad, on_ad_event f, void * user_data )
 {
     rc_t rc = 0;
     if ( ad == NULL )
@@ -490,20 +519,67 @@ rc_t allele_dict_purge( struct Allele_Dict * ad, uint64_t pos )
     }
     else
     {
-        uint64_t p = ad->min_pos;
-        while ( rc == 0 && p < pos )
+        rc_t rc2 = 0;
+        while ( rc2 == 0 )
         {
+            uint64_t key;
             Pos_Entry * pe;
-            rc = KVectorGetFirstPtr( ad->v, &p, ( void ** )&pe );
-            if ( rc == 0 && p < pos )
+            rc2 = KVectorGetFirstPtr( ad->v, &key, ( void ** )&pe );
+            if ( rc2 == 0 )
             {
-                rc = KVectorUnset( ad->v, p );
+                rc = visit_pos_entry( ad->rname, key, pe, f, user_data );
                 if ( rc == 0 )
-                    release_pos_entry( pe );
-                ad->count -= 1;
+                {
+                    rc = KVectorUnset( ad->v, key );
+                    if ( rc == 0 )
+                        release_pos_entry( pe );
+                }
             }
         }
-        ad->min_pos = p;
+    }
+    if ( rc == 0 )
+        rc = allele_dict_release( ad );
+    return rc;
+}
+
+
+rc_t allele_dict_visit_and_purge( struct Allele_Dict * ad, uint32_t purge_dist, on_ad_event f, void * user_data )
+{
+    rc_t rc = 0;
+    if ( ad == NULL )
+    {
+        rc = RC( rcApp, rcNoTarg, rcInserting, rcParam, rcNull );
+        log_err( "allele_dict.allele_dict_purge() given a NULL-ptr" );
+    }
+    else
+    {
+        int64_t spread = ad->max_pos - ad->min_pos;
+        if ( spread > ( purge_dist * 2 ) )
+        {
+            rc_t rc2 = 0;
+            uint64_t last_pos = ad->min_pos + purge_dist;
+            while ( rc2 == 0 )
+            {
+                uint64_t key;
+                Pos_Entry * pe;
+                rc2 = KVectorGetFirstPtr( ad->v, &key, ( void ** )&pe );
+                if ( rc2 == 0 )
+                {
+                    if ( key > last_pos )
+                        rc2 = -1;
+                    else
+                    {
+                        rc = visit_pos_entry( ad->rname, key, pe, f, user_data );
+                        if ( rc == 0 )
+                        {
+                            rc = KVectorUnset( ad->v, key );
+                            if ( rc == 0 )
+                                release_pos_entry( pe );
+                        }
+                    }
+                }
+            }
+        }
     }
     return rc;
 }

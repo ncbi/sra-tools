@@ -70,33 +70,31 @@ rc_t CC UsageSummary ( const char * progname )
                      "\n", progname );
 }
 
-#define OPTION_CANON   "canonicalize"
-#define ALIAS_CANON    "c"
-static const char * canon_usage[]     = { "canonicalize events", NULL };
-
-#define OPTION_SOURCE  "show-source"
-#define ALIAS_SOURCE   "s"
-static const char * source_usage[]    = { "show source from sam-extractor", NULL };
-
-#define OPTION_VALID   "validate"
-#define ALIAS_VALID    "a"
-static const char * valid_usage[]     = { "validate cigar-string", NULL };
-
-#define OPTION_REDUCE  "reduce"
-static const char * reduce_usage[]     = { "reduce ( count ) the events", NULL };
-
-#define OPTION_LIMIT   "limit"
-#define ALIAS_LIMIT    "l"
-static const char * limit_usage[]     = { "limit the output to this number of alignments", NULL };
-
 #define OPTION_MINCNT  "min-count"
 #define ALIAS_MINCNT   "m"
 static const char * mincnt_usage[]    = { "minimum count per event", NULL };
 
+#define OPTION_MINFWD  "min-fwd"
+static const char * minfwd_usage[]    = { "minimum count on forward strand", NULL };
+
+#define OPTION_MINREV  "min-rev"
+static const char * minrev_usage[]    = { "minimum count on reverse strand", NULL };
+
+#define OPTION_MINTP   "min-t+"
+static const char * mintp_usage[]     = { "minimum count on t+ template", NULL };
+
+#define OPTION_MINTN  "min-t-"
+static const char * mintn_usage[]     = { "minimum count on t- template", NULL };
+
+/*
 #define OPTION_PURGE   "purge"
 #define ALIAS_PURGE    "p"
 static const char * purge_usage[]     = { "after how many ref-pos in dict perform pureg", NULL };
 
+#define OPTION_LOG     "log"
+#define ALIAS_LOG      "o"
+static const char * log_usage[]       = { "log the alignments into text-file", NULL };
+*/
 #define OPTION_FAST    "fast"
 static const char * fast_usage[]      = { "bypass SAM validation", NULL };
 
@@ -107,19 +105,24 @@ static const char * csra_usage[]      = { "take input as csra not as sam-file", 
 #define ALIAS_REF      "r"
 static const char * ref_usage[]       = { "the reference(s) as fasta-file", NULL };
 
+
 OptDef ToolOptions[] =
 {
 /*    name              alias           fkt    usage-txt,       cnt, needs value, required */
-    { OPTION_CANON,     ALIAS_CANON,    NULL, canon_usage,     1,   false,       false },
-    { OPTION_SOURCE,    ALIAS_SOURCE,   NULL, source_usage,    1,   false,       false },
-    { OPTION_VALID,     ALIAS_VALID,    NULL, valid_usage,     1,   false,       false },
-    { OPTION_REDUCE,    NULL,          NULL, reduce_usage,    1,   false,       false },
+    { OPTION_REF,       ALIAS_REF,      NULL, ref_usage,       1,   true,        false },
     { OPTION_FAST,      NULL,          NULL, fast_usage,      1,   false,       false },
     { OPTION_CSRA,      NULL,          NULL, csra_usage,      1,   false,       false },
-    { OPTION_LIMIT,     ALIAS_LIMIT,    NULL, limit_usage,     1,   true,        false },
+    
     { OPTION_MINCNT,    ALIAS_MINCNT,   NULL, mincnt_usage,    1,   true,        false },
+    { OPTION_MINFWD,    NULL,          NULL, minfwd_usage,    1,   true,        false },
+    { OPTION_MINREV,    NULL,          NULL, minrev_usage,    1,   true,        false },
+    { OPTION_MINTP,     NULL,          NULL, mintp_usage,     1,   true,        false },
+    { OPTION_MINTN,     NULL,          NULL, mintn_usage,     1,   true,        false },
+
+    /*
     { OPTION_PURGE,     ALIAS_PURGE,    NULL, purge_usage,     1,   true,        false },
-    { OPTION_REF,       ALIAS_REF,      NULL, ref_usage,       1,   true,        false }
+    { OPTION_LOG,       ALIAS_LOG,      NULL, log_usage,       1,   true,        false }
+    */
 };
 
 rc_t CC Usage ( const Args * args )
@@ -139,7 +142,18 @@ rc_t CC Usage ( const Args * args )
 
     UsageSummary ( progname );
 
-    KOutMsg ( "Options:\n" );
+    KOutMsg( "  Output-format: C1 C2 C3 C4 REFNAME POS NUMDEL NUMINS BASES\n" );
+    KOutMsg( "    C1 ........ occurances on forward strand\n" );
+    KOutMsg( "    C2 ........ occurances on reverse strand\n" );
+    KOutMsg( "    C3 ........ occurances on forward template\n" );
+    KOutMsg( "    C4 ........ occurances on reverse template\n" );
+    KOutMsg( "    REFNAME ... canonical name of the reference/chromosome\n" );
+    KOutMsg( "    POS ....... 1-based position on reference/chromosome\n" );
+    KOutMsg( "    NUMDEL .... number of deletions on reference/chromosome\n" );
+    KOutMsg( "    NUMINS .... number of insertions at position\n" );
+    KOutMsg( "    BASES  .... inserted bases\n\n" );
+
+    KOutMsg( "Options:\n" );
 
     HelpOptionsStandard ();
     for ( i = 0; i < sizeof ( ToolOptions ) / sizeof ( ToolOptions[ 0 ] ); ++i )
@@ -151,10 +165,13 @@ rc_t CC Usage ( const Args * args )
 
 typedef struct tool_ctx
 {
-    uint32_t limit, min_count, purge;
-    bool canonicalize, show_source, validate_cigar, reduce, fast, csra;
+    uint32_t min_count, purge;
+    bool fast, csra;
+    counters limits;
     const char * ref;
     struct cFastaFile * fasta;
+    const char * logfilename;
+    struct Writer * log;
 } tool_ctx;
 
 
@@ -196,27 +213,37 @@ static rc_t get_uint32( const Args * args, const char *option, uint32_t * value,
 
 static rc_t get_tool_ctx( const Args * args, tool_ctx * ctx )
 {
-    rc_t rc = get_bool( args, OPTION_CANON, &ctx->canonicalize );
-    if ( rc == 0 )
-        rc = get_bool( args, OPTION_SOURCE, &ctx->show_source );
-    if ( rc == 0 )
-        rc = get_bool( args, OPTION_VALID, &ctx->validate_cigar );
-    if ( rc == 0 )
-        rc = get_bool( args, OPTION_REDUCE, &ctx->reduce );
-    if ( rc == 0 )
-        rc = get_bool( args, OPTION_FAST, &ctx->fast );
+    rc_t rc;
+    
+    ctx->fasta = NULL;
+    ctx->log = NULL;
+    ctx->logfilename = NULL;
+    ctx->purge = 4096;
+    
+    rc = get_bool( args, OPTION_FAST, &ctx->fast );
     if ( rc == 0 )
         rc = get_bool( args, OPTION_CSRA, &ctx->csra );
     if ( rc == 0 )
         rc = get_charptr( args, OPTION_REF, &ctx->ref );
-    if ( rc == 0 )
-        rc = get_uint32( args, OPTION_LIMIT, &ctx->limit, 0 );
+
+    /*
     if ( rc == 0 )
         rc = get_uint32( args, OPTION_PURGE, &ctx->purge, 4096 );
     if ( rc == 0 )
-        rc = get_uint32( args, OPTION_MINCNT, &ctx->min_count, 1 );
-    ctx->fasta = NULL;
-    if ( ctx->purge == 0 ) ctx->purge = 4096;
+        rc = get_charptr( args, OPTION_LOG, &ctx->logfilename );
+    */
+    
+    if ( rc == 0 )
+        rc = get_uint32( args, OPTION_MINCNT, &ctx->min_count, 0 );
+    if ( rc == 0 )
+        rc = get_uint32( args, OPTION_MINFWD, &ctx->limits.fwd, 0 );
+    if ( rc == 0 )
+        rc = get_uint32( args, OPTION_MINREV, &ctx->limits.rev, 0 );
+    if ( rc == 0 )
+        rc = get_uint32( args, OPTION_MINTP, &ctx->limits.t_pos, 0 );
+    if ( rc == 0 )
+        rc = get_uint32( args, OPTION_MINTN, &ctx->limits.t_neg, 0 );
+
     return rc;
 }
 
@@ -251,20 +278,40 @@ typedef struct current_ref
     unsigned ref_bases_count;
     struct Allele_Dict * ad;
     int idx;
-    uint32_t min_count;    
+    uint32_t min_count;
+    const counters * limits;
 } current_ref;
 
 
 
 /* ----------------------------------------------------------------------------------------------- */
-static rc_t CC print_event( uint32_t count, const String * rname, size_t position,
+static rc_t CC print_event( const counters * count, const String * rname, size_t position,
                             uint32_t deletes, uint32_t inserts, const char * bases,
                             void * user_data )
 {
-    current_ref * ref = user_data;
-    /*COUNT - REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
-    if ( count >= ref->min_count )
-        return KOutMsg( "%d\t%S\t%d\t%d\t%d\t%s\n", count, rname, position, deletes, inserts, bases );
+    const current_ref * ref = user_data;
+    const counters * limits = ref->limits;
+    bool print;
+    
+    if ( ref->min_count > 0 )
+        print = ( count->fwd + count->rev >= ref->min_count );
+    else
+        print = true;
+    if ( print && limits->fwd > 0 )
+        print = ( count->fwd >= limits->fwd );
+    if ( print && limits->rev > 0 )
+        print = ( count->rev >= limits->rev );
+    if ( print && limits->t_pos > 0 )
+        print = ( count->t_pos >= limits->t_pos );
+    if ( print && limits->t_neg > 0 )
+        print = ( count->t_neg >= limits->t_neg );
+
+    /*COUNT-FWD - COUNT-REV - COUNT-t+ - COUNT-t- - REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
+    
+    if ( print )
+        return KOutMsg( "%d\t%d\t%d\t%d\t%S\t%d\t%d\t%d\t%s\n",
+                         count->fwd, count->rev, count->t_pos, count->t_neg,
+                         rname, position, deletes, inserts, bases );
     else
         return 0;
 }
@@ -298,13 +345,8 @@ static rc_t process_mismatch( const tool_ctx * ctx,
         if ( rc != 0 )
             log_err( "RefVariationGetAllele() failed rc=%R", rc );
         else
-        {
-            if ( ctx->reduce )
-                rc = allele_dict_put( current->ad, allele_start, allele_len, allele_len, allele );
-            else
-                /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
-                rc = KOutMsg( "%S\t%d\t%d\t%d\t%s\n", &al->rname, allele_start, allele_len, allele_len, allele );
-        }   
+            rc = allele_dict_put( current->ad, allele_start, allele_len, allele_len, allele, al->fwd, al->first );
+
         rc2 = RefVariationRelease( ref_var );
         if ( rc2 != 0 )
             log_err( "RefVariationRelease() failed rc=%R", rc2 );
@@ -339,13 +381,8 @@ static rc_t process_insert( const tool_ctx * ctx,
         if ( rc != 0 )
             log_err( "RefVariationGetAllele() failed rc=%R", rc );
         else
-        {
-            if ( ctx->reduce )
-                rc = allele_dict_put( current->ad, allele_start, 0, allele_len, allele );
-            else
-                /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
-                rc = KOutMsg( "%S\t%d\t%d\t%d\t%s\n", &al->rname, allele_start, 0, allele_len, allele );
-        }   
+            rc = allele_dict_put( current->ad, allele_start, 0, allele_len, allele, al->fwd, al->first );
+
         rc2 = RefVariationRelease( ref_var );
         if ( rc2 != 0 )
             log_err( "RefVariationRelease() failed rc=%R", rc2 );
@@ -380,13 +417,7 @@ static rc_t process_delete( const tool_ctx * ctx,
         if ( rc != 0 )
             log_err( "RefVariationGetAllele() failed rc=%R", rc );
         else
-        {
-            if ( ctx->reduce )
-                rc = allele_dict_put( current->ad, allele_start, ev->length, 0, NULL );
-            else
-                /*REFNAME - EVENT-POS - DELETES - INSERTS - BASES */        
-                rc = KOutMsg( "%S\t%d\t%d\t%d\t\n", &al->rname, allele_start, ev->length );
-        }   
+            rc = allele_dict_put( current->ad, allele_start, ev->length, 0, NULL, al->fwd, al->first );
         
         rc2 = RefVariationRelease( ref_var );
         if ( rc2 != 0 )
@@ -406,31 +437,15 @@ static rc_t process_events( const tool_ctx * ctx,
                             const current_ref * current )
 {
     rc_t rc = 0;
-    
-    /*
-        printing the reference-slice for this alignment...
-        rc = KOutMsg( "FASTA: %.*s\n", refLength, &( current->ref_bases[ al->pos - 1 ] ) );
-    */
-
     int idx;    
     for ( idx = 0; rc == 0 && idx < num_events; ++idx )
     {
         struct Event * ev = &events[ idx ];
-        if ( ev->type != match )
+        switch( ev->type )
         {
-            if ( ctx->show_source )
-                rc = KOutMsg( "\ttype = %s\tlength = %d\trefPos = %d\tseqPos = %d\n",
-                              ev_txt[ ev->type ], ev->length, ev->refPos, ev->seqPos );
-
-            if ( rc == 0 )
-            {
-                switch( ev->type )
-                {
-                    case mismatch   : rc = process_mismatch( ctx, al, ev, current ); break;
-                    case insertion  : rc = process_insert( ctx, al, ev, current ); break;
-                    case deletion   : rc = process_delete( ctx, al, ev, current ); break;
-                }
-            }
+            case mismatch   : rc = process_mismatch( ctx, al, ev, current ); break;
+            case insertion  : rc = process_insert( ctx, al, ev, current ); break;
+            case deletion   : rc = process_delete( ctx, al, ev, current ); break;
         }
     }
     return rc;
@@ -447,31 +462,12 @@ static rc_t process_alignment( const tool_ctx * ctx,
     int valid = 0;
     unsigned refLength;
     
-    if ( ctx->show_source )
-        rc = KOutMsg( "\n\t[%S].%u\t%S\t%S\n", al->rname, al->pos, al->cigar, al->read );
-    
     /* validate the cigar: */
     if ( rc == 0 )
     {
         unsigned seqLength;
-        /* in expandCIGAR.h ( expandCIGAR.cpp ) */
+        /* in expandCIGAR.h ( expandCIGAR.cpp ), we have to call it to get the refLength ! */
         valid = validateCIGAR( al->cigar.len, al->cigar.addr, &refLength, &seqLength );
-        if ( ctx->validate_cigar )
-        {
-            if ( valid == 0 )
-            {
-                if ( al->read.len != seqLength )
-                {
-                    log_err( "cigar '%S' invalid ( %d != %d )", &al->cigar, al->read.len, seqLength );
-                    rc = RC( rcApp, rcNoTarg, rcDecoding, rcParam, rcInvalid );
-                }
-            }
-            else
-            {
-                log_err( "cigar '%S' invalid", &al->cigar );
-                rc = RC( rcApp, rcNoTarg, rcDecoding, rcParam, rcInvalid );
-            }
-        }
     }
 
     if ( rc == 0 && valid == 0 )
@@ -505,8 +501,16 @@ static rc_t process_alignment( const tool_ctx * ctx,
     return rc;
 }
 
-
-static rc_t enter_reference( struct cFastaFile * fasta, 
+static void inspect_sam_flags( AlignmentT * al, uint32_t sam_flags )
+{
+    al->fwd = ( ( sam_flags & 0x10 ) == 0 );
+    if ( ( sam_flags & 0x01 ) == 0x01 )
+        al->first = ( ( sam_flags & 0x40 ) == 0x40 );
+    else
+        al->first = true;
+}
+                    
+static rc_t switch_reference( struct cFastaFile * fasta, 
                              current_ref * current,
                              const String * rname )
 {
@@ -543,40 +547,24 @@ static rc_t check_rname( const tool_ctx * ctx, const String * rname, current_ref
     
     if ( cmp != 0 )
     {
-        /* we are entering a new reference */
-
-        if ( ctx->reduce && current->ad != NULL )
-        {
-            uint64_t max_pos;
-            rc = allele_get_min_max( current->ad, NULL, &max_pos );
-            if ( rc == 0 )
-                rc = allele_dict_visit( current->ad, max_pos + 1, print_event, current );
-            if ( rc == 0 )
-                rc = allele_dict_release( current->ad );
-        }
+        /* we are entering a new reference! */
         
+        /* print all entries found in the allele-dict, and then release the whole allele-dict */
+        if ( current->ad != NULL )
+            rc = allele_dict_visit_all_and_release( current->ad, print_event, current );
+       
+        /* switch to the new reference!
+           - store the new refname in the current-struct
+           - get the index of the new reference into the fasta-file
+        */
         if ( rc == 0 )
-            rc = enter_reference( ctx->fasta, current, rname );
-        if ( rc == 0 && ctx->reduce )
+            rc = switch_reference( ctx->fasta, current, rname );
+            
+        /* make a new allele-dict */
+        if ( rc == 0 )
             rc = allele_dict_make( &current->ad, rname );
     }
     
-    return rc;
-}
-
-
-static rc_t finish_alignement_dict( current_ref * current )
-{
-    rc_t rc = 0;
-    if ( current->ad != NULL )
-    {
-        uint64_t max_pos;
-        rc = allele_get_min_max( current->ad, NULL, &max_pos );
-        if ( rc == 0 )
-            rc = allele_dict_visit( current->ad, max_pos + 1, print_event, current );
-        if ( rc == 0 )
-            rc = allele_dict_release( current->ad );
-    }
     return rc;
 }
 
@@ -585,8 +573,8 @@ static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor *
 {
     rc_t rc = 0;
     bool done = false;
-    uint32_t counter = 0;
-    current_ref current = { .idx = -1, .ad = NULL, .rname = NULL, .min_count = ctx->min_count };
+    current_ref current = { .idx = -1, .ad = NULL, .rname = NULL,
+                            .min_count = ctx->min_count, .limits = &( ctx->limits ) };
 
     while ( rc == 0 && !done )
     {
@@ -609,33 +597,20 @@ static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor *
                     StringInitCString( &al.cigar, ex_al->cigar );
                     StringInitCString( &al.read, ex_al->read );
                     al.pos = ex_al->pos;
-
+                    al.fwd = true;
+                    al.first = true;
+                    
                     rc = check_rname( ctx, &al.rname, &current );
                     
                     /* this is the meat!!! */
                     if ( rc == 0 )
                         rc = process_alignment( ctx, &al, &current );
-
-                    /* use the limit for testing */
-                    if ( ctx->limit > 0 )
-                        done = ( ++counter >= ctx->limit );
                 }
             }
 
             /* if we are reducing, purge the allele-dict if the spread exeeds max. alignment-length */
-            if ( rc == 0 && ctx->reduce && current.ad != NULL )
-            {
-                uint64_t min_pos, max_pos;
-                rc = allele_get_min_max( current.ad, &min_pos, &max_pos );
-                {
-                    if ( ( max_pos - min_pos ) > ( ctx->purge * 2 ) )
-                    {
-                        rc = allele_dict_visit( current.ad, min_pos + ctx->purge, print_event, &current );
-                        if ( rc == 0 )
-                            rc = allele_dict_purge( current.ad, min_pos + ctx->purge );
-                    }
-                }
-            }
+            if ( rc == 0 )
+                rc = allele_dict_visit_and_purge( current.ad, ctx->purge, print_event, &current );
             
             /* now we are telling the extractor that we are done the alignments.... */
             rc = SAMExtractorInvalidateAlignments( extractor );
@@ -644,7 +619,7 @@ static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor *
     
     /* print the final dictionary content and release the dictionary */
     if ( rc == 0 )
-        rc = finish_alignement_dict( &current );
+        rc = allele_dict_visit_all_and_release( current.ad, print_event, &current );
     
     return rc;
 }
@@ -683,76 +658,101 @@ typedef struct line_handler_ctx
     rc_t rc;
 } line_handler_ctx;
 
+#define SAM_COL_FLAGS 1
+#define SAM_COL_RNAME 2
+#define SAM_COL_RPOS 3
+#define SAM_COL_CIGAR 5
+#define SAM_COL_SEQ 9
+
+static rc_t extract_String( const VNamelist * l, uint32_t idx, String * dst )
+{
+    const char * s;
+    rc_t rc = VNameListGet( l, idx, &s );
+    if ( rc == 0 )
+        StringInitCString( dst, s );
+    return rc;
+}
+
+static rc_t extract_Num( const VNamelist * l, uint32_t idx, uint32_t * dst )
+{
+    const char * s;
+    rc_t rc = VNameListGet( l, idx, &s );
+    if ( rc == 0 )
+        *dst = atoi( s );
+    return rc;
+}
+
+static rc_t extract_Num64( const VNamelist * l, uint32_t idx, uint64_t * dst )
+{
+    const char * s;
+    rc_t rc = VNameListGet( l, idx, &s );
+    if ( rc == 0 )
+        *dst = atoi( s );
+    return rc;
+}
+
 static rc_t CC on_file_line( const String * line, void * data )
 {
-    rc_t rc = 0;
     if ( line->addr[ 0 ] != '@' )
     {
         line_handler_ctx * lhctx = data;
         VNamelist * l;
-        rc_t rc2 = VNamelistFromString( &l, line, '\t' );
-        if ( rc2 == 0 )
+        rc_t rc = VNamelistFromString( &l, line, '\t' );
+        if ( rc == 0 )
         {
             uint32_t count;
-            rc2 = VNameListCount( l, &count );
-            if ( rc2 == 0 && count > 10 )
+            rc = VNameListCount( l, &count );
+            if ( rc == 0 && count > 10 )
             {
                 AlignmentT al;
-                const char * s;
-                rc2 = VNameListGet( l, 2, &s );
-                if ( rc2 == 0 )
+                uint32_t flags;
+                rc = extract_Num( l, SAM_COL_FLAGS, &flags );
+                if ( rc == 0 )
+                    inspect_sam_flags( &al, flags );
+                if ( rc == 0 && ( ( flags & 0x4 ) == 0 ) )
                 {
-                    StringInitCString( &( al.rname ), s );
-                    rc2 = VNameListGet( l, 3, &s );
-                    if ( rc2 == 0 )
+                    /* handle only mapped ( aligned ) sam-lines */
+                    if ( rc == 0 )
+                        rc = extract_String( l, SAM_COL_RNAME, &( al.rname ) );
+                    if ( rc == 0 )
+                        rc = extract_Num64( l, SAM_COL_RPOS, &( al.pos ) );
+                    if ( rc == 0 )
+                        rc = extract_String( l, SAM_COL_CIGAR, &( al.cigar ) );
+                    if ( rc == 0 )
+                        rc = extract_String( l, SAM_COL_SEQ, &( al.read ) );                
+
+                    if ( rc == 0 )
                     {
-                        al.pos = atoi( s );
-                        rc2 = VNameListGet( l, 5, &s );
-                        if ( rc2 == 0 )
-                        {
-                            StringInitCString( &( al.cigar ), s );
-                            rc2 = VNameListGet( l, 9, &s );
-                            if ( rc2 == 0 )
-                            {
-                                StringInitCString( &( al.read ), s );
-                                
-                                /* KOutMsg( "---%S\t%d\t%S\t%S\n", &al.rname, al.pos, &al.cigar, &al.read ); */
-                                rc2 = check_rname( lhctx->ctx, &al.rname, &( lhctx->current ) );
-                                
-                                /* this is the meat!!! */
-                                if ( rc2 == 0 )
-                                    rc2 = process_alignment( lhctx->ctx, &al, &( lhctx->current ) );
-                                
-                                /* use the limit for testing */
-                                if ( lhctx->ctx->limit > 0 )
-                                {
-                                    lhctx->counter += 1;
-                                    if ( lhctx->counter >= lhctx->ctx->limit )
-                                        rc = -1;
-                                }
-                            }
-                        }
+                        /* KOutMsg( "---%S\t%d\t%S\t%S\n", &al.rname, al.pos, &al.cigar, &al.read ); */
+                        rc = check_rname( lhctx->ctx, &al.rname, &( lhctx->current ) );
+                        
+                        /* this is the meat!!! */
+                        if ( rc == 0 )
+                            rc = process_alignment( lhctx->ctx, &al, &( lhctx->current ) );
                     }
                 }
             }
             VNamelistRelease ( l );
         }
-        lhctx->rc = rc2;
+        lhctx->rc = rc;
     }
-    return rc;
+    return 0;
 }
 
 
 static rc_t produce_events_from_KFile( const tool_ctx * ctx, const KFile * f )
 {
     line_handler_ctx lhctx = { .ctx = ctx, .counter = 0, .rc = 0,
-            .current.idx = -1, .current.ad = NULL, .current.min_count = ctx->min_count };
+            .current.idx = -1,
+            .current.ad = NULL,
+            .current.min_count = ctx->min_count,
+            .current.limits = &( ctx->limits ) };
 
     ProcessFileLineByLine( f, on_file_line, &lhctx );
     
     /* print the final dictionary content and release the dictionary */
     if ( lhctx.rc == 0 )
-        lhctx.rc = finish_alignement_dict( &lhctx.current );
+        lhctx.rc = allele_dict_visit_all_and_release( lhctx.current.ad, print_event, &lhctx.current );
 
     return lhctx.rc;
 }
@@ -796,6 +796,7 @@ static rc_t main_sam_input( const Args * args, tool_ctx * ctx )
     ctx->fasta = loadFastaFile( 0, ctx->ref );
     if ( ctx->fasta == NULL )
     {
+        /* we always need a reference-file for SAM-input, if we have none: error */
         log_err( "cannot open reference '%s'", ctx->ref );
         rc = RC ( rcApp, rcArgv, rcConstructing, rcParam, rcInvalid );
     }
@@ -854,7 +855,7 @@ typedef struct tbl_src
     const char * acc;
     int64_t first_row;
     uint64_t row_count;
-    uint32_t cigar_idx, rname_idx, rpos_idx, read_idx;
+    uint32_t cigar_idx, rname_idx, rpos_idx, read_idx, sam_flags_idx;
 
 } tbl_src;
 
@@ -865,13 +866,15 @@ static rc_t produce_events_from_tbl_src( const tool_ctx * ctx, const tbl_src * t
     bool done = false;
     int64_t row_id = tsrc->first_row;
     uint64_t rows_processed = 0;
-    current_ref current = { .idx = -1, .ad = NULL, .rname = NULL, .min_count = ctx->min_count };
+    current_ref current = { .idx = -1, .ad = NULL, .rname = NULL,
+                            .min_count = ctx->min_count,
+                            .limits = &( ctx->limits ) };
     
     while ( rc == 0 && !done )
     {
         AlignmentT al;
         uint32_t elem_bits, boff, row_len;
-
+        
         /* get the CIGAR */
         rc = VCursorCellDataDirect( tsrc->curs, row_id, tsrc->cigar_idx, &elem_bits, ( const void ** )&al.cigar.addr, &boff, &row_len );
         if ( rc != 0 )
@@ -910,6 +913,23 @@ static rc_t produce_events_from_tbl_src( const tool_ctx * ctx, const tbl_src * t
                 al.pos = pp[ 0 ] + 1; /* to produce the same as the SAM-spec, a 1-based postion! */
         }
         
+        if ( rc == 0 )
+        {
+            /*get the strand and first ( by looking at SAM_FLAGS ) */
+            uint32_t * pp;
+            rc = VCursorCellDataDirect( tsrc->curs, row_id, tsrc->sam_flags_idx, &elem_bits, ( const void ** )&pp, &boff, &row_len );
+            if ( rc != 0 )
+                log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.SAM_FLAGS[ %ld ] %R", tsrc->acc, row_id, rc );
+            else
+            {
+                uint32_t flags = pp[ 0 ];
+                /* replicate sam-dump's special treatment of sam-flags if no unaligned reads are dumped
+                   and the mate is unaligned */
+                /* if ( ( flags & 0x1 ) && ( flags & 0x8 ) ) flags &= ~0xC9; */
+                inspect_sam_flags( &al, flags );
+            }
+        }
+
         /* check if the REFERENCE-NAME has changed, flush the allele-dict if so, make a new one */
         if ( rc == 0 )
             rc = check_rname( ctx, &al.rname, &current );
@@ -919,19 +939,8 @@ static rc_t produce_events_from_tbl_src( const tool_ctx * ctx, const tbl_src * t
             rc = process_alignment( ctx, &al, &current );
 
         /* if we are reducing, purge the allele-dict if the spread exeeds the purge-value * 2 */
-        if ( rc == 0 && ctx->reduce && current.ad != NULL )
-        {
-            uint64_t min_pos, max_pos;
-            rc = allele_get_min_max( current.ad, &min_pos, &max_pos );
-            {
-                if ( ( max_pos - min_pos ) > ( ctx->purge * 2 ) )
-                {
-                    rc = allele_dict_visit( current.ad, min_pos + ctx->purge, print_event, &current );
-                    if ( rc == 0 )
-                        rc = allele_dict_purge( current.ad, min_pos + ctx->purge );
-                }
-            }
-        }
+        if ( rc == 0 )
+            rc = allele_dict_visit_and_purge( current.ad, ctx->purge, print_event, &current );
         
         /* handle the loop-termination and find the next row to handle... */
         if ( rc == 0 )
@@ -939,8 +948,6 @@ static rc_t produce_events_from_tbl_src( const tool_ctx * ctx, const tbl_src * t
             rows_processed++;
     
             if ( rows_processed >= tsrc->row_count )
-                done = true;
-            else if ( ctx->limit > 0 && ( rows_processed >= ctx->limit ) )
                 done = true;
             else
             {
@@ -957,7 +964,7 @@ static rc_t produce_events_from_tbl_src( const tool_ctx * ctx, const tbl_src * t
     
     /* print what is left in the allele-dictionary */
     if ( rc == 0 )
-        rc = finish_alignement_dict( &current );
+        rc = allele_dict_visit_all_and_release( current.ad, print_event, &current );
 
     return rc;
 }
@@ -1009,6 +1016,8 @@ static rc_t produce_events_from_accession( tool_ctx * ctx, const VDBManager * mg
                         rc = add_col_to_cursor( tsrc.curs, &tsrc.rpos_idx, "REF_POS", acc );
                     if ( rc == 0 )
                         rc = add_col_to_cursor( tsrc.curs, &tsrc.read_idx, "READ", acc );
+                    if ( rc == 0 )
+                        rc = add_col_to_cursor( tsrc.curs, &tsrc.sam_flags_idx, "SAM_FLAGS", acc );
                     if ( rc == 0 )
                     {
                         rc = VCursorOpen( tsrc.curs );
@@ -1106,10 +1115,18 @@ rc_t CC KMain ( int argc, char *argv [] )
         rc = get_tool_ctx( args, &ctx );
         if ( rc == 0 )
         {
-            if ( ctx.csra )
-                rc = main_csra_input( args, &ctx );
-            else
-                rc = main_sam_input( args, &ctx );
+            if ( ctx.logfilename != NULL )
+                rc = writer_make( &ctx.log, ctx.logfilename );
+            if ( rc == 0 )
+            {
+                if ( ctx.csra )
+                    rc = main_csra_input( args, &ctx );
+                else
+                    rc = main_sam_input( args, &ctx );
+                
+                if ( ctx.log != NULL )
+                    writer_release( ctx.log );
+            }
         }
         ArgsWhack ( args );
     }

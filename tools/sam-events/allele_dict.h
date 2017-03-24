@@ -30,11 +30,26 @@
 #include <klib/rc.h>
 #include <klib/text.h>
 
+struct Writer;
+
+rc_t writer_make( struct Writer ** wr, const char * filename );
+rc_t writer_release( struct Writer * wr );
+rc_t writer_write( struct Writer * wr, const char * fmt, ... );
+
+/* -------------------------------------------------------------------------------------- */
+
 struct Allele_Dict;
+
+typedef struct counters
+{
+    uint32_t fwd, rev, t_pos, t_neg;
+} counters;
 
 typedef struct AlignmentT
 {
     uint64_t pos; /* 1-based! */
+    bool fwd;
+    bool first;
     String rname;
     String cigar;
     String read;
@@ -47,19 +62,17 @@ rc_t allele_dict_make( struct Allele_Dict ** ad, const String * rname );
 rc_t allele_dict_release( struct Allele_Dict * ad );
 
 /* put an event into the allele_dictionary */
-rc_t allele_dict_put( struct Allele_Dict * ad, size_t position, uint32_t deletes, uint32_t inserts, const char * bases );
+rc_t allele_dict_put( struct Allele_Dict * ad, uint64_t position,
+                      uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first );
 
-typedef rc_t ( CC * on_ad_event )( uint32_t count, const String * rname, size_t position,
-                                    uint32_t deletes, uint32_t inserts, const char * bases, void * user_data );
+typedef rc_t ( CC * on_ad_event )( const counters * count, const String * rname, uint64_t position,
+                                    uint32_t deletes, uint32_t inserts, const char * bases,
+                                    void * user_data );
 
 /* call a callback for each event in the allele_dictionary */
-rc_t allele_dict_visit( struct Allele_Dict * ad, uint64_t pos, on_ad_event f, void * user_data );
+rc_t allele_dict_visit_all_and_release( struct Allele_Dict * ad, on_ad_event f, void * user_data );
 
-/* get min and max - positions from the dictionary */
-rc_t allele_get_min_max( struct Allele_Dict * ad, uint64_t * min_pos, uint64_t * max_pos );
-
-/* call the callback-function for every entry smaller then the given position and then purge everything the has been visited */
-rc_t allele_dict_purge( struct Allele_Dict * ad, uint64_t pos );
-
+/* call a callback for each event until a certain purge-distance is reached */
+rc_t allele_dict_visit_and_purge( struct Allele_Dict * ad, uint32_t purge_dist, on_ad_event f, void * user_data );
 
 #endif

@@ -66,12 +66,6 @@ struct overlap_s {
     uint32_t max; /* maximum end pos of any alignment that starts before this chunk and ends in this chunk */
 };
 
-struct s_reference_info {
-    unsigned name;          /* offset of start of name in ref_names */
-    unsigned id;
-    unsigned lastOffset;
-};
-
 extern void ReferenceMgr_DumpConfig(ReferenceMgr const *const self);
 
 rc_t ReferenceInit(Reference *self, const VDBManager *mgr, VDatabase *db)
@@ -85,8 +79,7 @@ rc_t ReferenceInit(Reference *self, const VDBManager *mgr, VDatabase *db)
     self->coverage.elem_bits = self->mismatches.elem_bits = self->indels.elem_bits = 32;
     self->pri_align.elem_bits = self->sec_align.elem_bits = 64;
     self->pri_overlap.elem_bits = self->sec_overlap.elem_bits = sizeof(struct overlap_s) * 8;
-    self->ref_names.elem_bits = 8;
-    self->ref_info.elem_bits = 8 * sizeof(struct s_reference_info);
+    self->ref_info.elem_bits = 8 * sizeof(ReferenceSeq const *);
     
     rc = ReferenceMgr_Make(&self->mgr, db, mgr, ewrefmgr_co_Coverage,
                            G.refXRefPath, G.inpath,
@@ -263,22 +256,20 @@ static unsigned str__len(char const A[])
     }
 }
 
-static unsigned bsearch_name(char const qry[], char const names[],
+static unsigned bsearch_name(ReferenceSeq const *const qry,
                              unsigned const count,
-                             struct s_reference_info const refInfo[],
-                             int found[])
+                             ReferenceSeq const *const *const refInfo)
 {
     unsigned f = 0;
     unsigned e = count;
     
     while (f < e) {
         unsigned const m = f + ((e - f) >> 1);
-        char const *const name = &names[refInfo[m].name];
-        int const diff = str__cmp(qry, name);
+        ReferenceSeq const *const fnd = refInfo[m];
         
-        if (diff < 0)
+        if (qry < fnd)
             e = m;
-        else if (diff > 0)
+        else if (qry > fnd)
             f = m + 1;
         else {
             found[0] = 1;
@@ -288,92 +279,37 @@ static unsigned bsearch_name(char const qry[], char const names[],
     return f;
 }
 
-static struct s_reference_info s_reference_info_make(unsigned const name, unsigned const id)
-{
-    struct s_reference_info rslt;
-    
-    rslt.name = name;
-    rslt.id = id;
-    rslt.lastOffset = 0;
-    
-    return rslt;
-}
-
-static unsigned GetLastOffset(Reference const *const self)
-{
-    if (self->last_id < self->ref_info.elem_count) {
-        struct s_reference_info const *const refInfoBase = self->ref_info.base;
-        return refInfoBase[self->last_id].lastOffset;
-    }
-    return 0;
-}
-
-static void SetLastOffset(Reference *const self, unsigned const newValue)
-{
-    if (self->last_id < self->ref_info.elem_count) {
-        struct s_reference_info *const refInfoBase = self->ref_info.base;
-        refInfoBase[self->last_id].lastOffset = newValue;
-    }
-}
-
 rc_t ReferenceSetFile(Reference *const self, char const id[],
                       uint64_t const length, uint8_t const md5[16],
                       bool *const shouldUnmap,
                       bool *const wasRenamed)
 {
-    ReferenceSeq const *rseq;
-    int found = 0;
+    ReferenceSeq const *rseq = NULL;
     unsigned at = 0;
-
-    if (self->last_id < self->ref_info.elem_count) {
-        struct s_reference_info const *const refInfoBase = self->ref_info.base;
-        struct s_reference_info const refInfo = refInfoBase[self->last_id];
-        char const *const nameBase = self->ref_names.base;
-        char const *const last = nameBase + refInfo.id;
-        
-        if (str__equal(id, last)) {
-            return 0;
-        }
-    }
 
     BAIL_ON_FAIL(FlushBuffers(self, self->length, true, true));
     BAIL_ON_FAIL(ReferenceMgr_GetSeq(self->mgr, &rseq, id, shouldUnmap, G.allowMultiMapping, wasRenamed));
+    if (self->rseq == rseq)
+        return 0;
     
-    self->rseq = rseq;
-
-    at = bsearch_name(id, self->ref_names.base, self->ref_info.elem_count, self->ref_info.base, &found);
-    if (!found) {
-        unsigned const len = str__len(id);
-        unsigned const name_at = self->ref_names.elem_count;
-        unsigned const id_at = name_at;
-        struct s_reference_info const new_elem = s_reference_info_make(name_at, id_at);
-        rc_t const rc = KDataBufferResize(&self->ref_names, name_at + len + 1);
+    at = bsearch_name(rseq, self->ref_info.elem_count, self->ref_info.base);
+    if (at == self->ref_info.elem_count || ((ReferenceSeq const **)self->ref_info.base)[at] != rseq) {
+        unsigned const count = (unsigned)self->ref_info.elem_count;
+        rc_t const rc = KDataBufferResize(&self->ref_info, count + 1);
+        struct s_reference_info *const refInfoBase = self->ref_info.base;
         
         if (rc)
             return rc;
-        else {
-            unsigned const count = (unsigned)self->ref_info.elem_count;
-            rc_t const rc = KDataBufferResize(&self->ref_info, count + 1);
-            struct s_reference_info *const refInfoBase = self->ref_info.base;
-            
-            if (rc)
-                return rc;
-            
-            memmove(((char *)self->ref_names.base) + name_at, id, len + 1);
-            memmove(refInfoBase + at + 1, refInfoBase + at, (count - at) * sizeof(*refInfoBase));
-            refInfoBase[at] = new_elem;
-        }
-        (void)PLOGMSG(klogInfo, (klogInfo, "Processing Reference '$(id)'", "id=%s", id));
-        if (*wasRenamed) {
-            char const *actid = NULL;
-            ReferenceSeq_GetID(rseq, &actid);
-            (void)PLOGMSG(klogInfo, (klogInfo, "Reference '$(id)' was renamed to '$(actid)'", "id=%s,actid=%s", id, actid));
-        }
-    }
-    else if (!self->out_of_order)
-        Unsorted(self);
         
-    self->last_id = at;
+        memmove(refInfoBase + at + 1, refInfoBase + at, (count - at) * sizeof(*refInfoBase));
+        refInfoBase[at] = rseq;
+    }
+    else if (!self->out_of_order) {
+        Unsorted(self);
+    }
+    self->rseq = rseq;
+    
+    self->lastOffset = 0;
     self->curPos = self->endPos = 0;
     self->length = (unsigned)length;
     KDataBufferResize(&self->pri_overlap, 0);
@@ -539,22 +475,16 @@ rc_t ReferenceRead(Reference *self, AlignmentRecord *data, uint64_t const pos,
     GetCounts(data, seqLen, &nmatch, &nmis, &indels);
     *matches = nmatch;
 	*misses  = nmis;
-/* removed before more comlete implementation - EY 
-    if (!G.acceptNoMatch && data->data.ref_len == 0)
-        return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated);
-***********************/
     
-    if (!self->out_of_order && pos < GetLastOffset(self)) {
+    if (!self->out_of_order && pos < self->lastOffset) {
         return Unsorted(self);
     }
     if (!self->out_of_order) {
-        SetLastOffset(self, data->data.effective_offset);
+        self->lastOffset = (unsigned)data->data.effective_offset;
         
-        /* if (G.acceptNoMatch || nmatch >= G.minMatchCount)    --- removed before more comlete implementation - EY ***/
-            return ReferenceAddCoverage(self, data->data.effective_offset,
-                                        data->data.ref_len, nmis, indels,
-                                        data->isPrimary);
-       /* else return RC(rcApp, rcFile, rcReading, rcConstraint, rcViolated); --- removed before more comlete implementation - EY ***/
+        return ReferenceAddCoverage(self, data->data.effective_offset,
+                                    data->data.ref_len, nmis, indels,
+                                    data->isPrimary);
     }
     return 0;
 }
@@ -599,7 +529,6 @@ rc_t ReferenceWhack(Reference *self, bool commit)
         KDataBufferWhack(&self->coverage);
         KDataBufferWhack(&self->pri_overlap);
         KDataBufferWhack(&self->sec_overlap);
-        KDataBufferWhack(&self->ref_names);
         KDataBufferWhack(&self->ref_info);
         if (self->rseq)
             rc = ReferenceSeq_Release(self->rseq);

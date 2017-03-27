@@ -41,7 +41,7 @@ typedef struct s_reference {
     unsigned curPos;
     unsigned endPos;
     unsigned length;
-    unsigned last_id;            /* == ref_info.elem_count if no last id */
+    unsigned lastOffset;
 
     KDataBuffer coverage;
     KDataBuffer mismatches;
@@ -50,7 +50,6 @@ typedef struct s_reference {
     KDataBuffer sec_align;
     KDataBuffer pri_overlap;
     KDataBuffer sec_overlap;
-    KDataBuffer ref_names;
     KDataBuffer ref_info;
 
     bool out_of_order;

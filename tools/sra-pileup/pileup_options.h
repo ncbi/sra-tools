@@ -45,6 +45,9 @@ typedef struct pileup_options
     bool div_by_spotgrp;
 	bool depth_per_spotgrp;
     bool use_seq_name;
+    bool process_mismatches;
+    bool process_inserts;
+    bool process_deletes;
     uint32_t minmapq;
     uint32_t min_mismatch;
     uint32_t merge_dist;

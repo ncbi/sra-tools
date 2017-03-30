@@ -105,6 +105,10 @@
 
 #define OPTION_DEPTH_PER_SPOTGRP	"depth-per-spotgroup"
 
+#define OPTION_P_INS   "ins"
+#define OPTION_P_DEL   "del"
+#define OPTION_P_MIS   "mis"
+
 #define OPTION_FUNC    "function"
 #define ALIAS_FUNC     NULL
 
@@ -198,7 +202,10 @@ OptDef MyOptions[] =
     { OPTION_OUTBUF,	ALIAS_OUTBUF,	NULL,	outbuf_usage,	1,        true,        false },    
     { OPTION_MIN_M,		NULL,			NULL,	min_m_usage,	1,        true,        false },
     { OPTION_MERGE,		NULL,			NULL,	merge_usage,	1,        true,        false },
-    { OPTION_FUNC,		ALIAS_FUNC,		NULL,	func_usage,		1,        true,        false }
+    { OPTION_FUNC,		ALIAS_FUNC,		NULL,	func_usage,		1,        true,        false },
+    { OPTION_P_INS,		NULL,			NULL,	NULL,	        1,        false,       false },    
+    { OPTION_P_DEL,		NULL,			NULL,	NULL,	        1,        false,       false },
+    { OPTION_P_MIS,		NULL,			NULL,	NULL,	        1,        false,       false }
 };
 
 /* =========================================================================================== */
@@ -351,6 +358,22 @@ static rc_t get_pileup_options( Args * args, pileup_options *opts )
                 
         }
     }
+    
+    if ( rc == 0 && opts->function == sra_pileup_events )
+    {
+        rc = get_bool_option( args, OPTION_P_INS, &opts->process_inserts, false );
+        if ( rc == 0 )
+            rc = get_bool_option( args, OPTION_P_DEL, &opts->process_deletes, false );
+        if ( rc == 0 )
+            rc = get_bool_option( args, OPTION_P_MIS, &opts->process_mismatches, false );
+        if ( !opts->process_inserts && !opts->process_deletes && !opts->process_mismatches )
+        {
+            opts->process_inserts = true;
+            opts->process_deletes = true;
+            opts->process_mismatches = true;
+        }
+    }
+    
     return rc;
 }
 

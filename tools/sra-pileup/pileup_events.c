@@ -30,105 +30,189 @@
 #include "ref_walker_0.h"
 #include "4na_ascii.h"
 
-typedef struct event_counters
-{
-    uint32_t deletes;
-    uint32_t inserts;
-    uint32_t mismatches;
-} event_counters;
+#define REF_SLICE 100
 
-static rc_t line( void )
-{
-    return KOutMsg( "\n-------------------------------------------------------------\n" );
-}
 
-static void from_4na_to_DNA( char * buffer, size_t len )
-{
-    size_t i;
-    for ( i = 0; i < len; ++i )
-        buffer[ i ] = _4na_to_ascii( buffer[ i ], false );
-}
+const char * stars = "****************************************************************************************************";
 
-static rc_t on_insert( walk_data * data )
+typedef struct e_ctx
 {
-    rc_t rc = 0;
-    const INSDC_4na_bin *bases;
-    uint32_t n = ReferenceIteratorBasesInserted ( data->ref_iter, &bases );
-    if ( bases != NULL )
+    char ref[ REF_SLICE ];
+    char indel[ REF_SLICE ];
+    size_t ref_slice_start, allele_len, allele_start, rel_event_pos;
+    INSDC_coord_len ref_len, deletion_len, insertion_len;
+    INSDC_dna_text const * allele;
+    RefVariation * rv;
+} e_ctx;
+
+
+/* read the reference around the event-position -/+ 50 bases */
+static rc_t read_ref( walk_data * data )
+{
+    e_ctx * ec = data->data;
+    ec->ref_slice_start = data->ref_pos - ( ( sizeof ec->ref ) / 2 );
+    rc_t rc = ReferenceObj_Read( data->ref_obj,
+                                 ec->ref_slice_start,
+                                 sizeof ec->ref,
+                                 ( uint8_t * )&ec->ref,
+                                 &ec->ref_len );
+    if ( rc == 0 )
     {
-        uint32_t i;
-        line();
-        rc = KOutMsg( "%s\t%u\tI\t", data->ref_name, data->ref_pos );
-        for ( i = 0; i < n && rc == 0; ++i )
-            rc = KOutMsg( "%c", _4na_to_ascii( bases[ i ], false ) );
-        if ( rc == 0 )
-            rc = KOutMsg( "\n" );
+        size_t i;
+        for ( i = 0; i < ec->ref_len; ++i )
+            ec->ref[ i ] = _4na_to_ascii( ec->ref[ i ], false );
     }
     return rc;
 }
 
+
+static rc_t on_insert( walk_data * data )
+{
+    rc_t rc = 0;
+    e_ctx * ec = data->data;
+    const INSDC_4na_bin *bases;
+    
+    ec->insertion_len = ReferenceIteratorBasesInserted ( data->ref_iter, &bases );
+    if ( bases != NULL )
+    {
+        uint32_t i;
+
+        /* translate the inserted bases from 4na to DNA */
+        for ( i = 0; i < ec->insertion_len; ++i )
+            ec->indel[ i ] = _4na_to_ascii( bases[ i ], false );
+        ec->deletion_len = 0;
+
+        rc = RefVariationIUPACMake( &ec->rv,
+                                    ec->ref,
+                                    ec->ref_len,
+                                    ec->rel_event_pos + 1,
+                                    ec->deletion_len,
+                                    ec->indel,
+                                    ec->insertion_len,
+                                    refvarAlgRA );
+        if ( rc == 0 )
+        {
+            rc = RefVariationGetAllele( ec->rv, &ec->allele, &ec->allele_len, &ec->allele_start );
+            if ( rc == 0 )
+            {
+
+                KOutMsg( "\nINSERT: ref_start = %d, rel_allele_start = %d\n", ec->ref_slice_start, ec->allele_start );
+                
+                /* write the reference with a gap to showcase the insert */
+                KOutMsg( "%.*s%.*s%.*s\n",
+                         ec->rel_event_pos + 1, ec->ref,
+                         ec->insertion_len, stars,
+                         ec->ref_len - ( ec->rel_event_pos + 1 ), &ec->ref[ ec->rel_event_pos + 1 ] );
+                /* write the inseted bases where the gap is */
+                KOutMsg( "%*s%.*s\n",
+                         ec->rel_event_pos + 1, " ",
+                         ec->insertion_len, ec->indel );
+                /* highlight where the allele is */
+                KOutMsg( "%*s%.*s\n", ec->allele_start + 1, "*", ec->allele_len - 1, stars );
+
+                KOutMsg( "%s\t%u\t%c\t+\t%.*s\t%.*s\t%u.%u\n",
+                    data->ref_name,
+                    data->ref_pos,
+                    _4na_to_ascii( data->ref_base, false ),
+                    ec->insertion_len, ec->indel,
+                    ec->allele_len, ec->allele,
+                    ec->ref_slice_start + ec->allele_start, ec->allele_len );
+            }
+        }
+    }
+    return rc;
+}
+
+
 static rc_t on_delete( walk_data * data )
 {
     rc_t rc = 0;
+    e_ctx * ec = data->data;
     const INSDC_4na_bin *bases;
     INSDC_coord_zero ref_pos;
-    uint32_t n = ReferenceIteratorBasesDeleted ( data->ref_iter, &ref_pos, &bases );
+    ec->deletion_len = ReferenceIteratorBasesDeleted ( data->ref_iter, &ref_pos, &bases );
     if ( bases != NULL )
     {
         uint32_t i;            
-        line();
-        rc = KOutMsg( "%s\t%u\tD\t", 
-                 data->ref_name, data->ref_pos );
-        for ( i = 0; i < n && rc == 0; ++i )
-            rc = KOutMsg( "%c", _4na_to_ascii( bases[ i ], false ) );
+
+        /* translate the deleted bases from 4na to DNA */
+        for ( i = 0; i < ec->deletion_len; ++i )
+            ec->indel[ i ] = _4na_to_ascii( bases[ i ], false );
+        ec->insertion_len = 0;
+        
+        rc = RefVariationIUPACMake( &ec->rv,
+                                    ec->ref,
+                                    ec->ref_len,
+                                    ec->rel_event_pos + 2,
+                                    ec->deletion_len,
+                                    NULL,
+                                    ec->insertion_len,
+                                    refvarAlgRA );
         if ( rc == 0 )
-            rc = KOutMsg( "\n" );
+        {
+            rc = RefVariationGetAllele( ec->rv, &ec->allele, &ec->allele_len, &ec->allele_start );
+            if ( rc == 0 )
+            {
+
+                KOutMsg( "\nDELETE: ref_start = %d, allele_start = %d\n", ec->ref_slice_start, ec->allele_start );        
+                /* write the reference as is */
+                KOutMsg( "%.*s\n", ec->ref_len, ec->ref );
+                /* highlight where the deletion is */
+                KOutMsg( "%*s%.*s\n", ec->rel_event_pos + 2, "*", ec->deletion_len - 1, stars );
+
+                KOutMsg( "%s\t%u\t%c\t-\t%.*s\t%.*s\t%u.%u\n",
+                    data->ref_name,
+                    data->ref_pos,
+                    _4na_to_ascii( data->ref_base, false ),
+                    ec->deletion_len, ec->indel,
+                    ec->allele_len, ec->allele,
+                    ec->ref_slice_start + ec->allele_start, ec->allele_len );
+            }
+        }
         free( (void *) bases );
     }
     return rc;
 }
 
-#define REF_SLICE 100
 
 static rc_t on_mismatch( walk_data * data )
 {
-    RefVariation * rv;
-    char ref[ REF_SLICE ];
-    size_t deletion_pos = REF_SLICE / 2;
-    size_t ref_start = data->ref_pos - deletion_pos;
-    INSDC_coord_len written;
+    rc_t rc;
+    e_ctx * ec = data->data;
     
-    rc_t rc = ReferenceObj_Read( data->ref_obj, ref_start, REF_SLICE, ( uint8_t * )&ref, &written );
+    ec->indel[ 0 ] = _4na_to_ascii( data->state, false ); /* we have to translate to DNA! */
+    ec->indel[ 1 ] = 0;
+    ec->insertion_len = 1;
+    ec->deletion_len = 1;
+    
+    rc = RefVariationIUPACMake( &ec->rv,
+                                ec->ref,
+                                ec->ref_len,
+                                ec->rel_event_pos,
+                                ec->deletion_len,
+                                ec->indel,
+                                ec->insertion_len,
+                                refvarAlgRA );
     if ( rc == 0 )
     {
-        size_t ref_len = written;
-        char insertion[ 2 ];
-        size_t insertion_len = 1;
-        size_t deletion_len = 1;
-        insertion[ 0 ] = _4na_to_ascii( data->state, false ); /* we have to translate to DNA! */
-
-        line();
-        from_4na_to_DNA( ref, ref_len ); /* we have to translate to DNA! */
-        rc = RefVariationIUPACMake( &rv, ref, ref_len, deletion_pos-1, deletion_len, insertion, insertion_len, refvarAlgRA );
+        rc = RefVariationGetAllele( ec->rv, &ec->allele, &ec->allele_len, &ec->allele_start );
         if ( rc == 0 )
         {
-            INSDC_dna_text const * allele;
-            size_t allele_len, allele_start;
-            rc = RefVariationGetAllele( rv, &allele, &allele_len, &allele_start );
-            if ( rc == 0 )
-            {
-                size_t allele_pos = ( data->ref_pos + deletion_pos ) - allele_start;
-                
-                KOutMsg( "%.*s\n", ref_len, ref );
-                rc = KOutMsg( "%s\t%u\tM\t%c\t%.*s\t%u.%u\n",
-                    data->ref_name,
-                    data->ref_pos,
-                    insertion[ 0 ],
-                    allele_len, allele,
-                    allele_pos,
-                    allele_len );
-            }
-            RefVariationRelease ( rv );
+            KOutMsg( "\nMISMATCH: ref_start = %d, rel_allele_start = %d\n", ec->ref_slice_start, ec->allele_start );
+            /* write the reference as is */
+            KOutMsg( "%.*s\n", ec->ref_len, ec->ref );
+            /* write the base that is the mismatch at its position */
+            KOutMsg( "%*s\n", ec->rel_event_pos + 1, ec->indel );
+            /* highlight where the allele is */
+            KOutMsg( "%*s%.*s\n", ec->allele_start + 1, "*", ec->allele_len - 1, stars );
+            
+            rc = KOutMsg( "%s\t%u\t%c\t!=\t%c\t%.*s\t%u.%u\n",
+                data->ref_name,
+                data->ref_pos,
+                _4na_to_ascii( data->ref_base, false ),
+                ec->indel[ 0 ],
+                ec->allele_len, ec->allele,
+                ec->ref_slice_start + ec->allele_start, ec->allele_len );
         }
     }
     return rc;
@@ -140,17 +224,48 @@ static rc_t CC walk_events_placement( walk_data * data )
     int32_t state = data->state;
     if ( ( state & align_iter_invalid ) != align_iter_invalid )
     {
+        uint32_t event_type = 0;
+        /* the event types are defined in <align/iterator.h> */
+        
         /* INSERT-event */
         if ( ( state & align_iter_insert ) == align_iter_insert )
-            rc = on_insert( data );
+            event_type = align_iter_insert;
 
         /* DELETE-event */
-        if ( ( state & align_iter_skip ) == align_iter_skip )
-            rc = on_delete( data );
+        else if ( ( state & align_iter_skip ) == align_iter_skip )
+            event_type = align_iter_skip;
         
         /* MISMATCH-event */
-        if ( ( state & align_iter_match ) != align_iter_match )
-            rc = on_mismatch( data );
+        else  if ( ( state & align_iter_match ) != align_iter_match )
+            event_type = align_iter_match;
+        
+        if ( event_type != 0 )
+        {
+            rc = read_ref( data );
+            if ( rc == 0 )
+            {
+                e_ctx * ec = data->data;
+
+                ec->rv = NULL;
+                switch( event_type )
+                {
+                    case align_iter_insert :    if ( data->options->process_inserts )
+                                                    rc = on_insert( data );
+                                                break;
+                                                
+                    case align_iter_skip :      if ( data->options->process_deletes )
+                                                    rc = on_delete( data );
+                                                break;
+
+                    case align_iter_match :     if ( data->options->process_mismatches )
+                                                    rc = on_mismatch( data );
+                                                break;
+
+                }
+                if ( ec->rv != NULL )
+                    RefVariationRelease( ec->rv );
+            }
+        }
     }
     return rc;
 }
@@ -161,11 +276,13 @@ rc_t walk_events( ReferenceIterator *ref_iter, pileup_options * options )
     walk_data data;
     walk_funcs funcs;
 
-    event_counters v_counters;
+    e_ctx ec;
 
+    ec.rel_event_pos = ( ( sizeof ec.ref ) / 2 );
+    
     data.ref_iter = ref_iter;
     data.options = options;
-    data.data = &v_counters;
+    data.data = &ec;
 
     funcs.on_enter_ref = NULL;
     funcs.on_exit_ref = NULL;

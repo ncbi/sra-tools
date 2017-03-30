@@ -881,6 +881,7 @@ rc_t SRADumper_Init(SRADumperFmt* fmt)
 {
     static const SRADumperFmt_Arg arg[] =
         {
+            {NULL, "unused", NULL, {"unused parameter", NULL}},
             {"M", "minReadLen", "len", {"Minimum read length to output, default is 25", NULL}},
             {"W", "noclip", NULL, {"Do not clip quality left and right for spot", NULL}},
             {"F", "origfmt", NULL, {"Excludes SRR accession on defline", NULL}},

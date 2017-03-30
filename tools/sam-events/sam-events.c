@@ -166,7 +166,7 @@ rc_t CC Usage ( const Args * args )
 typedef struct tool_ctx
 {
     uint32_t min_count, purge;
-    bool fast, csra;
+    bool fast, csra, unsorted;
     counters limits;
     const char * ref;
     struct cFastaFile * fasta;
@@ -219,6 +219,7 @@ static rc_t get_tool_ctx( const Args * args, tool_ctx * ctx )
     ctx->log = NULL;
     ctx->logfilename = NULL;
     ctx->purge = 4096;
+    ctx->unsorted = false;
     
     rc = get_bool( args, OPTION_FAST, &ctx->fast );
     if ( rc == 0 )
@@ -267,7 +268,9 @@ static rc_t log_err( const char * t_fmt, ... )
 
 
 /* ----------------------------------------------------------------------------------------------- */
-
+static rc_t CC print_event( const counters * count, const String * rname, size_t position,
+                            uint32_t deletes, uint32_t inserts, const char * bases,
+                            void * user_data );
 
 #define REF_NAME_LEN 1024
 
@@ -277,24 +280,50 @@ typedef struct current_ref
     const char * ref_bases;
     unsigned ref_bases_count;
     struct Allele_Dict * ad;
+    uint64_t position;
     int idx;
     uint32_t min_count;
     const counters * limits;
+    VNamelist * seen_refs;
+    bool unsorted;
 } current_ref;
 
 
+static rc_t init_current_ref( current_ref * current, uint32_t min_count, const counters * limits )
+{
+    rc_t rc = 0;
+    current->rname = NULL;
+    current->ref_bases = NULL;
+    current->ref_bases_count = 0;
+    current->ad = NULL;
+    current->position = 0;
+    current->idx = -1;
+    current->min_count = min_count;
+    current->limits = limits;
+    current->unsorted = false;
+    rc = VNamelistMake( &current->seen_refs, 10 );
+    return rc;
+}
+
+static rc_t finish_current_ref( current_ref * current )
+{
+    rc_t rc = allele_dict_visit_all_and_release( current->ad, print_event, current );
+    if ( rc == 0 )
+        rc = VNamelistRelease( current->seen_refs );
+    return rc;
+}
 
 /* ----------------------------------------------------------------------------------------------- */
 static rc_t CC print_event( const counters * count, const String * rname, size_t position,
                             uint32_t deletes, uint32_t inserts, const char * bases,
                             void * user_data )
 {
-    const current_ref * ref = user_data;
-    const counters * limits = ref->limits;
+    const current_ref * current = user_data;
+    const counters * limits = current->limits;
     bool print;
     
-    if ( ref->min_count > 0 )
-        print = ( count->fwd + count->rev >= ref->min_count );
+    if ( current->min_count > 0 )
+        print = ( count->fwd + count->rev >= current->min_count );
     else
         print = true;
     if ( print && limits->fwd > 0 )
@@ -537,20 +566,33 @@ static rc_t switch_reference( struct cFastaFile * fasta,
 }
 
 
-static rc_t check_rname( const tool_ctx * ctx, const String * rname, current_ref * current )
+static rc_t check_rname( struct cFastaFile * fasta, const String * rname, uint64_t position, current_ref * current )
 {
     rc_t rc = 0;
     int cmp = 1;
     
     if ( current->idx >= 0 )
         cmp = StringCompare( current->rname, rname );
-    
+        
     if ( cmp != 0 )
     {
         /* we are entering a new reference! */
+        int32_t idx;
+        
+        rc = VNamelistContainsString( current->seen_refs, rname, &idx );
+        if ( rc == 0 )
+        {
+            if ( idx < 0 )
+                rc = VNamelistAppendString( current->seen_refs, rname );
+            else
+            {
+                current->unsorted = true;
+                log_err( "unsorted: %S", rname );
+            }
+        }
         
         /* print all entries found in the allele-dict, and then release the whole allele-dict */
-        if ( current->ad != NULL )
+        if ( rc == 0 && current->ad != NULL )
             rc = allele_dict_visit_all_and_release( current->ad, print_event, current );
        
         /* switch to the new reference!
@@ -558,23 +600,30 @@ static rc_t check_rname( const tool_ctx * ctx, const String * rname, current_ref
            - get the index of the new reference into the fasta-file
         */
         if ( rc == 0 )
-            rc = switch_reference( ctx->fasta, current, rname );
+            rc = switch_reference( fasta, current, rname );
             
         /* make a new allele-dict */
         if ( rc == 0 )
             rc = allele_dict_make( &current->ad, rname );
     }
+    else
+    {
+        if ( position < current->position )
+            current->unsorted = true;
+    }
+    current->position = position;
     
     return rc;
 }
 
 
-static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor * extractor )
+static rc_t process_alignments_from_extractor( tool_ctx * ctx, Extractor * extractor )
 {
     rc_t rc = 0;
     bool done = false;
-    current_ref current = { .idx = -1, .ad = NULL, .rname = NULL,
-                            .min_count = ctx->min_count, .limits = &( ctx->limits ) };
+    current_ref current;
+
+    init_current_ref( &current, ctx->min_count, &( ctx->limits ) );
 
     while ( rc == 0 && !done )
     {
@@ -600,7 +649,7 @@ static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor *
                     al.fwd = true;
                     al.first = true;
                     
-                    rc = check_rname( ctx, &al.rname, &current );
+                    rc = check_rname( ctx->fasta, &al.rname, al.pos, &current );
                     
                     /* this is the meat!!! */
                     if ( rc == 0 )
@@ -619,13 +668,14 @@ static rc_t process_alignments_from_extractor( const tool_ctx * ctx, Extractor *
     
     /* print the final dictionary content and release the dictionary */
     if ( rc == 0 )
-        rc = allele_dict_visit_all_and_release( current.ad, print_event, &current );
+        rc = finish_current_ref( &current );
+    ctx->unsorted = current.unsorted;
     
     return rc;
 }
 
 
-static rc_t produce_events_from_file_checked( const tool_ctx * ctx, const char * file_name )
+static rc_t produce_events_from_file_checked( tool_ctx * ctx, const char * file_name )
 {
     Extractor * extractor;
     rc_t rc = SAMExtractorMake( &extractor, file_name, 1 );
@@ -724,7 +774,7 @@ static rc_t CC on_file_line( const String * line, void * data )
                     if ( rc == 0 )
                     {
                         /* KOutMsg( "---%S\t%d\t%S\t%S\n", &al.rname, al.pos, &al.cigar, &al.read ); */
-                        rc = check_rname( lhctx->ctx, &al.rname, &( lhctx->current ) );
+                        rc = check_rname( lhctx->ctx->fasta, &al.rname, al.pos, &( lhctx->current ) );
                         
                         /* this is the meat!!! */
                         if ( rc == 0 )
@@ -740,25 +790,24 @@ static rc_t CC on_file_line( const String * line, void * data )
 }
 
 
-static rc_t produce_events_from_KFile( const tool_ctx * ctx, const KFile * f )
+static rc_t produce_events_from_KFile( tool_ctx * ctx, const KFile * f )
 {
-    line_handler_ctx lhctx = { .ctx = ctx, .counter = 0, .rc = 0,
-            .current.idx = -1,
-            .current.ad = NULL,
-            .current.min_count = ctx->min_count,
-            .current.limits = &( ctx->limits ) };
+    line_handler_ctx lhctx = { .ctx = ctx, .counter = 0, .rc = 0 };
+    
+    init_current_ref( &lhctx.current, ctx->min_count, &( ctx->limits ) );
 
     ProcessFileLineByLine( f, on_file_line, &lhctx );
     
     /* print the final dictionary content and release the dictionary */
     if ( lhctx.rc == 0 )
-        lhctx.rc = allele_dict_visit_all_and_release( lhctx.current.ad, print_event, &lhctx.current );
-
+        lhctx.rc = finish_current_ref( &( lhctx.current ) );
+    ctx->unsorted = lhctx.current.unsorted;
+    
     return lhctx.rc;
 }
 
 
-static rc_t produce_events_from_stdin( const tool_ctx * ctx )
+static rc_t produce_events_from_stdin( tool_ctx * ctx )
 {
     const KFile * f;
     rc_t rc = KFileMakeStdIn( &f );
@@ -773,7 +822,7 @@ static rc_t produce_events_from_stdin( const tool_ctx * ctx )
 }
 
 
-static rc_t produce_events_from_file_unchecked( const tool_ctx * ctx, const KDirectory * dir, const char * filename )
+static rc_t produce_events_from_file_unchecked( tool_ctx * ctx, const KDirectory * dir, const char * filename )
 {
     const KFile * f;
     rc_t rc = KDirectoryOpenFileRead( dir, &f, "%s", filename );
@@ -860,15 +909,15 @@ typedef struct tbl_src
 } tbl_src;
 
 
-static rc_t produce_events_from_tbl_src( const tool_ctx * ctx, const tbl_src * tsrc )
+static rc_t produce_events_from_tbl_src( tool_ctx * ctx, const tbl_src * tsrc )
 {
     rc_t rc = 0;
     bool done = false;
     int64_t row_id = tsrc->first_row;
     uint64_t rows_processed = 0;
-    current_ref current = { .idx = -1, .ad = NULL, .rname = NULL,
-                            .min_count = ctx->min_count,
-                            .limits = &( ctx->limits ) };
+    current_ref current;
+                            
+    init_current_ref( &current, ctx->min_count, &(ctx->limits) );
     
     while ( rc == 0 && !done )
     {
@@ -932,7 +981,7 @@ static rc_t produce_events_from_tbl_src( const tool_ctx * ctx, const tbl_src * t
 
         /* check if the REFERENCE-NAME has changed, flush the allele-dict if so, make a new one */
         if ( rc == 0 )
-            rc = check_rname( ctx, &al.rname, &current );
+            rc = check_rname( ctx->fasta, &al.rname, al.pos, &current );
 
         /* the common alignment-processing: get the cigar-events, canonicalize the events, put them into the allele-dictionary */
         if ( rc == 0 )
@@ -964,8 +1013,9 @@ static rc_t produce_events_from_tbl_src( const tool_ctx * ctx, const tbl_src * t
     
     /* print what is left in the allele-dictionary */
     if ( rc == 0 )
-        rc = allele_dict_visit_all_and_release( current.ad, print_event, &current );
-
+        rc = finish_current_ref( &current );
+    ctx->unsorted = current.unsorted;
+    
     return rc;
 }
 
@@ -1127,6 +1177,8 @@ rc_t CC KMain ( int argc, char *argv [] )
                 if ( ctx.log != NULL )
                     writer_release( ctx.log );
             }
+            if ( ctx.unsorted )
+                log_err( "the source was not sorted, alleles are not correctly counted" );
         }
         ArgsWhack ( args );
     }

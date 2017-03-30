@@ -35,7 +35,8 @@
 struct BAM_Alignment;
 struct ReferenceSeq;
 
-#define REF_ID_LEN 4096
+#define LOG_FILENAME "var-expand.log"
+#define EV_FILENAME "var-expand.events"
 
 typedef struct variation
 {
@@ -46,6 +47,9 @@ typedef struct variation
     char bases[ 1 ];
 } variation;
 
+#define REF_ID_LEN 4096
+#define WRITE_BUFFER_LEN 4096
+#define N_CIG_OPS 100
 
 typedef struct var_expand_data
 {
@@ -54,6 +58,9 @@ typedef struct var_expand_data
     KFile * log;
     uint64_t log_pos;
 
+    KFile * events;
+    uint64_t events_pos;
+    
     uint64_t alignments_seen;
     
     uint8_t * seq_buffer;
@@ -62,13 +69,20 @@ typedef struct var_expand_data
     uint32_t seq_len_on_ref;
 
     char ref_id[ REF_ID_LEN ];
+    char write_buffer[ WRITE_BUFFER_LEN ];
     
     uint8_t * ref_buffer;
     uint32_t ref_buffer_len;
     uint32_t ref_len;
 
     DLList variations;
-    
+
+    uint32_t seq_len, cigar_op_count;
+    int64_t seq_pos_on_ref;
+    const char * curr_ref_id;
+    uint32_t cigar_op[ N_CIG_OPS ];
+    uint32_t cigar_op_len[ N_CIG_OPS ];
+
 } var_expand_data;
 
 rc_t var_expand_init( var_expand_data ** data );

@@ -23,36 +23,56 @@
  * ===========================================================================
  *
  */
-
 #include "var-expand-module.h"
-#include "Globals.h" // defines global variable G which has things like command line options
-#include "bam.h"
 #include <klib/printf.h>
 #include <klib/text.h>
 
+/* !!! these 2 includes are needed by <align/writer-reference.h> !!! */
 #include <vdb/manager.h>
 #include <vdb/database.h>
+
 #include <align/writer-reference.h>
+
+#include "bam.h"
+#include "Globals.h" // defines global variable G which has things like command line options
 
 static rc_t log_this( var_expand_data * data, const char * fmt, ... )
 {
     rc_t rc;
-    char buffer[ 4096 ];
     size_t num_writ;
 
     va_list list;
     va_start( list, fmt );
-    rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
+    rc = string_vprintf( data->write_buffer, WRITE_BUFFER_LEN, &num_writ, fmt, list );
     if ( rc == 0 )
     {
         size_t num_writ2;
-        rc = KFileWrite( data->log, data->log_pos, buffer, num_writ, &num_writ2 );
+        rc = KFileWriteAll( data->log, data->log_pos, data->write_buffer, num_writ, &num_writ2 );
         if ( rc == 0 )
             data->log_pos += num_writ2;
     }   
     va_end( list );
     return rc;
 } 
+
+static rc_t write_event( var_expand_data * data, const char * fmt, ... )
+{
+    rc_t rc;
+    size_t num_writ;
+
+    va_list list;
+    va_start( list, fmt );
+    rc = string_vprintf( data->write_buffer, WRITE_BUFFER_LEN, &num_writ, fmt, list );
+    if ( rc == 0 )
+    {
+        size_t num_writ2;
+        rc = KFileWriteAll( data->events, data->events_pos, data->write_buffer, num_writ, &num_writ2 );
+        if ( rc == 0 )
+            data->events_pos += num_writ2;
+    }   
+    va_end( list );
+    return rc;
+}
 
 static rc_t realloc_seq_buffer( var_expand_data * data, uint32_t seq_len )
 {
@@ -112,11 +132,17 @@ rc_t var_expand_init( var_expand_data ** data )
             rc = KDirectoryNativeDir_v1( &tmp->dir );
             if ( rc == 0 )
             {
-                rc = KDirectoryCreateFile ( tmp->dir, &tmp->log, false, 0664, kcmInit, "var-expand.log" );
+                rc = KDirectoryCreateFile( tmp->dir, &tmp->log, false, 0664, kcmInit, LOG_FILENAME );
                 if ( rc == 0 )
                 {
-                    log_this( tmp, "started\n" );
-                    *data = tmp;
+                    rc = KDirectoryCreateFile( tmp->dir, &tmp->events, false, 0664, kcmInit, EV_FILENAME );    
+                    if ( rc == 0 )
+                    {
+                        log_this( tmp, "started\n" );
+                        *data = tmp;
+                    }
+                    else
+                        tmp->events = NULL;
                 }
                 else
                     tmp->log = NULL;
@@ -204,6 +230,88 @@ static void var_on_event( var_expand_data * data,
 
 }
 
+
+static rc_t gather_bam_alig( var_expand_data * data,
+                            BAM_Alignment const *alignment,
+                            struct ReferenceSeq const *refSequence )
+{
+    /* get the length of the read out of the alignment */
+    rc_t rc = BAM_AlignmentGetReadLength( alignment, &data->seq_len );
+    if ( rc == 0 )
+    {
+        /* ( eventually ) expand the 2 buffers in our var_expand_data buffer to fit the read and reference */
+        rc = realloc_seq_buffer( data, data->seq_len );
+        {
+            /* get the read out of the alignment and put it in our single buffer */
+            rc = BAM_AlignmentGetSequence( alignment, ( char * )data->seq_buffer );
+            if ( rc == 0 )
+            {
+                /* get the position on the reference out of the alignment */
+                rc = BAM_AlignmentGetPosition2( alignment, &data->seq_pos_on_ref, &data->seq_len_on_ref );
+                if ( rc == 0 )
+                {
+                    uint32_t idx;
+                    /* get the seq-id of the reference */
+                    rc = ReferenceSeq_GetID( refSequence, &data->curr_ref_id );
+                    /* get the rest of the cigar-operations */
+                    for ( idx = 1; rc == 0 && idx < data->cigar_op_count; ++idx )
+                        rc = BAM_AlignmentGetCigar( alignment,
+                                                    idx,
+                                                    &data->cigar_op[ idx ],
+                                                    &data->cigar_op_len[ idx ] );
+                }
+            }
+        }
+    }
+    return rc;
+}
+
+
+static rc_t handle_bam_alig( var_expand_data * data,
+                            BAM_Alignment const *alignment,
+                            struct ReferenceSeq const *refSequence )
+{
+    rc_t rc = 0;
+    INSDC_coord_zero ref_offset = data->seq_pos_on_ref;
+
+    data->last_seq_pos_on_ref = data->seq_pos_on_ref;
+    
+    /* log sequence and */
+    data->ref_len = data->seq_len_on_ref;
+    log_this( data, "\tseq: '%.*s' at [%ld.%d], len=%d\n",
+        data->seq_len, data->seq_buffer, data->seq_pos_on_ref, data->seq_len_on_ref, data->seq_len );
+
+    rc = realloc_ref_buffer( data );
+    if ( rc == 0 )
+    {
+        INSDC_coord_len actual_ref_len = 0;
+        rc = ReferenceSeq_Read( refSequence, ref_offset, data->ref_len, data->ref_buffer, &actual_ref_len );
+        if ( rc == 0 )
+        {
+            log_this( data, "\tref: '%.*s' at [%ld.%d]\n",
+                data->ref_len, data->ref_buffer, data->seq_pos_on_ref, actual_ref_len );
+        
+            {
+                uint32_t cigar_op_count, idx;
+                INSDC_coord_zero offset_into_ref = 0;
+                INSDC_coord_zero offset_into_read = 0;
+                
+                for ( idx = 0; rc == 0 && idx < data->cigar_op_count; ++ idx )
+                {
+                    var_on_event( data,
+                                  data->seq_pos_on_ref,
+                                  data->cigar_op[ idx ],
+                                  data->cigar_op_len[ idx ],
+                                  &offset_into_ref,
+                                  &offset_into_read );
+                }
+            }
+            log_this( data, "\n" );
+        }
+    }
+    return rc;
+}
+
 /* -------------------------------------------------------------------------------------------------------
 called by ProcessBAM(...) aka the monster-loop in loader-imp.c#2234
     var_expand_data ....... var-expand-module.h
@@ -221,122 +329,27 @@ rc_t var_expand_handle( var_expand_data * data,
     }
     else
     {
-        uint32_t seq_len;
-        
         /* increment how many alignments we have seen - for testing purpose */
         data->alignments_seen++;
         log_this( data, "------------------------------#%d:\n", data->alignments_seen );
-        
-        /* get the length of the read out of the alignment */
-        rc = BAM_AlignmentGetReadLength( alignment, &seq_len );
+        rc = BAM_AlignmentGetCigarCount( alignment, &data->cigar_op_count );
         if ( rc == 0 )
         {
-            /* ( eventually ) expand the 2 buffers in our var_expand_data buffer to fit the read and reference */
-            rc = realloc_seq_buffer( data, seq_len );
+            rc = BAM_AlignmentGetCigar( alignment, 0, &data->cigar_op[ 0 ], &data->cigar_op_len[ 0 ] );
             if ( rc == 0 )
             {
-                /* get the read out of the alignment and put it in our single buffer */
-                rc = BAM_AlignmentGetSequence( alignment, ( char * )data->seq_buffer );
-                if ( rc == 0 )
+                if ( data->cigar_op_count == 1 && data->cigar_op[ 0 ] == ct_Match )
                 {
-                    int64_t seq_pos_on_ref;
-                    
-                    /* get the position on the reference out of the alignment */
-                    rc = BAM_AlignmentGetPosition2( alignment, &seq_pos_on_ref, &data->seq_len_on_ref );
+                    /* check if the 'match' does not include mismatches... */
+                }
+                else
+                {
+                    rc = gather_bam_alig( data, alignment, refSequence );
                     if ( rc == 0 )
-                    {
-                        INSDC_coord_zero ref_offset = seq_pos_on_ref;
-                        INSDC_coord_len actual_ref_len = 0;
-                        const char * curr_ref_id;
-                        
-                        rc = ReferenceSeq_GetID( refSequence, &curr_ref_id );
-                        
-                        
-                        /* detect if the data violates one of our most important assumptions: beeing in order! */
-                        if ( seq_pos_on_ref < data->last_seq_pos_on_ref )
-                        {
-                            rc = ReferenceSeq_GetID( refSequence, &curr_ref_id );
-                            if ( rc == 0 )
-                            {
-                                size_t curr_ref_id_size = string_size( curr_ref_id );
-                                if ( data->ref_id[ 0 ] == 0 )
-                                {
-                                    string_copy( data->ref_id, sizeof data->ref_id, curr_ref_id, curr_ref_id_size );
-                                }
-                                else
-                                {
-                                    size_t ref_id_size = string_size( data->ref_id );    
-                                    int cmp = string_cmp( data->ref_id, ref_id_size,
-                                        curr_ref_id, curr_ref_id_size,
-                                        ref_id_size > curr_ref_id_size ? ref_id_size : curr_ref_id_size );
-                                    if ( cmp == 0 )
-                                    {
-                                        log_this( data, "!!!alignments out of order!!! %ld->%ld\n",
-                                            data->last_seq_pos_on_ref, seq_pos_on_ref );
-                                    }
-                                    else
-                                    {
-                                        string_copy( data->ref_id, sizeof data->ref_id, curr_ref_id, ref_id_size );
-                                    }
-                                }
-                            }
-                        }
-                        else if ( data->ref_id[ 0 ] == 0 )
-                        {
-                            rc = ReferenceSeq_GetID( refSequence, &curr_ref_id );
-                            if ( rc == 0 )
-                            {
-                                size_t curr_ref_id_size = string_size( curr_ref_id );
-                                string_copy( data->ref_id, sizeof data->ref_id, curr_ref_id, curr_ref_id_size );
-                            }
-                        }
-                        
-                        data->last_seq_pos_on_ref = seq_pos_on_ref;
-                        
-                        /* log sequence and */
-                        data->ref_len = data->seq_len_on_ref;
-                        log_this( data, "\tseq: '%.*s' at [%ld.%d], len=%d\n",
-                            seq_len, data->seq_buffer, seq_pos_on_ref, data->seq_len_on_ref, seq_len );
-
-                        rc = realloc_ref_buffer( data );
-                        if ( rc == 0 )
-                        {
-                            rc = ReferenceSeq_Read( refSequence, ref_offset, data->ref_len, data->ref_buffer, &actual_ref_len );
-                            if ( rc == 0 )
-                            {
-                                log_this( data, "\tref: '%.*s' at [%ld.%d]\n",
-                                    data->ref_len, data->ref_buffer, seq_pos_on_ref, actual_ref_len );
-                            
-                                {
-                                    uint32_t cigar_op_count, idx;
-                                    INSDC_coord_zero offset_into_ref = 0;
-                                    INSDC_coord_zero offset_into_read = 0;
-                                    
-                                    /* get how many cigar-operations we have for this alignment */
-                                    rc = BAM_AlignmentGetCigarCount( alignment, &cigar_op_count );
-                                    for ( idx = 0; rc == 0 && idx < cigar_op_count; ++ idx )
-                                    {
-                                        BAMCigarType cigar_op;
-                                        uint32_t cigar_op_len;
-                                        rc = BAM_AlignmentGetCigar( alignment, idx, &cigar_op, &cigar_op_len );
-                                        if ( rc == 0 )
-                                        {
-                                            var_on_event( data,
-                                                          seq_pos_on_ref,
-                                                          cigar_op,
-                                                          cigar_op_len,
-                                                          &offset_into_ref,
-                                                          &offset_into_read );
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                        rc = handle_bam_alig( data, alignment, refSequence );
                 }
             }
-            log_this( data, "\n" );
-        } 
+        }
     }
     return rc;
 }
@@ -373,6 +386,8 @@ rc_t var_expand_finish( var_expand_data * data )
         
         if ( data->log != NULL )
             KFileRelease( data->log );
+        if ( data->events != NULL )
+            KFileRelease( data->events );
         if ( data->dir != NULL )
             KDirectoryRelease( data->dir );
         if ( data->seq_buffer != NULL )

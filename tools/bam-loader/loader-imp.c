@@ -2232,7 +2232,7 @@ MIXED_BASE_AND_COLOR:
         if ( isPrimary && aligned )
         {
             rc_t rc1 = var_expand_handle( var_expand_object, rec, referenceSequence );
-       }
+        }
         
         if (G.mode == mode_Archive)
             goto WRITE_SEQUENCE;

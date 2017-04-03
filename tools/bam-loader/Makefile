@@ -74,9 +74,8 @@ BAMLOAD_SRC = \
 	sequence-writer \
 	loader-imp \
 	mem-bank \
-	low-match-count \
-	var-expand-module
-    
+	low-match-count
+
 BAMLOAD_OBJ = \
 	$(addsuffix .$(OBJX),$(BAMLOAD_SRC))
 

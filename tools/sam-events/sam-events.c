@@ -646,8 +646,7 @@ static rc_t process_alignments_from_extractor( tool_ctx * ctx, Extractor * extra
                     StringInitCString( &al.cigar, ex_al->cigar );
                     StringInitCString( &al.read, ex_al->read );
                     al.pos = ex_al->pos;
-                    al.fwd = true;
-                    al.first = true;
+                    inspect_sam_flags( &al, ex_al->flags );
                     
                     rc = check_rname( ctx->fasta, &al.rname, al.pos, &current );
                     
@@ -675,12 +674,12 @@ static rc_t process_alignments_from_extractor( tool_ctx * ctx, Extractor * extra
 }
 
 
-static rc_t produce_events_from_file_checked( tool_ctx * ctx, const char * file_name )
+static rc_t produce_events_from_extractor( tool_ctx * ctx, const KFile * f, const char * filename )
 {
     Extractor * extractor;
-    rc_t rc = SAMExtractorMake( &extractor, file_name, 1 );
+    rc_t rc = SAMExtractorMake( &extractor, f, 1 );
     if ( rc != 0 )
-        log_err( "error (%R) creating sam-extractor from %s", rc, file_name );
+        log_err( "error (%R) creating sam-extractor from %s", rc, filename );
     else
     {
         rc_t rc2;
@@ -693,7 +692,37 @@ static rc_t produce_events_from_file_checked( tool_ctx * ctx, const char * file_
 
         rc2 = SAMExtractorRelease( extractor );
         if ( rc2 != 0 )
-            log_err( "error (%R) releasing sam-extractor from %s", rc, file_name );
+            log_err( "error (%R) releasing sam-extractor from %s", rc, filename );
+    }
+    return rc;
+}
+
+
+static rc_t produce_events_from_stdin_checked( tool_ctx * ctx )
+{
+    const KFile * f;
+    rc_t rc = KFileMakeStdIn( &f );
+    if ( rc != 0 )
+        log_err( "error (%R) opening stdin as file", rc );
+    else
+    {
+        rc = produce_events_from_extractor( ctx, f, "stdin" );
+        KFileRelease( f );
+    }
+    return rc;
+}
+
+
+static rc_t produce_events_from_file_checked( tool_ctx * ctx, KDirectory * dir, const char * filename )
+{
+    const KFile * f;
+    rc_t rc = KDirectoryOpenFileRead( dir, &f, "%s", filename );
+    if ( rc != 0 )
+        log_err( "error (%R) opening '%s'", rc, filename );
+    else
+    {
+        rc = produce_events_from_extractor( ctx, f, filename );
+        KFileRelease( f );
     }
     return rc;
 }
@@ -807,7 +836,7 @@ static rc_t produce_events_from_KFile( tool_ctx * ctx, const KFile * f )
 }
 
 
-static rc_t produce_events_from_stdin( tool_ctx * ctx )
+static rc_t produce_events_from_stdin_unchecked( tool_ctx * ctx )
 {
     const KFile * f;
     rc_t rc = KFileMakeStdIn( &f );
@@ -858,18 +887,22 @@ static rc_t main_sam_input( const Args * args, tool_ctx * ctx )
             if ( count < 1 )
             {
                 /* no filename(s) given at commandline ... assuming stdin as source */
-                rc = produce_events_from_stdin( ctx );
+                if ( ctx->fast )
+                    rc = produce_events_from_stdin_unchecked( ctx );
+                else
+                    rc = produce_events_from_stdin_checked( ctx );
             }
             else
             {
-                uint32_t idx;
-                const char * filename;
-                
-                if ( ctx->fast )
+                KDirectory * dir = NULL;
+                rc = KDirectoryNativeDir( &dir );
+                if ( rc == 0 )
                 {
-                    KDirectory * dir = NULL;
-                    rc = KDirectoryNativeDir( &dir );
-                    if ( rc == 0 )
+            
+                    uint32_t idx;
+                    const char * filename;
+                    
+                    if ( ctx->fast )
                     {
                         for ( idx = 0; rc == 0 && idx < count; ++idx )
                         {
@@ -877,17 +910,17 @@ static rc_t main_sam_input( const Args * args, tool_ctx * ctx )
                             if ( rc == 0 )
                                 rc = produce_events_from_file_unchecked( ctx, dir, filename );
                         }
-                        KDirectoryRelease( dir );
                     }
-                }
-                else
-                {
-                    for ( idx = 0; rc == 0 && idx < count; ++idx )
+                    else
                     {
-                        rc = ArgsParamValue( args, idx, ( const void ** )&filename );
-                        if ( rc == 0 )
-                            rc = produce_events_from_file_checked( ctx, filename );
+                        for ( idx = 0; rc == 0 && idx < count; ++idx )
+                        {
+                            rc = ArgsParamValue( args, idx, ( const void ** )&filename );
+                            if ( rc == 0 )
+                                rc = produce_events_from_file_checked( ctx, dir, filename );
+                        }
                     }
+                    KDirectoryRelease( dir );
                 }
             }
         }

@@ -47,7 +47,7 @@ function diff_sorted
     diff2 $1.sorted $2.sorted
 }
 
-function run_on_big_acc
+function run_sra_vs_sam
 {
     ACC=$1
     FILTER="--min-t+ 8 --min-t- 7"
@@ -66,6 +66,25 @@ function run_on_big_acc
 }
 
 
+function run_checked_vs_unchecked
+{
+    ACC=$1
+
+    #get the reference as fasta-file out of the accession
+    execute "vdb-dump $ACC -T REFERENCE -f fasta2" "$ACC.fasta"
+
+    #produce a sam-file from the accession
+    execute "sam-dump $ACC --no-mate-cache --seqid -n -u -1" "$ACC.sam"
+    
+    #pipe the output of sam-dump into the tool ( unchecked == --fast )
+    execute "sam-events $ACC.sam --reference $ACC.fasta --fast" "$ACC.unchecked.events"
+    
+    #pipe the output of sam-dump into the tool ( checked )
+    execute "sam-events $ACC.sam --reference $ACC.fasta" "$ACC.checked.events"
+
+    diff2 $ACC.unchecked.events $ACC.checked.events
+}
+
 function sort_run_on_big_acc
 {
     ACC=$1
@@ -82,4 +101,5 @@ function sort_run_on_big_acc
 #prepare $ACC2
 #test3ways $ACC2
 
-run_on_big_acc $ACC4
+#run_sra_vs_sam $ACC4
+run_checked_vs_unchecked $ACC4

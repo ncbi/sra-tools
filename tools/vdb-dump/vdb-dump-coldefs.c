@@ -844,3 +844,77 @@ rc_t vdcd_collect_spread( const struct num_gen * row_set, col_defs * cols, const
 	}
 	return rc;
 }
+
+static uint32_t same_values( const VCursor * curs, uint32_t col_idx, int64_t first, uint32_t test_rows )
+{
+    uint32_t res = 0;
+    const void * base;
+    uint32_t elem_bits, boff, row_len;
+    rc_t rc = VCursorCellDataDirect( curs, first, col_idx, &elem_bits, &base, &boff, &row_len );
+    while ( rc == 0 && res < test_rows && rc == 0 )
+    {
+        const void * base_1;
+        uint32_t elem_bits_1, boff_1, row_len_1;
+        rc = VCursorCellDataDirect( curs, first + res + 1, col_idx, &elem_bits_1, &base_1, &boff_1, &row_len_1 );
+        if ( rc == 0 )
+        {
+            if ( elem_bits != elem_bits_1 ) return res;
+            if ( boff != boff_1 ) return res;
+            if ( row_len != row_len_1 ) return res;
+            if ( base != base_1 ) return res;
+        }
+        res += 1;
+    }
+    return res;
+}
+
+static bool vdcd_is_static_column( const VTable *my_table, col_def * col )
+{
+    bool res = false;
+    const VCursor * curs;
+    rc_t rc = VTableCreateCursorRead( my_table, &curs );
+    if ( rc == 0 )
+    {
+        uint32_t idx;
+        rc = VCursorAddColumn( curs, &idx, "%s", col->name );
+        if ( rc == 0 )
+        {
+            rc = VCursorOpen( curs );
+            if ( rc == 0 )
+            {
+                int64_t first;
+                uint64_t count;
+                rc = VCursorIdRange( curs, idx, &first, &count );
+                if ( rc == 0 && count == 0 )
+                {
+                    res = ( same_values( curs, idx, first, 100 ) == 100 );
+                }
+            }
+        }
+        VCursorRelease( curs );
+    }
+    return res;
+}
+
+
+bool vdcd_extract_static_columns( col_defs* defs, const VTable *my_table, const size_t str_limit )
+{
+    col_defs * temp_defs;
+    bool res = vdcd_init( &temp_defs, str_limit );
+    if ( res )
+    {
+        uint32_t count = vdcd_extract_from_table( temp_defs, my_table );
+        uint32_t idx;
+        for ( idx = 0; idx < count; ++idx )
+        {
+            col_def * col = VectorGet( &(temp_defs->cols), idx );
+            if ( col != NULL )
+            {
+                if ( vdcd_is_static_column( my_table, col ) )
+                    vdcd_append_col( defs, col->name  );
+            }
+        }
+        vdcd_destroy( temp_defs );
+    }
+    return res;
+}

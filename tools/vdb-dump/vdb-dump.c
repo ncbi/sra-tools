@@ -104,6 +104,7 @@ static const char * numelemsum_usage[]          = { "sum element-count",        
 static const char * show_blobbing_usage[]       = { "show blobbing",                                NULL };
 static const char * enum_phys_usage[]           = { "enumerate physical columns",                   NULL };
 static const char * enum_readable_usage[]       = { "enumerate readable columns",                   NULL };
+static const char * enum_static_usage[]         = { "enumerate static columns",                     NULL };
 static const char * objtype_usage[]             = { "report type of object",                        NULL };
 static const char * idx_enum_usage[]            = { "enumerate all available index",                NULL };
 static const char * idx_range_usage[]           = { "enumerate values and row-ranges of one index", NULL };
@@ -149,6 +150,7 @@ OptDef DumpOptions[] =
     { OPTION_SHOW_BLOBBING,         NULL,                     NULL, show_blobbing_usage,     1, false,  false },
     { OPTION_ENUM_PHYS,             NULL,                     NULL, enum_phys_usage,         1, false,  false },
     { OPTION_ENUM_READABLE,         NULL,                     NULL, enum_readable_usage,     1, false,  false },
+    { OPTION_ENUM_STATIC,           NULL,                     NULL, enum_static_usage,       1, false,  false },    
     { OPTION_OBJVER,                ALIAS_OBJVER,             NULL, objver_usage,            1, false,  false },
     { OPTION_OBJTS,                 NULL,                     NULL, objts_usage,             1, false,  false },
     { OPTION_OBJTYPE,               ALIAS_OBJTYPE,            NULL, objtype_usage,           1, false,  false },
@@ -556,6 +558,24 @@ static bool vdm_extract_or_parse_phys_columns( const p_dump_context ctx,
     }
 
     return res;
+}
+
+
+static bool vdm_extract_or_parse_static_columns( const p_dump_context ctx,
+                                               const VTable *my_table,
+                                               p_col_defs my_col_defs )
+{
+    bool res = false;
+    if ( ctx != NULL && my_col_defs != NULL )
+    {
+            /* the user does not know the column-names or wants all of them */
+        res = vdcd_extract_static_columns( my_col_defs, my_table, ctx->max_line_len );
+
+        if ( ctx->excluded_columns != NULL )
+            vdcd_exclude_these_columns( my_col_defs, ctx->excluded_columns );
+    }
+    return res;
+
 }
 
 /*************************************************************************************
@@ -1299,6 +1319,7 @@ static rc_t vdm_enum_readable_columns( const VTable *my_table )
     return rc;
 }
 
+
 /*************************************************************************************
     enum_tab_columns:
     * called by "enum_db_columns()" and "dump_table()" as fkt-pointer
@@ -1343,6 +1364,13 @@ static rc_t vdm_enum_tab_columns( const p_dump_context ctx, const VTable *my_tab
                 extracted = vdm_extract_or_parse_phys_columns( ctx, my_table, my_col_defs );
                 rc = VTableOpenKTableRead( my_table, &ci_ctx.my_ktable );
                 DISP_RC( rc, "VTableOpenKTableRead() failed" );
+            }
+            if ( ctx->enum_static )
+            {
+                extracted = vdm_extract_or_parse_static_columns( ctx, my_table, my_col_defs );
+                rc = VTableOpenKTableRead( my_table, &ci_ctx.my_ktable );
+                DISP_RC( rc, "VTableOpenKTableRead() failed" );
+            
             }
             else
             {

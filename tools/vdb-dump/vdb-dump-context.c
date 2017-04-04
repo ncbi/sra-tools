@@ -597,6 +597,7 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->show_blobbing = vdco_get_bool_option( my_args, OPTION_SHOW_BLOBBING, false );
     ctx->enum_phys = vdco_get_bool_option( my_args, OPTION_ENUM_PHYS, false );
     ctx->enum_readable = vdco_get_bool_option( my_args, OPTION_ENUM_READABLE, false );
+    ctx->enum_static = vdco_get_bool_option( my_args, OPTION_ENUM_STATIC, false );
     ctx->idx_enum_requested = vdco_get_bool_option( my_args, OPTION_IDX_ENUM, false );
     ctx->disable_multithreading = vdco_get_bool_option( my_args, OPTION_NO_MULTITHREAD, false );
     ctx->print_info = vdco_get_bool_option( my_args, OPTION_INFO, false );

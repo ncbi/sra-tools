@@ -52,9 +52,324 @@
 const QString rsrc_path = ":/images";
 
 /* static functions */
+static
+bool location_error ( ESetRootState state, QWidget *w )
+{
+    QString msg;
+
+    switch ( state )
+    {
+    case eSetRootState_NotChanged       : return true;
+    case eSetRootState_NotUnique        : msg = QString ( "location not unique, select a different one" ); break;
+    case eSetRootState_MkdirFail        : msg = QString ( "could not created directory, maybe permisson problem" ); break;
+    case eSetRootState_NewPathEmpty     : msg = QString ( "you gave me an empty path" ); break;
+    case eSetRootState_NewDirNotEmpty   : msg = QString ( "the given location is not empty" ); break;
+    case eSetRootState_NewNotDir        : msg = QString ( "new location is not a directory" ); break;
+    case eSetRootState_Error            : msg = QString ( "error changing location" ); break;
+    default                             : msg = QString ( "unknown enum" ); break;
+    }
+
+    QMessageBox::critical ( w
+                            , "Error"
+                            , msg
+                            , QMessageBox::Ok );
+    return false;
+}
+
+static
+std :: string protected_location_start_dir ( vdbconf_model &model, uint32_t id )
+{
+    std :: string s = model . get_repo_location ( id );
+
+    if ( ! model . does_path_exist ( s ) )
+        s = model . get_user_default_dir ();
+
+    if ( ! model.does_path_exist( s ) )
+        s = model.get_home_dir () + "/ncbi";
+
+    if ( ! model.does_path_exist( s ) )
+        s = model.get_home_dir ();
+
+    if ( ! model.does_path_exist( s ) )
+        s = model.get_current_dir ();
+
+    return s;
+}
+
+static
+bool select_protected_location ( vdbconf_model &model, uint32_t id, QWidget *w )
+{
+    QString path = protected_location_start_dir ( model, id ) . c_str ();
+
+    if ( model . does_path_exist ( path . toStdString () ) )
+    {
+        path = QFileDialog :: getOpenFileName ( w
+                                                , "Import Workspace"
+                                                , path );
+    }
+    else
+    {
+        path = QInputDialog::getText ( w
+                                       , ""
+                                       , "Location of dbGaP project"
+                                       , QLineEdit::Normal );
+    }
+
+    if ( path . length () > 0 )
+    {
+        QString repo_name = model . get_repo_name ( id ) . c_str ();
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question ( w
+                                        , ""
+                                        , "Change the location of '" + repo_name + "' to '" + path + "'?"
+                                        , QMessageBox::Yes | QMessageBox::No );
+        if ( reply == QMessageBox::Yes )
+        {
+            bool flush_old = false;
+            bool reuse_new = false;
+
+            ESetRootState state = model . set_repo_location ( id, flush_old, path . toStdString (), reuse_new );
+
+            switch ( state )
+            {
+            case eSetRootState_OK:
+                return true;
+            case eSetRootState_OldNotEmpty:
+            {
+                QMessageBox::StandardButton reply;
+                reply = QMessageBox::question ( w
+                                                , "Directory not empty"
+                                                , "Previous location is not empty, flush it?"
+                                                , QMessageBox::Yes | QMessageBox::No );
+                if ( reply == QMessageBox::Yes )
+                {
+                    flush_old = true;
+                    state = model . set_repo_location ( id, flush_old, path . toStdString (), reuse_new );
+                    if ( state == eSetRootState_OK )
+                        return true;
+                    else
+                        return location_error ( state, w );
+        }
+            }
+            default:
+                return location_error ( state, w );
+            }
+        }
+    }
+
+    return false;
+}
+
+
+static
+bool make_ngc_obj ( const KNgcObj ** ngc, std::string &path )
+{
+    KDirectory * dir;
+    rc_t rc = KDirectoryNativeDir( &dir );
+    if ( rc == 0 )
+    {
+        qDebug () << "got native dir";
+        qDebug () << "opening: " << QString ( path . c_str () );
+        const KFile * src;
+        rc = KDirectoryOpenFileRead ( dir, &src, "%s", path.c_str() );
+        if ( rc == 0 )
+        {
+            qDebug () << "opened file for read";
+            rc = KNgcObjMakeFromFile ( ngc, src ); // wont make it past here until I have a real ngs file to work with.
+            KFileRelease( src );
+        }
+        KDirectoryRelease( dir );
+    }
+
+    return ( rc == 0 );
+}
+
+static
+bool prepare_ngc ( vdbconf_model &model, const KNgcObj *ngc, QString *loc, QWidget *w )
+{
+    std :: string location_base = model . get_user_default_dir ();
+    std :: string location = model . get_ngc_root ( location_base, ngc );
+
+    ESetRootState state = model . prepare_repo_directory ( location );
+
+    switch ( state )
+    {
+    case eSetRootState_OK:
+    {
+        *loc = location . c_str ();
+        return true;
+    }
+    case eSetRootState_OldNotEmpty:
+    {
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question ( w
+                                        , "Directory not empty"
+                                        , "Workspace location is not empty. Use it anyway?"
+                                        , QMessageBox::Yes | QMessageBox::No );
+        if ( reply == QMessageBox::Yes )
+        {
+            state = model . prepare_repo_directory ( location, true );
+            if ( state == eSetRootState_OK )
+            {
+                *loc = location . c_str ();
+                return true;
+            }
+            else
+                return location_error ( state, w );
+        }
+    }
+    default:
+        return location_error ( state, w );
+    }
+
+    return false;
+}
+
+static
+bool import_ngc ( vdbconf_model &model, std :: string file, QWidget *w )
+{
+   const KNgcObj *ngc;
+   if ( make_ngc_obj ( &ngc, file ) )
+   {
+       qDebug () << "made ngc object";
+
+       QString location;
+       if ( prepare_ngc ( model, ngc, &location, w ) )
+       {
+           qDebug () << "prepared ngc object";
+
+           uint32_t result_flags = 0;
+
+           if ( model . import_ngc ( location . toStdString (), ngc, INP_CREATE_REPOSITORY, &result_flags ) )
+           {
+               /* we have it imported or it exists and no changes made */
+               bool modified = false;
+               if ( result_flags & INP_CREATE_REPOSITORY )
+               {
+                   /* success is the most common outcome, the repository was created */
+                   QMessageBox::StandardButton reply;
+                   reply = QMessageBox::information ( w
+                                                      , "Import Successful"
+                                                      , "project successfully imported" );
+                   if ( reply == QMessageBox::Ok )
+                       modified = true;
+               }
+               else
+               {
+                   /* repository did exist and is completely identical to the given ngc-obj */
+                   QMessageBox::StandardButton reply;
+                   reply = QMessageBox::information ( w
+                                                      , ""
+                                                      , "this project exists already, no changes made" );
+               }
+
+               QMessageBox::StandardButton reply;
+               reply = QMessageBox::question ( w
+                                               , ""
+                                               , "Do you want to change the location?"
+                                               , QMessageBox::Yes | QMessageBox::No );
+               if ( reply == QMessageBox::Yes )
+               {
+                   uint32_t id;
+                   if ( model . get_id_of_ngc_obj ( ngc, &id ) )
+                       modified |= select_protected_location ( model, id, w );
+                   else
+                   {
+                       QMessageBox::StandardButton reply;
+                       reply = QMessageBox::information ( w
+                                                          , ""
+                                                          , "Cannot find the imported Workspace" );
+                   }
+               }
+
+               if ( modified )
+               {
+                   model . commit ();
+                   model . mkdir ( ngc );
+                   return true;
+               }
+           }
+           else if ( result_flags == 0 )
+           {
+               QMessageBox::critical ( w
+                                       , "Error"
+                                       , "Internal Error: Failed to impport the ngc-object"
+                                       , QMessageBox::Ok );
+           }
+           else
+           {
+               QMessageBox::information ( w, "", "the repository does already exist!" );
+
+               if ( result_flags & INP_UPDATE_ENC_KEY )
+               {
+                   QMessageBox::StandardButton reply;
+                   reply = QMessageBox::question ( w
+                                                   , ""
+                                                   , "Encryption key would change, continue?"
+                                                   , QMessageBox::Yes | QMessageBox::No );
+                   if ( reply == QMessageBox::Yes  && ( result_flags & INP_UPDATE_DNLD_TICKET ) )
+                   {
+                       QMessageBox::StandardButton reply;
+                       reply = QMessageBox::question ( w
+                                                       , ""
+                                                       , "Download ticket would change, continue?"
+                                                       , QMessageBox::Yes | QMessageBox::No );
+                       if ( reply == QMessageBox::Yes  && ( result_flags & INP_UPDATE_DESC ) )
+                       {
+                           QMessageBox::StandardButton reply;
+                           reply = QMessageBox::question ( w
+                                                           , ""
+                                                           , "Description would change, continue?"
+                                                           , QMessageBox::Yes | QMessageBox::No );
+                           if ( reply == QMessageBox::Yes )
+                           {
+                               uint32_t result_flags2 = 0;
+                               if ( model . import_ngc ( location . toStdString () , ngc, result_flags, &result_flags2 ) )
+                               {
+                                   QMessageBox::StandardButton reply;
+                                   reply = QMessageBox::question ( w
+                                                                   , ""
+                                                                   , "Project successfully updated!\nDo you want to change the location? "
+                                                                   , QMessageBox::Yes | QMessageBox::No );
+
+                                   if ( reply == QMessageBox::Yes )
+                                   {
+                                       uint32_t id; /* we have to find out the id of the imported/existing repository */
+                                       if ( model . get_id_of_ngc_obj ( ngc, &id ) )
+                                           select_protected_location ( model, id, w );
+                                       else
+                                           QMessageBox::information ( w, "", "the repository does already exist!" );
+                                   }
+
+                                   model . commit ();
+
+                                   return true;
+                               }
+                               else
+                               {
+                                   QMessageBox::critical ( w
+                                                           , "Error"
+                                                           , "Internal Error: Failed to impport the ngc-object"
+                                                           , QMessageBox::Ok );
+                               }
+                           }
+                           else
+                               QMessageBox::information ( w, "", "The import was canceled" );
+                       }
+                   }
+               }
+           }
+       }
+       qDebug () << "failed to prepare ngc object";
+   }
+   qDebug () << "failed to make ngc object";
+
+    return false;
+}
 
 
 
+/* Class methods */
 
 SRAConfig :: SRAConfig ( vdbconf_model &config_model, const QRect &avail_geometry, QWidget *parent )
     : QMainWindow ( parent )
@@ -216,296 +531,6 @@ qDebug () << val;
         workspace_layout -> addLayout ( layout );
 }
 
-static
-bool location_error ( ESetRootState state, QWidget *p )
-{
-    QString msg;
-
-    switch ( state )
-    {
-    case eSetRootState_NotChanged       : return true;
-    case eSetRootState_NotUnique        : msg = QString ( "location not unique, select a different one" ); break;
-    case eSetRootState_MkdirFail        : msg = QString ( "could not created directory, maybe permisson problem" ); break;
-    case eSetRootState_NewPathEmpty     : msg = QString ( "you gave me an empty path" ); break;
-    case eSetRootState_NewDirNotEmpty   : msg = QString ( "the given location is not empty" ); break;
-    case eSetRootState_NewNotDir        : msg = QString ( "new location is not a directory" ); break;
-    case eSetRootState_Error            : msg = QString ( "error changing location" ); break;
-    default                             : msg = QString ( "unknown enum" ); break;
-    }
-
-    QMessageBox msgBox ( QMessageBox::Warning, "Error", msg , 0, p );
-    msgBox . exec ();
-    return false;
-}
-
-
-static
-std :: string protected_location_start_dir ( vdbconf_model &model, uint32_t id )
-{
-    std :: string s = model . get_repo_location ( id );
-
-    if ( ! model . does_path_exist ( s ) )
-        s = model . get_user_default_dir ();
-
-    if ( ! model.does_path_exist( s ) )
-        s = model.get_home_dir () + "/ncbi";
-
-    if ( ! model.does_path_exist( s ) )
-        s = model.get_home_dir ();
-
-    if ( ! model.does_path_exist( s ) )
-        s = model.get_current_dir ();
-
-    return s;
-}
-
-bool SRAConfig :: select_protected_location ( uint32_t id )
-{
-    QString path = protected_location_start_dir ( model, id ) . c_str ();
-
-    if ( model . does_path_exist ( path . toStdString () ) )
-    {
-        path = QFileDialog :: getOpenFileName ( this
-                                                , "Import Workspace"
-                                                , path );
-    }
-    else
-    {
-        path = QInputDialog::getText ( this
-                                       , ""
-                                       , tr ( "Location of dbGaP project" )
-                                       , QLineEdit::Normal );
-    }
-
-    if ( path . length () > 0 )
-    {
-        QString repo_name = model . get_repo_name ( id ) . c_str ();
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question ( this
-                                        , ""
-                                        , "Change the location of '" + repo_name + "' to '" + path + "'?"
-                                        , QMessageBox::Yes | QMessageBox::No );
-        if ( reply == QMessageBox::Yes )
-        {
-            bool flush_old = false;
-            bool reuse_new = false;
-
-            ESetRootState state = model . set_repo_location ( id, flush_old, path . toStdString (), reuse_new );
-
-            switch ( state )
-            {
-            case eSetRootState_OK:
-                return true;
-            case eSetRootState_OldNotEmpty:
-            {
-                QMessageBox::StandardButton reply;
-                reply = QMessageBox::question ( this
-                                                , tr ( "Directory not empty")
-                                                , tr ( "Previous location is not empty, flush it?" )
-                                                , QMessageBox::Yes | QMessageBox::No );
-                if ( reply == QMessageBox::Yes )
-                {
-                    flush_old = true;
-                    state = model . set_repo_location ( id, flush_old, path . toStdString (), reuse_new );
-                    if ( state == eSetRootState_OK )
-                        return true;
-                    else
-                        return location_error ( state, this );
-        }
-            }
-            default:
-                return location_error ( state, this );
-            }
-        }
-    }
-
-    return false;
-}
-
-bool SRAConfig :: import_ngc ( const KNgcObj *ngc, std :: string location )
-{
-    uint32_t result_flags = 0;
-
-    if ( model . import_ngc ( location, ngc, INP_CREATE_REPOSITORY, &result_flags ) )
-    {
-        /* we have it imported or it exists and no changes made */
-        bool modified = false;
-        if ( result_flags & INP_CREATE_REPOSITORY )
-        {
-            /* success is the most common outcome, the repository was created */
-            QMessageBox::StandardButton reply;
-            reply = QMessageBox::information ( this
-                                               , tr ( "Import Successful")
-                                               , "project successfully imported" );
-            if (reply == QMessageBox::Ok)
-                modified = true;
-        }
-        else
-        {
-            /* repository did exist and is completely identical to the given ngc-obj */
-            QMessageBox::StandardButton reply;
-            reply = QMessageBox::information ( this
-                                               , ""
-                                               , "this project exists already, no changes made" );
-        }
-
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question ( this
-                                        , ""
-                                        , tr ( "Do you want to change the location?" )
-                                        , QMessageBox::Yes | QMessageBox::No );
-        if ( reply == QMessageBox::Yes )
-        {
-            uint32_t id;
-            if ( model . get_id_of_ngc_obj ( ngc, &id ) )
-                modified |= select_protected_location ( id );
-            else
-            {
-                QMessageBox::StandardButton reply;
-                reply = QMessageBox::information ( this
-                                                   , ""
-                                                   , "Cannot find the imported Workspace" );
-            }
-        }
-
-        if ( modified )
-        {
-            model . commit ();
-            model . mkdir ( ngc );
-            return true;
-        }
-    }
-    else if ( result_flags == 0 )
-    {
-        QMessageBox::critical ( this
-                                , "Error"
-                                , "Internal Error: Failed to impport the ngc-object"
-                                , QMessageBox::Ok );
-    }
-    else
-    {
-        QMessageBox::information ( this, "", "the repository does already exist!" );
-
-        if ( result_flags & INP_UPDATE_ENC_KEY )
-        {
-            QMessageBox::StandardButton reply;
-            reply = QMessageBox::question ( this
-                                            , ""
-                                            , "Encryption key would change, continue?"
-                                            , QMessageBox::Yes | QMessageBox::No );
-            if ( reply == QMessageBox::Yes  && ( result_flags & INP_UPDATE_DNLD_TICKET ) )
-            {
-                QMessageBox::StandardButton reply;
-                reply = QMessageBox::question ( this
-                                                , ""
-                                                , "Download ticket would change, continue?"
-                                                , QMessageBox::Yes | QMessageBox::No );
-                if ( reply == QMessageBox::Yes  && ( result_flags & INP_UPDATE_DESC ) )
-                {
-                    QMessageBox::StandardButton reply;
-                    reply = QMessageBox::question ( this
-                                                    , ""
-                                                    , "Description would change, continue?"
-                                                    , QMessageBox::Yes | QMessageBox::No );
-                    if ( reply == QMessageBox::Yes )
-                    {
-                        uint32_t result_flags2 = 0;
-                        if ( model . import_ngc ( location, ngc, result_flags, &result_flags2 ) )
-                        {
-                            QMessageBox::StandardButton reply;
-                            reply = QMessageBox::question ( this
-                                        , ""
-                                        , tr ( "Project successfully updated!\nDo you want to change the location? " )
-                                        , QMessageBox::Yes | QMessageBox::No );
-
-                            if ( reply == QMessageBox::Yes )
-                            {
-                                uint32_t id; /* we have to find out the id of the imported/existing repository */
-                                if ( model . get_id_of_ngc_obj ( ngc, &id ) )
-                                    select_protected_location ( id );
-                                else
-                                    QMessageBox::information ( this, "", "the repository does already exist!" );
-                            }
-
-                            model . commit ();
-
-                            return true;
-                        }
-                        else
-                        {
-                            QMessageBox::critical ( this
-                                                    , "Error"
-                                                    , "Internal Error: Failed to impport the ngc-object"
-                                                    , QMessageBox::Ok );
-                        }
-                    }
-                    else
-                        QMessageBox::information ( this, "", "The import was canceled" );
-                }
-            }
-        }
-    }
-
-    return false;
-
-}
-
-bool SRAConfig:: prepare_ngc ( const KNgcObj *ngc )
-{
-    std :: string location_base = model . get_user_default_dir ();
-    std :: string location = model . get_ngc_root ( location_base, ngc );
-
-    ESetRootState state = model . prepare_repo_directory ( location );
-
-    switch ( state )
-    {
-    case eSetRootState_OK:
-        return import_ngc ( ngc, location );
-    case eSetRootState_OldNotEmpty:
-    {
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question ( this
-                                        , tr ( "Directory not empty")
-                                        , tr ( "Workspace location is not empty. Use it anyway?" )
-                                        , QMessageBox::Yes | QMessageBox::No );
-        if ( reply == QMessageBox::Yes )
-        {
-            state = model . prepare_repo_directory ( location, true );
-            if ( state == eSetRootState_OK )
-               return import_ngc ( ngc, location );
-            else
-                return location_error ( state, this );
-        }
-    }
-    default:
-        return location_error ( state, this );
-    }
-
-    return false;
-}
-
-static
-bool make_ngc_obj ( const KNgcObj ** ngc, std::string &path )
-{
-    KDirectory * dir;
-    rc_t rc = KDirectoryNativeDir( &dir );
-    if ( rc == 0 )
-    {
-        qDebug () << "got native dir";
-        qDebug () << "opening: " << QString ( path . c_str () );
-        const KFile * src;
-        rc = KDirectoryOpenFileRead ( dir, &src, "%s", path.c_str() );
-        if ( rc == 0 )
-        {
-            qDebug () << "opened file for read";
-            rc = KNgcObjMakeFromFile ( ngc, src ); // wont make it past here until I have a real ngs file to work with.
-            KFileRelease( src );
-        }
-        KDirectoryRelease( dir );
-    }
-
-    return ( rc == 0 );
-}
 
 void SRAConfig :: import_workspace ()
 {
@@ -534,21 +559,14 @@ void SRAConfig :: import_workspace ()
         qDebug () << "got input";
         if ( input . isEmpty () )
            return;
+
 #if 0
-        const KNgcObj *ngc;
         std :: string s = file . toStdString ();
-        if ( make_ngc_obj ( &ngc, s ) )
+        if ( import_ngc ( model, s ) )
         {
-            qDebug () << "made ngc object";
-            if ( prepare_ngc ( ngc ) )
-            {
-                qDebug () << "prepared ngc object";
-                add_workspace ( input , file, true );
-                emit dirty_config ();
-            }
-            qDebug () << "failed to prepare ngc object";
+            add_workspace ( input , file, true );
+            emit dirty_config ();
         }
-        qDebug () << "failed to make ngc object";
 #endif
         add_workspace ( input , file, true );
         emit dirty_config ();

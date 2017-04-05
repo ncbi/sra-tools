@@ -95,10 +95,6 @@ private:
 
     void populate ();
 
-    bool select_protected_location ( uint32_t id );
-    bool import_ngc  ( const KNgcObj *ngc, std :: string location );
-    bool prepare_ngc ( const KNgcObj *ngc );
-
     void add_workspace ( QString name, QString val, bool insert = false );
 
     void setup_toolbar ();

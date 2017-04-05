@@ -28,31 +28,47 @@ version 1;
 
 include 'vdb/vdb.vschema';
 
-table NCBI:IR:unpaired:tbl #1
+table NCBI:virtualReference:tbl
 {
-    FRAGMENT_ID
-    FRAGMENT_NAME
-    READ_NUMBER
-    REFERENCE
-    STRAND
-    POSITION
-    OFFSET
-    SEQUENCE
-    PLATFORM
-}
+    extern column ascii REFERENCE_1;
+    extern column   I32 POSITION_1;
+    extern column   I32 LENGTH_1;
+    extern column ascii STRAND_1;
+    extern column ascii REFERENCE_2;
+    extern column   I32 POSITION_2;
+    extern column   I32 LENGTH_2;
+    extern column ascii STRAND_2;
+};
 
-table NCBI:IR:paired:tbl #1
+/*
+table NCBI:fragment:tbl #1
 {
-    FRAGMENT_ID
-    REFERENCE
-    POSITION
-    FRAGMENT_SIZE
+extern column ascii FRAGMENT;
+extern column   I64 REFERENCE
+extern column   I32 POSITION
+extern column   I32 FRAGMENT_SIZE
     OFFSET
     LAYOUT
     READ_LENGTH
     SEQUENCE
     PLATFORM
-}
+};
+*/
+
+table NCBI:IR:raw:tbl #1
+{
+    extern column ascii READ_GROUP;
+    extern column ascii FRAGMENT;
+    extern column   I32 READNO;
+    extern column ascii PLATFORM;
+    extern column ascii SEQUENCE;
+    
+    /* the following would all be empty for unaligned */
+    extern column ascii REFERENCE;
+    extern column ascii STRAND;
+    extern column   I32 POSITION;
+    extern column ascii CIGAR;
+};
 
 database NCBI:IR:raw:db #1
 {

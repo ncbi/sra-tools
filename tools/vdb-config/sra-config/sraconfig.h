@@ -32,41 +32,80 @@
 QT_BEGIN_NAMESPACE
 class QHBoxLayout;
 class QVBoxLayout;
+class QCheckBox;
 class QGroupBox;
 class QLabel;
 class QPushButton;
 QT_END_NAMESPACE
+
+class vdbconf_model;
+struct KNgcObj;
 
 class SRAConfig : public QMainWindow
 {
     Q_OBJECT
 
 public:
-    SRAConfig ( const QRect &avail_geometry, QWidget *parent = 0 );
+    SRAConfig ( vdbconf_model &config_model, const QRect &avail_geometry, QWidget *parent = 0 );
     ~SRAConfig ();
+
+signals:
+
+    void dirty_config ();
 
 private slots:
 
-    //void openFileDialog ();
+    void commit_config ();
+    void reload_config ();
+    void default_config ();
+    void modified_config ();
+
+    void import_workspace ();
+
+    void edit_proxy_path ();
+
+    void toggle_remote_enabled ( bool toggled );
+    void toggle_local_caching ( bool toggled );
+    void toggle_use_site ( bool toggled );
+    void toggle_use_proxy ( bool toggled );
+    void toggle_prioritize_http ( bool toggled );
+
+
 
 private:
 
-    QGroupBox* setupOptionGroup ();
-    QGroupBox* setupRepositoriesGroup ();
-    void setupButtonLayout ();
+    vdbconf_model &model;
 
     QRect screen_geometry;
 
     QVBoxLayout *main_layout;
+    QVBoxLayout *workspace_layout;
 
-    QLabel *import_path;
-    QLabel *public_path;
-    QLabel *proxy_path;
+    QCheckBox *remote_enabled_cb;
+    QCheckBox *local_caching_cb;
+    QCheckBox *site_cb;
+    QCheckBox *proxy_cb;
+    QCheckBox *http_priority_cb;
+
+    QLabel *proxy_label;
 
     QPushButton *ok;
     QPushButton *apply;
-    QPushButton *cancel;
+    QPushButton *revert;
 
+    void populate ();
+
+    bool select_protected_location ( uint32_t id );
+    bool import_ngc  ( const KNgcObj *ngc, std :: string location );
+    bool prepare_ngc ( const KNgcObj *ngc );
+
+    void add_workspace ( QString name, QString val, bool insert = false );
+
+    void setup_toolbar ();
+
+    QGroupBox* setup_option_group ();
+    QGroupBox* setup_workspace_group ();
+    QHBoxLayout* setup_button_layout ();
 };
 
 #endif // SRACONFIG_H

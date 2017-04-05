@@ -24,41 +24,33 @@
 *
 */
 
-#include "sraconfig.h"
+#include "../../sra-tools-gui/interfaces/ktoolbaritem.h"
 
-#include "../configure.h"
-#include "../interactive.h"
-#include "../vdb-config-model.hpp"
+#include <QVBoxLayout>
+#include <QIcon>
+#include <QLabel>
 
-#include <klib/rc.h>
-
-#include <QApplication>
-#include <QDesktopWidget>
-#include <QPoint>
-#include <QProcess>
-
-#include <QDebug>
-
-static QApplication * app;
-extern "C"
+KToolbarItem :: KToolbarItem ( const QString &name, const QString &icon_name, QWidget *parent )
+    : QWidget ( parent )
 {
-     rc_t run_interactive ( vdbconf_model &m )
-     {
-         const QRect avail_geometry = QApplication :: desktop () -> availableGeometry ( QPoint ( 0, 0 ) );
-         SRAConfig config_window (  m, avail_geometry );
-         config_window . show ();
-        int status = app -> exec ();
-        if ( status != 0 )
-            exit ( status );
-        return 0;
-     }
- }
+    QPalette p = palette ();
+    p . setColor ( QPalette::Background, Qt::gray );
+    setAutoFillBackground ( true );
+    setPalette ( p );
 
-int main(int argc, char *argv[])
+    QVBoxLayout *layout = new QVBoxLayout ();
+
+    //QLabel *icon = new QLabel ();
+
+    QLabel *label = new QLabel ( name );
+
+    //layout -> addWidget ( icon );
+    layout -> addWidget ( label );
+
+    setLayout ( layout );
+
+}
+
+KToolbarItem :: ~KToolbarItem ()
 {
-    QApplication a ( argc, argv );
-    app = & a;
-
-    rc_t rc = configure ( eCfgModeVisual );
-    return ( rc == 0 ) ? 0 : 3;
 }

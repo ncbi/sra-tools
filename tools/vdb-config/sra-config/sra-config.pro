@@ -21,9 +21,25 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+LIBS += -L/Users/rodarme1/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-vdb
 
+INCLUDEPATH +=  ../../../../ncbi-vdb/interfaces \
+                ../../../../ncbi-vdb/interfaces/os/mac \
+                ../../../../ncbi-vdb/interfaces/os/unix \
+                ../../../../ncbi-vdb/interfaces/cc/gcc \
+                ../../../../ncbi-vdb/interfaces/cc/gcc/x86_64
 
 SOURCES += main.cpp\
-        sraconfig.cpp
+        sraconfig.cpp \
+    ../configure.cpp \
+    ../vdb-config-model.cpp \
+    ../util.cpp \
+    ../sra-tools-gui/libs/ktoolbaritem.cpp
 
-HEADERS  += sraconfig.h
+
+HEADERS  += sraconfig.h \
+    ../sra-tools-gui/interfaces/ktoolbaritem.h
+
+RESOURCES += \
+    resources.qrc
+

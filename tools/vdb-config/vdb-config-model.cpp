@@ -407,6 +407,7 @@ ESetRootState vdbconf_model::prepare_repo_directory
     return res;
 }
 
+
 #if TDB
 bool check_locations_unique(KRepositoryVector *nonUniqueRepos,
     const string &newRootPath)

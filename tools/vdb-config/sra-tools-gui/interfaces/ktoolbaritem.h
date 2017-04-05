@@ -24,41 +24,18 @@
 *
 */
 
-#include "sraconfig.h"
+#ifndef KTOOLBARITEM_H
+#define KTOOLBARITEM_H
 
-#include "../configure.h"
-#include "../interactive.h"
-#include "../vdb-config-model.hpp"
+#include <QWidget>
 
-#include <klib/rc.h>
-
-#include <QApplication>
-#include <QDesktopWidget>
-#include <QPoint>
-#include <QProcess>
-
-#include <QDebug>
-
-static QApplication * app;
-extern "C"
+class KToolbarItem : public QWidget
 {
-     rc_t run_interactive ( vdbconf_model &m )
-     {
-         const QRect avail_geometry = QApplication :: desktop () -> availableGeometry ( QPoint ( 0, 0 ) );
-         SRAConfig config_window (  m, avail_geometry );
-         config_window . show ();
-        int status = app -> exec ();
-        if ( status != 0 )
-            exit ( status );
-        return 0;
-     }
- }
 
-int main(int argc, char *argv[])
-{
-    QApplication a ( argc, argv );
-    app = & a;
+public:
+    KToolbarItem ( const QString &name, const QString &icon, QWidget *parent = 0 );
+    ~KToolbarItem ();
 
-    rc_t rc = configure ( eCfgModeVisual );
-    return ( rc == 0 ) ? 0 : 3;
-}
+};
+
+#endif // KTOOLBARITEM_H

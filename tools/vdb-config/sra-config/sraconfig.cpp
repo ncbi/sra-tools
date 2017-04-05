@@ -25,35 +25,65 @@
 */
 
 #include "sraconfig.h"
+#include "../vdb-config-model.hpp"
+#include "../sra-tools-gui/interfaces/ktoolbaritem.h"
+
+#include <klib/rc.h>
+#include <kfg/config.h>
+#include <kfg/properties.h>
+#include <kfg/repository.h>
+#include <kfg/ngc.h>
+#include <kfs/directory.h>
+#include <kfs/file.h>
 
 #include <QBoxLayout>
 #include <QCheckBox>
 #include <QFileDialog>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QInputDialog>
 #include <QLabel>
+#include <QMessageBox>
 #include <QPushButton>
+#include <QToolBar>
 
 #include <QDebug>
 
-SRAConfig :: SRAConfig ( const QRect &avail_geometry, QWidget *parent )
+const QString rsrc_path = ":/images";
+
+/* static functions */
+
+
+
+
+SRAConfig :: SRAConfig ( vdbconf_model &config_model, const QRect &avail_geometry, QWidget *parent )
     : QMainWindow ( parent )
+    , model ( config_model )
     , screen_geometry ( avail_geometry )
     , main_layout ( new QVBoxLayout () )
 {
+    setup_toolbar ();
+
     main_layout -> setSpacing ( 20 );
     main_layout -> setAlignment ( Qt::AlignTop );
-    main_layout -> addWidget ( setupOptionGroup () );
-    main_layout -> addWidget ( setupRepositoriesGroup () );
+    main_layout -> addSpacing ( 10 );
+    main_layout -> addWidget ( setup_option_group () );
+    main_layout -> addWidget ( setup_workspace_group () );
+    main_layout -> addStretch ( 1 );
+    main_layout -> addLayout ( setup_button_layout () );
 
-    setupButtonLayout ();
+    populate ();
+
+    connect ( this, SIGNAL ( dirty_config () ), this, SLOT ( modified_config () ) );
 
     QWidget *main_widget = new QWidget ();
     main_widget -> setLayout ( main_layout );
 
     setCentralWidget ( main_widget );
 
-    move ( ( screen_geometry . width () - ( this -> width () / 2 ) ) / 2,
+    resize ( ( screen_geometry . width () ) / 3, this -> height () );
+
+    move ( ( screen_geometry . width () - this -> width () ) / 2,
            ( screen_geometry . height () - this -> height () ) / 2 );
 }
 
@@ -62,7 +92,45 @@ SRAConfig :: ~SRAConfig ()
 
 }
 
-QGroupBox * SRAConfig::setupOptionGroup ()
+void SRAConfig :: setup_toolbar ()
+{
+#ifdef Q_OS_OSX
+    setUnifiedTitleAndToolBarOnMac ( true );
+#endif
+
+    QToolBar *bar = new QToolBar ( this );
+
+    KToolbarItem *item = new KToolbarItem ( "General", rsrc_path + "/general_icon" );
+    bar -> addWidget ( item );
+
+    item = new KToolbarItem ( "AWS", rsrc_path + "/aws_icon" );
+    bar -> addWidget ( item );
+
+    item = new KToolbarItem ( "Network", rsrc_path + "/network_icon" );
+    bar -> addWidget ( item );
+
+    addToolBar ( bar );
+
+}
+
+void SRAConfig :: populate ()
+{
+    remote_enabled_cb -> setChecked ( model . is_remote_enabled () );
+
+    local_caching_cb -> setChecked ( model . is_global_cache_enabled () );
+
+    if ( model . does_site_repo_exist () )
+        site_cb -> setChecked ( model . is_site_enabled () );
+    else
+        site_cb -> setDisabled ( true );
+
+    proxy_cb -> setChecked ( model . is_http_proxy_enabled () );
+    proxy_label -> setText ( model . get_http_proxy_path () . c_str () );
+
+    http_priority_cb -> setChecked ( model . has_http_proxy_env_higher_priority () );
+}
+
+QGroupBox * SRAConfig::setup_option_group ()
 {
     QGroupBox *group = new QGroupBox ( "Options" );
     group -> setFixedHeight ( 170 );
@@ -72,101 +140,568 @@ QGroupBox * SRAConfig::setupOptionGroup ()
     layout -> setSpacing ( 15 );
 
     //1
-    QCheckBox *c_box = new QCheckBox ( "Enable Remote Access" );
-    c_box -> setAutoExclusive ( false );
-    c_box -> setChecked ( true );
-    layout -> addWidget ( c_box, 0, 0 );
+    remote_enabled_cb = new QCheckBox ( "Enable Remote Access" );
+    remote_enabled_cb -> setAutoExclusive ( false );
+    layout -> addWidget ( remote_enabled_cb, 0, 0 );
+    connect ( remote_enabled_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_remote_enabled ( bool ) ) );
 
     //2
-    c_box = new QCheckBox ( "Enable Local File Caching" );
-    c_box -> setAutoExclusive ( false );
-    layout -> addWidget ( c_box, 1, 0 );
+    local_caching_cb = new QCheckBox ( "Enable Local File Caching" );
+    local_caching_cb -> setAutoExclusive ( false );
+    layout -> addWidget ( local_caching_cb, 1, 0 );
+     connect ( local_caching_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_local_caching ( bool ) ) );
 
     //3
-    c_box = new QCheckBox ( "Use Site Installation" );
-    c_box -> setAutoExclusive ( false );
-    layout -> addWidget ( c_box, 2, 0 );
+    site_cb = new QCheckBox ( "Use Site Installation" );
+    site_cb -> setAutoExclusive ( false );
+    layout -> addWidget ( site_cb, 2, 0 );
+    connect ( site_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_use_site ( bool ) ) );
 
     //4
-    c_box = new QCheckBox ( "Use Proxy" );
-    c_box -> setAutoExclusive ( false );
+    proxy_cb = new QCheckBox ( "Use Proxy" );
+    proxy_cb -> setAutoExclusive ( false );
+    layout -> addWidget ( proxy_cb, 3, 0 );
+    connect ( proxy_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_use_proxy ( bool ) ) );
 
-    proxy_path = new QLabel ( "proxy.ncbi.nlm.nih.gov:XXXX" );
+    proxy_label = new QLabel ();
+    proxy_label -> setMargin ( 0 );
+    proxy_label -> setFrameShape ( QFrame::Panel );
+    proxy_label -> setFrameShadow ( QFrame::Sunken );
+    proxy_label -> setFixedHeight ( 20 );
+    layout -> addWidget ( proxy_label, 3, 1 );
 
-    QPalette p = proxy_path -> palette ();
-    p . setColor ( QPalette::Background, Qt::white );
-
-    proxy_path -> setPalette ( p );
-    proxy_path -> setAutoFillBackground ( true );
-    proxy_path -> setTextInteractionFlags ( Qt::TextEditorInteraction );
-    proxy_path -> setFixedHeight ( 20 );
-
-    layout -> addWidget ( c_box, 3, 0 );
-    layout -> addWidget ( proxy_path, 3, 1, 1, 2 );
+    QPushButton *edit = new QPushButton ( "Edit" );
+    edit -> setFixedSize ( 30, 20 );
+    layout -> addWidget ( edit, 3, 2 );
+    connect ( edit, SIGNAL ( clicked () ), this, SLOT ( edit_proxy_path () ) );
 
     //5
-    c_box = new QCheckBox ( "Prioritize Environment Variable 'http-proxy'" );
-    c_box -> setAutoExclusive ( false );
-    layout -> addWidget ( c_box, 4, 0, 1, 2 );
+    http_priority_cb = new QCheckBox ( "Prioritize Environment Variable 'http-proxy'" );
+    http_priority_cb -> setAutoExclusive ( false );
+    layout -> addWidget ( http_priority_cb, 4, 0 );
+    connect ( http_priority_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_prioritize_http ( bool ) ) );
 
     group -> setLayout ( layout );
 
     return group;
 }
 
-QGroupBox * SRAConfig :: setupRepositoriesGroup ()
+
+void SRAConfig :: add_workspace ( QString name, QString val, bool insert )
 {
-    QGroupBox *group = new QGroupBox ( "Repositories" );
+    QHBoxLayout *layout = new QHBoxLayout ();
 
-    QGridLayout *layout = new QGridLayout ();
-    layout -> setAlignment ( Qt :: AlignTop );
-    layout -> setSpacing ( 15 );
+qDebug () << name;
+    QLabel *label = new QLabel ( name . append ( ':' ) );
+    label -> setFixedWidth ( 150 );
+    label -> setAlignment ( Qt::AlignRight );
+    layout -> addWidget ( label);
 
-    //1
-    QLabel *label = new QLabel ( "Import Path" );
-    layout -> addWidget ( label, 0, 0 );
+qDebug () << val;
+    QLabel *path = new QLabel ( val );
+    path -> setFrameShape ( QFrame::Panel );
+    path -> setFrameShadow ( QFrame::Sunken );
+    layout -> addWidget ( path );
 
-    import_path = new QLabel ( "/home/rodarme1/ncbi" );
-    layout -> addWidget ( import_path, 0, 1, 1, 3 );
+    QPushButton *edit = new QPushButton ( "Edit" );
+    edit -> setFixedSize ( 30, 20 );
+    layout -> addWidget ( edit );
 
-    //2
-    label = new QLabel ( "Public" );
-    layout -> addWidget ( label, 1, 0 );
+    if ( insert )
+    {
+        qDebug () << "inserting";
+        workspace_layout -> insertLayout ( workspace_layout -> count () - 1, layout );
+    }
+    else
+        workspace_layout -> addLayout ( layout );
+}
 
-    public_path = new QLabel ( "/home/rodarme1/ncbi/public" );
+static
+bool location_error ( ESetRootState state, QWidget *p )
+{
+    QString msg;
 
-    QPalette p = public_path -> palette ();
-    p . setColor ( QPalette::Background, Qt::white );
+    switch ( state )
+    {
+    case eSetRootState_NotChanged       : return true;
+    case eSetRootState_NotUnique        : msg = QString ( "location not unique, select a different one" ); break;
+    case eSetRootState_MkdirFail        : msg = QString ( "could not created directory, maybe permisson problem" ); break;
+    case eSetRootState_NewPathEmpty     : msg = QString ( "you gave me an empty path" ); break;
+    case eSetRootState_NewDirNotEmpty   : msg = QString ( "the given location is not empty" ); break;
+    case eSetRootState_NewNotDir        : msg = QString ( "new location is not a directory" ); break;
+    case eSetRootState_Error            : msg = QString ( "error changing location" ); break;
+    default                             : msg = QString ( "unknown enum" ); break;
+    }
 
-    public_path -> setPalette ( p );
-    public_path -> setAutoFillBackground ( true );
-    public_path -> setTextInteractionFlags ( Qt::TextEditorInteraction );
-    public_path -> setFixedHeight ( 20 );
+    QMessageBox msgBox ( QMessageBox::Warning, "Error", msg , 0, p );
+    msgBox . exec ();
+    return false;
+}
 
-    layout -> addWidget ( public_path, 1, 1, 1, 3 );
+
+static
+std :: string protected_location_start_dir ( vdbconf_model &model, uint32_t id )
+{
+    std :: string s = model . get_repo_location ( id );
+
+    if ( ! model . does_path_exist ( s ) )
+        s = model . get_user_default_dir ();
+
+    if ( ! model.does_path_exist( s ) )
+        s = model.get_home_dir () + "/ncbi";
+
+    if ( ! model.does_path_exist( s ) )
+        s = model.get_home_dir ();
+
+    if ( ! model.does_path_exist( s ) )
+        s = model.get_current_dir ();
+
+    return s;
+}
+
+bool SRAConfig :: select_protected_location ( uint32_t id )
+{
+    QString path = protected_location_start_dir ( model, id ) . c_str ();
+
+    if ( model . does_path_exist ( path . toStdString () ) )
+    {
+        path = QFileDialog :: getOpenFileName ( this
+                                                , "Import Workspace"
+                                                , path );
+    }
+    else
+    {
+        path = QInputDialog::getText ( this
+                                       , ""
+                                       , tr ( "Location of dbGaP project" )
+                                       , QLineEdit::Normal );
+    }
+
+    if ( path . length () > 0 )
+    {
+        QString repo_name = model . get_repo_name ( id ) . c_str ();
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question ( this
+                                        , ""
+                                        , "Change the location of '" + repo_name + "' to '" + path + "'?"
+                                        , QMessageBox::Yes | QMessageBox::No );
+        if ( reply == QMessageBox::Yes )
+        {
+            bool flush_old = false;
+            bool reuse_new = false;
+
+            ESetRootState state = model . set_repo_location ( id, flush_old, path . toStdString (), reuse_new );
+
+            switch ( state )
+            {
+            case eSetRootState_OK:
+                return true;
+            case eSetRootState_OldNotEmpty:
+            {
+                QMessageBox::StandardButton reply;
+                reply = QMessageBox::question ( this
+                                                , tr ( "Directory not empty")
+                                                , tr ( "Previous location is not empty, flush it?" )
+                                                , QMessageBox::Yes | QMessageBox::No );
+                if ( reply == QMessageBox::Yes )
+                {
+                    flush_old = true;
+                    state = model . set_repo_location ( id, flush_old, path . toStdString (), reuse_new );
+                    if ( state == eSetRootState_OK )
+                        return true;
+                    else
+                        return location_error ( state, this );
+        }
+            }
+            default:
+                return location_error ( state, this );
+            }
+        }
+    }
+
+    return false;
+}
+
+bool SRAConfig :: import_ngc ( const KNgcObj *ngc, std :: string location )
+{
+    uint32_t result_flags = 0;
+
+    if ( model . import_ngc ( location, ngc, INP_CREATE_REPOSITORY, &result_flags ) )
+    {
+        /* we have it imported or it exists and no changes made */
+        bool modified = false;
+        if ( result_flags & INP_CREATE_REPOSITORY )
+        {
+            /* success is the most common outcome, the repository was created */
+            QMessageBox::StandardButton reply;
+            reply = QMessageBox::information ( this
+                                               , tr ( "Import Successful")
+                                               , "project successfully imported" );
+            if (reply == QMessageBox::Ok)
+                modified = true;
+        }
+        else
+        {
+            /* repository did exist and is completely identical to the given ngc-obj */
+            QMessageBox::StandardButton reply;
+            reply = QMessageBox::information ( this
+                                               , ""
+                                               , "this project exists already, no changes made" );
+        }
+
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question ( this
+                                        , ""
+                                        , tr ( "Do you want to change the location?" )
+                                        , QMessageBox::Yes | QMessageBox::No );
+        if ( reply == QMessageBox::Yes )
+        {
+            uint32_t id;
+            if ( model . get_id_of_ngc_obj ( ngc, &id ) )
+                modified |= select_protected_location ( id );
+            else
+            {
+                QMessageBox::StandardButton reply;
+                reply = QMessageBox::information ( this
+                                                   , ""
+                                                   , "Cannot find the imported Workspace" );
+            }
+        }
+
+        if ( modified )
+        {
+            model . commit ();
+            model . mkdir ( ngc );
+            return true;
+        }
+    }
+    else if ( result_flags == 0 )
+    {
+        QMessageBox::critical ( this
+                                , "Error"
+                                , "Internal Error: Failed to impport the ngc-object"
+                                , QMessageBox::Ok );
+    }
+    else
+    {
+        QMessageBox::information ( this, "", "the repository does already exist!" );
+
+        if ( result_flags & INP_UPDATE_ENC_KEY )
+        {
+            QMessageBox::StandardButton reply;
+            reply = QMessageBox::question ( this
+                                            , ""
+                                            , "Encryption key would change, continue?"
+                                            , QMessageBox::Yes | QMessageBox::No );
+            if ( reply == QMessageBox::Yes  && ( result_flags & INP_UPDATE_DNLD_TICKET ) )
+            {
+                QMessageBox::StandardButton reply;
+                reply = QMessageBox::question ( this
+                                                , ""
+                                                , "Download ticket would change, continue?"
+                                                , QMessageBox::Yes | QMessageBox::No );
+                if ( reply == QMessageBox::Yes  && ( result_flags & INP_UPDATE_DESC ) )
+                {
+                    QMessageBox::StandardButton reply;
+                    reply = QMessageBox::question ( this
+                                                    , ""
+                                                    , "Description would change, continue?"
+                                                    , QMessageBox::Yes | QMessageBox::No );
+                    if ( reply == QMessageBox::Yes )
+                    {
+                        uint32_t result_flags2 = 0;
+                        if ( model . import_ngc ( location, ngc, result_flags, &result_flags2 ) )
+                        {
+                            QMessageBox::StandardButton reply;
+                            reply = QMessageBox::question ( this
+                                        , ""
+                                        , tr ( "Project successfully updated!\nDo you want to change the location? " )
+                                        , QMessageBox::Yes | QMessageBox::No );
+
+                            if ( reply == QMessageBox::Yes )
+                            {
+                                uint32_t id; /* we have to find out the id of the imported/existing repository */
+                                if ( model . get_id_of_ngc_obj ( ngc, &id ) )
+                                    select_protected_location ( id );
+                                else
+                                    QMessageBox::information ( this, "", "the repository does already exist!" );
+                            }
+
+                            model . commit ();
+
+                            return true;
+                        }
+                        else
+                        {
+                            QMessageBox::critical ( this
+                                                    , "Error"
+                                                    , "Internal Error: Failed to impport the ngc-object"
+                                                    , QMessageBox::Ok );
+                        }
+                    }
+                    else
+                        QMessageBox::information ( this, "", "The import was canceled" );
+                }
+            }
+        }
+    }
+
+    return false;
+
+}
+
+bool SRAConfig:: prepare_ngc ( const KNgcObj *ngc )
+{
+    std :: string location_base = model . get_user_default_dir ();
+    std :: string location = model . get_ngc_root ( location_base, ngc );
+
+    ESetRootState state = model . prepare_repo_directory ( location );
+
+    switch ( state )
+    {
+    case eSetRootState_OK:
+        return import_ngc ( ngc, location );
+    case eSetRootState_OldNotEmpty:
+    {
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question ( this
+                                        , tr ( "Directory not empty")
+                                        , tr ( "Workspace location is not empty. Use it anyway?" )
+                                        , QMessageBox::Yes | QMessageBox::No );
+        if ( reply == QMessageBox::Yes )
+        {
+            state = model . prepare_repo_directory ( location, true );
+            if ( state == eSetRootState_OK )
+               return import_ngc ( ngc, location );
+            else
+                return location_error ( state, this );
+        }
+    }
+    default:
+        return location_error ( state, this );
+    }
+
+    return false;
+}
+
+static
+bool make_ngc_obj ( const KNgcObj ** ngc, std::string &path )
+{
+    KDirectory * dir;
+    rc_t rc = KDirectoryNativeDir( &dir );
+    if ( rc == 0 )
+    {
+        qDebug () << "got native dir";
+        qDebug () << "opening: " << QString ( path . c_str () );
+        const KFile * src;
+        rc = KDirectoryOpenFileRead ( dir, &src, "%s", path.c_str() );
+        if ( rc == 0 )
+        {
+            qDebug () << "opened file for read";
+            rc = KNgcObjMakeFromFile ( ngc, src ); // wont make it past here until I have a real ngs file to work with.
+            KFileRelease( src );
+        }
+        KDirectoryRelease( dir );
+    }
+
+    return ( rc == 0 );
+}
+
+void SRAConfig :: import_workspace ()
+{
+    // open a file dialog to browse for the repository
+    QString dir = model . get_home_dir () . c_str ();
+    if ( ! model . does_path_exist ( dir . toStdString () ) )
+        dir = model . get_current_dir () . c_str ();
+
+    QString filter = tr ("NGS (*.ngc)" );
+    QString file = QFileDialog :: getOpenFileName ( this
+                                                    , "Import Workspace"
+                                                    , dir
+                                                    , tr ("NGC files (*.ngc)" ) );
+
+
+    if ( ! file . isEmpty () )
+    {
+        QStringList list = file . split ( '/' );
+        QString ext = list . last ();
+
+        QString input = QInputDialog::getText ( this
+                                                , tr ( "Name Workspace" )
+                                                , tr ( "Choose a name for your workspace" )
+                                                , QLineEdit::Normal
+                                                , ext.split ( '.' ) . first () );
+        qDebug () << "got input";
+        if ( input . isEmpty () )
+           return;
+#if 0
+        const KNgcObj *ngc;
+        std :: string s = file . toStdString ();
+        if ( make_ngc_obj ( &ngc, s ) )
+        {
+            qDebug () << "made ngc object";
+            if ( prepare_ngc ( ngc ) )
+            {
+                qDebug () << "prepared ngc object";
+                add_workspace ( input , file, true );
+                emit dirty_config ();
+            }
+            qDebug () << "failed to prepare ngc object";
+        }
+        qDebug () << "failed to make ngc object";
+#endif
+        add_workspace ( input , file, true );
+        emit dirty_config ();
+    }
+}
+
+
+QGroupBox * SRAConfig :: setup_workspace_group ()
+{
+    QGroupBox *group = new QGroupBox ( "Workspaces: " );
+    group -> setTitle ( group -> title () . append ( model . get_user_default_dir () . c_str ( ) ) );
+
+    workspace_layout = new QVBoxLayout ();
+    workspace_layout -> setAlignment ( Qt :: AlignTop );
+    workspace_layout -> setSpacing ( 15 );
+
+    add_workspace ( "Public", model . get_public_location () . c_str() );
+
+    int repo_count = model . get_repo_count ();
+    for ( int i = 0; i < repo_count; ++ i )
+    {
+        add_workspace ( model . get_repo_name ( i ) . c_str (),
+                         model . get_repo_location ( i ) . c_str () );
+    }
 
     //3
-    QPushButton *import = new QPushButton ( "Import" );
-    layout -> addWidget ( import, 2, 0 );
+    QHBoxLayout *i_layout = new QHBoxLayout ();
 
-    group -> setLayout ( layout );
+    i_layout -> addSpacing ( 125 );
+
+    QPushButton *import = new QPushButton ( "+" );
+    import -> setFixedSize ( 30, 25 );
+    connect ( import, SIGNAL ( clicked () ), this, SLOT ( import_workspace () ) );
+    i_layout -> addWidget ( import );
+
+    i_layout -> addSpacing ( 5 );
+
+    QLabel *label = new QLabel ();
+    label -> setFrameShape ( QFrame::Panel );
+    label -> setFrameShadow ( QFrame::Sunken );
+
+    i_layout -> addWidget ( label );
+
+    workspace_layout -> addLayout ( i_layout );
+
+    group -> setLayout ( workspace_layout );
 
     return group;
 }
 
-void SRAConfig :: setupButtonLayout ()
+QHBoxLayout * SRAConfig::setup_button_layout ()
 {
     QHBoxLayout *layout = new QHBoxLayout ();
     layout -> setAlignment ( Qt::AlignBottom | Qt::AlignRight );
     layout -> setSpacing ( 5 );
 
     apply = new QPushButton ( "Apply" );
-    cancel = new QPushButton ( "Cancel" );
-    ok = new QPushButton ( "OK" );
+    apply -> setDisabled ( true );
+    connect ( apply, SIGNAL ( clicked () ), this, SLOT ( commit_config  () ) );
 
+    revert = new QPushButton ( "Revert" );
+    revert -> setDisabled ( true );
+    connect ( revert, SIGNAL ( clicked () ), this, SLOT ( reload_config () ) );
+
+    layout -> addWidget ( revert );
     layout -> addWidget ( apply );
-    layout -> addWidget ( cancel );
-    layout -> addWidget ( ok );
+    //layout -> addWidget ( ok );
 
-    main_layout -> addLayout ( layout );
+    return layout;
 }
+
+void SRAConfig :: commit_config ()
+{
+    model . commit ();
+
+    apply -> setDisabled ( true );
+    revert -> setDisabled ( true );
+}
+
+void SRAConfig :: reload_config ()
+{
+    model . reload ();
+    populate ();
+
+   if ( ! model . get_config_changed () )
+   {
+       apply -> setDisabled ( true );
+       revert -> setDisabled ( true );
+   }
+}
+
+void SRAConfig :: modified_config ()
+{
+    if ( model . get_config_changed () ) // this wont trigger on workspace addition yet
+    {
+        apply -> setDisabled ( false );
+        revert -> setDisabled ( false );
+    }
+}
+
+// TBD - still needs a menu item to be triggered.
+void SRAConfig :: default_config ()
+{
+    model . set_remote_enabled ( true );
+    model . set_global_cache_enabled ( true );
+    model . set_site_enabled ( true );
+}
+
+void SRAConfig :: toggle_remote_enabled ( bool toggled )
+{
+    model . set_remote_enabled ( toggled );
+    emit dirty_config ();
+}
+
+void SRAConfig :: toggle_local_caching ( bool toggled )
+{
+    model . set_global_cache_enabled ( toggled );
+    emit dirty_config ();
+}
+
+void SRAConfig :: toggle_use_site ( bool toggled )
+{
+    model . set_site_enabled ( toggled );
+    emit dirty_config ();
+}
+
+void SRAConfig :: toggle_use_proxy ( bool toggled )
+{
+    model . set_http_proxy_enabled ( toggled );
+    emit dirty_config ();
+}
+
+void SRAConfig :: toggle_prioritize_http ( bool toggled )
+{
+    model . set_http_proxy_env_higher_priority ( toggled );
+    emit dirty_config ();
+}
+
+void SRAConfig :: edit_proxy_path ()
+{
+    QString input = QInputDialog::getText ( this
+                                                , tr ( "Proxy Path" )
+                                                , tr ( "Enter a proxy path" )
+                                                , QLineEdit::Normal
+                                                , proxy_label -> text () );
+
+    if ( input . isEmpty () )
+        return;
+
+    proxy_label -> setText ( input );
+    model . set_http_proxy_path ( input . toStdString () );
+
+    emit dirty_config ();
+}
+
+

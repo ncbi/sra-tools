@@ -480,7 +480,7 @@ void CKConfig::Reload(bool verbose) {
     m_Self = NULL;
 
     if (rc == 0) {
-        rc = KConfigMake(&m_Self, NULL);
+        rc = KConfigMakeLocal (&m_Self, NULL);
     }
 
     if (rc == 0) {

@@ -28,6 +28,7 @@
 #define _h_vdb_config_model_
 
 #include <kfg/config.h>
+#include <kfg/kfg-priv.h>
 #include <kfg/properties.h>
 #include <kfg/repository.h>
 #include <kfg/ngc.h>
@@ -226,6 +227,7 @@ class vdbconf_model
         }
         void set_user_enabled( bool enabled )
         {
+            ( void ) enabled;
 #ifdef ALLOW_USER_REPOSITORY_DISABLING
             if ( _config_valid ) KConfig_Set_User_Access_Enabled( _config, enabled );
 #endif
@@ -268,6 +270,7 @@ class vdbconf_model
 
         bool is_protected_repo_enabled( uint32_t id ) const
         {
+            ( void ) id;
             bool res = true;
 #ifdef ALLOW_USER_REPOSITORY_DISABLING
             if ( _config_valid ) KConfigGetProtectedRepositoryEnabledById( _config, id, &res ); 
@@ -276,6 +279,8 @@ class vdbconf_model
         }
         void set_protected_repo_enabled( uint32_t id, bool enabled )
         {
+            ( void ) id;
+            ( void ) enabled;
 #ifdef ALLOW_USER_REPOSITORY_DISABLING
             if ( _config_valid ) KConfigSetProtectedRepositoryEnabledById( _config, id, enabled ); 
 #endif
@@ -428,7 +433,7 @@ class vdbconf_model
                 kcmCreate | kcmParents, root.c_str()) == 0;
         }
 
-        bool does_path_exist( std::string &path )
+        bool does_path_exist( const std::string &path )
         {
             bool res = false;
             if ( _dir != NULL )
@@ -447,7 +452,7 @@ class vdbconf_model
                 _mgr = NULL;
 
                 KConfigRelease ( _config );
-                _config_valid = ( KConfigMake ( &_config, NULL ) == 0 );
+                _config_valid = ( KConfigMakeLocal ( &_config, NULL ) == 0 );
 
                 if ( _config_valid )
                     KConfigMakeRepositoryMgrRead( _config, &_mgr );

@@ -28,7 +28,7 @@ version 1;
 
 include 'vdb/vdb.vschema';
 
-table NCBI:virtualReference:tbl
+table NCBI:virtualReference:tbl #1
 {
     extern column ascii REFERENCE_1;
     extern column   I32 POSITION_1;

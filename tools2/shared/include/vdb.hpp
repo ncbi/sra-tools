@@ -46,7 +46,9 @@ namespace VDB {
         C::rc_t rc;
         
     public:
-        Error(C::rc_t const rc_) : rc(rc_) {}
+        Error(C::rc_t const rc_, char const *file, int line) : rc(rc_) {
+            std::cerr << "RC " << rc << " thrown by " << file << ':' << line << std::endl;
+        }
         char const *what() const throw() { return ""; }
     };
     class Schema {
@@ -61,7 +63,12 @@ namespace VDB {
         void parseText(unsigned length, char const text[], char const *const name = 0)
         {
             C::rc_t const rc = VSchemaParseText(o, name, text, length);
-            if (rc) throw Error(rc);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+        }
+        void addIncludePath(char const *const path)
+        {
+            auto const rc = VSchemaAddIncludePath(o, "%s", path);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
         }
         Schema(C::VSchema *const o_) : o(o_) {}
     public:
@@ -71,8 +78,81 @@ namespace VDB {
         friend std::ostream &operator <<(std::ostream &strm, Schema const &s)
         {
             C::rc_t const rc = VSchemaDump(s.o, C::sdmPrint, 0, dumpToStream, (void *)&strm);
-            if (rc) throw Error(rc);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
             return strm;
+        }
+    };
+    class Cursor {
+        friend class Table;
+        C::VCursor *const o;
+        
+        Cursor(C::VCursor *const o_) :o(o_) {}
+    public:
+        struct RawData {
+            void const *data;
+            unsigned elem_bits;
+            unsigned elements;
+        };
+        Cursor(Cursor const &other) :o(other.o) { C::VCursorAddRef(o); }
+        ~Cursor() { C::VCursorRelease(o); }
+        
+        int64_t rowRange(int64_t *last) {
+            uint64_t count = 0;
+            int64_t first = 0;
+            C::rc_t rc = C::VCursorIdRange(o, 0, &first, &count);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            *last = first + count;
+            return first;
+        }
+        void read(int64_t row, unsigned const N, RawData out[])
+        {
+            for (unsigned i = 0; i < N; ++i) {
+                void const *base = 0;
+                uint32_t count = 0;
+                uint32_t boff = 0;
+                uint32_t elem_bits = 0;
+
+                C::rc_t rc = C::VCursorCellDataDirect(o, row, i + 1, &elem_bits, &base, &boff, &count);
+                if (rc) throw Error(rc, __FILE__, __LINE__);
+                
+                out[i].data = base;
+                out[i].elem_bits = elem_bits;
+                out[i].elements = count;
+            }
+        }
+        void newRow() const {
+            auto const rc = C::VCursorOpenRow(o);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+        }
+        template <typename T>
+        void write(unsigned col, T const &value) const {
+            auto const rc = C::VCursorWrite(o, col, sizeof(T) * 8, (void const *)&value, 0, 1);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+        }
+        template <typename T>
+        void writeNull(unsigned col) const {
+            auto dummy = T(0);
+            auto const rc = C::VCursorWrite(o, col, sizeof(T) * 8, (void const *)&dummy, 0, 0);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+        }
+        template <typename T>
+        void write(unsigned col, unsigned N, T const *value) const {
+            auto const rc = C::VCursorWrite(o, col, sizeof(T) * 8, (void const *)&value, 0, N);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+        }
+        void write(unsigned col, std::string const &value) const {
+            auto const rc = C::VCursorWrite(o, col, 8, (void const *)value.data(), 0, value.size());
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+        }
+        void commitRow() const {
+            auto rc = C::VCursorCommitRow(o);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            rc = C::VCursorCloseRow(o);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+        }
+        void commit() const {
+            auto const rc = C::VCursorCommit(o);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
         }
     };
     class Table {
@@ -83,6 +163,42 @@ namespace VDB {
     public:
         Table(Table const &other) :o(other.o) { C::VTableAddRef(o); }
         ~Table() { C::VTableRelease(o); }
+        
+        Cursor read(unsigned const N, char const *fields[]) const
+        {
+            C::VCursor const *curs = 0;
+            auto rc = C::VTableCreateCursorRead(o, &curs);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            
+            for (unsigned i = 0; i < N; ++i) {
+                uint32_t cid = 0;
+                
+                rc = C::VCursorAddColumn(curs, &cid, "%s", fields[i]);
+                if (rc) throw Error(rc, __FILE__, __LINE__);
+            }
+            rc = C::VCursorOpen(curs);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return Cursor(const_cast<C::VCursor *>(curs));
+        }
+        
+        Cursor append(unsigned const N, char const *fields[]) const
+        {
+            C::VCursor *curs = 0;
+            auto rc = C::VTableCreateCursorWrite(o, &curs, C::kcmInsert);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            
+            for (unsigned i = 0; i < N; ++i) {
+                uint32_t cid = 0;
+                
+                rc = C::VCursorAddColumn(curs, &cid, "%s", fields[i]);
+                if (rc) throw Error(rc, __FILE__, __LINE__);
+                if (cid != i + 1)
+                    throw std::range_error("invalid column number");
+            }
+            rc = C::VCursorOpen(curs);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return Cursor(curs);
+        }
     };
     class Database {
         friend class Manager;
@@ -96,50 +212,55 @@ namespace VDB {
         Table create(std::string const &name, std::string const &type) const
         {
             C::VTable *rslt = 0;
-            C::rc_t const rc = C::VDatabaseCreateTableByMask(o, &rslt, type.c_str(), 0, 0, "%s", name.c_str());
-            if (rc) throw Error(rc);
+            auto const rc = C::VDatabaseCreateTableByMask(o, &rslt, type.c_str(), 0, 0, "%s", name.c_str());
+            if (rc) throw Error(rc, __FILE__, __LINE__);
             return Table(rslt);
         }
         
         Table operator [](std::string const &name) const
         {
             C::VTable *p = 0;
-            C::rc_t const rc = C::VDatabaseOpenTableRead(o, (C::VTable const **)&p, "%s", name.c_str());
-            if (rc) throw Error(rc);
+            auto const rc = C::VDatabaseOpenTableRead(o, (C::VTable const **)&p, "%s", name.c_str());
+            if (rc) throw Error(rc, __FILE__, __LINE__);
             return Table(p);
         }
 
         Table open(std::string const &name) const
         {
             C::VTable *p = 0;
-            C::rc_t const rc = C::VDatabaseOpenTableUpdate(o, &p, "%s", name.c_str());
-            if (rc) throw Error(rc);
+            auto const rc = C::VDatabaseOpenTableUpdate(o, &p, "%s", name.c_str());
+            if (rc) throw Error(rc, __FILE__, __LINE__);
             return Table(p);
         }
     };
     class Manager {
-        C::VDBManager *o;
+        C::VDBManager *const o;
 
-    public:
-        Manager() : o(0) {
-            C::rc_t const rc = C::VDBManagerMakeUpdate(&o, 0);
-            if (rc) throw Error(rc);
+        static C::VDBManager *makeUpdateManager() {
+            C::VDBManager *o;
+            auto const rc = C::VDBManagerMakeUpdate(&o, 0);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return o;
         }
+    public:
+        Manager() : o(makeUpdateManager()) {}
         Manager(Manager const &other) : o(other.o) { C::VDBManagerAddRef(o); }
         ~Manager() { C::VDBManagerRelease(o); }
 
-        Schema schema(unsigned const size, char const *const text) const
+        Schema schema(unsigned const size, char const *const text, char const *const includePath = 0) const
         {
             C::VSchema *p = 0;
-            C::rc_t const rc = VDBManagerMakeSchema(o, &p);
-            if (rc) throw Error(rc);
+            auto const rc = VDBManagerMakeSchema(o, &p);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
 
             Schema rslt(p);
+            if (includePath)
+                rslt.addIncludePath(includePath);
             rslt.parseText(size, text);
             return rslt;
         }
         
-        Schema schemaFromFile(std::string const &path) const
+        Schema schemaFromFile(std::string const &path, std::string const &includePath = "") const
         {
             std::ifstream ifs(path, std::ios::ate | std::ios::in);
             if (!ifs) { throw std::runtime_error("can't open file " + path); }
@@ -149,7 +270,7 @@ namespace VDB {
             ifs.seekg(0, std::ios::beg);
             ifs.read(p, size);
             
-            Schema result = schema(size, p);
+            Schema result = schema(size, p, includePath.size() != 0 ? includePath.c_str() : 0);
             delete [] p;
             return result;
         }
@@ -157,24 +278,24 @@ namespace VDB {
         Database create(std::string const &path, Schema const &schema, std::string const &type) const
         {
             C::VDatabase *rslt = 0;
-            C::rc_t const rc = C::VDBManagerCreateDB(o, &rslt, (C::VSchema *)&schema, type.c_str(), C::kcmInit | C::kcmMD5, "%s", path.c_str());
-            if (rc) throw Error(rc);
+            auto const rc = C::VDBManagerCreateDB(o, &rslt, schema.o, type.c_str(), C::kcmInit | C::kcmMD5, "%s", path.c_str());
+            if (rc) throw Error(rc, __FILE__, __LINE__);
             return Database(rslt);
         }
         
         Database operator [](std::string const &path) const
         {
             C::VDatabase *p = 0;
-            C::rc_t const rc = C::VDBManagerOpenDBRead(o, (C::VDatabase const **)&p, 0, "%s", path.c_str());
-            if (rc) throw Error(rc);
+            auto const rc = C::VDBManagerOpenDBRead(o, (C::VDatabase const **)&p, 0, "%s", path.c_str());
+            if (rc) throw Error(rc, __FILE__, __LINE__);
             return Database(p);
         }
         
         Database open(std::string const &path) const
         {
             C::VDatabase *p = 0;
-            C::rc_t const rc = C::VDBManagerOpenDBUpdate(o, &p, 0, "%s", path.c_str());
-            if (rc) throw Error(rc);
+            auto const rc = C::VDBManagerOpenDBUpdate(o, &p, 0, "%s", path.c_str());
+            if (rc) throw Error(rc, __FILE__, __LINE__);
             return Database(p);
         }
     };

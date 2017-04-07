@@ -55,7 +55,7 @@ extern column   I32 FRAGMENT_SIZE
 };
 */
 
-table NCBI:IR:raw:tbl #1
+table NCBI:tbl:IR:raw #1
 {
     extern column ascii READ_GROUP;
     extern column ascii FRAGMENT;
@@ -70,7 +70,7 @@ table NCBI:IR:raw:tbl #1
     extern column ascii CIGAR;
 };
 
-database NCBI:IR:raw:db #1
+database NCBI:db:IR:raw #1
 {
-    table NCBI:IR:raw:tbl #1.0 RAW;
+    table NCBI:tbl:IR:raw #1.0 RAW;
 };

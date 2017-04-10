@@ -524,8 +524,29 @@ static uint32_t vdm_extract_or_parse_columns( const p_dump_context ctx,
     {
         bool cols_unknown = ( ( ctx->columns == NULL ) || ( string_cmp( ctx->columns, 1, "*", 1, 1 ) == 0 ) );
         if ( cols_unknown )
-            /* the user does not know the column-names or wants all of them */
-            count = vdcd_extract_from_table( my_col_defs, my_table );
+        {
+            if ( ctx->enum_static )
+            {
+                /* the user wants to see only the static columns */
+                count = vdcd_extract_static_columns( my_col_defs, my_table, ctx->max_line_len );
+                if ( count > 0 )
+                {
+                    /* if we found some static columns, let's restrict the row-count
+                       if the user did not give a specific row-set to just show row #1 */
+                    if ( ctx->rows == NULL )
+                    {
+                        rc_t rc = num_gen_make_from_range( &ctx->rows, 1, 1 );
+                        DISP_RC( rc, "num_gen_make_from_range() failed" );
+                    }
+                    
+                }
+            }
+            else
+            {
+                /* the user does not know the column-names or wants all of them */
+                count = vdcd_extract_from_table( my_col_defs, my_table );
+            }
+        }
         else
             /* the user knows the names of the wanted columns... */
             count = vdcd_parse_string( my_col_defs, ctx->columns, my_table );
@@ -547,8 +568,10 @@ static bool vdm_extract_or_parse_phys_columns( const p_dump_context ctx,
     {
         bool cols_unknown = ( ( ctx->columns == NULL ) || ( string_cmp( ctx->columns, 1, "*", 1, 1 ) == 0 ) );
         if ( cols_unknown )
+        {
             /* the user does not know the column-names or wants all of them */
             res = vdcd_extract_from_phys_table( my_col_defs, my_table );
+        }
         else
             /* the user knows the names of the wanted columns... */
             res = vdcd_parse_string( my_col_defs, ctx->columns, my_table );
@@ -569,7 +592,7 @@ static bool vdm_extract_or_parse_static_columns( const p_dump_context ctx,
     if ( ctx != NULL && my_col_defs != NULL )
     {
             /* the user does not know the column-names or wants all of them */
-        res = vdcd_extract_static_columns( my_col_defs, my_table, ctx->max_line_len );
+        res = ( vdcd_extract_static_columns( my_col_defs, my_table, ctx->max_line_len ) > 0 );
 
         if ( ctx->excluded_columns != NULL )
             vdcd_exclude_these_columns( my_col_defs, ctx->excluded_columns );

@@ -868,7 +868,7 @@ static uint32_t same_values( const VCursor * curs, uint32_t col_idx, int64_t fir
     return res;
 }
 
-static bool vdcd_is_static_column( const VTable *my_table, col_def * col )
+static bool vdcd_is_static_column( const VTable *my_table, col_def * col, uint32_t test_rows )
 {
     bool res = false;
     const VCursor * curs;
@@ -887,7 +887,7 @@ static bool vdcd_is_static_column( const VTable *my_table, col_def * col )
                 rc = VCursorIdRange( curs, idx, &first, &count );
                 if ( rc == 0 && count == 0 )
                 {
-                    res = ( same_values( curs, idx, first, 100 ) == 100 );
+                    res = ( same_values( curs, idx, first, test_rows ) == test_rows );
                 }
             }
         }
@@ -897,11 +897,13 @@ static bool vdcd_is_static_column( const VTable *my_table, col_def * col )
 }
 
 
-bool vdcd_extract_static_columns( col_defs* defs, const VTable *my_table, const size_t str_limit )
+#define TEST_ROWS 20
+
+uint32_t vdcd_extract_static_columns( col_defs* defs, const VTable *my_table, const size_t str_limit )
 {
     col_defs * temp_defs;
-    bool res = vdcd_init( &temp_defs, str_limit );
-    if ( res )
+    uint32_t res = 0;
+    if ( vdcd_init( &temp_defs, str_limit ) )
     {
         uint32_t count = vdcd_extract_from_table( temp_defs, my_table );
         uint32_t idx;
@@ -910,8 +912,14 @@ bool vdcd_extract_static_columns( col_defs* defs, const VTable *my_table, const 
             col_def * col = VectorGet( &(temp_defs->cols), idx );
             if ( col != NULL )
             {
-                if ( vdcd_is_static_column( my_table, col ) )
-                    vdcd_append_col( defs, col->name  );
+                if ( vdcd_is_static_column( my_table, col, TEST_ROWS ) )
+                {
+                    p_col_def c = vdcd_append_col( defs, col->name  );
+                    if ( c != NULL )
+                    {
+                        res++;
+                    }
+                }
             }
         }
         vdcd_destroy( temp_defs );

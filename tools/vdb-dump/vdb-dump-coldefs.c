@@ -868,7 +868,7 @@ static uint32_t same_values( const VCursor * curs, uint32_t col_idx, int64_t fir
     return res;
 }
 
-static bool vdcd_is_static_column( const VTable *my_table, col_def * col, uint32_t test_rows )
+static bool vdcd_is_static_column1( const VTable *my_table, col_def * col, uint32_t test_rows )
 {
     bool res = false;
     const VCursor * curs;
@@ -896,6 +896,26 @@ static bool vdcd_is_static_column( const VTable *my_table, col_def * col, uint32
     return res;
 }
 
+static bool vdcd_is_static_column2( const VTable *my_table, col_def * col )
+{
+    bool res = false;
+    const VCursor * curs;
+    rc_t rc = VTableCreateCursorRead( my_table, &curs );
+    if ( rc == 0 )
+    {
+        uint32_t idx;
+        rc = VCursorAddColumn( curs, &idx, "%s", col->name );
+        if ( rc == 0 )
+        {
+            rc = VCursorOpen( curs );
+            if ( rc == 0 )
+                rc = VCursorIsStaticColumn( curs, idx, &res );
+        }
+        VCursorRelease( curs );
+    }
+    return res;
+}
+
 
 #define TEST_ROWS 20
 
@@ -912,7 +932,7 @@ uint32_t vdcd_extract_static_columns( col_defs* defs, const VTable *my_table, co
             col_def * col = VectorGet( &(temp_defs->cols), idx );
             if ( col != NULL )
             {
-                if ( vdcd_is_static_column( my_table, col, TEST_ROWS ) )
+                if ( vdcd_is_static_column1( my_table, col ) )
                 {
                     p_col_def c = vdcd_append_col( defs, col->name  );
                     if ( c != NULL )

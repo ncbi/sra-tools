@@ -30,6 +30,7 @@
 #include <klib/text.h>
 #include <klib/log.h>
 #include <klib/printf.h>
+#include <klib/out.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -557,11 +558,11 @@ rc_t allele_dict_visit_and_purge( struct Allele_Dict * ad, uint32_t purge_dist, 
         if ( spread > ( purge_dist * 2 ) )
         {
             rc_t rc2 = 0;
+            uint64_t key;
+            Pos_Entry * pe;
             uint64_t last_pos = ad->min_pos + purge_dist;
             while ( rc2 == 0 )
             {
-                uint64_t key;
-                Pos_Entry * pe;
                 rc2 = KVectorGetFirstPtr( ad->v, &key, ( void ** )&pe );
                 if ( rc2 == 0 )
                 {
@@ -579,6 +580,10 @@ rc_t allele_dict_visit_and_purge( struct Allele_Dict * ad, uint32_t purge_dist, 
                     }
                 }
             }
+            /* set the new min_pos... */
+            rc2 = KVectorGetFirstPtr( ad->v, &key, ( void ** )&pe );
+            if ( rc2 == 0 )
+                ad->min_pos = key;
         }
     }
     return rc;

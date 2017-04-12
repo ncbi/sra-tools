@@ -1021,7 +1021,7 @@ static rc_t produce_events_from_tbl_src( tool_ctx * ctx, const tbl_src * tsrc )
             rc = process_alignment( ctx, &al, &current );
 
         /* if we are reducing, purge the allele-dict if the spread exeeds the purge-value * 2 */
-        if ( rc == 0 )
+        if ( rc == 0 && ( ( rows_processed % ctx->purge ) == 0 ) )
             rc = allele_dict_visit_and_purge( current.ad, ctx->purge, print_event, &current );
         
         /* handle the loop-termination and find the next row to handle... */

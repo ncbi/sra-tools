@@ -932,7 +932,7 @@ uint32_t vdcd_extract_static_columns( col_defs* defs, const VTable *my_table, co
             col_def * col = VectorGet( &(temp_defs->cols), idx );
             if ( col != NULL )
             {
-                if ( vdcd_is_static_column1( my_table, col ) )
+                if ( vdcd_is_static_column1( my_table, col, TEST_ROWS ) )
                 {
                     p_col_def c = vdcd_append_col( defs, col->name  );
                     if ( c != NULL )

@@ -28,46 +28,19 @@ version 1;
 
 include 'vdb/vdb.vschema';
 
-table NCBI:virtualReference:tbl #1
-{
-    extern column ascii REFERENCE_1;
-    extern column   I32 POSITION_1;
-    extern column   I32 LENGTH_1;
-    extern column ascii STRAND_1;
-    extern column ascii REFERENCE_2;
-    extern column   I32 POSITION_2;
-    extern column   I32 LENGTH_2;
-    extern column ascii STRAND_2;
-};
-
-/*
-table NCBI:fragment:tbl #1
-{
-extern column ascii FRAGMENT;
-extern column   I64 REFERENCE
-extern column   I32 POSITION
-extern column   I32 FRAGMENT_SIZE
-    OFFSET
-    LAYOUT
-    READ_LENGTH
-    SEQUENCE
-    PLATFORM
-};
-*/
-
 table NCBI:tbl:IR:raw #1
 {
-    extern column ascii READ_GROUP;
-    extern column ascii FRAGMENT;
-    extern column   I32 READNO;
-    extern column ascii PLATFORM;
-    extern column ascii SEQUENCE;
+    extern column <ascii> zip_encoding READ_GROUP;
+    extern column <ascii> zip_encoding FRAGMENT;
+    extern column <I32> izip_encoding  READNO;
+    extern column <ascii> zip_encoding PLATFORM;
+    extern column <ascii> zip_encoding SEQUENCE;
     
     /* the following would all be empty for unaligned */
-    extern column ascii REFERENCE;
-    extern column ascii STRAND;
-    extern column   I32 POSITION;
-    extern column ascii CIGAR;
+    extern column <ascii> zip_encoding REFERENCE;
+    extern column <ascii> zip_encoding STRAND;
+    extern column <I32> izip_encoding  POSITION;
+    extern column <ascii> zip_encoding CIGAR;
 };
 
 database NCBI:db:IR:raw #1

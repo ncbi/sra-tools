@@ -27,6 +27,7 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+#include <utility>
 
 namespace VDB {
     namespace C {
@@ -96,28 +97,34 @@ namespace VDB {
         Cursor(Cursor const &other) :o(other.o) { C::VCursorAddRef(o); }
         ~Cursor() { C::VCursorRelease(o); }
         
-        int64_t rowRange(int64_t *last) {
+        std::pair<int64_t, int64_t> rowRange() const
+        {
             uint64_t count = 0;
             int64_t first = 0;
             C::rc_t rc = C::VCursorIdRange(o, 0, &first, &count);
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            *last = first + count;
-            return first;
+            return std::make_pair(first, first + count);
         }
-        void read(int64_t row, unsigned const N, RawData out[])
+        RawData read(int64_t row, unsigned cid) const {
+            RawData out;
+            void const *base = 0;
+            uint32_t count = 0;
+            uint32_t boff = 0;
+            uint32_t elem_bits = 0;
+            
+            C::rc_t rc = C::VCursorCellDataDirect(o, row, cid, &elem_bits, &base, &boff, &count);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            
+            out.data = base;
+            out.elem_bits = elem_bits;
+            out.elements = count;
+            
+            return out;
+        }
+        void read(int64_t row, unsigned const N, RawData out[]) const
         {
             for (unsigned i = 0; i < N; ++i) {
-                void const *base = 0;
-                uint32_t count = 0;
-                uint32_t boff = 0;
-                uint32_t elem_bits = 0;
-
-                C::rc_t rc = C::VCursorCellDataDirect(o, row, i + 1, &elem_bits, &base, &boff, &count);
-                if (rc) throw Error(rc, __FILE__, __LINE__);
-                
-                out[i].data = base;
-                out[i].elem_bits = elem_bits;
-                out[i].elements = count;
+                out[i] = read(row, i + 1);
             }
         }
         void newRow() const {
@@ -164,7 +171,7 @@ namespace VDB {
         Table(Table const &other) :o(other.o) { C::VTableAddRef(o); }
         ~Table() { C::VTableRelease(o); }
         
-        Cursor read(unsigned const N, char const *fields[]) const
+        Cursor read(unsigned const N, char const *const fields[]) const
         {
             C::VCursor const *curs = 0;
             auto rc = C::VTableCreateCursorRead(o, &curs);

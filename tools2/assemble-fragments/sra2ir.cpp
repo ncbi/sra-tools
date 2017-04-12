@@ -29,97 +29,154 @@
 #include <string>
 #include <stdexcept>
 #include <cstdint>
-#include <cassert>
-#include <cmath>
+#include <cstdio>
 #include <vdb.hpp>
+#include <writer.hpp>
 
-std::string itos(int64_t i)
+template <typename T>
+static std::ostream &write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::RawData const &in)
 {
-    char buffer[256];
-    int n = snprintf(buffer, 256, "%lli", i);
-    return std::string(buffer);
+    return out.value(cid, in.elements, (T const *)in.data);
 }
 
-VDB::Cursor openOutputCursor(VDB::Table const &out)
-{
-    static char const *const FLDS[] = { "READ_GROUP", "FRAGMENT", "READNO", "SEQUENCE", "REFERENCE", "STRAND", "POSITION", "CIGAR" };
-    return out.append(sizeof(FLDS)/sizeof(FLDS[0]), FLDS);
-}
-
-VDB::Cursor openInputCursorAligned(VDB::Database const &in, bool primary)
+static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bool const primary)
 {
     static char const *const FLDS[] = { "SEQ_SPOT_GROUP", "SEQ_SPOT_ID", "SEQ_READ_ID", "READ", "REF_NAME", "REF_ORIENTATION", "REF_POS", "CIGAR_SHORT" };
-    auto tbl = in[primary ? "PRIMARY_ALIGNMENT" : "SECONDARY_ALIGNMENT"];
-    return tbl.read(sizeof(FLDS)/sizeof(FLDS[0]), FLDS);
-}
-
-VDB::Cursor openInputCursorSequence(VDB::Database const &in)
-{
-    static char const *const FLDS[] = { "SPOT_GROUP", "READ", "(U32)READ_START", "(U32)READ_LENGTH", "PRIMARY_ALIGNMENT_ID" };
-    auto tbl = in["SEQUENCE"];
-    return tbl.read(sizeof(FLDS)/sizeof(FLDS[0]), FLDS);
-}
-
-int process(VDB::Table const &out, VDB::Database const &inDb)
-{
-    auto curs = openOutputCursor(out);
+    auto const N = sizeof(FLDS)/sizeof(FLDS[0]);
+    auto const tblName = primary ? "PRIMARY_ALIGNMENT" : "SECONDARY_ALIGNMENT";
+    auto const in = inDb[tblName].read(N, FLDS);
+    auto const range = in.rowRange();
+    auto const freq = (range.second - range.first) / 100.0;
+    auto nextReport = 1;
+    char buffer[32];
+    VDB::Cursor::RawData data[N];
     
-    {
-        auto in = openInputCursorSequence(inDb);
-        int64_t endRow = 0;
+    std::cerr << "processing " << (range.second - range.first) << " records from " << tblName << std::endl;
+    for (int64_t row = range.first; row < range.second; ++row) {
+        in.read(row, N, data);
+        
+        auto const n = snprintf(buffer, 32, "%lli", *(int64_t const *)data[1].data);
+        auto const spotId = (int64_t const *)data[1].data;
+        auto const readId = (int32_t const *)data[2].data;
+        auto const strand = (int8_t const *)data[5].data;
+        auto const refpos = (int32_t const *)data[6].data;
 
-        for (int64_t row = in.rowRange(&endRow); row < endRow; ++row) {
-            VDB::Cursor::RawData data[5];
-            
-            in.read(row, 6, data);
-            
-            char const *rawSpotGroup = (char const *)data[0].data;
-            char const *rawSequence = (char const *)data[1].data;
-            uint32_t const *readStart = (uint32_t const *)data[2].data;
-            uint32_t const *readLen = (uint32_t const *)data[3].data;
-            int64_t const *pid = (int64_t const *)data[4].data;
-            
-            unsigned const nreads = data[2].elements;
-            
-            auto const &spotGroup = std::string((char const *)data[0].data, data[0].elements);
-            
-            for (unsigned i = 0; i < nreads; ++i) {
-                if (pid[i] == 0) {
-                    auto const &sequence = std::string(rawSequence + readStart[i], readLen[i]);
-                    
-                    curs.nextRow();
-                    curs.write(1, spotGroup);
-                    curs.write(2, itos(row));
-                    curs.write(3, i + 1);
-                    curs.write(4, sequence);
-                    curs.writeNull<char>(5);
-                    curs.writeNull<char>(6);
-                    curs.writeNull<int>(7);
-                    curs.writeNull<char>(8);
-                    curs.commitRow();
-                }
-            }
+        write<char>(out, 1, data[0]);
+        out.value(2, n, buffer);
+        out.value(3, 1, readId);
+        write<char>(out, 4, data[3]);
+        write<char>(out, 5, data[4]);
+        out.value<char>(6, strand[0] == 0 ? '+' : '-');
+        out.value(7, 1, refpos);
+        write<char>(out, 8, data[7]);
+        
+        out.closeRow(1);
+        if (nextReport * freq <= row - range.first) {
+            std::cerr << "processed " << nextReport << "%" << std::endl;
+            ++nextReport;
         }
     }
-    try {
-        auto in = openInputCursorAligned(inDb, false);
+    std::cerr << "processed 100%" << std::endl;
+    std::cerr << "imported " << (range.second - range.first) << " alignments from " << tblName << std::endl;
+}
+
+static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb)
+{
+    static char const *const FLDS[] = { "SPOT_GROUP", "READ", "READ_START", "READ_LEN", "PRIMARY_ALIGNMENT_ID" };
+    auto const N = sizeof(FLDS)/sizeof(FLDS[0]);
+    auto const in = inDb["SEQUENCE"].read(N, FLDS);
+    auto const range = in.rowRange();
+    auto const freq = (range.second - range.first) / 100.0;
+    auto nextReport = 1;
+    char buffer[32];
+    VDB::Cursor::RawData data[N];
+    int64_t written = 0;
+    
+    std::cerr << "processing " << (range.second - range.first) << " records from SEQUENCE" << std::endl;
+    for (int64_t row = range.first; row < range.second; ++row) {
+        data[4] = in.read(row, 5);
+        unsigned const nreads = data[4].elements;
+        auto const pid = (int64_t const *)data[4].data;
+
+        for (unsigned i = 0; i < nreads; ++i) {
+            if (pid[i] == 0) {
+                in.read(row, N - 1, data);
+
+                auto const n = snprintf(buffer, 32, "%lli", row);
+                auto const sequence = (char const *)data[1].data;
+                auto const readStart = (int32_t const *)data[2].data;
+                auto const readLen = (uint32_t const *)data[3].data;
+
+                write<char>(out, 1, data[0]);
+                out.value(2, n, buffer);
+                out.value(3, int32_t(i + 1));
+                out.value(4, readLen[i], sequence + readStart[i]);
+                out.closeRow(1);
+                ++written;
+            }
+        }
+        if (nextReport * freq <= row - range.first) {
+            std::cerr << "processed " << nextReport << '%' << std::endl;;
+            ++nextReport;
+        }
     }
-    catch (...) {}
+    std::cerr << "processed 100%; imported " << written << " unaligned reads" << std::endl;
+}
+
+static int process(VDB::Writer const &out, VDB::Database const &inDb)
+{
     try {
-        auto in = openInputCursorAligned(inDb, true);
+        processAligned(out, inDb, false);
     }
-    catch (...) {}
-    curs.commit();
+    catch (...) {
+        std::cerr << "an error occured trying to process secondary alignments" << std::endl;
+    }
+    processUnaligned(out, inDb);
+    processAligned(out, inDb, true);
     return 0;
+}
+
+static int process(char const *const run)
+{
+    auto const writer = VDB::Writer(std::cout);
+    
+    writer.destination("IR.vdb");
+    writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
+    writer.info("sra2ir", "1.0.0");
+    
+    writer.openTable(1, "RAW");
+    writer.openColumn(1, 1, 8, "READ_GROUP");
+    writer.openColumn(2, 1, 8, "FRAGMENT");
+    writer.openColumn(3, 1, 32, "READNO");
+    writer.openColumn(4, 1, 8, "SEQUENCE");
+    writer.openColumn(5, 1, 8, "REFERENCE");
+    writer.openColumn(6, 1, 8, "STRAND");
+    writer.openColumn(7, 1, 32, "POSITION");
+    writer.openColumn(8, 1, 8, "CIGAR");
+    
+    writer.beginWriting();
+    
+    writer.defaultValue<char>(5, 0, 0);
+    writer.defaultValue<char>(6, 0, 0);
+    writer.defaultValue<int32_t>(7, 0, 0);
+    writer.defaultValue<char>(8, 0, 0);
+    
+    writer.setMetadata(VDB::Writer::database, 0, "SOURCE", run);
+    
+    auto const mgr = VDB::Manager();
+    auto const result = process(writer, mgr[run]);
+    
+    writer.endWriting();
+    
+    return result;
 }
 
 int main(int argc, char *argv[])
 {
-    auto mgr = VDB::Manager();
-    auto schema = mgr.schemaFromFile("../shared/schema/aligned-ir.schema.text", "../include/");
-    auto outDb = mgr.create("IR.vdb", schema, "NCBI:db:IR:raw");
-    auto outTbl = outDb.create("RAW", "RAW");
-    auto inDb = mgr[argv[1]];
-    
-    return process(outTbl, std::cin);
+    if (argc == 2)
+        return process(argv[1]);
+    else {
+        std::cerr << "an SRA run is required" << std::endl;
+        return 1;
+    }
 }

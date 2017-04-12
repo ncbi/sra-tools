@@ -31,38 +31,31 @@
 #include <cstdint>
 #include <cassert>
 #include <cmath>
-#include <vdb.hpp>
+#include <writer.hpp>
 
-void writeRow(VDB::Cursor const &curs, unsigned const N, std::string const fields[])
+void writeRow(VDB::Writer const &out, unsigned const N, std::string const fields[])
 {
     if (N != 4 && N != 8)
         throw std::runtime_error("unexpected number of fields");
     
-    curs.newRow();
-    curs.write(1, fields[0]);
-    curs.write(2, fields[1]);
-    curs.write(3, std::stoi(fields[2]));
+    out.value(1, fields[0]);
+    out.value(2, fields[1]);
+    out.value(3, int32_t(std::stoi(fields[2])));
     if (N == 8) {
-        curs.write(4, fields[7]);
-        curs.write(5, fields[3]);
-        curs.write(6, fields[4] == "true" ? "-" : "+");
-        curs.write(7, std::stoi(fields[5]) - 1);
-        curs.write(8, fields[6]);
+        out.value(4, fields[7]);
+        out.value(5, fields[3]);
+        out.value(6, char(fields[4] == "true" ? '-' : '+'));
+        out.value(7, int32_t(std::stoi(fields[5])));
+        out.value(8, fields[6]);
     }
     else {
-        curs.write(4, fields[3]);
-        curs.writeNull<char>(5);
-        curs.writeNull<char>(6);
-        curs.writeNull<int>(7);
-        curs.writeNull<char>(8);
+        out.value(4, fields[3]);
     }
-    curs.commitRow();
+    out.closeRow(1);
 }
 
-int process(VDB::Table const &out, std::istream &in)
+int process(VDB::Writer const &out, std::istream &in)
 {
-    char const *FLDS[] = { "READ_GROUP", "FRAGMENT", "READNO", "SEQUENCE", "REFERENCE", "STRAND", "POSITION", "CIGAR" };
-    auto curs = out.append(sizeof(FLDS)/sizeof(FLDS[0]), FLDS);
     std::string fields[8];
     unsigned fld = 0;
 
@@ -71,7 +64,7 @@ int process(VDB::Table const &out, std::istream &in)
         if (ch < 0)
             break;
         if (ch == '\n') {
-            writeRow(curs, fld + 1, fields);
+            writeRow(out, fld + 1, fields);
             for (auto &&s : fields)
                 s.clear();
             fld = 0;
@@ -85,16 +78,54 @@ int process(VDB::Table const &out, std::istream &in)
         }
         fields[fld] += char(ch);
     }
-    curs.commit();
     return 0;
 }
 
+int process(std::ostream &out, std::istream &in)
+{
+    auto const writer = VDB::Writer(out);
+    
+    writer.destination("IR.vdb");
+    writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
+    writer.info("text2ir", "1.0.0");
+    
+    writer.openTable(1, "RAW");
+    writer.openColumn(1, 1, 8, "READ_GROUP");
+    writer.openColumn(2, 1, 8, "FRAGMENT");
+    writer.openColumn(3, 1, 32, "READNO");
+    writer.openColumn(4, 1, 8, "SEQUENCE");
+    writer.openColumn(5, 1, 8, "REFERENCE");
+    writer.openColumn(6, 1, 8, "STRAND");
+    writer.openColumn(7, 1, 32, "POSITION");
+    writer.openColumn(8, 1, 8, "CIGAR");
+    
+    writer.beginWriting();
+    
+    writer.defaultValue<char>(5, 0, 0);
+    writer.defaultValue<char>(6, 0, 0);
+    writer.defaultValue<int32_t>(7, 0, 0);
+    writer.defaultValue<char>(8, 0, 0);
+    
+    auto const result = process(writer, in);
+    
+    writer.endWriting();
+    
+    return result;
+}
+
+#if 0
+#include <fstream>
+#include <sstream>
+
 int main(int argc, char *argv[])
 {
-    auto mgr = VDB::Manager();
-    auto schema = mgr.schemaFromFile("../shared/schema/aligned-ir.schema.text", "../include/");
-    auto outDb = mgr.create("IR.vdb", schema, "NCBI:db:IR:raw");
-    auto outTbl = outDb.create("RAW", "RAW");
-    
-    return process(outTbl, std::cin);
+    auto in = std::ifstream("u.txt");
+    auto out = std::ostringstream();
+    return process(out, in);
 }
+#else
+int main(int argc, char *argv[])
+{
+    return process(std::cout, std::cin);
+}
+#endif

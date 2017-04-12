@@ -31,54 +31,47 @@
 #include <cstdint>
 #include <cassert>
 #include <cmath>
-#include <vdb.hpp>
+#include <writer.hpp>
 
-void writeRow(VDB::Cursor const &curs, unsigned const N, std::string const fields[])
+std::string findReadGroup(unsigned const N, std::string const fields[])
+{
+    for (auto i = 11; i < N; ++i) {
+        if (fields[i].substr(0, 5) == "RG:Z:")
+            return fields[i].substr(5);
+    }
+    return std::string();
+}
+
+void writeRow(VDB::Writer const &out, unsigned const N, std::string const fields[])
 {
     auto const &QNAME = fields[0];
     auto const flags = std::stoi(fields[1]);
-    int const readNo = (flags >> 6) & 3;
+    int32_t const readNo = (flags >> 6) & 3;
     auto const &RNAME = fields[2];
-    auto const position = std::stoi(fields[3]);
+    int32_t const position = std::stoi(fields[3]);
     auto const &CIGAR = fields[5];
     auto const &sequence = fields[9];
     auto const isAligned = (flags & 0x04) == 0 ? ((position > 0) && RNAME != "*" && CIGAR != "*") : false;
-    auto spotGroup = std::string();
-
-    for (auto i = 11; i < N; ++i) {
-        if (fields[i].substr(0, 5) == "RG:Z:") {
-            spotGroup = fields[i].substr(5);
-            break;
-        }
-    }
+    auto const spotGroup = findReadGroup(N, fields);
     
-    curs.newRow();
     if (spotGroup.size() > 0)
-        curs.write(1, spotGroup);
-    else
-        curs.writeNull<char>(1);
-    curs.write(2, QNAME);
-    curs.write(3, readNo);
-    curs.write(4, sequence);
+        out.value(1, spotGroup);
+    
+    out.value(2, QNAME);
+    out.value(3, readNo);
+    out.value(4, sequence);
+
     if (isAligned) {
-        curs.write(5, RNAME);
-        curs.write(6, 1, ((flags & 0x10) == 0) ? "F" : "R");
-        curs.write(7, position - 1);
-        curs.write(8, CIGAR);
+        out.value(5, RNAME);
+        out.value(6, char(((flags & 0x10) == 0) ? '+' : '-'));
+        out.value(7, position - 1);
+        out.value(8, CIGAR);
     }
-    else {
-        curs.writeNull<char>(5);
-        curs.writeNull<char>(6);
-        curs.writeNull<int>(7);
-        curs.writeNull<char>(8);
-    }
-    curs.commitRow();
+    out.closeRow(1);
 }
 
-int process(VDB::Table const &out, std::istream &in)
+int process(VDB::Writer const &out, std::istream &in)
 {
-    char const *FLDS[] = { "READ_GROUP", "FRAGMENT", "READNO", "SEQUENCE", "REFERENCE", "STRAND", "POSITION", "CIGAR" };
-    auto curs = out.append(sizeof(FLDS)/sizeof(FLDS[0]), FLDS);
     std::string fields[256];
     unsigned fld = 0;
 
@@ -88,7 +81,7 @@ int process(VDB::Table const &out, std::istream &in)
             break;
         if (ch == '\n') {
             if (fld >= 10 && fields[0][0] != '@')
-                writeRow(curs, fld + 1, fields);
+                writeRow(out, fld + 1, fields);
             for (auto &&s : fields)
                 s.clear();
             fld = 0;
@@ -102,17 +95,43 @@ int process(VDB::Table const &out, std::istream &in)
         }
         fields[fld] += char(ch);
     }
-    curs.commit();
     return 0;
+}
+
+int process(std::ostream &out, std::istream &in)
+{
+    auto const writer = VDB::Writer(out);
+    
+    writer.destination("IR.vdb");
+    writer.schema("../shared/schema/aligned-ir.schema.text", "NCBI:db:IR:raw");
+    writer.info("sam2ir", "1.0.0");
+    
+    writer.openTable(1, "RAW");
+    writer.openColumn(1, 1, 8, "READ_GROUP");
+    writer.openColumn(2, 1, 8, "FRAGMENT");
+    writer.openColumn(3, 1, 32, "READNO");
+    writer.openColumn(4, 1, 8, "SEQUENCE");
+    writer.openColumn(5, 1, 8, "REFERENCE");
+    writer.openColumn(6, 1, 8, "STRAND");
+    writer.openColumn(7, 1, 32, "POSITION");
+    writer.openColumn(8, 1, 8, "CIGAR");
+    
+    writer.beginWriting();
+    
+    writer.defaultValue<char>(1, 0, 0);
+    writer.defaultValue<char>(5, 0, 0);
+    writer.defaultValue<char>(6, 0, 0);
+    writer.defaultValue<int32_t>(7, 0, 0);
+    writer.defaultValue<char>(8, 0, 0);
+    
+    auto const result = process(writer, in);
+    
+    writer.endWriting();
+    
+    return result;
 }
 
 int main(int argc, char *argv[])
 {
-    auto mgr = VDB::Manager();
-    auto schema = mgr.schemaFromFile("../shared/schema/aligned-ir.schema.text", "../include/");
-    auto outDb = mgr.create("IR.vdb", schema, "NCBI:db:IR:raw");
-    auto outTbl = outDb.create("RAW", "RAW");
-    // auto in = std::ifstream("u.txt");
-    
-    return process(outTbl, std::cin);
+    return process(std::cout, std::cin);
 }

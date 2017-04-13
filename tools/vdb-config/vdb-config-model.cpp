@@ -384,7 +384,7 @@ ESetRootState vdbconf_model::set_repo_location(uint32_t id,
 }
 
 ESetRootState vdbconf_model::set_public_location(
-    bool flushOld, string &path, bool reuseNew)
+    bool flushOld, const string &path, bool reuseNew)
 {
     ESetRootState res = x_ChangeRepoLocation( path, reuseNew, kPublicRepoId, flushOld );
     _config_changed = true;
@@ -403,7 +403,7 @@ ESetRootState vdbconf_model::prepare_repo_directory
     (const string &newPath, bool reuseNew)
 {
     ESetRootState res = x_ChangeRepoLocation( newPath, reuseNew, kInvalidRepoId );
-    _config_changed = true;
+    /*_config_changed = true;*/
     return res;
 }
 

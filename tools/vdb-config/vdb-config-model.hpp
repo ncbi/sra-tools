@@ -329,7 +329,7 @@ class vdbconf_model
 
         std::string get_public_location( void ) const;
 
-        ESetRootState set_public_location( bool flushOld, std::string &path, bool reuseNew );
+        ESetRootState set_public_location(bool flushOld, const std::string &path, bool reuseNew );
 
         bool is_user_public_enabled( void ) const
         {

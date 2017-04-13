@@ -33,6 +33,7 @@ QT_BEGIN_NAMESPACE
 class QHBoxLayout;
 class QVBoxLayout;
 class QCheckBox;
+class QFrame;
 class QGroupBox;
 class QLabel;
 class QPushButton;
@@ -40,6 +41,7 @@ QT_END_NAMESPACE
 
 class vdbconf_model;
 struct KNgcObj;
+struct WorkspaceItem;
 
 class SRAConfig : public QMainWindow
 {
@@ -55,6 +57,7 @@ signals:
 
 private slots:
 
+    void advanced_settings ();
     void commit_config ();
     void reload_config ();
     void default_config ();
@@ -62,7 +65,10 @@ private slots:
 
     void import_workspace ();
 
+    void edit_import_path ();
     void edit_proxy_path ();
+    void edit_public_path ();
+    void edit_workspace_path ();
 
     void toggle_remote_enabled ( bool toggled );
     void toggle_local_caching ( bool toggled );
@@ -74,7 +80,19 @@ private slots:
 
 private:
 
+
+    void closeEvent ( QCloseEvent *event );
+    void populate ();
+
+    void add_workspace ( QString name, QString val, int ngc_id, bool insert = false );
+
+    void setup_menubar ();
+    void setup_toolbar ();
+
     vdbconf_model &model;
+
+    QAction *discard_action;
+    QAction *apply_action;
 
     QRect screen_geometry;
 
@@ -88,20 +106,20 @@ private:
     QCheckBox *http_priority_cb;
 
     QLabel *proxy_label;
+    QLabel *import_path_label;
 
-    QPushButton *ok;
-    QPushButton *apply;
-    QPushButton *revert;
+    QFrame *adv_setting_window;
 
-    void populate ();
-
-    void add_workspace ( QString name, QString val, bool insert = false );
-
-    void setup_toolbar ();
+    QPushButton *apply_btn;
+    QPushButton *discard_btn;
 
     QGroupBox* setup_option_group ();
     QGroupBox* setup_workspace_group ();
-    QHBoxLayout* setup_button_layout ();
+    QVBoxLayout *setup_button_layout();
+
+    WorkspaceItem *public_workspace;
+    QVector <WorkspaceItem *> protected_workspaces;
+
 };
 
 #endif // SRACONFIG_H

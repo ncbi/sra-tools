@@ -9,10 +9,21 @@
 /* Begin PBXBuildFile section */
 		BE4F77E41EA51E7F00CB45D6 /* sra2ir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */; };
 		BE4F77F31EA5252600CB45D6 /* libncbi-wvdb.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4F77F21EA5252600CB45D6 /* libncbi-wvdb.dylib */; };
+		BEA40E391EA52B1D00A8DF60 /* makeIRIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEA40E381EA52B1D00A8DF60 /* makeIRIndex.cpp */; };
+		BEA40E3A1EA52B4500A8DF60 /* libncbi-wvdb.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = BE4F77F21EA5252600CB45D6 /* libncbi-wvdb.dylib */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		BE4F77DA1EA51E5B00CB45D6 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		BEA40E2F1EA52B0600A8DF60 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -31,6 +42,8 @@
 		BE4F77E81EA51EB500CB45D6 /* aligned-ir.schema.text */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = "aligned-ir.schema.text"; path = "../../shared/schema/aligned-ir.schema.text"; sourceTree = "<group>"; };
 		BE4F77EA1EA51EFE00CB45D6 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = ../Makefile; sourceTree = "<group>"; };
 		BE4F77F21EA5252600CB45D6 /* libncbi-wvdb.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = "libncbi-wvdb.dylib"; sourceTree = "<group>"; };
+		BEA40E311EA52B0600A8DF60 /* makeIRIndex */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = makeIRIndex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEA40E381EA52B1D00A8DF60 /* makeIRIndex.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = makeIRIndex.cpp; path = ../../makeIRIndex.cpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -42,6 +55,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		BEA40E2E1EA52B0600A8DF60 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEA40E3A1EA52B4500A8DF60 /* libncbi-wvdb.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -50,6 +71,7 @@
 			children = (
 				BE4F77E51EA51E8C00CB45D6 /* shared */,
 				BE4F77DD1EA51E5B00CB45D6 /* sra2ir */,
+				BEA40E321EA52B0600A8DF60 /* makeIRIndex */,
 				BE4F77CF1EA51DE900CB45D6 /* Products */,
 				BE4F77EA1EA51EFE00CB45D6 /* Makefile */,
 				BE4F77EB1EA51F3500CB45D6 /* Frameworks */,
@@ -60,6 +82,7 @@
 			isa = PBXGroup;
 			children = (
 				BE4F77DC1EA51E5B00CB45D6 /* sra2ir */,
+				BEA40E311EA52B0600A8DF60 /* makeIRIndex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -90,6 +113,14 @@
 			name = Frameworks;
 			sourceTree = "<group>";
 		};
+		BEA40E321EA52B0600A8DF60 /* makeIRIndex */ = {
+			isa = PBXGroup;
+			children = (
+				BEA40E381EA52B1D00A8DF60 /* makeIRIndex.cpp */,
+			);
+			path = makeIRIndex;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -110,6 +141,23 @@
 			productReference = BE4F77DC1EA51E5B00CB45D6 /* sra2ir */;
 			productType = "com.apple.product-type.tool";
 		};
+		BEA40E301EA52B0600A8DF60 /* makeIRIndex */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BEA40E351EA52B0600A8DF60 /* Build configuration list for PBXNativeTarget "makeIRIndex" */;
+			buildPhases = (
+				BEA40E2D1EA52B0600A8DF60 /* Sources */,
+				BEA40E2E1EA52B0600A8DF60 /* Frameworks */,
+				BEA40E2F1EA52B0600A8DF60 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = makeIRIndex;
+			productName = makeIRIndex;
+			productReference = BEA40E311EA52B0600A8DF60 /* makeIRIndex */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -120,6 +168,10 @@
 				ORGANIZATIONNAME = "Kenneth Durbrow";
 				TargetAttributes = {
 					BE4F77DB1EA51E5B00CB45D6 = {
+						CreatedOnToolsVersion = 8.3.1;
+						ProvisioningStyle = Automatic;
+					};
+					BEA40E301EA52B0600A8DF60 = {
 						CreatedOnToolsVersion = 8.3.1;
 						ProvisioningStyle = Automatic;
 					};
@@ -138,6 +190,7 @@
 			projectRoot = "";
 			targets = (
 				BE4F77DB1EA51E5B00CB45D6 /* sra2ir */,
+				BEA40E301EA52B0600A8DF60 /* makeIRIndex */,
 			);
 		};
 /* End PBXProject section */
@@ -148,6 +201,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				BE4F77E41EA51E7F00CB45D6 /* sra2ir.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BEA40E2D1EA52B0600A8DF60 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BEA40E391EA52B1D00A8DF60 /* makeIRIndex.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -195,7 +256,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../../include";
+				HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../../../../ncbi-vdb/interfaces";
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
@@ -239,7 +300,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../../include";
+				HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../../../../ncbi-vdb/interfaces";
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				SDKROOT = macosx;
@@ -271,6 +332,28 @@
 			};
 			name = Release;
 		};
+		BEA40E361EA52B0600A8DF60 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BEA40E371EA52B0600A8DF60 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -288,6 +371,15 @@
 			buildConfigurations = (
 				BE4F77E11EA51E5B00CB45D6 /* Debug */,
 				BE4F77E21EA51E5B00CB45D6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BEA40E351EA52B0600A8DF60 /* Build configuration list for PBXNativeTarget "makeIRIndex" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BEA40E361EA52B0600A8DF60 /* Debug */,
+				BEA40E371EA52B0600A8DF60 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 		};

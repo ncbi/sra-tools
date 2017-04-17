@@ -32,7 +32,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstddef>
-#include <vdb.hpp>
+#include "vdb.hpp"
 #include "IRIndex.h"
 
 #include <unistd.h>

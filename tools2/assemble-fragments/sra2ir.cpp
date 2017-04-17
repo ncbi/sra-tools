@@ -30,8 +30,8 @@
 #include <stdexcept>
 #include <cstdint>
 #include <cstdio>
-#include <vdb.hpp>
-#include <writer.hpp>
+#include "vdb.hpp"
+#include "writer.hpp"
 
 template <typename T>
 static std::ostream &write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::RawData const &in)
@@ -55,8 +55,8 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
     for (int64_t row = range.first; row < range.second; ++row) {
         in.read(row, N, data);
         
-        auto const n = snprintf(buffer, 32, "%lli", *(int64_t const *)data[1].data);
         auto const spotId = (int64_t const *)data[1].data;
+        auto const n = snprintf(buffer, 32, "%lli", *spotId);
         auto const readId = (int32_t const *)data[2].data;
         auto const strand = (int8_t const *)data[5].data;
         auto const refpos = (int32_t const *)data[6].data;
@@ -95,7 +95,7 @@ static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb)
     std::cerr << "processing " << (range.second - range.first) << " records from SEQUENCE" << std::endl;
     for (int64_t row = range.first; row < range.second; ++row) {
         data[4] = in.read(row, 5);
-        unsigned const nreads = data[4].elements;
+        auto const nreads = data[4].elements;
         auto const pid = (int64_t const *)data[4].data;
 
         for (unsigned i = 0; i < nreads; ++i) {

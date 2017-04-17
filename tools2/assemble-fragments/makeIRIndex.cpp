@@ -30,7 +30,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <cstdio>
-#include <vdb.hpp>
+#include "vdb.hpp"
 #include "IRIndex.h"
 
 static int popcount(int x)

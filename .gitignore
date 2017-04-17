@@ -21,3 +21,6 @@
 /.cproject
 /.project
 /.pydevproject
+xcuserdata/
+*.dylib
+test/*/tmp.kfg

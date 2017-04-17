@@ -97,7 +97,7 @@ namespace VDB {
             friend std::ostream &operator <<(std::ostream &os, String1Event const &self)
             {
                 uint32_t const zero = 0;
-                uint32_t const size = self.str.size();
+                auto const size = (uint32_t)self.str.size();
                 auto const padding = (4 - (size & 3)) & 3;
                 return os.write((char const *)&self.eid, sizeof(self.eid))
                          .write((char const *)&size, sizeof(size))
@@ -119,9 +119,9 @@ namespace VDB {
             friend std::ostream &operator <<(std::ostream &os, String2Event const &self)
             {
                 uint32_t const zero = 0;
-                uint32_t const size1 = self.str1.size();
-                uint32_t const size2 = self.str2.size();
-                uint32_t const size = size1 + size2;
+                auto const size1 = (uint32_t)self.str1.size();
+                auto const size2 = (uint32_t)self.str2.size();
+                auto const size = size1 + size2;
                 auto const padding = (4 - (size & 3)) & 3;
                 return os.write((char const *)&self.eid, sizeof(self.eid))
                          .write((char const *)&size1, sizeof(size1))
@@ -147,7 +147,7 @@ namespace VDB {
             friend std::ostream &operator <<(std::ostream &os, ColumnEvent const &self)
             {
                 uint32_t const zero = 0;
-                uint32_t const size = self.name.size();
+                auto const size = (uint32_t)self.name.size();
                 auto const padding = (4 - (size & 3)) & 3;
                 return os.write((char const *)&self.eid, sizeof(self.eid))
                          .write((char const *)&self.tid, sizeof(self.tid))
@@ -166,10 +166,10 @@ namespace VDB {
         };
 
         template <typename T>
-        std::ostream &write(EventCode const code, unsigned const cid, uint32_t const count, T const *data) const
+        std::ostream &write(EventCode const code, unsigned const cid, size_t const count, T const *data) const
         {
             uint32_t const zero = 0;
-            uint32_t const size = sizeof(T) * count;
+            auto const size = sizeof(T) * count;
             auto const padding = (4 - (size & 3)) & 3;
             uint32_t const eid = (code << 24) + cid;
             return out.write((char const *)&eid, sizeof(eid))

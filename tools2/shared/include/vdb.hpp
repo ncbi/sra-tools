@@ -61,7 +61,7 @@ namespace VDB {
             ((std::ostream *)p)->write((char const *)b, s);
             return 0;
         }
-        void parseText(unsigned length, char const text[], char const *const name = 0)
+        void parseText(size_t const length, char const text[], char const *const name = 0)
         {
             C::rc_t const rc = VSchemaParseText(o, name, text, length);
             if (rc) throw Error(rc, __FILE__, __LINE__);
@@ -254,7 +254,7 @@ namespace VDB {
         Manager(Manager const &other) : o(other.o) { C::VDBManagerAddRef(o); }
         ~Manager() { C::VDBManagerRelease(o); }
 
-        Schema schema(unsigned const size, char const *const text, char const *const includePath = 0) const
+        Schema schema(size_t const size, char const *const text, char const *const includePath = 0) const
         {
             C::VSchema *p = 0;
             auto const rc = VDBManagerMakeSchema(o, &p);

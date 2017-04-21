@@ -39,27 +39,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
-#include <dispatch/dispatch.h>
-
-struct WorkUnit;
-
-class WorkQueue {
-    std::queue<WorkUnit> *queue;
-    dispatch_semaphore_t sema;
-    dispatch_queue_t prot;
-public:
-    WorkQueue(std::queue<WorkUnit> *queue)
-    : queue(queue)
-    , sema(dispatch_semaphore_create(0))
-    , prot(dispatch_queue_create(nullptr, DISPATCH_QUEUE_SERIAL))
-    {}
-    ~WorkQueue() {
-        dispatch_release(prot);
-        dispatch_release(sema);
-    }
-    void push(WorkUnit const *);
-    bool pop(WorkUnit *);
-};
+#include <pthread.h>
 
 static bool compare(IndexRow const &a, IndexRow const &b)
 {
@@ -71,99 +51,186 @@ static bool compare(IndexRow const &a, IndexRow const &b)
 
 struct WorkUnit {
     IndexRow *beg;
-    IndexRow *scratch;
     IndexRow *end;
+    IndexRow *out;
     int level;
     
-    WorkUnit() : beg(0), end(0), scratch(0), level(-1) {}
-    WorkUnit(IndexRow *const beg, IndexRow *const scratch, size_t count, int const level)
+    WorkUnit() : beg(0), end(0), out(0), level(-1) {}
+    WorkUnit(IndexRow *const beg, IndexRow *const end, IndexRow *const scratch, int const level)
     : beg(beg)
-    , end(beg + count)
-    , scratch(scratch)
+    , end(end)
+    , out(scratch)
     , level(level)
     {}
-    WorkUnit(void *const beg, void *const scratch, size_t size, int const level)
-    {
-        this->beg = (IndexRow *)beg;
-        end = this->beg + (size / sizeof(IndexRow));
-        this->scratch = (IndexRow *)scratch;
-        this->level = level;
-    }
     ptrdiff_t size() const { return end - beg; }
-    void process(WorkQueue *const fifo) const
+    
+    std::vector<WorkUnit> process() const
     {
-        static int const BPL[] = { 2, 2, 4, 8, 8, 8, 8, 8, 8, 8 };
-        static int const IPL[] = { 0, 0, 0, 1, 2, 3, 4, 5, 6, 7 };
-        static int const SPL[] = { 6, 4, 0, 0, 0, 0, 0, 0, 0, 0 };
-        int const b = 1 << BPL[level];
-        int const m = b - 1;
-        int const i = IPL[level];
-        int const s = SPL[level];
-        ptrdiff_t start[256];
-        IndexRow *out = scratch;
-        
-        for (auto bin = 0; bin < b; ++bin) {
-            for (auto cur = beg; cur != end; ++cur) {
-                auto const key = (cur->key[i] >> s) & m;
-                if (key == bin)
-                    *out++ = *cur;
-            }
-            start[bin] = out - scratch;
-        }
-        memcpy(beg, scratch, (out - scratch) * sizeof(*out));
+        static int const BPL[] = { 1, 3, 4, 8, 8, 8, 8, 8, 8, 8 };
+        static int const KPL[] = { 0, 0, 0, 1, 2, 3, 4, 5, 6, 7 };
+        static int const SPL[] = { 7, 4, 0, 0, 0, 0, 0, 0, 0, 0 };
 
-        if (level == sizeof(BPL)/sizeof(BPL[0]))
-            return;
+        std::vector<WorkUnit> result;
         
-        for (auto bin = 0; bin < b; ++bin) {
-            ptrdiff_t const begin = (bin > 0 ? start[bin - 1] : 0);
-            ptrdiff_t const count = start[bin] - begin;
+        if (level < sizeof(BPL)/sizeof(BPL[0])) {
+            int const bins = 1 << BPL[level];
+            int const m = bins - 1;
+            int const k = KPL[level];
+            int const s = SPL[level];
+            ptrdiff_t start[256];
+            IndexRow *cur = out;
+            
+            for (auto bin = 0; bin < bins; ++bin) {
+                for (auto i = beg; i != end; ++i) {
+                    auto const key = (i->key[k] >> s) & m;
+                    if (key == bin)
+                        *cur++ = *i;
+                }
+                start[bin] = cur - out;
+            }
+            
+            for (auto bin = 0; bin < bins; ++bin) {
+                ptrdiff_t const begin = (bin > 0 ? start[bin - 1] : 0);
+                ptrdiff_t const count = start[bin] - begin;
 
-            if (count == 0) {
-            }
-            else if (count <= 32 * 1024) {
-                std::sort(beg + begin, beg + begin + count, compare);
-            }
-            else {
-                auto const wu = WorkUnit(beg + begin, scratch + begin, count, level + 1);
-                fifo->push(&wu);
+                if (count > 0) {
+                    result.push_back(WorkUnit(out + begin, out + begin + count, beg + begin, level + 1));
+                }
             }
         }
+        return result;
     }
 };
 
-void WorkQueue::push(WorkUnit const *wu)
-{
-    dispatch_sync(prot, ^{
-        queue->push(*wu);
-        dispatch_semaphore_signal(sema);
-    });
-}
-
-auto const mainThread = pthread_self();
-bool WorkQueue::pop(WorkUnit *const wu)
-{
-    if (dispatch_semaphore_wait(sema, DISPATCH_TIME_NOW) == 0) {
-        dispatch_sync(prot, ^{
-            *wu = queue->front();
-            queue->pop();
-            if (pthread_equal(mainThread, pthread_self()))
-                std::cerr << queue->size() << " work units left in queue" << std::endl;
-        });
-        return true;
-    }
-    return false;
-}
-
-static void doWork(void *const vp)
-{
-    WorkQueue *const fifo = (WorkQueue *)vp;
-    WorkUnit wu;
+struct Context {
+    IndexRow *const map;
+    IndexRow *const mapEnd;
+    IndexRow *const tmp;
+    IndexRow *const tmpEnd;
+    size_t const smallSize; // chunk size above which more work units may be produced, else the sort is done in one shot
     
-    while (fifo->pop(&wu)) {
-        wu.process(fifo);
+    pthread_mutex_t mutex; // protects the entire structure against mutation by other threads
+    pthread_cond_t cond_running;
+    unsigned running; // count of number of work units being processed, work units which might produce more work units; this is to prevent workers from quiting early, when the queue is empty but might not stay empty
+    unsigned next; // next work unit to be processed; the queue is considered empty when next == queue.size()
+    std::vector<WorkUnit> queue; // the queue is only ever appended to
+    
+    Context(void *Map, void *Tmp, size_t count, size_t SmallSize)
+    : map((IndexRow *)Map)
+    , mapEnd(map + count)
+    , tmp((IndexRow *)Tmp)
+    , tmpEnd(tmp + count)
+    , next(0)
+    , running(0)
+    , smallSize(SmallSize)
+    , mutex(PTHREAD_MUTEX_INITIALIZER)
+    , cond_running(PTHREAD_COND_INITIALIZER)
+    {
+        queue = WorkUnit(map, mapEnd, tmp, 0).process();
+        queue.reserve(65536);
     }
+    
+    void run(void) {
+        auto const tid = pthread_self();
+        pthread_mutex_lock(&mutex);
+        std::cerr << "Thread " << tid << ": started" << std::endl;
+        for ( ;; ) {
+            if (next < queue.size()) {
+                auto const wu = queue[next];
+                ++next;
+                if (wu.size() <= smallSize) {
+                    // the mutex is released before processing the work unit
+                    pthread_mutex_unlock(&mutex);
+                    
+                    // sort in one shot
+                    std::sort(wu.beg, wu.end, compare);
+                    if (wu.beg >= tmp && wu.end <= tmpEnd)
+                        memcpy(map + (tmp - wu.beg), wu.beg, wu.size());
+
+                    // the mutex is re-acquired after processing the work unit
+                    pthread_mutex_lock(&mutex);
+                }
+                else {
+                    ++running;
+
+                    // the mutex is released before processing the work unit
+                    pthread_mutex_unlock(&mutex);
+                    
+                    // partial sort and generate more work units
+                    auto const &nw = wu.process();
+                    
+                    // the mutex is re-acquired after processing the work unit
+                    pthread_mutex_lock(&mutex);
+                    queue.insert(queue.end(), nw.cbegin(), nw.cend());
+                    --running;
+                    pthread_cond_signal(&cond_running);
+                }
+            }
+            else if (running > 0) {
+                std::cerr << "Thread " << tid << ": waiting" << std::endl;
+                pthread_cond_wait(&cond_running, &mutex);
+                std::cerr << "Thread " << tid << ": awake" << std::endl;
+            }
+            else
+                break;
+            // it is an invariant that the mutex is held by the current thread regardless of the code path taken
+        }
+        pthread_mutex_unlock(&mutex);
+        std::cerr << "Thread " << tid << ": done" << std::endl;
+    }
+};
+
+static void *worker(void *p)
+{
+    static_cast<Context *>(p)->run();
+    return nullptr;
 }
+
+#if __APPLE__
+#include <sys/sysctl.h>
+static int getWorkerCount()
+{
+    size_t len;
+    
+    auto physCPU = int32_t(0);
+    len = sizeof(physCPU);
+    if (sysctlbyname("hw.physicalcpu", &physCPU, &len, 0, 0) == 0 && physCPU > 0) {
+        return physCPU;
+    }
+    return 4;
+}
+
+static size_t getSmallSize(int workers)
+{
+    size_t len;
+    uint64_t cacheSharing[16] = {0};
+    uint64_t cacheSize[16] = {0};
+    
+    len = sizeof(cacheSharing);
+    sysctlbyname("hw.cacheconfig", cacheSharing, &len, 0, 0);
+    sysctlbyname("hw.cachesize", cacheSize, &len, 0, 0);
+
+    auto cache = size_t(0);
+    auto const N = len / sizeof(cacheSize[0]);
+    for (auto i = N < 4 ? N : 4; i; ) {
+        auto j = --i;
+        if (j < 2)
+            break;
+        if (cacheSize[j] == 0 || cacheSharing[j] == 0)
+            continue;
+        auto const cache1 = cacheSize[j] / cacheSharing[j];
+        if (cache < cache1)
+            cache = cache1;
+    }
+    cache /= sizeof(IndexRow);
+    return (cache < 32 * 1024) ? (32 * 1024) : cache;
+}
+#else
+static size_t getSmallSize()
+{
+    return 32 * 1024;
+}
+#endif
 
 static int process(char const *const indexFile)
 {
@@ -188,29 +255,16 @@ static int process(char const *const indexFile)
         perror("failed to allocate scratch space");
         exit(1);
     }
-    {
-        std::queue<WorkUnit> queue;
-        WorkQueue fifo(&queue);
-
-        WorkUnit(map, scratch, stat.st_size, 0).process(&fifo);
-        
-        auto const group = dispatch_group_create();
-        
-        for (auto i = 1; i < 4; ++i) {
-            dispatch_group_async_f(group, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT,0), (void *)&fifo, doWork);
-        }
-        dispatch_group_enter(group);
-        {
-            WorkUnit wu;
-            
-            while (fifo.pop(&wu)) {
-                wu.process(&fifo);
-            }
-        }
-        dispatch_group_leave(group);
-        dispatch_group_wait(group, DISPATCH_TIME_FOREVER);
-        dispatch_release(group);
+    auto const workers = getWorkerCount();
+    auto context = Context(map, scratch, stat.st_size / sizeof(IndexRow), getSmallSize(workers));
+    
+    for (auto i = 1; i < workers; ++i) {
+        pthread_t tid = 0;
+    
+        pthread_create(&tid, nullptr, worker, &context);
     }
+    worker(&context);
+    
     munmap(scratch, stat.st_size);
     munmap(map, stat.st_size);
     return 0;

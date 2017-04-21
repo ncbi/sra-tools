@@ -186,17 +186,21 @@ static int process(std::ostream &out, VDB::Database const &run)
     return 0;
 }
 
-static int process(char const *const run)
+static int process(char const *const run, char const *const out)
 {
     auto const mgr = VDB::Manager();
-    auto const result = process(std::cout, mgr[run]);
-    return result;
+    if (out) {
+        auto output = std::ofstream(out);
+        return process(output, mgr[run]);
+    }
+    else
+        return process(std::cout, mgr[run]);
 }
 
 int main(int argc, char *argv[])
 {
-    if (argc == 2)
-        return process(argv[1]);
+    if (argc == 2 || argc == 3)
+        return process(argv[1], argv[2]);
     else {
         std::cerr << "usage: makeIRIndex <run>" << std::endl;
         return 1;

@@ -24,34 +24,50 @@
  *
  */
 
-#ifndef _h_allele_dict_
-#define _h_allele_dict_
+#ifndef _h_common_
+#define _h_common_
 
 #include <klib/rc.h>
-#include <klib/text.h>
-#include "common.h"
+#include <vdb/cursor.h>
+#include <kapp/args.h>
+
+typedef struct counters
+{
+    uint32_t fwd, rev, t_pos, t_neg;
+} counters;
+
+typedef struct row_range
+{
+    int64_t first_row;
+    uint64_t row_count;
+} row_range;
+
+typedef struct AlignmentT
+{
+    uint64_t pos; /* 1-based! */
+    bool fwd;
+    bool first;
+    String rname;
+    String cigar;
+    String read;
+} AlignmentT;
 
 
-struct Allele_Dict;
+rc_t log_err( const char * t_fmt, ... );
 
-/* construct a allele-dictionary */
-rc_t allele_dict_make( struct Allele_Dict ** ad, const String * rname );
+rc_t add_cols_to_cursor( const VCursor *curs, uint32_t * idx_array,
+        const char * tbl_name, const char * acc, uint32_t n, ... );
 
-/* releae a allele_dictionary */
-rc_t allele_dict_release( struct Allele_Dict * ad );
+void inspect_sam_flags( AlignmentT * al, uint32_t sam_flags );
 
-/* put an event into the allele_dictionary */
-rc_t allele_dict_put( struct Allele_Dict * ad, uint64_t position,
-                      uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first );
+rc_t get_bool( const Args * args, const char *option, bool *value );
+rc_t get_charptr( const Args * args, const char *option, const char ** value );
+rc_t get_uint32( const Args * args, const char *option, uint32_t * value, uint32_t dflt );
 
-typedef rc_t ( CC * on_ad_event )( const counters * count, const String * rname, uint64_t position,
-                                    uint32_t deletes, uint32_t inserts, const char * bases,
-                                    void * user_data );
+struct Writer;
 
-/* call a callback for each event in the allele_dictionary */
-rc_t allele_dict_visit_all_and_release( struct Allele_Dict * ad, on_ad_event f, void * user_data );
-
-/* call a callback for each event until a certain purge-distance is reached */
-rc_t allele_dict_visit_and_purge( struct Allele_Dict * ad, uint32_t purge_dist, on_ad_event f, void * user_data );
+rc_t writer_release( struct Writer * wr );
+rc_t writer_make( struct Writer ** wr, const char * filename );
+rc_t writer_write( struct Writer * wr, const char * fmt, ... );
 
 #endif

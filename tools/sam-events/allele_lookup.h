@@ -24,34 +24,33 @@
  *
  */
 
-#ifndef _h_allele_dict_
-#define _h_allele_dict_
+#ifndef _h_allele_lookup_
+#define _h_allele_lookup_
 
 #include <klib/rc.h>
 #include <klib/text.h>
-#include "common.h"
+
+struct Allele_Lookup;
+
+/* construct an allele-lookup from a path */
+rc_t allele_lookup_make( struct Allele_Lookup ** al, const char * path );
+
+/* releae an allele-lookup */
+rc_t allele_lookup_release( struct Allele_Lookup * al );
+
+/* perform an allele-lookup */
+bool allele_lookup_perform( const struct Allele_Lookup * al, const String * key, uint64_t * values );
 
 
-struct Allele_Dict;
+struct Lookup_Cursor;
 
-/* construct a allele-dictionary */
-rc_t allele_dict_make( struct Allele_Dict ** ad, const String * rname );
+/* create a lookup-cursor from a allel-lookup */
+rc_t lookup_cursor_make( const struct Allele_Lookup * al, struct Lookup_Cursor ** curs );
 
-/* releae a allele_dictionary */
-rc_t allele_dict_release( struct Allele_Dict * ad );
+/* release a lookup-cursor */
+rc_t lookup_cursor_release( struct Lookup_Cursor * curs );
 
-/* put an event into the allele_dictionary */
-rc_t allele_dict_put( struct Allele_Dict * ad, uint64_t position,
-                      uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first );
-
-typedef rc_t ( CC * on_ad_event )( const counters * count, const String * rname, uint64_t position,
-                                    uint32_t deletes, uint32_t inserts, const char * bases,
-                                    void * user_data );
-
-/* call a callback for each event in the allele_dictionary */
-rc_t allele_dict_visit_all_and_release( struct Allele_Dict * ad, on_ad_event f, void * user_data );
-
-/* call a callback for each event until a certain purge-distance is reached */
-rc_t allele_dict_visit_and_purge( struct Allele_Dict * ad, uint32_t purge_dist, on_ad_event f, void * user_data );
+/* get key/value from the cursor and position to next... */
+bool lookup_cursor_next( struct Lookup_Cursor * curs, String * key, uint64_t * values );
 
 #endif

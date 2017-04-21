@@ -23,6 +23,9 @@
  * ===========================================================================
  */
 
+#ifndef _h_expand_CIGAR_
+#define _h_expand_CIGAR_
+
 enum EventType {
     match = 1,
     mismatch,
@@ -84,3 +87,5 @@ int expandCIGAR(  struct Event * const result       /* the event-vector to be fi
                 , unsigned const position           /* the position of the alignment ( 0-based ) relative to the reference */
                 , struct cFastaFile * const file    /* the reference-object */    
                 , int referenceNumber );            /* the index into the reference-object */
+
+#endif

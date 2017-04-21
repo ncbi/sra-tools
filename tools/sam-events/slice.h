@@ -24,34 +24,36 @@
  *
  */
 
-#ifndef _h_allele_dict_
-#define _h_allele_dict_
+#ifndef _h_slice_
+#define _h_slice_
 
 #include <klib/rc.h>
 #include <klib/text.h>
-#include "common.h"
+#include <klib/vector.h>
+
+#include <kapp/args.h>
+
+typedef struct slice
+{
+    uint64_t start, count, end;
+    const String * refname;
+} slice;
 
 
-struct Allele_Dict;
+slice * make_slice( uint64_t start, uint64_t count, const String * refname );
 
-/* construct a allele-dictionary */
-rc_t allele_dict_make( struct Allele_Dict ** ad, const String * rname );
+void release_slice( slice * slice );
 
-/* releae a allele_dictionary */
-rc_t allele_dict_release( struct Allele_Dict * ad );
+void print_slice( slice * slice );
 
-/* put an event into the allele_dictionary */
-rc_t allele_dict_put( struct Allele_Dict * ad, uint64_t position,
-                      uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first );
+slice * make_slice_from_str( const String * S );
 
-typedef rc_t ( CC * on_ad_event )( const counters * count, const String * rname, uint64_t position,
-                                    uint32_t deletes, uint32_t inserts, const char * bases,
-                                    void * user_data );
+bool filter_by_slice( const slice * slice, const String * refname, uint64_t start, uint64_t end );
 
-/* call a callback for each event in the allele_dictionary */
-rc_t allele_dict_visit_all_and_release( struct Allele_Dict * ad, on_ad_event f, void * user_data );
+bool filter_by_slices( const Vector * slices, const String * refname, uint64_t pos, uint32_t len );
 
-/* call a callback for each event until a certain purge-distance is reached */
-rc_t allele_dict_visit_and_purge( struct Allele_Dict * ad, uint32_t purge_dist, on_ad_event f, void * user_data );
+rc_t get_slice( const Args * args, const char *option, slice ** slice );
+
+rc_t get_slices( const Args * args, const char *option, Vector * slices );
 
 #endif

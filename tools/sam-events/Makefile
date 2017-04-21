@@ -31,8 +31,9 @@ MODULE = tools/sam-events
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	sam-events
-
+	sam-events \
+	alookup
+    
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
@@ -58,14 +59,21 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# tool
+# the tool: sam-events
 #
 
 TOOL_SRC = \
+	common \
+	alignment_iter \
+	alig_consumer \
+	slice \
 	fasta-file \
 	cigar2events \
 	expandCIGAR \
 	allele_dict \
+	mdb \
+	midl \
+	allele_lookup \
 	sam-events
     
 TOOL_OBJ = \
@@ -81,3 +89,26 @@ TOOL_LIB = \
 $(BINDIR)/sam-events: $(TOOL_OBJ)
 	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
 
+
+#-------------------------------------------------------------------------------
+# helper tool: alookup.c
+# ( lookup of an allel in a lmdb-cache )
+
+LOOKUP_SRC = \
+	common \
+	mdb \
+	midl \
+	allele_lookup \
+	alookup
+
+LOOKUP_OBJ = \
+	$(addsuffix .$(OBJX),$(LOOKUP_SRC))
+
+LOOKUP_LIB = \
+	-skapp \
+	-stk-version \
+	-sncbi-vdb \
+	-lm
+
+$(BINDIR)/alookup: $(LOOKUP_OBJ)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(LOOKUP_LIB)

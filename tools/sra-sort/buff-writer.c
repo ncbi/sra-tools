@@ -761,7 +761,8 @@ ColumnWriter *cSRATblPairMakeBufferedIdRemapColumnWriter ( cSRATblPair *self,
 
     TRY ( buff = MemAlloc ( ctx, sizeof * buff, true ) )
     {
-        TRY ( ColumnWriterInit ( & buff -> dad, ctx, & MappedBufferedPairColWriter_vt, idx != NULL ) )
+        TRY ( ColumnWriterInit ( & buff -> dad, ctx,
+            idx != NULL ? & MappedBufferedPairColWriter_vt : & UnmappedBufferedPairColWriter_vt, idx != NULL ) )
         {
             /* duplicate our friend */
             TRY ( buff -> cw = ColumnWriterDuplicate ( writer, ctx ) )

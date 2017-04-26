@@ -101,6 +101,8 @@ void vdcd_ins_trans_fkt( col_defs* defs, const VSchema *my_schema );
 void vdcd_exclude_these_columns( col_defs* defs, const char* column_names );
 bool vdcd_get_first_none_static_column_idx( col_defs* defs, const VCursor * cur, uint32_t * idx );
 
+uint32_t vdcd_extract_static_columns( col_defs* defs, const VTable *my_table, const size_t str_limit );
+
 rc_t vdcd_collect_spread( const struct num_gen * row_set, col_defs * cols, const VCursor * cursor );
 
 #ifdef __cplusplus

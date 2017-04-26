@@ -464,15 +464,18 @@ static rc_t print_qual( const char * qual, uint32_t count, uint32_t max_line_len
                 rc = KOutMsg( "%s", buffer );
                 on_line = num_writ;
             }
-            if ( ( on_line + num_writ + 1 ) < max_line_len )
-            {
-                rc = KOutMsg( " %s", buffer );
-                on_line += ( num_writ + 1 );
-            }
             else
             {
-                rc = KOutMsg( "\n%s", buffer );
-                on_line = num_writ;
+                if ( ( on_line + num_writ + 1 ) < max_line_len )
+                {
+                    rc = KOutMsg( " %s", buffer );
+                    on_line += ( num_writ + 1 );
+                }
+                else
+                {
+                    rc = KOutMsg( "\n%s", buffer );
+                    on_line = num_writ;
+                }
             }
             i++;
         }

@@ -465,6 +465,7 @@
 				BEA40E371EA52B0600A8DF60 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		BEA40E431EA52B9300A8DF60 /* Build configuration list for PBXNativeTarget "sortIRIndex" */ = {
 			isa = XCConfigurationList;
@@ -473,6 +474,7 @@
 				BEA40E451EA52B9300A8DF60 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

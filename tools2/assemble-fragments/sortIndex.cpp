@@ -31,6 +31,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstddef>
 #include "vdb.hpp"
 #include "IRIndex.h"
@@ -40,14 +41,6 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <pthread.h>
-
-static bool compare(IndexRow const &a, IndexRow const &b)
-{
-    auto const diff = memcmp(a.key, b.key, 8);
-    if (diff < 0) return true;
-    if (diff > 0) return false;
-    return a.row < b.row;
-}
 
 struct WorkUnit {
     IndexRow *beg;
@@ -62,7 +55,7 @@ struct WorkUnit {
     , out(scratch)
     , level(level)
     {}
-    ptrdiff_t size() const { return end - beg; }
+    size_t size() const { return end - beg; }
     
     std::vector<WorkUnit> process() const
     {
@@ -73,11 +66,11 @@ struct WorkUnit {
         std::vector<WorkUnit> result;
         
         if (level < sizeof(BPL)/sizeof(BPL[0])) {
-            int const bins = 1 << BPL[level];
-            int const m = bins - 1;
-            int const k = KPL[level];
-            int const s = SPL[level];
-            ptrdiff_t start[256];
+            auto const bins = 1 << BPL[level];
+            auto const m = bins - 1;
+            auto const k = KPL[level];
+            auto const s = SPL[level];
+            size_t start[256];
             IndexRow *cur = out;
             
             for (auto bin = 0; bin < bins; ++bin) {
@@ -90,8 +83,8 @@ struct WorkUnit {
             }
             
             for (auto bin = 0; bin < bins; ++bin) {
-                ptrdiff_t const begin = (bin > 0 ? start[bin - 1] : 0);
-                ptrdiff_t const count = start[bin] - begin;
+                auto const begin = (bin > 0 ? start[bin - 1] : 0);
+                auto const count = start[bin] - begin;
 
                 if (count > 0) {
                     result.push_back(WorkUnit(out + begin, out + begin + count, beg + begin, level + 1));
@@ -101,6 +94,19 @@ struct WorkUnit {
         return result;
     }
 };
+
+static bool compareKey(IndexRow const &a, IndexRow const &b)
+{
+    auto const diff = memcmp(a.key, b.key, 8);
+    if (diff < 0) return true;
+    if (diff > 0) return false;
+    return a.row < b.row;
+}
+
+static bool compareRow(IndexRow const *a, IndexRow const *b)
+{
+    return a->row < b->row;
+}
 
 struct Context {
     IndexRow *const map;
@@ -136,16 +142,16 @@ struct Context {
         std::cerr << "Thread " << tid << ": started" << std::endl;
         for ( ;; ) {
             if (next < queue.size()) {
-                auto const wu = queue[next];
+                auto const unit = queue[next];
                 ++next;
-                if (wu.size() <= smallSize) {
+                if (unit.size() <= smallSize) {
                     // the mutex is released before processing the work unit
                     pthread_mutex_unlock(&mutex);
                     
                     // sort in one shot
-                    std::sort(wu.beg, wu.end, compare);
-                    if (wu.beg >= tmp && wu.end <= tmpEnd)
-                        memcpy(map + (tmp - wu.beg), wu.beg, wu.size());
+                    std::sort(unit.beg, unit.end, compareKey);
+                    if (unit.beg >= tmp && unit.end <= tmpEnd)
+                        memcpy(map + (tmp - unit.beg), unit.beg, unit.size());
 
                     // the mutex is re-acquired after processing the work unit
                     pthread_mutex_lock(&mutex);
@@ -157,7 +163,7 @@ struct Context {
                     pthread_mutex_unlock(&mutex);
                     
                     // partial sort and generate more work units
-                    auto const &nw = wu.process();
+                    auto const nw = unit.process();
                     
                     // the mutex is re-acquired after processing the work unit
                     pthread_mutex_lock(&mutex);
@@ -188,6 +194,12 @@ static void *worker(void *p)
 
 #if __APPLE__
 #include <sys/sysctl.h>
+
+/* want one worker thread per physical core
+ * could go with one per logical but that would
+ * just make memory contention worse
+ * the bottleneck is the memory bus
+ */
 static int getWorkerCount()
 {
     size_t len;
@@ -197,14 +209,26 @@ static int getWorkerCount()
     if (sysctlbyname("hw.physicalcpu", &physCPU, &len, 0, 0) == 0 && physCPU > 0) {
         return physCPU;
     }
-    return 4;
+    return 1;
 }
 
-static size_t getSmallSize(int workers)
+/* This tries to take into account that different caches are shared amongst
+ * different numbers of cores. It picks based on the largest cache per core.
+ *
+ * The idea is that, once a workunit fits entirely into cache, it's not
+ * productive to break it down into smaller workunits. Instead, sort it
+ * completely, in-place, on one thread.
+ */
+static size_t getSmallSize(int const workers)
 {
     size_t len;
-    uint64_t cacheSharing[16] = {0};
+    /* these two are layed out as
+     * [0]: RAM; [1]: L1 cache; [2]: L2 cache; etc.
+     * an entry is 0 if there is no cache at that level
+     */
     uint64_t cacheSize[16] = {0};
+    // gives the number of logical cores which share a cache level
+    uint64_t cacheSharing[16] = {0};
     
     len = sizeof(cacheSharing);
     sysctlbyname("hw.cacheconfig", cacheSharing, &len, 0, 0);
@@ -226,54 +250,141 @@ static size_t getSmallSize(int workers)
     return (cache < 32 * 1024) ? (32 * 1024) : cache;
 }
 #else
-static size_t getSmallSize()
+static int getWorkerCount()
 {
-    return 32 * 1024;
+    return 2;
+}
+static size_t getSmallSize(int const workers)
+{
+    return (64 * 1024) / workers;
 }
 #endif
 
-static int process(char const *const indexFile)
+static ssize_t fsize(int const fd)
 {
     struct stat stat = {0};
-    int const fd = open(indexFile, O_RDWR);
-    if (fd < 0) {
-        perror("failed to open index file");
-        exit(1);
+    if (fstat(fd, &stat) == 0)
+        return stat.st_size;
+    return -1;
+}
+
+static ssize_t fblocksize(int const fd)
+{
+    struct stat stat = {0};
+    if (fstat(fd, &stat) == 0)
+        return stat.st_blksize;
+    return -1;
+}
+
+static int process(char const *const indexFile, bool const isSorted)
+{
+    size_t size = 0;
+    void *inmap = MAP_FAILED;
+    {
+        int const fd = open(indexFile, O_RDWR);
+        if (fd < 0) {
+            perror("failed to open index file");
+            exit(1);
+        }
+        ssize_t const tmp = fsize(fd);
+        if (tmp < 0) {
+            perror("failed to access index file");
+            exit(1);
+        }
+        size = tmp;
+        inmap = mmap(0, size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
+        close(fd);
+        if (inmap == MAP_FAILED) {
+            perror("failed to read index file");
+            exit(1);
+        }
     }
-    if (fstat(fd, &stat) < 0) {
-        perror("failed to read index file");
-        exit(1);
-    }
-    void *const map = mmap(0, stat.st_size, PROT_READ|PROT_WRITE, MAP_FILE|MAP_SHARED, fd, 0);
-    close(fd);
-    if (map == MAP_FAILED) {
-        perror("failed to read index file");
-        exit(1);
-    }
-    void *const scratch = mmap(0, stat.st_size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_SHARED, 0, 0);
+    void *const scratch = mmap(0, size, PROT_READ|PROT_WRITE, MAP_ANON|MAP_SHARED, 0, 0);
     if (scratch == MAP_FAILED) {
         perror("failed to allocate scratch space");
         exit(1);
     }
-    auto const workers = getWorkerCount();
-    auto context = Context(map, scratch, stat.st_size / sizeof(IndexRow), getSmallSize(workers));
-    
-    for (auto i = 1; i < workers; ++i) {
-        pthread_t tid = 0;
-    
-        pthread_create(&tid, nullptr, worker, &context);
+    int const sz = snprintf((char *)scratch, size, "%s.out", indexFile);
+    if (sz >= size) {
+        perror("index is too small");
+        exit(1);
     }
-    worker(&context);
-    
-    munmap(scratch, stat.st_size);
-    munmap(map, stat.st_size);
+    int const fd = open((char *)scratch, O_RDWR|O_CREAT|O_TRUNC, 0644);
+    if (fd < 0) {
+        perror("failed to open output file");
+        exit(1);
+    }
+    auto const blockSize = fblocksize(fd);
+    if (blockSize < 0) {
+        perror("failed to access output file");
+        exit(1);
+    }
+    auto const N = size / sizeof(IndexRow);
+
+    if (!isSorted) {
+        auto const workers = getWorkerCount();
+        auto context = Context(inmap, scratch, N, getSmallSize(workers));
+        
+        for (auto i = 1; i < workers; ++i) {
+            pthread_t tid = 0;
+        
+            pthread_create(&tid, nullptr, worker, &context);
+        }
+        worker(&context);
+    }
+
+    {
+        auto const map = (IndexRow *)inmap;
+        auto const mapEnd = map + N;
+        auto last = *(uint64_t *)(&map->key[0]);
+        auto const rindex = (IndexRow **)(scratch);
+        auto out = rindex;
+        for (auto i = map; i != mapEnd; ++i) {
+            auto key = *(uint64_t *)(&i->key[0]);
+            if (last == key) continue;
+            *out++ = i;
+            last = key;
+        }
+        std::cerr << "Number of records: " << N << std::endl;
+        std::cerr << "Number of fragments: " << (out - rindex) << std::endl;
+        std::cerr << "Records per fragment: " << (double)N / (double)(out - rindex) << std::endl;
+        
+        auto const buffer = (int64_t *)out;
+        auto const bufEnd = (int64_t const *)(rindex + N);
+        auto cp = buffer;
+        
+        std::cerr << "Sorting fragments ..." << std::endl;
+        std::sort(rindex, out, compareRow);
+        std::cerr << "Writing final index ..." << std::endl;
+        for (auto i = rindex; i != out; ++i) {
+            auto j = *i;
+            auto const key = *(uint64_t *)(&j->key[0]);
+            do {
+                auto const sz = (cp - buffer) * sizeof(*cp);
+                if (sz >= blockSize || cp == bufEnd) {
+                    auto rc = write(fd, buffer, sz);
+                    if (rc < 0) {
+                        perror("failed to write output");
+                        exit(1);
+                    }
+                    cp = buffer;
+                }
+                *cp++ = (*j++).row;
+            } while (*(uint64_t *)(&j->key[0]) == key);
+        }
+        write(fd, buffer, (cp - buffer) * sizeof(*cp));
+        std::cerr << "Done" << std::endl;
+        close(fd);
+    }
+    munmap(scratch, size);
+    munmap(inmap, size);
     return 0;
 }
 
 int main(int argc, char *argv[])
 {
     if (argc == 2)
-        return process(argv[1]);
+        return process(argv[1], false);
     else {
         std::cerr << "usage: sortIndex <index file>" << std::endl;
         return 1;

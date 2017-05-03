@@ -1618,64 +1618,95 @@ rc_t CC KMain(int argc, char* argv[]) {
 
     Params prm;
     KConfig* cfg = NULL;
+    bool configured = false;
+
+    if (rc == 0)
+        rc = ParamsConstruct(argc, argv, &prm);
+
+    if (rc == 0 && prm.showMultiple && prm.xml)
+        OUTMSG(("<VdbConfig>\n"));
 
     if (rc == 0) {
-        rc = ParamsConstruct(argc, argv, &prm);
+        if (prm.modeConfigure) {
+            rc = configure(prm.configureMode);
+            configured = true;
+        }
     }
 
     if (rc == 0) {
         const KDirectory *d = NULL;
+        KDirectory * n = NULL;
+        rc = KDirectoryNativeDir ( & n );
         if (prm.cfg_dir != NULL) {
-            KDirectory *n = NULL;
-            rc = KDirectoryNativeDir(&n);
             if (rc == 0) {
                 rc = KDirectoryOpenDirRead(n, &d, false, prm.cfg_dir);
                 DISP_RC2(rc, "while opening", prm.cfg_dir);
             }
-            RELEASE(KDirectory, n);
         }
         if (rc == 0) {
             rc = KConfigMake(&cfg, d);
             DISP_RC(rc, "while calling KConfigMake");
         }
-        RELEASE(KDirectory, d);
-    }
 
-    if (rc == 0 && prm.showMultiple && prm.xml) {
-        OUTMSG(("<VdbConfig>\n"));
-    }
+        if ( rc == 0 && ! configured ) {
+            char home [ PATH_MAX ] = "";
+            size_t written = 0;
+            rc = KConfig_Get_Default_User_Path ( cfg, home, sizeof home,
+                & written );
+            if ( rc == 0 ) {
+                char resolved [ PATH_MAX ] = "";
+                rc_t r2 = KDirectoryResolvePath ( n, true, resolved,
+                    sizeof resolved, home );
+                if ( r2 == 0 ) {
+                    size_t size  = string_measure ( home, NULL );
+                    if ( string_cmp ( home, size, resolved,
+                        string_measure ( resolved, NULL ), size ) != 0 )
+                    {
+                        r2 = KConfig_Set_Default_User_Path ( cfg, resolved );
+                        if ( r2 == 0 ) {
+                            KConfigCommit ( cfg );
+                            KConfigRelease ( cfg );
+                            rc = KConfigMake ( &cfg, d );
+                            DISP_RC ( rc, "while re-calling KConfigMake" );
+                        }
+                    }
+                }
+            }
+            else
+                rc = 0;
+        }
 
-    if (rc == 0) {
-        if (prm.modeConfigure) {
-            rc = configure(prm.configureMode);
-        }
-        else if (prm.ngc) {
-            rc = ImportNgc(cfg, &prm);
-        }
-        else if (prm.modeSetNode) {
-            rc_t rc3 = SetNode(cfg, &prm);
-            if (rc3 != 0 && rc == 0) {
-                rc = rc3;
+        RELEASE ( KDirectory, d );
+        RELEASE ( KDirectory, n );
+
+        if ( ! configured ) {
+            if (prm.ngc)
+                rc = ImportNgc(cfg, &prm);
+            else if (prm.modeSetNode) {
+                rc_t rc3 = SetNode(cfg, &prm);
+                if (rc3 != 0 && rc == 0)
+                    rc = rc3;
             }
         }
+
         if (prm.proxy != NULL || prm.proxyDisabled != eUndefined) {
             rc_t rc3 = SetProxy(cfg, &prm);
-            if (rc3 != 0 && rc == 0) {
+            if (rc3 != 0 && rc == 0)
                 rc = rc3;
-            }
         }
+
         if (prm.modeShowCfg) {
             rc_t rc3 = ShowConfig(cfg, &prm);
-            if (rc3 != 0 && rc == 0) {
+            if (rc3 != 0 && rc == 0)
                 rc = rc3;
-            }
         }
+
         if (prm.modeShowFiles) {
             rc_t rc3 = ShowFiles(cfg, &prm);
-            if (rc3 != 0 && rc == 0) {
+            if (rc3 != 0 && rc == 0)
                 rc = rc3;
-            }
         }
+
         if (prm.modeShowLoadPath) {
             const char* path = NULL;
             rc_t rc3 = KConfigGetLoadPath(cfg, &path);

@@ -104,6 +104,7 @@ static const char * numelemsum_usage[]          = { "sum element-count",        
 static const char * show_blobbing_usage[]       = { "show blobbing",                                NULL };
 static const char * enum_phys_usage[]           = { "enumerate physical columns",                   NULL };
 static const char * enum_readable_usage[]       = { "enumerate readable columns",                   NULL };
+static const char * enum_static_usage[]         = { "enumerate static columns",                     NULL };
 static const char * objtype_usage[]             = { "report type of object",                        NULL };
 static const char * idx_enum_usage[]            = { "enumerate all available index",                NULL };
 static const char * idx_range_usage[]           = { "enumerate values and row-ranges of one index", NULL };
@@ -118,6 +119,7 @@ static const char * info_usage[]                = { "print info about run",     
 static const char * spotgroup_usage[]           = { "show spotgroups",                              NULL };
 static const char * merge_ranges_usage[]        = { "merge and sort row-ranges",                    NULL };
 static const char * spread_usage[]              = { "show spread of integer values",                NULL };
+static const char * len_spread_usage[]          = { "show spread of READ/REF_LEN values",           NULL };
 static const char * slice_usage[]               = { "find a slice of given depth",                  NULL };
 static const char * interactive_usage[]         = { "interactive mode",                             NULL };
 
@@ -149,6 +151,7 @@ OptDef DumpOptions[] =
     { OPTION_SHOW_BLOBBING,         NULL,                     NULL, show_blobbing_usage,     1, false,  false },
     { OPTION_ENUM_PHYS,             NULL,                     NULL, enum_phys_usage,         1, false,  false },
     { OPTION_ENUM_READABLE,         NULL,                     NULL, enum_readable_usage,     1, false,  false },
+    { OPTION_ENUM_STATIC,           NULL,                     NULL, enum_static_usage,       1, false,  false },    
     { OPTION_OBJVER,                ALIAS_OBJVER,             NULL, objver_usage,            1, false,  false },
     { OPTION_OBJTS,                 NULL,                     NULL, objts_usage,             1, false,  false },
     { OPTION_OBJTYPE,               ALIAS_OBJTYPE,            NULL, objtype_usage,           1, false,  false },
@@ -167,6 +170,7 @@ OptDef DumpOptions[] =
     { OPTION_SPOTGROUPS,            NULL,                     NULL, spotgroup_usage,         1, false,  false },
     { OPTION_MERGE_RANGES,          NULL,                     NULL, merge_ranges_usage,      1, false,  false },
     { OPTION_SPREAD,                NULL,                     NULL, spread_usage,            1, false,  false },
+    { OPTION_LEN_SPREAD,            NULL,                     NULL, len_spread_usage,        1, false,  false },    
     { OPTION_INTERACTIVE,           NULL,                     NULL, interactive_usage,       1, false,  false },    
     { OPTION_SLICE,                 NULL,                     NULL, slice_usage,             1, true,   false }
 };
@@ -522,8 +526,29 @@ static uint32_t vdm_extract_or_parse_columns( const p_dump_context ctx,
     {
         bool cols_unknown = ( ( ctx->columns == NULL ) || ( string_cmp( ctx->columns, 1, "*", 1, 1 ) == 0 ) );
         if ( cols_unknown )
-            /* the user does not know the column-names or wants all of them */
-            count = vdcd_extract_from_table( my_col_defs, my_table );
+        {
+            if ( ctx->enum_static )
+            {
+                /* the user wants to see only the static columns */
+                count = vdcd_extract_static_columns( my_col_defs, my_table, ctx->max_line_len );
+                if ( count > 0 )
+                {
+                    /* if we found some static columns, let's restrict the row-count
+                       if the user did not give a specific row-set to just show row #1 */
+                    if ( ctx->rows == NULL )
+                    {
+                        rc_t rc = num_gen_make_from_range( &ctx->rows, 1, 1 );
+                        DISP_RC( rc, "num_gen_make_from_range() failed" );
+                    }
+                    
+                }
+            }
+            else
+            {
+                /* the user does not know the column-names or wants all of them */
+                count = vdcd_extract_from_table( my_col_defs, my_table );
+            }
+        }
         else
             /* the user knows the names of the wanted columns... */
             count = vdcd_parse_string( my_col_defs, ctx->columns, my_table );
@@ -545,8 +570,10 @@ static bool vdm_extract_or_parse_phys_columns( const p_dump_context ctx,
     {
         bool cols_unknown = ( ( ctx->columns == NULL ) || ( string_cmp( ctx->columns, 1, "*", 1, 1 ) == 0 ) );
         if ( cols_unknown )
+        {
             /* the user does not know the column-names or wants all of them */
             res = vdcd_extract_from_phys_table( my_col_defs, my_table );
+        }
         else
             /* the user knows the names of the wanted columns... */
             res = vdcd_parse_string( my_col_defs, ctx->columns, my_table );
@@ -556,6 +583,24 @@ static bool vdm_extract_or_parse_phys_columns( const p_dump_context ctx,
     }
 
     return res;
+}
+
+
+static bool vdm_extract_or_parse_static_columns( const p_dump_context ctx,
+                                               const VTable *my_table,
+                                               p_col_defs my_col_defs )
+{
+    bool res = false;
+    if ( ctx != NULL && my_col_defs != NULL )
+    {
+            /* the user does not know the column-names or wants all of them */
+        res = ( vdcd_extract_static_columns( my_col_defs, my_table, ctx->max_line_len ) > 0 );
+
+        if ( ctx->excluded_columns != NULL )
+            vdcd_exclude_these_columns( my_col_defs, ctx->excluded_columns );
+    }
+    return res;
+
 }
 
 /*************************************************************************************
@@ -683,117 +728,11 @@ static rc_t vdm_dump_opened_table( const p_dump_context ctx, const VTable *my_ta
 ctx         [IN] ... contains path, tablename, columns, row-range etc.
 my_database [IN] ... open database needed for vdb-calls
 *************************************************************************************/
-static rc_t vdm_walk_sections( const VDatabase * base_db, const VDatabase ** sub_db,
-                               const VNamelist * sections, uint32_t count )
-{
-    rc_t rc = 0;
-    const VDatabase * parent_db = base_db;
-    if ( count == 0 )
-    {
-        rc = VDatabaseAddRef ( parent_db );
-        DISP_RC( rc, "VDatabaseAddRef() failed" );
-    }
-    else
-    {
-        uint32_t idx;
-        for ( idx = 0; rc == 0 && idx < count; ++idx )
-        {
-            const char * dbname;
-            rc = VNameListGet ( sections, idx, &dbname );
-            DISP_RC( rc, "VNameListGet() failed" );
-            if ( rc == 0 )
-            {
-                const VDatabase * temp;
-                rc = VDatabaseOpenDBRead ( parent_db, &temp, "%s", dbname );
-                DISP_RC( rc, "VDatabaseOpenDBRead() failed" );
-                if ( rc == 0 && idx > 0 )
-                {
-                    rc = VDatabaseRelease ( parent_db );
-                    DISP_RC( rc, "VDatabaseRelease() failed" );
-                }
-                if ( rc == 0 )
-                    parent_db = temp;
-            }
-        }
-    }
-    
-    if ( rc == 0 ) *sub_db = parent_db;
-    return rc;
-}
-
-
-static void vdm_clear_recorded_errors( void )
-{
-    rc_t rc;
-    const char * filename;
-    const char * funcname;
-    uint32_t line_nr;
-    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
-    {
-    }
-}
-
-
-static rc_t vdm_check_table_empty( const VTable * tab )
-{
-    bool empty;
-    rc_t rc = VTableIsEmpty( tab, &empty );
-    DISP_RC( rc, "VTableIsEmpty() failed" );
-    if ( rc == 0 && empty )
-    {
-        vdm_clear_recorded_errors();
-        KOutMsg( "the requested table is empty!\n" );
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTable, rcEmpty );
-    }
-    return rc;
-}
-
-static rc_t vdm_open_table_by_path( const VDatabase * db, const char * path, const VTable ** tab )
-{
-    VNamelist * sections;
-    rc_t rc = vds_path_to_sections( path, '.', &sections );
-    DISP_RC( rc, "vds_path_to_sections() failed" );
-    if ( rc == 0 )
-    {
-        uint32_t count;
-        rc = VNameListCount ( sections, &count );
-        DISP_RC( rc, "VNameListCount() failed" );
-        if ( rc == 0 && count > 0 )
-        {
-            const VDatabase * sub_db;
-            rc = vdm_walk_sections( db, &sub_db, sections, count - 1 );
-            if ( rc == 0 )
-            {
-                const char * tabname;
-                rc = VNameListGet ( sections, count - 1, &tabname );
-                DISP_RC( rc, "VNameListGet() failed" );
-                if ( rc == 0 )
-                {
-                    rc = VDatabaseOpenTableRead( sub_db, tab, "%s", tabname );
-                    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
-                    if ( rc == 0 )
-                    {
-                        rc = vdm_check_table_empty( *tab );
-                        if ( rc != 0 )
-                        {
-                            VTableRelease( *tab );
-                            tab = NULL;
-                        }
-                    }
-                }
-                VDatabaseRelease ( sub_db );
-            }
-        }
-        VNamelistRelease ( sections );
-    }
-    return rc;
-}
-
 static rc_t vdm_dump_opened_database( const p_dump_context ctx,
                                       const VDatabase *my_database )
 {
     const VTable *my_table;
-    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+    rc_t rc = open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_dump_opened_table( ctx, my_table );
@@ -876,7 +815,7 @@ static rc_t vdm_show_db_spread( const p_dump_context ctx,
                                 const VDatabase *my_database )
 {
     const VTable *my_table;
-    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+    rc_t rc = open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_show_tab_spread( ctx, my_table );
@@ -956,7 +895,7 @@ static rc_t vdm_dump_db_schema( const p_dump_context ctx,
     {
         /* the user has given a database as object, but asks to inspect a given table */
         const VTable *my_table;
-        rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+        rc = open_table_by_path( my_database, ctx->table, &my_table );
         if ( rc == 0 )
         {
             rc = vdm_dump_tab_schema( ctx, my_table );
@@ -1299,6 +1238,7 @@ static rc_t vdm_enum_readable_columns( const VTable *my_table )
     return rc;
 }
 
+
 /*************************************************************************************
     enum_tab_columns:
     * called by "enum_db_columns()" and "dump_table()" as fkt-pointer
@@ -1343,6 +1283,13 @@ static rc_t vdm_enum_tab_columns( const p_dump_context ctx, const VTable *my_tab
                 extracted = vdm_extract_or_parse_phys_columns( ctx, my_table, my_col_defs );
                 rc = VTableOpenKTableRead( my_table, &ci_ctx.my_ktable );
                 DISP_RC( rc, "VTableOpenKTableRead() failed" );
+            }
+            if ( ctx->enum_static )
+            {
+                extracted = vdm_extract_or_parse_static_columns( ctx, my_table, my_col_defs );
+                rc = VTableOpenKTableRead( my_table, &ci_ctx.my_ktable );
+                DISP_RC( rc, "VTableOpenKTableRead() failed" );
+            
             }
             else
             {
@@ -1396,7 +1343,7 @@ my_database [IN] ... open database needed for vdb-calls
 static rc_t vdm_enum_db_columns( const p_dump_context ctx, const VDatabase *my_database )
 {
     const VTable *my_table;
-    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );    
+    rc_t rc = open_table_by_path( my_database, ctx->table, &my_table );    
     if ( rc == 0 )
     {
         rc = vdm_enum_tab_columns( ctx, my_table );
@@ -1469,7 +1416,7 @@ my_database [IN] ... open database needed for vdb-calls
 static rc_t vdm_print_db_id_range( const p_dump_context ctx, const VDatabase *my_database )
 {
     const VTable *my_table;
-    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+    rc_t rc = open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_print_tab_id_range( ctx, my_table );
@@ -1570,7 +1517,7 @@ static rc_t vdm_enum_tab_index( const p_dump_context ctx, const VTable *my_table
 static rc_t vdm_enum_db_index( const p_dump_context ctx, const VDatabase *my_database )
 {
     const VTable *my_table;
-    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+    rc_t rc = open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_enum_tab_index( ctx, my_table );
@@ -1619,7 +1566,7 @@ static rc_t vdm_range_tab_index( const p_dump_context ctx, const VTable *my_tabl
 static rc_t vdm_range_db_index( const p_dump_context ctx, const VDatabase *my_database )
 {
     const VTable *my_table;
-    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+    rc_t rc = open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_range_tab_index( ctx, my_table );
@@ -1715,7 +1662,7 @@ static rc_t vdm_show_tab_spotgroups( const p_dump_context ctx, const VTable *my_
 static rc_t vdm_show_db_spotgroups( const p_dump_context ctx, const VDatabase *my_database )
 {
     const VTable *my_table;
-    rc_t rc = vdm_open_table_by_path( my_database, ctx->table, &my_table );
+    rc_t rc = open_table_by_path( my_database, ctx->table, &my_table );
     if ( rc == 0 )
     {
         rc = vdm_show_tab_spotgroups( ctx, my_table );
@@ -1757,7 +1704,7 @@ static rc_t vdm_dump_tab_fkt( const p_dump_context ctx,
         ErrMsg( "VDBManagerOpenTableRead( '%R' ) -> %R", ctx->path, rc );
     else
     {
-        rc = vdm_check_table_empty( my_table );
+        rc = check_table_empty( my_table );
         if ( rc == 0 )
             rc = tab_fkt( ctx, my_table ); /* fkt-pointer is called */
         VTableRelease( my_table );
@@ -2213,6 +2160,8 @@ static rc_t vdm_main( const p_dump_context ctx, Args * args )
                                 if ( ctx->print_info )
                                     rc = vdb_info( &(ctx->schema_list), ctx->format, mgr,
                                                    value, ctx->rows );   /* in vdb_info.c */
+                                else if ( ctx->len_spread )
+                                    rc = vdf_len_spread( ctx, mgr, value ); /* in vdb-dump-fastq.c */
                                 else switch( ctx->format )
                                 {
                                     case df_fastq  : ;
@@ -2328,17 +2277,17 @@ rc_t CC KMain ( int argc, char *argv [] )
                     if ( rc == 0 )
                     {
                         if ( ctx->phase > 0 )
-                            rc = vdi_bin_phase( ctx, args ); /* vdb-dump-bin.c */
+                            rc = vdi_bin_phase( ctx, args );    /* vdb-dump-bin.c */
                         else if ( ctx->diff )
-                            rc = diff_files( args ); /* above calls into vdb-dump-str.c */
+                            rc = diff_files( args );            /* code is above, calls into vdb-dump-str.c */
                         else if ( ctx->interactive )
-                            rc = vdi_main( ctx, args ); /* vdb-dump-interact.c */
+                            rc = vdi_main( ctx, args );         /* vdb-dump-interact.c */
                         else if ( ctx->slice_depth > 0 )
-                            rc = find_slice( ctx, args ); /* vdb-dump-str.c */
+                            rc = find_slice( ctx, args );       /* vdb-dump-str.c */
                         else
                             rc = vdm_main( ctx, args );
                     
-                        release_out_redir( &redir ); /* vdb-dump-redir.c */
+                        release_out_redir( &redir );            /* vdb-dump-redir.c */
                     }
                 }
                 vdco_destroy( ctx );

@@ -883,7 +883,7 @@ bool vdbconf_controller::on_set_location_error( Dlg &dlg, ESetRootState s )
         case eSetRootState_NewDirNotEmpty   : vdbconf_msg( dlg, r, "the given location is not empty" ); break;
         case eSetRootState_NewNotDir        : vdbconf_msg( dlg, r, "new location is not a directory" ); break;
         case eSetRootState_Error            : vdbconf_msg( dlg, r, "error changing location" ); break;
-        default                             : vdbconf_msg( dlg, r, "unknow enum" ); break;
+        default                             : vdbconf_msg( dlg, r, "unknown enum" ); break;
     }
     return result;
 }

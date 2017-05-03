@@ -68,6 +68,7 @@ extern "C" {
 #define OPTION_SHOW_BLOBBING     "blobbing"
 #define OPTION_ENUM_PHYS         "phys"
 #define OPTION_ENUM_READABLE     "readable"
+#define OPTION_ENUM_STATIC       "static"
 #define OPTION_IDX_ENUM          "idx-report"
 #define OPTION_IDX_RANGE         "idx-range"
 #define OPTION_CUR_CACHE         "cur-cache"
@@ -86,6 +87,7 @@ extern "C" {
 #define OPTION_SPREAD            "spread"
 #define OPTION_SLICE             "slice"
 #define OPTION_INTERACTIVE       "interactive"
+#define OPTION_LEN_SPREAD        "len-spread"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -186,6 +188,7 @@ typedef struct dump_context
     bool show_blobbing;
     bool enum_phys;
     bool enum_readable;
+    bool enum_static;
     bool idx_enum_requested;
     bool idx_range_requested;
     bool disable_multithreading;
@@ -196,6 +199,7 @@ typedef struct dump_context
     bool merge_ranges;
     bool show_spread;
     bool interactive;
+    bool len_spread;
 } dump_context;
 typedef dump_context* p_dump_context;
 

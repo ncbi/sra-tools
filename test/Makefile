@@ -35,6 +35,7 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =    \
+	vdb-config      \
 	fastq-loader    \
 	vcf-loader      \
 	kget            \

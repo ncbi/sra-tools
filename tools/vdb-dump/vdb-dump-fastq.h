@@ -40,6 +40,8 @@ extern "C" {
 
 rc_t vdf_main( const p_dump_context ctx, const VDBManager * mgr, const char * acc_or_path );
 
+rc_t vdf_len_spread( const p_dump_context ctx, const VDBManager * mgr, const char * path );
+
 #ifdef __cplusplus
 }
 #endif

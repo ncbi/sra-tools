@@ -87,6 +87,7 @@ extern "C" {
 #define OPTION_SPREAD            "spread"
 #define OPTION_SLICE             "slice"
 #define OPTION_INTERACTIVE       "interactive"
+#define OPTION_LEN_SPREAD        "len-spread"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -198,6 +199,7 @@ typedef struct dump_context
     bool merge_ranges;
     bool show_spread;
     bool interactive;
+    bool len_spread;
 } dump_context;
 typedef dump_context* p_dump_context;
 

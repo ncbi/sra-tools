@@ -37,10 +37,10 @@ struct cFastaFile
 {
     CPP::IndexedFastaFile file;
     
-    cFastaFile( std::string const &path_or_acc, bool acc = false ) 
+    cFastaFile( std::string const &path_or_acc, bool acc = false, size_t cache_capacity = 0 ) 
         : file( acc
                 ?
-                CPP::IndexedFastaFile::load_from_accession( path_or_acc )
+                CPP::IndexedFastaFile::load_from_accession( path_or_acc, cache_capacity )
                 :
                 CPP::IndexedFastaFile::load_from_file( path_or_acc ) ) {}
 };
@@ -63,12 +63,12 @@ extern "C"
         }
     }
     
-    struct cFastaFile* loadcSRA( char const * accession )
+    struct cFastaFile* loadcSRA( char const * accession, size_t cache_capacity )
     {
         std::string const &acc = std::string( accession );
         try
         {
-            return new cFastaFile( acc, true );
+            return new cFastaFile( acc, true, cache_capacity );
         }
         catch (...)
         {

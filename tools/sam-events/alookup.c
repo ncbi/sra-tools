@@ -38,6 +38,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <sqlite3.h>
 
 const char UsageDefaultName[] = "alookup";
 
@@ -49,14 +50,19 @@ rc_t CC UsageSummary ( const char * progname )
                      "\n", progname );
 }
 
-#define OPTION_CACHE   "cache"
+#define OPTION_CACHE  "cache"
 #define ALIAS_CACHE   "c"
 static const char * cache_usage[]     = { "the lookup-cache to use", NULL };
+
+#define OPTION_DB     "database"
+#define ALIAS_DB      "d"
+static const char * db_usage[]        = { "opt sqlite-db to write into", NULL };
 
 OptDef ToolOptions[] =
 {
 /*    name              alias           fkt    usage-txt,       cnt, needs value, required */
-    { OPTION_CACHE,     ALIAS_CACHE,    NULL, cache_usage,     1,   true,        false }
+    { OPTION_CACHE,     ALIAS_CACHE,    NULL, cache_usage,     1,   true,        false },
+    { OPTION_DB,        ALIAS_DB,       NULL, db_usage,        1,   true,        false }
 };
 
 rc_t CC Usage ( const Args * args )
@@ -107,6 +113,7 @@ static rc_t log_err( const char * t_fmt, ... )
 typedef struct tool_ctx
 {
     const char * cache_file;
+    const char * db_file;
 } tool_ctx;
 
 
@@ -136,22 +143,134 @@ static rc_t fill_out_tool_ctx( const Args * args, tool_ctx * ctx )
             rc = RC ( rcApp, rcArgv, rcConstructing, rcParam, rcInvalid );
             log_err( "cache-file is missing!" );
         }
+        else
+            rc = get_charptr( args, OPTION_DB, &ctx->db_file );
     }
     return rc;
-}
-
-static void release_tool_ctx( tool_ctx * ctx )
-{
-    if ( ctx != NULL )
-    {
-
-    }
 }
 
 
 /* ----------------------------------------------------------------------------------------------- */
 
-static rc_t perform_dump( tool_ctx * ctx )
+
+typedef void ( * on_part )( const String * part, uint32_t id, void * user_data );
+
+static uint32_t split_String( const String * src, char c, on_part f, void * user_data )
+{
+    uint32_t char_idx = 0;
+    uint32_t id = 0;
+    String part = { .addr = src->addr, .size = 0, .len = 0 };
+    while ( char_idx < src->len )
+    {
+        if ( src->addr[ char_idx ] == c )
+        {
+            part.size = part.len;
+            f( &part, id++, user_data );
+            part.addr = &src->addr[ char_idx + 1 ];
+            part.size = part.len = 0;
+        }
+        else
+            part.len++;
+        char_idx++;
+    }
+    if ( part.len > 0 )
+    {
+        part.size = part.len;
+        f( &part, id, user_data );
+    }
+    return id;
+}
+
+typedef struct key_parts
+{
+    String refname;
+    uint64_t refpos;
+    uint32_t deletes;
+    String inserts;
+} key_parts;
+
+static void on_key_part( const String * part, uint32_t id, void * user_data )
+{
+    key_parts * parts = user_data;
+    switch ( id )
+    {
+        case 0 : StringInit( &parts->refname, part->addr, part->size, part->len ); break;
+        case 1 : parts->refpos = StringToU64( part, NULL ); break;
+        case 2 : parts->deletes = ( uint32_t )StringToU64( part, NULL ); break;
+        case 3 : StringInit( &parts->inserts, part->addr, part->size, part->len ); break;
+    }
+}
+
+static rc_t print_entry( const String * key, uint64_t * values )
+{
+    key_parts parts;
+    split_String( key, ':', on_key_part, &parts );
+    return KOutMsg( "%S\t%lu\t%u\t%S\t%lu\t%lX\n",
+        &parts.refname, parts.refpos, parts.deletes, &parts.inserts, values[ 0 ], values[ 1 ] );
+}
+
+
+/* ----------------------------------------------------------------------------------------------- */
+
+static int db_cb( void *NotUsed, int argc, char **argv, char **azColName )
+{
+    int i;
+    for( i = 0; i < argc; i++ )
+        log_err( "%s = %s", azColName[ i ], argv[ i ] ? argv[ i ] : "NULL" );
+    return 0;
+}
+
+static bool execute_stm( sqlite3 * db, const char * stm )
+{
+    char * errmsg = NULL;
+    bool res = ( sqlite3_exec( db, stm, db_cb, 0, &errmsg ) == SQLITE_OK );
+    if ( !res )
+        log_err( "SQL error: %s", errmsg );
+    return res;
+}
+
+static bool make_db( sqlite3 ** db, const char * path )
+{
+    bool res = ( sqlite3_open( path, db ) == SQLITE_OK );
+    if ( !res )
+        log_err( "canot open '%s' because '%s'", path, sqlite3_errmsg( *db ) );
+    else
+    {
+        res = execute_stm( *db, "CREATE TABLE IF NOT EXISTS AL( NAME, POS, DEL, INS, RS, FLAGS );" );
+        if ( !res )
+        {
+            sqlite3_close( *db );
+            *db = NULL;
+        }
+    }
+    return res;
+}
+
+static void release_db( sqlite3 * db )
+{
+    sqlite3_close( db );
+}
+
+
+static rc_t store_entry( sqlite3 * db, const String * key, uint64_t * values )
+{
+    rc_t rc;
+    size_t num_writ;
+    char stm[ 1024 ];
+    key_parts parts;
+    
+    split_String( key, ':', on_key_part, &parts );
+    rc = string_printf( stm, sizeof stm, &num_writ,
+        "INSERT INTO AL VALUES( '%S', %lu, %u, '%S', %lu, '%lX' )",
+        &parts.refname, parts.refpos, parts.deletes, &parts.inserts, values[ 0 ], values[ 1 ] );
+    if ( rc == 0 )
+        execute_stm( db, stm );
+    return rc;
+}
+
+/* ----------------------------------------------------------------------------------------------- */
+
+static rc_t print_cache( tool_ctx * ctx )
 {
     struct Allele_Lookup * al;
     rc_t rc = allele_lookup_make( &al, ctx->cache_file );
@@ -162,18 +281,38 @@ static rc_t perform_dump( tool_ctx * ctx )
         if ( rc == 0 )
         {
             bool running = true;
-            while ( running )
+            if ( ctx->db_file != NULL )
             {
-                String key;
-                uint64_t values[ 2 ];
-
-                running = lookup_cursor_next( curs, &key, values );
-                if ( running )
+                sqlite3 * db = NULL;
+                if ( make_db( &db, ctx->db_file ) )
                 {
-                    KOutMsg( "%S\t%lu\t%lX\n", &key, values[ 0 ], values[ 1 ] );
+                    while ( running )
                     {
-                        rc_t rc1 = Quitting();
-                        if ( rc1 != 0 ) running = false;
+                        String key;
+                        uint64_t values[ 2 ];
+
+                        running = lookup_cursor_next( curs, &key, values );
+                        if ( running )
+                        {
+                            rc = store_entry( db, &key, values );
+                            if ( Quitting() != 0 ) running = false;
+                        }
+                    }
+                    release_db( db );
+                }
+            }
+            else
+            {
+                while ( running )
+                {
+                    String key;
+                    uint64_t values[ 2 ];
+
+                    running = lookup_cursor_next( curs, &key, values );
+                    if ( running )
+                    {
+                        rc = print_entry( &key, values );
+                        if ( Quitting() != 0 ) running = false;
                     }
                 }
             }
@@ -185,7 +324,10 @@ static rc_t perform_dump( tool_ctx * ctx )
 }
 
 
-static rc_t perform_lookup( Args * args, uint32_t count, const char * cache_file )
+/* ----------------------------------------------------------------------------------------------- */
+
+
+static rc_t lookup_allele( Args * args, uint32_t count, const char * cache_file )
 {
     struct Allele_Lookup * al;
     rc_t rc = allele_lookup_make( &al, cache_file );
@@ -193,7 +335,7 @@ static rc_t perform_lookup( Args * args, uint32_t count, const char * cache_file
     {
         uint32_t idx;
         const char * allele;
-        String S;
+        String key;
         uint64_t values[ 2 ];
        
         for ( idx = 0; rc == 0 && idx < count; ++idx )
@@ -203,11 +345,11 @@ static rc_t perform_lookup( Args * args, uint32_t count, const char * cache_file
                 log_err( "ArgsParamValue( %d ) failed %R", idx, rc );
             else
             {
-                StringInitCString( &S, allele );
-                if ( allele_lookup_perform( al, &S, values ) )
-                    rc = KOutMsg( "%S\t%lu\t%lX\n", &S, values[ 0 ], values[ 1 ] );
+                StringInitCString( &key, allele );
+                if ( allele_lookup_perform( al, &key, values ) )
+                    rc = print_entry( &key, values );
                 else
-                    rc = KOutMsg( "%S\n", &S );
+                    rc = KOutMsg( "%S not found\n", &key );
             }
         }
         allele_lookup_release( al );
@@ -237,11 +379,10 @@ rc_t CC KMain ( int argc, char *argv [] )
             else
             {
                 if ( count < 1 )
-                    rc = perform_dump( &ctx );
+                    rc = print_cache( &ctx );
                 else
-                    rc = perform_lookup( args, count, ctx.cache_file );
+                    rc = lookup_allele( args, count, ctx.cache_file );
             }
-            release_tool_ctx( &ctx );
         }
         ArgsWhack ( args );
     }

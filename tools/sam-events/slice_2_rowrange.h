@@ -24,22 +24,41 @@
  *
  */
 
-#ifndef _h_alig_iter_
-#define _h_alig_iter_
+#ifndef _h_slice_to_row_range_
+#define _h_slice_to_row_range_
 
 #include <klib/rc.h>
-#include "common.h"    /* because of AlignmentT */
+#include "common.h"    /* because of row_range */
 #include "slice.h"     /* because of slice */
+#include <vdb/database.h> /* because of VDatabase */
 
-struct alig_iter;
+rc_t slice_2_row_range( const struct slice * slice, const char * acc, struct row_range * range );
+rc_t slice_2_row_range_db( const struct slice * slice, const char * acc, const VDatabase * db, struct row_range * range );
 
-/* construct an alignmet-iterator from an accession */
-rc_t alig_iter_make( struct alig_iter ** ai, const char * acc, size_t cache_capacity, const slice * slice );
 
-/* releae an alignment-iterator */
-rc_t alig_iter_release( struct alig_iter * ai );
+typedef struct BlockInfo
+{
+    int64_t first_alignment_id;
+    uint32_t count;
+    bool sorted;
+} BlockInfo;
 
-/* get the next alignemnt from the iter */
-bool alig_iter_get( struct alig_iter * ai, AlignmentT * alignment, uint64_t * processed );
+typedef struct RefInfo
+{
+    const String * name;
+    const String * seq_id;
+    int64_t first_row_in_reftable;
+    uint64_t row_count_in_reftable;
+    int64_t first_alignment_id;
+    uint64_t alignment_id_count;
+    uint64_t len;
+    Vector blocks; /* vector of pointers to BlockInfo structs */
+    uint32_t blocksize;    
+    bool circular;    
+    bool sorted;
+} RefInfo;
+
+rc_t extract_reference_info( const char * acc, Vector * infos );
+void clear_reference_info( Vector * infos );
 
 #endif

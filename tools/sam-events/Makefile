@@ -32,7 +32,9 @@ INT_TOOLS = \
 
 EXT_TOOLS = \
 	sam-events \
-	alookup
+	alookup \
+	t2 \
+	t3
     
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -66,6 +68,7 @@ TOOL_SRC = \
 	common \
 	alignment_iter \
 	alig_consumer \
+	slice_2_rowrange \
 	slice \
 	fasta-file \
 	cigar2events \
@@ -108,7 +111,63 @@ LOOKUP_LIB = \
 	-skapp \
 	-stk-version \
 	-sncbi-vdb \
-	-lm
+	-lm \
+	-lsqlite3
 
 $(BINDIR)/alookup: $(LOOKUP_OBJ)
 	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(LOOKUP_LIB)
+
+#-------------------------------------------------------------------------------
+# helper tool: t2.c
+# ( test multi-threaded approach )
+
+T2_SRC = \
+	common \
+	alignment_iter \
+	alig_consumer \
+	slice_2_rowrange \
+	slice \
+	fasta-file \
+	cigar2events \
+	expandCIGAR \
+	allele_dict \
+	mdb \
+	midl \
+	allele_lookup \
+	t2
+
+T2_OBJ = \
+	$(addsuffix .$(OBJX),$(T2_SRC))
+
+T2_LIB = \
+	-skapp \
+	-stk-version \
+	-sncbi-vdb \
+	-lm
+
+$(BINDIR)/t2: $(T2_OBJ)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(T2_LIB)
+
+    
+#-------------------------------------------------------------------------------
+# helper tool: t3.c
+# ( slice-to-row-range test )
+
+T3_SRC = \
+	common \
+	slice \
+	slice_2_rowrange \
+	t3
+
+T3_OBJ = \
+	$(addsuffix .$(OBJX),$(T3_SRC))
+
+T3_LIB = \
+	-skapp \
+	-stk-version \
+	-sncbi-vdb \
+	-lm
+
+$(BINDIR)/t3: $(T3_OBJ)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(T3_LIB)
+    

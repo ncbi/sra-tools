@@ -24,6 +24,7 @@
  *
  */
 #include "alignment_iter.h"
+#include "slice_2_rowrange.h"
 #include "common.h"
 
 #include <klib/text.h>
@@ -48,7 +49,7 @@ typedef struct alig_iter
     const VTable * tbl;
     const VCursor *curs;
     uint32_t idx[ ALIG_ITER_N_COLS ];
-    row_range total;
+    /* row_range total; */
     row_range to_process;
     uint64_t rows_processed;
     int64_t current_row;
@@ -75,7 +76,7 @@ rc_t alig_iter_release( struct alig_iter * ai )
 }
 
 
-static rc_t alig_iter_initialize( struct alig_iter * ai )
+static rc_t alig_iter_initialize( struct alig_iter * ai, size_t cache_capacity, const slice * slice )
 {
     rc_t rc = VDBManagerMakeRead( &ai->mgr, NULL );
     if ( rc != 0 )
@@ -87,28 +88,38 @@ static rc_t alig_iter_initialize( struct alig_iter * ai )
             log_err( "aligmnet_iter.alig_iter_initialize.VDBManagerOpenDBRead( '%s' ) %R", ai->acc, rc );
         else
         {
-            rc = VDatabaseOpenTableRead( ai->db, &ai->tbl, "%s", "PRIMARY_ALIGNMENT" );
-            if ( rc != 0 )
-                log_err( "aligmnet_iter.alig_iter_initialize.VDatabaseOpenTableRead( '%s'.PRIMARY_ALIGNMENT ) %R", ai->acc, rc );
-            else
+            row_range requested_range;
+            if ( slice != NULL )
+                rc = slice_2_row_range_db( slice, ai->acc, ai->db, &requested_range );
+                
+            if ( rc == 0 )
             {
-                rc = VTableCreateCursorRead( ai->tbl, &ai->curs );
+                rc = VDatabaseOpenTableRead( ai->db, &ai->tbl, "%s", "PRIMARY_ALIGNMENT" );
                 if ( rc != 0 )
-                    log_err( "aligmnet_iter.alig_iter_initialize.TableCreateCursorRead( '%s'.PRIMARY_ALIGNMENT ) %R", ai->acc, rc );
+                    log_err( "aligmnet_iter.alig_iter_initialize.VDatabaseOpenTableRead( '%s'.PRIMARY_ALIGNMENT ) %R", ai->acc, rc );
                 else
                 {
-                    rc = add_cols_to_cursor( ai->curs, ai->idx, "PRIMARY_ALIGNMENT", ai->acc, ALIG_ITER_N_COLS,
-                                             "CIGAR_SHORT", "REF_SEQ_ID", "READ", "REF_POS", "SAM_FLAGS" );
-                    if ( rc == 0 )
+                    if ( cache_capacity > 0 )
+                        rc = VTableCreateCachedCursorRead( ai->tbl, &ai->curs, cache_capacity );
+                    else
+                        rc = VTableCreateCursorRead( ai->tbl, &ai->curs );
+                    if ( rc != 0 )
+                        log_err( "aligmnet_iter.alig_iter_initialize.TableCreateCursorRead( '%s'.PRIMARY_ALIGNMENT ) %R", ai->acc, rc );
+                    else
                     {
-                        rc = VCursorIdRange( ai->curs, ai->idx[ 3 ], &ai->total.first_row, &ai->total.row_count );
-                        if ( rc != 0 )
-                            log_err( "aligmnet_iter.alig_iter_initialize.VCursorIdRange( '%s'.PRIMARY_ALIGNMENT ) %R", ai->acc, rc );
-                        else
+                        rc = add_cols_to_cursor( ai->curs, ai->idx, "PRIMARY_ALIGNMENT", ai->acc, ALIG_ITER_N_COLS,
+                                                 "CIGAR_SHORT", "REF_SEQ_ID", "READ", "REF_POS", "SAM_FLAGS" );
+                        if ( rc == 0 && slice == NULL )
                         {
-                            ai->to_process.first_row = ai->total.first_row;
-                            ai->to_process.row_count = ai->total.row_count;
-                            ai->current_row = ai->total.first_row;
+                            rc = VCursorIdRange( ai->curs, ai->idx[ 3 ], &requested_range.first_row, &requested_range.row_count );
+                            if ( rc != 0 )
+                                log_err( "aligmnet_iter.alig_iter_initialize.VCursorIdRange( '%s'.PRIMARY_ALIGNMENT ) %R", ai->acc, rc );
+                        }
+                        if ( rc == 0 )
+                        {
+                            ai->to_process.first_row = requested_range.first_row;
+                            ai->to_process.row_count = requested_range.row_count;
+                            ai->current_row = requested_range.first_row;
                             ai->use_find_next_row = false;
                         }
                     }
@@ -121,7 +132,7 @@ static rc_t alig_iter_initialize( struct alig_iter * ai )
 
 
 /* construct an alignmet-iterator from an accession */
-rc_t alig_iter_make( struct alig_iter ** ai, const char * acc )
+rc_t alig_iter_make( struct alig_iter ** ai, const char * acc, size_t cache_capacity, const slice * slice )
 {
     rc_t rc = 0;
     if ( ai == NULL || acc == NULL )
@@ -141,7 +152,7 @@ rc_t alig_iter_make( struct alig_iter ** ai, const char * acc )
         else
         {
             o->acc = acc;
-            rc = alig_iter_initialize( o );
+            rc = alig_iter_initialize( o, cache_capacity, slice );
         }
         
         if ( rc == 0 )
@@ -242,190 +253,4 @@ bool alig_iter_get( struct alig_iter * ai, AlignmentT * alignment, uint64_t * pr
         if ( processed != NULL ) *processed = ai->rows_processed;
     }
     return res;
-}
-
-
-/* restrict the alignment-iterator to a specific row-range ( slice ) */
-rc_t alig_iter_set_row_range( struct alig_iter * ai, row_range * range )
-{
-    rc_t rc = 0;
-    if ( ai == NULL || range == NULL )
-    {
-        rc = RC( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
-        log_err( "aligmnet_iter.alig_iter_set_row_range() given a NULL-ptr" );
-    }
-    else
-    {
-        ai->to_process.first_row = range->first_row;
-        ai->to_process.row_count = range->row_count;
-        ai->current_row = range->first_row;
-    }
-    return rc;
-}
-
-
-/* ----------------------------------------------------------------------------------------------- */
-
-
-static rc_t find_refname_start( const VCursor *curs, uint32_t * a_idx, row_range * range, 
-                                const String * refname, int64_t * row_id, const char * acc )
-{
-    rc_t rc = 0;
-    int64_t curr_row = range->first_row;
-    uint64_t rows_processed = 0;
-    bool done = false;
-    
-    *row_id = -1;
-    while ( rc == 0 && !done )
-    {
-        String S;
-        uint32_t elem_bits, boff, row_len;
-        
-        /* get the SEQ_ID */
-        rc = VCursorCellDataDirect( curs, curr_row, a_idx[ 0 ], &elem_bits, ( const void ** )&S.addr, &boff, &row_len );
-        if ( rc != 0 )
-            log_err( "cannot read '%s'.REFERENCE.SEQ_ID[ %ld ] %R", acc, curr_row, rc );
-        else
-        {
-            S.len = S.size = row_len;
-            done = ( StringCompare( &S, refname ) == 0 );
-            if ( done )
-                *row_id = curr_row;
-            else
-            {
-                rc = VCursorCellDataDirect( curs, curr_row, a_idx[ 1 ], &elem_bits, ( const void ** )&S.addr, &boff, &row_len );
-                if ( rc != 0 )
-                    log_err( "cannot read '%s'.REFERENCE.NAME[ %ld ] %R", acc, curr_row, rc );
-                else
-                {
-                    S.len = S.size = row_len;
-                    done = ( StringCompare( &S, refname ) == 0 );
-                    if ( done )
-                        *row_id = curr_row;
-                    else
-                    {
-                        rows_processed++;
-                        if ( rows_processed >= range->row_count )
-                            done = true;
-                        else
-                            curr_row++;
-                    }
-                }
-            }
-        }
-    }
-    return rc;
-}
-
-static rc_t find_refname_end( const VCursor *curs, uint32_t * a_idx, row_range * range, 
-                              const String * refname, int64_t * row_id, const char * acc )
-{
-    rc_t rc = 0;
-    int64_t curr_row = range->first_row;
-    uint64_t rows_processed = 0;
-    bool done = false;
-    
-    *row_id = -1;
-    while ( rc == 0 && !done )
-    {
-        String S1, S2;
-        uint32_t elem_bits, boff, row_len;
-        
-        /* get the SEQ_ID */
-        rc = VCursorCellDataDirect( curs, curr_row, a_idx[ 0 ], &elem_bits, ( const void ** )&S1.addr, &boff, &row_len );
-        if ( rc != 0 )
-            log_err( "cannot read '%s'.REFERENCE.SEQ_ID[ %ld ] %R", acc, curr_row, rc );
-        else
-        {
-            S1.len = S1.size = row_len;
-            rc = VCursorCellDataDirect( curs, curr_row, a_idx[ 1 ], &elem_bits, ( const void ** )&S2.addr, &boff, &row_len );
-            if ( rc != 0 )
-                log_err( "cannot read '%s'.REFERENCE.NAME[ %ld ] %R", acc, curr_row, rc );
-            else
-            {
-                S2.len = S2.size = row_len;
-                {
-                    int cmp1 = StringCompare( &S1, refname );
-                    int cmp2 = StringCompare( &S2, refname );
-                    done = ( cmp1 != 0 && cmp2 != 0 );
-                    if ( done )
-                        *row_id = curr_row - 1;
-                    else
-                    {
-                        rows_processed++;
-                        if ( rows_processed >= range->row_count )
-                            done = true;
-                        else
-                            curr_row++;
-                    }
-                }
-            }
-        }
-    }
-    return rc;
-}
-
-/* find the row-range corresponding to a slice */
-rc_t alig_iter_get_row_range_of_slice( struct alig_iter * ai, slice * slice, row_range * range )
-{
-    rc_t rc = 0;
-    if ( ai == NULL || slice == NULL || range == NULL )
-    {
-        rc = RC( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
-        log_err( "aligmnet_iter.alig_iter_get_row_range_of_slice() given a NULL-ptr" );
-    }
-    else
-    {
-        const VTable *tbl;
-        rc_t rc = VDatabaseOpenTableRead( ai->db, &tbl, "%s", "REFERENCE" );
-        if ( rc != 0 )
-            log_err( "aligmnet_iter.alig_iter_get_row_range_of_slice().VDatabaseOpenTableRead( '%s'.REFERENCE ) %R", ai->acc, rc );
-        else
-        {
-            const VCursor *curs;
-            rc = VTableCreateCursorRead( tbl, &curs );
-            if ( rc != 0 )
-                log_err( "aligmnet_iter.alig_iter_get_row_range_of_slice().VTableCreateCursorRead( '%s'.REFERENCE ) %R", ai->acc, rc );
-            else
-            {
-                uint32_t a_idx[ 4 ];
-                rc = add_cols_to_cursor( curs, a_idx, "REFERENCE", ai->acc, 4,
-                        "SEQ_ID", "NAME", "PRIMARY_ALIGNMENT_IDS", "MAX_SEQ_LEN" );
-                if ( rc == 0 )
-                {
-                    row_range rr;
-                    rc = VCursorIdRange( curs, a_idx[ 2 ], &rr.first_row, &rr.row_count );
-                    if ( rc != 0 )
-                        log_err( "aligmnet_iter.alig_iter_get_row_range_of_slice().VCursorIdRange( '%s'.REFERENCE ) %R", ai->acc, rc );
-                    else
-                    {
-                        int64_t refname_start;
-                        rc = find_refname_start( curs, a_idx, &rr, slice->refname, &refname_start, ai->acc );
-                        if ( rc == 0 )
-                        {
-                            int64_t refname_end;
-                            row_range search;
-                            search.first_row = refname_start + 1;
-                            search.row_count = rr.row_count - refname_start;
-                            
-                            rc = find_refname_end( curs, a_idx, &search, slice->refname, &refname_end, ai->acc );
-                            if ( rc == 0 )
-                            {
-                                
-                                KOutMsg( "found start of '%S': %d\n", slice->refname, refname_start );
-                                KOutMsg( "found end   of '%S': %d\n", slice->refname, refname_end );
-                            }
-                            
-                        }
-                    }
-                }
-                VCursorRelease( curs );
-            }
-            VTableRelease( tbl );
-
-            range->first_row = 1;
-            range->row_count = 10000;
-        }
-    }
-    return rc;
 }

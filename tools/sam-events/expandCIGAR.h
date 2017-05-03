@@ -48,7 +48,7 @@ struct cFastaFile;
  *   NB: this is NCBI's FASTA format; see https://blast.ncbi.nlm.nih.gov/Blast.cgi?CMD=Web&PAGE_TYPE=BlastDocs&DOC_TYPE=BlastHelp
  */
 struct cFastaFile* loadFastaFile( unsigned length, char const path[ /* length */ ] );
-struct cFastaFile* loadcSRA( char const * accession );
+struct cFastaFile* loadcSRA( char const * accession, size_t cache_capacity );
 
 /* unload - free the resources associated with the file
  * this call invalides all references to the file object

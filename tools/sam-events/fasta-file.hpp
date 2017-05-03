@@ -42,7 +42,7 @@ namespace CPP
             
             // the code of these 2 constructors is in fasta-file.cpp
             explicit FastaFile( std::istream &is );
-            explicit FastaFile( std::string const &accession );
+            explicit FastaFile( std::string const &accession, size_t cache_capacity );
         
             unsigned Create_From_Reftable_Cursor( void * p );
 
@@ -97,9 +97,9 @@ namespace CPP
                 return ifs.is_open() ? FastaFile::load( ifs ) : FastaFile();
             }
 
-            static FastaFile load_from_accession( std::string const &accession )
+            static FastaFile load_from_accession( std::string const &accession, size_t cache_capacity )
             {
-                return FastaFile( accession );
+                return FastaFile( accession, cache_capacity );
             }
 
     };
@@ -111,7 +111,7 @@ namespace CPP
         IndexedFastaFile() {}
         
         explicit IndexedFastaFile( std::istream &is ) : FastaFile( is ), index( makeIndex() ) {}
-        explicit IndexedFastaFile( std::string const &accession ) : FastaFile( accession ), index( makeIndex() ) {}
+        explicit IndexedFastaFile( std::string const &accession, size_t cache_capacity ) : FastaFile( accession, cache_capacity ), index( makeIndex() ) {}
         
         public:
             int find( std::string const &SEQID ) const
@@ -120,22 +120,15 @@ namespace CPP
                 return iter != index.end() ? iter->second : -1;
             }
         
-            /*
-            static IndexedFastaFile load_from_stream( std::istream &is )
-            {
-                return IndexedFastaFile( is );
-            }
-            */
-            
             static IndexedFastaFile load_from_file( std::string const &filename )
             {
                 std::ifstream ifs( filename.c_str() );
                 return ifs.is_open() ? IndexedFastaFile( ifs ) : IndexedFastaFile();
             }
 
-            static IndexedFastaFile load_from_accession( std::string const &accession )
+            static IndexedFastaFile load_from_accession( std::string const &accession, size_t cache_capacity )
             {
-                return IndexedFastaFile( accession );
+                return IndexedFastaFile( accession, cache_capacity );
             }
     };
 

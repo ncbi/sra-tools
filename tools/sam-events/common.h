@@ -70,4 +70,8 @@ rc_t writer_release( struct Writer * wr );
 rc_t writer_make( struct Writer ** wr, const char * filename );
 rc_t writer_write( struct Writer * wr, const char * fmt, ... );
 
+
+AlignmentT * copy_alignment( const AlignmentT * src );
+void free_alignment_copy( AlignmentT * src );
+
 #endif

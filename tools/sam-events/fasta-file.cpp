@@ -186,7 +186,7 @@ struct cursor_ctx
 };
 
 /* constructor for */
-FastaFile::FastaFile( std::string const &accession ) : data( 0 )
+FastaFile::FastaFile( std::string const &accession, size_t cache_capacity ) : data( 0 )
 {
     const VDBManager * mgr;
     rc_t rc = VDBManagerMakeRead( &mgr, NULL );
@@ -207,7 +207,10 @@ FastaFile::FastaFile( std::string const &accession ) : data( 0 )
             else
             {
                 struct cursor_ctx c;
-                rc = VTableCreateCursorRead( tbl, &c.curs );
+                if ( cache_capacity > 0 )
+                    rc = VTableCreateCachedCursorRead( tbl, &c.curs, cache_capacity );
+                else
+                    rc = VTableCreateCursorRead( tbl, &c.curs );
                 if ( rc != 0 )
                     std::cerr << "cannot create cursor: " << accession << ".REFERENCE" << std::endl;
                 else

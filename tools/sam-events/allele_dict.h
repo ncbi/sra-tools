@@ -34,8 +34,13 @@
 
 struct Allele_Dict;
 
+typedef rc_t ( CC * on_ad_event )( const counters * count, const String * rname, uint64_t position,
+                                    uint32_t deletes, uint32_t inserts, const char * bases,
+                                    void * user_data );
+
 /* construct a allele-dictionary */
-rc_t allele_dict_make( struct Allele_Dict ** ad, const String * rname );
+rc_t allele_dict_make( struct Allele_Dict ** ad, const String * rname, uint32_t purge,
+                       on_ad_event event_func, void * user_data );
 
 /* releae a allele_dictionary */
 rc_t allele_dict_release( struct Allele_Dict * ad );
@@ -43,15 +48,5 @@ rc_t allele_dict_release( struct Allele_Dict * ad );
 /* put an event into the allele_dictionary */
 rc_t allele_dict_put( struct Allele_Dict * ad, uint64_t position,
                       uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first );
-
-typedef rc_t ( CC * on_ad_event )( const counters * count, const String * rname, uint64_t position,
-                                    uint32_t deletes, uint32_t inserts, const char * bases,
-                                    void * user_data );
-
-/* call a callback for each event in the allele_dictionary */
-rc_t allele_dict_visit_all_and_release( struct Allele_Dict * ad, on_ad_event f, void * user_data );
-
-/* call a callback for each event until a certain purge-distance is reached */
-rc_t allele_dict_visit_and_purge( struct Allele_Dict * ad, uint32_t purge_dist, on_ad_event f, void * user_data );
 
 #endif

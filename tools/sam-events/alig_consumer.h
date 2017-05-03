@@ -44,8 +44,6 @@ rc_t alig_consumer_release( struct alig_consumer * ac );
 
 rc_t alig_consumer_consume_alignment( struct alig_consumer * self, AlignmentT * al );
 
-rc_t alig_consumer_visit_and_purge( struct alig_consumer * self, uint32_t purge );
-
 bool alig_consumer_get_unsorted( struct alig_consumer * self );
 
 #endif

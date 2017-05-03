@@ -70,7 +70,7 @@ rc_t alig_consumer_release( struct alig_consumer * self )
     else
     {
         if ( self->ad != NULL )
-            rc = allele_dict_visit_all_and_release( self->ad, alig_consumer_print, self );
+            rc = allele_dict_release( self->ad );
         if ( rc == 0 )
             rc = VNamelistRelease( self->seen_refs );
         free( ( void * ) self );
@@ -168,6 +168,7 @@ static rc_t CC alig_consumer_print( const counters * count, const String * rname
     
     return 0;
 }
+
 
 /* we have a common store function because this is the place to filter... */
 static rc_t alig_consumer_store_allele( struct alig_consumer * self,
@@ -366,7 +367,7 @@ static rc_t alig_consumer_check_rname( struct alig_consumer * self, const String
         
         /* print all entries found in the allele-dict, and then release the whole allele-dict */
         if ( rc == 0 && self->ad != NULL )
-            rc = allele_dict_visit_all_and_release( self->ad, alig_consumer_print, self );
+            rc = allele_dict_release( self->ad );
        
         /* switch to the new reference!
            - store the new refname in the current-struct
@@ -377,7 +378,7 @@ static rc_t alig_consumer_check_rname( struct alig_consumer * self, const String
             
         /* make a new allele-dict */
         if ( rc == 0 )
-            rc = allele_dict_make( &self->ad, rname );
+            rc = allele_dict_make( &self->ad, rname, self->purge, alig_consumer_print, self );
     }
     else
     {
@@ -436,18 +437,6 @@ rc_t alig_consumer_consume_alignment( struct alig_consumer * self, AlignmentT * 
                 }
             }
         }
-    }
-    return rc;
-}
-
-
-rc_t alig_consumer_visit_and_purge( struct alig_consumer * self, uint32_t purge )
-{
-    rc_t rc = 0;
-    if ( self != NULL )
-    {
-        if ( self->ad != NULL )
-            rc = allele_dict_visit_and_purge( self->ad, purge, alig_consumer_print, self );
     }
     return rc;
 }

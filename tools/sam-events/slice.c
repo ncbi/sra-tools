@@ -67,6 +67,20 @@ void print_slice( slice * slice )
 }
 
 
+static uint64_t StrippedStringToU64( const String * S, rc_t * rc )
+{
+    char temp[ 64 ];
+    String S_temp;
+    uint32_t i, j;
+    for ( i = 0, j = 0; i < S->len; ++ i )
+    {
+        char c = S->addr[ i ];
+        if ( c >= '0' && c <= '9' ) temp[ j++ ] = c;
+    }
+    S_temp.addr = temp;
+    S_temp.len = S_temp.size = j;
+    return StringToU64( &S_temp, rc );
+}
 
 /* S has this format: 'refname[:start-end]' or refname[:start.count] */
 slice * make_slice_from_str( const String * S )
@@ -95,7 +109,7 @@ slice * make_slice_from_str( const String * S )
             if ( j > 0 )
             {
                 S_Start.len = S_Start.size = j;
-                start = StringToU64( &S_Start, &rc );
+                start = StrippedStringToU64( &S_Start, &rc );
                 if ( rc == 0 )
                 {
                     if ( i == S->len )
@@ -111,13 +125,18 @@ slice * make_slice_from_str( const String * S )
                         S_End_or_Count.len = S_End_or_Count.size = j;
                         if ( j > 0 )
                         {
-                            uint64_t end_or_count = StringToU64( &S_End_or_Count, &rc );
+                            uint64_t end_or_count = StrippedStringToU64( &S_End_or_Count, &rc );
                             if ( rc == 0 )
                             {
                                 if ( dot_or_dash == '.' )
                                     res = make_slice( start, end_or_count, &refname );
                                 else
-                                    res = make_slice( start, end_or_count - start, &refname );
+                                {
+                                    if ( start < end_or_count )
+                                        res = make_slice( start, end_or_count - start, &refname );
+                                    else
+                                        res = make_slice( end_or_count, start - end_or_count, &refname );
+                                }
                             }
                         }
                         else
@@ -169,6 +188,8 @@ rc_t get_slice( const Args * args, const char *option, slice ** slice )
 		StringInitCString( &S, value );
 		*slice = make_slice_from_str( &S );
 	}
+    else
+        *slice = NULL;
 	return rc;
 }
 

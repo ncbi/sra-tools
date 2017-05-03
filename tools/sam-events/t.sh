@@ -5,12 +5,28 @@
 
 # in order to build we need branch VDB-3307 build at ncbi-vdb
 
+# 34,515,481 alignments
 ACC1=SRR834507
+
+# only 76,824 alignments ( slightly unsorted! )
 ACC2=SRR5323913
+
+# only 191,092 alignments ( slightly unsorted! )
 ACC3=SRR5330399
+
+# only 177,968 alignments ( sorted )
 ACC4=ERR1881852
+
+# MAL1(NC_004325.1) 643,292     MAL2(NC_000910.2) 947,102       MAL3(NC_000521.3) 1,060,087
+# MAL4(NC_004318.1) 1,204,112   MAL5(NC_004326.1) 1,343,552     MAL6(NC_004327.2) 1,418,244
+# MAL7(NC_004328.2) 1,501,717   MAL8(NC_004329.2) 1,419,563     MAL9(NC_004330.1) 1,541,723
+# MAL10(NC_004314.2) 1,687,655  MAL11(NC_004315.2) 2,038,337    MAL12(NC_004316.1) 2,271,477
+# MAL13(NC_004331.2) 2,895,605  MAL14(NC_004317.2) 3,291,871
+
+# 817,426,459 alignments
 ACC5=SRR3986881
 
+# a copy of the lmdb-cache for the dbSNP team
 LMDB_CACHE=/panfs/traces01/sra_review/scratch/raetzw/lmdb_cache
 
 function execute
@@ -23,18 +39,14 @@ function execute
 }
 
 
-function test3ways
+function test2ways
 {
     ACC=$1
 
-    execute "sam-events $ACC.sam --reference $ACC.fasta --fast" "$ACC.fast.events"
-
-    execute "sam-events $ACC.sam --reference $ACC.fasta" "$ACC.slow.events"
-
+    execute "sam-events $ACC.sam --reference $ACC.fasta" "$ACC.fast.events"
     execute "sam-events ./$ACC.sorted --csra" "$ACC.csra.events"
 
     diff -qs $ACC.fast.events $ACC.csra.events
-    diff -qs $ACC.fast.events $ACC.slow.events
 }
 
 function diff2
@@ -88,16 +100,11 @@ function run_with_lookup
 }
 
 #prepare $ACC2
-#test3ways $ACC2
+#test2ways $ACC2
 
 run_sra_vs_sam $ACC4
 
 #run_with_lookup $ACC4
-#sam-events $ACC4 --csra --lookup $LMDB_CACHE
-#sam-events $ACC4 --csra
+#time sam-events $ACC4 --csra --lookup $LMDB_CACHE
 
-a1="NC_000001.10:10055:5:ACCCC"
-a2="NC_000001.10:16494:2:CG"
-#alookup -c $LMDB_CACHE $a1 $a2
-#time alookup -c $LMDB_CACHE > c.txt
-
+#time t2 $ACC4 > 1.txt

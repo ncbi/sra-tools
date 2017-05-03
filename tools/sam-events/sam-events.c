@@ -287,10 +287,6 @@ static rc_t process_alignments_from_extractor( tool_ctx * ctx, Extractor * extra
                     }
                 }
 
-                /* if we are reducing, purge the allele-dict if the spread exeeds max. alignment-length */
-                if ( rc == 0 )
-                    rc = alig_consumer_visit_and_purge( consumer, ctx->purge );
-                
                 /* now we are telling the extractor that we are done the alignments.... */
                 rc = SAMExtractorInvalidateAlignments( extractor );
             }
@@ -426,13 +422,13 @@ static rc_t produce_events_from_accession( tool_ctx * ctx, const char * acc )
     {
         /* no fasta-file given, get the fasta out of the accession! */
         /* header in expandCIGAR.h code in fasta-file.[hpp/cpp]*/
-        ctx->fasta = loadcSRA( acc );
+        ctx->fasta = loadcSRA( acc, 1024 * 1024 );
     }
 
     if ( ctx->fasta != NULL )
     {
         struct alig_iter * ai;
-        rc = alig_iter_make( &ai, acc );
+        rc = alig_iter_make( &ai, acc, 1024 * 1024 * 32, ctx->slice );
         if ( rc == 0 ) 
         {
             struct alig_consumer * consumer;
@@ -452,10 +448,6 @@ static rc_t produce_events_from_accession( tool_ctx * ctx, const char * acc )
                         /* consume the alignment */
                         if ( rc == 0 )
                             rc = alig_consumer_consume_alignment( consumer, &alignment );
-
-                        /* if we are reducing, purge the allele-dict if the spread exeeds the purge-value * 2 */
-                        if ( rc == 0 && ( ( processed % ctx->purge ) == 0 ) )
-                            rc = alig_consumer_visit_and_purge( consumer, ctx->purge );
 
                         /* check if we are quitting... */
                         if ( rc == 0 ) { running = ( Quitting() == 0 ); }

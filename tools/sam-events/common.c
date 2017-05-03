@@ -220,3 +220,53 @@ rc_t writer_write( struct Writer * wr, const char * fmt, ... )
     return rc;
 
 }
+
+
+/* ----------------------------------------------------------------------------------------------- */
+
+
+AlignmentT * copy_alignment( const AlignmentT * src )
+{
+    AlignmentT * res = malloc( sizeof * res );
+    if ( res != NULL )
+    {
+        size_t total = src->rname.size + src->cigar.size + src->read.size;
+        res->rname.addr = malloc( total );
+        if ( res->rname.addr != NULL )
+        {
+            char * dst = ( char * )res->rname.addr;
+            
+            string_copy( dst, src->rname.size, src->rname.addr, src->rname.size );
+            res->rname.size = src->rname.size;
+            res->rname.len = src->rname.len;
+            dst += src->rname.len;
+            
+            string_copy( dst, src->cigar.size, src->cigar.addr, src->cigar.size );
+            res->cigar.addr = dst;
+            res->cigar.size = src->cigar.size;
+            res->cigar.len = src->cigar.len;
+            dst += src->cigar.len;
+            
+            string_copy( dst, src->read.size, src->read.addr, src->read.size );
+            res->read.addr = dst;
+            res->read.size = src->read.size;
+            res->read.len = src->read.len;
+        }
+        
+        res->pos = src->pos;
+        res->fwd = src->fwd;
+        res->first = src->first;
+    }
+    return res;
+}
+
+
+void free_alignment_copy( AlignmentT * src )
+{
+    if ( src != NULL )
+    {
+        /* the pointer is in the rname-String! */
+        if ( src->rname.addr != NULL ) free( ( void * ) src->rname.addr );
+        free( ( void * ) src );
+    }
+}

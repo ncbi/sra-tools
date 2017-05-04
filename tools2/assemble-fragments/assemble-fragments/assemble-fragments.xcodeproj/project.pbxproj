@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		BE47E36C1EB3BB4000D68FA5 /* reorder-ir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */; };
+		BE47E36D1EB3C25000D68FA5 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
 		BE4F77E41EA51E7F00CB45D6 /* sra2ir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */; };
 		BEA40E391EA52B1D00A8DF60 /* makeIRIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEA40E381EA52B1D00A8DF60 /* makeIRIndex.cpp */; };
 		BEA40E471EA52BA500A8DF60 /* sortIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEA40E461EA52BA500A8DF60 /* sortIndex.cpp */; };
@@ -16,6 +18,15 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
+		BE47E3621EB3B9B100D68FA5 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
 		BE4F77DA1EA51E5B00CB45D6 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -46,6 +57,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		BE47E3641EB3B9B100D68FA5 /* reorder-ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "reorder-ir"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "reorder-ir.cpp"; path = "../../reorder-ir.cpp"; sourceTree = "<group>"; };
 		BE4F77DC1EA51E5B00CB45D6 /* sra2ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = sra2ir; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = sra2ir.cpp; path = ../../sra2ir.cpp; sourceTree = "<group>"; };
 		BE4F77E61EA51EA700CB45D6 /* vdb.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = vdb.hpp; path = ../../shared/include/vdb.hpp; sourceTree = SOURCE_ROOT; };
@@ -60,6 +73,14 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		BE47E3611EB3B9B100D68FA5 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE47E36D1EB3C25000D68FA5 /* libncbi-wvdb.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BE4F77D91EA51E5B00CB45D6 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -87,6 +108,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		BE47E3651EB3B9B100D68FA5 /* reorder-ir */ = {
+			isa = PBXGroup;
+			children = (
+				BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */,
+			);
+			path = "reorder-ir";
+			sourceTree = "<group>";
+		};
 		BE4F77C51EA51DE900CB45D6 = {
 			isa = PBXGroup;
 			children = (
@@ -94,6 +123,7 @@
 				BE4F77DD1EA51E5B00CB45D6 /* sra2ir */,
 				BEA40E321EA52B0600A8DF60 /* makeIRIndex */,
 				BEA40E401EA52B9300A8DF60 /* sortIRIndex */,
+				BE47E3651EB3B9B100D68FA5 /* reorder-ir */,
 				BE4F77CF1EA51DE900CB45D6 /* Products */,
 				BE4F77EA1EA51EFE00CB45D6 /* Makefile */,
 				BE4F77EB1EA51F3500CB45D6 /* Frameworks */,
@@ -106,6 +136,7 @@
 				BE4F77DC1EA51E5B00CB45D6 /* sra2ir */,
 				BEA40E311EA52B0600A8DF60 /* makeIRIndex */,
 				BEA40E3F1EA52B9300A8DF60 /* sortIRIndex */,
+				BE47E3641EB3B9B100D68FA5 /* reorder-ir */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -155,6 +186,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		BE47E3631EB3B9B100D68FA5 /* reorder-ir */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BE47E3681EB3B9B100D68FA5 /* Build configuration list for PBXNativeTarget "reorder-ir" */;
+			buildPhases = (
+				BE47E3601EB3B9B100D68FA5 /* Sources */,
+				BE47E3611EB3B9B100D68FA5 /* Frameworks */,
+				BE47E3621EB3B9B100D68FA5 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "reorder-ir";
+			productName = "reorder-ir";
+			productReference = BE47E3641EB3B9B100D68FA5 /* reorder-ir */;
+			productType = "com.apple.product-type.tool";
+		};
 		BE4F77DB1EA51E5B00CB45D6 /* sra2ir */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = BE4F77E01EA51E5B00CB45D6 /* Build configuration list for PBXNativeTarget "sra2ir" */;
@@ -212,9 +260,14 @@
 		BE4F77C61EA51DE900CB45D6 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
+				LastSwiftUpdateCheck = 0830;
 				LastUpgradeCheck = 0830;
 				ORGANIZATIONNAME = "Kenneth Durbrow";
 				TargetAttributes = {
+					BE47E3631EB3B9B100D68FA5 = {
+						CreatedOnToolsVersion = 8.3.2;
+						ProvisioningStyle = Automatic;
+					};
 					BE4F77DB1EA51E5B00CB45D6 = {
 						CreatedOnToolsVersion = 8.3.1;
 						ProvisioningStyle = Automatic;
@@ -244,11 +297,20 @@
 				BE4F77DB1EA51E5B00CB45D6 /* sra2ir */,
 				BEA40E301EA52B0600A8DF60 /* makeIRIndex */,
 				BEA40E3E1EA52B9300A8DF60 /* sortIRIndex */,
+				BE47E3631EB3B9B100D68FA5 /* reorder-ir */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXSourcesBuildPhase section */
+		BE47E3601EB3B9B100D68FA5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE47E36C1EB3BB4000D68FA5 /* reorder-ir.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		BE4F77D81EA51E5B00CB45D6 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -276,6 +338,28 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
+		BE47E3691EB3B9B100D68FA5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BE47E36A1EB3B9B100D68FA5 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		BE4F77D31EA51DE900CB45D6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -440,6 +524,14 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		BE47E3681EB3B9B100D68FA5 /* Build configuration list for PBXNativeTarget "reorder-ir" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BE47E3691EB3B9B100D68FA5 /* Debug */,
+				BE47E36A1EB3B9B100D68FA5 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+		};
 		BE4F77C91EA51DE900CB45D6 /* Build configuration list for PBXProject "assemble-fragments" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -339,7 +339,9 @@ static int process(char const *const indexFile, bool const isSorted)
         auto last = *(uint64_t *)(&map->key[0]);
         auto const rindex = (IndexRow **)(scratch);
         auto out = rindex;
-        for (auto i = map; i != mapEnd; ++i) {
+        
+        *out++ = map;
+        for (auto i = map + 1; i != mapEnd; ++i) {
             auto key = *(uint64_t *)(&i->key[0]);
             if (last == key) continue;
             *out++ = i;
@@ -370,7 +372,7 @@ static int process(char const *const indexFile, bool const isSorted)
                     cp = buffer;
                 }
                 *cp++ = (*j++).row;
-            } while (*(uint64_t *)(&j->key[0]) == key);
+            } while ((void *)j < (void *)buffer && *(uint64_t *)(&j->key[0]) == key);
         }
         write(fd, buffer, (cp - buffer) * sizeof(*cp));
         std::cerr << "Done" << std::endl;
@@ -384,7 +386,7 @@ static int process(char const *const indexFile, bool const isSorted)
 int main(int argc, char *argv[])
 {
     if (argc == 2)
-        return process(argv[1], false);
+        return process(argv[1], true);
     else {
         std::cerr << "usage: sortIndex <index file>" << std::endl;
         return 1;

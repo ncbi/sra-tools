@@ -89,10 +89,40 @@ namespace VDB {
         
         Cursor(C::VCursor *const o_) :o(o_) {}
     public:
+        struct Data {
+            unsigned elem_bits;
+            unsigned elements;
+            
+            size_t size() const {
+                return (elem_bits * elements + 7) / 8;
+            }
+            void *data() const {
+                return (void *)(this + 1);
+            }
+            void *end() const {
+                auto const sz = (size() + 3) / 4;
+                return (void *)((uint8_t *)(data()) + sz * 4);
+            }
+        };
         struct RawData {
             void const *data;
             unsigned elem_bits;
             unsigned elements;
+            
+            size_t size() const {
+                return (elem_bits * elements + 7) / 8;
+            }
+            Data const *copy(void *memory, void const *endp) const {
+                auto const rslt = (Data *)memory;
+                if (rslt + 1 > endp)
+                    return nullptr;
+                rslt->elem_bits = elem_bits;
+                rslt->elements = elements;
+                if (rslt->end() > endp)
+                    return nullptr;
+                memcpy(rslt + 1, this->data, size());
+                return rslt;
+            }
         };
         Cursor(Cursor const &other) :o(other.o) { C::VCursorAddRef(o); }
         ~Cursor() { C::VCursorRelease(o); }

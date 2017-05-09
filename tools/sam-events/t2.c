@@ -130,9 +130,9 @@ static rc_t CC consumer_thread_function( const KThread * self, void * data )
 
     struct cFastaFile * fasta = loadcSRA( ctd->acc, 1024 * 1024 );
     struct alig_consumer * consumer;
-    counters limits = { .fwd = 0, .rev = 0, .t_pos = 0, .t_neg = 0 };
+    counters limits = { .total = 0, .fwd = 0, .rev = 0, .t_pos = 0, .t_neg = 0 };
     
-    rc = alig_consumer_make( &consumer, 0, &limits, NULL, NULL, fasta, 5000 );
+    rc = alig_consumer_make( &consumer, &limits, NULL, NULL, fasta, 5000, 0, NULL );
     if ( rc == 0 )
     {
         bool running = true;    

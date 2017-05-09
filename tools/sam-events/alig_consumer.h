@@ -30,14 +30,21 @@
 #include <klib/rc.h>
 #include "common.h"
 #include "allele_lookup.h"
+#include "allele_dict.h"
 #include "slice.h"
 #include "expandCIGAR.h"
 
 struct alig_consumer;
 
 /* construct an alignmet-iterator from an accession */
-rc_t alig_consumer_make( struct alig_consumer ** ac, uint32_t min_count, const counters * limits,
-                         struct Allele_Lookup * lookup, const slice * slice, struct cFastaFile * fasta, uint32_t purge );
+rc_t alig_consumer_make( struct alig_consumer ** ac,
+                         const counters * limits,
+                         struct Allele_Lookup * lookup,
+                         const slice * slice,
+                         struct cFastaFile * fasta,
+                         uint32_t purge,
+                         uint32_t dict_strategy,
+                         C1000 * C1000 );
 
 /* releae an alignment-iterator */
 rc_t alig_consumer_release( struct alig_consumer * ac );

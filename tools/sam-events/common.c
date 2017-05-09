@@ -270,3 +270,17 @@ void free_alignment_copy( AlignmentT * src )
         free( ( void * ) src );
     }
 }
+
+
+/* ----------------------------------------------------------------------------------------------- */
+
+void clear_recorded_errors( void )
+{
+    rc_t rc;
+    const char * filename;
+    const char * funcname;
+    uint32_t line_nr;
+    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
+    {
+    }
+}

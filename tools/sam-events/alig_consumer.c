@@ -34,12 +34,13 @@
 typedef struct alig_consumer
 {
     /* given at constructor */
-    uint32_t min_count;
     const counters * limits;
     struct Allele_Lookup * lookup;
     const slice * slice;
     struct cFastaFile * fasta;
     uint32_t purge;
+    uint32_t dict_strategy;
+    C1000 * C1000;
     
     /* detection of unsorted alignments */
     bool unsorted;
@@ -52,6 +53,7 @@ typedef struct alig_consumer
     const char * ref_bases;
     unsigned ref_bases_count;
     struct Allele_Dict * ad;
+    struct Allele_Dict2 * ad2;
     
 } alig_consumer;
 
@@ -71,6 +73,10 @@ rc_t alig_consumer_release( struct alig_consumer * self )
     {
         if ( self->ad != NULL )
             rc = allele_dict_release( self->ad );
+        if ( self->ad2 != NULL )
+            rc = allele_dict2_release( self->ad2 );
+        if ( self->rname != NULL )
+            StringWhack ( self->rname );
         if ( rc == 0 )
             rc = VNamelistRelease( self->seen_refs );
         free( ( void * ) self );
@@ -79,8 +85,14 @@ rc_t alig_consumer_release( struct alig_consumer * self )
 }
 
 /* construct an alignmet-iterator from an accession */
-rc_t alig_consumer_make( struct alig_consumer ** ac, uint32_t min_count, const counters * limits,
-                         struct Allele_Lookup * lookup, const slice * slice, struct cFastaFile * fasta, uint32_t purge )
+rc_t alig_consumer_make( struct alig_consumer ** ac,
+                         const counters * limits,
+                         struct Allele_Lookup * lookup,
+                         const slice * slice,
+                         struct cFastaFile * fasta,
+                         uint32_t purge,
+                         uint32_t dict_strategy,
+                         C1000 * C1000 )
 {
     rc_t rc = 0;
     if ( ac == NULL || limits == NULL )
@@ -99,13 +111,14 @@ rc_t alig_consumer_make( struct alig_consumer ** ac, uint32_t min_count, const c
         }
         else
         {
-            o->min_count = min_count;
             o->limits = limits;
             o->lookup = lookup;
             o->ref_index = -1;
             o->slice = slice;
             o->fasta = fasta;
             o->purge = purge;
+            o->dict_strategy = dict_strategy;
+            o->C1000 = C1000;
             VNamelistMake( &o->seen_refs, 10 );
         }
         
@@ -126,8 +139,8 @@ static rc_t CC alig_consumer_print( const counters * count, const String * rname
     const counters * limits = self->limits;
     bool print;
     
-    if ( self->min_count > 0 )
-        print = ( count->fwd + count->rev >= self->min_count );
+    if ( self->limits->total > 0 )
+        print = ( count->fwd + count->rev >= self->limits->total );
     else
         print = true;
     if ( print && limits->fwd > 0 )
@@ -182,7 +195,10 @@ static rc_t alig_consumer_store_allele( struct alig_consumer * self,
 
 	if ( store )
     {
-		return allele_dict_put( self->ad, position, deletes, inserts, bases, fwd, first );
+        if ( self->dict_strategy == 0 )
+            return allele_dict_put( self->ad, position, deletes, inserts, bases, fwd, first );
+        else
+            return allele_dict2_put( self->ad2, position, deletes, inserts, bases, fwd, first );        
     }
 	else
 		return 0;
@@ -193,13 +209,13 @@ static rc_t alig_consumer_process_mismatch( struct alig_consumer * self,
                                             struct Event * ev )
 {
     RefVariation * ref_var;
-    rc_t rc = RefVariationIUPACMake( &ref_var,                      /* to be created */
-                                     self->ref_bases,               /* the reference-bases */
-                                     self->ref_bases_count,         /* length of the reference */
-                                     ( alignment->pos - 1 ) + ev->refPos, /* position of event */
-                                     ev->length,                    /* length of deletion */
+    rc_t rc = RefVariationIUPACMake( &ref_var,                              /* to be created */
+                                     self->ref_bases,                       /* the reference-bases */
+                                     self->ref_bases_count,                 /* length of the reference */
+                                     ( alignment->pos - 1 ) + ev->refPos,  /* position of event */
+                                     ev->length,                            /* length of deletion */
                                      &( alignment->read.addr[ ev->seqPos ] ),  /* inserted bases */
-                                     ev->length,                    /* number of inserted bases */
+                                     ev->length,                            /* number of inserted bases */
                                      refvarAlgRA );
     if ( rc != 0 )
         log_err( "RefVariationIUPACMake() failed rc=%R", rc );
@@ -213,6 +229,7 @@ static rc_t alig_consumer_process_mismatch( struct alig_consumer * self,
         if ( rc != 0 )
             log_err( "RefVariationGetAllele() failed rc=%R", rc );
         else
+            /*                                     pos            del         ins         bases */
             rc = alig_consumer_store_allele( self, allele_start, allele_len, allele_len, allele, alignment->fwd, alignment->first );
 
         rc2 = RefVariationRelease( ref_var );
@@ -228,13 +245,13 @@ static rc_t alig_consumer_process_insert( struct alig_consumer * self,
                                           struct Event * ev )
 {
     RefVariation * ref_var;
-    rc_t rc = RefVariationIUPACMake( &ref_var,                      /* to be created */
-                                     self->ref_bases,                 /* the reference-bases */
-                                     self->ref_bases_count,           /* length of the reference */
-                                     ( alignment->pos - 1 ) + ev->refPos, /* position of event */
-                                     0,                             /* length of deletion */
+    rc_t rc = RefVariationIUPACMake( &ref_var,                              /* to be created */
+                                     self->ref_bases,                       /* the reference-bases */
+                                     self->ref_bases_count,                 /* length of the reference */
+                                     ( alignment->pos - 1 ) + ev->refPos,  /* position of event */
+                                     0,                                     /* length of deletion */
                                      &( alignment->read.addr[ ev->seqPos ] ),  /* inserted bases */
-                                     ev->length,                    /* number of inserted bases */
+                                     ev->length,                            /* number of inserted bases */
                                      refvarAlgRA );
     if ( rc != 0 )
         log_err( "RefVariationIUPACMake() failed rc=%R", rc );
@@ -248,6 +265,7 @@ static rc_t alig_consumer_process_insert( struct alig_consumer * self,
         if ( rc != 0 )
             log_err( "RefVariationGetAllele() failed rc=%R", rc );
         else
+            /*                                     pos           del ins        bases */        
             rc = alig_consumer_store_allele( self, allele_start, 0, allele_len, allele, alignment->fwd, alignment->first );
 
         rc2 = RefVariationRelease( ref_var );
@@ -263,13 +281,13 @@ static rc_t alig_consumer_process_delete( struct alig_consumer * self,
                                           struct Event * ev )
 {
     RefVariation * ref_var;
-    rc_t rc = RefVariationIUPACMake( &ref_var,                      /* to be created */
-                                     self->ref_bases,               /* the reference-bases */
-                                     self->ref_bases_count,         /* length of the reference */
-                                     ( alignment->pos - 1 ) + ev->refPos, /* position of event */
-                                     ev->length,                    /* length of deletion */
-                                     NULL,                          /* inserted bases */
-                                     0,                             /* number of inserted bases */
+    rc_t rc = RefVariationIUPACMake( &ref_var,                              /* to be created */
+                                     self->ref_bases,                       /* the reference-bases */
+                                     self->ref_bases_count,                 /* length of the reference */
+                                     ( alignment->pos - 1 ) + ev->refPos,  /* position of event */
+                                     ev->length,                            /* length of deletion */
+                                     NULL,                                  /* inserted bases */
+                                     0,                                     /* number of inserted bases */
                                      refvarAlgRA );
     if ( rc != 0 )
         log_err( "RefVariationIUPACMake() failed rc=%R", rc );
@@ -283,6 +301,7 @@ static rc_t alig_consumer_process_delete( struct alig_consumer * self,
         if ( rc != 0 )
             log_err( "RefVariationGetAllele() failed rc=%R", rc );
         else
+            /*                                     pos           del         ins bases */        
             rc = alig_consumer_store_allele( self, allele_start, ev->length, 0, NULL, alignment->fwd, alignment->first );
         
         rc2 = RefVariationRelease( ref_var );
@@ -366,9 +385,14 @@ static rc_t alig_consumer_check_rname( struct alig_consumer * self, const String
         }
         
         /* print all entries found in the allele-dict, and then release the whole allele-dict */
-        if ( rc == 0 && self->ad != NULL )
-            rc = allele_dict_release( self->ad );
-       
+        if ( rc == 0 )
+        {
+            if ( self->ad != NULL )
+                rc = allele_dict_release( self->ad );
+            if ( self->ad2 != NULL )
+                rc = allele_dict2_release( self->ad2 );
+        }
+        
         /* switch to the new reference!
            - store the new refname in the current-struct
            - get the index of the new reference into the fasta-file
@@ -378,12 +402,21 @@ static rc_t alig_consumer_check_rname( struct alig_consumer * self, const String
             
         /* make a new allele-dict */
         if ( rc == 0 )
-            rc = allele_dict_make( &self->ad, rname, self->purge, alig_consumer_print, self );
+        {
+            if ( self->dict_strategy == 0 )
+                rc = allele_dict_make( &self->ad, rname, self->purge, alig_consumer_print, self );
+            else
+                rc = allele_dict2_make( &self->ad2, rname, alig_consumer_print, self, self->C1000 );
+        }
     }
     else
     {
         if ( position < self->position )
+        {
             self->unsorted = true;
+            rc = RC( rcApp, rcNoTarg, rcInserting, rcParam, rcInvalid );
+            log_err( "alig_consumer_check_rname() unsorted %lu ---> %lu", self->position, position );
+        }
     }
     self->position = position;
     

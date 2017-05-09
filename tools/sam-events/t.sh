@@ -102,9 +102,15 @@ function run_with_lookup
 #prepare $ACC2
 #test2ways $ACC2
 
-run_sra_vs_sam $ACC4
+#run_sra_vs_sam $ACC4
 
 #run_with_lookup $ACC4
 #time sam-events $ACC4 --csra --lookup $LMDB_CACHE
 
 #time t2 $ACC4 > 1.txt
+
+#time sam-events $ACC4 --csra > 1.txt
+time sam-events $ACC1 --csra --strat 1 > 2.txt
+#diff2 1.txt 2.txt
+
+#valgrind --ncbi sam-events $ACC4 --csra --strat 1 > 1.txt 2>vg.txt

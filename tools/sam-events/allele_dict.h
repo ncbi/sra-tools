@@ -33,20 +33,37 @@
 
 
 struct Allele_Dict;
+struct Allele_Dict2;
+
+typedef struct C1000 {
+    uint32_t c[ 1000 ];
+} C1000;
 
 typedef rc_t ( CC * on_ad_event )( const counters * count, const String * rname, uint64_t position,
                                     uint32_t deletes, uint32_t inserts, const char * bases,
                                     void * user_data );
 
 /* construct a allele-dictionary */
-rc_t allele_dict_make( struct Allele_Dict ** ad, const String * rname, uint32_t purge,
+rc_t allele_dict_make( struct Allele_Dict ** self, const String * rname, uint32_t purge,
                        on_ad_event event_func, void * user_data );
 
 /* releae a allele_dictionary */
-rc_t allele_dict_release( struct Allele_Dict * ad );
+rc_t allele_dict_release( struct Allele_Dict * self );
 
 /* put an event into the allele_dictionary */
-rc_t allele_dict_put( struct Allele_Dict * ad, uint64_t position,
+rc_t allele_dict_put( struct Allele_Dict * self, uint64_t position,
                       uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first );
+
+
+/* construct a allele-dictionary */
+rc_t allele_dict2_make( struct Allele_Dict2 ** self,
+                        const String * rname, on_ad_event event_func, void * user_data, C1000 * C1000 );
+
+/* releae a allele_dictionary */
+rc_t allele_dict2_release( struct Allele_Dict2 * self );
+
+/* put an event into the allele_dictionary */
+rc_t allele_dict2_put( struct Allele_Dict2 * self, uint64_t position,
+                       uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first );
 
 #endif

@@ -118,6 +118,9 @@ static const char * slice_usage[]     = { "process only this slice of the refere
 #define ALIAS_LOOKUP   "l"
 static const char * lookup_usage[]    = { "perfrom lookup for each allele into this lmdb-file >", NULL };
 
+#define OPTION_STRAT   "strat"
+static const char * strat_usage[]     = { "storage strategy ( dflt=0, 1 ) >", NULL };
+
 
 OptDef ToolOptions[] =
 {
@@ -134,6 +137,7 @@ OptDef ToolOptions[] =
     { OPTION_MINTN,     NULL,          NULL, mintn_usage,     1,   true,        false },
 
     { OPTION_PURGE,     ALIAS_PURGE,    NULL, purge_usage,     1,   true,        false },
+    { OPTION_STRAT,     NULL,          NULL, strat_usage,     1,   true,        false },    
     { OPTION_LOG,       ALIAS_LOG,      NULL, log_usage,       1,   true,        false }
 };
 
@@ -177,7 +181,7 @@ rc_t CC Usage ( const Args * args )
 
 typedef struct tool_ctx
 {
-    uint32_t min_count, purge;
+    uint32_t purge, strategy;
     bool csra, unsorted;
     counters limits;
     const char * ref;
@@ -187,6 +191,7 @@ typedef struct tool_ctx
 	slice * slice;
     struct Allele_Lookup * lookup;
     uint64_t pos_lookups;
+    C1000 C1000;
 } tool_ctx;
 
 
@@ -214,10 +219,13 @@ static rc_t fill_out_tool_ctx( const Args * args, tool_ctx * ctx )
     if ( rc == 0 )
         rc = get_uint32( args, OPTION_PURGE, &ctx->purge, 4096 );
     if ( rc == 0 )
+        rc = get_uint32( args, OPTION_STRAT, &ctx->strategy, 0 );
+        
+    if ( rc == 0 )
         rc = get_charptr( args, OPTION_LOG, &ctx->logfilename );
     
     if ( rc == 0 )
-        rc = get_uint32( args, OPTION_MINCNT, &ctx->min_count, 0 );
+        rc = get_uint32( args, OPTION_MINCNT, &ctx->limits.total, 0 );
     if ( rc == 0 )
         rc = get_uint32( args, OPTION_MINFWD, &ctx->limits.fwd, 0 );
     if ( rc == 0 )
@@ -234,6 +242,8 @@ static rc_t fill_out_tool_ctx( const Args * args, tool_ctx * ctx )
         if ( rc == 0 && lookup_file != NULL )
             rc = allele_lookup_make( &ctx->lookup, lookup_file );
     }
+    
+    memset( &ctx->C1000, 0, sizeof ctx->C1000 );
     return rc;
 }
 
@@ -241,7 +251,11 @@ static void release_tool_ctx( tool_ctx * ctx )
 {
     if ( ctx != NULL )
     {
-        
+        uint32_t idx;
+        for ( idx = 0; idx < 1000; ++idx )
+            if ( ctx->C1000.c[ idx ] > 0 )
+                KOutMsg( "C1000[ %d ] =%d\n", idx, ctx->C1000.c[ idx ] );
+
         if ( ctx->log != NULL ) writer_release( ctx->log );
         if ( ctx->fasta != NULL ) unloadFastaFile( ctx->fasta );
         if ( ctx->slice != NULL ) release_slice( ctx->slice );
@@ -254,8 +268,8 @@ static void release_tool_ctx( tool_ctx * ctx )
 static rc_t process_alignments_from_extractor( tool_ctx * ctx, Extractor * extractor )
 {
     struct alig_consumer * consumer;
-    rc_t rc = alig_consumer_make( &consumer, ctx->min_count, &ctx->limits, ctx->lookup,
-                                  ctx->slice, ctx->fasta, ctx->purge );
+    rc_t rc = alig_consumer_make( &consumer, &ctx->limits, ctx->lookup,
+                                  ctx->slice, ctx->fasta, ctx->purge, ctx->strategy, &ctx->C1000 );
     if ( rc == 0 )
     {
         bool running = true;
@@ -432,8 +446,8 @@ static rc_t produce_events_from_accession( tool_ctx * ctx, const char * acc )
         if ( rc == 0 ) 
         {
             struct alig_consumer * consumer;
-            rc = alig_consumer_make( &consumer, ctx->min_count, &ctx->limits, ctx->lookup, ctx->slice,
-                                     ctx->fasta, ctx->purge );
+            rc = alig_consumer_make( &consumer, &ctx->limits, ctx->lookup, ctx->slice,
+                                     ctx->fasta, ctx->purge, ctx->strategy, &ctx->C1000 );
             if ( rc == 0 )
             {
                 bool running = true;
@@ -532,6 +546,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 log_err( "the source was not sorted, alleles are not correctly counted" );
             release_tool_ctx( &ctx );
         }
+        clear_recorded_errors();
         ArgsWhack ( args );
     }
     else

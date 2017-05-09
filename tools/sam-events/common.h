@@ -33,7 +33,7 @@
 
 typedef struct counters
 {
-    uint32_t fwd, rev, t_pos, t_neg;
+    uint32_t fwd, rev, t_pos, t_neg, total;
 } counters;
 
 typedef struct row_range
@@ -73,5 +73,7 @@ rc_t writer_write( struct Writer * wr, const char * fmt, ... );
 
 AlignmentT * copy_alignment( const AlignmentT * src );
 void free_alignment_copy( AlignmentT * src );
+
+void clear_recorded_errors( void );
 
 #endif

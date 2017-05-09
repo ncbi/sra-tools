@@ -48,6 +48,7 @@ static void release_dict_entry_no_free( Dict_Entry * e )
 {
     if ( e->base_ptr != NULL && e->base_ptr != e->bases )
         free( ( void * )e->base_ptr );
+    memset( e, 0, sizeof *e );
 }
 
 
@@ -268,8 +269,10 @@ static rc_t visit_pos_entry( const String * rname, uint32_t pos,
                              const Pos_Entry * pe, on_ad_event f, void * user_data )
 {
     /* first we visit the mandatory pos-event */
+    rc_t rc = 0;
     const Dict_Entry * e = &pe->e;
-    rc_t rc = f( &( e->count ), rname, pos, e->deletes, e->inserts, e->base_ptr, user_data );
+    if ( e->deletes > 0 || e->inserts > 0 )
+        rc = f( &( e->count ), rname, pos, e->deletes, e->inserts, e->base_ptr, user_data );
     if ( rc == 0 )
     {
         uint32_t i, n = VectorLength( &( pe->entries ) );
@@ -282,6 +285,54 @@ static rc_t visit_pos_entry( const String * rname, uint32_t pos,
     }
     return rc;
 }
+
+#if 0
+static rc_t enter_pos_entry( Pos_Entry * pe,
+                             uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first )
+{
+    rc_t rc = 0;
+    if ( pe->e.deletes == 0 && pe->e.inserts == 0 )
+    {
+        /* this pos-entry is empty, put the data into pe->e */
+        initialize_dict_entry( &pe->e, deletes, inserts, bases, fwd, first );
+    }
+    else
+    {
+        if ( equal_dict_entry( &pe->e, deletes, inserts, bases ) == 0 )
+        {
+            /* the key ( deletes,inserts,bases ) matches the single ( common-case ) event */
+            count_dict_entry( &( pe->e.count ) , fwd, first );
+        }
+        else
+        {
+            Dict_Entry * e;
+            if ( VectorLength( &( pe->entries ) ) == 0 )
+            {
+                /* vector has not been used: initialize it */
+                VectorInit( &( pe->entries ), 0, 5 );
+                /* put new event into it */
+                rc = insert_event( &( pe->entries ), deletes, inserts, bases, fwd, first );
+            }
+            else
+            {
+                /* vector has been used... , try to find entry */
+                e = vector_lookup( &( pe->entries ), deletes, inserts, bases );
+                if ( e != NULL )
+                {
+                    /* we do have an entry already, just increase count */
+                    count_dict_entry( &( e->count ), fwd, first );
+                }
+                else
+                {
+                    /* we do not have one already, make a new one */
+                    rc = insert_event( &( pe->entries ), deletes, inserts, bases, fwd, first );
+                }
+            }
+        }
+    }
+    return rc;
+}
+#endif
 
 /* --------------------------------------------------------------------------------------------------- */
 
@@ -494,37 +545,276 @@ rc_t allele_dict_put( struct Allele_Dict * self,
 
 
 /* --------------------------------------------------------------------------------------------------- */
-#define BLOCKSIZE 1024
 
-static rc_t make_entry_block( Pos_Entry ** block, uint32_t blocksize )
+#define ALLELES_PER_POS 500
+
+typedef struct Pos_Entry2
+{
+    Dict_Entry e[ ALLELES_PER_POS ];
+    uint32_t used;
+} Pos_Entry2;
+
+
+#define BLOCKSIZE 500
+#define BLOCKCOUNT 3
+
+typedef struct Allele_Dict2
+{
+    const String * rname;       /* the reference-name, to get handed out the the event_func */
+    void * user_data;           /* a user-context, to get handed out the the event_func */
+    on_ad_event event_func;     /* the event_func, to be called when a block goes out of */
+    C1000 * C1000;
+    
+    Pos_Entry2 entries[ BLOCKCOUNT * BLOCKSIZE ];
+    Pos_Entry2 * blocks[ BLOCKCOUNT ];
+    uint64_t starting_pos;
+    uint64_t last_pos;
+} Allele_Dict2;
+
+
+static rc_t allele_dict2_enter_pos_entry( Pos_Entry2 * pe,
+                     uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first )
 {
     rc_t rc = 0;
-    if ( block == NULL )
+    if ( pe->used == 0 )
     {
-        rc = RC( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
-        log_err( "allele_dict.make_entry_block() given a NULL-ptr" );
+        initialize_dict_entry( &pe->e[ 0 ], deletes, inserts, bases, fwd, first );
+        pe->used += 1;
     }
     else
     {
-        Pos_Entry * o = calloc( blocksize, sizeof * o );
-        *block = NULL;
-        if ( o == NULL )
+        uint32_t idx;
+        Dict_Entry * found = NULL;
+        
+        /* we are looking for an entry that matches our allele */
+        for( idx = 0; idx < pe->used; ++idx )
         {
-            rc = RC( rcApp, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
-            log_err( "allele_dict.make_entry_block() memory exhausted" );
+            if ( equal_dict_entry( &pe->e[ idx ], deletes, inserts, bases ) == 0 )
+            {
+                found = &pe->e[ idx ];
+            }
+        }
+        
+        if ( found != NULL )
+        {
+            /* we found one, increase it's counters */
+            count_dict_entry( &found->count, fwd, first );
         }
         else
-            *block = o;
+        {
+            /* we did not find one, initialize one with our allele */
+            if ( pe->used < ALLELES_PER_POS )
+            {
+                /* we still have space for a new allele at this position */
+                initialize_dict_entry( &pe->e[ pe->used ], deletes, inserts, bases, fwd, first );
+                pe->used += 1;
+            }
+            else
+            {
+                /* we have a problem here: we have no space for our allele! */            
+                rc = RC( rcApp, rcNoTarg, rcInserting, rcParam, rcInvalid );
+                log_err( "allele_dict.allele_dict2_enter_pos_entry() has not enough space" );
+            }
+        }
+    }
+    return rc;
+}
+
+static rc_t allele_dict2_visit_and_clear_block( Allele_Dict2 * self, uint64_t starting_pos, Pos_Entry2 * start_ptr )
+{
+    rc_t rc = 0;
+    uint32_t pos_idx;
+    for ( pos_idx = 0; rc == 0 && pos_idx < BLOCKSIZE; ++pos_idx )
+    {
+        Pos_Entry2 * pe = &start_ptr[ pos_idx ];
+        uint32_t entry_idx;
+        
+        /* visit the entries, and release them */
+        for ( entry_idx = 0; rc == 0 && entry_idx < pe->used; ++entry_idx )
+        {
+            Dict_Entry * de = &pe->e[ entry_idx ];
+            rc = self->event_func( &( de->count ), self->rname, starting_pos + pos_idx,
+                                    de->deletes, de->inserts, de->base_ptr, self->user_data );
+            release_dict_entry_no_free( de );
+        }
+        
+        if ( self->C1000 != NULL ) self->C1000->c[ pe->used ] ++;
+
+        /* now, no entries are used any more */
+        pe->used = 0;
     }
     return rc;
 }
 
 
-typedef struct Allele_Dict2
+rc_t allele_dict2_release( struct Allele_Dict2 * self )
 {
-    const String * rname;
-    void * user_data;
-    on_ad_event event_func;
-    
-    uint32_t blocksize;
-} Allele_Dict2;
+    rc_t rc = 0;
+    if ( self == NULL )
+    {
+        rc = RC( rcApp, rcNoTarg, rcInserting, rcParam, rcNull );
+        log_err( "allele_dict.allele_dict2_release() given a NULL-ptr" );
+    }
+    else
+    {
+        uint32_t idx;
+        uint64_t starting_pos = self->starting_pos;
+        for ( idx = 0; rc == 0 && idx < BLOCKCOUNT; ++idx )
+        {
+            rc = allele_dict2_visit_and_clear_block( self, starting_pos, self->blocks[ idx ] );
+            starting_pos += BLOCKSIZE;
+        }
+        
+        if ( self->rname != NULL )
+            StringWhack( self->rname );
+        free( ( void * ) self );
+    }
+    return rc;
+}
+
+
+static rc_t allele_dict2_initialize( struct Allele_Dict2 * self, const String * rname,
+                                    on_ad_event event_func, void * user_data, C1000 * C1000 )
+{
+    rc_t rc = StringCopy( &self->rname, rname );
+    if ( rc != 0  )
+        log_err( "allele_dict.allele_dict2_initialize() StringCopy failed" );
+    else
+    {
+        uint32_t idx;
+        
+        self->event_func = event_func;
+        self->user_data = user_data;
+        self->C1000 = C1000;
+        self->starting_pos = 0;
+        self->last_pos = self->starting_pos + ( BLOCKCOUNT * BLOCKSIZE ) - 1;
+        
+        for ( idx = 0; idx < BLOCKCOUNT; ++idx )
+        {
+            self->blocks[ idx ] = &self->entries[ idx * BLOCKSIZE ];
+        }
+    }
+    return rc;
+}
+
+
+rc_t allele_dict2_make( struct Allele_Dict2 ** self,
+                        const String * rname, on_ad_event event_func, void * user_data, C1000 * C1000 )
+{
+    rc_t rc = 0;
+    if ( self == NULL || rname == NULL )
+    {
+        rc = RC( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        log_err( "allele_dict.allele_dict2_make() given a NULL-ptr" );
+    }
+    else
+    {
+        Allele_Dict2 * o = calloc( 1, sizeof *o );
+        *self = NULL;
+        if ( o == NULL )
+        {
+            rc = RC( rcApp, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
+            log_err( "allele_dict.allele_dict_make() memory exhausted" );
+        }
+        else
+            rc = allele_dict2_initialize( o, rname, event_func, user_data, C1000 );
+
+        if ( rc == 0 )
+            *self = o;
+        else
+            allele_dict2_release( o );
+    }
+    return rc;
+}
+
+
+rc_t allele_dict2_put( struct Allele_Dict2 * self,
+                       uint64_t position, uint32_t deletes, uint32_t inserts,
+                       const char * bases, bool fwd, bool first )
+{
+    rc_t rc = 0;
+    if ( self == NULL )
+    {
+        rc = RC( rcApp, rcNoTarg, rcInserting, rcParam, rcNull );
+        log_err( "allele_dict2.allele_dict_put() given a NULL-ptr" );
+    }
+    else
+    {
+        bool inserting = true;
+        while ( rc == 0 && inserting )
+        {
+            if ( position < self->starting_pos )
+            {
+                /* this is bad, we are going backwards on position, input is unsorted! */
+                rc = RC( rcApp, rcNoTarg, rcInserting, rcParam, rcInvalid );
+                log_err( "allele_dict.allele_dict2_put() inserted pos of %lu before dict.starting_pos of %lu",
+                         position, self->starting_pos );
+            }
+            else if ( position < self->last_pos )
+            {
+                /* this is the common case, we insert into the current window... */
+                uint64_t relative_pos = ( position - self->starting_pos );
+                uint64_t block_idx = ( relative_pos / BLOCKSIZE );
+                if ( block_idx >= BLOCKCOUNT )
+                {
+                    /* this should not happen, if it happens then starting_pos/last_pos are invalid */
+                    rc = RC( rcApp, rcNoTarg, rcInserting, rcParam, rcInvalid );
+                    log_err( "allele_dict.allele_dict2_put() inserted pos of %lu not between %lu and %lu",
+                             position, self->starting_pos, self->last_pos );
+                }
+                else
+                {
+                    /* we have found the block where our allele goes in */
+                    Pos_Entry2 * pe = self->blocks[ block_idx ];
+                    /* now let as adjust the corrent position */
+                    pe += ( relative_pos - ( BLOCKSIZE * block_idx ) );
+                    
+                    /**************************************************************/
+                    rc = allele_dict2_enter_pos_entry( pe, deletes, inserts, bases, fwd, first );
+                    /**************************************************************/
+                    
+                    /* now we can terminate the loop! */
+                    inserting = false;
+                }
+            }
+            else
+            {
+                /* we are advancing out of the window, parts of it has to be purged... */
+                
+                /* what is the difference between the last_pos and the allele-position */
+                int64_t gap = ( position - self->last_pos );
+                uint32_t idx;
+                
+                if ( gap < ( BLOCKCOUNT * BLOCKSIZE ) )
+                {
+                    /* the gap is small enough to advance one block at a time, we purge the fist block */
+                    rc = allele_dict2_visit_and_clear_block( self, self->starting_pos, self->blocks[ 0 ] );
+                    if ( rc == 0 )
+                    {
+                        /* we rotate the blocks... */
+                        Pos_Entry2 * temp = self->blocks[ 0 ];
+                        for ( idx = 0; idx < ( BLOCKCOUNT - 1 ); ++idx )
+                            self->blocks[ idx ] = self->blocks[ idx + 1 ];
+                        self->blocks[ BLOCKCOUNT - 1 ] = temp;
+                        
+                        /* we move starting_pos and last_pos forward by BLOCKSIZE */
+                        self->starting_pos += BLOCKSIZE;
+                        self->last_pos += BLOCKSIZE;
+                    }
+                }
+                else
+                {
+                    /* the gap is wider then all of our blocks, we purge all blocks */
+                    for ( idx = 0; rc == 0 && idx < BLOCKCOUNT; ++idx )
+                        rc = allele_dict2_visit_and_clear_block( self, self->starting_pos + ( idx * BLOCKSIZE ), self->blocks[ idx ] );    
+                    
+                    /* let us start one block before the allele-pos ( because allele-positions can fluctuate ) */
+                    self->starting_pos = position - ( BLOCKSIZE * BLOCKCOUNT );
+                    self->last_pos = self->starting_pos + ( BLOCKCOUNT * BLOCKSIZE ) - 1;
+                }
+                /* we re-enter the inserting-loop again to try to place our allele */
+            }
+        }
+    }
+    return rc;
+}

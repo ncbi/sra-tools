@@ -40,6 +40,13 @@ struct Event {
     unsigned seqPos; /* position in query sequence */
 };
 
+struct Event2 {
+    unsigned refPos; // deletion starts here (relative to start of alignment)
+    unsigned refLen; // deletion length; 0 for insert only
+    unsigned seqPos; // replacement starts here
+    unsigned seqLen; // replacement length; 0 for delete only
+};
+
 struct cFastaFile;
 
 /* Note: Any string length can be 0 if the string is nul-terminated */
@@ -87,5 +94,16 @@ int expandCIGAR(  struct Event * const result       /* the event-vector to be fi
                 , unsigned const position           /* the position of the alignment ( 0-based ) relative to the reference */
                 , struct cFastaFile * const file    /* the reference-object */    
                 , int referenceNumber );            /* the index into the reference-object */
+
+int expandCIGAR2(  struct Event2 * const result     /* the event-vector to be filled out */
+                 , int result_len                   /* how many events we have in the result-vector */
+                 , int result_offset                /* at which offset do we want the result */
+                 , int * remaining                  /* if the result-vector was not big enough */
+                 , unsigned cigar_len
+                 , char const * const CIGAR         /* the cigar of the alignment */
+                 , char const * const sequence      /* the sequence-bases of the alignment */
+                 , unsigned const position          /* the position of the alignment ( 0-based ) relative to the reference */
+                 , struct cFastaFile * const file   /* the reference-object */
+                 , int referenceNumber );           /* the index into the reference-object */
 
 #endif

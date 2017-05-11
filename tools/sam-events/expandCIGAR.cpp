@@ -155,4 +155,73 @@ extern "C"
         }
         return res;
     }
+
+    int expandCIGAR2(  struct Event2 * const result
+                     , int result_len
+                     , int result_offset
+                     , int * remaining
+                     , unsigned cigar_len
+                     , char const *const CIGAR
+                     , char const *const sequence
+                     , unsigned const position
+                     , struct cFastaFile *const file
+                     , int referenceNumber)
+    {
+        *remaining = 0;
+        std::string const &cigar = std::string( CIGAR, cigar_len );
+        try
+        {
+            std::vector< CPP::Event > const &events =
+            CPP::expandAlignment( file->file.sequences[ referenceNumber ], position, cigar, sequence );
+            int N = (int)events.size();
+#if 0
+            // ignore trailing mismatches; this replicates the behavior of Eugenes's perl script
+            // it might be a bug, though
+            while (N > 0 && events[N - 1].type == mismatch)
+                --N;
+#endif
+            unsigned refEnd = 0;
+            unsigned seqEnd = 0;
+            
+            struct Event2 *const dst = result + result_offset;
+            struct Event2 *const dstEnd = result + result_len;
+            
+            int rem = N;
+            int i = 0;
+            int j = 0;
+            
+            while (i < N) {
+                struct Event evt = events[i++];
+                struct Event2 evt2;
+                
+                evt2.refPos = evt.refPos;
+                evt2.seqPos = evt.seqPos;
+                evt2.refLen = evt2.seqLen = evt.length;
+                if (evt.type == insertion)
+                    evt2.refLen = 0;
+                else if (evt.type == deletion)
+                    evt2.seqLen = 0;
+                
+                if (j > 0 && refEnd == evt2.refPos && seqEnd == evt2.seqPos) {
+                    dst[j - 1].refLen += evt2.refLen;
+                    dst[j - 1].seqLen += evt2.seqLen;
+                }
+                else if (dst + j < dstEnd) {
+                    dst[j++] = evt2;
+                    --rem;
+                }
+                else
+                    break;
+                
+                refEnd = evt2.refPos + evt2.refLen;
+                seqEnd = evt2.seqPos + evt2.seqLen;
+            }
+            *remaining = rem;
+            return j;
+        }
+        catch (...)
+        {
+            return -1;
+        }
+    }
 }

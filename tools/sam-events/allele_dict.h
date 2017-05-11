@@ -31,21 +31,23 @@
 #include <klib/text.h>
 #include "common.h"
 
-
 struct Allele_Dict;
 struct Allele_Dict2;
 
-typedef struct C1000 {
-    uint32_t c[ 1000 ];
-} C1000;
 
 typedef rc_t ( CC * on_ad_event )( const counters * count, const String * rname, uint64_t position,
                                     uint32_t deletes, uint32_t inserts, const char * bases,
                                     void * user_data );
 
+typedef struct dict_data {
+    on_ad_event event_func;
+    uint32_t purge;
+    void * user_data;
+} dict_data;
+
+
 /* construct a allele-dictionary */
-rc_t allele_dict_make( struct Allele_Dict ** self, const String * rname, uint32_t purge,
-                       on_ad_event event_func, void * user_data );
+rc_t allele_dict_make( struct Allele_Dict ** self, const String * rname, const dict_data * data );
 
 /* releae a allele_dictionary */
 rc_t allele_dict_release( struct Allele_Dict * self );
@@ -56,8 +58,7 @@ rc_t allele_dict_put( struct Allele_Dict * self, uint64_t position,
 
 
 /* construct a allele-dictionary */
-rc_t allele_dict2_make( struct Allele_Dict2 ** self,
-                        const String * rname, on_ad_event event_func, void * user_data, C1000 * C1000 );
+rc_t allele_dict2_make( struct Allele_Dict2 ** self, const String * rname, const dict_data * data );
 
 /* releae a allele_dictionary */
 rc_t allele_dict2_release( struct Allele_Dict2 * self );

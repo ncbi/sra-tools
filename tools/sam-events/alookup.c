@@ -311,7 +311,8 @@ static rc_t print_cache( tool_ctx * ctx )
                     running = lookup_cursor_next( curs, &key, values );
                     if ( running )
                     {
-                        rc = print_entry( &key, values );
+                        /*rc = print_entry( &key, values );*/
+                        rc = KOutMsg( "%S\t%lu\t%lu\n", &key, values[ 0 ], values[ 1 ] );
                         if ( Quitting() != 0 ) running = false;
                     }
                 }

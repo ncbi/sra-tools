@@ -34,13 +34,10 @@
 typedef struct alig_consumer
 {
     /* given at constructor */
-    const counters * limits;
-    struct Allele_Lookup * lookup;
-    const slice * slice;
-    struct cFastaFile * fasta;
-    uint32_t purge;
-    uint32_t dict_strategy;
-    C1000 * C1000;
+    const alig_consumer_data * ac_data;
+    
+    /* to be given to the allel_dict */
+    dict_data dict_data;
     
     /* detection of unsorted alignments */
     bool unsorted;
@@ -57,10 +54,6 @@ typedef struct alig_consumer
     
 } alig_consumer;
 
-
-static rc_t CC alig_consumer_print( const counters * count, const String * rname, size_t position,
-                            uint32_t deletes, uint32_t inserts, const char * bases,
-                            void * user_data );
 
 /* releae an alignment-iterator */
 rc_t alig_consumer_release( struct alig_consumer * self )
@@ -84,63 +77,17 @@ rc_t alig_consumer_release( struct alig_consumer * self )
     return rc;
 }
 
-/* construct an alignmet-iterator from an accession */
-rc_t alig_consumer_make( struct alig_consumer ** ac,
-                         const counters * limits,
-                         struct Allele_Lookup * lookup,
-                         const slice * slice,
-                         struct cFastaFile * fasta,
-                         uint32_t purge,
-                         uint32_t dict_strategy,
-                         C1000 * C1000 )
-{
-    rc_t rc = 0;
-    if ( ac == NULL || limits == NULL )
-    {
-        rc = RC( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
-        log_err( "alig_consumer.alig_consumer_make() given a NULL-ptr" );
-    }
-    else
-    {
-        alig_consumer * o = calloc( 1, sizeof *o );
-        *ac = NULL;
-        if ( o == NULL )
-        {
-            rc = RC( rcApp, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
-            log_err( "alig_consumer.alig_consumer_make() memory exhausted" );
-        }
-        else
-        {
-            o->limits = limits;
-            o->lookup = lookup;
-            o->ref_index = -1;
-            o->slice = slice;
-            o->fasta = fasta;
-            o->purge = purge;
-            o->dict_strategy = dict_strategy;
-            o->C1000 = C1000;
-            VNamelistMake( &o->seen_refs, 10 );
-        }
-        
-        if ( rc == 0 )
-            *ac = o;
-        else
-            alig_consumer_release( o );
-    }
-    return rc;
-}
-
 
 static rc_t CC alig_consumer_print( const counters * count, const String * rname, size_t position,
                             uint32_t deletes, uint32_t inserts, const char * bases,
                             void * user_data )
 {
     struct alig_consumer * self = user_data;
-    const counters * limits = self->limits;
+    const counters * limits = &self->ac_data->limits;
     bool print;
     
-    if ( self->limits->total > 0 )
-        print = ( count->fwd + count->rev >= self->limits->total );
+    if ( limits->total > 0 )
+        print = ( count->fwd + count->rev >= limits->total );
     else
         print = true;
     if ( print && limits->fwd > 0 )
@@ -156,7 +103,7 @@ static rc_t CC alig_consumer_print( const counters * count, const String * rname
     
     if ( print )
     {
-        if ( self->lookup != NULL )
+        if ( self->ac_data->lookup != NULL )
         {
             char buffer[ 1024 ];
             size_t num_writ;
@@ -165,7 +112,7 @@ static rc_t CC alig_consumer_print( const counters * count, const String * rname
                 String key;
                 uint64_t values[ 2 ];
                 StringInit( &key, buffer, num_writ, num_writ );
-                if ( allele_lookup_perform( self->lookup, &key, values ) )
+                if ( allele_lookup_perform( self->ac_data->lookup, &key, values ) )
                 {
                     return KOutMsg( "%d\t%d\t%d\t%d\t%S\t%d\t%d\t%d\t%s\t%lu\t%lX\n",
                                      count->fwd, count->rev, count->t_pos, count->t_neg,
@@ -183,6 +130,46 @@ static rc_t CC alig_consumer_print( const counters * count, const String * rname
 }
 
 
+/* construct an alignmet-iterator from an accession */
+rc_t alig_consumer_make( struct alig_consumer ** ac, const alig_consumer_data * ac_data )
+{
+    rc_t rc = 0;
+    if ( ac == NULL || ac_data == NULL )
+    {
+        rc = RC( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
+        log_err( "alig_consumer.alig_consumer_make() given a NULL-ptr" );
+    }
+    else
+    {
+        alig_consumer * o = calloc( 1, sizeof *o );
+        *ac = NULL;
+        if ( o == NULL )
+        {
+            rc = RC( rcApp, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
+            log_err( "alig_consumer.alig_consumer_make() memory exhausted" );
+        }
+        else
+        {
+            o->ac_data = ac_data;
+            
+            /* fill out the data to be given to each dictionary instance */
+            o->dict_data.event_func = alig_consumer_print;
+            o->dict_data.purge = ac_data->purge;
+            o->dict_data.user_data = o;
+            
+            o->ref_index = -1;
+            VNamelistMake( &o->seen_refs, 10 );
+        }
+        
+        if ( rc == 0 )
+            *ac = o;
+        else
+            alig_consumer_release( o );
+    }
+    return rc;
+}
+
+
 /* we have a common store function because this is the place to filter... */
 static rc_t alig_consumer_store_allele( struct alig_consumer * self,
                                         uint64_t position, uint32_t deletes, uint32_t inserts,
@@ -190,12 +177,12 @@ static rc_t alig_consumer_store_allele( struct alig_consumer * self,
 {
 	bool store = true;
 
-	if ( self->slice != NULL )
-		store = filter_by_slice( self->slice, self->rname, position, inserts );
+	if ( self->ac_data->slice != NULL )
+		store = filter_by_slice( self->ac_data->slice, self->rname, position, inserts );
 
 	if ( store )
     {
-        if ( self->dict_strategy == 0 )
+        if ( self->ac_data->strategy == 0 )
             return allele_dict_put( self->ad, position, deletes, inserts, bases, fwd, first );
         else
             return allele_dict2_put( self->ad2, position, deletes, inserts, bases, fwd, first );        
@@ -343,8 +330,8 @@ static rc_t alig_consumer_switch_reference( struct alig_consumer * self, const S
         StringWhack ( self->rname );
     rc = StringCopy( &self->rname, rname );
     
-    if ( self->fasta != NULL )
-        self->ref_index = FastaFile_getNamedSequence( self->fasta, rname->size, rname->addr );
+    if ( self->ac_data->fasta != NULL )
+        self->ref_index = FastaFile_getNamedSequence( self->ac_data->fasta, rname->size, rname->addr );
     else
         self->ref_index = -1;
         
@@ -354,7 +341,7 @@ static rc_t alig_consumer_switch_reference( struct alig_consumer * self, const S
         log_err( "'%S' not found in fasta-file", rname );
     }
     else
-        self->ref_bases_count = FastaFile_getSequenceData( self->fasta, self->ref_index, &self->ref_bases );
+        self->ref_bases_count = FastaFile_getSequenceData( self->ac_data->fasta, self->ref_index, &self->ref_bases );
     return rc;
 }
 
@@ -403,10 +390,10 @@ static rc_t alig_consumer_check_rname( struct alig_consumer * self, const String
         /* make a new allele-dict */
         if ( rc == 0 )
         {
-            if ( self->dict_strategy == 0 )
-                rc = allele_dict_make( &self->ad, rname, self->purge, alig_consumer_print, self );
+            if ( self->ac_data->strategy == 0 )
+                rc = allele_dict_make( &self->ad, rname, &self->dict_data );
             else
-                rc = allele_dict2_make( &self->ad2, rname, alig_consumer_print, self, self->C1000 );
+                rc = allele_dict2_make( &self->ad2, rname, &self->dict_data );
         }
     }
     else
@@ -459,7 +446,7 @@ rc_t alig_consumer_consume_alignment( struct alig_consumer * self, AlignmentT * 
                                               alignment->cigar.addr,
                                               alignment->read.addr,
                                               alignment->pos - 1,
-                                              self->fasta,
+                                              self->ac_data->fasta,
                                               self->ref_index );
                 if ( num_events < 0 )
                     log_err( "expandCIGRAR failed for cigar '%S'", &alignment->cigar );

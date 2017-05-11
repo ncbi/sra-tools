@@ -341,13 +341,11 @@ static rc_t enter_pos_entry( Pos_Entry * pe,
 typedef struct Allele_Dict
 {
     KVector * v;
+    const dict_data * data;
     const String * rname;
-    void * user_data;
-    on_ad_event event_func;
     
     uint64_t min_pos;
     uint64_t max_pos;
-    uint32_t purge;
     uint32_t num_puts;
 } Allele_Dict;
 
@@ -378,7 +376,7 @@ rc_t allele_dict_release( struct Allele_Dict * self )
             rc2 = KVectorGetFirstPtr( self->v, &key, ( void ** )&pe );
             if ( rc2 == 0 )
             {
-                rc = visit_pos_entry( self->rname, key, pe, self->event_func, self->user_data );
+                rc = visit_pos_entry( self->rname, key, pe, self->data->event_func, self->data->user_data );
                 if ( rc == 0 )
                 {
                     rc = KVectorUnset( self->v, key );
@@ -403,8 +401,7 @@ rc_t allele_dict_release( struct Allele_Dict * self )
 }
 
 
-static rc_t allele_dict_initialize( struct Allele_Dict * self, const String * rname, uint32_t purge,
-                                    on_ad_event event_func, void * user_data )
+static rc_t allele_dict_initialize( struct Allele_Dict * self, const String * rname, const dict_data * data )
 {
     rc_t rc = KVectorMake( &self->v );
     if ( rc != 0 )
@@ -416,18 +413,15 @@ static rc_t allele_dict_initialize( struct Allele_Dict * self, const String * rn
             log_err( "allele_dict.allele_dict_make() StringCopy failed" );
         else
         {
-            self->purge = purge;
+            self->data = data;
             self->min_pos = 0xFFFFFFFFFFFFFFFF;
-            self->event_func = event_func;
-            self->user_data = user_data;
         }
     }
     return rc;
 }
 
 
-rc_t allele_dict_make( struct Allele_Dict ** self, const String * rname, uint32_t purge,
-                       on_ad_event event_func, void * user_data )
+rc_t allele_dict_make( struct Allele_Dict ** self, const String * rname, const dict_data * data )
 {
     rc_t rc = 0;
     if ( self == NULL || rname == NULL )
@@ -445,7 +439,7 @@ rc_t allele_dict_make( struct Allele_Dict ** self, const String * rname, uint32_
             log_err( "allele_dict.allele_dict_make() memory exhausted" );
         }
         else
-            rc = allele_dict_initialize( o, rname, purge, event_func, user_data );
+            rc = allele_dict_initialize( o, rname, data );
 
         if ( rc == 0 )
             *self = o;
@@ -460,12 +454,12 @@ static rc_t allele_dict_visit_and_purge( struct Allele_Dict * self )
 {
     rc_t rc = 0;
     int64_t spread = self->max_pos - self->min_pos;
-    if ( spread > ( self->purge * 2 ) )
+    if ( spread > ( self->data->purge * 2 ) )
     {
         rc_t rc2 = 0;
         uint64_t key;
         Pos_Entry * pe;
-        uint64_t last_pos = self->min_pos + self->purge;
+        uint64_t last_pos = self->min_pos + self->data->purge;
         while ( rc2 == 0 )
         {
             rc2 = KVectorGetFirstPtr( self->v, &key, ( void ** )&pe );
@@ -475,7 +469,7 @@ static rc_t allele_dict_visit_and_purge( struct Allele_Dict * self )
                     rc2 = -1;
                 else
                 {
-                    rc = visit_pos_entry( self->rname, key, pe, self->event_func, self->user_data );
+                    rc = visit_pos_entry( self->rname, key, pe, self->data->event_func, self->data->user_data );
                     if ( rc == 0 )
                     {
                         rc = KVectorUnset( self->v, key );
@@ -561,9 +555,7 @@ typedef struct Pos_Entry2
 typedef struct Allele_Dict2
 {
     const String * rname;       /* the reference-name, to get handed out the the event_func */
-    void * user_data;           /* a user-context, to get handed out the the event_func */
-    on_ad_event event_func;     /* the event_func, to be called when a block goes out of */
-    C1000 * C1000;
+    const dict_data * data;
     
     Pos_Entry2 entries[ BLOCKCOUNT * BLOCKSIZE ];
     Pos_Entry2 * blocks[ BLOCKCOUNT ];
@@ -633,13 +625,11 @@ static rc_t allele_dict2_visit_and_clear_block( Allele_Dict2 * self, uint64_t st
         for ( entry_idx = 0; rc == 0 && entry_idx < pe->used; ++entry_idx )
         {
             Dict_Entry * de = &pe->e[ entry_idx ];
-            rc = self->event_func( &( de->count ), self->rname, starting_pos + pos_idx,
-                                    de->deletes, de->inserts, de->base_ptr, self->user_data );
+            rc = self->data->event_func( &( de->count ), self->rname, starting_pos + pos_idx,
+                                    de->deletes, de->inserts, de->base_ptr, self->data->user_data );
             release_dict_entry_no_free( de );
         }
         
-        if ( self->C1000 != NULL ) self->C1000->c[ pe->used ] ++;
-
         /* now, no entries are used any more */
         pe->used = 0;
     }
@@ -673,8 +663,7 @@ rc_t allele_dict2_release( struct Allele_Dict2 * self )
 }
 
 
-static rc_t allele_dict2_initialize( struct Allele_Dict2 * self, const String * rname,
-                                    on_ad_event event_func, void * user_data, C1000 * C1000 )
+static rc_t allele_dict2_initialize( struct Allele_Dict2 * self, const String * rname, const dict_data * data )
 {
     rc_t rc = StringCopy( &self->rname, rname );
     if ( rc != 0  )
@@ -683,9 +672,7 @@ static rc_t allele_dict2_initialize( struct Allele_Dict2 * self, const String * 
     {
         uint32_t idx;
         
-        self->event_func = event_func;
-        self->user_data = user_data;
-        self->C1000 = C1000;
+        self->data = data;
         self->starting_pos = 0;
         self->last_pos = self->starting_pos + ( BLOCKCOUNT * BLOCKSIZE ) - 1;
         
@@ -698,8 +685,7 @@ static rc_t allele_dict2_initialize( struct Allele_Dict2 * self, const String * 
 }
 
 
-rc_t allele_dict2_make( struct Allele_Dict2 ** self,
-                        const String * rname, on_ad_event event_func, void * user_data, C1000 * C1000 )
+rc_t allele_dict2_make( struct Allele_Dict2 ** self, const String * rname, const dict_data * data )
 {
     rc_t rc = 0;
     if ( self == NULL || rname == NULL )
@@ -717,7 +703,7 @@ rc_t allele_dict2_make( struct Allele_Dict2 ** self,
             log_err( "allele_dict.allele_dict_make() memory exhausted" );
         }
         else
-            rc = allele_dict2_initialize( o, rname, event_func, user_data, C1000 );
+            rc = allele_dict2_initialize( o, rname, data );
 
         if ( rc == 0 )
             *self = o;

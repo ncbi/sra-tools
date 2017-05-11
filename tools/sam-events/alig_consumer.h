@@ -36,15 +36,18 @@
 
 struct alig_consumer;
 
+typedef struct alig_consumer_data
+{
+    struct Allele_Lookup * lookup;
+    const slice * slice;
+    struct cFastaFile * fasta;
+    counters limits;
+    uint32_t purge;
+    uint32_t strategy;
+} alig_consumer_data;
+
 /* construct an alignmet-iterator from an accession */
-rc_t alig_consumer_make( struct alig_consumer ** ac,
-                         const counters * limits,
-                         struct Allele_Lookup * lookup,
-                         const slice * slice,
-                         struct cFastaFile * fasta,
-                         uint32_t purge,
-                         uint32_t dict_strategy,
-                         C1000 * C1000 );
+rc_t alig_consumer_make( struct alig_consumer ** ac, const alig_consumer_data * ac_data );
 
 /* releae an alignment-iterator */
 rc_t alig_consumer_release( struct alig_consumer * ac );

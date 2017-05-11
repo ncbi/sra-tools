@@ -127,12 +127,17 @@ static rc_t CC consumer_thread_function( const KThread * self, void * data )
 {
     rc_t rc = 0;
     consumer_thread_data * ctd = data;
-
-    struct cFastaFile * fasta = loadcSRA( ctd->acc, 1024 * 1024 );
-    struct alig_consumer * consumer;
-    counters limits = { .total = 0, .fwd = 0, .rev = 0, .t_pos = 0, .t_neg = 0 };
+    struct alig_consumer * consumer;    
+    alig_consumer_data ac_data;
     
-    rc = alig_consumer_make( &consumer, &limits, NULL, NULL, fasta, 5000, 0, NULL );
+    ac_data.fasta = loadcSRA( ctd->acc, 1024 * 1024 );
+    memset( &ac_data.limits, 0, sizeof ac_data.limits );
+    ac_data.lookup = NULL;
+    ac_data.slice = NULL;
+    ac_data.purge = 5000;
+    ac_data.strategy = 0;
+    
+    rc = alig_consumer_make( &consumer, &ac_data );
     if ( rc == 0 )
     {
         bool running = true;    
@@ -174,7 +179,7 @@ static rc_t run( Args * args, uint32_t count, tool_ctx * ctx )
         else
         {
             struct alig_iter * ai;
-            rc = alig_iter_make( &ai, acc, 1024 * 1024 * 32, NULL );
+            rc = alig_iter_csra_make( &ai, acc, 1024 * 1024 * 32, NULL );
             if ( rc == 0 )
             {
                 consumer_thread_data ctd;
@@ -186,13 +191,12 @@ static rc_t run( Args * args, uint32_t count, tool_ctx * ctx )
                     rc = KThreadMake( &consumer_thread, consumer_thread_function, &ctd );
                     if ( rc == 0 )
                     {
-                        uint64_t processed = 0;
                         uint32_t t_quit = 0;
                         bool running = true;
                         while ( running )
                         {
                             AlignmentT alignment;
-                            running = alig_iter_get( ai, &alignment, &processed );
+                            running = alig_iter_get( ai, &alignment );
                             if ( running )
                             {
                                 /* we have to make a copy to throw the alignment over the 'fence'

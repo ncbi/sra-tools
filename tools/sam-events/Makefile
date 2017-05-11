@@ -143,6 +143,7 @@ T2_LIB = \
 	-skapp \
 	-stk-version \
 	-sncbi-vdb \
+	-ssam-extract \
 	-lm
 
 $(BINDIR)/t2: $(T2_OBJ)

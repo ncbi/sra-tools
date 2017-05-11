@@ -49,6 +49,12 @@
 #define PATH_MAX 4096
 #endif
 
+#define DEF_PROTO "https"
+
+static const char * proto_usage[]
+  = { "protocol (fasp; http; https; fasp,http; ...) default=" DEF_PROTO, NULL };
+#define OPTION_PROTO  "protocol"
+#define ALIAS_PROTO   "a"
 
 static const char * func_usage[] = { "function to perform (resolve, names, search) default=resolve", NULL };
 #define OPTION_FUNC   "funtion"
@@ -70,6 +76,7 @@ static const char * param_usage[] = { "param to be added to cgi-call (tic=XXXXX)
 #define OPTION_PARAM  "param"
 #define ALIAS_PARAM   "p"
 
+/*
 static const char * raw_usage[] = { "print the raw reply (instead of parsing it)", NULL };
 #define OPTION_RAW    "raw"
 #define ALIAS_RAW     "r"
@@ -81,17 +88,21 @@ static const char * size_usage[] = { "print size of object", NULL };
 static const char * date_usage[] = { "print date of object", NULL };
 #define OPTION_DATE   "date"
 #define ALIAS_DATE    "d"
+*/
 
 OptDef ToolOptions[] =
 {
     { OPTION_FUNC,      ALIAS_FUNC,      NULL, func_usage,       1,  true,   false },
     { OPTION_TIMEOUT,   ALIAS_TIMEOUT,   NULL, timeout_usage,    1,  true,   false },
+    { OPTION_PROTO,     ALIAS_PROTO,     NULL, proto_usage,    1, true, false },
     { OPTION_VERS,      ALIAS_VERS,      NULL, vers_usage,       1,  true,   false },
     { OPTION_URL,       ALIAS_URL,       NULL, url_usage,        1,  true,   false },
     { OPTION_PARAM,     ALIAS_PARAM,     NULL, param_usage,      10, true,   false },
+/*
     { OPTION_SIZE,      ALIAS_SIZE,      NULL, size_usage,       1,  false,  false },
     { OPTION_DATE,      ALIAS_DATE,      NULL, date_usage,       1,  false,  false },
     { OPTION_RAW,       ALIAS_RAW,       NULL, raw_usage,        1,  false,  false }
+*/
 };
 
 const char UsageDefaultName[] = "srapath";
@@ -310,6 +321,7 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
         {
             r->names_url  = get_str_option( args, OPTION_URL, NULL ); /* helper.c */
             r->names_ver  = get_str_option( args, OPTION_VERS, NULL ); /* helper.c */
+            r->proto      = get_str_option( args, OPTION_PROTO, DEF_PROTO );
             r->search_url = NULL;
             r->search_ver = NULL;
             
@@ -324,15 +336,16 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
         r->buffer_size = 4096;
         r->timeout_ms = get_uint32_t_option( args, OPTION_TIMEOUT, 5000 );
     }
-    fmt->raw = get_bool_option( args, OPTION_RAW );
-    fmt->print_size = get_bool_option( args, OPTION_SIZE );
-    fmt->print_date = get_bool_option( args, OPTION_DATE );
+    fmt->raw = true;/*get_bool_option( args, OPTION_RAW );*/
+    fmt->print_size = false;/*get_bool_option( args, OPTION_SIZE );*/
+    fmt->print_date = false;/*get_bool_option( args, OPTION_DATE );*/
     return rc;
 }
 
 
 /* ---------------------------------------------------------------------------- */
 
+/*
 static rc_t print_names_reply( const reply_obj * obj, void * data )
 {
     rc_t rc;
@@ -350,6 +363,7 @@ static rc_t print_names_reply( const reply_obj * obj, void * data )
 
     return rc;
 }
+*/
 
 static rc_t names_cgi( const Args * args )
 {
@@ -360,8 +374,9 @@ static rc_t names_cgi( const Args * args )
     {
         uint32_t rslt_code;
 
-        if ( fmt.raw )
+/*      if ( fmt.raw )*/
             rc = raw_names_request( &r, on_reply_line, &rslt_code, NULL ); /* cgi_request.c */
+#if 0
         else
         {
             struct reply_obj_list * list; /* cgi_request.h */
@@ -372,6 +387,7 @@ static rc_t names_cgi( const Args * args )
                 release_reply_obj_list( list ); /* cgi_request.c */
             }
         }
+#endif        
         
         free( ( void * ) r.terms );
         free( ( void * ) r.params );

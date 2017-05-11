@@ -48,6 +48,7 @@ typedef struct request_params
     const char * search_url;    /* NULL ... default url  */
     const char * names_ver;     /* NULL ... default vers */
     const char * search_ver;    /* NULL ... default vers */
+    const char * proto;
     const char ** params;       /* NULL ... none */
     const char ** terms;        /* mandatory... NULL-terminated list of terms */
     size_t buffer_size;

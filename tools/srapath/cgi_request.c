@@ -430,6 +430,7 @@ static void validate_request_params( const request_params * src, request_params 
     dst->search_url     = validate_url( src->search_url, request_type_search );
     dst->search_ver     = validate_ver( src->search_ver, request_type_search );
 
+    dst->proto          = src->proto;
     dst->params         = src->params;
     dst->terms          = src->terms;
     dst->buffer_size    = src->buffer_size;
@@ -452,13 +453,18 @@ rc_t raw_names_request( const request_params * request,
     rc = make_cgi_request( &req, validated_request.names_url );
     if ( rc == 0 )
     {
+        int i = 0;
         const char ** ptr = validated_request.terms;
         rc = add_cgi_request_param( req, "version=%s", validated_request.names_ver );
-        while ( rc == 0 && *ptr != NULL )
+        for ( i = 0; rc == 0 && *ptr != NULL; ++ i, ++ ptr )
         {
-            rc = add_cgi_request_param( req, "acc=%s", *ptr );
-            ptr++;
+            if ( validated_request . names_ver [ 0 ] < '3' )
+                rc = add_cgi_request_param( req, "acc=%s", *ptr );
+            else
+                rc = add_cgi_request_param( req, "object=%d||%s", i, *ptr );
         }
+        rc = add_cgi_request_param ( req, "accept-proto=%s",
+                                     validated_request . proto );
         ptr = validated_request.params;
         while ( rc == 0 && *ptr != NULL )
         {

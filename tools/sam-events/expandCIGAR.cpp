@@ -191,15 +191,17 @@ extern "C"
             int j = 0;
             
             while (i < N) {
-                struct Event evt = events[i++];
+                struct CPP::Event evt = events[i++];
+                if ( (int)evt.type == match )
+                    continue;
                 struct Event2 evt2;
                 
-                evt2.refPos = evt.refPos;
+                evt2.refPos = evt.refPos + position;
                 evt2.seqPos = evt.seqPos;
                 evt2.refLen = evt2.seqLen = evt.length;
-                if (evt.type == insertion)
+                if ( (int)evt.type == insertion)
                     evt2.refLen = 0;
-                else if (evt.type == deletion)
+                else if ( (int)evt.type == deletion)
                     evt2.seqLen = 0;
                 
                 if (j > 0 && refEnd == evt2.refPos && seqEnd == evt2.seqPos) {

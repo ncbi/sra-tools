@@ -28,7 +28,6 @@
 #define _h_alig_iter_
 
 #include <klib/rc.h>
-#include <kfs/file.h>
 #include "common.h"    /* because of AlignmentT */
 #include "slice.h"     /* because of slice */
 

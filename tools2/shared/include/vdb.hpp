@@ -103,6 +103,9 @@ namespace VDB {
                 auto const sz = (size() + 3) / 4;
                 return (void *)((uint8_t *)(data()) + sz * 4);
             }
+            Data const *next() const {
+                return (Data const *)end();
+            }
         };
         struct RawData {
             void const *data;

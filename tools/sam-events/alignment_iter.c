@@ -69,7 +69,8 @@ typedef struct alig_iter
     /* for the SAM-MODE */
     KDirectory * dir;
     const KFile * file;
-    Extractor * sam_extractor;
+    const String * file_desc;
+    SAMExtractor * sam_extractor;
     Vector sam_alignments;
     bool sam_alignments_loaded;
     uint32_t sam_alignments_idx;
@@ -110,6 +111,7 @@ rc_t alig_iter_release( struct alig_iter * self )
             }
             if ( self->file != NULL ) KFileRelease( self->file );
             if ( self->dir != NULL ) KDirectoryRelease( self->dir );
+            if ( self->file_desc != NULL ) StringWhack( self->file_desc );
         }
         free( ( void * ) self );
     }
@@ -186,6 +188,12 @@ static rc_t alig_iter_sam_initialize( struct alig_iter * self, const char * name
         rc = KFileMakeStdIn( &self->file );
         if ( rc != 0 )
             log_err( "error (%R) opening stdin as file", rc );
+        else
+        {
+            String S;
+            StringInitCString( &S, "STDIN" );
+            StringCopy( &self->file_desc, &S );
+        }
     }
     else
     {
@@ -197,13 +205,23 @@ static rc_t alig_iter_sam_initialize( struct alig_iter * self, const char * name
             rc = KDirectoryOpenFileRead( self->dir, &self->file, "%s", name );
             if ( rc != 0 )
                 log_err( "error (%R) opening '%s'", rc, name );
+            else
+            {
+                String S;
+                StringInitCString( &S, name );
+                StringCopy( &self->file_desc, &S );
+            }
         }
     }
     if ( rc == 0 )
     {
-        rc = SAMExtractorMake( &self->sam_extractor, self->file, 1 );
+    
+        rc = SAMExtractorMake( &self->sam_extractor,
+                               self->file,
+                               ( String * )self->file_desc,
+                               1 );
         if ( rc != 0 )
-            log_err( "error (%R) creating sam-extractor from %s", rc, self->source );
+            log_err( "error (%R) creating sam-extractor from %S", rc, self->file_desc );
         else
         {
             /* we have to invalidate ( ask the the extractor to internally destroy ) the headers

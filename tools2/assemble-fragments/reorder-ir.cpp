@@ -64,28 +64,15 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
     auto const freq = (range.second - range.first) / 100.0;
     auto nextReport = 1;
     uint64_t written = 0;
-#if 1
-    auto m = std::map<int64_t, VDB::Cursor::Data const *>();
-    int64_t last = 0;
-    for (auto i = beg; i != end; ++i) {
-        auto const row = *i;
-        VDB::Cursor::Data const *data = nullptr;
-        
-        auto const fnd = m.find(row);
-        if (fnd != m.end())
-            data = fnd->second;
-        else {
-            while (last < row) {
-                
-            }
-        }
-    }
-#else
+    size_t const bufferSize = 4ul * 1024ul * 1024ul * 1024ul;
+    auto buffer = malloc(bufferSize);
+    auto bufEnd = (void const *)((uint8_t const *)buffer + bufferSize);
     auto blockSize = 0;
     
-    std::cerr << "processing " << (range.second - range.first) << " records" << std::endl;
-    std::cerr << "using " << ((uint8_t const *)bufEnd - (uint8_t const *)buffer) / 1024 / 1024 << "MB for record data" << std::endl;
+    std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
+    std::cerr << "info: record storage is " << bufferSize / 1024 / 1024 << "MB" << std::endl;
     for (auto i = beg; i != end; ) {
+    AGAIN:
         auto j = i + (blockSize == 0 ? 1000000 : blockSize);
         if (j > end)
             j = end;
@@ -96,23 +83,17 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
             unsigned count = 0;
             
             std::sort(v.begin(), v.end());
+            // std::cerr << "prog: processing " << v.size() << " records (" << v[0] << "-" << v[v.size() - 1] << ")" << std::endl;
             for (auto r : v) {
-                auto const tmp = (uint8_t const *)cp - (uint8_t const *)buffer;
+                auto const tmp = ((uint8_t const *)cp - (uint8_t const *)buffer) / 4;
                 for (auto i = 0; i < 8; ++i) {
                     auto const data = in.read(r, i + 1);
                     auto p = data.copy(cp, bufEnd);
                     if (p == nullptr) {
-                        auto const at = (uint8_t const *)cp - (uint8_t const *)buffer;
-                        auto const size = (uint8_t const *)bufEnd - (uint8_t const *)buffer;
-                        auto const newSize = ((size_t(double(size) * v.size() * 1.01 / count) + 4095) / 4096) * 4096;
-                        std::cerr << "increasing record storage to " << newSize / 1024 / 1024 << "MB" << std::endl;
-                        auto const np = realloc(buffer, newSize);
-                        if (np == nullptr)
-                            throw std::bad_alloc();
-                        buffer = np;
-                        bufEnd = (void const *)((uint8_t const *)buffer + newSize);
-                        cp = (void *)((uint8_t *)buffer + at);
-                        p = data.copy(cp, bufEnd);
+                        std::cerr << "warn: filled buffer; reducing block size and restarting!" << std::endl;
+                        blockSize = 0.99 * count;
+                        std::cerr << "block size: " << blockSize << std::endl;
+                        goto AGAIN;
                     }
                     cp = p->end();
                 }
@@ -121,31 +102,31 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
             }
             if (blockSize == 0) {
                 auto const avg = double(((uint8_t *)cp - (uint8_t *)buffer)) / count;
-                blockSize = double(((uint8_t *)bufEnd - (uint8_t *)buffer)) / avg;
+                std::cerr << "info: average record size is " << size_t(avg + 0.5) << " bytes" << std::endl;
+                blockSize = 0.95 * (double(((uint8_t *)bufEnd - (uint8_t *)buffer)) / avg);
                 std::cerr << "block size: " << blockSize << std::endl;
             }
         }
         for (auto k = i; k != j; ++k) {
-            VDB::Cursor::Data const *data;
+            auto data = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[*k] * 4);
             
-            write<char   >(out, 1, data = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[*k]));
-            write<char   >(out, 2, data = (VDB::Cursor::Data const *)data->end());
-            write<int32_t>(out, 3, data = (VDB::Cursor::Data const *)data->end());
-            write<char   >(out, 4, data = (VDB::Cursor::Data const *)data->end());
-            write<char   >(out, 5, data = (VDB::Cursor::Data const *)data->end());
-            write<char   >(out, 6, data = (VDB::Cursor::Data const *)data->end());
-            write<int32_t>(out, 7, data = (VDB::Cursor::Data const *)data->end());
-            write<char   >(out, 8, data = (VDB::Cursor::Data const *)data->end());
+            write<char   >(out, 1, data);
+            write<char   >(out, 2, data = data->next());
+            write<int32_t>(out, 3, data = data->next());
+            write<char   >(out, 4, data = data->next());
+            write<char   >(out, 5, data = data->next());
+            write<char   >(out, 6, data = data->next());
+            write<int32_t>(out, 7, data = data->next());
+            write<char   >(out, 8, data = data->next());
             out.closeRow(1);
             ++written;
             if (nextReport * freq <= written) {
-                std::cerr << "processed " << nextReport << "%" << std::endl;
+                std::cerr << "prog: processed " << nextReport << "%" << std::endl;
                 ++nextReport;
             }
         }
         i = j;
     }
-#endif
     std::cerr << "Done" << std::endl;
 
     return 0;

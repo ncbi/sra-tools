@@ -78,46 +78,46 @@ typedef struct alig_iter
 
 
 /* releae an alignment-iterator */
-rc_t alig_iter_release( struct alig_iter * ai )
+rc_t alig_iter_release( struct alig_iter * self )
 {
     rc_t rc = 0;
-    if ( ai == NULL )
+    if ( self == NULL )
         rc = RC( rcApp, rcNoTarg, rcReleasing, rcParam, rcNull );
     else
     {
-        if ( ai->mode == ALIG_ITER_MODE_CSRA )
+        if ( self->mode == ALIG_ITER_MODE_CSRA )
         {
-            if ( ai->curs != NULL )
+            if ( self->curs != NULL )
             {
-                rc = VCursorRelease( ai->curs );
+                rc = VCursorRelease( self->curs );
                 if ( rc != 0 )
-                    log_err( "error (%R) releasing VCursor for %s", rc, ai->source );
+                    log_err( "error (%R) releasing VCursor for %s", rc, self->source );
             }
         }
-        else if ( ai->mode == ALIG_ITER_MODE_SAM )
+        else if ( self->mode == ALIG_ITER_MODE_SAM )
         {
-            if ( ai->sam_alignments_loaded )
+            if ( self->sam_alignments_loaded )
             {
-                rc = SAMExtractorInvalidateAlignments( ai->sam_extractor );
+                rc = SAMExtractorInvalidateAlignments( self->sam_extractor );
                 if ( rc != 0 )
-                    log_err( "SAMExtractorInvalidateAlignments( '%s' ) failed (%R)", ai->source, rc );
+                    log_err( "SAMExtractorInvalidateAlignments( '%s' ) failed (%R)", self->source, rc );
             }
             if ( rc == 0 )
             {
-                rc = SAMExtractorRelease( ai->sam_extractor );
+                rc = SAMExtractorRelease( self->sam_extractor );
                 if ( rc != 0 )
-                    log_err( "SAMExtractorRelease( '%s' ) failed (%R)", ai->source, rc );
+                    log_err( "SAMExtractorRelease( '%s' ) failed (%R)", self->source, rc );
             }
-            if ( ai->file != NULL ) KFileRelease( ai->file );
-            if ( ai->dir != NULL ) KDirectoryRelease( ai->dir );
+            if ( self->file != NULL ) KFileRelease( self->file );
+            if ( self->dir != NULL ) KDirectoryRelease( self->dir );
         }
-        free( ( void * ) ai );
+        free( ( void * ) self );
     }
     return rc;
 }
 
 
-static rc_t alig_iter_csra_initialize( struct alig_iter * ai, size_t cache_capacity )
+static rc_t alig_iter_csra_initialize( struct alig_iter * self, size_t cache_capacity )
 {
     const VDBManager * mgr;
     rc_t rc = VDBManagerMakeRead( &mgr, NULL );
@@ -126,45 +126,45 @@ static rc_t alig_iter_csra_initialize( struct alig_iter * ai, size_t cache_capac
     else
     {
         const VDatabase * db;
-        rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", ai->source );
+        rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", self->source );
         if ( rc != 0 )
-            log_err( "aligmnet_iter.alig_iter_initialize.VDBManagerOpenDBRead( '%s' ) %R", ai->source, rc );
+            log_err( "aligmnet_iter.alig_iter_initialize.VDBManagerOpenDBRead( '%s' ) %R", self->source, rc );
         else
         {
             row_range requested_range;
-            if ( ai->slice != NULL )
-                rc = slice_2_row_range_db( ai->slice, ai->source, db, &requested_range );
+            if ( self->slice != NULL )
+                rc = slice_2_row_range_db( self->slice, self->source, db, &requested_range );
                 
             if ( rc == 0 )
             {
                 const VTable * tbl;
                 rc = VDatabaseOpenTableRead( db, &tbl, "%s", "PRIMARY_ALIGNMENT" );
                 if ( rc != 0 )
-                    log_err( "aligmnet_iter.alig_iter_initialize.VDatabaseOpenTableRead( '%s'.PRIMARY_ALIGNMENT ) %R", ai->source, rc );
+                    log_err( "aligmnet_iter.alig_iter_initialize.VDatabaseOpenTableRead( '%s'.PRIMARY_ALIGNMENT ) %R", self->source, rc );
                 else
                 {
                     if ( cache_capacity > 0 )
-                        rc = VTableCreateCachedCursorRead( tbl, &ai->curs, cache_capacity );
+                        rc = VTableCreateCachedCursorRead( tbl, &self->curs, cache_capacity );
                     else
-                        rc = VTableCreateCursorRead( tbl, &ai->curs );
+                        rc = VTableCreateCursorRead( tbl, &self->curs );
                     if ( rc != 0 )
-                        log_err( "aligmnet_iter.alig_iter_initialize.TableCreateCursorRead( '%s'.PRIMARY_ALIGNMENT ) %R", ai->source, rc );
+                        log_err( "aligmnet_iter.alig_iter_initialize.TableCreateCursorRead( '%s'.PRIMARY_ALIGNMENT ) %R", self->source, rc );
                     else
                     {
-                        rc = add_cols_to_cursor( ai->curs, ai->idx, "PRIMARY_ALIGNMENT", ai->source, ALIG_ITER_N_COLS,
+                        rc = add_cols_to_cursor( self->curs, self->idx, "PRIMARY_ALIGNMENT", self->source, ALIG_ITER_N_COLS,
                                                  "CIGAR_SHORT", "REF_SEQ_ID", "READ", "REF_POS", "SAM_FLAGS" );
-                        if ( rc == 0 && ai->slice == NULL )
+                        if ( rc == 0 && self->slice == NULL )
                         {
-                            rc = VCursorIdRange( ai->curs, ai->idx[ 3 ], &requested_range.first_row, &requested_range.row_count );
+                            rc = VCursorIdRange( self->curs, self->idx[ 3 ], &requested_range.first_row, &requested_range.row_count );
                             if ( rc != 0 )
-                                log_err( "aligmnet_iter.alig_iter_initialize.VCursorIdRange( '%s'.PRIMARY_ALIGNMENT ) %R", ai->source, rc );
+                                log_err( "aligmnet_iter.alig_iter_initialize.VCursorIdRange( '%s'.PRIMARY_ALIGNMENT ) %R", self->source, rc );
                         }
                         if ( rc == 0 )
                         {
-                            ai->to_process.first_row = requested_range.first_row;
-                            ai->to_process.row_count = requested_range.row_count;
-                            ai->current_row = requested_range.first_row;
-                            ai->mode = ALIG_ITER_MODE_CSRA;
+                            self->to_process.first_row = requested_range.first_row;
+                            self->to_process.row_count = requested_range.row_count;
+                            self->current_row = requested_range.first_row;
+                            self->mode = ALIG_ITER_MODE_CSRA;
                         }
                     }
                     VTableRelease( tbl );
@@ -178,44 +178,44 @@ static rc_t alig_iter_csra_initialize( struct alig_iter * ai, size_t cache_capac
 }
 
 
-static rc_t alig_iter_sam_initialize( struct alig_iter * ai, const char * name )
+static rc_t alig_iter_sam_initialize( struct alig_iter * self, const char * name )
 {
     rc_t rc = 0;
     if ( name == NULL )
     {
-        rc = KFileMakeStdIn( &ai->file );
+        rc = KFileMakeStdIn( &self->file );
         if ( rc != 0 )
             log_err( "error (%R) opening stdin as file", rc );
     }
     else
     {
-        rc = KDirectoryNativeDir( &ai->dir );
+        rc = KDirectoryNativeDir( &self->dir );
         if ( rc != 0 )
             log_err( "KDirectoryNativeDir() failed %R", rc );
         else
         {
-            rc = KDirectoryOpenFileRead( ai->dir, &ai->file, "%s", name );
+            rc = KDirectoryOpenFileRead( self->dir, &self->file, "%s", name );
             if ( rc != 0 )
                 log_err( "error (%R) opening '%s'", rc, name );
         }
     }
     if ( rc == 0 )
     {
-        rc = SAMExtractorMake( &ai->sam_extractor, ai->file, 1 );
+        rc = SAMExtractorMake( &self->sam_extractor, self->file, 1 );
         if ( rc != 0 )
-            log_err( "error (%R) creating sam-extractor from %s", rc, ai->source );
+            log_err( "error (%R) creating sam-extractor from %s", rc, self->source );
         else
         {
             /* we have to invalidate ( ask the the extractor to internally destroy ) the headers
                even if we did not ask for them!!! */
-            rc = SAMExtractorInvalidateHeaders( ai->sam_extractor );
+            rc = SAMExtractorInvalidateHeaders( self->sam_extractor );
             if ( rc != 0 )
-                log_err( "SAMExtractorInvalidateHeaders( '%s' ) failed %R", ai->source, rc );
+                log_err( "SAMExtractorInvalidateHeaders( '%s' ) failed %R", self->source, rc );
             else
             {
-                ai->sam_alignments_loaded = false;
-                ai->sam_alignments_idx = 0;
-                ai->sam_alignments_len = 0;
+                self->sam_alignments_loaded = false;
+                self->sam_alignments_idx = 0;
+                self->sam_alignments_len = 0;
             }
         }
     }
@@ -223,10 +223,10 @@ static rc_t alig_iter_sam_initialize( struct alig_iter * ai, const char * name )
 }
 
 
-static rc_t alig_iter_common_make( struct alig_iter ** ai, uint32_t mode, const char * source, const slice * slice )
+static rc_t alig_iter_common_make( struct alig_iter ** self, uint32_t mode, const char * source, const slice * slice )
 {
     rc_t rc = 0;
-    if ( ai == NULL || source == NULL )
+    if ( self == NULL || source == NULL )
     {
         rc = RC( rcApp, rcNoTarg, rcAllocating, rcParam, rcNull );
         log_err( "aligmnet_iter.alig_iter_make() given a NULL-ptr" );
@@ -234,7 +234,7 @@ static rc_t alig_iter_common_make( struct alig_iter ** ai, uint32_t mode, const 
     else
     {
         alig_iter * o = calloc( 1, sizeof *o );
-        *ai = NULL;
+        *self = NULL;
         if ( o == NULL )
         {
             rc = RC( rcApp, rcNoTarg, rcAllocating, rcMemory, rcExhausted );
@@ -248,25 +248,24 @@ static rc_t alig_iter_common_make( struct alig_iter ** ai, uint32_t mode, const 
         }
         
         if ( rc == 0 )
-            *ai = o;
+            *self = o;
         else
             alig_iter_release( o );
     }
     return rc;
-
 }
 
 /* construct an alignmet-iterator from an accession */
-rc_t alig_iter_csra_make( struct alig_iter ** ai, const char * acc, size_t cache_capacity, const slice * slice )
+rc_t alig_iter_csra_make( struct alig_iter ** self, const char * acc, size_t cache_capacity, const slice * slice )
 {
-    rc_t rc = alig_iter_common_make( ai, ALIG_ITER_MODE_CSRA, acc, slice );
+    rc_t rc = alig_iter_common_make( self, ALIG_ITER_MODE_CSRA, acc, slice );
     if ( rc == 0 )
     {
-        rc = alig_iter_csra_initialize( *ai, cache_capacity );
+        rc = alig_iter_csra_initialize( *self, cache_capacity );
         if ( rc != 0 )
         {
-            alig_iter_release( *ai );
-            *ai = NULL;
+            alig_iter_release( *self );
+            *self = NULL;
         }
     }
     return rc;
@@ -274,43 +273,41 @@ rc_t alig_iter_csra_make( struct alig_iter ** ai, const char * acc, size_t cache
 
 
 /* construct an alignmet-iterator from a file ( and it's name for error messages ) */
-rc_t alig_iter_sam_make( struct alig_iter ** ai, const char * name, const slice * slice )
+rc_t alig_iter_sam_make( struct alig_iter ** self, const char * name, const slice * slice )
 {
-    rc_t rc;
-    if ( name == NULL )
-        rc = alig_iter_common_make( ai, ALIG_ITER_MODE_SAM, "STDIN", slice );
-    else
-        rc = alig_iter_common_make( ai, ALIG_ITER_MODE_SAM, name, slice );
+    rc_t rc = alig_iter_common_make( self, ALIG_ITER_MODE_SAM, name == NULL ? "STDIN" : name, slice );
     if ( rc == 0 )
     {
-        rc = alig_iter_sam_initialize( *ai, name );
+        rc = alig_iter_sam_initialize( *self, name );
         if ( rc != 0 )
         {
-            alig_iter_release( *ai );
-            *ai = NULL;
+            alig_iter_release( *self );
+            *self = NULL;
         }
     }
     return rc;
 }
 
 
-static rc_t fill_alignment( struct alig_iter * ai, int64_t row_id, AlignmentT * al )
+static rc_t fill_alignment( struct alig_iter * self, int64_t row_id, AlignmentT * al )
 {
     uint32_t elem_bits, boff, row_len;
+    const VCursor * curs = self->curs;
+    uint32_t * idx = self->idx;
     
     /* get the CIGAR */
-    rc_t rc = VCursorCellDataDirect( ai->curs, row_id, ai->idx[ 0 ], &elem_bits, ( const void ** )&al->cigar.addr, &boff, &row_len );
+    rc_t rc = VCursorCellDataDirect( curs, row_id, idx[ 0 ], &elem_bits, ( const void ** )&al->cigar.addr, &boff, &row_len );
     if ( rc != 0 )
-        log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.CIGAR[ %ld ] %R", ai->source, row_id, rc );
+        log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.CIGAR[ %ld ] %R", self->source, row_id, rc );
     else
         al->cigar.len = al->cigar.size = row_len;
     
     if ( rc == 0 )
     {
         /* get the REFERENCE-NAME */
-        rc = VCursorCellDataDirect( ai->curs, row_id, ai->idx[ 1 ], &elem_bits, ( const void ** )&al->rname.addr, &boff, &row_len );
+        rc = VCursorCellDataDirect( curs, row_id, idx[ 1 ], &elem_bits, ( const void ** )&al->rname.addr, &boff, &row_len );
         if ( rc != 0 )
-            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.REF_SEQ_ID[ %ld ] %R", ai->source, row_id, rc );
+            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.REF_SEQ_ID[ %ld ] %R", self->source, row_id, rc );
         else
             al->rname.len = al->rname.size = row_len;
     }
@@ -318,9 +315,9 @@ static rc_t fill_alignment( struct alig_iter * ai, int64_t row_id, AlignmentT * 
     if ( rc == 0 )
     {
         /* get the READ */
-        rc = VCursorCellDataDirect( ai->curs, row_id, ai->idx[ 2 ], &elem_bits, ( const void ** )&al->read.addr, &boff, &row_len );
+        rc = VCursorCellDataDirect( curs, row_id, idx[ 2 ], &elem_bits, ( const void ** )&al->read.addr, &boff, &row_len );
         if ( rc != 0 )
-            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.READ[ %ld ] %R", ai->source, row_id, rc );
+            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.READ[ %ld ] %R", self->source, row_id, rc );
         else
             al->read.len = al->read.size = row_len;
     }
@@ -329,9 +326,9 @@ static rc_t fill_alignment( struct alig_iter * ai, int64_t row_id, AlignmentT * 
     {
         /* get the REFERENCE-POSITION */
         uint32_t * pp;
-        rc = VCursorCellDataDirect( ai->curs, row_id, ai->idx[ 3 ], &elem_bits, ( const void ** )&pp, &boff, &row_len );
+        rc = VCursorCellDataDirect( curs, row_id, idx[ 3 ], &elem_bits, ( const void ** )&pp, &boff, &row_len );
         if ( rc != 0 )
-            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.REF_POS[ %ld ] %R", ai->source, row_id, rc );
+            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.REF_POS[ %ld ] %R", self->source, row_id, rc );
         else
             al->pos = pp[ 0 ] + 1; /* to produce the same as the SAM-spec, a 1-based postion! */
     }
@@ -340,9 +337,9 @@ static rc_t fill_alignment( struct alig_iter * ai, int64_t row_id, AlignmentT * 
     {
         /*get the strand and first ( by looking at SAM_FLAGS ) */
         uint32_t * pp;
-        rc = VCursorCellDataDirect( ai->curs, row_id, ai->idx[ 4 ], &elem_bits, ( const void ** )&pp, &boff, &row_len );
+        rc = VCursorCellDataDirect( curs, row_id, idx[ 4 ], &elem_bits, ( const void ** )&pp, &boff, &row_len );
         if ( rc != 0 )
-            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.SAM_FLAGS[ %ld ] %R", ai->source, row_id, rc );
+            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.SAM_FLAGS[ %ld ] %R", self->source, row_id, rc );
         else
             inspect_sam_flags( al, pp[ 0 ] );
     }
@@ -350,63 +347,63 @@ static rc_t fill_alignment( struct alig_iter * ai, int64_t row_id, AlignmentT * 
 }
 
 
-static bool alig_iter_load_sam_vector( struct alig_iter * ai )
+static bool alig_iter_load_sam_vector( struct alig_iter * self )
 {
     bool res = false;
-    rc_t rc = SAMExtractorGetAlignments( ai->sam_extractor, &ai->sam_alignments );
+    rc_t rc = SAMExtractorGetAlignments( self->sam_extractor, &self->sam_alignments );
     if ( rc != 0 )
-        log_err( "SAMExtractorGetAlignments( '%s' ) failed %R", ai->source, rc );
+        log_err( "SAMExtractorGetAlignments( '%s' ) failed %R", self->source, rc );
     else
     {
-        ai->sam_alignments_loaded = true;
-        ai->sam_alignments_idx = 0;
-        ai->sam_alignments_len = VectorLength( &ai->sam_alignments );
-        res = ( ai->sam_alignments_len > 0 );
+        self->sam_alignments_loaded = true;
+        self->sam_alignments_idx = 0;
+        self->sam_alignments_len = VectorLength( &self->sam_alignments );
+        res = ( self->sam_alignments_len > 0 );
     }
     return res;
 }
 
 
 /* get the next alignemnt from the iter */
-bool alig_iter_get( struct alig_iter * ai, AlignmentT * alignment )
+bool alig_iter_get( struct alig_iter * self, AlignmentT * alignment )
 {
     bool res = false;
-    if ( ai != NULL && alignment != NULL )
+    if ( self != NULL && alignment != NULL )
     {
-        if ( ai->mode == ALIG_ITER_MODE_CSRA )
+        if ( self->mode == ALIG_ITER_MODE_CSRA )
         {
-            res = ( ai->rows_processed < ai->to_process.row_count );
+            res = ( self->rows_processed < self->to_process.row_count );
             if ( res )
             {
-                rc_t rc = fill_alignment( ai, ai->current_row, alignment );
+                rc_t rc = fill_alignment( self, self->current_row, alignment );
                 if ( rc == 0 )
                 {
-                    ai->current_row++;
-                    ai->rows_processed++;
+                    self->current_row++;
+                    self->rows_processed++;
                 }
                 else
                     res = false;
             }
         }
-        else if ( ai->mode == ALIG_ITER_MODE_SAM )
+        else if ( self->mode == ALIG_ITER_MODE_SAM )
         {
-            res = ai->sam_alignments_loaded;
+            res = self->sam_alignments_loaded;
             if ( !res )
-                res = alig_iter_load_sam_vector( ai );
-            if ( res && ( ai->sam_alignments_idx >= ai->sam_alignments_len ) )
+                res = alig_iter_load_sam_vector( self );
+            if ( res && ( self->sam_alignments_idx >= self->sam_alignments_len ) )
             {
-                rc_t rc = SAMExtractorInvalidateAlignments( ai->sam_extractor );
+                rc_t rc = SAMExtractorInvalidateAlignments( self->sam_extractor );
                 if ( rc != 0 )
                 {
-                    log_err( "SAMExtractorInvalidateAlignments( '%s' ) failed %R", ai->source, rc );
+                    log_err( "SAMExtractorInvalidateAlignments( '%s' ) failed %R", self->source, rc );
                     res = false;
                 }
                 else
-                    res = alig_iter_load_sam_vector( ai );
+                    res = alig_iter_load_sam_vector( self );
             }
             if ( res )
             {
-                Alignment * ex_al = VectorGet( &ai->sam_alignments, ai->sam_alignments_idx );
+                Alignment * ex_al = VectorGet( &self->sam_alignments, self->sam_alignments_idx );
                 res = ( ex_al != NULL );
                 if ( res )
                 {
@@ -415,7 +412,7 @@ bool alig_iter_get( struct alig_iter * ai, AlignmentT * alignment )
                     StringInitCString( &alignment->read, ex_al->read );
                     alignment->pos = ex_al->pos;
                     inspect_sam_flags( alignment, ex_al->flags ); /* common.c */
-                    ai->sam_alignments_idx++;
+                    self->sam_alignments_idx++;
                 }
             }
         }

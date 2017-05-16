@@ -68,6 +68,7 @@ TOOL_SRC = \
 	common \
 	alignment_iter \
 	alig_consumer \
+	alig_consumer2 \
 	slice_2_rowrange \
 	slice \
 	fasta-file \

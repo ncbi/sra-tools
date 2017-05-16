@@ -34,15 +34,15 @@
 struct alig_iter;
 
 /* construct an alignmet-iterator from an accession */
-rc_t alig_iter_csra_make( struct alig_iter ** ai, const char * acc, size_t cache_capacity, const slice * slice );
+rc_t alig_iter_csra_make( struct alig_iter ** self, const char * acc, size_t cache_capacity, const slice * slice );
 
 /* construct an alignmet-iterator from a file ( and it's name for error messages ) */
-rc_t alig_iter_sam_make( struct alig_iter ** ai, const char * name, const slice * slice );
+rc_t alig_iter_sam_make( struct alig_iter ** self, const char * name, const slice * slice );
 
 /* releae an alignment-iterator */
-rc_t alig_iter_release( struct alig_iter * ai );
+rc_t alig_iter_release( struct alig_iter * self );
 
 /* get the next alignemnt from the iter */
-bool alig_iter_get( struct alig_iter * ai, AlignmentT * alignment );
+bool alig_iter_get( struct alig_iter * self, AlignmentT * alignment );
 
 #endif

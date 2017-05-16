@@ -63,6 +63,7 @@ void inspect_sam_flags( AlignmentT * al, uint32_t sam_flags );
 rc_t get_bool( const Args * args, const char *option, bool *value );
 rc_t get_charptr( const Args * args, const char *option, const char ** value );
 rc_t get_uint32( const Args * args, const char *option, uint32_t * value, uint32_t dflt );
+rc_t get_size_t( const Args * args, const char *option, size_t * value, size_t dflt );
 
 struct Writer;
 

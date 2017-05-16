@@ -135,7 +135,7 @@ static rc_t CC consumer_thread_function( const KThread * self, void * data )
     ac_data.lookup = NULL;
     ac_data.slice = NULL;
     ac_data.purge = 5000;
-    ac_data.strategy = 0;
+    ac_data.dict_strategy = 0;
     
     rc = alig_consumer_make( &consumer, &ac_data );
     if ( rc == 0 )

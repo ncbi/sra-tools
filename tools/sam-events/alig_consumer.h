@@ -28,11 +28,10 @@
 #define _h_alig_consumer_
 
 #include <klib/rc.h>
-#include "common.h"
-#include "allele_lookup.h"
-#include "allele_dict.h"
-#include "slice.h"
-#include "expandCIGAR.h"
+#include "common.h"             /* because of AlignmentT */
+#include "allele_lookup.h"      /* because of alig_consumer_data.lookup */
+#include "slice.h"              /* because of alig_consumer_data.slice */
+#include "expandCIGAR.h"        /* because of alig_consumer_data.fasta */
 
 struct alig_consumer;
 
@@ -43,14 +42,14 @@ typedef struct alig_consumer_data
     struct cFastaFile * fasta;
     counters limits;
     uint32_t purge;
-    uint32_t strategy;
+    uint32_t dict_strategy;
 } alig_consumer_data;
 
 /* construct an alignmet-iterator from an accession */
-rc_t alig_consumer_make( struct alig_consumer ** ac, const alig_consumer_data * ac_data );
+rc_t alig_consumer_make( struct alig_consumer ** self, const alig_consumer_data * config );
 
 /* releae an alignment-iterator */
-rc_t alig_consumer_release( struct alig_consumer * ac );
+rc_t alig_consumer_release( struct alig_consumer * self );
 
 rc_t alig_consumer_consume_alignment( struct alig_consumer * self, AlignmentT * al );
 

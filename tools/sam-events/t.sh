@@ -100,14 +100,32 @@ function run_with_lookup
     execute "sam-events $ACC --csra -m 4 --lookup $LMDB_CACHE" "$ACC.looked.up"
 }
 
+function sam_events_vs_perl_scripts
+{
+    ACC=$1
+    SAM_EVENTS_OUT="$ACC.SAM_EVENTS.txt"
+    PERL_SCRIPTS_OUT="$ACC.PERL_SCRIPTS.txt"
+    COLLECT_OUT="$ACC.COLLECTED.txt"
+    
+    time sam-events $ACC --csra -m 3 > $SAM_EVENTS_OUT
+    
+    GET_ALLELES="/home/yaschenk/NewPileup/get_alleles_new.pl $ACC"
+    PROCESS_EXPANDED="/home/yaschenk/NewPileup/process_expanded_alleles_new.pl"
+    time $GET_ALLELES | var-expand | $PROCESS_EXPANDED | ./transform.py > $PERL_SCRIPTS_OUT
+    
+    ./collect.py $SAM_EVENTS_OUT $PERL_SCRIPTS_OUT > $COLLECT_OUT
+}
+
 #prepare $ACC2
 #test2ways $ACC4
 
-run_sra_vs_sam $ACC4
+#run_sra_vs_sam $ACC4
 
 #run_with_lookup $ACC4
 #time sam-events $ACC4 --csra --lookup $LMDB_CACHE
 
-#time sam-events $ACC4 --csra > 1.txt
-#time sam-events $ACC4 --csra --strat 1 > 2.txt
+#time sam-events $ACC4 --csra > .txt
+#time sam-events $ACC4 --csra --evstrat 1 > 2.txt
 #diff2 1.txt 2.txt
+
+sam_events_vs_perl_scripts $ACC4

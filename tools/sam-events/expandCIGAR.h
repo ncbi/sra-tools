@@ -95,10 +95,8 @@ int expandCIGAR(  struct Event * const result       /* the event-vector to be fi
                 , struct cFastaFile * const file    /* the reference-object */    
                 , int referenceNumber );            /* the index into the reference-object */
 
-int expandCIGAR2(  struct Event2 * const result     /* the event-vector to be filled out */
+int expandCIGAR3(  struct Event2 * const result     /* the event-vector to be filled out */
                  , int result_len                   /* how many events we have in the result-vector */
-                 , int result_offset                /* at which offset do we want the result */
-                 , int * remaining                  /* if the result-vector was not big enough */
                  , unsigned cigar_len
                  , char const * const CIGAR         /* the cigar of the alignment */
                  , char const * const sequence      /* the sequence-bases of the alignment */

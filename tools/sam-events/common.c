@@ -132,6 +132,57 @@ rc_t get_uint32( const Args * args, const char *option, uint32_t * value, uint32
     return 0;
 }
 
+size_t string_2_size_t( const char * s, size_t dflt )
+{
+    size_t res = dflt;
+    if ( s != NULL )
+    {
+        size_t l = string_size( s );
+        if ( l > 0 )
+        {
+            size_t multipl = 1;
+            switch( s[ l - 1 ] )
+            {
+                case 'k' :
+                case 'K' : multipl = 1024; break;
+                case 'm' :
+                case 'M' : multipl = 1024 * 1024; break;
+                case 'g' :
+                case 'G' : multipl = 1024 * 1024 * 1024; break;
+            }
+            
+            if ( multipl > 1 )
+            {
+                char * src = string_dup( s, l - 1 );
+                if ( src != NULL )
+                {
+                    char * endptr;
+                    res = strtol( src, &endptr, 0 ) * multipl;
+                    free( src );
+                }
+            }
+            else
+            {
+                char * endptr;
+                res = strtol( s, &endptr, 0 );
+            }
+        }
+    }
+    return res;
+}
+
+
+rc_t get_size_t( const Args * args, const char *option, size_t * value, size_t dflt )
+{
+
+    const char * svalue;
+    rc_t rc = get_charptr( args, option, &svalue );
+    if ( rc == 0 && svalue != NULL )
+        *value = string_2_size_t( svalue, dflt );
+    else
+        *value = dflt;
+    return 0;
+}
 
 /* ----------------------------------------------------------------------------------------------- */
 

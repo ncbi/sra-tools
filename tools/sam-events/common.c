@@ -27,6 +27,7 @@
 
 #include <klib/printf.h>
 #include <klib/log.h>
+#include <klib/out.h>
 
 #include <kfs/directory.h>
 #include <kfs/file.h>
@@ -322,6 +323,11 @@ void free_alignment_copy( AlignmentT * src )
     }
 }
 
+
+rc_t print_alignment( AlignmentT * a )
+{
+    return KOutMsg( "%S\t%lu\t%S\n", &a->rname, a->pos, &a->cigar );
+}
 
 /* ----------------------------------------------------------------------------------------------- */
 

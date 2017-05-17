@@ -34,8 +34,9 @@ EXT_TOOLS = \
 	sam-events \
 	alookup \
 	t2 \
-	t3
-    
+	t3 \
+	t4
+
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
@@ -172,4 +173,36 @@ T3_LIB = \
 
 $(BINDIR)/t3: $(T3_OBJ)
 	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(T3_LIB)
-    
+
+
+#-------------------------------------------------------------------------------
+# helper tool: t4.c
+# ( print alleles from cigar-string )
+
+T4_SRC = \
+	common \
+	alignment_iter \
+	alig_consumer \
+	slice_2_rowrange \
+	slice \
+	fasta-file \
+	cigar2events \
+	expandCIGAR \
+	allele_dict \
+	mdb \
+	midl \
+	allele_lookup \
+	t4
+
+T4_OBJ = \
+	$(addsuffix .$(OBJX),$(T4_SRC))
+
+T4_LIB = \
+	-skapp \
+	-stk-version \
+	-sncbi-vdb \
+	-ssam-extract \
+	-lm
+
+$(BINDIR)/t4: $(T4_OBJ)
+	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(T4_LIB)

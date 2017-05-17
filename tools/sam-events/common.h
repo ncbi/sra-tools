@@ -74,6 +74,7 @@ rc_t writer_write( struct Writer * wr, const char * fmt, ... );
 
 AlignmentT * copy_alignment( const AlignmentT * src );
 void free_alignment_copy( AlignmentT * src );
+rc_t print_alignment( AlignmentT * a );
 
 void clear_recorded_errors( void );
 

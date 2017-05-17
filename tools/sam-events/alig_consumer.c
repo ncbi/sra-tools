@@ -50,8 +50,6 @@ typedef struct alig_consumer
     const char * ref_bases;
     unsigned ref_bases_count;
     struct Allele_Dict * ad;
-    struct Allele_Dict2 * ad2;
-    
 } alig_consumer;
 
 
@@ -66,8 +64,6 @@ rc_t alig_consumer_release( struct alig_consumer * self )
     {
         if ( self->ad != NULL )
             rc = allele_dict_release( self->ad );
-        if ( self->ad2 != NULL )
-            rc = allele_dict2_release( self->ad2 );
         if ( self->rname != NULL )
             StringWhack ( self->rname );
         if ( rc == 0 )
@@ -179,14 +175,8 @@ static rc_t alig_consumer_store_allele( struct alig_consumer * self,
 		store = filter_by_slice( self->config->slice, self->rname, position, inserts );
 
 	if ( store )
-    {
-        if ( self->config->dict_strategy == 0 )
-            return allele_dict_put( self->ad, position, deletes, inserts, bases, fwd, first );
-        else
-            return allele_dict2_put( self->ad2, position, deletes, inserts, bases, fwd, first );        
-    }
-	else
-		return 0;
+        return allele_dict_put( self->ad, position, deletes, inserts, bases, fwd, first );
+    return 0;
 }
 
 static rc_t alig_consumer_process_mismatch( struct alig_consumer * self,
@@ -370,13 +360,8 @@ static rc_t alig_consumer_check_rname( struct alig_consumer * self, const String
         }
         
         /* print all entries found in the allele-dict, and then release the whole allele-dict */
-        if ( rc == 0 )
-        {
-            if ( self->ad != NULL )
-                rc = allele_dict_release( self->ad );
-            if ( self->ad2 != NULL )
-                rc = allele_dict2_release( self->ad2 );
-        }
+        if ( rc == 0 && self->ad != NULL )
+            rc = allele_dict_release( self->ad );
         
         /* switch to the new reference!
            - store the new refname in the current-struct
@@ -387,12 +372,7 @@ static rc_t alig_consumer_check_rname( struct alig_consumer * self, const String
             
         /* make a new allele-dict */
         if ( rc == 0 )
-        {
-            if ( self->config->dict_strategy == 0 )
-                rc = allele_dict_make( &self->ad, rname, &self->dict_data );
-            else
-                rc = allele_dict2_make( &self->ad2, rname, &self->dict_data );
-        }
+            rc = allele_dict_make( &self->ad, rname, &self->dict_data );
     }
     else
     {

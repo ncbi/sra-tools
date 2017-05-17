@@ -65,7 +65,7 @@ typedef struct alig_iter
     row_range to_process;
     uint64_t rows_processed;
     int64_t current_row;
-    
+
     /* for the SAM-MODE */
     KDirectory * dir;
     const KFile * file;
@@ -443,6 +443,7 @@ bool alig_iter_get( struct alig_iter * self, AlignmentT * alignment )
                     alignment->pos = ex_al->pos;
                     inspect_sam_flags( alignment, ex_al->flags ); /* common.c */
                     self->sam_alignments_idx++;
+                    alignment->filter = 0;
                 }
             }
         }

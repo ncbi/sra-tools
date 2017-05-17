@@ -31,6 +31,8 @@
 #include <klib/log.h>
 #include <klib/rc.h>
 
+#include <insdc/insdc.h>
+
 /* use the allele-dictionary to reduce the alleles per position */
 #include "common.h"
 
@@ -98,9 +100,6 @@ static const char * slice_usage[]     = { "process only this slice of the refere
 #define ALIAS_LOOKUP   "l"
 static const char * lookup_usage[]    = { "perfrom lookup for each allele into this lmdb-file >", NULL };
 
-#define OPTION_STRAT   "strat"
-static const char * strat_usage[]     = { "storage strategy ( dflt=0 ) >", NULL };
-
 #define OPTION_EVSTRAT "evstrat"
 static const char * evstrat_usage[]   = { "event strategy ( dflt=0 ) >", NULL };
 
@@ -123,7 +122,6 @@ OptDef ToolOptions[] =
     { OPTION_MINTN,     NULL,          NULL, mintn_usage,     1,   true,        false },
 
     { OPTION_PURGE,     ALIAS_PURGE,    NULL, purge_usage,     1,   true,        false },
-    { OPTION_STRAT,     NULL,          NULL, strat_usage,     1,   true,        false },
     { OPTION_EVSTRAT,   NULL,          NULL, evstrat_usage,   1,   true,        false },
     { OPTION_CACHE,     NULL,          NULL, cache_usage,     1,   true,        false },    
     { OPTION_LOG,       ALIAS_LOG,      NULL, log_usage,       1,   true,        false }
@@ -205,8 +203,6 @@ static rc_t fill_out_tool_ctx( const Args * args, tool_ctx * ctx )
     if ( rc == 0 )
         rc = get_uint32( args, OPTION_PURGE, &ctx->ac_data.purge, 4096 );
     if ( rc == 0 )
-        rc = get_uint32( args, OPTION_STRAT, &ctx->ac_data.dict_strategy, 0 );
-    if ( rc == 0 )
         rc = get_uint32( args, OPTION_EVSTRAT, &ctx->ev_strategy, 0 );
     if ( rc == 0 )
         rc = get_size_t( args, OPTION_CACHE, &ctx->cursor_cache_size, CSRA_CACHE_SIZE );
@@ -254,20 +250,13 @@ static rc_t consume_alignments_strategy_0( tool_ctx * ctx, struct alig_iter * ai
     rc_t rc = alig_consumer_make( &consumer, &ctx->ac_data );
     if ( rc == 0 )
     {
-        bool running = true;
-        while ( running )
+        AlignmentT alignment;
+        while ( rc == 0 && alig_iter_get( ai, &alignment ) && Quitting() == 0 )
         {
-            AlignmentT alignment;
-            
-            running = alig_iter_get( ai, &alignment );
-            if ( running )
+            if ( alignment.filter == READ_FILTER_PASS )
             {
                 /* consume the alignment */
-                if ( rc == 0 )
-                    rc = alig_consumer_consume_alignment( consumer, &alignment );
-
-                /* check if we are quitting... */
-                if ( rc == 0 ) { running = ( Quitting() == 0 ); }
+                rc = alig_consumer_consume_alignment( consumer, &alignment );
             }
         }
         ctx->unsorted = alig_consumer_get_unsorted( consumer );
@@ -283,20 +272,13 @@ static rc_t consume_alignments_strategy_1( tool_ctx * ctx, struct alig_iter * ai
     rc_t rc = alig_consumer2_make( &consumer, &ctx->ac_data );
     if ( rc == 0 )
     {
-        bool running = true;
-        while ( running )
+        AlignmentT alignment;
+        while ( rc == 0 && alig_iter_get( ai, &alignment ) && Quitting() == 0 )
         {
-            AlignmentT alignment;
-            
-            running = alig_iter_get( ai, &alignment );
-            if ( running )
+            if ( alignment.filter == READ_FILTER_PASS )
             {
                 /* consume the alignment */
-                if ( rc == 0 )
-                    rc = alig_consumer2_consume_alignment( consumer, &alignment );
-
-                /* check if we are quitting... */
-                if ( rc == 0 ) { running = ( Quitting() == 0 ); }
+                rc = alig_consumer2_consume_alignment( consumer, &alignment );
             }
         }
         ctx->unsorted = alig_consumer2_get_unsorted( consumer );

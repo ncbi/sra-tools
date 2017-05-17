@@ -107,12 +107,12 @@ function sam_events_vs_perl_scripts
     PERL_SCRIPTS_OUT="$ACC.PERL_SCRIPTS.txt"
     COLLECT_OUT="$ACC.COLLECTED.txt"
     
-    time sam-events $ACC --csra -m 3 > $SAM_EVENTS_OUT
+    #time sam-events $ACC --csra -m 3 --evstrat 1 > $SAM_EVENTS_OUT
     
-    #GET_ALLELES="/home/yaschenk/NewPileup/get_alleles_new.pl $ACC"
     GET_ALLELES="./NewPileup/get_alleles_new.pl $ACC"
-    PROCESS_EXPANDED="/home/yaschenk/NewPileup/process_expanded_alleles_new.pl"
+    PROCESS_EXPANDED="./NewPileup/process_expanded_alleles_new.pl"
     time $GET_ALLELES | var-expand | $PROCESS_EXPANDED | ./transform.py > $PERL_SCRIPTS_OUT
+    #time $GET_ALLELES | var-expand | $PROCESS_EXPANDED > $PERL_SCRIPTS_OUT
     
     ./collect.py $SAM_EVENTS_OUT $PERL_SCRIPTS_OUT > $COLLECT_OUT
 }
@@ -128,6 +128,7 @@ function inspect_t4_vs_perl_script
     #GET_ALLELES="/home/yaschenk/NewPileup/get_alleles_new.pl $ACC"
     GET_ALLELES="./NewPileup/get_alleles_new.pl $ACC"
     time $GET_ALLELES | ./strip_phase.py | sort > $GETA_OUT
+    #time $GET_ALLELES | sort > $GETA_OUT
 }
 
 #prepare $ACC2
@@ -142,5 +143,5 @@ function inspect_t4_vs_perl_script
 #time sam-events $ACC4 --csra --evstrat 1 > 2.txt
 #diff2 1.txt 2.txt
 
-#sam_events_vs_perl_scripts $ACC4
-inspect_t4_vs_perl_script $ACC4
+sam_events_vs_perl_scripts $ACC4
+#inspect_t4_vs_perl_script $ACC4

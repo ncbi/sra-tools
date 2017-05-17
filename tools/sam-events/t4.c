@@ -34,6 +34,8 @@
 #include <klib/namelist.h>
 #include <klib/printf.h>
 
+#include <insdc/insdc.h>
+
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -237,7 +239,7 @@ static rc_t run( Args * args, uint32_t count, tool_ctx * ctx )
                     AlignmentT a;
                     while ( rc == 0 && alig_iter_get( ai, &a ) )
                     {
-                        if ( a.filter == 0 )
+                        if ( a.filter == READ_FILTER_PASS )
                         {
                             if ( ctx->print_alignment )
                                 rc = print_alignment( &a );

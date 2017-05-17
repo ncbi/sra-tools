@@ -42,7 +42,6 @@ typedef struct alig_consumer_data
     struct cFastaFile * fasta;
     counters limits;
     uint32_t purge;
-    uint32_t dict_strategy;
 } alig_consumer_data;
 
 /* construct an alignmet-iterator from an accession */

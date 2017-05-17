@@ -32,8 +32,6 @@
 #include "common.h"
 
 struct Allele_Dict;
-struct Allele_Dict2;
-
 
 typedef rc_t ( CC * on_ad_event )( const counters * count, const String * rname, uint64_t position,
                                     uint32_t deletes, uint32_t inserts, const char * bases,
@@ -55,16 +53,5 @@ rc_t allele_dict_release( struct Allele_Dict * self );
 /* put an event into the allele_dictionary */
 rc_t allele_dict_put( struct Allele_Dict * self, uint64_t position,
                       uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first );
-
-
-/* construct a allele-dictionary */
-rc_t allele_dict2_make( struct Allele_Dict2 ** self, const String * rname, const dict_data * data );
-
-/* releae a allele_dictionary */
-rc_t allele_dict2_release( struct Allele_Dict2 * self );
-
-/* put an event into the allele_dictionary */
-rc_t allele_dict2_put( struct Allele_Dict2 * self, uint64_t position,
-                       uint32_t deletes, uint32_t inserts, const char * bases, bool fwd, bool first );
 
 #endif

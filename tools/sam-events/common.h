@@ -45,6 +45,7 @@ typedef struct row_range
 typedef struct AlignmentT
 {
     uint64_t pos; /* 1-based! */
+    uint8_t filter; /* pass, reject, ect from insdc/insdc.h */
     bool fwd;
     bool first;
     String rname;

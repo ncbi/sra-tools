@@ -109,7 +109,8 @@ function sam_events_vs_perl_scripts
     
     time sam-events $ACC --csra -m 3 > $SAM_EVENTS_OUT
     
-    GET_ALLELES="/home/yaschenk/NewPileup/get_alleles_new.pl $ACC"
+    #GET_ALLELES="/home/yaschenk/NewPileup/get_alleles_new.pl $ACC"
+    GET_ALLELES="./NewPileup/get_alleles_new.pl $ACC"
     PROCESS_EXPANDED="/home/yaschenk/NewPileup/process_expanded_alleles_new.pl"
     time $GET_ALLELES | var-expand | $PROCESS_EXPANDED | ./transform.py > $PERL_SCRIPTS_OUT
     
@@ -124,7 +125,8 @@ function inspect_t4_vs_perl_script
 
     time t4 $ACC | sort > $T4_OUT
     
-    GET_ALLELES="/home/yaschenk/NewPileup/get_alleles_new.pl $ACC"
+    #GET_ALLELES="/home/yaschenk/NewPileup/get_alleles_new.pl $ACC"
+    GET_ALLELES="./NewPileup/get_alleles_new.pl $ACC"
     time $GET_ALLELES | ./strip_phase.py | sort > $GETA_OUT
 }
 

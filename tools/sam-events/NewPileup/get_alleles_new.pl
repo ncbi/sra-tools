@@ -5,7 +5,8 @@ $row_range="100000-1100000";
 $acc=$ARGV[0];
 if($#ARGV>0){$row_range = $ARGV[1];}
 
-$vdbdump="/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/toolkit/centos64/bin/vdb-dump -R $row_range -T PRIMARY_ALIGNMENT -C $col_list -f tab";
+#$vdbdump="/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/toolkit/centos64/bin/vdb-dump -R $row_range -T PRIMARY_ALIGNMENT -C $col_list -f tab";
+$vdbdump="/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/toolkit/centos64/bin/vdb-dump -T PRIMARY_ALIGNMENT -C $col_list -f tab";
 $varexpand="/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/toolkit/centos64/bin/var-expand.2.6.2 --algorithm ra";
 
 #open OUT,"|$varexpand"     or die "failed to run $varexpand";

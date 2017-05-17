@@ -237,14 +237,17 @@ static rc_t run( Args * args, uint32_t count, tool_ctx * ctx )
                     AlignmentT a;
                     while ( rc == 0 && alig_iter_get( ai, &a ) )
                     {
-                        if ( ctx->print_alignment )
-                            rc = print_alignment( &a );
-
-                        if ( rc == 0 )
+                        if ( a.filter == 0 )
                         {
-                            rc = check_rname( &ref_context, &a.rname );
+                            if ( ctx->print_alignment )
+                                rc = print_alignment( &a );
+
                             if ( rc == 0 )
-                                rc = enum_events( &ref_context, &a );
+                            {
+                                rc = check_rname( &ref_context, &a.rname );
+                                if ( rc == 0 )
+                                    rc = enum_events( &ref_context, &a );
+                            }
                         }
                     }
                     alig_iter_release( ai );

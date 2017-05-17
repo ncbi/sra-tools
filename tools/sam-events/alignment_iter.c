@@ -45,7 +45,7 @@
 
 /* ----------------------------------------------------------------------------------------------- */
 
-#define ALIG_ITER_N_COLS 5
+#define ALIG_ITER_N_COLS 6
 
 #define ALIG_ITER_MODE_CSRA 1
 #define ALIG_ITER_MODE_SAM 2
@@ -154,7 +154,7 @@ static rc_t alig_iter_csra_initialize( struct alig_iter * self, size_t cache_cap
                     else
                     {
                         rc = add_cols_to_cursor( self->curs, self->idx, "PRIMARY_ALIGNMENT", self->source, ALIG_ITER_N_COLS,
-                                                 "CIGAR_SHORT", "REF_SEQ_ID", "READ", "REF_POS", "SAM_FLAGS" );
+                                                 "CIGAR_SHORT", "REF_SEQ_ID", "READ", "REF_POS", "SAM_FLAGS", "READ_FILTER" );
                         if ( rc == 0 && self->slice == NULL )
                         {
                             rc = VCursorIdRange( self->curs, self->idx[ 3 ], &requested_range.first_row, &requested_range.row_count );
@@ -361,6 +361,18 @@ static rc_t fill_alignment( struct alig_iter * self, int64_t row_id, AlignmentT 
         else
             inspect_sam_flags( al, pp[ 0 ] );
     }
+
+    if ( rc == 0 )
+    {
+        /*get the READ_FILTER */
+        uint8_t * pp;
+        rc = VCursorCellDataDirect( curs, row_id, idx[ 5 ], &elem_bits, ( const void ** )&pp, &boff, &row_len );
+        if ( rc != 0 )
+            log_err( "cannot read '%s'.PRIMARY_ALIGNMENT.READ_FILTER[ %ld ] %R", self->source, row_id, rc );
+        else
+            al->filter = pp[ 0 ];
+    }
+    
     return rc;
 }
 

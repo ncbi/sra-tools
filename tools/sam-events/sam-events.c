@@ -43,7 +43,6 @@
 #include "slice.h"
 
 /* use the alignment-consumer */
-#include "alig_consumer.h"
 #include "alig_consumer2.h"
 
 /* because we use a lib sam-extract written i C++, we have to define this symbol !!! */
@@ -100,9 +99,6 @@ static const char * slice_usage[]     = { "process only this slice of the refere
 #define ALIAS_LOOKUP   "l"
 static const char * lookup_usage[]    = { "perfrom lookup for each allele into this lmdb-file >", NULL };
 
-#define OPTION_EVSTRAT "evstrat"
-static const char * evstrat_usage[]   = { "event strategy ( dflt=0 ) >", NULL };
-
 #define OPTION_CACHE   "cache"
 static const char * cache_usage[]     = { "size of cursor-cache ( dflt=32 MB ) >", NULL };
 
@@ -122,7 +118,6 @@ OptDef ToolOptions[] =
     { OPTION_MINTN,     NULL,          NULL, mintn_usage,     1,   true,        false },
 
     { OPTION_PURGE,     ALIAS_PURGE,    NULL, purge_usage,     1,   true,        false },
-    { OPTION_EVSTRAT,   NULL,          NULL, evstrat_usage,   1,   true,        false },
     { OPTION_CACHE,     NULL,          NULL, cache_usage,     1,   true,        false },    
     { OPTION_LOG,       ALIAS_LOG,      NULL, log_usage,       1,   true,        false }
 };
@@ -175,7 +170,6 @@ typedef struct tool_ctx
     struct Writer * log;
     uint64_t pos_lookups;
     size_t cursor_cache_size;
-    uint32_t ev_strategy;
 } tool_ctx;
 
 
@@ -202,8 +196,6 @@ static rc_t fill_out_tool_ctx( const Args * args, tool_ctx * ctx )
 		
     if ( rc == 0 )
         rc = get_uint32( args, OPTION_PURGE, &ctx->ac_data.purge, 4096 );
-    if ( rc == 0 )
-        rc = get_uint32( args, OPTION_EVSTRAT, &ctx->ev_strategy, 0 );
     if ( rc == 0 )
         rc = get_size_t( args, OPTION_CACHE, &ctx->cursor_cache_size, CSRA_CACHE_SIZE );
     if ( rc == 0 )
@@ -244,29 +236,8 @@ static void release_tool_ctx( tool_ctx * ctx )
 
 /* ----------------------------------------------------------------------------------------------- */
 
-static rc_t consume_alignments_strategy_0( tool_ctx * ctx, struct alig_iter * ai )
-{
-    struct alig_consumer * consumer;
-    rc_t rc = alig_consumer_make( &consumer, &ctx->ac_data );
-    if ( rc == 0 )
-    {
-        AlignmentT alignment;
-        while ( rc == 0 && alig_iter_get( ai, &alignment ) && Quitting() == 0 )
-        {
-            if ( alignment.filter == READ_FILTER_PASS )
-            {
-                /* consume the alignment */
-                rc = alig_consumer_consume_alignment( consumer, &alignment );
-            }
-        }
-        ctx->unsorted = alig_consumer_get_unsorted( consumer );
-        alig_consumer_release( consumer );
-    }
-    return rc;
-}
 
-
-static rc_t consume_alignments_strategy_1( tool_ctx * ctx, struct alig_iter * ai )
+static rc_t consume_alignments( tool_ctx * ctx, struct alig_iter * ai )
 {
     struct alig_consumer2 * consumer;
     rc_t rc = alig_consumer2_make( &consumer, &ctx->ac_data );
@@ -315,13 +286,7 @@ static rc_t produce_events_for_source( tool_ctx * ctx, const char * source )
         
         if ( rc == 0 )
         {
-            if ( ctx->ev_strategy == 0 )
-                rc = consume_alignments_strategy_0( ctx, ai );
-            else if ( ctx->ev_strategy == 1 )
-                rc = consume_alignments_strategy_1( ctx, ai );
-            else
-                rc = KOutMsg( "unknown event strategy of %d\n", ctx->ev_strategy );
-            
+            rc = consume_alignments( ctx, ai );
             alig_iter_release( ai );
         }
     }

@@ -68,7 +68,6 @@ clean: stdclean
 TOOL_SRC = \
 	common \
 	alignment_iter \
-	alig_consumer \
 	alig_consumer2 \
 	slice_2_rowrange \
 	slice \
@@ -126,7 +125,7 @@ $(BINDIR)/alookup: $(LOOKUP_OBJ)
 T2_SRC = \
 	common \
 	alignment_iter \
-	alig_consumer \
+	alig_consumer2 \
 	slice_2_rowrange \
 	slice \
 	fasta-file \
@@ -182,16 +181,11 @@ $(BINDIR)/t3: $(T3_OBJ)
 T4_SRC = \
 	common \
 	alignment_iter \
-	alig_consumer \
 	slice_2_rowrange \
 	slice \
 	fasta-file \
 	cigar2events \
 	expandCIGAR \
-	allele_dict \
-	mdb \
-	midl \
-	allele_lookup \
 	t4
 
 T4_OBJ = \

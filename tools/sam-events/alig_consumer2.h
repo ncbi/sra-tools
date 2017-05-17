@@ -28,10 +28,21 @@
 #define _h_alig_consumer2_
 
 #include <klib/rc.h>
-#include "alig_consumer.h"      /* because of alig_consumer_data */
 #include "common.h"             /* because of AlignmentT */
+#include "allele_lookup.h"      /* because of alig_consumer_data.lookup */
+#include "slice.h"              /* because of alig_consumer_data.slice */
+#include "expandCIGAR.h"        /* because of alig_consumer_data.fasta */
 
 struct alig_consumer2;
+
+typedef struct alig_consumer_data
+{
+    struct Allele_Lookup * lookup;
+    const slice * slice;
+    struct cFastaFile * fasta;
+    counters limits;
+    uint32_t purge;
+} alig_consumer_data;
 
 /* construct an alignmet-iterator from an accession */
 rc_t alig_consumer2_make( struct alig_consumer2 ** self, const alig_consumer_data * config );

@@ -34,11 +34,15 @@ SOURCES += main.cpp\
     ../configure.cpp \
     ../vdb-config-model.cpp \
     ../util.cpp \
-    ../sra-tools-gui/libs/ktoolbaritem.cpp
+    ../sra-tools-gui/libs/ktoolbaritem.cpp \
+    srapreferences.cpp \
+    sraconfigmodel.cpp
 
 
 HEADERS  += sraconfig.h \
-    ../sra-tools-gui/interfaces/ktoolbaritem.h
+    ../sra-tools-gui/interfaces/ktoolbaritem.h \
+    srapreferences.h \
+    sraconfigmodel.h
 
 RESOURCES += \
     resources.qrc

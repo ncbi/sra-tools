@@ -48,6 +48,7 @@ class SRAConfig : public QMainWindow
     Q_OBJECT
 
 public:
+
     SRAConfig ( vdbconf_model &config_model, const QRect &avail_geometry, QWidget *parent = 0 );
     ~SRAConfig ();
 

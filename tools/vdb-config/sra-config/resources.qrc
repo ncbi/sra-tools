@@ -1,5 +1,9 @@
 <RCC>
     <qresource prefix="/">
         <file>images/general_icon.png</file>
+        <file>images/aws_icon.png</file>
+        <file>images/images.ncbi.png</file>
+        <file>images/network_icon.png</file>
+        <file>images/troubleshooting.png</file>
     </qresource>
 </RCC>

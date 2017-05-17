@@ -27,25 +27,29 @@
 #include "../../sra-tools-gui/interfaces/ktoolbaritem.h"
 
 #include <QVBoxLayout>
-#include <QIcon>
+#include <QImage>
 #include <QLabel>
+#include <QPixmap>
 
 KToolbarItem :: KToolbarItem ( const QString &name, const QString &icon_name, QWidget *parent )
     : QWidget ( parent )
 {
-    QPalette p = palette ();
-    p . setColor ( QPalette::Background, Qt::gray );
-    setAutoFillBackground ( true );
-    setPalette ( p );
-
     QVBoxLayout *layout = new QVBoxLayout ();
+    layout -> setMargin ( 10 );
+    layout -> setSpacing ( 10 );
 
-    //QLabel *icon = new QLabel ();
+    QPixmap pxmp = QPixmap :: fromImage ( QImage ( icon_name ) );
 
     QLabel *label = new QLabel ( name );
+    label -> setPixmap ( pxmp . scaled ( QSize ( 50, 50 ), Qt::IgnoreAspectRatio, Qt::SmoothTransformation ) );
+    label -> setScaledContents ( true );
+    label -> resize ( 50, 50 );
 
-    //layout -> addWidget ( icon );
     layout -> addWidget ( label );
+
+    QLabel *txt = new QLabel ( name );
+    txt -> setAlignment ( Qt::AlignHCenter );
+    layout -> addWidget ( txt );
 
     setLayout ( layout );
 

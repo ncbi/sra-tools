@@ -511,7 +511,7 @@ SRAConfig :: SRAConfig ( vdbconf_model &config_model, const QRect &avail_geometr
 
     setWindowTitle ( "SRA Configuration Tool" );
     setup_menubar ();
-    //setup_toolbar ();
+    setup_toolbar ();
 
     main_layout -> setSpacing ( 20 );
     main_layout -> setAlignment ( Qt::AlignTop );
@@ -576,6 +576,9 @@ void SRAConfig :: setup_toolbar ()
     bar -> addWidget ( item );
 
     item = new KToolbarItem ( "Network", rsrc_path + "/network_icon" );
+    bar -> addWidget ( item );
+
+    item = new KToolbarItem ( "Diagnostics", rsrc_path + "/troubleshooting" );
     bar -> addWidget ( item );
 
     addToolBar ( bar );
@@ -697,7 +700,6 @@ void SRAConfig :: import_workspace ()
                                                     , "Import Workspace"
                                                     , dir
                                                     , tr ("NGC files (*.ngc)" ) );
-
 
     if ( ! file . isEmpty () )
     {

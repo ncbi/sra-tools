@@ -39,6 +39,7 @@ class QLabel;
 class QPushButton;
 QT_END_NAMESPACE
 
+class SRAConfigModel;
 class vdbconf_model;
 struct KNgcObj;
 struct WorkspaceItem;
@@ -90,7 +91,7 @@ private:
     void setup_menubar ();
     void setup_toolbar ();
 
-    vdbconf_model &model;
+    SRAConfigModel *model;
 
     QAction *discard_action;
     QAction *apply_action;

@@ -6,150 +6,10 @@
 #include <QMessageBox>
 #include <string>
 
-
-bool SRAConfigModel :: config_changed ()
+static
+RootState translate_state ( ESetRootState state )
 {
-    return model . get_config_changed ();
-}
-
-bool SRAConfigModel :: proxy_enabled ()
-{
-    return model . is_http_proxy_enabled ();
-}
-
-bool SRAConfigModel :: proxy_priority ()
-{
-    return model . has_http_proxy_env_higher_priority ();
-}
-
-bool SRAConfigModel :: remote_enabled ()
-{
-    return model . is_remote_enabled ();
-}
-
-bool SRAConfigModel :: site_enabled ()
-{
-    return model . is_site_enabled ();
-}
-
-bool SRAConfigModel :: import_ngc ( const std :: string path,  KNgcObj *ngc, uint32_t permissions, uint32_t *rslt_flags )
-{
-    return model . import_ngc ( path, ngc, permissions, rslt_flags );
-}
-
-bool SRAConfigModel :: path_exists ( const std :: string &path )
-{
-    return model . does_path_exist ( path );
-}
-
-bool SRAConfigModel :: site_workspace_exists ( const std :: string &path )
-{
-    return model . does_repo_exist ( path . c_str () );
-}
-
-void SRAConfigModel :: commit ()
-{
-    model . commit ();
-}
-
-void SRAConfigModel :: reload ()
-{
-    model . reload ();
-}
-
-void SRAConfigModel :: create_directory ( const KNgcObj *ngc )
-{
-    model . mkdir ( ngc );
-}
-
-void SRAConfigModel :: set_cache_enabled ( bool enabled )
-{
-    model . set_global_cache_enabled ( enabled );
-}
-
-void SRAConfigModel :: set_proxy_enabled ( bool enabled )
-{
-    model . set_http_proxy_enabled ( enabled );
-}
-
-void SRAConfigModel :: set_remote_enabled ( bool enabled )
-{
-    model . set_remote_enabled ( enabled );
-}
-
-void SRAConfigModel :: set_site_enabled ( bool enabled )
-{
-    model . set_site_enabled ( enabled );
-}
-
-void SRAConfigModel :: set_proxy_priority ( bool priority )
-{
-    model . set_http_proxy_env_higher_priority ( priority );
-}
-
-void SRAConfigModel :: set_public_path ( const std :: string &path, bool flushOld, bool reuseNew )
-{
-    model . set_public_location ( flushOld, path, reuseNew );
-}
-
-void SRAConfigModel :: set_workspace_path ( const std :: string & path, uint32_t id, bool flushOld, bool reuseNew )
-{
-    model . set_repo_location ( id, flushOld, path, reuseNew );
-}
-
-bool SRAConfigModel :: get_ngc_obj_id ( const KNgcObj *ngc, uint32_t *id )
-{
-    return model . get_id_of_ngc_obj ( ngc, id );
-}
-
-int32_t SRAConfigModel :: get_workspace_id ( const std :: string &name )
-{
-    return model . get_repo_id ( name );
-}
-
-std :: string SRAConfigModel :: get_current_path ()
-{
-    return model . get_current_dir ();
-}
-
-std :: string SRAConfigModel :: get_home_path ()
-{
-    return model . get_home_dir ();
-}
-
-std :: string SRAConfigModel :: get_proxy_path ()
-{
-    return model . get_http_proxy_path ();
-}
-
-std :: string SRAConfigModel :: get_public_path ()
-{
-    return model . get_public_location ();
-}
-
-std :: string SRAConfigModel :: get_user_default_path ()
-{
-    return model . get_user_default_dir ();
-}
-
-std :: string SRAConfigModel :: get_workspace_name ( uint32_t id )
-{
-    return model . get_repo_name ( id );
-}
-
-std :: string SRAConfigModel :: get_workspace_path ( uint32_t id )
-{
-    return model . get_repo_location ( id );
-}
-
-std :: string SRAConfigModel :: get_ngc_root ( std :: string &dir, KNgcObj *ngc )
-{
-    return model . get_ngc_root ( dir, ngc );
-}
-
-SRAConfigModel::RootState SRAConfigModel :: configure_workspace ( const std :: string &path, bool reuseNew )
-{
-    switch ( model . prepare_repo_directory ( path, reuseNew ) )
+    switch ( state )
     {
     case eSetRootState_OK:
         return RootState_OK;             // successfully changed repository root
@@ -170,6 +30,189 @@ SRAConfigModel::RootState SRAConfigModel :: configure_workspace ( const std :: s
     case eSetRootState_Error:
         return RootState_Error;          // some unusual error happened
     }
+}
+
+bool SRAConfigModel::commit()
+{
+    return model . commit ();
+}
+
+bool SRAConfigModel :: config_changed ()
+{
+    return model . get_config_changed ();
+}
+
+
+bool SRAConfigModel :: path_exists ( const std :: string &path )
+{
+    return model . does_path_exist ( path );
+}
+
+void SRAConfigModel :: create_directory ( const KNgcObj *ngc )
+{
+    model . mkdir ( ngc );
+}
+
+void SRAConfigModel :: reload ()
+{
+    model . reload ();
+}
+
+// cache
+bool SRAConfigModel :: global_cache_enabled ()
+{
+    return model . is_global_cache_enabled ();
+}
+
+bool SRAConfigModel :: user_cache_enabled ()
+{
+    return model . is_user_cache_enabled ();
+}
+
+void SRAConfigModel :: set_global_cache_enabled ( bool enabled )
+{
+    model . set_global_cache_enabled ( enabled );
+}
+
+void SRAConfigModel :: set_user_cache_enabled ( bool enabled )
+{
+    model . set_user_cache_enabled ( enabled );
+}
+
+// network
+bool SRAConfigModel :: remote_enabled ()
+{
+    return model . is_remote_enabled ();
+}
+
+void SRAConfigModel :: set_remote_enabled ( bool enabled )
+{
+    model . set_remote_enabled ( enabled );
+}
+
+bool SRAConfigModel :: site_enabled ()
+{
+    return model . is_site_enabled ();
+}
+
+void SRAConfigModel :: set_site_enabled ( bool enabled )
+{
+    model . set_site_enabled ( enabled );
+}
+
+// ngc
+bool SRAConfigModel :: import_ngc ( const std :: string path, const KNgcObj *ngc, uint32_t permissions, uint32_t *rslt_flags )
+{
+    return model . import_ngc ( path, ngc, permissions, rslt_flags );
+}
+
+bool SRAConfigModel :: get_ngc_obj_id ( const KNgcObj *ngc, uint32_t *id )
+{
+    return model . get_id_of_ngc_obj ( ngc, id );
+}
+
+std :: string SRAConfigModel :: get_ngc_root ( std :: string &dir, const KNgcObj *ngc )
+{
+    return model . get_ngc_root ( dir, ngc );
+}
+
+// proxy
+bool SRAConfigModel :: proxy_enabled ()
+{
+    return model . is_http_proxy_enabled ();
+}
+
+void SRAConfigModel :: set_proxy_enabled ( bool enabled )
+{
+    model . set_http_proxy_enabled ( enabled );
+}
+
+std :: string SRAConfigModel :: get_proxy_path ()
+{
+    return model . get_http_proxy_path ();
+}
+
+void SRAConfigModel :: set_proxy_path ( const std :: string &path )
+{
+    model . set_http_proxy_path ( path );
+}
+
+bool SRAConfigModel :: proxy_priority ()
+{
+    return model . has_http_proxy_env_higher_priority ();
+}
+
+void SRAConfigModel :: set_proxy_priority ( bool priority )
+{
+    model . set_http_proxy_env_higher_priority ( priority );
+}
+
+// settings
+std :: string SRAConfigModel :: get_current_path ()
+{
+    return model . get_current_dir ();
+}
+
+std :: string SRAConfigModel :: get_home_path ()
+{
+    return model . get_home_dir ();
+}
+
+std :: string SRAConfigModel :: get_public_path ()
+{
+    return model . get_public_location ();
+}
+
+RootState SRAConfigModel :: set_public_path ( const std :: string &path, bool flushOld, bool reuseNew )
+{
+    return translate_state ( model . set_public_location ( flushOld, path, reuseNew ) );
+}
+
+std :: string SRAConfigModel :: get_user_default_path ()
+{
+    return model . get_user_default_dir ();
+}
+
+void SRAConfigModel :: set_user_default_path ( const char *path )
+{
+    model . set_user_default_dir ( path );
+}
+
+// workspace
+
+bool SRAConfigModel :: site_workspace_exists ()
+{
+    return model . does_site_repo_exist ();
+}
+
+RootState SRAConfigModel :: configure_workspace ( const std :: string &path, bool reuseNew )
+{
+    return translate_state ( model . prepare_repo_directory ( path, reuseNew ) );
+}
+
+uint32_t SRAConfigModel :: workspace_count ()
+{
+    return model . get_repo_count ();
+}
+
+int32_t SRAConfigModel :: get_workspace_id ( const std :: string &name )
+{
+    return model . get_repo_id ( name );
+}
+
+std :: string SRAConfigModel :: get_workspace_name ( uint32_t id )
+{
+    return model . get_repo_name ( id );
+}
+
+std :: string SRAConfigModel :: get_workspace_path ( uint32_t id )
+{
+    return model . get_repo_location ( id );
+}
+
+RootState SRAConfigModel :: set_workspace_path ( const std :: string & path, uint32_t id, bool flushOld, bool reuseNew )
+{
+    return translate_state ( model . set_repo_location ( id, flushOld, path, reuseNew ) );
 }
 
 SRAConfigModel :: SRAConfigModel ( vdbconf_model &config_model, QObject *parent )

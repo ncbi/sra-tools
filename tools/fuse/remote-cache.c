@@ -1586,6 +1586,7 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
                                 & HttpFile,
                                 NULL, /* no open connections */
                                 0x01010000,
+                                "%s",
                                 self -> Url
                                 );
     if ( RCt == 0 ) {
@@ -2083,6 +2084,7 @@ ReadHttpFileToMemory (
                                 & File,
                                 NULL,   /* no open connections */
                                 0x01010000,
+                                "%s",
                                 Url
                                 );
     if ( RCt == 0 ) {
@@ -2155,6 +2157,7 @@ ExecuteCGI ( const char * CGICommand )
                                 & File,
                                 NULL,   /* no open connections */
                                 0x01010000,
+                                "%s",
                                 CGICommand
                                 );
     if ( RCt == 0 ) {

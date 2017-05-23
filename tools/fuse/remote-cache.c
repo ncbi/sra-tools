@@ -1881,7 +1881,12 @@ _RCacheEntryDoRead (
     }
 
     if ( SizeToRead == 0 ) {
-        return RC ( rcExe, rcFile, rcReading, rcParam, rcInvalid );
+        * NumReaded = 0;
+
+        return 0;
+        /* Bad decision
+            return RC ( rcExe, rcFile, rcReading, rcParam, rcInvalid );
+        */
     }
 
         /*)  Here we are locking

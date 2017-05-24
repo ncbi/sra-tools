@@ -2540,7 +2540,7 @@ rc_t print_results(const Ctx* ctx)
             }
             else {
                 size_t k = strftime(b, sizeof(b), "%Y-%m-%dT%H:%M:%S", tm);
-                OUTMSG(("  <Archive timestamp=\"%.*s\"", k, b));
+                OUTMSG(("  <Archive timestamp=\"%.*s\"", ( int ) k, b));
                 for(i = 0; i < sizeof(a->i) / sizeof(a->i[0]); i++) {
                     OUTMSG((" size.%s=\"%lu\" md5.%s=\"%s\"",
                         a->i[i].tag, a->i[i].size, a->i[i].tag, a->i[i].md5));

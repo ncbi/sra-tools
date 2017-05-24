@@ -512,7 +512,7 @@ SRAConfig :: SRAConfig ( vdbconf_model &config_model, const QRect &avail_geometr
 
     setWindowTitle ( "SRA Configuration Tool" );
     setup_menubar ();
-    setup_toolbar ();
+    //setup_toolbar ();
 
     main_layout -> setSpacing ( 20 );
     main_layout -> setAlignment ( Qt::AlignTop );
@@ -828,7 +828,7 @@ void SRAConfig :: advanced_settings ()
 {
     adv_setting_window = new QFrame ();
     adv_setting_window -> resize ( this -> width () * .7, this -> height () / 2 );
-    adv_setting_window -> setWindowTitle ( "Advanced Setting" );
+    adv_setting_window -> setWindowTitle ( "Advanced Settings" );
 
     QVBoxLayout *v_layout = new QVBoxLayout ();
 

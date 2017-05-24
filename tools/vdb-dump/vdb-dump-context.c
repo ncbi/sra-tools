@@ -138,6 +138,7 @@ static void vdco_init_values( p_dump_context ctx )
     ctx->diff = false;
     ctx->show_spotgroups = false;
     ctx->show_spread = false;
+    ctx->len_spread = false;
     ctx->interactive = false;    
 }
 
@@ -597,6 +598,7 @@ static void vdco_evaluate_options( const Args *my_args,
     ctx->show_blobbing = vdco_get_bool_option( my_args, OPTION_SHOW_BLOBBING, false );
     ctx->enum_phys = vdco_get_bool_option( my_args, OPTION_ENUM_PHYS, false );
     ctx->enum_readable = vdco_get_bool_option( my_args, OPTION_ENUM_READABLE, false );
+    ctx->enum_static = vdco_get_bool_option( my_args, OPTION_ENUM_STATIC, false );
     ctx->idx_enum_requested = vdco_get_bool_option( my_args, OPTION_IDX_ENUM, false );
     ctx->disable_multithreading = vdco_get_bool_option( my_args, OPTION_NO_MULTITHREAD, false );
     ctx->print_info = vdco_get_bool_option( my_args, OPTION_INFO, false );
@@ -605,6 +607,7 @@ static void vdco_evaluate_options( const Args *my_args,
     /*ctx->force_sra_schema = vdco_get_bool_option( my_args, OPTION_SRASCHEMA, false );*/
     ctx->merge_ranges = vdco_get_bool_option( my_args, OPTION_MERGE_RANGES, false );
     ctx->show_spread = vdco_get_bool_option( my_args, OPTION_SPREAD, false );
+    ctx->len_spread = vdco_get_bool_option( my_args, OPTION_LEN_SPREAD, false );
     ctx->interactive = vdco_get_bool_option( my_args, OPTION_INTERACTIVE, false );
     ctx->slice_depth = vdco_get_uint16_option( my_args, OPTION_SLICE, 0 );
     

@@ -31,6 +31,7 @@
 #include <klib/printf.h>
 #include <klib/rc.h>
 #include <klib/pack.h>
+#include <klib/out.h>
 #include <sysalloc.h>
 
 #include <stdlib.h>
@@ -524,5 +525,113 @@ rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket )
         }
     }
     src->element_idx++;
+    return rc;
+}
+
+
+void vdm_clear_recorded_errors( void )
+{
+    rc_t rc;
+    const char * filename;
+    const char * funcname;
+    uint32_t line_nr;
+    while ( GetUnreadRCInfo ( &rc, &filename, &funcname, &line_nr ) )
+    {
+    }
+}
+
+
+static rc_t walk_sections( const VDatabase * base_db, const VDatabase ** sub_db,
+                    const VNamelist * sections, uint32_t count )
+{
+    rc_t rc = 0;
+    const VDatabase * parent_db = base_db;
+    if ( count == 0 )
+    {
+        rc = VDatabaseAddRef ( parent_db );
+        DISP_RC( rc, "VDatabaseAddRef() failed" );
+    }
+    else
+    {
+        uint32_t idx;
+        for ( idx = 0; rc == 0 && idx < count; ++idx )
+        {
+            const char * dbname;
+            rc = VNameListGet ( sections, idx, &dbname );
+            DISP_RC( rc, "VNameListGet() failed" );
+            if ( rc == 0 )
+            {
+                const VDatabase * temp;
+                rc = VDatabaseOpenDBRead ( parent_db, &temp, "%s", dbname );
+                DISP_RC( rc, "VDatabaseOpenDBRead() failed" );
+                if ( rc == 0 && idx > 0 )
+                {
+                    rc = VDatabaseRelease ( parent_db );
+                    DISP_RC( rc, "VDatabaseRelease() failed" );
+                }
+                if ( rc == 0 )
+                    parent_db = temp;
+            }
+        }
+    }
+    
+    if ( rc == 0 ) *sub_db = parent_db;
+    return rc;
+}
+
+
+rc_t check_table_empty( const VTable * tab )
+{
+    bool empty;
+    rc_t rc = VTableIsEmpty( tab, &empty );
+    DISP_RC( rc, "VTableIsEmpty() failed" );
+    if ( rc == 0 && empty )
+    {
+        vdm_clear_recorded_errors();
+        KOutMsg( "the requested table is empty!\n" );
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTable, rcEmpty );
+    }
+    return rc;
+}
+
+
+rc_t open_table_by_path( const VDatabase * db, const char * inner_db_path, const VTable ** tab )
+{
+    VNamelist * sections;
+    rc_t rc = vds_path_to_sections( inner_db_path, '.', &sections );
+    DISP_RC( rc, "vds_path_to_sections() failed" );
+    if ( rc == 0 )
+    {
+        uint32_t count;
+        rc = VNameListCount ( sections, &count );
+        DISP_RC( rc, "VNameListCount() failed" );
+        if ( rc == 0 && count > 0 )
+        {
+            const VDatabase * sub_db;
+            rc = walk_sections( db, &sub_db, sections, count - 1 );
+            if ( rc == 0 )
+            {
+                const char * tabname;
+                rc = VNameListGet ( sections, count - 1, &tabname );
+                DISP_RC( rc, "VNameListGet() failed" );
+                if ( rc == 0 )
+                {
+                    rc = VDatabaseOpenTableRead( sub_db, tab, "%s", tabname );
+                    DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+                    if ( rc == 0 )
+                    {
+                        rc = check_table_empty( *tab );
+                        if ( rc != 0 )
+                        {
+                            VTableRelease( *tab );
+                            tab = NULL;
+                        }
+                    }
+                }
+                VDatabaseRelease ( sub_db );
+            }
+        }
+        VNamelistRelease ( sections );
+    }
     return rc;
 }

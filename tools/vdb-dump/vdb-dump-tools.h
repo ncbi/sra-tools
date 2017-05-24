@@ -53,6 +53,12 @@ typedef dump_src* p_dump_src;
 
 rc_t vdt_dump_element( const p_dump_src src, const p_col_def def, bool bracket );
 
+void vdm_clear_recorded_errors( void );
+
+rc_t check_table_empty( const VTable * tab );
+
+rc_t open_table_by_path( const VDatabase * db, const char * inner_db_path, const VTable ** tab );
+
 #ifdef __cplusplus
 }
 #endif

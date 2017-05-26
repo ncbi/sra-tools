@@ -76,6 +76,12 @@ static const char * mintp_usage[]     = { "minimum count on t+ template", NULL }
 #define OPTION_MINTN  "min-t-"
 static const char * mintn_usage[]     = { "minimum count on t- template", NULL };
 
+#define OPTION_MIN_EACH "min-each"
+static const char * min_each_usage[]  = { "minimum count each of the 4 counters", NULL };
+
+#define OPTION_MIN_ANY  "min-any"
+static const char * min_any_usage[]   = { "minimum count any of the 4 counters", NULL };
+
 #define OPTION_PURGE   "purge"
 #define ALIAS_PURGE    "p"
 static const char * purge_usage[]     = { "after how many ref-pos in dict perform pureg", NULL };
@@ -116,6 +122,8 @@ OptDef ToolOptions[] =
     { OPTION_MINREV,    NULL,          NULL, minrev_usage,    1,   true,        false },
     { OPTION_MINTP,     NULL,          NULL, mintp_usage,     1,   true,        false },
     { OPTION_MINTN,     NULL,          NULL, mintn_usage,     1,   true,        false },
+    { OPTION_MIN_EACH,  NULL,          NULL, min_each_usage,  1,   true,        false },
+    { OPTION_MIN_ANY,   NULL,          NULL, min_any_usage,   1,   true,        false },
 
     { OPTION_PURGE,     ALIAS_PURGE,    NULL, purge_usage,     1,   true,        false },
     { OPTION_CACHE,     NULL,          NULL, cache_usage,     1,   true,        false },    
@@ -211,6 +219,10 @@ static rc_t fill_out_tool_ctx( const Args * args, tool_ctx * ctx )
         rc = get_uint32( args, OPTION_MINTP, &ctx->ac_data.limits.t_pos, 0 );
     if ( rc == 0 )
         rc = get_uint32( args, OPTION_MINTN, &ctx->ac_data.limits.t_neg, 0 );
+    if ( rc == 0 )
+        rc = get_uint32( args, OPTION_MIN_EACH, &ctx->ac_data.limits.min_each, 0 );
+    if ( rc == 0 )
+        rc = get_uint32( args, OPTION_MIN_ANY, &ctx->ac_data.limits.min_any, 0 );
 
     if ( rc == 0 )
     {
@@ -239,8 +251,8 @@ static void release_tool_ctx( tool_ctx * ctx )
 
 static rc_t consume_alignments( tool_ctx * ctx, struct alig_iter * ai )
 {
-    struct alig_consumer2 * consumer;
-    rc_t rc = alig_consumer2_make( &consumer, &ctx->ac_data );
+    struct alig_consumer * consumer;
+    rc_t rc = alig_consumer_make( &consumer, &ctx->ac_data );
     if ( rc == 0 )
     {
         AlignmentT alignment;
@@ -249,11 +261,11 @@ static rc_t consume_alignments( tool_ctx * ctx, struct alig_iter * ai )
             if ( alignment.filter == READ_FILTER_PASS )
             {
                 /* consume the alignment */
-                rc = alig_consumer2_consume_alignment( consumer, &alignment );
+                rc = alig_consumer_consume_alignment( consumer, &alignment );
             }
         }
-        ctx->unsorted = alig_consumer2_get_unsorted( consumer );
-        alig_consumer2_release( consumer );
+        ctx->unsorted = alig_consumer_get_unsorted( consumer );
+        alig_consumer_release( consumer );
     }
     return rc;
 }
@@ -280,7 +292,7 @@ static rc_t produce_events_for_source( tool_ctx * ctx, const char * source )
         
         /* this source can be made from a csra-accession or a the path of a SAM-file */
         if ( ctx->csra )
-            rc = alig_iter_csra_make( &ai, source, ctx->cursor_cache_size, ctx->ac_data.slice );
+            rc = alig_iter_csra_make( &ai, source, ctx->cursor_cache_size, ctx->ac_data.slice, NULL );
         else
             rc = alig_iter_sam_make( &ai, source, ctx->ac_data.slice );
         

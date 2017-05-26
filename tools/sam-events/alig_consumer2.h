@@ -33,7 +33,7 @@
 #include "slice.h"              /* because of alig_consumer_data.slice */
 #include "expandCIGAR.h"        /* because of alig_consumer_data.fasta */
 
-struct alig_consumer2;
+struct alig_consumer;
 
 typedef struct alig_consumer_data
 {
@@ -45,13 +45,13 @@ typedef struct alig_consumer_data
 } alig_consumer_data;
 
 /* construct an alignmet-iterator from an accession */
-rc_t alig_consumer2_make( struct alig_consumer2 ** self, const alig_consumer_data * config );
+rc_t alig_consumer_make( struct alig_consumer ** self, const alig_consumer_data * config );
 
 /* releae an alignment-iterator */
-rc_t alig_consumer2_release( struct alig_consumer2 * self );
+rc_t alig_consumer_release( struct alig_consumer * self );
 
-rc_t alig_consumer2_consume_alignment( struct alig_consumer2 * self, AlignmentT * al );
+rc_t alig_consumer_consume_alignment( struct alig_consumer * self, AlignmentT * al );
 
-bool alig_consumer2_get_unsorted( struct alig_consumer2 * self );
+bool alig_consumer_get_unsorted( struct alig_consumer * self );
 
 #endif

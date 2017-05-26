@@ -127,7 +127,7 @@ static rc_t CC consumer_thread_function( const KThread * self, void * data )
 {
     rc_t rc = 0;
     consumer_thread_data * ctd = data;
-    struct alig_consumer2 * consumer;    
+    struct alig_consumer * consumer;    
     alig_consumer_data ac_data;
     
     ac_data.fasta = loadcSRA( ctd->acc, 1024 * 1024 );
@@ -136,7 +136,7 @@ static rc_t CC consumer_thread_function( const KThread * self, void * data )
     ac_data.slice = NULL;
     ac_data.purge = 5000;
     
-    rc = alig_consumer2_make( &consumer, &ac_data );
+    rc = alig_consumer_make( &consumer, &ac_data );
     if ( rc == 0 )
     {
         bool running = true;    
@@ -152,13 +152,13 @@ static rc_t CC consumer_thread_function( const KThread * self, void * data )
             else
             {
                 /* now let us process that aligment... */
-                rc = alig_consumer2_consume_alignment( consumer, al );
+                rc = alig_consumer_consume_alignment( consumer, al );
 
                 free_alignment_copy( al );
                 processed++;
             }
         }
-        alig_consumer2_release( consumer );
+        alig_consumer_release( consumer );
     }
     return rc;
 }
@@ -178,7 +178,7 @@ static rc_t run( Args * args, uint32_t count, tool_ctx * ctx )
         else
         {
             struct alig_iter * ai;
-            rc = alig_iter_csra_make( &ai, acc, 1024 * 1024 * 32, NULL );
+            rc = alig_iter_csra_make( &ai, acc, 1024 * 1024 * 32, NULL, NULL );
             if ( rc == 0 )
             {
                 consumer_thread_data ctd;

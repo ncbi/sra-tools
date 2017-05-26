@@ -135,7 +135,7 @@ class RefObj :
         return len( l )
 
 
-def perform( fn, nr ) :
+def collect( fn, nr ) :
     if nr == 1 :
         print( "reading '%s' as input A"% fn )
     else :
@@ -152,7 +152,7 @@ def perform( fn, nr ) :
 
 if __name__ == '__main__':
     for x in range( 1, len( sys.argv ) ) :
-        perform( sys.argv[ x ], x )
+        collect( sys.argv[ x ], x )
         
     for k in d :
         n_eq, n_neq = d[ k ].printout_1_and_2()

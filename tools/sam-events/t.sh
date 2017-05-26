@@ -17,14 +17,17 @@ ACC3=SRR5330399
 # only 177,968 alignments ( sorted )
 ACC4=ERR1881852
 
-# MAL1(NC_004325.1) 643,292     MAL2(NC_000910.2) 947,102       MAL3(NC_000521.3) 1,060,087
-# MAL4(NC_004318.1) 1,204,112   MAL5(NC_004326.1) 1,343,552     MAL6(NC_004327.2) 1,418,244
-# MAL7(NC_004328.2) 1,501,717   MAL8(NC_004329.2) 1,419,563     MAL9(NC_004330.1) 1,541,723
-# MAL10(NC_004314.2) 1,687,655  MAL11(NC_004315.2) 2,038,337    MAL12(NC_004316.1) 2,271,477
-# MAL13(NC_004331.2) 2,895,605  MAL14(NC_004317.2) 3,291,871
+# only 298,179 alignments
+ACC5=SRR5490844
+
+# only 492,201 alignments
+ACC6=SRR5490843
+
+# only 996,817
+ACC7=ERR111049
 
 # 817,426,459 alignments
-ACC5=SRR3986881
+#ACC5=SRR3986881
 
 # a copy of the lmdb-cache for the dbSNP team
 LMDB_CACHE=/panfs/traces01/sra_review/scratch/raetzw/lmdb_cache
@@ -107,28 +110,59 @@ function sam_events_vs_perl_scripts
     PERL_SCRIPTS_OUT="$ACC.PERL_SCRIPTS.txt"
     COLLECT_OUT="$ACC.COLLECTED.txt"
     
-    #time sam-events $ACC --csra -m 3 --evstrat 1 > $SAM_EVENTS_OUT
+    time sam-events $ACC --csra --min-each 1 --min-any 4 > $SAM_EVENTS_OUT
     
     GET_ALLELES="./NewPileup/get_alleles_new.pl $ACC"
     PROCESS_EXPANDED="./NewPileup/process_expanded_alleles_new.pl"
-    time $GET_ALLELES | var-expand | $PROCESS_EXPANDED | ./transform.py > $PERL_SCRIPTS_OUT
-    #time $GET_ALLELES | var-expand | $PROCESS_EXPANDED > $PERL_SCRIPTS_OUT
+    #time $GET_ALLELES | tee $ACC.before.txt | var-expand | tee $ACC.after.txt | $PROCESS_EXPANDED | ./transform.py > $PERL_SCRIPTS_OUT
+    time $GET_ALLELES |  var-expand --algorithm ra | $PROCESS_EXPANDED | ./transform.py > $PERL_SCRIPTS_OUT
     
-    ./collect.py $SAM_EVENTS_OUT $PERL_SCRIPTS_OUT > $COLLECT_OUT
+    ./collect2.py $SAM_EVENTS_OUT $PERL_SCRIPTS_OUT | sort | ./filter_equals.py > $COLLECT_OUT
+    rm -rf $SAM_EVENTS_OUT $PERL_SCRIPTS_OUT
 }
 
-function inspect_t4_vs_perl_script
+function inspect_t4_vs_perl_script_v1
 {
     ACC=$1
     T4_OUT="$ACC.T4.txt"
     GETA_OUT="$ACC.GETA.txt"
 
-    time t4 $ACC | sort > $T4_OUT
+    time t4 $ACC -e | sort > $T4_OUT
     
-    #GET_ALLELES="/home/yaschenk/NewPileup/get_alleles_new.pl $ACC"
     GET_ALLELES="./NewPileup/get_alleles_new.pl $ACC"
     time $GET_ALLELES | ./strip_phase.py | sort > $GETA_OUT
-    #time $GET_ALLELES | sort > $GETA_OUT
+    diff2 $T4_OUT $GETA_OUT
+}
+
+function inspect_t4_vs_perl_script_v2
+{
+    ACC=$1
+    T4_OUT="$ACC.T4.txt"
+    GETA_OUT="$ACC.GETA.txt"
+    #ROWS="142746"
+    
+    #time t4 $ACC -R $ROWS -l | sort > $T4_OUT
+    time t4 $ACC -l | sort > $T4_OUT
+    
+    #GET_ALLELES="./NewPileup/get_alleles_new.pl $ACC $ROWS"
+    GET_ALLELES="./NewPileup/get_alleles_new.pl $ACC"
+    VAR_EXP="/home/raetzw/devel/ncbi/ngs-tools/build/cmake/Debug/tools/ref-variation/var-expand --algorithm ra"
+    
+    time $GET_ALLELES | $VAR_EXP | ./strip_phase2.py | sort > $GETA_OUT
+    diff2 $T4_OUT $GETA_OUT
+}
+
+function debug_var_expand
+{
+    ACC=$1
+    ROW="142746"
+    TEMP1="$ACC.GETA_1.txt"
+    
+    GET_ALLELES="./NewPileup/get_alleles_new.pl $ACC $ROW"
+    VAR_EXP="/home/raetzw/devel/ncbi/ngs-tools/build/cmake/Debug/tools/ref-variation/var-expand"
+    $GET_ALLELES > $TEMP1
+    totalview $VAR_EXP
+    time $GET_ALLELES | $VAR_EXP | ./strip_phase2.py | sort > $GETA_OUT
 }
 
 #prepare $ACC2
@@ -143,5 +177,5 @@ function inspect_t4_vs_perl_script
 #time sam-events $ACC4 --csra --evstrat 1 > 2.txt
 #diff2 1.txt 2.txt
 
-sam_events_vs_perl_scripts $ACC4
-#inspect_t4_vs_perl_script $ACC4
+sam_events_vs_perl_scripts $ACC7
+#inspect_t4_vs_perl_script_v2 $ACC5

@@ -31,7 +31,7 @@
 #include <search/ref-variation.h>
 #include "allele_dict.h"
 
-typedef struct alig_consumer2
+typedef struct alig_consumer
 {
     /* given at constructor */
     const alig_consumer_data * config;
@@ -50,11 +50,11 @@ typedef struct alig_consumer2
     const char * ref_bases;
     unsigned ref_bases_count;
     struct Allele_Dict * ad;
-} alig_consumer2;
+} alig_consumer;
 
 
 /* releae an alignment-iterator */
-rc_t alig_consumer2_release( struct alig_consumer2 * self )
+rc_t alig_consumer_release( struct alig_consumer * self )
 {
     rc_t rc = 0;
 
@@ -74,16 +74,17 @@ rc_t alig_consumer2_release( struct alig_consumer2 * self )
 }
 
 
-static rc_t CC alig_consumer2_print( const counters * count, const String * rname, size_t position,
+static rc_t CC alig_consumer_print( const counters * count, const String * rname, size_t position,
                             uint32_t deletes, uint32_t inserts, const char * bases,
                             void * user_data )
 {
-    struct alig_consumer2 * self = user_data;
+    struct alig_consumer * self = user_data;
     const counters * limits = &self->config->limits;
     bool print = true;
     
     if ( limits->total > 0 )
         print = ( count->fwd + count->rev >= limits->total );
+
     if ( print && limits->fwd > 0 )
         print = ( count->fwd >= limits->fwd );
     if ( print && limits->rev > 0 )
@@ -93,6 +94,20 @@ static rc_t CC alig_consumer2_print( const counters * count, const String * rnam
     if ( print && limits->t_neg > 0 )
         print = ( count->t_neg >= limits->t_neg );
 
+    if ( print && limits->min_each > 0 )
+    {
+        print = ( count->fwd > limits->min_each &&
+                  count->rev > limits->min_each &&
+                  count->t_pos > limits->min_each && 
+                  count->t_neg > limits->min_each );
+        if ( limits->min_any > 0 )
+            print = ( print ||
+                      count->fwd > limits->min_any ||
+                      count->rev > limits->min_any ||
+                      count->t_pos > limits->min_any ||
+                      count->t_neg > limits->min_any );
+    }
+    
     /*COUNT-FWD - COUNT-REV - COUNT-t+ - COUNT-t- - REFNAME - EVENT-POS - DELETES - INSERTS - BASES */
     
     if ( print )
@@ -125,7 +140,7 @@ static rc_t CC alig_consumer2_print( const counters * count, const String * rnam
 
 
 /* construct an alignmet-iterator from an accession */
-rc_t alig_consumer2_make( struct alig_consumer2 ** self, const alig_consumer_data * config )
+rc_t alig_consumer_make( struct alig_consumer ** self, const alig_consumer_data * config )
 {
     rc_t rc = 0;
     if ( self == NULL || config == NULL )
@@ -135,7 +150,7 @@ rc_t alig_consumer2_make( struct alig_consumer2 ** self, const alig_consumer_dat
     }
     else
     {
-        alig_consumer2 * o = calloc( 1, sizeof *o );
+        alig_consumer * o = calloc( 1, sizeof *o );
         *self = NULL;
         if ( o == NULL )
         {
@@ -147,7 +162,7 @@ rc_t alig_consumer2_make( struct alig_consumer2 ** self, const alig_consumer_dat
             o->config = config;
             
             /* fill out the data to be given to each dictionary instance */
-            o->dict_data.event_func = alig_consumer2_print;
+            o->dict_data.event_func = alig_consumer_print;
             o->dict_data.purge = config->purge;
             o->dict_data.user_data = o;
             
@@ -158,30 +173,13 @@ rc_t alig_consumer2_make( struct alig_consumer2 ** self, const alig_consumer_dat
         if ( rc == 0 )
             *self = o;
         else
-            alig_consumer2_release( o );
+            alig_consumer_release( o );
     }
     return rc;
 }
 
 
-/* we have a common store function because this is the place to filter... */
-static rc_t alig_consumer2_store_allele( struct alig_consumer2 * self,
-                                        uint64_t position, uint32_t deletes, uint32_t inserts,
-                                        const char * bases, bool fwd, bool first )
-{
-	bool store = true;
-
-	if ( self->config->slice != NULL )
-		store = filter_by_slice( self->config->slice, self->rname, position, inserts );
-
-	if ( store )
-        return allele_dict_put( self->ad, position, deletes, inserts, bases, fwd, first );
-
-    return 0;
-}
-
-
-static rc_t alig_consumer2_process_events( struct alig_consumer2 * self,
+static rc_t alig_consumer_process_events( struct alig_consumer * self,
                                           AlignmentT * alignment,
                                           unsigned refLength,
                                           struct Event2 * const events,
@@ -213,8 +211,31 @@ static rc_t alig_consumer2_process_events( struct alig_consumer2 * self,
             if ( rc != 0 )
                 log_err( "RefVariationGetAllele() failed rc=%R", rc );
             else
-                /*                                      pos            del         ins         bases */        
-                rc = alig_consumer2_store_allele( self, allele_start, ev->refLen, allele_len, allele, alignment->fwd, alignment->first );
+            {
+                size_t allele_len_on_ref;
+                rc = RefVariationGetAlleleLenOnRef( ref_var, &allele_len_on_ref );
+                if ( rc != 0 )
+                    log_err( "RefVariationGetAlleleLenOnRef() failed rc=%R", rc );
+                else
+                {
+                    uint64_t pos = allele_start;
+                    uint32_t deletes = allele_len_on_ref;
+                    uint32_t inserts = allele_len;
+                    const char * bases = allele;
+                    bool fwd = alignment->fwd;
+                    bool first = alignment->first;
+                    
+                    if ( self->config->slice != NULL )
+                    {
+                        if ( filter_by_slice( self->config->slice, self->rname, pos, inserts ) )
+                        {
+                            rc = allele_dict_put( self->ad, pos, deletes, inserts, bases, fwd, first );
+                        }
+                    }
+                    else
+                        rc = allele_dict_put( self->ad, pos, deletes, inserts, bases, fwd, first );
+                }
+            }
             
             rc2 = RefVariationRelease( ref_var );
             if ( rc2 != 0 )
@@ -225,7 +246,7 @@ static rc_t alig_consumer2_process_events( struct alig_consumer2 * self,
 }
 
 
-static rc_t alig_consumer2_switch_reference( struct alig_consumer2 * self, const String * rname )
+static rc_t alig_consumer_switch_reference( struct alig_consumer * self, const String * rname )
 {
     rc_t rc = 0;
     
@@ -250,7 +271,7 @@ static rc_t alig_consumer2_switch_reference( struct alig_consumer2 * self, const
 }
 
 
-static rc_t alig_consumer2_check_rname( struct alig_consumer2 * self, const String * rname, uint64_t position )
+static rc_t alig_consumer_check_rname( struct alig_consumer * self, const String * rname, uint64_t position )
 {
     rc_t rc = 0;
     int cmp = 1;
@@ -287,7 +308,7 @@ static rc_t alig_consumer2_check_rname( struct alig_consumer2 * self, const Stri
            - get the index of the new reference into the fasta-file
         */
         if ( rc == 0 )
-            rc = alig_consumer2_switch_reference( self, rname );
+            rc = alig_consumer_switch_reference( self, rname );
             
         /* make a new allele-dict */
         if ( rc == 0 )
@@ -310,9 +331,9 @@ static rc_t alig_consumer2_check_rname( struct alig_consumer2 * self, const Stri
 
 #define NUM_EVENTS 1024
 
-rc_t alig_consumer2_consume_alignment( struct alig_consumer2 * self, AlignmentT * alignment )
+rc_t alig_consumer_consume_alignment( struct alig_consumer * self, AlignmentT * alignment )
 {
-    rc_t rc = alig_consumer2_check_rname( self, &alignment->rname, alignment->pos );
+    rc_t rc = alig_consumer_check_rname( self, &alignment->rname, alignment->pos );
     if ( rc == 0 )
     {
         unsigned refLength;
@@ -337,13 +358,13 @@ rc_t alig_consumer2_consume_alignment( struct alig_consumer2 * self, AlignmentT 
             if ( num_events < 0 )
                 log_err( "expandCIGRAR failed for cigar '%S'", &alignment->cigar );
             else
-                rc = alig_consumer2_process_events( self, alignment, refLength, events, num_events );
+                rc = alig_consumer_process_events( self, alignment, refLength, events, num_events );
         }
     }
     return rc;
 }
 
-bool alig_consumer2_get_unsorted( struct alig_consumer2 * self )
+bool alig_consumer_get_unsorted( struct alig_consumer * self )
 {
     if ( self != NULL ) return self->unsorted;
     return false;

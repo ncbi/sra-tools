@@ -28,13 +28,18 @@
 #define _h_alig_iter_
 
 #include <klib/rc.h>
+#include <klib/num-gen.h>
 #include "common.h"    /* because of AlignmentT */
 #include "slice.h"     /* because of slice */
 
 struct alig_iter;
 
 /* construct an alignmet-iterator from an accession */
-rc_t alig_iter_csra_make( struct alig_iter ** self, const char * acc, size_t cache_capacity, const slice * slice );
+rc_t alig_iter_csra_make( struct alig_iter ** self,
+                          const char * acc,
+                          size_t cache_capacity,
+                          const slice * slice,
+                          struct num_gen * rows );
 
 /* construct an alignmet-iterator from a file ( and it's name for error messages ) */
 rc_t alig_iter_sam_make( struct alig_iter ** self, const char * name, const slice * slice );

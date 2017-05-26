@@ -133,6 +133,7 @@ rc_t get_uint32( const Args * args, const char *option, uint32_t * value, uint32
     return 0;
 }
 
+
 size_t string_2_size_t( const char * s, size_t dflt )
 {
     size_t res = dflt;

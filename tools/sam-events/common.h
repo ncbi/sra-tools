@@ -33,7 +33,7 @@
 
 typedef struct counters
 {
-    uint32_t fwd, rev, t_pos, t_neg, total;
+    uint32_t fwd, rev, t_pos, t_neg, total, min_each, min_any;
 } counters;
 
 typedef struct row_range

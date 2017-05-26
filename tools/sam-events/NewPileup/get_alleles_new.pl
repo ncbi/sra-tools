@@ -1,17 +1,24 @@
 #!/usr/bin/perl
 my %allele_cache;
 $col_list="SEQ_SPOT_ID,SEQ_READ_ID,REF_ORIENTATION,REF_SEQ_ID,REF_POS,CIGAR_LONG,READ,READ_FILTER";
-$row_range="100000-1100000";
+#$row_range="100000-1100000";
 $acc=$ARGV[0];
-if($#ARGV>0){$row_range = $ARGV[1];}
 
-#$vdbdump="/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/toolkit/centos64/bin/vdb-dump -R $row_range -T PRIMARY_ALIGNMENT -C $col_list -f tab";
-$vdbdump="/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/toolkit/centos64/bin/vdb-dump -T PRIMARY_ALIGNMENT -C $col_list -f tab";
+if ( $#ARGV > 0 )
+{
+    $row_range = $ARGV[ 1 ];
+    $vdbdump="/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/toolkit/centos64/bin/vdb-dump -R $row_range -T PRIMARY_ALIGNMENT -C $col_list -f tab";    
+}
+else
+{
+    $vdbdump="/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/toolkit/centos64/bin/vdb-dump -T PRIMARY_ALIGNMENT -C $col_list -f tab";
+}
+    
 $varexpand="/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/toolkit/centos64/bin/var-expand.2.6.2 --algorithm ra";
 
 #open OUT,"|$varexpand"     or die "failed to run $varexpand";
 open DUMP,"$vdbdump $acc|" or die "failed to run $vdbdump";
-open TMP_COVERAGE,"|sort -n| uniq > tmp_coverage";
+#open TMP_COVERAGE,"|sort -n| uniq > tmp_coverage";
 while(<DUMP>)
 {
         chop;
@@ -33,7 +40,7 @@ while(<DUMP>)
 
 }
 close DUMP;
-close TMP_COVERAGE;
+#close TMP_COVERAGE;
 flush_cache(0);
 
 
@@ -65,13 +72,13 @@ sub process_cigar
                         $op =$cig[1];
                         shift @cig;shift@cig;
                         $next_op=$cig[1];
-                        if(     $op eq '='){ #just consume
-								for($i=0;$i<$len;$i++){
-									printf TMP_COVERAGE "%d\t%d%s\n",$pos+$i,$spotid,$ro;
-								}
-                                $pos+=$len;
-                                substr($read,0,$len)="";
-						
+                        if ( $op eq '=' )
+                        {   #just consume
+                            #for($i=0;$i<$len;$i++){
+                            #printf TMP_COVERAGE "%d\t%d%s\n",$pos+$i,$spotid,$ro;
+                            #}
+                            $pos+=$len;
+                            substr($read,0,$len)="";
                         } elsif ($op eq 'X'){
                                 if( $next_op =~ /[=DIX]/){#don't report anything not bounded by real variation
                                         $off+=$len;

@@ -96,12 +96,15 @@ namespace VDB {
             size_t size() const {
                 return (elem_bits * elements + 7) / 8;
             }
+            size_t const stride() const {
+                auto const sz = ((elem_bits * elements + 7) / 8 + 3) / 4;
+                return 8 + sz * 4;
+            }
             void *data() const {
                 return (void *)(this + 1);
             }
             void *end() const {
-                auto const sz = (size() + 3) / 4;
-                return (void *)((uint8_t *)(data()) + sz * 4);
+                return (void *)(((uint8_t const *)this) + stride());
             }
             Data const *next() const {
                 return (Data const *)end();
@@ -125,6 +128,24 @@ namespace VDB {
                     return nullptr;
                 memcpy(rslt + 1, this->data, size());
                 return rslt;
+            }
+            std::string asString() const {
+                if (elem_bits == 8)
+                    return std::string((char *)data, elements);
+                else
+                    throw std::bad_cast();
+            }
+            template <typename T> std::vector<T> asVector() const {
+                if (elem_bits == sizeof(T) * 8)
+                    return std::vector<T>((T *)data, elements);
+                else
+                    throw std::bad_cast();
+            }
+            template <typename T> T value() const {
+                if (elem_bits == sizeof(T) * 8 && elements == 1)
+                    return *(T *)data;
+                else
+                    throw std::bad_cast();
             }
         };
         Cursor(Cursor const &other) :o(other.o) { C::VCursorAddRef(o); }

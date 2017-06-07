@@ -341,7 +341,7 @@ static void process(VDB::Writer const &out, Fragment const &fragment)
                     for (auto j = first; j < next; ++j) {
                         if (j == i) continue;
                         auto const &testSeq = fragment.detail[j].sequence;
-                        if (testSeq == seq || testSeq == rseq)
+                        if (testSeq.length() == 0 || testSeq == seq || testSeq == rseq)
                             continue;
                         goto DISCARD;
                     }

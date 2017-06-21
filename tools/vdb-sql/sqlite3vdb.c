@@ -55,188 +55,124 @@ static rc_t VNamelist_from_KNamelist( VNamelist ** dst, const KNamelist * src )
 }
 
 /* -------------------------------------------------------------------------------------- */
-typedef struct col_desc
+typedef struct column_description
 {
     const char * typecast;
     const char * name;
-} col_desc;
+} column_description;
 
-static void CC destroy_col_desc( void * item, void * data )
+
+static void CC destroy_column_description( void * item, void * data )
 {
     if ( item != NULL )
     {
-        col_desc * desc = item;
+        column_description * desc = item;
         if ( desc->typecast != NULL ) sqlite3_free( ( void * )desc->typecast );
         if ( desc->name != NULL ) sqlite3_free( ( void * )desc->name );
         sqlite3_free( desc );
     }
 }
 
-static col_desc * make_col_desc( const char * decl )
+static column_description * make_column_description( const char * decl )
 {
-    col_desc * res = sqlite3_malloc( sizeof( * res ) );
+    column_description * res = sqlite3_malloc( sizeof( * res ) );
     if ( res != NULL )
     {
         rc_t rc = 0;
+        VNamelist * l;
         memset( res, 0, sizeof( *res ) );
+        rc = VNamelistFromStr( &l, decl, ')' );
+        if ( rc == 0 )
         {
-            VNamelist * l;
-            rc = VNamelistFromStr( &l, decl, ')' );
+            uint32_t count;
+            rc = VNameListCount( l, &count );
             if ( rc == 0 )
             {
-                uint32_t count;
-                rc = VNameListCount( l, &count );
-                if ( rc == 0 )
+                const char * s;
+                if ( count == 1 )
                 {
-                    const char * s;
-                    if ( count == 1 )
+                    rc = VNameListGet( l, 0, &s );
+                    if ( rc == 0 )
+                        res->name = sqlite3_mprintf( s );
+                }
+                else if ( count == 2 )
+                {
+                    rc = VNameListGet( l, 0, &s );
+                    if ( rc == 0 )
                     {
-                        rc = VNameListGet( l, 0, &s );
+                        if ( s[ 0 ] == '(' )
+                            res->typecast = sqlite3_mprintf( &s[ 1 ] );
+                        else
+                            res->typecast = sqlite3_mprintf( s );
+                        rc = VNameListGet( l, 1, &s );
                         if ( rc == 0 )
                             res->name = sqlite3_mprintf( s );
                     }
-                    else if ( count == 2 )
-                    {
-                        rc = VNameListGet( l, 0, &s );
-                        if ( rc == 0 )
-                        {
-                            if ( s[ 0 ] == '(' )
-                                res->typecast = sqlite3_mprintf( &s[ 1 ] );
-                            else
-                                res->typecast = sqlite3_mprintf( s );
-                            rc = VNameListGet( l, 1, &s );
-                            if ( rc == 0 )
-                                res->name = sqlite3_mprintf( s );
-                        }
-                    }
-                    else
-                    {
-                        rc = -1;
-                    }
                 }
-                VNamelistRelease( l );
+                else
+                {
+                    rc = -1;
+                }
             }
+            VNamelistRelease( l );
         }
         if ( rc != 0 || res->name == NULL )
         {
-            destroy_col_desc( res, NULL );
+            destroy_column_description( res, NULL );
             res = NULL;
         }
     }
     return res;
 }
 
-static void CC print_col_desc( void * item, void * data )
+
+static column_description * copy_column_description( const column_description * src )
 {
-    if ( item != NULL && data != NULL )
+    column_description * res = sqlite3_malloc( sizeof( * res ) );
+    if ( res != NULL )
     {
-        col_desc * obj = item;
-        char * sep = data;
-        if ( obj->typecast != NULL )
-        {
-            if ( *sep != 0 )
-                printf( "%c(%s)%s", *sep, obj->typecast, obj->name );
-            else
-                printf( "(%s)%s", obj->typecast, obj->name );
-        }
-        else
-        {
-            if ( *sep != 0 )
-                printf( "%c%s", *sep, obj->name );
-            else
-                printf( "%s", obj->name );
-        }
-        if ( *sep == 0 )
-            *sep = ';';
+        memset( res, 0, sizeof( *res ) );
+        res->name = sqlite3_mprintf( src->name );
+        if ( src->typecast != NULL )
+            res->typecast = sqlite3_mprintf( src->typecast );
     }
+    return res;
 }
 
-
-typedef struct append_col_desc_name_ctx
-{
-    char * res;
-    char sep;
-} append_col_desc_name_ctx;
-
-static void CC append_col_desc_name( void * item, void * data )
-{
-    if ( item != NULL && data != NULL )
-    {
-        col_desc * obj = item;
-        append_col_desc_name_ctx * ctx = data;
-        
-        if ( obj->name != NULL )
-        {
-            char * s;
-            /* sqlite3-special-behavior: %z means free the ptr after inserting into result */
-            if ( ctx->sep != 0 )
-                s = sqlite3_mprintf( "%z%c %s ", ctx->res, ctx->sep, obj->name );
-            else
-                s = sqlite3_mprintf( "%z%s", ctx->res, obj->name );
-            ctx->res = s;
-        }
-        if ( ctx->sep == 0 )
-            ctx->sep = ',';
-    }
-}
-
-typedef struct col_desc_check_ctx
-{
-    const VNamelist * available;
-    int not_found;
-} col_desc_check_ctx;
-
-static void CC check_col_desc_available( void * item, void * data )
-{
-    if ( item != NULL && data != NULL )
-    {
-        col_desc * obj = item;
-        col_desc_check_ctx * ctx = data;
-
-        if ( obj->name != NULL )
-        {
-            uint32_t found;
-            rc_t rc = VNamelistIndexOf( ( VNamelist * )ctx->available, obj->name, &found );
-            if ( rc != 0 )
-                ctx->not_found++;
-        }
-        else
-            ctx->not_found++;
-    }
-}
 
 /* -------------------------------------------------------------------------------------- */
-typedef struct col_inst
+typedef struct column_instance
 {
-    const col_desc * desc;
-    uint32_t idx;
+    const column_description * desc;
+    uint32_t vdb_cursor_idx;
     VTypedecl vtype;
     VTypedesc vdesc;
     int64_t first;
     uint64_t count;
-} col_inst;
+} column_instance;
 
-static void CC destroy_col_inst( void * item, void * data )
+static void CC destroy_column_instance( void * item, void * data )
 {
     if ( item != NULL )
     {
-        col_desc * desc = item;
-        sqlite3_free( desc );
+        column_instance * inst = item;
+        destroy_column_description( ( column_description * )inst->desc, NULL );
+        sqlite3_free( inst );
     }
 }
 
-static col_inst * make_col_inst( const col_desc * desc, const VCursor * curs )
+static column_instance * make_column_instance( const column_description * desc, const VCursor * curs )
 {
-    col_inst * res = sqlite3_malloc( sizeof( * res ) );
+    column_instance * res = sqlite3_malloc( sizeof( * res ) );
     if ( res != NULL )
     {
         rc_t rc = 0;
         memset( res, 0, sizeof( *res ) );
-        res->desc = desc;
+        res->desc = copy_column_description( desc );
         if ( desc->typecast != NULL )
-            rc = VCursorAddColumn( curs, &res->idx, "(%s)%s", desc->typecast, desc->name );
+            rc = VCursorAddColumn( curs, &res->vdb_cursor_idx, "(%s)%s", desc->typecast, desc->name );
         else
-            rc = VCursorAddColumn( curs, &res->idx, "%s", desc->name );
+            rc = VCursorAddColumn( curs, &res->vdb_cursor_idx, "%s", desc->name );
         if ( rc != 0 )
         {
             sqlite3_free( res );
@@ -246,11 +182,11 @@ static col_inst * make_col_inst( const col_desc * desc, const VCursor * curs )
     return res;
 }
 
-static rc_t col_inst_post_open( col_inst * inst, const VCursor * curs )
+static rc_t column_instance_post_open( column_instance * inst, const VCursor * curs )
 {
-    rc_t rc = VCursorDatatype( curs, inst->idx, &inst->vtype, &inst->vdesc );
+    rc_t rc = VCursorDatatype( curs, inst->vdb_cursor_idx, &inst->vtype, &inst->vdesc );
     if ( rc == 0 )
-        rc = VCursorIdRange( curs, inst->idx, &inst->first, &inst->count );
+        rc = VCursorIdRange( curs, inst->vdb_cursor_idx, &inst->first, &inst->count );
     return rc;
 }
 
@@ -287,11 +223,11 @@ static char * print_bool_vector( const uint8_t * base, uint32_t count )
 
 
 /* we are printing booleans ( booleans are always 8 bit )*/
-static void col_inst_bool( col_inst * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
+static void col_inst_bool( column_instance * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
 {
     uint32_t elem_bits, boff, row_len;
     const void * base;
-    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->idx, &elem_bits, &base, &boff, &row_len );
+    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->vdb_cursor_idx, &elem_bits, &base, &boff, &row_len );
     if ( rc == 0 && row_len > 0 )
     {
         if ( row_len == 1 )
@@ -369,11 +305,11 @@ PRINT_VECTOR( uint64_t, 22, "%lu", ", %lu" )
 
 
 /* we are printing unsigned integers */
-static void col_inst_Uint( col_inst * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
+static void col_inst_Uint( column_instance * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
 {
     uint32_t elem_bits, boff, row_len;
     const void * base;
-    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->idx, &elem_bits, &base, &boff, &row_len );
+    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->vdb_cursor_idx, &elem_bits, &base, &boff, &row_len );
     if ( rc == 0 && row_len > 0 )
     {
         if ( row_len == 1 )
@@ -425,11 +361,11 @@ PRINT_VECTOR( int64_t, 23, "%ld", ", %ld" )
 
 
 /* we are printing signed integers */
-static void col_inst_Int( col_inst * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
+static void col_inst_Int( column_instance * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
 {
     uint32_t elem_bits, boff, row_len;
     const void * base;
-    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->idx, &elem_bits, &base, &boff, &row_len );
+    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->vdb_cursor_idx, &elem_bits, &base, &boff, &row_len );
     if ( rc == 0 && row_len > 0 )
     {
         if ( row_len == 1 )
@@ -477,11 +413,11 @@ PRINT_VECTOR( double, MAX_CHARS_FOR_DOUBLE, "%f", ", %f" )
 /* static char * print_double_vec( const double * base, uint32_t count ) */
 
 /* we are printing signed floats */
-static void col_inst_Float( col_inst * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
+static void col_inst_Float( column_instance * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
 {
     uint32_t elem_bits, boff, row_len;
     const void * base;
-    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->idx, &elem_bits, &base, &boff, &row_len );
+    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->vdb_cursor_idx, &elem_bits, &base, &boff, &row_len );
     if ( rc == 0 && row_len > 0 )
     {
         if ( row_len == 1 )
@@ -519,18 +455,18 @@ static void col_inst_Float( col_inst * inst, const VCursor * curs, sqlite3_conte
 #undef PRINT_VECTOR
 
 /* we are printing text */
-static void col_inst_Ascii( col_inst * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
+static void col_inst_Ascii( column_instance * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
 {
     uint32_t elem_bits, boff, row_len;
     const void * base;
-    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->idx, &elem_bits, &base, &boff, &row_len );
+    rc_t rc = VCursorCellDataDirect( curs, row_id, inst->vdb_cursor_idx, &elem_bits, &base, &boff, &row_len );
     if ( rc == 0 && row_len > 0 )
         sqlite3_result_text( ctx, (char *)base, row_len, SQLITE_TRANSIENT );
     else
         sqlite3_result_null( ctx );
 }
 
-static void col_inst_cell( col_inst * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
+static void col_inst_cell( column_instance * inst, const VCursor * curs, sqlite3_context * ctx, int64_t row_id )
 {
     switch( inst->vdesc.domain )
     {
@@ -545,113 +481,159 @@ static void col_inst_cell( col_inst * inst, const VCursor * curs, sqlite3_contex
 }
     
 /* -------------------------------------------------------------------------------------- */
-typedef struct col_desc_list
-{
-    Vector v;
-} col_desc_list;
 
-
-static void destroy_col_desc_list( col_desc_list * l )
+static void init_col_desc_list( Vector * dst, const String * decl )
 {
-    if ( l != NULL )
+    VNamelist * l;
+    VectorInit( dst, 0, 10 );
+    rc_t rc = VNamelistFromString( &l, decl, ';' );
+    if ( rc == 0 )
     {
-        VectorWhack( &( l->v ), destroy_col_desc, NULL );
-        sqlite3_free( l );
+        uint32_t count, idx;
+        rc = VNameListCount( l, &count );
+        if ( rc == 0 )
+        {
+            const char * s;
+            for ( idx = 0; rc == 0 && idx < count; ++idx )
+            {
+                rc = VNameListGet( l, idx, &s );
+                if ( rc == 0 )
+                {
+                    column_description * desc = make_column_description( s );
+                    if ( desc != NULL )
+                    {
+                        rc = VectorAppend( dst, NULL, desc );
+                        if ( rc != 0 )
+                            destroy_column_description( desc, NULL );
+                    }
+                }
+            }
+        }
+        VNamelistRelease( l );
     }
 }
 
-static col_desc_list * make_col_desc_list( const char * decl )
+
+static void print_col_desc_list( const Vector * desc_list )
 {
-    col_desc_list * res = sqlite3_malloc( sizeof( * res ) );
-    if ( res != NULL )
+    if ( desc_list != NULL )
     {
-        memset( res, 0, sizeof( *res ) );
+        uint32_t idx, count;    
+        for ( idx = 0, count = VectorLength( desc_list ); idx < count; ++idx )
         {
-            VNamelist * l;
-            rc_t rc = VNamelistFromStr( &l, decl, ';' );
-            if ( rc == 0 )
+            column_description * desc = VectorGet( desc_list, idx );
+            if ( desc != NULL )
             {
-                uint32_t count, idx;
-                rc = VNameListCount( l, &count );
-                if ( rc == 0 )
+                if ( desc->typecast != NULL )
                 {
-                    const char * s;
-                    for ( idx = 0; rc == 0 && idx < count; ++idx )
-                    {
-                        rc = VNameListGet( l, idx, &s );
-                        if ( rc == 0 )
-                        {
-                            col_desc * cd = make_col_desc( s );
-                            if ( cd != NULL )
-                            {
-                                rc = VectorAppend( &res->v, NULL, cd );
-                                if ( rc != 0 )
-                                    destroy_col_desc( cd, NULL );
-                            }
-                        }
-                    }
+                    if ( idx == 0 )
+                        printf( "(%s)%s", desc->typecast, desc->name );
+                    else
+                        printf( ";(%s)%s", desc->typecast, desc->name );
                 }
-                VNamelistRelease( l );
+                else
+                {
+                    if ( idx == 0 )
+                        printf( "%s", desc->name );
+                    else
+                        printf( ";%s", desc->name );
+                }
             }
-            if ( rc != 0 )
+        }
+    }
+}
+
+static char * make_create_table_stm( const Vector * desc_list, const char * tbl_name  )
+{
+    char * res = NULL;
+    if ( desc_list != NULL && tbl_name != NULL )
+    {
+        res = sqlite3_mprintf( "CREATE TABLE %s ( ", tbl_name );
+        if ( res != NULL )
+        {
+            uint32_t idx, count;
+            for ( idx = 0, count = VectorLength( desc_list ); idx < count; ++idx )
             {
-                destroy_col_desc_list( res );
-                res = NULL;
+                column_description * desc = VectorGet( desc_list, idx );
+                if ( desc != NULL )
+                {
+                    /* sqlite3-special-behavior: %z means free the ptr after inserting into result */
+                    if ( idx == 0 )
+                        res = sqlite3_mprintf( "%z%s", res, desc->name );
+                    else
+                        res = sqlite3_mprintf( "%z, %s ", res, desc->name );    
+                }
             }
+            /* sqlite3-special-behavior: %z means free the ptr after inserting into result */
+            res = sqlite3_mprintf( "%z );", res );
         }
     }
     return res;
 }
 
-static void print_col_desc_list( col_desc_list * obj )
-{
-    if ( obj != NULL )
-    {
-        char sep = 0;
-        VectorForEach( &( obj->v ), false, print_col_desc, &sep );
-    }
-}
 
-static char * make_create_table_stm( col_desc_list * obj, const char * tbl_name  )
-{
-    char * res = NULL;
-    if ( obj != NULL && tbl_name != NULL )
-    {
-        append_col_desc_name_ctx ctx;
-        ctx.res = sqlite3_mprintf( "CREATE TABLE %s ( ", tbl_name );
-        ctx.sep = 0;
-        VectorForEach( &( obj->v ), false, append_col_desc_name, &ctx );
-        res = sqlite3_mprintf( "%z);", ctx.res );
-    }
-    return res;
-}
-
-static rc_t col_desc_list_check( const col_desc_list * obj, const VNamelist * available  )
+static rc_t col_desc_list_check( Vector * desc_list, const VNamelist * available  )
 {
     rc_t rc = -1;
-    if ( obj != NULL && available != NULL )
+    if ( desc_list != NULL && available != NULL )
     {
-        col_desc_check_ctx ctx;
-        ctx.available = available;
-        ctx.not_found = 0;
-        VectorForEach( &( obj->v ), false, check_col_desc_available, &ctx );
-        if ( ctx.not_found == 0 ) rc = 0;
+        uint32_t idx, count = VectorLength( desc_list );
+        if ( count == 0 )
+        {
+            /* the user DID NOT give us a list of columns to use --> just use all available one's */
+            rc = VNameListCount( available, &count );
+            for ( idx = 0; idx < count && rc == 0; ++idx )
+            {
+                const char * s = NULL;
+                rc = VNameListGet( available, idx, &s );
+                if ( rc == 0 && s != NULL )
+                {
+                    column_description * desc = make_column_description( s );
+                    if ( desc != NULL )
+                    {
+                        rc = VectorAppend( desc_list, NULL, desc );
+                        if ( rc != 0 )
+                            destroy_column_description( desc, NULL );
+                    }
+                }
+            }
+        }
+        else
+        {
+            /* the user DID give us a list of columns to use --> check if they are available */
+            uint32_t not_found = 0;
+            for ( idx = 0; idx < count; ++idx )
+            {
+                column_description * desc = VectorGet( desc_list, idx );
+                if ( desc != NULL )
+                {
+                    if ( desc->name != NULL )
+                    {
+                        uint32_t found;
+                        if ( VNamelistIndexOf( ( VNamelist * )available, desc->name, &found ) != 0 )
+                            not_found++;
+                    }
+                }
+            }
+            if ( not_found == 0 ) rc = 0;
+        }
     }
     return rc;
 }
 
-static rc_t col_desc_list_make_instances( const col_desc_list * obj, Vector * v, const VCursor * curs )
+
+static rc_t col_desc_list_make_instances( const Vector * desc_list, Vector * dst, const VCursor * curs )
 {
     rc_t rc = 0;
     uint32_t count, idx;
-    for ( idx = 0, count = VectorLength( &( obj->v ) ); rc == 0 && idx < count; ++idx )
+    for ( idx = 0, count = VectorLength( desc_list ); rc == 0 && idx < count; ++idx )
     {
-        col_desc * desc = VectorGet( &( obj->v ), idx );
+        column_description * desc = VectorGet( desc_list, idx );
         if ( desc != NULL )
         {
-            col_inst * inst = make_col_inst( desc, curs );
+            column_instance * inst = make_column_instance( desc, curs );
             if ( inst != NULL )
-                rc = VectorAppend( v, NULL, inst );
+                rc = VectorAppend( dst, NULL, inst );
             else
                 rc = -1;
         }
@@ -662,62 +644,38 @@ static rc_t col_desc_list_make_instances( const col_desc_list * obj, Vector * v,
 }
 
 /* -------------------------------------------------------------------------------------- */
-typedef struct col_inst_list
-{
-    Vector v;
-} col_inst_list;
-
-
-static void destroy_col_inst_list( col_inst_list * l )
-{
-    if ( l != NULL )
-    {
-        VectorWhack( &( l->v ), destroy_col_inst, NULL );
-        sqlite3_free( l );
-    }
-}
 
 /* this adds columns to the cursor, opens the cursor, takes a second round to extract types and row-ranges */
-static col_inst_list * make_col_inst_list( const col_desc_list * desc_list, const VCursor * curs )
+static rc_t init_col_inst_list( Vector * dst, const Vector * desc_list, const VCursor * curs )
 {
-    col_inst_list * res = sqlite3_malloc( sizeof( * res ) );
-    if ( res != NULL )
+    rc_t rc = 0;
+    VectorInit( dst, 0, VectorLength( desc_list ) );
+    rc = col_desc_list_make_instances( desc_list, dst, curs );
+    if ( rc == 0 )
     {
-        memset( res, 0, sizeof( *res ) );
+        rc = VCursorOpen( curs );
+        if ( rc == 0 )
         {
-            rc_t rc = col_desc_list_make_instances( desc_list, &res->v, curs );
-            if ( rc == 0 )
+            uint32_t count, idx;
+            for ( idx = 0, count = VectorLength( dst ); rc == 0 && idx < count; ++idx )
             {
-                rc = VCursorOpen( curs );
-                if ( rc == 0 )
-                {
-                    uint32_t count, idx;
-                    for ( idx = 0, count = VectorLength( &( res->v ) ); rc == 0 && idx < count; ++idx )
-                    {
-                        col_inst * inst = VectorGet( &( res->v ), idx );
-                        if ( inst != NULL )
-                            rc = col_inst_post_open( inst, curs );
-                        else
-                            rc = -1;
-                    }
-                }
-            }
-            if ( rc != 0 )
-            {
-                destroy_col_inst_list( res );
-                res = NULL;
+                column_instance * inst = VectorGet( dst, idx );
+                if ( inst != NULL )
+                    rc = column_instance_post_open( inst, curs );
+                else
+                    rc = -1;
             }
         }
     }
-    return res;
+    return rc;
 }
 
-static void col_inst_list_get_row_range( col_inst_list * l, int64_t * first, uint64_t * count )
+static void col_inst_list_get_row_range( const Vector * inst_list, int64_t * first, uint64_t * count )
 {
     uint32_t v_count, v_idx;
-    for ( v_idx = 0, v_count = VectorLength( &( l->v ) ); v_idx < v_count; ++v_idx )
+    for ( v_idx = 0, v_count = VectorLength( inst_list ); v_idx < v_count; ++v_idx )
     {
-        col_inst * inst = VectorGet( &( l->v ), v_idx );
+        column_instance * inst = VectorGet( inst_list, v_idx );
         if ( inst != NULL )
         {
             if ( inst->first < *first ) *first = inst->first;
@@ -727,10 +685,10 @@ static void col_inst_list_get_row_range( col_inst_list * l, int64_t * first, uin
 }
 
 /* produce output for a cell */
-static void col_inst_list_cell( col_inst_list * l, const VCursor * curs,
-    sqlite3_context * ctx, int column_id, int64_t row_id )
+static void col_inst_list_cell( const Vector * inst_list, const VCursor * curs,
+                                sqlite3_context * ctx, int column_id, int64_t row_id )
 {
-    col_inst * inst = VectorGet( &( l->v ), column_id );
+    column_instance * inst = VectorGet( inst_list, column_id );
     if ( inst != NULL )
         col_inst_cell( inst, curs, ctx, row_id );
     else
@@ -745,7 +703,8 @@ typedef struct obj_desc
     const char * table_name;
     const char * row_range_str;
     struct num_gen * row_range;
-    col_desc_list * cols;
+    Vector column_descriptions;
+    size_t cache_size;
     int verbosity;
 } obj_desc;
 
@@ -758,7 +717,7 @@ static void destroy_obj_desc( obj_desc * desc )
         if ( desc->table_name != NULL ) sqlite3_free( ( void * )desc->table_name );
         if ( desc->row_range_str != NULL ) sqlite3_free( ( void * )desc->row_range_str );
         if ( desc->row_range != NULL ) num_gen_destroy( desc->row_range );
-        destroy_col_desc_list( desc->cols );
+        VectorWhack( &desc->column_descriptions, destroy_column_description, NULL );
         sqlite3_free( desc );
     }
 }
@@ -766,10 +725,11 @@ static void destroy_obj_desc( obj_desc * desc )
 
 static void obj_desc_print( obj_desc * desc )
 {
-    printf( "---accession = %s\n", desc->accession != NULL ? desc->accession : "None" );
-    printf( "---table     = %s\n", desc->table_name != NULL ? desc->table_name : "None" );
-    printf( "---rows      = %s\n", desc->row_range_str != NULL ? desc->row_range_str : "None" ); 
-    printf( "---columns   = " ); print_col_desc_list( desc->cols ); printf( "\n" );
+    printf( "---accession  = %s\n", desc->accession != NULL ? desc->accession : "None" );
+    printf( "---cache-size = %lu\n", desc->cache_size );    
+    printf( "---table      = %s\n", desc->table_name != NULL ? desc->table_name : "None" );
+    printf( "---rows       = %s\n", desc->row_range_str != NULL ? desc->row_range_str : "None" ); 
+    printf( "---columns    = " ); print_col_desc_list( &desc->column_descriptions ); printf( "\n" );
 }
 
 
@@ -798,6 +758,7 @@ static void obj_desc_parse_arg2( obj_desc * desc, const char * name, const char 
 	const char * COL_ARG = "columns";
 	const char * ROW_ARG = "rows";
 	const char * VERB_ARG = "verbose";
+	const char * CACHE_ARG = "cache";
 	
 	StringInitCString( &S_name, name );
 	trim_ws( &S_name );
@@ -816,11 +777,7 @@ static void obj_desc_parse_arg2( obj_desc * desc, const char * name, const char 
 		{
 			StringInitCString( &S_template, COL_ARG );
 			if ( StringCaseEqual( &S_template, &S_name ) )
-			{
-				const char * s = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
-				desc->cols = make_col_desc_list( s );
-				sqlite3_free( ( void * )s );
-			}
+                init_col_desc_list( &desc->column_descriptions, &S_value );
 			else
 			{
 				StringInitCString( &S_template, ROW_ARG );
@@ -836,7 +793,13 @@ static void obj_desc_parse_arg2( obj_desc * desc, const char * name, const char 
 						desc->verbosity = StringToU64( &S_value, NULL );
 					else
 					{
-						printf( "unknown argument '%.*s' = '%.*s'\n", S_name.len, S_name.addr, S_value.len, S_value.addr );
+                        StringInitCString( &S_template, CACHE_ARG );
+                        if ( StringCaseEqual( &S_template, &S_name ) )
+                            desc->cache_size = StringToU64( &S_value, NULL );
+                        else
+                        {
+                            printf( "unknown argument '%.*s' = '%.*s'\n", S_name.len, S_name.addr, S_value.len, S_value.addr );
+                        }
 					}
 				}
 			}
@@ -862,19 +825,29 @@ static obj_desc * make_obj_desc( int argc, const char * const * argv )
 				{
 					uint32_t count;
 					rc = VNameListCount( parts, &count );
-					if ( rc == 0 && count == 2 )
-					{
-						const char * arg_name = NULL;
-						rc = VNameListGet( parts, 0, &arg_name );
-						if ( rc == 0 && arg_name != NULL )
-						{
-							const char * arg_value = NULL;
-							rc = VNameListGet( parts, 1, &arg_value );
-							if ( rc == 0 && arg_value != NULL )
-								obj_desc_parse_arg2( desc, arg_name, arg_value );
-						}
-					}
+					if ( rc == 0 && count > 0 )
+                    {
+                        const char * arg_name = NULL;
+                        rc = VNameListGet( parts, 0, &arg_name );
+                        if ( rc == 0 && arg_name != NULL )
+                        {
+                            if ( count > 1 )
+                            {
+                                const char * arg_value = NULL;
+                                rc = VNameListGet( parts, 1, &arg_value );
+                                if ( rc == 0 && arg_value != NULL )
+                                    obj_desc_parse_arg2( desc, arg_name, arg_value );
+                            }
+                            else
+                            {
+                                if ( desc->accession == NULL )
+                                    desc->accession = sqlite3_mprintf( "%s", arg_name );
+                            }
+                        }
+                    }
 					VNamelistRelease( parts );
+                    if ( desc->cache_size == 0 )
+                        desc->cache_size = 1024 * 1024 * 32;
 				}
 			}
         }
@@ -892,7 +865,7 @@ typedef struct vdb_cursor
     sqlite3_vtab cursor;            /* Base class.  Must be first */
     const struct num_gen_iter * row_iter;
     obj_desc * desc;                /* cursor does not own this! */
-    col_inst_list * col_inst;       /* we do own this one! */
+    Vector column_instances;
     const VCursor * curs;
     int64_t current_row;    
     bool eof;
@@ -905,7 +878,7 @@ static int destroy_vdb_cursor( vdb_cursor * c )
     if ( c->desc->verbosity > 1 )
         printf( "---sqlite3_vdb_Close()\n" );
     if ( c->row_iter != NULL ) num_gen_iterator_destroy( c->row_iter );
-    if ( c->col_inst != NULL ) destroy_col_inst_list( c->col_inst );
+    VectorWhack( &c->column_instances, destroy_column_instance, NULL );
     if ( c->curs != NULL ) VCursorRelease( c->curs );
     sqlite3_free( c );
     return SQLITE_OK;
@@ -920,22 +893,20 @@ static vdb_cursor * make_vdb_cursor( obj_desc * desc, const VTable * tbl )
         rc_t rc;
         memset( res, 0, sizeof( *res ) );
         res->desc = desc;
-        
+
         /* we first have to make column-instances, before we can adjust the row-ranges */
-        /*rc = VTableCreateCursorRead( tbl, &res->curs ); */
-		rc = VTableCreateCachedCursorRead( tbl, &res->curs, 1024 * 1024 * 32 );
+		rc = VTableCreateCachedCursorRead( tbl, &res->curs, desc->cache_size );
         if ( rc == 0 )
         {
             /* this adds the columns to the cursor, opens the cursor, gets types, extracts row-range */
-            res->col_inst = make_col_inst_list( desc->cols, res->curs );
-            if ( res->col_inst == NULL )
-                rc = -1;
+            rc = init_col_inst_list( &res->column_instances, &desc->column_descriptions, res->curs );
         }
+        
         if ( rc == 0 )
         {
             int64_t  first = 0x7FFFFFFFFFFFFFFF;
             uint64_t count = 0;
-            col_inst_list_get_row_range( res->col_inst, &first, &count );
+            col_inst_list_get_row_range( &res->column_instances, &first, &count );
 			if ( first == 0x7FFFFFFFFFFFFFFF )
 				first = 0;
             if ( num_gen_empty( desc->row_range ) )
@@ -943,6 +914,7 @@ static vdb_cursor * make_vdb_cursor( obj_desc * desc, const VTable * tbl )
             else
                 rc = num_gen_trim( desc->row_range, first, count );
         }
+        
         if ( rc == 0 )
         {
             rc = num_gen_iterator_make( desc->row_range, &res->row_iter );
@@ -997,7 +969,7 @@ static int vdb_cursor_column( vdb_cursor * c, sqlite3_context * ctx, int column_
 {
     if ( c->desc->verbosity > 2 )
         printf( "---sqlite3_vdb_Column( %d )\n", column_id );
-    col_inst_list_cell( c->col_inst, c->curs, ctx, column_id, c->current_row );
+    col_inst_list_cell( &c->column_instances, c->curs, ctx, column_id, c->current_row );
     return SQLITE_OK;
 }
 
@@ -1049,7 +1021,7 @@ static rc_t vdb_obj_common_table_handler( vdb_obj * obj )
 		rc = VNamelist_from_KNamelist( &available, readable_columns );
 		if ( rc == 0 )
 		{
-			rc = col_desc_list_check( obj->desc->cols, available );
+			rc = col_desc_list_check( &obj->desc->column_descriptions, available );
 			VNamelistRelease( available );
 		}
 		KNamelistRelease( readable_columns );
@@ -1270,7 +1242,7 @@ static int sqlite3_vdb_CC( sqlite3 *db, void *pAux, int argc, const char * const
         printf( msg );
     
     {
-        const char * stm = make_create_table_stm( obj->desc->cols, "x" );
+        const char * stm = make_create_table_stm( &obj->desc->column_descriptions, "x" );
         if ( obj->desc->verbosity > 1 )
             printf( "stm = %s\n", stm );
         return sqlite3_declare_vtab( db, stm );    

@@ -75,4 +75,4 @@ TOOL_LIB = \
 	-lpthread
 
 $(BINDIR)/vdb-sql: $(TOOL_OBJ)
-	$(LP) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
+	$(LP) --exe -o $@ $^ $(TOOL_LIB)

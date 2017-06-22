@@ -482,7 +482,7 @@ static void col_inst_cell( column_instance * inst, const VCursor * curs, sqlite3
     
 /* -------------------------------------------------------------------------------------- */
 
-static void init_col_desc_list( Vector * dst, const String * decl )
+static bool init_col_desc_list( Vector * dst, const String * decl )
 {
     VNamelist * l;
     VectorInit( dst, 0, 10 );
@@ -511,6 +511,7 @@ static void init_col_desc_list( Vector * dst, const String * decl )
         }
         VNamelistRelease( l );
     }
+    return ( rc == 0 );
 }
 
 
@@ -571,8 +572,7 @@ static char * make_create_table_stm( const Vector * desc_list, const char * tbl_
     return res;
 }
 
-
-static rc_t col_desc_list_check( Vector * desc_list, const VNamelist * available  )
+static rc_t col_desc_list_check( Vector * desc_list, const VNamelist * available, const VNamelist * exclude )
 {
     rc_t rc = -1;
     if ( desc_list != NULL && available != NULL )
@@ -580,7 +580,8 @@ static rc_t col_desc_list_check( Vector * desc_list, const VNamelist * available
         uint32_t idx, count = VectorLength( desc_list );
         if ( count == 0 )
         {
-            /* the user DID NOT give us a list of columns to use --> just use all available one's */
+            /* the user DID NOT give us a list of columns to use
+                --> just use all available one's ( exclude the excluded one's ) */
             rc = VNameListCount( available, &count );
             for ( idx = 0; idx < count && rc == 0; ++idx )
             {
@@ -588,12 +589,22 @@ static rc_t col_desc_list_check( Vector * desc_list, const VNamelist * available
                 rc = VNameListGet( available, idx, &s );
                 if ( rc == 0 && s != NULL )
                 {
-                    column_description * desc = make_column_description( s );
-                    if ( desc != NULL )
+                    bool excluded = false;
+                    if ( exclude != NULL )
                     {
-                        rc = VectorAppend( desc_list, NULL, desc );
-                        if ( rc != 0 )
-                            destroy_column_description( desc, NULL );
+                        int32_t idx;
+                        if ( 0 == VNamelistContainsStr( exclude, s, &idx ) )
+                            excluded = ( idx >= 0 );
+                    }
+                    if ( !excluded )
+                    {
+                        column_description * desc = make_column_description( s );
+                        if ( desc != NULL )
+                        {
+                            rc = VectorAppend( desc_list, NULL, desc );
+                            if ( rc != 0 )
+                                destroy_column_description( desc, NULL );
+                        }
                     }
                 }
             }
@@ -696,7 +707,6 @@ static void col_inst_list_cell( const Vector * inst_list, const VCursor * curs,
 }
 
 /* -------------------------------------------------------------------------------------- */
-
 typedef struct obj_desc
 {
     const char * accession;
@@ -704,32 +714,28 @@ typedef struct obj_desc
     const char * row_range_str;
     struct num_gen * row_range;
     Vector column_descriptions;
+    VNamelist * excluded_columns;
     size_t cache_size;
     int verbosity;
 } obj_desc;
 
-
-static void destroy_obj_desc( obj_desc * desc )
+static void release_obj_desc( obj_desc * self )
 {
-    if ( desc != NULL )
-    {
-        if ( desc->accession != NULL ) sqlite3_free( ( void * )desc->accession );
-        if ( desc->table_name != NULL ) sqlite3_free( ( void * )desc->table_name );
-        if ( desc->row_range_str != NULL ) sqlite3_free( ( void * )desc->row_range_str );
-        if ( desc->row_range != NULL ) num_gen_destroy( desc->row_range );
-        VectorWhack( &desc->column_descriptions, destroy_column_description, NULL );
-        sqlite3_free( desc );
-    }
+    if ( self->accession != NULL ) sqlite3_free( ( void * )self->accession );
+    if ( self->table_name != NULL ) sqlite3_free( ( void * )self->table_name );
+    if ( self->row_range_str != NULL ) sqlite3_free( ( void * )self->row_range_str );
+    if ( self->row_range != NULL ) num_gen_destroy( self->row_range );
+    VectorWhack( &self->column_descriptions, destroy_column_description, NULL );
+    if ( self->excluded_columns != NULL ) VNamelistRelease( self->excluded_columns );
 }
 
-
-static void obj_desc_print( obj_desc * desc )
+static void obj_desc_print( obj_desc * self )
 {
-    printf( "---accession  = %s\n", desc->accession != NULL ? desc->accession : "None" );
-    printf( "---cache-size = %lu\n", desc->cache_size );    
-    printf( "---table      = %s\n", desc->table_name != NULL ? desc->table_name : "None" );
-    printf( "---rows       = %s\n", desc->row_range_str != NULL ? desc->row_range_str : "None" ); 
-    printf( "---columns    = " ); print_col_desc_list( &desc->column_descriptions ); printf( "\n" );
+    printf( "---accession  = %s\n", self->accession != NULL ? self->accession : "None" );
+    printf( "---cache-size = %lu\n", self->cache_size );    
+    printf( "---table      = %s\n", self->table_name != NULL ? self->table_name : "None" );
+    printf( "---rows       = %s\n", self->row_range_str != NULL ? self->row_range_str : "None" ); 
+    printf( "---columns    = " ); print_col_desc_list( &self->column_descriptions ); printf( "\n" );
 }
 
 
@@ -749,112 +755,115 @@ void trim_ws( String * S )
 	}
 }
 
-
-static void obj_desc_parse_arg2( obj_desc * desc, const char * name, const char * value )
+static bool is_equal( const String * S, const char * s1, const char * s2 )
 {
-	String S_name, S_value, S_template;
-	const char * ACC_ARG = "acc";
-	const char * TBL_ARG = "table";
-	const char * COL_ARG = "columns";
-	const char * ROW_ARG = "rows";
-	const char * VERB_ARG = "verbose";
-	const char * CACHE_ARG = "cache";
+    String S_template;
+    StringInitCString( &S_template, s1 );
+    if ( StringCaseEqual( &S_template, S ) )
+        return true;
+    if ( s2 != NULL )
+    {
+        StringInitCString( &S_template, s2 );
+        return StringCaseEqual( &S_template, S );
+    }
+    return false;
+}
+
+static void obj_desc_parse_arg2( obj_desc * self, const char * name, const char * value )
+{
+	String S_name, S_value;
+    bool done = false;
 	
 	StringInitCString( &S_name, name );
 	trim_ws( &S_name );
 	StringInitCString( &S_value, value );
 	trim_ws( &S_value );
 	
-	StringInitCString( &S_template, ACC_ARG );
-	if ( StringCaseEqual( &S_template, &S_name ) )
-		desc->accession = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
-	else
+	if ( is_equal( &S_name, "acc", "A" ) )
+    {
+		self->accession = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
+        done = true;
+    }
+    
+	if ( !done && is_equal( &S_name, "table", "T" ) )
 	{
-		StringInitCString( &S_template, TBL_ARG );
-		if ( StringCaseEqual( &S_template, &S_name ) )
-			desc->table_name = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
-		else
-		{
-			StringInitCString( &S_template, COL_ARG );
-			if ( StringCaseEqual( &S_template, &S_name ) )
-                init_col_desc_list( &desc->column_descriptions, &S_value );
-			else
-			{
-				StringInitCString( &S_template, ROW_ARG );
-				if ( StringCaseEqual( &S_template, &S_name ) )
-				{
-					desc->row_range_str = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
-					num_gen_parse( desc->row_range, desc->row_range_str );
-				}
-				else
-				{
-					StringInitCString( &S_template, VERB_ARG );
-					if ( StringCaseEqual( &S_template, &S_name ) )
-						desc->verbosity = StringToU64( &S_value, NULL );
-					else
-					{
-                        StringInitCString( &S_template, CACHE_ARG );
-                        if ( StringCaseEqual( &S_template, &S_name ) )
-                            desc->cache_size = StringToU64( &S_value, NULL );
-                        else
-                        {
-                            printf( "unknown argument '%.*s' = '%.*s'\n", S_name.len, S_name.addr, S_value.len, S_value.addr );
-                        }
-					}
-				}
-			}
-		}
-	}
+        self->table_name = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
+        done = true;
+    }
+
+    if ( !done && is_equal( &S_name, "columns", "C" ) )
+        done = init_col_desc_list( &self->column_descriptions, &S_value );
+
+    if ( !done && is_equal( &S_name, "exclude", "X" ) )
+        done = ( 0 == VNamelistFromString( &self->excluded_columns, &S_value, ';' ) );
+
+    if ( !done && is_equal( &S_name, "rows", "R" ) )
+    {
+        self->row_range_str = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
+        done = ( 0 == num_gen_parse( self->row_range, self->row_range_str ) );
+    }
+
+    if ( !done && is_equal( &S_name, "verbose", "v" ) )
+    {
+        self->verbosity = StringToU64( &S_value, NULL );
+        done = true;
+    }
+
+    if ( !done && is_equal( &S_name, "cache", NULL ) )
+    {
+        self->cache_size = StringToU64( &S_value, NULL );
+        done = true;
+    }
+    
+    if ( !done )
+        printf( "unknown argument '%.*s' = '%.*s'\n", S_name.len, S_name.addr, S_value.len, S_value.addr );
 }
 
-static obj_desc * make_obj_desc( int argc, const char * const * argv )
+static rc_t init_obj_desc( obj_desc * self, int argc, const char * const * argv )
 {
-    obj_desc * desc = sqlite3_malloc( sizeof( * desc ) );
-    if ( desc != NULL )
+    rc_t rc = -1;
+    memset( self, 0, sizeof( *self ) );
+    num_gen_make( &self->row_range );
+    if ( argc > 3 )
     {
-        memset( desc, 0, sizeof( *desc ) );
-        num_gen_make( &desc->row_range );
-        if ( argc > 3 )
+        int i;
+        for ( i = 3; i < argc; i++ )
         {
-            int i;
-            for ( i = 3; i < argc; i++ )
-			{
-				VNamelist * parts;
-				rc_t rc = VNamelistFromStr( &parts, argv[ i ], '=' );
-				if ( rc == 0 )
-				{
-					uint32_t count;
-					rc = VNameListCount( parts, &count );
-					if ( rc == 0 && count > 0 )
+            VNamelist * parts;
+            rc = VNamelistFromStr( &parts, argv[ i ], '=' );
+            if ( rc == 0 )
+            {
+                uint32_t count;
+                rc = VNameListCount( parts, &count );
+                if ( rc == 0 && count > 0 )
+                {
+                    const char * arg_name = NULL;
+                    rc = VNameListGet( parts, 0, &arg_name );
+                    if ( rc == 0 && arg_name != NULL )
                     {
-                        const char * arg_name = NULL;
-                        rc = VNameListGet( parts, 0, &arg_name );
-                        if ( rc == 0 && arg_name != NULL )
+                        if ( count > 1 )
                         {
-                            if ( count > 1 )
-                            {
-                                const char * arg_value = NULL;
-                                rc = VNameListGet( parts, 1, &arg_value );
-                                if ( rc == 0 && arg_value != NULL )
-                                    obj_desc_parse_arg2( desc, arg_name, arg_value );
-                            }
-                            else
-                            {
-                                if ( desc->accession == NULL )
-                                    desc->accession = sqlite3_mprintf( "%s", arg_name );
-                            }
+                            const char * arg_value = NULL;
+                            rc = VNameListGet( parts, 1, &arg_value );
+                            if ( rc == 0 && arg_value != NULL )
+                                obj_desc_parse_arg2( self, arg_name, arg_value );
+                        }
+                        else
+                        {
+                            if ( self->accession == NULL )
+                                self->accession = sqlite3_mprintf( "%s", arg_name );
                         }
                     }
-					VNamelistRelease( parts );
-                    if ( desc->cache_size == 0 )
-                        desc->cache_size = 1024 * 1024 * 32;
-				}
-			}
+                }
+                VNamelistRelease( parts );
+                if ( self->cache_size == 0 )
+                    self->cache_size = 1024 * 1024 * 32;
+            }
         }
-        if ( desc->verbosity > 0 )
-            obj_desc_print( desc );
     }
-    return desc;
+    if ( self->verbosity > 0 )
+        obj_desc_print( self );
+    return rc;
 
 }
 
@@ -936,15 +945,6 @@ static vdb_cursor * make_vdb_cursor( obj_desc * desc, const VTable * tbl )
     return res;
 }
 
-/* filter by a given index ---> vdb may support that in the future */
-static int vdb_cursor_filter( vdb_cursor * c, int idxNum, const char *idxStr,
-                              int argc, sqlite3_value **argv )
-{
-    if ( c->desc->verbosity > 2 )
-        printf( "---sqlite3_vdb_Filter()\n" );
-    return SQLITE_OK;
-}
-
 /* advance to the next row ---> num_gen_iterator_next() */
 static int vdb_cursor_next( vdb_cursor * c )
 {
@@ -985,43 +985,45 @@ static int vdb_cursor_row_id( vdb_cursor * c, sqlite_int64 * pRowid )
 
 
 /* -------------------------------------------------------------------------------------- */
+/* this object has to be made on the heap,
+   it is passed back ( typecasted ) to the sqlite-library in sqlite3_vdb_[ Create / Connect ] */
 typedef struct vdb_obj
 {
     sqlite3_vtab base;              /* Base class.  Must be first */
     const VDBManager * mgr;         /* the vdb-manager */
     const VDatabase *db;            /* the database to be used */
     const VTable *tbl;              /* the table to be used */
-    obj_desc * desc;                /* description of the object to be iterated over */
+    obj_desc desc;                  /* description of the object to be iterated over */
 } vdb_obj;
 
 
 /* destroy the whole connection database, table, manager etc. */
-static int destroy_vdb_obj( vdb_obj * obj )
+static int destroy_vdb_obj( vdb_obj * self )
 {
-    if ( obj->desc->verbosity > 1 )
+    if ( self->desc.verbosity > 1 )
         printf( "---sqlite3_vdb_Disconnect()\n" );
     
-    if ( obj->mgr != NULL ) VDBManagerRelease( obj->mgr );
-    if ( obj->tbl != NULL ) VTableRelease( obj->tbl );
-    if ( obj->db != NULL ) VDatabaseRelease( obj->db );
-    if ( obj->desc != NULL ) destroy_obj_desc( obj->desc );
+    if ( self->mgr != NULL ) VDBManagerRelease( self->mgr );
+    if ( self->tbl != NULL ) VTableRelease( self->tbl );
+    if ( self->db != NULL ) VDatabaseRelease( self->db );
+    release_obj_desc( &self->desc );
     
-    sqlite3_free( obj );
+    sqlite3_free( self );
     return SQLITE_OK;    
 }
 
 /* check if all requested columns are available */
-static rc_t vdb_obj_common_table_handler( vdb_obj * obj )
+static rc_t vdb_obj_common_table_handler( vdb_obj * self )
 {
     struct KNamelist * readable_columns;
-    rc_t rc = VTableListReadableColumns( obj->tbl, &readable_columns );
+    rc_t rc = VTableListReadableColumns( self->tbl, &readable_columns );
     if ( rc == 0 )
     {
 		VNamelist * available;
 		rc = VNamelist_from_KNamelist( &available, readable_columns );
 		if ( rc == 0 )
 		{
-			rc = col_desc_list_check( &obj->desc->column_descriptions, available );
+			rc = col_desc_list_check( &self->desc.column_descriptions, available, self->desc.excluded_columns );
 			VNamelistRelease( available );
 		}
 		KNamelistRelease( readable_columns );
@@ -1054,10 +1056,10 @@ static rc_t vdb_obj_get_table_names( const VDatabase * db, VNamelist ** list )
 	return rc;
 }
 
-static rc_t vdb_obj_open_db_without_table_name( vdb_obj * obj )
+static rc_t vdb_obj_open_db_without_table_name( vdb_obj * self )
 {
 	VNamelist * list;
-	rc_t rc = vdb_obj_get_table_names( obj->db, &list );
+	rc_t rc = vdb_obj_get_table_names( self->db, &list );
 	if ( rc == 0 )
 	{
 		int32_t idx;
@@ -1065,9 +1067,9 @@ static rc_t vdb_obj_open_db_without_table_name( vdb_obj * obj )
 		if ( rc == 0 && idx >= 0 )
 		{
 			/* we have a SEQUENCE-table */
-			rc = VDatabaseOpenTableRead( obj->db, &obj->tbl, "SEQUENCE" );
+			rc = VDatabaseOpenTableRead( self->db, &self->tbl, "SEQUENCE" );
 			if ( rc == 0 )
-				obj->desc->table_name = sqlite3_mprintf( "SEQUENCE" );
+				self->desc.table_name = sqlite3_mprintf( "SEQUENCE" );
 		}
 		else
 		{
@@ -1076,8 +1078,8 @@ static rc_t vdb_obj_open_db_without_table_name( vdb_obj * obj )
 			rc = VNameListGet( list, 0, &s );
 			if ( rc == 0 )
 			{
-				obj->desc->table_name = sqlite3_mprintf( "%s", s );
-				rc = VDatabaseOpenTableRead( obj->db, &obj->tbl, "%s", obj->desc->table_name );	
+				self->desc.table_name = sqlite3_mprintf( "%s", s );
+				rc = VDatabaseOpenTableRead( self->db, &self->tbl, "%s", self->desc.table_name );	
 			}
 		}
 		VNamelistRelease( list );
@@ -1112,18 +1114,18 @@ static bool list_contains_value_starting_with( const VNamelist * list, const Str
     return res;
 }
 
-static rc_t vdb_obj_open_db_with_mismatched_table_name( vdb_obj * obj )
+static rc_t vdb_obj_open_db_with_mismatched_table_name( vdb_obj * self )
 {
 	VNamelist * list;
-	rc_t rc = vdb_obj_get_table_names( obj->db, &list );
+	rc_t rc = vdb_obj_get_table_names( self->db, &list );
 	if ( rc == 0 )
 	{
 		String to_look_for, found;
-		StringInitCString( &to_look_for, obj->desc->table_name );
+		StringInitCString( &to_look_for, self->desc.table_name );
 		if ( list_contains_value_starting_with( list, &to_look_for, &found ) )
 		{
-			obj->desc->table_name = sqlite3_mprintf( "%.*s", found.len, found.addr );
-			rc = VDatabaseOpenTableRead( obj->db, &obj->tbl, "%s", obj->desc->table_name );
+			self->desc.table_name = sqlite3_mprintf( "%.*s", found.len, found.addr );
+			rc = VDatabaseOpenTableRead( self->db, &self->tbl, "%s", self->desc.table_name );
 		}
 		else
 			rc = RC( rcApp, rcArgv, rcAccessing, rcSelf, rcInvalid );
@@ -1133,33 +1135,33 @@ static rc_t vdb_obj_open_db_with_mismatched_table_name( vdb_obj * obj )
 }
 
 /* the requested object is a database */
-static rc_t vdb_obj_open_db( vdb_obj * obj )
+static rc_t vdb_obj_open_db( vdb_obj * self )
 {
-    rc_t rc = VDBManagerOpenDBRead( obj->mgr, &obj->db, NULL, "%s", obj->desc->accession );
+    rc_t rc = VDBManagerOpenDBRead( self->mgr, &self->db, NULL, "%s", self->desc.accession );
     if ( rc == 0 )
     {
-		if ( obj->desc->table_name == NULL )
-			rc = vdb_obj_open_db_without_table_name( obj );
+		if ( self->desc.table_name == NULL )
+			rc = vdb_obj_open_db_without_table_name( self );
 		else
 		{
 			/* if the table-name does not fit, see if it is a shortened version of the existing ones... */
-			rc = VDatabaseOpenTableRead( obj->db, &obj->tbl, "%s", obj->desc->table_name );
+			rc = VDatabaseOpenTableRead( self->db, &self->tbl, "%s", self->desc.table_name );
 			if ( rc != 0 )
-				rc = vdb_obj_open_db_with_mismatched_table_name( obj );
+				rc = vdb_obj_open_db_with_mismatched_table_name( self );
 		}
 		
         if ( rc == 0 )
-            rc = vdb_obj_common_table_handler( obj );
+            rc = vdb_obj_common_table_handler( self );
     }
     return rc;
 }
 
 /* the requested object is a table */
-static rc_t vdb_obj_open_tbl( vdb_obj * obj )
+static rc_t vdb_obj_open_tbl( vdb_obj * self )
 {
-    rc_t rc = VDBManagerOpenTableRead( obj->mgr, &obj->tbl, NULL, "%s", obj->desc->accession );
+    rc_t rc = VDBManagerOpenTableRead( self->mgr, &self->tbl, NULL, "%s", self->desc.accession );
     if ( rc == 0 )
-        rc = vdb_obj_common_table_handler( obj );
+        rc = vdb_obj_common_table_handler( self );
     return rc;
 }
 
@@ -1171,19 +1173,14 @@ static vdb_obj * make_vdb_obj( int argc, const char * const * argv )
     if ( res != NULL )
     {
         memset( res, 0, sizeof( *res ) );
-        res->desc = make_obj_desc( argc, argv );
-        if ( res->desc == NULL )
+        rc_t rc = init_obj_desc( &res->desc, argc, argv );
+        if ( rc == 0 )
         {
-            destroy_vdb_obj( res );
-            res = NULL;
-        }
-        else
-        {
-            rc_t rc = VDBManagerMakeRead( &( res->mgr ), NULL );
+            rc = VDBManagerMakeRead( &( res->mgr ), NULL );
             if ( rc == 0 )
             {
                 /* types defined in <kdb/manager.h> !!! */
-                int pt = ( VDBManagerPathType( res->mgr, "%s", res->desc->accession ) & ~ kptAlias );
+                int pt = ( VDBManagerPathType( res->mgr, "%s", res->desc.accession ) & ~ kptAlias );
                 switch ( pt )
                 {
                     case kptDatabase      : rc = vdb_obj_open_db( res ); break;
@@ -1202,22 +1199,13 @@ static vdb_obj * make_vdb_obj( int argc, const char * const * argv )
     return res;
 }
 
-/* query what index can be used ---> maybe vdb supports that in the future */
-static int vdb_obj_BestIndex( vdb_obj * obj, sqlite3_index_info * pIdxInfo )
-{
-    if ( obj->desc->verbosity > 2 )
-        printf( "---sqlite3_vdb_BestIndex()\n" );
-    if ( pIdxInfo != NULL )
-        pIdxInfo->estimatedCost = 1000000;
-    return SQLITE_OK;
-}
 
 /* take the database/table-obj and open a cursor on it */
-static int vdb_obj_open( vdb_obj * obj, sqlite3_vtab_cursor ** ppCursor )
+static int vdb_obj_open( vdb_obj * self, sqlite3_vtab_cursor ** ppCursor )
 {
-    if ( obj->desc->verbosity > 1 )
+    if ( self->desc.verbosity > 1 )
         printf( "---sqlite3_vdb_Open()\n" );
-    vdb_cursor * c = make_vdb_cursor( obj->desc, obj->tbl );
+    vdb_cursor * c = make_vdb_cursor( &self->desc, self->tbl );
     if ( c != NULL )
     {
         *ppCursor = ( sqlite3_vtab_cursor * )c;
@@ -1232,44 +1220,55 @@ static int vdb_obj_open( vdb_obj * obj, sqlite3_vtab_cursor ** ppCursor )
 static int sqlite3_vdb_CC( sqlite3 *db, void *pAux, int argc, const char * const * argv,
                            sqlite3_vtab **ppVtab, char **pzErr, const char * msg )
 {
+    const char * stm;
     vdb_obj * obj = make_vdb_obj( argc, argv );
     if ( obj == NULL )
         return SQLITE_ERROR;
         
     *ppVtab = ( sqlite3_vtab * )obj;
 
-    if ( obj->desc->verbosity > 1 )
+    if ( obj->desc.verbosity > 1 )
         printf( msg );
     
-    {
-        const char * stm = make_create_table_stm( &obj->desc->column_descriptions, "x" );
-        if ( obj->desc->verbosity > 1 )
-            printf( "stm = %s\n", stm );
-        return sqlite3_declare_vtab( db, stm );    
-    }
+    stm = make_create_table_stm( &obj->desc.column_descriptions, "x" );
+    if ( obj->desc.verbosity > 1 )
+        printf( "stm = %s\n", stm );
+    return sqlite3_declare_vtab( db, stm );    
 }
 
 
 /* -------------------------------------------------------------------------------------- */
+/* create a new table-instance from scratch */
 static int sqlite3_vdb_Create( sqlite3 *db, void *pAux, int argc, const char * const * argv,
                                sqlite3_vtab **ppVtab, char **pzErr )
 {
     return sqlite3_vdb_CC( db, pAux, argc, argv, ppVtab, pzErr, "---sqlite3_vdb_Create()\n" );
 }
 
+/* open a table-instance from something existing */
 static int sqlite3_vdb_Connect( sqlite3 *db, void *pAux, int argc, const char * const * argv,
                                 sqlite3_vtab **ppVtab, char **pzErr )
 {
     return sqlite3_vdb_CC( db, pAux, argc, argv, ppVtab, pzErr, "---sqlite3_vdb_Connect()\n" );
 }
 
+/* query what index can be used ---> maybe vdb supports that in the future */
 static int sqlite3_vdb_BestIndex( sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo )
 {
+    int res = SQLITE_ERROR;
     if ( tab != NULL )
-        return vdb_obj_BestIndex( ( vdb_obj * )tab, pIdxInfo );
-    return SQLITE_ERROR;
+    {
+        vdb_obj * self = ( vdb_obj * )tab;
+        if ( self->desc.verbosity > 2 )
+            printf( "---sqlite3_vdb_BestIndex()\n" );
+        if ( pIdxInfo != NULL )
+            pIdxInfo->estimatedCost = 1000000;
+        res = SQLITE_OK;
+    }
+    return res;
 }
 
+/* disconnect from a table */
 static int sqlite3_vdb_Disconnect( sqlite3_vtab *tab )
 {
     if ( tab != NULL )
@@ -1277,6 +1276,7 @@ static int sqlite3_vdb_Disconnect( sqlite3_vtab *tab )
     return SQLITE_ERROR;
 }
 
+/* open a cursor on a table */
 static int sqlite3_vdb_Open( sqlite3_vtab *tab, sqlite3_vtab_cursor **ppCursor )
 {
     if ( tab != NULL )
@@ -1284,6 +1284,7 @@ static int sqlite3_vdb_Open( sqlite3_vtab *tab, sqlite3_vtab_cursor **ppCursor )
     return SQLITE_ERROR;
 }
 
+/* close the cursor */
 static int sqlite3_vdb_Close( sqlite3_vtab_cursor *cur )
 {
     if ( cur != NULL )
@@ -1291,14 +1292,21 @@ static int sqlite3_vdb_Close( sqlite3_vtab_cursor *cur )
     return SQLITE_ERROR;
 }
 
+/* this is a NOOP, because we have no index ( yet ) */
 static int sqlite3_vdb_Filter( sqlite3_vtab_cursor *cur, int idxNum, const char *idxStr,
                                int argc, sqlite3_value **argv )
 {
     if ( cur != NULL )
-        return vdb_cursor_filter( ( vdb_cursor * )cur, idxNum, idxStr, argc, argv );
+    {
+        vdb_cursor * self = ( vdb_cursor * )cur;
+        if ( self->desc->verbosity > 2 )
+            printf( "---sqlite3_vdb_Filter()\n" );
+        return SQLITE_OK;
+    }
     return SQLITE_ERROR;
 }
 
+/* advance to the next row */
 static int sqlite3_vdb_Next( sqlite3_vtab_cursor *cur )
 {
     if ( cur != NULL )
@@ -1306,6 +1314,7 @@ static int sqlite3_vdb_Next( sqlite3_vtab_cursor *cur )
     return SQLITE_ERROR;
 }
 
+/* check if we are at the end */
 static int sqlite3_vdb_Eof( sqlite3_vtab_cursor *cur )
 {
     if ( cur != NULL )
@@ -1313,6 +1322,7 @@ static int sqlite3_vdb_Eof( sqlite3_vtab_cursor *cur )
     return SQLITE_ERROR;
 }
 
+/* request data for a cell */
 static int sqlite3_vdb_Column( sqlite3_vtab_cursor *cur, sqlite3_context * ctx, int column_id )
 {
     if ( cur != NULL )
@@ -1320,6 +1330,7 @@ static int sqlite3_vdb_Column( sqlite3_vtab_cursor *cur, sqlite3_context * ctx, 
     return SQLITE_ERROR;
 }
 
+/* request row-id */
 static int sqlite3_vdb_Rowid( sqlite3_vtab_cursor *cur, sqlite_int64 * pRowid )
 {
     if ( cur != NULL )

@@ -262,13 +262,15 @@ static void col_inst_bool( column_instance * inst, const VCursor * curs, sqlite3
 #define PRINT_VECTOR( T, factor, fmt1, fmt2 ) \
 static char * print_##T##_vec( const T * base, uint32_t count ) \
 { \
-    size_t l = count * factor; \
+    size_t l = ( count * factor ) + 3; \
     char * res = sqlite3_malloc( l ); \
     if ( res != NULL ) \
     { \
         uint32_t idx; \
         rc_t rc = 0; \
         char * dst = res; \
+        dst[ 0 ] = '[' ; \
+        dst += 1; \
         for ( idx = 0; rc == 0 && idx < count; ++idx ) \
         { \
             size_t num_writ; \
@@ -280,7 +282,11 @@ static char * print_##T##_vec( const T * base, uint32_t count ) \
             dst += num_writ; \
         } \
         if ( rc == 0 ) \
+        { \
+            *dst = ']'; \
+            dst += 1; \
             *dst = 0; \
+        } \
         else \
         { \
             sqlite3_free( res ); \

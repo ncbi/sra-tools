@@ -19,6 +19,6 @@ SELECT="select * from VDB limit 1;"
 set -f
 
 #CMD="$TOOL -line :memory: \"$CREATE $SELECT\""
-CMD="$TOOL -line -acc $ACC -exclude 'READ;QUALITY' :memory: \"$SELECT\""
+CMD="$TOOL -line -acc $ACC :memory: \"$SELECT\""
 echo $CMD
 eval $CMD

@@ -153,13 +153,16 @@ extern LPWSTR sqlite3_win32_utf8_to_unicode(const char *zText);
 ** routines take care of that.
 */
 #if defined(_WIN32) || defined(WIN32)
-static void setBinaryMode(FILE *file, int isOutput){
-  if( isOutput ) fflush(file);
-  _setmode(_fileno(file), _O_BINARY);
+static void setBinaryMode( FILE * file, int isOutput )
+{
+  if ( isOutput ) fflush( file );
+  _setmode( _fileno( file ), _O_BINARY );
 }
-static void setTextMode(FILE *file, int isOutput){
-  if( isOutput ) fflush(file);
-  _setmode(_fileno(file), _O_TEXT);
+
+static void setTextMode( FILE * file, int isOutput )
+{
+  if( isOutput ) fflush( file );
+  _setmode( _fileno( file ), _O_TEXT );
 }
 #else
 # define setBinaryMode(X,Y)
@@ -172,16 +175,20 @@ static const char * DFLT_PROMPT = "vdb-sql> ";
 static int enableTimer = 0;
 
 /* Return the current wall-clock time */
-static sqlite3_int64 timeOfDay(void){
+static sqlite3_int64 timeOfDay( void )
+{
   static sqlite3_vfs *clockVfs = 0;
   sqlite3_int64 t;
-  if( clockVfs==0 ) clockVfs = sqlite3_vfs_find(0);
-  if( clockVfs->iVersion>=2 && clockVfs->xCurrentTimeInt64!=0 ){
-    clockVfs->xCurrentTimeInt64(clockVfs, &t);
-  }else{
+  if ( clockVfs == 0 ) clockVfs = sqlite3_vfs_find( 0 );
+  if ( clockVfs->iVersion >= 2 && clockVfs->xCurrentTimeInt64 != 0 )
+  {
+    clockVfs->xCurrentTimeInt64( clockVfs, &t );
+  }
+  else
+  {
     double r;
-    clockVfs->xCurrentTime(clockVfs, &r);
-    t = (sqlite3_int64)(r*86400000.0);
+    clockVfs->xCurrentTime( clockVfs, &r );
+    t = ( sqlite3_int64 )( r * 86400000.0 );
   }
   return t;
 }
@@ -192,7 +199,8 @@ static sqlite3_int64 timeOfDay(void){
 
 /* VxWorks does not support getrusage() as far as we can determine */
 #if defined(_WRS_KERNEL) || defined(__RTP__)
-struct rusage {
+struct rusage
+{
   struct timeval ru_utime; /* user CPU time used */
   struct timeval ru_stime; /* system CPU time used */
 };
@@ -206,31 +214,36 @@ static sqlite3_int64 iBegin;  /* Wall-clock time at start */
 /*
 ** Begin timing an operation
 */
-static void beginTimer(void){
-  if( enableTimer ){
-    getrusage(RUSAGE_SELF, &sBegin);
+static void beginTimer( void )
+{
+  if ( enableTimer )
+  {
+    getrusage( RUSAGE_SELF, &sBegin );
     iBegin = timeOfDay();
   }
 }
 
 /* Return the difference of two time_structs in seconds */
-static double timeDiff(struct timeval *pStart, struct timeval *pEnd){
-  return (pEnd->tv_usec - pStart->tv_usec)*0.000001 +
-         (double)(pEnd->tv_sec - pStart->tv_sec);
+static double timeDiff( struct timeval *pStart, struct timeval *pEnd )
+{
+  return ( pEnd->tv_usec - pStart->tv_usec ) * 0.000001 +
+           ( double )( pEnd->tv_sec - pStart->tv_sec );
 }
 
 /*
 ** Print the timing results.
 */
-static void endTimer(void){
-  if( enableTimer ){
+static void endTimer( void )
+{
+  if( enableTimer )
+  {
     sqlite3_int64 iEnd = timeOfDay();
     struct rusage sEnd;
-    getrusage(RUSAGE_SELF, &sEnd);
-    printf("Run Time: real %.3f user %f sys %f\n",
-       (iEnd - iBegin)*0.001,
-       timeDiff(&sBegin.ru_utime, &sEnd.ru_utime),
-       timeDiff(&sBegin.ru_stime, &sEnd.ru_stime));
+    getrusage( RUSAGE_SELF, &sEnd );
+    printf( "Run Time: real %.3f user %f sys %f\n",
+       ( iEnd - iBegin ) * 0.001,
+       timeDiff( &sBegin.ru_utime, &sEnd.ru_utime ),
+       timeDiff( &sBegin.ru_stime, &sEnd.ru_stime) );
   }
 }
 
@@ -245,32 +258,38 @@ static HANDLE hProcess;
 static FILETIME ftKernelBegin;
 static FILETIME ftUserBegin;
 static sqlite3_int64 ftWallBegin;
-typedef BOOL (WINAPI *GETPROCTIMES)(HANDLE, LPFILETIME, LPFILETIME,
-                                    LPFILETIME, LPFILETIME);
+typedef BOOL ( WINAPI *GETPROCTIMES )( HANDLE, LPFILETIME, LPFILETIME,
+                                        LPFILETIME, LPFILETIME );
 static GETPROCTIMES getProcessTimesAddr = NULL;
 
 /*
 ** Check to see if we have timer support.  Return 1 if necessary
 ** support found (or found previously).
 */
-static int hasTimer(void){
-  if( getProcessTimesAddr ){
+static int hasTimer( void )
+{
+  if (  getProcessTimesAddr )
+  {
     return 1;
-  } else {
+  }
+  else
+  {
     /* GetProcessTimes() isn't supported in WIN95 and some other Windows
     ** versions. See if the version we are running on has it, and if it
     ** does, save off a pointer to it and the current process handle.
     */
     hProcess = GetCurrentProcess();
-    if( hProcess ){
-      HINSTANCE hinstLib = LoadLibrary(TEXT("Kernel32.dll"));
-      if( NULL != hinstLib ){
-        getProcessTimesAddr =
-            (GETPROCTIMES) GetProcAddress(hinstLib, "GetProcessTimes");
-        if( NULL != getProcessTimesAddr ){
+    if ( hProcess )
+    {
+      HINSTANCE hinstLib = LoadLibrary( TEXT( "Kernel32.dll" ) );
+      if ( NULL != hinstLib )
+      {
+        getProcessTimesAddr = ( GETPROCTIMES ) GetProcAddress( hinstLib, "GetProcessTimes" );
+        if ( NULL != getProcessTimesAddr )
+        {
           return 1;
         }
-        FreeLibrary(hinstLib);
+        FreeLibrary( hinstLib );
       }
     }
   }
@@ -280,34 +299,38 @@ static int hasTimer(void){
 /*
 ** Begin timing an operation
 */
-static void beginTimer(void){
-  if( enableTimer && getProcessTimesAddr ){
+static void beginTimer( void )
+{
+  if( enableTimer && getProcessTimesAddr )
+  {
     FILETIME ftCreation, ftExit;
-    getProcessTimesAddr(hProcess,&ftCreation,&ftExit,
-                        &ftKernelBegin,&ftUserBegin);
+    getProcessTimesAddr( hProcess, &ftCreation, &ftExit, &ftKernelBegin, &ftUserBegin );
     ftWallBegin = timeOfDay();
   }
 }
 
 /* Return the difference of two FILETIME structs in seconds */
-static double timeDiff(FILETIME *pStart, FILETIME *pEnd){
-  sqlite_int64 i64Start = *((sqlite_int64 *) pStart);
-  sqlite_int64 i64End = *((sqlite_int64 *) pEnd);
-  return (double) ((i64End - i64Start) / 10000000.0);
+static double timeDiff( FILETIME *pStart, FILETIME *pEnd )
+{
+  sqlite_int64 i64Start = *( ( sqlite_int64 * ) pStart );
+  sqlite_int64 i64End = *( ( sqlite_int64 * ) pEnd );
+  return ( double ) ( ( i64End - i64Start ) / 10000000.0 );
 }
 
 /*
 ** Print the timing results.
 */
-static void endTimer(void){
-  if( enableTimer && getProcessTimesAddr){
+static void endTimer( void )
+{
+  if ( enableTimer && getProcessTimesAddr )
+  {
     FILETIME ftCreation, ftExit, ftKernelEnd, ftUserEnd;
     sqlite3_int64 ftWallEnd = timeOfDay();
-    getProcessTimesAddr(hProcess,&ftCreation,&ftExit,&ftKernelEnd,&ftUserEnd);
-    printf("Run Time: real %.3f user %f sys %f\n",
-       (ftWallEnd - ftWallBegin)*0.001,
-       timeDiff(&ftUserBegin, &ftUserEnd),
-       timeDiff(&ftKernelBegin, &ftKernelEnd));
+    getProcessTimesAddr( hProcess, &ftCreation, &ftExit, &ftKernelEnd, &ftUserEnd );
+    printf( "Run Time: real %.3f user %f sys %f\n",
+       ( ftWallEnd - ftWallBegin ) * 0.001,
+       timeDiff( &ftUserBegin, &ftUserEnd ),
+       timeDiff( &ftKernelBegin, &ftKernelEnd ) );
   }
 }
 
@@ -367,8 +390,8 @@ static char *Argv0;
 ** Prompt strings. Initialized in main. Settable with
 **   .prompt main continue
 */
-static char mainPrompt[20];     /* First line prompt. default: "sqlite> "*/
-static char continuePrompt[20]; /* Continuation prompt. default: "   ...> " */
+static char mainPrompt[ 20 ];     /* First line prompt. default: "sqlite> "*/
+static char continuePrompt[ 20 ]; /* Continuation prompt. default: "   ...> " */
 
 /*
 ** Render output like fprintf().  Except, if the output is going to the
@@ -376,17 +399,21 @@ static char continuePrompt[20]; /* Continuation prompt. default: "   ...> " */
 ** output from UTF-8 into MBCS.
 */
 #if defined(_WIN32) || defined(WIN32)
-void utf8_printf(FILE *out, const char *zFormat, ...){
+void utf8_printf( FILE *out, const char *zFormat, ... )
+{
   va_list ap;
-  va_start(ap, zFormat);
-  if( stdout_is_console && (out==stdout || out==stderr) ){
-    char *z1 = sqlite3_vmprintf(zFormat, ap);
-    char *z2 = sqlite3_win32_utf8_to_mbcs_v2(z1, 0);
-    sqlite3_free(z1);
-    fputs(z2, out);
-    sqlite3_free(z2);
-  }else{
-    vfprintf(out, zFormat, ap);
+  va_start( ap, zFormat );
+  if ( stdout_is_console && ( out == stdout || out == stderr ) )
+  {
+    char *z1 = sqlite3_vmprintf( zFormat, ap );
+    char *z2 = sqlite3_win32_utf8_to_mbcs_v2( z1, 0 );
+    sqlite3_free( z1 );
+    fputs( z2, out );
+    sqlite3_free( z2 );
+  }
+  else
+  {
+    vfprintf( out, zFormat, ap );
   }
   va_end(ap);
 }
@@ -416,15 +443,16 @@ static FILE *iotrace = 0;
 ** is written to iotrace.
 */
 #ifdef SQLITE_ENABLE_IOTRACE
-static void SQLITE_CDECL iotracePrintf(const char *zFormat, ...){
+static void SQLITE_CDECL iotracePrintf( const char *zFormat, ... )
+{
   va_list ap;
   char *z;
-  if( iotrace==0 ) return;
-  va_start(ap, zFormat);
-  z = sqlite3_vmprintf(zFormat, ap);
-  va_end(ap);
-  utf8_printf(iotrace, "%s", z);
-  sqlite3_free(z);
+  if ( iotrace == 0 ) return;
+  va_start( ap, zFormat );
+  z = sqlite3_vmprintf( zFormat, ap );
+  va_end( ap );
+  utf8_printf( iotrace, "%s", z );
+  sqlite3_free( z );
 }
 #endif
 
@@ -432,28 +460,29 @@ static void SQLITE_CDECL iotracePrintf(const char *zFormat, ...){
 /*
 ** Determines if a string is a number of not.
 */
-static int isNumber(const char *z, int *realnum){
-  if( *z=='-' || *z=='+' ) z++;
-  if( !IsDigit(*z) ){
-    return 0;
-  }
+static int isNumber( const char *z, int *realnum )
+{
+  if ( *z == '-' || *z == '+' ) z++;
+  if ( !IsDigit(*z) ) { return 0; }
   z++;
-  if( realnum ) *realnum = 0;
-  while( IsDigit(*z) ){ z++; }
-  if( *z=='.' ){
+  if ( realnum ) *realnum = 0;
+  while ( IsDigit( *z ) ) { z++; }
+  if ( *z=='.' )
+  {
     z++;
-    if( !IsDigit(*z) ) return 0;
-    while( IsDigit(*z) ){ z++; }
-    if( realnum ) *realnum = 1;
+    if ( !IsDigit(*z) ) return 0;
+    while ( IsDigit( *z ) ) { z++; }
+    if ( realnum ) *realnum = 1;
   }
-  if( *z=='e' || *z=='E' ){
+  if( *z == 'e' || *z == 'E' )
+  {
     z++;
-    if( *z=='+' || *z=='-' ) z++;
-    if( !IsDigit(*z) ) return 0;
-    while( IsDigit(*z) ){ z++; }
-    if( realnum ) *realnum = 1;
+    if ( *z == '+' || *z=='-' ) z++;
+    if ( !IsDigit( *z ) ) return 0;
+    while ( IsDigit( *z ) ) { z++; }
+    if ( realnum ) *realnum = 1;
   }
-  return *z==0;
+  return ( *z == 0 );
 }
 
 /*
@@ -465,16 +494,13 @@ static int isNumber(const char *z, int *realnum){
 ** of work. Instead just use this hack, which is quite harmless.
 */
 static const char *zShellStatic = 0;
-static void shellstaticFunc(
-  sqlite3_context *context,
-  int argc,
-  sqlite3_value **argv
-){
-  assert( 0==argc );
+static void shellstaticFunc( sqlite3_context *context, int argc, sqlite3_value **argv )
+{
+  assert( 0 == argc );
   assert( zShellStatic );
-  UNUSED_PARAMETER(argc);
-  UNUSED_PARAMETER(argv);
-  sqlite3_result_text(context, zShellStatic, -1, SQLITE_STATIC);
+  UNUSED_PARAMETER( argc );
+  UNUSED_PARAMETER( argv );
+  sqlite3_result_text( context, zShellStatic, -1, SQLITE_STATIC );
 }
 
 
@@ -482,10 +508,11 @@ static void shellstaticFunc(
 ** Compute a string length that is limited to what can be stored in
 ** lower 30 bits of a 32-bit signed integer.
 */
-static int strlen30(const char *z){
+static int strlen30( const char *z )
+{
   const char *z2 = z;
-  while( *z2 ){ z2++; }
-  return 0x3fffffff & (int)(z2 - z);
+  while ( *z2 ) { z2++; }
+  return 0x3fffffff & ( int )( z2 - z );
 }
 
 /*
@@ -497,48 +524,58 @@ static int strlen30(const char *z){
 ** If zLine is not NULL then it is a malloced buffer returned from
 ** a previous call to this routine that may be reused.
 */
-static char *local_getline(char *zLine, FILE *in){
-  int nLine = zLine==0 ? 0 : 100;
+static char *local_getline( char *zLine, FILE *in )
+{
+  int nLine = ( zLine == 0 ) ? 0 : 100;
   int n = 0;
 
-  while( 1 ){
-    if( n+100>nLine ){
-      nLine = nLine*2 + 100;
-      zLine = realloc(zLine, nLine);
-      if( zLine==0 ) return 0;
+  while( 1 )
+  {
+    if ( n + 100 > nLine )
+    {
+      nLine = nLine * 2 + 100;
+      zLine = realloc( zLine, nLine );
+      if ( zLine == 0 ) return 0;
     }
-    if( fgets(&zLine[n], nLine - n, in)==0 ){
-      if( n==0 ){
-        free(zLine);
+    if ( fgets( &zLine[ n ], nLine - n, in ) == 0 )
+    {
+      if ( n == 0 )
+      {
+        free( zLine );
         return 0;
       }
-      zLine[n] = 0;
+      zLine[ n ] = 0;
       break;
     }
-    while( zLine[n] ) n++;
-    if( n>0 && zLine[n-1]=='\n' ){
+    while ( zLine[ n ] ) n++;
+    if ( n > 0 && zLine[ n - 1 ] == '\n' )
+    {
       n--;
-      if( n>0 && zLine[n-1]=='\r' ) n--;
-      zLine[n] = 0;
+      if ( n > 0 && zLine[ n - 1 ] == '\r' ) n--;
+      zLine[ n ] = 0;
       break;
     }
   }
 #if defined(_WIN32) || defined(WIN32)
   /* For interactive input on Windows systems, translate the
   ** multi-byte characterset characters into UTF-8. */
-  if( stdin_is_interactive && in==stdin ){
-    char *zTrans = sqlite3_win32_mbcs_to_utf8_v2(zLine, 0);
-    if( zTrans ){
-      int nTrans = strlen30(zTrans)+1;
-      if( nTrans>nLine ){
-        zLine = realloc(zLine, nTrans);
-        if( zLine==0 ){
-          sqlite3_free(zTrans);
+  if ( stdin_is_interactive && in == stdin )
+  {
+    char *zTrans = sqlite3_win32_mbcs_to_utf8_v2( zLine, 0 );
+    if ( zTrans )
+    {
+      int nTrans = strlen30( zTrans ) + 1;
+      if ( nTrans > nLine )
+      {
+        zLine = realloc( zLine, nTrans );
+        if ( zLine == 0 )
+        {
+          sqlite3_free( zTrans );
           return 0;
         }
       }
-      memcpy(zLine, zTrans, nTrans);
-      sqlite3_free(zTrans);
+      memcpy( zLine, zTrans, nTrans );
+      sqlite3_free( zTrans );
     }
   }
 #endif /* defined(_WIN32) || defined(WIN32) */
@@ -559,21 +596,25 @@ static char *local_getline(char *zLine, FILE *in){
 ** be freed by the caller or else passed back into this routine via the
 ** zPrior argument for reuse.
 */
-static char *one_input_line(FILE *in, char *zPrior, int isContinuation){
+static char *one_input_line( FILE *in, char *zPrior, int isContinuation )
+{
   char *zPrompt;
   char *zResult;
-  if( in!=0 ){
-    zResult = local_getline(zPrior, in);
-  }else{
+  if ( in != 0 )
+  {
+    zResult = local_getline( zPrior, in );
+  }
+  else
+  {
     zPrompt = isContinuation ? continuePrompt : mainPrompt;
 #if SHELL_USE_LOCAL_GETLINE
-    printf("%s", zPrompt);
-    fflush(stdout);
-    zResult = local_getline(zPrior, stdin);
+    printf( "%s", zPrompt );
+    fflush( stdout );
+    zResult = local_getline( zPrior, stdin );
 #else
-    free(zPrior);
-    zResult = shell_readline(zPrompt);
-    if( zResult && *zResult ) shell_add_history(zResult);
+    free( zPrior );
+    zResult = shell_readline( zPrompt );
+    if( zResult && *zResult ) shell_add_history( zResult );
 #endif
   }
   return zResult;
@@ -712,119 +753,157 @@ static const char *modeDescr[] = {
 /*
 ** A callback for the sqlite3_log() interface.
 */
-static void shellLog(void *pArg, int iErrCode, const char *zMsg){
-  ShellState *p = (ShellState*)pArg;
-  if( p->pLog==0 ) return;
-  utf8_printf(p->pLog, "(%d) %s\n", iErrCode, zMsg);
-  fflush(p->pLog);
+static void shellLog( void *pArg, int iErrCode, const char *zMsg )
+{
+  ShellState *p = ( ShellState* )pArg;
+  if ( p->pLog == 0 ) return;
+  utf8_printf( p->pLog, "(%d) %s\n", iErrCode, zMsg );
+  fflush( p->pLog );
 }
 
 /*
 ** Output the given string as a hex-encoded blob (eg. X'1234' )
 */
-static void output_hex_blob(FILE *out, const void *pBlob, int nBlob){
+static void output_hex_blob( FILE *out, const void *pBlob, int nBlob )
+{
   int i;
   char *zBlob = (char *)pBlob;
-  raw_printf(out,"X'");
-  for(i=0; i<nBlob; i++){ raw_printf(out,"%02x",zBlob[i]&0xff); }
-  raw_printf(out,"'");
+  raw_printf( out,"X'" );
+  for( i = 0; i < nBlob; i++ ){ raw_printf( out, "%02x", zBlob[ i ]&0xff ); }
+  raw_printf( out, "'" );
 }
 
 /*
 ** Output the given string as a quoted string using SQL quoting conventions.
 */
-static void output_quoted_string(FILE *out, const char *z){
+static void output_quoted_string( FILE *out, const char *z )
+{
   int i;
   int nSingle = 0;
-  setBinaryMode(out, 1);
-  for(i=0; z[i]; i++){
-    if( z[i]=='\'' ) nSingle++;
+  
+  setBinaryMode( out, 1 );
+  for ( i = 0; z[ i ]; i++ )
+  {
+    if ( z[ i ] == '\'' ) nSingle++;
   }
-  if( nSingle==0 ){
-    utf8_printf(out,"'%s'",z);
-  }else{
-    raw_printf(out,"'");
-    while( *z ){
-      for(i=0; z[i] && z[i]!='\''; i++){}
-      if( i==0 ){
-        raw_printf(out,"''");
+  
+  if ( nSingle == 0 )
+  {
+    utf8_printf( out, "'%s'", z );
+  }
+  else
+  {
+    raw_printf( out,"'" );
+    while ( *z )
+    {
+      for( i = 0; z[ i ] && z[ i ] != '\''; i++ ){}
+      if ( i == 0 )
+      {
+        raw_printf( out, "''" );
         z++;
-      }else if( z[i]=='\'' ){
-        utf8_printf(out,"%.*s''",i,z);
-        z += i+1;
-      }else{
-        utf8_printf(out,"%s",z);
+      }
+      else if ( z[ i ] == '\'' )
+      {
+        utf8_printf( out, "%.*s''", i, z );
+        z += ( i + 1 );
+      }
+      else
+      {
+        utf8_printf( out, "%s", z );
         break;
       }
     }
-    raw_printf(out,"'");
+    raw_printf( out, "'" );
   }
-  setTextMode(out, 1);
+  setTextMode( out, 1 );
 }
 
 /*
 ** Output the given string as a quoted according to C or TCL quoting rules.
 */
-static void output_c_string(FILE *out, const char *z){
+static void output_c_string( FILE *out, const char *z )
+{
   unsigned int c;
-  fputc('"', out);
-  while( (c = *(z++))!=0 ){
-    if( c=='\\' ){
-      fputc(c, out);
-      fputc(c, out);
-    }else if( c=='"' ){
-      fputc('\\', out);
-      fputc('"', out);
-    }else if( c=='\t' ){
-      fputc('\\', out);
-      fputc('t', out);
-    }else if( c=='\n' ){
-      fputc('\\', out);
-      fputc('n', out);
-    }else if( c=='\r' ){
-      fputc('\\', out);
-      fputc('r', out);
-    }else if( !isprint(c&0xff) ){
-      raw_printf(out, "\\%03o", c&0xff);
-    }else{
-      fputc(c, out);
+  fputc( '"', out );
+  while ( ( c = *( z++ ) ) != 0 )
+  {
+    if ( c == '\\' )
+    {
+      fputc( c, out );
+      fputc( c, out );
+    }
+    else if ( c == '"' )
+    {
+      fputc( '\\', out );
+      fputc( '"', out );
+    }
+    else if ( c == '\t' )
+    {
+      fputc( '\\', out );
+      fputc( 't', out );
+    }
+    else if ( c == '\n' )
+    {
+      fputc( '\\', out );
+      fputc( 'n', out );
+    }
+    else if ( c == '\r' )
+    {
+      fputc( '\\', out );
+      fputc( 'r', out );
+    }
+    else if ( !isprint( c & 0xff ) )
+    {
+      raw_printf( out, "\\%03o", c & 0xff );
+    }
+    else
+    {
+      fputc( c, out );
     }
   }
-  fputc('"', out);
+  fputc( '"', out );
 }
 
 /*
 ** Output the given string with characters that are special to
 ** HTML escaped.
 */
-static void output_html_string(FILE *out, const char *z){
+static void output_html_string( FILE *out, const char *z )
+{
   int i;
-  if( z==0 ) z = "";
-  while( *z ){
-    for(i=0;   z[i]
-            && z[i]!='<'
-            && z[i]!='&'
-            && z[i]!='>'
-            && z[i]!='\"'
-            && z[i]!='\'';
-        i++){}
-    if( i>0 ){
-      utf8_printf(out,"%.*s",i,z);
+  if ( z == 0 ) z = "";
+  while ( *z )
+  {
+    for( i = 0;
+         ( z[ i ] ) && ( z[ i ] != '<' ) && ( z[ i ] != '&' ) &&
+         ( z[ i ] != '>' ) && ( z[ i ] != '\"' ) && ( z[ i ] != '\'' );
+         i++ ) { }
+    if ( i > 0 ) { utf8_printf( out, "%.*s", i, z ); }
+    if ( z[ i ] == '<' )
+    {
+      raw_printf( out, "&lt;" );
     }
-    if( z[i]=='<' ){
-      raw_printf(out,"&lt;");
-    }else if( z[i]=='&' ){
-      raw_printf(out,"&amp;");
-    }else if( z[i]=='>' ){
-      raw_printf(out,"&gt;");
-    }else if( z[i]=='\"' ){
-      raw_printf(out,"&quot;");
-    }else if( z[i]=='\'' ){
-      raw_printf(out,"&#39;");
-    }else{
+    else if ( z[ i ] == '&' )
+    {
+      raw_printf( out, "&amp;" );
+    }
+    else if ( z[ i ] == '>' )
+    {
+      raw_printf( out, "&gt;" );
+    }
+    else if( z[ i ] == '\"' )
+    {
+      raw_printf( out, "&quot;" );
+    }
+    else if( z[ i ] == '\'' )
+    {
+      raw_printf( out, "&#39;" );
+    }
+    else
+    {
       break;
     }
-    z += i + 1;
+    z += ( i + 1 );
   }
 }
 
@@ -857,34 +936,45 @@ static const char needCsvQuote[] = {
 ** the null value.  Strings are quoted if necessary.  The separator
 ** is only issued if bSep is true.
 */
-static void output_csv(ShellState *p, const char *z, int bSep){
+static void output_csv( ShellState *p, const char *z, int bSep )
+{
   FILE *out = p->out;
-  if( z==0 ){
-    utf8_printf(out,"%s",p->nullValue);
-  }else{
+  if ( z == 0 )
+  {
+    utf8_printf( out, "%s", p->nullValue );
+  }
+  else
+  {
     int i;
-    int nSep = strlen30(p->colSeparator);
-    for(i=0; z[i]; i++){
-      if( needCsvQuote[((unsigned char*)z)[i]]
-         || (z[i]==p->colSeparator[0] &&
-             (nSep==1 || memcmp(z, p->colSeparator, nSep)==0)) ){
+    int nSep = strlen30( p->colSeparator );
+    for ( i = 0; z[ i ]; i++ )
+    {
+      if ( needCsvQuote[ ( ( unsigned char* ) z )[ i ] ]
+           || ( z[ i ] == p->colSeparator[ 0 ] &&
+           ( nSep == 1 || memcmp( z, p->colSeparator, nSep ) == 0 ) ) )
+      {
         i = 0;
         break;
       }
     }
-    if( i==0 ){
-      putc('"', out);
-      for(i=0; z[i]; i++){
-        if( z[i]=='"' ) putc('"', out);
-        putc(z[i], out);
+    if ( i == 0 )
+    {
+      putc( '"', out );
+      for( i = 0; z[ i ]; i++ )
+      {
+        if ( z[ i ] == '"' ) putc( '"', out );
+        putc( z[ i ], out );
       }
-      putc('"', out);
-    }else{
-      utf8_printf(out, "%s", z);
+      putc( '"', out );
+    }
+    else
+    {
+      utf8_printf( out, "%s", z );
     }
   }
-  if( bSep ){
-    utf8_printf(p->out, "%s", p->colSeparator);
+  if( bSep )
+  {
+    utf8_printf( p->out, "%s", p->colSeparator );
   }
 }
 
@@ -892,11 +982,12 @@ static void output_csv(ShellState *p, const char *z, int bSep){
 /*
 ** This routine runs when the user presses Ctrl-C
 */
-static void interrupt_handler(int NotUsed){
-  UNUSED_PARAMETER(NotUsed);
+static void interrupt_handler( int NotUsed )
+{
+  UNUSED_PARAMETER( NotUsed );
   seenInterrupt++;
-  if( seenInterrupt>2 ) exit(1);
-  if( globalDb ) sqlite3_interrupt(globalDb);
+  if ( seenInterrupt > 2 ) exit( 1 );
+  if ( globalDb ) sqlite3_interrupt( globalDb );
 }
 #endif
 
@@ -905,16 +996,12 @@ static void interrupt_handler(int NotUsed){
 ** When the ".auth ON" is set, the following authorizer callback is
 ** invoked.  It always returns SQLITE_OK.
 */
-static int shellAuth(
-  void *pClientData,
-  int op,
-  const char *zA1,
-  const char *zA2,
-  const char *zA3,
-  const char *zA4
-){
-  ShellState *p = (ShellState*)pClientData;
-  static const char *azAction[] = { 0,
+static int shellAuth( void *pClientData, int op,
+  const char *zA1, const char *zA2, const char *zA3, const char *zA4 )
+{
+  ShellState *p = ( ShellState* )pClientData;
+  static const char *azAction[] =
+  { 0,
      "CREATE_INDEX",         "CREATE_TABLE",         "CREATE_TEMP_INDEX",
      "CREATE_TEMP_TABLE",    "CREATE_TEMP_TRIGGER",  "CREATE_TEMP_VIEW",
      "CREATE_TRIGGER",       "CREATE_VIEW",          "DELETE",
@@ -928,21 +1015,25 @@ static int shellAuth(
      "FUNCTION",             "SAVEPOINT",            "RECURSIVE"
   };
   int i;
-  const char *az[4];
-  az[0] = zA1;
-  az[1] = zA2;
-  az[2] = zA3;
-  az[3] = zA4;
-  utf8_printf(p->out, "authorizer: %s", azAction[op]);
-  for(i=0; i<4; i++){
-    raw_printf(p->out, " ");
-    if( az[i] ){
-      output_c_string(p->out, az[i]);
-    }else{
-      raw_printf(p->out, "NULL");
+  const char *az[ 4 ];
+  az[ 0 ] = zA1;
+  az[ 1 ] = zA2;
+  az[ 2 ] = zA3;
+  az[ 3 ] = zA4;
+  utf8_printf( p->out, "authorizer: %s", azAction[ op ] );
+  for ( i = 0; i < 4; i++ )
+  {
+    raw_printf( p->out, " " );
+    if ( az[ i ] )
+    {
+      output_c_string( p->out, az[ i ] );
+    }
+    else
+    {
+      raw_printf( p->out, "NULL" );
     }
   }
-  raw_printf(p->out, "\n");
+  raw_printf( p->out, "\n" );
   return SQLITE_OK;
 }
 #endif
@@ -953,49 +1044,58 @@ static int shellAuth(
 ** This routine converts some CREATE TABLE statements for shadow tables
 ** in FTS3/4/5 into CREATE TABLE IF NOT EXISTS statements.
 */
-static void printSchemaLine(FILE *out, const char *z, const char *zTail){
-  if( sqlite3_strglob("CREATE TABLE ['\"]*", z)==0 ){
-    utf8_printf(out, "CREATE TABLE IF NOT EXISTS %s%s", z+13, zTail);
-  }else{
-    utf8_printf(out, "%s%s", z, zTail);
+static void printSchemaLine( FILE *out, const char *z, const char *zTail )
+{
+  if ( sqlite3_strglob( "CREATE TABLE ['\"]*", z ) == 0 )
+  {
+    utf8_printf( out, "CREATE TABLE IF NOT EXISTS %s%s", z + 13, zTail );
+  }
+  else
+  {
+    utf8_printf( out, "%s%s", z, zTail );
   }
 }
-static void printSchemaLineN(FILE *out, char *z, int n, const char *zTail){
-  char c = z[n];
-  z[n] = 0;
-  printSchemaLine(out, z, zTail);
-  z[n] = c;
+
+static void printSchemaLineN( FILE *out, char *z, int n, const char *zTail )
+{
+  char c = z[ n ];
+  z[ n ] = 0;
+  printSchemaLine( out, z, zTail );
+  z[ n ] = c;
 }
 
 /*
 ** This is the callback routine that the shell
 ** invokes for each row of a query result.
 */
-static int shell_callback(
-  void *pArg,
+static int shell_callback( void *pArg,
   int nArg,        /* Number of result columns */
   char **azArg,    /* Text of each result column */
   char **azCol,    /* Column names */
-  int *aiType      /* Column types */
-){
+  int *aiType )    /* Column types */
+{
   int i;
-  ShellState *p = (ShellState*)pArg;
+  ShellState *p = ( ShellState* )pArg;
 
-  switch( p->cMode ){
+  switch( p->cMode )
+  {
     case MODE_Line: {
-      int w = 5;
-      if( azArg==0 ) break;
-      for(i=0; i<nArg; i++){
-        int len = strlen30(azCol[i] ? azCol[i] : "");
-        if( len>w ) w = len;
-      }
-      if( p->cnt++>0 ) utf8_printf(p->out, "%s", p->rowSeparator);
-      for(i=0; i<nArg; i++){
-        utf8_printf(p->out,"%*s = %s%s", w, azCol[i],
-                azArg[i] ? azArg[i] : p->nullValue, p->rowSeparator);
-      }
-      break;
-    }
+                       int w = 5;
+                       if ( azArg == 0 ) break;
+                       for ( i = 0; i < nArg; i++ )
+                       {
+                         int len = strlen30( azCol[ i ] ? azCol[ i ] : "" );
+                         if( len > w ) w = len;
+                       }
+                       if ( p->cnt++ > 0 ) utf8_printf( p->out, "%s", p->rowSeparator );
+                       for ( i = 0; i < nArg; i++ )
+                       {
+                         utf8_printf( p->out, "%*s = %s%s", w, azCol[ i ],
+                                azArg[ i ] ? azArg[ i ] : p->nullValue, p->rowSeparator );
+                       }
+                       break;
+                     }
+                     
     case MODE_Explain:
     case MODE_Column: {
       static const int aExplainWidths[] = {4, 13, 4, 4, 4, 13, 2, 13};
@@ -1291,9 +1391,10 @@ static int shell_callback(
 ** This is the callback routine that the SQLite library
 ** invokes for each row of a query result.
 */
-static int callback(void *pArg, int nArg, char **azArg, char **azCol){
+static int callback( void *pArg, int nArg, char **azArg, char **azCol )
+{
   /* since we don't have type info, call the shell_callback with a NULL value */
-  return shell_callback(pArg, nArg, azArg, azCol, NULL);
+  return shell_callback( pArg, nArg, azArg, azCol, NULL );
 }
 
 /*
@@ -1301,37 +1402,43 @@ static int callback(void *pArg, int nArg, char **azArg, char **azCol){
 ** the name of the table given.  Escape any quote characters in the
 ** table name.
 */
-static void set_table_name(ShellState *p, const char *zName){
+static void set_table_name( ShellState *p, const char *zName )
+{
   int i, n;
   int needQuote;
   char *z;
 
-  if( p->zDestTable ){
-    free(p->zDestTable);
+  if ( p->zDestTable )
+  {
+    free( p->zDestTable );
     p->zDestTable = 0;
   }
-  if( zName==0 ) return;
-  needQuote = !isalpha((unsigned char)*zName) && *zName!='_';
-  for(i=n=0; zName[i]; i++, n++){
-    if( !isalnum((unsigned char)zName[i]) && zName[i]!='_' ){
+  if( zName == 0 ) return;
+  needQuote = !isalpha( ( unsigned char )*zName ) && *zName!='_';
+  for ( i = n = 0; zName[ i ]; i++, n++ )
+  {
+    if( !isalnum( ( unsigned char )zName[ i ] ) && zName[ i ] != '_' )
+    {
       needQuote = 1;
-      if( zName[i]=='\'' ) n++;
+      if ( zName[ i ] == '\'' ) n++;
     }
   }
-  if( needQuote ) n += 2;
-  z = p->zDestTable = malloc( n+1 );
-  if( z==0 ){
-    raw_printf(stderr,"Error: out of memory\n");
-    exit(1);
+  if ( needQuote ) n += 2;
+  z = p->zDestTable = malloc( n + 1 );
+  if ( z == 0 )
+  {
+    raw_printf( stderr, "Error: out of memory\n" );
+    exit( 1 );
   }
   n = 0;
-  if( needQuote ) z[n++] = '\'';
-  for(i=0; zName[i]; i++){
-    z[n++] = zName[i];
-    if( zName[i]=='\'' ) z[n++] = '\'';
+  if ( needQuote ) z[ n++ ] = '\'';
+  for ( i = 0; zName[ i ]; i++ )
+  {
+    z[ n++ ] = zName[ i ];
+    if ( zName[ i ] == '\'' ) z[ n++ ] = '\'';
   }
-  if( needQuote ) z[n++] = '\'';
-  z[n] = 0;
+  if ( needQuote ) z[ n++ ] = '\'';
+  z[ n ] = 0;
 }
 
 /* zIn is either a pointer to a NULL-terminated string in memory obtained
@@ -1342,40 +1449,43 @@ static void set_table_name(ShellState *p, const char *zName){
 ** If the third argument, quote, is not '\0', then it is used as a
 ** quote character for zAppend.
 */
-static char *appendText(char *zIn, char const *zAppend, char quote){
+static char *appendText( char *zIn, char const *zAppend, char quote )
+{
   int len;
   int i;
-  int nAppend = strlen30(zAppend);
-  int nIn = (zIn?strlen30(zIn):0);
+  int nAppend = strlen30( zAppend );
+  int nIn = ( zIn ? strlen30( zIn ) : 0 );
 
-  len = nAppend+nIn+1;
-  if( quote ){
+  len = nAppend + nIn + 1;
+  if ( quote )
+  {
     len += 2;
-    for(i=0; i<nAppend; i++){
-      if( zAppend[i]==quote ) len++;
+    for ( i = 0; i < nAppend; i++ )
+    {
+      if ( zAppend[ i ] == quote ) len++;
     }
   }
 
-  zIn = (char *)realloc(zIn, len);
-  if( !zIn ){
-    return 0;
-  }
-
-  if( quote ){
-    char *zCsr = &zIn[nIn];
+  zIn = ( char * )realloc( zIn, len );
+  if ( !zIn ) { return 0; }
+  if ( quote )
+  {
+    char *zCsr = &zIn[ nIn ];
     *zCsr++ = quote;
-    for(i=0; i<nAppend; i++){
-      *zCsr++ = zAppend[i];
-      if( zAppend[i]==quote ) *zCsr++ = quote;
+    for ( i = 0; i < nAppend; i++ )
+    {
+      *zCsr++ = zAppend[ i ];
+      if ( zAppend[ i ] == quote ) *zCsr++ = quote;
     }
     *zCsr++ = quote;
     *zCsr++ = '\0';
-    assert( (zCsr-zIn)==len );
-  }else{
-    memcpy(&zIn[nIn], zAppend, nAppend);
-    zIn[len-1] = '\0';
+    assert( ( zCsr-zIn ) == len );
   }
-
+  else
+  {
+    memcpy( &zIn[ nIn ], zAppend, nAppend );
+    zIn[ len - 1 ] = '\0';
+  }
   return zIn;
 }
 

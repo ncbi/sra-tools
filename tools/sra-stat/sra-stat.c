@@ -2381,7 +2381,7 @@ rc_t KMDataNodePrintAttr ( const KMDataNode * self,
 }
 
 static
-rc_t KMDataNodePrintChild ( const KMDataNode * self,
+rc_t KMDataNodePrintChange ( const KMDataNode * self,
                             const char * name,
                             const char * indent )
 {
@@ -2394,6 +2394,7 @@ rc_t KMDataNodePrintChild ( const KMDataNode * self,
         "while calling KMDataNodeOpenNodeRead" );
 
     if ( rc == 0 ) {
+        const char tag [] = "Change";
         char value [] = "sra-stat: ERROR WHILE READING CHANGES CHILD VALUE";
         size_t size = 0;
 
@@ -2414,14 +2415,14 @@ rc_t KMDataNodePrintChild ( const KMDataNode * self,
         if ( rc == 0 ) {
             uint32_t i = 0;
 
-            OUTMSG ( ( "  %s" "<%s", indent, name ) );
+            OUTMSG ( ( "  %s" "<%s", indent, tag ) );
             for ( i = 0; i < count; ++i )
                 KMDataNodePrintAttr ( node, names, i );
             OUTMSG ( ( ">" ) );
 
             printChangeValue ( value, size );
 
-            OUTMSG ( ( "</%s>\n", name ) );
+            OUTMSG ( ( "</%s>\n", tag ) );
         }
 
         RELEASE ( KNamelist, names );
@@ -2439,7 +2440,8 @@ static rc_t CtxPrintCHANGES ( const Ctx * self, const char * indent ) {
     const KMDataNode * parent = NULL;
     bool toReleaseMeta = false;
 
-    const char tag [] = "CHANGES";
+    const char meta_tag [] = "CHANGES";
+    const char tag [] = "Changes";
 
     assert ( self && indent );
 
@@ -2451,19 +2453,19 @@ static rc_t CtxPrintCHANGES ( const Ctx * self, const char * indent ) {
         toReleaseMeta = true;
     }
 
-    KMetadataOpenNodeRead ( meta, & parent, tag );
+    KMetadataOpenNodeRead ( meta, & parent, meta_tag );
 
     if ( parent != NULL ) {
         KNamelist * names = NULL;
         rc = KMDataNodeListChild ( parent, & names );
-        DISP_RC2 ( rc, tag, "while calling KMDataNodeListChild" );
+        DISP_RC2 ( rc, meta_tag, "while calling KMDataNodeListChild" );
 
         OUTMSG ( ( "%s" "<%s>"  "\n", indent, tag ) );
 
         if ( rc == 0 ) {
             uint32_t count = 0;
             rc = KNamelistCount ( names, & count );
-            DISP_RC2 ( rc, tag, "while calling KNamelistCount" );
+            DISP_RC2 ( rc, meta_tag, "while calling KNamelistCount" );
 
             if ( rc == 0 ) {
                 uint32_t i = 0;
@@ -2473,9 +2475,9 @@ static rc_t CtxPrintCHANGES ( const Ctx * self, const char * indent ) {
                     if ( rc != 0 )
                        PLOGERR ( klogInt, ( klogInt, rc,
                             "while calling $(n)::KNamelistGet($(idx))",
-                            "n=%s,idx=%i", tag, i ) );
+                            "n=%s,idx=%i", meta_tag, i ) );
                     else
-                        rc = KMDataNodePrintChild ( parent, child, indent );
+                        rc = KMDataNodePrintChange ( parent, child, indent );
                 }
             }
         }

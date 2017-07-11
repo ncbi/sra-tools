@@ -58,8 +58,13 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# the tool: sam-events
+# the tool: vdb-sql
+# ( a version of the sqlite3-commandline-tool with the vdb-lib statically linked into it )
 #
+#   sqlite3.c ...... the sqlite-amalgamation source of the sqlite-libraray
+#   sqlite3vdb.c ... the vdb-extension ( virtual table )
+#   vdb_shellc. .... the originial sqlite3.c preloaded with the vdb-virtual table
+#                    and enhanced by additional commandline-arguments
 
 TOOL_SRC = \
 	sqlite3 \

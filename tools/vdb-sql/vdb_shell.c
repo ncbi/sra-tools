@@ -1503,8 +1503,8 @@ static char *appendText( char *zIn, char const *zAppend, char quote )
 static int run_table_dump_query(
   ShellState *p,           /* Query context */
   const char *zSelect,     /* SELECT statement to extract content */
-  const char *zFirstRow    /* Print before first row, if not NULL */
-){
+  const char *zFirstRow )  /* Print before first row, if not NULL */
+{
   sqlite3_stmt *pSelect;
   int rc;
   int nResult;
@@ -6402,7 +6402,9 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
       }
       else
       {
+        /*
         utf8_printf( stderr, "Success: '%s'\n", sql );
+        */
       }
       sqlite3_free( sql );
     }

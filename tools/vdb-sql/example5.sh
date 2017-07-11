@@ -1,15 +1,13 @@
-echo "----- count how many alignments start in a given slice -----"
+echo "----- count how many different READ_FILTER values we have -----"
 
 TOOL="../../../OUTDIR/sra-tools/linux/gcc/x86_64/dbg/bin/vdb-sql"
 ACC="SRR341578"
-
-CREATE="create virtual table SRA using vdb( $ACC );"
 VALUE="json_each.value"
-SELECT="select $VALUE, count( $VALUE ) from SRA, json_each( SRA.READ_FILTER ) group by $VALUE;"
+SELECT="select $VALUE, count( $VALUE ) from VDB, json_each( VDB.READ_FILTER ) group by $VALUE;"
 
 #to prevent the shell from expanding '*' into filenames!
 set -f
 
-CMD="$TOOL :memory: \"$CREATE $SELECT\""
+CMD="$TOOL :memory: -acc $ACC \"$SELECT\""
 echo $CMD
 eval $CMD

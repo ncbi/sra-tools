@@ -1,17 +1,15 @@
-echo "----- count how many of each READ_FILTER values we have -----"
+echo "----- count how many alignments we have in a given slice -----"
 
 TOOL="../../../OUTDIR/sra-tools/linux/gcc/x86_64/dbg/bin/vdb-sql"
 ACC="SRR341578"
-
-CREATE="create virtual table SRA using vdb( $ACC, T = PRIM );"
 ID="NC_011748.1"
 START="123456"
 END="133456"
-SELECT="select count() from SRA where REF_SEQ_ID='$ID' and REF_POS >= $START and REF_POS <= $END;"
+SELECT="select count() from VDB where REF_SEQ_ID='$ID' and REF_POS BETWEEN $START AND $END;"
 
 #to prevent the shell from expanding '*' into filenames!
 set -f
 
-CMD="$TOOL :memory: \"$CREATE $SELECT\""
+CMD="$TOOL :memory: -acc $ACC -tbl PRIM \"$SELECT\""
 echo $CMD
 eval $CMD

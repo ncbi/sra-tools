@@ -13,7 +13,7 @@ fi
 
 ACC="SRR341577"
 
-TMPFILE=`mktemp -u --tmpdir="."`
+TMPFILE=`mktemp -u`
 
 #create a virtual table named FASTQ on our accession
 echo "create virtual table FASTQ using vdb( $ACC, " >> $TMPFILE
@@ -35,7 +35,7 @@ echo " substr( READ, json_extract( json_object( 'a', json( READ_START ) ), '$.a[
 echo " printf( '+%s.%s %s length=%d', '$ACC', NAME, NAME, json_extract( json_object( 'a', json( READ_LEN ) ), '$.a[1]' ) ), " >> $TMPFILE
 echo " substr( QUALITY, json_extract( json_object( 'a', json( READ_START ) ), '$.a[1]' ) + 1, json_extract( json_object( 'a', json( READ_LEN ) ), '$.a[1]' ) ) " >> $TMPFILE
 
-echo "from FASTQ LIMIT 300;" >> $TMPFILE
+echo "from FASTQ LIMIT 12;" >> $TMPFILE
 
 $TOOL < $TMPFILE
 

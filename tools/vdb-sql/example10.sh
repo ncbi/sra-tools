@@ -13,7 +13,7 @@ fi
 
 ACC="SRR341577"
 
-TMPFILE=`mktemp -u --tmpdir="."`
+TMPFILE=`mktemp -u`
 
 #create a virtual table named FASTQ on our accession
 echo "create virtual table FASTQ using vdb( $ACC, " >> $TMPFILE

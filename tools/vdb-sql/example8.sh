@@ -19,7 +19,7 @@ ID="NC_011748.1"
 START="123456"
 END="133456"
 
-TMPFILE=`mktemp -u --tmpdir="."`
+TMPFILE=`mktemp -u`
 echo "create virtual table VDB using vdb( $ACC, table=PRIM );" > $TMPFILE
 echo "select count() from VDB where REF_SEQ_ID='$ID' and REF_POS >= $START and REF_POS <= $END;" >> $TMPFILE
 $TOOL < $TMPFILE

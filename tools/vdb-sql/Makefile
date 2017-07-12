@@ -32,7 +32,7 @@ INT_TOOLS = \
 
 EXT_TOOLS = \
 	vdb-sql \
-	vdb-sql-lib.$(SHLX)
+#	vdb-sql-lib.$(SHLX)
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \

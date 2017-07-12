@@ -31,7 +31,8 @@ MODULE = tools/vdb-sql
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	vdb-sql
+	vdb-sql \
+	vdb-sql-lib.$(SHLX)
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -58,6 +59,14 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
+# the common-part: which libs to link in
+
+VDB_SQL_LIB = \
+	-sncbi-vdb \
+	-lm \
+	-lpthread
+
+#-------------------------------------------------------------------------------
 # the tool: vdb-sql
 # ( a version of the sqlite3-commandline-tool with the vdb-lib statically linked into it )
 #
@@ -66,18 +75,27 @@ clean: stdclean
 #   vdb_shellc. .... the originial sqlite3.c preloaded with the vdb-virtual table
 #                    and enhanced by additional commandline-arguments
 
-TOOL_SRC = \
+VDB_SQL_SRC = \
 	sqlite3 \
 	sqlite3vdb \
 	vdb_shell
 
-TOOL_OBJ = \
-	$(addsuffix .$(OBJX),$(TOOL_SRC))
+VDB_SQL_OBJ = \
+	$(addsuffix .$(OBJX),$(VDB_SQL_SRC))
 
-TOOL_LIB = \
-	-sncbi-vdb \
-	-lm \
-	-lpthread
+$(BINDIR)/vdb-sql: $(VDB_SQL_OBJ)
+	$(LP) --exe -o $@ $^ $(VDB_SQL_LIB)
 
-$(BINDIR)/vdb-sql: $(TOOL_OBJ)
-	$(LP) --exe -o $@ $^ $(TOOL_LIB)
+
+#-------------------------------------------------------------------------------
+# the lib: vdb-sql-lib ( not used by the tool! )
+
+VDB_SQL_LIB_SRC = \
+	sqlite3 \
+	sqlite3vdb
+
+VDB_SQL_LIB_OBJ = \
+	$(addsuffix .$(LOBX),$(VDB_SQL_LIB_SRC))
+
+$(BINDIR)/vdb-sql-lib.$(SHLX): $(VDB_SQL_LIB_OBJ)
+	$(LD) --dlib -o $@ $^ $(VDB_SQL_LIB)

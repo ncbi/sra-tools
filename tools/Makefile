@@ -67,6 +67,7 @@ SUBDIRS =             \
 	ngs-pileup        \
 	general-loader    \
 	fastdump          \
+	vdb-sql           \
 
 ifneq (win,$(BUILD_OS))
 ifneq (rwin,$(BUILD_OS))

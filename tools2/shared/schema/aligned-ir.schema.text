@@ -43,7 +43,19 @@ table NCBI:tbl:IR:raw #1
     extern column <ascii> zip_encoding CIGAR;
 };
 
+table NCBI:tbl:aligned:SPOT_STATISTICS #1
+{
+    extern column ascii READ_GROUP;
+    extern column ascii LAYOUT;
+    extern column F64 FREQ_FORWARD;
+    extern column F64 FREQ_REVERSE;
+    extern column F64 FRAGMENT_LENGTH_AVERAGE;
+    extern column F64 FRAGMENT_LENGTH_STD_DEV;
+    extern column U32 FRAGMENT_LENGTH_MODE;
+};
+
 database NCBI:db:IR:raw #1
 {
     table NCBI:tbl:IR:raw #1.0 RAW;
+    table NCBI:tbl:aligned:SPOT_STATISTICS #1 LAYOUT_STATS;
 };

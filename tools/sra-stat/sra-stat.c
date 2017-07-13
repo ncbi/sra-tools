@@ -276,7 +276,7 @@ static void Statistics2Print(const Statistics2* selfs,
         look the same */
     uint64_t spot_count)
 {
-    int i = 0;
+    uint32_t i = 0;
 
     if (nreads) {
         assert(selfs && indent);
@@ -587,7 +587,7 @@ void SraStatsTotalStatistics2Init(SraStatsTotal* self,
         uint64_t sum = sums[i];
         Statistics2* stats = self->stats2 + i;
         assert(stats);
-        Statistics2Init(stats, sum, count[i]);
+        Statistics2Init(stats, ( double ) sum, count[i]);
     }
 }
 
@@ -647,7 +647,7 @@ static
 void SraStatsTotalAdd(SraStatsTotal* self,
     uint32_t* values, uint32_t nreads)
 {
-    int i = ~0;
+    uint32_t i = 0;
 
     assert(self && values);
 
@@ -672,7 +672,7 @@ void SraStatsTotalAdd(SraStatsTotal* self,
 
 static
 void SraStatsTotalAdd2(SraStatsTotal* self, uint32_t* values) {
-    int i = 0;
+    uint32_t i = 0;
 
     assert(self && values);
 
@@ -704,7 +704,7 @@ void print_double_or_int(const char* name, double val, bool variable) {
 static void StatisticsPrint(const Statistics* selfs,
     uint32_t nreads, const char* indent)
 {
-    int i = ~0;
+    uint32_t i = 0;
 
     if (nreads) {
         assert(selfs && indent);
@@ -728,7 +728,7 @@ static rc_t StatisticsDiff(const Statistics* ss,
 {
     rc_t rc = 0;
 
-    int i = ~0;
+    uint32_t i = 0;
 
     assert(ss && ss2);
 
@@ -882,7 +882,7 @@ rc_t CC meta_RG_callback(const BAM_HEADER_RG* rg, const void* data)
 
     const MetaDataStats* meta_stats = data;
 
-    int i = 0;
+    uint32_t i = 0;
     bool found = false;
 
     assert(rg && meta_stats && rg->ID);
@@ -955,7 +955,7 @@ static rc_t QualityParse(Quality* self,
 {
     rc_t rc = 0;
     const char start[] = "PHRED_";
-    int i = strlen(start);
+    size_t i = strlen(start);
 
     assert(self && name);
 
@@ -2214,7 +2214,7 @@ rc_t process_align_info(const char* indent, const Ctx* ctx)
 {
     rc_t rc = 0;
     uint32_t count = 0;
-    int i = 0;
+    uint32_t i = 0;
     const VDBDependencies* dep = NULL;
 
     assert(indent && ctx);
@@ -2859,7 +2859,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
 
                     if (pb->stop > 0) {
                         stop = pb->stop;
-                        if (stop > first + count) {
+                        if ( ( uint64_t ) stop > first + count) {
                             stop = first + count;
                         }
                     }
@@ -2919,9 +2919,10 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                         }
                         if (rc == 0) {
                             int i, bio_len, bio_count, bad_cnt, filt_cnt;
-                            memmove(dREAD_LEN,
-                                ((const char*)base) + (boff>>3), row_bits >> 3);
-                            nreads = (row_bits >> 3) / sizeof(*dREAD_LEN);
+                            memmove(dREAD_LEN, ((const char*)base) + (boff>>3),
+                                    ( size_t ) row_bits >> 3);
+                            nreads
+                                = (int) ((row_bits >> 3) / sizeof(*dREAD_LEN));
                             if (spotid == start) {
                                 g_nreads = nreads;
                                 if (pb->statistics) {
@@ -2962,7 +2963,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                             if (rc == 0) {
                                 memmove(dREAD_TYPE,
                                     ((const char*)base) + (boff >> 3),
-                                    row_bits >> 3);
+                                    ( size_t ) row_bits >> 3);
                                 if (idxSPOT_GROUP != 0) {
                                     rc = VCursorColumnRead(curs, spotid,
                                         idxSPOT_GROUP, &base, &boff, &row_bits);
@@ -2990,10 +2991,10 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                                "after calling VCursorColumnRead"
                                                );
                                             if (rc == 0) {
-                                                int n = row_bits >> 3;
+                                                bitsz_t n = row_bits >> 3;
                                                 memmove(dSPOT_GROUP,
                                                   ((const char*)base)+(boff>>3),
-                                                  row_bits>>3);
+                                                  ( size_t ) row_bits>>3);
                                                 dSPOT_GROUP[n]='\0';
                                                 if (n > 1 ||
                                                     (n == 1 && dSPOT_GROUP[0]))
@@ -3019,7 +3020,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                     DISP_RC_Read(rc, RD_FILTER, spotid,
                                         "while calling VCursorColumnRead");
                                     if (rc == 0) {
-                                        int size = row_bits >> 3;
+                                        bitsz_t size = row_bits >> 3;
                                         if (boff & 7) {
                                             rc = RC(rcExe, rcColumn, rcReading,
                                                 rcOffset, rcInvalid); }
@@ -3036,7 +3037,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         if (rc == 0) {
                                             memmove(dRD_FILTER,
                                                 ((const char*)base) + (boff>>3),
-                                                size);
+                                                ( size_t ) size);
                                             if (size < nreads) {
                              /* RD_FILTER is expected to have nreads elements */
                                                 if (size == 1) {
@@ -3304,7 +3305,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     "while calling VCursorColumnRead");
             }
             if (rc == 0) {
-                memmove(dREAD_LEN, ((const char*)base) + (boff>>3), row_bits>>3);
+                memmove(dREAD_LEN, ((const char*)base) + (boff>>3),
+                        ( size_t ) row_bits>>3);
             }
             for (i = 0; i < g_nreads; ++i) {
                 diff_sq[i] +=
@@ -3455,7 +3457,7 @@ rc_t run(srastat_parms* pb)
             RELEASE(VDatabase, db);
             RELEASE(KTable, ktbl);
             {
-                int i; 
+                uint32_t i; 
                 for (i = 0; i < stats.spotGroupN; ++i) {
                     SraStatsMetaDestroy(&stats.spotGroup[i]);
                 }

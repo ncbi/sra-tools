@@ -51,6 +51,7 @@ SUBDIRS =    \
 	vdb-copy        \
 	qual-recalib-stat \
 	sra-pileup      \
+	sra-stat        \
 	srapath         \
 	fuse            \
 

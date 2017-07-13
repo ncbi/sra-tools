@@ -23,6 +23,9 @@
  * ===========================================================================
  */
 
+#ifndef __VDB_HPP_INCLUDED__
+#define __VDB_HPP_INCLUDED__ 1
+
 #include <stdexcept>
 #include <string>
 #include <iostream>
@@ -361,3 +364,5 @@ namespace VDB {
         }
     };
 }
+
+#endif //__VDB_HPP_INCLUDED__

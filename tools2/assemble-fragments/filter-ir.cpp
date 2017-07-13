@@ -40,288 +40,122 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-static float N_threshold = -1.0;
-static float N_padding = 1.0;
+#include "fragment.hpp"
 
-template <typename T>
-static std::ostream &write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::RawData const &in)
-{
-    return out.value(cid, in.elements, (T const *)in.data);
-}
-
-template <typename T>
-static std::ostream &write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::Data const *in)
-{
-    return out.value(cid, in->elements, (T const *)in->data());
-}
-
-static std::string reverseComplement(std::string const &seq)
-{
-    auto rslt = std::string(seq.rbegin(), seq.rend());
-    for (auto && base : rslt) {
-        switch (base) {
-            case 'A':
-                base = 'T';
-                break;
-            case 'C':
-                base = 'G';
-                break;
-            case 'G':
-                base = 'C';
-                break;
-            case 'T':
-                base = 'A';
-                break;
-            default:
-                base = 'N';
-                break;
+void write(VDB::Writer const &out, unsigned const table, Fragment const &self) {
+    for (auto && i : self.detail) {
+        out.value(1 + (table - 1) * 8, self.group);
+        out.value(2 + (table - 1) * 8, self.name);
+        out.value(3 + (table - 1) * 8, int32_t(i.readNo));
+        out.value(4 + (table - 1) * 8, std::string(i.sequence));
+        if (i.aligned) {
+            out.value(5 + (table - 1) * 8, i.reference);
+            out.value(6 + (table - 1) * 8, i.strand);
+            out.value(7 + (table - 1) * 8, int32_t(i.position));
+            out.value(8 + (table - 1) * 8, i.cigar);
         }
+        out.closeRow(table);
     }
-    return rslt;
 }
 
-static bool isAmbiguity(char const b) {
-    return b != 'A' && b != 'C' && b != 'G' && b != 'T';
-}
-
-static unsigned countAmbiguity(std::string const &sequence)
-{
-    unsigned n = 0;
-    for (auto && base : sequence) {
-        if (isAmbiguity(base))
-            ++n;
-    }
-    return n;
-}
-
-static unsigned leftSoftClip(std::string const &cigar)
-{
-    auto const str = cigar.data();
-    auto const endp = str + cigar.length();
-    unsigned len = 0;
-    auto op = str;
+static Fragment clean(Fragment &&raw) {
+    auto &rslt = raw.detail;
     
-    while (op < endp && *op >= '0' && *op <= '9') {
-        len = len * 10 + *op - '0';
-        ++op;
-    }
-    return (op < endp && *op == 'S') ? len : 0;
-}
+    if (rslt.size() < 2)
+        return raw;
 
-static unsigned rightSoftClip(std::string const &cigar)
-{
-    auto const str = cigar.data();
-    auto const endp = str + cigar.length();
-    auto op = endp - 1;
-    unsigned len = 0;
-    
-    while (--op >= str && *op >= '0' && *op <= '9')
-        ;
-    if (op++ == str)
-        return 0;
-    while (op < endp && *op >= '0' && *op <= '9') {
-        len = len * 10 + *op - '0';
-        ++op;
-    }
-    return (op < endp && *op == 'S') ? len : 0;
-}
-
-struct Alignment {
-    std::string sequence;
-    std::string reference;
-    std::string cigar;
-    int readNo;
-    int position;
-    char strand;
-    bool aligned;
-    unsigned ambiguous;
-    unsigned leftClip;
-    unsigned rightClip;
-    
-    Alignment(int readNo, std::string const &sequence)
-    : readNo(readNo)
-    , sequence(sequence)
-    , aligned(false)
-    , ambiguous(countAmbiguity(sequence))
-    , reference("")
-    , strand(0)
-    , position(0)
-    , cigar("")
-    , leftClip(0)
-    , rightClip(0)
-    {}
-
-    Alignment(int readNo, std::string const &sequence, std::string const &reference, char strand, int position, std::string const &cigar)
-    : readNo(readNo)
-    , sequence(sequence)
-    , aligned(true)
-    , ambiguous(countAmbiguity(sequence))
-    , reference(reference)
-    , strand(strand)
-    , position(position)
-    , cigar(cigar)
-    , leftClip(leftSoftClip(cigar))
-    , rightClip(rightSoftClip(cigar))
-    {}
-
-    friend bool operator <(Alignment const &a, Alignment const &b) {
-        if (a.readNo < b.readNo)
-            return true;
-        if (!a.aligned && b.aligned)
-            return true;
-        if (a.aligned && b.aligned)
-            return a.position < b.position;
-        return false;
-    }
-};
-
-struct Fragment {
-    std::string group;
-    std::string name;
-    std::vector<Alignment> detail;
-    unsigned reads;
-    unsigned firstRead;
-    unsigned lastRead;
-    unsigned aligned;
-    unsigned ambiguous;
-    
-    static Fragment read(VDB::Cursor const &in, int64_t const start, int64_t const endRow)
-    {
-        auto rslt = std::vector<Alignment>();
-        auto spotGroup = std::string();
-        auto spotName = std::string();
-        
-        while (start + int64_t(rslt.size()) < endRow) {
-            auto const row = start + int64_t(rslt.size());
-            auto const sg = in.read(row, 1).asString();
-            auto const name = in.read(row, 2).asString();
-            if (rslt.size() > 0) {
-                if (name != spotName || sg != spotGroup)
-                    break;
-            }
-            auto const readNo = in.read(row, 3).value<int32_t>();
-            auto const sequence = in.read(row, 4).asString();
-            if (in.read(row, 7).elements > 0) {
-                auto const cigar = in.read(row, 8).asString();
-                auto const algn = Alignment(readNo, sequence, in.read(row, 5).asString(), in.read(row, 6).value<char>(), in.read(row, 7).value<int32_t>(), cigar);
-                rslt.push_back(algn);
-            }
-            else {
-                auto const algn = Alignment(readNo, sequence);
-                rslt.push_back(algn);
-            }
+    if (rslt.size() == 2) {
+        if (rslt[1].readNo < rslt[0].readNo) {
+            auto const tmp = rslt[1];
+            rslt[1] = rslt[0];
+            rslt[0] = tmp;
         }
-        if (rslt.size() < 2)
-            return Fragment(spotGroup, spotName, rslt);
-        
+        if (rslt[0].readNo != rslt[1].readNo)
+            return raw;
+    }
+    else
         std::sort(rslt.begin(), rslt.end());
-        if (rslt.size() == 2 && rslt[0].readNo == 1 && rslt[1].readNo == 2)
-            return Fragment(spotGroup, spotName, rslt);
-        
-        auto next = 0;
-        while (next < rslt.size()) {
-            auto const first = next;
-            while (next < rslt.size() && rslt[next].readNo == rslt[first].readNo)
-                ++next;
-
-            auto const count = next - first;
-            if (count == 1)
-                continue;
-
-            auto good = -1;
-            for (auto i = first; i < next; ++i) {
-                if (rslt[i].aligned && rslt[i].ambiguous == 0) {
-                    good = i;
-                    break;
-                }
-            }
-            if (good >= first) {
-                for (auto i = first; i < next; ++i) {
-                    if (i == good) continue;
-                    if (!rslt[i].aligned) {
-                        rslt.erase(rslt.begin() + i);
-                        --i;
-                        --next;
-                        continue;
-                    }
-                    if (rslt[i].ambiguous) {
-                        rslt[i].sequence = "";
-                        rslt[i].ambiguous = false;
-                    }
-                }
-            }
-        }
-        
-        return Fragment(spotGroup, spotName, rslt);
-    }
-    void write(VDB::Writer const &out, unsigned const table) const {
-        for (auto && i : detail) {
-            if (table == 1 && !i.aligned) continue;
-            out.value(1 + (table - 1) * 8, group);
-            out.value(2 + (table - 1) * 8, name);
-            out.value(3 + (table - 1) * 8, int32_t(i.readNo));
-            out.value(4 + (table - 1) * 8, i.sequence);
-            if (i.aligned) {
-                out.value(5 + (table - 1) * 8, i.reference);
-                out.value(6 + (table - 1) * 8, i.strand);
-                out.value(7 + (table - 1) * 8, int32_t(i.position));
-                out.value(8 + (table - 1) * 8, i.cigar);
-            }
-        }
-    }
-    static bool isAligned(Fragment const &f) { return f.aligned; }
     
-    static VDB::Cursor cursor(VDB::Table const &tbl) {
-        static char const *const FLDS[] = { "READ_GROUP", "FRAGMENT", "READNO", "SEQUENCE", "REFERENCE", "STRAND", "POSITION", "CIGAR" };
-        return tbl.read(8, FLDS);
-    }
-
-    Fragment(std::string const &group, std::string const &name, std::vector<Alignment> const &algn)
-    : group(group)
-    , name(name)
-    , detail(algn)
-    {
-        auto r = 0;
-        auto f = 0;
-        auto l = 0;
-        auto a = 0;
-        auto N = 0;
-        for (auto && i : detail) {
-            if (i.aligned)
-                ++a;
-            if (i.ambiguous)
-                ++N;
-            if (r == 0 || i.readNo != l) {
-                l = i.readNo;
-                if (r == 0)
-                    f = i.readNo;
-                ++r;
+    auto next = 0;
+    while (next < rslt.size()) {
+        auto const first = next;
+        while (next < rslt.size() && rslt[next].readNo == rslt[first].readNo)
+            ++next;
+        
+        auto const count = next - first;
+        if (count == 1)
+            continue;
+        
+        auto aligned = 0;
+        for (auto i = first; i < next; ++i) {
+            if (rslt[i].aligned) {
+                ++aligned;
             }
         }
-        reads = r;
-        firstRead = f;
-        lastRead = l;
-        aligned = a;
-        ambiguous = N;
+        if (aligned == 0) {
+            
+        }
+        if (aligned < count) {
+            
+        }
+        auto good = -1;
+        for (auto i = first; i < next; ++i) {
+            if (rslt[i].aligned && !rslt[i].sequence.ambiguous()) {
+                good = i;
+                break;
+            }
+        }
+        if (good >= first) {
+            for (auto i = first; i < next; ++i) {
+                if (i == good) continue;
+                if (!rslt[i].aligned) {
+                    rslt.erase(rslt.begin() + i);
+                    --i;
+                    --next;
+                    continue;
+                }
+                if (rslt[i].sequence.ambiguous()) {
+                    rslt[i].sequence = DNASequence("");
+                }
+            }
+        }
     }
-};
+    
+    return raw;
+}
 
 static void process(VDB::Writer const &out, Fragment const &fragment)
 {
-    // not paired-end fragment, or missing mates, or missing pairing info
-    if (fragment.reads != 2 || fragment.firstRead != 1 || fragment.lastRead != 2)
-        goto DISCARD;
+    auto reads = 0;
+    auto firstRead = 0;
+    auto lastRead = 0;
+    auto aligned = 0;
+    auto ambiguous = 0;
 
-    // paired-end fragment with Read 1 and Read 2, maybe some N's, maybe some unaligned or extraneous records
-    
-    // there are no secondary or extraneous records to deal with, but some reads might be unaligned or have N's
-    if (fragment.detail.size() == 2) {
-        if (fragment.aligned == 2)
-            goto KEEP;
-        else
-            goto DISCARD;
+    for (auto && i : fragment.detail) {
+        if (i.aligned)
+            ++aligned;
+        if (i.sequence.ambiguous())
+            ++ambiguous;
+        if (reads == 0 || i.readNo != lastRead) {
+            lastRead = i.readNo;
+            if (reads == 0)
+                firstRead = i.readNo;
+            ++reads;
+        }
+    }
+    if (aligned == 0) {
+    DISCARD:
+        write(out, 2, fragment);
+        return;
     }
 
+    if (fragment.detail.size() == reads) {
+        write(out, aligned == reads ? 1 : 2, fragment);
+        return;
+    }
+
+    auto detail = std::vector<Alignment>();
     {
         auto next = 0;
         while (next < fragment.detail.size()) {
@@ -330,58 +164,67 @@ static void process(VDB::Writer const &out, Fragment const &fragment)
                 ++next;
             
             auto const count = next - first;
-            if (count == 1)
+            if (count == 1) {
+                detail.push_back(fragment.detail[first]);
                 continue;
-            
-            // check for reads with non-matching sequences
+            }
+
+            auto aligned = 0;
+            auto ambiguous = 0;
+            auto good = 0;
+            auto firstGood = 0;
             for (auto i = first; i < next; ++i) {
-                if (fragment.detail[i].sequence.length() != 0) {
-                    auto const seq = fragment.detail[i].sequence;
-                    auto const rseq = reverseComplement(seq);
-                    for (auto j = first; j < next; ++j) {
-                        if (j == i) continue;
-                        auto const &testSeq = fragment.detail[j].sequence;
-                        if (testSeq.length() == 0 || testSeq == seq || testSeq == rseq)
-                            continue;
-                        goto DISCARD;
-                    }
+                auto const &algn = fragment.detail[i];
+                auto const a = algn.aligned;
+                auto const b = algn.sequence.ambiguous();
+                if (a) ++aligned;
+                if (b) ++ambiguous;
+                if (a & !b) {
+                    if (good == 0) firstGood = i;
+                    ++good;
                 }
             }
-            
-            // check for reads with no alignments
-            auto aligned = 0;
-            for (auto i = first; i < next; ++i) {
-                if (fragment.detail[i].aligned)
-                    ++aligned;
-            }
-            if (aligned == 0)
+            if (good == 0)
                 goto DISCARD;
+            
+            auto const &seq = fragment.detail[firstGood].sequence;
+            detail.push_back(fragment.detail[firstGood]);
+            for (auto i = first; i < next; ++i) {
+                if (i == firstGood) continue;
+                auto const &algn = fragment.detail[i];
+                if (!algn.aligned) continue;
+                if (ambiguous > 0 && algn.sequence.ambiguous()) {
+                    detail.push_back(algn.truncated());
+                    continue;
+                }
+                if (algn.sequence.isEquivalentTo(seq))
+                    detail.push_back(algn);
+                else
+                    goto DISCARD;
+            }
         }
     }
-KEEP:
-    fragment.write(out, 1);
-    return;
-
-DISCARD:
-    fragment.write(out, 2);
+    write(out, 1, Fragment(fragment.group, fragment.name, detail));
     return;
 }
 
 static int process(VDB::Writer const &out, VDB::Database const &inDb)
 {
-    auto const in = Fragment::cursor(inDb["RAW"]);
+    auto const in = Fragment::Cursor(inDb["RAW"]);
     auto const range = in.rowRange();
     auto const freq = (range.second - range.first) / 100.0;
     auto nextReport = 1;
-    uint64_t written = 0;
     
     std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
-    for (auto row = range.first; ; ) {
-        auto const spot = Fragment::read(in, row, range.second);
+    for (auto row = range.first; row < range.second; ) {
+        auto const spot = clean(in.read(row, range.second));
         if (spot.detail.empty())
-            break;
-        row += spot.detail.size();
+            continue;
         process(out, spot);
+        if (nextReport * freq <= (row - range.first)) {
+            std::cerr << "prog: processed " << nextReport << "%" << std::endl;
+            ++nextReport;
+        }
     }
     std::cerr << "Done" << std::endl;
 

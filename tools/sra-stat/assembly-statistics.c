@@ -25,12 +25,17 @@
 */
 
 #include "sra-stat.h" /* Ctx */
+
 #include <insdc/sra.h> /* INSDC_coord_len */
+
 #include <kdb/table.h> /* KTable */
+
 #include <klib/container.h> /* BSTNode */
+#include <klib/debug.h> /* DBGMSG */
 #include <klib/log.h> /* LOGERR */
 #include <klib/out.h> /* OUTMSG */
 #include <klib/rc.h>
+
 #include <vdb/blob.h> /* VBlob */
 #include <vdb/cursor.h> /* VCursor */
 #include <vdb/database.h> /* VDatabase */
@@ -81,9 +86,15 @@ static void CC ContigNext ( BSTNode * n, void * data ) {
     ++ nl -> count;
     nl -> length += contig -> length;
 
+    DBGMSG ( DBG_APP, DBG_COND_1, ( "Contig %lu/%lu: %lu. Total: %lu/%lu\n",
+        nl -> count, nl -> contigLength, contig -> length,
+        nl -> length, nl -> assemblyLength ) );
+
     if ( nl -> l50 == 0 && nl -> length * 2 >= nl -> assemblyLength ) {
         nl -> n50 = contig -> length;
         nl -> l50 = nl -> count;
+        DBGMSG ( DBG_APP, DBG_COND_1, ( "L50: %lu, N50: %lu (%lu>=%lu/2)\n",
+            nl -> l50, nl -> n50, nl -> length, nl -> assemblyLength ) );
     }
 
     if ( nl -> l90 == 0 &&
@@ -91,6 +102,8 @@ static void CC ContigNext ( BSTNode * n, void * data ) {
     {
         nl -> n90 = contig -> length;
         nl -> l90 = nl -> count;
+        DBGMSG ( DBG_APP, DBG_COND_1, ( "L90: %lu, N90: %lu (%lu*.9>=%lu)\n",
+            nl -> l90, nl -> n90, nl -> length, nl -> assemblyLength ) );
     }
 }
 
@@ -146,13 +159,19 @@ rc_t CC CalculateNL ( const VDatabase * db, Ctx * ctx ) {
     uint64_t count = 0;
 
     /* Statictics is calculated just for VDatabase-s */
-    if ( db == NULL )
+    if ( db == NULL ) {
+        DBGMSG ( DBG_APP, DBG_COND_1,
+            ( "CalculateAssemblyStatistics skipped: not a database\n" ) );
         return 0;
+    }
 
     rc = VDatabaseOpenTableRead ( db, & tbl, "REFERENCE" );
     /* Statictics is calculated just for VDatabase-s with REFERENCE */
-    if ( rc != 0 && GetRCState ( rc ) == rcNotFound )
+    if ( rc != 0 && GetRCState ( rc ) == rcNotFound ) {
+        DBGMSG ( DBG_APP, DBG_COND_1,
+            ( "CalculateAssemblyStatistics skipped: no REFERENCE table\n" ) );
         return 0;
+    }
 
     ContigsInit ( & contigs );
 
@@ -208,29 +227,36 @@ rc_t CC CalculateNL ( const VDatabase * db, Ctx * ctx ) {
                                  & elem_bits, & base, & boff, & row_len );
             DISP_RC ( rc, "while calling VBlobCellData(CMP_READ)" );
         }
-        if ( rc == 0 &&
-             row_len > 0 ) /* when CMP_READ is not empty - local reference */
-        {                /* we calculate statistics just for local references */
-            uint64_t length = 0;
-            INSDC_coord_len buffer = 0;
-            uint32_t row_len = 0;
-            rc = VCursorReadDirect ( cursor, start,
-                READ_LEN, 8, & buffer, sizeof buffer, & row_len );
-            DISP_RC ( rc, "while calling VCursorReadDirect(READ_LEN,id)" );
-            if ( rc == 0 )
-                length = buffer;
-            if ( rc == 0 && count > 1 ) {
+        if ( rc == 0 ) {
+            if ( row_len == 0 ) {
+                /* When CMP_READ is not empty - local reference.
+                   We calculate statistics just for local references */
+                DBGMSG ( DBG_APP, DBG_COND_1, ( "CalculateAssemblyStatistics: "
+                    "%s skipped: not a local reference\n", key ) );
+            }
+            else {
+                assert ( row_len > 0 );
+                uint64_t length = 0;
                 INSDC_coord_len buffer = 0;
                 uint32_t row_len = 0;
-                rc = VCursorReadDirect ( cursor, start + count - 1,
+                rc = VCursorReadDirect ( cursor, start,
                     READ_LEN, 8, & buffer, sizeof buffer, & row_len );
-                DISP_RC ( rc,
-                    "while calling VCursorReadDirect(READ_LEN,id+count)" );
+                DISP_RC ( rc, "while calling VCursorReadDirect(READ_LEN,id)" );
                 if ( rc == 0 )
-                    length = length * ( count - 1) + buffer;
+                    length = buffer;
+                if ( rc == 0 && count > 1 ) {
+                    INSDC_coord_len buffer = 0;
+                    uint32_t row_len = 0;
+                    rc = VCursorReadDirect ( cursor, start + count - 1,
+                        READ_LEN, 8, & buffer, sizeof buffer, & row_len );
+                    DISP_RC ( rc,
+                        "while calling VCursorReadDirect(READ_LEN,id+count)" );
+                    if ( rc == 0 )
+                        length = length * ( count - 1) + buffer;
+                }
+                if ( rc == 0 )
+                    rc = ContigsAdd ( & contigs, length );
             }
-            if ( rc == 0 )
-                rc = ContigsAdd ( & contigs, length );
         }
         RELEASE ( VBlob, blob );
     }

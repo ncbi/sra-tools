@@ -54,6 +54,7 @@
 
 #include <sra/sraschema.h> /* VDBManagerMakeSRASchema */
 
+#include <vdb/blob.h> /* VBlobCellData */
 #include <vdb/cursor.h> /* VCursor */
 #include <vdb/database.h> /* VDatabaseRelease */
 #include <vdb/dependencies.h> /* VDBDependencies */
@@ -75,10 +76,6 @@
 #include <string.h>
 #include <time.h>
 
-/* #include <stdio.h> */ /* stderr */
-
-#define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
-
 #define DISP_RC2(rc, name, msg) (void)((rc == 0) ? 0 : \
     PLOGERR(klogInt, (klogInt, rc, \
         "$(name): $(msg)", "name=%s,msg=%s", name, msg)))
@@ -86,9 +83,6 @@
 #define DISP_RC_Read(rc, name, spot, msg) (void)((rc == 0) ? 0 : \
     PLOGERR(klogInt, (klogInt, rc, "column $(name), spot $(spot): $(msg)", \
         "name=%s,spot=%lu,msg=%s", name, spot, msg)))
-
-#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
-    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
 
 #define MAX_NREADS 2*1024
 
@@ -533,7 +527,7 @@ static rc_t BasesPrint(const Bases *self,
     return rc;
 }
 
-typedef struct {
+typedef struct SraStatsTotal {
     uint64_t spot_count;
     uint64_t spot_count_mates;
     uint64_t BIO_BASE_COUNT; /* bio_len */
@@ -857,7 +851,7 @@ typedef struct SraMeta {
     Formatter formatter;
     Loader loader;
 } SraMeta;
-typedef struct ArcInfo_struct {
+typedef struct ArcInfo {
     KTime_t timestamp;
     struct {
         const char* tag;
@@ -869,15 +863,6 @@ typedef struct Quality {
     uint32_t value;
     uint64_t count;
 } Quality;
-typedef struct QualityStats {
-    Quality* QUALITY;
-    size_t allocated;
-    size_t used;
-} QualityStats;
-typedef enum EMetaState {
-    eMSNotFound,
-    eMSFound
-} EMetaState;
 typedef struct Count {
     EMetaState state;
     uint64_t value;
@@ -889,25 +874,6 @@ typedef struct Counts {
     Count BASE_COUNT;
     Count SPOT_COUNT;
 } Counts;
-typedef struct TableCounts {
-    EMetaState state;
-    Counts* count;
-    size_t allocated;
-    size_t used;
-} TableCounts;
-typedef struct Ctx {
-    const BSTree* tr;
-    const MetaDataStats* meta_stats;
-    const SraMeta* info;
-    const SraSizeStats* sizes;
-    const ArcInfo* arc_info;
-    srastat_parms* pb;
-    SraStatsTotal* total;
-    const VDatabase* db;
-    const KMetadata* meta; /* from Table (when running on table) */
-    QualityStats quality;
-    TableCounts tables;
-} Ctx;
 typedef rc_t (CC * RG_callback)(const BAM_HEADER_RG* rg, const void* data);
 static
 rc_t CC meta_RG_callback(const BAM_HEADER_RG* rg, const void* data)
@@ -1284,7 +1250,7 @@ rc_t TableCountsRead(TableCounts* self, const VDatabase* db)
     memset(self, 0, sizeof *self);
 
     if (db == NULL)
-    {   return 0; }
+        return 0;
 
     rc = VDatabaseListTbl(db, &names);
     DISP_RC(rc, "while calling VDatabaseListTbl");
@@ -2731,6 +2697,12 @@ rc_t print_results(const Ctx* ctx)
         {   rc = TableCountsPrint(&ctx->tables, "  "); }
         if ( rc == 0 )
             rc = CtxPrintCHANGES ( ctx, "  " );
+        if ( rc == 0 && ctx -> n90 > 0 )
+            OUTMSG ( ("  <AssemblyStatistics "
+                "n50=\"%lu\" l50=\"%lu\" n90=\"%lu\" l90=\"%lu\" "
+                "n=\"%lu\" l=\"%lu\"/>\n",
+                ctx -> n50, ctx -> l50, ctx -> n90, ctx -> l90,\
+                ctx -> n, ctx -> l ) );
         OUTMSG(("</Run>\n"));
     }
     if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
@@ -3365,9 +3337,8 @@ rc_t run(srastat_parms* pb)
     assert(pb && pb->table_path);
 
     rc = VDBManagerMakeRead(&vmgr, NULL);
-    if (rc != 0) {
+    if (rc != 0)
         LOGERR(klogInt, rc, "failed to open VDBManager");
-    }
     else {
         SraSizeStats sizes;
         ArcInfo arc_info;
@@ -3464,6 +3435,8 @@ rc_t run(srastat_parms* pb)
                     TableCountsSort(&ctx.tables);
                 }
             }
+            if ( rc == 0 )
+                rc = CalculateNL ( db, & ctx );
             if (rc == 0) {
                 ctx.db = db;
                 if ( db == NULL )

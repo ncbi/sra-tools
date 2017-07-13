@@ -22,60 +22,35 @@
 #
 # ===========================================================================
 
-
-default: std
+default: runtests
 
 TOP ?= $(abspath ../..)
-MODULE = tools/sra-stat
 
-INT_TOOLS =
+MODULE = test/sra-stat
 
-EXT_TOOLS = \
-	sra-stat \
-
-ALL_TOOLS = \
-	$(INT_TOOLS) \
-	$(EXT_TOOLS)
+TEST_TOOLS = \
+	testAssemblyStatistics
 
 include $(TOP)/build/Makefile.env
 
-#-------------------------------------------------------------------------------
-# outer targets
-#
-all std: makedirs
-	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
+.PHONY: $(TEST_TOOLS)
 
-.PHONY: all std $(ALL_TOOLS)
-
-#-------------------------------------------------------------------------------
-# clean
-#
 clean: stdclean
 
-.PHONY: clean
+#----------------------------------------------------------------
+SRC = \
+	testAssemblyStatistics
 
-#-------------------------------------------------------------------------------
-# sra-stat
-#  sra statistics
-#
-SRASTAT_SRC = \
-	assembly-statistics \
-	sra \
-	sra-stat \
+OBJ = \
+	$(addsuffix .$(OBJX),$(SRC))
 
-SRASTAT_OBJ = \
-	$(addsuffix .$(OBJX),$(SRASTAT_SRC))
-
-SRASTAT_LIB = \
-	-lkapp \
-	-stk-version \
+LIB = \
+	-skapp \
+	-sktst \
 	-sncbi-vdb \
-	-sload \
-	-lm \
 
-$(BINDIR)/sra-stat: $(SRASTAT_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRASTAT_LIB)
-
+$(TEST_BINDIR)/testAssemblyStatistics: $(OBJ)
+	$(LP) --exe -o $@ $^ $(LIB)

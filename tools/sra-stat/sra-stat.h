@@ -33,10 +33,58 @@ struct KFile;
 struct VCursor;
 struct VTable;
 
+typedef enum EMetaState {
+    eMSNotFound,
+    eMSFound
+} EMetaState;
+
+typedef struct QualityStats {
+    struct Quality* QUALITY;
+    size_t allocated;
+    size_t used;
+} QualityStats;
+
+typedef struct TableCounts {
+    EMetaState state;
+    struct Counts* count;
+    size_t allocated;
+    size_t used;
+} TableCounts;
+
+typedef struct Ctx {
+    const struct BSTree* tr;
+    const struct MetaDataStats* meta_stats;
+    const struct SraMeta* info;
+    const struct SraSizeStats* sizes;
+    const struct ArcInfo* arc_info;
+    struct srastat_parms* pb;
+    struct SraStatsTotal* total;
+    const struct VDatabase* db;
+    const struct KMetadata* meta; /* from Table (when running on table) */
+    QualityStats quality;
+    TableCounts tables;
+
+    uint64_t n;
+    uint64_t l;
+    uint64_t n50;
+    uint64_t l50;
+    uint64_t n90;
+    uint64_t l90;
+} Ctx;
+
 rc_t CC VCursorColumnRead(const struct VCursor *self, int64_t id,
     uint32_t idx, const void **base, bitsz_t *offset, bitsz_t *size);
 
 rc_t CC VTableMakeSingleFileArchive(const struct VTable *self,
     const struct KFile **sfa, bool lightweight);
+
+rc_t CC CalculateNL ( const struct VDatabase * db, Ctx * ctx );
+
+#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
+    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
+
+
+#define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
+
 
 #endif /* _h_sra_stat_tools_ */

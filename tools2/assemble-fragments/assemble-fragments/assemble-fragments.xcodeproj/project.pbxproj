@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		BE17665E1ED4B199005ECFFB /* filter-ir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE17665D1ED4B199005ECFFB /* filter-ir.cpp */; };
 		BE17665F1ED4B1A0005ECFFB /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
+		BE3BC86E1EE840BA0033AC5F /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
+		BE3BC8701EE8410E0033AC5F /* layout-statistics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE3BC86F1EE8410E0033AC5F /* layout-statistics.cpp */; };
 		BE47E36C1EB3BB4000D68FA5 /* reorder-ir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */; };
 		BE47E36D1EB3C25000D68FA5 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
 		BE4F77E41EA51E7F00CB45D6 /* sra2ir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */; };
@@ -21,6 +23,15 @@
 
 /* Begin PBXCopyFilesBuildPhase section */
 		BE1766541ED4B15F005ECFFB /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		BE3BC8651EE840B00033AC5F /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = /usr/share/man/man1/;
@@ -71,6 +82,9 @@
 		BE1766511ED4B0B0005ECFFB /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		BE1766561ED4B15F005ECFFB /* filter-ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "filter-ir"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE17665D1ED4B199005ECFFB /* filter-ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "filter-ir.cpp"; path = "../../filter-ir.cpp"; sourceTree = "<group>"; };
+		BE3BC8671EE840B00033AC5F /* layout-statistics */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "layout-statistics"; sourceTree = BUILT_PRODUCTS_DIR; };
+		BE3BC86F1EE8410E0033AC5F /* layout-statistics.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "layout-statistics.cpp"; path = "../../layout-statistics.cpp"; sourceTree = "<group>"; };
+		BE3BC8711EE8945A0033AC5F /* fragment.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = fragment.hpp; path = ../fragment.hpp; sourceTree = "<group>"; };
 		BE47E3641EB3B9B100D68FA5 /* reorder-ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "reorder-ir"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "reorder-ir.cpp"; path = "../../reorder-ir.cpp"; sourceTree = "<group>"; };
 		BE4F77DC1EA51E5B00CB45D6 /* sra2ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = sra2ir; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -92,6 +106,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				BE17665F1ED4B1A0005ECFFB /* libncbi-wvdb.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE3BC8641EE840B00033AC5F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE3BC86E1EE840BA0033AC5F /* libncbi-wvdb.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -138,6 +160,14 @@
 			path = "filter-ir";
 			sourceTree = "<group>";
 		};
+		BE3BC8681EE840B00033AC5F /* layout-statistics */ = {
+			isa = PBXGroup;
+			children = (
+				BE3BC86F1EE8410E0033AC5F /* layout-statistics.cpp */,
+			);
+			path = "layout-statistics";
+			sourceTree = "<group>";
+		};
 		BE47E3651EB3B9B100D68FA5 /* reorder-ir */ = {
 			isa = PBXGroup;
 			children = (
@@ -149,6 +179,7 @@
 		BE4F77C51EA51DE900CB45D6 = {
 			isa = PBXGroup;
 			children = (
+				BE3BC8711EE8945A0033AC5F /* fragment.hpp */,
 				BE1766511ED4B0B0005ECFFB /* README.md */,
 				BE4F77E51EA51E8C00CB45D6 /* shared */,
 				BE4F77DD1EA51E5B00CB45D6 /* sra2ir */,
@@ -156,6 +187,7 @@
 				BEA40E401EA52B9300A8DF60 /* sortIRIndex */,
 				BE47E3651EB3B9B100D68FA5 /* reorder-ir */,
 				BE1766571ED4B15F005ECFFB /* filter-ir */,
+				BE3BC8681EE840B00033AC5F /* layout-statistics */,
 				BE4F77CF1EA51DE900CB45D6 /* Products */,
 				BE4F77EA1EA51EFE00CB45D6 /* Makefile */,
 				BE4F77EB1EA51F3500CB45D6 /* Frameworks */,
@@ -170,6 +202,7 @@
 				BEA40E3F1EA52B9300A8DF60 /* sortIRIndex */,
 				BE47E3641EB3B9B100D68FA5 /* reorder-ir */,
 				BE1766561ED4B15F005ECFFB /* filter-ir */,
+				BE3BC8671EE840B00033AC5F /* layout-statistics */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -234,6 +267,23 @@
 			name = "filter-ir";
 			productName = "filter-ir";
 			productReference = BE1766561ED4B15F005ECFFB /* filter-ir */;
+			productType = "com.apple.product-type.tool";
+		};
+		BE3BC8661EE840B00033AC5F /* layout-statistics */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BE3BC86D1EE840B00033AC5F /* Build configuration list for PBXNativeTarget "layout-statistics" */;
+			buildPhases = (
+				BE3BC8631EE840B00033AC5F /* Sources */,
+				BE3BC8641EE840B00033AC5F /* Frameworks */,
+				BE3BC8651EE840B00033AC5F /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "layout-statistics";
+			productName = "layout-statistics";
+			productReference = BE3BC8671EE840B00033AC5F /* layout-statistics */;
 			productType = "com.apple.product-type.tool";
 		};
 		BE47E3631EB3B9B100D68FA5 /* reorder-ir */ = {
@@ -311,11 +361,15 @@
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 0830;
-				LastUpgradeCheck = 0830;
+				LastUpgradeCheck = 0900;
 				ORGANIZATIONNAME = "Kenneth Durbrow";
 				TargetAttributes = {
 					BE1766551ED4B15F005ECFFB = {
 						CreatedOnToolsVersion = 8.3.2;
+						ProvisioningStyle = Automatic;
+					};
+					BE3BC8661EE840B00033AC5F = {
+						CreatedOnToolsVersion = 8.3.3;
 						ProvisioningStyle = Automatic;
 					};
 					BE47E3631EB3B9B100D68FA5 = {
@@ -353,6 +407,7 @@
 				BEA40E3E1EA52B9300A8DF60 /* sortIRIndex */,
 				BE47E3631EB3B9B100D68FA5 /* reorder-ir */,
 				BE1766551ED4B15F005ECFFB /* filter-ir */,
+				BE3BC8661EE840B00033AC5F /* layout-statistics */,
 			);
 		};
 /* End PBXProject section */
@@ -363,6 +418,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				BE17665E1ED4B199005ECFFB /* filter-ir.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		BE3BC8631EE840B00033AC5F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BE3BC8701EE8410E0033AC5F /* layout-statistics.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -423,6 +486,28 @@
 			};
 			name = Release;
 		};
+		BE3BC86B1EE840B00033AC5F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		BE3BC86C1EE840B00033AC5F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 		BE47E3691EB3B9B100D68FA5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -455,7 +540,9 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
@@ -463,7 +550,11 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -505,7 +596,9 @@
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
@@ -513,7 +606,11 @@
 				CLANG_WARN_ENUM_CONVERSION = YES;
 				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
 				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
@@ -616,6 +713,16 @@
 				BE17665C1ED4B15F005ECFFB /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		BE3BC86D1EE840B00033AC5F /* Build configuration list for PBXNativeTarget "layout-statistics" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BE3BC86B1EE840B00033AC5F /* Debug */,
+				BE3BC86C1EE840B00033AC5F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 		BE47E3681EB3B9B100D68FA5 /* Build configuration list for PBXNativeTarget "reorder-ir" */ = {
 			isa = XCConfigurationList;

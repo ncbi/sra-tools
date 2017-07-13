@@ -84,7 +84,7 @@ VDB_SQL_OBJ = \
 	$(addsuffix .$(OBJX),$(VDB_SQL_SRC))
 
 $(BINDIR)/vdb-sql: $(VDB_SQL_OBJ)
-	$(LP) --exe -o $@ $^ $(VDB_SQL_LIB)
+	$(LD) --exe -o $@ $^ $(VDB_SQL_LIB)
 
 
 #-------------------------------------------------------------------------------

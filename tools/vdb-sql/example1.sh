@@ -12,7 +12,7 @@ if [ ! -f $TOOL ]; then
 fi
 
 ACC="SRR341578"
-SELECT="select READ from VDB where READ like '%ACGGACGGTT%' limit 3;"
+SELECT="select READ,READ_START from VDB where READ like '%ACGGACGGTT%' limit 3;"
 
 #to prevent the shell from expanding '*' into filenames!
 set -f

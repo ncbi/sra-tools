@@ -28,6 +28,18 @@
 
 SQLITE_EXTENSION_INIT1
 
+/*
+** A macro to hint to the compiler that a function should not be
+** inlined.
+*/
+#if defined(__GNUC__)
+#  define CSV_NOINLINE  __attribute__((noinline))
+#elif defined(_MSC_VER) && _MSC_VER>=1310
+#  define CSV_NOINLINE  __declspec(noinline)
+#else
+#  define CSV_NOINLINE
+#endif
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -40,6 +52,7 @@ SQLITE_EXTENSION_INIT1
 #include <klib/num-gen.h>
 #include <klib/namelist.h>
 #include <klib/vector.h>
+#include <klib/text.h>
 #include <klib/printf.h>
 
 #include <kdb/manager.h> /* because path-types are defined there! */
@@ -48,18 +61,6 @@ SQLITE_EXTENSION_INIT1
 #include <vdb/table.h>
 #include <vdb/cursor.h>
 #include <vdb/schema.h>
-
-/*
-** A macro to hint to the compiler that a function should not be
-** inlined.
-*/
-#if defined(__GNUC__)
-#  define CSV_NOINLINE  __attribute__((noinline))
-#elif defined(_MSC_VER) && _MSC_VER>=1310
-#  define CSV_NOINLINE  __declspec(noinline)
-#else
-#  define CSV_NOINLINE
-#endif
 
 /* -------------------------------------------------------------------------------------- */
 static rc_t VNamelist_from_KNamelist( VNamelist ** dst, const KNamelist * src )
@@ -93,15 +94,15 @@ static void CC destroy_column_description( void * item, void * data )
     if ( item != NULL )
     {
         column_description * desc = item;
-        if ( desc->typecast != NULL ) sqlite3_free( ( void * )desc->typecast );
-        if ( desc->name != NULL ) sqlite3_free( ( void * )desc->name );
-        sqlite3_free( desc );
+        if ( desc->typecast != NULL ) free( ( void * )desc->typecast );
+        if ( desc->name != NULL ) free( ( void * )desc->name );
+        free( desc );
     }
 }
 
 static column_description * make_column_description( const char * decl )
 {
-    column_description * res = sqlite3_malloc( sizeof( * res ) );
+    column_description * res = malloc( sizeof( * res ) );
     if ( res != NULL )
     {
         rc_t rc = 0;
@@ -119,7 +120,7 @@ static column_description * make_column_description( const char * decl )
                 {
                     rc = VNameListGet( l, 0, &s );
                     if ( rc == 0 )
-                        res->name = sqlite3_mprintf( s );
+                        res->name = string_dup( s, string_size( s ) );
                 }
                 else if ( count == 2 )
                 {
@@ -127,18 +128,19 @@ static column_description * make_column_description( const char * decl )
                     if ( rc == 0 )
                     {
                         if ( s[ 0 ] == '(' )
-                            res->typecast = sqlite3_mprintf( &s[ 1 ] );
+                        {
+                            const char * src = &s[ 1 ];
+                            res->typecast = string_dup( src, string_size( src ) );
+                        }
                         else
-                            res->typecast = sqlite3_mprintf( s );
+                            res->typecast = string_dup( s, string_size( s ) );
                         rc = VNameListGet( l, 1, &s );
                         if ( rc == 0 )
-                            res->name = sqlite3_mprintf( s );
+                            res->name = string_dup( s, string_size( s ) );
                     }
                 }
                 else
-                {
                     rc = -1;
-                }
             }
             VNamelistRelease( l );
         }
@@ -154,13 +156,13 @@ static column_description * make_column_description( const char * decl )
 
 static column_description * copy_column_description( const column_description * src )
 {
-    column_description * res = sqlite3_malloc( sizeof( * res ) );
+    column_description * res = malloc( sizeof( * res ) );
     if ( res != NULL )
     {
         memset( res, 0, sizeof( *res ) );
-        res->name = sqlite3_mprintf( src->name );
+        res->name = string_dup( src->name, string_size( src->name ) );
         if ( src->typecast != NULL )
-            res->typecast = sqlite3_mprintf( src->typecast );
+            res->typecast = string_dup( src->typecast, string_size( src->typecast ) );
     }
     return res;
 }
@@ -288,15 +290,20 @@ static void col_inst_bool( column_instance * inst, const VCursor * curs, sqlite3
 #define PRINT_VECTOR( T, factor, fmt1, fmt2 ) \
 static char * print_##T##_vec( const T * base, uint32_t count ) \
 { \
-    size_t l = ( count * factor ) + 3; \
+    size_t l = ( count * factor ) + 10; \
     char * res = sqlite3_malloc( l ); \
     if ( res != NULL ) \
     { \
         uint32_t idx; \
         rc_t rc = 0; \
         char * dst = res; \
-        dst[ 0 ] = '[' ; \
-        dst += 1; \
+        dst[ 0 ] = '{' ; \
+        dst[ 1 ] = '"' ; \
+        dst[ 2 ] = 'a' ; \
+        dst[ 3 ] = '"' ; \
+        dst[ 4 ] = ':' ; \
+        dst[ 5 ] = '[' ; \
+        dst += 6; \
         for ( idx = 0; rc == 0 && idx < count; ++idx ) \
         { \
             size_t num_writ; \
@@ -310,6 +317,8 @@ static char * print_##T##_vec( const T * base, uint32_t count ) \
         if ( rc == 0 ) \
         { \
             *dst = ']'; \
+            dst += 1; \
+            *dst = '}'; \
             dst += 1; \
             *dst = 0; \
         } \
@@ -1260,7 +1269,7 @@ static int sqlite3_vdb_CC( sqlite3 *db, void *pAux, int argc, const char * const
     *ppVtab = ( sqlite3_vtab * )obj;
 
     if ( obj->desc.verbosity > 1 )
-        printf( msg );
+        printf( "%s", msg );
     
     stm = make_create_table_stm( &obj->desc.column_descriptions, "x" );
     if ( obj->desc.verbosity > 1 )
@@ -1271,21 +1280,21 @@ static int sqlite3_vdb_CC( sqlite3 *db, void *pAux, int argc, const char * const
 
 /* -------------------------------------------------------------------------------------- */
 /* create a new table-instance from scratch */
-static int sqlite3_vdb_Create( sqlite3 *db, void *pAux, int argc, const char * const * argv,
+int sqlite3_vdb_Create( sqlite3 *db, void *pAux, int argc, const char * const * argv,
                                sqlite3_vtab **ppVtab, char **pzErr )
 {
     return sqlite3_vdb_CC( db, pAux, argc, argv, ppVtab, pzErr, "---sqlite3_vdb_Create()\n" );
 }
 
 /* open a table-instance from something existing */
-static int sqlite3_vdb_Connect( sqlite3 *db, void *pAux, int argc, const char * const * argv,
+int sqlite3_vdb_Connect( sqlite3 *db, void *pAux, int argc, const char * const * argv,
                                 sqlite3_vtab **ppVtab, char **pzErr )
 {
     return sqlite3_vdb_CC( db, pAux, argc, argv, ppVtab, pzErr, "---sqlite3_vdb_Connect()\n" );
 }
 
 /* query what index can be used ---> maybe vdb supports that in the future */
-static int sqlite3_vdb_BestIndex( sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo )
+int sqlite3_vdb_BestIndex( sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo )
 {
     int res = SQLITE_ERROR;
     if ( tab != NULL )
@@ -1301,7 +1310,7 @@ static int sqlite3_vdb_BestIndex( sqlite3_vtab *tab, sqlite3_index_info *pIdxInf
 }
 
 /* disconnect from a table */
-static int sqlite3_vdb_Disconnect( sqlite3_vtab *tab )
+int sqlite3_vdb_Disconnect( sqlite3_vtab *tab )
 {
     if ( tab != NULL )
         return destroy_vdb_obj( ( vdb_obj * )tab );
@@ -1309,7 +1318,7 @@ static int sqlite3_vdb_Disconnect( sqlite3_vtab *tab )
 }
 
 /* open a cursor on a table */
-static int sqlite3_vdb_Open( sqlite3_vtab *tab, sqlite3_vtab_cursor **ppCursor )
+int sqlite3_vdb_Open( sqlite3_vtab *tab, sqlite3_vtab_cursor **ppCursor )
 {
     if ( tab != NULL )
         return vdb_obj_open( ( vdb_obj * ) tab, ppCursor );
@@ -1317,7 +1326,7 @@ static int sqlite3_vdb_Open( sqlite3_vtab *tab, sqlite3_vtab_cursor **ppCursor )
 }
 
 /* close the cursor */
-static int sqlite3_vdb_Close( sqlite3_vtab_cursor *cur )
+int sqlite3_vdb_Close( sqlite3_vtab_cursor *cur )
 {
     if ( cur != NULL )
         destroy_vdb_cursor( ( vdb_cursor * )cur );
@@ -1325,8 +1334,8 @@ static int sqlite3_vdb_Close( sqlite3_vtab_cursor *cur )
 }
 
 /* this is a NOOP, because we have no index ( yet ) */
-static int sqlite3_vdb_Filter( sqlite3_vtab_cursor *cur, int idxNum, const char *idxStr,
-                               int argc, sqlite3_value **argv )
+int sqlite3_vdb_Filter( sqlite3_vtab_cursor *cur, int idxNum, const char *idxStr,
+                        int argc, sqlite3_value **argv )
 {
     if ( cur != NULL )
     {
@@ -1339,7 +1348,7 @@ static int sqlite3_vdb_Filter( sqlite3_vtab_cursor *cur, int idxNum, const char 
 }
 
 /* advance to the next row */
-static int sqlite3_vdb_Next( sqlite3_vtab_cursor *cur )
+int sqlite3_vdb_Next( sqlite3_vtab_cursor *cur )
 {
     if ( cur != NULL )
         return vdb_cursor_next( ( vdb_cursor * )cur );
@@ -1347,7 +1356,7 @@ static int sqlite3_vdb_Next( sqlite3_vtab_cursor *cur )
 }
 
 /* check if we are at the end */
-static int sqlite3_vdb_Eof( sqlite3_vtab_cursor *cur )
+int sqlite3_vdb_Eof( sqlite3_vtab_cursor *cur )
 {
     if ( cur != NULL )
         return vdb_cursor_eof( ( vdb_cursor * )cur );
@@ -1355,7 +1364,7 @@ static int sqlite3_vdb_Eof( sqlite3_vtab_cursor *cur )
 }
 
 /* request data for a cell */
-static int sqlite3_vdb_Column( sqlite3_vtab_cursor *cur, sqlite3_context * ctx, int column_id )
+int sqlite3_vdb_Column( sqlite3_vtab_cursor *cur, sqlite3_context * ctx, int column_id )
 {
     if ( cur != NULL )
         return vdb_cursor_column( ( vdb_cursor * )cur, ctx, column_id );
@@ -1363,14 +1372,14 @@ static int sqlite3_vdb_Column( sqlite3_vtab_cursor *cur, sqlite3_context * ctx, 
 }
 
 /* request row-id */
-static int sqlite3_vdb_Rowid( sqlite3_vtab_cursor *cur, sqlite_int64 * pRowid )
+int sqlite3_vdb_Rowid( sqlite3_vtab_cursor *cur, sqlite_int64 * pRowid )
 {
     if ( cur != NULL )
         return vdb_cursor_row_id( ( vdb_cursor * )cur, pRowid );
     return SQLITE_ERROR;
 }
 
-static sqlite3_module VDB_Module =
+sqlite3_module VDB_Module =
 {
   0,                            /* iVersion */
   sqlite3_vdb_Create,           /* xCreate */
@@ -1394,11 +1403,9 @@ static sqlite3_module VDB_Module =
   NULL,                         /* xRename */
 };
 
-
 #ifdef _WIN32
 __declspec( dllexport )
 #endif
-
 
 /* 
 ** This routine is called when the extension is loaded.  The new

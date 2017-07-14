@@ -72,33 +72,37 @@ static rc_t Add ( Contigs * contigs ) {
     return rc;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+static const uint64_t ZERO = 0;
+
 /* examples from https://en.wikipedia.org/wiki/N50,_L50,_and_related_statistics
  */
 TEST_CASE ( test5 ) {
+
     Contigs empty;
     memset ( & empty, 0, sizeof empty );
 
     Contigs contigs;
     ContigsInit ( & contigs );
     REQUIRE_EQ ( memcmp ( & contigs, & empty, sizeof empty ), 0 );
-    REQUIRE_EQ ( contigs . assemblyLength, 0ul );
-    REQUIRE_EQ ( contigs . contigLength, 0ul );
+    REQUIRE_EQ ( contigs . assemblyLength, ZERO );
+    REQUIRE_EQ ( contigs . contigLength, ZERO );
 
     REQUIRE_RC ( Add ( & contigs ) );
 
     REQUIRE_NE ( memcmp ( & contigs, & empty, sizeof empty ), 0 );
 
-    REQUIRE_EQ ( contigs . assemblyLength, 290ul );
-    REQUIRE_EQ ( contigs . contigLength, 6ul );
+    REQUIRE_EQ ( contigs . assemblyLength, static_cast <uint64_t> ( 290 ) );
+    REQUIRE_EQ ( contigs . contigLength, static_cast <uint64_t> ( 6 ) );
 
     ContigsCalculateStatistics ( & contigs );
 
-    REQUIRE_EQ ( contigs . assemblyLength, 290ul );
-    REQUIRE_EQ ( contigs . contigLength, 6ul );
-    REQUIRE_EQ ( contigs . n50, 70ul );
-    REQUIRE_EQ ( contigs . l50, 2ul );
-    REQUIRE_EQ ( contigs . n90, 30ul );
-    REQUIRE_EQ ( contigs . l90, 5ul );
+    REQUIRE_EQ ( contigs . assemblyLength, static_cast <uint64_t> ( 290 ) );
+    REQUIRE_EQ ( contigs . contigLength, static_cast <uint64_t> ( 6 ) );
+    REQUIRE_EQ ( contigs . n50, static_cast <uint64_t> ( 70 ) );
+    REQUIRE_EQ ( contigs . l50, static_cast <uint64_t> ( 2 ) );
+    REQUIRE_EQ ( contigs . n90, static_cast <uint64_t> ( 30 ) );
+    REQUIRE_EQ ( contigs . l90, static_cast <uint64_t> ( 5 ) );
 
     REQUIRE_NE ( memcmp ( & contigs, & empty, sizeof empty ), 0 );
 
@@ -113,8 +117,8 @@ TEST_CASE ( test7 ) {
     Contigs contigs;
     ContigsInit ( & contigs );
     REQUIRE_EQ ( memcmp ( & contigs, & empty, sizeof empty ), 0 );
-    REQUIRE_EQ ( contigs . assemblyLength, 0ul );
-    REQUIRE_EQ ( contigs . contigLength, 0ul );
+    REQUIRE_EQ ( contigs . assemblyLength, ZERO );
+    REQUIRE_EQ ( contigs . contigLength, ZERO );
 
     REQUIRE_RC ( Add ( & contigs ) );
     REQUIRE_RC ( ContigsAdd ( & contigs, 5 ) );
@@ -122,17 +126,17 @@ TEST_CASE ( test7 ) {
 
     REQUIRE_NE ( memcmp ( & contigs, & empty, sizeof empty ), 0 );
 
-    REQUIRE_EQ ( contigs . assemblyLength, 305ul );
-    REQUIRE_EQ ( contigs . contigLength, 8ul );
+    REQUIRE_EQ ( contigs . assemblyLength, static_cast <uint64_t> ( 305 ) );
+    REQUIRE_EQ ( contigs . contigLength, static_cast <uint64_t> ( 8 ) );
 
     ContigsCalculateStatistics ( & contigs );
 
-    REQUIRE_EQ ( contigs . assemblyLength, 305ul );
-    REQUIRE_EQ ( contigs . contigLength, 8ul );
-    REQUIRE_EQ ( contigs . n50, 50ul );
-    REQUIRE_EQ ( contigs . l50, 3ul );
-    REQUIRE_EQ ( contigs . n90, 20ul );
-    REQUIRE_EQ ( contigs . l90, 6ul );
+    REQUIRE_EQ ( contigs . assemblyLength, static_cast <uint64_t> ( 305 ) );
+    REQUIRE_EQ ( contigs . contigLength, static_cast <uint64_t> ( 8 ) );
+    REQUIRE_EQ ( contigs . n50, static_cast <uint64_t> ( 50 ) );
+    REQUIRE_EQ ( contigs . l50, static_cast <uint64_t> ( 3 ) );
+    REQUIRE_EQ ( contigs . n90, static_cast <uint64_t> ( 20 ) );
+    REQUIRE_EQ ( contigs . l90, static_cast <uint64_t> ( 6 ) );
 
     REQUIRE_NE ( memcmp ( & contigs, & empty, sizeof empty ), 0 );
 

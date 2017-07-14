@@ -40,14 +40,7 @@ SQLITE_EXTENSION_INIT1
 #  define CSV_NOINLINE
 #endif
 
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <assert.h>
-#include <stdarg.h>
-#include <ctype.h>
-#include <stdio.h>
+#include <stdio.h> /* because of printf( ) for verbosity in testing... */
 
 #include <klib/num-gen.h>
 #include <klib/namelist.h>
@@ -61,6 +54,16 @@ SQLITE_EXTENSION_INIT1
 #include <vdb/table.h>
 #include <vdb/cursor.h>
 #include <vdb/schema.h>
+
+#include <kfc/xcdefs.h>
+#include <kfc/except.h>
+#include <kfc/ctx.h>
+#include <kfc/rsrc.h>
+
+#include <../libs/ngs/NGS_ReadCollection.h>
+#include <../libs/ngs/NGS_Read.h>
+#include <../libs/ngs/NGS_Alignment.h>
+#include <../libs/ngs/NGS_String.h>
 
 /* -------------------------------------------------------------------------------------- */
 static rc_t VNamelist_from_KNamelist( VNamelist ** dst, const KNamelist * src )
@@ -585,7 +588,7 @@ static void print_col_desc_list( const Vector * desc_list )
     }
 }
 
-static char * make_create_table_stm( const Vector * desc_list, const char * tbl_name  )
+static char * make_vdb_create_table_stm( const Vector * desc_list, const char * tbl_name  )
 {
     char * res = NULL;
     if ( desc_list != NULL && tbl_name != NULL )
@@ -748,7 +751,7 @@ static void col_inst_list_cell( const Vector * inst_list, const VCursor * curs,
 }
 
 /* -------------------------------------------------------------------------------------- */
-typedef struct obj_desc
+typedef struct vdb_obj_desc
 {
     const char * accession;
     const char * table_name;
@@ -758,9 +761,9 @@ typedef struct obj_desc
     VNamelist * excluded_columns;
     size_t cache_size;
     int verbosity;
-} obj_desc;
+} vdb_obj_desc;
 
-static void release_obj_desc( obj_desc * self )
+static void release_vdb_obj_desc( vdb_obj_desc * self )
 {
     if ( self->accession != NULL ) sqlite3_free( ( void * )self->accession );
     if ( self->table_name != NULL ) sqlite3_free( ( void * )self->table_name );
@@ -770,7 +773,7 @@ static void release_obj_desc( obj_desc * self )
     if ( self->excluded_columns != NULL ) VNamelistRelease( self->excluded_columns );
 }
 
-static void obj_desc_print( obj_desc * self )
+static void vdb_obj_desc_print( vdb_obj_desc * self )
 {
     printf( "---accession  = %s\n", self->accession != NULL ? self->accession : "None" );
     printf( "---cache-size = %lu\n", self->cache_size );    
@@ -810,7 +813,7 @@ static bool is_equal( const String * S, const char * s1, const char * s2 )
     return false;
 }
 
-static void obj_desc_parse_arg2( obj_desc * self, const char * name, const char * value )
+static void vdb_obj_desc_parse_arg2( vdb_obj_desc * self, const char * name, const char * value )
 {
 	String S_name, S_value;
     bool done = false;
@@ -860,10 +863,9 @@ static void obj_desc_parse_arg2( obj_desc * self, const char * name, const char 
         printf( "unknown argument '%.*s' = '%.*s'\n", S_name.len, S_name.addr, S_value.len, S_value.addr );
 }
 
-static rc_t init_obj_desc( obj_desc * self, int argc, const char * const * argv )
+static rc_t init_vdb_obj_desc( vdb_obj_desc * self, int argc, const char * const * argv )
 {
     rc_t rc = -1;
-    memset( self, 0, sizeof( *self ) );
     num_gen_make( &self->row_range );
     if ( argc > 3 )
     {
@@ -887,7 +889,7 @@ static rc_t init_obj_desc( obj_desc * self, int argc, const char * const * argv 
                             const char * arg_value = NULL;
                             rc = VNameListGet( parts, 1, &arg_value );
                             if ( rc == 0 && arg_value != NULL )
-                                obj_desc_parse_arg2( self, arg_name, arg_value );
+                                vdb_obj_desc_parse_arg2( self, arg_name, arg_value );
                         }
                         else
                         {
@@ -903,9 +905,8 @@ static rc_t init_obj_desc( obj_desc * self, int argc, const char * const * argv 
         }
     }
     if ( self->verbosity > 0 )
-        obj_desc_print( self );
+        vdb_obj_desc_print( self );
     return rc;
-
 }
 
                
@@ -914,7 +915,7 @@ typedef struct vdb_cursor
 {
     sqlite3_vtab cursor;            /* Base class.  Must be first */
     const struct num_gen_iter * row_iter;
-    obj_desc * desc;                /* cursor does not own this! */
+    vdb_obj_desc * desc;            /* cursor does not own this! */
     Vector column_instances;
     const VCursor * curs;
     int64_t current_row;    
@@ -935,7 +936,7 @@ static int destroy_vdb_cursor( vdb_cursor * c )
 }
 
 /* create a cursor from the obj-description ( mostly it's columns ) */
-static vdb_cursor * make_vdb_cursor( obj_desc * desc, const VTable * tbl )
+static vdb_cursor * make_vdb_cursor( vdb_obj_desc * desc, const VTable * tbl )
 {
     vdb_cursor * res = sqlite3_malloc( sizeof( * res ) );
     if ( res != NULL )
@@ -1034,7 +1035,7 @@ typedef struct vdb_obj
     const VDBManager * mgr;         /* the vdb-manager */
     const VDatabase *db;            /* the database to be used */
     const VTable *tbl;              /* the table to be used */
-    obj_desc desc;                  /* description of the object to be iterated over */
+    vdb_obj_desc desc;              /* description of the object to be iterated over */
 } vdb_obj;
 
 
@@ -1047,7 +1048,7 @@ static int destroy_vdb_obj( vdb_obj * self )
     if ( self->mgr != NULL ) VDBManagerRelease( self->mgr );
     if ( self->tbl != NULL ) VTableRelease( self->tbl );
     if ( self->db != NULL ) VDatabaseRelease( self->db );
-    release_obj_desc( &self->desc );
+    release_vdb_obj_desc( &self->desc );
     
     sqlite3_free( self );
     return SQLITE_OK;    
@@ -1214,7 +1215,7 @@ static vdb_obj * make_vdb_obj( int argc, const char * const * argv )
     if ( res != NULL )
     {
         memset( res, 0, sizeof( *res ) );
-        rc_t rc = init_obj_desc( &res->desc, argc, argv );
+        rc_t rc = init_vdb_obj_desc( &res->desc, argc, argv );
         if ( rc == 0 )
         {
             rc = VDBManagerMakeRead( &( res->mgr ), NULL );
@@ -1271,7 +1272,7 @@ static int sqlite3_vdb_CC( sqlite3 *db, void *pAux, int argc, const char * const
     if ( obj->desc.verbosity > 1 )
         printf( "%s", msg );
     
-    stm = make_create_table_stm( &obj->desc.column_descriptions, "x" );
+    stm = make_vdb_create_table_stm( &obj->desc.column_descriptions, "x" );
     if ( obj->desc.verbosity > 1 )
         printf( "stm = %s\n", stm );
     return sqlite3_declare_vtab( db, stm );    
@@ -1403,6 +1404,769 @@ sqlite3_module VDB_Module =
   NULL,                         /* xRename */
 };
 
+
+/* ========================================================================================================== */
+
+#define NGS_STYLE_READS 1
+#define NGS_STYLE_FRAGMENTS 2
+#define NGS_STYLE_ALIGNMENTS 3
+#define NGS_STYLE_PILEUP 4
+
+/* -------------------------------------------------------------------------------------- */
+typedef struct ngs_obj_desc
+{
+    const char * accession;
+    const char * style_string; /* READS, FRAGMENTS, ALIGNMENTS, PILEUP-EVENTS */
+    int style;
+    int verbosity;
+} ngs_obj_desc;
+
+static void release_ngs_obj_desc( ngs_obj_desc * self )
+{
+    if ( self->accession != NULL ) sqlite3_free( ( void * )self->accession );
+    if ( self->style_string != NULL ) sqlite3_free( ( void * )self->style_string );
+}
+
+static void ngs_obj_desc_print( ngs_obj_desc * self )
+{
+    printf( "---accession  = %s\n", self->accession != NULL ? self->accession : "None" );
+    printf( "---style      = %s\n", self->style_string != NULL ? self->style_string : "None" );
+}
+
+static int ngs_obj_style_2_int( const char * style )
+{
+    int res = 0;
+    String S;
+    StringInitCString( &S, style );
+    
+    if ( is_equal( &S, "READS", "R" ) )
+        res = NGS_STYLE_READS;
+    else if ( is_equal( &S, "FRAGMENTS", "F" ) )
+        res = NGS_STYLE_FRAGMENTS;
+    else if ( is_equal( &S, "ALIGNMENTS", "A" ) )
+        res = NGS_STYLE_ALIGNMENTS;
+    else if ( is_equal( &S, "PILEUP", "P" ) )
+        res = NGS_STYLE_PILEUP;
+    return res;
+}
+
+static void ngs_obj_desc_parse_arg2( ngs_obj_desc * self, const char * name, const char * value )
+{
+	String S_name, S_value;
+    bool done = false;
+	
+	StringInitCString( &S_name, name );
+	trim_ws( &S_name );
+	StringInitCString( &S_value, value );
+	trim_ws( &S_value );
+	
+	if ( is_equal( &S_name, "acc", "A" ) )
+    {
+		self->accession = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
+        done = true;
+    }
+    
+	if ( !done && is_equal( &S_name, "style", "S" ) )
+	{
+        self->style_string = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
+        self->style = ngs_obj_style_2_int( self->style_string );
+        done = true;
+    }
+
+    if ( !done && is_equal( &S_name, "verbose", "v" ) )
+    {
+        self->verbosity = StringToU64( &S_value, NULL );
+        done = true;
+    }
+
+    if ( !done )
+        printf( "unknown argument '%.*s' = '%.*s'\n", S_name.len, S_name.addr, S_value.len, S_value.addr );
+}
+
+static rc_t init_ngs_obj_desc( ngs_obj_desc * self, int argc, const char * const * argv )
+{
+    rc_t rc = -1;
+    if ( argc > 3 )
+    {
+        int i;
+        for ( i = 3; i < argc; i++ )
+        {
+            VNamelist * parts;
+            rc = VNamelistFromStr( &parts, argv[ i ], '=' );
+            if ( rc == 0 )
+            {
+                uint32_t count;
+                rc = VNameListCount( parts, &count );
+                if ( rc == 0 && count > 0 )
+                {
+                    const char * arg_name = NULL;
+                    rc = VNameListGet( parts, 0, &arg_name );
+                    if ( rc == 0 && arg_name != NULL )
+                    {
+                        if ( count > 1 )
+                        {
+                            const char * arg_value = NULL;
+                            rc = VNameListGet( parts, 1, &arg_value );
+                            if ( rc == 0 && arg_value != NULL )
+                                ngs_obj_desc_parse_arg2( self, arg_name, arg_value );
+                        }
+                        else
+                        {
+                            if ( self->accession == NULL )
+                                self->accession = sqlite3_mprintf( "%s", arg_name );
+                        }
+                    }
+                }
+                VNamelistRelease( parts );
+            }
+        }
+    }
+    if ( self->style == 0 )
+        self->style = NGS_STYLE_READS;
+    if ( self->verbosity > 0 )
+        ngs_obj_desc_print( self );
+    return rc;
+}
+
+static char * make_ngs_create_table_stm( const ngs_obj_desc * desc, const char * tbl_name  )
+{
+    char * res = sqlite3_mprintf( "CREATE TABLE %s (", tbl_name );
+    if ( res != NULL )
+    {
+        switch( desc->style )
+        {
+            case NGS_STYLE_READS      : res = sqlite3_mprintf( "%z SEQ, QUAL, NAME, ID, GRP, CAT, NFRAGS );", res ); break;
+            case NGS_STYLE_FRAGMENTS  : res = sqlite3_mprintf( "%z SEQ, QUAL );", res ); break;
+            case NGS_STYLE_ALIGNMENTS : res = sqlite3_mprintf( "%z SEQ, QUAL, ID, REFSPEC, MAPQ, RDFILTER, REFBASES, GRP, ALIG, PRIM, REFPOS, LEN, REVERSE, TLEN, CIGARS, CIGARL, HASMATE, MATEID, MATEREF, MATEREVERSE, FIRST );", res ); break;
+            case NGS_STYLE_PILEUP     : res = sqlite3_mprintf( "%z SEQ );", res ); break;
+            default : res = sqlite3_mprintf( "%z X );", res ); break;
+        }
+    }
+    return res;
+}
+
+/* -------------------------------------------------------------------------------------- */
+/* this object has to be made on the heap,
+   it is passed back ( typecasted ) to the sqlite-library in sqlite3_vdb_[ Create / Connect ] */
+typedef struct ngs_obj
+{
+    sqlite3_vtab base;              /* Base class.  Must be first */
+    ngs_obj_desc desc;              /* the description ( ACC, Style ) */
+} ngs_obj;
+
+
+/* destroy the whole connection database, table, manager etc. */
+static int destroy_ngs_obj( ngs_obj * self )
+{
+    if ( self->desc.verbosity > 1 )
+        printf( "---sqlite3_ngs_Disconnect()\n" );
+    
+    release_ngs_obj_desc( &self->desc );
+    
+    sqlite3_free( self );
+    return SQLITE_OK;    
+}
+
+/* gather what we want to open, check if it can be opened... */
+static ngs_obj * make_ngs_obj( int argc, const char * const * argv )
+{
+    ngs_obj * res = sqlite3_malloc( sizeof( * res ) );
+    if ( res != NULL )
+    {
+        memset( res, 0, sizeof( *res ) );
+        rc_t rc = init_ngs_obj_desc( &res->desc, argc, argv );
+        if ( rc == 0 )
+        {
+            /* here we have to check if we can open the accession as a read-collection... */
+            if ( rc != 0 )
+            {
+                destroy_ngs_obj( res );
+                res = NULL;
+            }
+        }
+    }
+    return res;
+}
+
+/* -------------------------------------------------------------------------------------- */
+typedef struct ngs_cursor
+{
+    sqlite3_vtab cursor;            /* Base class.  Must be first */
+    ngs_obj_desc * desc;            /* cursor does not own this! */
+    NGS_ReadCollection * rd_coll;   /* the read-collection we are operating on */
+    NGS_Read * m_read;              /* the read-iterator */
+    NGS_Alignment * m_alig;         /* the alignment-iterator */
+    int64_t current_row;    
+    bool eof;
+} ngs_cursor;
+
+
+static int destroy_ngs_cursor( ngs_cursor * self )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    
+    if ( self->desc->verbosity > 1 )
+        printf( "---sqlite3_ngs_Close()\n" );
+
+    if ( self->m_read != NULL )
+        NGS_ReadRelease ( self->m_read, ctx );
+    
+    if ( self->m_alig != NULL )
+        NGS_AlignmentRelease ( self->m_alig, ctx );
+
+    if ( self->rd_coll != NULL )
+        NGS_RefcountRelease( ( NGS_Refcount * ) self->rd_coll, ctx );
+    
+    sqlite3_free( self );
+    return SQLITE_OK;
+
+}
+
+static ngs_cursor * make_ngs_cursor_READS( ngs_cursor * self )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    self->m_read = NGS_ReadCollectionGetReads( self->rd_coll, ctx, true, true, true );
+    if ( FAILED() )
+    {
+        CLEAR();
+        destroy_ngs_cursor( self );
+        self = NULL;
+    }
+    else
+    {
+        self->eof = ! NGS_ReadIteratorNext( self->m_read, ctx );
+        if ( FAILED() )
+        {
+            CLEAR();
+            destroy_ngs_cursor( self );
+            self = NULL;
+        }
+    }
+    return self;
+}
+
+static ngs_cursor * make_ngs_cursor_FRAGS( ngs_cursor * self )
+{
+    return self;
+}
+
+static ngs_cursor * make_ngs_cursor_ALIGS( ngs_cursor * self )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    self->m_alig = NGS_ReadCollectionGetAlignments( self->rd_coll, ctx, true, false );
+    if ( FAILED() )
+    {
+        CLEAR();
+        destroy_ngs_cursor( self );
+        self = NULL;
+    }
+    else
+    {
+        self->eof = ! NGS_AlignmentIteratorNext( self->m_alig, ctx );
+        if ( FAILED() )
+        {
+            CLEAR();
+            destroy_ngs_cursor( self );
+            self = NULL;
+        }
+    }
+    return self;
+}
+
+static ngs_cursor * make_ngs_cursor_PILEUP( ngs_cursor * self )
+{
+    return self;
+}
+
+/* create a cursor from the obj-description ( mostly it's columns ) */
+static ngs_cursor * make_ngs_cursor( ngs_obj_desc * desc )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+
+    ngs_cursor * res = sqlite3_malloc( sizeof( * res ) );
+    if ( res != NULL )
+    {
+        memset( res, 0, sizeof( *res ) );
+        res->desc = desc;
+
+        res->rd_coll = NGS_ReadCollectionMake( ctx, desc->accession );
+        if ( FAILED() )
+        {
+            CLEAR();
+            destroy_ngs_cursor( res );
+            res = NULL;
+        }
+        else switch( desc->style )
+        {
+            case NGS_STYLE_READS      : res = make_ngs_cursor_READS( res ); break;
+            case NGS_STYLE_FRAGMENTS  : res = make_ngs_cursor_FRAGS( res ); break;
+            case NGS_STYLE_ALIGNMENTS : res = make_ngs_cursor_ALIGS( res ); break;
+            case NGS_STYLE_PILEUP     : res = make_ngs_cursor_PILEUP( res ); break;
+        }
+    }
+    return res;
+}
+
+
+static int ngs_cursor_next( ngs_cursor * self )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    
+    if ( self->desc->verbosity > 2 )
+        printf( "---sqlite3_ngs_next()\n" );
+    
+    switch( self->desc->style )
+    {
+        case NGS_STYLE_READS      : self->eof = ! NGS_ReadIteratorNext( self->m_read, ctx ); break;
+        case NGS_STYLE_FRAGMENTS  : self->eof = ! NGS_ReadIteratorNext( self->m_read, ctx ); break;
+        case NGS_STYLE_ALIGNMENTS : self->eof = ! NGS_AlignmentIteratorNext( self->m_alig, ctx ); break;
+        case NGS_STYLE_PILEUP     : break;
+    }
+
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    else
+        self->current_row++;
+    return SQLITE_OK;
+}
+
+static int ngs_cursor_eof( ngs_cursor * self )
+{
+    if ( self->desc->verbosity > 2 )
+        printf( "---sqlite3_ngs_Eof()\n" );
+    if ( self->eof )
+        return SQLITE_ERROR; /* anything else than SQLITE_OK means EOF */
+    return SQLITE_OK;
+}
+
+static int ngs_return_NGS_String( sqlite3_context * sql_ctx, NGS_String * ngs_str )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    
+    const char * s = NGS_StringData( ngs_str, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        NGS_StringRelease( ngs_str, ctx );
+        return SQLITE_ERROR;
+    }
+    else
+    {
+        size_t len = NGS_StringSize( ngs_str, ctx );
+        if ( FAILED() )
+        {
+            CLEAR();
+            NGS_StringRelease( ngs_str, ctx );
+            return SQLITE_ERROR;
+        }
+        sqlite3_result_text( sql_ctx, (char *)s, len, SQLITE_TRANSIENT );
+        
+        NGS_StringRelease( ngs_str, ctx );
+    }
+    return SQLITE_OK;
+}
+
+static int ngs_cursor_read_str( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               struct NGS_String * f( NGS_Read * read, ctx_t ctx ) )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    NGS_String * m_seq = f( self->m_read, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    return ngs_return_NGS_String( sql_ctx, m_seq );
+}
+
+static int ngs_cursor_read_str_full( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               struct NGS_String * f( NGS_Read * read, ctx_t ctx, uint64_t offset, uint64_t length ) )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    NGS_String * m_seq = f( self->m_read, ctx, 0, ( size_t ) - 1 );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    return ngs_return_NGS_String( sql_ctx, m_seq );
+}
+
+static int ngs_cursor_column_read_CAT( ngs_cursor * self, sqlite3_context * sql_ctx )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    enum NGS_ReadCategory cat = NGS_ReadGetReadCategory( self->m_read, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    sqlite3_result_int( sql_ctx, cat );
+    return SQLITE_OK;
+}
+
+static int ngs_cursor_column_read_NFRAGS( ngs_cursor * self, sqlite3_context * sql_ctx )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    uint32_t n = NGS_ReadNumFragments( self->m_read, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    sqlite3_result_int( sql_ctx, n );
+    return SQLITE_OK;
+}
+
+static int ngs_cursor_column_read( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
+{
+    switch( column_id )
+    {
+        case 0 : return ngs_cursor_read_str_full( self, sql_ctx, NGS_ReadGetReadSequence ); break; /* SEQ */
+        case 1 : return ngs_cursor_read_str_full( self, sql_ctx, NGS_ReadGetReadQualities ); break; /* QUAL */
+        case 2 : return ngs_cursor_read_str( self, sql_ctx, NGS_ReadGetReadName ); break; /* NAME */
+        case 3 : return ngs_cursor_read_str( self, sql_ctx, NGS_ReadGetReadId ); break; /* ID */
+        case 4 : return ngs_cursor_read_str( self, sql_ctx, NGS_ReadGetReadGroup ); break; /* GRP */
+        case 5 : return ngs_cursor_column_read_CAT( self, sql_ctx ); break; /* CAT */
+        case 6 : return ngs_cursor_column_read_NFRAGS( self, sql_ctx ); break; /* NFRAGS */
+    }
+    return SQLITE_ERROR;
+}
+
+static int ngs_cursor_column_frag( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
+{
+    return SQLITE_ERROR;
+}
+
+static int ngs_cursor_alig_str( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               struct NGS_String * f( NGS_Alignment * self, ctx_t ctx ) )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    NGS_String * m_seq = f( self->m_alig, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    return ngs_return_NGS_String( sql_ctx, m_seq );
+}
+
+static int ngs_cursor_alig_str_bool( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               struct NGS_String * f( NGS_Alignment * self, ctx_t ctx, bool b ),
+                               bool b )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    NGS_String * m_seq = f( self->m_alig, ctx, b );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    return ngs_return_NGS_String( sql_ctx, m_seq );
+}
+
+static int ngs_cursor_alig_bool( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               bool f( NGS_Alignment * self, ctx_t ctx ) )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    bool b = f( self->m_alig, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    sqlite3_result_int( sql_ctx, b ? 1 : 0 );
+    return SQLITE_OK;
+}
+
+static int ngs_cursor_alig_uint64( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               uint64_t f( NGS_Alignment * self, ctx_t ctx ) )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    uint64_t value = f( self->m_alig, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    sqlite3_result_int64( sql_ctx, value );
+    return SQLITE_OK;
+}
+
+
+static int ngs_cursor_column_alig_MAPQ( ngs_cursor * self, sqlite3_context * sql_ctx )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    int mapq = NGS_AlignmentGetMappingQuality( self->m_alig, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    sqlite3_result_int( sql_ctx, mapq );
+    return SQLITE_OK;
+}
+
+static int ngs_cursor_column_alig_RDFILTER( ngs_cursor * self, sqlite3_context * sql_ctx )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    INSDC_read_filter rf = NGS_AlignmentGetReadFilter( self->m_alig, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    sqlite3_result_int( sql_ctx, rf );
+    return SQLITE_OK;
+}
+
+static int ngs_cursor_column_alig_REFPOS( ngs_cursor * self, sqlite3_context * sql_ctx )
+{
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    int64_t pos = NGS_AlignmentGetAlignmentPosition( self->m_alig, ctx );
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    sqlite3_result_int64( sql_ctx, pos );
+    return SQLITE_OK;
+}
+
+
+static int ngs_cursor_column_alig( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
+{
+    switch( column_id )
+    {
+        case 0  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetClippedFragmentBases ); break; /* SEQ */
+        case 1  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetClippedFragmentQualities ); break; /* QUAL */
+        case 2  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetAlignmentId ); break; /* ID */
+        case 3  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetReferenceSpec ); break; /* REFSPEC */
+        case 4  : return ngs_cursor_column_alig_MAPQ( self, sql_ctx ); break; /* MAPQ */
+        case 5  : return ngs_cursor_column_alig_RDFILTER( self, sql_ctx ); break; /* RDFILTER */
+        case 6  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetReferenceBases ); break; /* REFBASES */
+        case 7  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetReadGroup ); break; /* GRP */
+        case 8  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetAlignedFragmentBases ); break; /*ALIG */
+        case 9  : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentIsPrimary ); break; /* PRIM */
+        case 10 : return ngs_cursor_column_alig_REFPOS( self, sql_ctx ); break; /* REFPOS */
+        case 11 : return ngs_cursor_alig_uint64( self, sql_ctx, NGS_AlignmentGetAlignmentLength ); break; /* LEN */
+        case 12 : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentGetIsReversedOrientation ); break; /* REVERSE */
+        case 13 : return ngs_cursor_alig_uint64( self, sql_ctx, NGS_AlignmentGetTemplateLength ); break; /* TLEN */
+        case 14 : return ngs_cursor_alig_str_bool( self, sql_ctx, NGS_AlignmentGetShortCigar, true ); break; /* CIGARS */
+        case 15 : return ngs_cursor_alig_str_bool( self, sql_ctx, NGS_AlignmentGetLongCigar, true ); break; /* CIGARL */
+        case 16 : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentHasMate ); break; /* HASMATE */
+        case 17 : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetMateAlignmentId ); /* MATEID */
+        case 18 : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetMateReferenceSpec ); /* MATEREF */
+        case 19 : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentGetMateIsReversedOrientation ); break; /* MATEREVERSE */
+        case 20 : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentIsFirst ); break; /* FIRST */
+    }
+    return SQLITE_ERROR;
+}
+
+static int ngs_cursor_column_pileup( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
+{
+    return SQLITE_ERROR;
+}
+
+static int ngs_cursor_column( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
+{
+    if ( self->desc->verbosity > 2 )
+        printf( "---sqlite3_ngs_Column( %d )\n", column_id );
+    
+    switch( self->desc->style )
+    {
+        case NGS_STYLE_READS      : return ngs_cursor_column_read( self, sql_ctx, column_id ); break;
+        case NGS_STYLE_FRAGMENTS  : return ngs_cursor_column_frag( self, sql_ctx, column_id ); break;
+        case NGS_STYLE_ALIGNMENTS : return ngs_cursor_column_alig( self, sql_ctx, column_id ); break;
+        case NGS_STYLE_PILEUP     : return ngs_cursor_column_pileup( self, sql_ctx, column_id ); break;
+    }
+    return SQLITE_ERROR;
+}
+
+static int ngs_cursor_row_id( ngs_cursor * self, sqlite_int64 * pRowid )
+{
+    if ( self->desc->verbosity > 2 )
+        printf( "---sqlite3_ngs_Rowid()\n" );
+    if ( pRowid != NULL )
+        *pRowid = self->current_row;
+    return SQLITE_OK;
+}
+
+/* -------------------------------------------------------------------------------------- */
+/* take ngs-obj and open a read-collection on it */
+static int ngs_obj_open( ngs_obj * self, sqlite3_vtab_cursor ** ppCursor )
+{
+    if ( self->desc.verbosity > 1 )
+        printf( "---sqlite3_ngs_Open()\n" );
+    ngs_cursor * c = make_ngs_cursor( &self->desc );
+    if ( c != NULL )
+    {
+        *ppCursor = ( sqlite3_vtab_cursor * )c;
+        return SQLITE_OK;
+    }
+    return SQLITE_ERROR;
+}
+
+/* -------------------------------------------------------------------------------------- */
+/* the common code for xxx_Create() and xxx_Connect */
+static int sqlite3_ngs_CC( sqlite3 *db, void *pAux, int argc, const char * const * argv,
+                           sqlite3_vtab **ppVtab, char **pzErr, const char * msg )
+{
+    const char * stm;
+    ngs_obj * obj = make_ngs_obj( argc, argv );
+    if ( obj == NULL )
+        return SQLITE_ERROR;
+        
+    *ppVtab = ( sqlite3_vtab * )obj;
+
+    if ( obj->desc.verbosity > 1 )
+        printf( "%s", msg );
+
+    stm = make_ngs_create_table_stm( &obj->desc, "X" );
+    if ( obj->desc.verbosity > 1 )
+        printf( "stm = %s\n", stm );
+    return sqlite3_declare_vtab( db, stm );
+}
+
+
+/* -------------------------------------------------------------------------------------- */
+/* create a new table-instance from scratch */
+int sqlite3_ngs_Create( sqlite3 *db, void *pAux, int argc, const char * const * argv,
+                               sqlite3_vtab **ppVtab, char **pzErr )
+{
+    return sqlite3_ngs_CC( db, pAux, argc, argv, ppVtab, pzErr, "---sqlite3_ngs_Create()\n" );
+}
+
+/* open a table-instance from something existing */
+int sqlite3_ngs_Connect( sqlite3 *db, void *pAux, int argc, const char * const * argv,
+                                sqlite3_vtab **ppVtab, char **pzErr )
+{
+    return sqlite3_ngs_CC( db, pAux, argc, argv, ppVtab, pzErr, "---sqlite3_ngs_Connect()\n" );
+}
+
+/* query what index can be used ---> maybe vdb supports that in the future */
+int sqlite3_ngs_BestIndex( sqlite3_vtab *tab, sqlite3_index_info *pIdxInfo )
+{
+    int res = SQLITE_ERROR;
+    if ( tab != NULL )
+    {
+        ngs_obj * self = ( ngs_obj * )tab;
+        if ( self->desc.verbosity > 2 )
+            printf( "---sqlite3_ngs_BestIndex()\n" );
+        if ( pIdxInfo != NULL )
+            pIdxInfo->estimatedCost = 1000000;
+        res = SQLITE_OK;
+    }
+    return res;
+}
+
+/* disconnect from a table */
+int sqlite3_ngs_Disconnect( sqlite3_vtab *tab )
+{
+    if ( tab != NULL )
+        return destroy_ngs_obj( ( ngs_obj * )tab );
+    return SQLITE_ERROR;
+}
+
+/* open a cursor on a table */
+int sqlite3_ngs_Open( sqlite3_vtab *tab, sqlite3_vtab_cursor **ppCursor )
+{
+    if ( tab != NULL )
+        return ngs_obj_open( ( ngs_obj * ) tab, ppCursor );
+    return SQLITE_ERROR;
+}
+
+/* close the cursor */
+int sqlite3_ngs_Close( sqlite3_vtab_cursor *cur )
+{
+    if ( cur != NULL )
+        destroy_ngs_cursor( ( ngs_cursor * )cur );
+    return SQLITE_ERROR;
+}
+
+/* this is a NOOP, because we have no index ( yet ) */
+int sqlite3_ngs_Filter( sqlite3_vtab_cursor *cur, int idxNum, const char *idxStr,
+                        int argc, sqlite3_value **argv )
+{
+    if ( cur != NULL )
+    {
+        ngs_cursor * self = ( ngs_cursor * )cur;
+        if ( self->desc->verbosity > 2 )
+            printf( "---sqlite3_ngs_Filter()\n" );
+        return SQLITE_OK;
+    }
+    return SQLITE_ERROR;
+}
+
+/* advance to the next row */
+int sqlite3_ngs_Next( sqlite3_vtab_cursor *cur )
+{
+    if ( cur != NULL )
+        return ngs_cursor_next( ( ngs_cursor * )cur );
+    return SQLITE_ERROR;        
+}
+
+/* check if we are at the end */
+int sqlite3_ngs_Eof( sqlite3_vtab_cursor *cur )
+{
+     if ( cur != NULL )
+        return ngs_cursor_eof( ( ngs_cursor * )cur );
+    return SQLITE_ERROR;
+}
+
+/* request data for a cell */
+int sqlite3_ngs_Column( sqlite3_vtab_cursor *cur, sqlite3_context * ctx, int column_id )
+{
+    if ( cur != NULL )
+        return ngs_cursor_column( ( ngs_cursor * )cur, ctx, column_id );
+    return SQLITE_ERROR;
+}
+
+/* request row-id */
+int sqlite3_ngs_Rowid( sqlite3_vtab_cursor *cur, sqlite_int64 * pRowid )
+{
+    if ( cur != NULL )
+        return ngs_cursor_row_id( ( ngs_cursor * )cur, pRowid );
+    return SQLITE_ERROR;
+}
+
+
+sqlite3_module NGS_Module =
+{
+  0,                            /* iVersion */
+  sqlite3_ngs_Create,           /* xCreate */
+  sqlite3_ngs_Connect,          /* xConnect */
+  sqlite3_ngs_BestIndex,        /* xBestIndex */
+  sqlite3_ngs_Disconnect,       /* xDisconnect */
+  sqlite3_ngs_Disconnect,       /* xDestroy */
+  sqlite3_ngs_Open,             /* xOpen - open a cursor */
+  sqlite3_ngs_Close,            /* xClose - close a cursor */
+  sqlite3_ngs_Filter,           /* xFilter - configure scan constraints */
+  sqlite3_ngs_Next,             /* xNext - advance a cursor */
+  sqlite3_ngs_Eof,              /* xEof - check for end of scan */
+  sqlite3_ngs_Column,           /* xColumn - read data */
+  sqlite3_ngs_Rowid,            /* xRowid - read data */
+  NULL,                         /* xUpdate */
+  NULL,                         /* xBegin */
+  NULL,                         /* xSync */
+  NULL,                         /* xCommit */
+  NULL,                         /* xRollback */
+  NULL,                         /* xFindMethod */
+  NULL,                         /* xRename */
+};
+
+
+/* ========================================================================================================== */
+
 #ifdef _WIN32
 __declspec( dllexport )
 #endif
@@ -1414,10 +2178,12 @@ __declspec( dllexport )
 */
 int sqlite3_sqlitevdb_init( sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi )
 {
+    int res = SQLITE_OK;
 #ifndef SQLITE_OMIT_VIRTUALTABLE
     SQLITE_EXTENSION_INIT2( pApi );
-    return sqlite3_create_module( db, "vdb", &VDB_Module, NULL );
-#else
-    return SQLITE_OK;
+    res = sqlite3_create_module( db, "vdb", &VDB_Module, NULL );
+    if ( res == SQLITE_OK )
+        res = sqlite3_create_module( db, "ngs", &NGS_Module, NULL );
 #endif
+    return res;
 }

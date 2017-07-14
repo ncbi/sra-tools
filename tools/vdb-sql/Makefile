@@ -32,6 +32,7 @@ INT_TOOLS = \
 
 EXT_TOOLS = \
 	vdb-sql \
+	exp
 #	vdb-sql-lib.$(SHLX)
 
 ALL_TOOLS = \
@@ -99,3 +100,21 @@ VDB_SQL_LIB_OBJ = \
 
 $(BINDIR)/vdb-sql-lib.$(SHLX): $(VDB_SQL_LIB_OBJ)
 	$(LD) --dlib -o $@ $^ $(VDB_SQL_LIB)
+
+#-------------------------------------------------------------------------------
+# a short experiment...
+
+EXP_LIB = \
+	-skapp \
+	-stk-version \
+	-sncbi-vdb \
+	-lm
+    
+EXP_SRC = \
+	exp
+
+EXP_OBJ = \
+	$(addsuffix .$(OBJX),$(EXP_SRC))
+
+$(BINDIR)/exp: $(EXP_OBJ)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(EXP_LIB)

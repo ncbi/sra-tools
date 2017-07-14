@@ -19,6 +19,19 @@ SELECT="select * from VDB limit 1;"
 set -f
 
 #CMD="$TOOL -line :memory: \"$CREATE $SELECT\""
-CMD="$TOOL -line -acc $ACC :memory: \"$SELECT\""
-echo $CMD
-eval $CMD
+#CMD="$TOOL -line -acc $ACC :memory: \"$SELECT\""
+#echo $CMD
+#eval $CMD
+
+
+TMPFILE=`mktemp -u`
+
+#create a virtual table named FASTQ on our accession
+echo "create virtual table NGS using ngs( $ACC, style = A );" >> $TMPFILE
+echo ".mode line" >> $TMPFILE
+#get something out of it...
+echo "select * FROM NGS LIMIT 3;" >> $TMPFILE
+
+$TOOL < $TMPFILE
+
+rm $TMPFILE

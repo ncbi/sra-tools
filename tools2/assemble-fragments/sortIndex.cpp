@@ -388,7 +388,7 @@ int main(int argc, char *argv[])
     if (argc == 2)
         return process(argv[1], true);
     else {
-        std::cerr << "usage: sortIndex <index file>" << std::endl;
+        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <index file>" << std::endl;
         return 1;
     }
 }

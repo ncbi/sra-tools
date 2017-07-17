@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
     if (argc == 2)
         return process(argv[1]);
     else {
-        std::cerr << "an SRA run is required" << std::endl;
+        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <sra run>" << std::endl;
         return 1;
     }
 }

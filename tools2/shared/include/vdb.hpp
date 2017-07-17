@@ -363,6 +363,20 @@ namespace VDB {
             return Database(p);
         }
     };
+    
+    static char const *programNameFromArgv0(char const *const argv0)
+    {
+        auto last = -1;
+        auto i = 0;
+        
+        do {
+            auto const ch = argv0[i];
+            if (ch == '\0') break;
+            if (ch == '/') last = i;
+            ++i;
+        } while (1);
+        return argv0 + last + 1;
+    }
 }
 
 #endif //__VDB_HPP_INCLUDED__

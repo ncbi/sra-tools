@@ -44,10 +44,10 @@
 #include "fragment.hpp"
 
 int main(int argc, char *argv[]) {
-    if (argc == 3)
+    if (argc == 2)
         return process(argv[1]);
     else {
-        std::cerr << "usage: layout-stats <ir db>" << std::endl;
+        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <ir db>" << std::endl;
         return 1;
     }
 }

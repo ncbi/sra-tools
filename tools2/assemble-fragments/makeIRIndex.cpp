@@ -202,7 +202,7 @@ int main(int argc, char *argv[])
     if (argc == 2 || argc == 3)
         return process(argv[1], argv[2]);
     else {
-        std::cerr << "usage: makeIRIndex <run>" << std::endl;
+        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <ir db> | <index file> <ir db>" << std::endl;
         return 1;
     }
 }

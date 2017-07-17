@@ -289,7 +289,7 @@ int main(int argc, char *argv[])
     if (argc == 3)
         return process(argv[1]);
     else {
-        std::cerr << "usage: reorder-ir <ir db> <clustering index>" << std::endl;
+        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <ir db> <clustering index>" << std::endl;
         return 1;
     }
 }

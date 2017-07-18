@@ -27,10 +27,10 @@ set -f
 TMPFILE=`mktemp -u`
 
 #create a virtual table named FASTQ on our accession
-echo "create virtual table NGS using ngs( $ACC, style = A );" >> $TMPFILE
-echo ".mode line" >> $TMPFILE
+echo "create virtual table NGS using ngs( $ACC, style = PILEUP, ref = NC_011748.1, count = 10000 );" >> $TMPFILE
+#echo ".mode line" >> $TMPFILE
 #get something out of it...
-echo "select * FROM NGS LIMIT 3;" >> $TMPFILE
+echo "select NAME, POS, ALIG FROM NGS WHERE INSERTION = 1 OR DELETION = 1;" >> $TMPFILE
 
 $TOOL < $TMPFILE
 

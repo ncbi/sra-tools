@@ -63,6 +63,10 @@ SQLITE_EXTENSION_INIT1
 #include <../libs/ngs/NGS_ReadCollection.h>
 #include <../libs/ngs/NGS_Read.h>
 #include <../libs/ngs/NGS_Alignment.h>
+#include <../libs/ngs/NGS_ReadGroup.h>
+#include <../libs/ngs/NGS_Reference.h>
+#include <../libs/ngs/NGS_Pileup.h>
+#include <../libs/ngs/NGS_PileupEvent.h>
 #include <../libs/ngs/NGS_String.h>
 
 /* -------------------------------------------------------------------------------------- */
@@ -1411,26 +1415,37 @@ sqlite3_module VDB_Module =
 #define NGS_STYLE_FRAGMENTS 2
 #define NGS_STYLE_ALIGNMENTS 3
 #define NGS_STYLE_PILEUP 4
+#define NGS_STYLE_READGROUPS 5
+#define NGS_STYLE_REFS 6
 
 /* -------------------------------------------------------------------------------------- */
 typedef struct ngs_obj_desc
 {
-    const char * accession;
-    const char * style_string; /* READS, FRAGMENTS, ALIGNMENTS, PILEUP-EVENTS */
-    int style;
-    int verbosity;
+    const char * accession;     /* the accession we are processing */
+    const char * style_string;  /* READS, FRAGMENTS, ALIGNMENTS, PILEUP-EVENTS etc. */
+    const char * refname;       /* if we want slicing... */
+    uint64_t first, count;
+    int style, verbosity;
+    bool prim, sec, full, partial, unaligned;
 } ngs_obj_desc;
 
 static void release_ngs_obj_desc( ngs_obj_desc * self )
 {
     if ( self->accession != NULL ) sqlite3_free( ( void * )self->accession );
     if ( self->style_string != NULL ) sqlite3_free( ( void * )self->style_string );
+    if ( self->refname != NULL ) sqlite3_free( ( void * )self->refname );
 }
 
 static void ngs_obj_desc_print( ngs_obj_desc * self )
 {
     printf( "---accession  = %s\n", self->accession != NULL ? self->accession : "None" );
     printf( "---style      = %s\n", self->style_string != NULL ? self->style_string : "None" );
+    printf( "---refname    = %s\n", self->refname != NULL ? self->refname : "None" );
+    printf( "---prim       = %s\n", self->prim ? "yes" : "no" );
+    printf( "---sec        = %s\n", self->sec ? "yes" : "no" );
+    printf( "---full       = %s\n", self->full ? "yes" : "no" );
+    printf( "---partial    = %s\n", self->partial ? "yes" : "no" );
+    printf( "---unaligned  = %s\n", self->unaligned ? "yes" : "no" );
 }
 
 static int ngs_obj_style_2_int( const char * style )
@@ -1447,7 +1462,54 @@ static int ngs_obj_style_2_int( const char * style )
         res = NGS_STYLE_ALIGNMENTS;
     else if ( is_equal( &S, "PILEUP", "P" ) )
         res = NGS_STYLE_PILEUP;
+    else if ( is_equal( &S, "READGROUPS", "G" ) )
+        res = NGS_STYLE_READGROUPS;
+    else if ( is_equal( &S, "REFERENCES", "E" ) )
+        res = NGS_STYLE_REFS;
+
     return res;
+}
+
+static void ngs_obj_desc_parse_arg1( ngs_obj_desc * self, const char * name )
+{
+	String S_name;
+    bool done = false;
+	
+	StringInitCString( &S_name, name );
+	trim_ws( &S_name );
+
+	if ( is_equal( &S_name, "prim", NULL ) )
+    {
+		self->prim = true;
+        done = true;
+    }
+    
+	if ( !done && is_equal( &S_name, "sec", NULL ) )
+    {
+		self->sec = true;
+        done = true;
+    }
+
+	if ( !done && is_equal( &S_name, "full", NULL ) )
+    {
+		self->full = true;
+        done = true;
+    }
+
+	if ( !done && is_equal( &S_name, "partial", NULL ) )
+    {
+		self->partial = true;
+        done = true;
+    }
+
+	if ( !done && is_equal( &S_name, "unaligned", NULL ) )
+    {
+		self->unaligned = true;
+        done = true;
+    }
+
+    if ( !done )
+        printf( "unknown argument '%.*s'\n", S_name.len, S_name.addr );
 }
 
 static void ngs_obj_desc_parse_arg2( ngs_obj_desc * self, const char * name, const char * value )
@@ -1473,9 +1535,27 @@ static void ngs_obj_desc_parse_arg2( ngs_obj_desc * self, const char * name, con
         done = true;
     }
 
+	if ( !done && is_equal( &S_name, "ref", "R" ) )
+	{
+        self->refname = sqlite3_mprintf( "%.*s", S_value.len, S_value.addr );
+        done = true;
+    }
+    
     if ( !done && is_equal( &S_name, "verbose", "v" ) )
     {
         self->verbosity = StringToU64( &S_value, NULL );
+        done = true;
+    }
+
+    if ( !done && is_equal( &S_name, "first", NULL ) )
+    {
+        self->first = StringToU64( &S_value, NULL );
+        done = true;
+    }
+
+    if ( !done && is_equal( &S_name, "count", NULL ) )
+    {
+        self->count = StringToU64( &S_value, NULL );
         done = true;
     }
 
@@ -1514,6 +1594,8 @@ static rc_t init_ngs_obj_desc( ngs_obj_desc * self, int argc, const char * const
                         {
                             if ( self->accession == NULL )
                                 self->accession = sqlite3_mprintf( "%s", arg_name );
+                            else
+                                ngs_obj_desc_parse_arg1( self, arg_name );
                         }
                     }
                 }
@@ -1523,6 +1605,14 @@ static rc_t init_ngs_obj_desc( ngs_obj_desc * self, int argc, const char * const
     }
     if ( self->style == 0 )
         self->style = NGS_STYLE_READS;
+    if ( !self->prim && !self->sec )
+        self->prim = true;
+    if ( !self->full && !self->partial && !self->unaligned )    
+    {
+        self->full = true;
+        self->partial = true;
+        self->unaligned = true;
+    }
     if ( self->verbosity > 0 )
         ngs_obj_desc_print( self );
     return rc;
@@ -1536,14 +1626,17 @@ static char * make_ngs_create_table_stm( const ngs_obj_desc * desc, const char *
         switch( desc->style )
         {
             case NGS_STYLE_READS      : res = sqlite3_mprintf( "%z SEQ, QUAL, NAME, ID, GRP, CAT, NFRAGS );", res ); break;
-            case NGS_STYLE_FRAGMENTS  : res = sqlite3_mprintf( "%z SEQ, QUAL );", res ); break;
+            case NGS_STYLE_FRAGMENTS  : res = sqlite3_mprintf( "%z SEQ, QUAL, ID, PAIRED, ALIGNED );", res ); break;
             case NGS_STYLE_ALIGNMENTS : res = sqlite3_mprintf( "%z SEQ, QUAL, ID, REFSPEC, MAPQ, RDFILTER, REFBASES, GRP, ALIG, PRIM, REFPOS, LEN, REVERSE, TLEN, CIGARS, CIGARL, HASMATE, MATEID, MATEREF, MATEREVERSE, FIRST );", res ); break;
-            case NGS_STYLE_PILEUP     : res = sqlite3_mprintf( "%z SEQ );", res ); break;
+            case NGS_STYLE_PILEUP     : res = sqlite3_mprintf( "%z NAME, POS, BASE, DEPTH, MAPQ, ALIG, ALIG_POS, ALIG_FIRST, ALIG_LAST, MISMATCH, DELETION, INSERTION, REV_STRAND, START, STOP, ALIG_BASE, ALIG_QUAL, INS_BASE, INS_QUAL, REPEAT, INDEL );", res ); break;
+            case NGS_STYLE_READGROUPS : res = sqlite3_mprintf( "%z NAME );", res ); break;
+            case NGS_STYLE_REFS       : res = sqlite3_mprintf( "%z NAME, ID, CIRC, LEN );", res ); break;
             default : res = sqlite3_mprintf( "%z X );", res ); break;
         }
     }
     return res;
 }
+
 
 /* -------------------------------------------------------------------------------------- */
 /* this object has to be made on the heap,
@@ -1596,6 +1689,9 @@ typedef struct ngs_cursor
     NGS_ReadCollection * rd_coll;   /* the read-collection we are operating on */
     NGS_Read * m_read;              /* the read-iterator */
     NGS_Alignment * m_alig;         /* the alignment-iterator */
+    NGS_ReadGroup * m_rd_grp;       /* the read-group-iterator */
+    NGS_Reference * m_refs;         /* the reference-iterator */
+    NGS_Pileup * m_pileup;          /* the pileup-iterator */
     int64_t current_row;    
     bool eof;
 } ngs_cursor;
@@ -1614,99 +1710,206 @@ static int destroy_ngs_cursor( ngs_cursor * self )
     if ( self->m_alig != NULL )
         NGS_AlignmentRelease ( self->m_alig, ctx );
 
+    if ( self->m_rd_grp != NULL )
+        NGS_ReadGroupRelease( self->m_rd_grp, ctx );
+    
+    if ( self->m_pileup != NULL )
+        NGS_PileupRelease( self->m_pileup, ctx );
+
+    if ( self->m_refs != NULL )
+        NGS_ReferenceRelease( self->m_refs, ctx );
+
     if ( self->rd_coll != NULL )
         NGS_RefcountRelease( ( NGS_Refcount * ) self->rd_coll, ctx );
-    
+
+    CLEAR();
     sqlite3_free( self );
     return SQLITE_OK;
 
 }
 
-static ngs_cursor * make_ngs_cursor_READS( ngs_cursor * self )
+/* =========================================================================================== */
+static void make_ngs_cursor_READS( ngs_cursor * self, ctx_t ctx )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
-    self->m_read = NGS_ReadCollectionGetReads( self->rd_coll, ctx, true, true, true );
-    if ( FAILED() )
-    {
-        CLEAR();
-        destroy_ngs_cursor( self );
-        self = NULL;
-    }
+    if ( self->desc->count > 0 )
+        /* the user did specify a range: process this as a row-range */
+        self->m_read = NGS_ReadCollectionGetReadRange( self->rd_coll, ctx,
+                        self->desc->first, self->desc->count,
+                        self->desc->full, self->desc->partial, self->desc->unaligned );                        
     else
-    {
+        self->m_read = NGS_ReadCollectionGetReads( self->rd_coll, ctx,
+                        self->desc->full, self->desc->partial, self->desc->unaligned );
+    if ( !FAILED() )
         self->eof = ! NGS_ReadIteratorNext( self->m_read, ctx );
-        if ( FAILED() )
-        {
-            CLEAR();
-            destroy_ngs_cursor( self );
-            self = NULL;
-        }
-    }
-    return self;
 }
 
-static ngs_cursor * make_ngs_cursor_FRAGS( ngs_cursor * self )
+static void make_ngs_cursor_FRAGS( ngs_cursor * self, ctx_t ctx )
 {
-    return self;
+    make_ngs_cursor_READS( self, ctx );
+    if ( !FAILED() )
+        self->eof = ! NGS_FragmentIteratorNext( ( NGS_Fragment * ) self->m_read, ctx );
 }
 
-static ngs_cursor * make_ngs_cursor_ALIGS( ngs_cursor * self )
+static void make_ngs_cursor_ALIGS( ngs_cursor * self, ctx_t ctx )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
-    self->m_alig = NGS_ReadCollectionGetAlignments( self->rd_coll, ctx, true, false );
-    if ( FAILED() )
+    if ( self->desc->refname == NULL )
     {
-        CLEAR();
-        destroy_ngs_cursor( self );
-        self = NULL;
+        /* the user did not specify a reference: process either a row-range or all alignments */
+        if ( self->desc->count > 0 )
+            /* the user did specify a range: process this range */
+            self->m_alig = NGS_ReadCollectionGetAlignmentRange( self->rd_coll, ctx,
+                            self->desc->first, self->desc->count,
+                            self->desc->prim, self->desc->sec );
+        else
+            /* the user did not specify a range: process all alignments */
+            self->m_alig = NGS_ReadCollectionGetAlignments( self->rd_coll, ctx,
+                            self->desc->prim, self->desc->sec );
     }
     else
     {
-        self->eof = ! NGS_AlignmentIteratorNext( self->m_alig, ctx );
-        if ( FAILED() )
+        /* the user did specify a reference: process a slice of alignments */
+        self->m_refs = NGS_ReadCollectionGetReference( self->rd_coll, ctx, self->desc->refname );
+        if ( !FAILED() )
         {
-            CLEAR();
-            destroy_ngs_cursor( self );
-            self = NULL;
+            /* the user specified reference was found ! */
+            if ( self->desc->count > 0 )
+                /* the user did specify a range: process this as a slice */
+                self->m_alig = NGS_ReferenceGetAlignmentSlice( self->m_refs, ctx,
+                            self->desc->first, self->desc->count,
+                            self->desc->prim, self->desc->sec );
+            else
+            {
+                /* the user did not specify a range: process all alignments of this reference */
+                uint64_t len = NGS_ReferenceGetLength( self->m_refs, ctx );
+                if ( !FAILED() )
+                    self->m_alig = NGS_ReferenceGetAlignmentSlice( self->m_refs, ctx,
+                                0, len,
+                                self->desc->prim, self->desc->sec );
+            }
         }
     }
-    return self;
+    if ( !FAILED() )
+        self->eof = ! NGS_AlignmentIteratorNext( self->m_alig, ctx );
 }
 
-static ngs_cursor * make_ngs_cursor_PILEUP( ngs_cursor * self )
+static void make_ngs_cursor_REFS( ngs_cursor * self, ctx_t ctx )
 {
-    return self;
+    self->m_refs = NGS_ReadCollectionGetReferences( self->rd_coll, ctx );
+    if ( !FAILED() )
+        self->eof = ! NGS_ReferenceIteratorNext( self->m_refs, ctx );
+}
+
+static void make_ngs_cursor_PILEUP( ngs_cursor * self, ctx_t ctx )
+{
+    if ( self->desc->refname == NULL )
+        /* the user did not specify a reference: process all alignments */
+        make_ngs_cursor_REFS( self, ctx );
+    else
+    {
+        /* the user did specify a reference: process a slice of alignments */
+        self->m_refs = NGS_ReadCollectionGetReference( self->rd_coll, ctx, self->desc->refname );
+    }
+    
+    if ( !FAILED() )
+    {
+        if ( self->desc->count > 0 )
+            self->m_pileup = NGS_ReferenceGetPileupSlice( self->m_refs, ctx,
+                self->desc->first, self->desc->count,
+                self->desc->prim, self->desc->sec );
+        else
+            self->m_pileup = NGS_ReferenceGetPileups( self->m_refs, ctx, self->desc->prim, self->desc->sec );
+    }
+    if ( !FAILED() )
+        self->eof = ! NGS_PileupIteratorNext( self->m_pileup, ctx );
+    if ( !FAILED() )
+        self->eof = ! NGS_PileupEventIteratorNext( ( NGS_PileupEvent * )self->m_pileup, ctx );
+}
+
+static void make_ngs_cursor_RD_GRP( ngs_cursor * self, ctx_t ctx )
+{
+    self->m_rd_grp = NGS_ReadCollectionGetReadGroups( self->rd_coll, ctx );
+    if ( !FAILED() )
+        self->eof = ! NGS_ReadGroupIteratorNext( self->m_rd_grp, ctx );
 }
 
 /* create a cursor from the obj-description ( mostly it's columns ) */
 static ngs_cursor * make_ngs_cursor( ngs_obj_desc * desc )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
-
     ngs_cursor * res = sqlite3_malloc( sizeof( * res ) );
     if ( res != NULL )
     {
+        HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+        
         memset( res, 0, sizeof( *res ) );
         res->desc = desc;
 
         res->rd_coll = NGS_ReadCollectionMake( ctx, desc->accession );
+        if ( !FAILED() )
+        {
+            switch( desc->style )
+            {
+                case NGS_STYLE_READS      : make_ngs_cursor_READS( res, ctx ); break;
+                case NGS_STYLE_FRAGMENTS  : make_ngs_cursor_FRAGS( res, ctx ); break;
+                case NGS_STYLE_ALIGNMENTS : make_ngs_cursor_ALIGS( res, ctx ); break;
+                case NGS_STYLE_PILEUP     : make_ngs_cursor_PILEUP( res, ctx ); break;
+                case NGS_STYLE_READGROUPS : make_ngs_cursor_RD_GRP( res, ctx ); break;
+                case NGS_STYLE_REFS       : make_ngs_cursor_REFS( res, ctx ); break;
+            }
+        }
         if ( FAILED() )
         {
             CLEAR();
             destroy_ngs_cursor( res );
             res = NULL;
         }
-        else switch( desc->style )
-        {
-            case NGS_STYLE_READS      : res = make_ngs_cursor_READS( res ); break;
-            case NGS_STYLE_FRAGMENTS  : res = make_ngs_cursor_FRAGS( res ); break;
-            case NGS_STYLE_ALIGNMENTS : res = make_ngs_cursor_ALIGS( res ); break;
-            case NGS_STYLE_PILEUP     : res = make_ngs_cursor_PILEUP( res ); break;
-        }
     }
     return res;
 }
 
+/* =========================================================================================== */
+static void ngs_cursor_next_fragment( ngs_cursor * self, ctx_t ctx )
+{
+    self->eof = ! NGS_FragmentIteratorNext ( ( NGS_Fragment * ) self->m_read, ctx );
+    if ( !FAILED() && self->eof )
+    {
+        self->eof = ! NGS_ReadIteratorNext( self->m_read, ctx );
+        if ( !FAILED() && !self->eof )
+            self->eof = ! NGS_FragmentIteratorNext ( ( NGS_Fragment * ) self->m_read, ctx );    
+    }
+}
+
+
+static void ngs_cursor_next_pileup( ngs_cursor * self, ctx_t ctx )
+{
+    self->eof = ! NGS_PileupEventIteratorNext( ( NGS_PileupEvent * )self->m_pileup, ctx );
+    if ( !FAILED() && self->eof )
+    {
+        self->eof = ! NGS_PileupIteratorNext( self->m_pileup, ctx );    
+        if ( !FAILED() )
+        {
+            if ( !self->eof )
+                self->eof = ! NGS_PileupEventIteratorNext( ( NGS_PileupEvent * )self->m_pileup, ctx );                
+            else if ( self->desc->refname == NULL )
+            {
+                /* only switch to the next reference if the user did not request a specific reference */
+                NGS_PileupRelease( self->m_pileup, ctx );
+                self->m_pileup = NULL;
+                if ( !FAILED() )
+                {
+                    self->eof = ! NGS_ReferenceIteratorNext( self->m_refs, ctx );
+                    if ( !FAILED() && !self->eof )
+                    {
+                        self->m_pileup = NGS_ReferenceGetPileups( self->m_refs, ctx, self->desc->prim, self->desc->sec );
+                        if ( !FAILED() )
+                            self->eof = ! NGS_PileupIteratorNext( self->m_pileup, ctx );
+                        if ( !FAILED() )
+                            self->eof = ! NGS_PileupEventIteratorNext( ( NGS_PileupEvent * )self->m_pileup, ctx );
+                    }
+                }
+            }
+        }
+    }
+}
 
 static int ngs_cursor_next( ngs_cursor * self )
 {
@@ -1718,21 +1921,23 @@ static int ngs_cursor_next( ngs_cursor * self )
     switch( self->desc->style )
     {
         case NGS_STYLE_READS      : self->eof = ! NGS_ReadIteratorNext( self->m_read, ctx ); break;
-        case NGS_STYLE_FRAGMENTS  : self->eof = ! NGS_ReadIteratorNext( self->m_read, ctx ); break;
+        case NGS_STYLE_FRAGMENTS  : ngs_cursor_next_fragment( self, ctx ); break;
         case NGS_STYLE_ALIGNMENTS : self->eof = ! NGS_AlignmentIteratorNext( self->m_alig, ctx ); break;
-        case NGS_STYLE_PILEUP     : break;
+        case NGS_STYLE_PILEUP     : ngs_cursor_next_pileup( self, ctx ); break;
+        case NGS_STYLE_READGROUPS : self->eof = ! NGS_ReadGroupIteratorNext( self->m_rd_grp, ctx ); break;
+        case NGS_STYLE_REFS       : self->eof = ! NGS_ReferenceIteratorNext( self->m_refs, ctx ); break;
     }
-
     if ( FAILED() )
     {
         CLEAR();
         return SQLITE_ERROR;
     }
-    else
+    if ( !self->eof )
         self->current_row++;
     return SQLITE_OK;
 }
 
+/* =========================================================================================== */
 static int ngs_cursor_eof( ngs_cursor * self )
 {
     if ( self->desc->verbosity > 2 )
@@ -1742,254 +1947,384 @@ static int ngs_cursor_eof( ngs_cursor * self )
     return SQLITE_OK;
 }
 
-static int ngs_return_NGS_String( sqlite3_context * sql_ctx, NGS_String * ngs_str )
+/* =========================================================================================== */
+static void ngs_return_NGS_String( sqlite3_context * sql_ctx, ctx_t ctx, NGS_String * ngs_str )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
-    
     const char * s = NGS_StringData( ngs_str, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        NGS_StringRelease( ngs_str, ctx );
-        return SQLITE_ERROR;
-    }
-    else
+    if ( !FAILED() )
     {
         size_t len = NGS_StringSize( ngs_str, ctx );
-        if ( FAILED() )
-        {
-            CLEAR();
-            NGS_StringRelease( ngs_str, ctx );
-            return SQLITE_ERROR;
-        }
-        sqlite3_result_text( sql_ctx, (char *)s, len, SQLITE_TRANSIENT );
+        if ( !FAILED() )
+            sqlite3_result_text( sql_ctx, (char *)s, len, SQLITE_TRANSIENT );
         
-        NGS_StringRelease( ngs_str, ctx );
     }
-    return SQLITE_OK;
+    NGS_StringRelease( ngs_str, ctx );
 }
 
-static int ngs_cursor_read_str( ngs_cursor * self,
+static void ngs_cursor_read_str( ngs_cursor * self,
                                sqlite3_context * sql_ctx,
+                               ctx_t ctx,
                                struct NGS_String * f( NGS_Read * read, ctx_t ctx ) )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     NGS_String * m_seq = f( self->m_read, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    return ngs_return_NGS_String( sql_ctx, m_seq );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, m_seq );
 }
 
-static int ngs_cursor_read_str_full( ngs_cursor * self,
+static void ngs_cursor_read_str_full( ngs_cursor * self,
                                sqlite3_context * sql_ctx,
+                               ctx_t ctx,
                                struct NGS_String * f( NGS_Read * read, ctx_t ctx, uint64_t offset, uint64_t length ) )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     NGS_String * m_seq = f( self->m_read, ctx, 0, ( size_t ) - 1 );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    return ngs_return_NGS_String( sql_ctx, m_seq );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, m_seq );
 }
 
-static int ngs_cursor_column_read_CAT( ngs_cursor * self, sqlite3_context * sql_ctx )
+static void ngs_cursor_column_read_CAT( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     enum NGS_ReadCategory cat = NGS_ReadGetReadCategory( self->m_read, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    sqlite3_result_int( sql_ctx, cat );
-    return SQLITE_OK;
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, cat );
 }
 
-static int ngs_cursor_column_read_NFRAGS( ngs_cursor * self, sqlite3_context * sql_ctx )
+static void ngs_cursor_column_read_NFRAGS( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     uint32_t n = NGS_ReadNumFragments( self->m_read, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    sqlite3_result_int( sql_ctx, n );
-    return SQLITE_OK;
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, n );
 }
 
-static int ngs_cursor_column_read( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
+/* >>>>>>>>>> columns for READ-STYLE <<<<<<<<<<<< */
+static void ngs_cursor_column_read( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx, int column_id )
 {
     switch( column_id )
     {
-        case 0 : return ngs_cursor_read_str_full( self, sql_ctx, NGS_ReadGetReadSequence ); break; /* SEQ */
-        case 1 : return ngs_cursor_read_str_full( self, sql_ctx, NGS_ReadGetReadQualities ); break; /* QUAL */
-        case 2 : return ngs_cursor_read_str( self, sql_ctx, NGS_ReadGetReadName ); break; /* NAME */
-        case 3 : return ngs_cursor_read_str( self, sql_ctx, NGS_ReadGetReadId ); break; /* ID */
-        case 4 : return ngs_cursor_read_str( self, sql_ctx, NGS_ReadGetReadGroup ); break; /* GRP */
-        case 5 : return ngs_cursor_column_read_CAT( self, sql_ctx ); break; /* CAT */
-        case 6 : return ngs_cursor_column_read_NFRAGS( self, sql_ctx ); break; /* NFRAGS */
+        case 0 : ngs_cursor_read_str_full( self, sql_ctx, ctx, NGS_ReadGetReadSequence ); break; /* SEQ */
+        case 1 : ngs_cursor_read_str_full( self, sql_ctx, ctx, NGS_ReadGetReadQualities ); break; /* QUAL */
+        case 2 : ngs_cursor_read_str( self, sql_ctx, ctx, NGS_ReadGetReadName ); break; /* NAME */
+        case 3 : ngs_cursor_read_str( self, sql_ctx, ctx, NGS_ReadGetReadId ); break; /* ID */
+        case 4 : ngs_cursor_read_str( self, sql_ctx, ctx, NGS_ReadGetReadGroup ); break; /* GRP */
+        case 5 : ngs_cursor_column_read_CAT( self, sql_ctx, ctx ); break; /* CAT */
+        case 6 : ngs_cursor_column_read_NFRAGS( self, sql_ctx, ctx ); break; /* NFRAGS */
     }
-    return SQLITE_ERROR;
 }
 
-static int ngs_cursor_column_frag( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
-{
-    return SQLITE_ERROR;
-}
-
-static int ngs_cursor_alig_str( ngs_cursor * self,
+static void ngs_cursor_frag_str( ngs_cursor * self,
                                sqlite3_context * sql_ctx,
+                               ctx_t ctx,
+                               struct NGS_String * f( NGS_Fragment * frag, ctx_t ctx ) )
+{
+    NGS_String * m_seq = f( ( NGS_Fragment * )self->m_read, ctx );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, m_seq );
+}
+
+static void ngs_cursor_frag_str_full( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               ctx_t ctx,
+                               struct NGS_String * f( NGS_Fragment * frag, ctx_t ctx, uint64_t offset, uint64_t length ) )
+{
+    NGS_String * m_seq = f( ( NGS_Fragment * )self->m_read, ctx, 0, ( size_t ) - 1 );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, m_seq );
+}
+
+static void ngs_cursor_frag_bool( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               ctx_t ctx,
+                               bool f( NGS_Fragment * frag, ctx_t ctx ) )
+{
+    bool b = f( ( NGS_Fragment * )self->m_read, ctx );
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, b ? 1 : 0 );
+}
+
+/* >>>>>>>>>> columns for FRAGMENT-STYLE <<<<<<<<<<<< */
+static void ngs_cursor_column_frag( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx, int column_id )
+{
+    switch( column_id )
+    {
+        case 0 : ngs_cursor_frag_str_full( self, sql_ctx, ctx, NGS_FragmentGetSequence ); break; /* SEQ */
+        case 1 : ngs_cursor_frag_str_full( self, sql_ctx, ctx, NGS_FragmentGetQualities ); break; /* QUAL */
+        case 2 : ngs_cursor_frag_str( self, sql_ctx, ctx, NGS_FragmentGetId ); break; /* ID */
+        case 3 : ngs_cursor_frag_bool( self, sql_ctx, ctx, NGS_FragmentIsPaired ); break; /* PAIRED */
+        case 4 : ngs_cursor_frag_bool( self, sql_ctx, ctx, NGS_FragmentIsAligned ); break; /* ALIGNED */
+    }
+}
+
+static void ngs_cursor_alig_str( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               ctx_t ctx,
                                struct NGS_String * f( NGS_Alignment * self, ctx_t ctx ) )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     NGS_String * m_seq = f( self->m_alig, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    return ngs_return_NGS_String( sql_ctx, m_seq );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, m_seq );
 }
 
-static int ngs_cursor_alig_str_bool( ngs_cursor * self,
+static void ngs_cursor_alig_str_bool( ngs_cursor * self,
                                sqlite3_context * sql_ctx,
+                               ctx_t ctx,
                                struct NGS_String * f( NGS_Alignment * self, ctx_t ctx, bool b ),
                                bool b )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     NGS_String * m_seq = f( self->m_alig, ctx, b );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    return ngs_return_NGS_String( sql_ctx, m_seq );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, m_seq );
 }
 
-static int ngs_cursor_alig_bool( ngs_cursor * self,
+static void ngs_cursor_alig_bool( ngs_cursor * self,
                                sqlite3_context * sql_ctx,
+                               ctx_t ctx,
                                bool f( NGS_Alignment * self, ctx_t ctx ) )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     bool b = f( self->m_alig, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    sqlite3_result_int( sql_ctx, b ? 1 : 0 );
-    return SQLITE_OK;
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, b ? 1 : 0 );
 }
 
-static int ngs_cursor_alig_uint64( ngs_cursor * self,
+static void ngs_cursor_alig_uint64( ngs_cursor * self,
                                sqlite3_context * sql_ctx,
+                               ctx_t ctx,
                                uint64_t f( NGS_Alignment * self, ctx_t ctx ) )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     uint64_t value = f( self->m_alig, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    sqlite3_result_int64( sql_ctx, value );
-    return SQLITE_OK;
+    if ( !FAILED() )
+        sqlite3_result_int64( sql_ctx, value );
 }
 
 
-static int ngs_cursor_column_alig_MAPQ( ngs_cursor * self, sqlite3_context * sql_ctx )
+static void ngs_cursor_column_alig_MAPQ( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     int mapq = NGS_AlignmentGetMappingQuality( self->m_alig, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    sqlite3_result_int( sql_ctx, mapq );
-    return SQLITE_OK;
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, mapq );
 }
 
-static int ngs_cursor_column_alig_RDFILTER( ngs_cursor * self, sqlite3_context * sql_ctx )
+static void ngs_cursor_column_alig_RDFILTER( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     INSDC_read_filter rf = NGS_AlignmentGetReadFilter( self->m_alig, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    sqlite3_result_int( sql_ctx, rf );
-    return SQLITE_OK;
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, rf );
 }
 
-static int ngs_cursor_column_alig_REFPOS( ngs_cursor * self, sqlite3_context * sql_ctx )
+static void ngs_cursor_column_alig_REFPOS( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
 {
-    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
     int64_t pos = NGS_AlignmentGetAlignmentPosition( self->m_alig, ctx );
-    if ( FAILED() )
-    {
-        CLEAR();
-        return SQLITE_ERROR;
-    }
-    sqlite3_result_int64( sql_ctx, pos );
-    return SQLITE_OK;
+    if ( !FAILED() )
+        sqlite3_result_int64( sql_ctx, pos );
 }
 
-
-static int ngs_cursor_column_alig( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
+/* >>>>>>>>>> columns for ALIGNMENT-STYLE <<<<<<<<<<<< */
+static void ngs_cursor_column_alig( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx, int column_id )
 {
     switch( column_id )
     {
-        case 0  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetClippedFragmentBases ); break; /* SEQ */
-        case 1  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetClippedFragmentQualities ); break; /* QUAL */
-        case 2  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetAlignmentId ); break; /* ID */
-        case 3  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetReferenceSpec ); break; /* REFSPEC */
-        case 4  : return ngs_cursor_column_alig_MAPQ( self, sql_ctx ); break; /* MAPQ */
-        case 5  : return ngs_cursor_column_alig_RDFILTER( self, sql_ctx ); break; /* RDFILTER */
-        case 6  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetReferenceBases ); break; /* REFBASES */
-        case 7  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetReadGroup ); break; /* GRP */
-        case 8  : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetAlignedFragmentBases ); break; /*ALIG */
-        case 9  : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentIsPrimary ); break; /* PRIM */
-        case 10 : return ngs_cursor_column_alig_REFPOS( self, sql_ctx ); break; /* REFPOS */
-        case 11 : return ngs_cursor_alig_uint64( self, sql_ctx, NGS_AlignmentGetAlignmentLength ); break; /* LEN */
-        case 12 : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentGetIsReversedOrientation ); break; /* REVERSE */
-        case 13 : return ngs_cursor_alig_uint64( self, sql_ctx, NGS_AlignmentGetTemplateLength ); break; /* TLEN */
-        case 14 : return ngs_cursor_alig_str_bool( self, sql_ctx, NGS_AlignmentGetShortCigar, true ); break; /* CIGARS */
-        case 15 : return ngs_cursor_alig_str_bool( self, sql_ctx, NGS_AlignmentGetLongCigar, true ); break; /* CIGARL */
-        case 16 : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentHasMate ); break; /* HASMATE */
-        case 17 : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetMateAlignmentId ); /* MATEID */
-        case 18 : return ngs_cursor_alig_str( self, sql_ctx, NGS_AlignmentGetMateReferenceSpec ); /* MATEREF */
-        case 19 : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentGetMateIsReversedOrientation ); break; /* MATEREVERSE */
-        case 20 : return ngs_cursor_alig_bool( self, sql_ctx, NGS_AlignmentIsFirst ); break; /* FIRST */
+        case 0  : ngs_cursor_alig_str( self, sql_ctx, ctx, NGS_AlignmentGetClippedFragmentBases ); break; /* SEQ */
+        case 1  : ngs_cursor_alig_str( self, sql_ctx, ctx, NGS_AlignmentGetClippedFragmentQualities ); break; /* QUAL */
+        case 2  : ngs_cursor_alig_str( self, sql_ctx, ctx, NGS_AlignmentGetAlignmentId ); break; /* ID */
+        case 3  : ngs_cursor_alig_str( self, sql_ctx, ctx, NGS_AlignmentGetReferenceSpec ); break; /* REFSPEC */
+        case 4  : ngs_cursor_column_alig_MAPQ( self, sql_ctx, ctx ); break; /* MAPQ */
+        case 5  : ngs_cursor_column_alig_RDFILTER( self, sql_ctx, ctx ); break; /* RDFILTER */
+        case 6  : ngs_cursor_alig_str( self, sql_ctx, ctx, NGS_AlignmentGetReferenceBases ); break; /* REFBASES */
+        case 7  : ngs_cursor_alig_str( self, sql_ctx, ctx, NGS_AlignmentGetReadGroup ); break; /* GRP */
+        case 8  : ngs_cursor_alig_str( self, sql_ctx, ctx, NGS_AlignmentGetAlignedFragmentBases ); break; /*ALIG */
+        case 9  : ngs_cursor_alig_bool( self, sql_ctx, ctx, NGS_AlignmentIsPrimary ); break; /* PRIM */
+        case 10 : ngs_cursor_column_alig_REFPOS( self, sql_ctx, ctx ); break; /* REFPOS */
+        case 11 : ngs_cursor_alig_uint64( self, sql_ctx, ctx, NGS_AlignmentGetAlignmentLength ); break; /* LEN */
+        case 12 : ngs_cursor_alig_bool( self, sql_ctx, ctx, NGS_AlignmentGetIsReversedOrientation ); break; /* REVERSE */
+        case 13 : ngs_cursor_alig_uint64( self, sql_ctx, ctx, NGS_AlignmentGetTemplateLength ); break; /* TLEN */
+        case 14 : ngs_cursor_alig_str_bool( self, sql_ctx, ctx, NGS_AlignmentGetShortCigar, true ); break; /* CIGARS */
+        case 15 : ngs_cursor_alig_str_bool( self, sql_ctx, ctx, NGS_AlignmentGetLongCigar, true ); break; /* CIGARL */
+        case 16 : ngs_cursor_alig_bool( self, sql_ctx, ctx, NGS_AlignmentHasMate ); break; /* HASMATE */
+        case 17 : ngs_cursor_alig_str( self, sql_ctx, ctx, NGS_AlignmentGetMateAlignmentId ); /* MATEID */
+        case 18 : ngs_cursor_alig_str( self, sql_ctx, ctx, NGS_AlignmentGetMateReferenceSpec ); /* MATEREF */
+        case 19 : ngs_cursor_alig_bool( self, sql_ctx, ctx, NGS_AlignmentGetMateIsReversedOrientation ); break; /* MATEREVERSE */
+        case 20 : ngs_cursor_alig_bool( self, sql_ctx, ctx, NGS_AlignmentIsFirst ); break; /* FIRST */
     }
-    return SQLITE_ERROR;
 }
 
-static int ngs_cursor_column_pileup( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
+static void ngs_cursor_pileup_name( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
 {
-    return SQLITE_ERROR;
+    NGS_String * refspec = NGS_PileupGetReferenceSpec( self->m_pileup, ctx );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, refspec );
+}
+
+static void ngs_cursor_pileup_pos( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
+{
+    int64_t pos = NGS_PileupGetReferencePosition ( self->m_pileup, ctx );
+    if ( !FAILED() )
+        sqlite3_result_int64( sql_ctx, pos );
+}
+
+static void ngs_cursor_pileup_base( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
+{
+    char base = NGS_PileupGetReferenceBase( self->m_pileup, ctx );
+    if ( !FAILED() )
+        sqlite3_result_text( sql_ctx, &base, 1, SQLITE_TRANSIENT );
+}
+
+static void ngs_cursor_pileup_depth( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
+{
+    unsigned int depth = NGS_PileupGetPileupDepth( self->m_pileup, ctx );
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, depth );
+}
+
+static void ngs_cursor_pileupevent_i64( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx,
+                                        int64_t f ( const NGS_PileupEvent * self, ctx_t ctx ) )
+{
+    int64_t pos = f( ( const NGS_PileupEvent * )self->m_pileup, ctx );
+    if ( !FAILED() )
+        sqlite3_result_int64( sql_ctx, pos );
+}
+
+static void ngs_cursor_pileupevent_t( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx, int mask )
+{
+    int ev = NGS_PileupEventGetEventType( ( const NGS_PileupEvent * )self->m_pileup, ctx );
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, ( ( ev & mask ) != 0 ) ? 1 : 0 );
+}
+
+static void ngs_cursor_pileupevent_char( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx,
+                                        char f ( const NGS_PileupEvent * self, ctx_t ctx ) )
+{
+    char c = f( ( const NGS_PileupEvent * )self->m_pileup, ctx );
+    if ( !FAILED() )
+        sqlite3_result_text( sql_ctx, &c, 1, SQLITE_TRANSIENT );
+}
+
+static void ngs_cursor_pileupevent_str( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx,
+                                        NGS_String * f ( const NGS_PileupEvent * self, ctx_t ctx ) )
+{
+    NGS_String * s = f( ( const NGS_PileupEvent * )self->m_pileup, ctx );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, s );
+}
+
+static void ngs_cursor_pileupevent_int( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx,
+                                        int f ( const NGS_PileupEvent * self, ctx_t ctx ) )
+{
+    int value = f( ( const NGS_PileupEvent * )self->m_pileup, ctx );
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, value );
+}
+
+static void ngs_cursor_pileupevent_repeat( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
+{
+    unsigned int n = NGS_PileupEventGetRepeatCount( ( const NGS_PileupEvent * )self->m_pileup, ctx );
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, n );
+}
+
+
+/* >>>>>>>>>> columns for PILEUP-STYLE <<<<<<<<<<<< */
+static void ngs_cursor_column_pileup( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx, int column_id )
+{
+    switch( column_id )
+    {
+        case 0  : ngs_cursor_pileup_name( self, sql_ctx, ctx ); break; /* NAME */
+        case 1  : ngs_cursor_pileup_pos( self, sql_ctx, ctx ); break; /* POS */
+        case 2  : ngs_cursor_pileup_base( self, sql_ctx, ctx ); break; /* BASE */
+        case 3  : ngs_cursor_pileup_depth( self, sql_ctx, ctx ); break; /* DEPTH */
+        case 4  : ngs_cursor_pileupevent_int( self, sql_ctx, ctx, NGS_PileupEventGetMappingQuality ); break; /* MAPQ */
+        case 5  : ngs_cursor_pileupevent_str( self, sql_ctx, ctx, NGS_PileupEventGetAlignmentId ); break; /* ALIG */
+        case 6  : ngs_cursor_pileupevent_i64( self, sql_ctx, ctx, NGS_PileupEventGetAlignmentPosition ); break; /* ALIG_POS */
+        case 7  : ngs_cursor_pileupevent_i64( self, sql_ctx, ctx, NGS_PileupEventGetFirstAlignmentPosition ); break; /* ALIG_FIRST */
+        case 8  : ngs_cursor_pileupevent_i64( self, sql_ctx, ctx, NGS_PileupEventGetLastAlignmentPosition ); break; /* ALIG_LAST */
+        case 9  : ngs_cursor_pileupevent_t( self, sql_ctx, ctx, 0x01 ); break; /* MISMATCH */
+        case 10 : ngs_cursor_pileupevent_t( self, sql_ctx, ctx, 0x02 ); break; /* DELETION */
+        case 11 : ngs_cursor_pileupevent_t( self, sql_ctx, ctx, 0x08 ); break; /* INSERTION */
+        case 12 : ngs_cursor_pileupevent_t( self, sql_ctx, ctx, 0x20 ); break; /* REV_STRAND */
+        case 13 : ngs_cursor_pileupevent_t( self, sql_ctx, ctx, 0x40 ); break; /* START */
+        case 14 : ngs_cursor_pileupevent_t( self, sql_ctx, ctx, 0x80 ); break; /* STOP */
+        case 15 : ngs_cursor_pileupevent_char( self, sql_ctx, ctx, NGS_PileupEventGetAlignmentBase ); break; /*ALIG_BASE */
+        case 16 : ngs_cursor_pileupevent_char( self, sql_ctx, ctx, NGS_PileupEventGetAlignmentQuality ); break; /*ALIG_QUAL */
+        case 17 : ngs_cursor_pileupevent_str( self, sql_ctx, ctx, NGS_PileupEventGetInsertionBases ); break; /* INS_BASE */
+        case 18 : ngs_cursor_pileupevent_str( self, sql_ctx, ctx, NGS_PileupEventGetInsertionQualities ); break; /* INS_QUAL */
+        case 19 : ngs_cursor_pileupevent_repeat( self, sql_ctx, ctx ); break; /* REPEAT */
+        case 20 : ngs_cursor_pileupevent_int( self, sql_ctx, ctx, NGS_PileupEventGetIndelType ); break; /* INDEL */
+    }
+}
+
+static void ngs_cursor_column_rd_grp_name( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
+{
+    NGS_String * m_seq = NGS_ReadGroupGetName( self->m_rd_grp, ctx );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, m_seq );
+}
+
+/* >>>>>>>>>> columns for READGROUPS-STYLE <<<<<<<<<<<< */
+static void ngs_cursor_column_rd_grp( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx, int column_id )
+{
+    switch( column_id )
+    {
+        case 0 : ngs_cursor_column_rd_grp_name( self, sql_ctx, ctx ); break; /* NAME */
+    }
+}
+
+
+static void ngs_cursor_refs_str( ngs_cursor * self,
+                               sqlite3_context * sql_ctx,
+                               ctx_t ctx,
+                               struct NGS_String * f( NGS_Reference * self, ctx_t ctx ) )
+{
+    NGS_String * name = f( self->m_refs, ctx );
+    if ( !FAILED() )
+        ngs_return_NGS_String( sql_ctx, ctx, name );
+}
+
+static void ngs_cursor_refs_circular( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
+{
+    bool b = NGS_ReferenceGetIsCircular( self->m_refs, ctx );
+    if ( !FAILED() )
+        sqlite3_result_int( sql_ctx, b ? 1 : 0 );
+}
+
+static void ngs_cursor_refs_length( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx )
+{
+    uint64_t value = NGS_ReferenceGetLength( self->m_refs, ctx );
+    if ( !FAILED() )
+        sqlite3_result_int64( sql_ctx, value );
+}
+
+/* >>>>>>>>>> columns for REFS-STYLE <<<<<<<<<<<< */
+static void ngs_cursor_column_refs( ngs_cursor * self, sqlite3_context * sql_ctx, ctx_t ctx, int column_id )
+{
+    switch( column_id )
+    {
+        case 0 : ngs_cursor_refs_str( self, sql_ctx, ctx, NGS_ReferenceGetCommonName ); break; /* NAME */
+        case 1 : ngs_cursor_refs_str( self, sql_ctx, ctx, NGS_ReferenceGetCanonicalName ); break; /* ID */
+        case 2 : ngs_cursor_refs_circular( self, sql_ctx, ctx ); break; /* CIRC */
+        case 3 : ngs_cursor_refs_length( self, sql_ctx, ctx ); break; /* LEN */
+    }
 }
 
 static int ngs_cursor_column( ngs_cursor * self, sqlite3_context * sql_ctx, int column_id )
 {
+    HYBRID_FUNC_ENTRY( rcSRA, rcRow, rcAccessing );
+    
     if ( self->desc->verbosity > 2 )
         printf( "---sqlite3_ngs_Column( %d )\n", column_id );
     
     switch( self->desc->style )
     {
-        case NGS_STYLE_READS      : return ngs_cursor_column_read( self, sql_ctx, column_id ); break;
-        case NGS_STYLE_FRAGMENTS  : return ngs_cursor_column_frag( self, sql_ctx, column_id ); break;
-        case NGS_STYLE_ALIGNMENTS : return ngs_cursor_column_alig( self, sql_ctx, column_id ); break;
-        case NGS_STYLE_PILEUP     : return ngs_cursor_column_pileup( self, sql_ctx, column_id ); break;
+        case NGS_STYLE_READS      : ngs_cursor_column_read( self, sql_ctx, ctx, column_id ); break;
+        case NGS_STYLE_FRAGMENTS  : ngs_cursor_column_frag( self, sql_ctx, ctx, column_id ); break;
+        case NGS_STYLE_ALIGNMENTS : ngs_cursor_column_alig( self, sql_ctx, ctx, column_id ); break;
+        case NGS_STYLE_PILEUP     : ngs_cursor_column_pileup( self, sql_ctx, ctx, column_id ); break;
+        case NGS_STYLE_READGROUPS : ngs_cursor_column_rd_grp( self, sql_ctx, ctx, column_id ); break;
+        case NGS_STYLE_REFS       : ngs_cursor_column_refs( self, sql_ctx, ctx, column_id ); break;
     }
-    return SQLITE_ERROR;
+    
+    if ( FAILED() )
+    {
+        CLEAR();
+        return SQLITE_ERROR;
+    }
+    return SQLITE_OK;
 }
 
 static int ngs_cursor_row_id( ngs_cursor * self, sqlite_int64 * pRowid )

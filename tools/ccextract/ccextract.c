@@ -1052,7 +1052,7 @@ rc_t open_xml_then_run()
                   "P=%s", options.xmlstr));
     else
     {
-        rc = VFSManagerOpenFileRead (options.vfsmgr, &options.xml, options.xmlpath);
+        rc = VFSManagerOpenFileRead ( options.vfsmgr, &options.xml, options.xmlpath );
         if (rc)
             LOGERR (klogErr, rc, "Failed to open output directoryCopycat XML file");
         else

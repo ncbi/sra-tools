@@ -566,8 +566,8 @@ rc_t copycat_file2file (CCTree * tree,
                             else
                             {
                                 const KFile * sf;
-
-                                rc = VFSManagerOpenFileRead (mgr, &sf, src);
+                                
+                                rc = VFSManagerOpenFileRead ( mgr, &sf, src );
                                 if (rc)
                                     PLOGERR (klogFatal,
                                              (klogFatal, rc,

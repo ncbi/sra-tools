@@ -86,7 +86,7 @@ tfl:
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-runtests: set_schema smalltests
+runtests: wb set_schema smalltests
 	rm -v tmp.kfg
 
 set_schema:

@@ -44,6 +44,9 @@
 #include <kns/http.h>
 #include <kns/stream.h>
 
+#include <vfs/manager.h>
+#include <vfs/path.h>
+
 #include <kproc/timeout.h>
 
 #include <os-native.h>
@@ -78,10 +81,6 @@ static const char * verb_usage[]        = { "execute verbose", NULL };
 #define ALIAS_BLOCK  "s"
 static const char * block_usage[]       = { "how many bytes per block", NULL };
 
-#define OPTION_SHOW  "show-size"
-#define ALIAS_SHOW   "w"
-static const char * show_usage[]        = { "query size of remote file first", NULL };
-
 #define OPTION_CACHE "cache"
 #define ALIAS_CACHE  "c"
 static const char * cache_usage[]       = { "wrap the remote-file into a KCacheTeeFile", NULL };
@@ -103,12 +102,6 @@ static const char * repeat_usage[]      = { "request blocks with repeats if in r
 #define OPTION_CREPORT "report"
 #define ALIAS_CREPORT  "p"
 static const char * creport_usage[]     = { "report cache usage", NULL };
-
-#define OPTION_COMPLETE "complete"
-static const char * complete_usage[]    = { "check if 1st parameter is a complete", NULL };
-
-#define OPTION_TRUNC "truncate"
-static const char * truncate_usage[]    = { "truncate the file ( 1st parameter ) / remove trailing cache-bitmap", NULL };
 
 #define OPTION_START "start"
 static const char * start_usage[]       = { "offset where to read from", NULL };
@@ -134,20 +127,15 @@ static const char * sleep_usage[]       = { "sleep inbetween requests by this am
 #define ALIAS_TIMEOUT "m"
 static const char * timeout_usage[]     = { "use timed read with tis amount of ms as timeout", NULL };
 
-#define OPTION_CCOMPL "cache-complete"
-#define ALIAS_CCOMPL "a"
-static const char * ccompl_usage[]      = { "check completeness on open cacheteefile", NULL };
-
-#define OPTION_FULL "full"
-#define ALIAS_FULL "f"
-static const char * full_usage[]        = { "download via one http-request, not partial requests in a loop", NULL };
+#define OPTION_FUNCTION "function"
+#define ALIAS_FUNCTION "f"
+static const char * function_usage[]    = { "which function to perform: [ show, complete, cache-complete, truncate, full, vfs ]", NULL };
 
 OptDef MyOptions[] =
 {
 /*    name              alias           fkt    usage-txt,       cnt, needs value, required */
     { OPTION_VERB,      ALIAS_VERB,     NULL, verb_usage,       1,  false,       false },
     { OPTION_BLOCK,     ALIAS_BLOCK,    NULL, block_usage,      1,  true,        false },
-    { OPTION_SHOW,      ALIAS_SHOW,     NULL, show_usage,       1,  false,       false },
     { OPTION_CACHE,     ALIAS_CACHE,    NULL, cache_usage,      1,  true,        false },
     { OPTION_CACHE_BLK, NULL,           NULL, cache_blk_usage,  1,  true,        false },
     { OPTION_PROXY,     NULL,           NULL, proxy_usage,      1,  true,        false },
@@ -157,14 +145,11 @@ OptDef MyOptions[] =
     { OPTION_BUFFER,    ALIAS_BUFFER,   NULL, buffer_usage,     1,  true,        false },
     { OPTION_SLEEP,     ALIAS_SLEEP,    NULL, sleep_usage,      1,  true,        false },    
     { OPTION_TIMEOUT,   ALIAS_TIMEOUT,  NULL, timeout_usage,    1,  true,        false },
-    { OPTION_COMPLETE,  NULL,           NULL, complete_usage,   1,  false,       false },
-    { OPTION_CCOMPL,    ALIAS_CCOMPL,   NULL, ccompl_usage,     1,  false,       false },
-    { OPTION_TRUNC,     NULL,           NULL, truncate_usage,   1,  false,       false },
     { OPTION_START,     NULL,           NULL, start_usage,      1,  true,        false },
     { OPTION_COUNT,     NULL,           NULL, count_usage,      1,  true,        false },
     { OPTION_PROGRESS,  NULL,           NULL, progress_usage,   1,  false,       false },
     { OPTION_RELIABLE,  NULL,           NULL, reliable_usage,   1,  false,       false },
-    { OPTION_FULL,      ALIAS_FULL,     NULL, full_usage,       1,  false,       false }
+    { OPTION_FUNCTION,  ALIAS_FUNCTION, NULL, function_usage,    1,  true,       false }
 };
 
 rc_t CC Usage ( const Args * args )
@@ -193,6 +178,14 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
+#define FUNCTION_DEFAULT    0
+#define FUNCTION_SHOW       1
+#define FUNCTION_COMPLETE   2
+#define FUNCTION_CCOMPLETE  3
+#define FUNCTION_TRUNCATE   4
+#define FUNCTION_FULL       5
+#define FUNCTION_VFS        6
+
 typedef struct fetch_ctx
 {
     const char *url;
@@ -205,19 +198,20 @@ typedef struct fetch_ctx
     size_t sleep_time;
     size_t timeout_time;
     size_t cache_blk;
+    int function;
     bool verbose;
-    bool show_filesize;
+    bool show_filesize;         /* X */
     bool random;
     bool with_repeats;
     bool show_curl_version;
     bool report_cache;
-    bool check_cache_complete;
-    bool check_completeness;    
-    bool truncate_cache;
+    bool check_cache_complete;  /* X */
+    bool check_completeness;    /* X */   
+    bool truncate_cache;        /* X */
     bool local_read_only;
     bool show_progress;
     bool reliable;
-    bool full_download;
+    bool full_download;         /* X */
 } fetch_ctx;
 
 
@@ -754,8 +748,6 @@ static rc_t full_download( KDirectory *dir, fetch_ctx *ctx )
 
 
 /* -------------------------------------------------------------------------------------------------------------------- */
-
-
 static rc_t truncate_cache( KDirectory *dir, fetch_ctx *ctx )
 {
     rc_t rc = 0;
@@ -778,9 +770,67 @@ static rc_t truncate_cache( KDirectory *dir, fetch_ctx *ctx )
 
 
 /* -------------------------------------------------------------------------------------------------------------------- */
+static rc_t download_via_vfs( KDirectory *dir, fetch_ctx *ctx )
+{
+    VFSManager * vfs_mgr;
+    rc_t rc = VFSManagerMake( &vfs_mgr );
+    if ( rc != 0 )
+        KOutMsg( "VFSManagerMake() failed!\n" );
+    else
+    {
+        VPath * path;
+        rc = VFSManagerMakePath( vfs_mgr, &path, ctx->url );
+        if ( rc != 0 )
+            KOutMsg( "VFSManagerMakePath( '%s' ) failed!\n", ctx->url );
+        else
+        {
+            const KFile * file;
+            rc = VFSManagerOpenFileRead( vfs_mgr, &file, path );
+            if ( rc != 0 )
+                KOutMsg( "VFSManagerOpenFileRead( '%s' ) failed!\n", ctx->url );
+            else
+            {
+                uint64_t size;
+                rc = KFileSize( file, &size );
+                if ( rc != 0 )
+                    KOutMsg( "KFileSize( '%s' ) failed!\n", ctx->url );
+                else
+                {
+                    char * buffer;
+                    if ( ctx->count == 0 )
+                        ctx->count = 1024 * 1024 * 10;
+                    
+                    KOutMsg( "the size of the file is : %,ld\n", size );
+                    KOutMsg( "let as read %,ld of it into memory\n", ctx->count );
+                    KOutMsg( "the start-offset is %,ld\n", ctx->start );
+                    
+                    buffer = malloc( ctx->count );
+                    if ( buffer == NULL )
+                        KOutMsg( "buffer allocation of %,ld falied\n", ctx->start );
+                    else
+                    {
+                        rc = KFileReadExactly( file, ctx->start, buffer, ctx->count );
+                        if ( rc == 0 )
+                            KOutMsg( "success!\n" );
+                        else
+                            KOutMsg( "failed: %R!\n", rc );
+                        free( ( void * ) buffer );
+                    }
+                }
+                KFileRelease( file );
+            }
+            VPathRelease( path );
+        }
+        VFSManagerRelease( vfs_mgr );
+    }
+        
+    return rc;
+}
+
+/* -------------------------------------------------------------------------------------------------------------------- */
 
 
-rc_t get_bool( Args * args, const char *option, bool *value )
+static rc_t get_bool( Args * args, const char *option, bool *value )
 {
     uint32_t count;
     rc_t rc = ArgsOptionCount( args, option, &count );
@@ -789,7 +839,7 @@ rc_t get_bool( Args * args, const char *option, bool *value )
 }
 
 
-rc_t get_str( Args * args, const char *option, const char ** value )
+static rc_t get_str( Args * args, const char *option, const char ** value )
 {
     uint32_t count;
     rc_t rc = ArgsOptionCount( args, option, &count );
@@ -800,7 +850,7 @@ rc_t get_str( Args * args, const char *option, const char ** value )
 }
 
 
-rc_t get_size_t( Args * args, const char *option, size_t *value, size_t dflt )
+static rc_t get_size_t( Args * args, const char *option, size_t *value, size_t dflt )
 {
     const char * s;
     rc_t rc = get_str( args, option, &s );
@@ -848,7 +898,39 @@ rc_t get_size_t( Args * args, const char *option, size_t *value, size_t dflt )
 }
 
 
-rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
+static bool is_equal( const String * s1, const char * s2 )
+{
+    String S2;
+    StringInitCString( &S2, s2 );
+    return ( 0 == StringCaseCompare( s1, &S2 ) );
+}
+
+static rc_t get_function_ctx( Args * args, int * function_code )
+{
+    const char * s_function = NULL;
+    rc_t rc = get_str( args, OPTION_FUNCTION, &s_function );
+    *function_code = FUNCTION_DEFAULT;
+    if ( rc == 0 && s_function != NULL )
+    {
+        String selection;
+        StringInitCString( &selection, s_function );
+        if ( is_equal( &selection, "show" ) )
+            *function_code = FUNCTION_SHOW;
+        else if ( is_equal( &selection, "complete" ) )
+            *function_code = FUNCTION_COMPLETE;
+        else if ( is_equal( &selection, "cache-complete" ) )
+            *function_code = FUNCTION_CCOMPLETE;
+        else if ( is_equal( &selection, "truncate" ) )
+            *function_code = FUNCTION_TRUNCATE;
+        else if ( is_equal( &selection, "full" ) )
+            *function_code = FUNCTION_FULL;
+        else if ( is_equal( &selection, "vfs" ) )
+            *function_code = FUNCTION_VFS;
+    }
+    return rc;
+}
+
+static rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
 {
     rc_t rc = 0;
     uint32_t count;
@@ -869,7 +951,6 @@ rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
     }
 
     if ( rc == 0 ) rc = get_bool( args, OPTION_VERB, &ctx->verbose );
-    if ( rc == 0 ) rc = get_bool( args, OPTION_SHOW, &ctx->show_filesize );
     if ( rc == 0 ) rc = get_str( args, OPTION_CACHE, &ctx->cache_file );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_CACHE_BLK, &ctx->cache_blk, 0 );
     if ( rc == 0 ) rc = get_str( args, OPTION_PROXY, &ctx->proxy );
@@ -880,15 +961,11 @@ rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
     if ( rc == 0 ) rc = get_size_t( args, OPTION_BUFFER, &ctx->buffer_size, 0 );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_SLEEP, &ctx->sleep_time, 0 );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_TIMEOUT, &ctx->timeout_time, 0 );
-    if ( rc == 0 ) rc = get_bool( args, OPTION_COMPLETE, &ctx->check_cache_complete );
-    if ( rc == 0 ) rc = get_bool( args, OPTION_CCOMPL, &ctx->check_completeness );
-    if ( rc == 0 ) rc = get_bool( args, OPTION_TRUNC, &ctx->truncate_cache );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_START, &ctx->start, 0 );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_COUNT, &ctx->count, 0 );
     if ( rc == 0 ) rc = get_bool( args, OPTION_PROGRESS, &ctx->show_progress );
     if ( rc == 0 ) rc = get_bool( args, OPTION_RELIABLE, &ctx->reliable );
-    if ( rc == 0 ) rc = get_bool( args, OPTION_FULL, &ctx->full_download );
-    
+    if ( rc == 0 ) rc = get_function_ctx( args, &ctx->function );
     return rc;
 }
 
@@ -915,19 +992,18 @@ rc_t CC KMain ( int argc, char *argv [] )
                 rc = KDirectoryNativeDir ( &dir );
                 if ( rc == 0 )
                 {
-                    if ( ctx.check_cache_complete )
-                        rc = check_cache_complete( dir, &ctx );
-                    else if ( ctx.check_completeness )
-                        rc = check_cache_completeness( dir, &ctx );
-                    else if ( ctx.truncate_cache )
-                        rc = truncate_cache( dir, &ctx );
-                    else if ( ctx.show_filesize )
-                        rc = show_size( dir, &ctx );
-                    else if ( ctx.full_download )
-                        rc = full_download( dir, &ctx );
-                    else
-                        rc = fetch( dir, &ctx );
+                    switch( ctx.function )
+                    {
+                        case FUNCTION_DEFAULT   : fetch( dir, &ctx ); break;
+                        case FUNCTION_SHOW      : show_size( dir, &ctx ); break;
+                        case FUNCTION_COMPLETE  : check_cache_complete( dir, &ctx ); break;
+                        case FUNCTION_CCOMPLETE : check_cache_completeness( dir, &ctx ); break;
+                        case FUNCTION_TRUNCATE  : truncate_cache( dir, &ctx ); break;
+                        case FUNCTION_FULL      : full_download( dir, &ctx ); break;
+                        case FUNCTION_VFS       : download_via_vfs( dir, &ctx ); break;
+                        default : fetch( dir, &ctx ); break;
 
+                    }
                     KDirectoryRelease ( dir );
                 }
             }

@@ -19,6 +19,7 @@
 		BEA40E4A1EA5328A00A8DF60 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
 		BEA40E4B1EA5329B00A8DF60 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
 		BEA40E4C1EA532A100A8DF60 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
+		BEAF91591F26323100F9DA07 /* outlier-statistics.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE1092DD1F1D5EEB000854B2 /* outlier-statistics.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -88,26 +89,26 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		BE1092DD1F1D5EEB000854B2 /* outlier-statistics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "outlier-statistics.cpp"; path = "../../outlier-statistics.cpp"; sourceTree = "<group>"; };
+		BE1092DD1F1D5EEB000854B2 /* outlier-statistics.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = "outlier-statistics.cpp"; path = "../outlier-statistics.cpp"; sourceTree = "<group>"; };
 		BE1766511ED4B0B0005ECFFB /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		BE1766561ED4B15F005ECFFB /* filter-ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "filter-ir"; sourceTree = BUILT_PRODUCTS_DIR; };
-		BE17665D1ED4B199005ECFFB /* filter-ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "filter-ir.cpp"; path = "../../filter-ir.cpp"; sourceTree = "<group>"; };
+		BE17665D1ED4B199005ECFFB /* filter-ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "filter-ir.cpp"; path = "../filter-ir.cpp"; sourceTree = "<group>"; };
 		BE3BC8671EE840B00033AC5F /* layout-statistics */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "layout-statistics"; sourceTree = BUILT_PRODUCTS_DIR; };
-		BE3BC86F1EE8410E0033AC5F /* layout-statistics.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "layout-statistics.cpp"; path = "../../layout-statistics.cpp"; sourceTree = "<group>"; };
+		BE3BC86F1EE8410E0033AC5F /* layout-statistics.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "layout-statistics.cpp"; path = "../layout-statistics.cpp"; sourceTree = "<group>"; };
 		BE3BC8711EE8945A0033AC5F /* fragment.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = fragment.hpp; path = ../fragment.hpp; sourceTree = "<group>"; };
 		BE47E3641EB3B9B100D68FA5 /* reorder-ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "reorder-ir"; sourceTree = BUILT_PRODUCTS_DIR; };
-		BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "reorder-ir.cpp"; path = "../../reorder-ir.cpp"; sourceTree = "<group>"; };
+		BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "reorder-ir.cpp"; path = "../reorder-ir.cpp"; sourceTree = "<group>"; };
 		BE4F77DC1EA51E5B00CB45D6 /* sra2ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = sra2ir; sourceTree = BUILT_PRODUCTS_DIR; };
-		BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = sra2ir.cpp; path = ../../sra2ir.cpp; sourceTree = "<group>"; };
+		BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = sra2ir.cpp; path = ../sra2ir.cpp; sourceTree = "<group>"; };
 		BE4F77E61EA51EA700CB45D6 /* vdb.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = vdb.hpp; path = ../../shared/include/vdb.hpp; sourceTree = SOURCE_ROOT; };
 		BE4F77E71EA51EA700CB45D6 /* writer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = writer.hpp; path = ../../shared/include/writer.hpp; sourceTree = "<group>"; };
 		BE4F77E81EA51EB500CB45D6 /* aligned-ir.schema.text */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = "aligned-ir.schema.text"; path = "../../shared/schema/aligned-ir.schema.text"; sourceTree = "<group>"; };
 		BE4F77EA1EA51EFE00CB45D6 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; name = Makefile; path = ../Makefile; sourceTree = "<group>"; };
 		BE6ADEE71F1D44AF007BDDF6 /* outlier-statistics */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "outlier-statistics"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEA40E311EA52B0600A8DF60 /* makeIRIndex */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = makeIRIndex; sourceTree = BUILT_PRODUCTS_DIR; };
-		BEA40E381EA52B1D00A8DF60 /* makeIRIndex.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = makeIRIndex.cpp; path = ../../makeIRIndex.cpp; sourceTree = "<group>"; };
+		BEA40E381EA52B1D00A8DF60 /* makeIRIndex.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = makeIRIndex.cpp; path = ../makeIRIndex.cpp; sourceTree = "<group>"; };
 		BEA40E3F1EA52B9300A8DF60 /* sortIRIndex */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = sortIRIndex; sourceTree = BUILT_PRODUCTS_DIR; };
-		BEA40E461EA52BA500A8DF60 /* sortIndex.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = sortIndex.cpp; path = ../../sortIndex.cpp; sourceTree = "<group>"; };
+		BEA40E461EA52BA500A8DF60 /* sortIndex.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = sortIndex.cpp; path = ../sortIndex.cpp; sourceTree = "<group>"; };
 		BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "libncbi-wvdb.a"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -498,6 +499,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BEAF91591F26323100F9DA07 /* outlier-statistics.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

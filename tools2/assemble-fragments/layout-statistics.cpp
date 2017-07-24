@@ -148,6 +148,32 @@ struct FragmentStats {
         }
         return m;
     }
+    unsigned equipartition(unsigned const n, unsigned *part) const {
+        auto const N = sum();
+        auto const D = N / (n + 1);
+        unsigned M = 0;
+        unsigned Q = 0;
+        auto T = unsigned(D);
+        unsigned j = 0;
+        
+        for (auto && i : length) {
+            auto const nQ = Q + i.second;
+            auto x = i.first;
+            if (M == 0 && nQ * 2 >= N)
+                M = x;
+            while (nQ >= T) {
+                part[j] = x;
+                if (++j == n) return M;
+                T += D;
+                x = 0;
+            }
+            Q = nQ;
+        }
+        while (j < n) {
+            part[++j] = 0;
+        }
+        return M;
+    }
 private:
     double mean(double const N) const {
         double m = 0.0;
@@ -246,11 +272,13 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
     }
     std::cerr << "info: generating output" << std::endl;
     for (auto const &i : fragments) {
+        unsigned equi[12];
         auto const group = i.first;
         auto const layout = i.second.layout;
         auto const freq = layouts[group].frequency(layout);
         auto const stats = i.second.meanAndVariance();
         auto const mode = i.second.mode();
+        auto const median = i.second.equipartition(sizeof(equi)/sizeof(equi[0]), equi);
         
         out.value(1, group);
         out.value(2, LayoutStats::layoutName(layout));
@@ -259,6 +287,8 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
         out.value(5, stats.first);
         out.value(6, sqrt(stats.second));
         out.value(7, uint32_t(mode));
+        out.value(8, uint32_t(median));
+        out.value(9, sizeof(equi)/sizeof(equi[0]), (uint32_t const *)equi);
         out.closeRow(1);
     }
     std::cerr << "info: done" << std::endl;
@@ -285,7 +315,9 @@ static int process(char const *const irdb)
     writer.openColumn(4, 1, 64, "FREQ_REVERSE");
     writer.openColumn(5, 1, 64, "FRAGMENT_LENGTH_AVERAGE");
     writer.openColumn(6, 1, 64, "FRAGMENT_LENGTH_STD_DEV");
-    writer.openColumn(7, 1, 64, "FRAGMENT_LENGTH_MODE");
+    writer.openColumn(7, 1, 32, "FRAGMENT_LENGTH_MODE");
+    writer.openColumn(8, 1, 32, "FRAGMENT_LENGTH_MEDIAN");
+    writer.openColumn(9, 1, 32 * 12, "FRAGMENT_LENGTH_EQUIPART");
 
     writer.beginWriting();
 

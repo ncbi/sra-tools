@@ -52,6 +52,8 @@ table NCBI:tbl:aligned:SPOT_STATISTICS #1
     extern column F64 FRAGMENT_LENGTH_AVERAGE;
     extern column F64 FRAGMENT_LENGTH_STD_DEV;
     extern column U32 FRAGMENT_LENGTH_MODE;
+    extern column U32 FRAGMENT_LENGTH_MEDIAN;
+    extern column U32[12] FRAGMENT_LENGTH_EQUIPART;
 };
 
 database NCBI:db:IR:raw #1

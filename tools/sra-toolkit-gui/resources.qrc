@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>images/aws_icon.png</file>
+        <file>images/general_icon.png</file>
+        <file>images/images.ncbi.png</file>
+        <file>images/network_icon.png</file>
+        <file>images/troubleshooting.png</file>
+        <file>default.txt</file>
+        <file>tests.txt</file>
+    </qresource>
+</RCC>

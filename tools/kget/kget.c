@@ -200,6 +200,7 @@ typedef struct fetch_ctx
     size_t cache_blk;
     int function;
     bool verbose;
+    bool quiet;
     bool show_filesize;         /* X */
     bool random;
     bool with_repeats;
@@ -785,7 +786,10 @@ static rc_t download_via_vfs( KDirectory *dir, fetch_ctx *ctx )
         else
         {
             const KFile * file;
-            rc = VFSManagerOpenFileRead( vfs_mgr, &file, path );
+            if ( ctx->blocksize > 0 )
+                rc = VFSManagerOpenFileReadWithBlocksize( vfs_mgr, &file, path, ctx->blocksize );
+            else
+                rc = VFSManagerOpenFileRead( vfs_mgr, &file, path );
             if ( rc != 0 )
                 KOutMsg( "VFSManagerOpenFileRead( '%s' ) failed!\n", ctx->url );
             else
@@ -800,9 +804,12 @@ static rc_t download_via_vfs( KDirectory *dir, fetch_ctx *ctx )
                     if ( ctx->count == 0 )
                         ctx->count = 1024 * 1024 * 10;
                     
-                    KOutMsg( "the size of the file is : %,ld\n", size );
-                    KOutMsg( "let as read %,ld of it into memory\n", ctx->count );
-                    KOutMsg( "the start-offset is %,ld\n", ctx->start );
+                    if ( !ctx->quiet )
+                    {
+                        KOutMsg( "the size of the file is : %,ld\n", size );
+                        KOutMsg( "let as read %,ld of it into memory\n", ctx->count );
+                        KOutMsg( "the start-offset is %,ld\n", ctx->start );
+                    }
                     
                     buffer = malloc( ctx->count );
                     if ( buffer == NULL )
@@ -810,10 +817,13 @@ static rc_t download_via_vfs( KDirectory *dir, fetch_ctx *ctx )
                     else
                     {
                         rc = KFileReadExactly( file, ctx->start, buffer, ctx->count );
-                        if ( rc == 0 )
-                            KOutMsg( "success!\n" );
-                        else
-                            KOutMsg( "failed: %R!\n", rc );
+                        if ( !ctx->quiet )
+                        {
+                            if ( rc == 0 )
+                                KOutMsg( "success!\n" );
+                            else
+                                KOutMsg( "failed: %R!\n", rc );
+                        }
                         free( ( void * ) buffer );
                     }
                 }
@@ -823,7 +833,6 @@ static rc_t download_via_vfs( KDirectory *dir, fetch_ctx *ctx )
         }
         VFSManagerRelease( vfs_mgr );
     }
-        
     return rc;
 }
 
@@ -951,6 +960,7 @@ static rc_t get_fetch_ctx( Args * args, fetch_ctx * ctx )
     }
 
     if ( rc == 0 ) rc = get_bool( args, OPTION_VERB, &ctx->verbose );
+    if ( rc == 0 ) rc = get_bool( args, "quiet", &ctx->quiet );
     if ( rc == 0 ) rc = get_str( args, OPTION_CACHE, &ctx->cache_file );
     if ( rc == 0 ) rc = get_size_t( args, OPTION_CACHE_BLK, &ctx->cache_blk, 0 );
     if ( rc == 0 ) rc = get_str( args, OPTION_PROXY, &ctx->proxy );

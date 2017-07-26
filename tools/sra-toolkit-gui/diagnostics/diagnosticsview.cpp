@@ -25,6 +25,7 @@
 
 const QString rsrc_path = ":/";
 
+
 DiagnosticsView :: DiagnosticsView ( QWidget *parent )
     : QWidget ( parent )
     , self_layout ( new QVBoxLayout () )
@@ -203,32 +204,50 @@ void DiagnosticsView :: run_diagnostics ()
 
     KDiagnose *test = 0;
 
+    QFile file ( "/Users/rodarme1/Desktop/output.txt" );
+    if ( ! file . open ( QFile :: ReadWrite | QFile :: Text ) )
+    {
+        qDebug () << "Could not open file";
+        return;
+    }
+
+    DiagnosticsTreeModel *model = 0;
+
     if ( cb_all -> isChecked () )
-        rc = KDiagnoseRun ( test, DIAGNOSE_ALL );
-    else
     {
-        if ( cb_config -> isChecked () )
-            rc = KDiagnoseRun ( test, DIAGNOSE_CONFIG );
-
-        if ( cb_network -> isChecked () )
-            rc = KDiagnoseRun ( test, DIAGNOSE_NETWORK );
-
-        if ( cb_fail -> isChecked () )
-            rc = KDiagnoseRun ( test, DIAGNOSE_FAIL );
+        cb_config -> setChecked ( true );
+        cb_network -> setChecked ( true );
+        cb_fail -> setChecked ( true );
     }
 
-    if ( rc != 0 )
+    if ( cb_config -> isChecked () )
     {
-        uint32_t count;
-        rc = KDiagnoseGetErrorCount ( test, &count );
+    /*
+        const char *text = "Diagnosing configuration...";
+        file . write ( text, qstrlen ( text ) );
+        */
+        QString text ( "Diagnosing configuration...\t" );
+        model = new DiagnosticsTreeModel ( text );
+        tree_view -> setModel ( model );
+        //file . close ();
+        rc = KDiagnoseRun ( test, DIAGNOSE_CONFIG );
+        qDebug () << rc;
+        if ( rc == 0 )
+        {
+            QString empty = QString ( "%1\t").arg("",80);
+            text . append ( empty + "Pass\n" );
+            model = new DiagnosticsTreeModel ( text );
+            tree_view -> setModel ( model );
+        }
     }
 
-    QFile file ( ":/tests.txt" );
-    file . open ( QIODevice :: ReadOnly );
-    DiagnosticsTreeModel *model = new DiagnosticsTreeModel ( file . readAll () );
-    file . close ();
+    if ( cb_network -> isChecked () )
+        rc = KDiagnoseRun ( test, DIAGNOSE_NETWORK );
 
-    tree_view -> setModel ( model );
+    if ( cb_fail -> isChecked () )
+        rc = KDiagnoseRun ( test, DIAGNOSE_FAIL );
+
+
 
     tree_view -> resizeColumnToContents ( 0 );
     tree_view -> resizeColumnToContents ( 1 );

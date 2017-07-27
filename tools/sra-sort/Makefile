@@ -36,7 +36,7 @@ INT_TOOLS = \
 EXT_TOOLS = \
 
 ifneq (win,$(OS))
-EXT_TOOLS += sra-sort
+EXT_TOOLS += sra-sort sra-sort-cg
 endif	
 
 ALL_TOOLS = \
@@ -65,40 +65,53 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
+# special rules for enabling a define
+#
+%.cg.$(OBJX): %.c
+	$(CC) -o $@ -DSEQUENCE_BEFORE_SECONDARY=0 $< $(LOC_INFO) -D__file_ext__=c
+
+#-------------------------------------------------------------------------------
 # sra-sort
 #
-SRA_SORT_SRC = \
-	caps \
-	mem \
-	membank \
-	paged-membank \
-	paged-mmapbank \
-	except \
-	idx-mapping \
-	map-file \
-	col-pair \
-	row-set \
-	simple-row-set \
-	mapping-row-set \
-	sorting-row-set \
-	meta-pair \
-	dir-pair \
-	tbl-pair \
-	db-pair \
-	glob-poslen \
-	poslen-col-pair \
-	ref-alignid-col \
-	buff-writer \
-	id-mapper-col \
+SRA_SORT_SRC =                 \
+	caps                       \
+	mem                        \
+	membank                    \
+	paged-membank              \
+	paged-mmapbank             \
+	except                     \
+	idx-mapping                \
+	map-file                   \
+	col-pair                   \
+	row-set                    \
+	simple-row-set             \
+	mapping-row-set            \
+	sorting-row-set            \
+	meta-pair                  \
+	dir-pair                   \
+	tbl-pair                   \
+	db-pair                    \
+	glob-poslen                \
+	poslen-col-pair            \
+	ref-alignid-col            \
+	buff-writer                \
+	id-mapper-col              \
 	capture-first-half-aligned \
-	csra-tbl \
-	csra-pair \
-	run \
-	sra-sort \
+	run                        \
+	sra-sort                   \
 	xcheck-ref-align
 
-SRA_SORT_OBJ = \
-	$(addsuffix .$(OBJX),$(SRA_SORT_SRC))
+SRA_SORT_SPECIAL_SRC =         \
+	csra-tbl                   \
+	csra-pair
+
+SRA_SORT_OBJ =                                         \
+	$(addsuffix .$(OBJX),$(SRA_SORT_SRC))              \
+	$(addsuffix .$(OBJX),$(SRA_SORT_SPECIAL_SRC))
+
+SRA_SORT_CG_OBJ =                                      \
+	$(addsuffix .$(OBJX),$(SRA_SORT_SRC))              \
+	$(addsuffix .cg.$(OBJX),$(SRA_SORT_SPECIAL_SRC))
 
 SRA_SORT_LIB = \
 	-lkapp \
@@ -107,6 +120,9 @@ SRA_SORT_LIB = \
 	-lm
 
 $(BINDIR)/sra-sort: $(SRA_SORT_OBJ)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRA_SORT_LIB)
+
+$(BINDIR)/sra-sort-cg: $(SRA_SORT_CG_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(SRA_SORT_LIB)
 
 #-------------------------------------------------------------------------------

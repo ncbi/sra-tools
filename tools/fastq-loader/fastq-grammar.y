@@ -23,8 +23,8 @@
 * ===========================================================================
 *
 */
- 
-%{  
+
+%{
     #include <sysalloc.h>
     #include <ctype.h>
     #include <stdlib.h>
@@ -42,7 +42,7 @@
     static void SetReadNumber(FASTQParseBlock* pb, const FASTQToken* token);
     static void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token);
     static void SetRead(FASTQParseBlock* pb, const FASTQToken* token);
-    
+
     static void StartSpotName(FASTQParseBlock* pb, size_t offset);
     static void GrowSpotName(FASTQParseBlock* pb, const FASTQToken* token);
     static void StopSpotName(FASTQParseBlock* pb);
@@ -51,14 +51,14 @@
     static void RevertSpotName(FASTQParseBlock* pb);
 
     #define UNLEX do { if (yychar != YYEMPTY && yychar != YYEOF) FASTQ_unlex(pb, & yylval); } while (0)
-    
+
     #define IS_PACBIO(pb) ((pb)->defaultReadNumber == -1)
 %}
 
 %pure-parser
 %parse-param {FASTQParseBlock* pb }
 %lex-param {FASTQParseBlock* pb }
-%error-verbose 
+%error-verbose
 %name-prefix "FASTQ_"
 
 %token fqRUNDOTSPOT
@@ -80,20 +80,20 @@
 
 sequence /* have to return the lookahead symbol before returning since it belongs to the next record and cannot be dropped */
     : readLines qualityLines    { UNLEX; return 1; }
-    
+
     | readLines                 { UNLEX; return 1; }
-    
+
 /*    | qualityLines              { UNLEX; return 1; } */
-    
-    | name                      
+
+    | name
         fqCOORDS                { GrowSpotName(pb, &$2); StopSpotName(pb); }
-        ':'                     { FASTQScan_inline_sequence(pb); } 
-        inlineRead              
-        ':'                     { FASTQScan_inline_quality(pb); } 
+        ':'                     { FASTQScan_inline_sequence(pb); }
+        inlineRead
+        ':'                     { FASTQScan_inline_quality(pb); }
         quality                 { UNLEX; return 1; }
-           
+
     | fqALPHANUM error endline  { UNLEX; return 1; }
-           
+
     | endfile                   { return 0; }
     ;
 
@@ -107,13 +107,13 @@ endline
     ;
 
 readLines
-    : header  endline  read   
+    : header  endline  read
     | header  endline error endline
-    | error   endline  read 
+    | error   endline  read
     | error endline
     ;
 
-header 
+header
     : '@' { StartSpotName(pb, 1); } tagLine
     | '@' fqWS { StartSpotName(pb, 1 + $2.tokenLength); } tagLine
     | '>' { StartSpotName(pb, 1); } tagLine
@@ -125,16 +125,16 @@ read
     ;
 
 baseRead
-    : fqBASESEQ { SetRead(pb, & $1); } 
-        endline            
-    | baseRead fqBASESEQ { SetRead(pb, & $2); } 
-        endline  
+    : fqBASESEQ { SetRead(pb, & $1); }
+        endline
+    | baseRead fqBASESEQ { SetRead(pb, & $2); }
+        endline
     ;
- 
+
 csRead
-    : fqCOLORSEQ { SetRead(pb, & $1); } 
-        endline           
-    | csRead fqCOLORSEQ { SetRead(pb, & $2); } 
+    : fqCOLORSEQ { SetRead(pb, & $1); }
+        endline
+    | csRead fqCOLORSEQ { SetRead(pb, & $2); }
         endline
     ;
 
@@ -142,60 +142,61 @@ inlineRead
     : fqBASESEQ                   { SetRead(pb, & $1); pb->record->seq.is_colorspace = false; }
     | fqCOLORSEQ                  { SetRead(pb, & $1); pb->record->seq.is_colorspace = true; }
     ;
-    
+
  /*************** tag line rules *****************/
-tagLine    
-    : nameSpotGroup 
+tagLine
+    : nameSpotGroup
     | nameSpotGroup readNumber
-    
+
     | nameSpotGroup readNumber fqWS fqNUMBER ':' fqALPHANUM ':' fqNUMBER indexSequence
-    
-    | nameSpotGroup readNumber fqWS fqALPHANUM { FASTQScan_skip_to_eol(pb); } 
-    | nameSpotGroup readNumber fqWS { FASTQScan_skip_to_eol(pb); } 
-    
+
+    | nameSpotGroup readNumber fqWS fqALPHANUM { FASTQScan_skip_to_eol(pb); }
+    | nameSpotGroup readNumber fqWS { FASTQScan_skip_to_eol(pb); }
+
     | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } casava1_8 { FASTQScan_skip_to_eol(pb); }
     | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
     | runSpotRead fqWS  { FASTQScan_skip_to_eol(pb); }
     | runSpotRead       { FASTQScan_skip_to_eol(pb); }
     | name readNumber
-    | name readNumber fqWS  { FASTQScan_skip_to_eol(pb); } 
-    | name 
+    | name readNumber fqWS  { FASTQScan_skip_to_eol(pb); }
+    | name
+    | name pacbioSpotName
     ;
-    
+
 nameSpotGroup
-    : nameWithCoords 
+    : nameWithCoords
     | nameWithCoords fqSPOTGROUP                { SetSpotGroup(pb, &$2); }
     | name { StopSpotName(pb); } fqSPOTGROUP    { SetSpotGroup(pb, &$3); }
     | nameWS nameWithCoords                                                     /* nameWS ignored */
     | nameWS nameWithCoords fqSPOTGROUP         { SetSpotGroup(pb, &$3); }      /* nameWS ignored */
     | nameWS fqALPHANUM '='  { RevertSpotName(pb); FASTQScan_skip_to_eol(pb); }
     ;
-    
+
 nameWS
-    : name fqWS 
+    : name fqWS
     {   /* 'name' without coordinates attached will be ignored if followed by a name with coordinates (see the previous production).
-           however, if not followed, this will be the spot name, so we need to save the 'name's coordinates in case 
+           however, if not followed, this will be the spot name, so we need to save the 'name's coordinates in case
            we need to revert to them later (see call to RevertSpotName() above) */
-        SaveSpotName(pb); 
+        SaveSpotName(pb);
         GrowSpotName(pb, &$2); /* need to account for white space but it is not part of the spot name */
         RestartSpotName(pb); /* clean up for the potential nameWithCoords to start here */
-    } 
+    }
 
-nameWithCoords    
-    : name fqCOORDS { GrowSpotName(pb, &$2); StopSpotName(pb); } 
-    | name fqCOORDS '_' 
+nameWithCoords
+    : name fqCOORDS { GrowSpotName(pb, &$2); StopSpotName(pb); }
+    | name fqCOORDS '_'
                 {   /* another variation by Illumina, this time "_" is used as " /" */
-                    GrowSpotName(pb, &$2); 
+                    GrowSpotName(pb, &$2);
                     StopSpotName(pb);
                     GrowSpotName(pb, &$3);
-                }    
+                }
                 casava1_8
     | name fqCOORDS ':'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3);} name
     | name fqCOORDS '.'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3);} name
     | name fqCOORDS ':' '.' { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3); GrowSpotName(pb, &$4);} name
-    | name fqCOORDS ':'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3); StopSpotName(pb); } 
+    | name fqCOORDS ':'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3); StopSpotName(pb); }
     ;
-    
+
 name
     : fqALPHANUM        { GrowSpotName(pb, &$1); }
     | fqNUMBER          { GrowSpotName(pb, &$1); }
@@ -208,26 +209,54 @@ name
     ;
 
 readNumber
-    : '/'       
+    : '/'
         {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
-            if (IS_PACBIO(pb)) pb->spotNameDone = false; 
-            GrowSpotName(pb, &$1); 
-        } 
-      fqNUMBER  
-        { 
-            if (!IS_PACBIO(pb)) SetReadNumber(pb, &$3); 
-            GrowSpotName(pb, &$3); 
-            StopSpotName(pb); 
+            if ( IS_PACBIO ( pb ) ) pb->spotNameDone = false;
+            GrowSpotName(pb, &$1);
         }
- 
-    | readNumber '/' 
-        { 
-            if (IS_PACBIO(pb)) pb->spotNameDone = false; 
-            GrowSpotName(pb, &$2); 
-        } 
-        name 
-        { 
-            if (IS_PACBIO(pb)) StopSpotName(pb); 
+      fqNUMBER
+        {
+            if ( IS_PACBIO ( pb ) )
+            {
+                GrowSpotName(pb, &$3);
+            }
+            else
+            {
+                SetReadNumber(pb, &$3);
+                StopSpotName(pb);
+            }
+        }
+    ;
+
+pacbioSpotName
+    : readNumber '/' fqNUMBER '_' fqNUMBER
+        {
+            if (IS_PACBIO(pb))
+            {
+                GrowSpotName(pb, &$2);
+                GrowSpotName(pb, &$3);
+                GrowSpotName(pb, &$4);
+                GrowSpotName(pb, &$5);
+                StopSpotName(pb);
+            }
+        }
+    | readNumber '/' fqNUMBER
+        {
+            if (IS_PACBIO(pb))
+            {
+                GrowSpotName(pb, &$2);
+                GrowSpotName(pb, &$3);
+                StopSpotName(pb);
+            }
+        }
+    | readNumber '/' fqALPHANUM
+        {
+            if (IS_PACBIO(pb))
+            {
+                GrowSpotName(pb, &$2);
+                GrowSpotName(pb, &$3);
+                StopSpotName(pb);
+            }
         }
     ;
 
@@ -243,13 +272,13 @@ casava1_8
 
 indexSequence
     :  ':' { GrowSpotName(pb, &$1); FASTQScan_inline_sequence(pb); } index
-    |
+    | %empty
     ;
-    
+
 index
     : fqBASESEQ { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); }
     | fqNUMBER  { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); }
-    |
+    | %empty
     ;
 
 runSpotRead
@@ -257,23 +286,23 @@ runSpotRead
     | fqRUNDOTSPOT '/' fqNUMBER     { GrowSpotName(pb, &$1); StopSpotName(pb); SetReadNumber(pb, &$3); }
     | fqRUNDOTSPOT                  { GrowSpotName(pb, &$1); StopSpotName(pb); }
     ;
-    
+
  /*************** quality rules *****************/
 
 qualityLines
-    : qualityHeader endline quality 
+    : qualityHeader endline quality
     | qualityHeader endline error endline
     ;
 
 qualityHeader
-    : '+'                 
+    : '+'
     | qualityHeader fqTOKEN
     ;
 
 quality
-    : qualityLine endline           
+    : qualityLine endline
     | quality qualityLine endline
-    
+
 qualityLine
     : fqASCQUAL                {  AddQuality(pb, & $1); }
     ;
@@ -285,8 +314,8 @@ qualityLine
 #define MAX_PHRED_33    126
 #define MIN_PHRED_64    64
 #define MAX_PHRED_64    127
-#define MIN_LOGODDS     59   
-#define MAX_LOGODDS     126   
+#define MIN_LOGODDS     59
+#define MAX_LOGODDS     126
 
 void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
 {
@@ -314,17 +343,17 @@ void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
         pb -> qualityAsciiOffset = 64;
         break;
     default:
-        /* TODO: 
-            if qualityAsciiOffset is 0, 
+        /* TODO:
+            if qualityAsciiOffset is 0,
                 guess based on the raw values on the first quality line:
                     if all values are above MAX_PHRED_33, qualityAsciiOffset = 64
                     if all values are in MIN_PHRED_33..MAX_PHRED_33, qualityAsciiOffset = 33
                     if any value is below MIN_PHRED_33, abort
                 if the guess is 33 and proven wrong (a raw quality value >MAX_PHRED_33 is encountered and no values below MIN_PHRED_64 ever seen)
-                    reopen the file, 
+                    reopen the file,
                     qualityAsciiOffset = 64
                     try to parse again
-                    if a value below MIN_PHRED_64 seen, abort 
+                    if a value below MIN_PHRED_64 seen, abort
         */
         {
             char buf[200];
@@ -334,7 +363,7 @@ void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
             return;
         }
     }
-    
+
     {   /* make sure all qualities fall into the required range */
         unsigned int i;
         for (i=0; i < token->tokenLength; ++i)
@@ -343,12 +372,12 @@ void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
             if (ch < floor || ch > ceiling)
             {
                 char buf[200];
-                sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.", 
+                sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
                                                         ch,
                                                         ch,
                                                         i,
-                                                        format, 
-                                                        floor, 
+                                                        format,
+                                                        floor,
                                                         ceiling);
                 pb->fatalError = true;
                 yyerror(pb, buf);
@@ -356,7 +385,7 @@ void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
             }
         }
     }
-    
+
     if (pb->qualityLength == 0)
     {
         pb->qualityOffset = token->tokenStart;
@@ -376,17 +405,17 @@ void SetReadNumber(FASTQParseBlock* pb, const FASTQToken* token)
         {
             switch (TokenTextPtr(pb, token)[0])
             {
-            case '1': 
+            case '1':
                 {
-                    pb->record->seq.readnumber = 1; 
+                    pb->record->seq.readnumber = 1;
                     break;
                 }
-            case '0': 
+            case '0':
                 {
                     pb->record->seq.readnumber = pb->defaultReadNumber;
                     break;
                 }
-            default: 
+            default:
                 {   /* all secondary read numbers should be the same across an input file */
                     uint8_t readNum = TokenTextPtr(pb, token)[0] - '0';
                     if (pb->secondaryReadNumber == 0) /* this is the first secondary read observed */
@@ -396,16 +425,16 @@ void SetReadNumber(FASTQParseBlock* pb, const FASTQToken* token)
                     else if (pb->secondaryReadNumber != readNum)
                     {
                         char buf[200];
-                        sprintf(buf, 
-                                "Inconsistent secondary read number: previously used %d, now seen %d", 
+                        sprintf(buf,
+                                "Inconsistent secondary read number: previously used %d, now seen %d",
                                 pb->secondaryReadNumber, readNum);
                         pb->fatalError = true;
                         yyerror(pb, buf);
                         return;
                     }
                     /* all secondary read numbers are internally represented as 2 */
-                    pb->record->seq.readnumber = 2; 
-                    
+                    pb->record->seq.readnumber = 2;
+
                     break;
                 }
             }
@@ -425,7 +454,7 @@ void SaveSpotName(FASTQParseBlock* pb)
 {
     pb->spotNameOffset_saved = pb->spotNameOffset;
     pb->spotNameLength_saved = pb->spotNameLength;
-}    
+}
 
 void RestartSpotName(FASTQParseBlock* pb)
 {
@@ -455,24 +484,24 @@ void StopSpotName(FASTQParseBlock* pb)
 void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token)
 {
     if ( ! pb->ignoreSpotGroups )
-    {   
+    {
         unsigned int nameStart = 0;
         /* skip possible '#' at the start of spot group name */
-        if ( TokenTextPtr ( pb, token )[0] == '#' ) 
-        {   
+        if ( TokenTextPtr ( pb, token )[0] == '#' )
+        {
             nameStart = 1;
         }
-        
+
         if ( token->tokenLength != 1+nameStart || TokenTextPtr(pb, token)[nameStart] != '0' ) /* ignore spot group 0 */
         {
-            pb->spotGroupOffset = token->tokenStart  + nameStart;    
+            pb->spotGroupOffset = token->tokenStart  + nameStart;
             pb->spotGroupLength = token->tokenLength - nameStart;
         }
     }
 }
 
 void SetRead(FASTQParseBlock* pb, const FASTQToken* token)
-{ 
+{
     pb->readOffset = token->tokenStart;
     pb->readLength = token->tokenLength;
 }

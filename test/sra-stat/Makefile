@@ -22,46 +22,12 @@
 #
 # ===========================================================================
 
-by_default: runtests
+TOP ?= $(abspath ../..)
+include $(TOP)/build/Makefile.env # BINDIR
 
-TOP ?= $(abspath ..)
-MODULE = test
+default: runtests
 
-include $(TOP)/build/Makefile.shell
+slowtests: test-stat
 
-include $(TOP)/build/Makefile.config
-
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	vdb-config      \
-	fastq-loader    \
-	vcf-loader      \
-	sra-stat        \
-	kget            \
-	general-loader  \
-	vschema         \
-	align-info      \
-	align-cache     \
-	vdb-dump        \
-	vdb-validate    \
-	kar             \
-	copycat         \
-	fastdump        \
-	vdb-copy        \
-	qual-recalib-stat \
-	sra-pileup      \
-	srapath         \
-	fuse            \
-
-# under construction
-#    ngs-pileup      \
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
+test-stat:
+	$(BINDIR)/sra-stat SRR5110972

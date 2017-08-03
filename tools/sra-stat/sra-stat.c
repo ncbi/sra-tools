@@ -75,8 +75,6 @@
 #include <string.h>
 #include <time.h>
 
-/* #include <stdio.h> */ /* stderr */
-
 #define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
 
 #define DISP_RC2(rc, name, msg) (void)((rc == 0) ? 0 : \
@@ -90,7 +88,7 @@
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
 
-#define MAX_NREADS ( 4 * 1024 )
+static size_t MAX_NREADS = 2500;
 
 #define DEFAULT_CURSOR_CAPACITY (1024*1024*1024UL)
 
@@ -1421,7 +1419,9 @@ rc_t parse_bam_header(const VDatabase* db,
         rc = KMetadataOpenNodeRead(meta, &node, "%s", name);
         if (rc != 0) {
             if (GetRCState(rc) == rcNotFound) {
-                return 0;
+                rc = 0;
+                RELEASE ( KMetadata, meta );
+                return rc;
             }
             DISP_RC2(rc, name, "while calling KMetadataOpenNodeRead");
         }
@@ -1537,13 +1537,13 @@ rc_t CC fileSizeVisitor(const KDirectory* dir,
             DISP_RC2(rc, name, "while calling KDirectoryFileSize");
             if (rc == 0) {
                 sizes->size += size;
-                DBGMSG(DBG_APP, DBG_COND_1,
+                DBGMSG(DBG_APP, DBG_COND_2,
                     ("File '%s', size %lu\n", name, size));
             }
             break;
         }
         case kptDir: 
-            DBGMSG(DBG_APP, DBG_COND_1, ("Dir '%s'\n", name));
+            DBGMSG(DBG_APP, DBG_COND_2, ("Dir '%s'\n", name));
             rc = KDirectoryVisit(dir, false, fileSizeVisitor, sizes, "%s", name);
             DISP_RC2(rc, name, "while calling KDirectoryVisit");
             break;
@@ -2766,7 +2766,6 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
 
     const VCursor *curs = NULL;
 
-/*  const char CMP_READ  [] = "CMP_READ"; */
     const char PRIMARY_ALIGNMENT_ID[] = "PRIMARY_ALIGNMENT_ID";
     const char RD_FILTER [] = "RD_FILTER";
     const char READ_LEN  [] = "READ_LEN";
@@ -2786,10 +2785,21 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
 
     /* filled with dREAD_LEN[i] for (spotid == start);
        used to check fixedReadLength */
-    uint64_t g_totalREAD_LEN[MAX_NREADS];
-    uint64_t g_nonZeroLenReads[MAX_NREADS];
-    memset(g_totalREAD_LEN, 0, sizeof g_totalREAD_LEN);
-    memset(g_nonZeroLenReads, 0, sizeof g_nonZeroLenReads);
+    uint64_t * g_totalREAD_LEN
+        = calloc ( MAX_NREADS, sizeof * g_totalREAD_LEN );
+    uint64_t * g_nonZeroLenReads
+        = calloc ( MAX_NREADS, sizeof * g_nonZeroLenReads );
+    uint32_t * g_dREAD_LEN = calloc ( MAX_NREADS, sizeof * g_dREAD_LEN );
+    if ( g_totalREAD_LEN == NULL || g_nonZeroLenReads == NULL ||
+         g_dREAD_LEN == NULL )
+    {
+        rc = RC ( rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted );
+        DBGMSG ( DBG_APP, DBG_COND_1,
+            ( "Failed to allocate buffers for %zu READS\n", MAX_NREADS ) );
+    }
+    else
+        DBGMSG ( DBG_APP, DBG_COND_1,
+            ( "Allocated buffers for %zu READS\n", MAX_NREADS ) );
 
     rc = VTableCreateCachedCursorRead(vtbl, &curs, DEFAULT_CURSOR_CAPACITY);
     DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
@@ -2871,9 +2881,32 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     bool fixedNReads = true;
                     bool fixedReadLength = true;
 
-                    uint32_t g_dREAD_LEN[MAX_NREADS];
-
-                    memset(g_dREAD_LEN, 0, sizeof g_dREAD_LEN);
+                    uint32_t * dREAD_LEN
+                        = calloc ( MAX_NREADS, sizeof * dREAD_LEN );
+                    uint8_t * dREAD_TYPE
+                        = calloc ( MAX_NREADS, sizeof * dREAD_TYPE );
+                    uint8_t * dRD_FILTER
+                        = calloc ( MAX_NREADS, sizeof * dRD_FILTER );
+                    size_t MAX_SPOT_GROUP = 1000;
+                    char * dSPOT_GROUP
+                        = calloc ( MAX_SPOT_GROUP, sizeof * dSPOT_GROUP );
+                    if ( dREAD_LEN  == NULL || dREAD_TYPE  == NULL ||
+                         dRD_FILTER == NULL || dSPOT_GROUP == NULL )
+                    {
+                        rc = RC ( rcExe, rcStorage,
+                                  rcAllocating, rcMemory, rcExhausted );
+                        DBGMSG ( DBG_APP, DBG_COND_1, ( "Failed to allocate "
+                            "cursor buffers for READ_LEN %zu\n", MAX_NREADS ) );
+                    }
+                    else {
+                        DBGMSG ( DBG_APP, DBG_COND_1, ( "Allocated cursor "
+                                "buffers for %zu READS\n", MAX_NREADS ) );
+                        DBGMSG ( DBG_APP, DBG_COND_1, ( "Allocated "
+                                "buffer for SPOT_GROUP[%zu]\n",
+                                MAX_SPOT_GROUP ) );
+                        string_copy_measure ( dSPOT_GROUP, MAX_SPOT_GROUP,
+                                              "NULL" );
+                    }
 
                     if (pb->start > 0) {
                         start = pb->start;
@@ -2897,10 +2930,6 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
 
                     for (spotid = start; spotid < stop && rc == 0; ++spotid) {
                         SraStats* ss;
-                        uint32_t dREAD_LEN  [MAX_NREADS];
-                        uint8_t  dREAD_TYPE [MAX_NREADS];
-                        uint8_t  dRD_FILTER [MAX_NREADS];
-                        char     dSPOT_GROUP[MAX_NREADS] = "NULL";
 
                         const void* base;
                         bitsz_t boff, row_bits;
@@ -2938,9 +2967,105 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                 rc = RC(rcExe, rcColumn, rcReading,
                                     rcSize, rcInvalid);
                             }
-                            if ((row_bits >> 3) > sizeof(dREAD_LEN)) {
-                                rc = RC(rcExe, rcColumn, rcReading,
-                                    rcBuffer, rcInsufficient);
+                            if ( ( row_bits >> 3 )
+                                 > MAX_NREADS * sizeof * dREAD_LEN )
+                            {
+                                size_t oldMAX_NREADS = MAX_NREADS;
+                                MAX_NREADS =
+                                    ( row_bits >> 3 ) / sizeof * dREAD_LEN
+                                    + 1000;
+                                if ( rc == 0 ) {
+                                    uint32_t * tmp = realloc ( dREAD_LEN,
+                                        MAX_NREADS * sizeof * dREAD_LEN );
+                                    if ( tmp == NULL ) {
+                                        rc = RC ( rcExe, rcStorage,
+                                          rcAllocating, rcMemory, rcExhausted );
+                                    }
+                                    else
+                                        dREAD_LEN = tmp;
+                                }
+                                if ( rc == 0 ) {
+                                    uint8_t * tmp = realloc ( dREAD_TYPE,
+                                        MAX_NREADS * sizeof * dREAD_TYPE );
+                                    if ( tmp == NULL )
+                                        rc = RC ( rcExe, rcStorage,
+                                          rcAllocating, rcMemory, rcExhausted );
+                                    else
+                                        dREAD_TYPE = tmp;
+                                }
+                                if ( rc == 0 ) {
+                                    uint8_t * tmp = realloc ( dRD_FILTER,
+                                        MAX_NREADS * sizeof * dRD_FILTER );
+                                    if ( tmp == NULL )
+                                        rc = RC ( rcExe, rcStorage,
+                                          rcAllocating, rcMemory, rcExhausted );
+                                    else
+                                        dRD_FILTER = tmp;
+                                }
+                                if ( rc == 0 ) {
+                                    uint64_t * tmp = realloc ( g_totalREAD_LEN,
+                                        MAX_NREADS * sizeof * g_totalREAD_LEN );
+                                    if ( tmp == NULL )
+                                        rc = RC ( rcExe, rcStorage,
+                                          rcAllocating, rcMemory, rcExhausted );
+                                    else {
+                                        g_totalREAD_LEN = tmp;
+                                        memset (
+                                            g_totalREAD_LEN + oldMAX_NREADS, 0,
+                                            ( MAX_NREADS - oldMAX_NREADS ) * sizeof * g_totalREAD_LEN
+                                        );
+                                    }
+                                }
+                                if ( rc == 0 ) {
+                                    uint64_t * tmp = realloc ( g_totalREAD_LEN,
+                                        MAX_NREADS * sizeof * g_totalREAD_LEN );
+                                    if ( tmp == NULL )
+                                        rc = RC ( rcExe, rcStorage,
+                                          rcAllocating, rcMemory, rcExhausted );
+                                    else {
+                                        g_totalREAD_LEN = tmp;
+                                        memset (
+                                            g_totalREAD_LEN + oldMAX_NREADS, 0,
+                                            ( MAX_NREADS - oldMAX_NREADS ) * sizeof * g_totalREAD_LEN
+                                        );
+                                    }
+                                }
+                                if ( rc == 0 ) {
+                                    uint64_t * tmp = realloc ( g_nonZeroLenReads,
+                                        MAX_NREADS * sizeof * g_nonZeroLenReads );
+                                    if ( tmp == NULL )
+                                        rc = RC ( rcExe, rcStorage,
+                                          rcAllocating, rcMemory, rcExhausted );
+                                    else {
+                                        g_nonZeroLenReads = tmp;
+                                        memset (
+                                            g_nonZeroLenReads + oldMAX_NREADS, 0,
+                                            ( MAX_NREADS - oldMAX_NREADS ) * sizeof * g_nonZeroLenReads
+                                        );
+                                    }
+                                }
+                                if ( rc == 0 ) {
+                                    uint32_t * tmp = realloc ( g_dREAD_LEN,
+                                        MAX_NREADS * sizeof * g_dREAD_LEN );
+                                    if ( tmp == NULL )
+                                        rc = RC ( rcExe, rcStorage,
+                                          rcAllocating, rcMemory, rcExhausted );
+                                    else {
+                                        g_dREAD_LEN = tmp;
+                                        memset (
+                                            g_dREAD_LEN + oldMAX_NREADS, 0,
+                                            ( MAX_NREADS - oldMAX_NREADS ) * sizeof * g_dREAD_LEN
+                                        );
+                                    }
+                                }
+                                if ( rc == 0 )
+                                    DBGMSG ( DBG_APP, DBG_COND_1, ( 
+                                        "Reallocated buffers "
+                                        "for %zu READS\n", MAX_NREADS ) );
+                                else
+                                    DBGMSG ( DBG_APP, DBG_COND_1, ( "Failed to "
+                                        "reallocate buffers for %zu READS\n",
+                                        MAX_NREADS ) );
                             }
                             DISP_RC_Read(rc, READ_LEN, spotid,
                                 "after calling VCursorColumnRead");
@@ -2975,10 +3100,9 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcSize, rcInvalid);
                                     }
-                                    if ((row_bits >> 3) > sizeof(dREAD_TYPE)) {
-                                        rc = RC(rcExe, rcColumn, rcReading,
-                                            rcBuffer, rcInsufficient);
-                                    }
+                                    if ( ( row_bits >> 3 ) > MAX_NREADS * sizeof * dREAD_TYPE )
+                                        rc = RC( rcExe, rcColumn, rcReading,
+                                                 rcBuffer, rcInsufficient );
                                     if ((row_bits >> 3) !=  nreads) {
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcData, rcIncorrect);
@@ -2998,6 +3122,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         "while calling VCursorColumnRead");
                                     if (rc == 0) {
                                         if (row_bits > 0) {
+                                            int n = row_bits >> 3;
                                             if (boff & 7) {
                                                 rc = RC(rcExe, rcColumn,
                                                     rcReading,
@@ -3007,21 +3132,34 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                                 rc = RC(rcExe, rcColumn,
                                                     rcReading,
                                                     rcSize, rcInvalid); }
-                                            if ((row_bits >> 3)
-                                                > sizeof(dSPOT_GROUP))
-                                            {
-                                                rc = RC(rcExe, rcColumn,
-                                                    rcReading,
-                                                    rcBuffer, rcInsufficient);
+                                            if ( n  > MAX_SPOT_GROUP ) {
+                                                char * tmp = NULL;
+                                                MAX_SPOT_GROUP = n + 1000;
+                                                tmp = realloc ( dSPOT_GROUP,
+                                                    MAX_SPOT_GROUP );
+                                                if ( tmp == NULL ) {
+                                                    rc = RC ( rcExe, rcStorage,
+                                                     rcAllocating, rcMemory, rcExhausted );
+                                                    DBGMSG ( DBG_APP, DBG_COND_1,
+                                                        ( "Failed to reallocate "
+                                                        "buffer for SPOT_GROUP[%zu]\n",
+                                                        MAX_SPOT_GROUP ) );
+                                                }
+                                                else {
+                                                    DBGMSG ( DBG_APP, DBG_COND_1,
+                                                        ( "Reallocated "
+                                                        "buffer for SPOT_GROUP[%zu]\n",
+                                                        MAX_SPOT_GROUP ) );
+                                                    dSPOT_GROUP = tmp;
+                                                }
                                             }
                                             DISP_RC_Read(rc, SPOT_GROUP, spotid,
                                                "after calling VCursorColumnRead"
                                                );
                                             if (rc == 0) {
-                                                int n = row_bits >> 3;
-                                                memmove(dSPOT_GROUP,
+                                                memmove ( dSPOT_GROUP,
                                                   ((const char*)base)+(boff>>3),
-                                                  row_bits>>3);
+                                                  n );
                                                 dSPOT_GROUP[n]='\0';
                                                 if (n > 1 ||
                                                     (n == 1 && dSPOT_GROUP[0]))
@@ -3055,10 +3193,9 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                             rc = RC(rcExe, rcColumn, rcReading,
                                                 rcSize, rcInvalid);
                                         }
-                                        if (size > sizeof dRD_FILTER) {
-                                            rc = RC(rcExe, rcColumn, rcReading,
-                                                rcBuffer, rcInsufficient);
-                                        }
+                                        if ( size > MAX_NREADS * sizeof * dRD_FILTER )
+                                            rc = RC ( rcExe, rcColumn, rcReading,
+                                                      rcBuffer, rcInsufficient );
                                         DISP_RC_Read(rc, RD_FILTER, spotid,
                                             "after calling VCursorColumnRead");
                                         if (rc == 0) {
@@ -3278,6 +3415,11 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                         KLoadProgressbar_Release(pr, true);
                         pr = NULL;
                     }
+
+                    free ( dREAD_LEN );
+                    free ( dREAD_TYPE );
+                    free ( dRD_FILTER );
+                    free ( dSPOT_GROUP );
                 }
             }
         }
@@ -3290,17 +3432,21 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
         int i = 0;
         int64_t spotid = 0;
 
-        double average[MAX_NREADS];
-        double diff_sq[MAX_NREADS];
+        double   * average   = calloc ( MAX_NREADS, sizeof * average   );
+        double   * diff_sq   = calloc ( MAX_NREADS, sizeof * diff_sq   );
+        uint32_t * dREAD_LEN = calloc ( MAX_NREADS, sizeof * dREAD_LEN );
+        if ( average == NULL || diff_sq == NULL || dREAD_LEN == NULL )
+            rc = RC ( rcExe, rcStorage, rcAllocating, rcMemory, rcExhausted );
         SraStatsTotalStatistics2Init(total,
             g_nreads, g_totalREAD_LEN, g_nonZeroLenReads);
-        memset(diff_sq, 0, sizeof diff_sq);
         for (i = 0; i < g_nreads; ++i) {
             average[i] = (double)g_totalREAD_LEN[i] / n_spots;
         }
 
-        rc = VTableCreateCachedCursorRead(vtbl, &curs, DEFAULT_CURSOR_CAPACITY);
-        DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
+        if ( rc == 0 ) {
+            rc = VTableCreateCachedCursorRead(vtbl, &curs, DEFAULT_CURSOR_CAPACITY);
+            DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
+        }
 
         if (rc == 0) {
             const char* name = READ_LEN;
@@ -3316,7 +3462,6 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
         }
 
         for (spotid = start; spotid < stop && rc == 0; ++spotid) {
-            uint32_t dREAD_LEN[MAX_NREADS];
             const void* base;
             bitsz_t boff, row_bits;
             if (rc == 0) {
@@ -3338,7 +3483,15 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
             SraStatsTotalAdd2(total, dREAD_LEN);
         }
         RELEASE(VCursor, curs);
+
+        free ( average );
+        free ( diff_sq );
+        free ( dREAD_LEN );
     }
+
+    free ( g_totalREAD_LEN );
+    free ( g_nonZeroLenReads );
+    free ( g_dREAD_LEN );
 
     return rc;
 }

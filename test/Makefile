@@ -38,7 +38,6 @@ SUBDIRS =    \
 	vdb-config      \
 	fastq-loader    \
 	vcf-loader      \
-	sra-stat        \
 	kget            \
 	general-loader  \
 	vschema         \

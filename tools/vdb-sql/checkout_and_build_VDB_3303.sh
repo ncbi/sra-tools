@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #=========================================================================
-RELEASE_BUILD=false
+RELEASE_BUILD=true
 BUILDROOT="$HOME/VDB_3303"
 BRANCH_NGS="engineering"
 BRANCH_NCBI_VDB="engineering"
@@ -66,7 +66,7 @@ function build_ncbi_vdb
 {
     cd $BUILDROOT/$DIR_NCBI_VDB
     PREFIX_FLAG="--prefix=$INSTALL_DIR/ncbi-vdb"
-    ./configure $PREFIX_FLAG $BUILD_DIR_FLAG $RELEASE_DEBUG_FLAG $HDF5_DIR
+    ./configure $PREFIX_FLAG $BUILD_DIR_FLAG $RELEASE_DEBUG_FLAG
     make default install
 }
 
@@ -74,7 +74,7 @@ function build_sra_tools
 {
     cd $BUILDROOT/$DIR_SRA_TOOLS
     PREFIX_FLAG="--prefix=$INSTALL_DIR/sra-tools"
-    ./configure $PREFIX_FLAG $BUILD_DIR_FLAG $RELEASE_DEBUG_FLAG $HDF5_DIR
+    ./configure $PREFIX_FLAG $BUILD_DIR_FLAG $RELEASE_DEBUG_FLAG
     make default install
 }
 

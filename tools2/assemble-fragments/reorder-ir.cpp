@@ -40,17 +40,12 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-template <typename T>
-static std::ostream &write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::RawData const &in)
-{
-    return out.value(cid, in.elements, (T const *)in.data);
-}
-
-template <typename T>
 static std::ostream &write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::Data const *in)
 {
-    return out.value(cid, in->elements, (T const *)in->data());
+    return out.value(cid, in->elements, in->elem_bits / 8, in->data());
 }
+
+using namespace utility;
 
 static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t const *const beg, int64_t const *const end)
 {
@@ -83,7 +78,6 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
             unsigned count = 0;
             
             std::sort(v.begin(), v.end());
-            // std::cerr << "prog: processing " << v.size() << " records (" << v[0] << "-" << v[v.size() - 1] << ")" << std::endl;
             for (auto r : v) {
                 auto const tmp = ((uint8_t const *)cp - (uint8_t const *)buffer) / 4;
                 for (auto i = 0; i < 8; ++i) {
@@ -92,7 +86,7 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
                     if (p == nullptr) {
                         std::cerr << "warn: filled buffer; reducing block size and restarting!" << std::endl;
                         blockSize = 0.99 * count;
-                        std::cerr << "block size: " << blockSize << std::endl;
+                        std::cerr << "info: block size " << blockSize << std::endl;
                         goto AGAIN;
                     }
                     cp = p->end();
@@ -104,20 +98,20 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
                 auto const avg = double(((uint8_t *)cp - (uint8_t *)buffer)) / count;
                 std::cerr << "info: average record size is " << size_t(avg + 0.5) << " bytes" << std::endl;
                 blockSize = 0.95 * (double(((uint8_t *)bufEnd - (uint8_t *)buffer)) / avg);
-                std::cerr << "block size: " << blockSize << std::endl;
+                std::cerr << "info: block size " << blockSize << std::endl;
             }
         }
         for (auto k = i; k != j; ++k) {
             auto data = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[*k] * 4);
             
-            write<char   >(out, 1, data);
-            write<char   >(out, 2, data = data->next());
-            write<int32_t>(out, 3, data = data->next());
-            write<char   >(out, 4, data = data->next());
-            write<char   >(out, 5, data = data->next());
-            write<char   >(out, 6, data = data->next());
-            write<int32_t>(out, 7, data = data->next());
-            write<char   >(out, 8, data = data->next());
+            write(out, 1, data);
+            write(out, 2, data = data->next());
+            write(out, 3, data = data->next());
+            write(out, 4, data = data->next());
+            write(out, 5, data = data->next());
+            write(out, 6, data = data->next());
+            write(out, 7, data = data->next());
+            write(out, 8, data = data->next());
             out.closeRow(1);
             ++written;
             if (nextReport * freq <= written) {
@@ -127,8 +121,8 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
         }
         i = j;
     }
-    std::cerr << "Done" << std::endl;
-
+    std::cerr << "prog: Done" << std::endl;
+    
     return 0;
 }
 
@@ -140,12 +134,12 @@ static ssize_t fsize(int const fd)
     return -1;
 }
 
-static int process(char const *const irdb, char const *const indexFile)
+static int process(std::string const &irdb, std::string const &indexFile, std::ostream &out)
 {
     int64_t const *index;
     size_t rows;
     {
-        auto const fd = open(indexFile, O_RDONLY);
+        auto const fd = open(indexFile.c_str(), O_RDONLY);
         if (fd < 0) {
             perror("failed to open index file");
             exit(1);
@@ -160,12 +154,7 @@ static int process(char const *const irdb, char const *const indexFile)
         index = (int64_t *)map;
         rows = size / sizeof((*index));
     }
-#if 0
-    auto const writer = VDB::Writer(std::cout);
-#else
-    auto devNull = std::ofstream("/dev/null");
-    auto const writer = VDB::Writer(devNull);
-#endif
+    auto const writer = VDB::Writer(out);
     
     writer.destination("IR.vdb");
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
@@ -191,12 +180,52 @@ static int process(char const *const irdb, char const *const indexFile)
     return result;
 }
 
+namespace reorderIR {
+    static void usage(std::string const &program, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << program << "[-out=<path>]  <ir db> <clustering index>" << std::endl;
+        exit(error ? 3 : 0);
+    }
+    
+    static int main(CommandLine const &commandLine) {
+        for (auto && arg : commandLine.argument) {
+            if (arg == "-help" || arg == "-h" || arg == "-?") {
+                usage(commandLine.program, false);
+            }
+        }
+        auto db = std::string();
+        auto ndx = std::string();
+        auto out = std::string();
+        for (auto && arg : commandLine.argument) {
+            if (arg.substr(0, 5) == "-out=") {
+                out = arg.substr(5);
+                continue;
+            }
+            if (db.empty()) {
+                db = arg;
+                continue;
+            }
+            if (ndx.empty()) {
+                ndx = arg;
+                continue;
+            }
+            usage(commandLine.program, true);
+        }
+        if (db.empty() || ndx.empty())
+            usage(commandLine.program, true);
+
+        if (out.empty())
+            return process(db, ndx, std::cout);
+        
+        auto ofs = std::ofstream(out);
+        if (ofs)
+            return process(db, ndx, ofs);
+        
+        std::cerr << "failed to open output file: " << out << std::endl;
+        exit(3);
+    }
+}
+
 int main(int argc, char *argv[])
 {
-    if (argc == 3)
-        return process(argv[1], argv[2]);
-    else {
-        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <ir db> <clustering index>" << std::endl;
-        return 1;
-    }
+    return reorderIR::main(CommandLine(argc, argv));
 }

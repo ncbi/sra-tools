@@ -33,11 +33,12 @@
 #include "vdb.hpp"
 #include "writer.hpp"
 
-template <typename T>
 static std::ostream &write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::RawData const &in)
 {
-    return out.value(cid, in.elements, (T const *)in.data);
+    return out.value(cid, in.elements, in.elem_bits / 8, in.data);
 }
+
+#include <fstream>
 
 static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bool const primary)
 {
@@ -60,15 +61,15 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
         auto const readId = (int32_t const *)data[2].data;
         auto const strand = (int8_t const *)data[5].data;
         auto const refpos = (int32_t const *)data[6].data;
-
-        write<char>(out, 1, data[0]);
+        
+        write(out, 1, data[0]);
         out.value(2, n, buffer);
         out.value(3, 1, readId);
-        write<char>(out, 4, data[3]);
-        write<char>(out, 5, data[4]);
+        write(out, 4, data[3]);
+        write(out, 5, data[4]);
         out.value<char>(6, strand[0] == 0 ? '+' : '-');
         out.value(7, 1, refpos);
-        write<char>(out, 8, data[7]);
+        write(out, 8, data[7]);
         
         out.closeRow(1);
         if (nextReport * freq <= row - range.first) {
@@ -97,17 +98,17 @@ static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb)
         data[4] = in.read(row, 5);
         auto const nreads = data[4].elements;
         auto const pid = (int64_t const *)data[4].data;
-
+        
         for (unsigned i = 0; i < nreads; ++i) {
             if (pid[i] == 0) {
                 in.read(row, N - 1, data);
-
+                
                 auto const n = snprintf(buffer, 32, "%lli", row);
                 auto const sequence = (char const *)data[1].data;
                 auto const readStart = (int32_t const *)data[2].data;
                 auto const readLen = (uint32_t const *)data[3].data;
-
-                write<char>(out, 1, data[0]);
+                
+                write(out, 1, data[0]);
                 out.value(2, n, buffer);
                 out.value(3, int32_t(i + 1));
                 out.value(4, readLen[i], sequence + readStart[i]);
@@ -136,9 +137,8 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
     return 0;
 }
 
-static int process(char const *const run)
-{
-    auto const writer = VDB::Writer(std::cout);
+static int process(std::string const &run, std::ostream &out) {
+    auto const writer = VDB::Writer(out);
     
     writer.destination("IR.vdb");
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
@@ -171,12 +171,48 @@ static int process(char const *const run)
     return result;
 }
 
+using namespace utility;
+namespace sra2ir {
+    static void usage(std::string const &program, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <sra run>" << std::endl;
+        exit(error ? 3 : 0);
+    }
+
+    static int main(CommandLine const &commandLine) {
+        for (auto && arg : commandLine.argument) {
+            if (arg == "-help" || arg == "-h" || arg == "-?") {
+                usage(commandLine.program, false);
+            }
+        }
+        auto out = std::string();
+        auto run = std::string();
+        for (auto && arg : commandLine.argument) {
+            if (arg.substr(0, 5) == "-out=") {
+                out = arg.substr(5);
+                continue;
+            }
+            if (run.empty()) {
+                run = arg;
+                continue;
+            }
+            usage(commandLine.program, true);
+        }
+        if (run.empty()) {
+            usage(commandLine.program, true);
+        }
+        if (out.empty())
+            return process(run, std::cout);
+        
+        auto ofs = std::ofstream(out);
+        if (ofs.bad()) {
+            std::cerr << "failed to open output file: " << out << std::endl;
+            exit(3);
+        }
+        return process(run, ofs);
+    }
+}
+
 int main(int argc, char *argv[])
 {
-    if (argc == 2)
-        return process(argv[1]);
-    else {
-        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <sra run>" << std::endl;
-        return 1;
-    }
+    return sra2ir::main(CommandLine(argc, argv));
 }

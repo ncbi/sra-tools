@@ -304,6 +304,7 @@ static int process(char const *const indexFile, bool const isSorted)
         perror("failed to allocate scratch space");
         exit(1);
     }
+    auto const scratchEnd = static_cast<void const *>(static_cast<char *>(scratch) + size);
     int const sz = snprintf((char *)scratch, size, "%s.out", indexFile);
     if (sz >= size) {
         perror("index is too small");
@@ -322,6 +323,7 @@ static int process(char const *const indexFile, bool const isSorted)
     auto const N = size / sizeof(IndexRow);
 
     if (!isSorted) {
+        // sort the index by hash value and row number
         auto const workers = getWorkerCount();
         auto context = Context(inmap, scratch, N, getSmallSize(workers));
         
@@ -334,48 +336,65 @@ static int process(char const *const indexFile, bool const isSorted)
     }
 
     {
+        // sort the index by the starting row number for each hash value
         auto const map = (IndexRow *)inmap;
         auto const mapEnd = map + N;
         auto last = *(uint64_t *)(&map->key[0]);
-        auto const rindex = (IndexRow **)(scratch);
-        auto out = rindex;
-        
-        *out++ = map;
-        for (auto i = map + 1; i != mapEnd; ++i) {
-            auto key = *(uint64_t *)(&i->key[0]);
-            if (last == key) continue;
-            *out++ = i;
-            last = key;
+        auto const rindex = (IndexRow **)(scratch); // index by row number
+        auto rindexEnd = rindex;
+        {
+            auto out = rindex;
+            
+            *out++ = map;
+            for (auto i = map + 1; i != mapEnd; ++i) {
+                auto key = *(uint64_t *)(&i->key[0]);
+                if (last == key) continue;
+                *out++ = i;
+                last = key;
+            }
+            std::cerr << "Number of records: " << N << std::endl;
+            std::cerr << "Number of fragments: " << (out - rindex) << std::endl;
+            std::cerr << "Records per fragment: " << (double)N / (double)(out - rindex) << std::endl;
+
+            rindexEnd = out;
         }
-        std::cerr << "Number of records: " << N << std::endl;
-        std::cerr << "Number of fragments: " << (out - rindex) << std::endl;
-        std::cerr << "Records per fragment: " << (double)N / (double)(out - rindex) << std::endl;
-        
-        auto const buffer = (int64_t *)out;
-        auto const bufEnd = (int64_t const *)(rindex + N);
-        auto cp = buffer;
         
         std::cerr << "Sorting fragments ..." << std::endl;
-        std::sort(rindex, out, compareRow);
+        std::sort(rindex, rindexEnd, compareRow);
         std::cerr << "Writing final index ..." << std::endl;
-        for (auto i = rindex; i != out; ++i) {
+
+        int const count = (int)blockSize / sizeof(int64_t);
+        auto const buffer = new int64_t[count];
+        int cur = 0;
+        for (auto i = rindex; i != rindexEnd; ++i) {
             auto j = *i;
             auto const key = *(uint64_t *)(&j->key[0]);
-            do {
-                auto const sz = (cp - buffer) * sizeof(*cp);
-                if (sz >= blockSize || cp == bufEnd) {
-                    auto rc = write(fd, buffer, sz);
+            for ( ; ; ) {
+                if (cur == count) {
+                    auto rc = write(fd, buffer, count * sizeof(int64_t));
                     if (rc < 0) {
                         perror("failed to write output");
                         exit(1);
                     }
-                    cp = buffer;
+                    cur = 0;
                 }
-                *cp++ = (*j++).row;
-            } while ((void *)j < (void *)buffer && *(uint64_t *)(&j->key[0]) == key);
+                buffer[cur++] = (*j++).row;
+                if ((void *)j >= (void *)buffer)
+                    break;
+                auto const nextKey = *(uint64_t *)(&j->key[0]);
+                if (nextKey != key)
+                    break;
+            }
         }
-        write(fd, buffer, (cp - buffer) * sizeof(*cp));
-        std::cerr << "Done" << std::endl;
+        {
+            auto rc = write(fd, buffer, cur * sizeof(int64_t));
+            if (rc < 0) {
+                perror("failed to write output");
+                exit(1);
+            }
+        }
+        std::cerr << "prog: Done" << std::endl;
+        delete [] buffer;
         close(fd);
     }
     munmap(scratch, size);
@@ -383,12 +402,35 @@ static int process(char const *const indexFile, bool const isSorted)
     return 0;
 }
 
+using namespace utility;
+namespace sortIndex {
+    static void usage(std::string const &program, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << program << " <index file>" << std::endl;
+        exit(error ? 3 : 0);
+    }
+    
+    static int main(CommandLine const &commandLine) {
+        for (auto && arg : commandLine.argument) {
+            if (arg == "-help" || arg == "-h" || arg == "-?") {
+                usage(commandLine.program, false);
+            }
+        }
+        auto run = std::string();
+        for (auto && arg : commandLine.argument) {
+            if (run.empty()) {
+                run = arg;
+                continue;
+            }
+            usage(commandLine.program, true);
+        }
+        if (run.empty()) {
+            usage(commandLine.program, true);
+        }
+        return process(run.c_str(), false);
+    }
+}
+
 int main(int argc, char *argv[])
 {
-    if (argc == 2)
-        return process(argv[1], true);
-    else {
-        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <index file>" << std::endl;
-        return 1;
-    }
+    return sortIndex::main(CommandLine(argc, argv));
 }

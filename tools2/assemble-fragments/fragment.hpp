@@ -30,102 +30,87 @@
 #include <vector>
 #include "vdb.hpp"
 
-struct DNABase {
-    unsigned char value;
-    
+/** \class DNASequence
+ * \brief A value type for a single nucleatide sequence
+ */
+struct DNASequence : public std::string {
 private:
-    static DNABase fromValueUnchecked(int const value) {
-        auto rslt = DNABase();
-        rslt.value = value;
-        return rslt;
+    static inline char adjoint(char const ch) ///< truely adjoint if ch =~ /[.ACMGRSVTWYHKDBN]/
+    {
+        /// a short circuit for the common cases
+        switch (ch) {
+            case 'A': return 'T';
+            case 'T': return 'A';
+            case 'C': return 'G';
+            case 'G': return 'C';
+            case 'N': return 'N';
+        }
+        /// these almost never occur in real data
+        switch (ch) {
+            case '.': return '.';
+            case 'M': return 'K';
+            case 'K': return 'M';
+            case 'R': return 'Y';
+            case 'Y': return 'R';
+            case 'S': return 'S';
+            case 'V': return 'B';
+            case 'B': return 'V';
+            case 'W': return 'W';
+            case 'H': return 'D';
+            case 'D': return 'H';
+        }
+        return 'N';
     }
-
 public:
-    static DNABase A() { return fromValueUnchecked(1); }
-    static DNABase C() { return fromValueUnchecked(2); }
-    static DNABase G() { return fromValueUnchecked(4); }
-    static DNABase T() { return fromValueUnchecked(8); }
-
-    static DNABase fromValue(int const value) {
-        return fromValueUnchecked((0 <= value && value <= 15) ? value : 15);
-    }
-    static DNABase fromCharacter(char const ch) {
-        static signed char const tr[] = {
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,0x0, -1,
-            -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,0x0, -1, -1,
-            -1,0x1,0xE,0x2,0xD, -1, -1,0x4,0xB, -1, -1,0xC, -1,0x3,0xF, -1,
-            -1, -1,0x5,0x6,0x8, -1,0x7,0x9, -1,0xA, -1, -1, -1, -1, -1, -1,
-            -1,0x1,0xE,0x2,0xD, -1, -1,0x4,0xB, -1, -1,0xC, -1,0x3,0xF, -1,
-            -1, -1,0x5,0x6,0x8, -1,0x7,0x9, -1,0xA, -1, -1, -1, -1, -1, -1,
-        };
-        return fromValue((ch >= 0 && ch < sizeof(tr)) ? tr[ch] : -1);
-    }
-    DNABase transposed() const { return fromValueUnchecked((0xF7B3D591E6A2C480ull >> (4 * value)) & 0xF); }
-    char character() const { return ".ACMGRSVTWYHKDBN"[value]; }
-    operator bool() const { return ((1 << value) & 0x0116 /* 0b100010110 */) != 0; }
-    bool ambiguous() const { return !bool(*this); }
-    bool operator ==(DNABase const &other) const { return value == other.value; }
-    bool operator !=(DNABase const &other) const { return value != other.value; }
-};
-
-struct DNASequence : public std::basic_string<DNABase> {
-    typedef std::basic_string<DNABase> string_type;
-private:
-    static string_type fromString(std::string const &str) {
-        auto rslt = string_type();
-        rslt.reserve(str.length());
-        for (auto && b : str) {
-            rslt.push_back(DNABase::fromCharacter(b));
+    DNASequence(std::string const &str) : std::string(str) {}
+    DNASequence adjoint() const ///< reverse complement
+    {
+        std::string rslt(rbegin(), rend());
+        for (auto && ch : rslt) {
+            ch = adjoint(ch);
         }
         return rslt;
     }
-public:
-    bool ambiguous() const {
+    bool ambiguous() const ///< true unless every contained base is unambiguous
+    {
         for (auto && base : *this) {
-            if (base.ambiguous())
-                return true;
+            switch (base) {
+                case 'A':
+                case 'C':
+                case 'G':
+                case 'T':
+                    break;
+                default:
+                    return true;
+            }
         }
         return false;
     }
-    DNASequence transposed() const {
-        auto rslt = string_type(rbegin(), rend());
-        for (auto && base : rslt) {
-            base = base.transposed();
-        }
-        return DNASequence(rslt);
-    }
-    operator std::string() const {
-        auto rslt = std::string();
-        rslt.reserve(length());
-        for (auto && base : *this) {
-            rslt.push_back(char(base));
-        }
-        return rslt;
-    }
-    DNASequence(string_type const &str) : string_type(str) {}
-    DNASequence(std::string const &str) : string_type(fromString(str)) {}
-    bool isEquivalentTo(DNASequence const &other) const {
-        if (length() != other.length()) return false;
-        if (*this == other) return true;
-
-        auto j = other.rbegin();
-        for (auto && base : *this) {
-            if (base != j->transposed())
-                return false;
-            ++j;
-        }
-        return true;
+    bool isEquivalentTo(DNASequence const &other) const ///< true of equal or equal to reverse complement
+    {
+        if (size() != other.size()) return false;
+        if (*this == other || *this == other.adjoint()) return true;
+        return false;
     }
 };
 
+/** \class CIGAR_OP
+ * \ingroup CIGAR
+ * \brief A value type for a single alignment operation
+ */
 struct CIGAR_OP {
-    uint32_t value;
+    uint32_t value; ///< equivalent to BAM encoding
     
-    unsigned length() const { return value >> 4; }
-    int opcode() const { return ("MIDN" "SHP=" "XB??" "????")[value & 15]; }
-    unsigned qlength() const {
+    unsigned length() const ///< extract the operation length (or count)
+    {
+        return value >> 4;
+    }
+    int opcode() const ///< extract the operation type
+    {
+        return ("MIDN" "SHP=" "XB??" "????")[value & 15];
+    }
+    unsigned qlength() const ///< effects how many bases of the query sequence
+    {
         switch (value & 15) {
             case 0:
             case 1:
@@ -138,7 +123,8 @@ struct CIGAR_OP {
                 return 0;
         }
     }
-    unsigned rlength() const {
+    unsigned rlength() const ///< effects how many bases of the reference sequence
+    {
         switch (value & 15) {
             case 0:
             case 2:
@@ -151,7 +137,13 @@ struct CIGAR_OP {
         }
     }
 
-    static std::pair<int, int> parse(std::string const &str, unsigned &offset) {
+    /** parse a single operation
+     * /param str the string to be parsed
+     * /offset the first character to be parsed; the value is in/out
+     * /returns length and opcode
+     */
+    static std::pair<int, int> parse(std::string const &str, unsigned &offset)
+    {
         auto const N = str.length();
         int length = 0;
         int opcode = 0;
@@ -165,7 +157,8 @@ struct CIGAR_OP {
         }
         return std::make_pair(length, opcode);
     }
-    static std::string makeString(int length, int const opcode) {
+    static std::string makeString(int length, int const opcode) ///< convert to string
+    {
         char buffer[16];
         char *cp = buffer + 16;
         
@@ -180,8 +173,13 @@ struct CIGAR_OP {
         }
         return std::string(cp);
     }
-    static CIGAR_OP compose(std::pair<int, int> const &in) {
-        CIGAR_OP rslt; rslt.value = 0;
+    /** construct a new value
+     * /param in the pair of length, opcode like as returned by parse
+     * /returns a new value or 0
+     */
+    static CIGAR_OP compose(std::pair<int, int> const &in)
+    {
+        CIGAR_OP rslt; rslt.value = 0; ///< an erroneous value
         switch (in.second) {
             case 'M': rslt.value = (in.first << 4) | 0; break;
             case 'I': rslt.value = (in.first << 4) | 1; break;
@@ -198,11 +196,15 @@ struct CIGAR_OP {
     }
 };
 
+/** \class CIGAR
+ * \ingroup CIGAR
+ * \brief A value type for a sequence of alignment operations
+ */
 struct CIGAR : public std::vector<CIGAR_OP> {
-    unsigned rlength; // aligned length on reference
-    unsigned qfirst;  // first aligned base of the query
-    unsigned qlength; // aligned length of query
-    unsigned qclip;   // number of clipped bases of query
+    unsigned rlength; ///< aligned length on reference
+    unsigned qfirst;  ///< first aligned base of the query
+    unsigned qlength; ///< aligned length of query
+    unsigned qclip;   ///< number of clipped bases of query
 
 private:
     CIGAR(unsigned rlength, unsigned left_clip, unsigned qlength, unsigned right_clip, std::vector<CIGAR_OP> const &other)
@@ -222,6 +224,7 @@ public:
         unsigned i = 0;
         auto isFirst = true;
         auto p = CIGAR_OP::parse(str, i);
+        auto v = std::vector<CIGAR_OP>();
         
         while (p.first != 0 && p.second != 0) {
             auto const wasFirst = isFirst; isFirst = false;
@@ -234,7 +237,7 @@ public:
                 goto INVALID;
             if (p.second == 'P') continue;
             if (p.second == 'S') {
-                if (size() == 0) {
+                if (v.size() == 0) {
                     if (qfirst != 0)
                         goto INVALID;
                     qfirst = p.first;
@@ -250,19 +253,51 @@ public:
                 if (elem.value == 0)
                     goto INVALID;
                 
-                qlength += elem.qlength();
-                rlength += elem.rlength();
-
-                if (size() == 0 || (back().value & 0xF) != (elem.value & 0xF))
-                    push_back(elem);
+                if (size() == 0 || (v.back().value & 0xF) != (elem.value & 0xF))
+                    v.push_back(elem);
                 else
-                    back().value += p.first << 4;
+                    v.back().value += p.first << 4;
             }
         NEXT:
             p = CIGAR_OP::parse(str, i);
         }
-        if (i == str.length() && size() != 0 && front().opcode() == 'M' && back().opcode() == 'M')
+        if (i == str.length() && v.size() != 0) {
+            int first = 0;
+            while (first != v.size() && v[first].opcode() == 'I') {
+                qfirst += v[first].length();
+                ++first;
+            }
+            int end = (int)v.size();
+            while (end - 1 >= first) {
+                auto const opcode = v[end - 1].opcode();
+                if (opcode != 'I' && opcode != 'D') break;
+                if (opcode == 'I')
+                    qclip += v[end - 1].length();
+                --end;
+            }
+            if (end > first)
+                assign(v.begin() + first, v.begin() + end);
+        }
+        if (i == str.length() && size() != 0 && front().opcode() == 'M' && back().opcode() == 'M') {
+            for (auto && op : *this) {
+                auto const length = op.length();
+                switch (op.value & 0xF) {
+                    case 0:
+                        rlength += length;
+                        // fallthrough;
+                    case 1:
+                    case 9:
+                        qlength += length;
+                        break;
+                    case 2:
+                    case 3:
+                        rlength += length;
+                    default:
+                        break;
+                }
+            }
             return;
+        }
     INVALID:
         throw std::domain_error("Invalid CIGAR");
     }
@@ -278,10 +313,154 @@ public:
             rslt += CIGAR_OP::makeString(qclip, 'S');
         return rslt;
     }
-    CIGAR transposed() const {
+    CIGAR adjoint() const {
         return CIGAR(rlength, qclip, qlength, qfirst, std::vector<CIGAR_OP>(rbegin(), rend()));
     }
     unsigned totalQueryLength() const { return qfirst + qlength + qclip; }
+    
+    static bool isValid(std::string const &cigar, std::string::size_type const seqlen = 0) {
+        int mc = 0;
+        int ic = 0;
+        int dc = 0;
+        int op = 0;
+        int H = 1;
+        int acc = 0;
+        int const n = (int)cigar.length();
+        int i = 0;
+        
+        while (i < n) {
+            int const ch = cigar[i++];
+            if (ch >= '0' && ch <= '9') {
+                acc = (acc * 10) + (ch - '0');
+                continue;
+            }
+            int const len = acc; acc = 0;
+            ++op;
+            if (ch == 'P') continue;
+            if (len == 0) return false;
+            
+            switch (ch) {
+                case 'M':
+                case 'X':
+                case '=':
+                    mc += len;
+                    break;
+                case 'I':
+                case 'B':
+                    ic += len;
+                    break;
+                case 'D':
+                case 'N':
+                    dc += len;
+                    break;
+                case 'S':
+                    ic += len;
+                    if (op > H) goto CHECK_S;
+                    break;
+                case 'H':
+                    if (op > 1) goto CHECK_H;
+                    H = op + 1;
+                    break;
+                default:
+                    return false;
+            }
+        }
+        if (0) {
+        CHECK_S: // right clip; can only be followed by an H
+            int H = 'H';
+            while (i < n) {
+                int const ch = cigar[i++];
+                if (ch >= '0' && ch <= '9') {
+                    acc = (acc * 10) + (ch - '0');
+                    continue;
+                }
+                H = ch;
+                break;
+            }
+            if (H != 'H' || i != n) return false;
+        }
+        if (0) {
+        CHECK_H:
+            if (i != n) return false;
+        }
+
+        return (mc > 0 && (seqlen == 0 || seqlen == mc + ic));
+    }
+    static void test(void) {
+        static char const *good[] = {
+            "46M44S5H",
+            "46M44S",
+            "46S44M",
+            "5H46S44M",
+            "90M",
+            "5H5S80M5S5H"
+        };
+        static char const *bad[] = {
+            "37S45I", "5H46S5H44M"
+        };
+        for (auto && i : good) {
+            if (!isValid(i, 90)) throw std::logic_error("failed");
+        }
+        for (auto && i : bad) {
+            if (isValid(i)) throw std::logic_error("failed");
+        }
+    }
+};
+
+struct Layout {
+    uint8_t value;
+    
+    explicit Layout(int value = -1) : value(0 <= value && value < 12 ? value : 0xFF) {}
+    
+    Layout(unsigned const pos1, char const strand1, unsigned const pos2, char const strand2) {
+        auto const order = pos1 < pos2 ? 1 : pos2 < pos1 ? 2 : 0;
+        auto const plus = strand1 == '+' ? 0 : 1;
+        auto const same = strand1 == strand2 ? 1 : 0;
+        value = same | (plus << 1) | (order << 2);
+    }
+    
+    Layout transposed() const {
+        return value < 12 ? Layout((value ^ 0xE) & ((value & 0xC) == 0 ? 0x3 : 0xF)) : invalid();
+    }
+    
+    Layout operator ++() {
+        ++value; return *this;
+    }
+    
+    operator bool() const {
+        return value < 12;
+    }
+    
+    int order() const {
+        if (value < 12) {
+            auto const order = value >> 2;
+            return order == 1 ? 1 : order == 2 ? -1 : 0;
+        }
+        return 0;
+    }
+    operator char const *() const {
+        static char const *names[] = {
+            "xFxR",
+            "xFxF",
+            "xRxF",
+            "xRxR",
+            "1F2R",
+            "1F2F",
+            "1R2F",
+            "1R2R",
+            "2F1R",
+            "2F1F",
+            "2R1F",
+            "2R1R",
+        };
+        return value < 12 ? names[value] : "INVALID";
+    }
+    
+    static Layout invalid() { return Layout(); }
+    
+    friend bool operator ==(Layout const &a, Layout const &b) { return a.value == b.value; }
+    friend bool operator !=(Layout const &a, Layout const &b) { return a.value != b.value; }
+    friend bool operator <(Layout const &a, Layout const &b) { return a.value < b.value; }
 };
 
 struct Alignment {
@@ -292,11 +471,13 @@ struct Alignment {
     int position;
     char strand;
     bool aligned;
+    bool bad;
     
     Alignment(int readNo, std::string const &sequence)
     : readNo(readNo)
     , sequence(sequence)
     , aligned(false)
+    , bad(false)
     , reference("")
     , strand(0)
     , position(0)
@@ -307,6 +488,7 @@ struct Alignment {
     : readNo(readNo)
     , sequence(sequence)
     , aligned(true)
+    , bad(!CIGAR::isValid(cigar, sequence.length()))
     , reference(reference)
     , strand(strand)
     , position(position)
@@ -333,6 +515,25 @@ struct Alignment {
             return a.position < b.position;
         }
         return false;
+    }
+    
+    static std::pair<Layout, unsigned> layout(Alignment const &one, Alignment const &two) {
+        if (one.aligned && two.aligned && one.reference == two.reference) {
+            auto const c1 = CIGAR(one.cigar);
+            int const f1 = one.position - c1.qfirst;
+            int const e1 = one.position + c1.rlength + c1.qclip;
+
+            auto const c2 = CIGAR(two.cigar);
+            int const f2 = two.position - c2.qfirst;
+            int const e2 = two.position + c2.rlength + c2.qclip;
+
+            auto const min = std::min(f1, std::min(f2, std::min(e1, e2)));
+            auto const max = std::max(f1, std::max(f2, std::max(e1, e2)));
+            
+            if (max > min)
+                return std::make_pair(Layout(one.position, one.strand, two.position, two.strand), max - min);
+        }
+        return std::make_pair(Layout::invalid(), 0);
     }
 };
 
@@ -366,12 +567,16 @@ struct Fragment {
             auto spotName = std::string();
             
             while (row < endRow) {
-                auto const r = row++;
+                auto const r = row;
                 auto const sg = in.read(r, 1).asString();
                 auto const name = in.read(r, 2).asString();
                 if (rslt.size() > 0) {
                     if (name != spotName || sg != spotGroup)
                         break;
+                }
+                else {
+                    spotName = name;
+                    spotGroup = sg;
                 }
                 auto const readNo = in.read(r, 3).value<int32_t>();
                 auto const sequence = in.read(r, 4).asString();
@@ -384,6 +589,7 @@ struct Fragment {
                     auto const algn = Alignment(readNo, sequence);
                     rslt.push_back(algn);
                 }
+                ++row;
             }
             return Fragment(spotGroup, spotName, rslt);
         }

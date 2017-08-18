@@ -140,7 +140,7 @@ namespace VDB {
             }
             template <typename T> std::vector<T> asVector() const {
                 if (elem_bits == sizeof(T) * 8)
-                    return std::vector<T>((T *)data, elements);
+                    return std::vector<T>((T *)data, ((T *)data) + elements);
                 else
                     throw std::bad_cast();
             }
@@ -363,7 +363,10 @@ namespace VDB {
             return Database(p);
         }
     };
-    
+}
+
+#include <vector>
+namespace utility {
     static char const *programNameFromArgv0(char const *const argv0)
     {
         auto last = -1;
@@ -377,6 +380,16 @@ namespace VDB {
         } while (1);
         return argv0 + last + 1;
     }
+    struct CommandLine {
+        std::string program;
+        std::vector<std::string> argument;
+        
+        CommandLine(int const argc, char const *const *const argv)
+        : argument(argv + 1, argv + argc)
+        , program(programNameFromArgv0(argv[0]))
+        {}
+        auto arguments() const -> decltype(argument.size()) { return argument.size(); }
+    };
 }
 
 #endif //__VDB_HPP_INCLUDED__

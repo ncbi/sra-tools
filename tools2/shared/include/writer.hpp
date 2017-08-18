@@ -168,13 +168,24 @@ namespace VDB {
             {}
         };
 
-        template <typename T>
-        std::ostream &write(EventCode const code, unsigned const cid, size_t const count, T const *data) const
+        std::ostream &write(EventCode const code, unsigned const cid, uint32_t const count, uint32_t const elsize, void const *data) const
         {
+            uint32_t const eid = (code << 24) + cid;
+            uint32_t const zero = 0;
+            auto const size = elsize * count;
+            auto const padding = (4 - (size & 3)) & 3;
+            return out.write((char const *)&eid, sizeof(eid))
+                      .write((char const *)&count, sizeof(count))
+                      .write((char const *)data, size)
+                      .write((char const *)&zero, padding);
+        }
+        template <typename T>
+        std::ostream &write(EventCode const code, unsigned const cid, uint32_t const count, T const *data) const
+        {
+            uint32_t const eid = (code << 24) + cid;
             uint32_t const zero = 0;
             auto const size = sizeof(T) * count;
             auto const padding = (4 - (size & 3)) & 3;
-            uint32_t const eid = (code << 24) + cid;
             return out.write((char const *)&eid, sizeof(eid))
                       .write((char const *)&count, sizeof(count))
                       .write((char const *)data, size)
@@ -187,7 +198,7 @@ namespace VDB {
         }
         std::ostream &write(EventCode const code, unsigned const cid, std::string const &data) const
         {
-            return write(code, cid, data.size(), data.data());
+            return write(code, cid, (uint32_t)data.size(), data.data());
         }
     public:
         Writer(std::ostream &out_)
@@ -246,6 +257,10 @@ namespace VDB {
             return write(cellDefault, cid, data);
         }
         
+        std::ostream &value(unsigned const cid, uint32_t const count, uint32_t const elsize, void const *data) const
+        {
+            return write(cellData, cid, count, elsize, data);
+        }
         template <typename T>
         std::ostream &value(unsigned const cid, uint32_t const count, T const *data) const
         {

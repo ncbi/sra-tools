@@ -68,8 +68,8 @@ OS_DAD = bsd
 OS_GDAD = unix
 
 # minimum deployment os
-MIN_DEPLOY_OS = 10.6
-MIN_DEPLOY_OS_OPT = -mmacosx-version-min=$(MIN_DEPLOY_OS)
+#MIN_DEPLOY_OS = 10.6
+#MIN_DEPLOY_OS_OPT = -mmacosx-version-min=$(MIN_DEPLOY_OS)
 
 LIBXML_LPATH = /usr/lib
 

@@ -81,8 +81,8 @@ static void initialize(uint8_t a[256], int adjacentDelta)
 }
 
 // this table is constructed such that it is more
-// likely that values that differ by 1 bit
-// will map to values that differ by 4 bits
+// likely that two values that differ by 1 bit
+// will map to two values that differ by 4 bits
 static uint8_t const *makeHashTable(void)
 {
     static uint8_t table[256];
@@ -90,8 +90,8 @@ static uint8_t const *makeHashTable(void)
     uint8_t I[256];
     uint8_t J[256];
     
-    initialize(I, 1);
-    initialize(J, 4);
+    initialize(I, 1); // adjacent values of I are biased to differ by 1-bit
+    initialize(J, 4); // adjacent values of J are biased to differ by 4-bits
     
     for (int i = 0; i < 256; ++i)
         table[I[i]] = J[i];
@@ -186,23 +186,53 @@ static int process(std::ostream &out, VDB::Database const &run)
     return 0;
 }
 
-static int process(char const *const run, char const *const out)
+static int process(std::string const &run, std::ostream &out)
 {
     auto const mgr = VDB::Manager();
-    if (out) {
-        auto output = std::ofstream(out);
-        return process(output, mgr[run]);
+    return process(out, mgr[run]);
+}
+
+using namespace utility;
+namespace makeIRIndex {
+    static void usage(std::string const &program, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <ir db>" << std::endl;
+        exit(error ? 3 : 0);
     }
-    else
-        return process(std::cout, mgr[run]);
+    static int main(CommandLine const &commandLine) {
+        for (auto && arg : commandLine.argument) {
+            if (arg == "-help" || arg == "-h" || arg == "-?") {
+                usage(commandLine.program, false);
+            }
+        }
+        auto out = std::string();
+        auto run = std::string();
+        for (auto && arg : commandLine.argument) {
+            if (arg.substr(0, 5) == "-out=") {
+                out = arg.substr(5);
+                continue;
+            }
+            if (run.empty()) {
+                run = arg;
+                continue;
+            }
+            usage(commandLine.program, true);
+        }
+        if (run.empty()) {
+            usage(commandLine.program, true);
+        }
+        if (out.empty())
+            return process(run, std::cout);
+        
+        auto ofs = std::ofstream(out);
+        if (ofs.bad()) {
+            std::cerr << "failed to open output file: " << out << std::endl;
+            exit(3);
+        }
+        return process(run, ofs);
+    }
 }
 
 int main(int argc, char *argv[])
 {
-    if (argc == 2 || argc == 3)
-        return process(argv[1], argv[2]);
-    else {
-        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <ir db> | <index file> <ir db>" << std::endl;
-        return 1;
-    }
+    return makeIRIndex::main(CommandLine(argc, argv));
 }

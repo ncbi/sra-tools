@@ -76,51 +76,6 @@ static Fragment clean(Fragment &&raw) {
     else
         std::sort(rslt.begin(), rslt.end());
     
-    auto next = 0;
-    while (next < rslt.size()) {
-        auto const first = next;
-        while (next < rslt.size() && rslt[next].readNo == rslt[first].readNo)
-            ++next;
-        
-        auto const count = next - first;
-        if (count == 1)
-            continue;
-        
-        auto aligned = 0;
-        for (auto i = first; i < next; ++i) {
-            if (rslt[i].aligned) {
-                ++aligned;
-            }
-        }
-        if (aligned == 0) {
-            
-        }
-        if (aligned < count) {
-            
-        }
-        auto good = -1;
-        for (auto i = first; i < next; ++i) {
-            if (rslt[i].aligned && !rslt[i].sequence.ambiguous()) {
-                good = i;
-                break;
-            }
-        }
-        if (good >= first) {
-            for (auto i = first; i < next; ++i) {
-                if (i == good) continue;
-                if (!rslt[i].aligned) {
-                    rslt.erase(rslt.begin() + i);
-                    --i;
-                    --next;
-                    continue;
-                }
-                if (rslt[i].sequence.ambiguous()) {
-                    rslt[i].sequence = DNASequence("");
-                }
-            }
-        }
-    }
-    
     return raw;
 }
 
@@ -133,6 +88,8 @@ static void process(VDB::Writer const &out, Fragment const &fragment)
     auto ambiguous = 0;
 
     for (auto && i : fragment.detail) {
+        if (i.bad)
+            goto DISCARD;
         if (i.aligned)
             ++aligned;
         if (i.sequence.ambiguous())
@@ -164,11 +121,6 @@ static void process(VDB::Writer const &out, Fragment const &fragment)
                 ++next;
             
             auto const count = next - first;
-            if (count == 1) {
-                detail.push_back(fragment.detail[first]);
-                continue;
-            }
-
             auto aligned = 0;
             auto ambiguous = 0;
             auto good = 0;
@@ -186,6 +138,11 @@ static void process(VDB::Writer const &out, Fragment const &fragment)
             }
             if (good == 0)
                 goto DISCARD;
+
+            if (count == 1) {
+                detail.push_back(fragment.detail[first]);
+                continue;
+            }
             
             auto const &seq = fragment.detail[firstGood].sequence;
             detail.push_back(fragment.detail[firstGood]);
@@ -226,19 +183,14 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
             ++nextReport;
         }
     }
-    std::cerr << "Done" << std::endl;
+    std::cerr << "prog: Done" << std::endl;
 
     return 0;
 }
 
-static int process(char const *const irdb)
+static int process(std::string const &irdb, std::ostream &out)
 {
-#if 0
-    auto const writer = VDB::Writer(std::cout);
-#else
-    auto devNull = std::ofstream("/dev/null");
-    auto const writer = VDB::Writer(devNull);
-#endif
+    auto const writer = VDB::Writer(out);
     
     writer.destination("IR.vdb");
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
@@ -284,12 +236,51 @@ static int process(char const *const irdb)
     return result;
 }
 
-int main(int argc, char *argv[])
-{
-    if (argc == 3)
-        return process(argv[1]);
-    else {
-        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <ir db> <clustering index>" << std::endl;
-        return 1;
+using namespace utility;
+namespace filterIR {
+    static void usage(std::string const &program, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <ir db>" << std::endl;
+        exit(error ? 3 : 0);
+    }
+    
+    static int main(CommandLine const &commandLine) {
+        CIGAR::test();
+        
+        for (auto && arg : commandLine.argument) {
+            if (arg == "-help" || arg == "-h" || arg == "-?") {
+                usage(commandLine.program, false);
+            }
+        }
+        auto out = std::string();
+        auto run = std::string();
+        for (auto && arg : commandLine.argument) {
+            if (arg.substr(0, 5) == "-out=") {
+                out = arg.substr(5);
+                continue;
+            }
+            if (run.empty()) {
+                run = arg;
+                continue;
+            }
+            usage(commandLine.program, true);
+        }
+        if (run.empty()) {
+            usage(commandLine.program, true);
+        }
+        if (out.empty())
+            return process(run, std::cout);
+
+        auto ofs = std::ofstream(out);
+        if (ofs.bad()) {
+            std::cerr << "failed to open output file: " << out << std::endl;
+            exit(3);
+        }
+        return process(run, ofs);
     }
 }
+
+int main(int argc, char *argv[])
+{
+    return filterIR::main(CommandLine(argc, argv));
+}
+

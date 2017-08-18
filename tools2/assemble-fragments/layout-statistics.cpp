@@ -61,34 +61,6 @@ struct LayoutStats {
     LayoutStats() {
         memset(count, 0, sizeof(count));
     }
-    static std::string layoutName(int layout) {
-        char const *names[] = {
-            "xFxR",
-            "xFxF",
-            "xRxF",
-            "xRxR",
-            "1F2R",
-            "1F2F",
-            "1R2F",
-            "1R2R",
-            "2F1R",
-            "2F1F",
-            "2R1F",
-            "2R1R",
-        };
-        return names[layout];
-    }
-    static unsigned layout(unsigned position1, char strand1, unsigned position2, char strand2)
-    {
-        auto const order(position1 < position2 ? 1 : position2 < position1 ? 2 : 0);
-        auto const one_plus(strand1 == '+' ? 0 : 1);
-        auto const same_strand(strand1 == strand2 ? 1 : 0);
-        return same_strand | (one_plus << 1) | (order << 2);
-    }
-    static unsigned transposedLayout(unsigned const layout) {
-        auto const m = (layout & 0xC) == 0 ? 0x3 : 0xF;
-        return (layout ^ 0xE) & m;
-    }
     
     double totalCount() const {
         auto total = 0.0;
@@ -98,38 +70,38 @@ struct LayoutStats {
         return total;
     }
     
-    std::pair<double, double> frequency(int const layout) const {
+    std::pair<double, double> frequency(Layout const &layout) const {
         auto const n = totalCount();
-        auto const n1 = count[layout] / n;
-        auto const n2 = count[transposedLayout(layout)] / n;
+        auto const n1 = count[layout.value] / n;
+        auto const n2 = count[layout.transposed().value] / n;
         return std::make_pair(n1, n2);
     }
 
     // which layout (+ its transposed layout) occurs most often
-    int mode() const {
+    Layout mode() const {
         auto mc = int64_t(0);
-        auto m = -1;
-        for (auto layout = 0; layout < 12; ++layout) {
-            auto const comp = transposedLayout(layout);
+        auto rslt = Layout::invalid();
+        for (auto layout = Layout(0); layout; ++layout) {
+            auto const comp = layout.transposed();
             if (comp < layout) {
-                auto const c = count[layout] + count[comp];
+                auto const c = count[layout.value] + count[comp.value];
                 if (mc < c) {
                     mc = c;
-                    m = layout;
+                    rslt = layout;
                 }
             }
         }
-        return m;
+        return rslt;
     }
     void record(unsigned position1, char strand1, unsigned position2, char strand2)
     {
-        ++count[layout(position1, strand1, position2, strand2)];
+        ++count[Layout(position1, strand1, position2, strand2).value];
     }
 };
 
 struct FragmentStats {
-    int layout;
-    std::map<unsigned, unsigned> length;
+    Layout layout;
+    std::map<uint32_t, unsigned> length;
 
     std::pair<double, double> meanAndVariance() const {
         auto const N = sum();
@@ -148,12 +120,12 @@ struct FragmentStats {
         }
         return m;
     }
-    unsigned equipartition(unsigned const n, unsigned *part) const {
+    unsigned equipartition(unsigned const n, uint32_t *part) const {
         auto const N = sum();
-        auto const D = N / (n + 1);
+        auto const D = N / (n + 2);
         unsigned M = 0;
-        unsigned Q = 0;
-        auto T = unsigned(D);
+        double Q = 0.0;
+        auto T = D;
         unsigned j = 0;
         
         for (auto && i : length) {
@@ -165,7 +137,6 @@ struct FragmentStats {
                 part[j] = x;
                 if (++j == n) return M;
                 T += D;
-                x = 0;
             }
             Q = nQ;
         }
@@ -178,11 +149,9 @@ private:
     double mean(double const N) const {
         double m = 0.0;
         for (auto && i : length) {
-            auto const p = double(i.second) / N;
-            auto const x = double(i.first);
-            m += x * p;
+            m += double(i.first) * double(i.second);
         }
-        return m;
+        return m / N;
     }
     
     double sum() const {
@@ -196,12 +165,10 @@ private:
     double variance(double const mean, double const N) const {
         double var = 0.0;
         for (auto && i : length) {
-            auto const p = double(i.second) / N;
-            auto const x = double(i.first);
-            auto const diff = x - mean;
-            var += diff * diff * p;
+            auto const diff = (double(i.first) - mean) * double(i.second);
+            var += diff * diff;
         }
-        return var;
+        return var / N;
     }
 };
 
@@ -225,39 +192,26 @@ static void gatherLengthStats(Fragment const &fragment)
 {
     if (fragments.find(fragment.group) == fragments.end()) {
         auto layout = layouts[fragment.group].mode();
-        auto const order = layout >> 2;
-        if (order != 1 && order != 2)
-            layout = -1;
+        if (layout.order() == 0)
+            layout = Layout::invalid();
         fragments[fragment.group].layout = layout;
     }
     auto &stats = fragments[fragment.group];
     auto const layout = stats.layout;
-    if (stats.layout < 0)
+    if (!stats.layout)
         return;
 
-    auto const clayout = LayoutStats::transposedLayout(layout);
+    auto const clayout = layout.transposed();
     
     for (auto && one : fragment.detail) {
         if (one.readNo != 1 || !one.aligned) continue;
 
-        auto const c1 = CIGAR(one.cigar);
-        auto const f1 = one.position - c1.qfirst;
-        auto const e1 = one.position + c1.rlength + c1.qclip;
-        
         for (auto && two : fragment.detail) {
             if (two.readNo != 2 || !two.aligned || one.reference != two.reference) continue;
-            auto const thisLayout = LayoutStats::layout(one.position, one.strand, two.position, two.strand);
+            auto const thisLayout = Alignment::layout(one, two);
 
-            if (thisLayout != layout && thisLayout != clayout) continue;
-
-            auto const c2 = CIGAR(one.cigar);
-            auto const f2 = two.position - c2.qfirst;
-            auto const e2 = two.position + c2.rlength + c2.qclip;
-            auto const min = std::min(f1, std::min(f2, std::min(e1, e2)));
-            auto const max = std::max(f1, std::max(f2, std::max(e1, e2)));
-            auto const length = max - min;
-            if (length > 0)
-                stats.length[length] += 1;
+            if (thisLayout.first == layout || thisLayout.first == clayout)
+                stats.length[thisLayout.second] += 1;
         }
     }
 }
@@ -281,14 +235,14 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
         auto const median = i.second.equipartition(sizeof(equi)/sizeof(equi[0]), equi);
         
         out.value(1, group);
-        out.value(2, LayoutStats::layoutName(layout));
+        out.value(2, layout.value);
         out.value(3, freq.first);
         out.value(4, freq.second);
         out.value(5, stats.first);
         out.value(6, sqrt(stats.second));
         out.value(7, uint32_t(mode));
         out.value(8, uint32_t(median));
-        out.value(9, sizeof(equi)/sizeof(equi[0]), (uint32_t const *)equi);
+        out.value(9, sizeof(equi)/sizeof(equi[0]), equi);
         out.closeRow(1);
     }
     std::cerr << "info: done" << std::endl;
@@ -296,14 +250,10 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
     return 0;
 }
 
-static int process(char const *const irdb)
+static int process(std::string const &irdb, std::ostream &out)
 {
-#if 1
-    auto const writer = VDB::Writer(std::cout);
-#else
-    auto devNull = std::ofstream("/dev/null");
-    auto const writer = VDB::Writer(devNull);
-#endif
+    auto const writer = VDB::Writer(out);
+
     writer.destination("IR.vdb");
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
     writer.info("layout-stats", "1.0.0");
@@ -317,7 +267,7 @@ static int process(char const *const irdb)
     writer.openColumn(6, 1, 64, "FRAGMENT_LENGTH_STD_DEV");
     writer.openColumn(7, 1, 32, "FRAGMENT_LENGTH_MODE");
     writer.openColumn(8, 1, 32, "FRAGMENT_LENGTH_MEDIAN");
-    writer.openColumn(9, 1, 32 * 12, "FRAGMENT_LENGTH_EQUIPART");
+    writer.openColumn(9, 1, 32, "FRAGMENT_LENGTH_EQUIPART");
 
     writer.beginWriting();
 
@@ -329,12 +279,50 @@ static int process(char const *const irdb)
     return result;
 }
 
+using namespace utility;
+namespace layoutStatistics {
+    static void usage(std::string const &program, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <ir db>" << std::endl;
+        exit(error ? 3 : 0);
+    }
+    
+    static int main(CommandLine const &commandLine) {
+        CIGAR::test();
+        
+        for (auto && arg : commandLine.argument) {
+            if (arg == "-help" || arg == "-h" || arg == "-?") {
+                usage(commandLine.program, false);
+            }
+        }
+        auto out = std::string();
+        auto run = std::string();
+        for (auto && arg : commandLine.argument) {
+            if (arg.substr(0, 5) == "-out=") {
+                out = arg.substr(5);
+                continue;
+            }
+            if (run.empty()) {
+                run = arg;
+                continue;
+            }
+            usage(commandLine.program, true);
+        }
+        if (run.empty()) {
+            usage(commandLine.program, true);
+        }
+        if (out.empty())
+            return process(run, std::cout);
+        
+        auto ofs = std::ofstream(out);
+        if (ofs.bad()) {
+            std::cerr << "failed to open output file: " << out << std::endl;
+            exit(3);
+        }
+        return process(run, ofs);
+    }
+}
+
 int main(int argc, char *argv[])
 {
-    if (argc == 2)
-        return process(argv[1]);
-    else {
-        std::cerr << "usage: " << VDB::programNameFromArgv0(argv[0]) << " <ir db>" << std::endl;
-        return 1;
-    }
+    return layoutStatistics::main(CommandLine(argc, argv));
 }

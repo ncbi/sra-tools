@@ -110,7 +110,7 @@ tfl:
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-runtests: wb set_schema smalltests
+runtests: wb parse set_schema smalltests
 	rm -v tmp.kfg
 
 set_schema:
@@ -239,5 +239,5 @@ smalltests: $(TEST_TOOLS)
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33  --platform=PACBIO
+	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
 

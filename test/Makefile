@@ -36,7 +36,6 @@ include $(TOP)/build/Makefile.config
 #
 SUBDIRS =    \
 	vdb-config      \
-	fastq-loader    \
 	vcf-loader      \
 	kget            \
 	general-loader  \
@@ -53,6 +52,7 @@ SUBDIRS =    \
 	sra-pileup      \
 	srapath         \
 	fuse            \
+	fastq-loader    \
 
 # under construction
 #    ngs-pileup      \

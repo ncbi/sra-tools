@@ -39,7 +39,6 @@ SUBDIRS =    \
 	vcf-loader      \
 	align-info      \
 	align-cache     \
-	vdb-dump        \
 	vdb-validate    \
 	kar             \
 	copycat         \
@@ -53,6 +52,7 @@ SUBDIRS =    \
 	kget            \
 	general-loader  \
 	vschema         \
+	vdb-dump        \
 
 # under construction
 #    ngs-pileup      \

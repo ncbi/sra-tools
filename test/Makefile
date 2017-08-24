@@ -37,7 +37,6 @@ include $(TOP)/build/Makefile.config
 SUBDIRS =    \
 	vdb-config      \
 	vcf-loader      \
-	general-loader  \
 	vschema         \
 	align-info      \
 	align-cache     \
@@ -53,6 +52,7 @@ SUBDIRS =    \
 	fuse            \
 	fastq-loader    \
 	kget            \
+	general-loader  \
 
 # under construction
 #    ngs-pileup      \

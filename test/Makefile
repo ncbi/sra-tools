@@ -37,7 +37,6 @@ include $(TOP)/build/Makefile.config
 SUBDIRS =    \
 	vdb-config      \
 	vcf-loader      \
-	kget            \
 	general-loader  \
 	vschema         \
 	align-info      \
@@ -53,6 +52,7 @@ SUBDIRS =    \
 	srapath         \
 	fuse            \
 	fastq-loader    \
+	kget            \
 
 # under construction
 #    ngs-pileup      \

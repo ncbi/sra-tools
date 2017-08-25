@@ -39,8 +39,6 @@ SUBDIRS =    \
 	fastq-loader    \
 	vcf-loader      \
 	kget            \
-	general-loader  \
-	vschema         \
 	align-info      \
 	align-cache     \
 	vdb-dump        \

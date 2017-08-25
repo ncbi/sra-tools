@@ -36,12 +36,9 @@ include $(TOP)/build/Makefile.config
 #
 SUBDIRS =    \
 	vdb-config      \
-	fastq-loader    \
 	vcf-loader      \
-	kget            \
 	align-info      \
 	align-cache     \
-	vdb-dump        \
 	vdb-validate    \
 	kar             \
 	copycat         \
@@ -51,6 +48,11 @@ SUBDIRS =    \
 	sra-pileup      \
 	srapath         \
 	fuse            \
+	fastq-loader    \
+	kget            \
+	general-loader  \
+	vschema         \
+	vdb-dump        \
 
 # under construction
 #    ngs-pileup      \

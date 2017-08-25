@@ -50,8 +50,6 @@ SUBDIRS =    \
 	fuse            \
 	fastq-loader    \
 	kget            \
-	general-loader  \
-	vschema         \
 	vdb-dump        \
 
 # under construction

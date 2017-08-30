@@ -2167,51 +2167,27 @@ static rc_t _KartPrintNumbered(const Kart *self, bool xml) {
 }
 
 
-static rc_t ipv4_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
-{
-	uint32_t b[4];
-	b[0] = ( ep->u.ipv4.addr & 0xFF000000 ) >> 24;
-	b[1] = ( ep->u.ipv4.addr & 0xFF0000 ) >> 16;
-	b[2] = ( ep->u.ipv4.addr & 0xFF00 ) >> 8;
-	b[3] = ( ep->u.ipv4.addr & 0xFF );
-	return string_printf( buffer, buflen, NULL, "ipv4: %d.%d.%d.%d : %d",
-						   b[0], b[1], b[2], b[3], ep->u.ipv4.port );
-}
-
-static rc_t ipv6_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
-{
-	uint32_t b[8];
-	b[0] = ( ep->u.ipv6.addr[ 0  ] << 8 ) | ep->u.ipv6.addr[ 1  ];
-	b[1] = ( ep->u.ipv6.addr[ 2  ] << 8 ) | ep->u.ipv6.addr[ 3  ];
-	b[2] = ( ep->u.ipv6.addr[ 4  ] << 8 ) | ep->u.ipv6.addr[ 5  ];
-	b[3] = ( ep->u.ipv6.addr[ 6  ] << 8 ) | ep->u.ipv6.addr[ 7  ];
-	b[4] = ( ep->u.ipv6.addr[ 8  ] << 8 ) | ep->u.ipv6.addr[ 9  ];
-	b[5] = ( ep->u.ipv6.addr[ 10 ] << 8 ) | ep->u.ipv6.addr[ 11 ];
-	b[6] = ( ep->u.ipv6.addr[ 12 ] << 8 ) | ep->u.ipv6.addr[ 13 ];
-	b[7] = ( ep->u.ipv6.addr[ 14 ] << 8 ) | ep->u.ipv6.addr[ 15 ];
-	return string_printf( buffer, buflen, NULL,
-        "ipv6: %.04X:%.04X:%.04X:%.04X:%.04X:%.04X:%.04X:%.04X: :%d", 
-		b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], ep->u.ipv6.port );
-}
-
-static rc_t ipc_endpoint_to_string(char *buffer, size_t buflen, KEndPoint *ep)
-{
-	return string_printf( buffer, buflen, NULL, "ipc: %s", ep->u.ipc_name );
-}
-
 static
-rc_t endpoint_to_string( char * buffer, size_t buflen, KEndPoint * ep )
+rc_t endpoint_to_string( char * buffer, size_t buflen, const KEndPoint * ep )
 {
-	rc_t rc;
+    const char * type;
+    
 	switch( ep->type )
 	{
-		case epIPV4 : rc = ipv4_endpoint_to_string( buffer, buflen, ep ); break;
-		case epIPV6 : rc = ipv6_endpoint_to_string( buffer, buflen, ep ); break;
-		case epIPC  : rc = ipc_endpoint_to_string( buffer, buflen, ep ); break;
-		default     : rc = string_printf( buffer, buflen, NULL,
-                          "unknown endpoint-tyep %d", ep->type ); break;
-	}
-	return rc;
+    case epIPV4:
+        type = "ipv4";
+        break;
+    case epIPV6:
+        type = "ipv6";
+        break;
+    case epIPC:
+        type = "ipc";
+        break;
+    default:
+        type = "unknown";
+    }
+
+    return string_printf( buffer, buflen, NULL, "%s: %E", type, ep );
 }
 
 /* TODO: MAKE A DEEPER TEST; RESOLVE; PRINT HEADERS;

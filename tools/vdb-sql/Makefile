@@ -31,9 +31,7 @@ MODULE = tools/vdb-sql
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	vdb-sql \
-	exp
-#	vdb-sql-lib.$(SHLX)
+	vdb-sql
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -60,61 +58,22 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# the common-part: which libs to link in
-
-VDB_SQL_LIB = \
-	-sncbi-vdb \
-	-lm \
-	-lpthread
-
-#-------------------------------------------------------------------------------
 # the tool: vdb-sql
 # ( a version of the sqlite3-commandline-tool with the vdb-lib statically linked into it )
 #
-#   sqlite3.c ...... the sqlite-amalgamation source of the sqlite-libraray
-#   sqlite3vdb.c ... the vdb-extension ( virtual table )
 #   vdb_shellc. .... the originial sqlite3.c preloaded with the vdb-virtual table
 #                    and enhanced by additional commandline-arguments
 
 VDB_SQL_SRC = \
-	sqlite3 \
-	sqlite3vdb \
 	vdb_shell
 
+VDB_SQL_LIB = \
+	-svdb-sqlite \
+	-lm \
+	-lpthread
+    
 VDB_SQL_OBJ = \
 	$(addsuffix .$(OBJX),$(VDB_SQL_SRC))
 
 $(BINDIR)/vdb-sql: $(VDB_SQL_OBJ)
 	$(LD) --exe -o $@ $^ $(VDB_SQL_LIB)
-
-
-#-------------------------------------------------------------------------------
-# the lib: vdb-sql-lib ( not used by the tool! )
-
-VDB_SQL_LIB_SRC = \
-	sqlite3 \
-	sqlite3vdb
-
-VDB_SQL_LIB_OBJ = \
-	$(addsuffix .$(LOBX),$(VDB_SQL_LIB_SRC))
-
-$(BINDIR)/vdb-sql-lib.$(SHLX): $(VDB_SQL_LIB_OBJ)
-	$(LD) --dlib -o $@ $^ $(VDB_SQL_LIB)
-
-#-------------------------------------------------------------------------------
-# a short experiment...
-
-EXP_LIB = \
-	-skapp \
-	-stk-version \
-	-sncbi-vdb \
-	-lm
-    
-EXP_SRC = \
-	exp
-
-EXP_OBJ = \
-	$(addsuffix .$(OBJX),$(EXP_SRC))
-
-$(BINDIR)/exp: $(EXP_OBJ)
-	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(EXP_LIB)

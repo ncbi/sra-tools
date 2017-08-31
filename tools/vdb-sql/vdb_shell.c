@@ -6366,11 +6366,11 @@ int SQLITE_CDECL wmain( int argc, wchar_t **wargv )
   /* ========================================================================= */
   {
     /* prototype for the extension in sqlite3vdb.c ( which has no header-file... ) */
-    int sqlite3_sqlitevdb_init( sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi );
+    int sqlite3_vdbsqlite_init( sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi );
     typedef void ( *entrypoint )( void );
     
     /* load the compiled-in extension for vdb */
-    rc = sqlite3_auto_extension( ( entrypoint )sqlite3_sqlitevdb_init );
+    rc = sqlite3_auto_extension( ( entrypoint )sqlite3_vdbsqlite_init );
     if ( rc && bail_on_error ) return rc == 2 ? 0 : rc;
     
     /* see if we have to 'auto'-create some virtual tables */

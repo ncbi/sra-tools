@@ -4,7 +4,7 @@
 RELEASE_BUILD=true
 BUILDROOT="$HOME/VDB_3303"
 BRANCH_NGS="engineering"
-BRANCH_NCBI_VDB="engineering"
+BRANCH_NCBI_VDB="VDB-3303"
 BRANCH_SRA_TOOLS="VDB-3303"
 #=========================================================================
 

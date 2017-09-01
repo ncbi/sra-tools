@@ -341,11 +341,12 @@ rc_t CC CrossCheckRefAlignTblRun ( const KThread *self, void *data )
     ctx_t thread_ctx = { & pb -> caps, NULL, & ctx_info };
     const ctx_t *ctx = & thread_ctx;
 
-    STATUS ( 2, "running consistency-check on background thread" );
+    STATUS ( 2, "running consistency-check on background thread 0x%p", self );
 
     CrossCheckRefAlignTblInt ( ctx, pb -> ref_tbl, pb -> align_tbl, pb -> align_name );
 
-    STATUS ( 2, "finished consistency-check on background thread" );
+    STATUS ( 2, "finished consistency-check on background thread 0x%p: %s",
+             self, ctx -> rc ? "failure" : "success ");
 
     VTableRelease ( pb -> align_tbl );
     VTableRelease ( pb -> ref_tbl );
@@ -357,7 +358,8 @@ rc_t CC CrossCheckRefAlignTblRun ( const KThread *self, void *data )
 #endif
 
 void CrossCheckRefAlignTbl ( const ctx_t *ctx,
-    const VTable *ref_tbl, const VTable *align_tbl, const char *align_name )
+    const VTable *ref_tbl, const VTable *align_tbl, const char *align_name,
+    KThread ** pt )
 {
     FUNC_ENTRY ( ctx );
 
@@ -367,6 +369,9 @@ void CrossCheckRefAlignTbl ( const ctx_t *ctx,
 #endif
 
     STATUS ( 2, "consistency-check on join indices between REFERENCE and %s tables", align_name );
+
+    assert ( pt );
+    * pt = NULL;
 
 #if USE_BGTHREAD
     name_len = strlen ( align_name );
@@ -391,6 +396,7 @@ void CrossCheckRefAlignTbl ( const ctx_t *ctx,
                     rc = KThreadMake ( & t, CrossCheckRefAlignTblRun, pb );
                     if ( rc == 0 )
                     {
+                        * pt = t;
                         return;
                     }
 

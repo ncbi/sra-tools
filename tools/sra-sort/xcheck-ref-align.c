@@ -351,6 +351,7 @@ rc_t CC CrossCheckRefAlignTblRun ( const KThread *self, void *data )
     VTableRelease ( pb -> align_tbl );
     VTableRelease ( pb -> ref_tbl );
     CapsWhack ( & pb -> caps, ctx );
+    free ( pb );
 
     return ctx -> rc;
 }
@@ -375,8 +376,12 @@ void CrossCheckRefAlignTbl ( const ctx_t *ctx,
 
 #if USE_BGTHREAD
     name_len = strlen ( align_name );
-    TRY ( pb = MemAlloc ( ctx, sizeof * pb + name_len, false ) )
-    {
+    pb = malloc ( sizeof * pb + name_len );
+    if ( pb == NULL ) {
+        rc_t rc = RC ( rcExe, rcMemory, rcAllocating, rcMemory, rcExhausted );
+        INTERNAL_ERROR ( rc, "" );
+    }
+    else {
         TRY ( CapsInit ( & pb -> caps, ctx ) )
         {
             rc_t rc = VTableAddRef ( pb -> ref_tbl = ref_tbl );
@@ -409,7 +414,7 @@ void CrossCheckRefAlignTbl ( const ctx_t *ctx,
             CapsWhack ( & pb -> caps, ctx );
         }
 
-        MemFree ( ctx, pb, sizeof * pb + name_len );
+        free ( pb );
     }
 #else
     CrossCheckRefAlignTblInt ( ctx, ref_tbl, align_tbl, align_name );

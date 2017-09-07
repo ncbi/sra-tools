@@ -58,7 +58,7 @@ then
     exit 1
 fi
 INSTALL_DIR=$1
-BIN_DIR=$(realpath ${INSTALL_DIR}/bin)
+BIN_DIR=${INSTALL_DIR}/bin
 
 if [ "$2" == "" ]
 then
@@ -69,12 +69,12 @@ fi
 VERSION=$2
 
 #list all tools vdb-passwd is deprecated but still distributed
-TOOLS=$(ls ${BIN_DIR} -1 --hide=ncbi --hide=vdb-passwd | grep -vE '[0-9]$')
+TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -vE '[0-9]$')
 #echo TOOLS=$TOOLS
 
 # some tools do not respond well to --version and/or -V
 # should be fixed, but let them pass for now
-NO_VERSION=$(ls ${BIN_DIR} -1 --hide=ncbi --hide=vdb-passwd | grep -vE '[0-9]$' | grep -v blastn_vdb  | grep -v dump-ref-fasta  | grep -v sra-blastn  | grep -v sra-search  | grep -v sra-tblastn  | grep -v tblastn_vdb)
+NO_VERSION=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -vE '[0-9]$' | grep -v blastn_vdb  | grep -v dump-ref-fasta  | grep -v sra-blastn  | grep -v sra-search  | grep -v sra-tblastn  | grep -v tblastn_vdb)
 #echo NO_VERSION=$NO_VERSION
 
 echo "Smoke testing ${BIN_DIR} ..."

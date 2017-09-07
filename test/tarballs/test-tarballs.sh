@@ -23,7 +23,7 @@
 #
 # ===========================================================================
 
-#echo $0 $*
+echo $0 $*
 
 #
 #  Download and test SRA Toolkit tarballs (see VDB-1345)
@@ -38,8 +38,6 @@
 # 2 - gunzip failed
 # 3 - tar failed
 # 4 - one of the tools failed
-
-HOMEDIR=$(dirname $(realpath "$0") )
 
 WORKDIR=$1
 if [ "${WORKDIR}" == "" ]
@@ -61,8 +59,12 @@ Linux)
     ;;
 Darwin)
     OS=mac64
+    realpath() {
+        [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
+    }
     ;;
 esac
+HOMEDIR=$(dirname $(realpath $0))
 
 TARBALLS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
 TARGET=sratoolkit.current-${OS}

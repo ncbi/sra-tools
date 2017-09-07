@@ -23,6 +23,8 @@
 #
 # ===========================================================================
 
+#echo $0 $*
+
 #
 #  Download and test SRA Toolkit tarballs (see VDB-1345)
 #  Errors are reported to the specified email
@@ -36,6 +38,8 @@
 # 2 - gunzip failed
 # 3 - tar failed
 # 4 - one of the tools failed
+
+HOMEDIR=$(dirname $(realpath "$0") )
 
 WORKDIR=$1
 if [ "${WORKDIR}" == "" ]
@@ -60,38 +64,39 @@ Darwin)
     ;;
 esac
 
-TARBALLS_URL=http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
+TARBALLS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
 TARGET=sratoolkit.current-${OS}
 
 mkdir -p ${WORKDIR}
+OLDDIR=$(pwd)
 cd ${WORKDIR}
 
 wget --no-check-certificate ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
 gunzip -f ${TARGET}.tar.gz || exit 2
 PACKAGE=$(tar tf ${TARGET}.tar | head -n 1)
 rm -rf ${PACKAGE}
-tar xvf ${TARGET}.tar || exit 3
+tar xf ${TARGET}.tar || exit 3
 
-FAILED=""
-for tool in ${TOOLS} 
-do
-    echo $tool
-    ${PACKAGE}/bin/$tool -h 
-    if [ "$?" != "0" ]
-    then
-        echo "$(pwd)/${PACKAGE}/bin/$tool failed" 
-        FAILED="${FAILED} $tool" 
-    fi
-done
+$HOMEDIR/smoke-test.sh ./${PACKAGE} 2.8.2
+RC=$?
 
-if [ "${FAILED}" != "" ]
+# FAILED=""
+# for tool in ${TOOLS}
+# do
+#     echo $tool
+#     ${PACKAGE}/bin/$tool -h
+#     if [ "$?" != "0" ]
+#     then
+#         echo "$(pwd)/${PACKAGE}/bin/$tool failed"
+#         FAILED="${FAILED} $tool"
+#     fi
+# done
+
+if [ "${RC}" != "0" ]
 then
-    echo "The following tools failed: ${FAILED}"
+    echo "Smoke test returned ${RC}"
     exit 4
 fi
 
 rm -rf ${PACKAGE} ${TARGET}.tar
-cd -
-
-
-
+cd ${OLDDIR}

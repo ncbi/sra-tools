@@ -27,7 +27,7 @@ setlocal
 
 set "TOOLS="
 
-:: vdb-passwd is obsolete but still in the package
+rem list all tools; vdb-passwd is obsolete but still in the package
 for /f %%F in ('dir /A:-D /B %1') do if "%%F" NEQ "vdb-passwd.exe" ( call set TOOLS=%%TOOLS%% %%F )
 
 cd %1
@@ -43,7 +43,6 @@ for %%t in ( %TOOLS% ) do (
     if "%%t" EQU "sra-tblastn.exe"      ( set VERSION_OPTION="-version" )
     if "%%t" EQU "tblastn_vdb.exe"      ( set VERSION_OPTION="-version" )
     if "%%t" EQU "dump-ref-fasta.exe"   ( set VERSION_OPTION="--version" )
-    if "%%t" EQU "sra-search.exe"       ( set VERSION_OPTION="-h" )
     call :RunTool %%t %%VERSION_OPTION%%
 )
 
@@ -61,8 +60,8 @@ if "%FAILED%" EQU "" ( echo Tarballs test successful )
 
 exit /B %ERRORLEVEL%
 
-:: execute a tool and report if fails
-:: to report, add the command line to the gloabl FAILED
+rem execute a tool and report if fails
+rem to report, add the command line to the gloabl FAILED
 :RunTool
 
 %* >NUL 2>&1

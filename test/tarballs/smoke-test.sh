@@ -33,7 +33,7 @@
 #   1 - bad arguments
 #   2 - tests failed
 
-usage()
+Usage()
 {
     echo "Usage: $0 <installation-directory> <version>" >&2
     echo "" >&2
@@ -41,20 +41,30 @@ usage()
     echo "  version:                 3-part version number of the SRA toolkit, e.g. 2.9.0" >&2
 }
 
+RunTool()
+{
+    #echo RunTool $*
+    eval $* >/dev/null 2>&1
+    if [ "$?" != "0" ]
+    then
+        FAILED="${FAILED} $* ;"
+    fi
+}
+
 if [ "$#" -lt 1 ]
 then
-    usage
+    Usage
     exit 0
 elif [ "$1" == "-h" ]
 then
-    usage
+    Usage
     exit 0
 fi
 
 if [ "$1" == "" ]
 then
     echo "Missing argument: installation directory"
-    usage
+    Usage
     exit 1
 fi
 INSTALL_DIR=$1
@@ -63,59 +73,47 @@ BIN_DIR=${INSTALL_DIR}/bin
 if [ "$2" == "" ]
 then
     echo "Missing argument: version"
-    usage
+    Usage
     exit 1
 fi
 VERSION=$2
 
-#list all tools vdb-passwd is deprecated but still distributed
-TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -vE '[0-9]$')
-#echo TOOLS=$TOOLS
-
-# some tools do not respond well to --version and/or -V
-# should be fixed, but let them pass for now
-NO_VERSION=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -vE '[0-9]$' | grep -v blastn_vdb  | grep -v dump-ref-fasta  | grep -v sra-blastn  | grep -v sra-search  | grep -v sra-tblastn  | grep -v tblastn_vdb)
-#echo NO_VERSION=$NO_VERSION
-
 echo "Smoke testing ${BIN_DIR} ..."
+FAILED=""
+
+# list all tools; vdb-passwd is obsolete but still in the package
+TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -vE '[0-9]$')
 
 # run all tools with -h and -V
-FAILED=""
 
 for tool in ${TOOLS}
 do
-    #echo $tool -h
-    ${BIN_DIR}/$tool -h >/dev/null
-    if [ "$?" != "0" ]
-    then
-        echo "${BIN_DIR}/$tool -h failed"
-        FAILED="${FAILED} $tool"
-    fi
+
+    RunTool ${BIN_DIR}/$tool -h
+
+    # All tools are supposed to respond to -V and --version, yet some respond only to --version, or -version, or nothing at all
+    VERSION_OPTION="-V"
+    if [ "${tool}" = "blastn_vdb" ]     ; then VERSION_OPTION="-version"; fi
+    if [ "${tool}" = "sra-blastn" ]     ; then VERSION_OPTION="-version"; fi
+    if [ "${tool}" = "sra-tblastn" ]    ; then VERSION_OPTION="-version"; fi
+    if [ "${tool}" = "tblastn_vdb" ]    ; then VERSION_OPTION="-version"; fi
+    if [ "${tool}" = "dump-ref-fasta" ] ; then VERSION_OPTION="--version"; fi
+    RunTool "${BIN_DIR}/$tool ${VERSION_OPTION} | grep -q ${VERSION}"
+
 done
 
-for tool in ${NO_VERSION}
-do
-    #echo $tool -V
-    ${BIN_DIR}/$tool --version | grep -q ${VERSION}
-    if [ "$?" != "0" ]
-    then
-        echo "${BIN_DIR}/$tool --version failed"
-        FAILED="${FAILED} $tool"
-    fi
-done
-
-# a quick connectivity test
-
-${BIN_DIR}/vdb-dump SRR000001 -R1 | grep -q EM7LVYS02FOYNU
-if [ "$?" != "0" ]
-then
-    echo "${BIN_DIR}/vdb-dump SRR000001 -R1 failed"
-    FAILED="${FAILED} $vdb-dump"
-fi
+# run some key tools, check return codes
+RunTool ${BIN_DIR}/test-sra
+RunTool ${BIN_DIR}/vdb-config
+RunTool ${BIN_DIR}/prefetch SRR002749
+RunTool ${BIN_DIR}/vdb-dump SRR000001 -R 1
+RunTool ${BIN_DIR}/fastq-dump SRR002749 -fasta -Z
+RunTool ${BIN_DIR}/sam-dump SRR002749
+RunTool ${BIN_DIR}/sra-pileup SRR619505 --quiet
 
 if [ "${FAILED}" != "" ]
 then
-    echo "These tools failed: ${FAILED}"
+    echo "Failed: ${FAILED}"
     exit 2
 fi
 

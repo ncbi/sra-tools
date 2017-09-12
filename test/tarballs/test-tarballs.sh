@@ -38,6 +38,7 @@ echo $0 $*
 # 2 - gunzip failed
 # 3 - tar failed
 # 4 - one of the tools failed
+# 5 - example failed
 
 WORKDIR=$1
 if [ "${WORKDIR}" == "" ]
@@ -45,16 +46,12 @@ then
     WORKDIR="./temp"
 fi
 
-TOOLS="abi-dump abi-load align-info bam-load blastn_vdb cache-mgr cg-load fastq-dump fastq-load helicos-load illumina-dump \
-illumina-load kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump sff-load sra-pileup \
-sra-sort sra-stat srapath srf-load tblastn_vdb test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock \
-vdb-unlock vdb-validate"
+echo "Testing sra-tools tarballs, working directory = $WORKDIR"
 
-# vdb-passwd is obsolete but still in the package
 
 case $(uname) in
 Linux)
-    python -mplatform | grep Ubuntu && OS=ubuntu64 || OS=centos_linux64
+    python -mplatform | grep -q Ubuntu && OS=ubuntu64 || OS=centos_linux64
     TOOLS="${TOOLS} pacbio-load remote-fuser"
     ;;
 Darwin)
@@ -73,31 +70,32 @@ mkdir -p ${WORKDIR}
 OLDDIR=$(pwd)
 cd ${WORKDIR}
 
-wget --no-check-certificate ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
+wget -q --no-check-certificate ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
 gunzip -f ${TARGET}.tar.gz || exit 2
 PACKAGE=$(tar tf ${TARGET}.tar | head -n 1)
 rm -rf ${PACKAGE}
 tar xf ${TARGET}.tar || exit 3
 
-$HOMEDIR/smoke-test.sh ./${PACKAGE} 2.8.2
-RC=$?
+# extract version number from the package's name
+[[ ${PACKAGE} =~ \.[0-9]+\.[0-9]+\.[0-9]+ ]] && VERSION=${BASH_REMATCH[0]:1} # clip leading '.'
+echo Current version: ${VERSION}
 
-# FAILED=""
-# for tool in ${TOOLS}
-# do
-#     echo $tool
-#     ${PACKAGE}/bin/$tool -h
-#     if [ "$?" != "0" ]
-#     then
-#         echo "$(pwd)/${PACKAGE}/bin/$tool failed"
-#         FAILED="${FAILED} $tool"
-#     fi
-# done
+$HOMEDIR/smoke-test.sh ./${PACKAGE} ${VERSION}
+RC=$?
 
 if [ "${RC}" != "0" ]
 then
     echo "Smoke test returned ${RC}"
     exit 4
+fi
+
+# run an example
+EXAMPLE="./${PACKAGE}/bin/vdb-dump SRR000001 -R 1 "
+$EXAMPLE | grep -q EM7LVYS02FOYNU
+if [ "$?" != "0" ]
+then
+    echo "The example failed: $EXAMPLE"
+    exit 5
 fi
 
 rm -rf ${PACKAGE} ${TARGET}.tar

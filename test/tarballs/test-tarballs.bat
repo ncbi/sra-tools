@@ -22,21 +22,50 @@
 ::
 :: ===========================================================================
 
-echo on
-Setlocal
-Setlocal EnableDelayedExpansion
+@echo off
+setlocal
 
-set TOOLS=abi-dump align-info cache-mgr fastq-dump illumina-dump kar kdbmeta latf-load prefetch rcexplain sam-dump sff-dump ^
-          sra-pileup sra-stat srapath test-sra vdb-config vdb-copy vdb-decrypt vdb-dump vdb-encrypt vdb-lock ^
-          vdb-unlock vdb-validate
-rem Temporarily removed from 2.8.0 due to an HTTPS bug in C++Toolkit. To be restored later
-rem blastn_vdb tblastn_vdb
+set "TOOLS="
 
 :: vdb-passwd is obsolete but still in the package
+for /f %%F in ('dir /A:-D /B %1') do if "%%F" NEQ "vdb-passwd.exe" ( call set TOOLS=%%TOOLS%% %%F )
 
+cd %1
 set FAILED=
 
-for %%t in ( %TOOLS% ) do ( echo | set /p=%%t & %1\%%t -h >NUL & ( if errorlevel 1 ( echo | set /p=failed! & set FAILED=!FAILED! %%t ) ) & echo. )
+for %%t in ( %TOOLS% ) do (
+    call :RunTool %%t -h
 
-if "%FAILED%" NEQ "" ( echo. & echo FAILED: %FAILED% & exit /b 1 )
+    rem All tools are supposed to respond to -V and --version, yet some respond only to --version, or -version, or nothing at all
+    set VERSION_OPTION="-V"
+    if "%%t" EQU "blastn_vdb.exe"       ( set VERSION_OPTION="-version" )
+    if "%%t" EQU "sra-blastn.exe"       ( set VERSION_OPTION="-version" )
+    if "%%t" EQU "sra-tblastn.exe"      ( set VERSION_OPTION="-version" )
+    if "%%t" EQU "tblastn_vdb.exe"      ( set VERSION_OPTION="-version" )
+    if "%%t" EQU "dump-ref-fasta.exe"   ( set VERSION_OPTION="--version" )
+    if "%%t" EQU "sra-search.exe"       ( set VERSION_OPTION="-h" )
+    call :RunTool %%t %%VERSION_OPTION%%
+)
 
+rem run some key tools, check return codes
+call :RunTool test-sra
+call :RunTool vdb-config
+call :RunTool prefetch SRR002749
+call :RunTool vdb-dump SRR000001 -R 1
+call :RunTool fastq-dump SRR002749 -fasta -Z
+call :RunTool sam-dump SRR002749
+call :RunTool sra-pileup SRR619505 --quiet
+
+if "%FAILED%" NEQ "" ( echo Failed: %FAILED% & exit /b 1 )
+if "%FAILED%" EQU "" ( echo Tarballs test successful )
+
+exit /B %ERRORLEVEL%
+
+:: execute a tool and report if fails
+:: to report, add the command line to the gloabl FAILED
+:RunTool
+
+%* >NUL 2>&1
+if errorlevel 1 ( call set FAILED=%%FAILED%% %* ; )
+
+exit /B %ERRORLEVEL%

@@ -1,9 +1,10 @@
-<project>
+<project name="SRA Toolkit tarballs test (Windows)" default="tarballs" basedir=".">
+
     <property name="sourcename" value="sratoolkit.current-win64.zip" />
-    <property name="url" value="http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/" />
+    <property name="url" value="https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/" />
     <property name="workdir" value=".\temp" />
     <property name="targetname" value="current-win64" />
-    
+
     <target name="tarballs">
         <delete dir="${workdir}" failonerror="false"/>
         <mkdir dir="${workdir}"/>
@@ -13,15 +14,15 @@
         <dirset id="tgt" dir="${workdir}" includes="*-win64"/>
         <property name="target" refid="tgt"/>
         <move file="${workdir}/${target}" tofile="${workdir}/${targetname}"/>
-        
+
         <echo message="Target directory is ${workdir}/${targetname}"/>
-        
+
         <exec executable="cmd" failonerror="true" >
             <arg value="/c"/>
             <arg value="test-tarballs.bat"/>
             <arg value="${workdir}\${targetname}\bin"/>
         </exec>
-        
-        <delete dir="${workdir}" failonerror="false"/>
+
+        <!--delete dir="${workdir}" failonerror="false"/-->
     </target>
 </project>

@@ -56,9 +56,24 @@ table NCBI:tbl:aligned:SPOT_STATISTICS #1
     extern column U32 FRAGMENT_LENGTH_EQUIPART;
 };
 
+table NCBI:tbl:aligned:CONTIG_STATS #1
+{
+    extern column <ascii>  zip_encoding REFERENCE_1;
+    extern column   <U32> izip_encoding START_1;
+    extern column   <U32> izip_encoding END_1;
+    extern column <ascii>  zip_encoding REFERENCE_2;
+    extern column   <U32> izip_encoding START_2;
+    extern column   <U32> izip_encoding END_2;
+    extern column   <U32> izip_encoding COUNT;
+    extern column   <F32>  zip_encoding FRAGMENT_LENGTH_AVERAGE;
+    extern column   <F32>  zip_encoding FRAGMENT_LENGTH_STD_DEV;
+    extern column <ascii>  zip_encoding READ_GROUP;
+};
+
 database NCBI:db:IR:raw #1
 {
     table NCBI:tbl:IR:raw #1.0 RAW;
     table NCBI:tbl:IR:raw #1.0 DISCARDED;
     table NCBI:tbl:aligned:SPOT_STATISTICS #1 LAYOUT_STATS;
+    table NCBI:tbl:aligned:CONTIG_STATS #1 CONTIG_STATS;
 };

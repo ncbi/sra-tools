@@ -370,16 +370,13 @@ namespace utility {
     static char const *programNameFromArgv0(char const *const argv0)
     {
         auto last = -1;
-        auto i = 0;
-        
-        do {
+        for (auto i = 0; ; ++i) {
             auto const ch = argv0[i];
-            if (ch == '\0') break;
+            if (ch == '\0') return argv0 + last + 1;
             if (ch == '/') last = i;
-            ++i;
-        } while (1);
-        return argv0 + last + 1;
+        }
     }
+    
     struct CommandLine {
         std::string program;
         std::vector<std::string> argument;
@@ -389,6 +386,66 @@ namespace utility {
         , program(programNameFromArgv0(argv[0]))
         {}
         auto arguments() const -> decltype(argument.size()) { return argument.size(); }
+    };
+
+    class strings_map {
+        typedef std::vector<char> char_store_t;
+        typedef char_store_t::size_type index_t;
+        typedef std::vector<index_t> reverse_lookup_t;
+        typedef std::pair<index_t, index_t> ordered_list_elem_t;
+        typedef std::vector<ordered_list_elem_t> ordered_list_t;
+        
+        char_store_t char_store;
+        reverse_lookup_t reverse_lookup;
+        ordered_list_t ordered_list;
+        
+        std::pair<bool, ordered_list_t::const_iterator> find(std::string const &name) const {
+            auto f = ordered_list.begin();
+            auto e = ordered_list.end();
+            auto const base = char_store.data();
+            
+            while (f < e) {
+                auto const m = f + ((e - f) >> 1);
+                auto const cmp = name.compare(base + m->first);
+                if (cmp == 0) return std::make_pair(true, m);
+                if (cmp < 0)
+                    e = m;
+                else
+                    f = m + 1;
+            }
+            return std::make_pair(false, f);
+        }
+    public:
+        strings_map() {}
+        strings_map(std::initializer_list<std::string> list) {
+            for (auto && i : list)
+                (void)operator[](i);
+        }
+        strings_map(std::initializer_list<char const *> list) {
+            for (auto && i : list)
+                (void)operator[](std::string(i));
+        }
+        index_t operator[](std::string const &name) {
+            auto const fnd = find(name);
+            if (fnd.first) return fnd.second->second;
+            
+            auto const newPair = std::make_pair(char_store.size(), ordered_list.size());
+            
+            char_store.insert(char_store.end(), name.begin(), name.end());
+            char_store.push_back(0);
+            
+            ordered_list.insert(fnd.second, newPair);
+            reverse_lookup.push_back(newPair.first);
+            
+            return newPair.second;
+        }
+        std::string operator[](index_t id) const {
+            if (id < reverse_lookup.size()) {
+                char const *const rslt = char_store.data() + reverse_lookup[id];
+                return std::string(rslt);
+            }
+            throw std::out_of_range("invalid id");
+        }
     };
 }
 

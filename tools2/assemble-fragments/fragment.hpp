@@ -407,62 +407,6 @@ public:
     }
 };
 
-struct Layout {
-    uint8_t value;
-    
-    explicit Layout(int value = -1) : value(0 <= value && value < 12 ? value : 0xFF) {}
-    
-    Layout(unsigned const pos1, char const strand1, unsigned const pos2, char const strand2) {
-        auto const order = pos1 < pos2 ? 1 : pos2 < pos1 ? 2 : 0;
-        auto const plus = strand1 == '+' ? 0 : 1;
-        auto const same = strand1 == strand2 ? 1 : 0;
-        value = same | (plus << 1) | (order << 2);
-    }
-    
-    Layout transposed() const {
-        return value < 12 ? Layout((value ^ 0xE) & ((value & 0xC) == 0 ? 0x3 : 0xF)) : invalid();
-    }
-    
-    Layout operator ++() {
-        ++value; return *this;
-    }
-    
-    operator bool() const {
-        return value < 12;
-    }
-    
-    int order() const {
-        if (value < 12) {
-            auto const order = value >> 2;
-            return order == 1 ? 1 : order == 2 ? -1 : 0;
-        }
-        return 0;
-    }
-    operator char const *() const {
-        static char const *names[] = {
-            "xFxR",
-            "xFxF",
-            "xRxF",
-            "xRxR",
-            "1F2R",
-            "1F2F",
-            "1R2F",
-            "1R2R",
-            "2F1R",
-            "2F1F",
-            "2R1F",
-            "2R1R",
-        };
-        return value < 12 ? names[value] : "INVALID";
-    }
-    
-    static Layout invalid() { return Layout(); }
-    
-    friend bool operator ==(Layout const &a, Layout const &b) { return a.value == b.value; }
-    friend bool operator !=(Layout const &a, Layout const &b) { return a.value != b.value; }
-    friend bool operator <(Layout const &a, Layout const &b) { return a.value < b.value; }
-};
-
 struct Alignment {
     DNASequence sequence;
     std::string reference;
@@ -515,25 +459,6 @@ struct Alignment {
             return a.position < b.position;
         }
         return false;
-    }
-    
-    static std::pair<Layout, unsigned> layout(Alignment const &one, Alignment const &two) {
-        if (one.aligned && two.aligned && one.reference == two.reference) {
-            auto const c1 = CIGAR(one.cigar);
-            int const f1 = one.position - c1.qfirst;
-            int const e1 = one.position + c1.rlength + c1.qclip;
-
-            auto const c2 = CIGAR(two.cigar);
-            int const f2 = two.position - c2.qfirst;
-            int const e2 = two.position + c2.rlength + c2.qclip;
-
-            auto const min = std::min(f1, std::min(f2, std::min(e1, e2)));
-            auto const max = std::max(f1, std::max(f2, std::max(e1, e2)));
-            
-            if (max > min)
-                return std::make_pair(Layout(one.position, one.strand, two.position, two.strand), max - min);
-        }
-        return std::make_pair(Layout::invalid(), 0);
     }
 };
 

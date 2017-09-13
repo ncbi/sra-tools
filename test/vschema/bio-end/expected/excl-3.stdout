@@ -1,5 +1,0 @@
-       bio_end: 8
-  out_read_len: 4, 4, 4, 0, 0
-out_read_start: 0, 4, 8, 12, 12
- out_read_type: SRA_READ_TYPE_TECHNICAL, SRA_READ_TYPE_BIOLOGICAL, SRA_READ_TYPE_TECHNICAL, SRA_READ_TYPE_BIOLOGICAL, SRA_READ_TYPE_TECHNICAL
-

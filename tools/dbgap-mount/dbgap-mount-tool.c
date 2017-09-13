@@ -41,6 +41,7 @@
 #include <xfs/node.h>
 #include <xfs/tree.h>
 #include <xfs/xfs.h>
+#include <xfs/access.h>
 
 #include "dbgap-mount-tool.h"
 
@@ -153,55 +154,59 @@ DoFukan (
     RCt = XFS_InitAll_MHR ( NULL );
     pLogMsg ( klogDebug, "[XFS_InitAll_MHR][$(rc)]", "rc=%d", RCt );
     if ( RCt == 0 ) {
-
-        RCt = MakeModel ( & TheModel, ProjectId, ReadOnly );
-        pLogMsg ( klogDebug, "[XFSModelMake][$(rc)]", "rc=%d", RCt );
+        RCt = XFSAccessInit4Gap ( atol ( ProjectId ) );
         if ( RCt == 0 ) {
-
-            RCt = XFSTreeMake ( TheModel, & TheTree );
-            pLogMsg ( klogDebug, "[XFSTreeMake][$(rc)]", "rc=%d", RCt );
+            RCt = MakeModel ( & TheModel, ProjectId, ReadOnly );
+            pLogMsg ( klogDebug, "[XFSModelMake][$(rc)]", "rc=%d", RCt );
             if ( RCt == 0 ) {
 
-                RCt = XFSControlMake ( TheTree, & TheControl );
-                pLogMsg ( klogDebug, "[XFSControlMake][$(rc)]", "rc=%d", RCt );
+                RCt = XFSTreeMake ( TheModel, & TheTree );
+                pLogMsg ( klogDebug, "[XFSTreeMake][$(rc)]", "rc=%d", RCt );
                 if ( RCt == 0 ) {
 
-                    XFSControlSetMountPoint ( TheControl, MountPoint );
-
-                    RCt = string_printf (
-                                        Lable,
-                                        sizeof ( Lable ) - 1,
-                                        & NumWr,
-                                        "dbGaP(%s)",
-                                        ProjectId
-                                        );
-                    XFSControlSetLabel ( TheControl, Lable );
-                    if ( LogFile != NULL ) {
-                        XFSControlSetLogFile ( TheControl, LogFile );
-                    }
-                    if ( Daemonize ) {
-                        XFSControlDaemonize ( TheControl );
-                    }
-
-                    LogMsg ( klogDebug, "[XFSStart]" );
-                    RCt = XFSStart ( TheControl );
-                    pLogMsg ( klogDebug, "[XFSStart][$(rc)]", "rc=%d", RCt );
+                    RCt = XFSControlMake ( & TheControl, TheTree );
+                    pLogMsg ( klogDebug, "[XFSControlMake][$(rc)]", "rc=%d", RCt );
                     if ( RCt == 0 ) {
-                        LogMsg ( klogDebug, "[XFSStop]" );
-                        RCt = XFSStop ( TheControl );
-                        pLogMsg ( klogDebug, "[XFSStop][$(rc)]", "rc=%d", RCt );
+
+                            XFSControlSetMountPoint ( TheControl, MountPoint );
+
+                        RCt = string_printf (
+                                            Lable,
+                                            sizeof ( Lable ) - 1,
+                                            & NumWr,
+                                            "dbGaP(%s)",
+                                            ProjectId
+                                            );
+                        XFSControlSetLabel ( TheControl, Lable );
+                        if ( LogFile != NULL ) {
+                            XFSControlSetLogFile ( TheControl, LogFile );
+                        }
+                        if ( Daemonize ) {
+                            XFSControlDaemonize ( TheControl );
+                        }
+
+                        LogMsg ( klogDebug, "[XFSStart]" );
+                        RCt = XFSStart ( TheControl );
+                        pLogMsg ( klogDebug, "[XFSStart][$(rc)]", "rc=%d", RCt );
+                        if ( RCt == 0 ) {
+                            LogMsg ( klogDebug, "[XFSStop]" );
+                            RCt = XFSStop ( TheControl );
+                            pLogMsg ( klogDebug, "[XFSStop][$(rc)]", "rc=%d", RCt );
+                        }
+                        else {
+                            LogErr ( klogFatal, RCt, "CRITICAL ERROR: Can not start MOUNTER" );
+                        }
                     }
-                    else {
-                        LogErr ( klogFatal, RCt, "CRITICAL ERROR: Can not start MOUNTER" );
-                    }
+
+                    XFSControlDispose ( TheControl );
+
+                    XFSTreeRelease ( TheTree );
                 }
 
-                XFSControlDispose ( TheControl );
-
-                XFSTreeRelease ( TheTree );
+                XFSModelRelease ( TheModel );
             }
 
-            XFSModelRelease ( TheModel );
+            RCt = XFSAccessDispose ();
         }
 
         XFS_DisposeAll_MHR ();

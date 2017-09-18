@@ -42,60 +42,155 @@
 
 using namespace utility;
 
-static void write(VDB::Writer const &out, Fragment const &fragment, unsigned one, unsigned two)
+static strings_map references;
+static strings_map groups;
+
+struct ContigStats {
+    struct stat {
+        unsigned group;
+        unsigned ref1, ref2;
+        int start1, start2;
+        int end1, end2;
+        
+        unsigned count;
+        float length_average, length_std_dev;
+        
+        std::pair<double, double> basesPerRead() const {
+            return std::make_pair(double(end1 - start1) / count, double(end2 - start2) / count);
+        }
+        
+        friend bool operator <(stat const &a, stat const &b) {
+            if (a.ref1 < b.ref1) return true;
+            if (a.ref1 > b.ref1) return false;
+            if (a.start1 < b.start1) return true;
+            if (a.start1 > b.start1) return false;
+            if (a.end1 < b.end1) return true;
+            if (a.end1 > b.end1) return false;
+            if (a.ref2 < b.ref2) return true;
+            if (a.ref2 > b.ref2) return false;
+            if (a.start2 < b.start2) return true;
+            if (a.start2 > b.start2) return false;
+            if (a.end2 < b.end2) return true;
+            if (a.end2 > b.end2) return false;
+            return a.group < b.group;
+        }
+        
+        static stat load(VDB::Cursor const &curs, int64_t row) {
+            auto const ref1 = references[curs.read(row, 1).asString()];
+            auto const start1 = curs.read(row, 2).value<int32_t>();
+            auto const end1 = curs.read(row, 3).value<int32_t>();
+            auto const ref2 = references[curs.read(row, 4).asString()];
+            auto const start2 = curs.read(row, 5).value<int32_t>();
+            auto const end2 = curs.read(row, 6).value<int32_t>();
+            auto const count = curs.read(row, 7).value<uint32_t>();
+            auto const group = groups[curs.read(row, 8).asString()];
+            auto const average = curs.read(row, 9).value<float>();
+            auto const std_dev = curs.read(row, 10).value<float>();
+            
+            stat const o = { unsigned(group), unsigned(ref1), unsigned(ref2), int(start1), int(start2), int(end1), int(end2), unsigned(count), average, std_dev };
+            
+            return o;
+        }
+        
+        friend std::ostream &operator <<(std::ostream &strm, stat const &o) {
+            strm    << references[o.ref1]
+            << '\t' << o.start1
+            << '\t' << o.end1
+            << '\t' << '(' << double(o.end1 - o.start1) / o.count << ')'
+            << '\t' << references[o.ref2]
+            << '\t' << o.start2
+            << '\t' << o.end2
+            << '\t' << '(' << double(o.end2 - o.start2) / o.count << ')'
+            << '\t' << o.count
+            << '\t' << '(' << double(o.end2 - o.start1) / o.length_average << ')'
+            << '\t' << '(' << double(o.length_average * o.count) / double(o.end2 - o.start1) << ')';
+            return strm;
+        }
+    };
+    std::set<stat> stats;
+    
+    static ContigStats load(VDB::Database const &db) {
+        ContigStats result;
+        std::set<stat> temp;
+        {
+            auto const tbl = db["CONTIG_STATS"];
+            auto const curs = tbl.read({ "REFERENCE_1", "START_1", "END_1", "REFERENCE_2", "START_2", "END_2", "COUNT", "READ_GROUP", "FRAGMENT_LENGTH_AVERAGE", "FRAGMENT_LENGTH_STD_DEV" });
+            auto const range = curs.rowRange();
+            
+            for (auto row = range.first; row < range.second; ++row) {
+                auto const data = stat::load(curs, row);
+                auto const r = temp.emplace(data);
+                if (!r.second) {
+                    std::cerr << "duplicate record:\t\t" << data << std::endl;
+                }
+            }
+            if (range.second - range.first != temp.size())
+                throw std::logic_error("bad data");
+        }
+        for (auto i = temp.begin(); i != temp.end(); ++i) {
+            
+        }
+        return result;
+    }
+};
+
+static void keep(VDB::Writer const &out, Fragment const &fragment, unsigned one, unsigned two)
 {
     
 }
 
-struct Fragment2 {
-    unsigned one, two;
-    unsigned score;
+static void reject(VDB::Writer const &out, Fragment const &fragment)
+{
     
-    friend bool operator <(Fragment2 const &a, Fragment2 const &b)
-    {
-        if (a.score < b.score)
-            return true;
-        if (a.score > b.score)
-            return false;
-        if (a.one < b.one)
-            return true;
-        if (a.one > b.one)
-            return false;
-        if (a.two < b.two)
-            return true;
-        return false;
+}
+
+static std::vector<std::pair<unsigned, unsigned>>::const_iterator bestPair(std::vector<Alignment> const &alignments, std::vector<std::pair<unsigned, unsigned>> const &pairs)
+{
+    auto result = pairs.begin();
+    if (pairs.size() > 1) {
+        
     }
-};
+    return result;
+}
+
+static std::vector<std::pair<unsigned, unsigned>> makePairs(std::vector<Alignment> const &alignments)
+{
+    auto pairs = std::vector<std::pair<unsigned, unsigned>>();
+    auto const n = alignments.size();
+    
+    for (auto one = unsigned(0); one < n; ++one) {
+        if (alignments[one].readNo != 1 || alignments[one].aligned == false) continue;
+        for (auto two = unsigned(0); two < n; ++two) {
+            if (alignments[two].readNo != 2 || alignments[two].aligned == false) continue;
+            
+            pairs.push_back({ one, two });
+        }
+    }
+    return pairs;
+}
 
 static int assemble(std::ostream &out, std::string const &run)
 {
+    auto writer = VDB::Writer(out);
+    
+    writer.destination("IR.vdb");
+    writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
+    writer.info("assemble-fragments", "1.0.0");
+
     auto const mgr = VDB::Manager();
     auto const inDb = mgr[run];
-    auto const stats = inDb["CONTIG_STATS"];
+    auto const stats = ContigStats::load(inDb);
     auto const in = Fragment::Cursor(inDb["RAW"]);
     auto const range = in.rowRange();
-    auto writer = VDB::Writer(out);
     
     for (auto row = range.first; row < range.second; ) {
         auto const fragment = in.read(row, range.second);
-        auto const n = fragment.detail.size();
-        auto pairs = std::set<Fragment2>();
-
-        for (auto one = unsigned(0); one < n; ++one) {
-            if (fragment.detail[one].readNo != 1 || fragment.detail[one].aligned == false) continue;
-            for (auto two = unsigned(0); two < n; ++two) {
-                if (fragment.detail[two].readNo != 2 || fragment.detail[two].aligned == false) continue;
-                
-                Fragment2 pair = { one, two, 0 };
-                pairs.insert(pair);
-            }
-        }
-        auto result = pairs.begin();
-        if (pairs.size() > 1) {
-            
-        }
+        auto const pairs = makePairs(fragment.detail);
+        auto const result = bestPair(fragment.detail, pairs);
         if (result != pairs.end())
-            write(writer, fragment, result->one, result->two);
+            keep(writer, fragment, result->first, result->second);
+        else
+            reject(writer, fragment);
     }
     return 0;
 }

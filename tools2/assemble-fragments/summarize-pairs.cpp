@@ -47,21 +47,24 @@ static strings_map groups = {""};
 
 struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the two reads of a paired-end fragment
     struct Contig { ///< a contig is nothing more than a contiguous region on some reference; a read is a contig by this definition
+        unsigned length;
         unsigned ref;
-        unsigned start;
-        unsigned end;
+        int start;
+        int end;
         
         Contig() {}
-        Contig(unsigned ref, unsigned start, unsigned end)
+        Contig(unsigned ref, int start, int end, unsigned length)
         : ref(ref)
         , start(start)
         , end(end)
+        , length(length)
         {}
 
         Contig(Alignment const &algn, CIGAR const &cigar)
         : ref(unsigned(references[algn.reference]))
         , start(algn.position - cigar.qfirst)
         , end(algn.position + cigar.rlength + cigar.qclip)
+        , length(cigar.qlength)
         {}
     };
     Contig first, second;
@@ -125,8 +128,8 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
     }
     
     ContigPair(ContigPair const &a, ContigPair const &b) ///< create a new pair that is the union of the two pairs; it is assumed that they overlap properly
-    : first(a.first.ref, std::min(a.first.start, b.first.start), std::max(a.first.end, b.first.end))
-    , second(a.second.ref, std::min(a.second.start, b.second.start), std::max(a.second.end, b.second.end))
+    : first(a.first.ref, std::min(a.first.start, b.first.start), std::max(a.first.end, b.first.end), a.first.length + b.first.length)
+    , second(a.second.ref, std::min(a.second.start, b.second.start), std::max(a.second.end, b.second.end), a.second.length + b.second.length)
     , count(a.count + b.count)
     , group(a.group)
     , sum(a.sum + b.sum)
@@ -141,24 +144,17 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
         if (std::getline(in, line)) {
             auto in = std::istringstream(line);
             std::string str;;
-            unsigned u;
             
             if (!(in >> str)) return; first.ref = unsigned(references[str]);
-            if (!(in >> str)) return; // strand; discarded
             if (!(in >> first.start)) return;
             if (!(in >> first.end)) return;
+            if (!(in >> first.length)) return;
             
-            if (!(in >> u)) return; // left clip; discarded
-            if (!(in >> u)) return; // right clip; discarded
-
             if (!(in >> str)) return; second.ref = unsigned(references[str]);
-            if (!(in >> str)) return; // strand; discarded
             if (!(in >> second.start)) return;
             if (!(in >> second.end)) return;
+            if (!(in >> second.length)) return;
 
-            if (!(in >> u)) return; // left clip; discarded
-            if (!(in >> u)) return; // right clip; discarded
-            
             if (in >> str) {
                 group = unsigned(groups[str]);
             }
@@ -185,36 +181,46 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
         auto const &ref1 = references[i.first.ref];
         auto const &ref2 = references[i.second.ref];
         auto const &grp = groups[i.group];
-        strm << ref1 << '\t' << i.first.start << '\t' << i.first.end << '\t'
-             << ref2 << '\t' << i.second.start << '\t' << i.second.end << '\t'
+        strm << ref1 << '\t' << i.first.start << '\t' << i.first.end << '\t' << i.first.length << '\t'
+             << ref2 << '\t' << i.second.start << '\t' << i.second.end << '\t' << i.second.length << '\t'
              << grp;
         return strm;
     }
     void write(VDB::Writer const &out) const {
-        out.value(1, references[first.ref]);
-        out.value(2, (uint32_t)first.start);
-        out.value(3, (uint32_t)first.end);
-        out.value(4, references[second.ref]);
-        out.value(5, (uint32_t)second.start);
-        out.value(6, (uint32_t)second.end);
-        out.value(7, (uint32_t)count);
-        out.value(8, (float)mean());
-        out.value(9, (float)sqrt(variance()));
-        out.value(10, groups[group]);
+        out.value( 1, references[first.ref]);
+        out.value( 2, (int32_t)first.start);
+        out.value( 3, (int32_t)first.end);
+        out.value( 4, float(first.length) / count);
+
+        out.value( 5, references[second.ref]);
+        out.value( 6, (int32_t)second.start);
+        out.value( 7, (int32_t)second.end);
+        out.value( 8, float(second.length) / count);
+        
+        out.value( 9, (uint32_t)count);
+        out.value(10, (float)mean());
+        out.value(11, (float)sqrt(variance()));
+        out.value(12, groups[group]);
+        
         out.closeRow(1);
     }
     static void setup(VDB::Writer const &writer) {
         writer.openTable(1, "CONTIG_STATS");
+
         writer.openColumn( 1, 1,  8, "REFERENCE_1");
         writer.openColumn( 2, 1, 32, "START_1");
         writer.openColumn( 3, 1, 32, "END_1");
-        writer.openColumn( 4, 1,  8, "REFERENCE_2");
-        writer.openColumn( 5, 1, 32, "START_2");
-        writer.openColumn( 6, 1, 32, "END_2");
-        writer.openColumn( 7, 1, 32, "COUNT");
-        writer.openColumn( 8, 1, 32, "FRAGMENT_LENGTH_AVERAGE");
-        writer.openColumn( 9, 1, 32, "FRAGMENT_LENGTH_STD_DEV");
-        writer.openColumn(10, 1,  8, "READ_GROUP");
+        writer.openColumn( 4, 1, 32, "LENGTH_AVERAGE_1");
+        
+        writer.openColumn( 5, 1,  8, "REFERENCE_2");
+        writer.openColumn( 6, 1, 32, "START_2");
+        writer.openColumn( 7, 1, 32, "END_2");
+        writer.openColumn( 8, 1, 32, "LENGTH_AVERAGE_2");
+
+        writer.openColumn( 9, 1, 32, "COUNT");
+        writer.openColumn(10, 1, 32, "FRAGMENT_LENGTH_AVERAGE");
+        writer.openColumn(11, 1, 32, "FRAGMENT_LENGTH_STD_DEV");
+        writer.openColumn(12, 1,  8, "READ_GROUP");
     }
 };
 

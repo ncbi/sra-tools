@@ -279,6 +279,7 @@ public:
                 assign(v.begin() + first, v.begin() + end);
         }
         if (i == str.length() && size() != 0 && front().opcode() == 'M' && back().opcode() == 'M') {
+            qlength = qfirst + qclip;
             for (auto && op : *this) {
                 auto const length = op.length();
                 switch (op.value & 0xF) {

@@ -245,6 +245,23 @@ namespace VDB {
             return Cursor(const_cast<C::VCursor *>(curs));
         }
         
+        Cursor read(std::initializer_list<char const *> const &fields) const
+        {
+            C::VCursor const *curs = 0;
+            auto rc = C::VTableCreateCursorRead(o, &curs);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            
+            for (auto && field : fields) {
+                uint32_t cid = 0;
+                
+                rc = C::VCursorAddColumn(curs, &cid, "%s", field);
+                if (rc) throw Error(rc, __FILE__, __LINE__);
+            }
+            rc = C::VCursorOpen(curs);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return Cursor(const_cast<C::VCursor *>(curs));
+        }
+        
         Cursor append(unsigned const N, char const *fields[]) const
         {
             C::VCursor *curs = 0;

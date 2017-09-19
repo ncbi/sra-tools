@@ -20,46 +20,15 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# ==============================================================================
 
-by_default: runtests
+default: runtests
 
-TOP ?= $(abspath ..)
-MODULE = test
+TOP ?= $(abspath ../..)
 
-include $(TOP)/build/Makefile.shell
+include $(TOP)/build/Makefile.env
 
-include $(TOP)/build/Makefile.config
+runtests: check_fastq_dump_crash
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =    \
-	dump-test       \
-	vdb-config      \
-	vcf-loader      \
-	align-info      \
-	align-cache     \
-	vdb-validate    \
-	kar             \
-	copycat         \
-	fastdump        \
-	vdb-copy        \
-	qual-recalib-stat \
-	sra-pileup      \
-	srapath         \
-	fuse            \
-	fastq-loader    \
-	kget            \
-	vdb-dump        \
-
-# under construction
-#    ngs-pileup      \
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
+check_fastq_dump_crash:
+	$(BINDIR)/fastq-dump -Z -split-3 ERR034677 SRR125365 > /dev/null

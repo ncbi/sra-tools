@@ -201,10 +201,10 @@ struct CIGAR_OP {
  * \brief A value type for a sequence of alignment operations
  */
 struct CIGAR : public std::vector<CIGAR_OP> {
-    unsigned rlength; ///< aligned length on reference
-    unsigned qfirst;  ///< first aligned base of the query
-    unsigned qlength; ///< aligned length of query
-    unsigned qclip;   ///< number of clipped bases of query
+    int rlength; ///< aligned length on reference
+    int qfirst;  ///< first aligned base of the query
+    int qlength; ///< aligned length of query
+    int qclip;   ///< number of clipped bases of query
 
 private:
     CIGAR(unsigned rlength, unsigned left_clip, unsigned qlength, unsigned right_clip, std::vector<CIGAR_OP> const &other)

@@ -74,29 +74,32 @@ static bool string_to_u(T &result, std::string const &str, int radix = 0)
 }
 
 struct StatisticsAccumulator {
+private:
     unsigned long long N;
     double sum;
     double M2;
-    
+public:
     StatisticsAccumulator() : N(0) {}
     explicit StatisticsAccumulator(double const value) : sum(value), M2(0.0), N(1) {}
-    StatisticsAccumulator(StatisticsAccumulator const &a, StatisticsAccumulator const &b)
-    : N(a.N + b.N)
-    , sum(a.sum + b.sum)
-    , M2(a.M2 + b.M2)
-    {
-        if (a.N != 0 && b.N != 0) {
-            auto const avg1 = a.average();
-            auto const avg2 = b.average();
-            auto const diff = (avg1 < avg2) ? (avg2 - avg1) : (avg1 - avg2);
-            auto const adjust = diff * diff * a.N * b.N / N;
-            M2 += adjust;
-        }
-    }
 
+    unsigned long long count() const { return N; }
     double average() const { return sum / N; }
     double variance() const { return M2 / N; }
     operator bool() const { return N != 0; }
+    
+    friend StatisticsAccumulator operator +(StatisticsAccumulator const &a, StatisticsAccumulator const &b) {
+        StatisticsAccumulator result;
+        
+        result.N = a.N + b.N;
+        result.sum = (a.N == 0 ? 0.0 : a.sum) + (b.N == 0 ? 0.0 : b.sum);
+        result.M2 = (a.N == 0 ? 0.0 : a.M2) + (b.N == 0 ? 0.0 : b.M2);
+        if (a.N != 0 && b.N != 0) {
+            auto const diff = a.average() - b.average();
+            auto const adjust = diff * diff * a.N * b.N / result.N;
+            result.M2 += adjust;
+        }
+        return result;
+    }
 };
 
 struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the two reads of a paired-end fragment
@@ -113,8 +116,8 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
         : ref(a.ref)
         , start(std::min(a.start, b.start))
         , end(std::max(a.end, b.end))
-        , qlength(a.qlength, b.qlength)
-        , rlength(a.rlength, b.rlength)
+        , qlength(a.qlength + b.qlength)
+        , rlength(a.rlength + b.rlength)
         {}
 
         Contig(Alignment const &algn, CIGAR const &cigar)
@@ -142,7 +145,7 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
     
     double mean() const { return flength.average(); }
     double variance() const { return flength.variance(); }
-    unsigned count() const { return unsigned(flength.N); }
+    unsigned count() const { return unsigned(flength.count()); }
     
     int compare(ContigPair const &other) const
     {
@@ -169,7 +172,7 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
     : first(a.first, b.first)
     , second(a.second, b.second)
     , group(a.group)
-    , flength(a.flength, b.flength)
+    , flength(a.flength + b.flength)
     {}
     
     ContigPair(Alignment const &one, Alignment const &two, std::string const &group)

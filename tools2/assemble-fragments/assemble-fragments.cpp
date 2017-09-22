@@ -47,6 +47,7 @@ static strings_map groups;
 
 struct ContigStats {
     struct stat {
+        int64_t sourceRow;
         unsigned group;
         unsigned ref1, ref2;
         int start1, start2;
@@ -79,15 +80,17 @@ struct ContigStats {
             auto const ref1 = references[curs.read(row, 1).asString()];
             auto const start1 = curs.read(row, 2).value<int32_t>();
             auto const end1 = curs.read(row, 3).value<int32_t>();
+            
             auto const ref2 = references[curs.read(row, 4).asString()];
             auto const start2 = curs.read(row, 5).value<int32_t>();
             auto const end2 = curs.read(row, 6).value<int32_t>();
+
             auto const count = curs.read(row, 7).value<uint32_t>();
             auto const group = groups[curs.read(row, 8).asString()];
             auto const average = curs.read(row, 9).value<float>();
             auto const std_dev = curs.read(row, 10).value<float>();
             
-            stat const o = { unsigned(group), unsigned(ref1), unsigned(ref2), int(start1), int(start2), int(end1), int(end2), unsigned(count), average, std_dev };
+            stat const o = { row, unsigned(group), unsigned(ref1), unsigned(ref2), int(start1), int(start2), int(end1), int(end2), unsigned(count), average, std_dev };
             
             return o;
         }
@@ -106,6 +109,12 @@ struct ContigStats {
             << '\t' << '(' << double(o.length_average * o.count) / double(o.end2 - o.start1) << ')';
             return strm;
         }
+        
+        friend std::string foo(stat const &o) {
+            std::ostringstream oss;
+            oss << o << std::endl;
+            return oss.str();
+        }
     };
     std::set<stat> stats;
     
@@ -118,17 +127,20 @@ struct ContigStats {
             auto const range = curs.rowRange();
             
             for (auto row = range.first; row < range.second; ++row) {
-                auto const data = stat::load(curs, row);
-                auto const r = temp.emplace(data);
-                if (!r.second) {
-                    std::cerr << "duplicate record:\t\t" << data << std::endl;
+#if !defined(_LIBCPP_HAS_NO_RVALUE_REFERENCES) && !defined(_LIBCPP_HAS_NO_VARIADICS)
+                auto inserted = temp.emplace_hint(temp.end(), stat::load(curs, row))->sourceRow;
+#else
+                auto inserted = temp.insert(temp.end(), stat::load(curs, row))->sourceRow;
+#endif
+                if (inserted != row) {
+                    std::cerr << "warning: row " << inserted << " duplicated by row " << row << std::endl;
                 }
             }
             if (range.second - range.first != temp.size())
                 throw std::logic_error("bad data");
         }
         for (auto i = temp.begin(); i != temp.end(); ++i) {
-            
+            auto const s = foo(*i);
         }
         return result;
     }
@@ -169,7 +181,7 @@ static std::vector<std::pair<unsigned, unsigned>> makePairs(std::vector<Alignmen
     return pairs;
 }
 
-static int assemble(std::ostream &out, std::string const &run)
+static int assemble(std::ostream &out, std::string const &data_run, std::string const &stats_run)
 {
     auto writer = VDB::Writer(out);
     
@@ -178,8 +190,8 @@ static int assemble(std::ostream &out, std::string const &run)
     writer.info("assemble-fragments", "1.0.0");
 
     auto const mgr = VDB::Manager();
-    auto const inDb = mgr[run];
-    auto const stats = ContigStats::load(inDb);
+    auto const stats = ContigStats::load(mgr[stats_run]);
+    auto const inDb = mgr[data_run];
     auto const in = Fragment::Cursor(inDb["RAW"]);
     auto const range = in.rowRange();
     
@@ -197,7 +209,7 @@ static int assemble(std::ostream &out, std::string const &run)
 
 namespace assembleFragments {
     static void usage(std::string const &program, bool error) {
-        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <sra run>" << std::endl;
+        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <sra run> [<stats run>]" << std::endl;
         exit(error ? 3 : 0);
     }
     
@@ -209,6 +221,7 @@ namespace assembleFragments {
         }
         auto outPath = std::string();
         auto source = std::string();
+        auto source2 = std::string();
         for (auto && arg : commandLine.argument) {
             if (arg.substr(0, 5) == "-out=") {
                 outPath = arg.substr(5);
@@ -216,6 +229,10 @@ namespace assembleFragments {
             }
             if (source.empty()) {
                 source = arg;
+                continue;
+            }
+            if (source2.empty()) {
+                source2 = arg;
                 continue;
             }
             usage(commandLine.program, true);
@@ -234,7 +251,7 @@ namespace assembleFragments {
         }
         std::ostream &out = outPath.empty() ? std::cout : ofs;
 
-        return assemble(out, source);
+        return assemble(out, source, source2.empty() ? source : source2);
     }
 }
 

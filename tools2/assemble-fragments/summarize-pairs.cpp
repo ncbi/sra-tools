@@ -86,8 +86,11 @@ struct StatisticsAccumulator {
     , M2(a.M2 + b.M2)
     {
         if (a.N != 0 && b.N != 0) {
-            double const d = a.average() - b.average();
-            M2 += d * d * a.N * b.N / N;
+            auto const avg1 = a.average();
+            auto const avg2 = b.average();
+            auto const diff = (avg1 < avg2) ? (avg2 - avg1) : (avg1 - avg2);
+            auto const adjust = diff * diff * a.N * b.N / N;
+            M2 += adjust;
         }
     }
 
@@ -122,69 +125,51 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
         , rlength(cigar.rlength)
         {}
         
-        bool operator<(Contig const &other) const {
-            if (ref > other.ref) return false;
-            if (ref < other.ref) return true;
-            if (start > other.start) return false;
-            if (start < other.start) return true;
-            return end < other.end;
+        int compare(Contig const &other) const {
+            if (other.ref < ref) return 1;
+            if (ref < other.ref) return -1;
+            if (other.start < start) return 1;
+            if (start < other.start) return -1;
+            if (other.end < end) return 1;
+            if (end < other.end) return -1;
+            return 0;
         }
+        bool operator<(Contig const &other) const { return compare(other) < 0; }
     };
     Contig first, second;
-    StatisticsAccumulator fragmentLength;
+    StatisticsAccumulator flength; ///< fragment length
     unsigned group;
     
-    double mean() const { return fragmentLength.average(); }
-    double variance() const { return fragmentLength.variance(); }
-    unsigned count() const { return unsigned(fragmentLength.N); }
+    double mean() const { return flength.average(); }
+    double variance() const { return flength.variance(); }
+    unsigned count() const { return unsigned(flength.N); }
     
     int compare(ContigPair const &other) const
     {
-        if (first.ref > other.first.ref)
-            return 1;
-        if (first.ref < other.first.ref)
-            return -1;
+        {
+            auto const cmp = first.compare(other.first);
+            if (cmp < 0) return -1;
+            if (cmp > 0) return 1;
+        }
+        {
+            auto const cmp = second.compare(other.second);
+            if (cmp < 0) return -1;
+            if (cmp > 0) return 1;
+        }
         
-        if (first.start > other.first.start)
-            return 1;
-        if (first.start < other.first.start)
-            return -1;
-        
-        if (first.end > other.first.end)
-            return 1;
-        if (first.end < other.first.end)
-            return -1;
-        
-        if (second.ref > other.second.ref)
-            return 1;
-        if (second.ref < other.second.ref)
-            return -1;
-        
-        if (second.start > other.second.start)
-            return 1;
-        if (second.start < other.second.start)
-            return -1;
-        
-        if (second.end > other.second.end)
-            return 1;
-        if (second.end < other.second.end)
-            return -1;
-        
-        if (group > other.group)
-            return 1;
-        if (group < other.group)
-            return -1;
+        if (other.group < group) return 1;
+        if (group < other.group) return -1;
         
         return 0;
     }
     bool operator<(ContigPair const &other) const { return compare(other) < 0; }
-    operator bool() const { return bool(fragmentLength); }
+    operator bool() const { return bool(flength); }
     
     ContigPair(ContigPair const &a, ContigPair const &b) ///< create a new pair that is the union of the two pairs; it is assumed that they overlap properly
     : first(a.first, b.first)
     , second(a.second, b.second)
     , group(a.group)
-    , fragmentLength(a.fragmentLength + b.fragmentLength)
+    , flength(a.flength, b.flength)
     {}
     
     ContigPair(Alignment const &one, Alignment const &two, std::string const &group)
@@ -201,7 +186,7 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
             first = c1;
             second = c2;
         }
-        fragmentLength = StatisticsAccumulator(first.ref == second.ref ? double(second.end - first.start) : 0.0);
+        flength = StatisticsAccumulator(first.ref == second.ref ? double(second.end - first.start) : 0.0);
     }
     
     explicit ContigPair(std::istream &in)
@@ -269,7 +254,7 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
                     return;
                 }
             }
-            fragmentLength = StatisticsAccumulator(first.ref == second.ref ? double(second.end - first.start) : 0.0);
+            flength = StatisticsAccumulator(first.ref == second.ref ? double(second.end - first.start) : 0.0);
             
             return;
             
@@ -458,22 +443,19 @@ static int map(std::ostream &out, std::string const &run)
     auto const in = Fragment::Cursor(inDb["RAW"]);
     auto const range = in.rowRange();
     
+    std::ios_base::sync_with_stdio(false);
+    
     for (auto row = range.first; row < range.second; ) {
         auto const fragment = in.read(row, range.second);
         
         for (auto && one : fragment.detail) {
-#if 1
-            if (one.reference != "chrUn_JTFH01001899v1_decoy") continue;
-#endif
             if (one.readNo != 1 || !one.aligned) continue;
 
-            auto const oneCIGAR = CIGAR(one.cigar);
-            
             for (auto && two : fragment.detail) {
                 if (two.readNo != 2 || !two.aligned) continue;
                 
                 auto const &pair = ContigPair(one, two, fragment.group);
-                out << pair << std::endl;
+                out << pair << '\n';
             }
         }
     }

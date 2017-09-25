@@ -31,8 +31,9 @@ MODULE = tools/vdb-sql
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	vdb-sql
-
+	vdb-sql \
+	fastconv
+    
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
@@ -71,9 +72,27 @@ VDB_SQL_LIB = \
 	-svdb-sqlite \
 	-lm \
 	-lpthread
-    
+
 VDB_SQL_OBJ = \
 	$(addsuffix .$(OBJX),$(VDB_SQL_SRC))
 
 $(BINDIR)/vdb-sql: $(VDB_SQL_OBJ)
 	$(LD) --exe -o $@ $^ $(VDB_SQL_LIB)
+
+#-------------------------------------------------------------------------------
+# the tool: fastconv
+FASTCONV_SRC = \
+	fastconv
+
+FASTCONV_LIB = \
+	-skapp \
+	-stk-version \
+	-svdb-sqlite \
+	-lm \
+	-lpthread
+
+FASTCONV_OBJ = \
+	$(addsuffix .$(OBJX),$(FASTCONV_SRC))
+
+$(BINDIR)/fastconv: $(FASTCONV_OBJ)
+	$(LD) --exe -o $@ $^ $(FASTCONV_LIB)

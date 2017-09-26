@@ -73,6 +73,9 @@ rc_t cmn_read_uint64( struct cmn_iter * iter, uint32_t col_id, uint64_t *value )
 rc_t cmn_read_uint64_array( struct cmn_iter * iter, uint32_t col_id, uint64_t *value,
                             uint32_t num_values, uint32_t * values_read );
 rc_t cmn_read_uint32( struct cmn_iter * iter, uint32_t col_id, uint32_t *value );
+rc_t cmn_read_uint32_array( struct cmn_iter * iter, uint32_t col_id, uint32_t *value,
+                            uint32_t num_values, uint32_t * values_read );
+
 rc_t cmn_read_String( struct cmn_iter * iter, uint32_t col_id, String *value );
 
 #ifdef __cplusplus

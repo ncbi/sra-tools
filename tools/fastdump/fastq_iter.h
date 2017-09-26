@@ -50,13 +50,14 @@ typedef struct fastq_rec
     int64_t row_id;
     uint64_t prim_alig_id[ 2 ];
     uint32_t num_reads;
+    uint32_t read_len[ 2 ];
     String cmp_read;
     String quality;
 } fastq_rec;
 
 void destroy_fastq_iter( struct fastq_iter * iter );
 
-rc_t make_fastq_iter( cmn_params * params, struct fastq_iter ** iter );
+rc_t make_fastq_iter( cmn_params * params, struct fastq_iter ** iter, bool splitted );
 
 bool get_from_fastq_iter( struct fastq_iter * iter, fastq_rec * rec, rc_t * rc );
 

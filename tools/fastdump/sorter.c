@@ -57,9 +57,9 @@ static void release_sorter( struct sorter * sorter )
 {
     if ( sorter != NULL )
     {
-        release_SBuffer( &sorter->buf );
+        release_SBuffer( &sorter->buf ); /* helper.c */
         if ( sorter->params.src != NULL )
-            destroy_raw_read_iter( sorter->params.src );
+            destroy_raw_read_iter( sorter->params.src ); /* raw_read_iter.c */
         if ( sorter->store != NULL )
             KVectorRelease( sorter->store );
     }
@@ -72,7 +72,7 @@ static rc_t init_sorter( struct sorter * sorter, const sorter_params * params )
         ErrMsg( "KVectorMake() -> %R", rc );
     else
     {
-        rc = make_SBuffer( &sorter->buf, 4096 );
+        rc = make_SBuffer( &sorter->buf, 4096 ); /* helper.c */
         if ( rc == 0 )
         {
             sorter->params.dir = params->dir;
@@ -163,7 +163,7 @@ static rc_t CC on_store_entry( uint64_t key, const void *value, void *user_data 
 {
     const String * bases = value;
     struct lookup_writer * writer = user_data;
-    rc_t rc = write_packed_to_lookup_writer( writer, key, bases );
+    rc_t rc = write_packed_to_lookup_writer( writer, key, bases ); /* lookup_writer.c */
     StringWhack( bases );
     return rc;
 }
@@ -175,24 +175,24 @@ static rc_t save_store( struct sorter * sorter )
     if ( sorter->bytes_in_store > 0 )
     {
         char buffer[ 4096 ];
-        struct lookup_writer * writer;
+        struct lookup_writer * writer; /* lookup_writer.h */
         
         if ( sorter->params.mem_limit > 0 )
         {
-            rc = make_subfilename( &sorter->params, sorter->sub_file_id, buffer, sizeof buffer );
+            rc = make_subfilename( &sorter->params, sorter->sub_file_id, buffer, sizeof buffer ); /* above! */
             if ( rc == 0 )
                 sorter->sub_file_id++;
         }
         else
-            rc = make_dst_filename( &sorter->params, buffer, sizeof buffer );
+            rc = make_dst_filename( &sorter->params, buffer, sizeof buffer ); /* above! */
 
         if ( rc == 0 )
-            rc = make_lookup_writer( sorter->params.dir, NULL, &writer, sorter->params.buf_size, "%s", buffer );
+            rc = make_lookup_writer( sorter->params.dir, NULL, &writer, sorter->params.buf_size, "%s", buffer ); /* lookup_writer.c */
         
         if ( rc == 0 )
         {
             rc = KVectorVisitPtr( sorter->store, false, on_store_entry, writer );
-            release_lookup_writer( writer );
+            release_lookup_writer( writer ); /* lookup_writer.c */
         }
         if ( rc == 0 )
         {
@@ -219,13 +219,13 @@ static rc_t write_to_sorter( struct sorter * sorter, int64_t seq_spot_id, uint32
     /* we write it to the store...*/
     rc_t rc;
     const String * to_store;    
-    pack_4na( unpacked_bases, &sorter->buf );
+    pack_4na( unpacked_bases, &sorter->buf ); /* helper.c */
     rc = StringCopy( &to_store, &sorter->buf.S );
     if ( rc != 0 )
         ErrMsg( "StringCopy() -> %R", rc );
     else
     {
-        uint64_t key = make_key( seq_spot_id, seq_read_id );
+        uint64_t key = make_key( seq_spot_id, seq_read_id ); /* helper.c */
         rc = KVectorSetPtr( sorter->store, key, (const void *)to_store );
         if ( rc != 0 )
             ErrMsg( "KVectorSetPtr() -> %R", rc );
@@ -239,7 +239,7 @@ static rc_t write_to_sorter( struct sorter * sorter, int64_t seq_spot_id, uint32
     if ( rc == 0 &&
          sorter->params.mem_limit > 0 &&
          sorter->bytes_in_store >= sorter->params.mem_limit )
-        rc = save_store( sorter );
+        rc = save_store( sorter ); /* above! */
     return rc;
 }
 
@@ -251,7 +251,7 @@ static rc_t delete_sub_files( const sorter_params * params, uint32_t count )
     uint32_t i;
     for ( i = 0; rc == 0 && i < count; ++ i )
     {
-        rc = make_subfilename( params, i, buffer, sizeof buffer );
+        rc = make_subfilename( params, i, buffer, sizeof buffer ); /* above! */
         if ( rc == 0 )
             rc = KDirectoryRemove( params->dir, true, "%s", buffer );
         if ( rc != 0 )
@@ -267,7 +267,7 @@ static rc_t final_merge_sort( const sorter_params * params, uint32_t count )
     if ( count > 0 )
     {
         char buffer[ 4096 ];
-        rc = make_dst_filename( params, buffer, sizeof buffer );
+        rc = make_dst_filename( params, buffer, sizeof buffer ); /* above! */
         if ( rc == 0 )
         {
             merge_sorter_params msp;
@@ -280,51 +280,51 @@ static rc_t final_merge_sort( const sorter_params * params, uint32_t count )
             msp.count = count;
             msp.buf_size = params->buf_size;
             
-            rc = make_merge_sorter( &ms, &msp );
+            rc = make_merge_sorter( &ms, &msp ); /* merge_sorter.c */
             for ( i = 0; rc == 0 && i < count; ++i )
             {
                 char buffer2[ 4096 ];
-                rc = make_subfilename( params, i, buffer2, sizeof buffer2 );
+                rc = make_subfilename( params, i, buffer2, sizeof buffer2 ); /* above! */
                 if ( rc == 0 )
-                    rc = add_merge_sorter_src( ms, buffer2, i );
+                    rc = add_merge_sorter_src( ms, buffer2, i ); /* merge_sorter.c */
             }
             if ( rc == 0 )
-                rc = run_merge_sorter( ms );
+                rc = run_merge_sorter( ms ); /* merge_sorter.c */
                 
-            release_merge_sorter( ms );
+            release_merge_sorter( ms ); /* merge_sorter.c */
         }
 
         if ( rc == 0 )
-            rc = delete_sub_files( params, count );
+            rc = delete_sub_files( params, count ); /* above! */
     }
     return rc;
 }
 
-rc_t CC Quitting();
+rc_t CC Quitting(); /* to avoid including kapp/main.h */
 
 rc_t run_sorter( const sorter_params * params )
 {
     sorter sorter;
-    rc_t rc = init_sorter( &sorter, params );
+    rc_t rc = init_sorter( &sorter, params ); /* above! */
     if ( rc == 0 )
     {
         raw_read_rec rec;
-        while ( rc == 0 && get_from_raw_read_iter( sorter.params.src, &rec, &rc ) )
+        while ( rc == 0 && get_from_raw_read_iter( sorter.params.src, &rec, &rc ) ) /* raw_read_iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
             {
-                rc = write_to_sorter( &sorter, rec.seq_spot_id, rec.seq_read_id, &rec.raw_read );
+                rc = write_to_sorter( &sorter, rec.seq_spot_id, rec.seq_read_id, &rec.raw_read ); /* above! */
                 if ( rc == 0 && params->sort_progress != NULL )
-                    atomic_inc( params->sort_progress );
+                    atomic_inc( params->sort_progress ); /* atomic.h */
             }
         }
         
         if ( rc == 0 )
-            rc = save_store( &sorter );
+            rc = save_store( &sorter ); /* above */
 
         if ( rc == 0 && sorter.params.mem_limit > 0 )
-            rc = final_merge_sort( params, sorter.sub_file_id );
+            rc = final_merge_sort( params, sorter.sub_file_id ); /* above! */
             
         release_sorter( &sorter );
     }
@@ -337,8 +337,8 @@ static uint64_t find_out_row_count( const sorter_params * params )
 {
     rc_t rc;
     uint64_t res = 0;
-    struct raw_read_iter * iter;
-    cmn_params cp;
+    struct raw_read_iter * iter; /* raw_read_iter.c */
+    cmn_params cp; /* cmn_iter.h */
     
     cp.dir = params->dir;
     cp.acc = params->acc;
@@ -348,11 +348,11 @@ static uint64_t find_out_row_count( const sorter_params * params )
     cp.cursor_cache = params->cursor_cache;
     cp.show_progress = false;
 
-    rc = make_raw_read_iter( &cp, &iter );
+    rc = make_raw_read_iter( &cp, &iter ); /* raw_read_iter.c */
     if ( rc == 0 )
     {
-        res = get_row_count_of_raw_read( iter );
-        destroy_raw_read_iter( iter );
+        res = get_row_count_of_raw_read( iter ); /* raw_read_iter.c */
+        destroy_raw_read_iter( iter ); /* raw_read_iter.c */
     }
     return res;
 }
@@ -397,7 +397,7 @@ static rc_t delete_tmp_files( const sorter_params * params, uint32_t count )
     uint32_t i;
     for ( i = 0; rc == 0 && i < count; ++ i )
     {
-        make_pool_src_filename( params, i + 1, buffer, sizeof buffer );
+        make_pool_src_filename( params, i + 1, buffer, sizeof buffer ); /* above! */
         if ( rc == 0 )
             rc = KDirectoryRemove( params->dir, true, "%s", buffer );
         if ( rc != 0 )
@@ -410,8 +410,8 @@ static rc_t delete_tmp_files( const sorter_params * params, uint32_t count )
 static rc_t merge_pool_files( const sorter_params * params )
 {
     rc_t rc;
-    merge_sorter_params msp;
-    struct merge_sorter * ms;
+    merge_sorter_params msp; /* merge_sorter.h */
+    struct merge_sorter * ms; /* merge_sorter.h */
     
     msp.dir = params->dir;
     msp.output_filename = params->output_filename;
@@ -419,25 +419,25 @@ static rc_t merge_pool_files( const sorter_params * params )
     msp.count = params->num_threads;
     msp.buf_size = params->buf_size;
 
-    rc = make_merge_sorter( &ms, &msp );
+    rc = make_merge_sorter( &ms, &msp ); /* merge_sorter.c */
     if ( rc == 0 )
     {
         uint32_t i;
         for ( i = 0; rc == 0 && i < params->num_threads; ++i )
         {
             char buffer[ 4096 ];
-            rc = make_pool_src_filename( params, i + 1, buffer, sizeof buffer );
+            rc = make_pool_src_filename( params, i + 1, buffer, sizeof buffer ); /* above! */
             if ( rc == 0 )
-                rc = add_merge_sorter_src( ms, buffer, i );
+                rc = add_merge_sorter_src( ms, buffer, i ); /* merge_sorter.c */
         }
         if ( rc == 0 )
-            rc = run_merge_sorter( ms );
+            rc = run_merge_sorter( ms ); /* merge_sorter.c */
         
-        release_merge_sorter( ms );
+        release_merge_sorter( ms ); /* merge_sorter.c */
     }
 
     if ( rc == 0 ) 
-       rc = delete_tmp_files( params, params->num_threads );
+       rc = delete_tmp_files( params, params->num_threads ); /* above! */
 
     return rc;
 }

@@ -244,7 +244,8 @@ rc_t cmn_read_uint64_array( struct cmn_iter * iter, uint32_t col_id, uint64_t *v
     else
     {
         if ( row_len > num_values ) row_len = num_values;
-        * values_read = row_len;
+        if ( values_read != NULL )
+            * values_read = row_len;
         memmove( (void *)value, (void *)value_ptr, row_len * 8 );
     }
     return rc;
@@ -266,6 +267,30 @@ rc_t cmn_read_uint32( struct cmn_iter * iter, uint32_t col_id, uint32_t *value )
     }
     else
         *value = *value_ptr;
+    return rc;
+}
+
+rc_t cmn_read_uint32_array( struct cmn_iter * iter, uint32_t col_id, uint32_t *value,
+                            uint32_t num_values, uint32_t * values_read )
+{
+    uint32_t elem_bits, boff, row_len;
+    const uint32_t * value_ptr;
+    rc_t rc = VCursorCellDataDirect( iter->cursor, iter->row_id, col_id, &elem_bits,
+                                 (const void **)&value_ptr, &boff, &row_len );
+    if ( rc != 0 )
+        ErrMsg( "VCursorCellDataDirect( #%ld ) -> %R\n", iter->row_id, rc );
+    else if ( elem_bits != 32 || boff != 0 || row_len < 1 )
+    {
+        ErrMsg( "row#%ld : bits=%d, boff=%d, len=%d\n", iter->row_id, elem_bits, boff, row_len );
+        rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    else
+    {
+        if ( row_len > num_values ) row_len = num_values;
+        if ( values_read != NULL )
+            * values_read = row_len;
+        memmove( (void *)value, (void *)value_ptr, row_len * 4 );
+    }
     return rc;
 }
 

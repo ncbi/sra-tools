@@ -41,9 +41,9 @@
 
 typedef struct join
 {
-    struct lookup_reader * lookup;
-    struct file_printer * printer;
-    SBuffer B1, B2;
+    struct lookup_reader * lookup;  /* lookup_reader.h */
+    struct file_printer * printer;  /* file_printer.h */
+    SBuffer B1, B2;                 /* helper.h */
 } join;
 
 
@@ -51,15 +51,15 @@ static void release_join_ctx( join * j )
 {
     if ( j != NULL )
     {
-        release_lookup_reader( j->lookup );
-        destroy_file_printer( j->printer );
-        release_SBuffer( &j->B1 );
-        release_SBuffer( &j->B2 );
+        release_lookup_reader( j->lookup );     /* lookup_reader.c */
+        destroy_file_printer( j->printer );     /* file_printer.c */
+        release_SBuffer( &j->B1 );              /* helper.c */
+        release_SBuffer( &j->B2 );              /* helper.c */
     }
 }
 
 
-static rc_t init_join( const join_params * jp, struct join *j, struct index_reader * index )
+static rc_t init_join( const join_params * jp, struct join * j, struct index_reader * index )
 {
     rc_t rc;
     
@@ -68,11 +68,11 @@ static rc_t init_join( const join_params * jp, struct join *j, struct index_read
     j->B1.S.addr = NULL;
     j->B2.S.addr = NULL;
     
-    rc = make_lookup_reader( jp->dir, index, &j->lookup, jp->buf_size, "%s", jp->lookup_filename );
+    rc = make_lookup_reader( jp->dir, index, &j->lookup, jp->buf_size, "%s", jp->lookup_filename ); /* lookup_reader.c */
     if ( rc == 0 )
     {
         if ( jp->output_filename != NULL )
-            rc = make_file_printer( jp->dir, &j->printer, jp->buf_size, 4096 * 4, "%s", jp->output_filename );
+            rc = make_file_printer( jp->dir, &j->printer, jp->buf_size, 4096 * 4, "%s", jp->output_filename ); /* file_printer.c */
         if ( rc != 0 )
             ErrMsg( "init_join().make_file_printer() -> %R", rc );
     }
@@ -80,13 +80,13 @@ static rc_t init_join( const join_params * jp, struct join *j, struct index_read
         ErrMsg( "init_join().make_lookup_reader() -> %R", rc );
     if ( rc == 0 )
     {
-        rc = make_SBuffer( &j->B1, 4096 );
+        rc = make_SBuffer( &( j -> B1 ), 4096 );  /* helper.c */
         if ( rc != 0 )
             ErrMsg( "init_join().make_SBuffer( B1 ) -> %R", rc );
     }
     if ( rc == 0 )
     {
-        rc = make_SBuffer( &j->B2, 4096 );
+        rc = make_SBuffer( &( j -> B2 ), 4096 );  /* helper.c */
         if ( rc != 0 )
             ErrMsg( "init_join().make_SBuffer( B2 ) -> %R", rc );
     }
@@ -94,18 +94,18 @@ static rc_t init_join( const join_params * jp, struct join *j, struct index_read
     /* the rc-code of seek_lookup_reader is not checked, because if the row-id to be seeked to is in
        the range of the fully unaligned data - seek will fail, because the are no alignments = lookup-records
        in this area !*/
-    if ( rc == 0 && jp->first > 1 )
+    if ( rc == 0 && jp -> first > 1 )
     {
-        uint64_t key_to_find = jp->first << 1;
+        uint64_t key_to_find = jp -> first << 1;
         uint64_t key_found = 0;
-        rc_t rc1 = seek_lookup_reader( j->lookup, key_to_find, &key_found, true );
+        rc_t rc1 = seek_lookup_reader( j -> lookup, key_to_find, &key_found, true );  /* lookup_reader.c */
         if ( GetRCState( rc1 ) != rcTooBig && GetRCState( rc1 ) != rcNotFound )
             rc = rc1;
         if ( rc != 0 )
             ErrMsg( "init_join().seek_lookup_reader( %lu ) -> %R", key_to_find, rc );
     }
     if ( rc != 0 )
-        release_join_ctx( j );
+        release_join_ctx( j ); /* above! */
     return rc;
 }
 
@@ -148,22 +148,14 @@ static rc_t print_special_1_read( special_rec * rec, join * j )
     if ( rec->prim_alig_id[ 0 ] == 0 )
     {
         /* read is unaligned, print what is in row->cmp_read ( !!! no lookup !!! ) */
-        if ( j->printer != NULL )
-            rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
-        else
-            rc = KOutMsg( "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
+        rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
     }
     else
     {
         /* read is aligned ( 1 lookup ) */
         rc = lookup_bases( j->lookup, row_id, 1, &j->B1 );
         if ( rc == 0 )
-        {
-            if ( j->printer != NULL )
-                rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &j->B1.S, &rec->spot_group );
-            else
-                rc = KOutMsg( "%ld\t%S\t%S\n", row_id, &j->B1.S, &rec->spot_group );
-        }
+            rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &j->B1.S, &rec->spot_group );
     }
     return rc;
 }
@@ -179,22 +171,14 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
         if ( rec->prim_alig_id[ 1 ] == 0 )
         {
             /* both unaligned, print what is in row->cmp_read ( !!! no lookup !!! )*/
-            if ( j->printer != NULL )
-                rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
-            else
-                rc = KOutMsg( "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
+            rc = file_print( j->printer, "%ld\t%S\t%S\n", row_id, &rec->cmp_read, &rec->spot_group );
         }
         else
         {
             /* A0 is unaligned / A1 is aligned (lookup) */
             rc = lookup_bases( j->lookup, row_id, 2, &j->B2 );
             if ( rc == 0 )
-            {
-                if ( j->printer != NULL )
-                    rc = file_print( j->printer, "%ld\t%S%S\t%S\n", row_id, &rec->cmp_read, &j->B2.S, &rec->spot_group );
-                else
-                    rc = KOutMsg( "%ld\t%S%S\t%S\n", row_id, &rec->cmp_read, &j->B2.S, &rec->spot_group );
-            }
+                rc = file_print( j->printer, "%ld\t%S%S\t%S\n", row_id, &rec->cmp_read, &j->B2.S, &rec->spot_group );
         }
     }
     else
@@ -204,12 +188,7 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
             /* A0 is aligned (lookup) / A1 is unaligned */
             rc = lookup_bases( j->lookup, row_id, 1, &j->B1 );
             if ( rc == 0 )
-            {
-                if ( j->printer != NULL )
-                    rc = file_print( j->printer, "%ld\t%S%S\t%S\n", row_id, &j->B1.S, &rec->cmp_read, &rec->spot_group );
-                else
-                    rc = KOutMsg( "%ld\t%S%S\t%S\n", row_id, &j->B1.S, &rec->cmp_read, &rec->spot_group );
-            }
+                rc = file_print( j->printer, "%ld\t%S%S\t%S\n", row_id, &j->B1.S, &rec->cmp_read, &rec->spot_group );
         }
         else
         {
@@ -218,12 +197,7 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
             if ( rc == 0 )
                 rc = lookup_bases( j->lookup, row_id, 2, &j->B2 );
             if ( rc == 0 )
-            {
-                if ( j->printer != NULL )
-                    rc = file_print( j->printer, "%ld\t%S%S\t%S\n", row_id, &j->B1.S, &j->B2.S, &rec->spot_group );
-                else
-                    rc = KOutMsg( "%ld\t%S%S\t%S\n", row_id, &j->B1.S, &j->B2.S, &rec->spot_group );
-            }
+                rc = file_print( j->printer, "%ld\t%S%S\t%S\n", row_id, &j->B1.S, &j->B2.S, &rec->spot_group );
         }
     }
     return rc;
@@ -239,14 +213,9 @@ static rc_t print_fastq_1_read( fastq_rec * rec, join * j, const char * acc )
     {
         /* read is unaligned, print what is in row->cmp_read (no lookup)*/
         const char * fmt = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
-        if ( j->printer != NULL )
-            rc = file_print( j->printer, fmt,
-                acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
-                acc, row_id, row_id, rec->quality.len, &rec->quality );
-        else
-            rc = KOutMsg( fmt,
-                acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
-                acc, row_id, row_id, rec->quality.len, &rec->quality );
+        rc = file_print( j->printer, fmt,
+            acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
+            acc, row_id, row_id, rec->quality.len, &rec->quality );
     }
     else
     {
@@ -255,19 +224,19 @@ static rc_t print_fastq_1_read( fastq_rec * rec, join * j, const char * acc )
         if ( rc == 0 )
         {
             const char * fmt = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
-            if ( j->printer != NULL )
-                rc = file_print( j->printer, fmt,
-                    acc, row_id, row_id, j->B1.S.len, &j->B1.S,
-                    acc, row_id, row_id, rec->quality.len, &rec->quality );
-            else
-                rc = KOutMsg( fmt,
-                    acc, row_id, row_id, j->B1.S.len, &j->B1.S,
-                    acc, row_id, row_id, rec->quality.len, &rec->quality );
+            rc = file_print( j->printer, fmt,
+                acc, row_id, row_id, j->B1.S.len, &j->B1.S,
+                acc, row_id, row_id, rec->quality.len, &rec->quality );
         }
     }
     return rc;
 }
 
+/* FASTQ NOT-SPLITTED UNALIGNED UNALIGNED*/
+static const char * fmt_fastq_ns_uu = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
+
+/* FASTQ NOT-SPLITTED UNALIGNED/ALIGNED*/
+static const char * fmt_fastq_ns = "@%s.%ld %ld length=%d\n%S%S\n+%s.%ld %ld length=%d\n%S\n";
 
 static rc_t print_fastq_2_reads( fastq_rec * rec, join * j, const char * acc )
 {
@@ -279,33 +248,18 @@ static rc_t print_fastq_2_reads( fastq_rec * rec, join * j, const char * acc )
         if ( rec->prim_alig_id[ 1 ] == 0 )
         {
             /* both unaligned, print what is in row->cmp_read (no lookup)*/
-            const char * fmt = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
-            if ( j->printer != NULL )
-                rc = file_print( j->printer, fmt,
-                    acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
-                    acc, row_id, row_id, rec->quality.len, &rec->quality );
-            else
-                rc = KOutMsg( fmt,
-                    acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
-                    acc, row_id, row_id, rec->quality.len, &rec->quality );
-                
+            rc = file_print( j->printer, fmt_fastq_ns_uu,
+                acc, row_id, row_id, rec->cmp_read.len, &rec->cmp_read,
+                acc, row_id, row_id, rec->quality.len, &rec->quality );
         }
         else
         {
             /* A0 is unaligned / A1 is aligned (lookup) */
             rc = lookup_bases( j->lookup, row_id, 2, &j->B2 );
             if ( rc == 0 )
-            {
-                const char * fmt = "@%s.%ld %ld length=%d\n%S%S\n+%s.%ld %ld length=%d\n%S\n";
-                if ( j->printer != NULL )
-                    rc = file_print( j->printer, fmt,
-                        acc, row_id, row_id, rec->cmp_read.len + j->B2.S.len, &rec->cmp_read, &j->B2.S,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-                else
-                    rc = KOutMsg( fmt,
-                        acc, row_id, row_id, rec->cmp_read.len + j->B2.S.len, &rec->cmp_read, &j->B2.S,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-            }
+                rc = file_print( j->printer, fmt_fastq_ns,
+                    acc, row_id, row_id, rec->cmp_read.len + j->B2.S.len, &rec->cmp_read, &j->B2.S,
+                    acc, row_id, row_id, rec->quality.len, &rec->quality );
         }
     }
     else
@@ -315,17 +269,9 @@ static rc_t print_fastq_2_reads( fastq_rec * rec, join * j, const char * acc )
             /* A0 is aligned (lookup) / A1 is unaligned */
             rc = lookup_bases( j->lookup, row_id, 1, &j->B1 );
             if ( rc == 0 )
-            {
-                const char * fmt = "@%s.%ld %ld length=%d\n%S%S\n+%s.%ld %ld length=%d\n%S\n";
-                if ( j->printer != NULL )
-                    rc = file_print( j->printer, fmt,
-                        acc, row_id, row_id, rec->cmp_read.len + j->B1.S.len, &j->B1.S, &rec->cmp_read,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-                else
-                    rc = KOutMsg( fmt,
-                        acc, row_id, row_id, rec->cmp_read.len + j->B1.S.len, &j->B1.S, &rec->cmp_read,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-            }
+                rc = file_print( j->printer, fmt_fastq_ns,
+                    acc, row_id, row_id, rec->cmp_read.len + j->B1.S.len, &j->B1.S, &rec->cmp_read,
+                    acc, row_id, row_id, rec->quality.len, &rec->quality );
         }
         else
         {
@@ -334,17 +280,92 @@ static rc_t print_fastq_2_reads( fastq_rec * rec, join * j, const char * acc )
             if ( rc == 0 )
                 rc = lookup_bases( j->lookup, row_id, 2, &j->B2 );
             if ( rc == 0 )
+                rc = file_print( j->printer, fmt_fastq_ns,
+                    acc, row_id, row_id, j->B1.S.len + j->B2.S.len, &j->B1.S, &j->B2.S,
+                    acc, row_id, row_id, rec->quality.len, &rec->quality );
+        }
+    }
+    return rc;
+}
+
+/* FASTQ SPLITTED*/
+static const char * fmt_fastq_s = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
+
+static rc_t print_fastq_2_reads_splitted( fastq_rec * rec, join * j, const char * acc )
+{
+    rc_t rc = 0;
+    int64_t row_id = rec->row_id;
+    String Q1, Q2;
+
+    Q1. addr = rec -> quality . addr;
+    Q1 . len = Q1 . size = rec -> read_len[ 0 ];
+    Q2 . addr = &rec -> quality . addr[ rec -> read_len[ 0 ] ];
+    Q2 . len = Q2 . size = rec -> read_len[ 1 ];
+
+    if ( rec -> prim_alig_id[ 0 ] == 0 )
+    {
+        if ( rec -> prim_alig_id[ 1 ] == 0 )
+        {
+            String READ;
+            /* both unaligned, print what is in row->cmp_read (no lookup) */
+            READ . addr = rec -> cmp_read . addr;
+            READ . len = READ . size = rec -> read_len[ 0 ];
+
+            rc = file_print( j -> printer, fmt_fastq_s,
+                acc, row_id, row_id, READ . len, &READ,
+                acc, row_id, row_id, Q1 . len, &Q1 );
+            if ( rc == 0 )
             {
-                const char * fmt = "@%s.%ld %ld length=%d\n%S%S\n+%s.%ld %ld length=%d\n%S\n";
-                if ( j->printer != NULL )
-                    rc = file_print( j->printer, fmt,
-                        acc, row_id, row_id, j->B1.S.len + j->B2.S.len, &j->B1.S, &j->B2.S,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
-                else
-                    rc = KOutMsg( fmt,
-                        acc, row_id, row_id, j->B1.S.len + j->B2.S.len, &j->B1.S, &j->B2.S,
-                        acc, row_id, row_id, rec->quality.len, &rec->quality );
+                READ . addr = &rec -> cmp_read . addr[ rec -> read_len[ 0 ] ];
+                READ . len = READ . size = rec -> read_len[ 1 ];
+                rc = file_print( j -> printer, fmt_fastq_s,
+                    acc, row_id, row_id, READ . len, &READ,
+                    acc, row_id, row_id, Q2 . len, &Q2 );
             }
+        }
+        else
+        {
+            /* A0 is unaligned / A1 is aligned (lookup) */
+            rc = file_print( j->printer, fmt_fastq_s,
+                acc, row_id, row_id, rec -> cmp_read . len, &rec -> cmp_read,
+                acc, row_id, row_id, Q1 . len, &Q1 );
+            if ( rc == 0 )
+                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2 );
+            if ( rc == 0 )
+                rc = file_print( j -> printer, fmt_fastq_s,
+                    acc, row_id, row_id, j -> B2 . S . len, &j -> B2 . S,
+                    acc, row_id, row_id, Q2 . len, &Q2 );
+        }
+    }
+    else
+    {
+        if ( rec -> prim_alig_id[ 1 ] == 0 )
+        {
+            /* A0 is aligned (lookup) / A1 is unaligned */
+            rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 );
+            if ( rc == 0 )
+                rc = file_print( j -> printer, fmt_fastq_s,
+                    acc, row_id, row_id, j -> B1 . S . len, &j -> B1 . S,
+                    acc, row_id, row_id, Q1 . len, &Q1 );
+            if ( rc == 0 )
+                rc = file_print( j -> printer, fmt_fastq_s,
+                    acc, row_id, row_id, rec -> cmp_read . len, &rec -> cmp_read,
+                    acc, row_id, row_id, Q2 . len, &Q2 );
+        }
+        else
+        {
+            /* A0 and A1 are aligned (2 lookups)*/
+            rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 );
+            if ( rc == 0 )
+                rc = file_print( j -> printer, fmt_fastq_s,
+                    acc, row_id, row_id, j -> B1 . S . len, &j -> B1 . S,
+                    acc, row_id, row_id, Q1 . len, &Q1 );
+            if ( rc == 0 )
+                rc = lookup_bases( j -> lookup, row_id, 2, & j -> B2 );
+            if ( rc == 0 )
+                rc = file_print( j -> printer, fmt_fastq_s,
+                    acc, row_id, row_id, j -> B2 . S . len, &j -> B2 . S,
+                    acc, row_id, row_id, Q2 . len, &Q2 );
         }
     }
     return rc;
@@ -371,7 +392,7 @@ static rc_t extract_row_count_cmn( const join_params * jp, uint64_t * row_count 
                            
         case ft_fastq   : {
                                 struct fastq_iter * iter;
-                                rc = make_fastq_iter( &cmn, &iter ); /* fastq_iter.c */
+                                rc = make_fastq_iter( &cmn, &iter, false ); /* fastq_iter.c */
                                 if ( rc == 0 )
                                 {
                                     *row_count = get_row_count_of_fastq_iter( iter );
@@ -379,6 +400,16 @@ static rc_t extract_row_count_cmn( const join_params * jp, uint64_t * row_count 
                                 }
                            } break;
                            
+        case ft_fastq_split : {
+                                struct fastq_iter * iter;
+                                rc = make_fastq_iter( &cmn, &iter, true ); /* fastq_iter.c */
+                                if ( rc == 0 )
+                                {
+                                    *row_count = get_row_count_of_fastq_iter( iter );
+                                    destroy_fastq_iter( iter );
+                                }
+                           } break;
+
         default : break;
     }
     return rc;
@@ -434,7 +465,7 @@ static rc_t perform_fastq_join( const join_params * jp, struct index_reader * in
     cmn_params cmn;
 
     init_cmn_params( jp, &cmn ); /* above */
-    rc = make_fastq_iter( &cmn, &iter );
+    rc = make_fastq_iter( &cmn, &iter, false /* not spliting  */ );
     if ( rc == 0 )
     {
         join j;
@@ -471,6 +502,49 @@ static rc_t perform_fastq_join( const join_params * jp, struct index_reader * in
     return rc;
 }
 
+static rc_t perform_fastq_join_splitted( const join_params * jp, struct index_reader * index )
+{
+    rc_t rc;
+    struct fastq_iter * iter;
+    cmn_params cmn;
+
+    init_cmn_params( jp, &cmn ); /* above */
+    rc = make_fastq_iter( &cmn, &iter, true /* spliting  */ );
+    if ( rc == 0 )
+    {
+        join j;
+        
+        rc = init_join( jp, &j, index );
+        if ( rc == 0 )
+        {
+            fastq_rec rec;
+            uint64_t n = 0;
+            
+            while ( get_from_fastq_iter( iter, &rec, &rc ) && rc == 0 )
+            {
+                rc = Quitting();
+                if ( rc == 0 )
+                {
+                    if ( rec.num_reads == 1 )
+                        rc = print_fastq_1_read( &rec, &j, jp->accession );
+                    else
+                        rc = print_fastq_2_reads_splitted( &rec, &j, jp->accession );
+
+                    if ( jp->join_progress != NULL )
+                        atomic_inc( jp->join_progress );
+                    n++;
+                }
+            }
+            release_join_ctx( &j );
+        }
+        else
+            ErrMsg( "init_join() -> %R", rc );
+        destroy_fastq_iter( iter );
+    }
+    else
+        ErrMsg( "make_fastq_iter() -> %R", rc );
+    return rc;
+}
 
 
 /* ------------------------------------------------------------------------------------------ */
@@ -580,8 +654,9 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
             
             switch( jp->fmt )
             {
-                case ft_special : rc = perform_special_join( &cjp, index ); break; /* above */
-                case ft_fastq   : rc = perform_fastq_join( &cjp, index ); break; /* above */
+                case ft_special     : rc = perform_special_join( &cjp, index ); break; /* above */
+                case ft_fastq       : rc = perform_fastq_join( &cjp, index ); break; /* above */
+                case ft_fastq_split : rc = perform_fastq_join_splitted( &cjp, index ); break; /* above */
                 default : break;
                 
             }
@@ -606,8 +681,9 @@ rc_t execute_join( const join_params * jp )
         /* on the main thread */
         switch( jp->fmt )
         {
-            case ft_special : rc = perform_special_join( jp, NULL ); break; /* above */
-            case ft_fastq   : rc = perform_fastq_join( jp, NULL ); break; /* above */
+            case ft_special     : rc = perform_special_join( jp, NULL ); break; /* above */
+            case ft_fastq       : rc = perform_fastq_join( jp, NULL ); break; /* above */
+            case ft_fastq_split : rc = perform_fastq_join_splitted( jp, NULL ); break; /* above */
             default : break;
         }
     }

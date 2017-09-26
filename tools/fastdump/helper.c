@@ -244,14 +244,14 @@ rc_t split_string( String * in, String * p0, String * p1, uint32_t ch )
 
 format_t get_format_t( const char * format )
 {
-    format_t res = ft_special;
+    format_t res = ft_fastq;
     if ( format != NULL && format[ 0 ] != 0 )
     {
         String Format, FastqFormat;
         StringInitCString( &Format, format );
-        StringInitCString( &FastqFormat, "fastq" );
+        StringInitCString( &FastqFormat, "special" );
         if ( 0 == StringCaseCompare ( &Format, &FastqFormat ) )
-            res = ft_fastq;
+            res = ft_special;
     }
     return res;
 }

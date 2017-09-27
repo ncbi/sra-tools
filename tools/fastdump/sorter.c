@@ -342,7 +342,6 @@ static uint64_t find_out_row_count( const sorter_params * params )
     
     cp.dir = params->dir;
     cp.acc = params->acc;
-    cp.row_range = NULL;
     cp.first = 0;
     cp.count = 0;
     cp.cursor_cache = params->cursor_cache;
@@ -458,7 +457,6 @@ static void init_cmn_params( cmn_params * dst, const sorter_params * params, uin
 {
     dst->dir = params->dir;
     dst->acc = params->acc;
-    dst->row_range = NULL;
     dst->first = 1;
     dst->count = ( row_count / params->num_threads ) + 1;
     dst->cursor_cache = params->cursor_cache;

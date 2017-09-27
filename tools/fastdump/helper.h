@@ -115,7 +115,9 @@ bool file_exists( const KDirectory * dir, const char * fmt, ... );
 void join_and_release_threads( Vector * threads );
 
 rc_t concat_files( KDirectory * dir, const VNamelist * files, size_t buf_size,
-                   const char * output, bool show_progress );
+                   const char * output, bool show_progress, bool gizp );
+
+rc_t print_files( KDirectory * dir, const VNamelist * files, size_t buf_size );
 
 rc_t delete_files( KDirectory * dir, const VNamelist * files );
 

@@ -113,7 +113,7 @@ rc_t make_cmn_iter( cmn_params * params, const char * tblname, struct cmn_iter *
                         {
                             if ( rc == 0 && params->show_progress )
                                 make_progressbar( &i->progressbar, 2 );
-                            i->row_range = params->row_range;
+                            i->row_range = NULL;
                             i->first = params->first;
                             i->count = params->count;
                             

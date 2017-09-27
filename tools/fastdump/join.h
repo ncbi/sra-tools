@@ -63,7 +63,7 @@ typedef struct join_params
     size_t buf_size, cur_cache, num_threads;
     int64_t first;
     uint64_t count;
-    bool show_progress;
+    bool show_progress, print_to_stdout, gzip;
     format_t fmt;
 } join_params;
 

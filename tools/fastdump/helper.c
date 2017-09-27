@@ -33,6 +33,7 @@
 #include <kfs/defs.h>
 #include <kfs/file.h>
 #include <kfs/buffile.h>
+#include <kfs/gzip.h>
 #include <kproc/thread.h>
 
 rc_t ErrMsg( const char * fmt, ... )
@@ -430,6 +431,41 @@ static rc_t copy_file( KFile * dst, const KFile * src, uint64_t * dst_pos,
     return rc;
 }
 
+static rc_t print_file( const KFile * src, size_t buf_size )
+{
+    rc_t rc = 0;
+    char * buffer = malloc( buf_size );
+    if ( buffer == NULL )
+    {
+        rc = RC( rcExe, rcFile, rcPacking, rcMemory, rcExhausted );
+        ErrMsg( "copy_file.malloc( %d ) -> %R", buf_size, rc );
+    }
+    else
+    {
+        uint64_t src_pos = 0;
+        size_t num_read = 1;
+        while ( rc == 0 && num_read > 0 )
+        {
+            rc = Quitting();
+            if ( rc == 0 )
+            {
+                size_t num_read;
+                rc = KFileRead( src, src_pos, buffer, buf_size, &num_read );
+                if ( rc != 0 )
+                    ErrMsg( "copy_file.KFileRead( at %lu ) -> %R", src_pos, rc );
+                else if ( num_read > 0 )
+                {
+                    rc = KOutMsg( "%.*s", num_read, buffer );
+                    /* printf( "%.*s", num_read, buffer ); */
+                    src_pos += num_read;
+                }
+            }
+        }
+        free( buffer );
+    }
+    return rc;
+}
+
 
 static rc_t total_filesize( const KDirectory * dir, const VNamelist * files, uint64_t *total )
 {
@@ -459,8 +495,71 @@ static rc_t total_filesize( const KDirectory * dir, const VNamelist * files, uin
     return rc;
 }
 
+static rc_t concat_loop( KDirectory * dir, const VNamelist * files, size_t buf_size,
+                         struct KFile * dst, bool show_progress )
+{
+    rc_t rc;
+    cf_progress cfp;
+
+    if ( show_progress )
+    {
+        cfp.current_size = 0;
+        cfp.current_percent = 0;
+        rc = make_progressbar( &cfp.progressbar, 2 );
+        if ( rc == 0 )
+            rc = total_filesize( dir, files, &cfp.total_size );
+    }
+    else
+        cfp.progressbar = NULL;
+    if ( rc == 0 )
+    {
+        uint32_t count;
+        rc = VNameListCount( files, &count );
+        if ( rc != 0 )
+            ErrMsg( "VNameListCount() -> %R", rc );
+        else
+        {
+            uint32_t idx;
+            uint64_t dst_pos = 0;
+            for ( idx = 0; rc == 0 && idx < count; ++idx )
+            {
+                const char * filename;
+                rc = VNameListGet( files, idx, &filename );
+                if ( rc != 0 )
+                    ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
+                else
+                {
+                    const struct KFile * src;
+                    rc_t rc1 = KDirectoryOpenFileRead( dir, &src, "%s", filename );
+                    if ( rc1 == 0 )
+                    {
+                        const struct KFile * temp_src;
+                        rc = KBufFileMakeRead( &temp_src, src, buf_size );
+                        KFileRelease( src );
+                        if ( rc != 0 )
+                            ErrMsg( "KBufFileMakeRead() -> %R", rc );
+                        else
+                        {
+                            src = temp_src;
+                            rc = copy_file( dst, src, &dst_pos, buf_size, &cfp );
+                        }
+                        KFileRelease( src );
+                    }
+                }
+            }
+        }
+        
+        if ( cfp.progressbar != NULL )
+        {
+            destroy_progressbar( cfp.progressbar );
+            KOutMsg( "\n" );
+        }
+    }
+    return rc;
+}
+
 rc_t concat_files( KDirectory * dir, const VNamelist * files, size_t buf_size,
-                   const char * output, bool show_progress )
+                   const char * output, bool show_progress, bool gzip )
 {
     struct KFile * dst;
     rc_t rc = KDirectoryCreateFile( dir, &dst, false, 0664, kcmInit, "%s", output );
@@ -468,72 +567,68 @@ rc_t concat_files( KDirectory * dir, const VNamelist * files, size_t buf_size,
         ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", output, rc );
     else
     {
-        struct KFile * temp_dst;
-        rc = KBufFileMakeWrite( &temp_dst, dst, false, buf_size );
-        KFileRelease( dst );
+        struct KFile * dst_bufferd;
+        rc = KBufFileMakeWrite( &dst_bufferd, dst, false, buf_size );
         if ( rc != 0 )
             ErrMsg( "KBufFileMakeWrite() -> %R", rc );
         else
         {
-            cf_progress cfp;
-            uint32_t count;
-
-            dst = temp_dst;
-            if ( show_progress )
+            if ( gzip )
             {
-                cfp.current_size = 0;
-                cfp.current_percent = 0;
-                rc = make_progressbar( &cfp.progressbar, 2 );
-                if ( rc == 0 )
-                    rc = total_filesize( dir, files, &cfp.total_size );
-            }
-            else
-                cfp.progressbar = NULL;
-            if ( rc == 0 )
-            {
-                rc = VNameListCount( files, &count );
+                struct KFile * dst_gziped;
+                rc = KFileMakeGzipForWrite ( &dst_gziped, dst_bufferd );
                 if ( rc != 0 )
-                    ErrMsg( "VNameListCount() -> %R", rc );
+                    ErrMsg( "KFileMakeGzipForWrite() -> %R", rc );
                 else
                 {
-                    uint32_t idx;
-                    uint64_t dst_pos = 0;
-                    for ( idx = 0; rc == 0 && idx < count; ++idx )
-                    {
-                        const char * filename;
-                        rc = VNameListGet( files, idx, &filename );
-                        if ( rc != 0 )
-                            ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
-                        else
-                        {
-                            const struct KFile * src;
-                            rc_t rc1 = KDirectoryOpenFileRead( dir, &src, "%s", filename );
-                            if ( rc1 == 0 )
-                            {
-                                const struct KFile * temp_src;
-                                rc = KBufFileMakeRead( &temp_src, src, buf_size );
-                                KFileRelease( src );
-                                if ( rc != 0 )
-                                    ErrMsg( "KBufFileMakeRead() -> %R", rc );
-                                else
-                                {
-                                    src = temp_src;
-                                    rc = copy_file( dst, src, &dst_pos, buf_size, &cfp );
-                                }
-                                KFileRelease( src );
-                            }
-                        }
-                    }
+                    rc = concat_loop( dir, files, buf_size, dst_gziped, show_progress );
+                    KFileRelease( dst_gziped );                    
                 }
-                
-                if ( cfp.progressbar != NULL )
+            }
+            else
+                rc = concat_loop( dir, files, buf_size, dst_bufferd, show_progress );
+            
+            KFileRelease( dst_bufferd );            
+        }
+        KFileRelease( dst );
+    }
+    return rc;
+}
+
+rc_t print_files( KDirectory * dir, const VNamelist * files, size_t buf_size )
+{
+    uint32_t count;
+    rc_t rc = VNameListCount( files, &count );
+    if ( rc != 0 )
+        ErrMsg( "VNameListCount() -> %R", rc );
+    else
+    {
+        uint32_t idx;
+        for ( idx = 0; rc == 0 && idx < count; ++idx )
+        {
+            const char * filename;
+            rc = VNameListGet( files, idx, &filename );
+            if ( rc != 0 )
+                ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
+            else
+            {
+                const struct KFile * src;
+                rc_t rc1 = KDirectoryOpenFileRead( dir, &src, "%s", filename );
+                if ( rc1 == 0 )
                 {
-                    destroy_progressbar( cfp.progressbar );
-                    KOutMsg( "\n" );
+                    const struct KFile * temp_src;
+                    rc = KBufFileMakeRead( &temp_src, src, buf_size );
+                    KFileRelease( src );
+                    if ( rc != 0 )
+                        ErrMsg( "KBufFileMakeRead() -> %R", rc );
+                    else
+                    {
+                        rc = print_file( temp_src, buf_size );
+                        KFileRelease( temp_src );
+                    }
                 }
             }
         }
-        KFileRelease( dst );
     }
     return rc;
 }

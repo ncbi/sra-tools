@@ -43,16 +43,9 @@
 #include <kfs/directory.h>
 #include <kproc/thread.h>
 
+#include <stdio.h>
 #include <os-native.h>
 #include <sysalloc.h>
-
-static const char * lookup_usage[] = { "lookup file", NULL };
-#define OPTION_LOOKUP   "lookup"
-#define ALIAS_LOOKUP    "l"
-
-static const char * range_usage[] = { "row-range", NULL };
-#define OPTION_RANGE    "range"
-#define ALIAS_RANGE     "R"
 
 static const char * format_usage[] = { "format (special, fastq, lookup, default=special)", NULL };
 #define OPTION_FORMAT   "format"
@@ -86,10 +79,6 @@ static const char * threads_usage[] = { "how many thread ( default=1 )", NULL };
 #define OPTION_THREADS  "threads"
 #define ALIAS_THREADS   "e"
 
-static const char * index_usage[] = { "name of index-file", NULL };
-#define OPTION_INDEX    "index"
-#define ALIAS_INDEX     "i"
-
 static const char * detail_usage[] = { "print details", NULL };
 #define OPTION_DETAILS  "details"
 #define ALIAS_DETAILS    "x"
@@ -98,10 +87,16 @@ static const char * split_usage[] = { "split fastq-output", NULL };
 #define OPTION_SPLIT     "split"
 #define ALIAS_SPLIT      "s"
 
+static const char * stdout_usage[] = { "print output to stdout", NULL };
+#define OPTION_STDOUT    "stdout"
+#define ALIAS_STDOUT     "Z"
+
+static const char * gzip_usage[] = { "compress output using gzip", NULL };
+#define OPTION_GZIP      "gzip"
+#define ALIAS_GZIP       "g"
+
 OptDef ToolOptions[] =
 {
-    { OPTION_RANGE,     ALIAS_RANGE,     NULL, range_usage,      1, true,   false },
-    { OPTION_LOOKUP,    ALIAS_LOOKUP,    NULL, lookup_usage,     1, true,   false },
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
     { OPTION_OUTPUT,    ALIAS_OUTPUT,    NULL, output_usage,     1, true,   false },
     { OPTION_BUFSIZE,   ALIAS_BUFSIZE,   NULL, bufsize_usage,    1, true,   false },
@@ -109,10 +104,11 @@ OptDef ToolOptions[] =
     { OPTION_MEM,       ALIAS_MEM,       NULL, mem_usage,        1, true,   false },
     { OPTION_TEMP,      ALIAS_TEMP,      NULL, temp_usage,       1, true,   false },
     { OPTION_THREADS,   ALIAS_THREADS,   NULL, threads_usage,    1, true,   false },
-    { OPTION_INDEX,     ALIAS_INDEX,     NULL, index_usage,      1, true,   false },
     { OPTION_PROGRESS,  ALIAS_PROGRESS,  NULL, progress_usage,   1, false,  false },
     { OPTION_DETAILS,   ALIAS_DETAILS,   NULL, detail_usage,     1, false,  false },
-    { OPTION_SPLIT,     ALIAS_SPLIT,     NULL, split_usage,      1, false,  false }    
+    { OPTION_SPLIT,     ALIAS_SPLIT,     NULL, split_usage,      1, false,  false },
+    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false }, 
+    { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false }
 };
 
 const char UsageDefaultName[] = "fastdump";
@@ -161,28 +157,68 @@ typedef struct tool_ctx
     const char * output_filename;
     const char * index_filename;
     const char * temp_path;
-    bool remove_temp_path;
+    bool remove_temp_path, print_to_stdout, gzip;
     size_t buf_size, mem_limit;
     uint64_t num_threads;
     format_t fmt;
 } tool_ctx;
 
 
+static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
+{
+    rc_t rc = ArgsParamValue( args, 0, ( const void ** )&( tool_ctx -> cmn . acc ) );
+    if ( rc != 0 )
+        ErrMsg( "ArgsParamValue() -> %R", rc );
+    else
+    {
+        tool_ctx -> cmn . cursor_cache = get_size_t_option( args, OPTION_CURCACHE, 5 * 1024 * 1024 );            
+        tool_ctx -> cmn . show_progress = get_bool_option( args, OPTION_PROGRESS );
+        tool_ctx -> cmn . show_details = get_bool_option( args, OPTION_DETAILS );
+        tool_ctx -> cmn . count = 0;
+
+        tool_ctx -> temp_path = get_str_option( args, OPTION_TEMP, NULL );
+        tool_ctx -> print_to_stdout = get_bool_option( args, OPTION_STDOUT );
+        tool_ctx -> gzip = get_bool_option( args, OPTION_GZIP );
+        tool_ctx -> remove_temp_path = false;
+        tool_ctx -> output_filename = get_str_option( args, OPTION_OUTPUT, NULL );
+        tool_ctx -> lookup_filename = NULL;
+        tool_ctx -> index_filename = NULL;
+        tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, 1024 * 1024 );
+        tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, 1024L * 1024 * 100 );
+        tool_ctx -> num_threads = get_uint64_t_option( args, OPTION_THREADS, 1 );
+        tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ) ); /* helper.c */
+
+        if ( get_bool_option( args, OPTION_SPLIT ) && tool_ctx -> fmt == ft_fastq )
+            tool_ctx -> fmt = ft_fastq_split;
+
+        if ( tool_ctx -> print_to_stdout && tool_ctx -> cmn . show_progress )
+            tool_ctx -> cmn . show_progress = false;
+
+        if ( tool_ctx -> print_to_stdout && tool_ctx -> cmn . show_details )
+            tool_ctx -> cmn . show_details = false;
+            
+        rc = KDirectoryNativeDir( &( tool_ctx -> cmn . dir ) );
+        if ( rc != 0 )
+            ErrMsg( "KDirectoryNativeDir() -> %R", rc );
+    }
+    return rc;
+}
+
 static void init_sorter_params( const tool_ctx * tool_ctx, sorter_params * sp )
 {
-    sp->dir = tool_ctx -> cmn.dir;
-    sp->acc = tool_ctx -> cmn.acc;
-    sp->output_filename = tool_ctx -> output_filename;
-    sp->index_filename = tool_ctx -> index_filename;
-    sp->temp_path = tool_ctx -> temp_path;
-    sp->src = NULL; /* sorter takes ownership! */
-    sp->prefix = 0;
-    sp->mem_limit = tool_ctx -> mem_limit;
-    sp->buf_size = tool_ctx -> buf_size;
-    sp->cursor_cache = tool_ctx -> cmn . cursor_cache;
-    sp->sort_progress = NULL;
-    sp->num_threads = 0;
-    sp->show_progress = tool_ctx -> cmn . show_progress;
+    sp -> dir = tool_ctx -> cmn.dir;
+    sp -> acc = tool_ctx -> cmn.acc;
+    sp -> output_filename = tool_ctx -> output_filename;
+    sp -> index_filename = tool_ctx -> index_filename;
+    sp -> temp_path = tool_ctx -> temp_path;
+    sp -> src = NULL; /* sorter takes ownership! */
+    sp -> prefix = 0;
+    sp -> mem_limit = tool_ctx -> mem_limit;
+    sp -> buf_size = tool_ctx -> buf_size;
+    sp -> cursor_cache = tool_ctx -> cmn . cursor_cache;
+    sp -> sort_progress = NULL;
+    sp -> num_threads = 0;
+    sp -> show_progress = tool_ctx -> cmn . show_progress;
 }
 
 /* --------------------------------------------------------------------------------------------
@@ -193,7 +229,6 @@ static void init_sorter_params( const tool_ctx * tool_ctx, sorter_params * sp )
     RAW_READ is read as 4na-unpacked ( Schema does not provide 4na-packed for this column )
     these key-pairs are temporarely stored in a KVector until a limit is reached
     after that limit is reached they are writen sorted into the file-system as sub-files
-    this repeats until the requested row-range is exhausted ( row_range ... NULL -> all rows )
     These sub-files are than merge-sorted into the final output-file.
     This output-file is a binary data-file:
     content: [KEY][RAW_READ]
@@ -221,7 +256,7 @@ static rc_t multi_threaded_make_lookup( tool_ctx * tool_ctx )
     sorter_params sp;
 
     init_sorter_params( tool_ctx, &sp );
-    sp.num_threads = tool_ctx -> num_threads;
+    sp . num_threads = tool_ctx -> num_threads;
     return run_sorter_pool( &sp ); /* sorter.c */
 }
 
@@ -256,20 +291,22 @@ static rc_t perform_join( tool_ctx * tool_ctx )
     {
         join_params jp;
         
-        jp.dir              = tool_ctx -> cmn . dir;
-        jp.accession        = tool_ctx -> cmn . acc;
-        jp.lookup_filename  = tool_ctx -> lookup_filename;
-        jp.index_filename   = tool_ctx -> index_filename;
-        jp.output_filename  = tool_ctx -> output_filename;
-        jp.temp_path        = tool_ctx -> temp_path;
-        jp.join_progress    = NULL;
-        jp.buf_size         = tool_ctx -> buf_size;
-        jp.cur_cache        = tool_ctx -> cmn.cursor_cache;
-        jp.show_progress    = tool_ctx -> cmn.show_progress;
-        jp.num_threads      = tool_ctx -> num_threads;
-        jp.first            = 0;
-        jp.count            = 0;
-        jp.fmt              = tool_ctx -> fmt;
+        jp . dir              = tool_ctx -> cmn . dir;
+        jp . accession        = tool_ctx -> cmn . acc;
+        jp . lookup_filename  = tool_ctx -> lookup_filename;
+        jp . index_filename   = tool_ctx -> index_filename;
+        jp . output_filename  = tool_ctx -> output_filename;
+        jp . temp_path        = tool_ctx -> temp_path;
+        jp . join_progress    = NULL;
+        jp . buf_size         = tool_ctx -> buf_size;
+        jp . cur_cache        = tool_ctx -> cmn.cursor_cache;
+        jp . show_progress    = tool_ctx -> cmn.show_progress;
+        jp . num_threads      = tool_ctx -> num_threads;
+        jp . first            = 0;
+        jp . count            = 0;
+        jp . fmt              = tool_ctx -> fmt;
+        jp . print_to_stdout  = tool_ctx -> print_to_stdout;
+        jp . gzip             = tool_ctx -> gzip;
         
         rc = execute_join( &jp ); /* join.c */
     }
@@ -279,11 +316,11 @@ static rc_t perform_join( tool_ctx * tool_ctx )
 
 static rc_t show_details( tool_ctx * tool_ctx )
 {
-    rc_t rc = KOutMsg( "cursor-cache : %ld\n", tool_ctx -> cmn . cursor_cache );
+    rc_t rc = KOutMsg( "cursor-cache : %,ld\n", tool_ctx -> cmn . cursor_cache );
     if ( rc == 0 )
-        rc = KOutMsg( "buf-size     : %ld\n", tool_ctx -> buf_size );
+        rc = KOutMsg( "buf-size     : %,ld\n", tool_ctx -> buf_size );
     if ( rc == 0 )
-        rc = KOutMsg( "mem-limit    : %ld\n", tool_ctx -> mem_limit );
+        rc = KOutMsg( "mem-limit    : %,ld\n", tool_ctx -> mem_limit );
     if ( rc == 0 )
         rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
     if ( rc == 0 )
@@ -335,47 +372,32 @@ static rc_t check_temp_path( tool_ctx * tool_ctx )
 
 /* -------------------------------------------------------------------------------------------- */
 
+static rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_writ )
+{
+    * num_writ = fwrite ( buffer, 1, bytes, f );
+    if ( * num_writ != bytes )
+        return RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
+    return 0;
+}
+
+/* -------------------------------------------------------------------------------------------- */
+
 rc_t CC KMain ( int argc, char *argv [] )
 {
-    rc_t rc;
-    Args * args;
-    uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
-
-    rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
-    if ( rc != 0 )
-        ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
+    rc_t rc = KOutHandlerSet( write_to_FILE, stdout );
     if ( rc == 0 )
     {
-        tool_ctx tool_ctx;
-        rc = ArgsParamValue( args, 0, ( const void ** )&( tool_ctx . cmn . acc ) );
-        if ( rc != 0 )
-            ErrMsg( "ArgsParamValue() -> %R", rc );
-        else
-        {
-            tool_ctx . cmn . row_range = get_str_option( args, OPTION_RANGE, NULL );
-            tool_ctx . cmn . cursor_cache = get_size_t_option( args, OPTION_CURCACHE, 5 * 1024 * 1024 );            
-            tool_ctx . cmn . show_progress = get_bool_option( args, OPTION_PROGRESS );
-			tool_ctx . cmn . show_details = get_bool_option( args, OPTION_DETAILS );
-            tool_ctx . cmn . count = 0;
+        Args * args;
+        uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
 
-           
-            tool_ctx . temp_path = get_str_option( args, OPTION_TEMP, NULL );
-            tool_ctx . remove_temp_path = false;
-            tool_ctx . output_filename = get_str_option( args, OPTION_OUTPUT, NULL );
-            tool_ctx . lookup_filename = get_str_option( args, OPTION_LOOKUP, NULL );            
-            tool_ctx . index_filename = get_str_option( args, OPTION_INDEX, NULL );
-            tool_ctx . buf_size = get_size_t_option( args, OPTION_BUFSIZE, 1024 * 1024 );
-            tool_ctx . mem_limit = get_size_t_option( args, OPTION_MEM, 1024L * 1024 * 100 );
-            tool_ctx . num_threads = get_uint64_t_option( args, OPTION_THREADS, 1 );
-            tool_ctx . fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ) ); /* helper.c */
-            
-            if ( get_bool_option( args, OPTION_SPLIT ) && tool_ctx . fmt == ft_fastq )
-                tool_ctx . fmt = ft_fastq_split;
-                
-            rc = KDirectoryNativeDir( &( tool_ctx . cmn . dir ) );
-            if ( rc != 0 )
-                ErrMsg( "KDirectoryNativeDir() -> %R", rc );
-            else
+        rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
+        if ( rc != 0 )
+            ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
+        if ( rc == 0 )
+        {
+            tool_ctx tool_ctx;
+            rc = populate_tool_ctx( &tool_ctx, args );
+            if ( rc == 0 )
             {
                 rc = check_temp_path( &tool_ctx );
                 if ( rc == 0 && tool_ctx.cmn.show_details )
@@ -390,21 +412,15 @@ rc_t CC KMain ( int argc, char *argv [] )
                     dflt_index[ 0 ] = 0;
                     dflt_output[ 0 ] = 0;
                 
-                    if ( tool_ctx . lookup_filename == NULL )
-                    {
-                        rc = make_prefixed( dflt_lookup, sizeof dflt_lookup, tool_ctx . temp_path,
-                                            tool_ctx . cmn . acc, ".lookup" ); /* helper.c */
-                        if ( rc == 0 )
-                            tool_ctx . lookup_filename = dflt_lookup;
-                    }
+                    rc = make_prefixed( dflt_lookup, sizeof dflt_lookup, tool_ctx . temp_path,
+                                        tool_ctx . cmn . acc, ".lookup" ); /* helper.c */
+                    if ( rc == 0 )
+                        tool_ctx . lookup_filename = dflt_lookup;
 
-                    if ( tool_ctx . index_filename == NULL )
-                    {
-                        rc = make_prefixed( dflt_index, sizeof dflt_index, tool_ctx . temp_path,
-                                            tool_ctx . cmn . acc, ".lookup.idx" ); /* helper.c */
-                        if ( rc == 0 )
-                            tool_ctx . index_filename = dflt_index;
-                    }
+                    rc = make_prefixed( dflt_index, sizeof dflt_index, tool_ctx . temp_path,
+                                        tool_ctx . cmn . acc, ".lookup.idx" ); /* helper.c */
+                    if ( rc == 0 )
+                        tool_ctx . index_filename = dflt_index;
 
                     if ( tool_ctx . output_filename == NULL )
                     {

@@ -132,7 +132,6 @@ static void init_cmn_params( const join_params * jp, cmn_params * cmn )
 {
     cmn->dir            = jp->dir;
     cmn->acc            = jp->accession;
-    cmn->row_range      = NULL;
     cmn->first          = jp->first;
     cmn->count          = jp->count;
     cmn->cursor_cache   = jp->cur_cache;
@@ -614,7 +613,13 @@ static rc_t concat_part_files( const join_params * jp, uint32_t count )
                 rc = VNamelistAppend( files, part_file );
         }
         if ( rc == 0 )
-            rc = concat_files( jp->dir, files, jp->buf_size, jp->output_filename, jp->show_progress ); /* helper.c */
+        {
+            if ( jp -> print_to_stdout )
+                rc = print_files( jp -> dir, files, jp -> buf_size );
+            else
+                rc = concat_files( jp -> dir, files, jp -> buf_size, jp -> output_filename,
+                                   jp -> show_progress, jp -> gzip ); /* helper.c */
+        }
         if ( rc == 0 )
             rc = delete_files( jp->dir, files );
         VNamelistRelease( files );

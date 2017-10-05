@@ -32,8 +32,6 @@
 #include <klib/out.h>
 #include <kfs/defs.h>
 #include <kfs/file.h>
-#include <kfs/buffile.h>
-#include <kfs/gzip.h>
 #include <kproc/thread.h>
 
 rc_t ErrMsg( const char * fmt, ... )
@@ -257,6 +255,16 @@ format_t get_format_t( const char * format )
     return res;
 }
 
+compress_t get_compress_t( bool gzip, bool bzip2 )
+{
+    if ( gzip && bzip2 )
+        return ct_bzip2;
+    else if ( gzip )
+        return ct_gzip;
+    else if ( bzip2 )
+        return ct_bzip2;
+    return ct_none;
+}
 
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id )
 {
@@ -364,275 +372,6 @@ void join_and_release_threads( Vector * threads )
 }
 
 
-typedef struct cf_progress
-{
-    struct progressbar * progressbar;
-    uint64_t total_size;
-    uint64_t current_size;
-    uint32_t current_percent;
-} cf_progress;
-
-rc_t CC Quitting();
-
-static rc_t copy_file( KFile * dst, const KFile * src, uint64_t * dst_pos,
-                       size_t buf_size, cf_progress * cfp )
-{
-    rc_t rc = 0;
-    char * buffer = malloc( buf_size );
-    if ( buffer == NULL )
-    {
-        rc = RC( rcExe, rcFile, rcPacking, rcMemory, rcExhausted );
-        ErrMsg( "copy_file.malloc( %d ) -> %R", buf_size, rc );
-    }
-    else
-    {
-        uint64_t src_pos = 0;
-        size_t num_trans = 1;
-        while ( rc == 0 && num_trans > 0 )
-        {
-            rc = Quitting();
-            if ( rc == 0 )
-            {
-                size_t num_read;
-                rc = KFileRead( src, src_pos, buffer, buf_size, &num_read );
-                if ( rc != 0 )
-                    ErrMsg( "copy_file.KFileRead( at %lu ) -> %R", src_pos, rc );
-                else if ( num_read > 0 )
-                {
-                    rc = KFileWrite( dst, *dst_pos, buffer, num_read, &num_trans );
-                    if ( rc != 0 )
-                        ErrMsg( "copy_file.KFileWrite( at %lu ) -> %R", *dst_pos, rc );
-                    else
-                    {
-                        *dst_pos += num_trans;
-                        src_pos += num_trans;
-                        if ( cfp != NULL && cfp->progressbar != NULL )
-                        {
-                            uint32_t percent;
-                            
-                            cfp->current_size += num_trans;
-                            percent = calc_percent( cfp->total_size, cfp->current_size, 2 );
-                            if ( percent > cfp->current_percent )
-                            {
-                                uint32_t i;
-                                for ( i = cfp->current_percent + 1; i <= percent; ++i )
-                                    update_progressbar( cfp->progressbar, i );
-                                cfp->current_percent = percent;
-                            }
-                        }
-                    }
-                }
-                else
-                    num_trans = 0;
-            }
-        }
-        free( buffer );
-    }
-    return rc;
-}
-
-static rc_t print_file( const KFile * src, size_t buf_size )
-{
-    rc_t rc = 0;
-    char * buffer = malloc( buf_size );
-    if ( buffer == NULL )
-    {
-        rc = RC( rcExe, rcFile, rcPacking, rcMemory, rcExhausted );
-        ErrMsg( "copy_file.malloc( %d ) -> %R", buf_size, rc );
-    }
-    else
-    {
-        uint64_t src_pos = 0;
-        size_t num_read = 1;
-        while ( rc == 0 && num_read > 0 )
-        {
-            rc = Quitting();
-            if ( rc == 0 )
-            {
-                size_t num_read;
-                rc = KFileRead( src, src_pos, buffer, buf_size, &num_read );
-                if ( rc != 0 )
-                    ErrMsg( "copy_file.KFileRead( at %lu ) -> %R", src_pos, rc );
-                else if ( num_read > 0 )
-                {
-                    rc = KOutMsg( "%.*s", num_read, buffer );
-                    /* printf( "%.*s", num_read, buffer ); */
-                    src_pos += num_read;
-                }
-            }
-        }
-        free( buffer );
-    }
-    return rc;
-}
-
-
-static rc_t total_filesize( const KDirectory * dir, const VNamelist * files, uint64_t *total )
-{
-    uint32_t count;
-    rc_t rc = VNameListCount( files, &count );
-    *total = 0;
-    if ( rc != 0 )
-        ErrMsg( "VNameListCount() -> %R", rc );
-    else
-    {
-        uint32_t idx;
-        for ( idx = 0; rc == 0 && idx < count; ++idx )
-        {
-            const char * filename;
-            rc = VNameListGet( files, idx, &filename );
-            if ( rc != 0 )
-                ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
-            else
-            {
-                uint64_t size;
-                rc_t rc1 = KDirectoryFileSize( dir, &size, "%s", filename );
-                if ( rc1 == 0 )
-                    *total += size;
-            }
-        }
-    }
-    return rc;
-}
-
-static rc_t concat_loop( KDirectory * dir, const VNamelist * files, size_t buf_size,
-                         struct KFile * dst, bool show_progress )
-{
-    rc_t rc;
-    cf_progress cfp;
-
-    if ( show_progress )
-    {
-        cfp.current_size = 0;
-        cfp.current_percent = 0;
-        rc = make_progressbar( &cfp.progressbar, 2 );
-        if ( rc == 0 )
-            rc = total_filesize( dir, files, &cfp.total_size );
-    }
-    else
-        cfp.progressbar = NULL;
-    if ( rc == 0 )
-    {
-        uint32_t count;
-        rc = VNameListCount( files, &count );
-        if ( rc != 0 )
-            ErrMsg( "VNameListCount() -> %R", rc );
-        else
-        {
-            uint32_t idx;
-            uint64_t dst_pos = 0;
-            for ( idx = 0; rc == 0 && idx < count; ++idx )
-            {
-                const char * filename;
-                rc = VNameListGet( files, idx, &filename );
-                if ( rc != 0 )
-                    ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
-                else
-                {
-                    const struct KFile * src;
-                    rc_t rc1 = KDirectoryOpenFileRead( dir, &src, "%s", filename );
-                    if ( rc1 == 0 )
-                    {
-                        const struct KFile * temp_src;
-                        rc = KBufFileMakeRead( &temp_src, src, buf_size );
-                        KFileRelease( src );
-                        if ( rc != 0 )
-                            ErrMsg( "KBufFileMakeRead() -> %R", rc );
-                        else
-                        {
-                            src = temp_src;
-                            rc = copy_file( dst, src, &dst_pos, buf_size, &cfp );
-                        }
-                        KFileRelease( src );
-                    }
-                }
-            }
-        }
-        
-        if ( cfp.progressbar != NULL )
-        {
-            destroy_progressbar( cfp.progressbar );
-            KOutMsg( "\n" );
-        }
-    }
-    return rc;
-}
-
-rc_t concat_files( KDirectory * dir, const VNamelist * files, size_t buf_size,
-                   const char * output, bool show_progress, bool gzip )
-{
-    struct KFile * dst;
-    rc_t rc = KDirectoryCreateFile( dir, &dst, false, 0664, kcmInit, "%s", output );
-    if ( rc != 0 )
-        ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", output, rc );
-    else
-    {
-        struct KFile * dst_bufferd;
-        rc = KBufFileMakeWrite( &dst_bufferd, dst, false, buf_size );
-        if ( rc != 0 )
-            ErrMsg( "KBufFileMakeWrite() -> %R", rc );
-        else
-        {
-            if ( gzip )
-            {
-                struct KFile * dst_gziped;
-                rc = KFileMakeGzipForWrite ( &dst_gziped, dst_bufferd );
-                if ( rc != 0 )
-                    ErrMsg( "KFileMakeGzipForWrite() -> %R", rc );
-                else
-                {
-                    rc = concat_loop( dir, files, buf_size, dst_gziped, show_progress );
-                    KFileRelease( dst_gziped );                    
-                }
-            }
-            else
-                rc = concat_loop( dir, files, buf_size, dst_bufferd, show_progress );
-            
-            KFileRelease( dst_bufferd );            
-        }
-        KFileRelease( dst );
-    }
-    return rc;
-}
-
-rc_t print_files( KDirectory * dir, const VNamelist * files, size_t buf_size )
-{
-    uint32_t count;
-    rc_t rc = VNameListCount( files, &count );
-    if ( rc != 0 )
-        ErrMsg( "VNameListCount() -> %R", rc );
-    else
-    {
-        uint32_t idx;
-        for ( idx = 0; rc == 0 && idx < count; ++idx )
-        {
-            const char * filename;
-            rc = VNameListGet( files, idx, &filename );
-            if ( rc != 0 )
-                ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
-            else
-            {
-                const struct KFile * src;
-                rc_t rc1 = KDirectoryOpenFileRead( dir, &src, "%s", filename );
-                if ( rc1 == 0 )
-                {
-                    const struct KFile * temp_src;
-                    rc = KBufFileMakeRead( &temp_src, src, buf_size );
-                    KFileRelease( src );
-                    if ( rc != 0 )
-                        ErrMsg( "KBufFileMakeRead() -> %R", rc );
-                    else
-                    {
-                        rc = print_file( temp_src, buf_size );
-                        KFileRelease( temp_src );
-                    }
-                }
-            }
-        }
-    }
-    return rc;
-}
-
 rc_t delete_files( KDirectory * dir, const VNamelist * files )
 {
     uint32_t count;
@@ -691,7 +430,6 @@ static rc_t CC progress_thread_func( const KThread *self, void *data )
     }
 
     destroy_progressbar( progressbar );
-    KOutMsg( "\n" );
     return rc;
 }
 
@@ -722,6 +460,23 @@ void join_multi_progress( KThread *t, multi_progress * progress_data )
     }
 }
 
+rc_t make_pre_and_post_fixed( char * dst, size_t dst_size,
+                              const char * acc,
+                              const tmp_id * tmp_id,
+                              const char * extension )
+{
+    rc_t rc;
+    size_t num_writ;
+    if ( tmp_id -> temp_path_ends_in_slash )
+        rc = string_printf( dst, dst_size, &num_writ, "%s%s.%s.%u.%s",
+                tmp_id -> temp_path, acc, tmp_id -> hostname, tmp_id -> pid, extension );
+    else
+        rc = string_printf( dst, dst_size, &num_writ, "%s/%s.%s.%u.%s",
+                tmp_id -> temp_path, acc, tmp_id -> hostname, tmp_id -> pid, extension );
+    if ( rc != 0 )
+        ErrMsg( "make_pre_and_post_fixed.string_printf() -> %R", rc );
+    return rc;
+}
 
 rc_t make_prefixed( char * buffer, size_t bufsize, const char * prefix,
                     const char * path, const char * postfix )
@@ -764,5 +519,15 @@ rc_t make_prefixed( char * buffer, size_t bufsize, const char * prefix,
     
     if ( rc != 0 )
         ErrMsg( "make_prefixed.string_printf() -> %R", rc );
+    return rc;
+}
+
+
+rc_t make_postfixed( char * buffer, size_t bufsize, const char * path, const char * postfix )
+{
+    size_t num_writ;
+    rc_t rc = string_printf( buffer, bufsize, &num_writ, "%s%s", path, postfix );
+    if ( rc != 0 )
+        ErrMsg( "make_postfixed.string_printf() -> %R", rc );
     return rc;
 }

@@ -43,6 +43,8 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
+#define DFLT_INDEX_FREQUENCY 20000
+
 struct index_writer;
 
 void release_index_writer( struct index_writer * writer );

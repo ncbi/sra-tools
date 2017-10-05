@@ -72,6 +72,15 @@ extern "C" {
 #include <kproc/thread.h>
 #endif
 
+typedef struct tmp_id
+{
+    const char * temp_path;
+    const char * hostname;
+    uint32_t pid;
+    bool temp_path_ends_in_slash;
+} tmp_id;
+
+
 typedef struct SBuffer
 {
     String S;
@@ -80,6 +89,7 @@ typedef struct SBuffer
 
 
 typedef enum format_t { ft_special, ft_fastq, ft_fastq_split } format_t;
+typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
 rc_t ErrMsg( const char * fmt, ... );
 
@@ -96,6 +106,8 @@ rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count,
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
 
 format_t get_format_t( const char * format );
+
+compress_t get_compress_t( bool gzip, bool bzip2 );
 
 struct Args;
 const char * get_str_option( const struct Args *args, const char *name, const char * dflt );
@@ -114,11 +126,6 @@ bool file_exists( const KDirectory * dir, const char * fmt, ... );
 
 void join_and_release_threads( Vector * threads );
 
-rc_t concat_files( KDirectory * dir, const VNamelist * files, size_t buf_size,
-                   const char * output, bool show_progress, bool gizp );
-
-rc_t print_files( KDirectory * dir, const VNamelist * files, size_t buf_size );
-
 rc_t delete_files( KDirectory * dir, const VNamelist * files );
 
 
@@ -133,8 +140,16 @@ void init_progress_data( multi_progress * progress_data, uint64_t row_count );
 rc_t start_multi_progress( KThread **t, multi_progress * progress_data );
 void join_multi_progress( KThread *t, multi_progress * progress_data );
 
+rc_t make_pre_and_post_fixed( char * dst, size_t dst_size,
+                              const char * acc,
+                              const tmp_id * tmp_id,
+                              const char * extension );
+
 rc_t make_prefixed( char * buffer, size_t bufsize, const char * prefix,
                     const char * path, const char * postfix );
+
+rc_t make_postfixed( char * buffer, size_t bufsize, const char * path, const char * postfix );
+
 
 #ifdef __cplusplus
 }

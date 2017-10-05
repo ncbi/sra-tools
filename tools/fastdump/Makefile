@@ -73,6 +73,7 @@ TOOL_SRC = \
 	special_iter \
 	fastq_iter \
 	join \
+	concatenator \
 	fastdump
 
 TOOL_OBJ = \

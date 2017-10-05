@@ -39,25 +39,26 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
-struct merge_sorter;
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
+#endif
 
-typedef struct merge_sorter_params
+#ifndef _h_helper_
+#include "helper.h"
+#endif
+
+typedef struct merge_sort_params
 {
-    KDirectory *dir;
-    const char * output_filename;
+    KDirectory * dir;
+    const char * lookup_filename;
     const char * index_filename;
-    uint32_t count;
-    size_t buf_size;
-} merge_sorter_params;
+    const tmp_id * tmp_id;
+    const VNamelist * files;
+    size_t num_threads, buf_size;
+    bool show_progress;
+} merge_sort_params;
 
-
-rc_t make_merge_sorter( struct merge_sorter ** ms, const merge_sorter_params * params );
-
-rc_t add_merge_sorter_src( struct merge_sorter *ms, const char * filename, uint32_t id );
-
-void release_merge_sorter( struct merge_sorter *ms );
-
-rc_t run_merge_sorter( struct merge_sorter *ms );
+rc_t execute_merge_sort( const merge_sort_params * mp );
 
 #ifdef __cplusplus
 }

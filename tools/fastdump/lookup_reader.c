@@ -65,15 +65,7 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
     
     rc = KDirectoryVOpenFileRead( dir, &f, fmt, args );
     if ( rc != 0 )
-    {
-        char tmp[ 4096 ];
-        size_t num_writ;
-        rc_t rc1 = string_vprintf( tmp, sizeof tmp, &num_writ, fmt, args );
-        if ( rc1 != 0 )
-            ErrMsg( "make_lookup_reader.KDirectoryVOpenFileRead( '?' ) -> %R", rc );
-        else
-            ErrMsg( "make_lookup_reader.KDirectoryVOpenFileRead( '%s' ) -> %R", tmp, rc );
-    }
+        ErrMsg( "make_lookup_reader.KDirectoryVOpenFileRead( '?' ) -> %R", rc );
     else
     {
         const struct KFile * temp_file = NULL;
@@ -94,9 +86,9 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
             }
             else
             {
-                r->f = temp_file;
-                r->index = index;
-                rc = make_SBuffer( &r->buf, 4096 );
+                r -> f = temp_file;
+                r -> index = index;
+                rc = make_SBuffer( &( r -> buf ), 4096 );
                 if ( rc == 0 )
                     *reader = r;
                 else

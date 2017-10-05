@@ -27,13 +27,17 @@
 #include "sorter.h"
 #include "lookup_writer.h"
 #include "lookup_reader.h"
-#include "merge_sorter.h"
+#include "raw_read_iter.h"
 #include "helper.h"
 
 #include <klib/vector.h>
 #include <klib/printf.h>
 #include <klib/progressbar.h>
+#include <klib/out.h>
 #include <kproc/thread.h>
+#include <kproc/lock.h>
+
+rc_t CC Quitting(); /* to avoid including kapp/main.h */
 
 /* 
     this is in interfaces/cc/XXX/YYY/atomic.h
@@ -42,119 +46,138 @@
  */
 #include <atomic.h>
 
-
-typedef struct sorter
+typedef struct locked_file_list
 {
-    sorter_params params;
+    KLock * lock;
+    VNamelist * files;
+} locked_file_list;
+
+static rc_t init_locked_file_list( locked_file_list * self, VNamelist * files )
+{
+    rc_t rc = KLockMake ( &( self -> lock ) );
+    if ( rc == 0 )
+        self -> files = files;
+    return rc;
+}
+
+static rc_t release_locked_file_list( locked_file_list * self )
+{
+    return KLockRelease ( self -> lock );
+}
+
+static rc_t append_to_file_list( locked_file_list * self, const char * filename )
+{
+    return VNamelistAppend ( self -> files, filename );
+}
+
+static rc_t append_to_locked_file_list( locked_file_list * self, const char * filename )
+{
+    rc_t rc = KLockAcquire ( self -> lock );
+    if ( rc == 0 )
+    {
+        rc = VNamelistAppend ( self -> files, filename );
+        KLockUnlock ( self -> lock );
+    }
+    return rc;
+}
+
+typedef struct lookup_producer
+{
+    KDirectory * dir;
+    const tmp_id * tmp_id;
+    struct raw_read_iter * iter;
     KVector * store;
+    atomic_t * sort_progress;   
+    locked_file_list * locked_files;    
     SBuffer buf;
     uint64_t bytes_in_store;
-    uint32_t sub_file_id;
-} sorter;
+    uint32_t chunk_id, sub_file_id;
+    size_t buf_size, mem_limit;
+    bool single;
+} lookup_producer;
 
 
-static void release_sorter( struct sorter * sorter )
+static void release_producer( lookup_producer * self )
 {
-    if ( sorter != NULL )
+    if ( self != NULL )
     {
-        release_SBuffer( &sorter->buf ); /* helper.c */
-        if ( sorter->params.src != NULL )
-            destroy_raw_read_iter( sorter->params.src ); /* raw_read_iter.c */
-        if ( sorter->store != NULL )
-            KVectorRelease( sorter->store );
+        release_SBuffer( &( self -> buf ) ); /* helper.c */
+        if ( self -> iter != NULL )
+            destroy_raw_read_iter( self -> iter ); /* raw_read_iter.c */
+        if ( self -> store != NULL )
+            KVectorRelease( self -> store );
     }
 }
 
-static rc_t init_sorter( struct sorter * sorter, const sorter_params * params )
+static rc_t init_single_producer( lookup_producer * self,
+                                  const lookup_production_params * lp,
+                                  locked_file_list * locked_files )
 {
-    rc_t rc = KVectorMake( &sorter->store );
+    rc_t rc = KVectorMake( &self -> store );
     if ( rc != 0 )
         ErrMsg( "KVectorMake() -> %R", rc );
     else
     {
-        rc = make_SBuffer( &sorter->buf, 4096 ); /* helper.c */
+        rc = make_SBuffer( &( self -> buf ), 4096 ); /* helper.c */
         if ( rc == 0 )
         {
-            sorter->params.dir = params->dir;
-            sorter->params.output_filename = params->output_filename;
-            sorter->params.index_filename = NULL;
-            sorter->params.temp_path = params->temp_path;
-            sorter->params.src = params->src;
-            sorter->params.buf_size = params->buf_size;
-            sorter->params.mem_limit = params->mem_limit;
-            sorter->params.prefix = params->prefix;
-            sorter->bytes_in_store = 0;
-            sorter->sub_file_id = 0;
+            self -> dir             = lp -> dir;
+            self -> tmp_id          = lp -> tmp_id;
+            self -> iter            = NULL;
+            self -> sort_progress   = NULL;
+            self -> locked_files    = locked_files;
+            self -> bytes_in_store  = 0;
+            self -> chunk_id        = 0;
+            self -> sub_file_id     = 0;
+            self -> buf_size        = lp -> buf_size;
+            self -> mem_limit       = lp -> mem_limit;
+            self -> single          = true;
+            rc = make_raw_read_iter( lp -> cmn, &( self -> iter ) );
         }
     }
     return rc;
 }
 
-
-static rc_t make_subfilename( const sorter_params * params, uint32_t id, char * buffer, size_t buflen )
+static rc_t init_multi_producer( lookup_producer * self,
+                                 const lookup_production_params * lp,
+                                 locked_file_list * locked_files,
+                                 atomic_t * sort_progress,
+                                 uint32_t chunk_id,
+                                 int64_t first_row,
+                                 uint64_t row_count )
 {
-    rc_t rc;
-    size_t num_writ;
-    if ( params->temp_path != NULL )
+    rc_t rc = KVectorMake( &self -> store );
+    if ( rc != 0 )
+        ErrMsg( "KVectorMake() -> %R", rc );
+    else
     {
-        uint32_t l = string_measure( params->temp_path, NULL );
-        if ( l == 0 )
+        rc = make_SBuffer( &( self -> buf ), 4096 ); /* helper.c */
+        if ( rc == 0 )
         {
-            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-            ErrMsg( "make_subfilename.string_measure() = 0 -> %R", rc );
-        }
-        else
-        {
-            if ( params->temp_path[ l-1 ] == '/' )
-                rc = string_printf( buffer, buflen, &num_writ, "%ssub_%d_%d.dat",
-                        params->temp_path, params->prefix, id );
-            else
-                rc = string_printf( buffer, buflen, &num_writ, "%s/sub_%d_%d.dat",
-                        params->temp_path, params->prefix, id );
+            cmn_params cmn;
+            
+            self -> dir             = lp -> dir;
+            self -> tmp_id          = lp -> tmp_id;
+            self -> iter            = NULL;
+            self -> sort_progress   = sort_progress;
+            self -> locked_files    = locked_files;
+            self -> bytes_in_store  = 0;
+            self -> chunk_id        = chunk_id;
+            self -> sub_file_id     = 0;
+            self -> buf_size        = lp -> buf_size;
+            self -> mem_limit       = lp -> mem_limit;
+            self -> single          = false;
+            
+            cmn . dir              = lp -> dir;
+            cmn . acc              = lp -> accession;
+            cmn . first_row        = first_row;
+            cmn . row_count        = row_count;
+            cmn . cursor_cache     = lp -> cmn -> cursor_cache;
+            cmn . show_progress    = false;     /* we do that instead with the progress-thread! */
+
+            rc = make_raw_read_iter( &cmn, &( self -> iter ) );
         }
     }
-    else
-        rc = string_printf( buffer, buflen, &num_writ, "sub_%d_%d.dat",
-                params->prefix, id );
-
-    if ( rc != 0 )
-        ErrMsg( "make_subfilename.string_printf() -> %R", rc );
-    return rc;
-}
-
-
-static rc_t make_dst_filename( const sorter_params * params, char * buffer, size_t buflen )
-{
-    rc_t rc;
-    size_t num_writ;
-    if ( params->prefix > 0 )
-    {
-        if ( params->temp_path != NULL )
-        {
-            uint32_t l = string_measure( params->temp_path, NULL );
-            if ( l == 0 )
-            {
-                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                ErrMsg( "make_subfilename.string_measure() = 0 -> %R", rc );
-            }
-            else
-            {
-                if ( params->temp_path[ l-1 ] == '/' )
-                    rc = string_printf( buffer, buflen, &num_writ, "%stmp_%d.dat",
-                            params->temp_path, params->prefix );
-                else
-                    rc = string_printf( buffer, buflen, &num_writ, "%s/tmp_%d.dat",
-                            params->temp_path, params->prefix );
-            }
-        }
-        else
-            rc = string_printf( buffer, buflen, &num_writ, "tmp_%d.dat", params->prefix );
-    }
-    else
-        rc = string_printf( buffer, buflen, &num_writ, "%s", params->output_filename );
-
-    if ( rc != 0 )
-        ErrMsg( "make_dst_filename.string_printf() -> %R", rc );
     return rc;
 }
 
@@ -169,41 +192,58 @@ static rc_t CC on_store_entry( uint64_t key, const void *value, void *user_data 
 }
 
 
-static rc_t save_store( struct sorter * sorter )
+static rc_t save_store( lookup_producer * self )
 {
     rc_t rc = 0;
-    if ( sorter->bytes_in_store > 0 )
+    if ( self -> bytes_in_store > 0 )
     {
         char buffer[ 4096 ];
+        size_t num_writ;
         struct lookup_writer * writer; /* lookup_writer.h */
+        const tmp_id * tmp_id = self -> tmp_id;
         
-        if ( sorter->params.mem_limit > 0 )
-        {
-            rc = make_subfilename( &sorter->params, sorter->sub_file_id, buffer, sizeof buffer ); /* above! */
-            if ( rc == 0 )
-                sorter->sub_file_id++;
-        }
+        if ( tmp_id -> temp_path_ends_in_slash )
+            rc = string_printf( buffer, sizeof buffer, &num_writ, "%ssub_%s_%u_%u_%u.dat",
+                    tmp_id -> temp_path, tmp_id -> hostname,
+                    tmp_id -> pid, self -> chunk_id, self -> sub_file_id );
         else
-            rc = make_dst_filename( &sorter->params, buffer, sizeof buffer ); /* above! */
-
+            rc = string_printf( buffer, sizeof buffer, &num_writ, "%s/sub_%s_%u_%u_%u.dat",
+                    tmp_id -> temp_path, tmp_id -> hostname,
+                    tmp_id -> pid, self -> chunk_id, self -> sub_file_id );
+        if ( rc != 0 )
+            ErrMsg( "make_subfilename.string_printf() -> %R", rc );
+        
         if ( rc == 0 )
-            rc = make_lookup_writer( sorter->params.dir, NULL, &writer, sorter->params.buf_size, "%s", buffer ); /* lookup_writer.c */
+            self -> sub_file_id++;
+            
+        if ( rc == 0 )
+            rc = make_lookup_writer( self -> dir, NULL, &writer,
+                                     self -> buf_size, "%s", buffer ); /* lookup_writer.c */
         
         if ( rc == 0 )
         {
-            rc = KVectorVisitPtr( sorter->store, false, on_store_entry, writer );
+            rc = KVectorVisitPtr( self -> store, false, on_store_entry, writer );
             release_lookup_writer( writer ); /* lookup_writer.c */
         }
+
         if ( rc == 0 )
         {
-            sorter->bytes_in_store = 0;
-            rc = KVectorRelease( sorter->store );
+            if ( self -> single )
+                rc = append_to_file_list( self -> locked_files, buffer );
+            else
+                rc = append_to_locked_file_list( self -> locked_files, buffer );
+        }
+        
+        if ( rc == 0 )
+        {
+            self -> bytes_in_store = 0;
+            rc = KVectorRelease( self -> store );
             if ( rc != 0 )
                 ErrMsg( "KVectorRelease() -> %R", rc );
             else
             {
-                sorter->store = NULL;
-                rc = KVectorMake( &sorter->store );
+                self -> store = NULL;
+                rc = KVectorMake( &self -> store );
                 if ( rc != 0 )
                     ErrMsg( "KVectorMake() -> %R", rc );
             }
@@ -213,139 +253,72 @@ static rc_t save_store( struct sorter * sorter )
 }
 
 
-static rc_t write_to_sorter( struct sorter * sorter, int64_t seq_spot_id, uint32_t seq_read_id,
-        const String * unpacked_bases )
+static rc_t write_to_store( lookup_producer * self, int64_t seq_spot_id, uint32_t seq_read_id,
+                             const String * unpacked_bases )
 {
     /* we write it to the store...*/
     rc_t rc;
     const String * to_store;    
-    pack_4na( unpacked_bases, &sorter->buf ); /* helper.c */
-    rc = StringCopy( &to_store, &sorter->buf.S );
+    pack_4na( unpacked_bases, &( self -> buf ) ); /* helper.c */
+    rc = StringCopy( &to_store, &( self -> buf . S ) );
     if ( rc != 0 )
         ErrMsg( "StringCopy() -> %R", rc );
     else
     {
         uint64_t key = make_key( seq_spot_id, seq_read_id ); /* helper.c */
-        rc = KVectorSetPtr( sorter->store, key, (const void *)to_store );
+        rc = KVectorSetPtr( self -> store, key, ( const void * )to_store );
         if ( rc != 0 )
             ErrMsg( "KVectorSetPtr() -> %R", rc );
         else
         {
-            size_t item_size = ( sizeof key ) + ( sizeof *to_store ) + to_store->size;
-            sorter->bytes_in_store += item_size;
+            size_t item_size = ( sizeof key ) + ( sizeof *to_store ) + to_store -> size;
+            self -> bytes_in_store += item_size;
         }
     }
     
     if ( rc == 0 &&
-         sorter->params.mem_limit > 0 &&
-         sorter->bytes_in_store >= sorter->params.mem_limit )
-        rc = save_store( sorter ); /* above! */
+         self -> mem_limit > 0 &&
+         self -> bytes_in_store >= self -> mem_limit )
+        rc = save_store( self ); /* above! */
     return rc;
 }
 
-
-static rc_t delete_sub_files( const sorter_params * params, uint32_t count )
+static rc_t run_producer( lookup_producer * self )
 {
     rc_t rc = 0;
-    char buffer[ 4096 ];
-    uint32_t i;
-    for ( i = 0; rc == 0 && i < count; ++ i )
+    raw_read_rec rec;
+    while ( rc == 0 && get_from_raw_read_iter( self -> iter, &rec, &rc ) ) /* raw_read_iter.c */
     {
-        rc = make_subfilename( params, i, buffer, sizeof buffer ); /* above! */
-        if ( rc == 0 )
-            rc = KDirectoryRemove( params->dir, true, "%s", buffer );
-        if ( rc != 0 )
-            ErrMsg( "KDirectoryRemove( 'sub_%d.dat' ) -> %R", i, rc );
-    }
-    return rc;
-}
-
-
-static rc_t final_merge_sort( const sorter_params * params, uint32_t count )
-{
-    rc_t rc = 0;
-    if ( count > 0 )
-    {
-        char buffer[ 4096 ];
-        rc = make_dst_filename( params, buffer, sizeof buffer ); /* above! */
+        rc = Quitting();
         if ( rc == 0 )
         {
-            merge_sorter_params msp;
-            struct merge_sorter * ms;
-            uint32_t i;
-            
-            msp.dir = params->dir;
-            msp.output_filename = buffer;
-            msp.index_filename = params->index_filename;
-            msp.count = count;
-            msp.buf_size = params->buf_size;
-            
-            rc = make_merge_sorter( &ms, &msp ); /* merge_sorter.c */
-            for ( i = 0; rc == 0 && i < count; ++i )
-            {
-                char buffer2[ 4096 ];
-                rc = make_subfilename( params, i, buffer2, sizeof buffer2 ); /* above! */
-                if ( rc == 0 )
-                    rc = add_merge_sorter_src( ms, buffer2, i ); /* merge_sorter.c */
-            }
-            if ( rc == 0 )
-                rc = run_merge_sorter( ms ); /* merge_sorter.c */
-                
-            release_merge_sorter( ms ); /* merge_sorter.c */
+            rc = write_to_store( self, rec . seq_spot_id, rec . seq_read_id, &rec . raw_read ); /* above! */
+            if ( rc == 0 && self -> sort_progress != NULL )
+                atomic_inc( self -> sort_progress ); /* atomic.h */
         }
-
-        if ( rc == 0 )
-            rc = delete_sub_files( params, count ); /* above! */
     }
-    return rc;
-}
-
-rc_t CC Quitting(); /* to avoid including kapp/main.h */
-
-rc_t run_sorter( const sorter_params * params )
-{
-    sorter sorter;
-    rc_t rc = init_sorter( &sorter, params ); /* above! */
+    
     if ( rc == 0 )
-    {
-        raw_read_rec rec;
-        while ( rc == 0 && get_from_raw_read_iter( sorter.params.src, &rec, &rc ) ) /* raw_read_iter.c */
-        {
-            rc = Quitting();
-            if ( rc == 0 )
-            {
-                rc = write_to_sorter( &sorter, rec.seq_spot_id, rec.seq_read_id, &rec.raw_read ); /* above! */
-                if ( rc == 0 && params->sort_progress != NULL )
-                    atomic_inc( params->sort_progress ); /* atomic.h */
-            }
-        }
-        
-        if ( rc == 0 )
-            rc = save_store( &sorter ); /* above */
+        rc = save_store( self ); /* above */
 
-        if ( rc == 0 && sorter.params.mem_limit > 0 )
-            rc = final_merge_sort( params, sorter.sub_file_id ); /* above! */
-            
-        release_sorter( &sorter );
-    }
     return rc;
 }
 
 /* -------------------------------------------------------------------------------------------- */
 
-static uint64_t find_out_row_count( const sorter_params * params )
+static uint64_t find_out_row_count( const lookup_production_params * lp )
 {
     rc_t rc;
     uint64_t res = 0;
     struct raw_read_iter * iter; /* raw_read_iter.c */
     cmn_params cp; /* cmn_iter.h */
     
-    cp.dir = params->dir;
-    cp.acc = params->acc;
-    cp.first = 0;
-    cp.count = 0;
-    cp.cursor_cache = params->cursor_cache;
-    cp.show_progress = false;
+    cp . dir            = lp -> dir;
+    cp . acc            = lp -> accession;
+    cp . first_row      = 0;
+    cp . row_count      = 0;
+    cp . cursor_cache   = lp -> cmn -> cursor_cache;
+    cp . show_progress  = false;
 
     rc = make_raw_read_iter( &cp, &iter ); /* raw_read_iter.c */
     if ( rc == 0 )
@@ -356,181 +329,124 @@ static uint64_t find_out_row_count( const sorter_params * params )
     return res;
 }
 
-
-static rc_t make_pool_src_filename( const sorter_params * params, uint32_t id,
-            char * buffer, size_t buflen )
+static rc_t CC producer_thread_func( const KThread *self, void *data )
 {
     rc_t rc;
-    size_t num_writ;
-    if ( params->temp_path != NULL )
-    {
-        uint32_t l = string_measure( params->temp_path, NULL );
-        if ( l == 0 )
-        {
-            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-            ErrMsg( "make_subfilename.string_measure() = 0 -> %R", rc );
-        }
-        else
-        {
-            if ( params->temp_path[ l - 1 ] == '/' )
-                rc = string_printf( buffer, buflen, &num_writ, "%stmp_%d.dat",
-                        params->temp_path, id );
-            else
-                rc = string_printf( buffer, buflen, &num_writ, "%s/tmp_%d.dat",
-                        params->temp_path, id );
-        }
-    }
-    else
-        rc = string_printf( buffer, buflen, &num_writ, "tmp_%d.dat", id );
-
-    if ( rc != 0 )
-        ErrMsg( "make_pool_src_filename.string_printf() -> %R", rc );
-    return rc;
-}
-
-
-static rc_t delete_tmp_files( const sorter_params * params, uint32_t count )
-{
-    rc_t rc = 0;
-    char buffer[ 4096 ];
-    uint32_t i;
-    for ( i = 0; rc == 0 && i < count; ++ i )
-    {
-        make_pool_src_filename( params, i + 1, buffer, sizeof buffer ); /* above! */
-        if ( rc == 0 )
-            rc = KDirectoryRemove( params->dir, true, "%s", buffer );
-        if ( rc != 0 )
-            ErrMsg( "KDirectoryRemove( 'tmp_%d.dat' ) -> %R", rc );
-    }
-    return rc;
-}
-
-
-static rc_t merge_pool_files( const sorter_params * params )
-{
-    rc_t rc;
-    merge_sorter_params msp; /* merge_sorter.h */
-    struct merge_sorter * ms; /* merge_sorter.h */
-    
-    msp.dir = params->dir;
-    msp.output_filename = params->output_filename;
-    msp.index_filename = params->index_filename;
-    msp.count = params->num_threads;
-    msp.buf_size = params->buf_size;
-
-    rc = make_merge_sorter( &ms, &msp ); /* merge_sorter.c */
-    if ( rc == 0 )
-    {
-        uint32_t i;
-        for ( i = 0; rc == 0 && i < params->num_threads; ++i )
-        {
-            char buffer[ 4096 ];
-            rc = make_pool_src_filename( params, i + 1, buffer, sizeof buffer ); /* above! */
-            if ( rc == 0 )
-                rc = add_merge_sorter_src( ms, buffer, i ); /* merge_sorter.c */
-        }
-        if ( rc == 0 )
-            rc = run_merge_sorter( ms ); /* merge_sorter.c */
-        
-        release_merge_sorter( ms ); /* merge_sorter.c */
-    }
-
-    if ( rc == 0 ) 
-       rc = delete_tmp_files( params, params->num_threads ); /* above! */
-
-    return rc;
-}
-
-static void init_sorter_params( sorter_params * dst, const sorter_params * params, uint32_t prefix )
-{
-    dst->dir = params->dir;
-    dst->output_filename = NULL;
-    dst->index_filename = params->index_filename;
-    dst->temp_path = params->temp_path;
-    dst->src = NULL;
-    dst->prefix = prefix;
-    dst->mem_limit = params->mem_limit;
-    dst->buf_size = params->buf_size;
-}
-
-static void init_cmn_params( cmn_params * dst, const sorter_params * params, uint64_t row_count )
-{
-    dst->dir = params->dir;
-    dst->acc = params->acc;
-    dst->first = 1;
-    dst->count = ( row_count / params->num_threads ) + 1;
-    dst->cursor_cache = params->cursor_cache;
-    dst->show_progress = false;
-}
-
-
-static rc_t CC sort_thread_func( const KThread *self, void *data )
-{
-    rc_t rc = 0;
-    sorter_params * params = data;
-    params->index_filename = NULL;
-    rc = run_sorter( params );
+    lookup_producer * producer = data;
+    rc = run_producer( producer ); /* above */
+    release_producer( producer ); /* above */
     free( data );
     return rc;
 }
 
-
-rc_t run_sorter_pool( const sorter_params * params )
+static rc_t run_producer_pool( const lookup_production_params * lp, locked_file_list * locked_files )
 {
     rc_t rc = 0;
-    uint64_t row_count = find_out_row_count( params );
-    if ( row_count == 0 )
+    uint64_t total_row_count = find_out_row_count( lp );
+    if ( total_row_count == 0 )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
         ErrMsg( "multi_threaded_make_lookup: row_count == 0!" );
     }
     else
     {
-        cmn_params cp;
         Vector threads;
         KThread * progress_thread = NULL;
-        uint32_t prefix = 1;
+        uint32_t chunk_id = 1;
+        int64_t first_row = 1;
+        uint64_t row_count = ( total_row_count / lp -> num_threads ) + 1;
         multi_progress progress;
-
-        init_progress_data( &progress, row_count );
-        VectorInit( &threads, 0, params->num_threads );
-        init_cmn_params( &cp, params, row_count );
+        atomic_t * sort_progress = NULL;
         
-        if ( params->show_progress )
-            rc = start_multi_progress( &progress_thread, &progress );
-            
-        while ( rc == 0 && cp.first < row_count )
+        VectorInit( &threads, 0, lp -> num_threads );
+        if ( lp -> cmn -> show_progress )
         {
-            sorter_params * sp = calloc( 1, sizeof *sp );
-            if ( sp != NULL )
+            init_progress_data( &progress, total_row_count );
+            sort_progress = &( progress . progress_rows );
+            rc = start_multi_progress( &progress_thread, &progress );
+        }
+
+        while ( rc == 0 && first_row < total_row_count )
+        {
+            lookup_producer * producer = calloc( 1, sizeof *producer );
+            if ( producer != NULL )
             {
-                init_sorter_params( sp, params, prefix++ );
-                rc = make_raw_read_iter( &cp, &sp->src );
-                
+                rc = init_multi_producer( producer,
+                                          lp,
+                                          locked_files,
+                                          sort_progress,
+                                          chunk_id,
+                                          first_row,
+                                          row_count );
                 if ( rc == 0 )
                 {
                     KThread * thread;
-                    
-                    if ( params->show_progress )
-                        sp->sort_progress = &progress.progress_rows;
-                    rc = KThreadMake( &thread, sort_thread_func, sp );
+                    rc = KThreadMake( &thread, producer_thread_func, producer );
                     if ( rc != 0 )
-                        ErrMsg( "KThreadMake( sort-thread #%d ) -> %R", prefix - 1, rc );
+                        ErrMsg( "KThreadMake( sort-thread #%d ) -> %R", chunk_id - 1, rc );
                     else
                     {
                         rc = VectorAppend( &threads, NULL, thread );
                         if ( rc != 0 )
-                            ErrMsg( "VectorAppend( sort-thread #%d ) -> %R", prefix - 1, rc );
+                            ErrMsg( "VectorAppend( sort-thread #%d ) -> %R", chunk_id - 1, rc );
+                        else
+                        {
+                            first_row  += row_count;
+                            chunk_id++;
+                        }
                     }
                 }
-                cp.first  += cp.count;
+                else
+                {
+                    release_producer( producer ); /* above */
+                    free( producer );
+                }
             }
+            else
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         }
 
-        join_and_release_threads( &threads );
+        /* collect all the sorter-threads */
+        join_and_release_threads( &threads ); /* helper.c */
+        
         /* all sorter-threads are done now, tell the progress-thread to terminate! */
-        join_multi_progress( progress_thread, &progress );
-        rc = merge_pool_files( params );
+        join_multi_progress( progress_thread, &progress );  /* helper.c */
+    }
+    return rc;
+}
+
+
+rc_t execute_lookup_production( lookup_production_params * lp )
+{
+    locked_file_list locked_files;
+    
+    rc_t rc = init_locked_file_list( &locked_files, lp -> files );
+    if ( rc == 0 )
+    {
+
+        if ( lp -> cmn -> show_progress )
+            rc = KOutMsg( "lookup :" );
+
+        if ( rc == 0 )
+        {
+            if ( lp -> num_threads > 1 )
+            {
+                /* multi-threaded! */
+                rc = run_producer_pool( lp, &locked_files ); /* above */
+            }
+            else
+            {
+                /* single-threaded! */
+                lookup_producer producer;
+                rc = init_single_producer( &producer, lp, &locked_files ); /* above */
+                if ( rc == 0 )
+                {
+                    rc = run_producer( &producer ); /* above */
+                    release_producer( &producer ); /* above */
+                }
+            }
+        }
+        release_locked_file_list( &locked_files );
     }
     return rc;
 }

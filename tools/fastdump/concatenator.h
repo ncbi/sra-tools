@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_join_
-#define _h_join_
+#ifndef _h_concat_
+#define _h_concat_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,40 +35,26 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
-#endif
-
-#ifndef _h_atomic_
-#include <atomic.h>
 #endif
 
 #ifndef _h_helper_
 #include "helper.h"
 #endif
 
-typedef struct join_params
+typedef struct concat_params
 {
     KDirectory * dir;
-    const char * accession;
-    const char * lookup_filename;
-    const char * index_filename;
     const char * output_filename;
-    tmp_id * tmp_id;
-    VNamelist * joined_files;
-    atomic_t   * join_progress;
-    size_t buf_size, cur_cache, num_threads;
-    int64_t first_row;
-    uint64_t row_count;
-    bool show_progress;
-    format_t fmt;
-} join_params;
+    const struct VNamelist * joined_files;
+    size_t buf_size;
+    bool show_progress, print_to_stdout, force, delete_files;
+    compress_t compress;
+} concat_params;
 
-rc_t execute_join( const join_params * jp );
+
+rc_t execute_concat( const concat_params * cp );
 
 #ifdef __cplusplus
 }

@@ -49,8 +49,8 @@ typedef struct cmn_params
 {
     KDirectory * dir;
     const char * acc;
-    int64_t first;
-    uint64_t count;
+    int64_t first_row;
+    uint64_t row_count;
     size_t cursor_cache;
     bool show_progress;
 	bool show_details;

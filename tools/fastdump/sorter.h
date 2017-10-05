@@ -47,26 +47,29 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
-#ifndef _h_raw_read_iter_
-#include "raw_read_iter.h"
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
 #endif
 
+#ifndef _h_helper_
+#include "helper.h"
+#endif
 
-typedef struct sorter_params
+#ifndef _h_cmn_iter_
+#include "cmn_iter.h"
+#endif
+
+typedef struct lookup_production_params
 {
     KDirectory * dir;
-    const char * acc;    
-    const char * output_filename;
-    const char * index_filename;
-    const char * temp_path;
-    struct raw_read_iter * src;
-    size_t buf_size, mem_limit, prefix, num_threads, cursor_cache;
-    atomic_t * sort_progress;
-    bool show_progress;
-} sorter_params;
+    const char * accession;
+    const tmp_id * tmp_id;    /* helper.h */
+    cmn_params * cmn;   /* cmn_iter.h */
+    VNamelist  * files;
+    size_t buf_size, mem_limit, num_threads;
+} lookup_production_params;
 
-rc_t run_sorter( const sorter_params * params );
-rc_t run_sorter_pool( const sorter_params * params );
+rc_t execute_lookup_production( lookup_production_params * lp );
 
 #ifdef __cplusplus
 }

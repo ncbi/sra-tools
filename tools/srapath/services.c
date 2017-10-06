@@ -130,6 +130,7 @@ static
 rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache, bool pPath )
 {
     rc_t rc = 0;
+    rc_t re = 0;
     uint32_t i = 0;
     uint32_t l = KSrvResponseLength  ( self );
 
@@ -156,6 +157,13 @@ rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache, bool pPath )
             else {
                 if ( ! ( pPath || printed ) )
                     printed = printCommon ( path, error );
+                if ( error != NULL ) {
+                    rc_t r = 0;
+                    KSrvErrorRc ( error, & r );
+                    assert ( r );
+                    if ( re == 0 )
+                        re = r;
+                }
                 if ( path != NULL ) {
                     const String * tmp = NULL;
                     r2 = VPathMakeString ( path, & tmp );
@@ -189,10 +197,13 @@ rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache, bool pPath )
             }
             RELEASE ( VPath, path );
             RELEASE ( VPath, vdbcache );
-            RELEASE ( KSrvError, error );
+            if ( error != NULL ) {
+                RELEASE ( KSrvError, error );
+                break;
+            }
         }
 
-        if ( cache ) {
+        if ( cache & ! pPath ) {
             const VPath * cache = NULL;
             rc_t r2 = KSrvResponseGetCache ( self, i, & cache );
             OUTMSG ( ( "\n     Cache=" ) );
@@ -215,6 +226,8 @@ rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache, bool pPath )
         OUTMSG ( ( "\n" ) );
     }
 
+    if ( rc == 0 && re != 0 )
+        rc = re;
     return rc;
 }
 
@@ -487,6 +500,7 @@ rc_t search_request ( const request_params * request ) {
                 break;
 
             KartItem_Print ( item );
+            RELEASE ( KartItem, item );
         }
     }
 

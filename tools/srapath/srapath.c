@@ -73,7 +73,8 @@ static const char * vers_usage[] = { "version-string for cgi-calls", NULL };
 
 static const char * func_usage[] = { "function to perform "
     "(" FUNCTION_RESOLVE ", " FUNCTION_NAMES ", " FUNCTION_SEARCH ") "
-    "default=" FUNCTION_RESOLVE, NULL };
+    "default=" FUNCTION_RESOLVE
+    " or " FUNCTION_NAMES " if " OPTION_PROTO " is specified", NULL };
 #define OPTION_FUNC   "function"
 #define ALIAS_FUNC    "f"
 
@@ -505,6 +506,9 @@ rc_t CC KMain( int argc, char *argv [] )
     {
         const char * f = get_str_option( args, OPTION_FUNC, NULL );
         func_t ft = get_func_t( f );
+        const char * p = get_str_option( args, OPTION_PROTO, NULL );
+        if ( f == NULL && p != NULL )
+            ft = ft_names;
         switch ( ft )
         {
             case ft_resolve : rc = resolve_arguments( args ); break;

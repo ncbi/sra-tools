@@ -162,8 +162,12 @@ rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache, bool pPath )
                     if ( ! pPath || r2 != 0 )
                         OUTMSG ( ( "\n\t%s: ", p -> n ) );
                     if ( r2 == 0 )
-                        if ( pPath )
+                        if ( pPath ) {
+                            if ( printed )
+                                OUTMSG ( ( "\n" ) );
                             OUTMSG ( ( "%S", tmp ) );
+                            printed = true;
+                        }
                         else
                             OUTMSG ( ( "path=\"%S\"", tmp ) );
                     else

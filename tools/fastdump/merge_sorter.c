@@ -251,7 +251,11 @@ static void release_merge_batch( merge_batch * self )
 {
     if ( self != NULL )
     {
-        VNamelistRelease( self -> files );
+        if ( self -> files != NULL )
+        {
+            delete_files( self -> dir, self -> files );
+            VNamelistRelease( self -> files );
+        }
         if ( self -> temp_output != NULL )
             free( self -> temp_output );
         free( self );
@@ -409,7 +413,7 @@ static rc_t execute_multi_threaded( const merge_sort_params * mp, uint32_t num_s
             {
                 merge_batch * batch = VectorGet ( &batches, i );
                 rc = run_merge_batch( batch );
-            }
+                            }
         }
         VectorForEach ( &batches, false, batch_relase_cb, NULL );
 
@@ -430,6 +434,7 @@ static rc_t execute_multi_threaded( const merge_sort_params * mp, uint32_t num_s
                 release_merge_sorter( &sorter );
             }
         }
+        delete_files( mp -> dir, templist );
         VNamelistRelease( templist );
     }
     
@@ -507,3 +512,13 @@ rc_t execute_merge_sort( const merge_sort_params * mp )
 
     return rc;
 }
+
+
+/* ================================================================================= */
+
+/*
+rc_t execute_merge_sort_thread( const merge_sort_thread_params * msp )
+{
+
+}
+*/

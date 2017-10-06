@@ -30,8 +30,10 @@
 #include "line_iter.h"
 
 #include <vfs/resolver.h>
+#include <vfs/services.h> /* KServiceMake */
 #include <vfs/path.h>
 #include <vfs/manager.h>
+
 #include <kfs/directory.h>
 #include <kapp/main.h>
 #include <kapp/args.h>
@@ -72,8 +74,13 @@ static const char * vers_usage[] = { "version-string for cgi-calls", NULL };
 static const char * func_usage[] = { "function to perform "
     "(" FUNCTION_RESOLVE ", " FUNCTION_NAMES ", " FUNCTION_SEARCH ") "
     "default=" FUNCTION_RESOLVE, NULL };
-#define OPTION_FUNC   "funtion"
+#define OPTION_FUNC   "function"
 #define ALIAS_FUNC    "f"
+
+static const char * path_usage[]
+ = { "print path of object: names function-only", NULL };
+#define OPTION_PATH   "path"
+#define ALIAS_PATH    "P"
 
 static const char * param_usage[]
  = { "param to be added to cgi-call (tic=XXXXX): raw-only", NULL };
@@ -101,6 +108,7 @@ OptDef ToolOptions[] =
     { OPTION_RAW    , ALIAS_RAW    , NULL, raw_usage    ,   1,  false,  false },
     { OPTION_PRJ    , ALIAS_PRJ    , NULL, prj_usage    ,  10,  true  , false },
     { OPTION_CACHE  , ALIAS_CACHE  , NULL, cache_usage  ,   1,  false,  false },
+    { OPTION_PATH   , ALIAS_PATH   , NULL, path_usage   ,   1,  false,  false },
 };
 
 const char UsageDefaultName[] = "srapath";
@@ -164,48 +172,101 @@ rc_t CC Usage( const Args *args )
 
 static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver, const char * pc )
 {
-    const VPath * upath = NULL;
-    rc_t rc = VFSManagerMakePath( mgr, ( VPath** )&upath, "%s", pc );
-    if ( rc != 0 )
-        PLOGMSG( klogErr, ( klogErr, "failed to create VPath-object from '$(name)'", "name=%s", pc ) );
-    else
-    {
-        const VPath * local;
-        const VPath * remote;
+    bool found = true;
+    rc_t rc = 0;
 
-        rc = VResolverQuery( resolver, 0, upath, &local, &remote, NULL );
+    uint32_t s = string_measure ( pc, NULL );
+    if ( s > 2 && ( pc [ 2 ] == 'P' || pc [ 2 ] == 'X' ) ) { /* SRP or SRX */
+        KService * service = NULL;
+        found = false;
+        rc = KServiceMake ( & service );
         if ( rc == 0 )
-        {
-            const String * s;
-
-            if ( local != NULL )
-                rc = VPathMakeString( local, &s );
-            else 
-                rc = VPathMakeString( remote, &s );
-            if ( rc == 0 )
-            {
-                OUTMSG(("%S\n", s));
-                free( ( void* )s );
+            rc = KServiceAddId ( service, pc );
+        if ( rc == 0 ) {
+            VRemoteProtocols protocol = eProtocolHttps;
+            const KSrvResponse * response = NULL;
+            rc = KServiceNamesQuery ( service, protocol, & response );
+            if ( rc == 0 ) {
+                uint32_t i = 0;
+                uint32_t l = KSrvResponseLength  ( response );
+                found = true;
+                for ( i = 0; i < l && rc == 0; ++ i ) {
+                    const VPath * path = NULL;
+                    const VPath * vdbcache = NULL;
+                    rc = KSrvResponseGetLocal ( response, i, & path );
+                    if ( rc != 0 )
+                        rc = KSrvResponseGetPath ( response, i, protocol,
+                            & path, & vdbcache, NULL );
+                    if ( path != NULL ) {
+                        const String * tmp = NULL;
+                        rc = VPathMakeString ( path, & tmp );
+                        if ( rc == 0 ) {
+                            OUTMSG ( ( "%S\n", tmp ) );
+                            free ( ( void * ) tmp );
+                        }
+                        VPathRelease ( path );
+                    }
+                    if ( vdbcache != NULL ) {
+                        const String * tmp = NULL;
+                        rc = VPathMakeString ( vdbcache, & tmp );
+                        if ( rc == 0 ) {
+                            OUTMSG ( ( "%S\n", tmp ) );
+                            free ( ( void * ) tmp );
+                        }
+                        VPathRelease ( vdbcache );
+                    }
+                }
+                KSrvResponseRelease ( response );
             }
-            VPathRelease( local );
-            VPathRelease( remote );
         }
-        else
-        {
-            KDirectory * cwd;
-            rc_t orc = VFSManagerGetCWD( mgr, &cwd );
-            if ( orc == 0 )
-            {
-                KPathType kpt = KDirectoryPathType( cwd, "%s", pc );
-                switch ( kpt &= ~kptAlias )
-                {
+        KServiceRelease ( service );
+    }
+    else {
+        const VPath * upath = NULL;
+        rc = VFSManagerMakePath( mgr, ( VPath** )&upath, "%s", pc );
+        if ( rc != 0 )
+            PLOGMSG( klogErr, ( klogErr,
+                "failed to create VPath-object from '$(name)'",
+                "name=%s", pc ) );
+        else {
+            const VPath * local;
+            const VPath * remote;
+
+            rc = VResolverQuery( resolver, 0, upath, &local, &remote, NULL );
+            if ( rc == 0 ) {
+                const String * s;
+
+                if ( local != NULL )
+                    rc = VPathMakeString( local, &s );
+                else 
+                    rc = VPathMakeString( remote, &s );
+                if ( rc == 0 ) {
+                    OUTMSG(("%S\n", s));
+                    free( ( void* )s );
+                }
+                VPathRelease( local );
+                VPathRelease( remote );
+            }
+            else
+                found = false;
+
+            VPathRelease( upath );
+        }
+    }
+
+    if ( ! found ) {
+        KDirectory * cwd = NULL;
+        rc_t orc = VFSManagerGetCWD( mgr, &cwd );
+        if ( orc == 0 ) {
+            KPathType kpt = KDirectoryPathType( cwd, "%s", pc );
+            switch ( kpt &= ~kptAlias ) {
                     case kptNotFound : STSMSG( 1, ( "'%s': not found while "
-                                                     "searching the file system",
+                                                   "searching the file system", 
                                                      pc ) );
                                         break;
 
                     case kptBadPath  : STSMSG( 1, ( "'%s': bad path while "
-                                                     "searching the file system",
+                                                    "searching the file system",
                                                      pc ) );
                                         break;
 
@@ -214,18 +275,19 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver, const 
                                                      pc ) );
                                         rc = 0;
                                         break;
-                }
             }
-            if ( orc == 0 && rc == 0 )
-            {
+        }
+        if ( orc == 0 && rc == 0 ) {
                 if ( rc != 0 )
                 {
-                    PLOGMSG( klogErr, ( klogErr, "'$(name)': not found", "name=%s", pc ) );
+                    PLOGMSG( klogErr, ( klogErr, "'$(name)': not found",
+                            "name=%s", pc ) );
                 }
                 else
                 {
                     char resolved[ PATH_MAX ] = "";
-                    rc = KDirectoryResolvePath( cwd, true, resolved, sizeof resolved, "%s", pc );
+                    rc = KDirectoryResolvePath( cwd, true, resolved,
+                            sizeof resolved, "%s", pc );
                     if ( rc == 0 )
                     {
                         STSMSG( 1, ( "'%s': found in "
@@ -241,11 +303,10 @@ static rc_t resolve_one_argument( VFSManager * mgr, VResolver * resolver, const 
                         OUTMSG(( "./%s\n", pc ));
                     }
                 }
-            }
-            KDirectoryRelease( cwd );
         }
+        KDirectoryRelease( cwd );
     }
-    VPathRelease( upath );
+
     return rc;
 }
 
@@ -292,7 +353,7 @@ static rc_t resolve_arguments( Args * args )
                     rc = ArgsOptionCount ( args, OPTION_CACHE, & idx );
                 if ( rc == 0 && idx > 0 )
                     LOGMSG ( klogWarn, "all the options are ignored "
-                        "when running '" FUNCTION_RESOLVE "' funtion" );
+                        "when running '" FUNCTION_RESOLVE "' function" );
 
                 for ( idx = 0; rc == 0 && idx < acount; ++ idx )
                 {
@@ -321,7 +382,7 @@ static rc_t on_reply_line( const String * line, void * data )
 
 typedef struct out_fmt
 {
-    bool raw, cache;
+    bool raw, cache, path;
 } out_fmt;
 
 
@@ -335,6 +396,7 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
         rc = options_to_nums ( args, OPTION_PRJ, & r -> projects );
 
     fmt->cache = get_bool_option( args, OPTION_CACHE );
+    fmt->path  = get_bool_option( args, OPTION_PATH  );
 
     if ( rc == 0 )
     {
@@ -382,8 +444,10 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
 
 static rc_t names_cgi( const Args * args )
 {
-    request_params r; /* cgi_request.h */
+    request_params r;
+
     out_fmt fmt;
+    memset ( & fmt, 0, sizeof fmt );
 
     rc_t rc = prepare_request( args, &r, &fmt, true );
     if ( rc == 0 )
@@ -397,7 +461,7 @@ static rc_t names_cgi( const Args * args )
             rc = raw_names_request( &r, on_reply_line, &rslt_code, NULL );
         }
         else
-            rc = names_request ( & r, fmt . cache );
+            rc = names_request ( & r, fmt . cache, fmt . path );
         
         free( ( void * ) r.terms );
         free( ( void * ) r.params );

@@ -126,17 +126,21 @@ static bool printCommon ( const VPath * path, const KSrvError * error ) {
 }
 
 
-static rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache ) {
+static
+rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache, bool pPath )
+{
     rc_t rc = 0;
     uint32_t i = 0;
     uint32_t l = KSrvResponseLength  ( self );
 
-    OUTMSG ( ( "%u #\n\n", l ) );
+    if ( ! pPath )
+        OUTMSG ( ( "%u #\n\n", l ) );
 
     for ( i = 0; i < l; ++ i ) {
         bool printed = false;
         int j = 0;
-        OUTMSG ( ( "#%u {", i ) );
+        if ( ! pPath )
+            OUTMSG ( ( "#%u {", i ) );
         for ( j = 0; j < sizeof PROTOCOLS / sizeof PROTOCOLS [ 0 ];
               ++ j )
         {
@@ -150,14 +154,18 @@ static rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache ) {
                 PLOGERR ( klogErr, ( klogErr, r2, "Cannot get response path"
                     "($(i), $(s))", "i=%u,s=%s", i, p -> n ) );
             else {
-                if ( ! printed )
+                if ( ! ( pPath || printed ) )
                     printed = printCommon ( path, error );
                 if ( path != NULL ) {
                     const String * tmp = NULL;
                     r2 = VPathMakeString ( path, & tmp );
-                    OUTMSG ( ( "\n\t%s: ", p -> n ) );
+                    if ( ! pPath || r2 != 0 )
+                        OUTMSG ( ( "\n\t%s: ", p -> n ) );
                     if ( r2 == 0 )
-                        OUTMSG ( ( "path=\"%S\"", tmp ) );
+                        if ( pPath )
+                            OUTMSG ( ( "%S", tmp ) );
+                        else
+                            OUTMSG ( ( "path=\"%S\"", tmp ) );
                     else
                         OUTMSG ( ( "%R", r2 ) );
                     free ( ( void * ) tmp );
@@ -166,7 +174,10 @@ static rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache ) {
                     const String * tmp = NULL;
                     r2 = VPathMakeString ( vdbcache, & tmp );
                     if ( r2 == 0 )
-                        OUTMSG ( ( " vdbcache=\"%S\"", tmp ) );
+                        if ( pPath )
+                            OUTMSG ( ( "\n%S", tmp ) );
+                        else
+                            OUTMSG ( ( " vdbcache=\"%S\"", tmp ) );
                     else
                         OUTMSG ( ( "%R", r2 ) );
                     free ( ( void * ) tmp );
@@ -195,7 +206,9 @@ static rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache ) {
             RELEASE ( VPath, cache );
         }
 
-        OUTMSG ( ( " }\n" ) );
+        if ( ! pPath )
+            OUTMSG ( ( " }" ) );
+        OUTMSG ( ( "\n" ) );
     }
 
     return rc;
@@ -203,7 +216,7 @@ static rc_t KSrvResponse_Print ( const KSrvResponse * self, bool cache ) {
 
 
 static rc_t names_remote ( KService * service,
-    VRemoteProtocols protocols, const request_params * request )
+    VRemoteProtocols protocols, const request_params * request, bool path )
 {
     rc_t rc = 0;
 
@@ -214,7 +227,7 @@ static rc_t names_remote ( KService * service,
     if ( rc != 0 )
         OUTMSG ( ( "Error: %R\n", rc ) );
     else
-        rc = KSrvResponse_Print ( response, false );
+        rc = KSrvResponse_Print ( response, false, path );
 
     RELEASE ( KSrvResponse, response );
 
@@ -223,7 +236,7 @@ static rc_t names_remote ( KService * service,
 
 
 static rc_t names_remote_cache ( KService * service,
-    VRemoteProtocols protocols, const request_params * request )
+    VRemoteProtocols protocols, const request_params * request, bool path )
 {
     rc_t rc = 0;
 
@@ -236,7 +249,7 @@ static rc_t names_remote_cache ( KService * service,
     if ( rc != 0 )
         OUTMSG ( ( "Error: %R\n", rc ) );
     else
-        rc = KSrvResponse_Print ( response, true );
+        rc = KSrvResponse_Print ( response, true, path );
 
     RELEASE ( KSrvResponse, response );
 
@@ -323,7 +336,7 @@ VRemoteProtocols parseProtocol ( const char * protocol, rc_t * prc )
 }
 
 
-rc_t names_request ( const request_params * request, bool cache ) {
+rc_t names_request ( const request_params * request, bool cache, bool path ) {
     rc_t rc = 0;
 
     KService * service = NULL;
@@ -363,9 +376,9 @@ rc_t names_request ( const request_params * request, bool cache ) {
 
     if ( rc == 0 ) {
         if ( cache )
-            rc = names_remote_cache ( service, protocols, request );
+            rc = names_remote_cache ( service, protocols, request, path );
         else
-            rc = names_remote       ( service, protocols, request );
+            rc = names_remote       ( service, protocols, request, path );
     }
 
     RELEASE ( KService, service );

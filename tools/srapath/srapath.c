@@ -390,9 +390,14 @@ typedef struct out_fmt
 static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fmt,
                              bool for_names )
 {
-    rc_t rc = args_to_ptrs( args, &r->terms ); /* helper.c */
+    rc_t rc = 0;
+
+    assert ( r );
+    memset ( r, 0, sizeof * r );
+
+    args_to_ptrs( args, &r->terms );
     if ( rc == 0 )
-        rc = options_to_ptrs( args, OPTION_PARAM, &r->params ); /* helper.c */
+        rc = options_to_ptrs( args, OPTION_PARAM, &r->params );
     if ( rc == 0 )
         rc = options_to_nums ( args, OPTION_PRJ, & r -> projects );
 
@@ -442,14 +447,21 @@ static rc_t prepare_request( const Args * args, request_params * r, out_fmt * fm
     return rc;
 }
 
+static void destroy_request ( request_params * self ) {
+    assert ( self );
+
+    free ( ( void * ) self -> params   );
+    free (            self -> projects );
+    free ( ( void * ) self -> terms    );
+
+    memset ( self, 0, sizeof * self );
+}
 
 static rc_t names_cgi( const Args * args )
 {
     request_params r;
 
     out_fmt fmt;
-    memset ( & fmt, 0, sizeof fmt );
-
     rc_t rc = prepare_request( args, &r, &fmt, true );
     if ( rc == 0 )
     {
@@ -463,19 +475,17 @@ static rc_t names_cgi( const Args * args )
         }
         else
             rc = names_request ( & r, fmt . cache, fmt . path );
-        
-        free( ( void * ) r.terms );
-        free( ( void * ) r.params );
-        free ( r . projects );
+    
+        destroy_request ( & r );
     }
 
     return rc;
 }
 
-
 static rc_t search_cgi( const Args * args )
 {
-    request_params r; /* cgi_request.h */
+    request_params r;
+
     out_fmt fmt;
     rc_t rc = prepare_request( args, &r, &fmt, false );
     if ( rc == 0 )
@@ -487,9 +497,9 @@ static rc_t search_cgi( const Args * args )
         else
             rc = search_request ( & r );
 
-        free( ( void * ) r.terms );
-        free( ( void * ) r.params );
+        destroy_request ( & r );
     }
+
     return rc;
 }
 

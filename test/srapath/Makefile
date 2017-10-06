@@ -35,7 +35,7 @@ include $(TOP)/build/Makefile.env
 $(TEST_TOOLS): makedirs
 	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
-runtests: check_exit_code
+runtests: check_exit_code SRP
 
 #-------------------------------------------------------------------------------
 # scripted tests
@@ -43,6 +43,9 @@ runtests: check_exit_code
 
 check_exit_code:
 	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/srapath
+
+SRP:
+	$(BINDIR)/srapath SRP000001 # works & does not crash
 
 .PHONY: $(TEST_TOOLS)
 

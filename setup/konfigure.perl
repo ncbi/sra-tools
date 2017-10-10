@@ -656,6 +656,9 @@ foreach my $href (@REQ) {
         } elsif ($quasi_optional && $found_itf && ($need_lib && ! $found_lib)) {
             println "configure: $a{name} package: "
                 . "found interface files but not libraries.";
+            $found_itf = abs_path($found_itf);
+            push(@dependencies, "$a{aname}_INCDIR = $found_itf");
+            println "includes: $found_itf";
         } else {
             if ($OPT{'debug'}) {
                 $_ = "$a{name}: includes: ";
@@ -1728,9 +1731,12 @@ EndText
         foreach my $href (@REQ) {
             next unless (optional($href->{type}));
             my %a = %$href;
-            if ($a{option} =~ /-sources$/) {
+            if ($a{option} && $a{option} =~ /-sources$/) {
                 println "  --$a{option}=DIR    search for $a{name} package";
                 println "                                source files in DIR";
+            } elsif ($a{boption} && $a{boption} =~ /-build$/) {
+                println "  --$a{boption}=DIR     search for $a{name} package";
+                println "                                 build output in DIR";
             } else {
                 println "  --$a{option}=DIR    search for $a{name} files in DIR"
             }

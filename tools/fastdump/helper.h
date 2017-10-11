@@ -59,6 +59,10 @@ extern "C" {
 #include <klib/namelist.h>
 #endif
 
+#ifndef _h_klib_vector_
+#include <klib/vector.h>
+#endif
+
 /* 
     this is in interfaces/cc/XXX/YYY/atomic.h
     XXX ... the compiler ( cc, gcc, icc, vc++ )
@@ -71,6 +75,12 @@ extern "C" {
 #ifndef _h_kproc_thread_
 #include <kproc/thread.h>
 #endif
+
+#ifndef _h_kproc_lock_
+#include <kproc/lock.h>
+#endif
+
+rc_t CC Quitting(); /* to avoid including kapp/main.h */
 
 typedef struct tmp_id
 {
@@ -150,6 +160,33 @@ rc_t make_prefixed( char * buffer, size_t bufsize, const char * prefix,
 
 rc_t make_postfixed( char * buffer, size_t bufsize, const char * path, const char * postfix );
 
+/* ===================================================================================== */
+
+typedef struct locked_file_list
+{
+    KLock * lock;
+    VNamelist * files;
+} locked_file_list;
+
+rc_t init_locked_file_list( locked_file_list * self, uint32_t alloc_blocksize );
+void release_locked_file_list( locked_file_list * self );
+rc_t append_to_file_list( const locked_file_list * self, const char * filename );
+rc_t append_to_locked_file_list( const locked_file_list * self, const char * filename );
+
+/* ===================================================================================== */
+
+typedef struct locked_vector
+{
+    KLock * lock;
+    Vector vector;
+    bool sealed;
+} locked_vector;
+
+rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize );
+void locked_vector_release( locked_vector * self,
+                            void ( CC * whack ) ( void *item, void *data ), void *data );
+rc_t locked_vector_push( locked_vector * self, const void * item, bool seal );
+rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed );
 
 #ifdef __cplusplus
 }

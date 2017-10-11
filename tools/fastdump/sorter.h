@@ -63,13 +63,14 @@ typedef struct lookup_production_params
 {
     KDirectory * dir;
     const char * accession;
-    const tmp_id * tmp_id;    /* helper.h */
-    cmn_params * cmn;   /* cmn_iter.h */
-    VNamelist  * files;
+    const tmp_id * tmp_id;                  /* helper.h */
+    cmn_params * cmn;                       /* cmn_iter.h */
+    locked_file_list * files;               /* helper.h */
+    struct background_merger * merger;      /* merge_sorter.h */
     size_t buf_size, mem_limit, num_threads;
 } lookup_production_params;
 
-rc_t execute_lookup_production( lookup_production_params * lp );
+rc_t execute_lookup_production( const lookup_production_params * lp );
 
 #ifdef __cplusplus
 }

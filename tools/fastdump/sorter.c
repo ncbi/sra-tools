@@ -28,6 +28,7 @@
 #include "lookup_writer.h"
 #include "lookup_reader.h"
 #include "raw_read_iter.h"
+#include "merge_sorter.h"
 #include "helper.h"
 
 #include <klib/vector.h>
@@ -35,9 +36,6 @@
 #include <klib/progressbar.h>
 #include <klib/out.h>
 #include <kproc/thread.h>
-#include <kproc/lock.h>
-
-rc_t CC Quitting(); /* to avoid including kapp/main.h */
 
 /* 
     this is in interfaces/cc/XXX/YYY/atomic.h
@@ -46,41 +44,6 @@ rc_t CC Quitting(); /* to avoid including kapp/main.h */
  */
 #include <atomic.h>
 
-typedef struct locked_file_list
-{
-    KLock * lock;
-    VNamelist * files;
-} locked_file_list;
-
-static rc_t init_locked_file_list( locked_file_list * self, VNamelist * files )
-{
-    rc_t rc = KLockMake ( &( self -> lock ) );
-    if ( rc == 0 )
-        self -> files = files;
-    return rc;
-}
-
-static rc_t release_locked_file_list( locked_file_list * self )
-{
-    return KLockRelease ( self -> lock );
-}
-
-static rc_t append_to_file_list( locked_file_list * self, const char * filename )
-{
-    return VNamelistAppend ( self -> files, filename );
-}
-
-static rc_t append_to_locked_file_list( locked_file_list * self, const char * filename )
-{
-    rc_t rc = KLockAcquire ( self -> lock );
-    if ( rc == 0 )
-    {
-        rc = VNamelistAppend ( self -> files, filename );
-        KLockUnlock ( self -> lock );
-    }
-    return rc;
-}
-
 typedef struct lookup_producer
 {
     KDirectory * dir;
@@ -88,7 +51,8 @@ typedef struct lookup_producer
     struct raw_read_iter * iter;
     KVector * store;
     atomic_t * sort_progress;   
-    locked_file_list * locked_files;    
+    locked_file_list * locked_files;
+    struct background_merger * merger;
     SBuffer buf;
     uint64_t bytes_in_store;
     uint32_t chunk_id, sub_file_id;
@@ -110,8 +74,7 @@ static void release_producer( lookup_producer * self )
 }
 
 static rc_t init_single_producer( lookup_producer * self,
-                                  const lookup_production_params * lp,
-                                  locked_file_list * locked_files )
+                                  const lookup_production_params * lp )
 {
     rc_t rc = KVectorMake( &self -> store );
     if ( rc != 0 )
@@ -125,7 +88,8 @@ static rc_t init_single_producer( lookup_producer * self,
             self -> tmp_id          = lp -> tmp_id;
             self -> iter            = NULL;
             self -> sort_progress   = NULL;
-            self -> locked_files    = locked_files;
+            self -> locked_files    = lp -> files;
+            self -> merger          = lp -> merger;
             self -> bytes_in_store  = 0;
             self -> chunk_id        = 0;
             self -> sub_file_id     = 0;
@@ -140,7 +104,6 @@ static rc_t init_single_producer( lookup_producer * self,
 
 static rc_t init_multi_producer( lookup_producer * self,
                                  const lookup_production_params * lp,
-                                 locked_file_list * locked_files,
                                  atomic_t * sort_progress,
                                  uint32_t chunk_id,
                                  int64_t first_row,
@@ -160,7 +123,8 @@ static rc_t init_multi_producer( lookup_producer * self,
             self -> tmp_id          = lp -> tmp_id;
             self -> iter            = NULL;
             self -> sort_progress   = sort_progress;
-            self -> locked_files    = locked_files;
+            self -> locked_files    = lp -> files;
+            self -> merger          = lp -> merger;
             self -> bytes_in_store  = 0;
             self -> chunk_id        = chunk_id;
             self -> sub_file_id     = 0;
@@ -178,16 +142,6 @@ static rc_t init_multi_producer( lookup_producer * self,
             rc = make_raw_read_iter( &cmn, &( self -> iter ) );
         }
     }
-    return rc;
-}
-
-
-static rc_t CC on_store_entry( uint64_t key, const void *value, void *user_data )
-{
-    const String * bases = value;
-    struct lookup_writer * writer = user_data;
-    rc_t rc = write_packed_to_lookup_writer( writer, key, bases ); /* lookup_writer.c */
-    StringWhack( bases );
     return rc;
 }
 
@@ -211,7 +165,7 @@ static rc_t save_store( lookup_producer * self )
                     tmp_id -> temp_path, tmp_id -> hostname,
                     tmp_id -> pid, self -> chunk_id, self -> sub_file_id );
         if ( rc != 0 )
-            ErrMsg( "make_subfilename.string_printf() -> %R", rc );
+            ErrMsg( "save_store.string_printf() -> %R", rc );
         
         if ( rc == 0 )
             self -> sub_file_id++;
@@ -222,7 +176,16 @@ static rc_t save_store( lookup_producer * self )
         
         if ( rc == 0 )
         {
-            rc = KVectorVisitPtr( self -> store, false, on_store_entry, writer );
+            uint64_t key, next_key;
+            const String * bases;
+            rc_t rc1 = KVectorGetFirstPtr ( self -> store, &key, ( void ** )&bases );
+            while ( rc == 0 && rc1 == 0 )
+            {
+                rc = write_packed_to_lookup_writer( writer, key, bases ); /* lookup_writer.c */
+                StringWhack ( bases );
+                rc1 = KVectorGetNextPtr ( self -> store, &next_key, key, ( void ** )&bases );
+                key = next_key;
+            }
             release_lookup_writer( writer ); /* lookup_writer.c */
         }
 
@@ -253,6 +216,23 @@ static rc_t save_store( lookup_producer * self )
 }
 
 
+static rc_t push_store_to_merger( lookup_producer * self, bool seal )
+{
+    rc_t rc = push_to_background_merger( self -> merger, self -> store, seal );
+    if ( rc == 0 )
+    {
+        self -> store = NULL;
+        self -> bytes_in_store = 0;
+        if ( !seal )
+        {
+            rc = KVectorMake( &self -> store );
+            if ( rc != 0 )
+                ErrMsg( "KVectorMake() -> %R", rc );
+        }
+    }
+    return rc;
+}
+
 static rc_t write_to_store( lookup_producer * self, int64_t seq_spot_id, uint32_t seq_read_id,
                              const String * unpacked_bases )
 {
@@ -279,7 +259,12 @@ static rc_t write_to_store( lookup_producer * self, int64_t seq_spot_id, uint32_
     if ( rc == 0 &&
          self -> mem_limit > 0 &&
          self -> bytes_in_store >= self -> mem_limit )
-        rc = save_store( self ); /* above! */
+    {
+        if ( self -> merger != NULL ) /* above! */
+            rc = push_store_to_merger( self, false );
+        else
+            rc = save_store( self ); /* above! */
+    }
     return rc;
 }
 
@@ -299,8 +284,12 @@ static rc_t run_producer( lookup_producer * self )
     }
     
     if ( rc == 0 )
-        rc = save_store( self ); /* above */
-
+    {
+        if ( self -> merger != NULL ) /* above! */
+            rc = push_store_to_merger( self, true );
+        else
+            rc = save_store( self ); /* above! */
+    }
     return rc;
 }
 
@@ -339,7 +328,7 @@ static rc_t CC producer_thread_func( const KThread *self, void *data )
     return rc;
 }
 
-static rc_t run_producer_pool( const lookup_production_params * lp, locked_file_list * locked_files )
+static rc_t run_producer_pool( const lookup_production_params * lp )
 {
     rc_t rc = 0;
     uint64_t total_row_count = find_out_row_count( lp );
@@ -373,7 +362,6 @@ static rc_t run_producer_pool( const lookup_production_params * lp, locked_file_
             {
                 rc = init_multi_producer( producer,
                                           lp,
-                                          locked_files,
                                           sort_progress,
                                           chunk_id,
                                           first_row,
@@ -416,37 +404,30 @@ static rc_t run_producer_pool( const lookup_production_params * lp, locked_file_
 }
 
 
-rc_t execute_lookup_production( lookup_production_params * lp )
+static rc_t run_producer_on_main_thread( const lookup_production_params * lp )
 {
-    locked_file_list locked_files;
-    
-    rc_t rc = init_locked_file_list( &locked_files, lp -> files );
+    lookup_producer producer;
+    rc_t rc = init_single_producer( &producer, lp ); /* above */
     if ( rc == 0 )
     {
+        rc = run_producer( &producer ); /* above */
+        release_producer( &producer ); /* above */
+    }
+    return rc;
+}
 
-        if ( lp -> cmn -> show_progress )
-            rc = KOutMsg( "lookup :" );
+rc_t execute_lookup_production( const lookup_production_params * lp )
+{
+    rc_t rc = 0;
+    if ( lp -> cmn -> show_progress )
+        rc = KOutMsg( "lookup :" );
 
-        if ( rc == 0 )
-        {
-            if ( lp -> num_threads > 1 )
-            {
-                /* multi-threaded! */
-                rc = run_producer_pool( lp, &locked_files ); /* above */
-            }
-            else
-            {
-                /* single-threaded! */
-                lookup_producer producer;
-                rc = init_single_producer( &producer, lp, &locked_files ); /* above */
-                if ( rc == 0 )
-                {
-                    rc = run_producer( &producer ); /* above */
-                    release_producer( &producer ); /* above */
-                }
-            }
-        }
-        release_locked_file_list( &locked_files );
+    if ( rc == 0 )
+    {
+        if ( lp -> num_threads > 1 )
+            rc = run_producer_pool( lp ); /* above */
+        else
+            rc = run_producer_on_main_thread( lp );
     }
     return rc;
 }

@@ -265,7 +265,7 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
     KEY... 64-bit value as SEQ_SPOT_ID shifted left by 1 bit, zero-bit contains SEQ_READ_ID
     RAW_READ... 16-bit binary-chunk-lenght, followed by n bytes of packed 4na
 -------------------------------------------------------------------------------------------- */
-static rc_t perform_lookup_production( tool_ctx * tool_ctx, VNamelist * files )
+static rc_t perform_lookup_production( tool_ctx * tool_ctx, locked_file_list * files, struct background_merger * merger )
 {
     lookup_production_params lp;
 
@@ -277,12 +277,13 @@ static rc_t perform_lookup_production( tool_ctx * tool_ctx, VNamelist * files )
     lp . num_threads        = tool_ctx -> num_threads;
     lp . cmn                = &( tool_ctx -> cmn );
     lp . files              = files;
+    lp . merger             = merger;
     
     return execute_lookup_production( &lp );
 }
 
 
-static rc_t perform_lookup_merge( tool_ctx * tool_ctx, const VNamelist * files )
+static rc_t perform_lookup_merge( tool_ctx * tool_ctx, locked_file_list * files )
 {
     merge_sort_params mp;
     
@@ -290,11 +291,10 @@ static rc_t perform_lookup_merge( tool_ctx * tool_ctx, const VNamelist * files )
     mp . lookup_filename    = tool_ctx -> lookup_filename;
     mp . index_filename     = tool_ctx -> index_filename;
     mp . tmp_id             = &( tool_ctx -> tmp_id );
-    mp . files              = files;
     mp . num_threads        = tool_ctx -> num_threads;
     mp . show_progress      = tool_ctx -> cmn . show_progress;
     
-    return execute_merge_sort( &mp );
+    return execute_merge_sort( &mp, files );
 }
 
 
@@ -307,7 +307,7 @@ static rc_t perform_lookup_merge( tool_ctx * tool_ctx, const VNamelist * files )
    
 -------------------------------------------------------------------------------------------- */
 
-static rc_t perform_join( tool_ctx * tool_ctx, VNamelist * files )
+static rc_t perform_join( tool_ctx * tool_ctx, locked_file_list * files )
 {
     join_params jp;
     
@@ -324,12 +324,12 @@ static rc_t perform_join( tool_ctx * tool_ctx, VNamelist * files )
     jp . first_row        = 0;
     jp . row_count        = 0;
     jp . fmt              = tool_ctx -> fmt;
-    jp . joined_files     = files;
+    jp . joined_files     = files -> files;
     
     return execute_join( &jp ); /* join.c */
 }
 
-static rc_t perform_concat( const tool_ctx * tool_ctx, const VNamelist * files )
+static rc_t perform_concat( const tool_ctx * tool_ctx, locked_file_list * files )
 {
     concat_params cp;
     
@@ -340,7 +340,7 @@ static rc_t perform_concat( const tool_ctx * tool_ctx, const VNamelist * files )
     cp . print_to_stdout  = tool_ctx -> print_to_stdout;
     cp . compress         = tool_ctx -> compress;
     cp . force            = tool_ctx -> force;
-    cp . joined_files     = files;
+    cp . joined_files     = files -> files;
     cp . delete_files     = true;
 
     return execute_concat( &cp ); /* join.c */
@@ -442,7 +442,8 @@ rc_t CC KMain ( int argc, char *argv [] )
             rc = check_temp_path( &tool_ctx );
             if ( rc == 0  )
             {
-                struct VNamelist * files = NULL;
+                locked_file_list files;
+                struct background_merger * merger;
                 
                 char dflt_lookup[ 4096 ];
                 char dflt_index[ 4096 ];
@@ -483,29 +484,44 @@ rc_t CC KMain ( int argc, char *argv [] )
                     rc = show_details( &tool_ctx );
 
                 if ( rc == 0 )
-                    rc = VNamelistMake( &files, tool_ctx . num_threads );
+                    rc = init_locked_file_list( &files, 25 );
 
                 /* ============================================================== */
                 
+                if ( rc == 0 )
+                    rc = make_background_merger( &merger,
+                             tool_ctx . cmn . dir,
+                             &files,
+                             & tool_ctx . tmp_id,
+                             tool_ctx . num_threads,
+                             200,
+                             tool_ctx . buf_size );
+                
                 /* STEP 1 : produce lookup-table */
                 if ( rc == 0 )
-                    rc = perform_lookup_production( &tool_ctx, files ); /* <==== above */
-                
-                /* STEP 2 : merge the lookup-tables */
-                if ( rc == 0 )
-                    rc = perform_lookup_merge( &tool_ctx, files ); /* <==== above */
+                    rc = perform_lookup_production( &tool_ctx, &files, merger ); /* <==== above */
                 
                 if ( rc == 0 )
                 {
-                    rc = delete_files( tool_ctx . cmn. dir, files );
-                    VNamelistRelease( files );
+                    rc = wait_for_background_merger( merger );
+                    release_background_merger( merger );
+                }
+                
+                /* STEP 2 : merge the lookup-tables */
+                if ( rc == 0 )
+                    rc = perform_lookup_merge( &tool_ctx, &files ); /* <==== above */
+                
+                if ( rc == 0 )
+                {
+                    rc = delete_files( tool_ctx . cmn . dir, files . files );
+                    release_locked_file_list( &files );
                 }
                 if ( rc == 0 )
-                    rc = VNamelistMake( &files, tool_ctx . num_threads );
+                    rc = init_locked_file_list( &files, 25 );
                 
                 /* STEP 3 : join SEQUENCE-table with lookup-table */
                 if ( rc == 0 )
-                    rc = perform_join( &tool_ctx, files ); /* <==== above! */
+                    rc = perform_join( &tool_ctx, &files ); /* <==== above! */
 
                 /* from now on we do not need the lookup-file and it's index any more... */
                 if ( dflt_lookup[ 0 ] != 0 )
@@ -516,7 +532,7 @@ rc_t CC KMain ( int argc, char *argv [] )
 
                 /* STEP 4 : concatenate output-chunks */
                 if ( rc == 0 )
-                    rc = perform_concat( &tool_ctx, files ); /* <==== above! */
+                    rc = perform_concat( &tool_ctx, &files ); /* <==== above! */
 
                 /* ============================================================== */
                 
@@ -529,8 +545,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                                 "%s", tool_ctx . tmp_id . temp_path );
                 }
                 
-                if ( files != NULL )
-                    VNamelistRelease( files );
+                release_locked_file_list( &files );
             }
             KDirectoryRelease( tool_ctx . cmn . dir );
         }

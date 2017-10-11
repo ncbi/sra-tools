@@ -32,7 +32,6 @@
 #include <klib/out.h>
 #include <kfs/defs.h>
 #include <kfs/file.h>
-#include <kproc/thread.h>
 
 rc_t ErrMsg( const char * fmt, ... )
 {
@@ -529,5 +528,135 @@ rc_t make_postfixed( char * buffer, size_t bufsize, const char * path, const cha
     rc_t rc = string_printf( buffer, bufsize, &num_writ, "%s%s", path, postfix );
     if ( rc != 0 )
         ErrMsg( "make_postfixed.string_printf() -> %R", rc );
+    return rc;
+}
+
+
+/* ===================================================================================== */
+
+rc_t init_locked_file_list( locked_file_list * self, uint32_t alloc_blocksize )
+{
+    rc_t rc;
+    if ( self == NULL || alloc_blocksize == 0 )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockMake ( &( self -> lock ) );
+        if ( rc == 0 )
+            rc = VNamelistMake ( & self -> files, alloc_blocksize );
+    }
+    return rc;
+}
+
+void release_locked_file_list( locked_file_list * self )
+{
+    if ( self != NULL )
+    {
+        KLockRelease ( self -> lock );
+        VNamelistRelease ( self -> files );
+    }
+}
+
+rc_t append_to_file_list( const locked_file_list * self, const char * filename )
+{
+    if ( self == NULL || filename == NULL )
+        return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    return VNamelistAppend ( self -> files, filename );
+}
+
+rc_t append_to_locked_file_list( const locked_file_list * self, const char * filename )
+{
+    rc_t rc = 0;
+    if ( self == NULL || filename == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = VNamelistAppend ( self -> files, filename );
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+/* ===================================================================================== */
+
+rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize )
+{
+    rc_t rc;
+    if ( self == NULL || alloc_blocksize == 0 )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockMake ( &( self -> lock ) );
+        if ( rc == 0 )
+        {
+            VectorInit ( &( self -> vector ), 0, alloc_blocksize );
+            self -> sealed = false;
+        }
+    }
+    return rc;
+}
+
+void locked_vector_release( locked_vector * self,
+                            void ( CC * whack ) ( void *item, void *data ), void *data )
+{
+    if ( self == NULL )
+    {
+        rc_t rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            VectorWhack ( &( self -> vector ), whack, data );
+            KLockUnlock ( self -> lock );    
+        }
+        KLockRelease ( self -> lock );
+    }
+}
+
+rc_t locked_vector_push( locked_vector * self, const void * item, bool seal )
+{
+    rc_t rc;
+    if ( self == NULL || item == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = VectorAppend ( &( self -> vector ), NULL, item );
+            if ( seal )
+                self -> sealed = true;
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed )
+{
+    rc_t rc;
+    if ( self == NULL || item == NULL || sealed == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            if ( VectorLength( &( self -> vector ) ) == 0 )
+            {
+                rc = 0;
+                *sealed = self -> sealed;
+                *item = NULL;
+            }
+            else
+            {
+                *sealed = false;
+                rc = VectorRemove ( &( self -> vector ), 0, item );
+            }
+            KLockUnlock ( self -> lock );
+        }
+    }
     return rc;
 }

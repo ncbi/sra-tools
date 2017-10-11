@@ -53,12 +53,30 @@ typedef struct merge_sort_params
     const char * lookup_filename;
     const char * index_filename;
     const tmp_id * tmp_id;
-    const VNamelist * files;
     size_t num_threads, buf_size;
     bool show_progress;
 } merge_sort_params;
 
-rc_t execute_merge_sort( const merge_sort_params * mp );
+rc_t execute_merge_sort( const merge_sort_params * mp, locked_file_list * files );
+
+
+/* ================================================================================= */
+
+struct background_merger;
+
+rc_t make_background_merger( struct background_merger ** merger,
+                             KDirectory * dir,
+                             const locked_file_list * produced,
+                             const tmp_id * tmp_id,
+                             uint32_t batch_size,
+                             uint32_t q_wait_time,
+                             size_t buf_size );
+
+rc_t wait_for_background_merger( struct background_merger * self );
+
+rc_t push_to_background_merger( struct background_merger * self, KVector * store, bool seal );
+
+void release_background_merger( struct background_merger * self );
 
 #ifdef __cplusplus
 }

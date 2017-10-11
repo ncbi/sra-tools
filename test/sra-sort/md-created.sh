@@ -16,7 +16,6 @@ DST=$DSTDIR/sorted
 
 rm -fr $DSTDIR
 
-SORT=/panfs/traces01/trace_software/toolkit-versions/2.8.2/centos64/bin/sra-sort
 SORT=sra-sort
 which $SORT > /dev/null 2>&1
 if [ "$?" != "0" ] ; then

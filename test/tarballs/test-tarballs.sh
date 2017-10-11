@@ -53,6 +53,9 @@ case $(uname) in
 Linux)
     python -mplatform | grep -q Ubuntu && OS=ubuntu64 || OS=centos_linux64
     TOOLS="${TOOLS} pacbio-load remote-fuser"
+    realpath() {
+        readlink -f $1
+    }
     ;;
 Darwin)
     OS=mac64

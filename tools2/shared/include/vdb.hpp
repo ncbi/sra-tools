@@ -134,7 +134,7 @@ namespace VDB {
             }
             std::string asString() const {
                 if (elem_bits == 8)
-                    return std::string((char *)data, elements);
+                    return elements == 0 ? std::string() : std::string((char *)data, elements);
                 else
                     throw std::bad_cast();
             }
@@ -384,6 +384,56 @@ namespace VDB {
 
 #include <vector>
 namespace utility {
+    
+    struct StatisticsAccumulator {
+    private:
+        double N;
+        double sum;
+        double M2;
+        double min;
+        double max;
+    public:
+        StatisticsAccumulator() : N(0) {}
+        explicit StatisticsAccumulator(double const value) : sum(value), min(value), max(value), M2(0.0), N(1) {}
+        
+        auto count() const -> decltype(N) { return N; }
+        double average() const { return sum / N; }
+        double variance() const { return M2 / N; }
+        double minimum() const { return min; }
+        double maximum() const { return max; }
+
+        void add(double const value) {
+            if (N == 0) {
+                min = max = sum = value;
+                M2 = 0.0;
+            }
+            else {
+                auto const diff = average() - value;
+                
+                M2 += diff * diff * N / (N + 1);
+                sum += value;
+                min = std::min(min, value);
+                max = std::max(max, value);
+            }
+            N += 1;
+        }
+        friend StatisticsAccumulator operator +(StatisticsAccumulator a, StatisticsAccumulator b) {
+            StatisticsAccumulator result;
+
+            result.N = a.N + b.N;
+            result.sum = (a.N == 0.0 ? 0.0 : a.sum) + (b.N == 0.0 ? 0.0 : b.sum);
+            result.min = std::min(a.N == 0.0 ? 0.0 : a.min, b.N == 0.0 ? 0.0 : b.min);
+            result.max = std::max(a.N == 0.0 ? 0.0 : a.max, b.N == 0.0 ? 0.0 : b.max);
+            result.M2 = (a.N == 0.0 ? 0.0 : a.M2) + (b.N == 0.0 ? 0.0 : b.M2);
+            if (a.N != 0 && b.N != 0) {
+                auto const diff = a.average() - b.average();
+                auto const adjust = diff * diff * a.N * b.N / result.N;
+                result.M2 += adjust;
+            }
+            return result;
+        }
+    };
+
     static char const *programNameFromArgv0(char const *const argv0)
     {
         auto last = -1;
@@ -407,7 +457,7 @@ namespace utility {
 
     class strings_map {
         typedef std::vector<char> char_store_t;
-        typedef char_store_t::size_type index_t;
+        typedef unsigned index_t;
         typedef std::vector<index_t> reverse_lookup_t;
         typedef std::pair<index_t, index_t> ordered_list_elem_t;
         typedef std::vector<ordered_list_elem_t> ordered_list_t;
@@ -421,7 +471,7 @@ namespace utility {
             auto e = ordered_list.end();
             auto const base = char_store.data();
             
-            while (f < e) {
+            while (f + 0 < e) {
                 auto const m = f + ((e - f) >> 1);
                 auto const cmp = name.compare(base + m->first);
                 if (cmp == 0) return std::make_pair(true, m);
@@ -442,11 +492,19 @@ namespace utility {
             for (auto && i : list)
                 (void)operator[](std::string(i));
         }
+        index_t count() const {
+            return (index_t)reverse_lookup.size();
+        }
+        bool contains(std::string const &name, index_t &id) const {
+            auto const fnd = find(name);
+            if (fnd.first) id = fnd.second->second;
+            return fnd.first;
+        }
         index_t operator[](std::string const &name) {
             auto const fnd = find(name);
             if (fnd.first) return fnd.second->second;
             
-            auto const newPair = std::make_pair(char_store.size(), ordered_list.size());
+            auto const newPair = std::make_pair((index_t)char_store.size(), (index_t)ordered_list.size());
             
             char_store.insert(char_store.end(), name.begin(), name.end());
             char_store.push_back(0);
@@ -454,7 +512,7 @@ namespace utility {
             ordered_list.insert(fnd.second, newPair);
             reverse_lookup.push_back(newPair.first);
             
-            return newPair.second;
+            return (index_t)newPair.second;
         }
         std::string operator[](index_t id) const {
             if (id < reverse_lookup.size()) {

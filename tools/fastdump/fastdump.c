@@ -155,6 +155,7 @@ rc_t CC Usage ( const Args * args )
 /* -------------------------------------------------------------------------------------------- */
 
 #define HOSTNAMELEN 64
+#define DFLT_PATH_LEN 4096
 
 #define DFLT_MEM_LIMIT ( 1024L * 1024 * 50 )
 #define MIN_MEM_LIMIT ( 1024L * 1024 * 5 )
@@ -165,16 +166,27 @@ rc_t CC Usage ( const Args * args )
 typedef struct tool_ctx
 {
     cmn_params cmn; /* cmn_iter.h */
+
     const char * lookup_filename;
     const char * output_filename;
     const char * index_filename;
+
     tmp_id tmp_id;
+
     char hostname[ HOSTNAMELEN ];
-    bool remove_temp_path, print_to_stdout, force;
-    compress_t compress;
+    char dflt_lookup[ DFLT_PATH_LEN ];
+    char dflt_index[ DFLT_PATH_LEN ];
+    char dflt_output[ DFLT_PATH_LEN ];
+    
     size_t buf_size, mem_limit;
-    uint64_t num_threads;
+
+    uint32_t num_threads;
+
     format_t fmt;
+
+    compress_t compress;    
+
+    bool remove_temp_path, print_to_stdout, force;
 } tool_ctx;
 
 static rc_t get_process_pid( uint32_t * pid )
@@ -192,6 +204,48 @@ static rc_t get_process_pid( uint32_t * pid )
     }
     return rc;
 }
+
+static rc_t get_hostname( tool_ctx * tool_ctx )
+{
+    size_t num_writ;
+    rc_t rc = string_printf( tool_ctx -> hostname, sizeof tool_ctx -> hostname, &num_writ, "host" );
+    if ( rc == 0 )
+        tool_ctx -> tmp_id . hostname = ( const char * )&( tool_ctx -> hostname );
+    return rc;
+}
+
+static rc_t show_details( tool_ctx * tool_ctx )
+{
+    rc_t rc = KOutMsg( "cursor-cache : %,ld\n", tool_ctx -> cmn . cursor_cache );
+    if ( rc == 0 )
+        rc = KOutMsg( "buf-size     : %,ld\n", tool_ctx -> buf_size );
+    if ( rc == 0 )
+        rc = KOutMsg( "mem-limit    : %,ld\n", tool_ctx -> mem_limit );
+    if ( rc == 0 )
+        rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
+    if ( rc == 0 )
+        rc = KOutMsg( "scratch-path : '%s'\n", tool_ctx -> tmp_id . temp_path );
+    if ( rc == 0 )
+        rc = KOutMsg( "pid          : %u\n", tool_ctx -> tmp_id . pid );
+    if ( rc == 0 )
+        rc = KOutMsg( "hostname     : %s\n", tool_ctx -> tmp_id . hostname );
+    if ( rc == 0 )
+        rc = KOutMsg( "output-format: " );
+    if ( rc == 0 )
+    {
+        switch ( tool_ctx -> fmt )
+        {
+            case ft_special     : rc = KOutMsg( "SPECIAL\n" ); break;
+            case ft_fastq       : rc = KOutMsg( "FASTQ\n" ); break;
+            case ft_fastq_split : rc = KOutMsg( "FASTQ split\n" ); break;
+        }
+    }
+    if ( rc == 0 )
+        rc = KOutMsg( "output       : '%s'\n", tool_ctx -> output_filename );
+    return rc;
+}
+
+static const char * dflt_temp_path = "./fast.tmp";
 
 static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
 {
@@ -231,22 +285,89 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
 
         if ( tool_ctx -> print_to_stdout && tool_ctx -> cmn . show_details )
             tool_ctx -> cmn . show_details = false;
-            
-        rc = KDirectoryNativeDir( &( tool_ctx -> cmn . dir ) );
-        if ( rc != 0 )
-            ErrMsg( "KDirectoryNativeDir() -> %R", rc );
     }
+
+    rc = KDirectoryNativeDir( &( tool_ctx -> cmn . dir ) );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryNativeDir() -> %R", rc );
+
     if ( rc == 0 )
         rc = get_process_pid( &( tool_ctx -> tmp_id . pid ) );
+
+    if ( rc == 0 )
+        rc = get_hostname( tool_ctx );
+
+    /* handle the important temp-path ( user gave a specific one - or not )*/
     if ( rc == 0 )
     {
-        size_t num_writ;
-        rc = string_printf( tool_ctx -> hostname, sizeof tool_ctx -> hostname, &num_writ, "host" );
-        if ( rc == 0 )
+        uint32_t pt;
+        if ( tool_ctx -> tmp_id . temp_path == NULL )
         {
-            tool_ctx -> tmp_id . hostname = ( const char * )&( tool_ctx -> hostname );
+            /* if the user did not give us a temp-path: use the dflt-path and clean up after use */
+            tool_ctx -> tmp_id . temp_path = dflt_temp_path;
+            pt = KDirectoryPathType( tool_ctx -> cmn . dir, "%s", tool_ctx -> tmp_id . temp_path );
+            if ( pt != kptDir )
+            {
+                rc = KDirectoryCreateDir ( tool_ctx -> cmn . dir, 0775, kcmInit, "%s", tool_ctx -> tmp_id . temp_path );
+                if ( rc != 0 )
+                    ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );
+                else
+                    tool_ctx -> remove_temp_path = true;
+            }
+        }
+        else
+        {
+            /* if the user did give us a temp-path: try to create it if not force-options is given */
+            KCreateMode create_mode = tool_ctx -> force ? kcmInit : kcmCreate;
+            rc = KDirectoryCreateDir ( tool_ctx -> cmn . dir, 0775, create_mode, "%s", tool_ctx -> tmp_id . temp_path );
+            if ( rc != 0 )
+                ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );
         }
     }
+    
+    if ( rc == 0 )
+    {
+        uint32_t temp_path_len = string_measure( tool_ctx -> tmp_id . temp_path, NULL );
+        tool_ctx -> tmp_id . temp_path_ends_in_slash = ( tool_ctx -> tmp_id . temp_path[ temp_path_len - 1 ] == '/' );
+    }
+
+    tool_ctx -> dflt_lookup[ 0 ] = 0;
+    tool_ctx -> dflt_index[ 0 ] = 0;
+    tool_ctx -> dflt_output[ 0 ] = 0;
+
+    if ( rc == 0 )
+    {
+        /* generate the full path of the lookup-table */
+        rc = make_pre_and_post_fixed( tool_ctx -> dflt_lookup, sizeof tool_ctx -> dflt_lookup,
+                      tool_ctx -> cmn . acc,
+                      &( tool_ctx -> tmp_id ),
+                      "lookup" ); /* helper.c */
+        if ( rc == 0 )
+            tool_ctx -> lookup_filename = tool_ctx -> dflt_lookup;
+    }
+    
+    
+    if ( rc == 0 )
+    {
+        /* generate the full path of the lookup-index-table */                
+        rc = make_pre_and_post_fixed( tool_ctx -> dflt_index, sizeof tool_ctx -> dflt_index,
+                  tool_ctx -> cmn . acc,
+                  &( tool_ctx -> tmp_id ),                              
+                  "lookup.idx" ); /* helper.c */
+        if ( rc == 0 )
+            tool_ctx -> index_filename = tool_ctx -> dflt_index;
+    }
+    
+    if ( rc == 0 && tool_ctx -> output_filename == NULL )
+    {
+        /* generate the full path of the output-file, if not given */
+        rc = make_postfixed( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                             tool_ctx -> cmn . acc,
+                             ".fastq" ); /* helper.c */
+        if ( rc == 0 )
+            tool_ctx -> output_filename = tool_ctx -> dflt_output;
+    }
+    
     return rc;
 }
 
@@ -346,73 +467,6 @@ static rc_t perform_concat( const tool_ctx * tool_ctx, locked_file_list * files 
     return execute_concat( &cp ); /* join.c */
 }
 
-static rc_t show_details( tool_ctx * tool_ctx )
-{
-    rc_t rc = KOutMsg( "cursor-cache : %,ld\n", tool_ctx -> cmn . cursor_cache );
-    if ( rc == 0 )
-        rc = KOutMsg( "buf-size     : %,ld\n", tool_ctx -> buf_size );
-    if ( rc == 0 )
-        rc = KOutMsg( "mem-limit    : %,ld\n", tool_ctx -> mem_limit );
-    if ( rc == 0 )
-        rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
-    if ( rc == 0 )
-        rc = KOutMsg( "scratch-path : '%s'\n", tool_ctx -> tmp_id . temp_path );
-    if ( rc == 0 )
-        rc = KOutMsg( "pid          : %u\n", tool_ctx -> tmp_id . pid );
-    if ( rc == 0 )
-        rc = KOutMsg( "hostname     : %s\n", tool_ctx -> tmp_id . hostname );
-    if ( rc == 0 )
-        rc = KOutMsg( "output-format: " );
-    if ( rc == 0 )
-    {
-        switch ( tool_ctx -> fmt )
-        {
-            case ft_special     : rc = KOutMsg( "SPECIAL\n" ); break;
-            case ft_fastq       : rc = KOutMsg( "FASTQ\n" ); break;
-            case ft_fastq_split : rc = KOutMsg( "FASTQ split\n" ); break;
-        }
-    }
-    if ( rc == 0 )
-        rc = KOutMsg( "output       : '%s'\n", tool_ctx -> output_filename );
-    return rc;
-}
-
-static const char * dflt_temp_path = "./fast.tmp";
-
-static rc_t check_temp_path( tool_ctx * tool_ctx )
-{
-    rc_t rc = 0;
-    uint32_t pt;
-    if ( tool_ctx -> tmp_id . temp_path == NULL )
-    {
-        /* if the user did not give us a temp-path: use the dflt-path and clean up after use */
-        tool_ctx -> tmp_id . temp_path = dflt_temp_path;
-        pt = KDirectoryPathType( tool_ctx -> cmn . dir, "%s", tool_ctx -> tmp_id . temp_path );
-        if ( pt != kptDir )
-        {
-            rc = KDirectoryCreateDir ( tool_ctx -> cmn . dir, 0775, kcmInit, "%s", tool_ctx -> tmp_id . temp_path );
-            if ( rc != 0 )
-                ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );
-            else
-                tool_ctx -> remove_temp_path = true;
-        }
-    }
-    else
-    {
-        /* if the user did give us a temp-path: try to create it if not force-options is given */
-        KCreateMode create_mode = tool_ctx -> force ? kcmInit : kcmCreate;
-        rc = KDirectoryCreateDir ( tool_ctx -> cmn . dir, 0775, create_mode, "%s", tool_ctx -> tmp_id . temp_path );
-        if ( rc != 0 )
-            ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );
-    }
-    if ( rc == 0 )
-    {
-        uint32_t temp_path_len = string_measure( tool_ctx -> tmp_id . temp_path, NULL );
-        tool_ctx -> tmp_id . temp_path_ends_in_slash = ( tool_ctx -> tmp_id . temp_path[ temp_path_len - 1 ] == '/' );
-    }
-    return rc;
-}
-
 /* -------------------------------------------------------------------------------------------- */
 /*
 static rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_writ )
@@ -423,6 +477,71 @@ static rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t
     return 0;
 }
 */
+/* -------------------------------------------------------------------------------------------- */
+
+static const uint32_t queue_timeout = 200;  /* ms */
+
+static rc_t perform_fastdump( tool_ctx * tool_ctx )
+{
+    locked_file_list files;
+    struct background_merger * merger;
+    
+    rc_t rc = init_locked_file_list( &files, 25 );
+
+    if ( rc == 0 )
+        rc = make_background_merger( &merger,
+                 tool_ctx -> cmn . dir,
+                 &files,
+                 & tool_ctx -> tmp_id,
+                 tool_ctx -> num_threads,
+                 queue_timeout,
+                 tool_ctx -> buf_size );
+    
+    /* STEP 1 : produce lookup-table */
+    if ( rc == 0 )
+        rc = perform_lookup_production( tool_ctx, &files, merger ); /* <==== above */
+    
+    if ( rc == 0 )
+        rc = seal_background_merger( merger );
+    
+    if ( rc == 0 )
+    {
+        rc = wait_for_background_merger( merger );
+        release_background_merger( merger );
+    }
+    
+    /* STEP 2 : merge the lookup-tables */
+    if ( rc == 0 )
+        rc = perform_lookup_merge( tool_ctx, &files ); /* <==== above */
+    
+    if ( rc == 0 )
+    {
+        rc = delete_files( tool_ctx -> cmn . dir, files . files );
+        release_locked_file_list( &files );
+    }
+    
+    if ( rc == 0 )
+        rc = init_locked_file_list( &files, 25 );
+    
+    /* STEP 3 : join SEQUENCE-table with lookup-table */
+    if ( rc == 0 )
+        rc = perform_join( tool_ctx, &files ); /* <==== above! */
+
+    /* from now on we do not need the lookup-file and it's index any more... */
+    if ( tool_ctx -> dflt_lookup[ 0 ] != 0 )
+        KDirectoryRemove( tool_ctx -> cmn . dir, true, "%s", tool_ctx -> dflt_lookup );
+
+    if ( tool_ctx -> dflt_index[ 0 ] != 0 )
+        KDirectoryRemove( tool_ctx -> cmn . dir, true, "%s", tool_ctx -> dflt_index );
+
+    /* STEP 4 : concatenate output-chunks */
+    if ( rc == 0 )
+        rc = perform_concat( tool_ctx, &files ); /* <==== above! */
+
+    release_locked_file_list( &files );        
+    return rc;
+}
+
 /* -------------------------------------------------------------------------------------------- */
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -439,114 +558,23 @@ rc_t CC KMain ( int argc, char *argv [] )
         rc = populate_tool_ctx( &tool_ctx, args );
         if ( rc == 0 )
         {
-            rc = check_temp_path( &tool_ctx );
-            if ( rc == 0  )
+            if ( tool_ctx . cmn . show_details )
+                rc = show_details( &tool_ctx );
+
+            /* =================================================== */
+            if ( rc == 0 )
+                rc = perform_fastdump( &tool_ctx );
+            /* =================================================== */
+            
+            if ( tool_ctx . remove_temp_path )
             {
-                locked_file_list files;
-                struct background_merger * merger;
-                
-                char dflt_lookup[ 4096 ];
-                char dflt_index[ 4096 ];
-                char dflt_output[ 4096 ];
-            
-                dflt_lookup[ 0 ] = 0;
-                dflt_index[ 0 ] = 0;
-                dflt_output[ 0 ] = 0;
-            
-                /* generate the full path of the lookup-table */
-                rc = make_pre_and_post_fixed( dflt_lookup, sizeof dflt_lookup,
-                              tool_ctx . cmn . acc,
-                              &( tool_ctx . tmp_id ),
-                              "lookup" ); /* helper.c */
-                if ( rc == 0 )
-                    tool_ctx . lookup_filename = dflt_lookup;
-
-                if ( rc == 0 )
-                    /* generate the full path of the lookup-index-table */                
-                    rc = make_pre_and_post_fixed( dflt_index, sizeof dflt_index,
-                              tool_ctx . cmn . acc,
-                              &( tool_ctx . tmp_id ),                              
-                              "lookup.idx" ); /* helper.c */
-                if ( rc == 0 )
-                    tool_ctx . index_filename = dflt_index;
-                
-                if ( rc == 0 && tool_ctx . output_filename == NULL )
-                {
-                    /* generate the full path of the output-file, if not given */
-                    rc = make_postfixed( dflt_output, sizeof dflt_output,
-                                         tool_ctx . cmn . acc,
-                                         ".fastq" ); /* helper.c */
-                    if ( rc == 0 )
-                        tool_ctx . output_filename = dflt_output;
-                }
-
-                if ( rc == 0 && tool_ctx . cmn . show_details )
-                    rc = show_details( &tool_ctx );
-
-                if ( rc == 0 )
-                    rc = init_locked_file_list( &files, 25 );
-
-                /* ============================================================== */
-                
-                if ( rc == 0 )
-                    rc = make_background_merger( &merger,
-                             tool_ctx . cmn . dir,
-                             &files,
-                             & tool_ctx . tmp_id,
-                             tool_ctx . num_threads,
-                             200,
-                             tool_ctx . buf_size );
-                
-                /* STEP 1 : produce lookup-table */
-                if ( rc == 0 )
-                    rc = perform_lookup_production( &tool_ctx, &files, merger ); /* <==== above */
-                
-                if ( rc == 0 )
-                {
-                    rc = wait_for_background_merger( merger );
-                    release_background_merger( merger );
-                }
-                
-                /* STEP 2 : merge the lookup-tables */
-                if ( rc == 0 )
-                    rc = perform_lookup_merge( &tool_ctx, &files ); /* <==== above */
-                
-                if ( rc == 0 )
-                {
-                    rc = delete_files( tool_ctx . cmn . dir, files . files );
-                    release_locked_file_list( &files );
-                }
-                if ( rc == 0 )
-                    rc = init_locked_file_list( &files, 25 );
-                
-                /* STEP 3 : join SEQUENCE-table with lookup-table */
-                if ( rc == 0 )
-                    rc = perform_join( &tool_ctx, &files ); /* <==== above! */
-
-                /* from now on we do not need the lookup-file and it's index any more... */
-                if ( dflt_lookup[ 0 ] != 0 )
-                    KDirectoryRemove( tool_ctx . cmn . dir, true, "%s", dflt_lookup );
-
-                if ( dflt_index[ 0 ] != 0 )
-                    KDirectoryRemove( tool_ctx . cmn . dir, true, "%s", dflt_index );
-
-                /* STEP 4 : concatenate output-chunks */
-                if ( rc == 0 )
-                    rc = perform_concat( &tool_ctx, &files ); /* <==== above! */
-
-                /* ============================================================== */
-                
-                if ( tool_ctx . remove_temp_path )
-                {
-                    rc_t rc1 = KDirectoryClearDir ( tool_ctx . cmn . dir, true,
-                                "%s", tool_ctx . tmp_id . temp_path );
-                    if ( rc1 == 0 )
-                        rc1 = KDirectoryRemove ( tool_ctx . cmn . dir, true,
-                                "%s", tool_ctx . tmp_id . temp_path );
-                }
-                
-                release_locked_file_list( &files );
+                rc_t rc1 = KDirectoryClearDir ( tool_ctx . cmn . dir, true,
+                            "%s", tool_ctx . tmp_id . temp_path );
+                if ( rc1 == 0 )
+                    rc1 = KDirectoryRemove ( tool_ctx . cmn . dir, true,
+                            "%s", tool_ctx . tmp_id . temp_path );
             }
+            
             KDirectoryRelease( tool_ctx . cmn . dir );
         }
     }

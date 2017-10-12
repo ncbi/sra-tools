@@ -216,14 +216,14 @@ static rc_t save_store( lookup_producer * self )
 }
 
 
-static rc_t push_store_to_merger( lookup_producer * self, bool seal )
+static rc_t push_store_to_merger( lookup_producer * self, bool last )
 {
-    rc_t rc = push_to_background_merger( self -> merger, self -> store, seal );
+    rc_t rc = push_to_background_merger( self -> merger, self -> store ); /* this might block! */
     if ( rc == 0 )
     {
         self -> store = NULL;
         self -> bytes_in_store = 0;
-        if ( !seal )
+        if ( !last )
         {
             rc = KVectorMake( &self -> store );
             if ( rc != 0 )
@@ -261,7 +261,7 @@ static rc_t write_to_store( lookup_producer * self, int64_t seq_spot_id, uint32_
          self -> bytes_in_store >= self -> mem_limit )
     {
         if ( self -> merger != NULL ) /* above! */
-            rc = push_store_to_merger( self, false );
+            rc = push_store_to_merger( self, false ); /* this might block ! */
         else
             rc = save_store( self ); /* above! */
     }
@@ -285,8 +285,9 @@ static rc_t run_producer( lookup_producer * self )
     
     if ( rc == 0 )
     {
+        /* now we have to push out / write out what is left in the last store */
         if ( self -> merger != NULL ) /* above! */
-            rc = push_store_to_merger( self, true );
+            rc = push_store_to_merger( self, true ); /* this might block ! */
         else
             rc = save_store( self ); /* above! */
     }

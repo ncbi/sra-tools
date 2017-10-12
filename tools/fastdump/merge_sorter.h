@@ -74,7 +74,9 @@ rc_t make_background_merger( struct background_merger ** merger,
 
 rc_t wait_for_background_merger( struct background_merger * self );
 
-rc_t push_to_background_merger( struct background_merger * self, KVector * store, bool seal );
+rc_t push_to_background_merger( struct background_merger * self, KVector * store );
+
+rc_t seal_background_merger( struct background_merger * self );
 
 void release_background_merger( struct background_merger * self );
 

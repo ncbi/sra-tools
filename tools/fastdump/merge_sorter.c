@@ -521,8 +521,7 @@ typedef struct background_merger
 {
     KDirectory * dir;               /* needed to perform the merge-sort */
     const tmp_id * tmp_id;          /* needed to create temp. files */
-    /*KQueue * in_q;                 the KVector objects arrive here from the lookup-producer */
-    locked_vector jobs;             /* the producer's put the jobs in here... */
+    KQueue * job_q;                 /* the KVector objects arrive here from the lookup-producer */
     KThread * thread;               /* the thread that performs the merge-sort */
     const locked_file_list * produced;    /* here we keep track of the produced temp-files */
     uint32_t product_id;            /* increased by one for each batch-run, used in temp-file-name */
@@ -532,20 +531,12 @@ typedef struct background_merger
 } background_merger;
 
 
-static void CC release_job( void * item, void * data )
-{
-    KVectorRelease( item );
-}
-
 void release_background_merger( background_merger * self )
 {
     if ( self != NULL )
     {
-        /*
-        if ( self -> in_q != NULL )
-            KQueueRelease ( self -> in_q );
-        */
-        locked_vector_release( &( self -> jobs ), release_job, NULL );
+        if ( self -> job_q != NULL )
+            KQueueRelease ( self -> job_q );
         free( self );
     }
 }
@@ -624,18 +615,29 @@ static rc_t background_merger_collect_batch( background_merger * self,
         bool sealed = false;
         while ( rc == 0 && *count < self -> batch_size && !sealed )
         {
-            KVector * store = NULL;
-            rc = locked_vector_pop( &( self -> jobs ), ( void ** )&store, &sealed );
-            if ( rc == 0 && !sealed )
+            struct timeout_t tm;
+            rc = TimeoutInit ( &tm, self -> q_wait_time );
+            if ( rc == 0 )
             {
-                if ( store == NULL )
-                    KSleepMs( self -> q_wait_time );
-                else
+                KVector * store = NULL;
+                rc = KQueuePop ( self -> job_q, ( void ** )&store, &tm );
+                if ( rc == 0 )
                 {
-                    STATUS ( STAT_USR, "locked_vector_pop() : %R, store = %p", rc, store );
+                    STATUS ( STAT_USR, "KQueuePop() : store = %p", store );
                     rc = init_bg_merge_src( &( b[ *count ] ), store );
                     if ( rc == 0 )
                         *count += 1;
+                }
+                else
+                {
+                    STATUS ( STAT_USR, "KQueuePop() : %R, store = %p", rc, store );
+                    if ( GetRCState( rc ) == rcDone && GetRCObject( rc ) == ( enum RCObject )rcData )
+                    {
+                        sealed = true;
+                        rc = 0;
+                    }
+                    else if ( GetRCState( rc ) == rcExhausted && GetRCObject( rc ) == ( enum RCObject )rcTimeout )
+                        rc = 0;
                 }
             }
         }
@@ -786,7 +788,7 @@ rc_t make_background_merger( struct background_merger ** merger,
         b -> q_wait_time = q_wait_time;
         b -> buf_size = buf_size;
         b -> produced = produced;
-        rc = locked_vector_init( &( b -> jobs ), batch_size );
+        rc = KQueueMake ( &( b -> job_q ), batch_size );
         if ( rc == 0 )
             rc = KThreadMake( &( b -> thread ), background_merger_thread_func, b );
         if ( rc == 0 )
@@ -808,7 +810,12 @@ rc_t wait_for_background_merger( struct background_merger * self )
     return rc;
 }
 
-rc_t push_to_background_merger( struct background_merger * self, KVector * store, bool seal )
+rc_t seal_background_merger( struct background_merger * self )
 {
-    return locked_vector_push( &( self -> jobs ), store, seal );
+    return KQueueSeal ( self -> job_q );
+}
+
+rc_t push_to_background_merger( struct background_merger * self, KVector * store )
+{
+    return KQueuePush ( self -> job_q, store, NULL ); /* this might block! */
 }

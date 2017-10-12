@@ -46,134 +46,186 @@ static strings_map references;
 static strings_map groups = {""};
 
 template <typename T>
-static bool string_to_i(T &result, std::string const &str, int radix = 0)
+static bool string_to_i(T &result, char const *const beg, char const *const end, int radix = 0)
 {
-    try {
-        std::string::size_type end = 0;
-        auto const temp = std::stoll(str, &end, radix);
-        result = T(temp);
-        return temp == decltype(temp)(result) && str.begin() + end == str.end();
-    }
-    catch (...) {
-        return false;
-    }
+    char *endp = 0;
+    auto const temp = strtol(beg, &endp, radix);
+    result = T(temp);
+    return temp == decltype(temp)(result) && endp == end;
 }
 
 template <typename T>
-static bool string_to_u(T &result, std::string const &str, int radix = 0)
+static bool string_to_u(T &result, char const *const beg, char const *const end, int radix = 0)
 {
-    try {
-        std::string::size_type end = 0;
-        auto const temp = std::stoul(str, &end, radix);
-        result = T(temp);
-        return temp == decltype(temp)(result) && str.begin() + end == str.end();
-    }
-    catch (...) {
-        return false;
-    }
+    char *endp = 0;
+    auto const temp = strtoul(beg, &endp, radix);
+    result = T(temp);
+    return temp == decltype(temp)(result) && endp == end;
 }
 
-struct StatisticsAccumulator {
-private:
-    unsigned long long N;
-    double sum;
-    double M2;
-public:
-    StatisticsAccumulator() : N(0) {}
-    explicit StatisticsAccumulator(double const value) : sum(value), M2(0.0), N(1) {}
+namespace POSIX {
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+}
 
-    unsigned long long count() const { return N; }
-    double average() const { return sum / N; }
-    double variance() const { return M2 / N; }
-    operator bool() const { return N != 0; }
+#define USE_MMAP 1
+
+struct LineBuffer {
+    int fd;
+    void *buffer;
+    size_t cur;
+    size_t size;
+    size_t maxSize;
+    blksize_t blksize;
     
-    friend StatisticsAccumulator operator +(StatisticsAccumulator const &a, StatisticsAccumulator const &b) {
-        StatisticsAccumulator result;
+    LineBuffer(int fd) : fd(fd) {
+        struct POSIX::stat st;
         
-        result.N = a.N + b.N;
-        result.sum = (a.N == 0 ? 0.0 : a.sum) + (b.N == 0 ? 0.0 : b.sum);
-        result.M2 = (a.N == 0 ? 0.0 : a.M2) + (b.N == 0 ? 0.0 : b.M2);
-        if (a.N != 0 && b.N != 0) {
-            auto const diff = a.average() - b.average();
-            auto const adjust = diff * diff * a.N * b.N / result.N;
-            result.M2 += adjust;
+        blksize = 4 * 1024; ///< our default value
+        if (POSIX::fstat(fd, &st) == 0) {
+#if USE_MMAP
+            maxSize = st.st_size;
+            buffer = POSIX::mmap(0, st.st_size, PROT_READ, MAP_SHARED, fd, 0);
+            if (buffer != MAP_FAILED) {
+                cur = 0;
+                size = maxSize;
+                this->fd = -1;
+                POSIX::close(fd);
+                return;
+            }
+#endif
+            blksize = st.st_blksize;
         }
-        return result;
+        maxSize = blksize * 2;
+        buffer = malloc(maxSize);
+        if (buffer) {
+            cur = size = 0;
+            return;
+        }
+        throw std::bad_alloc();
+    }
+    ~LineBuffer() {
+        if (fd < 0) {
+            POSIX::munmap(buffer, maxSize);
+        }
+        else {
+            free(buffer);
+            POSIX::close(fd);
+        }
+    }
+    double position() const {
+        return fd < 0 ? double(cur) / maxSize : -1.0;
+    }
+    std::pair<char const *, char const *> get() {
+        if (fd < 0) {
+            if (cur >= maxSize) return {nullptr, nullptr};
+            auto const start = reinterpret_cast<char const *>(buffer) + cur;
+            auto endp = start;
+            while (cur < maxSize) {
+                ++cur;
+                if (*endp == '\n')
+                    return {start, endp};
+                ++endp;
+            }
+            return {start, endp};
+        }
+        if (maxSize == 0) return {nullptr, nullptr};
+        if (cur > blksize) {
+            auto start = reinterpret_cast<char const *>(buffer);
+            auto const endp = start + size;
+            auto const remain = size - cur;
+            auto newCur = cur % blksize;
+            start += cur;
+            start -= newCur;
+            memmove(buffer, start, endp - start);
+            cur = newCur;
+            size = cur + remain;
+        }
+        auto const beg = cur;
+        for ( ; ; ) {
+            auto const base = reinterpret_cast<char const *>(buffer);
+            if (cur < maxSize) {
+                if (cur == size) {
+                    auto const nread = POSIX::read(fd, (void *)(base + size), maxSize - size);
+                    if (nread <= 0) {
+                        maxSize = 0;
+                        return {nullptr, nullptr};
+                    }
+                    size += nread;
+                }
+                while (cur < size) {
+                    auto const at = cur++;
+                    if (base[at] == '\n')
+                        return {base + beg, base + at};
+                }
+            }
+            else {
+                auto const temp = realloc(buffer, maxSize * 2);
+                if (temp == nullptr)
+                    throw std::bad_alloc();
+                buffer = temp;
+                maxSize *= 2;
+            }
+        }
     }
 };
 
-struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the two reads of a paired-end fragment
+struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. the two reads of a paired-end fragment
     struct Contig { ///< a contig is nothing more than a contiguous region on some reference; a read is a contig by this definition
         unsigned ref;
         int start;
         int end;
-        StatisticsAccumulator qlength;
-        StatisticsAccumulator rlength;
         
         Contig() {}
-
-        Contig(Contig const &a, Contig const &b)
-        : ref(a.ref)
-        , start(std::min(a.start, b.start))
-        , end(std::max(a.end, b.end))
-        , qlength(a.qlength + b.qlength)
-        , rlength(a.rlength + b.rlength)
-        {}
 
         Contig(Alignment const &algn, CIGAR const &cigar)
         : ref(unsigned(references[algn.reference]))
         , start(algn.position - cigar.qfirst)
         , end(algn.position + cigar.rlength + cigar.qclip)
-        , qlength(cigar.qlength)
-        , rlength(cigar.rlength)
-        {}
-        
-        int compare(Contig const &other) const {
-            if (other.ref < ref) return 1;
-            if (ref < other.ref) return -1;
-            if (other.start < start) return 1;
-            if (start < other.start) return -1;
-            if (other.end < end) return 1;
-            if (end < other.end) return -1;
-            return 0;
+        {
+            assert(start < end);
         }
-        bool operator<(Contig const &other) const { return compare(other) < 0; }
+        
+        int length() const { return end - start; }
+        bool operator ==(Contig const &other) const {
+            return ref == other.ref && start == other.start && end == other.end;
+        }
+        
+        friend Contig operator +(Contig a, Contig b) ///< returns the union
+        {
+            assert(a.ref == b.ref);
+            assert((a.start <= b.start && b.start < a.end) || (a.start < b.end && b.end <= a.end));
+            
+            Contig result;
+            result.ref = a.ref;
+            result.start = std::min(a.start, b.start);
+            result.end = std::max(a.end, b.end);
+            return result;
+        }
     };
     Contig first, second;
-    StatisticsAccumulator flength; ///< fragment length
     unsigned group;
-    
-    double mean() const { return flength.average(); }
-    double variance() const { return flength.variance(); }
-    unsigned count() const { return unsigned(flength.count()); }
-    
-    int compare(ContigPair const &other) const
-    {
-        {
-            auto const cmp = first.compare(other.first);
-            if (cmp < 0) return -1;
-            if (cmp > 0) return 1;
-        }
-        {
-            auto const cmp = second.compare(other.second);
-            if (cmp < 0) return -1;
-            if (cmp > 0) return 1;
-        }
-        
-        if (other.group < group) return 1;
-        if (group < other.group) return -1;
-        
-        return 0;
+    unsigned count;
+
+    bool operator ==(ContigPair const &other) const {
+        return first == other.first && second == other.second && group == other.group;
     }
-    bool operator<(ContigPair const &other) const { return compare(other) < 0; }
-    operator bool() const { return bool(flength); }
     
-    ContigPair(ContigPair const &a, ContigPair const &b) ///< create a new pair that is the union of the two pairs; it is assumed that they overlap properly
-    : first(a.first, b.first)
-    , second(a.second, b.second)
-    , group(a.group)
-    , flength(a.flength + b.flength)
-    {}
+    ContigPair() {}
+    
+    friend ContigPair operator +(ContigPair a, ContigPair b) ///< create the union of the two pairs; it is assumed that they intersect
+    {
+        assert(a.group == b.group);
+        
+        ContigPair result;
+        result.first = a.first + b.first;
+        result.second = a.second + b.second;
+        result.count = a.count + b.count;
+        result.group = a.group;
+        return result;
+    }
     
     ContigPair(Alignment const &one, Alignment const &two, std::string const &group)
     : group(unsigned(groups[group]))
@@ -181,7 +233,7 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
         auto const &c1 = Contig(one, CIGAR(one.cigar));
         auto const &c2 = Contig(two, CIGAR(two.cigar));
         
-        if (two.reference < one.reference || (c2.ref == c1.ref && c2 < c1)) {
+        if (two.reference < one.reference || (c2.ref == c1.ref && (c2.start < c1.start || (c2.start == c1.start && c2.end < c1.end)))) {
             first = c2;
             second = c1;
         }
@@ -189,82 +241,63 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
             first = c1;
             second = c2;
         }
-        flength = StatisticsAccumulator(first.ref == second.ref ? double(second.end - first.start) : 0.0);
+        count = 1;
     }
     
-    explicit ContigPair(std::istream &in)
+    explicit ContigPair(LineBuffer &source)
+    : count(0)
     {
-        std::string line;
-        if (std::getline(in, line)) {
-            int n = 0;
-            {
-                std::string::size_type i = 0, j = 0;
-                while (n < 11) {
-                    unsigned u;
-                    
-                    j = line.find('\t', i);
+        auto const line = source.get();
+        if (line.first == nullptr) return;
 
-                    auto const &fld = j != std::string::npos ? line.substr(i, j - i) : line.substr(i);
-                    switch (n) {
-                        case 0:
-                            first.ref = unsigned(references[fld]);
-                            break;
-                        case 1:
-                            if (!string_to_i(first.start, fld)) goto CONVERSION_ERROR;
-                            break;
-                        case 2:
-                            if (!string_to_i(first.end, fld)) goto CONVERSION_ERROR;
-                            break;
-                        case 3:
-                            if (!string_to_u(u, fld)) goto CONVERSION_ERROR;
-                            first.qlength = StatisticsAccumulator(u);
-                            break;
-                        case 4:
-                            if (!string_to_u(u, fld)) goto CONVERSION_ERROR;
-                            first.rlength = StatisticsAccumulator(u);
-                            break;
-                        case 5:
-                            second.ref = unsigned(references[fld]);
-                            break;
-                        case 6:
-                            if (!string_to_i(second.start, fld)) goto CONVERSION_ERROR;
-                            break;
-                        case 7:
-                            if (!string_to_i(second.end, fld)) goto CONVERSION_ERROR;
-                            break;
-                        case 8:
-                            if (!string_to_u(u, fld)) goto CONVERSION_ERROR;
-                            second.qlength = StatisticsAccumulator(u);
-                            break;
-                        case 9:
-                            if (!string_to_u(u, fld)) goto CONVERSION_ERROR;
-                            second.rlength = StatisticsAccumulator(u);
-                            break;
-                        case 10:
-                            group = unsigned(groups[fld]);
-                            break;
-                    }
-                    ++n;
-                    if (j == std::string::npos)
+        auto n = 0;
+        for (auto i = line.first, end = i; ; ++end) {
+            if (end == line.second || *end == '\t') {
+                switch (n) {
+                    case 0:
+                        first.ref = unsigned(references[std::string(i, end)]);
                         break;
-                    i = j + 1;
+                    case 1:
+                        if (!string_to_i(first.start, i, end)) goto CONVERSION_ERROR;
+                        break;
+                    case 2:
+                        if (!string_to_i(first.end, i, end)) goto CONVERSION_ERROR;
+                        break;
+                    case 3:
+                        second.ref = unsigned(references[std::string(i, end)]);
+                        break;
+                    case 4:
+                        if (!string_to_i(second.start, i, end)) goto CONVERSION_ERROR;
+                        break;
+                    case 5:
+                        if (!string_to_i(second.end, i, end)) goto CONVERSION_ERROR;
+                        break;
+                    case 6:
+                        group = unsigned(groups[std::string(i, end)]);
+                        break;
+                    case 7:
+                        std::cerr << "extra data in record: " << std::string(line.first, line.second) << std::endl;
+                        return;
                 }
-                if (j != std::string::npos) {
-                    std::cerr << "extra data in record: " << line << std::endl;
-                }
-                else if (n < 8) {
-                    std::cerr << "truncated record: " << line << std::endl;
-                    return;
-                }
+                ++n;
+                if (end == line.second)
+                    break;
+                i = end + 1;
             }
-            flength = StatisticsAccumulator(first.ref == second.ref ? double(second.end - first.start) : 0.0);
-            
-            return;
-            
-        CONVERSION_ERROR:
-            std::cerr << "error parsing record: " << line << std::endl;
+        }
+        if (n < 6) {
+            std::cerr << "truncated record: " << std::string(line.first, line.second) << std::endl;
             return;
         }
+        if (n < 7)
+            group = groups[""];
+
+        count = 1;
+        return;
+        
+    CONVERSION_ERROR:
+        std::cerr << "error parsing record: " << std::string(line.first, line.second) << std::endl;
+        return;
     }
     
     friend std::ostream &operator <<(std::ostream &strm, ContigPair const &i) {
@@ -272,158 +305,221 @@ struct ContigPair { ///< a pair of contigs that are KNOWN to be joined, e.g. the
         auto const &ref2 = references[i.second.ref];
         auto const &grp = groups[i.group];
         strm
-             << ref1 << '\t' << i.first.start << '\t' << i.first.end << '\t' << (unsigned)i.first.qlength.average() << '\t' << (unsigned)i.first.rlength.average() << '\t'
-             << ref2 << '\t' << i.second.start << '\t' << i.second.end << '\t' << (unsigned)i.second.qlength.average() << '\t' << (unsigned)i.second.rlength.average() << '\t'
+             << ref1 << '\t' << i.first.start << '\t' << i.first.end << '\t'
+             << ref2 << '\t' << i.second.start << '\t' << i.second.end << '\t'
              << grp;
         return strm;
     }
     void write(VDB::Writer const &out) const {
-        out.value( 1, references[first.ref]);
-        out.value( 2, (int32_t)first.start);
-        out.value( 3, (int32_t)first.end);
-        out.value( 4, float(first.qlength.average()));
-        out.value( 5, float(sqrt(first.qlength.variance())));
-        out.value( 6, float(first.rlength.average()));
-        out.value( 7, float(sqrt(first.rlength.variance())));
+        out.value(1, references[first.ref]);
+        out.value(2, (int32_t)first.start);
+        out.value(3, (int32_t)first.end);
 
-        out.value( 8, references[second.ref]);
-        out.value( 9, (int32_t)second.start);
-        out.value(10, (int32_t)second.end);
-        out.value(11, float(second.qlength.average()));
-        out.value(12, float(sqrt(second.qlength.variance())));
-        out.value(13, float(second.rlength.average()));
-        out.value(14, float(sqrt(second.rlength.variance())));
+        out.value(4, references[second.ref]);
+        out.value(5, (int32_t)second.start);
+        out.value(6, (int32_t)second.end);
         
-        out.value(15, (uint32_t)count());
-        out.value(16, (float)mean());
-        out.value(17, (float)sqrt(variance()));
-        out.value(18, groups[group]);
+        out.value(7, (uint32_t)count);
+        out.value(8, groups[group]);
         
         out.closeRow(1);
     }
     static void setup(VDB::Writer const &writer) {
-        writer.openTable(1, "CONTIG_STATS");
+        writer.openTable(1, "CONTIGS");
 
-        writer.openColumn( 1, 1,  8, "REFERENCE_1");
-        writer.openColumn( 2, 1, 32, "START_1");
-        writer.openColumn( 3, 1, 32, "END_1");
-        writer.openColumn( 4, 1, 32, "SEQ_LENGTH_AVERAGE_1");
-        writer.openColumn( 5, 1, 32, "SEQ_LENGTH_STD_DEV_1");
-        writer.openColumn( 6, 1, 32, "REF_LENGTH_AVERAGE_1");
-        writer.openColumn( 7, 1, 32, "REF_LENGTH_STD_DEV_1");
+        writer.openColumn(1, 1,  8, "REFERENCE_1");
+        writer.openColumn(2, 1, 32, "START_1");
+        writer.openColumn(3, 1, 32, "END_1");
         
-        writer.openColumn( 8, 1,  8, "REFERENCE_2");
-        writer.openColumn( 9, 1, 32, "START_2");
-        writer.openColumn(10, 1, 32, "END_2");
-        writer.openColumn(11, 1, 32, "SEQ_LENGTH_AVERAGE_2");
-        writer.openColumn(12, 1, 32, "SEQ_LENGTH_STD_DEV_2");
-        writer.openColumn(13, 1, 32, "REF_LENGTH_AVERAGE_2");
-        writer.openColumn(14, 1, 32, "REF_LENGTH_STD_DEV_2");
+        writer.openColumn(4, 1,  8, "REFERENCE_2");
+        writer.openColumn(5, 1, 32, "START_2");
+        writer.openColumn(6, 1, 32, "END_2");
 
-        writer.openColumn(15, 1, 32, "COUNT");
-        writer.openColumn(16, 1, 32, "FRAGMENT_LENGTH_AVERAGE");
-        writer.openColumn(17, 1, 32, "FRAGMENT_LENGTH_STD_DEV");
-        writer.openColumn(18, 1,  8, "READ_GROUP");
+        writer.openColumn(7, 1, 32, "COUNT");
+        writer.openColumn(8, 1,  8, "READ_GROUP");
     }
 };
 
-struct Stats {
-    std::set<ContigPair> active;
-    std::set<ContigPair> held; ///< held here for sorting
+static int process(VDB::Writer const &out, LineBuffer &ifs)
+{
+    auto active = std::vector<ContigPair>();
+    
+    auto ref = decltype(active.front().first.ref)(0); ///< the active reference (first read)
+    auto end = decltype(active.front().first.end)(0); ///< the largest ending position (first read) seen so far; the is the end of the active window
 
-private:
-    void deactivateBefore(int position) { ///< move inactive entries to the sort buffer
-        auto i = active.begin();
-        while (i != active.end()) {
-            auto const p = *i++;
-            if (p.first.end <= position) {
-                held.insert(p);
-                active.erase(p);
-            }
-        }
-    }
-    void merge(ContigPair pair) { ///< attempt to merge a new pair with an existing entry (try from newest-to-oldest)
-        auto i = active.rbegin();
-        while (i != active.rend()) {
-            auto j = *i++;
-            if (j.group != pair.group) continue;
-            if (j.second.ref != pair.second.ref) continue;
-            if (pair.second.start >= j.second.end) continue;
-            if (pair.second.end <= j.second.start) continue;
-            
-            pair = ContigPair(j, pair); ///< the merged pair becomes the new pair
-            active.erase(j); ///< the old pair is removed from the list
-        }
-        active.insert(pair);
-    }
-    std::vector<ContigPair> removeLessThan(ContigPair const &p) { ///< remove (and return) any entries from the sort buffer
-        auto result = std::vector<ContigPair>();
-        auto const &first = *active.begin();
-        auto i = held.begin();
-        while (i != held.end()) {
-            auto j = *i++;
-            if (first < j) break;
-            result.push_back(j);
-            held.erase(j);
-        }
-        return result;
-    }
-public:
-    std::vector<ContigPair> add(ContigPair candidate) {
-        auto result = std::vector<ContigPair>();
+    unsigned long long in_count = 0;
+    unsigned long long out_count = 0;
+    unsigned long long gapless_count = 0;
+    auto time0 = time(nullptr);
+    auto freq = 0.1;
+    auto report = freq;
+
+    for ( ; ; ) {
+        auto pair = ContigPair(ifs);
+        auto const isEOF = pair.count == 0;
         
-        if (active.empty()) {
-            active.insert(candidate);
+        if ((!active.empty() && (pair.first.ref != ref || pair.first.start >= end)) || isEOF) {
+            // new pair is outside the active window (or EOF);
+            // output the active contig pairs and empty the window
+            
+            for (auto i : active) {
+                if (i.first.ref == i.second.ref && i.second.start < i.first.end) {
+                    // the region is gapless, i.e. the mate-pair gap has been filled in
+                    i.first.end = i.second.start = 0;
+                }
+            }
+            for (auto i = decltype(active.size())(0); i < active.size(); ++i) {
+                if (active[i].first.end != 0 || active[i].second.end != 0) continue;
+                // active[i] is gapless
+
+                auto const group = active[i].group;
+                auto start = active[i].first.start;
+                auto end = active[i].second.end;
+            AGAIN:
+                for (auto j = decltype(i)(0); j < active.size(); ++j) {
+                    if (j == i) continue;
+                    auto const &J = active[j];
+                    if (J.group != group || J.second.ref != ref || J.first.start >= end || J.second.end <= start) continue;
+                    
+                    // active[j] overlaps active[i]
+                    if ((J.first.end == 0 && J.second.start == 0) ///< active[j] is also gapless
+                        || (start < J.first.end && J.second.start < end)) ///< or active[i] covers active[j]'s gap
+                    {
+                        start = std::min(start, J.first.start);
+                        end = std::max(end, J.second.end);
+                        active[i].first.start = start;
+                        active[i].second.end = end;
+                        active[i].count += J.count;
+                        if (j < i)
+                            --i;
+                        active.erase(active.begin() + j);
+                        goto AGAIN;
+                    }
+                }
+            }
+            std::sort(active.begin(), active.end(), ///< want order to be canonical; should be mostly in-order already
+                      [](ContigPair const &a, ContigPair const &b) {
+                          if (a.first.start < b.first.start) return true;
+                          if (a.first.start > b.first.start) return false;
+                          if (a.first.end == 0 && a.second.start == 0) {
+                              if (b.first.end == 0 && b.second.start == 0) {
+                                  if (a.second.end < b.second.end) return false; ///< longer one goes first
+                                  if (a.second.end > b.second.end) return true;
+                              }
+                              else if (a.second.ref == b.second.ref) {
+                                  return true; ///< gapless one goes first
+                              }
+                              else {
+                                  return a.second.ref < b.second.ref;
+                              }
+                          }
+                          else if (b.first.end == 0 && b.second.start == 0) {
+                              if (a.second.ref == b.second.ref) {
+                                  return false; ///< gapless one goes first
+                              }
+                              else {
+                                  return a.second.ref < b.second.ref;
+                              }
+                          }
+                          else {
+                              // both have a gap
+                              if (a.first.end < b.first.end) return true;
+                              if (a.first.end > b.first.end) return false;
+                              if (a.second.ref < b.second.ref) return true;
+                              if (a.second.ref > b.second.ref) return false;
+                              if (a.second.start < b.second.start) return true;
+                              if (a.second.start > b.second.start) return false;
+                              if (a.second.end < b.second.end) return true;
+                              if (a.second.end > b.second.end) return false;
+                          }
+                          return a.group < b.group;
+                      });
+            for (auto && i : active) {
+                if (i.second.start == 0 && i.first.end == 0)
+                    ++gapless_count;
+                i.write(out);
+                ++out_count;
+            }
+            active.clear();
+            if (isEOF) goto REPORT;
         }
-        else if (candidate.first.ref != active.begin()->first.ref) {
-            result = clear();
-            active.insert(candidate);
+        if (active.empty()) {
+            ref = pair.first.ref;
+            end = pair.first.end;
+            active.emplace_back(pair);
         }
         else {
-            deactivateBefore(candidate.first.start);
-            merge(candidate);
-            result = removeLessThan(*active.begin());
+            for ( ; ; ) {
+                unsigned maxOverlap = 0;
+                auto merge = active.size(); ///< index of an existing contig pair into which the new pair should be merged
+                
+                for (auto i = active.size(); i != 0; ) {  ///< the best overlap is probably near the end of the list, so start at the back
+                    --i;                            ///< and loop backwards
+                    auto const &j = active[i];
+                    if (j.group == pair.group && j.second.ref == pair.second.ref) {
+                        if (j == pair) {
+                            /// found an exact match, and since the list is unique, we're done
+                            merge = i;
+                            break;
+                        }
+                        
+                        auto const start1 = std::max(pair.first.start, j.first.start);
+                        auto const start2 = std::max(pair.second.start, j.second.start);
+                        auto const end1 = std::min(pair.first.end, j.first.end);
+                        auto const end2 = std::min(pair.second.end, j.second.end);
+                        
+                        /// the regions of overlap are [start1 - end1), [start2 - end2)
+                        /// if either are empty (start >= end) then we aren't interested in the contig pair
+                        if (start1 < end1 && start2 < end2) {
+                            unsigned const overlap = (end1 - start1) + (end2 - start2);
+                            if (maxOverlap < overlap) {
+                                maxOverlap = overlap;
+                                merge = i;
+                            }
+                        }
+                    }
+                }
+                if (merge == active.size()) {
+                    end = std::max(end, pair.first.end);
+                    active.emplace_back(pair);
+                    break;
+                }
+                auto const mergedPair = active[merge] + pair;
+                if (active[merge] == mergedPair) {
+                    active[merge] = mergedPair;
+                    break;
+                }
+                pair = mergedPair;
+                active.erase(active.begin() + merge);
+            }
         }
-        return result;
-    }
-    std::vector<ContigPair> clear() {
-        held.insert(active.begin(), active.end());
-        active.clear();
-        auto result = std::vector<ContigPair>(held.begin(), held.end());
-        held.clear();
-        return result;
-    }
-};
 
-static int process(VDB::Writer const &out, std::istream &ifs)
-{
-    auto stats = Stats();
-
-    while (auto pair = ContigPair(ifs))
-    {
-        auto const &dead = stats.add(pair);
-
-        for (auto && i : dead) {
-            i.write(out);
+        ++in_count;
+        if (ifs.position() >= report) {
+            report += freq;
+        REPORT:
+            auto elapsed = double(time(nullptr) - time0);
+            if (elapsed > 0)
+                std::cerr << "prog: " << unsigned(ifs.position() * 100.0) << "%; " << in_count << " alignments processed (" << in_count / elapsed << " per sec); (" << gapless_count << " gapless) " << out_count << " contig pairs generated (" << out_count / elapsed << " per sec); ratio: " << double(in_count) / out_count << std::endl;
+            else
+                std::cerr << "prog: " << unsigned(ifs.position() * 100.0) << "%; " << in_count << " alignments processed; (" << gapless_count << " gapless) " << out_count << " contig pairs generated; ratio: " << double(in_count) / out_count << std::endl;
+            if (isEOF)
+                return 0;
         }
     }
-    for (auto && i : stats.clear()) {
-        i.write(out);
-    }
-    return 0;
 }
 
 static int reduce(std::ostream &out, std::string const &source)
 {
-    std::ifstream ifs;
+    int fd = 0;
     if (source != "-") {
-        ifs.open(source);
-        if (!ifs) {
+        fd = POSIX::open(source.c_str(), O_RDONLY);
+        if (fd < 0) {
             std::cerr << "failed to open pairs file: " << source << std::endl;
             exit(3);
         }
     }
-    std::istream &in = source == "-" ? std::cin : ifs;
+    LineBuffer in(fd);
     auto const writer = VDB::Writer(out);
     
     writer.destination("IR.vdb");
@@ -445,8 +541,6 @@ static int map(std::ostream &out, std::string const &run)
     auto const inDb = mgr[run];
     auto const in = Fragment::Cursor(inDb["RAW"]);
     auto const range = in.rowRange();
-    
-    std::ios_base::sync_with_stdio(false);
     
     for (auto row = range.first; row < range.second; ) {
         auto const fragment = in.read(row, range.second);
@@ -519,5 +613,7 @@ namespace pairsStatistics {
 }
 
 int main(int argc, char *argv[]) {
+    std::ios_base::sync_with_stdio(false);
+    
     return pairsStatistics::main(CommandLine(argc, argv));
 }

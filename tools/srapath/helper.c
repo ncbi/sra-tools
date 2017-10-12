@@ -24,8 +24,10 @@
 *
 */
 
+#include "srapath.h" /* FUNCTION_NAMES */
 #include "helper.h"
 
+#include <kapp/main.h> /* AsciiToU32 */
 #include <klib/log.h>
 #include <klib/text.h>
 #include <klib/printf.h>
@@ -139,13 +141,13 @@ func_t get_func_t( const char * function )
     {
         String Function, F_names;
         StringInitCString( &Function, function );
-        StringInitCString( &F_names, "names" );
+        StringInitCString( &F_names, FUNCTION_NAMES );
         if ( 0 == StringCaseCompare ( &Function, &F_names ) )
             res = ft_names;
         else
         {
             String F_search;
-            StringInitCString( &F_search, "search" );
+            StringInitCString( &F_search, FUNCTION_SEARCH );
             if ( 0 == StringCaseCompare ( &Function, &F_search ) )
                 res = ft_search;
         }
@@ -300,13 +302,13 @@ rc_t args_to_ptrs( const struct Args * args, const char *** ptr )
     uint32_t count;
     rc_t rc = ArgsParamCount( args, &count );
     if ( rc != 0 )
-        ErrMsg( "ArgsOptionCount() -> %R", rc );
+        ErrMsg( "ArgsParamCount() -> %R", rc );
     else
     {
         const char ** x = calloc( count + 1, sizeof *x );
         if ( x == NULL )
         {
-            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            rc = RC( rcExe, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             ErrMsg( "calloc( %d ) -> %R", count * ( sizeof * x ), rc );
         }
         else
@@ -326,6 +328,55 @@ rc_t args_to_ptrs( const struct Args * args, const char *** ptr )
     }
     return rc;
 
+}
+
+static void CC HandleAsciiToIntError ( const char *arg, void *ignore ) {
+    rc_t * rc = ignore;
+
+    assert ( rc );
+
+    if ( arg == NULL )
+        * rc = RC ( rcApp, rcNumeral, rcConverting, rcString, rcNull );
+    else if ( arg [ 0 ] == 0 )
+        * rc = RC ( rcApp, rcNumeral, rcConverting, rcString, rcEmpty );
+    else
+        * rc = RC ( rcApp, rcNumeral, rcConverting, rcString, rcInvalid );
+ 
+    LOGERR ( klogErr, * rc,
+        "'--" OPTION_PRJ "' value should be a positive number" );
+}
+
+rc_t options_to_nums ( const struct Args * args,
+                       const char * name, uint32_t ** ptr )
+{
+    uint32_t count = 0;
+    rc_t rc = ArgsOptionCount ( args, name, & count );
+    if ( rc != 0 )
+        ErrMsg( "ArgsOptionCount(%s) -> %R", name, rc );
+    else {
+        uint32_t * x = calloc ( count + 1, sizeof * x );
+        if ( x == NULL ) {
+            rc = RC ( rcExe, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            ErrMsg ( "calloc( %d ) -> %R", count * ( sizeof * x ), rc );
+        }
+        else
+        {
+            uint32_t idx = 0;
+            for ( idx = 0; rc == 0 && idx < count; ++ idx ) {
+                const char * v = NULL;
+                rc = ArgsOptionValue ( args, name, idx, ( const void ** ) & v );
+                if ( rc != 0 )
+                    ErrMsg( "ArgsOptionValue( #%d) -> %R", idx, rc );
+                else
+                    x [ idx ] = AsciiToU32 ( v, HandleAsciiToIntError, & rc );
+            }
+            if ( rc == 0 )
+                * ptr = x;
+            else
+                free ( ( void * ) x );
+        }
+    }
+    return rc;
 }
 
 rc_t foreach_option( const struct Args * args, const char * option_name,
@@ -391,7 +442,7 @@ rc_t options_to_ptrs( const struct Args * args, const char * option_name, const 
         const char ** x = calloc( count + 1, sizeof *x );
         if ( x == NULL )
         {
-            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            rc = RC( rcExe, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
             ErrMsg( "calloc( %d ) -> %R", count * ( sizeof * x ), rc );
         }
         else

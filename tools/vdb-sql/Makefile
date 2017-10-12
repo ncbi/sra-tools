@@ -22,66 +22,77 @@
 #
 # ===========================================================================
 
-by_default: default
 
-TOP ?= $(abspath ..)
-MODULE = tools
+default: std
 
-include $(TOP)/build/Makefile.shell
+TOP ?= $(abspath ../..)
+MODULE = tools/vdb-sql
 
-include $(TOP)/build/Makefile.config
+INT_TOOLS = \
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =             \
-	util              \
-	align-cache       \
-	kar               \
-	kqsh              \
-	vdb-dump          \
-	sra-dump          \
-	sra-pileup        \
-	bam-loader        \
-	fastq-loader      \
-	srapath           \
-	sra-stat          \
-	vdb-copy          \
-	rd-filter-redact  \
-	vdb-config        \
-	align-info        \
-	qual-recalib-stat \
-	prefetch          \
-	vdb-decrypt       \
-	vdb-validate      \
-	sra-sort          \
-	cache-mgr         \
-	vcf-loader        \
-	copycat           \
-	sra-load          \
-	ccextract         \
-	pacbio-load       \
-	fuse              \
-	vdb-diff          \
-	kget              \
-	ngs-pileup        \
-	fastdump          \
-	vdb-sql           \
-	cg-load           \
+EXT_TOOLS = \
+	vdb-sql \
+	fastconv
+    
+ALL_TOOLS = \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
 
-
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
-
-$(SUBDIRS):
-	@ $(MAKE) -C $@
-
-.PHONY: default $(SUBDIRS)
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
-# pass-through
+# outer targets
 #
-out debug profile release GCC ICC VC++:
-	@ $(MAKE) TOP=$(TOP) -f $(TOP)/build/Makefile.env $@
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-.PHONY: out debug profile release GCC ICC VC++
+$(ALL_TOOLS): makedirs
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
+
+#-------------------------------------------------------------------------------
+# clean
+#
+clean: stdclean
+
+.PHONY: clean
+
+#-------------------------------------------------------------------------------
+# the tool: vdb-sql
+# ( a version of the sqlite3-commandline-tool with the vdb-lib statically linked into it )
+#
+#   vdb_shellc. .... the originial sqlite3.c preloaded with the vdb-virtual table
+#                    and enhanced by additional commandline-arguments
+
+VDB_SQL_SRC = \
+	vdb_shell
+
+VDB_SQL_LIB = \
+	-svdb-sqlite \
+	-lm \
+	-lpthread
+
+VDB_SQL_OBJ = \
+	$(addsuffix .$(OBJX),$(VDB_SQL_SRC))
+
+$(BINDIR)/vdb-sql: $(VDB_SQL_OBJ)
+	$(LD) --exe -o $@ $^ $(VDB_SQL_LIB)
+
+#-------------------------------------------------------------------------------
+# the tool: fastconv
+FASTCONV_SRC = \
+	fastconv
+
+FASTCONV_LIB = \
+	-skapp \
+	-stk-version \
+	-svdb-sqlite \
+	-lm \
+	-lpthread
+
+FASTCONV_OBJ = \
+	$(addsuffix .$(OBJX),$(FASTCONV_SRC))
+
+$(BINDIR)/fastconv: $(FASTCONV_OBJ)
+	$(LD) --exe -o $@ $^ $(FASTCONV_LIB)

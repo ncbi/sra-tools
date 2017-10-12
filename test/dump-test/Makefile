@@ -20,7 +20,15 @@
 #
 #  Please cite the author in any work or product based on this material.
 #
-# ===========================================================================
+# ==============================================================================
 
-# SRA-TOOLS and library version
-VERSION = 2.9.0
+default: runtests
+
+TOP ?= $(abspath ../..)
+
+include $(TOP)/build/Makefile.env
+
+runtests: check_fastq_dump_crash
+
+check_fastq_dump_crash:
+	$(BINDIR)/fastq-dump -Z -split-3 ERR034677 SRR125365 > /dev/null

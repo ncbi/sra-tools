@@ -69,6 +69,7 @@
 #include <os-native.h> /* strtok_r on Windows */
 
 #include <assert.h>
+#include <ctype.h> /* isprint */
 #include <math.h> /* sqrt */
 #include <stdlib.h>
 #include <string.h>
@@ -89,7 +90,7 @@
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
     if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
 
-#define MAX_NREADS 2*1024
+#define MAX_NREADS ( 4 * 1024 )
 
 #define DEFAULT_CURSOR_CAPACITY (1024*1024*1024UL)
 
@@ -896,13 +897,14 @@ typedef struct TableCounts {
 } TableCounts;
 typedef struct Ctx {
     const BSTree* tr;
-    const MetaDataStats* meta;
+    const MetaDataStats* meta_stats;
     const SraMeta* info;
     const SraSizeStats* sizes;
     const ArcInfo* arc_info;
     srastat_parms* pb;
     SraStatsTotal* total;
     const VDatabase* db;
+    const KMetadata* meta; /* from Table (when running on table) */
     QualityStats quality;
     TableCounts tables;
 } Ctx;
@@ -912,15 +914,15 @@ rc_t CC meta_RG_callback(const BAM_HEADER_RG* rg, const void* data)
 {
     rc_t rc = 0;
 
-    const MetaDataStats* meta = data;
+    const MetaDataStats* meta_stats = data;
 
     int i = 0;
     bool found = false;
 
-    assert(rg && meta && rg->ID);
+    assert(rg && meta_stats && rg->ID);
 
-    for (i = 0; i < meta->spotGroupN && rc == 0; ++i) {
-        SraStatsMeta* ss = &meta->spotGroup[i];
+    for (i = 0; i < meta_stats->spotGroupN && rc == 0; ++i) {
+        SraStatsMeta* ss = &meta_stats->spotGroup[i];
         const char* spot_group = ss->spot_group;
 
         assert(spot_group);
@@ -2134,20 +2136,20 @@ static rc_t printXmlEscaped ( const char * c ) {
 }
 
 static
-void srastatmeta_print(const MetaDataStats* meta, srastat_parms *pb)
+void srastatmeta_print(const MetaDataStats* meta_stats, srastat_parms *pb)
 {
     uint32_t i = 0;
-    assert(pb && meta);
+    assert(pb && meta_stats);
 
-    if (meta->spotGroupN) {
-        for (i = 0; i < meta->spotGroupN; ++i) {
-            const SraStatsMeta* ss = &meta->spotGroup[i];
+    if (meta_stats->spotGroupN) {
+        for (i = 0; i < meta_stats->spotGroupN; ++i) {
+            const SraStatsMeta* ss = &meta_stats->spotGroup[i];
             if (!pb->skip_members) {
                 const char* spot_group = "";
                 if (strcmp("default", ss->spot_group) != 0)
                 {   spot_group = ss->spot_group; }
                 if ((spot_group == NULL || spot_group[0] == '\0')
-                    && meta->spotGroupN > 1)
+                    && meta_stats->spotGroupN > 1)
                 {
                     /* skip an empty "extra" 'default' spot_group */
                     if (ss->BASE_COUNT == 0     && ss->BIO_BASE_COUNT == 0 &&
@@ -2191,13 +2193,13 @@ void srastatmeta_print(const MetaDataStats* meta, srastat_parms *pb)
         if (!pb->xml && !(pb->quick && pb->skip_members)) {
                 const char* spot_group = "";
                 OUTMSG(("%s|%s|%ld:%ld:%ld|:|:|:\n",
-                        pb->table_path, spot_group, meta->table.spot_count,
-                        meta->table.BASE_COUNT, meta->table.BIO_BASE_COUNT));
+                        pb->table_path, spot_group, meta_stats->table.spot_count,
+                        meta_stats->table.BASE_COUNT, meta_stats->table.BIO_BASE_COUNT));
         }
-        pb->total.spot_count = meta->table.spot_count;
-        pb->total.BASE_COUNT = meta->table.BASE_COUNT;
-        pb->total.BIO_BASE_COUNT = meta->table.BIO_BASE_COUNT;
-        pb->total.total_cmp_len = meta->table.CMP_BASE_COUNT;
+        pb->total.spot_count = meta_stats->table.spot_count;
+        pb->total.BASE_COUNT = meta_stats->table.BASE_COUNT;
+        pb->total.BIO_BASE_COUNT = meta_stats->table.BIO_BASE_COUNT;
+        pb->total.total_cmp_len = meta_stats->table.CMP_BASE_COUNT;
     }
 }
 
@@ -2318,6 +2320,181 @@ rc_t process_align_info(const char* indent, const Ctx* ctx)
     return rc;
 }
 
+/******************************************************************************/
+
+static
+void printChangeValue ( const char * value,
+                        size_t size )
+{
+    assert ( value );
+
+    switch ( size ) {
+        case 1:
+            OUTMSG ( ( "%hu", ( ( const uint8_t * ) value ) [ 0 ] ) );
+            break;
+        case 2:
+            OUTMSG ( ( "%u", ( ( const uint16_t * ) value ) [ 0 ] ) );
+            break;
+        case 4:
+            OUTMSG ( ( "%u", ( ( const uint32_t * ) value ) [ 0 ] ) );
+            break;
+        case 8:
+            OUTMSG ( ( "%lu", ( ( const uint64_t * ) value ) [ 0 ] ) );
+            break;
+        default: {
+            size_t i = 0;
+            for ( i = 0; i < size; ++ i ) {
+                char c = value [ i ];
+                if ( isprint ( c ) )
+                    OUTMSG ( ( "%c", c ) );
+                else
+                    OUTMSG ( ( "\\x%02X", ( ( const uint8_t* ) value ) [ i ] ));
+            }
+            break;
+        }
+    }
+}
+
+static
+rc_t KMDataNodePrintAttr ( const KMDataNode * self,
+                           const KNamelist * attrs,
+                           uint32_t idx )
+{
+    rc_t rc = 0;
+
+    const char * attr = NULL;
+    char value [ 512 ] = "";
+    size_t size = 0;
+
+    rc = KNamelistGet ( attrs, idx, & attr );
+
+    if ( rc == 0 )
+        rc = KMDataNodeReadAttr ( self, attr, value, sizeof value, & size );
+
+    if ( rc == 0 )
+        rc = OUTMSG ( ( " %s=\"%s\"", attr, value ) );
+
+    if ( rc != 0 )
+        OUTMSG ( ( " CANNOT_READ_ATTRIBULE=\"%R\"", rc ) );
+
+    return rc;
+}
+
+static
+rc_t KMDataNodePrintChange ( const KMDataNode * self,
+                            const char * name,
+                            const char * indent )
+{
+    rc_t rc = 0;
+
+    const KMDataNode * node = NULL;
+
+    rc = KMDataNodeOpenNodeRead ( self, & node, name );
+    DISP_RC2 ( rc, name,
+        "while calling KMDataNodeOpenNodeRead" );
+
+    if ( rc == 0 ) {
+        const char tag [] = "Change";
+        char value [] = "sra-stat: ERROR WHILE READING CHANGES CHILD VALUE";
+        size_t size = 0;
+
+        KNamelist * names = NULL;
+        uint32_t count = 0;
+
+        KMDataNodeRead ( node, 0, value, sizeof value, & size, NULL );
+        if ( size == 0 )
+            size = sizeof value;
+
+        rc = KMDataNodeListAttr ( node, & names );
+        DISP_RC2 ( rc, name,
+            "while calling KMDataNodeListAttr" );
+
+        if ( rc == 0 )
+            rc = KNamelistCount ( names, & count );
+
+        if ( rc == 0 ) {
+            uint32_t i = 0;
+
+            OUTMSG ( ( "  %s" "<%s", indent, tag ) );
+            for ( i = 0; i < count; ++i )
+                KMDataNodePrintAttr ( node, names, i );
+            OUTMSG ( ( ">" ) );
+
+            printChangeValue ( value, size );
+
+            OUTMSG ( ( "</%s>\n", tag ) );
+        }
+
+        RELEASE ( KNamelist, names );
+    }
+
+    RELEASE ( KMDataNode, node );
+
+    return rc;
+}
+
+static rc_t CtxPrintCHANGES ( const Ctx * self, const char * indent ) {
+    rc_t rc = 0;
+
+    const KMetadata * meta = NULL;
+    const KMDataNode * parent = NULL;
+    bool toReleaseMeta = false;
+
+    const char meta_tag [] = "CHANGES";
+    const char tag [] = "Changes";
+
+    assert ( self && indent );
+
+    meta = self -> meta;
+    if ( meta == NULL ) {
+        rc = VDatabaseOpenMetadataRead ( self -> db, & meta );
+        if ( rc != 0 )
+            return rc;
+        toReleaseMeta = true;
+    }
+
+    KMetadataOpenNodeRead ( meta, & parent, meta_tag );
+
+    if ( parent != NULL ) {
+        KNamelist * names = NULL;
+        rc = KMDataNodeListChild ( parent, & names );
+        DISP_RC2 ( rc, meta_tag, "while calling KMDataNodeListChild" );
+
+        OUTMSG ( ( "%s" "<%s>"  "\n", indent, tag ) );
+
+        if ( rc == 0 ) {
+            uint32_t count = 0;
+            rc = KNamelistCount ( names, & count );
+            DISP_RC2 ( rc, meta_tag, "while calling KNamelistCount" );
+
+            if ( rc == 0 ) {
+                uint32_t i = 0;
+                for ( i = 0; i < count && rc == 0; ++i ) {
+                    const char * child = NULL;
+                    rc = KNamelistGet ( names, i, & child );
+                    if ( rc != 0 )
+                       PLOGERR ( klogInt, ( klogInt, rc,
+                            "while calling $(n)::KNamelistGet($(idx))",
+                            "n=%s,idx=%i", meta_tag, i ) );
+                    else
+                        rc = KMDataNodePrintChange ( parent, child, indent );
+                }
+            }
+        }
+
+        OUTMSG ( ( "%s" "</%s>" "\n", indent, tag ) );
+
+        RELEASE ( KNamelist, names );
+    }
+
+    if ( toReleaseMeta )
+        RELEASE ( KMetadata, meta );
+
+    RELEASE ( KMDataNode, parent );
+
+    return rc;
+}
+
 static
 rc_t print_results(const Ctx* ctx)
 {
@@ -2326,23 +2503,23 @@ rc_t print_results(const Ctx* ctx)
     bool mismatch = false;
 
     assert(ctx && ctx->pb
-        && ctx->tr && ctx->sizes && ctx->info && ctx->meta && ctx->total);
+        && ctx->tr && ctx->sizes && ctx->info && ctx->meta_stats && ctx->total);
 
     if (ctx->pb->quick) {
-        if ( ! ctx->meta -> found )
+        if ( ! ctx->meta_stats -> found )
             LOGMSG(klogWarn, "Statistics metadata not found");
         else
         {
-            ctx->pb->hasSPOT_GROUP = ctx->meta->spotGroupN > 1 ||
-                (ctx->meta->spotGroupN == 1
-                 && strcmp("default", ctx->meta->spotGroup[0].spot_group) != 0);
+            ctx->pb->hasSPOT_GROUP = ctx->meta_stats->spotGroupN > 1 ||
+                (ctx->meta_stats->spotGroupN == 1
+                 && strcmp("default", ctx->meta_stats->spotGroup[0].spot_group) != 0);
         }
     }
 
-    if (ctx->meta->found && ! ctx->pb->quick) {
+    if (ctx->meta_stats->found && ! ctx->pb->quick) {
 /*      bool mismatch = false; */
         SraStats* ss = (SraStats*)BSTreeFind(ctx->tr, "", srastats_cmp);
-        const SraStatsMeta* m = &ctx->meta->table;
+        const SraStatsMeta* m = &ctx->meta_stats->table;
         if (ctx->total->BASE_COUNT != m->BASE_COUNT)
         { mismatch = true; }
         if (ctx->total->BIO_BASE_COUNT != m->BIO_BASE_COUNT)
@@ -2352,11 +2529,11 @@ rc_t print_results(const Ctx* ctx)
         if (ctx->total->total_cmp_len != m->CMP_BASE_COUNT)
         { mismatch = true; }
         if (ss != NULL) {
-            const SraStatsMeta* m = &ctx->meta->table;
+            const SraStatsMeta* m = &ctx->meta_stats->table;
             uint32_t i = 0;
-            for (i = 0; i < ctx->meta->spotGroupN && !mismatch; ++i) {
+            for (i = 0; i < ctx->meta_stats->spotGroupN && !mismatch; ++i) {
                 const char* spot_group = "";
-                m = &ctx->meta->spotGroup[i];
+                m = &ctx->meta_stats->spotGroup[i];
                 assert(m);
                 if (strcmp("default", m->spot_group) != 0)
                 {   spot_group = m->spot_group; }
@@ -2379,18 +2556,18 @@ rc_t print_results(const Ctx* ctx)
 
     if (ctx->pb->xml) {
         OUTMSG(("<Run accession=\"%s\"", ctx->pb->table_path));
-        if (!ctx->pb->quick || ! ctx->meta->found) {
+        if (!ctx->pb->quick || ! ctx->meta_stats->found) {
             OUTMSG((" read_length=\"%s\"",
                 ctx->pb->variableReadLength ? "variable" : "fixed"));
         }
         if (ctx->pb->quick) {
             OUTMSG((" spot_count=\"%ld\" base_count=\"%ld\"",
-                ctx->meta->table.spot_count, ctx->meta->table.BASE_COUNT));
+                ctx->meta_stats->table.spot_count, ctx->meta_stats->table.BASE_COUNT));
             OUTMSG((" base_count_bio=\"%ld\"",
-                ctx->meta->table.BIO_BASE_COUNT));
-            if (ctx->meta->table.CMP_BASE_COUNT > 0) {
+                ctx->meta_stats->table.BIO_BASE_COUNT));
+            if (ctx->meta_stats->table.CMP_BASE_COUNT > 0) {
                 OUTMSG((" cmp_base_count=\"%ld\"",
-                    ctx->meta->table.CMP_BASE_COUNT));
+                    ctx->meta_stats->table.CMP_BASE_COUNT));
             }
         }
         else {
@@ -2413,8 +2590,8 @@ rc_t print_results(const Ctx* ctx)
     else if (ctx->pb->skip_members) {
         if (ctx->pb->quick) {
             OUTMSG(("%s||%ld:%ld:%ld|:|:|:\n",
-                ctx->pb->table_path, ctx->meta->table.spot_count,
-                ctx->meta->table.BASE_COUNT, ctx->meta->table.BIO_BASE_COUNT));
+                ctx->pb->table_path, ctx->meta_stats->table.spot_count,
+                ctx->meta_stats->table.BASE_COUNT, ctx->meta_stats->table.BIO_BASE_COUNT));
         }
         else {
             OUTMSG(("%s||%ld:%ld:%ld|%ld:%ld|%ld:%ld|%ld:%ld\n",
@@ -2427,14 +2604,14 @@ rc_t print_results(const Ctx* ctx)
         }
     }
 
-    if (ctx->pb->quick && ctx->meta->found) {
+    if (ctx->pb->quick && ctx->meta_stats->found) {
         memset(&ctx->pb->total, 0, sizeof ctx->pb->total);
-        rc = parse_bam_header(ctx->db, meta_RG_callback, ctx->meta);
-        srastatmeta_print(ctx->meta, ctx->pb);
-        if (ctx->pb->total.spot_count != ctx->meta->table.spot_count ||
-            ctx->pb->total.BIO_BASE_COUNT != ctx->meta->table.BIO_BASE_COUNT ||
-            ctx->pb->total.BASE_COUNT != ctx->meta->table.BASE_COUNT ||
-            ctx->pb->total.total_cmp_len != ctx->meta->table.CMP_BASE_COUNT)
+        rc = parse_bam_header(ctx->db, meta_RG_callback, ctx->meta_stats);
+        srastatmeta_print(ctx->meta_stats, ctx->pb);
+        if (ctx->pb->total.spot_count != ctx->meta_stats->table.spot_count ||
+            ctx->pb->total.BIO_BASE_COUNT != ctx->meta_stats->table.BIO_BASE_COUNT ||
+            ctx->pb->total.BASE_COUNT != ctx->meta_stats->table.BASE_COUNT ||
+            ctx->pb->total.total_cmp_len != ctx->meta_stats->table.CMP_BASE_COUNT)
         {
             rc = RC(rcExe, rcData, rcValidating, rcData, rcUnequal);
         }
@@ -2444,8 +2621,8 @@ rc_t print_results(const Ctx* ctx)
         memset(&ctx->pb->total, 0, sizeof ctx->pb->total);
         rc = parse_bam_header(ctx->db, tree_RG_callback, ctx->tr);
         BSTreeForEach(ctx->tr, false, srastat_print, ctx->pb);
-        if (ctx->meta->found) {
-            const SraStatsMeta* m = &ctx->meta->table;
+        if (ctx->meta_stats->found) {
+            const SraStatsMeta* m = &ctx->meta_stats->table;
             if (ctx->pb->total.BASE_COUNT != m->BASE_COUNT
                 || ctx->pb->total.BIO_BASE_COUNT != m->BIO_BASE_COUNT
                 || ctx->pb->total.spot_count != m->spot_count)
@@ -2552,6 +2729,8 @@ rc_t print_results(const Ctx* ctx)
         {   rc = QualityStatsPrint(&ctx->quality, "  "); }
         if (rc == 0)
         {   rc = TableCountsPrint(&ctx->tables, "  "); }
+        if ( rc == 0 )
+            rc = CtxPrintCHANGES ( ctx, "  " );
         OUTMSG(("</Run>\n"));
     }
     if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
@@ -2955,17 +3134,6 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         }
                                     }
                                 }
-/*                              if (cCMP_READ) {
-      rc = SRAColumnRead(cCMP_READ, spotid, &base, &boff, &row_bits);
-      DISP_RC_Read(rc, CMP_READ, spotid, "while calling SRAColumnRead");
-      if (boff & 7)
-      {   rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
-      if (row_bits & 7)
-      {   rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid); }
-      DISP_RC_Read(rc, CMP_READ, spotid, "after calling calling SRAColumnRead");
-      if (rc == 0)
-      {   assert(cmp_len == row_bits >> 3); }
-                                               } */
 
                                 ss = (SraStats*)BSTreeFind
                                     (tr, dSPOT_GROUP, srastats_cmp);
@@ -2997,6 +3165,11 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         = filt_cnt = 0;
                                     (i < nreads) && (rc == 0); i++)
                                 {
+                                    if ( i >= MAX_NREADS ) {
+                                        rc = RC ( rcExe, rcData, rcProcessing,
+                                                  rcBuffer, rcInsufficient );
+                                        break;
+                                    }
                                     if (dREAD_LEN[i] > 0) {
                                         g_totalREAD_LEN[i] += dREAD_LEN[i];
                                         ++g_nonZeroLenReads[i];
@@ -3151,6 +3324,9 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     idx, &base, &boff, &row_bits);
                 DISP_RC_Read(rc, READ_LEN, spotid,
                     "while calling VCursorColumnRead");
+                if ( ( row_bits >> 3 ) > sizeof dREAD_LEN )
+                    rc = RC ( rcExe, rcColumn, rcReading,
+                              rcBuffer, rcInsufficient);
             }
             if (rc == 0) {
                 memmove(dREAD_LEN, ((const char*)base) + (boff>>3), row_bits>>3);
@@ -3287,8 +3463,10 @@ rc_t run(srastat_parms* pb)
             }
             if (rc == 0) {
                 ctx.db = db;
+                if ( db == NULL )
+                    ctx . meta = meta;
                 ctx.info = &info;
-                ctx.meta = &stats;
+                ctx.meta_stats = &stats;
                 ctx.pb = pb;
                 ctx.sizes = &sizes;
                 ctx.total = &total;

@@ -1,3 +1,4 @@
+#!/bin/bash
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -22,5 +23,32 @@
 #
 # ===========================================================================
 
-# SRA-TOOLS and library version
-VERSION = 2.9.0
+# install-kfg.sh
+#   copies file $1 from $2 to $3.
+#   Will create a backup copy if the file's md5 is not found in $4 (assumed to be a user's edit)
+#
+
+FILE_NAME=$1
+SRC_DIR=$2
+KONFIG_DIR=$3
+MD5SUMS=$4
+
+SRC_FILE=$2/$1
+TGT_FILE=$3/$1
+
+mkdir -p ${KONFIG_DIR}
+
+#echo "installing $1 from $2 to $3, mdsums = $4"
+
+# create a backup if installed file has been modified by user
+if [ -f ${TGT_FILE} ] ; then
+    md5=$(md5sum ${TGT_FILE} | awk '{print $1;}')
+    #echo "$1 md5=$md5"
+    if [ "$(grep ${md5} ${MD5SUMS})" == "" ] ; then
+        # not a known version of the file; create a backup copy
+        mv -b -v ${TGT_FILE} ${TGT_FILE}.orig
+    fi
+fi
+
+# copy to the install location
+cp ${SRC_FILE} ${TGT_FILE}

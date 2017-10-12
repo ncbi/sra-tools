@@ -22,5 +22,12 @@
 #
 # ===========================================================================
 
-# SRA-TOOLS and library version
-VERSION = 2.9.0
+TOP ?= $(abspath ../..)
+include $(TOP)/build/Makefile.env # BINDIR
+
+default: runtests
+
+slowtests: test-copy
+
+test-copy:
+	PATH=$(BINDIR):$(PATH) ./md-created.sh

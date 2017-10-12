@@ -65,15 +65,10 @@ SUBDIRS =             \
 	vdb-diff          \
 	kget              \
 	ngs-pileup        \
-	general-loader    \
 	fastdump          \
 	vdb-sql           \
+	cg-load           \
 
-ifneq (win,$(BUILD_OS))
-ifneq (rwin,$(BUILD_OS))
-	SUBDIRS += cg-load pileup-stats
-endif
-endif
 
 # common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
 include $(TOP)/build/Makefile.targets

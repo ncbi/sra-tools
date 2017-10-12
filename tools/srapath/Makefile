@@ -63,6 +63,8 @@ clean: stdclean
 SRAPATH_SRC = \
 	helper \
 	line_iter \
+	repository-mgr \
+	services \
 	cgi_request \
 	srapath
 

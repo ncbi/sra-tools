@@ -31,7 +31,7 @@ include 'vdb/vdb.vschema';
 table NCBI:tbl:IR:raw #1
 {
     extern column <ascii>  zip_encoding READ_GROUP;
-    extern column <ascii>  zip_encoding FRAGMENT;
+    extern column <ascii>  zip_encoding NAME;
     extern column   <I32> izip_encoding READNO;
     extern column <ascii>  zip_encoding PLATFORM;
     extern column <ascii>  zip_encoding SEQUENCE;
@@ -58,34 +58,81 @@ table NCBI:tbl:aligned:SPOT_STATISTICS #1
     extern column U32 FRAGMENT_LENGTH_EQUIPART;
 };
 
-table NCBI:tbl:aligned:CONTIG_STATS #1
+table NCBI:tbl:IR:CONTIGS #1
 {
     extern column <ascii>  zip_encoding REFERENCE_1;
     extern column   <I32> izip_encoding START_1;
     extern column   <I32> izip_encoding END_1;
-    extern column   <F32>  zip_encoding SEQ_LENGTH_AVERAGE_1;
-    extern column   <F32>  zip_encoding SEQ_LENGTH_STD_DEV_1;
-    extern column   <F32>  zip_encoding REF_LENGTH_AVERAGE_1;
-    extern column   <F32>  zip_encoding REF_LENGTH_STD_DEV_1;
 
     extern column <ascii>  zip_encoding REFERENCE_2;
     extern column   <I32> izip_encoding START_2;
     extern column   <I32> izip_encoding END_2;
-    extern column   <F32>  zip_encoding SEQ_LENGTH_AVERAGE_2;
-    extern column   <F32>  zip_encoding SEQ_LENGTH_STD_DEV_2;
-    extern column   <F32>  zip_encoding REF_LENGTH_AVERAGE_2;
-    extern column   <F32>  zip_encoding REF_LENGTH_STD_DEV_2;
 
     extern column   <U32> izip_encoding COUNT;
+    extern column <ascii>  zip_encoding READ_GROUP;
+};
+
+table NCBI:tbl:aligned:CONTIGS #1
+{
+    extern column <ascii>  zip_encoding REFERENCE;
+    extern column   <I32> izip_encoding START;
+    extern column   <I32> izip_encoding END;
+
+    extern column   <F32>  zip_encoding SEQ_LENGTH_AVERAGE;
+    extern column   <F32>  zip_encoding SEQ_LENGTH_STD_DEV;
+    extern column   <F32>  zip_encoding REF_LENGTH_AVERAGE;
+    extern column   <F32>  zip_encoding REF_LENGTH_STD_DEV;
+
+    extern column   <U32> izip_encoding FRAGMENT_COUNT;
     extern column   <F32>  zip_encoding FRAGMENT_LENGTH_AVERAGE;
     extern column   <F32>  zip_encoding FRAGMENT_LENGTH_STD_DEV;
     extern column <ascii>  zip_encoding READ_GROUP;
+};
+
+table NCBI:tbl:aligned:REFERENCE #1
+{
+    extern column <ascii>  zip_encoding NAME;
+
+/* these columns would be empty for a "real" reference */
+    extern column <ascii>  zip_encoding REFERENCE_1;
+    extern column   <I32> izip_encoding START_1;
+    extern column   <I32> izip_encoding END_1;
+
+    extern column   <I32> izip_encoding GAP;
+
+    extern column <ascii>  zip_encoding REFERENCE_2;
+    extern column   <I32> izip_encoding START_2;
+    extern column   <I32> izip_encoding END_2;
+};
+
+table NCBI:tbl:aligned:FRAGMENT #1
+{
+    extern column <ascii>  zip_encoding READ_GROUP;
+    extern column <ascii>  zip_encoding PLATFORM;
+
+    extern column <ascii>  zip_encoding REFERENCE;
+    extern column   <I64> izip_encoding CONTIG;
+    extern column <ascii>  zip_encoding LAYOUT;
+    extern column   <I32> izip_encoding POSITION;
+    extern column   <I32> izip_encoding LENGTH;
+    extern column <ascii>  zip_encoding CIGAR;
+
+    extern column <ascii>  zip_encoding NAME;
+    extern column <ascii>  zip_encoding SEQUENCE;
+    extern column <ascii>  zip_encoding QUALITY;
 };
 
 database NCBI:db:IR:raw #1
 {
     table NCBI:tbl:IR:raw #1.0 RAW;
     table NCBI:tbl:IR:raw #1.0 DISCARDED;
-    table NCBI:tbl:aligned:SPOT_STATISTICS #1 LAYOUT_STATS;
-    table NCBI:tbl:aligned:CONTIG_STATS #1 CONTIG_STATS;
+    table NCBI:tbl:IR:CONTIGS #1 CONTIGS;
+};
+
+database NCBI:db:IR:aligned #1
+{
+    table NCBI:tbl:aligned:FRAGMENT #1.0 FRAGMENTS;
+    table NCBI:tbl:aligned:REFERENCE #1 REFERENCES;
+    table NCBI:tbl:IR:raw #1.0 REJECTS;
+    table NCBI:tbl:aligned:CONTIGS #1 CONTIGS;
 };

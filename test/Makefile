@@ -35,6 +35,7 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =    \
+	dump-test       \
 	vdb-config      \
 	vcf-loader      \
 	align-info      \

@@ -2480,7 +2480,10 @@ static void Fastq3ReadSplitterFactory_Release( const SRASplitterFactory* cself )
     {
         Fastq3ReadSplitterFactory* self = ( Fastq3ReadSplitterFactory* )cself;
         FastqReaderWhack( self->reader );
+        memset ( self, 0, sizeof * self );
+
         free( Fastq3ReadSplitter_key_buf );
+        Fastq3ReadSplitter_key_buf = NULL;
     }
 }
 

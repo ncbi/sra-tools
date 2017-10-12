@@ -480,11 +480,10 @@ static int assemble(std::ostream &out, std::string const &data_run, std::string 
                         { "REFERENCE_1", sizeof(char) },
                         { "START_1", sizeof(int32_t) },
                         { "END_1", sizeof(int32_t) },
-                        { "LOCAL_START_1", sizeof(int32_t) },
+                        { "GAP", sizeof(int32_t) },
                         { "REFERENCE_2", sizeof(char) },
                         { "START_2", sizeof(int32_t) },
                         { "END_2", sizeof(int32_t) },
-                        { "LOCAL_START_2", sizeof(int32_t) },
                     });
     writer.addTable(
                     "FRAGMENTS", {
@@ -496,6 +495,7 @@ static int assemble(std::ostream &out, std::string const &data_run, std::string 
                         { "LENGTH", sizeof(int32_t) },
                         { "CIGAR", sizeof(char) },
                         { "SEQUENCE", sizeof(char) },
+                        { "CONTIG", sizeof(int64_t) },
                     });
     writer.addTable(
                     "REJECTS", {
@@ -534,6 +534,7 @@ static int assemble(std::ostream &out, std::string const &data_run, std::string 
     auto const keepLength = keepTable.column("LENGTH");
     auto const keepCIGAR = keepTable.column("CIGAR");
     auto const keepSequence = keepTable.column("SEQUENCE");
+    auto const keepContig = keepTable.column("CONTIG");
     
     auto const badTable = writer.table("REJECTS");
     auto const badGroup = badTable.column("READ_GROUP");
@@ -571,6 +572,7 @@ static int assemble(std::ostream &out, std::string const &data_run, std::string 
     stats.cleanup();
     
     nextReport = 1;
+    int64_t contigID = 0;
     for (auto row = range.first; row < range.second; ) {
         auto const fragment = in.read(row, range.second);
         auto const best = bestPair(fragment, stats);
@@ -615,6 +617,7 @@ static int assemble(std::ostream &out, std::string const &data_run, std::string 
 
                 best.contig->length.add(length);
             }
+            keepContig.setValue(++contigID);
             best.contig->qlength1.add(best.length1 + best.clip1);
             best.contig->qlength2.add(best.length2 + best.clip2);
             best.contig->rlength1.add(best.rlength1);
@@ -630,6 +633,7 @@ static int assemble(std::ostream &out, std::string const &data_run, std::string 
     writeReferences(out, references, mapulets);
     writeContigs(out, stats.stats);
     writer.endWriting();
+    std::cerr << "prog: DONE" << std::endl;
     return 0;
 }
 

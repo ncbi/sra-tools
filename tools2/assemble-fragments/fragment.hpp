@@ -439,7 +439,7 @@ struct Alignment {
     , position(position)
     , cigar(cigar)
     {}
-    
+
     Alignment truncated() const {
         if (aligned)
             return Alignment(readNo, "", reference, strand, position, cigar);
@@ -478,7 +478,7 @@ struct Fragment {
     struct Cursor : public VDB::Cursor {
     private:
         static VDB::Cursor cursor(VDB::Table const &tbl) {
-            static char const *const FLDS[] = { "READ_GROUP", "FRAGMENT", "READNO", "SEQUENCE", "REFERENCE", "STRAND", "POSITION", "CIGAR" };
+            static char const *const FLDS[] = { "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "STRAND", "POSITION", "CIGAR" };
             return tbl.read(8, FLDS);
         }
         

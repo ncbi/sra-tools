@@ -300,4 +300,111 @@ namespace VDB {
     };
 }
 
+#include <map>
+class Writer2 : private VDB::Writer {
+public:
+    typedef int ColumnID, TableID;
+    typedef std::map<std::string, ColumnID> Columns;
+    typedef std::pair<TableID, Columns> TableEntry;
+    typedef std::map<std::string, TableEntry> Tables;
+private:
+    TableID nextTable;
+    ColumnID nextColumn;
+    Tables tables;
+public:
+    using VDB::Writer::destination;
+    using VDB::Writer::schema;
+    using VDB::Writer::info;
+    using VDB::Writer::beginWriting;
+    using VDB::Writer::closeRow;
+    using VDB::Writer::endWriting;
+    using VDB::Writer::setMetadata;
+    
+    struct ColumnDefinition {
+        char const *name;
+        int elemSize;
+    };
+    
+    class Column;
+    class Table {
+        friend Writer2;
+        Writer2 const &parent;
+        Writer2::TableID table;
+        Writer2::Tables::const_iterator const t;
+        Table(Writer2 const &p, Writer2::Tables::const_iterator n) : parent(p), t(n), table(t->second.first) {}
+    public:
+        Column column(std::string const &column) const
+        {
+            auto const &columns = t->second.second;
+            auto const c = columns.find(column);
+            if (c == columns.end())
+                throw std::logic_error(column + " is not a column of table " + t->first);
+            return Column(parent, c->second);
+        }
+        auto closeRow() const -> decltype(parent.closeRow(0)) {
+            return parent.closeRow(table);
+        }
+    };
+
+    class Column {
+        friend Writer2::Table;
+        Writer2::ColumnID columnNumber;
+        Writer2 const &parent;
+        Column(Writer2 const &p, Writer2::ColumnID n) : parent(p), columnNumber(n) {}
+    public:
+        template <typename T>
+        auto setValue(T const &data) const -> decltype(parent.value(0, T(0))) {
+            return parent.value(columnNumber, data);
+        }
+        template <typename T>
+        auto setValue(unsigned count, T const *data) const -> decltype(parent.value(0, 0, data)) {
+            return parent.value(columnNumber, uint32_t(count), data);
+        }
+        auto setValue(std::string const &data) const -> decltype(parent.value(0, std::string())) {
+            return parent.value(columnNumber, data);
+        }
+        auto setValueEmpty() const -> decltype(parent.value(0, 0, "")) {
+            return parent.value(columnNumber, 0, "");
+        }
+        template <typename T>
+        auto setDefault(T const &data) const -> decltype(parent.defaultValue(0, T(0))) {
+            return parent.defaultValue(columnNumber, data);
+        }
+        template <typename T>
+        auto setDefault(unsigned count, T const *data) const -> decltype(parent.defaultValue(0, 0, data)) {
+            return parent.defaultValue(columnNumber, uint32_t(count), data);
+        }
+        auto setDefault(std::string const &data) const -> decltype(parent.defaultValue(0, std::string())) {
+            return parent.defaultValue(columnNumber, data);
+        }
+        auto setDefaultEmpty() const -> decltype(parent.defaultValue(0, 0, "")) {
+            return parent.defaultValue(columnNumber, 0, "");
+        }
+    };
+
+    Table table(std::string const &table) const {
+        auto const t = tables.find(table);
+        if (t == tables.end())
+            throw std::logic_error(table + " is not the name of a table");
+        return Table(*this, t);
+    }
+    
+    Writer2(std::ostream &os)
+    : VDB::Writer(os)
+    {
+    }
+    void addTable(char const *name, std::initializer_list<ColumnDefinition> list)
+    {
+        decltype(tables.begin()->second.second) columns;
+        auto tno = ++nextTable;
+        this->openTable(tno, name);
+        for (auto && i : list) {
+            auto cno = ++nextColumn;
+            this->openColumn(cno, tno, i.elemSize * 8, i.name);
+            columns[i.name] = cno;
+        }
+        tables[name] = std::make_pair(tno, columns);
+    }
+};
+
 #endif // __WRITER_HPP_INCLUDED__

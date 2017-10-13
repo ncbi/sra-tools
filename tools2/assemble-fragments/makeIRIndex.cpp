@@ -121,44 +121,80 @@ static uint8_t const *makeSalt(void)
 static uint8_t const *const hashTable = makeHashTable();
 static uint8_t const *const salt = makeSalt();
 
-static IndexRow makeIndexRow(int64_t row, VDB::Cursor::RawData const &readGroup, VDB::Cursor::RawData const &fragment)
+static IndexRow makeIndexRow(int64_t row, VDB::Cursor::RawData const &group, VDB::Cursor::RawData const &name)
 {
-    IndexRow y;
+    union {
+        uint64_t u;
+        char ch[sizeof(uint64_t)];
+    } key;
+    uint64_t sr;
     uint8_t const *const H = hashTable;
     int i;
     
-    for (i = 0; i < 8; ++i)
-        y.key[i] = salt[i];
+    for (i = 0; i < sizeof(uint64_t); ++i) {
+        key.ch[i] = salt[i];
+    }
 
-    for (i = 0; i < readGroup.elements; ++i) {
-        auto const ii = ((uint8_t const *)readGroup.data)[i];
-        y.key[0] = H[y.key[0] ^ ii];
-        y.key[1] = H[y.key[1] ^ ii];
-        y.key[2] = H[y.key[2] ^ ii];
-        y.key[3] = H[y.key[3] ^ ii];
-        y.key[4] = H[y.key[4] ^ ii];
-        y.key[5] = H[y.key[5] ^ ii];
-        y.key[6] = H[y.key[6] ^ ii];
-        y.key[7] = H[y.key[7] ^ ii];
+    for (sr = 0, i = 0; i < group.elements; ++i) {
+        auto const ch = ((uint8_t const *)group.data)[i];
+        sr = (sr << 8) | ch;
+        key.u ^= sr;
+        key.ch[0] = H[key.ch[0]];
+        key.ch[1] = H[key.ch[1]];
+        key.ch[2] = H[key.ch[2]];
+        key.ch[3] = H[key.ch[3]];
+        key.ch[4] = H[key.ch[4]];
+        key.ch[5] = H[key.ch[5]];
+        key.ch[6] = H[key.ch[6]];
+        key.ch[7] = H[key.ch[7]];
     }
-    for (i = 0; i < fragment.elements; ++i) {
-        auto const ii = ((uint8_t const *)fragment.data)[i];
-        y.key[0] = H[y.key[0] ^ ii];
-        y.key[1] = H[y.key[1] ^ ii];
-        y.key[2] = H[y.key[2] ^ ii];
-        y.key[3] = H[y.key[3] ^ ii];
-        y.key[4] = H[y.key[4] ^ ii];
-        y.key[5] = H[y.key[5] ^ ii];
-        y.key[6] = H[y.key[6] ^ ii];
-        y.key[7] = H[y.key[7] ^ ii];
+    sr = (sr << 8) | '\0';
+    key.u ^= sr;
+    key.ch[0] = H[key.ch[0]];
+    key.ch[1] = H[key.ch[1]];
+    key.ch[2] = H[key.ch[2]];
+    key.ch[3] = H[key.ch[3]];
+    key.ch[4] = H[key.ch[4]];
+    key.ch[5] = H[key.ch[5]];
+    key.ch[6] = H[key.ch[6]];
+    key.ch[7] = H[key.ch[7]];
+    for (i = 0; i < name.elements; ++i) {
+        auto const ch = ((uint8_t const *)name.data)[i];
+        sr = (sr << 8) | ch;
+        key.u ^= sr;
+        key.ch[0] = H[key.ch[0]];
+        key.ch[1] = H[key.ch[1]];
+        key.ch[2] = H[key.ch[2]];
+        key.ch[3] = H[key.ch[3]];
+        key.ch[4] = H[key.ch[4]];
+        key.ch[5] = H[key.ch[5]];
+        key.ch[6] = H[key.ch[6]];
+        key.ch[7] = H[key.ch[7]];
     }
+    while (sr != 0) {
+        sr = sr << 8;
+        key.u ^= sr;
+        key.ch[0] = H[key.ch[0]];
+        key.ch[1] = H[key.ch[1]];
+        key.ch[2] = H[key.ch[2]];
+        key.ch[3] = H[key.ch[3]];
+        key.ch[4] = H[key.ch[4]];
+        key.ch[5] = H[key.ch[5]];
+        key.ch[6] = H[key.ch[6]];
+        key.ch[7] = H[key.ch[7]];
+    }
+
+    IndexRow y;
     y.row = row;
+    for (i = 0; i < sizeof(uint64_t); ++i) {
+        y.key[i] = key.ch[i];
+    }
     return y;
 }
 
 static std::ostream &operator <<(std::ostream &os, IndexRow const &row)
 {
-    return os.write((char const *)row.key, 16);
+    return os.write((char const *)row.key, 16); ///< 8 bytes for key + 8 bytes for row number
 }
 
 static int process(std::ostream &out, VDB::Database const &run)

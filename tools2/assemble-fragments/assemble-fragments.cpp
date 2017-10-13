@@ -201,6 +201,7 @@ struct ContigStats {
             if (i.coverage() < 5.0) continue;
 
             stat o = i;
+            o.sourceRow = clean.size() + 1;
             o.count = i.length.count();
             o.length = StatisticsAccumulator();
             o.rlength1 = StatisticsAccumulator();
@@ -569,14 +570,60 @@ static int assemble(std::ostream &out, std::string const &data_run, std::string 
             ++nextReport;
         }
     }
-    stats.cleanup();
+    stats.cleanup(); ///< remove low coverage contigs; create mapulets (aka virtual references) for un-closed contigs
     
     nextReport = 1;
-    int64_t contigID = 0;
     for (auto row = range.first; row < range.second; ) {
         auto const fragment = in.read(row, range.second);
         auto const best = bestPair(fragment, stats);
-        if (best.a == fragment.detail.end() || best.b == fragment.detail.end()) {
+        if (best.a != fragment.detail.end() && best.b != fragment.detail.end()) {
+            auto &contig = *best.contig;
+            auto const &first = *best.a;
+            auto const &second = *best.b;
+            auto const layout = std::to_string(first.readNo) + std::to_string(first.strand) + std::to_string(second.readNo) + std::to_string(second.strand); ///< encodes order and strand, e.g. "1+2-" or "2+1-" for normal Illumina
+            auto const cigar = first.cigar + "0P" + second.cigar; ///< 0P is like a double-no-op; used here to mark the division between the two CIGAR strings; also represents the mate-pair gap, the length of which is inferred from the fragment length
+            auto const sequence = first.sequence + second.sequence; ///< just concatenate them
+            
+            keepGroup.setValue(fragment.group);
+            keepName.setValue(fragment.name);
+            keepLayout.setValue(layout);
+            keepCIGAR.setValue(cigar);
+            keepSequence.setValue(sequence);
+            keepContig.setValue(contig.sourceRow);
+
+            ///* update statistics about contig
+            contig.qlength1.add(best.length1 + best.clip1);
+            contig.qlength2.add(best.length2 + best.clip2);
+            contig.rlength1.add(best.rlength1);
+            contig.rlength2.add(best.rlength2);
+
+            if (contig.mapulet == 0) {
+                keepRef.setValue(references[contig.ref1]);
+                keepPosition.setValue(best.pos1);
+                keepLength.setValue(best.fragmentLength);
+                
+                contig.length.add(best.fragmentLength);
+            }
+            else {
+                ///* modify the placement according to mapping
+                auto const &mapulet = mapulets[contig.mapulet];
+                auto const pos1 = best.pos1 - mapulet.start1;
+                auto const end1 = pos1 + best.length1 + best.clip1;
+                auto const pos2 = best.pos2 - mapulet.start2 + (mapulet.end1 - mapulet.start1) + mapulet.gap;
+                auto const end2 = pos2 + best.length2 + best.clip2;
+                auto const length = end2 - pos1;
+                
+                keepRef.setValue(mapulet.name); ///< reference name changes
+                keepPosition.setValue(pos1); ///< aligned position changes
+                keepLength.setValue(length); ///< fragment length changes; N.B. there is a gap in the mapping that has not been computed yet, this length doesn't take that into account, the gap needs to be added in on read
+                (void)end1;
+                
+                contig.length.add(length);
+            }
+            keepTable.closeRow();
+        }
+        else {
+            ///* there's no good contig for this fragment; probably the coverage was too low
             for (auto && i : fragment.detail) {
                 badGroup.setValue(fragment.group);
                 badName.setValue(fragment.name);
@@ -589,47 +636,12 @@ static int assemble(std::ostream &out, std::string const &data_run, std::string 
                 badTable.closeRow();
             }
         }
-        else {
-            keepGroup.setValue(fragment.group);
-            keepName.setValue(fragment.name);
-            keepLayout.setValue(std::to_string(best.a->readNo) + std::to_string(best.a->strand) + std::to_string(best.b->readNo) + std::to_string(best.b->strand));
-            keepCIGAR.setValue(best.a->cigar + "0P" + best.b->cigar);
-            keepSequence.setValue(best.a->sequence + best.b->sequence);
-            if (best.contig->mapulet == 0) {
-                keepRef.setValue(references[best.contig->ref1]);
-                keepPosition.setValue(best.pos1);
-                keepLength.setValue(best.fragmentLength);
-
-                best.contig->length.add(best.fragmentLength);
-            }
-            else {
-                auto const &mapulet = mapulets[best.contig->mapulet];
-                auto const pos1 = best.pos1 - mapulet.start1;
-                auto const end1 = pos1 + best.length1 + best.clip1;
-                auto const pos2 = best.pos2 - mapulet.start2 + (mapulet.end1 - mapulet.start1) + mapulet.gap;
-                auto const end2 = pos2 + best.length2 + best.clip2;
-                auto const length = end2 - pos1;
-
-                keepRef.setValue(mapulet.name);
-                keepPosition.setValue(pos1);
-                keepLength.setValue(length);
-                (void)end1;
-
-                best.contig->length.add(length);
-            }
-            keepContig.setValue(++contigID);
-            best.contig->qlength1.add(best.length1 + best.clip1);
-            best.contig->qlength2.add(best.length2 + best.clip2);
-            best.contig->rlength1.add(best.rlength1);
-            best.contig->rlength2.add(best.rlength2);
-            keepTable.closeRow();
-        }
         if (nextReport * freq <= (row - range.first)) {
             std::cerr << "prog: processed " << nextReport << "%" << std::endl;
             ++nextReport;
         }
     }
-    stats.adjustMapulets();
+    stats.adjustMapulets(); ///< adjust for previously unknown gap, now that it's been computed
     writeReferences(out, references, mapulets);
     writeContigs(out, stats.stats);
     writer.endWriting();

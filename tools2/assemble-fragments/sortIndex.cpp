@@ -196,9 +196,8 @@ static void *worker(void *p)
 #include <sys/sysctl.h>
 
 /* want one worker thread per physical core
- * could go with one per logical but that would
- * just make memory contention worse
- * the bottleneck is the memory bus
+ * could go with one per logical but that would just make bus contention worse
+ * the bottleneck is I/O to memory
  */
 static int getWorkerCount()
 {

@@ -152,8 +152,8 @@ struct Context {
                     // sort in one shot
                     std::sort(unit.beg, unit.end, compareKey);
                     if (unit.beg >= tmp && unit.end <= tmpEnd)
-                        memcpy(map + (tmp - unit.beg), unit.beg, unit.size());
-
+                        std::copy(unit.beg, unit.end, map + (tmp - unit.beg));
+                    
                     // the mutex is re-acquired after processing the work unit
                     pthread_mutex_lock(&mutex);
                 }

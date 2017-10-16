@@ -341,7 +341,7 @@ public:
                 throw std::logic_error(column + " is not a column of table " + t->first);
             return Column(parent, c->second);
         }
-        auto closeRow() const -> decltype(parent.closeRow(0)) {
+        std::ostream &closeRow() const {
             return parent.closeRow(table);
         }
     };
@@ -353,31 +353,31 @@ public:
         Column(Writer2 const &p, Writer2::ColumnID n) : parent(p), columnNumber(n) {}
     public:
         template <typename T>
-        auto setValue(T const &data) const -> decltype(parent.value(0, T(0))) {
+        std::ostream &setValue(T const &data) const {
             return parent.value(columnNumber, data);
         }
         template <typename T>
-        auto setValue(unsigned count, T const *data) const -> decltype(parent.value(0, 0, data)) {
+        std::ostream &setValue(unsigned count, T const *data) const {
             return parent.value(columnNumber, uint32_t(count), data);
         }
-        auto setValue(std::string const &data) const -> decltype(parent.value(0, std::string())) {
+        std::ostream &setValue(std::string const &data) const {
             return parent.value(columnNumber, data);
         }
-        auto setValueEmpty() const -> decltype(parent.value(0, 0, "")) {
+        std::ostream &setValueEmpty() const {
             return parent.value(columnNumber, 0, "");
         }
         template <typename T>
-        auto setDefault(T const &data) const -> decltype(parent.defaultValue(0, T(0))) {
+        std::ostream &setDefault(T const &data) const {
             return parent.defaultValue(columnNumber, data);
         }
         template <typename T>
-        auto setDefault(unsigned count, T const *data) const -> decltype(parent.defaultValue(0, 0, data)) {
+        std::ostream &setDefault(unsigned count, T const *data) const {
             return parent.defaultValue(columnNumber, uint32_t(count), data);
         }
-        auto setDefault(std::string const &data) const -> decltype(parent.defaultValue(0, std::string())) {
+        std::ostream &setDefault(std::string const &data) const {
             return parent.defaultValue(columnNumber, data);
         }
-        auto setDefaultEmpty() const -> decltype(parent.defaultValue(0, 0, "")) {
+        std::ostream &setDefaultEmpty() const {
             return parent.defaultValue(columnNumber, 0, "");
         }
     };

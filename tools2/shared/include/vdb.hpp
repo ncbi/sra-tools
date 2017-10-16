@@ -184,6 +184,7 @@ namespace VDB {
                 out[i] = read(row, i + 1);
             }
         }
+#if VDB_WRITEABLE
         void newRow() const {
             auto const rc = C::VCursorOpenRow(o);
             if (rc) throw Error(rc, __FILE__, __LINE__);
@@ -218,6 +219,7 @@ namespace VDB {
             auto const rc = C::VCursorCommit(o);
             if (rc) throw Error(rc, __FILE__, __LINE__);
         }
+#endif
     };
     class Table {
         friend class Database;
@@ -261,7 +263,7 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Cursor(const_cast<C::VCursor *>(curs));
         }
-        
+#if VDB_WRITEABLE
         Cursor append(unsigned const N, char const *fields[]) const
         {
             C::VCursor *curs = 0;
@@ -280,6 +282,7 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Cursor(curs);
         }
+#endif
     };
     class Database {
         friend class Manager;
@@ -290,20 +293,20 @@ namespace VDB {
         Database(Database const &other) : o(other.o) { C::VDatabaseAddRef(o); }
         ~Database() { C::VDatabaseRelease(o); }
         
-        Table create(std::string const &name, std::string const &type) const
-        {
-            C::VTable *rslt = 0;
-            auto const rc = C::VDatabaseCreateTableByMask(o, &rslt, type.c_str(), 0, 0, "%s", name.c_str());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Table(rslt);
-        }
-        
         Table operator [](std::string const &name) const
         {
             C::VTable *p = 0;
             auto const rc = C::VDatabaseOpenTableRead(o, (C::VTable const **)&p, "%s", name.c_str());
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Table(p);
+        }
+#if VDB_WRITEABLE
+        Table create(std::string const &name, std::string const &type) const
+        {
+            C::VTable *rslt = 0;
+            auto const rc = C::VDatabaseCreateTableByMask(o, &rslt, type.c_str(), 0, 0, "%s", name.c_str());
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return Table(rslt);
         }
 
         Table open(std::string const &name) const
@@ -313,18 +316,30 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Table(p);
         }
+#endif
     };
     class Manager {
+#if VDB_WRITEABLE
         C::VDBManager *const o;
 
-        static C::VDBManager *makeUpdateManager() {
+        static C::VDBManager *makeManager() {
             C::VDBManager *o;
             auto const rc = C::VDBManagerMakeUpdate(&o, 0);
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return o;
         }
+#else
+        C::VDBManager const *const o;
+        
+        static C::VDBManager const *makeManager() {
+            C::VDBManager const *o;
+            auto const rc = C::VDBManagerMakeRead(&o, 0);
+            if (rc) throw Error(rc, __FILE__, __LINE__);
+            return o;
+        }
+#endif
     public:
-        Manager() : o(makeUpdateManager()) {}
+        Manager() : o(makeManager()) {}
         Manager(Manager const &other) : o(other.o) { C::VDBManagerAddRef(o); }
         ~Manager() { C::VDBManagerRelease(o); }
 
@@ -355,7 +370,7 @@ namespace VDB {
             delete [] p;
             return result;
         }
-        
+#if VDB_WRITEABLE
         Database create(std::string const &path, Schema const &schema, std::string const &type) const
         {
             C::VDatabase *rslt = 0;
@@ -363,7 +378,7 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Database(rslt);
         }
-        
+#endif
         Database operator [](std::string const &path) const
         {
             C::VDatabase *p = 0;
@@ -371,7 +386,7 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Database(p);
         }
-        
+#if VDB_WRITEABLE
         Database open(std::string const &path) const
         {
             C::VDatabase *p = 0;
@@ -379,6 +394,7 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Database(p);
         }
+#endif
     };
 }
 

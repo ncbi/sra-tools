@@ -43,11 +43,28 @@ static int popcount(int x)
     return y;
 }
 
+static uint32_t random_uniform(uint32_t upper_bound) {
+#if __APPLE__
+    return arc4random_uniform(upper_bound);
+#else
+    struct seed_rand {
+        seed_rand() {
+            srand((unsigned)time(0));
+        }
+    };
+    auto const once = seed_rand();
+    auto const m = RAND_MAX - RAND_MAX % upper_bound;
+    for ( ; ; ) {
+        auto const r = rand();
+        if (r < m) return r % upper_bound;
+    }
+#endif
+}
 template <unsigned N, typename T>
 static void shuffle(T a[N])
 {
     for (int i = 0; i < N; ++i) {
-        auto const j = arc4random_uniform(N - i) + i;
+        auto const j = random_uniform(N - i) + i;
         auto const ii = a[i];
         auto const jj = a[j];
         a[i] = jj;

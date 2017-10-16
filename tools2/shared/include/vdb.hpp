@@ -122,6 +122,7 @@ namespace VDB {
                 return (elem_bits * elements + 7) / 8;
             }
             Data const *copy(void *memory, void const *endp) const {
+                auto const source = reinterpret_cast<uint8_t const *>(this->data);
                 auto const rslt = (Data *)memory;
                 if (rslt + 1 > endp)
                     return nullptr;
@@ -129,7 +130,7 @@ namespace VDB {
                 rslt->elements = elements;
                 if (rslt->end() > endp)
                     return nullptr;
-                memcpy(rslt + 1, this->data, size());
+                std::copy(source, source + size(), reinterpret_cast<uint8_t *>(rslt + 1));
                 return rslt;
             }
             std::string asString() const {

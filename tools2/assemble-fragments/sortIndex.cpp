@@ -97,9 +97,10 @@ struct WorkUnit {
 
 static bool compareKey(IndexRow const &a, IndexRow const &b)
 {
-    auto const diff = memcmp(a.key, b.key, 8);
-    if (diff < 0) return true;
-    if (diff > 0) return false;
+    for (auto i = 0; i < sizeof(a.key); ++i) {
+        if (a.key[i] < b.key[i]) return true;
+        if (a.key[i] > b.key[i]) return false;
+    }
     return a.row < b.row;
 }
 

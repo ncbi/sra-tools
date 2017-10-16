@@ -139,7 +139,7 @@ struct LineBuffer {
             auto newCur = cur % blksize;
             start += cur;
             start -= newCur;
-            memmove(buffer, start, endp - start);
+            std::copy(start, endp, reinterpret_cast<char *>(buffer));
             cur = newCur;
             size = cur + remain;
         }

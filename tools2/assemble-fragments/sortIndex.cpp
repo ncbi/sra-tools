@@ -330,6 +330,7 @@ static int process(char const *const indexFile, bool const isSorted)
             pthread_t tid = 0;
         
             pthread_create(&tid, nullptr, worker, &context);
+            pthread_detach(tid);
         }
         worker(&context);
     }

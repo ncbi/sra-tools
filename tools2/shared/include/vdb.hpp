@@ -137,19 +137,19 @@ namespace VDB {
                 if (elem_bits == 8)
                     return elements == 0 ? std::string() : std::string((char *)data, elements);
                 else
-                    throw std::bad_cast();
+                    throw std::logic_error("bad cast");
             }
             template <typename T> std::vector<T> asVector() const {
                 if (elem_bits == sizeof(T) * 8)
                     return std::vector<T>((T *)data, ((T *)data) + elements);
                 else
-                    throw std::bad_cast();
+                    throw std::logic_error("bad cast");
             }
             template <typename T> T value() const {
                 if (elem_bits == sizeof(T) * 8 && elements == 1)
                     return *(T *)data;
                 else
-                    throw std::bad_cast();
+                    throw std::logic_error("bad cast");
             }
         };
         Cursor(Cursor const &other) :o(other.o) { C::VCursorAddRef(o); }

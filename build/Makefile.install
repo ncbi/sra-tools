@@ -44,13 +44,25 @@ endif
 #fake root for debugging
 #uncomment this line and change the test for root ( see under install: ) to succeed:
 #ROOT = ~/root
+ifeq (linux, $(OS))
+    ifeq (0, $(shell id -u))
+        LINUX_ROOT = true
+    endif
+endif
+
+ifeq (true, $(LINUX_ROOT))
+    KONFIG_DIR = $(ROOT)/etc/ncbi
+    PROFILE_FILE = $(ROOT)/etc/profile.d/ncbi-vdb
+else
+    KONFIG_DIR = $(INST_BINDIR)/ncbi
+endif
 
 EXE_TARGET = $(INST_BINDIR)
 PROFILE_FILE = $(ROOT)/etc/profile.d/sra-tools
 
-installexes: 
+installexes:
 	@ echo "Installing executables to $(INST_BINDIR)/..."
-	@ mkdir -p $(INST_BINDIR) 
+	@ mkdir -p $(INST_BINDIR)
 	@ $(MAKE) -s --no-print-directory -f $(TOP)/build/Makefile.install $(TOOLS_TO_INSTALL)
 	@ printf "Installing magic file..."
 	@ $(COPY) $(TOP)/tools/copycat/magic $(INST_BINDIR) && echo "done"
@@ -61,32 +73,18 @@ $(TOOLS_TO_INSTALL):
 	@ - ( test -f $(BINDIR)/$@$(EXEX) || ( echo "not found" && false ) ) && \
       $(COPY) $(BINDIR)/$@$(EXEX) $(BINDIR)/$@$(VERSION_EXEX) $(BINDIR)/$@$(MAJVERS_EXEX) $(INST_BINDIR) && \
       echo "done"
-    
-ifeq (linux, $(OS))
-    ifeq (0, $(shell id -u))
-        LINUX_ROOT = true
-    endif
-endif
 
-install: installexes
+copykfg:
+	@ echo "Installing configuration files to $(KONFIG_DIR)"
+	@ $(TOP)/build/install-kfg.sh default.kfg   $(BINDIR)/ncbi          $(KONFIG_DIR) $(TOP)/shared/kfgsums
+	@ $(TOP)/build/install-kfg.sh certs.kfg     $(BINDIR)/ncbi          $(KONFIG_DIR) $(TOP)/shared/kfgsums
+	@ $(TOP)/build/install-kfg.sh vdb-copy.kfg  $(TOP)/tools/vdb-copy   $(KONFIG_DIR) $(TOP)/shared/kfgsums
+	@ # rename obsolete ncbi-vdb.kfg
+	@ if [ -f $(KONFIG_DIR)/ncbi-vdb.kfg ] ; \
+        then mv -v $(KONFIG_DIR)/ncbi-vdb.kfg  $(KONFIG_DIR)/ncbi-vdb.kfg.orig  ; fi
+
+install: installexes copykfg
 ifeq (true, $(LINUX_ROOT))
-	@ # install configuration file(s)
-	@ printf "Installing configuration files to $(ROOT)/etc/ncbi/..."
-	( mkdir -p $(ROOT)/etc/ncbi && \
-	  cp -p $(TOP)/tools/vdb-copy/vdb-copy.kfg $(ROOT)/etc/ncbi ; \
-	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; then \
-	    if [ -f $(ROOT)/etc/ncbi/default.kfg ] ; then \
-          mv -v $(ROOT)/etc/ncbi/default.kfg $(ROOT)/etc/ncbi/default.kfg.orig;\
-	    fi; \
-	    cp -p $(BINDIR)/ncbi/default.kfg $(ROOT)/etc/ncbi ; \
-	  fi; \
-	  if [ -f $(BINDIR)/ncbi/certs.kfg ] ; then \
-	    if [ -f $(ROOT)/etc/ncbi/certs.kfg ] ; then \
-          mv -v $(ROOT)/etc/ncbi/certs.kfg $(ROOT)/etc/ncbi/certs.kfg.orig; \
-	    fi; \
-	    cp -p $(BINDIR)/ncbi/certs.kfg $(ROOT)/etc/ncbi ; \
-	  fi ) && echo done
-	@ #
 	@ echo "Updating $(PROFILE_FILE).[c]sh"
 	@ printf \
 "#version $(VERSION)\n"\
@@ -100,30 +98,11 @@ ifeq (true, $(LINUX_ROOT))
 "if ( \$$status ) setenv PATH $(EXE_TARGET):\$$PATH\n"\
         >$(PROFILE_FILE).csh && chmod 644 $(PROFILE_FILE).csh || true;
 	@ #TODO: check version of the files above
-else    
-	@ # install configuration file(s)
-	@ printf "Installing configuration files to $(INST_BINDIR)/ncbi/..."
-	( mkdir -p $(INST_BINDIR)/ncbi && \
-	  cp -p $(TOP)/tools/vdb-copy/vdb-copy.kfg $(INST_BINDIR)/ncbi/ ; \
-	  if [ -f $(BINDIR)/ncbi/default.kfg ] ; then \
-	    if [ -f $(INST_BINDIR)/ncbi/default.kfg ] ; then \
-          mv -v $(INST_BINDIR)/ncbi/default.kfg \
-                $(INST_BINDIR)/ncbi/default.kfg.orig; \
-	    fi; \
-	    cp -p $(BINDIR)/ncbi/default.kfg $(INST_BINDIR)/ncbi ; \
-	  fi; \
-	  if [ -f $(BINDIR)/ncbi/certs.kfg ] ; then \
-	    if [ -f $(INST_BINDIR)/ncbi/certs.kfg ] ; then \
-          mv -v $(INST_BINDIR)/ncbi/certs.kfg \
-                $(INST_BINDIR)/ncbi/certs.kfg.orig; \
-	    fi; \
-	    cp -p $(BINDIR)/ncbi/certs.kfg $(INST_BINDIR)/ncbi ; \
-	  fi ) && echo done
 endif
 
 #-------------------------------------------------------------------------------
 # uninstall
-# 
+#
 
 TO_UNINSTALL = $(addsuffix *,$(addprefix $(INST_BINDIR)/,$(TOOLS_TO_INSTALL) magic))
 ifneq (true, $(LINUX_ROOT))

@@ -620,11 +620,14 @@ rc_t GetKeyID(KeyToID *const ctx,
                 *rslt = (((uint64_t)f) << 32) | tmpKey;
                 if (*wasInserted)
                     ++ctx->idCount[f];
-                assert(tmpKey < ctx->idCount[f]);
+                if (!(tmpKey < ctx->idCount[f])) {
+                    (void)PLOGMSG(klogErr, (klogErr, "too many spots for read group '$(rg)'; ran out of 32-bit ids", "rg=%s", key));
+                    return RC(rcExe, rcTree, rcAllocating, rcId, rcExhausted);
+                }
             }
             return rc;
         }
-        (void)PLOGMSG(klogErr, (klogErr, "too many read groups: max is $(max)", "max=%d", (int)ctx->key2id_count, (int)ctx->key2id_max));
+        (void)PLOGMSG(klogErr, (klogErr, "too many read groups: max is $(max)", "max=%d", (int)ctx->key2id_max));
         return RC(rcExe, rcTree, rcAllocating, rcConstraint, rcViolated);
     }
 }

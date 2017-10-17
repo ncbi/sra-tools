@@ -26,8 +26,11 @@
 
 #include "cgi_request.h"
 #include "helper.h"
+#include "repository-mgr.h" /* KRepositoryMgr_DownloadTicket */
 #include "line_iter.h"
 
+#include <klib/debug.h> /* DBGMSG */
+#include <klib/log.h> /* PLOGERR */
 #include <klib/text.h>
 #include <klib/namelist.h>
 #include <klib/printf.h>
@@ -45,6 +48,10 @@ typedef struct cgi_request
     KNSManager * kns_mgr;
     VNamelist * params;
 } cgi_request;
+
+
+#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
+    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
 
 
 void release_cgi_request( struct cgi_request * request )
@@ -81,6 +88,7 @@ rc_t make_cgi_request( struct cgi_request ** request, const char * url )
         }
         else
         {
+            DBGMSG ( DBG_APP, DBG_FLAG ( DBG_APP_1 ), ( "%s\n", r -> url ) );
             rc = VNamelistMake( &r->params, 10 );
             if ( rc != 0 )
                 ErrMsg( "VNamelistMake() -> %R", rc );
@@ -117,6 +125,7 @@ rc_t add_cgi_request_param( struct cgi_request * request, const char * fmt, ... 
             ErrMsg( "string_vprintf( '%s' ) -> %R", fmt, rc );
         else
         {
+            DBGMSG ( DBG_APP, DBG_FLAG ( DBG_APP_1 ), ( "\t%s\n", buffer ) );
             rc = VNamelistAppend( request->params, buffer );
             if ( rc != 0 )
                 ErrMsg( "VNamelistAppend( '%s' ) -> %R", buffer, rc );
@@ -430,7 +439,9 @@ static void validate_request_params( const request_params * src, request_params 
     dst->search_url     = validate_url( src->search_url, request_type_search );
     dst->search_ver     = validate_ver( src->search_ver, request_type_search );
 
+    dst->proto          = src->proto;
     dst->params         = src->params;
+    dst->projects       = src->projects;
     dst->terms          = src->terms;
     dst->buffer_size    = src->buffer_size;
     dst->timeout_ms     = src->timeout_ms;
@@ -452,18 +463,45 @@ rc_t raw_names_request( const request_params * request,
     rc = make_cgi_request( &req, validated_request.names_url );
     if ( rc == 0 )
     {
+        int i = 0;
         const char ** ptr = validated_request.terms;
         rc = add_cgi_request_param( req, "version=%s", validated_request.names_ver );
-        while ( rc == 0 && *ptr != NULL )
+        for ( i = 0; rc == 0 && *ptr != NULL; ++ i, ++ ptr )
         {
-            rc = add_cgi_request_param( req, "acc=%s", *ptr );
-            ptr++;
+            if ( validated_request . names_ver [ 0 ] < '3' )
+                rc = add_cgi_request_param( req, "acc=%s", *ptr );
+            else
+                rc = add_cgi_request_param( req, "object=%d||%s", i, *ptr );
         }
+        rc = add_cgi_request_param ( req, "accept-proto=%s",
+                                     validated_request . proto );
         ptr = validated_request.params;
         while ( rc == 0 && *ptr != NULL )
         {
             rc = add_cgi_request_param( req, "%s", *ptr );
             ptr++;
+        }
+        if ( rc == 0 && validated_request . projects != NULL &&
+             validated_request . projects [ 0 ] != 0 )
+        {
+            const KRepositoryMgr * mgr = NULL;
+            uint32_t * ptr = NULL;
+            rc = KRepositoryMgr_Make ( & mgr );
+            for ( ptr = validated_request . projects;
+                  rc == 0 && * ptr != 0; ++ ptr )
+            {
+                char buffer [ 64 ] = "";
+                size_t ticket_size = 0;
+                rc = KRepositoryMgr_DownloadTicket ( mgr, * ptr,
+                    buffer, sizeof buffer, & ticket_size );
+                if ( rc != 0 )
+                    PLOGERR ( klogErr, ( klogErr, rc,
+                        "Cannot add project '$(p)'", "p=%u", * ptr ) );
+                else
+                    rc = add_cgi_request_param ( req,
+                        "tic=%.*s", ( int ) ticket_size, buffer );
+            }
+            RELEASE ( KRepositoryMgr, mgr );
         }
         if ( rc == 0 )
         {

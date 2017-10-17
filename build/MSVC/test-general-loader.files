@@ -1,7 +1,0 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <ItemGroup>
-    <ClCompile Include="..\..\..\test\general-loader\test-general-loader.cpp" />
-    <ClCompile Include="..\..\..\test\general-loader\testsource.cpp" />
-  </ItemGroup>
-</Project>

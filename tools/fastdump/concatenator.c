@@ -372,7 +372,7 @@ rc_t execute_concat( const concat_params * cp )
     rc_t rc = 0;
     
     if ( cp -> show_progress )
-        rc = KOutMsg( "\nconcat :" );
+        rc = KOutMsg( "concat :" );
 
     if ( cp -> print_to_stdout )
         rc = print_files( cp ); /* helper.c */
@@ -386,9 +386,6 @@ rc_t execute_concat( const concat_params * cp )
             KFileRelease( dst );
         }
     }
-    
-    if ( rc == 0 && cp -> show_progress )
-        rc = KOutMsg( "\n" );
 
     return rc;
 }

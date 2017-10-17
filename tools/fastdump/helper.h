@@ -172,6 +172,7 @@ rc_t init_locked_file_list( locked_file_list * self, uint32_t alloc_blocksize );
 void release_locked_file_list( locked_file_list * self );
 rc_t append_to_file_list( const locked_file_list * self, const char * filename );
 rc_t append_to_locked_file_list( const locked_file_list * self, const char * filename );
+rc_t delete_files_in_locked_file_list( KDirectory * dir, locked_file_list * self );
 
 /* ===================================================================================== */
 

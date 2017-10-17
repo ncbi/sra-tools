@@ -504,7 +504,7 @@ rc_t execute_merge_sort( const merge_sort_params * mp, locked_file_list * files 
     }
 
     if ( mp -> show_progress )
-        rc = KOutMsg( "\nmerge  :" );
+        rc = KOutMsg( "merge  :" );
     
     if ( mp -> num_threads == 1 || ( mp -> num_threads > ( num_src * 2 ) ) )
         rc = execute_single_threaded( mp, files, num_src );
@@ -515,23 +515,36 @@ rc_t execute_merge_sort( const merge_sort_params * mp, locked_file_list * files 
 }
 
 
-/* ================================================================================= */
+/* =================================================================================
+    The background-merger is composed from 1 background-thread, which is the consumer
+    of a job_q. The producer-pool in sorter.c puts KVector-instances into the queue.
+    The background-merger pops the jobs out of the queue until it has assembled
+    a batch of jobs. It then processes this batch by merge-sorting the content of
+    the KVector's into a temporary file. The entries are key-value pairs with a 64-bit
+    key which is composed from the SEQID and one bit: first or second read in a spot.
+    The value is the packed READ ( pack_4na() in helper.c ).
+    The background-merger terminates when it's input-queue is sealed in perform_fastdump()
+    in fastdump.c after all sorter-threads ( producers ) have been joined.
+    The final output of the background-merger is a list of temporary files produced
+    in the temp-directory.
+   ================================================================================= */
 
-typedef struct background_merger
+typedef struct background_vector_merger
 {
     KDirectory * dir;               /* needed to perform the merge-sort */
     const tmp_id * tmp_id;          /* needed to create temp. files */
     KQueue * job_q;                 /* the KVector objects arrive here from the lookup-producer */
     KThread * thread;               /* the thread that performs the merge-sort */
     const locked_file_list * produced;    /* here we keep track of the produced temp-files */
+    struct KFastDumpCleanupTask * cleanup_task;     /* add the produced temp_files here too */
     uint32_t product_id;            /* increased by one for each batch-run, used in temp-file-name */
     uint32_t batch_size;            /* how many KVectors have to arrive to run a batch */
     uint32_t q_wait_time;           /* timeout in milliseconds to get something out of in_q */
     size_t buf_size;                /* needed to perform the merge-sort */
-} background_merger;
+} background_vector_merger;
 
 
-void release_background_merger( background_merger * self )
+void release_background_vector_merger( background_vector_merger * self )
 {
     if ( self != NULL )
     {
@@ -541,35 +554,35 @@ void release_background_merger( background_merger * self )
     }
 }
 
-typedef struct bg_merge_src
+typedef struct bg_vec_merge_src
 {
     KVector * store;
     uint64_t key;
     const String * bases;
     rc_t rc;
-} bg_merge_src;
+} bg_vec_merge_src;
 
 
-static rc_t init_bg_merge_src( bg_merge_src * src, KVector * store )
+static rc_t init_bg_vec_merge_src( bg_vec_merge_src * src, KVector * store )
 {
     src -> store = store;
     src -> rc = KVectorGetFirstPtr ( src -> store, &( src -> key ), ( void ** )&( src -> bases ) );
     return src -> rc;
 }
 
-static void release_bg_merge_src( bg_merge_src * src )
+static void release_bg_vec_merge_src( bg_vec_merge_src * src )
 {
     if ( src -> store != NULL )
         KVectorRelease( src -> store );
 }
 
-static bg_merge_src * get_min_bg_merge_src( bg_merge_src * batch, uint32_t count )
+static bg_vec_merge_src * get_min_bg_vec_merge_src( bg_vec_merge_src * batch, uint32_t count )
 {
-    bg_merge_src * res = NULL;
+    bg_vec_merge_src * res = NULL;
     uint32_t i;
     for ( i = 0; i < count; ++i )
     {
-        bg_merge_src * item = &batch[ i ];
+        bg_vec_merge_src * item = &batch[ i ];
         if ( item -> rc == 0 )
         {
             if ( res == NULL )
@@ -581,7 +594,7 @@ static bg_merge_src * get_min_bg_merge_src( bg_merge_src * batch, uint32_t count
     return res;
 } 
 
-static rc_t write_bg_merge_src( bg_merge_src * src, struct lookup_writer * writer )
+static rc_t write_bg_vec_merge_src( bg_vec_merge_src * src, struct lookup_writer * writer )
 {
     rc_t rc = src -> rc;
     if ( rc == 0 )
@@ -599,12 +612,13 @@ static rc_t write_bg_merge_src( bg_merge_src * src, struct lookup_writer * write
     return rc;
 }
 
-static rc_t background_merger_collect_batch( background_merger * self,
-                                             bg_merge_src ** batch,
-                                             uint32_t * count )
+static rc_t background_vector_merger_collect_batch(
+            background_vector_merger * self,
+            bg_vec_merge_src ** batch,
+            uint32_t * count )
 {
     rc_t rc = 0;
-    bg_merge_src * b = calloc( self -> batch_size, sizeof * b );
+    bg_vec_merge_src * b = calloc( self -> batch_size, sizeof * b );
     *batch = NULL;
     *count = 0;
     
@@ -624,7 +638,7 @@ static rc_t background_merger_collect_batch( background_merger * self,
                 if ( rc == 0 )
                 {
                     STATUS ( STAT_USR, "KQueuePop() : store = %p", store );
-                    rc = init_bg_merge_src( &( b[ *count ] ), store );
+                    rc = init_bg_vec_merge_src( &( b[ *count ] ), store );
                     if ( rc == 0 )
                         *count += 1;
                 }
@@ -652,7 +666,7 @@ static rc_t background_merger_collect_batch( background_merger * self,
     return rc;
 }
 
-static bool batch_valid( bg_merge_src * batch, uint32_t count )
+static bool batch_valid( bg_vec_merge_src * batch, uint32_t count )
 {
     bool res = false;
     uint32_t i;
@@ -664,9 +678,10 @@ static bool batch_valid( bg_merge_src * batch, uint32_t count )
     return res;
 }
 
-static rc_t background_merger_process_batch( background_merger * self,
-                                             bg_merge_src * batch,
-                                             uint32_t count )
+static rc_t background_vector_merger_process_batch(
+            background_vector_merger * self,
+            bg_vec_merge_src * batch,
+            uint32_t count )
 {
     rc_t rc = 0;
     char buffer[ 4096 ];
@@ -688,6 +703,8 @@ static rc_t background_merger_process_batch( background_merger * self,
         STATUS ( STAT_USR, "batch output filename is : %s", buffer );
         rc = append_to_locked_file_list( self -> produced, buffer );
         if ( rc == 0 )
+            rc = Add_to_Cleanup_Task ( self -> cleanup_task, buffer );
+        if ( rc == 0 )
         {
             struct lookup_writer * writer; /* lookup_writer.h */
             rc = make_lookup_writer( self -> dir, NULL, &writer,
@@ -698,17 +715,17 @@ static rc_t background_merger_process_batch( background_merger * self,
             if ( rc == 0 )
             {
                 uint32_t entries_written = 0;
-                bg_merge_src * to_write = get_min_bg_merge_src( batch, count );
+                bg_vec_merge_src * to_write = get_min_bg_vec_merge_src( batch, count );
                 while( rc == 0 && to_write != NULL )
                 {
                     rc = Quitting();
                     if ( rc == 0 )
                     {
-                        rc = write_bg_merge_src( to_write, writer );
+                        rc = write_bg_vec_merge_src( to_write, writer );
                         if ( rc == 0 )
                         {
                             entries_written++;
-                            to_write = get_min_bg_merge_src( batch, count );
+                            to_write = get_min_bg_vec_merge_src( batch, count );
                         }
                         else
                             to_write = NULL;
@@ -722,21 +739,21 @@ static rc_t background_merger_process_batch( background_merger * self,
     return rc;
 }
 
-static rc_t CC background_merger_thread_func( const KThread * thread, void *data )
+static rc_t CC background_vector_merger_thread_func( const KThread * thread, void *data )
 {
     rc_t rc = 0;
-    background_merger * self = data;
+    background_vector_merger * self = data;
     bool done = false;
 
     STATUS ( STAT_USR, "starting background thread loop" );
     while( rc == 0 && !done )
     {
-        bg_merge_src * batch = NULL;
+        bg_vec_merge_src * batch = NULL;
         uint32_t count = 0;
         
         /* Step 1 : get n = batch_size KVector's out of the in_q */
         STATUS ( STAT_USR, "collecting batch" );
-        rc = background_merger_collect_batch( self, &batch, &count );
+        rc = background_vector_merger_collect_batch( self, &batch, &count );
         STATUS ( STAT_USR, "done collectin batch: rc = %R, count = %u", rc, count );
         if ( rc == 0 )
         {
@@ -747,7 +764,7 @@ static rc_t CC background_merger_thread_func( const KThread * thread, void *data
                 {
                     /* Step 2 : process the batch */
                     STATUS ( STAT_USR, "processing batch of %u vectors", count );
-                    rc = background_merger_process_batch( self, batch, count );
+                    rc = background_vector_merger_process_batch( self, batch, count );
                     STATUS ( STAT_USR, "finished processing: rc = %R", rc );
                 }
                 else
@@ -761,7 +778,7 @@ static rc_t CC background_merger_thread_func( const KThread * thread, void *data
         {
             uint32_t i;
             for ( i = 0; i < count; ++i )
-                release_bg_merge_src( &( batch[ i ] ) );
+                release_bg_vec_merge_src( &( batch[ i ] ) );
             free( batch );
         }
     }
@@ -769,16 +786,17 @@ static rc_t CC background_merger_thread_func( const KThread * thread, void *data
     return rc;
 }
 
-rc_t make_background_merger( struct background_merger ** merger,
+rc_t make_background_vector_merger( struct background_vector_merger ** merger,
                              KDirectory * dir,
                              const locked_file_list * produced,
+                             struct KFastDumpCleanupTask * cleanup_task,                             
                              const tmp_id * tmp_id,
                              uint32_t batch_size,
                              uint32_t q_wait_time,
                              size_t buf_size )
 {
     rc_t rc = 0;
-    background_merger * b = calloc( 1, sizeof * b );
+    background_vector_merger * b = calloc( 1, sizeof * b );
     *merger = NULL;
     if ( b != NULL )
     {
@@ -788,20 +806,21 @@ rc_t make_background_merger( struct background_merger ** merger,
         b -> q_wait_time = q_wait_time;
         b -> buf_size = buf_size;
         b -> produced = produced;
+        b -> cleanup_task = cleanup_task;
         rc = KQueueMake ( &( b -> job_q ), batch_size );
         if ( rc == 0 )
-            rc = KThreadMake( &( b -> thread ), background_merger_thread_func, b );
+            rc = KThreadMake( &( b -> thread ), background_vector_merger_thread_func, b );
         if ( rc == 0 )
             *merger = b;
         else
-            release_background_merger( b );
+            release_background_vector_merger( b );
     }
     else
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     return rc;
 }
 
-rc_t wait_for_background_merger( struct background_merger * self )
+rc_t wait_for_background_vector_merger( struct background_vector_merger * self )
 {
     rc_t rc_status;
     rc_t rc = KThreadWait ( self -> thread, &rc_status );
@@ -810,12 +829,56 @@ rc_t wait_for_background_merger( struct background_merger * self )
     return rc;
 }
 
-rc_t seal_background_merger( struct background_merger * self )
+rc_t seal_background_vector_merger( struct background_vector_merger * self )
 {
     return KQueueSeal ( self -> job_q );
 }
 
-rc_t push_to_background_merger( struct background_merger * self, KVector * store )
+rc_t push_to_background_vector_merger( struct background_vector_merger * self, KVector * store )
 {
     return KQueuePush ( self -> job_q, store, NULL ); /* this might block! */
+}
+
+/* =================================================================================
+    The background-file is composed from 1 background-thread, which is the consumer
+    of a job_q. The background_vector_merger above puts strings into the queue.
+    The background-merger pops the jobs out of the queue until it has assembled
+    a batch of jobs. It then processes this batch by merge-sorting the content of
+    the the files into a temporary file. The file-entries are key-value pairs with a 64-bit
+    key which is composed from the SEQID and one bit: first or second read in a spot.
+    The value is the packed READ ( pack_4na() in helper.c ).
+    The background-merger terminates when it's input-queue is sealed in perform_fastdump()
+    in fastdump.c after all background-vector-merger-threads ( producers ) have been joined.
+    The final output of the background-merger is a list of temporary files produced
+    in the temp-directory.
+   ================================================================================= */
+void release_background_file_merger( struct background_file_merger * self )
+{
+
+}
+
+rc_t make_background_file_merger( struct background_file_merger ** merger,
+                             KDirectory * dir,
+                             const locked_file_list * produced,
+                             const tmp_id * tmp_id,
+                             uint32_t batch_size,
+                             uint32_t q_wait_time,
+                             size_t buf_size )
+{
+    return -1;
+}
+
+rc_t wait_for_background_file_merger( struct background_file_merger * self )
+{
+    return -1;
+}
+
+rc_t push_to_background_file_merger( struct background_file_merger * self, const char * filename )
+{
+    return -1;
+}
+
+rc_t seal_background_file_merger( struct background_file_merger * self )
+{
+    return -1;
 }

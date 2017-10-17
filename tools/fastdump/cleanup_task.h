@@ -23,56 +23,25 @@
 * ===========================================================================
 *
 */
+#ifndef _h_fastdump_cleanup_task_
+#define _h_fastdump_cleanup_task_
 
-#ifndef _h_join_
-#define _h_join_
+#include "helper.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifndef _h_klib_rc_
-#include <klib/rc.h>
-#endif
+struct KFastDumpCleanupTask;
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
-#endif
+rc_t Make_FastDump_Cleanup_Task ( struct KFastDumpCleanupTask **task );
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
+rc_t Add_to_Cleanup_Task ( struct KFastDumpCleanupTask * self, const char * filename );
 
-#ifndef _h_atomic_
-#include <atomic.h>
-#endif
-
-#ifndef _h_helper_
-#include "helper.h"
-#endif
-
-typedef struct join_params
-{
-    KDirectory * dir;
-    const char * accession;
-    const char * lookup_filename;
-    const char * index_filename;
-    const char * output_filename;
-    tmp_id * tmp_id;
-    VNamelist * joined_files;
-    struct KFastDumpCleanupTask * cleanup_task;
-    atomic_t   * join_progress;
-    size_t buf_size, cur_cache, num_threads;
-    int64_t first_row;
-    uint64_t row_count;
-    bool show_progress;
-    format_t fmt;
-} join_params;
-
-rc_t execute_join( const join_params * jp );
-
+rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask * self );
+    
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* _h_fastdump_cleanup_task_ */

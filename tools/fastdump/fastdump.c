@@ -29,6 +29,7 @@
 #include "merge_sorter.h"
 #include "join.h"
 #include "concatenator.h"
+#include "cleanup_task.h"
 
 #include <kapp/main.h>
 #include <kapp/args.h>
@@ -97,6 +98,10 @@ static const char * force_usage[] = { "force to overwrite existing file(s)", NUL
 #define OPTION_FORCE     "force"
 #define ALIAS_FORCE      "f"
 
+static const char * maxfd_usage[] = { "maximal number of file-descriptors", NULL };
+#define OPTION_MAXFD     "maxfd"
+#define ALIAS_MAXFD      "a"
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
@@ -112,7 +117,8 @@ OptDef ToolOptions[] =
     { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false }, 
     { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false },
     { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false },
-    { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false }
+    { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
+    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }    
 };
 
 const char UsageDefaultName[] = "fastdump";
@@ -178,9 +184,11 @@ typedef struct tool_ctx
     char dflt_index[ DFLT_PATH_LEN ];
     char dflt_output[ DFLT_PATH_LEN ];
     
+    struct KFastDumpCleanupTask * cleanup_task;
+    
     size_t buf_size, mem_limit;
 
-    uint32_t num_threads;
+    uint32_t num_threads, max_fds;
 
     format_t fmt;
 
@@ -188,6 +196,7 @@ typedef struct tool_ctx
 
     bool remove_temp_path, print_to_stdout, force;
 } tool_ctx;
+
 
 static rc_t get_process_pid( uint32_t * pid )
 {
@@ -207,12 +216,26 @@ static rc_t get_process_pid( uint32_t * pid )
 
 static rc_t get_hostname( tool_ctx * tool_ctx )
 {
-    size_t num_writ;
-    rc_t rc = string_printf( tool_ctx -> hostname, sizeof tool_ctx -> hostname, &num_writ, "host" );
+    struct KProcMgr * proc_mgr;
+    rc_t rc = KProcMgrMakeSingleton ( &proc_mgr );
+    if ( rc != 0 )
+        ErrMsg( "cannot access process-manager" );
+    else
+    {
+        rc = KProcMgrGetHostName ( proc_mgr, tool_ctx -> hostname, sizeof tool_ctx -> hostname );
+        if ( rc != 0 )
+        {
+            size_t num_writ;
+            rc = string_printf( tool_ctx -> hostname, sizeof tool_ctx -> hostname, &num_writ, "host" );
+        }
+        KProcMgrRelease ( proc_mgr );
+    }
+    
     if ( rc == 0 )
         tool_ctx -> tmp_id . hostname = ( const char * )&( tool_ctx -> hostname );
     return rc;
 }
+
 
 static rc_t show_details( tool_ctx * tool_ctx )
 {
@@ -223,6 +246,8 @@ static rc_t show_details( tool_ctx * tool_ctx )
         rc = KOutMsg( "mem-limit    : %,ld\n", tool_ctx -> mem_limit );
     if ( rc == 0 )
         rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
+    if ( rc == 0 )
+        rc = KOutMsg( "max. fds     : %d\n", tool_ctx -> max_fds );     
     if ( rc == 0 )
         rc = KOutMsg( "scratch-path : '%s'\n", tool_ctx -> tmp_id . temp_path );
     if ( rc == 0 )
@@ -246,6 +271,8 @@ static rc_t show_details( tool_ctx * tool_ctx )
 }
 
 static const char * dflt_temp_path = "./fast.tmp";
+#define DFLT_MAX_FD 32
+#define DFLT_NUM_THREADS 1
 
 static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
 {
@@ -271,7 +298,8 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         tool_ctx -> index_filename = NULL;
         tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
         tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
-        tool_ctx -> num_threads = get_uint64_t_option( args, OPTION_THREADS, 1 );
+        tool_ctx -> num_threads = get_uint64_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
+        tool_ctx -> max_fds = get_uint64_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );
         tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ) ); /* helper.c */
 
         if ( tool_ctx -> mem_limit < MIN_MEM_LIMIT )
@@ -368,6 +396,9 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
             tool_ctx -> output_filename = tool_ctx -> dflt_output;
     }
     
+    
+    if ( rc == 0 )
+        rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) );
     return rc;
 }
 
@@ -386,36 +417,43 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
     KEY... 64-bit value as SEQ_SPOT_ID shifted left by 1 bit, zero-bit contains SEQ_READ_ID
     RAW_READ... 16-bit binary-chunk-lenght, followed by n bytes of packed 4na
 -------------------------------------------------------------------------------------------- */
-static rc_t perform_lookup_production( tool_ctx * tool_ctx, locked_file_list * files, struct background_merger * merger )
+static rc_t perform_lookup_production( tool_ctx * tool_ctx,
+            struct background_vector_merger * merger )
 {
     lookup_production_params lp;
 
     lp . dir                = tool_ctx -> cmn . dir;
     lp . accession          = tool_ctx -> cmn . acc;
-    lp . tmp_id             = &( tool_ctx -> tmp_id );
     lp . mem_limit          = tool_ctx -> mem_limit;
     lp . buf_size           = tool_ctx -> buf_size;
     lp . num_threads        = tool_ctx -> num_threads;
     lp . cmn                = &( tool_ctx -> cmn );
-    lp . files              = files;
     lp . merger             = merger;
     
-    return execute_lookup_production( &lp );
+    return execute_lookup_production( &lp ); /* sorter.h */
 }
 
 
 static rc_t perform_lookup_merge( tool_ctx * tool_ctx, locked_file_list * files )
 {
-    merge_sort_params mp;
+    rc_t rc = Add_to_Cleanup_Task ( tool_ctx -> cleanup_task, tool_ctx -> lookup_filename );
+    if ( rc == 0 )
+        rc = Add_to_Cleanup_Task ( tool_ctx -> cleanup_task, tool_ctx -> index_filename );
     
-    mp . dir                = tool_ctx -> cmn . dir;
-    mp . lookup_filename    = tool_ctx -> lookup_filename;
-    mp . index_filename     = tool_ctx -> index_filename;
-    mp . tmp_id             = &( tool_ctx -> tmp_id );
-    mp . num_threads        = tool_ctx -> num_threads;
-    mp . show_progress      = tool_ctx -> cmn . show_progress;
+    if ( rc == 0 )
+    {
+        merge_sort_params mp;
+        
+        mp . dir                = tool_ctx -> cmn . dir;
+        mp . lookup_filename    = tool_ctx -> lookup_filename;
+        mp . index_filename     = tool_ctx -> index_filename;
+        mp . tmp_id             = &( tool_ctx -> tmp_id );
+        mp . num_threads        = tool_ctx -> num_threads;
+        mp . show_progress      = tool_ctx -> cmn . show_progress;
     
-    return execute_merge_sort( &mp, files );
+        rc = execute_merge_sort( &mp, files );
+    }
+    return rc;
 }
 
 
@@ -446,6 +484,7 @@ static rc_t perform_join( tool_ctx * tool_ctx, locked_file_list * files )
     jp . row_count        = 0;
     jp . fmt              = tool_ctx -> fmt;
     jp . joined_files     = files -> files;
+    jp . cleanup_task     = tool_ctx -> cleanup_task;
     
     return execute_join( &jp ); /* join.c */
 }
@@ -484,14 +523,15 @@ static const uint32_t queue_timeout = 200;  /* ms */
 static rc_t perform_fastdump( tool_ctx * tool_ctx )
 {
     locked_file_list files;
-    struct background_merger * merger;
+    struct background_vector_merger * bg_vec_merger;
     
     rc_t rc = init_locked_file_list( &files, 25 );
 
     if ( rc == 0 )
-        rc = make_background_merger( &merger,
+        rc = make_background_vector_merger( &bg_vec_merger,
                  tool_ctx -> cmn . dir,
                  &files,
+                 tool_ctx -> cleanup_task,
                  & tool_ctx -> tmp_id,
                  tool_ctx -> num_threads,
                  queue_timeout,
@@ -499,15 +539,15 @@ static rc_t perform_fastdump( tool_ctx * tool_ctx )
     
     /* STEP 1 : produce lookup-table */
     if ( rc == 0 )
-        rc = perform_lookup_production( tool_ctx, &files, merger ); /* <==== above */
+        rc = perform_lookup_production( tool_ctx, bg_vec_merger ); /* <==== above */
     
     if ( rc == 0 )
-        rc = seal_background_merger( merger );
+        rc = seal_background_vector_merger( bg_vec_merger );
     
     if ( rc == 0 )
     {
-        rc = wait_for_background_merger( merger );
-        release_background_merger( merger );
+        rc = wait_for_background_vector_merger( bg_vec_merger );
+        release_background_vector_merger( bg_vec_merger );
     }
     
     /* STEP 2 : merge the lookup-tables */
@@ -575,6 +615,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                             "%s", tool_ctx . tmp_id . temp_path );
             }
             
+            Terminate_Cleanup_Task ( tool_ctx . cleanup_task );
             KDirectoryRelease( tool_ctx . cmn . dir );
         }
     }

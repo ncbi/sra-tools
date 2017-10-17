@@ -62,6 +62,7 @@ clean: stdclean
 #
 TOOL_SRC = \
 	helper \
+    cleanup_task \
 	index \
 	lookup_writer \
 	lookup_reader \

@@ -43,6 +43,8 @@ extern "C" {
 #include <klib/namelist.h>
 #endif
 
+#include "cleanup_task.h"
+
 #ifndef _h_helper_
 #include "helper.h"
 #endif
@@ -60,11 +62,32 @@ typedef struct merge_sort_params
 rc_t execute_merge_sort( const merge_sort_params * mp, locked_file_list * files );
 
 
+struct background_vector_merger;
+struct background_file_merger;
+
 /* ================================================================================= */
 
-struct background_merger;
+rc_t make_background_vector_merger( struct background_vector_merger ** merger,
+                             KDirectory * dir,
+                             const locked_file_list * produced,
+                             struct KFastDumpCleanupTask * cleanup_task,
+                             const tmp_id * tmp_id,
+                             uint32_t batch_size,
+                             uint32_t q_wait_time,
+                             size_t buf_size );
 
-rc_t make_background_merger( struct background_merger ** merger,
+rc_t wait_for_background_vector_merger( struct background_vector_merger * self );
+
+rc_t push_to_background_vector_merger( struct background_vector_merger * self, KVector * store );
+
+rc_t seal_background_vector_merger( struct background_vector_merger * self );
+
+void release_background_vector_merger( struct background_vector_merger * self );
+
+
+/* ================================================================================= */
+
+rc_t make_background_file_merger( struct background_file_merger ** merger,
                              KDirectory * dir,
                              const locked_file_list * produced,
                              const tmp_id * tmp_id,
@@ -72,13 +95,14 @@ rc_t make_background_merger( struct background_merger ** merger,
                              uint32_t q_wait_time,
                              size_t buf_size );
 
-rc_t wait_for_background_merger( struct background_merger * self );
+rc_t wait_for_background_file_merger( struct background_file_merger * self );
 
-rc_t push_to_background_merger( struct background_merger * self, KVector * store );
+rc_t push_to_background_file_merger( struct background_file_merger * self, const char * filename );
 
-rc_t seal_background_merger( struct background_merger * self );
+rc_t seal_background_file_merger( struct background_file_merger * self );
 
-void release_background_merger( struct background_merger * self );
+void release_background_file_merger( struct background_file_merger * self );
+
 
 #ifdef __cplusplus
 }

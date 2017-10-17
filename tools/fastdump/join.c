@@ -31,6 +31,7 @@
 #include "special_iter.h"
 #include "fastq_iter.h"
 #include "helper.h"
+#include "cleanup_task.h"
 
 #include <klib/out.h>
 #include <klib/printf.h>
@@ -388,6 +389,7 @@ static rc_t extract_row_count_cmn( const join_params * jp, uint64_t * row_count 
     cmn_params cmn;
     
     init_cmn_params( jp, &cmn ); /* above */
+    cmn . show_progress = false;
     switch( jp -> fmt )
     {
         case ft_special : {
@@ -630,7 +632,7 @@ rc_t execute_join( const join_params * jp )
     rc_t rc = 0;
     
     if ( jp -> show_progress )
-        rc = KOutMsg( "\njoin   :" );
+        rc = KOutMsg( "join   :" );
 
     if ( rc == 0 )
     {
@@ -688,6 +690,9 @@ rc_t execute_join( const join_params * jp )
                         if ( rc == 0 )
                             rc = VNamelistAppend( jp -> joined_files, jtd -> part_file );
 
+                        if ( rc == 0 )
+                            rc = Add_to_Cleanup_Task ( jp -> cleanup_task, jtd -> part_file );
+                            
                         if ( rc == 0 )
                         {
                             rc = KThreadMake( &thread, cmn_thread_func, jtd );

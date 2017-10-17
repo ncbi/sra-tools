@@ -581,6 +581,23 @@ rc_t append_to_locked_file_list( const locked_file_list * self, const char * fil
     return rc;
 }
 
+rc_t delete_files_in_locked_file_list( KDirectory * dir, locked_file_list * self )
+{
+    rc_t rc = 0;
+    if ( self == NULL || dir == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = delete_files( dir, self -> files );
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
 /* ===================================================================================== */
 
 rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize )

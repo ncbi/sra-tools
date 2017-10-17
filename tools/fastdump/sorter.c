@@ -47,12 +47,10 @@
 typedef struct lookup_producer
 {
     KDirectory * dir;
-    const tmp_id * tmp_id;
     struct raw_read_iter * iter;
     KVector * store;
     atomic_t * sort_progress;   
-    locked_file_list * locked_files;
-    struct background_merger * merger;
+    struct background_vector_merger * merger;
     SBuffer buf;
     uint64_t bytes_in_store;
     uint32_t chunk_id, sub_file_id;
@@ -85,10 +83,8 @@ static rc_t init_single_producer( lookup_producer * self,
         if ( rc == 0 )
         {
             self -> dir             = lp -> dir;
-            self -> tmp_id          = lp -> tmp_id;
             self -> iter            = NULL;
             self -> sort_progress   = NULL;
-            self -> locked_files    = lp -> files;
             self -> merger          = lp -> merger;
             self -> bytes_in_store  = 0;
             self -> chunk_id        = 0;
@@ -120,10 +116,8 @@ static rc_t init_multi_producer( lookup_producer * self,
             cmn_params cmn;
             
             self -> dir             = lp -> dir;
-            self -> tmp_id          = lp -> tmp_id;
             self -> iter            = NULL;
             self -> sort_progress   = sort_progress;
-            self -> locked_files    = lp -> files;
             self -> merger          = lp -> merger;
             self -> bytes_in_store  = 0;
             self -> chunk_id        = chunk_id;
@@ -146,79 +140,9 @@ static rc_t init_multi_producer( lookup_producer * self,
 }
 
 
-static rc_t save_store( lookup_producer * self )
-{
-    rc_t rc = 0;
-    if ( self -> bytes_in_store > 0 )
-    {
-        char buffer[ 4096 ];
-        size_t num_writ;
-        struct lookup_writer * writer; /* lookup_writer.h */
-        const tmp_id * tmp_id = self -> tmp_id;
-        
-        if ( tmp_id -> temp_path_ends_in_slash )
-            rc = string_printf( buffer, sizeof buffer, &num_writ, "%ssub_%s_%u_%u_%u.dat",
-                    tmp_id -> temp_path, tmp_id -> hostname,
-                    tmp_id -> pid, self -> chunk_id, self -> sub_file_id );
-        else
-            rc = string_printf( buffer, sizeof buffer, &num_writ, "%s/sub_%s_%u_%u_%u.dat",
-                    tmp_id -> temp_path, tmp_id -> hostname,
-                    tmp_id -> pid, self -> chunk_id, self -> sub_file_id );
-        if ( rc != 0 )
-            ErrMsg( "save_store.string_printf() -> %R", rc );
-        
-        if ( rc == 0 )
-            self -> sub_file_id++;
-            
-        if ( rc == 0 )
-            rc = make_lookup_writer( self -> dir, NULL, &writer,
-                                     self -> buf_size, "%s", buffer ); /* lookup_writer.c */
-        
-        if ( rc == 0 )
-        {
-            uint64_t key, next_key;
-            const String * bases;
-            rc_t rc1 = KVectorGetFirstPtr ( self -> store, &key, ( void ** )&bases );
-            while ( rc == 0 && rc1 == 0 )
-            {
-                rc = write_packed_to_lookup_writer( writer, key, bases ); /* lookup_writer.c */
-                StringWhack ( bases );
-                rc1 = KVectorGetNextPtr ( self -> store, &next_key, key, ( void ** )&bases );
-                key = next_key;
-            }
-            release_lookup_writer( writer ); /* lookup_writer.c */
-        }
-
-        if ( rc == 0 )
-        {
-            if ( self -> single )
-                rc = append_to_file_list( self -> locked_files, buffer );
-            else
-                rc = append_to_locked_file_list( self -> locked_files, buffer );
-        }
-        
-        if ( rc == 0 )
-        {
-            self -> bytes_in_store = 0;
-            rc = KVectorRelease( self -> store );
-            if ( rc != 0 )
-                ErrMsg( "KVectorRelease() -> %R", rc );
-            else
-            {
-                self -> store = NULL;
-                rc = KVectorMake( &self -> store );
-                if ( rc != 0 )
-                    ErrMsg( "KVectorMake() -> %R", rc );
-            }
-        }
-    }
-    return rc;
-}
-
-
 static rc_t push_store_to_merger( lookup_producer * self, bool last )
 {
-    rc_t rc = push_to_background_merger( self -> merger, self -> store ); /* this might block! */
+    rc_t rc = push_to_background_vector_merger( self -> merger, self -> store ); /* this might block! */
     if ( rc == 0 )
     {
         self -> store = NULL;
@@ -260,10 +184,7 @@ static rc_t write_to_store( lookup_producer * self, int64_t seq_spot_id, uint32_
          self -> mem_limit > 0 &&
          self -> bytes_in_store >= self -> mem_limit )
     {
-        if ( self -> merger != NULL ) /* above! */
-            rc = push_store_to_merger( self, false ); /* this might block ! */
-        else
-            rc = save_store( self ); /* above! */
+        rc = push_store_to_merger( self, false ); /* this might block ! */
     }
     return rc;
 }
@@ -286,10 +207,7 @@ static rc_t run_producer( lookup_producer * self )
     if ( rc == 0 )
     {
         /* now we have to push out / write out what is left in the last store */
-        if ( self -> merger != NULL ) /* above! */
-            rc = push_store_to_merger( self, true ); /* this might block ! */
-        else
-            rc = save_store( self ); /* above! */
+        rc = push_store_to_merger( self, true ); /* this might block ! */
     }
     return rc;
 }

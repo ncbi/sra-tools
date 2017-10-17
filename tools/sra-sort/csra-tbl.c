@@ -446,6 +446,10 @@ void cSRATblPairPostCopyAlign ( cSRATblPair *self, const ctx_t *ctx )
 
     cSRAPair *csra = self -> csra;
 
+    struct KThread ** pt = NULL;
+    assert ( self );
+    pt = & self -> dad . thread;
+
     RowSetIteratorRelease ( self -> rsi, ctx );
     self -> rsi = NULL;
 
@@ -458,10 +462,10 @@ void cSRATblPairPostCopyAlign ( cSRATblPair *self, const ctx_t *ctx )
     switch ( self -> align_idx )
     {
     case 1:
-        CrossCheckRefAlignTbl ( ctx, csra -> reference -> dtbl, csra -> prim_align -> dtbl, "PRIMARY_ALIGNMENT" );
+        CrossCheckRefAlignTbl ( ctx, csra -> reference -> dtbl, csra -> prim_align -> dtbl, "PRIMARY_ALIGNMENT", pt );
         break;
     case 2:
-        CrossCheckRefAlignTbl ( ctx, csra -> reference -> dtbl, csra -> sec_align -> dtbl, "SECONDARY_ALIGNMENT" );
+        CrossCheckRefAlignTbl ( ctx, csra -> reference -> dtbl, csra -> sec_align -> dtbl, "SECONDARY_ALIGNMENT", pt );
 
 #if SEQUENCE_BEFORE_SECONDARY
         cSRATblPairWhackMappingIdx ( self, ctx );

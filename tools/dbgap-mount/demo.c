@@ -40,6 +40,7 @@
 #include <xfs/model.h>
 #include <xfs/node.h>
 #include <xfs/tree.h>
+#include <xfs/access.h>
 #include <xfs/xfs.h>
 
 #include <stdio.h>
@@ -152,7 +153,7 @@ rc_t run (
         if ( RCt == 0 ) {
             printf ( "HA(XFSControlMake)[RC=%d]\n", RCt );
 
-            RCt = XFSControlMake ( TheTree, & TheControl );
+            RCt = XFSControlMake ( & TheControl, TheTree );
             printf ( "HE(XFSControlMake)[0x%p][RC=%d]\n", ( void * ) TheControl, RCt );
 
             if ( RCt == 0 ) {

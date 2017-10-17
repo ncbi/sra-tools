@@ -83,13 +83,18 @@
 
     #include "fastq-tokens.h"
 
-    static void AddQuality(FASTQParseBlock* pb, const FASTQToken* token);
-    static void SetReadNumber(FASTQParseBlock* pb, const FASTQToken* token);
-    static void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token);
-    static void SetRead(FASTQParseBlock* pb, const FASTQToken* token);
+    static void SetReadNumber ( FASTQParseBlock * pb, const FASTQToken * token );
+
+    static void SetSpotGroup ( FASTQParseBlock * pb, const FASTQToken * token );
+
+    static void SetRead     ( FASTQParseBlock * pb, const FASTQToken * token);
+    static void ExpandRead  ( FASTQParseBlock * pb, const FASTQToken * token);
+
+    static void SetQuality      ( FASTQParseBlock * pb, const FASTQToken * token);
+    static void ExpandQuality   ( FASTQParseBlock * pb, const FASTQToken * token);
 
     static void StartSpotName(FASTQParseBlock* pb, size_t offset);
-    static void GrowSpotName(FASTQParseBlock* pb, const FASTQToken* token);
+    static void ExpandSpotName(FASTQParseBlock* pb, const FASTQToken* token);
     static void StopSpotName(FASTQParseBlock* pb);
     static void RestartSpotName(FASTQParseBlock* pb);
     static void SaveSpotName(FASTQParseBlock* pb);
@@ -119,8 +124,8 @@
 
 /* In a future release of Bison, this section will be replaced
    by #include "fastq-tokens.h".  */
-#ifndef YY_FASTQ_HOME_BOSHKINA_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED
-# define YY_FASTQ_HOME_BOSHKINA_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED
+#ifndef YY_FASTQ_HOME_BOSHKINS_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED
+# define YY_FASTQ_HOME_BOSHKINS_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -161,7 +166,7 @@ typedef int YYSTYPE;
 
 int FASTQ_parse (FASTQParseBlock* pb);
 
-#endif /* !YY_FASTQ_HOME_BOSHKINA_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED  */
+#endif /* !YY_FASTQ_HOME_BOSHKINS_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED  */
 
 /* Copy the second part of user declarations.  */
 
@@ -407,16 +412,16 @@ union yyalloc
 /* YYFINAL -- State number of the termination state.  */
 #define YYFINAL  19
 /* YYLAST -- Last index in YYTABLE.  */
-#define YYLAST   146
+#define YYLAST   139
 
 /* YYNTOKENS -- Number of terminals.  */
 #define YYNTOKENS  24
 /* YYNNTS -- Number of nonterminals.  */
-#define YYNNTS  49
+#define YYNNTS  46
 /* YYNRULES -- Number of rules.  */
-#define YYNRULES  103
+#define YYNRULES  100
 /* YYNSTATES -- Number of states.  */
-#define YYNSTATES  149
+#define YYNSTATES  141
 
 /* YYTRANSLATE[YYX] -- Symbol number corresponding to YYX as returned
    by yylex, with out-of-bounds checking.  */
@@ -463,17 +468,17 @@ static const yytype_uint8 yytranslate[] =
   /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint16 yyrline[] =
 {
-       0,    82,    82,    84,    89,    90,    92,    88,    95,    97,
-     101,   102,   106,   110,   111,   112,   113,   117,   117,   118,
-     118,   119,   119,   123,   124,   128,   128,   130,   130,   135,
-     135,   137,   137,   142,   143,   148,   149,   151,   153,   154,
-     156,   156,   157,   157,   158,   159,   160,   161,   162,   163,
-     167,   168,   169,   169,   170,   171,   172,   176,   186,   188,
-     187,   194,   194,   195,   195,   196,   196,   197,   201,   202,
-     203,   204,   205,   206,   207,   208,   213,   212,   232,   243,
-     252,   264,   265,   266,   267,   268,   269,   265,   274,   274,
-     275,   279,   280,   281,   285,   286,   287,   293,   294,   298,
-     299,   303,   304,   307
+       0,    87,    87,    89,    94,    95,    97,    93,   100,   102,
+     106,   107,   111,   115,   116,   117,   118,   122,   122,   123,
+     123,   124,   124,   128,   129,   133,   134,   135,   139,   139,
+     141,   141,   146,   147,   152,   153,   155,   157,   158,   160,
+     160,   161,   161,   162,   163,   164,   165,   166,   170,   171,
+     172,   172,   173,   174,   175,   179,   189,   191,   190,   197,
+     197,   198,   198,   199,   199,   200,   204,   205,   206,   207,
+     208,   209,   210,   211,   216,   215,   228,   227,   239,   240,
+     241,   242,   243,   244,   240,   249,   249,   250,   254,   255,
+     256,   260,   261,   262,   268,   269,   273,   274,   278,   279,
+     280
 };
 #endif
 
@@ -487,12 +492,12 @@ static const char *const yytname[] =
   "fqTOKEN", "fqASCQUAL", "fqCOORDS", "fqUNRECOGNIZED", "':'", "'@'",
   "'>'", "'='", "'_'", "'.'", "'-'", "'/'", "'+'", "$accept", "sequence",
   "$@1", "$@2", "$@3", "endfile", "endline", "readLines", "header", "$@4",
-  "$@5", "$@6", "read", "baseRead", "$@7", "$@8", "csRead", "$@9", "$@10",
-  "inlineRead", "tagLine", "$@11", "$@12", "nameSpotGroup", "$@13",
-  "nameWS", "nameWithCoords", "$@14", "$@15", "$@16", "$@17", "name",
-  "readNumber", "$@18", "pacbioSpotName", "casava1_8", "$@19", "$@20",
-  "$@21", "$@22", "$@23", "indexSequence", "$@24", "index", "runSpotRead",
-  "qualityLines", "qualityHeader", "quality", "qualityLine", YY_NULLPTR
+  "$@5", "$@6", "read", "baseRead", "csRead", "$@7", "$@8", "inlineRead",
+  "tagLine", "$@9", "$@10", "nameSpotGroup", "$@11", "nameWS",
+  "nameWithCoords", "$@12", "$@13", "$@14", "$@15", "name", "readNumber",
+  "$@16", "$@17", "casava1_8", "$@18", "$@19", "$@20", "$@21", "$@22",
+  "indexSequence", "$@23", "index", "runSpotRead", "qualityLines",
+  "qualityHeader", "quality", YY_NULLPTR
 };
 #endif
 
@@ -507,12 +512,12 @@ static const yytype_uint16 yytoknum[] =
 };
 # endif
 
-#define YYPACT_NINF -74
+#define YYPACT_NINF -14
 
 #define yypact_value_is_default(Yystate) \
-  (!!((Yystate) == (-74)))
+  (!!((Yystate) == (-14)))
 
-#define YYTABLE_NINF -83
+#define YYTABLE_NINF -80
 
 #define yytable_value_is_error(Yytable_value) \
   0
@@ -521,21 +526,21 @@ static const yytype_uint16 yytoknum[] =
      STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
-      50,   -74,    46,   -74,     4,   -74,    55,   -74,     8,   -74,
-       7,    51,    46,    58,    60,    46,   -74,    54,    54,   -74,
-     -74,   -74,   -74,    57,    32,   -74,   -74,   -74,   -74,   -74,
-     -74,   -74,   -74,   -74,   -74,    67,    93,   -74,    54,    14,
-     -74,   -74,     5,    77,    89,    25,    97,   -74,   -74,    36,
-      46,   -74,    90,    46,    46,   -74,   -74,   -74,   101,   102,
-     103,   -74,   106,   100,   104,    79,   -74,   -74,     1,   110,
-       6,   -74,   -74,    46,   -74,   107,    46,   -74,   -74,   -74,
-     -74,    46,    46,   -74,   -74,   115,   116,   118,    81,   -74,
-     -74,    -2,   -74,   -74,   -74,   -74,    83,   -74,    46,   -74,
-      86,   -74,   -74,   109,   -74,   -74,   -74,   111,   -74,   -74,
-      85,   115,    85,   108,   -74,   -74,   -74,   -74,   113,   114,
-     119,    85,    96,   -74,    96,   125,   -74,   -74,   117,    96,
-     -74,   107,   127,   126,   107,   -74,   120,   121,   -74,   -74,
-     -74,    30,   129,   -74,   -74,   -74,   -74,   120,   -74
+      26,   -14,    -1,   -14,     3,   -14,     5,   -14,     6,   -14,
+      11,    22,    -1,    53,    88,    -1,   -14,    83,    83,   -14,
+     -14,   -14,   -14,    54,    27,   -14,   -14,   -14,   -14,   -14,
+     -14,   -14,   -14,   -14,   -14,    -1,    51,   -14,    83,    30,
+     -14,   -14,     7,    94,    59,    34,    60,   -14,   -14,    45,
+      -1,   -14,    67,    -1,    61,   -14,   -14,    70,    98,    99,
+     -14,     8,    89,   109,    72,   -14,   -14,    64,   110,    13,
+     -14,    -1,   -14,    -1,   -14,   -14,   -14,   -14,    -1,   -14,
+     -14,   112,   113,   115,    96,   -14,   -14,   -14,    -3,   -14,
+     -14,   -14,   -14,   -14,   103,   100,   -14,   107,   -14,   -14,
+     -14,   108,   -14,   106,   -14,   106,   112,   106,   -14,   -14,
+     -14,   111,   114,   119,    75,   106,    75,   -14,    75,   -14,
+     -14,   116,    75,   118,   121,   123,    -1,   -14,   117,   120,
+     -14,   -14,   -14,    55,   128,   -14,   -14,   -14,   -14,   117,
+     -14
 };
 
   /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
@@ -543,41 +548,41 @@ static const yytype_int16 yypact[] =
      means the default is an error.  */
 static const yytype_uint8 yydefact[] =
 {
-       0,    10,     0,    69,     0,    12,    17,    21,     0,     9,
+       0,    10,     0,    67,     0,    12,    17,    21,     0,     9,
        0,     3,     0,     0,    16,     0,    19,     0,     0,     1,
-      11,    99,     2,     0,     0,    75,    74,     4,    73,    70,
-      72,    71,    25,    29,    15,    23,    24,     8,     0,    96,
-      68,    18,    35,     0,    50,    48,    45,    22,   100,     0,
-       0,    13,     0,     0,     0,    27,    31,    20,     0,     0,
-      40,    76,    36,    68,    54,     0,    51,    57,    58,     0,
-      46,    49,    44,     0,   103,    97,     0,    14,     5,    26,
-      30,     0,     0,    94,    95,     0,     0,     0,    39,    56,
-      55,    67,    59,    63,    53,    47,     0,    98,     0,   101,
-       0,    28,    32,    81,    41,    43,    77,     0,    38,    65,
-       0,     0,     0,    79,    80,   102,    33,    34,     0,     0,
-       0,     0,    62,    60,    64,     0,     6,    83,     0,    66,
-      78,     0,     0,     0,     7,    84,    90,     0,    88,    37,
-      85,    93,     0,    92,    91,    89,    86,    90,    87
+      11,    96,     2,     0,     0,    73,    72,     4,    71,    68,
+      70,    69,    25,    28,    15,    23,    24,     8,     0,    93,
+      66,    18,    34,     0,    48,    47,    44,    22,    97,     0,
+       0,    13,     0,     0,    27,    30,    20,     0,     0,    39,
+      74,    35,    66,    52,     0,    49,    55,    56,     0,    45,
+      43,     0,    98,    94,    14,     5,    29,    26,     0,    91,
+      92,     0,     0,     0,    38,    76,    54,    53,    65,    57,
+      61,    51,    46,    95,   100,     0,    31,    78,    40,    42,
+      75,     0,    37,     0,    63,     0,     0,     0,    99,    32,
+      33,     0,     0,     0,    77,     0,    60,    58,    62,     6,
+      80,     0,    64,     0,     0,     0,     7,    81,    87,     0,
+      85,    36,    82,    90,     0,    89,    88,    86,    83,    87,
+      84
 };
 
   /* YYPGOTO[NTERM-NUM].  */
-static const yytype_int16 yypgoto[] =
+static const yytype_int8 yypgoto[] =
 {
-     -74,   -74,   -74,   -74,   -74,   128,    -1,   -74,   -74,   -74,
-     -74,   -74,   122,   -74,   -74,   -74,   -74,   -74,   -74,   -74,
-     -12,   -74,   -74,   -74,   -74,   -74,    94,   -74,   -74,   -74,
-     -74,     0,    95,   -74,   -74,    28,   -74,   -74,   -74,   -74,
-     -74,    -6,   -74,   -74,   -74,   -74,   -74,    11,   -73
+     -14,   -14,   -14,   -14,   -14,   124,    -2,   -14,   -14,   -14,
+     -14,   -14,    97,   -14,   -14,   -14,   -14,   -14,   -13,   -14,
+     -14,   -14,   -14,   -14,    93,   -14,   -14,   -14,   -14,     1,
+      73,   -14,   -14,    31,   -14,   -14,   -14,   -14,   -14,     0,
+     -14,   -14,   -14,   -14,   -14,    15
 };
 
   /* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int16 yydefgoto[] =
 {
-      -1,     8,    52,   100,   131,     9,    10,    11,    12,    17,
-      38,    18,    34,    35,    53,    81,    36,    54,    82,   118,
-      41,    85,    86,    42,    69,    43,    44,   111,   110,   112,
-     121,    45,    62,    87,    71,   104,   119,   132,   137,   142,
-     147,   139,   141,   145,    46,    22,    23,    75,    76
+      -1,     8,    52,    95,   123,     9,    10,    11,    12,    17,
+      38,    18,    34,    35,    36,    53,    78,   111,    41,    81,
+      82,    42,    68,    43,    44,   106,   105,   107,   115,    45,
+      61,    83,   103,    98,   112,   124,   129,   134,   139,   131,
+     133,   137,    46,    22,    23,    73
 };
 
   /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
@@ -585,40 +590,38 @@ static const yytype_int16 yydefgoto[] =
      number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int16 yytable[] =
 {
-      13,    14,    98,   -61,   -61,    15,    47,     1,    19,   -68,
-     -68,    24,    60,    95,    37,     5,    91,   -68,   109,   -68,
-      92,    93,    49,   -68,   -68,   -68,    57,    61,    96,   -52,
-      25,    26,    67,    50,    58,   143,    59,    73,    68,   144,
-      28,    32,    33,    65,    29,    30,    31,    61,    74,    77,
-       1,     2,    79,    80,     5,     3,     4,    39,     5,     3,
-      40,    98,    16,    25,    26,     5,     6,     7,    48,    32,
-      33,    27,    97,    28,    21,    99,    55,    29,    30,    31,
-     101,   102,     3,    63,    25,    26,   107,   108,   113,   114,
-       3,    40,    68,    66,    28,   116,   117,   115,    29,    30,
-      31,    25,    26,    56,    72,    78,    83,    84,    90,   -42,
-     122,    28,   124,    88,    94,    29,    30,    31,    89,    74,
-     103,   129,   105,   106,   -82,   128,   120,   125,   126,   127,
-     130,   136,   133,   135,   146,   138,   140,    64,    20,   123,
-      70,   148,   134,     0,     0,     0,    51
+      14,    13,   -59,   -59,    15,    47,    19,     5,   -66,   -66,
+      24,     1,    16,    37,    59,    84,   -66,   104,   -66,     5,
+      92,    49,   -66,   -66,   -66,    56,     1,     2,    50,    60,
+      85,     3,     4,    54,     5,    85,    32,    33,   -50,    25,
+      26,    66,     6,     7,    64,    21,    71,    67,    74,    28,
+      57,    76,    58,    29,    30,    31,    60,    72,    25,    26,
+     135,    55,     5,    65,   136,    48,    27,    70,    28,    93,
+      77,    94,    29,    30,    31,    79,    96,    25,    26,    88,
+      25,    26,    75,    89,    90,    67,    39,    28,     3,    40,
+      28,    29,    30,    31,    29,    30,    31,    32,    33,     3,
+      62,   101,   102,    80,   114,   -41,   116,    86,   118,   109,
+     110,     3,    40,    87,    91,   108,   122,    97,    69,    99,
+     100,    51,   -79,   113,    94,   121,   119,   127,   128,   120,
+      72,   125,   130,   138,    20,   132,    63,   117,   126,   140
 };
 
-static const yytype_int16 yycheck[] =
+static const yytype_uint8 yycheck[] =
 {
-       0,     2,    75,     5,     6,     1,    18,     0,     0,     5,
-       6,    12,     7,     7,    15,     8,    15,    13,    20,    15,
-      19,    20,    23,    19,    20,    21,    38,    22,    22,     4,
-       5,     6,     7,     1,    20,     5,    22,     1,    13,     9,
-      15,     9,    10,    43,    19,    20,    21,    22,    12,    50,
-       0,     1,    53,    54,     8,     5,     6,     3,     8,     5,
-       6,   134,     7,     5,     6,     8,    16,    17,    11,     9,
-      10,    13,    73,    15,    23,    76,     9,    19,    20,    21,
-      81,    82,     5,     6,     5,     6,     5,     6,     5,     6,
-       5,     6,    13,     4,    15,     9,    10,    98,    19,    20,
-      21,     5,     6,    10,     7,    15,     5,     5,     4,     6,
-     110,    15,   112,     7,     4,    19,    20,    21,    18,    12,
-       5,   121,     6,     5,    15,     6,    15,    19,    15,    15,
-       5,     5,    15,     6,     5,    15,    15,    43,    10,   111,
-      45,   147,   131,    -1,    -1,    -1,    24
+       2,     0,     5,     6,     1,    18,     0,     8,     5,     6,
+      12,     0,     7,    15,     7,     7,    13,    20,    15,     8,
+       7,    23,    19,    20,    21,    38,     0,     1,     1,    22,
+      22,     5,     6,    35,     8,    22,     9,    10,     4,     5,
+       6,     7,    16,    17,    43,    23,     1,    13,    50,    15,
+      20,    53,    22,    19,    20,    21,    22,    12,     5,     6,
+       5,    10,     8,     4,     9,    11,    13,     7,    15,    71,
+       9,    73,    19,    20,    21,     5,    78,     5,     6,    15,
+       5,     6,    15,    19,    20,    13,     3,    15,     5,     6,
+      15,    19,    20,    21,    19,    20,    21,     9,    10,     5,
+       6,     5,     6,     5,   103,     6,   105,    18,   107,     9,
+      10,     5,     6,     4,     4,    12,   115,     5,    45,     6,
+       5,    24,    15,    15,   126,     6,    15,     6,     5,    15,
+      12,    15,    15,     5,    10,    15,    43,   106,   123,   139
 };
 
   /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
@@ -626,20 +629,20 @@ static const yytype_int16 yycheck[] =
 static const yytype_uint8 yystos[] =
 {
        0,     0,     1,     5,     6,     8,    16,    17,    25,    29,
-      30,    31,    32,    55,    30,     1,     7,    33,    35,     0,
-      29,    23,    69,    70,    30,     5,     6,    13,    15,    19,
-      20,    21,     9,    10,    36,    37,    40,    30,    34,     3,
-       6,    44,    47,    49,    50,    55,    68,    44,    11,    30,
-       1,    36,    26,    38,    41,     9,    10,    44,    20,    22,
-       7,    22,    56,     6,    50,    55,     4,     7,    13,    48,
-      56,    58,     7,     1,    12,    71,    72,    30,    15,    30,
-      30,    39,    42,     5,     5,    45,    46,    57,     7,    18,
-       4,    15,    19,    20,     4,     7,    22,    30,    72,    30,
-      27,    30,    30,     5,    59,     6,     5,     5,     6,    20,
-      52,    51,    53,     5,     6,    30,     9,    10,    43,    60,
-      15,    54,    55,    59,    55,    19,    15,    15,     6,    55,
-       5,    28,    61,    15,    71,     6,     5,    62,    15,    65,
-      15,    66,    63,     5,     9,    67,     5,    64,    65
+      30,    31,    32,    53,    30,     1,     7,    33,    35,     0,
+      29,    23,    67,    68,    30,     5,     6,    13,    15,    19,
+      20,    21,     9,    10,    36,    37,    38,    30,    34,     3,
+       6,    42,    45,    47,    48,    53,    66,    42,    11,    30,
+       1,    36,    26,    39,    30,    10,    42,    20,    22,     7,
+      22,    54,     6,    48,    53,     4,     7,    13,    46,    54,
+       7,     1,    12,    69,    30,    15,    30,     9,    40,     5,
+       5,    43,    44,    55,     7,    22,    18,     4,    15,    19,
+      20,     4,     7,    30,    30,    27,    30,     5,    57,     6,
+       5,     5,     6,    56,    20,    50,    49,    51,    12,     9,
+      10,    41,    58,    15,    53,    52,    53,    57,    53,    15,
+      15,     6,    53,    28,    59,    15,    69,     6,     5,    60,
+      15,    63,    15,    64,    61,     5,     9,    65,     5,    62,
+      63
 };
 
   /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
@@ -647,15 +650,15 @@ static const yytype_uint8 yyr1[] =
 {
        0,    24,    25,    25,    26,    27,    28,    25,    25,    25,
       29,    29,    30,    31,    31,    31,    31,    33,    32,    34,
-      32,    35,    32,    36,    36,    38,    37,    39,    37,    41,
-      40,    42,    40,    43,    43,    44,    44,    44,    44,    44,
-      45,    44,    46,    44,    44,    44,    44,    44,    44,    44,
-      47,    47,    48,    47,    47,    47,    47,    49,    50,    51,
-      50,    52,    50,    53,    50,    54,    50,    50,    55,    55,
-      55,    55,    55,    55,    55,    55,    57,    56,    58,    58,
-      58,    59,    60,    61,    62,    63,    64,    59,    66,    65,
-      65,    67,    67,    67,    68,    68,    68,    69,    69,    70,
-      70,    71,    71,    72
+      32,    35,    32,    36,    36,    37,    37,    37,    39,    38,
+      40,    38,    41,    41,    42,    42,    42,    42,    42,    43,
+      42,    44,    42,    42,    42,    42,    42,    42,    45,    45,
+      46,    45,    45,    45,    45,    47,    48,    49,    48,    50,
+      48,    51,    48,    52,    48,    48,    53,    53,    53,    53,
+      53,    53,    53,    53,    55,    54,    56,    54,    57,    58,
+      59,    60,    61,    62,    57,    64,    63,    63,    65,    65,
+      65,    66,    66,    66,    67,    67,    68,    68,    69,    69,
+      69
 };
 
   /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
@@ -663,15 +666,15 @@ static const yytype_uint8 yyr2[] =
 {
        0,     2,     2,     1,     0,     0,     0,     9,     3,     1,
        1,     2,     1,     3,     4,     3,     2,     0,     3,     0,
-       4,     0,     3,     1,     1,     0,     3,     0,     4,     0,
-       3,     0,     4,     1,     1,     1,     2,     9,     4,     3,
-       0,     4,     0,     4,     2,     1,     2,     3,     1,     2,
-       1,     2,     0,     3,     2,     3,     3,     2,     2,     0,
-       5,     0,     5,     0,     5,     0,     6,     3,     1,     1,
-       2,     2,     2,     2,     2,     2,     0,     3,     5,     3,
-       3,     1,     0,     0,     0,     0,     0,    11,     0,     3,
-       0,     1,     1,     0,     3,     3,     1,     3,     4,     1,
-       2,     2,     3,     1
+       4,     0,     3,     1,     1,     1,     3,     2,     0,     3,
+       0,     4,     1,     1,     1,     2,     9,     4,     3,     0,
+       4,     0,     4,     2,     1,     2,     3,     1,     1,     2,
+       0,     3,     2,     3,     3,     2,     2,     0,     5,     0,
+       5,     0,     5,     0,     6,     3,     1,     1,     2,     2,
+       2,     2,     2,     2,     0,     3,     0,     4,     1,     0,
+       0,     0,     0,     0,    11,     0,     3,     0,     1,     1,
+       0,     3,     3,     1,     3,     4,     1,     2,     1,     3,
+       2
 };
 
 
@@ -1367,7 +1370,7 @@ yyreduce:
 
   case 4:
 
-    { GrowSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
+    { ExpandSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
 
     break;
 
@@ -1437,33 +1440,39 @@ yyreduce:
 
     break;
 
-  case 27:
+  case 26:
+
+    { ExpandRead(pb, & (yyvsp[0])); }
+
+    break;
+
+  case 28:
 
     { SetRead(pb, & (yyvsp[0])); }
 
     break;
 
-  case 29:
+  case 30:
 
     { SetRead(pb, & (yyvsp[0])); }
 
     break;
 
-  case 31:
-
-    { SetRead(pb, & (yyvsp[0])); }
-
-    break;
-
-  case 33:
+  case 32:
 
     { SetRead(pb, & (yyvsp[0])); pb->record->seq.is_colorspace = false; }
 
     break;
 
-  case 34:
+  case 33:
 
     { SetRead(pb, & (yyvsp[0])); pb->record->seq.is_colorspace = true; }
+
+    break;
+
+  case 37:
+
+    { FASTQScan_skip_to_eol(pb); }
 
     break;
 
@@ -1475,25 +1484,25 @@ yyreduce:
 
   case 39:
 
-    { FASTQScan_skip_to_eol(pb); }
+    { ExpandSpotName(pb, &(yyvsp[-1])); StopSpotName(pb); }
 
     break;
 
   case 40:
 
-    { GrowSpotName(pb, &(yyvsp[-1])); StopSpotName(pb); }
+    { FASTQScan_skip_to_eol(pb); }
 
     break;
 
   case 41:
 
-    { FASTQScan_skip_to_eol(pb); }
+    { ExpandSpotName(pb, &(yyvsp[-1])); StopSpotName(pb); }
 
     break;
 
   case 42:
 
-    { GrowSpotName(pb, &(yyvsp[-1])); StopSpotName(pb); }
+    { FASTQScan_skip_to_eol(pb); }
 
     break;
 
@@ -1509,15 +1518,21 @@ yyreduce:
 
     break;
 
-  case 45:
+  case 46:
 
     { FASTQScan_skip_to_eol(pb); }
 
     break;
 
-  case 47:
+  case 49:
 
-    { FASTQScan_skip_to_eol(pb); }
+    { SetSpotGroup(pb, &(yyvsp[0])); }
+
+    break;
+
+  case 50:
+
+    { StopSpotName(pb); }
 
     break;
 
@@ -1527,135 +1542,142 @@ yyreduce:
 
     break;
 
-  case 52:
-
-    { StopSpotName(pb); }
-
-    break;
-
   case 53:
 
     { SetSpotGroup(pb, &(yyvsp[0])); }
 
     break;
 
-  case 55:
-
-    { SetSpotGroup(pb, &(yyvsp[0])); }
-
-    break;
-
-  case 56:
+  case 54:
 
     { RevertSpotName(pb); FASTQScan_skip_to_eol(pb); }
 
     break;
 
-  case 57:
+  case 55:
 
     {   /* 'name' without coordinates attached will be ignored if followed by a name with coordinates (see the previous production).
            however, if not followed, this will be the spot name, so we need to save the 'name's coordinates in case
            we need to revert to them later (see call to RevertSpotName() above) */
         SaveSpotName(pb);
-        GrowSpotName(pb, &(yyvsp[0])); /* need to account for white space but it is not part of the spot name */
+        ExpandSpotName(pb, &(yyvsp[0])); /* need to account for white space but it is not part of the spot name */
         RestartSpotName(pb); /* clean up for the potential nameWithCoords to start here */
     }
 
     break;
 
-  case 58:
+  case 56:
 
-    { GrowSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
+    { ExpandSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
+
+    break;
+
+  case 57:
+
+    {   /* another variation by Illumina, this time "_" is used as " /" */
+                    ExpandSpotName(pb, &(yyvsp[-1]));
+                    StopSpotName(pb);
+                    ExpandSpotName(pb, &(yyvsp[0]));
+                }
 
     break;
 
   case 59:
 
-    {   /* another variation by Illumina, this time "_" is used as " /" */
-                    GrowSpotName(pb, &(yyvsp[-1]));
-                    StopSpotName(pb);
-                    GrowSpotName(pb, &(yyvsp[0]));
-                }
+    { ExpandSpotName(pb, &(yyvsp[-1])); ExpandSpotName(pb, &(yyvsp[0]));}
 
     break;
 
   case 61:
 
-    { GrowSpotName(pb, &(yyvsp[-1])); GrowSpotName(pb, &(yyvsp[0]));}
+    { ExpandSpotName(pb, &(yyvsp[-1])); ExpandSpotName(pb, &(yyvsp[0]));}
 
     break;
 
   case 63:
 
-    { GrowSpotName(pb, &(yyvsp[-1])); GrowSpotName(pb, &(yyvsp[0]));}
+    { ExpandSpotName(pb, &(yyvsp[-2])); ExpandSpotName(pb, &(yyvsp[-1])); ExpandSpotName(pb, &(yyvsp[0]));}
 
     break;
 
   case 65:
 
-    { GrowSpotName(pb, &(yyvsp[-2])); GrowSpotName(pb, &(yyvsp[-1])); GrowSpotName(pb, &(yyvsp[0]));}
+    { ExpandSpotName(pb, &(yyvsp[-1])); ExpandSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
+
+    break;
+
+  case 66:
+
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 67:
 
-    { GrowSpotName(pb, &(yyvsp[-1])); GrowSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 68:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 69:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 70:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 71:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 72:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 73:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 74:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
+    {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
+            if (IS_PACBIO(pb)) pb->spotNameDone = false;
+            ExpandSpotName(pb, &(yyvsp[0]));
+        }
 
     break;
 
   case 75:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
+    {
+            if (!IS_PACBIO(pb)) SetReadNumber(pb, &(yyvsp[0]));
+            ExpandSpotName(pb, &(yyvsp[0]));
+            StopSpotName(pb);
+        }
 
     break;
 
   case 76:
 
-    {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
-            if ( IS_PACBIO ( pb ) ) pb->spotNameDone = false;
-            GrowSpotName(pb, &(yyvsp[0]));
+    {
+            if (IS_PACBIO(pb)) pb->spotNameDone = false;
+            ExpandSpotName(pb, &(yyvsp[0]));
         }
 
     break;
@@ -1663,135 +1685,92 @@ yyreduce:
   case 77:
 
     {
-            if ( IS_PACBIO ( pb ) )
-            {
-                GrowSpotName(pb, &(yyvsp[0]));
-            }
-            else
-            {
-                SetReadNumber(pb, &(yyvsp[0]));
-                StopSpotName(pb);
-            }
+            if (IS_PACBIO(pb)) StopSpotName(pb);
         }
 
     break;
 
   case 78:
 
-    {
-            if (IS_PACBIO(pb))
-            {
-                GrowSpotName(pb, &(yyvsp[-3]));
-                GrowSpotName(pb, &(yyvsp[-2]));
-                GrowSpotName(pb, &(yyvsp[-1]));
-                GrowSpotName(pb, &(yyvsp[0]));
-                StopSpotName(pb);
-            }
-        }
+    { SetReadNumber(pb, &(yyvsp[0])); ExpandSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
 
     break;
 
   case 79:
 
-    {
-            if (IS_PACBIO(pb))
-            {
-                GrowSpotName(pb, &(yyvsp[-1]));
-                GrowSpotName(pb, &(yyvsp[0]));
-                StopSpotName(pb);
-            }
-        }
+    { SetReadNumber(pb, &(yyvsp[0])); ExpandSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
 
     break;
 
   case 80:
 
-    {
-            if (IS_PACBIO(pb))
-            {
-                GrowSpotName(pb, &(yyvsp[-1]));
-                GrowSpotName(pb, &(yyvsp[0]));
-                StopSpotName(pb);
-            }
-        }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 81:
 
-    { SetReadNumber(pb, &(yyvsp[0])); GrowSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
+    { ExpandSpotName(pb, &(yyvsp[0])); if ((yyvsp[0]).tokenLength == 1 && TokenTextPtr(pb, &(yyvsp[0]))[0] == 'Y') pb->record->seq.lowQuality = true; }
 
     break;
 
   case 82:
 
-    { SetReadNumber(pb, &(yyvsp[0])); GrowSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 83:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
-
-    break;
-
-  case 84:
-
-    { GrowSpotName(pb, &(yyvsp[0])); if ((yyvsp[0]).tokenLength == 1 && TokenTextPtr(pb, &(yyvsp[0]))[0] == 'Y') pb->record->seq.lowQuality = true; }
+    { ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 85:
 
-    { GrowSpotName(pb, &(yyvsp[0])); }
-
-    break;
-
-  case 86:
-
-    { GrowSpotName(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[0])); FASTQScan_inline_sequence(pb); }
 
     break;
 
   case 88:
 
-    { GrowSpotName(pb, &(yyvsp[0])); FASTQScan_inline_sequence(pb); }
+    { SetSpotGroup(pb, &(yyvsp[0])); ExpandSpotName(pb, &(yyvsp[0])); }
+
+    break;
+
+  case 89:
+
+    { SetSpotGroup(pb, &(yyvsp[0])); ExpandSpotName(pb, &(yyvsp[0])); }
 
     break;
 
   case 91:
 
-    { SetSpotGroup(pb, &(yyvsp[0])); GrowSpotName(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[-2])); StopSpotName(pb); SetReadNumber(pb, &(yyvsp[0])); }
 
     break;
 
   case 92:
 
-    { SetSpotGroup(pb, &(yyvsp[0])); GrowSpotName(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[-2])); StopSpotName(pb); SetReadNumber(pb, &(yyvsp[0])); }
 
     break;
 
-  case 94:
+  case 93:
 
-    { GrowSpotName(pb, &(yyvsp[-2])); StopSpotName(pb); SetReadNumber(pb, &(yyvsp[0])); }
-
-    break;
-
-  case 95:
-
-    { GrowSpotName(pb, &(yyvsp[-2])); StopSpotName(pb); SetReadNumber(pb, &(yyvsp[0])); }
+    { ExpandSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
 
     break;
 
-  case 96:
+  case 98:
 
-    { GrowSpotName(pb, &(yyvsp[0])); StopSpotName(pb); }
+    { SetQuality(pb, & (yyvsp[0])); }
 
     break;
 
-  case 103:
+  case 99:
 
-    {  AddQuality(pb, & (yyvsp[0])); }
+    { ExpandQuality(pb, & (yyvsp[0])); }
 
     break;
 
@@ -2035,7 +2014,8 @@ yyreturn:
 #define MIN_LOGODDS     59
 #define MAX_LOGODDS     126
 
-void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
+/* make sure all qualities fall into the required range */
+static bool CheckQualities ( FASTQParseBlock* pb, const FASTQToken* token )
 {
     uint8_t floor;
     uint8_t ceiling;
@@ -2078,40 +2058,38 @@ void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
             sprintf ( buf, "Invalid quality format: %d.", pb->qualityFormat );
             pb->fatalError = true;
             yyerror(pb, buf);
-            return;
+            return false;
         }
     }
 
-    {   /* make sure all qualities fall into the required range */
-        unsigned int i;
-        for (i=0; i < token->tokenLength; ++i)
+    unsigned int i;
+    for (i=0; i < token->tokenLength; ++i)
+    {
+        char ch = TokenTextPtr(pb, token)[i];
+        if (ch < floor || ch > ceiling)
         {
-            char ch = TokenTextPtr(pb, token)[i];
-            if (ch < floor || ch > ceiling)
-            {
-                char buf[200];
-                sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
-                                                        ch,
-                                                        ch,
-                                                        i,
-                                                        format,
-                                                        floor,
-                                                        ceiling);
-                pb->fatalError = true;
-                yyerror(pb, buf);
-                return;
-            }
+            char buf[200];
+            sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
+                                                    ch,
+                                                    ch,
+                                                    i,
+                                                    format,
+                                                    floor,
+                                                    ceiling);
+            pb->fatalError = true;
+            yyerror(pb, buf);
+            return false;
         }
     }
+    return true;
+}
 
-    if (pb->qualityLength == 0)
+void SetQuality ( FASTQParseBlock* pb, const FASTQToken* token)
+{
+    if ( CheckQualities ( pb, token ) )
     {
         pb->qualityOffset = token->tokenStart;
         pb->qualityLength= token->tokenLength;
-    }
-    else
-    {
-        pb->qualityLength += token->tokenLength;
     }
 }
 
@@ -2186,7 +2164,7 @@ void RevertSpotName(FASTQParseBlock* pb)
     pb->spotNameLength = pb->spotNameLength_saved;
 }
 
-void GrowSpotName(FASTQParseBlock* pb, const FASTQToken* token)
+void ExpandSpotName(FASTQParseBlock* pb, const FASTQToken* token)
 {
     if (!pb->spotNameDone)
     {
@@ -2220,6 +2198,33 @@ void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token)
 
 void SetRead(FASTQParseBlock* pb, const FASTQToken* token)
 {
-    pb->readOffset = token->tokenStart;
-    pb->readLength = token->tokenLength;
+    pb -> readOffset = token->tokenStart;
+    pb -> readLength = token->tokenLength;
+    pb -> expectedQualityLines = 1;
+}
+
+/* Handling of multi-line reads and qualities (VDB-3413) */
+
+void ExpandQuality ( FASTQParseBlock * pb, const FASTQToken * newQualityLine )
+{
+    /* In the already-processed part of the flex buffer, move newQualityLine's text to be immediately after
+       the current qualit string's text. Used to discard end-of-lines in multiline qualities */
+
+    if ( CheckQualities ( pb, newQualityLine ) )
+    {
+        char * copyTo = ( char * ) ( pb -> record -> source . base ) + pb -> qualityOffset + pb -> qualityLength;
+        memmove (  copyTo, TokenTextPtr ( pb, newQualityLine ), newQualityLine -> tokenLength );
+        pb -> qualityLength += newQualityLine -> tokenLength;
+    }
+}
+
+void ExpandRead ( FASTQParseBlock * pb, const FASTQToken * newReadLine )
+{
+    /* In the already-processed part of the flex buffer, move newReadLine's text to be immediately after
+       the current read's text. Used to discard end-of-lines in multiline reads */
+
+    char * copyTo = ( char * ) ( pb -> record -> source . base ) + pb -> readOffset + pb -> readLength;
+    memmove (  copyTo, TokenTextPtr ( pb, newReadLine ), newReadLine -> tokenLength );
+    pb -> readLength += newReadLine -> tokenLength;
+    ++ pb -> expectedQualityLines;
 }

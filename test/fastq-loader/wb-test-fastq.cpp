@@ -47,272 +47,6 @@ using namespace std;
 
 TEST_SUITE(FastqLoaderWbTestSuite);
 
-//////////////////////////////////////////// tests for flex-generated scanner
-
-
-// test fixture for scanner tests
-class FastqScanFixture
-{
-public:
-    FastqScanFixture()
-    {
-        pb.self = this;
-        pb.input = Input;
-        consumed = 0;
-    }
-    ~FastqScanFixture()
-    {
-        FASTQScan_yylex_destroy(&pb);
-        if (pb.record != 0)
-        {
-            KDataBufferWhack( & pb.record->source );
-            free(pb.record);
-        }
-    }
-    void InitScan(const char* p_input, bool trace=false)
-    {
-        input = p_input;
-        FASTQScan_yylex_init(&pb, trace);
-        pb.record = (FastqRecord*)calloc(sizeof(FastqRecord), 1);
-        KDataBufferMakeBytes ( & pb.record->source, 0 );
-        FASTQ_ParseBlockInit ( &pb );
-    }
-    int Scan()
-    {
-        int tokenId=FASTQ_lex ( & sym, & pb );
-        if (tokenId != 0)
-        {
-            tokenText=string(TokenTextPtr(&pb, &sym), sym.tokenLength);
-        }
-        else
-        {
-            tokenText.clear();
-        }
-
-        return tokenId;
-    }
-    static size_t CC Input(FASTQParseBlock* sb, char* buf, size_t max_size)
-    {
-        FastqScanFixture* self = (FastqScanFixture*)sb->self;
-        if (self->input.size() < self->consumed)
-            return 0;
-
-        size_t to_copy = min(self->input.size() - self->consumed, max_size);
-        if (to_copy == 0)
-            return 0;
-
-        memmove(buf, self->input.c_str(), to_copy);
-        if (to_copy < max_size && buf[to_copy-1] != '\n')
-        {
-            buf[to_copy] = '\n';
-            ++to_copy;
-        }
-        self->consumed += to_copy;
-        return to_copy;
-    }
-
-    string input;
-    size_t consumed;
-    FASTQParseBlock pb;
-    FASTQToken sym;
-    string tokenText;
-};
-
-FIXTURE_TEST_CASE(EmptyInput, FastqScanFixture)
-{
-    InitScan("");
-    REQUIRE_EQUAL(Scan(), 0);
-}
-#define REQUIRE_TOKEN(tok)              REQUIRE_EQUAL((int)tok, Scan());
-#define REQUIRE_TOKEN_TEXT(tok, text)   REQUIRE_TOKEN(tok); REQUIRE_EQ(tokenText, string(text));
-
-#define REQUIRE_TOKEN_COORD(tok, text, line, col)  \
-    REQUIRE_TOKEN_TEXT(tok, text); \
-    REQUIRE_EQ(pb.lastToken->line_no, (size_t)line); \
-    REQUIRE_EQ(pb.lastToken->column_no, (size_t)col);
-
-FIXTURE_TEST_CASE(TagLine1, FastqScanFixture)
-{
-    InitScan("@HWUSI-EAS499_1:1:3:9:1822\n");
-    REQUIRE_TOKEN('@');
-    REQUIRE_TOKEN_COORD(fqALPHANUM, "HWUSI-EAS499", 1, 2);
-    REQUIRE_TOKEN('_');
-    REQUIRE_TOKEN_TEXT(fqNUMBER, "1");
-    REQUIRE_TOKEN_TEXT(fqCOORDS, ":1:3:9:1822");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN(0);
-}
-
-FIXTURE_TEST_CASE(SequenceQuality, FastqScanFixture)
-{
-    InitScan("@8\n" "GATC\n" "+8:1:46:673\n" "!**'\n");
-    REQUIRE_TOKEN('@');
-    REQUIRE_TOKEN_TEXT(fqNUMBER, "8");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN_COORD(fqBASESEQ, "GATC", 2, 1);
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN('+');
-    REQUIRE_TOKEN_TEXT(fqTOKEN,  "8:1:46:673");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN_TEXT(fqASCQUAL, "!**'");
-    REQUIRE_TOKEN(fqENDLINE);
-}
-
-FIXTURE_TEST_CASE(QualityOnly, FastqScanFixture)
-{
-    InitScan(">8\n" "\x7F!**'\n");
-    REQUIRE_TOKEN('>');
-    REQUIRE_TOKEN_TEXT(fqNUMBER, "8");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN_TEXT(fqASCQUAL, "\x7F!**'");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN(0);
-}
-
-FIXTURE_TEST_CASE(NoEOL_InQuality, FastqScanFixture)
-{
-    InitScan("@8\n" "GATC\n" "+\n" "!**'");
-    REQUIRE_TOKEN('@');
-    REQUIRE_TOKEN_TEXT(fqNUMBER, "8");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN_TEXT(fqBASESEQ, "GATC");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN('+');
-    REQUIRE_TOKEN(fqENDLINE);
-
-    REQUIRE_TOKEN_TEXT(fqASCQUAL, "!**'");
-    REQUIRE_TOKEN(fqENDLINE); /* this is auto-inserted by FastqScanFixture::Input() */
-    REQUIRE_TOKEN(0);
-}
-
-FIXTURE_TEST_CASE(CRnoLF, FastqScanFixture)
-{
-    InitScan("@8\r", 0);
-    REQUIRE_TOKEN('@');
-    REQUIRE_TOKEN_TEXT(fqNUMBER, "8");
-    REQUIRE_TOKEN(fqENDLINE);
-}
-
-FIXTURE_TEST_CASE(CommaSeparatedQuality3, FastqScanFixture)
-{
-    InitScan("@8\n" "GATC\n" "+\n" "0047044004,046,,4000,04444000,--,6-\n");
-    REQUIRE_TOKEN('@');
-    REQUIRE_TOKEN_TEXT(fqNUMBER, "8");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN_TEXT(fqBASESEQ, "GATC");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN('+');
-    REQUIRE_TOKEN(fqENDLINE);
-
-    REQUIRE_TOKEN_TEXT(fqASCQUAL, "0047044004,046,,4000,04444000,--,6-");
-    REQUIRE_EQUAL(Scan(), (int)fqENDLINE);
-    REQUIRE_EQUAL(Scan(), 0);
-}
-
-FIXTURE_TEST_CASE(WsBeforeEol, FastqScanFixture)
-{
-    InitScan("@ \n");
-    REQUIRE_TOKEN('@');
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_EQUAL(Scan(), 0);
-}
-
-FIXTURE_TEST_CASE(SkipToEol, FastqScanFixture)
-{
-    InitScan("@ kjalkjaldkj \nGATC\n");
-    REQUIRE_TOKEN('@');
-    FASTQScan_skip_to_eol(&pb);
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_TOKEN_TEXT(fqBASESEQ, "GATC"); // back to normal
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_EQUAL(Scan(), 0);
-}
-
-FIXTURE_TEST_CASE(InlineBaseSequence, FastqScanFixture)
-{
-    InitScan("@:GATC.NNNN\n");
-    REQUIRE_TOKEN('@');
-    REQUIRE_TOKEN(':');
-    FASTQScan_inline_sequence(&pb);
-    REQUIRE_TOKEN_TEXT(fqBASESEQ, "GATC.NNNN");
-    REQUIRE_TOKEN(fqENDLINE);
-    REQUIRE_EQUAL(Scan(), 0);
-}
-
-///////////////////////////////////////////////// Fastq Parser test fixture
-class ParserFixture
-{
-public:
-    ParserFixture()
-    {
-        pb.record = 0;
-    }
-    ~ParserFixture()
-    {
-        FASTQScan_yylex_destroy(&pb);
-        if (pb.record != 0)
-        {
-            KDataBufferWhack( & pb.record->source );
-            free(pb.record);
-        }
-    }
-
-    bool Parse(bool traceLex = false)
-    {
-        pb.self = this;
-        pb.input = Input;
-        pb.qualityFormat = FASTQphred33;
-        pb.defaultReadNumber = 9;
-        pb.secondaryReadNumber = 0;
-        pb.ignoreSpotGroups = false;
-
-        if (FASTQScan_yylex_init(& pb, traceLex) != 0)
-            FAIL("ParserFixture::ParserFixture: FASTQScan_yylex_init failed");
-
-        pb.record = (FastqRecord*)calloc(1, sizeof(FastqRecord));
-        if (pb.record == 0)
-            FAIL("ParserFixture::ParserFixture: malloc failed");
-        KDataBufferMakeBytes ( & pb.record->source, 0 );
-
-        //FASTQ_debug = 1;
-        FASTQ_ParseBlockInit ( &pb );
-        return FASTQ_parse( &pb ) == 1 && pb.record->rej == 0;
-    }
-
-    void AddBuffer(const string& p_text)
-    {
-        buffers.push_back(p_text);
-    }
-
-    static size_t CC Input(struct FASTQParseBlock* sb, char* buf, size_t max_size)
-    {
-        ParserFixture* self = (ParserFixture*)sb->self;
-        if (self->buffers.empty())
-            return 0;
-
-        string s = self->buffers.front();
-        self->buffers.pop_front();
-        memmove(buf, s.c_str(), s.size()); // ignore max_size for our short test lines
-        return s.size();
-    }
-
-    list<string> buffers;
-    FASTQParseBlock pb;
-};
-
-FIXTURE_TEST_CASE(BufferBreakInTag, ParserFixture)
-{
-    AddBuffer("@HWI-ST226:170:AB075UABXX:3:1101:10089:7031 ");
-    AddBuffer("1:N:0:GCCAAT\n"
-              "TACA\n"
-              "+\n"
-              "GEGE\n");
-    REQUIRE(Parse());
-    REQUIRE_EQ(1, (int)pb.record->seq.readnumber);
-}
-
-///////////////////////////////////////////////// FastqReader test fixture
-
 class LoaderFixture
 {
 public:
@@ -398,6 +132,7 @@ public:
         if (seq != 0 && SequenceRelease(seq) != 0)
             return false;
         seq = 0;
+        record = 0;
 
         return ReaderFileGetRecord(rf, &record) == 0;
     }
@@ -496,6 +231,7 @@ FIXTURE_TEST_CASE(EndLines, LoaderFixture)
 
 //////////////////// syntax errors and recovery
 const string SyntaxError("syntax error");
+
 FIXTURE_TEST_CASE(SyntaxError1, LoaderFixture)
 {
     string input="qqq abcd";
@@ -516,10 +252,11 @@ FIXTURE_TEST_CASE(SyntaxError1, LoaderFixture)
 }
 
 FIXTURE_TEST_CASE(SyntaxError2, LoaderFixture)
-{
+{   // a good record followed by junk
     #define input "qqq abcd"
+
     CreateFileGetRecord(GetName(), "@SEQ_ID1\n" "GATT\n" "+\n" "!''*\n" input );
-    REQUIRE(GetRecord());
+    REQUIRE(GetRecord()); // skip the well formed record
 
     REQUIRE(GetRejected());
     REQUIRE(!fatal);
@@ -659,6 +396,13 @@ FIXTURE_TEST_CASE(TestSequenceGetReadLength, LoaderFixture)
     REQUIRE_EQ(readLength, 4u);
 }
 
+FIXTURE_TEST_CASE(TestSequenceGetReadLength_MultiLine, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "GATT\nTAGGA\n" "+\n" "!''*\n" ));
+    REQUIRE_RC(SequenceGetReadLength(seq, &readLength));
+    REQUIRE_EQ(readLength, 9u);
+}
+
 FIXTURE_TEST_CASE(TestSequenceGetRead, LoaderFixture)
 {
     REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "GATT\n" "+\n" "!''*\n" ));
@@ -667,19 +411,74 @@ FIXTURE_TEST_CASE(TestSequenceGetRead, LoaderFixture)
     REQUIRE_EQ(string(read, readLength), string("GATT"));
 }
 
+FIXTURE_TEST_CASE(TestSequenceGetRead_MultiLine, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "AAAA\n" "GG\n" "+\n" "!''*\n" ));
+    REQUIRE(MakeReadBuffer());
+    REQUIRE_RC(SequenceGetRead(seq, read));
+    REQUIRE_EQ(string(read, readLength), string("AAAAGG"));
+}
+
 FIXTURE_TEST_CASE(TestSequenceGetRead2, LoaderFixture)
 {
     REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "GATT\n" "+\n" "!''*\n" ));
     REQUIRE(MakeReadBuffer());
 
-    // normal
     REQUIRE_RC(SequenceGetRead2(seq, read, 0, 2));
     REQUIRE_EQ(string(read, 2), string("GA"));
+}
+FIXTURE_TEST_CASE(TestSequenceGetRead2_StopOutOfRange, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "GATT\n" "+\n" "!''*\n" ));
+    REQUIRE(MakeReadBuffer());
 
-    // stop out of range
     REQUIRE_RC_FAIL(SequenceGetRead2(seq, read, 2, 6));
+}
 
-    // start out of range
+FIXTURE_TEST_CASE(TestSequenceGetRead2_StartOutOfRange, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "GATT\n" "+\n" "!''*\n" ));
+    REQUIRE(MakeReadBuffer());
+
+    REQUIRE_RC_FAIL(SequenceGetRead2(seq, read, 20, 1));
+}
+
+FIXTURE_TEST_CASE(TestSequenceGetRead2_MultiLine_InsideFirstLine, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "ACG\nTGCA\n" "+\n" "!''*\n" ));
+    REQUIRE(MakeReadBuffer());
+
+    REQUIRE_RC(SequenceGetRead2(seq, read, 0, 2));
+    REQUIRE_EQ(string(read, 2), string("AC"));
+}
+FIXTURE_TEST_CASE(TestSequenceGetRead2_MultiLine_InsideSecondLine, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "ACG\nTGCA\n" "+\n" "!''*\n" ));
+    REQUIRE(MakeReadBuffer());
+
+    REQUIRE_RC(SequenceGetRead2(seq, read, 4, 6));
+    REQUIRE_EQ(string(read, 2), string("GC"));
+}
+FIXTURE_TEST_CASE(TestSequenceGetRead2_MultiLine_AcrossEOL, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "ACG\nTGCA\n" "+\n" "!''*\n" ));
+    REQUIRE(MakeReadBuffer());
+
+    REQUIRE_RC(SequenceGetRead2(seq, read, 2, 6));
+    REQUIRE_EQ(string(read, 4), string("GTGC"));
+}
+FIXTURE_TEST_CASE(TestSequenceGetRead2_MultiLine_StopOutOfRange, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "ACG\nTGCA\n" "+\n" "!''*\n" ));
+    REQUIRE(MakeReadBuffer());
+
+    REQUIRE_RC_FAIL(SequenceGetRead2(seq, read, 2, 66));
+}
+FIXTURE_TEST_CASE(TestSequenceGetRead2_MultiLine_StartOutOfRange, LoaderFixture)
+{
+    REQUIRE(CreateFileGetSequence(GetName(), "@SEQ_ID1\n" "ACG\nTGCA\n" "+\n" "!''*\n" ));
+    REQUIRE(MakeReadBuffer());
+
     REQUIRE_RC_FAIL(SequenceGetRead2(seq, read, 20, 1));
 }
 
@@ -1183,7 +982,6 @@ FIXTURE_TEST_CASE(DecimalQualityRejected, LoaderFixture)
 ////////////////// detecting alternative formats
 FIXTURE_TEST_CASE(PacbioRaw, LoaderFixture)
 {
-    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(),
         "@m121205_055009_42163_c100416332550000001523041801151327_s1_p0/19\n"
         "AGAGTTTGAT\n"
@@ -1221,7 +1019,6 @@ FIXTURE_TEST_CASE(PacbioNoReadNumbers, LoaderFixture)
 
 FIXTURE_TEST_CASE(PacbioWsCcs, LoaderFixture)
 {
-    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(),
         "@m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2 ccs\n"
         "AGAGTTTGAT\n"
@@ -1232,22 +1029,8 @@ FIXTURE_TEST_CASE(PacbioWsCcs, LoaderFixture)
     REQUIRE_EQ(string("m101210_094054_00126_c000028442550000000115022402181134_s1_p0/2"), string(name, length));
 }
 
-FIXTURE_TEST_CASE(PacbioRange, LoaderFixture)
-{
-    defaultReadNumber = -1;
-    REQUIRE(CreateFileGetSequence(GetName(),
-        "@m120328_022709_00128_c100311312550000001523011808061260_s1_p0/75/123_4103\n"
-        "AGAGTTTGAT\n"
-        "+m120328_022709_00128_c100311312550000001523011808061260_s1_p0/75/123_4103\n"
-        "LLhf>>>>[[\n"
-    ));
-    REQUIRE_RC(SequenceGetSpotName(seq, &name, &length));
-    REQUIRE_EQ(string("m120328_022709_00128_c100311312550000001523011808061260_s1_p0/75/123_4103"), string(name, length));
-}
-
 FIXTURE_TEST_CASE(PacbioError, LoaderFixture)
 {
-    defaultReadNumber = -1;
     REQUIRE(CreateFileGetSequence(GetName(),
         "@m130727_021351_42150_c100538232550000001823086511101336_s1_p0/53/0_106\n"
         "TTTTTCCAAAAAAGGAGACGTAAACATTTCTTAACTTGCCAGCACTCTAATTCCAAAATCAAGTCGCATTTCTGACATTGCGGTAAGATTGTGCAATATCATATCT\n"
@@ -1333,6 +1116,52 @@ FIXTURE_TEST_CASE ( FastqDumpOutput, LoaderFixture )
     REQUIRE_EQ(string("SRR000123.1"), string(name, length));
 }
 
+FIXTURE_TEST_CASE ( FastqMultiLineSequenceFasta, LoaderFixture )
+{ // VDB-3413
+#define LINE1 "AAAGAGAGAGGATGCTTGCAAAGGCTAGCATCGGTCTACTTTCAAACTTCTCAAGAATGTCCTTGAGATA"
+#define LINE2 "TTGGCTTTGGGACAAGAAATCCTTCTTGAAATTGTTGAATTTGAATCGAGAAAGACTTCAGTCGGCATTG"
+#define LINE3 "AGTGCATATCAAAGGTCTTGGTCATGGAGGCT"
+
+    REQUIRE(CreateFileGetSequence(GetName(),
+        ">m151125_043638_42219_c100898392550000001823200804231640_s1_p0/24/0_34066 RQ=0.887\n" LINE1 "\n" LINE2 "\n" LINE3 "\n"
+    ));
+    REQUIRE(MakeReadBuffer());
+    REQUIRE_RC(SequenceGetRead(seq, read));
+    REQUIRE_EQ ( string ( read, readLength ), string ( LINE1 LINE2 LINE3 ) );
+#undef LINE1
+#undef LINE2
+#undef LINE3
+}
+
+FIXTURE_TEST_CASE ( FastqMultiLineSequenceFastq, LoaderFixture )
+{ // VDB-3413
+#define LINE1 "GGATGGTCCGAGCCGCAAGCGCACCGAACTGCTGCGCGAGCTGCGGATCA"
+#define LINE2 "AAAGATGACGATCAACGTCGCGCGGCCCGGTGACATGAGATTACCGGCGG"
+#define LINE3 "CGGAGCAACCAGCAACTGAATCGAGA"
+#define QUAL1 "##%$--,&//#.'$&'!!$)*)('./%.'$)$&..-.//-//..///+/*"
+#define QUAL2 "(#'*%.,)+-,%''---)'--./*+&&--*)-+*&)'%.,-.-%'##((*"
+#define QUAL3 "(+-!$+'#$---$%(#%-$%/-.&('"
+
+    REQUIRE(CreateFileGetSequence(GetName(),
+        ">m151125_043638_42219_c100898392550000001823200804231640_s1_p0/24/0_34066 RQ=0.887\n"
+        LINE1 "\n" LINE2 "\n" LINE3 "\n"
+        "+\n"
+        QUAL1 "\n" QUAL2 "\n" QUAL3 "\n"
+    ));
+    REQUIRE(MakeReadBuffer());
+    REQUIRE_RC(SequenceGetRead(seq, read));
+    REQUIRE_EQ ( string ( read, readLength ), string ( LINE1 LINE2 LINE3 ) );
+
+    REQUIRE_RC(SequenceGetQuality(seq, &quality, &qualityAsciiOffset, &qualityType));
+    REQUIRE_RC(SequenceGetRead(seq, read));
+    REQUIRE_EQ ( string ( (const char*)quality, readLength ), string ( QUAL1 QUAL2 QUAL3 ) );
+#undef LINE1
+#undef LINE2
+#undef LINE3
+#undef QUAL1
+#undef QUAL2
+#undef QUAL3
+}
 
 // FIXTURE_TEST_CASE(Pacbio, LoaderFixture)
 // {

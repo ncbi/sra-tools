@@ -38,13 +38,18 @@
 
     #include "fastq-tokens.h"
 
-    static void AddQuality(FASTQParseBlock* pb, const FASTQToken* token);
-    static void SetReadNumber(FASTQParseBlock* pb, const FASTQToken* token);
-    static void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token);
-    static void SetRead(FASTQParseBlock* pb, const FASTQToken* token);
+    static void SetReadNumber ( FASTQParseBlock * pb, const FASTQToken * token );
+
+    static void SetSpotGroup ( FASTQParseBlock * pb, const FASTQToken * token );
+
+    static void SetRead     ( FASTQParseBlock * pb, const FASTQToken * token);
+    static void ExpandRead  ( FASTQParseBlock * pb, const FASTQToken * token);
+
+    static void SetQuality      ( FASTQParseBlock * pb, const FASTQToken * token);
+    static void ExpandQuality   ( FASTQParseBlock * pb, const FASTQToken * token);
 
     static void StartSpotName(FASTQParseBlock* pb, size_t offset);
-    static void GrowSpotName(FASTQParseBlock* pb, const FASTQToken* token);
+    static void ExpandSpotName(FASTQParseBlock* pb, const FASTQToken* token);
     static void StopSpotName(FASTQParseBlock* pb);
     static void RestartSpotName(FASTQParseBlock* pb);
     static void SaveSpotName(FASTQParseBlock* pb);
@@ -86,7 +91,7 @@ sequence /* have to return the lookahead symbol before returning since it belong
 /*    | qualityLines              { UNLEX; return 1; } */
 
     | name
-        fqCOORDS                { GrowSpotName(pb, &$2); StopSpotName(pb); }
+        fqCOORDS                { ExpandSpotName(pb, &$2); StopSpotName(pb); }
         ':'                     { FASTQScan_inline_sequence(pb); }
         inlineRead
         ':'                     { FASTQScan_inline_quality(pb); }
@@ -126,9 +131,8 @@ read
 
 baseRead
     : fqBASESEQ { SetRead(pb, & $1); }
-        endline
-    | baseRead fqBASESEQ { SetRead(pb, & $2); }
-        endline
+    | baseRead endline fqBASESEQ { ExpandRead(pb, & $3); }
+    | baseRead endline
     ;
 
 csRead
@@ -153,14 +157,13 @@ tagLine
     | nameSpotGroup readNumber fqWS fqALPHANUM { FASTQScan_skip_to_eol(pb); }
     | nameSpotGroup readNumber fqWS { FASTQScan_skip_to_eol(pb); }
 
-    | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } casava1_8 { FASTQScan_skip_to_eol(pb); }
-    | nameSpotGroup fqWS  { GrowSpotName(pb, &$1); StopSpotName(pb); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
+    | nameSpotGroup fqWS  { ExpandSpotName(pb, &$1); StopSpotName(pb); } casava1_8 { FASTQScan_skip_to_eol(pb); }
+    | nameSpotGroup fqWS  { ExpandSpotName(pb, &$1); StopSpotName(pb); } fqALPHANUM { FASTQScan_skip_to_eol(pb); } /* no recognizable read number */
     | runSpotRead fqWS  { FASTQScan_skip_to_eol(pb); }
     | runSpotRead       { FASTQScan_skip_to_eol(pb); }
     | name readNumber
     | name readNumber fqWS  { FASTQScan_skip_to_eol(pb); }
     | name
-    | name pacbioSpotName
     ;
 
 nameSpotGroup
@@ -178,113 +181,85 @@ nameWS
            however, if not followed, this will be the spot name, so we need to save the 'name's coordinates in case
            we need to revert to them later (see call to RevertSpotName() above) */
         SaveSpotName(pb);
-        GrowSpotName(pb, &$2); /* need to account for white space but it is not part of the spot name */
+        ExpandSpotName(pb, &$2); /* need to account for white space but it is not part of the spot name */
         RestartSpotName(pb); /* clean up for the potential nameWithCoords to start here */
     }
 
 nameWithCoords
-    : name fqCOORDS { GrowSpotName(pb, &$2); StopSpotName(pb); }
+    : name fqCOORDS { ExpandSpotName(pb, &$2); StopSpotName(pb); }
     | name fqCOORDS '_'
                 {   /* another variation by Illumina, this time "_" is used as " /" */
-                    GrowSpotName(pb, &$2);
+                    ExpandSpotName(pb, &$2);
                     StopSpotName(pb);
-                    GrowSpotName(pb, &$3);
+                    ExpandSpotName(pb, &$3);
                 }
                 casava1_8
-    | name fqCOORDS ':'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3);} name
-    | name fqCOORDS '.'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3);} name
-    | name fqCOORDS ':' '.' { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3); GrowSpotName(pb, &$4);} name
-    | name fqCOORDS ':'     { GrowSpotName(pb, &$2); GrowSpotName(pb, &$3); StopSpotName(pb); }
+    | name fqCOORDS ':'     { ExpandSpotName(pb, &$2); ExpandSpotName(pb, &$3);} name
+    | name fqCOORDS '.'     { ExpandSpotName(pb, &$2); ExpandSpotName(pb, &$3);} name
+    | name fqCOORDS ':' '.' { ExpandSpotName(pb, &$2); ExpandSpotName(pb, &$3); ExpandSpotName(pb, &$4);} name
+    | name fqCOORDS ':'     { ExpandSpotName(pb, &$2); ExpandSpotName(pb, &$3); StopSpotName(pb); }
     ;
 
 name
-    : fqALPHANUM        { GrowSpotName(pb, &$1); }
-    | fqNUMBER          { GrowSpotName(pb, &$1); }
-    | name '_'          { GrowSpotName(pb, &$2); }
-    | name '-'          { GrowSpotName(pb, &$2); }
-    | name '.'          { GrowSpotName(pb, &$2); }
-    | name ':'          { GrowSpotName(pb, &$2); }
-    | name fqALPHANUM   { GrowSpotName(pb, &$2); }
-    | name fqNUMBER     { GrowSpotName(pb, &$2); }
+    : fqALPHANUM        { ExpandSpotName(pb, &$1); }
+    | fqNUMBER          { ExpandSpotName(pb, &$1); }
+    | name '_'          { ExpandSpotName(pb, &$2); }
+    | name '-'          { ExpandSpotName(pb, &$2); }
+    | name '.'          { ExpandSpotName(pb, &$2); }
+    | name ':'          { ExpandSpotName(pb, &$2); }
+    | name fqALPHANUM   { ExpandSpotName(pb, &$2); }
+    | name fqNUMBER     { ExpandSpotName(pb, &$2); }
     ;
 
 readNumber
     : '/'
         {   /* in PACBIO fastq, the first '/' and the following digits are treated as a continuation of the spot name, not a read number */
-            if ( IS_PACBIO ( pb ) ) pb->spotNameDone = false;
-            GrowSpotName(pb, &$1);
+            if (IS_PACBIO(pb)) pb->spotNameDone = false;
+            ExpandSpotName(pb, &$1);
         }
       fqNUMBER
         {
-            if ( IS_PACBIO ( pb ) )
-            {
-                GrowSpotName(pb, &$3);
-            }
-            else
-            {
-                SetReadNumber(pb, &$3);
-                StopSpotName(pb);
-            }
+            if (!IS_PACBIO(pb)) SetReadNumber(pb, &$3);
+            ExpandSpotName(pb, &$3);
+            StopSpotName(pb);
         }
-    ;
 
-pacbioSpotName
-    : readNumber '/' fqNUMBER '_' fqNUMBER
+    | readNumber '/'
         {
-            if (IS_PACBIO(pb))
-            {
-                GrowSpotName(pb, &$2);
-                GrowSpotName(pb, &$3);
-                GrowSpotName(pb, &$4);
-                GrowSpotName(pb, &$5);
-                StopSpotName(pb);
-            }
+            if (IS_PACBIO(pb)) pb->spotNameDone = false;
+            ExpandSpotName(pb, &$2);
         }
-    | readNumber '/' fqNUMBER
+        name
         {
-            if (IS_PACBIO(pb))
-            {
-                GrowSpotName(pb, &$2);
-                GrowSpotName(pb, &$3);
-                StopSpotName(pb);
-            }
-        }
-    | readNumber '/' fqALPHANUM
-        {
-            if (IS_PACBIO(pb))
-            {
-                GrowSpotName(pb, &$2);
-                GrowSpotName(pb, &$3);
-                StopSpotName(pb);
-            }
+            if (IS_PACBIO(pb)) StopSpotName(pb);
         }
     ;
 
 casava1_8
-    : fqNUMBER          { SetReadNumber(pb, &$1); GrowSpotName(pb, &$1); StopSpotName(pb); }
-    | fqNUMBER          { SetReadNumber(pb, &$1); GrowSpotName(pb, &$1); StopSpotName(pb); }
-     ':'                { GrowSpotName(pb, &$3); }
-     fqALPHANUM         { GrowSpotName(pb, &$5); if ($5.tokenLength == 1 && TokenTextPtr(pb, &$5)[0] == 'Y') pb->record->seq.lowQuality = true; }
-     ':'                { GrowSpotName(pb, &$7); }
-     fqNUMBER           { GrowSpotName(pb, &$9); }
+    : fqNUMBER          { SetReadNumber(pb, &$1); ExpandSpotName(pb, &$1); StopSpotName(pb); }
+    | fqNUMBER          { SetReadNumber(pb, &$1); ExpandSpotName(pb, &$1); StopSpotName(pb); }
+     ':'                { ExpandSpotName(pb, &$3); }
+     fqALPHANUM         { ExpandSpotName(pb, &$5); if ($5.tokenLength == 1 && TokenTextPtr(pb, &$5)[0] == 'Y') pb->record->seq.lowQuality = true; }
+     ':'                { ExpandSpotName(pb, &$7); }
+     fqNUMBER           { ExpandSpotName(pb, &$9); }
      indexSequence
     ;
 
 indexSequence
-    :  ':' { GrowSpotName(pb, &$1); FASTQScan_inline_sequence(pb); } index
-    | %empty
+    :  ':' { ExpandSpotName(pb, &$1); FASTQScan_inline_sequence(pb); } index
+    |
     ;
 
 index
-    : fqBASESEQ { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); }
-    | fqNUMBER  { SetSpotGroup(pb, &$1); GrowSpotName(pb, &$1); }
-    | %empty
+    : fqBASESEQ { SetSpotGroup(pb, &$1); ExpandSpotName(pb, &$1); }
+    | fqNUMBER  { SetSpotGroup(pb, &$1); ExpandSpotName(pb, &$1); }
+    |
     ;
 
 runSpotRead
-    : fqRUNDOTSPOT '.' fqNUMBER     { GrowSpotName(pb, &$1); StopSpotName(pb); SetReadNumber(pb, &$3); }
-    | fqRUNDOTSPOT '/' fqNUMBER     { GrowSpotName(pb, &$1); StopSpotName(pb); SetReadNumber(pb, &$3); }
-    | fqRUNDOTSPOT                  { GrowSpotName(pb, &$1); StopSpotName(pb); }
+    : fqRUNDOTSPOT '.' fqNUMBER     { ExpandSpotName(pb, &$1); StopSpotName(pb); SetReadNumber(pb, &$3); }
+    | fqRUNDOTSPOT '/' fqNUMBER     { ExpandSpotName(pb, &$1); StopSpotName(pb); SetReadNumber(pb, &$3); }
+    | fqRUNDOTSPOT                  { ExpandSpotName(pb, &$1); StopSpotName(pb); }
     ;
 
  /*************** quality rules *****************/
@@ -300,11 +275,9 @@ qualityHeader
     ;
 
 quality
-    : qualityLine endline
-    | quality qualityLine endline
-
-qualityLine
-    : fqASCQUAL                {  AddQuality(pb, & $1); }
+    : fqASCQUAL                 { SetQuality(pb, & $1); }
+    | quality endline fqASCQUAL { ExpandQuality(pb, & $3); }
+    | quality endline
     ;
 
 %%
@@ -317,7 +290,8 @@ qualityLine
 #define MIN_LOGODDS     59
 #define MAX_LOGODDS     126
 
-void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
+/* make sure all qualities fall into the required range */
+static bool CheckQualities ( FASTQParseBlock* pb, const FASTQToken* token )
 {
     uint8_t floor;
     uint8_t ceiling;
@@ -360,40 +334,38 @@ void AddQuality(FASTQParseBlock* pb, const FASTQToken* token)
             sprintf ( buf, "Invalid quality format: %d.", pb->qualityFormat );
             pb->fatalError = true;
             yyerror(pb, buf);
-            return;
+            return false;
         }
     }
 
-    {   /* make sure all qualities fall into the required range */
-        unsigned int i;
-        for (i=0; i < token->tokenLength; ++i)
+    unsigned int i;
+    for (i=0; i < token->tokenLength; ++i)
+    {
+        char ch = TokenTextPtr(pb, token)[i];
+        if (ch < floor || ch > ceiling)
         {
-            char ch = TokenTextPtr(pb, token)[i];
-            if (ch < floor || ch > ceiling)
-            {
-                char buf[200];
-                sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
-                                                        ch,
-                                                        ch,
-                                                        i,
-                                                        format,
-                                                        floor,
-                                                        ceiling);
-                pb->fatalError = true;
-                yyerror(pb, buf);
-                return;
-            }
+            char buf[200];
+            sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
+                                                    ch,
+                                                    ch,
+                                                    i,
+                                                    format,
+                                                    floor,
+                                                    ceiling);
+            pb->fatalError = true;
+            yyerror(pb, buf);
+            return false;
         }
     }
+    return true;
+}
 
-    if (pb->qualityLength == 0)
+void SetQuality ( FASTQParseBlock* pb, const FASTQToken* token)
+{
+    if ( CheckQualities ( pb, token ) )
     {
         pb->qualityOffset = token->tokenStart;
         pb->qualityLength= token->tokenLength;
-    }
-    else
-    {
-        pb->qualityLength += token->tokenLength;
     }
 }
 
@@ -468,7 +440,7 @@ void RevertSpotName(FASTQParseBlock* pb)
     pb->spotNameLength = pb->spotNameLength_saved;
 }
 
-void GrowSpotName(FASTQParseBlock* pb, const FASTQToken* token)
+void ExpandSpotName(FASTQParseBlock* pb, const FASTQToken* token)
 {
     if (!pb->spotNameDone)
     {
@@ -502,6 +474,33 @@ void SetSpotGroup(FASTQParseBlock* pb, const FASTQToken* token)
 
 void SetRead(FASTQParseBlock* pb, const FASTQToken* token)
 {
-    pb->readOffset = token->tokenStart;
-    pb->readLength = token->tokenLength;
+    pb -> readOffset = token->tokenStart;
+    pb -> readLength = token->tokenLength;
+    pb -> expectedQualityLines = 1;
+}
+
+/* Handling of multi-line reads and qualities (VDB-3413) */
+
+void ExpandQuality ( FASTQParseBlock * pb, const FASTQToken * newQualityLine )
+{
+    /* In the already-processed part of the flex buffer, move newQualityLine's text to be immediately after
+       the current qualit string's text. Used to discard end-of-lines in multiline qualities */
+
+    if ( CheckQualities ( pb, newQualityLine ) )
+    {
+        char * copyTo = ( char * ) ( pb -> record -> source . base ) + pb -> qualityOffset + pb -> qualityLength;
+        memmove (  copyTo, TokenTextPtr ( pb, newQualityLine ), newQualityLine -> tokenLength );
+        pb -> qualityLength += newQualityLine -> tokenLength;
+    }
+}
+
+void ExpandRead ( FASTQParseBlock * pb, const FASTQToken * newReadLine )
+{
+    /* In the already-processed part of the flex buffer, move newReadLine's text to be immediately after
+       the current read's text. Used to discard end-of-lines in multiline reads */
+
+    char * copyTo = ( char * ) ( pb -> record -> source . base ) + pb -> readOffset + pb -> readLength;
+    memmove (  copyTo, TokenTextPtr ( pb, newReadLine ), newReadLine -> tokenLength );
+    pb -> readLength += newReadLine -> tokenLength;
+    ++ pb -> expectedQualityLines;
 }

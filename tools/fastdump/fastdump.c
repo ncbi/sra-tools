@@ -189,7 +189,8 @@ typedef struct tool_ctx
     size_t buf_size, mem_limit;
 
     uint32_t num_threads, max_fds;
-
+    uint64_t total_ram;
+    
     format_t fmt;
 
     compress_t compress;    
@@ -255,6 +256,8 @@ static rc_t show_details( tool_ctx * tool_ctx )
     if ( rc == 0 )
         rc = KOutMsg( "hostname     : %s\n", tool_ctx -> tmp_id . hostname );
     if ( rc == 0 )
+        rc = KOutMsg( "total RAM    : %,lu bytes\n", tool_ctx -> total_ram );
+    if ( rc == 0 )
         rc = KOutMsg( "output-format: " );
     if ( rc == 0 )
     {
@@ -269,6 +272,9 @@ static rc_t show_details( tool_ctx * tool_ctx )
         rc = KOutMsg( "output       : '%s'\n", tool_ctx -> output_filename );
     return rc;
 }
+
+/* taken form libs/kapp/main-priv.h */
+rc_t KAppGetTotalRam ( uint64_t * totalRam );
 
 static const char * dflt_temp_path = "./fast.tmp";
 #define DFLT_MAX_FD 32
@@ -315,10 +321,20 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
             tool_ctx -> cmn . show_details = false;
     }
 
-    rc = KDirectoryNativeDir( &( tool_ctx -> cmn . dir ) );
-    if ( rc != 0 )
-        ErrMsg( "KDirectoryNativeDir() -> %R", rc );
-
+    if ( rc == 0 )
+    {
+        rc = KAppGetTotalRam ( &( tool_ctx -> total_ram ) );
+        if ( rc != 0 )
+            ErrMsg( "KAppGetTotalRam() -> %R", rc );
+    }
+    
+    if ( rc == 0 )
+    {
+        rc = KDirectoryNativeDir( &( tool_ctx -> cmn . dir ) );
+        if ( rc != 0 )
+            ErrMsg( "KDirectoryNativeDir() -> %R", rc );
+    }
+    
     if ( rc == 0 )
         rc = get_process_pid( &( tool_ctx -> tmp_id . pid ) );
 

@@ -24,6 +24,10 @@
 
 use strict;
 
+use Cwd 'abs_path';
+use File::Basename 'dirname';
+use lib dirname( abs_path $0 );
+
 sub println  { print @_; print "\n" }
 
 my ($filename, $directories, $suffix) = fileparse($0);

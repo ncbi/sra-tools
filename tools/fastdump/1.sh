@@ -2,7 +2,7 @@ acc="SRR341578"
 numthreads="6"
 scratch="/dev/shm/raetzw_tmp"
 out="/dev/shm/raetzw_out/$acc.fastq"
-mem_limit="2G"
+mem_limit="50M"
 
 # -p ... show progress-bar
 # -f ... force to overwrite output-file
@@ -20,3 +20,4 @@ time fastdump $acc -p -f -x -s -e $numthreads -t $scratch -o $out -m $mem_limit
 #totalview fastdump -a $acc -e $numthreads -x -p --split -t $scratch -o $out -f
 md5sum $out
 echo $md5
+rm -rf $out

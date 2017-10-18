@@ -69,9 +69,9 @@ struct background_file_merger;
 
 rc_t make_background_vector_merger( struct background_vector_merger ** merger,
                              KDirectory * dir,
-                             const locked_file_list * produced,
-                             struct KFastDumpCleanupTask * cleanup_task,
                              const tmp_id * tmp_id,
+                             struct KFastDumpCleanupTask * cleanup_task,                             
+                             struct background_file_merger * file_merger,
                              uint32_t batch_size,
                              uint32_t q_wait_time,
                              size_t buf_size );
@@ -88,12 +88,14 @@ void release_background_vector_merger( struct background_vector_merger * self );
 /* ================================================================================= */
 
 rc_t make_background_file_merger( struct background_file_merger ** merger,
-                             KDirectory * dir,
-                             const locked_file_list * produced,
-                             const tmp_id * tmp_id,
-                             uint32_t batch_size,
-                             uint32_t q_wait_time,
-                             size_t buf_size );
+                                KDirectory * dir,
+                                const tmp_id * tmp_id,
+                                struct KFastDumpCleanupTask * cleanup_task,                                
+                                const char * lookup_filename,
+                                const char * index_filename,
+                                uint32_t batch_size,
+                                uint32_t wait_time,
+                                size_t buf_size );
 
 rc_t wait_for_background_file_merger( struct background_file_merger * self );
 

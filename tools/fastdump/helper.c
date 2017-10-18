@@ -534,7 +534,7 @@ rc_t make_postfixed( char * buffer, size_t bufsize, const char * path, const cha
 
 /* ===================================================================================== */
 
-rc_t init_locked_file_list( locked_file_list * self, uint32_t alloc_blocksize )
+rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize )
 {
     rc_t rc;
     if ( self == NULL || alloc_blocksize == 0 )
@@ -548,23 +548,20 @@ rc_t init_locked_file_list( locked_file_list * self, uint32_t alloc_blocksize )
     return rc;
 }
 
-void release_locked_file_list( locked_file_list * self )
+rc_t locked_file_list_release( locked_file_list * self, KDirectory * dir )
 {
+    rc_t rc = 0;
     if ( self != NULL )
     {
         KLockRelease ( self -> lock );
+        if ( dir != NULL )
+            rc = delete_files( dir, self -> files );
         VNamelistRelease ( self -> files );
     }
+    return rc;
 }
 
-rc_t append_to_file_list( const locked_file_list * self, const char * filename )
-{
-    if ( self == NULL || filename == NULL )
-        return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-    return VNamelistAppend ( self -> files, filename );
-}
-
-rc_t append_to_locked_file_list( const locked_file_list * self, const char * filename )
+rc_t locked_file_list_append( const locked_file_list * self, const char * filename )
 {
     rc_t rc = 0;
     if ( self == NULL || filename == NULL )
@@ -581,7 +578,7 @@ rc_t append_to_locked_file_list( const locked_file_list * self, const char * fil
     return rc;
 }
 
-rc_t delete_files_in_locked_file_list( KDirectory * dir, locked_file_list * self )
+rc_t locked_file_list_delete_all( KDirectory * dir, locked_file_list * self )
 {
     rc_t rc = 0;
     if ( self == NULL || dir == NULL )
@@ -592,6 +589,50 @@ rc_t delete_files_in_locked_file_list( KDirectory * dir, locked_file_list * self
         if ( rc == 0 )
         {
             rc = delete_files( dir, self -> files );
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_file_list_count( const locked_file_list * self, uint32_t * count )
+{
+    rc_t rc = 0;
+    if ( self == NULL || count == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = VNameListCount( self -> files, count );
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_file_list_pop( locked_file_list * self, const String ** item )
+{
+    rc_t rc = 0;
+    if ( self == NULL || item == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        *item = NULL;
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            const char * s;
+            rc = VNameListGet ( self -> files, 0, &s );
+            if ( rc == 0 )
+            {
+                String S;
+                StringInitCString( &S, s );
+                rc = StringCopy ( item, &S );
+                if ( rc == 0 )
+                    rc = VNamelistRemoveIdx( self -> files, 0 );
+            }
             KLockUnlock ( self -> lock );
         }
     }
@@ -672,6 +713,61 @@ rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed )
                 *sealed = false;
                 rc = VectorRemove ( &( self -> vector ), 0, item );
             }
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+/* ===================================================================================== */
+rc_t locked_value_init( locked_value * self, uint64_t init_value )
+{
+    rc_t rc;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockMake ( &( self -> lock ) );
+        if ( rc == 0 )
+            self -> value = init_value;
+    }
+    return rc;
+}
+
+void locked_value_release( locked_value * self )
+{
+    if ( self == NULL )
+        KLockRelease ( self -> lock );
+}
+
+rc_t locked_value_get( locked_value * self, uint64_t * value )
+{
+    rc_t rc;
+    if ( self == NULL || value == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            *value = self -> value;
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_value_set( locked_value * self, uint64_t value )
+{
+    rc_t rc;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            self -> value = value;
             KLockUnlock ( self -> lock );
         }
     }

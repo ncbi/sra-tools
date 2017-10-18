@@ -436,6 +436,7 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
 static rc_t perform_lookup_production( tool_ctx * tool_ctx,
             struct background_vector_merger * merger )
 {
+    rc_t rc;
     lookup_production_params lp;
 
     lp . dir                = tool_ctx -> cmn . dir;
@@ -446,29 +447,11 @@ static rc_t perform_lookup_production( tool_ctx * tool_ctx,
     lp . cmn                = &( tool_ctx -> cmn );
     lp . merger             = merger;
     
-    return execute_lookup_production( &lp ); /* sorter.h */
-}
-
-
-static rc_t perform_lookup_merge( tool_ctx * tool_ctx, locked_file_list * files )
-{
-    rc_t rc = Add_to_Cleanup_Task ( tool_ctx -> cleanup_task, tool_ctx -> lookup_filename );
-    if ( rc == 0 )
-        rc = Add_to_Cleanup_Task ( tool_ctx -> cleanup_task, tool_ctx -> index_filename );
+    rc = execute_lookup_production( &lp ); /* sorter.h */
     
     if ( rc == 0 )
-    {
-        merge_sort_params mp;
-        
-        mp . dir                = tool_ctx -> cmn . dir;
-        mp . lookup_filename    = tool_ctx -> lookup_filename;
-        mp . index_filename     = tool_ctx -> index_filename;
-        mp . tmp_id             = &( tool_ctx -> tmp_id );
-        mp . num_threads        = tool_ctx -> num_threads;
-        mp . show_progress      = tool_ctx -> cmn . show_progress;
-    
-        rc = execute_merge_sort( &mp, files );
-    }
+        rc = seal_background_vector_merger( merger ); /* merge_sorter.h */
+
     return rc;
 }
 
@@ -522,66 +505,72 @@ static rc_t perform_concat( const tool_ctx * tool_ctx, locked_file_list * files 
     return execute_concat( &cp ); /* join.c */
 }
 
-/* -------------------------------------------------------------------------------------------- */
-/*
-static rc_t CC write_to_FILE ( void *f, const char *buffer, size_t bytes, size_t *num_writ )
-{
-    * num_writ = fwrite ( buffer, 1, bytes, f );
-    if ( * num_writ != bytes )
-        return RC ( rcExe, rcFile, rcWriting, rcTransfer, rcIncomplete );
-    return 0;
-}
-*/
-/* -------------------------------------------------------------------------------------------- */
 
 static const uint32_t queue_timeout = 200;  /* ms */
 
-static rc_t perform_fastdump( tool_ctx * tool_ctx )
+static rc_t produce_lookup_files( tool_ctx * tool_ctx )
 {
-    locked_file_list files;
-    struct background_vector_merger * bg_vec_merger;
+    struct background_file_merger * bg_file_merger;
     
-    rc_t rc = init_locked_file_list( &files, 25 );
+    rc_t rc = make_background_file_merger( &bg_file_merger,
+                                tool_ctx -> cmn . dir,
+                                & tool_ctx -> tmp_id,
+                                tool_ctx -> cleanup_task,
+                                tool_ctx -> lookup_filename,
+                                tool_ctx -> index_filename,
+                                tool_ctx -> num_threads,
+                                queue_timeout,
+                                tool_ctx -> buf_size );
+    if ( rc == 0 )
+    {
+        /* locked_file_list partial_lookup; */
+        struct background_vector_merger * bg_vec_merger;
+        
+        if ( rc == 0 )
+            rc = make_background_vector_merger( &bg_vec_merger,
+                     tool_ctx -> cmn . dir,
+                     & tool_ctx -> tmp_id,
+                     tool_ctx -> cleanup_task,
+                     bg_file_merger,
+                     tool_ctx -> num_threads,
+                     queue_timeout,
+                     tool_ctx -> buf_size );
+        
+        /* STEP 1 : produce lookup-table */
+        if ( rc == 0 )
+            rc = perform_lookup_production( tool_ctx, bg_vec_merger ); /* <==== above */
+        
+        if ( rc == 0 )
+        {
+            rc = wait_for_background_vector_merger( bg_vec_merger );
+            release_background_vector_merger( bg_vec_merger );
+        }
+        
+        if ( rc == 0 )
+            rc = seal_background_file_merger( bg_file_merger );
 
-    if ( rc == 0 )
-        rc = make_background_vector_merger( &bg_vec_merger,
-                 tool_ctx -> cmn . dir,
-                 &files,
-                 tool_ctx -> cleanup_task,
-                 & tool_ctx -> tmp_id,
-                 tool_ctx -> num_threads,
-                 queue_timeout,
-                 tool_ctx -> buf_size );
-    
-    /* STEP 1 : produce lookup-table */
-    if ( rc == 0 )
-        rc = perform_lookup_production( tool_ctx, bg_vec_merger ); /* <==== above */
-    
-    if ( rc == 0 )
-        rc = seal_background_vector_merger( bg_vec_merger );
-    
-    if ( rc == 0 )
-    {
-        rc = wait_for_background_vector_merger( bg_vec_merger );
-        release_background_vector_merger( bg_vec_merger );
+        if ( rc == 0 )
+        {
+            rc = wait_for_background_file_merger( bg_file_merger );
+            release_background_file_merger( bg_file_merger );
+        }
     }
+    return rc;
+}
+
+
+/* -------------------------------------------------------------------------------------------- */
+
+
+static rc_t produce_final_output( tool_ctx * tool_ctx )
+{
+    locked_file_list partial_result;
     
-    /* STEP 2 : merge the lookup-tables */
-    if ( rc == 0 )
-        rc = perform_lookup_merge( tool_ctx, &files ); /* <==== above */
-    
-    if ( rc == 0 )
-    {
-        rc = delete_files( tool_ctx -> cmn . dir, files . files );
-        release_locked_file_list( &files );
-    }
-    
-    if ( rc == 0 )
-        rc = init_locked_file_list( &files, 25 );
+    rc_t rc = locked_file_list_init( &partial_result, 25 );
     
     /* STEP 3 : join SEQUENCE-table with lookup-table */
     if ( rc == 0 )
-        rc = perform_join( tool_ctx, &files ); /* <==== above! */
+        rc = perform_join( tool_ctx, &partial_result ); /* <==== above! */
 
     /* from now on we do not need the lookup-file and it's index any more... */
     if ( tool_ctx -> dflt_lookup[ 0 ] != 0 )
@@ -592,13 +581,16 @@ static rc_t perform_fastdump( tool_ctx * tool_ctx )
 
     /* STEP 4 : concatenate output-chunks */
     if ( rc == 0 )
-        rc = perform_concat( tool_ctx, &files ); /* <==== above! */
+        rc = perform_concat( tool_ctx, &partial_result ); /* <==== above! */
 
-    release_locked_file_list( &files );        
+    locked_file_list_release( &partial_result, tool_ctx -> cmn . dir );
+
     return rc;
 }
 
+
 /* -------------------------------------------------------------------------------------------- */
+
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
@@ -616,10 +608,12 @@ rc_t CC KMain ( int argc, char *argv [] )
         {
             if ( tool_ctx . cmn . show_details )
                 rc = show_details( &tool_ctx );
-
+            
             /* =================================================== */
             if ( rc == 0 )
-                rc = perform_fastdump( &tool_ctx );
+                rc = produce_lookup_files( &tool_ctx );
+            if ( rc == 0 )
+                rc = produce_final_output( &tool_ctx );
             /* =================================================== */
             
             if ( tool_ctx . remove_temp_path )
@@ -631,7 +625,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                             "%s", tool_ctx . tmp_id . temp_path );
             }
             
-            Terminate_Cleanup_Task ( tool_ctx . cleanup_task );
+            /* Terminate_Cleanup_Task ( tool_ctx . cleanup_task ); */
             KDirectoryRelease( tool_ctx . cmn . dir );
         }
     }

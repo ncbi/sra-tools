@@ -168,11 +168,12 @@ typedef struct locked_file_list
     VNamelist * files;
 } locked_file_list;
 
-rc_t init_locked_file_list( locked_file_list * self, uint32_t alloc_blocksize );
-void release_locked_file_list( locked_file_list * self );
-rc_t append_to_file_list( const locked_file_list * self, const char * filename );
-rc_t append_to_locked_file_list( const locked_file_list * self, const char * filename );
-rc_t delete_files_in_locked_file_list( KDirectory * dir, locked_file_list * self );
+rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize );
+rc_t locked_file_list_release( locked_file_list * self, KDirectory * dir );
+rc_t locked_file_list_append( const locked_file_list * self, const char * filename );
+rc_t locked_file_list_delete_all( KDirectory * dir, locked_file_list * self );
+rc_t locked_file_list_count( const locked_file_list * self, uint32_t * count );
+rc_t locked_file_list_pop( locked_file_list * self, const String ** item );
 
 /* ===================================================================================== */
 
@@ -188,6 +189,21 @@ void locked_vector_release( locked_vector * self,
                             void ( CC * whack ) ( void *item, void *data ), void *data );
 rc_t locked_vector_push( locked_vector * self, const void * item, bool seal );
 rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed );
+
+/* ===================================================================================== */
+
+typedef struct locked_value
+{
+    KLock * lock;
+    uint64_t value;
+} locked_value;
+
+rc_t locked_value_init( locked_value * self, uint64_t init_value );
+void locked_value_release( locked_value * self );
+rc_t locked_value_get( locked_value * self, uint64_t * value );
+rc_t locked_value_set( locked_value * self, uint64_t value );
+
+
 
 #ifdef __cplusplus
 }

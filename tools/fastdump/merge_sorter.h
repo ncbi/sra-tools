@@ -35,32 +35,13 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
-
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
-
+#ifndef _h_fastdump_cleanup_task_
 #include "cleanup_task.h"
+#endif
 
 #ifndef _h_helper_
 #include "helper.h"
 #endif
-
-typedef struct merge_sort_params
-{
-    KDirectory * dir;
-    const char * lookup_filename;
-    const char * index_filename;
-    const tmp_id * tmp_id;
-    size_t num_threads, buf_size;
-    bool show_progress;
-} merge_sort_params;
-
-rc_t execute_merge_sort( const merge_sort_params * mp, locked_file_list * files );
-
 
 struct background_vector_merger;
 struct background_file_merger;

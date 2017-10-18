@@ -35,40 +35,20 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
-#endif
-
-#ifndef _h_atomic_
-#include <atomic.h>
-#endif
-
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
-
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
-
-#ifndef _h_helper_
-#include "helper.h"
-#endif
 
 #ifndef _h_cmn_iter_
 #include "cmn_iter.h"
 #endif
 
-typedef struct lookup_production_params
-{
-    KDirectory * dir;
-    const char * accession;
-    cmn_params * cmn;                               /* cmn_iter.h */
-    struct background_vector_merger * merger;       /* merge_sorter.h */
-    size_t buf_size, mem_limit, num_threads;
-} lookup_production_params;
+#ifndef _h_merge_sorter_
+#include "merge_sorter.h"
+#endif
 
-rc_t execute_lookup_production( const lookup_production_params * lp );
+rc_t execute_lookup_production( cmn_params * cmn,
+                                struct background_vector_merger * merger,
+                                size_t buf_size,
+                                size_t mem_limit,
+                                size_t num_threads );
 
 #ifdef __cplusplus
 }

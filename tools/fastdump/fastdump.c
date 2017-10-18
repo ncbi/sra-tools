@@ -433,27 +433,6 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
     KEY... 64-bit value as SEQ_SPOT_ID shifted left by 1 bit, zero-bit contains SEQ_READ_ID
     RAW_READ... 16-bit binary-chunk-lenght, followed by n bytes of packed 4na
 -------------------------------------------------------------------------------------------- */
-static rc_t perform_lookup_production( tool_ctx * tool_ctx,
-            struct background_vector_merger * merger )
-{
-    rc_t rc;
-    lookup_production_params lp;
-
-    lp . dir                = tool_ctx -> cmn . dir;
-    lp . accession          = tool_ctx -> cmn . acc;
-    lp . mem_limit          = tool_ctx -> mem_limit;
-    lp . buf_size           = tool_ctx -> buf_size;
-    lp . num_threads        = tool_ctx -> num_threads;
-    lp . cmn                = &( tool_ctx -> cmn );
-    lp . merger             = merger;
-    
-    rc = execute_lookup_production( &lp ); /* sorter.h */
-    
-    if ( rc == 0 )
-        rc = seal_background_vector_merger( merger ); /* merge_sorter.h */
-
-    return rc;
-}
 
 
 /* --------------------------------------------------------------------------------------------
@@ -512,6 +491,8 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
 {
     struct background_file_merger * bg_file_merger;
     
+    /* the background-file-merger catches the files produced by
+       the background-vector-merger */
     rc_t rc = make_background_file_merger( &bg_file_merger,
                                 tool_ctx -> cmn . dir,
                                 & tool_ctx -> tmp_id,
@@ -523,28 +504,53 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
                                 tool_ctx -> buf_size );
     if ( rc == 0 )
     {
-        /* locked_file_list partial_lookup; */
         struct background_vector_merger * bg_vec_merger;
+    
+        /* the background-vector-merger catches the KVectors produced by
+           the lookup-produceer */
+        rc = make_background_vector_merger( &bg_vec_merger,
+                 tool_ctx -> cmn . dir,
+                 & tool_ctx -> tmp_id,
+                 tool_ctx -> cleanup_task,
+                 bg_file_merger,
+                 tool_ctx -> num_threads,
+                 queue_timeout,
+                 tool_ctx -> buf_size );
         
+        /* the lookup-producer is the source of the chain */
         if ( rc == 0 )
-            rc = make_background_vector_merger( &bg_vec_merger,
-                     tool_ctx -> cmn . dir,
-                     & tool_ctx -> tmp_id,
-                     tool_ctx -> cleanup_task,
-                     bg_file_merger,
-                     tool_ctx -> num_threads,
-                     queue_timeout,
-                     tool_ctx -> buf_size );
-        
-        /* STEP 1 : produce lookup-table */
-        if ( rc == 0 )
-            rc = perform_lookup_production( tool_ctx, bg_vec_merger ); /* <==== above */
+        {
+
+/* --------------------------------------------------------------------------------------------
+    produce the lookup-table by iterating over the PRIMARY_ALIGNMENT - table:
+   -------------------------------------------------------------------------------------------- 
+    reading SEQ_SPOT_ID, SEQ_READ_ID and RAW_READ
+    SEQ_SPOT_ID and SEQ_READ_ID is merged into a 64-bit-key
+    RAW_READ is read as 4na-unpacked ( Schema does not provide 4na-packed for this column )
+    these key-pairs are temporarely stored in a KVector until a limit is reached
+    after that limit is reached they are writen sorted into the file-system as sub-files
+    These sub-files are than merge-sorted into the final output-file.
+    This output-file is a binary data-file:
+    content: [KEY][RAW_READ]
+    KEY... 64-bit value as SEQ_SPOT_ID shifted left by 1 bit, zero-bit contains SEQ_READ_ID
+    RAW_READ... 16-bit binary-chunk-lenght, followed by n bytes of packed 4na
+-------------------------------------------------------------------------------------------- */
+            rc = execute_lookup_production( &( tool_ctx -> cmn ),
+                                            bg_vec_merger,
+                                            tool_ctx -> buf_size,
+                                            tool_ctx -> mem_limit,
+                                            tool_ctx -> num_threads );
+    
+            if ( rc == 0 )
+                rc = seal_background_vector_merger( bg_vec_merger ); /* merge_sorter.h */
+        }
         
         if ( rc == 0 )
         {
             rc = wait_for_background_vector_merger( bg_vec_merger );
             release_background_vector_merger( bg_vec_merger );
         }
+        
         
         if ( rc == 0 )
             rc = seal_background_file_merger( bg_file_merger );
@@ -564,13 +570,13 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
 
 static rc_t produce_final_output( tool_ctx * tool_ctx )
 {
-    locked_file_list partial_result;
+    locked_file_list partial_results;
     
-    rc_t rc = locked_file_list_init( &partial_result, 25 );
+    rc_t rc = locked_file_list_init( &partial_results, 25 );
     
     /* STEP 3 : join SEQUENCE-table with lookup-table */
     if ( rc == 0 )
-        rc = perform_join( tool_ctx, &partial_result ); /* <==== above! */
+        rc = perform_join( tool_ctx, &partial_results ); /* <==== above! */
 
     /* from now on we do not need the lookup-file and it's index any more... */
     if ( tool_ctx -> dflt_lookup[ 0 ] != 0 )
@@ -581,9 +587,9 @@ static rc_t produce_final_output( tool_ctx * tool_ctx )
 
     /* STEP 4 : concatenate output-chunks */
     if ( rc == 0 )
-        rc = perform_concat( tool_ctx, &partial_result ); /* <==== above! */
+        rc = perform_concat( tool_ctx, &partial_results ); /* <==== above! */
 
-    locked_file_list_release( &partial_result, tool_ctx -> cmn . dir );
+    locked_file_list_release( &partial_results, tool_ctx -> cmn . dir );
 
     return rc;
 }
@@ -610,10 +616,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                 rc = show_details( &tool_ctx );
             
             /* =================================================== */
+
             if ( rc == 0 )
                 rc = produce_lookup_files( &tool_ctx );
+
             if ( rc == 0 )
                 rc = produce_final_output( &tool_ctx );
+
             /* =================================================== */
             
             if ( tool_ctx . remove_temp_path )
@@ -625,7 +634,6 @@ rc_t CC KMain ( int argc, char *argv [] )
                             "%s", tool_ctx . tmp_id . temp_path );
             }
             
-            /* Terminate_Cleanup_Task ( tool_ctx . cleanup_task ); */
             KDirectoryRelease( tool_ctx . cmn . dir );
         }
     }

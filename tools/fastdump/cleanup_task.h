@@ -26,7 +26,9 @@
 #ifndef _h_fastdump_cleanup_task_
 #define _h_fastdump_cleanup_task_
 
-#include "helper.h"
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {

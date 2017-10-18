@@ -338,23 +338,25 @@ static bool CheckQualities ( FASTQParseBlock* pb, const FASTQToken* token )
         }
     }
 
-    unsigned int i;
-    for (i=0; i < token->tokenLength; ++i)
     {
-        char ch = TokenTextPtr(pb, token)[i];
-        if (ch < floor || ch > ceiling)
+        unsigned int i;
+        for (i=0; i < token->tokenLength; ++i)
         {
-            char buf[200];
-            sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
-                                                    ch,
-                                                    ch,
-                                                    i,
-                                                    format,
-                                                    floor,
-                                                    ceiling);
-            pb->fatalError = true;
-            yyerror(pb, buf);
-            return false;
+            char ch = TokenTextPtr(pb, token)[i];
+            if (ch < floor || ch > ceiling)
+            {
+                char buf[200];
+                sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
+                                                        ch,
+                                                        ch,
+                                                        i,
+                                                        format,
+                                                        floor,
+                                                        ceiling);
+                pb->fatalError = true;
+                yyerror(pb, buf);
+                return false;
+            }
         }
     }
     return true;

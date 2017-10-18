@@ -124,8 +124,8 @@
 
 /* In a future release of Bison, this section will be replaced
    by #include "fastq-tokens.h".  */
-#ifndef YY_FASTQ_HOME_BOSHKINS_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED
-# define YY_FASTQ_HOME_BOSHKINS_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED
+#ifndef YY_FASTQ_HOME_BOSHKINA_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED
+# define YY_FASTQ_HOME_BOSHKINA_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -166,7 +166,7 @@ typedef int YYSTYPE;
 
 int FASTQ_parse (FASTQParseBlock* pb);
 
-#endif /* !YY_FASTQ_HOME_BOSHKINS_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED  */
+#endif /* !YY_FASTQ_HOME_BOSHKINA_DEVEL_SRA_TOOLS_TOOLS_FASTQ_LOADER_FASTQ_TOKENS_H_INCLUDED  */
 
 /* Copy the second part of user declarations.  */
 
@@ -2062,23 +2062,25 @@ static bool CheckQualities ( FASTQParseBlock* pb, const FASTQToken* token )
         }
     }
 
-    unsigned int i;
-    for (i=0; i < token->tokenLength; ++i)
     {
-        char ch = TokenTextPtr(pb, token)[i];
-        if (ch < floor || ch > ceiling)
+        unsigned int i;
+        for (i=0; i < token->tokenLength; ++i)
         {
-            char buf[200];
-            sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
-                                                    ch,
-                                                    ch,
-                                                    i,
-                                                    format,
-                                                    floor,
-                                                    ceiling);
-            pb->fatalError = true;
-            yyerror(pb, buf);
-            return false;
+            char ch = TokenTextPtr(pb, token)[i];
+            if (ch < floor || ch > ceiling)
+            {
+                char buf[200];
+                sprintf ( buf, "Invalid quality value ('%c'=%d, position %d): for %s, valid range is from %d to %d.",
+                                                        ch,
+                                                        ch,
+                                                        i,
+                                                        format,
+                                                        floor,
+                                                        ceiling);
+                pb->fatalError = true;
+                yyerror(pb, buf);
+                return false;
+            }
         }
     }
     return true;

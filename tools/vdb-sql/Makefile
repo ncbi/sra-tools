@@ -43,11 +43,21 @@ include $(TOP)/build/Makefile.env
 #-------------------------------------------------------------------------------
 # outer targets
 #
+ifeq (1,$(HAVE_XML2))
+
 all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
+
+else
+all std: $(ALL_TOOLS)
+
+$(ALL_TOOLS):
+	@ echo "NOTE - $(@F) cannot be built: " \
+		"it requires 'fuse' library and its development headers."
+endif
 
 .PHONY: all std $(ALL_TOOLS)
 

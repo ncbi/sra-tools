@@ -55,8 +55,7 @@ else
 all std: $(ALL_TOOLS)
 
 $(ALL_TOOLS):
-	@ echo "NOTE - $(@F) cannot be built: " \
-		"it requires 'fuse' library and its development headers."
+	@ echo "NOTE - $(@F) cannot be built: it requires 'libxml2' library."
 endif
 
 .PHONY: all std $(ALL_TOOLS)

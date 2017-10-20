@@ -173,11 +173,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "vdb-diff", "vdb-diff.vcxpro
 		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
 	EndProjectSection
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "general-loader", "general-loader.vcxproj", "{11356540-C8F0-44B9-B6BA-01C87443A1CF}"
-	ProjectSection(ProjectDependencies) = postProject
-		{08D430A6-B56A-42B6-8B32-E013F0A72DDF} = {08D430A6-B56A-42B6-8B32-E013F0A72DDF}
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32

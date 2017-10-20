@@ -341,15 +341,17 @@ rc_t CC CrossCheckRefAlignTblRun ( const KThread *self, void *data )
     ctx_t thread_ctx = { & pb -> caps, NULL, & ctx_info };
     const ctx_t *ctx = & thread_ctx;
 
-    STATUS ( 2, "running consistency-check on background thread" );
+    STATUS ( 2, "running consistency-check on background thread 0x%p", self );
 
     CrossCheckRefAlignTblInt ( ctx, pb -> ref_tbl, pb -> align_tbl, pb -> align_name );
 
-    STATUS ( 2, "finished consistency-check on background thread" );
+    STATUS ( 2, "finished consistency-check on background thread 0x%p: %s",
+             self, ctx -> rc ? "failure" : "success ");
 
     VTableRelease ( pb -> align_tbl );
     VTableRelease ( pb -> ref_tbl );
     CapsWhack ( & pb -> caps, ctx );
+    free ( pb );
 
     return ctx -> rc;
 }
@@ -357,7 +359,8 @@ rc_t CC CrossCheckRefAlignTblRun ( const KThread *self, void *data )
 #endif
 
 void CrossCheckRefAlignTbl ( const ctx_t *ctx,
-    const VTable *ref_tbl, const VTable *align_tbl, const char *align_name )
+    const VTable *ref_tbl, const VTable *align_tbl, const char *align_name,
+    KThread ** pt )
 {
     FUNC_ENTRY ( ctx );
 
@@ -368,10 +371,17 @@ void CrossCheckRefAlignTbl ( const ctx_t *ctx,
 
     STATUS ( 2, "consistency-check on join indices between REFERENCE and %s tables", align_name );
 
+    assert ( pt );
+    * pt = NULL;
+
 #if USE_BGTHREAD
     name_len = strlen ( align_name );
-    TRY ( pb = MemAlloc ( ctx, sizeof * pb + name_len, false ) )
-    {
+    pb = malloc ( sizeof * pb + name_len );
+    if ( pb == NULL ) {
+        rc_t rc = RC ( rcExe, rcMemory, rcAllocating, rcMemory, rcExhausted );
+        INTERNAL_ERROR ( rc, "" );
+    }
+    else {
         TRY ( CapsInit ( & pb -> caps, ctx ) )
         {
             rc_t rc = VTableAddRef ( pb -> ref_tbl = ref_tbl );
@@ -391,6 +401,7 @@ void CrossCheckRefAlignTbl ( const ctx_t *ctx,
                     rc = KThreadMake ( & t, CrossCheckRefAlignTblRun, pb );
                     if ( rc == 0 )
                     {
+                        * pt = t;
                         return;
                     }
 
@@ -403,7 +414,7 @@ void CrossCheckRefAlignTbl ( const ctx_t *ctx,
             CapsWhack ( & pb -> caps, ctx );
         }
 
-        MemFree ( ctx, pb, sizeof * pb + name_len );
+        free ( pb );
     }
 #else
     CrossCheckRefAlignTblInt ( ctx, ref_tbl, align_tbl, align_name );

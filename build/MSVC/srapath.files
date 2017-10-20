@@ -5,5 +5,7 @@
     <ClCompile Include="..\..\..\tools\srapath\cgi_request.c" />
     <ClCompile Include="..\..\..\tools\srapath\helper.c" />
     <ClCompile Include="..\..\..\tools\srapath\line_iter.c" />
+    <ClCompile Include="..\..\..\tools\srapath\repository-mgr.c" />
+    <ClCompile Include="..\..\..\tools\srapath\services.c" />
   </ItemGroup>
 </Project>

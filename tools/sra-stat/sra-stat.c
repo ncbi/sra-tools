@@ -84,7 +84,10 @@
     PLOGERR(klogInt, (klogInt, rc, "column $(name), spot $(spot): $(msg)", \
         "name=%s,spot=%lu,msg=%s", name, spot, msg)))
 
-#define MAX_NREADS 2*1024
+#define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
+    if (rc2 && !rc) { rc = rc2; } obj = NULL; } while (false)
+
+#define MAX_NREADS ( 4 * 1024 )
 
 #define DEFAULT_CURSOR_CAPACITY (1024*1024*1024UL)
 
@@ -3107,17 +3110,6 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         }
                                     }
                                 }
-/*                              if (cCMP_READ) {
-      rc = SRAColumnRead(cCMP_READ, spotid, &base, &boff, &row_bits);
-      DISP_RC_Read(rc, CMP_READ, spotid, "while calling SRAColumnRead");
-      if (boff & 7)
-      {   rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
-      if (row_bits & 7)
-      {   rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid); }
-      DISP_RC_Read(rc, CMP_READ, spotid, "after calling calling SRAColumnRead");
-      if (rc == 0)
-      {   assert(cmp_len == row_bits >> 3); }
-                                               } */
 
                                 ss = (SraStats*)BSTreeFind
                                     (tr, dSPOT_GROUP, srastats_cmp);
@@ -3149,6 +3141,11 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         = filt_cnt = 0;
                                     (i < nreads) && (rc == 0); i++)
                                 {
+                                    if ( i >= MAX_NREADS ) {
+                                        rc = RC ( rcExe, rcData, rcProcessing,
+                                                  rcBuffer, rcInsufficient );
+                                        break;
+                                    }
                                     if (dREAD_LEN[i] > 0) {
                                         g_totalREAD_LEN[i] += dREAD_LEN[i];
                                         ++g_nonZeroLenReads[i];
@@ -3303,6 +3300,9 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     idx, &base, &boff, &row_bits);
                 DISP_RC_Read(rc, READ_LEN, spotid,
                     "while calling VCursorColumnRead");
+                if ( ( row_bits >> 3 ) > sizeof dREAD_LEN )
+                    rc = RC ( rcExe, rcColumn, rcReading,
+                              rcBuffer, rcInsufficient);
             }
             if (rc == 0) {
                 memmove(dREAD_LEN, ((const char*)base) + (boff>>3),

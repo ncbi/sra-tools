@@ -15,8 +15,8 @@
 
 #define FLEX_SCANNER
 #define YY_FLEX_MAJOR_VERSION 2
-#define YY_FLEX_MINOR_VERSION 5
-#define YY_FLEX_SUBMINOR_VERSION 35
+#define YY_FLEX_MINOR_VERSION 6
+#define YY_FLEX_SUBMINOR_VERSION 0
 #if YY_FLEX_SUBMINOR_VERSION > 0
 #define FLEX_BETA
 #endif
@@ -77,7 +77,6 @@ typedef int flex_int32_t;
 typedef unsigned char flex_uint8_t; 
 typedef unsigned short int flex_uint16_t;
 typedef unsigned int flex_uint32_t;
-#endif /* ! C99 */
 
 /* Limits of integral types. */
 #ifndef INT8_MIN
@@ -107,6 +106,8 @@ typedef unsigned int flex_uint32_t;
 #ifndef UINT32_MAX
 #define UINT32_MAX             (4294967295U)
 #endif
+
+#endif /* ! C99 */
 
 #endif /* ! FLEXINT_H */
 
@@ -193,13 +194,21 @@ typedef void* yyscan_t;
 #define YY_STATE_EOF(state) (YY_END_OF_BUFFER + state + 1)
 
 /* Special action meaning "start processing a new file". */
-#define YY_NEW_FILE FASTQ_restart(yyin ,yyscanner )
+#define YY_NEW_FILE yyrestart(yyin ,yyscanner )
 
 #define YY_END_OF_BUFFER_CHAR 0
 
 /* Size of default input buffer. */
 #ifndef YY_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k.
+ * Moreover, YY_BUF_SIZE is 2*YY_READ_BUF_SIZE in the general case.
+ * Ditto for the __ia64__ case accordingly.
+ */
+#define YY_BUF_SIZE 32768
+#else
 #define YY_BUF_SIZE 16384
+#endif /* __ia64__ */
 #endif
 
 /* The state buf must be large enough to hold one state per character in the main buffer.
@@ -209,6 +218,11 @@ typedef void* yyscan_t;
 #ifndef YY_TYPEDEF_YY_BUFFER_STATE
 #define YY_TYPEDEF_YY_BUFFER_STATE
 typedef struct yy_buffer_state *YY_BUFFER_STATE;
+#endif
+
+#ifndef YY_TYPEDEF_YY_SIZE_T
+#define YY_TYPEDEF_YY_SIZE_T
+typedef size_t yy_size_t;
 #endif
 
 /* %if-not-reentrant */
@@ -225,7 +239,7 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 
     /* Note: We specifically omit the test for yy_rule_can_match_eol because it requires
      *       access to the local variable yy_act. Since yyless() is a macro, it would break
-     *       existing scanners that call yyless() from OUTSIDE FASTQ_lex. 
+     *       existing scanners that call yyless() from OUTSIDE yylex. 
      *       One obvious solution it to make yy_act a global. I tried that, and saw
      *       a 5% performance hit in a non-yylineno scanner, because yy_act is
      *       normally declared as a register variable-- so it is not worth it.
@@ -235,6 +249,13 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
                 int yyl;\
                 for ( yyl = n; yyl < yyleng; ++yyl )\
                     if ( yytext[yyl] == '\n' )\
+                        --yylineno;\
+            }while(0)
+    #define YY_LINENO_REWIND_TO(dst) \
+            do {\
+                const char *p;\
+                for ( p = yy_cp-1; p >= (dst); --p)\
+                    if ( *p == '\n' )\
                         --yylineno;\
             }while(0)
     
@@ -253,11 +274,6 @@ typedef struct yy_buffer_state *YY_BUFFER_STATE;
 	while ( 0 )
 
 #define unput(c) yyunput( c, yyg->yytext_ptr , yyscanner )
-
-#ifndef YY_TYPEDEF_YY_SIZE_T
-#define YY_TYPEDEF_YY_SIZE_T
-typedef size_t yy_size_t;
-#endif
 
 #ifndef YY_STRUCT_YY_BUFFER_STATE
 #define YY_STRUCT_YY_BUFFER_STATE
@@ -321,7 +337,7 @@ struct yy_buffer_state
 	 * possible backing-up.
 	 *
 	 * When we actually see the EOF, we change the status to "new"
-	 * (via FASTQ_restart()), so that the user can continue scanning by
+	 * (via yyrestart()), so that the user can continue scanning by
 	 * just pointing yyin at a new input file.
 	 */
 #define YY_BUFFER_EOF_PENDING 2
@@ -362,38 +378,38 @@ struct yy_buffer_state
 
 /* %endif */
 
-void FASTQ_restart (FILE *input_file ,yyscan_t yyscanner );
-void FASTQ__switch_to_buffer (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
-YY_BUFFER_STATE FASTQ__create_buffer (FILE *file,int size ,yyscan_t yyscanner );
-void FASTQ__delete_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
-void FASTQ__flush_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
-void FASTQ_push_buffer_state (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
-void FASTQ_pop_buffer_state (yyscan_t yyscanner );
+void yyrestart (FILE *input_file ,yyscan_t yyscanner );
+void yy_switch_to_buffer (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
+YY_BUFFER_STATE yy_create_buffer (FILE *file,int size ,yyscan_t yyscanner );
+void yy_delete_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
+void yy_flush_buffer (YY_BUFFER_STATE b ,yyscan_t yyscanner );
+void yypush_buffer_state (YY_BUFFER_STATE new_buffer ,yyscan_t yyscanner );
+void yypop_buffer_state (yyscan_t yyscanner );
 
-static void FASTQ_ensure_buffer_stack (yyscan_t yyscanner );
-static void FASTQ__load_buffer_state (yyscan_t yyscanner );
-static void FASTQ__init_buffer (YY_BUFFER_STATE b,FILE *file ,yyscan_t yyscanner );
+static void yyensure_buffer_stack (yyscan_t yyscanner );
+static void yy_load_buffer_state (yyscan_t yyscanner );
+static void yy_init_buffer (YY_BUFFER_STATE b,FILE *file ,yyscan_t yyscanner );
 
-#define YY_FLUSH_BUFFER FASTQ__flush_buffer(YY_CURRENT_BUFFER ,yyscanner)
+#define YY_FLUSH_BUFFER yy_flush_buffer(YY_CURRENT_BUFFER ,yyscanner)
 
-YY_BUFFER_STATE FASTQ__scan_buffer (char *base,yy_size_t size ,yyscan_t yyscanner );
-YY_BUFFER_STATE FASTQ__scan_string (yyconst char *yy_str ,yyscan_t yyscanner );
-YY_BUFFER_STATE FASTQ__scan_bytes (yyconst char *bytes,int len ,yyscan_t yyscanner );
+YY_BUFFER_STATE yy_scan_buffer (char *base,yy_size_t size ,yyscan_t yyscanner );
+YY_BUFFER_STATE yy_scan_string (yyconst char *yy_str ,yyscan_t yyscanner );
+YY_BUFFER_STATE yy_scan_bytes (yyconst char *bytes,yy_size_t len ,yyscan_t yyscanner );
 
 /* %endif */
 
-void *FASTQ_alloc (yy_size_t ,yyscan_t yyscanner );
-void *FASTQ_realloc (void *,yy_size_t ,yyscan_t yyscanner );
-void FASTQ_free (void * ,yyscan_t yyscanner );
+void *yyalloc (yy_size_t ,yyscan_t yyscanner );
+void *yyrealloc (void *,yy_size_t ,yyscan_t yyscanner );
+void yyfree (void * ,yyscan_t yyscanner );
 
-#define yy_new_buffer FASTQ__create_buffer
+#define yy_new_buffer yy_create_buffer
 
 #define yy_set_interactive(is_interactive) \
 	{ \
 	if ( ! YY_CURRENT_BUFFER ){ \
-        FASTQ_ensure_buffer_stack (yyscanner); \
+        yyensure_buffer_stack (yyscanner); \
 		YY_CURRENT_BUFFER_LVALUE =    \
-            FASTQ__create_buffer(yyin,YY_BUF_SIZE ,yyscanner); \
+            yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner); \
 	} \
 	YY_CURRENT_BUFFER_LVALUE->yy_is_interactive = is_interactive; \
 	}
@@ -401,9 +417,9 @@ void FASTQ_free (void * ,yyscan_t yyscanner );
 #define yy_set_bol(at_bol) \
 	{ \
 	if ( ! YY_CURRENT_BUFFER ){\
-        FASTQ_ensure_buffer_stack (yyscanner); \
+        yyensure_buffer_stack (yyscanner); \
 		YY_CURRENT_BUFFER_LVALUE =    \
-            FASTQ__create_buffer(yyin,YY_BUF_SIZE ,yyscanner); \
+            yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner); \
 	} \
 	YY_CURRENT_BUFFER_LVALUE->yy_at_bol = at_bol; \
 	}
@@ -413,7 +429,7 @@ void FASTQ_free (void * ,yyscan_t yyscanner );
 /* %% [1.0] yytext/yyin/yyout/yy_state_type/yylineno etc. def's & init go here */
 /* Begin user sect3 */
 
-#define FASTQ_wrap(n) 1
+#define yywrap(yyscanner) (/*CONSTCOND*/1)
 #define YY_SKIP_YYWRAP
 
 #define FLEX_DEBUG
@@ -424,11 +440,16 @@ typedef int yy_state_type;
 
 #define yytext_ptr yytext_r
 
+/* %% [1.5] DFA */
+
 /* %if-c-only Standard (non-C++) definition */
 
 static yy_state_type yy_get_previous_state (yyscan_t yyscanner );
 static yy_state_type yy_try_NUL_trans (yy_state_type current_state  ,yyscan_t yyscanner);
 static int yy_get_next_buffer (yyscan_t yyscanner );
+#if defined(__GNUC__) && __GNUC__ >= 3
+__attribute__((__noreturn__))
+#endif
 static void yy_fatal_error (yyconst char msg[] ,yyscan_t yyscanner );
 
 /* %endif */
@@ -502,7 +523,7 @@ static yyconst flex_int16_t yy_accept[143] =
       211,  211
     } ;
 
-static yyconst flex_int32_t yy_ec[256] =
+static yyconst YY_CHAR yy_ec[256] =
     {   0,
         1,    1,    1,    1,    1,    1,    1,    1,    2,    3,
         1,    1,    4,    5,    5,    5,    5,    5,    5,    5,
@@ -534,13 +555,13 @@ static yyconst flex_int32_t yy_ec[256] =
         1,    1,    1,    1,    1
     } ;
 
-static yyconst flex_int32_t yy_meta[21] =
+static yyconst YY_CHAR yy_meta[21] =
     {   0,
         1,    1,    2,    2,    3,    3,    3,    3,    4,    5,
         6,    6,    7,    3,    3,    8,    4,    8,    4,    9
     } ;
 
-static yyconst flex_int16_t yy_base[162] =
+static yyconst flex_uint16_t yy_base[162] =
     {   0,
         0,   13,   30,   25,    0,    0,    0,    0,    0,    0,
         0,    0,    0,   43,   21,   34,   60,   66,   70,    0,
@@ -584,7 +605,7 @@ static yyconst flex_int16_t yy_def[162] =
       141
     } ;
 
-static yyconst flex_int16_t yy_nxt[377] =
+static yyconst flex_uint16_t yy_nxt[377] =
     {   0,
        26,   27,   28,   29,   26,   27,   30,   26,   31,   26,
        32,   32,   33,   26,   26,   31,   34,   31,   31,   26,
@@ -682,10 +703,10 @@ static yyconst flex_int32_t yy_rule_can_match_eol[35] =
 
 static yyconst flex_int16_t yy_rule_linenum[34] =
     {   0,
-       90,   91,   93,   97,   98,   99,  100,  101,  102,  103,
-      104,  105,  108,  112,  113,  114,  115,  120,  121,  122,
-      123,  128,  129,  134,  139,  140,  147,  152,  153,  154,
-      159,  160,  163
+       89,   90,   92,   96,   97,   98,   99,  100,  101,  102,
+      103,  104,  107,  111,  112,  113,  114,  119,  120,  121,
+      122,  127,  128,  133,  138,  139,  146,  151,  152,  153,
+      158,  159,  162
     } ;
 
 #define YY_TRAILING_MASK 0x2000
@@ -729,21 +750,21 @@ goto find_rule; \
 * ===========================================================================
 *
 */
-    #include <sysalloc.h>   
+    #include <sysalloc.h>
     #include <ctype.h>
-    
+
     #include <klib/rc.h>
     #include <klib/log.h>
 
     #include "fastq-parse.h"
-    #include "fastq-tokens.h"    
-    
+    #include "fastq-tokens.h"
+
     #define YYSTYPE FASTQToken
 
     /* code to populate token with internal values */
 	static void ConsumeToken(FASTQToken* token, FASTQParseBlock* pb);
     #define YY_USER_ACTION ConsumeToken(yylval, yyextra);
-	
+
     #define ENDLINE \
         yyextra -> column=1;\
         return fqENDLINE;
@@ -755,7 +776,7 @@ goto find_rule; \
 
     static void FASTQ_fatal_error(yyconst char* msg);
     #define YY_FATAL_ERROR(msg) FASTQ_fatal_error(msg)
-    
+
 #define YY_NO_UNISTD_H 1
 /*%option debug*/
 
@@ -815,7 +836,7 @@ struct yyguts_t
     YY_BUFFER_STATE * yy_buffer_stack; /**< Stack as an array. */
     char yy_hold_char;
     int yy_n_chars;
-    int yyleng_r;
+    yy_size_t yyleng_r;
     char *yy_c_buf_p;
     int yy_init;
     int yy_start;
@@ -860,9 +881,9 @@ static int yy_init_globals (yyscan_t yyscanner );
      * from bison output in section 1.*/
     #    define yylval yyg->yylval_r
     
-int FASTQ_lex_init (yyscan_t* scanner);
+int yylex_init (yyscan_t* scanner);
 
-int FASTQ_lex_init_extra (YY_EXTRA_TYPE user_defined,yyscan_t* scanner);
+int yylex_init_extra (YY_EXTRA_TYPE user_defined,yyscan_t* scanner);
 
 /* %endif */
 
@@ -871,37 +892,41 @@ int FASTQ_lex_init_extra (YY_EXTRA_TYPE user_defined,yyscan_t* scanner);
 /* Accessor methods to globals.
    These are made visible to non-reentrant scanners for convenience. */
 
-int FASTQ_lex_destroy (yyscan_t yyscanner );
+int yylex_destroy (yyscan_t yyscanner );
 
-int FASTQ_get_debug (yyscan_t yyscanner );
+int yyget_debug (yyscan_t yyscanner );
 
-void FASTQ_set_debug (int debug_flag ,yyscan_t yyscanner );
+void yyset_debug (int debug_flag ,yyscan_t yyscanner );
 
-YY_EXTRA_TYPE FASTQ_get_extra (yyscan_t yyscanner );
+YY_EXTRA_TYPE yyget_extra (yyscan_t yyscanner );
 
-void FASTQ_set_extra (YY_EXTRA_TYPE user_defined ,yyscan_t yyscanner );
+void yyset_extra (YY_EXTRA_TYPE user_defined ,yyscan_t yyscanner );
 
-FILE *FASTQ_get_in (yyscan_t yyscanner );
+FILE *yyget_in (yyscan_t yyscanner );
 
-void FASTQ_set_in  (FILE * in_str ,yyscan_t yyscanner );
+void yyset_in  (FILE * _in_str ,yyscan_t yyscanner );
 
-FILE *FASTQ_get_out (yyscan_t yyscanner );
+FILE *yyget_out (yyscan_t yyscanner );
 
-void FASTQ_set_out  (FILE * out_str ,yyscan_t yyscanner );
+void yyset_out  (FILE * _out_str ,yyscan_t yyscanner );
 
-int FASTQ_get_leng (yyscan_t yyscanner );
+yy_size_t yyget_leng (yyscan_t yyscanner );
 
-char *FASTQ_get_text (yyscan_t yyscanner );
+char *yyget_text (yyscan_t yyscanner );
 
-int FASTQ_get_lineno (yyscan_t yyscanner );
+int yyget_lineno (yyscan_t yyscanner );
 
-void FASTQ_set_lineno (int line_number ,yyscan_t yyscanner );
+void yyset_lineno (int _line_number ,yyscan_t yyscanner );
+
+int yyget_column  (yyscan_t yyscanner );
+
+void yyset_column (int _column_no ,yyscan_t yyscanner );
 
 /* %if-bison-bridge */
 
-YYSTYPE * FASTQ_get_lval (yyscan_t yyscanner );
+YYSTYPE * yyget_lval (yyscan_t yyscanner );
 
-void FASTQ_set_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
+void yyset_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
 
 /* %endif */
 
@@ -911,16 +936,19 @@ void FASTQ_set_lval (YYSTYPE * yylval_param ,yyscan_t yyscanner );
 
 #ifndef YY_SKIP_YYWRAP
 #ifdef __cplusplus
-extern "C" int FASTQ_wrap (yyscan_t yyscanner );
+extern "C" int yywrap (yyscan_t yyscanner );
 #else
-extern int FASTQ_wrap (yyscan_t yyscanner );
+extern int yywrap (yyscan_t yyscanner );
 #endif
 #endif
 
 /* %not-for-header */
 
+#ifndef YY_NO_UNPUT
+    
     static void yyunput (int c,char *buf_ptr  ,yyscan_t yyscanner);
     
+#endif
 /* %ok-for-header */
 
 /* %endif */
@@ -949,7 +977,7 @@ static int input (yyscan_t yyscanner );
 
 /* %if-c-only */
 
-    static void yy_push_state (int new_state ,yyscan_t yyscanner);
+    static void yy_push_state (int _new_state ,yyscan_t yyscanner);
     
     static void yy_pop_state (yyscan_t yyscanner );
     
@@ -959,7 +987,12 @@ static int input (yyscan_t yyscanner );
 
 /* Amount of stuff to slurp up with each read. */
 #ifndef YY_READ_BUF_SIZE
+#ifdef __ia64__
+/* On IA-64, the buffer size is 16k, not 8k */
+#define YY_READ_BUF_SIZE 16384
+#else
 #define YY_READ_BUF_SIZE 8192
+#endif /* __ia64__ */
 #endif
 
 /* Copy whatever the last rule matched to the standard output. */
@@ -968,7 +1001,7 @@ static int input (yyscan_t yyscanner );
 /* This used to be an fputs(), but since the string might contain NUL's,
  * we now use fwrite().
  */
-#define ECHO fwrite( yytext, yyleng, 1, yyout )
+#define ECHO do { if (fwrite( yytext, yyleng, 1, yyout )) {} } while (0)
 /* %endif */
 /* %if-c++-only C++ definition */
 /* %endif */
@@ -983,7 +1016,7 @@ static int input (yyscan_t yyscanner );
 	if ( YY_CURRENT_BUFFER_LVALUE->yy_is_interactive ) \
 		{ \
 		int c = '*'; \
-		int n; \
+		size_t n; \
 		for ( n = 0; n < max_size && \
 			     (c = getc( yyin )) != EOF && c != '\n'; ++n ) \
 			buf[n] = (char) c; \
@@ -1055,10 +1088,10 @@ static int input (yyscan_t yyscanner );
 #define YY_DECL_IS_OURS 1
 /* %if-c-only Standard (non-C++) definition */
 
-extern int FASTQ_lex \
+extern int yylex \
                (YYSTYPE * yylval_param ,yyscan_t yyscanner);
 
-#define YY_DECL int FASTQ_lex \
+#define YY_DECL int yylex \
                (YYSTYPE * yylval_param , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only C++ definition */
@@ -1074,7 +1107,7 @@ extern int FASTQ_lex \
 
 /* Code executed at the end of each rule. */
 #ifndef YY_BREAK
-#define YY_BREAK break;
+#define YY_BREAK /*LINTED*/break;
 #endif
 
 /* %% [6.0] YY_RULE_SETUP definition goes here */
@@ -1090,14 +1123,10 @@ extern int FASTQ_lex \
  */
 YY_DECL
 {
-	register yy_state_type yy_current_state;
-	register char *yy_cp, *yy_bp;
-	register int yy_act;
+	yy_state_type yy_current_state;
+	char *yy_cp, *yy_bp;
+	int yy_act;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-
-/* %% [7.0] user's declarations go here */
-
-
 
     yylval = yylval_param;
 
@@ -1111,9 +1140,9 @@ YY_DECL
 
         /* Create the reject buffer large enough to save one state per allowed character. */
         if ( ! yyg->yy_state_buf )
-            yyg->yy_state_buf = (yy_state_type *)FASTQ_alloc(YY_STATE_BUF_SIZE  ,yyscanner);
+            yyg->yy_state_buf = (yy_state_type *)yyalloc(YY_STATE_BUF_SIZE  ,yyscanner);
             if ( ! yyg->yy_state_buf )
-                YY_FATAL_ERROR( "out of dynamic memory in FASTQ_lex()" );
+                YY_FATAL_ERROR( "out of dynamic memory in yylex()" );
 
 		if ( ! yyg->yy_start )
 			yyg->yy_start = 1;	/* first start state */
@@ -1133,15 +1162,20 @@ YY_DECL
 /* %endif */
 
 		if ( ! YY_CURRENT_BUFFER ) {
-			FASTQ_ensure_buffer_stack (yyscanner);
+			yyensure_buffer_stack (yyscanner);
 			YY_CURRENT_BUFFER_LVALUE =
-				FASTQ__create_buffer(yyin,YY_BUF_SIZE ,yyscanner);
+				yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner);
 		}
 
-		FASTQ__load_buffer_state(yyscanner );
+		yy_load_buffer_state(yyscanner );
 		}
 
-	while ( 1 )		/* loops until end-of-file is reached */
+	{
+/* %% [7.0] user's declarations go here */
+
+
+
+	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
 /* %% [8.0] yymore()-related code goes here */
 		yy_cp = yyg->yy_c_buf_p;
@@ -1164,7 +1198,7 @@ YY_DECL
 yy_match:
 		do
 			{
-			register YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)];
+			YY_CHAR yy_c = yy_ec[YY_SC_TO_UI(*yy_cp)] ;
 			while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 				{
 				yy_current_state = (int) yy_def[yy_current_state];
@@ -1223,7 +1257,7 @@ find_rule: /* we branch to this label when backing up */
 
 		if ( yy_act != YY_END_OF_BUFFER && yy_rule_can_match_eol[yy_act] )
 			{
-			int yyl;
+			yy_size_t yyl;
 			for ( yyl = 0; yyl < yyleng; ++yyl )
 				if ( yytext[yyl] == '\n' )
 					   
@@ -1275,7 +1309,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-{ return fqRUNDOTSPOT; } 
+{ return fqRUNDOTSPOT; }
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
@@ -1311,7 +1345,7 @@ YY_RULE_SETUP
 case 13:
 /* rule 13 can match eol */
 YY_RULE_SETUP
-{ BEGIN IN_SEQUENCE; ENDLINE; } 
+{ BEGIN IN_SEQUENCE; ENDLINE; }
 	YY_BREAK
 
 
@@ -1377,7 +1411,7 @@ YY_RULE_SETUP
 
 case 24:
 YY_RULE_SETUP
-{ } 
+{ }
 	YY_BREAK
 
 
@@ -1391,11 +1425,11 @@ case 26:
 /* rule 26 can match eol */
 YY_RULE_SETUP
 {   /* if read was split across several lines, expect the same number of lines in quality */
-                                    if (yyextra->expectedQualityLines <= 1) 
-                                        BEGIN 0; 
-                                    else 
+                                    if (yyextra->expectedQualityLines <= 1)
+                                        BEGIN 0;
+                                    else
                                         --yyextra->expectedQualityLines;
-                                    ENDLINE; 
+                                    ENDLINE;
                                 }
 	YY_BREAK
 case 27:
@@ -1469,14 +1503,18 @@ ECHO;
 			/* We're scanning a new file or input source.  It's
 			 * possible that this happened because the user
 			 * just pointed yyin at a new source and called
-			 * FASTQ_lex().  If so, then we have to assure
+			 * yylex().  If so, then we have to assure
 			 * consistency between YY_CURRENT_BUFFER and our
 			 * globals.  Here is the right place to do so, because
 			 * this is the first action (other than possibly a
 			 * back-up) that will match for the new input source.
 			 */
 			yyg->yy_n_chars = YY_CURRENT_BUFFER_LVALUE->yy_n_chars;
+/* %if-c-only */
 			YY_CURRENT_BUFFER_LVALUE->yy_input_file = yyin;
+/* %endif */
+/* %if-c++-only */
+/* %endif */
 			YY_CURRENT_BUFFER_LVALUE->yy_buffer_status = YY_BUFFER_NORMAL;
 			}
 
@@ -1530,7 +1568,7 @@ ECHO;
 				{
 				yyg->yy_did_buffer_switch_on_eof = 0;
 
-				if ( FASTQ_wrap(yyscanner ) )
+				if ( yywrap(yyscanner ) )
 					{
 					/* Note: because we've taken care in
 					 * yy_get_next_buffer() to have set up
@@ -1583,7 +1621,8 @@ ECHO;
 			"fatal flex scanner internal error--no action found" );
 	} /* end of action switch */
 		} /* end of scanning one token */
-} /* end of FASTQ_lex */
+	} /* end of user's declarations */
+} /* end of yylex */
 /* %ok-for-header */
 
 /* %if-c++-only */
@@ -1607,9 +1646,9 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 /* %endif */
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-	register char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
-	register char *source = yyg->yytext_ptr;
-	register int number_to_move, i;
+	char *dest = YY_CURRENT_BUFFER_LVALUE->yy_ch_buf;
+	char *source = yyg->yytext_ptr;
+	yy_size_t number_to_move, i;
 	int ret_val;
 
 	if ( yyg->yy_c_buf_p > &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[yyg->yy_n_chars + 1] )
@@ -1638,7 +1677,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	/* Try to read more data. */
 
 	/* First move last chars to start of buffer. */
-	number_to_move = (int) (yyg->yy_c_buf_p - yyg->yytext_ptr) - 1;
+	number_to_move = (yy_size_t) (yyg->yy_c_buf_p - yyg->yytext_ptr) - 1;
 
 	for ( i = 0; i < number_to_move; ++i )
 		*(dest++) = *(source++);
@@ -1651,7 +1690,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 	else
 		{
-			int num_to_read =
+			yy_size_t num_to_read =
 			YY_CURRENT_BUFFER_LVALUE->yy_buf_size - number_to_move - 1;
 
 		while ( num_to_read <= 0 )
@@ -1667,7 +1706,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		/* Read in more data. */
 		YY_INPUT( (&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move]),
-			yyg->yy_n_chars, (size_t) num_to_read );
+			yyg->yy_n_chars, num_to_read );
 
 		YY_CURRENT_BUFFER_LVALUE->yy_n_chars = yyg->yy_n_chars;
 		}
@@ -1677,7 +1716,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 		if ( number_to_move == YY_MORE_ADJ )
 			{
 			ret_val = EOB_ACT_END_OF_FILE;
-			FASTQ_restart(yyin  ,yyscanner);
+			yyrestart(yyin  ,yyscanner);
 			}
 
 		else
@@ -1691,10 +1730,10 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	else
 		ret_val = EOB_ACT_CONTINUE_SCAN;
 
-	if ((yy_size_t) (yyg->yy_n_chars + number_to_move) > YY_CURRENT_BUFFER_LVALUE->yy_buf_size) {
+	if ((int) (yyg->yy_n_chars + number_to_move) > YY_CURRENT_BUFFER_LVALUE->yy_buf_size) {
 		/* Extend the array by 50%, plus the number we really need. */
-		yy_size_t new_size = yyg->yy_n_chars + number_to_move + (yyg->yy_n_chars >> 1);
-		YY_CURRENT_BUFFER_LVALUE->yy_ch_buf = (char *) FASTQ_realloc((void *) YY_CURRENT_BUFFER_LVALUE->yy_ch_buf,new_size ,yyscanner );
+		int new_size = yyg->yy_n_chars + number_to_move + (yyg->yy_n_chars >> 1);
+		YY_CURRENT_BUFFER_LVALUE->yy_ch_buf = (char *) yyrealloc((void *) YY_CURRENT_BUFFER_LVALUE->yy_ch_buf,new_size ,yyscanner );
 		if ( ! YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
 			YY_FATAL_ERROR( "out of dynamic memory in yy_get_next_buffer()" );
 	}
@@ -1718,8 +1757,8 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 /* %if-c++-only */
 /* %endif */
 {
-	register yy_state_type yy_current_state;
-	register char *yy_cp;
+	yy_state_type yy_current_state;
+	char *yy_cp;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
 /* %% [15.0] code to get the start state into yy_current_state goes here */
@@ -1732,7 +1771,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	for ( yy_cp = yyg->yytext_ptr + YY_MORE_ADJ; yy_cp < yyg->yy_c_buf_p; ++yy_cp )
 		{
 /* %% [16.0] code to find the next state goes here */
-		register YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
+		YY_CHAR yy_c = (*yy_cp ? yy_ec[YY_SC_TO_UI(*yy_cp)] : 1);
 		while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 			{
 			yy_current_state = (int) yy_def[yy_current_state];
@@ -1757,11 +1796,11 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 /* %if-c++-only */
 /* %endif */
 {
-	register int yy_is_jam;
+	int yy_is_jam;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner; /* This var may be unused depending upon options. */
 /* %% [17.0] code to find the next state, and perhaps do backing up, goes here */
 
-	register YY_CHAR yy_c = 1;
+	YY_CHAR yy_c = 1;
 	while ( yy_chk[yy_base[yy_current_state] + yy_c] != yy_current_state )
 		{
 		yy_current_state = (int) yy_def[yy_current_state];
@@ -1773,17 +1812,19 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	if ( ! yy_is_jam )
 		*yyg->yy_state_ptr++ = yy_current_state;
 
+	(void)yyg;
 	return yy_is_jam ? 0 : yy_current_state;
 }
 
+#ifndef YY_NO_UNPUT
 /* %if-c-only */
 
-    static void yyunput (int c, register char * yy_bp , yyscan_t yyscanner)
+    static void yyunput (int c, char * yy_bp , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
 {
-	register char *yy_cp;
+	char *yy_cp;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
     yy_cp = yyg->yy_c_buf_p;
@@ -1794,10 +1835,10 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 	if ( yy_cp < YY_CURRENT_BUFFER_LVALUE->yy_ch_buf + 2 )
 		{ /* need to shift things up to make room */
 		/* +2 for EOB chars. */
-		register int number_to_move = yyg->yy_n_chars + 2;
-		register char *dest = &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[
+		yy_size_t number_to_move = yyg->yy_n_chars + 2;
+		char *dest = &YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[
 					YY_CURRENT_BUFFER_LVALUE->yy_buf_size + 2];
-		register char *source =
+		char *source =
 				&YY_CURRENT_BUFFER_LVALUE->yy_ch_buf[number_to_move];
 
 		while ( source > YY_CURRENT_BUFFER_LVALUE->yy_ch_buf )
@@ -1827,6 +1868,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 /* %if-c-only */
 
 /* %endif */
+#endif
 
 /* %if-c-only */
 #ifndef YY_NO_INPUT
@@ -1857,7 +1899,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 		else
 			{ /* need more input */
-			int offset = yyg->yy_c_buf_p - yyg->yytext_ptr;
+			yy_size_t offset = yyg->yy_c_buf_p - yyg->yytext_ptr;
 			++yyg->yy_c_buf_p;
 
 			switch ( yy_get_next_buffer( yyscanner ) )
@@ -1874,13 +1916,13 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 					 */
 
 					/* Reset buffer status. */
-					FASTQ_restart(yyin ,yyscanner);
+					yyrestart(yyin ,yyscanner);
 
 					/*FALLTHROUGH*/
 
 				case EOB_ACT_END_OF_FILE:
 					{
-					if ( FASTQ_wrap(yyscanner ) )
+					if ( yywrap(yyscanner ) )
 						return EOF;
 
 					if ( ! yyg->yy_did_buffer_switch_on_eof )
@@ -1924,7 +1966,7 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
  * @note This function does not reset the start condition to @c INITIAL .
  */
 /* %if-c-only */
-    void FASTQ_restart  (FILE * input_file , yyscan_t yyscanner)
+    void yyrestart  (FILE * input_file , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
@@ -1932,21 +1974,24 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
 	if ( ! YY_CURRENT_BUFFER ){
-        FASTQ_ensure_buffer_stack (yyscanner);
+        yyensure_buffer_stack (yyscanner);
 		YY_CURRENT_BUFFER_LVALUE =
-            FASTQ__create_buffer(yyin,YY_BUF_SIZE ,yyscanner);
+            yy_create_buffer(yyin,YY_BUF_SIZE ,yyscanner);
 	}
 
-	FASTQ__init_buffer(YY_CURRENT_BUFFER,input_file ,yyscanner);
-	FASTQ__load_buffer_state(yyscanner );
+	yy_init_buffer(YY_CURRENT_BUFFER,input_file ,yyscanner);
+	yy_load_buffer_state(yyscanner );
 }
+
+/* %if-c++-only */
+/* %endif */
 
 /** Switch to a different input buffer.
  * @param new_buffer The new input buffer.
  * @param yyscanner The scanner object.
  */
 /* %if-c-only */
-    void FASTQ__switch_to_buffer  (YY_BUFFER_STATE  new_buffer , yyscan_t yyscanner)
+    void yy_switch_to_buffer  (YY_BUFFER_STATE  new_buffer , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
@@ -1955,10 +2000,10 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 
 	/* TODO. We should be able to replace this entire function body
 	 * with
-	 *		FASTQ_pop_buffer_state();
-	 *		FASTQ_push_buffer_state(new_buffer);
+	 *		yypop_buffer_state();
+	 *		yypush_buffer_state(new_buffer);
      */
-	FASTQ_ensure_buffer_stack (yyscanner);
+	yyensure_buffer_stack (yyscanner);
 	if ( YY_CURRENT_BUFFER == new_buffer )
 		return;
 
@@ -1971,18 +2016,18 @@ static int yy_get_next_buffer (yyscan_t yyscanner)
 		}
 
 	YY_CURRENT_BUFFER_LVALUE = new_buffer;
-	FASTQ__load_buffer_state(yyscanner );
+	yy_load_buffer_state(yyscanner );
 
 	/* We don't actually know whether we did this switch during
-	 * EOF (FASTQ_wrap()) processing, but the only time this flag
-	 * is looked at is after FASTQ_wrap() is called, so it's safe
+	 * EOF (yywrap()) processing, but the only time this flag
+	 * is looked at is after yywrap() is called, so it's safe
 	 * to go ahead and always set it.
 	 */
 	yyg->yy_did_buffer_switch_on_eof = 1;
 }
 
 /* %if-c-only */
-static void FASTQ__load_buffer_state  (yyscan_t yyscanner)
+static void yy_load_buffer_state  (yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
@@ -1990,7 +2035,11 @@ static void FASTQ__load_buffer_state  (yyscan_t yyscanner)
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 	yyg->yy_n_chars = YY_CURRENT_BUFFER_LVALUE->yy_n_chars;
 	yyg->yytext_ptr = yyg->yy_c_buf_p = YY_CURRENT_BUFFER_LVALUE->yy_buf_pos;
+/* %if-c-only */
 	yyin = YY_CURRENT_BUFFER_LVALUE->yy_input_file;
+/* %endif */
+/* %if-c++-only */
+/* %endif */
 	yyg->yy_hold_char = *yyg->yy_c_buf_p;
 }
 
@@ -2001,39 +2050,42 @@ static void FASTQ__load_buffer_state  (yyscan_t yyscanner)
  * @return the allocated buffer state.
  */
 /* %if-c-only */
-    YY_BUFFER_STATE FASTQ__create_buffer  (FILE * file, int  size , yyscan_t yyscanner)
+    YY_BUFFER_STATE yy_create_buffer  (FILE * file, int  size , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
 {
 	YY_BUFFER_STATE b;
     
-	b = (YY_BUFFER_STATE) FASTQ_alloc(sizeof( struct yy_buffer_state ) ,yyscanner );
+	b = (YY_BUFFER_STATE) yyalloc(sizeof( struct yy_buffer_state ) ,yyscanner );
 	if ( ! b )
-		YY_FATAL_ERROR( "out of dynamic memory in FASTQ__create_buffer()" );
+		YY_FATAL_ERROR( "out of dynamic memory in yy_create_buffer()" );
 
-	b->yy_buf_size = size;
+	b->yy_buf_size = (yy_size_t)size;
 
 	/* yy_ch_buf has to be 2 characters longer than the size given because
 	 * we need to put in 2 end-of-buffer characters.
 	 */
-	b->yy_ch_buf = (char *) FASTQ_alloc(b->yy_buf_size + 2 ,yyscanner );
+	b->yy_ch_buf = (char *) yyalloc(b->yy_buf_size + 2 ,yyscanner );
 	if ( ! b->yy_ch_buf )
-		YY_FATAL_ERROR( "out of dynamic memory in FASTQ__create_buffer()" );
+		YY_FATAL_ERROR( "out of dynamic memory in yy_create_buffer()" );
 
 	b->yy_is_our_buffer = 1;
 
-	FASTQ__init_buffer(b,file ,yyscanner);
+	yy_init_buffer(b,file ,yyscanner);
 
 	return b;
 }
 
+/* %if-c++-only */
+/* %endif */
+
 /** Destroy the buffer.
- * @param b a buffer created with FASTQ__create_buffer()
+ * @param b a buffer created with yy_create_buffer()
  * @param yyscanner The scanner object.
  */
 /* %if-c-only */
-    void FASTQ__delete_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
+    void yy_delete_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
@@ -2047,24 +2099,17 @@ static void FASTQ__load_buffer_state  (yyscan_t yyscanner)
 		YY_CURRENT_BUFFER_LVALUE = (YY_BUFFER_STATE) 0;
 
 	if ( b->yy_is_our_buffer )
-		FASTQ_free((void *) b->yy_ch_buf ,yyscanner );
+		yyfree((void *) b->yy_ch_buf ,yyscanner );
 
-	FASTQ_free((void *) b ,yyscanner );
+	yyfree((void *) b ,yyscanner );
 }
-
-/* %if-c-only */
-
-/* %endif */
-
-/* %if-c++-only */
-/* %endif */
 
 /* Initializes or reinitializes a buffer.
  * This function is sometimes called more than once on the same buffer,
- * such as during a FASTQ_restart() or at EOF.
+ * such as during a yyrestart() or at EOF.
  */
 /* %if-c-only */
-    static void FASTQ__init_buffer  (YY_BUFFER_STATE  b, FILE * file , yyscan_t yyscanner)
+    static void yy_init_buffer  (YY_BUFFER_STATE  b, FILE * file , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
@@ -2073,13 +2118,17 @@ static void FASTQ__load_buffer_state  (yyscan_t yyscanner)
 	int oerrno = errno;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-	FASTQ__flush_buffer(b ,yyscanner);
+	yy_flush_buffer(b ,yyscanner);
 
+/* %if-c-only */
 	b->yy_input_file = file;
+/* %endif */
+/* %if-c++-only */
+/* %endif */
 	b->yy_fill_buffer = 1;
 
-    /* If b is the current buffer, then FASTQ__init_buffer was _probably_
-     * called from FASTQ_restart() or through yy_get_next_buffer.
+    /* If b is the current buffer, then yy_init_buffer was _probably_
+     * called from yyrestart() or through yy_get_next_buffer.
      * In that case, we don't want to reset the lineno or column.
      */
     if (b != YY_CURRENT_BUFFER){
@@ -2102,7 +2151,7 @@ static void FASTQ__load_buffer_state  (yyscan_t yyscanner)
  * @param yyscanner The scanner object.
  */
 /* %if-c-only */
-    void FASTQ__flush_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
+    void yy_flush_buffer (YY_BUFFER_STATE  b , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
@@ -2126,7 +2175,7 @@ static void FASTQ__load_buffer_state  (yyscan_t yyscanner)
 	b->yy_buffer_status = YY_BUFFER_NEW;
 
 	if ( b == YY_CURRENT_BUFFER )
-		FASTQ__load_buffer_state(yyscanner );
+		yy_load_buffer_state(yyscanner );
 }
 
 /* %if-c-or-c++ */
@@ -2137,7 +2186,7 @@ static void FASTQ__load_buffer_state  (yyscan_t yyscanner)
  *  @param yyscanner The scanner object.
  */
 /* %if-c-only */
-void FASTQ_push_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
+void yypush_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
@@ -2146,9 +2195,9 @@ void FASTQ_push_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 	if (new_buffer == NULL)
 		return;
 
-	FASTQ_ensure_buffer_stack(yyscanner);
+	yyensure_buffer_stack(yyscanner);
 
-	/* This block is copied from FASTQ__switch_to_buffer. */
+	/* This block is copied from yy_switch_to_buffer. */
 	if ( YY_CURRENT_BUFFER )
 		{
 		/* Flush out information for old buffer. */
@@ -2162,8 +2211,8 @@ void FASTQ_push_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
 		yyg->yy_buffer_stack_top++;
 	YY_CURRENT_BUFFER_LVALUE = new_buffer;
 
-	/* copied from FASTQ__switch_to_buffer. */
-	FASTQ__load_buffer_state(yyscanner );
+	/* copied from yy_switch_to_buffer. */
+	yy_load_buffer_state(yyscanner );
 	yyg->yy_did_buffer_switch_on_eof = 1;
 }
 /* %endif */
@@ -2174,7 +2223,7 @@ void FASTQ_push_buffer_state (YY_BUFFER_STATE new_buffer , yyscan_t yyscanner)
  *  @param yyscanner The scanner object.
  */
 /* %if-c-only */
-void FASTQ_pop_buffer_state (yyscan_t yyscanner)
+void yypop_buffer_state (yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
@@ -2183,13 +2232,13 @@ void FASTQ_pop_buffer_state (yyscan_t yyscanner)
 	if (!YY_CURRENT_BUFFER)
 		return;
 
-	FASTQ__delete_buffer(YY_CURRENT_BUFFER ,yyscanner);
+	yy_delete_buffer(YY_CURRENT_BUFFER ,yyscanner);
 	YY_CURRENT_BUFFER_LVALUE = NULL;
 	if (yyg->yy_buffer_stack_top > 0)
 		--yyg->yy_buffer_stack_top;
 
 	if (YY_CURRENT_BUFFER) {
-		FASTQ__load_buffer_state(yyscanner );
+		yy_load_buffer_state(yyscanner );
 		yyg->yy_did_buffer_switch_on_eof = 1;
 	}
 }
@@ -2200,12 +2249,12 @@ void FASTQ_pop_buffer_state (yyscan_t yyscanner)
  *  Guarantees space for at least one push.
  */
 /* %if-c-only */
-static void FASTQ_ensure_buffer_stack (yyscan_t yyscanner)
+static void yyensure_buffer_stack (yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
 {
-	int num_to_alloc;
+	yy_size_t num_to_alloc;
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
 	if (!yyg->yy_buffer_stack) {
@@ -2214,12 +2263,12 @@ static void FASTQ_ensure_buffer_stack (yyscan_t yyscanner)
 		 * scanner will even need a stack. We use 2 instead of 1 to avoid an
 		 * immediate realloc on the next call.
          */
-		num_to_alloc = 1;
-		yyg->yy_buffer_stack = (struct yy_buffer_state**)FASTQ_alloc
+		num_to_alloc = 1; /* After all that talk, this was set to 1 anyways... */
+		yyg->yy_buffer_stack = (struct yy_buffer_state**)yyalloc
 								(num_to_alloc * sizeof(struct yy_buffer_state*)
 								, yyscanner);
 		if ( ! yyg->yy_buffer_stack )
-			YY_FATAL_ERROR( "out of dynamic memory in FASTQ_ensure_buffer_stack()" );
+			YY_FATAL_ERROR( "out of dynamic memory in yyensure_buffer_stack()" );
 								  
 		memset(yyg->yy_buffer_stack, 0, num_to_alloc * sizeof(struct yy_buffer_state*));
 				
@@ -2231,15 +2280,15 @@ static void FASTQ_ensure_buffer_stack (yyscan_t yyscanner)
 	if (yyg->yy_buffer_stack_top >= (yyg->yy_buffer_stack_max) - 1){
 
 		/* Increase the buffer to prepare for a possible push. */
-		int grow_size = 8 /* arbitrary grow size */;
+		yy_size_t grow_size = 8 /* arbitrary grow size */;
 
 		num_to_alloc = yyg->yy_buffer_stack_max + grow_size;
-		yyg->yy_buffer_stack = (struct yy_buffer_state**)FASTQ_realloc
+		yyg->yy_buffer_stack = (struct yy_buffer_state**)yyrealloc
 								(yyg->yy_buffer_stack,
 								num_to_alloc * sizeof(struct yy_buffer_state*)
 								, yyscanner);
 		if ( ! yyg->yy_buffer_stack )
-			YY_FATAL_ERROR( "out of dynamic memory in FASTQ_ensure_buffer_stack()" );
+			YY_FATAL_ERROR( "out of dynamic memory in yyensure_buffer_stack()" );
 
 		/* zero only the new slots.*/
 		memset(yyg->yy_buffer_stack + yyg->yy_buffer_stack_max, 0, grow_size * sizeof(struct yy_buffer_state*));
@@ -2255,7 +2304,7 @@ static void FASTQ_ensure_buffer_stack (yyscan_t yyscanner)
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object. 
  */
-YY_BUFFER_STATE FASTQ__scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
+YY_BUFFER_STATE yy_scan_buffer  (char * base, yy_size_t  size , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
     
@@ -2265,9 +2314,9 @@ YY_BUFFER_STATE FASTQ__scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
 		/* They forgot to leave room for the EOB's. */
 		return 0;
 
-	b = (YY_BUFFER_STATE) FASTQ_alloc(sizeof( struct yy_buffer_state ) ,yyscanner );
+	b = (YY_BUFFER_STATE) yyalloc(sizeof( struct yy_buffer_state ) ,yyscanner );
 	if ( ! b )
-		YY_FATAL_ERROR( "out of dynamic memory in FASTQ__scan_buffer()" );
+		YY_FATAL_ERROR( "out of dynamic memory in yy_scan_buffer()" );
 
 	b->yy_buf_size = size - 2;	/* "- 2" to take care of EOB's */
 	b->yy_buf_pos = b->yy_ch_buf = base;
@@ -2279,57 +2328,57 @@ YY_BUFFER_STATE FASTQ__scan_buffer  (char * base, yy_size_t  size , yyscan_t yys
 	b->yy_fill_buffer = 0;
 	b->yy_buffer_status = YY_BUFFER_NEW;
 
-	FASTQ__switch_to_buffer(b ,yyscanner );
+	yy_switch_to_buffer(b ,yyscanner );
 
 	return b;
 }
 /* %endif */
 
 /* %if-c-only */
-/** Setup the input buffer state to scan a string. The next call to FASTQ_lex() will
+/** Setup the input buffer state to scan a string. The next call to yylex() will
  * scan from a @e copy of @a str.
  * @param yystr a NUL-terminated string to scan
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  * @note If you want to scan bytes that may contain NUL values, then use
- *       FASTQ__scan_bytes() instead.
+ *       yy_scan_bytes() instead.
  */
-YY_BUFFER_STATE FASTQ__scan_string (yyconst char * yystr , yyscan_t yyscanner)
+YY_BUFFER_STATE yy_scan_string (yyconst char * yystr , yyscan_t yyscanner)
 {
     
-	return FASTQ__scan_bytes(yystr,strlen(yystr) ,yyscanner);
+	return yy_scan_bytes(yystr,strlen(yystr) ,yyscanner);
 }
 /* %endif */
 
 /* %if-c-only */
-/** Setup the input buffer state to scan the given bytes. The next call to FASTQ_lex() will
+/** Setup the input buffer state to scan the given bytes. The next call to yylex() will
  * scan from a @e copy of @a bytes.
- * @param bytes the byte buffer to scan
- * @param len the number of bytes in the buffer pointed to by @a bytes.
+ * @param yybytes the byte buffer to scan
+ * @param _yybytes_len the number of bytes in the buffer pointed to by @a bytes.
  * @param yyscanner The scanner object.
  * @return the newly allocated buffer state object.
  */
-YY_BUFFER_STATE FASTQ__scan_bytes  (yyconst char * yybytes, int  _yybytes_len , yyscan_t yyscanner)
+YY_BUFFER_STATE yy_scan_bytes  (yyconst char * yybytes, yy_size_t  _yybytes_len , yyscan_t yyscanner)
 {
 	YY_BUFFER_STATE b;
 	char *buf;
 	yy_size_t n;
-	int i;
+	yy_size_t i;
     
 	/* Get memory for full buffer, including space for trailing EOB's. */
 	n = _yybytes_len + 2;
-	buf = (char *) FASTQ_alloc(n ,yyscanner );
+	buf = (char *) yyalloc(n ,yyscanner );
 	if ( ! buf )
-		YY_FATAL_ERROR( "out of dynamic memory in FASTQ__scan_bytes()" );
+		YY_FATAL_ERROR( "out of dynamic memory in yy_scan_bytes()" );
 
 	for ( i = 0; i < _yybytes_len; ++i )
 		buf[i] = yybytes[i];
 
 	buf[_yybytes_len] = buf[_yybytes_len+1] = YY_END_OF_BUFFER_CHAR;
 
-	b = FASTQ__scan_buffer(buf,n ,yyscanner);
+	b = yy_scan_buffer(buf,n ,yyscanner);
 	if ( ! b )
-		YY_FATAL_ERROR( "bad buffer in FASTQ__scan_bytes()" );
+		YY_FATAL_ERROR( "bad buffer in yy_scan_bytes()" );
 
 	/* It's okay to grow etc. this buffer, and we should throw it
 	 * away when we're done.
@@ -2341,7 +2390,7 @@ YY_BUFFER_STATE FASTQ__scan_bytes  (yyconst char * yybytes, int  _yybytes_len , 
 /* %endif */
 
 /* %if-c-only */
-    static void yy_push_state (int  new_state , yyscan_t yyscanner)
+    static void yy_push_state (int  _new_state , yyscan_t yyscanner)
 /* %endif */
 /* %if-c++-only */
 /* %endif */
@@ -2355,10 +2404,10 @@ YY_BUFFER_STATE FASTQ__scan_bytes  (yyconst char * yybytes, int  _yybytes_len , 
 		new_size = yyg->yy_start_stack_depth * sizeof( int );
 
 		if ( ! yyg->yy_start_stack )
-			yyg->yy_start_stack = (int *) FASTQ_alloc(new_size ,yyscanner );
+			yyg->yy_start_stack = (int *) yyalloc(new_size ,yyscanner );
 
 		else
-			yyg->yy_start_stack = (int *) FASTQ_realloc((void *) yyg->yy_start_stack,new_size ,yyscanner );
+			yyg->yy_start_stack = (int *) yyrealloc((void *) yyg->yy_start_stack,new_size ,yyscanner );
 
 		if ( ! yyg->yy_start_stack )
 			YY_FATAL_ERROR( "out of memory expanding start-condition stack" );
@@ -2366,7 +2415,7 @@ YY_BUFFER_STATE FASTQ__scan_bytes  (yyconst char * yybytes, int  _yybytes_len , 
 
 	yyg->yy_start_stack[yyg->yy_start_stack_ptr++] = YY_START;
 
-	BEGIN(new_state);
+	BEGIN(_new_state);
 }
 
 /* %if-c-only */
@@ -2399,7 +2448,9 @@ YY_BUFFER_STATE FASTQ__scan_bytes  (yyconst char * yybytes, int  _yybytes_len , 
 /* %if-c-only */
 static void yy_fatal_error (yyconst char* msg , yyscan_t yyscanner)
 {
-    	(void) fprintf( stderr, "%s\n", msg );
+	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	(void)yyg;
+	(void) fprintf( stderr, "%s\n", msg );
 	exit( YY_EXIT_FAILURE );
 }
 /* %endif */
@@ -2431,7 +2482,7 @@ static void yy_fatal_error (yyconst char* msg , yyscan_t yyscanner)
 /** Get the user-defined data for this scanner.
  * @param yyscanner The scanner object.
  */
-YY_EXTRA_TYPE FASTQ_get_extra  (yyscan_t yyscanner)
+YY_EXTRA_TYPE yyget_extra  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yyextra;
@@ -2442,7 +2493,7 @@ YY_EXTRA_TYPE FASTQ_get_extra  (yyscan_t yyscanner)
 /** Get the current line number.
  * @param yyscanner The scanner object.
  */
-int FASTQ_get_lineno  (yyscan_t yyscanner)
+int yyget_lineno  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     
@@ -2455,7 +2506,7 @@ int FASTQ_get_lineno  (yyscan_t yyscanner)
 /** Get the current column number.
  * @param yyscanner The scanner object.
  */
-int FASTQ_get_column  (yyscan_t yyscanner)
+int yyget_column  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     
@@ -2468,7 +2519,7 @@ int FASTQ_get_column  (yyscan_t yyscanner)
 /** Get the input stream.
  * @param yyscanner The scanner object.
  */
-FILE *FASTQ_get_in  (yyscan_t yyscanner)
+FILE *yyget_in  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yyin;
@@ -2477,7 +2528,7 @@ FILE *FASTQ_get_in  (yyscan_t yyscanner)
 /** Get the output stream.
  * @param yyscanner The scanner object.
  */
-FILE *FASTQ_get_out  (yyscan_t yyscanner)
+FILE *yyget_out  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yyout;
@@ -2486,7 +2537,7 @@ FILE *FASTQ_get_out  (yyscan_t yyscanner)
 /** Get the length of the current token.
  * @param yyscanner The scanner object.
  */
-int FASTQ_get_leng  (yyscan_t yyscanner)
+yy_size_t yyget_leng  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yyleng;
@@ -2496,7 +2547,7 @@ int FASTQ_get_leng  (yyscan_t yyscanner)
  * @param yyscanner The scanner object.
  */
 
-char *FASTQ_get_text  (yyscan_t yyscanner)
+char *yyget_text  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yytext;
@@ -2508,7 +2559,7 @@ char *FASTQ_get_text  (yyscan_t yyscanner)
  * @param user_defined The data to be associated with this scanner.
  * @param yyscanner The scanner object.
  */
-void FASTQ_set_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
+void yyset_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yyextra = user_defined ;
@@ -2517,63 +2568,63 @@ void FASTQ_set_extra (YY_EXTRA_TYPE  user_defined , yyscan_t yyscanner)
 /* %endif */
 
 /** Set the current line number.
- * @param line_number
+ * @param _line_number line number
  * @param yyscanner The scanner object.
  */
-void FASTQ_set_lineno (int  line_number , yyscan_t yyscanner)
+void yyset_lineno (int  _line_number , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
         /* lineno is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "FASTQ_set_lineno called with no buffer" , yyscanner); 
+           YY_FATAL_ERROR( "yyset_lineno called with no buffer" );
     
-    yylineno = line_number;
+    yylineno = _line_number;
 }
 
 /** Set the current column.
- * @param line_number
+ * @param _column_no column number
  * @param yyscanner The scanner object.
  */
-void FASTQ_set_column (int  column_no , yyscan_t yyscanner)
+void yyset_column (int  _column_no , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
         /* column is only valid if an input buffer exists. */
         if (! YY_CURRENT_BUFFER )
-           yy_fatal_error( "FASTQ_set_column called with no buffer" , yyscanner); 
+           YY_FATAL_ERROR( "yyset_column called with no buffer" );
     
-    yycolumn = column_no;
+    yycolumn = _column_no;
 }
 
 /** Set the input stream. This does not discard the current
  * input buffer.
- * @param in_str A readable stream.
+ * @param _in_str A readable stream.
  * @param yyscanner The scanner object.
- * @see FASTQ__switch_to_buffer
+ * @see yy_switch_to_buffer
  */
-void FASTQ_set_in (FILE *  in_str , yyscan_t yyscanner)
+void yyset_in (FILE *  _in_str , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-    yyin = in_str ;
+    yyin = _in_str ;
 }
 
-void FASTQ_set_out (FILE *  out_str , yyscan_t yyscanner)
+void yyset_out (FILE *  _out_str , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-    yyout = out_str ;
+    yyout = _out_str ;
 }
 
-int FASTQ_get_debug  (yyscan_t yyscanner)
+int yyget_debug  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yy_flex_debug;
 }
 
-void FASTQ_set_debug (int  bdebug , yyscan_t yyscanner)
+void yyset_debug (int  _bdebug , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
-    yy_flex_debug = bdebug ;
+    yy_flex_debug = _bdebug ;
 }
 
 /* %endif */
@@ -2583,13 +2634,13 @@ void FASTQ_set_debug (int  bdebug , yyscan_t yyscanner)
 
 /* %if-bison-bridge */
 
-YYSTYPE * FASTQ_get_lval  (yyscan_t yyscanner)
+YYSTYPE * yyget_lval  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     return yylval;
 }
 
-void FASTQ_set_lval (YYSTYPE *  yylval_param , yyscan_t yyscanner)
+void yyset_lval (YYSTYPE *  yylval_param , yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     yylval = yylval_param;
@@ -2599,12 +2650,12 @@ void FASTQ_set_lval (YYSTYPE *  yylval_param , yyscan_t yyscanner)
 
 /* User-visible API */
 
-/* FASTQ_lex_init is special because it creates the scanner itself, so it is
+/* yylex_init is special because it creates the scanner itself, so it is
  * the ONLY reentrant function that doesn't take the scanner as the last argument.
  * That's why we explicitly handle the declaration, instead of using our macros.
  */
 
-int FASTQ_lex_init(yyscan_t* ptr_yy_globals)
+int yylex_init(yyscan_t* ptr_yy_globals)
 
 {
     if (ptr_yy_globals == NULL){
@@ -2612,7 +2663,7 @@ int FASTQ_lex_init(yyscan_t* ptr_yy_globals)
         return 1;
     }
 
-    *ptr_yy_globals = (yyscan_t) FASTQ_alloc ( sizeof( struct yyguts_t ), NULL );
+    *ptr_yy_globals = (yyscan_t) yyalloc ( sizeof( struct yyguts_t ), NULL );
 
     if (*ptr_yy_globals == NULL){
         errno = ENOMEM;
@@ -2625,27 +2676,27 @@ int FASTQ_lex_init(yyscan_t* ptr_yy_globals)
     return yy_init_globals ( *ptr_yy_globals );
 }
 
-/* FASTQ_lex_init_extra has the same functionality as FASTQ_lex_init, but follows the
+/* yylex_init_extra has the same functionality as yylex_init, but follows the
  * convention of taking the scanner as the last argument. Note however, that
  * this is a *pointer* to a scanner, as it will be allocated by this call (and
  * is the reason, too, why this function also must handle its own declaration).
- * The user defined value in the first argument will be available to FASTQ_alloc in
+ * The user defined value in the first argument will be available to yyalloc in
  * the yyextra field.
  */
 
-int FASTQ_lex_init_extra(YY_EXTRA_TYPE yy_user_defined,yyscan_t* ptr_yy_globals )
+int yylex_init_extra(YY_EXTRA_TYPE yy_user_defined,yyscan_t* ptr_yy_globals )
 
 {
     struct yyguts_t dummy_yyguts;
 
-    FASTQ_set_extra (yy_user_defined, &dummy_yyguts);
+    yyset_extra (yy_user_defined, &dummy_yyguts);
 
     if (ptr_yy_globals == NULL){
         errno = EINVAL;
         return 1;
     }
 	
-    *ptr_yy_globals = (yyscan_t) FASTQ_alloc ( sizeof( struct yyguts_t ), &dummy_yyguts );
+    *ptr_yy_globals = (yyscan_t) yyalloc ( sizeof( struct yyguts_t ), &dummy_yyguts );
 	
     if (*ptr_yy_globals == NULL){
         errno = ENOMEM;
@@ -2656,7 +2707,7 @@ int FASTQ_lex_init_extra(YY_EXTRA_TYPE yy_user_defined,yyscan_t* ptr_yy_globals 
     yy_init_globals. Leave at 0x00 for releases. */
     memset(*ptr_yy_globals,0x00,sizeof(struct yyguts_t));
     
-    FASTQ_set_extra (yy_user_defined, *ptr_yy_globals);
+    yyset_extra (yy_user_defined, *ptr_yy_globals);
     
     return yy_init_globals ( *ptr_yy_globals );
 }
@@ -2668,7 +2719,7 @@ static int yy_init_globals (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
     /* Initialization is the same as for the non-reentrant scanner.
-     * This function is called from FASTQ_lex_destroy(), so don't allocate here.
+     * This function is called from yylex_destroy(), so don't allocate here.
      */
 
     yyg->yy_buffer_stack = 0;
@@ -2697,43 +2748,43 @@ static int yy_init_globals (yyscan_t yyscanner)
 #endif
 
     /* For future reference: Set errno on error, since we are called by
-     * FASTQ_lex_init()
+     * yylex_init()
      */
     return 0;
 }
 /* %endif */
 
 /* %if-c-only SNIP! this currently causes conflicts with the c++ scanner */
-/* FASTQ_lex_destroy is for both reentrant and non-reentrant scanners. */
-int FASTQ_lex_destroy  (yyscan_t yyscanner)
+/* yylex_destroy is for both reentrant and non-reentrant scanners. */
+int yylex_destroy  (yyscan_t yyscanner)
 {
     struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
     /* Pop the buffer stack, destroying each element. */
 	while(YY_CURRENT_BUFFER){
-		FASTQ__delete_buffer(YY_CURRENT_BUFFER ,yyscanner );
+		yy_delete_buffer(YY_CURRENT_BUFFER ,yyscanner );
 		YY_CURRENT_BUFFER_LVALUE = NULL;
-		FASTQ_pop_buffer_state(yyscanner);
+		yypop_buffer_state(yyscanner);
 	}
 
 	/* Destroy the stack itself. */
-	FASTQ_free(yyg->yy_buffer_stack ,yyscanner);
+	yyfree(yyg->yy_buffer_stack ,yyscanner);
 	yyg->yy_buffer_stack = NULL;
 
     /* Destroy the start condition stack. */
-        FASTQ_free(yyg->yy_start_stack ,yyscanner );
+        yyfree(yyg->yy_start_stack ,yyscanner );
         yyg->yy_start_stack = NULL;
 
-    FASTQ_free ( yyg->yy_state_buf , yyscanner);
+    yyfree ( yyg->yy_state_buf , yyscanner);
     yyg->yy_state_buf  = NULL;
 
     /* Reset the globals. This is important in a non-reentrant scanner so the next time
-     * FASTQ_lex() is called, initialization will occur. */
+     * yylex() is called, initialization will occur. */
     yy_init_globals( yyscanner);
 
 /* %if-reentrant */
     /* Destroy the main struct (reentrant only). */
-    FASTQ_free ( yyscanner , yyscanner );
+    yyfree ( yyscanner , yyscanner );
     yyscanner = NULL;
 /* %endif */
     return 0;
@@ -2747,7 +2798,10 @@ int FASTQ_lex_destroy  (yyscan_t yyscanner)
 #ifndef yytext_ptr
 static void yy_flex_strncpy (char* s1, yyconst char * s2, int n , yyscan_t yyscanner)
 {
-	register int i;
+	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	(void)yyg;
+
+	int i;
 	for ( i = 0; i < n; ++i )
 		s1[i] = s2[i];
 }
@@ -2756,7 +2810,7 @@ static void yy_flex_strncpy (char* s1, yyconst char * s2, int n , yyscan_t yysca
 #ifdef YY_NEED_STRLEN
 static int yy_flex_strlen (yyconst char * s , yyscan_t yyscanner)
 {
-	register int n;
+	int n;
 	for ( n = 0; s[n]; ++n )
 		;
 
@@ -2764,13 +2818,18 @@ static int yy_flex_strlen (yyconst char * s , yyscan_t yyscanner)
 }
 #endif
 
-void *FASTQ_alloc (yy_size_t  size , yyscan_t yyscanner)
+void *yyalloc (yy_size_t  size , yyscan_t yyscanner)
 {
+	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	(void)yyg;
 	return (void *) malloc( size );
 }
 
-void *FASTQ_realloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
+void *yyrealloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
 {
+	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	(void)yyg;
+
 	/* The cast to (char *) in the following accommodates both
 	 * implementations that use char* generic pointers, and those
 	 * that use void* generic pointers.  It works with the latter
@@ -2781,9 +2840,11 @@ void *FASTQ_realloc  (void * ptr, yy_size_t  size , yyscan_t yyscanner)
 	return (void *) realloc( (char *) ptr, size );
 }
 
-void FASTQ_free (void * ptr , yyscan_t yyscanner)
+void yyfree (void * ptr , yyscan_t yyscanner)
 {
-	free( (char *) ptr );	/* see FASTQ_realloc() for (char *) cast */
+	struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+	(void)yyg;
+	free( (char *) ptr );	/* see yyrealloc() for (char *) cast */
 }
 
 /* %if-tables-serialization definitions */
@@ -2798,35 +2859,40 @@ void FASTQ_free (void * ptr , yyscan_t yyscanner)
 
 rc_t CC FASTQScan_yylex_init(FASTQParseBlock* sb, bool debug)
 {
-    if (FASTQ_lex_init_extra(sb,&sb->scanner) != 0)
+    if (yylex_init_extra(sb,&sb->scanner) != 0)
     {
         return RC ( rcApp, rcFile, rcParsing, rcMemory, rcExhausted );
-    }       
+    }
 
     sb->length = 0;
     sb->lastToken = NULL;
     sb->record = NULL;
     sb->column = 1;
-     
+
     sb->expectedQualityLines = 0;
-    
-    FASTQ_set_debug(debug ? 1 : 0,sb->scanner);
+
+    yyset_debug(debug ? 1 : 0,sb->scanner);
 
     yy_push_state(INITIAL, sb->scanner);
-    
+
     return 0;
+}
+
+int FASTQ_lex(FASTQToken* tok, FASTQParseBlock * pb)
+{
+    return yylex ( tok, pb -> scanner );
 }
 
 void CC FASTQScan_yylex_destroy(FASTQParseBlock* sb)
 {
     if (sb->scanner)
     {
-        FASTQ_lex_destroy(sb->scanner);
-    }       
+        yylex_destroy(sb->scanner);
+    }
     sb->scanner=0;
 }
 
-void CC FASTQScan_inline_sequence(FASTQParseBlock* pb) 
+void CC FASTQScan_inline_sequence(FASTQParseBlock* pb)
 {
     yy_pop_state(pb->scanner);
     yy_push_state(INLINE_SEQUENCE, pb->scanner);
@@ -2855,8 +2921,8 @@ void CC FASTQ_unlex(FASTQParseBlock* pb, FASTQToken* token)
     {
         yyunput(TokenTextPtr(pb, token)[token->tokenLength - 1 - i], yyg->yytext_r, pb->scanner);
     }
-    yyextra -> column -= token->tokenLength; 
-    yyextra -> length -= token->tokenLength; 
+    yyextra -> column -= token->tokenLength;
+    yyextra -> length -= token->tokenLength;
 	KDataBufferResize( & pb->record->source, KDataBufferBytes( & pb->record->source ) - token->tokenLength );
 }
 
@@ -2867,22 +2933,22 @@ void FASTQ_fatal_error(yyconst char* msg)
         pLogErr(klogErr, rc, "line is too long (maximum line length = $(B) bytes)", "B=%d", YY_BUF_SIZE);
     else
         LogErr(klogErr, rc, msg);
-    exit(rc);  
+    exit(rc);
 }
 
 void ConsumeToken(FASTQToken* token, FASTQParseBlock* pb)
 {
     struct yyguts_t* yyg = (struct yyguts_t*)pb->scanner;
-	
+
 	token -> tokenStart = KDataBufferBytes( & pb->record->source );
-	token -> tokenLength   = yyleng;   
-	token -> line_no       = yylineno; 
-	token -> column_no     = pb -> column; 
-	
+	token -> tokenLength   = yyleng;
+	token -> line_no       = yylineno;
+	token -> column_no     = pb -> column;
+
 	KDataBufferResize( & pb->record->source, KDataBufferBytes( & pb->record->source ) + token->tokenLength );
 	strncpy((char*)TokenTextPtr(pb, token), yytext, token->tokenLength);
-    
-	pb -> column += token->tokenLength; 
-	pb -> length += token->tokenLength; 
-	pb -> lastToken = token; 
+
+	pb -> column += token->tokenLength;
+	pb -> length += token->tokenLength;
+	pb -> lastToken = token;
 }

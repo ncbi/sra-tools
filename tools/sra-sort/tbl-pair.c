@@ -47,6 +47,7 @@ typedef struct TablePair StdTblPair;
 #include <klib/text.h>
 #include <klib/namelist.h>
 #include <klib/rc.h>
+#include <kproc/thread.h> /* KThreadWait */
 
 #include <string.h>
 
@@ -1050,6 +1051,43 @@ void TablePairDestroy ( TablePair *self, const ctx_t *ctx )
     VTableRelease ( self -> stbl );
 
     MemFree ( ctx, ( void* ) self -> full_spec, self -> full_spec_size + 1 );
+    
+    if ( self -> thread != NULL ) {
+        rc_t rc = 0;
+        rc_t status = 0;
+        STATUS ( 2, "waiting for background thread 0x%p to finish...",
+                                                     self -> thread );
+
+        rc = KThreadWait ( self -> thread, & status );
+        if ( rc != 0 )
+            ERROR ( rc, "failed to wait for background thread 0x%p",
+                                                             self -> thread );
+        else if ( status == 0 )
+            STATUS ( 2, "...background thread 0x%p succeed", self -> thread );
+        else {
+            ERROR ( status, "background thread 0x%p failed", self -> thread );
+            rc = status;
+        }
+
+        {
+            rc_t r2 = KThreadRelease ( self -> thread );
+            if ( r2 != 0 ) {
+                ERROR ( r2, "failed to release background thread 0x%p",
+                                                             self -> thread );
+                if ( rc == 0 )
+                    rc = r2;
+            }
+        }
+
+        if ( rc != 0 && ctx != NULL ) {
+            ctx_t * mctx = NULL;
+            for ( mctx = ( ctx_t * ) ctx; mctx != NULL && mctx -> rc == 0;
+                  mctx = ( ctx_t* ) mctx -> caller )
+            {
+                mctx -> rc = rc;
+            }
+        }
+    }
 
     memset ( self, 0, sizeof * self );
 }

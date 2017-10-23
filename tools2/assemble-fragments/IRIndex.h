@@ -27,4 +27,15 @@
 struct IndexRow {
     uint8_t key[8];
     int64_t row;
+    
+    uint64_t key64() const {
+        return *reinterpret_cast<uint64_t const *>(&key[0]);
+    }
+    static bool keyLess(IndexRow const &a, IndexRow const &b) {
+        return a.key64() < b.key64();
+    }
+    static bool rowLess(IndexRow const &a, IndexRow const &b) {
+        return a.row < b.row;
+    }
 };
+

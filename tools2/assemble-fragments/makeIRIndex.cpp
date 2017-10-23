@@ -33,179 +33,150 @@
 #include "vdb.hpp"
 #include "IRIndex.h"
 
-static int popcount(int x)
-{
-    int y = 0;
-    while (x) {
-        x &= x - 1;
-        ++y;
-    }
-    return y;
-}
-
-static uint32_t random_uniform(uint32_t upper_bound) {
+static int random_uniform(int lower_bound, int upper_bound) {
+    if (upper_bound <= lower_bound) return lower_bound;
 #if __APPLE__
-    return arc4random_uniform(upper_bound);
+    return arc4random_uniform(upper_bound - lower_bound) + lower_bound;
 #else
     struct seed_rand {
         seed_rand() {
             srand((unsigned)time(0));
         }
     };
+    auto const M = upper_bound - lower_bound;
     auto const once = seed_rand();
-    auto const m = RAND_MAX - RAND_MAX % upper_bound;
+    auto const m = RAND_MAX - RAND_MAX % M;
     for ( ; ; ) {
         auto const r = rand();
-        if (r < m) return r % upper_bound;
+        if (r < m) return r % M + lower_bound;
     }
 #endif
 }
-template <unsigned N, typename T>
-static void shuffle(T a[N])
-{
-    for (int i = 0; i < N; ++i) {
-        auto const j = random_uniform(N - i) + i;
-        auto const ii = a[i];
-        auto const jj = a[j];
-        a[i] = jj;
-        a[j] = ii;
-    }
-}
 
-static void initialize(uint8_t a[256], int adjacentDelta)
-{
-    int i, j;
-    
-    for (i = 0; i < 256; ++i)
-        a[i] = i;
-    
-    shuffle<256>(a);
-
-    // this makes it more likely that adjacent values
-    // will differ by the desired bit count
-    for (i = 0, j = 1; j < 256; ++i, ++j) {
-        auto const ii = a[i];
-        
-        for (int k = j; k < 256; ++k) {
-            auto const jj = a[k];
-            if (popcount(ii ^ jj) == adjacentDelta) {
-                a[i] = jj;
-                a[k] = ii;
-                break;
-            }
-        }
-    }
-}
-
-// this table is constructed such that it is more
-// likely that two values that differ by 1 bit
-// will map to two values that differ by 4 bits
-static uint8_t const *makeHashTable(void)
-{
-    static uint8_t table[256];
-
-    uint8_t I[256];
-    uint8_t J[256];
-    
-    initialize(I, 1); // adjacent values of I are biased to differ by 1-bit
-    initialize(J, 4); // adjacent values of J are biased to differ by 4-bits
-    
-    for (int i = 0; i < 256; ++i)
-        table[I[i]] = J[i];
-    
-    return table;
-}
-
-// all of the bytes in the salt MUST be different values
-// this function insures that (but doesn't check it)
-static uint8_t const *makeSalt(void)
-{
-    // all of the 8-bit values with popcount == 4
-    static uint8_t sb4[] = {
-        0x33, 0x35, 0x36, 0x39, 0x3A, 0x3C,
-        0x53, 0x55, 0x56, 0x59, 0x5A, 0x5C,
-        0x63, 0x65, 0x66, 0x69, 0x6A, 0x6C,
-        0x93, 0x95, 0x96, 0x99, 0x9A, 0x9C,
-        0xA3, 0xA5, 0xA6, 0xA9, 0xAA, 0xAC,
-        0xC3, 0xC5, 0xC6, 0xC9, 0xCA, 0xCC
-    };
-    
-    shuffle<36>(sb4);
-
-    return sb4;
-}
-
-static uint8_t const *const hashTable = makeHashTable();
-static uint8_t const *const salt = makeSalt();
-
-static IndexRow makeIndexRow(int64_t row, VDB::Cursor::RawData const &group, VDB::Cursor::RawData const &name)
-{
+struct HashState {
+private:
     union {
         uint64_t u;
         char ch[sizeof(uint64_t)];
     } key;
     uint64_t sr;
-    uint8_t const *const H = hashTable;
-    int i;
     
-    for (i = 0; i < sizeof(uint64_t); ++i) {
-        key.ch[i] = salt[i];
+    static uint8_t popcount(uint8_t const byte) {
+        static uint8_t const bits_set[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
+        return bits_set[byte >> 4] + bits_set[byte & 15];
     }
 
-    for (sr = 0, i = 0; i < group.elements; ++i) {
-        auto const ch = ((uint8_t const *)group.data)[i];
-        sr = (sr << 8) | ch;
-        key.u ^= sr;
-        key.ch[0] = H[key.ch[0]];
-        key.ch[1] = H[key.ch[1]];
-        key.ch[2] = H[key.ch[2]];
-        key.ch[3] = H[key.ch[3]];
-        key.ch[4] = H[key.ch[4]];
-        key.ch[5] = H[key.ch[5]];
-        key.ch[6] = H[key.ch[6]];
-        key.ch[7] = H[key.ch[7]];
-    }
-    sr = (sr << 8) | '\0';
-    key.u ^= sr;
-    key.ch[0] = H[key.ch[0]];
-    key.ch[1] = H[key.ch[1]];
-    key.ch[2] = H[key.ch[2]];
-    key.ch[3] = H[key.ch[3]];
-    key.ch[4] = H[key.ch[4]];
-    key.ch[5] = H[key.ch[5]];
-    key.ch[6] = H[key.ch[6]];
-    key.ch[7] = H[key.ch[7]];
-    for (i = 0; i < name.elements; ++i) {
-        auto const ch = ((uint8_t const *)name.data)[i];
-        sr = (sr << 8) | ch;
-        key.u ^= sr;
-        key.ch[0] = H[key.ch[0]];
-        key.ch[1] = H[key.ch[1]];
-        key.ch[2] = H[key.ch[2]];
-        key.ch[3] = H[key.ch[3]];
-        key.ch[4] = H[key.ch[4]];
-        key.ch[5] = H[key.ch[5]];
-        key.ch[6] = H[key.ch[6]];
-        key.ch[7] = H[key.ch[7]];
-    }
-    while (sr != 0) {
-        sr = sr << 8;
-        key.u ^= sr;
-        key.ch[0] = H[key.ch[0]];
-        key.ch[1] = H[key.ch[1]];
-        key.ch[2] = H[key.ch[2]];
-        key.ch[3] = H[key.ch[3]];
-        key.ch[4] = H[key.ch[4]];
-        key.ch[5] = H[key.ch[5]];
-        key.ch[6] = H[key.ch[6]];
-        key.ch[7] = H[key.ch[7]];
-    }
+    // this table is constructed such that it is more
+    // likely that two values that differ by 1 bit (the smallest difference)
+    // will map to two values that differ by 4 bits (the biggest difference)
+    // the desired effect is to amplify small differences
+    static uint8_t const *makeHashTable(void)
+    {
+        static uint8_t table[256];
+        
+        uint8_t I[256];
+        uint8_t J[256];
 
+        for (auto i = 0; i < 256; ++i)
+            I[i] = i;
+        for (auto i = 0; i < 256; ++i) {
+            auto const j = random_uniform(i, 256);
+            auto const ii = I[i];
+            auto const jj = I[j];
+            I[i] = jj;
+            I[j] = ii;
+        }
+        for (auto i = 1; i < 256; ++i) {
+            auto const ii = I[i - 1];
+            for (auto j = i; j < 256; ++j) {
+                auto const jj = I[j];
+                auto const diff = ii ^ jj;
+                auto const popcount(diff);
+                if (popcount == 1) {
+                    if (j != i) {
+                        I[j] = I[i];
+                        I[i] = jj;
+                    }
+                    break;
+                }
+            }
+        }
+
+        for (auto i = 0; i < 256; ++i)
+            J[i] = i;
+        for (auto i = 0; i < 256; ++i) {
+            auto const j = random_uniform(i, 256);
+            auto const ii = J[i];
+            auto const jj = J[j];
+            J[i] = jj;
+            J[j] = ii;
+        }
+        for (auto i = 1; i < 256; ++i) {
+            auto const ii = J[i - 1];
+            for (auto j = i; j < 256; ++j) {
+                auto const jj = J[j];
+                auto const diff = ii ^ jj;
+                auto const popcount(diff);
+                if (popcount == 4) {
+                    if (j != i) {
+                        J[j] = J[i];
+                        J[i] = jj;
+                    }
+                    break;
+                }
+            }
+        }
+        
+        for (int k = 0; k < 256; ++k) {
+            auto const i = I[k];
+            auto const j = J[k];
+            table[i] = j;
+        }
+        
+        return table;
+    }
+    
+    static decltype(makeHashTable()) const hashTable;
+public:
+    HashState() : sr(0) {
+        key.u = 0;
+    }
+    void append(uint8_t const byte) {
+        uint8_t const *const H = hashTable;
+        sr = (sr << 8) | byte;
+        key.u ^= sr;
+        key.ch[0] = H[key.ch[0]];
+        key.ch[1] = H[key.ch[1]];
+        key.ch[2] = H[key.ch[2]];
+        key.ch[3] = H[key.ch[3]];
+        key.ch[4] = H[key.ch[4]];
+        key.ch[5] = H[key.ch[5]];
+        key.ch[6] = H[key.ch[6]];
+        key.ch[7] = H[key.ch[7]];
+    }
+    HashState &append(VDB::Cursor::RawData const &data) {
+        for (auto i = 0; i < data.elements; ++i) {
+            append(((uint8_t const *)data.data)[i]);
+        }
+        append(0x80);
+        return *this;
+    }
+    void end(uint8_t rslt[8]) {
+        append(0x80);
+        while (sr != 0)
+            append(0);
+        std::copy(key.ch, key.ch + 8, rslt);
+    }
+};
+
+auto const HashState::hashTable = HashState::makeHashTable();
+
+static IndexRow makeIndexRow(int64_t row, VDB::Cursor::RawData const &group, VDB::Cursor::RawData const &name)
+{
     IndexRow y;
+
     y.row = row;
-    for (i = 0; i < sizeof(uint64_t); ++i) {
-        y.key[i] = key.ch[i];
-    }
+    HashState().append(group).append(name).end(y.key);
     return y;
 }
 

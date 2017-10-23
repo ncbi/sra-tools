@@ -33,7 +33,7 @@
 #include "vdb.hpp"
 #include "writer.hpp"
 
-static std::ostream &write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::RawData const &in)
+static bool write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::RawData const &in)
 {
     return out.value(cid, in.elements, in.elem_bits / 8, in.data);
 }
@@ -137,7 +137,7 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
     return 0;
 }
 
-static int process(std::string const &run, std::ostream &out) {
+static int process(std::string const &run, FILE *const out) {
     auto const writer = VDB::Writer(out);
     
     writer.destination("IR.vdb");
@@ -145,14 +145,14 @@ static int process(std::string const &run, std::ostream &out) {
     writer.info("sra2ir", "1.0.0");
     
     writer.openTable(1, "RAW");
-    writer.openColumn(1, 1, 8, "READ_GROUP");
-    writer.openColumn(2, 1, 8, "FRAGMENT");
+    writer.openColumn(1, 1,  8, "READ_GROUP");
+    writer.openColumn(2, 1,  8, "NAME");
     writer.openColumn(3, 1, 32, "READNO");
-    writer.openColumn(4, 1, 8, "SEQUENCE");
-    writer.openColumn(5, 1, 8, "REFERENCE");
-    writer.openColumn(6, 1, 8, "STRAND");
+    writer.openColumn(4, 1,  8, "SEQUENCE");
+    writer.openColumn(5, 1,  8, "REFERENCE");
+    writer.openColumn(6, 1,  8, "STRAND");
     writer.openColumn(7, 1, 32, "POSITION");
-    writer.openColumn(8, 1, 8, "CIGAR");
+    writer.openColumn(8, 1,  8, "CIGAR");
     
     writer.beginWriting();
     
@@ -201,14 +201,16 @@ namespace sra2ir {
             usage(commandLine.program, true);
         }
         if (out.empty())
-            return process(run, std::cout);
+            return process(run, stdout);
         
-        auto ofs = std::ofstream(out);
-        if (ofs.bad()) {
+        auto stream = fopen(out.c_str(), "w");
+        if (!stream) {
             std::cerr << "failed to open output file: " << out << std::endl;
             exit(3);
         }
-        return process(run, ofs);
+        auto const rslt = process(run, stream);
+        fclose(stream);
+        return rslt;
     }
 }
 

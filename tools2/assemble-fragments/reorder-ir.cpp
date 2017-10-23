@@ -34,23 +34,32 @@
 #include <cassert>
 #include "vdb.hpp"
 #include "writer.hpp"
+#include "IRIndex.h"
 
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-static std::ostream &write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::Data const *in)
+static std::ostream &write(Writer2::Column const &out, VDB::Cursor::Data const *in)
 {
-    return out.value(cid, in->elements, in->elem_bits / 8, in->data());
+    return out.setValue(in->elements, in->elem_bits / 8, in->data());
 }
 
 using namespace utility;
 
-static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t const *const beg, int64_t const *const end)
+static int process(Writer2 const &out, VDB::Cursor const &in, IndexRow const *const beg, IndexRow const *const end)
 {
-    static char const *const FLDS[] = { "READ_GROUP", "FRAGMENT", "READNO", "SEQUENCE", "REFERENCE", "STRAND", "POSITION", "CIGAR" };
-    auto const in = inDb["RAW"].read(8, FLDS);
+    auto const otbl = out.table("RAW");
+    auto const colGroup = otbl.column("READ_GROUP");
+    auto const colName = otbl.column("NAME");
+    auto const colSequence = otbl.column("SEQUENCE");
+    auto const colReference = otbl.column("REFERENCE");
+    auto const colStrand = otbl.column("STRAND");
+    auto const colCigar = otbl.column("CIGAR");
+    auto const colReadNo = otbl.column("READNO");
+    auto const colPosition = otbl.column("POSITION");
+    
     auto const range = in.rowRange();
     if (end - beg != range.second - range.first) {
         std::cerr << "index size doesn't match input table" << std::endl;
@@ -73,15 +82,35 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
             j = end;
         auto m = std::map<int64_t, unsigned>();
         {
-            auto cp = buffer;
-            auto v = std::vector<int64_t>(i, j);
-            unsigned count = 0;
+            auto v = std::vector<IndexRow>();
             
-            std::sort(v.begin(), v.end());
-            for (auto r : v) {
+            v.reserve(j - i);
+            if (j != end) {
+                auto ii = i;
+                while (ii < j) {
+                    auto jj = ii;
+                    do {
+                        ++jj;
+                    } while (jj < j && *(uint64_t const *)(&jj->key[0]) == *(uint64_t const *)(&ii->key[0]));
+                    if (jj < j) {
+                        v.insert(v.end(), ii, jj);
+                        ii = jj;
+                    }
+                }
+                j = ii;
+            }
+            else {
+                v.insert(v.end(), i, j);
+            }
+            std::sort(v.begin(), v.end(), IndexRow::rowLess);
+
+            auto cp = buffer;
+            unsigned count = 0;
+            for (auto && r : v) {
+                auto const row = r.row;
                 auto const tmp = ((uint8_t const *)cp - (uint8_t const *)buffer) / 4;
                 for (auto i = 0; i < 8; ++i) {
-                    auto const data = in.read(r, i + 1);
+                    auto const data = in.read(row, i + 1);
                     auto p = data.copy(cp, bufEnd);
                     if (p == nullptr) {
                         std::cerr << "warn: filled buffer; reducing block size and restarting!" << std::endl;
@@ -92,7 +121,7 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
                     cp = p->end();
                 }
                 ++count;
-                m[r] = (unsigned)tmp;
+                m[row] = (unsigned)tmp;
             }
             if (blockSize == 0) {
                 auto const avg = double(((uint8_t *)cp - (uint8_t *)buffer)) / count;
@@ -101,22 +130,54 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb, int64_t co
                 std::cerr << "info: block size " << blockSize << std::endl;
             }
         }
-        for (auto k = i; k != j; ++k) {
-            auto data = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[*k] * 4);
+        for (auto k = i; k < j; ) {
+            // the index is clustered by hash value, but there wasn't anything
+            // in the index generation code to deal with hash collisions, that
+            // is dealt with here, by reading all of the records with the same
+            // hash value and then sorting by group and name (and reference and
+            // position)
+            auto v = std::vector<decltype(k->row)>();
+            auto const key = k->key64();
+            do { v.push_back(k->row); ++k; } while (k < j && k->key64() == key);
             
-            write(out, 1, data);
-            write(out, 2, data = data->next());
-            write(out, 3, data = data->next());
-            write(out, 4, data = data->next());
-            write(out, 5, data = data->next());
-            write(out, 6, data = data->next());
-            write(out, 7, data = data->next());
-            write(out, 8, data = data->next());
-            out.closeRow(1);
-            ++written;
-            if (nextReport * freq <= written) {
-                std::cerr << "prog: processed " << nextReport << "%" << std::endl;
-                ++nextReport;
+            std::sort(v.begin(), v.end(), [&](decltype(k->row) a, decltype(k->row) b) {
+                auto adata = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[a] * 4);
+                auto bdata = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[b] * 4);
+
+                auto const agroup = adata->asString();
+                auto const bgroup = bdata->asString();
+
+                adata = adata->next();
+                bdata = bdata->next();
+
+                auto const aname = adata->asString();
+                auto const bname = bdata->asString();
+                
+                auto const sameGroup = (agroup == bgroup);
+
+                if (sameGroup && aname == bname)
+                    return a < b; // it's expected that collisions are (exceedingly) rare
+
+                return sameGroup ? (aname < bname) : (agroup < bgroup);
+            });
+            for (auto && row : v) {
+                auto data = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[row] * 4);
+                
+                write(colGroup      , data);
+                write(colName       , data = data->next());
+                write(colSequence   , data = data->next());
+                write(colReference  , data = data->next());
+                write(colStrand     , data = data->next());
+                write(colCigar      , data = data->next());
+                write(colReadNo     , data = data->next());
+                write(colPosition   , data = data->next());
+                otbl.closeRow();
+                
+                ++written;
+                if (nextReport * freq <= written) {
+                    std::cerr << "prog: processed " << nextReport << "%" << std::endl;
+                    ++nextReport;
+                }
             }
         }
         i = j;
@@ -136,7 +197,7 @@ static ssize_t fsize(int const fd)
 
 static int process(std::string const &irdb, std::string const &indexFile, std::ostream &out)
 {
-    int64_t const *index;
+    IndexRow const *index;
     size_t rows;
     {
         auto const fd = open(indexFile.c_str(), O_RDONLY);
@@ -151,29 +212,30 @@ static int process(std::string const &irdb, std::string const &indexFile, std::o
             perror("failed to mmap index file");
             exit(1);
         }
-        index = (int64_t *)map;
+        index = (IndexRow *)map;
         rows = size / sizeof((*index));
     }
-    auto const writer = VDB::Writer(out);
+    auto writer = Writer2(out);
     
     writer.destination("IR.vdb");
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
     writer.info("reorder-ir", "1.0.0");
-    
-    writer.openTable(1, "RAW");
-    writer.openColumn(1, 1, 8, "READ_GROUP");
-    writer.openColumn(2, 1, 8, "FRAGMENT");
-    writer.openColumn(3, 1, 32, "READNO");
-    writer.openColumn(4, 1, 8, "SEQUENCE");
-    writer.openColumn(5, 1, 8, "REFERENCE");
-    writer.openColumn(6, 1, 8, "STRAND");
-    writer.openColumn(7, 1, 32, "POSITION");
-    writer.openColumn(8, 1, 8, "CIGAR");
-    
+
+    writer.addTable("RAW", {
+        { "READ_GROUP"  , 8 },  ///< string
+        { "NAME"        , 8 },  ///< string
+        { "SEQUENCE"    , 8 },  ///< string
+        { "REFERENCE"   , 8 },  ///< string
+        { "CIGAR"       , 8 },  ///< string
+        { "STRAND"      , 8 },  ///< char
+        { "READNO"      , 32 }, ///< int32_t
+        { "POSITION"    , 32 }, ///< int32_t
+    });
     writer.beginWriting();
     
     auto const mgr = VDB::Manager();
-    auto const result = process(writer, mgr[irdb], index, index + rows);
+    auto const in = mgr[irdb]["RAW"].read({ "READ_GROUP", "NAME", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "READNO", "POSITION" });
+    auto const result = process(writer, in, index, index + rows);
     
     writer.endWriting();
     

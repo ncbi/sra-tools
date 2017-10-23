@@ -95,20 +95,6 @@ struct WorkUnit {
     }
 };
 
-static bool compareKey(IndexRow const &a, IndexRow const &b)
-{
-    for (auto i = 0; i < sizeof(a.key); ++i) {
-        if (a.key[i] < b.key[i]) return true;
-        if (a.key[i] > b.key[i]) return false;
-    }
-    return a.row < b.row;
-}
-
-static bool compareRow(IndexRow const *a, IndexRow const *b)
-{
-    return a->row < b->row;
-}
-
 struct Context {
     IndexRow *const map;
     IndexRow *const mapEnd;
@@ -150,7 +136,7 @@ struct Context {
                     pthread_mutex_unlock(&mutex);
                     
                     // sort in one shot
-                    std::sort(unit.beg, unit.end, compareKey);
+                    std::sort(unit.beg, unit.end, IndexRow::keyLess);
                     if (unit.beg >= tmp && unit.end <= tmpEnd)
                         std::copy(unit.beg, unit.end, map + (tmp - unit.beg));
                     
@@ -268,14 +254,6 @@ static ssize_t fsize(int const fd)
     return -1;
 }
 
-static ssize_t fblocksize(int const fd)
-{
-    struct stat stat = {0};
-    if (fstat(fd, &stat) == 0)
-        return stat.st_blksize;
-    return -1;
-}
-
 static int process(char const *const indexFile, bool const isSorted)
 {
     size_t size = 0;
@@ -304,20 +282,14 @@ static int process(char const *const indexFile, bool const isSorted)
         perror("failed to allocate scratch space");
         exit(1);
     }
-    auto const scratchEnd = static_cast<void const *>(static_cast<char *>(scratch) + size);
     int const sz = snprintf((char *)scratch, size, "%s.out", indexFile);
     if (sz >= size) {
         perror("index is too small");
         exit(1);
     }
-    int const fd = open((char *)scratch, O_RDWR|O_CREAT|O_TRUNC, 0644);
-    if (fd < 0) {
+    auto const fp = fopen((char *)scratch, "w");
+    if (!fp) {
         perror("failed to open output file");
-        exit(1);
-    }
-    auto const blockSize = fblocksize(fd);
-    if (blockSize < 0) {
-        perror("failed to access output file");
         exit(1);
     }
     auto const N = size / sizeof(IndexRow);
@@ -344,59 +316,33 @@ static int process(char const *const indexFile, bool const isSorted)
         auto const rindex = (IndexRow **)(scratch); // index by row number
         auto rindexEnd = rindex;
         {
-            auto out = rindex;
-            
-            *out++ = map;
-            for (auto i = map + 1; i != mapEnd; ++i) {
-                auto key = *(uint64_t *)(&i->key[0]);
+            *rindexEnd++ = map;
+            for (auto i = map + 1; i < mapEnd; ++i) {
+                auto const key = i->key64();
                 if (last == key) continue;
-                *out++ = i;
+                *rindexEnd++ = i;
                 last = key;
             }
+            auto const n = rindexEnd - rindex;
             std::cerr << "Number of records: " << N << std::endl;
-            std::cerr << "Number of fragments: " << (out - rindex) << std::endl;
-            std::cerr << "Records per fragment: " << (double)N / (double)(out - rindex) << std::endl;
-
-            rindexEnd = out;
+            std::cerr << "Number of fragments: " << n << std::endl;
+            std::cerr << "Records per fragment: " << (double)N / n << std::endl;
         }
         
         std::cerr << "Sorting fragments ..." << std::endl;
-        std::sort(rindex, rindexEnd, compareRow);
+        std::sort(rindex, rindexEnd, [](IndexRow const *a, IndexRow const *b) { return a->row < b->row; });
         std::cerr << "Writing final index ..." << std::endl;
 
-        int const count = (int)blockSize / sizeof(int64_t);
-        auto const buffer = new int64_t[count];
-        int cur = 0;
         for (auto i = rindex; i != rindexEnd; ++i) {
             auto j = *i;
-            auto const key = *(uint64_t *)(&j->key[0]);
-            for ( ; ; ) {
-                if (cur == count) {
-                    auto rc = write(fd, buffer, count * sizeof(int64_t));
-                    if (rc < 0) {
-                        perror("failed to write output");
-                        exit(1);
-                    }
-                    cur = 0;
-                }
-                buffer[cur++] = (*j++).row;
-                if ((void *)j >= (void *)buffer)
-                    break;
-                auto const nextKey = *(uint64_t *)(&j->key[0]);
-                if (nextKey != key)
-                    break;
-            }
+            auto const key = j->key64();
+            do {
+                fwrite(j, sizeof(*j), 1, fp);
+                ++j;
+            } while (j < mapEnd && key == j->key64());
         }
-        {
-            auto rc = write(fd, buffer, cur * sizeof(int64_t));
-            if (rc < 0) {
-                perror("failed to write output");
-                exit(1);
-            }
-        }
+        fclose(fp);
         std::cerr << "prog: Done" << std::endl;
-        delete [] buffer;
-        close(fd);
     }
     munmap(scratch, size);
     munmap(inmap, size);

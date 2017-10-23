@@ -32,6 +32,7 @@
 #include <utility>
 #include <cstdint>
 #include <algorithm>
+#include <cstdio>
 
 namespace VDB {
     class Writer {
@@ -64,11 +65,11 @@ namespace VDB {
             tableMeta,
             columnMeta
         };
-        std::ostream &out;
+        FILE *stream;
         
         class StreamHeader {
-            friend std::ostream &operator <<(std::ostream &os, StreamHeader const &self)
-            {
+            friend Writer;
+            bool write(FILE *const stream) const {
                 struct h {
                     char sig[8];
                     uint32_t endian;
@@ -76,36 +77,36 @@ namespace VDB {
                     uint32_t size;
                     uint32_t packing;
                 } const h = { { 'N', 'C', 'B', 'I', 'g', 'n', 'l', 'd' }, 1, 2, sizeof(struct h), 0 };
-                return os.write(&h.sig[0], sizeof(h));
+                return fwrite(&h, sizeof(h), 1, stream) == 1;
             }
         public:
             StreamHeader() {};
         };
         
         class SimpleEvent {
+            friend Writer;
             uint32_t eid;
 
-            friend std::ostream &operator <<(std::ostream &os, SimpleEvent const &self)
-            {
-                return os.write((char const *)&self.eid, sizeof(self.eid));
+            bool write(FILE *const stream) const {
+                return fwrite(&eid, sizeof(eid), 1, stream) == 1;
             }
         public:
             SimpleEvent(EventCode const code, unsigned const id) : eid((code << 24) + id) {}
         };
         
         class String1Event {
+            friend Writer;
             uint32_t eid;
             std::string const &str;
 
-            friend std::ostream &operator <<(std::ostream &os, String1Event const &self)
-            {
+            bool write(FILE *const stream) const {
                 uint32_t const zero = 0;
-                auto const size = (uint32_t)self.str.size();
+                auto const size = (uint32_t)str.size();
                 auto const padding = (4 - (size & 3)) & 3;
-                return os.write((char const *)&self.eid, sizeof(self.eid))
-                         .write((char const *)&size, sizeof(size))
-                         .write(self.str.data(), size)
-                         .write((char const *)&zero, padding);
+                return fwrite(&eid, sizeof(eid), 1, stream) == 1
+                    && fwrite(&size, sizeof(size), 1, stream) == 1
+                    && fwrite(str.data(), 1, size, stream) == size
+                    && fwrite(&zero, 1, padding, stream) == padding;
             }
         public:
             String1Event(EventCode const code, unsigned const id, std::string const &str_)
@@ -115,23 +116,23 @@ namespace VDB {
         };
         
         class String2Event {
+            friend Writer;
             uint32_t eid;
             std::string const &str1;
             std::string const &str2;
 
-            friend std::ostream &operator <<(std::ostream &os, String2Event const &self)
-            {
+            bool write(FILE *const stream) const {
                 uint32_t const zero = 0;
-                auto const size1 = (uint32_t)self.str1.size();
-                auto const size2 = (uint32_t)self.str2.size();
+                auto const size1 = (uint32_t)str1.size();
+                auto const size2 = (uint32_t)str2.size();
                 auto const size = size1 + size2;
                 auto const padding = (4 - (size & 3)) & 3;
-                return os.write((char const *)&self.eid, sizeof(self.eid))
-                         .write((char const *)&size1, sizeof(size1))
-                         .write((char const *)&size2, sizeof(size2))
-                         .write(self.str1.data(), size1)
-                         .write(self.str2.data(), size2)
-                         .write((char const *)&zero, padding);
+                return fwrite(&eid, sizeof(eid), 1, stream) == 1
+                    && fwrite(&size1, sizeof(size1), 1, stream) == 1
+                    && fwrite(&size2, sizeof(size2), 1, stream) == 1
+                    && fwrite(str1.data(), 1, size1, stream) == size1
+                    && fwrite(str2.data(), 1, size2, stream) == size2
+                    && fwrite(&zero, 1, padding, stream) == padding;
             }
         public:
             String2Event(EventCode const code, unsigned const id, std::string const &str_1, std::string const &str_2)
@@ -142,22 +143,21 @@ namespace VDB {
         };
         
         class ColumnEvent {
+            friend Writer;
             uint32_t eid;
             uint32_t tid;
             uint32_t bits;
             std::string const &name;
             
-            friend std::ostream &operator <<(std::ostream &os, ColumnEvent const &self)
-            {
+            bool write(FILE *const stream) const {
                 uint32_t const zero = 0;
-                auto const size = (uint32_t)self.name.size();
+                auto const size = (uint32_t)name.size();
                 auto const padding = (4 - (size & 3)) & 3;
-                return os.write((char const *)&self.eid, sizeof(self.eid))
-                         .write((char const *)&self.tid, sizeof(self.tid))
-                         .write((char const *)&self.bits, sizeof(self.bits))
-                         .write((char const *)&size, sizeof(size))
-                         .write(self.name.data(), size)
-                         .write((char const *)&zero, padding);
+                return fwrite(&eid, sizeof(eid), 1, stream) == 1
+                    && fwrite(&tid, sizeof(tid), 1, stream) == 1
+                    && fwrite(&bits, sizeof(bits), 1, stream) == 1
+                    && fwrite(name.data(), 1, size, stream) == size
+                    && fwrite(&zero, 1, padding, stream) == padding;
             }
         public:
             ColumnEvent(EventCode const code, unsigned const cid, unsigned const tid_, unsigned const elemBits, std::string const &str)
@@ -168,134 +168,134 @@ namespace VDB {
             {}
         };
 
-        std::ostream &write(EventCode const code, unsigned const cid, uint32_t const count, uint32_t const elsize, void const *data) const
+        bool write(EventCode const code, unsigned const cid, uint32_t const count, uint32_t const elsize, void const *data) const
         {
             uint32_t const eid = (code << 24) + cid;
             uint32_t const zero = 0;
             auto const size = elsize * count;
             auto const padding = (4 - (size & 3)) & 3;
-            return out.write((char const *)&eid, sizeof(eid))
-                      .write((char const *)&count, sizeof(count))
-                      .write((char const *)data, size)
-                      .write((char const *)&zero, padding);
+            return fwrite(&eid, sizeof(eid), 1, stream) == 1
+                && fwrite(&count, sizeof(count), 1, stream) == 1
+                && fwrite(data, elsize, count, stream) == count
+                && fwrite(&zero, 1, padding, stream) == padding;
         }
         template <typename T>
-        std::ostream &write(EventCode const code, unsigned const cid, uint32_t const count, T const *data) const
+        bool write(EventCode const code, unsigned const cid, uint32_t const count, T const *data) const
         {
             uint32_t const eid = (code << 24) + cid;
             uint32_t const zero = 0;
             auto const size = sizeof(T) * count;
             auto const padding = (4 - (size & 3)) & 3;
-            return out.write((char const *)&eid, sizeof(eid))
-                      .write((char const *)&count, sizeof(count))
-                      .write((char const *)data, size)
-                      .write((char const *)&zero, padding);
+            return fwrite(&eid, sizeof(eid), 1, stream) == 1
+                && fwrite(&count, sizeof(count), 1, stream) == 1
+                && fwrite(data, sizeof(T), count, stream) == count
+                && fwrite(&zero, 1, padding, stream) == padding;
         }
         template <typename T>
-        std::ostream &write(EventCode const code, unsigned const cid, T const &data) const
+        bool write(EventCode const code, unsigned const cid, T const &data) const
         {
             return write(code, cid, 1, &data);
         }
-        std::ostream &write(EventCode const code, unsigned const cid, std::string const &data) const
+        bool write(EventCode const code, unsigned const cid, std::string const &data) const
         {
-            return write(code, cid, (uint32_t)data.size(), data.data());
+            return write(code, cid, (uint32_t)data.size(), (uint32_t)sizeof(std::string::value_type), data.data());
         }
     public:
-        Writer(std::ostream &out_)
-        : out(out_)
+        Writer(FILE *const stream_)
+        : stream(stream_)
         {
-            out << StreamHeader();
+            StreamHeader().write(stream);
         }
 
-        std::ostream &errorMessage(std::string const &message) const
+        bool errorMessage(std::string const &message) const
         {
-            return out << String1Event(errMessage, 0, message);
+            return String1Event(errMessage, 0, message).write(stream);
         }
         
-        std::ostream &destination(std::string const &remoteDb) const
+        bool destination(std::string const &remoteDb) const
         {
-            return out << String1Event(remotePath, 0, remoteDb);
+            return String1Event(remotePath, 0, remoteDb).write(stream);
         }
         
-        std::ostream &schema(std::string const &file, std::string const &dbSpec) const
+        bool schema(std::string const &file, std::string const &dbSpec) const
         {
-            return out << String2Event(useSchema, 0, file, dbSpec);
+            return String2Event(useSchema, 0, file, dbSpec).write(stream);
         }
         
-        std::ostream &info(std::string const &name, std::string const &version) const
+        bool info(std::string const &name, std::string const &version) const
         {
-            return out << String2Event(writerName, 0, name, version);
+            return String2Event(writerName, 0, name, version).write(stream);
         }
         
-        std::ostream &openTable(unsigned const tid, std::string const &name) const
+        bool openTable(unsigned const tid, std::string const &name) const
         {
-            return out << String1Event(newTable, tid, name);
+            return String1Event(newTable, tid, name).write(stream);
         }
         
-        std::ostream &openColumn(unsigned const cid, unsigned const tid, unsigned const elemBits, std::string const &colSpec) const
+        bool openColumn(unsigned const cid, unsigned const tid, unsigned const elemBits, std::string const &colSpec) const
         {
-            return out << ColumnEvent(newColumn, cid, tid, elemBits, colSpec);
+            return ColumnEvent(newColumn, cid, tid, elemBits, colSpec).write(stream);
         }
         
-        std::ostream &beginWriting() const
+        bool beginWriting() const
         {
-            return out << SimpleEvent(openStream, 0);
+            return SimpleEvent(openStream, 0).write(stream);
         }
         
         template <typename T>
-        std::ostream &defaultValue(unsigned const cid, uint32_t const count, T const *data) const
+        bool defaultValue(unsigned const cid, uint32_t const count, T const *data) const
         {
             return write(cellDefault, cid, count, data);
         }
         template <typename T>
-        std::ostream &defaultValue(unsigned const cid, T const &data) const
+        bool defaultValue(unsigned const cid, T const &data) const
         {
             return write(cellDefault, cid, 1, &data);
         }
-        std::ostream &defaultValue(unsigned const cid, std::string const &data) const
+        bool defaultValue(unsigned const cid, std::string const &data) const
         {
             return write(cellDefault, cid, data);
         }
         
-        std::ostream &value(unsigned const cid, uint32_t const count, uint32_t const elsize, void const *data) const
+        bool value(unsigned const cid, uint32_t const count, uint32_t const elsize, void const *data) const
         {
             return write(cellData, cid, count, elsize, data);
         }
         template <typename T>
-        std::ostream &value(unsigned const cid, uint32_t const count, T const *data) const
+        bool value(unsigned const cid, uint32_t const count, T const *data) const
         {
             return write(cellData, cid, count, data);
         }
         template <typename T>
-        std::ostream &value(unsigned const cid, T const &data) const
+        bool value(unsigned const cid, T const &data) const
         {
             return write(cellData, cid, 1, &data);
         }
-        std::ostream &value(unsigned const cid, std::string const &data) const
+        bool value(unsigned const cid, std::string const &data) const
         {
             return write(cellData, cid, data);
         }
         
-        std::ostream &closeRow(unsigned const tid) const
+        bool closeRow(unsigned const tid) const
         {
-            return out << SimpleEvent(nextRow, tid);
+            return SimpleEvent(nextRow, tid).write(stream);
         }
         
         enum MetaNodeRoot {
             database, table, column
         };
-        std::ostream &setMetadata(MetaNodeRoot const root, unsigned const oid, std::string const &name, std::string const &value) const
+        bool setMetadata(MetaNodeRoot const root, unsigned const oid, std::string const &name, std::string const &value) const
         {
             auto const code = root == database ? dbMeta
                             : root == table    ? tableMeta
                             : root == column   ? columnMeta
                             : badEvent;
-            return out << String2Event(code, oid, name, value);
+            return String2Event(code, oid, name, value).write(stream);
         }
         
-        std::ostream &endWriting() const
+        bool endWriting() const
         {
-            return out << SimpleEvent(endStream, 0);
+            return SimpleEvent(endStream, 0).write(stream);
         }
     };
 }
@@ -341,7 +341,7 @@ public:
                 throw std::logic_error(column + " is not a column of table " + t->first);
             return Column(parent, c->second);
         }
-        std::ostream &closeRow() const {
+        bool closeRow() const {
             return parent.closeRow(table);
         }
     };
@@ -353,31 +353,34 @@ public:
         Column(Writer2 const &p, Writer2::ColumnID n) : parent(p), columnNumber(n) {}
     public:
         template <typename T>
-        std::ostream &setValue(T const &data) const {
+        bool setValue(T const &data) const {
             return parent.value(columnNumber, data);
         }
         template <typename T>
-        std::ostream &setValue(unsigned count, T const *data) const {
+        bool setValue(unsigned count, T const *data) const {
             return parent.value(columnNumber, uint32_t(count), data);
         }
-        std::ostream &setValue(std::string const &data) const {
+        bool setValue(std::string const &data) const {
             return parent.value(columnNumber, data);
         }
-        std::ostream &setValueEmpty() const {
+        bool setValue(unsigned count, unsigned elsize, void const *data) const {
+            return parent.value(columnNumber, count, elsize, data);
+        }
+        bool setValueEmpty() const {
             return parent.value(columnNumber, 0, "");
         }
         template <typename T>
-        std::ostream &setDefault(T const &data) const {
+        bool setDefault(T const &data) const {
             return parent.defaultValue(columnNumber, data);
         }
         template <typename T>
-        std::ostream &setDefault(unsigned count, T const *data) const {
+        bool setDefault(unsigned count, T const *data) const {
             return parent.defaultValue(columnNumber, uint32_t(count), data);
         }
-        std::ostream &setDefault(std::string const &data) const {
+        bool setDefault(std::string const &data) const {
             return parent.defaultValue(columnNumber, data);
         }
-        std::ostream &setDefaultEmpty() const {
+        bool setDefaultEmpty() const {
             return parent.defaultValue(columnNumber, 0, "");
         }
     };
@@ -389,8 +392,8 @@ public:
         return Table(*this, t);
     }
     
-    Writer2(std::ostream &os)
-    : VDB::Writer(os)
+    Writer2(FILE *const stream)
+    : VDB::Writer(stream)
     {
     }
     void addTable(char const *name, std::initializer_list<ColumnDefinition> list)

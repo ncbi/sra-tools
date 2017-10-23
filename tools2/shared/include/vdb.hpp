@@ -112,6 +112,24 @@ namespace VDB {
             Data const *next() const {
                 return (Data const *)end();
             }
+            std::string asString() const {
+                if (elem_bits == 8)
+                    return elements == 0 ? std::string() : std::string((char const *)data(), elements);
+                else
+                    throw std::logic_error("bad cast");
+            }
+            template <typename T> std::vector<T> asVector() const {
+                if (elem_bits == sizeof(T) * 8)
+                    return std::vector<T>((T *)data(), ((T *)data()) + elements);
+                else
+                    throw std::logic_error("bad cast");
+            }
+            template <typename T> T value() const {
+                if (elem_bits == sizeof(T) * 8 && elements == 1)
+                    return *(T *)data();
+                else
+                    throw std::logic_error("bad cast");
+            }
         };
         struct RawData {
             void const *data;

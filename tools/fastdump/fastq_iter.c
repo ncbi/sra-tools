@@ -33,71 +33,76 @@
 typedef struct fastq_iter
 {
     struct cmn_iter * cmn;
-    bool splitted;
-    uint32_t prim_alig_id, cmp_read_id, quality_id, read_len_id;
+    bool with_read_len, with_name;
+    uint32_t name_id, prim_alig_id, cmp_read_id, quality_id, read_len_id;
 } fastq_iter;
 
 
-void destroy_fastq_iter( struct fastq_iter * iter )
+void destroy_fastq_iter( struct fastq_iter * self )
 {
-    if ( iter != NULL )
+    if ( self != NULL )
     {
-        destroy_cmn_iter( iter->cmn );
-        free( ( void * ) iter );
+        destroy_cmn_iter( self -> cmn );
+        free( ( void * ) self );
     }
 }
 
-rc_t make_fastq_iter( cmn_params * params, struct fastq_iter ** iter, bool splitted )
+rc_t make_fastq_iter( const cmn_params * params, struct fastq_iter ** iter,
+                      bool with_read_len, bool with_name )
 {
     rc_t rc = 0;
-    fastq_iter * i = calloc( 1, sizeof * i );
-    if ( i == NULL )
+    fastq_iter * self = calloc( 1, sizeof * self );
+    if ( self == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "make_fastq_iter.calloc( %d ) -> %R", ( sizeof * i ), rc );
+        ErrMsg( "make_fastq_iter.calloc( %d ) -> %R", ( sizeof * self ), rc );
     }
     else
     {
-        i -> splitted = splitted;
-        rc = make_cmn_iter( params, "SEQUENCE", &( i -> cmn ) );
+        self -> with_read_len = with_read_len;
+        self -> with_name = with_name;
+        rc = make_cmn_iter( params, "SEQUENCE", &( self -> cmn ) );
+        if ( rc == 0 && with_name )
+            rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "PRIMARY_ALIGNMENT_ID", &( i -> prim_alig_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "PRIMARY_ALIGNMENT_ID", &( self -> prim_alig_id ) );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "CMP_READ", &( i -> cmp_read_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> cmp_read_id ) );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "(INSDC:quality:text:phred_33)QUALITY", &( i -> quality_id ) );
-        if ( rc == 0 && splitted )
-            rc = cmn_iter_add_column( i->cmn, "READ_LEN", &( i -> read_len_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "(INSDC:quality:text:phred_33)QUALITY", &( self -> quality_id ) );
+        if ( rc == 0 && with_read_len )
+            rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) );
         if ( rc == 0 )
-            rc = cmn_iter_range( i -> cmn, i -> prim_alig_id );
+            rc = cmn_iter_range( self -> cmn, self -> prim_alig_id );
             
         if ( rc != 0 )
-            destroy_fastq_iter( i );
+            destroy_fastq_iter( self );
         else
-            *iter = i;
+            *iter = self;
     }
     return rc;
 }
 
-bool get_from_fastq_iter( struct fastq_iter * iter, fastq_rec * rec, rc_t * rc )
+bool get_from_fastq_iter( struct fastq_iter * self, fastq_rec * rec, rc_t * rc )
 {
-    bool res = cmn_iter_next( iter->cmn, rc );
+    bool res = cmn_iter_next( self -> cmn, rc );
     if ( res )
     {
-        rec -> row_id = cmn_iter_row_id( iter -> cmn );
-        *rc = cmn_read_uint64_array( iter -> cmn, iter -> prim_alig_id, rec->prim_alig_id, 2, &( rec -> num_reads ) );
+        rec -> row_id = cmn_iter_row_id( self -> cmn );
+        *rc = cmn_read_uint64_array( self -> cmn, self -> prim_alig_id, rec -> prim_alig_id, 2, &( rec -> num_reads ) );
+        if ( *rc == 0 && self -> with_name )
+            *rc = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
         if ( *rc == 0 )
-            *rc = cmn_read_String( iter -> cmn, iter -> cmp_read_id, &( rec -> cmp_read ) );
+            *rc = cmn_read_String( self -> cmn, self -> cmp_read_id, &( rec -> cmp_read ) );
         if ( *rc == 0 )
-            *rc = cmn_read_String( iter -> cmn, iter -> quality_id, &( rec -> quality ) );
-        if ( *rc == 0 && iter -> splitted )
-            *rc = cmn_read_uint32_array( iter -> cmn, iter -> read_len_id, rec->read_len, 2, NULL );
+            *rc = cmn_read_String( self -> cmn, self -> quality_id, &( rec -> quality ) );
+        if ( *rc == 0 && self -> with_read_len )
+            *rc = cmn_read_uint32_array( self -> cmn, self -> read_len_id, rec -> read_len, 2, NULL );
     }
     return res;
-
 }
 
-uint64_t get_row_count_of_fastq_iter( struct fastq_iter * iter )
+uint64_t get_row_count_of_fastq_iter( struct fastq_iter * self )
 {
-    return cmn_iter_row_count( iter->cmn );
+    return cmn_iter_row_count( self -> cmn );
 }

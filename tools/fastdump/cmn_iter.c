@@ -27,7 +27,6 @@
 #include "cmn_iter.h"
 #include "helper.h"
 
-#include <klib/progressbar.h>
 #include <klib/out.h>
 #include <sra/sraschema.h>
 
@@ -50,7 +49,6 @@ typedef struct cmn_iter
     const char * row_range;
     struct num_gen * ranges;
     const struct num_gen_iter * row_iter;
-    struct progressbar * progressbar;
     uint64_t row_count;
     int64_t first_row, row_id;
 } cmn_iter;
@@ -60,8 +58,6 @@ void destroy_cmn_iter( struct cmn_iter * iter )
 {
     if ( iter != NULL )
     {
-        if ( iter -> progressbar != NULL )
-            destroy_progressbar( iter -> progressbar );
         if ( iter -> row_iter != NULL )
             num_gen_iterator_destroy( iter -> row_iter );
         if ( iter -> ranges != NULL )
@@ -81,7 +77,7 @@ void destroy_cmn_iter( struct cmn_iter * iter )
 }
 
 
-rc_t make_cmn_iter( cmn_params * params, const char * tblname, struct cmn_iter ** iter )
+rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, struct cmn_iter ** iter )
 {
     rc_t rc = 0;
     cmn_iter * i = calloc( 1, sizeof * i );
@@ -92,7 +88,7 @@ rc_t make_cmn_iter( cmn_params * params, const char * tblname, struct cmn_iter *
     }
     else
     {
-        rc = VDBManagerMakeRead( &i -> mgr, params -> dir );
+        rc = VDBManagerMakeRead( &i -> mgr, cp -> dir );
         if ( rc != 0 )
             ErrMsg( "make_cmn_iter.VDBManagerMakeRead() -> %R\n", rc );
         else
@@ -102,26 +98,24 @@ rc_t make_cmn_iter( cmn_params * params, const char * tblname, struct cmn_iter *
                 ErrMsg( "make_cmn_iter.VDBManagerMakeSRASchema() -> %R\n", rc );
             else
             {
-                rc = VDBManagerOpenDBRead( i -> mgr, &( i -> db ), i -> schema, "%s", params -> acc );
+                rc = VDBManagerOpenDBRead( i -> mgr, &( i -> db ), i -> schema, "%s", cp -> accession );
                 if ( rc != 0 )
-                    ErrMsg( "make_cmn_iter.VDBManagerOpenDBRead( '%s' ) -> %R\n", params -> acc, rc );
+                    ErrMsg( "make_cmn_iter.VDBManagerOpenDBRead( '%s' ) -> %R\n", cp -> accession, rc );
                 else
                 {
                     rc = VDatabaseOpenTableRead( i -> db, &( i -> tbl ), "%s", tblname );
                     if ( rc != 0 )
-                        ErrMsg( "make_cmn_iter.VDBManagerOpenDBRead( '%s', '%s' ) -> %R\n", params -> acc, tblname, rc );
+                        ErrMsg( "make_cmn_iter.VDBManagerOpenDBRead( '%s', '%s' ) -> %R\n", cp -> accession, tblname, rc );
                     else
                     {
-                        rc = VTableCreateCachedCursorRead( i -> tbl, &( i -> cursor ), params -> cursor_cache );
+                        rc = VTableCreateCachedCursorRead( i -> tbl, &( i -> cursor ), cp -> cursor_cache );
                         if ( rc != 0 )
                             ErrMsg( "make_cmn_iter.VTableCreateCachedCursorRead() -> %R\n", rc );
                         else
                         {
-                            if ( rc == 0 && params -> show_progress )
-                                make_progressbar( &( i -> progressbar ), 2 );
                             i -> row_range = NULL;
-                            i -> first_row = params -> first_row;
-                            i -> row_count = params -> row_count;
+                            i -> first_row = cp -> first_row;
+                            i -> row_count = cp -> row_count;
                             
                             *iter = i;
                         }
@@ -160,13 +154,7 @@ uint64_t cmn_iter_row_count( struct cmn_iter * iter )
 
 bool cmn_iter_next( struct cmn_iter * iter, rc_t * rc )
 {
-    bool res = num_gen_iterator_next( iter -> row_iter, &iter -> row_id, rc );
-    if ( res && iter->progressbar != NULL )
-    {
-        uint64_t percent = calc_percent( iter -> row_count, iter -> row_id, 2 );
-        update_progressbar( iter -> progressbar, percent );
-    }
-    return res;
+    return num_gen_iterator_next( iter -> row_iter, &iter -> row_id, rc );
 }
 
 
@@ -213,6 +201,19 @@ rc_t cmn_iter_range( struct cmn_iter * iter, uint32_t col_id )
     return rc;
 }
 
+
+rc_t cmn_iter_copy_range( struct cmn_iter * self, const struct cmn_iter * src )
+{
+    rc_t rc;
+    self -> first_row = src -> first_row;
+    self -> row_count = src -> row_count;
+    if ( self -> row_iter != NULL )
+        num_gen_iterator_destroy( self -> row_iter );
+    rc = make_row_iter( self -> ranges, self -> first_row, self -> row_count, &self -> row_iter );
+    if ( rc != 0 )
+        ErrMsg( "cmn_iter_range.make_row_iter( %s ) -> %R\n", self -> row_range, rc );
+    return rc;
+}
 
 rc_t cmn_read_uint64( struct cmn_iter * iter, uint32_t col_id, uint64_t *value )
 {

@@ -70,35 +70,6 @@ static void release_producer( lookup_producer * self )
     }
 }
 
-static rc_t init_single_producer( lookup_producer * self,
-                                  cmn_params * cmn,
-                                  struct background_vector_merger * merger,
-                                  size_t buf_size,
-                                  size_t mem_limit )
-{
-    rc_t rc = KVectorMake( &self -> store );
-    if ( rc != 0 )
-        ErrMsg( "KVectorMake() -> %R", rc );
-    else
-    {
-        rc = make_SBuffer( &( self -> buf ), 4096 ); /* helper.c */
-        if ( rc == 0 )
-        {
-            self -> iter            = NULL;
-            self -> sort_progress   = NULL;
-            self -> merger          = merger;
-            self -> bytes_in_store  = 0;
-            self -> chunk_id        = 0;
-            self -> sub_file_id     = 0;
-            self -> buf_size        = buf_size;
-            self -> mem_limit       = mem_limit;
-            self -> single          = true;
-            rc = make_raw_read_iter( cmn, &( self -> iter ) );
-        }
-    }
-    return rc;
-}
-
 static rc_t init_multi_producer( lookup_producer * self,
                                  cmn_params * cmn,
                                  struct background_vector_merger * merger,
@@ -130,11 +101,11 @@ static rc_t init_multi_producer( lookup_producer * self,
             self -> single          = false;
             
             cp . dir                = cmn -> dir;
-            cp . acc                = cmn -> acc;
+            cp . accession          = cmn -> accession;
             cp . first_row          = first_row;
             cp . row_count          = row_count;
             cp . cursor_cache       = cmn -> cursor_cache;
-            cp . show_progress      = false;     /* we do that instead with the progress-thread! */
+            /* cp . show_progress      = false;     we do that instead with the progress-thread! */
 
             rc = make_raw_read_iter( &cp, &( self -> iter ) );
         }
@@ -225,11 +196,11 @@ static uint64_t find_out_row_count( cmn_params * cmn )
     cmn_params cp; /* cmn_iter.h */
     
     cp . dir            = cmn -> dir;
-    cp . acc            = cmn -> acc;
+    cp . accession      = cmn -> accession;
     cp . first_row      = 0;
     cp . row_count      = 0;
     cp . cursor_cache   = cmn -> cursor_cache;
-    cp . show_progress  = false;
+    /* cp . show_progress  = false; */
 
     rc = make_raw_read_iter( &cp, &iter ); /* raw_read_iter.c */
     if ( rc == 0 )
@@ -254,7 +225,8 @@ static rc_t run_producer_pool( cmn_params * cmn,
                                struct background_vector_merger * merger,
                                size_t buf_size,
                                size_t mem_limit,
-                               size_t num_threads )
+                               size_t num_threads,
+                               bool show_progress )
 {
     rc_t rc = 0;
     uint64_t total_row_count = find_out_row_count( cmn );
@@ -274,7 +246,7 @@ static rc_t run_producer_pool( cmn_params * cmn,
         atomic_t * sort_progress = NULL;
         
         VectorInit( &threads, 0, num_threads );
-        if ( cmn -> show_progress )
+        if ( show_progress )
         {
             init_progress_data( &progress, total_row_count );
             sort_progress = &( progress . progress_rows );
@@ -333,52 +305,28 @@ static rc_t run_producer_pool( cmn_params * cmn,
 }
 
 
-static rc_t run_producer_on_main_thread( cmn_params * cmn,
-                                         struct background_vector_merger * merger,
-                                         size_t buf_size,
-                                         size_t mem_limit )
-{
-    lookup_producer producer;
-    rc_t rc = init_single_producer( &producer,
-                                    cmn,
-                                    merger,
-                                    buf_size,
-                                    mem_limit );
-    if ( rc == 0 )
-    {
-        rc = run_producer( &producer ); /* above */
-        release_producer( &producer ); /* above */
-    }
-    return rc;
-}
-
-rc_t execute_lookup_production( cmn_params * cmn,
+rc_t execute_lookup_production( KDirectory * dir,
+                                const char * accession,
                                 struct background_vector_merger * merger,
+                                size_t cursor_cache,
                                 size_t buf_size,
                                 size_t mem_limit,
-                                size_t num_threads )
+                                size_t num_threads,
+                                bool show_progress )
 {
     rc_t rc = 0;
-    if ( cmn -> show_progress )
+    if ( show_progress )
         rc = KOutMsg( "lookup :" );
 
     if ( rc == 0 )
     {
-        if ( num_threads > 1 )
-        {
-            rc = run_producer_pool( cmn,
-                                    merger,
-                                    buf_size,
-                                    mem_limit,
-                                    num_threads ); /* above */
-        }
-        else
-        {
-            rc = run_producer_on_main_thread( cmn,
-                                              merger,
-                                              buf_size,
-                                              mem_limit );
-        }
+        cmn_params cmn = { dir, accession, 0, 0, cursor_cache };
+        rc = run_producer_pool( &cmn,
+                                merger,
+                                buf_size,
+                                mem_limit,
+                                num_threads,
+                                show_progress ); /* above */
     }
     return rc;
 }

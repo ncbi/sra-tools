@@ -23,9 +23,8 @@
 * ===========================================================================
 *
 */
-
-#ifndef _h_file_printer_
-#define _h_file_printer_
+#ifndef _h_join_results_
+#define _h_join_results_
 
 #ifdef __cplusplus
 extern "C" {
@@ -43,19 +42,22 @@ extern "C" {
 #include <kfs/file.h>
 #endif
 
-struct file_printer;
+#ifndef _h_temp_registry_
+#include "temp_registry.h"
+#endif
 
-void destroy_file_printer( struct file_printer * printer );
+struct join_results;
 
-rc_t make_file_printer_from_file( struct KFile * f, struct file_printer ** printer,
-                size_t print_buffer_size );
-                
-rc_t make_file_printer_from_filename( struct KDirectory * dir, struct file_printer ** printer,
-                size_t file_buffer_size, size_t print_buffer_size,
-                const char * fmt, ... );
+void destroy_join_results( struct join_results * self );
 
-rc_t file_print( struct file_printer * printer, const char * fmt, ... );
+rc_t make_join_results( struct KDirectory * dir,
+                        struct join_results ** results,
+                        struct temp_registry * registry,
+                        const char * output_base,
+                        size_t file_buffer_size,
+                        size_t print_buffer_size );
 
+rc_t join_results_print( struct join_results * self, uint32_t read_id, const char * fmt, ... );
 
 #ifdef __cplusplus
 }

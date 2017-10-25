@@ -44,11 +44,14 @@ extern "C" {
 #include "merge_sorter.h"
 #endif
 
-rc_t execute_lookup_production( cmn_params * cmn,
+rc_t execute_lookup_production( KDirectory * dir,
+                                const char * accession,
                                 struct background_vector_merger * merger,
+                                size_t cursor_cache,
                                 size_t buf_size,
                                 size_t mem_limit,
-                                size_t num_threads );
+                                size_t num_threads,
+                                bool show_progress );
 
 #ifdef __cplusplus
 }

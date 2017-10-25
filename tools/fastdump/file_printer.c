@@ -23,13 +23,10 @@
 * ===========================================================================
 *
 */
-
 #include "file_printer.h"
 #include "helper.h"
 
-#include <kfs/file.h>
 #include <kfs/buffile.h>
-
 
 typedef struct file_printer
 {
@@ -43,14 +40,39 @@ void destroy_file_printer( struct file_printer * printer )
 {
     if ( printer != NULL )
     {
-        if ( printer->f != NULL ) KFileRelease( printer->f );
-        release_SBuffer( &printer->print_buffer );
+        if ( printer -> f != NULL ) KFileRelease( printer -> f );
+        release_SBuffer( &( printer -> print_buffer ) );
         free( ( void * ) printer );
     }
 }
 
 
-rc_t make_file_printer( KDirectory *dir, struct file_printer ** printer,
+rc_t make_file_printer_from_file( KFile * f, struct file_printer ** printer, size_t print_buffer_size )
+{
+    rc_t rc;
+    file_printer * p = calloc( 1, sizeof * p );
+    if ( p == NULL )
+    {
+        KFileRelease( f );
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        ErrMsg( "make_file_printer_from_file().calloc( %d ) -> %R", ( sizeof * p ), rc );
+    }
+    else
+    {
+        rc = make_SBuffer( &( p -> print_buffer ), print_buffer_size );
+        if ( rc != 0 )
+            KFileRelease( f );
+        else
+        {
+            p -> f = f;
+            *printer = p;
+        }
+    }
+    return rc;
+}
+
+
+rc_t make_file_printer_from_filename( KDirectory * dir, struct file_printer ** printer,
         size_t file_buffer_size, size_t print_buffer_size, const char * fmt, ... )
 {
     rc_t rc;
@@ -73,33 +95,12 @@ rc_t make_file_printer( KDirectory *dir, struct file_printer ** printer,
                 ErrMsg( "KBufFileMakeWrite() -> %R", rc );
         }
         if ( rc == 0 )
-        {
-            file_printer * p = calloc( 1, sizeof * p );
-            if ( p == NULL )
-            {
-                KFileRelease( temp_file );
-                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                ErrMsg( "calloc( %d ) -> %R", ( sizeof * p ), rc );
-            }
-            else
-            {
-                rc = make_SBuffer( &p->print_buffer, print_buffer_size );
-                if ( rc != 0 )
-                    KFileRelease( temp_file );
-                else
-                {
-                    p->f = temp_file;
-                    *printer = p;
-                }
-            }
-        }
+            rc = make_file_printer_from_file( temp_file, printer, print_buffer_size );
     }
-
     va_end ( args );
     return rc;
-
 }
-
+        
 
 rc_t file_print( struct file_printer * printer, const char * fmt, ... )
 {
@@ -111,20 +112,19 @@ rc_t file_print( struct file_printer * printer, const char * fmt, ... )
     if ( rc == 0 )
     {
         size_t num_writ, to_write;
-        to_write = printer->print_buffer.S.size;
-        const char * src = printer->print_buffer.S.addr;
-        rc = KFileWriteAll( printer->f, printer->file_pos, src, to_write, &num_writ );
+        to_write = printer -> print_buffer . S . size;
+        const char * src = printer -> print_buffer . S . addr;
+        rc = KFileWriteAll( printer -> f, printer -> file_pos, src, to_write, &num_writ );
         if ( rc != 0 )
-            ErrMsg( "KFileWriteAll( at %lu ) -> %R", printer->file_pos, rc );
+            ErrMsg( "KFileWriteAll( at %lu ) -> %R", printer -> file_pos, rc );
         else if ( num_writ != to_write )
         {
             rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcInvalid );
-            ErrMsg( "KFileWriteAll( at %lu ) ( %d vs %d ) -> %R", printer->file_pos, to_write, num_writ, rc );
+            ErrMsg( "KFileWriteAll( at %lu ) ( %d vs %d ) -> %R", printer -> file_pos, to_write, num_writ, rc );
         }
         else
-            printer->file_pos += num_writ;
+            printer -> file_pos += num_writ;
     }
-    
     va_end ( args );
     return rc;
 }

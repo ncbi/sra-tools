@@ -74,6 +74,8 @@ TOOL_SRC = \
 	special_iter \
 	fastq_iter \
 	join \
+	join_results \
+	temp_registry \
 	concatenator \
 	fastdump
 

@@ -35,6 +35,10 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
+#endif
+
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
 #endif
@@ -43,18 +47,14 @@ extern "C" {
 #include "helper.h"
 #endif
 
-typedef struct concat_params
-{
-    KDirectory * dir;
-    const char * output_filename;
-    const struct VNamelist * joined_files;
-    size_t buf_size;
-    bool show_progress, print_to_stdout, force, delete_files;
-    compress_t compress;
-} concat_params;
-
-
-rc_t execute_concat( const concat_params * cp );
+rc_t execute_concat( KDirectory * dir,
+                    const char * output_filename,
+                    const struct VNamelist * files,
+                    size_t buf_size,
+                    bool show_progress,
+                    bool print_to_stdout,
+                    bool force,
+                    compress_t compress );
 
 #ifdef __cplusplus
 }

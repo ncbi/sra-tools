@@ -97,16 +97,22 @@ typedef struct SBuffer
     size_t buffer_size;
 } SBuffer;
 
+typedef struct part_head
+{
+    uint64_t row_id;
+    uint32_t total, len, part, padd;
+} part_head;
 
 typedef enum format_t { ft_special, ft_fastq, ft_fastq_split } format_t;
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
 rc_t ErrMsg( const char * fmt, ... );
 
-rc_t make_SBuffer( SBuffer * buffer, size_t len );
-void release_SBuffer( SBuffer * buffer );
-rc_t print_to_SBufferV( SBuffer * buffer, const char * fmt, va_list args );
-rc_t print_to_SBuffer( SBuffer * buffer, const char * fmt, ... );
+rc_t make_SBuffer( SBuffer * self, size_t len );
+void release_SBuffer( SBuffer * self );
+rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args );
+rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... );
+rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... );
 
 rc_t add_column( const VCursor * cursor, const char * name, uint32_t * id );
 
@@ -138,6 +144,7 @@ void join_and_release_threads( Vector * threads );
 
 rc_t delete_files( KDirectory * dir, const VNamelist * files );
 
+int get_vdb_pathtype( KDirectory * dir, const char * accession );
 
 typedef struct multi_progress
 {

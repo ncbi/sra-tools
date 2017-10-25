@@ -48,17 +48,17 @@ struct cmn_iter;
 typedef struct cmn_params
 {
     KDirectory * dir;
-    const char * acc;
+    const char * accession;
     int64_t first_row;
     uint64_t row_count;
     size_t cursor_cache;
-    bool show_progress;
-	bool show_details;
 } cmn_params;
 
 void destroy_cmn_iter( struct cmn_iter * iter );
 
-rc_t make_cmn_iter( cmn_params * params, const char * tblname, struct cmn_iter ** iter );
+rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, struct cmn_iter ** iter );
+
+rc_t cmn_iter_copy_range( struct cmn_iter * self, const struct cmn_iter * src );
 
 rc_t cmn_iter_add_column( struct cmn_iter * iter, const char * name, uint32_t * id );
 rc_t cmn_iter_range( struct cmn_iter * iter, uint32_t col_id );

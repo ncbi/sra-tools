@@ -23,9 +23,8 @@
 * ===========================================================================
 *
 */
-
-#ifndef _h_file_printer_
-#define _h_file_printer_
+#ifndef _h_temp_registry_
+#define _h_temp_registry_
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,23 +38,30 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
-#ifndef _h_kfs_file_
-#include <kfs/file.h>
+#ifndef _h_helper_
+#include "helper.h"
 #endif
 
-struct file_printer;
+#ifndef _h_fastdump_cleanup_task_
+#include "cleanup_task.h"
+#endif
 
-void destroy_file_printer( struct file_printer * printer );
+struct temp_registry;
 
-rc_t make_file_printer_from_file( struct KFile * f, struct file_printer ** printer,
-                size_t print_buffer_size );
-                
-rc_t make_file_printer_from_filename( struct KDirectory * dir, struct file_printer ** printer,
-                size_t file_buffer_size, size_t print_buffer_size,
-                const char * fmt, ... );
+void destroy_temp_registry( struct temp_registry * self );
 
-rc_t file_print( struct file_printer * printer, const char * fmt, ... );
+rc_t make_temp_registry( struct temp_registry ** registry, struct KFastDumpCleanupTask * cleanup_task );
 
+rc_t register_temp_file( struct temp_registry * self, uint32_t read_id, const char * filename );
+
+rc_t temp_registry_merge( struct temp_registry * self,
+                          KDirectory * dir,
+                          const char * output_filename,
+                          size_t buf_size,
+                          bool show_progress,
+                          bool print_to_stdout,
+                          bool force,
+                          compress_t compress );
 
 #ifdef __cplusplus
 }

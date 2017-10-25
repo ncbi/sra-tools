@@ -25,6 +25,7 @@
 */
 
 #include "helper.h"
+
 #include <klib/log.h>
 #include <klib/printf.h>
 #include <klib/progressbar.h>
@@ -32,6 +33,8 @@
 #include <klib/out.h>
 #include <kfs/defs.h>
 #include <kfs/file.h>
+#include <kdb/manager.h>
+#include <vdb/manager.h>
 
 rc_t ErrMsg( const char * fmt, ... )
 {
@@ -131,65 +134,108 @@ size_t get_size_t_option( const struct Args * args, const char *name, size_t dfl
     return res;
 }
 
-
 rc_t make_SBuffer( SBuffer * buffer, size_t len )
 {
     rc_t rc = 0;
-    String * S = &buffer->S;
-    S->addr = malloc( len );
-    if ( S->addr == NULL )
+    String * S = &buffer -> S;
+    S -> addr = malloc( len );
+    if ( S -> addr == NULL )
     {
-        S->size = S->len = 0;
+        S -> size = S -> len = 0;
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "malloc( %d ) -> %R", ( len ), rc );
     }
     else
     {
-        S->size = 0;
-        S->len = 0;
-        buffer->buffer_size = len;
+        S -> size = 0;
+        S -> len = 0;
+        buffer -> buffer_size = len;
     }
     return rc;
 }
 
-
-void release_SBuffer( SBuffer * buffer )
+void release_SBuffer( SBuffer * self )
 {
-    if ( buffer != NULL )
+    if ( self != NULL )
     {
-        String * S = &buffer->S;
-        if ( S->addr != NULL )
-            free( ( void * ) S->addr );
+        String * S = &self -> S;
+        if ( S -> addr != NULL )
+            free( ( void * ) S -> addr );
     }
 }
 
-
-rc_t print_to_SBufferV( SBuffer * buffer, const char * fmt, va_list args )
+rc_t increase_SBuffer( SBuffer * self, size_t by )
 {
-    char * dst = ( char * )buffer->S.addr;
-    size_t num_writ = 0;
-    
-    rc_t rc = string_vprintf( dst, buffer->buffer_size, &num_writ, fmt, args );
-    if ( rc != 0 )
-        ErrMsg( "string_vprintf() -> %R", rc );
-    buffer->S.len = buffer->S.size = num_writ;
-    
+    rc_t rc;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
+    else
+    {
+        size_t new_size = self -> buffer_size + by;
+        release_SBuffer( self );
+        rc = make_SBuffer( self, new_size );
+    }
     return rc;
 }
 
+rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args )
+{
+    rc_t rc = 0;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
+    else
+    {
+        bool done = false;
+        while ( rc == 0 && !done )
+        {
+            char * dst = ( char * )( self -> S . addr );
+            size_t num_writ = 0;
+            
+            rc = string_vprintf( dst, self -> buffer_size, &num_writ, fmt, args );
+            done = ( rc == 0 );
+            if ( !done )
+            {
+                if ( ( GetRCObject( rc ) == ( enum RCObject )rcBuffer ) && ( GetRCState( rc ) == rcInsufficient ) )
+                {
+                    rc = increase_SBuffer( self, self -> buffer_size ); /* double it's size */
+                    if ( rc != 0 )
+                        ErrMsg( "increase_SBuffer() -> %R", rc );
+                }
+                else
+                    ErrMsg( "string_vprintf() -> %R", rc );
+            }
+            if ( rc == 0 )
+                self -> S . len = self -> S . size = num_writ;
+        }
+    }
+    return rc;
+}
 
-rc_t print_to_SBuffer( SBuffer * buffer, const char * fmt, ... )
+rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... )
 {
     rc_t rc;
     va_list args;
 
     va_start( args, fmt );
-    rc = print_to_SBufferV( buffer, fmt, args );
+    rc = print_to_SBufferV( self, fmt, args );
     va_end( args );
 
     return rc;
 }
 
+rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... )
+{
+    rc_t rc = make_SBuffer( self, len );
+    if ( rc == 0 )
+    {
+        va_list args;
+
+        va_start( args, fmt );
+        rc = print_to_SBufferV( self, fmt, args );
+        va_end( args );
+    }
+    return rc;
+}
 
 rc_t add_column( const VCursor * cursor, const char * name, uint32_t * id )
 {
@@ -397,6 +443,20 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files )
     return rc;
 }
 
+int get_vdb_pathtype( KDirectory * dir, const char * accession )
+{
+    int res = kptAny;
+    const VDBManager * vdb_mgr;
+    rc_t rc = VDBManagerMakeRead( &vdb_mgr, dir );
+    if ( rc != 0 )
+        ErrMsg( "get_vdb_pathtype().VDBManagerMakeRead() -> %R\n", rc );
+    else
+    {
+        res = ( VDBManagerPathType ( vdb_mgr, "%s", accession ) & ~ kptAlias );
+        VDBManagerRelease( vdb_mgr );
+    }
+    return res;
+}
 
 static rc_t CC progress_thread_func( const KThread *self, void *data )
 {

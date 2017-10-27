@@ -1067,7 +1067,7 @@ static rc_t readThread(KThread const *const th, void *const ctx)
         if (rc) {
             free(rr);
             if ((int)GetRCState(rc) == rcReadonly && (int)GetRCObject(rc) == rcQueue) {
-                (void)LOGMSG(klogWarn, "readThread: consumer closed queue");
+                (void)LOGMSG(klogDebug, "readThread: consumer closed queue");
                 rc = 0;
             }
             else {

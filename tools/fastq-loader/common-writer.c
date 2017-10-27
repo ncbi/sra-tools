@@ -1515,12 +1515,29 @@ LOOP_END:
     }
 
     if (threadCtx.que != NULL && threadCtx.th != NULL) {
+        /* this means the exit was triggered in here, so the producer thread
+         * needs to be notified and allowed to exit
+         *
+         * if the exit were triggered by the context setup, then
+         * only one of que or th would be NULL
+         *
+         * it the exit were triggered by the getNextRecord, then both
+         * que and th would be NULL
+         */
         KQueueSeal(threadCtx.que);
-        KThreadWait(threadCtx.th, NULL );
-    }
-    else if (threadCtx.th) {
-        KThreadCancel(threadCtx.th);
-        KThreadWait(threadCtx.th, NULL );
+        for ( ; ; ) {
+            timeout_t tm;
+            void *rr = NULL;
+            rc_t rc;
+
+            TimeoutInit(&tm, 1000);
+            rc = KQueuePop(threadCtx.que, &rr, &rm);
+            if (rc == 0)
+                free(rr);
+            else
+                break;
+        }
+        KThreadWait(threadCtx.th, NULL);
     }
     KThreadRelease(threadCtx.th);
     KQueueRelease(threadCtx.que);

@@ -1531,7 +1531,7 @@ LOOP_END:
             rc_t rc;
 
             TimeoutInit(&tm, 1000);
-            rc = KQueuePop(threadCtx.que, &rr, &rm);
+            rc = KQueuePop(threadCtx.que, &rr, &tm);
             if (rc == 0)
                 free(rr);
             else

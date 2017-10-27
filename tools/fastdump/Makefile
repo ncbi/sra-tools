@@ -74,6 +74,7 @@ TOOL_SRC = \
 	special_iter \
 	fastq_iter \
 	join \
+	tbl_join \
 	join_results \
 	temp_registry \
 	concatenator \

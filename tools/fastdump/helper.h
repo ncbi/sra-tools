@@ -106,6 +106,15 @@ typedef struct part_head
 typedef enum format_t { ft_special, ft_fastq, ft_fastq_split } format_t;
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
+typedef struct cmn_params
+{
+    KDirectory * dir;
+    const char * accession;
+    int64_t first_row;
+    uint64_t row_count;
+    size_t cursor_cache;
+} cmn_params;
+
 rc_t ErrMsg( const char * fmt, ... );
 
 rc_t make_SBuffer( SBuffer * self, size_t len );
@@ -157,15 +166,20 @@ void init_progress_data( multi_progress * progress_data, uint64_t row_count );
 rc_t start_multi_progress( KThread **t, multi_progress * progress_data );
 void join_multi_progress( KThread *t, multi_progress * progress_data );
 
+
 rc_t make_pre_and_post_fixed( char * dst, size_t dst_size,
                               const char * acc,
                               const tmp_id * tmp_id,
                               const char * extension );
 
-rc_t make_prefixed( char * buffer, size_t bufsize, const char * prefix,
-                    const char * path, const char * postfix );
+rc_t make_postfixed( char * buffer, size_t bufsize,
+                     const char * path,
+                     const char * postfix );
 
-rc_t make_postfixed( char * buffer, size_t bufsize, const char * path, const char * postfix );
+rc_t make_joined_filename( char * buffer, size_t bufsize,
+                           const char * accession,
+                           const tmp_id * tmp_id,
+                           uint32_t id );
 
 /* ===================================================================================== */
 
@@ -209,7 +223,6 @@ rc_t locked_value_init( locked_value * self, uint64_t init_value );
 void locked_value_release( locked_value * self );
 rc_t locked_value_get( locked_value * self, uint64_t * value );
 rc_t locked_value_set( locked_value * self, uint64_t value );
-
 
 
 #ifdef __cplusplus

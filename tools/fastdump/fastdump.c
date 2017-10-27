@@ -28,6 +28,7 @@
 #include "sorter.h"
 #include "merge_sorter.h"
 #include "join.h"
+#include "tbl_join.h"
 #include "concatenator.h"
 #include "cleanup_task.h"
 
@@ -537,7 +538,7 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
 /* -------------------------------------------------------------------------------------------- */
 
 
-static rc_t produce_final_output( tool_ctx * tool_ctx )
+static rc_t produce_final_db_output( tool_ctx * tool_ctx )
 {
     struct temp_registry * registry = NULL;
     
@@ -555,7 +556,7 @@ static rc_t produce_final_output( tool_ctx * tool_ctx )
 -------------------------------------------------------------------------------------------- */
     
     if ( rc == 0 )
-        rc = execute_join( tool_ctx -> dir,
+        rc = execute_db_join( tool_ctx -> dir,
                            tool_ctx -> accession,
                            tool_ctx -> lookup_filename,
                            tool_ctx -> index_filename,
@@ -578,6 +579,7 @@ static rc_t produce_final_output( tool_ctx * tool_ctx )
 
     /* STEP 4 : concatenate output-chunks */
 
+    /* ==== TBD: perform concatenation in parallel when possible ==== */
     if ( rc == 0 )
         rc = temp_registry_merge( registry,
                           tool_ctx -> dir,
@@ -608,7 +610,7 @@ static rc_t fastdump_database( tool_ctx * tool_ctx )
         rc = produce_lookup_files( tool_ctx );
 
     if ( rc == 0 )
-        rc = produce_final_output( tool_ctx );
+        rc = produce_final_db_output( tool_ctx );
 
     return rc;
 }
@@ -619,9 +621,39 @@ static rc_t fastdump_database( tool_ctx * tool_ctx )
 static rc_t fastdump_table( tool_ctx * tool_ctx )
 {
     rc_t rc = 0;
+    struct temp_registry * registry = NULL;
     
     if ( tool_ctx -> show_details )
         rc = show_details( tool_ctx );
+
+    if ( rc == 0 )
+        rc = make_temp_registry( &registry, tool_ctx -> cleanup_task );
+
+    if ( rc == 0 )
+        rc = execute_tbl_join( tool_ctx -> dir,
+                           tool_ctx -> accession,
+                           &( tool_ctx -> tmp_id ),
+                           registry,
+                           tool_ctx -> cursor_cache,
+                           tool_ctx -> buf_size,
+                           tool_ctx -> num_threads,
+                           tool_ctx -> show_progress,
+                           tool_ctx -> split_file,
+                           tool_ctx -> fmt,
+                           tool_ctx -> rowid_as_name );
+
+    if ( rc == 0 )
+        rc = temp_registry_merge( registry,
+                          tool_ctx -> dir,
+                          tool_ctx -> output_filename,
+                          tool_ctx -> buf_size,
+                          tool_ctx -> show_progress,
+                          tool_ctx -> print_to_stdout,
+                          tool_ctx -> force,
+                          tool_ctx -> compress );
+
+    if ( registry != NULL )
+        destroy_temp_registry( registry );
 
     return rc;
 }

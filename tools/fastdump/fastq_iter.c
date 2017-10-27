@@ -27,18 +27,15 @@
 #include "fastq_iter.h"
 #include "helper.h"
 
-#include <os-native.h>
-#include <sysalloc.h>
-
-typedef struct fastq_iter
+typedef struct fastq_db_iter
 {
     struct cmn_iter * cmn;
     bool with_read_len, with_name;
     uint32_t name_id, prim_alig_id, cmp_read_id, quality_id, read_len_id;
-} fastq_iter;
+} fastq_db_iter;
 
 
-void destroy_fastq_iter( struct fastq_iter * self )
+void destroy_fastq_db_iter( struct fastq_db_iter * self )
 {
     if ( self != NULL )
     {
@@ -47,15 +44,17 @@ void destroy_fastq_iter( struct fastq_iter * self )
     }
 }
 
-rc_t make_fastq_iter( const cmn_params * params, struct fastq_iter ** iter,
-                      bool with_read_len, bool with_name )
+rc_t make_fastq_db_iter( const cmn_params * params,
+                         struct fastq_db_iter ** iter,
+                         bool with_read_len,
+                         bool with_name )
 {
     rc_t rc = 0;
-    fastq_iter * self = calloc( 1, sizeof * self );
+    fastq_db_iter * self = calloc( 1, sizeof * self );
     if ( self == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "make_fastq_iter.calloc( %d ) -> %R", ( sizeof * self ), rc );
+        ErrMsg( "make_fastq_db_iter.calloc( %d ) -> %R", ( sizeof * self ), rc );
     }
     else
     {
@@ -76,14 +75,14 @@ rc_t make_fastq_iter( const cmn_params * params, struct fastq_iter ** iter,
             rc = cmn_iter_range( self -> cmn, self -> prim_alig_id );
             
         if ( rc != 0 )
-            destroy_fastq_iter( self );
+            destroy_fastq_db_iter( self );
         else
             *iter = self;
     }
     return rc;
 }
 
-bool get_from_fastq_iter( struct fastq_iter * self, fastq_rec * rec, rc_t * rc )
+bool get_from_fastq_db_iter( struct fastq_db_iter * self, fastq_db_rec * rec, rc_t * rc )
 {
     bool res = cmn_iter_next( self -> cmn, rc );
     if ( res )
@@ -102,7 +101,87 @@ bool get_from_fastq_iter( struct fastq_iter * self, fastq_rec * rec, rc_t * rc )
     return res;
 }
 
-uint64_t get_row_count_of_fastq_iter( struct fastq_iter * self )
+uint64_t get_row_count_of_fastq_db_iter( struct fastq_db_iter * self )
+{
+    return cmn_iter_row_count( self -> cmn );
+}
+
+/* ------------------------------------------------------------------------------------------------------------- */
+
+typedef struct fastq_tbl_iter
+{
+    struct cmn_iter * cmn;
+    bool with_read_len, with_name;
+    uint32_t name_id, read_id, quality_id, read_len_id;
+} fastq_tbl_iter;
+
+
+void destroy_fastq_tbl_iter( struct fastq_tbl_iter * self )
+{
+    if ( self != NULL )
+    {
+        destroy_cmn_iter( self -> cmn );
+        free( ( void * ) self );
+    }
+}
+
+rc_t make_fastq_tbl_iter( const cmn_params * params,
+                          struct fastq_tbl_iter ** iter,
+                          bool with_read_len,
+                          bool with_name )
+{
+    rc_t rc = 0;
+    fastq_tbl_iter * self = calloc( 1, sizeof * self );
+    if ( self == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        ErrMsg( "make_fastq_tbl_iter.calloc( %d ) -> %R", ( sizeof * self ), rc );
+    }
+    else
+    {
+        self -> with_read_len = with_read_len;
+        self -> with_name = with_name;
+        rc = make_cmn_iter( params, NULL, &( self -> cmn ) );
+        if ( rc == 0 && with_name )
+            rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) );
+        if ( rc == 0 )
+            rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) );
+        if ( rc == 0 )
+            rc = cmn_iter_add_column( self -> cmn, "(INSDC:quality:text:phred_33)QUALITY", &( self -> quality_id ) );
+        if ( rc == 0 && with_read_len )
+            rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) );
+        if ( rc == 0 )
+            rc = cmn_iter_range( self -> cmn, self -> read_id );
+            
+        if ( rc != 0 )
+            destroy_fastq_tbl_iter( self );
+        else
+            *iter = self;
+    }
+    return rc;
+}
+
+bool get_from_fastq_tbl_iter( struct fastq_tbl_iter * self, fastq_tbl_rec * rec, rc_t * rc )
+{
+    bool res = cmn_iter_next( self -> cmn, rc );
+    if ( res )
+    {
+        rec -> row_id = cmn_iter_row_id( self -> cmn );
+        if ( self -> with_name )
+            *rc = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
+        else
+            *rc = 0;
+        if ( *rc == 0 )
+            *rc = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
+        if ( *rc == 0 )
+            *rc = cmn_read_String( self -> cmn, self -> quality_id, &( rec -> quality ) );
+        if ( *rc == 0 && self -> with_read_len )
+            *rc = cmn_read_uint32_array( self -> cmn, self -> read_len_id, rec -> read_len, 2, &( rec -> num_reads ) );
+    }
+    return res;
+}
+
+uint64_t get_row_count_of_fastq_tbl_iter( struct fastq_tbl_iter * self )
 {
     return cmn_iter_row_count( self -> cmn );
 }

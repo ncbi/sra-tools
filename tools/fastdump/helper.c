@@ -537,51 +537,6 @@ rc_t make_pre_and_post_fixed( char * dst, size_t dst_size,
     return rc;
 }
 
-rc_t make_prefixed( char * buffer, size_t bufsize, const char * prefix,
-                    const char * path, const char * postfix )
-{
-    rc_t rc;
-    size_t num_writ;
-    if ( prefix != NULL )
-    {
-        uint32_t l = string_measure( prefix, NULL );
-        if ( l == 0 )
-        {
-            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-            ErrMsg( "make_prefixed.string_measure() = 0 -> %R", rc );
-        }
-        else
-        {
-            if ( postfix == NULL )
-            {
-                if ( prefix[ l-1 ] == '/' )
-                    rc = string_printf( buffer, bufsize, &num_writ, "%s%s",  prefix, path );
-                else
-                    rc = string_printf( buffer, bufsize, &num_writ, "%s/%s", prefix, path );
-            }
-            else
-            {
-                if ( prefix[ l-1 ] == '/' )
-                    rc = string_printf( buffer, bufsize, &num_writ, "%s%s%s",  prefix, path, postfix );
-                else
-                    rc = string_printf( buffer, bufsize, &num_writ, "%s/%s%s", prefix, path, postfix );
-            }
-        }
-    }
-    else
-    {
-        if ( postfix == NULL )
-            rc = string_printf( buffer, bufsize, &num_writ, "%s", path );
-        else
-            rc = string_printf( buffer, bufsize, &num_writ, "%s%s", path, postfix );
-    }
-    
-    if ( rc != 0 )
-        ErrMsg( "make_prefixed.string_printf() -> %R", rc );
-    return rc;
-}
-
-
 rc_t make_postfixed( char * buffer, size_t bufsize, const char * path, const char * postfix )
 {
     size_t num_writ;
@@ -591,6 +546,25 @@ rc_t make_postfixed( char * buffer, size_t bufsize, const char * path, const cha
     return rc;
 }
 
+rc_t make_joined_filename( char * buffer, size_t bufsize,
+                           const char * accession,
+                           const tmp_id * tmp_id,
+                           uint32_t id )
+{
+    rc_t rc;
+    size_t num_writ;
+    if ( tmp_id -> temp_path_ends_in_slash )
+        rc = string_printf( buffer, bufsize, &num_writ, "%s%s.%s.%u.%u",
+                tmp_id -> temp_path, accession, tmp_id -> hostname, tmp_id -> pid, id );
+    else
+        rc = string_printf( buffer, bufsize, &num_writ, "%s/%s.%s.%u.%u",
+                tmp_id -> temp_path, accession, tmp_id -> hostname, tmp_id -> pid, id );
+        
+    if ( rc != 0 )
+        ErrMsg( "make_joined_filename.string_printf() -> %R", rc );
+    return rc;
+
+}
 
 /* ===================================================================================== */
 

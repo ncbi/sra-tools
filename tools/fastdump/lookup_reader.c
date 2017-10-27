@@ -43,13 +43,13 @@ typedef struct lookup_reader
 } lookup_reader;
 
 
-void release_lookup_reader( struct lookup_reader * reader )
+void release_lookup_reader( struct lookup_reader * self )
 {
-    if ( reader != NULL )
+    if ( self != NULL )
     {
-        if ( reader->f != NULL ) KFileRelease( reader->f );
-        release_SBuffer( &reader->buf );
-        free( ( void * ) reader );
+        if ( self -> f != NULL ) KFileRelease( self -> f );
+        release_SBuffer( &self -> buf );
+        free( ( void * ) self );
     }
 }
 
@@ -101,11 +101,11 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
 }
 
 
-static rc_t read_key_and_len( struct lookup_reader * reader, uint64_t pos, uint64_t *key, size_t *len )
+static rc_t read_key_and_len( struct lookup_reader * self, uint64_t pos, uint64_t *key, size_t *len )
 {
     size_t num_read;
     char buffer[ 10 ];
-    rc_t rc = KFileRead( reader->f, pos, buffer, sizeof buffer, &num_read );
+    rc_t rc = KFileRead( self -> f, pos, buffer, sizeof buffer, &num_read );
     if ( rc != 0 )
     {
         ErrMsg( "read_key_and_len.KFileRead( at %ld, to_read %u ) -> %R", pos, sizeof buffer, rc );
@@ -140,7 +140,7 @@ static bool keys_equal( uint64_t key1, uint64_t key2 )
     return res;
 }
 
-static rc_t loop_until_key_found( struct lookup_reader * reader, uint64_t key_to_find,
+static rc_t loop_until_key_found( struct lookup_reader * self, uint64_t key_to_find,
         uint64_t *key_found , uint64_t *offset )
 {
     rc_t rc = 0;
@@ -149,7 +149,7 @@ static rc_t loop_until_key_found( struct lookup_reader * reader, uint64_t key_to
     while ( !done && rc == 0 )
     {
         size_t found_len;
-        rc = read_key_and_len( reader, curr, key_found, &found_len );
+        rc = read_key_and_len( self, curr, key_found, &found_len );
         if ( keys_equal( key_to_find, *key_found ) )
         {
             done = true;
@@ -167,15 +167,15 @@ static rc_t loop_until_key_found( struct lookup_reader * reader, uint64_t key_to
 }
 
 
-static rc_t full_table_seek( struct lookup_reader * reader, uint64_t key_to_find, uint64_t * key_found )
+static rc_t full_table_seek( struct lookup_reader * self, uint64_t key_to_find, uint64_t * key_found )
 {
     /* we have no index! search the whole thing... */
     uint64_t offset = 0;
-    rc_t rc = loop_until_key_found( reader, key_to_find, key_found, &offset );
+    rc_t rc = loop_until_key_found( self, key_to_find, key_found, &offset );
     if ( rc == 0 )
     {
         if ( keys_equal( key_to_find, *key_found ) )
-            reader->pos = offset;
+            self -> pos = offset;
         else
         {
             rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
@@ -186,32 +186,32 @@ static rc_t full_table_seek( struct lookup_reader * reader, uint64_t key_to_find
 }
 
 
-static rc_t indexed_seek( struct lookup_reader * reader, uint64_t key_to_find, uint64_t * key_found, bool exactly )
+static rc_t indexed_seek( struct lookup_reader * self, uint64_t key_to_find, uint64_t * key_found, bool exactly )
 {
     /* we have a index! find set pos to the found offset */
     uint64_t offset = 0;
     uint64_t max_key;
-    rc_t rc = get_max_key( reader->index, &max_key );
+    rc_t rc = get_max_key( self -> index, &max_key );
     if ( rc == 0 )
     {
         if ( key_to_find > max_key )
             rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcTooBig );
         else
         {
-            rc = get_nearest_offset( reader->index, key_to_find, key_found, &offset ); /* in index.c */
+            rc = get_nearest_offset( self -> index, key_to_find, key_found, &offset ); /* in index.c */
             if ( rc == 0 )
             {
                 if ( keys_equal( key_to_find, *key_found ) )
-                    reader->pos = offset;
+                    self -> pos = offset;
                 else
                 {
                     if ( exactly )
                     {
-                        rc = loop_until_key_found( reader, key_to_find, key_found, &offset );
+                        rc = loop_until_key_found( self, key_to_find, key_found, &offset );
                         if ( rc == 0 )
                         {
                             if ( keys_equal( key_to_find, *key_found ) )
-                                reader->pos = offset;
+                                self -> pos = offset;
                             else
                                 rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
                         }
@@ -220,7 +220,7 @@ static rc_t indexed_seek( struct lookup_reader * reader, uint64_t key_to_find, u
                     }
                     else
                     {
-                        reader->pos = offset;
+                        self -> pos = offset;
                         rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
                     }
                 }
@@ -231,34 +231,34 @@ static rc_t indexed_seek( struct lookup_reader * reader, uint64_t key_to_find, u
 }
 
 
-rc_t seek_lookup_reader( struct lookup_reader * reader, uint64_t key_to_find, uint64_t * key_found, bool exactly )
+rc_t seek_lookup_reader( struct lookup_reader * self, uint64_t key_to_find, uint64_t * key_found, bool exactly )
 {
     rc_t rc = 0;
-    if ( reader == NULL || key_found == NULL )
+    if ( self == NULL || key_found == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
         ErrMsg( "seek_lookup_reader() -> %R", rc );
     }
     else
     {
-        if ( reader->index != NULL )
+        if ( self -> index != NULL )
         {
-            rc = indexed_seek( reader, key_to_find, key_found, exactly );
+            rc = indexed_seek( self, key_to_find, key_found, exactly );
             if ( rc != 0 )
-                rc = full_table_seek( reader, key_to_find, key_found );
+                rc = full_table_seek( self, key_to_find, key_found );
         }
         else
-            rc = full_table_seek( reader, key_to_find, key_found );
+            rc = full_table_seek( self, key_to_find, key_found );
     }
     return rc;
 }
 
 
-rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * reader,
+rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * self,
                         uint64_t * key, SBuffer * packed_bases )
 {
     rc_t rc;
-    if ( reader == NULL || key == NULL || packed_bases == NULL )
+    if ( self == NULL || key == NULL || packed_bases == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
         ErrMsg( "get_packed_and_key_from_lookup_reader() -> %R", rc );
@@ -267,16 +267,16 @@ rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * reader,
     {
         size_t num_read;
         char buffer1[ 10 ];
-        rc = KFileRead( reader->f, reader->pos, buffer1, sizeof buffer1, &num_read );
+        rc = KFileRead( self -> f, self -> pos, buffer1, sizeof buffer1, &num_read );
         if ( rc != 0 )
-            ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", reader->pos, sizeof buffer1, rc );
+            ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", self -> pos, sizeof buffer1, rc );
         else if ( num_read != sizeof buffer1 )
             rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
         else
         {
             uint16_t dna_len;
             size_t to_read;
-            char * dst = ( char * )packed_bases->S.addr;
+            char * dst = ( char * )( packed_bases -> S . addr );
             
             memmove( key, buffer1, sizeof *key );
 
@@ -291,18 +291,18 @@ rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * reader,
                 to_read = ( packed_bases->buffer_size - 2 );
             if ( rc == 0 )
             {
-                rc = KFileRead( reader->f, reader->pos + 10, dst, to_read, &num_read );
+                rc = KFileRead( self -> f, self -> pos + 10, dst, to_read, &num_read );
                 if ( rc != 0 )
-                    ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", reader->pos + 10, to_read, rc );
+                    ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", self -> pos + 10, to_read, rc );
                 else if ( num_read != to_read )
                 {
                     rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                    ErrMsg( "KFileRead( %ld ) %d vs %d -> %R", reader->pos + 10, num_read, to_read, rc );
+                    ErrMsg( "KFileRead( %ld ) %d vs %d -> %R", self -> pos + 10, num_read, to_read, rc );
                 }
                 else
                 {
-                    packed_bases->S.len = packed_bases->S.size = num_read + 2;
-                    reader->pos += ( num_read + 10 );
+                    packed_bases -> S . len = packed_bases -> S . size = num_read + 2;
+                    self -> pos += ( num_read + 10 );
                 }
             }
         }
@@ -310,42 +310,27 @@ rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * reader,
     return rc;
 }
 
-rc_t get_packed_from_lookup_reader( struct lookup_reader * reader,
-                        int64_t * seq_spot_id, uint32_t * seq_read_id, SBuffer * packed_bases )
+rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id, SBuffer * B )
 {
+    int64_t found_row_id;
+    uint32_t found_read_id;
     uint64_t key;
-    rc_t rc = get_packed_and_key_from_lookup_reader( reader, &key, packed_bases );
+
+    rc_t rc = get_packed_and_key_from_lookup_reader( self, &key, &self -> buf );
     if ( rc == 0 )
     {
-        *seq_spot_id = key >> 1;
-        *seq_read_id = key & 1 ? 2 : 1;
+        found_row_id = key >> 1;
+        found_read_id = key & 1 ? 2 : 1;
+        unpack_4na( &self -> buf . S, B );
     }
-    return rc;
-}
 
-
-rc_t get_bases_from_lookup_reader( struct lookup_reader * reader,
-                        int64_t * seq_spot_id, uint32_t * seq_read_id, SBuffer * bases )
-{
-    rc_t rc = get_packed_from_lookup_reader( reader, seq_spot_id, seq_read_id, &reader->buf );
-    if ( rc == 0 )
-        unpack_4na( &reader->buf.S, bases );
-    return rc;
-}
-
-
-rc_t lookup_bases( struct lookup_reader * lookup, int64_t row_id, uint32_t read_id, SBuffer * B )
-{
-    int64_t found_seq_spot_id;
-    uint32_t found_seq_read_id;
-    rc_t rc = get_bases_from_lookup_reader( lookup, &found_seq_spot_id, &found_seq_read_id, B );
     if ( rc == 0 )
     {
-        if ( found_seq_spot_id != row_id || found_seq_read_id != read_id )
+        if ( found_row_id != row_id || found_read_id != read_id )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
             ErrMsg( "id-mismatch for seq_id = %lu vs. %lu / read_id = %u vs %lu",
-                    found_seq_spot_id, row_id, found_seq_read_id, read_id );
+                    found_row_id, row_id, found_read_id, read_id );
         }
     }
     return rc;

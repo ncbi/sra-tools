@@ -43,9 +43,9 @@ extern "C" {
 #include "cmn_iter.h"
 #endif
 
-struct fastq_iter;
+struct fastq_db_iter;
 
-typedef struct fastq_rec
+typedef struct fastq_db_rec
 {
     int64_t row_id;
     uint64_t prim_alig_id[ 2 ];
@@ -54,13 +54,37 @@ typedef struct fastq_rec
     String name;
     String cmp_read;
     String quality;
-} fastq_rec;
+} fastq_db_rec;
 
-void destroy_fastq_iter( struct fastq_iter * self );
-rc_t make_fastq_iter( const cmn_params * params, struct fastq_iter ** iter,
-                      bool with_read_len, bool with_name );
-bool get_from_fastq_iter( struct fastq_iter * self, fastq_rec * rec, rc_t * rc );
-uint64_t get_row_count_of_fastq_iter( struct fastq_iter * self );
+void destroy_fastq_db_iter( struct fastq_db_iter * self );
+rc_t make_fastq_db_iter( const cmn_params * params,
+                         struct fastq_db_iter ** iter,
+                         bool with_read_len,
+                         bool with_name );
+                         
+bool get_from_fastq_db_iter( struct fastq_db_iter * self, fastq_db_rec * rec, rc_t * rc );
+uint64_t get_row_count_of_fastq_db_iter( struct fastq_db_iter * self );
+
+struct fastq_tbl_iter;
+
+typedef struct fastq_tbl_rec
+{
+    int64_t row_id;
+    uint32_t num_reads;
+    uint32_t read_len[ 2 ];
+    String name;
+    String read;
+    String quality;
+} fastq_tbl_rec;
+
+void destroy_fastq_tbl_iter( struct fastq_tbl_iter * self );
+rc_t make_fastq_tbl_iter( const cmn_params * params,
+                          struct fastq_tbl_iter ** iter,
+                          bool with_read_len,
+                          bool with_name );
+
+bool get_from_fastq_tbl_iter( struct fastq_tbl_iter * self, fastq_tbl_rec * rec, rc_t * rc );
+uint64_t get_row_count_of_fastq_tbl_iter( struct fastq_tbl_iter * self );
 
 #ifdef __cplusplus
 }

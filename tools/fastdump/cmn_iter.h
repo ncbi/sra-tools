@@ -35,47 +35,32 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
-#endif
-
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
+#ifndef _h_helper_
+#include "helper.h"
 #endif
 
 struct cmn_iter;
 
-typedef struct cmn_params
-{
-    KDirectory * dir;
-    const char * accession;
-    int64_t first_row;
-    uint64_t row_count;
-    size_t cursor_cache;
-} cmn_params;
-
-void destroy_cmn_iter( struct cmn_iter * iter );
+void destroy_cmn_iter( struct cmn_iter * self );
 
 rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, struct cmn_iter ** iter );
 
-rc_t cmn_iter_copy_range( struct cmn_iter * self, const struct cmn_iter * src );
+rc_t cmn_iter_add_column( struct cmn_iter * self, const char * name, uint32_t * id );
+rc_t cmn_iter_range( struct cmn_iter * selfr, uint32_t col_id );
 
-rc_t cmn_iter_add_column( struct cmn_iter * iter, const char * name, uint32_t * id );
-rc_t cmn_iter_range( struct cmn_iter * iter, uint32_t col_id );
+bool cmn_iter_next( struct cmn_iter * self, rc_t * rc );
+int64_t cmn_iter_row_id( const struct cmn_iter * self );
 
-bool cmn_iter_next( struct cmn_iter * iter, rc_t * rc );
-int64_t cmn_iter_row_id( const struct cmn_iter * iter );
+uint64_t cmn_iter_row_count( struct cmn_iter * self );
 
-uint64_t cmn_iter_row_count( struct cmn_iter * iter );
-
-rc_t cmn_read_uint64( struct cmn_iter * iter, uint32_t col_id, uint64_t *value );
-rc_t cmn_read_uint64_array( struct cmn_iter * iter, uint32_t col_id, uint64_t *value,
+rc_t cmn_read_uint64( struct cmn_iter * self, uint32_t col_id, uint64_t *value );
+rc_t cmn_read_uint64_array( struct cmn_iter * self, uint32_t col_id, uint64_t *value,
                             uint32_t num_values, uint32_t * values_read );
-rc_t cmn_read_uint32( struct cmn_iter * iter, uint32_t col_id, uint32_t *value );
-rc_t cmn_read_uint32_array( struct cmn_iter * iter, uint32_t col_id, uint32_t *value,
+rc_t cmn_read_uint32( struct cmn_iter * selfr, uint32_t col_id, uint32_t *value );
+rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t *value,
                             uint32_t num_values, uint32_t * values_read );
 
-rc_t cmn_read_String( struct cmn_iter * iter, uint32_t col_id, String *value );
+rc_t cmn_read_String( struct cmn_iter * self, uint32_t col_id, String *value );
 
 #ifdef __cplusplus
 }

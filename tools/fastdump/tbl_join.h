@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_join_
-#define _h_join_
+#ifndef _h_tbl_join_
+#define _h_tbl_join_
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,10 +47,8 @@ extern "C" {
 #include "temp_registry.h"
 #endif
 
-rc_t execute_db_join( KDirectory * dir,
+rc_t execute_tbl_join( KDirectory * dir,
                     const char * accession,
-                    const char * lookup_filename,
-                    const char * index_filename,
                     const tmp_id * tmp_id,
                     struct temp_registry * registry,
                     size_t cur_cache,

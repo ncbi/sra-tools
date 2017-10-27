@@ -1065,8 +1065,14 @@ static rc_t readThread(KThread const *const th, void *const ctx)
             break;
         }
         if (rc) {
-            (void)LOGERR(klogErr, rc, "readThread: failed to push next record into queue");
             free(rr);
+            if ((int)GetRCState(rc) == rcReadonly && (int)GetRCObject(rc) == rcQueue) {
+                (void)LOGMSG(klogWarn, "readThread: consumer closed queue");
+                rc = 0;
+            }
+            else {
+                (void)LOGERR(klogErr, rc, "readThread: failed to push next record into queue");
+            }
             break;
         }
         else if (rr_type == rr_done) {

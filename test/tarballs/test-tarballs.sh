@@ -83,6 +83,7 @@ tar xf ${TARGET}.tar || exit 3
 [[ ${PACKAGE} =~ \.[0-9]+\.[0-9]+\.[0-9]+ ]] && VERSION=${BASH_REMATCH[0]:1} # clip leading '.'
 echo Current version: ${VERSION}
 
+echo $HOMEDIR/smoke-test.sh ./${PACKAGE} ${VERSION}
 $HOMEDIR/smoke-test.sh ./${PACKAGE} ${VERSION}
 RC=$?
 

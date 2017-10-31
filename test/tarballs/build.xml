@@ -19,6 +19,7 @@
         <get src="${version.url}" dest="${workdir}\version" />
         <loadfile property="version" srcFile="${workdir}\version"/>
         <echo message="version=${version}"/>
+        <echo message="smoke-test.bat ${workdir}\${targetname}\bin ${antfile.dir}\grep.pl ${version}"/>
         <exec executable="cmd" failonerror="true" >
             <arg value="/c"/>
             <arg value="smoke-test.bat"/>

@@ -414,6 +414,7 @@ void join_and_release_threads( Vector * threads )
             KThreadRelease( thread );
         }
     }
+    VectorWhack ( threads, NULL, NULL );
 }
 
 
@@ -441,6 +442,29 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files )
         }
     }
     return rc;
+}
+
+rc_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files )
+{
+    uint64_t res = 0;
+    if ( dir != NULL && files != NULL )
+    {
+        uint32_t idx, count;
+        rc_t rc = VNameListCount( files, &count );
+        for ( idx = 0; rc == 0 && idx < count; ++idx )
+        {
+            const char * filename;
+            rc = VNameListGet( files, idx, &filename );
+            if ( rc == 0 )
+            {
+                uint64_t size;
+                rc_t rc1 = KDirectoryFileSize( dir, &size, "%s", filename );
+                if ( rc1 == 0 )
+                    res += size;
+            }
+        }
+    }
+    return res;
 }
 
 int get_vdb_pathtype( KDirectory * dir, const char * accession )

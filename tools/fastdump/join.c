@@ -211,7 +211,7 @@ static rc_t print_fq2_read_2( struct join_results * results,
                     accession, row_id, name, quality -> len, quality ); /* join_results.c */
 }
 
-static rc_t print_fastq_1_read( const fastq_db_rec * rec, join * j, bool rowid_as_name )
+static rc_t print_fastq_1_read( const fastq_csra_rec * rec, join * j, bool rowid_as_name )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -270,7 +270,7 @@ static rc_t print_fq2_reads_2( struct join_results * results,
                     accession, row_id, name, quality -> len, quality ); /* join_results.c */
 }
 
-static rc_t print_fastq_2_reads( const fastq_db_rec * rec, join * j, bool rowid_as_name )
+static rc_t print_fastq_2_reads( const fastq_csra_rec * rec, join * j, bool rowid_as_name )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -339,7 +339,7 @@ static rc_t print_fastq_2_reads( const fastq_db_rec * rec, join * j, bool rowid_
 }
 
 /* FASTQ SPLIT */
-static rc_t print_fastq_2_reads_splitted( const fastq_db_rec * rec, join * j, bool split_file, bool rowid_as_name )
+static rc_t print_fastq_2_reads_splitted( const fastq_csra_rec * rec, join * j, bool split_file, bool rowid_as_name )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -453,18 +453,18 @@ static rc_t print_fastq_2_reads_splitted( const fastq_db_rec * rec, join * j, bo
 }
 
 
-static rc_t extract_db_row_count( KDirectory * dir,
-                                  const char * accession,
-                                  size_t cur_cache,
-                                  uint64_t * res )
+static rc_t extract_csra_row_count( KDirectory * dir,
+                                    const char * accession,
+                                    size_t cur_cache,
+                                    uint64_t * res )
 {
     cmn_params cp = { dir, accession, 0, 0, cur_cache };
-    struct fastq_db_iter * iter;
-    rc_t rc = make_fastq_db_iter( &cp, &iter, false, false ); /* fastq_iter.c */
+    struct fastq_csra_iter * iter;
+    rc_t rc = make_fastq_csra_iter( &cp, &iter, false, false ); /* fastq_iter.c */
     if ( rc == 0 )
     {
-        *res = get_row_count_of_fastq_db_iter( iter );
-        destroy_fastq_db_iter( iter );
+        *res = get_row_count_of_fastq_csra_iter( iter );
+        destroy_fastq_csra_iter( iter );
     }
     return rc;
 }
@@ -505,16 +505,16 @@ static rc_t perform_fastq_join( cmn_params * cp,
                                 atomic_t * join_progress,
                                 bool rowid_as_name )
 {
-    struct fastq_db_iter * iter;
+    struct fastq_csra_iter * iter;
     bool with_read_len = false;
     bool with_name = !rowid_as_name;
-    rc_t rc = make_fastq_db_iter( cp, &iter, with_read_len, with_name ); /* fastq-iter.c */
+    rc_t rc = make_fastq_csra_iter( cp, &iter, with_read_len, with_name ); /* fastq-iter.c */
     if ( rc != 0 )
-        ErrMsg( "perform_fastq_join().make_fastq_db_iter() -> %R", rc );
+        ErrMsg( "perform_fastq_join().make_fastq_csra_iter() -> %R", rc );
     else
     {
-        fastq_db_rec rec;
-        while ( get_from_fastq_db_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        fastq_csra_rec rec;
+        while ( get_from_fastq_csra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -528,7 +528,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
                     atomic_inc( join_progress );
             }
         }
-        destroy_fastq_db_iter( iter );
+        destroy_fastq_csra_iter( iter );
     }
     return rc;
 }
@@ -539,16 +539,16 @@ static rc_t perform_fastq_join_split( cmn_params * cp,
                                       bool split_file,
                                       bool rowid_as_name )
 {
-    struct fastq_db_iter * iter;
+    struct fastq_csra_iter * iter;
     bool with_read_len = true;
     bool with_name = !rowid_as_name;
-    rc_t rc = make_fastq_db_iter( cp, &iter, with_read_len, with_name ); /* fastq-iter.c */
+    rc_t rc = make_fastq_csra_iter( cp, &iter, with_read_len, with_name ); /* fastq-iter.c */
     if ( rc != 0 )
-        ErrMsg( "perform_fastq_join_split().make_fastq_db_iter() -> %R", rc );
+        ErrMsg( "perform_fastq_join_split().make_fastq_csra_iter() -> %R", rc );
     else
     {
-        fastq_db_rec rec;
-        while ( get_from_fastq_db_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        fastq_csra_rec rec;
+        while ( get_from_fastq_csra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -562,7 +562,7 @@ static rc_t perform_fastq_join_split( cmn_params * cp,
                     atomic_inc( join_progress );
             }
         }
-        destroy_fastq_db_iter( iter );
+        destroy_fastq_csra_iter( iter );
     }
     return rc;
 }
@@ -658,7 +658,7 @@ rc_t execute_db_join( KDirectory * dir,
     if ( rc == 0 )
     {
         uint64_t row_count = 0;
-        rc = extract_db_row_count( dir, accession, cur_cache, &row_count );
+        rc = extract_csra_row_count( dir, accession, cur_cache, &row_count );
 
         if ( rc == 0 && row_count > 0 )
         {

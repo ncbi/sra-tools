@@ -49,6 +49,7 @@ extern "C" {
 
 rc_t execute_tbl_join( KDirectory * dir,
                     const char * accession,
+                    const char * tbl_name,
                     const tmp_id * tmp_id,
                     struct temp_registry * registry,
                     size_t cur_cache,

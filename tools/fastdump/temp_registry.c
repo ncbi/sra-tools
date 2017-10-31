@@ -114,31 +114,137 @@ rc_t register_temp_file( temp_registry * self, uint32_t read_id, const char * fi
     return rc;
 }
 
-static uint32_t count_files( temp_registry * self, uint32_t * first )
+/* -------------------------------------------------------------------- */
+typedef struct on_list_ctx
 {
-    uint32_t count = VectorLength( &self -> lists );
-    if ( count < 2 )
-        *first = VectorStart( &self -> lists );
-    else
+    KDirectory * dir;
+    uint64_t res;
+} on_list_ctx;
+
+static void CC on_list( void *item, void *data )
+{
+    if ( item != NULL )
     {
-        uint32_t valid = 0;
-        uint32_t idx = VectorStart( &self -> lists );
-        while ( idx < count )
-        {
-            VNamelist * l = VectorGet ( &self -> lists, idx );
-            if ( l != NULL )
-            {
-                if ( valid == 0 )
-                    *first = idx;
-                valid++;
-            }
-            idx += 1;
-        }
-        count = valid;
+        on_list_ctx * olc = data;
+        olc -> res += total_size_of_files_in_list( olc -> dir, item );
     }
-    return count;
 }
 
+static uint64_t total_size( KDirectory * dir, Vector * v )
+{
+    on_list_ctx olc = { dir, 0 };
+    VectorForEach ( v, false, on_list, &olc );
+    return olc . res;
+}
+
+/* -------------------------------------------------------------------- */
+typedef struct on_count_ctx
+{
+    uint32_t idx;
+    uint32_t valid;
+    uint32_t first;
+} on_count_ctx;
+
+static void CC on_count( void *item, void *data )
+{
+    on_count_ctx * occ = data;
+    if ( item != NULL )
+    {
+        if ( occ -> valid == 0 )
+            occ -> first = occ -> idx;
+        occ -> valid++;
+    }
+    occ -> idx ++;
+}
+
+static uint32_t count_files( Vector * v, uint32_t * first )
+{
+    on_count_ctx occ = { 0, 0, 0 };
+    VectorForEach ( v, false, on_count, &occ );
+    *first = occ . first;
+    return occ . valid;
+}
+
+/* -------------------------------------------------------------------- */
+typedef struct cmn_merge
+{
+    KDirectory * dir;
+    const char * output_filename;
+    size_t buf_size;
+    atomic_t * concat_progress;
+    bool force;
+    compress_t compress;
+} cmn_merge;
+
+typedef struct merge_data
+{
+    cmn_merge * cmn;
+    VNamelist * files;
+    uint32_t idx;
+} merge_data;
+
+static rc_t CC merge_thread_func( const KThread *self, void *data )
+{
+    rc_t rc;
+    merge_data * md = data;
+    SBuffer s_filename;
+
+    VNamelistReorder ( md -> files, false );
+    rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s.%u",
+                md -> cmn -> output_filename, md -> idx + 1 );
+    if ( rc == 0 )
+    {
+        rc = execute_concat( md -> cmn -> dir,
+            s_filename . S . addr,
+            md -> files,
+            md -> cmn -> buf_size,
+            md -> cmn -> concat_progress,
+            false,
+            md -> cmn -> force,
+            md -> cmn -> compress );
+        release_SBuffer( &s_filename );
+    }
+    free( ( void * ) md );
+    return rc;
+}
+
+typedef struct on_merge_ctx
+{
+    cmn_merge * cmn;
+    uint32_t idx;
+    Vector threads;
+} on_merge_ctx;
+
+static void CC on_merge( void *item, void *data )
+{
+    on_merge_ctx * omc = data;
+    if ( item != NULL )
+    {
+        merge_data * md = calloc( 1, sizeof * md );
+        if ( md != NULL )
+        {
+            rc_t rc;
+            KThread * thread;
+            
+            md -> cmn = omc -> cmn;
+            md -> files = item;
+            md -> idx = omc -> idx;
+            
+            rc = KThreadMake( &thread, merge_thread_func, md );
+            if ( rc != 0 )
+                ErrMsg( "KThreadMake( on_merge #%d ) -> %R", omc -> idx, rc );
+            else
+            {
+                rc = VectorAppend( &omc -> threads, NULL, thread );
+                if ( rc != 0 )
+                    ErrMsg( "VectorAppend( merge-thread #%d ) -> %R", omc -> idx, rc );
+            }
+        }
+    }
+    omc -> idx ++;
+}
+
+/* -------------------------------------------------------------------- */
 rc_t temp_registry_merge( temp_registry * self,
                           KDirectory * dir,
                           const char * output_filename,
@@ -155,48 +261,50 @@ rc_t temp_registry_merge( temp_registry * self,
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     else
     {
-        uint32_t first;
-        uint32_t count = count_files( self, &first );
-        if ( count == 1 )
+        KThread * progress_thread = NULL;
+        atomic_t * concat_progress = NULL;
+        multi_progress progress;
+        
+        if ( show_progress )
         {
-            VNamelist * l = VectorGet ( &self -> lists, first );
-            VNamelistReorder ( l, false );
-            rc = execute_concat( dir,
-                output_filename,
-                l,
-                buf_size,
-                show_progress,
-                print_to_stdout,
-                force,
-                compress );
-        }
-        else if ( count > 1 )
-        {
-            uint32_t count = VectorLength( &self -> lists );
-            uint32_t idx = 0;
-            while ( rc == 0 && idx < count )
+            rc = KOutMsg( "concat :" );
+            if ( rc == 0 )
             {
-                VNamelist * l = VectorGet ( &self -> lists, idx );
-                if ( l != NULL )
-                {
-                    SBuffer s_filename;
-                    VNamelistReorder ( l, false );
-                    rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s.%u", output_filename, idx + 1 );    
-                    if ( rc == 0 )
-                    {
-                        rc = execute_concat( dir,
-                            s_filename . S . addr,
-                            l,
-                            buf_size,
-                            show_progress,
-                            print_to_stdout,
-                            force,
-                            compress );
-                        release_SBuffer( &s_filename );
-                    }
-                }
-                idx += 1;
+                uint64_t total = total_size( dir, &self -> lists );
+                init_progress_data( &progress, total ); /* helper.c */
+                concat_progress = &( progress . progress_rows );
+                rc = start_multi_progress( &progress_thread, &progress ); /* helper.c */
             }
+        }
+        
+        if ( rc == 0 )
+        {
+            uint32_t first;
+            uint32_t count = count_files( &self -> lists, &first );
+            if ( count == 1 )
+            {
+                VNamelist * l = VectorGet ( &self -> lists, first );
+                VNamelistReorder ( l, false );
+                rc = execute_concat( dir,
+                    output_filename,
+                    l,
+                    buf_size,
+                    concat_progress,
+                    print_to_stdout,
+                    force,
+                    compress );
+            }
+            else if ( count > 1 )
+            {
+                cmn_merge cmn = { dir, output_filename, buf_size, concat_progress, force, compress };
+                on_merge_ctx omc = { &cmn, 0 };
+                VectorInit( &omc . threads, 0, count );
+                VectorForEach ( &self -> lists, false, on_merge, &omc );
+                join_and_release_threads( &omc . threads ); /* helper.c */
+            }
+            
+            if ( show_progress )
+                join_multi_progress( progress_thread, &progress ); /* helper.c */
         }
     }
     return rc;

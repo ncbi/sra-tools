@@ -96,36 +96,58 @@ fastdump_not_split()
     compare_md5 $out $2
 }
 
-acc_db="SRR341578"
+test_csra()
+{
+    #a CSRA-database with SEQUENCE, PRIMARY_ALIGNMENT and REFERENCE
+    csra="SRR341578"
+    #none-splitted
+    md5_csra_n="b6832cde19b4083ea0a5a246bad1a670"
+    #splitted
+    md5_csra_s="66b97c245a2c605a8854967b454d789e"
+    md5_csra_1="087c5292b808e2d30dfd3d9e08ba3c56"
+    md5_csra_2="38c926a3c56ee3833ddd2092cacd0129"
 
-#none-splitted
-md5_db_n="b6832cde19b4083ea0a5a246bad1a670"
-#splitted
-md5_db_s="66b97c245a2c605a8854967b454d789e"
-md5_db_1="087c5292b808e2d30dfd3d9e08ba3c56"
-md5_db_2="38c926a3c56ee3833ddd2092cacd0129"
+    fastdump_not_split $csra $md5_csra_n
+    fastdump_not_split_row_id_as_name $csra $md5_csra_n
+    fastdump_split $csra $md5_csra_s
+    fastdump_split_row_id_as_name $csra $md5_csra_s
+    fastdump_split_file_row_id_as_name $csra $md5_csra_1 $md5_csra_2
+    fastdump_split_file $csra $md5_csra_1 $md5_csra_2
+}
 
-#fastdump_split_file_row_id_as_name $acc_db $md5_db_1 $md5_db_2
-#fastdump_split_file $acc_db $md5_db_1 $md5_db_2
-#fastdump_split_row_id_as_name $acc_db $md5_db_s
-#fastdump_split $acc_db $md5_db_s
-#fastdump_not_split_row_id_as_name $acc_db $md5_db_n
-#fastdump_not_split $acc_db $md5_db_n
+test_sra_flat()
+{
+    #a flat SRA-table
+    sra_flat="SRR942391"
+    #none-splitted
+    md5_sra_flat_n="590366f579aa503bbedec1dab66df2ad"
+    #splitted
+    md5_sra_flat_s="a668be91b3e57b11fc56b977af1c1426"
+    md5_sra_flat_1="fff51585bf9963419e4ce505c0f57637"
+    md5_sra_flat_2="20784e715bd2498aca0e82ec61a195b9"
 
-#acc_tbl="SRR072810"
-#none-splitted
-#md5_tbl_n="4685a80588fed68450a6da093be72e4a"
+    fastdump_not_split $sra_flat $md5_sra_flat_n
+    fastdump_split $sra_flat $md5_sra_flat_s
+    fastdump_split_file $sra_flat $md5_sra_flat_1 $md5_sra_flat_2
+}
 
-acc_tbl="SRR942391"
+test_sra_db()
+{
+    #a flat SRA-table as the only table in a database
+    sra_db="SRR6173369"
 
-#none-splitted
-md5_tbl_n="590366f579aa503bbedec1dab66df2ad"
-#splitted
-md5_tbl_s="a668be91b3e57b11fc56b977af1c1426"
-md5_tbl_1="fff51585bf9963419e4ce505c0f57637"
-md5_tbl_2="20784e715bd2498aca0e82ec61a195b9"
+    #none-splitted
+    md5_sra_db_n="38250674922d516912b06498d8b4d3fb"
+    #splitted
+    md5_sra_db_s="07106db1a11bdd1cc8c382a4e2482b5f"
+    md5_sra_db_1="c0be39a6d0566bfe72621e0a69cb2fe4"
+    md5_sra_db_2="0e560c82f092bac8b2d6e92c1262ed95"
+    
+    #fastdump_not_split $sra_db $md5_sra_db_n
+    #fastdump_split $sra_db $md5_sra_db_s
+    fastdump_split_file $sra_db $md5_sra_db_1 $md5_sra_db_2    
+}
 
-fastdump_split_file $acc_tbl $md5_tbl_1 $md5_tbl_2
-#fastdump_split $acc_tbl $md5_tbl_s
-#fastdump_not_split_row_id_as_name $acc_tbl $md5_tbl_n
-#fastdump_not_split $acc_tbl $md5_tbl_n
+#test_csra
+#test_sra_flat
+test_sra_db

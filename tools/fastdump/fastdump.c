@@ -38,7 +38,6 @@
 #include <klib/printf.h>
 #include <kfs/directory.h>
 #include <kproc/procmgr.h>
-#include <kdb/manager.h>
 
 #include <stdio.h>
 #include <os-native.h>
@@ -342,6 +341,10 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
 
         if ( tool_ctx -> print_to_stdout && tool_ctx -> show_details )
             tool_ctx -> show_details = false;
+
+        if ( tool_ctx -> print_to_stdout && tool_ctx -> split_file )
+            tool_ctx -> print_to_stdout = false;
+
     }
 
     if ( rc == 0 )
@@ -618,7 +621,7 @@ static rc_t fastdump_database( tool_ctx * tool_ctx )
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t fastdump_table( tool_ctx * tool_ctx )
+static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
 {
     rc_t rc = 0;
     struct temp_registry * registry = NULL;
@@ -632,6 +635,7 @@ static rc_t fastdump_table( tool_ctx * tool_ctx )
     if ( rc == 0 )
         rc = execute_tbl_join( tool_ctx -> dir,
                            tool_ctx -> accession,
+                           tbl_name,
                            &( tool_ctx -> tmp_id ),
                            registry,
                            tool_ctx -> cursor_cache,
@@ -676,20 +680,20 @@ rc_t CC KMain ( int argc, char *argv [] )
         rc = populate_tool_ctx( &tool_ctx, args );
         if ( rc == 0 )
         {
-            int path_type = get_vdb_pathtype( tool_ctx . dir, tool_ctx . accession );
-            
-            /* =================================================== */
-
-            switch( path_type )
+            acc_type_t acc_type;
+            rc = cmn_get_acc_type( tool_ctx . dir, tool_ctx . accession, &acc_type );
+            if ( rc == 0 )
             {
-                case kptDatabase    : rc = fastdump_database( &tool_ctx ); break;
-    
-                case kptPrereleaseTbl:
-                case kptTable       : rc = fastdump_table( &tool_ctx ); break;
-                
-                default : ErrMsg( "invalid accession '%s'", tool_ctx . accession );
+                /* =================================================== */
+                switch( acc_type )
+                {
+                    case acc_csra       : rc = fastdump_database( &tool_ctx ); break;
+                    case acc_sra_flat   : rc = fastdump_table( &tool_ctx, NULL ); break;
+                    case acc_sra_db     : rc = fastdump_table( &tool_ctx, "SEQUENCE" ); break;
+                    default : ErrMsg( "invalid accession '%s'", tool_ctx . accession );
+                }
+                /* =================================================== */
             }
-            /* =================================================== */
             
             if ( tool_ctx . remove_temp_path )
             {

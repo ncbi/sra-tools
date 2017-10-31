@@ -60,7 +60,7 @@ static rc_t print_fq2_read_2( struct join_results * results,
 
 static rc_t print_fastq_1_read( const char * accession,
                                 struct join_results * results,
-                                const fastq_tbl_rec * rec,
+                                const fastq_sra_rec * rec,
                                 bool rowid_as_name )
 {
     rc_t rc;
@@ -78,7 +78,7 @@ static rc_t print_fastq_1_read( const char * accession,
 
 static rc_t print_fastq_2_reads_splitted( const char * accession,
                                           struct join_results * results,
-                                          const fastq_tbl_rec * rec,
+                                          const fastq_sra_rec * rec,
                                           bool split_file,
                                           bool rowid_as_name )
 {
@@ -121,20 +121,21 @@ static rc_t print_fastq_2_reads_splitted( const char * accession,
 
 static rc_t perform_fastq_join( cmn_params * cp,
                                 const char * accession,
+                                const char * tbl_name,
                                 struct join_results * results,
                                 atomic_t * join_progress,
                                 bool rowid_as_name )
 {
-    struct fastq_tbl_iter * iter;
+    struct fastq_sra_iter * iter;
     bool with_read_len = false;
     bool with_name = !rowid_as_name;
-    rc_t rc = make_fastq_tbl_iter( cp, &iter, with_read_len, with_name ); /* fastq-iter.c */
+    rc_t rc = make_fastq_sra_iter( cp, tbl_name, &iter, with_read_len, with_name ); /* fastq-iter.c */
     if ( rc != 0 )
         ErrMsg( "perform_fastq_join().make_fastq_iter() -> %R", rc );
     else
     {
-        fastq_tbl_rec rec;
-        while ( get_from_fastq_tbl_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        fastq_sra_rec rec;
+        while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -145,26 +146,27 @@ static rc_t perform_fastq_join( cmn_params * cp,
                     atomic_inc( join_progress );
             }
         }
-        destroy_fastq_tbl_iter( iter );
+        destroy_fastq_sra_iter( iter );
     }
     return rc;
 }
 
 static rc_t perform_fastq_join_split( cmn_params * cp,
                                       const char * accession,
+                                      const char * tbl_name,
                                       struct join_results * results,
                                       atomic_t * join_progress,
                                       bool split_file,
                                       bool rowid_as_name )
 {
-    struct fastq_tbl_iter * iter;
+    struct fastq_sra_iter * iter;
     bool with_read_len = true;
     bool with_name = !rowid_as_name;
-    rc_t rc = make_fastq_tbl_iter( cp, &iter, with_read_len, with_name ); /* fastq-iter.c */
+    rc_t rc = make_fastq_sra_iter( cp, tbl_name, &iter, with_read_len, with_name ); /* fastq-iter.c */
     if ( rc == 0 )
     {
-        fastq_tbl_rec rec;
-        while ( get_from_fastq_tbl_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        fastq_sra_rec rec;
+        while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -178,7 +180,7 @@ static rc_t perform_fastq_join_split( cmn_params * cp,
                     atomic_inc( join_progress );
             }
         }
-        destroy_fastq_tbl_iter( iter );
+        destroy_fastq_sra_iter( iter );
     }
     else
         ErrMsg( "make_fastq_iter() -> %R", rc );
@@ -193,6 +195,7 @@ typedef struct join_thread_data
         
     KDirectory * dir;
     const char * accession;
+    const char * tbl_name;
     atomic_t * join_progress;
     struct temp_registry * registry;
     
@@ -222,12 +225,14 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
         {
             case ft_fastq       : rc = perform_fastq_join( &cp,
                                             jtd -> accession,
+                                            jtd -> tbl_name,
                                             results,
                                             jtd -> join_progress,
                                             jtd -> rowid_as_name ); break; /* above */
                                             
             case ft_fastq_split : rc = perform_fastq_join_split( &cp,
                                             jtd -> accession,
+                                            jtd -> tbl_name,
                                             results,
                                             jtd -> join_progress,
                                             jtd -> split_file,
@@ -242,24 +247,26 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
     return rc;
 }
 
-static rc_t extract_tbl_row_count( KDirectory * dir,
+static rc_t extract_sra_row_count( KDirectory * dir,
                                    const char * accession,
+                                   const char * tbl_name,
                                    size_t cur_cache,
                                    uint64_t * res )
 {
     cmn_params cp = { dir, accession, 0, 0, cur_cache };
-    struct fastq_tbl_iter * iter;
-    rc_t rc = make_fastq_tbl_iter( &cp, &iter, false, false ); /* fastq_iter.c */
+    struct fastq_sra_iter * iter;
+    rc_t rc = make_fastq_sra_iter( &cp, tbl_name, &iter, false, false ); /* fastq_iter.c */
     if ( rc == 0 )
     {
-        *res = get_row_count_of_fastq_tbl_iter( iter );
-        destroy_fastq_tbl_iter( iter );
+        *res = get_row_count_of_fastq_sra_iter( iter );
+        destroy_fastq_sra_iter( iter );
     }
     return rc;
 }
 
 rc_t execute_tbl_join( KDirectory * dir,
                     const char * accession,
+                    const char * tbl_name,
                     const tmp_id * tmp_id,
                     struct temp_registry * registry,
                     size_t cur_cache,
@@ -278,7 +285,7 @@ rc_t execute_tbl_join( KDirectory * dir,
     if ( rc == 0 )
     {
         uint64_t row_count = 0;
-        rc = extract_tbl_row_count( dir, accession, cur_cache, &row_count );
+        rc = extract_sra_row_count( dir, accession, tbl_name, cur_cache, &row_count );
 
         if ( rc == 0 && row_count > 0 )
         {
@@ -308,6 +315,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                     
                     jtd -> dir              = dir;
                     jtd -> accession        = accession;
+                    jtd -> tbl_name         = tbl_name;
                     jtd -> first_row        = row;
                     jtd -> row_count        = rows_per_thread;
                     jtd -> cur_cache        = cur_cache;

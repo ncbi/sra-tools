@@ -30,6 +30,8 @@
 #include <klib/out.h>
 #include <sra/sraschema.h>
 
+#include <kdb/manager.h>
+
 #include <vdb/manager.h>
 #include <vdb/schema.h>
 #include <vdb/table.h>
@@ -359,5 +361,83 @@ rc_t cmn_read_String( struct cmn_iter * self, uint32_t col_id, String *value )
     }
     else
         value -> size = value -> len;
+    return rc;
+}
+
+static bool contains( VNamelist * tables, const char * table )
+{
+    uint32_t found = 0;
+    rc_t rc = VNamelistIndexOf( tables, table, &found );
+    return ( rc == 0 );
+}
+
+/*typedef enum acc_type_t { acc_csra, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;*/
+static acc_type_t cmn_get_db_type( const VDBManager * mgr, const char * accession )
+{
+    acc_type_t res = acc_none;
+    const VDatabase * db = NULL;
+    rc_t rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", accession );
+    if ( rc != 0 )
+        ErrMsg( "cmn_get_db_type.VDBManagerOpenDBRead( '%s' ) -> %R\n", accession, rc );
+    else
+    {
+        KNamelist * k_tables;
+        rc = VDatabaseListTbl ( db, &k_tables );
+        if ( rc != 0 )
+            ErrMsg( "cmn_get_db_type.VDatabaseListTbl( '%s' ) -> %R\n", accession, rc );
+        else
+        {
+            VNamelist * tables;
+            rc = VNamelistFromKNamelist ( &tables, k_tables );
+            if ( rc != 0 )
+                ErrMsg( "cmn_get_db_type.VNamelistFromKNamelist( '%s' ) -> %R\n", accession, rc );
+            else
+            {
+                if ( contains( tables, "SEQUENCE" ) )
+                {
+                    /* we have at least a SEQUENCE-table */
+                    if ( contains( tables, "PRIMARY_ALIGNMENT" ) &&
+                         contains( tables, "REFERENCE" ) )
+                        res = acc_csra;
+                    else
+                        res = acc_sra_db;
+                }
+            }
+            KNamelistRelease ( k_tables );
+        }
+        VDatabaseRelease( db );        
+    }
+    return res;
+}
+
+rc_t cmn_get_acc_type( KDirectory * dir, const char * accession, acc_type_t * acc_type )
+{
+    rc_t rc = 0;
+    if ( acc_type != NULL )
+        *acc_type = acc_none;
+    if ( dir == NULL || accession == NULL || acc_type == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "cmn_get_acc_type() -> %R", rc );
+    }
+    else
+    {
+        const VDBManager * mgr = NULL;
+        rc = VDBManagerMakeRead( &mgr, dir );
+        if ( rc != 0 )
+            ErrMsg( "cmn_get_acc_type.VDBManagerMakeRead() -> %R\n", rc );
+        else
+        {
+            int pt = VDBManagerPathType ( mgr, "%s", accession );
+            switch( pt )
+            {
+                case kptDatabase    : *acc_type = cmn_get_db_type( mgr, accession ); break;
+    
+                case kptPrereleaseTbl:
+                case kptTable       : *acc_type = acc_sra_flat; break;
+            }
+            VDBManagerRelease( mgr );
+        }
+    }
     return rc;
 }

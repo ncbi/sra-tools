@@ -152,6 +152,7 @@ bool file_exists( const KDirectory * dir, const char * fmt, ... );
 void join_and_release_threads( Vector * threads );
 
 rc_t delete_files( KDirectory * dir, const VNamelist * files );
+rc_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );
 
 int get_vdb_pathtype( KDirectory * dir, const char * accession );
 

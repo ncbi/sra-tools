@@ -51,7 +51,7 @@ rc_t execute_concat( KDirectory * dir,
                     const char * output_filename,
                     const struct VNamelist * files,
                     size_t buf_size,
-                    bool show_progress,
+                    atomic_t * concat_progress,
                     bool print_to_stdout,
                     bool force,
                     compress_t compress );

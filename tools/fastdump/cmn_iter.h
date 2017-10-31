@@ -62,6 +62,10 @@ rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t *v
 
 rc_t cmn_read_String( struct cmn_iter * self, uint32_t col_id, String *value );
 
+typedef enum acc_type_t { acc_csra, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;
+
+rc_t cmn_get_acc_type( KDirectory * dir, const char * accession, acc_type_t * acc_type );
+
 #ifdef __cplusplus
 }
 #endif

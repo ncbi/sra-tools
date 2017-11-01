@@ -25,6 +25,8 @@
 */
 #include "temp_registry.h"
 #include "concatenator.h"
+#include "progress_thread.h"
+
 #include <klib/vector.h>
 #include <klib/out.h>
 #include <klib/namelist.h>
@@ -171,7 +173,7 @@ typedef struct cmn_merge
     KDirectory * dir;
     const char * output_filename;
     size_t buf_size;
-    atomic_t * concat_progress;
+    struct bg_progress * progress;
     bool force;
     compress_t compress;
 } cmn_merge;
@@ -198,7 +200,7 @@ static rc_t CC merge_thread_func( const KThread *self, void *data )
             s_filename . S . addr,
             md -> files,
             md -> cmn -> buf_size,
-            md -> cmn -> concat_progress,
+            md -> cmn -> progress,
             false,
             md -> cmn -> force,
             md -> cmn -> compress );
@@ -261,9 +263,7 @@ rc_t temp_registry_merge( temp_registry * self,
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
     else
     {
-        KThread * progress_thread = NULL;
-        atomic_t * concat_progress = NULL;
-        multi_progress progress;
+        struct bg_progress * progress = NULL;
         
         if ( show_progress )
         {
@@ -271,9 +271,7 @@ rc_t temp_registry_merge( temp_registry * self,
             if ( rc == 0 )
             {
                 uint64_t total = total_size( dir, &self -> lists );
-                init_progress_data( &progress, total ); /* helper.c */
-                concat_progress = &( progress . progress_rows );
-                rc = start_multi_progress( &progress_thread, &progress ); /* helper.c */
+                rc = bg_progress_make( &progress, total, 0, 0 ); /* progress_thread.c */
             }
         }
         
@@ -289,22 +287,21 @@ rc_t temp_registry_merge( temp_registry * self,
                     output_filename,
                     l,
                     buf_size,
-                    concat_progress,
+                    progress,
                     print_to_stdout,
                     force,
                     compress );
             }
             else if ( count > 1 )
             {
-                cmn_merge cmn = { dir, output_filename, buf_size, concat_progress, force, compress };
+                cmn_merge cmn = { dir, output_filename, buf_size, progress, force, compress };
                 on_merge_ctx omc = { &cmn, 0 };
                 VectorInit( &omc . threads, 0, count );
                 VectorForEach ( &self -> lists, false, on_merge, &omc );
                 join_and_release_threads( &omc . threads ); /* helper.c */
             }
             
-            if ( show_progress )
-                join_multi_progress( progress_thread, &progress ); /* helper.c */
+            bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
     }
     return rc;

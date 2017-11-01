@@ -220,16 +220,8 @@ static rc_t make_compressed( KDirectory * dir,
 }
 
 
-typedef struct cf_progress
-{
-    struct progressbar * progressbar;
-    uint64_t total_size;
-    uint64_t current_size;
-    uint32_t current_percent;
-} cf_progress;
-
 static rc_t copy_file( KFile * dst, const KFile * src, uint64_t * dst_pos,
-                       size_t buf_size, atomic_t * concat_progress )
+                       size_t buf_size, struct bg_progress * progress )
 {
     rc_t rc = 0;
     char * buffer = malloc( buf_size );
@@ -260,8 +252,7 @@ static rc_t copy_file( KFile * dst, const KFile * src, uint64_t * dst_pos,
                     {
                         *dst_pos += num_trans;
                         src_pos += num_trans;
-                        if ( concat_progress != NULL )
-                            atomic64_read_and_add( concat_progress, num_trans );
+                        bg_progress_update( progress, num_trans );
                     }
                 }
                 else
@@ -273,108 +264,152 @@ static rc_t copy_file( KFile * dst, const KFile * src, uint64_t * dst_pos,
     return rc;
 }
 
-/*
-static rc_t total_filesize( const KDirectory * dir, const VNamelist * files, uint64_t *total )
-{
-    uint32_t count;
-    rc_t rc = VNameListCount( files, &count );
-    *total = 0;
-    if ( rc != 0 )
-        ErrMsg( "VNameListCount() -> %R", rc );
-    else
-    {
-        uint32_t idx;
-        for ( idx = 0; rc == 0 && idx < count; ++idx )
-        {
-            const char * filename;
-            rc = VNameListGet( files, idx, &filename );
-            if ( rc != 0 )
-                ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
-            else
-            {
-                uint64_t size;
-                rc_t rc1 = KDirectoryFileSize( dir, &size, "%s", filename );
-                if ( rc1 == 0 )
-                    *total += size;
-            }
-        }
-    }
-    return rc;
-}
-*/
 
 static rc_t concat_loop( KDirectory * dir,
                         const struct VNamelist * files,
-                        size_t buf_size,
-                        atomic_t * concat_progress,
+                        uint32_t count,
+                        uint32_t offset,
+                        uint64_t dst_offset,
+                        size_t buf_size,                        
+                        struct bg_progress * progress,
                         struct KFile * dst )
 {
-    rc_t rc;
-    uint32_t count;
-    rc = VNameListCount( files, &count );
-    if ( rc != 0 )
-        ErrMsg( "VNameListCount() -> %R", rc );
-    else
+    rc_t rc = 0;
+    uint32_t idx;
+    uint64_t dst_pos = dst_offset;
+    for ( idx = offset; rc == 0 && idx < count; ++idx )
     {
-        uint32_t idx;
-        uint64_t dst_pos = 0;
-        for ( idx = 0; rc == 0 && idx < count; ++idx )
+        const char * filename;
+        rc = VNameListGet( files, idx, &filename );
+        if ( rc != 0 )
+            ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
+        else
         {
-            const char * filename;
-            rc = VNameListGet( files, idx, &filename );
-            if ( rc != 0 )
-                ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
-            else
+            const struct KFile * src;
+            rc = make_buffered_for_read( dir, &src, filename, buf_size );
+            if ( rc == 0 )
             {
-                const struct KFile * src;
-                rc = make_buffered_for_read( dir, &src, filename, buf_size );
-                if ( rc == 0 )
-                {
-                    rc = copy_file( dst, src, &dst_pos, buf_size, concat_progress );
-                    KFileRelease( src );
-                }
-                if ( rc == 0 )
-                {
-                    rc = KDirectoryRemove( dir, true, "%s", filename );
-                    if ( rc != 0 )
-                        ErrMsg( "KDirectoryRemove( '%s' ) -> %R", filename, rc );
-                }
+                rc = copy_file( dst, src, &dst_pos, buf_size, progress );
+                KFileRelease( src );
+            }
+            if ( rc == 0 )
+            {
+                rc = KDirectoryRemove( dir, true, "%s", filename );
+                if ( rc != 0 )
+                    ErrMsg( "KDirectoryRemove( '%s' ) -> %R", filename, rc );
             }
         }
     }
     return rc;
 }
 
+rc_t execute_concat_compressed( KDirectory * dir,
+                    const char * output_filename,
+                    const struct VNamelist * files,
+                    size_t buf_size,
+                    struct bg_progress * progress,
+                    bool force,
+                    compress_t compress,
+                    uint32_t count )
+{
+    struct KFile * dst;
+    rc_t rc =  make_compressed( dir, output_filename, buf_size,
+                           compress, force, &dst );
+    if ( rc == 0 )
+    {
+        rc = concat_loop( dir, files, count, 0, 0, buf_size, progress, dst );
+        KFileRelease( dst );
+    }
+    return rc;
+}
+               
+rc_t execute_concat_un_compressed( KDirectory * dir,
+                    const char * output_filename,
+                    const struct VNamelist * files,
+                    size_t buf_size,
+                    struct bg_progress * progress,
+                    bool force,
+                    uint32_t count )
+{
+    const char * file1;
+    rc_t rc = VNameListGet( files, 0, &file1 );
+    if ( rc != 0 )
+        ErrMsg( "VNameListGet( 0 ) -> %R", rc );
+    else
+    {
+        uint64_t size_file1;
+        rc = KDirectoryFileSize ( dir, &size_file1, "%s", file1 );
+        if ( rc != 0 )
+            ErrMsg( "KDirectoryFileSize( '%s' ) -> %R", file1, rc );
+        else
+        {
+            rc = KDirectoryRename ( dir, force, file1, output_filename );
+            if ( rc != 0 )
+                ErrMsg( "KDirectoryRename( '%s' ---> '%s' ) -> %R", file1, output_filename, rc );
+            else
+            {
+                struct KFile * dst;
+                rc = KDirectoryOpenFileWrite ( dir, &dst, true, "%s", output_filename );
+                if ( rc != 0 )
+                    ErrMsg( "KDirectoryOpenFileWrite( '%s' ) -> %R", output_filename, rc );
+                else
+                {
+                    if ( buf_size > 0 )
+                    {
+                        struct KFile * tmp;
+                        rc = KBufFileMakeWrite( &tmp, dst, false, buf_size );
+                        if ( rc != 0 )
+                            ErrMsg( "KBufFileMakeWrite( '%s' ) -> %R", output_filename, rc );
+                        else
+                        {
+                            KFileRelease( dst );
+                            dst = tmp;
+                        }
+                    }
+
+                    bg_progress_update( progress, size_file1 );
+                        
+                    rc = concat_loop( dir, files, count, 1, size_file1, buf_size, progress, dst );
+                    KFileRelease( dst );
+                }
+            }
+        }
+    }
+    return rc;
+}
+                    
 rc_t execute_concat( KDirectory * dir,
                     const char * output_filename,
                     const struct VNamelist * files,
                     size_t buf_size,
-                    atomic_t * concat_progress,
+                    struct bg_progress * progress,
                     bool print_to_stdout,
                     bool force,
                     compress_t compress )
 {
-    rc_t rc = 0;
-    
+    rc_t rc;
     if ( print_to_stdout )
+    {
         rc = print_files( dir, files, buf_size ); /* helper.c */
+    }
     else
     {
-        struct KFile * dst;
-        rc =  make_compressed( dir,
-                               output_filename,
-                               buf_size,
-                               compress,
-                               force,
-                               & dst );
-        if ( rc == 0 )
+        uint32_t count;
+        rc = VNameListCount( files, &count );
+        if ( rc != 0 )
+            ErrMsg( "VNameListCount() -> %R", rc );
+        else if ( count > 0 )
         {
-            rc = concat_loop( dir,
-                              files,
-                              buf_size,
-                              concat_progress,
-                              dst );
-            KFileRelease( dst );
+            if ( compress != ct_none )
+            {
+                rc = execute_concat_compressed( dir, output_filename, files, buf_size,
+                            progress, force, compress, count );
+            }
+            else
+            {
+                rc = execute_concat_un_compressed( dir, output_filename, files, buf_size,
+                            progress, force, count );
+            }
         }
     }
     return rc;

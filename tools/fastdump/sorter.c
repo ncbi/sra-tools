@@ -29,6 +29,7 @@
 #include "lookup_reader.h"
 #include "raw_read_iter.h"
 #include "merge_sorter.h"
+#include "progress_thread.h"
 #include "helper.h"
 
 #include <klib/vector.h>
@@ -48,7 +49,7 @@ typedef struct lookup_producer
 {
     struct raw_read_iter * iter;
     KVector * store;
-    atomic_t * sort_progress;   
+    struct bg_progress * progress;
     struct background_vector_merger * merger;
     SBuffer buf;
     uint64_t bytes_in_store;
@@ -75,7 +76,7 @@ static rc_t init_multi_producer( lookup_producer * self,
                                  struct background_vector_merger * merger,
                                  size_t buf_size,
                                  size_t mem_limit,
-                                 atomic_t * sort_progress,
+                                 struct bg_progress * progress,
                                  uint32_t chunk_id,
                                  int64_t first_row,
                                  uint64_t row_count )
@@ -91,7 +92,7 @@ static rc_t init_multi_producer( lookup_producer * self,
             cmn_params cp;
             
             self -> iter            = NULL;
-            self -> sort_progress   = sort_progress;
+            self -> progress        = progress;
             self -> merger          = merger;
             self -> bytes_in_store  = 0;
             self -> chunk_id        = chunk_id;
@@ -105,7 +106,6 @@ static rc_t init_multi_producer( lookup_producer * self,
             cp . first_row          = first_row;
             cp . row_count          = row_count;
             cp . cursor_cache       = cmn -> cursor_cache;
-            /* cp . show_progress      = false;     we do that instead with the progress-thread! */
 
             rc = make_raw_read_iter( &cp, &( self -> iter ) );
         }
@@ -173,8 +173,8 @@ static rc_t run_producer( lookup_producer * self )
         if ( rc == 0 )
         {
             rc = write_to_store( self, rec . seq_spot_id, rec . seq_read_id, &rec . raw_read ); /* above! */
-            if ( rc == 0 && self -> sort_progress != NULL )
-                atomic_inc( self -> sort_progress ); /* atomic.h */
+            if ( rc == 0 )
+                bg_progress_inc( self -> progress ); /* progress_thread.c (ignores NULL) */
         }
     }
     
@@ -238,20 +238,14 @@ static rc_t run_producer_pool( cmn_params * cmn,
     else
     {
         Vector threads;
-        KThread * progress_thread = NULL;
         uint32_t chunk_id = 1;
         int64_t first_row = 1;
         uint64_t row_count = ( total_row_count / num_threads ) + 1;
-        multi_progress progress;
-        atomic_t * sort_progress = NULL;
+        struct bg_progress * progress = NULL;
         
         VectorInit( &threads, 0, num_threads );
         if ( show_progress )
-        {
-            init_progress_data( &progress, total_row_count );
-            sort_progress = &( progress . progress_rows );
-            rc = start_multi_progress( &progress_thread, &progress );
-        }
+            rc = bg_progress_make( &progress, total_row_count, 0, 0 ); /* progress_thread.c */
 
         while ( rc == 0 && first_row < total_row_count )
         {
@@ -263,7 +257,7 @@ static rc_t run_producer_pool( cmn_params * cmn,
                                           merger,
                                           buf_size,
                                           mem_limit,
-                                          sort_progress,
+                                          progress,
                                           chunk_id,
                                           first_row,
                                           row_count );
@@ -299,7 +293,7 @@ static rc_t run_producer_pool( cmn_params * cmn,
         join_and_release_threads( &threads ); /* helper.c */
         
         /* all sorter-threads are done now, tell the progress-thread to terminate! */
-        join_multi_progress( progress_thread, &progress );  /* helper.c */
+        bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
     }
     return rc;
 }
@@ -328,5 +322,10 @@ rc_t execute_lookup_production( KDirectory * dir,
                                 num_threads,
                                 show_progress ); /* above */
     }
+    
+    /* signal to the receiver-end of the job-queue that nothing will be put into the
+       queue any more... */
+    if ( rc == 0 && merger != NULL )
+        rc = seal_background_vector_merger( merger ); /* merge_sorter.c */
     return rc;
 }

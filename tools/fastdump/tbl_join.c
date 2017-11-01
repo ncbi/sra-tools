@@ -27,6 +27,7 @@
 #include "fastq_iter.h"
 #include "cleanup_task.h"
 #include "join_results.h"
+#include "progress_thread.h"
 
 #include <klib/out.h>
 #include <kproc/thread.h>
@@ -123,7 +124,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
                                 const char * accession,
                                 const char * tbl_name,
                                 struct join_results * results,
-                                atomic_t * join_progress,
+                                struct bg_progress * progress,
                                 bool rowid_as_name )
 {
     struct fastq_sra_iter * iter;
@@ -142,8 +143,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
             {
                 rc = print_fastq_1_read( accession, results, &rec, rowid_as_name );
                 
-                if ( join_progress != NULL )
-                    atomic_inc( join_progress );
+                bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
         destroy_fastq_sra_iter( iter );
@@ -155,7 +155,7 @@ static rc_t perform_fastq_join_split( cmn_params * cp,
                                       const char * accession,
                                       const char * tbl_name,
                                       struct join_results * results,
-                                      atomic_t * join_progress,
+                                      struct bg_progress * progress,
                                       bool split_file,
                                       bool rowid_as_name )
 {
@@ -176,8 +176,7 @@ static rc_t perform_fastq_join_split( cmn_params * cp,
                 else
                     rc = print_fastq_2_reads_splitted( accession, results, &rec, split_file, rowid_as_name );
 
-                if ( join_progress != NULL )
-                    atomic_inc( join_progress );
+                bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
         destroy_fastq_sra_iter( iter );
@@ -196,7 +195,7 @@ typedef struct join_thread_data
     KDirectory * dir;
     const char * accession;
     const char * tbl_name;
-    atomic_t * join_progress;
+    struct bg_progress * progress;
     struct temp_registry * registry;
     
     int64_t first_row;
@@ -227,14 +226,14 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                             jtd -> accession,
                                             jtd -> tbl_name,
                                             results,
-                                            jtd -> join_progress,
+                                            jtd -> progress,
                                             jtd -> rowid_as_name ); break; /* above */
                                             
             case ft_fastq_split : rc = perform_fastq_join_split( &cp,
                                             jtd -> accession,
                                             jtd -> tbl_name,
                                             results,
-                                            jtd -> join_progress,
+                                            jtd -> progress,
                                             jtd -> split_file,
                                             jtd -> rowid_as_name ); break; /* above */
 
@@ -293,18 +292,12 @@ rc_t execute_tbl_join( KDirectory * dir,
             int64_t row = 1;
             uint64_t thread_id;
             uint64_t rows_per_thread = ( row_count / num_threads ) + 1;
-            KThread * progress_thread = NULL;
-            atomic_t * join_progress = NULL;
-            multi_progress progress;
+            struct bg_progress * progress = NULL;
 
             VectorInit( &threads, 0, num_threads );
             
             if ( show_progress )
-            {
-                init_progress_data( &progress, row_count ); /* helper.c */
-                join_progress = &( progress . progress_rows );
-                rc = start_multi_progress( &progress_thread, &progress ); /* helper.c */
-            }
+                rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */
             
             for ( thread_id = 0; rc == 0 && thread_id < num_threads; ++thread_id )
             {
@@ -320,7 +313,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                     jtd -> row_count        = rows_per_thread;
                     jtd -> cur_cache        = cur_cache;
                     jtd -> buf_size         = buf_size;
-                    jtd -> join_progress    = join_progress;
+                    jtd -> progress         = progress;
                     jtd -> registry         = registry;
                     jtd -> split_file       = split_file;
                     jtd -> fmt              = fmt;
@@ -345,9 +338,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                 }
             }
             join_and_release_threads( &threads ); /* helper.c */
-            
-            if ( show_progress )
-                join_multi_progress( progress_thread, &progress ); /* helper.c */
+            bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
     }
     return rc;

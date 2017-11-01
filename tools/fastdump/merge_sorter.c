@@ -73,8 +73,8 @@ typedef struct merge_sorter
     
     struct lookup_writer * dst; /* lookup_writer.h */
     struct index_writer * idx;  /* index.h */
-    struct progressbar * progressbar;
-    merge_src * src;
+    merge_src * src;            /* vector of input-files to be merged */
+    struct bg_update * gap;     /* indicator of running merge */
     uint64_t total_size;
     uint32_t num_src;
 } merge_sorter;
@@ -86,8 +86,8 @@ static rc_t init_merge_sorter( merge_sorter * self,
                                const char * index,
                                VNamelist * files,
                                size_t buf_size,
-                               bool show_progress,
-                               uint32_t num_src )
+                               uint32_t num_src,
+                               struct bg_update * gap )
 {
     rc_t rc = 0;
     uint32_t i;
@@ -98,9 +98,9 @@ static rc_t init_merge_sorter( merge_sorter * self,
     else
         self -> idx = NULL;
 
-    self -> progressbar = NULL;
     self -> total_size = 0;
     self -> num_src = num_src;
+    self -> gap = gap;
     
     if ( rc == 0 )
         rc = make_lookup_writer( dir, self -> idx, &( self -> dst ), buf_size, "%s", output ); /* lookup_writer.h */
@@ -122,15 +122,6 @@ static rc_t init_merge_sorter( merge_sorter * self,
         if ( rc == 0 )
         {
             merge_src * s = &self -> src[ i ];
-
-            if ( show_progress )
-            {
-                uint64_t size = 0;
-                rc = KDirectoryFileSize ( dir, &size, "%s", filename );
-                if ( rc == 0 && size > 0 )
-                    self -> total_size += size;
-            }
-
             if ( rc == 0 )
                 rc = make_lookup_reader( dir, NULL, &s -> reader, buf_size, "%s", filename ); /* lookup_reader.h */
             if ( rc == 0 )
@@ -142,10 +133,6 @@ static rc_t init_merge_sorter( merge_sorter * self,
             }
         }
     }
-    
-    if ( rc == 0 && show_progress )
-        make_progressbar( &( self -> progressbar ), 2 );
-
     return rc;
 }
 
@@ -164,16 +151,11 @@ static void release_merge_sorter( merge_sorter * self )
         }
         free( ( void * ) self -> src );
     }
-    if ( self -> progressbar != NULL )
-        destroy_progressbar( self -> progressbar );
 }
 
 static rc_t run_merge_sorter( merge_sorter * self )
 {
     rc_t rc = 0;
-    uint64_t written = 0;
-    uint32_t cycle = 0;
-    
     merge_src * to_write = get_min_merge_src( self -> src, self -> num_src );
 
     while( rc == 0 && to_write != NULL )
@@ -185,29 +167,16 @@ static rc_t run_merge_sorter( merge_sorter * self )
                                                 to_write -> key,
                                                 &to_write -> packed_bases . S ); /* lookup_writer.h */
                                                 
-            if ( self -> progressbar != NULL )
-            {
-                written += ( to_write -> packed_bases . S . len + 8 );
-                if ( cycle++ > 1000 )
-                {
-                    update_progressbar( self -> progressbar, calc_percent( self -> total_size, written, 2 ) );
-                    cycle = 0;
-                }
-            }
-            
             if ( rc == 0 )
-            {
                 to_write -> rc = get_packed_and_key_from_lookup_reader( to_write -> reader,
                                                                          &to_write -> key,
                                                                          &to_write -> packed_bases ); /* lookup_reader.h */
-            }
+
             to_write = get_min_merge_src( self -> src, self -> num_src );
+            
+            bg_update_update( self -> gap, 1 ); /* signal to gap-update */
         }
     }
-    
-    if ( self -> progressbar != NULL )
-        update_progressbar( self -> progressbar, calc_percent( self -> total_size, written, 2 ) );
-
     return rc;
 }
 
@@ -238,17 +207,46 @@ typedef struct background_vector_merger
     uint32_t batch_size;            /* how many KVectors have to arrive to run a batch */
     uint32_t q_wait_time;           /* timeout in milliseconds to get something out of in_q */
     size_t buf_size;                /* needed to perform the merge-sort */
+    struct bg_update * gap;         /* visualize the gap after the producer finished */
 } background_vector_merger;
 
 
-void release_background_vector_merger( background_vector_merger * self )
+static rc_t wait_for_background_vector_merger( background_vector_merger * self )
 {
-    if ( self != NULL )
+    rc_t rc_status;
+    rc_t rc = KThreadWait ( self -> thread, &rc_status );
+    if ( rc == 0 )
+        rc = rc_status;
+    return rc;
+}
+
+static void release_background_vector_merger( background_vector_merger * self )
+{
+    if ( self -> job_q != NULL )
+        KQueueRelease ( self -> job_q );
+    free( self );
+}
+
+rc_t wait_for_and_release_background_vector_merger( background_vector_merger * self )
+{
+    rc_t rc = 0;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcReleasing, rcSelf, rcNull );
+    else
     {
-        if ( self -> job_q != NULL )
-            KQueueRelease ( self -> job_q );
-        free( self );
+        /* while we are waiting on the background-vector-merger to finish,
+           show a progress-indicator... */
+        rc = wait_for_background_vector_merger( self );
+
+        /* now we can signal to the file-merger that nothing will be pushed into the
+           queue any more... */
+           
+        if ( rc == 0 )
+            rc = seal_background_file_merger( self -> file_merger );
+
+        release_background_vector_merger( self );
     }
+    return rc;
 }
 
 typedef struct bg_vec_merge_src
@@ -410,7 +408,6 @@ static rc_t background_vector_merger_process_batch(
 
             if ( rc == 0 )
             {
-                uint32_t entries_written = 0;
                 bg_vec_merge_src * to_write = get_min_bg_vec_merge_src( batch, count );
                 while( rc == 0 && to_write != NULL )
                 {
@@ -419,15 +416,12 @@ static rc_t background_vector_merger_process_batch(
                     {
                         rc = write_bg_vec_merge_src( to_write, writer );
                         if ( rc == 0 )
-                        {
-                            entries_written++;
                             to_write = get_min_bg_vec_merge_src( batch, count );
-                        }
                         else
                             to_write = NULL;
+                        bg_update_update( self -> gap, 1 );
                     }
                 }
-                STATUS ( STAT_USR, "%u entires written", entries_written );
                 release_lookup_writer( writer ); /* lookup_writer.c */
             }
         }
@@ -492,7 +486,8 @@ rc_t make_background_vector_merger( struct background_vector_merger ** merger,
                              struct background_file_merger * file_merger,
                              uint32_t batch_size,
                              uint32_t q_wait_time,
-                             size_t buf_size )
+                             size_t buf_size,
+                             struct bg_update * gap )
 {
     rc_t rc = 0;
     background_vector_merger * b = calloc( 1, sizeof * b );
@@ -508,6 +503,7 @@ rc_t make_background_vector_merger( struct background_vector_merger ** merger,
         b -> buf_size = buf_size;
         b -> file_merger = file_merger;
         b -> cleanup_task = cleanup_task;
+        b -> gap = gap;
 
         rc = KQueueMake ( &( b -> job_q ), batch_size );
         if ( rc == 0 )
@@ -517,15 +513,6 @@ rc_t make_background_vector_merger( struct background_vector_merger ** merger,
         else
             release_background_vector_merger( b );
     }
-    return rc;
-}
-
-rc_t wait_for_background_vector_merger( struct background_vector_merger * self )
-{
-    rc_t rc_status;
-    rc_t rc = KThreadWait ( self -> thread, &rc_status );
-    if ( rc == 0 )
-        rc = rc_status;
     return rc;
 }
 
@@ -566,10 +553,11 @@ typedef struct background_file_merger
     uint32_t batch_size;            /* how many KVectors have to arrive to run a batch */
     uint32_t wait_time;             /* time in milliseconds to sleep if waiting for files to process */
     size_t buf_size;                /* needed to perform the merge-sort */
+    struct bg_update * gap;         /* visualize the gap after the producer finished */
 } background_file_merger;
    
 
-void release_background_file_merger( background_file_merger * self )
+static void release_background_file_merger( background_file_merger * self )
 {
     if ( self != NULL )
     {
@@ -577,6 +565,31 @@ void release_background_file_merger( background_file_merger * self )
         locked_value_release( &( self -> sealed ) );
         free( self );
     }
+}
+
+static rc_t wait_for_background_file_merger( background_file_merger * self )
+{
+    rc_t rc_status;
+    rc_t rc = KThreadWait ( self -> thread, &rc_status );
+    if ( rc == 0 )
+        rc = rc_status;
+    return rc;
+}
+
+rc_t wait_for_and_release_background_file_merger( background_file_merger * self )
+{
+    rc_t rc = 0;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcReleasing, rcSelf, rcNull );
+    else
+    {
+        /* while we are waiting on the background-file-merger to finish,
+           show a progress-indicator... */
+        rc = wait_for_background_file_merger( self );
+        
+        release_background_file_merger( self );
+    }
+    return rc;
 }
 
 static rc_t make_file_merger_tmp_name( char * buffer, size_t buffer_size,
@@ -633,8 +646,8 @@ static rc_t process_background_file_merger( background_file_merger * self )
                                         NULL,           /* opt. index_filename */
                                         batch_files,    /* the input files */    
                                         self -> buf_size,
-                                        false,          /* show_progress */
-                                        num_src );
+                                        num_src,
+                                        self -> gap );
                 if ( rc == 0 )
                 {
                     rc = run_merge_sorter( &sorter );
@@ -693,8 +706,8 @@ static rc_t process_final_background_file_merger( background_file_merger * self,
                                     self -> index_filename,    /* opt. index_filename */
                                     batch_files,                /* the input files */    
                                     self -> buf_size,
-                                    false,                      /* show_progress */
-                                    num_src );
+                                    num_src,
+                                    self -> gap );
             if ( rc == 0 )
             {
                 rc = run_merge_sorter( &sorter );
@@ -773,7 +786,8 @@ rc_t make_background_file_merger( background_file_merger ** merger,
                                 const char * index_filename,
                                 uint32_t batch_size,
                                 uint32_t wait_time,
-                                size_t buf_size )
+                                size_t buf_size,
+                                struct bg_update * gap )
 {
     rc_t rc = 0;
     background_file_merger * b = calloc( 1, sizeof * b );
@@ -790,7 +804,8 @@ rc_t make_background_file_merger( background_file_merger ** merger,
         b -> wait_time = wait_time;
         b -> buf_size = buf_size;
         b -> cleanup_task = cleanup_task;
-        
+        b -> gap = gap;
+
         rc = locked_file_list_init( &( b -> files ), 25  );
         if ( rc == 0 )
             rc = locked_value_init( &( b -> sealed ), 0 );
@@ -805,15 +820,6 @@ rc_t make_background_file_merger( background_file_merger ** merger,
     }
     return rc;
 
-}
-
-rc_t wait_for_background_file_merger( background_file_merger * self )
-{
-    rc_t rc_status;
-    rc_t rc = KThreadWait ( self -> thread, &rc_status );
-    if ( rc == 0 )
-        rc = rc_status;
-    return rc;
 }
 
 rc_t push_to_background_file_merger( background_file_merger * self, const char * filename )

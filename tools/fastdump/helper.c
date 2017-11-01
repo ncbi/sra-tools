@@ -28,8 +28,6 @@
 
 #include <klib/log.h>
 #include <klib/printf.h>
-#include <klib/progressbar.h>
-#include <klib/time.h>
 #include <klib/out.h>
 #include <kfs/defs.h>
 #include <kfs/file.h>
@@ -374,21 +372,6 @@ void unpack_4na( const String * packed, SBuffer * unpacked )
     dst[ dna_len + 2 ] = 0;
 }
 
-
-uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
-{
-    uint64_t res = value;
-    switch ( digits )
-    {
-        case 1 : res *= 1000; break;
-        case 2 : res *= 10000; break;
-        default : res *= 100; break;
-    }
-    if ( max > 0 ) res /= max;
-    return res;
-}
-
-
 bool file_exists( const KDirectory * dir, const char * fmt, ... )
 {
     uint32_t pt;
@@ -482,66 +465,8 @@ int get_vdb_pathtype( KDirectory * dir, const char * accession )
     return res;
 }
 
-static rc_t CC progress_thread_func( const KThread *self, void *data )
-{
-    multi_progress * sp = data;
-    struct progressbar * progressbar;
-    uint32_t curr = 0, percent = 0;
-    rc_t rc = make_progressbar( &progressbar, 2 );
-    
-    update_progressbar( progressbar, curr );
-    while ( atomic_read( &sp->progress_done ) == 0 )
-    {
-        percent = calc_percent( sp->row_count, atomic_read( &sp->progress_rows ), 2 );
-        if ( percent > curr )
-        {
-            uint32_t i;
-            for ( i = curr + 1; i <= percent; ++i )
-                update_progressbar( progressbar, i );
-            curr = percent;
-        }
-        KSleepMs( 100 );
-    }
-    
-    percent = calc_percent( sp->row_count, atomic_read( &sp->progress_rows ), 2 );
-    if ( percent > curr )
-    {
-        uint32_t i;
-        for ( i = curr + 1; i <= percent; ++i )
-            update_progressbar( progressbar, i );
-        curr = percent;
-    }
+/* ===================================================================================== */
 
-    destroy_progressbar( progressbar );
-    return rc;
-}
-
-
-void init_progress_data( multi_progress * progress_data, uint64_t row_count )
-{
-    atomic_set( &progress_data->progress_done, 0 );
-    atomic_set( &progress_data->progress_rows, 0 );
-    progress_data->row_count = row_count;
-}
-
-rc_t start_multi_progress( KThread **t, multi_progress * progress_data )
-{
-    rc_t rc = KThreadMake( t, progress_thread_func, progress_data );
-    if ( rc != 0 )
-        ErrMsg( "KThreadMake( progress_thread ) -> %R", rc );
-    return rc;
-}
-
-
-void join_multi_progress( KThread *t, multi_progress * progress_data )
-{
-    if ( t != NULL )
-    {
-        atomic_set( &progress_data->progress_done, 1 );
-        KThreadWait( t, NULL );
-        KThreadRelease( t );
-    }
-}
 
 rc_t make_pre_and_post_fixed( char * dst, size_t dst_size,
                               const char * acc,

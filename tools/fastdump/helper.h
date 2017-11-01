@@ -63,15 +63,6 @@ extern "C" {
 #include <klib/vector.h>
 #endif
 
-/* 
-    this is in interfaces/cc/XXX/YYY/atomic.h
-    XXX ... the compiler ( cc, gcc, icc, vc++ )
-    YYY ... the architecture ( fat86, i386, noarch, ppc32, x86_64 )
- */
-#ifndef _h_atomic_
-#include <atomic.h>
-#endif
-
 #ifndef _h_kproc_thread_
 #include <kproc/thread.h>
 #endif
@@ -145,8 +136,6 @@ uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
 void pack_4na( const String * unpacked, SBuffer * packed );
 void unpack_4na( const String * packed, SBuffer * unpacked );
 
-uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits );
-
 bool file_exists( const KDirectory * dir, const char * fmt, ... );
 
 void join_and_release_threads( Vector * threads );
@@ -155,18 +144,6 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files );
 rc_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );
 
 int get_vdb_pathtype( KDirectory * dir, const char * accession );
-
-typedef struct multi_progress
-{
-    atomic_t progress_done;
-    atomic_t progress_rows;
-    uint64_t row_count;
-} multi_progress;
-
-void init_progress_data( multi_progress * progress_data, uint64_t row_count );
-rc_t start_multi_progress( KThread **t, multi_progress * progress_data );
-void join_multi_progress( KThread *t, multi_progress * progress_data );
-
 
 rc_t make_pre_and_post_fixed( char * dst, size_t dst_size,
                               const char * acc,

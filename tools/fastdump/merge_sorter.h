@@ -43,6 +43,10 @@ extern "C" {
 #include "helper.h"
 #endif
 
+#ifndef _h_progress_thread_
+#include "progress_thread.h"
+#endif
+
 struct background_vector_merger;
 struct background_file_merger;
 
@@ -55,15 +59,14 @@ rc_t make_background_vector_merger( struct background_vector_merger ** merger,
                              struct background_file_merger * file_merger,
                              uint32_t batch_size,
                              uint32_t q_wait_time,
-                             size_t buf_size );
-
-rc_t wait_for_background_vector_merger( struct background_vector_merger * self );
+                             size_t buf_size,
+                             struct bg_update * gap );
 
 rc_t push_to_background_vector_merger( struct background_vector_merger * self, KVector * store );
 
 rc_t seal_background_vector_merger( struct background_vector_merger * self );
 
-void release_background_vector_merger( struct background_vector_merger * self );
+rc_t wait_for_and_release_background_vector_merger( struct background_vector_merger * self );
 
 
 /* ================================================================================= */
@@ -76,15 +79,14 @@ rc_t make_background_file_merger( struct background_file_merger ** merger,
                                 const char * index_filename,
                                 uint32_t batch_size,
                                 uint32_t wait_time,
-                                size_t buf_size );
-
-rc_t wait_for_background_file_merger( struct background_file_merger * self );
+                                size_t buf_size,
+                                struct bg_update * gap );
 
 rc_t push_to_background_file_merger( struct background_file_merger * self, const char * filename );
 
 rc_t seal_background_file_merger( struct background_file_merger * self );
 
-void release_background_file_merger( struct background_file_merger * self );
+rc_t wait_for_and_release_background_file_merger( struct background_file_merger * self );
 
 
 #ifdef __cplusplus

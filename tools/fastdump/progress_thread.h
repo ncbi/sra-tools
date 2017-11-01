@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_concat_
-#define _h_concat_
+#ifndef _h_progress_thread_
+#define _h_progress_thread_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,30 +35,20 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_namelist_
-#include <klib/namelist.h>
-#endif
+struct bg_progress;
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
+rc_t bg_progress_make( struct bg_progress ** bgp, uint64_t max_value, uint32_t sleep_time, uint32_t digits );
+void bg_progress_update( struct bg_progress * self, uint64_t by );
+void bg_progress_inc( struct bg_progress * self );
+void bg_progress_set_max( struct bg_progress * self, uint64_t value );
+void bg_progress_release( struct bg_progress * self );
 
-#ifndef _h_helper_
-#include "helper.h"
-#endif
+struct bg_update;
 
-#ifndef _h_progress_thread_
-#include "progress_thread.h"
-#endif
-
-rc_t execute_concat( KDirectory * dir,
-                    const char * output_filename,
-                    const struct VNamelist * files,
-                    size_t buf_size,
-                    struct bg_progress * progress,
-                    bool print_to_stdout,
-                    bool force,
-                    compress_t compress );
+rc_t bg_update_make( struct bg_update ** bga, uint32_t sleep_time );
+void bg_update_start( struct bg_update * self, const char * caption );
+void bg_update_update( struct bg_update * self, uint64_t by );
+void bg_update_release( struct bg_update * self );
 
 #ifdef __cplusplus
 }

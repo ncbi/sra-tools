@@ -458,11 +458,18 @@ static const uint32_t queue_timeout = 200;  /* ms */
 
 static rc_t produce_lookup_files( tool_ctx * tool_ctx )
 {
+    rc_t rc = 0;
+    struct bg_update * gap = NULL;
     struct background_file_merger * bg_file_merger;
+    struct background_vector_merger * bg_vec_merger;
     
+    if ( tool_ctx -> show_progress )
+        rc = bg_update_make( &gap, 0 );
+        
     /* the background-file-merger catches the files produced by
-       the background-vector-merger */
-    rc_t rc = make_background_file_merger( &bg_file_merger,
+        the background-vector-merger */
+    if ( rc == 0 )            
+        rc = make_background_file_merger( &bg_file_merger,
                                 tool_ctx -> dir,
                                 & tool_ctx -> tmp_id,
                                 tool_ctx -> cleanup_task,
@@ -470,13 +477,12 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
                                 tool_ctx -> index_filename,
                                 tool_ctx -> num_threads,
                                 queue_timeout,
-                                tool_ctx -> buf_size );
+                                tool_ctx -> buf_size,
+                                gap ); /* merge_sorter.c */
+
+    /* the background-vector-merger catches the KVectors produced by
+       the lookup-produceer */
     if ( rc == 0 )
-    {
-        struct background_vector_merger * bg_vec_merger;
-    
-        /* the background-vector-merger catches the KVectors produced by
-           the lookup-produceer */
         rc = make_background_vector_merger( &bg_vec_merger,
                  tool_ctx -> dir,
                  &( tool_ctx -> tmp_id ),
@@ -484,12 +490,9 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
                  bg_file_merger,
                  tool_ctx -> num_threads,
                  queue_timeout,
-                 tool_ctx -> buf_size );
+                 tool_ctx -> buf_size,
+                 gap ); /* merge_sorter.c */
         
-        /* the lookup-producer is the source of the chain */
-        if ( rc == 0 )
-        {
-
 /* --------------------------------------------------------------------------------------------
     produce the lookup-table by iterating over the PRIMARY_ALIGNMENT - table:
    -------------------------------------------------------------------------------------------- 
@@ -503,37 +506,27 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
     KEY... 64-bit value as SEQ_SPOT_ID shifted left by 1 bit, zero-bit contains SEQ_READ_ID
     RAW_READ... 16-bit binary-chunk-lenght, followed by n bytes of packed 4na
 -------------------------------------------------------------------------------------------- */
-            rc = execute_lookup_production( tool_ctx -> dir,
-                                            tool_ctx -> accession,
-                                            bg_vec_merger,
-                                            tool_ctx -> cursor_cache,
-                                            tool_ctx -> buf_size,
-                                            tool_ctx -> mem_limit,
-                                            tool_ctx -> num_threads,
-                                            tool_ctx -> show_progress );
-    
-            if ( rc == 0 )
-                rc = seal_background_vector_merger( bg_vec_merger ); /* merge_sorter.h */
-        }
-        
-        if ( rc == 0 )
-        {
-            rc = wait_for_background_vector_merger( bg_vec_merger );
-            release_background_vector_merger( bg_vec_merger );
-        }
-        
-        if ( rc == 0 )
-            rc = seal_background_file_merger( bg_file_merger );
+    /* the lookup-producer is the source of the chain */
+    if ( rc == 0 )
+        rc = execute_lookup_production( tool_ctx -> dir,
+                                        tool_ctx -> accession,
+                                        bg_vec_merger, /* drives the bg_file_merger */
+                                        tool_ctx -> cursor_cache,
+                                        tool_ctx -> buf_size,
+                                        tool_ctx -> mem_limit,
+                                        tool_ctx -> num_threads,
+                                        tool_ctx -> show_progress ); /* sorter.c */
 
-        /* here we have slot in a progress-bar for the remainder of the
-           background-file_merging... */
+    bg_update_start( gap, "merge  : " );
+            
+    if ( rc == 0 )
+        rc = wait_for_and_release_background_vector_merger( bg_vec_merger ); /* merge_sorter.c */
+            
+    if ( rc == 0 )
+        rc = wait_for_and_release_background_file_merger( bg_file_merger ); /* merge_sorter.c */
 
-        if ( rc == 0 )
-        {
-            rc = wait_for_background_file_merger( bg_file_merger );
-            release_background_file_merger( bg_file_merger );
-        }
-    }
+    bg_update_release( gap );
+
     return rc;
 }
 

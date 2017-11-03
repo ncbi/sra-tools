@@ -69,7 +69,8 @@ namespace VDB {
         
         class StreamHeader {
             friend Writer;
-            bool write(FILE *const stream) const {
+            bool write(FILE *const stream) const
+            {
                 struct h {
                     char sig[8];
                     uint32_t endian;
@@ -87,7 +88,8 @@ namespace VDB {
             friend Writer;
             uint32_t eid;
 
-            bool write(FILE *const stream) const {
+            bool write(FILE *const stream) const
+            {
                 return fwrite(&eid, sizeof(eid), 1, stream) == 1;
             }
         public:
@@ -156,6 +158,7 @@ namespace VDB {
                 return fwrite(&eid, sizeof(eid), 1, stream) == 1
                     && fwrite(&tid, sizeof(tid), 1, stream) == 1
                     && fwrite(&bits, sizeof(bits), 1, stream) == 1
+                    && fwrite(&size, sizeof(size), 1, stream) == 1
                     && fwrite(name.data(), 1, size, stream) == size
                     && fwrite(&zero, 1, padding, stream) == padding;
             }
@@ -297,6 +300,10 @@ namespace VDB {
         {
             return SimpleEvent(endStream, 0).write(stream);
         }
+        
+        auto flush() const -> decltype(fflush(stream)) {
+            return fflush(stream);
+        }
     };
 }
 
@@ -317,9 +324,10 @@ public:
     using VDB::Writer::info;
     using VDB::Writer::beginWriting;
     using VDB::Writer::closeRow;
-    using VDB::Writer::endWriting;
     using VDB::Writer::setMetadata;
-    
+    using VDB::Writer::endWriting;
+    using VDB::Writer::flush;
+
     struct ColumnDefinition {
         char const *name;
         int elemSize;
@@ -331,7 +339,9 @@ public:
         Writer2 const &parent;
         Writer2::TableID table;
         Writer2::Tables::const_iterator const t;
-        Table(Writer2 const &p, Writer2::Tables::const_iterator n) : parent(p), t(n), table(t->second.first) {}
+        Table(Writer2 const &p, Writer2::Tables::const_iterator n) : parent(p), t(n) {
+            table = t->second.first;
+        }
     public:
         Column column(std::string const &column) const
         {
@@ -394,6 +404,8 @@ public:
     
     Writer2(FILE *const stream)
     : VDB::Writer(stream)
+    , nextTable(0)
+    , nextColumn(0)
     {
     }
     void addTable(char const *name, std::initializer_list<ColumnDefinition> list)

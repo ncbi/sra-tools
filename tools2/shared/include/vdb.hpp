@@ -467,6 +467,9 @@ namespace utility {
             }
             return result;
         }
+        StatisticsAccumulator operator +=(StatisticsAccumulator const &other) {
+            return *this + other;
+        }
     };
 
     static char const *programNameFromArgv0(char const *const argv0)

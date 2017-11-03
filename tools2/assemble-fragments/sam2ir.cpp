@@ -70,13 +70,13 @@ void writeRow(VDB::Writer const &out, unsigned const N, std::string const fields
     out.closeRow(1);
 }
 
-int process(VDB::Writer const &out, std::istream &in)
+int process(VDB::Writer const &out, FILE *in)
 {
     std::string fields[256];
     unsigned fld = 0;
 
     for ( ;; ) {
-        auto const ch = in.get();
+        auto const ch = fgetc(in);
         if (ch < 0)
             break;
         if (ch == '\n') {
@@ -98,7 +98,7 @@ int process(VDB::Writer const &out, std::istream &in)
     return 0;
 }
 
-int process(std::ostream &out, std::istream &in)
+int process(FILE *out, FILE *in)
 {
     auto const writer = VDB::Writer(out);
     
@@ -133,5 +133,5 @@ int process(std::ostream &out, std::istream &in)
 
 int main(int argc, char *argv[])
 {
-    return process(std::cout, std::cin);
+    return process(stdout, stdin);
 }

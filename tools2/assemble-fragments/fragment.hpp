@@ -474,6 +474,14 @@ struct Fragment {
     , detail(algn)
     {
     }
+    
+    DNASequence const &sequence(int readNo) const {
+        for (auto && i : detail) {
+            if (i.readNo == readNo && !i.sequence.empty())
+                return i.sequence;
+        }
+        throw std::logic_error("impossible");
+    }
 
     struct Cursor : public VDB::Cursor {
     private:

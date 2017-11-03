@@ -55,11 +55,7 @@ static int random_uniform(int lower_bound, int upper_bound) {
 
 struct HashState {
 private:
-    union {
-        uint64_t u;
-        char ch[sizeof(uint64_t)];
-    } key;
-    uint64_t sr;
+    uint8_t key[8];
     
     static uint8_t popcount(uint8_t const byte) {
         static uint8_t const bits_set[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
@@ -70,13 +66,51 @@ private:
     // likely that two values that differ by 1 bit (the smallest difference)
     // will map to two values that differ by 4 bits (the biggest difference)
     // the desired effect is to amplify small differences
-    static uint8_t const *makeHashTable(void)
+    static uint8_t const *makeHashTable(int n)
     {
-        static uint8_t table[256];
-        
-        uint8_t I[256];
+        static uint8_t tables[256 * 8];
+        auto table = tables + 256 * n;
+#if 1
+        for (auto i = 0; i < 256; ++i)
+            table[i] = i;
+        for (auto i = 0; i < 256; ++i) {
+            auto const j = random_uniform(i, 256);
+            auto const ii = table[i];
+            auto const jj = table[j];
+            table[i] = jj;
+            table[j] = ii;
+        }
+#else
         uint8_t J[256];
 
+        for (auto i = 0; i < 256; ++i)
+            J[i] = i;
+        for (auto i = 0; i < 256; ++i) {
+            auto const j = random_uniform(i, 256);
+            auto const ii = J[i];
+            auto const jj = J[j];
+            J[i] = jj;
+            J[j] = ii;
+        }
+
+        for (auto i = 1; i < 256; ++i) {
+            auto const ii = J[i - 1];
+            for (auto j = i; j < 256; ++j) {
+                auto const jj = J[j];
+                auto const diff = ii ^ jj;
+                auto const popcount(diff);
+                if (popcount == 4) {
+                    if (j != i) {
+                        J[j] = J[i];
+                        J[i] = jj;
+                    }
+                    break;
+                }
+            }
+        }
+
+        uint8_t I[256];
+        
         for (auto i = 0; i < 256; ++i)
             I[i] = i;
         for (auto i = 0; i < 256; ++i) {
@@ -86,6 +120,7 @@ private:
             I[i] = jj;
             I[j] = ii;
         }
+        
         for (auto i = 1; i < 256; ++i) {
             auto const ii = I[i - 1];
             for (auto j = i; j < 256; ++j) {
@@ -102,92 +137,103 @@ private:
             }
         }
 
-        for (auto i = 0; i < 256; ++i)
-            J[i] = i;
-        for (auto i = 0; i < 256; ++i) {
-            auto const j = random_uniform(i, 256);
-            auto const ii = J[i];
-            auto const jj = J[j];
-            J[i] = jj;
-            J[j] = ii;
-        }
-        for (auto i = 1; i < 256; ++i) {
-            auto const ii = J[i - 1];
-            for (auto j = i; j < 256; ++j) {
-                auto const jj = J[j];
-                auto const diff = ii ^ jj;
-                auto const popcount(diff);
-                if (popcount == 4) {
-                    if (j != i) {
-                        J[j] = J[i];
-                        J[i] = jj;
-                    }
-                    break;
-                }
-            }
-        }
-        
         for (int k = 0; k < 256; ++k) {
             auto const i = I[k];
             auto const j = J[k];
             table[i] = j;
         }
-        
+#endif
         return table;
     }
-    
-    static decltype(makeHashTable()) const hashTable;
+    static uint8_t const *makeSalt(void)
+    {
+        // all of the 8-bit values with popcount == 4
+        static uint8_t table[] = {
+            0x33, 0x35, 0x36, 0x39, 0x3A, 0x3C,
+            0x53, 0x55, 0x56, 0x59, 0x5A, 0x5C,
+            0x63, 0x65, 0x66, 0x69, 0x6A, 0x6C,
+            0x93, 0x95, 0x96, 0x99, 0x9A, 0x9C,
+            0xA3, 0xA5, 0xA6, 0xA9, 0xAA, 0xAC,
+            0xC3, 0xC5, 0xC6, 0xC9, 0xCA, 0xCC
+        };
+        
+        for (auto i = 0; i < 36; ++i) {
+            auto const j = random_uniform(i, 36);
+            auto const ii = table[i];
+            auto const jj = table[j];
+            table[i] = jj;
+            table[j] = ii;
+        }
+        return table;
+    }
+
+    static decltype(makeHashTable(0)) const H1, H2, H3, H4, H5, H6, H7, H8;
+    static decltype(makeSalt()) const H0;
+
 public:
-    HashState() : sr(0) {
-        key.u = 0;
+    HashState() {
+#if 1
+        std::copy(H0, H0 + 8, key);
+#else
+        *(uint64_t *)key = 0xcbf29ce484222325;
+#endif
     }
     void append(uint8_t const byte) {
-        uint8_t const *const H = hashTable;
-        sr = (sr << 8) | byte;
-        key.u ^= sr;
-        key.ch[0] = H[key.ch[0]];
-        key.ch[1] = H[key.ch[1]];
-        key.ch[2] = H[key.ch[2]];
-        key.ch[3] = H[key.ch[3]];
-        key.ch[4] = H[key.ch[4]];
-        key.ch[5] = H[key.ch[5]];
-        key.ch[6] = H[key.ch[6]];
-        key.ch[7] = H[key.ch[7]];
+#if 1
+        key[0] = H1[key[0] ^ byte];
+        key[1] = H2[key[1] ^ byte];
+        key[2] = H3[key[2] ^ byte];
+        key[3] = H4[key[3] ^ byte];
+        key[4] = H5[key[4] ^ byte];
+        key[5] = H6[key[5] ^ byte];
+        key[6] = H7[key[6] ^ byte];
+        key[7] = H8[key[7] ^ byte];
+#else
+        uint64_t hash = *(uint64_t *)key;
+        hash ^= byte;
+        hash *= 0x100000001b3;
+        *(uint64_t *)key = hash;
+#endif
     }
     HashState &append(VDB::Cursor::RawData const &data) {
         for (auto i = 0; i < data.elements; ++i) {
             append(((uint8_t const *)data.data)[i]);
         }
-        append(0x80);
+        return *this;
+    }
+    HashState &append(std::string const &data) {
+        for (auto && ch : data) {
+            append(ch);
+        }
         return *this;
     }
     void end(uint8_t rslt[8]) {
-        append(0x80);
-        while (sr != 0)
-            append(0);
-        std::copy(key.ch, key.ch + 8, rslt);
+        std::copy(key, key + 8, rslt);
     }
 };
 
-auto const HashState::hashTable = HashState::makeHashTable();
+auto const HashState::H0 = HashState::makeSalt();
+auto const HashState::H1 = HashState::makeHashTable(0);
+auto const HashState::H2 = HashState::makeHashTable(1);
+auto const HashState::H3 = HashState::makeHashTable(2);
+auto const HashState::H4 = HashState::makeHashTable(3);
+auto const HashState::H5 = HashState::makeHashTable(4);
+auto const HashState::H6 = HashState::makeHashTable(5);
+auto const HashState::H7 = HashState::makeHashTable(6);
+auto const HashState::H8 = HashState::makeHashTable(7);
 
 static IndexRow makeIndexRow(int64_t row, VDB::Cursor::RawData const &group, VDB::Cursor::RawData const &name)
 {
     IndexRow y;
 
-    y.row = row;
     HashState().append(group).append(name).end(y.key);
+    y.row = row;
     return y;
 }
 
-static std::ostream &operator <<(std::ostream &os, IndexRow const &row)
+static int process(FILE *out, VDB::Database const &run)
 {
-    return os.write((char const *)row.key, 16); ///< 8 bytes for key + 8 bytes for row number
-}
-
-static int process(std::ostream &out, VDB::Database const &run)
-{
-    static char const *const FLDS[] = { "READ_GROUP", "FRAGMENT" };
+    static char const *const FLDS[] = { "READ_GROUP", "NAME" };
     auto const in = run["RAW"].read(2, FLDS);
     auto const range = in.rowRange();
     auto const freq = (range.second - range.first) / 100.0;
@@ -198,7 +244,7 @@ static int process(std::ostream &out, VDB::Database const &run)
         auto const fragment = in.read(row, 2);
         auto const indexRow = makeIndexRow(row, readGroup, fragment);
         
-        out << indexRow;
+        fwrite(&indexRow, sizeof(indexRow), 1, out);
 
         if (nextReport * freq <= row - range.first) {
             std::cerr << "processed " << nextReport << '%' << std::endl;;
@@ -210,7 +256,7 @@ static int process(std::ostream &out, VDB::Database const &run)
     return 0;
 }
 
-static int process(std::string const &run, std::ostream &out)
+static int process(std::string const &run, FILE *out)
 {
     auto const mgr = VDB::Manager();
     return process(out, mgr[run]);
@@ -245,10 +291,10 @@ namespace makeIRIndex {
             usage(commandLine.program, true);
         }
         if (out.empty())
-            return process(run, std::cout);
+            return process(run, stdout);
         
-        auto ofs = std::ofstream(out);
-        if (ofs.bad()) {
+        auto ofs = fopen(out.c_str(), "w");
+        if (ofs == nullptr) {
             std::cerr << "failed to open output file: " << out << std::endl;
             exit(3);
         }

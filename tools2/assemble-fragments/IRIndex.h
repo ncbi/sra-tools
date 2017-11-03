@@ -32,7 +32,11 @@ struct IndexRow {
         return *reinterpret_cast<uint64_t const *>(&key[0]);
     }
     static bool keyLess(IndexRow const &a, IndexRow const &b) {
-        return a.key64() < b.key64();
+        for (auto i = 0; i < 8; ++i) {
+            if (a.key[i] < b.key[i]) return true;
+            if (a.key[i] > b.key[i]) return false;
+        }
+        return false;
     }
     static bool rowLess(IndexRow const &a, IndexRow const &b) {
         return a.row < b.row;

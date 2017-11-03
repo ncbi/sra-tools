@@ -87,6 +87,10 @@ static const char * split_file_usage[] = { "write fragments into different files
 #define OPTION_SPLIT_FILE "split-file"
 #define ALIAS_SPLIT_FILE  "S"
 
+static const char * split_3_usage[] = { "writes single fragments in special file", NULL };
+#define OPTION_SPLIT_3   "split-3"
+#define ALIAS_SPLIT_3    "3"
+
 static const char * stdout_usage[] = { "print output to stdout", NULL };
 #define OPTION_STDOUT    "stdout"
 #define ALIAS_STDOUT     "Z"
@@ -123,8 +127,9 @@ OptDef ToolOptions[] =
     { OPTION_PROGRESS,  ALIAS_PROGRESS,  NULL, progress_usage,   1, false,  false },
     { OPTION_DETAILS,   ALIAS_DETAILS,   NULL, detail_usage,     1, false,  false },
     { OPTION_SPLIT_SPOT,ALIAS_SPLIT_SPOT,NULL, split_spot_usage, 1, false,  false },
-    { OPTION_SPLIT_FILE,ALIAS_SPLIT_FILE,NULL, split_file_usage, 1, false,  false },    
-    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false }, 
+    { OPTION_SPLIT_FILE,ALIAS_SPLIT_FILE,NULL, split_file_usage, 1, false,  false },
+    { OPTION_SPLIT_3,   ALIAS_SPLIT_3,   NULL, split_3_usage,    1, false,  false },
+    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false },
     { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false },
     { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false },
     { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
@@ -210,9 +215,8 @@ typedef struct tool_ctx
 
     bool remove_temp_path, print_to_stdout, force;
     bool show_progress, show_details;
-    bool split_spot, split_file;
     bool rowid_as_name;
-    
+   
 } tool_ctx;
 
 
@@ -269,9 +273,7 @@ static rc_t show_details( tool_ctx * tool_ctx )
     if ( rc == 0 )
         rc = KOutMsg( "scratch-path : '%s'\n", tool_ctx -> tmp_id . temp_path );
     if ( rc == 0 )
-        rc = KOutMsg( "pid          : %u\n", tool_ctx -> tmp_id . pid );
-    if ( rc == 0 )
-        rc = KOutMsg( "hostname     : %s\n", tool_ctx -> tmp_id . hostname );
+        rc = KOutMsg( "hostname.pid : %s.%u\n", tool_ctx -> tmp_id . hostname, tool_ctx -> tmp_id . pid );
     if ( rc == 0 )
         rc = KOutMsg( "total RAM    : %,lu bytes\n", tool_ctx -> total_ram );
     if ( rc == 0 )
@@ -280,9 +282,12 @@ static rc_t show_details( tool_ctx * tool_ctx )
     {
         switch ( tool_ctx -> fmt )
         {
-            case ft_special     : rc = KOutMsg( "SPECIAL\n" ); break;
-            case ft_fastq       : rc = KOutMsg( "FASTQ\n" ); break;
-            case ft_fastq_split : rc = KOutMsg( "FASTQ split\n" ); break;
+            case ft_special             : rc = KOutMsg( "SPECIAL\n" ); break;
+            case ft_fastq               : rc = KOutMsg( "FASTQ\n" ); break;
+            case ft_fastq_split_spot    : rc = KOutMsg( "FASTQ split spot\n" ); break;
+            case ft_fastq_split_file    : rc = KOutMsg( "FASTQ split file\n" ); break;
+            case ft_fastq_split_3       : rc = KOutMsg( "FASTQ split 3\n" ); break;
+            default                     : rc = KOutMsg( "unknow format\n" ); break;
         }
     }
     if ( rc == 0 )
@@ -305,6 +310,8 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         ErrMsg( "ArgsParamValue() -> %R", rc );
     else
     {
+        bool split_spot, split_file, split_3;
+        
         tool_ctx -> compress = get_compress_t( get_bool_option( args, OPTION_GZIP ),
                                                 get_bool_option( args, OPTION_BZIP2 ) ); /* helper.c */
         
@@ -322,10 +329,14 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
         tool_ctx -> num_threads = get_uint64_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
         tool_ctx -> max_fds = get_uint64_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );
-        tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ) ); /* helper.c */
-        tool_ctx -> split_file = get_bool_option( args, OPTION_SPLIT_FILE );
-        tool_ctx -> split_spot = get_bool_option( args, OPTION_SPLIT_SPOT ) | tool_ctx -> split_file;
         tool_ctx -> rowid_as_name = get_bool_option( args, OPTION_RIDN );
+        
+        split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
+        split_file = get_bool_option( args, OPTION_SPLIT_FILE );
+        split_3    = get_bool_option( args, OPTION_SPLIT_3 );
+        
+        tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
+                                split_spot, split_file, split_3 ); /* helper.c */
         
         if ( tool_ctx -> num_threads < MIN_NUM_THREADS )
             tool_ctx -> num_threads = MIN_NUM_THREADS;
@@ -333,18 +344,15 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         if ( tool_ctx -> mem_limit < MIN_MEM_LIMIT )
             tool_ctx -> mem_limit = MIN_MEM_LIMIT;
 
-        if ( tool_ctx -> split_spot && tool_ctx -> fmt == ft_fastq )
-            tool_ctx -> fmt = ft_fastq_split;
-
         if ( tool_ctx -> print_to_stdout && tool_ctx -> show_progress )
             tool_ctx -> show_progress = false;
 
         if ( tool_ctx -> print_to_stdout && tool_ctx -> show_details )
             tool_ctx -> show_details = false;
 
-        if ( tool_ctx -> print_to_stdout && tool_ctx -> split_file )
+        if ( tool_ctx -> print_to_stdout && 
+             ( ( tool_ctx -> fmt == ft_fastq_split_file ) || ( tool_ctx -> fmt == ft_fastq_split_3 ) ) )
             tool_ctx -> print_to_stdout = false;
-
     }
 
     if ( rc == 0 )
@@ -517,7 +525,7 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
                                         tool_ctx -> num_threads,
                                         tool_ctx -> show_progress ); /* sorter.c */
 
-    bg_update_start( gap, "merge  : " );
+    bg_update_start( gap, "merge  : " ); /* progress_thread.c ...start showing the activity... */
             
     if ( rc == 0 )
         rc = wait_for_and_release_background_vector_merger( bg_vec_merger ); /* merge_sorter.c */
@@ -562,7 +570,6 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
                            tool_ctx -> buf_size,
                            tool_ctx -> num_threads,
                            tool_ctx -> show_progress,
-                           tool_ctx -> split_file,
                            tool_ctx -> fmt,
                            tool_ctx -> rowid_as_name );
 
@@ -635,7 +642,6 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
                            tool_ctx -> buf_size,
                            tool_ctx -> num_threads,
                            tool_ctx -> show_progress,
-                           tool_ctx -> split_file,
                            tool_ctx -> fmt,
                            tool_ctx -> rowid_as_name );
 

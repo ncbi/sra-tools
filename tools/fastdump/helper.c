@@ -89,7 +89,6 @@ uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64
         }
     }
     return res;
-
 }
 
 size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt )
@@ -128,6 +127,48 @@ size_t get_size_t_option( const struct Args * args, const char *name, size_t dfl
                 res = strtol( s, &endptr, 0 );
             }
         }
+    }
+    return res;
+}
+
+static format_t format_cmp( String * Format, const char * test, format_t test_fmt )
+{
+    String TestFormat;
+    StringInitCString( &TestFormat, test );
+    if ( 0 == StringCaseCompare ( Format, &TestFormat ) )
+        return test_fmt;
+    return ft_unknown;
+}
+
+format_t get_format_t( const char * format, bool split_spot, bool split_file, bool split_3 )
+{
+    format_t res = ft_unknown;
+    if ( format != NULL && format[ 0 ] != 0 )
+    {
+        String Format;
+        StringInitCString( &Format, format );
+        
+        res = format_cmp( &Format, "special", ft_special );
+        if ( res == ft_unknown )
+            res = format_cmp( &Format, "fastq", ft_fastq );
+        if ( res == ft_unknown )
+            res = format_cmp( &Format, "fastq-split-spot", ft_fastq_split_spot );
+        if ( res == ft_unknown )
+            res = format_cmp( &Format, "fastq-split-file", ft_fastq_split_file );
+        if ( res == ft_unknown )
+            res = format_cmp( &Format, "fastq-split-3", ft_fastq_split_3 );
+    }
+    
+    if ( res == ft_unknown )
+        res = ft_fastq;
+    if ( res == ft_fastq )
+    {
+        if ( split_3 )
+            res = ft_fastq_split_3;
+        else if ( split_file )
+            res = ft_fastq_split_file;
+        else if ( split_spot )
+            res = ft_fastq_split_spot;
     }
     return res;
 }
@@ -281,21 +322,6 @@ rc_t split_string( String * in, String * p0, String * p1, uint32_t ch )
         p1->len  = p1->size = in->len - ( p0->len + 1 );
     }
     return rc;
-}
-
-
-format_t get_format_t( const char * format )
-{
-    format_t res = ft_fastq;
-    if ( format != NULL && format[ 0 ] != 0 )
-    {
-        String Format, FastqFormat;
-        StringInitCString( &Format, format );
-        StringInitCString( &FastqFormat, "special" );
-        if ( 0 == StringCaseCompare ( &Format, &FastqFormat ) )
-            res = ft_special;
-    }
-    return res;
 }
 
 compress_t get_compress_t( bool gzip, bool bzip2 )

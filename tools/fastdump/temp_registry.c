@@ -159,7 +159,7 @@ static void CC on_count( void *item, void *data )
     occ -> idx ++;
 }
 
-static uint32_t count_files( Vector * v, uint32_t * first )
+static uint32_t count_valid_entries( Vector * v, uint32_t * first )
 {
     on_count_ctx occ = { 0, 0, 0 };
     VectorForEach ( v, false, on_count, &occ );
@@ -192,8 +192,12 @@ static rc_t CC merge_thread_func( const KThread *self, void *data )
     SBuffer s_filename;
 
     VNamelistReorder ( md -> files, false );
-    rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s.%u",
-                md -> cmn -> output_filename, md -> idx + 1 );
+    if ( md -> idx > 0 )
+        rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s.%u",
+                    md -> cmn -> output_filename, md -> idx );
+    else
+        rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s",
+                    md -> cmn -> output_filename );
     if ( rc == 0 )
     {
         rc = execute_concat( md -> cmn -> dir,
@@ -278,9 +282,10 @@ rc_t temp_registry_merge( temp_registry * self,
         if ( rc == 0 )
         {
             uint32_t first;
-            uint32_t count = count_files( &self -> lists, &first );
+            uint32_t count = count_valid_entries( &self -> lists, &first );
             if ( count == 1 )
             {
+                /* we have only ONE set of files... */
                 VNamelist * l = VectorGet ( &self -> lists, first );
                 VNamelistReorder ( l, false );
                 rc = execute_concat( dir,
@@ -294,6 +299,7 @@ rc_t temp_registry_merge( temp_registry * self,
             }
             else if ( count > 1 )
             {
+                /* we have MULTIPLE sets of files... */
                 cmn_merge cmn = { dir, output_filename, buf_size, progress, force, compress };
                 on_merge_ctx omc = { &cmn, 0 };
                 VectorInit( &omc . threads, 0, count );

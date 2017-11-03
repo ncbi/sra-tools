@@ -7,6 +7,7 @@ force_overwrite="-f"
 show_details="-x"
 split_spot="-s"
 split_file="-S"
+split_3="-3"
 rowid_as_name="-N"
 
 # $1...file1, $2...md5
@@ -19,6 +20,20 @@ compare_md5()
     else
         echo "$1 ... ERR ( $sum1 != $2 )"
     fi
+}
+
+fastdump_split_3()
+{
+    echo "***** fastdump database split into 3 files *****"
+    out="/dev/shm/raetzw_out/$1.fastq"
+    
+    rm -rf $out $out.1 $out.2
+
+    options="$show_progress $force_overwrite $show_details $split_3"
+    time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    compare_md5 $out $2
+    compare_md5 $out.1 $3
+    compare_md5 $out.2 $4
 }
 
 fastdump_split_file_row_id_as_name()
@@ -107,12 +122,12 @@ test_csra()
     md5_csra_1="087c5292b808e2d30dfd3d9e08ba3c56"
     md5_csra_2="38c926a3c56ee3833ddd2092cacd0129"
 
-    #fastdump_not_split $csra $md5_csra_n
-    #fastdump_not_split_row_id_as_name $csra $md5_csra_n
-    #fastdump_split $csra $md5_csra_s
-    #fastdump_split_row_id_as_name $csra $md5_csra_s
+    fastdump_not_split $csra $md5_csra_n
+    fastdump_not_split_row_id_as_name $csra $md5_csra_n
+    fastdump_split $csra $md5_csra_s
+    fastdump_split_row_id_as_name $csra $md5_csra_s
     fastdump_split_file_row_id_as_name $csra $md5_csra_1 $md5_csra_2
-    #fastdump_split_file $csra $md5_csra_1 $md5_csra_2
+    fastdump_split_file $csra $md5_csra_1 $md5_csra_2
 }
 
 test_sra_flat()
@@ -142,12 +157,17 @@ test_sra_db()
     md5_sra_db_s="07106db1a11bdd1cc8c382a4e2482b5f"
     md5_sra_db_1="c0be39a6d0566bfe72621e0a69cb2fe4"
     md5_sra_db_2="0e560c82f092bac8b2d6e92c1262ed95"
+    #split-3
+    md5_sra_db_4="8343497c5bbb5aa9f1d9ee4ea68196d2"
+    md5_sra_db_5="0e560c82f092bac8b2d6e92c1262ed95"
+    md5_sra_db_6="0e560c82f092bac8b2d6e92c1262ed95"
     
-    #fastdump_not_split $sra_db $md5_sra_db_n
-    #fastdump_split $sra_db $md5_sra_db_s
-    fastdump_split_file $sra_db $md5_sra_db_1 $md5_sra_db_2    
+    fastdump_not_split $sra_db $md5_sra_db_n
+    fastdump_split $sra_db $md5_sra_db_s
+    fastdump_split_file $sra_db $md5_sra_db_1 $md5_sra_db_2
+    fastdump_split_3 $sra_db $md5_sra_db_4 $md5_sra_db_5 $md5_sra_db_6
 }
 
-test_csra
-#test_sra_flat
-#test_sra_db
+#test_csra
+test_sra_flat
+test_sra_db

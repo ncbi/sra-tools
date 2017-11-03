@@ -56,7 +56,6 @@ rc_t execute_tbl_join( KDirectory * dir,
                     size_t buf_size,
                     uint32_t num_threads,
                     bool show_progress,
-                    bool split_file,
                     format_t fmt,
                     bool rowid_as_name );
 

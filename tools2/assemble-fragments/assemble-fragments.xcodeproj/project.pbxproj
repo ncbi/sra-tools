@@ -8,18 +8,18 @@
 
 /* Begin PBXBuildFile section */
 		BE17665E1ED4B199005ECFFB /* filter-ir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE17665D1ED4B199005ECFFB /* filter-ir.cpp */; };
-		BE17665F1ED4B1A0005ECFFB /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
 		BE47E36C1EB3BB4000D68FA5 /* reorder-ir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */; };
-		BE47E36D1EB3C25000D68FA5 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
 		BE4F77E41EA51E7F00CB45D6 /* sra2ir.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */; };
 		BE7200CB1F605B73004A3C2F /* summarize-pairs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BE7200CA1F605B73004A3C2F /* summarize-pairs.cpp */; };
+		BE80D8AB1F9F96B9009F2B07 /* libncbi-vdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */; };
+		BE80D8AC1F9F96EC009F2B07 /* libncbi-vdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */; };
+		BE80D8AD1F9F971D009F2B07 /* libncbi-vdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */; };
+		BE80D8AE1F9F97B3009F2B07 /* libncbi-vdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */; };
+		BE80D8AF1F9F9803009F2B07 /* libncbi-vdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */; };
+		BE80D8B01F9F9A50009F2B07 /* libncbi-vdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */; };
+		BE80D8B11F9F9BF1009F2B07 /* libncbi-vdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */; };
 		BEA40E391EA52B1D00A8DF60 /* makeIRIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEA40E381EA52B1D00A8DF60 /* makeIRIndex.cpp */; };
 		BEA40E471EA52BA500A8DF60 /* sortIndex.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEA40E461EA52BA500A8DF60 /* sortIndex.cpp */; };
-		BEA40E4A1EA5328A00A8DF60 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
-		BEA40E4B1EA5329B00A8DF60 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
-		BEA40E4C1EA532A100A8DF60 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
-		BEA996A21F688DF800467C88 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
-		BEA996AE1F697F5000467C88 /* libncbi-wvdb.a in Frameworks */ = {isa = PBXBuildFile; fileRef = BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */; };
 		BEA996B01F697FB300467C88 /* assemble-fragments.cpp in Sources */ = {isa = PBXBuildFile; fileRef = BEA996AF1F697FB300467C88 /* assemble-fragments.cpp */; };
 /* End PBXBuildFile section */
 
@@ -104,6 +104,7 @@
 		BE4F77EA1EA51EFE00CB45D6 /* Makefile */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = SOURCE_ROOT; };
 		BE7200C31F605B3E004A3C2F /* summarize-pairs */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "summarize-pairs"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE7200CA1F605B73004A3C2F /* summarize-pairs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "summarize-pairs.cpp"; sourceTree = SOURCE_ROOT; };
+		BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = "libncbi-vdb.a"; sourceTree = "<group>"; };
 		BEA40E311EA52B0600A8DF60 /* makeIRIndex */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = makeIRIndex; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEA40E381EA52B1D00A8DF60 /* makeIRIndex.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = makeIRIndex.cpp; sourceTree = SOURCE_ROOT; };
 		BEA40E3F1EA52B9300A8DF60 /* sortIRIndex */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = sortIRIndex; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -118,7 +119,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BE17665F1ED4B1A0005ECFFB /* libncbi-wvdb.a in Frameworks */,
+				BE80D8AF1F9F9803009F2B07 /* libncbi-vdb.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -126,7 +127,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BE47E36D1EB3C25000D68FA5 /* libncbi-wvdb.a in Frameworks */,
+				BE80D8AE1F9F97B3009F2B07 /* libncbi-vdb.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -134,7 +135,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BEA40E4C1EA532A100A8DF60 /* libncbi-wvdb.a in Frameworks */,
+				BE80D8AB1F9F96B9009F2B07 /* libncbi-vdb.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -142,7 +143,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BEA996A21F688DF800467C88 /* libncbi-wvdb.a in Frameworks */,
+				BE80D8B01F9F9A50009F2B07 /* libncbi-vdb.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,7 +151,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BEA40E4B1EA5329B00A8DF60 /* libncbi-wvdb.a in Frameworks */,
+				BE80D8AC1F9F96EC009F2B07 /* libncbi-vdb.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -158,7 +159,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BEA40E4A1EA5328A00A8DF60 /* libncbi-wvdb.a in Frameworks */,
+				BE80D8AD1F9F971D009F2B07 /* libncbi-vdb.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -166,7 +167,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BEA996AE1F697F5000467C88 /* libncbi-wvdb.a in Frameworks */,
+				BE80D8B11F9F9BF1009F2B07 /* libncbi-vdb.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -244,6 +245,7 @@
 		BE4F77EB1EA51F3500CB45D6 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */,
 				BEA40E491EA5328A00A8DF60 /* libncbi-wvdb.a */,
 			);
 			name = Frameworks;
@@ -529,6 +531,10 @@
 		BE17665B1ED4B15F005ECFFB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -536,6 +542,10 @@
 		BE17665C1ED4B15F005ECFFB /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -543,6 +553,10 @@
 		BE47E3691EB3B9B100D68FA5 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -550,6 +564,10 @@
 		BE47E36A1EB3B9B100D68FA5 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -662,6 +680,10 @@
 		BE4F77E11EA51E5B00CB45D6 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -669,6 +691,10 @@
 		BE4F77E21EA51E5B00CB45D6 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -682,7 +708,6 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
 			};
 			name = Debug;
 		};
@@ -695,13 +720,16 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.12;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = macosx;
 			};
 			name = Release;
 		};
 		BEA40E361EA52B0600A8DF60 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -709,6 +737,10 @@
 		BEA40E371EA52B0600A8DF60 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -716,6 +748,10 @@
 		BEA40E441EA52B9300A8DF60 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -723,6 +759,10 @@
 		BEA40E451EA52B9300A8DF60 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)",
+				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;
@@ -826,6 +866,7 @@
 				BEA996AD1F697F4900467C88 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};

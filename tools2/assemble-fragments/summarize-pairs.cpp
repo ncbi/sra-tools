@@ -195,9 +195,6 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
         
         friend Contig operator +(Contig a, Contig b) ///< returns the union
         {
-            assert(a.ref == b.ref);
-            assert((a.start <= b.start && b.start < a.end) || (a.start < b.end && b.end <= a.end));
-            
             Contig result;
             result.ref = a.ref;
             result.start = std::min(a.start, b.start);
@@ -245,7 +242,6 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
     }
     
     explicit ContigPair(LineBuffer &source)
-    : count(0)
     {
         auto const line = source.get();
         if (line.first == nullptr) return;
@@ -300,6 +296,12 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
         return;
     }
     
+    bool write(FILE *fp) const {
+        auto const &ref1 = references[first.ref];
+        auto const &ref2 = references[second.ref];
+        auto const &grp = groups[group];
+        return fprintf(fp, "%s\t%i\t%i\t%s\t%i\t%i\t%s\n", ref1.c_str(), first.start, first.end, ref2.c_str(), second.start, second.end, grp.c_str()) > 0;
+    }
     friend std::ostream &operator <<(std::ostream &strm, ContigPair const &i) {
         auto const &ref1 = references[i.first.ref];
         auto const &ref2 = references[i.second.ref];
@@ -319,9 +321,10 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
         out.value(5, (int32_t)second.start);
         out.value(6, (int32_t)second.end);
         
-        out.value(7, (uint32_t)count);
-        out.value(8, groups[group]);
-        
+        out.value(7, groups[group]);
+
+        out.value(8, (uint32_t)count);
+
         out.closeRow(1);
     }
     static void setup(VDB::Writer const &writer) {
@@ -335,8 +338,9 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
         writer.openColumn(5, 1, 32, "START_2");
         writer.openColumn(6, 1, 32, "END_2");
 
-        writer.openColumn(7, 1, 32, "COUNT");
-        writer.openColumn(8, 1,  8, "READ_GROUP");
+        writer.openColumn(7, 1,  8, "READ_GROUP");
+
+        writer.openColumn(8, 1, 32, "COUNT");
     }
 };
 
@@ -362,7 +366,7 @@ static int process(VDB::Writer const &out, LineBuffer &ifs)
             // new pair is outside the active window (or EOF);
             // output the active contig pairs and empty the window
             
-            for (auto i : active) {
+            for (auto && i : active) {
                 if (i.first.ref == i.second.ref && i.second.start < i.first.end) {
                     // the region is gapless, i.e. the mate-pair gap has been filled in
                     i.first.end = i.second.start = 0;
@@ -509,7 +513,7 @@ static int process(VDB::Writer const &out, LineBuffer &ifs)
     }
 }
 
-static int reduce(std::ostream &out, std::string const &source)
+static int reduce(FILE *out, std::string const &source)
 {
     int fd = 0;
     if (source != "-") {
@@ -535,7 +539,7 @@ static int reduce(std::ostream &out, std::string const &source)
     return result;
 }
 
-static int map(std::ostream &out, std::string const &run)
+static int map(FILE *out, std::string const &run)
 {
     auto const mgr = VDB::Manager();
     auto const inDb = mgr[run];
@@ -551,8 +555,7 @@ static int map(std::ostream &out, std::string const &run)
             for (auto && two : fragment.detail) {
                 if (two.readNo != 2 || !two.aligned) continue;
                 
-                auto const &pair = ContigPair(one, two, fragment.group);
-                out << pair << '\n';
+                ContigPair(one, two, fragment.group).write(out);
             }
         }
     }
@@ -598,17 +601,17 @@ namespace pairsStatistics {
         if (source.empty())
             usage(commandLine.program, true);
         
-        std::ofstream ofs;
+        FILE *ofs = nullptr;
         if (!outPath.empty()) {
-            ofs.open(outPath);
+            ofs = fopen(outPath.c_str(), "w");
             if (!ofs) {
                 std::cerr << "failed to open output file: " << outPath << std::endl;
                 exit(3);
             }
         }
-        std::ostream &out = outPath.empty() ? std::cout : ofs;
-
-        return (*verb)(out, source);
+        auto rslt = (*verb)(ofs ? ofs : stdout, source);
+        if (ofs) fclose(ofs);
+        return rslt;
     }
 }
 

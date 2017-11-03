@@ -85,15 +85,12 @@ static void process(VDB::Writer const &out, Fragment const &fragment)
     auto firstRead = 0;
     auto lastRead = 0;
     auto aligned = 0;
-    auto ambiguous = 0;
 
     for (auto && i : fragment.detail) {
         if (i.bad)
             goto DISCARD;
         if (i.aligned)
             ++aligned;
-        if (i.sequence.ambiguous())
-            ++ambiguous;
         if (reads == 0 || i.readNo != lastRead) {
             lastRead = i.readNo;
             if (reads == 0)
@@ -188,7 +185,7 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
     return 0;
 }
 
-static int process(std::string const &irdb, std::ostream &out)
+static int process(std::string const &irdb, FILE *out)
 {
     auto const writer = VDB::Writer(out);
     
@@ -198,7 +195,7 @@ static int process(std::string const &irdb, std::ostream &out)
     
     writer.openTable(1, "RAW");
     writer.openColumn(1, 1, 8, "READ_GROUP");
-    writer.openColumn(2, 1, 8, "FRAGMENT");
+    writer.openColumn(2, 1, 8, "NAME");
     writer.openColumn(3, 1, 32, "READNO");
     writer.openColumn(4, 1, 8, "SEQUENCE");
     writer.openColumn(5, 1, 8, "REFERENCE");
@@ -208,7 +205,7 @@ static int process(std::string const &irdb, std::ostream &out)
     
     writer.openTable(2, "DISCARDED");
     writer.openColumn(1 + 8, 2, 8, "READ_GROUP");
-    writer.openColumn(2 + 8, 2, 8, "FRAGMENT");
+    writer.openColumn(2 + 8, 2, 8, "NAME");
     writer.openColumn(3 + 8, 2, 32, "READNO");
     writer.openColumn(4 + 8, 2, 8, "SEQUENCE");
     writer.openColumn(5 + 8, 2, 8, "REFERENCE");
@@ -268,10 +265,10 @@ namespace filterIR {
             usage(commandLine.program, true);
         }
         if (out.empty())
-            return process(run, std::cout);
+            return process(run, stdout);
 
-        auto ofs = std::ofstream(out);
-        if (ofs.bad()) {
+        auto ofs = fopen(out.c_str(), "w");
+        if (ofs == nullptr) {
             std::cerr << "failed to open output file: " << out << std::endl;
             exit(3);
         }

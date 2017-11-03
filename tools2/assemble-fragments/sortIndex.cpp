@@ -138,7 +138,7 @@ struct Context {
                     // sort in one shot
                     std::sort(unit.beg, unit.end, IndexRow::keyLess);
                     if (unit.beg >= tmp && unit.end <= tmpEnd)
-                        std::copy(unit.beg, unit.end, map + (tmp - unit.beg));
+                        std::copy(unit.beg, unit.end, map + (unit.beg - tmp));
                     
                     // the mutex is re-acquired after processing the work unit
                     pthread_mutex_lock(&mutex);
@@ -294,6 +294,7 @@ static int process(char const *const indexFile, bool const isSorted)
     }
     auto const N = size / sizeof(IndexRow);
 
+#if 1
     if (!isSorted) {
         // sort the index by hash value and row number
         auto const workers = getWorkerCount();
@@ -307,7 +308,9 @@ static int process(char const *const indexFile, bool const isSorted)
         }
         worker(&context);
     }
-
+#else
+    std::sort((IndexRow *)inmap, (IndexRow *)inmap + N, IndexRow::keyLess);
+#endif
     {
         // sort the index by the starting row number for each hash value
         auto const map = (IndexRow *)inmap;

@@ -41,7 +41,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-static std::ostream &write(Writer2::Column const &out, VDB::Cursor::Data const *in)
+static bool write(Writer2::Column const &out, VDB::Cursor::Data const *in)
 {
     return out.setValue(in->elements, in->elem_bits / 8, in->data());
 }
@@ -89,13 +89,13 @@ static int process(Writer2 const &out, VDB::Cursor const &in, IndexRow const *co
                 auto ii = i;
                 while (ii < j) {
                     auto jj = ii;
-                    do {
-                        ++jj;
-                    } while (jj < j && *(uint64_t const *)(&jj->key[0]) == *(uint64_t const *)(&ii->key[0]));
+                    do { ++jj; } while (jj < j && jj->key64() == ii->key64());
                     if (jj < j) {
                         v.insert(v.end(), ii, jj);
                         ii = jj;
                     }
+                    else
+                        break;
                 }
                 j = ii;
             }
@@ -167,8 +167,8 @@ static int process(Writer2 const &out, VDB::Cursor const &in, IndexRow const *co
                 write(colName       , data = data->next());
                 write(colSequence   , data = data->next());
                 write(colReference  , data = data->next());
-                write(colStrand     , data = data->next());
                 write(colCigar      , data = data->next());
+                write(colStrand     , data = data->next());
                 write(colReadNo     , data = data->next());
                 write(colPosition   , data = data->next());
                 otbl.closeRow();
@@ -195,7 +195,7 @@ static ssize_t fsize(int const fd)
     return -1;
 }
 
-static int process(std::string const &irdb, std::string const &indexFile, std::ostream &out)
+static int process(std::string const &irdb, std::string const &indexFile, FILE *out)
 {
     IndexRow const *index;
     size_t rows;
@@ -222,14 +222,14 @@ static int process(std::string const &irdb, std::string const &indexFile, std::o
     writer.info("reorder-ir", "1.0.0");
 
     writer.addTable("RAW", {
-        { "READ_GROUP"  , 8 },  ///< string
-        { "NAME"        , 8 },  ///< string
-        { "SEQUENCE"    , 8 },  ///< string
-        { "REFERENCE"   , 8 },  ///< string
-        { "CIGAR"       , 8 },  ///< string
-        { "STRAND"      , 8 },  ///< char
-        { "READNO"      , 32 }, ///< int32_t
-        { "POSITION"    , 32 }, ///< int32_t
+        { "READ_GROUP"  , 1 },  ///< string
+        { "NAME"        , 1 },  ///< string
+        { "SEQUENCE"    , 1 },  ///< string
+        { "REFERENCE"   , 1 },  ///< string
+        { "CIGAR"       , 1 },  ///< string
+        { "STRAND"      , 1 },  ///< char
+        { "READNO"      , 4 },  ///< int32_t
+        { "POSITION"    , 4 },  ///< int32_t
     });
     writer.beginWriting();
     
@@ -276,9 +276,9 @@ namespace reorderIR {
             usage(commandLine.program, true);
 
         if (out.empty())
-            return process(db, ndx, std::cout);
+            return process(db, ndx, stdout);
         
-        auto ofs = std::ofstream(out);
+        auto ofs = fopen(out.c_str(), "w");
         if (ofs)
             return process(db, ndx, ofs);
         

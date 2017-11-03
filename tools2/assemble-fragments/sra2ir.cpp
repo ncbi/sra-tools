@@ -30,6 +30,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <cstdio>
+#include <cassert>
 #include "vdb.hpp"
 #include "writer.hpp"
 
@@ -40,6 +41,109 @@ static bool write(VDB::Writer const &out, unsigned const cid, VDB::Cursor::RawDa
 
 #include <fstream>
 
+struct ReferenceFilter {
+    std::string name;
+    int start;
+    int end;
+};
+
+std::vector<ReferenceFilter> filter;
+static bool filterInclude(std::string const &name, int position) {
+    auto const beg = std::lower_bound(filter.cbegin(), filter.cend(), name, [](ReferenceFilter const &a, std::string const &b) { return a.name < b; });
+    
+    if (beg == filter.cend() || beg->name != name)
+        return false;
+    
+    if (beg->start == 0) return true;
+
+    auto const end = std::upper_bound(beg, filter.cend(), name, [](std::string const &b, ReferenceFilter const &a) { return b < a.name; });
+    auto const lb = std::lower_bound(beg, end, position, [](ReferenceFilter const &a, int b) { return a.end < b; });
+    return lb != end && (lb->start <= position && position < lb->end);
+}
+
+static ReferenceFilter parseFilterString(std::string arg)
+{
+    std::string name;
+    int start = 0;
+    int end = INT_MAX;
+    
+    auto const colon = arg.find_first_of(':');
+    if (colon != std::string::npos) {
+        name = arg.substr(0, colon);
+        arg = arg.substr(colon + 1);
+        
+        std::string::size_type sz = 0;
+        if ((start = std::stoi(arg, &sz)) <= 0)
+            throw std::invalid_argument("expected start > 0");
+        arg = arg.substr(sz);
+        if (arg.empty() || arg[0] != '-')
+            throw std::invalid_argument("expected '-'");
+        arg = arg.substr(1);
+        if (!arg.empty()) {
+            end = std::stoi(arg, &sz);
+            if (sz != arg.size())
+                throw std::invalid_argument("expected a number");
+            if (end <= 0 || end < start)
+                throw std::invalid_argument("expected end > start > 0");
+            ++end;
+        }
+    }
+    else
+        name = arg;
+    return { name, start, end };
+}
+
+static bool addFilter(std::string const &arg)
+{
+    try {
+        auto entry = parseFilterString(arg);
+
+        auto prefix = std::find_if(filter.cbegin(), filter.cend(), [&](ReferenceFilter const &e)
+        {
+            return e.name == entry.name;
+        });
+        
+        auto suffix = std::find_if(prefix, filter.cend(), [&](ReferenceFilter const &e)
+        {
+            return e.name != entry.name;
+        });
+        
+        if (entry.start != 0) {
+            for (auto i = prefix; i != suffix; ++i) {
+                if (i->start == 0 || (i->start <= entry.start && entry.end <= i->end)) ///< fully contained in existing entry
+                    return true;
+            }
+            
+            for (auto i = prefix; i != suffix; ++i) {
+                if ((i->start <= entry.start && entry.start <= i->end) || (i->start <= entry.end && entry.end <= i->end)) {
+                    entry.start = std::min(entry.start, i->start);
+                    entry.end = std::max(entry.end, i->end);
+                }
+            }
+            
+            while (prefix != suffix && prefix->start < entry.start)
+                ++prefix;
+            
+            auto tmp = prefix;
+            while (tmp != suffix && tmp->end <= entry.end)
+                ++tmp;
+            suffix = tmp;
+        }
+        std::vector<ReferenceFilter> newFilter;
+        newFilter.reserve((suffix - prefix) + 1 + (prefix - filter.cbegin()));
+        
+        newFilter.insert(newFilter.end(), filter.cbegin(), prefix);
+        newFilter.insert(newFilter.end(), entry);
+        newFilter.insert(newFilter.end(), suffix, filter.cend());
+
+        filter.swap(newFilter);
+        return true;
+    }
+    catch (...) {
+        return false;
+    }
+}
+
 static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bool const primary)
 {
     static char const *const FLDS[] = { "SEQ_SPOT_GROUP", "SEQ_SPOT_ID", "SEQ_READ_ID", "READ", "REF_NAME", "REF_ORIENTATION", "REF_POS", "CIGAR_SHORT" };
@@ -48,37 +152,42 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
     auto const in = inDb[tblName].read(N, FLDS);
     auto const range = in.rowRange();
     auto const freq = (range.second - range.first) / 100.0;
+    int64_t written = 0;
     auto nextReport = 1;
     char buffer[32];
-    VDB::Cursor::RawData data[N];
     
     std::cerr << "processing " << (range.second - range.first) << " records from " << tblName << std::endl;
     for (int64_t row = range.first; row < range.second; ++row) {
-        in.read(row, N, data);
+        auto const refName = in.read(row, 5);
+        auto const refPos = in.read(row, 7);
         
-        auto const spotId = (int64_t const *)data[1].data;
-        auto const n = snprintf(buffer, 32, "%lli", *spotId);
-        auto const readId = (int32_t const *)data[2].data;
-        auto const strand = (int8_t const *)data[5].data;
-        auto const refpos = (int32_t const *)data[6].data;
-        
-        write(out, 1, data[0]);
-        out.value(2, n, buffer);
-        out.value(3, 1, readId);
-        write(out, 4, data[3]);
-        write(out, 5, data[4]);
-        out.value<char>(6, strand[0] == 0 ? '+' : '-');
-        out.value(7, 1, refpos);
-        write(out, 8, data[7]);
-        
-        out.closeRow(1);
+        if (filter.empty() || filterInclude(refName.asString(), refPos.value<int32_t>() + 1)) {
+            auto const group = in.read(row, 1);
+            auto const n = snprintf(buffer, 32, "%lli", in.read(row, 2).value<int64_t>());
+            auto const readId = in.read(row, 3);
+            auto const sequence = in.read(row, 4);
+            auto const strand = char(in.read(row, 6).value<int8_t>() == 0 ? '+' : '-');
+            auto const cigar = in.read(row, 8);
+            
+            write(out, 1, group);
+            out.value(2, n, buffer);
+            write(out, 3, readId);
+            write(out, 4, sequence);
+            write(out, 5, refName);
+            out.value(6, strand);
+            write(out, 7, refPos);
+            write(out, 8, cigar);
+            
+            out.closeRow(1);
+            ++written;
+        }
         if (nextReport * freq <= row - range.first) {
             std::cerr << "processed " << nextReport << "%" << std::endl;
             ++nextReport;
         }
     }
     std::cerr << "processed 100%" << std::endl;
-    std::cerr << "imported " << (range.second - range.first) << " alignments from " << tblName << std::endl;
+    std::cerr << "imported " << written << " alignments from " << tblName << std::endl;
 }
 
 static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb)
@@ -132,7 +241,7 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
     catch (...) {
         std::cerr << "an error occured trying to process secondary alignments" << std::endl;
     }
-    processUnaligned(out, inDb);
+    if (filter.empty()) processUnaligned(out, inDb);
     processAligned(out, inDb, true);
     return 0;
 }
@@ -162,10 +271,12 @@ static int process(std::string const &run, FILE *const out) {
     writer.defaultValue<char>(8, 0, 0);
     
     writer.setMetadata(VDB::Writer::database, 0, "SOURCE", run);
-    
+#if 1
     auto const mgr = VDB::Manager();
     auto const result = process(writer, mgr[run]);
-    
+#else
+    int result = 0;
+#endif
     writer.endWriting();
     
     return result;
@@ -174,13 +285,13 @@ static int process(std::string const &run, FILE *const out) {
 using namespace utility;
 namespace sra2ir {
     static void usage(std::string const &program, bool error) {
-        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <sra run>" << std::endl;
+        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <sra run> [reference[:start[-end]] ...]" << std::endl;
         exit(error ? 3 : 0);
     }
 
     static int main(CommandLine const &commandLine) {
         for (auto && arg : commandLine.argument) {
-            if (arg == "-help" || arg == "-h" || arg == "-?") {
+            if (arg == "--help" || arg == "-help" || arg == "-h" || arg == "-?") {
                 usage(commandLine.program, false);
             }
         }
@@ -195,7 +306,8 @@ namespace sra2ir {
                 run = arg;
                 continue;
             }
-            usage(commandLine.program, true);
+            if (!addFilter(arg))
+                usage(commandLine.program, true);
         }
         if (run.empty()) {
             usage(commandLine.program, true);

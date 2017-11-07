@@ -57,9 +57,13 @@ rc_t cmn_read_uint64( struct cmn_iter * self, uint32_t col_id, uint64_t *value )
 rc_t cmn_read_uint64_array( struct cmn_iter * self, uint32_t col_id, uint64_t *value,
                             uint32_t num_values, uint32_t * values_read );
 rc_t cmn_read_uint32( struct cmn_iter * selfr, uint32_t col_id, uint32_t *value );
-rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t *value,
-                            uint32_t num_values, uint32_t * values_read );
 
+rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t ** values,
+                           uint32_t * values_read );
+
+rc_t cmn_read_uint8_array( struct cmn_iter * self, uint32_t col_id, uint8_t ** values,
+                           uint32_t * values_read );
+                            
 rc_t cmn_read_String( struct cmn_iter * self, uint32_t col_id, String *value );
 
 typedef enum acc_type_t { acc_csra, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;

@@ -323,13 +323,12 @@ rc_t cmn_read_uint32( struct cmn_iter * self, uint32_t col_id, uint32_t *value )
     return rc;
 }
 
-rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t *value,
-                            uint32_t num_values, uint32_t * values_read )
+rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t ** values,
+                            uint32_t * values_read )
 {
     uint32_t elem_bits, boff, row_len;
-    const uint32_t * value_ptr;
     rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
-                                 (const void **)&value_ptr, &boff, &row_len );
+                                 (const void **)values, &boff, &row_len );
     if ( rc != 0 )
         ErrMsg( "VCursorCellDataDirect( #%ld ) -> %R\n", self -> row_id, rc );
     else if ( elem_bits != 32 || boff != 0 || row_len < 1 )
@@ -339,10 +338,29 @@ rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t *v
     }
     else
     {
-        if ( row_len > num_values ) row_len = num_values;
         if ( values_read != NULL )
             * values_read = row_len;
-        memmove( (void *)value, (void *)value_ptr, row_len * 4 );
+    }
+    return rc;
+}
+
+rc_t cmn_read_uint8_array( struct cmn_iter * self, uint32_t col_id, uint8_t ** values,
+                            uint32_t * values_read )
+{
+    uint32_t elem_bits, boff, row_len;
+    rc_t rc = VCursorCellDataDirect( self -> cursor, self -> row_id, col_id, &elem_bits,
+                                 (const void **)values, &boff, &row_len );
+    if ( rc != 0 )
+        ErrMsg( "VCursorCellDataDirect( #%ld ) -> %R\n", self -> row_id, rc );
+    else if ( elem_bits != 8 || boff != 0 || row_len < 1 )
+    {
+        ErrMsg( "row#%ld : bits=%d, boff=%d, len=%d\n", self -> row_id, elem_bits, boff, row_len );
+        rc = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    else
+    {
+        if ( values_read != NULL )
+            * values_read = row_len;
     }
     return rc;
 }

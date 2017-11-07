@@ -112,8 +112,12 @@ static const char * maxfd_usage[] = { "maximal number of file-descriptors", NULL
 #define ALIAS_MAXFD      "a"
 
 static const char * ridn_usage[] = { "use row-id as name", NULL };
-#define OPTION_RIDN     "rowid-as-name"
-#define ALIAS_RIDN      "N"
+#define OPTION_RIDN      "rowid-as-name"
+#define ALIAS_RIDN       "N"
+
+static const char * skip_tech_usage[] = { "skip technical reads", NULL };
+#define OPTION_TECH      "skip-technical"
+#define ALIAS_TECH       "T"
 
 OptDef ToolOptions[] =
 {
@@ -134,7 +138,8 @@ OptDef ToolOptions[] =
     { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false },
     { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
     { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false },
-    { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false }
+    { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false },
+    { OPTION_TECH,      ALIAS_TECH,      NULL, skip_tech_usage,  1, false,  false }
 };
 
 const char UsageDefaultName[] = "fastdump";
@@ -216,6 +221,7 @@ typedef struct tool_ctx
     bool remove_temp_path, print_to_stdout, force;
     bool show_progress, show_details;
     bool rowid_as_name;
+    bool skip_tech;
    
 } tool_ctx;
 
@@ -301,7 +307,7 @@ rc_t KAppGetTotalRam ( uint64_t * totalRam );
 static const char * dflt_temp_path = "./fast.tmp";
 #define DFLT_MAX_FD 32
 #define MIN_NUM_THREADS 2
-#define DFLT_NUM_THREADS 2
+#define DFLT_NUM_THREADS 6
 
 static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
 {
@@ -330,6 +336,7 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         tool_ctx -> num_threads = get_uint64_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
         tool_ctx -> max_fds = get_uint64_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );
         tool_ctx -> rowid_as_name = get_bool_option( args, OPTION_RIDN );
+        tool_ctx -> skip_tech = get_bool_option( args, OPTION_TECH );
         
         split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
         split_file = get_bool_option( args, OPTION_SPLIT_FILE );
@@ -370,10 +377,10 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
     }
     
     if ( rc == 0 )
-        rc = get_process_pid( &( tool_ctx -> tmp_id . pid ) );
+        rc = get_process_pid( &( tool_ctx -> tmp_id . pid ) ); /* above */
 
     if ( rc == 0 )
-        rc = get_hostname( tool_ctx );
+        rc = get_hostname( tool_ctx ); /* above */
 
     /* handle the important temp-path ( user gave a specific one - or not )*/
     if ( rc == 0 )
@@ -571,7 +578,8 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
                            tool_ctx -> num_threads,
                            tool_ctx -> show_progress,
                            tool_ctx -> fmt,
-                           tool_ctx -> rowid_as_name );
+                           tool_ctx -> rowid_as_name,
+                           tool_ctx -> skip_tech );
 
     /* from now on we do not need the lookup-file and it's index any more... */
     if ( tool_ctx -> dflt_lookup[ 0 ] != 0 )
@@ -643,7 +651,8 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
                            tool_ctx -> num_threads,
                            tool_ctx -> show_progress,
                            tool_ctx -> fmt,
-                           tool_ctx -> rowid_as_name );
+                           tool_ctx -> rowid_as_name,
+                           tool_ctx -> skip_tech );
 
     if ( rc == 0 )
         rc = temp_registry_merge( registry,

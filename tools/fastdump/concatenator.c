@@ -343,10 +343,23 @@ rc_t execute_concat_un_compressed( KDirectory * dir,
             ErrMsg( "KDirectoryFileSize( '%s' ) -> %R", file1, rc );
         else
         {
-            rc = KDirectoryRename ( dir, force, file1, output_filename );
+            struct KFile * f;
+            /* first try to create the output-file, so that sub-directories that do not exist
+               are created ... */
+            rc = KDirectoryCreateFile( dir, &f, false, 0664, kcmInit | kcmParents, "%s", output_filename );
             if ( rc != 0 )
-                ErrMsg( "KDirectoryRename( '%s' ---> '%s' ) -> %R", file1, output_filename, rc );
+                ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", output_filename, rc );
             else
+                KFileRelease( f );
+                
+            if ( rc == 0 )
+            {
+                rc = KDirectoryRename ( dir, force, file1, output_filename );
+                if ( rc != 0 )
+                    ErrMsg( "KDirectoryRename( '%s' ---> '%s' ) -> %R", file1, output_filename, rc );
+            }
+            
+            if ( rc == 0 )
             {
                 struct KFile * dst;
                 rc = KDirectoryOpenFileWrite ( dir, &dst, true, "%s", output_filename );

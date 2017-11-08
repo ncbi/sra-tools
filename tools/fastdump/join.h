@@ -49,6 +49,7 @@ extern "C" {
 
 rc_t execute_db_join( KDirectory * dir,
                     const char * accession,
+                    join_stats * stats,
                     const char * lookup_filename,
                     const char * index_filename,
                     const tmp_id * tmp_id,

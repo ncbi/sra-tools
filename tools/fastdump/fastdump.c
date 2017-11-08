@@ -267,21 +267,25 @@ static rc_t get_hostname( tool_ctx * tool_ctx )
 
 static rc_t show_details( tool_ctx * tool_ctx )
 {
-    rc_t rc = KOutMsg( "cursor-cache : %,ld\n", tool_ctx -> cursor_cache );
+    rc_t rc = KOutMsg( "cursor-cache : %,ld bytes\n", tool_ctx -> cursor_cache );
     if ( rc == 0 )
-        rc = KOutMsg( "buf-size     : %,ld\n", tool_ctx -> buf_size );
+        rc = KOutMsg( "buf-size     : %,ld bytes\n", tool_ctx -> buf_size );
     if ( rc == 0 )
-        rc = KOutMsg( "mem-limit    : %,ld\n", tool_ctx -> mem_limit );
+        rc = KOutMsg( "mem-limit    : %,ld bytes\n", tool_ctx -> mem_limit );
     if ( rc == 0 )
         rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
+/*
     if ( rc == 0 )
         rc = KOutMsg( "max. fds     : %d\n", tool_ctx -> max_fds );     
+*/
     if ( rc == 0 )
         rc = KOutMsg( "scratch-path : '%s'\n", tool_ctx -> tmp_id . temp_path );
+/*
     if ( rc == 0 )
         rc = KOutMsg( "hostname.pid : %s.%u\n", tool_ctx -> tmp_id . hostname, tool_ctx -> tmp_id . pid );
     if ( rc == 0 )
         rc = KOutMsg( "total RAM    : %,lu bytes\n", tool_ctx -> total_ram );
+*/
     if ( rc == 0 )
         rc = KOutMsg( "output-format: " );
     if ( rc == 0 )
@@ -459,6 +463,19 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
     return rc;
 }
 
+static rc_t print_stats( const join_stats * stats )
+{
+    rc_t rc = KOutMsg( "spots read          : %,lu\n", stats -> spots_read );
+    if ( rc == 0 )
+         rc = KOutMsg( "fragments read      : %,lu\n", stats -> fragments_read );
+    if ( rc == 0 )
+         rc = KOutMsg( "fragments written   : %,lu\n", stats -> fragments_written );
+    if ( rc == 0 && stats -> fragments_zero_length > 0 )
+         rc = KOutMsg( "fragments 0-length  : %,lu\n", stats -> fragments_zero_length );
+    if ( rc == 0 && stats -> fragments_technical > 0 )
+         rc = KOutMsg( "technical fragmenst : %,lu\n", stats -> fragments_technical );
+    return rc;
+}
 
 /* --------------------------------------------------------------------------------------------
     produce special-output ( SPOT_ID,READ,SPOT_GROUP ) by iterating over the SEQUENCE - table:
@@ -552,9 +569,11 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
 static rc_t produce_final_db_output( tool_ctx * tool_ctx )
 {
     struct temp_registry * registry = NULL;
+    join_stats stats;
     
     rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task );
     
+    clear_join_stats( &stats );
     /* join SEQUENCE-table with lookup-table === this is the actual purpos of the tool === */
     
 /* --------------------------------------------------------------------------------------------
@@ -569,6 +588,7 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
     if ( rc == 0 )
         rc = execute_db_join( tool_ctx -> dir,
                            tool_ctx -> accession,
+                           &stats,
                            tool_ctx -> lookup_filename,
                            tool_ctx -> index_filename,
                            &( tool_ctx -> tmp_id ),
@@ -605,6 +625,9 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
     if ( registry != NULL )
         destroy_temp_registry( registry );
 
+    if ( rc == 0 && !( tool_ctx -> print_to_stdout ) )
+        print_stats( &stats );
+
     return rc;
 }
 
@@ -633,6 +656,9 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
 {
     rc_t rc = 0;
     struct temp_registry * registry = NULL;
+    join_stats stats;
+    
+    clear_join_stats( &stats );
     
     if ( tool_ctx -> show_details )
         rc = show_details( tool_ctx );
@@ -643,6 +669,7 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
     if ( rc == 0 )
         rc = execute_tbl_join( tool_ctx -> dir,
                            tool_ctx -> accession,
+                           &stats,
                            tbl_name,
                            &( tool_ctx -> tmp_id ),
                            registry,
@@ -666,6 +693,9 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
 
     if ( registry != NULL )
         destroy_temp_registry( registry );
+
+    if ( rc == 0 && !( tool_ctx -> print_to_stdout ) )
+        print_stats( &stats );
 
     return rc;
 }

@@ -213,15 +213,22 @@ static rc_t print_fq2_read_2( struct join_results * results,
                     accession, row_id, name, quality -> len, quality ); /* join_results.c */
 }
 
-static rc_t print_fastq_1_read( const fastq_rec * rec, join * j, bool rowid_as_name,
-                                uint32_t read_id, bool skip_tech )
+static rc_t print_fastq_1_read( join_stats * stats,
+                                const fastq_rec * rec,
+                                join * j,
+                                bool rowid_as_name,
+                                uint32_t read_id,
+                                bool skip_tech )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
     
     if ( skip_tech && rec -> num_read_type > 0 )
         if ( ( rec -> read_type[ 0 ] & READ_TYPE_BIOLOGICAL ) != READ_TYPE_BIOLOGICAL )
+        {
+            stats -> fragments_technical++;
             return rc;
+        }
         
     if ( rec -> prim_alig_id[ 0 ] == 0 )
     {
@@ -248,6 +255,8 @@ static rc_t print_fastq_1_read( const fastq_rec * rec, join * j, bool rowid_as_n
         }
     }
 
+    if ( rc == 0 )
+        stats -> fragments_written++;
     return rc;
 }
 
@@ -282,7 +291,10 @@ static rc_t print_fq2_reads_2( struct join_results * results,
                     accession, row_id, name, quality -> len, quality ); /* join_results.c */
 }
 
-static rc_t print_fastq_2_reads( const fastq_rec * rec, join * j, bool rowid_as_name )
+static rc_t print_fastq_2_reads( join_stats * stats,
+                                 const fastq_rec * rec,
+                                 join * j,
+                                 bool rowid_as_name )
 {
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
@@ -348,11 +360,16 @@ static rc_t print_fastq_2_reads( const fastq_rec * rec, join * j, bool rowid_as_
             }
         }
     }
+    
+    if ( rc == 0 )
+        stats -> fragments_written += 2;
+
     return rc;
 }
 
 /* FASTQ SPLIT */
-static rc_t print_fastq_2_reads_splitted( const fastq_rec * rec,
+static rc_t print_fastq_2_reads_splitted( join_stats * stats,
+                                          const fastq_rec * rec,
                                           join * j,
                                           bool split_file,
                                           bool rowid_as_name,
@@ -373,7 +390,13 @@ static rc_t print_fastq_2_reads_splitted( const fastq_rec * rec,
             process_1 = ( rec -> read_type[ 1 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
 
         if ( !process_0 && !process_1 )
+        {
+            stats -> fragments_technical += 2;
             return rc;
+        }
+        
+        if ( !process_0 || !process_1 )
+            stats -> fragments_technical++;
     }
     
     Q1 . addr = rec -> quality . addr;
@@ -550,6 +573,7 @@ static rc_t perform_special_join( cmn_params * cp,
 
 
 static rc_t perform_fastq_join( cmn_params * cp,
+                                join_stats * stats,
                                 join * j,
                                 struct bg_progress * progress,
                                 bool rowid_as_name )
@@ -572,10 +596,13 @@ static rc_t perform_fastq_join( cmn_params * cp,
             rc = Quitting();
             if ( rc == 0 )
             {
+                stats -> spots_read++;
+                stats -> fragments_read += rec . num_alig_id;
+            
                 if ( rec . num_alig_id == 1 )
-                    rc = print_fastq_1_read( &rec, j, rowid_as_name, 1, false );
+                    rc = print_fastq_1_read( stats, &rec, j, rowid_as_name, 1, false );
                 else
-                    rc = print_fastq_2_reads( &rec, j, rowid_as_name );
+                    rc = print_fastq_2_reads( stats, &rec, j, rowid_as_name );
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -586,6 +613,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
 }
 
 static rc_t perform_fastq_split_spot_join( cmn_params * cp,
+                                      join_stats * stats,
                                       join * j,
                                       struct bg_progress * progress,
                                       bool rowid_as_name,
@@ -609,10 +637,13 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
             rc = Quitting();
             if ( rc == 0 )
             {
+                stats -> spots_read++;
+                stats -> fragments_read += rec . num_alig_id;
+            
                 if ( rec . num_alig_id == 1 )
-                    rc = print_fastq_1_read( &rec, j, rowid_as_name, 1, skip_tech );
+                    rc = print_fastq_1_read( stats, &rec, j, rowid_as_name, 1, skip_tech );
                 else
-                    rc = print_fastq_2_reads_splitted( &rec, j, false, rowid_as_name, skip_tech );
+                    rc = print_fastq_2_reads_splitted( stats, &rec, j, false, rowid_as_name, skip_tech );
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -623,6 +654,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
 }
 
 static rc_t perform_fastq_split_file_join( cmn_params * cp,
+                                      join_stats * stats,
                                       join * j,
                                       struct bg_progress * progress,
                                       bool rowid_as_name )
@@ -645,10 +677,13 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
             rc = Quitting();
             if ( rc == 0 )
             {
+                stats -> spots_read++;
+                stats -> fragments_read += rec . num_alig_id;
+            
                 if ( rec . num_alig_id == 1 )
-                    rc = print_fastq_1_read( &rec, j, rowid_as_name, 1, false );
+                    rc = print_fastq_1_read( stats, &rec, j, rowid_as_name, 1, false );
                 else
-                    rc = print_fastq_2_reads_splitted( &rec, j, true, rowid_as_name, false );
+                    rc = print_fastq_2_reads_splitted( stats, &rec, j, true, rowid_as_name, false );
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -659,6 +694,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
 }
 
 static rc_t perform_fastq_split_3_join( cmn_params * cp,
+                                      join_stats * stats,
                                       join * j,
                                       struct bg_progress * progress,
                                       bool rowid_as_name )
@@ -681,10 +717,13 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
             rc = Quitting();
             if ( rc == 0 )
             {
+                stats -> spots_read++;
+                stats -> fragments_read += rec . num_alig_id;
+            
                 if ( rec . num_alig_id == 1 )
-                    rc = print_fastq_1_read( &rec, j, rowid_as_name, 1, false );
+                    rc = print_fastq_1_read( stats, &rec, j, rowid_as_name, 1, false );
                 else
-                    rc = print_fastq_2_reads_splitted( &rec, j, true, rowid_as_name, false );
+                    rc = print_fastq_2_reads_splitted( stats, &rec, j, true, rowid_as_name, false );
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -699,13 +738,16 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
 typedef struct join_thread_data
 {
     char part_file[ 4096 ];
-        
+
+    join_stats stats;
+    
     KDirectory * dir;
     const char * accession;
     const char * lookup_filename;
     const char * index_filename;
     struct bg_progress * progress;
     struct temp_registry * registry;
+    KThread * thread;
     
     int64_t first_row;
     uint64_t row_count;
@@ -736,18 +778,28 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
         {
             switch ( jtd -> fmt )
             {
-                case ft_special             : rc = perform_special_join( &cp, &j, jtd -> progress ); break;
+                case ft_special             : rc = perform_special_join( &cp,
+                                                        &j, jtd -> progress ); break;
 
-                case ft_fastq               : rc = perform_fastq_join( &cp, &j, jtd -> progress,
+                case ft_fastq               : rc = perform_fastq_join( &cp,
+                                                        &jtd -> stats,
+                                                        &j, jtd -> progress,
                                                         jtd -> rowid_as_name ); break;
 
-                case ft_fastq_split_spot    : rc = perform_fastq_split_spot_join( &cp, &j, jtd -> progress,
-                                                        jtd -> rowid_as_name, jtd -> skip_tech ); break;
+                case ft_fastq_split_spot    : rc = perform_fastq_split_spot_join( &cp,
+                                                        &jtd -> stats,
+                                                        &j, jtd -> progress,
+                                                        jtd -> rowid_as_name,
+                                                        jtd -> skip_tech ); break;
 
-                case ft_fastq_split_file    : rc = perform_fastq_split_file_join( &cp, &j, jtd -> progress,
+                case ft_fastq_split_file    : rc = perform_fastq_split_file_join( &cp,
+                                                        &jtd -> stats,
+                                                        &j, jtd -> progress,
                                                         jtd -> rowid_as_name ); break;
 
-                case ft_fastq_split_3       : rc = perform_fastq_split_3_join( &cp, &j, jtd -> progress,
+                case ft_fastq_split_3       : rc = perform_fastq_split_3_join( &cp,
+                                                        &jtd -> stats,
+                                                        &j, jtd -> progress,
                                                         jtd -> rowid_as_name ); break;
 
                 default : break;
@@ -756,13 +808,12 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
         }
         destroy_join_results( results );
     }
-    
-    free( ( void * ) data );
     return rc;
 }
 
 rc_t execute_db_join( KDirectory * dir,
                     const char * accession,
+                    join_stats * stats,
                     const char * lookup_filename,
                     const char * index_filename,
                     const tmp_id * tmp_id,
@@ -805,8 +856,6 @@ rc_t execute_db_join( KDirectory * dir,
                     rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
                 else
                 {
-                    KThread * thread;
-                    
                     jtd -> dir              = dir;
                     jtd -> accession        = accession;
                     jtd -> lookup_filename  = lookup_filename;
@@ -826,12 +875,12 @@ rc_t execute_db_join( KDirectory * dir,
 
                     if ( rc == 0 )
                     {
-                        rc = KThreadMake( &thread, cmn_thread_func, jtd );
+                        rc = KThreadMake( &jtd -> thread, cmn_thread_func, jtd );
                         if ( rc != 0 )
                             ErrMsg( "KThreadMake( fastq/special #%d ) -> %R", thread_id, rc );
                         else
                         {
-                            rc = VectorAppend( &threads, NULL, thread );
+                            rc = VectorAppend( &threads, NULL, jtd );
                             if ( rc != 0 )
                                 ErrMsg( "VectorAppend( sort-thread #%d ) -> %R", thread_id, rc );
                         }
@@ -839,7 +888,26 @@ rc_t execute_db_join( KDirectory * dir,
                     }
                 }
             }
-            join_and_release_threads( &threads ); /* helper.c */
+            
+            {
+                /* collect the threads, and add the join_stats */
+                uint32_t i, n = VectorLength( &threads );
+                for ( i = VectorStart( &threads ); i < n; ++i )
+                {
+                    join_thread_data * jtd = VectorGet( &threads, i );
+                    if ( jtd != NULL )
+                    {
+                        KThreadWait( jtd -> thread, NULL );
+                        KThreadRelease( jtd -> thread );
+                        
+                        add_join_stats( stats, &jtd -> stats );
+                            
+                        free( jtd );
+                    }
+                }
+                VectorWhack ( &threads, NULL, NULL );
+            }
+            
             bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
     }

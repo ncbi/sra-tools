@@ -108,7 +108,6 @@ fastdump_split_spot()
     rm -rf $out
 
     options="$show_progress $force_overwrite $show_details $split_spot $3"
-    echo $options
     time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out $2
     
@@ -239,7 +238,7 @@ test_sra_db()
 }
 
 #test_csra
-#test_sra_flat_1
-#test_sra_flat_4
-test_sra_flat_split_spot "--skip-technical"
+test_sra_flat_2
+test_sra_flat_4
+#test_sra_flat_split_spot
 #test_sra_db

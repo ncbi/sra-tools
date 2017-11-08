@@ -426,6 +426,29 @@ void join_and_release_threads( Vector * threads )
     VectorWhack ( threads, NULL, NULL );
 }
 
+void clear_join_stats( join_stats * stats )
+{
+    if ( stats != NULL )
+    {
+        stats -> spots_read = 0;
+        stats -> fragments_read = 0;
+        stats -> fragments_written = 0;
+        stats -> fragments_zero_length = 0;
+        stats -> fragments_technical = 0;
+    }
+}
+
+void add_join_stats( join_stats * stats, const join_stats * to_add )
+{
+    if ( stats != NULL && to_add != NULL )
+    {
+        stats -> spots_read += to_add -> spots_read;
+        stats -> fragments_read += to_add -> fragments_read;
+        stats -> fragments_written += to_add -> fragments_written;
+        stats -> fragments_zero_length += to_add -> fragments_zero_length;
+        stats -> fragments_technical += to_add -> fragments_technical;
+    }
+}
 
 rc_t delete_files( KDirectory * dir, const VNamelist * files )
 {

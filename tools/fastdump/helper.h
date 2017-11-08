@@ -73,6 +73,15 @@ extern "C" {
 
 rc_t CC Quitting(); /* to avoid including kapp/main.h */
 
+typedef struct join_stats
+{
+    uint64_t spots_read;
+    uint64_t fragments_read;
+    uint64_t fragments_written;
+    uint64_t fragments_zero_length;
+    uint64_t fragments_technical;    
+} join_stats;
+
 typedef struct tmp_id
 {
     const char * temp_path;
@@ -80,7 +89,6 @@ typedef struct tmp_id
     uint32_t pid;
     bool temp_path_ends_in_slash;
 } tmp_id;
-
 
 typedef struct SBuffer
 {
@@ -159,6 +167,9 @@ rc_t make_joined_filename( char * buffer, size_t bufsize,
                            const char * accession,
                            const tmp_id * tmp_id,
                            uint32_t id );
+
+void clear_join_stats( join_stats * stats );
+void add_join_stats( join_stats * stats, const join_stats * to_add );
 
 /* ===================================================================================== */
 

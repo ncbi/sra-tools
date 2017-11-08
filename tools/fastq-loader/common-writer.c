@@ -1036,7 +1036,6 @@ static void freeReadResult(struct ReadResult const *const rslt)
 }
 
 struct ReadThreadContext {
-    timeout_t tm;
     KThread *th;
     KQueue *que;
     CommonWriterSettings *settings;
@@ -1048,15 +1047,15 @@ struct ReadThreadContext {
 static rc_t readThread(KThread const *const th, void *const ctx)
 {
     struct ReadThreadContext *const self = ctx;
-    timeout_t tm;
     rc_t rc = 0;
 
-    TimeoutInit(&tm, 10000);
     while (Quitting() == 0) {
         struct ReadResult *const rr = threadGetNextRecord(self->settings, self->ctx, self->reader, &self->reccount);
         int const rr_type = rr->type;
 
-        for ( ;; ) {
+        while (Quitting() == 0) {
+            timeout_t tm;
+            TimeoutInit(&tm, 10000);
             rc = KQueuePush(self->que, rr, &tm);
             if (rc == 0)
                 break;
@@ -1066,8 +1065,14 @@ static rc_t readThread(KThread const *const th, void *const ctx)
             break;
         }
         if (rc) {
-            (void)LOGERR(klogErr, rc, "readThread: failed to push next record into queue");
             free(rr);
+            if ((int)GetRCState(rc) == rcReadonly && (int)GetRCObject(rc) == rcQueue) {
+                (void)LOGMSG(klogDebug, "readThread: consumer closed queue");
+                rc = 0;
+            }
+            else {
+                (void)LOGERR(klogErr, rc, "readThread: failed to push next record into queue");
+            }
             break;
         }
         else if (rr_type == rr_done) {
@@ -1087,7 +1092,6 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
     memset(&rslt, 0, sizeof(rslt));
 #if USE_READER_THREAD
     if (self->th == NULL) {
-        TimeoutInit(&self->tm, 1000000);
         rslt.u.error.rc = KQueueMake(&self->que, 1024);
         if (rslt.u.error.rc) {
             rslt.type = rr_error;
@@ -1102,8 +1106,11 @@ static struct ReadResult getNextRecord(struct ReadThreadContext *const self)
         }
     }
     while ((rslt.u.error.rc = Quitting()) == 0) {
+        timeout_t tm;
         void *rr = NULL;
-        rslt.u.error.rc = KQueuePop(self->que, &rr, &self->tm);
+        
+        TimeoutInit(&tm, 10000);
+        rslt.u.error.rc = KQueuePop(self->que, &rr, &tm);
         if (rslt.u.error.rc == 0) {
             memmove(&rslt, rr, sizeof(rslt));
             free(rr);
@@ -1513,8 +1520,31 @@ LOOP_END:
         freeReadResult(&rr);
     }
 
-    KThreadCancel(threadCtx.th);
-    KThreadWait ( threadCtx.th, NULL );
+    if (threadCtx.que != NULL && threadCtx.th != NULL) {
+        /* this means the exit was triggered in here, so the producer thread
+         * needs to be notified and allowed to exit
+         *
+         * if the exit were triggered by the context setup, then
+         * only one of que or th would be NULL
+         *
+         * it the exit were triggered by the getNextRecord, then both
+         * que and th would be NULL
+         */
+        KQueueSeal(threadCtx.que);
+        for ( ; ; ) {
+            timeout_t tm;
+            void *rr = NULL;
+            rc_t rc;
+
+            TimeoutInit(&tm, 1000);
+            rc = KQueuePop(threadCtx.que, &rr, &tm);
+            if (rc == 0)
+                free(rr);
+            else
+                break;
+        }
+        KThreadWait(threadCtx.th, NULL);
+    }
     KThreadRelease(threadCtx.th);
     KQueueRelease(threadCtx.que);
 

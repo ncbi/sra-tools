@@ -620,11 +620,14 @@ rc_t GetKeyID(KeyToID *const ctx,
                 *rslt = (((uint64_t)f) << 32) | tmpKey;
                 if (*wasInserted)
                     ++ctx->idCount[f];
-                assert(tmpKey < ctx->idCount[f]);
+                if (!(tmpKey < ctx->idCount[f])) {
+                    (void)PLOGMSG(klogErr, (klogErr, "too many spots for read group '$(rg)'; ran out of 32-bit ids", "rg=%s", key));
+                    return RC(rcExe, rcTree, rcAllocating, rcId, rcExhausted);
+                }
             }
             return rc;
         }
-        (void)PLOGMSG(klogErr, (klogErr, "too many read groups: max is $(max)", "max=%d", (int)ctx->key2id_count, (int)ctx->key2id_max));
+        (void)PLOGMSG(klogErr, (klogErr, "too many read groups: max is $(max)", "max=%d", (int)ctx->key2id_max));
         return RC(rcExe, rcTree, rcAllocating, rcConstraint, rcViolated);
     }
 }
@@ -1394,7 +1397,6 @@ static rc_t FixOverhangingAlignment(KDataBuffer *cigBuf, uint32_t *opCount, uint
 }
 
 static context_t GlobalContext;
-static timeout_t bamq_tm;
 static KQueue *bamq;
 static KThread *bamread_thread;
 
@@ -1437,7 +1439,9 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
         }
 
         for ( ; ; ) {
-            rc = KQueuePush(bamq, rec, &bamq_tm);
+            timeout_t tm;
+            TimeoutInit(&tm, 1000);
+            rc = KQueuePush(bamq, rec, &tm);
             if (rc == 0 || (int)GetRCObject(rc) != rcTimeout)
                 break;
         }
@@ -1456,7 +1460,6 @@ static rc_t run_bamread_thread(const KThread *self, void *const file)
 static BAM_Alignment const *getNextRecord(BAM_File const *const bam, rc_t *const rc)
 {
     if (bamq == NULL) {
-        TimeoutInit(&bamq_tm, 10000); /* 10 seconds */
         *rc = KQueueMake(&bamq, 4096);
         if (*rc) return NULL;
         *rc = KThreadMake(&bamread_thread, run_bamread_thread, (void *)bam);
@@ -1468,8 +1471,10 @@ static BAM_Alignment const *getNextRecord(BAM_File const *const bam, rc_t *const
     }
     while (*rc == 0 && (*rc = Quitting()) == 0) {
         BAM_Alignment const *rec = NULL;
+        timeout_t tm;
 
-        *rc = KQueuePop(bamq, (void **)&rec, &bamq_tm);
+        TimeoutInit(&tm, 10000);
+        *rc = KQueuePop(bamq, (void **)&rec, &tm);
         if (*rc == 0)
             return rec; /* this is the normal return */
 
@@ -1482,12 +1487,11 @@ static BAM_Alignment const *getNextRecord(BAM_File const *const bam, rc_t *const
                 (void)PLOGERR(klogWarn, (klogWarn, *rc, "KQueuePop Error", NULL));
         }
     }
-	KQueueSeal(bamq);
     {
         rc_t rc2 = 0;
         KThreadWait(bamread_thread, &rc2);
         if (rc2 != 0)
-            *rc = rc2;
+            *rc = rc2; // return the rc from the reader thread
     }
     KThreadRelease(bamread_thread);
     bamread_thread = NULL;
@@ -2619,6 +2623,23 @@ WRITE_ALIGNMENT:
         if (rc == 0)
             *had_sequences = true;
     }
+    if (bamread_thread != NULL && bamq != NULL) {
+        KQueueSeal(bamq);
+        for ( ; ; ) {
+            timeout_t tm;
+            void *rr = NULL;
+            rc_t rc2;
+
+            TimeoutInit(&tm, 1000);
+            rc2 = KQueuePop(bamq, &rr, &tm);
+            if (rc2) break;
+            BAM_AlignmentRelease((BAM_Alignment *)rr);
+        }
+        KThreadWait(bamread_thread, NULL);
+    }
+    KThreadRelease(bamread_thread);
+    KQueueRelease(bamq);
+    
     if (rc) {
         if (   (GetRCModule(rc) == rcCont && (int)GetRCObject(rc) == rcData && GetRCState(rc) == rcDone)
             || (GetRCModule(rc) == rcAlign && GetRCObject(rc) == rcRow && GetRCState(rc) == rcNotFound))

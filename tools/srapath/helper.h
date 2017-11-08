@@ -72,6 +72,9 @@ rc_t foreach_option( const struct Args * args, const char * option_name,
 rc_t options_to_namelist( const struct Args * args, const char * option_name, VNamelist ** dst );
 rc_t options_to_ptrs( const struct Args * args, const char * option_name, const char *** ptr );
 
+rc_t options_to_nums ( const struct Args * args,
+                       const char * name, uint32_t ** ptr );
+
 rc_t foreach_item( const VNamelist * src, 
                    rc_t ( * on_item )( const char * item, void * data ),
                    void * data );

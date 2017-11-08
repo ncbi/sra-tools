@@ -22,12 +22,35 @@
 #
 # ===========================================================================
 
-TOP ?= $(abspath ../..)
-include $(TOP)/build/Makefile.env # BINDIR
-
 default: runtests
 
-slowtests: test-stat
+TOP ?= $(abspath ../..)
 
-test-stat:
-	$(BINDIR)/sra-stat SRR5110972
+MODULE = test/sra-stat
+
+TEST_TOOLS = \
+	testAssemblyStatistics
+
+include $(TOP)/build/Makefile.env
+
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
+
+.PHONY: $(TEST_TOOLS)
+
+clean: stdclean
+
+#----------------------------------------------------------------
+SRC = \
+	testAssemblyStatistics
+
+OBJ = \
+	$(addsuffix .$(OBJX),$(SRC))
+
+LIB = \
+	-skapp \
+	-sktst \
+	-sncbi-vdb \
+
+$(TEST_BINDIR)/testAssemblyStatistics: $(OBJ)
+	$(LP) --exe -o $@ $^ $(LIB)

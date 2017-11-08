@@ -1,0 +1,53 @@
+# ===========================================================================
+#
+#                            PUBLIC DOMAIN NOTICE
+#               National Center for Biotechnology Information
+#
+#  This software/database is a "United States Government Work" under the
+#  terms of the United States Copyright Act.  It was written as part of
+#  the author's official duties as a United States Government employee and
+#  thus cannot be copyrighted.  This software/database is freely available
+#  to the public for use. The National Library of Medicine and the U.S.
+#  Government have not placed any restriction on its use or reproduction.
+#
+#  Although all reasonable efforts have been taken to ensure the accuracy
+#  and reliability of the software and data, the NLM and the U.S.
+#  Government do not and cannot warrant the performance or results that
+#  may be obtained by using this software or data. The NLM and the U.S.
+#  Government disclaim all warranties, express or implied, including
+#  warranties of performance, merchantability or fitness for any particular
+#  purpose.
+#
+#  Please cite the author in any work or product based on this material.
+#
+# ===========================================================================
+
+## DEFAULT CONFIGURATION FOR SRA-TOOLKIT
+## modified for testing purposes 
+#  These settings are intended to allow the tools to work under conditions
+#  when the user has not yet performed any configuration.
+/config/default = "true"
+
+# The user's default public repository
+/repository/user/main/public/apps/file/volumes/flat = "files"
+/repository/user/main/public/apps/nakmer/volumes/nakmerFlat = "nannot"
+/repository/user/main/public/apps/nannot/volumes/nannotFlat = "nannot"
+/repository/user/main/public/apps/refseq/volumes/refseq = "refseq"
+/repository/user/main/public/apps/sra/volumes/sraFlat = "sra"
+/repository/user/main/public/apps/wgs/volumes/wgsFlat = "wgs"
+/repository/user/main/public/root = "$(HOME)/ncbi/public"
+
+# Remote access to NCBI's public repository
+/repository/remote/main/CGI/resolver-cgi = "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi"
+/repository/remote/aux/NCBI/apps/nakmer/volumes/fuseNAKMER = "sadb"
+/repository/remote/aux/NCBI/apps/nannot/volumes/fuseNANNOT = "sadb"
+/repository/remote/aux/NCBI/apps/refseq/volumes/refseq = "refseq"
+/repository/remote/aux/NCBI/apps/sra/volumes/flat = "srapub"
+/repository/remote/aux/NCBI/apps/wgs/volumes/fuseWGS = "wgs"
+/repository/remote/aux/NCBI/root = "http://sra-download.ncbi.nlm.nih.gov"
+
+# Remote access to NCBI's protected repository
+/repository/remote/protected/CGI/resolver-cgi = "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi"
+
+# Aspera configuration
+/tools/ascp/max_rate = "1000m"

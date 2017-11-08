@@ -45,6 +45,7 @@ SUBDIRS =    \
 	copycat         \
 	vdb-copy        \
 	qual-recalib-stat \
+	sra-stat        \
 	srapath         \
 	sra-sort        \
 	fastdump        \

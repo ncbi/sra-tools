@@ -3997,7 +3997,7 @@ static unsigned insert_B(unsigned const T, unsigned const G, unsigned const n, u
     return n;
 }
 
-static unsigned canonicalize(uint32_t cigar[], unsigned n)
+static unsigned canonicalizeCIGAR(uint32_t cigar[], unsigned n)
 {
     unsigned i;
     
@@ -4042,7 +4042,7 @@ static unsigned GetCGCigar(BAM_Alignment const *self, unsigned const N, uint32_t
     memmove(cigar, getCigarBase(self), n * 4);
 
     if (n > 1)
-        n = canonicalize(cigar, n); /* just in case */
+        n = canonicalizeCIGAR(cigar, n); /* just in case */
     
     for (i = 0, S = 0; i < gaps; ++i) {
         unsigned const s = seg[2 * i + 0];

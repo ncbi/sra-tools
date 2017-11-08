@@ -54,6 +54,7 @@
 
 #include <sra/sraschema.h> /* VDBManagerMakeSRASchema */
 
+#include <vdb/blob.h> /* VBlobCellData */
 #include <vdb/cursor.h> /* VCursor */
 #include <vdb/database.h> /* VDatabaseRelease */
 #include <vdb/dependencies.h> /* VDBDependencies */
@@ -74,10 +75,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-/* #include <stdio.h> */ /* stderr */
-
-#define DISP_RC(rc, msg) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, msg))
 
 #define DISP_RC2(rc, name, msg) (void)((rc == 0) ? 0 : \
     PLOGERR(klogInt, (klogInt, rc, \
@@ -282,7 +279,7 @@ static void Statistics2Print(const Statistics2* selfs,
         look the same */
     uint64_t spot_count)
 {
-    int i = 0;
+    uint32_t i = 0;
 
     if (nreads) {
         assert(selfs && indent);
@@ -533,7 +530,7 @@ static rc_t BasesPrint(const Bases *self,
     return rc;
 }
 
-typedef struct {
+typedef struct SraStatsTotal {
     uint64_t spot_count;
     uint64_t spot_count_mates;
     uint64_t BIO_BASE_COUNT; /* bio_len */
@@ -593,7 +590,7 @@ void SraStatsTotalStatistics2Init(SraStatsTotal* self,
         uint64_t sum = sums[i];
         Statistics2* stats = self->stats2 + i;
         assert(stats);
-        Statistics2Init(stats, sum, count[i]);
+        Statistics2Init(stats, ( double ) sum, count[i]);
     }
 }
 
@@ -653,7 +650,7 @@ static
 void SraStatsTotalAdd(SraStatsTotal* self,
     uint32_t* values, uint32_t nreads)
 {
-    int i = ~0;
+    uint32_t i = 0;
 
     assert(self && values);
 
@@ -678,7 +675,7 @@ void SraStatsTotalAdd(SraStatsTotal* self,
 
 static
 void SraStatsTotalAdd2(SraStatsTotal* self, uint32_t* values) {
-    int i = 0;
+    uint32_t i = 0;
 
     assert(self && values);
 
@@ -710,7 +707,7 @@ void print_double_or_int(const char* name, double val, bool variable) {
 static void StatisticsPrint(const Statistics* selfs,
     uint32_t nreads, const char* indent)
 {
-    int i = ~0;
+    uint32_t i = 0;
 
     if (nreads) {
         assert(selfs && indent);
@@ -734,7 +731,7 @@ static rc_t StatisticsDiff(const Statistics* ss,
 {
     rc_t rc = 0;
 
-    int i = ~0;
+    uint32_t i = 0;
 
     assert(ss && ss2);
 
@@ -857,7 +854,7 @@ typedef struct SraMeta {
     Formatter formatter;
     Loader loader;
 } SraMeta;
-typedef struct ArcInfo_struct {
+typedef struct ArcInfo {
     KTime_t timestamp;
     struct {
         const char* tag;
@@ -869,15 +866,6 @@ typedef struct Quality {
     uint32_t value;
     uint64_t count;
 } Quality;
-typedef struct QualityStats {
-    Quality* QUALITY;
-    size_t allocated;
-    size_t used;
-} QualityStats;
-typedef enum EMetaState {
-    eMSNotFound,
-    eMSFound
-} EMetaState;
 typedef struct Count {
     EMetaState state;
     uint64_t value;
@@ -889,25 +877,6 @@ typedef struct Counts {
     Count BASE_COUNT;
     Count SPOT_COUNT;
 } Counts;
-typedef struct TableCounts {
-    EMetaState state;
-    Counts* count;
-    size_t allocated;
-    size_t used;
-} TableCounts;
-typedef struct Ctx {
-    const BSTree* tr;
-    const MetaDataStats* meta_stats;
-    const SraMeta* info;
-    const SraSizeStats* sizes;
-    const ArcInfo* arc_info;
-    srastat_parms* pb;
-    SraStatsTotal* total;
-    const VDatabase* db;
-    const KMetadata* meta; /* from Table (when running on table) */
-    QualityStats quality;
-    TableCounts tables;
-} Ctx;
 typedef rc_t (CC * RG_callback)(const BAM_HEADER_RG* rg, const void* data);
 static
 rc_t CC meta_RG_callback(const BAM_HEADER_RG* rg, const void* data)
@@ -916,7 +885,7 @@ rc_t CC meta_RG_callback(const BAM_HEADER_RG* rg, const void* data)
 
     const MetaDataStats* meta_stats = data;
 
-    int i = 0;
+    uint32_t i = 0;
     bool found = false;
 
     assert(rg && meta_stats && rg->ID);
@@ -989,7 +958,7 @@ static rc_t QualityParse(Quality* self,
 {
     rc_t rc = 0;
     const char start[] = "PHRED_";
-    int i = strlen(start);
+    size_t i = strlen(start);
 
     assert(self && name);
 
@@ -1284,7 +1253,7 @@ rc_t TableCountsRead(TableCounts* self, const VDatabase* db)
     memset(self, 0, sizeof *self);
 
     if (db == NULL)
-    {   return 0; }
+        return 0;
 
     rc = VDatabaseListTbl(db, &names);
     DISP_RC(rc, "while calling VDatabaseListTbl");
@@ -2248,7 +2217,7 @@ rc_t process_align_info(const char* indent, const Ctx* ctx)
 {
     rc_t rc = 0;
     uint32_t count = 0;
-    int i = 0;
+    uint32_t i = 0;
     const VDBDependencies* dep = NULL;
 
     assert(indent && ctx);
@@ -2731,6 +2700,12 @@ rc_t print_results(const Ctx* ctx)
         {   rc = TableCountsPrint(&ctx->tables, "  "); }
         if ( rc == 0 )
             rc = CtxPrintCHANGES ( ctx, "  " );
+        if ( rc == 0 && ctx -> n90 > 0 )
+            OUTMSG ( ("  <AssemblyStatistics "
+                "n50=\"%lu\" l50=\"%lu\" n90=\"%lu\" l90=\"%lu\" "
+                "n=\"%lu\" l=\"%lu\"/>\n",
+                ctx -> n50, ctx -> l50, ctx -> n90, ctx -> l90,\
+                ctx -> n, ctx -> l ) );
         OUTMSG(("</Run>\n"));
     }
     if (mismatch && ctx->pb->start == 0 && ctx->pb->stop == 0) {
@@ -2887,7 +2862,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
 
                     if (pb->stop > 0) {
                         stop = pb->stop;
-                        if (stop > first + count) {
+                        if ( ( uint64_t ) stop > first + count) {
                             stop = first + count;
                         }
                     }
@@ -2947,9 +2922,10 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                         }
                         if (rc == 0) {
                             int i, bio_len, bio_count, bad_cnt, filt_cnt;
-                            memmove(dREAD_LEN,
-                                ((const char*)base) + (boff>>3), row_bits >> 3);
-                            nreads = (row_bits >> 3) / sizeof(*dREAD_LEN);
+                            memmove(dREAD_LEN, ((const char*)base) + (boff>>3),
+                                    ( size_t ) row_bits >> 3);
+                            nreads
+                                = (int) ((row_bits >> 3) / sizeof(*dREAD_LEN));
                             if (spotid == start) {
                                 g_nreads = nreads;
                                 if (pb->statistics) {
@@ -2990,7 +2966,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                             if (rc == 0) {
                                 memmove(dREAD_TYPE,
                                     ((const char*)base) + (boff >> 3),
-                                    row_bits >> 3);
+                                    ( size_t ) row_bits >> 3);
                                 if (idxSPOT_GROUP != 0) {
                                     rc = VCursorColumnRead(curs, spotid,
                                         idxSPOT_GROUP, &base, &boff, &row_bits);
@@ -3018,10 +2994,10 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                                "after calling VCursorColumnRead"
                                                );
                                             if (rc == 0) {
-                                                int n = row_bits >> 3;
+                                                bitsz_t n = row_bits >> 3;
                                                 memmove(dSPOT_GROUP,
                                                   ((const char*)base)+(boff>>3),
-                                                  row_bits>>3);
+                                                  ( size_t ) row_bits>>3);
                                                 dSPOT_GROUP[n]='\0';
                                                 if (n > 1 ||
                                                     (n == 1 && dSPOT_GROUP[0]))
@@ -3047,7 +3023,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                     DISP_RC_Read(rc, RD_FILTER, spotid,
                                         "while calling VCursorColumnRead");
                                     if (rc == 0) {
-                                        int size = row_bits >> 3;
+                                        bitsz_t size = row_bits >> 3;
                                         if (boff & 7) {
                                             rc = RC(rcExe, rcColumn, rcReading,
                                                 rcOffset, rcInvalid); }
@@ -3064,7 +3040,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         if (rc == 0) {
                                             memmove(dRD_FILTER,
                                                 ((const char*)base) + (boff>>3),
-                                                size);
+                                                ( size_t ) size);
                                             if (size < nreads) {
                              /* RD_FILTER is expected to have nreads elements */
                                                 if (size == 1) {
@@ -3329,7 +3305,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                               rcBuffer, rcInsufficient);
             }
             if (rc == 0) {
-                memmove(dREAD_LEN, ((const char*)base) + (boff>>3), row_bits>>3);
+                memmove(dREAD_LEN, ((const char*)base) + (boff>>3),
+                        ( size_t ) row_bits>>3);
             }
             for (i = 0; i < g_nreads; ++i) {
                 diff_sq[i] +=
@@ -3362,9 +3339,8 @@ rc_t run(srastat_parms* pb)
     assert(pb && pb->table_path);
 
     rc = VDBManagerMakeRead(&vmgr, NULL);
-    if (rc != 0) {
+    if (rc != 0)
         LOGERR(klogInt, rc, "failed to open VDBManager");
-    }
     else {
         SraSizeStats sizes;
         ArcInfo arc_info;
@@ -3461,6 +3437,8 @@ rc_t run(srastat_parms* pb)
                     TableCountsSort(&ctx.tables);
                 }
             }
+            if ( rc == 0 )
+                rc = CalculateNL ( db, & ctx );
             if (rc == 0) {
                 ctx.db = db;
                 if ( db == NULL )
@@ -3479,7 +3457,7 @@ rc_t run(srastat_parms* pb)
             RELEASE(VDatabase, db);
             RELEASE(KTable, ktbl);
             {
-                int i; 
+                uint32_t i; 
                 for (i = 0; i < stats.spotGroupN; ++i) {
                     SraStatsMetaDestroy(&stats.spotGroup[i]);
                 }

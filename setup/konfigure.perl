@@ -24,6 +24,10 @@
 
 use strict;
 
+use Cwd 'abs_path';
+use File::Basename 'dirname';
+use lib dirname( abs_path $0 );
+
 sub println  { print @_; print "\n" }
 
 my ($filename, $directories, $suffix) = fileparse($0);
@@ -431,6 +435,15 @@ if ($TOOLS =~ /gcc$/ && check_no_array_bounds()) {
 my $STATIC_LIBSTDCPP = '';
 if ($TOOLS =~ /gcc$/) {
     $STATIC_LIBSTDCPP = check_static_libstdcpp();
+}
+
+if ( $PKG{REQ} ) {
+    foreach ( @{ $PKG{REQ} } ) {
+        unless (check_tool__h($_)) {
+            println "configure: error: '$_' cannot be found";
+            exit 1;
+        }
+    }
 }
 
 my @dependencies;

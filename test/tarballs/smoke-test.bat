@@ -52,7 +52,7 @@ for %%t in ( %TOOLS% ) do (
     if "%%t" EQU "tblastn_vdb.exe"      ( set VERSION_OPTION=-version )
     if "%%t" EQU "dump-ref-fasta.exe"   ( set VERSION_OPTION=--version )
     echo %%t !VERSION_OPTION!
-    start /b /wait %%t !VERSION_OPTION! | perl %VERSION_CHECKER% %VERSION% 2>&1
+    start /b /wait %%t !VERSION_OPTION! | perl -w %VERSION_CHECKER% %VERSION% 2>&1
     if errorlevel 1 ( call set FAILED=%%FAILED%% %%t !VERSION_OPTION!; )
 )
 

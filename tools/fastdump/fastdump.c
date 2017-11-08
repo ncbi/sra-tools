@@ -55,23 +55,23 @@ static const char * progress_usage[] = { "show progress", NULL };
 #define OPTION_PROGRESS "progress"
 #define ALIAS_PROGRESS  "p"
 
-static const char * bufsize_usage[] = { "size of file-buffer ( default=1MB )", NULL };
+static const char * bufsize_usage[] = { "size of file-buffer dflt=1MB", NULL };
 #define OPTION_BUFSIZE  "bufsize"
 #define ALIAS_BUFSIZE   "b"
 
-static const char * curcache_usage[] = { "size of cursor-cache ( default=10MB )", NULL };
+static const char * curcache_usage[] = { "size of cursor-cache dflt=10MB", NULL };
 #define OPTION_CURCACHE "curcache"
 #define ALIAS_CURCACHE  "c"
 
-static const char * mem_usage[] = { "memory limit for sorting ( default=100MB )", NULL };
+static const char * mem_usage[] = { "memory limit for sorting dflt=100MB", NULL };
 #define OPTION_MEM      "mem"
 #define ALIAS_MEM       "m"
 
-static const char * temp_usage[] = { "where to put temp. files ( default=curr. dir )", NULL };
+static const char * temp_usage[] = { "where to put temp. files dflt=curr dir", NULL };
 #define OPTION_TEMP     "temp"
 #define ALIAS_TEMP      "t"
 
-static const char * threads_usage[] = { "how many thread ( default=1 )", NULL };
+static const char * threads_usage[] = { "how many thread dflt=6", NULL };
 #define OPTION_THREADS  "threads"
 #define ALIAS_THREADS   "e"
 
@@ -107,9 +107,11 @@ static const char * force_usage[] = { "force to overwrite existing file(s)", NUL
 #define OPTION_FORCE     "force"
 #define ALIAS_FORCE      "f"
 
+/*
 static const char * maxfd_usage[] = { "maximal number of file-descriptors", NULL };
 #define OPTION_MAXFD     "maxfd"
 #define ALIAS_MAXFD      "a"
+*/
 
 static const char * ridn_usage[] = { "use row-id as name", NULL };
 #define OPTION_RIDN      "rowid-as-name"
@@ -137,7 +139,7 @@ OptDef ToolOptions[] =
     { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false },
     { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false },
     { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
-    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false },
+/*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
     { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false },
     { OPTION_TECH,      ALIAS_TECH,      NULL, skip_tech_usage,  1, false,  false }
 };
@@ -211,7 +213,7 @@ typedef struct tool_ctx
     
     size_t cursor_cache, buf_size, mem_limit;
 
-    uint32_t num_threads, max_fds;
+    uint32_t num_threads/*, max_fds */;
     uint64_t total_ram;
     
     format_t fmt;
@@ -338,7 +340,7 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
         tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
         tool_ctx -> num_threads = get_uint64_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
-        tool_ctx -> max_fds = get_uint64_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );
+        /*tool_ctx -> max_fds = get_uint64_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );*/
         tool_ctx -> rowid_as_name = get_bool_option( args, OPTION_RIDN );
         tool_ctx -> skip_tech = get_bool_option( args, OPTION_TECH );
         

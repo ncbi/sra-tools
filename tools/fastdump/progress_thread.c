@@ -39,6 +39,10 @@
 #include <atomic.h>
 #endif
 
+#ifndef _h_atomic64_
+#include <atomic64.h>
+#endif
+
 #ifndef _h_kproc_thread_
 #include <kproc/thread.h>
 #endif
@@ -60,8 +64,8 @@ typedef struct bg_progress
     KThread * thread;
     struct progressbar * progressbar;
     atomic_t done;
-    atomic_t value;
-    atomic_t max_value;
+    atomic64_t value;
+    atomic64_t max_value;
     uint32_t sleep_time;
     uint32_t digits;
     uint32_t cur;
@@ -82,8 +86,8 @@ static uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
 
 static void bg_progress_steps( bg_progress * self )
 {
-    uint64_t max_value = atomic_read( &self -> max_value );
-    uint64_t value = atomic_read( &self -> value );
+    uint64_t max_value = atomic64_read( &self -> max_value );
+    uint64_t value = atomic64_read( &self -> value );
     uint32_t percent = calc_percent( max_value, value, self -> digits );
     if ( percent > self -> cur )
     {
@@ -126,7 +130,7 @@ rc_t bg_progress_make( bg_progress ** bgp, uint64_t max_value, uint32_t sleep_ti
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
     else
     {
-        atomic_set( &p -> max_value, max_value );
+        atomic64_set( &p -> max_value, max_value );
         p -> sleep_time = sleep_time == 0 ? 200 : sleep_time;
         p -> digits = digits == 0 ? 2 : digits;
         rc = KThreadMake( & p -> thread, bg_progress_thread_func, p );
@@ -147,13 +151,13 @@ void bg_progress_update( bg_progress * self, uint64_t by )
 void bg_progress_inc( bg_progress * self )
 {
     if ( self != NULL )
-        atomic_inc( &self -> value );
+        atomic64_inc( &self -> value );
 }
 
 void bg_progress_set_max( bg_progress * self, uint64_t value )
 {
     if ( self != NULL )
-        atomic_set( &self -> max_value, value );
+        atomic64_set( &self -> max_value, value );
 }
 
 void bg_progress_release( bg_progress * self )
@@ -173,7 +177,7 @@ typedef struct bg_update
     KThread * thread;
     atomic_t done;
     atomic_t active;    
-    atomic_t value;
+    atomic64_t value;
     uint64_t prev_value;
     size_t digits_printed;
     uint32_t sleep_time;    
@@ -194,7 +198,7 @@ static rc_t CC bg_update_thread_func( const KThread *self, void *data )
         /* loop until we are done */
         while ( rc == 0 && atomic_read( &bga -> done ) == 0 )
         {
-            uint64_t value = atomic_read( &bga -> value );
+            uint64_t value = atomic64_read( &bga -> value );
             if ( value > 0 && value != bga -> prev_value )
             {
                 char buffer[ 80 ];

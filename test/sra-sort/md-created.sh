@@ -2,12 +2,13 @@
 
 TMP=/export/home/TMP
 if [ ! -d "$TMP" ] ; then
-    $TMP is not found: skipping the test
+    echo $TMP is not found: skipping the test
     exit 0
 fi
 
 if [ "$PANFS_PAN1" == "" ] ; then
-    PANFS_PAN1=/panfs/pan1.be-md.ncbi.nlm.nih.gov
+    echo PANFS_PAN1 is not set: exiting
+    exit 1
 fi
 
 I=`whoami`
@@ -16,7 +17,6 @@ DST=$DSTDIR/sorted
 
 rm -fr $DSTDIR
 
-SORT=/panfs/traces01/trace_software/toolkit-versions/2.8.2/centos64/bin/sra-sort
 SORT=sra-sort
 which $SORT > /dev/null 2>&1
 if [ "$?" != "0" ] ; then

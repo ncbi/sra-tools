@@ -238,7 +238,7 @@ test_sra_db()
 }
 
 #test_csra
-test_sra_flat_2
-test_sra_flat_4
-#test_sra_flat_split_spot
+#test_sra_flat_2
+#test_sra_flat_4
+test_sra_flat_split_spot
 #test_sra_db

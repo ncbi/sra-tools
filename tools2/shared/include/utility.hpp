@@ -92,14 +92,24 @@ namespace utility {
     }
     
     struct CommandLine {
-        std::string program;
-        std::vector<std::string> argument;
+        std::vector<std::string> program, argument;
         
+        CommandLine() {}
         CommandLine(int const argc, char const *const *const argv)
         : argument(argv + 1, argv + argc)
-        , program(programNameFromArgv0(argv[0]))
+        , program(1, programNameFromArgv0(argv[0]))
         {}
         auto arguments() const -> decltype(argument.size()) { return argument.size(); }
+        CommandLine dropFirst() const {
+            auto rslt = CommandLine();
+            rslt.program = program;
+            rslt.argument = argument;
+            if (rslt.argument.size() > 0) {
+                rslt.program.push_back(rslt.argument.front());
+                rslt.argument.erase(rslt.argument.begin());
+            }
+            return rslt;
+        }
     };
 
     class strings_map {

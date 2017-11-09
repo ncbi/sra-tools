@@ -115,10 +115,12 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
             if ( process )
             {
                 R . addr = &rec -> read . addr[ offset ];
-                R . len  = R . size = rec -> read_len[ read_id_0 ];
+                R . size = rec -> read_len[ read_id_0 ];
+                R . len  = ( uint32_t )R . size;
 
                 Q . addr = &rec -> quality . addr[ offset ];
-                Q . len  = Q . size = rec -> read_len[ read_id_0 ];
+                Q . size = rec -> read_len[ read_id_0 ];
+                Q . len  = ( uint32_t )Q . size;
             
                 if ( rowid_as_name )
                     rc = print_fq2_read_1( results, accession, rec -> row_id, 0, &R, &Q );
@@ -164,10 +166,12 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
             if ( process )
             {
                 R . addr = &rec -> read . addr[ offset ];
-                R . len  = R . size = rec -> read_len[ read_id_0 ];
+                R . size = rec -> read_len[ read_id_0 ];
+                R . len  = ( uint32_t )R . size;
 
                 Q . addr = &rec -> quality . addr[ offset ];
-                Q . len  = Q . size = rec -> read_len[ read_id_0 ];
+                Q . size = rec -> read_len[ read_id_0 ];
+                Q . len  = ( uint32_t )Q . size;
             
                 if ( rowid_as_name )
                     rc = print_fq2_read_1( results, accession, rec -> row_id, write_id_1, &R, &Q );
@@ -229,10 +233,12 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
             if ( process )
             {
                 R . addr = &rec -> read . addr[ offset ];
-                R . len  = R . size = rec -> read_len[ read_id_0 ];
+                R . size = rec -> read_len[ read_id_0 ];
+                R . len  = ( uint32_t )R . size;
 
                 Q . addr = &rec -> quality . addr[ offset ];
-                Q . len  = Q . size = rec -> read_len[ read_id_0 ];
+                Q . size = rec -> read_len[ read_id_0 ];
+                Q . len  = ( uint32_t )Q . size;
             
                 if ( rowid_as_name )
                     rc = print_fq2_read_1( results, accession, rec -> row_id, write_id_1, &R, &Q );
@@ -553,7 +559,7 @@ rc_t execute_tbl_join( KDirectory * dir,
         {
             Vector threads;
             int64_t row = 1;
-            uint64_t thread_id;
+            uint32_t thread_id;
             uint64_t rows_per_thread = ( row_count / num_threads ) + 1;
             struct bg_progress * progress = NULL;
 

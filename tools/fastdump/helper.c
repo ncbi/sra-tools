@@ -91,6 +91,23 @@ uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64
     return res;
 }
 
+uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt )
+{
+    uint32_t res = dflt;
+    const char * s = get_str_option( args, name, NULL );
+    if ( s != NULL )
+    {
+        size_t l = string_size( s );
+        if ( l > 0 )
+        {
+            char * endptr;
+            res = ( uint32_t )strtol( s, &endptr, 0 );
+        }
+    }
+    return res;
+
+}
+
 size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt )
 {
     size_t res = dflt;

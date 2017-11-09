@@ -339,8 +339,8 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         tool_ctx -> index_filename = NULL;
         tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
         tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
-        tool_ctx -> num_threads = get_uint64_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
-        /*tool_ctx -> max_fds = get_uint64_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );*/
+        tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
+        /*tool_ctx -> max_fds = get_uint32_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );*/
         tool_ctx -> rowid_as_name = get_bool_option( args, OPTION_RIDN );
         tool_ctx -> skip_tech = get_bool_option( args, OPTION_TECH );
         

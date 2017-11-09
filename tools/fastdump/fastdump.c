@@ -409,7 +409,7 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         else
         {
             /* if the user did give us a temp-path: try to create it if not force-options is given */
-            KCreateMode create_mode = tool_ctx -> force ? kcmInit : kcmCreate;
+            KCreateMode create_mode = /* tool_ctx -> force ? kcmInit : kcmCreate; */ kcmInit;
             rc = KDirectoryCreateDir ( tool_ctx -> dir, 0775, create_mode, "%s", tool_ctx -> tmp_id . temp_path );
             if ( rc != 0 )
                 ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );

@@ -244,7 +244,10 @@ rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args )
                     ErrMsg( "string_vprintf() -> %R", rc );
             }
             if ( rc == 0 )
-                self -> S . len = self -> S . size = num_writ;
+            {
+                self -> S . size = num_writ;
+                self -> S . len = ( uint32_t )self -> S . size;
+            }
         }
     }
     return rc;
@@ -311,15 +314,17 @@ rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count,
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch )
 {
     rc_t rc = 0;
-    char * ch_ptr = string_chr( in->addr, in->size, ch );
+    char * ch_ptr = string_chr( in -> addr, in -> size, ch );
     if ( ch_ptr == NULL )
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
     else
     {
-        p0->addr = in->addr;
-        p0->len  = p0->size = ( ch_ptr - p0->addr );
-        p1->addr = ch_ptr + 1;
-        p1->len  = p1->size = in->len - ( p0->len + 1 );
+        p0 -> addr = in -> addr;
+        p0 -> size = ( ch_ptr - p0 -> addr );
+        p0 -> len  = ( uint32_t ) p0 -> size;
+        p1 -> addr = ch_ptr + 1;
+        p1 -> size = in -> len - ( p0 -> len + 1 );
+        p1 -> len  = ( uint32_t ) p1 -> size;
     }
     return rc;
 }
@@ -380,8 +385,8 @@ static char x4na_to_ASCII[ 16 ] =
 void unpack_4na( const String * packed, SBuffer * unpacked )
 {
     uint32_t i;
-    char * src = ( char * )packed->addr;
-    char * dst = ( char * )unpacked->S.addr;
+    char * src = ( char * )packed -> addr;
+    char * dst = ( char * )unpacked -> S . addr;
     uint32_t dst_idx = 0;
     uint16_t dna_len = src[ 0 ];
     dna_len <<= 8;
@@ -394,7 +399,8 @@ void unpack_4na( const String * packed, SBuffer * unpacked )
         if ( dst_idx < unpacked->buffer_size )
             dst[ dst_idx++ ] = x4na_to_ASCII[ packed_byte & 0x0F ];
     }
-    unpacked->S.len = unpacked->S.size = dna_len;
+    unpacked -> S . size = dna_len;
+    unpacked -> S .len = ( uint32_t )unpacked -> S . size;
     dst[ dna_len + 2 ] = 0;
 }
 
@@ -476,7 +482,7 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files )
     return rc;
 }
 
-rc_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files )
+uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files )
 {
     uint64_t res = 0;
     if ( dir != NULL && files != NULL )

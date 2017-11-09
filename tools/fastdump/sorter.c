@@ -247,7 +247,7 @@ static rc_t run_producer_pool( cmn_params * cmn,
         if ( show_progress )
             rc = bg_progress_make( &progress, total_row_count, 0, 0 ); /* progress_thread.c */
 
-        while ( rc == 0 && first_row < total_row_count )
+        while ( rc == 0 && first_row < ( int64_t )total_row_count )
         {
             lookup_producer * producer = calloc( 1, sizeof *producer );
             if ( producer != NULL )

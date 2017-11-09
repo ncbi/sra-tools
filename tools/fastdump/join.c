@@ -400,9 +400,11 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
     }
     
     Q1 . addr = rec -> quality . addr;
-    Q1 . len  = Q1 . size = rec -> read_len[ 0 ];
+    Q1 . size = rec -> read_len[ 0 ];
+    Q1 . len  = ( uint32_t )Q1 . size;
     Q2 . addr = &rec -> quality . addr[ rec -> read_len[ 0 ] ];
-    Q2 . len  = Q2 . size = rec -> read_len[ 1 ];
+    Q2 . size = rec -> read_len[ 1 ];
+    Q2 . len  = ( uint32_t )Q2 . size;
 
     if ( rec -> prim_alig_id[ 0 ] == 0 )
     {
@@ -414,7 +416,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             if ( process_0 )
             {
                 READ . addr = rec -> read . addr;
-                READ . len = READ . size = rec -> read_len[ 0 ];
+                READ . size = rec -> read_len[ 0 ];
+                READ . len = ( uint32_t )READ . size;
 
                 if ( rowid_as_name )
                     rc = print_fq2_read_1( j -> results, j -> accession, row_id, read_id, &READ, &Q1 );
@@ -425,7 +428,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             if ( rc == 0 && process_1 )
             {
                 READ . addr = &rec -> read . addr[ rec -> read_len[ 0 ] ];
-                READ . len = READ . size = rec -> read_len[ 1 ];
+                READ . size = rec -> read_len[ 1 ];
+                READ . len = ( uint32_t )READ . size;
                 if ( split_file )
                     read_id++;
 
@@ -840,7 +844,7 @@ rc_t execute_db_join( KDirectory * dir,
         {
             Vector threads;
             int64_t row = 1;
-            uint64_t thread_id;
+            uint32_t thread_id;
             uint64_t rows_per_thread = ( row_count / num_threads ) + 1;
             struct bg_progress * progress = NULL;
 

@@ -225,7 +225,7 @@ static rc_t run_producer_pool( cmn_params * cmn,
                                struct background_vector_merger * merger,
                                size_t buf_size,
                                size_t mem_limit,
-                               size_t num_threads,
+                               uint32_t num_threads,
                                bool show_progress )
 {
     rc_t rc = 0;
@@ -305,7 +305,7 @@ rc_t execute_lookup_production( KDirectory * dir,
                                 size_t cursor_cache,
                                 size_t buf_size,
                                 size_t mem_limit,
-                                size_t num_threads,
+                                uint32_t num_threads,
                                 bool show_progress )
 {
     rc_t rc = 0;

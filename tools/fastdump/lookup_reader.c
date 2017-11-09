@@ -301,7 +301,8 @@ rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * self,
                 }
                 else
                 {
-                    packed_bases -> S . len = packed_bases -> S . size = num_read + 2;
+                    packed_bases -> S . size = num_read + 2;
+                    packed_bases -> S . len = ( uint32_t )packed_bases -> S . size;
                     self -> pos += ( num_read + 10 );
                 }
             }

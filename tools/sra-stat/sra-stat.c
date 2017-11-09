@@ -251,6 +251,59 @@ typedef struct Statistics2 {
     double average;
     double diff_sq_sum;
 } Statistics2;
+typedef struct {
+    uint64_t cnt[5];
+    bool CS_NATIVE;
+    const VCursor   *curs;
+    uint32_t         idx;
+
+    bool finalized;
+
+    uint64_t start;
+    uint64_t stop;
+} Bases;
+typedef struct SraStatsTotal {
+    uint64_t spot_count;
+    uint64_t spot_count_mates;
+    uint64_t BIO_BASE_COUNT; /* bio_len */
+    uint64_t bio_len_mates;
+    uint64_t BASE_COUNT; /* total_len */
+    uint64_t bad_spot_count;
+    uint64_t bad_bio_len;
+    uint64_t filtered_spot_count;
+    uint64_t filtered_bio_len;
+    uint64_t total_cmp_len; /* CMP_READ : compressed */
+
+    bool variable_nreads;
+    uint32_t nreads; /* if (nreads == 0) then (nreads is variable) */
+    Statistics * stats ; /* nreads elements */
+    Statistics2* stats2; /* nreads elements */
+
+    Bases bases_count;
+} SraStatsTotal;
+typedef struct srastat_parms {
+    const char* table_path;
+
+    bool xml; /* output format (txt or xml) */
+    bool printMeta;
+    bool quick; /* quick mode: stats from meta */
+    bool skip_members; /* not to print spot_group statistics */
+    bool progress;     /* show progress */
+    bool skip_alignment; /* not to print alignment info */
+    bool print_arcinfo;
+    bool statistics; /* calculate average and stdev */
+    bool test; /* test stdev */
+
+    const XMLLogger *logger;
+
+    int64_t  start, stop;
+
+    bool hasSPOT_GROUP;
+    bool variableReadLength;
+
+    SraStatsTotal total; /* is used in srastat_print */
+} srastat_parms;
+
 static
 void Statistics2Init(Statistics2* self, double sum, int64_t  count)
 {
@@ -309,22 +362,15 @@ static bool columnUndefined(rc_t rc) {
         || rc == SILENT_RC(rcVDB, rcCursor, rcUpdating, rcColumn, rcNotFound );
 }
 
-typedef struct {
-    uint64_t cnt[5];
-    bool CS_NATIVE;
-    const VCursor   *curs;
-    uint32_t         idx;
-
-    bool finalized;
-} Bases;
-
-static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl) {
+static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl,
+                      const srastat_parms *pb)
+{
     rc_t rc = 0;
 
     assert(self);
     memset(self, 0, sizeof *self);
 
-    assert(ctx);
+    assert(ctx && pb);
 /*  if (ctx->db == NULL) {*/
     if (rc == 0) {
         const char name[] = "CS_NATIVE";
@@ -413,6 +459,29 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl) {
                     "Cannot VCursorOpen(($(type)),$(name)))",
                     "type=%s,name=%s", datatype, name));
             }
+        }
+    }
+
+    if ( rc == 0 ) {
+        int64_t first = 0;
+        uint64_t count = 0;
+        rc = VCursorIdRange(self->curs, 0, &first, &count);
+        if ( rc == 0 ) {
+            if (pb->start > 0) {
+                self->start = pb->start;
+                if (self->start < first)
+                    self->start = first;
+            }
+            else
+                self->start = first;
+
+            if (pb->stop > 0) {
+                self->stop = pb->stop;
+                if ( ( uint64_t ) self->stop > first + count)
+                    self->stop = first + count;
+            }
+            else
+                self->stop = first + count;
         }
     }
 
@@ -538,25 +607,6 @@ static rc_t BasesPrint(const Bases *self,
     return rc;
 }
 
-typedef struct SraStatsTotal {
-    uint64_t spot_count;
-    uint64_t spot_count_mates;
-    uint64_t BIO_BASE_COUNT; /* bio_len */
-    uint64_t bio_len_mates;
-    uint64_t BASE_COUNT; /* total_len */
-    uint64_t bad_spot_count;
-    uint64_t bad_bio_len;
-    uint64_t filtered_spot_count;
-    uint64_t filtered_bio_len;
-    uint64_t total_cmp_len; /* CMP_READ : compressed */
-
-    bool variable_nreads;
-    uint32_t nreads; /* if (nreads == 0) then (nreads is variable) */
-    Statistics * stats ; /* nreads elements */
-    Statistics2* stats2; /* nreads elements */
-
-    Bases bases_count;
-} SraStatsTotal;
 static
 rc_t SraStatsTotalMakeStatistics(SraStatsTotal* self, uint32_t nreads)
 {
@@ -808,28 +858,6 @@ static rc_t SraStatsTotalPrintStatistics(
     return rc;
 }
 
-typedef struct srastat_parms {
-    const char* table_path;
-
-    bool xml; /* output format (txt or xml) */
-    bool printMeta;
-    bool quick; /* quick mode: stats from meta */
-    bool skip_members; /* not to print spot_group statistics */
-    bool progress;     /* show progress */
-    bool skip_alignment; /* not to print alignment info */
-    bool print_arcinfo;
-    bool statistics; /* calculate average and stdev */
-    bool test; /* test stdev */
-
-    const XMLLogger *logger;
-
-    int64_t  start, stop;
-
-    bool hasSPOT_GROUP;
-    bool variableReadLength;
-
-    SraStatsTotal total; /* is used in srastat_print */
-} srastat_parms;
 typedef struct SraStatsMeta {
     bool found;
     uint64_t BASE_COUNT;
@@ -2867,7 +2895,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     }
                 }
                 if (rc == 0) {
-                    rc = BasesInit(&total->bases_count, ctx, vtbl);
+                    rc = BasesInit(&total->bases_count, ctx, vtbl, pb);
                 }
                 if (rc == 0) {
                     const KLoadProgressbar *pr = NULL;
@@ -2896,8 +2924,10 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                         }
 
                         if (rc == 0 && pb->progress && pr == NULL) {
+                            uint64_t b = total->bases_count.stop + 1
+                                       - total->bases_count.start;
                             rc = KLoadProgressbar_Make(&pr,
-                                stop + 1 - start + stop + 1 - start);
+                                                       stop + 1 - start + b);
                             if (rc != 0) {
                                 DISP_RC(rc, "cannot initialize progress bar");
                                 rc = 0;
@@ -3238,7 +3268,9 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     } /* for (spotid = start; spotid <= stop && rc == 0;
                               ++spotid) */
 
-                    for (spotid = start; spotid < stop && rc == 0; ++spotid) {
+                    for (spotid = total->bases_count.start;
+                         spotid < total->bases_count.stop && rc == 0; ++spotid)
+                    {
                         rc = BasesAdd(&total->bases_count, spotid);
                         if ( rc == 0 && pb->progress )
                             KLoadProgressbar_Process ( pr, 1, false );

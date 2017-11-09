@@ -324,12 +324,16 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl) {
     assert(self);
     memset(self, 0, sizeof *self);
 
+    assert(ctx);
+/*  if (ctx->db == NULL) {*/
     if (rc == 0) {
         const char name[] = "CS_NATIVE";
         const void *base = NULL;
 
         const VCursor *curs = NULL;
         uint32_t idx = 0;
+
+/*      assert(ctx->tbl); */
 
         self->CS_NATIVE = true;
 
@@ -383,6 +387,9 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl) {
 
         RELEASE(VCursor, curs);
     }
+/*  else {
+        assert ( ! ctx -> tbl );
+    }*/
 
     {
         const char *name = self->CS_NATIVE ? "CSREAD" : "READ";
@@ -2839,18 +2846,6 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                 rc = VCursorIdRange(curs, 0, &first, &count);
                 DISP_RC(rc, "VCursorIdRange() failed");
                 if (rc == 0) {
-                    rc = BasesInit(&total->bases_count, ctx, vtbl);
-                }
-                if (rc == 0) {
-                    const KLoadProgressbar *pr = NULL;
-                    bool bad_read_filter = false;
-                    bool fixedNReads = true;
-                    bool fixedReadLength = true;
-
-                    uint32_t g_dREAD_LEN[MAX_NREADS];
-
-                    memset(g_dREAD_LEN, 0, sizeof g_dREAD_LEN);
-
                     if (pb->start > 0) {
                         start = pb->start;
                         if (start < first) {
@@ -2870,6 +2865,19 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     else {
                         stop = first + count;
                     }
+                }
+                if (rc == 0) {
+                    rc = BasesInit(&total->bases_count, ctx, vtbl);
+                }
+                if (rc == 0) {
+                    const KLoadProgressbar *pr = NULL;
+                    bool bad_read_filter = false;
+                    bool fixedNReads = true;
+                    bool fixedReadLength = true;
+
+                    uint32_t g_dREAD_LEN[MAX_NREADS];
+
+                    memset(g_dREAD_LEN, 0, sizeof g_dREAD_LEN);
 
                     for (spotid = start; spotid < stop && rc == 0; ++spotid) {
                         SraStats* ss;

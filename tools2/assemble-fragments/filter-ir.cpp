@@ -32,6 +32,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cassert>
+#include "utility.hpp"
 #include "vdb.hpp"
 #include "writer.hpp"
 
@@ -235,17 +236,15 @@ static int process(std::string const &irdb, FILE *out)
 
 using namespace utility;
 namespace filterIR {
-    static void usage(std::string const &program, bool error) {
-        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <ir db>" << std::endl;
+    static void usage(CommandLine const &commandLine, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << commandLine.program[0] << " [-out=<path>] <ir db>" << std::endl;
         exit(error ? 3 : 0);
     }
     
     static int main(CommandLine const &commandLine) {
-        CIGAR::test();
-        
         for (auto && arg : commandLine.argument) {
             if (arg == "-help" || arg == "-h" || arg == "-?") {
-                usage(commandLine.program, false);
+                usage(commandLine, false);
             }
         }
         auto out = std::string();
@@ -259,10 +258,10 @@ namespace filterIR {
                 run = arg;
                 continue;
             }
-            usage(commandLine.program, true);
+            usage(commandLine, true);
         }
         if (run.empty()) {
-            usage(commandLine.program, true);
+            usage(commandLine, true);
         }
         if (out.empty())
             return process(run, stdout);

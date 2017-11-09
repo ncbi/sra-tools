@@ -36,6 +36,7 @@
 #include <cstdio>
 #include <cassert>
 #include <cmath>
+#include "utility.hpp"
 #include "vdb.hpp"
 #include "writer.hpp"
 #include "fragment.hpp"
@@ -563,15 +564,15 @@ static int map(FILE *out, std::string const &run)
 }
 
 namespace pairsStatistics {
-    static void usage(std::string const &program, bool error) {
-        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] (map <sra run> | reduce <pairs>)" << std::endl;
+    static void usage(CommandLine const &commandLine, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << commandLine.program[0] << " [-out=<path>] (map <sra run> | reduce <pairs>)" << std::endl;
         exit(error ? 3 : 0);
     }
     
     static int main(CommandLine const &commandLine) {
         for (auto && arg : commandLine.argument) {
             if (arg == "-help" || arg == "-h" || arg == "-?") {
-                usage(commandLine.program, false);
+                usage(commandLine, false);
             }
         }
         auto outPath = std::string();
@@ -588,18 +589,18 @@ namespace pairsStatistics {
                 else if (arg == "reduce")
                     verb = &reduce;
                 else
-                    usage(commandLine.program, true);
+                    usage(commandLine, true);
                 continue;
             }
             if (source.empty()) {
                 source = arg;
                 continue;
             }
-            usage(commandLine.program, true);
+            usage(commandLine, true);
         }
         
         if (source.empty())
-            usage(commandLine.program, true);
+            usage(commandLine, true);
         
         FILE *ofs = nullptr;
         if (!outPath.empty()) {

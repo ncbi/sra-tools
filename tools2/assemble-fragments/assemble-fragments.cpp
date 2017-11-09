@@ -36,6 +36,7 @@
 #include <cstdio>
 #include <cassert>
 #include <cmath>
+#include "utility.hpp"
 #include "vdb.hpp"
 #include "writer.hpp"
 #include "fragment.hpp"
@@ -720,15 +721,15 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
 }
 
 namespace assembleFragments {
-    static void usage(std::string const &program, bool error) {
-        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <sra run> [<stats run>]" << std::endl;
+    static void usage(CommandLine const &commandLine, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << commandLine.program[0] << " [-out=<path>] <sra run> [<stats run>]" << std::endl;
         exit(error ? 3 : 0);
     }
     
     static int main(CommandLine const &commandLine) {
         for (auto && arg : commandLine.argument) {
             if (arg == "-help" || arg == "-h" || arg == "-?") {
-                usage(commandLine.program, false);
+                usage(commandLine, false);
             }
         }
         auto outPath = std::string();
@@ -747,11 +748,11 @@ namespace assembleFragments {
                 source2 = arg;
                 continue;
             }
-            usage(commandLine.program, true);
+            usage(commandLine, true);
         }
         
         if (source.empty())
-            usage(commandLine.program, true);
+            usage(commandLine, true);
         
         FILE *ofs = nullptr;
         if (!outPath.empty()) {

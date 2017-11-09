@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cassert>
+#include "utility.hpp"
 #include "vdb.hpp"
 #include "writer.hpp"
 
@@ -284,15 +285,15 @@ static int process(std::string const &run, FILE *const out) {
 
 using namespace utility;
 namespace sra2ir {
-    static void usage(std::string const &program, bool error) {
-        (error ? std::cerr : std::cout) << "usage: " << program << " [-out=<path>] <sra run> [reference[:start[-end]] ...]" << std::endl;
+    static void usage(CommandLine const &commandLine, bool error) {
+        (error ? std::cerr : std::cout) << "usage: " << commandLine.program[0] << " [-out=<path>] <sra run> [reference[:start[-end]] ...]" << std::endl;
         exit(error ? 3 : 0);
     }
 
     static int main(CommandLine const &commandLine) {
         for (auto && arg : commandLine.argument) {
             if (arg == "--help" || arg == "-help" || arg == "-h" || arg == "-?") {
-                usage(commandLine.program, false);
+                usage(commandLine, false);
             }
         }
         auto out = std::string();
@@ -307,10 +308,10 @@ namespace sra2ir {
                 continue;
             }
             if (!addFilter(arg))
-                usage(commandLine.program, true);
+                usage(commandLine, true);
         }
         if (run.empty()) {
-            usage(commandLine.program, true);
+            usage(commandLine, true);
         }
         if (out.empty())
             return process(run, stdout);

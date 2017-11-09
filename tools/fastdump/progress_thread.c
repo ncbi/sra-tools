@@ -71,7 +71,7 @@ typedef struct bg_progress
     uint32_t cur;
 } bg_progress;
 
-static uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
+static uint32_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
 {
     uint64_t res = value;
     switch ( digits )
@@ -80,8 +80,9 @@ static uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
         case 2 : res *= 10000; break;
         default : res *= 100; break;
     }
-    if ( max > 0 ) res /= max;
-    return res;
+    if ( max > 0 )
+        res /= max;
+    return ( uint32_t )res;
 }
 
 static void bg_progress_steps( bg_progress * self )

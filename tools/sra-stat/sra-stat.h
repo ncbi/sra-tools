@@ -59,7 +59,10 @@ typedef struct Ctx {
     const struct ArcInfo* arc_info;
     struct srastat_parms* pb;
     struct SraStatsTotal* total;
-    const struct VDatabase* db;
+
+    const struct VDatabase * db;   /* sra-srat argument is a DB */
+    const struct VTable    * tbl;  /* sra-srat argument is a table */
+
     const struct KMetadata* meta; /* from Table (when running on table) */
     QualityStats quality;
     TableCounts tables;

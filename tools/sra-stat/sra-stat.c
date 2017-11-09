@@ -20,7 +20,7 @@
 *
 *  Please cite the author in any work or product based on this material.
 *
-* ===========================================================================
+* ==============================================================================
 *
 */
 
@@ -318,7 +318,7 @@ typedef struct {
     bool finalized;
 } Bases;
 
-static rc_t BasesInit(Bases *self, const VTable *vtbl) {
+static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl) {
     rc_t rc = 0;
 
     assert(self);
@@ -434,7 +434,7 @@ static rc_t BasesRelease(Bases *self) {
     return rc;
 }
 
-static void BasesAdd(Bases *self, int64_t spotid) {
+static rc_t BasesAdd(Bases *self, int64_t spotid) {
     rc_t rc = 0;
     const void *base = NULL;
     bitsz_t row_bits = ~0;
@@ -444,7 +444,7 @@ static void BasesAdd(Bases *self, int64_t spotid) {
     assert(self);
 
     if (self->curs == NULL) {
-        return;
+        return 0;
     }
 
     {
@@ -456,7 +456,7 @@ static void BasesAdd(Bases *self, int64_t spotid) {
                 "while VCursorCellDataDirect(READ, $(type))",
                 "type=%s", self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE"));
             BasesRelease(self);
-            return;
+            return rc;
         }
 
         row_bits = elem_cnt * elem_bits;
@@ -469,7 +469,7 @@ static void BasesAdd(Bases *self, int64_t spotid) {
             "row_bits=%lu,type=%s,spotid=%lu",
             row_bits, self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE", spotid));
         BasesRelease(self);
-        return;
+        return rc;
     }
 
     row_bits /= 8;
@@ -485,10 +485,11 @@ static void BasesAdd(Bases *self, int64_t spotid) {
                 base, self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE",
                 spotid, i));
             BasesRelease(self);
-            return;
+            return rc;
         }
         ++self->cnt[base];
     }
+    return 0;
 }
 
 static rc_t BasesPrint(const Bases *self,
@@ -2735,7 +2736,7 @@ int64_t CC srastats_sort ( const BSTNode *item, const BSTNode *n )
 }
 
 static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
-    SraStatsTotal* total, const VTable *vtbl)
+    SraStatsTotal* total, const Ctx * ctx, const VTable *vtbl)
 {
     rc_t rc = 0;
 
@@ -2838,7 +2839,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                 rc = VCursorIdRange(curs, 0, &first, &count);
                 DISP_RC(rc, "VCursorIdRange() failed");
                 if (rc == 0) {
-                    rc = BasesInit(&total->bases_count, vtbl);
+                    rc = BasesInit(&total->bases_count, ctx, vtbl);
                 }
                 if (rc == 0) {
                     const KLoadProgressbar *pr = NULL;
@@ -2887,7 +2888,8 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                         }
 
                         if (rc == 0 && pb->progress && pr == NULL) {
-                            rc = KLoadProgressbar_Make(&pr, stop + 1 - start);
+                            rc = KLoadProgressbar_Make(&pr,
+                                stop + 1 - start + stop + 1 - start);
                             if (rc != 0) {
                                 DISP_RC(rc, "cannot initialize progress bar");
                                 rc = 0;
@@ -3132,8 +3134,6 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                 ss->total_cmp_len += cmp_len;
                                 total->total_cmp_len += cmp_len;
 
-                                BasesAdd(&total->bases_count, spotid);
-
                                 if (pb->statistics) {
                                     SraStatsTotalAdd(total, dREAD_LEN, nreads);
                                 }
@@ -3229,6 +3229,12 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                         }
                     } /* for (spotid = start; spotid <= stop && rc == 0;
                               ++spotid) */
+
+                    for (spotid = start; spotid < stop && rc == 0; ++spotid) {
+                        rc = BasesAdd(&total->bases_count, spotid);
+                        if ( rc == 0 && pb->progress )
+                            KLoadProgressbar_Process ( pr, 1, false );
+                    }
 
                     if (rc == 0) {
                         BasesFinalize(&total->bases_count);
@@ -3345,6 +3351,10 @@ rc_t run(srastat_parms* pb)
         SraSizeStats sizes;
         ArcInfo arc_info;
         SraMeta info;
+
+        const VDatabase * db = NULL;  /* sra-srat argument is a DB */
+        const VTable    * tbl = NULL; /* sra-srat argument is a table:
+                                         don't release it*/
         const VTable* vtbl = NULL;
 
         VSchema *schema = NULL;
@@ -3356,11 +3366,12 @@ rc_t run(srastat_parms* pb)
         if (rc == 0) {
             rc = VDBManagerOpenTableRead(vmgr, &vtbl,
                 schema, "%s", pb->table_path);
-            if (rc != 0 && GetRCObject(rc) == (enum RCObject)rcTable
-                        && GetRCState (rc) == rcIncorrect)
+            if (rc == 0 )
+                tbl = vtbl; /* sra-srat argument is a table */
+            else if ( GetRCObject(rc) == (enum RCObject)rcTable
+                   && GetRCState (rc) == rcIncorrect)
             {
                 const char altname[] = "SEQUENCE";
-                const VDatabase *db = NULL;
                 rc_t rc2 = VDBManagerOpenDBRead(vmgr,
                     &db, schema, pb->table_path);
                 if (rc2 == 0) {
@@ -3369,7 +3380,6 @@ rc_t run(srastat_parms* pb)
                         rc = 0;
                     }
                 }
-                VDatabaseRelease ( db );
             }
             if (rc != 0) {
                 PLOGERR(klogInt, (klogInt, rc,
@@ -3381,13 +3391,15 @@ rc_t run(srastat_parms* pb)
             SraStatsTotal total;
             const KTable* ktbl = NULL;
             const KMetadata* meta = NULL;
-            const VDatabase* db = NULL;
 
             BSTree tr;
             Ctx ctx;
 
             BSTreeInit(&tr);
+
             memset(&ctx, 0, sizeof ctx);
+            ctx . db  = db;
+            ctx . tbl = tbl;
 
             memset(&total, 0, sizeof total);
 
@@ -3396,11 +3408,6 @@ rc_t run(srastat_parms* pb)
             if (rc == 0) {
                 rc = KTableOpenMetadataRead(ktbl, &meta);
                 DISP_RC(rc, "While calling KTableOpenMetadataRead");
-            }
-            if (rc == 0) {
-                rc = VTableOpenParentRead(vtbl, &db);
-                DISP_RC2(rc, pb->table_path,
-                    "while calling VTableOpenParentRead");
             }
             if (rc == 0) {
                 rc = get_stats_meta(meta, &stats, pb->quick);
@@ -3420,7 +3427,7 @@ rc_t run(srastat_parms* pb)
                 rc = get_load_info(meta, &info);
             }
             if (rc == 0 && !pb->quick) {
-                rc = sra_stat(pb, &tr, &total, vtbl);
+                rc = sra_stat(pb, &tr, &total, &ctx, vtbl);
             }
             if (rc == 0 && pb->print_arcinfo ) {
                 rc = get_arc_info(pb->table_path, &arc_info, vmgr, vtbl);
@@ -3440,7 +3447,6 @@ rc_t run(srastat_parms* pb)
             if ( rc == 0 )
                 rc = CalculateNL ( db, & ctx );
             if (rc == 0) {
-                ctx.db = db;
                 if ( db == NULL )
                     ctx . meta = meta;
                 ctx.info = &info;
@@ -3454,7 +3460,6 @@ rc_t run(srastat_parms* pb)
             }
             BSTreeWhack(&tr, bst_whack_free, NULL);
             SraStatsTotalFree(&total);
-            RELEASE(VDatabase, db);
             RELEASE(KTable, ktbl);
             {
                 uint32_t i; 
@@ -3470,6 +3475,7 @@ rc_t run(srastat_parms* pb)
             CtxRelease(&ctx);
             RELEASE(KMetadata, meta);
         }
+        RELEASE(VDatabase, db);
         RELEASE(VSchema, schema);
         RELEASE(VTable, vtbl);
     }

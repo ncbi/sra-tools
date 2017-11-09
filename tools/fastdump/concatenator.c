@@ -351,10 +351,10 @@ rc_t execute_concat_un_compressed( KDirectory * dir,
                 ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", output_filename, rc );
             else
                 KFileRelease( f );
-                
+
             if ( rc == 0 )
             {
-                rc = KDirectoryRename ( dir, force, file1, output_filename );
+                rc = KDirectoryRename ( dir, true, file1, output_filename );
                 if ( rc != 0 )
                     ErrMsg( "KDirectoryRename( '%s' ---> '%s' ) -> %R", file1, output_filename, rc );
             }

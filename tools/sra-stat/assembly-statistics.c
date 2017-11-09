@@ -238,7 +238,6 @@ rc_t CC CalculateNL ( const VDatabase * db, Ctx * ctx ) {
                 uint64_t length = 0;
                 INSDC_coord_len buffer = 0;
                 uint32_t row_len = 0;
-                assert ( row_len > 0 );
                 rc = VCursorReadDirect ( cursor, start,
                     READ_LEN, 8, & buffer, sizeof buffer, & row_len );
                 DISP_RC ( rc, "while calling VCursorReadDirect(READ_LEN,id)" );

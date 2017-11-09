@@ -433,6 +433,17 @@ bool file_exists( const KDirectory * dir, const char * fmt, ... )
     return ( pt == kptFile ) ;
 }
 
+bool dir_exists( const KDirectory * dir, const char * fmt, ... )
+{
+    uint32_t pt;
+    va_list list;
+    
+    va_start( list, fmt );
+    pt = KDirectoryVPathType( dir, fmt, list );
+    va_end( list );
+
+    return ( pt == kptDir ) ;
+}
 
 void join_and_release_threads( Vector * threads )
 {
@@ -448,6 +459,7 @@ void join_and_release_threads( Vector * threads )
     }
     VectorWhack ( threads, NULL, NULL );
 }
+
 
 void clear_join_stats( join_stats * stats )
 {
@@ -490,9 +502,12 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files )
                 ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
             else
             {
-                rc = KDirectoryRemove( dir, true, "%s", filename );
-                if ( rc != 0 )
-                    ErrMsg( "KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                if ( file_exists( dir, "%s", filename ) )
+                {
+                    rc = KDirectoryRemove( dir, true, "%s", filename );
+                    if ( rc != 0 )
+                        ErrMsg( "KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                }
             }
         }
     }

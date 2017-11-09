@@ -147,6 +147,7 @@ void pack_4na( const String * unpacked, SBuffer * packed );
 void unpack_4na( const String * packed, SBuffer * unpacked );
 
 bool file_exists( const KDirectory * dir, const char * fmt, ... );
+bool dir_exists( const KDirectory * dir, const char * fmt, ... );
 
 void join_and_release_threads( Vector * threads );
 

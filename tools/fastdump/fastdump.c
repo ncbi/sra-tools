@@ -735,11 +735,13 @@ rc_t CC KMain ( int argc, char *argv [] )
                 /* =================================================== */
             }
             
-            if ( tool_ctx . remove_temp_path )
+            if ( tool_ctx . remove_temp_path &&
+                 dir_exists( tool_ctx . dir, "%s", tool_ctx . tmp_id . temp_path ) )
             {
                 rc_t rc1 = KDirectoryClearDir ( tool_ctx . dir, true,
                             "%s", tool_ctx . tmp_id . temp_path );
-                if ( rc1 == 0 )
+                if ( rc1 == 0 &&
+                     dir_exists( tool_ctx . dir, "%s", tool_ctx . tmp_id . temp_path ) )
                     rc1 = KDirectoryRemove ( tool_ctx . dir, true,
                             "%s", tool_ctx . tmp_id . temp_path );
             }

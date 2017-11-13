@@ -40,7 +40,8 @@ $(TEST_TOOLS): makedirs
 
 clean: stdclean
 
-#----------------------------------------------------------------
+#-------------------------------------------------------------------------------
+
 SRC = \
 	testAssemblyStatistics
 
@@ -54,3 +55,32 @@ LIB = \
 
 $(TEST_BINDIR)/testAssemblyStatistics: $(OBJ)
 	$(LP) --exe -o $@ $^ $(LIB)
+
+#-------------------------------------------------------------------------------
+
+slowtests: test_bases
+
+test_bases:
+	@rm   -vrf actual
+	@mkdir -vp actual
+
+	@echo
+	@echo SRR360929 is a table
+	$(BINDIR)/sra-stat -x SRR360929 > actual/SRR360929
+	diff actual/SRR360929 expected/SRR360929
+
+	@echo
+	@echo SRR495844 is a cSRA with local references
+	$(BINDIR)/sra-stat -x SRR495844 > actual/SRR495844
+	diff actual/SRR495844 expected/SRR495844-with-Changes
+
+	@echo
+	@echo SRR586259 is a cSRA without local references
+	$(BINDIR)/sra-stat -x SRR586259 > actual/SRR586259
+	diff actual/SRR586259 expected/SRR586259
+
+	@echo
+	@rm       actual/*
+	@rmdir -v actual
+
+#-------------------------------------------------------------------------------

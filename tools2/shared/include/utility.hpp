@@ -123,7 +123,7 @@ namespace utility {
         reverse_lookup_t reverse_lookup;
         ordered_list_t ordered_list;
         
-        std::pair<bool, ordered_list_t::const_iterator> find(std::string const &name) const {
+        std::pair<bool, int> find(std::string const &name) const {
             auto f = ordered_list.begin();
             auto e = ordered_list.end();
             auto const base = char_store.data();
@@ -131,13 +131,13 @@ namespace utility {
             while (f + 0 < e) {
                 auto const m = f + ((e - f) >> 1);
                 auto const cmp = name.compare(base + m->first);
-                if (cmp == 0) return std::make_pair(true, m);
+                if (cmp == 0) return std::make_pair(true, m - ordered_list.begin());
                 if (cmp < 0)
                     e = m;
                 else
                     f = m + 1;
             }
-            return std::make_pair(false, f);
+            return std::make_pair(false, f - ordered_list.begin());
         }
     public:
         strings_map() {}
@@ -154,19 +154,19 @@ namespace utility {
         }
         bool contains(std::string const &name, index_t &id) const {
             auto const fnd = find(name);
-            if (fnd.first) id = fnd.second->second;
+            if (fnd.first) id = (ordered_list.begin() + fnd.second)->second;
             return fnd.first;
         }
         index_t operator[](std::string const &name) {
             auto const fnd = find(name);
-            if (fnd.first) return fnd.second->second;
+            if (fnd.first) return (ordered_list.begin() + fnd.second)->second;
             
             auto const newPair = std::make_pair((index_t)char_store.size(), (index_t)ordered_list.size());
             
             char_store.insert(char_store.end(), name.begin(), name.end());
             char_store.push_back(0);
             
-            ordered_list.insert(fnd.second, newPair);
+            ordered_list.insert((ordered_list.begin() + fnd.second), newPair);
             reverse_lookup.push_back(newPair.first);
             
             return (index_t)newPair.second;

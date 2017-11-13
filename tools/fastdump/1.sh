@@ -165,80 +165,91 @@ test_csra()
 test_sra_flat_1()
 {
     #a flat SRA-table
-    sra_flat="SRR942391"
+    acc="SRR942391"
     
     #none-splitted
-    md5_sra_flat_n="590366f579aa503bbedec1dab66df2ad"
+    md5_1="590366f579aa503bbedec1dab66df2ad"
     #splitted
-    md5_sra_flat_s="a668be91b3e57b11fc56b977af1c1426"
-    md5_sra_flat_1="fff51585bf9963419e4ce505c0f57637"
-    md5_sra_flat_2="20784e715bd2498aca0e82ec61a195b9"
+    md5_2="a668be91b3e57b11fc56b977af1c1426"
+    md5_3="fff51585bf9963419e4ce505c0f57637"
+    md5_4="20784e715bd2498aca0e82ec61a195b9"
 
-    fastdump_not_split $sra_flat $md5_sra_flat_n
-    fastdump_split_spot $sra_flat $md5_sra_flat_s
-    fastdump_split_file $sra_flat $md5_sra_flat_1 $md5_sra_flat_2
+    fastdump_not_split $acc $md5_1
+    fastdump_split_spot $acc $md5_2
+    fastdump_split_file $acc $md5_3 $md5_4
 }
 
 test_sra_flat_2()
 {
     #a flat SRA-table
-    sra_flat="SRR000001"
+    acc="SRR000001"
     #split-3
-    md5_sra_1="23b26de78b4b1d84ea47f3210e2a6f38"
-    md5_sra_2="331c1b6dc8f4e90e03d80d44fd6bb6e6"
-    md5_sra_3="83a27caacafc2bf1ed8ddfbe97dbc84d"
+    md5_1="23b26de78b4b1d84ea47f3210e2a6f38"
+    md5_2="331c1b6dc8f4e90e03d80d44fd6bb6e6"
+    md5_3="83a27caacafc2bf1ed8ddfbe97dbc84d"
 
-    fastdump_split_3 $sra_flat $md5_sra_1 $md5_sra_2 $md5_sra_3
+    fastdump_split_3 $acc $md5_1 $md5_2 $md5_3
 }
 
 test_sra_flat_4()
 {
     #a flat SRA-table
-    sra_flat="SRR000001"
+    acc="SRR000001"
     #split-file ( this accession produces 4 files )
-    md5_sra_1="dfb375478199b08eac0a35742a8d0445"
-    md5_sra_2="0fa069beef66f89611fe53f8f195a713"
-    md5_sra_3="d3ce8a9eadf8987bab7687a1ee9f6a27"
-    md5_sra_4="7d0561fae55282fe2d38f71e49bcd6d6"
+    md5_1="dfb375478199b08eac0a35742a8d0445"
+    md5_2="0fa069beef66f89611fe53f8f195a713"
+    md5_3="d3ce8a9eadf8987bab7687a1ee9f6a27"
+    md5_4="7d0561fae55282fe2d38f71e49bcd6d6"
     
-    fastdump_split_file_4 $sra_flat $md5_sra_1 $md5_sra_2 $md5_sra_3 $md5_sra_4
+    fastdump_split_file_4 $acc $md5_1 $md5_2 $md5_3 $md5_4
 }
 
 test_sra_flat_split_spot()
 {
     #a flat SRA-table
-    sra_flat="SRR000001"
+    acc="SRR000001"
     
     #split-spot ( this produces 1 file only )
-    md5_sra="29bb980236cc7df8c1d10bccab20b51f"
+    md5="29bb980236cc7df8c1d10bccab20b51f"
     
-    fastdump_split_spot $sra_flat $md5_sra $1
+    fastdump_split_spot $acc $md5 $1
 }
 
 test_sra_db()
 {
     #a flat SRA-table as the only table in a database
-    sra_db="SRR6173369"
+    acc="SRR6173369"
     
     #none-splitted
-    md5_sra_db_n="38250674922d516912b06498d8b4d3fb"
+    md5_1="38250674922d516912b06498d8b4d3fb"
     #splitted
-    md5_sra_db_s="07106db1a11bdd1cc8c382a4e2482b5f"
-    md5_sra_db_1="c0be39a6d0566bfe72621e0a69cb2fe4"
-    md5_sra_db_2="0e560c82f092bac8b2d6e92c1262ed95"
+    md5_1="07106db1a11bdd1cc8c382a4e2482b5f"
+    md5_3="c0be39a6d0566bfe72621e0a69cb2fe4"
+    md5_4="0e560c82f092bac8b2d6e92c1262ed95"
     #split-3
-    md5_sra_db_4="8343497c5bbb5aa9f1d9ee4ea68196d2"
-    md5_sra_db_5="0e560c82f092bac8b2d6e92c1262ed95"
-    md5_sra_db_6="0e560c82f092bac8b2d6e92c1262ed95"
+    md5_5="8343497c5bbb5aa9f1d9ee4ea68196d2"
+    md5_5="0e560c82f092bac8b2d6e92c1262ed95"
+    md5_7="0e560c82f092bac8b2d6e92c1262ed95"
     
-    fastdump_not_split $sra_db $md5_sra_db_n
-    fastdump_split_spot $sra_db $md5_sra_db_s
-    fastdump_split_file $sra_db $md5_sra_db_1 $md5_sra_db_2
-    fastdump_split_3 $sra_db $md5_sra_db_4 $md5_sra_db_5 $md5_sra_db_6
+    fastdump_not_split $acc $md5_1
+    fastdump_split_spot $acc $md5_2
+    fastdump_split_file $acc $md5_3 $md5_4
+    fastdump_split_3 $acc $md5_5 $md5_6 $md5_7
+}
+
+test_SRR5659909()
+{
+    acc="SRR5659909"
+    scratch_big="-t /panfs/traces01/sra_review/scratch/raetzw/tmp"
+    out_big="/panfs/traces01/sra_review/scratch/raetzw/out/$acc.fastq"
+    options="$show_progress $force_overwrite $show_details $split_file"
+    time fastdump $acc $options $numthreads $mem_limit $cur_cache $scratch_big -o $out_big
 }
 
 #test_csra
 #test_sra_flat_2
-#test_sra_flat_4
-test_sra_flat_split_spot
+test_sra_flat_4
+#test_sra_flat_split_spot
 #test_sra_db
+
+#test_SRR5659909

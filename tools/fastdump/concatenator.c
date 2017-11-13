@@ -33,6 +33,7 @@
 #include <klib/progressbar.h>
 
 #include <kproc/thread.h>
+#include <kproc/queue.h>
 
 #include <kfs/defs.h>
 #include <kfs/file.h>
@@ -219,6 +220,111 @@ static rc_t make_compressed( KDirectory * dir,
     return rc;
 }
 
+/* ---------------------------------------------------------------------------------- */
+#if 0
+typedef struct copy_machine_block
+{
+    char * buffer;
+    size_t available;
+} copy_machine_block;
+
+#define N_COPY_MACHINE_BLOCKS 4
+
+typedef struct copy_machine
+{
+    KFile * dst;
+    struct bg_progress * progress;
+    KThread * reader_thread;
+    KThread * writer_thread;
+    KQueue * empty_q;
+    KQueue * to_write_q;
+    copy_machine_block blocks[ N_COPY_MACHINE_BLOCKS ];
+    uint64_t dst_pos;
+    size_t buf_size;
+} copy_machine;
+
+static void finish_copy_machine( copy_machine * cm )
+{
+    if ( cm != NULL )
+    {
+        uint32_t i;
+        if ( cm -> empty_q != NULL )
+            KQueueRelease ( cm -> empty_q );
+        if ( cm -> to_write_q != NULL )
+            KQueueRelease ( cm -> to_write_q );
+        for ( i = 0; i < N_COPY_MACHINE_BLOCKS; ++i )
+        {
+            if ( cm -> blocks[ i ] . buffer != NULL )
+                free( ( void * ) cm -> blocks[ i ] . buffer );
+        }
+    }
+}
+
+static rc_t init_copy_machine( copy_machine * cm, KFile * dst, uint64_t dst_offset,
+                               size_t buf_size, struct bg_progress * progress )
+{
+    rc_t rc = 0;
+    if ( cm == NULL || dst == NULL || buf_size == 0 )
+    {
+        rc = RC( rcExe, rcFile, rcPacking, rcParam, rcInvalid );
+        ErrMsg( "init_copy_machine() -> %R", rc );
+    }
+    else
+    {
+        uint32_t i;
+        
+        cm -> empty_q = NULL;
+        cm -> to_write_q = NULL;
+        cm -> dst = dst;
+        cm -> progress = progress;
+        cm -> dst_pos = dst_offset;
+        cm -> buf_size = buf_size;
+        
+        for ( i = 0; i < N_COPY_MACHINE_BLOCKS; ++i )
+        {
+            cm -> blocks[ i ] . buffer = NULL;
+            cm -> blocks[ i ] . available = 0;
+        }
+        for ( i = 0; rc == 0 && i < N_COPY_MACHINE_BLOCKS; ++i )
+        {
+            cm -> blocks[ i ] . buffer = malloc( buf_size );
+            if ( cm -> blocks[ i ] . buffer == NULL )
+            {
+                rc = RC( rcExe, rcFile, rcPacking, rcMemory, rcExhausted );
+                ErrMsg( "init_copy_machine.malloc( %d ) -> %R", buf_size, rc );
+            }
+        }
+        if ( rc == 0 )
+        {
+            rc = KQueueMake ( &( cm -> empty_q ), N_COPY_MACHINE_BLOCKS );
+            if ( rc != 0 )
+                ErrMsg( "init_copy_machine.KQueueMake( empty_q ) -> %R", rc );
+        }
+        if ( rc == 0 )
+        {
+            rc = KQueueMake ( &( cm -> to_write_q ), N_COPY_MACHINE_BLOCKS );
+            if ( rc != 0 )
+                ErrMsg( "init_copy_machine.KQueueMake( to_write_q ) -> %R", rc );
+        }
+        for ( i = 0; rc == 0 && i < N_COPY_MACHINE_BLOCKS; ++i )
+        {
+            rc = KQueuePush ( cm -> empty_q, &( cm -> blocks[ i ] ), NULL ); /* this might block! */
+            if ( rc != 0 )
+                ErrMsg( "init_copy_machine.KQueuePush( empty_q ) -> %R", rc );
+        }
+        if ( rc == 0 )
+        {
+
+        }
+        
+        if ( rc != 0 )
+            finish_copy_machine( cm );
+    }
+    return rc;
+}
+#endif
+
+/* ---------------------------------------------------------------------------------- */
 
 static rc_t copy_file( KFile * dst, const KFile * src, uint64_t * dst_pos,
                        size_t buf_size, struct bg_progress * progress )

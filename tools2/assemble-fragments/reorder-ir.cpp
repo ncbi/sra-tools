@@ -195,8 +195,15 @@ private:
         return table;
     }
     
-    static decltype(makeHashTable(0)) const H1, H2, H3, H4, H5, H6, H7, H8;
-    static decltype(makeSalt()) const H0;
+    static uint8_t const *H0;
+    static uint8_t const *H1;
+    static uint8_t const *H2;
+    static uint8_t const *H3;
+    static uint8_t const *H4;
+    static uint8_t const *H5;
+    static uint8_t const *H6;
+    static uint8_t const *H7;
+    static uint8_t const *H8;
     
 public:
     HashState() {
@@ -240,15 +247,15 @@ public:
     }
 };
 
-auto const HashState::H0 = HashState::makeSalt();
-auto const HashState::H1 = HashState::makeHashTable(0);
-auto const HashState::H2 = HashState::makeHashTable(1);
-auto const HashState::H3 = HashState::makeHashTable(2);
-auto const HashState::H4 = HashState::makeHashTable(3);
-auto const HashState::H5 = HashState::makeHashTable(4);
-auto const HashState::H6 = HashState::makeHashTable(5);
-auto const HashState::H7 = HashState::makeHashTable(6);
-auto const HashState::H8 = HashState::makeHashTable(7);
+uint8_t const *HashState::H0 = HashState::makeSalt();
+uint8_t const *HashState::H1 = HashState::makeHashTable(0);
+uint8_t const *HashState::H2 = HashState::makeHashTable(1);
+uint8_t const *HashState::H3 = HashState::makeHashTable(2);
+uint8_t const *HashState::H4 = HashState::makeHashTable(3);
+uint8_t const *HashState::H5 = HashState::makeHashTable(4);
+uint8_t const *HashState::H6 = HashState::makeHashTable(5);
+uint8_t const *HashState::H7 = HashState::makeHashTable(6);
+uint8_t const *HashState::H8 = HashState::makeHashTable(7);
 
 static IndexRow makeIndexRow(int64_t row, VDB::Cursor::RawData const &group, VDB::Cursor::RawData const &name)
 {

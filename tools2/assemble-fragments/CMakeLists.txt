@@ -1,12 +1,16 @@
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required (VERSION 2.8)
 project (assemble-fragments)
 
-set (CMAKE_CXX_STANDARD 11)
+set (CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
 set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/../shared/cmake")
 find_package (ncbi-vdb REQUIRED)
 include_directories (${ncbi-vdb_INCLUDE_DIRS})
 link_libraries (${ncbi-vdb_LIBRARIES})
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    find_library (PTHREAD pthread)
+    link_libraries (${PTHREAD})
+endif ()
 
 include_directories (${CMAKE_SOURCE_DIR}/../shared/include)
 

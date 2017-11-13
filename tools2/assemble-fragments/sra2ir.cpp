@@ -31,6 +31,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cassert>
+#include <climits>
+#include <cinttypes>
 #include "utility.hpp"
 #include "vdb.hpp"
 #include "writer.hpp"
@@ -164,7 +166,7 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
         
         if (filter.empty() || filterInclude(refName.asString(), refPos.value<int32_t>() + 1)) {
             auto const group = in.read(row, 1);
-            auto const n = snprintf(buffer, 32, "%lli", in.read(row, 2).value<int64_t>());
+            auto const n = snprintf(buffer, 32, "%" PRIi64, in.read(row, 2).value<int64_t>());
             auto const readId = in.read(row, 3);
             auto const sequence = in.read(row, 4);
             auto const strand = char(in.read(row, 6).value<int8_t>() == 0 ? '+' : '-');
@@ -213,7 +215,7 @@ static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb)
             if (pid[i] == 0) {
                 in.read(row, N - 1, data);
                 
-                auto const n = snprintf(buffer, 32, "%lli", row);
+                auto const n = snprintf(buffer, 32, "%" PRIi64, row);
                 auto const sequence = (char const *)data[1].data;
                 auto const readStart = (int32_t const *)data[2].data;
                 auto const readLen = (uint32_t const *)data[3].data;

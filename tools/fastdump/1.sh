@@ -154,11 +154,11 @@ test_csra()
     md5_csra_1="087c5292b808e2d30dfd3d9e08ba3c56"
     md5_csra_2="38c926a3c56ee3833ddd2092cacd0129"
 
-    fastdump_not_split $csra $md5_csra_n
-    fastdump_not_split_row_id_as_name $csra $md5_csra_n
-    fastdump_split_spot $csra $md5_csra_s
-    fastdump_split_row_id_as_name $csra $md5_csra_s
-    fastdump_split_file_row_id_as_name $csra $md5_csra_1 $md5_csra_2
+    #fastdump_not_split $csra $md5_csra_n
+    #fastdump_not_split_row_id_as_name $csra $md5_csra_n
+    #fastdump_split_spot $csra $md5_csra_s
+    #fastdump_split_row_id_as_name $csra $md5_csra_s
+    #fastdump_split_file_row_id_as_name $csra $md5_csra_1 $md5_csra_2
     fastdump_split_file $csra $md5_csra_1 $md5_csra_2
 }
 
@@ -246,9 +246,9 @@ test_SRR5659909()
     time fastdump $acc $options $numthreads $mem_limit $cur_cache $scratch_big -o $out_big
 }
 
-#test_csra
+test_csra
 #test_sra_flat_2
-test_sra_flat_4
+#test_sra_flat_4
 #test_sra_flat_split_spot
 #test_sra_db
 

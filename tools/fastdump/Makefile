@@ -78,6 +78,7 @@ TOOL_SRC = \
 	tbl_join \
 	join_results \
 	temp_registry \
+	copy_machine \
 	concatenator \
 	fastdump
 

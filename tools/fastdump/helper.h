@@ -51,6 +51,10 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
+#ifndef _h_kfs_file_
+#include <kfs/file.h>
+#endif
+
 #ifndef _h_klib_vector_
 #include <klib/vector.h>
 #endif
@@ -172,6 +176,9 @@ rc_t make_joined_filename( char * buffer, size_t bufsize,
 
 void clear_join_stats( join_stats * stats );
 void add_join_stats( join_stats * stats, const join_stats * to_add );
+
+rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
+                             const char * filename, size_t buf_size );
 
 /* ===================================================================================== */
 

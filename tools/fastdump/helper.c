@@ -602,6 +602,31 @@ rc_t make_joined_filename( char * buffer, size_t bufsize,
 
 }
 
+rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
+                             const char * filename, size_t buf_size )
+{
+    const struct KFile * fr;
+    rc_t rc = KDirectoryOpenFileRead( dir, &fr, "%s", filename );
+    if ( rc == 0 )
+    {
+        if ( buf_size > 0 )
+        {
+            const struct KFile * fb;
+            rc = KBufFileMakeRead( &fb, fr, buf_size );
+            if ( rc == 0 )
+            {
+                KFileRelease( fr );
+                fr = fb;
+            }
+        }
+        if ( rc == 0 )
+            *f = fr;
+        else
+            KFileRelease( fr );
+    }
+    return rc;
+}
+
 /* ===================================================================================== */
 
 rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize )

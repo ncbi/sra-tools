@@ -98,7 +98,7 @@ private:
     {
         static uint8_t tables[256 * 8];
         auto table = tables + 256 * n;
-#if 1
+
         for (auto i = 0; i < 256; ++i)
             table[i] = i;
         for (auto i = 0; i < 256; ++i) {
@@ -108,69 +108,7 @@ private:
             table[i] = jj;
             table[j] = ii;
         }
-#else
-        uint8_t J[256];
-        
-        for (auto i = 0; i < 256; ++i)
-            J[i] = i;
-        for (auto i = 0; i < 256; ++i) {
-            auto const j = random_uniform(i, 256);
-            auto const ii = J[i];
-            auto const jj = J[j];
-            J[i] = jj;
-            J[j] = ii;
-        }
-        
-        for (auto i = 1; i < 256; ++i) {
-            auto const ii = J[i - 1];
-            for (auto j = i; j < 256; ++j) {
-                auto const jj = J[j];
-                auto const diff = ii ^ jj;
-                auto const popcount(diff);
-                if (popcount == 4) {
-                    if (j != i) {
-                        J[j] = J[i];
-                        J[i] = jj;
-                    }
-                    break;
-                }
-            }
-        }
-        
-        uint8_t I[256];
-        
-        for (auto i = 0; i < 256; ++i)
-            I[i] = i;
-        for (auto i = 0; i < 256; ++i) {
-            auto const j = random_uniform(i, 256);
-            auto const ii = I[i];
-            auto const jj = I[j];
-            I[i] = jj;
-            I[j] = ii;
-        }
-        
-        for (auto i = 1; i < 256; ++i) {
-            auto const ii = I[i - 1];
-            for (auto j = i; j < 256; ++j) {
-                auto const jj = I[j];
-                auto const diff = ii ^ jj;
-                auto const popcount(diff);
-                if (popcount == 1) {
-                    if (j != i) {
-                        I[j] = I[i];
-                        I[i] = jj;
-                    }
-                    break;
-                }
-            }
-        }
-        
-        for (int k = 0; k < 256; ++k) {
-            auto const i = I[k];
-            auto const j = J[k];
-            table[i] = j;
-        }
-#endif
+
         return table;
     }
     static uint8_t const *makeSalt(void)
@@ -207,14 +145,9 @@ private:
     
 public:
     HashState() {
-#if 1
         std::copy(H0, H0 + 8, key);
-#else
-        *(uint64_t *)key = 0xcbf29ce484222325;
-#endif
     }
     void append(uint8_t const byte) {
-#if 1
         key[0] = H1[key[0] ^ byte];
         key[1] = H2[key[1] ^ byte];
         key[2] = H3[key[2] ^ byte];
@@ -223,12 +156,6 @@ public:
         key[5] = H6[key[5] ^ byte];
         key[6] = H7[key[6] ^ byte];
         key[7] = H8[key[7] ^ byte];
-#else
-        uint64_t hash = *(uint64_t *)key;
-        hash ^= byte;
-        hash *= 0x100000001b3;
-        *(uint64_t *)key = hash;
-#endif
     }
     HashState &append(VDB::Cursor::RawData const &data) {
         for (auto i = 0; i < data.elements; ++i) {

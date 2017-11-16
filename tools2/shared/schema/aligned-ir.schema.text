@@ -43,6 +43,8 @@ table NCBI:tbl:IR:raw #1
     extern column <ascii>  zip_encoding CIGAR;
 
     extern column <ascii>  zip_encoding QUALITY;
+
+    extern column <ascii> zip_encoding REJECT_REASON;
 };
 
 table NCBI:tbl:aligned:SPOT_STATISTICS #1

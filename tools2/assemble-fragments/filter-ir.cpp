@@ -43,8 +43,9 @@
 
 #include "fragment.hpp"
 
-void write(VDB::Writer const &out, unsigned const table, Fragment const &self) {
+void write(VDB::Writer const &out, unsigned const table, Fragment const &self, char const *const reason, bool const filter = false) {
     for (auto && i : self.detail) {
+        if (filter && !i.aligned) continue;
         out.value(1 + (table - 1) * 8, self.group);
         out.value(2 + (table - 1) * 8, self.name);
         out.value(3 + (table - 1) * 8, int32_t(i.readNo));
@@ -53,114 +54,72 @@ void write(VDB::Writer const &out, unsigned const table, Fragment const &self) {
             out.value(5 + (table - 1) * 8, i.reference);
             out.value(6 + (table - 1) * 8, i.strand);
             out.value(7 + (table - 1) * 8, int32_t(i.position));
-            out.value(8 + (table - 1) * 8, i.cigar);
+            out.value(8 + (table - 1) * 8, i.cigarString);
         }
+        if (reason)
+            out.value(9 + (table - 1) * 8, reason);
         out.closeRow(table);
     }
 }
 
-static Fragment clean(Fragment &&raw) {
-    auto &rslt = raw.detail;
-    
-    if (rslt.size() < 2)
-        return raw;
+static bool shouldKeep(Fragment const &fragment, char const **const reason)
+{
+    /* a spot is not kept if:
+     *  any read has an invalid CIGAR
+     *  any read has no alignment
+     *  any read has more than one alignment and the sequences don't all match
+     */
 
-    if (rslt.size() == 2) {
-        if (rslt[1].readNo < rslt[0].readNo) {
-            auto const tmp = rslt[1];
-            rslt[1] = rslt[0];
-            rslt[0] = tmp;
+    // check for invalid CIGAR strings
+    for (auto && i : fragment.detail) {
+        if (i.aligned && (i.cigar.size() == 0 || i.cigar.qlength != i.sequence.length())) {
+            *reason = "invalid CIGAR string";
+            return false;
         }
-        if (rslt[0].readNo != rslt[1].readNo)
-            return raw;
     }
-    else
-        std::sort(rslt.begin(), rslt.end());
     
-    return raw;
+    auto const n = int(fragment.detail.size());
+    auto next = 0;
+    while (next < n) {
+        auto const first = next;
+        auto const readNo = fragment.detail[first].readNo;
+
+        while (next < n && fragment.detail[next].readNo == readNo)
+            ++next;
+        
+        auto aligned = 0;
+        for (auto i = first; i < next; ++i) {
+            if (fragment.detail[i].aligned)
+                ++aligned;
+        }
+        if (aligned == 0) {
+            *reason = "partially aligned";
+            return false;
+        }
+
+        for (auto i = first; i < next - 1; ++i) {
+            if (!fragment.detail[i].aligned) continue;
+            
+            for (auto j = i + 1; j < next; ++j) {
+                if (!fragment.detail[j].aligned) continue;
+                
+                if (!fragment.detail[i].sequenceEquivalentTo(fragment.detail[j])) {
+                    *reason = "non-equivalent sequences";
+                    return false;
+                }
+            }
+        }
+    }
+    return true;
 }
 
 static void process(VDB::Writer const &out, Fragment const &fragment)
 {
-    auto reads = 0;
-    auto firstRead = 0;
-    auto lastRead = 0;
-    auto aligned = 0;
-
-    for (auto && i : fragment.detail) {
-        if (i.bad)
-            goto DISCARD;
-        if (i.aligned)
-            ++aligned;
-        if (reads == 0 || i.readNo != lastRead) {
-            lastRead = i.readNo;
-            if (reads == 0)
-                firstRead = i.readNo;
-            ++reads;
-        }
-    }
-    if (aligned == 0) {
-    DISCARD:
-        write(out, 2, fragment);
-        return;
-    }
-
-    if (fragment.detail.size() == reads) {
-        write(out, aligned == reads ? 1 : 2, fragment);
-        return;
-    }
-
-    auto detail = std::vector<Alignment>();
-    {
-        auto next = 0;
-        while (next < fragment.detail.size()) {
-            auto const first = next;
-            while (next < fragment.detail.size() && fragment.detail[next].readNo == fragment.detail[first].readNo)
-                ++next;
-            
-            auto const count = next - first;
-            auto aligned = 0;
-            auto ambiguous = 0;
-            auto good = 0;
-            auto firstGood = 0;
-            for (auto i = first; i < next; ++i) {
-                auto const &algn = fragment.detail[i];
-                auto const a = algn.aligned;
-                auto const b = algn.sequence.ambiguous();
-                if (a) ++aligned;
-                if (b) ++ambiguous;
-                if (a & !b) {
-                    if (good == 0) firstGood = i;
-                    ++good;
-                }
-            }
-            if (good == 0)
-                goto DISCARD;
-
-            if (count == 1) {
-                detail.push_back(fragment.detail[first]);
-                continue;
-            }
-            
-            auto const &seq = fragment.detail[firstGood].sequence;
-            detail.push_back(fragment.detail[firstGood]);
-            for (auto i = first; i < next; ++i) {
-                if (i == firstGood) continue;
-                auto const &algn = fragment.detail[i];
-                if (!algn.aligned) continue;
-                if (ambiguous > 0 && algn.sequence.ambiguous()) {
-                    detail.push_back(algn.truncated());
-                    continue;
-                }
-                if (algn.sequence.isEquivalentTo(seq))
-                    detail.push_back(algn);
-                else
-                    goto DISCARD;
-            }
-        }
-    }
-    write(out, 1, Fragment(fragment.group, fragment.name, detail));
-    return;
+    char const *reason = nullptr;
+    if (shouldKeep(fragment, &reason))
+        write(out, 1, fragment, nullptr, true);
+    else
+        write(out, 2, fragment, reason);
 }
 
 static int process(VDB::Writer const &out, VDB::Database const &inDb)
@@ -172,9 +131,10 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
     
     std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
     for (auto row = range.first; row < range.second; ) {
-        auto const spot = clean(in.read(row, range.second));
+        auto spot = in.read(row, range.second);
         if (spot.detail.empty())
             continue;
+        std::sort(spot.detail.begin(), spot.detail.end());
         process(out, spot);
         if (nextReport * freq <= (row - range.first)) {
             std::cerr << "prog: processed " << nextReport << "%" << std::endl;
@@ -213,7 +173,8 @@ static int process(std::string const &irdb, FILE *out)
     writer.openColumn(6 + 8, 2, 8, "STRAND");
     writer.openColumn(7 + 8, 2, 32, "POSITION");
     writer.openColumn(8 + 8, 2, 8, "CIGAR");
-    
+    writer.openColumn(9 + 8, 2, 8, "REJECT_REASON");
+
     writer.beginWriting();
 
     writer.defaultValue<char>(5, 0, 0);

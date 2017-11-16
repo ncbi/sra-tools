@@ -423,6 +423,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     rc = print_fq2_read_1( j -> results, j -> accession, row_id, read_id, &READ, &Q1 );
                 else
                     rc = print_fq2_read_2( j -> results, j -> accession, row_id, read_id, &rec -> name, &READ, &Q1 );
+                if ( rc == 0 )
+                    stats -> fragments_written ++;
             }
             
             if ( rc == 0 && process_1 )
@@ -437,6 +439,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     rc = print_fq2_read_1( j -> results, j -> accession, row_id, read_id, &READ, &Q2 );
                 else
                     rc = print_fq2_read_2( j -> results, j -> accession, row_id, read_id, &rec -> name, &READ, &Q2 );
+                if ( rc == 0 )
+                    stats -> fragments_written ++;
             }
         }
         else
@@ -448,6 +452,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     rc = print_fq2_read_1( j -> results, j -> accession, row_id, read_id, &rec -> read, &Q1 );
                 else
                     rc = print_fq2_read_2( j -> results, j -> accession, row_id, read_id, &rec -> name, &rec -> read, &Q1 );
+                if ( rc == 0 )
+                    stats -> fragments_written ++;
             }
             
             if ( rc == 0 && process_1 )
@@ -462,6 +468,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                         rc = print_fq2_read_1( j -> results, j -> accession, row_id, read_id, &j -> B2 . S, &Q2 );
                     else
                         rc = print_fq2_read_2( j -> results, j -> accession, row_id, read_id, &rec -> name, &j -> B2 . S, &Q2 );
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
                 }
             }
         }
@@ -480,6 +488,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                         rc = print_fq2_read_1( j -> results, j -> accession, row_id, read_id, &j -> B1 . S, &Q1 );
                     else
                         rc = print_fq2_read_2( j -> results, j -> accession, row_id, read_id, &rec -> name, &j -> B1 . S, &Q1 );
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
                 }
             }
             
@@ -492,6 +502,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     rc = print_fq2_read_1( j -> results, j -> accession, row_id, read_id, &rec -> read, &Q2 );
                 else
                     rc = print_fq2_read_2( j -> results, j -> accession, row_id, read_id, &rec -> name, &rec -> read, &Q2 );
+                if ( rc == 0 )
+                    stats -> fragments_written ++;
             }
         }
         else
@@ -506,6 +518,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                         rc = print_fq2_read_1( j -> results, j -> accession, row_id, read_id, &j -> B1 . S, &Q1 );
                     else
                         rc = print_fq2_read_2( j -> results, j -> accession, row_id, read_id, &rec -> name, &j -> B1 . S, &Q1 );
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
                 }
             }
             
@@ -521,6 +535,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                         rc = print_fq2_read_1( j -> results, j -> accession, row_id, read_id, &j -> B2 . S, &Q2 );
                     else
                         rc = print_fq2_read_2( j -> results, j -> accession, row_id, read_id, &rec -> name, &j -> B2 . S, &Q2 );
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
                 }
             }
         }
@@ -783,27 +799,32 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
             switch ( jtd -> fmt )
             {
                 case ft_special             : rc = perform_special_join( &cp,
-                                                        &j, jtd -> progress ); break;
+                                                        &j,
+                                                        jtd -> progress ); break;
 
                 case ft_fastq               : rc = perform_fastq_join( &cp,
                                                         &jtd -> stats,
-                                                        &j, jtd -> progress,
+                                                        &j,
+                                                        jtd -> progress,
                                                         jtd -> rowid_as_name ); break;
 
                 case ft_fastq_split_spot    : rc = perform_fastq_split_spot_join( &cp,
                                                         &jtd -> stats,
-                                                        &j, jtd -> progress,
+                                                        &j,
+                                                        jtd -> progress,
                                                         jtd -> rowid_as_name,
                                                         jtd -> skip_tech ); break;
 
                 case ft_fastq_split_file    : rc = perform_fastq_split_file_join( &cp,
                                                         &jtd -> stats,
-                                                        &j, jtd -> progress,
+                                                        &j,
+                                                        jtd -> progress,
                                                         jtd -> rowid_as_name ); break;
 
                 case ft_fastq_split_3       : rc = perform_fastq_split_3_join( &cp,
                                                         &jtd -> stats,
-                                                        &j, jtd -> progress,
+                                                        &j,
+                                                        jtd -> progress,
                                                         jtd -> rowid_as_name ); break;
 
                 default : break;

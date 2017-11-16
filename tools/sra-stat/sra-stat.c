@@ -251,16 +251,27 @@ typedef struct Statistics2 {
     double average;
     double diff_sq_sum;
 } Statistics2;
+typedef enum {
+    ebtUNDEFINED,
+    ebtREAD,
+    ebtCSREAD,
+    ebtRAW_READ,
+} EBasesType;
 typedef struct {
     uint64_t cnt[5];
-    bool CS_NATIVE;
-    const VCursor   *curs;
-    uint32_t         idx;
+    EBasesType basesType;
+
+    const VCursor   *cursSEQUENCE;
+    uint32_t         idxSEQUENCE;
+    uint64_t         startSEQUENCE;
+    uint64_t         stopSEQUENCE;
+
+    uint32_t         idxALIGNMENT;
+    const VCursor   *cursALIGNMENT;
+    uint64_t         startALIGNMENT;
+    uint64_t         stopALIGNMENT;
 
     bool finalized;
-
-    uint64_t start;
-    uint64_t stop;
 } Bases;
 typedef struct SraStatsTotal {
     uint64_t spot_count;
@@ -371,17 +382,57 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl,
     memset(self, 0, sizeof *self);
 
     assert(ctx && pb);
-/*  if (ctx->db == NULL) {*/
-    if (rc == 0) {
+
+    if (ctx->db != NULL && pb -> start == 0 && pb -> stop == 0) {
+        const VTable * tbl = NULL;
+        rc_t r2 = VDatabaseOpenTableRead(ctx->db, &tbl, "PRIMARY_ALIGNMENT");
+        if (r2 == 0) {
+            const VCursor *curs = NULL;
+            rc = VTableCreateCachedCursorRead ( tbl, & curs,
+                                                DEFAULT_CURSOR_CAPACITY);
+            DISP_RC(rc,
+                "Cannot VTableCreateCachedCursorRead(PRIMARY_ALIGNMENT)");
+            if (rc == 0) {
+                rc = VCursorPermitPostOpenAdd(curs);
+                DISP_RC(rc, "Cannot VCursorPermitPostOpenAdd");
+            }
+            if (rc == 0) {
+                rc = VCursorOpen(curs);
+                DISP_RC(rc, "Cannot VCursorOpen");
+            }
+            if (rc == 0) {
+                const char name [] = "(INSDC:4na:bin)RAW_READ";
+                rc = VCursorAddColumn(curs, &self->idxALIGNMENT, name);
+                DISP_RC2(rc, "Cannot VCursorAddColumn", name);
+            }
+            if (rc == 0) {
+                int64_t first = 0;
+                uint64_t count = 0;
+                rc = VCursorIdRange(curs, 0, &first, &count);
+                if ( rc == 0 ) {
+                    self->startALIGNMENT = first;
+                    self->stopALIGNMENT = first + count;
+                }
+            }
+            if (rc != 0)
+                VCursorRelease ( curs );
+            else
+                self -> cursALIGNMENT = curs;
+            self->basesType = ebtRAW_READ;
+        }
+        RELEASE(VTable, tbl);
+    }
+
+    if (rc == 0 && self->cursSEQUENCE == NULL
+                && self->basesType != ebtRAW_READ)
+    {
         const char name[] = "CS_NATIVE";
         const void *base = NULL;
 
         const VCursor *curs = NULL;
         uint32_t idx = 0;
 
-/*      assert(ctx->tbl); */
-
-        self->CS_NATIVE = true;
+        self->basesType = ebtCSREAD;
 
         rc = VTableCreateCachedCursorRead(vtbl, &curs, DEFAULT_CURSOR_CAPACITY);
         DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
@@ -400,7 +451,7 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl,
             rc = VCursorAddColumn(curs, &idx, "%s", name);
             if (rc != 0) {
                 if (columnUndefined(rc)) {
-                    self->CS_NATIVE = false;
+                    self->basesType = ebtREAD;
                     rc = 0;
                 }
                 else {
@@ -425,7 +476,8 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl,
                 }
 
                 if (rc == 0) {
-                    self->CS_NATIVE = *((bool*)base);
+                    bool CS_NATIVE = *((bool*)base);
+                    self -> basesType = CS_NATIVE ? ebtCSREAD : ebtREAD;
                 }
 
             }
@@ -433,31 +485,27 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl,
 
         RELEASE(VCursor, curs);
     }
-/*  else {
-        assert ( ! ctx -> tbl );
-    }*/
 
-    {
-        const char *name = self->CS_NATIVE ? "CSREAD" : "READ";
-        const char *datatype
-            = self->CS_NATIVE ? "INSDC:x2cs:bin" : "INSDC:x2na:bin";
-        rc = VTableCreateCachedCursorRead(vtbl, &self->curs, DEFAULT_CURSOR_CAPACITY);
+    if (self->cursSEQUENCE == NULL && rc == 0) {
+        const char *name = self->basesType == ebtCSREAD
+            ? "(INSDC:x2cs:bin)CSREAD" :
+              self->basesType == ebtREAD
+                  ? "(INSDC:x2na:bin)READ" : "(INSDC:x2na:bin)CMP_READ";
+        rc = VTableCreateCachedCursorRead(vtbl, &self->cursSEQUENCE,
+                                          DEFAULT_CURSOR_CAPACITY);
         DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
         if (rc == 0) {
-            rc = VCursorAddColumn(self->curs,
-                &self->idx, "(%s)%s", datatype, name);
+            rc = VCursorAddColumn(self->cursSEQUENCE, &self->idxSEQUENCE, name);
             if (rc != 0) {
                 PLOGERR(klogInt, (klogInt, rc,
-                    "Cannot VCursorAddColumn(($(type)),$(name)",
-                    "type=%s,name=%s", datatype, name));
+                    "Cannot VCursorAddColumn($(name))", "name=%s", name));
             }
         }
         if (rc == 0) {
-            rc = VCursorOpen(self->curs);
+            rc = VCursorOpen(self->cursSEQUENCE);
             if (rc != 0) {
                 PLOGERR(klogInt, (klogInt, rc,
-                    "Cannot VCursorOpen(($(type)),$(name)))",
-                    "type=%s,name=%s", datatype, name));
+                    "Cannot VCursorOpen($(name))", "name=%s", name));
             }
         }
     }
@@ -465,23 +513,23 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl,
     if ( rc == 0 ) {
         int64_t first = 0;
         uint64_t count = 0;
-        rc = VCursorIdRange(self->curs, 0, &first, &count);
+        rc = VCursorIdRange(self->cursSEQUENCE, 0, &first, &count);
         if ( rc == 0 ) {
             if (pb->start > 0) {
-                self->start = pb->start;
-                if (self->start < first)
-                    self->start = first;
+                self->startSEQUENCE = pb->start;
+                if (self->startSEQUENCE < first)
+                    self->startSEQUENCE = first;
             }
             else
-                self->start = first;
+                self->startSEQUENCE = first;
 
             if (pb->stop > 0) {
-                self->stop = pb->stop;
-                if ( ( uint64_t ) self->stop > first + count)
-                    self->stop = first + count;
+                self->stopSEQUENCE = pb->stop;
+                if ( ( uint64_t ) self->stopSEQUENCE > first + count)
+                    self->stopSEQUENCE = first + count;
             }
             else
-                self->stop = first + count;
+                self->stopSEQUENCE = first + count;
         }
     }
 
@@ -491,7 +539,7 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl,
 static void BasesFinalize(Bases *self) {
     assert(self);
 
-    if (self->curs == NULL) {
+    if (self->cursSEQUENCE == NULL) {
         LOGMSG(klogInfo, "Bases statistics will not be printed : "
             "READ cursor was not opened during BasesFinalize()");
         return;
@@ -505,32 +553,47 @@ static rc_t BasesRelease(Bases *self) {
 
     assert(self);
 
-    RELEASE(VCursor  , self->curs);
+    RELEASE(VCursor, self->cursSEQUENCE);
+    RELEASE(VCursor, self->cursALIGNMENT);
 
     return rc;
 }
 
-static rc_t BasesAdd(Bases *self, int64_t spotid) {
+static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
     rc_t rc = 0;
     const void *base = NULL;
     bitsz_t row_bits = ~0;
     bitsz_t i = ~0;
     const unsigned char *bases = NULL;
 
+    const VCursor * c = NULL;
+    int64_t row_id = 0;
+
     assert(self);
 
-    if (self->curs == NULL) {
+    if (self->cursSEQUENCE == NULL) {
         return 0;
+    }
+
+    if ( alignment ) {
+        c      = self -> cursALIGNMENT;
+        row_id = self -> idxALIGNMENT;
+    }
+    else {
+        c      = self -> cursSEQUENCE;
+        row_id = self -> idxSEQUENCE;
     }
 
     {
         uint32_t elem_bits = 0, elem_off = 0, elem_cnt = 0;
-        rc = VCursorCellDataDirect(self->curs, spotid, self->idx,
-            &elem_bits, &base, &elem_off, &elem_cnt);
+        rc = VCursorCellDataDirect(c, spotid, row_id,
+                                   &elem_bits, &base, &elem_off, &elem_cnt);
         if (rc != 0) {
+            const char * name = self->basesType == ebtCSREAD ? "CSREAD"
+                : self->basesType == ebtREAD ? "READ" : "RAW_READ";
             PLOGERR(klogInt, (klogErr, rc,
-                "while VCursorCellDataDirect(READ, $(type))",
-                "type=%s", self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE"));
+                "while VCursorCellDataDirect($(name))",
+                "name=%s", name));
             BasesRelease(self);
             return rc;
         }
@@ -539,11 +602,12 @@ static rc_t BasesAdd(Bases *self, int64_t spotid) {
     }
 
     if ((row_bits % 8) != 0) {
+        const char * name = self->basesType == ebtCSREAD ? "CSREAD"
+            : self->basesType == ebtREAD ? "READ" : "RAW_READ";
         rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
         PLOGERR(klogInt, (klogErr, rc, "Invalid row_bits '$(row_bits) "
-            "while VCursorCellDataDirect(READ, $(type), spotid=$(spotid))",
-            "row_bits=%lu,type=%s,spotid=%lu",
-            row_bits, self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE", spotid));
+            "while VCursorCellDataDirect($(name), spotid=$(spotid))",
+            "row_bits=%lu,name=%s,spotid=%lu", row_bits, name, spotid));
         BasesRelease(self);
         return rc;
     }
@@ -552,14 +616,32 @@ static rc_t BasesAdd(Bases *self, int64_t spotid) {
     bases = base;
     for (i = 0; i < row_bits; ++i) {
         unsigned char base = bases[i];
+        if ( alignment ) {
+            const unsigned char x [16]
+                = { 4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, };
+            /*      0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15
+                       A  C     G           T                    N  */
+            if (base > 15) {
+                rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
+                PLOGERR(klogInt, (klogErr, rc, "Invalid RAW_READ column "
+                    "value '$(base)' while VCursorCellDataDirect"
+                    "(spotid=$(spotid), index=$(i))",
+                    "base=%d,spotid=%lu,i=%lu", base, spotid, i));
+                BasesRelease(self);
+                return rc;
+            }
+            assert ( base < sizeof x / sizeof x [ 0 ] );
+            base = x [  base ];
+        }
         if (base > 4) {
+            const char * name = self->basesType == ebtCSREAD ? "CSREAD"
+                : self->basesType == ebtREAD ? "READ" : "RAW_READ";
             rc = RC(rcExe, rcColumn, rcReading, rcData, rcInvalid);
             PLOGERR(klogInt, (klogErr, rc,
-                "Invalid READ column value '$(base) while VCursorCellDataDirect"
-                "($(type), spotid=$(spotid), index=$(i))",
-                "base=%d,type=%s,spotid=%lu,index=%lu",
-                base, self->CS_NATIVE ? "CS_NATIVE" : "not CS_NATIVE",
-                spotid, i));
+               "Invalid READ column value '$(base)' while VCursorCellDataDirect"
+               "($(name), spotid=$(spotid), index=$(i))",
+               "base=%d,name=%s,spotid=%lu,i=%lu",
+               base, name, spotid, i));
             BasesRelease(self);
             return rc;
         }
@@ -585,10 +667,10 @@ static rc_t BasesPrint(const Bases *self,
         return rc;
     }
 
-    name = self->CS_NATIVE ? "0123." : "ACGTN";
+    name = self->basesType == ebtCSREAD ? "0123." : "ACGTN";
 
-    OUTMSG(("%s<%s cs_native=\"%s\" count=\"%lu\">\n",
-        indent, tag, self->CS_NATIVE ? "true" : "false", base_count));
+    OUTMSG(("%s<%s cs_native=\"%s\" count=\"%lu\">\n", indent,
+        tag, self->basesType == ebtCSREAD ? "true" : "false", base_count));
 
     for (i = 0; i < 5; ++i) {
         OUTMSG(("%s  <Base value=\"%c\" count=\"%lu\"/>\n",
@@ -601,7 +683,8 @@ static rc_t BasesPrint(const Bases *self,
         self->cnt[3] + self->cnt[4] != base_count)
     {
         rc = RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
-        LOGERR(klogErr, rc, "stored base count did not match observed base count");
+        LOGERR(klogErr, rc,
+               "stored base count did not match observed base count");
     }
 
     return rc;
@@ -2924,8 +3007,11 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                         }
 
                         if (rc == 0 && pb->progress && pr == NULL) {
-                            uint64_t b = total->bases_count.stop + 1
-                                       - total->bases_count.start;
+                            uint64_t b = total->bases_count.stopSEQUENCE + 1
+                                       - total->bases_count.startSEQUENCE;
+                            if ( total->bases_count.stopALIGNMENT > 0 )
+                                b +=  total->bases_count.stopALIGNMENT + 1
+                                    - total->bases_count.startALIGNMENT;
                             rc = KLoadProgressbar_Make(&pr,
                                                        stop + 1 - start + b);
                             if (rc != 0) {
@@ -3268,12 +3354,28 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                     } /* for (spotid = start; spotid <= stop && rc == 0;
                               ++spotid) */
 
-                    for (spotid = total->bases_count.start;
-                         spotid < total->bases_count.stop && rc == 0; ++spotid)
+                    for (spotid = total->bases_count.startALIGNMENT;
+                         spotid < total->bases_count.stopALIGNMENT && rc == 0;
+                         ++spotid)
                     {
-                        rc = BasesAdd(&total->bases_count, spotid);
+                        rc = BasesAdd(&total->bases_count, spotid, true);
                         if ( rc == 0 && pb->progress )
                             KLoadProgressbar_Process ( pr, 1, false );
+                        rc = Quitting();
+                        if (rc != 0)
+                            LOGMSG(klogWarn, "Interrupted");
+                    }
+
+                    for (spotid = total->bases_count.startSEQUENCE;
+                         spotid < total->bases_count.stopSEQUENCE && rc == 0;
+                         ++spotid)
+                    {
+                        rc = BasesAdd(&total->bases_count, spotid, false);
+                        if ( rc == 0 && pb->progress )
+                            KLoadProgressbar_Process ( pr, 1, false );
+                        rc = Quitting();
+                        if (rc != 0)
+                            LOGMSG(klogWarn, "Interrupted");
                     }
 
                     if (rc == 0) {

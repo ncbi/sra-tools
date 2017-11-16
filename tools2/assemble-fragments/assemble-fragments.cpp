@@ -338,13 +338,12 @@ std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment,
 {
     struct alignment {
         decltype(fragment.detail.cbegin()) mom;
-        CIGAR cigar;
         int pos, end;
         decltype(references[fragment.detail[0].reference]) ref;
         
-        alignment(decltype(fragment.detail.cbegin()) mom, decltype(ref) ref) : mom(mom), ref(ref), cigar(CIGAR(mom->cigar)) {
-            pos = mom->position - cigar.qfirst;
-            end = mom->position + cigar.rlength + cigar.qclip;
+        alignment(decltype(fragment.detail.cbegin()) mom, decltype(ref) ref) : mom(mom), ref(ref) {
+            pos = mom->position - mom->cigar.qfirst;
+            end = mom->position + mom->cigar.rlength + mom->cigar.qclip;
         }
     };
     
@@ -381,11 +380,11 @@ std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment,
                     BestAlignment const best = {
                         i, pair.first.mom, pair.second.mom,
                         pair.first.pos, pair.second.pos,
-                        pair.first.cigar.qlength - pair.first.cigar.qfirst - pair.first.cigar.qclip,
-                        pair.second.cigar.qlength - pair.second.cigar.qfirst - pair.second.cigar.qclip,
-                        pair.first.cigar.qfirst + pair.first.cigar.qclip,
-                        pair.second.cigar.qfirst + pair.second.cigar.qclip,
-                        pair.first.cigar.rlength, pair.first.cigar.rlength,
+                        pair.first.mom->cigar.qlength - pair.first.mom->cigar.qfirst - pair.first.mom->cigar.qclip,
+                        pair.second.mom->cigar.qlength - pair.second.mom->cigar.qfirst - pair.second.mom->cigar.qclip,
+                        pair.first.mom->cigar.qfirst + pair.first.mom->cigar.qclip,
+                        pair.second.mom->cigar.qfirst + pair.second.mom->cigar.qclip,
+                        pair.first.mom->cigar.rlength, pair.first.mom->cigar.rlength,
                         pair.first.ref == pair.second.ref ? pair.second.end - pair.first.pos : 0
                     };
                     rslt.push_back(best);
@@ -646,7 +645,7 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             auto const &first = *best.a;
             auto const &second = *best.b;
             auto const layout = std::to_string(first.readNo) + std::to_string(first.strand) + std::to_string(second.readNo) + std::to_string(second.strand); ///< encodes order and strand, e.g. "1+2-" or "2+1-" for normal Illumina
-            auto const cigar = first.cigar + "0P" + second.cigar; ///< 0P is like a double-no-op; used here to mark the division between the two CIGAR strings; also represents the mate-pair gap, the length of which is inferred from the fragment length
+            auto const cigar = first.cigarString + "0P" + second.cigarString; ///< 0P is like a double-no-op; used here to mark the division between the two CIGAR strings; also represents the mate-pair gap, the length of which is inferred from the fragment length
             auto const sequence = fragment.sequence(first.readNo) + fragment.sequence(second.readNo); ///< just concatenate them
             
             keepGroup.setValue(fragment.group);
@@ -696,7 +695,7 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
                 badRef.setValue(i.reference);
                 badStrand.setValue(i.strand);
                 badPosition.setValue(i.position);
-                badCIGAR.setValue(i.cigar);
+                badCIGAR.setValue(i.cigarString);
                 badSequence.setValue(static_cast<std::string>(i.sequence));
                 badTable.closeRow();
             }

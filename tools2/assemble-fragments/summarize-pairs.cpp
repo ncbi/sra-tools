@@ -228,8 +228,8 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
     ContigPair(Alignment const &one, Alignment const &two, std::string const &group)
     : group(unsigned(groups[group]))
     {
-        auto const &c1 = Contig(one, CIGAR(one.cigar));
-        auto const &c2 = Contig(two, CIGAR(two.cigar));
+        auto const &c1 = Contig(one, one.cigar);
+        auto const &c2 = Contig(two, two.cigar);
         
         if (two.reference < one.reference || (c2.ref == c1.ref && (c2.start < c1.start || (c2.start == c1.start && c2.end < c1.end)))) {
             first = c2;

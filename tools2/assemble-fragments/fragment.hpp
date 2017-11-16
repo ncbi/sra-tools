@@ -34,7 +34,6 @@
  * \brief A value type for a single nucleatide sequence
  */
 struct DNASequence : public std::string {
-private:
     static inline char adjoint(char const ch) ///< truely adjoint if ch =~ /[.ACMGRSVTWYHKDBN]/
     {
         /// a short circuit for the common cases
@@ -61,37 +60,28 @@ private:
         }
         return 'N';
     }
-public:
+    
+    static bool inline isAmbiguous(char const ch) {
+        switch (ch) {
+            case 'A':
+            case 'C':
+            case 'G':
+            case 'T':
+                return false;
+            default:
+                return true;
+        }
+    }
+
+    bool ambiguous() const {
+        for (auto ch : *this) {
+            if (isAmbiguous(ch))
+                return true;
+        }
+        return false;
+    }
+
     DNASequence(std::string const &str) : std::string(str) {}
-    DNASequence adjoint() const ///< reverse complement
-    {
-        std::string rslt(rbegin(), rend());
-        for (auto && ch : rslt) {
-            ch = adjoint(ch);
-        }
-        return rslt;
-    }
-    bool ambiguous() const ///< true unless every contained base is unambiguous
-    {
-        for (auto && base : *this) {
-            switch (base) {
-                case 'A':
-                case 'C':
-                case 'G':
-                case 'T':
-                    break;
-                default:
-                    return true;
-            }
-        }
-        return false;
-    }
-    bool isEquivalentTo(DNASequence const &other) const ///< true of equal or equal to reverse complement
-    {
-        if (size() != other.size()) return false;
-        if (*this == other || *this == other.adjoint()) return true;
-        return false;
-    }
 };
 
 /** \class CIGAR_OP
@@ -215,6 +205,12 @@ private:
     , std::vector<CIGAR_OP>(other)
     {}
 public:
+    CIGAR()
+    : qlength(0)
+    , rlength(0)
+    , qfirst(0)
+    , qclip(0)
+    {}
     explicit CIGAR(std::string const &str)
     : qlength(0)
     , rlength(0)
@@ -300,7 +296,8 @@ public:
             return;
         }
     INVALID:
-        throw std::domain_error("Invalid CIGAR");
+        qclip = qfirst = qlength = rlength = 0;
+        clear();
     }
     operator std::string() const {
         if (size() == 0) return "*";
@@ -317,132 +314,40 @@ public:
     CIGAR adjoint() const {
         return CIGAR(rlength, qclip, qlength, qfirst, std::vector<CIGAR_OP>(rbegin(), rend()));
     }
-    unsigned totalQueryLength() const { return qfirst + qlength + qclip; }
-    
-    static bool isValid(std::string const &cigar, std::string::size_type const seqlen = 0) {
-        int mc = 0;
-        int ic = 0;
-        int dc = 0;
-        int op = 0;
-        int H = 1;
-        int acc = 0;
-        int const n = (int)cigar.length();
-        int i = 0;
-        
-        while (i < n) {
-            int const ch = cigar[i++];
-            if (ch >= '0' && ch <= '9') {
-                acc = (acc * 10) + (ch - '0');
-                continue;
-            }
-            int const len = acc; acc = 0;
-            ++op;
-            if (ch == 'P') continue;
-            if (len == 0) return false;
-            
-            switch (ch) {
-                case 'M':
-                case 'X':
-                case '=':
-                    mc += len;
-                    break;
-                case 'I':
-                case 'B':
-                    ic += len;
-                    break;
-                case 'D':
-                case 'N':
-                    dc += len;
-                    break;
-                case 'S':
-                    ic += len;
-                    if (op > H) goto CHECK_S;
-                    break;
-                case 'H':
-                    if (op > 1) goto CHECK_H;
-                    H = op + 1;
-                    break;
-                default:
-                    return false;
-            }
-        }
-        if (0) {
-        CHECK_S: // right clip; can only be followed by an H
-            int H = 'H';
-            while (i < n) {
-                int const ch = cigar[i++];
-                if (ch >= '0' && ch <= '9') {
-                    acc = (acc * 10) + (ch - '0');
-                    continue;
-                }
-                H = ch;
-                break;
-            }
-            if (H != 'H' || i != n) return false;
-        }
-        if (0) {
-        CHECK_H:
-            if (i != n) return false;
-        }
-
-        return (mc > 0 && (seqlen == 0 || seqlen == mc + ic));
-    }
-    static void test(void) {
-        static char const *good[] = {
-            "46M44S5H",
-            "46M44S",
-            "46S44M",
-            "5H46S44M",
-            "90M",
-            "5H5S80M5S5H"
-        };
-        static char const *bad[] = {
-            "37S45I", "5H46S5H44M"
-        };
-        for (auto && i : good) {
-            if (!isValid(i, 90)) throw std::logic_error("failed");
-        }
-        for (auto && i : bad) {
-            if (isValid(i)) throw std::logic_error("failed");
-        }
-    }
 };
 
 struct Alignment {
     DNASequence sequence;
     std::string reference;
-    std::string cigar;
+    std::string cigarString;
+    CIGAR cigar;
     int readNo;
     int position;
     char strand;
     bool aligned;
-    bool bad;
     
     Alignment(int readNo, std::string const &sequence)
     : readNo(readNo)
     , sequence(sequence)
     , aligned(false)
-    , bad(false)
-    , reference("")
     , strand(0)
     , position(0)
-    , cigar("")
     {}
 
-    Alignment(int readNo, std::string const &sequence, std::string const &reference, char strand, int position, std::string const &cigar)
+    Alignment(int readNo, std::string const &sequence, std::string const &reference, char strand, int position, std::string const &CIGAR)
     : readNo(readNo)
     , sequence(sequence)
     , aligned(true)
-    , bad(!CIGAR::isValid(cigar, sequence.length()))
     , reference(reference)
     , strand(strand)
     , position(position)
-    , cigar(cigar)
+    , cigarString(CIGAR)
+    , cigar(cigarString)
     {}
 
     Alignment truncated() const {
         if (aligned)
-            return Alignment(readNo, "", reference, strand, position, cigar);
+            return Alignment(readNo, "", reference, strand, position, cigarString);
         else
             return Alignment(readNo, "");
     }
@@ -461,6 +366,32 @@ struct Alignment {
         }
         return false;
     }
+    
+    bool isClipped(unsigned spos) const {
+        return (spos < cigar.qfirst) || (spos > cigar.qfirst + cigar.qlength);
+    }
+
+    bool sequenceEquivalentTo(Alignment const &other) const {
+        auto const n = sequence.length();
+        if (n != other.sequence.length()) return false;
+        
+        auto const adjoint = other.strand != strand;
+        int equal = 0;
+        for (auto i = 0; i < n; ++i) {
+            auto const b1 = sequence[i];
+            auto const j = adjoint ? (n - i - 1) : i;
+            auto const ob = other.sequence[j];
+            auto const b2 = adjoint ? DNASequence::adjoint(ob) : ob;
+            
+            if (b1 == b2)
+                ++equal;
+            else if ((isClipped(i) && DNASequence::isAmbiguous(b1)) || (other.isClipped(i) && DNASequence::isAmbiguous(b2)))
+                ;
+            else
+                return false;
+        }
+        return equal > 0;
+    }
 };
 
 struct Fragment {
@@ -476,11 +407,26 @@ struct Fragment {
     }
     
     DNASequence const &sequence(int readNo) const {
+        // since all of the sequences are equivalent,
+        // the first unambiguous sequence is best
         for (auto && i : detail) {
-            if (i.readNo == readNo && !i.sequence.empty())
-                return i.sequence;
+            if (i.readNo != readNo) continue;
+            if (i.sequence.ambiguous()) continue;
+            return i.sequence;
         }
-        throw std::logic_error("impossible");
+        // there were no unambiguous sequences
+        // the best one will have to the one with the longest query length
+        int best = -1;
+        int bestIndex = 0;
+        for (auto i = 0; i < detail.size(); ++i) {
+            if (detail[i].readNo != readNo) continue;
+            auto const length = detail[i].cigar.qlength - detail[i].cigar.qfirst - detail[i].cigar.qclip;
+            if (best < length) {
+                best = length;
+                bestIndex = i;
+            }
+        }
+        return detail[bestIndex].sequence;
     }
 
     struct Cursor : public VDB::Cursor {
@@ -526,29 +472,6 @@ struct Fragment {
                 ++row;
             }
             return Fragment(spotGroup, spotName, rslt);
-        }
-        void foreachRow(void (*F)(Fragment const &), char const *message = nullptr) const
-        {
-            auto const range = rowRange();
-            auto const rows = range.second - range.first;
-            auto const freq = rows / 100.0;
-            auto nextReport = 1;
-            
-            std::cerr << "info: processing " << rows << " records";
-            if (message)
-                std::cerr << "; " << message;
-            std::cerr << std::endl;
-            
-            for (auto row = range.first; row < range.second; ) {
-                auto const spot = read(row, range.second);
-                if (spot.detail.empty())
-                    continue;
-                F(spot);
-                while (nextReport * freq <= (row - range.first)) {
-                    std::cerr << "prog: processed " << nextReport << "%" << std::endl;
-                    ++nextReport;
-                }
-            }
         }
     };
 };

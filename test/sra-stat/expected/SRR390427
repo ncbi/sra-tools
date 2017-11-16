@@ -1,0 +1,63 @@
+<Run accession="SRR390427" read_length="fixed" spot_count="2594471" base_count="524083142" base_count_bio="524083142" spot_count_mates="2594471" base_count_bio_mates="524083142" spot_count_bad="0" base_count_bio_bad="0" spot_count_filtered="0" base_count_bio_filtered="0" cmp_base_count="524083142">
+  <Member member_name="D0ENA.2" spot_count="2594471" base_count="524083142" base_count_bio="524083142" spot_count_mates="2594471" base_count_bio_mates="524083142" spot_count_bad="0" base_count_bio_bad="0" spot_count_filtered="0" base_count_bio_filtered="0" cmp_base_count="524083142" library="Solexa-72592" sample="Bergeyella zoohelcum"/>
+  <Size value="351414550" units="bytes"/>
+  <Bases cs_native="false" count="524083142">
+    <Base value="A" count="166600537"/>
+    <Base value="C" count="96593577"/>
+    <Base value="G" count="107608739"/>
+    <Base value="T" count="153073184"/>
+    <Base value="N" count="207105"/>
+  </Bases>
+  <AlignInfo>
+  </AlignInfo>
+  <QualityCount>
+    <Quality value="2" count="56899173"/>
+    <Quality value="5" count="45155"/>
+    <Quality value="6" count="254977"/>
+    <Quality value="7" count="1363834"/>
+    <Quality value="8" count="1132008"/>
+    <Quality value="9" count="585058"/>
+    <Quality value="10" count="530022"/>
+    <Quality value="11" count="279415"/>
+    <Quality value="12" count="210021"/>
+    <Quality value="13" count="384478"/>
+    <Quality value="14" count="263141"/>
+    <Quality value="15" count="542355"/>
+    <Quality value="16" count="614201"/>
+    <Quality value="17" count="657500"/>
+    <Quality value="18" count="2355796"/>
+    <Quality value="19" count="1032242"/>
+    <Quality value="20" count="1663496"/>
+    <Quality value="21" count="841299"/>
+    <Quality value="22" count="1239349"/>
+    <Quality value="23" count="1585574"/>
+    <Quality value="24" count="2256514"/>
+    <Quality value="25" count="4699781"/>
+    <Quality value="26" count="6545519"/>
+    <Quality value="27" count="3653192"/>
+    <Quality value="28" count="3520667"/>
+    <Quality value="29" count="10027071"/>
+    <Quality value="30" count="8554867"/>
+    <Quality value="31" count="17095136"/>
+    <Quality value="32" count="12379613"/>
+    <Quality value="33" count="14736364"/>
+    <Quality value="34" count="39005138"/>
+    <Quality value="35" count="32768667"/>
+    <Quality value="36" count="23490854"/>
+    <Quality value="37" count="41960063"/>
+    <Quality value="38" count="37244442"/>
+    <Quality value="39" count="50192607"/>
+    <Quality value="40" count="61477622"/>
+    <Quality value="41" count="81995931"/>
+  </QualityCount>
+  <Databases>
+    <Database>
+      <Table name="SEQUENCE">
+        <Statistics source="meta">
+          <Rows count="2594471"/>
+          <Elements count="524083142"/>
+        </Statistics>
+      </Table>
+    </Database>
+  </Databases>
+</Run>

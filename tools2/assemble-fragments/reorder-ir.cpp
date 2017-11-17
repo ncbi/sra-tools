@@ -277,7 +277,7 @@ struct Context {
     void run(void) {
         auto const tid = pthread_self();
         pthread_mutex_lock(&mutex);
-        std::cerr << "Thread " << tid << ": started" << std::endl;
+        // std::cerr << "Thread " << tid << ": started" << std::endl;
         for ( ;; ) {
             if (next < queue.size()) {
                 auto const unit = queue[next];
@@ -311,16 +311,16 @@ struct Context {
                 }
             }
             else if (running > 0) {
-                std::cerr << "Thread " << tid << ": waiting" << std::endl;
+                // std::cerr << "Thread " << tid << ": waiting" << std::endl;
                 pthread_cond_wait(&cond_running, &mutex);
-                std::cerr << "Thread " << tid << ": awake" << std::endl;
+                // std::cerr << "Thread " << tid << ": awake" << std::endl;
             }
             else
                 break;
             // it is an invariant that the mutex is held by the current thread regardless of the code path taken
         }
         pthread_mutex_unlock(&mutex);
-        std::cerr << "Thread " << tid << ": done" << std::endl;
+        // std::cerr << "Thread " << tid << ": done" << std::endl;
     }
 };
 

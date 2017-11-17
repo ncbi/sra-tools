@@ -91,7 +91,7 @@ quick_bases:
 	@echo
 	@echo SRR619505 is a small cSRA with N-s without local references
 	$(BINDIR)/sra-stat -x SRR619505 > actual/SRR619505
-	diff actual/SRR619505 expected/SRR619505
+	diff actual/SRR619505 expected/SRR619505.$(OS)
 
 	@echo
 	@echo SRR360929 is a table

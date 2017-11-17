@@ -31,57 +31,85 @@
 #include <cstdint>
 #include <cassert>
 #include <cmath>
-#include <writer.hpp>
+#include "writer.hpp"
 
-void writeRow(VDB::Writer const &out, unsigned const N, std::string const fields[])
+static void writeRow(VDB::Writer const &out, unsigned const N, std::string const fields[])
 {
-    if (N != 4 && N != 8)
-        throw std::runtime_error("unexpected number of fields");
-    
+    if (N == 0) return;
+    if (N != 4 && N != 8) {
+        fprintf(stderr, "unexpected number of fields: expected 4 or 8, got %u\n", N);
+        exit(1);
+    }
     out.value(1, fields[0]);
     out.value(2, fields[1]);
     out.value(3, int32_t(std::stoi(fields[2])));
+    out.value(4, fields[3]);
     if (N == 8) {
-        out.value(4, fields[7]);
-        out.value(5, fields[3]);
-        out.value(6, char(fields[4] == "true" ? '-' : '+'));
-        out.value(7, int32_t(std::stoi(fields[5])));
-        out.value(8, fields[6]);
-    }
-    else {
-        out.value(4, fields[3]);
+        out.value(5, fields[4]);
+        out.value(6, char(fields[5] == "true" ? '-' : '+'));
+        out.value(7, int32_t(std::stoi(fields[6])));
+        out.value(8, fields[7]);
     }
     out.closeRow(1);
 }
 
-int process(VDB::Writer const &out, FILE *in)
+static int process(VDB::Writer const &out, FILE *in)
 {
+    static bool warnedTooManyFields = false;
     std::string fields[8];
-    unsigned fld = 0;
+    int fld = 0;
+    int st = 0;
 
     for ( ;; ) {
         auto const ch = fgetc(in);
         if (ch < 0)
             break;
-        if (ch == '\n') {
-            writeRow(out, fld + 1, fields);
-            for (auto &&s : fields)
-                s.clear();
-            fld = 0;
-            continue;
+        switch (st) {
+            case 0: ///< start of line
+                if (ch == '\n')
+                    continue; ///< ignore empty line
+                st = 1;
+                /* fallthrough */;
+            case 1: ///< start of field
+                if (ch == '#') { ///< eat comment line
+                    --fld;
+                    st = 3;
+                    continue;
+                }
+                st = 2;
+                /* fallthrough */;
+            case 2:
+                if (ch == '\n')
+                    goto END_OF_LINE;
+                if (ch == '\t') {
+                    ++fld;
+                    st = 1;
+                }
+                else if (fld < 8)
+                    fields[fld] += char(ch);
+                break;
+            case 3: /// eat to end of line;
+                if (ch != '\n')
+                    break;
+                /* fallthrough */
+            case 4:
+            END_OF_LINE:
+                if (!warnedTooManyFields && fld >= 8) {
+                    warnedTooManyFields = true;
+                    fprintf(stderr, "too number of fields: expected 4 or 8, got %u; extra fields were ignored\n", fld + 1);
+                }
+                writeRow(out, fld + 1, fields);
+                for (auto &&s : fields)
+                    s.clear();
+                fld = 0;
+                st = 0;
+                break;
         }
-        if (ch == '\t') {
-            ++fld;
-            if (fld == 8)
-                throw std::runtime_error("too many fields");
-            continue;
-        }
-        fields[fld] += char(ch);
     }
     return 0;
 }
 
-int process(FILE *out, FILE *in)
+static int process(FILE *out, FILE *in)
 {
     auto const writer = VDB::Writer(out);
     
@@ -91,7 +119,7 @@ int process(FILE *out, FILE *in)
     
     writer.openTable(1, "RAW");
     writer.openColumn(1, 1, 8, "READ_GROUP");
-    writer.openColumn(2, 1, 8, "FRAGMENT");
+    writer.openColumn(2, 1, 8, "NAME");
     writer.openColumn(3, 1, 32, "READNO");
     writer.openColumn(4, 1, 8, "SEQUENCE");
     writer.openColumn(5, 1, 8, "REFERENCE");
@@ -115,6 +143,13 @@ int process(FILE *out, FILE *in)
 
 int main(int argc, char *argv[])
 {
+#if 0
+    if (argc == 2) {
+        FILE *const in = fopen(argv[1], "r");
+        FILE *const out = fopen("/dev/null", "a");
+        return process(out, in);
+    }
+#else
     return process(stdout, stdin);
+#endif
 }
-

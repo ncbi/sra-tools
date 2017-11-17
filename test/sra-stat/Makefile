@@ -122,7 +122,7 @@ slow_bases:
 	diff actual/SRR586259 expected/SRR586259.$(OS)
 
 	@echo
-	@rm       actual/*
-	@rmdir -v actual
+	@rm -v actual/*
+	@rmdir actual
 
 #-------------------------------------------------------------------------------

@@ -274,12 +274,10 @@ static int process(std::string const &run, FILE *const out) {
     writer.defaultValue<char>(8, 0, 0);
     
     writer.setMetadata(VDB::Writer::database, 0, "SOURCE", run);
-#if 1
+
     auto const mgr = VDB::Manager();
     auto const result = process(writer, mgr[run]);
-#else
-    int result = 0;
-#endif
+
     writer.endWriting();
     
     return result;

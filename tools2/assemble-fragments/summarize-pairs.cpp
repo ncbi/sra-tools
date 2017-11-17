@@ -243,6 +243,7 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
     }
     
     explicit ContigPair(LineBuffer &source)
+    : count(0)
     {
         auto const line = source.get();
         if (line.first == nullptr) return;

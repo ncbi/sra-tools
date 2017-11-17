@@ -33,6 +33,11 @@ if (CMAKE_MAJOR_VERSION GREATER 2)
     target_compile_features (sam2ir PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
 endif ()
 
+add_executable (text2ir text2ir.cpp)
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    target_compile_features (text2ir PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
+endif ()
+
 add_executable (reorder-ir reorder-ir.cpp)
 if (CMAKE_MAJOR_VERSION GREATER 2)
     target_compile_features (reorder-ir PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)

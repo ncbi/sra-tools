@@ -119,7 +119,7 @@ slow_bases:
 	@echo
 	@echo SRR586259 is a cSRA without local references
 	$(BINDIR)/sra-stat -x SRR586259 > actual/SRR586259
-	diff actual/SRR586259 expected/SRR586259
+	diff actual/SRR586259 expected/SRR586259.$(OS)
 
 	@echo
 	@rm       actual/*

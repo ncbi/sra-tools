@@ -109,8 +109,8 @@ quick_bases:
 	diff actual/SRR495844 expected/SRR495844-with-Changes.$(OS)
 
 	@echo
-	@rm       actual/*
-	@rmdir -v actual
+	@rm -v actual/*
+	@rmdir actual
 
 slow_bases:
 	@rm   -vrf actual

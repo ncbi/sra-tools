@@ -57,7 +57,7 @@ void write(VDB::Writer const &out, unsigned const table, Fragment const &self, c
             out.value(8 + (table - 1) * 8, i.cigarString);
         }
         if (reason)
-            out.value(9 + (table - 1) * 8, reason);
+            out.value(9 + (table - 1) * 8, std::string(reason));
         out.closeRow(table);
     }
 }
@@ -126,7 +126,7 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
 {
     auto const in = Fragment::Cursor(inDb["RAW"]);
     auto const range = in.rowRange();
-    auto const freq = (range.second - range.first) / 100.0;
+    auto const freq = (range.second - range.first) / 10.0;
     auto nextReport = 1;
     
     std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
@@ -136,8 +136,8 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
             continue;
         std::sort(spot.detail.begin(), spot.detail.end());
         process(out, spot);
-        if (nextReport * freq <= (row - range.first)) {
-            std::cerr << "prog: processed " << nextReport << "%" << std::endl;
+        while (nextReport * freq <= (row - range.first)) {
+            std::cerr << "prog: processed " << nextReport << "0%" << std::endl;
             ++nextReport;
         }
     }
@@ -186,6 +186,7 @@ static int process(std::string const &irdb, FILE *out)
     writer.defaultValue<char>(6 + 8, 0, 0);
     writer.defaultValue<int32_t>(7 + 8, 0, 0);
     writer.defaultValue<char>(8 + 8, 0, 0);
+    writer.defaultValue<char>(9 + 8, 0, 0);
     
     auto const mgr = VDB::Manager();
     auto const result = process(writer, mgr[irdb]);

@@ -7,9 +7,11 @@ Assemble paired-end reads into fragments, ordered by reference position
 
 ## Stages:
 1. Group all of fragments' alignments by spot name / spot id
-1. Remove problematic fragments
-1. Create virtual references
-1. Translate alignments to the virtual references
+1. Remove problem fragments
+1. Reorder by aligned position
+1. Build contiguous regions from overlapping fragments
+1. Assign each fragment to its best-fit contiguous region
+1. Create virtual references from split contiguous regions (split means mates aligned to two different references or the mate-pair gap wasn't closed)
 1. Reorder fragments to aligned positions on the virtual references
 
 ## Output:
@@ -18,6 +20,27 @@ A vdb database containing
 1. a table of ordered aligned fragments
 1. a table describing virtual references
 1. a table of unaligned fragments
+
+## Tools:
+1. `text2ir` - provides a simple way to load records into an IR table.
+    It's expected use is for generating test data from a text file.
+    The format is tab-delimited text, the columns are `GROUP, NAME, READNO, SEQUENCE, REFERENCE, STRAND, POSITION, CIGAR`.
+    The last 4 columns are required for aligned records and must be removed for unaligned records.
+1. `sra2ir` - provides a way to load an IR table from an existing SRA run. 
+    It can filter by reference and region.
+1. `reorder-ir` - clusters IR table by GROUP and NAME, which is needed by `filter-ir`
+    Uses a gigaton of virtual memory
+1. `filter-ir` - removes problem fragments
+    Moves problem fragments from `RAW` table to `DISCARDED` table.
+    Problems are:
+    1. fragment contains unaligned reads
+    1. fragment contains reads with inconsistent sequence
+    1. fragment contains alignments with bad CIGAR strings
+1. `summarize-pairs` - for generating contiguous regions
+    1. `summarize-pairs map` - generates a reduces representation of fragment alignments
+        the output needs to be sorted with `sort -k1,1 -k2n,2n -k3n,3n -k4,4 -k5n,5n -k6n,6n`
+    1. `summarize-pairs reduce` - generates contiguous regions from overlapping fragment alignments
+        writes a table `CONTIGS`
 
 ## Virtual references
 > There's no problem in computer science that can't be simplified by yet another indirection

@@ -106,7 +106,7 @@ quick_bases:
 	@echo
 	@echo SRR495844 is a cSRA with local references
 	$(BINDIR)/sra-stat -x SRR495844 > actual/SRR495844
-	diff actual/SRR495844 expected/SRR495844-with-Changes
+	diff actual/SRR495844 expected/SRR495844-with-Changes.$(OS)
 
 	@echo
 	@rm       actual/*

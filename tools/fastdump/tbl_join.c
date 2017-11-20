@@ -33,58 +33,30 @@
 #include <kproc/thread.h>
 #include <insdc/insdc.h>
 
-static const char * fmt_fq2_1 = "@%s.%ld %ld length=%d\n%S\n+%s.%ld %ld length=%d\n%S\n";
-static rc_t print_fq2_read_1( struct join_results * results,
-                              const char * accession,
-                              int64_t row_id,
-                              uint32_t read_id,
-                              const String * read,
-                              const String * quality )
-{
-    return join_results_print( results, read_id, fmt_fq2_1,
-                    accession, row_id, row_id, read -> len, read,
-                    accession, row_id, row_id, quality -> len, quality ); /* join_results.c */
-}
-
-static const char * fmt_fq2_2 = "@%s.%ld %S length=%d\n%S\n+%s.%ld %S length=%d\n%S\n";
-static rc_t print_fq2_read_2( struct join_results * results,
-                              const char * accession,
-                              int64_t row_id,
-                              uint32_t read_id,
-                              const String * name,
-                              const String * read,
-                              const String * quality )
-{
-    return join_results_print( results, read_id, fmt_fq2_2,
-                    accession, row_id, name, read -> len, read,
-                    accession, row_id, name, quality -> len, quality ); /* join_results.c */
-}
-
 static rc_t print_fastq_1_read( join_stats * stats,
                                 const char * accession,
                                 struct join_results * results,
                                 const fastq_rec * rec,
-                                bool rowid_as_name,
-                                uint32_t read_id,
-                                bool skip_tech )
+                                const join_options * jo,
+                                uint32_t dst_id,
+                                uint32_t read_id )
 {
     rc_t rc = 0;
     
     /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-    if ( skip_tech && rec -> num_read_type > 0 )
+    if ( jo -> skip_tech && rec -> num_read_type > 0 )
         if ( ( rec -> read_type[ 0 ] & READ_TYPE_BIOLOGICAL ) != READ_TYPE_BIOLOGICAL )
         {
             stats -> fragments_technical ++;
             return rc;
         }
-        
-    if ( rowid_as_name )
-        rc = print_fq2_read_1( results, accession, rec -> row_id, read_id,
-                                &( rec -> read ), &( rec -> quality ) );
-    else
-        rc = print_fq2_read_2( results, accession, rec -> row_id, read_id,
-                                &( rec -> name ), &( rec -> read ), &( rec -> quality ) );
-    
+    rc = join_results_print_fastq_v1( results,
+                                      rec -> row_id,
+                                      dst_id,
+                                      read_id,
+                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                      &( rec -> read ),
+                                      &( rec -> quality ) );
     if ( rc == 0 )
         stats -> fragments_written++;
 
@@ -96,8 +68,7 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
                                        const char * accession,
                                        struct join_results * results,
                                        const fastq_rec * rec,
-                                       bool rowid_as_name,
-                                       bool skip_tech )
+                                       const join_options * jo )
 {
     rc_t rc = 0;
     String R, Q;
@@ -109,7 +80,7 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
         if ( rec -> read_len[ read_id_0 ] > 0 )
         {
             bool process = true;
-            if ( skip_tech && rec -> num_read_type > read_id_0 )
+            if ( jo -> skip_tech && rec -> num_read_type > read_id_0 )
                 process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
 
             if ( process )
@@ -121,12 +92,14 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
                 Q . addr = &rec -> quality . addr[ offset ];
                 Q . size = rec -> read_len[ read_id_0 ];
                 Q . len  = ( uint32_t )Q . size;
-            
-                if ( rowid_as_name )
-                    rc = print_fq2_read_1( results, accession, rec -> row_id, 0, &R, &Q );
-                else
-                    rc = print_fq2_read_2( results, accession, rec -> row_id, 0, &rec -> name, &R, &Q );
 
+                rc = join_results_print_fastq_v1( results,
+                                                  rec -> row_id,
+                                                  0,
+                                                  read_id_0 + 1,
+                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                  &R,
+                                                  &Q );
                 if ( rc == 0 )
                     stats -> fragments_written++;
             }
@@ -146,8 +119,7 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
                                             const char * accession,
                                             struct join_results * results,
                                             const fastq_rec * rec,
-                                            bool rowid_as_name,
-                                            bool skip_tech )
+                                            const join_options * jo )
 {
     rc_t rc = 0;
     String R, Q;
@@ -160,7 +132,7 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
         if ( rec -> read_len[ read_id_0 ] > 0 )
         {
             bool process = true;
-            if ( skip_tech && rec -> num_read_type > read_id_0 )
+            if ( jo -> skip_tech && rec -> num_read_type > read_id_0 )
                 process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
 
             if ( process )
@@ -172,12 +144,14 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
                 Q . addr = &rec -> quality . addr[ offset ];
                 Q . size = rec -> read_len[ read_id_0 ];
                 Q . len  = ( uint32_t )Q . size;
-            
-                if ( rowid_as_name )
-                    rc = print_fq2_read_1( results, accession, rec -> row_id, write_id_1, &R, &Q );
-                else
-                    rc = print_fq2_read_2( results, accession, rec -> row_id, write_id_1, &rec -> name, &R, &Q );
 
+                rc = join_results_print_fastq_v1( results,
+                                                  rec -> row_id,
+                                                  write_id_1,
+                                                  read_id_0 + 1,
+                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                  &R,
+                                                  &Q );
                 if ( rc == 0 )
                     stats -> fragments_written++;
             }
@@ -199,7 +173,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
                                          const char * accession,
                                          struct join_results * results,
                                          const fastq_rec * rec,
-                                         bool rowid_as_name )
+                                         const join_options * jo )
 {
     rc_t rc = 0;
     String R, Q;
@@ -240,11 +214,13 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
                 Q . size = rec -> read_len[ read_id_0 ];
                 Q . len  = ( uint32_t )Q . size;
             
-                if ( rowid_as_name )
-                    rc = print_fq2_read_1( results, accession, rec -> row_id, write_id_1, &R, &Q );
-                else
-                    rc = print_fq2_read_2( results, accession, rec -> row_id, write_id_1, &rec -> name, &R, &Q );
-
+                rc = join_results_print_fastq_v1( results,
+                                                  rec -> row_id,
+                                                  write_id_1,
+                                                  read_id_0 + 1,
+                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                  &R,
+                                                  &Q );
                 if ( rc == 0 )
                     stats -> fragments_written++;
 
@@ -272,13 +248,13 @@ static rc_t perform_fastq_join( cmn_params * cp,
                                 const char * tbl_name,
                                 struct join_results * results,
                                 struct bg_progress * progress,
-                                bool rowid_as_name )
+                                const join_options * jo )
 {
     rc_t rc;
     struct fastq_sra_iter * iter;
     fastq_iter_opt opt;
     opt . with_read_len = false;
-    opt . with_name = !rowid_as_name;
+    opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = false;
     
      rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
@@ -287,6 +263,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
     else
     {
         fastq_rec rec;
+        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr };
         while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             stats -> spots_read++;
@@ -295,7 +272,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
             rc = Quitting();
             if ( rc == 0 )
             {
-                rc = print_fastq_1_read( stats, accession, results, &rec, rowid_as_name, 1, false );
+                rc = print_fastq_1_read( stats, accession, results, &rec, &local_opt, 1, 1 );
                 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -311,15 +288,14 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
                                       const char * tbl_name,
                                       struct join_results * results,
                                       struct bg_progress * progress,
-                                      bool rowid_as_name,
-                                      bool skip_tech )
+                                      const join_options * jo )
 {
     rc_t rc;
     struct fastq_sra_iter * iter;
     fastq_iter_opt opt;
     opt . with_read_len = true;
-    opt . with_name = !rowid_as_name;
-    opt . with_read_type = skip_tech;
+    opt . with_name = !( jo -> rowid_as_name );
+    opt . with_read_type = jo -> skip_tech;
     
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( rc == 0 )
@@ -334,9 +310,9 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
                 stats -> fragments_read += rec . num_read_len;
             
                 if ( rec . num_read_len == 1 )
-                    rc = print_fastq_1_read( stats, accession, results, &rec, rowid_as_name, 1, skip_tech );
+                    rc = print_fastq_1_read( stats, accession, results, &rec, jo, 0, 1 );
                 else
-                    rc = print_fastq_n_reads_split( stats, accession, results, &rec, rowid_as_name, skip_tech );
+                    rc = print_fastq_n_reads_split( stats, accession, results, &rec, jo );
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -354,15 +330,14 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
                                       const char * tbl_name,
                                       struct join_results * results,
                                       struct bg_progress * progress,
-                                      bool rowid_as_name,
-                                      bool skip_tech )
+                                      const join_options * jo )
 {
     rc_t rc;
     struct fastq_sra_iter * iter;
     fastq_iter_opt opt;
     opt . with_read_len = true;
-    opt . with_name = !rowid_as_name;
-    opt . with_read_type = skip_tech;
+    opt . with_name = !( jo -> rowid_as_name );
+    opt . with_read_type = jo -> skip_tech;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( rc == 0 )
@@ -377,9 +352,9 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
                 stats -> fragments_read += rec . num_read_len;
 
                 if ( rec . num_read_len == 1 )
-                    rc = print_fastq_1_read( stats, accession, results, &rec, rowid_as_name, 1, skip_tech );
+                    rc = print_fastq_1_read( stats, accession, results, &rec, jo, 1, 1 );
                 else
-                    rc = print_fastq_n_reads_split_file( stats, accession, results, &rec, rowid_as_name, skip_tech );
+                    rc = print_fastq_n_reads_split_file( stats, accession, results, &rec, jo );
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -397,19 +372,20 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
                                       const char * tbl_name,
                                       struct join_results * results,
                                       struct bg_progress * progress,
-                                      bool rowid_as_name )
+                                      const join_options * jo )
 {
     rc_t rc;
     struct fastq_sra_iter * iter;
     fastq_iter_opt opt;
     opt . with_read_len = true;
-    opt . with_name = !rowid_as_name;
+    opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = true;
 
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( rc == 0 )
     {
         fastq_rec rec;
+        join_options local_opt = { jo -> rowid_as_name, true, jo -> print_frag_nr };
         while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -419,9 +395,9 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
                 stats -> fragments_read += rec . num_read_len;
                 
                 if ( rec . num_read_len == 1 )
-                    rc = print_fastq_1_read( stats, accession, results, &rec, rowid_as_name, 0, true );
+                    rc = print_fastq_1_read( stats, accession, results, &rec, &local_opt, 0, 1 );
                 else
-                    rc = print_fastq_n_reads_split_3( stats, accession, results, &rec, rowid_as_name );
+                    rc = print_fastq_n_reads_split_3( stats, accession, results, &rec, &local_opt );
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -453,8 +429,7 @@ typedef struct join_thread_data
     size_t cur_cache;
     size_t buf_size;
     format_t fmt;
-    bool rowid_as_name;
-    bool skip_tech;
+    const join_options * join_options;
     
 } join_thread_data;
 
@@ -465,7 +440,14 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
     struct join_results * results = NULL;
     
     if ( rc == 0 )
-        rc = make_join_results( jtd -> dir, &results, jtd -> registry, jtd -> part_file, jtd -> buf_size, 4096 );
+        rc = make_join_results( jtd -> dir,
+                                &results,
+                                jtd -> registry,
+                                jtd -> part_file,
+                                jtd -> accession,
+                                jtd -> buf_size,
+                                4096,
+                                jtd -> join_options -> print_frag_nr );
     
     if ( rc == 0 && results != NULL )
     {
@@ -478,7 +460,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                             jtd -> tbl_name,
                                             results,
                                             jtd -> progress,
-                                            jtd -> rowid_as_name ); break; /* above */
+                                            jtd -> join_options ); break; /* above */
                                             
             case ft_fastq_split_spot : rc = perform_fastq_split_spot_join( &cp,
                                             &jtd -> stats,
@@ -486,8 +468,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                             jtd -> tbl_name,
                                             results,
                                             jtd -> progress,
-                                            jtd -> rowid_as_name,
-                                            jtd -> skip_tech ); break; /* above */
+                                            jtd -> join_options ); break; /* above */
 
             case ft_fastq_split_file : rc = perform_fastq_split_file_join( &cp,
                                             &jtd -> stats,
@@ -495,8 +476,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                             jtd -> tbl_name,
                                             results,
                                             jtd -> progress,
-                                            jtd -> rowid_as_name,
-                                            jtd -> skip_tech ); break; /* above */
+                                            jtd -> join_options ); break; /* above */
 
             case ft_fastq_split_3   : rc = perform_fastq_split_3_join( &cp,
                                             &jtd -> stats,
@@ -504,7 +484,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                             jtd -> tbl_name,
                                             results,
                                             jtd -> progress,
-                                            jtd -> rowid_as_name ); break; /* above */
+                                            jtd -> join_options ); break; /* above */
 
             default : break;
         }
@@ -542,8 +522,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                     uint32_t num_threads,
                     bool show_progress,
                     format_t fmt,
-                    bool rowid_as_name,
-                    bool skip_tech )
+                    const join_options * join_options )
 {
     rc_t rc = 0;
     
@@ -583,8 +562,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                     jtd -> progress         = progress;
                     jtd -> registry         = registry;
                     jtd -> fmt              = fmt;
-                    jtd -> rowid_as_name    = rowid_as_name;
-                    jtd -> skip_tech        = skip_tech;
+                    jtd -> join_options     = join_options;
 
                     rc = make_joined_filename( jtd -> part_file, sizeof jtd -> part_file,
                                 accession, tmp_id, thread_id ); /* helper.c */

@@ -31,6 +31,8 @@
 #include <klib/out.h>
 #include <kfs/defs.h>
 #include <kfs/file.h>
+#include <kfs/buffile.h>
+
 #include <kdb/manager.h>
 #include <vdb/manager.h>
 

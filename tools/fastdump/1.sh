@@ -10,6 +10,7 @@ split_file="-S"
 split_3="-3"
 rowid_as_name="-N"
 skip_technical="-T"
+print_frag_nr="-P"
 
 # $1...file1, $2...md5
 compare_md5()
@@ -107,7 +108,7 @@ fastdump_split_spot()
     
     rm -rf $out
 
-    options="$show_progress $force_overwrite $show_details $split_spot $3"
+    options="$show_progress $force_overwrite $show_details $split_spot"
     time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out $2
     
@@ -156,10 +157,10 @@ test_csra()
 
     fastdump_not_split $csra $md5_csra_n
     fastdump_not_split_row_id_as_name $csra $md5_csra_n
-    #fastdump_split_spot $csra $md5_csra_s
-    #fastdump_split_row_id_as_name $csra $md5_csra_s
-    #fastdump_split_file_row_id_as_name $csra $md5_csra_1 $md5_csra_2
-    #fastdump_split_file $csra $md5_csra_1 $md5_csra_2
+    fastdump_split_spot $csra $md5_csra_s
+    fastdump_split_row_id_as_name $csra $md5_csra_s
+    fastdump_split_file_row_id_as_name $csra $md5_csra_1 $md5_csra_2
+    fastdump_split_file $csra $md5_csra_1 $md5_csra_2
 }
 
 test_sra_flat_1()
@@ -223,12 +224,12 @@ test_sra_db()
     #none-splitted
     md5_1="38250674922d516912b06498d8b4d3fb"
     #splitted
-    md5_1="07106db1a11bdd1cc8c382a4e2482b5f"
+    md5_2="07106db1a11bdd1cc8c382a4e2482b5f"
     md5_3="c0be39a6d0566bfe72621e0a69cb2fe4"
     md5_4="0e560c82f092bac8b2d6e92c1262ed95"
     #split-3
     md5_5="8343497c5bbb5aa9f1d9ee4ea68196d2"
-    md5_5="0e560c82f092bac8b2d6e92c1262ed95"
+    md5_6="0e560c82f092bac8b2d6e92c1262ed95"
     md5_7="0e560c82f092bac8b2d6e92c1262ed95"
     
     fastdump_not_split $acc $md5_1
@@ -237,19 +238,21 @@ test_sra_db()
     fastdump_split_3 $acc $md5_5 $md5_6 $md5_7
 }
 
-test_SRR5659909()
+test_show_print_frag_nr()
 {
-    acc="SRR5659909"
-    scratch_big="-t /panfs/traces01/sra_review/scratch/raetzw/tmp"
-    out_big="/panfs/traces01/sra_review/scratch/raetzw/out/$acc.fastq"
-    options="$show_progress $force_overwrite $show_details $split_file"
-    time fastdump $acc $options $numthreads $mem_limit $cur_cache $scratch_big -o $out_big
+    #a flat SRA-table
+    acc="SRR000001"
+    out="/dev/shm/raetzw_out/$acc.fastq"
+    
+    rm -rf $out
+
+    options="$show_progress $force_overwrite $show_details $split_spot $print_frag_nr"
+    time fastdump $acc $options $numthreads $mem_limit $cur_cache $scratch -o $out
 }
 
-test_csra
+#test_csra
 #test_sra_flat_2
 #test_sra_flat_4
 #test_sra_flat_split_spot
 #test_sra_db
-
-#test_SRR5659909
+test_show_print_frag_nr

@@ -121,6 +121,11 @@ static const char * skip_tech_usage[] = { "skip technical reads", NULL };
 #define OPTION_TECH      "skip-technical"
 #define ALIAS_TECH       "T"
 
+static const char * print_frag_nr[] = { "print fragment-numbers", NULL };
+#define OPTION_PFNR      "print-frag-nr"
+#define ALIAS_PFNR       "P"
+
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
@@ -141,7 +146,8 @@ OptDef ToolOptions[] =
     { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
 /*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
     { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false },
-    { OPTION_TECH,      ALIAS_TECH,      NULL, skip_tech_usage,  1, false,  false }
+    { OPTION_TECH,      ALIAS_TECH,      NULL, skip_tech_usage,  1, false,  false },
+    { OPTION_PFNR,      ALIAS_PFNR,      NULL, print_frag_nr,    1, false,  false }
 };
 
 const char UsageDefaultName[] = "fastdump";
@@ -222,9 +228,8 @@ typedef struct tool_ctx
 
     bool remove_temp_path, print_to_stdout, force;
     bool show_progress, show_details;
-    bool rowid_as_name;
-    bool skip_tech;
-   
+    
+    join_options join_options;
 } tool_ctx;
 
 
@@ -341,8 +346,9 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
         tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
         /*tool_ctx -> max_fds = get_uint32_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );*/
-        tool_ctx -> rowid_as_name = get_bool_option( args, OPTION_RIDN );
-        tool_ctx -> skip_tech = get_bool_option( args, OPTION_TECH );
+        tool_ctx -> join_options . rowid_as_name = get_bool_option( args, OPTION_RIDN );
+        tool_ctx -> join_options . skip_tech = get_bool_option( args, OPTION_TECH );
+        tool_ctx -> join_options. print_frag_nr = get_bool_option( args, OPTION_PFNR );
         
         split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
         split_file = get_bool_option( args, OPTION_SPLIT_FILE );
@@ -600,8 +606,7 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
                            tool_ctx -> num_threads,
                            tool_ctx -> show_progress,
                            tool_ctx -> fmt,
-                           tool_ctx -> rowid_as_name,
-                           tool_ctx -> skip_tech );
+                           & tool_ctx -> join_options );
 
     /* from now on we do not need the lookup-file and it's index any more... */
     if ( tool_ctx -> dflt_lookup[ 0 ] != 0 )
@@ -680,8 +685,7 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
                            tool_ctx -> num_threads,
                            tool_ctx -> show_progress,
                            tool_ctx -> fmt,
-                           tool_ctx -> rowid_as_name,
-                           tool_ctx -> skip_tech );
+                           & tool_ctx -> join_options );                           
 
     if ( rc == 0 )
         rc = temp_registry_merge( registry,

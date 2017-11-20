@@ -58,8 +58,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                     uint32_t num_threads,
                     bool show_progress,
                     format_t fmt,
-                    bool rowid_as_name,
-                    bool skip_tech );
+                    const join_options * join_options );
 
 #ifdef __cplusplus
 }

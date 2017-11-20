@@ -86,6 +86,13 @@ typedef struct join_stats
     uint64_t fragments_technical;    
 } join_stats;
 
+typedef struct join_options
+{
+    bool rowid_as_name;
+    bool skip_tech;
+    bool print_frag_nr;
+} join_options;
+
 typedef struct tmp_id
 {
     const char * temp_path;

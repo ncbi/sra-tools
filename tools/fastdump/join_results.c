@@ -40,9 +40,11 @@ typedef struct join_results
     KDirectory * dir;
     struct temp_registry * registry;
     const char * output_base;
+    const char * accession;
     SBuffer print_buffer;   /* we have only one print_buffer... */
     Vector printers;
     size_t buffer_size;
+    bool print_frag_nr;
 } join_results;
 
 static void CC destroy_join_printer( void * item, void * data )
@@ -69,8 +71,10 @@ rc_t make_join_results( struct KDirectory * dir,
                         struct join_results ** results,
                         struct temp_registry * registry,
                         const char * output_base,
+                        const char * accession,
                         size_t file_buffer_size,
-                        size_t print_buffer_size )
+                        size_t print_buffer_size,
+                        bool print_frag_nr )
 {
     rc_t rc;
     join_results * p = calloc( 1, sizeof * p );
@@ -84,8 +88,10 @@ rc_t make_join_results( struct KDirectory * dir,
     {
         p -> dir = dir;
         p -> output_base = output_base;
+        p -> accession = accession;
         p -> buffer_size = file_buffer_size;
         p -> registry = registry;
+        p -> print_frag_nr = print_frag_nr;
         rc = make_SBuffer( &( p -> print_buffer ), print_buffer_size ); /* helper.c */
         if ( rc == 0 )
         {
@@ -193,6 +199,169 @@ rc_t join_results_print( struct join_results * self, uint32_t read_id, const cha
                 else
                     p -> file_pos += num_writ;
             }
+        }
+    }
+    return rc;
+}
+
+static const char * fmt_fastq_v1_no_name   = "@%s.%ld %ld length=%u\n%S\n+%s.%ld %ld length=%u\n%S\n";
+static const char * fmt_fastq_v1_no_name_with_frag_nr = "@%s.%ld/%u %ld length=%u\n%S\n+%s.%ld/%u %ld length=%u\n%S\n";
+
+static const char * fmt_fastq_v1_with_name = "@%s.%ld %S length=%u\n%S\n+%s.%ld %S length=%u\n%S\n";
+static const char * fmt_fastq_v1_with_name_with_frag_nr = "@%s.%ld/%u %S length=%u\n%S\n+%s.%ld/%u %S length=%u\n%S\n";
+
+rc_t join_results_print_fastq_v1( struct join_results * self,
+                                  int64_t row_id,
+                                  uint32_t dst_id,                                  
+                                  uint32_t read_id,
+                                  const String * name,
+                                  const String * read,
+                                  const String * quality )
+{
+    rc_t rc;
+    if ( name == NULL )
+    {
+        /* no name give, use row_id as a replacement... */
+        if ( self -> print_frag_nr )
+        {
+            rc = join_results_print( self,
+                                     dst_id, 
+                                     fmt_fastq_v1_no_name_with_frag_nr,
+                                     /* READ... */
+                                     self -> accession, row_id, read_id,
+                                     row_id,
+                                     read -> len, read,
+                                     /* QUALITY... */
+                                     self -> accession, row_id, read_id,
+                                     row_id,
+                                     quality -> len, quality );
+        }
+        else
+        {
+            rc = join_results_print( self,
+                                     dst_id, 
+                                     fmt_fastq_v1_no_name,
+                                     /* READ... */
+                                     self -> accession, row_id,
+                                     row_id,
+                                     read -> len, read,
+                                     /* QUALITY... */
+                                     self -> accession, row_id,
+                                     row_id,
+                                     quality -> len, quality );
+        }
+    }
+    else
+    {
+        if ( self -> print_frag_nr )
+        {
+            rc = join_results_print( self,
+                                   dst_id,
+                                   fmt_fastq_v1_with_name_with_frag_nr,
+                                   /* READ... */
+                                   self -> accession, row_id, read_id,
+                                   name,
+                                   read -> len, read,
+                                   /* QUALITY... */
+                                   self -> accession, row_id, read_id,
+                                   name,
+                                   quality -> len, quality );
+        }
+        else
+        {
+            rc = join_results_print( self,
+                                   dst_id,
+                                   fmt_fastq_v1_with_name,
+                                   /* READ... */
+                                   self -> accession, row_id,
+                                   name,
+                                   read -> len, read,
+                                   /* QUALITY... */
+                                   self -> accession, row_id,
+                                   name,
+                                   quality -> len, quality );
+        }
+    }
+    return rc;
+}
+
+static const char * fmt_fastq_v2_no_name   = "@%s.%ld %ld length=%u\n%S%S\n+%s.%ld %ld length=%u\n%S\n";
+static const char * fmt_fastq_v2_no_name_with_frag_nr = "@%s.%ld/%u %ld length=%u\n%S%S\n+%s.%ld/%u %ld length=%u\n%S\n";
+
+static const char * fmt_fastq_v2_with_name = "@%s.%ld %S length=%u\n%S%S\n+%s.%ld %S length=%u\n%S\n";
+static const char * fmt_fastq_v2_with_name_with_frag_nr = "@%s.%ld/%u %S length=%u\n%S%S\n+%s.%ld/%u %S length=%u\n%S\n";
+
+rc_t join_results_print_fastq_v2( struct join_results * self,
+                                  int64_t row_id,
+                                  uint32_t dst_id,                                  
+                                  uint32_t read_id,
+                                  const String * name,
+                                  const String * read1,
+                                  const String * read2,
+                                  const String * quality )
+{
+    rc_t rc;
+    if ( name == NULL )
+    {
+        /* no name give, use row_id as a replacement... */
+        if ( self -> print_frag_nr )
+        {
+            rc = join_results_print( self,
+                                     dst_id,
+                                     fmt_fastq_v2_no_name_with_frag_nr,
+                                     /* READs... */
+                                     self -> accession, row_id, read_id,
+                                     row_id,
+                                     read1 -> len + read2 -> len, read1, read2,
+                                     /* QUALITY... */
+                                     self -> accession, row_id, read_id,
+                                     row_id,
+                                     quality -> len, quality  );
+        }
+        else
+        {
+            rc = join_results_print( self,
+                                     dst_id,
+                                     fmt_fastq_v2_no_name,
+                                     /* READs... */
+                                     self -> accession, row_id,
+                                     row_id,
+                                     read1 -> len + read2 -> len, read1, read2,
+                                     /* QUALITY... */
+                                     self -> accession, row_id,
+                                     row_id,
+                                     quality -> len, quality  );
+        }
+    }
+    else
+    {
+        if ( self -> print_frag_nr )
+        {
+            rc = join_results_print( self,
+                                     dst_id,
+                                     fmt_fastq_v2_with_name_with_frag_nr,
+                                     /* READs... */
+                                     self -> accession, row_id, read_id,
+                                     name,
+                                     read1 -> len + read2 -> len, read1, read2,
+                                     /* QUALITY... */
+                                     self -> accession, row_id, read_id,
+                                     name,
+                                     quality -> len, quality  );
+        }
+        else
+        {
+            rc = join_results_print( self,
+                                     dst_id,
+                                     fmt_fastq_v2_with_name,
+                                     /* READs... */
+                                     self -> accession, row_id,
+                                     name,
+                                     read1 -> len + read2 -> len, read1, read2,
+                                     /* QUALITY... */
+                                     self -> accession, row_id,
+                                     name,
+                                     quality -> len, quality  );
         }
     }
     return rc;

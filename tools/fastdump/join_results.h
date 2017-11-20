@@ -54,10 +54,29 @@ rc_t make_join_results( struct KDirectory * dir,
                         struct join_results ** results,
                         struct temp_registry * registry,
                         const char * output_base,
+                        const char * accession,
                         size_t file_buffer_size,
-                        size_t print_buffer_size );
+                        size_t print_buffer_size,
+                        bool print_frag_nr );
 
 rc_t join_results_print( struct join_results * self, uint32_t read_id, const char * fmt, ... );
+
+rc_t join_results_print_fastq_v1( struct join_results * self,
+                                  int64_t row_id,
+                                  uint32_t dst_id,
+                                  uint32_t read_id,
+                                  const String * name,
+                                  const String * read,
+                                  const String * quality );
+
+rc_t join_results_print_fastq_v2( struct join_results * self,
+                                  int64_t row_id,
+                                  uint32_t dst_id,
+                                  uint32_t read_id,
+                                  const String * name,
+                                  const String * read1,
+                                  const String * read2,
+                                  const String * quality );
 
 #ifdef __cplusplus
 }

@@ -533,16 +533,25 @@ rc_t execute_tbl_join( KDirectory * dir,
     {
         uint64_t row_count = 0;
         rc = extract_sra_row_count( dir, accession, tbl_name, cur_cache, &row_count );
-
         if ( rc == 0 && row_count > 0 )
         {
             Vector threads;
             int64_t row = 1;
             uint32_t thread_id;
-            uint64_t rows_per_thread = ( row_count / num_threads ) + 1;
+            uint64_t rows_per_thread;
             struct bg_progress * progress = NULL;
 
             VectorInit( &threads, 0, num_threads );
+            
+            if ( row_count < ( num_threads * 100 ) )
+            {
+                num_threads = 1;
+                rows_per_thread = row_count;
+            }
+            else
+            {
+                rows_per_thread = ( row_count / num_threads ) + 1;
+            }
             
             if ( show_progress )
                 rc = bg_progress_make( &progress, row_count, 0, 0 ); /* progress_thread.c */

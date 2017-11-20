@@ -9,7 +9,7 @@
     <Base value="N" count="18"/>
   </Bases>
   <AlignInfo>
-    <Ref seqId="NC_000005.8" name="chr5" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_000005.8"/>
+    <Ref seqId="NC_000005.8" name="chr5" circular="false" local="remote" path="/NC_000005.8"/>
   </AlignInfo>
   <QualityCount>
     <Quality value="0" count="3"/>

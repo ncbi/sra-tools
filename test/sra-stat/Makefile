@@ -90,8 +90,8 @@ quick_bases:
 
 	@echo
 	@echo SRR619505 is a small cSRA with N-s without local references
-	$(BINDIR)/sra-stat -x SRR619505 > actual/SRR619505
-	diff actual/SRR619505 expected/SRR619505.$(OS)
+	$(BINDIR)/sra-stat -x SRR619505 | perl -w strip-path.pl > actual/SRR619505
+	diff actual/SRR619505 expected/SRR619505
 
 	@echo
 	@echo SRR360929 is a table
@@ -105,8 +105,8 @@ quick_bases:
 
 	@echo
 	@echo SRR495844 is a cSRA with local references
-	$(BINDIR)/sra-stat -x SRR495844 > actual/SRR495844
-	diff actual/SRR495844 expected/SRR495844-with-Changes.$(OS)
+	$(BINDIR)/sra-stat -x SRR495844 | perl -w strip-path.pl > actual/SRR495844
+	diff actual/SRR495844 expected/SRR495844-with-Changes
 
 	@echo
 	@rm -v actual/*
@@ -118,8 +118,8 @@ slow_bases:
 
 	@echo
 	@echo SRR586259 is a cSRA without local references
-	$(BINDIR)/sra-stat -x SRR586259 > actual/SRR586259
-	diff actual/SRR586259 expected/SRR586259.$(OS)
+	$(BINDIR)/sra-stat -x SRR586259 | perl -w strip-path.pl > actual/SRR586259
+	diff actual/SRR586259 expected/SRR586259
 
 	@echo
 	@rm -v actual/*

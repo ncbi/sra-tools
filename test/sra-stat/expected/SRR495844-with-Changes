@@ -9,31 +9,31 @@
   </Bases>
   <AlignInfo>
     <Ref seqId="NC_002333.2" name="MT" circular="false" local="local"/>
-    <Ref seqId="NC_007112.5" name="1" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007112.5"/>
-    <Ref seqId="NC_007113.5" name="2" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007113.5"/>
-    <Ref seqId="NC_007114.5" name="3" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007114.5"/>
-    <Ref seqId="NC_007115.5" name="4" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007115.5"/>
-    <Ref seqId="NC_007116.5" name="5" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007116.5"/>
-    <Ref seqId="NC_007117.5" name="6" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007117.5"/>
-    <Ref seqId="NC_007118.5" name="7" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007118.5"/>
-    <Ref seqId="NC_007119.5" name="8" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007119.5"/>
-    <Ref seqId="NC_007120.5" name="9" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007120.5"/>
-    <Ref seqId="NC_007121.5" name="10" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007121.5"/>
-    <Ref seqId="NC_007122.5" name="11" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007122.5"/>
-    <Ref seqId="NC_007123.5" name="12" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007123.5"/>
-    <Ref seqId="NC_007124.5" name="13" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007124.5"/>
-    <Ref seqId="NC_007125.5" name="14" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007125.5"/>
-    <Ref seqId="NC_007126.5" name="15" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007126.5"/>
-    <Ref seqId="NC_007127.5" name="16" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007127.5"/>
-    <Ref seqId="NC_007128.5" name="17" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007128.5"/>
-    <Ref seqId="NC_007129.5" name="18" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007129.5"/>
-    <Ref seqId="NC_007130.5" name="19" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007130.5"/>
-    <Ref seqId="NC_007131.5" name="20" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007131.5"/>
-    <Ref seqId="NC_007132.5" name="21" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007132.5"/>
-    <Ref seqId="NC_007133.5" name="22" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007133.5"/>
-    <Ref seqId="NC_007134.5" name="23" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007134.5"/>
-    <Ref seqId="NC_007135.5" name="24" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007135.5"/>
-    <Ref seqId="NC_007136.5" name="25" circular="false" local="remote" path="/netmnt/traces04/refseq/NC_007136.5"/>
+    <Ref seqId="NC_007112.5" name="1" circular="false" local="remote" path="/NC_007112.5"/>
+    <Ref seqId="NC_007113.5" name="2" circular="false" local="remote" path="/NC_007113.5"/>
+    <Ref seqId="NC_007114.5" name="3" circular="false" local="remote" path="/NC_007114.5"/>
+    <Ref seqId="NC_007115.5" name="4" circular="false" local="remote" path="/NC_007115.5"/>
+    <Ref seqId="NC_007116.5" name="5" circular="false" local="remote" path="/NC_007116.5"/>
+    <Ref seqId="NC_007117.5" name="6" circular="false" local="remote" path="/NC_007117.5"/>
+    <Ref seqId="NC_007118.5" name="7" circular="false" local="remote" path="/NC_007118.5"/>
+    <Ref seqId="NC_007119.5" name="8" circular="false" local="remote" path="/NC_007119.5"/>
+    <Ref seqId="NC_007120.5" name="9" circular="false" local="remote" path="/NC_007120.5"/>
+    <Ref seqId="NC_007121.5" name="10" circular="false" local="remote" path="/NC_007121.5"/>
+    <Ref seqId="NC_007122.5" name="11" circular="false" local="remote" path="/NC_007122.5"/>
+    <Ref seqId="NC_007123.5" name="12" circular="false" local="remote" path="/NC_007123.5"/>
+    <Ref seqId="NC_007124.5" name="13" circular="false" local="remote" path="/NC_007124.5"/>
+    <Ref seqId="NC_007125.5" name="14" circular="false" local="remote" path="/NC_007125.5"/>
+    <Ref seqId="NC_007126.5" name="15" circular="false" local="remote" path="/NC_007126.5"/>
+    <Ref seqId="NC_007127.5" name="16" circular="false" local="remote" path="/NC_007127.5"/>
+    <Ref seqId="NC_007128.5" name="17" circular="false" local="remote" path="/NC_007128.5"/>
+    <Ref seqId="NC_007129.5" name="18" circular="false" local="remote" path="/NC_007129.5"/>
+    <Ref seqId="NC_007130.5" name="19" circular="false" local="remote" path="/NC_007130.5"/>
+    <Ref seqId="NC_007131.5" name="20" circular="false" local="remote" path="/NC_007131.5"/>
+    <Ref seqId="NC_007132.5" name="21" circular="false" local="remote" path="/NC_007132.5"/>
+    <Ref seqId="NC_007133.5" name="22" circular="false" local="remote" path="/NC_007133.5"/>
+    <Ref seqId="NC_007134.5" name="23" circular="false" local="remote" path="/NC_007134.5"/>
+    <Ref seqId="NC_007135.5" name="24" circular="false" local="remote" path="/NC_007135.5"/>
+    <Ref seqId="NC_007136.5" name="25" circular="false" local="remote" path="/NC_007136.5"/>
     <Ref seqId="NW_001877452.3" name="Zv9_scaffold3503" circular="false" local="local"/>
     <Ref seqId="NW_001877455.3" name="Zv9_scaffold3495" circular="false" local="local"/>
     <Ref seqId="NW_001877549.3" name="Zv9_scaffold3460" circular="false" local="local"/>
@@ -77,7 +77,7 @@
     <Ref seqId="NW_001884444.3" name="Zv9_scaffold3472" circular="false" local="local"/>
     <Ref seqId="NW_001884448.3" name="Zv9_scaffold3488" circular="false" local="local"/>
     <Ref seqId="NW_001884452.3" name="Zv9_scaffold3453" circular="false" local="local"/>
-    <Ref seqId="NW_001884453.3" name="Zv9_scaffold3530" circular="false" local="remote" path="/netmnt/traces04/refseq/NW_001884453.3"/>
+    <Ref seqId="NW_001884453.3" name="Zv9_scaffold3530" circular="false" local="remote" path="/NW_001884453.3"/>
     <Ref seqId="NW_001884455.3" name="Zv9_scaffold3482" circular="false" local="local"/>
     <Ref seqId="NW_001884473.3" name="Zv9_scaffold3493" circular="false" local="local"/>
     <Ref seqId="NW_001884475.3" name="Zv9_scaffold3546" circular="false" local="local"/>

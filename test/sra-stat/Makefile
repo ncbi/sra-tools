@@ -58,11 +58,11 @@ $(TEST_BINDIR)/testAssemblyStatistics: $(OBJ)
 
 #-------------------------------------------------------------------------------
 
-runtests: quick_bases
+runtests: test_bases
 
 slowtests: slow_bases
 
-test_bases: quick_bases slow_bases
+all_bases: test_bases slow_bases
 
 quick_bases:
 	@rm   -vrf actual
@@ -71,7 +71,7 @@ quick_bases:
 	@echo
 	@echo SRR053325 is a small table
 	$(BINDIR)/sra-stat -x SRR053325 > actual/SRR053325
-	diff actual/SRR053325 expected/SRR053325
+	diff actual/SRR053325 expected/SRR053325-biological
 
 	@echo
 	@echo SRR600096 is a small non-cSRA DB
@@ -91,12 +91,16 @@ quick_bases:
 	@echo
 	@echo SRR619505 is a small cSRA with N-s without local references
 	$(BINDIR)/sra-stat -x SRR619505 | perl -w strip-path.pl > actual/SRR619505
-	diff actual/SRR619505 expected/SRR619505
+	diff actual/SRR619505 expected/SRR619505-SRA_READ_FILTER_CRITERIA
 
 	@echo
-	@echo SRR360929 is a table
-	$(BINDIR)/sra-stat -x SRR360929 > actual/SRR360929
-	diff actual/SRR360929 expected/SRR360929
+	@rm -v actual/*
+
+test_bases: quick_bases
+	@echo
+	@echo SRR495844 is a cSRA with local references
+	$(BINDIR)/sra-stat -x SRR495844 | perl -w strip-path.pl > actual/SRR495844
+	diff actual/SRR495844 expected/SRR495844-with-Changes
 
 	@echo
 	@echo SRR390427 is a non-cSRA DB
@@ -104,13 +108,13 @@ quick_bases:
 	diff actual/SRR390427 expected/SRR390427
 
 	@echo
-	@echo SRR495844 is a cSRA with local references
-	$(BINDIR)/sra-stat -x SRR495844 | perl -w strip-path.pl > actual/SRR495844
-	diff actual/SRR495844 expected/SRR495844-with-Changes
+	@echo SRR360929 is a table
+	$(BINDIR)/sra-stat -x SRR360929 > actual/SRR360929
+	diff actual/SRR360929 expected/SRR360929-biological-SRA_READ_FILTER_CRITERIA
 
 	@echo
-	@rm -v actual/*
-	@rmdir actual
+	@rm -v  actual/*
+	@rm -vr actual
 
 slow_bases:
 	@rm   -vrf actual
@@ -119,10 +123,10 @@ slow_bases:
 	@echo
 	@echo SRR586259 is a cSRA without local references
 	$(BINDIR)/sra-stat -x SRR586259 | perl -w strip-path.pl > actual/SRR586259
-	diff actual/SRR586259 expected/SRR586259
+	diff actual/SRR586259 expected/SRR586259-SRA_READ_FILTER_REJECT-FILTER_CRITERIA
 
 	@echo
-	@rm -v actual/*
-	@rmdir actual
+	@rm -v  actual/*
+	@rm -vr actual
 
 #-------------------------------------------------------------------------------

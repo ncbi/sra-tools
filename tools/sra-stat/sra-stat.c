@@ -261,15 +261,21 @@ typedef struct {
     uint64_t cnt[5];
     EBasesType basesType;
 
-    const VCursor   *cursSEQUENCE;
-    uint32_t         idxSEQUENCE;
-    uint64_t         startSEQUENCE;
-    uint64_t         stopSEQUENCE;
+    const VCursor * cursSEQUENCE;
+    uint32_t        idxSEQUENCE;
+    uint32_t        idxSEQ_READ_LEN;
+    uint32_t        idxSEQ_READ_TYPE;
+    uint32_t        idxSEQ_RD_FILTER;
+    uint64_t        startSEQUENCE;
+    uint64_t        stopSEQUENCE;
 
-    uint32_t         idxALIGNMENT;
-    const VCursor   *cursALIGNMENT;
-    uint64_t         startALIGNMENT;
-    uint64_t         stopALIGNMENT;
+    const VCursor * cursALIGNMENT;
+    uint32_t        idxALIGNMENT;
+    uint32_t        idxALN_READ_LEN;
+    uint32_t        idxALN_READ_TYPE;
+    uint32_t        idxALN_RD_FILTER;
+    uint64_t        startALIGNMENT;
+    uint64_t        stopALIGNMENT;
 
     bool finalized;
 } Bases;
@@ -406,6 +412,30 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl,
                 DISP_RC2(rc, "Cannot VCursorAddColumn", name);
             }
             if (rc == 0) {
+                const char name [] = "READ_LEN";
+                rc = VCursorAddColumn(curs, &self->idxALN_READ_LEN, name);
+                if (rc != 0)
+                    PLOGERR(klogInt, (klogInt, rc, "Cannot VCursorAddColumn"
+                        "(PRIMARY_ALIGNMENT:$(name))", "name=%s", name));
+            }
+            if (rc == 0) {
+                const char name [] = "READ_TYPE";
+                rc = VCursorAddColumn(curs, &self->idxALN_READ_TYPE, name);
+                if (rc != 0)
+                    PLOGERR(klogInt, (klogInt, rc, "Cannot VCursorAddColumn"
+                        "(PRIMARY_ALIGNMENT:$(name))", "name=%s", name));
+            }
+            if (rc == 0) {
+                const char name [] = "RD_FILTER";
+                rc = VCursorAddColumn(curs,
+                                      &self->idxALN_RD_FILTER, "%s", name);
+                if (columnUndefined(rc)) {
+                    self->idxALN_RD_FILTER = 0;
+                    rc = 0;
+                }
+                DISP_RC2(rc, name, "while calling VCursorAddColumn");
+            }
+            if (rc == 0) {
                 int64_t first = 0;
                 uint64_t count = 0;
                 rc = VCursorIdRange(curs, 0, &first, &count);
@@ -496,17 +526,41 @@ static rc_t BasesInit(Bases *self, const Ctx *ctx, const VTable *vtbl,
         DISP_RC(rc, "Cannot VTableCreateCachedCursorRead");
         if (rc == 0) {
             rc = VCursorAddColumn(self->cursSEQUENCE, &self->idxSEQUENCE, name);
-            if (rc != 0) {
+            if (rc != 0)
                 PLOGERR(klogInt, (klogInt, rc,
                     "Cannot VCursorAddColumn($(name))", "name=%s", name));
+        }
+        if (rc == 0) {
+            const char name [] = "READ_LEN";
+            rc = VCursorAddColumn(self->cursSEQUENCE,
+                                  &self->idxSEQ_READ_LEN, name);
+            if (rc != 0)
+                PLOGERR(klogInt, (klogInt, rc,
+                    "Cannot VCursorAddColumn($(name))", "name=%s", name));
+        }
+        if (rc == 0) {
+            const char name [] = "READ_TYPE";
+            rc = VCursorAddColumn(self->cursSEQUENCE,
+                                  &self->idxSEQ_READ_TYPE, name);
+            if (rc != 0)
+                PLOGERR(klogInt, (klogInt, rc,
+                    "Cannot VCursorAddColumn($(name))", "name=%s", name));
+        }
+        if (rc == 0) {
+            const char name [] = "RD_FILTER";
+            rc = VCursorAddColumn(self->cursSEQUENCE,
+                                  &self->idxSEQ_RD_FILTER, "%s", name);
+            if (columnUndefined(rc)) {
+                self->idxSEQ_RD_FILTER = 0;
+                rc = 0;
             }
+            DISP_RC2(rc, name, "while calling VCursorAddColumn");
         }
         if (rc == 0) {
             rc = VCursorOpen(self->cursSEQUENCE);
-            if (rc != 0) {
+            if (rc != 0)
                 PLOGERR(klogInt, (klogInt, rc,
                     "Cannot VCursorOpen($(name))", "name=%s", name));
-            }
         }
     }
 
@@ -565,9 +619,18 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
     bitsz_t row_bits = ~0;
     bitsz_t i = ~0;
     const unsigned char *bases = NULL;
+    bitsz_t boff = 0;
 
     const VCursor * c = NULL;
     int64_t row_id = 0;
+
+    uint32_t dREAD_LEN  [MAX_NREADS];
+    uint8_t  dREAD_TYPE [MAX_NREADS];
+    uint8_t  dRD_FILTER [MAX_NREADS];
+    int nreads = 0;
+
+    int read = 0;
+    uint32_t nxtRdStart = 0;
 
     assert(self);
 
@@ -584,7 +647,97 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
         row_id = self -> idxSEQUENCE;
     }
 
-    {
+    if (rc == 0) {
+        rc = VCursorColumnRead(c, spotid,
+             alignment ? self->idxALN_READ_TYPE : self->idxSEQ_READ_TYPE,
+             &base, &boff, &row_bits);
+        DISP_RC_Read(rc, "READ_TYPE", spotid,
+                     "while calling VCursorColumnRead");
+        if (rc == 0) {
+            nreads = (int) ((row_bits >> 3) / sizeof(*dREAD_TYPE));
+            if (boff & 7)
+                rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid);
+            else if (row_bits & 7)
+                rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid);
+            else if ((row_bits >> 3) > sizeof(dREAD_TYPE))
+                rc = RC(rcExe, rcColumn, rcReading,
+                    rcBuffer, rcInsufficient);
+            DISP_RC_Read(rc, "READ_TYPE", spotid,
+                "after calling VCursorColumnRead");
+            if (rc == 0)
+                memmove(dREAD_TYPE,
+                    ((const char*)base) + (boff >> 3),
+                    ( size_t ) row_bits >> 3);
+        }
+    }
+
+    if (rc == 0) {
+        rc = VCursorColumnRead(c, spotid,
+            alignment ? self->idxALN_READ_LEN : self->idxSEQ_READ_LEN,
+            &base, &boff, &row_bits);
+        DISP_RC_Read(rc, "READ_LEN", spotid, "while calling VCursorColumnRead");
+        if (rc == 0) {
+            if (boff & 7)
+                rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid);
+            else if (row_bits & 7)
+                rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid);
+            else if ((row_bits >> 3) > sizeof(dREAD_LEN))
+                rc = RC(rcExe, rcColumn, rcReading, rcBuffer, rcInsufficient);
+            else if (((row_bits >> 3)  / sizeof(*dREAD_LEN) )!=  nreads)
+                rc = RC(rcExe, rcColumn, rcReading, rcData, rcIncorrect);
+            DISP_RC_Read(rc, "READ_LEN", spotid,
+                         "after calling VCursorColumnRead");
+        }
+        if (rc == 0)
+            memmove(dREAD_LEN, ((const char*)base) + (boff >> 3),
+                    ( size_t ) row_bits >> 3);
+    }
+
+    if (rc == 0) {
+        uint32_t idx
+            = alignment ? self->idxALN_RD_FILTER : self->idxSEQ_RD_FILTER;
+        if ( idx != 0 ) {
+            rc = VCursorColumnRead(c, spotid, idx, &base, &boff, &row_bits);
+            DISP_RC_Read(rc, "RD_FILTER", spotid,
+                         "while calling VCursorColumnRead");
+            if (rc == 0) {
+                bitsz_t size = row_bits >> 3;
+                if (boff & 7) {
+                    rc = RC(rcExe, rcColumn, rcReading, rcOffset, rcInvalid); }
+                else if (row_bits & 7)
+                    rc = RC(rcExe, rcColumn, rcReading, rcSize, rcInvalid);
+                else if (size > sizeof dRD_FILTER)
+                    rc = RC(rcExe, rcColumn, rcReading,
+                            rcBuffer, rcInsufficient);
+                DISP_RC_Read(rc, "RD_FILTER", spotid,
+                             "after calling VCursorColumnRead");
+                if (rc == 0) {
+                    memmove(dRD_FILTER,
+                        ((const char*)base) + (boff>>3),
+                        ( size_t ) size);
+                    if (size < nreads) {
+                        /* RD_FILTER is expected to have nreads elements */
+                        if (size == 1) {
+                        /* fill all RD_FILTER elements with RD_FILTER[0] */
+                            int i = 0;
+                            for (i = 1; i < nreads; ++i)
+                                memmove(dRD_FILTER + i,
+                                        ((const char*)base)+(boff>>3), 1);
+                        }
+                        else
+                            /* something really bad with RD_FILTER column:
+                               let's pretend it does not exist */
+                            if ( alignment )
+                                self->idxALN_RD_FILTER = 0;
+                            else
+                                self->idxSEQ_RD_FILTER = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    if ( rc == 0 ) {
         uint32_t elem_bits = 0, elem_off = 0, elem_cnt = 0;
         rc = VCursorCellDataDirect(c, spotid, row_id,
                                    &elem_bits, &base, &elem_off, &elem_cnt);
@@ -601,6 +754,9 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
         row_bits = elem_cnt * elem_bits;
     }
 
+    if ( rc != 0 )
+        return rc;
+
     if ((row_bits % 8) != 0) {
         const char * name = self->basesType == ebtCSREAD ? "CSREAD"
             : self->basesType == ebtREAD ? "READ" : "RAW_READ";
@@ -614,8 +770,34 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
 
     row_bits /= 8;
     bases = base;
+
     for (i = 0; i < row_bits; ++i) {
         unsigned char base = bases[i];
+        if ( i == nxtRdStart) {
+            bool hasRD_FILTER
+                = alignment ? self->idxALN_RD_FILTER : self->idxSEQ_RD_FILTER;
+            if ( read > nreads )
+                return RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
+            nxtRdStart += dREAD_LEN [ read ++ ];
+            if ( ( (dREAD_TYPE[read-1] & SRA_READ_TYPE_BIOLOGICAL) == 0 )
+                    /* skip non-biological reads */
+                ||
+                 ( hasRD_FILTER && dRD_FILTER[read-1] != SRA_READ_FILTER_PASS )
+               )
+            {
+                i += dREAD_LEN [ read - 1 ] - 1;
+                continue;                
+            }
+/* jira/SV-2153 :
+SRA_READ_FILTER_PASS - normal read passing all read criteria
+SRA_READ_FILTER_REJECT - does not pass submitter's quality control
+                       === "Poor sequence quality" in the context of this ticket
+SRA_READ_FILTER_CRITERIA - good read, but is a technical duplicate
+                        === "PCR duplicate"
+SRA_READ_FILTER_REDACTED - read is hidden from public users – used
+ only in 1 study(HMP) to redact human host reads from mostly bacterial content*/
+        }
+
         if ( alignment ) {
             const unsigned char x [16]
                 = { 4, 0, 1, 4, 2, 4, 4, 4, 3, 4, 4, 4, 4, 4, 4, 4, };
@@ -633,6 +815,7 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
             assert ( base < sizeof x / sizeof x [ 0 ] );
             base = x [  base ];
         }
+
         if (base > 4) {
             const char * name = self->basesType == ebtCSREAD ? "CSREAD"
                 : self->basesType == ebtREAD ? "READ" : "RAW_READ";
@@ -645,8 +828,10 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
             BasesRelease(self);
             return rc;
         }
+
         ++self->cnt[base];
     }
+
     return 0;
 }
 
@@ -2785,7 +2970,9 @@ rc_t print_results(const Ctx* ctx)
         }
         if (rc == 0 && !ctx->pb->quick) {
             rc2 = BasesPrint(&ctx->total->bases_count,
-                ctx->total->BASE_COUNT, "  ");
+                ctx->total->BIO_BASE_COUNT - ctx->total->bad_bio_len
+                                           - ctx->total->filtered_bio_len,
+                "  ");
         }
         if (rc == 0 && !ctx->pb->skip_alignment) {
             rc = process_align_info("  ", ctx);
@@ -3035,11 +3222,11 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                 rc = RC(rcExe, rcColumn, rcReading,
                                     rcOffset, rcInvalid);
                             }
-                            if (row_bits & 7) {
+                            else if (row_bits & 7) {
                                 rc = RC(rcExe, rcColumn, rcReading,
                                     rcSize, rcInvalid);
                             }
-                            if ((row_bits >> 3) > sizeof(dREAD_LEN)) {
+                            else if ((row_bits >> 3) > sizeof(dREAD_LEN)) {
                                 rc = RC(rcExe, rcColumn, rcReading,
                                     rcBuffer, rcInsufficient);
                             }
@@ -3073,15 +3260,15 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcOffset, rcInvalid);
                                     }
-                                    if (row_bits & 7) {
+                                    else if (row_bits & 7) {
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcSize, rcInvalid);
                                     }
-                                    if ((row_bits >> 3) > sizeof(dREAD_TYPE)) {
+                                    else if ((row_bits >> 3)
+                                             > sizeof(dREAD_TYPE))
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcBuffer, rcInsufficient);
-                                    }
-                                    if ((row_bits >> 3) !=  nreads) {
+                                    else if ((row_bits >> 3) !=  nreads) {
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcData, rcIncorrect);
                                     }
@@ -3105,11 +3292,11 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                                     rcReading,
                                                     rcOffset, rcInvalid);
                                             }
-                                            if (row_bits & 7) {
+                                            else if (row_bits & 7) {
                                                 rc = RC(rcExe, rcColumn,
                                                     rcReading,
                                                     rcSize, rcInvalid); }
-                                            if ((row_bits >> 3)
+                                            else if ((row_bits >> 3)
                                                 > sizeof(dSPOT_GROUP))
                                             {
                                                 rc = RC(rcExe, rcColumn,
@@ -3153,11 +3340,11 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                         if (boff & 7) {
                                             rc = RC(rcExe, rcColumn, rcReading,
                                                 rcOffset, rcInvalid); }
-                                        if (row_bits & 7) {
+                                        else if (row_bits & 7) {
                                             rc = RC(rcExe, rcColumn, rcReading,
                                                 rcSize, rcInvalid);
                                         }
-                                        if (size > sizeof dRD_FILTER) {
+                                        else if (size > sizeof dRD_FILTER) {
                                             rc = RC(rcExe, rcColumn, rcReading,
                                                 rcBuffer, rcInsufficient);
                                         }
@@ -3217,7 +3404,7 @@ static rc_t sra_stat(srastat_parms* pb, BSTree* tr,
                                     if (boff & 7) {
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcOffset, rcInvalid); }
-                                    if (row_bits & 7) {
+                                    else if (row_bits & 7) {
                                         rc = RC(rcExe, rcColumn, rcReading,
                                             rcSize, rcInvalid);
                                     }

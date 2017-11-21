@@ -25,11 +25,24 @@
 */
 
 #include "sratoolkit.h"
-
+#include <kapp/main.h>
 
 #include <QApplication>
 #include <QDesktopWidget>
 #include <QPoint>
+
+extern "C"
+{
+    rc_t Quitting ( void )
+    {
+        // TBD - fill this out with a call to whatever QT uses to indicate
+        // that the app has received a ^C or SIGTERM
+        // the appropriate value to return if actually quitting is
+        // RC ( rcExe, rcProcess, rcExecuting, rcProcess, rcCanceled );
+
+        return 0;
+    }
+}
 
 int main ( int argc, char *argv [] )
 {

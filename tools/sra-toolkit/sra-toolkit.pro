@@ -8,7 +8,7 @@ QT       += core gui
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
-TARGET = sra-toolkit-gui
+TARGET = sra-toolkit
 TEMPLATE = app
 
 # The following define makes your compiler emit warnings if you use
@@ -31,18 +31,18 @@ INCLUDEPATH +=  ../../../ncbi-vdb/interfaces \
 
 SOURCES += main.cpp\
         sratoolkit.cpp \
-    sratoolkitpreferences.cpp \
-    sraworkspace.cpp \
-    diagnostics/diagnosticsview.cpp \
-    diagnostics/diagnosticstreeitem.cpp \
-    diagnostics/diagnosticstreemodel.cpp
+        sratoolkitpreferences.cpp \
+        sraworkspace.cpp \
+        diagnostics/diagnosticsview.cpp \
+        diagnostics/diagnosticstreeitem.cpp \
+        diagnostics/diagnosticstreemodel.cpp
 
 HEADERS  += sratoolkit.h \
-    sratoolkitpreferences.h \
-    sraworkspace.h \
-    diagnostics/diagnosticsview.h \
-    diagnostics/diagnosticstreeitem.h \
-    diagnostics/diagnosticstreemodel.h
+        sratoolkitpreferences.h \
+        sraworkspace.h \
+        diagnostics/diagnosticsview.h \
+        diagnostics/diagnosticstreeitem.h \
+        diagnostics/diagnosticstreemodel.h
 
 RESOURCES += \
-    resources.qrc
+        resources.qrc

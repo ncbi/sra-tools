@@ -5,7 +5,5 @@
         <file>images/images.ncbi.png</file>
         <file>images/network_icon.png</file>
         <file>images/troubleshooting.png</file>
-        <file>default.txt</file>
-        <file>test_output.txt</file>
     </qresource>
 </RCC>

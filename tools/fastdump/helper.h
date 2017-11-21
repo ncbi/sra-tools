@@ -83,7 +83,8 @@ typedef struct join_stats
     uint64_t fragments_read;
     uint64_t fragments_written;
     uint64_t fragments_zero_length;
-    uint64_t fragments_technical;    
+    uint64_t fragments_technical;
+    uint64_t fragments_too_short;
 } join_stats;
 
 typedef struct join_options
@@ -91,6 +92,7 @@ typedef struct join_options
     bool rowid_as_name;
     bool skip_tech;
     bool print_frag_nr;
+    uint32_t min_read_len;
 } join_options;
 
 typedef struct tmp_id

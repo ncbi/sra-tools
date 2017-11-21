@@ -33,6 +33,27 @@
 #include <kproc/thread.h>
 #include <insdc/insdc.h>
 
+static bool filter( join_stats * stats,
+                    const fastq_rec * rec,
+                    const join_options * jo,
+                    uint32_t read_id_0 )
+{
+    bool process = true;
+    if ( jo -> skip_tech && rec -> num_read_type > read_id_0 )
+    {
+        process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
+        if ( !process )
+            stats -> fragments_technical++;
+    }
+    if ( process && jo -> min_read_len > 0 )
+    {
+        process = ( rec -> read_len[ read_id_0 ] >= jo -> min_read_len );
+        if ( !process )
+            stats -> fragments_too_short++;
+    }
+    return process;
+}
+
 static rc_t print_fastq_1_read( join_stats * stats,
                                 const char * accession,
                                 struct join_results * results,
@@ -44,22 +65,20 @@ static rc_t print_fastq_1_read( join_stats * stats,
     rc_t rc = 0;
     
     /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-    if ( jo -> skip_tech && rec -> num_read_type > 0 )
-        if ( ( rec -> read_type[ 0 ] & READ_TYPE_BIOLOGICAL ) != READ_TYPE_BIOLOGICAL )
-        {
-            stats -> fragments_technical ++;
-            return rc;
-        }
-    rc = join_results_print_fastq_v1( results,
-                                      rec -> row_id,
-                                      dst_id,
-                                      read_id,
-                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                      &( rec -> read ),
-                                      &( rec -> quality ) );
-    if ( rc == 0 )
-        stats -> fragments_written++;
-
+    bool process = filter( stats, rec, jo, 0 );
+    if ( process )
+    {
+        rc = join_results_print_fastq_v1( results,
+                                          rec -> row_id,
+                                          dst_id,
+                                          read_id,
+                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                          &( rec -> read ),
+                                          &( rec -> quality ) );
+        if ( rc == 0 )
+            stats -> fragments_written++;
+    }
+    
     return rc;
 }
 
@@ -79,10 +98,7 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
     {
         if ( rec -> read_len[ read_id_0 ] > 0 )
         {
-            bool process = true;
-            if ( jo -> skip_tech && rec -> num_read_type > read_id_0 )
-                process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
-
+            bool process = filter( stats, rec, jo, read_id_0 );
             if ( process )
             {
                 R . addr = &rec -> read . addr[ offset ];
@@ -103,9 +119,6 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
                 if ( rc == 0 )
                     stats -> fragments_written++;
             }
-            else
-                stats -> fragments_technical++;
-
             offset += rec -> read_len[ read_id_0 ];            
         }
         else
@@ -131,10 +144,7 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
     {
         if ( rec -> read_len[ read_id_0 ] > 0 )
         {
-            bool process = true;
-            if ( jo -> skip_tech && rec -> num_read_type > read_id_0 )
-                process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
-
+            bool process = filter( stats, rec, jo, read_id_0 );
             if ( process )
             {
                 R . addr = &rec -> read . addr[ offset ];
@@ -155,9 +165,6 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
                 if ( rc == 0 )
                     stats -> fragments_written++;
             }
-            else
-                stats -> fragments_technical++;
-                
             offset += rec -> read_len[ read_id_0 ];            
         }
         else
@@ -200,10 +207,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
     {
         if ( rec -> read_len[ read_id_0 ] > 0 )
         {
-            bool process = true;
-            if ( rec -> num_read_type > read_id_0 )
-                process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
-
+            bool process = filter( stats, rec, jo, read_id_0 );
             if ( process )
             {
                 R . addr = &rec -> read . addr[ offset ];
@@ -227,9 +231,6 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
                 if ( write_id_1 > 0 )
                     write_id_1++;
             }
-            else
-                stats -> fragments_technical++;
-
             offset += rec -> read_len[ read_id_0 ];            
         }
         else

@@ -185,6 +185,27 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
     return rc;
 }
 
+static bool filter( join_stats * stats,
+                    const fastq_rec * rec,
+                    const join_options * jo,
+                    uint32_t read_id_0 )
+{
+    bool process = true;
+    if ( jo -> skip_tech && rec -> num_read_type > read_id_0 )
+    {
+        process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
+        if ( !process )
+            stats -> fragments_technical++;
+    }
+    if ( process && jo -> min_read_len > 0 )
+    {
+        process = ( rec -> read_len[ read_id_0 ] >= jo -> min_read_len );
+        if ( !process )
+            stats -> fragments_too_short++;
+    }
+    return process;
+}
+
 static rc_t print_fastq_1_read( join_stats * stats,
                                 const fastq_rec * rec,
                                 join * j,
@@ -193,13 +214,10 @@ static rc_t print_fastq_1_read( join_stats * stats,
     rc_t rc = 0;
     int64_t row_id = rec -> row_id;
     
-    if ( jo -> skip_tech && rec -> num_read_type > 0 )
-        if ( ( rec -> read_type[ 0 ] & READ_TYPE_BIOLOGICAL ) != READ_TYPE_BIOLOGICAL )
-        {
-            stats -> fragments_technical++;
+    bool process = filter( stats, rec, jo, 0 );
+    if ( !process )
             return rc;
-        }
-        
+            
     if ( rec -> prim_alig_id[ 0 ] == 0 )
     {
         /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
@@ -324,19 +342,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
     
     if ( !split_file && jo -> skip_tech )
     {
-        if ( rec -> num_read_type > 0 )
-            process_0 = ( rec -> read_type[ 0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
-        if ( rec -> num_read_type > 1 )
-            process_1 = ( rec -> read_type[ 1 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
-
-        if ( !process_0 && !process_1 )
-        {
-            stats -> fragments_technical += 2;
-            return rc;
-        }
-        
-        if ( !process_0 || !process_1 )
-            stats -> fragments_technical++;
+        process_0 = filter( stats, rec, jo, 0 );
+        process_1 = filter( stats, rec, jo, 1 );
     }
     
     Q1 . addr = rec -> quality . addr;

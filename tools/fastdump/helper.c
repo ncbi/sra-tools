@@ -472,6 +472,7 @@ void clear_join_stats( join_stats * stats )
         stats -> fragments_written = 0;
         stats -> fragments_zero_length = 0;
         stats -> fragments_technical = 0;
+        stats -> fragments_too_short = 0;
     }
 }
 
@@ -484,6 +485,7 @@ void add_join_stats( join_stats * stats, const join_stats * to_add )
         stats -> fragments_written += to_add -> fragments_written;
         stats -> fragments_zero_length += to_add -> fragments_zero_length;
         stats -> fragments_technical += to_add -> fragments_technical;
+        stats -> fragments_too_short += to_add -> fragments_too_short;
     }
 }
 

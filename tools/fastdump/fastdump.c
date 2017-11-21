@@ -125,6 +125,10 @@ static const char * print_frag_nr[] = { "print fragment-numbers", NULL };
 #define OPTION_PFNR      "print-frag-nr"
 #define ALIAS_PFNR       "P"
 
+static const char * min_rl_usage[] = { "filter by sequence-len", NULL };
+#define OPTION_MINRDLEN  "min-read-len"
+#define ALIAS_MINRDLEN   "M"
+
 
 OptDef ToolOptions[] =
 {
@@ -147,7 +151,8 @@ OptDef ToolOptions[] =
 /*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
     { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false },
     { OPTION_TECH,      ALIAS_TECH,      NULL, skip_tech_usage,  1, false,  false },
-    { OPTION_PFNR,      ALIAS_PFNR,      NULL, print_frag_nr,    1, false,  false }
+    { OPTION_PFNR,      ALIAS_PFNR,      NULL, print_frag_nr,    1, false,  false },
+    { OPTION_MINRDLEN,  ALIAS_MINRDLEN,  NULL, min_rl_usage,     1, true,   false }
 };
 
 const char UsageDefaultName[] = "fastdump";
@@ -348,7 +353,8 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         /*tool_ctx -> max_fds = get_uint32_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );*/
         tool_ctx -> join_options . rowid_as_name = get_bool_option( args, OPTION_RIDN );
         tool_ctx -> join_options . skip_tech = get_bool_option( args, OPTION_TECH );
-        tool_ctx -> join_options. print_frag_nr = get_bool_option( args, OPTION_PFNR );
+        tool_ctx -> join_options . print_frag_nr = get_bool_option( args, OPTION_PFNR );
+        tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
         
         split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
         split_file = get_bool_option( args, OPTION_SPLIT_FILE );
@@ -482,6 +488,8 @@ static rc_t print_stats( const join_stats * stats )
          rc = KOutMsg( "fragments 0-length  : %,lu\n", stats -> fragments_zero_length );
     if ( rc == 0 && stats -> fragments_technical > 0 )
          rc = KOutMsg( "technical fragmenst : %,lu\n", stats -> fragments_technical );
+    if ( rc == 0 && stats -> fragments_too_short > 0 )
+         rc = KOutMsg( "too short fragmenst : %,lu\n", stats -> fragments_too_short );
     return rc;
 }
 

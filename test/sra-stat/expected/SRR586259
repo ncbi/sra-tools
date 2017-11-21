@@ -1,12 +1,12 @@
 <Run accession="SRR586259" read_length="fixed" spot_count="3050949" base_count="616291698" base_count_bio="616291698" spot_count_mates="3050949" base_count_bio_mates="616291698" spot_count_bad="438798" base_count_bio_bad="88637196" spot_count_filtered="0" base_count_bio_filtered="0" cmp_base_count="42332736">
   <Member member_name="C0W22.8" spot_count="3050949" base_count="616291698" base_count_bio="616291698" spot_count_mates="3050949" base_count_bio_mates="616291698" spot_count_bad="438798" base_count_bio_bad="88637196" spot_count_filtered="0" base_count_bio_filtered="0" cmp_base_count="42332736" library="Sage-111282" sample="HG02757"/>
   <Size value="351914666" units="bytes"/>
-  <Bases cs_native="false" count="527654502">
-    <Base value="A" count="158437830"/>
-    <Base value="C" count="105018658"/>
-    <Base value="G" count="106430514"/>
-    <Base value="T" count="157657187"/>
-    <Base value="N" count="110313"/>
+  <Bases cs_native="false" count="616291698">
+    <Base value="A" count="184655113"/>
+    <Base value="C" count="122877884"/>
+    <Base value="G" count="125033692"/>
+    <Base value="T" count="183445933"/>
+    <Base value="N" count="279076"/>
   </Bases>
   <AlignInfo>
     <Ref seqId="GL000191.1" name="GL000191.1" circular="false" local="remote" path="/GL000191.1"/>

@@ -1,11 +1,11 @@
 <Run accession="SRR619505" read_length="variable" spot_count="163" base_count="6322" base_count_bio="6322" spot_count_mates="0" base_count_bio_mates="0" spot_count_bad="2" base_count_bio_bad="100" spot_count_filtered="0" base_count_bio_filtered="0">
   <Member member_name="20110416210345564" spot_count="163" base_count="6322" base_count_bio="6322" spot_count_mates="0" base_count_bio_mates="0" spot_count_bad="2" base_count_bio_bad="100" spot_count_filtered="0" base_count_bio_filtered="0" library="50x25RRBC" sample="443_N"/>
   <Size value="164368" units="bytes"/>
-  <Bases cs_native="false" count="6222">
-    <Base value="A" count="1335"/>
-    <Base value="C" count="1822"/>
-    <Base value="G" count="1803"/>
-    <Base value="T" count="1244"/>
+  <Bases cs_native="false" count="6322">
+    <Base value="A" count="1352"/>
+    <Base value="C" count="1847"/>
+    <Base value="G" count="1824"/>
+    <Base value="T" count="1281"/>
     <Base value="N" count="18"/>
   </Bases>
   <AlignInfo>

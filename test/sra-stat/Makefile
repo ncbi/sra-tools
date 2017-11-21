@@ -62,8 +62,6 @@ runtests: test_bases
 
 slowtests: slow_bases
 
-all_bases: test_bases slow_bases
-
 quick_bases:
 	@rm   -vrf actual
 	@mkdir -vp actual
@@ -91,7 +89,7 @@ quick_bases:
 	@echo
 	@echo SRR619505 is a small cSRA with N-s without local references
 	$(BINDIR)/sra-stat -x SRR619505 | perl -w strip-path.pl > actual/SRR619505
-	diff actual/SRR619505 expected/SRR619505-SRA_READ_FILTER_CRITERIA
+	diff actual/SRR619505 expected/SRR619505
 
 	@echo
 	@rm -v actual/*
@@ -110,7 +108,7 @@ test_bases: quick_bases
 	@echo
 	@echo SRR360929 is a table
 	$(BINDIR)/sra-stat -x SRR360929 > actual/SRR360929
-	diff actual/SRR360929 expected/SRR360929-biological-SRA_READ_FILTER_CRITERIA
+	diff actual/SRR360929 expected/SRR360929-biological
 
 	@echo
 	@rm -v  actual/*
@@ -123,10 +121,15 @@ slow_bases:
 	@echo
 	@echo SRR586259 is a cSRA without local references
 	$(BINDIR)/sra-stat -x SRR586259 | perl -w strip-path.pl > actual/SRR586259
-	diff actual/SRR586259 expected/SRR586259-SRA_READ_FILTER_REJECT-FILTER_CRITERIA
+	diff actual/SRR586259 expected/SRR586259
 
 	@echo
 	@rm -v  actual/*
 	@rm -vr actual
+
+all_bases: test_bases slow_bases
+
+terrible_bases:
+	$(BINDIR)/sra-stat -xp SRR5362833
 
 #-------------------------------------------------------------------------------

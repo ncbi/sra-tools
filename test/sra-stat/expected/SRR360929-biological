@@ -1,12 +1,12 @@
 <Run accession="SRR360929" read_length="fixed" spot_count="3074455" base_count="491912800" base_count_bio="467317160" spot_count_mates="3074455" base_count_bio_mates="467317160" spot_count_bad="811174" base_count_bio_bad="123298448" spot_count_filtered="0" base_count_bio_filtered="0">
   <Member member_name="tagged_236_AGTTGCTT" spot_count="3074455" base_count="491912800" base_count_bio="467317160" spot_count_mates="3074455" base_count_bio_mates="467317160" spot_count_bad="811174" base_count_bio_bad="123298448" spot_count_filtered="0" base_count_bio_filtered="0"/>
   <Size value="351908281" units="bytes"/>
-  <Bases cs_native="false" count="344018712">
-    <Base value="A" count="86159209"/>
-    <Base value="C" count="85362727"/>
-    <Base value="G" count="83188354"/>
-    <Base value="T" count="88164736"/>
-    <Base value="N" count="1143686"/>
+  <Bases cs_native="false" count="467317160">
+    <Base value="A" count="115620863"/>
+    <Base value="C" count="115500150"/>
+    <Base value="G" count="112935126"/>
+    <Base value="T" count="118226828"/>
+    <Base value="N" count="5034193"/>
   </Bases>
   <QualityCount>
     <Quality value="2" count="52338268"/>

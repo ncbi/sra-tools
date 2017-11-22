@@ -587,9 +587,9 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
     struct temp_registry * registry = NULL;
     join_stats stats;
     
-    rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task );
+    rc_t rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
     
-    clear_join_stats( &stats );
+    clear_join_stats( &stats ); /* helper.c */
     /* join SEQUENCE-table with lookup-table === this is the actual purpos of the tool === */
     
 /* --------------------------------------------------------------------------------------------
@@ -614,7 +614,7 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
                            tool_ctx -> num_threads,
                            tool_ctx -> show_progress,
                            tool_ctx -> fmt,
-                           & tool_ctx -> join_options );
+                           & tool_ctx -> join_options ); /* join.c */
 
     /* from now on we do not need the lookup-file and it's index any more... */
     if ( tool_ctx -> dflt_lookup[ 0 ] != 0 )
@@ -624,8 +624,6 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
         KDirectoryRemove( tool_ctx -> dir, true, "%s", tool_ctx -> dflt_index );
 
     /* STEP 4 : concatenate output-chunks */
-
-    /* ==== TBD: perform concatenation in parallel when possible ==== */
     if ( rc == 0 )
         rc = temp_registry_merge( registry,
                           tool_ctx -> dir,
@@ -634,14 +632,14 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
                           tool_ctx -> show_progress,
                           tool_ctx -> print_to_stdout,
                           tool_ctx -> force,
-                          tool_ctx -> compress );
+                          tool_ctx -> compress ); /* temp_registry.c */
 
     /* in case some of the partial results have not been deleted be the concatenator */
     if ( registry != NULL )
-        destroy_temp_registry( registry );
+        destroy_temp_registry( registry ); /* temp_registry.c */
 
     if ( rc == 0 && !( tool_ctx -> print_to_stdout ) )
-        print_stats( &stats );
+        print_stats( &stats ); /* helper.c */
 
     return rc;
 }
@@ -653,13 +651,13 @@ static rc_t fastdump_database( tool_ctx * tool_ctx )
     rc_t rc = 0;
     
     if ( tool_ctx -> show_details )
-        rc = show_details( tool_ctx );
+        rc = show_details( tool_ctx ); /* above */
 
     if ( rc == 0 )
-        rc = produce_lookup_files( tool_ctx );
+        rc = produce_lookup_files( tool_ctx ); /* above */
 
     if ( rc == 0 )
-        rc = produce_final_db_output( tool_ctx );
+        rc = produce_final_db_output( tool_ctx ); /* above */
 
     return rc;
 }
@@ -673,13 +671,13 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
     struct temp_registry * registry = NULL;
     join_stats stats;
     
-    clear_join_stats( &stats );
+    clear_join_stats( &stats ); /* helper.c */
     
     if ( tool_ctx -> show_details )
-        rc = show_details( tool_ctx );
+        rc = show_details( tool_ctx ); /* above */
 
     if ( rc == 0 )
-        rc = make_temp_registry( &registry, tool_ctx -> cleanup_task );
+        rc = make_temp_registry( &registry, tool_ctx -> cleanup_task ); /* temp_registry.c */
 
     if ( rc == 0 )
         rc = execute_tbl_join( tool_ctx -> dir,
@@ -693,7 +691,7 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
                            tool_ctx -> num_threads,
                            tool_ctx -> show_progress,
                            tool_ctx -> fmt,
-                           & tool_ctx -> join_options );                           
+                           & tool_ctx -> join_options ); /* tbl_join.c */
 
     if ( rc == 0 )
         rc = temp_registry_merge( registry,
@@ -703,13 +701,13 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
                           tool_ctx -> show_progress,
                           tool_ctx -> print_to_stdout,
                           tool_ctx -> force,
-                          tool_ctx -> compress );
+                          tool_ctx -> compress ); /* temp_registry.c */
 
     if ( registry != NULL )
-        destroy_temp_registry( registry );
+        destroy_temp_registry( registry ); /* temp_registry.c */
 
     if ( rc == 0 && !( tool_ctx -> print_to_stdout ) )
-        print_stats( &stats );
+        print_stats( &stats ); /* helper.c */
 
     return rc;
 }
@@ -729,19 +727,19 @@ rc_t CC KMain ( int argc, char *argv [] )
     if ( rc == 0 )
     {
         tool_ctx tool_ctx;
-        rc = populate_tool_ctx( &tool_ctx, args );
+        rc = populate_tool_ctx( &tool_ctx, args ); /* above */
         if ( rc == 0 )
         {
             acc_type_t acc_type;
-            rc = cmn_get_acc_type( tool_ctx . dir, tool_ctx . accession, &acc_type );
+            rc = cmn_get_acc_type( tool_ctx . dir, tool_ctx . accession, &acc_type ); /* cmn_iter.c */
             if ( rc == 0 )
             {
                 /* =================================================== */
                 switch( acc_type )
                 {
-                    case acc_csra       : rc = fastdump_database( &tool_ctx ); break;
-                    case acc_sra_flat   : rc = fastdump_table( &tool_ctx, NULL ); break;
-                    case acc_sra_db     : rc = fastdump_table( &tool_ctx, "SEQUENCE" ); break;
+                    case acc_csra       : rc = fastdump_database( &tool_ctx ); break; /* above */
+                    case acc_sra_flat   : rc = fastdump_table( &tool_ctx, NULL ); break; /* above */
+                    case acc_sra_db     : rc = fastdump_table( &tool_ctx, "SEQUENCE" ); break; /* above */
                     default : ErrMsg( "invalid accession '%s'", tool_ctx . accession );
                 }
                 /* =================================================== */

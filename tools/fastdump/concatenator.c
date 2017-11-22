@@ -211,12 +211,24 @@ rc_t execute_concat_compressed( KDirectory * dir,
                            compress, force, &dst );
     if ( rc == 0 )
     {
-        rc = make_a_copy( dir, dst, files, progress, 0, buf_size, 0, 500 );
+        rc = make_a_copy( dir, dst, files, progress, 0, buf_size, 0, 500 ); /* copy_machine.c */
         KFileRelease( dst );
     }
     return rc;
 }
-               
+
+static rc_t create_this_file( KDirectory * dir, const char * filename, bool force )
+{
+    struct KFile * f;
+    KCreateMode create_mode = force ? kcmInit : kcmCreate;
+    rc_t rc = KDirectoryCreateFile( dir, &f, false, 0664, create_mode | kcmParents, "%s", filename );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
+    else
+        KFileRelease( f );
+    return rc;
+}
+
 rc_t execute_concat_un_compressed( KDirectory * dir,
                     const char * output_filename,
                     const struct VNamelist * files,
@@ -232,54 +244,64 @@ rc_t execute_concat_un_compressed( KDirectory * dir,
     else
     {
         uint64_t size_file1;
+        uint32_t files_offset = 1;
+        
         rc = KDirectoryFileSize ( dir, &size_file1, "%s", file1 );
         if ( rc != 0 )
             ErrMsg( "KDirectoryFileSize( '%s' ) -> %R", file1, rc );
-        else
+
+        if ( rc == 0 && !force )
         {
-            struct KFile * f;
-            /* first try to create the output-file, so that sub-directories that do not exist
-               are created ... */
-            rc = KDirectoryCreateFile( dir, &f, false, 0664, kcmInit | kcmParents, "%s", output_filename );
-            if ( rc != 0 )
-                ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", output_filename, rc );
-            else
-                KFileRelease( f );
-
-            if ( rc == 0 )
+            if ( file_exists( dir, "%s", output_filename ) )
             {
-                rc = KDirectoryRename ( dir, true, file1, output_filename );
-                if ( rc != 0 )
-                    ErrMsg( "KDirectoryRename( '%s' ---> '%s' ) -> %R", file1, output_filename, rc );
+                rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
+                ErrMsg( "creating ouput-file '%s' -> %R", output_filename, rc );
             }
+        }
             
-            if ( rc == 0 )
+        /* first try to create the output-file, so that sub-directories that do not exist
+           are created ... */
+        if ( rc == 0 )
+            rc = create_this_file( dir, output_filename, force );
+            
+        if ( rc == 0 )
+        {
+            rc = KDirectoryRename ( dir, true, file1, output_filename );
+            if ( rc != 0 )
             {
-                struct KFile * dst;
-                rc = KDirectoryOpenFileWrite ( dir, &dst, true, "%s", output_filename );
-                if ( rc != 0 )
-                    ErrMsg( "KDirectoryOpenFileWrite( '%s' ) -> %R", output_filename, rc );
-                else
+                /* this can fail, if file1 and output_filename are on different filesystems ... */
+                files_offset = 0;
+                size_file1 = 0;
+                rc = create_this_file( dir, output_filename, force );
+            }
+        }
+            
+        if ( rc == 0 )
+        {
+            struct KFile * dst;
+            rc = KDirectoryOpenFileWrite ( dir, &dst, true, "%s", output_filename );
+            if ( rc != 0 )
+                ErrMsg( "KDirectoryOpenFileWrite( '%s' ) -> %R", output_filename, rc );
+            else
+            {
+                if ( buf_size > 0 )
                 {
-                    if ( buf_size > 0 )
+                    struct KFile * tmp;
+                    rc = KBufFileMakeWrite( &tmp, dst, false, buf_size );
+                    if ( rc != 0 )
+                        ErrMsg( "KBufFileMakeWrite( '%s' ) -> %R", output_filename, rc );
+                    else
                     {
-                        struct KFile * tmp;
-                        rc = KBufFileMakeWrite( &tmp, dst, false, buf_size );
-                        if ( rc != 0 )
-                            ErrMsg( "KBufFileMakeWrite( '%s' ) -> %R", output_filename, rc );
-                        else
-                        {
-                            KFileRelease( dst );
-                            dst = tmp;
-                        }
+                        KFileRelease( dst );
+                        dst = tmp;
                     }
-
-                    bg_progress_update( progress, size_file1 );
-
-                    rc = make_a_copy( dir, dst, files, progress, size_file1, buf_size, 1, 500 );
-
-                    KFileRelease( dst );
                 }
+
+                bg_progress_update( progress, size_file1 );
+
+                rc = make_a_copy( dir, dst, files, progress, size_file1, buf_size, files_offset, 500 ); /* copy_machine.c */
+
+                KFileRelease( dst );
             }
         }
     }

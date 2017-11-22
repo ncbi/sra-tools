@@ -62,6 +62,7 @@ clean: stdclean
 #  sra statistics
 #
 SRASTAT_SRC = \
+	assembly-statistics \
 	sra \
 	sra-stat \
 

@@ -129,7 +129,7 @@ slow_bases:
 
 all_bases: test_bases slow_bases
 
-terrible_bases:
-	$(BINDIR)/sra-stat -xp SRR5362833
+slowest_bases:
+	time $(BINDIR)/sra-stat -xp SRR5362833
 
 #-------------------------------------------------------------------------------

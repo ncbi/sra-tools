@@ -2485,11 +2485,20 @@ rc_t process_align_info(const char* indent, const Ctx* ctx)
             DISP_RC(rc, "while calling VDBDependenciesName");
             break;
         }
+
         rc = VDBDependenciesPath(dep, &path, i);
         if (rc != 0) {
             DISP_RC(rc, "while calling VDBDependenciesPath");
             break;
         }
+        if ( path == NULL ) {
+            rc = VDBDependenciesPathRemote(dep, &path, i);
+            if (rc != 0) {
+                DISP_RC(rc, "while calling VDBDependenciesPath");
+                break;
+            }
+        }
+
         rc = VDBDependenciesLocal(dep, &local, i);
         if (rc != 0) {
             DISP_RC(rc, "while calling VDBDependenciesLocal");

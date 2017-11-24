@@ -150,6 +150,35 @@ size_t get_size_t_option( const struct Args * args, const char *name, size_t dfl
     return res;
 }
 
+Fgrep * get_fgrep_option( const struct Args * args, const char *name )
+{
+    Fgrep * fgrep = NULL;
+    if ( args != NULL && name != NULL )
+    {
+        uint32_t count;
+        rc_t rc = ArgsOptionCount( args, name, &count );
+        if ( rc == 0 && count > 0 )
+        {
+            const char ** patterns = calloc( count, sizeof * patterns );
+            if ( patterns != NULL )
+            {
+                uint32_t idx;
+                for ( idx = 0; rc == 0 && idx < count; ++ idx )
+                {
+                    const char * pattern = NULL;
+                    rc = ArgsOptionValue( args, name, idx, ( const void** )&pattern );
+                    if ( rc == 0 )
+                        patterns[ idx ] = pattern;
+                }
+                if ( rc == 0 )
+                    rc = FgrepMake ( &fgrep, FGREP_MODE_ACGT | FGREP_ALG_DUMB, patterns, count );
+                free( ( void * ) patterns );
+            }
+        }
+    }
+    return fgrep;
+}
+
 static format_t format_cmp( String * Format, const char * test, format_t test_fmt )
 {
     String TestFormat;

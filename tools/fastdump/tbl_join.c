@@ -33,6 +33,26 @@
 #include <kproc/thread.h>
 #include <insdc/insdc.h>
 
+static bool filter1( join_stats * stats,
+                     const fastq_rec * rec,
+                     const join_options * jo )
+{
+    bool process = true;
+    if ( process && ( jo -> min_read_len > 0 ) )
+    {
+        process = ( rec -> read . len >= jo -> min_read_len );
+        if ( !process )
+            stats -> fragments_too_short++;
+    }
+    if ( process && ( jo -> fgrep != NULL ) )
+    {
+        FgrepMatch matchinfo;
+        uint32_t found = FgrepFindFirst ( jo -> fgrep, rec -> read . addr, rec -> read . len, &matchinfo );
+        process = ( found != 0 );
+    }
+    return process;
+}
+
 static bool filter( join_stats * stats,
                     const fastq_rec * rec,
                     const join_options * jo,
@@ -45,11 +65,17 @@ static bool filter( join_stats * stats,
         if ( !process )
             stats -> fragments_technical++;
     }
-    if ( process && jo -> min_read_len > 0 )
+    if ( process && ( jo -> min_read_len > 0 ) )
     {
         process = ( rec -> read_len[ read_id_0 ] >= jo -> min_read_len );
         if ( !process )
             stats -> fragments_too_short++;
+    }
+    if ( process && ( jo -> fgrep != NULL ) )
+    {
+        FgrepMatch matchinfo;
+        uint32_t found = FgrepFindFirst ( jo -> fgrep, rec -> read . addr, rec -> read . len, &matchinfo );
+        process = ( found != 0 );
     }
     return process;
 }
@@ -63,10 +89,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
                                 uint32_t read_id )
 {
     rc_t rc = 0;
-    
-    /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-    bool process = filter( stats, rec, jo, 0 );
-    if ( process )
+    if ( filter1( stats, rec, jo ) )
     {
         rc = join_results_print_fastq_v1( results,
                                           rec -> row_id,
@@ -78,7 +101,6 @@ static rc_t print_fastq_1_read( join_stats * stats,
         if ( rc == 0 )
             stats -> fragments_written++;
     }
-    
     return rc;
 }
 
@@ -98,8 +120,7 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
     {
         if ( rec -> read_len[ read_id_0 ] > 0 )
         {
-            bool process = filter( stats, rec, jo, read_id_0 );
-            if ( process )
+            if ( filter( stats, rec, jo, read_id_0 ) )
             {
                 R . addr = &rec -> read . addr[ offset ];
                 R . size = rec -> read_len[ read_id_0 ];
@@ -119,7 +140,7 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
                 if ( rc == 0 )
                     stats -> fragments_written++;
             }
-            offset += rec -> read_len[ read_id_0 ];            
+            offset += rec -> read_len[ read_id_0 ];           
         }
         else
             stats -> fragments_zero_length++;
@@ -254,7 +275,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
     rc_t rc;
     struct fastq_sra_iter * iter;
     fastq_iter_opt opt;
-    opt . with_read_len = false;
+    opt . with_read_len = ( jo -> min_read_len > 0 );
     opt . with_name = !( jo -> rowid_as_name );
     opt . with_read_type = false;
     
@@ -264,7 +285,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
     else
     {
         fastq_rec rec;
-        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr };
+        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> fgrep };
         while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             stats -> spots_read++;
@@ -386,7 +407,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     if ( rc == 0 )
     {
         fastq_rec rec;
-        join_options local_opt = { jo -> rowid_as_name, true, jo -> print_frag_nr };
+        join_options local_opt = { jo -> rowid_as_name, true, jo -> print_frag_nr, jo -> min_read_len, jo -> fgrep };
         while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();

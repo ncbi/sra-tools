@@ -75,6 +75,10 @@ extern "C" {
 #include <kproc/lock.h>
 #endif
 
+#ifndef _h_search_grep_
+#include <search/grep.h>
+#endif
+
 rc_t CC Quitting(); /* to avoid including kapp/main.h */
 
 typedef struct join_stats
@@ -93,6 +97,7 @@ typedef struct join_options
     bool skip_tech;
     bool print_frag_nr;
     uint32_t min_read_len;
+    Fgrep * fgrep;
 } join_options;
 
 typedef struct tmp_id
@@ -153,6 +158,7 @@ bool get_bool_option( const struct Args *args, const char *name );
 size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt );
 uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64_t dflt );
 uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt );
+Fgrep * get_fgrep_option( const struct Args * args, const char *name );
 
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
 

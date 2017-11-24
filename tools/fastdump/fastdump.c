@@ -36,6 +36,7 @@
 #include <kapp/args.h>
 #include <klib/out.h>
 #include <klib/printf.h>
+#include <search/grep.h>
 #include <kfs/directory.h>
 #include <kproc/procmgr.h>
 
@@ -129,6 +130,9 @@ static const char * min_rl_usage[] = { "filter by sequence-len", NULL };
 #define OPTION_MINRDLEN  "min-read-len"
 #define ALIAS_MINRDLEN   "M"
 
+static const char * base_flt_usage[] = { "filter by bases", NULL };
+#define OPTION_BASE_FLT  "bases"
+#define ALIAS_BASE_FLT   "B"
 
 OptDef ToolOptions[] =
 {
@@ -152,7 +156,8 @@ OptDef ToolOptions[] =
     { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false },
     { OPTION_TECH,      ALIAS_TECH,      NULL, skip_tech_usage,  1, false,  false },
     { OPTION_PFNR,      ALIAS_PFNR,      NULL, print_frag_nr,    1, false,  false },
-    { OPTION_MINRDLEN,  ALIAS_MINRDLEN,  NULL, min_rl_usage,     1, true,   false }
+    { OPTION_MINRDLEN,  ALIAS_MINRDLEN,  NULL, min_rl_usage,     1, true,   false },
+    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,   false }
 };
 
 const char UsageDefaultName[] = "fastdump";
@@ -355,6 +360,7 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         tool_ctx -> join_options . skip_tech = get_bool_option( args, OPTION_TECH );
         tool_ctx -> join_options . print_frag_nr = get_bool_option( args, OPTION_PFNR );
         tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
+        tool_ctx -> join_options . fgrep = get_fgrep_option( args, OPTION_BASE_FLT );
         
         split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
         split_file = get_bool_option( args, OPTION_SPLIT_FILE );
@@ -715,6 +721,41 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
 
 /* -------------------------------------------------------------------------------------------- */
 
+static rc_t fastdump( tool_ctx * tool_ctx )
+{
+    acc_type_t acc_type;
+    rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> accession, &acc_type ); /* cmn_iter.c */
+    if ( rc == 0 )
+    {
+        /* =================================================== */
+        switch( acc_type )
+        {
+            case acc_csra       : rc = fastdump_database( tool_ctx ); break; /* above */
+            case acc_sra_flat   : rc = fastdump_table( tool_ctx, NULL ); break; /* above */
+            case acc_sra_db     : rc = fastdump_table( tool_ctx, "SEQUENCE" ); break; /* above */
+            default : ErrMsg( "invalid accession '%s'", tool_ctx -> accession );
+        }
+        /* =================================================== */
+    }
+    
+    if ( tool_ctx -> remove_temp_path )
+    {
+        bool tmp_exists = dir_exists( tool_ctx -> dir, "%s", tool_ctx -> tmp_id . temp_path ); /* helper.c */
+        if ( tmp_exists )
+        {
+            rc_t rc1 = KDirectoryClearDir ( tool_ctx -> dir, true, "%s", tool_ctx -> tmp_id . temp_path );
+            if ( rc1 == 0 )
+            {
+                tmp_exists = dir_exists( tool_ctx -> dir, "%s", tool_ctx -> tmp_id . temp_path ); /* helper.c */
+                if ( tmp_exists )
+                    rc1 = KDirectoryRemove ( tool_ctx -> dir, true, "%s", tool_ctx -> tmp_id . temp_path );
+            }
+        }
+    }
+    return rc;
+}
+
+/* -------------------------------------------------------------------------------------------- */
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
@@ -730,32 +771,11 @@ rc_t CC KMain ( int argc, char *argv [] )
         rc = populate_tool_ctx( &tool_ctx, args ); /* above */
         if ( rc == 0 )
         {
-            acc_type_t acc_type;
-            rc = cmn_get_acc_type( tool_ctx . dir, tool_ctx . accession, &acc_type ); /* cmn_iter.c */
-            if ( rc == 0 )
-            {
-                /* =================================================== */
-                switch( acc_type )
-                {
-                    case acc_csra       : rc = fastdump_database( &tool_ctx ); break; /* above */
-                    case acc_sra_flat   : rc = fastdump_table( &tool_ctx, NULL ); break; /* above */
-                    case acc_sra_db     : rc = fastdump_table( &tool_ctx, "SEQUENCE" ); break; /* above */
-                    default : ErrMsg( "invalid accession '%s'", tool_ctx . accession );
-                }
-                /* =================================================== */
-            }
-            
-            if ( tool_ctx . remove_temp_path &&
-                 dir_exists( tool_ctx . dir, "%s", tool_ctx . tmp_id . temp_path ) )
-            {
-                rc_t rc1 = KDirectoryClearDir ( tool_ctx . dir, true,
-                            "%s", tool_ctx . tmp_id . temp_path );
-                if ( rc1 == 0 &&
-                     dir_exists( tool_ctx . dir, "%s", tool_ctx . tmp_id . temp_path ) )
-                    rc1 = KDirectoryRemove ( tool_ctx . dir, true,
-                            "%s", tool_ctx . tmp_id . temp_path );
-            }
+            rc = fastdump( &tool_ctx );
 
+            if ( tool_ctx . join_options . fgrep != NULL )
+                FgrepFree ( tool_ctx . join_options . fgrep );
+                
             KDirectoryRelease( tool_ctx . dir );
         }
     }

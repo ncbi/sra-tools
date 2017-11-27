@@ -383,7 +383,7 @@ struct RawRecord : public VDB::IndexedCursorBase::Record {
     bool write(std::array<Writer2::Column, 8> const &out) const {
         auto data = this->data;
         for (auto i = 0; i < 8; ++i) {
-            if (!out[i].setValue(data->elements, data->elem_bits, data->data()))
+            if (!out[i].setValue(data->elements, data->elem_bits / 8, data->data()))
                 return false;
             data = data->next();
         }
@@ -420,8 +420,8 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
         otbl.column("NAME"),
         otbl.column("SEQUENCE"),
         otbl.column("REFERENCE"),
-        otbl.column("STRAND"),
         otbl.column("CIGAR"),
+        otbl.column("STRAND"),
         otbl.column("READNO"),
         otbl.column("POSITION")
     };

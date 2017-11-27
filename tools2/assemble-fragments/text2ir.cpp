@@ -46,7 +46,7 @@ static void writeRow(VDB::Writer const &out, unsigned const N, std::string const
     out.value(4, fields[3]);
     if (N == 8) {
         out.value(5, fields[4]);
-        out.value(6, char(fields[5] == "true" ? '-' : '+'));
+        out.value(6, char(fields[5] == "true" || fields[5] == "-" ? '-' : '+'));
         out.value(7, int32_t(std::stoi(fields[6])));
         out.value(8, fields[7]);
     }

@@ -33,6 +33,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cassert>
+#include <cmath>
 #include "utility.hpp"
 #include "vdb.hpp"
 #include "writer.hpp"
@@ -43,7 +44,7 @@
 #include <sys/mman.h>
 #include <pthread.h>
 
-static bool sameSort = false;
+static uint8_t substitute[256];
 
 struct IndexRow {
     uint8_t key[8];
@@ -64,145 +65,24 @@ struct IndexRow {
     }
 };
 
-static int random_uniform(int lower_bound, int upper_bound) {
-    if (upper_bound <= lower_bound) return lower_bound;
-#if __APPLE__
-    return arc4random_uniform(upper_bound - lower_bound) + lower_bound;
-#else
-    struct seed_rand {
-        seed_rand() {
-            srand((unsigned)time(0));
-        }
-    };
-    auto const M = upper_bound - lower_bound;
-    auto const once = seed_rand();
-    auto const m = RAND_MAX - RAND_MAX % M;
-    for ( ; ; ) {
-        auto const r = rand();
-        if (r < m) return r % M + lower_bound;
-    }
-#endif
-}
-
-struct HashState {
-private:
-    union {
-        uint64_t u64;
-        uint8_t u8[8];
-    } key;
-    
-    static uint8_t popcount(uint8_t const byte) {
-        static uint8_t const bits_set[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
-        return bits_set[byte >> 4] + bits_set[byte & 15];
-    }
-    
-    // this table is constructed such that it is more
-    // likely that two values that differ by 1 bit (the smallest difference)
-    // will map to two values that differ by 4 bits (the biggest difference)
-    // the desired effect is to amplify small differences
-    static uint8_t const *makeHashTable(int n)
-    {
-        static uint8_t tables[256 * 8];
-        auto table = tables + 256 * n;
-
-        for (auto i = 0; i < 256; ++i)
-            table[i] = i;
-        for (auto i = 0; i < 256; ++i) {
-            auto const j = random_uniform(i, 256);
-            auto const ii = table[i];
-            auto const jj = table[j];
-            table[i] = jj;
-            table[j] = ii;
-        }
-
-        return table;
-    }
-    static uint8_t const *makeSalt(void)
-    {
-        // all of the 8-bit values with popcount == 4
-        static uint8_t table[] = {
-            0x33, 0x35, 0x36, 0x39, 0x3A, 0x3C,
-            0x53, 0x55, 0x56, 0x59, 0x5A, 0x5C,
-            0x63, 0x65, 0x66, 0x69, 0x6A, 0x6C,
-            0x93, 0x95, 0x96, 0x99, 0x9A, 0x9C,
-            0xA3, 0xA5, 0xA6, 0xA9, 0xAA, 0xAC,
-            0xC3, 0xC5, 0xC6, 0xC9, 0xCA, 0xCC
-        };
-        
-        for (auto i = 0; i < 36; ++i) {
-            auto const j = random_uniform(i, 36);
-            auto const ii = table[i];
-            auto const jj = table[j];
-            table[i] = jj;
-            table[j] = ii;
-        }
-        return table;
-    }
-    
-    static uint8_t const *H0;
-    static uint8_t const *H1;
-    static uint8_t const *H2;
-    static uint8_t const *H3;
-    static uint8_t const *H4;
-    static uint8_t const *H5;
-    static uint8_t const *H6;
-    static uint8_t const *H7;
-    static uint8_t const *H8;
-    
-public:
-    HashState() {
-        if (sameSort)
-            key.u64 = 0xcbf29ce484222325ull;
-        else
-            std::copy(H0, H0 + 8, key.u8);
-    }
-    void append(uint8_t const byte) {
-        if (sameSort) {
-            key.u64 = (key.u64 ^ byte) * 0x100000001b3ull;
-        }
-        else {
-            key.u8[0] = H1[key.u8[0] ^ byte];
-            key.u8[1] = H2[key.u8[1] ^ byte];
-            key.u8[2] = H3[key.u8[2] ^ byte];
-            key.u8[3] = H4[key.u8[3] ^ byte];
-            key.u8[4] = H5[key.u8[4] ^ byte];
-            key.u8[5] = H6[key.u8[5] ^ byte];
-            key.u8[6] = H7[key.u8[6] ^ byte];
-            key.u8[7] = H8[key.u8[7] ^ byte];
-        }
-    }
-    HashState &append(VDB::Cursor::RawData const &data) {
-        for (auto i = 0; i < data.elements; ++i) {
-            append(((uint8_t const *)data.data)[i]);
-        }
-        return *this;
-    }
-    HashState &append(std::string const &data) {
-        for (auto && ch : data) {
-            append(ch);
-        }
-        return *this;
-    }
-    void end(uint8_t rslt[8]) {
-        std::copy(key.u8, key.u8 + 8, rslt);
-    }
-};
-
-uint8_t const *HashState::H0 = HashState::makeSalt();
-uint8_t const *HashState::H1 = HashState::makeHashTable(0);
-uint8_t const *HashState::H2 = HashState::makeHashTable(1);
-uint8_t const *HashState::H3 = HashState::makeHashTable(2);
-uint8_t const *HashState::H4 = HashState::makeHashTable(3);
-uint8_t const *HashState::H5 = HashState::makeHashTable(4);
-uint8_t const *HashState::H6 = HashState::makeHashTable(5);
-uint8_t const *HashState::H7 = HashState::makeHashTable(6);
-uint8_t const *HashState::H8 = HashState::makeHashTable(7);
-
 static IndexRow makeIndexRow(int64_t row, VDB::Cursor::RawData const &group, VDB::Cursor::RawData const &name)
 {
     IndexRow y;
+    union {
+        uint8_t u8[8];
+        uint64_t u64;
+    } h;
     
-    HashState().append(group).append(name).end(y.key);
+    h.u64 = 0xcbf29ce484222325ull;
+    for (auto i = 0; i < group.elements; ++i) {
+        auto const ch = reinterpret_cast<uint8_t const *>(group.data)[i];
+        h.u64 = (h.u64 ^ substitute[ch]) * 0x100000001b3ull;
+    }
+    for (auto i = 0; i < name.elements; ++i) {
+        auto const ch = reinterpret_cast<uint8_t const *>(name.data)[i];
+        h.u64 = (h.u64 ^ substitute[ch]) * 0x100000001b3ull;
+    }
+    std::copy(h.u8, h.u8 + 8, y.key);
     y.row = row;
     return y;
 }
@@ -222,41 +102,39 @@ struct WorkUnit {
     {}
     size_t size() const { return end - beg; }
     
-    std::vector<WorkUnit> process() const
+    void process(std::vector<WorkUnit> &result) const
     {
         static int const BPL[] = { 1, 3, 4, 8, 8, 8, 8, 8, 8, 8 };
         static int const KPL[] = { 0, 0, 0, 1, 2, 3, 4, 5, 6, 7 };
         static int const SPL[] = { 7, 4, 0, 0, 0, 0, 0, 0, 0, 0 };
+
+        assert(level < sizeof(BPL)/sizeof(BPL[0]));
+
+        auto const bins = 1 << BPL[level];
+        auto const m = bins - 1;
+        auto const k = KPL[level];
+        auto const s = SPL[level];
+        size_t start[256];
+        IndexRow *cur = out;
         
-        std::vector<WorkUnit> result;
-        
-        if (level < sizeof(BPL)/sizeof(BPL[0])) {
-            auto const bins = 1 << BPL[level];
-            auto const m = bins - 1;
-            auto const k = KPL[level];
-            auto const s = SPL[level];
-            size_t start[256];
-            IndexRow *cur = out;
-            
-            for (auto bin = 0; bin < bins; ++bin) {
-                for (auto i = beg; i != end; ++i) {
-                    auto const key = (i->key[k] >> s) & m;
-                    if (key == bin)
-                        *cur++ = *i;
-                }
-                start[bin] = cur - out;
+        for (auto bin = 0; bin < bins; ++bin) {
+            for (auto i = beg; i != end; ++i) {
+                auto const key = (i->key[k] >> s) & m;
+                if (key == bin)
+                    *cur++ = *i;
             }
+            start[bin] = cur - out;
+        }
+        
+        for (auto bin = 0; bin < bins; ++bin) {
+            auto const begin = (bin > 0 ? start[bin - 1] : 0);
+            auto const count = start[bin] - begin;
             
-            for (auto bin = 0; bin < bins; ++bin) {
-                auto const begin = (bin > 0 ? start[bin - 1] : 0);
-                auto const count = start[bin] - begin;
-                
-                if (count > 0) {
-                    result.push_back(WorkUnit(out + begin, out + begin + count, beg + begin, level + 1));
-                }
+            if (count > 0) {
+                assert(level + 1 < sizeof(BPL)/sizeof(BPL[0]));
+                result.push_back(WorkUnit(out + begin, out + begin + count, beg + begin, level + 1));
             }
         }
-        return result;
     }
 };
 
@@ -273,55 +151,52 @@ struct Context {
     unsigned next; // next work unit to be processed; the queue is considered empty when next == queue.size()
     std::vector<WorkUnit> queue; // the queue is only ever appended to
     
-    Context(IndexRow *Src, IndexRow *Out, size_t count, size_t SmallSize)
+    Context(IndexRow *Src, IndexRow *Out, size_t count, size_t smallSize)
     : src(Src)
     , srcEnd(src + count)
     , out(Out)
     , outEnd(out + count)
     , next(0)
     , running(0)
-    , smallSize(SmallSize)
+    , smallSize(smallSize)
     , mutex(PTHREAD_MUTEX_INITIALIZER)
     , cond_running(PTHREAD_COND_INITIALIZER)
     {
-        queue = WorkUnit(src, srcEnd, out, 0).process();
-        queue.reserve(65536);
+        queue.push_back(WorkUnit(src, srcEnd, out, 0));
     }
     
     void run(void) {
+        auto newWork = std::vector<WorkUnit>();
+        
+        newWork.reserve(256);
+        
         pthread_mutex_lock(&mutex);
-
         for ( ;; ) {
             if (next < queue.size()) {
-                auto const unit = queue[next];
-                ++next;
-                if (unit.size() <= smallSize) {
-                    // the mutex is released before processing the work unit
-                    pthread_mutex_unlock(&mutex);
-                    
-                    // sort in one shot
-                    std::sort(unit.beg, unit.end, IndexRow::keyLess);
-                    if (unit.beg >= src && unit.end <= srcEnd)
-                        std::copy(unit.beg, unit.end, out + (unit.beg - src));
-                    
-                    // the mutex is re-acquired after processing the work unit
-                    pthread_mutex_lock(&mutex);
+                auto const unit = queue[next++];
+                ++running;
+                
+                // the mutex is released before processing the work unit
+                pthread_mutex_unlock(&mutex);
+                {
+                    newWork.clear();
+                    if (unit.size() <= smallSize) {
+                        // sort in one shot
+                        std::sort(unit.beg, unit.end, IndexRow::keyLess);
+                        if (unit.beg >= src && unit.end <= srcEnd)
+                            std::copy(unit.beg, unit.end, out + (unit.beg - src));
+                    }
+                    else {
+                        // partial sort, can generate more work units
+                        unit.process(newWork);
+                    }
                 }
-                else {
-                    ++running;
-                    
-                    // the mutex is released before processing the work unit
-                    pthread_mutex_unlock(&mutex);
-                    
-                    // partial sort and generate more work units
-                    auto const nw = unit.process();
-                    
-                    // the mutex is re-acquired after processing the work unit
-                    pthread_mutex_lock(&mutex);
-                    queue.insert(queue.end(), nw.cbegin(), nw.cend());
-                    --running;
-                    pthread_cond_signal(&cond_running);
-                }
+                // the mutex is re-acquired after processing the work unit
+                pthread_mutex_lock(&mutex);
+                std::copy(newWork.begin(), newWork.end(), std::back_inserter(queue));
+
+                --running;
+                pthread_cond_signal(&cond_running);
             }
             else if (running > 0) {
                 pthread_cond_wait(&cond_running, &mutex);
@@ -409,14 +284,15 @@ static size_t getSmallSize(int const workers)
 
 static void sortIndex(uint64_t const N, IndexRow *const index)
 {
-    auto const scratch = new IndexRow[N];
+    auto const scratch = reinterpret_cast<IndexRow *>(malloc(N * sizeof(IndexRow)));
     if (scratch == NULL) {
         perror("error: insufficient memory to create temporary index");
         exit(1);
     }
     {
         auto const workers = getWorkerCount();
-        auto context = Context(index, scratch, N, getSmallSize(workers));
+        auto const smallSize = getSmallSize(workers);
+        auto context = Context(index, scratch, N, smallSize);
         
         for (auto i = 1; i < workers; ++i) {
             pthread_t tid = 0;
@@ -437,7 +313,11 @@ static void sortIndex(uint64_t const N, IndexRow *const index)
         }
     }
     
-    auto const tmp = new IndexRow *[keys];
+    auto const tmp = reinterpret_cast<IndexRow **>(malloc(keys * sizeof(IndexRow *)));
+    if (tmp == NULL) {
+        perror("error: insufficient memory to create temporary index");
+        exit(1);
+    }
     {
         auto last = scratch->key64();
         uint64_t j = 0;
@@ -448,6 +328,7 @@ static void sortIndex(uint64_t const N, IndexRow *const index)
             last = key;
             tmp[j++] = scratch + i;
         }
+        assert(j == keys);
     }
     std::sort(tmp, tmp + keys, [](IndexRow const *a, IndexRow const *b) { return a->row < b->row; });
     {
@@ -459,8 +340,8 @@ static void sortIndex(uint64_t const N, IndexRow *const index)
         }
     }
     std::cerr << "info: Number of keys " << keys << std::endl;
-    delete [] tmp;
-    delete [] scratch;
+    free(tmp);
+    free(scratch);
 }
 
 static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
@@ -613,6 +494,26 @@ static int process(std::string const &irdb, FILE *out)
     return result;
 }
 
+static int random_uniform(int lower_bound, int upper_bound) {
+    if (upper_bound <= lower_bound) return lower_bound;
+#if __APPLE__
+    return arc4random_uniform(upper_bound - lower_bound) + lower_bound;
+#else
+    struct seed_rand {
+        seed_rand() {
+            srand((unsigned)time(0));
+        }
+    };
+    auto const M = upper_bound - lower_bound;
+    auto const once = seed_rand();
+    auto const m = RAND_MAX - RAND_MAX % M;
+    for ( ; ; ) {
+        auto const r = rand();
+        if (r < m) return r % M + lower_bound;
+    }
+#endif
+}
+
 using namespace utility;
 
 namespace reorderIR {
@@ -624,6 +525,16 @@ namespace reorderIR {
     }
     
     static int main(CommandLine const &commandLine) {
+        for (auto i = 0; i < 256; ++i) {
+            auto const j = random_uniform(0, i + 1);
+            if (j == i)
+                substitute[i] = i;
+            else {
+                auto const jj = substitute[j];
+                substitute[j] = i;
+                substitute[i] = jj;
+            }
+        }
         for (auto && arg : commandLine.argument) {
             if (arg == "-help" || arg == "-h" || arg == "-?") {
                 usage(commandLine, false);
@@ -633,7 +544,7 @@ namespace reorderIR {
         auto out = std::string();
         for (auto && arg : commandLine.argument) {
             if (arg.substr(0, 7) == "-stable") {
-                sameSort = true;
+                for (auto i = 0; i < 256; ++i) substitute[i] = i;
                 continue;
             }
             if (arg.substr(0, 5) == "-out=") {
@@ -648,7 +559,7 @@ namespace reorderIR {
         }
         if (db.empty())
             usage(commandLine, true);
-
+        
         if (out.empty())
             return process(db, stdout);
         

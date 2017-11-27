@@ -101,7 +101,6 @@
 		BEA996AF1F697FB300467C88 /* assemble-fragments.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "assemble-fragments.cpp"; sourceTree = SOURCE_ROOT; };
 		BED896CE1FBDF3CC00294F36 /* text2ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = text2ir; sourceTree = BUILT_PRODUCTS_DIR; };
 		BED896CF1FBDF3E800294F36 /* text2ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = text2ir.cpp; sourceTree = "<group>"; };
-		BED896D21FBE0E2300294F36 /* testdata.txt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; lineEnding = 0; path = testdata.txt; sourceTree = "<group>"; usesTabs = 1; };
 		BED896D31FBE0F5900294F36 /* generate-test-data.pl */ = {isa = PBXFileReference; lastKnownFileType = text.script.perl; path = "generate-test-data.pl"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -162,7 +161,6 @@
 			children = (
 				BE3BC8711EE8945A0033AC5F /* fragment.hpp */,
 				BE1766511ED4B0B0005ECFFB /* README.md */,
-				BED896D21FBE0E2300294F36 /* testdata.txt */,
 				BED896D31FBE0F5900294F36 /* generate-test-data.pl */,
 				BE4F77E51EA51E8C00CB45D6 /* shared */,
 				BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */,

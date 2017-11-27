@@ -31,6 +31,7 @@
 #include <iostream>
 #include <fstream>
 #include <utility>
+#include <map>
 
 namespace VDB {
     namespace C {
@@ -89,8 +90,10 @@ namespace VDB {
     class Cursor {
         friend class Table;
         C::VCursor *const o;
+    protected:
+        unsigned const N;
         
-        Cursor(C::VCursor *const o_) :o(o_) {}
+        Cursor(C::VCursor *const o_, unsigned columns_) :o(o_), N(columns_) {}
     public:
         struct Data {
             unsigned elem_bits;
@@ -99,18 +102,8 @@ namespace VDB {
             size_t size() const {
                 return (elem_bits * elements + 7) / 8;
             }
-            size_t const stride() const {
-                auto const sz = ((elem_bits * elements + 7) / 8 + 3) / 4;
-                return 8 + sz * 4;
-            }
             void *data() const {
                 return (void *)(this + 1);
-            }
-            void *end() const {
-                return (void *)(((uint8_t const *)this) + stride());
-            }
-            Data const *next() const {
-                return (Data const *)end();
             }
             std::string asString() const {
                 if (elem_bits == 8)
@@ -131,6 +124,18 @@ namespace VDB {
                     throw std::logic_error("bad cast");
             }
         };
+        struct DataList : public Data {
+            size_t stride() const {
+                auto const sz = ((elem_bits * elements + 7) / 8 + 3) / 4;
+                return 8 + sz * 4;
+            }
+            void *end() const {
+                return (void *)(((char const *)this) + stride());
+            }
+            DataList const *next() const {
+                return (DataList const *)end();
+            }
+        };
         struct RawData {
             void const *data;
             unsigned elem_bits;
@@ -140,15 +145,15 @@ namespace VDB {
                 return (elem_bits * elements + 7) / 8;
             }
             Data const *copy(void *memory, void const *endp) const {
-                auto const source = reinterpret_cast<uint8_t const *>(this->data);
-                auto const rslt = (Data *)memory;
+                auto const source = (char const *)(this->data);
+                auto const rslt = (DataList *)memory;
                 if (rslt + 1 > endp)
                     return nullptr;
                 rslt->elem_bits = elem_bits;
                 rslt->elements = elements;
                 if (rslt->end() > endp)
                     return nullptr;
-                std::copy(source, source + size(), reinterpret_cast<uint8_t *>(rslt + 1));
+                std::copy(source, source + size(), (char *)(rslt + 1));
                 return rslt;
             }
             std::string asString() const {
@@ -170,8 +175,9 @@ namespace VDB {
                     throw std::logic_error("bad cast");
             }
         };
-        Cursor(Cursor const &other) :o(other.o) { C::VCursorAddRef(o); }
+        Cursor(Cursor const &other) :o(other.o), N(other.N) { C::VCursorAddRef(o); }
         ~Cursor() { C::VCursorRelease(o); }
+        unsigned columns() const { return N; }
         
         std::pair<int64_t, int64_t> rowRange() const
         {
@@ -202,6 +208,42 @@ namespace VDB {
             for (unsigned i = 0; i < N; ++i) {
                 out[i] = read(row, i + 1);
             }
+        }
+        template <typename F>
+        uint64_t foreach(F f) const {
+            auto data = std::vector<RawData>();
+            auto const range = rowRange();
+            uint64_t rows = 0;
+            
+            data.reserve(N);
+            for (auto i = range.first; i < range.second; ++i) {
+                for (auto j = 0; j < N; ++j) {
+                    void const *base = 0;
+                    uint32_t count = 0;
+                    uint32_t boff = 0;
+                    uint32_t elem_bits = 0;
+                    
+                    C::rc_t rc = C::VCursorCellDataDirect(o, i, j + 1, &elem_bits, &base, &boff, &count);
+                    if (rc) return rows;
+                    data[j].data = base;
+                    data[j].elements = count;
+                    data[j].elem_bits = elem_bits;
+                }
+                f(i, data);
+                ++rows;
+            }
+            return rows;
+        }
+        void *save(int64_t const row, void *const dst, void const *const end) const {
+            auto out = dst;
+            for (auto i = 0; i < N; ++i) {
+                auto const data = read(row, i + 1);
+                auto p = static_cast<VDB::Cursor::DataList const *>(data.copy(out, end));
+                if (p == nullptr)
+                    return nullptr;
+                out = p->end();
+            }
+            return out;
         }
 #if VDB_WRITEABLE
         void newRow() const {
@@ -240,6 +282,126 @@ namespace VDB {
         }
 #endif
     };
+    class IndexedCursorBase : public Cursor {
+    protected:
+        char *const buffer;
+        char const *const bufEnd;
+
+    public:
+        struct Record {
+            int64_t row;
+            Cursor::DataList const *data;
+            
+            Record(void const *const data, int64_t row) : row(row), data((Cursor::DataList const *)data) {}
+        };
+
+        IndexedCursorBase(Cursor const &curs, size_t bufSize)
+        : Cursor(curs)
+        , buffer((char *)malloc(bufSize))
+        , bufEnd(buffer + bufSize)
+        {
+            if (buffer == nullptr) throw std::bad_alloc();
+        }
+        ~IndexedCursorBase() {
+            free(buffer);
+        }
+        size_t bufferSize() const { return bufEnd - buffer; }
+    };
+    template <typename T>
+    class IndexedCursor : public IndexedCursorBase {
+        typedef typename T::IndexIteratorT IndexIteratorT;
+        IndexIteratorT beg;
+        IndexIteratorT const end;
+        
+        std::map<int64_t, unsigned> loadBlock(IndexIteratorT const i, IndexIteratorT const j, unsigned &count, size_t &used) const {
+            auto map = std::map<int64_t, unsigned>();
+            auto v = std::vector<int64_t>();
+
+            if (j >= end) {
+                v.reserve(end - i);
+                for (auto ii = i; ii < end; ++ii)
+                    v.emplace_back(ii->row());
+            }
+            else {
+                auto n = v.size();
+                auto l = i;
+
+                v.reserve(j - i);
+                for (auto ii = i; ii < j; ++ii) {
+                    if (!(*l == *ii)) {
+                        l = ii;
+                        n = v.size();
+                    }
+                    v.emplace_back(ii->row());
+                }
+                v.resize(n);
+            }
+            std::sort(v.begin(), v.end());
+            
+            auto cur = buffer;
+            for (auto && row : v) {
+                assert((used & 0x3) == 0);
+                map[row] = unsigned(used >> 2);
+                cur = (char *)save(row, (void *)cur, (void const *)bufEnd);
+                if (cur == nullptr) {
+                    map.clear();
+                    break;
+                }
+                used = cur - buffer;
+                ++count;
+            }
+            return map;
+        }
+    public:
+        IndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 4ul * 1024ul * 1024ul * 1024ul)
+        : IndexedCursorBase(p, bufSize)
+        , beg(index)
+        , end(indexEnd)
+        {}
+        template <typename F>
+        uint64_t foreach(F f) const {
+            auto firstTime = true;
+            auto blockSize = std::min(size_t(1000000), size_t((end - beg) / 10));
+            auto rowset = std::vector<int64_t>();
+            auto rows = uint64_t(0);
+
+            for (auto i = beg; i != end; ) {
+                unsigned count = 0;
+                size_t used = 0;
+                auto const block = loadBlock(i, i + blockSize, count, used);
+                auto const j = i + block.size();
+                while (i < j) {
+                    rowset.clear();
+                    
+                    auto const &k = *i;
+                    do { rowset.emplace_back(i++->row()); } while (i < j && *i == k);
+                    
+                    std::sort(rowset.begin(), rowset.end(), [&](uint64_t a, uint64_t b) {
+                        auto const aa = block.find(a); assert(aa != block.end());
+                        auto const bb = block.find(b); assert(bb != block.end());
+                        T const &A = Record((void const *)(buffer + (aa->second << 2)), a);
+                        T const &B = Record((void const *)(buffer + (bb->second << 2)), b);
+                        return A < B;
+                    });
+                    for (auto && a : rowset) {
+                        auto const aa = block.find(a); assert(aa != block.end());
+                        T const &A = Record((void const *)(buffer + (aa->second << 2)), a);
+                        f(A);
+                        ++rows;
+                    }
+                }
+                if (block.empty())
+                    blockSize = 0.99 * count;
+                else if (firstTime) {
+                    blockSize = 0.95 * bufferSize() * count / used;
+                    firstTime = false;
+                }
+            }
+            return rows;
+        }
+        RawData read(int64_t row, unsigned cid) const = delete;
+        void read(int64_t row, unsigned const N, RawData out[]) const = delete;
+    };
     class Table {
         friend class Database;
         C::VTable *const o;
@@ -251,6 +413,7 @@ namespace VDB {
         
         Cursor read(unsigned const N, char const *const fields[]) const
         {
+            unsigned n = 0;
             C::VCursor const *curs = 0;
             auto rc = C::VTableCreateCursorRead(o, &curs);
             if (rc) throw Error(rc, __FILE__, __LINE__);
@@ -260,14 +423,16 @@ namespace VDB {
                 
                 rc = C::VCursorAddColumn(curs, &cid, "%s", fields[i]);
                 if (rc) throw Error(rc, __FILE__, __LINE__);
+                ++n;
             }
             rc = C::VCursorOpen(curs);
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Cursor(const_cast<C::VCursor *>(curs));
+            return Cursor(const_cast<C::VCursor *>(curs), n);
         }
         
         Cursor read(std::initializer_list<char const *> const &fields) const
         {
+            unsigned n = 0;
             C::VCursor const *curs = 0;
             auto rc = C::VTableCreateCursorRead(o, &curs);
             if (rc) throw Error(rc, __FILE__, __LINE__);
@@ -277,10 +442,11 @@ namespace VDB {
                 
                 rc = C::VCursorAddColumn(curs, &cid, "%s", field);
                 if (rc) throw Error(rc, __FILE__, __LINE__);
+                ++n;
             }
             rc = C::VCursorOpen(curs);
             if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Cursor(const_cast<C::VCursor *>(curs));
+            return Cursor(const_cast<C::VCursor *>(curs), n);
         }
 #if VDB_WRITEABLE
         Cursor append(unsigned const N, char const *fields[]) const

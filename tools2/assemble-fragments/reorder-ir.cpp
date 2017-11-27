@@ -440,6 +440,7 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
     auto const indexedCursor = VDB::IndexedCursor<RawRecord>(in, beg, end);
     auto const rows = indexedCursor.foreach([&](RawRecord const &a) {
         a.write(columns);
+        otbl.closeRow();
         ++written;
         if (nextReport * freq <= written) {
             std::cerr << "progress: writing " << nextReport << "0%" << std::endl;

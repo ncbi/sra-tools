@@ -2,29 +2,47 @@
 use strict;
 use warnings;
 
+for (@ARGV) {
+    if (/^-(?:h|?|help)$/) {
+        print "$0 [-h|-?|-help] [-shuffle] [-nD]"
+    }
+}
+
 {
     local $\ = "\n";
     local $, = "\t";
     print '#GROUP', 'NAME', 'READNO', 'SEQUENCE', 'REFERENCE', '-STRAND', 'POSITION', 'CIGAR';
 }
 
+my $shuffle = !!0;
 for (@ARGV) {
     if (/^-shuffle$/) {
-        my $kid = open(KID, '-|') // die "can't fork: $!";
-        if ($kid) {
-            my @x;
-            my $n = 0;
-            while (defined(local $_ = <KID>)) {
-                my $ii = int(rand($n + 1));
-                ($_, $x[$ii]) = ($x[$ii], $_) if $ii < $n;
-                push @x, $_;
-                ++$n;
-            }
-            close KID;
-            print @x;
-            exit(0);
+        $shuffle = !0;
+    }
+}
+
+if ($shuffle) {
+    my $kid = open(KID, '-|') // die "can't fork: $!";
+    if ($kid) {
+        my @x;
+        my $n = 0;
+        while (defined(local $_ = <KID>)) {
+            my $ii = int(rand($n + 1));
+            ($_, $x[$ii]) = ($x[$ii], $_) if $ii < $n;
+            push @x, $_;
+            ++$n;
         }
-        last;
+        close KID;
+        print @x;
+        exit(0);
+    }
+    last;
+}
+
+my $n = 1;
+for (@ARGV) {
+    if (/^-n(\d+)$/) {
+        $n = 0+$1;
     }
 }
 
@@ -82,19 +100,20 @@ print 'REJECTED', 'MISMATCHED_SEQUENCE_2', 1, sequence(2355, 50), 'chr1', 'false
 print 'REJECTED', 'MISMATCHED_SEQUENCE_2', 2, sequence(2355 + 450, 50, 1), 'chr1', 'true', 2355 + 450, '50M';
 print 'REJECTED', 'MISMATCHED_SEQUENCE_2', 2, sequence(12355 + 450, 50, 1), 'chr1', 'true', 12355 + 450, '50M';
 
-{
+while ($n > 0) {
     my @contig;
     for (1..50) {
         if (rand(2) < 1) {
-            push @contig, { name => sprintf("SPOT_%02u", $_), readNo => 1, sequence => sequence(10000 + ($_ - 1) * 10, 50), strand => 'false', position => 10000 + ($_ - 1) * 10, cigar => '50M' };
-            push @contig, { name => sprintf("SPOT_%02u", $_), readNo => 2, sequence => sequence(10425 + ($_ - 1) * 10, 50), strand => 'true' , position => 10425 + ($_ - 1) * 10, cigar => '50M' };
+            push @contig, { name => sprintf("SPOT_%02u", $_), readNo => 1, sequence => sequence(10000 + ($_ - 1) * 10, 50), strand => '+', position => 10000 + ($_ - 1) * 10, cigar => '50M' };
+            push @contig, { name => sprintf("SPOT_%02u", $_), readNo => 2, sequence => sequence(10425 + ($_ - 1) * 10, 50), strand => '-' , position => 10425 + ($_ - 1) * 10, cigar => '50M' };
         }
         else {
-            push @contig, { name => sprintf("SPOT_%02u", $_), readNo => 1, sequence => sequence(10425 + ($_ - 1) * 10, 50), strand => 'true' , position => 10425 + ($_ - 1) * 10, cigar => '50M' };
-            push @contig, { name => sprintf("SPOT_%02u", $_), readNo => 2, sequence => sequence(10000 + ($_ - 1) * 10, 50), strand => 'false', position => 10000 + ($_ - 1) * 10, cigar => '50M' };
+            push @contig, { name => sprintf("SPOT_%02u", $_), readNo => 1, sequence => sequence(10425 + ($_ - 1) * 10, 50), strand => '-' , position => 10425 + ($_ - 1) * 10, cigar => '50M' };
+            push @contig, { name => sprintf("SPOT_%02u", $_), readNo => 2, sequence => sequence(10000 + ($_ - 1) * 10, 50), strand => '+', position => 10000 + ($_ - 1) * 10, cigar => '50M' };
         }
     }
     for (sort { $a->{position} <=> $b->{position} } @contig) {
-        print 'CONTIG_chr1:10000-10965', @$_{'name', 'readNo', 'sequence'}, 'chr1', @$_{'strand', 'position', 'cigar'}
+        print 'CONTIG_%d_chr1:10000-10965', $n, @$_{'name', 'readNo', 'sequence'}, 'chr1', @$_{'strand', 'position', 'cigar'}
     }
+    --$n;
 }

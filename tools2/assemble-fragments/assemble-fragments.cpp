@@ -277,7 +277,7 @@ struct ContigStats {
             
             if (o.ref2 == o.ref1 && o.start2 < o.end1)
                 o.start2 = o.end1 = 0;
-            else
+            else if (o.end1 != 0 && o.start2 != 0)
                 o.mapulet = createMapulet(o.ref1, o.start1, o.end1, o.ref2, o.start2, o.end2);
 
             o.group = groups[curs.read(row, 7).asString()];
@@ -294,9 +294,6 @@ struct BestAlignment {
     decltype(ContigStats::stats)::const_iterator contig;
     decltype(Fragment::detail)::const_iterator a, b;
     int pos1, pos2;
-    int length1, length2;
-    int clip1, clip2;
-    int rlength1, rlength2;
     int fragmentLength;
     
     bool isBetterThan(BestAlignment const &other) const
@@ -309,15 +306,20 @@ struct BestAlignment {
         auto aScore = 0;
         auto bScore = 0;
         
-        if (a.contig->isGapless())                          aScore += 8;
-        if (aIsSameRef)                                     aScore += 4;
-        if (a.contig->count > b.contig->count)              aScore += 2;
-        if (a.length1 + a.length2 > b.length1 + b.length2)  aScore += 1;
+        auto const a_qlength = a.a->cigar.qlength + a.b->cigar.qlength
+                             - (a.a->cigar.qclip + a.a->cigar.qfirst + a.b->cigar.qclip + a.b->cigar.qfirst);
+        auto const b_qlength = b.a->cigar.qlength + b.b->cigar.qlength
+                             - (b.a->cigar.qclip + b.a->cigar.qfirst + b.b->cigar.qclip + b.b->cigar.qfirst);
 
-        if (b.contig->isGapless())                          bScore += 8;
-        if (bIsSameRef)                                     bScore += 4;
-        if (b.contig->count > a.contig->count)              bScore += 2;
-        if (b.length1 + b.length2 > a.length1 + a.length2)  bScore += 1;
+        if (a.contig->isGapless())              aScore += 8;
+        if (aIsSameRef)                         aScore += 4;
+        if (a.contig->count > b.contig->count)  aScore += 2;
+        if (a_qlength > b_qlength)              aScore += 1;
+
+        if (b.contig->isGapless())              bScore += 8;
+        if (bIsSameRef)                         bScore += 4;
+        if (b.contig->count > a.contig->count)  bScore += 2;
+        if (b_qlength > a_qlength)              bScore += 1;
 
         if (aIsSameRef && bIsSameRef && a.contig->std_dev > 0 && b.contig->std_dev > 0) {
             auto const aStDev = a.contig->std_dev;
@@ -380,11 +382,6 @@ std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment,
                     BestAlignment const best = {
                         i, pair.first.mom, pair.second.mom,
                         pair.first.pos, pair.second.pos,
-                        pair.first.mom->cigar.qlength - pair.first.mom->cigar.qfirst - pair.first.mom->cigar.qclip,
-                        pair.second.mom->cigar.qlength - pair.second.mom->cigar.qfirst - pair.second.mom->cigar.qclip,
-                        pair.first.mom->cigar.qfirst + pair.first.mom->cigar.qclip,
-                        pair.second.mom->cigar.qfirst + pair.second.mom->cigar.qclip,
-                        pair.first.mom->cigar.rlength, pair.first.mom->cigar.rlength,
                         pair.first.ref == pair.second.ref ? pair.second.end - pair.first.pos : 0
                     };
                     rslt.push_back(best);
@@ -613,8 +610,8 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             if (best.contig != stats.end()) {
                 ++aligned;
                 best.contig->length.add(best.fragmentLength);
-                best.contig->qlength1.add(best.length1 + best.clip1);
-                best.contig->qlength2.add(best.length2 + best.clip2);
+                best.contig->qlength1.add(best.a->cigar.qlength);
+                best.contig->qlength2.add(best.b->cigar.qlength);
             }
             if (nextReport * freq <= (row - range.first)) {
                 std::cerr << "prog: pass " << loops << ", analyzing, processed " << nextReport << "0%" << std::endl;
@@ -644,7 +641,7 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             auto &contig = *best.contig;
             auto const &first = *best.a;
             auto const &second = *best.b;
-            auto const layout = std::to_string(first.readNo) + std::to_string(first.strand) + std::to_string(second.readNo) + std::to_string(second.strand); ///< encodes order and strand, e.g. "1+2-" or "2+1-" for normal Illumina
+            auto const layout = std::to_string(first.readNo) + first.strand + std::to_string(second.readNo) + second.strand; ///< encodes order and strand, e.g. "1+2-" or "2+1-" for normal Illumina
             auto const cigar = first.cigarString + "0P" + second.cigarString; ///< 0P is like a double-no-op; used here to mark the division between the two CIGAR strings; also represents the mate-pair gap, the length of which is inferred from the fragment length
             auto const sequence = fragment.sequence(first.readNo) + fragment.sequence(second.readNo); ///< just concatenate them
             
@@ -656,10 +653,10 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             keepContig.setValue(contig.sourceRow);
 
             ///* update statistics about contig
-            contig.qlength1.add(best.length1 + best.clip1);
-            contig.qlength2.add(best.length2 + best.clip2);
-            contig.rlength1.add(best.rlength1);
-            contig.rlength2.add(best.rlength2);
+            contig.qlength1.add(best.a->cigar.qlength);
+            contig.qlength2.add(best.b->cigar.qlength);
+            contig.rlength1.add(best.a->cigar.rlength);
+            contig.rlength2.add(best.b->cigar.rlength);
 
             if (contig.mapulet == 0) {
                 keepRef.setValue(references[contig.ref1]);
@@ -672,9 +669,9 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
                 ///* modify the placement according to mapping
                 auto const &mapulet = mapulets[contig.mapulet];
                 auto const pos1 = best.pos1 - mapulet.start1;
-                auto const end1 = pos1 + best.length1 + best.clip1;
+                auto const end1 = pos1 + best.a->cigar.qlength;
                 auto const pos2 = best.pos2 - mapulet.start2 + (mapulet.end1 - mapulet.start1) + mapulet.gap;
-                auto const end2 = pos2 + best.length2 + best.clip2;
+                auto const end2 = pos2 + best.b->cigar.qlength;
                 auto const length = end2 - pos1;
                 
                 keepRef.setValue(mapulet.name); ///< reference name changes

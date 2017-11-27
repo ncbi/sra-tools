@@ -26,6 +26,7 @@
 #include <iostream>
 #include <fstream>
 #include <vector>
+#include <array>
 #include <map>
 #include <string>
 #include <stdexcept>
@@ -41,6 +42,8 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <pthread.h>
+
+static bool sameSort = false;
 
 struct IndexRow {
     uint8_t key[8];
@@ -83,7 +86,10 @@ static int random_uniform(int lower_bound, int upper_bound) {
 
 struct HashState {
 private:
-    uint8_t key[8];
+    union {
+        uint64_t u64;
+        uint8_t u8[8];
+    } key;
     
     static uint8_t popcount(uint8_t const byte) {
         static uint8_t const bits_set[16] = { 0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4 };
@@ -145,17 +151,25 @@ private:
     
 public:
     HashState() {
-        std::copy(H0, H0 + 8, key);
+        if (sameSort)
+            key.u64 = 0xcbf29ce484222325ull;
+        else
+            std::copy(H0, H0 + 8, key.u8);
     }
     void append(uint8_t const byte) {
-        key[0] = H1[key[0] ^ byte];
-        key[1] = H2[key[1] ^ byte];
-        key[2] = H3[key[2] ^ byte];
-        key[3] = H4[key[3] ^ byte];
-        key[4] = H5[key[4] ^ byte];
-        key[5] = H6[key[5] ^ byte];
-        key[6] = H7[key[6] ^ byte];
-        key[7] = H8[key[7] ^ byte];
+        if (sameSort) {
+            key.u64 = (key.u64 ^ byte) * 0x100000001b3ull;
+        }
+        else {
+            key.u8[0] = H1[key.u8[0] ^ byte];
+            key.u8[1] = H2[key.u8[1] ^ byte];
+            key.u8[2] = H3[key.u8[2] ^ byte];
+            key.u8[3] = H4[key.u8[3] ^ byte];
+            key.u8[4] = H5[key.u8[4] ^ byte];
+            key.u8[5] = H6[key.u8[5] ^ byte];
+            key.u8[6] = H7[key.u8[6] ^ byte];
+            key.u8[7] = H8[key.u8[7] ^ byte];
+        }
     }
     HashState &append(VDB::Cursor::RawData const &data) {
         for (auto i = 0; i < data.elements; ++i) {
@@ -170,7 +184,7 @@ public:
         return *this;
     }
     void end(uint8_t rslt[8]) {
-        std::copy(key, key + 8, rslt);
+        std::copy(key.u8, key.u8 + 8, rslt);
     }
 };
 
@@ -275,9 +289,8 @@ struct Context {
     }
     
     void run(void) {
-        auto const tid = pthread_self();
         pthread_mutex_lock(&mutex);
-        // std::cerr << "Thread " << tid << ": started" << std::endl;
+
         for ( ;; ) {
             if (next < queue.size()) {
                 auto const unit = queue[next];
@@ -311,16 +324,13 @@ struct Context {
                 }
             }
             else if (running > 0) {
-                // std::cerr << "Thread " << tid << ": waiting" << std::endl;
                 pthread_cond_wait(&cond_running, &mutex);
-                // std::cerr << "Thread " << tid << ": awake" << std::endl;
             }
             else
                 break;
             // it is an invariant that the mutex is held by the current thread regardless of the code path taken
         }
         pthread_mutex_unlock(&mutex);
-        // std::cerr << "Thread " << tid << ": done" << std::endl;
     }
 };
 
@@ -399,7 +409,7 @@ static size_t getSmallSize(int const workers)
 
 static void sortIndex(uint64_t const N, IndexRow *const index)
 {
-    auto const scratch = reinterpret_cast<IndexRow *>(malloc(N * sizeof(*index)));
+    auto const scratch = new IndexRow[N];
     if (scratch == NULL) {
         perror("error: insufficient memory to create temporary index");
         exit(1);
@@ -427,7 +437,7 @@ static void sortIndex(uint64_t const N, IndexRow *const index)
         }
     }
     
-    auto const tmp = reinterpret_cast<IndexRow **>(malloc(keys * sizeof(IndexRow *)));
+    auto const tmp = new IndexRow *[keys];
     {
         auto last = scratch->key64();
         uint64_t j = 0;
@@ -449,8 +459,8 @@ static void sortIndex(uint64_t const N, IndexRow *const index)
         }
     }
     std::cerr << "info: Number of keys " << keys << std::endl;
-    free(tmp);
-    free(scratch);
+    delete [] tmp;
+    delete [] scratch;
 }
 
 static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
@@ -461,26 +471,18 @@ static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
     auto const N = size_t(range.second - range.first);
     if (N == 0) return std::make_pair(nullptr, N);
     
-    auto const map = malloc(N * sizeof(IndexRow));
-    if (map == MAP_FAILED) {
-        perror("error: insufficient memory to create temporary index");
-        exit(1);
-    }
-    auto const index = (IndexRow *)map;
+    auto const index = new IndexRow[N];
     auto const freq = N / 10.0;
     auto nextReport = 1;
     
-    for (auto row = range.first; row < range.second; ++row) {
-        auto const readGroup = in.read(row, 1);
-        auto const fragment = in.read(row, 2);
-        
-        index[row - range.first] = makeIndexRow(row, readGroup, fragment);
-        
-        if (nextReport * freq <= row - range.first) {
+    in.foreach([&](int64_t row, std::vector<VDB::Cursor::RawData> const &data) {
+        auto const i = row - range.first;
+        index[i] = makeIndexRow(row, data[0], data[1]);
+        while (nextReport * freq <= i) {
             std::cerr << "progress: generating keys " << nextReport << "0%" << std::endl;;
             ++nextReport;
         }
-    }
+    });
     std::cerr << "status: processed " << N << " records" << std::endl;
     std::cerr << "status: indexing" << std::endl;
     
@@ -489,22 +491,59 @@ static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
     return std::make_pair(index, N);
 }
 
-static bool write(Writer2::Column const &out, VDB::Cursor::Data const *in)
-{
-    return out.setValue(in->elements, in->elem_bits / 8, in->data());
-}
+struct RawRecord : public VDB::IndexedCursorBase::Record {
+    struct IndexT : public IndexRow {
+        uint64_t row() const { return IndexRow::row; }
+        bool operator ==(IndexT const &other) const { return key64() == other.key64(); }
+    };
+    typedef IndexT const *IndexIteratorT;
 
-static int process(Writer2 const &out, VDB::Cursor const &in, IndexRow const *const beg, IndexRow const *const end)
+    RawRecord(VDB::IndexedCursorBase::Record const &base) : VDB::IndexedCursorBase::Record(base) {}
+    bool write(std::array<Writer2::Column, 8> const &out) const {
+        auto data = this->data;
+        for (auto i = 0; i < 8; ++i) {
+            if (!out[i].setValue(data->elements, data->elem_bits, data->data()))
+                return false;
+            data = data->next();
+        }
+        return true;
+    }
+    static std::initializer_list<char const *> columns() {
+        return { "READ_GROUP", "NAME", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "READNO", "POSITION" };
+    }
+    friend bool operator <(RawRecord const &a, RawRecord const &b) {
+        auto const agroup = a.data->asString();
+        auto const bgroup = b.data->asString();
+        auto const aname = a.data->next()->asString();
+        auto const bname = b.data->next()->asString();
+        
+        if (agroup == bgroup && aname == bname) ///< this is the expected case
+            return a.row < b.row;
+        if (agroup < bgroup)
+            return true;
+        if (bgroup < agroup)
+            return false;
+        if (aname < bname)
+            return true;
+        if (bname < aname)
+            return false;
+        return a.row < b.row;
+    }
+};
+
+static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT const *const beg, RawRecord::IndexT const *const end)
 {
     auto const otbl = out.table("RAW");
-    auto const colGroup = otbl.column("READ_GROUP");
-    auto const colName = otbl.column("NAME");
-    auto const colSequence = otbl.column("SEQUENCE");
-    auto const colReference = otbl.column("REFERENCE");
-    auto const colStrand = otbl.column("STRAND");
-    auto const colCigar = otbl.column("CIGAR");
-    auto const colReadNo = otbl.column("READNO");
-    auto const colPosition = otbl.column("POSITION");
+    std::array<Writer2::Column, 8> const columns = {
+        otbl.column("READ_GROUP"),
+        otbl.column("NAME"),
+        otbl.column("SEQUENCE"),
+        otbl.column("REFERENCE"),
+        otbl.column("STRAND"),
+        otbl.column("CIGAR"),
+        otbl.column("READNO"),
+        otbl.column("POSITION")
+    };
     
     auto const range = in.rowRange();
     if (end - beg != range.second - range.first) {
@@ -514,121 +553,21 @@ static int process(Writer2 const &out, VDB::Cursor const &in, IndexRow const *co
     auto const freq = (range.second - range.first) / 10.0;
     auto nextReport = 1;
     uint64_t written = 0;
-    size_t const bufferSize = 4ul * 1024ul * 1024ul * 1024ul;
-    auto buffer = malloc(bufferSize);
-    auto bufEnd = (void const *)((uint8_t const *)buffer + bufferSize);
-    auto blockSize = 0;
-    
+
     std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
-    std::cerr << "info: record storage is " << bufferSize / 1024 / 1024 << "MB" << std::endl;
-    for (auto i = beg; i != end; ) {
-    AGAIN:
-        auto j = i + (blockSize == 0 ? 1000000 : blockSize);
-        if (j > end)
-            j = end;
-        auto m = std::map<int64_t, unsigned>();
-        {
-            auto v = std::vector<IndexRow>();
-            
-            v.reserve(j - i);
-            if (j != end) {
-                auto ii = i;
-                while (ii < j) {
-                    auto jj = ii;
-                    do { ++jj; } while (jj < j && jj->key64() == ii->key64());
-                    if (jj < j) {
-                        v.insert(v.end(), ii, jj);
-                        ii = jj;
-                    }
-                    else
-                        break;
-                }
-                j = ii;
-            }
-            else {
-                v.insert(v.end(), i, j);
-            }
-            std::sort(v.begin(), v.end(), IndexRow::rowLess);
-
-            auto cp = buffer;
-            unsigned count = 0;
-            for (auto && r : v) {
-                auto const row = r.row;
-                auto const tmp = ((uint8_t const *)cp - (uint8_t const *)buffer) / 4;
-                for (auto i = 0; i < 8; ++i) {
-                    auto const data = in.read(row, i + 1);
-                    auto p = data.copy(cp, bufEnd);
-                    if (p == nullptr) {
-                        std::cerr << "warn: filled buffer; reducing block size and restarting!" << std::endl;
-                        blockSize = 0.99 * count;
-                        std::cerr << "info: block size " << blockSize << std::endl;
-                        goto AGAIN;
-                    }
-                    cp = p->end();
-                }
-                ++count;
-                m[row] = (unsigned)tmp;
-            }
-            if (blockSize == 0) {
-                auto const avg = double(((uint8_t *)cp - (uint8_t *)buffer)) / count;
-                std::cerr << "info: average record size is " << size_t(avg + 0.5) << " bytes" << std::endl;
-                blockSize = 0.95 * (double(((uint8_t *)bufEnd - (uint8_t *)buffer)) / avg);
-                std::cerr << "info: block size " << blockSize << std::endl;
-            }
-        }
-        for (auto k = i; k < j; ) {
-            // the index is clustered by hash value, but there wasn't anything
-            // in the index generation code to deal with hash collisions, that
-            // is dealt with here, by reading all of the records with the same
-            // hash value and then sorting by group and name (and reference and
-            // position)
-            auto v = std::vector<decltype(k->row)>();
-            auto const key = k->key64();
-            do { v.push_back(k->row); ++k; } while (k < j && k->key64() == key);
-            
-            std::sort(v.begin(), v.end(), [&](decltype(k->row) a, decltype(k->row) b) {
-                auto adata = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[a] * 4);
-                auto bdata = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[b] * 4);
-
-                auto const agroup = adata->asString();
-                auto const bgroup = bdata->asString();
-
-                adata = adata->next();
-                bdata = bdata->next();
-
-                auto const aname = adata->asString();
-                auto const bname = bdata->asString();
-                
-                auto const sameGroup = (agroup == bgroup);
-
-                if (sameGroup && aname == bname)
-                    return a < b; // it's expected that collisions are (exceedingly) rare
-
-                return sameGroup ? (aname < bname) : (agroup < bgroup);
-            });
-            for (auto && row : v) {
-                auto data = (VDB::Cursor::Data const *)((uint8_t const *)buffer + m[row] * 4);
-                
-                write(colGroup      , data);
-                write(colName       , data = data->next());
-                write(colSequence   , data = data->next());
-                write(colReference  , data = data->next());
-                write(colCigar      , data = data->next());
-                write(colStrand     , data = data->next());
-                write(colReadNo     , data = data->next());
-                write(colPosition   , data = data->next());
-                otbl.closeRow();
-                
-                ++written;
-                if (nextReport * freq <= written) {
-                    std::cerr << "progress: writing " << nextReport << "0%" << std::endl;
-                    ++nextReport;
-                }
-            }
-        }
-        i = j;
-    }
     
+    auto const indexedCursor = VDB::IndexedCursor<RawRecord>(in, beg, end);
+    auto const rows = indexedCursor.foreach([&](RawRecord const &a) {
+        a.write(columns);
+        ++written;
+        if (nextReport * freq <= written) {
+            std::cerr << "progress: writing " << nextReport << "0%" << std::endl;
+            ++nextReport;
+        }
+    });
+    assert(rows == written);
+    assert(rows == range.second - range.first);
+    assert(rows == end - beg);
     return 0;
 }
 
@@ -637,12 +576,12 @@ static int process(std::string const &irdb, FILE *out)
     auto const mgr = VDB::Manager();
     auto const inDb = mgr[irdb];
     
-    IndexRow *index;
+    RawRecord::IndexT *index;
     size_t rows;
     {
         std::cerr << "status: creating clustering index" << std::endl;
         auto const p = makeIndex(inDb);
-        index = p.first;
+        index = static_cast<RawRecord::IndexT *>(p.first);
         rows = p.second;
     }
     auto writer = Writer2(out);
@@ -663,14 +602,14 @@ static int process(std::string const &irdb, FILE *out)
     });
     writer.beginWriting();
     
-    auto const in = inDb["RAW"].read({ "READ_GROUP", "NAME", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "READNO", "POSITION" });
+    auto const in = inDb["RAW"].read(RawRecord::columns());
 
     std::cerr << "status: rewriting rows in clustered order" << std::endl;
     auto const result = process(writer, in, index, index + rows);
     std::cerr << "status: done" << std::endl;
 
     writer.endWriting();
-    free(index);
+    delete [] index;
     return result;
 }
 
@@ -679,7 +618,7 @@ using namespace utility;
 namespace reorderIR {
     static void usage(CommandLine const &commandLine, bool error) {
         (error ? std::cerr : std::cout)
-        << "usage: " << commandLine.program[0] << " [-out=<index>] <ir db>"
+        << "usage: " << commandLine.program[0] << " [-stable] [-out=<index>] <ir db>"
         << std::endl;
         exit(error ? 3 : 0);
     }
@@ -693,6 +632,10 @@ namespace reorderIR {
         auto db = std::string();
         auto out = std::string();
         for (auto && arg : commandLine.argument) {
+            if (arg.substr(0, 7) == "-stable") {
+                sameSort = true;
+                continue;
+            }
             if (arg.substr(0, 5) == "-out=") {
                 out = arg.substr(5);
                 continue;

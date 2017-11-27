@@ -160,26 +160,23 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
     char buffer[32];
     
     std::cerr << "processing " << (range.second - range.first) << " records from " << tblName << std::endl;
-    for (int64_t row = range.first; row < range.second; ++row) {
-        auto const refName = in.read(row, 5);
-        auto const refPos = in.read(row, 7);
-        
+    in.foreach([&](int64_t row, std::vector<VDB::Cursor::RawData> const &data)
+    {
+        auto const refName = data[4];
+        auto const refPos = data[6];
+
         if (filter.empty() || filterInclude(refName.asString(), refPos.value<int32_t>() + 1)) {
-            auto const group = in.read(row, 1);
-            auto const n = snprintf(buffer, 32, "%" PRIi64, in.read(row, 2).value<int64_t>());
-            auto const readId = in.read(row, 3);
-            auto const sequence = in.read(row, 4);
-            auto const strand = char(in.read(row, 6).value<int8_t>() == 0 ? '+' : '-');
-            auto const cigar = in.read(row, 8);
+            auto const n = snprintf(buffer, 32, "%" PRIi64, data[1].value<int64_t>());
+            auto const strand = char(data[5].value<int8_t>() == 0 ? '+' : '-');
             
-            write(out, 1, group);
-            out.value(2, n, buffer);
-            write(out, 3, readId);
-            write(out, 4, sequence);
+            write(out, 1, data[0]);     ///< spot group
+            out.value(2, n, buffer);    ///< name
+            write(out, 3, data[2]);     ///< read number
+            write(out, 4, data[3]);     ///< sequence
             write(out, 5, refName);
             out.value(6, strand);
             write(out, 7, refPos);
-            write(out, 8, cigar);
+            write(out, 8, data[7]);     ///< cigar
             
             out.closeRow(1);
             ++written;
@@ -188,7 +185,7 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
             std::cerr << "processed " << nextReport << "%" << std::endl;
             ++nextReport;
         }
-    }
+    });
     std::cerr << "processed 100%" << std::endl;
     std::cerr << "imported " << written << " alignments from " << tblName << std::endl;
 }

@@ -28,7 +28,7 @@ A vdb database containing
     The last 4 columns are required for aligned records and must be removed for unaligned records.
     Example:
     ```
-    text2ir < testdata.txt | general-loader general-loader --include include --schema ./schema/aligned-ir.schema.text --target test.IR
+    text2ir < testdata.txt | general-loader --include include --schema ./schema/aligned-ir.schema.text --target test.IR
     ```
 1. `sra2ir` - provides a way to load an IR table from an existing SRA run. 
     It can filter by reference and region.
@@ -36,7 +36,7 @@ A vdb database containing
     Uses a gigaton of virtual memory (maybe).
     Example:
     ```
-    reorder-ir test.IR | general-loader general-loader --include include --schema ./schema/aligned-ir.schema.text --target test.sorted.IR
+    reorder-ir test.IR | general-loader --include include --schema ./schema/aligned-ir.schema.text --target test.sorted.IR
     ```
 1. `filter-ir` - removes problem fragments
     Moves problem fragments from `RAW` table to `DISCARDED` table.
@@ -46,7 +46,7 @@ A vdb database containing
     1. fragment contains alignments with bad CIGAR strings
     Example:
     ```
-    filter-ir test.sorted.IR | general-loader general-loader --include include --schema ./schema/aligned-ir.schema.text --target test.filtered.IR
+    filter-ir test.sorted.IR | general-loader --include include --schema ./schema/aligned-ir.schema.text --target test.filtered.IR
     ```
 1. `summarize-pairs` - for generating contiguous regions
     1. `summarize-pairs map` - generates a reduces representation of fragment alignments.

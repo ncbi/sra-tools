@@ -3,7 +3,7 @@ use strict;
 use warnings;
 
 for (@ARGV) {
-    if (/^-(?:h|?|help)$/) {
+    if (/^-(?:h|\?|help)$/) {
         print "$0 [-h|-?|-help] [-shuffle] [-nD]"
     }
 }
@@ -36,13 +36,23 @@ if ($shuffle) {
         print @x;
         exit(0);
     }
-    last;
 }
 
 my $n = 1;
+my $st = 0;
 for (@ARGV) {
+    if ($st) {
+        $n = 0+$1 if /^(\d+)$/;
+        $st = 0;
+        next;
+    }
     if (/^-n(\d+)$/) {
         $n = 0+$1;
+        next;
+    }
+    if (/^-n$/) {
+        $st = 1;
+        next;
     }
 }
 
@@ -113,7 +123,7 @@ while ($n > 0) {
         }
     }
     for (sort { $a->{position} <=> $b->{position} } @contig) {
-        print 'CONTIG_%d_chr1:10000-10965', $n, @$_{'name', 'readNo', 'sequence'}, 'chr1', @$_{'strand', 'position', 'cigar'}
+        print 'CONTIG_'.$n.'_chr1:10000-10965', @$_{'name', 'readNo', 'sequence'}, 'chr1', @$_{'strand', 'position', 'cigar'}
     }
     --$n;
 }

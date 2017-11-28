@@ -32,6 +32,7 @@
 #include <kfs/defs.h>
 #include <kfs/file.h>
 #include <kfs/buffile.h>
+#include <search/nucstrstr.h>
 
 #include <kdb/manager.h>
 #include <vdb/manager.h>
@@ -148,35 +149,6 @@ size_t get_size_t_option( const struct Args * args, const char *name, size_t dfl
         }
     }
     return res;
-}
-
-Fgrep * get_fgrep_option( const struct Args * args, const char *name )
-{
-    Fgrep * fgrep = NULL;
-    if ( args != NULL && name != NULL )
-    {
-        uint32_t count;
-        rc_t rc = ArgsOptionCount( args, name, &count );
-        if ( rc == 0 && count > 0 )
-        {
-            const char ** patterns = calloc( count, sizeof * patterns );
-            if ( patterns != NULL )
-            {
-                uint32_t idx;
-                for ( idx = 0; rc == 0 && idx < count; ++ idx )
-                {
-                    const char * pattern = NULL;
-                    rc = ArgsOptionValue( args, name, idx, ( const void** )&pattern );
-                    if ( rc == 0 )
-                        patterns[ idx ] = pattern;
-                }
-                if ( rc == 0 )
-                    rc = FgrepMake ( &fgrep, FGREP_MODE_ACGT | FGREP_ALG_DUMB, patterns, count );
-                free( ( void * ) patterns );
-            }
-        }
-    }
-    return fgrep;
 }
 
 static format_t format_cmp( String * Format, const char * test, format_t test_fmt )
@@ -900,4 +872,119 @@ rc_t locked_value_set( locked_value * self, uint64_t value )
         }
     }
     return rc;
+}
+
+/* ===================================================================================== */
+typedef struct Buf2NA
+{
+    unsigned char map [ 1 << ( sizeof ( char ) * 8 ) ];
+    size_t shiftLeft[ 4 ];
+    NucStrstr * nss;
+    uint8_t * buffer;
+    size_t allocated;
+} Buf2NA;
+
+rc_t make_Buf2NA( Buf2NA ** self, size_t size, const char * pattern )
+{
+    rc_t rc = 0;
+    NucStrstr * nss;
+    int res = NucStrstrMake ( &nss, 0, pattern, string_size ( pattern ) );
+    if ( res != 0 )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        uint8_t * buffer = calloc( size, sizeof * buffer );
+        if ( buffer == NULL )
+        {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            NucStrstrWhack ( nss );
+        }
+        else
+        {
+            Buf2NA * res = calloc( 1, sizeof * res );
+            if ( res == NULL )
+            {
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                NucStrstrWhack ( nss );
+                free( ( void * ) buffer );
+            }
+            else
+            {
+                res -> nss = nss;
+                res -> buffer = buffer;
+                res -> allocated = size;
+                res -> map[ 'A' ] = res -> map[ 'a' ] = 0;
+                res -> map[ 'C' ] = res -> map[ 'c' ] = 1;
+                res -> map[ 'G' ] = res -> map[ 'g' ] = 2;
+                res -> map[ 'T' ] = res -> map[ 't' ] = 3;
+                res -> shiftLeft [ 0 ] = 6;
+                res -> shiftLeft [ 1 ] = 4;
+                res -> shiftLeft [ 2 ] = 2;
+                res -> shiftLeft [ 3 ] = 0;
+                *self = res;
+            }
+        }
+    }
+    return rc;
+}
+
+void release_Buf2NA( Buf2NA * self )
+{
+    if ( self != NULL )
+    {
+        if ( self -> buffer != NULL )
+            free( ( void * ) self -> buffer );
+        if ( self -> nss != NULL )
+            NucStrstrWhack ( self -> nss );
+        free( ( void * ) self );
+    }
+}
+
+bool match_Buf2NA( Buf2NA * self, const String * ascii )
+{
+    bool res = false;
+    if ( self != NULL && ascii != NULL )
+    {
+        int i;
+        size_t needed = ( ( ascii -> len + 3 ) / 4 );
+        if ( needed > self -> allocated )
+        {
+            free( ( void * )self -> buffer );
+            self -> buffer = calloc( needed, sizeof *( self -> buffer ) );
+        }
+        else
+            memset( self -> buffer, 0, needed );
+
+        if ( self -> buffer != NULL )
+        {
+            unsigned int selflen;
+            int dst = 0;
+            int src = 0;
+            i = ascii -> len;
+            while ( i >= 4 )
+            {
+                self -> buffer[ dst++ ] =
+                    self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
+                    self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4 |
+                    self -> map[ ( unsigned char )ascii -> addr[ src + 2 ] ] << 2 |
+                    self -> map[ ( unsigned char )ascii -> addr[ src + 3 ] ];
+                src += 4;
+                i -= 4;
+            }
+            switch( i )
+            {
+                case 3 : self -> buffer[ dst ] = 
+                            self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
+                            self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4 |
+                            self -> map[ ( unsigned char )ascii -> addr[ src + 2 ] ] << 2; break;
+                case 2 : self -> buffer[ dst ] = 
+                            self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
+                            self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4; break;
+                case 1 : self -> buffer[ dst ] = 
+                            self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6; break;
+            }
+            res = ( 0 != NucStrstrSearch ( self -> nss, self -> buffer, 0, ascii -> len, & selflen ) );
+        }
+    }
+    return res;
 }

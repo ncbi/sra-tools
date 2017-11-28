@@ -41,6 +41,7 @@ typedef struct join_results
     struct temp_registry * registry;
     const char * output_base;
     const char * accession;
+    struct Buf2NA * buf2na;
     SBuffer print_buffer;   /* we have only one print_buffer... */
     Vector printers;
     size_t buffer_size;
@@ -63,6 +64,8 @@ void destroy_join_results( join_results * self )
     {
         VectorWhack ( &self -> printers, destroy_join_printer, NULL );
         release_SBuffer( &self -> print_buffer );
+        if ( self -> buf2na != NULL )
+            release_Buf2NA( self -> buf2na );
         free( ( void * ) self );
     }
 }
@@ -74,32 +77,62 @@ rc_t make_join_results( struct KDirectory * dir,
                         const char * accession,
                         size_t file_buffer_size,
                         size_t print_buffer_size,
-                        bool print_frag_nr )
+                        bool print_frag_nr,
+                        const char * filter_bases )
 {
-    rc_t rc;
-    join_results * p = calloc( 1, sizeof * p );
-    *results = NULL;
-    if ( p == NULL )
+    rc_t rc = 0;
+    struct Buf2NA * buf2na = NULL;
+    if ( filter_bases != NULL )
     {
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "make_join_results().calloc( %d ) -> %R", ( sizeof * p ), rc );
+        rc = make_Buf2NA( &buf2na, 512, filter_bases );
+        if ( rc != 0 )
+            ErrMsg( "error creating nucstrstr-filter from ( %s ) -> %R", filter_bases, rc );
     }
-    else
+    if ( rc == 0 )
     {
-        p -> dir = dir;
-        p -> output_base = output_base;
-        p -> accession = accession;
-        p -> buffer_size = file_buffer_size;
-        p -> registry = registry;
-        p -> print_frag_nr = print_frag_nr;
-        rc = make_SBuffer( &( p -> print_buffer ), print_buffer_size ); /* helper.c */
-        if ( rc == 0 )
+        join_results * p = calloc( 1, sizeof * p );
+        *results = NULL;
+        if ( p == NULL )
         {
-            VectorInit ( &p -> printers, 0, 4 );
-            *results = p;
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            ErrMsg( "make_join_results().calloc( %d ) -> %R", ( sizeof * p ), rc );
+        }
+        else
+        {
+            p -> dir = dir;
+            p -> output_base = output_base;
+            p -> accession = accession;
+            p -> buffer_size = file_buffer_size;
+            p -> registry = registry;
+            p -> print_frag_nr = print_frag_nr;
+            p -> buf2na = buf2na;
+            rc = make_SBuffer( &( p -> print_buffer ), print_buffer_size ); /* helper.c */
+            if ( rc == 0 )
+            {
+                VectorInit ( &p -> printers, 0, 4 );
+                *results = p;
+            }
         }
     }
+    if ( rc != 0 && buf2na != NULL )
+        release_Buf2NA( buf2na );
     return rc;
+}
+
+bool join_results_match( join_results * self, const String * bases )
+{
+    bool res = true;
+    if ( self != NULL && bases != NULL && self -> buf2na != NULL )
+        res = match_Buf2NA( self -> buf2na, bases );
+    return res;
+}
+
+bool join_results_match2( struct join_results * self, const String * bases1, const String * bases2 )
+{
+    bool res = true;
+    if ( self != NULL && bases1 != NULL && bases2 != NULL && self -> buf2na != NULL )
+        res = ( match_Buf2NA( self -> buf2na, bases1 ) || match_Buf2NA( self -> buf2na, bases2 ) );
+    return res;
 }
 
 static rc_t make_join_printer( join_results * self, uint32_t read_id, join_printer ** printer )

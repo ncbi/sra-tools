@@ -44,12 +44,6 @@ static bool filter1( join_stats * stats,
         if ( !process )
             stats -> fragments_too_short++;
     }
-    if ( process && ( jo -> fgrep != NULL ) )
-    {
-        FgrepMatch matchinfo;
-        uint32_t found = FgrepFindFirst ( jo -> fgrep, rec -> read . addr, rec -> read . len, &matchinfo );
-        process = ( found != 0 );
-    }
     return process;
 }
 
@@ -71,12 +65,6 @@ static bool filter( join_stats * stats,
         if ( !process )
             stats -> fragments_too_short++;
     }
-    if ( process && ( jo -> fgrep != NULL ) )
-    {
-        FgrepMatch matchinfo;
-        uint32_t found = FgrepFindFirst ( jo -> fgrep, rec -> read . addr, rec -> read . len, &matchinfo );
-        process = ( found != 0 );
-    }
     return process;
 }
 
@@ -91,15 +79,18 @@ static rc_t print_fastq_1_read( join_stats * stats,
     rc_t rc = 0;
     if ( filter1( stats, rec, jo ) )
     {
-        rc = join_results_print_fastq_v1( results,
-                                          rec -> row_id,
-                                          dst_id,
-                                          read_id,
-                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                          &( rec -> read ),
-                                          &( rec -> quality ) );
-        if ( rc == 0 )
-            stats -> fragments_written++;
+        if ( join_results_match( results, &( rec -> read ) ) )
+        {
+            rc = join_results_print_fastq_v1( results,
+                                              rec -> row_id,
+                                              dst_id,
+                                              read_id,
+                                              jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                              &( rec -> read ),
+                                              &( rec -> quality ) );
+            if ( rc == 0 )
+                stats -> fragments_written++;
+        }
     }
     return rc;
 }
@@ -126,19 +117,23 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
                 R . size = rec -> read_len[ read_id_0 ];
                 R . len  = ( uint32_t )R . size;
 
-                Q . addr = &rec -> quality . addr[ offset ];
-                Q . size = rec -> read_len[ read_id_0 ];
-                Q . len  = ( uint32_t )Q . size;
+                if ( join_results_match( results, &R ) )
+                {
+                    Q . addr = &rec -> quality . addr[ offset ];
+                    Q . size = rec -> read_len[ read_id_0 ];
+                    Q . len  = ( uint32_t )Q . size;
 
-                rc = join_results_print_fastq_v1( results,
-                                                  rec -> row_id,
-                                                  0,
-                                                  read_id_0 + 1,
-                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                  &R,
-                                                  &Q );
-                if ( rc == 0 )
-                    stats -> fragments_written++;
+                    if ( join_results_match( results, &( rec -> read ) ) )
+                    rc = join_results_print_fastq_v1( results,
+                                                      rec -> row_id,
+                                                      0,
+                                                      read_id_0 + 1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &R,
+                                                      &Q );
+                    if ( rc == 0 )
+                        stats -> fragments_written++;
+                }
             }
             offset += rec -> read_len[ read_id_0 ];           
         }
@@ -172,19 +167,22 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
                 R . size = rec -> read_len[ read_id_0 ];
                 R . len  = ( uint32_t )R . size;
 
-                Q . addr = &rec -> quality . addr[ offset ];
-                Q . size = rec -> read_len[ read_id_0 ];
-                Q . len  = ( uint32_t )Q . size;
+                if ( join_results_match( results, &R ) )
+                {
+                    Q . addr = &rec -> quality . addr[ offset ];
+                    Q . size = rec -> read_len[ read_id_0 ];
+                    Q . len  = ( uint32_t )Q . size;
 
-                rc = join_results_print_fastq_v1( results,
-                                                  rec -> row_id,
-                                                  write_id_1,
-                                                  read_id_0 + 1,
-                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                  &R,
-                                                  &Q );
-                if ( rc == 0 )
-                    stats -> fragments_written++;
+                    rc = join_results_print_fastq_v1( results,
+                                                      rec -> row_id,
+                                                      write_id_1,
+                                                      read_id_0 + 1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &R,
+                                                      &Q );
+                    if ( rc == 0 )
+                        stats -> fragments_written++;
+                }
             }
             offset += rec -> read_len[ read_id_0 ];            
         }
@@ -235,19 +233,22 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
                 R . size = rec -> read_len[ read_id_0 ];
                 R . len  = ( uint32_t )R . size;
 
-                Q . addr = &rec -> quality . addr[ offset ];
-                Q . size = rec -> read_len[ read_id_0 ];
-                Q . len  = ( uint32_t )Q . size;
-            
-                rc = join_results_print_fastq_v1( results,
-                                                  rec -> row_id,
-                                                  write_id_1,
-                                                  read_id_0 + 1,
-                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                  &R,
-                                                  &Q );
-                if ( rc == 0 )
-                    stats -> fragments_written++;
+                if ( join_results_match( results, &R ) )
+                {
+                    Q . addr = &rec -> quality . addr[ offset ];
+                    Q . size = rec -> read_len[ read_id_0 ];
+                    Q . len  = ( uint32_t )Q . size;
+                
+                    rc = join_results_print_fastq_v1( results,
+                                                      rec -> row_id,
+                                                      write_id_1,
+                                                      read_id_0 + 1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &R,
+                                                      &Q );
+                    if ( rc == 0 )
+                        stats -> fragments_written++;
+                }
 
                 if ( write_id_1 > 0 )
                     write_id_1++;
@@ -285,7 +286,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
     else
     {
         fastq_rec rec;
-        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> fgrep };
+        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
         while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             stats -> spots_read++;
@@ -407,7 +408,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     if ( rc == 0 )
     {
         fastq_rec rec;
-        join_options local_opt = { jo -> rowid_as_name, true, jo -> print_frag_nr, jo -> min_read_len, jo -> fgrep };
+        join_options local_opt = { jo -> rowid_as_name, true, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
         while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -469,7 +470,8 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                 jtd -> accession,
                                 jtd -> buf_size,
                                 4096,
-                                jtd -> join_options -> print_frag_nr );
+                                jtd -> join_options -> print_frag_nr,
+                                jtd -> join_options -> filter_bases );
     
     if ( rc == 0 && results != NULL )
     {

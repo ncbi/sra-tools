@@ -217,7 +217,7 @@ typedef struct tool_ctx
     const char * lookup_filename;
     const char * output_filename;
     const char * index_filename;
-
+    
     tmp_id tmp_id;
 
     char hostname[ HOSTNAMELEN ];
@@ -360,7 +360,7 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
         tool_ctx -> join_options . skip_tech = get_bool_option( args, OPTION_TECH );
         tool_ctx -> join_options . print_frag_nr = get_bool_option( args, OPTION_PFNR );
         tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
-        tool_ctx -> join_options . fgrep = get_fgrep_option( args, OPTION_BASE_FLT );
+        tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
         
         split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
         split_file = get_bool_option( args, OPTION_SPLIT_FILE );
@@ -755,6 +755,23 @@ static rc_t fastdump( tool_ctx * tool_ctx )
     return rc;
 }
 
+/*
+static rc_t filter_test( tool_ctx * tool_ctx )
+{
+    struct Buf2NA * self;
+    rc_t rc = make_Buf2NA( &self, 512, tool_ctx -> join_options . filter_bases );
+    if ( rc == 0 )
+    {
+        String S;
+        StringInitCString( &S, "ACGTACGTACGTACGT" );
+        
+        bool found = match_Buf2NA( self, &S );
+        rc = KOutMsg( "'%s' %s found in '%S'\n", tool_ctx -> join_options . filter_bases, found ? "!" : "not", &S );
+        release_Buf2NA( self );
+    }
+    return rc;
+}
+*/
 /* -------------------------------------------------------------------------------------------- */
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -772,10 +789,6 @@ rc_t CC KMain ( int argc, char *argv [] )
         if ( rc == 0 )
         {
             rc = fastdump( &tool_ctx );
-
-            if ( tool_ctx . join_options . fgrep != NULL )
-                FgrepFree ( tool_ctx . join_options . fgrep );
-                
             KDirectoryRelease( tool_ctx . dir );
         }
     }

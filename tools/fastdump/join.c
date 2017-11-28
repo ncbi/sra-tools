@@ -217,33 +217,43 @@ static rc_t print_fastq_1_read( join_stats * stats,
     bool process = filter( stats, rec, jo, 0 );
     if ( !process )
             return rc;
-            
+
     if ( rec -> prim_alig_id[ 0 ] == 0 )
     {
         /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-        rc = join_results_print_fastq_v1( j -> results,
-                                          row_id,
-                                          1, /* dst_id ( into which file to write ) */
-                                          1, /* read_id for tag-line */
-                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                          &( rec -> read ),
-                                          &( rec -> quality ) );
+        if ( join_results_match( j -> results, &( rec -> read ) ) )
+        {
+            rc = join_results_print_fastq_v1( j -> results,
+                                              row_id,
+                                              1, /* dst_id ( into which file to write ) */
+                                              1, /* read_id for tag-line */
+                                              jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                              &( rec -> read ),
+                                              &( rec -> quality ) );
+            if ( rc == 0 )
+                stats -> fragments_written++;
+        }
     }
     else
     {
         /* read is aligned, ( 1 lookup ) */    
         rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) );
         if ( rc == 0 )
-            rc = join_results_print_fastq_v1( j -> results,
-                                              row_id,
-                                              1, /* dst_id ( into which file to write ) */
-                                              1, /* read_id for tag-line */
-                                              jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                              &( j -> B1 . S ),
-                                              &( rec -> quality ) );
+        {
+            if ( join_results_match( j -> results, &( j -> B1 . S ) ) )
+            {
+                rc = join_results_print_fastq_v1( j -> results,
+                                                  row_id,
+                                                  1, /* dst_id ( into which file to write ) */
+                                                  1, /* read_id for tag-line */
+                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                  &( j -> B1 . S ),
+                                                  &( rec -> quality ) );
+                if ( rc == 0 )
+                    stats -> fragments_written++;
+            }
+        }
     }
-    if ( rc == 0 )
-        stats -> fragments_written++;
     return rc;
 }
 
@@ -262,28 +272,40 @@ static rc_t print_fastq_2_reads( join_stats * stats,
     {
         if ( rec -> prim_alig_id[ 1 ] == 0 )
         {
-            /* both unaligned, print what is in row->read (no lookup)*/
-            rc = join_results_print_fastq_v1( j -> results,
-                                              row_id,
-                                              dst_id,
-                                              dst_id,
-                                              jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                              &( rec -> read ),
-                                              &( rec -> quality ) );
+            /* both unaligned, print what is in row->read (no lookup)*/        
+            if ( join_results_match( j -> results, &( rec -> read ) ) )
+            {
+                rc = join_results_print_fastq_v1( j -> results,
+                                                  row_id,
+                                                  dst_id,
+                                                  dst_id,
+                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                  &( rec -> read ),
+                                                  &( rec -> quality ) );
+                if ( rc == 0 )
+                    stats -> fragments_written += 2;
+            }
         }
         else
         {
             /* A0 is unaligned / A1 is aligned (lookup) */
             rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) );
             if ( rc == 0 )
-                rc = join_results_print_fastq_v2( j -> results,
-                                  row_id,
-                                  dst_id,
-                                  dst_id,
-                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                  &( rec -> read ),
-                                  &( j -> B2 . S ),
-                                  &( rec -> quality ) );
+            {
+                if ( join_results_match2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) )
+                {
+                    rc = join_results_print_fastq_v2( j -> results,
+                                      row_id,
+                                      dst_id,
+                                      dst_id,
+                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                      &( rec -> read ),
+                                      &( j -> B2 . S ),
+                                      &( rec -> quality ) );
+                    if ( rc == 0 )
+                        stats -> fragments_written += 2;
+                }
+            }
         }
     }
     else
@@ -293,14 +315,21 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             /* A0 is aligned (lookup) / A1 is unaligned */
             rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) );
             if ( rc == 0 )
-                rc = join_results_print_fastq_v2( j -> results,
-                                  row_id,
-                                  dst_id,
-                                  dst_id,
-                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                  &( j -> B1 . S ),
-                                  &( rec -> read ),
-                                  &( rec -> quality ) );
+            {
+                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) )
+                {
+                    rc = join_results_print_fastq_v2( j -> results,
+                                      row_id,
+                                      dst_id,
+                                      dst_id,
+                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                      &( j -> B1 . S ),
+                                      &( rec -> read ),
+                                      &( rec -> quality ) );
+                    if ( rc == 0 )
+                        stats -> fragments_written += 2;
+                }
+            }
         }
         else
         {
@@ -309,20 +338,23 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             if ( rc == 0 )
                 rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) );
             if ( rc == 0 )
-                rc = join_results_print_fastq_v2( j -> results,
-                                  row_id,
-                                  dst_id,
-                                  dst_id,
-                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                  &( j -> B1 . S ),
-                                  &( j -> B2 . S ),
-                                  &( rec -> quality ) );
+            {
+                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) )
+                {
+                    rc = join_results_print_fastq_v2( j -> results,
+                                      row_id,
+                                      dst_id,
+                                      dst_id,
+                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                      &( j -> B1 . S ),
+                                      &( j -> B2 . S ),
+                                      &( rec -> quality ) );
+                    if ( rc == 0 )
+                        stats -> fragments_written += 2;
+                }
+            }
         }
     }
-    
-    if ( rc == 0 )
-        stats -> fragments_written += 2;
-
     return rc;
 }
 
@@ -365,15 +397,18 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 READ . addr = rec -> read . addr;
                 READ . size = rec -> read_len[ 0 ];
                 READ . len = ( uint32_t )READ . size;
-                rc = join_results_print_fastq_v1( j -> results,
-                                                  row_id,
-                                                  dst_id,
-                                                  1,
-                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                  &READ,
-                                                  &Q1 );
-                if ( rc == 0 )
-                    stats -> fragments_written ++;
+                if ( join_results_match( j -> results, &READ ) )
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &READ,
+                                                      &Q1 );
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
+                }
             }
             if ( rc == 0 && process_1 )
             {
@@ -382,15 +417,18 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 READ . len = ( uint32_t )READ . size;
                 if ( split_file )
                     dst_id++;
-                rc = join_results_print_fastq_v1( j -> results,
-                                                  row_id,
-                                                  dst_id,
-                                                  2,
-                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                  &READ,
-                                                  &Q2 );
-                if ( rc == 0 )
-                    stats -> fragments_written ++;
+                if ( join_results_match( j -> results, &READ ) )
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      2,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &READ,
+                                                      &Q2 );
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
+                }
             }
         }
         else
@@ -398,15 +436,18 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             /* A0 is unaligned / A1 is aligned (lookup) */
             if ( process_0 )
             {
-                rc = join_results_print_fastq_v1( j -> results,
-                                                  row_id,
-                                                  dst_id,
-                                                  1,
-                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                  &( rec -> read ),
-                                                  &Q1 );
-                if ( rc == 0 )
-                    stats -> fragments_written ++;
+                if ( join_results_match( j -> results, &( rec -> read ) ) )
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &( rec -> read ),
+                                                      &Q1 );
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
+                }
             }
             if ( rc == 0 && process_1 )
             {
@@ -415,15 +456,18 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 {
                     if ( split_file )
                         dst_id++;
-                    rc = join_results_print_fastq_v1( j -> results,
-                                                      row_id,
-                                                      dst_id,
-                                                      2,
-                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &( j -> B2 . S ),
-                                                      &Q2 );
-                    if ( rc == 0 )
-                        stats -> fragments_written ++;
+                    if ( join_results_match( j -> results, &( j -> B2 . S ) ) )
+                    {
+                        rc = join_results_print_fastq_v1( j -> results,
+                                                          row_id,
+                                                          dst_id,
+                                                          2,
+                                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                          &( j -> B2 . S ),
+                                                          &Q2 );
+                        if ( rc == 0 )
+                            stats -> fragments_written ++;
+                    }
                 }
             }
         }
@@ -437,29 +481,37 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             {
                 rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 );
                 if ( rc == 0 )
-                    rc = join_results_print_fastq_v1( j -> results,
-                                                      row_id,
-                                                      dst_id,
-                                                      1,
-                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &( j -> B1 . S ),
-                                                      &Q1 );
-                if ( rc == 0 )
-                    stats -> fragments_written ++;
+                {
+                    if ( join_results_match( j -> results, &( j -> B1 . S ) ) )
+                    {
+                        rc = join_results_print_fastq_v1( j -> results,
+                                                          row_id,
+                                                          dst_id,
+                                                          1,
+                                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                          &( j -> B1 . S ),
+                                                          &Q1 );
+                        if ( rc == 0 )
+                            stats -> fragments_written ++;
+                    }
+                }
             }
             if ( rc == 0 && process_1 )
             {
                 if ( split_file )
                     dst_id++;
-                rc = join_results_print_fastq_v1( j -> results,
-                                                  row_id,
-                                                  dst_id,
-                                                  2,
-                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                  &( rec -> read ),
-                                                  &Q2 );
-                if ( rc == 0 )
-                    stats -> fragments_written ++;
+                if ( join_results_match( j -> results, &( rec -> read ) ) )
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      2,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &( rec -> read ),
+                                                      &Q2 );
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
+                }
             }
         }
         else
@@ -469,15 +521,20 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             {
                 rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 );
                 if ( rc == 0 )
-                    rc = join_results_print_fastq_v1( j -> results,
-                                                      row_id,
-                                                      dst_id,
-                                                      1,
-                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &( j -> B1 . S ),
-                                                      &Q1 );
-                if ( rc == 0 )
-                    stats -> fragments_written ++;
+                {
+                    if ( join_results_match( j -> results, &( j -> B1 . S ) ) )
+                    {
+                        rc = join_results_print_fastq_v1( j -> results,
+                                                          row_id,
+                                                          dst_id,
+                                                          1,
+                                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                          &( j -> B1 . S ),
+                                                          &Q1 );
+                        if ( rc == 0 )
+                            stats -> fragments_written ++;
+                    }
+                }
             }
             if ( rc == 0 && process_1 )
             {
@@ -486,15 +543,18 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 {
                     if ( split_file )
                         dst_id++;
-                    rc = join_results_print_fastq_v1( j -> results,
-                                                      row_id,
-                                                      dst_id,
-                                                      2,
-                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &( j -> B2 . S ),
-                                                      &Q2 );
-                    if ( rc == 0 )
-                        stats -> fragments_written ++;
+                    if ( join_results_match( j -> results, &( j -> B2 . S ) ) )
+                    {
+                        rc = join_results_print_fastq_v1( j -> results,
+                                                          row_id,
+                                                          dst_id,
+                                                          2,
+                                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                          &( j -> B2 . S ),
+                                                          &Q2 );
+                        if ( rc == 0 )
+                            stats -> fragments_written ++;
+                    }
                 }
             }
         }
@@ -569,7 +629,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
     else
     {
         fastq_rec rec;
-        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr };
+        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
         while ( get_from_fastq_csra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -650,7 +710,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
     else
     {
         fastq_rec rec;
-        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr };
+        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
         while ( get_from_fastq_csra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -691,7 +751,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     else
     {
         fastq_rec rec;
-        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr };
+        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
         while ( get_from_fastq_csra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -752,7 +812,8 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                 jtd -> accession,
                                 jtd -> buf_size,
                                 4096,
-                                jtd -> join_options -> print_frag_nr );
+                                jtd -> join_options -> print_frag_nr,
+                                jtd -> join_options -> filter_bases );
     
     if ( rc == 0 && results != NULL )
     {

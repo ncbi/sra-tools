@@ -251,8 +251,8 @@ test_show_print_frag_nr()
 }
 
 #test_csra
-#test_sra_flat_2
-#test_sra_flat_4
-#test_sra_flat_split_spot
-#test_sra_db
-test_show_print_frag_nr
+test_sra_flat_2
+test_sra_flat_4
+test_sra_flat_split_spot
+test_sra_db
+#test_show_print_frag_nr

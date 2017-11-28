@@ -57,7 +57,11 @@ rc_t make_join_results( struct KDirectory * dir,
                         const char * accession,
                         size_t file_buffer_size,
                         size_t print_buffer_size,
-                        bool print_frag_nr );
+                        bool print_frag_nr,
+                        const char * filter_bases );
+
+bool join_results_match( struct join_results * self, const String * bases );
+bool join_results_match2( struct join_results * self, const String * bases1, const String * bases2 );
 
 rc_t join_results_print( struct join_results * self, uint32_t read_id, const char * fmt, ... );
 

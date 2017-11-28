@@ -28,7 +28,7 @@ A vdb database containing
     The last 4 columns are required for aligned records and must be removed for unaligned records.
     Example:
     ```
-    text2ir testdata.txt | general-loader general-loader --include include --schema ./schema/aligned-ir.schema.text --target test.IR
+    text2ir < testdata.txt | general-loader general-loader --include include --schema ./schema/aligned-ir.schema.text --target test.IR
     ```
 1. `sra2ir` - provides a way to load an IR table from an existing SRA run. 
     It can filter by reference and region.

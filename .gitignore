@@ -22,3 +22,5 @@
 /.project
 /.pydevproject
 tmp.kfg
+xcuserdata/
+*.dylib

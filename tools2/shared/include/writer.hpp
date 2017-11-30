@@ -376,6 +376,9 @@ public:
         bool setValue(unsigned count, unsigned elsize, void const *data) const {
             return parent.value(columnNumber, count, elsize, data);
         }
+        bool setValue(VDB::Cursor::Data const *data) const {
+            return setValue(data->elements, data->elem_bits >> 3, data->data());
+        }
         bool setValueEmpty() const {
             return parent.value(columnNumber, 0, "");
         }
@@ -419,6 +422,12 @@ public:
             columns[i.name] = cno;
         }
         tables[name] = std::make_pair(tno, columns);
+    }
+    bool setValue(ColumnID columnNumber, unsigned count, unsigned elsize, void const *data) const {
+        return value(columnNumber, count, elsize, data);
+    }
+    bool setValue(ColumnID columnNumber, VDB::Cursor::Data const *data) const {
+        return setValue(columnNumber, data->elements, data->elem_bits >> 3, data->data());
     }
 };
 

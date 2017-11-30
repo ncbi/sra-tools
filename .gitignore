@@ -5,6 +5,8 @@
 *.db
 *.o
 *.pyc
+*.dylib
+*.a
 /bin64
 /build/BUILD.*
 /build/COMP.mac
@@ -23,4 +25,3 @@
 /.pydevproject
 tmp.kfg
 xcuserdata/
-*.dylib

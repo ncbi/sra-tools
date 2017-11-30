@@ -44,11 +44,55 @@
 #include <sys/mman.h>
 #include <pthread.h>
 
-static uint8_t substitute[256];
+static uint8_t SBox[256];
+
+static unsigned random_uniform(int upper_bound) {
+#if __APPLE__ && 0
+    return arc4random_uniform(upper_bound);
+#else
+    static double *next = NULL;
+    static double entropy[256];
+    
+    if (next == NULL) {
+        FILE *fp;
+        
+        if ((fp = fopen("/dev/urandom", "r")) != NULL || (fp = fopen("/dev/random", "r")) != NULL) {
+            uint32_t tmp[256];
+            fread(&tmp, 4, 256, fp);
+            for (auto i = 0; i < 256; ++i) {
+                entropy[i] = double(tmp[i]) / exp2(32);
+            }
+            fclose(fp);
+        }
+        else {
+            srand(unsigned(time(0)));
+            for (auto i = 0; i < 256; ++i)
+                entropy[i] = double(rand()) / RAND_MAX;
+        }
+        next = entropy;
+    }
+    return unsigned(floor(*next++ * upper_bound));
+#endif
+}
+
+static void unrandomizeSBox(void) {
+    for (auto i = 0; i < 256; ++i) {
+        SBox[i] = i;
+    }
+}
+
+static void randomizeSBox(void) {
+    SBox[0] = 0;
+    for (auto i = 1; i < 256; ++i) {
+        auto const j = random_uniform(i + 1);
+        SBox[i] = SBox[j];
+        SBox[j] = i;
+    }
+}
 
 struct IndexRow {
     uint8_t key[8];
-    int64_t row;
+    VDB::Cursor::RowID row;
     
     uint64_t key64() const {
         return *reinterpret_cast<uint64_t const *>(&key[0]);
@@ -65,7 +109,7 @@ struct IndexRow {
     }
 };
 
-static IndexRow makeIndexRow(int64_t row, VDB::Cursor::RawData const &group, VDB::Cursor::RawData const &name)
+static IndexRow makeIndexRow(VDB::Cursor::RowID row, VDB::Cursor::RawData const &group, VDB::Cursor::RawData const &name)
 {
     IndexRow y;
     union {
@@ -76,11 +120,11 @@ static IndexRow makeIndexRow(int64_t row, VDB::Cursor::RawData const &group, VDB
     h.u64 = 0xcbf29ce484222325ull;
     for (auto i = 0; i < group.elements; ++i) {
         auto const ch = reinterpret_cast<uint8_t const *>(group.data)[i];
-        h.u64 = (h.u64 ^ substitute[ch]) * 0x100000001b3ull;
+        h.u64 = (h.u64 ^ SBox[ch]) * 0x100000001b3ull;
     }
     for (auto i = 0; i < name.elements; ++i) {
         auto const ch = reinterpret_cast<uint8_t const *>(name.data)[i];
-        h.u64 = (h.u64 ^ substitute[ch]) * 0x100000001b3ull;
+        h.u64 = (h.u64 ^ SBox[ch]) * 0x100000001b3ull;
     }
     std::copy(h.u8, h.u8 + 8, y.key);
     y.row = row;
@@ -330,7 +374,10 @@ static void sortIndex(uint64_t const N, IndexRow *const index)
         }
         assert(j == keys);
     }
-    std::sort(tmp, tmp + keys, [](IndexRow const *a, IndexRow const *b) { return a->row < b->row; });
+    {
+        struct foo { static bool less(IndexRow const *a, IndexRow const *b) { return a->row < b->row; } };
+        std::sort(tmp, tmp + keys, foo::less);
+    }
     {
         uint64_t j = 0;
         for (auto i = uint64_t(0); i < keys; ++i) {
@@ -356,7 +403,7 @@ static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
     auto const freq = N / 10.0;
     auto nextReport = 1;
     
-    in.foreach([&](int64_t row, std::vector<VDB::Cursor::RawData> const &data) {
+    in.foreach([&](VDB::Cursor::RowID row, std::vector<VDB::Cursor::RawData> const &data) {
         auto const i = row - range.first;
         index[i] = makeIndexRow(row, data[0], data[1]);
         while (nextReport * freq <= i) {
@@ -374,7 +421,7 @@ static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
 
 struct RawRecord : public VDB::IndexedCursorBase::Record {
     struct IndexT : public IndexRow {
-        uint64_t row() const { return IndexRow::row; }
+        VDB::Cursor::RowID row() const { return IndexRow::row; }
         bool operator ==(IndexT const &other) const { return key64() == other.key64(); }
     };
     typedef IndexT const *IndexIteratorT;
@@ -383,14 +430,14 @@ struct RawRecord : public VDB::IndexedCursorBase::Record {
     bool write(std::array<Writer2::Column, 8> const &out) const {
         auto data = this->data;
         for (auto i = 0; i < 8; ++i) {
-            if (!out[i].setValue(data->elements, data->elem_bits / 8, data->data()))
+            if (!out[i].setValue(data))
                 return false;
             data = data->next();
         }
         return true;
     }
     static std::initializer_list<char const *> columns() {
-        return { "READ_GROUP", "NAME", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "READNO", "POSITION" };
+        return { "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "POSITION" };
     }
     friend bool operator <(RawRecord const &a, RawRecord const &b) {
         auto const agroup = a.data->asString();
@@ -412,17 +459,40 @@ struct RawRecord : public VDB::IndexedCursorBase::Record {
     }
 };
 
+#define VALIDATE 1
+#if VALIDATE
+#include <set>
+
+void validate(RawRecord const &r) {
+    using datatype = std::pair<std::string, std::string>;
+    static std::set< datatype > s;
+    static datatype lastOne;
+
+    auto const group = r.data->asString();
+    auto const name = r.data->next()->asString();
+    auto const thisOne = std::make_pair(group, name);
+    if (s.empty() || lastOne != thisOne) {
+        auto const inserted = s.insert(thisOne);
+        assert(inserted.second == true);
+        lastOne = thisOne;
+    }
+}
+#else
+void validate(RawRecord const &r) {
+}
+#endif
+
 static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT const *const beg, RawRecord::IndexT const *const end)
 {
     auto const otbl = out.table("RAW");
     std::array<Writer2::Column, 8> const columns = {
         otbl.column("READ_GROUP"),
         otbl.column("NAME"),
+        otbl.column("READNO"),
         otbl.column("SEQUENCE"),
         otbl.column("REFERENCE"),
         otbl.column("CIGAR"),
         otbl.column("STRAND"),
-        otbl.column("READNO"),
         otbl.column("POSITION")
     };
     
@@ -437,8 +507,9 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
 
     std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
     
-    auto const indexedCursor = VDB::IndexedCursor<RawRecord>(in, beg, end);
+    auto const indexedCursor = VDB::CollidableIndexedCursor<RawRecord>(in, beg, end);
     auto const rows = indexedCursor.foreach([&](RawRecord const &a) {
+        validate(a);
         a.write(columns);
         otbl.closeRow();
         ++written;
@@ -457,7 +528,24 @@ static int process(std::string const &irdb, FILE *out)
 {
     auto const mgr = VDB::Manager();
     auto const inDb = mgr[irdb];
+    auto writer = Writer2(out);
     
+    writer.destination("IR.vdb");
+    writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
+    writer.info("reorder-ir", "1.0.0");
+    
+    writer.addTable("RAW", {
+        { "READ_GROUP"  , 1 },  ///< string
+        { "NAME"        , 1 },  ///< string
+        { "READNO"      , 4 },  ///< int32_t
+        { "SEQUENCE"    , 1 },  ///< string
+        { "REFERENCE"   , 1 },  ///< string
+        { "CIGAR"       , 1 },  ///< string
+        { "STRAND"      , 1 },  ///< char
+        { "POSITION"    , 4 },  ///< int32_t
+    });
+    writer.beginWriting();
+
     RawRecord::IndexT *index;
     size_t rows;
     {
@@ -466,23 +554,6 @@ static int process(std::string const &irdb, FILE *out)
         index = static_cast<RawRecord::IndexT *>(p.first);
         rows = p.second;
     }
-    auto writer = Writer2(out);
-    
-    writer.destination("IR.vdb");
-    writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
-    writer.info("reorder-ir", "1.0.0");
-
-    writer.addTable("RAW", {
-        { "READ_GROUP"  , 1 },  ///< string
-        { "NAME"        , 1 },  ///< string
-        { "SEQUENCE"    , 1 },  ///< string
-        { "REFERENCE"   , 1 },  ///< string
-        { "CIGAR"       , 1 },  ///< string
-        { "STRAND"      , 1 },  ///< char
-        { "READNO"      , 4 },  ///< int32_t
-        { "POSITION"    , 4 },  ///< int32_t
-    });
-    writer.beginWriting();
     
     auto const in = inDb["RAW"].read(RawRecord::columns());
 
@@ -495,57 +566,30 @@ static int process(std::string const &irdb, FILE *out)
     return result;
 }
 
-static int random_uniform(int lower_bound, int upper_bound) {
-    if (upper_bound <= lower_bound) return lower_bound;
-#if __APPLE__
-    return arc4random_uniform(upper_bound - lower_bound) + lower_bound;
-#else
-    struct seed_rand {
-        seed_rand() {
-            srand((unsigned)time(0));
-        }
-    };
-    auto const M = upper_bound - lower_bound;
-    auto const once = seed_rand();
-    auto const m = RAND_MAX - RAND_MAX % M;
-    for ( ; ; ) {
-        auto const r = rand();
-        if (r < m) return r % M + lower_bound;
-    }
-#endif
-}
-
 using namespace utility;
 
 namespace reorderIR {
     static void usage(CommandLine const &commandLine, bool error) {
         (error ? std::cerr : std::cout)
-        << "usage: " << commandLine.program[0] << " [-stable] [-out=<index>] <ir db>"
+        << "usage: " << commandLine.program[0] << " [-stable] [-out=<path>] <ir db>"
         << std::endl;
         exit(error ? 3 : 0);
     }
     
     static int main(CommandLine const &commandLine) {
-        for (auto i = 0; i < 256; ++i) {
-            auto const j = random_uniform(0, i + 1);
-            if (j == i)
-                substitute[i] = i;
-            else {
-                auto const jj = substitute[j];
-                substitute[j] = i;
-                substitute[i] = jj;
-            }
-        }
         for (auto && arg : commandLine.argument) {
             if (arg == "-help" || arg == "-h" || arg == "-?") {
                 usage(commandLine, false);
             }
         }
+
         auto db = std::string();
         auto out = std::string();
+
+        randomizeSBox();
         for (auto && arg : commandLine.argument) {
             if (arg.substr(0, 7) == "-stable") {
-                for (auto i = 0; i < 256; ++i) substitute[i] = i;
+                unrandomizeSBox();
                 continue;
             }
             if (arg.substr(0, 5) == "-out=") {

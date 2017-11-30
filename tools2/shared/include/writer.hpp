@@ -34,6 +34,8 @@
 #include <algorithm>
 #include <cstdio>
 
+#include "vdb.hpp"
+
 namespace VDB {
     class Writer {
         enum EventCode {

@@ -95,6 +95,7 @@ namespace VDB {
         
         Cursor(C::VCursor *const o_, unsigned columns_) :o(o_), N(columns_) {}
     public:
+        using RowID = int64_t;
         struct Data {
             unsigned elem_bits;
             unsigned elements;
@@ -144,6 +145,10 @@ namespace VDB {
             size_t size() const {
                 return (elem_bits * elements + 7) / 8;
             }
+            size_t storedSize() const {
+                auto const words = ((elem_bits * elements + 7) / 8 + 3) >> 2;
+                return sizeof(Data) + (words << 2);
+            }
             Data const *copy(void *memory, void const *endp) const {
                 auto const source = (char const *)(this->data);
                 auto const rslt = (DataList *)memory;
@@ -179,7 +184,7 @@ namespace VDB {
         ~Cursor() { C::VCursorRelease(o); }
         unsigned columns() const { return N; }
         
-        std::pair<int64_t, int64_t> rowRange() const
+        std::pair<RowID, RowID> rowRange() const
         {
             uint64_t count = 0;
             int64_t first = 0;
@@ -187,7 +192,7 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return std::make_pair(first, first + count);
         }
-        RawData read(int64_t row, unsigned cid) const {
+        RawData read(RowID row, unsigned cid) const {
             RawData out;
             void const *base = 0;
             uint32_t count = 0;
@@ -203,7 +208,7 @@ namespace VDB {
             
             return out;
         }
-        void read(int64_t row, unsigned const N, RawData out[]) const
+        void read(RowID row, unsigned const N, RawData out[]) const
         {
             for (unsigned i = 0; i < N; ++i) {
                 out[i] = read(row, i + 1);
@@ -215,7 +220,7 @@ namespace VDB {
             auto const range = rowRange();
             uint64_t rows = 0;
             
-            data.reserve(N);
+            data.resize(N);
             for (auto i = range.first; i < range.second; ++i) {
                 for (auto j = 0; j < N; ++j) {
                     void const *base = 0;
@@ -234,7 +239,7 @@ namespace VDB {
             }
             return rows;
         }
-        void *save(int64_t const row, void *const dst, void const *const end) const {
+        void *save(RowID const row, void *const dst, void const *const end) const {
             auto out = dst;
             for (auto i = 0; i < N; ++i) {
                 auto const data = read(row, i + 1);
@@ -245,115 +250,95 @@ namespace VDB {
             }
             return out;
         }
-#if VDB_WRITEABLE
-        void newRow() const {
-            auto const rc = C::VCursorOpenRow(o);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-        }
-        template <typename T>
-        void write(unsigned col, T const &value) const {
-            auto const rc = C::VCursorWrite(o, col, sizeof(T) * 8, (void const *)&value, 0, 1);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-        }
-        template <typename T>
-        void writeNull(unsigned col) const {
-            auto dummy = T(0);
-            auto const rc = C::VCursorWrite(o, col, sizeof(T) * 8, (void const *)&dummy, 0, 0);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-        }
-        template <typename T>
-        void write(unsigned col, unsigned N, T const *value) const {
-            auto const rc = C::VCursorWrite(o, col, sizeof(T) * 8, (void const *)&value, 0, N);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-        }
-        void write(unsigned col, std::string const &value) const {
-            auto const rc = C::VCursorWrite(o, col, 8, (void const *)value.data(), 0, value.size());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-        }
-        void commitRow() const {
-            auto rc = C::VCursorCommitRow(o);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            rc = C::VCursorCloseRow(o);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-        }
-        void commit() const {
-            auto const rc = C::VCursorCommit(o);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-        }
-#endif
     };
     class IndexedCursorBase : public Cursor {
     protected:
         char *const buffer;
         char const *const bufEnd;
-
-    public:
-        struct Record {
-            int64_t row;
-            Cursor::DataList const *data;
-            
-            Record(void const *const data, int64_t row) : row(row), data((Cursor::DataList const *)data) {}
-        };
+        
+        char *save(RowID row, char *at) const {
+            auto const rslt = Cursor::save(row, reinterpret_cast<void *>(at), reinterpret_cast<void const *>(bufEnd));
+            return reinterpret_cast<char *>(rslt);
+        }
 
         IndexedCursorBase(Cursor const &curs, size_t bufSize)
         : Cursor(curs)
-        , buffer((char *)malloc(bufSize))
-        , bufEnd(buffer + bufSize)
+        , buffer((char *)malloc(bufSize ? bufSize : defaultBufferSize()))
+        , bufEnd(buffer + (bufSize ? bufSize : defaultBufferSize()))
         {
             if (buffer == nullptr) throw std::bad_alloc();
         }
         ~IndexedCursorBase() {
             free(buffer);
         }
+    public:
+        struct Record {
+            RowID row;
+            Cursor::DataList const *data;
+            
+            Record(void const *const data, RowID row) : row(row), data((Cursor::DataList const *)data) {}
+        };
+
         size_t bufferSize() const { return bufEnd - buffer; }
+        static size_t defaultBufferSize() {
+            return 4ull * 1024ull * 1024ull * 1024ull;
+        }
+        RawData read(RowID row, unsigned cid) const = delete;
+        void read(RowID row, unsigned const N, RawData out[]) const = delete;
     };
+    
+    /*
+     * The requirements on T are
+     *  T(IndexedCursorBase::Record const &)
+     *  typename T::IndexIteratorT
+     *  typename T::IndexIteratorT::const_reference (this typename is not used directly, see operator *())
+     *  T::IndexIteratorT(T::IndexIteratorT const &) or T::IndexIteratorT::operator =
+     *  T::IndexIteratorT::operator !=
+     *  T::IndexIteratorT::operator <
+     *  T::IndexIteratorT::operator -
+     *  T::IndexIteratorT::operator ++
+     *  T::IndexIteratorT::const_reference T::IndexIteratorT::operator *() (const_reference is implied to be whatever this returns)
+     *  Cursor::RowID T::IndexIteratorT::const_reference::row()
+     */
     template <typename T>
     class IndexedCursor : public IndexedCursorBase {
-        typedef typename T::IndexIteratorT IndexIteratorT;
+        using IndexIteratorT = typename T::IndexIteratorT;
         IndexIteratorT beg;
         IndexIteratorT const end;
         
-        std::map<int64_t, unsigned> loadBlock(IndexIteratorT const i, IndexIteratorT const j, unsigned &count, size_t &used) const {
-            auto map = std::map<int64_t, unsigned>();
-            auto v = std::vector<int64_t>();
-
-            if (j >= end) {
-                v.reserve(end - i);
-                for (auto ii = i; ii < end; ++ii)
-                    v.emplace_back(ii->row());
+        std::map<RowID, unsigned> loadBlock(IndexIteratorT const i, IndexIteratorT const j, unsigned &count, size_t &used) const {
+            auto map = std::map<RowID, unsigned>();
+            auto v = std::vector<RowID>();
+            
+            v.reserve(std::min(j, end) - i);
+            if (j < end) {
+                for (auto ii = i; ii < j; ++ii)
+                    v.emplace_back((*ii).row());
             }
             else {
-                auto n = v.size();
-                auto l = i;
-
-                v.reserve(j - i);
-                for (auto ii = i; ii < j; ++ii) {
-                    if (!(*l == *ii)) {
-                        l = ii;
-                        n = v.size();
-                    }
-                    v.emplace_back(ii->row());
-                }
-                v.resize(n);
+                for (auto ii = i; ii < end; ++ii)
+                    v.emplace_back((*ii).row());
             }
             std::sort(v.begin(), v.end());
             
             auto cur = buffer;
             for (auto && row : v) {
-                assert((used & 0x3) == 0);
-                map[row] = unsigned(used >> 2);
-                cur = (char *)save(row, (void *)cur, (void const *)bufEnd);
-                if (cur == nullptr) {
-                    map.clear();
-                    break;
+                auto const tmp = save(row, cur);
+                if (tmp) {
+                    auto const bytes = tmp - cur;
+                    cur = tmp;
+                    map[row] = unsigned(used >> 2);
+                    used += bytes;
+                    ++count;
+                    assert((used & 0x3) == 0);
+                    continue;
                 }
-                used = cur - buffer;
-                ++count;
+                break;
             }
             return map;
         }
     public:
-        IndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 4ul * 1024ul * 1024ul * 1024ul)
+        IndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 0)
         : IndexedCursorBase(p, bufSize)
         , beg(index)
         , end(indexEnd)
@@ -362,7 +347,98 @@ namespace VDB {
         uint64_t foreach(F f) const {
             auto firstTime = true;
             auto blockSize = std::min(size_t(1000000), size_t((end - beg) / 10));
-            auto rowset = std::vector<int64_t>();
+            auto rows = uint64_t(0);
+            
+            for (auto i = beg; i != end; ) {
+                unsigned count = 0;
+                size_t used = 0;
+                auto const block = loadBlock(i, i + blockSize, count, used);
+                auto const j = i + block.size();
+                while (i < j) {
+                    auto const a = *(i++).row();
+                    auto const aa = block.find(a); assert(aa != block.end());
+                    T const &A = Record((void const *)(buffer + (aa->second << 2)), a);
+                    f(A);
+                    ++rows;
+                }
+                if (firstTime) {
+                    blockSize = 0.95 * bufferSize() * count / used;
+                    firstTime = false;
+                }
+            }
+            return rows;
+        }
+    };
+    
+    /*
+     * Specialized to deal with cases where there could be collision between
+     * index keys, i.e. two records with the same key that shouldn't be equal.
+     * This can happen with hash indexes.
+     *
+     * This version is less efficient, and could potentially have to backtrack.
+     *
+     * The requirements on T are same as above, with the addition of:
+     *  T::operator <
+     *  T::IndexIteratorT::const_reference::operator ==
+     */
+    template <typename T>
+    class CollidableIndexedCursor : public IndexedCursorBase {
+        using IndexIteratorT = typename T::IndexIteratorT;
+        IndexIteratorT beg;
+        IndexIteratorT const end;
+        
+        std::map<RowID, unsigned> loadBlock(IndexIteratorT const i, IndexIteratorT const j, unsigned &count, size_t &used) const {
+            auto map = std::map<RowID, unsigned>();
+            auto v = std::vector<RowID>();
+
+            v.reserve(std::min(j, end) - i);
+            if (j < end) {
+                auto n = v.size();
+                auto l = i;
+                
+                for (auto ii = i; ii < j; ++ii) {
+                    if (!(*l == *ii)) {
+                        l = ii;
+                        n = v.size();
+                    }
+                    v.emplace_back((*ii).row());
+                }
+                v.resize(n);
+            }
+            else {
+                for (auto ii = i; ii < end; ++ii)
+                    v.emplace_back((*ii).row());
+            }
+            std::sort(v.begin(), v.end());
+            
+            auto cur = buffer;
+            for (auto && row : v) {
+                auto const tmp = save(row, cur);
+                if (tmp) {
+                    auto const bytes = tmp - cur;
+                    cur = tmp;
+                    map[row] = unsigned(used >> 2);
+                    used += bytes;
+                    ++count;
+                    assert((used & 0x3) == 0);
+                    continue;
+                }
+                map.clear();
+                break;
+            }
+            return map;
+        }
+    public:
+        CollidableIndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 0)
+        : IndexedCursorBase(p, bufSize)
+        , beg(index)
+        , end(indexEnd)
+        {}
+        template <typename F>
+        uint64_t foreach(F f) const {
+            auto firstTime = true;
+            auto blockSize = std::min(size_t(1000000), size_t((end - beg) / 10));
+            auto rowset = std::vector<RowID>();
             auto rows = uint64_t(0);
 
             for (auto i = beg; i != end; ) {
@@ -371,12 +447,10 @@ namespace VDB {
                 auto const block = loadBlock(i, i + blockSize, count, used);
                 auto const j = i + block.size();
                 while (i < j) {
-                    rowset.clear();
-                    
                     auto const &k = *i;
-                    do { rowset.emplace_back(i++->row()); } while (i < j && *i == k);
+                    do { rowset.emplace_back((*i++).row()); } while (i < j && *i == k);
                     
-                    std::sort(rowset.begin(), rowset.end(), [&](uint64_t a, uint64_t b) {
+                    std::sort(rowset.begin(), rowset.end(), [&](RowID a, RowID b) {
                         auto const aa = block.find(a); assert(aa != block.end());
                         auto const bb = block.find(b); assert(bb != block.end());
                         T const &A = Record((void const *)(buffer + (aa->second << 2)), a);
@@ -389,6 +463,7 @@ namespace VDB {
                         f(A);
                         ++rows;
                     }
+                    rowset.clear();
                 }
                 if (block.empty())
                     blockSize = 0.99 * count;
@@ -399,8 +474,6 @@ namespace VDB {
             }
             return rows;
         }
-        RawData read(int64_t row, unsigned cid) const = delete;
-        void read(int64_t row, unsigned const N, RawData out[]) const = delete;
     };
     class Table {
         friend class Database;
@@ -448,26 +521,6 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Cursor(const_cast<C::VCursor *>(curs), n);
         }
-#if VDB_WRITEABLE
-        Cursor append(unsigned const N, char const *fields[]) const
-        {
-            C::VCursor *curs = 0;
-            auto rc = C::VTableCreateCursorWrite(o, &curs, C::kcmInsert);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            
-            for (unsigned i = 0; i < N; ++i) {
-                uint32_t cid = 0;
-                
-                rc = C::VCursorAddColumn(curs, &cid, "%s", fields[i]);
-                if (rc) throw Error(rc, __FILE__, __LINE__);
-                if (cid != i + 1)
-                    throw std::range_error("invalid column number");
-            }
-            rc = C::VCursorOpen(curs);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Cursor(curs);
-        }
-#endif
     };
     class Database {
         friend class Manager;
@@ -485,35 +538,8 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Table(p);
         }
-#if VDB_WRITEABLE
-        Table create(std::string const &name, std::string const &type) const
-        {
-            C::VTable *rslt = 0;
-            auto const rc = C::VDatabaseCreateTableByMask(o, &rslt, type.c_str(), 0, 0, "%s", name.c_str());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Table(rslt);
-        }
-
-        Table open(std::string const &name) const
-        {
-            C::VTable *p = 0;
-            auto const rc = C::VDatabaseOpenTableUpdate(o, &p, "%s", name.c_str());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Table(p);
-        }
-#endif
     };
     class Manager {
-#if VDB_WRITEABLE
-        C::VDBManager *const o;
-
-        static C::VDBManager *makeManager() {
-            C::VDBManager *o;
-            auto const rc = C::VDBManagerMakeUpdate(&o, 0);
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            return o;
-        }
-#else
         C::VDBManager const *const o;
         
         static C::VDBManager const *makeManager() {
@@ -522,7 +548,6 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return o;
         }
-#endif
     public:
         Manager() : o(makeManager()) {}
         Manager(Manager const &other) : o(other.o) { C::VDBManagerAddRef(o); }
@@ -555,15 +580,6 @@ namespace VDB {
             delete [] p;
             return result;
         }
-#if VDB_WRITEABLE
-        Database create(std::string const &path, Schema const &schema, std::string const &type) const
-        {
-            C::VDatabase *rslt = 0;
-            auto const rc = C::VDBManagerCreateDB(o, &rslt, schema.o, type.c_str(), C::kcmInit | C::kcmMD5, "%s", path.c_str());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Database(rslt);
-        }
-#endif
         Database operator [](std::string const &path) const
         {
             C::VDatabase *p = 0;
@@ -571,15 +587,6 @@ namespace VDB {
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return Database(p);
         }
-#if VDB_WRITEABLE
-        Database open(std::string const &path) const
-        {
-            C::VDatabase *p = 0;
-            auto const rc = C::VDBManagerOpenDBUpdate(o, &p, 0, "%s", path.c_str());
-            if (rc) throw Error(rc, __FILE__, __LINE__);
-            return Database(p);
-        }
-#endif
     };
 }
 

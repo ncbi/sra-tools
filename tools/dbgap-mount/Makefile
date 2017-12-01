@@ -33,7 +33,8 @@ INT_TOOLS = \
 
 EXT_TOOLS = \
 	demo    \
-	dbgap-mount-tool
+	dbgap-mount-tool \
+	z-pad
     
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -120,4 +121,22 @@ $(BINDIR)/dbgap-mount-tool: $(ZDB_TOOL_OBJ)
 
 dbgap-mount-tool_tag:
 	@ $(TOP)/build/tag-module.sh $(MODULE) dbgap-mount-tool $(ZDB_TOOL_OBJ)
+
+#-------------------------------------------------------------------------------
+# z-pad
+#  test program for new XFS toy
+#
+ZPD_TOOL_SRC = \
+    z-pad
+
+ZPD_TOOL_OBJ = \
+	$(addsuffix .$(OBJX),$(ZPD_TOOL_SRC))
+
+ZPD_TOOL_LIB = -sxfs -skapp -stk-version -sncbi-vdb -skfg
+
+$(BINDIR)/z-pad: $(ZPD_TOOL_OBJ)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(ZPD_TOOL_LIB)
+
+z-pad_tag:
+	@ $(TOP)/build/tag-module.sh $(MODULE) z-pad $(ZPD_TOOL_OBJ)
 

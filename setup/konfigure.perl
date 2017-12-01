@@ -437,6 +437,15 @@ if ($TOOLS =~ /gcc$/) {
     $STATIC_LIBSTDCPP = check_static_libstdcpp();
 }
 
+if ( $PKG{REQ} ) {
+    foreach ( @{ $PKG{REQ} } ) {
+        unless (check_tool__h($_)) {
+            println "configure: error: '$_' cannot be found";
+            exit 1;
+        }
+    }
+}
+
 my @dependencies;
 
 my %DEPEND_OPTIONS;

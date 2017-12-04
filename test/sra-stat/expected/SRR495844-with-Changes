@@ -1,0 +1,744 @@
+<Run accession="SRR495844" read_length="fixed" spot_count="1289736" base_count="122524920" base_count_bio="122524920" spot_count_mates="0" base_count_bio_mates="0" spot_count_bad="0" base_count_bio_bad="0" spot_count_filtered="0" base_count_bio_filtered="0" cmp_base_count="41656930">
+  <Size value="64049459" units="bytes"/>
+  <Bases cs_native="false" count="122524920">
+    <Base value="A" count="34591575"/>
+    <Base value="C" count="25776366"/>
+    <Base value="G" count="28147989"/>
+    <Base value="T" count="34008990"/>
+    <Base value="N" count="0"/>
+  </Bases>
+  <AlignInfo>
+    <Ref seqId="NC_002333.2" name="MT" circular="false" local="local"/>
+    <Ref seqId="NC_007112.5" name="1" circular="false" local="remote" path="/NC_007112.5"/>
+    <Ref seqId="NC_007113.5" name="2" circular="false" local="remote" path="/NC_007113.5"/>
+    <Ref seqId="NC_007114.5" name="3" circular="false" local="remote" path="/NC_007114.5"/>
+    <Ref seqId="NC_007115.5" name="4" circular="false" local="remote" path="/NC_007115.5"/>
+    <Ref seqId="NC_007116.5" name="5" circular="false" local="remote" path="/NC_007116.5"/>
+    <Ref seqId="NC_007117.5" name="6" circular="false" local="remote" path="/NC_007117.5"/>
+    <Ref seqId="NC_007118.5" name="7" circular="false" local="remote" path="/NC_007118.5"/>
+    <Ref seqId="NC_007119.5" name="8" circular="false" local="remote" path="/NC_007119.5"/>
+    <Ref seqId="NC_007120.5" name="9" circular="false" local="remote" path="/NC_007120.5"/>
+    <Ref seqId="NC_007121.5" name="10" circular="false" local="remote" path="/NC_007121.5"/>
+    <Ref seqId="NC_007122.5" name="11" circular="false" local="remote" path="/NC_007122.5"/>
+    <Ref seqId="NC_007123.5" name="12" circular="false" local="remote" path="/NC_007123.5"/>
+    <Ref seqId="NC_007124.5" name="13" circular="false" local="remote" path="/NC_007124.5"/>
+    <Ref seqId="NC_007125.5" name="14" circular="false" local="remote" path="/NC_007125.5"/>
+    <Ref seqId="NC_007126.5" name="15" circular="false" local="remote" path="/NC_007126.5"/>
+    <Ref seqId="NC_007127.5" name="16" circular="false" local="remote" path="/NC_007127.5"/>
+    <Ref seqId="NC_007128.5" name="17" circular="false" local="remote" path="/NC_007128.5"/>
+    <Ref seqId="NC_007129.5" name="18" circular="false" local="remote" path="/NC_007129.5"/>
+    <Ref seqId="NC_007130.5" name="19" circular="false" local="remote" path="/NC_007130.5"/>
+    <Ref seqId="NC_007131.5" name="20" circular="false" local="remote" path="/NC_007131.5"/>
+    <Ref seqId="NC_007132.5" name="21" circular="false" local="remote" path="/NC_007132.5"/>
+    <Ref seqId="NC_007133.5" name="22" circular="false" local="remote" path="/NC_007133.5"/>
+    <Ref seqId="NC_007134.5" name="23" circular="false" local="remote" path="/NC_007134.5"/>
+    <Ref seqId="NC_007135.5" name="24" circular="false" local="remote" path="/NC_007135.5"/>
+    <Ref seqId="NC_007136.5" name="25" circular="false" local="remote" path="/NC_007136.5"/>
+    <Ref seqId="NW_001877452.3" name="Zv9_scaffold3503" circular="false" local="local"/>
+    <Ref seqId="NW_001877455.3" name="Zv9_scaffold3495" circular="false" local="local"/>
+    <Ref seqId="NW_001877549.3" name="Zv9_scaffold3460" circular="false" local="local"/>
+    <Ref seqId="NW_001877567.3" name="Zv9_scaffold3455" circular="false" local="local"/>
+    <Ref seqId="NW_001877580.3" name="Zv9_scaffold3470" circular="false" local="local"/>
+    <Ref seqId="NW_001877583.3" name="Zv9_scaffold3463" circular="false" local="local"/>
+    <Ref seqId="NW_001877817.3" name="Zv9_scaffold3548" circular="false" local="local"/>
+    <Ref seqId="NW_001877860.3" name="Zv9_scaffold3517" circular="false" local="local"/>
+    <Ref seqId="NW_001878118.3" name="Zv9_scaffold3456" circular="false" local="local"/>
+    <Ref seqId="NW_001878128.3" name="Zv9_scaffold3501" circular="false" local="local"/>
+    <Ref seqId="NW_001878167.3" name="Zv9_scaffold3564" circular="false" local="local"/>
+    <Ref seqId="NW_001878202.3" name="Zv9_scaffold3529" circular="false" local="local"/>
+    <Ref seqId="NW_001878222.3" name="Zv9_scaffold3510" circular="false" local="local"/>
+    <Ref seqId="NW_001878251.3" name="Zv9_scaffold3552" circular="false" local="local"/>
+    <Ref seqId="NW_001878267.3" name="Zv9_scaffold3520" circular="false" local="local"/>
+    <Ref seqId="NW_001878353.3" name="Zv9_scaffold3459" circular="false" local="local"/>
+    <Ref seqId="NW_001878375.1" name="Zv9_scaffold3462" circular="false" local="local"/>
+    <Ref seqId="NW_001878408.3" name="Zv9_scaffold3471" circular="false" local="local"/>
+    <Ref seqId="NW_001878422.3" name="Zv9_scaffold3551" circular="false" local="local"/>
+    <Ref seqId="NW_001878518.3" name="Zv9_scaffold3550" circular="false" local="local"/>
+    <Ref seqId="NW_001878524.3" name="Zv9_scaffold3514" circular="false" local="local"/>
+    <Ref seqId="NW_001878625.3" name="Zv9_scaffold3531" circular="false" local="local"/>
+    <Ref seqId="NW_001878729.3" name="Zv9_scaffold3540" circular="false" local="local"/>
+    <Ref seqId="NW_001878780.3" name="Zv9_scaffold3561" circular="false" local="local"/>
+    <Ref seqId="NW_001878850.3" name="Zv9_scaffold3469" circular="false" local="local"/>
+    <Ref seqId="NW_001878892.3" name="Zv9_scaffold3539" circular="false" local="local"/>
+    <Ref seqId="NW_001878919.3" name="Zv9_scaffold3545" circular="false" local="local"/>
+    <Ref seqId="NW_001878922.3" name="Zv9_scaffold3519" circular="false" local="local"/>
+    <Ref seqId="NW_001879158.3" name="Zv9_scaffold3554" circular="false" local="local"/>
+    <Ref seqId="NW_001879191.3" name="Zv9_scaffold3467" circular="false" local="local"/>
+    <Ref seqId="NW_001879200.3" name="Zv9_scaffold3534" circular="false" local="local"/>
+    <Ref seqId="NW_001879289.3" name="Zv9_scaffold3490" circular="false" local="local"/>
+    <Ref seqId="NW_001879295.3" name="Zv9_scaffold3518" circular="false" local="local"/>
+    <Ref seqId="NW_001884386.3" name="Zv9_scaffold3481" circular="false" local="local"/>
+    <Ref seqId="NW_001884400.3" name="Zv9_scaffold3542" circular="false" local="local"/>
+    <Ref seqId="NW_001884406.3" name="Zv9_scaffold3461" circular="false" local="local"/>
+    <Ref seqId="NW_001884413.3" name="Zv9_scaffold3498" circular="false" local="local"/>
+    <Ref seqId="NW_001884423.3" name="Zv9_scaffold3464" circular="false" local="local"/>
+    <Ref seqId="NW_001884427.3" name="Zv9_scaffold3494" circular="false" local="local"/>
+    <Ref seqId="NW_001884441.3" name="Zv9_scaffold3523" circular="false" local="local"/>
+    <Ref seqId="NW_001884444.3" name="Zv9_scaffold3472" circular="false" local="local"/>
+    <Ref seqId="NW_001884448.3" name="Zv9_scaffold3488" circular="false" local="local"/>
+    <Ref seqId="NW_001884452.3" name="Zv9_scaffold3453" circular="false" local="local"/>
+    <Ref seqId="NW_001884453.3" name="Zv9_scaffold3530" circular="false" local="remote" path="/NW_001884453.3"/>
+    <Ref seqId="NW_001884455.3" name="Zv9_scaffold3482" circular="false" local="local"/>
+    <Ref seqId="NW_001884473.3" name="Zv9_scaffold3493" circular="false" local="local"/>
+    <Ref seqId="NW_001884475.3" name="Zv9_scaffold3546" circular="false" local="local"/>
+    <Ref seqId="NW_001884482.3" name="Zv9_scaffold3507" circular="false" local="local"/>
+    <Ref seqId="NW_001884490.3" name="Zv9_scaffold3541" circular="false" local="local"/>
+    <Ref seqId="NW_001884506.3" name="Zv9_scaffold3476" circular="false" local="local"/>
+    <Ref seqId="NW_001884514.3" name="Zv9_scaffold3506" circular="false" local="local"/>
+    <Ref seqId="NW_001884522.3" name="Zv9_scaffold3515" circular="false" local="local"/>
+    <Ref seqId="NW_001884523.3" name="Zv9_scaffold3480" circular="false" local="local"/>
+    <Ref seqId="NW_001884529.3" name="Zv9_scaffold3458" circular="false" local="local"/>
+    <Ref seqId="NW_001884531.2" name="Zv9_scaffold3479" circular="false" local="local"/>
+    <Ref seqId="NW_001884533.3" name="Zv9_scaffold3538" circular="false" local="local"/>
+    <Ref seqId="NW_003039273.2" name="Zv9_scaffold3557" circular="false" local="local"/>
+    <Ref seqId="NW_003039384.2" name="Zv9_scaffold3536" circular="false" local="local"/>
+    <Ref seqId="NW_003039385.2" name="Zv9_scaffold3491" circular="false" local="local"/>
+    <Ref seqId="NW_003039576.2" name="Zv9_scaffold3522" circular="false" local="local"/>
+    <Ref seqId="NW_003039780.2" name="Zv9_scaffold3478" circular="false" local="local"/>
+    <Ref seqId="NW_003040388.2" name="Zv9_scaffold3524" circular="false" local="local"/>
+    <Ref seqId="NW_003040715.2" name="Zv9_scaffold3473" circular="false" local="local"/>
+    <Ref seqId="NW_003040930.2" name="Zv9_scaffold3487" circular="false" local="local"/>
+    <Ref seqId="NW_003040976.2" name="Zv9_scaffold3549" circular="false" local="local"/>
+    <Ref seqId="NW_003041003.2" name="Zv9_scaffold3527" circular="false" local="local"/>
+    <Ref seqId="NW_003041246.2" name="Zv9_scaffold3484" circular="false" local="local"/>
+    <Ref seqId="NW_003041575.2" name="Zv9_scaffold3526" circular="false" local="local"/>
+    <Ref seqId="NW_003042377.2" name="Zv9_scaffold3492" circular="false" local="local"/>
+    <Ref seqId="NW_003043746.2" name="Zv9_scaffold3535" circular="false" local="local"/>
+    <Ref seqId="NW_003044161.2" name="Zv9_scaffold3544" circular="false" local="local"/>
+    <Ref seqId="NW_003044623.2" name="Zv9_scaffold3504" circular="false" local="local"/>
+    <Ref seqId="NW_003044888.2" name="Zv9_scaffold3547" circular="false" local="local"/>
+    <Ref seqId="NW_003045373.2" name="Zv9_scaffold3486" circular="false" local="local"/>
+    <Ref seqId="NW_003046884.2" name="Zv9_scaffold3511" circular="false" local="local"/>
+    <Ref seqId="NW_003047452.2" name="Zv9_scaffold3485" circular="false" local="local"/>
+    <Ref seqId="NW_003048256.2" name="Zv9_scaffold3559" circular="false" local="local"/>
+    <Ref seqId="NW_003048785.2" name="Zv9_scaffold3483" circular="false" local="local"/>
+    <Ref seqId="NW_003049951.2" name="Zv9_scaffold3562" circular="false" local="local"/>
+    <Ref seqId="NW_003050611.2" name="Zv9_scaffold3474" circular="false" local="local"/>
+    <Ref seqId="NW_003050661.2" name="Zv9_scaffold3505" circular="false" local="local"/>
+    <Ref seqId="NW_003050729.2" name="Zv9_scaffold3563" circular="false" local="local"/>
+    <Ref seqId="NW_003051010.2" name="Zv9_scaffold3477" circular="false" local="local"/>
+    <Ref seqId="NW_003051371.2" name="Zv9_scaffold3516" circular="false" local="local"/>
+    <Ref seqId="NW_003051536.2" name="Zv9_scaffold3512" circular="false" local="local"/>
+    <Ref seqId="NW_003336255.1" name="Zv9_scaffold3454" circular="false" local="local"/>
+    <Ref seqId="NW_003336257.1" name="Zv9_scaffold3465" circular="false" local="local"/>
+    <Ref seqId="NW_003336258.1" name="Zv9_scaffold3489" circular="false" local="local"/>
+    <Ref seqId="NW_003336260.1" name="Zv9_scaffold3497" circular="false" local="local"/>
+    <Ref seqId="NW_003336261.1" name="Zv9_scaffold3499" circular="false" local="local"/>
+    <Ref seqId="NW_003336262.1" name="Zv9_scaffold3500" circular="false" local="local"/>
+    <Ref seqId="NW_003336263.1" name="Zv9_scaffold3509" circular="false" local="local"/>
+    <Ref seqId="NW_003336265.1" name="Zv9_scaffold3525" circular="false" local="local"/>
+    <Ref seqId="NW_003336268.1" name="Zv9_scaffold3533" circular="false" local="local"/>
+    <Ref seqId="NW_003336270.1" name="Zv9_scaffold3555" circular="false" local="local"/>
+    <Ref seqId="NW_003336271.1" name="Zv9_scaffold3556" circular="false" local="local"/>
+    <Ref seqId="NW_003336272.1" name="Zv9_NA654" circular="false" local="local"/>
+    <Ref seqId="NW_003336273.1" name="Zv9_NA922" circular="false" local="local"/>
+    <Ref seqId="NW_003336275.1" name="Zv9_NA560" circular="false" local="local"/>
+    <Ref seqId="NW_003336276.1" name="Zv9_NA79" circular="false" local="local"/>
+    <Ref seqId="NW_003336281.1" name="Zv9_NA812" circular="false" local="local"/>
+    <Ref seqId="NW_003336283.1" name="Zv9_NA506" circular="false" local="local"/>
+    <Ref seqId="NW_003336286.1" name="Zv9_NA419" circular="false" local="local"/>
+    <Ref seqId="NW_003336288.1" name="Zv9_NA173" circular="false" local="local"/>
+    <Ref seqId="NW_003336291.1" name="Zv9_NA237" circular="false" local="local"/>
+    <Ref seqId="NW_003336292.1" name="Zv9_NA82" circular="false" local="local"/>
+    <Ref seqId="NW_003336294.1" name="Zv9_NA834" circular="false" local="local"/>
+    <Ref seqId="NW_003336298.1" name="Zv9_NA540" circular="false" local="local"/>
+    <Ref seqId="NW_003336299.1" name="Zv9_NA394" circular="false" local="local"/>
+    <Ref seqId="NW_003336304.1" name="Zv9_NA719" circular="false" local="local"/>
+    <Ref seqId="NW_003336305.1" name="Zv9_NA275" circular="false" local="local"/>
+    <Ref seqId="NW_003336306.1" name="Zv9_NA84" circular="false" local="local"/>
+    <Ref seqId="NW_003336307.1" name="Zv9_NA714" circular="false" local="local"/>
+    <Ref seqId="NW_003336310.1" name="Zv9_NA240" circular="false" local="local"/>
+    <Ref seqId="NW_003336312.1" name="Zv9_NA497" circular="false" local="local"/>
+    <Ref seqId="NW_003336314.1" name="Zv9_NA811" circular="false" local="local"/>
+    <Ref seqId="NW_003336316.1" name="Zv9_NA303" circular="false" local="local"/>
+    <Ref seqId="NW_003336318.1" name="Zv9_NA170" circular="false" local="local"/>
+    <Ref seqId="NW_003336321.1" name="Zv9_NA692" circular="false" local="local"/>
+    <Ref seqId="NW_003336322.1" name="Zv9_NA727" circular="false" local="local"/>
+    <Ref seqId="NW_003336326.1" name="Zv9_NA364" circular="false" local="local"/>
+    <Ref seqId="NW_003336327.1" name="Zv9_NA441" circular="false" local="local"/>
+    <Ref seqId="NW_003336328.1" name="Zv9_NA446" circular="false" local="local"/>
+    <Ref seqId="NW_003336330.1" name="Zv9_NA289" circular="false" local="local"/>
+    <Ref seqId="NW_003336333.1" name="Zv9_NA227" circular="false" local="local"/>
+    <Ref seqId="NW_003336334.1" name="Zv9_NA555" circular="false" local="local"/>
+    <Ref seqId="NW_003336335.1" name="Zv9_NA277" circular="false" local="local"/>
+    <Ref seqId="NW_003336337.1" name="Zv9_NA808" circular="false" local="local"/>
+    <Ref seqId="NW_003336338.1" name="Zv9_NA530" circular="false" local="local"/>
+    <Ref seqId="NW_003336340.1" name="Zv9_NA575" circular="false" local="local"/>
+    <Ref seqId="NW_003336342.1" name="Zv9_NA742" circular="false" local="local"/>
+    <Ref seqId="NW_003336349.1" name="Zv9_NA216" circular="false" local="local"/>
+    <Ref seqId="NW_003336350.1" name="Zv9_NA486" circular="false" local="local"/>
+    <Ref seqId="NW_003336352.1" name="Zv9_NA472" circular="false" local="local"/>
+    <Ref seqId="NW_003336353.1" name="Zv9_NA325" circular="false" local="local"/>
+    <Ref seqId="NW_003336354.1" name="Zv9_NA235" circular="false" local="local"/>
+    <Ref seqId="NW_003336356.1" name="Zv9_NA500" circular="false" local="local"/>
+    <Ref seqId="NW_003336358.1" name="Zv9_NA86" circular="false" local="local"/>
+    <Ref seqId="NW_003336364.1" name="Zv9_NA100" circular="false" local="local"/>
+    <Ref seqId="NW_003336365.1" name="Zv9_NA323" circular="false" local="local"/>
+    <Ref seqId="NW_003336367.1" name="Zv9_NA601" circular="false" local="local"/>
+    <Ref seqId="NW_003336368.1" name="Zv9_NA150" circular="false" local="local"/>
+    <Ref seqId="NW_003336370.1" name="Zv9_NA357" circular="false" local="local"/>
+    <Ref seqId="NW_003336372.1" name="Zv9_NA803" circular="false" local="local"/>
+    <Ref seqId="NW_003336373.1" name="Zv9_NA74" circular="false" local="local"/>
+    <Ref seqId="NW_003336377.1" name="Zv9_NA495" circular="false" local="local"/>
+    <Ref seqId="NW_003336378.1" name="Zv9_NA338" circular="false" local="local"/>
+    <Ref seqId="NW_003336379.1" name="Zv9_NA557" circular="false" local="local"/>
+    <Ref seqId="NW_003336382.1" name="Zv9_NA649" circular="false" local="local"/>
+    <Ref seqId="NW_003336386.1" name="Zv9_NA822" circular="false" local="local"/>
+    <Ref seqId="NW_003336389.1" name="Zv9_NA268" circular="false" local="local"/>
+    <Ref seqId="NW_003336390.1" name="Zv9_NA387" circular="false" local="local"/>
+    <Ref seqId="NW_003336394.1" name="Zv9_NA153" circular="false" local="local"/>
+    <Ref seqId="NW_003336395.1" name="Zv9_NA794" circular="false" local="local"/>
+    <Ref seqId="NW_003336397.1" name="Zv9_NA213" circular="false" local="local"/>
+    <Ref seqId="NW_003336398.1" name="Zv9_NA759" circular="false" local="local"/>
+    <Ref seqId="NW_003336399.1" name="Zv9_NA751" circular="false" local="local"/>
+    <Ref seqId="NW_003336401.1" name="Zv9_NA597" circular="false" local="local"/>
+    <Ref seqId="NW_003336403.1" name="Zv9_NA717" circular="false" local="local"/>
+    <Ref seqId="NW_003336405.1" name="Zv9_NA21" circular="false" local="local"/>
+    <Ref seqId="NW_003336406.1" name="Zv9_NA262" circular="false" local="local"/>
+    <Ref seqId="NW_003336407.1" name="Zv9_NA827" circular="false" local="local"/>
+    <Ref seqId="NW_003336408.1" name="Zv9_NA267" circular="false" local="local"/>
+    <Ref seqId="NW_003336409.1" name="Zv9_NA307" circular="false" local="local"/>
+    <Ref seqId="NW_003336416.1" name="Zv9_NA628" circular="false" local="local"/>
+    <Ref seqId="NW_003336417.1" name="Zv9_NA565" circular="false" local="local"/>
+    <Ref seqId="NW_003336418.1" name="Zv9_NA574" circular="false" local="local"/>
+    <Ref seqId="NW_003336419.1" name="Zv9_NA200" circular="false" local="local"/>
+    <Ref seqId="NW_003336420.1" name="Zv9_NA360" circular="false" local="local"/>
+    <Ref seqId="NW_003336421.1" name="Zv9_NA258" circular="false" local="local"/>
+    <Ref seqId="NW_003336422.1" name="Zv9_NA636" circular="false" local="local"/>
+    <Ref seqId="NW_003336423.1" name="Zv9_NA548" circular="false" local="local"/>
+    <Ref seqId="NW_003336427.1" name="Zv9_NA604" circular="false" local="local"/>
+    <Ref seqId="NW_003336428.1" name="Zv9_NA887" circular="false" local="local"/>
+    <Ref seqId="NW_003336431.1" name="Zv9_NA848" circular="false" local="local"/>
+    <Ref seqId="NW_003336434.1" name="Zv9_NA571" circular="false" local="local"/>
+    <Ref seqId="NW_003336436.1" name="Zv9_NA892" circular="false" local="local"/>
+    <Ref seqId="NW_003336437.1" name="Zv9_NA524" circular="false" local="local"/>
+    <Ref seqId="NW_003336438.1" name="Zv9_NA910" circular="false" local="local"/>
+    <Ref seqId="NW_003336439.1" name="Zv9_NA278" circular="false" local="local"/>
+    <Ref seqId="NW_003336443.1" name="Zv9_NA522" circular="false" local="local"/>
+    <Ref seqId="NW_003336444.1" name="Zv9_NA577" circular="false" local="local"/>
+    <Ref seqId="NW_003336445.1" name="Zv9_NA677" circular="false" local="local"/>
+    <Ref seqId="NW_003336446.1" name="Zv9_NA454" circular="false" local="local"/>
+    <Ref seqId="NW_003336447.1" name="Zv9_NA507" circular="false" local="local"/>
+    <Ref seqId="NW_003336450.1" name="Zv9_NA162" circular="false" local="local"/>
+    <Ref seqId="NW_003336451.1" name="Zv9_NA76" circular="false" local="local"/>
+    <Ref seqId="NW_003336453.1" name="Zv9_NA660" circular="false" local="local"/>
+    <Ref seqId="NW_003336456.1" name="Zv9_NA805" circular="false" local="local"/>
+    <Ref seqId="NW_003336461.1" name="Zv9_NA439" circular="false" local="local"/>
+    <Ref seqId="NW_003336463.1" name="Zv9_NA508" circular="false" local="local"/>
+    <Ref seqId="NW_003336464.1" name="Zv9_NA626" circular="false" local="local"/>
+    <Ref seqId="NW_003336465.1" name="Zv9_NA217" circular="false" local="local"/>
+    <Ref seqId="NW_003336468.1" name="Zv9_NA376" circular="false" local="local"/>
+    <Ref seqId="NW_003336469.1" name="Zv9_NA594" circular="false" local="local"/>
+    <Ref seqId="NW_003336471.1" name="Zv9_NA78" circular="false" local="local"/>
+    <Ref seqId="NW_003336472.1" name="Zv9_NA479" circular="false" local="local"/>
+    <Ref seqId="NW_003336473.1" name="Zv9_NA747" circular="false" local="local"/>
+    <Ref seqId="NW_003336475.1" name="Zv9_NA975" circular="false" local="local"/>
+    <Ref seqId="NW_003336477.1" name="Zv9_NA676" circular="false" local="local"/>
+    <Ref seqId="NW_003336478.1" name="Zv9_NA852" circular="false" local="local"/>
+    <Ref seqId="NW_003336480.1" name="Zv9_NA266" circular="false" local="local"/>
+    <Ref seqId="NW_003336481.1" name="Zv9_NA695" circular="false" local="local"/>
+    <Ref seqId="NW_003336488.1" name="Zv9_NA516" circular="false" local="local"/>
+    <Ref seqId="NW_003336489.1" name="Zv9_NA311" circular="false" local="local"/>
+    <Ref seqId="NW_003336490.1" name="Zv9_NA117" circular="false" local="local"/>
+    <Ref seqId="NW_003336491.1" name="Zv9_NA327" circular="false" local="local"/>
+    <Ref seqId="NW_003336492.1" name="Zv9_NA771" circular="false" local="local"/>
+    <Ref seqId="NW_003336493.1" name="Zv9_NA80" circular="false" local="local"/>
+    <Ref seqId="NW_003336495.1" name="Zv9_NA169" circular="false" local="local"/>
+    <Ref seqId="NW_003336496.1" name="Zv9_NA351" circular="false" local="local"/>
+    <Ref seqId="NW_003336498.1" name="Zv9_NA726" circular="false" local="local"/>
+    <Ref seqId="NW_003336501.1" name="Zv9_NA51" circular="false" local="local"/>
+    <Ref seqId="NW_003336502.1" name="Zv9_NA661" circular="false" local="local"/>
+    <Ref seqId="NW_003336504.1" name="Zv9_NA970" circular="false" local="local"/>
+    <Ref seqId="NW_003336506.1" name="Zv9_NA391" circular="false" local="local"/>
+    <Ref seqId="NW_003336507.1" name="Zv9_NA685" circular="false" local="local"/>
+    <Ref seqId="NW_003336509.1" name="Zv9_NA27" circular="false" local="local"/>
+    <Ref seqId="NW_003336510.1" name="Zv9_NA639" circular="false" local="local"/>
+    <Ref seqId="NW_003336512.1" name="Zv9_NA990" circular="false" local="local"/>
+    <Ref seqId="NW_003336514.1" name="Zv9_NA673" circular="false" local="local"/>
+    <Ref seqId="NW_003336517.1" name="Zv9_NA499" circular="false" local="local"/>
+    <Ref seqId="NW_003336521.1" name="Zv9_NA782" circular="false" local="local"/>
+    <Ref seqId="NW_003336522.1" name="Zv9_NA670" circular="false" local="local"/>
+    <Ref seqId="NW_003336525.1" name="Zv9_NA361" circular="false" local="local"/>
+    <Ref seqId="NW_003336526.1" name="Zv9_NA640" circular="false" local="local"/>
+    <Ref seqId="NW_003336528.1" name="Zv9_NA36" circular="false" local="local"/>
+    <Ref seqId="NW_003336529.1" name="Zv9_NA549" circular="false" local="local"/>
+    <Ref seqId="NW_003336530.1" name="Zv9_NA11" circular="false" local="local"/>
+    <Ref seqId="NW_003336532.1" name="Zv9_NA631" circular="false" local="local"/>
+    <Ref seqId="NW_003336533.1" name="Zv9_NA889" circular="false" local="local"/>
+    <Ref seqId="NW_003336534.1" name="Zv9_NA683" circular="false" local="local"/>
+    <Ref seqId="NW_003336536.1" name="Zv9_NA171" circular="false" local="local"/>
+    <Ref seqId="NW_003336537.1" name="Zv9_NA918" circular="false" local="local"/>
+    <Ref seqId="NW_003336539.1" name="Zv9_NA75" circular="false" local="local"/>
+    <Ref seqId="NW_003336540.1" name="Zv9_NA130" circular="false" local="local"/>
+    <Ref seqId="NW_003336542.1" name="Zv9_NA243" circular="false" local="local"/>
+    <Ref seqId="NW_003336543.1" name="Zv9_NA906" circular="false" local="local"/>
+    <Ref seqId="NW_003336549.1" name="Zv9_NA99" circular="false" local="local"/>
+    <Ref seqId="NW_003336550.1" name="Zv9_NA164" circular="false" local="local"/>
+    <Ref seqId="NW_003336552.1" name="Zv9_NA541" circular="false" local="local"/>
+    <Ref seqId="NW_003336555.1" name="Zv9_NA840" circular="false" local="local"/>
+    <Ref seqId="NW_003336557.1" name="Zv9_NA326" circular="false" local="local"/>
+    <Ref seqId="NW_003336559.1" name="Zv9_NA765" circular="false" local="local"/>
+    <Ref seqId="NW_003336560.1" name="Zv9_NA370" circular="false" local="local"/>
+    <Ref seqId="NW_003336561.1" name="Zv9_NA241" circular="false" local="local"/>
+    <Ref seqId="NW_003336562.1" name="Zv9_NA899" circular="false" local="local"/>
+    <Ref seqId="NW_003336563.1" name="Zv9_NA689" circular="false" local="local"/>
+    <Ref seqId="NW_003336564.1" name="Zv9_NA807" circular="false" local="local"/>
+    <Ref seqId="NW_003336565.1" name="Zv9_NA26" circular="false" local="local"/>
+    <Ref seqId="NW_003336566.1" name="Zv9_NA828" circular="false" local="local"/>
+    <Ref seqId="NW_003336568.1" name="Zv9_NA804" circular="false" local="local"/>
+    <Ref seqId="NW_003336576.1" name="Zv9_NA644" circular="false" local="local"/>
+    <Ref seqId="NW_003336577.1" name="Zv9_NA363" circular="false" local="local"/>
+    <Ref seqId="NW_003336579.1" name="Zv9_NA787" circular="false" local="local"/>
+    <Ref seqId="NW_003336581.1" name="Zv9_NA412" circular="false" local="local"/>
+    <Ref seqId="NW_003336584.1" name="Zv9_NA151" circular="false" local="local"/>
+    <Ref seqId="NW_003336585.1" name="Zv9_NA909" circular="false" local="local"/>
+    <Ref seqId="NW_003336586.1" name="Zv9_NA251" circular="false" local="local"/>
+    <Ref seqId="NW_003336589.1" name="Zv9_NA883" circular="false" local="local"/>
+    <Ref seqId="NW_003336590.1" name="Zv9_NA329" circular="false" local="local"/>
+    <Ref seqId="NW_003336591.1" name="Zv9_NA686" circular="false" local="local"/>
+    <Ref seqId="NW_003336594.1" name="Zv9_NA845" circular="false" local="local"/>
+    <Ref seqId="NW_003336595.1" name="Zv9_NA609" circular="false" local="local"/>
+    <Ref seqId="NW_003336596.1" name="Zv9_NA732" circular="false" local="local"/>
+    <Ref seqId="NW_003336597.1" name="Zv9_NA314" circular="false" local="local"/>
+    <Ref seqId="NW_003336600.1" name="Zv9_NA297" circular="false" local="local"/>
+    <Ref seqId="NW_003336601.1" name="Zv9_NA469" circular="false" local="local"/>
+    <Ref seqId="NW_003336604.1" name="Zv9_NA994" circular="false" local="local"/>
+    <Ref seqId="NW_003336606.1" name="Zv9_NA437" circular="false" local="local"/>
+    <Ref seqId="NW_003336608.1" name="Zv9_NA224" circular="false" local="local"/>
+    <Ref seqId="NW_003336609.1" name="Zv9_NA8" circular="false" local="local"/>
+    <Ref seqId="NW_003336610.1" name="Zv9_NA245" circular="false" local="local"/>
+    <Ref seqId="NW_003336612.1" name="Zv9_NA999" circular="false" local="local"/>
+    <Ref seqId="NW_003336613.1" name="Zv9_NA816" circular="false" local="local"/>
+    <Ref seqId="NW_003336614.1" name="Zv9_NA801" circular="false" local="local"/>
+    <Ref seqId="NW_003336615.1" name="Zv9_NA947" circular="false" local="local"/>
+    <Ref seqId="NW_003336617.1" name="Zv9_NA484" circular="false" local="local"/>
+    <Ref seqId="NW_003336618.1" name="Zv9_NA176" circular="false" local="local"/>
+    <Ref seqId="NW_003336620.1" name="Zv9_NA373" circular="false" local="local"/>
+    <Ref seqId="NW_003336625.1" name="Zv9_NA49" circular="false" local="local"/>
+    <Ref seqId="NW_003336626.1" name="Zv9_NA60" circular="false" local="local"/>
+    <Ref seqId="NW_003336628.1" name="Zv9_NA735" circular="false" local="local"/>
+    <Ref seqId="NW_003336629.1" name="Zv9_NA220" circular="false" local="local"/>
+    <Ref seqId="NW_003336633.1" name="Zv9_NA232" circular="false" local="local"/>
+    <Ref seqId="NW_003336634.1" name="Zv9_NA455" circular="false" local="local"/>
+    <Ref seqId="NW_003336635.1" name="Zv9_NA25" circular="false" local="local"/>
+    <Ref seqId="NW_003336636.1" name="Zv9_NA586" circular="false" local="local"/>
+    <Ref seqId="NW_003336637.1" name="Zv9_NA895" circular="false" local="local"/>
+    <Ref seqId="NW_003336638.1" name="Zv9_NA709" circular="false" local="local"/>
+    <Ref seqId="NW_003336639.1" name="Zv9_NA930" circular="false" local="local"/>
+    <Ref seqId="NW_003336641.1" name="Zv9_NA694" circular="false" local="local"/>
+    <Ref seqId="NW_003336643.1" name="Zv9_NA912" circular="false" local="local"/>
+    <Ref seqId="NW_003336644.1" name="Zv9_NA392" circular="false" local="local"/>
+    <Ref seqId="NW_003336645.1" name="Zv9_NA390" circular="false" local="local"/>
+    <Ref seqId="NW_003336648.1" name="Zv9_NA485" circular="false" local="local"/>
+    <Ref seqId="NW_003336649.1" name="Zv9_NA134" circular="false" local="local"/>
+    <Ref seqId="NW_003336650.1" name="Zv9_NA276" circular="false" local="local"/>
+    <Ref seqId="NW_003336651.1" name="Zv9_NA855" circular="false" local="local"/>
+    <Ref seqId="NW_003336652.1" name="Zv9_NA37" circular="false" local="local"/>
+    <Ref seqId="NW_003336653.1" name="Zv9_NA722" circular="false" local="local"/>
+    <Ref seqId="NW_003336654.1" name="Zv9_NA179" circular="false" local="local"/>
+    <Ref seqId="NW_003336662.1" name="Zv9_NA10" circular="false" local="local"/>
+    <Ref seqId="NW_003336663.1" name="Zv9_NA561" circular="false" local="local"/>
+    <Ref seqId="NW_003336664.1" name="Zv9_NA388" circular="false" local="local"/>
+    <Ref seqId="NW_003336669.1" name="Zv9_NA547" circular="false" local="local"/>
+    <Ref seqId="NW_003336670.1" name="Zv9_NA335" circular="false" local="local"/>
+    <Ref seqId="NW_003336676.1" name="Zv9_NA741" circular="false" local="local"/>
+    <Ref seqId="NW_003336678.1" name="Zv9_NA401" circular="false" local="local"/>
+    <Ref seqId="NW_003336680.1" name="Zv9_NA904" circular="false" local="local"/>
+    <Ref seqId="NW_003336682.1" name="Zv9_NA15" circular="false" local="local"/>
+    <Ref seqId="NW_003336683.1" name="Zv9_NA617" circular="false" local="local"/>
+    <Ref seqId="NW_003336690.1" name="Zv9_NA299" circular="false" local="local"/>
+    <Ref seqId="NW_003336691.1" name="Zv9_NA936" circular="false" local="local"/>
+    <Ref seqId="NW_003336692.1" name="Zv9_NA795" circular="false" local="local"/>
+    <Ref seqId="NW_003336693.1" name="Zv9_NA957" circular="false" local="local"/>
+    <Ref seqId="NW_003336695.1" name="Zv9_NA458" circular="false" local="local"/>
+    <Ref seqId="NW_003336696.1" name="Zv9_NA578" circular="false" local="local"/>
+    <Ref seqId="NW_003336697.1" name="Zv9_NA416" circular="false" local="local"/>
+    <Ref seqId="NW_003336698.1" name="Zv9_NA961" circular="false" local="local"/>
+    <Ref seqId="NW_003336700.1" name="Zv9_NA186" circular="false" local="local"/>
+    <Ref seqId="NW_003336702.1" name="Zv9_NA30" circular="false" local="local"/>
+    <Ref seqId="NW_003336703.1" name="Zv9_NA257" circular="false" local="local"/>
+    <Ref seqId="NW_003336705.1" name="Zv9_NA641" circular="false" local="local"/>
+    <Ref seqId="NW_003336706.1" name="Zv9_NA810" circular="false" local="local"/>
+    <Ref seqId="NW_003336707.1" name="Zv9_NA250" circular="false" local="local"/>
+    <Ref seqId="NW_003336708.1" name="Zv9_NA449" circular="false" local="local"/>
+    <Ref seqId="NW_003336709.1" name="Zv9_NA324" circular="false" local="local"/>
+    <Ref seqId="NW_003336710.1" name="Zv9_NA903" circular="false" local="local"/>
+    <Ref seqId="NW_003336711.1" name="Zv9_NA140" circular="false" local="local"/>
+    <Ref seqId="NW_003336712.1" name="Zv9_NA851" circular="false" local="local"/>
+    <Ref seqId="NW_003336716.1" name="Zv9_NA103" circular="false" local="local"/>
+    <Ref seqId="NW_003336717.1" name="Zv9_NA806" circular="false" local="local"/>
+    <Ref seqId="NW_003336720.1" name="Zv9_NA203" circular="false" local="local"/>
+    <Ref seqId="NW_003336722.1" name="Zv9_NA774" circular="false" local="local"/>
+    <Ref seqId="NW_003336723.1" name="Zv9_NA470" circular="false" local="local"/>
+    <Ref seqId="NW_003336724.1" name="Zv9_NA125" circular="false" local="local"/>
+    <Ref seqId="NW_003336725.1" name="Zv9_NA809" circular="false" local="local"/>
+    <Ref seqId="NW_003336726.1" name="Zv9_NA849" circular="false" local="local"/>
+    <Ref seqId="NW_003336727.1" name="Zv9_NA624" circular="false" local="local"/>
+    <Ref seqId="NW_003336728.1" name="Zv9_NA490" circular="false" local="local"/>
+    <Ref seqId="NW_003336730.1" name="Zv9_NA474" circular="false" local="local"/>
+    <Ref seqId="NW_003336732.1" name="Zv9_NA466" circular="false" local="local"/>
+    <Ref seqId="NW_003336733.1" name="Zv9_NA707" circular="false" local="local"/>
+    <Ref seqId="NW_003336734.1" name="Zv9_NA202" circular="false" local="local"/>
+    <Ref seqId="NW_003336735.1" name="Zv9_NA908" circular="false" local="local"/>
+    <Ref seqId="NW_003336737.1" name="Zv9_NA55" circular="false" local="local"/>
+    <Ref seqId="NW_003336738.1" name="Zv9_NA210" circular="false" local="local"/>
+    <Ref seqId="NW_003336741.1" name="Zv9_NA496" circular="false" local="local"/>
+    <Ref seqId="NW_003336742.1" name="Zv9_NA770" circular="false" local="local"/>
+    <Ref seqId="NW_003336743.1" name="Zv9_NA820" circular="false" local="local"/>
+    <Ref seqId="NW_003336744.1" name="Zv9_NA139" circular="false" local="local"/>
+    <Ref seqId="NW_003336745.1" name="Zv9_NA672" circular="false" local="local"/>
+    <Ref seqId="NW_003336747.1" name="Zv9_NA766" circular="false" local="local"/>
+    <Ref seqId="NW_003336748.1" name="Zv9_NA295" circular="false" local="local"/>
+    <Ref seqId="NW_003336749.1" name="Zv9_NA487" circular="false" local="local"/>
+    <Ref seqId="NW_003336750.1" name="Zv9_NA972" circular="false" local="local"/>
+    <Ref seqId="NW_003336752.1" name="Zv9_NA129" circular="false" local="local"/>
+    <Ref seqId="NW_003336753.1" name="Zv9_NA948" circular="false" local="local"/>
+    <Ref seqId="NW_003336756.1" name="Zv9_NA88" circular="false" local="local"/>
+    <Ref seqId="NW_003336757.1" name="Zv9_NA786" circular="false" local="local"/>
+    <Ref seqId="NW_003336760.1" name="Zv9_NA16" circular="false" local="local"/>
+    <Ref seqId="NW_003336766.1" name="Zv9_NA973" circular="false" local="local"/>
+    <Ref seqId="NW_003336767.1" name="Zv9_NA242" circular="false" local="local"/>
+    <Ref seqId="NW_003336768.1" name="Zv9_NA45" circular="false" local="local"/>
+    <Ref seqId="NW_003336770.1" name="Zv9_NA681" circular="false" local="local"/>
+    <Ref seqId="NW_003336771.1" name="Zv9_NA866" circular="false" local="local"/>
+    <Ref seqId="NW_003336774.1" name="Zv9_NA821" circular="false" local="local"/>
+    <Ref seqId="NW_003336776.1" name="Zv9_NA287" circular="false" local="local"/>
+    <Ref seqId="NW_003336777.1" name="Zv9_NA313" circular="false" local="local"/>
+    <Ref seqId="NW_003336778.1" name="Zv9_NA529" circular="false" local="local"/>
+    <Ref seqId="NW_003336783.1" name="Zv9_NA737" circular="false" local="local"/>
+    <Ref seqId="NW_003336784.1" name="Zv9_NA875" circular="false" local="local"/>
+    <Ref seqId="NW_003336785.1" name="Zv9_NA468" circular="false" local="local"/>
+    <Ref seqId="NW_003336786.1" name="Zv9_NA48" circular="false" local="local"/>
+    <Ref seqId="NW_003336788.1" name="Zv9_NA5" circular="false" local="local"/>
+    <Ref seqId="NW_003336789.1" name="Zv9_NA978" circular="false" local="local"/>
+    <Ref seqId="NW_003336792.1" name="Zv9_NA345" circular="false" local="local"/>
+    <Ref seqId="NW_003336793.1" name="Zv9_NA964" circular="false" local="local"/>
+    <Ref seqId="NW_003336795.1" name="Zv9_NA377" circular="false" local="local"/>
+    <Ref seqId="NW_003336798.1" name="Zv9_NA846" circular="false" local="local"/>
+    <Ref seqId="NW_003336801.1" name="Zv9_NA142" circular="false" local="local"/>
+    <Ref seqId="NW_003336805.1" name="Zv9_NA858" circular="false" local="local"/>
+    <Ref seqId="NW_003336807.1" name="Zv9_NA974" circular="false" local="local"/>
+    <Ref seqId="NW_003336809.1" name="Zv9_NA205" circular="false" local="local"/>
+    <Ref seqId="NW_003336810.1" name="Zv9_NA556" circular="false" local="local"/>
+    <Ref seqId="NW_003336811.1" name="Zv9_NA701" circular="false" local="local"/>
+    <Ref seqId="NW_003336813.1" name="Zv9_NA68" circular="false" local="local"/>
+    <Ref seqId="NW_003336814.1" name="Zv9_NA18" circular="false" local="local"/>
+    <Ref seqId="NW_003336815.1" name="Zv9_NA959" circular="false" local="local"/>
+    <Ref seqId="NW_003336816.1" name="Zv9_NA916" circular="false" local="local"/>
+    <Ref seqId="NW_003336818.1" name="Zv9_NA621" circular="false" local="local"/>
+    <Ref seqId="NW_003336821.1" name="Zv9_NA89" circular="false" local="local"/>
+    <Ref seqId="NW_003336823.1" name="Zv9_NA123" circular="false" local="local"/>
+    <Ref seqId="NW_003336824.1" name="Zv9_NA642" circular="false" local="local"/>
+    <Ref seqId="NW_003336826.1" name="Zv9_NA788" circular="false" local="local"/>
+    <Ref seqId="NW_003336828.1" name="Zv9_NA396" circular="false" local="local"/>
+    <Ref seqId="NW_003336829.1" name="Zv9_NA503" circular="false" local="local"/>
+    <Ref seqId="NW_003336831.1" name="Zv9_NA191" circular="false" local="local"/>
+    <Ref seqId="NW_003336832.1" name="Zv9_NA921" circular="false" local="local"/>
+    <Ref seqId="NW_003336833.1" name="Zv9_NA687" circular="false" local="local"/>
+    <Ref seqId="NW_003336835.1" name="Zv9_NA300" circular="false" local="local"/>
+    <Ref seqId="NW_003336837.1" name="Zv9_NA165" circular="false" local="local"/>
+    <Ref seqId="NW_003336840.1" name="Zv9_NA791" circular="false" local="local"/>
+    <Ref seqId="NW_003336843.1" name="Zv9_NA817" circular="false" local="local"/>
+    <Ref seqId="NW_003336844.1" name="Zv9_NA66" circular="false" local="local"/>
+    <Ref seqId="NW_003336845.1" name="Zv9_NA603" circular="false" local="local"/>
+    <Ref seqId="NW_003336846.1" name="Zv9_NA512" circular="false" local="local"/>
+    <Ref seqId="NW_003336847.1" name="Zv9_NA90" circular="false" local="local"/>
+    <Ref seqId="NW_003336849.1" name="Zv9_NA211" circular="false" local="local"/>
+    <Ref seqId="NW_003336853.1" name="Zv9_NA510" circular="false" local="local"/>
+    <Ref seqId="NW_003336854.1" name="Zv9_NA996" circular="false" local="local"/>
+    <Ref seqId="NW_003336860.1" name="Zv9_NA163" circular="false" local="local"/>
+    <Ref seqId="NW_003336862.1" name="Zv9_NA425" circular="false" local="local"/>
+    <Ref seqId="NW_003336865.1" name="Zv9_NA246" circular="false" local="local"/>
+    <Ref seqId="NW_003336866.1" name="Zv9_NA860" circular="false" local="local"/>
+    <Ref seqId="NW_003336867.1" name="Zv9_NA896" circular="false" local="local"/>
+    <Ref seqId="NW_003336868.1" name="Zv9_NA118" circular="false" local="local"/>
+    <Ref seqId="NW_003336869.1" name="Zv9_NA17" circular="false" local="local"/>
+    <Ref seqId="NW_003336870.1" name="Zv9_NA126" circular="false" local="local"/>
+    <Ref seqId="NW_003336871.1" name="Zv9_NA456" circular="false" local="local"/>
+    <Ref seqId="NW_003336875.1" name="Zv9_NA120" circular="false" local="local"/>
+    <Ref seqId="NW_003336876.1" name="Zv9_NA940" circular="false" local="local"/>
+    <Ref seqId="NW_003336877.1" name="Zv9_NA915" circular="false" local="local"/>
+    <Ref seqId="NW_003336879.1" name="Zv9_NA270" circular="false" local="local"/>
+    <Ref seqId="NW_003336880.1" name="Zv9_NA873" circular="false" local="local"/>
+    <Ref seqId="NW_003336881.1" name="Zv9_NA273" circular="false" local="local"/>
+    <Ref seqId="NW_003336883.1" name="Zv9_NA907" circular="false" local="local"/>
+    <Ref seqId="NW_003336887.1" name="Zv9_NA97" circular="false" local="local"/>
+    <Ref seqId="NW_003336888.1" name="Zv9_NA781" circular="false" local="local"/>
+    <Ref seqId="NW_003336890.1" name="Zv9_NA764" circular="false" local="local"/>
+    <Ref seqId="NW_003336891.1" name="Zv9_NA698" circular="false" local="local"/>
+    <Ref seqId="NW_003336895.1" name="Zv9_NA473" circular="false" local="local"/>
+    <Ref seqId="NW_003336896.1" name="Zv9_NA545" circular="false" local="local"/>
+    <Ref seqId="NW_003336897.1" name="Zv9_NA671" circular="false" local="local"/>
+    <Ref seqId="NW_003336898.1" name="Zv9_NA14" circular="false" local="local"/>
+    <Ref seqId="NW_003336899.1" name="Zv9_NA650" circular="false" local="local"/>
+    <Ref seqId="NW_003336901.1" name="Zv9_NA779" circular="false" local="local"/>
+    <Ref seqId="NW_003336902.1" name="Zv9_NA92" circular="false" local="local"/>
+    <Ref seqId="NW_003336905.1" name="Zv9_NA775" circular="false" local="local"/>
+    <Ref seqId="NW_003336906.1" name="Zv9_NA330" circular="false" local="local"/>
+    <Ref seqId="NW_003336910.1" name="Zv9_NA599" circular="false" local="local"/>
+    <Ref seqId="NW_003336912.1" name="Zv9_NA355" circular="false" local="local"/>
+    <Ref seqId="NW_003336913.1" name="Zv9_NA452" circular="false" local="local"/>
+    <Ref seqId="NW_003336914.1" name="Zv9_NA962" circular="false" local="local"/>
+    <Ref seqId="NW_003336916.1" name="Zv9_NA736" circular="false" local="local"/>
+    <Ref seqId="NW_003336918.1" name="Zv9_NA70" circular="false" local="local"/>
+    <Ref seqId="NW_003336921.1" name="Zv9_NA498" circular="false" local="local"/>
+    <Ref seqId="NW_003336922.1" name="Zv9_NA382" circular="false" local="local"/>
+    <Ref seqId="NW_003336925.1" name="Zv9_NA422" circular="false" local="local"/>
+    <Ref seqId="NW_003336926.1" name="Zv9_NA475" circular="false" local="local"/>
+    <Ref seqId="NW_003336927.1" name="Zv9_NA477" circular="false" local="local"/>
+    <Ref seqId="NW_003336928.1" name="Zv9_NA436" circular="false" local="local"/>
+    <Ref seqId="NW_003336930.1" name="Zv9_NA463" circular="false" local="local"/>
+    <Ref seqId="NW_003336931.1" name="Zv9_NA995" circular="false" local="local"/>
+    <Ref seqId="NW_003336932.1" name="Zv9_NA857" circular="false" local="local"/>
+    <Ref seqId="NW_003336933.1" name="Zv9_NA110" circular="false" local="local"/>
+    <Ref seqId="NW_003336935.1" name="Zv9_NA371" circular="false" local="local"/>
+    <Ref seqId="NW_003336936.1" name="Zv9_NA255" circular="false" local="local"/>
+    <Ref seqId="NW_003336937.1" name="Zv9_NA280" circular="false" local="local"/>
+    <Ref seqId="NW_003336938.1" name="Zv9_NA56" circular="false" local="local"/>
+    <Ref seqId="NW_003336940.1" name="Zv9_NA564" circular="false" local="local"/>
+    <Ref seqId="NW_003336941.1" name="Zv9_NA132" circular="false" local="local"/>
+    <Ref seqId="NW_003336943.1" name="Zv9_NA613" circular="false" local="local"/>
+    <Ref seqId="NW_003336944.1" name="Zv9_NA271" circular="false" local="local"/>
+    <Ref seqId="NW_003336948.1" name="Zv9_NA238" circular="false" local="local"/>
+    <Ref seqId="NW_003336949.1" name="Zv9_NA492" circular="false" local="local"/>
+    <Ref seqId="NW_003336951.1" name="Zv9_NA331" circular="false" local="local"/>
+    <Ref seqId="NW_003336952.1" name="Zv9_NA521" circular="false" local="local"/>
+    <Ref seqId="NW_003336955.1" name="Zv9_NA292" circular="false" local="local"/>
+    <Ref seqId="NW_003336956.1" name="Zv9_NA576" circular="false" local="local"/>
+    <Ref seqId="NW_003336957.1" name="Zv9_NA844" circular="false" local="local"/>
+    <Ref seqId="NW_003336958.1" name="Zv9_NA815" circular="false" local="local"/>
+    <Ref seqId="NW_003336960.1" name="Zv9_NA567" circular="false" local="local"/>
+    <Ref seqId="NW_003336962.1" name="Zv9_NA700" circular="false" local="local"/>
+    <Ref seqId="NW_003336964.1" name="Zv9_NA428" circular="false" local="local"/>
+    <Ref seqId="NW_003336967.1" name="Zv9_NA281" circular="false" local="local"/>
+    <Ref seqId="NW_003336969.1" name="Zv9_NA136" circular="false" local="local"/>
+    <Ref seqId="NW_003336971.1" name="Zv9_NA187" circular="false" local="local"/>
+    <Ref seqId="NW_003336974.1" name="Zv9_NA337" circular="false" local="local"/>
+    <Ref seqId="NW_003336975.1" name="Zv9_NA754" circular="false" local="local"/>
+    <Ref seqId="NW_003336977.1" name="Zv9_NA135" circular="false" local="local"/>
+    <Ref seqId="NW_003336980.1" name="Zv9_NA19" circular="false" local="local"/>
+    <Ref seqId="NW_003336981.1" name="Zv9_NA905" circular="false" local="local"/>
+    <Ref seqId="NW_003336990.1" name="Zv9_NA348" circular="false" local="local"/>
+    <Ref seqId="NW_003336991.1" name="Zv9_NA783" circular="false" local="local"/>
+    <Ref seqId="NW_003336993.1" name="Zv9_NA622" circular="false" local="local"/>
+    <Ref seqId="NW_003336995.1" name="Zv9_NA711" circular="false" local="local"/>
+    <Ref seqId="NW_003336996.1" name="Zv9_NA758" circular="false" local="local"/>
+    <Ref seqId="NW_003336999.1" name="Zv9_NA538" circular="false" local="local"/>
+    <Ref seqId="NW_003337000.1" name="Zv9_NA81" circular="false" local="local"/>
+    <Ref seqId="NW_003337001.1" name="Zv9_NA248" circular="false" local="local"/>
+    <Ref seqId="NW_003337002.1" name="Zv9_NA62" circular="false" local="local"/>
+    <Ref seqId="NW_003337003.1" name="Zv9_NA244" circular="false" local="local"/>
+    <Ref seqId="NW_003337008.1" name="Zv9_NA572" circular="false" local="local"/>
+    <Ref seqId="NW_003337009.1" name="Zv9_NA480" circular="false" local="local"/>
+    <Ref seqId="NW_003337011.1" name="Zv9_NA219" circular="false" local="local"/>
+    <Ref seqId="NW_003337012.1" name="Zv9_NA47" circular="false" local="local"/>
+    <Ref seqId="NW_003337013.1" name="Zv9_NA399" circular="false" local="local"/>
+    <Ref seqId="NW_003337015.1" name="Zv9_NA274" circular="false" local="local"/>
+    <Ref seqId="NW_003337016.1" name="Zv9_NA675" circular="false" local="local"/>
+    <Ref seqId="NW_003337019.1" name="Zv9_NA733" circular="false" local="local"/>
+    <Ref seqId="NW_003337020.1" name="Zv9_NA386" circular="false" local="local"/>
+    <Ref seqId="NW_003337023.1" name="Zv9_NA159" circular="false" local="local"/>
+    <Ref seqId="NW_003337027.1" name="Zv9_NA584" circular="false" local="local"/>
+    <Ref seqId="NW_003337029.1" name="Zv9_NA833" circular="false" local="local"/>
+    <Ref seqId="NW_003337030.1" name="Zv9_NA372" circular="false" local="local"/>
+    <Ref seqId="NW_003337032.1" name="Zv9_NA397" circular="false" local="local"/>
+    <Ref seqId="NW_003337033.1" name="Zv9_NA398" circular="false" local="local"/>
+    <Ref seqId="NW_003337035.1" name="Zv9_NA429" circular="false" local="local"/>
+    <Ref seqId="NW_003337037.1" name="Zv9_NA322" circular="false" local="local"/>
+    <Ref seqId="NW_003337042.1" name="Zv9_NA550" circular="false" local="local"/>
+    <Ref seqId="NW_003337043.1" name="Zv9_NA748" circular="false" local="local"/>
+    <Ref seqId="NW_003337044.1" name="Zv9_NA144" circular="false" local="local"/>
+    <Ref seqId="NW_003337045.1" name="Zv9_NA637" circular="false" local="local"/>
+    <Ref seqId="NW_003337046.1" name="Zv9_NA627" circular="false" local="local"/>
+    <Ref seqId="NW_003337048.1" name="Zv9_NA319" circular="false" local="local"/>
+    <Ref seqId="NW_003337049.1" name="Zv9_NA174" circular="false" local="local"/>
+    <Ref seqId="NW_003337050.1" name="Zv9_NA543" circular="false" local="local"/>
+    <Ref seqId="NW_003337051.1" name="Zv9_NA818" circular="false" local="local"/>
+    <Ref seqId="NW_003337054.1" name="Zv9_NA445" circular="false" local="local"/>
+    <Ref seqId="NW_003337056.1" name="Zv9_NA234" circular="false" local="local"/>
+    <Ref seqId="NW_003337057.1" name="Zv9_NA813" circular="false" local="local"/>
+    <Ref seqId="NW_003337058.1" name="Zv9_NA657" circular="false" local="local"/>
+    <Ref seqId="NW_003337060.1" name="Zv9_NA824" circular="false" local="local"/>
+    <Ref seqId="NW_003337061.1" name="Zv9_NA6" circular="false" local="local"/>
+    <Ref seqId="NW_003337062.1" name="Zv9_NA263" circular="false" local="local"/>
+    <Ref seqId="NW_003337063.1" name="Zv9_NA534" circular="false" local="local"/>
+    <Ref seqId="NW_003337064.1" name="Zv9_NA653" circular="false" local="local"/>
+    <Ref seqId="NW_003337071.1" name="Zv9_NA702" circular="false" local="local"/>
+    <Ref seqId="NW_003337073.1" name="Zv9_NA648" circular="false" local="local"/>
+    <Ref seqId="NW_003337075.1" name="Zv9_NA854" circular="false" local="local"/>
+    <Ref seqId="NW_003337076.1" name="Zv9_NA301" circular="false" local="local"/>
+    <Ref seqId="NW_003337078.1" name="Zv9_NA124" circular="false" local="local"/>
+    <Ref seqId="NW_003337079.1" name="Zv9_NA178" circular="false" local="local"/>
+    <Ref seqId="NW_003337083.1" name="Zv9_NA625" circular="false" local="local"/>
+    <Ref seqId="NW_003337084.1" name="Zv9_NA630" circular="false" local="local"/>
+    <Ref seqId="NW_003337085.1" name="Zv9_NA403" circular="false" local="local"/>
+    <Ref seqId="NW_003337086.1" name="Zv9_NA911" circular="false" local="local"/>
+    <Ref seqId="NW_003337092.1" name="Zv9_NA408" circular="false" local="local"/>
+    <Ref seqId="NW_003337093.1" name="Zv9_NA296" circular="false" local="local"/>
+    <Ref seqId="NW_003337094.1" name="Zv9_NA291" circular="false" local="local"/>
+    <Ref seqId="NW_003337098.1" name="Zv9_NA183" circular="false" local="local"/>
+    <Ref seqId="NW_003337100.1" name="Zv9_NA189" circular="false" local="local"/>
+    <Ref seqId="NW_003337103.1" name="Zv9_NA898" circular="false" local="local"/>
+    <Ref seqId="NW_003337104.1" name="Zv9_NA61" circular="false" local="local"/>
+    <Ref seqId="NW_003337107.1" name="Zv9_NA773" circular="false" local="local"/>
+    <Ref seqId="NW_003337108.1" name="Zv9_NA233" circular="false" local="local"/>
+    <Ref seqId="NW_003337109.1" name="Zv9_NA156" circular="false" local="local"/>
+    <Ref seqId="NW_003337110.1" name="Zv9_NA354" circular="false" local="local"/>
+    <Ref seqId="NW_003337111.1" name="Zv9_NA316" circular="false" local="local"/>
+    <Ref seqId="NW_003337112.1" name="Zv9_NA175" circular="false" local="local"/>
+    <Ref seqId="NW_003337113.1" name="Zv9_NA95" circular="false" local="local"/>
+    <Ref seqId="NW_003337114.1" name="Zv9_NA138" circular="false" local="local"/>
+    <Ref seqId="NW_003337115.1" name="Zv9_NA13" circular="false" local="local"/>
+    <Ref seqId="NW_003337116.1" name="Zv9_NA659" circular="false" local="local"/>
+    <Ref seqId="NW_003337117.1" name="Zv9_NA926" circular="false" local="local"/>
+    <Ref seqId="NW_003337118.1" name="Zv9_NA247" circular="false" local="local"/>
+    <Ref seqId="NW_003337121.1" name="Zv9_NA395" circular="false" local="local"/>
+    <Ref seqId="NW_003337122.1" name="Zv9_NA699" circular="false" local="local"/>
+    <Ref seqId="NW_003337123.1" name="Zv9_NA819" circular="false" local="local"/>
+    <Ref seqId="NW_003337125.1" name="Zv9_NA375" circular="false" local="local"/>
+    <Ref seqId="NW_003337126.1" name="Zv9_NA57" circular="false" local="local"/>
+    <Ref seqId="NW_003337130.1" name="Zv9_NA384" circular="false" local="local"/>
+    <Ref seqId="NW_003337131.1" name="Zv9_NA546" circular="false" local="local"/>
+    <Ref seqId="NW_003337132.1" name="Zv9_NA663" circular="false" local="local"/>
+    <Ref seqId="NW_003337137.1" name="Zv9_NA302" circular="false" local="local"/>
+    <Ref seqId="NW_003337138.1" name="Zv9_NA185" circular="false" local="local"/>
+    <Ref seqId="NW_003337143.1" name="Zv9_NA678" circular="false" local="local"/>
+    <Ref seqId="NW_003337144.1" name="Zv9_NA859" circular="false" local="local"/>
+    <Ref seqId="NW_003337148.1" name="Zv9_NA347" circular="false" local="local"/>
+    <Ref seqId="NW_003337151.1" name="Zv9_NA767" circular="false" local="local"/>
+    <Ref seqId="NW_003337152.1" name="Zv9_NA706" circular="false" local="local"/>
+    <Ref seqId="NW_003337156.1" name="Zv9_NA44" circular="false" local="local"/>
+    <Ref seqId="NW_003337157.1" name="Zv9_NA336" circular="false" local="local"/>
+    <Ref seqId="NW_003337158.1" name="Zv9_NA64" circular="false" local="local"/>
+    <Ref seqId="NW_003337159.1" name="Zv9_NA511" circular="false" local="local"/>
+    <Ref seqId="NW_003337161.1" name="Zv9_NA629" circular="false" local="local"/>
+    <Ref seqId="NW_003337165.1" name="Zv9_NA885" circular="false" local="local"/>
+    <Ref seqId="NW_003337166.1" name="Zv9_NA39" circular="false" local="local"/>
+    <Ref seqId="NW_003337167.1" name="Zv9_NA988" circular="false" local="local"/>
+    <Ref seqId="NW_003337172.1" name="Zv9_NA954" circular="false" local="local"/>
+    <Ref seqId="NW_003337173.1" name="Zv9_NA856" circular="false" local="local"/>
+    <Ref seqId="NW_003337175.1" name="Zv9_NA152" circular="false" local="local"/>
+    <Ref seqId="NW_003337177.1" name="Zv9_NA680" circular="false" local="local"/>
+    <Ref seqId="NW_003337178.1" name="Zv9_NA525" circular="false" local="local"/>
+    <Ref seqId="NW_003337181.1" name="Zv9_NA343" circular="false" local="local"/>
+    <Ref seqId="NW_003337182.1" name="Zv9_NA569" circular="false" local="local"/>
+    <Ref seqId="NW_003337184.1" name="Zv9_NA160" circular="false" local="local"/>
+    <Ref seqId="NW_003337185.1" name="Zv9_NA950" circular="false" local="local"/>
+    <Ref seqId="NW_003337188.1" name="Zv9_NA837" circular="false" local="local"/>
+    <Ref seqId="NW_003337189.1" name="Zv9_NA460" circular="false" local="local"/>
+    <Ref seqId="NW_003337192.1" name="Zv9_NA69" circular="false" local="local"/>
+    <Ref seqId="NW_003337193.1" name="Zv9_NA600" circular="false" local="local"/>
+    <Ref seqId="NW_003337194.1" name="Zv9_NA107" circular="false" local="local"/>
+    <Ref seqId="NW_003337195.1" name="Zv9_NA378" circular="false" local="local"/>
+    <Ref seqId="NW_003337196.1" name="Zv9_NA418" circular="false" local="local"/>
+    <Ref seqId="NW_003337197.1" name="Zv9_NA53" circular="false" local="local"/>
+    <Ref seqId="NW_003337199.1" name="Zv9_NA32" circular="false" local="local"/>
+    <Ref seqId="NW_003337200.1" name="Zv9_NA332" circular="false" local="local"/>
+    <Ref seqId="NW_003337202.1" name="Zv9_NA482" circular="false" local="local"/>
+    <Ref seqId="NW_003337203.1" name="Zv9_NA509" circular="false" local="local"/>
+    <Ref seqId="NW_003337204.1" name="Zv9_NA461" circular="false" local="local"/>
+    <Ref seqId="NW_003337205.1" name="Zv9_NA870" circular="false" local="local"/>
+    <Ref seqId="NW_003337206.1" name="Zv9_NA58" circular="false" local="local"/>
+    <Ref seqId="NW_003337209.1" name="Zv9_NA96" circular="false" local="local"/>
+    <Ref seqId="NW_003337210.1" name="Zv9_NA4" circular="false" local="local"/>
+    <Ref seqId="NW_003337211.1" name="Zv9_NA520" circular="false" local="local"/>
+    <Ref seqId="NW_003337212.1" name="Zv9_NA38" circular="false" local="local"/>
+    <Ref seqId="NW_003337213.1" name="Zv9_NA552" circular="false" local="local"/>
+    <Ref seqId="NW_003337215.1" name="Zv9_NA33" circular="false" local="local"/>
+    <Ref seqId="NW_003337218.1" name="Zv9_NA704" circular="false" local="local"/>
+    <Ref seqId="NW_003337219.1" name="Zv9_NA554" circular="false" local="local"/>
+    <Ref seqId="NW_003337220.1" name="Zv9_NA923" circular="false" local="local"/>
+    <Ref seqId="NW_003337223.1" name="Zv9_NA608" circular="false" local="local"/>
+    <Ref seqId="NW_003337226.1" name="Zv9_NA998" circular="false" local="local"/>
+    <Ref seqId="NW_003337227.1" name="Zv9_NA589" circular="false" local="local"/>
+    <Ref seqId="NW_003337228.1" name="Zv9_NA986" circular="false" local="local"/>
+    <Ref seqId="NW_003337229.1" name="Zv9_NA101" circular="false" local="local"/>
+    <Ref seqId="NW_003337230.1" name="Zv9_NA963" circular="false" local="local"/>
+    <Ref seqId="NW_003337231.1" name="Zv9_NA615" circular="false" local="local"/>
+    <Ref seqId="NW_003337232.1" name="Zv9_NA154" circular="false" local="local"/>
+    <Ref seqId="NW_003337235.1" name="Zv9_NA208" circular="false" local="local"/>
+    <Ref seqId="NW_003337236.1" name="Zv9_NA519" circular="false" local="local"/>
+    <Ref seqId="NW_003337238.1" name="Zv9_NA443" circular="false" local="local"/>
+    <Ref seqId="NW_003337240.1" name="Zv9_NA137" circular="false" local="local"/>
+    <Ref seqId="NW_003337241.1" name="Zv9_NA290" circular="false" local="local"/>
+    <Ref seqId="NW_003337244.1" name="Zv9_NA42" circular="false" local="local"/>
+    <Ref seqId="NW_003337247.1" name="Zv9_NA221" circular="false" local="local"/>
+    <Ref seqId="NW_003337248.1" name="Zv9_NA797" circular="false" local="local"/>
+    <Ref seqId="NW_003337250.1" name="Zv9_NA434" circular="false" local="local"/>
+    <Ref seqId="NW_003337255.1" name="Zv9_NA838" circular="false" local="local"/>
+    <Ref seqId="NW_003337257.1" name="Zv9_NA22" circular="false" local="local"/>
+    <Ref seqId="NW_003337258.1" name="Zv9_NA28" circular="false" local="local"/>
+    <Ref seqId="NW_003337261.1" name="Zv9_NA688" circular="false" local="local"/>
+    <Ref seqId="NW_003337263.1" name="Zv9_NA104" circular="false" local="local"/>
+    <Ref seqId="NW_003337264.1" name="Zv9_NA261" circular="false" local="local"/>
+    <Ref seqId="NW_003337265.1" name="Zv9_NA656" circular="false" local="local"/>
+    <Ref seqId="NW_003337266.1" name="Zv9_NA715" circular="false" local="local"/>
+  </AlignInfo>
+  <QualityCount>
+    <Quality value="33" count="320907"/>
+    <Quality value="35" count="7546"/>
+    <Quality value="36" count="9588"/>
+    <Quality value="37" count="27246"/>
+    <Quality value="38" count="29898"/>
+    <Quality value="39" count="33990"/>
+    <Quality value="40" count="45658"/>
+    <Quality value="41" count="64251"/>
+    <Quality value="42" count="70570"/>
+    <Quality value="43" count="65911"/>
+    <Quality value="44" count="104440"/>
+    <Quality value="45" count="90610"/>
+    <Quality value="46" count="115743"/>
+    <Quality value="47" count="120005"/>
+    <Quality value="48" count="151610"/>
+    <Quality value="49" count="195265"/>
+    <Quality value="50" count="232457"/>
+    <Quality value="51" count="278545"/>
+    <Quality value="52" count="314623"/>
+    <Quality value="53" count="319242"/>
+    <Quality value="54" count="324902"/>
+    <Quality value="55" count="479239"/>
+    <Quality value="56" count="556578"/>
+    <Quality value="57" count="597179"/>
+    <Quality value="58" count="837983"/>
+    <Quality value="59" count="802168"/>
+    <Quality value="60" count="1040923"/>
+    <Quality value="61" count="1490615"/>
+    <Quality value="62" count="1622519"/>
+    <Quality value="63" count="1633834"/>
+    <Quality value="64" count="3629934"/>
+    <Quality value="65" count="3254358"/>
+    <Quality value="66" count="5674322"/>
+    <Quality value="67" count="9995526"/>
+    <Quality value="68" count="16720494"/>
+    <Quality value="69" count="10821982"/>
+    <Quality value="70" count="60429043"/>
+    <Quality value="71" count="15216"/>
+  </QualityCount>
+  <Databases>
+    <Database>
+      <Table name="PRIMARY_ALIGNMENT">
+        <Statistics source="meta">
+          <Rows count="851242"/>
+          <Elements count="80867990"/>
+        </Statistics>
+      </Table>
+      <Table name="REFERENCE">
+        <Statistics source="meta">
+          <Rows count="280997"/>
+          <Elements count="1403295395"/>
+        </Statistics>
+      </Table>
+      <Table name="SEQUENCE">
+        <Statistics source="meta">
+          <Rows count="1289736"/>
+          <Elements count="122524920"/>
+        </Statistics>
+      </Table>
+    </Database>
+  </Databases>
+  <Changes>
+    <Change change="QUAL changed" reason="reversed">426962</Change>
+    <Change change="SEQ changed" reason="reversed">426962</Change>
+  </Changes>
+  <AssemblyStatistics n50="149509" l50="83" n90="28321" l90="374" n="44716339" l="639"/>
+</Run>

@@ -1,0 +1,11 @@
+<Run accession="SRR053325" read_length="fixed" spot_count="1" base_count="270" base_count_bio="237" spot_count_mates="0" base_count_bio_mates="0" spot_count_bad="0" base_count_bio_bad="0" spot_count_filtered="0" base_count_bio_filtered="0">
+  <Member member_name="AVP24_435_36" spot_count="1" base_count="270" base_count_bio="237" spot_count_mates="0" base_count_bio_mates="0" spot_count_bad="0" base_count_bio_bad="0" spot_count_filtered="0" base_count_bio_filtered="0"/>
+  <Size value="10800" units="bytes"/>
+  <Bases cs_native="false" count="237">
+    <Base value="A" count="42"/>
+    <Base value="C" count="81"/>
+    <Base value="G" count="58"/>
+    <Base value="T" count="56"/>
+    <Base value="N" count="0"/>
+  </Bases>
+</Run>

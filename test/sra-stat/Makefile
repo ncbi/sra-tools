@@ -92,6 +92,11 @@ quick_bases:
 	diff actual/SRR619505 expected/SRR619505
 
 	@echo
+	@echo SRR1985136 is a small cSRA with a local reference and 0-length tech-rd
+	$(BINDIR)/sra-stat -x SRR1985136 | perl -w strip-path.pl > actual/SRR1985136
+	diff actual/SRR1985136 expected/SRR1985136-with-Changes
+
+	@echo
 	@rm -v actual/*
 
 test_bases: quick_bases

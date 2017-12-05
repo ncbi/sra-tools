@@ -87,12 +87,7 @@
 		BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "reorder-ir.cpp"; sourceTree = SOURCE_ROOT; };
 		BE4F77DC1EA51E5B00CB45D6 /* sra2ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = sra2ir; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sra2ir.cpp; sourceTree = SOURCE_ROOT; };
-		BE4F77E61EA51EA700CB45D6 /* vdb.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = vdb.hpp; path = include/vdb.hpp; sourceTree = "<group>"; };
-		BE4F77E71EA51EA700CB45D6 /* writer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = writer.hpp; path = include/writer.hpp; sourceTree = "<group>"; };
-		BE4F77E81EA51EB500CB45D6 /* aligned-ir.schema.text */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = net.daringfireball.markdown; name = "aligned-ir.schema.text"; path = "schema/aligned-ir.schema.text"; sourceTree = "<group>"; };
 		BE6EC3911FB363BD00290A97 /* CMakeLists.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = CMakeLists.txt; sourceTree = "<group>"; };
-		BE6EC3921FB36A4200290A97 /* utility.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; name = utility.hpp; path = include/utility.hpp; sourceTree = "<group>"; };
-		BE6EC3931FB37F4D00290A97 /* Findncbi-vdb.cmake */ = {isa = PBXFileReference; lastKnownFileType = text; name = "Findncbi-vdb.cmake"; path = "cmake/Findncbi-vdb.cmake"; sourceTree = "<group>"; };
 		BE7200C31F605B3E004A3C2F /* summarize-pairs */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "summarize-pairs"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE7200CA1F605B73004A3C2F /* summarize-pairs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "summarize-pairs.cpp"; sourceTree = SOURCE_ROOT; };
 		BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libncbi-vdb.a"; path = "../shared/libncbi-vdb.a"; sourceTree = "<group>"; };
@@ -161,7 +156,6 @@
 				BE3BC8711EE8945A0033AC5F /* fragment.hpp */,
 				BE1766511ED4B0B0005ECFFB /* README.md */,
 				BED896D31FBE0F5900294F36 /* generate-test-data.pl */,
-				BE4F77E51EA51E8C00CB45D6 /* shared */,
 				BE4F77E31EA51E7F00CB45D6 /* sra2ir.cpp */,
 				BE47E36B1EB3BB4000D68FA5 /* reorder-ir.cpp */,
 				BE17665D1ED4B199005ECFFB /* filter-ir.cpp */,
@@ -186,19 +180,6 @@
 			);
 			name = Products;
 			sourceTree = "<group>";
-		};
-		BE4F77E51EA51E8C00CB45D6 /* shared */ = {
-			isa = PBXGroup;
-			children = (
-				BE6EC3931FB37F4D00290A97 /* Findncbi-vdb.cmake */,
-				BE4F77E81EA51EB500CB45D6 /* aligned-ir.schema.text */,
-				BE4F77E61EA51EA700CB45D6 /* vdb.hpp */,
-				BE4F77E71EA51EA700CB45D6 /* writer.hpp */,
-				BE6EC3921FB36A4200290A97 /* utility.hpp */,
-			);
-			name = shared;
-			path = ../shared;
-			sourceTree = SOURCE_ROOT;
 		};
 		BE4F77EB1EA51F3500CB45D6 /* Frameworks */ = {
 			isa = PBXGroup;
@@ -511,7 +492,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../../../ncbi-vdb/interfaces";
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../shared";
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
 				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../shared/include/";
@@ -561,7 +542,7 @@
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "$(SRCROOT)/../../../ncbi-vdb/interfaces";
-				LIBRARY_SEARCH_PATHS = "$(SRCROOT)";
+				LIBRARY_SEARCH_PATHS = "$(SRCROOT)/../shared";
 				MTL_ENABLE_DEBUG_INFO = NO;
 				USER_HEADER_SEARCH_PATHS = "${PROJECT_DIR}/../shared/include/";
 				VALID_ARCHS = x86_64;

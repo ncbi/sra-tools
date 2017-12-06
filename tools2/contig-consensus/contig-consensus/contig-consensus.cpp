@@ -24,15 +24,43 @@
  */
 
 #include <iostream>
+#include <map>
+#include <vector>
 #include "utility.hpp"
 #include "vdb.hpp"
 #include "writer.hpp"
 
 using namespace utility;
 
+class References {
+    public struct Reference : public std::string {
+        
+        std::string const &name() const { return *this; }
+    };
+};
+
+static int process(std::string const &inpath, Writer2 const &out)
+{
+    auto const mgr = VDB::Manager();
+    auto const db = mgr[inpath];
+    auto const contigsTbl = db["CONTIGS"];
+    auto const fragmentsTbl = db["FRAGMENTS"];
+    auto const referencesTbl = db["REFERENCES"];
+    return 0;
+}
+
 static int process(std::string const &inpath, FILE *const out)
 {
-    return 0;
+    auto const writer = Writer2(out);
+    
+    writer.destination("consensus.db");
+    writer.schema("aligned-ir.schema.text", "NCBI:db:aligned");
+    writer.info("contig-consensus", "1.0.0");
+
+    writer.beginWriting();
+    auto const rslt = process(inpath, writer);
+    writer.endWriting();
+    return rslt;
 }
 
 namespace contig_consensus {

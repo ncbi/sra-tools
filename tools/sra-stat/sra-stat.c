@@ -600,7 +600,7 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
     rc_t rc = 0;
     const void *base = NULL;
     bitsz_t row_bits = ~0;
-    bitsz_t i = ~0;
+    int64_t i = ~0;
     const unsigned char *bases = NULL;
     bitsz_t boff = 0;
 
@@ -716,11 +716,12 @@ static rc_t BasesAdd(Bases *self, int64_t spotid, bool alignment) {
                 return RC(rcExe, rcNumeral, rcComparing, rcData, rcInvalid);
             nxtRdStart += dREAD_LEN [ read ++ ];
             assert ( read > 0 );
-            if ( ( (dREAD_TYPE[read-1] & SRA_READ_TYPE_BIOLOGICAL) == 0 )
-                && ( dREAD_LEN [ read - 1 ] > 0 ) )
-             /* skip non-empty non-biological reads */
+            if ( ( (dREAD_TYPE[read-1] & SRA_READ_TYPE_BIOLOGICAL) == 0 ) )
+                    /* skip non-biological reads */
             {
-                i += dREAD_LEN [ read - 1 ] - 1;
+                if ( dREAD_LEN [ read - 1 ] > 0 )
+                    i += dREAD_LEN [ read - 1 ];
+                -- i; /* here i can become negative: it should be signed */
                 continue;                
             }
         }

@@ -623,7 +623,11 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
         auto const after = stats.stats.size();
         std::cerr << "info: " << floor(100.0 * double(aligned)/spots) << "% aligned" << std::endl;
         if (changed) {
-            std::cerr << "info: eliminated " << floor((before - after) * 100.0 / before) << "% candidate contiguous regions; reanalysing to get convergence" << std::endl;
+            auto const eliminated = int(floor((before - after) * 100.0 / before));
+            if (eliminated > 0)
+                std::cerr << "info: eliminated " << floor((before - after) * 100.0 / before) << "% candidate contiguous regions; reanalysing to get convergence" << std::endl;
+            else
+                std::cerr << "info: eliminated " << (before - after) << " candidate contiguous regions; reanalysing to get convergence" << std::endl;
             if (loops >= 3)
                 std::cerr << "warn: convergence not achieved on pass " << loops << std::endl;
         }

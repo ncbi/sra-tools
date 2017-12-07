@@ -364,6 +364,12 @@ public:
         Writer2 const &parent;
         Column(Writer2 const &p, Writer2::ColumnID n) : parent(p), columnNumber(n) {}
     public:
+        bool setValue(VDB::Cursor::Data const *data) const {
+            return setValue(data->elements, data->elem_bits >> 3, data->data());
+        }
+        bool setValue(VDB::Cursor::DataList const *data) const {
+            return setValue(static_cast<VDB::Cursor::Data const *>(data));
+        }
         template <typename T>
         bool setValue(T const &data) const {
             return parent.value(columnNumber, data);
@@ -372,14 +378,8 @@ public:
         bool setValue(unsigned count, T const *data) const {
             return parent.value(columnNumber, uint32_t(count), data);
         }
-        bool setValue(std::string const &data) const {
-            return parent.value(columnNumber, data);
-        }
         bool setValue(unsigned count, unsigned elsize, void const *data) const {
             return parent.value(columnNumber, count, elsize, data);
-        }
-        bool setValue(VDB::Cursor::Data const *data) const {
-            return setValue(data->elements, data->elem_bits >> 3, data->data());
         }
         bool setValueEmpty() const {
             return parent.value(columnNumber, 0, "");
@@ -432,5 +432,6 @@ public:
         return setValue(columnNumber, data->elements, data->elem_bits >> 3, data->data());
     }
 };
+
 
 #endif // __WRITER_HPP_INCLUDED__

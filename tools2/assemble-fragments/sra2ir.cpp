@@ -158,35 +158,48 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
     int64_t written = 0;
     auto nextReport = 1;
     char buffer[32];
-    
-    std::cerr << "processing " << (range.second - range.first) << " records from " << tblName << std::endl;
-    in.foreach([&](int64_t row, std::vector<VDB::Cursor::RawData> const &data)
+    auto const applyFilter = [](VDB::Cursor const &curs, int64_t row)
     {
-        auto const refName = data[4];
-        auto const refPos = data[6];
+        auto const refName = curs.read(row, 5);
+        auto const refPos = curs.read(row, 7);
+        return filterInclude(refName.asString(), refPos.value<int32_t>() + 1);
+    };
+    auto const keepAll = [](VDB::Cursor const &curs, int64_t row)
+    {
+        return true;
+    };
 
-        if (filter.empty() || filterInclude(refName.asString(), refPos.value<int32_t>() + 1)) {
-            auto const n = snprintf(buffer, 32, "%" PRIi64, data[1].value<int64_t>());
-            auto const strand = char(data[5].value<int8_t>() == 0 ? '+' : '-');
-            
-            write(out, 1, data[0]);     ///< spot group
-            out.value(2, n, buffer);    ///< name
-            write(out, 3, data[2]);     ///< read number
-            write(out, 4, data[3]);     ///< sequence
-            write(out, 5, refName);
-            out.value(6, strand);
-            write(out, 7, refPos);
-            write(out, 8, data[7]);     ///< cigar
-            
-            out.closeRow(1);
-            ++written;
-        }
-        if (nextReport * freq <= row - range.first) {
-            std::cerr << "processed " << nextReport << "%" << std::endl;
-            ++nextReport;
-        }
-    });
-    std::cerr << "processed 100%" << std::endl;
+    std::cerr << "processing " << (range.second - range.first) << " records from " << tblName << std::endl;
+    in.foreach(filter.empty() ? keepAll : applyFilter,
+               [&](int64_t row, bool keep, std::vector<VDB::Cursor::RawData> const &data)
+               {
+                   if (keep) {
+                       auto const refName = data[4];
+                       auto const refPos = data[6];
+                       auto const n = snprintf(buffer, 32, "%" PRIi64, data[1].value<int64_t>());
+                       auto const strand = char(data[5].value<int8_t>() == 0 ? '+' : '-');
+                       
+                       write(out, 1, data[0]);     ///< spot group
+                       out.value(2, n, buffer);    ///< name
+                       write(out, 3, data[2]);     ///< read number
+                       write(out, 4, data[3]);     ///< sequence
+                       write(out, 5, refName);
+                       out.value(6, strand);
+                       write(out, 7, refPos);
+                       write(out, 8, data[7]);     ///< cigar
+                       
+                       out.closeRow(1);
+                       ++written;
+                   }
+                   while (nextReport * freq <= row - range.first) {
+                       std::cerr << "processed " << nextReport << "%" << std::endl;
+                       ++nextReport;
+                   }
+               });
+    while (nextReport * freq <= range.second - range.first) {
+        std::cerr << "processed " << nextReport << "%" << std::endl;
+        ++nextReport;
+    }
     std::cerr << "imported " << written << " alignments from " << tblName << std::endl;
 }
 

@@ -459,7 +459,7 @@ struct RawRecord : public VDB::IndexedCursorBase::Record {
     }
 };
 
-#define VALIDATE 1
+#define VALIDATE 0
 #if VALIDATE
 #include <set>
 

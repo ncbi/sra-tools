@@ -119,8 +119,11 @@ namespace VDB {
                     throw std::logic_error("bad cast");
             }
             template <typename T> T value() const {
-                if (elem_bits == sizeof(T) * 8 && elements == 1)
-                    return *(T *)data();
+                if (elem_bits == sizeof(T) * 8 && elements == 1) {
+                    union { uint8_t u8[sizeof(T)]; T t; } value;
+                    std::copy(reinterpret_cast<uint8_t const *>(data()), reinterpret_cast<uint8_t const *>(data()) + sizeof(T), value.u8);
+                    return value.t;
+                }
                 else
                     throw std::logic_error("bad cast");
             }
@@ -223,18 +226,30 @@ namespace VDB {
             data.resize(N);
             for (auto i = range.first; i < range.second; ++i) {
                 for (auto j = 0; j < N; ++j) {
-                    void const *base = 0;
-                    uint32_t count = 0;
-                    uint32_t boff = 0;
-                    uint32_t elem_bits = 0;
-                    
-                    C::rc_t rc = C::VCursorCellDataDirect(o, i, j + 1, &elem_bits, &base, &boff, &count);
-                    if (rc) return rows;
-                    data[j].data = base;
-                    data[j].elements = count;
-                    data[j].elem_bits = elem_bits;
+                    try { data[j] = read(i, j + 1); }
+                    catch (...) { return rows; }
                 }
                 f(i, data);
+                ++rows;
+            }
+            return rows;
+        }
+        template <typename FILT, typename FUNC>
+        uint64_t foreach(FILT filt, FUNC func) const {
+            auto data = std::vector<RawData>();
+            auto const range = rowRange();
+            uint64_t rows = 0;
+            
+            data.resize(N);
+            for (auto i = range.first; i < range.second; ++i) {
+                auto const keep = filt(*this, i);
+                if (keep) {
+                    for (auto j = 0; j < N; ++j) {
+                        try { data[j] = read(i, j + 1); }
+                        catch (...) { return rows; }
+                    }
+                }
+                func(i, keep, data);
                 ++rows;
             }
             return rows;

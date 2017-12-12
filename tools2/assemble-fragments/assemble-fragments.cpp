@@ -209,7 +209,7 @@ struct ContigStats {
 
     bool cleanup() {
         auto changed = false;
-        std::vector<stat> clean;
+        auto clean = decltype(stats)();
         clean.reserve(stats.size());
         for (auto && i : stats) {
             if (i.length.count() < 5.0 || i.coverage() < 5.0) continue;
@@ -527,9 +527,7 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
                     });
     writer.addTable(
                     "FRAGMENTS", {
-                        { "READ_GROUP", sizeof(char) },
                         { "NAME", sizeof(char) },
-                        { "REFERENCE", sizeof(char) },
                         { "LAYOUT", sizeof(char) },
                         { "POSITION", sizeof(int32_t) },
                         { "LENGTH", sizeof(int32_t) },
@@ -569,9 +567,7 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
     writer.flush();
     
     auto const keepTable = writer.table("FRAGMENTS");
-    auto const keepGroup = keepTable.column("READ_GROUP");
     auto const keepName = keepTable.column("NAME");
-    auto const keepRef = keepTable.column("REFERENCE");
     auto const keepLayout = keepTable.column("LAYOUT");
     auto const keepPosition = keepTable.column("POSITION");
     auto const keepLength = keepTable.column("LENGTH");
@@ -649,7 +645,6 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             auto const cigar = first.cigarString + "0P" + second.cigarString; ///< 0P is like a double-no-op; used here to mark the division between the two CIGAR strings; also represents the mate-pair gap, the length of which is inferred from the fragment length
             auto const sequence = fragment.sequence(first.readNo) + fragment.sequence(second.readNo); ///< just concatenate them
             
-            keepGroup.setValue(fragment.group);
             keepName.setValue(fragment.name);
             keepLayout.setValue(layout);
             keepCIGAR.setValue(cigar);
@@ -663,8 +658,7 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             contig.rlength2.add(best.b->cigar.rlength);
 
             if (contig.mapulet == 0) {
-                keepRef.setValue(references[contig.ref1]);
-                keepPosition.setValue(best.pos1);
+                keepPosition.setValue(best.pos1 - contig.start1);
                 keepLength.setValue(best.fragmentLength);
                 
                 contig.length.add(best.fragmentLength);
@@ -678,7 +672,6 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
                 auto const end2 = pos2 + best.b->cigar.qlength;
                 auto const length = end2 - pos1;
                 
-                keepRef.setValue(mapulet.name); ///< reference name changes
                 keepPosition.setValue(pos1); ///< aligned position changes
                 keepLength.setValue(length); ///< fragment length changes; N.B. there is a gap in the mapping that has not been computed yet, this length doesn't take that into account, the gap needs to be added in on read
                 (void)end1;

@@ -106,15 +106,16 @@ namespace VDB {
             void *data() const {
                 return (void *)(this + 1);
             }
-            std::string asString() const {
+            std::string string() const {
                 if (elem_bits == 8)
-                    return elements == 0 ? std::string() : std::string((char const *)data(), elements);
+                    return elements == 0 ? std::string() : std::string(reinterpret_cast<char const *>(data()), elements);
                 else
                     throw std::logic_error("bad cast");
             }
-            template <typename T> std::vector<T> asVector() const {
-                if (elem_bits == sizeof(T) * 8)
-                    return std::vector<T>((T *)data(), ((T *)data()) + elements);
+            template <typename T> std::vector<T> vector() const {
+                if (elem_bits == sizeof(T) * 8) {
+                    return std::vector<T>(reinterpret_cast<T const *>(data()), reinterpret_cast<T const *>(data()) + elements);
+                }
                 else
                     throw std::logic_error("bad cast");
             }

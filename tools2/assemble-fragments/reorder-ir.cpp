@@ -250,6 +250,7 @@ struct Context {
             // it is an invariant that the mutex is held by the current thread regardless of the code path taken
         }
         pthread_mutex_unlock(&mutex);
+        pthread_cond_signal(&cond_running);
     }
 };
 
@@ -440,10 +441,10 @@ struct RawRecord : public VDB::IndexedCursorBase::Record {
         return { "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "POSITION" };
     }
     friend bool operator <(RawRecord const &a, RawRecord const &b) {
-        auto const agroup = a.data->asString();
-        auto const bgroup = b.data->asString();
-        auto const aname = a.data->next()->asString();
-        auto const bname = b.data->next()->asString();
+        auto const agroup = a.data->string();
+        auto const bgroup = b.data->string();
+        auto const aname = a.data->next()->string();
+        auto const bname = b.data->next()->string();
         
         if (agroup == bgroup && aname == bname) ///< this is the expected case
             return a.row < b.row;

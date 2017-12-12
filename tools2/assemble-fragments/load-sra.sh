@@ -2,6 +2,7 @@
 
 echo "Reading $1 ..."
 sra2ir "$@" | general-loader --log-level=err --include=${INCLUDE:-include} --schema=${SCHEMA:-schema}/aligned-ir.schema.text --target=$$.IR
+
 echo "Sorting ..."
 reorder-ir $$.IR | general-loader --log-level=err --include=${INCLUDE:-include} --schema=${SCHEMA:-schema}/aligned-ir.schema.text --target=$$.sorted
 rm -rf $$.IR
@@ -19,3 +20,4 @@ rm -rf $$.filtered $$.contigs
 
 echo "Packaging final result $1.result.vdb"
 kar --force -d $$.result -c $1.result.vdb
+rm -rf $$.result

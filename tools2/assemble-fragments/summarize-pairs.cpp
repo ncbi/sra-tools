@@ -505,10 +505,13 @@ static int process(VDB::Writer const &out, LineBuffer &ifs)
             report += freq;
         REPORT:
             auto elapsed = double(time(nullptr) - time0);
+            std::cerr << "prog: " << (isEOF ? 100 : unsigned(ifs.position() * 100.0)) << "%; " << in_count << " alignments processed";
             if (elapsed > 0)
-                std::cerr << "prog: " << unsigned(ifs.position() * 100.0) << "%; " << in_count << " alignments processed (" << in_count / elapsed << " per sec); (" << gapless_count << " gapless) " << out_count << " contig pairs generated (" << out_count / elapsed << " per sec); ratio: " << double(in_count) / out_count << std::endl;
-            else
-                std::cerr << "prog: " << unsigned(ifs.position() * 100.0) << "%; " << in_count << " alignments processed; (" << gapless_count << " gapless) " << out_count << " contig pairs generated; ratio: " << double(in_count) / out_count << std::endl;
+                std::cerr << " (" << in_count / elapsed << " per sec)";
+            std::cerr << "; (" << gapless_count << " gapless) " << out_count << " contig pairs generated";
+            if (elapsed > 0)
+                std::cerr << " (" << out_count / elapsed << " per sec)";
+            std::cerr << "; ratio: " << double(in_count) / out_count << std::endl;
             if (isEOF)
                 return 0;
         }

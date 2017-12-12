@@ -60,7 +60,7 @@ table NCBI:tbl:aligned:SPOT_STATISTICS #1
     extern column U32 FRAGMENT_LENGTH_EQUIPART;
 };
 
-table NCBI:tbl:IR:CONTIGS #1
+table NCBI:tbl:IR:CONTIGS #1 ///< these are temporary contiguous regions
 {
     extern column <ascii>  zip_encoding REFERENCE_1;
     extern column   <I32> izip_encoding START_1;
@@ -74,27 +74,11 @@ table NCBI:tbl:IR:CONTIGS #1
     extern column <ascii>  zip_encoding READ_GROUP;
 };
 
-table NCBI:tbl:aligned:REFERENCE #1
-{
-    extern column <ascii>  zip_encoding NAME;
-
-/* these columns are empty for a "real" reference */
-    extern column <ascii>  zip_encoding REFERENCE_1; ///< the name of a "real" reference (another record in this table)
-    extern column   <I32> izip_encoding START_1;
-    extern column   <I32> izip_encoding END_1;
-
-    extern column   <I32> izip_encoding GAP; ///< if >1, this value is a suggested adjustment to the fragment length of all fragments that aligned here;
-
-    extern column <ascii>  zip_encoding REFERENCE_2; ///< the name of a "real" reference (another record in this table)
-    extern column   <I32> izip_encoding START_2;
-    extern column   <I32> izip_encoding END_2;
-};
-
 table NCBI:tbl:aligned:CONTIGS #1
 {
     extern column <ascii>  zip_encoding PLATFORM;
     extern column <ascii>  zip_encoding READ_GROUP;
-    extern column <ascii>  zip_encoding REFERENCE;
+    extern column <ascii>  zip_encoding REFERENCE;  ///< this may be empty, see below
     extern column   <I32> izip_encoding START;
     extern column   <I32> izip_encoding END;
 
@@ -107,6 +91,17 @@ table NCBI:tbl:aligned:CONTIGS #1
     extern column   <U32> izip_encoding FRAGMENT_COUNT;
     extern column   <F32>  zip_encoding FRAGMENT_LENGTH_AVERAGE;
     extern column   <F32>  zip_encoding FRAGMENT_LENGTH_STD_DEV;
+
+/* if REFERENCE is empty, these columns will be filled in; otherwise, they will be empty */
+    extern column <ascii>  zip_encoding REFERENCE_1;
+    extern column   <I32> izip_encoding START_1;
+    extern column   <I32> izip_encoding END_1;
+
+    extern column   <I32> izip_encoding GAP; ///< this value is a suggested adjustment to the fragment length of all fragments that aligned here;
+
+    extern column <ascii>  zip_encoding REFERENCE_2;
+    extern column   <I32> izip_encoding START_2;
+    extern column   <I32> izip_encoding END_2;
 };
 
 table NCBI:tbl:aligned:FRAGMENT #1

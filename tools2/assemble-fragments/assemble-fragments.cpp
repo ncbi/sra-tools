@@ -407,6 +407,7 @@ static BestAlignment bestPair(Fragment const &fragment, ContigStats const &conti
     return result;
 }
 
+#if 0
 static void writeReferences(Writer2 const &out, strings_map const &realRefs, std::vector<Mapulet> const &virtualRefs)
 {
     auto const table = out.table("REFERENCES");
@@ -446,6 +447,7 @@ static void writeReferences(Writer2 const &out, strings_map const &realRefs, std
         table.closeRow();
     }
 }
+#endif
 
 static void writeContigs(Writer2 const &out, std::vector<ContigStats::stat> const &contigs)
 {
@@ -461,6 +463,14 @@ static void writeContigs(Writer2 const &out, std::vector<ContigStats::stat> cons
     auto const AVERAGE = table.column("FRAGMENT_LENGTH_AVERAGE");
     auto const STD_DEV = table.column("FRAGMENT_LENGTH_STD_DEV");
     auto const GROUP = table.column("READ_GROUP");
+    
+    auto const REF_1 = table.column("REFERENCE_1");
+    auto const STR_1 = table.column("START_1");
+    auto const END_1 = table.column("END_1");
+    auto const GAP = table.column("GAP");
+    auto const REF_2 = table.column("REFERENCE_2");
+    auto const STR_2 = table.column("START_2");
+    auto const END_2 = table.column("END_2");
 
     float qlength_average[2];
     float qlength_std_dev[2];
@@ -492,16 +502,32 @@ static void writeContigs(Writer2 const &out, std::vector<ContigStats::stat> cons
 
         if (i.mapulet == 0) {
             REF.setValue(references[i.ref1]);
-            STR.setValue(i.start1);
-            END.setValue(i.end2);
+            STR.setValue(int32_t(i.start1));
+            END.setValue(int32_t(i.end2));
             AVERAGE.setValue(float(i.length.average()));
+
+            REF_1.setValueEmpty();
+            STR_1.setValueEmpty();
+            END_1.setValueEmpty();
+            GAP.setValueEmpty();
+            REF_2.setValueEmpty();
+            STR_2.setValueEmpty();
+            END_2.setValueEmpty();
         }
         else {
             auto const &mapulet = mapulets[i.mapulet];
-            REF.setValue(mapulet.name);
-            STR.setValue(0);
-            END.setValue((mapulet.end1 - mapulet.start1) + mapulet.gap + (mapulet.end2 - mapulet.start2));
+            REF.setValueEmpty();
+            STR.setValue(int32_t(0));
+            END.setValue(int32_t((mapulet.end1 - mapulet.start1) + mapulet.gap + (mapulet.end2 - mapulet.start2)));
             AVERAGE.setValue(float(i.length.average() + mapulet.gap));
+
+            REF_1.setValue(references[mapulet.ref1]);
+            STR_1.setValue(int32_t(mapulet.start1));
+            END_1.setValue(int32_t(mapulet.end1));
+            GAP.setValue(int32_t(mapulet.gap));
+            REF_2.setValue(references[mapulet.ref2]);
+            STR_2.setValue(int32_t(mapulet.start2));
+            END_2.setValue(int32_t(mapulet.end2));
         }
         table.closeRow();
     }
@@ -514,17 +540,6 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:aligned");
     writer.info("assemble-fragments", "1.0.0");
 
-    writer.addTable(
-                    "REFERENCES", {
-                        { "NAME", sizeof(char) },
-                        { "REFERENCE_1", sizeof(char) },
-                        { "START_1", sizeof(int32_t) },
-                        { "END_1", sizeof(int32_t) },
-                        { "GAP", sizeof(int32_t) },
-                        { "REFERENCE_2", sizeof(char) },
-                        { "START_2", sizeof(int32_t) },
-                        { "END_2", sizeof(int32_t) },
-                    });
     writer.addTable(
                     "FRAGMENTS", {
                         { "NAME", sizeof(char) },
@@ -561,6 +576,14 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
                         { "FRAGMENT_LENGTH_AVERAGE", sizeof(float) },
                         { "FRAGMENT_LENGTH_STD_DEV", sizeof(float) },
                         { "READ_GROUP", sizeof(char) },
+
+                        { "REFERENCE_1", sizeof(char) },
+                        { "START_1", sizeof(int32_t) },
+                        { "END_1", sizeof(int32_t) },
+                        { "GAP", sizeof(int32_t) },
+                        { "REFERENCE_2", sizeof(char) },
+                        { "START_2", sizeof(int32_t) },
+                        { "END_2", sizeof(int32_t) },
                     });
     
     writer.beginWriting();
@@ -702,10 +725,7 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
     std::cerr << "prog: adjusting virtual references" << std::endl;
     stats.adjustMapulets(); ///< adjust for previously unknown gap, now that it's been computed
 
-    std::cerr << "prog: writing reference info" << std::endl;
-    writeReferences(writer, references, mapulets);
-
-    std::cerr << "prog: writing contiguous region info" << std::endl;
+    std::cerr << "prog: writing reference and writing contiguous region info" << std::endl;
     writeContigs(writer, stats.stats);
 
     writer.endWriting();

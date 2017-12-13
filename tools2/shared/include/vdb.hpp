@@ -371,7 +371,7 @@ namespace VDB {
                 auto const block = loadBlock(i, i + blockSize, count, used);
                 auto const j = i + block.size();
                 while (i < j) {
-                    auto const a = *(i++).row();
+                    auto const a = (*i++).row();
                     auto const aa = block.find(a); assert(aa != block.end());
                     T const &A = Record((void const *)(buffer + (aa->second << 2)), a);
                     f(A);

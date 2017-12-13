@@ -58,3 +58,8 @@ if (CMAKE_MAJOR_VERSION GREATER 2)
     target_compile_features (assemble-fragments PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
 endif ()
 
+add_executable (reorder-fragments reorder-fragments.cpp)
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    target_compile_features (reorder-fragments PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
+endif ()
+

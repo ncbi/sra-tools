@@ -2617,7 +2617,12 @@ static rc_t IteratorNext(Iterator *self, Item **next, bool *done) {
     if (self->isKart) {
         rc = KartMakeNextItem(self->kart, &(*next)->item);
         if (rc != 0) {
-            LOGERR(klogErr, rc, "Invalid kart file: cannot read next row");
+            if ( rc ==
+                  SILENT_RC ( rcKFG, rcNode, rcAccessing, rcNode, rcNotFound ) )
+                LOGERR (klogErr, rc, "Cannot read kart file. "
+                                "Did you Import Repository Key (ngc file)?");
+            else
+                LOGERR (klogErr, rc, "Invalid kart file: cannot read next row");
         }
         else if ((*next)->item == NULL) {
             RELEASE(Item, *next);
@@ -3582,14 +3587,17 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
                 RELEASE(Item, item);
             }
 
-            if (type == eRunTypeList) {
-                if (it.kart != NULL && total > 0) {
-                    OUTMSG(("--------------------\ntotal\t%,zuB\n\n", total));
+            if ( rc == 0 ) {
+                if (type == eRunTypeList) {
+                    if (it.kart != NULL && total > 0) {
+                        OUTMSG
+                            (("--------------------\ntotal\t%,zuB\n\n", total));
+                    }
                 }
-            }
-            else if (type == eRunTypeGetSize) {
-                OUTMSG(("\nDownloading the files...\n\n", realArg));
-                BSTreeForEach(&trKrt, false, bstKrtDownload, NULL);
+                else if (type == eRunTypeGetSize) {
+                    OUTMSG (("\nDownloading the files...\n\n", realArg));
+                    BSTreeForEach (&trKrt, false, bstKrtDownload, NULL);
+                }
             }
         }
         BSTreeWhack(&trKrt, bstKrtWhack, NULL);

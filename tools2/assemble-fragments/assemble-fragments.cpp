@@ -725,7 +725,7 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
     std::cerr << "prog: adjusting virtual references" << std::endl;
     stats.adjustMapulets(); ///< adjust for previously unknown gap, now that it's been computed
 
-    std::cerr << "prog: writing reference and writing contiguous region info" << std::endl;
+    std::cerr << "prog: writing reference and contiguous region info" << std::endl;
     writeContigs(writer, stats.stats);
 
     writer.endWriting();

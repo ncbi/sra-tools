@@ -106,10 +106,10 @@ table NCBI:tbl:aligned:CONTIGS #1
 
 table NCBI:tbl:aligned:FRAGMENT #1
 {
-    extern column   <I64> izip_encoding CONTIG; ///< the ROW ID in the REFERENCE table
+    extern column   <I64> izip_encoding CONTIG; ///< the ROW ID in the CONTIGS table
     extern column <ascii>  zip_encoding LAYOUT; ///< encoded as readno strand readno strand, e.g. 1+2- or 2+1-
     extern column   <I32> izip_encoding POSITION; ///< this is the position of 5'-most base of the 5'-most mate; unlike SAM, it is not the position of the first aligned base; this is the position relative to the start of the contig
-    extern column   <I32> izip_encoding LENGTH; ///< the fragment length as implied by the alignment; i.e. the distance from the 5'-most base to the 3'-most base, but see GAP in the REFERENCE table
+    extern column   <I32> izip_encoding LENGTH; ///< the fragment length as implied by the alignment; i.e. the distance from the 5'-most base to the 3'-most base, but see GAP in the CONTIGS table
     extern column <ascii>  zip_encoding CIGAR; ///< the CIGAR, as given, of the 5'-most mate + "0P" + the CIGAR of the other mate
 
     extern column <ascii>  zip_encoding NAME; ///< the name of the fragment, as given, i.e. QNAME or SRA spot id
@@ -127,7 +127,6 @@ database NCBI:db:IR:raw #1
 database NCBI:db:IR:aligned #1
 {
     table NCBI:tbl:aligned:FRAGMENT #1.0 FRAGMENTS;
-    table NCBI:tbl:aligned:REFERENCE #1.0 REFERENCES;
-    table NCBI:tbl:IR:raw #1.0 REJECTS;
     table NCBI:tbl:aligned:CONTIGS #1.0 CONTIGS;
+    table NCBI:tbl:IR:raw #1.0 REJECTS;
 };

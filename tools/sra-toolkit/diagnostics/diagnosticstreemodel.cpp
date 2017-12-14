@@ -9,7 +9,16 @@ DiagnosticsTreeModel :: DiagnosticsTreeModel ( const QString &data, QObject *par
     QList < QVariant > rootData;
     rootData << "Test" << "Description" << "Result";
     rootItem = new DiagnosticsTreeItem ( rootData );
-    setupModelData( data . split ( QString ( "\n" ) ), rootItem );
+    //setupModelData( data . split ( QString ( "\n" ) ), rootItem );
+}
+
+DiagnosticsTreeModel :: DiagnosticsTreeModel ( QObject *parent )
+    : QAbstractItemModel ( parent )
+{
+    QList < QVariant > rootData;
+    rootData << "Test" << "Description" << "Result";
+    rootItem = new DiagnosticsTreeItem ( rootData );
+    //setupModelData ( data, rootItem );
 }
 
 DiagnosticsTreeModel :: ~ DiagnosticsTreeModel ()
@@ -101,6 +110,12 @@ int DiagnosticsTreeModel :: columnCount ( const QModelIndex &parent ) const
         return static_cast < DiagnosticsTreeItem * > ( parent .internalPointer () ) -> columnCount ();
     else
         return rootItem -> columnCount();
+}
+
+void DiagnosticsTreeModel :: updateModelData ( DiagnosticsTreeItem *item )
+{
+    if ( rootItem -> childCount () == 0 )
+        rootItem -> appendChild ( item );
 }
 
 void DiagnosticsTreeModel :: setupModelData ( const QStringList &lines, DiagnosticsTreeItem *parent )

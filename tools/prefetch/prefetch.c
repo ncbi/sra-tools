@@ -2264,7 +2264,7 @@ static rc_t MainDetectVdbcacheCachePath(const Main *self,
 }
 
 static bool MainNeedDownload(const Main *self, const String *local,
-    const char *remotePath, const KFile *remote, size_t *remoteSz)
+    const char *remotePath, const KFile *remote, uint64_t *remoteSz)
 {
     KPathType type = kptNotFound;
     assert(self && local);
@@ -2291,7 +2291,7 @@ static bool MainNeedDownload(const Main *self, const String *local,
     }
     else {
         rc_t rc = 0;
-        size_t sLocal = 0;
+        uint64_t sLocal = 0;
         assert(remoteSz);
         rc = KFileSize(remote, remoteSz);
         DISP_RC2(rc, "KFileSize(remote.vdbcache)", remotePath);

@@ -8,8 +8,7 @@ class DiagnosticsTreeItem;
 class DiagnosticsTreeModel : public QAbstractItemModel
 {
 public:
-    DiagnosticsTreeModel ( const QString &data, QObject *parent = 0 );
-    DiagnosticsTreeModel ( QObject *parent = 0 );
+    explicit DiagnosticsTreeModel ( const QString &data, QObject *parent = 0 );
     ~DiagnosticsTreeModel();
 
     QVariant data ( const QModelIndex &index, int role ) const override;
@@ -22,7 +21,6 @@ public:
     int rowCount ( const QModelIndex &parent = QModelIndex() ) const override;
     int columnCount ( const QModelIndex &parent = QModelIndex() ) const override;
 
-    void updateModelData (  DiagnosticsTreeItem *item );
 private:
     void setupModelData ( const QStringList &lines, DiagnosticsTreeItem *parent );
 

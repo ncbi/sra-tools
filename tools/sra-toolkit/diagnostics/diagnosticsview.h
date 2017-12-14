@@ -8,10 +8,6 @@ class QVBoxLayout;
 class QTreeView;
 QT_END_NAMESPACE
 
-class DiagnosticsTreeModel;
-
-#include <diagnose/diagnose.h>
-
 class DiagnosticsView : public QWidget
 {
     Q_OBJECT
@@ -19,14 +15,11 @@ public:
     explicit DiagnosticsView(QWidget *parent = 0);
     ~DiagnosticsView ();
 
-    void handle_results ( EKDiagTestState state, const KDiagnoseTest *test );
-
 signals:
 
 public slots:
 private slots:
     void run_diagnostics ();
-
 
 private:
 
@@ -37,7 +30,6 @@ private:
 
     QTreeView *tree_view;
 
-    DiagnosticsTreeModel *model;
 };
 
 #endif // DIAGNOSTICSVIEW_H

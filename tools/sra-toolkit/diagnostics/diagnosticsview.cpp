@@ -1,6 +1,5 @@
 #include "diagnosticsview.h"
 #include "diagnosticstreemodel.h"
-#include "diagnosticstreeitem.h"
 
 
 #include <klib/rc.h>
@@ -30,7 +29,6 @@ const QString rsrc_path = ":/";
 DiagnosticsView :: DiagnosticsView ( QWidget *parent )
     : QWidget ( parent )
     , self_layout ( new QVBoxLayout () )
-    , model ( new DiagnosticsTreeModel () )
 {
     setWindowFlags ( Qt::Window );
     setAttribute ( Qt::WA_DeleteOnClose );
@@ -79,45 +77,10 @@ void DiagnosticsView :: setup_view ()
     self_layout -> setAlignment ( run, Qt::AlignRight );
 }
 
-static
-void CC test_callback ( EKDiagTestState state, const KDiagnoseTest *test, void *data )
-{
-    DiagnosticsView *self = static_cast <DiagnosticsView *> (data);
-    self -> handle_results ( state, test );
-}
-
-void DiagnosticsView :: handle_results ( EKDiagTestState state, const KDiagnoseTest *test )
-{
-
-    const char *name = 0;
-    rc_t rc = KDiagnoseTestName ( test, &name );
-    if ( rc != 0 )
-        qDebug () << "Failed to get test name";
-    else
-    {
-        uint32_t level;
-        QString test_name = QString ( name );
-
-        rc = KDiagnoseTestLevel ( test, &level );
-        if ( rc != 0 )
-            qDebug () << "failed to get test level for test: " << test_name;
-        else
-        {
-            if ( level == 0 )
-                return;
-
-           DiagnosticsTreeItem *item = new DiagnosticsTreeItem ( QString ( name ), QString (""), level );
-
-           model -> updateModelData ( item );
-
-           tree_view -> setModel ( model );
-            qDebug () << "Test: " << name << " State: " << state << " Test level: " << level;
-        }
-    }
-}
 
 void DiagnosticsView :: run_diagnostics ()
 {
+    rc_t rc = 0;
 
     QFile file ( "/Users/rodarme1/Desktop/output.txt" );
     if ( ! file . open ( QFile :: ReadWrite | QFile :: Text ) )
@@ -126,32 +89,35 @@ void DiagnosticsView :: run_diagnostics ()
         return;
     }
 
+    DiagnosticsTreeModel *model = 0;
 
-    KDiagnose *diagnose = 0;
+    KDiagnose *test = 0;
 
-    rc_t rc = KDiagnoseMakeExt ( &diagnose, nullptr, nullptr, nullptr );
+    rc = KDiagnoseMakeExt ( &test, nullptr, nullptr, nullptr );
     if ( rc != 0 )
         qDebug () << rc;
     else
     {
-        //test_results = "Beginning diagnosis...\t";
-        //model = new DiagnosticsTreeModel ( test_results );
+        QString text ( "Diagnosing configuration...\t" );
+        model = new DiagnosticsTreeModel ( text );
         tree_view -> setModel ( model );
 
-        KDiagnoseTestHandlerSet ( diagnose, test_callback, this );
-
-        rc = KDiagnoseAll ( diagnose, 0 );
+        rc = KDiagnoseAll ( test, 0 );
         if ( rc != 0 )
-                qDebug () << "failed";
+            qDebug () << rc;
         else
         {
-            qDebug () << " didnt fail";
+            QString empty = QString ( "%1\t").arg("",80);
+            text . append ( empty + "Pass\n" );
+            model = new DiagnosticsTreeModel ( text );
+            tree_view -> setModel ( model );
         }
+
     }
 
-   // tree_view -> resizeColumnToContents ( 0 );
-    //tree_view -> resizeColumnToContents ( 1 );
-    //tree_view -> resizeColumnToContents ( 2 );
+    tree_view -> resizeColumnToContents ( 0 );
+    tree_view -> resizeColumnToContents ( 1 );
+    tree_view -> resizeColumnToContents ( 2 );
 
 }
 

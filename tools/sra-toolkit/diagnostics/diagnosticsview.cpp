@@ -77,6 +77,34 @@ void DiagnosticsView :: setup_view ()
     self_layout -> setAlignment ( run, Qt::AlignRight );
 }
 
+static
+void CC diagnose_callback ( EKDiagTestState state, const KDiagnoseTest *test, void *data )
+{
+    DiagnosticsView *self = static_cast <DiagnosticsView *> (data);
+    self -> handle_callback ( test, state );
+
+}
+
+void DiagnosticsView :: handle_callback (const KDiagnoseTest *test, uint32_t state )
+{
+    const char *name;
+    uint32_t test_level;
+
+    rc_t rc = KDiagnoseTestName ( test, &name );
+    rc = KDiagnoseTestLevel ( test, &test_level );
+
+    const KDiagnoseTest *sibling;
+    const char *s_name;
+    rc = KDiagnoseTestNext ( test, &sibling );
+    rc = KDiagnoseTestName ( sibling, &s_name );
+
+    const KDiagnoseTest *child;
+    const char *c_name;
+    rc = KDiagnoseTestNext ( test, &child );
+    rc = KDiagnoseTestName ( child, &c_name );
+
+    qDebug () << name << " - " << state << " - " << test_level << " next sibling: " << s_name << " child: " << c_name;
+}
 
 void DiagnosticsView :: run_diagnostics ()
 {
@@ -101,6 +129,8 @@ void DiagnosticsView :: run_diagnostics ()
         QString text ( "Diagnosing configuration...\t" );
         model = new DiagnosticsTreeModel ( text );
         tree_view -> setModel ( model );
+
+        KDiagnoseTestHandlerSet ( test, diagnose_callback, this );
 
         rc = KDiagnoseAll ( test, 0 );
         if ( rc != 0 )

@@ -8,12 +8,16 @@ class QVBoxLayout;
 class QTreeView;
 QT_END_NAMESPACE
 
+struct KDiagnoseTest;
+
 class DiagnosticsView : public QWidget
 {
     Q_OBJECT
 public:
     explicit DiagnosticsView(QWidget *parent = 0);
     ~DiagnosticsView ();
+
+    void handle_callback ( const KDiagnoseTest *tes, uint32_t state );
 
 signals:
 
@@ -22,6 +26,7 @@ private slots:
     void run_diagnostics ();
 
 private:
+
 
     void setup_view ();
 

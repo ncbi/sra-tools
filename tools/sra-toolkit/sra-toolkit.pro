@@ -34,15 +34,13 @@ SOURCES += main.cpp\
         sratoolkitpreferences.cpp \
         sraworkspace.cpp \
         diagnostics/diagnosticsview.cpp \
-        diagnostics/diagnosticstreeitem.cpp \
-        diagnostics/diagnosticstreemodel.cpp
+        diagnostics/diagnosticstest.cpp
 
 HEADERS  += sratoolkit.h \
         sratoolkitpreferences.h \
         sraworkspace.h \
         diagnostics/diagnosticsview.h \
-        diagnostics/diagnosticstreeitem.h \
-        diagnostics/diagnosticstreemodel.h
+        diagnostics/diagnosticstest.h
 
 RESOURCES += \
         resources.qrc

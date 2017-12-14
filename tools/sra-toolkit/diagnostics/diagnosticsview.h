@@ -5,8 +5,14 @@
 
 QT_BEGIN_NAMESPACE
 class QVBoxLayout;
-class QTreeView;
+class QTreeWidget;
+class QTreeWidgetItem;
 QT_END_NAMESPACE
+
+struct KDiagnoseTest;
+class DiagnosticsTreeModel;
+class DiagnosticsTest;
+
 
 class DiagnosticsView : public QWidget
 {
@@ -15,9 +21,12 @@ public:
     explicit DiagnosticsView(QWidget *parent = 0);
     ~DiagnosticsView ();
 
+
 signals:
 
 public slots:
+    void handle_callback ( DiagnosticsTest *test );
+
 private slots:
     void run_diagnostics ();
 
@@ -28,8 +37,9 @@ private:
     // Visual
     QVBoxLayout *self_layout;
 
-    QTreeView *tree_view;
-
+    QTreeWidget *tree_view;
+    QList < DiagnosticsTest * > testList;
+    QTreeWidgetItem *currentTest;
 };
 
 #endif // DIAGNOSTICSVIEW_H

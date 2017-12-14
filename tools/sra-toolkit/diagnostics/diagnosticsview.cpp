@@ -1,13 +1,17 @@
 #include "diagnosticsview.h"
+#include "diagnosticstest.h"
 #include "diagnosticstreemodel.h"
 
 
 #include <klib/rc.h>
 #include <diagnose/diagnose.h>
 
+#include <QAbstractEventDispatcher>
+#include <QApplication>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QCheckBox>
+#include <QEventLoop>
 #include <QFile>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -19,6 +23,7 @@
 #include <QTimer>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
+#include <QStringList>
 #include <QVector>
 
 #include <QDebug>
@@ -29,6 +34,7 @@ const QString rsrc_path = ":/";
 DiagnosticsView :: DiagnosticsView ( QWidget *parent )
     : QWidget ( parent )
     , self_layout ( new QVBoxLayout () )
+    //, model ( new DiagnosticsTreeModel () )
 {
     setWindowFlags ( Qt::Window );
     setAttribute ( Qt::WA_DeleteOnClose );
@@ -52,7 +58,7 @@ DiagnosticsView :: ~DiagnosticsView ()
 void DiagnosticsView :: setup_view ()
 {
     QWidget *metadata = new QWidget ();
-    metadata -> setFixedSize ( width () - 40, 160 );
+    metadata -> setFixedSize ( width () - 40, 120 );
 
     self_layout -> addWidget ( metadata );
 
@@ -62,10 +68,13 @@ void DiagnosticsView :: setup_view ()
 
     self_layout -> addWidget ( separator );
 
-    tree_view = new QTreeView ();
+    tree_view = new QTreeWidget ();
     tree_view -> setFixedWidth ( width () - 40 );
     tree_view -> setSelectionMode ( QAbstractItemView::NoSelection );
     tree_view -> setAlternatingRowColors ( true );
+    tree_view -> setColumnCount ( 3 );
+    tree_view -> setHeaderLabels ( QStringList () << "Test" << "Description" << "Status" );
+    tree_view -> resizeColumnToContents ( 2 );
 
     self_layout -> addWidget ( tree_view );
 
@@ -77,6 +86,141 @@ void DiagnosticsView :: setup_view ()
     self_layout -> setAlignment ( run, Qt::AlignRight );
 }
 
+static
+void CC diagnose_callback ( EKDiagTestState state, const KDiagnoseTest *diagnose_test, void *data )
+{
+    const char *name;
+    uint32_t test_level = 0;
+
+    rc_t rc = KDiagnoseTestName ( diagnose_test, &name );
+    rc = KDiagnoseTestLevel ( diagnose_test, &test_level );
+
+    DiagnosticsTest *test = new DiagnosticsTest ( QString ( name ) );
+    test -> setLevel ( test_level );
+    test -> setState ( state );
+
+    DiagnosticsView *self = static_cast <DiagnosticsView *> (data);
+
+    self -> handle_callback ( test );
+}
+
+void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
+{
+    QAbstractEventDispatcher *dispatch = QApplication::eventDispatcher();
+    testList . append ( test );
+
+    switch ( test -> getState () )
+    {
+    case DTS_Started:
+    {
+        switch ( test -> getLevel () )
+        {
+        case 0:
+            break;
+        case 1:
+        {
+            QTreeWidgetItem *item = new QTreeWidgetItem ( tree_view );
+            item -> setText ( 0, test -> getName () );
+            item -> setText ( 2, "In Progress..." );
+            item -> setExpanded ( true );
+            currentTest = item;
+            break;
+        }
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        {
+            QTreeWidgetItem *item = new QTreeWidgetItem ();
+            item -> setText ( 0, test -> getName () );
+            item -> setText ( 2, "In Progress..." );
+            currentTest -> addChild ( item );
+            currentTest = item;
+            break;
+        }
+        default:
+            break;
+        }
+        break;
+    }
+    case DTS_Succeed:
+    {
+        QTreeWidgetItem *parent = currentTest -> parent ();
+        currentTest -> setText ( 2, "Passed" );
+
+        switch ( test -> getLevel () )
+        {
+        case 0:
+            break;
+        case 1:
+        {
+            dispatch -> processEvents (QEventLoop::AllEvents);
+            break;
+        }
+        case 2:
+        {
+            currentTest = parent;
+            dispatch -> processEvents (QEventLoop::AllEvents);
+            break;
+        }
+        case 3:
+        case 4:
+        case 5:
+        {
+            parent -> removeChild ( currentTest );
+            currentTest = parent;
+            break;
+        }
+        default:
+            break;
+        }
+
+        break;
+    }
+    case DTS_Failed:
+    {
+        QTreeWidgetItem *parent = currentTest -> parent ();
+        currentTest -> setText ( 2, "Passed" );
+
+        switch ( test -> getLevel () )
+        {
+        case 0:
+            break;
+        case 1:
+        {
+            dispatch -> processEvents (QEventLoop::AllEvents);
+            break;
+        }
+        case 2:
+        case 3:
+        case 4:
+        case 5:
+        {
+            currentTest = parent;
+            dispatch -> processEvents (QEventLoop::AllEvents);
+            break;
+        }
+        default:
+            break;
+        }
+
+        break;
+    }
+
+    case DTS_NotStarted:
+    case DTS_Skipped:
+    case DTS_Warning:
+    case DTS_Paused:
+    case DTS_Resumed:
+    case DTS_Canceled:
+    default:
+        break;
+    }
+
+    tree_view -> resizeColumnToContents ( 0 );
+    tree_view -> resizeColumnToContents ( 1 );
+    tree_view -> resizeColumnToContents ( 2 );
+}
 
 void DiagnosticsView :: run_diagnostics ()
 {
@@ -89,8 +233,6 @@ void DiagnosticsView :: run_diagnostics ()
         return;
     }
 
-    DiagnosticsTreeModel *model = 0;
-
     KDiagnose *test = 0;
 
     rc = KDiagnoseMakeExt ( &test, nullptr, nullptr, nullptr );
@@ -98,27 +240,19 @@ void DiagnosticsView :: run_diagnostics ()
         qDebug () << rc;
     else
     {
-        QString text ( "Diagnosing configuration...\t" );
-        model = new DiagnosticsTreeModel ( text );
-        tree_view -> setModel ( model );
+        if ( tree_view -> children () . count () > 0 )
+        {
+            tree_view -> clear ();
+        }
+
+        KDiagnoseTestHandlerSet ( test, diagnose_callback, this );
 
         rc = KDiagnoseAll ( test, 0 );
         if ( rc != 0 )
-            qDebug () << rc;
-        else
-        {
-            QString empty = QString ( "%1\t").arg("",80);
-            text . append ( empty + "Pass\n" );
-            model = new DiagnosticsTreeModel ( text );
-            tree_view -> setModel ( model );
-        }
+           qDebug () << rc;
+
 
     }
-
-    tree_view -> resizeColumnToContents ( 0 );
-    tree_view -> resizeColumnToContents ( 1 );
-    tree_view -> resizeColumnToContents ( 2 );
-
 }
 
 

@@ -26,7 +26,7 @@
 default: std
 
 TOP ?= $(abspath ../..)
-MODULE = tools/fasterq-dump
+MODULE = tools/fastdump
 
 INT_TOOLS = \
 
@@ -80,7 +80,7 @@ TOOL_SRC = \
 	temp_registry \
 	copy_machine \
 	concatenator \
-	fastdump
+	fasterq-dump
 
 TOOL_OBJ = \
 	$(addsuffix .$(OBJX),$(TOOL_SRC))

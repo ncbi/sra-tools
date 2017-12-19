@@ -272,7 +272,7 @@ rc_t execute_concat_un_compressed( KDirectory * dir,
                 /* this can fail, if file1 and output_filename are on different filesystems ... */
                 files_offset = 0;
                 size_file1 = 0;
-                rc = create_this_file( dir, output_filename, force );
+                rc = 0; /*create_this_file( dir, output_filename, force );*/
             }
         }
             

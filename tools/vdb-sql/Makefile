@@ -29,11 +29,11 @@ TOP ?= $(abspath ../..)
 MODULE = tools/vdb-sql
 
 INT_TOOLS = \
+#	fastconv
 
 EXT_TOOLS = \
-	vdb-sql \
-	fastconv
-    
+	vdb-sql
+
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)

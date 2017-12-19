@@ -32,7 +32,7 @@ fastdump_split_3()
     rm -rf $out $out.1 $out.2
 
     options="$show_progress $force_overwrite $show_details $split_3"
-    time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    time fasterq-dump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out $2
     compare_md5 $out.1 $3
     compare_md5 $out.2 $4
@@ -48,7 +48,7 @@ fastdump_split_file_row_id_as_name()
     rm -rf $out.1 $out.2
 
     options="$show_progress $force_overwrite $show_details $split_spot $split_file $rowid_as_name"
-    time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    time fasterq-dump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out.1 $2
     compare_md5 $out.2 $3
     
@@ -63,7 +63,7 @@ fastdump_split_file()
     rm -rf $out.1 $out.2
 
     options="$show_progress $force_overwrite $show_details $split_spot $split_file"
-    time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    time fasterq-dump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out.1 $2
     compare_md5 $out.2 $3
     
@@ -78,7 +78,7 @@ fastdump_split_file_4()
     rm -rf $out.1 $out.2 $out.3 $out.4
 
     options="$show_progress $force_overwrite $show_details $split_spot $split_file"
-    time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    time fasterq-dump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out.1 $2
     compare_md5 $out.2 $3
     compare_md5 $out.3 $4
@@ -95,7 +95,7 @@ fastdump_split_row_id_as_name()
     rm -rf $out
 
     options="$show_progress $force_overwrite $show_details $split_spot $rowid_as_name"
-    time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    time fasterq-dump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out $2
     
     rm -rf $out
@@ -109,7 +109,7 @@ fastdump_split_spot()
     rm -rf $out
 
     options="$show_progress $force_overwrite $show_details $split_spot"
-    time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    time fasterq-dump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out $2
     
     rm -rf $out
@@ -123,7 +123,7 @@ fastdump_not_split_row_id_as_name()
     rm -rf $out
 
     options="$show_progress $force_overwrite $show_details $rowid_as_name"    
-    time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    time fasterq-dump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out $2
     
     rm -rf $out
@@ -137,7 +137,7 @@ fastdump_not_split()
     rm -rf $out
 
     options="$show_progress $force_overwrite $show_details"
-    time fastdump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    time fasterq-dump $1 $options $numthreads $mem_limit $cur_cache $scratch -o $out
     compare_md5 $out $2
     
     rm -rf $out
@@ -247,7 +247,7 @@ test_show_print_frag_nr()
     rm -rf $out
 
     options="$show_progress $force_overwrite $show_details $split_spot $print_frag_nr"
-    time fastdump $acc $options $numthreads $mem_limit $cur_cache $scratch -o $out
+    time fasterq-dump $acc $options $numthreads $mem_limit $cur_cache $scratch -o $out
 }
 
 #test_csra

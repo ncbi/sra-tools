@@ -1,11 +1,11 @@
 -------------------------------------------------------------------------------
-        fastdump - a faster fastq-dump
+        fasterq-dump - a faster fastq-dump
 -------------------------------------------------------------------------------
 
-The fastdump-tool uses temporary files and multi-threading to speed up the
+The fasterq-dump tool uses temporary files and multi-threading to speed up the
 extraction of FASTQ from SRA-accessions. If a minimal commandline is given:
 
-$fastdump SRR000001
+$fasterq-dump SRR000001
 
 The tool produces an output file called SRR000001.fastq in the current
 directory. The tool will also create a directory named 'fast.tmp' in the
@@ -17,7 +17,7 @@ temporary files, the tool will fail.
 
 The location and name of the output-file can be changed:
 
-$fastdump SRR000001 -o /big_hdd/SRR000001.fastq
+$fasterq-dump SRR000001 -o /big_hdd/SRR000001.fastq
 
 Notice that path and filename has to be given! If parts of the output-path
 do not exist, they will be created. If the output-file already exists, the
@@ -26,7 +26,7 @@ output-file to be overwritten, use the force option '-f'.
 
 The location of the temporary directory can be changed too:
 
-$fastdump SRR000001 -o /big_hdd/SRR000001.fastq -t /scratch
+$fasterq-dump SRR000001 -o /big_hdd/SRR000001.fastq -t /scratch
 
 Now the temporary files will be created in the '/scratch' directory. These
 temporary files will be deleted on finish, but the directory itself will not
@@ -45,9 +45,9 @@ CPU cores, increasing the thread count can lead to diminishing returns, because
 you exhaust the I/O - bandwidth. You can test your speed by measuring how long
 it takes to convert a small accession, like this:
 
-$time fastdump  SRR000001 -t /dev/shm
-$time fastdump  SRR000001 -t /dev/shm -e 8
-$time fastdump  SRR000001 -t /dev/shm -e 10
+$time fasterq-dump  SRR000001 -t /dev/shm
+$time fasterq-dump  SRR000001 -t /dev/shm -e 8
+$time fasterq-dump  SRR000001 -t /dev/shm -e 10
 
 Dont forget to repeat the first command at least 2 times, to prime
 the filesystem cache.

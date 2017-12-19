@@ -160,7 +160,7 @@ OptDef ToolOptions[] =
     { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,   false }
 };
 
-const char UsageDefaultName[] = "fastdump";
+const char UsageDefaultName[] = "fasterq-dump";
 
 rc_t CC UsageSummary( const char * progname )
 {

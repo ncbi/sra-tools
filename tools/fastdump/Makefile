@@ -26,12 +26,12 @@
 default: std
 
 TOP ?= $(abspath ../..)
-MODULE = tools/fastdump
+MODULE = tools/fasterq-dump
 
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	fastdump
+	fasterq-dump
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -58,7 +58,7 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# fastdump
+# fasterq-dump
 #
 TOOL_SRC = \
 	helper \
@@ -91,6 +91,6 @@ TOOL_LIB = \
 	-sncbi-vdb \
 	-lm
 
-$(BINDIR)/fastdump: $(TOOL_OBJ)
+$(BINDIR)/fasterq-dump: $(TOOL_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
 

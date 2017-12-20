@@ -58,15 +58,15 @@ typedef struct copy_machine
     uint32_t q_wait_time;
 } copy_machine;
 
-static void destroy_copy_machine( copy_machine * self )
+static rc_t destroy_copy_machine( copy_machine * self )
 {
     uint32_t i;
     
     /* first join the 2 threads... */
-    rc_t rc_status;
+    rc_t rc;
     
     KQueueSeal ( self -> to_write_q );
-    KThreadWait ( self -> thread, &rc_status );
+    KThreadWait ( self -> thread, &rc );
     
     if ( self -> empty_q != NULL )
         KQueueRelease ( self -> empty_q );
@@ -78,6 +78,67 @@ static void destroy_copy_machine( copy_machine * self )
         if ( self -> blocks[ i ] . buffer != NULL )
             free( ( void * ) self -> blocks[ i ] . buffer );
     }
+    return rc;
+}
+
+static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
+{
+    rc_t rc = 0;
+    uint64_t src_pos = 0;
+    size_t num_read = 1;
+    while ( rc == 0 && num_read > 0 )
+    {
+        /* get a buffer out of the empty-q */
+        struct timeout_t tm;
+        rc = TimeoutInit ( &tm, self -> q_wait_time );
+        if ( rc != 0 )
+        {
+            ErrMsg( "copy_this_file.TimeoutInit( %lu ms ) -> %R", self -> q_wait_time, rc );
+        }
+        else
+        {
+            copy_machine_block * block;
+            rc = KQueuePop ( self -> empty_q, ( void ** )&block, &tm );
+            if ( rc == 0 )
+            {
+                block -> available = 0;
+                rc = KFileRead( src, src_pos, block -> buffer, self -> buf_size, &num_read );
+                if ( rc != 0 )
+                    ErrMsg( "copy_this_file.KFileRead( at %lu ) -> %R", src_pos, rc );
+                else if ( num_read > 0 )
+                {
+                    /* we have data for the writer-thread */
+                    block -> available = num_read;
+                    src_pos += num_read;
+                    rc = KQueuePush ( self -> to_write_q, block, NULL );
+                    /* should never block, because we have enough entries in the queue! */
+                }
+                else
+                {
+                    /* we are done with this file, put the block back... */
+                    rc = KQueuePush ( self -> empty_q, block, NULL );
+                    /* should never block, because we have enough entries in the queue! */
+                }
+            }
+            else if ( GetRCState( rc ) == rcDone && GetRCObject( rc ) == ( enum RCObject )rcData )
+            {
+                /* the empty_q has been sealed, this can only happen if the writer is in trouble! */
+                rc = RC( rcExe, rcFile, rcPacking, rcConstraint, rcViolated );
+            }
+            else if ( GetRCState( rc ) == rcExhausted && GetRCObject( rc ) == ( enum RCObject )rcTimeout )
+            {
+                /* we have a timeout from KQueuePop(), that means the writer is busy,
+                   all blocks are in the to_write-queue or in processing, let's try again */
+                rc = 0;
+            }
+            else
+            {
+                /* something else is wrong with the empty-q */
+                ErrMsg( "copy_this_file.KQueuePop( empty-q ) -> %R", rc );
+            }
+        }
+    }
+    return rc;
 }
 
 static rc_t run_copy_machine( copy_machine * self )
@@ -85,7 +146,7 @@ static rc_t run_copy_machine( copy_machine * self )
     uint32_t file_count;
     rc_t rc = VNameListCount( self -> sources, &file_count );
     if ( rc != 0 )
-        ErrMsg( "copy_machine_reader_thread.VNameListCount( sources ) -> %R", rc );
+        ErrMsg( "run_copy_machine.VNameListCount( sources ) -> %R", rc );
     else
     {
         uint32_t idx;
@@ -93,60 +154,22 @@ static rc_t run_copy_machine( copy_machine * self )
         {
             const char * filename = NULL;
             rc = VNameListGet( self -> sources, idx, &filename );
-            if ( rc == 0 )
+            if ( rc != 0 )
+                ErrMsg( "run_copy_machine.VNameListGet( %u ) -> %R", idx, rc );    
+            else
             {
                 const struct KFile * src;
                 rc = make_buffered_for_read( self -> dir, &src, filename, self -> buf_size );
                 if ( rc == 0 )
                 {
-                    uint64_t src_pos = 0;
-                    size_t num_read = 1;
-                    while ( rc == 0 && num_read > 0 )
-                    {
-                        /* get a buffer out of the empty-q */
-                        struct timeout_t tm;
-                        rc = TimeoutInit ( &tm, self -> q_wait_time );
-                        if ( rc == 0 )
-                        {
-                            copy_machine_block * block;
-                            rc = KQueuePop ( self -> empty_q, ( void ** )&block, &tm );
-                            if ( rc == 0 )
-                            {
-                                block -> available = 0;
-                                rc = KFileRead( src, src_pos, block -> buffer, self -> buf_size, &num_read );
-                                if ( rc != 0 )
-                                    ErrMsg( "copy_machine_reader_thread.KFileRead( at %lu ) -> %R", src_pos, rc );
-                                else if ( num_read > 0 )
-                                {
-                                    /* we have data for the writer-thread */
-                                    block -> available = num_read;
-                                    src_pos += num_read;
-                                    rc = KQueuePush ( self -> to_write_q, block, NULL );
-                                    /* should never block, because we have enough entries in the queue! */
-                                }
-                                else
-                                {
-                                    /* we are done with this file, put the block back... */
-                                    rc = KQueuePush ( self -> empty_q, block, NULL );
-                                    /* should never block, because we have enough entries in the queue! */
-                                }
-                            }
-                            else if ( GetRCState( rc ) == rcExhausted && GetRCObject( rc ) == ( enum RCObject )rcTimeout )
-                            {
-                                /* we have a timeout from KQueuePop(), that means the writer is busy,
-                                   all blocks are in the to_write-queue or in processing, let's try again */
-                                rc = 0;
-                            }
-                        }
-                    }
-                    /* rc = copy_file( dst, src, &dst_pos, buf_size, progress ); */
+                    rc = copy_this_file( self, src );
                     KFileRelease( src );
                 }
                 if ( rc == 0 )
                 {
                     rc = KDirectoryRemove( self -> dir, true, "%s", filename );
                     if ( rc != 0 )
-                        ErrMsg( "copy_machine_reader_thread.KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                        ErrMsg( "run_copy_machine.KDirectoryRemove( '%s' ) -> %R", filename, rc );
                 }
             }
         }
@@ -156,7 +179,7 @@ static rc_t run_copy_machine( copy_machine * self )
     return rc;
 }
 
-static rc_t CC copy_machine_thread( const KThread * thread, void *data )
+static rc_t CC copy_machine_writer_thread( const KThread * thread, void *data )
 {
     rc_t rc = 0;
     copy_machine * self = data;
@@ -187,6 +210,18 @@ static rc_t CC copy_machine_thread( const KThread * thread, void *data )
                     /* put the block back into the empty-q */
                     block -> available = 0;
                     rc = KQueuePush ( self -> empty_q, block, NULL ); /* this might block! */
+                }
+                else
+                {
+                    /* something went wrong with writing the block into the dst-file !!!
+                       possibly we are running out of space to write... */
+                    
+                    /* put the block back into the empty-q */
+                    block -> available = 0;
+                    rc = KQueuePush ( self -> empty_q, block, NULL ); /* this might block! */
+    
+                    /* we are done ... seal the empty_q ( that will tell the reader to stop... */
+                    KQueueSeal ( self -> empty_q );
                 }
             }
             else
@@ -272,13 +307,22 @@ rc_t make_a_copy( KDirectory * dir,
                 ErrMsg( "init_copy_machine.KQueuePush( empty_q ) -> %R", rc );
         }
 
+        /* create a writer-thread */
         if ( rc == 0 )
-            rc = KThreadMake( &( cm . thread ), copy_machine_thread, &cm );
-            
+        {
+            rc = KThreadMake( &( cm . thread ), copy_machine_writer_thread, &cm );
+            if ( rc != 0 )
+                ErrMsg( "init_copy_machine.KThreadMake( writer-thread ) -> %R", rc );
+        }
+        
+        /* read the data on the current thread */
         if ( rc == 0 )
             rc = run_copy_machine( &cm );
-            
-        destroy_copy_machine( &cm );
+
+        {
+            rc_t rc1 = destroy_copy_machine( &cm );
+            if ( rc == 0 ) rc = rc1;
+        }
     }
     return rc;
 }

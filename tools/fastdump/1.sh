@@ -250,9 +250,30 @@ test_show_print_frag_nr()
     time fasterq-dump $acc $options $numthreads $mem_limit $cur_cache $scratch -o $out
 }
 
+test_shorts()
+{
+    #acc="SRR000046"
+    acc="SRR353889"
+    out="$acc.out"
+    cmd="fasterq-dump $acc -p -f -o $out $scratch"
+    echo "time $cmd"
+    time $cmd
+}
+
+test_too_big()
+{
+    acc="SRR001662"
+    out="$acc.out"
+    cmd="fasterq-dump $acc -p -f -o $out $scratch"
+    echo "time $cmd"
+    time $cmd
+}
+
+#test_shorts
+test_too_big
 #test_csra
-test_sra_flat_2
-test_sra_flat_4
-test_sra_flat_split_spot
-test_sra_db
+#test_sra_flat_2
+#test_sra_flat_4
+#test_sra_flat_split_spot
+#test_sra_db
 #test_show_print_frag_nr

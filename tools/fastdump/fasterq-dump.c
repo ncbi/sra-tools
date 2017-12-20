@@ -721,7 +721,7 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t fastdump( tool_ctx * tool_ctx )
+static rc_t perform_tool( tool_ctx * tool_ctx )
 {
     acc_type_t acc_type;
     rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> accession, &acc_type ); /* cmn_iter.c */
@@ -755,23 +755,6 @@ static rc_t fastdump( tool_ctx * tool_ctx )
     return rc;
 }
 
-/*
-static rc_t filter_test( tool_ctx * tool_ctx )
-{
-    struct Buf2NA * self;
-    rc_t rc = make_Buf2NA( &self, 512, tool_ctx -> join_options . filter_bases );
-    if ( rc == 0 )
-    {
-        String S;
-        StringInitCString( &S, "ACGTACGTACGTACGT" );
-        
-        bool found = match_Buf2NA( self, &S );
-        rc = KOutMsg( "'%s' %s found in '%S'\n", tool_ctx -> join_options . filter_bases, found ? "!" : "not", &S );
-        release_Buf2NA( self );
-    }
-    return rc;
-}
-*/
 /* -------------------------------------------------------------------------------------------- */
 
 rc_t CC KMain ( int argc, char *argv [] )
@@ -788,7 +771,17 @@ rc_t CC KMain ( int argc, char *argv [] )
         rc = populate_tool_ctx( &tool_ctx, args ); /* above */
         if ( rc == 0 )
         {
-            rc = fastdump( &tool_ctx );
+            if ( !( tool_ctx . force ) &&
+                 !( tool_ctx . print_to_stdout ) &&
+                 file_exists( tool_ctx . dir, "%s", tool_ctx . output_filename ) )
+            {
+                rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
+                ErrMsg( "creating ouput-file '%s' -> %R", tool_ctx . output_filename, rc );
+            }
+            else
+            {
+                rc = perform_tool( &tool_ctx );     /* above */
+            }
             KDirectoryRelease( tool_ctx . dir );
         }
     }

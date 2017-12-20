@@ -49,8 +49,13 @@ $time fasterq-dump  SRR000001 -t /dev/shm
 $time fasterq-dump  SRR000001 -t /dev/shm -e 8
 $time fasterq-dump  SRR000001 -t /dev/shm -e 10
 
-Dont forget to repeat the first command at least 2 times, to prime
-the filesystem cache.
+Dont forget to repeat the commands at least 2 times, to exclude other influences
+like caching or network load.
+
+To detect how many cpu-cores your machine has:
+
+on Linux:   $nproc --alll
+on Mac:     $/usr/sbin/sysctl -n hw.ncpu
 
 The tool can create different formats:
 
@@ -73,7 +78,69 @@ The tool can create different formats:
                             for each fragments - 4 lines of FASTQ are written
                             for spots having 2 fragments, the fragments are
                             written into the .1 and .2 files
-                            spots having only 1 fragment, the fragment is
+                            for spots having only 1 fragment, the fragment is
                             written into the .3 file
                             --split-3 ( -3 )
+
+It is possible that you exhaust the space at your filesystem while converting
+large accessions. This can happen with this tool more often because it uses
+additional scratch-space to increase speed. It is a good idea to perform some
+simple checks before you perform the conversion. First you should know how big
+an accession is. Let us use the accession SRR341578 as an example:
+
+$vdb-dump --info SRR341578
+
+will give you a lot of information about this accession. The important line is
+the 3rd one: 'size   : 932,308,473'. After running the tool without any other
+options you will have a fastq-file in your current directory: SRR341578.fastq.
+Its size will be 3,634,513,876. In this case we have inflated the accession by
+a factor of ~ 3.9. But that is not all, the tool will need aproximately the same
+amout as scratch-space. As a rule of thumb you should have about 8x ... 10x the
+size of the accession available on your filesystem. How do you know how much
+space is available? Just run this command on linux or mac:
+
+$df -h .
+
+Under the 4th column ( 'Avail' ), you see the amount of space you have available.
+
+Filesystem                   Size  Used Avail Use% Mounted on
+server:/vol/export/user       20G   15G  5.9G  71% /home/user
+
+This user has only 5.9 Gigabyte available. In this case there is not enough
+space available in its home directory. Either try to delete files, or perform
+the conversion to a different location with more space.
+
+If you want to use for instance RAM as scratch-space:
+
+$df -h /dev/shm
+
+If you have enough space there, run the tool:
+$fasterq-dump SRR341578 -t /dev/shm
+
+In order to give you some information about the progress of the conversion
+there is a progress-bar that can be activated.
+
+$fasterq-dump SRR341578 -t /dev/shm -p
+
+The conversion happens in multiple steps, depending on the internal type of
+the accession. You will see either 2 or 3 progressbars after each other.
+The full output with progress-bars for a cSRA-accession like SRR341578 looks
+like this:
+
+lookup :|-------------------------------------------------- 100.00%
+merge  : 13255208
+join   :|-------------------------------------------------- 100.00%
+concat :|-------------------------------------------------- 100.00%
+spots read          : 6,143,624
+fragments read      : 12,287,248
+fragments written   : 12,287,248
+
+for a flat table like SRR000001 it looks like this:
+
+join   :|-------------------------------------------------- 100.00%
+concat :|-------------------------------------------------- 100.00%
+spots read          : 470,985
+fragments read      : 470,985
+fragments written   : 470,985
+
 

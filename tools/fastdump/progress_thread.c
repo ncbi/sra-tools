@@ -31,7 +31,7 @@
     YYY ... the architecture ( fat86, i386, noarch, ppc32, x86_64 )
  */
 
- #ifndef _h_progressbar_
+#ifndef _h_progressbar_
 #include <klib/progressbar.h>
 #endif
 

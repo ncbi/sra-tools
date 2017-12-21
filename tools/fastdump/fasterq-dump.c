@@ -435,10 +435,7 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
     }
     
     if ( rc == 0 )
-    {
-        uint32_t temp_path_len = string_measure( tool_ctx -> tmp_id . temp_path, NULL );
-        tool_ctx -> tmp_id . temp_path_ends_in_slash = ( tool_ctx -> tmp_id . temp_path[ temp_path_len - 1 ] == '/' );
-    }
+        tool_ctx -> tmp_id . temp_path_ends_in_slash = ends_in_slash( tool_ctx -> tmp_id . temp_path ); /* helper.c */
 
     tool_ctx -> dflt_lookup[ 0 ] = 0;
     tool_ctx -> dflt_index[ 0 ] = 0;
@@ -455,7 +452,6 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
             tool_ctx -> lookup_filename = tool_ctx -> dflt_lookup;
     }
     
-    
     if ( rc == 0 )
     {
         /* generate the full path of the lookup-index-table */                
@@ -467,16 +463,49 @@ static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
             tool_ctx -> index_filename = tool_ctx -> dflt_index;
     }
     
-    if ( rc == 0 && tool_ctx -> output_filename == NULL )
+    if ( rc == 0 )
     {
-        /* generate the full path of the output-file, if not given */
-        rc = make_postfixed( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                             tool_ctx -> accession,
-                             ".fastq" ); /* helper.c */
-        if ( rc == 0 )
-            tool_ctx -> output_filename = tool_ctx -> dflt_output;
+        if ( tool_ctx -> output_filename == NULL )
+        {
+            /* generate the full path of the output-file, if not given */
+            rc = make_postfixed( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                                 tool_ctx -> accession,
+                                 ".fastq" ); /* helper.c */
+            if ( rc == 0 )
+                tool_ctx -> output_filename = tool_ctx -> dflt_output;
+        }
+        else
+        {
+            if ( dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) )
+            {
+                /* the given output-filename is an existing directory */
+                size_t num_writ;
+                bool es = ends_in_slash( tool_ctx -> output_filename );
+                rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                                    &num_writ,
+                                    es ? "%s%s.fastq" : "%s/%s.fastq",
+                                    tool_ctx -> output_filename,
+                                    tool_ctx -> accession );
+                if ( rc != 0 )
+                    ErrMsg( "string_printf( output-filename ) -> %R", rc );
+                else
+                    tool_ctx -> output_filename = tool_ctx -> dflt_output;
+            }
+            else
+            {
+                String path;
+                if ( extract_path( tool_ctx -> output_filename, &path ) )
+                {
+                    /* the output-filename contains a path... */
+                    if ( !dir_exists( tool_ctx -> dir, "%S", &path ) )
+                    {
+                        /* this path does not ( yet ) exist, create it... */
+                        rc = create_this_dir( tool_ctx -> dir, &path, true );
+                    }
+                }
+            }
+        }
     }
-    
     
     if ( rc == 0 )
         rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) );

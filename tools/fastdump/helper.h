@@ -160,6 +160,11 @@ uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
 void pack_4na( const String * unpacked, SBuffer * packed );
 void unpack_4na( const String * packed, SBuffer * unpacked );
 
+bool ends_in_slash( const char * s );
+bool extract_path( const char * s, String * path );
+rc_t create_this_file( KDirectory * dir, const char * filename, bool force );
+rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
+
 bool file_exists( const KDirectory * dir, const char * fmt, ... );
 bool dir_exists( const KDirectory * dir, const char * fmt, ... );
 

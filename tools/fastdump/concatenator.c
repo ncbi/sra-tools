@@ -217,18 +217,6 @@ rc_t execute_concat_compressed( KDirectory * dir,
     return rc;
 }
 
-static rc_t create_this_file( KDirectory * dir, const char * filename, bool force )
-{
-    struct KFile * f;
-    KCreateMode create_mode = force ? kcmInit : kcmCreate;
-    rc_t rc = KDirectoryCreateFile( dir, &f, false, 0664, create_mode | kcmParents, "%s", filename );
-    if ( rc != 0 )
-        ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
-    else
-        KFileRelease( f );
-    return rc;
-}
-
 rc_t execute_concat_un_compressed( KDirectory * dir,
                     const char * output_filename,
                     const struct VNamelist * files,
@@ -260,47 +248,41 @@ rc_t execute_concat_un_compressed( KDirectory * dir,
             {
                 /* first try to create the output-file, so that sub-directories that do not exist
                    are created ... */
-                rc = create_this_file( dir, output_filename, force );
-                if ( rc == 0 )
-                {
-                    struct KFile * dst;
-                    uint32_t files_offset = 1;
+                struct KFile * dst;
+                uint32_t files_offset = 1;
                     
-                    /* try to move the first file into the place of the output-file */
-                    rc = KDirectoryRename ( dir, true, file1, output_filename );
-                    if ( rc != 0 )
-                    {
-                        /* this can fail, if file1 and output_filename are on different filesystems ... */
-                        files_offset = 0;
-                        size_file1 = 0;
-                        rc = 0;
-                    }
+                /* try to move the first file into the place of the output-file */
+                rc = KDirectoryRename ( dir, true, file1, output_filename );
+                if ( rc != 0 )
+                {
+                    /* this can fail, if file1 and output_filename are on different filesystems ... */
+                    files_offset = 0;
+                    size_file1 = 0;
+                }
 
-                    rc = KDirectoryOpenFileWrite ( dir, &dst, true, "%s", output_filename );
-                    if ( rc != 0 )
-                        ErrMsg( "KDirectoryOpenFileWrite( '%s' ) -> %R", output_filename, rc );
-                    else
+                rc = KDirectoryOpenFileWrite ( dir, &dst, true, "%s", output_filename );
+                if ( rc != 0 )
+                    ErrMsg( "KDirectoryOpenFileWrite( '%s' ) -> %R", output_filename, rc );
+                else
+                {
+                    if ( buf_size > 0 )
                     {
-                        if ( buf_size > 0 )
+                        struct KFile * tmp;
+                        rc = KBufFileMakeWrite( &tmp, dst, false, buf_size );
+                        if ( rc != 0 )
+                            ErrMsg( "KBufFileMakeWrite( '%s' ) -> %R", output_filename, rc );
+                        else
                         {
-                            struct KFile * tmp;
-                            rc = KBufFileMakeWrite( &tmp, dst, false, buf_size );
-                            if ( rc != 0 )
-                                ErrMsg( "KBufFileMakeWrite( '%s' ) -> %R", output_filename, rc );
-                            else
-                            {
-                                KFileRelease( dst );
-                                dst = tmp;
-                            }
+                            KFileRelease( dst );
+                            dst = tmp;
                         }
-
-                        bg_progress_update( progress, size_file1 );
-
-                        rc = make_a_copy( dir, dst, files, progress, size_file1, buf_size, files_offset, 500 ); /* copy_machine.c */
-
-                        KFileRelease( dst );
                     }
 
+                    bg_progress_update( progress, size_file1 );
+
+                    rc = make_a_copy( dir, dst, files, progress, size_file1, buf_size, files_offset, 500 ); /* copy_machine.c */
+
+                    KFileRelease( dst );
                 }
             }
         }

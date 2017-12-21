@@ -124,6 +124,7 @@ static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
             {
                 /* the empty_q has been sealed, this can only happen if the writer is in trouble! */
                 rc = RC( rcExe, rcFile, rcPacking, rcConstraint, rcViolated );
+                ErrMsg( "you have exhausted your space" );
             }
             else if ( GetRCState( rc ) == rcExhausted && GetRCObject( rc ) == ( enum RCObject )rcTimeout )
             {

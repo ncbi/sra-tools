@@ -559,20 +559,76 @@ int get_vdb_pathtype( KDirectory * dir, const char * accession )
 
 /* ===================================================================================== */
 
+bool ends_in_slash( const char * s )
+{
+    bool res = false;
+    if ( s != NULL )
+    {
+        uint32_t len = string_measure( s, NULL );
+        if ( len > 0 )
+            res = ( s[ len - 1 ] == '/' );
+    }
+    return res;
+}
+
+bool extract_path( const char * s, String * path )
+{
+    bool res = false;
+    if ( s != NULL && path != NULL )
+    {
+        path -> addr = s;
+        res = ends_in_slash( s );
+        if ( res )
+            path -> len = string_measure( s, & path -> size );
+        else
+        {
+            size_t size = string_size ( s );
+            char * slash = string_rchr ( s, size, '/' );
+            res = ( slash != NULL );
+            if ( res )
+            {
+                path -> len = ( slash - s );
+                path -> size = ( size_t ) path -> len;
+            }
+        }
+    }
+    return res;
+}
+
+rc_t create_this_file( KDirectory * dir, const char * filename, bool force )
+{
+    struct KFile * f;
+    KCreateMode create_mode = force ? kcmInit : kcmCreate;
+    rc_t rc = KDirectoryCreateFile( dir, &f, false, 0664, create_mode | kcmParents, "%s", filename );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
+    else
+        KFileRelease( f );
+    return rc;
+}
+
+rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force )
+{
+    KCreateMode create_mode = force ? kcmInit : kcmCreate;
+    rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%.*s", dir_name -> len, dir_name -> addr );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryCreateDir( '%.*s' ) -> %R", dir_name -> len, dir_name -> addr, rc );
+    return rc;
+}
 
 rc_t make_pre_and_post_fixed( char * dst, size_t dst_size,
                               const char * acc,
                               const tmp_id * tmp_id,
                               const char * extension )
 {
-    rc_t rc;
     size_t num_writ;
-    if ( tmp_id -> temp_path_ends_in_slash )
-        rc = string_printf( dst, dst_size, &num_writ, "%s%s.%s.%u.%s",
-                tmp_id -> temp_path, acc, tmp_id -> hostname, tmp_id -> pid, extension );
-    else
-        rc = string_printf( dst, dst_size, &num_writ, "%s/%s.%s.%u.%s",
-                tmp_id -> temp_path, acc, tmp_id -> hostname, tmp_id -> pid, extension );
+    rc_t rc = string_printf( dst, dst_size, &num_writ,
+                             tmp_id -> temp_path_ends_in_slash ? "%s%s.%s.%u.%s" : "%s/%s.%s.%u.%s",
+                             tmp_id -> temp_path,
+                             acc,
+                             tmp_id -> hostname,
+                             tmp_id -> pid,
+                             extension );
     if ( rc != 0 )
         ErrMsg( "make_pre_and_post_fixed.string_printf() -> %R", rc );
     return rc;
@@ -592,15 +648,14 @@ rc_t make_joined_filename( char * buffer, size_t bufsize,
                            const tmp_id * tmp_id,
                            uint32_t id )
 {
-    rc_t rc;
     size_t num_writ;
-    if ( tmp_id -> temp_path_ends_in_slash )
-        rc = string_printf( buffer, bufsize, &num_writ, "%s%s.%s.%u.%u",
-                tmp_id -> temp_path, accession, tmp_id -> hostname, tmp_id -> pid, id );
-    else
-        rc = string_printf( buffer, bufsize, &num_writ, "%s/%s.%s.%u.%u",
-                tmp_id -> temp_path, accession, tmp_id -> hostname, tmp_id -> pid, id );
-        
+    rc_t rc = string_printf( buffer, bufsize, &num_writ,
+                             tmp_id -> temp_path_ends_in_slash ? "%s%s.%s.%u.%u" : "%s/%s.%s.%u.%u",
+                             tmp_id -> temp_path,
+                             accession,
+                             tmp_id -> hostname,
+                             tmp_id -> pid,
+                             id );
     if ( rc != 0 )
         ErrMsg( "make_joined_filename.string_printf() -> %R", rc );
     return rc;

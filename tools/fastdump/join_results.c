@@ -40,7 +40,7 @@ typedef struct join_results
     KDirectory * dir;
     struct temp_registry * registry;
     const char * output_base;
-    const char * accession;
+    const char * accession_short;
     struct Buf2NA * buf2na;
     SBuffer print_buffer;   /* we have only one print_buffer... */
     Vector printers;
@@ -74,7 +74,7 @@ rc_t make_join_results( struct KDirectory * dir,
                         struct join_results ** results,
                         struct temp_registry * registry,
                         const char * output_base,
-                        const char * accession,
+                        const char * accession_short,
                         size_t file_buffer_size,
                         size_t print_buffer_size,
                         bool print_frag_nr,
@@ -101,7 +101,7 @@ rc_t make_join_results( struct KDirectory * dir,
         {
             p -> dir = dir;
             p -> output_base = output_base;
-            p -> accession = accession;
+            p -> accession_short = accession_short;
             p -> buffer_size = file_buffer_size;
             p -> registry = registry;
             p -> print_frag_nr = print_frag_nr;
@@ -261,11 +261,11 @@ rc_t join_results_print_fastq_v1( struct join_results * self,
                                      dst_id, 
                                      fmt_fastq_v1_no_name_with_frag_nr,
                                      /* READ... */
-                                     self -> accession, row_id, read_id,
+                                     self -> accession_short, row_id, read_id,
                                      row_id,
                                      read -> len, read,
                                      /* QUALITY... */
-                                     self -> accession, row_id, read_id,
+                                     self -> accession_short, row_id, read_id,
                                      row_id,
                                      quality -> len, quality );
         }
@@ -275,11 +275,11 @@ rc_t join_results_print_fastq_v1( struct join_results * self,
                                      dst_id, 
                                      fmt_fastq_v1_no_name,
                                      /* READ... */
-                                     self -> accession, row_id,
+                                     self -> accession_short, row_id,
                                      row_id,
                                      read -> len, read,
                                      /* QUALITY... */
-                                     self -> accession, row_id,
+                                     self -> accession_short, row_id,
                                      row_id,
                                      quality -> len, quality );
         }
@@ -292,11 +292,11 @@ rc_t join_results_print_fastq_v1( struct join_results * self,
                                    dst_id,
                                    fmt_fastq_v1_with_name_with_frag_nr,
                                    /* READ... */
-                                   self -> accession, row_id, read_id,
+                                   self -> accession_short, row_id, read_id,
                                    name,
                                    read -> len, read,
                                    /* QUALITY... */
-                                   self -> accession, row_id, read_id,
+                                   self -> accession_short, row_id, read_id,
                                    name,
                                    quality -> len, quality );
         }
@@ -306,11 +306,11 @@ rc_t join_results_print_fastq_v1( struct join_results * self,
                                    dst_id,
                                    fmt_fastq_v1_with_name,
                                    /* READ... */
-                                   self -> accession, row_id,
+                                   self -> accession_short, row_id,
                                    name,
                                    read -> len, read,
                                    /* QUALITY... */
-                                   self -> accession, row_id,
+                                   self -> accession_short, row_id,
                                    name,
                                    quality -> len, quality );
         }
@@ -343,11 +343,11 @@ rc_t join_results_print_fastq_v2( struct join_results * self,
                                      dst_id,
                                      fmt_fastq_v2_no_name_with_frag_nr,
                                      /* READs... */
-                                     self -> accession, row_id, read_id,
+                                     self -> accession_short, row_id, read_id,
                                      row_id,
                                      read1 -> len + read2 -> len, read1, read2,
                                      /* QUALITY... */
-                                     self -> accession, row_id, read_id,
+                                     self -> accession_short, row_id, read_id,
                                      row_id,
                                      quality -> len, quality  );
         }
@@ -357,11 +357,11 @@ rc_t join_results_print_fastq_v2( struct join_results * self,
                                      dst_id,
                                      fmt_fastq_v2_no_name,
                                      /* READs... */
-                                     self -> accession, row_id,
+                                     self -> accession_short, row_id,
                                      row_id,
                                      read1 -> len + read2 -> len, read1, read2,
                                      /* QUALITY... */
-                                     self -> accession, row_id,
+                                     self -> accession_short, row_id,
                                      row_id,
                                      quality -> len, quality  );
         }
@@ -374,11 +374,11 @@ rc_t join_results_print_fastq_v2( struct join_results * self,
                                      dst_id,
                                      fmt_fastq_v2_with_name_with_frag_nr,
                                      /* READs... */
-                                     self -> accession, row_id, read_id,
+                                     self -> accession_short, row_id, read_id,
                                      name,
                                      read1 -> len + read2 -> len, read1, read2,
                                      /* QUALITY... */
-                                     self -> accession, row_id, read_id,
+                                     self -> accession_short, row_id, read_id,
                                      name,
                                      quality -> len, quality  );
         }
@@ -388,11 +388,11 @@ rc_t join_results_print_fastq_v2( struct join_results * self,
                                      dst_id,
                                      fmt_fastq_v2_with_name,
                                      /* READs... */
-                                     self -> accession, row_id,
+                                     self -> accession_short, row_id,
                                      name,
                                      read1 -> len + read2 -> len, read1, read2,
                                      /* QUALITY... */
-                                     self -> accession, row_id,
+                                     self -> accession_short, row_id,
                                      name,
                                      quality -> len, quality  );
         }

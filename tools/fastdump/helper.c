@@ -595,6 +595,24 @@ bool extract_path( const char * s, String * path )
     return res;
 }
 
+const char * extract_acc( const char * s )
+{
+    const char * res = NULL;
+    if ( s != NULL )
+    {
+        if ( !ends_in_slash( s ) )
+        {
+            size_t size = string_size ( s );
+            char * slash = string_rchr ( s, size, '/' );
+            if ( slash == NULL )
+                res = s;
+            else
+                res = slash + 1;
+        }
+    }
+    return res;
+}
+
 rc_t create_this_file( KDirectory * dir, const char * filename, bool force )
 {
     struct KFile * f;
@@ -613,33 +631,6 @@ rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force )
     rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%.*s", dir_name -> len, dir_name -> addr );
     if ( rc != 0 )
         ErrMsg( "KDirectoryCreateDir( '%.*s' ) -> %R", dir_name -> len, dir_name -> addr, rc );
-    return rc;
-}
-
-rc_t make_pre_and_post_fixed( char * dst, size_t dst_size,
-                              const char * acc,
-                              const tmp_id * tmp_id,
-                              const char * extension )
-{
-    size_t num_writ;
-    rc_t rc = string_printf( dst, dst_size, &num_writ,
-                             tmp_id -> temp_path_ends_in_slash ? "%s%s.%s.%u.%s" : "%s/%s.%s.%u.%s",
-                             tmp_id -> temp_path,
-                             acc,
-                             tmp_id -> hostname,
-                             tmp_id -> pid,
-                             extension );
-    if ( rc != 0 )
-        ErrMsg( "make_pre_and_post_fixed.string_printf() -> %R", rc );
-    return rc;
-}
-
-rc_t make_postfixed( char * buffer, size_t bufsize, const char * path, const char * postfix )
-{
-    size_t num_writ;
-    rc_t rc = string_printf( buffer, bufsize, &num_writ, "%s%s", path, postfix );
-    if ( rc != 0 )
-        ErrMsg( "make_postfixed.string_printf() -> %R", rc );
     return rc;
 }
 

@@ -48,7 +48,8 @@ extern "C" {
 #endif
 
 rc_t execute_db_join( KDirectory * dir,
-                    const char * accession,
+                    const char * accession_path,
+                    const char * accession_short,
                     join_stats * stats,
                     const char * lookup_filename,
                     const char * index_filename,

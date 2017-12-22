@@ -202,27 +202,20 @@ rc_t CC Usage ( const Args * args )
 #define HOSTNAMELEN 64
 #define DFLT_PATH_LEN 4096
 
-#define DFLT_MEM_LIMIT ( 1024L * 1024 * 50 )
-#define MIN_MEM_LIMIT ( 1024L * 1024 * 5 )
-
-#define DFLT_CUR_CACHE ( 5 * 1024 * 1024 )
-#define DFLT_BUF_SIZE ( 1024 * 1024 )
-
-typedef struct tool_ctx
+typedef struct tool_ctx_t
 {
     /*cmn_params cmn; cmn_iter.h */
     KDirectory * dir;
-    
-    const char * accession;
-    const char * lookup_filename;
+
+    const char * accession_path;
+    const char * accession_short;
     const char * output_filename;
-    const char * index_filename;
     
     tmp_id tmp_id;
 
     char hostname[ HOSTNAMELEN ];
-    char dflt_lookup[ DFLT_PATH_LEN ];
-    char dflt_index[ DFLT_PATH_LEN ];
+    char lookup_filename[ DFLT_PATH_LEN ];
+    char index_filename[ DFLT_PATH_LEN ];
     char dflt_output[ DFLT_PATH_LEN ];
     
     struct KFastDumpCleanupTask * cleanup_task;
@@ -240,10 +233,12 @@ typedef struct tool_ctx
     bool show_progress, show_details;
     
     join_options join_options;
-} tool_ctx;
+} tool_ctx_t;
 
+/* taken form libs/kapp/main-priv.h */
+rc_t KAppGetTotalRam ( uint64_t * totalRam );
 
-static rc_t get_process_pid( uint32_t * pid )
+static rc_t get_environment( tool_ctx_t * tool_ctx )
 {
     struct KProcMgr * proc_mgr;
     rc_t rc = KProcMgrMakeSingleton ( &proc_mgr );
@@ -251,38 +246,38 @@ static rc_t get_process_pid( uint32_t * pid )
         ErrMsg( "cannot access process-manager" );
     else
     {
-        rc = KProcMgrGetPID ( proc_mgr, pid );
-        if ( rc != 0 )
-            ErrMsg( "cannot get process-id" );
+        rc = KProcMgrGetPID ( proc_mgr, & tool_ctx -> tmp_id . pid );
+        if ( rc == 0 )
+        {
+            rc = KProcMgrGetHostName ( proc_mgr, tool_ctx -> hostname, sizeof tool_ctx -> hostname );
+            if ( rc != 0 )
+            {
+                size_t num_writ;
+                rc = string_printf( tool_ctx -> hostname, sizeof tool_ctx -> hostname, &num_writ, "host" );
+            }
+        }
+        if ( rc == 0 )
+            tool_ctx -> tmp_id . hostname = ( const char * )&( tool_ctx -> hostname );
+
         KProcMgrRelease ( proc_mgr );
     }
-    return rc;
-}
-
-static rc_t get_hostname( tool_ctx * tool_ctx )
-{
-    struct KProcMgr * proc_mgr;
-    rc_t rc = KProcMgrMakeSingleton ( &proc_mgr );
-    if ( rc != 0 )
-        ErrMsg( "cannot access process-manager" );
-    else
+    if ( rc == 0 )
     {
-        rc = KProcMgrGetHostName ( proc_mgr, tool_ctx -> hostname, sizeof tool_ctx -> hostname );
+        rc = KAppGetTotalRam ( &( tool_ctx -> total_ram ) );
         if ( rc != 0 )
-        {
-            size_t num_writ;
-            rc = string_printf( tool_ctx -> hostname, sizeof tool_ctx -> hostname, &num_writ, "host" );
-        }
-        KProcMgrRelease ( proc_mgr );
+            ErrMsg( "KAppGetTotalRam() -> %R", rc );
+    }
+    if ( rc == 0 )
+    {
+        rc = KDirectoryNativeDir( &( tool_ctx -> dir ) );
+        if ( rc != 0 )
+            ErrMsg( "KDirectoryNativeDir() -> %R", rc );
     }
     
-    if ( rc == 0 )
-        tool_ctx -> tmp_id . hostname = ( const char * )&( tool_ctx -> hostname );
     return rc;
 }
 
-
-static rc_t show_details( tool_ctx * tool_ctx )
+static rc_t show_details( tool_ctx_t * tool_ctx )
 {
     rc_t rc = KOutMsg( "cursor-cache : %,ld bytes\n", tool_ctx -> cursor_cache );
     if ( rc == 0 )
@@ -291,18 +286,8 @@ static rc_t show_details( tool_ctx * tool_ctx )
         rc = KOutMsg( "mem-limit    : %,ld bytes\n", tool_ctx -> mem_limit );
     if ( rc == 0 )
         rc = KOutMsg( "threads      : %d\n", tool_ctx -> num_threads );
-/*
-    if ( rc == 0 )
-        rc = KOutMsg( "max. fds     : %d\n", tool_ctx -> max_fds );     
-*/
     if ( rc == 0 )
         rc = KOutMsg( "scratch-path : '%s'\n", tool_ctx -> tmp_id . temp_path );
-/*
-    if ( rc == 0 )
-        rc = KOutMsg( "hostname.pid : %s.%u\n", tool_ctx -> tmp_id . hostname, tool_ctx -> tmp_id . pid );
-    if ( rc == 0 )
-        rc = KOutMsg( "total RAM    : %,lu bytes\n", tool_ctx -> total_ram );
-*/
     if ( rc == 0 )
         rc = KOutMsg( "output-format: " );
     if ( rc == 0 )
@@ -322,190 +307,214 @@ static rc_t show_details( tool_ctx * tool_ctx )
     return rc;
 }
 
-/* taken form libs/kapp/main-priv.h */
-rc_t KAppGetTotalRam ( uint64_t * totalRam );
-
 static const char * dflt_temp_path = "./fast.tmp";
+
+#define DFLT_CUR_CACHE ( 5 * 1024 * 1024 )
+#define DFLT_BUF_SIZE ( 1024 * 1024 )
+#define DFLT_MEM_LIMIT ( 1024L * 1024 * 50 )
+#define DFLT_NUM_THREADS 6
+static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
+{
+    bool split_spot, split_file, split_3;
+    
+    tool_ctx -> compress = get_compress_t( get_bool_option( args, OPTION_GZIP ),
+                                            get_bool_option( args, OPTION_BZIP2 ) ); /* helper.c */
+    
+    tool_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );            
+    tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
+    tool_ctx -> show_details = get_bool_option( args, OPTION_DETAILS );
+    tool_ctx -> tmp_id . temp_path = get_str_option( args, OPTION_TEMP, NULL );
+    tool_ctx -> print_to_stdout = get_bool_option( args, OPTION_STDOUT );
+    tool_ctx -> force = get_bool_option( args, OPTION_FORCE );        
+    tool_ctx -> remove_temp_path = false;
+    tool_ctx -> output_filename = get_str_option( args, OPTION_OUTPUT, NULL );
+    tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
+    tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
+    tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
+    tool_ctx -> join_options . rowid_as_name = get_bool_option( args, OPTION_RIDN );
+    tool_ctx -> join_options . skip_tech = get_bool_option( args, OPTION_TECH );
+    tool_ctx -> join_options . print_frag_nr = get_bool_option( args, OPTION_PFNR );
+    tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
+    tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
+    
+    split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
+    split_file = get_bool_option( args, OPTION_SPLIT_FILE );
+    split_3    = get_bool_option( args, OPTION_SPLIT_3 );
+    
+    tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
+                            split_spot, split_file, split_3 ); /* helper.c */
+}
+
 #define DFLT_MAX_FD 32
 #define MIN_NUM_THREADS 2
-#define DFLT_NUM_THREADS 6
-
-static rc_t populate_tool_ctx( tool_ctx * tool_ctx, Args * args )
+#define MIN_MEM_LIMIT ( 1024L * 1024 * 5 )
+#define MAX_BUF_SIZE ( 1024L * 1024 * 1024 )
+static void encforce_constrains( tool_ctx_t * tool_ctx )
 {
-    rc_t rc = ArgsParamValue( args, 0, ( const void ** )&( tool_ctx -> accession ) );
-    if ( rc != 0 )
-        ErrMsg( "ArgsParamValue() -> %R", rc );
-    else
+    if ( tool_ctx -> num_threads < MIN_NUM_THREADS )
+        tool_ctx -> num_threads = MIN_NUM_THREADS;
+        
+    if ( tool_ctx -> mem_limit < MIN_MEM_LIMIT )
+        tool_ctx -> mem_limit = MIN_MEM_LIMIT;
+
+    if ( tool_ctx -> buf_size > MAX_BUF_SIZE )
+        tool_ctx -> buf_size = MAX_BUF_SIZE;
+
+    if ( tool_ctx -> print_to_stdout && tool_ctx -> show_progress )
+        tool_ctx -> show_progress = false;
+
+    if ( tool_ctx -> print_to_stdout && tool_ctx -> show_details )
+        tool_ctx -> show_details = false;
+
+    if ( tool_ctx -> print_to_stdout && 
+         ( ( tool_ctx -> fmt == ft_fastq_split_file ) || ( tool_ctx -> fmt == ft_fastq_split_3 ) ) )
+        tool_ctx -> print_to_stdout = false;
+}
+
+static rc_t handle_tmp_path( tool_ctx_t * tool_ctx )
+{
+    rc_t rc = 0;
+    uint32_t pt;
+    if ( tool_ctx -> tmp_id . temp_path == NULL )
     {
-        bool split_spot, split_file, split_3;
-        
-        tool_ctx -> compress = get_compress_t( get_bool_option( args, OPTION_GZIP ),
-                                                get_bool_option( args, OPTION_BZIP2 ) ); /* helper.c */
-        
-        tool_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );            
-        tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
-        tool_ctx -> show_details = get_bool_option( args, OPTION_DETAILS );
-        tool_ctx -> tmp_id . temp_path = get_str_option( args, OPTION_TEMP, NULL );
-        tool_ctx -> print_to_stdout = get_bool_option( args, OPTION_STDOUT );
-        tool_ctx -> force = get_bool_option( args, OPTION_FORCE );        
-        tool_ctx -> remove_temp_path = false;
-        tool_ctx -> output_filename = get_str_option( args, OPTION_OUTPUT, NULL );
-        tool_ctx -> lookup_filename = NULL;
-        tool_ctx -> index_filename = NULL;
-        tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
-        tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
-        tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
-        /*tool_ctx -> max_fds = get_uint32_t_option( args, OPTION_MAXFD, DFLT_MAX_FD );*/
-        tool_ctx -> join_options . rowid_as_name = get_bool_option( args, OPTION_RIDN );
-        tool_ctx -> join_options . skip_tech = get_bool_option( args, OPTION_TECH );
-        tool_ctx -> join_options . print_frag_nr = get_bool_option( args, OPTION_PFNR );
-        tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
-        tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
-        
-        split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
-        split_file = get_bool_option( args, OPTION_SPLIT_FILE );
-        split_3    = get_bool_option( args, OPTION_SPLIT_3 );
-        
-        tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
-                                split_spot, split_file, split_3 ); /* helper.c */
-        
-        if ( tool_ctx -> num_threads < MIN_NUM_THREADS )
-            tool_ctx -> num_threads = MIN_NUM_THREADS;
-            
-        if ( tool_ctx -> mem_limit < MIN_MEM_LIMIT )
-            tool_ctx -> mem_limit = MIN_MEM_LIMIT;
-
-        if ( tool_ctx -> print_to_stdout && tool_ctx -> show_progress )
-            tool_ctx -> show_progress = false;
-
-        if ( tool_ctx -> print_to_stdout && tool_ctx -> show_details )
-            tool_ctx -> show_details = false;
-
-        if ( tool_ctx -> print_to_stdout && 
-             ( ( tool_ctx -> fmt == ft_fastq_split_file ) || ( tool_ctx -> fmt == ft_fastq_split_3 ) ) )
-            tool_ctx -> print_to_stdout = false;
-    }
-
-    if ( rc == 0 )
-    {
-        rc = KAppGetTotalRam ( &( tool_ctx -> total_ram ) );
-        if ( rc != 0 )
-            ErrMsg( "KAppGetTotalRam() -> %R", rc );
-    }
-    
-    if ( rc == 0 )
-    {
-        rc = KDirectoryNativeDir( &( tool_ctx -> dir ) );
-        if ( rc != 0 )
-            ErrMsg( "KDirectoryNativeDir() -> %R", rc );
-    }
-    
-    if ( rc == 0 )
-        rc = get_process_pid( &( tool_ctx -> tmp_id . pid ) ); /* above */
-
-    if ( rc == 0 )
-        rc = get_hostname( tool_ctx ); /* above */
-
-    /* handle the important temp-path ( user gave a specific one - or not )*/
-    if ( rc == 0 )
-    {
-        uint32_t pt;
-        if ( tool_ctx -> tmp_id . temp_path == NULL )
+        /* if the user did not give us a temp-path: use the dflt-path and clean up after use */
+        tool_ctx -> tmp_id . temp_path = dflt_temp_path;
+        pt = KDirectoryPathType( tool_ctx -> dir, "%s", tool_ctx -> tmp_id . temp_path );
+        if ( pt != kptDir )
         {
-            /* if the user did not give us a temp-path: use the dflt-path and clean up after use */
-            tool_ctx -> tmp_id . temp_path = dflt_temp_path;
-            pt = KDirectoryPathType( tool_ctx -> dir, "%s", tool_ctx -> tmp_id . temp_path );
-            if ( pt != kptDir )
-            {
-                rc = KDirectoryCreateDir ( tool_ctx -> dir, 0775, kcmInit, "%s", tool_ctx -> tmp_id . temp_path );
-                if ( rc != 0 )
-                    ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );
-                else
-                    tool_ctx -> remove_temp_path = true;
-            }
-        }
-        else
-        {
-            /* if the user did give us a temp-path: try to create it if not force-options is given */
-            KCreateMode create_mode = /* tool_ctx -> force ? kcmInit : kcmCreate; */ kcmInit;
-            rc = KDirectoryCreateDir ( tool_ctx -> dir, 0775, create_mode, "%s", tool_ctx -> tmp_id . temp_path );
+            rc = KDirectoryCreateDir ( tool_ctx -> dir, 0775, kcmInit, "%s", tool_ctx -> tmp_id . temp_path );
             if ( rc != 0 )
                 ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );
+            else
+                tool_ctx -> remove_temp_path = true;
         }
     }
-    
+    else
+    {
+        /* if the user did give us a temp-path: try to create it if not force-options is given */
+        KCreateMode create_mode = /* tool_ctx -> force ? kcmInit : kcmCreate; */ kcmInit;
+        rc = KDirectoryCreateDir ( tool_ctx -> dir, 0775, create_mode, "%s", tool_ctx -> tmp_id . temp_path );
+        if ( rc != 0 )
+            ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );
+    }
     if ( rc == 0 )
         tool_ctx -> tmp_id . temp_path_ends_in_slash = ends_in_slash( tool_ctx -> tmp_id . temp_path ); /* helper.c */
+    return rc;
+}
 
-    tool_ctx -> dflt_lookup[ 0 ] = 0;
-    tool_ctx -> dflt_index[ 0 ] = 0;
-    tool_ctx -> dflt_output[ 0 ] = 0;
-
-    if ( rc == 0 )
+static rc_t handle_accession( tool_ctx_t * tool_ctx )
+{
+    rc_t rc = 0;
+    tool_ctx -> accession_short = extract_acc( tool_ctx -> accession_path );
+    if ( tool_ctx -> accession_short == NULL )
     {
-        /* generate the full path of the lookup-table */
-        rc = make_pre_and_post_fixed( tool_ctx -> dflt_lookup, sizeof tool_ctx -> dflt_lookup,
-                      tool_ctx -> accession,
-                      &( tool_ctx -> tmp_id ),
-                      "lookup" ); /* helper.c */
-        if ( rc == 0 )
-            tool_ctx -> lookup_filename = tool_ctx -> dflt_lookup;
+        rc = RC( rcApp, rcArgv, rcAccessing, rcParam, rcInvalid );            
+        ErrMsg( "accession '%s' invalid", tool_ctx -> accession_path );
     }
-    
-    if ( rc == 0 )
+    return rc;
+}
+
+static rc_t handle_lookup_path( tool_ctx_t * tool_ctx )
+{
+    size_t num_writ;
+    const tmp_id * tmp_id = &( tool_ctx -> tmp_id );
+    /* generate the full path of the lookup-table */        
+    rc_t rc = string_printf( &tool_ctx -> lookup_filename[ 0 ], sizeof tool_ctx -> lookup_filename,
+                            &num_writ,
+                            tmp_id -> temp_path_ends_in_slash ? "%s%s.%u.lookup" : "%s/%s.%u.lookup",
+                            tmp_id -> temp_path,
+                            tmp_id -> hostname,
+                            tmp_id -> pid );
+    if ( rc != 0 )
+        ErrMsg( "string_printf( lookup-tbl ) -> %R", rc );
+    else
     {
         /* generate the full path of the lookup-index-table */                
-        rc = make_pre_and_post_fixed( tool_ctx -> dflt_index, sizeof tool_ctx -> dflt_index,
-                  tool_ctx -> accession,
-                  &( tool_ctx -> tmp_id ),                              
-                  "lookup.idx" ); /* helper.c */
-        if ( rc == 0 )
-            tool_ctx -> index_filename = tool_ctx -> dflt_index;
+        rc = string_printf( &tool_ctx -> index_filename[ 0 ], sizeof tool_ctx -> index_filename,
+                            &num_writ,
+                            "%s.idx",
+                            &tool_ctx -> lookup_filename[ 0 ] );
+        if ( rc != 0 )
+            ErrMsg( "string_printf( lookup-tbl-idx ) -> %R", rc );
     }
-    
-    if ( rc == 0 )
+    return rc;
+}
+
+static rc_t handle_output_filename( tool_ctx_t * tool_ctx )
+{
+    rc_t rc = 0;
+    size_t num_writ;
+    if ( tool_ctx -> output_filename == NULL )
     {
-        if ( tool_ctx -> output_filename == NULL )
+        /* generate the full path of the output-file, if not given */
+        rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
+                            &num_writ,
+                            "%s.fastq",
+                            tool_ctx -> accession_short );
+        if ( rc != 0 )
+            ErrMsg( "string_printf( output-filename ) -> %R", rc );
+        else
+            tool_ctx -> output_filename = tool_ctx -> dflt_output;
+    }
+    else
+    {
+        if ( dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) )
         {
-            /* generate the full path of the output-file, if not given */
-            rc = make_postfixed( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                                 tool_ctx -> accession,
-                                 ".fastq" ); /* helper.c */
-            if ( rc == 0 )
+            /* the given output-filename is an existing directory */
+            bool es = ends_in_slash( tool_ctx -> output_filename );
+            rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                                &num_writ,
+                                es ? "%s%s.fastq" : "%s/%s.fastq",
+                                tool_ctx -> output_filename,
+                                tool_ctx -> accession_short );
+            if ( rc != 0 )
+                ErrMsg( "string_printf( output-filename ) -> %R", rc );
+            else
                 tool_ctx -> output_filename = tool_ctx -> dflt_output;
         }
         else
         {
-            if ( dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) )
+            String path;
+            if ( extract_path( tool_ctx -> output_filename, &path ) )
             {
-                /* the given output-filename is an existing directory */
-                size_t num_writ;
-                bool es = ends_in_slash( tool_ctx -> output_filename );
-                rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                                    &num_writ,
-                                    es ? "%s%s.fastq" : "%s/%s.fastq",
-                                    tool_ctx -> output_filename,
-                                    tool_ctx -> accession );
-                if ( rc != 0 )
-                    ErrMsg( "string_printf( output-filename ) -> %R", rc );
-                else
-                    tool_ctx -> output_filename = tool_ctx -> dflt_output;
-            }
-            else
-            {
-                String path;
-                if ( extract_path( tool_ctx -> output_filename, &path ) )
+                /* the output-filename contains a path... */
+                if ( !dir_exists( tool_ctx -> dir, "%S", &path ) )
                 {
-                    /* the output-filename contains a path... */
-                    if ( !dir_exists( tool_ctx -> dir, "%S", &path ) )
-                    {
-                        /* this path does not ( yet ) exist, create it... */
-                        rc = create_this_dir( tool_ctx -> dir, &path, true );
-                    }
+                    /* this path does not ( yet ) exist, create it... */
+                    rc = create_this_dir( tool_ctx -> dir, &path, true );
                 }
             }
         }
     }
+    return rc;
+}
+
+static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
+{
+    rc_t rc = ArgsParamValue( args, 0, ( const void ** )&( tool_ctx -> accession_path ) );
+    if ( rc != 0 )
+        ErrMsg( "ArgsParamValue() -> %R", rc );
+    else
+    {
+        tool_ctx -> lookup_filename[ 0 ] = 0;
+        tool_ctx -> index_filename[ 0 ] = 0;
+        tool_ctx -> dflt_output[ 0 ] = 0;
+    
+        get_user_input( tool_ctx, args );
+        encforce_constrains( tool_ctx );
+        get_environment( tool_ctx );
+        
+        rc = handle_tmp_path( tool_ctx );
+    }
+    
+    if ( rc == 0 )
+        rc = handle_accession( tool_ctx );
+    
+    if ( rc == 0 )
+        rc = handle_lookup_path( tool_ctx );
+    
+    if ( rc == 0 )
+        rc = handle_output_filename( tool_ctx );
     
     if ( rc == 0 )
         rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) );
@@ -539,7 +548,7 @@ static rc_t print_stats( const join_stats * stats )
 
 static const uint32_t queue_timeout = 200;  /* ms */
 
-static rc_t produce_lookup_files( tool_ctx * tool_ctx )
+static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
     struct bg_update * gap = NULL;
@@ -556,8 +565,8 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
                                 tool_ctx -> dir,
                                 & tool_ctx -> tmp_id,
                                 tool_ctx -> cleanup_task,
-                                tool_ctx -> lookup_filename,
-                                tool_ctx -> index_filename,
+                                &tool_ctx -> lookup_filename[ 0 ],
+                                &tool_ctx -> index_filename[ 0 ],
                                 tool_ctx -> num_threads,
                                 queue_timeout,
                                 tool_ctx -> buf_size,
@@ -592,7 +601,7 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
     /* the lookup-producer is the source of the chain */
     if ( rc == 0 )
         rc = execute_lookup_production( tool_ctx -> dir,
-                                        tool_ctx -> accession,
+                                        tool_ctx -> accession_short,
                                         bg_vec_merger, /* drives the bg_file_merger */
                                         tool_ctx -> cursor_cache,
                                         tool_ctx -> buf_size,
@@ -617,7 +626,7 @@ static rc_t produce_lookup_files( tool_ctx * tool_ctx )
 /* -------------------------------------------------------------------------------------------- */
 
 
-static rc_t produce_final_db_output( tool_ctx * tool_ctx )
+static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
 {
     struct temp_registry * registry = NULL;
     join_stats stats;
@@ -638,10 +647,11 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
     
     if ( rc == 0 )
         rc = execute_db_join( tool_ctx -> dir,
-                           tool_ctx -> accession,
+                           tool_ctx -> accession_path,
+                           tool_ctx -> accession_short,
                            &stats,
-                           tool_ctx -> lookup_filename,
-                           tool_ctx -> index_filename,
+                           &tool_ctx -> lookup_filename[ 0 ],
+                           &tool_ctx -> index_filename[ 0 ],
                            &( tool_ctx -> tmp_id ),
                            registry,
                            tool_ctx -> cursor_cache,
@@ -652,11 +662,11 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
                            & tool_ctx -> join_options ); /* join.c */
 
     /* from now on we do not need the lookup-file and it's index any more... */
-    if ( tool_ctx -> dflt_lookup[ 0 ] != 0 )
-        KDirectoryRemove( tool_ctx -> dir, true, "%s", tool_ctx -> dflt_lookup );
+    if ( tool_ctx -> lookup_filename[ 0 ] != 0 )
+        KDirectoryRemove( tool_ctx -> dir, true, "%s", &tool_ctx -> lookup_filename[ 0 ] );
 
-    if ( tool_ctx -> dflt_index[ 0 ] != 0 )
-        KDirectoryRemove( tool_ctx -> dir, true, "%s", tool_ctx -> dflt_index );
+    if ( tool_ctx -> index_filename[ 0 ] != 0 )
+        KDirectoryRemove( tool_ctx -> dir, true, "%s", &tool_ctx -> index_filename[ 0 ] );
 
     /* STEP 4 : concatenate output-chunks */
     if ( rc == 0 )
@@ -681,7 +691,7 @@ static rc_t produce_final_db_output( tool_ctx * tool_ctx )
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t fastdump_database( tool_ctx * tool_ctx )
+static rc_t fastdump_database( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
     
@@ -700,7 +710,7 @@ static rc_t fastdump_database( tool_ctx * tool_ctx )
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
+static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
 {
     rc_t rc = 0;
     struct temp_registry * registry = NULL;
@@ -716,7 +726,8 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
 
     if ( rc == 0 )
         rc = execute_tbl_join( tool_ctx -> dir,
-                           tool_ctx -> accession,
+                           tool_ctx -> accession_path,
+                           tool_ctx -> accession_short,
                            &stats,
                            tbl_name,
                            &( tool_ctx -> tmp_id ),
@@ -750,10 +761,10 @@ static rc_t fastdump_table( tool_ctx * tool_ctx, const char * tbl_name )
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t perform_tool( tool_ctx * tool_ctx )
+static rc_t perform_tool( tool_ctx_t * tool_ctx )
 {
     acc_type_t acc_type;
-    rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> accession, &acc_type ); /* cmn_iter.c */
+    rc_t rc = cmn_get_acc_type( tool_ctx -> dir, tool_ctx -> accession_path, &acc_type ); /* cmn_iter.c */
     if ( rc == 0 )
     {
         /* =================================================== */
@@ -762,7 +773,7 @@ static rc_t perform_tool( tool_ctx * tool_ctx )
             case acc_csra       : rc = fastdump_database( tool_ctx ); break; /* above */
             case acc_sra_flat   : rc = fastdump_table( tool_ctx, NULL ); break; /* above */
             case acc_sra_db     : rc = fastdump_table( tool_ctx, "SEQUENCE" ); break; /* above */
-            default : ErrMsg( "invalid accession '%s'", tool_ctx -> accession );
+            default : ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );
         }
         /* =================================================== */
     }
@@ -796,22 +807,34 @@ rc_t CC KMain ( int argc, char *argv [] )
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
     if ( rc == 0 )
     {
-        tool_ctx tool_ctx;
-        rc = populate_tool_ctx( &tool_ctx, args ); /* above */
-        if ( rc == 0 )
+        uint32_t param_count;
+        rc = ArgsParamCount( args, &param_count );
+        if ( rc != 0 )
+            ErrMsg( "ArgsParamCount() -> %R", rc );
+        else
         {
-            if ( !( tool_ctx . force ) &&
-                 !( tool_ctx . print_to_stdout ) &&
-                 file_exists( tool_ctx . dir, "%s", tool_ctx . output_filename ) )
-            {
-                rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
-                ErrMsg( "creating ouput-file '%s' -> %R", tool_ctx . output_filename, rc );
-            }
+            if ( param_count == 0 || param_count > 1 )
+                rc = Usage ( args );
             else
             {
-                rc = perform_tool( &tool_ctx );     /* above */
+                tool_ctx_t tool_ctx;
+                rc = populate_tool_ctx( &tool_ctx, args ); /* above */
+                if ( rc == 0 )
+                {
+                    if ( !( tool_ctx . force ) &&
+                         !( tool_ctx . print_to_stdout ) &&
+                         file_exists( tool_ctx . dir, "%s", tool_ctx . output_filename ) )
+                    {
+                        rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
+                        ErrMsg( "creating ouput-file '%s' -> %R", tool_ctx . output_filename, rc );
+                    }
+                    else
+                    {
+                        rc = perform_tool( &tool_ctx );     /* above */
+                    }
+                    KDirectoryRelease( tool_ctx . dir );
+                }
             }
-            KDirectoryRelease( tool_ctx . dir );
         }
     }
     return rc;

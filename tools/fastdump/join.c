@@ -39,7 +39,8 @@
 
 typedef struct join
 {
-    const char * accession;
+    const char * accession_path;
+    const char * accession_short;
     struct lookup_reader * lookup;  /* lookup_reader.h */
     struct index_reader * index;    /* index.h */
     struct join_results * results;  /* join_results.h */
@@ -67,7 +68,7 @@ static rc_t init_join( cmn_params * cp,
 {
     rc_t rc;
     
-    j -> accession = cp -> accession;
+    j -> accession_path = cp -> accession;
     j -> lookup = NULL;
     j -> results = results;
     j -> B1 . S . addr = NULL;
@@ -564,11 +565,11 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
 
 
 static rc_t extract_csra_row_count( KDirectory * dir,
-                                    const char * accession,
+                                    const char * accession_path,
                                     size_t cur_cache,
                                     uint64_t * res )
 {
-    cmn_params cp = { dir, accession, 0, 0, cur_cache };
+    cmn_params cp = { dir, accession_path, 0, 0, cur_cache };
     struct fastq_csra_iter * iter;
     fastq_iter_opt opt = { false, false, false };
     rc_t rc = make_fastq_csra_iter( &cp, opt, &iter ); /* fastq_iter.c */
@@ -782,7 +783,8 @@ typedef struct join_thread_data
     join_stats stats;
     
     KDirectory * dir;
-    const char * accession;
+    const char * accession_path;
+    const char * accession_short;
     const char * lookup_filename;
     const char * index_filename;
     struct bg_progress * progress;
@@ -809,7 +811,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                 &results,
                                 jtd -> registry,
                                 jtd -> part_file,
-                                jtd -> accession,
+                                jtd -> accession_short,
                                 jtd -> buf_size,
                                 4096,
                                 jtd -> join_options -> print_frag_nr,
@@ -818,7 +820,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
     if ( rc == 0 && results != NULL )
     {
         join j;
-        cmn_params cp = { jtd -> dir, jtd -> accession, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
+        cmn_params cp = { jtd -> dir, jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
 
         rc = init_join( &cp, results, jtd -> lookup_filename, jtd -> index_filename, jtd -> buf_size, &j ); /* above */
         if ( rc == 0 )
@@ -863,7 +865,8 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
 }
 
 rc_t execute_db_join( KDirectory * dir,
-                    const char * accession,
+                    const char * accession_path,
+                    const char * accession_short,
                     join_stats * stats,
                     const char * lookup_filename,
                     const char * index_filename,
@@ -884,7 +887,7 @@ rc_t execute_db_join( KDirectory * dir,
     if ( rc == 0 )
     {
         uint64_t row_count = 0;
-        rc = extract_csra_row_count( dir, accession, cur_cache, &row_count );
+        rc = extract_csra_row_count( dir, accession_path, cur_cache, &row_count );
 
         if ( rc == 0 && row_count > 0 )
         {
@@ -917,7 +920,8 @@ rc_t execute_db_join( KDirectory * dir,
                 else
                 {
                     jtd -> dir              = dir;
-                    jtd -> accession        = accession;
+                    jtd -> accession_path   = accession_path;
+                    jtd -> accession_short  = accession_short;
                     jtd -> lookup_filename  = lookup_filename;
                     jtd -> index_filename   = index_filename;
                     jtd -> first_row        = row;
@@ -930,7 +934,7 @@ rc_t execute_db_join( KDirectory * dir,
                     jtd -> join_options     = join_options;
 
                     rc = make_joined_filename( jtd -> part_file, sizeof jtd -> part_file,
-                                accession, tmp_id, thread_id ); /* helper.c */
+                                accession_short, tmp_id, thread_id ); /* helper.c */
 
                     if ( rc == 0 )
                     {

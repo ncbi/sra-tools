@@ -162,6 +162,8 @@ void unpack_4na( const String * packed, SBuffer * unpacked );
 
 bool ends_in_slash( const char * s );
 bool extract_path( const char * s, String * path );
+const char * extract_acc( const char * s );
+
 rc_t create_this_file( KDirectory * dir, const char * filename, bool force );
 rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
 
@@ -174,15 +176,6 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files );
 uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );
 
 int get_vdb_pathtype( KDirectory * dir, const char * accession );
-
-rc_t make_pre_and_post_fixed( char * dst, size_t dst_size,
-                              const char * acc,
-                              const tmp_id * tmp_id,
-                              const char * extension );
-
-rc_t make_postfixed( char * buffer, size_t bufsize,
-                     const char * path,
-                     const char * postfix );
 
 rc_t make_joined_filename( char * buffer, size_t bufsize,
                            const char * accession,

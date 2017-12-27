@@ -70,6 +70,12 @@ typedef enum acc_type_t { acc_csra, acc_sra_flat, acc_sra_db, acc_none } acc_typ
 
 rc_t cmn_get_acc_type( KDirectory * dir, const char * accession, acc_type_t * acc_type );
 
+rc_t cmn_check_tbl_column( KDirectory * dir, const char * accession,
+                           const char * col_name, bool * present );
+
+rc_t cmn_check_db_column( KDirectory * dir, const char * accession, const char * tbl_name,
+                          const char * col_name,  bool * present );
+
 #ifdef __cplusplus
 }
 #endif

@@ -459,3 +459,94 @@ rc_t cmn_get_acc_type( KDirectory * dir, const char * accession, acc_type_t * ac
     }
     return rc;
 }
+
+static rc_t cmn_check_tbl_for_column( const VTable * tbl, const char * col_name, bool * present )
+{
+    struct KNamelist * columns;
+    rc_t rc = VTableListReadableColumns ( tbl, &columns );
+    if ( rc == 0 )
+    {
+        VNamelist * nl_columns;
+        rc = VNamelistFromKNamelist ( &nl_columns, columns );
+        if ( rc == 0 )
+        {
+            int32_t idx;
+            rc = VNamelistContainsStr( nl_columns, col_name, &idx );
+            if ( rc == 0 )
+                *present = ( idx >= 0 );
+            VNamelistRelease( nl_columns );
+        }
+        KNamelistRelease ( columns );
+    }
+    return rc;
+}
+
+rc_t cmn_check_tbl_column( KDirectory * dir, const char * accession,
+                           const char * col_name, bool * present )
+{
+    rc_t rc = 0;
+    if ( present != NULL )
+        *present = false;
+    if ( dir == NULL || accession == NULL || col_name == NULL || present == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "cmn_check_column() -> %R", rc );
+    }
+    else
+    {
+        const VDBManager * mgr = NULL;
+        rc = VDBManagerMakeRead( &mgr, dir );
+        if ( rc != 0 )
+            ErrMsg( "cmn_get_acc_type.VDBManagerMakeRead() -> %R\n", rc );
+        else
+        {
+            const VTable * tbl = NULL;
+            rc = VDBManagerOpenTableRead ( mgr, &tbl, NULL, "%s", accession );
+            if ( rc == 0 )
+            {
+                rc = cmn_check_tbl_for_column( tbl, col_name, present );
+                VTableRelease( tbl );
+            }
+            VDBManagerRelease( mgr );
+        }
+    }
+    return rc;
+}
+
+rc_t cmn_check_db_column( KDirectory * dir, const char * accession, const char * tbl_name,
+                          const char * col_name,  bool * present )
+{
+    rc_t rc = 0;
+    if ( present != NULL )
+        *present = false;
+    if ( dir == NULL || accession == NULL || tbl_name == NULL || col_name == NULL || present == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "cmn_check_column() -> %R", rc );
+    }
+    else
+    {
+        const VDBManager * mgr = NULL;
+        rc = VDBManagerMakeRead( &mgr, dir );
+        if ( rc != 0 )
+            ErrMsg( "cmn_get_acc_type.VDBManagerMakeRead() -> %R\n", rc );
+        else
+        {
+            const VDatabase * db = NULL;
+            rc = VDBManagerOpenDBRead ( mgr, &db, NULL, "%s", accession );
+            if ( rc == 0 )
+            {
+                const VTable * tbl = NULL;
+                rc = VDatabaseOpenTableRead ( db, &tbl, "%s", tbl_name );
+                if ( rc == 0 )
+                {
+                    rc = cmn_check_tbl_for_column( tbl, col_name, present );
+                    VTableRelease( tbl );
+                }
+                VDatabaseRelease( db );
+            }
+            VDBManagerRelease( mgr );
+        }
+    }
+    return rc;
+}

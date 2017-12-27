@@ -29,8 +29,8 @@
 
 typedef struct fastq_csra_iter
 {
-    struct cmn_iter * cmn;
-    fastq_iter_opt opt;
+    struct cmn_iter * cmn; /* cmn_iter.h */
+    fastq_iter_opt opt; /* fastq_iter.h */
     uint32_t name_id, prim_alig_id, cmp_read_id, quality_id, read_len_id, read_type_id;
 } fastq_csra_iter;
 
@@ -39,7 +39,7 @@ void destroy_fastq_csra_iter( struct fastq_csra_iter * self )
 {
     if ( self != NULL )
     {
-        destroy_cmn_iter( self -> cmn );
+        destroy_cmn_iter( self -> cmn ); /* cmn_iter.h */
         free( ( void * ) self );
     }
 }
@@ -58,31 +58,31 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
     else
     {
         self -> opt = opt;
-        rc = make_cmn_iter( params, "SEQUENCE", &( self -> cmn ) );
+        rc = make_cmn_iter( params, "SEQUENCE", &( self -> cmn ) ); /* cmn_iter.h */
         
         if ( rc == 0 && opt . with_name )
-            rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) ); /* cmn_iter.h */
 
         if ( rc == 0 )
-            rc = cmn_iter_add_column( self -> cmn, "PRIMARY_ALIGNMENT_ID", &( self -> prim_alig_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "PRIMARY_ALIGNMENT_ID", &( self -> prim_alig_id ) ); /* cmn_iter.h */
 
         if ( rc == 0 )
-            rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> cmp_read_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> cmp_read_id ) ); /* cmn_iter.h */
 
         if ( rc == 0 )
-            rc = cmn_iter_add_column( self -> cmn, "(INSDC:quality:text:phred_33)QUALITY", &( self -> quality_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "(INSDC:quality:text:phred_33)QUALITY", &( self -> quality_id ) ); /* cmn_iter.h */
 
         if ( rc == 0 && opt . with_read_len )
-            rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) ); /* cmn_iter.h */
 
         if ( rc == 0 && opt . with_read_type )
-            rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) );
+            rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) ); /* cmn_iter.h */
 
         if ( rc == 0 )
-            rc = cmn_iter_range( self -> cmn, self -> prim_alig_id );
+            rc = cmn_iter_range( self -> cmn, self -> prim_alig_id ); /* cmn_iter.h */
             
         if ( rc != 0 )
-            destroy_fastq_csra_iter( self );
+            destroy_fastq_csra_iter( self ); /* above */
         else
             *iter = self;
     }
@@ -240,3 +240,4 @@ uint64_t get_row_count_of_fastq_sra_iter( struct fastq_sra_iter * self )
 {
     return cmn_iter_row_count( self -> cmn );
 }
+

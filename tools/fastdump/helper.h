@@ -135,6 +135,7 @@ rc_t make_SBuffer( SBuffer * self, size_t len );
 void release_SBuffer( SBuffer * self );
 rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args );
 rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... );
+rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err );
 rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... );
 
 rc_t add_column( const VCursor * cursor, const char * name, uint32_t * id );

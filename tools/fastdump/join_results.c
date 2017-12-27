@@ -209,12 +209,22 @@ rc_t join_results_print( struct join_results * self, uint32_t read_id, const cha
                     destroy_join_printer( p, NULL );
             }   
         }
+        
         if ( rc == 0 && p != NULL )
         {
-            va_list args;
-            va_start ( args, fmt );
-            rc = print_to_SBufferV( & self -> print_buffer, fmt, args );
-            va_end ( args );
+            bool done = false;
+            
+            while ( rc == 0 && !done )
+            {
+                va_list args;
+                va_start ( args, fmt );
+                rc = print_to_SBufferV( & self -> print_buffer, fmt, args );
+                va_end ( args );
+
+                done = ( rc == 0 );
+                if ( !done )
+                    rc = try_to_enlarge_SBuffer( & self -> print_buffer, rc );
+            }
             
             if ( rc == 0 )
             {

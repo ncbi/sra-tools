@@ -244,46 +244,50 @@ rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args )
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
     else
     {
-        bool done = false;
-        while ( rc == 0 && !done )
-        {
-            char * dst = ( char * )( self -> S . addr );
-            size_t num_writ = 0;
+        char * dst = ( char * )( self -> S . addr );
+        size_t num_writ = 0;
             
-            rc = string_vprintf( dst, self -> buffer_size, &num_writ, fmt, args );
-            done = ( rc == 0 );
-            if ( !done )
-            {
-                if ( ( GetRCObject( rc ) == ( enum RCObject )rcBuffer ) && ( GetRCState( rc ) == rcInsufficient ) )
-                {
-                    rc = increase_SBuffer( self, self -> buffer_size ); /* double it's size */
-                    if ( rc != 0 )
-                        ErrMsg( "increase_SBuffer() -> %R", rc );
-                }
-                else
-                    ErrMsg( "string_vprintf() -> %R", rc );
-            }
-            if ( rc == 0 )
-            {
-                self -> S . size = num_writ;
-                self -> S . len = ( uint32_t )self -> S . size;
-            }
+        rc = string_vprintf( dst, self -> buffer_size, &num_writ, fmt, args );
+        if ( rc == 0 )
+        {
+            self -> S . size = num_writ;
+            self -> S . len = ( uint32_t )self -> S . size;
         }
+    }
+    return rc;
+}
+
+rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err )
+{
+    rc_t rc = rc_err;
+    if ( ( GetRCObject( rc ) == ( enum RCObject )rcBuffer ) && ( GetRCState( rc ) == rcInsufficient ) )
+    {
+        rc = increase_SBuffer( self, self -> buffer_size ); /* double it's size */
+        if ( rc != 0 )
+            ErrMsg( "increase_SBuffer() -> %R", rc );
     }
     return rc;
 }
 
 rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... )
 {
-    rc_t rc;
-    va_list args;
-
-    va_start( args, fmt );
-    rc = print_to_SBufferV( self, fmt, args );
-    va_end( args );
-
+    rc_t rc = 0;
+    bool done = false;
+    while ( rc == 0 && !done )
+    {
+        va_list args;
+        
+        va_start( args, fmt );
+        rc = print_to_SBufferV( self, fmt, args );
+        va_end( args );
+        
+        done = ( rc == 0 );
+        if ( !done )
+            rc = try_to_enlarge_SBuffer( self, rc );
+    }
     return rc;
 }
+
 
 rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... )
 {

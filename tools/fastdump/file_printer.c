@@ -104,11 +104,22 @@ rc_t make_file_printer_from_filename( KDirectory * dir, struct file_printer ** p
 
 rc_t file_print( struct file_printer * printer, const char * fmt, ... )
 {
-    rc_t rc;
-    va_list args;
-    va_start ( args, fmt );
+    rc_t rc = 0;
+    bool done = false;
+    
+    while ( rc == 0 && !done )
+    {
+        va_list args;
+        va_start ( args, fmt );
 
-    rc = print_to_SBufferV( &printer->print_buffer, fmt, args );
+        rc = print_to_SBufferV( & printer -> print_buffer, fmt, args );
+        va_end ( args );
+
+        done = ( rc == 0 );
+        if ( !done )
+            rc = try_to_enlarge_SBuffer( & printer -> print_buffer, rc );
+    }
+    
     if ( rc == 0 )
     {
         size_t num_writ, to_write;
@@ -125,6 +136,5 @@ rc_t file_print( struct file_printer * printer, const char * fmt, ... )
         else
             printer -> file_pos += num_writ;
     }
-    va_end ( args );
     return rc;
 }

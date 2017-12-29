@@ -53,6 +53,29 @@ void release_lookup_reader( struct lookup_reader * self )
     }
 }
 
+static rc_t make_lookup_reader_obj( struct lookup_reader ** reader,
+                                    const struct index_reader * index,
+                                    const struct KFile * f )
+{
+    rc_t rc = 0;
+    lookup_reader * r = calloc( 1, sizeof * r );
+    if ( r == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        ErrMsg( "make_lookup_reader.calloc( %d ) -> %R", ( sizeof * r ), rc );
+    }
+    else
+    {
+        r -> f = f;
+        r -> index = index;
+        rc = make_SBuffer( &( r -> buf ), 4096 );
+        if ( rc == 0 )
+            *reader = r;
+        else
+            release_lookup_reader( r );
+    }
+    return rc;
+}
 
 rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * index,
                          struct lookup_reader ** reader, size_t buf_size, const char * fmt, ... )
@@ -68,33 +91,21 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
         ErrMsg( "make_lookup_reader.KDirectoryVOpenFileRead( '?' ) -> %R", rc );
     else
     {
-        const struct KFile * temp_file = NULL;
-        rc = KBufFileMakeRead( &temp_file, f, buf_size );
-        KFileRelease( f );
-        if ( rc != 0 )
+        if ( buf_size > 0 )
         {
-            ErrMsg( "make_lookup_reader.KBufFileMakeRead() -> %R", rc );
-        }
-        else
-        {
-            lookup_reader * r = calloc( 1, sizeof * r );
-            if ( r == NULL )
-            {
-                KFileRelease( temp_file );
-                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                ErrMsg( "make_lookup_reader.calloc( %d ) -> %R", ( sizeof * r ), rc );
-            }
+            const struct KFile * temp_file = NULL;
+            rc = KBufFileMakeRead( &temp_file, f, buf_size );
+            if ( rc != 0 )
+                ErrMsg( "make_lookup_reader.KBufFileMakeRead() -> %R", rc );
             else
             {
-                r -> f = temp_file;
-                r -> index = index;
-                rc = make_SBuffer( &( r -> buf ), 4096 );
-                if ( rc == 0 )
-                    *reader = r;
-                else
-                    release_lookup_reader( r );
+                KFileRelease( f );
+                f = temp_file;
             }
         }
+        
+        if ( rc == 0 )
+            rc = make_lookup_reader_obj( reader, index, f );
     }
     va_end ( args );
     return rc;
@@ -105,10 +116,10 @@ static rc_t read_key_and_len( struct lookup_reader * self, uint64_t pos, uint64_
 {
     size_t num_read;
     char buffer[ 10 ];
-    rc_t rc = KFileRead( self -> f, pos, buffer, sizeof buffer, &num_read );
+    rc_t rc = KFileReadAll( self -> f, pos, buffer, sizeof buffer, &num_read );
     if ( rc != 0 )
     {
-        ErrMsg( "read_key_and_len.KFileRead( at %ld, to_read %u ) -> %R", pos, sizeof buffer, rc );
+        ErrMsg( "read_key_and_len.KFileReadAll( at %ld, to_read %u ) -> %R", pos, sizeof buffer, rc );
     }
     else if ( num_read != sizeof buffer )
     {
@@ -267,37 +278,52 @@ rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * self,
     {
         size_t num_read;
         char buffer1[ 10 ];
-        rc = KFileRead( self -> f, self -> pos, buffer1, sizeof buffer1, &num_read );
+        
+        rc = KFileReadAll( self -> f, self -> pos, buffer1, sizeof buffer1, &num_read );
         if ( rc != 0 )
-            ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", self -> pos, sizeof buffer1, rc );
-        else if ( num_read != sizeof buffer1 )
-            rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+        {
+            /* we are not able to read 10 bytes from the file */
+            ErrMsg( "KFileReadAll( at %ld, to_read %u ) -> %R", self -> pos, sizeof buffer1, rc );
+        }
         else
         {
-            uint16_t dna_len;
-            size_t to_read;
-            char * dst = ( char * )( packed_bases -> S . addr );
-            
-            memmove( key, buffer1, sizeof *key );
-
-            dna_len = buffer1[ 8 ];
-            dna_len <<= 8;
-            dna_len |= buffer1[ 9 ];
-            dst[ 0 ] = buffer1[ 8 ];
-            dst[ 1 ] = buffer1[ 9 ];
-            dst += 2;
-            to_read = ( dna_len & 1 ) ? ( dna_len + 1 ) >> 1 : dna_len >> 1;
-            if ( to_read > ( packed_bases->buffer_size - 2 ) )
-                to_read = ( packed_bases->buffer_size - 2 );
-            if ( rc == 0 )
+            if ( num_read != sizeof buffer1 )
             {
-                rc = KFileRead( self -> f, self -> pos + 10, dst, to_read, &num_read );
+                rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+            }
+            else
+            {
+                uint16_t dna_len;
+                size_t to_read;
+                char * dst = ( char * )( packed_bases -> S . addr );
+                
+                /* we get the key out of the 10 bytes */
+                memmove( key, buffer1, sizeof *key );
+
+                /* we get the dna-len out of the 10 bytes */
+                dna_len = buffer1[ 8 ];
+                dna_len <<= 8;
+                dna_len |= buffer1[ 9 ];
+                
+                /* we write the dna-len into the first 2 bytes of the destination */
+                dst[ 0 ] = buffer1[ 8 ];
+                dst[ 1 ] = buffer1[ 9 ];
+                dst += 2;
+
+                /* */
+                to_read = ( dna_len & 1 ) ? ( dna_len + 1 ) >> 1 : dna_len >> 1;
+
+                /* */
+                if ( to_read > ( packed_bases -> buffer_size - 2 ) )
+                    to_read = ( packed_bases -> buffer_size - 2 );
+
+                rc = KFileReadAll( self -> f, self -> pos + 10, dst, to_read, &num_read );
                 if ( rc != 0 )
-                    ErrMsg( "KFileRead( at %ld, to_read %u ) -> %R", self -> pos + 10, to_read, rc );
+                    ErrMsg( "KFileReadAll( at %ld, to_read %u ) -> %R", self -> pos + 10, to_read, rc );
                 else if ( num_read != to_read )
                 {
                     rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                    ErrMsg( "KFileRead( %ld ) %d vs %d -> %R", self -> pos + 10, num_read, to_read, rc );
+                    ErrMsg( "KFileReadAll( %ld ) %d vs %d -> %R", self -> pos + 10, num_read, to_read, rc );
                 }
                 else
                 {
@@ -330,8 +356,8 @@ rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id
         if ( found_row_id != row_id || found_read_id != read_id )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
-            ErrMsg( "id-mismatch for seq_id = %lu vs. %lu / read_id = %u vs %lu",
-                    found_row_id, row_id, found_read_id, read_id );
+            ErrMsg( "lookup_bases( %lu.%u ) ---> found %lu.%u",
+                         row_id, read_id, found_row_id, found_read_id );
         }
     }
     return rc;

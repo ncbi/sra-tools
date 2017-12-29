@@ -49,7 +49,7 @@ void release_index_writer( struct index_writer * writer )
 static rc_t write_value( index_writer * writer, uint64_t value )
 {
     size_t num_writ;
-    rc_t rc = KFileWrite( writer->f, writer->pos, &value, sizeof value, &num_writ );
+    rc_t rc = KFileWriteAll( writer->f, writer->pos, &value, sizeof value, &num_writ );
     if ( rc != 0 )
         ErrMsg( "write_value.KFileWriteAll( key ) -> %R", rc );
     else if ( num_writ != sizeof value )
@@ -92,6 +92,32 @@ rc_t write_key( struct index_writer * writer, uint64_t key, uint64_t offset )
     return rc;
 }
 
+static rc_t make_index_writer_obj( struct index_writer ** writer,
+                                   uint64_t frequency,
+                                   struct KFile * f )
+{
+    rc_t rc = 0;
+    index_writer * w = calloc( 1, sizeof * w );
+    if ( w == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        ErrMsg( "calloc( %d ) -> %R", ( sizeof * w ), rc );
+    }
+    else
+    {
+        w -> f = f;
+        w -> frequency = frequency;
+        rc = write_value( w, frequency );
+        if ( rc == 0 )
+            rc = write_key_and_offset( w, 1, 0 );
+
+        if ( rc == 0 )
+            *writer = w;
+        else
+            release_index_writer( w );
+    }
+    return rc;
+}
 
 rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
                         size_t buf_size, uint64_t frequency, const char * fmt, ... )
@@ -107,33 +133,24 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
         ErrMsg( "KDirectoryVCreateFile() -> %R", rc );
     else
     {
-        struct KFile * temp_file;
-        rc = KBufFileMakeWrite( &temp_file, f, false, buf_size );
-        KFileRelease( f );
-        if ( rc != 0 )
-            ErrMsg( "KBufFileMakeWrite() -> %R", rc );
-        else
+        if ( buf_size > 0 )
         {
-            index_writer * w = calloc( 1, sizeof * w );
-            if ( w == NULL )
-            {
-                KFileRelease( temp_file );
-                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                ErrMsg( "calloc( %d ) -> %R", ( sizeof * w ), rc );
-            }
+            struct KFile * temp_file;
+            rc = KBufFileMakeWrite( &temp_file, f, false, buf_size );
+            if ( rc != 0 )
+                ErrMsg( "KBufFileMakeWrite() -> %R", rc );
             else
             {
-                w->f = temp_file;
-                w->frequency = frequency;
-                rc = write_value( w, frequency );
-                if ( rc == 0 )
-                    rc = write_key_and_offset( w, 1, 0 );
-                    
-                if ( rc == 0 )
-                    *writer = w;
-                else
-                    release_index_writer( w );
+                KFileRelease( f );
+                f = temp_file;
             }
+        }
+
+        if ( rc == 0 )
+        {
+            rc = make_index_writer_obj( writer, frequency, f );
+            if ( rc != 0 )
+                KFileRelease( f );
         }
     }
     va_end ( args );
@@ -164,14 +181,41 @@ void release_index_reader( struct index_reader * reader )
 static rc_t read_value( struct index_reader * reader, uint64_t pos, uint64_t * value )
 {
     size_t num_read;
-    rc_t rc = KFileRead( reader->f, pos, ( void *)value, sizeof *value, &num_read );
+    rc_t rc = KFileReadAll( reader->f, pos, ( void *)value, sizeof *value, &num_read );
     if ( rc != 0 )
-        ErrMsg( "read_value.KFileRead( at %ld ) -> %R", pos, rc );
+        ErrMsg( "read_value.KFileReadAll( at %ld ) -> %R", pos, rc );
     else if ( num_read != sizeof *value )
         rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
     return rc;
 }
 
+static rc_t make_index_reader_obj( struct index_reader ** reader,
+                                   const struct KFile * f )
+{
+    rc_t rc = 0;
+    index_reader * r = calloc( 1, sizeof * r );
+    if ( r == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        ErrMsg( "calloc( %d ) -> %R", ( sizeof * r ), rc );
+    }
+    else
+    {
+        r -> f = f;
+        rc = read_value( r, 0, &r -> frequency );
+        if ( rc == 0 )
+            rc = KFileSize( f, &r -> file_size );
+
+        if ( rc == 0 )
+        {
+            get_max_key( r, &r -> max_key );
+            *reader = r;
+        }
+        else
+            release_index_reader( r );
+    }
+    return rc;
+}
 
 rc_t make_index_reader( KDirectory * dir, struct index_reader ** reader,
                         size_t buf_size, const char * fmt, ... )
@@ -187,38 +231,20 @@ rc_t make_index_reader( KDirectory * dir, struct index_reader ** reader,
         ErrMsg( "KDirectoryVOpenFileRead() -> %R", rc );
     else
     {
-        const struct KFile * temp_file;
-        rc = KBufFileMakeRead( &temp_file, f, buf_size );
-        KFileRelease( f );
-        if ( rc != 0 )
+        if ( buf_size > 0 )
         {
-            ErrMsg( "KBufFileMakeRead() -> %R", rc );
-        }
-        else
-        {
-            index_reader * r = calloc( 1, sizeof * r );
-            if ( r == NULL )
-            {
-                KFileRelease( temp_file );
-                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                ErrMsg( "calloc( %d ) -> %R", ( sizeof * r ), rc );
-            }
+            const struct KFile * temp_file;
+            rc = KBufFileMakeRead( &temp_file, f, buf_size );
+            if ( rc != 0 )
+                ErrMsg( "KBufFileMakeRead() -> %R", rc );
             else
             {
-                r->f = temp_file;
-                rc = read_value( r, 0, &r->frequency );
-                if ( rc == 0 )
-                    rc = KFileSize( temp_file, &r->file_size );
-
-                if ( rc == 0 )
-                {
-                    get_max_key( r, &r->max_key );
-                    *reader = r;
-                }
-                else
-                    release_index_reader( r );
+                KFileRelease( f );
+                f = temp_file;
             }
         }
+        if ( rc == 0 )
+            rc = make_index_reader_obj( reader, f );
     }
     va_end ( args );
     return rc;
@@ -235,9 +261,9 @@ static uint64_t key_to_pos_guess( const struct index_reader * reader, uint64_t k
 static rc_t read_3( const struct index_reader * reader, uint64_t pos, uint64_t * data, size_t to_read )
 {
     size_t num_read;
-    rc_t rc = KFileRead( reader->f, pos, ( void *)data, to_read, &num_read );
+    rc_t rc = KFileReadAll( reader->f, pos, ( void *)data, to_read, &num_read );
     if ( rc != 0 )
-        ErrMsg( "read_3.KFileRead( at %ld ) -> %R", pos, rc );
+        ErrMsg( "read_3.KFileReadAll( at %ld ) -> %R", pos, rc );
     else if ( num_read != to_read )
         rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
     return rc;
@@ -299,7 +325,7 @@ rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key_to_fin
                     else if ( key_to_find > data[ 4 ] )
                     {
                         /* key_to_find is bigger than our guess */
-                        pos += ( 2 * ( sizeof reader->frequency ) );
+                        pos += ( 2 * ( sizeof reader -> frequency ) );
                     }
                 }
             }
@@ -326,7 +352,7 @@ rc_t get_max_key( const struct index_reader * reader, uint64_t * max_key )
     else
     {
         uint64_t data[ 6 ];
-        uint64_t pos = reader->file_size - ( sizeof data );
+        uint64_t pos = reader -> file_size - ( sizeof data );
         rc = read_3( reader, pos, data, sizeof data );
         if ( rc == 0 )
              *max_key = data[ 4 ];

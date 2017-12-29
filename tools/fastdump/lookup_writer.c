@@ -49,6 +49,29 @@ void release_lookup_writer( struct lookup_writer * writer )
     }
 }
 
+static rc_t make_lookup_writer_obj( struct lookup_writer ** writer,
+                             struct index_writer * idx,
+                             struct KFile * f )
+{
+    rc_t rc = 0;
+    lookup_writer * w = calloc( 1, sizeof * w );
+    if ( w == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+        ErrMsg( "calloc( %d ) -> %R", ( sizeof * w ), rc );
+    }
+    else
+    {
+        w -> f = f;
+        w -> idx = idx;
+        rc = make_SBuffer( &w -> buf, 4096 );
+        if ( rc == 0 )
+            *writer = w;
+        else
+            release_lookup_writer( w );
+    }
+    return rc;
+}
 
 rc_t make_lookup_writer( KDirectory *dir, struct index_writer * idx,
                          struct lookup_writer ** writer, size_t buf_size,
@@ -65,30 +88,24 @@ rc_t make_lookup_writer( KDirectory *dir, struct index_writer * idx,
         ErrMsg( "KDirectoryVCreateFile() -> %R", rc );
     else
     {
-        struct KFile * temp_file;
-        rc = KBufFileMakeWrite( &temp_file, f, false, buf_size );
-        KFileRelease( f );
-        if ( rc != 0 )
-            ErrMsg( "KBufFileMakeWrite() -> %R", rc );
-        else
+        if ( buf_size > 0 )
         {
-            lookup_writer * w = calloc( 1, sizeof * w );
-            if ( w == NULL )
-            {
-                KFileRelease( temp_file );
-                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                ErrMsg( "calloc( %d ) -> %R", ( sizeof * w ), rc );
-            }
+            struct KFile * temp_file;
+            rc = KBufFileMakeWrite( &temp_file, f, false, buf_size );
+            if ( rc != 0 )
+                ErrMsg( "KBufFileMakeWrite() -> %R", rc );
             else
             {
-                w->f = temp_file;
-                w->idx = idx;
-                rc = make_SBuffer( &w->buf, 4096 );
-                if ( rc == 0 )
-                    *writer = w;
-                else
-                    release_lookup_writer( w );
+                KFileRelease( f );
+                f = temp_file;
             }
+        }
+
+        if ( rc == 0 )
+        {
+            rc = make_lookup_writer_obj( writer, idx, f );
+            if ( rc != 0 )
+                KFileRelease( f );
         }
     }
     va_end ( args );
@@ -107,7 +124,7 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer * writer,
             uint64_t key, const String * bases_as_packed_4na )
 {
     size_t num_writ;
-    rc_t rc = KFileWrite( writer->f, writer->pos, &key, sizeof key, &num_writ );
+    rc_t rc = KFileWriteAll( writer -> f, writer -> pos, &key, sizeof key, &num_writ );
     if ( rc != 0 )
         ErrMsg( "KFileWriteAll( key ) -> %R", rc );
     else if ( num_writ != sizeof key )
@@ -117,20 +134,21 @@ rc_t write_packed_to_lookup_writer( struct lookup_writer * writer,
     }
     else
     {
-        uint64_t start_pos = writer->pos;
-        writer->pos += num_writ;
-        rc = KFileWrite( writer->f, writer->pos, bases_as_packed_4na->addr, bases_as_packed_4na->size, &num_writ );
+        uint64_t start_pos = writer -> pos;
+        writer -> pos += num_writ;
+        rc = KFileWriteAll( writer -> f, writer -> pos, bases_as_packed_4na -> addr,
+                            bases_as_packed_4na -> size, &num_writ );
         if ( rc != 0 )
             ErrMsg( "KFileWriteAll( bases ) -> %R", rc );
-        else if ( num_writ != bases_as_packed_4na->size )
+        else if ( num_writ != bases_as_packed_4na -> size )
         {
             rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcInvalid );
             ErrMsg( "KFileWriteAll( bases ) -> %R", rc );
         }
         else
         {
-            if ( writer->idx != NULL )
-                rc = write_key( writer->idx, key, start_pos );
+            if ( writer -> idx != NULL )
+                rc = write_key( writer -> idx, key, start_pos );
             writer->pos += num_writ;
         }
     }

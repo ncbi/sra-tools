@@ -45,6 +45,8 @@ typedef struct join
     struct index_reader * index;    /* index.h */
     struct join_results * results;  /* join_results.h */
     SBuffer B1, B2;                 /* helper.h */
+    uint64_t loop_nr;               /* in which loop of this partial join are we? */
+    uint32_t thread_id;             /* in which thread are we? */    
 } join;
 
 
@@ -73,7 +75,8 @@ static rc_t init_join( cmn_params * cp,
     j -> results = results;
     j -> B1 . S . addr = NULL;
     j -> B2 . S . addr = NULL;
-    
+    j -> loop_nr = 0;
+
     if ( index_filename != NULL )
     {
         if ( file_exists( cp -> dir, "%s", index_filename ) )
@@ -590,7 +593,7 @@ static rc_t perform_special_join( cmn_params * cp,
     if ( rc == 0 )
     {
         special_rec rec;
-        while ( get_from_special_iter( iter, &rec, &rc ) && rc == 0 )
+        while ( rc == 0 && get_from_special_iter( iter, &rec, &rc ) )
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -599,6 +602,8 @@ static rc_t perform_special_join( cmn_params * cp,
                     rc = print_special_1_read( &rec, j );
                 else
                     rc = print_special_2_reads( &rec, j );
+
+                j -> loop_nr ++;
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -631,7 +636,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
     {
         fastq_rec rec;
         join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
-        while ( get_from_fastq_csra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -644,6 +649,11 @@ static rc_t perform_fastq_join( cmn_params * cp,
                 else
                     rc = print_fastq_2_reads( stats, &rec, j, &local_opt );
 
+                if ( rc == 0 )
+                    j -> loop_nr ++;
+                else
+                    ErrMsg( "terminated in loop_nr #%u.%lu", j -> thread_id, j -> loop_nr );
+                    
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
@@ -671,7 +681,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
     else
     {
         fastq_rec rec;
-        while ( get_from_fastq_csra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -683,6 +693,8 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
                     rc = print_fastq_1_read( stats, &rec, j, jo );
                 else
                     rc = print_fastq_2_reads_splitted( stats, &rec, j, false, jo );
+
+                j -> loop_nr ++;
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -712,7 +724,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
     {
         fastq_rec rec;
         join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
-        while ( get_from_fastq_csra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -724,6 +736,8 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
                     rc = print_fastq_1_read( stats, &rec, j, &local_opt );
                 else
                     rc = print_fastq_2_reads_splitted( stats, &rec, j, true, &local_opt );
+
+                j -> loop_nr ++;
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -753,7 +767,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     {
         fastq_rec rec;
         join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
-        while ( get_from_fastq_csra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -766,6 +780,8 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
                 else
                     rc = print_fastq_2_reads_splitted( stats, &rec, j, true, &local_opt );
 
+                j -> loop_nr ++;
+                
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
@@ -796,6 +812,8 @@ typedef struct join_thread_data
     size_t cur_cache;
     size_t buf_size;
     format_t fmt;
+    uint32_t thread_id;
+
     const join_options * join_options;
     
 } join_thread_data;
@@ -825,6 +843,8 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
         rc = init_join( &cp, results, jtd -> lookup_filename, jtd -> index_filename, jtd -> buf_size, &j ); /* above */
         if ( rc == 0 )
         {
+            j . thread_id = jtd -> thread_id;
+
             switch ( jtd -> fmt )
             {
                 case ft_special             : rc = perform_special_join( &cp,
@@ -942,6 +962,7 @@ rc_t execute_db_join( KDirectory * dir,
                         jtd -> registry         = registry;
                         jtd -> fmt              = fmt;
                         jtd -> join_options     = &corrected_join_options;
+                        jtd -> thread_id        = thread_id;
 
                         rc = make_joined_filename( jtd -> part_file, sizeof jtd -> part_file,
                                     accession_short, tmp_id, thread_id ); /* helper.c */

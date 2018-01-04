@@ -48,6 +48,7 @@ typedef struct merge_src
     rc_t rc;
 } merge_src;
 
+
 static merge_src * get_min_merge_src( merge_src * src, uint32_t count )
 {
     merge_src * res = NULL;
@@ -58,10 +59,18 @@ static merge_src * get_min_merge_src( merge_src * src, uint32_t count )
         if ( item -> rc == 0 )
         {
             if ( res == NULL )
+            {
+                /* pick the first one */
                 res = item;
+            }
             else if ( item -> key < res -> key )
+            {
+                /* if this src has a smaller key... */
                 res = item;
+            }
         }
+        else
+            res = NULL;
     }
     return res;
 } 
@@ -124,6 +133,7 @@ static rc_t init_merge_sorter( merge_sorter * self,
             merge_src * s = &self -> src[ i ];
             if ( rc == 0 )
                 rc = make_lookup_reader( dir, NULL, &s -> reader, buf_size, "%s", filename ); /* lookup_reader.h */
+
             if ( rc == 0 )
             {
                 rc = make_SBuffer( &s -> packed_bases, 4096 );
@@ -156,24 +166,35 @@ static void release_merge_sorter( merge_sorter * self )
 static rc_t run_merge_sorter( merge_sorter * self )
 {
     rc_t rc = 0;
-    merge_src * to_write = get_min_merge_src( self -> src, self -> num_src );
+    uint64_t last_key = 0;
+    uint64_t loop_nr = 0;
+    merge_src * to_write = get_min_merge_src( self -> src, self -> num_src ); /* above */
 
     while( rc == 0 && to_write != NULL )
     {
         rc = Quitting();
         if ( rc == 0 )
         {
-            rc = write_packed_to_lookup_writer( self -> dst,
-                                                to_write -> key,
-                                                &to_write -> packed_bases . S ); /* lookup_writer.h */
-                                                
-            if ( rc == 0 )
-                to_write -> rc = get_packed_and_key_from_lookup_reader( to_write -> reader,
-                                                                         &to_write -> key,
-                                                                         &to_write -> packed_bases ); /* lookup_reader.h */
+            if ( last_key > to_write -> key )
+            {
+                rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcInvalid );
+                ErrMsg( "run_merge_sorter() %lu -> %lu in loop #%lu", last_key, to_write -> key, loop_nr );
+            }
+            else
+            {
+                loop_nr++;
+                last_key = to_write -> key;
+                rc = write_packed_to_lookup_writer( self -> dst,
+                                                    to_write -> key,
+                                                    &to_write -> packed_bases . S ); /* lookup_writer.h */
+                                                    
+                if ( rc == 0 )
+                    to_write -> rc = get_packed_and_key_from_lookup_reader( to_write -> reader,
+                                                                            &to_write -> key,
+                                                                            &to_write -> packed_bases ); /* lookup_reader.h */
 
-            to_write = get_min_merge_src( self -> src, self -> num_src );
-            
+                to_write = get_min_merge_src( self -> src, self -> num_src ); /* above */
+            }
             bg_update_update( self -> gap, 1 ); /* signal to gap-update */
         }
     }
@@ -307,10 +328,41 @@ static rc_t write_bg_vec_merge_src( bg_vec_merge_src * src, struct lookup_writer
     return rc;
 }
 
-static rc_t background_vector_merger_collect_batch(
-            background_vector_merger * self,
-            bg_vec_merge_src ** batch,
-            uint32_t * count )
+/*
+static bool check_store( KVector * store, uint32_t * n )
+{
+    bool res = true;
+    bool done = false;
+    uint64_t last_key = 0;
+    void * value;
+    
+    *n = 0;
+    res = ( 0 == KVectorGetFirstPtr ( store, &last_key, &value ) );
+    while ( res && !done )
+    {
+        uint64_t next_key;
+        rc_t rc = KVectorGetNextPtr ( store, &next_key, last_key, &value );
+        if ( GetRCState( rc ) == rcNotFound )
+        {
+            done = true;
+        }
+        else
+        {
+            ( *n )++;
+            res = ( 0 == rc );
+            if ( res )
+                res = ( next_key >= last_key );
+            if ( res )
+                last_key = next_key;
+        }
+    }
+    return res;
+}
+*/
+
+static rc_t background_vector_merger_collect_batch( background_vector_merger * self,
+                                                    bg_vec_merge_src ** batch,
+                                                    uint32_t * count )
 {
     rc_t rc = 0;
     bg_vec_merge_src * b = calloc( self -> batch_size, sizeof * b );
@@ -332,6 +384,7 @@ static rc_t background_vector_merger_collect_batch(
                 rc = KQueuePop ( self -> job_q, ( void ** )&store, &tm );
                 if ( rc == 0 )
                 {
+                    /* we pulled out a store from the Q */
                     STATUS ( STAT_USR, "KQueuePop() : store = %p", store );
                     rc = init_bg_vec_merge_src( &( b[ *count ] ), store );
                     if ( rc == 0 )
@@ -342,11 +395,15 @@ static rc_t background_vector_merger_collect_batch(
                     STATUS ( STAT_USR, "KQueuePop() : %R, store = %p", rc, store );
                     if ( GetRCState( rc ) == rcDone && GetRCObject( rc ) == ( enum RCObject )rcData )
                     {
+                        /* the other side has sealed the Q */
                         sealed = true;
                         rc = 0;
                     }
                     else if ( GetRCState( rc ) == rcExhausted && GetRCObject( rc ) == ( enum RCObject )rcTimeout )
+                    {
+                        /* we had a timeout while trying to get a store from the Q */
                         rc = 0;
+                    }
                 }
             }
         }
@@ -373,16 +430,16 @@ static bool batch_valid( bg_vec_merge_src * batch, uint32_t count )
     return res;
 }
 
-static rc_t background_vector_merger_process_batch(
-            background_vector_merger * self,
-            bg_vec_merge_src * batch,
-            uint32_t count )
+static rc_t background_vector_merger_process_batch( background_vector_merger * self,
+                                                    bg_vec_merge_src * batch,
+                                                    uint32_t count )
 {
     rc_t rc = 0;
     char buffer[ 4096 ];
     const tmp_id * tmp_id = self -> tmp_id;
     size_t num_writ;
     
+    /* create the output-filename in buffer */
     if ( tmp_id -> temp_path_ends_in_slash )
         rc = string_printf( buffer, sizeof buffer, &num_writ, "%sbg_sub_%s_%u_%u.dat",
                 tmp_id -> temp_path, tmp_id -> hostname,
@@ -408,15 +465,15 @@ static rc_t background_vector_merger_process_batch(
 
             if ( rc == 0 )
             {
-                bg_vec_merge_src * to_write = get_min_bg_vec_merge_src( batch, count );
+                bg_vec_merge_src * to_write = get_min_bg_vec_merge_src( batch, count ); /* above */
                 while( rc == 0 && to_write != NULL )
                 {
                     rc = Quitting();
                     if ( rc == 0 )
                     {
-                        rc = write_bg_vec_merge_src( to_write, writer );
+                        rc = write_bg_vec_merge_src( to_write, writer ); /* above */
                         if ( rc == 0 )
-                            to_write = get_min_bg_vec_merge_src( batch, count );
+                            to_write = get_min_bg_vec_merge_src( batch, count ); /* above */
                         else
                             to_write = NULL;
                         bg_update_update( self -> gap, 1 );
@@ -426,8 +483,13 @@ static rc_t background_vector_merger_process_batch(
             }
         }
         
+        /* */
         if ( rc == 0 && self -> file_merger != NULL )
-            rc = push_to_background_file_merger( self -> file_merger, buffer );
+            rc = lookup_check_file( self -> dir, self -> buf_size, buffer );
+        /* */
+
+        if ( rc == 0 && self -> file_merger != NULL )
+            rc = push_to_background_file_merger( self -> file_merger, buffer ); /* below */
     }
     return rc;
 }
@@ -450,7 +512,7 @@ static rc_t CC background_vector_merger_thread_func( const KThread * thread, voi
         STATUS ( STAT_USR, "done collectin batch: rc = %R, count = %u", rc, count );
         if ( rc == 0 )
         {
-            done = count == 0;
+            done = ( count == 0 );
             if ( !done )
             {
                 if ( batch_valid( batch, count ) )
@@ -819,7 +881,6 @@ rc_t make_background_file_merger( background_file_merger ** merger,
             release_background_file_merger( b );
     }
     return rc;
-
 }
 
 rc_t push_to_background_file_merger( background_file_merger * self, const char * filename )

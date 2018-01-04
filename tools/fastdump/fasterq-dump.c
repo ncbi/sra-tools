@@ -31,6 +31,7 @@
 #include "tbl_join.h"
 #include "concatenator.h"
 #include "cleanup_task.h"
+#include "lookup_reader.h"
 
 #include <kapp/main.h>
 #include <kapp/args.h>
@@ -700,6 +701,16 @@ static rc_t fastdump_database( tool_ctx_t * tool_ctx )
 
     if ( rc == 0 )
         rc = produce_lookup_files( tool_ctx ); /* above */
+
+#if 0
+    if ( rc == 0 &&
+         file_exists( tool_ctx -> dir, "%s", &tool_ctx -> lookup_filename[ 0 ] ) )
+        {
+            KOutMsg( "\nchecking lookup-file:\n" );
+            rc = lookup_check_file( tool_ctx -> dir, tool_ctx -> buf_size, &tool_ctx -> lookup_filename[ 0 ] );
+            KOutMsg( "result: %R\n\n", rc );    
+        }
+#endif
 
     if ( rc == 0 )
         rc = produce_final_db_output( tool_ctx ); /* above */

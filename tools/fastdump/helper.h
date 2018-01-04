@@ -158,7 +158,7 @@ uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32
 
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
 
-void pack_4na( const String * unpacked, SBuffer * packed );
+rc_t pack_4na( const String * unpacked, SBuffer * packed );
 void unpack_4na( const String * packed, SBuffer * unpacked );
 
 bool ends_in_slash( const char * s );

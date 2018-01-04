@@ -39,7 +39,7 @@ typedef struct lookup_reader
     const struct KFile * f;
     const struct index_reader * index;
     SBuffer buf;
-    uint64_t pos;
+    uint64_t pos, f_size;
 } lookup_reader;
 
 
@@ -68,7 +68,10 @@ static rc_t make_lookup_reader_obj( struct lookup_reader ** reader,
     {
         r -> f = f;
         r -> index = index;
-        rc = make_SBuffer( &( r -> buf ), 4096 );
+        rc = KFileSize( f, & r -> f_size );
+        if ( rc == 0 )
+            rc = make_SBuffer( &( r -> buf ), 4096 );
+
         if ( rc == 0 )
             *reader = r;
         else
@@ -115,7 +118,7 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
 static rc_t read_key_and_len( struct lookup_reader * self, uint64_t pos, uint64_t *key, size_t *len )
 {
     size_t num_read;
-    char buffer[ 10 ];
+    uint8_t buffer[ 10 ];
     rc_t rc = KFileReadAll( self -> f, pos, buffer, sizeof buffer, &num_read );
     if ( rc != 0 )
     {
@@ -268,7 +271,7 @@ rc_t seek_lookup_reader( struct lookup_reader * self, uint64_t key_to_find, uint
 rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * self,
                         uint64_t * key, SBuffer * packed_bases )
 {
-    rc_t rc;
+    rc_t rc = 0;
     if ( self == NULL || key == NULL || packed_bases == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
@@ -277,7 +280,7 @@ rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * self,
     else
     {
         size_t num_read;
-        char buffer1[ 10 ];
+        uint8_t buffer1[ 10 ];
         
         rc = KFileReadAll( self -> f, self -> pos, buffer1, sizeof buffer1, &num_read );
         if ( rc != 0 )
@@ -295,7 +298,7 @@ rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * self,
             {
                 uint16_t dna_len;
                 size_t to_read;
-                char * dst = ( char * )( packed_bases -> S . addr );
+                uint8_t * dst = ( uint8_t * )( packed_bases -> S . addr );
                 
                 /* we get the key out of the 10 bytes */
                 memmove( key, buffer1, sizeof *key );
@@ -312,24 +315,33 @@ rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * self,
 
                 /* */
                 to_read = ( dna_len & 1 ) ? ( dna_len + 1 ) >> 1 : dna_len >> 1;
-
-                /* */
-                if ( to_read > ( packed_bases -> buffer_size - 2 ) )
-                    to_read = ( packed_bases -> buffer_size - 2 );
-
-                rc = KFileReadAll( self -> f, self -> pos + 10, dst, to_read, &num_read );
-                if ( rc != 0 )
-                    ErrMsg( "KFileReadAll( at %ld, to_read %u ) -> %R", self -> pos + 10, to_read, rc );
-                else if ( num_read != to_read )
+                if ( to_read == 0 )
                 {
-                    rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                    ErrMsg( "KFileReadAll( %ld ) %d vs %d -> %R", self -> pos + 10, num_read, to_read, rc );
+                    rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+                    ErrMsg( "get_packed_and_key_from_lookup_reader() to_read == 0 at %lu", self -> pos );
+                    packed_bases -> S . size = 0;
+                    packed_bases -> S . len = 0;
+                    self -> pos += ( 10 );
                 }
                 else
                 {
-                    packed_bases -> S . size = num_read + 2;
-                    packed_bases -> S . len = ( uint32_t )packed_bases -> S . size;
-                    self -> pos += ( num_read + 10 );
+                    if ( to_read > ( packed_bases -> buffer_size - 2 ) )
+                        to_read = ( packed_bases -> buffer_size - 2 );
+
+                    rc = KFileReadAll( self -> f, self -> pos + 10, dst, to_read, &num_read );
+                    if ( rc != 0 )
+                        ErrMsg( "KFileReadAll( at %ld, to_read %u ) -> %R", self -> pos + 10, to_read, rc );
+                    else if ( num_read != to_read )
+                    {
+                        rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+                        ErrMsg( "KFileReadAll( %ld ) %d vs %d -> %R", self -> pos + 10, num_read, to_read, rc );
+                    }
+                    else
+                    {
+                        packed_bases -> S . size = num_read + 2;
+                        packed_bases -> S . len = ( uint32_t )packed_bases -> S . size;
+                        self -> pos += ( num_read + 10 );
+                    }
                 }
             }
         }
@@ -356,9 +368,46 @@ rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id
         if ( found_row_id != row_id || found_read_id != read_id )
         {
             rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
-            ErrMsg( "lookup_bases( %lu.%u ) ---> found %lu.%u",
-                         row_id, read_id, found_row_id, found_read_id );
+            ErrMsg( "lookup_bases( %lu.%u ) ---> found %lu.%u (at pos=%lu)",
+                         row_id, read_id, found_row_id, found_read_id, self -> pos );
         }
+    }
+    return rc;
+}
+
+rc_t lookup_check( struct lookup_reader * self )
+{
+    rc_t rc = 0;
+    int64_t last_key = 0;
+    
+    while ( rc == 0 && self -> pos < self -> f_size )
+    {
+        uint64_t key;
+        size_t len;
+        rc = read_key_and_len( self, self -> pos, &key, &len );
+        if ( rc == 0 )
+        {
+            if ( last_key < key )
+                last_key = key;
+            else
+            {
+                rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+                ErrMsg( "jump from %lu to %lu at %lu", last_key, key, self -> pos );
+            }
+            self -> pos += len;
+        }
+    }
+    return rc;
+}
+
+rc_t lookup_check_file( const KDirectory *dir, size_t buf_size, const char * filename )
+{
+    lookup_reader * reader;
+    rc_t rc = make_lookup_reader( dir, NULL, &reader, buf_size, "%s", filename );
+    if ( rc == 0 )
+    {
+        rc = lookup_check( reader );
+        release_lookup_reader( reader );
     }
     return rc;
 }

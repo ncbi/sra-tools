@@ -177,11 +177,10 @@ void release_index_reader( struct index_reader * reader )
     }
 }
 
-
 static rc_t read_value( struct index_reader * reader, uint64_t pos, uint64_t * value )
 {
     size_t num_read;
-    rc_t rc = KFileReadAll( reader->f, pos, ( void *)value, sizeof *value, &num_read );
+    rc_t rc = KFileReadAll( reader->f, pos, ( void * )value, sizeof *value, &num_read );
     if ( rc != 0 )
         ErrMsg( "read_value.KFileReadAll( at %ld ) -> %R", pos, rc );
     else if ( num_read != sizeof *value )

@@ -113,10 +113,9 @@ static rc_t init_multi_producer( lookup_producer * self,
     return rc;
 }
 
-
 static rc_t push_store_to_merger( lookup_producer * self, bool last )
 {
-    rc_t rc = push_to_background_vector_merger( self -> merger, self -> store ); /* this might block! */
+    rc_t rc = push_to_background_vector_merger( self -> merger, self -> store ); /* this might block! merge_sorter.c */
     if ( rc == 0 )
     {
         self -> store = NULL;
@@ -131,34 +130,38 @@ static rc_t push_store_to_merger( lookup_producer * self, bool last )
     return rc;
 }
 
-static rc_t write_to_store( lookup_producer * self, int64_t seq_spot_id, uint32_t seq_read_id,
-                             const String * unpacked_bases )
+static rc_t write_to_store( lookup_producer * self,
+                            uint64_t key,
+                            const String * unpacked_bases )
 {
     /* we write it to the store...*/
-    rc_t rc;
-    const String * to_store;    
-    pack_4na( unpacked_bases, &( self -> buf ) ); /* helper.c */
-    rc = StringCopy( &to_store, &( self -> buf . S ) );
+    rc_t rc = pack_4na( unpacked_bases, &( self -> buf ) ); /* helper.c */
     if ( rc != 0 )
-        ErrMsg( "StringCopy() -> %R", rc );
+        ErrMsg( "sorter.c write_to_store() pack_4na() failed %R", rc );
     else
     {
-        uint64_t key = make_key( seq_spot_id, seq_read_id ); /* helper.c */
-        rc = KVectorSetPtr( self -> store, key, ( const void * )to_store );
+        const String * to_store;
+        rc = StringCopy( &to_store, &( self -> buf . S ) );
         if ( rc != 0 )
-            ErrMsg( "KVectorSetPtr() -> %R", rc );
+            ErrMsg( "StringCopy() -> %R", rc );
         else
         {
-            size_t item_size = ( sizeof key ) + ( sizeof *to_store ) + to_store -> size;
-            self -> bytes_in_store += item_size;
+            rc = KVectorSetPtr( self -> store, key, ( const void * )to_store );
+            if ( rc != 0 )
+                ErrMsg( "KVectorSetPtr() -> %R", rc );
+            else
+            {
+                size_t item_size = ( sizeof key ) + ( sizeof *to_store ) + to_store -> size;
+                self -> bytes_in_store += item_size;
+            }
         }
-    }
-    
-    if ( rc == 0 &&
-         self -> mem_limit > 0 &&
-         self -> bytes_in_store >= self -> mem_limit )
-    {
-        rc = push_store_to_merger( self, false ); /* this might block ! */
+        
+        if ( rc == 0 &&
+             self -> mem_limit > 0 &&
+             self -> bytes_in_store >= self -> mem_limit )
+        {
+            rc = push_store_to_merger( self, false ); /* this might block ! */
+        }
     }
     return rc;
 }
@@ -167,12 +170,15 @@ static rc_t run_producer( lookup_producer * self )
 {
     rc_t rc = 0;
     raw_read_rec rec;
+
     while ( rc == 0 && get_from_raw_read_iter( self -> iter, &rec, &rc ) ) /* raw_read_iter.c */
     {
         rc = Quitting();
         if ( rc == 0 )
         {
-            rc = write_to_store( self, rec . seq_spot_id, rec . seq_read_id, &rec . raw_read ); /* above! */
+            uint64_t key = make_key( rec . seq_spot_id, rec . seq_read_id ); /* helper.c */
+            /* the keys are allowed to be out of order here */
+            rc = write_to_store( self, key, &rec . raw_read ); /* above! */
             if ( rc == 0 )
                 bg_progress_inc( self -> progress ); /* progress_thread.c (ignores NULL) */
         }

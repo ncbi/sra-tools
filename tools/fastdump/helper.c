@@ -372,30 +372,41 @@ uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id )
     return key;
 }
 
-
-void pack_4na( const String * unpacked, SBuffer * packed )
+rc_t pack_4na( const String * unpacked, SBuffer * packed )
 {
-    uint32_t i;
-    char * src = ( char * )unpacked->addr;
-    char * dst = ( char * )packed->S.addr;
-    uint16_t dna_len = ( unpacked->len & 0xFFFF );
-    uint32_t len = 0;
-    dst[ len++ ] = ( dna_len >> 8 );
-    dst[ len++ ] = ( dna_len & 0xFF );
-    for ( i = 0; i < unpacked->len; ++i )
+    rc_t rc = 0;
+    if ( unpacked -> len < 1 )
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
+    else
     {
-        if ( len < packed->buffer_size )
+        if ( unpacked -> len > 0xFFFF )
+            rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
+        else
         {
-            char base = ( src[ i ] & 0x0F );
-            if ( 0 == ( i & 0x01 ) )
-                dst[ len ] = ( base << 4 );
-            else
-                dst[ len++ ] |= base;
+            uint32_t i;
+            uint8_t * src = ( uint8_t * )unpacked -> addr;
+            uint8_t * dst = ( uint8_t * )packed -> S . addr;
+            uint16_t dna_len = ( unpacked -> len & 0xFFFF );
+            uint32_t len = 0;
+            dst[ len++ ] = ( dna_len >> 8 );
+            dst[ len++ ] = ( dna_len & 0xFF );
+            for ( i = 0; i < unpacked -> len; ++i )
+            {
+                if ( len < packed -> buffer_size )
+                {
+                    uint8_t base = ( src[ i ] & 0x0F );
+                    if ( 0 == ( i & 0x01 ) )
+                        dst[ len ] = ( base << 4 );
+                    else
+                        dst[ len++ ] |= base;
+                }
+            }
+            if ( unpacked -> len & 0x01 )
+                len++;
+            packed -> S . size = packed -> S . len = len;
         }
     }
-    if ( unpacked->len & 0x01 )
-        len++;
-    packed->S.size = packed->S.len = len;
+    return rc;
 }
 
 
@@ -409,18 +420,18 @@ static char x4na_to_ASCII[ 16 ] =
 void unpack_4na( const String * packed, SBuffer * unpacked )
 {
     uint32_t i;
-    char * src = ( char * )packed -> addr;
-    char * dst = ( char * )unpacked -> S . addr;
+    uint8_t * src = ( uint8_t * )packed -> addr;
+    uint8_t * dst = ( uint8_t * )unpacked -> S . addr;
     uint32_t dst_idx = 0;
     uint16_t dna_len = src[ 0 ];
     dna_len <<= 8;
     dna_len |= src[ 1 ];
-    for ( i = 2; i < packed->len; ++i )
+    for ( i = 2; i < packed -> len; ++i )
     {
         uint8_t packed_byte = src[ i ];
-        if ( dst_idx < unpacked->buffer_size )
+        if ( dst_idx < unpacked -> buffer_size )
             dst[ dst_idx++ ] = x4na_to_ASCII[ ( packed_byte >> 4 ) & 0x0F ];
-        if ( dst_idx < unpacked->buffer_size )
+        if ( dst_idx < unpacked -> buffer_size )
             dst[ dst_idx++ ] = x4na_to_ASCII[ packed_byte & 0x0F ];
     }
     unpacked -> S . size = dna_len;

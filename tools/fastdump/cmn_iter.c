@@ -28,6 +28,8 @@
 #include "helper.h"
 
 #include <klib/out.h>
+#include <klib/num-gen.h>
+
 #include <sra/sraschema.h>
 
 #include <kdb/manager.h>
@@ -179,7 +181,11 @@ rc_t cmn_iter_add_column( struct cmn_iter * self, const char * name, uint32_t * 
         ErrMsg( "cmn_iter_row_count() -> %R", rc );
     }
     else
-        rc = add_column( self -> cursor, name, id );
+    {
+        rc = VCursorAddColumn( self -> cursor, id, name );
+        if ( rc != 0 )
+            ErrMsg( "VCursorAddColumn( '%s' ) -> %R", name, rc );
+    }
     return rc;
 }
 
@@ -216,6 +222,28 @@ bool cmn_iter_next( struct cmn_iter * self, rc_t * rc )
     if ( self == NULL )
         return false;
     return num_gen_iterator_next( self -> row_iter, &self -> row_id, rc );
+}
+
+static rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count, 
+                    const struct num_gen_iter ** iter )
+{
+    rc_t rc;
+    if ( num_gen_empty( ranges ) )
+    {
+        rc = num_gen_add( ranges, first, count );
+        if ( rc != 0 )
+            ErrMsg( "num_gen_add( %li, %ld ) -> %R", first, count, rc );
+    }
+    else
+    {
+        rc = num_gen_trim( ranges, first, count );
+        if ( rc != 0 )
+            ErrMsg( "num_gen_trim( %li, %ld ) -> %R", first, count, rc );
+    }
+    rc = num_gen_iterator_make( ranges, iter );
+    if ( rc != 0 )
+        ErrMsg( "num_gen_iterator_make() -> %R", rc );
+    return rc;
 }
 
 rc_t cmn_iter_range( struct cmn_iter * self, uint32_t col_id )

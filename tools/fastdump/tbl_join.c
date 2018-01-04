@@ -550,7 +550,12 @@ rc_t execute_tbl_join( KDirectory * dir,
         if ( rc == 0 && row_count > 0 )
         {
             bool name_column_present;
-            rc = cmn_check_tbl_column( dir, accession_path, "NAME", &name_column_present );
+
+            if ( tbl_name == NULL )
+                rc = cmn_check_tbl_column( dir, accession_path, "NAME", &name_column_present );
+            else
+                rc = cmn_check_db_column( dir, accession_path, tbl_name, "NAME", &name_column_present );
+            
             if ( rc == 0 )
             {
                 Vector threads;

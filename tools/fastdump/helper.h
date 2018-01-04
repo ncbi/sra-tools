@@ -39,14 +39,6 @@ extern "C" {
 #include <klib/text.h>
 #endif
 
-#ifndef _h_klib_num_gen_
-#include <klib/num-gen.h>
-#endif
-
-#ifndef _h_vdb_cursor_
-#include <vdb/cursor.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
 #endif
@@ -137,11 +129,6 @@ rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args );
 rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... );
 rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err );
 rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... );
-
-rc_t add_column( const VCursor * cursor, const char * name, uint32_t * id );
-
-rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count, 
-                    const struct num_gen_iter ** iter );
 
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
 

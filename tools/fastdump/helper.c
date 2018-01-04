@@ -47,8 +47,6 @@ rc_t ErrMsg( const char * fmt, ... )
     va_start( list, fmt );
     rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
     if ( rc == 0 )
-        /* rc = KOutMsg( "%s\n", buffer ); */
-        /* rc = pLogErr( klogErr, 1, "$(E)", "E=%s", buffer ); */
         rc = pLogMsg( klogErr, "$(E)", "E=%s", buffer );
     va_end( list );
     return rc;
@@ -302,38 +300,6 @@ rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ..
     }
     return rc;
 }
-
-rc_t add_column( const VCursor * cursor, const char * name, uint32_t * id )
-{
-    rc_t rc = VCursorAddColumn( cursor, id, name );
-    if ( rc != 0 )
-        ErrMsg( "VCursorAddColumn( '%s' ) -> %R", name, rc );
-    return rc;
-}
-
-
-rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count, 
-                    const struct num_gen_iter ** iter )
-{
-    rc_t rc;
-    if ( num_gen_empty( ranges ) )
-    {
-        rc = num_gen_add( ranges, first, count );
-        if ( rc != 0 )
-            ErrMsg( "num_gen_add( %li, %ld ) -> %R", first, count, rc );
-    }
-    else
-    {
-        rc = num_gen_trim( ranges, first, count );
-        if ( rc != 0 )
-            ErrMsg( "num_gen_trim( %li, %ld ) -> %R", first, count, rc );
-    }
-    rc = num_gen_iterator_make( ranges, iter );
-    if ( rc != 0 )
-        ErrMsg( "num_gen_iterator_make() -> %R", rc );
-    return rc;
-}
-
 
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch )
 {

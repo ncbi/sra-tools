@@ -240,4 +240,3 @@ uint64_t get_row_count_of_fastq_sra_iter( struct fastq_sra_iter * self )
 {
     return cmn_iter_row_count( self -> cmn );
 }
-

@@ -100,19 +100,10 @@ static rc_t init_join( cmn_params * cp,
             ErrMsg( "init_join().make_SBuffer( B2 ) -> %R", rc );
     }
 
-    /* the rc-code of seek_lookup_reader is not checked, because if the row-id to be seeked to is in
-       the range of the fully unaligned data - seek will fail, because the are no alignments = lookup-records
-       in this area !*/
-    if ( rc == 0 && cp -> first_row > 1 )
-    {
-        uint64_t key_to_find = cp -> first_row << 1;
-        uint64_t key_found = 0;
-        rc_t rc1 = seek_lookup_reader( j -> lookup, key_to_find, &key_found, true );  /* lookup_reader.c */
-        if ( GetRCState( rc1 ) != rcTooBig && GetRCState( rc1 ) != rcNotFound )
-            rc = rc1;
-        if ( rc != 0 )
-            ErrMsg( "init_join().seek_lookup_reader( %lu ) -> %R", key_to_find, rc );
-    }
+    /* we do not seek any more at the beginning of the begin of a join-slice
+       the call to lookup_bases will perform an internal seek now if it is not pointed
+       to the right location */
+
     if ( rc != 0 )
         release_join_ctx( j ); /* above! */
     return rc;
@@ -134,7 +125,7 @@ static rc_t print_special_1_read( special_rec * rec, join * j )
     else
     {
         /* read is aligned ( 1 lookup ) */
-        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) );
+        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
         if ( rc == 0 )
             rc = join_results_print( j -> results, 0, "%ld\t%S\t%S\n",
                              row_id, &( j -> B1.S ), &( rec -> spot_group ) ); /* file_printer.c */
@@ -159,7 +150,7 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
         else
         {
             /* A0 is unaligned / A1 is aligned (lookup) */
-            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) );
+            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) ); /* lookup_reader.c */
             if ( rc == 0 )
                 rc = join_results_print( j -> results, 0, "%ld\t%S%S\t%S\n",
                                  row_id, &( rec -> cmp_read ), &( j -> B2 . S ), &( rec -> spot_group ) ); /* file_printer.c */
@@ -170,7 +161,7 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
         if ( rec -> prim_alig_id[ 1 ] == 0 )
         {
             /* A0 is aligned (lookup) / A1 is unaligned */
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) );
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
             if ( rc == 0 )
                 rc = join_results_print( j -> results, 0, "%ld\t%S%S\t%S\n",
                                  row_id, &j->B1.S, &rec->cmp_read, &rec->spot_group ); /* file_printer.c */
@@ -178,9 +169,9 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
         else
         {
             /* A0 and A1 are aligned (2 lookups)*/
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) );
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
             if ( rc == 0 )
-                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) );
+                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) ); /* lookup_reader.c */
             if ( rc == 0 )
                 rc = join_results_print( j -> results, 0, "%ld\t%S%S\t%S\n",
                                  row_id, &( j -> B1 . S ), &( j -> B2 . S ), &( rec -> spot_group ) ); /* file_printer.c */
@@ -241,7 +232,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
     else
     {
         /* read is aligned, ( 1 lookup ) */    
-        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) );
+        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
         if ( rc == 0 )
         {
             if ( join_results_match( j -> results, &( j -> B1 . S ) ) )
@@ -293,7 +284,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
         else
         {
             /* A0 is unaligned / A1 is aligned (lookup) */
-            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) );
+            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) ); /* lookup_reader.c */
             if ( rc == 0 )
             {
                 if ( join_results_match2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) )
@@ -317,7 +308,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
         if ( rec -> prim_alig_id[ 1 ] == 0 )
         {
             /* A0 is aligned (lookup) / A1 is unaligned */
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) );
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
             if ( rc == 0 )
             {
                 if ( join_results_match2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) )
@@ -338,9 +329,9 @@ static rc_t print_fastq_2_reads( join_stats * stats,
         else
         {
             /* A0 and A1 are aligned (2 lookups)*/
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) );
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
             if ( rc == 0 )
-                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) );
+                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) ); /* lookup_reader.c */
             if ( rc == 0 )
             {
                 if ( join_results_match2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) )
@@ -455,7 +446,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             }
             if ( rc == 0 && process_1 )
             {
-                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2 );
+                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2 ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
                     if ( split_file )
@@ -483,7 +474,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             /* A0 is aligned (lookup) / A1 is unaligned */
             if ( process_0 )
             {
-                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 );
+                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
                     if ( join_results_match( j -> results, &( j -> B1 . S ) ) )
@@ -523,7 +514,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             /* A0 and A1 are aligned (2 lookups)*/
             if ( process_0 )
             {
-                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 );
+                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
                     if ( join_results_match( j -> results, &( j -> B1 . S ) ) )
@@ -542,7 +533,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             }
             if ( rc == 0 && process_1 )
             {
-                rc = lookup_bases( j -> lookup, row_id, 2, & j -> B2 );
+                rc = lookup_bases( j -> lookup, row_id, 2, & j -> B2 ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
                     if ( split_file )
@@ -634,7 +625,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
         ErrMsg( "perform_fastq_join().make_fastq_csra_iter() -> %R", rc );
     else
     {
-        fastq_rec rec;
+        fastq_rec rec; /* fastq_iter.h */
         join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
         while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
@@ -652,7 +643,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
                 if ( rc == 0 )
                     j -> loop_nr ++;
                 else
-                    ErrMsg( "terminated in loop_nr #%u.%lu", j -> thread_id, j -> loop_nr );
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
                     
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -680,7 +671,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
         ErrMsg( "perform_fastq_split_spot_join().make_fastq_csra_iter() -> %R", rc );
     else
     {
-        fastq_rec rec;
+        fastq_rec rec; /* fastq_iter.h */
         while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -694,8 +685,11 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
                 else
                     rc = print_fastq_2_reads_splitted( stats, &rec, j, false, jo );
 
-                j -> loop_nr ++;
-
+                if ( rc == 0 )
+                    j -> loop_nr ++;
+                else
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
+                    
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
@@ -722,7 +716,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
         ErrMsg( "perform_fastq_split_file_join().make_fastq_csra_iter() -> %R", rc );
     else
     {
-        fastq_rec rec;
+        fastq_rec rec; /* fastq_iter.h */
         join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
         while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
@@ -737,7 +731,10 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
                 else
                     rc = print_fastq_2_reads_splitted( stats, &rec, j, true, &local_opt );
 
-                j -> loop_nr ++;
+                if ( rc == 0 )
+                    j -> loop_nr ++;
+                else
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
@@ -765,7 +762,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
         ErrMsg( "perform_fastq_split_3_join().make_fastq_csra_iter() -> %R", rc );
     else
     {
-        fastq_rec rec;
+        fastq_rec rec; /* fastq_iter.h */
         join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
         while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
         {
@@ -780,7 +777,10 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
                 else
                     rc = print_fastq_2_reads_splitted( stats, &rec, j, true, &local_opt );
 
-                j -> loop_nr ++;
+                if ( rc == 0 )
+                    j -> loop_nr ++;
+                else
+                    ErrMsg( "terminated in loop_nr #%u.%lu for SEQ-ROWID #%ld", j -> thread_id, j -> loop_nr, rec . row_id );
                 
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }

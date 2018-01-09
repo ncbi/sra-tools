@@ -223,8 +223,8 @@ _addArgs ( struct KService * Service, int qty, char ** args )
 #else /* JOJOJO */
 
     size_t Q = sizeof ( ArAc ) / sizeof ( * ArAc );
-Q = 179;
-Q = 180;
+// Q = 179;
+// Q = 180;
     for ( size_t llp = 0; llp < Q; llp ++ ) {
         char * FF = ArAc [ llp ];
 

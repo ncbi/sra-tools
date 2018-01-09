@@ -137,7 +137,7 @@ using namespace tui;
 class vdbconf_view : public Dlg
 {
     public :
-        vdbconf_view( vdbconf_model &model ) : Dlg(), priv_model( model ), repos_shown( 0 ), show_local_enable( false )
+        vdbconf_view( vdbconf_model &model ) : Dlg(), priv_model( model )/*, repos_shown( 0 ), show_local_enable( false )*/
         {
             populate();
         };
@@ -152,8 +152,8 @@ class vdbconf_view : public Dlg
 
     private :
         vdbconf_model & priv_model;
-        uint32_t repos_shown;
-        bool show_local_enable;
+/*      uint32_t repos_shown;
+        bool show_local_enable;*/
 
         /* layout functions */
 		uint32_t half( Tui_Rect const &r, uint32_t margins ) const { return ( ( r.get_w() - margins ) / 2 ); }

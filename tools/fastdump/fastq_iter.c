@@ -89,6 +89,17 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
     return rc;
 }
 
+static bool contains_spaces( const String * q )
+{
+    bool res = false;
+    uint32_t idx;
+    for ( idx = 0; !res && ( idx < q -> len ); ++idx )
+    {
+        res = ( q -> addr[ idx ] == ' ' );
+    }
+    return res;
+}
+
 bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, rc_t * rc )
 {
     bool res = cmn_iter_next( self -> cmn, rc );
@@ -113,8 +124,19 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
         }
         
         if ( rc1 == 0 )
+        {
             rc1 = cmn_read_String( self -> cmn, self -> quality_id, &( rec -> quality ) );
-            
+            if ( rc1 == 0 )
+            {
+                /* check to see if the quality-string contains space-chars ( the unbound text-conversion for quality values of 255 )*/
+                if ( contains_spaces( &( res -> quality ) ) )
+                {
+                    /* we have to substitute for a buffer containing the right numbers of '~' chars */
+                    
+                }
+            }
+        }
+        
         if ( rc1 == 0 )
         {
             if ( self -> opt . with_read_len )

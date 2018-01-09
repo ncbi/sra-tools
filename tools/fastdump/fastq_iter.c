@@ -66,7 +66,7 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
         if ( rc == 0 )
             rc = cmn_iter_add_column( self -> cmn, "PRIMARY_ALIGNMENT_ID", &( self -> prim_alig_id ) ); /* cmn_iter.h */
 
-        if ( rc == 0 )
+        if ( rc == 0 && opt . with_cmp_read )
             rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> cmp_read_id ) ); /* cmn_iter.h */
 
         if ( rc == 0 )
@@ -102,8 +102,16 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
             rc1 = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
 
         if ( rc1 == 0 )
-            rc1 = cmn_read_String( self -> cmn, self -> cmp_read_id, &( rec -> read ) );
-
+        {
+            if ( self -> opt . with_cmp_read )
+                rc1 = cmn_read_String( self -> cmn, self -> cmp_read_id, &( rec -> read ) );
+            else
+            {
+                rec -> read . len = 0;
+                rec -> read . size = 0;
+            }
+        }
+        
         if ( rc1 == 0 )
             rc1 = cmn_read_String( self -> cmn, self -> quality_id, &( rec -> quality ) );
             

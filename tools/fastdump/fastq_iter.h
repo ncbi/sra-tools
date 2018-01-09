@@ -48,6 +48,7 @@ typedef struct fastq_iter_opt
    bool with_read_len;
    bool with_name;
    bool with_read_type;
+   bool with_cmp_read;
 } fastq_iter_opt;
 
 typedef struct fastq_rec

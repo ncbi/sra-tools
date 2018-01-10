@@ -27,11 +27,15 @@
 #include "fastq_iter.h"
 #include "helper.h"
 
+#include <klib/data-buffer.h>
+
 typedef struct fastq_csra_iter
 {
     struct cmn_iter * cmn; /* cmn_iter.h */
+    KDataBuffer qual_buffer;  /* klib/databuffer.h */
     fastq_iter_opt opt; /* fastq_iter.h */
     uint32_t name_id, prim_alig_id, cmp_read_id, quality_id, read_len_id, read_type_id;
+    char qual_2_ascii[ 256 ];
 } fastq_csra_iter;
 
 
@@ -40,9 +44,14 @@ void destroy_fastq_csra_iter( struct fastq_csra_iter * self )
     if ( self != NULL )
     {
         destroy_cmn_iter( self -> cmn ); /* cmn_iter.h */
+        if ( self -> qual_buffer . base != NULL )
+            KDataBufferWhack( &self -> qual_buffer );
         free( ( void * ) self );
     }
 }
+
+#define QUAL_COL "QUALITY"
+#define QUAL_COL_TXT "(INSDC:quality:text:phred_33)QUALITY"
 
 rc_t make_fastq_csra_iter( const cmn_params * params,
                            fastq_iter_opt opt,
@@ -57,47 +66,59 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
     }
     else
     {
-        self -> opt = opt;
-        rc = make_cmn_iter( params, "SEQUENCE", &( self -> cmn ) ); /* cmn_iter.h */
-        
-        if ( rc == 0 && opt . with_name )
-            rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) ); /* cmn_iter.h */
-
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( self -> cmn, "PRIMARY_ALIGNMENT_ID", &( self -> prim_alig_id ) ); /* cmn_iter.h */
-
-        if ( rc == 0 && opt . with_cmp_read )
-            rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> cmp_read_id ) ); /* cmn_iter.h */
-
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( self -> cmn, "(INSDC:quality:text:phred_33)QUALITY", &( self -> quality_id ) ); /* cmn_iter.h */
-
-        if ( rc == 0 && opt . with_read_len )
-            rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) ); /* cmn_iter.h */
-
-        if ( rc == 0 && opt . with_read_type )
-            rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) ); /* cmn_iter.h */
-
-        if ( rc == 0 )
-            rc = cmn_iter_range( self -> cmn, self -> prim_alig_id ); /* cmn_iter.h */
+        rc = KDataBufferMakeBytes( &self -> qual_buffer, 4096 );
+        if ( rc != 0 )
+        {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            ErrMsg( "make_fastq_csra_iter.KDataBufferMakeBytes() -> %R", rc );
+        }
+        else
+        {
+            self -> opt = opt;
+            rc = make_cmn_iter( params, "SEQUENCE", &( self -> cmn ) ); /* cmn_iter.h */
             
+            if ( rc == 0 && opt . with_name )
+                rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) ); /* cmn_iter.h */
+
+            if ( rc == 0 )
+                rc = cmn_iter_add_column( self -> cmn, "PRIMARY_ALIGNMENT_ID", &( self -> prim_alig_id ) ); /* cmn_iter.h */
+
+            if ( rc == 0 && opt . with_cmp_read )
+                rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> cmp_read_id ) ); /* cmn_iter.h */
+
+            if ( rc == 0 )
+                rc = cmn_iter_add_column( self -> cmn, QUAL_COL, &( self -> quality_id ) ); /* cmn_iter.h */
+                
+            if ( rc == 0 && opt . with_read_len )
+                rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) ); /* cmn_iter.h */
+
+            if ( rc == 0 && opt . with_read_type )
+                rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) ); /* cmn_iter.h */
+
+            if ( rc == 0 )
+                rc = cmn_iter_range( self -> cmn, self -> prim_alig_id ); /* cmn_iter.h */
+                
+            if ( rc == 0 )
+            {
+                uint32_t idx;
+                memset( self -> qual_2_ascii, '~', sizeof( self -> qual_2_ascii) );
+                for ( idx = 0; idx < 256; idx++ )
+                {
+                    self -> qual_2_ascii[ idx ] = idx + 33;
+                    if ( self -> qual_2_ascii[ idx ] == '~' )
+                    {
+                        break;
+                    }
+                }
+            
+            }
+        }
         if ( rc != 0 )
             destroy_fastq_csra_iter( self ); /* above */
         else
             *iter = self;
     }
     return rc;
-}
-
-static bool contains_spaces( const String * q )
-{
-    bool res = false;
-    uint32_t idx;
-    for ( idx = 0; !res && ( idx < q -> len ); ++idx )
-    {
-        res = ( q -> addr[ idx ] == ' ' );
-    }
-    return res;
 }
 
 bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, rc_t * rc )
@@ -125,15 +146,29 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
         
         if ( rc1 == 0 )
         {
-            rc1 = cmn_read_String( self -> cmn, self -> quality_id, &( rec -> quality ) );
-            if ( rc1 == 0 )
+            uint8_t * qual_values = NULL;
+            uint32_t num_qual = 0;
+            rc1 = cmn_read_uint8_array( self -> cmn, self -> quality_id, &qual_values, &num_qual );
+            if ( rc1 == 0 && num_qual > 0 && qual_values != NULL )
             {
-                /* check to see if the quality-string contains space-chars ( the unbound text-conversion for quality values of 255 )*/
-                if ( contains_spaces( &( res -> quality ) ) )
+                if ( num_qual > self -> qual_buffer . elem_count )
+                    rc1 = KDataBufferResize ( & self -> qual_buffer, num_qual );
+                if ( rc1 == 0 )
                 {
-                    /* we have to substitute for a buffer containing the right numbers of '~' chars */
-                    
+                    uint32_t idx;
+                    uint8_t * b = self -> qual_buffer . base;
+                    for ( idx = 0; idx < num_qual; idx++ )
+                        b[ idx ] = self -> qual_2_ascii[ qual_values[ idx ] ];
+                    rec -> quality . addr = self -> qual_buffer. base;
+                    rec -> quality . len  = num_qual;
+                    rec -> quality . size = num_qual;
                 }
+            }
+            if ( rc1 != 0 )
+            {
+                rec -> quality . len = 0;
+                rec -> quality . size = 0;
+                rc1 = 0;
             }
         }
         

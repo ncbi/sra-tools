@@ -256,19 +256,6 @@ static uint64_t key_to_pos_guess( const struct index_reader * reader, uint64_t k
     return ( ( sizeof reader -> frequency ) + ( chunk_id * ( 2 * ( sizeof reader -> frequency ) ) ) );
 }
 
-
-static rc_t read_3( const struct index_reader * reader, uint64_t pos, uint64_t * data, size_t to_read )
-{
-    size_t num_read;
-    rc_t rc = KFileReadAll( reader->f, pos, ( void *)data, to_read, &num_read );
-    if ( rc != 0 )
-        ErrMsg( "read_3.KFileReadAll( at %lu ) -> %R", pos, rc );
-    else if ( num_read != to_read )
-        rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-    return rc;
-}
-
-
 rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key_to_find,
                    uint64_t * key_found, uint64_t * offset )
 {
@@ -288,30 +275,37 @@ rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key_to_fin
         */
         uint64_t pos = key_to_pos_guess( reader, key_to_find );
         bool found = false;
-        while ( rc == 0 && !found && pos < reader->file_size )
-        {        
-            rc = read_3( reader, pos, data, sizeof data );
+        while ( rc == 0 && !found && pos < reader -> file_size )
+        {
+            size_t num_read;
+            rc = KFileReadAll( reader -> f, pos, ( void * )&( data[ 0 ] ), sizeof data, &num_read );
             if ( rc != 0 )
-                ErrMsg( "get_nearest_offset().read3( %lu ) failed %R", pos, rc );
+                ErrMsg( "get_nearest_offset().KFileReadAll( %lu ) failed %R", pos, rc );
             else
             {
-                if ( key_to_find >= data[ 0 ] && key_to_find < data[ 2 ] )
+                if ( num_read >= ( ( sizeof data[ 0 ] ) * 4 ) &&
+                     key_to_find >= data[ 0 ] &&
+                     key_to_find < data[ 2 ] )
                 {
                     /* key_to_find is between key0 and key1 */
                     found = true;
                     *key_found = data[ 0 ];
                     *offset = data[ 1 ];
                 }
-                else if ( key_to_find >= data[ 2 ] && key_to_find < data[ 4 ] )
+                else if ( num_read >= ( ( sizeof data[ 0 ] ) * 6 ) &&
+                          key_to_find >= data[ 2 ] &&
+                          key_to_find < data[ 4 ] )
                 {
                     /* key_to_find is between key1 and key2 */
                     found = true;
                     *key_found = data[ 2 ];
                     *offset = data[ 3 ];
                 }
+                
                 if ( !found )
                 {
-                    if ( key_to_find < data[ 0 ] )
+                    if ( num_read >= ( ( sizeof data[ 0 ] ) * 2 ) &&
+                         key_to_find < data[ 0 ] )
                     {
                         /* key_to_find is smaller than our guess */
                         if ( pos > sizeof reader->frequency )
@@ -323,7 +317,8 @@ rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key_to_fin
                             *offset = data[ 1 ];
                         }
                     }
-                    else if ( key_to_find > data[ 4 ] )
+                    else if ( num_read >= ( ( sizeof data[ 0 ] ) * 6 ) &&
+                              key_to_find > data[ 4 ] )
                     {
                         /* key_to_find is bigger than our guess */
                         pos += ( 2 * ( sizeof reader -> frequency ) );

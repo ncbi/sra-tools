@@ -34,7 +34,7 @@ typedef struct fastq_csra_iter
     struct cmn_iter * cmn; /* cmn_iter.h */
     KDataBuffer qual_buffer;  /* klib/databuffer.h */
     fastq_iter_opt opt; /* fastq_iter.h */
-    uint32_t name_id, prim_alig_id, cmp_read_id, quality_id, read_len_id, read_type_id;
+    uint32_t name_id, prim_alig_id, read_id, quality_id, read_len_id, read_type_id;
     char qual_2_ascii[ 256 ];
 } fastq_csra_iter;
 
@@ -49,9 +49,6 @@ void destroy_fastq_csra_iter( struct fastq_csra_iter * self )
         free( ( void * ) self );
     }
 }
-
-#define QUAL_COL "QUALITY"
-#define QUAL_COL_TXT "(INSDC:quality:text:phred_33)QUALITY"
 
 rc_t make_fastq_csra_iter( const cmn_params * params,
                            fastq_iter_opt opt,
@@ -83,11 +80,16 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
             if ( rc == 0 )
                 rc = cmn_iter_add_column( self -> cmn, "PRIMARY_ALIGNMENT_ID", &( self -> prim_alig_id ) ); /* cmn_iter.h */
 
-            if ( rc == 0 && opt . with_cmp_read )
-                rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> cmp_read_id ) ); /* cmn_iter.h */
+            if ( rc == 0 )
+            {
+                if ( opt . with_cmp_read )
+                    rc = cmn_iter_add_column( self -> cmn, "CMP_READ", &( self -> read_id ) ); /* cmn_iter.h */
+                else
+                    rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) ); /* cmn_iter.h */
+            }
 
             if ( rc == 0 )
-                rc = cmn_iter_add_column( self -> cmn, QUAL_COL, &( self -> quality_id ) ); /* cmn_iter.h */
+                rc = cmn_iter_add_column( self -> cmn, "QUALITY", &( self -> quality_id ) ); /* cmn_iter.h */
                 
             if ( rc == 0 && opt . with_read_len )
                 rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) ); /* cmn_iter.h */
@@ -132,17 +134,9 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
 
         if ( rc1 == 0 && self -> opt . with_name )
             rc1 = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
-
+        
         if ( rc1 == 0 )
-        {
-            if ( self -> opt . with_cmp_read )
-                rc1 = cmn_read_String( self -> cmn, self -> cmp_read_id, &( rec -> read ) );
-            else
-            {
-                rec -> read . len = 0;
-                rec -> read . size = 0;
-            }
-        }
+            rc1 = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
         
         if ( rc1 == 0 )
         {

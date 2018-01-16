@@ -1,5 +1,6 @@
 #include "diagnosticsview.h"
 #include "diagnosticstest.h"
+#include "diagnosticstreemodel.h"
 
 
 #include <klib/rc.h>
@@ -225,6 +226,13 @@ void DiagnosticsView :: run_diagnostics ()
 {
     rc_t rc = 0;
 
+    QFile file ( "/Users/rodarme1/Desktop/output.txt" );
+    if ( ! file . open ( QFile :: ReadWrite | QFile :: Text ) )
+    {
+        qDebug () << "Could not open file";
+        return;
+    }
+
     KDiagnose *test = 0;
 
     rc = KDiagnoseMakeExt ( &test, nullptr, nullptr, nullptr );
@@ -233,13 +241,17 @@ void DiagnosticsView :: run_diagnostics ()
     else
     {
         if ( tree_view -> children () . count () > 0 )
+        {
             tree_view -> clear ();
+        }
 
         KDiagnoseTestHandlerSet ( test, diagnose_callback, this );
 
         rc = KDiagnoseAll ( test, 0 );
         if ( rc != 0 )
            qDebug () << rc;
+
+
     }
 }
 

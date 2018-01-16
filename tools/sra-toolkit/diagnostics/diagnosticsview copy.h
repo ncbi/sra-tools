@@ -10,7 +10,9 @@ class QTreeWidgetItem;
 QT_END_NAMESPACE
 
 struct KDiagnoseTest;
+class DiagnosticsTreeModel;
 class DiagnosticsTest;
+
 
 class DiagnosticsView : public QWidget
 {
@@ -18,6 +20,7 @@ class DiagnosticsView : public QWidget
 public:
     explicit DiagnosticsView(QWidget *parent = 0);
     ~DiagnosticsView ();
+
 
 signals:
 
@@ -28,7 +31,6 @@ private slots:
     void run_diagnostics ();
 
 private:
-
 
     void setup_view ();
 

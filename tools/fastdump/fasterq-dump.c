@@ -394,10 +394,13 @@ static rc_t handle_tmp_path( tool_ctx_t * tool_ctx )
     else
     {
         /* if the user did give us a temp-path: try to create it if not force-options is given */
-        KCreateMode create_mode = /* tool_ctx -> force ? kcmInit : kcmCreate; */ kcmInit;
-        rc = KDirectoryCreateDir ( tool_ctx -> dir, 0775, create_mode, "%s", tool_ctx -> tmp_id . temp_path );
-        if ( rc != 0 )
-            ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );
+        if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> tmp_id . temp_path ) )
+        {
+            KCreateMode create_mode = /* tool_ctx -> force ? kcmInit : kcmCreate; */ kcmInit;
+            rc = KDirectoryCreateDir ( tool_ctx -> dir, 0775, create_mode, "%s", tool_ctx -> tmp_id . temp_path );
+            if ( rc != 0 )
+                ErrMsg( "scratch-path '%s' cannot be created!", tool_ctx -> tmp_id . temp_path );
+        }
     }
     if ( rc == 0 )
         tool_ctx -> tmp_id . temp_path_ends_in_slash = ends_in_slash( tool_ctx -> tmp_id . temp_path ); /* helper.c */

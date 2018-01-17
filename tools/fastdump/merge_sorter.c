@@ -676,7 +676,7 @@ static rc_t process_background_file_merger( background_file_merger * self )
                                          self -> tmp_id, self -> product_id );
     if ( rc == 0 )
         rc = Add_to_Cleanup_Task ( self -> cleanup_task, tmp_filename );
-        
+
     if ( rc == 0 )
     {
         uint32_t num_src = 0;
@@ -712,8 +712,10 @@ static rc_t process_background_file_merger( background_file_merger * self )
                 if ( rc == 0 )
                 {
                     rc = run_merge_sorter( &sorter );
+                    /*
                     if ( rc == 0 )
                         self -> total_rows += sorter . total_entries;
+                    */
                     release_merge_sorter( &sorter );
                 }
             }

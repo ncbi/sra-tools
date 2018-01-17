@@ -114,7 +114,7 @@ typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
 typedef struct cmn_params
 {
-    KDirectory * dir;
+    const KDirectory * dir;
     const char * accession;
     int64_t first_row;
     uint64_t row_count;
@@ -158,7 +158,7 @@ rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
 bool file_exists( const KDirectory * dir, const char * fmt, ... );
 bool dir_exists( const KDirectory * dir, const char * fmt, ... );
 
-void join_and_release_threads( Vector * threads );
+rc_t join_and_release_threads( Vector * threads );
 
 rc_t delete_files( KDirectory * dir, const VNamelist * files );
 uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );

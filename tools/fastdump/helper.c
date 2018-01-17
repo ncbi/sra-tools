@@ -429,19 +429,24 @@ bool dir_exists( const KDirectory * dir, const char * fmt, ... )
     return ( pt == kptDir ) ;
 }
 
-void join_and_release_threads( Vector * threads )
+rc_t join_and_release_threads( Vector * threads )
 {
+    rc_t rc = 0;
     uint32_t i, n = VectorLength( threads );
     for ( i = VectorStart( threads ); i < n; ++i )
     {
         KThread * thread = VectorGet( threads, i );
         if ( thread != NULL )
         {
-            KThreadWait( thread, NULL );
+            rc_t rc1;
+            KThreadWait( thread, &rc1 );
+            if ( rc == 0 && rc1 != 0 )
+                rc = rc1;
             KThreadRelease( thread );
         }
     }
     VectorWhack ( threads, NULL, NULL );
+    return rc;
 }
 
 

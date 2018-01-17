@@ -57,13 +57,15 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
 
 rc_t seek_lookup_reader( struct lookup_reader * self, uint64_t key, uint64_t * key_found, bool exactly );
 
-rc_t get_packed_and_key_from_lookup_reader( struct lookup_reader * selfr,
-                        uint64_t * key, SBuffer * packed_bases );
-
+rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * packed_bases );
 rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id, SBuffer * B );
 
 rc_t lookup_check( struct lookup_reader * self );
 rc_t lookup_check_file( const KDirectory *dir, size_t buf_size, const char * filename );
+
+rc_t lookup_count_file( const KDirectory *dir, size_t buf_size, const char * filename, uint32_t * count );
+
+rc_t write_out_lookup( const KDirectory *dir, size_t buf_size, const char * lookup_file, const char * output_file );
 
 #ifdef __cplusplus
 }

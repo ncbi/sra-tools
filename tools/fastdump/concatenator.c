@@ -228,7 +228,7 @@ rc_t execute_concat_un_compressed( KDirectory * dir,
     const char * file1;
     rc_t rc = VNameListGet( files, 0, &file1 );
     if ( rc != 0 )
-        ErrMsg( "VNameListGet( 0 ) -> %R", rc );
+        ErrMsg( "concatenator.c execute_concat_un_compressed() VNameListGet( 0 ) -> %R", rc );
     else
     {
         uint64_t size_file1;
@@ -236,13 +236,13 @@ rc_t execute_concat_un_compressed( KDirectory * dir,
         /* we need the size of the first file, as an offset later - if KDirectoryRename() was successful */
         rc = KDirectoryFileSize ( dir, &size_file1, "%s", file1 );
         if ( rc != 0 )
-            ErrMsg( "KDirectoryFileSize( '%s' ) -> %R", file1, rc );
+            ErrMsg( "concatenator.c execute_concat_un_compressed() KDirectoryFileSize( '%s' ) -> %R", file1, rc );
         else
         {
             if ( !force && file_exists( dir, "%s", output_filename ) )
             {
                 rc = RC( rcExe, rcFile, rcPacking, rcName, rcExists );
-                ErrMsg( "creating ouput-file '%s' -> %R", output_filename, rc );
+                ErrMsg( "concatenator.c execute_concat_un_compressed() creating ouput-file '%s' -> %R", output_filename, rc );
             }
             else
             {
@@ -258,19 +258,25 @@ rc_t execute_concat_un_compressed( KDirectory * dir,
                     /* this can fail, if file1 and output_filename are on different filesystems ... */
                     files_offset = 0;
                     size_file1 = 0;
+                    rc = KDirectoryCreateFile( dir, &dst, false, 0664, kcmInit, "%s", output_filename );
+                    if ( rc != 0 )
+                        ErrMsg( "concatenator.c execute_concat_un_compressed() KDirectoryCreateFile( '%s' ) -> %R", output_filename, rc );
+                }
+                else
+                {
+                    rc = KDirectoryOpenFileWrite ( dir, &dst, true, "%s", output_filename );
+                    if ( rc != 0 )
+                        ErrMsg( "concatenator.c execute_concat_un_compressed() KDirectoryOpenFileWrite( '%s' ) -> %R", output_filename, rc );
                 }
 
-                rc = KDirectoryOpenFileWrite ( dir, &dst, true, "%s", output_filename );
-                if ( rc != 0 )
-                    ErrMsg( "KDirectoryOpenFileWrite( '%s' ) -> %R", output_filename, rc );
-                else
+                if ( rc == 0 )
                 {
                     if ( buf_size > 0 )
                     {
                         struct KFile * tmp;
                         rc = KBufFileMakeWrite( &tmp, dst, false, buf_size );
                         if ( rc != 0 )
-                            ErrMsg( "KBufFileMakeWrite( '%s' ) -> %R", output_filename, rc );
+                            ErrMsg( "concatenator.c execute_concat_un_compressed() KBufFileMakeWrite( '%s' ) -> %R", output_filename, rc );
                         else
                         {
                             KFileRelease( dst );

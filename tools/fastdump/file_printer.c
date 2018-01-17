@@ -72,7 +72,7 @@ rc_t make_file_printer_from_file( KFile * f, struct file_printer ** printer, siz
 }
 
 
-rc_t make_file_printer_from_filename( KDirectory * dir, struct file_printer ** printer,
+rc_t make_file_printer_from_filename( const KDirectory * dir, struct file_printer ** printer,
         size_t file_buffer_size, size_t print_buffer_size, const char * fmt, ... )
 {
     rc_t rc;
@@ -81,7 +81,7 @@ rc_t make_file_printer_from_filename( KDirectory * dir, struct file_printer ** p
     va_list args;
     va_start ( args, fmt );
 
-    rc = KDirectoryVCreateFile( dir, &f, false, 0664, kcmInit, fmt, args );
+    rc = KDirectoryVCreateFile( ( KDirectory * )dir, &f, false, 0664, kcmInit, fmt, args );
     if ( rc != 0 )
         ErrMsg( "KDirectoryVCreateFile() -> %R", rc );
     else

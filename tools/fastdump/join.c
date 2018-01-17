@@ -25,9 +25,10 @@
 */
 
 #include "join.h"
-#include "lookup_reader.h"
 #include "index.h"
+#include "lookup_reader.h"
 #include "special_iter.h"
+#include "raw_read_iter.h"
 #include "fastq_iter.h"
 #include "cleanup_task.h"
 #include "join_results.h"
@@ -807,7 +808,7 @@ typedef struct join_thread_data
 {
     char part_file[ 4096 ];
 
-    join_stats stats;
+    join_stats stats; /* helper.h */
     
     KDirectory * dir;
     const char * accession_path;
@@ -830,7 +831,7 @@ typedef struct join_thread_data
     
 } join_thread_data;
 
-static rc_t CC cmn_thread_func( const KThread *self, void *data )
+static rc_t CC cmn_thread_func( const KThread * self, void * data )
 {
     rc_t rc = 0;
     join_thread_data * jtd = data;
@@ -1012,19 +1013,116 @@ rc_t execute_db_join( KDirectory * dir,
                     join_thread_data * jtd = VectorGet( &threads, i );
                     if ( jtd != NULL )
                     {
-                        KThreadWait( jtd -> thread, NULL );
+                        rc_t rc_thread;
+                        KThreadWait( jtd -> thread, &rc_thread );
+                        if ( rc_thread != 0 )
+                            rc = rc_thread;
+
                         KThreadRelease( jtd -> thread );
-                        
-                        add_join_stats( stats, &jtd -> stats );
-                            
+
+                        add_join_stats( stats, &jtd -> stats ); /* helper.c */
+
                         free( jtd );
                     }
                 }
                 VectorWhack ( &threads, NULL, NULL );
             }
-            
             bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
         }
+    }
+    return rc;
+}
+
+/*
+    test-function to check if each row in the alignment-table can be found by referencing the seq-row-id and req-read-id
+    in the lookup-file
+*/
+rc_t check_lookup( const KDirectory * dir,
+                   size_t buf_size,
+                   size_t cursor_cache,
+                   const char * lookup_filename,
+                   const char * index_filename,
+                   const char * accession )
+{
+    struct index_reader * index;
+    rc_t rc = make_index_reader( dir, &index, buf_size, "%s", index_filename );
+    if ( rc == 0 )
+    {
+        struct lookup_reader * lookup;  /* lookup_reader.h */
+        rc =  make_lookup_reader( dir, index, &lookup, buf_size, "%s", lookup_filename ); /* lookup_reader.c */
+        if ( rc == 0 )
+        {
+            struct raw_read_iter * iter; /* raw_read_iter.h */
+            cmn_params params; /* helper.h */
+            
+            params . dir = dir;
+            params . accession = accession;
+            params . first_row = 0;
+            params . row_count = 0;
+            params . cursor_cache = cursor_cache;
+            
+            rc = make_raw_read_iter( &params, &iter ); /* raw_read_iter.c */
+            if ( rc == 0 )
+            {
+                SBuffer buffer;
+                rc = make_SBuffer( &buffer, 4096 );
+                if ( rc == 0 )
+                {
+                    raw_read_rec rec; /* raw_read_iter.h */
+                    uint64_t loop = 0;
+                    bool running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */
+                    while( rc == 0 && running )
+                    {
+                        rc = lookup_bases( lookup, rec . seq_spot_id, rec . seq_read_id, &buffer );
+                        if ( rc != 0 )
+                            KOutMsg( "lookup_bases( %lu.%u ) --> %R\n", rec . seq_spot_id, rec . seq_read_id, rc );
+                        else
+                        {
+                            running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */
+                            if ( 0 == loop % 1000 )
+                                KOutMsg( "[loop #%lu] ", loop / 1000 );
+                            loop++;
+                        }
+                    }
+                    release_SBuffer( &buffer );                
+                }
+                destroy_raw_read_iter( iter ); /* raw_read_iter.c */
+            }
+            release_lookup_reader( lookup ); /* lookup_reader.c */
+        }
+        release_index_reader( index );
+    }
+    return rc;
+}
+
+rc_t check_lookup_this( const KDirectory * dir,
+                        size_t buf_size,
+                        size_t cursor_cache,
+                        const char * lookup_filename,
+                        const char * index_filename,
+                        uint64_t seq_spot_id,
+                        uint32_t seq_read_id )
+{
+    struct index_reader * index;
+    rc_t rc = make_index_reader( dir, &index, buf_size, "%s", index_filename );
+    if ( rc == 0 )
+    {
+        struct lookup_reader * lookup;  /* lookup_reader.h */
+        rc =  make_lookup_reader( dir, index, &lookup, buf_size, "%s", lookup_filename ); /* lookup_reader.c */
+        if ( rc == 0 )
+        {
+            SBuffer buffer;
+            rc = make_SBuffer( &buffer, 4096 );
+            if ( rc == 0 )
+            {
+                rc = lookup_bases( lookup, seq_spot_id, seq_read_id, &buffer );
+                if ( rc != 0 )
+                    KOutMsg( "lookup_bases( %lu.%u ) --> %R\n", seq_spot_id, seq_read_id, rc );
+                release_SBuffer( &buffer );                
+            }
+            release_lookup_reader( lookup ); /* lookup_reader.c */
+        }
+        release_index_reader( index );
     }
     return rc;
 }

@@ -282,7 +282,7 @@ rc_t temp_registry_merge( temp_registry * self,
         if ( rc == 0 )
         {
             uint32_t first;
-            uint32_t count = count_valid_entries( &self -> lists, &first );
+            uint32_t count = count_valid_entries( &self -> lists, &first ); /* above */
             if ( count == 1 )
             {
                 /* we have only ONE set of files... */
@@ -295,7 +295,7 @@ rc_t temp_registry_merge( temp_registry * self,
                     progress,
                     print_to_stdout,
                     force,
-                    compress );
+                    compress ); /* concatenator.c */
             }
             else if ( count > 1 )
             {

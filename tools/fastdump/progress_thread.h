@@ -40,6 +40,7 @@ struct bg_progress;
 rc_t bg_progress_make( struct bg_progress ** bgp, uint64_t max_value, uint32_t sleep_time, uint32_t digits );
 void bg_progress_update( struct bg_progress * self, uint64_t by );
 void bg_progress_inc( struct bg_progress * self );
+void bg_progress_get( struct bg_progress * self, uint64_t * value );
 void bg_progress_set_max( struct bg_progress * self, uint64_t value );
 void bg_progress_release( struct bg_progress * self );
 

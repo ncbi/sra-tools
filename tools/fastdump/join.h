@@ -62,6 +62,21 @@ rc_t execute_db_join( KDirectory * dir,
                     format_t fmt,
                     const join_options * join_options );
 
+rc_t check_lookup( const KDirectory * dir,
+                   size_t buf_size,
+                   size_t cursor_cache,
+                   const char * lookup_filename,
+                   const char * index_filename,
+                   const char * accession );
+
+rc_t check_lookup_this( const KDirectory * dir,
+                        size_t buf_size,
+                        size_t cursor_cache,
+                        const char * lookup_filename,
+                        const char * index_filename,
+                        uint64_t seq_spot_id,
+                        uint32_t seq_read_id );
+
 #ifdef __cplusplus
 }
 #endif

@@ -50,7 +50,7 @@ void destroy_file_printer( struct file_printer * printer );
 rc_t make_file_printer_from_file( struct KFile * f, struct file_printer ** printer,
                 size_t print_buffer_size );
                 
-rc_t make_file_printer_from_filename( struct KDirectory * dir, struct file_printer ** printer,
+rc_t make_file_printer_from_filename( const struct KDirectory * dir, struct file_printer ** printer,
                 size_t file_buffer_size, size_t print_buffer_size,
                 const char * fmt, ... );
 

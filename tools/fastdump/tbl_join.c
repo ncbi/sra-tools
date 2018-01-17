@@ -631,7 +631,11 @@ rc_t execute_tbl_join( KDirectory * dir,
                         join_thread_data * jtd = VectorGet( &threads, i );
                         if ( jtd != NULL )
                         {
-                            KThreadWait( jtd -> thread, NULL );
+                            rc_t rc_thread;
+                            KThreadWait( jtd -> thread, &rc_thread );
+                            if ( rc_thread != 0 )
+                                rc = rc_thread;
+
                             KThreadRelease( jtd -> thread );
                             
                             add_join_stats( stats, &jtd -> stats );

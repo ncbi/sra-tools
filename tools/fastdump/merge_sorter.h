@@ -62,6 +62,8 @@ rc_t make_background_vector_merger( struct background_vector_merger ** merger,
                              size_t buf_size,
                              struct bg_update * gap );
 
+void tell_total_rowcount_to_vector_merger( struct background_vector_merger * self, uint64_t value );
+
 rc_t push_to_background_vector_merger( struct background_vector_merger * self, KVector * store );
 
 rc_t seal_background_vector_merger( struct background_vector_merger * self );
@@ -81,6 +83,8 @@ rc_t make_background_file_merger( struct background_file_merger ** merger,
                                 uint32_t wait_time,
                                 size_t buf_size,
                                 struct bg_update * gap );
+
+void tell_total_rowcount_to_file_merger( struct background_file_merger * self, uint64_t value );
 
 rc_t push_to_background_file_merger( struct background_file_merger * self, const char * filename );
 

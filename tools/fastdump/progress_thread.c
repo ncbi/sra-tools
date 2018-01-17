@@ -161,6 +161,14 @@ void bg_progress_set_max( bg_progress * self, uint64_t value )
         atomic64_set( &self -> max_value, value );
 }
 
+void bg_progress_get( bg_progress * self, uint64_t * value )
+{
+    if ( self != NULL && value != NULL )
+    {
+        *value = atomic64_read( &self -> value );
+    }
+}
+
 void bg_progress_release( bg_progress * self )
 {
     if ( self != NULL )

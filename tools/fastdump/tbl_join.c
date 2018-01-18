@@ -281,7 +281,16 @@ static rc_t perform_fastq_join( cmn_params * cp,
     else
     {
         fastq_rec rec;
-        join_options local_opt = { jo -> rowid_as_name, false, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
+        join_options local_opt =
+        {
+            jo -> rowid_as_name,
+            false,
+            jo -> print_frag_nr,
+            jo -> print_name,
+            jo -> min_read_len,
+            jo -> filter_bases
+        };
+
         while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             stats -> spots_read++;
@@ -400,7 +409,16 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     if ( rc == 0 )
     {
         fastq_rec rec;
-        join_options local_opt = { jo -> rowid_as_name, true, jo -> print_frag_nr, jo -> min_read_len, jo -> filter_bases };
+        join_options local_opt =
+        {
+            jo -> rowid_as_name,
+            true,
+            jo -> print_frag_nr,
+            jo -> print_name,
+            jo -> min_read_len,
+            jo -> filter_bases
+        };
+        
         while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
@@ -464,6 +482,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                 jtd -> buf_size,
                                 4096,
                                 jtd -> join_options -> print_frag_nr,
+                                jtd -> join_options -> print_name,
                                 jtd -> join_options -> filter_bases );
     
     if ( rc == 0 && results != NULL )
@@ -563,13 +582,14 @@ rc_t execute_tbl_join( KDirectory * dir,
                 uint32_t thread_id;
                 uint64_t rows_per_thread;
                 struct bg_progress * progress = NULL;
-                struct join_options corrected_join_options;
+                struct join_options corrected_join_options; /* helper.h */
                 
                 VectorInit( &threads, 0, num_threads );
                 
                 corrected_join_options . rowid_as_name = name_column_present ? join_options -> rowid_as_name : true;
                 corrected_join_options . skip_tech = join_options -> skip_tech;
                 corrected_join_options . print_frag_nr = join_options -> print_frag_nr;
+                corrected_join_options . print_name = name_column_present;
                 corrected_join_options . min_read_len = join_options -> min_read_len;
                 corrected_join_options . filter_bases = join_options -> filter_bases;
                 

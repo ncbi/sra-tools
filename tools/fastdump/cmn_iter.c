@@ -578,3 +578,28 @@ rc_t cmn_check_db_column( KDirectory * dir, const char * accession, const char *
     }
     return rc;
 }
+
+VNamelist * cmn_get_table_names( KDirectory * dir, const char * accession )
+{
+    VNamelist * res = NULL;
+    if ( dir != NULL && accession != NULL )
+    {
+        const VDBManager * mgr = NULL;
+        rc_t rc = VDBManagerMakeRead( &mgr, dir );
+        if ( rc == 0 )
+        {
+            const VDatabase * db;
+            rc = VDBManagerOpenDBRead ( mgr, &db, NULL, "%s", accession );
+            if ( rc == 0 )
+            {
+                KNamelist * tables;
+                rc = VDatabaseListTbl ( db, &tables );
+                if ( rc == 0 )
+                    rc = VNamelistFromKNamelist ( &res, tables );
+                VDatabaseRelease ( db );
+            }
+            VDBManagerRelease( mgr );
+        }
+    }
+    return res;
+}

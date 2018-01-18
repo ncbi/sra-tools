@@ -136,6 +136,9 @@ static const char * base_flt_usage[] = { "filter by bases", NULL };
 #define OPTION_BASE_FLT  "bases"
 #define ALIAS_BASE_FLT   "B"
 
+static const char * table_usage[] = { "which seq-table to use in case of pacbio", NULL };
+#define OPTION_TABLE    "table"
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
@@ -159,7 +162,8 @@ OptDef ToolOptions[] =
     { OPTION_TECH,      ALIAS_TECH,      NULL, skip_tech_usage,  1, false,  false },
     { OPTION_PFNR,      ALIAS_PFNR,      NULL, print_frag_nr,    1, false,  false },
     { OPTION_MINRDLEN,  ALIAS_MINRDLEN,  NULL, min_rl_usage,     1, true,   false },
-    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,   false }
+    { OPTION_TABLE,     NULL,            NULL, table_usage,      1, true,   false },
+    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,   false }    
 };
 
 const char UsageDefaultName[] = "fasterq-dump";
@@ -171,7 +175,6 @@ rc_t CC UsageSummary( const char * progname )
                      "  %s <path> [options]\n"
                      "\n", progname );
 }
-
 
 rc_t CC Usage ( const Args * args )
 {
@@ -212,6 +215,7 @@ typedef struct tool_ctx_t
     const char * accession_path;
     const char * accession_short;
     const char * output_filename;
+    const char * seq_tbl_name;
     
     tmp_id tmp_id;
 
@@ -310,6 +314,7 @@ static rc_t show_details( tool_ctx_t * tool_ctx )
 }
 
 static const char * dflt_temp_path = "./fast.tmp";
+static const char * dflt_seq_tabl_name = "SEQUENCE";
 
 #define DFLT_CUR_CACHE ( 5 * 1024 * 1024 )
 #define DFLT_BUF_SIZE ( 1024 * 1024 )
@@ -336,15 +341,18 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> join_options . rowid_as_name = get_bool_option( args, OPTION_RIDN );
     tool_ctx -> join_options . skip_tech = get_bool_option( args, OPTION_TECH );
     tool_ctx -> join_options . print_frag_nr = get_bool_option( args, OPTION_PFNR );
+    tool_ctx -> join_options . print_name = true;
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
-    
+
     split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
     split_file = get_bool_option( args, OPTION_SPLIT_FILE );
     split_3    = get_bool_option( args, OPTION_SPLIT_3 );
     
     tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
                             split_spot, split_file, split_3 ); /* helper.c */
+                            
+    tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
 }
 
 #define DFLT_MAX_FD 32
@@ -763,6 +771,22 @@ static rc_t fastdump_table( tool_ctx_t * tool_ctx, const char * tbl_name )
     return rc;
 }
 
+static const char * consensus_table = "CONSENSUS";
+
+static const char * get_db_seq_tbl_name( tool_ctx_t * tool_ctx )
+{
+    const char * res = tool_ctx -> seq_tbl_name;
+    VNamelist * tables = cmn_get_table_names( tool_ctx -> dir, tool_ctx -> accession_path ); /* cmn_iter.c */
+    if ( tables != NULL )
+    {
+        int32_t idx;
+        rc_t rc = VNamelistContainsStr( tables, consensus_table, &idx );
+        if ( rc == 0 && idx > -1 )
+            res = consensus_table;
+        VNamelistRelease ( tables );
+    }
+    return res;
+}
 
 /* -------------------------------------------------------------------------------------------- */
 
@@ -777,7 +801,7 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx )
         {
             case acc_csra       : rc = fastdump_database( tool_ctx ); break; /* above */
             case acc_sra_flat   : rc = fastdump_table( tool_ctx, NULL ); break; /* above */
-            case acc_sra_db     : rc = fastdump_table( tool_ctx, "SEQUENCE" ); break; /* above */
+            case acc_sra_db     : rc = fastdump_table( tool_ctx, get_db_seq_tbl_name( tool_ctx ) ); break; /* above */
             default : ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );
         }
         /* =================================================== */

@@ -35,6 +35,10 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
+#endif
+
 #ifndef _h_helper_
 #include "helper.h"
 #endif
@@ -75,6 +79,8 @@ rc_t cmn_check_tbl_column( KDirectory * dir, const char * accession,
 
 rc_t cmn_check_db_column( KDirectory * dir, const char * accession, const char * tbl_name,
                           const char * col_name,  bool * present );
+
+VNamelist * cmn_get_table_names( KDirectory * dir, const char * accession );
 
 #ifdef __cplusplus
 }

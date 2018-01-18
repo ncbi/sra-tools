@@ -84,6 +84,7 @@ typedef struct join_options
     bool rowid_as_name;
     bool skip_tech;
     bool print_frag_nr;
+    bool print_name;
     uint32_t min_read_len;
     const char * filter_bases;
 } join_options;

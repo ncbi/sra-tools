@@ -25,17 +25,20 @@ public:
     void appendChild ( DiagnosticsTest *p_child );
     int childCount () const;
     DiagnosticsTest *getChild ( int p_row );
+    QString getDescription ();
     uint32_t getLevel ();
     QString getName();
     DiagnosticsTest *getParent ();
     uint32_t getState ();
     int row () const;
+    void setDescription ( QString p_desc );
     void setLevel ( uint32_t p_level );
     void setParent ( DiagnosticsTest *p_parent );
     void setState ( uint32_t p_state );
 
 private:
     QList < DiagnosticsTest * > childItems;
+    QString desc;
     uint32_t level;
     QString name;
     DiagnosticsTest *parent;

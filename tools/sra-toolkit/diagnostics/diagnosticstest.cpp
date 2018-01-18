@@ -29,6 +29,11 @@ DiagnosticsTest * DiagnosticsTest :: getChild (int p_row )
     return childItems . value ( p_row );
 }
 
+QString DiagnosticsTest :: getDescription ()
+{
+    return desc;
+}
+
 uint32_t DiagnosticsTest :: getLevel ()
 {
     return level;
@@ -55,6 +60,11 @@ int DiagnosticsTest ::  row () const
         return parent -> childItems . indexOf ( const_cast < DiagnosticsTest * > ( this ) );
 
     return 0;
+}
+
+void DiagnosticsTest :: setDescription ( QString p_desc )
+{
+    desc = p_desc;
 }
 
 void DiagnosticsTest :: setLevel ( uint32_t p_level )

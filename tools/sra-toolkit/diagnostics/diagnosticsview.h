@@ -10,6 +10,7 @@ class QTreeWidgetItem;
 QT_END_NAMESPACE
 
 struct KConfig;
+struct KDiagnose;
 struct KDiagnoseTest;
 class DiagnosticsTest;
 
@@ -42,6 +43,13 @@ private:
 
     // Data
     const KConfig *config;
+    KDiagnose *diagnose;
+};
+
+struct DiagnoseStruct
+{
+    DiagnosticsView *self;
+    const KDiagnose *diagnose;
 };
 
 #endif // DIAGNOSTICSVIEW_H

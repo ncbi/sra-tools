@@ -36,6 +36,7 @@ DiagnosticsView :: DiagnosticsView ( KConfig *p_config, QWidget *parent )
     : QWidget ( parent )
     , self_layout ( new QVBoxLayout () )
     , config ( p_config )
+    , diagnose ( 0 )
 {
     setWindowFlags ( Qt::Window );
     setAttribute ( Qt::WA_DeleteOnClose );
@@ -107,10 +108,11 @@ void CC diagnose_callback ( EKDiagTestState state, const KDiagnoseTest *diagnose
 {
     const char *name;
 
+    DiagnoseStruct *ds = static_cast <DiagnoseStruct *> ( data );
+
     rc_t rc = KDiagnoseTestName ( diagnose_test, &name );
     if ( rc ==  0 )
     {
-        //const char *desc;
         uint32_t test_level = 0;
 
         rc = KDiagnoseTestLevel ( diagnose_test, &test_level );
@@ -120,15 +122,34 @@ void CC diagnose_callback ( EKDiagTestState state, const KDiagnoseTest *diagnose
             test -> setLevel ( test_level );
             test -> setState ( state );
 
-            DiagnosticsView *self = static_cast <DiagnosticsView *> (data);
+/*
+            const KDiagnoseTestDesc *desc;
+            rc = KDiagnoseGetDesc ( ds -> diagnose, &desc );
+            if ( rc != 0 )
+                qDebug () << "Failed to get test description object for test: " << QString ( name );
+            else
+            {
+                const char *buf;
+                rc = KDiagnoseTestDescDesc ( desc, &buf );
+                if ( rc != 0 )
+                    qDebug () << "failed to get description for test: " << QString ( name );
+                else
+                   // test -> setDescription ( QString ( buf ) );
+                    qDebug () << QString ( buf );
+            }
+*/
 
-            self -> handle_callback ( test );
+           // DiagnosticsView *self = static_cast <DiagnosticsView *> (data);
+
+            ds -> self -> handle_callback ( test );
         }
     }
 }
 
 void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
 {
+    //qDebug () << test -> getName ();
+
     QAbstractEventDispatcher *dispatch = QApplication::eventDispatcher();
 
     switch ( test -> getState () )
@@ -143,6 +164,7 @@ void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
         {
             QTreeWidgetItem *item = new QTreeWidgetItem ( tree_view );
             item -> setText ( 0, test -> getName () );
+            item -> setText ( 1, QString ("XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX") );
             item -> setText ( 2, "In Progress..." );
             item -> setExpanded ( true );
             currentTest = item;
@@ -248,9 +270,7 @@ void DiagnosticsView :: run_diagnostics ()
 {
     rc_t rc = 0;
 
-    KDiagnose *test = 0;
-
-    rc = KDiagnoseMakeExt ( &test, nullptr, nullptr, nullptr );
+    rc = KDiagnoseMakeExt ( &diagnose, nullptr, nullptr, nullptr );
     if ( rc != 0 )
         qDebug () << rc;
     else
@@ -258,9 +278,13 @@ void DiagnosticsView :: run_diagnostics ()
         if ( tree_view -> children () . count () > 0 )
             tree_view -> clear ();
 
-        KDiagnoseTestHandlerSet ( test, diagnose_callback, this );
+        DiagnoseStruct *ds = new DiagnoseStruct ();
+        ds -> self = this;
+        ds -> diagnose = diagnose;
 
-        rc = KDiagnoseAll ( test, 0 );
+        KDiagnoseTestHandlerSet ( diagnose, diagnose_callback, ds );
+
+        rc = KDiagnoseAll ( diagnose, 0 );
         if ( rc != 0 )
            qDebug () << rc;
     }

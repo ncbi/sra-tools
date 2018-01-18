@@ -55,7 +55,6 @@ SOURCES       = ../sra-toolkit/main.cpp \
 		../sra-toolkit/sratoolkitpreferences.cpp \
 		../sra-toolkit/sraworkspace.cpp \
 		../sra-toolkit/diagnostics/diagnosticsview.cpp \
-		../sra-toolkit/diagnostics/diagnosticstreemodel.cpp \
 		../sra-toolkit/diagnostics/diagnosticstest.cpp qrc_resources.cpp \
 		moc_sratoolkit.cpp \
 		moc_sratoolkitpreferences.cpp \
@@ -66,7 +65,6 @@ OBJECTS       = main.o \
 		sratoolkitpreferences.o \
 		sraworkspace.o \
 		diagnosticsview.o \
-		diagnosticstreemodel.o \
 		diagnosticstest.o \
 		qrc_resources.o \
 		moc_sratoolkit.o \
@@ -262,13 +260,11 @@ DIST          = ../../../../Qt/5.9.2/clang_64/mkspecs/features/spec_pre.prf \
 		../sra-toolkit/sratoolkitpreferences.h \
 		../sra-toolkit/sraworkspace.h \
 		../sra-toolkit/diagnostics/diagnosticsview.h \
-		../sra-toolkit/diagnostics/diagnosticstreemodel.h \
 		../sra-toolkit/diagnostics/diagnosticstest.h ../sra-toolkit/main.cpp \
 		../sra-toolkit/sratoolkit.cpp \
 		../sra-toolkit/sratoolkitpreferences.cpp \
 		../sra-toolkit/sraworkspace.cpp \
 		../sra-toolkit/diagnostics/diagnosticsview.cpp \
-		../sra-toolkit/diagnostics/diagnosticstreemodel.cpp \
 		../sra-toolkit/diagnostics/diagnosticstest.cpp
 QMAKE_TARGET  = sra-toolkit
 DESTDIR       = 
@@ -699,8 +695,8 @@ distdir: FORCE
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents ../sra-toolkit/resources.qrc $(DISTDIR)/
 	$(COPY_FILE) --parents ../../../../Qt/5.9.2/clang_64/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents ../sra-toolkit/sratoolkit.h ../sra-toolkit/sratoolkitpreferences.h ../sra-toolkit/sraworkspace.h ../sra-toolkit/diagnostics/diagnosticsview.h ../sra-toolkit/diagnostics/diagnosticstreemodel.h ../sra-toolkit/diagnostics/diagnosticstest.h $(DISTDIR)/
-	$(COPY_FILE) --parents ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkitpreferences.cpp ../sra-toolkit/sraworkspace.cpp ../sra-toolkit/diagnostics/diagnosticsview.cpp ../sra-toolkit/diagnostics/diagnosticstreemodel.cpp ../sra-toolkit/diagnostics/diagnosticstest.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents ../sra-toolkit/sratoolkit.h ../sra-toolkit/sratoolkitpreferences.h ../sra-toolkit/sraworkspace.h ../sra-toolkit/diagnostics/diagnosticsview.h ../sra-toolkit/diagnostics/diagnosticstest.h $(DISTDIR)/
+	$(COPY_FILE) --parents ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkitpreferences.cpp ../sra-toolkit/sraworkspace.cpp ../sra-toolkit/diagnostics/diagnosticsview.cpp ../sra-toolkit/diagnostics/diagnosticstest.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -835,9 +831,6 @@ diagnosticsview.o: ../sra-toolkit/diagnostics/diagnosticsview.cpp ../sra-toolkit
 		../sra-toolkit/diagnostics/diagnosticstest.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTreeWidgetItem \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qtreewidget.h \
-		../sra-toolkit/diagnostics/diagnosticstreemodel.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QAbstractItemModel \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qabstractitemmodel.h \
 		../../../ncbi-vdb/interfaces/klib/rc.h \
 		../../../ncbi-vdb/interfaces/klib/extern.h \
 		../../../ncbi-vdb/interfaces/kfc/extern.h \
@@ -848,11 +841,17 @@ diagnosticsview.o: ../sra-toolkit/diagnostics/diagnosticsview.cpp ../sra-toolkit
 		../../../ncbi-vdb/interfaces/kfc/rc.h \
 		../../../ncbi-vdb/interfaces/diagnose/diagnose.h \
 		../../../ncbi-vdb/interfaces/diagnose/extern.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QAbstractEventDispatcher \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qabstracteventdispatcher.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QApplication \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qapplication.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QHBoxLayout \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qboxlayout.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QVBoxLayout \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QCheckBox \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qcheckbox.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QEventLoop \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qeventloop.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QFile \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qfile.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QGridLayout \
@@ -878,16 +877,6 @@ diagnosticsview.o: ../sra-toolkit/diagnostics/diagnosticsview.cpp ../sra-toolkit
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QDebug \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qdebug.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o diagnosticsview.o ../sra-toolkit/diagnostics/diagnosticsview.cpp
-
-diagnosticstreemodel.o: ../sra-toolkit/diagnostics/diagnosticstreemodel.cpp ../sra-toolkit/diagnostics/diagnosticstest.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTreeWidgetItem \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qtreewidget.h \
-		../sra-toolkit/diagnostics/diagnosticstreemodel.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QAbstractItemModel \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qabstractitemmodel.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QStringList \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qstringlist.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o diagnosticstreemodel.o ../sra-toolkit/diagnostics/diagnosticstreemodel.cpp
 
 diagnosticstest.o: ../sra-toolkit/diagnostics/diagnosticstest.cpp ../sra-toolkit/diagnostics/diagnosticstest.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTreeWidgetItem \

@@ -33,7 +33,6 @@ const QString rsrc_path = ":/";
 DiagnosticsView :: DiagnosticsView ( QWidget *parent )
     : QWidget ( parent )
     , self_layout ( new QVBoxLayout () )
-    //, model ( new DiagnosticsTreeModel () )
 {
     setWindowFlags ( Qt::Window );
     setAttribute ( Qt::WA_DeleteOnClose );

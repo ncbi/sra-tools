@@ -1,8 +1,10 @@
 #include "diagnosticsview.h"
 #include "diagnosticstest.h"
 
-
+#include <kfg/config.h>
+#include <kfg/properties.h>
 #include <klib/rc.h>
+
 #include <diagnose/diagnose.h>
 
 #include <QAbstractEventDispatcher>
@@ -30,10 +32,10 @@
 const QString rsrc_path = ":/";
 
 
-DiagnosticsView :: DiagnosticsView ( QWidget *parent )
+DiagnosticsView :: DiagnosticsView ( KConfig *p_config, QWidget *parent )
     : QWidget ( parent )
     , self_layout ( new QVBoxLayout () )
-    //, model ( new DiagnosticsTreeModel () )
+    , config ( p_config )
 {
     setWindowFlags ( Qt::Window );
     setAttribute ( Qt::WA_DeleteOnClose );
@@ -56,10 +58,23 @@ DiagnosticsView :: ~DiagnosticsView ()
 
 void DiagnosticsView :: setup_view ()
 {
+    // Metadata
     QWidget *metadata = new QWidget ();
     metadata -> setFixedSize ( width () - 40, 120 );
 
+    char buf [ 256 ];
+    rc_t rc = KConfig_Get_Home ( config, buf, sizeof ( buf ), nullptr );
+    if ( rc != 0 )
+        qDebug () << "Failed to get home path";
+    else
+    {
+        QString home = QString ( buf );
+        qDebug () << home;
+    }
+
     self_layout -> addWidget ( metadata );
+    // Metadata
+
 
     QFrame *separator = new QFrame ();
     separator -> setFrameShape ( QFrame::HLine );
@@ -67,6 +82,7 @@ void DiagnosticsView :: setup_view ()
 
     self_layout -> addWidget ( separator );
 
+    // Test view
     tree_view = new QTreeWidget ();
     tree_view -> setFixedWidth ( width () - 40 );
     tree_view -> setSelectionMode ( QAbstractItemView::NoSelection );
@@ -83,6 +99,7 @@ void DiagnosticsView :: setup_view ()
 
     self_layout -> addWidget ( run );
     self_layout -> setAlignment ( run, Qt::AlignRight );
+    // Test view
 }
 
 static
@@ -113,7 +130,6 @@ void CC diagnose_callback ( EKDiagTestState state, const KDiagnoseTest *diagnose
 void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
 {
     QAbstractEventDispatcher *dispatch = QApplication::eventDispatcher();
-    testList . append ( test );
 
     switch ( test -> getState () )
     {

@@ -5,6 +5,8 @@
 
 class DiagnosticsView;
 
+struct KConfig;
+
 class SRAToolkit : public QMainWindow
 {
     Q_OBJECT
@@ -22,6 +24,8 @@ private:
     void setup_menubar ();
 
     DiagnosticsView *diagnostics;
+
+    KConfig *config;
 };
 
 #endif // SRATOOLKIT_H

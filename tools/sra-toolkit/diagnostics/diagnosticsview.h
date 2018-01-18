@@ -9,14 +9,16 @@ class QTreeWidget;
 class QTreeWidgetItem;
 QT_END_NAMESPACE
 
+struct KConfig;
 struct KDiagnoseTest;
 class DiagnosticsTest;
+
 
 class DiagnosticsView : public QWidget
 {
     Q_OBJECT
 public:
-    explicit DiagnosticsView(QWidget *parent = 0);
+    explicit DiagnosticsView( KConfig *p_config, QWidget *parent = 0);
     ~DiagnosticsView ();
 
 signals:
@@ -36,8 +38,10 @@ private:
     QVBoxLayout *self_layout;
 
     QTreeWidget *tree_view;
-    QList < DiagnosticsTest * > testList;
     QTreeWidgetItem *currentTest;
+
+    // Data
+    const KConfig *config;
 };
 
 #endif // DIAGNOSTICSVIEW_H

@@ -1,5 +1,6 @@
 #include "diagnosticsview.h"
 #include "diagnosticstest.h"
+#include "diagnosticsthread.h"
 
 #include <kfg/config.h>
 #include <kfg/properties.h>
@@ -11,21 +12,12 @@
 #include <QApplication>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
-#include <QCheckBox>
-#include <QEventLoop>
-#include <QFile>
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QHeaderView>
 #include <QLabel>
 #include <QPushButton>
-#include <QTableWidget>
-#include <QTableWidgetItem>
-#include <QTimer>
+#include <QThread>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
-#include <QStringList>
-#include <QVector>
+
 
 #include <QDebug>
 
@@ -36,7 +28,6 @@ DiagnosticsView :: DiagnosticsView ( KConfig *p_config, QWidget *parent )
     : QWidget ( parent )
     , self_layout ( new QVBoxLayout () )
     , config ( p_config )
-    , diagnose ( 0 )
 {
     setWindowFlags ( Qt::Window );
     setAttribute ( Qt::WA_DeleteOnClose );
@@ -101,49 +92,6 @@ void DiagnosticsView :: setup_view ()
     self_layout -> addWidget ( run );
     self_layout -> setAlignment ( run, Qt::AlignRight );
     // Test view
-}
-
-static
-void CC diagnose_callback ( EKDiagTestState state, const KDiagnoseTest *diagnose_test, void *data )
-{
-    const char *name;
-
-    DiagnoseStruct *ds = static_cast <DiagnoseStruct *> ( data );
-
-    rc_t rc = KDiagnoseTestName ( diagnose_test, &name );
-    if ( rc ==  0 )
-    {
-        uint32_t test_level = 0;
-
-        rc = KDiagnoseTestLevel ( diagnose_test, &test_level );
-        if ( rc == 0 )
-        {
-            DiagnosticsTest *test = new DiagnosticsTest ( QString ( name ) );
-            test -> setLevel ( test_level );
-            test -> setState ( state );
-
-/*
-            const KDiagnoseTestDesc *desc;
-            rc = KDiagnoseGetDesc ( ds -> diagnose, &desc );
-            if ( rc != 0 )
-                qDebug () << "Failed to get test description object for test: " << QString ( name );
-            else
-            {
-                const char *buf;
-                rc = KDiagnoseTestDescDesc ( desc, &buf );
-                if ( rc != 0 )
-                    qDebug () << "failed to get description for test: " << QString ( name );
-                else
-                   // test -> setDescription ( QString ( buf ) );
-                    qDebug () << QString ( buf );
-            }
-*/
-
-           // DiagnosticsView *self = static_cast <DiagnosticsView *> (data);
-
-            ds -> self -> handle_callback ( test );
-        }
-    }
 }
 
 void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
@@ -268,26 +216,19 @@ void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
 
 void DiagnosticsView :: run_diagnostics ()
 {
-    rc_t rc = 0;
+    if ( tree_view -> children () . count () > 0 )
+        tree_view -> clear ();
 
-    rc = KDiagnoseMakeExt ( &diagnose, nullptr, nullptr, nullptr );
-    if ( rc != 0 )
-        qDebug () << rc;
-    else
-    {
-        if ( tree_view -> children () . count () > 0 )
-            tree_view -> clear ();
+    QThread *thread = new QThread;
+    DiagnosticsThread *worker = new DiagnosticsThread ();
+    worker -> moveToThread ( thread );
 
-        DiagnoseStruct *ds = new DiagnoseStruct ();
-        ds -> self = this;
-        ds -> diagnose = diagnose;
+    connect ( thread, SIGNAL ( started () ), worker, SLOT ( begin() ) );
+    connect ( worker, SIGNAL ( handle ( DiagnosticsTest* ) ), this, SLOT ( handle_callback ( DiagnosticsTest * ) ) );
+    connect ( worker, SIGNAL ( finished () ), worker, SLOT ( deleteLater () ) );
+    connect ( thread, SIGNAL ( finished () ), thread, SLOT ( deleteLater () ) );
 
-        KDiagnoseTestHandlerSet ( diagnose, diagnose_callback, ds );
-
-        rc = KDiagnoseAll ( diagnose, 0 );
-        if ( rc != 0 )
-           qDebug () << rc;
-    }
+    thread -> start ();
 }
 
 

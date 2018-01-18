@@ -43,13 +43,6 @@ private:
 
     // Data
     const KConfig *config;
-    KDiagnose *diagnose;
-};
-
-struct DiagnoseStruct
-{
-    DiagnosticsView *self;
-    const KDiagnose *diagnose;
 };
 
 #endif // DIAGNOSTICSVIEW_H

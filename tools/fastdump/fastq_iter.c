@@ -29,6 +29,53 @@
 
 #include <klib/data-buffer.h>
 
+static void init_qual_to_ascii( char * q2a, size_t size )
+{
+    uint32_t idx;
+    memset( q2a, '~', size );
+    for ( idx = 0; idx < 256; idx++ )
+    {
+        q2a[ idx ] = idx + 33;
+        if ( q2a[ idx ] == '~' )
+        {
+            break;
+        }
+    }
+}
+
+static rc_t read_bounded_quality( struct cmn_iter * cmn,
+                                  uint32_t col_id,
+                                  KDataBuffer * qual_buffer,
+                                  char * q2a,
+                                  String * quality )
+{
+    uint8_t * qual_values = NULL;
+    uint32_t num_qual = 0;
+    rc_t rc = cmn_read_uint8_array( cmn, col_id, &qual_values, &num_qual );
+    if ( rc == 0 && num_qual > 0 && qual_values != NULL )
+    { 
+        if ( num_qual > qual_buffer -> elem_count )
+            rc = KDataBufferResize ( qual_buffer, num_qual );
+        if ( rc == 0 )
+        {
+            uint32_t idx;
+            uint8_t * b = qual_buffer -> base;
+            for ( idx = 0; idx < num_qual; idx++ )
+                b[ idx ] = q2a[ qual_values[ idx ] ];
+            quality -> addr = qual_buffer -> base;
+            quality -> len  = num_qual;
+            quality -> size = num_qual;
+        }
+    }
+    if ( rc != 0 )
+    {
+        quality -> len = 0;
+        quality -> size = 0;
+        rc = 0;
+    }
+    return rc;
+}
+
 typedef struct fastq_csra_iter
 {
     struct cmn_iter * cmn; /* cmn_iter.h */
@@ -101,19 +148,8 @@ rc_t make_fastq_csra_iter( const cmn_params * params,
                 rc = cmn_iter_range( self -> cmn, self -> prim_alig_id ); /* cmn_iter.h */
                 
             if ( rc == 0 )
-            {
-                uint32_t idx;
-                memset( self -> qual_2_ascii, '~', sizeof( self -> qual_2_ascii) );
-                for ( idx = 0; idx < 256; idx++ )
-                {
-                    self -> qual_2_ascii[ idx ] = idx + 33;
-                    if ( self -> qual_2_ascii[ idx ] == '~' )
-                    {
-                        break;
-                    }
-                }
-            
-            }
+                init_qual_to_ascii( &( self -> qual_2_ascii[ 0 ] ), sizeof( self -> qual_2_ascii ) );
+
         }
         if ( rc != 0 )
             destroy_fastq_csra_iter( self ); /* above */
@@ -139,32 +175,10 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
             rc1 = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
         
         if ( rc1 == 0 )
-        {
-            uint8_t * qual_values = NULL;
-            uint32_t num_qual = 0;
-            rc1 = cmn_read_uint8_array( self -> cmn, self -> quality_id, &qual_values, &num_qual );
-            if ( rc1 == 0 && num_qual > 0 && qual_values != NULL )
-            {
-                if ( num_qual > self -> qual_buffer . elem_count )
-                    rc1 = KDataBufferResize ( & self -> qual_buffer, num_qual );
-                if ( rc1 == 0 )
-                {
-                    uint32_t idx;
-                    uint8_t * b = self -> qual_buffer . base;
-                    for ( idx = 0; idx < num_qual; idx++ )
-                        b[ idx ] = self -> qual_2_ascii[ qual_values[ idx ] ];
-                    rec -> quality . addr = self -> qual_buffer. base;
-                    rec -> quality . len  = num_qual;
-                    rec -> quality . size = num_qual;
-                }
-            }
-            if ( rc1 != 0 )
-            {
-                rec -> quality . len = 0;
-                rec -> quality . size = 0;
-                rc1 = 0;
-            }
-        }
+            rc1 = read_bounded_quality( self -> cmn, self -> quality_id,
+                                        &( self -> qual_buffer ),
+                                        &( self -> qual_2_ascii[ 0 ] ),
+                                        &( rec ->quality ) );
         
         if ( rc1 == 0 )
         {
@@ -199,7 +213,9 @@ typedef struct fastq_sra_iter
 {
     struct cmn_iter * cmn;
     fastq_iter_opt opt;
+    KDataBuffer qual_buffer;  /* klib/databuffer.h */
     uint32_t name_id, read_id, quality_id, read_len_id, read_type_id;
+    char qual_2_ascii[ 256 ];
 } fastq_sra_iter;
 
 
@@ -208,6 +224,8 @@ void destroy_fastq_sra_iter( struct fastq_sra_iter * self )
     if ( self != NULL )
     {
         destroy_cmn_iter( self -> cmn );
+        if ( self -> qual_buffer . base != NULL )
+            KDataBufferWhack( &self -> qual_buffer );
         free( ( void * ) self );
     }
 }
@@ -226,31 +244,43 @@ rc_t make_fastq_sra_iter( const cmn_params * params,
     }
     else
     {
-        self -> opt = opt;
-        rc = make_cmn_iter( params, tbl_name, &( self -> cmn ) );
-
-        if ( rc == 0 && opt . with_name )
-            rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) );
-
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) );
-
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( self -> cmn, "(INSDC:quality:text:phred_33)QUALITY", &( self -> quality_id ) );
-
-        if ( rc == 0 && opt . with_read_len )
-            rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) );
-            
-        if ( rc == 0 && opt . with_read_type )
-            rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) );
-
-        if ( rc == 0 )
-            rc = cmn_iter_range( self -> cmn, self -> read_id );
-            
+        rc = KDataBufferMakeBytes( &self -> qual_buffer, 4096 );
         if ( rc != 0 )
-            destroy_fastq_sra_iter( self );
+        {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            ErrMsg( "make_fastq_csra_iter.KDataBufferMakeBytes() -> %R", rc );
+        }
         else
-            *iter = self;
+        {
+            self -> opt = opt;
+            rc = make_cmn_iter( params, tbl_name, &( self -> cmn ) );
+
+            if ( rc == 0 && opt . with_name )
+                rc = cmn_iter_add_column( self -> cmn, "NAME", &( self -> name_id ) );
+
+            if ( rc == 0 )
+                rc = cmn_iter_add_column( self -> cmn, "READ", &( self -> read_id ) );
+
+            if ( rc == 0 )
+                rc = cmn_iter_add_column( self -> cmn, "QUALITY", &( self -> quality_id ) );
+
+            if ( rc == 0 && opt . with_read_len )
+                rc = cmn_iter_add_column( self -> cmn, "READ_LEN", &( self -> read_len_id ) );
+                
+            if ( rc == 0 && opt . with_read_type )
+                rc = cmn_iter_add_column( self -> cmn, "READ_TYPE", &( self -> read_type_id ) );
+
+            if ( rc == 0 )
+                rc = cmn_iter_range( self -> cmn, self -> read_id );
+
+            if ( rc == 0 )
+                init_qual_to_ascii( &( self -> qual_2_ascii[ 0 ] ), sizeof( self -> qual_2_ascii ) );
+
+            if ( rc != 0 )
+                destroy_fastq_sra_iter( self );
+            else
+                *iter = self;
+        }
     }
     return rc;
 }
@@ -271,7 +301,10 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
             rc1 = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
             
         if ( rc1 == 0 )
-            rc1 = cmn_read_String( self -> cmn, self -> quality_id, &( rec -> quality ) );
+            rc1 = read_bounded_quality( self -> cmn, self -> quality_id,
+                                        &( self -> qual_buffer ),
+                                        &( self -> qual_2_ascii[ 0 ] ),
+                                        &( rec ->quality ) );
         
         if ( rc1 == 0 )
         {

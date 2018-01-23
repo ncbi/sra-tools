@@ -89,7 +89,7 @@ static rc_t init_multi_producer( lookup_producer * self,
 {
     rc_t rc = KVectorMake( &self -> store );
     if ( rc != 0 )
-        ErrMsg( "KVectorMake() -> %R", rc );
+        ErrMsg( "sorter.c init_multi_producer().KVectorMake() -> %R", rc );
     else
     {
         rc = make_SBuffer( &( self -> buf ), 4096 ); /* helper.c */
@@ -134,7 +134,7 @@ static rc_t push_store_to_merger( lookup_producer * self, bool last )
             {
                 rc = KVectorMake( &self -> store );
                 if ( rc != 0 )
-                    ErrMsg( "KVectorMake() -> %R", rc );
+                    ErrMsg( "sorter.c push_store_to_merger().KVectorMake() -> %R", rc );
             }
         }
     }
@@ -148,18 +148,18 @@ static rc_t write_to_store( lookup_producer * self,
     /* we write it to the store...*/
     rc_t rc = pack_4na( unpacked_bases, &( self -> buf ) ); /* helper.c */
     if ( rc != 0 )
-        ErrMsg( "sorter.c write_to_store() pack_4na() failed %R", rc );
+        ErrMsg( "sorter.c write_to_store().pack_4na() failed %R", rc );
     else
     {
         const String * to_store;
         rc = StringCopy( &to_store, &( self -> buf . S ) );
         if ( rc != 0 )
-            ErrMsg( "StringCopy() -> %R", rc );
+            ErrMsg( "sorter.c write_to_store().StringCopy() -> %R", rc );
         else
         {
             rc = KVectorSetPtr( self -> store, key, ( const void * )to_store );
             if ( rc != 0 )
-                ErrMsg( "KVectorSetPtr() -> %R", rc );
+                ErrMsg( "sorter.c write_to_store().KVectorSetPtr() -> %R", rc );
             else
             {
                 size_t item_size = ( sizeof key ) + ( sizeof *to_store ) + to_store -> size;
@@ -248,7 +248,7 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
     if ( total_row_count == 0 )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-        ErrMsg( "multi_threaded_make_lookup: row_count == 0!" );
+        ErrMsg( "sorter.c run_producer_pool(): row_count == 0!" );
     }
     else
     {
@@ -285,12 +285,12 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
                     KThread * thread;
                     rc = KThreadMake( &thread, producer_thread_func, producer );
                     if ( rc != 0 )
-                        ErrMsg( "KThreadMake( sort-thread #%d ) -> %R", chunk_id - 1, rc );
+                        ErrMsg( "sorter.c run_producer_pool().KThreadMake( sort-thread #%d ) -> %R", chunk_id - 1, rc );
                     else
                     {
                         rc = VectorAppend( &threads, NULL, thread );
                         if ( rc != 0 )
-                            ErrMsg( "VectorAppend( sort-thread #%d ) -> %R", chunk_id - 1, rc );
+                            ErrMsg( "sorter.c run_producer_pool().VectorAppend( sort-thread #%d ) -> %R", chunk_id - 1, rc );
                         else
                         {
                             row  += rows_per_thread;
@@ -308,7 +308,7 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
         /* collect all the sorter-threads */
         rc = join_and_release_threads( &threads ); /* helper.c */
         if ( rc != 0 )
-            ErrMsg( "sorter.c run_producer_pool() -> %R", rc );
+            ErrMsg( "sorter.c run_producer_pool().join_and_release_threads -> %R", rc );
         
         /* all sorter-threads are done now, tell the progress-thread to terminate! */
         bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/

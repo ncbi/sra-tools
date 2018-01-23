@@ -178,7 +178,7 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
             rc1 = read_bounded_quality( self -> cmn, self -> quality_id,
                                         &( self -> qual_buffer ),
                                         &( self -> qual_2_ascii[ 0 ] ),
-                                        &( rec ->quality ) );
+                                        &( rec -> quality ) );
         
         if ( rc1 == 0 )
         {

@@ -37,13 +37,16 @@ static bool filter1( join_stats * stats,
                      const fastq_rec * rec,
                      const join_options * jo )
 {
-    bool process = true;
-    if ( process && ( jo -> min_read_len > 0 ) )
-    {
+    bool process;
+    
+    if ( jo -> min_read_len > 0 )
         process = ( rec -> read . len >= jo -> min_read_len );
-        if ( !process )
-            stats -> fragments_too_short++;
-    }
+    else
+        process = ( rec -> read . len > 0 );
+
+    if ( !process )
+        stats -> fragments_too_short++;
+
     return process;
 }
 
@@ -59,9 +62,13 @@ static bool filter( join_stats * stats,
         if ( !process )
             stats -> fragments_technical++;
     }
-    if ( process && ( jo -> min_read_len > 0 ) )
+    
+    if ( process )
     {
-        process = ( rec -> read_len[ read_id_0 ] >= jo -> min_read_len );
+        if ( jo -> min_read_len > 0 )
+            process = ( rec -> read_len[ read_id_0 ] >= jo -> min_read_len );
+        else
+            process = ( rec -> read_len[ read_id_0 ] > 0 );        
         if ( !process )
             stats -> fragments_too_short++;
     }

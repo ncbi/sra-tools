@@ -127,7 +127,7 @@ static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
         rc = TimeoutInit ( &tm, self -> q_wait_time );
         if ( rc != 0 )
         {
-            ErrMsg( "copy_this_file.TimeoutInit( %lu ms ) -> %R", self -> q_wait_time, rc );
+            ErrMsg( "copy_machine.c copy_this_file().TimeoutInit( %lu ms ) -> %R", self -> q_wait_time, rc );
         }
         else
         {
@@ -138,7 +138,7 @@ static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
                 block -> available = 0;
                 rc = KFileRead( src, src_pos, block -> buffer, self -> buf_size, &num_read );
                 if ( rc != 0 )
-                    ErrMsg( "copy_this_file.KFileRead( at %lu ) -> %R", src_pos, rc );
+                    ErrMsg( "copy_machine.c copy_this_file().KFileRead( at %lu ) -> %R", src_pos, rc );
                 else if ( num_read > 0 )
                 {
                     /* we have data for the writer-thread */
@@ -167,7 +167,7 @@ static rc_t copy_this_file( copy_machine * self, const struct KFile * src )
             else
             {
                 /* something else is wrong with the empty-q */
-                ErrMsg( "copy_this_file.KQueuePop( empty-q ) -> %R", rc );
+                ErrMsg( "copy_machine.c copy_this_file().KQueuePop( empty-q ) -> %R", rc );
             }
         }
     }
@@ -179,7 +179,7 @@ static rc_t run_copy_machine( copy_machine * self )
     uint32_t file_count;
     rc_t rc = VNameListCount( self -> sources, &file_count );
     if ( rc != 0 )
-        ErrMsg( "run_copy_machine.VNameListCount( sources ) -> %R", rc );
+        ErrMsg( "copy_machine.c run_copy_machine().VNameListCount( sources ) -> %R", rc );
     else
     {
         uint32_t idx;
@@ -188,21 +188,21 @@ static rc_t run_copy_machine( copy_machine * self )
             const char * filename = NULL;
             rc = VNameListGet( self -> sources, idx, &filename );
             if ( rc != 0 )
-                ErrMsg( "run_copy_machine.VNameListGet( %u ) -> %R", idx, rc );    
+                ErrMsg( "copy_machine.c run_copy_machine().VNameListGet( %u ) -> %R", idx, rc );    
             else
             {
                 const struct KFile * src;
-                rc = make_buffered_for_read( self -> dir, &src, filename, self -> buf_size );
+                rc = make_buffered_for_read( self -> dir, &src, filename, self -> buf_size ); /* helper.c */
                 if ( rc == 0 )
                 {
-                    rc = copy_this_file( self, src );
+                    rc = copy_this_file( self, src ); /* above */
                     KFileRelease( src );
                 }
                 if ( rc == 0 )
                 {
                     rc = KDirectoryRemove( self -> dir, true, "%s", filename );
                     if ( rc != 0 )
-                        ErrMsg( "run_copy_machine.KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                        ErrMsg( "copy_machine.c run_copy_machine().KDirectoryRemove( '%s' ) -> %R", filename, rc );
                 }
             }
         }
@@ -289,7 +289,7 @@ rc_t make_a_copy( KDirectory * dir,
     if ( dst == NULL || buf_size == 0 || sources == NULL )
     {
         rc = RC( rcExe, rcFile, rcPacking, rcParam, rcInvalid );
-        ErrMsg( "init_copy_machine() -> %R", rc );
+        ErrMsg( "copy_machine.c make_a_copy() -> %R", rc );
     }
     else
     {
@@ -318,26 +318,26 @@ rc_t make_a_copy( KDirectory * dir,
             if ( cm . blocks[ i ] . buffer == NULL )
             {
                 rc = RC( rcExe, rcFile, rcPacking, rcMemory, rcExhausted );
-                ErrMsg( "init_copy_machine.malloc( %d ) -> %R", buf_size, rc );
+                ErrMsg( "copy_machine.c make_a_copy().malloc( %d ) -> %R", buf_size, rc );
             }
         }
         if ( rc == 0 )
         {
             rc = KQueueMake ( &( cm . empty_q ), N_COPY_MACHINE_BLOCKS );
             if ( rc != 0 )
-                ErrMsg( "init_copy_machine.KQueueMake( empty_q ) -> %R", rc );
+                ErrMsg( "copy_machine.c make_a_copy().KQueueMake( empty_q ) -> %R", rc );
         }
         if ( rc == 0 )
         {
             rc = KQueueMake ( &( cm . to_write_q ), N_COPY_MACHINE_BLOCKS );
             if ( rc != 0 )
-                ErrMsg( "init_copy_machine.KQueueMake( to_write_q ) -> %R", rc );
+                ErrMsg( "copy_machine.c make_a_copy().KQueueMake( to_write_q ) -> %R", rc );
         }
         for ( i = 0; rc == 0 && i < N_COPY_MACHINE_BLOCKS; ++i )
         {
             rc = push2q ( cm . empty_q, &( cm . blocks[ i ] ), q_wait_time );
             if ( rc != 0 )
-                ErrMsg( "init_copy_machine.KQueuePush( empty_q ) -> %R", rc );
+                ErrMsg( "copy_machine.c make_a_copy().KQueuePush( empty_q ) -> %R", rc );
         }
 
         /* create a writer-thread */
@@ -345,15 +345,15 @@ rc_t make_a_copy( KDirectory * dir,
         {
             rc = KThreadMake( &( cm . thread ), copy_machine_writer_thread, &cm );
             if ( rc != 0 )
-                ErrMsg( "init_copy_machine.KThreadMake( writer-thread ) -> %R", rc );
+                ErrMsg( "copy_machine.c make_a_copy().KThreadMake( writer-thread ) -> %R", rc );
         }
         
         /* read the data on the current thread */
         if ( rc == 0 )
-            rc = run_copy_machine( &cm );
+            rc = run_copy_machine( &cm ); /* above */
 
         {
-            rc_t rc1 = destroy_copy_machine( &cm );
+            rc_t rc1 = destroy_copy_machine( &cm ); /* above */
             if ( rc == 0 ) rc = rc1;
         }
     }

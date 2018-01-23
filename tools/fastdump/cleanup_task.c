@@ -54,7 +54,7 @@ static rc_t KFastDumpCleanupTask_Execute( KFastDumpCleanupTask * self )
     KDirectory * dir;
     rc_t rc = KDirectoryNativeDir( &dir );
     if ( rc != 0 )
-        ErrMsg( "KDirectoryNativeDir() -> %R", rc );
+        ErrMsg( "cleanup_task.c KFastDumpCleanupTask_Execute().KDirectoryNativeDir() -> %R", rc );
     else
     {
         rc = locked_file_list_delete_all( dir, &self -> to_clean );
@@ -79,7 +79,7 @@ static rc_t add_to_proc_mgr_cleanup( KFastDumpCleanupTask * task )
     struct KProcMgr * proc_mgr;
     rc_t rc = KProcMgrMakeSingleton ( &proc_mgr );
     if ( rc != 0 )
-        ErrMsg( "cannot access process-manager" );
+        ErrMsg( "cleanup_task.c add_to_proc_mgr_cleanup(): cannot access process-manager" );
     else
     {
         rc = KProcMgrAddCleanupTask ( proc_mgr, &( task -> ticket ), ( KTask * )task );
@@ -138,7 +138,7 @@ rc_t Terminate_Cleanup_Task ( struct KFastDumpCleanupTask * self )
         struct KProcMgr * proc_mgr;
         rc = KProcMgrMakeSingleton ( &proc_mgr );
         if ( rc != 0 )
-            ErrMsg( "cannot access process-manager" );
+            ErrMsg( "cleanup_task.c Terminate_Cleanup_Task(): cannot access process-manager" );
         else
         {
             rc = KProcMgrRemoveCleanupTask ( proc_mgr, &( self -> ticket ) );

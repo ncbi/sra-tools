@@ -275,6 +275,9 @@ rc_t wait_for_and_release_background_vector_merger( background_vector_merger * s
         }
         release_background_vector_merger( self );
     }
+    
+    if ( rc != 0 )
+        ErrMsg( "merge_sorter.c wait_for_and_release_background_vector_merger()", rc );
     return rc;
 }
 
@@ -571,12 +574,44 @@ void tell_total_rowcount_to_vector_merger( background_vector_merger * self, uint
 
 rc_t seal_background_vector_merger( background_vector_merger * self )
 {
-    return KQueueSeal ( self -> job_q );
+    rc_t rc = KQueueSeal ( self -> job_q );
+    if ( rc != 0 )
+        ErrMsg( "merge_sorter.c seal_background_vector_merger() -> %R", rc );
+    return rc;
 }
 
 rc_t push_to_background_vector_merger( background_vector_merger * self, KVector * store )
 {
-    return KQueuePush ( self -> job_q, store, NULL ); /* this might block! */
+    rc_t rc;
+    bool running = true;
+    while ( running )
+    {
+        struct timeout_t tm;
+        rc = TimeoutInit ( &tm, self -> q_wait_time );
+        if ( rc != 0 )
+        {
+            ErrMsg( "merge_sorter.c push_to_background_vector_merger().TimeoutInit( %u ) -> %R", self -> q_wait_time, rc );
+            running = false;
+        }
+        else
+        {
+            rc = KQueuePush ( self -> job_q, store, &tm );
+            if ( rc == 0 )
+                running = false;
+            else
+            {
+                bool timed_out = ( GetRCState( rc ) == rcExhausted && GetRCObject( rc ) == ( enum RCObject )rcTimeout );
+                if ( timed_out )
+                    KSleepMs( self -> q_wait_time );   
+                else
+                {
+                    ErrMsg( "merge_sorter.c push_to_background_vector_merger().KQueuePush() -> %R", rc );
+                    running = false;
+                }
+            }
+        }
+    }
+    return rc;
 }
 
 /* =================================================================================
@@ -712,10 +747,6 @@ static rc_t process_background_file_merger( background_file_merger * self )
                 if ( rc == 0 )
                 {
                     rc = run_merge_sorter( &sorter );
-                    /*
-                    if ( rc == 0 )
-                        self -> total_rows += sorter . total_entries;
-                    */
                     release_merge_sorter( &sorter );
                 }
             }

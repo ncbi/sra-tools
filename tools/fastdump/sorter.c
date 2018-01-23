@@ -307,7 +307,8 @@ static rc_t run_producer_pool( cmn_params * cmn, /* helper.h */
 
         /* collect all the sorter-threads */
         rc = join_and_release_threads( &threads ); /* helper.c */
-        
+        if ( rc != 0 )
+            ErrMsg( "sorter.c run_producer_pool() -> %R", rc );
         
         /* all sorter-threads are done now, tell the progress-thread to terminate! */
         bg_progress_release( progress ); /* progress_thread.c ( ignores NULL )*/
@@ -354,5 +355,9 @@ rc_t execute_lookup_production( KDirectory * dir,
        queue any more... */
     if ( rc == 0 && merger != NULL )
         rc = seal_background_vector_merger( merger ); /* merge_sorter.c */
+        
+    if ( rc != 0 )
+        ErrMsg( "sorter.c execute_lookup_production() -> %R", rc );
+
     return rc;
 }

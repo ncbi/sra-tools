@@ -632,6 +632,9 @@ static rc_t produce_lookup_files( tool_ctx_t * tool_ctx )
 
     bg_update_release( gap );
 
+    if ( rc != 0 )
+        ErrMsg( "fasterq-dump.c produce_lookup_files() -> %R", rc );
+        
     return rc;
 }
 

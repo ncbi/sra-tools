@@ -49,7 +49,7 @@ typedef struct raw_read_rec
 {
     uint64_t seq_spot_id;
     uint32_t seq_read_id;
-    String raw_read;
+    String read;
 } raw_read_rec;
 
 void destroy_raw_read_iter( struct raw_read_iter * iter );

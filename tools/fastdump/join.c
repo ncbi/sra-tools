@@ -36,7 +36,7 @@
 
 #include <klib/out.h>
 #include <kproc/thread.h>
-#include <insdc/insdc.h>
+#include <insdc/insdc.h> /* for READ_TYPE_BIOLOGICAL, READ_TYPE_REVERSE */
 
 typedef struct join
 {
@@ -129,7 +129,8 @@ static rc_t print_special_1_read( special_rec * rec, join * j )
     else
     {
         /* read is aligned ( 1 lookup ) */
-        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
+        bool reverse = false;
+        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
         if ( rc == 0 )
             rc = join_results_print( j -> results, 0, "%ld\t%S\t%S\n",
                              row_id, &( j -> B1.S ), &( rec -> spot_group ) ); /* join_results.c */
@@ -154,7 +155,8 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
         else
         {
             /* A0 is unaligned / A1 is aligned (lookup) */
-            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) ); /* lookup_reader.c */
+            bool reverse = false;
+            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
             if ( rc == 0 )
                 rc = join_results_print( j -> results, 0, "%ld\t%S%S\t%S\n",
                                  row_id, &( rec -> cmp_read ), &( j -> B2 . S ), &( rec -> spot_group ) ); /* join_results.c */
@@ -165,7 +167,8 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
         if ( rec -> prim_alig_id[ 1 ] == 0 )
         {
             /* A0 is aligned (lookup) / A1 is unaligned */
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
+            bool reverse = false;
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
             if ( rc == 0 )
                 rc = join_results_print( j -> results, 0, "%ld\t%S%S\t%S\n",
                                  row_id, &j->B1.S, &rec->cmp_read, &rec->spot_group ); /* join_results.c */
@@ -173,15 +176,25 @@ static rc_t print_special_2_reads( special_rec * rec, join * j )
         else
         {
             /* A0 and A1 are aligned (2 lookups)*/
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
+            bool reverse1 = false;
+            bool reverse2 = false;
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse1 ); /* lookup_reader.c */
             if ( rc == 0 )
-                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) ); /* lookup_reader.c */
+                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
             if ( rc == 0 )
                 rc = join_results_print( j -> results, 0, "%ld\t%S%S\t%S\n",
                                  row_id, &( j -> B1 . S ), &( j -> B2 . S ), &( rec -> spot_group ) ); /* join_results.c */
         }
     }
     return rc;
+}
+
+static bool is_reverse( const fastq_rec * rec, uint32_t read_id_0 )
+{
+    bool res = false;
+    if ( rec -> num_read_type > read_id_0 )
+        res = ( ( rec -> read_type[ read_id_0 ] & READ_TYPE_REVERSE ) == READ_TYPE_REVERSE );
+    return res;
 }
 
 static bool filter( join_stats * stats,
@@ -220,7 +233,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
     if ( rec -> prim_alig_id[ 0 ] == 0 )
     {
         /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
-        if ( join_results_match( j -> results, &( rec -> read ) ) )
+        if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
         {
             rc = join_results_print_fastq_v1( j -> results,
                                               row_id,
@@ -236,10 +249,11 @@ static rc_t print_fastq_1_read( join_stats * stats,
     else
     {
         /* read is aligned, ( 1 lookup ) */    
-        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
+        bool reverse = is_reverse( rec, 0 );
+        rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
         if ( rc == 0 )
         {
-            if ( join_results_match( j -> results, &( j -> B1 . S ) ) )
+            if ( join_results_match( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
             {
                 rc = join_results_print_fastq_v1( j -> results,
                                                   row_id,
@@ -272,7 +286,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
         if ( rec -> prim_alig_id[ 1 ] == 0 )
         {
             /* both unaligned, print what is in row->read (no lookup)*/        
-            if ( join_results_match( j -> results, &( rec -> read ) ) )
+            if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
             {
                 rc = join_results_print_fastq_v1( j -> results,
                                                   row_id,
@@ -288,10 +302,11 @@ static rc_t print_fastq_2_reads( join_stats * stats,
         else
         {
             /* A0 is unaligned / A1 is aligned (lookup) */
-            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) ); /* lookup_reader.c */
+            bool reverse = is_reverse( rec, 1 );
+            rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse ); /* lookup_reader.c */
             if ( rc == 0 )
             {
-                if ( join_results_match2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) )
+                if ( join_results_match2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
@@ -312,10 +327,11 @@ static rc_t print_fastq_2_reads( join_stats * stats,
         if ( rec -> prim_alig_id[ 1 ] == 0 )
         {
             /* A0 is aligned (lookup) / A1 is unaligned */
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
+            bool reverse = is_reverse( rec, 0 );
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse ); /* lookup_reader.c */
             if ( rc == 0 )
             {
-                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) )
+                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
@@ -333,12 +349,14 @@ static rc_t print_fastq_2_reads( join_stats * stats,
         else
         {
             /* A0 and A1 are aligned (2 lookups)*/
-            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ) ); /* lookup_reader.c */
+            bool reverse1 = is_reverse( rec, 0 );
+            bool reverse2 = is_reverse( rec, 1 );
+            rc = lookup_bases( j -> lookup, row_id, 1, &( j -> B1 ), reverse1 ); /* lookup_reader.c */
             if ( rc == 0 )
-                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ) ); /* lookup_reader.c */
+                rc = lookup_bases( j -> lookup, row_id, 2, &( j -> B2 ), reverse2 ); /* lookup_reader.c */
             if ( rc == 0 )
             {
-                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) )
+                if ( join_results_match2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
@@ -396,7 +414,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 READ . addr = rec -> read . addr;
                 READ . size = rec -> read_len[ 0 ];
                 READ . len = ( uint32_t )READ . size;
-                if ( join_results_match( j -> results, &READ ) )
+                if ( join_results_match( j -> results, &READ ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -416,7 +434,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 READ . len = ( uint32_t )READ . size;
                 if ( split_file )
                     dst_id++;
-                if ( join_results_match( j -> results, &READ ) )
+                if ( join_results_match( j -> results, &READ ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -435,7 +453,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             /* A0 is unaligned / A1 is aligned (lookup) */
             if ( process_0 )
             {
-                if ( join_results_match( j -> results, &( rec -> read ) ) )
+                if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -450,12 +468,13 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             }
             if ( rc == 0 && process_1 )
             {
-                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2 ); /* lookup_reader.c */
+                bool reverse = is_reverse( rec, 1 );
+                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2, reverse ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
                     if ( split_file )
                         dst_id++;
-                    if ( join_results_match( j -> results, &( j -> B2 . S ) ) )
+                    if ( join_results_match( j -> results, &( j -> B2 . S ) ) ) /* join-results.c */
                     {
                         rc = join_results_print_fastq_v1( j -> results,
                                                           row_id,
@@ -478,10 +497,11 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             /* A0 is aligned (lookup) / A1 is unaligned */
             if ( process_0 )
             {
-                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 ); /* lookup_reader.c */
+                bool reverse = is_reverse( rec, 0 );
+                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1, reverse ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
-                    if ( join_results_match( j -> results, &( j -> B1 . S ) ) )
+                    if ( join_results_match( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
                     {
                         rc = join_results_print_fastq_v1( j -> results,
                                                           row_id,
@@ -499,7 +519,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             {
                 if ( split_file )
                     dst_id++;
-                if ( join_results_match( j -> results, &( rec -> read ) ) )
+                if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
@@ -518,10 +538,11 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             /* A0 and A1 are aligned (2 lookups)*/
             if ( process_0 )
             {
-                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1 ); /* lookup_reader.c */
+                bool reverse = is_reverse( rec, 0 );
+                rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1, reverse ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
-                    if ( join_results_match( j -> results, &( j -> B1 . S ) ) )
+                    if ( join_results_match( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
                     {
                         rc = join_results_print_fastq_v1( j -> results,
                                                           row_id,
@@ -537,12 +558,13 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
             }
             if ( rc == 0 && process_1 )
             {
-                rc = lookup_bases( j -> lookup, row_id, 2, & j -> B2 ); /* lookup_reader.c */
+                bool reverse = is_reverse( rec, 1 );
+                rc = lookup_bases( j -> lookup, row_id, 2, & j -> B2, reverse ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
                     if ( split_file )
                         dst_id++;
-                    if ( join_results_match( j -> results, &( j -> B2 . S ) ) )
+                    if ( join_results_match( j -> results, &( j -> B2 . S ) ) ) /* join-results.c */
                     {
                         rc = join_results_print_fastq_v1( j -> results,
                                                           row_id,
@@ -622,7 +644,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
     fastq_iter_opt opt;
     opt . with_read_len = false;
     opt . with_name = !( jo -> rowid_as_name );
-    opt . with_read_type = false;
+    opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
     
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
@@ -674,7 +696,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
     fastq_iter_opt opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
-    opt . with_read_type = jo -> skip_tech;
+    opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
     
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
@@ -720,7 +742,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
     fastq_iter_opt opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
-    opt . with_read_type = false;
+    opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
     
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
@@ -776,7 +798,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     fastq_iter_opt opt;
     opt . with_read_len = true;
     opt . with_name = !( jo -> rowid_as_name );
-    opt . with_read_type = false;
+    opt . with_read_type = true;
     opt . with_cmp_read = j -> cmp_read_present;
     
     rc = make_fastq_csra_iter( cp, opt, &iter ); /* fastq-iter.c */
@@ -1094,7 +1116,7 @@ rc_t check_lookup( const KDirectory * dir,
                     bool running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */
                     while( rc == 0 && running )
                     {
-                        rc = lookup_bases( lookup, rec . seq_spot_id, rec . seq_read_id, &buffer );
+                        rc = lookup_bases( lookup, rec . seq_spot_id, rec . seq_read_id, &buffer, false );
                         if ( rc != 0 )
                             KOutMsg( "lookup_bases( %lu.%u ) --> %R\n", rec . seq_spot_id, rec . seq_read_id, rc );
                         else
@@ -1136,7 +1158,7 @@ rc_t check_lookup_this( const KDirectory * dir,
             rc = make_SBuffer( &buffer, 4096 );
             if ( rc == 0 )
             {
-                rc = lookup_bases( lookup, seq_spot_id, seq_read_id, &buffer );
+                rc = lookup_bases( lookup, seq_spot_id, seq_read_id, &buffer, false );
                 if ( rc != 0 )
                     KOutMsg( "lookup_bases( %lu.%u ) --> %R\n", seq_spot_id, seq_read_id, rc );
                 release_SBuffer( &buffer );                

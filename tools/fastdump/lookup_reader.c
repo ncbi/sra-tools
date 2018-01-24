@@ -63,7 +63,7 @@ static rc_t make_lookup_reader_obj( struct lookup_reader ** reader,
     if ( r == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "%s %s().calloc( %d ) -> %R", __FILE__, __func__, ( sizeof * r ), rc );
+        ErrMsg( "lookup_reader.c make_lookup_reader_obj().calloc( %d ) -> %R", ( sizeof * r ), rc );
     }
     else
     {
@@ -94,7 +94,7 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
     
     rc = KDirectoryVOpenFileRead( dir, &f, fmt, args );
     if ( rc != 0 )
-        ErrMsg( "%s %s().KDirectoryVOpenFileRead( '?' ) -> %R", __FILE__, __func__, rc );
+        ErrMsg( "lookup_reader.c make_lookup_reader().KDirectoryVOpenFileRead( '?' ) -> %R",  rc );
     else
     {
         if ( buf_size > 0 )
@@ -102,7 +102,7 @@ rc_t make_lookup_reader( const KDirectory *dir, const struct index_reader * inde
             const struct KFile * temp_file = NULL;
             rc = KBufFileMakeRead( &temp_file, f, buf_size );
             if ( rc != 0 )
-                ErrMsg( "%s %s().KBufFileMakeRead() -> %R", __FILE__, __func__, rc );
+                ErrMsg( "lookup_reader.c make_lookup_reader().KBufFileMakeRead() -> %R", rc );
             else
             {
                 KFileRelease( f );
@@ -125,7 +125,7 @@ static rc_t read_key_and_len( struct lookup_reader * self, uint64_t pos, uint64_
     rc_t rc = KFileReadAll( self -> f, pos, buffer, sizeof buffer, &num_read );
     if ( rc != 0 )
     {
-        ErrMsg( "%s %s().KFileReadAll( at %ld, to_read %u ) -> %R", __FILE__, __func__, pos, sizeof buffer, rc );
+        ErrMsg( "lookup_reader.c read_key_and_len().KFileReadAll( at %ld, to_read %u ) -> %R", pos, sizeof buffer, rc );
     }
     else if ( num_read != sizeof buffer )
     {
@@ -196,7 +196,7 @@ static rc_t full_table_seek( struct lookup_reader * self, uint64_t key_to_find, 
         else
         {
             rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
-            ErrMsg( "%s %s( key: %ld ) -> %R", __FILE__, __func__, key_to_find, rc );
+            ErrMsg( "lookup_reader.c full_table_seek( key: %ld ) -> %R", key_to_find, rc );
         }
     }
     return rc;
@@ -211,7 +211,7 @@ static rc_t indexed_seek( struct lookup_reader * self, uint64_t key_to_find, uin
     if ( self -> max_key > 0 && ( key_to_find > self -> max_key ) )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcTooBig );
-        ErrMsg( "%s %s( key_to_find=%lu, max_key=%lu ) -> %R", __FILE__, __func__, key_to_find, self -> max_key, rc );
+        ErrMsg( "lookup_reader.c indexed_seek( key_to_find=%lu, max_key=%lu ) -> %R", key_to_find, self -> max_key, rc );
     }
     else
     {
@@ -253,7 +253,7 @@ rc_t seek_lookup_reader( struct lookup_reader * self, uint64_t key_to_find, uint
     if ( self == NULL || key_found == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
-        ErrMsg( "%s %s() -> %R", __FILE__, __func__, rc );
+        ErrMsg( "lookup_reader.c seek_lookup_reader() -> %R", rc );
     }
     else
     {
@@ -275,7 +275,7 @@ rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * p
     if ( self == NULL || key == NULL || packed_bases == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
-        ErrMsg( "%s %s() #invalid input# -> %R", __FILE__, __func__, rc );
+        ErrMsg( "lookup_reader.c lookup_reader_get() #invalid input# -> %R",  rc );
     }
     else
     {
@@ -290,14 +290,14 @@ rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * p
             if ( rc != 0 )
             {
                 /* we are not able to read 10 bytes from the file */
-                ErrMsg( "%s %s().KFileReadAll( at %ld, to_read %u ) -> %R", __FILE__, __func__, self -> pos, sizeof buffer1, rc );
+                ErrMsg( "lookup_reader.c lookup_reader_get().KFileReadAll( at %ld, to_read %u ) -> %R", self -> pos, sizeof buffer1, rc );
             }
             else
             {
                 if ( num_read != sizeof buffer1 )
                 {
                     rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                    ErrMsg( "%s %s().KFileReadAll( at %ld, to_read %lu vs %lu )", __FILE__, __func__, self -> pos, sizeof buffer1, num_read );
+                    ErrMsg( "lookup_reader.c lookup_reader_get().KFileReadAll( at %ld, to_read %lu vs %lu )", self -> pos, sizeof buffer1, num_read );
                 }
                 else
                 {
@@ -323,7 +323,7 @@ rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * p
                     if ( to_read == 0 )
                     {
                         rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                        ErrMsg( "%s %s() to_read == 0 at %lu", __FILE__, __func__, self -> pos );
+                        ErrMsg( "lookup_reader.c lookup_reader_get() to_read == 0 at %lu", self -> pos );
                         packed_bases -> S . size = 0;
                         packed_bases -> S . len = 0;
                         self -> pos += ( 10 );
@@ -335,11 +335,11 @@ rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * p
 
                         rc = KFileReadAll( self -> f, self -> pos + 10, dst, to_read, &num_read );
                         if ( rc != 0 )
-                            ErrMsg( "%s %s().KFileReadAll( at %ld, to_read %u ) -> %R", __FILE__, __func__, self -> pos + 10, to_read, rc );
+                            ErrMsg( "lookup_reader.c lookup_reader_get().KFileReadAll( at %ld, to_read %u ) -> %R", self -> pos + 10, to_read, rc );
                         else if ( num_read != to_read )
                         {
                             rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                            ErrMsg( "%s %s().KFileReadAll( %ld ) %d vs %d -> %R", __FILE__, __func__, self -> pos + 10, num_read, to_read, rc );
+                            ErrMsg( "lookup_reader.c lookup_reader_get().KFileReadAll( %ld ) %d vs %d -> %R", self -> pos + 10, num_read, to_read, rc );
                         }
                         else
                         {
@@ -355,7 +355,7 @@ rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * p
     return rc;
 }
 
-rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id, SBuffer * B )
+rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id, SBuffer * B, bool reverse )
 {
     int64_t found_row_id;
     uint32_t found_read_id;
@@ -368,7 +368,9 @@ rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id
         found_read_id = key & 1 ? 2 : 1;
         
         if ( found_row_id == row_id && found_read_id == read_id )
-            unpack_4na( &self -> buf . S, B );
+        {
+            unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
+        }
         else
         {
             /* in case the reader is not pointed to the right position, we try to seek again */
@@ -392,25 +394,27 @@ rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id
                     found_read_id = key & 1 ? 2 : 1;
 
                     if ( found_row_id == row_id && found_read_id == read_id )
-                        unpack_4na( &self -> buf . S, B );
+                    {
+                        unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
+                    }
                     else
                     {
                         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
-                        ErrMsg( "%s %s #2( %lu.%u ) ---> found %lu.%u (at pos=%lu)",
-                                     __FILE__, __func__, row_id, read_id, found_row_id, found_read_id, self -> pos );
+                        ErrMsg( "lookup_reader.c lookup_bases #2( %lu.%u ) ---> found %lu.%u (at pos=%lu)",
+                                    row_id, read_id, found_row_id, found_read_id, self -> pos );
                     }
                 }
             }
             else
             {
                 rc = rc1;
-                ErrMsg( "%s %s( %lu.%u ) ---> seek failed ---> %R", __FILE__, __func__, row_id, read_id, rc );
+                ErrMsg( "lookup_reader.c lookup_bases( %lu.%u ) ---> seek failed ---> %R", row_id, read_id, rc );
             }
         }
     }
     else
     {
-        ErrMsg( "%s %s( %lu.%u ) failed ---> %R", __FILE__, __func__, row_id, read_id, rc );
+        ErrMsg( "lookup_reader.c lookup_bases( %lu.%u ) failed ---> %R", row_id, read_id, rc );
     }
     return rc;
 }
@@ -432,7 +436,7 @@ rc_t lookup_check( struct lookup_reader * self )
             else
             {
                 rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                ErrMsg( "%s %s() jump from %lu to %lu at %lu", __FILE__, __func__, last_key, key, self -> pos );
+                ErrMsg( "lookup_reader.c lookup_check() jump from %lu to %lu at %lu", last_key, key, self -> pos );
             }
             self -> pos += len;
         }

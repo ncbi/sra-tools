@@ -50,7 +50,7 @@ static rc_t write_value( index_writer * writer, uint64_t value )
 {
     rc_t rc = KFileWriteExactly( writer -> f, writer -> pos, &value, sizeof value );
     if ( rc != 0 )
-        ErrMsg( "%s %s().KFileWriteExactly( key ) -> %R", __FILE__, __func__, rc );
+        ErrMsg( "index.c write_value().KFileWriteExactly( key ) -> %R", rc );
     else
         writer -> pos += sizeof value;
     return rc;
@@ -72,7 +72,7 @@ rc_t write_key( struct index_writer * writer, uint64_t key, uint64_t offset )
     if ( writer == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
-        ErrMsg( "%s %s() -> %R", __FILE__, __func__, rc );
+        ErrMsg( "index.c write_key() -> %R", rc );
     }
     else
     {
@@ -95,7 +95,7 @@ static rc_t make_index_writer_obj( struct index_writer ** writer,
     if ( w == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "%s %s().calloc( %d ) -> %R", __FILE__, __func__, ( sizeof * w ), rc );
+        ErrMsg( "index.c make_index_writer_obj().calloc( %d ) -> %R", ( sizeof * w ), rc );
     }
     else
     {
@@ -124,7 +124,7 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
 
     rc = KDirectoryVCreateFile( dir, &f, false, 0664, kcmInit, fmt, args );
     if ( rc != 0 )
-        ErrMsg( "%s %s().KDirectoryVCreateFile() -> %R", __FILE__, __func__, rc );
+        ErrMsg( "index.c make_index_writer().KDirectoryVCreateFile() -> %R", rc );
     else
     {
         if ( buf_size > 0 )
@@ -132,7 +132,7 @@ rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
             struct KFile * temp_file;
             rc = KBufFileMakeWrite( &temp_file, f, false, buf_size );
             if ( rc != 0 )
-                ErrMsg( "%s %s().KBufFileMakeWrite() -> %R", __FILE__, __func__, rc );
+                ErrMsg( "index.c make_index_writer().KBufFileMakeWrite() -> %R", rc );
             else
             {
                 KFileRelease( f );
@@ -175,7 +175,7 @@ static rc_t read_value( index_reader * reader, uint64_t pos, uint64_t * value )
 {
     rc_t rc = KFileReadExactly( reader -> f, pos, ( void * )value, sizeof *value );
     if ( rc != 0 )
-        ErrMsg( "%s %s().KFileReadExactly( at %ld ) -> %R", __FILE__, __func__, pos, rc );
+        ErrMsg( "index.c read_value().KFileReadExactly( at %ld ) -> %R", pos, rc );
     return rc;
 }
 
@@ -187,7 +187,7 @@ static rc_t make_index_reader_obj( index_reader ** reader,
     if ( r == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "%s %s().calloc( %d ) -> %R", ( sizeof * r ), __FILE__, __func__, rc );
+        ErrMsg( "index.c make_index_reader_obj().calloc( %d ) -> %R", ( sizeof * r ), rc );
     }
     else
     {
@@ -218,7 +218,7 @@ rc_t make_index_reader( const KDirectory * dir, index_reader ** reader,
     
     rc = KDirectoryVOpenFileRead( dir, &f, fmt, args );
     if ( rc != 0 )
-        ErrMsg( "%s %s() KDirectoryVOpenFileRead() -> %R", __FILE__, __func__, rc );
+        ErrMsg( "index.c make_index_reader() KDirectoryVOpenFileRead() -> %R", rc );
     else
     {
         if ( buf_size > 0 )
@@ -226,7 +226,7 @@ rc_t make_index_reader( const KDirectory * dir, index_reader ** reader,
             const struct KFile * temp_file;
             rc = KBufFileMakeRead( &temp_file, f, buf_size );
             if ( rc != 0 )
-                ErrMsg( "%s %s() KBufFileMakeRead() -> %R", __FILE__, __func__, rc );
+                ErrMsg( "index.c make_index_reader() KBufFileMakeRead() -> %R", rc );
             else
             {
                 KFileRelease( f );
@@ -256,7 +256,7 @@ rc_t get_nearest_offset( const index_reader * self,
     if ( self == NULL || key_found == NULL || offset == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
-        ErrMsg( "%s %s() -> %R", __FILE__, __func__, rc );
+        ErrMsg( "index.c get_nearest_offset() -> %R", rc );
     }
     else
     {
@@ -275,8 +275,8 @@ rc_t get_nearest_offset( const index_reader * self,
                 to_read = ( self -> file_size - pos );
             rc = KFileReadExactly( self -> f, pos, ( void * )&( data[ 0 ] ), to_read );
             if ( rc != 0 )
-                ErrMsg( "%s %s().KFileReadExactly( %lu of %lu, to_read = %lu ) failed %R",
-                        __FILE__, __func__, pos, self -> file_size, to_read, rc );
+                ErrMsg( "index.c get_nearest_offset().KFileReadExactly( %lu of %lu, to_read = %lu ) failed %R",
+                        pos, self -> file_size, to_read, rc );
             else
             {
                 if ( to_read >= ( ( sizeof data[ 0 ] ) * 4 ) &&
@@ -334,7 +334,7 @@ rc_t get_max_key( const index_reader * self, uint64_t * max_key )
     if ( self == NULL || max_key == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
-        ErrMsg( "%s %s() -> %R", __FILE__, __func__, rc );
+        ErrMsg( "index.c get_max_key() -> %R", rc );
     }
     else if ( self -> max_key > 0 )
     {
@@ -353,7 +353,7 @@ rc_t get_max_key( const index_reader * self, uint64_t * max_key )
         
         rc = KFileReadExactly( self -> f, pos, ( void * )&data[ 0 ], to_read );
         if ( rc != 0 )
-            ErrMsg( "%s %s().KFileReadExactly( at %lu ) failed %R", __FILE__, __func__, pos, rc );
+            ErrMsg( "index.c get_max_key().KFileReadExactly( at %lu ) failed %R", pos, rc );
         else
         {
             if ( self -> file_size >= to_read )
@@ -363,7 +363,7 @@ rc_t get_max_key( const index_reader * self, uint64_t * max_key )
             else
             {
                 rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                ErrMsg( "%s %s() - index file has invalid size of %lu", __FILE__, __func__, self -> file_size );    
+                ErrMsg( "index.c get_max_key() - index file has invalid size of %lu", self -> file_size );    
             }
         }
     }

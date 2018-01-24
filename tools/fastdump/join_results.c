@@ -452,7 +452,7 @@ bool join_results_match( join_results * self, const String * bases )
 {
     bool res = true;
     if ( self != NULL && bases != NULL && self -> buf2na != NULL )
-        res = match_Buf2NA( self -> buf2na, bases );
+        res = match_Buf2NA( self -> buf2na, bases ); /* helper.c */
     return res;
 }
 
@@ -460,7 +460,7 @@ bool join_results_match2( struct join_results * self, const String * bases1, con
 {
     bool res = true;
     if ( self != NULL && bases1 != NULL && bases2 != NULL && self -> buf2na != NULL )
-        res = ( match_Buf2NA( self -> buf2na, bases1 ) || match_Buf2NA( self -> buf2na, bases2 ) );
+        res = ( match_Buf2NA( self -> buf2na, bases1 ) || match_Buf2NA( self -> buf2na, bases2 ) ); /* helper.c */
     return res;
 }
 

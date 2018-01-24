@@ -35,7 +35,7 @@
 typedef struct raw_read_iter
 {
     struct cmn_iter * cmn;
-    uint32_t seq_spot_id, seq_read_id, raw_read_id;
+    uint32_t seq_spot_id, seq_read_id, read_id;
 } raw_read_iter;
 
 
@@ -43,7 +43,7 @@ void destroy_raw_read_iter( struct raw_read_iter * iter )
 {
     if ( iter != NULL )
     {
-        destroy_cmn_iter( iter->cmn );
+        destroy_cmn_iter( iter -> cmn );
         free( ( void * ) iter );
     }
 }
@@ -66,9 +66,9 @@ rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter )
         if ( rc == 0 )
             rc = cmn_iter_add_column( i -> cmn, "SEQ_READ_ID", &i -> seq_read_id );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i -> cmn, "(INSDC:4na:bin)RAW_READ", &i -> raw_read_id );
+            rc = cmn_iter_add_column( i -> cmn, /*"(INSDC:4na:bin)RAW_READ"*/"READ", &i -> read_id );
         if ( rc == 0 )
-            rc = cmn_iter_range( i->cmn, i->seq_spot_id );
+            rc = cmn_iter_range( i -> cmn, i -> seq_spot_id );
 
         if ( rc != 0 )
             destroy_raw_read_iter( i );
@@ -80,14 +80,14 @@ rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter )
 
 bool get_from_raw_read_iter( struct raw_read_iter * iter, raw_read_rec * rec, rc_t * rc )
 {
-    bool res = cmn_iter_next( iter->cmn, rc );
+    bool res = cmn_iter_next( iter -> cmn, rc );
     if ( res )
     {
-        *rc = cmn_read_uint64( iter->cmn, iter->seq_spot_id, &rec->seq_spot_id );
+        *rc = cmn_read_uint64( iter -> cmn, iter -> seq_spot_id, &rec -> seq_spot_id );
         if ( *rc == 0 )
-            *rc = cmn_read_uint32( iter->cmn, iter->seq_read_id, &rec->seq_read_id );
+            *rc = cmn_read_uint32( iter -> cmn, iter -> seq_read_id, &rec -> seq_read_id );
         if ( *rc == 0 )
-            *rc = cmn_read_String( iter->cmn, iter->raw_read_id, &rec->raw_read );
+            *rc = cmn_read_String( iter -> cmn, iter -> read_id, &rec -> read );
     }
     return res;
 }

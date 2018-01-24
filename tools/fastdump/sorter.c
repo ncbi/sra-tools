@@ -143,12 +143,13 @@ static rc_t push_store_to_merger( lookup_producer * self, bool last )
 
 static rc_t write_to_store( lookup_producer * self,
                             uint64_t key,
-                            const String * unpacked_bases )
+                            const String * read )
 {
     /* we write it to the store...*/
-    rc_t rc = pack_4na( unpacked_bases, &( self -> buf ) ); /* helper.c */
+    rc_t rc = pack_read_2_4na( read, &( self -> buf ) ); /* helper.c */
+    /* rc_t rc = pack_4na( unpacked_bases, &( self -> buf ) ); helper.c */
     if ( rc != 0 )
-        ErrMsg( "sorter.c write_to_store().pack_4na() failed %R", rc );
+        ErrMsg( "sorter.c write_to_store().pack_read_2_4na() failed %R", rc );
     else
     {
         const String * to_store;
@@ -191,7 +192,7 @@ static rc_t CC producer_thread_func( const KThread *self, void *data )
         {
             uint64_t key = make_key( rec . seq_spot_id, rec . seq_read_id ); /* helper.c */
             /* the keys are allowed to be out of order here */
-            rc = write_to_store( producer, key, &rec . raw_read ); /* above! */
+            rc = write_to_store( producer, key, &rec . read ); /* above! */
             if ( rc == 0 )
             {
                 bg_progress_inc( producer -> progress ); /* progress_thread.c (ignores NULL) */

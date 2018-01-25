@@ -128,6 +128,8 @@ int UX_FUSE_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 
     DEBUG_MSG(8, ("%s: %s\n", __func__, path));
 
+    errno = 0;  /* kinda clearing before storm */
+
     data.path = path;
     data.filler = filler;
     data.buf = buf;
@@ -147,6 +149,8 @@ int UX_FUSE_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
 int UX_FUSE_getattr(const char *path, struct stat *stbuf)
 {
     rc_t rc = 0;
+
+    errno = 0;  /* kinda clearing before storm */
 
     DEBUG_MSG(8, ("%s: %s\n", __func__, path));
     if( stbuf == NULL) {
@@ -212,6 +216,8 @@ int UX_FUSE_readlink(const char *path, char *buf, size_t buf_sz)
 {
     rc_t rc = 0;
 
+    errno = 0;  /* kinda clearing before storm */
+
     DEBUG_MSG(8, ("%s: %s\n", __func__, path));
     if( buf == NULL ) {
         rc = RC(rcExe, rcFile, rcAliasing, rcParam, rcNull);
@@ -253,6 +259,8 @@ int UX_FUSE_open(const char *path, struct fuse_file_info* fi)
     rc_t rc = 0;
     uint64_t q;
 
+    errno = 0;  /* kinda clearing before storm */
+
     DEBUG_MSG(8, ("%s: %s\n", __func__, path));
     if( fi == NULL) {
         rc = RC(rcExe, rcFile, rcOpening, rcParam, rcNull);
@@ -280,6 +288,8 @@ int UX_FUSE_read(const char *path, char *buf, size_t size, off_t offset, struct 
     const void* data = NULL;
     size_t num_read = 0;
 
+    errno = 0;  /* kinda clearing before storm */
+
     DEBUG_MSG(8, ("%s: %s from %lu %lu bytes\n", __func__, path, offset, size));
     if( fi == NULL || buf == NULL ) {
         rc = RC(rcExe, rcFile, rcReading, rcParam, rcNull);
@@ -301,6 +311,8 @@ int UX_FUSE_release(const char *path, struct fuse_file_info *fi)
     rc_t rc = 0;
     const void* data = NULL;
     uint64_t q;
+
+    errno = 0;  /* kinda clearing before storm */
 
     DEBUG_MSG(8, ("%s: %s\n", __func__, path));
     if( fi == NULL) {

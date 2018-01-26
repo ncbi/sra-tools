@@ -1,0 +1,4 @@
+QWidget#tabView
+{
+   background-color: red;
+}

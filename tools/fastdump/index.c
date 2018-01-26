@@ -258,6 +258,10 @@ rc_t get_nearest_offset( const index_reader * self,
         rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
         ErrMsg( "index.c get_nearest_offset() -> %R", rc );
     }
+    else if ( self -> file_size <= 24 )
+    {
+        rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+    }
     else
     {
         uint64_t data[ 6 ];
@@ -269,55 +273,65 @@ rc_t get_nearest_offset( const index_reader * self,
         uint64_t pos = key_to_pos_guess( self, key_to_find );
         size_t to_read = sizeof data;
         bool found = false;
+        uint64_t rounds = 0;
         while ( rc == 0 && !found && pos < self -> file_size )
         {
-            if ( ( ( pos + to_read ) - 1 ) > self -> file_size )
-                to_read = ( self -> file_size - pos );
-            rc = KFileReadExactly( self -> f, pos, ( void * )&( data[ 0 ] ), to_read );
-            if ( rc != 0 )
-                ErrMsg( "index.c get_nearest_offset().KFileReadExactly( %lu of %lu, to_read = %lu ) failed %R",
-                        pos, self -> file_size, to_read, rc );
+            rounds++;
+            if ( rounds > 100 )
+            {
+                rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcExhausted );
+                ErrMsg( "index.c get_nearest_offset() -> too many rounds pos = %lu of %lu", pos, self -> file_size );
+            }
             else
             {
-                if ( to_read >= ( ( sizeof data[ 0 ] ) * 4 ) &&
-                     key_to_find >= data[ 0 ] &&
-                     key_to_find < data[ 2 ] )
+                if ( ( ( pos + to_read ) - 1 ) > self -> file_size )
+                    to_read = ( self -> file_size - pos );
+                rc = KFileReadExactly( self -> f, pos, ( void * )&( data[ 0 ] ), to_read );
+                if ( rc != 0 )
+                    ErrMsg( "index.c get_nearest_offset().KFileReadExactly( %lu of %lu, to_read = %lu ) failed %R",
+                            pos, self -> file_size, to_read, rc );
+                else
                 {
-                    /* key_to_find is between key0 and key1 */
-                    found = true;
-                    *key_found = data[ 0 ];
-                    *offset = data[ 1 ];
-                }
-                else if ( to_read >= ( ( sizeof data[ 0 ] ) * 6 ) &&
-                          key_to_find >= data[ 2 ] &&
-                          key_to_find < data[ 4 ] )
-                {
-                    /* key_to_find is between key1 and key2 */
-                    found = true;
-                    *key_found = data[ 2 ];
-                    *offset = data[ 3 ];
-                }
-                
-                if ( !found )
-                {
-                    if ( to_read >= ( ( sizeof data[ 0 ] ) * 2 ) &&
-                         key_to_find < data[ 0 ] )
+                    if ( to_read >= ( ( sizeof data[ 0 ] ) * 4 ) &&
+                         key_to_find >= data[ 0 ] &&
+                         key_to_find < data[ 2 ] )
                     {
-                        /* key_to_find is smaller than our guess */
-                        if ( pos > sizeof self -> frequency )
-                            pos -= ( 2 * ( sizeof self -> frequency ) );
-                        else
-                        {
-                            found = true;
-                            *key_found = data[ 0 ];
-                            *offset = data[ 1 ];
-                        }
+                        /* key_to_find is between key0 and key1 */
+                        found = true;
+                        *key_found = data[ 0 ];
+                        *offset = data[ 1 ];
                     }
                     else if ( to_read >= ( ( sizeof data[ 0 ] ) * 6 ) &&
-                              key_to_find > data[ 4 ] )
+                              key_to_find >= data[ 2 ] &&
+                              key_to_find < data[ 4 ] )
                     {
-                        /* key_to_find is bigger than our guess */
-                        pos += ( 2 * ( sizeof self -> frequency ) );
+                        /* key_to_find is between key1 and key2 */
+                        found = true;
+                        *key_found = data[ 2 ];
+                        *offset = data[ 3 ];
+                    }
+                    
+                    if ( !found )
+                    {
+                        if ( to_read >= ( ( sizeof data[ 0 ] ) * 2 ) &&
+                             key_to_find < data[ 0 ] )
+                        {
+                            /* key_to_find is smaller than our guess */
+                            if ( pos > sizeof self -> frequency )
+                                pos -= ( 2 * ( sizeof self -> frequency ) );
+                            else
+                            {
+                                found = true;
+                                *key_found = data[ 0 ];
+                                *offset = data[ 1 ];
+                            }
+                        }
+                        else if ( to_read >= ( ( sizeof data[ 0 ] ) * 6 ) &&
+                                  key_to_find > data[ 4 ] )
+                        {
+                            /* key_to_find is bigger than our guess */
+                            pos += ( 2 * ( sizeof self -> frequency ) );
+                        }
                     }
                 }
             }

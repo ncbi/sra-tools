@@ -25,28 +25,21 @@
 */
 
 #include "sratoolkit.h"
-#include <kapp/main.h>
 
 #include <QApplication>
 #include <QDesktopWidget>
+#include <QFile>
 #include <QPoint>
 
-extern "C"
-{
-    rc_t Quitting ( void )
-    {
-        // TBD - fill this out with a call to whatever QT uses to indicate
-        // that the app has received a ^C or SIGTERM
-        // the appropriate value to return if actually quitting is
-        // RC ( rcExe, rcProcess, rcExecuting, rcProcess, rcCanceled );
-
-        return 0;
-    }
-}
 
 int main ( int argc, char *argv [] )
 {
     QApplication a ( argc, argv );
+
+    QFile qss ( ":/qss/style.qss" );
+    qss.open ( QFile::ReadOnly );
+    a . setStyleSheet ( qss . readAll () );
+    qss.close ();
 
     const QRect avail_geometry =
             QApplication :: desktop () -> availableGeometry ( QPoint ( 0, 0 ) );

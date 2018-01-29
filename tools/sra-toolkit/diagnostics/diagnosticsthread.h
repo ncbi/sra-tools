@@ -20,6 +20,7 @@ public:
 
 public slots:
     void begin ();
+    void cancel ();
 
 signals:
     void finished ();

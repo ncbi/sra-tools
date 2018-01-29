@@ -3,7 +3,13 @@
 
 #include <QMainWindow>
 
-class DiagnosticsView;
+QT_BEGIN_NAMESPACE
+class QHBoxLayout;
+class QToolButton;
+QT_END_NAMESPACE
+
+class SRAToolBar;
+class SRAToolView;
 
 struct KConfig;
 
@@ -15,17 +21,21 @@ public:
     SRAToolkit ( const QRect &avail_geometry, QWidget *parent = 0 );
     ~SRAToolkit ();
 
-private slots:
-
-    void open_diagnostics ();
-
 private:
 
-    void setup_menubar ();
+    void init ();
+    void init_menubar ();
+    void init_view ();
+    void paintEvent ( QPaintEvent * );
 
-    DiagnosticsView *diagnostics;
+    QHBoxLayout *mainLayout;
+    QWidget *mainWidget;
 
     KConfig *config;
+
+    SRAToolBar *toolBar;
+    SRAToolView *toolView;
+
 };
 
 #endif // SRATOOLKIT_H

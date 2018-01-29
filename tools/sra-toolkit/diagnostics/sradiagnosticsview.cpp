@@ -1,4 +1,4 @@
-#include "diagnosticsview.h"
+#include "sradiagnosticsview.h"
 #include "diagnosticstest.h"
 #include "diagnosticsthread.h"
 
@@ -9,9 +9,9 @@
 #include <diagnose/diagnose.h>
 
 #include <QAbstractEventDispatcher>
-#include <QApplication>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
+#include <QGridLayout>
 #include <QLabel>
 #include <QPushButton>
 #include <QThread>
@@ -24,59 +24,72 @@
 const QString rsrc_path = ":/";
 
 
-DiagnosticsView :: DiagnosticsView ( KConfig *p_config, QWidget *parent )
+SRADiagnosticsView :: SRADiagnosticsView ( KConfig *p_config, QWidget *parent )
     : QWidget ( parent )
     , self_layout ( new QVBoxLayout () )
     , config ( p_config )
 {
-    setWindowFlags ( Qt::Window );
-    setAttribute ( Qt::WA_DeleteOnClose );
-    setFixedSize ( 800, 400 );
     setLayout ( self_layout );
 
     self_layout -> setAlignment (  Qt::AlignCenter  );
-    self_layout -> setMargin ( 10 );
+    self_layout -> setMargin ( 30 );
 
-    setup_view ();
+    resize ( QSize ( parent -> size (). width (), parent -> size () . height () ) );
+
+    init ();
 
     show ();
 }
 
-DiagnosticsView :: ~DiagnosticsView ()
+SRADiagnosticsView :: ~SRADiagnosticsView ()
 {
     qDebug () << this << " destroyed.";
 }
 
 
-void DiagnosticsView :: setup_view ()
+void SRADiagnosticsView :: init ()
 {
-    // Metadata
-    QWidget *metadata = new QWidget ();
-    metadata -> setFixedSize ( width () - 40, 120 );
-
     char buf [ 256 ];
     rc_t rc = KConfig_Get_Home ( config, buf, sizeof ( buf ), nullptr );
     if ( rc != 0 )
         qDebug () << "Failed to get home path";
     else
-    {
-        QString home = QString ( buf );
-        qDebug () << home;
-    }
+        homeDir = QString ( buf );
+
+    init_metadata_view ();
+    init_tree_view ();
+    init_controls ();
+}
+
+void SRADiagnosticsView :: init_metadata_view ()
+{
+    QWidget *metadata = new QWidget ();
+    metadata -> setObjectName ( "diagnostics_metadata" );
+    metadata -> setFixedWidth ( width () - 56 );
+    metadata -> setMaximumHeight ( 200 );
+
+    QGridLayout *layout = new QGridLayout ( metadata );
+    layout -> setColumnStretch ( 2, 2 );
+
+    QLabel *homeDirTag = new QLabel ( "User Home Directory: " );
+    QLabel *homeDirLabel = new QLabel ( homeDir );
+
+    layout -> addWidget ( homeDirTag, 0, 0, 1, 1, Qt::AlignLeft );
+    layout -> addWidget ( homeDirLabel, 0, 1, 1, 1, Qt::AlignLeft );
 
     self_layout -> addWidget ( metadata );
-    // Metadata
-
 
     QFrame *separator = new QFrame ();
     separator -> setFrameShape ( QFrame::HLine );
-    separator -> setFixedSize ( width () - 40, 2 );
+    separator -> setFixedSize ( width () - 56, 2 );
 
     self_layout -> addWidget ( separator );
+}
 
-    // Test view
+void SRADiagnosticsView :: init_tree_view ()
+{
     tree_view = new QTreeWidget ();
-    tree_view -> setFixedWidth ( width () - 40 );
+    tree_view -> setFixedWidth ( width () - 56 );
     tree_view -> setSelectionMode ( QAbstractItemView::NoSelection );
     tree_view -> setAlternatingRowColors ( true );
     tree_view -> setColumnCount ( 3 );
@@ -84,21 +97,32 @@ void DiagnosticsView :: setup_view ()
     tree_view -> resizeColumnToContents ( 2 );
 
     self_layout -> addWidget ( tree_view );
-
-    QPushButton *run = new QPushButton ("Run Diagnostics");
-    connect ( run, SIGNAL ( clicked () ), this, SLOT ( run_diagnostics () ) );
-    run -> setFixedWidth ( 140 );
-
-    self_layout -> addWidget ( run );
-    self_layout -> setAlignment ( run, Qt::AlignRight );
-    // Test view
 }
 
-void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
+void SRADiagnosticsView :: init_controls ()
 {
-    //qDebug () << test -> getName ();
+    start_button = new QPushButton ("Start");
+    start_button -> setObjectName ( "start_diagnostics_button" );
+    start_button -> setFixedSize ( 160, 80 );
 
-    QAbstractEventDispatcher *dispatch = QApplication::eventDispatcher();
+    cancel_button = new QPushButton ("Cancel");
+    cancel_button -> setObjectName ( "cancel_diagnostics_button" );
+    cancel_button -> setFixedSize ( 160, 80 );
+    cancel_button -> hide ();
+
+    connect ( start_button, SIGNAL ( clicked () ), this, SLOT ( start_diagnostics () ) );
+    connect ( cancel_button, SIGNAL ( clicked () ), this, SLOT ( cancel_diagnostics () ) );
+
+    self_layout -> addWidget ( start_button );
+    self_layout -> addWidget ( cancel_button );
+
+    self_layout -> setAlignment ( start_button, Qt::AlignRight );
+    self_layout -> setAlignment ( cancel_button, Qt::AlignRight );
+}
+
+
+void SRADiagnosticsView :: handle_callback ( DiagnosticsTest *test )
+{
 
     switch ( test -> getState () )
     {
@@ -143,23 +167,13 @@ void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
         switch ( test -> getLevel () )
         {
         case 0:
-            break;
         case 1:
-        {
-            dispatch -> processEvents (QEventLoop::AllEvents);
             break;
-        }
         case 2:
-        {
-            currentTest = parent;
-            dispatch -> processEvents (QEventLoop::AllEvents);
-            break;
-        }
         case 3:
         case 4:
         case 5:
         {
-            parent -> removeChild ( currentTest );
             currentTest = parent;
             break;
         }
@@ -172,24 +186,19 @@ void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
     case DTS_Failed:
     {
         QTreeWidgetItem *parent = currentTest -> parent ();
-        currentTest -> setText ( 2, "Passed" );
+        currentTest -> setText ( 2, "Failed" );
 
         switch ( test -> getLevel () )
         {
         case 0:
-            break;
         case 1:
-        {
-            dispatch -> processEvents (QEventLoop::AllEvents);
             break;
-        }
         case 2:
         case 3:
         case 4:
         case 5:
         {
             currentTest = parent;
-            dispatch -> processEvents (QEventLoop::AllEvents);
             break;
         }
         default:
@@ -214,13 +223,13 @@ void DiagnosticsView :: handle_callback ( DiagnosticsTest *test )
     tree_view -> resizeColumnToContents ( 2 );
 }
 
-void DiagnosticsView :: run_diagnostics ()
+void SRADiagnosticsView :: start_diagnostics ()
 {
     if ( tree_view -> children () . count () > 0 )
         tree_view -> clear ();
 
-    QThread *thread = new QThread;
-    DiagnosticsThread *worker = new DiagnosticsThread ();
+    thread = new QThread;
+    worker = new DiagnosticsThread ();
     worker -> moveToThread ( thread );
 
     connect ( thread, SIGNAL ( started () ), worker, SLOT ( begin() ) );
@@ -229,6 +238,21 @@ void DiagnosticsView :: run_diagnostics ()
     connect ( thread, SIGNAL ( finished () ), thread, SLOT ( deleteLater () ) );
 
     thread -> start ();
+    start_button -> hide ();
+    cancel_button -> show ();
+}
+
+void SRADiagnosticsView :: cancel_diagnostics ()
+{
+    //worker -> cancel ();
+    //thread -> quit ();
+    //thread -> wait ();
+
+    //self_layout -> replaceWidget ( cancel_button, start_button );
+   // self_layout -> setAlignment ( start_button, Qt::AlignRight );
+
+    cancel_button -> hide ();
+    start_button -> show ();
 }
 
 

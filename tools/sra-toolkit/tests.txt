@@ -1,8 +1,0 @@
-Configuration		How to familiarize yourself with Qt Designer****************	Pass
-    Workspaces		Running the Qt Designer application				Pass
-
-
-Network			 								Fail
-    Local		You unplugged the network cable				Pass
-    External		ISPs are bad							Fail
-

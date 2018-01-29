@@ -33,18 +33,32 @@ SOURCES += main.cpp\
         sratoolkit.cpp \
         sratoolkitpreferences.cpp \
         sraworkspace.cpp \
-        diagnostics/diagnosticsview.cpp \
+        sratoolbar.cpp \
+        sratoolview.cpp \
+        config/sraconfigmodel.cpp \
+        config/sraconfigview.cpp \
+        ../vdb-config/configure.cpp \
+        ../vdb-config/vdb-config-model.cpp \
+        ../vdb-config/util.cpp \
         diagnostics/diagnosticstest.cpp \
-        diagnostics/diagnosticsthread.cpp
+        diagnostics/diagnosticsthread.cpp \
+        diagnostics/sradiagnosticsview.cpp
 
 
 HEADERS  += sratoolkit.h \
         sratoolkitpreferences.h \
         sraworkspace.h \
-        diagnostics/diagnosticsview.h \
+        sratoolbar.h \
+        sratoolview.h \
+        config/sraconfigmodel.h \
+        config/sraconfigview.h \
         diagnostics/diagnosticstest.h \
-        diagnostics/diagnosticsthread.h
+        diagnostics/diagnosticsthread.h \
+        diagnostics/sradiagnosticsview.h
 
 
 RESOURCES += \
         resources.qrc
+
+DISTFILES += \
+    style.qss

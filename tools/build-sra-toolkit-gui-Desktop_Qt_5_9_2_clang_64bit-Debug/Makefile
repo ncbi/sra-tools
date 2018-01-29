@@ -54,28 +54,51 @@ SOURCES       = ../sra-toolkit/main.cpp \
 		../sra-toolkit/sratoolkit.cpp \
 		../sra-toolkit/sratoolkitpreferences.cpp \
 		../sra-toolkit/sraworkspace.cpp \
-		../sra-toolkit/diagnostics/diagnosticsview.cpp \
+		../sra-toolkit/sratoolbar.cpp \
+		../sra-toolkit/sratoolview.cpp \
+		../sra-toolkit/config/sraconfigmodel.cpp \
+		../sra-toolkit/config/sraconfigview.cpp \
+		../vdb-config/configure.cpp \
+		../vdb-config/vdb-config-model.cpp \
+		../vdb-config/util.cpp \
 		../sra-toolkit/diagnostics/diagnosticstest.cpp \
-		../sra-toolkit/diagnostics/diagnosticsthread.cpp qrc_resources.cpp \
+		../sra-toolkit/diagnostics/diagnosticsthread.cpp \
+		../sra-toolkit/diagnostics/sradiagnosticsview.cpp qrc_resources.cpp \
 		moc_sratoolkit.cpp \
 		moc_sratoolkitpreferences.cpp \
 		moc_sraworkspace.cpp \
-		moc_diagnosticsview.cpp \
-		moc_diagnosticsthread.cpp
+		moc_sratoolbar.cpp \
+		moc_sratoolview.cpp \
+		moc_sraconfigmodel.cpp \
+		moc_sraconfigview.cpp \
+		moc_diagnosticsthread.cpp \
+		moc_sradiagnosticsview.cpp
 OBJECTS       = main.o \
 		sratoolkit.o \
 		sratoolkitpreferences.o \
 		sraworkspace.o \
-		diagnosticsview.o \
+		sratoolbar.o \
+		sratoolview.o \
+		sraconfigmodel.o \
+		sraconfigview.o \
+		configure.o \
+		vdb-config-model.o \
+		util.o \
 		diagnosticstest.o \
 		diagnosticsthread.o \
+		sradiagnosticsview.o \
 		qrc_resources.o \
 		moc_sratoolkit.o \
 		moc_sratoolkitpreferences.o \
 		moc_sraworkspace.o \
-		moc_diagnosticsview.o \
-		moc_diagnosticsthread.o
-DIST          = ../../../../Qt/5.9.2/clang_64/mkspecs/features/spec_pre.prf \
+		moc_sratoolbar.o \
+		moc_sratoolview.o \
+		moc_sraconfigmodel.o \
+		moc_sraconfigview.o \
+		moc_diagnosticsthread.o \
+		moc_sradiagnosticsview.o
+DIST          = ../sra-toolkit/style.qss \
+		../../../../Qt/5.9.2/clang_64/mkspecs/features/spec_pre.prf \
 		../../../../Qt/5.9.2/clang_64/mkspecs/qdevice.pri \
 		../../../../Qt/5.9.2/clang_64/mkspecs/features/device_config.prf \
 		../../../../Qt/5.9.2/clang_64/mkspecs/common/unix.conf \
@@ -263,15 +286,26 @@ DIST          = ../../../../Qt/5.9.2/clang_64/mkspecs/features/spec_pre.prf \
 		../sra-toolkit/sra-toolkit.pro ../sra-toolkit/sratoolkit.h \
 		../sra-toolkit/sratoolkitpreferences.h \
 		../sra-toolkit/sraworkspace.h \
-		../sra-toolkit/diagnostics/diagnosticsview.h \
+		../sra-toolkit/sratoolbar.h \
+		../sra-toolkit/sratoolview.h \
+		../sra-toolkit/config/sraconfigmodel.h \
+		../sra-toolkit/config/sraconfigview.h \
 		../sra-toolkit/diagnostics/diagnosticstest.h \
-		../sra-toolkit/diagnostics/diagnosticsthread.h ../sra-toolkit/main.cpp \
+		../sra-toolkit/diagnostics/diagnosticsthread.h \
+		../sra-toolkit/diagnostics/sradiagnosticsview.h ../sra-toolkit/main.cpp \
 		../sra-toolkit/sratoolkit.cpp \
 		../sra-toolkit/sratoolkitpreferences.cpp \
 		../sra-toolkit/sraworkspace.cpp \
-		../sra-toolkit/diagnostics/diagnosticsview.cpp \
+		../sra-toolkit/sratoolbar.cpp \
+		../sra-toolkit/sratoolview.cpp \
+		../sra-toolkit/config/sraconfigmodel.cpp \
+		../sra-toolkit/config/sraconfigview.cpp \
+		../vdb-config/configure.cpp \
+		../vdb-config/vdb-config-model.cpp \
+		../vdb-config/util.cpp \
 		../sra-toolkit/diagnostics/diagnosticstest.cpp \
-		../sra-toolkit/diagnostics/diagnosticsthread.cpp
+		../sra-toolkit/diagnostics/diagnosticsthread.cpp \
+		../sra-toolkit/diagnostics/sradiagnosticsview.cpp
 QMAKE_TARGET  = sra-toolkit
 DESTDIR       = 
 TARGET        = sra-toolkit.app/Contents/MacOS/sra-toolkit
@@ -701,8 +735,8 @@ distdir: FORCE
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents ../sra-toolkit/resources.qrc $(DISTDIR)/
 	$(COPY_FILE) --parents ../../../../Qt/5.9.2/clang_64/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents ../sra-toolkit/sratoolkit.h ../sra-toolkit/sratoolkitpreferences.h ../sra-toolkit/sraworkspace.h ../sra-toolkit/diagnostics/diagnosticsview.h ../sra-toolkit/diagnostics/diagnosticstest.h ../sra-toolkit/diagnostics/diagnosticsthread.h $(DISTDIR)/
-	$(COPY_FILE) --parents ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkitpreferences.cpp ../sra-toolkit/sraworkspace.cpp ../sra-toolkit/diagnostics/diagnosticsview.cpp ../sra-toolkit/diagnostics/diagnosticstest.cpp ../sra-toolkit/diagnostics/diagnosticsthread.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents ../sra-toolkit/sratoolkit.h ../sra-toolkit/sratoolkitpreferences.h ../sra-toolkit/sraworkspace.h ../sra-toolkit/sratoolbar.h ../sra-toolkit/sratoolview.h ../sra-toolkit/config/sraconfigmodel.h ../sra-toolkit/config/sraconfigview.h ../sra-toolkit/diagnostics/diagnosticstest.h ../sra-toolkit/diagnostics/diagnosticsthread.h ../sra-toolkit/diagnostics/sradiagnosticsview.h $(DISTDIR)/
+	$(COPY_FILE) --parents ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkitpreferences.cpp ../sra-toolkit/sraworkspace.cpp ../sra-toolkit/sratoolbar.cpp ../sra-toolkit/sratoolview.cpp ../sra-toolkit/config/sraconfigmodel.cpp ../sra-toolkit/config/sraconfigview.cpp ../vdb-config/configure.cpp ../vdb-config/vdb-config-model.cpp ../vdb-config/util.cpp ../sra-toolkit/diagnostics/diagnosticstest.cpp ../sra-toolkit/diagnostics/diagnosticsthread.cpp ../sra-toolkit/diagnostics/sradiagnosticsview.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -731,11 +765,18 @@ compiler_rcc_clean:
 	-$(DEL_FILE) qrc_resources.cpp
 qrc_resources.cpp: ../sra-toolkit/resources.qrc \
 		../../../../Qt/5.9.2/clang_64/bin/rcc \
+		../sra-toolkit/images/ncbi_logo_vertical_white_blue.png \
+		../sra-toolkit/images/ncbi_logo.png \
+		../sra-toolkit/images/ncbi_logo_vertical_blue_black.png \
 		../sra-toolkit/images/general_icon.png \
+		../sra-toolkit/images/images_ncbi.png \
 		../sra-toolkit/images/troubleshooting.png \
-		../sra-toolkit/images/images.ncbi.png \
+		../sra-toolkit/images/background.png \
+		../sra-toolkit/images/ncbi_helix_blue_black.png \
+		../sra-toolkit/images/ncbi_diagnostics_button.png \
 		../sra-toolkit/images/network_icon.png \
-		../sra-toolkit/images/aws_icon.png
+		../sra-toolkit/images/aws_icon.png \
+		../sra-toolkit/qss/style.qss
 	/Users/rodarme1/Qt/5.9.2/clang_64/bin/rcc -name resources ../sra-toolkit/resources.qrc -o qrc_resources.cpp
 
 compiler_moc_predefs_make_all: moc_predefs.h
@@ -744,9 +785,9 @@ compiler_moc_predefs_clean:
 moc_predefs.h: ../../../../Qt/5.9.2/clang_64/mkspecs/features/data/dummy.cpp
 	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -pipe -stdlib=libc++ -g -std=gnu++11 $(EXPORT_ARCH_ARGS) -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk -mmacosx-version-min=10.10 -Wall -W -dM -E -o moc_predefs.h ../../../../Qt/5.9.2/clang_64/mkspecs/features/data/dummy.cpp
 
-compiler_moc_header_make_all: moc_sratoolkit.cpp moc_sratoolkitpreferences.cpp moc_sraworkspace.cpp moc_diagnosticsview.cpp moc_diagnosticsthread.cpp
+compiler_moc_header_make_all: moc_sratoolkit.cpp moc_sratoolkitpreferences.cpp moc_sraworkspace.cpp moc_sratoolbar.cpp moc_sratoolview.cpp moc_sraconfigmodel.cpp moc_sraconfigview.cpp moc_diagnosticsthread.cpp moc_sradiagnosticsview.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) moc_sratoolkit.cpp moc_sratoolkitpreferences.cpp moc_sraworkspace.cpp moc_diagnosticsview.cpp moc_diagnosticsthread.cpp
+	-$(DEL_FILE) moc_sratoolkit.cpp moc_sratoolkitpreferences.cpp moc_sraworkspace.cpp moc_sratoolbar.cpp moc_sratoolview.cpp moc_sraconfigmodel.cpp moc_sraconfigview.cpp moc_diagnosticsthread.cpp moc_sradiagnosticsview.cpp
 moc_sratoolkit.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMainWindow \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmainwindow.h \
 		../sra-toolkit/sratoolkit.h \
@@ -768,12 +809,33 @@ moc_sraworkspace.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers
 		../../../../Qt/5.9.2/clang_64/bin/moc
 	/Users/rodarme1/Qt/5.9.2/clang_64/bin/moc $(DEFINES) --include ./moc_predefs.h -I/Users/rodarme1/Qt/5.9.2/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.9.2/clang_64/lib ../sra-toolkit/sraworkspace.h -o moc_sraworkspace.cpp
 
-moc_diagnosticsview.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+moc_sratoolbar.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
-		../sra-toolkit/diagnostics/diagnosticsview.h \
+		../sra-toolkit/sratoolbar.h \
 		moc_predefs.h \
 		../../../../Qt/5.9.2/clang_64/bin/moc
-	/Users/rodarme1/Qt/5.9.2/clang_64/bin/moc $(DEFINES) --include ./moc_predefs.h -I/Users/rodarme1/Qt/5.9.2/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.9.2/clang_64/lib ../sra-toolkit/diagnostics/diagnosticsview.h -o moc_diagnosticsview.cpp
+	/Users/rodarme1/Qt/5.9.2/clang_64/bin/moc $(DEFINES) --include ./moc_predefs.h -I/Users/rodarme1/Qt/5.9.2/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.9.2/clang_64/lib ../sra-toolkit/sratoolbar.h -o moc_sratoolbar.cpp
+
+moc_sratoolview.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/sratoolview.h \
+		moc_predefs.h \
+		../../../../Qt/5.9.2/clang_64/bin/moc
+	/Users/rodarme1/Qt/5.9.2/clang_64/bin/moc $(DEFINES) --include ./moc_predefs.h -I/Users/rodarme1/Qt/5.9.2/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.9.2/clang_64/lib ../sra-toolkit/sratoolview.h -o moc_sratoolview.cpp
+
+moc_sraconfigmodel.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../sra-toolkit/config/sraconfigmodel.h \
+		moc_predefs.h \
+		../../../../Qt/5.9.2/clang_64/bin/moc
+	/Users/rodarme1/Qt/5.9.2/clang_64/bin/moc $(DEFINES) --include ./moc_predefs.h -I/Users/rodarme1/Qt/5.9.2/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.9.2/clang_64/lib ../sra-toolkit/config/sraconfigmodel.h -o moc_sraconfigmodel.cpp
+
+moc_sraconfigview.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/config/sraconfigview.h \
+		moc_predefs.h \
+		../../../../Qt/5.9.2/clang_64/bin/moc
+	/Users/rodarme1/Qt/5.9.2/clang_64/bin/moc $(DEFINES) --include ./moc_predefs.h -I/Users/rodarme1/Qt/5.9.2/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.9.2/clang_64/lib ../sra-toolkit/config/sraconfigview.h -o moc_sraconfigview.cpp
 
 moc_diagnosticsthread.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QObject \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qobject.h \
@@ -788,6 +850,13 @@ moc_diagnosticsthread.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/He
 		moc_predefs.h \
 		../../../../Qt/5.9.2/clang_64/bin/moc
 	/Users/rodarme1/Qt/5.9.2/clang_64/bin/moc $(DEFINES) --include ./moc_predefs.h -I/Users/rodarme1/Qt/5.9.2/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.9.2/clang_64/lib ../sra-toolkit/diagnostics/diagnosticsthread.h -o moc_diagnosticsthread.cpp
+
+moc_sradiagnosticsview.cpp: ../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/diagnostics/sradiagnosticsview.h \
+		moc_predefs.h \
+		../../../../Qt/5.9.2/clang_64/bin/moc
+	/Users/rodarme1/Qt/5.9.2/clang_64/bin/moc $(DEFINES) --include ./moc_predefs.h -I/Users/rodarme1/Qt/5.9.2/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.9.2/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.9.2/clang_64/lib ../sra-toolkit/diagnostics/sradiagnosticsview.h -o moc_sradiagnosticsview.cpp
 
 compiler_moc_source_make_all:
 compiler_moc_source_clean:
@@ -808,15 +877,12 @@ compiler_clean: compiler_rcc_clean compiler_moc_predefs_clean compiler_moc_heade
 main.o: ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMainWindow \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmainwindow.h \
-		../../../ncbi-vdb/interfaces/kapp/main.h \
-		../../../ncbi-vdb/interfaces/klib/defs.h \
-		../../../ncbi-vdb/interfaces/kfc/defs.h \
-		../../../ncbi-vdb/interfaces/kfc/callconv.h \
-		../../../ncbi-vdb/interfaces/kapp/args.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QApplication \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qapplication.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QDesktopWidget \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qdesktopwidget.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QFile \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qfile.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QPoint \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qpoint.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o main.o ../sra-toolkit/main.cpp
@@ -824,16 +890,19 @@ main.o: ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.h \
 sratoolkit.o: ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkit.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMainWindow \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmainwindow.h \
-		../sra-toolkit/diagnostics/diagnosticsview.h \
+		../sra-toolkit/sratoolbar.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/sratoolview.h \
+		../../../ncbi-vdb/interfaces/kapp/main.h \
+		../../../ncbi-vdb/interfaces/klib/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/callconv.h \
+		../../../ncbi-vdb/interfaces/kapp/args.h \
 		../../../ncbi-vdb/interfaces/kfg/config.h \
 		../../../ncbi-vdb/interfaces/kfg/extern.h \
 		../../../ncbi-vdb/interfaces/klib/extern.h \
 		../../../ncbi-vdb/interfaces/kfc/extern.h \
-		../../../ncbi-vdb/interfaces/kfc/callconv.h \
-		../../../ncbi-vdb/interfaces/klib/defs.h \
-		../../../ncbi-vdb/interfaces/kfc/defs.h \
 		../../../ncbi-vdb/interfaces/kfg/properties.h \
 		../../../ncbi-vdb/interfaces/kfg/ngc.h \
 		../../../ncbi-vdb/interfaces/kfs/directory.h \
@@ -842,10 +911,23 @@ sratoolkit.o: ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkit.h \
 		../../../ncbi-vdb/interfaces/klib/rc.h \
 		../../../ncbi-vdb/interfaces/cc/gcc/compiler.h \
 		../../../ncbi-vdb/interfaces/kfc/rc.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QHBoxLayout \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qboxlayout.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QVBoxLayout \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QGroupBox \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qgroupbox.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QIcon \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qicon.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMenu \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmenu.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMenuBar \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmenubar.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QPainter \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qpainter.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QToolButton \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qtoolbutton.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QTimer \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qtimer.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QDebug \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qdebug.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sratoolkit.o ../sra-toolkit/sratoolkit.cpp
@@ -860,62 +942,211 @@ sraworkspace.o: ../sra-toolkit/sraworkspace.cpp ../sra-toolkit/sraworkspace.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qobject.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sraworkspace.o ../sra-toolkit/sraworkspace.cpp
 
-diagnosticsview.o: ../sra-toolkit/diagnostics/diagnosticsview.cpp ../sra-toolkit/diagnostics/diagnosticsview.h \
+sratoolbar.o: ../sra-toolkit/sratoolbar.cpp ../sra-toolkit/sratoolbar.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
-		../sra-toolkit/diagnostics/diagnosticstest.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTreeWidgetItem \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qtreewidget.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QVBoxLayout \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qboxlayout.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QBrush \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qbrush.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QButtonGroup \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qbuttongroup.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QColor \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qcolor.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QLabel \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qlabel.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QPainter \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qpainter.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QPushButton \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qpushbutton.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QDebug \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qdebug.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sratoolbar.o ../sra-toolkit/sratoolbar.cpp
+
+sratoolview.o: ../sra-toolkit/sratoolview.cpp ../sra-toolkit/sratoolview.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/diagnostics/sradiagnosticsview.h \
 		../../../ncbi-vdb/interfaces/kfg/config.h \
 		../../../ncbi-vdb/interfaces/kfg/extern.h \
 		../../../ncbi-vdb/interfaces/klib/extern.h \
 		../../../ncbi-vdb/interfaces/kfc/extern.h \
 		../../../ncbi-vdb/interfaces/kfc/callconv.h \
 		../../../ncbi-vdb/interfaces/klib/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/defs.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sratoolview.o ../sra-toolkit/sratoolview.cpp
+
+sraconfigmodel.o: ../sra-toolkit/config/sraconfigmodel.cpp ../sra-toolkit/config/sraconfigmodel.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../vdb-config/configure.h \
+		../../../ncbi-vdb/interfaces/klib/defs.h \
 		../../../ncbi-vdb/interfaces/kfc/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/callconv.h \
+		../vdb-config/interactive.h \
+		../vdb-config/vdb-config-model.hpp \
+		../../../ncbi-vdb/interfaces/kfg/config.h \
+		../../../ncbi-vdb/interfaces/kfg/extern.h \
+		../../../ncbi-vdb/interfaces/klib/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/extern.h \
 		../../../ncbi-vdb/interfaces/kfg/properties.h \
 		../../../ncbi-vdb/interfaces/kfg/ngc.h \
+		../../../ncbi-vdb/interfaces/kfg/repository.h \
+		../../../ncbi-vdb/interfaces/klib/vector.h \
+		../../../ncbi-vdb/interfaces/kfs/directory.h \
+		../../../ncbi-vdb/interfaces/kfs/extern.h \
+		../../../ncbi-vdb/interfaces/kfs/defs.h \
+		../../../ncbi-vdb/interfaces/vfs/manager.h \
+		../../../ncbi-vdb/interfaces/vfs/extern.h \
+		../../../ncbi-vdb/interfaces/vfs/path.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMessageBox \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmessagebox.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sraconfigmodel.o ../sra-toolkit/config/sraconfigmodel.cpp
+
+sraconfigview.o: ../sra-toolkit/config/sraconfigview.cpp ../sra-toolkit/config/sraconfigview.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/config/sraconfigmodel.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qobject.h \
 		../../../ncbi-vdb/interfaces/klib/rc.h \
+		../../../ncbi-vdb/interfaces/klib/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/callconv.h \
+		../../../ncbi-vdb/interfaces/klib/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/defs.h \
 		../../../ncbi-vdb/interfaces/cc/gcc/compiler.h \
 		../../../ncbi-vdb/interfaces/kfc/rc.h \
-		../../../ncbi-vdb/interfaces/diagnose/diagnose.h \
-		../../../ncbi-vdb/interfaces/diagnose/extern.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QAbstractEventDispatcher \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qabstracteventdispatcher.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QApplication \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qapplication.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QHBoxLayout \
+		../../../ncbi-vdb/interfaces/kfg/config.h \
+		../../../ncbi-vdb/interfaces/kfg/extern.h \
+		../../../ncbi-vdb/interfaces/kfg/properties.h \
+		../../../ncbi-vdb/interfaces/kfg/ngc.h \
+		../../../ncbi-vdb/interfaces/kfg/repository.h \
+		../../../ncbi-vdb/interfaces/klib/vector.h \
+		../../../ncbi-vdb/interfaces/kfs/directory.h \
+		../../../ncbi-vdb/interfaces/kfs/extern.h \
+		../../../ncbi-vdb/interfaces/kfs/defs.h \
+		../../../ncbi-vdb/interfaces/kfs/file.h \
+		../../../ncbi-vdb/interfaces/kfs/file-v1.h \
+		../../../ncbi-vdb/interfaces/klib/namelist.h \
+		../../../ncbi-vdb/interfaces/klib/text.h \
+		../../../ncbi-vdb/interfaces/kfs/file-v2.h \
+		../../../ncbi-vdb/interfaces/kfc/refcount.h \
+		../../../ncbi-vdb/interfaces/cc/gcc/x86_64/atomic32.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QAction \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qaction.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QBoxLayout \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qboxlayout.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QVBoxLayout \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QCloseEvent \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qevent.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QCheckBox \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qcheckbox.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QEventLoop \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qeventloop.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QFile \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qfile.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QFileDialog \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qfiledialog.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QGridLayout \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qgridlayout.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QGroupBox \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qgroupbox.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QHeaderView \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qheaderview.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QInputDialog \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qinputdialog.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QLabel \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qlabel.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMenu \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmenu.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMenuBar \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmenubar.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMessageBox \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmessagebox.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QPushButton \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qpushbutton.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTableWidget \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qtablewidget.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTableWidgetItem \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QTimer \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qtimer.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTreeWidget \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QStringList \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qstringlist.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QVector \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qvector.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QToolBar \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qtoolbar.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QDebug \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qdebug.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o diagnosticsview.o ../sra-toolkit/diagnostics/diagnosticsview.cpp
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sraconfigview.o ../sra-toolkit/config/sraconfigview.cpp
+
+configure.o: ../vdb-config/configure.cpp ../vdb-config/configure.h \
+		../../../ncbi-vdb/interfaces/klib/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/callconv.h \
+		../vdb-config/interactive.h \
+		../vdb-config/vdb-config-model.hpp \
+		../../../ncbi-vdb/interfaces/kfg/config.h \
+		../../../ncbi-vdb/interfaces/kfg/extern.h \
+		../../../ncbi-vdb/interfaces/klib/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/extern.h \
+		../../../ncbi-vdb/interfaces/kfg/properties.h \
+		../../../ncbi-vdb/interfaces/kfg/ngc.h \
+		../../../ncbi-vdb/interfaces/kfg/repository.h \
+		../../../ncbi-vdb/interfaces/klib/vector.h \
+		../../../ncbi-vdb/interfaces/kfs/directory.h \
+		../../../ncbi-vdb/interfaces/kfs/extern.h \
+		../../../ncbi-vdb/interfaces/kfs/defs.h \
+		../../../ncbi-vdb/interfaces/vfs/manager.h \
+		../../../ncbi-vdb/interfaces/vfs/extern.h \
+		../../../ncbi-vdb/interfaces/vfs/path.h \
+		../vdb-config/util.hpp \
+		../../../ncbi-vdb/interfaces/klib/out.h \
+		../../../ncbi-vdb/interfaces/klib/writer.h \
+		../../../ncbi-vdb/interfaces/klib/logfmt.h \
+		../../../ncbi-vdb/interfaces/klib/printf.h \
+		../../../ncbi-vdb/interfaces/klib/text.h \
+		../../../ncbi-vdb/interfaces/kfs/file.h \
+		../../../ncbi-vdb/interfaces/kfs/file-v1.h \
+		../../../ncbi-vdb/interfaces/klib/namelist.h \
+		../../../ncbi-vdb/interfaces/kfs/file-v2.h \
+		../../../ncbi-vdb/interfaces/kfc/refcount.h \
+		../../../ncbi-vdb/interfaces/cc/gcc/x86_64/atomic32.h \
+		../../../ncbi-vdb/interfaces/klib/rc.h \
+		../../../ncbi-vdb/interfaces/cc/gcc/compiler.h \
+		../../../ncbi-vdb/interfaces/kfc/rc.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o configure.o ../vdb-config/configure.cpp
+
+vdb-config-model.o: ../vdb-config/vdb-config-model.cpp ../../../ncbi-vdb/interfaces/klib/text.h \
+		../../../ncbi-vdb/interfaces/klib/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/callconv.h \
+		../../../ncbi-vdb/interfaces/klib/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/defs.h \
+		../../../ncbi-vdb/interfaces/klib/vector.h \
+		../vdb-config/vdb-config-model.hpp \
+		../../../ncbi-vdb/interfaces/kfg/config.h \
+		../../../ncbi-vdb/interfaces/kfg/extern.h \
+		../../../ncbi-vdb/interfaces/kfg/properties.h \
+		../../../ncbi-vdb/interfaces/kfg/ngc.h \
+		../../../ncbi-vdb/interfaces/kfg/repository.h \
+		../../../ncbi-vdb/interfaces/kfs/directory.h \
+		../../../ncbi-vdb/interfaces/kfs/extern.h \
+		../../../ncbi-vdb/interfaces/kfs/defs.h \
+		../../../ncbi-vdb/interfaces/vfs/manager.h \
+		../../../ncbi-vdb/interfaces/vfs/extern.h \
+		../../../ncbi-vdb/interfaces/vfs/path.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o vdb-config-model.o ../vdb-config/vdb-config-model.cpp
+
+util.o: ../vdb-config/util.cpp ../../../ncbi-vdb/interfaces/kfg/kfg-priv.h \
+		../../../ncbi-vdb/interfaces/kfg/extern.h \
+		../../../ncbi-vdb/interfaces/klib/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/callconv.h \
+		../../../ncbi-vdb/interfaces/kfg/config.h \
+		../../../ncbi-vdb/interfaces/klib/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/defs.h \
+		../../../ncbi-vdb/interfaces/klib/printf.h \
+		../vdb-config/util.hpp \
+		../../../ncbi-vdb/interfaces/klib/out.h \
+		../../../ncbi-vdb/interfaces/klib/writer.h \
+		../../../ncbi-vdb/interfaces/klib/logfmt.h \
+		../../../ncbi-vdb/interfaces/klib/text.h \
+		../../../ncbi-vdb/interfaces/kfs/directory.h \
+		../../../ncbi-vdb/interfaces/kfs/extern.h \
+		../../../ncbi-vdb/interfaces/kfs/defs.h \
+		../../../ncbi-vdb/interfaces/kfs/file.h \
+		../../../ncbi-vdb/interfaces/kfs/file-v1.h \
+		../../../ncbi-vdb/interfaces/klib/namelist.h \
+		../../../ncbi-vdb/interfaces/kfs/file-v2.h \
+		../../../ncbi-vdb/interfaces/kfc/refcount.h \
+		../../../ncbi-vdb/interfaces/cc/gcc/x86_64/atomic32.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o util.o ../vdb-config/util.cpp
 
 diagnosticstest.o: ../sra-toolkit/diagnostics/diagnosticstest.cpp ../sra-toolkit/diagnostics/diagnosticstest.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTreeWidgetItem \
@@ -938,9 +1169,54 @@ diagnosticsthread.o: ../sra-toolkit/diagnostics/diagnosticsthread.cpp ../sra-too
 		../../../ncbi-vdb/interfaces/klib/rc.h \
 		../../../ncbi-vdb/interfaces/cc/gcc/compiler.h \
 		../../../ncbi-vdb/interfaces/kfc/rc.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QApplication \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qapplication.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QTime \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qdatetime.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QDebug \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qdebug.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o diagnosticsthread.o ../sra-toolkit/diagnostics/diagnosticsthread.cpp
+
+sradiagnosticsview.o: ../sra-toolkit/diagnostics/sradiagnosticsview.cpp ../sra-toolkit/diagnostics/sradiagnosticsview.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/diagnostics/diagnosticstest.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTreeWidgetItem \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qtreewidget.h \
+		../sra-toolkit/diagnostics/diagnosticsthread.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../../../ncbi-vdb/interfaces/diagnose/diagnose.h \
+		../../../ncbi-vdb/interfaces/diagnose/extern.h \
+		../../../ncbi-vdb/interfaces/klib/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/callconv.h \
+		../../../ncbi-vdb/interfaces/klib/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/defs.h \
+		../../../ncbi-vdb/interfaces/kfg/config.h \
+		../../../ncbi-vdb/interfaces/kfg/extern.h \
+		../../../ncbi-vdb/interfaces/kfg/properties.h \
+		../../../ncbi-vdb/interfaces/kfg/ngc.h \
+		../../../ncbi-vdb/interfaces/klib/rc.h \
+		../../../ncbi-vdb/interfaces/cc/gcc/compiler.h \
+		../../../ncbi-vdb/interfaces/kfc/rc.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QAbstractEventDispatcher \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qabstracteventdispatcher.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QHBoxLayout \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qboxlayout.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QVBoxLayout \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QGridLayout \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qgridlayout.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QLabel \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qlabel.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QPushButton \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qpushbutton.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QThread \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qthread.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QTreeWidget \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QDebug \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qdebug.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sradiagnosticsview.o ../sra-toolkit/diagnostics/sradiagnosticsview.cpp
 
 qrc_resources.o: qrc_resources.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o qrc_resources.o qrc_resources.cpp
@@ -954,11 +1230,23 @@ moc_sratoolkitpreferences.o: moc_sratoolkitpreferences.cpp
 moc_sraworkspace.o: moc_sraworkspace.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_sraworkspace.o moc_sraworkspace.cpp
 
-moc_diagnosticsview.o: moc_diagnosticsview.cpp 
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_diagnosticsview.o moc_diagnosticsview.cpp
+moc_sratoolbar.o: moc_sratoolbar.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_sratoolbar.o moc_sratoolbar.cpp
+
+moc_sratoolview.o: moc_sratoolview.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_sratoolview.o moc_sratoolview.cpp
+
+moc_sraconfigmodel.o: moc_sraconfigmodel.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_sraconfigmodel.o moc_sraconfigmodel.cpp
+
+moc_sraconfigview.o: moc_sraconfigview.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_sraconfigview.o moc_sraconfigview.cpp
 
 moc_diagnosticsthread.o: moc_diagnosticsthread.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_diagnosticsthread.o moc_diagnosticsthread.cpp
+
+moc_sradiagnosticsview.o: moc_sradiagnosticsview.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o moc_sradiagnosticsview.o moc_sradiagnosticsview.cpp
 
 ####### Install
 

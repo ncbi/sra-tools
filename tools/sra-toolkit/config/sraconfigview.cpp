@@ -26,6 +26,8 @@
 
 #include "sraconfigview.h"
 #include "sraconfigmodel.h"
+#include "../vdb-config/configure.h"
+#include "../vdb-config/interactive.h"
 #include "../vdb-config/vdb-config-model.hpp"
 //#include "../sra-tools-gui/interfaces/ktoolbaritem.h"
 
@@ -54,13 +56,11 @@
 
 #include <QDebug>
 
-static vdbconf_model *config_model;
-
 extern "C"
 {
     rc_t run_interactive ( vdbconf_model &m )
     {
-        config_model = &m;
+        (void) m;
         return 0;
     }
 }
@@ -517,12 +517,9 @@ bool import_ngc ( SRAConfigModel *model, std :: string file, uint32_t &ngc_id, Q
 
 SRAConfigView :: SRAConfigView ( QWidget *parent )
     : QWidget ( parent )
-    , model ( new SRAConfigModel ( *config_model, this ) )
+    , model ( new SRAConfigModel ( configure_model (), this ) )
     , main_layout ( new QVBoxLayout () )
 {
-    //setup_menubar ();
-    //setup_toolbar ();
-
     main_layout -> setSpacing ( 20 );
     main_layout -> setAlignment ( Qt::AlignTop );
     main_layout -> addSpacing ( 10 );
@@ -530,13 +527,14 @@ SRAConfigView :: SRAConfigView ( QWidget *parent )
     main_layout -> addWidget ( setup_workspace_group () );
     main_layout -> addLayout ( setup_button_layout () );
 
+
     populate ();
 
     connect ( this, SIGNAL ( dirty_config () ), this, SLOT ( modified_config () ) );
 
     setLayout ( main_layout );
 
-    resize ( size () );
+    resize ( QSize ( parent -> size (). width (), parent -> size () . height () ) );
 
     show ();
 }
@@ -891,9 +889,9 @@ void SRAConfigView :: reload_config ()
    if ( ! model -> config_changed () )
    {
        apply_btn -> setDisabled ( true );
-       apply_action -> setDisabled ( true );
+       //apply_action -> setDisabled ( true );
        discard_btn -> setDisabled ( true );
-       discard_action -> setDisabled ( true );
+       //discard_action -> setDisabled ( true );
    }
 }
 
@@ -902,9 +900,9 @@ void SRAConfigView :: modified_config ()
     if ( model -> config_changed () ) // this wont trigger on workspace addition yet
     {
         apply_btn -> setDisabled ( false );
-        apply_action -> setDisabled ( false );
+        //apply_action -> setDisabled ( false );
         discard_btn -> setDisabled ( false );
-        discard_action -> setDisabled ( false );
+        //discard_action -> setDisabled ( false );
     }
 }
 

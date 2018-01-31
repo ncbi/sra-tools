@@ -8,12 +8,14 @@ SRAToolView :: SRAToolView ( KConfig *p_config, QWidget *parent )
     : QWidget ( parent )
     , config ( p_config )
     , home ( nullptr )
-    , currentView ( nullptr )
     , diagnostics ( nullptr )
+    , currentView ( nullptr )
 {
     resize ( QSize ( parent -> size (). width () - 100, parent -> size () . height () ) );
 
     home = new SRAConfigView ( this );
+    //home = new QWidget ( this );
+    //home -> resize ( size () );
     home -> setObjectName ( "home_view" );
     currentView = home;
 

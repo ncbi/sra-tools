@@ -236,6 +236,11 @@ public:
         OUTMSG(("Fixed default configuration\n"));
         return 0;
     }
+
+    vdbconf_model *getModel ()
+    {
+        return m_Config;
+    }
 };
 struct SUserRepo {
     bool cacheEnabled;
@@ -827,4 +832,13 @@ rc_t configure(EConfigMode mode) {
     }
     delete c;
     return rc;
+}
+
+vdbconf_model & configure_model ()
+{
+    CConfigurator *c = new CVisualConfigurator;
+    vdbconf_model *m = c -> getModel ();
+    //delete c;
+
+    return *m;
 }

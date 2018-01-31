@@ -21,6 +21,14 @@
 
 #include <QDebug>
 
+extern "C"
+{
+    rc_t Quitting ()
+    {
+        return 0;
+    }
+}
+
 const QString rsrc_path = ":/";
 
 
@@ -123,6 +131,7 @@ void SRADiagnosticsView :: init_controls ()
 
 void SRADiagnosticsView :: handle_callback ( DiagnosticsTest *test )
 {
+    //qDebug () << test -> getName () << "- State: " << test -> getState ();
 
     switch ( test -> getState () )
     {

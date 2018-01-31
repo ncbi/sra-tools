@@ -30,10 +30,11 @@ private:
 
     KConfig *config;
 
-    QWidget *currentView;
-
     SRAConfigView *home;
+    //QWidget *home;
     SRADiagnosticsView *diagnostics;
+
+    QWidget *currentView;
 };
 
 #endif // SRATOOLVIEW_H

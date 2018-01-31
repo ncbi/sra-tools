@@ -32,10 +32,17 @@ void CC callback ( EKDiagTestState state, const KDiagnoseTest *diagnose_test, vo
         return;
     }
 
+    delay ();
     rc_t rc = KDiagnoseTestName ( diagnose_test, &name );
     if ( rc ==  0 )
     {
         uint32_t test_level = 0;
+
+        if ( state == DTS_Failed )
+        {
+            //KDiagnoseError *error  = KDiagnoseGetError ( self -> diagnose,
+            qDebug () << "callback " << QString ( name ) << "- State: " << state;
+        }
 
         rc = KDiagnoseTestLevel ( diagnose_test, &test_level );
         if ( rc == 0 )
@@ -44,7 +51,6 @@ void CC callback ( EKDiagTestState state, const KDiagnoseTest *diagnose_test, vo
             test -> setLevel ( test_level );
             test -> setState ( state );
 
-            delay ();
             self -> handle ( test );
         }
     }
@@ -71,7 +77,7 @@ void DiagnosticsThread :: begin ()
 {
     rc_t rc = KDiagnoseAll ( diagnose, 0 );
     if ( rc != 0 )
-        qDebug () << rc;
+        qDebug () << "KDiagnoseAll failed";
 
     emit finished ();
 }

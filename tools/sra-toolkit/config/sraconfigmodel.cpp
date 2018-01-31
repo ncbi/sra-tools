@@ -1,6 +1,4 @@
 #include "sraconfigmodel.h"
-#include "../vdb-config/configure.h"
-#include "../vdb-config/interactive.h"
 #include "../vdb-config/vdb-config-model.hpp"
 
 #include <kfg/config.h>

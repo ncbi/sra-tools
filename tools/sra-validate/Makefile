@@ -61,6 +61,15 @@ clean: stdclean
 # fastdump
 #
 TOOL_SRC = \
+	cmn \
+	logger \
+	result \
+	thread-runner \
+	progress \
+	cmn-iter \
+	prim-iter \
+	seq-iter \
+	csra-validator \
 	sra-validate
 
 TOOL_OBJ = \

@@ -36,24 +36,8 @@
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
-#endif
-
-#ifndef _h_klib_data_buffer_
-#include <klib/data-buffer.h>
-#endif
-
-#ifndef _h_klib_printf_
-#include <klib/printf.h>
-#endif
-
 #ifndef _h_klib_out_
 #include <klib/out.h>
-#endif
-
-#ifndef _h_klib_log_
-#include <klib/log.h>
 #endif
 
 #ifndef _h_klib_directory_
@@ -62,6 +46,34 @@
 
 #include <os-native.h>
 #include <sysalloc.h>
+
+#ifndef _h_cmn_
+#include "cmn.h"
+#endif
+
+#ifndef _h_logger_
+#include "logger.h"
+#endif
+
+#ifndef _h_result_
+#include "result.h"
+#endif
+
+#ifndef _h_thread_runner_
+#include "thread-runner.h"
+#endif
+
+#ifndef _h_progress_
+#include "progress.h"
+#endif
+
+#ifndef _h_cmn_iter_
+#include "cmn-iter.h"
+#endif
+
+#ifndef _h_csra_validator_
+#include "csra-validator.h"
+#endif
 
 static const char * threads_usage[] = { "how many thread ( default=1 )", NULL };
 #define OPTION_THREADS  "threads"
@@ -114,47 +126,163 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-static rc_t ErrMsg( const char * fmt, ... )
+typedef struct validate_ctx
 {
-    KDataBuffer data_buffer;
-    rc_t rc = KDataBufferMakeBytes( &data_buffer, 1024 );
+    KDirectory * dir;
+    const char accession;
+    acc_info_t acc_info;
+    struct logger * log;
+    struct validate_result * v_res;
+    struct thread_runner * threads;
+    struct progress * progress;
+    size_t cursor_cache;
+    uint32_t num_slices;
+} validate_ctx;
+
+static rc_t clear_validate_context( validate_ctx * val_ctx )
+{
+    rc_t rc = 0;
+    
+    terminate_progress( val_ctx -> progress );
+        
+    if ( val_ctx -> threads != NULL )
+    {
+        rc = destroy_thread_runner( val_ctx -> threads );
+        if ( rc != 0 )
+            ErrMsg( "clear_validate_context().destroy_thread_runner() -> %R", rc );
+    }
+    
+    if ( val_ctx -> v_res != NULL )
+    {
+        rc_t rc1 = print_validate_result( val_ctx -> v_res, val_ctx -> log );
+        if ( rc == 0 )
+            rc = rc1;
+        destroy_validate_result( val_ctx -> v_res );
+    }
+    
+    if ( val_ctx -> log != NULL )
+        destroy_logger( val_ctx -> log );
+
+    if ( val_ctx -> dir != NULL )
+        KDirectoryRelease( val_ctx -> dir );
+
+    return rc;
+}
+
+static rc_t init_validate_context( Args * args, validate_ctx * val_ctx )
+{
+    rc_t rc = 0;
+    const char * accession;
+    
+    memset( val_ctx, 0, sizeof * val_ctx );
+    rc = ArgsParamValue( args, 0, (const void **)&accession );
+    if ( rc != 0 )
+        ErrMsg( "ArgsParamValue() -> %R", rc );
+        
+    val_ctx -> num_slices = 6;
+    val_ctx -> cursor_cache = 1024 * 1024 * 32;
+
     if ( rc == 0 )
     {
-        va_list list;
-        
-        va_start( list, fmt );
-        rc = KDataBufferVPrintf ( &data_buffer, fmt, list );
-        if ( rc == 0 )
-            rc = pLogMsg( klogErr, "$(E)", "E=%s", data_buffer . base );
-        va_end( list );
-    
-        KDataBufferWhack( &data_buffer );
+        rc = KDirectoryNativeDir( & val_ctx -> dir );
+        if ( rc != 0 )
+            ErrMsg( "sra-validate.c init_validate_context().KDirectoryNativeDir() -> %R", rc );
     }
-    return rc;
-} 
 
-static rc_t sra_validate( const char * accession )
-{
-    return ErrMsg( "validating: %s\n", accession );
+    if ( rc == 0 )
+        rc = make_logger( val_ctx -> dir, &val_ctx -> log, NULL );
+    
+    if ( rc == 0 )
+        rc = make_validate_result( &val_ctx -> v_res );
+
+    if ( rc == 0 )
+        rc = make_thread_runner( &val_ctx -> threads );
+
+    if ( rc == 0 )
+        rc = make_progress( val_ctx -> threads, &val_ctx -> progress, 20 /* ms sleep time for updates */ );
+        
+    if ( rc == 0 )
+        rc = cmn_get_acc_info( val_ctx -> dir, accession, &val_ctx -> acc_info ); /* cmn-iter.c */
+        
+    if ( rc != 0 )
+        clear_validate_context( val_ctx );
+
+    return rc;
 }
+
+static rc_t sra_validate_csra( validate_ctx * val_ctx )
+{
+    rc_t rc = log_write( val_ctx -> log,
+                         "validating as CSRA ( PLATFORM = %s )",
+                         platform_2_text( val_ctx -> acc_info . platform ) );
+    if ( rc == 0 )
+        rc = run_csra_validator( val_ctx -> dir,
+                                 & val_ctx -> acc_info,
+                                 val_ctx -> log,
+                                 val_ctx -> v_res,
+                                 val_ctx -> threads,
+                                 val_ctx -> progress,
+                                 val_ctx -> num_slices,
+                                 val_ctx -> cursor_cache );
+    return rc;
+}
+
+static rc_t sra_validate_sra_flat( validate_ctx * val_ctx )
+{
+    rc_t rc = log_write( val_ctx -> log,
+                        "validating as flat SRA ( PLATFORM = %s )",
+                        platform_2_text( val_ctx -> acc_info . platform ) );
+    return rc;
+}
+
+static rc_t sra_validate_sra_db( validate_ctx * val_ctx )
+{
+    rc_t rc = log_write( val_ctx -> log,
+                         "validating as db-SRA ( PLATFORM = %s )",
+                         platform_2_text( val_ctx -> acc_info . platform ) );
+    return rc;
+}
+
+static rc_t sra_validate_pacbio( validate_ctx * val_ctx )
+{
+    rc_t rc = log_write( val_ctx -> log,
+                         "validating as PACBIO ( PLATFORM = %s )",
+                         platform_2_text( val_ctx -> acc_info . platform ) );
+    return rc;
+}
+
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
-    rc_t rc;
-    Args * args;
     uint32_t num_options = sizeof ToolOptions / sizeof ToolOptions [ 0 ];
-
-    rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
+    Args * args;
+    rc_t rc = ArgsMakeAndHandle ( &args, argc, argv, 1, ToolOptions, num_options );
     if ( rc != 0 )
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
-    if ( rc == 0 )
+    else
     {
-        const char * accession;
-        rc = ArgsParamValue( args, 0, (const void **)&accession );
-        if ( rc != 0 )
-            ErrMsg( "ArgsParamValue() -> %R", rc );
-        else
-            rc = sra_validate( accession );
+        validate_ctx val_ctx;
+        rc = init_validate_context( args, &val_ctx );
+        if ( rc == 0 )
+        {
+
+            switch( val_ctx . acc_info . acc_type )
+            {
+                case acc_csra       : rc = sra_validate_csra( &val_ctx ); break;
+                case acc_sra_flat   : rc = sra_validate_sra_flat( &val_ctx ); break;
+                case acc_sra_db     : rc = sra_validate_sra_db( &val_ctx ); break;
+                case acc_pacbio     : rc = sra_validate_pacbio( &val_ctx ); break;            
+                case acc_none       : rc = log_write( val_ctx . log,
+                                                "'%s' cannot be validated",
+                                                val_ctx . acc_info . accession ); break;
+            }
+            
+            {
+                rc_t rc1 = clear_validate_context( &val_ctx );
+                if ( rc == 0 )
+                    rc = rc1;
+            }
+        }
     }
     return rc;
 }

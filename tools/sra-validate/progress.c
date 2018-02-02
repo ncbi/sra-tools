@@ -128,7 +128,11 @@ static rc_t CC progress_thread_func( const KThread *self, void *data )
 
                 case ps_init    :   progress_steps_and_destroy( prog );
                                     if ( 0 == make_progressbar( & prog -> progressbar, atomic_read( &prog -> digits ) ) )
+                                    {
+                                        prog -> cur = 0;
+                                        update_progressbar( prog -> progressbar, prog -> cur );
                                         atomic_set( &prog -> state, ps_running );
+                                    }
                                     break;
                                     
                 case ps_running :   if ( !progress_steps( prog ) )

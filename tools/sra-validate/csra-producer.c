@@ -24,25 +24,40 @@
 *
 */
 
-#ifndef _h_csra_validator_
-#define _h_csra_validator_
+#include "csra-producer.h"
 
-#ifdef __cplusplus
-extern "C" {
+#ifndef _h_cmn_
+#include "cmn.h"
 #endif
 
-#ifndef _h_klib_rc_
-#include <klib/rc.h>
+#ifndef _h_prim_iter_
+#include "prim-iter.h"
 #endif
 
-#ifndef _h_validate_ctx_
-#include "validate-ctx.h"
-#endif
-
-rc_t run_csra_validator( const validate_ctx * vctx );
-
-#ifdef __cplusplus
+rc_t CC csra_producer_thread( const KThread *self, void *data )
+{
+    validate_slice * slice = data;
+    cmn_params p = { slice -> vctx -> dir,
+                     slice -> vctx -> acc_info -> accession,
+                     slice -> first_row,
+                     slice -> row_count,
+                     slice -> vctx -> cursor_cache }; /* cmn-iter.h */
+    struct prim_iter * iter;
+    rc_t rc = make_prim_iter( &p, &iter );
+    if ( rc == 0 )
+    {
+        prim_rec rec;
+        while ( get_from_prim_iter( iter, &rec, &rc ) && rc == 0 )
+        {
+            rc = prim_lookup_enter( slice -> lookup, &rec );
+            if ( rc == 0 )
+                rc = update_prim_validate_result( slice -> vctx -> v_res, 0 );
+            if ( rc == 0 )
+                update_progress( slice -> vctx -> progress, 1 );
+        }
+        destroy_prim_iter( iter );
+    }
+    finish_validate_result( slice -> vctx -> v_res );
+    free( data );
+    return rc;
 }
-#endif
-
-#endif

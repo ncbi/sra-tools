@@ -45,7 +45,12 @@ void destroy_validate_result( struct validate_result * self );
 
 rc_t make_validate_result( struct validate_result ** obj );
 
-rc_t update_validate_result( struct validate_result * self, uint32_t errors );
+rc_t update_seq_validate_result( struct validate_result * self, uint32_t errors );
+rc_t update_prim_validate_result( struct validate_result * self, uint32_t errors );
+
+void set_to_finish_validate_result( struct validate_result * self, uint32_t value );
+void finish_validate_result( struct validate_result * self );
+void wait_for_validate_result( struct validate_result * self, uint32_t wait_time );
 
 rc_t print_validate_result( struct validate_result * self, struct logger * log );
 

@@ -70,7 +70,7 @@ void destroy_logger( logger * self )
     }
 }
 
-rc_t make_logger( KDirectory * dir, logger ** log, const char * filename )
+rc_t make_logger( const KDirectory * dir, logger ** log, const char * filename )
 {
     rc_t rc = 0;
     logger * l = calloc( 1, sizeof * l );
@@ -86,7 +86,7 @@ rc_t make_logger( KDirectory * dir, logger ** log, const char * filename )
             ErrMsg( "make_logger().KLockMake() -> %R", rc );
         else if ( filename != NULL )
         {
-            rc = KDirectoryCreateFile ( dir, & l -> f, true, 0644, kcmCreate, "%s", filename );
+            rc = KDirectoryCreateFile ( ( KDirectory * )dir, & l -> f, true, 0644, kcmCreate, "%s", filename );
             if ( rc != 0 )
                 ErrMsg( "make_logger().KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
         }

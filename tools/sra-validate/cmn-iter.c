@@ -562,7 +562,9 @@ static rc_t cmn_read_platform_value( const VTable * tbl, INSDC_SRA_platform_id *
                         {
                             int64_t first_row;
 
-                            *platform = values[ 0 ];
+                            if ( platform != NULL )
+                                *platform = values[ 0 ];
+
                             rc = VCursorIdRange( cur, id_read, &first_row, row_count );
                             if ( rc != 0 )
                                 ErrMsg( "cmn_iter.c cmn_read_platform_value().VCursorIdRange() -> %R", rc );
@@ -618,9 +620,19 @@ static rc_t cmn_get_db_info( const VDBManager * mgr, const char * accession, acc
                         const VTable * tbl = NULL;
                         rc = VDatabaseOpenTableRead( db, &tbl, "%s", SEQ_TABLE );
                         if ( rc != 0 )
-                            ErrMsg( "cmn_iter.c cmn_get_db_info().VDBManagerOpenDBRead( '%s', '%s' ) -> %R\n", accession, SEQ_TABLE, rc );
+                            ErrMsg( "cmn_iter.c cmn_get_db_info().VDatabaseOpenTableRead( '%s', '%s' ) -> %R\n", accession, SEQ_TABLE, rc );
                         else
                             rc = cmn_read_platform_value( tbl, & acc_info -> platform, & acc_info -> seq_rows );
+                            
+                        if ( rc == 0 )
+                        {
+                            rc = VDatabaseOpenTableRead( db, &tbl, "%s", PRIM_TABLE );
+                            if ( rc != 0 )
+                                ErrMsg( "cmn_iter.c cmn_get_db_info().VDatabaseOpenTableRead( '%s', '%s' ) -> %R\n", accession, PRIM_TABLE, rc );
+                            else
+                                rc = cmn_read_platform_value( tbl, NULL, & acc_info -> prim_rows );
+                        }
+                        
                         VDatabaseRelease( db );
                     }
                 }
@@ -644,7 +656,7 @@ static rc_t cmn_get_tbl_info( const VDBManager * mgr, const char * accession, ac
     return rc;
 }
 
-rc_t cmn_get_acc_info( KDirectory * dir, const char * accession, acc_info_t * acc_info )
+rc_t cmn_get_acc_info( const KDirectory * dir, const char * accession, acc_info_t * acc_info )
 {
     rc_t rc = 0;
     if ( acc_info != NULL )

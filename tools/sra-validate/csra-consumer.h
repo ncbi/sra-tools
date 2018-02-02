@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_csra_validator_
-#define _h_csra_validator_
+#ifndef _h_csra_consumer_
+#define _h_csra_consumer_
 
 #ifdef __cplusplus
 extern "C" {
@@ -39,7 +39,7 @@ extern "C" {
 #include "validate-ctx.h"
 #endif
 
-rc_t run_csra_validator( const validate_ctx * vctx );
+rc_t CC csra_consumer_thread( const KThread *self, void *data );
 
 #ifdef __cplusplus
 }

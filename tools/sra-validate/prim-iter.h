@@ -47,7 +47,7 @@ struct prim_iter;
 
 typedef struct prim_rec
 {
-    uint64_t seq_spot_id;
+    uint64_t align_row_id, seq_spot_id;
     uint32_t read_len;
     uint8_t seq_read_id, ref_orient;
 } prim_rec;

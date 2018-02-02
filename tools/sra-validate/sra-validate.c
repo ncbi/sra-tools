@@ -51,42 +51,21 @@
 #include "cmn.h"
 #endif
 
-#ifndef _h_logger_
-#include "logger.h"
-#endif
-
-#ifndef _h_result_
-#include "result.h"
-#endif
-
-#ifndef _h_thread_runner_
-#include "thread-runner.h"
-#endif
-
-#ifndef _h_progress_
-#include "progress.h"
-#endif
-
-#ifndef _h_cmn_iter_
-#include "cmn-iter.h"
+#ifndef _h_validate_ctx_
+#include "validate-ctx.h"
 #endif
 
 #ifndef _h_csra_validator_
 #include "csra-validator.h"
 #endif
 
-static const char * threads_usage[] = { "how many thread ( default=1 )", NULL };
+static const char * threads_usage[] = { "how many thread ( default=6 )", NULL };
 #define OPTION_THREADS  "threads"
 #define ALIAS_THREADS   "e"
 
-static const char * detail_usage[] = { "print details", NULL };
-#define OPTION_DETAILS  "details"
-#define ALIAS_DETAILS    "x"
-
 OptDef ToolOptions[] =
 {
-    { OPTION_THREADS,   ALIAS_THREADS,   NULL, threads_usage,    1, true,   false },
-    { OPTION_DETAILS,   ALIAS_DETAILS,   NULL, detail_usage,     1, false,  false }
+    { OPTION_THREADS,   ALIAS_THREADS,   NULL, threads_usage,    1, true,   false }
 };
 
 const char UsageDefaultName[] = "sra-validate";
@@ -126,19 +105,6 @@ rc_t CC Usage ( const Args * args )
     return rc;
 }
 
-typedef struct validate_ctx
-{
-    KDirectory * dir;
-    const char accession;
-    acc_info_t acc_info;
-    struct logger * log;
-    struct validate_result * v_res;
-    struct thread_runner * threads;
-    struct progress * progress;
-    size_t cursor_cache;
-    uint32_t num_slices;
-} validate_ctx;
-
 static rc_t clear_validate_context( validate_ctx * val_ctx )
 {
     rc_t rc = 0;
@@ -174,7 +140,6 @@ static rc_t init_validate_context( Args * args, validate_ctx * val_ctx )
     rc_t rc = 0;
     const char * accession;
     
-    memset( val_ctx, 0, sizeof * val_ctx );
     rc = ArgsParamValue( args, 0, (const void **)&accession );
     if ( rc != 0 )
         ErrMsg( "ArgsParamValue() -> %R", rc );
@@ -184,13 +149,13 @@ static rc_t init_validate_context( Args * args, validate_ctx * val_ctx )
 
     if ( rc == 0 )
     {
-        rc = KDirectoryNativeDir( & val_ctx -> dir );
+        rc = KDirectoryNativeDir( ( KDirectory ** )& val_ctx -> dir );
         if ( rc != 0 )
             ErrMsg( "sra-validate.c init_validate_context().KDirectoryNativeDir() -> %R", rc );
     }
 
     if ( rc == 0 )
-        rc = make_logger( val_ctx -> dir, &val_ctx -> log, NULL );
+        rc = make_logger( val_ctx -> dir, ( struct logger ** ) &val_ctx -> log, NULL );
     
     if ( rc == 0 )
         rc = make_validate_result( &val_ctx -> v_res );
@@ -202,7 +167,7 @@ static rc_t init_validate_context( Args * args, validate_ctx * val_ctx )
         rc = make_progress( val_ctx -> threads, &val_ctx -> progress, 20 /* ms sleep time for updates */ );
         
     if ( rc == 0 )
-        rc = cmn_get_acc_info( val_ctx -> dir, accession, &val_ctx -> acc_info ); /* cmn-iter.c */
+        rc = cmn_get_acc_info( val_ctx -> dir, accession, ( acc_info_t * )val_ctx -> acc_info ); /* cmn-iter.c */
         
     if ( rc != 0 )
         clear_validate_context( val_ctx );
@@ -213,17 +178,12 @@ static rc_t init_validate_context( Args * args, validate_ctx * val_ctx )
 static rc_t sra_validate_csra( validate_ctx * val_ctx )
 {
     rc_t rc = log_write( val_ctx -> log,
-                         "validating as CSRA ( PLATFORM = %s )",
-                         platform_2_text( val_ctx -> acc_info . platform ) );
+                         "validating as CSRA ( PLATFORM = %s, SEQ-ROWS = %,lu, PRIM-ROWS = %,lu )",
+                         platform_2_text( val_ctx -> acc_info -> platform ),
+                         val_ctx -> acc_info -> seq_rows,
+                         val_ctx -> acc_info -> prim_rows );
     if ( rc == 0 )
-        rc = run_csra_validator( val_ctx -> dir,
-                                 & val_ctx -> acc_info,
-                                 val_ctx -> log,
-                                 val_ctx -> v_res,
-                                 val_ctx -> threads,
-                                 val_ctx -> progress,
-                                 val_ctx -> num_slices,
-                                 val_ctx -> cursor_cache );
+        rc = run_csra_validator( val_ctx );
     return rc;
 }
 
@@ -231,7 +191,7 @@ static rc_t sra_validate_sra_flat( validate_ctx * val_ctx )
 {
     rc_t rc = log_write( val_ctx -> log,
                         "validating as flat SRA ( PLATFORM = %s )",
-                        platform_2_text( val_ctx -> acc_info . platform ) );
+                        platform_2_text( val_ctx -> acc_info -> platform ) );
     return rc;
 }
 
@@ -239,7 +199,7 @@ static rc_t sra_validate_sra_db( validate_ctx * val_ctx )
 {
     rc_t rc = log_write( val_ctx -> log,
                          "validating as db-SRA ( PLATFORM = %s )",
-                         platform_2_text( val_ctx -> acc_info . platform ) );
+                         platform_2_text( val_ctx -> acc_info -> platform ) );
     return rc;
 }
 
@@ -247,10 +207,9 @@ static rc_t sra_validate_pacbio( validate_ctx * val_ctx )
 {
     rc_t rc = log_write( val_ctx -> log,
                          "validating as PACBIO ( PLATFORM = %s )",
-                         platform_2_text( val_ctx -> acc_info . platform ) );
+                         platform_2_text( val_ctx -> acc_info -> platform ) );
     return rc;
 }
-
 
 rc_t CC KMain ( int argc, char *argv [] )
 {
@@ -261,12 +220,17 @@ rc_t CC KMain ( int argc, char *argv [] )
         ErrMsg( "ArgsMakeAndHandle() -> %R", rc );
     else
     {
+        acc_info_t acc_info;
         validate_ctx val_ctx;
+        
+        memset( &acc_info, 0, sizeof acc_info );
+        memset( &val_ctx, 0, sizeof val_ctx );
+        val_ctx . acc_info = &acc_info;
         rc = init_validate_context( args, &val_ctx );
         if ( rc == 0 )
         {
 
-            switch( val_ctx . acc_info . acc_type )
+            switch( val_ctx . acc_info -> acc_type )
             {
                 case acc_csra       : rc = sra_validate_csra( &val_ctx ); break;
                 case acc_sra_flat   : rc = sra_validate_sra_flat( &val_ctx ); break;
@@ -274,7 +238,7 @@ rc_t CC KMain ( int argc, char *argv [] )
                 case acc_pacbio     : rc = sra_validate_pacbio( &val_ctx ); break;            
                 case acc_none       : rc = log_write( val_ctx . log,
                                                 "'%s' cannot be validated",
-                                                val_ctx . acc_info . accession ); break;
+                                                val_ctx . acc_info -> accession ); break;
             }
             
             {

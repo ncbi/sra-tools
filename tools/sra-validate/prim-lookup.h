@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_csra_validator_
-#define _h_csra_validator_
+#ifndef _h_prim_lookup_
+#define _h_prim_lookup_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,11 +35,18 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_validate_ctx_
-#include "validate-ctx.h"
+#ifndef _h_prim_iter_
+#include "prim-iter.h"
 #endif
 
-rc_t run_csra_validator( const validate_ctx * vctx );
+struct prim_lookup;
+
+rc_t make_prim_lookup( struct prim_lookup ** lookup );
+void destroy_prim_lookup( struct prim_lookup * self );
+
+rc_t prim_lookup_enter( struct prim_lookup * self, const prim_rec * rec );
+
+rc_t prim_lookup_get( struct prim_lookup * self, uint64_t align_id, uint32_t * read_len, bool * ref_orient, bool * found );
 
 #ifdef __cplusplus
 }

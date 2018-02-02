@@ -42,7 +42,7 @@ struct logger;
 
 void destroy_logger( struct logger * self );
 
-rc_t make_logger( KDirectory * dir, struct logger ** log, const char * filename );
+rc_t make_logger( const KDirectory * dir, struct logger ** log, const char * filename );
 
 rc_t log_write( struct logger * self, const char * fmt, ... );
 

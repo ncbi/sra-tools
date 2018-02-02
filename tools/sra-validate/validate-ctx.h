@@ -23,23 +23,61 @@
 * ===========================================================================
 *
 */
-
-#ifndef _h_csra_validator_
-#define _h_csra_validator_
+#ifndef _h_validate_ctx_
+#define _h_validate_ctx_
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifndef _h_klib_rc_
-#include <klib/rc.h>
+#ifndef _h_kfs_directory_
+#include <kfs/directory.h>
 #endif
 
-#ifndef _h_validate_ctx_
-#include "validate-ctx.h"
+#ifndef _h_cmn_iter_
+#include "cmn-iter.h"
 #endif
 
-rc_t run_csra_validator( const validate_ctx * vctx );
+#ifndef _h_logger_
+#include "logger.h"
+#endif
+
+#ifndef _h_result_
+#include "result.h"
+#endif
+
+#ifndef _h_thread_runner_
+#include "thread-runner.h"
+#endif
+
+#ifndef _h_progress_
+#include "progress.h"
+#endif
+
+#ifndef _h_prim_lookup_
+#include "prim-lookup.h"
+#endif
+
+typedef struct validate_ctx
+{
+    const KDirectory * dir;
+    const acc_info_t * acc_info;
+    struct logger * log;
+    struct validate_result * v_res;
+    struct thread_runner * threads;
+    struct progress * progress;
+    uint32_t num_slices;
+    size_t cursor_cache;
+} validate_ctx;
+
+typedef struct validate_slice
+{
+    const validate_ctx * vctx;
+    int64_t first_row;
+    uint64_t row_count;
+    uint32_t slice_nr;
+    struct prim_lookup * lookup;
+} validate_slice;
 
 #ifdef __cplusplus
 }

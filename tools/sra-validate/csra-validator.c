@@ -30,170 +30,99 @@
 #include "cmn.h"
 #endif
 
-#ifndef _h_prim_iter_
-#include "prim-iter.h"
+#ifndef _h_prim_lookup_
+#include "prim-lookup.h"
 #endif
 
-#ifndef _h_seq_iter_
-#include "seq-iter.h"
+#ifndef _h_csra_consumer_
+#include "csra-consumer.h"
 #endif
 
-static uint32_t validate_alig_count_vs_alig_id( seq_rec * rec, uint32_t idx, struct logger * log )
-{
-    uint32_t res = 0;
-    uint8_t count = rec -> alig_count[ idx ];
-    if ( count == 0 )
-    {
-        if ( rec -> prim_alig_id[ idx ] != 0 )
-        {
-            log_write( log, "SEQ.#%ld : ALIGNMENT_COUNT[ %u ] == 0, PRIMARY_ALIGNMENT_ID[ %u ] = %ld",
-                       rec -> row_id, idx, idx, rec -> prim_alig_id[ idx ] );
-            res++;
-        }
-    }
-    else if ( count == 1 )
-    {
-        if ( rec -> prim_alig_id[ idx ] == 0 )
-        {
-            log_write( log, "SEQ.#%ld : ALIGNMENT_COUNT[ %u ] == 1, PRIMARY_ALIGNMENT_ID[ %u ] == 0",
-                       rec -> row_id, idx, idx );
-            res++;
-        }
-    }
-    else
-    {
-        log_write( log, "SEQ.#%ld : ALIGNMENT_COUNT[ %u ] = %u", rec -> row_id, idx, count );
-        res++;
-    }
-    return res;
-}
+#ifndef _h_csra_producer_
+#include "csra-producer.h"
+#endif
 
-static uint32_t validate_csra_rec( seq_rec * rec, struct logger * log )
-{
-    uint32_t res = 0;
-    if ( rec -> num_alig_id != 2 )
-    {
-        log_write( log, "SEQ.#%ld : rowlen( PRIMARY_ALIGNMENT_ID ) != 2", rec -> row_id );
-        res++;
-    }
-    if ( rec -> num_alig_count != 2 )
-    {
-        log_write( log, "SEQ.#%ld : rowlen( ALIGNMENT_COUNT ) != 2", rec -> row_id );
-        res++;
-    }
-    if ( rec -> num_alig_id > 0 && rec -> num_alig_count > 0 )
-        res += validate_alig_count_vs_alig_id( rec, 0, log );
-    if ( rec -> num_alig_id > 1 && rec -> num_alig_count > 1 )
-        res += validate_alig_count_vs_alig_id( rec, 1, log );
-
-    return res;
-}
-
-typedef struct csra_seq_slice
-{
-    const KDirectory * dir;
-    const acc_info_t * acc_info;
-    struct logger * log;
-    struct validate_result * v_res;
-    struct progress * progress;
-    size_t cursor_cache;
-    int64_t first_row;
-    uint64_t row_count;
-    uint32_t slice_nr;
-} csra_seq_slice;
-
-static rc_t CC validate_slice( const KThread *self, void *data )
-{
-    csra_seq_slice * slice = data;
-    cmn_params p = { slice -> dir,
-                     slice -> acc_info -> accession,
-                     slice -> first_row,
-                     slice -> row_count,
-                     slice -> cursor_cache }; /* cmn-iter.h */
-    struct seq_iter * i;
-    rc_t rc = make_seq_iter( &p, &i );
-    if ( rc == 0 )
-    {
-        seq_rec rec;
-        while ( get_from_seq_iter( i, &rec, &rc ) && rc == 0 )
-        {
-            rc = update_validate_result( slice -> v_res, validate_csra_rec( &rec, slice -> log ) );
-            if ( rc == 0 )
-                update_progress( slice -> progress, 1 );
-        }
-        destroy_seq_iter( i );
-    }
-    free( data );
-    return rc;
-    
-}
-
-rc_t run_csra_validator_slice( const KDirectory * dir,
-                               const acc_info_t * acc_info,
-                               struct logger * log,
-                               struct validate_result * v_res,
-                               struct thread_runner * threads,
-                               struct progress * progress,
-                               int64_t first_row,
-                               uint64_t row_count,
-                               uint32_t slice_nr,
-                               size_t cursor_cache )
+static rc_t make_csra_common( const validate_ctx * vctx,
+                          rc_t ( CC * thread_function ) ( const KThread *self, void *data ),
+                          int64_t row_1,
+                          uint64_t row_count,
+                          struct prim_lookup * lookup )
 {
     rc_t rc = 0;
-    csra_seq_slice * slice = malloc( sizeof * slice );
-    if ( slice == NULL )
-    {
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "run_csra_validator_slice().malloc( %d ) -> %R", ( sizeof * slice ), rc );
-    }
-    else
-    {
-        slice -> dir = dir;
-        slice -> acc_info = acc_info;
-        slice -> log = log;
-        slice -> v_res = v_res;
-        slice -> progress = progress;
-        slice -> cursor_cache = cursor_cache;
-        slice -> first_row = first_row;
-        slice -> row_count = row_count;
-        slice -> slice_nr = slice_nr;
-        
-        rc = thread_runner_add( threads, validate_slice, slice );
-        if ( rc != 0 )
-            free( ( void * ) slice );
-    }
-    return rc;
-}
-
-rc_t run_csra_validator( const KDirectory * dir,
-                         const acc_info_t * acc_info,
-                         struct logger * log,
-                         struct validate_result * v_res,
-                         struct thread_runner * threads,
-                         struct progress * progress,
-                         uint32_t num_slices,
-                         size_t cursor_cache )
-{
-    rc_t rc = 0;
-    int64_t row = 1;
-    uint64_t rows_per_slice = ( acc_info -> seq_rows / num_slices ) + 1;
+    int64_t row = row_1;
+    uint64_t rows_per_slice = ( row_count / vctx -> num_slices ) + 1;
     uint32_t slice_nr = 0;
     
-    start_progress( progress, 2, acc_info -> seq_rows );
-    while ( rc == 0 && slice_nr < num_slices )
+    while ( rc == 0 && slice_nr < vctx -> num_slices )
     {
-        rc = run_csra_validator_slice( dir,
-                                       acc_info,
-                                       log,
-                                       v_res,
-                                       threads,
-                                       progress,
-                                       row,
-                                       rows_per_slice,
-                                       slice_nr++,
-                                       cursor_cache );
+        validate_slice * slice = malloc( sizeof * slice );
+        if ( slice == NULL )
+        {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            ErrMsg( "make_csra_consumers().malloc( %d ) -> %R", ( sizeof * slice ), rc );
+        }
+        else
+        {
+            slice -> vctx = vctx;
+            slice -> first_row = row;
+            slice -> row_count = rows_per_slice;
+            slice -> slice_nr = slice_nr;
+            slice -> lookup = lookup;
+
+            rc = thread_runner_add( vctx -> threads, thread_function, slice );
+            if ( rc == 0 )
+            {
+                row += rows_per_slice;
+                slice_nr++;
+            }
+            else
+                free( ( void * ) slice );
+        }
+    }
+    return rc;
+}
+
+static rc_t make_csra_producers( const validate_ctx * vctx, struct prim_lookup * lookup )
+{
+    rc_t rc = make_csra_common( vctx,
+                                csra_producer_thread,
+                                1,
+                                vctx -> acc_info -> prim_rows,
+                                lookup );
+    return rc;
+}
+
+static rc_t make_csra_consumers( const validate_ctx * vctx, struct prim_lookup * lookup )
+{
+    rc_t rc = make_csra_common( vctx,
+                                csra_consumer_thread,
+                                1,
+                                vctx -> acc_info -> seq_rows,
+                                lookup );
+    return rc;
+}
+
+rc_t run_csra_validator( const validate_ctx * vctx )
+{
+    struct prim_lookup * lookup;
+    rc_t rc = make_prim_lookup( &lookup );
+    if ( rc == 0 )
+    {
+        uint64_t total_rows = vctx -> acc_info -> seq_rows + vctx -> acc_info -> prim_rows;
+        start_progress( vctx -> progress, 2, total_rows );
+        set_to_finish_validate_result( vctx -> v_res, vctx -> num_slices * 2 );
+    
+        rc = make_csra_producers( vctx, lookup );
         if ( rc == 0 )
-            row += rows_per_slice;
+        {
+            rc = make_csra_consumers( vctx, lookup );
+            if ( rc == 0 )
+            {
+                /* wait until all consumer-threads have finished */
+                wait_for_validate_result( vctx -> v_res, 100 );
+            }
+        }
+        destroy_prim_lookup( lookup );
     }
     return rc;
 }

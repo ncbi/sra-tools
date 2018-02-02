@@ -96,10 +96,10 @@ typedef struct acc_info_t
     const char * accession;
     acc_type_t acc_type;
     INSDC_SRA_platform_id platform; /* insdc/sra.h */
-    uint64_t seq_rows;
+    uint64_t seq_rows, prim_rows;
 } acc_info_t;
 
-rc_t cmn_get_acc_info( KDirectory * dir, const char * accession, acc_info_t * acc_info );
+rc_t cmn_get_acc_info( const KDirectory * dir, const char * accession, acc_info_t * acc_info );
 
 const char * platform_2_text( INSDC_SRA_platform_id id );
 

@@ -39,14 +39,23 @@
 #include <atomic64.h>
 #endif
 
+#ifndef _h_klib_time_
+#include <klib/time.h>
+#endif
+
 #ifndef _h_cmn_
 #include "cmn.h"
 #endif
 
 typedef struct validate_result
 {
-    atomic64_t records;
-    atomic64_t errors;
+    atomic64_t seq_records;
+    atomic64_t seq_errors;
+    
+    atomic64_t prim_records;
+    atomic64_t prim_errors;
+    
+    atomic_t to_finish;
 } validate_result;
 
 void destroy_validate_result( validate_result * self )
@@ -73,23 +82,65 @@ rc_t make_validate_result( validate_result ** obj )
     return rc;
 }
 
-rc_t update_validate_result( struct validate_result * self, uint32_t errors )
+rc_t update_seq_validate_result( validate_result * self, uint32_t errors )
 {
     rc_t rc = 0;
     if ( self == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
-        ErrMsg( "update_validate_result() -> %R", rc );
+        ErrMsg( "update_seq_validate_result() -> %R", rc );
     }
     else
     {
-        atomic64_inc( &self -> records );
-        atomic64_read_and_add( &self -> errors, errors );
+        atomic64_inc( &self -> seq_records );
+        atomic64_read_and_add( &self -> seq_errors, errors );
     }
     return rc;
 }
 
-rc_t print_validate_result( struct validate_result * self, struct logger * log )
+rc_t update_prim_validate_result( validate_result * self, uint32_t errors )
+{
+    rc_t rc = 0;
+    if ( self == NULL )
+    {
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
+        ErrMsg( "update_prim_validate_result() -> %R", rc );
+    }
+    else
+    {
+        atomic64_inc( &self -> prim_records );
+        atomic64_read_and_add( &self -> prim_errors, errors );
+    }
+    return rc;
+}
+
+void set_to_finish_validate_result( validate_result * self, uint32_t value )
+{
+    if ( self != NULL )
+        atomic_set( & self -> to_finish, value );
+}
+
+void finish_validate_result( validate_result * self )
+{
+    if ( self != NULL )
+        atomic_dec( & self -> to_finish );
+}
+
+void wait_for_validate_result( validate_result * self, uint32_t wait_time )
+{
+    if ( self != NULL )
+    {
+        bool waiting = true;
+        while ( waiting )
+        {
+            waiting = ( atomic_read( &self -> to_finish ) > 0 );
+            if ( waiting )
+                KSleepMs( wait_time );
+        }
+    }
+}
+
+rc_t print_validate_result( validate_result * self, struct logger * log )
 {
     rc_t rc = 0;
     if ( self == NULL )
@@ -99,11 +150,13 @@ rc_t print_validate_result( struct validate_result * self, struct logger * log )
     }
     else
     {
-        uint64_t records = atomic64_read( &self -> records );
-        uint64_t errors  = atomic64_read( &self -> errors );
+        log_write( log, "SEQ  rows   = %,lu", atomic64_read( &self -> seq_records ) );
+        log_write( log, "SEQ  errors = %,lu", atomic64_read( &self -> seq_errors ) );
         
-        log_write( log, "rows   = %,lu", records );
-        log_write( log, "errors = %,lu", errors );
+        log_write( log, "PRIM rows   = %,lu", atomic64_read( &self -> prim_records ) );
+        log_write( log, "PRIM errors = %,lu", atomic64_read( &self -> prim_errors ) );
+        
     }
     return rc;
 }
+

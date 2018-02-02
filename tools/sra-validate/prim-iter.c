@@ -46,33 +46,32 @@ void destroy_prim_iter( prim_iter * self )
 
 rc_t make_prim_iter( cmn_params * params, prim_iter ** iter )
 {
-    
     rc_t rc = 0;
-    prim_iter * i = calloc( 1, sizeof * i );
-    if ( i == NULL )
+    prim_iter * obj = calloc( 1, sizeof * obj );
+    if ( obj == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-        ErrMsg( "prim-iter.c make_prim_iter().calloc( %d ) -> %R", ( sizeof * i ), rc );
+        ErrMsg( "prim-iter.c make_prim_iter().calloc( %d ) -> %R", ( sizeof * obj ), rc );
     }
     else
     {
-        rc = make_cmn_iter( params, "PRIMARY_ALIGNMENT", &i -> cmn );
+        rc = make_cmn_iter( params, "PRIMARY_ALIGNMENT", &obj -> cmn );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i -> cmn, "SEQ_SPOT_ID", &i -> seq_spot_id );
+            rc = cmn_iter_add_column( obj -> cmn, "SEQ_SPOT_ID", &obj -> seq_spot_id );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i -> cmn, "SEQ_READ_ID", &i -> seq_read_id );
+            rc = cmn_iter_add_column( obj -> cmn, "SEQ_READ_ID", &obj -> seq_read_id );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i -> cmn, "REF_ORIENTATION", &i -> ref_orient_id );
+            rc = cmn_iter_add_column( obj -> cmn, "REF_ORIENTATION", &obj -> ref_orient_id );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i -> cmn, "READ_LEN", &i -> read_len_id );
+            rc = cmn_iter_add_column( obj -> cmn, "READ_LEN", &obj -> read_len_id );
 
         if ( rc == 0 )
-            rc = cmn_iter_range( i -> cmn, i -> seq_spot_id );
+            rc = cmn_iter_range( obj -> cmn, obj -> seq_spot_id );
 
         if ( rc != 0 )
-            destroy_prim_iter( i );
+            destroy_prim_iter( obj );
         else
-            *iter = i;
+            *iter = obj;
     }
     return rc;
 }
@@ -94,6 +93,9 @@ bool get_from_prim_iter( prim_iter * self, prim_rec * rec, rc_t * rc )
             rc1 = cmn_read_uint8( self -> cmn, self -> ref_orient_id, &rec -> ref_orient );
         if ( rc1 == 0 )
             rc1 = cmn_read_uint32( self -> cmn, self -> read_len_id, &rec -> read_len );
+        if ( rc1 == 0 )
+            rec -> align_row_id = cmn_iter_get_row_id( self -> cmn );
+
         if ( rc != 0 )
             *rc = rc1;
     }

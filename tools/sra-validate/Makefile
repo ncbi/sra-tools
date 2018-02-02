@@ -69,6 +69,9 @@ TOOL_SRC = \
 	cmn-iter \
 	prim-iter \
 	seq-iter \
+	prim-lookup \
+	csra-producer \
+	csra-consumer \
 	csra-validator \
 	sra-validate
 

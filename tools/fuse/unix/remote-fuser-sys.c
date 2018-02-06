@@ -132,6 +132,8 @@ int UX_FUSE_readdir(const char *path, void *buf, fuse_fill_dir_t filler,
     data.filler = filler;
     data.buf = buf;
 
+    errno = 0;
+
     if( (rc = UX_FUSE_readdir_callback(".", &data)) == 0 &&
         (rc = UX_FUSE_readdir_callback("..", &data)) == 0 ) {
         rc = SRA_FUSER_GetDir(path, UX_FUSE_readdir_callback, &data);

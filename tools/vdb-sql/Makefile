@@ -33,7 +33,7 @@ INT_TOOLS = \
 EXT_TOOLS = \
 	vdb-sql \
 	fastconv
-    
+
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
@@ -86,7 +86,7 @@ VDB_SQL_OBJ = \
 	$(addsuffix .$(OBJX),$(VDB_SQL_SRC))
 
 $(BINDIR)/vdb-sql: $(VDB_SQL_OBJ)
-	$(LD) --exe -o $@ $^ $(VDB_SQL_LIB)
+	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(VDB_SQL_LIB)
 
 #-------------------------------------------------------------------------------
 # the tool: fastconv

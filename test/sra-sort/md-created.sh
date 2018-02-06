@@ -6,10 +6,6 @@ if [ ! -d "$TMP" ] ; then
     exit 0
 fi
 
-if [ "$PANFS_PAN1" == "" ] ; then
-    PANFS_PAN1=/panfs/pan1.be-md.ncbi.nlm.nih.gov
-fi
-
 I=`whoami`
 DSTDIR=$TMP/$I/sra-sort-md
 DST=$DSTDIR/sorted

@@ -284,6 +284,8 @@ DIST          = ../sra-toolkit/style.qss \
 		../../../../Qt/5.9.2/clang_64/mkspecs/features/yacc.prf \
 		../../../../Qt/5.9.2/clang_64/mkspecs/features/lex.prf \
 		../sra-toolkit/sra-toolkit.pro ../sra-toolkit/sratoolkit.h \
+		../sra-toolkit/sratoolkittemplate.h \
+		../sra-toolkit/sratoolkitglobals.h \
 		../sra-toolkit/sratoolkitpreferences.h \
 		../sra-toolkit/sraworkspace.h \
 		../sra-toolkit/sratoolbar.h \
@@ -735,7 +737,7 @@ distdir: FORCE
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents ../sra-toolkit/resources.qrc $(DISTDIR)/
 	$(COPY_FILE) --parents ../../../../Qt/5.9.2/clang_64/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents ../sra-toolkit/sratoolkit.h ../sra-toolkit/sratoolkitpreferences.h ../sra-toolkit/sraworkspace.h ../sra-toolkit/sratoolbar.h ../sra-toolkit/sratoolview.h ../sra-toolkit/config/sraconfigmodel.h ../sra-toolkit/config/sraconfigview.h ../sra-toolkit/diagnostics/diagnosticstest.h ../sra-toolkit/diagnostics/diagnosticsthread.h ../sra-toolkit/diagnostics/sradiagnosticsview.h $(DISTDIR)/
+	$(COPY_FILE) --parents ../sra-toolkit/sratoolkit.h ../sra-toolkit/sratoolkittemplate.h ../sra-toolkit/sratoolkitglobals.h ../sra-toolkit/sratoolkitpreferences.h ../sra-toolkit/sraworkspace.h ../sra-toolkit/sratoolbar.h ../sra-toolkit/sratoolview.h ../sra-toolkit/config/sraconfigmodel.h ../sra-toolkit/config/sraconfigview.h ../sra-toolkit/diagnostics/diagnosticstest.h ../sra-toolkit/diagnostics/diagnosticsthread.h ../sra-toolkit/diagnostics/sradiagnosticsview.h $(DISTDIR)/
 	$(COPY_FILE) --parents ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkitpreferences.cpp ../sra-toolkit/sraworkspace.cpp ../sra-toolkit/sratoolbar.cpp ../sra-toolkit/sratoolview.cpp ../sra-toolkit/config/sraconfigmodel.cpp ../sra-toolkit/config/sraconfigview.cpp ../vdb-config/configure.cpp ../vdb-config/vdb-config-model.cpp ../vdb-config/util.cpp ../sra-toolkit/diagnostics/diagnosticstest.cpp ../sra-toolkit/diagnostics/diagnosticsthread.cpp ../sra-toolkit/diagnostics/sradiagnosticsview.cpp $(DISTDIR)/
 
 
@@ -877,6 +879,12 @@ compiler_clean: compiler_rcc_clean compiler_moc_predefs_clean compiler_moc_heade
 main.o: ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMainWindow \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmainwindow.h \
+		../sra-toolkit/sratoolkitglobals.h \
+		../sra-toolkit/sratoolkittemplate.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QColor \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qcolor.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QLinearGradient \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qbrush.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QApplication \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qapplication.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QDesktopWidget \
@@ -945,14 +953,17 @@ sraworkspace.o: ../sra-toolkit/sraworkspace.cpp ../sra-toolkit/sraworkspace.h \
 sratoolbar.o: ../sra-toolkit/sratoolbar.cpp ../sra-toolkit/sratoolbar.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/sratoolkitglobals.h \
+		../sra-toolkit/sratoolkittemplate.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QColor \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qcolor.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QLinearGradient \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qbrush.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QVBoxLayout \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qboxlayout.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QBrush \
-		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qbrush.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QButtonGroup \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qbuttongroup.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QColor \
-		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qcolor.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QLabel \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qlabel.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QPainter \
@@ -966,6 +977,7 @@ sratoolbar.o: ../sra-toolkit/sratoolbar.cpp ../sra-toolkit/sratoolbar.h \
 sratoolview.o: ../sra-toolkit/sratoolview.cpp ../sra-toolkit/sratoolview.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/config/sraconfigview.h \
 		../sra-toolkit/diagnostics/sradiagnosticsview.h \
 		../../../ncbi-vdb/interfaces/kfg/config.h \
 		../../../ncbi-vdb/interfaces/kfg/extern.h \
@@ -977,6 +989,34 @@ sratoolview.o: ../sra-toolkit/sratoolview.cpp ../sra-toolkit/sratoolview.h \
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sratoolview.o ../sra-toolkit/sratoolview.cpp
 
 sraconfigmodel.o: ../sra-toolkit/config/sraconfigmodel.cpp ../sra-toolkit/config/sraconfigmodel.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QObject \
+		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qobject.h \
+		../vdb-config/vdb-config-model.hpp \
+		../../../ncbi-vdb/interfaces/kfg/config.h \
+		../../../ncbi-vdb/interfaces/kfg/extern.h \
+		../../../ncbi-vdb/interfaces/klib/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/extern.h \
+		../../../ncbi-vdb/interfaces/kfc/callconv.h \
+		../../../ncbi-vdb/interfaces/klib/defs.h \
+		../../../ncbi-vdb/interfaces/kfc/defs.h \
+		../../../ncbi-vdb/interfaces/kfg/properties.h \
+		../../../ncbi-vdb/interfaces/kfg/ngc.h \
+		../../../ncbi-vdb/interfaces/kfg/repository.h \
+		../../../ncbi-vdb/interfaces/klib/vector.h \
+		../../../ncbi-vdb/interfaces/kfs/directory.h \
+		../../../ncbi-vdb/interfaces/kfs/extern.h \
+		../../../ncbi-vdb/interfaces/kfs/defs.h \
+		../../../ncbi-vdb/interfaces/vfs/manager.h \
+		../../../ncbi-vdb/interfaces/vfs/extern.h \
+		../../../ncbi-vdb/interfaces/vfs/path.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMessageBox \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmessagebox.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sraconfigmodel.o ../sra-toolkit/config/sraconfigmodel.cpp
+
+sraconfigview.o: ../sra-toolkit/config/sraconfigview.cpp ../sra-toolkit/config/sraconfigview.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/config/sraconfigmodel.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QObject \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qobject.h \
 		../vdb-config/configure.h \
@@ -999,33 +1039,9 @@ sraconfigmodel.o: ../sra-toolkit/config/sraconfigmodel.cpp ../sra-toolkit/config
 		../../../ncbi-vdb/interfaces/vfs/manager.h \
 		../../../ncbi-vdb/interfaces/vfs/extern.h \
 		../../../ncbi-vdb/interfaces/vfs/path.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMessageBox \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmessagebox.h
-	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sraconfigmodel.o ../sra-toolkit/config/sraconfigmodel.cpp
-
-sraconfigview.o: ../sra-toolkit/config/sraconfigview.cpp ../sra-toolkit/config/sraconfigview.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
-		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
-		../sra-toolkit/config/sraconfigmodel.h \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QObject \
-		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/qobject.h \
 		../../../ncbi-vdb/interfaces/klib/rc.h \
-		../../../ncbi-vdb/interfaces/klib/extern.h \
-		../../../ncbi-vdb/interfaces/kfc/extern.h \
-		../../../ncbi-vdb/interfaces/kfc/callconv.h \
-		../../../ncbi-vdb/interfaces/klib/defs.h \
-		../../../ncbi-vdb/interfaces/kfc/defs.h \
 		../../../ncbi-vdb/interfaces/cc/gcc/compiler.h \
 		../../../ncbi-vdb/interfaces/kfc/rc.h \
-		../../../ncbi-vdb/interfaces/kfg/config.h \
-		../../../ncbi-vdb/interfaces/kfg/extern.h \
-		../../../ncbi-vdb/interfaces/kfg/properties.h \
-		../../../ncbi-vdb/interfaces/kfg/ngc.h \
-		../../../ncbi-vdb/interfaces/kfg/repository.h \
-		../../../ncbi-vdb/interfaces/klib/vector.h \
-		../../../ncbi-vdb/interfaces/kfs/directory.h \
-		../../../ncbi-vdb/interfaces/kfs/extern.h \
-		../../../ncbi-vdb/interfaces/kfs/defs.h \
 		../../../ncbi-vdb/interfaces/kfs/file.h \
 		../../../ncbi-vdb/interfaces/kfs/file-v1.h \
 		../../../ncbi-vdb/interfaces/klib/namelist.h \

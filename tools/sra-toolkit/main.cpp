@@ -25,18 +25,27 @@
 */
 
 #include "sratoolkit.h"
+#include "sratoolkitglobals.h"
 
 #include <QApplication>
 #include <QDesktopWidget>
 #include <QFile>
 #include <QPoint>
 
+SRAToolkitTemplate * sraTemplate;
 
 int main ( int argc, char *argv [] )
 {
     QApplication a ( argc, argv );
 
+#if 0
+    sraTemplate = new SRAToolkitTemplate ( Official );
     QFile qss ( ":/qss/style.qss" );
+#else
+    sraTemplate = new SRAToolkitTemplate ( Modern );
+    QFile qss ( ":/qss/style.qss" );
+#endif
+
     qss.open ( QFile::ReadOnly );
     a . setStyleSheet ( qss . readAll () );
     qss.close ();
@@ -48,5 +57,9 @@ int main ( int argc, char *argv [] )
 
     window . show();
 
-    return a . exec ();
+    int status = a . exec ();
+
+    delete sraTemplate;
+
+    return status;
 }

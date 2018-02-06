@@ -1,4 +1,5 @@
 #include "sratoolbar.h"
+#include "sratoolkitglobals.h"
 
 #include <QVBoxLayout>
 #include <QBrush>
@@ -68,9 +69,11 @@ void SRAToolBar :: paintEvent ( QPaintEvent *e )
 {
     QPainter painter ( this );
 
-    QColor color ( 70, 102, 152, 255 );
+    QLinearGradient gradient = sraTemplate -> getBaseGradient();
+    gradient .setStart ( 0, 0 );
+    gradient . setFinalStop ( size () . width (), size () . height () );
 
-    painter.setBrush ( color );
+    painter.setBrush ( gradient );
 
     painter.drawRect ( 0, 0, 100, size () . height () );
 

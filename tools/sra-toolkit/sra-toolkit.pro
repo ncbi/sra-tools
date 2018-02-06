@@ -46,6 +46,8 @@ SOURCES += main.cpp\
 
 
 HEADERS  += sratoolkit.h \
+        sratoolkittemplate.h \
+        sratoolkitglobals.h \
         sratoolkitpreferences.h \
         sraworkspace.h \
         sratoolbar.h \

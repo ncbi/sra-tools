@@ -6,5 +6,5 @@ info: Column 'SPOT_GROUP': checksums ok
 info: Column 'X': checksums ok
 info: Column 'Y': checksums ok
 err: data corrupt while validating table - Sum(READ_LEN) != SPOT_LEN in row 1
-err: data corrupt while validating table - Table '/panfs/pan1/sra-test/TEST-DATA/SRR1207586-READ_LEN-vs-READ-mismatch' is damaged beyond any use
+err: data corrupt while validating table - Table 'SRR1207586-READ_LEN-vs-READ-mismatch' is damaged beyond any use
 err: data corrupt while validating table - Table 'SRR1207586-READ_LEN-vs-READ-mismatch' check failed

@@ -64,8 +64,9 @@ vdb-validate: $(BINDIR)/vdb-validate
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/blob-row-gap.kar" ROW_GAP 0
 	@ ./runtestcase.sh "$(BINDIR)/vdb-validate db/SRR053325 -Cyes" CONSISTENCY 0
 
-	@ if [ "$(TEST-DATA)"!="" ];then ./runtestcase.sh "$(BINDIR)/vdb-validate \
-	    $(TEST_DATA)/SRR1207586-READ_LEN-vs-READ-mismatch \
+	@ if [ "$(TEST-DATA)" != "" ]; then ./runtestcase.sh \
+	    "$(BINDIR)/vdb-validate \
+	                $(TEST_DATA)/SRR1207586-READ_LEN-vs-READ-mismatch \
 	                -Cyes" READ_LEN 3 ; fi
 
 	@ echo "All vdb-validate tests succeed"

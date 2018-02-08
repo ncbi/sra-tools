@@ -1,8 +1,12 @@
 #include "sratoolview.h"
+#include "sratoolkitglobals.h"
 #include "config/sraconfigview.h"
 #include "diagnostics/sradiagnosticsview.h"
 
 #include <kfg/config.h>
+
+
+#include <QPainter>
 
 SRAToolView :: SRAToolView ( KConfig *p_config, QWidget *parent )
     : QWidget ( parent )
@@ -11,12 +15,10 @@ SRAToolView :: SRAToolView ( KConfig *p_config, QWidget *parent )
     , diagnostics ( nullptr )
     , currentView ( nullptr )
 {
+    this -> setObjectName ( "sratool_view" );
     resize ( QSize ( parent -> size (). width () - 100, parent -> size () . height () ) );
 
     home = new SRAConfigView ( this );
-    //home = new QWidget ( this );
-    //home -> resize ( size () );
-    home -> setObjectName ( "home_view" );
     currentView = home;
 
     diagnostics = new SRADiagnosticsView ( config, this );
@@ -39,3 +41,52 @@ void SRAToolView :: toolChanged ( int p_view )
         break;
     }
 }
+
+#if OFFICAL_LOOKNFEEL
+void SRAToolView :: paintEvent ( QPaintEvent *e )
+{
+    QPainter painter ( this );
+
+    QPixmap pxmp ( img_path + "ncbi_helix_blue_black" );
+    pxmp = pxmp. scaled ( this -> size (), Qt::KeepAspectRatio, Qt::SmoothTransformation );
+
+    painter.drawPixmap( size () . width () / 2 - pxmp.size ().width() / 2, size () . height () / 2 - pxmp.size ().height() / 2, pxmp );
+
+    show ();
+
+    QWidget::paintEvent(e);
+}
+#elif MODERN_LOOKNFEEL
+void SRAToolView :: paintEvent ( QPaintEvent *e )
+{
+    QPainter painter ( this );
+
+    painter.setBrush ( QColor ( 255, 255, 255, 255) );
+
+    painter.drawRect ( 0, 0, size () . width (), size () . height () );
+
+    QPixmap pxmp ( img_path + "ncbi_helix_blue_black" );
+    pxmp = pxmp. scaled ( this -> size (), Qt::KeepAspectRatio, Qt::SmoothTransformation );
+
+    painter.drawPixmap( size () . width () / 2 - pxmp.size ().width() / 2, size () . height () / 2 - pxmp.size ().height() / 2, pxmp );
+
+    show ();
+
+    QWidget::paintEvent(e);
+}
+#elif DARKGLASS_LOOKNFEEL
+void SRAToolView :: paintEvent ( QPaintEvent *e )
+{
+    QPainter painter ( this );
+
+    painter.setBrush ( sraTemplate -> getBaseColor () );
+
+    painter.drawRect ( 0, 0, size () . width (), size () . height () );
+
+    show ();
+
+    QWidget::paintEvent(e);
+}
+#endif
+
+

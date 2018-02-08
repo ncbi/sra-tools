@@ -27,6 +27,7 @@ public slots:
 private:
 
     void init ();
+    void paintEvent ( QPaintEvent * );
 
     KConfig *config;
 

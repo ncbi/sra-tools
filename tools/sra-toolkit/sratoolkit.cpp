@@ -1,4 +1,5 @@
 #include "sratoolkit.h"
+#include "sratoolkitglobals.h"
 #include "sratoolbar.h"
 #include "sratoolview.h"
 
@@ -19,33 +20,7 @@
 #include <QTimer>
 
 #include <QDebug>
-/*
-extern "C"
-{
-    rc_t run_interactive ( vdbconf_model &m )
-    {
-        const QRect avail_geometry = QApplication :: desktop () -> availableGeometry ( QPoint ( 0, 0 ) );
-         SRAConfig config_window (  m, avail_geometry );
-         config_window . show ();
-        int status = app -> exec ();
-        if ( status != 0 )
-            exit ( status );
-        return 0;
-    }
 
-    rc_t Quitting ( void )
-    {
-        // TBD - fill this out with a call to whatever QT uses to indicate
-        // that the app has received a ^C or SIGTERM
-        // the appropriate value to return if actually quitting is
-        // RC ( rcExe, rcProcess, rcExecuting, rcProcess, rcCanceled );
-
-        return 0;
-    }
-}
-*/
-
-const QString rsrc_path = ":/";
 
 SRAToolkit :: SRAToolkit ( const QRect &avail_geometry, QWidget *parent )
     : QMainWindow ( parent )
@@ -91,17 +66,16 @@ void SRAToolkit :: init_menubar ()
 void SRAToolkit :: init_view ()
 {
     mainWidget = new QWidget ();
-    mainWidget -> setObjectName ( "mainWidget" );
+    mainWidget -> setObjectName ( "main_widget" );
 
     mainLayout = new QHBoxLayout ();
     mainLayout -> setSpacing ( 0 );
     mainLayout -> setMargin ( 0 );
 
     toolBar = new SRAToolBar ( this );
-    toolBar -> setObjectName ( "toolBar" );
 
     toolView = new SRAToolView ( config, this );
-    toolView -> setObjectName ( "toolView" );
+    toolView -> setObjectName ( "sratool_view" );
 
     connect ( toolBar, SIGNAL ( toolSwitched ( int ) ), toolView, SLOT ( toolChanged ( int ) ) );
 
@@ -114,14 +88,34 @@ void SRAToolkit :: init_view ()
 
 }
 
+
+#if MODERN_LOOKNFEEL
 void SRAToolkit :: paintEvent ( QPaintEvent *e )
 {
-    QPainter painter(this);
+    QWidget::paintEvent(e);
+}
+#elif DARKGLASS_LOOKNFEEL
+void SRAToolkit :: paintEvent ( QPaintEvent *e )
+{
+    QPainter painter ( this );
 
-    QPixmap pxmp ( rsrc_path + "images/ncbi_helix_blue_black" );
+    QLinearGradient gradient = sraTemplate -> getBaseGradient();
+    gradient . setStart ( 0, 0 );
+    gradient . setFinalStop ( size () . width (), size () . height () );
+
+    painter.setBrush ( gradient );
+    //painter.setBrush ( QColor ( 255, 255, 255, 255) );
+
+    painter.drawRect ( 0, 0, size () . width (), size () . height () );
+
+    QPixmap pxmp ( img_path + "ncbi_helix_blue_black" );
     pxmp = pxmp. scaled ( this -> size (), Qt::KeepAspectRatio, Qt::SmoothTransformation );
 
     painter.drawPixmap( size () . width () / 2 - pxmp.size ().width() / 2, size () . height () / 2 - pxmp.size ().height() / 2, pxmp );
 
+    show ();
+
     QWidget::paintEvent(e);
 }
+#endif
+

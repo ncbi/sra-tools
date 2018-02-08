@@ -4,7 +4,7 @@
 #include <QColor>
 #include <QLinearGradient>
 
-enum TemplateType { Official, Modern };
+enum TemplateType { Official, Modern, DarkGlass };
 
 class SRAToolkitTemplate
 {
@@ -19,6 +19,9 @@ public:
         case Modern:
             initModernTemplate ();
             break;
+        case DarkGlass:
+            initDarkGlassTemplate ();
+            break;
         }
     }
 
@@ -29,22 +32,44 @@ private:
 
     void initOfficialTemplate ()
     {
-        baseColor = QColor ( 0, 82, 155, 255 );
+        baseColor = official_blue;
+
         baseGradient = QLinearGradient ();
+        baseGradient . setColorAt ( 0, baseColor );
+        baseGradient . setColorAt ( 1, baseColor );
     }
 
     void initModernTemplate ()
     {
-        baseColor = QColor ( 0, 82, 155 );
+        baseColor = modern_blue;
+
+        baseGradient = QLinearGradient ();
+
+        baseGradient . setColorAt ( 0, baseColor );
+        baseGradient . setColorAt ( 0.35, modern_light_blue );
+        baseGradient . setColorAt ( 0.65, modern_light_blue );
+        baseGradient . setColorAt ( 1, baseColor );
+    }
+
+    void initDarkGlassTemplate ()
+    {
+        baseColor = darkglass_transparent;
 
         baseGradient = QLinearGradient ();
         baseGradient . setColorAt ( 0, baseColor );
-        baseGradient . setColorAt ( 0.5, QColor ( 41, 137, 216 ) );
-        baseGradient . setColorAt ( 1, QColor ( 125, 185, 232 ) );
+        baseGradient . setColorAt ( 1, baseColor );
     }
 
     QColor baseColor;
     QLinearGradient baseGradient;
+
+
+    const QColor official_blue = QColor ( 54, 103, 151, 255 );
+
+    const QColor modern_blue = QColor ( 0, 82, 155, 255 );
+    const QColor modern_light_blue = QColor ( 125, 185, 255 );
+
+    const QColor darkglass_transparent = QColor ( 0, 0, 0, 50);
 };
 
 #endif // SRATOOLKITTEMPLATE_H

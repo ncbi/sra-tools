@@ -29,14 +29,13 @@ extern "C"
     }
 }
 
-const QString rsrc_path = ":/";
-
 
 SRADiagnosticsView :: SRADiagnosticsView ( KConfig *p_config, QWidget *parent )
     : QWidget ( parent )
     , self_layout ( new QVBoxLayout () )
     , config ( p_config )
 {
+    setObjectName( "diagnostics_view" );
     setLayout ( self_layout );
 
     self_layout -> setAlignment (  Qt::AlignCenter  );
@@ -91,7 +90,7 @@ void SRADiagnosticsView :: init_metadata_view ()
     separator -> setFrameShape ( QFrame::HLine );
     separator -> setFixedSize ( width () - 56, 2 );
 
-    self_layout -> addWidget ( separator );
+    //self_layout -> addWidget ( separator );
 }
 
 void SRADiagnosticsView :: init_tree_view ()
@@ -111,11 +110,11 @@ void SRADiagnosticsView :: init_controls ()
 {
     start_button = new QPushButton ("Start");
     start_button -> setObjectName ( "start_diagnostics_button" );
-    start_button -> setFixedSize ( 160, 80 );
+    start_button -> setFixedSize ( 80, 80 );
 
     cancel_button = new QPushButton ("Cancel");
     cancel_button -> setObjectName ( "cancel_diagnostics_button" );
-    cancel_button -> setFixedSize ( 160, 80 );
+    cancel_button -> setFixedSize ( 80, 80 );
     cancel_button -> hide ();
 
     connect ( start_button, SIGNAL ( clicked () ), this, SLOT ( start_diagnostics () ) );
@@ -244,6 +243,7 @@ void SRADiagnosticsView :: start_diagnostics ()
     connect ( thread, SIGNAL ( started () ), worker, SLOT ( begin() ) );
     connect ( worker, SIGNAL ( handle ( DiagnosticsTest* ) ), this, SLOT ( handle_callback ( DiagnosticsTest * ) ) );
     connect ( worker, SIGNAL ( finished () ), worker, SLOT ( deleteLater () ) );
+    connect ( worker, SIGNAL ( finished () ), this, SLOT ( worker_finished () ) );
     connect ( thread, SIGNAL ( finished () ), thread, SLOT ( deleteLater () ) );
 
     thread -> start ();
@@ -260,6 +260,12 @@ void SRADiagnosticsView :: cancel_diagnostics ()
     //self_layout -> replaceWidget ( cancel_button, start_button );
    // self_layout -> setAlignment ( start_button, Qt::AlignRight );
 
+    cancel_button -> hide ();
+    start_button -> show ();
+}
+
+void SRADiagnosticsView :: worker_finished ()
+{
     cancel_button -> hide ();
     start_button -> show ();
 }

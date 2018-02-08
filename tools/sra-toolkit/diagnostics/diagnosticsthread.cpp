@@ -32,7 +32,7 @@ void CC callback ( EKDiagTestState state, const KDiagnoseTest *diagnose_test, vo
         return;
     }
 
-    delay ();
+    //delay ();
     rc_t rc = KDiagnoseTestName ( diagnose_test, &name );
     if ( rc ==  0 )
     {

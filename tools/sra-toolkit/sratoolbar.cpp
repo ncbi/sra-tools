@@ -26,19 +26,19 @@ void SRAToolBar::init ()
     toolBar -> setExclusive ( true );
     connect ( toolBar, SIGNAL ( buttonClicked ( int ) ), this , SLOT ( switchTool ( int ) ) );
 
-    QPixmap pxmp (":/images/ncbi_logo_vertical_white_blue");
+    QPixmap pxmp (img_path + "ncbi_logo_vertical_white_blue");
     QIcon icon ( pxmp );
     home_button = new QPushButton ();
-    home_button -> setObjectName ( "diagnostics_button" );
+    home_button -> setObjectName ( "tool_bar_button" );
     home_button -> setCheckable ( true );
     home_button -> setChecked ( true );
     home_button -> setIconSize ( QSize ( 90, 90 ) );
     home_button -> setIcon ( icon );
 
-    pxmp = QPixmap ( ":/images/ncbi_diagnostics_button" );
+    pxmp = QPixmap ( img_path + "ncbi_diagnostics_button" );
     icon = QIcon ( pxmp );
     diagnostics_button = new QPushButton ();
-    diagnostics_button -> setObjectName ( "diagnostics_button" );
+    diagnostics_button -> setObjectName ( "tool_bar_button" );
     diagnostics_button -> setCheckable ( true );
     diagnostics_button -> setIconSize ( QSize ( 90, 90 ) );
     diagnostics_button -> setIcon ( icon );
@@ -65,12 +65,13 @@ void SRAToolBar :: switchTool ( int tool )
     emit toolSwitched ( tool );
 }
 
+#if OFFICAL_LOOKNFEEL
 void SRAToolBar :: paintEvent ( QPaintEvent *e )
 {
     QPainter painter ( this );
 
     QLinearGradient gradient = sraTemplate -> getBaseGradient();
-    gradient .setStart ( 0, 0 );
+    gradient . setStart ( 0, 0 );
     gradient . setFinalStop ( size () . width (), size () . height () );
 
     painter.setBrush ( gradient );
@@ -81,3 +82,35 @@ void SRAToolBar :: paintEvent ( QPaintEvent *e )
 
     QWidget::paintEvent(e);
 }
+#elif MODERN_LOOKNFEEL
+void SRAToolBar :: paintEvent ( QPaintEvent *e )
+{
+    QPainter painter ( this );
+
+    QLinearGradient gradient = sraTemplate -> getBaseGradient();
+    gradient . setStart ( 0, 0 );
+    gradient . setFinalStop ( size () . width (), size () . height () );
+
+    painter.setBrush ( gradient );
+
+    painter.drawRect ( 0, 0, 100, size () . height () );
+
+    show ();
+
+    QWidget::paintEvent(e);
+}
+#elif DARKGLASS_LOOKNFEEL
+void SRAToolBar :: paintEvent ( QPaintEvent *e )
+{
+    QPainter painter ( this );
+
+    painter.setBrush ( sraTemplate -> getBaseColor () );
+
+    painter.drawRect ( 0, 0, size () . width (), size () . height () );
+
+    show ();
+
+    QWidget::paintEvent(e);
+}
+#endif
+

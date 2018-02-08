@@ -32,6 +32,7 @@ public slots:
 private slots:
     void start_diagnostics ();
     void cancel_diagnostics ();
+    void worker_finished ();
 
 private:
 

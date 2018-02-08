@@ -38,12 +38,15 @@ int main ( int argc, char *argv [] )
 {
     QApplication a ( argc, argv );
 
-#if 0
+#if OFFICAL_LOOKNFEEL
     sraTemplate = new SRAToolkitTemplate ( Official );
-    QFile qss ( ":/qss/style.qss" );
-#else
+    QFile qss ( qss_path + "official_style.qss" );
+#elif MODERN_LOOKNFEEL
     sraTemplate = new SRAToolkitTemplate ( Modern );
-    QFile qss ( ":/qss/style.qss" );
+    QFile qss ( qss_path + "modern_style.qss" );
+#elif DARKGLASS_LOOKNFEEL
+    sraTemplate = new SRAToolkitTemplate ( DarkGlass );
+    QFile qss ( qss_path + "darkglass_style.qss" );
 #endif
 
     qss.open ( QFile::ReadOnly );

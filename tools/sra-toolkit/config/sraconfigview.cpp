@@ -41,8 +41,10 @@
 
 #include <QAction>
 #include <QBoxLayout>
+#include <QButtonGroup>
 #include <QCloseEvent>
 #include <QCheckBox>
+#include <QComboBox>
 #include <QFileDialog>
 #include <QGridLayout>
 #include <QGroupBox>
@@ -65,8 +67,6 @@ extern "C"
     }
 }
 
-const QString rsrc_path = ":/images";
-
 struct WorkspaceItem
 {
     WorkspaceItem ( QString name, QString path, uint32_t id )
@@ -75,12 +75,15 @@ struct WorkspaceItem
         , edit_button ( new QPushButton ( "Edit" ) )
         , ngc_id ( id )
     {
+        name_label -> setObjectName ( "workspace_name_label");
         name_label -> setFixedWidth ( 150 );
         name_label -> setAlignment ( Qt::AlignRight );
 
+        path_label -> setObjectName ( "workspace_path_label");
         path_label -> setFrameShape ( QFrame::Panel );
         path_label -> setFrameShadow ( QFrame::Sunken );
 
+        edit_button -> setObjectName ( "workspace_edit_button" );
         edit_button -> setFixedSize ( 30, 20 );
     }
 
@@ -520,21 +523,21 @@ SRAConfigView :: SRAConfigView ( QWidget *parent )
     , model ( new SRAConfigModel ( configure_model (), this ) )
     , main_layout ( new QVBoxLayout () )
 {
+    setObjectName ( "config_view" );
+    resize ( QSize ( parent -> size (). width (), parent -> size () . height () ) );
+    connect ( this, SIGNAL ( dirty_config () ), this, SLOT ( modified_config () ) );
+
     main_layout -> setSpacing ( 20 );
     main_layout -> setAlignment ( Qt::AlignTop );
     main_layout -> addSpacing ( 10 );
     main_layout -> addWidget ( setup_option_group () );
-    main_layout -> addWidget ( setup_workspace_group () );
-    main_layout -> addLayout ( setup_button_layout () );
-
-
-    populate ();
-
-    connect ( this, SIGNAL ( dirty_config () ), this, SLOT ( modified_config () ) );
+    //main_layout -> addWidget ( setup_workspace_group () );
+    //main_layout -> addLayout ( setup_button_layout () );
 
     setLayout ( main_layout );
 
-    resize ( QSize ( parent -> size (). width (), parent -> size () . height () ) );
+    init ();
+
 
     show ();
 }
@@ -544,124 +547,192 @@ SRAConfigView :: ~SRAConfigView ()
 
 }
 
-/*
-void SRAConfigView :: setup_menubar ()
+
+void SRAConfigView :: init ()
 {
-    QMenu *file = menuBar () -> addMenu ( tr ( "&File" ) );
+    if ( ! model -> remote_enabled () )
+        bg_remote_access -> button ( 0 ) -> setChecked ( true );
+     else
+        bg_remote_access -> button ( 1 ) -> setChecked ( true );
 
-    apply_action = file -> addAction ( tr ( "&Apply" ), this, SLOT ( commit_config () ) );
-    apply_action -> setDisabled ( true );
-
-    file -> addSeparator ();
-    file -> addAction ( tr ( "&Import" ), this, SLOT ( import_workspace () ) );
-
-    QMenu *edit = menuBar () -> addMenu ( tr ( "\u200CEdit" ) ); // \u200C was added because OSX auto-adds some unwanted menu items
-
-    discard_action = edit -> addAction ( tr ( "&Discard Changes" ), this, SLOT ( reload_config () ) );
-    discard_action -> setDisabled ( true );
-
-    edit -> addSeparator ();
-    edit -> addAction ( tr ( "&Advanced" ), this, SLOT ( advanced_settings () ) );
-    edit -> addSeparator ();
-    edit -> addAction ( tr ( "&Soft Factory Reset" ), this, SLOT ( default_config () ) );
-}
-
-void SRAConfigView :: setup_toolbar ()
-{
-#ifdef Q_OS_OSX
-    setUnifiedTitleAndToolBarOnMac ( true );
-#endif
-
-    QToolBar *bar = new QToolBar ( this );
-
-    KToolbarItem *item = new KToolbarItem ( "General", rsrc_path + "/general_icon" );
-    bar -> addWidget ( item );
-
-    item = new KToolbarItem ( "AWS", rsrc_path + "/aws_icon" );
-    bar -> addWidget ( item );
-
-    item = new KToolbarItem ( "Network", rsrc_path + "/network_icon" );
-    bar -> addWidget ( item );
-
-    item = new KToolbarItem ( "Diagnostics", rsrc_path + "/troubleshooting" );
-    bar -> addWidget ( item );
-
-    addToolBar ( bar );
-
-}
-*/
-void SRAConfigView :: populate ()
-{
-    remote_enabled_cb -> setChecked ( model -> remote_enabled () );
-
-    local_caching_cb -> setChecked ( model -> global_cache_enabled () );
+    if ( ! model -> global_cache_enabled () )
+        bg_local_caching -> button ( 0 ) -> setChecked ( true );
+     else
+        bg_local_caching -> button ( 1 ) -> setChecked ( true );
 
     if ( model -> site_workspace_exists () )
-        site_cb -> setChecked ( model -> site_enabled () );
+    {
+        if ( ! model -> site_enabled () )
+            bg_use_site -> button ( 0 ) -> setChecked ( true );
+        else
+            bg_use_site -> button ( 1 ) -> setChecked ( true );
+    }
     else
-        site_cb -> setDisabled ( true );
+    {
+        bg_use_site -> button ( 0 ) -> setDisabled ( true );
+        bg_use_site -> button ( 1 ) -> setDisabled ( true );
+    }
 
-    proxy_cb -> setChecked ( model -> proxy_enabled () );
-    proxy_label -> setText ( model -> get_proxy_path () . c_str () );
+    if ( ! model -> proxy_enabled () )
+    {
+        bg_use_proxy -> button ( 0 ) -> setChecked ( true );
+        lineEdit -> setDisabled ( true );
+    }
+     else
+    {
+        bg_use_proxy -> button ( 1 ) -> setChecked ( true );
+        lineEdit -> setText ( QString ( model -> get_proxy_path () . c_str () ) );
+    }
 
-    http_priority_cb -> setChecked ( model -> proxy_priority () );
+    if ( model -> proxy_priority () )
+        bg_prioritize_http -> button ( 0 ) -> setChecked ( true );
+     else
+        bg_prioritize_http -> button ( 1 ) -> setChecked ( true );
 }
 
-QGroupBox * SRAConfigView::setup_option_group ()
+static
+QButtonGroup * make_no_yes_button_group ( QPushButton **p_no, QPushButton **p_yes )
 {
-    QGroupBox *group = new QGroupBox ( "Options" );
-    group -> setFixedHeight ( 170 );
+    QButtonGroup *group = new QButtonGroup ();
 
-    QGridLayout *layout = new QGridLayout ();
-    layout -> setAlignment ( Qt :: AlignTop );
-    layout -> setSpacing ( 15 );
+    QPushButton *no = new QPushButton ( "No" );
+    no -> setObjectName ( "test_button_no" );
+    no -> setCheckable ( true );
+    no -> setFixedSize ( 60, 40 );
 
-    //1
-    remote_enabled_cb = new QCheckBox ( "Enable Remote Access" );
-    remote_enabled_cb -> setAutoExclusive ( false );
-    layout -> addWidget ( remote_enabled_cb, 0, 0 );
-    connect ( remote_enabled_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_remote_enabled ( bool ) ) );
+    QPushButton *yes = new QPushButton ( "Yes" );
+    yes -> setObjectName ( "test_button" );
+    yes -> setCheckable ( true );
+    yes -> setFixedSize ( 60, 40 );
 
-    //2
-    local_caching_cb = new QCheckBox ( "Enable Local File Caching" );
-    local_caching_cb -> setAutoExclusive ( false );
-    layout -> addWidget ( local_caching_cb, 1, 0 );
-     connect ( local_caching_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_local_caching ( bool ) ) );
+    group -> addButton ( no, 0 );
+    group -> addButton ( yes, 1 );
 
-    //3
-    site_cb = new QCheckBox ( "Use Site Installation" );
-    site_cb -> setAutoExclusive ( false );
-    layout -> addWidget ( site_cb, 2, 0 );
-    connect ( site_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_use_site ( bool ) ) );
-
-    //4
-    proxy_cb = new QCheckBox ( "Use Proxy" );
-    proxy_cb -> setAutoExclusive ( false );
-    layout -> addWidget ( proxy_cb, 3, 0 );
-    connect ( proxy_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_use_proxy ( bool ) ) );
-
-    proxy_label = new QLabel ();
-    proxy_label -> setMargin ( 0 );
-    proxy_label -> setFrameShape ( QFrame::Panel );
-    proxy_label -> setFrameShadow ( QFrame::Sunken );
-    proxy_label -> setFixedHeight ( 20 );
-    layout -> addWidget ( proxy_label, 3, 1 );
-
-    QPushButton *edit = new QPushButton ( "Edit" );
-    edit -> setFixedSize ( 30, 20 );
-    layout -> addWidget ( edit, 3, 2 );
-    connect ( edit, SIGNAL ( clicked () ), this, SLOT ( edit_proxy_path () ) );
-
-    //5
-    http_priority_cb = new QCheckBox ( "Prioritize Environment Variable 'http-proxy'" );
-    http_priority_cb -> setAutoExclusive ( false );
-    layout -> addWidget ( http_priority_cb, 4, 0 );
-    connect ( http_priority_cb, SIGNAL ( clicked ( bool ) ), this, SLOT ( toggle_prioritize_http ( bool ) ) );
-
-    group -> setLayout ( layout );
+    *p_no = no;
+    *p_yes = yes;
 
     return group;
 }
+
+static
+QLabel * make_standard_label ( QString text )
+{
+    QLabel *label = new QLabel ( text );
+    label -> setObjectName ( "test_label" );
+    label -> setFixedHeight ( 40 );
+
+    return label;
+}
+
+QWidget * SRAConfigView::setup_option_group ()
+{
+    QWidget *widget = new QWidget ();
+    widget -> setFixedWidth ( ( size () . width () * 4 ) / 7 );
+    widget -> setObjectName ( "test_widget" );
+
+    QVBoxLayout *layout = new QVBoxLayout ();
+    layout -> setAlignment ( Qt::AlignTop );
+    layout -> setSpacing ( 10 );
+
+    // row 1
+    QPushButton *no = nullptr;
+    QPushButton *yes = nullptr;
+    connect ( bg_remote_access = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_remote_enabled ( int ) ) );
+
+    QLabel *label = make_standard_label ( QString ("Enable Remote Access") );
+
+    QHBoxLayout *row_layout = new QHBoxLayout ();
+    row_layout -> addWidget ( label );
+    row_layout -> setAlignment ( label, Qt::AlignLeft );
+    row_layout -> addWidget ( no );
+    row_layout -> setAlignment ( no, Qt::AlignRight );
+    row_layout -> addWidget ( yes );
+
+    layout -> addLayout ( row_layout );
+    // row 1
+
+    // row 2
+    connect ( bg_local_caching = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_local_caching ( int ) ) );
+
+    label = make_standard_label ( QString ("Enable Local File Caching") );
+
+    row_layout = new QHBoxLayout ();
+    row_layout -> addWidget ( label );
+    row_layout -> setAlignment ( label, Qt::AlignLeft );
+    row_layout -> addWidget ( no );
+    row_layout -> setAlignment ( no, Qt::AlignTrailing);
+    row_layout -> addWidget ( yes );
+
+    layout -> addLayout ( row_layout );
+    // row 2
+
+    // row 3
+    connect ( bg_use_site = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_site ( int ) ) );
+
+    label = make_standard_label ( QString ("Use Site Installation") );
+
+    row_layout = new QHBoxLayout ();
+    row_layout -> addWidget ( label );
+    row_layout -> setAlignment ( label, Qt::AlignLeft );
+    row_layout -> addWidget ( no );
+    row_layout -> setAlignment ( no, Qt::AlignTrailing);
+    row_layout -> addWidget ( yes );
+
+    layout -> addLayout ( row_layout );
+    // row 3
+
+    // row 4
+    connect ( bg_use_proxy = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_proxy ( int ) ) );
+
+    label = make_standard_label ( QString ("Use Proxy") );
+
+    row_layout = new QHBoxLayout ();
+    row_layout -> setContentsMargins ( 0, 10, 0, 0 );
+    row_layout -> addWidget ( label );
+    row_layout -> setAlignment ( label, Qt::AlignLeft );
+    row_layout -> addWidget ( no );
+    row_layout -> setAlignment ( no, Qt::AlignTrailing);
+    row_layout -> addWidget ( yes );
+
+    layout -> addLayout ( row_layout );
+
+    lineEdit = new QLineEdit ();
+    connect ( lineEdit, SIGNAL ( editingFinished () ), this, SLOT ( edit_proxy_path () ) );
+    lineEdit -> setFocusPolicy ( Qt::FocusPolicy::ClickFocus );
+    lineEdit -> setFixedHeight (30 );
+    lineEdit -> setPlaceholderText ( "xxx.xxx.xxx.xxx" );
+
+
+    row_layout = new QHBoxLayout ();
+    row_layout -> setContentsMargins ( 50, 0, 0, 10 );
+    row_layout -> addWidget ( lineEdit );
+    layout -> addLayout ( row_layout );
+    // row 4
+
+    //row 5
+    connect ( bg_prioritize_http = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_prioritize_http ( int ) ) );
+
+    label = make_standard_label ( QString ("Prioritize Environment Variable 'http-proxy'") );
+
+    row_layout = new QHBoxLayout ();
+    row_layout -> addWidget ( label );
+    row_layout -> setAlignment ( label, Qt::AlignLeft );
+    row_layout -> addWidget ( no );
+    row_layout -> setAlignment ( no, Qt::AlignTrailing);
+    row_layout -> addWidget ( yes );
+
+    layout -> addLayout ( row_layout );
+    // row 5
+
+    widget -> setLayout ( layout );
+    return widget;
+}
+
 
 void SRAConfigView :: add_workspace (QString name, QString val, int ngc_id, bool insert )
 {
@@ -728,10 +799,11 @@ void SRAConfigView :: import_workspace ()
     }
 }
 
-
+/*
 QGroupBox * SRAConfigView :: setup_workspace_group ()
 {
-    QGroupBox *group = new QGroupBox ( "Workspaces" );
+    QGroupBox *group = new QGroupBox ();
+    group -> setObjectName ( "config_options_group" );
 
     workspace_layout = new QVBoxLayout ();
     workspace_layout -> setAlignment ( Qt :: AlignTop );
@@ -769,11 +841,11 @@ QGroupBox * SRAConfigView :: setup_workspace_group ()
 
     workspace_layout -> addLayout ( i_layout );
 
-    group -> setLayout ( workspace_layout );
+    //group -> setLayout ( workspace_layout );
 
     return group;
 }
-
+*/
 QVBoxLayout * SRAConfigView::setup_button_layout ()
 {
     QVBoxLayout *v_layout = new QVBoxLayout ();
@@ -884,7 +956,7 @@ void SRAConfigView :: commit_config ()
 void SRAConfigView :: reload_config ()
 {
     model -> reload ();
-    populate ();
+    //populate ();
 
    if ( ! model -> config_changed () )
    {
@@ -913,7 +985,7 @@ void SRAConfigView :: default_config ()
     model -> set_global_cache_enabled ( true );
     model -> set_site_enabled ( true );
 
-    populate ();
+    //populate ();
 
     emit dirty_config ();
 }
@@ -924,10 +996,26 @@ void SRAConfigView :: toggle_remote_enabled ( bool toggled )
     emit dirty_config ();
 }
 
+void SRAConfigView :: toggle_remote_enabled ( int toggled )
+{
+    if ( toggled == 1 )
+        qDebug () << "remote_enabled: yes";
+    else
+        qDebug () << "remote_enabled: no";
+}
+
 void SRAConfigView :: toggle_local_caching ( bool toggled )
 {
     model -> set_global_cache_enabled ( toggled );
     emit dirty_config ();
+}
+
+void SRAConfigView :: toggle_local_caching ( int toggled )
+{
+    if ( toggled == 1 )
+        qDebug () << "local_caching: yes";
+    else
+        qDebug () << "local_caching: no";
 }
 
 void SRAConfigView :: toggle_use_site ( bool toggled )
@@ -936,16 +1024,46 @@ void SRAConfigView :: toggle_use_site ( bool toggled )
     emit dirty_config ();
 }
 
+void SRAConfigView :: toggle_use_site ( int toggled )
+{
+    if ( toggled == 1 )
+        qDebug () << "use_site: yes";
+    else
+        qDebug () << "use_site: no";
+}
+
 void SRAConfigView :: toggle_use_proxy ( bool toggled )
 {
     model -> set_proxy_enabled ( toggled );
     emit dirty_config ();
 }
 
+void SRAConfigView :: toggle_use_proxy ( int toggled )
+{
+    if ( toggled == 1 )
+    {
+        qDebug () << "use_proxy: yes";
+        lineEdit -> setDisabled ( false );
+    }
+    else
+    {
+        qDebug () << "use_proxy: no";
+        lineEdit -> setDisabled ( true );
+    }
+}
+
 void SRAConfigView :: toggle_prioritize_http ( bool toggled )
 {
     model -> set_proxy_priority ( toggled );
     emit dirty_config ();
+}
+
+void SRAConfigView :: toggle_prioritize_http ( int toggled )
+{
+    if ( toggled == 1 )
+        qDebug () << "prioritize_http: yes";
+    else
+        qDebug () << "prioritize_http: no";
 }
 
 void SRAConfigView :: edit_import_path ()
@@ -974,19 +1092,20 @@ void SRAConfigView :: edit_import_path ()
 
 void SRAConfigView :: edit_proxy_path ()
 {
-    QString input = QInputDialog::getText ( this
-                                                , tr ( "Proxy Path" )
-                                                , tr ( "Enter a proxy path" )
-                                                , QLineEdit::Normal
-                                                , proxy_label -> text () );
+    QString text = lineEdit -> text ();
 
-    if ( input . isEmpty () )
+    if ( text . isEmpty () )
         return;
 
-    proxy_label -> setText ( input );
-    model -> set_proxy_path ( input . toStdString () );
+    proxy_string = &text;
 
-    emit dirty_config ();
+    if ( lineEdit -> hasFocus () )
+        lineEdit -> clearFocus ();
+
+    qDebug () << "set new proxy path: " << text;
+    //model -> set_proxy_path ( proxy_string -> toStdString () );
+
+    //emit dirty_config ();
 }
 
 void SRAConfigView :: edit_public_path ()

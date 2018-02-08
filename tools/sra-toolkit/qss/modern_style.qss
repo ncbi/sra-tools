@@ -1,0 +1,126 @@
+
+/*******************************************************************************
+* Tool Bar
+*******************************************************************************/
+#tool_bar_button
+{
+  background: transparent;
+}
+
+#tool_bar_button:hover
+{
+   background: rgba(0,0,0,0.2);
+}
+
+#tool_bar_button:checked
+{
+   background: rgba(0,0,0,0.9);
+}
+
+#diagnostics_metadata
+{
+   background: rgba(255,255,255,0.7);
+   border-bottom: 1px solid #1e5799;
+}
+
+/*******************************************************************************
+* SRAToolView
+*******************************************************************************/
+
+
+/*******************************************************************************
+* Config
+*******************************************************************************/
+
+#test_label
+{
+font-size: 16px;
+padding: 5px;
+}
+
+#test_button, #test_button_no
+{
+background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ffffff, stop:1 #ffffff);
+border: 1px solid #000000;
+border-radius: 2px;
+font-size: 16px;
+    padding: 5px;
+}
+
+#test_button::disabled, #test_button_no::disabled
+{
+ border: 1px solid #d3d3d3;
+}
+
+#test_button::checked
+{
+background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                  stop:0 #ffffff, stop:1 #ffffff);
+border: 2px solid #7DE22F;
+color: #7DE22F;
+    padding: 5px;
+}
+
+#test_button_no::checked
+{
+background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                  stop:0 #ffffff, stop:1 #ffffff);
+border: 2px solid #cf0404;
+color: #cf0404;
+    padding: 5px;
+}
+
+QLineEdit
+{
+   padding: 5px;
+   font-size: 16px;
+   border: 1px solid #000000;
+   border-radius: 2px;
+}
+
+QLineEdit::disabled
+{
+   padding: 5px;
+   font-size: 16px;
+   border: 1px solid #d3d3d3;
+   border-radius: 2px;
+}
+
+#workspace_name_label
+{
+    border: 1px solid gray;
+    border-radius: 2px;
+}
+
+#start_diagnostics_button, #cancel_diagnostics_button
+{
+   background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+   stop: 0 #7DE22F,
+   stop: 0.5 #61c419,
+   stop: 1.0 #7DE22F );
+   color: white;
+
+   border: 1px solid black;
+   border-radius: 40px;
+
+   font-size: 16px;
+   font-family: "Consolas";
+   font-weight: bold;
+}
+
+#cancel_diagnostics_button
+{
+   background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+   stop: 0 #cf0404,
+   stop: 0.5 #ff3019,
+   stop: 1.0 #cf0404 );
+}
+
+/*
+Examples
+
+qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
+   stop: 0 rgba(125,185,232,0.5),
+   stop: 0.5 #2989d8,
+   stop: 1.0 #1e5799 );
+*/

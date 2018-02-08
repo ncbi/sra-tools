@@ -32,10 +32,11 @@
 QT_BEGIN_NAMESPACE
 class QHBoxLayout;
 class QVBoxLayout;
+class QButtonGroup;
 class QCheckBox;
 class QFrame;
-class QGroupBox;
 class QLabel;
+class QLineEdit;
 class QPushButton;
 QT_END_NAMESPACE
 
@@ -78,17 +79,20 @@ private slots:
     void toggle_use_proxy ( bool toggled );
     void toggle_prioritize_http ( bool toggled );
 
+    void toggle_remote_enabled ( int toggled );
+    void toggle_local_caching ( int toggled );
+    void toggle_use_site ( int toggled );
+    void toggle_use_proxy ( int toggled );
+    void toggle_prioritize_http ( int toggled );
+
 
 
 private:
 
     void closeEvent ( QCloseEvent *event );
-    void populate ();
+    void init ();
 
     void add_workspace ( QString name, QString val, int ngc_id, bool insert = false );
-
-    //void setup_menubar ();
-    //void setup_toolbar ();
 
     SRAConfigModel *model;
 
@@ -98,13 +102,15 @@ private:
     QVBoxLayout *main_layout;
     QVBoxLayout *workspace_layout;
 
-    QCheckBox *remote_enabled_cb;
-    QCheckBox *local_caching_cb;
-    QCheckBox *site_cb;
-    QCheckBox *proxy_cb;
-    QCheckBox *http_priority_cb;
+    QButtonGroup *bg_remote_access;
+    QButtonGroup *bg_local_caching;
+    QButtonGroup *bg_use_site;
+    QButtonGroup *bg_use_proxy;
+    QButtonGroup *bg_prioritize_http;
 
-    QLabel *proxy_label;
+    QLineEdit *lineEdit;
+
+    QString *proxy_string;
     QLabel *import_path_label;
 
     QFrame *adv_setting_window;
@@ -112,8 +118,8 @@ private:
     QPushButton *apply_btn;
     QPushButton *discard_btn;
 
-    QGroupBox* setup_option_group ();
-    QGroupBox* setup_workspace_group ();
+    QWidget* setup_option_group ();
+    //QGroupBox* setup_workspace_group ();
     QVBoxLayout *setup_button_layout();
 
     WorkspaceItem *public_workspace;

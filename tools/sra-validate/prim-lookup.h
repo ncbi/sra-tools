@@ -48,6 +48,8 @@ rc_t prim_lookup_enter( struct prim_lookup * self, const prim_rec * rec );
 
 rc_t prim_lookup_get( struct prim_lookup * self, uint64_t align_id, uint32_t * read_len, bool * ref_orient, bool * found );
 
+rc_t prim_lookup_report( const struct prim_lookup * self );
+
 #ifdef __cplusplus
 }
 #endif

@@ -110,6 +110,7 @@ rc_t run_csra_validator( const validate_ctx * vctx )
     {
         uint64_t total_rows = vctx -> acc_info -> seq_rows + vctx -> acc_info -> prim_rows;
         start_progress( vctx -> progress, 2, total_rows );
+        
         set_to_finish_validate_result( vctx -> v_res, vctx -> num_slices * 2 );
     
         rc = make_csra_producers( vctx, lookup );
@@ -122,6 +123,8 @@ rc_t run_csra_validator( const validate_ctx * vctx )
                 wait_for_validate_result( vctx -> v_res, 100 );
             }
         }
+        
+        prim_lookup_report( lookup );
         destroy_prim_lookup( lookup );
     }
     return rc;

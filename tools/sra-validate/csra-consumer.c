@@ -38,7 +38,16 @@
 #include <klib/time.h>
 #endif
 
-static uint32_t validate_alig_count_vs_alig_id( seq_rec * rec, uint32_t idx, struct logger * log )
+/* the seq-rec with values from the lookup */
+typedef struct csra_rec
+{
+    seq_rec rec;
+    uint32_t read_len[ 2 ];
+    bool ref_orient[ 2 ];
+    bool found[ 2 ];
+} csra_rec;
+
+static uint32_t validate_alig_count_vs_alig_id( const seq_rec * rec, uint32_t idx, struct logger * log )
 {
     uint32_t res = 0;
     uint8_t count = rec -> alig_count[ idx ];
@@ -68,63 +77,74 @@ static uint32_t validate_alig_count_vs_alig_id( seq_rec * rec, uint32_t idx, str
     return res;
 }
 
-static uint32_t validate_join( validate_slice * slice, seq_rec * rec, uint32_t idx )
+
+static uint32_t validate_csra_rec( validate_slice * slice, const csra_rec * csra )
 {
     uint32_t res = 0;
-    bool looking = true;
-    rc_t rc = 0;
-    while ( rc == 0 && looking )
-    {
-        uint32_t read_len;
-        bool ref_orient, found;
-
-        rc = prim_lookup_get( slice -> lookup, rec -> prim_alig_id[ idx ], &read_len, &ref_orient, &found );
-        if ( rc == 0 )
-        {
-            if ( found )
-            {
-                looking = false;
-            }
-            else
-            {
-                rc = KSleep( 20 );
-            }
-        }
-        else
-            looking = false;
-    }
-    return res;
-}
-
-static uint32_t validate_csra_rec( validate_slice * slice, seq_rec * rec )
-{
-    uint32_t res = 0;
+    const seq_rec * rec = &csra -> rec;
     if ( rec -> num_alig_id != 2 )
     {
         log_write( slice -> vctx -> log, "SEQ.#%ld : rowlen( PRIMARY_ALIGNMENT_ID ) != 2", rec -> row_id );
         res++;
     }
-    if ( rec -> num_alig_count != 2 )
+    if ( csra -> rec . num_alig_count != 2 )
     {
         log_write( slice -> vctx -> log, "SEQ.#%ld : rowlen( ALIGNMENT_COUNT ) != 2", rec -> row_id );
         res++;
     }
-    
-    if ( rec -> num_alig_id > 0 && rec -> num_alig_count > 0 )
+    if ( rec -> num_alig_id != rec -> num_alig_count )
     {
-        if ( rec -> prim_alig_id[ 0 ] > 0 )
-            res += validate_join( slice, rec, 0 );
-        res += validate_alig_count_vs_alig_id( rec, 0, slice -> vctx -> log );
+        log_write( slice -> vctx -> log, "SEQ.#%ld : rowlen( ALIGNMENT_COUNT )[%u] != rowlen( PRIMARY_ALIGNMENT_ID )[ %u]",
+                rec -> row_id, rec -> num_alig_count, rec -> num_alig_id );
+        res++;
     }
-    
-    if ( rec -> num_alig_id > 1 && rec -> num_alig_count > 1 )
-    {
-        if ( rec -> prim_alig_id[ 1 ] > 0 )
-            res += validate_join( slice, rec, 1 );
-        res += validate_alig_count_vs_alig_id( rec, 1, slice -> vctx -> log );
-    }
+
+    res += validate_alig_count_vs_alig_id( rec, 0, slice -> vctx -> log );
+    res += validate_alig_count_vs_alig_id( rec, 1, slice -> vctx -> log );
     
     return res;
+}
+
+static rc_t fill_in_lookup_values( csra_rec * csra, struct prim_lookup * lookup, bool * ready )
+{
+    rc_t rc = 0;
+    * ready = true;
+    uint64_t prim_alig_id = csra -> rec . prim_alig_id[ 0 ];
+    if ( prim_alig_id > 0 )
+    {
+        rc = prim_lookup_get( lookup, prim_alig_id,
+                &csra -> read_len[ 0 ], &csra -> ref_orient[ 0 ], &csra -> found[ 0 ] );
+        if ( rc == 0 )
+        {
+            if ( !csra -> found[ 0 ] )
+                *ready = false;
+        }
+    }
+    if ( rc == 0 )
+    {
+        prim_alig_id = csra -> rec . prim_alig_id[ 1 ];
+        if ( prim_alig_id > 0 )
+        {
+            rc = prim_lookup_get( lookup, prim_alig_id,
+                    &csra -> read_len[ 1 ], &csra -> ref_orient[ 1 ], &csra -> found[ 1 ] );
+            if ( rc == 0 )
+            {
+                if ( !csra -> found[ 1 ] )
+                    *ready = false;
+            }
+        }
+    }
+    return rc;
+}
+
+static csra_rec * copy_csra_rec( const csra_rec * src )
+{
+    /* problem: with have to make a deep-copy!!! */
+}
+
+static void CC on_backlog_free( void * item, void * data )
+{
+    free( item );
 }
 
 rc_t CC csra_consumer_thread( const KThread *self, void *data )
@@ -139,14 +159,35 @@ rc_t CC csra_consumer_thread( const KThread *self, void *data )
     rc_t rc = make_seq_iter( &p, &iter );
     if ( rc == 0 )
     {
-        seq_rec rec;
-        while ( get_from_seq_iter( iter, &rec, &rc ) && rc == 0 )
+        csra_rec csra;
+        Vector backlog;
+        
+        VectorInit ( &backlog, 0, 512 );
+        
+        while ( get_from_seq_iter( iter, &csra . rec, &rc ) && rc == 0 )
         {
-            uint32_t errors = validate_csra_rec( slice, &rec );
-            rc = update_seq_validate_result( slice -> vctx -> v_res, errors );
+            bool ready;
+            rc = fill_in_lookup_values( &csra, slice -> lookup, &ready );
             if ( rc == 0 )
-                update_progress( slice -> vctx -> progress, 1 );
+            {
+                if ( ready )
+                {
+                    /* all joins ( if any ) could be made, do the validation */
+                    uint32_t errors = validate_csra_rec( slice, &csra );
+                    rc = update_seq_validate_result( slice -> vctx -> v_res, errors );
+                    if ( rc == 0 )
+                        update_progress( slice -> vctx -> progress, 1 );
+                }
+                else
+                {
+                    /* some/all joins are not read( yet ) put this one on the back-log */
+                    copy_csra_rec( const csra_rec * src )
+                }
+            }
         }
+        
+        VectorWhack ( &backlog, on_backlog_free, NULL );
+
         destroy_seq_iter( iter );
     }
     finish_validate_result( slice -> vctx -> v_res );

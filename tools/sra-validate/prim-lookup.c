@@ -37,11 +37,22 @@
 #include <klib/vector.h>
 #endif
 
+#ifndef _h_klib_out_
+#include <klib/out.h>
+#endif
+
 typedef struct prim_lookup
 {
     KLock * lock;
-    KVector * vec;
     
+    KVector * vec;
+    /*
+        key    ( 64-bit ) : row-id in PRIM-table
+        value  ( 64-bit ) : read-len in upper 32 bit, ref-orientation in bit 0
+    */
+    
+    uint64_t in_vector;
+    uint64_t max_in_vector;
 } prim_lookup;
 
 void destroy_prim_lookup( prim_lookup * self )
@@ -113,7 +124,13 @@ rc_t prim_lookup_enter( prim_lookup * self, const prim_rec * rec )
             rc = KVectorSetU64 ( self -> vec, key, value );
             if ( rc != 0 )
                 ErrMsg( "prim_lookup_enter().KVectorSetU64( %lu => %lx ) -> %R", key, value, rc );
-                
+            else
+            {
+                self -> in_vector ++;
+                if ( self -> in_vector > self -> max_in_vector )
+                    self -> max_in_vector = self -> in_vector;
+            }
+            
             rc = KLockUnlock ( self -> lock );
             if ( rc != 0 )
                 ErrMsg( "prim_lookup_enter().KLockUnlock() -> %R", rc );
@@ -133,13 +150,13 @@ rc_t prim_lookup_get( prim_lookup * self, uint64_t align_id, uint32_t * read_len
     else
     {
         uint64_t key = align_id;
+        uint64_t value;
         
         rc = KLockAcquire ( self -> lock );
         if ( rc != 0 )
             ErrMsg( "prim_lookup_enter().KLockAcquire() -> %R", rc );
         else
         {
-            uint64_t value;
             rc_t rc_v = KVectorGetU64 ( self -> vec, key, &value );
             if ( rc_v == 0 )
             {
@@ -151,6 +168,8 @@ rc_t prim_lookup_get( prim_lookup * self, uint64_t align_id, uint32_t * read_len
                 rc = KVectorUnset ( self -> vec, key );
                 if ( rc != 0 )
                     ErrMsg( "prim_lookup_enter().KVectorUnset( %lu ) -> %R", key, rc );
+                else
+                    self -> in_vector--;
             }
             else
                 *found = false;
@@ -159,6 +178,24 @@ rc_t prim_lookup_get( prim_lookup * self, uint64_t align_id, uint32_t * read_len
             if ( rc != 0 )
                 ErrMsg( "prim_lookup_enter().KLockUnlock() -> %R", rc );
         }
+    }
+    return rc;
+}
+
+static rc_t on_visit_vector( uint64_t key, uint64_t value, void *user_data )
+{
+    return KOutMsg( "prim-align-id: %,lu\n", key );
+}
+
+rc_t prim_lookup_report( const prim_lookup * self )
+{
+    rc_t rc = 0;
+    if ( self != NULL )
+    {
+        KOutMsg( "\nlookup.in_vector     = %,lu", self -> in_vector );
+        KOutMsg( "\nlookup.max_in_vector = %,lu\n", self -> max_in_vector );
+        if ( self -> in_vector > 0 )
+            rc = KVectorVisitU64 ( self -> vec, false, on_visit_vector, NULL );
     }
     return rc;
 }

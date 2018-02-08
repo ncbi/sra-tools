@@ -135,11 +135,11 @@ typedef struct {
 } TreeNode;
 typedef struct {
     ERunType type;
-    char *name;
+    char *name; /* name to resolve */
 
-    VPathStr local;
+    VPathStr      local;
     const String *cache;
-    VPathStr remote;
+    VPathStr      remote;
 
     const KFile *file;
     uint64_t remoteSz;
@@ -153,6 +153,7 @@ typedef struct {
     VPathStr path;
 
     VPath *accession;
+    bool isUri; /* accession is URI */
     uint64_t project;
 
     const KartItem *kartItem;
@@ -1508,7 +1509,7 @@ rc_t _KartItemToVPath(const KartItem *self, const VFSManager *vfs, VPath **path)
     return rc;
 }
 
-static rc_t _ItemSetResolverAndAssessionInResolved(Item *item,
+static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
     VResolver *resolver, const KConfig *cfg, const KRepositoryMgr *repoMgr,
     const VFSManager *vfs)
 {
@@ -1522,11 +1523,35 @@ static rc_t _ItemSetResolverAndAssessionInResolved(Item *item,
     if (item->desc != NULL) {
         rc = VFSManagerMakePath(vfs, &resolved->accession, "%s", item->desc);
         DISP_RC2(rc, "VFSManagerMakePath", item->desc);
-        if (rc == 0) {
+        if (rc == 0)
             rc = VResolverAddRef(resolver);
-        }
         if (rc == 0) {
             resolved->resolver = resolver;
+            resolved->isUri = VPathFromUri (resolved->accession);
+        }
+        if (rc == 0 && resolved->isUri) {
+            resolved->remote.path = resolved->accession;
+            {
+                char path[PATH_MAX] = "";
+                size_t len = 0;
+                rc = VPathReadUri(resolved->accession, path, sizeof path, &len);
+                DISP_RC2(rc, "VPathReadUri(VResolverRemote)", resolved->name);
+                if (rc == 0) {
+                    String local_str;
+                    char *query = string_chr(path, len, '?');
+                    if (query != NULL) {
+                        *query = '\0';
+                        len = query - path;
+                    }
+                    StringInit(&local_str, path, len, (uint32_t)len);
+                    rc = StringCopy(&resolved->remote.str, &local_str);
+                    DISP_RC2(rc, "StringCopy(VResolverRemote)", resolved->name);
+                }
+            }
+            resolved->accession = NULL;
+            VFSManagerExtractAccessionOrOID
+                (vfs, &resolved->accession, resolved->remote.path);
+
         }
     }
     else {
@@ -1592,7 +1617,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
 
     assert(resolved->accession == NULL);
 
-    rc = _ItemSetResolverAndAssessionInResolved(item,
+    rc = _ItemSetResolverAndAccessionInResolved(item,
         resolver, cfg, repoMgr, vfs);
 
     if (rc == 0) {
@@ -1617,13 +1642,16 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         if ((minSize > 0 || maxSize > 0 || item->main->order == eOrderSize)
             && has_proto [ eProtocolFasp ])
         {
-            rc2 = _VResolverRemote(resolved->resolver, 0,
-                resolved->name, resolved->accession, &resolved->remote.path,
-                &resolved->remote.str, &resolved->cache);
-            if (rc2 != 0 && rc == 0) {
-                rc = rc2;
+            if ( ! resolved->isUri ) {
+                rc2 = _VResolverRemote(resolved->resolver, 0,
+                    resolved->name, resolved->accession, &resolved->remote.path,
+                    &resolved->remote.str, &resolved->cache);
+                if (rc2 != 0 && rc == 0)
+                    rc = rc2;
             }
-            else {
+            else
+                assert (resolved->remote.path && resolved->remote.str);
+            if (rc == 0) {
                 rc_t rc3 = 0;
                 if (resolved->file == NULL) {
                     rc3 = _KFileOpenRemote(&resolved->file,
@@ -1634,26 +1662,52 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
 
                 if (rc3 == 0 && resolved->file != NULL) {
                     rc3 = KFileSize(resolved->file, &resolved->remoteSz);
-                    if (rc3 != 0) {
+                    if (rc3 != 0)
                         DISP_RC2(rc3, "cannot get remote file size",
                             resolved->remote.str->addr);
-                    }
-                    else if (resolved->remoteSz >= maxSize) {
+                    else if (resolved->remoteSz >= maxSize)
                         return rc;
-                    }
-                    else if (resolved->remoteSz < minSize) {
+                    else if (resolved->remoteSz < minSize)
                         return rc;
-                    }
                 }
             }
         }
 
         if (rc2 == 0) {
-            rc2 = _VResolverRemote(resolved->resolver, protocols,
-                resolved->name, resolved->accession, &resolved->remote.path,
-                &resolved->remote.str, &resolved->cache);
-            if (rc2 != 0 && rc == 0) {
-                rc = rc2;
+            if ( ! resolved->isUri ) {
+                rc2 = _VResolverRemote(resolved->resolver, protocols,
+                    resolved->name, resolved->accession, &resolved->remote.path,
+                    &resolved->remote.str, &resolved->cache);
+                if (rc2 != 0 && rc == 0)
+                    rc = rc2;
+            }
+            else {
+                const VPath *vcache = NULL;
+                assert (resolved->remote.path && resolved->remote.str);
+                rc2 = VResolverQuery(resolved->resolver, 0,
+                    resolved->accession, NULL, NULL, &vcache);
+                if (rc2 != 0) {
+                    if (rc == 0)
+                        rc = rc2;
+                    PLOGERR(klogInt, (klogInt, rc2, "cannot get cache location "
+                        "for $(acc). Hint: run \"vdb-config --interactive\" and"
+                        " make sure Workspace Location Path is set. See "
+                 "https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration",
+                        "acc=%s", resolved->name));
+                }
+                else {
+                    String path_str;
+                    rc = VPathGetPath(vcache, &path_str);
+                    DISP_RC2(rc, "VPathGetPath(VResolverCache)",
+                        resolved->name);
+                    if ( rc == 0 ) {
+                        free((void*)resolved->cache);
+                        rc = StringCopy(&resolved->cache, &path_str);
+                        DISP_RC2(rc, "StringCopy(VResolverCache)",
+                            resolved->name);
+                    }
+                }
+                RELEASE(VPath, vcache);
             }
         }
 

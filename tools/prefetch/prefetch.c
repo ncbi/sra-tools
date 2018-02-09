@@ -290,16 +290,24 @@ bool _StringIsHttps(const String *self, const char **withoutScheme)
     const char https[] = "https://";
     return _StringIsXYZ ( self, withoutScheme, https, sizeof https - 1 );
 }
+
 /********** KFile extension **********/
 static
-rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const char *path)
+rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const char *path,
+                      bool reliable)
 {
     rc_t rc = 0;
+
     assert(self);
-    if (*self != NULL) {
+
+    if (*self != NULL)
         return 0;
-    }
-    rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, path);
+
+    if ( reliable )
+        rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, path);
+    else
+        rc = KNSManagerMakeHttpFile        (kns, self, NULL, 0x01010000, path);
+
     return rc;
 }
 
@@ -1011,8 +1019,9 @@ static rc_t MainDownloadFile(Resolved *self,
     assert(self->remote.str);
 
     if (self->file == NULL) {
-        rc = _KFileOpenRemote(&self->file, main->kns, self->remote.str->addr);
-        if (rc != 0) {
+        rc = _KFileOpenRemote(&self->file, main->kns, self->remote.str->addr,
+                              !self->isUri);
+        if (rc != 0 && !self->isUri) {
             PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
                 "path=%S", self->remote.str));
         }
@@ -1133,7 +1142,8 @@ static rc_t MainDownloadCacheFile(Resolved *self,
     assert(self->remote.str);
 
     if (self->file == ((void*)0)) {
-        rc = _KFileOpenRemote(&self->file, main->kns, self->remote.str->addr);
+        rc = _KFileOpenRemote(&self->file, main->kns, self->remote.str->addr,
+                              !self->isUri);
         if (rc != 0) {
             PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
                               "path=%S", self->remote.str));
@@ -1655,10 +1665,11 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             if (rc == 0) {
                 rc_t rc3 = 0;
                 if (resolved->file == NULL) {
-                    rc3 = _KFileOpenRemote(&resolved->file,
-                                              kns, resolved->remote.str->addr);
-                    DISP_RC2(rc3,
-                        "cannot open remote file", resolved->remote.str->addr);
+                    rc3 = _KFileOpenRemote(&resolved->file, kns,
+                        resolved->remote.str->addr, !resolved->isUri);
+                    if ( !resolved->isUri )
+                        DISP_RC2(rc3, "cannot open remote file",
+                                 resolved->remote.str->addr);
                 }
 
                 if (rc3 == 0 && resolved->file != NULL) {
@@ -1717,8 +1728,8 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             if (resolved->file == NULL) {
                 assert(resolved->remote.str);
                 if (!_StringIsFasp(resolved->remote.str, NULL)) {
-                    rc2 = _KFileOpenRemote(
-                        &resolved->file, kns, resolved->remote.str->addr);
+                    rc2 = _KFileOpenRemote(&resolved->file, kns,
+                        resolved->remote.str->addr, !resolved->isUri);
                 }
             }
             if (rc2 == 0 && resolved->file != NULL && resolved->remoteSz == 0) {
@@ -2232,7 +2243,8 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
     rc = VPathReadUri(cremote, remotePath, remotePathLen, &len);
     if (rc == 0) {
         RELEASE(KFile, resolved->file);
-        rc = _KFileOpenRemote(&resolved->file, self->main->kns, remotePath);
+        rc = _KFileOpenRemote(&resolved->file, self->main->kns, remotePath,
+                              !resolved->isUri);
         if (rc == 0) {
             char *query = string_chr(remotePath, len, '?');
             if (query != NULL) {
@@ -2548,7 +2560,7 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
     if (resolved->path.str != NULL) {
         assert(item->main);
         rc = _VDBManagerSetDbGapCtx(item->main->mgr, resolved->resolver);
-        type = VDBManagerPathType
+        type = VDBManagerPathTypeUnreliable
             (item->main->mgr, "%s", resolved->name) & ~kptAlias;
         if (type != kptDatabase) {
             if (type == kptTable) {

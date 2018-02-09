@@ -14,18 +14,22 @@ runtests: check_prefetch
 check_prefetch:
 	@mkdir -pv tmp
 	@echo
-	echo 'foo = "bar"' > tmp/t.kfg
+	echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' > tmp/t.kfg
 
 	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if $(BINDIR)/prefetch $(RUN); then exit 1; \
 	    else echo "^^^ failure when user repository is not set is expected"; \
 	    echo; fi
 
-	echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >  tmp/t.kfg
-	echo '$(PUBLIC)/root              = "$(CWD)/tmp"' >> tmp/t.kfg
+	echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
 	@echo SRR download when user repository is configured
 	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(RUN)
+	@echo
+
+	@echo URL download when user repository is configured
+	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki
 
 #	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; $(BINDIR)/vdb-config -on
 

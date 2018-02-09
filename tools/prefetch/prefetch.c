@@ -41,6 +41,7 @@
 #include <vdb/vdb-priv.h> /* VDatabaseIsCSRA */
 
 #include <vfs/manager.h> /* VFSManager */
+#include <vfs/manager-priv.h> /* VResolverCacheForUrl */
 #include <vfs/path.h> /* VPath */
 #include <vfs/resolver.h> /* VResolver */
 
@@ -1684,8 +1685,8 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             else {
                 const VPath *vcache = NULL;
                 assert (resolved->remote.path && resolved->remote.str);
-                rc2 = VResolverQuery(resolved->resolver, 0,
-                    resolved->accession, NULL, NULL, &vcache);
+                rc2 = VResolverCacheForUrl (resolved->resolver,
+                                            resolved->accession, &vcache);
                 if (rc2 != 0) {
                     if (rc == 0)
                         rc = rc2;

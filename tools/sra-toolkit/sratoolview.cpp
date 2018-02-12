@@ -47,11 +47,20 @@ void SRAToolView :: paintEvent ( QPaintEvent *e )
 {
     QPainter painter ( this );
 
+    QLinearGradient gradient = sraTemplate -> getStandardBackground ();
+    gradient . setStart ( size () . width () / 2, 0 );
+    gradient . setFinalStop ( size () . width () / 2, size () . height () );
+
+    painter.setBrush ( gradient );
+
+    painter.drawRect ( 0, 0, size () . width (), size () . height () );
+
+    /*
     QPixmap pxmp ( img_path + "ncbi_helix_blue_black" );
     pxmp = pxmp. scaled ( this -> size (), Qt::KeepAspectRatio, Qt::SmoothTransformation );
 
     painter.drawPixmap( size () . width () / 2 - pxmp.size ().width() / 2, size () . height () / 2 - pxmp.size ().height() / 2, pxmp );
-
+*/
     show ();
 
     QWidget::paintEvent(e);
@@ -78,10 +87,6 @@ void SRAToolView :: paintEvent ( QPaintEvent *e )
 void SRAToolView :: paintEvent ( QPaintEvent *e )
 {
     QPainter painter ( this );
-
-    painter.setBrush ( sraTemplate -> getBaseColor () );
-
-    painter.drawRect ( 0, 0, size () . width (), size () . height () );
 
     show ();
 

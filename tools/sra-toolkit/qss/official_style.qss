@@ -17,12 +17,6 @@
    background: rgba(0,0,0,0.9);
 }
 
-#diagnostics_metadata
-{
-   background: rgba(255,255,255,0.7);
-   border-bottom: 1px solid #1e5799;
-}
-
 /*******************************************************************************
 * SRAToolView
 *******************************************************************************/
@@ -31,6 +25,21 @@
 /*******************************************************************************
 * Config
 *******************************************************************************/
+#workflow_widget
+{
+   background-color: rgba(153,153,204,1.0);
+}
+
+/*
+#test_widget
+{
+   background-color: rgba(255,255,255,0.9);
+   border-radius: 5px;
+   border: 5px solid;
+   border-color:rgba(255,255,255,0.9);
+   margin-left: 50px;
+}
+*/
 
 #test_label
 {
@@ -90,6 +99,15 @@ QLineEdit::disabled
 {
     border: 1px solid gray;
     border-radius: 2px;
+}
+
+/*******************************************************************************
+* Diagnostics
+*******************************************************************************/
+#diagnostics_metadata
+{
+   background: rgba(255,255,255,0.7);
+   border-bottom: 1px solid #1e5799;
 }
 
 #start_diagnostics_button, #cancel_diagnostics_button

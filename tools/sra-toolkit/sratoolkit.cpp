@@ -88,10 +88,43 @@ void SRAToolkit :: init_view ()
 
 }
 
-
-#if MODERN_LOOKNFEEL
+#if OFFICAL_LOOKNFEEL
 void SRAToolkit :: paintEvent ( QPaintEvent *e )
 {
+    QPainter painter ( this );
+
+    QLinearGradient gradient = sraTemplate -> getStandardBackground();
+    gradient . setStart ( 0, 0 );
+    gradient . setFinalStop ( size () . width (), size () . height () );
+
+    painter.setBrush ( gradient );
+
+    painter.drawRect ( 0, 0, size () . width (), size () . height () );
+    show ();
+
+    QWidget::paintEvent(e);
+}
+#elif MODERN_LOOKNFEEL
+void SRAToolkit :: paintEvent ( QPaintEvent *e )
+{
+    QPainter painter ( this );
+
+    QLinearGradient gradient = sraTemplate -> getBaseGradient();
+    gradient . setStart ( 0, 0 );
+    gradient . setFinalStop ( size () . width (), size () . height () );
+
+    painter.setBrush ( gradient );
+    //painter.setBrush ( QColor ( 255, 255, 255, 255) );
+
+    painter.drawRect ( 0, 0, size () . width (), size () . height () );
+
+    QPixmap pxmp ( img_path + "ncbi_helix_blue_black" );
+    pxmp = pxmp. scaled ( this -> size (), Qt::KeepAspectRatio, Qt::SmoothTransformation );
+
+    painter.drawPixmap( size () . width () / 2 - pxmp.size ().width() / 2, size () . height () / 2 - pxmp.size ().height() / 2, pxmp );
+
+    show ();
+
     QWidget::paintEvent(e);
 }
 #elif DARKGLASS_LOOKNFEEL
@@ -104,8 +137,6 @@ void SRAToolkit :: paintEvent ( QPaintEvent *e )
     gradient . setFinalStop ( size () . width (), size () . height () );
 
     painter.setBrush ( gradient );
-    //painter.setBrush ( QColor ( 255, 255, 255, 255) );
-
     painter.drawRect ( 0, 0, size () . width (), size () . height () );
 
     QPixmap pxmp ( img_path + "ncbi_helix_blue_black" );

@@ -527,9 +527,10 @@ SRAConfigView :: SRAConfigView ( QWidget *parent )
     resize ( QSize ( parent -> size (). width (), parent -> size () . height () ) );
     connect ( this, SIGNAL ( dirty_config () ), this, SLOT ( modified_config () ) );
 
-    main_layout -> setSpacing ( 20 );
     main_layout -> setAlignment ( Qt::AlignTop );
-    main_layout -> addSpacing ( 10 );
+    main_layout -> setMargin ( 0 );
+
+    main_layout -> addWidget ( setup_workflow_group () );
     main_layout -> addWidget ( setup_option_group () );
     //main_layout -> addWidget ( setup_workspace_group () );
     //main_layout -> addLayout ( setup_button_layout () );
@@ -624,11 +625,24 @@ QLabel * make_standard_label ( QString text )
     return label;
 }
 
+QWidget * SRAConfigView::setup_workflow_group ()
+{
+    QWidget *widget = new QWidget ();
+    widget -> setObjectName ( "workflow_widget" );
+    widget -> setFixedHeight ( 58 );
+    widget -> setFixedWidth ( size () . width () );
+
+    QHBoxLayout *layout = new QHBoxLayout ();
+
+    return widget;
+}
+
 QWidget * SRAConfigView::setup_option_group ()
 {
     QWidget *widget = new QWidget ();
     widget -> setFixedWidth ( ( size () . width () * 4 ) / 7 );
     widget -> setObjectName ( "test_widget" );
+    widget -> setContentsMargins ( 50, 5, 5, 5 );
 
     QVBoxLayout *layout = new QVBoxLayout ();
     layout -> setAlignment ( Qt::AlignTop );
@@ -662,7 +676,7 @@ QWidget * SRAConfigView::setup_option_group ()
     row_layout -> addWidget ( label );
     row_layout -> setAlignment ( label, Qt::AlignLeft );
     row_layout -> addWidget ( no );
-    row_layout -> setAlignment ( no, Qt::AlignTrailing);
+    row_layout -> setAlignment ( no, Qt::AlignRight);
     row_layout -> addWidget ( yes );
 
     layout -> addLayout ( row_layout );
@@ -678,7 +692,7 @@ QWidget * SRAConfigView::setup_option_group ()
     row_layout -> addWidget ( label );
     row_layout -> setAlignment ( label, Qt::AlignLeft );
     row_layout -> addWidget ( no );
-    row_layout -> setAlignment ( no, Qt::AlignTrailing);
+    row_layout -> setAlignment ( no, Qt::AlignRight);
     row_layout -> addWidget ( yes );
 
     layout -> addLayout ( row_layout );
@@ -695,7 +709,7 @@ QWidget * SRAConfigView::setup_option_group ()
     row_layout -> addWidget ( label );
     row_layout -> setAlignment ( label, Qt::AlignLeft );
     row_layout -> addWidget ( no );
-    row_layout -> setAlignment ( no, Qt::AlignTrailing);
+    row_layout -> setAlignment ( no, Qt::AlignRight);
     row_layout -> addWidget ( yes );
 
     layout -> addLayout ( row_layout );

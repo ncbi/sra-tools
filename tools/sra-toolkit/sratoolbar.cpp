@@ -32,7 +32,7 @@ void SRAToolBar::init ()
     home_button -> setObjectName ( "tool_bar_button" );
     home_button -> setCheckable ( true );
     home_button -> setChecked ( true );
-    home_button -> setIconSize ( QSize ( 90, 90 ) );
+    home_button -> setIconSize ( QSize ( 50, 50 ) );
     home_button -> setIcon ( icon );
 
     pxmp = QPixmap ( img_path + "ncbi_diagnostics_button" );
@@ -71,8 +71,8 @@ void SRAToolBar :: paintEvent ( QPaintEvent *e )
     QPainter painter ( this );
 
     QLinearGradient gradient = sraTemplate -> getBaseGradient();
-    gradient . setStart ( 0, 0 );
-    gradient . setFinalStop ( size () . width (), size () . height () );
+    gradient . setStart ( size () . width () / 2, 0 );
+    gradient . setFinalStop ( size () . width () / 2, size () . height () );
 
     painter.setBrush ( gradient );
 
@@ -88,8 +88,8 @@ void SRAToolBar :: paintEvent ( QPaintEvent *e )
     QPainter painter ( this );
 
     QLinearGradient gradient = sraTemplate -> getBaseGradient();
-    gradient . setStart ( 0, 0 );
-    gradient . setFinalStop ( size () . width (), size () . height () );
+    gradient . setStart ( size () . width () / 2, 0 );
+    gradient . setFinalStop ( size () . width () / 2, size () . height () );
 
     painter.setBrush ( gradient );
 
@@ -104,8 +104,11 @@ void SRAToolBar :: paintEvent ( QPaintEvent *e )
 {
     QPainter painter ( this );
 
-    painter.setBrush ( sraTemplate -> getBaseColor () );
+    QLinearGradient gradient = sraTemplate -> getBaseGradient();
+    gradient . setStart ( 0, 0 );
+    gradient . setFinalStop ( size () . width (), size () . height () );
 
+    painter.setBrush ( gradient );
     painter.drawRect ( 0, 0, size () . width (), size () . height () );
 
     show ();

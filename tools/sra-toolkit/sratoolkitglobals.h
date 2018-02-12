@@ -8,7 +8,7 @@
 
 #define OFFICAL_LOOKNFEEL 0
 #define MODERN_LOOKNFEEL 1
-#define DARKGLASS_LOOKNFEEL 1
+#define DARKGLASS_LOOKNFEEL 0
 
 const QString img_path = ":/images/";
 const QString qss_path = ":/qss/";

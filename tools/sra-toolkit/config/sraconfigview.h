@@ -118,6 +118,7 @@ private:
     QPushButton *apply_btn;
     QPushButton *discard_btn;
 
+    QWidget* setup_workflow_group ();
     QWidget* setup_option_group ();
     //QGroupBox* setup_workspace_group ();
     QVBoxLayout *setup_button_layout();

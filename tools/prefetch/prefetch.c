@@ -1632,8 +1632,12 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         resolver, cfg, repoMgr, vfs);
 
     if (rc == 0) {
-        rc = V_ResolverLocal(resolved->resolver,
-            resolved->accession, &resolved->local.path);
+        if ( resolved->isUri )
+            rc = VResolverQueryForUrl (resolved->resolver,
+                resolved->accession, &resolved->local.path, NULL);
+        else
+            rc = V_ResolverLocal(resolved->resolver,
+                resolved->accession, &resolved->local.path);
         if (rc == 0) {
             rc = VPathMakeString(resolved->local.path, &resolved->local.str);
             DISP_RC2(rc, "VPathMakeString(VResolverLocal)", resolved->name);
@@ -1696,8 +1700,8 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             else {
                 const VPath *vcache = NULL;
                 assert (resolved->remote.path && resolved->remote.str);
-                rc2 = VResolverCacheForUrl (resolved->resolver,
-                                            resolved->accession, &vcache);
+                rc2 = VResolverQueryForUrl (resolved->resolver,
+                                            resolved->accession, NULL, &vcache);
                 if (rc2 != 0) {
                     if (rc == 0)
                         rc = rc2;
@@ -2105,7 +2109,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
                 count == 1 ? "y" : "ies"));
         }
         else {
-            DISP_RC2(rc, "Failed to check %s's dependencies", resolved->name);
+            DISP_RC2(rc, "Failed to check dependencies", resolved->name);
         }
     }
 

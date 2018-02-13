@@ -1572,6 +1572,16 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                 else {
                     rc = VFSManagerExtractAccessionOrOID
                         (vfs, &resolved->accession, resolved->remote.path);
+                    if ( rc != 0 ) {
+                        const char * start = resolved->remote.str->addr;
+                        size_t size = resolved->remote.str->size;
+                        const char * end = start + size;
+                        const char * sep = string_rchr ( start, size, '/' );
+                        if ( sep != NULL )
+                            start = sep + 1;
+                        rc = VFSManagerMakePath ( vfs, &resolved->accession,
+                            "%.*s", ( uint32_t ) ( end - start ), start );
+                    }
                     DISP_RC2(rc, "ExtractAccession", resolved->remote.str->addr);
                 }
             }

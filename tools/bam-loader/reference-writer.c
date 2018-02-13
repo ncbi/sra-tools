@@ -393,16 +393,7 @@ rc_t ReferenceVerify(Reference const *const self,
 
 rc_t ReferenceGet1stRow(Reference const *self, int64_t *refID, char const refName[])
 {
-    ReferenceSeq const *rseq;
-    bool shouldUnmap = false;
-    bool wasRenamed = false;
-    rc_t rc = ReferenceMgr_GetSeq(self->mgr, &rseq, refName, &shouldUnmap, G.allowMultiMapping, &wasRenamed);
-
-    if( rc == 0 ) {
-        rc = ReferenceSeq_Get1stRow(rseq, refID);
-        ReferenceSeq_Release(rseq);
-    }
-    return rc;
+    return ReferenceMgr_Get1stRow(self->mgr, refID, refName);
 }
 
 static

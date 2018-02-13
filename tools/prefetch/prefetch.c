@@ -155,6 +155,7 @@ typedef struct {
 
     VPath *accession;
     bool isUri; /* accession is URI */
+    bool cwd; /* cache location is in the current directory */
     uint64_t project;
 
     const KartItem *kartItem;
@@ -1656,7 +1657,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
     if (rc == 0) {
         if ( resolved->isUri )
             rc = VResolverQueryForUrl (resolved->resolver,
-                resolved->accession, &resolved->local.path, NULL);
+                resolved->accession, &resolved->local.path, NULL, NULL);
         else
             rc = V_ResolverLocal(resolved->resolver,
                 resolved->accession, &resolved->local.path);
@@ -1723,7 +1724,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 const VPath *vcache = NULL;
                 assert (resolved->remote.path && resolved->remote.str);
                 rc2 = VResolverQueryForUrl (resolved->resolver,
-                                            resolved->accession, NULL, &vcache);
+                    resolved->accession, NULL, &vcache, &resolved->cwd);
                 if (rc2 != 0) {
                     if (rc == 0)
                         rc = rc2;
@@ -2011,7 +2012,18 @@ static rc_t ItemDownload(Item *item) {
 
     if (rc == 0) {
         if (isLocal) {
-            STSMSG(STS_TOP, ("%d) '%s' is found locally", n, self->name));
+            if (self->cwd) {
+                const char * start = self->cache->addr;
+                size_t size = self->cache->size;
+                const char * end = start + size;
+                const char * sep = string_rchr ( start, size, '/' );
+                if ( sep != NULL )
+                    start = sep + 1;
+                STSMSG(STS_TOP, ("%d) '%s' is found locally (%.*s)",
+                    n, self->name, ( uint32_t ) ( end - start ), start));
+            }
+            else
+                STSMSG(STS_TOP, ("%d) '%s' is found locally", n, self->name));
             if (self->local.str != NULL) {
                 VPathStrFini(&self->path);
                 rc = StringCopy(&self->path.str, self->local.str);
@@ -2029,8 +2041,20 @@ static rc_t ItemDownload(Item *item) {
             STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, self->name));
             rc = MainDownload(self, item->main, item->isDependency);
             if (rc == 0) {
-                STSMSG(STS_TOP,
-                    ("%d) '%s' was downloaded successfully", n, self->name));
+                if (self->cwd) {
+                    const char * start = self->cache->addr;
+                    size_t size = self->cache->size;
+                    const char * end = start + size;
+                    const char * sep = string_rchr ( start, size, '/' );
+                    if ( sep != NULL )
+                        start = sep + 1;
+                    STSMSG(STS_TOP,
+                        ("%d) '%s' was downloaded successfully (%.*s)",
+                        n, self->name, ( uint32_t ) ( end - start ), start));
+                }
+                else
+                    STSMSG(STS_TOP,
+                        ("%d) '%s' was downloaded successfully", n, self->name));
                 if (self->cache != NULL) {
                     VPathStrFini(&self->path);
                     rc = StringCopy(&self->path.str, self->cache);

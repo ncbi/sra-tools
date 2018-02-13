@@ -1560,9 +1560,21 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                 }
             }
             resolved->accession = NULL;
-            VFSManagerExtractAccessionOrOID
-                (vfs, &resolved->accession, resolved->remote.path);
-
+            if ( rc == 0 ) {
+                if ( resolved->remote.str->size > 0 &&
+                     resolved->remote.str->addr[resolved->remote.str->size-1]
+                        == '/' )
+                {
+                    rc = VFSManagerMakePath
+                        ( vfs, &resolved->accession, "ncbi-file:index.html" );
+                    DISP_RC2(rc, "VFSManagerMakePath", "index.html");
+                }
+                else {
+                    rc = VFSManagerExtractAccessionOrOID
+                        (vfs, &resolved->accession, resolved->remote.path);
+                    DISP_RC2(rc, "ExtractAccession", resolved->remote.str->addr);
+                }
+            }
         }
     }
     else {

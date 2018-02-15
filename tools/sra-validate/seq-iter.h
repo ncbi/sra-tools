@@ -59,7 +59,10 @@ typedef struct seq_rec
     uint32_t num_read_type;
     uint8_t * read_type;
 
-    String name, cmp_read;
+    uint32_t num_qual;
+    uint8_t * qual;
+    
+    /* String name, cmp_read; */
 } seq_rec;
 
 struct seq_iter;

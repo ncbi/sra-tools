@@ -110,12 +110,15 @@ rc_t prim_lookup_enter( prim_lookup * self, const prim_rec * rec )
     {
         /* the lookup will be made based on the primary-row-id as a key */
         uint64_t key = rec -> align_row_id;
+        
         /* the value is a combination of READ_LEN and REF_ORIENTATION */
         uint64_t value = rec -> read_len;
         value <<= 32;
         if ( rec -> ref_orient )
             value |= 1;
-            
+        if ( rec -> seq_read_id == 2 )
+            value |= 2;
+
         rc = KLockAcquire ( self -> lock );
         if ( rc != 0 )
             ErrMsg( "prim_lookup_enter().KLockAcquire() -> %R", rc );
@@ -139,40 +142,41 @@ rc_t prim_lookup_enter( prim_lookup * self, const prim_rec * rec )
     return rc;
 }
 
-rc_t prim_lookup_get( prim_lookup * self, uint64_t align_id, uint32_t * read_len, bool * ref_orient, bool * found )
+rc_t prim_lookup_get( prim_lookup * self,
+                      uint64_t align_id,
+                      lookup_entry * entry,
+                      bool * found )
 {
     rc_t rc = 0;
-    if ( self == NULL || read_len == NULL || ref_orient == NULL || found == NULL )
+    if ( self == NULL || entry == NULL || found == NULL )
     {
         rc = RC( rcVDB, rcNoTarg, rcWriting, rcParam, rcNull );
         ErrMsg( "prim_lookup_enter() -> %R", rc );
     }
     else
     {
-        uint64_t key = align_id;
-        uint64_t value;
-        
+        *found = false;
         rc = KLockAcquire ( self -> lock );
         if ( rc != 0 )
             ErrMsg( "prim_lookup_enter().KLockAcquire() -> %R", rc );
         else
         {
-            rc_t rc_v = KVectorGetU64 ( self -> vec, key, &value );
+            uint64_t value;
+            rc_t rc_v = KVectorGetU64 ( self -> vec, align_id, &value );
             if ( rc_v == 0 )
             {
-                *ref_orient = ( ( value & 1 ) == 1 );
-                value >>= 32;
-                *read_len = ( value & 0xFFFFFFFF );
+                entry -> seq_spot_id = 0;
+                entry -> ref_orient = ( value & 1 ) ? 1 : 0;
+                entry -> seq_read_id = ( value & 2 ) ? 2 : 1;
+                entry -> read_len = ( ( value >> 32 ) & 0xFFFFFFFF );
                 *found = true;
                 
-                rc = KVectorUnset ( self -> vec, key );
+                rc = KVectorUnset ( self -> vec, align_id );
                 if ( rc != 0 )
-                    ErrMsg( "prim_lookup_enter().KVectorUnset( %lu ) -> %R", key, rc );
+                    ErrMsg( "prim_lookup_enter().KVectorUnset( %lu ) -> %R", align_id, rc );
                 else
                     self -> in_vector--;
             }
-            else
-                *found = false;
                 
             rc = KLockUnlock ( self -> lock );
             if ( rc != 0 )
@@ -182,10 +186,12 @@ rc_t prim_lookup_get( prim_lookup * self, uint64_t align_id, uint32_t * read_len
     return rc;
 }
 
+/*
 static rc_t on_visit_vector( uint64_t key, uint64_t value, void *user_data )
 {
-    return KOutMsg( "prim-align-id: %,lu\n", key );
+    return KOutMsg( "still in vector: prim-align-id: %,lu\n", key );
 }
+*/
 
 rc_t prim_lookup_report( const prim_lookup * self )
 {
@@ -194,8 +200,10 @@ rc_t prim_lookup_report( const prim_lookup * self )
     {
         KOutMsg( "\nlookup.in_vector     = %,lu", self -> in_vector );
         KOutMsg( "\nlookup.max_in_vector = %,lu\n", self -> max_in_vector );
+        /*
         if ( self -> in_vector > 0 )
             rc = KVectorVisitU64 ( self -> vec, false, on_visit_vector, NULL );
+        */
     }
     return rc;
 }

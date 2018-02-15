@@ -61,11 +61,11 @@ extern "C" {
 typedef struct validate_ctx
 {
     const KDirectory * dir;
-    const acc_info_t * acc_info;
-    struct logger * log;
-    struct validate_result * v_res;
-    struct thread_runner * threads;
-    struct progress * progress;
+    struct logger * log;                /* logger.h */
+    struct validate_result * v_res;     /* result.h */
+    struct thread_runner * threads;     /* thread-runner.h */
+    struct progress * progress;         /* progress.h */
+    acc_info_t acc_info;                /* cmn-iter.h */    
     uint32_t num_slices;
     size_t cursor_cache;
 } validate_ctx;

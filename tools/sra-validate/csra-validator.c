@@ -87,7 +87,7 @@ static rc_t make_csra_producers( const validate_ctx * vctx, struct prim_lookup *
     rc_t rc = make_csra_common( vctx,
                                 csra_producer_thread,
                                 1,
-                                vctx -> acc_info -> prim_rows,
+                                vctx -> acc_info . prim_rows,
                                 lookup );
     return rc;
 }
@@ -97,7 +97,7 @@ static rc_t make_csra_consumers( const validate_ctx * vctx, struct prim_lookup *
     rc_t rc = make_csra_common( vctx,
                                 csra_consumer_thread,
                                 1,
-                                vctx -> acc_info -> seq_rows,
+                                vctx -> acc_info . seq_rows,
                                 lookup );
     return rc;
 }
@@ -108,7 +108,7 @@ rc_t run_csra_validator( const validate_ctx * vctx )
     rc_t rc = make_prim_lookup( &lookup );
     if ( rc == 0 )
     {
-        uint64_t total_rows = vctx -> acc_info -> seq_rows + vctx -> acc_info -> prim_rows;
+        uint64_t total_rows = vctx -> acc_info . seq_rows + vctx -> acc_info . prim_rows;
         start_progress( vctx -> progress, 2, total_rows );
         
         set_to_finish_validate_result( vctx -> v_res, vctx -> num_slices * 2 );

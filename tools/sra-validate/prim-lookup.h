@@ -41,12 +41,19 @@ extern "C" {
 
 struct prim_lookup;
 
+typedef struct lookup_entry
+{
+    uint64_t seq_spot_id;
+    uint32_t read_len;
+    uint8_t seq_read_id, ref_orient;
+} lookup_entry;
+
 rc_t make_prim_lookup( struct prim_lookup ** lookup );
 void destroy_prim_lookup( struct prim_lookup * self );
 
 rc_t prim_lookup_enter( struct prim_lookup * self, const prim_rec * rec );
 
-rc_t prim_lookup_get( struct prim_lookup * self, uint64_t align_id, uint32_t * read_len, bool * ref_orient, bool * found );
+rc_t prim_lookup_get( struct prim_lookup * self, uint64_t align_id, lookup_entry * entry, bool * found );
 
 rc_t prim_lookup_report( const struct prim_lookup * self );
 

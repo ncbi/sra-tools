@@ -87,7 +87,7 @@ bool get_from_prim_iter( prim_iter * self, prim_rec * rec, rc_t * rc )
             uint32_t value;
             rc1 = cmn_read_uint32( self -> cmn, self -> seq_read_id, &value );
             if ( rc1 == 0 )
-                rec -> ref_orient = ( uint8_t )( value & 0xFF );
+                rec -> seq_read_id = ( uint8_t )( value & 0xFF );
         }
         if ( rc1 == 0 )
             rc1 = cmn_read_uint8( self -> cmn, self -> ref_orient_id, &rec -> ref_orient );

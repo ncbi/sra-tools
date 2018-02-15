@@ -35,7 +35,19 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
+#ifndef _h_kapp_args_
+#include <kapp/args.h>
+#endif
+
 rc_t ErrMsg( const char * fmt, ... );
+
+void unread_rc( void );
+
+const char * get_str_option( const struct Args *args, const char *name, const char * dflt );
+bool get_bool_option( const struct Args *args, const char *name );
+uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64_t dflt );
+uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt );
+size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt );
 
 #ifdef __cplusplus
 }

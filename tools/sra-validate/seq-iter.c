@@ -33,7 +33,8 @@
 typedef struct seq_iter
 {
     struct cmn_iter * cmn; /* cmn-iter.h */
-    uint32_t name_id, prim_alig_id, alig_count_id, cmp_read_id, read_len_id, read_type_id;
+    /* uint32_t name_id, cmp_read_id; */
+    uint32_t prim_alig_id, alig_count_id, read_len_id, read_type_id, qual_id;
 } seq_iter;
 
 
@@ -58,10 +59,15 @@ rc_t make_seq_iter( const cmn_params * params, seq_iter ** iter )
     else
     {
         rc = make_cmn_iter( params, "SEQUENCE", &( i -> cmn ) ); /* cmn-iter.h */
-            
-        if ( rc == 0 )
-            rc = cmn_iter_add_column( i -> cmn, "NAME", &( i -> name_id ) ); /* cmn-iter.h */
 
+        /*
+        if ( rc == 0 )
+            rc = cmn_iter_add_column( i -> cmn, "NAME", &( i -> name_id ) );
+
+        if ( rc == 0 )
+            rc = cmn_iter_add_column( i -> cmn, "CMP_READ", &( i -> cmp_read_id ) );
+        */
+        
         if ( rc == 0 )
             rc = cmn_iter_add_column( i -> cmn, "PRIMARY_ALIGNMENT_ID", &( i -> prim_alig_id ) ); /* cmn-iter.h */
 
@@ -69,14 +75,14 @@ rc_t make_seq_iter( const cmn_params * params, seq_iter ** iter )
             rc = cmn_iter_add_column( i -> cmn, "ALIGNMENT_COUNT", &( i -> alig_count_id ) ); /* cmn-iter.h */
 
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i -> cmn, "CMP_READ", &( i -> cmp_read_id ) ); /* cmn-iter.h */
-
-        if ( rc == 0 )
             rc = cmn_iter_add_column( i -> cmn, "READ_LEN", &( i -> read_len_id ) ); /* cmn-iter.h */
 
         if ( rc == 0 )
             rc = cmn_iter_add_column( i -> cmn, "READ_TYPE", &( i -> read_type_id ) ); /* cmn-iter.h */
 
+        if ( rc == 0 )
+            rc = cmn_iter_add_column( i -> cmn, "QUALITY", &( i -> qual_id ) ); /* cmn-iter.h */
+            
         if ( rc == 0 )
             rc = cmn_iter_range( i -> cmn, i -> prim_alig_id ); /* cmn-iter.h */
                 
@@ -100,18 +106,23 @@ bool get_from_seq_iter( seq_iter * self, seq_rec * rec, rc_t * rc )
         
         if ( rc1 == 0 )
             rc1 = cmn_read_uint8_array( self -> cmn, self -> alig_count_id, &( rec -> alig_count ), &( rec -> num_alig_count ) );
-        
+
+        /*
         if ( rc1 == 0 )
             rc1 = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
         
         if ( rc1 == 0 )
             rc1 = cmn_read_String( self -> cmn, self -> cmp_read_id, &( rec -> cmp_read ) );
-        
+        */
+
         if ( rc1 == 0 )
             rc1 = cmn_read_uint32_array( self -> cmn, self -> read_len_id, &rec -> read_len, &( rec -> num_read_len ) );
         
         if ( rc1 == 0 )
             rc1 = cmn_read_uint8_array( self -> cmn, self -> read_type_id, &rec -> read_type, &( rec -> num_read_type ) );
+        
+        if ( rc1 == 0 )
+            rc1 = cmn_read_uint8_array( self -> cmn, self -> qual_id, &rec -> qual, &( rec -> num_qual ) );
         
         if ( rc != NULL )
             *rc = rc1;

@@ -38,7 +38,7 @@ rc_t CC csra_producer_thread( const KThread *self, void *data )
 {
     validate_slice * slice = data;
     cmn_params p = { slice -> vctx -> dir,
-                     slice -> vctx -> acc_info -> accession,
+                     slice -> vctx -> acc_info . accession,
                      slice -> first_row,
                      slice -> row_count,
                      slice -> vctx -> cursor_cache }; /* cmn-iter.h */

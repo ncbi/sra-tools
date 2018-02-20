@@ -88,7 +88,7 @@ private:
     const QColor modern_blue = QColor ( 0, 82, 155, 255 );
     const QColor modern_light_blue = QColor ( 125, 185, 255 );
 
-    const QColor darkglass_transparent = QColor ( 0, 0, 0, 70);
+    const QColor darkglass_transparent = QColor ( 0, 0, 0, ALPHA_30 );
 };
 
 #endif // SRATOOLKITTEMPLATE_H

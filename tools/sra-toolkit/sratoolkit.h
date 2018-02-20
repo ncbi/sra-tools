@@ -21,6 +21,9 @@ public:
     SRAToolkit ( const QRect &avail_geometry, QWidget *parent = 0 );
     ~SRAToolkit ();
 
+private slots:
+    void expand ( bool );
+
 private:
 
     void init ();

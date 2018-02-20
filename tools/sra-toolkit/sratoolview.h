@@ -22,7 +22,8 @@ public:
 signals:
 
 public slots:
-    void toolChanged ( int view );
+    void expand ( bool );
+    void toolChanged ( int );
 
 private:
 
@@ -31,9 +32,9 @@ private:
 
     KConfig *config;
 
-    SRAConfigView *home;
-    //QWidget *home;
-    SRADiagnosticsView *diagnostics;
+    QWidget *home;
+    SRAConfigView *config_view;
+    SRADiagnosticsView *diagnostics_view;
 
     QWidget *currentView;
 };

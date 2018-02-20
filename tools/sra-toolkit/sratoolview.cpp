@@ -12,22 +12,28 @@ SRAToolView :: SRAToolView ( KConfig *p_config, QWidget *parent )
     : QWidget ( parent )
     , config ( p_config )
     , home ( nullptr )
-    , diagnostics ( nullptr )
+    , config_view ( nullptr )
+    , diagnostics_view ( nullptr )
     , currentView ( nullptr )
 {
-    this -> setObjectName ( "sratool_view" );
-    resize ( QSize ( parent -> size (). width () - 100, parent -> size () . height () ) );
+    setObjectName ( "sra_tool_view" );
+    resize ( QSize ( parent -> size (). width () - TOOLBAR_WIDTH_FACTOR, parent -> size () . height () ) );
 
-    home = new SRAConfigView ( this );
+
+    home = new QWidget ( this );
     currentView = home;
 
-    diagnostics = new SRADiagnosticsView ( config, this );
-    diagnostics -> hide ();
+    config_view = new SRAConfigView ( this );
+    config_view -> hide ();
+
+    diagnostics_view = new SRADiagnosticsView ( config, this );
+    diagnostics_view -> hide ();
 }
 
 void SRAToolView :: toolChanged ( int p_view )
 {
     currentView -> hide ();
+    currentView = nullptr;
 
     switch ( p_view )
     {
@@ -36,20 +42,42 @@ void SRAToolView :: toolChanged ( int p_view )
         currentView = home;
         break;
     case 1:
-        diagnostics -> show ();
-        currentView = diagnostics;
+        config_view -> show ();
+        currentView = config_view;
+        break;
+    case 2:
+        diagnostics_view -> show ();
+        currentView = diagnostics_view;
         break;
     }
 }
 
+void SRAToolView :: expand ( bool val )
+{
+    if ( val )
+        setFixedSize ( size () . width () + TOOLBAR_WIDTH_FACTOR, size () . height () );
+    else
+        setFixedSize ( size () . width () - TOOLBAR_WIDTH_FACTOR, size () . height () );
+}
+
+
 #if OFFICAL_LOOKNFEEL
 void SRAToolView :: paintEvent ( QPaintEvent *e )
 {
+    bool vertical = false;
     QPainter painter ( this );
 
     QLinearGradient gradient = sraTemplate -> getStandardBackground ();
-    gradient . setStart ( size () . width () / 2, 0 );
-    gradient . setFinalStop ( size () . width () / 2, size () . height () );
+    if ( vertical )
+    {
+        gradient . setStart ( size () . width () / 2, 0 );
+        gradient . setFinalStop ( size () . width () / 2, size () . height () );
+    }
+    else
+    {
+        gradient . setStart ( 0, size () . height () / 2 );
+        gradient . setFinalStop ( size () . width (), size () . height () / 2 );
+    }
 
     painter.setBrush ( gradient );
 

@@ -7,12 +7,12 @@
   background: transparent;
 }
 
-#tool_bar_button:hover
+#tool_bar_button::hover
 {
    background: rgba(0,0,0,0.2);
 }
 
-#tool_bar_button:checked
+#tool_bar_button::checked
 {
    background: rgba(0,0,0,0.9);
 }
@@ -20,7 +20,10 @@
 /*******************************************************************************
 * SRAToolView
 *******************************************************************************/
-
+#sra_tool_view
+{
+border: 0px solid black;
+}
 
 /*******************************************************************************
 * Config
@@ -30,24 +33,30 @@
    background-color: rgba(153,153,204,1.0);
 }
 
-/*
-#test_widget
-{
-   background-color: rgba(255,255,255,0.9);
-   border-radius: 5px;
-   border: 5px solid;
-   border-color:rgba(255,255,255,0.9);
-   margin-left: 50px;
-}
-*/
 
-#test_label
+#row_widget
 {
-font-size: 16px;
-padding: 5px;
+   border-bottom: 1px solid rgba(213,213,213,1.0);
 }
 
-#test_button, #test_button_no
+#row_widget::hover
+{
+   border-left: 5px solid rgba(0,82,153,1.0);
+}
+
+
+#name_label
+{
+ font-size: 16px;
+}
+
+#desc_label
+{
+ font-size: 12px;
+ color: rgba(100,100,100,1.0)
+}
+
+#button_yes, #button_no
 {
 background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ffffff, stop:1 #ffffff);
 border: 1px solid #000000;
@@ -56,12 +65,12 @@ font-size: 16px;
     padding: 5px;
 }
 
-#test_button::disabled, #test_button_no::disabled
+#button_yes::disabled, #button_no::disabled
 {
  border: 1px solid #d3d3d3;
 }
 
-#test_button::checked
+#button_yes::checked
 {
 background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                                   stop:0 #ffffff, stop:1 #ffffff);
@@ -70,7 +79,7 @@ color: #7DE22F;
     padding: 5px;
 }
 
-#test_button_no::checked
+#button_no::checked
 {
 background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                                   stop:0 #ffffff, stop:1 #ffffff);
@@ -122,7 +131,7 @@ QLineEdit::disabled
    border-radius: 40px;
 
    font-size: 16px;
-   font-family: "Consolas";
+   font-family: "Candara";
    font-weight: bold;
 }
 

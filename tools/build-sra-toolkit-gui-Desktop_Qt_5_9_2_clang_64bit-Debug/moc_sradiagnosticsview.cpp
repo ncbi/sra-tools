@@ -21,8 +21,8 @@ QT_BEGIN_MOC_NAMESPACE
 QT_WARNING_PUSH
 QT_WARNING_DISABLE_DEPRECATED
 struct qt_meta_stringdata_SRADiagnosticsView_t {
-    QByteArrayData data[7];
-    char stringdata0[95];
+    QByteArrayData data[8];
+    char stringdata0[111];
 };
 #define QT_MOC_LITERAL(idx, ofs, len) \
     Q_STATIC_BYTE_ARRAY_DATA_HEADER_INITIALIZER_WITH_OFFSET(len, \
@@ -37,12 +37,13 @@ QT_MOC_LITERAL(2, 35, 0), // ""
 QT_MOC_LITERAL(3, 36, 16), // "DiagnosticsTest*"
 QT_MOC_LITERAL(4, 53, 4), // "test"
 QT_MOC_LITERAL(5, 58, 17), // "start_diagnostics"
-QT_MOC_LITERAL(6, 76, 18) // "cancel_diagnostics"
+QT_MOC_LITERAL(6, 76, 18), // "cancel_diagnostics"
+QT_MOC_LITERAL(7, 95, 15) // "worker_finished"
 
     },
     "SRADiagnosticsView\0handle_callback\0\0"
     "DiagnosticsTest*\0test\0start_diagnostics\0"
-    "cancel_diagnostics"
+    "cancel_diagnostics\0worker_finished"
 };
 #undef QT_MOC_LITERAL
 
@@ -52,7 +53,7 @@ static const uint qt_meta_data_SRADiagnosticsView[] = {
        7,       // revision
        0,       // classname
        0,    0, // classinfo
-       3,   14, // methods
+       4,   14, // methods
        0,    0, // properties
        0,    0, // enums/sets
        0,    0, // constructors
@@ -60,12 +61,14 @@ static const uint qt_meta_data_SRADiagnosticsView[] = {
        0,       // signalCount
 
  // slots: name, argc, parameters, tag, flags
-       1,    1,   29,    2, 0x0a /* Public */,
-       5,    0,   32,    2, 0x08 /* Private */,
-       6,    0,   33,    2, 0x08 /* Private */,
+       1,    1,   34,    2, 0x0a /* Public */,
+       5,    0,   37,    2, 0x08 /* Private */,
+       6,    0,   38,    2, 0x08 /* Private */,
+       7,    0,   39,    2, 0x08 /* Private */,
 
  // slots: parameters
     QMetaType::Void, 0x80000000 | 3,    4,
+    QMetaType::Void,
     QMetaType::Void,
     QMetaType::Void,
 
@@ -81,6 +84,7 @@ void SRADiagnosticsView::qt_static_metacall(QObject *_o, QMetaObject::Call _c, i
         case 0: _t->handle_callback((*reinterpret_cast< DiagnosticsTest*(*)>(_a[1]))); break;
         case 1: _t->start_diagnostics(); break;
         case 2: _t->cancel_diagnostics(); break;
+        case 3: _t->worker_finished(); break;
         default: ;
         }
     }
@@ -111,13 +115,13 @@ int SRADiagnosticsView::qt_metacall(QMetaObject::Call _c, int _id, void **_a)
     if (_id < 0)
         return _id;
     if (_c == QMetaObject::InvokeMetaMethod) {
-        if (_id < 3)
+        if (_id < 4)
             qt_static_metacall(this, _c, _id, _a);
-        _id -= 3;
+        _id -= 4;
     } else if (_c == QMetaObject::RegisterMethodArgumentMetaType) {
-        if (_id < 3)
+        if (_id < 4)
             *reinterpret_cast<int*>(_a[0]) = -1;
-        _id -= 3;
+        _id -= 4;
     }
     return _id;
 }

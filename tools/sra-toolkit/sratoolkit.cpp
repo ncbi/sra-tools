@@ -76,8 +76,9 @@ void SRAToolkit :: init_view ()
 
     toolView = new SRAToolView ( config, this );
     toolView -> setObjectName ( "sratool_view" );
-
     connect ( toolBar, SIGNAL ( toolSwitched ( int ) ), toolView, SLOT ( toolChanged ( int ) ) );
+    connect ( toolBar, SIGNAL ( expanded ( bool ) ), this, SLOT ( expand ( bool ) ) );
+    connect ( toolBar, SIGNAL ( expanded ( bool ) ), toolView, SLOT ( expand ( bool ) ) );
 
     mainLayout -> addWidget ( toolBar );
     mainLayout -> addWidget ( toolView );
@@ -86,6 +87,14 @@ void SRAToolkit :: init_view ()
 
     setCentralWidget ( mainWidget );
 
+}
+
+void SRAToolkit :: expand ( bool val )
+{
+    if ( val )
+        setFixedSize ( size () . width () + TOOLBAR_WIDTH_FACTOR, size () . height () );
+    else
+        setFixedSize ( size () . width () - TOOLBAR_WIDTH_FACTOR, size () . height () );
 }
 
 #if OFFICAL_LOOKNFEEL

@@ -1,18 +1,14 @@
 <RCC>
     <qresource prefix="/">
-        <file>images/aws_icon.png</file>
-        <file>images/general_icon.png</file>
-        <file>images/network_icon.png</file>
-        <file>images/troubleshooting.png</file>
-        <file>images/background.png</file>
-        <file>images/images_ncbi.png</file>
-        <file>images/ncbi_logo.png</file>
-        <file>images/ncbi_logo_vertical_blue_black.png</file>
-        <file>images/ncbi_logo_vertical_white_blue.png</file>
-        <file>images/ncbi_helix_blue_black.png</file>
-        <file>images/ncbi_diagnostics_button.png</file>
         <file>qss/darkglass_style.qss</file>
         <file>qss/modern_style.qss</file>
         <file>qss/official_style.qss</file>
+        <file>images/ncbi_diagnostics_button_white.svg</file>
+        <file>images/ncbi_helix_vertical_white.svg</file>
+        <file>images/ncbi_config_button_white.svg</file>
+        <file>images/ncbi_expand_toolbar_button.svg</file>
+        <file>images/ncbi_logo_long.svg</file>
+        <file>images/ncbi_config_button_long.svg</file>
+        <file>images/ncbi_diagnostics_button_long.svg</file>
     </qresource>
 </RCC>

@@ -38,7 +38,7 @@ DISTNAME      = sra-toolkit1.0.0
 DISTDIR = /Users/rodarme1/devel/sra-tools/tools/build-sra-toolkit-gui-Desktop_Qt_5_9_2_clang_64bit-Debug/.tmp/sra-toolkit1.0.0
 LINK          = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
 LFLAGS        = -stdlib=libc++ -headerpad_max_install_names $(EXPORT_ARCH_ARGS) -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk -mmacosx-version-min=10.10 -Wl,-rpath,@executable_path/Frameworks -Wl,-rpath,/Users/rodarme1/Qt/5.9.2/clang_64/lib
-LIBS          = $(SUBLIBS) -F/Users/rodarme1/Qt/5.9.2/clang_64/lib -L/Users/rodarme1/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-vdb -ldiagnose -framework QtWidgets -framework QtGui -framework QtCore -framework DiskArbitration -framework IOKit -framework OpenGL -framework AGL 
+LIBS          = $(SUBLIBS) -F/Users/rodarme1/Qt/5.9.2/clang_64/lib -L$(HOME)/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-vdb -ldiagnose -framework QtWidgets -framework QtGui -framework QtCore -framework DiskArbitration -framework IOKit -framework OpenGL -framework AGL 
 AR            = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ar cq
 RANLIB        = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib -s
 SED           = sed
@@ -767,18 +767,16 @@ compiler_rcc_clean:
 	-$(DEL_FILE) qrc_resources.cpp
 qrc_resources.cpp: ../sra-toolkit/resources.qrc \
 		../../../../Qt/5.9.2/clang_64/bin/rcc \
-		../sra-toolkit/images/ncbi_logo_vertical_white_blue.png \
-		../sra-toolkit/images/ncbi_logo.png \
-		../sra-toolkit/images/ncbi_logo_vertical_blue_black.png \
-		../sra-toolkit/images/general_icon.png \
-		../sra-toolkit/images/images_ncbi.png \
-		../sra-toolkit/images/troubleshooting.png \
-		../sra-toolkit/images/background.png \
-		../sra-toolkit/images/ncbi_helix_blue_black.png \
-		../sra-toolkit/images/ncbi_diagnostics_button.png \
-		../sra-toolkit/images/network_icon.png \
-		../sra-toolkit/images/aws_icon.png \
-		../sra-toolkit/qss/style.qss
+		../sra-toolkit/images/ncbi_helix_vertical_white.svg \
+		../sra-toolkit/images/ncbi_expand_toolbar_button.svg \
+		../sra-toolkit/images/ncbi_config_button_white.svg \
+		../sra-toolkit/images/ncbi_logo_long.svg \
+		../sra-toolkit/images/ncbi_diagnostics_button_long.svg \
+		../sra-toolkit/images/ncbi_diagnostics_button_white.svg \
+		../sra-toolkit/images/ncbi_config_button_long.svg \
+		../sra-toolkit/qss/modern_style.qss \
+		../sra-toolkit/qss/darkglass_style.qss \
+		../sra-toolkit/qss/official_style.qss
 	/Users/rodarme1/Qt/5.9.2/clang_64/bin/rcc -name resources ../sra-toolkit/resources.qrc -o qrc_resources.cpp
 
 compiler_moc_predefs_make_all: moc_predefs.h
@@ -898,6 +896,12 @@ main.o: ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.h \
 sratoolkit.o: ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkit.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QMainWindow \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qmainwindow.h \
+		../sra-toolkit/sratoolkitglobals.h \
+		../sra-toolkit/sratoolkittemplate.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QColor \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qcolor.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QLinearGradient \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qbrush.h \
 		../sra-toolkit/sratoolbar.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
@@ -977,6 +981,12 @@ sratoolbar.o: ../sra-toolkit/sratoolbar.cpp ../sra-toolkit/sratoolbar.h \
 sratoolview.o: ../sra-toolkit/sratoolview.cpp ../sra-toolkit/sratoolview.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QWidget \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/sratoolkitglobals.h \
+		../sra-toolkit/sratoolkittemplate.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QColor \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qcolor.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QLinearGradient \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qbrush.h \
 		../sra-toolkit/config/sraconfigview.h \
 		../sra-toolkit/diagnostics/sradiagnosticsview.h \
 		../../../ncbi-vdb/interfaces/kfg/config.h \
@@ -985,7 +995,9 @@ sratoolview.o: ../sra-toolkit/sratoolview.cpp ../sra-toolkit/sratoolview.h \
 		../../../ncbi-vdb/interfaces/kfc/extern.h \
 		../../../ncbi-vdb/interfaces/kfc/callconv.h \
 		../../../ncbi-vdb/interfaces/klib/defs.h \
-		../../../ncbi-vdb/interfaces/kfc/defs.h
+		../../../ncbi-vdb/interfaces/kfc/defs.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QPainter \
+		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qpainter.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o sratoolview.o ../sra-toolkit/sratoolview.cpp
 
 sraconfigmodel.o: ../sra-toolkit/config/sraconfigmodel.cpp ../sra-toolkit/config/sraconfigmodel.h \
@@ -1053,10 +1065,14 @@ sraconfigview.o: ../sra-toolkit/config/sraconfigview.cpp ../sra-toolkit/config/s
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qaction.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QBoxLayout \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qboxlayout.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QButtonGroup \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qbuttongroup.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/QCloseEvent \
 		../../../../Qt/5.9.2/clang_64/lib/QtGui.framework/Headers/qevent.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QCheckBox \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qcheckbox.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QComboBox \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qcombobox.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QFileDialog \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qfiledialog.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QGridLayout \

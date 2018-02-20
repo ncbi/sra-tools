@@ -577,12 +577,12 @@ void SRAConfigView :: init ()
     if ( ! model -> proxy_enabled () )
     {
         bg_use_proxy -> button ( 0 ) -> setChecked ( true );
-        lineEdit -> setDisabled ( true );
+        proxyEditor -> setDisabled ( true );
     }
      else
     {
         bg_use_proxy -> button ( 1 ) -> setChecked ( true );
-        lineEdit -> setText ( QString ( model -> get_proxy_path () . c_str () ) );
+        proxyEditor -> setText ( QString ( model -> get_proxy_path () . c_str () ) );
     }
 
     if ( model -> proxy_priority () )
@@ -597,12 +597,12 @@ QButtonGroup * make_no_yes_button_group ( QPushButton **p_no, QPushButton **p_ye
     QButtonGroup *group = new QButtonGroup ();
 
     QPushButton *no = new QPushButton ( "No" );
-    no -> setObjectName ( "test_button_no" );
+    no -> setObjectName ( "button_no" );
     no -> setCheckable ( true );
     no -> setFixedSize ( 60, 40 );
 
     QPushButton *yes = new QPushButton ( "Yes" );
-    yes -> setObjectName ( "test_button" );
+    yes -> setObjectName ( "button_yes" );
     yes -> setCheckable ( true );
     yes -> setFixedSize ( 60, 40 );
 
@@ -615,21 +615,11 @@ QButtonGroup * make_no_yes_button_group ( QPushButton **p_no, QPushButton **p_ye
     return group;
 }
 
-static
-QLabel * make_standard_label ( QString text )
-{
-    QLabel *label = new QLabel ( text );
-    label -> setObjectName ( "test_label" );
-    label -> setFixedHeight ( 40 );
-
-    return label;
-}
-
 QWidget * SRAConfigView::setup_workflow_group ()
 {
     QWidget *widget = new QWidget ();
     widget -> setObjectName ( "workflow_widget" );
-    widget -> setFixedHeight ( 58 );
+    widget -> setFixedHeight ( 70 );
     widget -> setFixedWidth ( size () . width () );
 
     QHBoxLayout *layout = new QHBoxLayout ();
@@ -637,110 +627,141 @@ QWidget * SRAConfigView::setup_workflow_group ()
     return widget;
 }
 
+static
+QWidget * make_button_option_row ( QString name, QString desc,
+                                   QPushButton *b1, QPushButton *b2 )
+{
+    QWidget *row = new QWidget ();
+    row -> setObjectName ( "row_widget" );
+
+    QLabel *name_l = new QLabel ( name );
+    name_l -> setObjectName ( "name_label" );
+    name_l -> setFixedHeight ( 40 );
+
+    QLabel *desc_l = new QLabel ( desc );
+    desc_l -> setObjectName ( "desc_label" );
+    desc_l -> setFixedWidth ( ( row -> size () . width () ) );
+    desc_l -> setWordWrap ( true );
+
+    QHBoxLayout *row_h_layout = new QHBoxLayout ();
+    row_h_layout -> setSpacing ( 10 );
+    row_h_layout -> addWidget ( name_l );
+    row_h_layout -> setAlignment ( name_l, Qt::AlignLeft );
+    row_h_layout -> addWidget ( b1 );
+    row_h_layout -> setAlignment ( b1, Qt::AlignRight );
+    row_h_layout -> addWidget ( b2 );
+
+    QVBoxLayout *row_v_layout = new QVBoxLayout ();
+    row_v_layout -> setSpacing ( 5 );
+    row_v_layout -> addLayout ( row_h_layout );
+    row_v_layout -> addWidget ( desc_l, 0, Qt::AlignLeft );
+
+    row -> setLayout ( row_v_layout );
+
+    return row;
+}
+
+static
+QWidget * make_editor_button_option_row ( QString name, QString desc, QLineEdit *editor,
+                                          QPushButton *b1, QPushButton *b2 )
+{
+    QWidget *row = new QWidget ();
+    row -> setObjectName ( "row_widget" );
+
+    QLabel *name_l = new QLabel ( name );
+    name_l -> setObjectName ( "name_label" );
+    name_l -> setFixedHeight ( 40 );
+
+    QLabel *desc_l = new QLabel ( desc );
+    desc_l -> setObjectName ( "desc_label" );
+    desc_l -> setFixedWidth ( ( row -> size () . width () ) );
+    desc_l -> setWordWrap ( true );
+
+
+    editor -> setFocusPolicy ( Qt::FocusPolicy::ClickFocus );
+    editor -> setFixedHeight ( 40 );
+    editor -> setAlignment ( Qt::AlignCenter );
+
+    QHBoxLayout *row_h_layout = new QHBoxLayout ();
+    row_h_layout -> setSpacing ( 10 );
+    row_h_layout -> addWidget ( name_l );
+    row_h_layout -> setAlignment ( name_l, Qt::AlignLeft );
+    row_h_layout -> addWidget ( editor );
+    row_h_layout -> setAlignment ( editor, Qt::AlignRight );
+    row_h_layout -> addWidget ( b1 );
+    row_h_layout -> addWidget ( b2 );
+
+    QVBoxLayout *row_v_layout = new QVBoxLayout ();
+    row_v_layout -> setSpacing ( 5 );
+
+    row_v_layout -> addLayout ( row_h_layout );
+    row_v_layout -> addWidget ( desc_l, 0, Qt::AlignLeft );
+
+    row -> setLayout ( row_v_layout );
+
+    return row;
+}
+
 QWidget * SRAConfigView::setup_option_group ()
 {
     QWidget *widget = new QWidget ();
-    widget -> setFixedWidth ( ( size () . width () * 4 ) / 7 );
     widget -> setObjectName ( "test_widget" );
-    widget -> setContentsMargins ( 50, 5, 5, 5 );
 
     QVBoxLayout *layout = new QVBoxLayout ();
     layout -> setAlignment ( Qt::AlignTop );
-    layout -> setSpacing ( 10 );
+    layout -> setMargin ( 20 );
+    layout -> setSpacing ( 0 );
 
     // row 1
     QPushButton *no = nullptr;
     QPushButton *yes = nullptr;
+    QString name = QString ("Enable Remote Access");
+    QString desc = QString ("Connect to NCBI over http or https. Connect to NCBI over http or https."
+                            "Connect to NCBI over http or https.Connect to NCBI over http or https."
+                            "Connect to NCBI over http or https.Connect to NCBI over http or https.");
     connect ( bg_remote_access = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_remote_enabled ( int ) ) );
 
-    QLabel *label = make_standard_label ( QString ("Enable Remote Access") );
-
-    QHBoxLayout *row_layout = new QHBoxLayout ();
-    row_layout -> addWidget ( label );
-    row_layout -> setAlignment ( label, Qt::AlignLeft );
-    row_layout -> addWidget ( no );
-    row_layout -> setAlignment ( no, Qt::AlignRight );
-    row_layout -> addWidget ( yes );
-
-    layout -> addLayout ( row_layout );
+    layout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
     // row 1
 
     // row 2
+    name = QString ("Enable Local File Caching");
     connect ( bg_local_caching = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_local_caching ( int ) ) );
 
-    label = make_standard_label ( QString ("Enable Local File Caching") );
-
-    row_layout = new QHBoxLayout ();
-    row_layout -> addWidget ( label );
-    row_layout -> setAlignment ( label, Qt::AlignLeft );
-    row_layout -> addWidget ( no );
-    row_layout -> setAlignment ( no, Qt::AlignRight);
-    row_layout -> addWidget ( yes );
-
-    layout -> addLayout ( row_layout );
+    layout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
     // row 2
 
     // row 3
+    name = QString ("Use Site Installation") ;
     connect ( bg_use_site = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_site ( int ) ) );
 
-    label = make_standard_label ( QString ("Use Site Installation") );
-
-    row_layout = new QHBoxLayout ();
-    row_layout -> addWidget ( label );
-    row_layout -> setAlignment ( label, Qt::AlignLeft );
-    row_layout -> addWidget ( no );
-    row_layout -> setAlignment ( no, Qt::AlignRight);
-    row_layout -> addWidget ( yes );
-
-    layout -> addLayout ( row_layout );
+    layout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
     // row 3
 
     // row 4
+    proxyEditor = new QLineEdit ();
+    proxyEditor -> setPlaceholderText ( "xxx.xxx.xxx.xxx" );
+    connect ( proxyEditor, SIGNAL ( editingFinished () ), this, SLOT ( edit_proxy_path () ) );
+
+    name = QString ("Use Proxy");
     connect ( bg_use_proxy = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_proxy ( int ) ) );
 
-    label = make_standard_label ( QString ("Use Proxy") );
+    layout -> addWidget ( make_editor_button_option_row ( name, desc, proxyEditor,
+                                                          no, yes ) );
 
-    row_layout = new QHBoxLayout ();
-    row_layout -> setContentsMargins ( 0, 10, 0, 0 );
-    row_layout -> addWidget ( label );
-    row_layout -> setAlignment ( label, Qt::AlignLeft );
-    row_layout -> addWidget ( no );
-    row_layout -> setAlignment ( no, Qt::AlignRight);
-    row_layout -> addWidget ( yes );
-
-    layout -> addLayout ( row_layout );
-
-    lineEdit = new QLineEdit ();
-    connect ( lineEdit, SIGNAL ( editingFinished () ), this, SLOT ( edit_proxy_path () ) );
-    lineEdit -> setFocusPolicy ( Qt::FocusPolicy::ClickFocus );
-    lineEdit -> setFixedHeight (30 );
-    lineEdit -> setPlaceholderText ( "xxx.xxx.xxx.xxx" );
-
-
-    row_layout = new QHBoxLayout ();
-    row_layout -> setContentsMargins ( 50, 0, 0, 10 );
-    row_layout -> addWidget ( lineEdit );
-    layout -> addLayout ( row_layout );
     // row 4
 
     //row 5
     connect ( bg_prioritize_http = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_prioritize_http ( int ) ) );
 
-    label = make_standard_label ( QString ("Prioritize Environment Variable 'http-proxy'") );
+    name = QString ("Prioritize Environment Variable 'http-proxy'");
 
-    row_layout = new QHBoxLayout ();
-    row_layout -> addWidget ( label );
-    row_layout -> setAlignment ( label, Qt::AlignLeft );
-    row_layout -> addWidget ( no );
-    row_layout -> setAlignment ( no, Qt::AlignTrailing);
-    row_layout -> addWidget ( yes );
-
-    layout -> addLayout ( row_layout );
+    layout -> addWidget ( make_button_option_row ( name, desc, no, yes) );
     // row 5
 
     widget -> setLayout ( layout );
@@ -1057,12 +1078,12 @@ void SRAConfigView :: toggle_use_proxy ( int toggled )
     if ( toggled == 1 )
     {
         qDebug () << "use_proxy: yes";
-        lineEdit -> setDisabled ( false );
+        proxyEditor -> setDisabled ( false );
     }
     else
     {
         qDebug () << "use_proxy: no";
-        lineEdit -> setDisabled ( true );
+        proxyEditor -> setDisabled ( true );
     }
 }
 
@@ -1106,15 +1127,15 @@ void SRAConfigView :: edit_import_path ()
 
 void SRAConfigView :: edit_proxy_path ()
 {
-    QString text = lineEdit -> text ();
+    QString text = proxyEditor -> text ();
 
     if ( text . isEmpty () )
         return;
 
     proxy_string = &text;
 
-    if ( lineEdit -> hasFocus () )
-        lineEdit -> clearFocus ();
+    if ( proxyEditor -> hasFocus () )
+        proxyEditor -> clearFocus ();
 
     qDebug () << "set new proxy path: " << text;
     //model -> set_proxy_path ( proxy_string -> toStdString () );

@@ -11,11 +11,17 @@
 
 #include <QDebug>
 
+#define TOOLBAR_BUTTON_WIDTH_SHORT 48
+#define TOOLBAR_BUTTON_WIDTH_LONG 192
+#define TOOLBAR_BUTTON_HEIGHT 64
+
 SRAToolBar::SRAToolBar ( QWidget *parent )
     : QWidget ( parent )
+    , isExpanded ( false )
 {
-    resize ( QSize ( 100, parent -> size () . height () ) );
-    setFixedWidth ( 100 );
+    setObjectName ( "tool_bar_view" );
+    resize ( QSize ( TOOLBAR_WIDTH_FACTOR, parent -> size () . height () ) );
+    setFixedWidth ( TOOLBAR_WIDTH_FACTOR );
 
     init ();
 }
@@ -26,43 +32,100 @@ void SRAToolBar::init ()
     toolBar -> setExclusive ( true );
     connect ( toolBar, SIGNAL ( buttonClicked ( int ) ), this , SLOT ( switchTool ( int ) ) );
 
-    QPixmap pxmp (img_path + "ncbi_logo_vertical_white_blue");
-    QIcon icon ( pxmp );
     home_button = new QPushButton ();
     home_button -> setObjectName ( "tool_bar_button" );
+    home_button -> setFixedHeight ( 70 );
     home_button -> setCheckable ( true );
     home_button -> setChecked ( true );
-    home_button -> setIconSize ( QSize ( 50, 50 ) );
-    home_button -> setIcon ( icon );
 
-    pxmp = QPixmap ( img_path + "ncbi_diagnostics_button" );
-    icon = QIcon ( pxmp );
+    config_button = new QPushButton ();
+    config_button -> setObjectName ( "tool_bar_button" );
+    config_button -> setCheckable ( true );
+
     diagnostics_button = new QPushButton ();
     diagnostics_button -> setObjectName ( "tool_bar_button" );
     diagnostics_button -> setCheckable ( true );
-    diagnostics_button -> setIconSize ( QSize ( 90, 90 ) );
-    diagnostics_button -> setIcon ( icon );
+
+    expand_button = new QPushButton ();
+    connect ( expand_button, SIGNAL ( clicked () ), this, SLOT ( expand () ) );
+    expand_button -> setObjectName ( "tool_bar_button" );
+    expand_button -> setFixedHeight ( 50 );
+
+    updateButtonIcons ();
 
     toolBar -> addButton ( home_button );
     toolBar -> setId ( home_button, 0 );
 
+    toolBar -> addButton ( config_button );
+    toolBar -> setId ( config_button, 1 );
+
     toolBar -> addButton ( diagnostics_button );
-    toolBar -> setId ( diagnostics_button, 1 );
+    toolBar -> setId ( diagnostics_button, 2 );
 
     QVBoxLayout *layout = new QVBoxLayout ();
     layout -> setMargin ( 0 );
     layout -> setSpacing ( 12 );
-    layout -> setAlignment ( Qt::AlignTop );
 
     layout -> addWidget ( home_button );
+    layout -> addWidget ( config_button );
     layout -> addWidget ( diagnostics_button );
+    layout -> addWidget ( expand_button, 0, Qt::AlignBottom );
 
     setLayout ( layout );
+}
+
+void SRAToolBar :: updateButtonIcons ()
+{
+    if ( isExpanded )
+    {
+        home_button -> setIcon ( QIcon ( img_path + "ncbi_logo_long.svg") . pixmap ( QSize ( 176, 48 ) ) );
+        home_button -> setIconSize ( QSize ( 192, 70 ) );
+
+        config_button -> setIcon ( QIcon ( img_path + "ncbi_config_button_long.svg" ).pixmap ( QSize ( 176, 64 ) ) );
+        config_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) );
+
+        diagnostics_button -> setIcon ( QIcon ( img_path + "ncbi_diagnostics_button_long.svg" ).pixmap ( QSize ( 176, 64 ) ) );
+        diagnostics_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) );
+
+        expand_button -> setIcon ( QIcon ( img_path + "ncbi_expand_toolbar_button.svg" ).pixmap ( QSize ( 32, 32 ) ) );
+        expand_button -> setIconSize ( QSize ( 192, 70 ) );
+    }
+    else
+    {
+        home_button -> setIcon ( QIcon ( img_path + "ncbi_helix_vertical_white.svg") . pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_WIDTH_SHORT ) ) );
+        home_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_WIDTH_SHORT ) );
+
+        config_button -> setIcon ( QIcon ( img_path + "ncbi_config_button_white.svg" ).pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_WIDTH_SHORT ) ) );
+        config_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) );
+
+        diagnostics_button -> setIcon ( QIcon ( img_path + "ncbi_diagnostics_button_white.svg" ).pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_WIDTH_SHORT ) ) );
+        diagnostics_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) );
+
+        expand_button -> setIcon ( QIcon ( img_path + "ncbi_expand_toolbar_button.svg" ).pixmap ( QSize ( 32, 32 ) ) );
+        expand_button -> setIconSize ( QSize ( 32, 32 ) );
+    }
 }
 
 void SRAToolBar :: switchTool ( int tool )
 {
     emit toolSwitched ( tool );
+}
+
+void SRAToolBar :: expand ()
+{
+    int s = size () . width ();
+    if ( isExpanded )
+        s = s - TOOLBAR_WIDTH_FACTOR;
+    else
+        s = s + TOOLBAR_WIDTH_FACTOR;;
+
+    isExpanded = !isExpanded;
+    resize ( QSize ( s, size () . height () ) );
+    setFixedWidth ( s );
+
+    updateButtonIcons ();
+
+    emit expanded ( isExpanded );
 }
 
 #if OFFICAL_LOOKNFEEL
@@ -76,7 +139,7 @@ void SRAToolBar :: paintEvent ( QPaintEvent *e )
 
     painter.setBrush ( gradient );
 
-    painter.drawRect ( 0, 0, 100, size () . height () );
+    painter.drawRect ( 0, 0, size () . width (), size () . height () );
 
     show ();
 

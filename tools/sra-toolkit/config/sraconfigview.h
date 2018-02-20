@@ -108,7 +108,7 @@ private:
     QButtonGroup *bg_use_proxy;
     QButtonGroup *bg_prioritize_http;
 
-    QLineEdit *lineEdit;
+    QLineEdit *proxyEditor;
 
     QString *proxy_string;
     QLabel *import_path_label;

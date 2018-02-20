@@ -1,0 +1,12 @@
+info: Table 'SRR053325' metadata: md5 ok
+info: Column 'CLIP_QUALITY_LEFT': checksums ok
+info: Column 'CLIP_QUALITY_RIGHT': checksums ok
+info: Column 'POSITION': checksums ok
+info: Column 'QUALITY': checksums ok
+info: Column 'RD_FILTER': checksums ok
+info: Column 'READ': checksums ok
+info: Column 'READ_SEG': checksums ok
+info: Column 'SIGNAL': checksums ok
+info: Column 'SPOT_GROUP': checksums ok
+info: Columns 'READ_LEN' and 'SPOT_LEN' are consistent
+info: Table 'SRR053325' is consistent

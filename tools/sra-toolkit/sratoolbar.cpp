@@ -34,6 +34,7 @@ void SRAToolBar::init ()
 
     home_button = new QPushButton ();
     home_button -> setObjectName ( "tool_bar_button" );
+    home_button -> setProperty ( "type", "home" );
     home_button -> setFixedHeight ( 70 );
     home_button -> setCheckable ( true );
     home_button -> setChecked ( true );
@@ -49,9 +50,22 @@ void SRAToolBar::init ()
     expand_button = new QPushButton ();
     connect ( expand_button, SIGNAL ( clicked () ), this, SLOT ( expand () ) );
     expand_button -> setObjectName ( "tool_bar_button" );
+    expand_button -> setProperty ( "type", "expand" );
     expand_button -> setFixedHeight ( 50 );
 
     updateButtonIcons ();
+
+    QFrame *line = new QFrame ();
+    line -> setObjectName ( "spacer_line" );
+    line -> setFrameShape ( QFrame::HLine );
+    line -> setFixedHeight ( 2 );
+    line -> setMinimumWidth ( width () * .8 );
+
+    QFrame *line2= new QFrame ();
+    line2 -> setObjectName ( "spacer_line" );
+    line2 -> setFrameShape ( QFrame::HLine );
+    line2 -> setFixedHeight ( 2 );
+    line2 -> setMinimumWidth ( width () * .8 );
 
     toolBar -> addButton ( home_button );
     toolBar -> setId ( home_button, 0 );
@@ -64,11 +78,18 @@ void SRAToolBar::init ()
 
     QVBoxLayout *layout = new QVBoxLayout ();
     layout -> setMargin ( 0 );
-    layout -> setSpacing ( 12 );
+    layout -> setSpacing ( 0 );
 
     layout -> addWidget ( home_button );
+    layout -> addSpacing ( 20 );
+    layout -> addWidget ( line );
+    layout -> addSpacing ( 20 );
     layout -> addWidget ( config_button );
+    layout -> addSpacing ( 8 );
     layout -> addWidget ( diagnostics_button );
+    layout -> addSpacing ( 20 );
+    layout -> addWidget ( line2 );
+
     layout -> addWidget ( expand_button, 0, Qt::AlignBottom );
 
     setLayout ( layout );
@@ -81,28 +102,34 @@ void SRAToolBar :: updateButtonIcons ()
         home_button -> setIcon ( QIcon ( img_path + "ncbi_logo_long.svg") . pixmap ( QSize ( 176, 48 ) ) );
         home_button -> setIconSize ( QSize ( 192, 70 ) );
 
-        config_button -> setIcon ( QIcon ( img_path + "ncbi_config_button_long.svg" ).pixmap ( QSize ( 176, 64 ) ) );
+        config_button -> setIcon ( QIcon ( img_path + "ncbi_config_button_long.svg" )
+                                   .pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) ) );
         config_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) );
 
-        diagnostics_button -> setIcon ( QIcon ( img_path + "ncbi_diagnostics_button_long.svg" ).pixmap ( QSize ( 176, 64 ) ) );
+        diagnostics_button -> setIcon ( QIcon ( img_path + "ncbi_diagnostics_button_long.svg" )
+                                        .pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) ) );
         diagnostics_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) );
 
         expand_button -> setIcon ( QIcon ( img_path + "ncbi_expand_toolbar_button.svg" ).pixmap ( QSize ( 32, 32 ) ) );
-        expand_button -> setIconSize ( QSize ( 192, 70 ) );
+        expand_button -> setIconSize ( QSize ( 192, 50 ) );
     }
     else
     {
-        home_button -> setIcon ( QIcon ( img_path + "ncbi_helix_vertical_white.svg") . pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_WIDTH_SHORT ) ) );
-        home_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_WIDTH_SHORT ) );
+        home_button -> setIcon ( QIcon ( img_path + "ncbi_helix_vertical_white.svg")
+                                 . pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) ) );
+        home_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) );
 
-        config_button -> setIcon ( QIcon ( img_path + "ncbi_config_button_white.svg" ).pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_WIDTH_SHORT ) ) );
+        config_button -> setIcon ( QIcon ( img_path + "ncbi_config_button_white.svg" )
+                                   .pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) ) );
         config_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) );
 
-        diagnostics_button -> setIcon ( QIcon ( img_path + "ncbi_diagnostics_button_white.svg" ).pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_WIDTH_SHORT ) ) );
+        diagnostics_button -> setIcon ( QIcon ( img_path + "ncbi_diagnostics_button_white.svg" )
+                                        .pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) ) );
         diagnostics_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) );
 
-        expand_button -> setIcon ( QIcon ( img_path + "ncbi_expand_toolbar_button.svg" ).pixmap ( QSize ( 32, 32 ) ) );
-        expand_button -> setIconSize ( QSize ( 32, 32 ) );
+        expand_button -> setIcon ( QIcon ( img_path + "ncbi_expand_toolbar_button.svg" )
+                                   .pixmap ( QSize ( 32, 32 ) ) );
+        expand_button -> setIconSize ( QSize ( 32, 50 ) );
     }
 }
 

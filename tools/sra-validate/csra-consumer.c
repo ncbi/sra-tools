@@ -76,7 +76,7 @@ static uint32_t validate_alig_count_vs_alig_id( const seq_rec * seq, uint32_t id
             res++;
         }
     }
-    else if ( count == 1 )
+    else
     {
         if ( seq -> prim_alig_id[ idx ] == 0 )
         {
@@ -84,11 +84,6 @@ static uint32_t validate_alig_count_vs_alig_id( const seq_rec * seq, uint32_t id
                        seq -> row_id, idx, idx );
             res++;
         }
-    }
-    else
-    {
-        log_write( log, "SEQ.#%ld : ALIGNMENT_COUNT[ %u ] = %u", seq -> row_id, idx, count );
-        res++;
     }
     return res;
 }
@@ -203,6 +198,27 @@ static uint32_t validate_csra_rec( validate_slice * slice, const csra_rec * csra
             res++;
         }
     }
+    
+    /* does the PRIM-ALIGNMNET-TBL point back to the correct value in the SEQ-table? */
+    if ( seq -> prim_alig_id[ 0 ] > 0 )
+    {
+        if ( seq -> row_id != csra -> looked_up[ 0 ] . seq_spot_id )
+        {
+            log_write( slice -> vctx -> log, "SEQ.#%,ld [ 0 ]: ref.integrety failure( %lu )",
+                        seq -> row_id, csra -> looked_up[ 0 ] . seq_spot_id );
+            res++;
+        }
+    }
+    if ( seq -> prim_alig_id[ 1 ] > 0 )
+    {
+        if ( seq -> row_id != csra -> looked_up[ 1 ] . seq_spot_id )
+        {
+            log_write( slice -> vctx -> log, "SEQ.#%,ld [ 1 ]: ref.integrety failure( %lu )",
+                        seq -> row_id, csra -> looked_up[ 1 ] . seq_spot_id );
+            res++;
+        }
+    }
+
     return res;
 }
 
@@ -311,6 +327,9 @@ static rc_t handle_backlog( validate_slice * slice,
     return rc;
 }
 
+/* from kapp/main.h */
+rc_t CC Quitting ( void );
+
 rc_t CC csra_consumer_thread( const KThread *self, void *data )
 {
     validate_slice * slice = data;
@@ -327,6 +346,7 @@ rc_t CC csra_consumer_thread( const KThread *self, void *data )
         csra_rec csra;
         Vector backlog;
         bool running = true;
+        bool canceled = false;
         
         VectorInit ( &backlog, 0, 512 );
         
@@ -360,10 +380,14 @@ rc_t CC csra_consumer_thread( const KThread *self, void *data )
             }
             
             /* try to make progress on the backlog */
-            rc = handle_backlog( slice, &backlog, NULL );
+            canceled = ( Quitting() != 0 );
+            if ( canceled )
+                running = false;
+            else
+                rc = handle_backlog( slice, &backlog, NULL );
         }
         
-        if ( rc == 0 )
+        if ( rc == 0 && !canceled )
         {
             uint32_t count = VectorLength( &backlog );
             while ( rc == 0 && count > 0 )

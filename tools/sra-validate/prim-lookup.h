@@ -35,8 +35,12 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
+#ifndef _h_klib_directory_
+#include <kfs/directory.h>
+#endif
+
 #ifndef _h_prim_iter_
-#include "prim-iter.h"
+#include "prim-iter.h"  /* because of prim_rec */
 #endif
 
 struct prim_lookup;
@@ -48,14 +52,12 @@ typedef struct lookup_entry
     uint8_t seq_read_id, ref_orient;
 } lookup_entry;
 
-rc_t make_prim_lookup( struct prim_lookup ** lookup );
+rc_t make_prim_lookup( struct prim_lookup ** lookup, KDirectory * dir, const char * tmp_file );
 void destroy_prim_lookup( struct prim_lookup * self );
 
 rc_t prim_lookup_enter( struct prim_lookup * self, const prim_rec * rec );
 
 rc_t prim_lookup_get( struct prim_lookup * self, uint64_t align_id, lookup_entry * entry, bool * found );
-
-rc_t prim_lookup_report( const struct prim_lookup * self );
 
 #ifdef __cplusplus
 }

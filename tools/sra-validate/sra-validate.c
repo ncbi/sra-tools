@@ -40,6 +40,10 @@
 #include <klib/out.h>
 #endif
 
+#ifndef _h_klib_printf_
+#include <klib/printf.h>
+#endif
+
 #ifndef _h_klib_directory_
 #include <kfs/directory.h>
 #endif
@@ -59,9 +63,17 @@
 #include "csra-validator.h"
 #endif
 
+#ifndef _h_cleanup_task_
+#include "cleanup_task.h"
+#endif
+
 static const char * threads_usage[] = { "how many thread ( default=6 )", NULL };
 #define OPTION_THREADS  "threads"
 #define ALIAS_THREADS   "e"
+
+static const char * temp_usage[] = { "where to put the temp-file ( default: current dir )", NULL };
+#define OPTION_TEMP     "temp"
+#define ALIAS_TEMP      "t"
 
 static const char * curcache_usage[] = { "size of cursor-cache ( default=10MB )", NULL };
 #define OPTION_CURCACHE "curcache"
@@ -70,6 +82,7 @@ static const char * curcache_usage[] = { "size of cursor-cache ( default=10MB )"
 OptDef ToolOptions[] =
 {
     { OPTION_THREADS,   ALIAS_THREADS,   NULL, threads_usage,    1, true,   false },
+    { OPTION_TEMP,      ALIAS_TEMP,      NULL, temp_usage,       1, true,   false },
     { OPTION_CURCACHE,  ALIAS_CURCACHE,  NULL, curcache_usage,   1, true,   false }
 };
 
@@ -108,6 +121,7 @@ rc_t CC Usage ( const Args * args )
     HelpVersion( fullpath, KAppVersion() );
     return rc;
 }
+
 
 static rc_t clear_validate_context( validate_ctx * val_ctx )
 {
@@ -149,9 +163,47 @@ static rc_t init_validate_context( Args * args, validate_ctx * val_ctx )
         ErrMsg( "Please enter an accession to be validated." );
     else
     {
+        KProcMgr * proc_mgr = NULL;
+        char hostname[ 256 ];
+        uint32_t pid = 0;
+
+        const char * tmp_path = get_str_option( args, OPTION_TEMP, NULL );
+        
         val_ctx -> num_slices = get_uint32_t_option( args, OPTION_THREADS, 6 ); /* cmn.h */
         val_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, 1024 * 1024 * 10 ); /* cmn.h */
 
+        rc = KProcMgrMakeSingleton ( &proc_mgr );
+        if ( rc != 0 )
+            ErrMsg( "sra-validate.c init_validate_context().KProcMgrMakeSingleton() -> %R", rc );
+        
+        if ( rc == 0 )
+        {
+            rc = KProcMgrGetPID ( proc_mgr, &pid );
+            if ( rc != 0 )
+                ErrMsg( "sra-validate.c init_validate_context().KProcMgrGetPID() -> %R", rc );
+        }
+        
+        if ( rc == 0 )
+        {
+            rc = KProcMgrGetHostName ( proc_mgr, hostname, sizeof hostname );
+            if ( rc != 0 )
+                ErrMsg( "sra-validate.c init_validate_context().KProcMgrGetHostName() -> %R", rc );
+        }
+        
+        if ( rc == 0 )
+        {
+            size_t num_writ;
+            if ( tmp_path == NULL )
+                rc = string_printf( val_ctx -> tmp_file, sizeof val_ctx -> tmp_file, &num_writ,
+                                    "tmp.%u.%s", pid, hostname );
+            else
+                rc = string_printf( val_ctx -> tmp_file, sizeof val_ctx -> tmp_file, &num_writ,
+                                    "%s/tmp.%u.%s", tmp_path, pid, hostname );
+            
+            if ( rc != 0 )
+                ErrMsg( "sra-validate.c init_validate_context().string_printf( tmp_file ) -> %R", rc );
+        }
+        
         if ( rc == 0 )
         {
             rc = KDirectoryNativeDir( ( KDirectory ** )& val_ctx -> dir );
@@ -159,6 +211,13 @@ static rc_t init_validate_context( Args * args, validate_ctx * val_ctx )
                 ErrMsg( "sra-validate.c init_validate_context().KDirectoryNativeDir() -> %R", rc );
         }
 
+        if ( rc == 0 )
+        {
+            rc = Make_Cleanup_Task ( & val_ctx -> cleanup_task, proc_mgr, val_ctx -> tmp_file );
+            if ( rc != 0 )
+                ErrMsg( "sra-validate.c init_validate_context().Make_Cleanup_Task() -> %R", rc );
+        }
+        
         if ( rc == 0 )
             rc = make_logger( val_ctx -> dir, ( struct logger ** ) &val_ctx -> log, NULL ); /* logger.h */
         
@@ -176,6 +235,9 @@ static rc_t init_validate_context( Args * args, validate_ctx * val_ctx )
             
         if ( rc != 0 )
             clear_validate_context( val_ctx );
+        
+        if ( proc_mgr != NULL )
+            KProcMgrRelease ( proc_mgr );
     }
     return rc;
 }

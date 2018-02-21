@@ -553,22 +553,21 @@ static rc_t cmn_read_platform_value( const VTable * tbl, INSDC_SRA_platform_id *
                         ErrMsg( "cmn_iter.c cmn_read_platform_value().VCursorCellDataDirect() -> %R", rc );
                     else
                     {
+                        int64_t first_row;
                         if ( elem_bits != 8 || boff != 0 || row_len != 1 )
                         {
-                            rc = RC( rcVDB, rcNoTarg, rcReading, rcParam, rcInvalid );
-                            ErrMsg( "cmn_iter.c cmn_read_platform_value( elem_bits=%u, boff=%u, row_len=%u )", elem_bits, boff, row_len );
+                            if ( platform != NULL )
+                                *platform = SRA_PLATFORM_UNDEFINED;
                         }
                         else
                         {
-                            int64_t first_row;
-
                             if ( platform != NULL )
                                 *platform = values[ 0 ];
-
-                            rc = VCursorIdRange( cur, id_read, &first_row, row_count );
-                            if ( rc != 0 )
-                                ErrMsg( "cmn_iter.c cmn_read_platform_value().VCursorIdRange() -> %R", rc );
                         }
+                        
+                        rc = VCursorIdRange( cur, id_read, &first_row, row_count );
+                        if ( rc != 0 )
+                            ErrMsg( "cmn_iter.c cmn_read_platform_value().VCursorIdRange() -> %R", rc );
                     }
                 }
             }

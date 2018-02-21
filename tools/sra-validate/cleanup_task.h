@@ -23,66 +23,29 @@
 * ===========================================================================
 *
 */
-#ifndef _h_validate_ctx_
-#define _h_validate_ctx_
+#ifndef _h_cleanup_task_
+#define _h_cleanup_task_
+
+#ifndef _h_klib_rc_
+#include <klib/rc.h>
+#endif
+
+#ifndef _h_kproc_procmgr_
+#include <kproc/procmgr.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
+struct KCleanupTask;
 
-#ifndef _h_cmn_iter_
-#include "cmn-iter.h"
-#endif
+rc_t Make_Cleanup_Task ( struct KCleanupTask **task, struct KProcMgr * proc_mgr, const char * tmp_file );
 
-#ifndef _h_logger_
-#include "logger.h"
-#endif
-
-#ifndef _h_result_
-#include "result.h"
-#endif
-
-#ifndef _h_thread_runner_
-#include "thread-runner.h"
-#endif
-
-#ifndef _h_progress_
-#include "progress.h"
-#endif
-
-#ifndef _h_prim_lookup_
-#include "prim-lookup.h"
-#endif
-
-typedef struct validate_ctx
-{
-    KDirectory * dir;
-    struct KCleanupTask * cleanup_task; /* cleanup_task.h */
-    struct logger * log;                /* logger.h */
-    struct validate_result * v_res;     /* result.h */
-    struct thread_runner * threads;     /* thread-runner.h */
-    struct progress * progress;         /* progress.h */
-    acc_info_t acc_info;                /* cmn-iter.h */    
-    uint32_t num_slices;
-    size_t cursor_cache;
-        char tmp_file[ 4096 ];
-} validate_ctx;
-
-typedef struct validate_slice
-{
-    const validate_ctx * vctx;
-    int64_t first_row;
-    uint64_t row_count;
-    uint32_t slice_nr;
-    struct prim_lookup * lookup;
-} validate_slice;
-
+rc_t Terminate_Cleanup_Task ( struct KCleanupTask * self );
+    
 #ifdef __cplusplus
 }
 #endif
 
-#endif
+#endif /* _h_cleanup_task_ */

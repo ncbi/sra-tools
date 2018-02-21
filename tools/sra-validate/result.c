@@ -126,6 +126,9 @@ void finish_validate_result( validate_result * self )
         atomic_dec( & self -> to_finish );
 }
 
+/* from kapp/main.h */
+rc_t CC Quitting ( void );
+
 void wait_for_validate_result( validate_result * self, uint32_t wait_time )
 {
     if ( self != NULL )
@@ -133,7 +136,9 @@ void wait_for_validate_result( validate_result * self, uint32_t wait_time )
         bool waiting = true;
         while ( waiting )
         {
-            waiting = ( atomic_read( &self -> to_finish ) > 0 );
+            /* waiting = ( Quitting() == 0 ); */
+            if ( waiting )
+                waiting = ( atomic_read( &self -> to_finish ) > 0 );
             if ( waiting )
                 KSleepMs( wait_time );
         }

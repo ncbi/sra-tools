@@ -34,6 +34,9 @@
 #include "prim-iter.h"
 #endif
 
+/* from kapp/main.h */
+rc_t CC Quitting ( void );
+
 rc_t CC csra_producer_thread( const KThread *self, void *data )
 {
     validate_slice * slice = data;
@@ -47,13 +50,20 @@ rc_t CC csra_producer_thread( const KThread *self, void *data )
     if ( rc == 0 )
     {
         prim_rec rec;
-        while ( get_from_prim_iter( iter, &rec, &rc ) && rc == 0 )
+        bool running = true;
+        while ( running && rc == 0 )
         {
-            rc = prim_lookup_enter( slice -> lookup, &rec );
-            if ( rc == 0 )
-                rc = update_prim_validate_result( slice -> vctx -> v_res, 0 );
-            if ( rc == 0 )
-                update_progress( slice -> vctx -> progress, 1 );
+            running = ( Quitting() == 0 );
+            if ( running )
+                running = get_from_prim_iter( iter, &rec, &rc );
+            if ( running )
+            {
+                rc = prim_lookup_enter( slice -> lookup, &rec );
+                if ( rc == 0 )
+                    rc = update_prim_validate_result( slice -> vctx -> v_res, 0 );
+                if ( rc == 0 )
+                    update_progress( slice -> vctx -> progress, 1 );
+            }
         }
         destroy_prim_iter( iter );
     }

@@ -50,6 +50,7 @@
 #include <sysalloc.h>
 #include <stdarg.h>
 
+/*
 rc_t ErrMsg( const char * fmt, ... )
 {
     rc_t rc;
@@ -64,6 +65,7 @@ rc_t ErrMsg( const char * fmt, ... )
     va_end( list );
     return rc;
 }
+*/
 
 void unread_rc( void )
 {
@@ -78,26 +80,26 @@ void unread_rc( void )
     }
 }
 
-/*
 rc_t ErrMsg( const char * fmt, ... )
 {
     rc_t rc;
+    va_list list;
     KDataBuffer data_buffer;
     memset( &data_buffer, 0, sizeof data_buffer );
 
-    char * dst = data_buffer . base;
-    va_list list;
-    
     va_start( list, fmt );
     rc = KDataBufferVPrintf ( &data_buffer, fmt, list );
     if ( rc == 0 )
+    {
+        char * dst = data_buffer . base;
         rc = pLogMsg( klogErr, "$(M)", "M=%s", dst );
+    }
     va_end( list );
 
     KDataBufferWhack( &data_buffer );
     return rc;
 } 
-*/
+
 
 rc_t CC ArgsOptionCount( const struct Args * self, const char * option_name, uint32_t * count );
 rc_t CC ArgsOptionValue( const struct Args * self, const char * option_name, uint32_t iteration, const void ** value );

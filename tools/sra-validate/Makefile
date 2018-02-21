@@ -64,6 +64,7 @@ TOOL_SRC = \
 	cmn \
 	logger \
 	result \
+	cleanup_task \
 	thread-runner \
 	progress \
 	cmn-iter \

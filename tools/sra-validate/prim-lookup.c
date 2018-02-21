@@ -29,46 +29,53 @@
 #include "cmn.h"
 #endif
 
-#ifndef _h_kproc_lock_
-#include <kproc/lock.h>
+#ifndef _h_klib_file_
+#include <kfs/file.h>
 #endif
 
-#ifndef _h_klib_vector_
-#include <klib/vector.h>
+#ifndef _h_klib_hashtable_
+#include <klib/hashtable.h>
 #endif
 
-#ifndef _h_klib_out_
-#include <klib/out.h>
+#ifndef _h_klib_hashfile_
+#include <klib/hashfile.h>
 #endif
 
 typedef struct prim_lookup
 {
-    KLock * lock;
-    
-    KVector * vec;
-    /*
-        key    ( 64-bit ) : row-id in PRIM-table
-        value  ( 64-bit ) : read-len in upper 32 bit, ref-orientation in bit 0
-    */
-    
-    uint64_t in_vector;
-    uint64_t max_in_vector;
+    KHashFile * hashfile;
+    KDirectory * dir;
+    KFile * f;
+    const char * tmp_file;
 } prim_lookup;
+
+typedef struct hashfile_value
+{
+    uint64_t combined;
+    uint64_t seq_spot_id;
+} hashfile_value;
 
 void destroy_prim_lookup( prim_lookup * self )
 {
     if ( self != NULL )
     {
-        if ( self -> lock != NULL )
-            KLockRelease ( self -> lock );
-        if ( self -> vec != NULL )
-            KVectorRelease ( self -> vec );
+        if ( self -> hashfile != NULL )
+            KHashFileDispose( self -> hashfile );
 
+        if ( self -> f != NULL )
+            KFileRelease( self -> f );
+
+        if ( self -> tmp_file != NULL )
+            KDirectoryRemove ( self -> dir, true, "%s", self -> tmp_file );
+    
+        if ( self -> dir != NULL )
+            KDirectoryRelease( self -> dir );
+            
         free( ( void * ) self );
     }
 }
 
-rc_t make_prim_lookup( prim_lookup ** lookup )
+rc_t make_prim_lookup( prim_lookup ** lookup, KDirectory * dir, const char * tmp_file )
 {
     rc_t rc = 0;
     prim_lookup * obj = calloc( 1, sizeof * obj );
@@ -79,14 +86,25 @@ rc_t make_prim_lookup( prim_lookup ** lookup )
     }
     else
     {
-        rc = KLockMake ( &obj -> lock );
+        rc = KDirectoryAddRef( dir );
         if ( rc != 0 )
-            ErrMsg( "make_prim_lookup().KLockMake() -> %R", rc );    
+            ErrMsg( "make_prim_lookup().KDirectoryAddRef() -> %R", rc );
         else
+            obj -> dir = dir;
+
+        if ( rc == 0 )
         {
-            rc = KVectorMake ( &obj -> vec );
+            obj -> tmp_file = tmp_file;
+            rc = KDirectoryCreateFile( dir, &obj -> f, true, 0664, kcmInit | kcmParents, "%s", tmp_file );
             if ( rc != 0 )
-                ErrMsg( "make_prim_lookup().KVectorMake() -> %R", rc );    
+                ErrMsg( "make_prim_lookup().KDirectoryCreateFile( '%s' ) -> %R", tmp_file, rc );
+        }
+        
+        if ( rc == 0 )
+        {
+            rc = KHashFileMake( &obj -> hashfile, obj -> f );
+            if ( rc != 0 )
+                ErrMsg( "make_prim_lookup().KHashFileMake() -> %R", rc );
         }
         
         if ( rc != 0 )
@@ -110,34 +128,22 @@ rc_t prim_lookup_enter( prim_lookup * self, const prim_rec * rec )
     {
         /* the lookup will be made based on the primary-row-id as a key */
         uint64_t key = rec -> align_row_id;
+        uint64_t key_hash = KHash( ( const char * )&key, sizeof key );
+        hashfile_value value;
         
-        /* the value is a combination of READ_LEN and REF_ORIENTATION */
-        uint64_t value = rec -> read_len;
-        value <<= 32;
+        value . combined = rec -> read_len;
+        value . combined <<= 32;
         if ( rec -> ref_orient )
-            value |= 1;
+            value . combined |= 1;
         if ( rec -> seq_read_id == 2 )
-            value |= 2;
-
-        rc = KLockAcquire ( self -> lock );
+            value . combined |= 2;
+        value . seq_spot_id = rec -> seq_spot_id;
+        
+        rc = KHashFileAdd( self -> hashfile,
+                           ( const void * )&key, sizeof key, key_hash,
+                           ( const void * )&value, sizeof value );
         if ( rc != 0 )
-            ErrMsg( "prim_lookup_enter().KLockAcquire() -> %R", rc );
-        else
-        {
-            rc = KVectorSetU64 ( self -> vec, key, value );
-            if ( rc != 0 )
-                ErrMsg( "prim_lookup_enter().KVectorSetU64( %lu => %lx ) -> %R", key, value, rc );
-            else
-            {
-                self -> in_vector ++;
-                if ( self -> in_vector > self -> max_in_vector )
-                    self -> max_in_vector = self -> in_vector;
-            }
-            
-            rc = KLockUnlock ( self -> lock );
-            if ( rc != 0 )
-                ErrMsg( "prim_lookup_enter().KLockUnlock() -> %R", rc );
-        }
+            ErrMsg( "prim_lookup_enter().KHashFileAdd( key = %lu ) -> %R", key, rc );
     }
     return rc;
 }
@@ -155,55 +161,30 @@ rc_t prim_lookup_get( prim_lookup * self,
     }
     else
     {
-        *found = false;
-        rc = KLockAcquire ( self -> lock );
-        if ( rc != 0 )
-            ErrMsg( "prim_lookup_enter().KLockAcquire() -> %R", rc );
-        else
+        uint64_t key = align_id;
+        uint64_t key_hash = KHash( ( const char * )&key, sizeof key );
+        hashfile_value value;
+        size_t value_size;
+        
+        *found = KHashFileFind( self -> hashfile,
+                                ( const void * )&key, sizeof key, key_hash,
+                                ( void * )&value, &value_size );
+        if ( *found )
         {
-            uint64_t value;
-            rc_t rc_v = KVectorGetU64 ( self -> vec, align_id, &value );
-            if ( rc_v == 0 )
+            if ( value_size == sizeof value )
             {
-                entry -> seq_spot_id = 0;
-                entry -> ref_orient = ( value & 1 ) ? 1 : 0;
-                entry -> seq_read_id = ( value & 2 ) ? 2 : 1;
-                entry -> read_len = ( ( value >> 32 ) & 0xFFFFFFFF );
-                *found = true;
-                
-                rc = KVectorUnset ( self -> vec, align_id );
-                if ( rc != 0 )
-                    ErrMsg( "prim_lookup_enter().KVectorUnset( %lu ) -> %R", align_id, rc );
-                else
-                    self -> in_vector--;
+                entry -> ref_orient  = ( value . combined & 1 ) ? 1 : 0;
+                entry -> seq_read_id = ( value . combined & 2 ) ? 2 : 1;
+                entry -> read_len    = ( ( value . combined >> 32 ) & 0xFFFFFFFF );
+                entry -> seq_spot_id = value . seq_spot_id;
             }
-                
-            rc = KLockUnlock ( self -> lock );
-            if ( rc != 0 )
-                ErrMsg( "prim_lookup_enter().KLockUnlock() -> %R", rc );
+            else
+            {
+                rc = RC( rcVDB, rcNoTarg, rcValidating, rcParam, rcInvalid );
+                ErrMsg( "make_prim_lookup().KHashFileFind( %u != %u ) -> %R", ( sizeof value ), value_size, rc );
+                *found = false;
+            }
         }
-    }
-    return rc;
-}
-
-/*
-static rc_t on_visit_vector( uint64_t key, uint64_t value, void *user_data )
-{
-    return KOutMsg( "still in vector: prim-align-id: %,lu\n", key );
-}
-*/
-
-rc_t prim_lookup_report( const prim_lookup * self )
-{
-    rc_t rc = 0;
-    if ( self != NULL )
-    {
-        KOutMsg( "\nlookup.in_vector     = %,lu", self -> in_vector );
-        KOutMsg( "\nlookup.max_in_vector = %,lu\n", self -> max_in_vector );
-        /*
-        if ( self -> in_vector > 0 )
-            rc = KVectorVisitU64 ( self -> vec, false, on_visit_vector, NULL );
-        */
     }
     return rc;
 }

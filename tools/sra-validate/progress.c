@@ -113,6 +113,9 @@ static void progress_steps_and_destroy( progress * self )
     atomic_set( &self -> state, ps_idle );
 }
 
+/* from kapp/main.h */
+rc_t CC Quitting ( void );
+
 static rc_t CC progress_thread_func( const KThread *self, void *data )
 {
     rc_t rc = 0;
@@ -122,31 +125,34 @@ static rc_t CC progress_thread_func( const KThread *self, void *data )
         bool running = true;
         while ( running )
         {
-            switch( atomic_read( &prog -> state ) )
+            running = ( Quitting() == 0 );
+            if ( running )
             {
-                case ps_idle    :   break;
+                switch( atomic_read( &prog -> state ) )
+                {
+                    case ps_idle    :   break;
 
-                case ps_init    :   progress_steps_and_destroy( prog );
-                                    if ( 0 == make_progressbar( & prog -> progressbar, atomic_read( &prog -> digits ) ) )
-                                    {
-                                        prog -> cur = 0;
-                                        update_progressbar( prog -> progressbar, prog -> cur );
-                                        atomic_set( &prog -> state, ps_running );
-                                    }
-                                    break;
-                                    
-                case ps_running :   if ( !progress_steps( prog ) )
-                                        atomic_set( &prog -> state, ps_idle );
-                                    break;
+                    case ps_init    :   progress_steps_and_destroy( prog );
+                                        if ( 0 == make_progressbar( & prog -> progressbar, atomic_read( &prog -> digits ) ) )
+                                        {
+                                            prog -> cur = 0;
+                                            update_progressbar( prog -> progressbar, prog -> cur );
+                                            atomic_set( &prog -> state, ps_running );
+                                        }
+                                        break;
+                                        
+                    case ps_running :   if ( !progress_steps( prog ) )
+                                            atomic_set( &prog -> state, ps_idle );
+                                        break;
 
-                case ps_stop    :   progress_steps_and_destroy( prog );
-                                    break;
+                    case ps_stop    :   progress_steps_and_destroy( prog );
+                                        break;
 
-                case ps_term    :   progress_steps_and_destroy( prog );
-                                    running = false;
-                                    break;
+                    case ps_term    :   progress_steps_and_destroy( prog );
+                                        running = false;
+                                        break;
+                }
             }
-            
             if ( running )
                 KSleepMs( prog -> sleep_time );
         }

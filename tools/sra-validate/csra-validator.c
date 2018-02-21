@@ -105,7 +105,7 @@ static rc_t make_csra_consumers( const validate_ctx * vctx, struct prim_lookup *
 rc_t run_csra_validator( const validate_ctx * vctx )
 {
     struct prim_lookup * lookup;
-    rc_t rc = make_prim_lookup( &lookup );
+    rc_t rc = make_prim_lookup( &lookup, vctx -> dir, vctx -> tmp_file );
     if ( rc == 0 )
     {
         uint64_t total_rows = vctx -> acc_info . seq_rows + vctx -> acc_info . prim_rows;
@@ -120,11 +120,9 @@ rc_t run_csra_validator( const validate_ctx * vctx )
             if ( rc == 0 )
             {
                 /* wait until all consumer-threads have finished */
-                wait_for_validate_result( vctx -> v_res, 100 );
+                wait_for_validate_result( vctx -> v_res, 100 ); /* result.c */
             }
         }
-        
-        prim_lookup_report( lookup );
         destroy_prim_lookup( lookup );
     }
     return rc;

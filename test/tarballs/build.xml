@@ -1,27 +1,33 @@
-<project>
+<project name="SRA Toolkit tarballs test (Windows)" default="tarballs" basedir=".">
+
     <property name="sourcename" value="sratoolkit.current-win64.zip" />
-    <property name="url" value="http://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/" />
+    <property name="url" value="https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/" />
+    <property name="version.url" value="https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current.version" />
     <property name="workdir" value=".\temp" />
     <property name="targetname" value="current-win64" />
-    
+    <dirname property="antfile.dir" file="${ant.file}"/>
+  
     <target name="tarballs">
         <delete dir="${workdir}" failonerror="false"/>
         <mkdir dir="${workdir}"/>
-        <get src="${url}/${sourcename}" dest="${workdir}/${sourcename}" />
-        <unzip src="${workdir}/${sourcename}" dest="${workdir}" />
-        <delete dir="${workdir}/${sourcename}" />
+        <get src="${url}/${sourcename}" dest="${workdir}\${sourcename}" />
+        <unzip src="${workdir}\${sourcename}" dest="${workdir}" />
+        <delete dir="${workdir}\${sourcename}" />
         <dirset id="tgt" dir="${workdir}" includes="*-win64"/>
         <property name="target" refid="tgt"/>
-        <move file="${workdir}/${target}" tofile="${workdir}/${targetname}"/>
-        
-        <echo message="Target directory is ${workdir}/${targetname}"/>
-        
+        <move file="${workdir}\${target}" tofile="${workdir}\${targetname}"/>
+        <get src="${version.url}" dest="${workdir}\version" />
+        <loadfile property="version" srcFile="${workdir}\version"/>
+        <echo message="version=${version}"/>
+        <echo message="smoke-test.bat ${workdir}\${targetname}\bin ${antfile.dir}\grep.pl ${version}"/>
         <exec executable="cmd" failonerror="true" >
             <arg value="/c"/>
-            <arg value="test-tarballs.bat"/>
+            <arg value="smoke-test.bat"/>
             <arg value="${workdir}\${targetname}\bin"/>
+            <arg value="${antfile.dir}\grep.pl"/>
+            <arg value="${version}"/>
         </exec>
-        
+
         <delete dir="${workdir}" failonerror="false"/>
     </target>
 </project>

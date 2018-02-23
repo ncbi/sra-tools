@@ -64,11 +64,17 @@ $(TEST_BINDIR)/remote-fuser-test: $(REMOTE_FUSER_TEST_OBJ)
 
 ifeq (linux,$(BUILD_OS))
     ifneq (Ubuntu,$(OS_DISTRIBUTOR))
+        ifeq (,$(NOT_VERY_SLOW))
 slowtests: run-test
 
 run-test: $(TEST_BINDIR)/remote-fuser-test
 	@$(SRCDIR)/remote_fuser_test.sh standard 180 $(TARGDIR)/bin
 
+        else
+slowtests: no-test
+no-test:
+	@echo SKIPPING VERY SLOW remote-fuser-test
+        endif
     else
 slowtests:
     endif

@@ -3438,11 +3438,11 @@ static rc_t MainFreeSpace ( const Main * self, const KDirectory * dir ) {
 
     if ( self -> xml )
         OUTMSG ( (
-            "      <Space free=\"%d\" total=\"%d\" units=\"KBytes\"/>\n",
+            "      <Space free=\"%lu\" total=\"%lu\" units=\"KBytes\"/>\n",
             free_bytes_available, total_number_of_bytes ) );
     else
         OUTMSG ( (
-            "    Space free=\"%d\" total=\"%d\" units=\"KBytes\"\n",
+            "    Space free=\"%lu\" total=\"%lu\" units=\"KBytes\"\n",
             free_bytes_available, total_number_of_bytes ) );
 
     return rc;

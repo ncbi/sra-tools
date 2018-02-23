@@ -26,6 +26,7 @@
 
 #include "vdb-dump-fastq.h"
 #include "vdb-dump-helper.h"
+#include "vdb-dump-tools.h"
 
 #include <stdlib.h>
 
@@ -464,15 +465,18 @@ static rc_t print_qual( const char * qual, uint32_t count, uint32_t max_line_len
                 rc = KOutMsg( "%s", buffer );
                 on_line = num_writ;
             }
-            if ( ( on_line + num_writ + 1 ) < max_line_len )
-            {
-                rc = KOutMsg( " %s", buffer );
-                on_line += ( num_writ + 1 );
-            }
             else
             {
-                rc = KOutMsg( "\n%s", buffer );
-                on_line = num_writ;
+                if ( ( on_line + num_writ + 1 ) < max_line_len )
+                {
+                    rc = KOutMsg( " %s", buffer );
+                    on_line += ( num_writ + 1 );
+                }
+                else
+                {
+                    rc = KOutMsg( "\n%s", buffer );
+                    on_line = num_writ;
+                }
             }
             i++;
         }
@@ -988,7 +992,7 @@ static rc_t vdb_fastq_table( const p_dump_context ctx,
                              const VDBManager *mgr,
                              fastq_ctx * fctx )
 {
-     VSchema * schema = NULL;
+    VSchema * schema = NULL;
     rc_t rc;
 
     vdh_parse_schema( mgr, &schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
@@ -1022,24 +1026,41 @@ static rc_t vdb_fastq_database( const p_dump_context ctx,
     DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
     if ( rc == 0 )
     {
-        bool table_defined = ( ctx->table != NULL );
-        if ( !table_defined )
-            table_defined = vdh_take_this_table_from_db( ctx, db, "SEQUENCE" );
-
-        if ( table_defined )
+        KNamelist *tbl_names;
+        rc = VDatabaseListTbl( db, &tbl_names );
+        if ( rc != 0 )
+            ErrMsg( "VDatabaseListTbl( '%s' ) -> %R", ctx->path, rc );
+        else
         {
-            rc = VDatabaseOpenTableRead( db, &fctx->tbl, "%s", ctx->table );
-            DISP_RC( rc, "VDatabaseOpenTableRead() failed" );
+            if ( ctx->table == NULL )
+            {
+                /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
+                bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
+                /* if there is no SEQUENCE-table, just pick the first table available... */
+                if ( !table_found )
+                    vdh_take_1st_table_from_db( ctx, tbl_names );
+            }
+            else
+            {
+                /* the user DID specify a table: check if the database has a table with this name,
+                   if not try with a sub-string */
+                String value;
+                StringInitCString( &value, ctx->table );
+                if ( !list_contains_value( tbl_names, &value ) )
+                    vdh_take_this_table_from_list( ctx, tbl_names, ctx->table );
+            }
+            rc = KNamelistRelease( tbl_names );
+            if ( rc != 0 )
+                ErrMsg( "KNamelistRelease() -> %R", rc );
+        }
+        if ( rc == 0 )
+        {
+            rc = open_table_by_path( db, ctx->table, &fctx->tbl ); /* vdb-dump-tools.c */
             if ( rc == 0 )
             {
                 rc = vdb_fastq_tbl( ctx, fctx );
                 VTableRelease( fctx->tbl );
             }
-        }
-        else
-        {
-            LOGMSG( klogInfo, "opened as vdb-database, but no table found/defined" );
-            ctx->usage_requested = true;
         }
         VDatabaseRelease( db );
     }
@@ -1103,10 +1124,6 @@ static rc_t vdb_fastq_by_probing( const p_dump_context ctx,
         PLOGERR( klogInt, ( klogInt, rc,
                  "the path '$(p)' cannot be opened as vdb-database or vdb-table",
                  "p=%s", ctx->path ) );
-        if ( vdco_schema_count( ctx ) == 0 )
-        {
-            LOGERR( klogInt, rc, "Maybe it is a legacy table. If so, specify a schema with the -S option" );
-        }
     }
     return rc;
 }
@@ -1128,5 +1145,304 @@ rc_t vdf_main( const p_dump_context ctx, const VDBManager * mgr, const char * ac
     free( ( void* )fctx.run_name );
     ctx->path = NULL;
 
+    return rc;
+}
+
+/* ---------------------------------------------------------------------------------------------------- */
+
+#define NUM_COUNTERS 1024
+
+static rc_t vdf_len_spread_loop( const p_dump_context ctx,
+                                const VCursor * curs,
+                                bool has_read_len, bool has_ref_len,
+                                uint32_t read_len_idx, uint32_t ref_len_idx,
+                                const char * path )
+{
+    const struct num_gen_iter * row_iter;
+    rc_t rc = num_gen_iterator_make( ctx->rows, &row_iter );
+    DISP_RC( rc, "num_gen_iterator_make() failed" );
+    if ( rc == 0 )
+    {
+        int64_t row_id;
+        uint64_t read_len_counters[ NUM_COUNTERS ];
+        uint64_t ref_len_counters[ NUM_COUNTERS ];
+        uint32_t idx;
+
+
+        for ( idx = 0; idx < NUM_COUNTERS; ++idx )
+        {
+            read_len_counters[ idx ] = 0;
+            ref_len_counters[ idx ] = 0;
+        }
+
+        while ( rc == 0 && num_gen_iterator_next( row_iter, &row_id, &rc ) )
+        {
+            if ( rc == 0 )
+                rc = Quitting();
+            if ( rc == 0 )
+            {
+                uint32_t elem_bits, boff, row_len;
+                uint32_t * ptr;
+                if ( has_read_len )
+                {
+                    rc = VCursorCellDataDirect( curs, row_id, read_len_idx, &elem_bits, (const void**)&ptr, &boff, &row_len );
+                    if ( rc == 0 && row_len > 0 )
+                    {
+                        if ( *ptr < NUM_COUNTERS )
+                            read_len_counters[ *ptr ]++;
+                        else
+                            read_len_counters[ NUM_COUNTERS - 1 ]++;
+                    }
+                }
+                if ( has_ref_len )
+                {
+                    rc = VCursorCellDataDirect( curs, row_id, ref_len_idx, &elem_bits, (const void**)&ptr, &boff, &row_len );
+                    if ( rc == 0 && row_len > 0 )
+                    {
+                        if ( *ptr < NUM_COUNTERS )
+                            ref_len_counters[ *ptr ]++;
+                        else
+                            ref_len_counters[ NUM_COUNTERS - 1 ]++;
+                    }
+                }
+            }
+        }
+
+        num_gen_iterator_destroy( row_iter );
+        
+        for ( idx = 0; idx < NUM_COUNTERS; ++idx )
+        {
+            if ( read_len_counters[ idx ] > 0 )
+                rc = KOutMsg( "READ_LEN[ %d ] = %,lu\n", idx, read_len_counters[ idx ] );
+        }
+        for ( idx = 0; idx < NUM_COUNTERS; ++idx )
+        {
+            if ( ref_len_counters[ idx ] > 0 )
+                rc = KOutMsg( "REF_LEN[ %d ] = %,lu\n", idx, ref_len_counters[ idx ] );
+        }
+    }
+    return rc;
+}
+
+static rc_t vdf_len_spread_vdbtbl( const p_dump_context ctx, const VTable * tbl, const char * path )
+{
+    KNamelist * col_names;
+    rc_t rc = VTableListCol( tbl, &col_names );
+    DISP_RC( rc, "VTableListCol() failed" );
+    if ( rc == 0 )
+    {
+        const VCursor * curs;
+        rc = VTableCreateCachedCursorRead( tbl, &curs, 1024 * 1024 * 32 );
+        DISP_RC( rc, "VTableCreateCursorRead( fasta/fastq ) failed" );
+        if ( rc == 0 )
+        {
+            bool has_read_len = is_name_in_list( col_names, "READ_LEN" );
+            bool has_ref_len = is_name_in_list( col_names, "REF_LEN" );
+            if ( has_read_len || has_ref_len )
+            {
+                uint32_t read_len_idx, ref_len_idx;
+                if ( has_read_len )
+                {
+                    rc = VCursorAddColumn( curs, &read_len_idx, "READ_LEN" );
+                    if ( rc != 0 )
+                    {
+                        PLOGERR( klogInt, ( klogInt, rc, "VCurosrAddColumn( '$(col)' ) failed", "col=%s", "READ_LEN" ) );
+                    }
+                }
+                if ( rc == 0 && has_ref_len )
+                {
+                    rc = VCursorAddColumn( curs, &ref_len_idx, "REF_LEN" );
+                    if ( rc != 0 )
+                    {
+                        PLOGERR( klogInt, ( klogInt, rc, "VCurosrAddColumn( '$(col)' ) failed", "col=%s", "REF_LEN" ) );
+                    }
+                }
+                if ( rc == 0 )
+                {
+                    rc = VCursorOpen( curs );
+                    DISP_RC( rc, "VCursorOpen( len-spread ) failed" );
+                }
+                if ( rc == 0 )
+                {
+                    int64_t  first;
+                    uint64_t count;
+                    
+                    if ( has_read_len )
+                        rc = VCursorIdRange( curs, read_len_idx, &first, &count );
+                    else
+                        rc = VCursorIdRange( curs, ref_len_idx, &first, &count );
+                    DISP_RC( rc, "VCursorIdRange() failed" );
+                    if ( rc == 0 )
+                    {
+                        if ( count == 0 )
+                            KOutMsg( "this table is empty\n" );
+                        else
+                        {
+                            /* if the user did not specify a row-range, take all rows */
+                            if ( ctx->rows == NULL )
+                            {
+                                rc = num_gen_make_from_range( &ctx->rows, first, count );
+                                DISP_RC( rc, "num_gen_make_from_range() failed" );
+                            }
+                            /* if the user did specify a row-range, check the boundaries */
+                            else
+                            {
+                                rc = num_gen_trim( ctx->rows, first, count );
+                                DISP_RC( rc, "num_gen_trim() failed" );
+                            }
+                        }
+                    }
+                }
+                if ( rc == 0 && !num_gen_empty( ctx->rows ) )
+                    rc = vdf_len_spread_loop( ctx, curs, has_read_len, has_ref_len, read_len_idx, ref_len_idx, path ); /* <=== the meat */
+            }
+            else
+            {
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcItem, rcNotFound );
+                PLOGERR( klogInt, ( klogInt, rc,
+                        "neither READ_LEN nor REF_LEN found in '$(p)'", "p=%s", path ) );
+            }
+            VCursorRelease( curs );
+        }
+        KNamelistRelease( col_names );
+    }
+    return rc;
+
+    return KOutMsg( "vdf_len_spread_vdbtbl\n" );
+}
+
+
+static rc_t vdf_len_spread_db( const p_dump_context ctx, const VDBManager * mgr, const char * path )
+{
+    const VDatabase * db;
+    VSchema *schema = NULL;
+    rc_t rc;
+
+    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
+
+    rc = VDBManagerOpenDBRead( mgr, &db, schema, "%s", path );
+    DISP_RC( rc, "VDBManagerOpenDBRead() failed" );
+    if ( rc == 0 )
+    {
+        KNamelist *tbl_names;
+        rc = VDatabaseListTbl( db, &tbl_names );
+        if ( rc != 0 )
+            ErrMsg( "VDatabaseListTbl( '%s' ) -> %R", path, rc );
+        else
+        {
+            if ( ctx->table == NULL )
+            {
+                /* the user DID NOT not specify a table: by default assume the SEQUENCE-table */
+                bool table_found = vdh_take_this_table_from_list( ctx, tbl_names, "SEQUENCE" );
+                /* if there is no SEQUENCE-table, just pick the first table available... */
+                if ( !table_found )
+                    vdh_take_1st_table_from_db( ctx, tbl_names );
+            }
+            else
+            {
+                /* the user DID specify a table: check if the database has a table with this name,
+                   if not try with a sub-string */
+                String value;
+                StringInitCString( &value, ctx->table );
+                if ( !list_contains_value( tbl_names, &value ) )
+                    vdh_take_this_table_from_list( ctx, tbl_names, ctx->table );
+            }
+            rc = KNamelistRelease( tbl_names );
+            if ( rc != 0 )
+                ErrMsg( "KNamelistRelease() -> %R", rc );
+        }
+
+        if ( rc == 0 )
+        {
+            const VTable * tbl;
+            rc = open_table_by_path( db, ctx->table, &tbl ); /* vdb-dump-tools.c */
+            if ( rc == 0 )
+            {
+                rc = vdf_len_spread_vdbtbl( ctx, tbl, path );
+                VTableRelease( tbl );
+            }
+        }
+        VDatabaseRelease( db );
+    }
+    if ( schema != NULL )
+        VSchemaRelease( schema );
+    return rc;
+
+}
+
+
+static rc_t vdf_len_spread_tbl( const p_dump_context ctx, const VDBManager * mgr, const char * path )
+{
+    VSchema * schema = NULL;
+    const VTable * tbl;
+    rc_t rc;
+
+    vdh_parse_schema( mgr, &schema, &(ctx->schema_list), true /* ctx->force_sra_schema */ );
+
+    rc = VDBManagerOpenTableRead( mgr, &tbl, schema, "%s", path );
+    DISP_RC( rc, "VDBManagerOpenTableRead() failed" );
+    if ( rc == 0 )
+    {
+        rc = vdf_len_spread_vdbtbl( ctx, tbl, path );
+        VTableRelease( tbl );
+    }
+    if ( schema != NULL )
+        VSchemaRelease( schema );
+    return rc;
+
+}
+
+
+static rc_t vdf_len_spread_by_pathtype( const p_dump_context ctx, const VDBManager * mgr, const char * path )
+{
+    rc_t rc;
+    int path_type = ( VDBManagerPathType ( mgr, "%s", path ) & ~ kptAlias );
+    /* types defined in <kdb/manager.h> */
+    switch ( path_type )
+    {
+        case kptDatabase    :  rc = vdf_len_spread_db( ctx, mgr, path ); break;
+
+        case kptPrereleaseTbl:
+        case kptTable       :  rc = vdf_len_spread_tbl( ctx, mgr, path ); break;
+
+        default             :  rc = RC( rcVDB, rcNoTarg, rcConstructing, rcItem, rcNotFound );
+                                PLOGERR( klogInt, ( klogInt, rc,
+                                        "the path '$(p)' cannot be opened as vdb-database or vdb-table",
+                                        "p=%s", ctx->path ) );
+                                break;
+    }
+    return rc;
+
+}
+
+static rc_t vdf_len_spread_by_probing( const p_dump_context ctx, const VDBManager * mgr, const char * path )
+{
+    rc_t rc;
+    if ( vdh_is_path_database( mgr, path, &(ctx->schema_list) ) )
+    {
+        rc = vdf_len_spread_db( ctx, mgr, path );
+    }
+    else if ( vdh_is_path_table( mgr, path, &(ctx->schema_list) ) )
+    {
+        rc = vdf_len_spread_tbl( ctx, mgr, path );
+    }
+    else
+    {
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcItem, rcNotFound );
+        PLOGERR( klogInt, ( klogInt, rc,
+                 "the path '$(p)' cannot be opened as vdb-database or vdb-table",
+                 "p=%s", path ) );
+    }
+    return rc;
+
+}
+
+rc_t vdf_len_spread( const p_dump_context ctx, const VDBManager * mgr, const char * path )
+{
+    rc_t rc = 0;
+    if ( USE_PATHTYPE_TO_DETECT_DB_OR_TAB ) /* in vdb-dump-context.h */
+        rc = vdf_len_spread_by_pathtype( ctx, mgr, path );
+    else
+        rc = vdf_len_spread_by_probing( ctx, mgr, path );
     return rc;
 }

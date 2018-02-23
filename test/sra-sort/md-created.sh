@@ -6,8 +6,8 @@ if [ ! -d "$TMP" ] ; then
     exit 0
 fi
 
-if [ "$PANFS_PAN1" == "" ] ; then
-    echo PANFS_PAN1 is not set: exiting
+if [ "$TEST_DATA" == "" ] ; then
+    echo TEST_DATA is not set: exiting
     exit 1
 fi
 
@@ -25,7 +25,7 @@ if [ "$?" != "0" ] ; then
 fi
 
 OPT="--tempdir $DSTDIR --mmapdir $DSTDIR --map-file-bsize 80000000000 --max-ref-idx-ids 4000000000 --max-idx-ids 4000000000 --max-large-idx-ids 800000000"
-SRC=$PANFS_PAN1/sra-test/TEST-DATA/SRR5318091-sra-sort-md
+SRC=$TEST_DATA/SRR5318091-sra-sort-md
 CMD="$SORT -f -v -L6 $OPT $SRC $DST"
 echo $ $CMD
 

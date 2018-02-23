@@ -1,6 +1,56 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.9.0
+**February 23, 2018**
+
+  **bam-load**: an issue with accessing WGS accessions was fixed  
+  **bam-load**: bam-load will generate an error and quit when too many spots have been encountered  
+  **bam-load**: renamed an internal function to avoid a name conflict  
+  **bam-load, fastq-load**: updated to use better thread termination signaling  
+  **bam-load, sra-stat**: Updated sra-stat to extract statistics of alterations made by loaders for inclusion in its report  
+  **build**: Created a script that allows to add a new volume to existing repository  
+  **build**: Fixed configure allowing to run it on Perl with version >= v5.26 that has "." removed from @INC  
+  **build**: added "smoke tests"  
+  **build**: recognize version of libhdf5 that does not allow static linking and do not try to use it  
+  **build, doc**: added wiki page: Building-from-source-:--configure-options-explained  
+  **build, ncbi-vdb, sra-tools**: the installation script now saves configuration files if they were modified by the user  
+  **build, sra-tools**: "make runtests" now invokes "make all"  
+  **build, vdb-sql**: modified build to avoid vdb-sql in absence of libxml2  
+  **fastq-dump**: minor change to help text  
+  **fastq-dump, vdb**: Fixed crashing of fastq-dump when dumping multiple runs with -split-3 option specified  
+  **fastq-load**: preserves spot names when the platform is Illumina  
+  **kfg**: added searching of configuration files in ../etc/ncbi/ relative to the binaries  
+  **kfg, prefetch**: set limit of Aspera usage to 450m  
+  **kfg, prefetch, remote-fuser, vfs**: Updated resolving of cache location of non-accession objects  
+  **klib**: Reverted KTimeMakeTime to use UTC  
+  **kns**: Accept the same http_proxy specifications as wget  
+  **kns**: Added possibility to report server's IP address after network error  
+  **kns**: Ignore HTTP headers sent multiple times  
+  **kns**: Improved reporting of network errors  
+  **kns**: fixed generation of invalid error code in response to dropped connection  
+  **latf-load**: now processing multi-line sequences and qualities  
+  **latf-load**: pacbio spot names with a range are now processed correctly  
+  **pileup-stats**: pileup-stats now exits with code 3 if called without arguments  
+  **prefetch**: fixed a bug in prefech when it printed invalid error messages after failure of reading from server  
+  **sra-search**: added option --fasta for output in FASTA format  
+  **sra-search**: added option to display version number  
+  **sra-search**: added option to search unaligned and partially aligned fragments only  
+  **sra-search**: improved performance in reference-driven mode  
+  **sra-search**: various efficiency/readability improvements in the code   
+  **sra-sort**: Created a separate version  of sra-sort for Complete Genomics  
+  **sra-sort**: Fixed race condition in sra-sort when result was not completed when using fast drives  
+  **sra-stat**: Added calculation of N50, L50, N90, L90 statistics  
+  **sra-stat**: Fixed: sra-stat prints the path of alignment reference when the path is remote (http)  
+  **sra-stat**: Improved performance when calculating bases statistics  
+  **sra-stat**: The maximum number of reads that can be processed was Increased to 4K.  
+  **sra-tools, vdb**: access to vdb/ngs via SQLite  
+  **srapath**: srapath allows to get results of name resolver CGI  
+  **vdb-config**: vdb-config does not fail when /repository/user/default-path is not set in configuration  
+  **vdb-validate**: added a check of sum(READ_LEN) against length(READ)  
+  **vfs**: Name resolving service was updated and switched to protocol version 3.0  
+
+
 ## SRA Toolkit 2.8.2
 **March 6, 2017**
 
@@ -191,5 +241,3 @@
   **var-expand**: a tool for batch variation expansion  
   **vdb-config**: now handles standard options such as --option-file  
   **vdb-validate**: Added code to continue with the next row when column has discontiguous blobs  
-
-

@@ -21,14 +21,24 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # In order to do so, uncomment the following line.
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
-#LIBS += -L/Users/rodarme1/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-vdb -ldiagnose
-LIBS += -L$(HOME)/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-vdb -ldiagnose
 
-INCLUDEPATH +=  ../../../ncbi-vdb/interfaces \
-                ../../../ncbi-vdb/interfaces/os/mac \
+
+INCLUDEPATH +=  ../../../ncbi-vdb/interfaces
+
+macx {
+INCLUDEPATH +=  ../../../ncbi-vdb/interfaces/os/mac \
                 ../../../ncbi-vdb/interfaces/os/unix \
                 ../../../ncbi-vdb/interfaces/cc/gcc \
                 ../../../ncbi-vdb/interfaces/cc/gcc/x86_64
+LIBS += -L/Users/rodarme1/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-vdb -ldiagnose
+}
+
+win32 {
+INCLUDEPATH += ../../../ncbi-vdb/interfaces/os/win \
+                ../../../ncbi-vdb/interfaces/cc/vc++
+LIBS += $$PWD/../../../OUTDIR/ncbi-vdb/win/v120/x64/Debug/bin/ncbi-vdb-md.lib \
+        $$PWD/../../../OUTDIR/ncbi-vdb/win/v120/x64/Debug/lib/diagnose.lib
+}
 
 SOURCES += main.cpp\
         sratoolkit.cpp \
@@ -65,3 +75,4 @@ RESOURCES += \
 
 DISTFILES += \
     style.qss
+

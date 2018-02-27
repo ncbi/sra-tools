@@ -3,6 +3,8 @@
 
 #include <QTreeWidgetItem>
 
+#include <stdint.h>
+
 typedef enum
 {
     DTS_NotStarted,  /* test not started yet */

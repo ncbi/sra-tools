@@ -1,6 +1,8 @@
 #ifndef SRACONFIGCONTROLLER_H
 #define SRACONFIGCONTROLLER_H
 
+#include <stdint.h>
+
 #include <QObject>
 
 class vdbconf_model;

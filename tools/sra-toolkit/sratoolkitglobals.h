@@ -10,7 +10,7 @@
 #define MODERN_LOOKNFEEL 1
 #define DARKGLASS_LOOKNFEEL 0
 
-#define TOOLBAR_WIDTH_FACTOR 100
+#define TOOLBAR_WIDTH_FACTOR 96
 
 const QString img_path = ":/images/";
 const QString qss_path = ":/qss/";

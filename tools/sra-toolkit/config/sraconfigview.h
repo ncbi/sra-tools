@@ -94,6 +94,7 @@ private:
     QAction *apply_action;
 
     QVBoxLayout *main_layout;
+    QVBoxLayout *scrollWidgetLayout;
     QVBoxLayout *workspace_layout;
 
     QButtonGroup *bg_remote_access;
@@ -114,6 +115,8 @@ private:
 
     QWidget* setup_workflow_group ();
     QWidget* setup_option_group ();
+    void setup_general_settings ();
+    void setup_network_setting ();
 
     WorkspaceItem *public_workspace;
     QVector <WorkspaceItem *> protected_workspaces;

@@ -57,8 +57,8 @@ private:
         baseGradient . setColorAt ( 0, official_blue );
         baseGradient . setColorAt ( 1, official_blue );
 
-        standardBackground . setColorAt ( 0, white );
-        standardBackground . setColorAt ( 1, white );
+        standardBackground . setColorAt ( 0, official_gray );
+        standardBackground . setColorAt ( 1, official_gray );
     }
 
     void initModernTemplate ()
@@ -83,7 +83,7 @@ private:
     const QColor white =  QColor ( 255, 255, 255, 255 );
 
     const QColor official_blue = QColor ( 54, 103, 151, 255 );
-    const QColor official_gray = QColor ( 213, 213, 213, 255 );
+    const QColor official_gray = QColor ( 245, 245, 245, 255 );
 
     const QColor modern_blue = QColor ( 0, 82, 155, 255 );
     const QColor modern_light_blue = QColor ( 125, 185, 255 );

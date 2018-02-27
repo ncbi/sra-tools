@@ -3,6 +3,8 @@
 #include "config/sraconfigview.h"
 #include "diagnostics/sradiagnosticsview.h"
 
+#include <QPropertyAnimation>
+
 #include <kfg/config.h>
 
 
@@ -54,10 +56,6 @@ void SRAToolView :: toolChanged ( int p_view )
 
 void SRAToolView :: expand ( bool val )
 {
-    if ( val )
-        setFixedSize ( size () . width () + TOOLBAR_WIDTH_FACTOR, size () . height () );
-    else
-        setFixedSize ( size () . width () - TOOLBAR_WIDTH_FACTOR, size () . height () );
 }
 
 

@@ -1,3 +1,7 @@
+#spacer_line
+{
+color: rgba(153,153,204,1.0) ;
+}
 
 /*******************************************************************************
 * Tool Bar
@@ -16,6 +20,21 @@
 {
    background: rgba(0,0,0,0.9);
 }
+
+/*
+#tool_bar_button[type="home"]::hover
+{
+background: rgba(153,153,204,0.2);
+border: 1px;
+}
+
+#tool_bar_button[type="home"]::checked
+{
+background: rgba(153,153,204,0.2);
+border: 1px;
+}
+*/
+
 
 /*******************************************************************************
 * SRAToolView

@@ -73,12 +73,6 @@ private slots:
     void edit_public_path ();
     void edit_workspace_path ();
 
-    void toggle_remote_enabled ( bool toggled );
-    void toggle_local_caching ( bool toggled );
-    void toggle_use_site ( bool toggled );
-    void toggle_use_proxy ( bool toggled );
-    void toggle_prioritize_http ( bool toggled );
-
     void toggle_remote_enabled ( int toggled );
     void toggle_local_caching ( int toggled );
     void toggle_use_site ( int toggled );
@@ -120,8 +114,6 @@ private:
 
     QWidget* setup_workflow_group ();
     QWidget* setup_option_group ();
-    //QGroupBox* setup_workspace_group ();
-    QVBoxLayout *setup_button_layout();
 
     WorkspaceItem *public_workspace;
     QVector <WorkspaceItem *> protected_workspaces;

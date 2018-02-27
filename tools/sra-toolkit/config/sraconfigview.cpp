@@ -532,8 +532,6 @@ SRAConfigView :: SRAConfigView ( QWidget *parent )
 
     main_layout -> addWidget ( setup_workflow_group () );
     main_layout -> addWidget ( setup_option_group () );
-    //main_layout -> addWidget ( setup_workspace_group () );
-    //main_layout -> addLayout ( setup_button_layout () );
 
     setLayout ( main_layout );
 
@@ -591,6 +589,33 @@ void SRAConfigView :: init ()
         bg_prioritize_http -> button ( 1 ) -> setChecked ( true );
 }
 
+QWidget * SRAConfigView::setup_workflow_group ()
+{
+    QWidget *widget = new QWidget ();
+    widget -> setObjectName ( "workflow_widget" );
+    widget -> setFixedHeight ( 70 );
+    widget -> setFixedWidth ( size () . width () );
+
+    QHBoxLayout *layout = new QHBoxLayout ();
+    layout -> setAlignment ( Qt::AlignBottom | Qt::AlignRight );
+    layout -> setSpacing ( 5 );
+
+    apply_btn = new QPushButton ( "Apply" );
+    apply_btn -> setDisabled ( true );
+    connect ( apply_btn, SIGNAL ( clicked () ), this, SLOT ( commit_config  () ) );
+
+    discard_btn = new QPushButton ( "Revert" );
+    discard_btn -> setDisabled ( true );
+    connect ( discard_btn, SIGNAL ( clicked () ), this, SLOT ( reload_config () ) );
+
+    layout -> addWidget ( discard_btn );
+    layout -> addWidget ( apply_btn );
+
+    widget -> setLayout ( layout );
+
+    return widget;
+}
+
 static
 QButtonGroup * make_no_yes_button_group ( QPushButton **p_no, QPushButton **p_yes )
 {
@@ -613,18 +638,6 @@ QButtonGroup * make_no_yes_button_group ( QPushButton **p_no, QPushButton **p_ye
     *p_yes = yes;
 
     return group;
-}
-
-QWidget * SRAConfigView::setup_workflow_group ()
-{
-    QWidget *widget = new QWidget ();
-    widget -> setObjectName ( "workflow_widget" );
-    widget -> setFixedHeight ( 70 );
-    widget -> setFixedWidth ( size () . width () );
-
-    QHBoxLayout *layout = new QHBoxLayout ();
-
-    return widget;
 }
 
 static
@@ -881,42 +894,6 @@ QGroupBox * SRAConfigView :: setup_workspace_group ()
     return group;
 }
 */
-QVBoxLayout * SRAConfigView::setup_button_layout ()
-{
-    QVBoxLayout *v_layout = new QVBoxLayout ();
-
-    // 1
-    QHBoxLayout *layout = new QHBoxLayout ();
-    layout -> setAlignment ( Qt::AlignTop | Qt::AlignRight );
-
-    QPushButton *advanced = new QPushButton ( "Advanced" );
-    advanced -> setFixedWidth ( 150 );
-    connect ( advanced, SIGNAL ( clicked () ), this, SLOT ( advanced_settings () ) );
-
-    layout -> addWidget ( advanced );
-    v_layout -> addLayout ( layout );
-    v_layout -> addStretch ( 1 );
-
-    // 2
-    layout = new QHBoxLayout ();
-    layout -> setAlignment ( Qt::AlignBottom | Qt::AlignRight );
-    layout -> setSpacing ( 5 );
-
-    apply_btn = new QPushButton ( "Apply" );
-    apply_btn -> setDisabled ( true );
-    connect ( apply_btn, SIGNAL ( clicked () ), this, SLOT ( commit_config  () ) );
-
-    discard_btn = new QPushButton ( "Revert" );
-    discard_btn -> setDisabled ( true );
-    connect ( discard_btn, SIGNAL ( clicked () ), this, SLOT ( reload_config () ) );
-
-    layout -> addWidget ( discard_btn );
-    layout -> addWidget ( apply_btn );
-
-    v_layout -> addLayout ( layout );
-
-    return v_layout;
-}
 
 void SRAConfigView :: closeEvent ( QCloseEvent *ev )
 {
@@ -991,14 +968,12 @@ void SRAConfigView :: commit_config ()
 void SRAConfigView :: reload_config ()
 {
     model -> reload ();
-    //populate ();
+    init ();
 
    if ( ! model -> config_changed () )
    {
        apply_btn -> setDisabled ( true );
-       //apply_action -> setDisabled ( true );
        discard_btn -> setDisabled ( true );
-       //discard_action -> setDisabled ( true );
    }
 }
 
@@ -1007,69 +982,67 @@ void SRAConfigView :: modified_config ()
     if ( model -> config_changed () ) // this wont trigger on workspace addition yet
     {
         apply_btn -> setDisabled ( false );
-        //apply_action -> setDisabled ( false );
         discard_btn -> setDisabled ( false );
-        //discard_action -> setDisabled ( false );
     }
 }
 
-// TBD - still needs a menu item to be triggered. -- this is not a hard reset - it still keeps some user settings
 void SRAConfigView :: default_config ()
 {
     model -> set_remote_enabled ( true );
     model -> set_global_cache_enabled ( true );
     model -> set_site_enabled ( true );
 
-    //populate ();
+    init ();
 
-    emit dirty_config ();
-}
-
-void SRAConfigView :: toggle_remote_enabled ( bool toggled )
-{
-    model -> set_remote_enabled ( toggled );
     emit dirty_config ();
 }
 
 void SRAConfigView :: toggle_remote_enabled ( int toggled )
 {
     if ( toggled == 1 )
+    {
         qDebug () << "remote_enabled: yes";
+        model -> set_remote_enabled ( true );
+    }
     else
+    {
         qDebug () << "remote_enabled: no";
-}
+        model -> set_remote_enabled ( false );
+    }
 
-void SRAConfigView :: toggle_local_caching ( bool toggled )
-{
-    model -> set_global_cache_enabled ( toggled );
     emit dirty_config ();
 }
 
 void SRAConfigView :: toggle_local_caching ( int toggled )
 {
     if ( toggled == 1 )
+    {
         qDebug () << "local_caching: yes";
+        model -> set_global_cache_enabled ( true );
+    }
     else
+    {
         qDebug () << "local_caching: no";
-}
+        model -> set_global_cache_enabled ( false );
+    }
 
-void SRAConfigView :: toggle_use_site ( bool toggled )
-{
-    model -> set_site_enabled ( toggled );
     emit dirty_config ();
 }
 
 void SRAConfigView :: toggle_use_site ( int toggled )
 {
     if ( toggled == 1 )
+    {
         qDebug () << "use_site: yes";
-    else
-        qDebug () << "use_site: no";
-}
+        model -> set_site_enabled ( true );
 
-void SRAConfigView :: toggle_use_proxy ( bool toggled )
-{
-    model -> set_proxy_enabled ( toggled );
+    }
+    else
+    {
+        qDebug () << "use_site: no";
+        model -> set_site_enabled ( false );
+    }
+
     emit dirty_config ();
 }
 
@@ -1078,27 +1051,33 @@ void SRAConfigView :: toggle_use_proxy ( int toggled )
     if ( toggled == 1 )
     {
         qDebug () << "use_proxy: yes";
+        model -> set_proxy_enabled ( true );
         proxyEditor -> setDisabled ( false );
     }
     else
     {
         qDebug () << "use_proxy: no";
+        model -> set_proxy_enabled ( false );
         proxyEditor -> setDisabled ( true );
     }
-}
 
-void SRAConfigView :: toggle_prioritize_http ( bool toggled )
-{
-    model -> set_proxy_priority ( toggled );
     emit dirty_config ();
 }
 
 void SRAConfigView :: toggle_prioritize_http ( int toggled )
 {
     if ( toggled == 1 )
+    {
         qDebug () << "prioritize_http: yes";
+        model -> set_proxy_priority ( true );
+    }
     else
+    {
         qDebug () << "prioritize_http: no";
+        model -> set_proxy_priority ( false );
+    }
+
+    emit dirty_config ();
 }
 
 void SRAConfigView :: edit_import_path ()

@@ -509,7 +509,7 @@ rc_t CC KMain(int argc, char *argv[])
     int i;
     rc_t rc;
 
-    bool showHelp = argc < 2, showVersion = false, unmount = false, foreground = false;
+    bool missedArgs = argc < 2, showHelp = false, showVersion = false, unmount = false, foreground = false;
     const char* mount_point = NULL, *xml_path = NULL, *log_file = NULL;
     const char* xml_root = ".";
     const char* cache_dir = NULL, *heart_beat_url = NULL;
@@ -585,6 +585,9 @@ rc_t CC KMain(int argc, char *argv[])
                 foreground = true;
             }
         }
+    }
+    if( missedArgs ) {
+        CoreUsage(log_fd, argv[0], missedArgs, showVersion, true);
     }
     if( showHelp || showVersion ) {
         CoreUsage(log_fd, argv[0], showHelp, showVersion, false);

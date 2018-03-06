@@ -2,8 +2,13 @@
 
 TMP=/export/home/TMP
 if [ ! -d "$TMP" ] ; then
-    $TMP is not found: skipping the test
+    echo $TMP is not found: skipping the test
     exit 0
+fi
+
+if [ "$TEST_DATA" == "" ] ; then
+    echo TEST_DATA is not set: exiting
+    exit 1
 fi
 
 I=`whoami`

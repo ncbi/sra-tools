@@ -1,7 +1,7 @@
 # NCBI External Developer Release:
 
 
-## SRA Toolkit
+## SRA Toolkit 2.9.0
 **February 23, 2018**
 
   **bam-load**: an issue with accessing WGS accessions was fixed  
@@ -49,6 +49,7 @@
   **vdb-config**: vdb-config does not fail when /repository/user/default-path is not set in configuration  
   **vdb-validate**: added a check of sum(READ_LEN) against length(READ)  
   **vfs**: Name resolving service was updated and switched to protocol version 3.0  
+
 
 ## SRA Toolkit 2.8.2
 **March 6, 2017**
@@ -240,5 +241,3 @@
   **var-expand**: a tool for batch variation expansion  
   **vdb-config**: now handles standard options such as --option-file  
   **vdb-validate**: Added code to continue with the next row when column has discontiguous blobs  
-
-

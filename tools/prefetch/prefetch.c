@@ -294,7 +294,7 @@ bool _StringIsHttps(const String *self, const char **withoutScheme)
 
 /********** KFile extension **********/
 static
-rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const char *path,
+rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const String *path,
                       bool reliable)
 {
     rc_t rc = 0;
@@ -304,10 +304,17 @@ rc_t _KFileOpenRemote(const KFile **self, KNSManager *kns, const char *path,
     if (*self != NULL)
         return 0;
 
+    assert (path);
+
+    if ( _StringIsFasp ( path, NULL ) )
+        return
+            SILENT_RC ( rcExe, rcFile, rcConstructing, rcParam, rcWrongType );
+
     if ( reliable )
-        rc = KNSManagerMakeReliableHttpFile(kns, self, NULL, 0x01010000, path);
+        rc = KNSManagerMakeReliableHttpFile(kns,
+                                         self, NULL, 0x01010000, path->addr);
     else
-        rc = KNSManagerMakeHttpFile        (kns, self, NULL, 0x01010000, path);
+        rc = KNSManagerMakeHttpFile(kns, self, NULL, 0x01010000, path->addr);
 
     return rc;
 }
@@ -1020,7 +1027,7 @@ static rc_t MainDownloadFile(Resolved *self,
     assert(self->remote.str);
 
     if (self->file == NULL) {
-        rc = _KFileOpenRemote(&self->file, main->kns, self->remote.str->addr,
+        rc = _KFileOpenRemote(&self->file, main->kns, self->remote.str,
                               !self->isUri);
         if (rc != 0 && !self->isUri) {
             PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
@@ -1143,7 +1150,7 @@ static rc_t MainDownloadCacheFile(Resolved *self,
     assert(self->remote.str);
 
     if (self->file == ((void*)0)) {
-        rc = _KFileOpenRemote(&self->file, main->kns, self->remote.str->addr,
+        rc = _KFileOpenRemote(&self->file, main->kns, self->remote.str,
                               !self->isUri);
         if (rc != 0) {
             PLOGERR(klogInt, (klogInt, rc, "failed to open file for $(path)",
@@ -1294,11 +1301,13 @@ static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
                 rc = 1;
             }
             else if (main->eliminateQuals) {
-                LOGMSG(klogErr, "Cannot eliminate qualities during fasp download");
+                LOGMSG(klogErr,
+                    "Cannot eliminate qualities during fasp download");
                 rc = 1;
             }
             else if (main->eliminateQuals) {
-                LOGMSG(klogErr, "Cannot remove QUALITY columns during fasp download");
+                LOGMSG(klogErr,
+                    "Cannot remove QUALITY columns during fasp download");
                 rc = 1;
             }
             else {
@@ -1318,10 +1327,11 @@ static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
             }
         }
         if (!ascp || (rc != 0 && GetRCObject(rc) != rcMemory
-                              && !canceled && !main->noHttp))
+                              && !canceled && !main->noHttp && !self->isUri))
         {
             bool https = _StringIsHttps(self->remote.str, NULL);
-            STSMSG(STS_TOP, (" Downloading via %s...", https ? "https" : "http"));
+            STSMSG(STS_TOP,
+                (" Downloading via %s...", https ? "https" : "http"));
             if (ascp) {
                 assert(self->resolver);
                 {
@@ -1336,10 +1346,12 @@ static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
                     &self->remote.path, &self->remote.str, &self->cache);
             }
             if (rc == 0) {
-                /* when eliminateQuals is specified we will try newer algorithm for downloading files via cache, 
-                    but filter out qualities for main file, not for dependencies */
+             /* when eliminateQuals is specified we will try newer algorithm
+                for downloading files via cache,
+                but filter out qualities for main file, not for dependencies */
                 if (main->eliminateQuals) {
-                    rc = MainDownloadCacheFile(self, main, self->cache->addr, main->eliminateQuals && !isDependency);
+                    rc = MainDownloadCacheFile(self, main, self->cache->addr,
+                        main->eliminateQuals && !isDependency);
                 }
                 else {
                     rc = MainDownloadFile(self, main, tmp);
@@ -1577,11 +1589,23 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
                         const char * start = resolved->remote.str->addr;
                         size_t size = resolved->remote.str->size;
                         const char * end = start + size;
-                        const char * sep = string_rchr ( start, size, '/' );
-                        if ( sep != NULL )
-                            start = sep + 1;
-                        rc = VFSManagerMakePath ( vfs, &resolved->accession,
-                            "%.*s", ( uint32_t ) ( end - start ), start );
+                        const char * slash = string_rchr ( start, size, '/' );
+                        const char * scol = NULL;
+                        String scheme;
+                        String fasp;
+                        CONST_STRING ( & fasp, "fasp" );
+                        rc = VPathGetScheme ( resolved->remote.path,
+                                              & scheme );
+                        if ( rc == 0 ) {
+                            if ( StringEqual ( & scheme, & fasp ) )
+                                scol = string_rchr ( start, size, ':' );
+                            if ( slash != NULL )
+                                start = slash + 1;
+                            if ( scol != NULL && scol > start )
+                                start = scol + 1;
+                            rc = VFSManagerMakePath ( vfs, &resolved->accession,
+                                "%.*s", ( uint32_t ) ( end - start ), start );
+                        }
                     }
                     DISP_RC2(rc, "ExtractAccession", resolved->remote.str->addr);
                 }
@@ -1693,7 +1717,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 rc_t rc3 = 0;
                 if (resolved->file == NULL) {
                     rc3 = _KFileOpenRemote(&resolved->file, kns,
-                        resolved->remote.str->addr, !resolved->isUri);
+                        resolved->remote.str, !resolved->isUri);
                     if ( !resolved->isUri )
                         DISP_RC2(rc3, "cannot open remote file",
                                  resolved->remote.str->addr);
@@ -1756,7 +1780,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 assert(resolved->remote.str);
                 if (!_StringIsFasp(resolved->remote.str, NULL)) {
                     rc2 = _KFileOpenRemote(&resolved->file, kns,
-                        resolved->remote.str->addr, !resolved->isUri);
+                        resolved->remote.str, !resolved->isUri);
                 }
             }
             if (rc2 == 0 && resolved->file != NULL && resolved->remoteSz == 0) {
@@ -2292,8 +2316,10 @@ static rc_t ItemResetRemoteToVdbcacheIfVdbcacheRemoteExists(
     }
     rc = VPathReadUri(cremote, remotePath, remotePathLen, &len);
     if (rc == 0) {
+        String remote;
+        StringInitCString ( & remote, remotePath );
         RELEASE(KFile, resolved->file);
-        rc = _KFileOpenRemote(&resolved->file, self->main->kns, remotePath,
+        rc = _KFileOpenRemote(&resolved->file, self->main->kns, &remote,
                               !resolved->isUri);
         if (rc == 0) {
             char *query = string_chr(remotePath, len, '?');

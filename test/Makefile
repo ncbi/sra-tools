@@ -49,7 +49,6 @@ SUBDIRS =    \
 	sra-stat        \
 	srapath         \
 	sra-sort        \
-	fastdump        \
 	sra-pileup      \
 	fuse            \
 	fastq-loader    \

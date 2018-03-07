@@ -4,6 +4,7 @@ include $(TOP)/build/Makefile.env
 CWD = $(shell pwd)
 PUBLIC=/repository/user/main/public
 CGI=https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi
+LARGE=fasp://aspera@demo.asperasoft.com:aspera-test-dir-large/100MB
 SRA=https://sra-download.ncbi.nlm.nih.gov
 SRAF=fasp://dbtest@sra-download.ncbi.nlm.nih.gov
 KMER=$(SRA)/traces/nannot01/kmer/000/390/GCA_000390265.1_R
@@ -225,17 +226,25 @@ check_prefetch:
 
 	@echo FASP download: asperasoft/100MB
 	@if ls `pwd`/tmp2/100MB ; then exit 1; fi
-	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch \
-	             fasp://aspera@demo.asperasoft.com:aspera-test-dir-large/100MB
-	@ls `pwd`/tmp2/100MB
+	if ascp -h > /dev/null ; then \
+	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
+	    $(BINDIR)/prefetch $(LARGE) ; \
+	    ls `pwd`/100MB ; \
+	else \
+	  if $(BINDIR)/prefetch $(LARGE) ; then exit 1; \
+	  else \
+	   echo prefetch failure for FASP URL when ascp is not found is expected ; \
+	  fi ; \
+	fi
 	@echo
 
 	@echo FASP download: ncbi/1GB
 	@if ls `pwd`/tmp2/1GB ; then exit 1; fi
-	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB
-	@ls `pwd`/tmp2/1GB
+	if ascp -h > /dev/null ; then \
+	  export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
+	    $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB ; \
+	    ls `pwd`/1GB ; \
+	fi
 	@echo
 
 	@rm -v `pwd`/tmp2/100MB
@@ -244,6 +253,6 @@ check_prefetch:
 	    then exit 1; else echo "Expected failure when FASP source not found"; \
 	    echo; fi
 
-	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; $(BINDIR)/vdb-config -on
+#	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; $(BINDIR)/vdb-config -on
 
 	@rm -rv tmp*

@@ -3,6 +3,7 @@
 
 #include <diagnose/diagnose.h>
 #include <klib/rc.h>
+#include <kapp/main.h>
 
 #include <QApplication>
 #include <QTime>
@@ -62,7 +63,7 @@ DiagnosticsThread :: DiagnosticsThread ( QObject *parent )
 {
     rc_t rc = 0;
 
-    rc = KDiagnoseMakeExt ( &diagnose, nullptr, nullptr, nullptr );
+    rc = KDiagnoseMakeExt ( &diagnose, nullptr, nullptr, nullptr, Quitting );
     if ( rc != 0 )
         qDebug () << rc;
     else

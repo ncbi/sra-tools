@@ -1196,8 +1196,17 @@ static rc_t MainDownloadAscp(const Resolved *self, Main *main,
     const char *src = NULL;
     AscpOptions opt;
 
-    assert(self && self->remote.str && self->remote.str->addr
-        && main && main->ascp && main->asperaKey);
+    assert(self && self->remote.str && self->remote.str->addr && main);
+
+    if ( self -> isUri && ! ( main -> ascp && main -> asperaKey ) ) {
+        rc_t rc = RC ( rcExe, rcFile, rcCopying, rcFile, rcNotFound );
+        PLOGERR ( klogErr, ( klogErr, rc,
+            "cannot download \"$(path)\": ascp or key file is not found",
+                          "path=%S", self -> remote . str ));
+        return rc;
+    }
+
+    assert(main->ascp && main->asperaKey);
 
     memset(&opt, 0, sizeof opt);
 

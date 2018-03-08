@@ -162,35 +162,47 @@ check_prefetch:
 
 	@rm `pwd`/tmp/sra/SRR053325.sra
 	@echo SRR FASP download when user repository is configured
-	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRRF)
-	@ls `pwd`/tmp/sra/SRR053325.sra
+	if ascp -h > /dev/null ; then \
+	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch $(SRRF); \
+	    ls `pwd`/tmp/sra/SRR053325.sra ;\
+	else echo download of $(SRRF) when ascp is not found is disabled ; \
+	fi
 	@echo
 
 	@rm `pwd`/tmp/refseq/KC702174.1
 	@echo REFSEQ download when user repository is configured
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(REFSEQF)
-	@ls `pwd`/tmp/refseq/KC702174.1
+	@if ascp -h > /dev/null ; then \
+	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      $(BINDIR)/prefetch $(REFSEQF) ; \
+	    ls `pwd`/tmp/refseq/KC702174.1 ; \
+	else echo download of $(REFSEQF) when ascp is not found is disabled ; \
+	fi
 	@echo
 
 	@rm `pwd`/tmp/nannot/GCA_000390265.1_R
-	@echo NANNOT download when user repository is configured
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(KMERF)
-	@ls `pwd`/tmp/nannot/GCA_000390265.1_R
+	@echo NANNOT FASP download when user repository is configured
+	@if ascp -h > /dev/null ; then \
+	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      $(BINDIR)/prefetch $(KMERF) ; \
+	      ls `pwd`/tmp/nannot/GCA_000390265.1_R ; \
+	else echo download of $(KMERF) when ascp is not found is disabled ; \
+	fi
 	@echo
 
 	@rm `pwd`/tmp/wgs/AFVF01
 	@echo WGS download when user repository is configured
 	@if ls `pwd`/tmp/wgs/AFVF01 ; then exit 1; fi
-	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(WGSF)
-	@echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537
-	@ls `pwd`/tmp/wgs/AFVF01
+	@if ascp -h > /dev/null ; then \
+	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      $(BINDIR)/prefetch $(WGSF) ; \
+	    echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537 ; \
+	    ls `pwd`/tmp/wgs/AFVF01 ; \
+	else echo download of $(WGSF) when ascp is not found is disabled ; \
+	fi
 	@echo
 
-	@rm -v `pwd`/tmp/sra/SRR053325.sra
+	@rm -vf `pwd`/tmp/sra/SRR053325.sra
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if $(BINDIR)/prefetch SRR053325 > /dev/null ; then exit 1; \
 	    else echo "Failure when remote repository is not set is expected"; \
@@ -204,21 +216,21 @@ check_prefetch:
 	@echo
 
 	@echo REFSEQ accession download
-	@rm -v `pwd`/tmp/refseq/KC702174.1
-		@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	@rm -vf `pwd`/tmp/refseq/KC702174.1
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch KC702174.1 > /dev/null
 	@ls `pwd`/tmp/refseq/KC702174.1
 	@echo
 
 	@echo NANNOT accession download
-	@rm -v `pwd`/tmp/nannot/GCA_000390265.1_R
+	@rm -vf `pwd`/tmp/nannot/GCA_000390265.1_R
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch GCA_000390265.1_R
 	@ls `pwd`/tmp/nannot/GCA_000390265.1_R
 	@echo
 
 	@echo WGS accession download
-	@rm -v `pwd`/tmp/wgs/AFVF01
+	@rm -vf `pwd`/tmp/wgs/AFVF01
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch AFVF01
 	@ls `pwd`/tmp/wgs/AFVF01
@@ -247,7 +259,7 @@ check_prefetch:
 	fi
 	@echo
 
-	@rm -v `pwd`/tmp2/100MB
+	@rm -vf `pwd`/tmp2/100MB
 	export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    if $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:100MB; \
 	    then exit 1; else echo "Expected failure when FASP source not found"; \

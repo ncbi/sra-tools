@@ -11,7 +11,7 @@
 
 #include <QDebug>
 
-#define TOOLBAR_BUTTON_WIDTH_SHORT 48
+#define TOOLBAR_BUTTON_WIDTH_SHORT 96
 #define TOOLBAR_BUTTON_WIDTH_LONG 192
 #define TOOLBAR_BUTTON_HEIGHT 64
 
@@ -35,23 +35,27 @@ void SRAToolBar::init ()
     home_button = new QPushButton ();
     home_button -> setObjectName ( "tool_bar_button" );
     home_button -> setProperty ( "type", "home" );
-    home_button -> setFixedHeight ( 70 );
+    home_button -> setFixedHeight ( 72 );
     home_button -> setCheckable ( true );
     home_button -> setChecked ( true );
 
     config_button = new QPushButton ();
     config_button -> setObjectName ( "tool_bar_button" );
+    config_button -> setIcon ( QIcon ( img_path + "ncbi_config_button.svg" ) );
+    config_button -> setFixedHeight ( TOOLBAR_BUTTON_HEIGHT );
     config_button -> setCheckable ( true );
 
     diagnostics_button = new QPushButton ();
     diagnostics_button -> setObjectName ( "tool_bar_button" );
+    diagnostics_button -> setIcon ( QIcon ( img_path + "ncbi_diagnostics_button.svg" ) );
+    diagnostics_button -> setFixedHeight ( TOOLBAR_BUTTON_HEIGHT );
     diagnostics_button -> setCheckable ( true );
 
     expand_button = new QPushButton ();
     connect ( expand_button, SIGNAL ( clicked () ), this, SLOT ( expand () ) );
     expand_button -> setObjectName ( "tool_bar_button" );
     expand_button -> setProperty ( "type", "expand" );
-    expand_button -> setFixedHeight ( 50 );
+    expand_button -> setFixedHeight ( 48 );
 
     updateButtonIcons ();
 
@@ -76,14 +80,14 @@ void SRAToolBar::init ()
     toolBar -> addButton ( diagnostics_button );
     toolBar -> setId ( diagnostics_button, 2 );
 
-    QVBoxLayout *layout = new QVBoxLayout ();
+    QVBoxLayout *layout = new QVBoxLayout ( );
     layout -> setMargin ( 0 );
     layout -> setSpacing ( 0 );
 
     layout -> addWidget ( home_button );
     layout -> addSpacing ( 20 );
     layout -> addWidget ( line );
-    layout -> addSpacing ( 20 );
+    layout -> addSpacing ( 12 );
     layout -> addWidget ( config_button );
     layout -> addSpacing ( 8 );
     layout -> addWidget ( diagnostics_button );
@@ -100,36 +104,27 @@ void SRAToolBar :: updateButtonIcons ()
     if ( isExpanded )
     {
         home_button -> setIcon ( QIcon ( img_path + "ncbi_logo_long.svg") . pixmap ( QSize ( 176, 48 ) ) );
-        home_button -> setIconSize ( QSize ( 192, 70 ) );
+        home_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, 70 ) );
 
-        config_button -> setIcon ( QIcon ( img_path + "ncbi_config_button_long.svg" )
-                                   .pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) ) );
-        config_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) );
+        config_button -> setText ( "Configuration" );
+        diagnostics_button -> setText ("Diagnostics     ");
 
-        diagnostics_button -> setIcon ( QIcon ( img_path + "ncbi_diagnostics_button_long.svg" )
-                                        .pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) ) );
-        diagnostics_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, TOOLBAR_BUTTON_HEIGHT ) );
-
-        expand_button -> setIcon ( QIcon ( img_path + "ncbi_expand_toolbar_button.svg" ).pixmap ( QSize ( 32, 32 ) ) );
-        expand_button -> setIconSize ( QSize ( 192, 50 ) );
+        expand_button -> setIcon ( QIcon ( img_path + "ncbi_expand_button_close.svg" ) );
+        expand_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_LONG, 48 ) );
     }
     else
     {
-        home_button -> setIcon ( QIcon ( img_path + "ncbi_helix_vertical_white.svg")
-                                 . pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) ) );
+        home_button -> setIcon ( QIcon ( img_path + "ncbi_helix_vertical.svg") );
         home_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) );
 
-        config_button -> setIcon ( QIcon ( img_path + "ncbi_config_button_white.svg" )
-                                   .pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) ) );
+        config_button -> setText ( "" );
         config_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) );
 
-        diagnostics_button -> setIcon ( QIcon ( img_path + "ncbi_diagnostics_button_white.svg" )
-                                        .pixmap ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) ) );
+        diagnostics_button -> setText ( "" );
         diagnostics_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, TOOLBAR_BUTTON_HEIGHT ) );
 
-        expand_button -> setIcon ( QIcon ( img_path + "ncbi_expand_toolbar_button.svg" )
-                                   .pixmap ( QSize ( 32, 32 ) ) );
-        expand_button -> setIconSize ( QSize ( 32, 50 ) );
+        expand_button -> setIcon ( QIcon ( img_path + "ncbi_expand_button_open.svg" ) );
+        expand_button -> setIconSize ( QSize ( TOOLBAR_BUTTON_WIDTH_SHORT, 48 ) );
     }
 }
 

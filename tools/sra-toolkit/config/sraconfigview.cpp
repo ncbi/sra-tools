@@ -54,6 +54,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QToolBar>
 
 #include <QDebug>
@@ -559,7 +560,7 @@ void SRAConfigView :: init ()
      else
         bg_local_caching -> button ( 1 ) -> setChecked ( true );
 
-    if ( model -> site_workspace_exists () )
+    if ( model -> site_workspace_exists () ) // TBD - Possible bug
     {
         if ( ! model -> site_enabled () )
             bg_use_site -> button ( 0 ) -> setChecked ( true );
@@ -583,7 +584,7 @@ void SRAConfigView :: init ()
         proxyEditor -> setText ( QString ( model -> get_proxy_path () . c_str () ) );
     }
 
-    if ( model -> proxy_priority () )
+    if ( ! model -> proxy_priority () )
         bg_prioritize_http -> button ( 0 ) -> setChecked ( true );
      else
         bg_prioritize_http -> button ( 1 ) -> setChecked ( true );
@@ -706,7 +707,6 @@ QWidget * make_editor_button_option_row ( QString name, QString desc, QLineEdit 
 
     QVBoxLayout *row_v_layout = new QVBoxLayout ();
     row_v_layout -> setSpacing ( 5 );
-
     row_v_layout -> addLayout ( row_h_layout );
     row_v_layout -> addWidget ( desc_l, 0, Qt::AlignLeft );
 
@@ -715,27 +715,26 @@ QWidget * make_editor_button_option_row ( QString name, QString desc, QLineEdit 
     return row;
 }
 
-QWidget * SRAConfigView::setup_option_group ()
+void SRAConfigView::setup_general_settings ()
 {
-    QWidget *widget = new QWidget ();
-    widget -> setObjectName ( "test_widget" );
-
-    QVBoxLayout *layout = new QVBoxLayout ();
-    layout -> setAlignment ( Qt::AlignTop );
-    layout -> setMargin ( 20 );
-    layout -> setSpacing ( 0 );
-
-    // row 1
+    QLabel *label = new QLabel ( "General Settings" );
     QPushButton *no = nullptr;
     QPushButton *yes = nullptr;
-    QString name = QString ("Enable Remote Access");
-    QString desc = QString ("Connect to NCBI over http or https. Connect to NCBI over http or https."
+    QString name;
+    QString desc;
+
+    scrollWidgetLayout -> addWidget ( label );
+    scrollWidgetLayout -> addSpacing ( 5 );
+
+    // row 1
+    name = QString ("Enable Remote Access");
+    desc = QString ("Connect to NCBI over http or https. Connect to NCBI over http or https."
                             "Connect to NCBI over http or https.Connect to NCBI over http or https."
                             "Connect to NCBI over http or https.Connect to NCBI over http or https.");
     connect ( bg_remote_access = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_remote_enabled ( int ) ) );
 
-    layout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
+    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
     // row 1
 
     // row 2
@@ -743,18 +742,34 @@ QWidget * SRAConfigView::setup_option_group ()
     connect ( bg_local_caching = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_local_caching ( int ) ) );
 
-    layout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
+    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
     // row 2
+}
 
-    // row 3
+void SRAConfigView::setup_network_setting ()
+{
+    QLabel *label = new QLabel ( "Network Settings" );
+    QPushButton *no = nullptr;
+    QPushButton *yes = nullptr;
+    QString name;
+    QString desc;
+
+    scrollWidgetLayout -> addWidget ( label );
+    scrollWidgetLayout -> addSpacing ( 5 );
+
+    // row 1
     name = QString ("Use Site Installation") ;
+    desc = QString ("Connect to NCBI over http or https. Connect to NCBI over http or https."
+                            "Connect to NCBI over http or https.Connect to NCBI over http or https."
+                            "Connect to NCBI over http or https.Connect to NCBI over http or https.");
+
     connect ( bg_use_site = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_site ( int ) ) );
 
-    layout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
-    // row 3
+    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
+    // row 1
 
-    // row 4
+    // row 2
     proxyEditor = new QLineEdit ();
     proxyEditor -> setPlaceholderText ( "xxx.xxx.xxx.xxx" );
     connect ( proxyEditor, SIGNAL ( editingFinished () ), this, SLOT ( edit_proxy_path () ) );
@@ -763,22 +778,43 @@ QWidget * SRAConfigView::setup_option_group ()
     connect ( bg_use_proxy = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_proxy ( int ) ) );
 
-    layout -> addWidget ( make_editor_button_option_row ( name, desc, proxyEditor,
+    scrollWidgetLayout -> addWidget ( make_editor_button_option_row ( name, desc, proxyEditor,
                                                           no, yes ) );
 
-    // row 4
+    // row 2
 
-    //row 5
+    //row 3
     connect ( bg_prioritize_http = make_no_yes_button_group ( &no, &yes ),
               SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_prioritize_http ( int ) ) );
 
-    name = QString ("Prioritize Environment Variable 'http-proxy'");
+    name = QString ( "Prioritize Environment Variable 'http-proxy'" );
 
-    layout -> addWidget ( make_button_option_row ( name, desc, no, yes) );
-    // row 5
+    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes) );
+    // row 3
+}
 
-    widget -> setLayout ( layout );
-    return widget;
+QWidget * SRAConfigView::setup_option_group ()
+{
+    scrollWidgetLayout = new QVBoxLayout ();
+    scrollWidgetLayout -> setAlignment ( Qt::AlignTop );
+    scrollWidgetLayout -> setMargin ( 20 );
+    scrollWidgetLayout -> setSpacing ( 0 );
+
+    setup_general_settings ();
+    scrollWidgetLayout -> addSpacing ( 20 );
+    setup_network_setting ();
+
+
+    QWidget *scrollWidget = new QWidget ();
+    scrollWidget -> setMinimumWidth ( size () . width () - 5 );
+    scrollWidget -> setLayout ( scrollWidgetLayout );
+
+    QScrollArea *scrollArea = new QScrollArea (this);
+    scrollArea -> resize ( size () );
+    scrollArea -> setHorizontalScrollBarPolicy ( Qt::ScrollBarAlwaysOff );
+    scrollArea -> setWidget ( scrollWidget );
+
+    return scrollArea;
 }
 
 
@@ -823,7 +859,7 @@ void SRAConfigView :: import_workspace ()
     QString file = QFileDialog :: getOpenFileName ( this
                                                     , "Import Workspace"
                                                     , path . c_str ()
-                                                    , tr ("NGC files (*.ngc)" ) );
+                                                    , tr ( "NGC files (*.ngc)" ) );
 
     if ( ! file . isEmpty () )
     {

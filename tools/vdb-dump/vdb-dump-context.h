@@ -88,6 +88,7 @@ extern "C" {
 #define OPTION_SLICE             "slice"
 #define OPTION_INTERACTIVE       "interactive"
 #define OPTION_LEN_SPREAD        "len-spread"
+#define OPTION_VIEW              "view"
 
 #define ALIAS_ROW_ID_ON         "I"
 #define ALIAS_LINE_FEED         "l"
@@ -147,6 +148,7 @@ typedef struct dump_context
     const char *path;
     Vector schema_list;
     const char *table;
+    const char *view;
     const char *columns;
     const char *excluded_columns;
     const char *filter;
@@ -194,6 +196,7 @@ typedef struct dump_context
     bool disable_multithreading;
     bool print_info;
     bool table_defined;
+    bool view_defined;
     bool diff;
     bool show_spotgroups;
     bool merge_ranges;
@@ -214,6 +217,8 @@ void vdco_show_help( p_dump_context ctx );
 
 rc_t vdco_set_table( p_dump_context ctx, const char *src );
 rc_t vdco_set_table_String( p_dump_context ctx, const String * src );
+
+rc_t vdco_set_view( p_dump_context ctx, const char *src );
 
 rc_t vdco_capture_arguments_and_options( const Args * args, dump_context *ctx );
 

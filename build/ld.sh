@@ -144,7 +144,7 @@ do
         BINDIR="$2"
         shift
         ;;
-        
+
     --rhome)
         RHOME="$2"
         shift
@@ -193,7 +193,7 @@ do
         fi
         LDIRS="$LDIRS:$ARG"
         ;;
-        
+
     -X*)
         ARG="${1#-X}"
         if [ "$ARG" = "" ]
@@ -400,7 +400,7 @@ do
     *.$OBJX)
         OBJS="$OBJS $1"
         ;;
-        
+
     esac
 
     shift
@@ -518,6 +518,8 @@ fi
 [ $HAVE_DL -eq 0 ] && [ $NEED_DL -ne 0 ] && LIBS="$LIBS -ldl"
 [ $HAVE_M -eq 0 ] && [ $NEED_M -ne 0 ] && HAVE_M=16
 [ $HAVE_XML -eq 0 ] && [ $NEED_XML -ne 0 ] && HAVE_XML=32
+
+LIBS="$LIBS -lstdc++"
 
 # overwrite dependencies
 [ -f "$DEPFILE" ] && rm -f "$DEPFILE"

@@ -28,7 +28,8 @@ TOP ?= $(abspath ../..)
 
 MODULE = test/vdb-dump
 
-TEST_TOOLS =
+TEST_TOOLS = \
+	test-view-spec
 
 include $(TOP)/build/Makefile.env
 
@@ -38,6 +39,9 @@ EXT_TOOLS = \
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
+
+$(TEST_TOOLS): makedirs
+	@ $(MAKE_CMD) $(TEST_BINDIR)/$@
 
 clean: stdclean
 
@@ -91,6 +95,26 @@ makedb:
 	@ cd $(SRCDIR); rm -rf data; mkdir -p data; $(BINDIR)/vdb-dump-makedb
 
 #-------------------------------------------------------------------------------
+# vdb-view-spec
+# vcommand line view spec parsing
+VIEW_SPEC_SRC = \
+	test-view-spec \
+
+VIEW_SPEC_OBJ = \
+	$(addsuffix .$(OBJX),$(VIEW_SPEC_SRC))
+
+VIEW_SPEC_LIB = \
+	-skapp \
+	-sktst \
+	-sncbi-vdb \
+
+$(TEST_BINDIR)/test-view-spec: $(VIEW_SPEC_OBJ)
+	$(LP) --exe -o $@ $^ $(VIEW_SPEC_LIB)
+
+viewspec: test-view-spec
+	$(TEST_BINDIR)/test-view-spec
+
+#-------------------------------------------------------------------------------
 # run tests for vdb-dump
 vdb-dump: makedb
 	@ rm -rf actual
@@ -107,6 +131,9 @@ vdb-dump: makedb
 	@ rm -rf data
 	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-dump
 	@ echo "...all tests passed"
+
+view:
+	vdb-dump SRR056386 -S view.vschema --view "V<SEQUENCE>" -R 1
 
 .PHONY: kar
 

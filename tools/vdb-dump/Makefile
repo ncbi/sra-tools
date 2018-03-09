@@ -76,7 +76,8 @@ VDB_DUMP_SRC = \
 	vdb-dump-repo \
 	vdb-dump-print \
 	vdb_info \
-	vdb-dump
+	vdb-dump-view-spec \
+	vdb-dump \
 
 VDB_DUMP_OBJ = \
 	$(addsuffix .$(OBJX),$(VDB_DUMP_SRC))

@@ -155,7 +155,7 @@ typedef struct {
 
     VPath *accession;
     bool isUri; /* accession is URI */
-    bool cwd; /* cache location is in the current directory */
+    bool inOutDir; /* cache location is in the output directory ow cwd */
     uint64_t project;
 
     const KartItem *kartItem;
@@ -207,9 +207,11 @@ typedef struct {
     String *ascpMaxRate;
     const char *ascpParams; /* do not free! */
 
-    bool stripQuals; /* this will download file without quality columns */
-    bool eliminateQuals; /* this will download cache file with eliminated quality columns which could filled later */
-    
+    bool stripQuals;     /* this will download file without quality columns */
+    bool eliminateQuals; /* this will download cache file with eliminated
+                            quality columns which could filled later */
+    const char * outDir;  /* do not free! */
+    const char * outFile; /* do not free! */
 #if _DEBUGGING
     const char *textkart;
 #endif
@@ -1633,26 +1635,33 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             return rc;
         }
         else {
-            const KRepository *p_protected = NULL;
-            rc = KRepositoryMgrGetProtectedRepository(repoMgr, 
-                (uint32_t)resolved->project, &p_protected);
-            if (rc == 0) {
-                rc = KRepositoryMakeResolver(p_protected,
-                    &resolved->resolver, cfg);
-                if (rc != 0) {
-                    DISP_RC(rc, "KRepositoryMakeResolver");
-                    return rc;
-                }
-                else {
-                    VResolverCacheEnable(resolved->resolver, vrAlwaysEnable);
-                }
+            if ( resolved->project == 0 ) {
+                rc = VResolverAddRef(resolver);
+                if (rc == 0)
+                    resolved->resolver = resolver;
             }
             else {
-                PLOGERR(klogErr, (klogErr, rc,
-                    "project '$(P)': cannot find protected repository", "P=%d",
-                    resolved->project));
+                const KRepository *p_protected = NULL;
+                rc = KRepositoryMgrGetProtectedRepository(repoMgr, 
+                    (uint32_t)resolved->project, &p_protected);
+                if (rc == 0) {
+                    rc = KRepositoryMakeResolver(p_protected,
+                        &resolved->resolver, cfg);
+                    if (rc != 0) {
+                        DISP_RC(rc, "KRepositoryMakeResolver");
+                        return rc;
+                    }
+                    else
+                        VResolverCacheEnable(resolved->resolver,
+                                             vrAlwaysEnable);
+                }
+                else {
+                    PLOGERR(klogErr, (klogErr, rc, "project '$(P)': "
+                        "cannot find protected repository", "P=%d",
+                        resolved->project));
+                }
+                RELEASE(KRepository, p_protected);
             }
-            RELEASE(KRepository, p_protected);
         }
     }
 
@@ -1690,7 +1699,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
     if (rc == 0) {
         if ( resolved->isUri )
             rc = VResolverQueryForUrl (resolved->resolver,
-                resolved->accession, &resolved->local.path, NULL, NULL);
+                resolved->accession, &resolved->local.path, NULL, NULL, NULL);
         else
             rc = V_ResolverLocal(resolved->resolver,
                 resolved->accession, &resolved->local.path);
@@ -1757,7 +1766,8 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 const VPath *vcache = NULL;
                 assert (resolved->remote.path && resolved->remote.str);
                 rc2 = VResolverQueryForUrl (resolved->resolver,
-                    resolved->accession, NULL, &vcache, &resolved->cwd);
+                    resolved->accession, NULL, &vcache,
+                    NULL, &resolved->inOutDir);
                 if (rc2 != 0) {
                     if (rc == 0)
                         rc = rc2;
@@ -2045,7 +2055,7 @@ static rc_t ItemDownload(Item *item) {
 
     if (rc == 0) {
         if (isLocal) {
-            if (self->cwd) {
+            if (self->inOutDir) {
                 const char * start = self->cache->addr;
                 size_t size = self->cache->size;
                 const char * end = start + size;
@@ -2074,7 +2084,7 @@ static rc_t ItemDownload(Item *item) {
             STSMSG(STS_TOP, ("%d) Downloading '%s'...", n, self->name));
             rc = MainDownload(self, item->main, item->isDependency);
             if (rc == 0) {
-                if (self->cwd) {
+                if (self->inOutDir) {
                     const char * start = self->cache->addr;
                     size_t size = self->cache->size;
                     const char * end = start + size;
@@ -2883,6 +2893,14 @@ static const char* MINSZ_USAGE[] =
 static const char* ORDR_USAGE[] = { "kart prefetch order: one of: kart, size.",
     "(in kart order, by file size: smallest first), default: size", NULL };
 
+#define OUT_DIR_OPTION "directory-prefix"
+#define OUT_DIR_ALIAS  "P"
+static const char* OUT_DIR_USAGE[] = { "save files to PREFIX/...", NULL };
+
+#define OUT_FILE_OPTION "output-file"
+#define OUT_FILE_ALIAS  "O"
+static const char* OUT_FILE_USAGE[] = { "write file to FILE", NULL };
+
 #define HBEAT_OPTION "progress"
 #define HBEAT_ALIAS  "p"
 static const char* HBEAT_USAGE[] = {
@@ -2932,7 +2950,7 @@ static const char* TEXTKART_USAGE[] =
 #endif
 
 static OptDef Options[] = {
-    /*                                                    needs_value required*/
+    /*                                          max_count needs_value required*/
     { FORCE_OPTION       , FORCE_ALIAS       , NULL, FORCE_USAGE , 1, true, false }
    ,{ TRANS_OPTION       , TRASN_ALIAS       , NULL, TRANS_USAGE , 1, true, false }
    ,{ LIST_OPTION        , LIST_ALIAS        , NULL, LIST_USAGE  , 1, false,false }
@@ -2954,6 +2972,8 @@ static OptDef Options[] = {
    ,{ TEXTKART_OPTION    , NULL              , NULL, TEXTKART_USAGE , 1, true , false}
 #endif
    ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
+   ,{ OUT_FILE_OPTION    , OUT_FILE_ALIAS    , NULL, OUT_FILE_USAGE , 1, true, false}
+   ,{ OUT_DIR_OPTION     , OUT_DIR_ALIAS     , NULL, OUT_DIR_USAGE  , 1, true, false}
 };
 
 static ParamDef Parameters[] = { { ArgsConvFilepath } };
@@ -3320,11 +3340,46 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
 #if ALLOW_STRIP_QUALS
         if (self->stripQuals && self->eliminateQuals) {
             rc = RC(rcExe, rcArgv, rcParsing, rcParam, rcInvalid);
-            LOGERR(klogErr, rc, "Cannot set both '" STRIP_QUALS_OPTION "' and '" ELIM_QUALS_OPTION "'");
+            LOGERR(klogErr, rc, "Cannot specify both --" STRIP_QUALS_OPTION
+                                       "and --" ELIM_QUALS_OPTION );
             break;
         }
 #endif
         
+/* OUT_DIR_OPTION */
+        rc = ArgsOptionCount(self->args, OUT_DIR_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr,
+                rc, "Failure to get '" OUT_DIR_OPTION "' argument");
+            break;
+        }
+        if (pcount > 0) {
+            rc = ArgsOptionValue(self->args,
+                OUT_DIR_OPTION, 0, (const void **)&self->outDir);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OUT_DIR_OPTION "' argument value");
+                break;
+            }
+        }
+
+/* OUT_FILE_OPTION */
+        rc = ArgsOptionCount(self->args, OUT_FILE_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr,
+                rc, "Failure to get '" OUT_FILE_OPTION "' argument");
+            break;
+        }
+        if (pcount > 0) {
+            rc = ArgsOptionValue(self->args,
+                OUT_FILE_OPTION, 0, (const void **)&self->outFile);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" OUT_FILE_OPTION "' argument value");
+                break;
+            }
+        }
+
 #if _DEBUGGING
 /* TEXTKART_OPTION */
         rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);
@@ -3410,6 +3465,12 @@ rc_t CC Usage(const Args *args) {
             else if (strcmp(Options[i].aliases, ROWS_ALIAS) == 0) {
                 param = "rows";
             }
+            else if (strcmp(Options[i].aliases, OUT_DIR_ALIAS) == 0) {
+                param = "PREFIX";
+            }
+            else if (strcmp(Options[i].aliases, OUT_FILE_ALIAS) == 0) {
+                param = "FILE";
+            }
             else if (strcmp(Options[i].aliases, SIZE_ALIAS) == 0
                   || strcmp(Options[i].aliases, MINSZ_ALIAS) == 0)
             {
@@ -3426,8 +3487,9 @@ rc_t CC Usage(const Args *args) {
 #endif
 
         if (Options[i].aliases != NULL &&
-            (strcmp(Options[i].aliases, TRASN_ALIAS) == 0 ||
-             strcmp(Options[i].aliases, CHECK_ALL_ALIAS) == 0))
+            (strcmp(Options[i].aliases, TRASN_ALIAS    ) == 0 ||
+             strcmp(Options[i].aliases, CHECK_ALL_ALIAS) == 0 ||
+             strcmp(Options[i].aliases, OUT_FILE_ALIAS ) == 0 ))
         {
             OUTMSG(("\n"));
         }
@@ -3602,24 +3664,25 @@ static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
     assert(self && realArg);
     memset(&it, 0, sizeof it);
 
-    if (rc == 0) {
+    if (rc == 0)
         rc = IteratorInit(&it, arg, self);
+
+    if ( rc == 0 && it . kart != NULL && self -> outFile ) {
+        rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
+        LOGERR ( klogErr, rc, "Cannot specify --" OUT_FILE_OPTION
+                                    " when downloading kart file" );
     }
 
-    if (self->list_kart_sized) {
+    if (self->list_kart_sized)
         type = eRunTypeList;
-    }
     else if (self->order == eOrderSize) {
-        if (rc == 0 && it.kart == NULL) {
+        if (rc == 0 && it.kart == NULL)
             type = eRunTypeDownload;
-        }
-        else {
+        else
             type = eRunTypeGetSize;
-        }
     }
-    else {
+    else
         type = eRunTypeDownload;
-    }
 
     if (rc == 0) {
         BSTree trKrt;
@@ -3791,8 +3854,10 @@ rc_t CC KMain(int argc, char *argv[]) {
 #if _DEBUGGING
         if (!pars.textkart)
 #endif
+        {
           rc = UsageSummary(UsageDefaultName);
           insufficient = true;
+        }
     }
 
     if (rc == 0) {
@@ -3800,19 +3865,29 @@ rc_t CC KMain(int argc, char *argv[]) {
 
 #if _DEBUGGING
         if (pars.textkart) {
-            rc = MainRun(&pars, NULL, pars.textkart);
+            if ( pars . outFile != NULL ) {
+                rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
+                LOGERR ( klogErr, rc, "Cannot specify both --" OUT_FILE_OPTION
+                                            " and --" TEXTKART_OPTION );
+            }
+            else
+                rc = MainRun(&pars, NULL, pars.textkart);
         }
 #endif
 
-        for (i = 0; i < pcount; ++i) {
+        if ( pars . outFile != NULL && pcount > 1 ) {
+            rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
+            LOGERR ( klogErr, rc, "Cannot specify --" OUT_FILE_OPTION
+                                        " when downloading multiple objects" );
+        }
+        else for (i = 0; i < pcount; ++i) {
             const char *obj = NULL;
             rc_t rc2 = ArgsParamValue(pars.args, i, (const void **)&obj);
             DISP_RC(rc2, "ArgsParamValue");
             if (rc2 == 0) {
                 rc2 = MainRun(&pars, obj, obj);
-                if (rc2 != 0 && rc == 0) {
+                if (rc2 != 0 && rc == 0)
                     rc = rc2;
-                }
             }
         }
 

@@ -78,6 +78,8 @@ endif
 $(BINDIR)/sra-toolkit:
 	qmake $(SRCDIR)/sra-toolkit.pro -spec linux-g++ CONFIG+=$(QT_CONF)
 	make -C $(OBJDIR)
-	cp $(OBJDIR)/sra-toolkit $(BINDIR)
+	cp $(OBJDIR)/sra-toolkit $(BINDIR)/sra-toolkit$(VERSION_EXEX)
+	ln -s sra-toolkit$(VERSION_EXEX) $(BINDIR)/sra-toolkit$(MAJVERS_EXEX)
+	ln -s sra-toolkit$(MAJVERS_EXEX) $(BINDIR)/sra-toolkit
 
 endif

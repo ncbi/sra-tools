@@ -70,16 +70,15 @@ clean: stdclean
 #
 
 ifeq (dbg,$(BUILD))
-	QT_CONF=debug
+   QT_CONF = debug
 else
-	QT_CONF=release
+   QT_CONF = release
 endif
 
 $(BINDIR)/sra-toolkit:
-	qmake $(SRCDIR)/sra-toolkit.pro -spec linux-g++ CONFIG+=$(QT_CONF)
+	qmake $(SRCDIR)/sra-toolkit.pro CONFIG+=$(QT_CONF) CONFIG+=make
 	make -C $(OBJDIR)
 	cp $(OBJDIR)/sra-toolkit $(BINDIR)/sra-toolkit$(VERSION_EXEX)
 	ln -s sra-toolkit$(VERSION_EXEX) $(BINDIR)/sra-toolkit$(MAJVERS_EXEX)
 	ln -s sra-toolkit$(MAJVERS_EXEX) $(BINDIR)/sra-toolkit
-
 endif

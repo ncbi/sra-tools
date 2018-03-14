@@ -24,7 +24,7 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 INCLUDEPATH +=  ../../../ncbi-vdb/interfaces
 
-unix {
+unix:!macx {
 INCLUDEPATH +=  ../../../ncbi-vdb/interfaces/os/linux \
                 ../../../ncbi-vdb/interfaces/os/unix \
                 ../../../ncbi-vdb/interfaces/cc/gcc \
@@ -33,11 +33,31 @@ LIBS += -L/home/boshkins/ncbi-outdir/ncbi-vdb/linux/gcc/x86_64/dbg/lib -lncbi-vd
 }
 
 macx {
-INCLUDEPATH +=  ../../../ncbi-vdb/interfaces/os/mac \
-                ../../../ncbi-vdb/interfaces/os/unix \
-                ../../../ncbi-vdb/interfaces/cc/gcc \
-                ../../../ncbi-vdb/interfaces/cc/gcc/x86_64
-LIBS += -L/Users/rodarme1/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-vdb -ldiagnose
+    INCLUDEPATH +=  ../../../ncbi-vdb/interfaces/os/mac \
+                    ../../../ncbi-vdb/interfaces/os/unix \
+                    ../../../ncbi-vdb/interfaces/cc/gcc \
+                    ../../../ncbi-vdb/interfaces/cc/gcc/x86_64
+
+    CONFIG -= app_bundle
+
+    CONFIG(debug) {
+        BUILD = dbg
+    } else {
+        BUILD = rel
+    }
+
+    TARGDIR = $$OUT_PWD
+#TODO: move common lines out of ifs
+    DESTDIR = $$TARGDIR
+    OBJECTS_DIR = $$TARGDIR/obj/sra-toolkit
+    MOC_DIR = $$OBJECTS_DIR/.moc
+    RCC_DIR = $$OBJECTS_DIR/.rcc
+    UI_DIR = $$OBJECTS_DIR/.ui
+    make {
+        LIBS += -L$$OUT_PWD/../../../../../../../../ncbi-vdb/mac/clang/x86_64/$$BUILD/lib -lncbi-vdb -ldiagnose
+    } else {
+        LIBS += -L~/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/$$BUILD/lib -lncbi-vdb -ldiagnose
+    }
 }
 
 win32 {

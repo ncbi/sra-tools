@@ -24,6 +24,14 @@ DEFINES += QT_DEPRECATED_WARNINGS
 
 INCLUDEPATH +=  ../../../ncbi-vdb/interfaces
 
+unix {
+INCLUDEPATH +=  ../../../ncbi-vdb/interfaces/os/linux \
+                ../../../ncbi-vdb/interfaces/os/unix \
+                ../../../ncbi-vdb/interfaces/cc/gcc \
+                ../../../ncbi-vdb/interfaces/cc/gcc/x86_64
+LIBS += -L/home/boshkins/ncbi-outdir/ncbi-vdb/linux/gcc/x86_64/dbg/lib -lncbi-vdb -ldiagnose
+}
+
 macx {
 INCLUDEPATH +=  ../../../ncbi-vdb/interfaces/os/mac \
                 ../../../ncbi-vdb/interfaces/os/unix \

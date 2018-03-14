@@ -22,67 +22,64 @@
 #
 # ===========================================================================
 
-by_default: default
 
-TOP ?= $(abspath ..)
-MODULE = tools
+default: std
 
-include $(TOP)/build/Makefile.shell
+TOP ?= $(abspath ../..)
+MODULE = tools/sra-toolkit
 
-include $(TOP)/build/Makefile.config
+INT_TOOLS = \
 
-#-------------------------------------------------------------------------------
-# default
-#
-SUBDIRS =             \
-	util              \
-	align-cache       \
-	kar               \
-	kqsh              \
-	vdb-dump          \
-	sra-dump          \
-	sra-pileup        \
-	bam-loader        \
-	fastq-loader      \
-	srapath           \
-	sra-stat          \
-	vdb-copy          \
-	rd-filter-redact  \
-	vdb-config        \
-	align-info        \
-	qual-recalib-stat \
-	prefetch          \
-	vdb-decrypt       \
-	vdb-validate      \
-	sra-sort          \
-	cache-mgr         \
-	vcf-loader        \
-	copycat           \
-	sra-load          \
-	ccextract         \
-	pacbio-load       \
-	fuse              \
-	vdb-diff          \
-	kget              \
-	ngs-pileup        \
-	general-loader    \
-	fastdump          \
-	cg-load           \
-	pileup-stats      \
-	sra-toolkit       \
+EXT_TOOLS = \
+	sra-toolkit
 
-# common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
-include $(TOP)/build/Makefile.targets
+ALL_TOOLS = \
+	$(INT_TOOLS) \
+	$(EXT_TOOLS)
 
-$(SUBDIRS):
-	@ $(MAKE) -C $@
+include $(TOP)/build/Makefile.env
 
-.PHONY: default $(SUBDIRS)
+ifeq (,$(shell qmake -v))
+all std: $(ALL_TOOLS)
+
+$(ALL_TOOLS):
+	@ echo "NOTE - $(@F) cannot be built:"               \
+	       "It requires Qt to be installed"
+else
 
 #-------------------------------------------------------------------------------
-# pass-through
+# outer targets
 #
-out debug profile release GCC ICC VC++:
-	@ $(MAKE) TOP=$(TOP) -f $(TOP)/build/Makefile.env $@
+all std: makedirs
+	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-.PHONY: out debug profile release GCC ICC VC++
+$(ALL_TOOLS): makedirs
+	@ $(MAKE_CMD) $(BINDIR)/$@
+
+.PHONY: all std $(ALL_TOOLS)
+
+#-------------------------------------------------------------------------------
+# clean
+#
+clean: stdclean
+
+.PHONY: clean
+
+#-------------------------------------------------------------------------------
+# sra-toolkit
+#
+
+ifeq (dbg,$(BUILD))
+	QT_CONF=debug
+else
+	QT_CONF=release
+endif
+
+$(BINDIR)/sra-toolkit:
+	qmake $(SRCDIR)/sra-toolkit.pro -spec linux-g++ CONFIG+=$(QT_CONF)
+	make -C $(OBJDIR)
+	cp $(OBJDIR)/sra-toolkit $(BINDIR)/sra-toolkit$(VERSION_EXEX)
+	ln -s sra-toolkit$(VERSION_EXEX) $(BINDIR)/sra-toolkit$(MAJVERS_EXEX)
+	ln -s sra-toolkit$(MAJVERS_EXEX) $(BINDIR)/sra-toolkit
+
+endif

@@ -3,22 +3,23 @@
     <description>
         Ant script for NCBI-VDB
     </description>
-	
+
     <property environment="env"/>
     <property name="Platform"       value="x64" />
     <property name="Configuration"  value="Debug" />
-    <property name="Output"         value="${basedir}\..\..\..\OUTDIR" />
-	
+    <property name="Output"         value="${basedir}\..\..\..\..\OUTDIR" />
+    <property name="Toolset"        value="v120" />
+
     <target name="help">
   		<echo message="">
 Apache Ant script for automated testing of SRA-TOOLS on Windonws
 
 Usage (in the directory of this file, build.xml):
-  ant [options] target1 target2 ... 
-  
+  ant [options] target1 target2 ...
+
 Example:
   ant -DConfiguration=Debug -Platform=Win32 help std
-  
+
 Supported targets:
 	help - print this text and exit
     clean       - remove all build artefacts
@@ -26,48 +27,70 @@ Supported targets:
     quick       - same as build
     runtests    - build and run small tests
     std         - clean, runtests (default)
-	
+
 Options:
-    -DConfiguration=Debug or -DConfiguration=Release (default)  
-    -DPlatform=Win32 or -DPlatform=x64 (default)  
-    -DOutput=path   folder to create output in (default: ../../../OUTDIR)
+    -DConfiguration=Debug or -DConfiguration=Release (default)
+    -DPlatform=Win32 or -DPlatform=x64 (default)
+    -DOutput=path   folder to create output in (default: ../../../../OUTDIR)
+
+Note: Need to have Qt (version 5.10.0 or newer) platform-specific binaries and tools in PATH, e.g.: C:\Qt\5.10.1\msvc2013_64\bin;C:\Qt\Tools\QtCreator\bin
   		</echo>
     </target>
 
     <target name="clean">
-        <exec executable="msbuild.exe"  failonerror="true">
-            <arg value="sra-tools.sln"/>
-            <arg value="/t:clean"/>
-            <arg value="/m"/>
-            <arg value="/p:Platform=${Platform}"/>
-            <arg value="/p:Configuration=${Configuration}"/>
-            <arg value="/p:NGS_OUTDIR=${Output}"/>
-        </exec>
+        <sequential>
+            <exec executable="msbuild.exe"  failonerror="true">
+                <arg value="sra-tools.sln"/>
+                <arg value="/t:clean"/>
+                <arg value="/m"/>
+                <arg value="/p:Platform=${Platform}"/>
+                <arg value="/p:Configuration=${Configuration}"/>
+                <arg value="/p:NGS_OUTDIR=${Output}\"/>
+            </exec>
+            <exec executable="jom.exe" failonerror="true" dir="${Output}\sra-tools\sra-toolkit">
+                <arg value="-f"/>
+                <arg value="Makefile.${Configuration}"/>
+                <arg value="clean"/>
+            </exec>
+            <delete file="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}\bin\sra-toolkit.exe" failonerror="false"/>
+            <delete file="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}\bin\sra-toolkit.pdb" failonerror="false"/>
+        </sequential>
     </target>
-    
+
     <target name="build">
-        <exec executable="msbuild.exe" failonerror="true">
-            <arg value="sra-tools.sln"/>
-            <arg value="/m"/>
-            <arg value="/p:Platform=${Platform}"/>
-            <arg value="/p:Configuration=${Configuration}"/>
-            <arg value="/p:NGS_OUTDIR=${Output}"/>
-        </exec>
+        <sequential>
+            <exec executable="msbuild.exe" failonerror="true">
+                <arg value="sra-tools.sln"/>
+                <arg value="/m"/>
+                <arg value="/p:Platform=${Platform}"/>
+                <arg value="/p:Configuration=${Configuration}"/>
+                <arg value="/p:NGS_OUTDIR=${Output}\"/>
+            </exec>
+            <exec executable="qmake.exe" failonerror="true" dir="${Output}\sra-tools\sra-toolkit">
+                <arg value="${basedir}\..\..\..\tools\sra-toolkit\sra-toolkit.pro"/>
+                <arg value="-spec"/>
+                <arg value="win32-msvc"/>
+                <arg value="CONFIG+=debug"/>
+            </exec>
+            <exec executable="jom.exe" failonerror="true" dir="${Output}\sra-tools\sra-toolkit">
+                <arg value="-f"/>
+                <arg value="Makefile.${Configuration}"/>
+            </exec>
+        </sequential>
     </target>
-    
-    
+
+
     <target name="runtests" depends="build">
         <exec executable="msbuild.exe" failonerror="true">
             <arg value="test-sra-tools.sln"/>
             <arg value="/p:Platform=${Platform}"/>
             <arg value="/p:Configuration=${Configuration}"/>
-            <arg value="/p:NGS_OUTDIR=${Output}"/>
+            <arg value="/p:NGS_OUTDIR=${Output}\"/>
             <arg value="/p:Autorun=true"/>
         </exec>
     </target>
-    
+
     <target name="std" depends="clean,runtests" />
-        
+
     <target name="quick" depends="build" />
-	
 </project>

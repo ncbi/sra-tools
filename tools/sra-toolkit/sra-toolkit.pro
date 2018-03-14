@@ -22,7 +22,6 @@ DEFINES += QT_DEPRECATED_WARNINGS
 # You can also select to disable deprecated APIs only up to a certain version of Qt.
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
-
 INCLUDEPATH +=  ../../../ncbi-vdb/interfaces
 
 macx {
@@ -34,10 +33,29 @@ LIBS += -L/Users/rodarme1/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-v
 }
 
 win32 {
-INCLUDEPATH += ../../../ncbi-vdb/interfaces/os/win \
-                ../../../ncbi-vdb/interfaces/cc/vc++
-LIBS += $$PWD/../../../OUTDIR/ncbi-vdb/win/v120/x64/Debug/bin/ncbi-vdb-md.lib \
-        $$PWD/../../../OUTDIR/ncbi-vdb/win/v120/x64/Debug/lib/diagnose.lib
+    INCLUDEPATH += ../../../ncbi-vdb/interfaces/os/win \
+                    ../../../ncbi-vdb/interfaces/cc/vc++
+
+# on Windows, Makefiles are placed in .../sra-tools/../OUTDIR/sra-tools/$$projectname
+    TARGDIR = $$OUT_PWD/../win/v120/x64
+    NCBI_VDB_LIBDIR = $$OUT_PWD/../../ncbi-vdb/win/v120/x64
+
+    CONFIG(debug, debug|release) {
+        NCBI_VDB_LIBDIR = $$NCBI_VDB_LIBDIR/Debug/bin
+        TARGDIR = $$TARGDIR/Debug
+    } else {
+#TODO: make Release work
+        NCBI_VDB_LIBDIR = $$NCBI_VDB_LIBDIR/Release/bin
+        TARGDIR = $$TARGDIR/Release
+    }
+
+    LIBS += $$NCBI_VDB_LIBDIR/ncbi-vdb-md.lib
+
+    DESTDIR = $$TARGDIR/bin
+    OBJECTS_DIR = $$TARGDIR/obj/sra-toolkit
+    MOC_DIR = $$OBJECTS_DIR/.moc
+    RCC_DIR = $$OBJECTS_DIR/.rcc
+    UI_DIR = $$OBJECTS_DIR/.ui
 }
 
 SOURCES += main.cpp\

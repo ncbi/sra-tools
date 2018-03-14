@@ -1,7 +1,7 @@
 <project name="SRA-TOOLS" default="runtests" basedir=".">
 
     <description>
-        Ant script for NCBI-VDB
+        Ant script for SRA_TOOLS
     </description>
 	
     <property environment="env"/>

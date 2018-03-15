@@ -1,7 +1,7 @@
 <project name="SRA-TOOLS" default="std" basedir=".">
 
     <description>
-        Ant script for NCBI-VDB
+        Ant script for SRA-TOOLS using MSVC 2013
     </description>
 
     <property environment="env"/>
@@ -9,6 +9,7 @@
     <property name="Configuration"  value="Debug" />
     <property name="Output"         value="${basedir}\..\..\..\..\OUTDIR" />
     <property name="Toolset"        value="v120" />
+    <property name="TargetDir"      value="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}"/>
 
     <target name="help">
   		<echo message="">
@@ -47,13 +48,13 @@ Note: Need to have Qt (version 5.10.0 or newer) platform-specific binaries and t
                 <arg value="/p:Configuration=${Configuration}"/>
                 <arg value="/p:NGS_OUTDIR=${Output}\"/>
             </exec>
-            <exec executable="jom.exe" failonerror="true" dir="${Output}\sra-tools\sra-toolkit">
+            <exec executable="jom.exe" failonerror="false" dir="${TargetDir}\obj\sra-toolkit">
                 <arg value="-f"/>
                 <arg value="Makefile.${Configuration}"/>
                 <arg value="clean"/>
             </exec>
-            <delete file="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}\bin\sra-toolkit.exe" failonerror="false"/>
-            <delete file="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}\bin\sra-toolkit.pdb" failonerror="false"/>
+            <delete file="${TargetDir}\bin\sra-toolkit.exe" failonerror="false"/>
+            <delete file="${TargetDir}\bin\sra-toolkit.pdb" failonerror="false"/>
         </sequential>
     </target>
 
@@ -66,13 +67,14 @@ Note: Need to have Qt (version 5.10.0 or newer) platform-specific binaries and t
                 <arg value="/p:Configuration=${Configuration}"/>
                 <arg value="/p:NGS_OUTDIR=${Output}\"/>
             </exec>
-            <exec executable="qmake.exe" failonerror="true" dir="${Output}\sra-tools\sra-toolkit">
+            <mkdir dir="${TargetDir}\obj\sra-toolkit"/>
+            <exec executable="qmake.exe" failonerror="true" dir="${TargetDir}\obj\sra-toolkit">
                 <arg value="${basedir}\..\..\..\tools\sra-toolkit\sra-toolkit.pro"/>
                 <arg value="-spec"/>
                 <arg value="win32-msvc"/>
                 <arg value="CONFIG+=debug"/>
             </exec>
-            <exec executable="jom.exe" failonerror="true" dir="${Output}\sra-tools\sra-toolkit">
+            <exec executable="jom.exe" failonerror="true" dir="${TargetDir}\obj\sra-toolkit">
                 <arg value="-f"/>
                 <arg value="Makefile.${Configuration}"/>
             </exec>

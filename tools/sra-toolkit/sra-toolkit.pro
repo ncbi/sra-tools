@@ -47,15 +47,12 @@ macx {
     }
 
     TARGDIR = $$OUT_PWD
-#TODO: move common lines out of ifs
     DESTDIR = $$TARGDIR
-    OBJECTS_DIR = $$TARGDIR/obj/sra-toolkit
-    MOC_DIR = $$OBJECTS_DIR/.moc
-    RCC_DIR = $$OBJECTS_DIR/.rcc
-    UI_DIR = $$OBJECTS_DIR/.ui
+
     make {
         LIBS += -L$$OUT_PWD/../../../../../../../../ncbi-vdb/mac/clang/x86_64/$$BUILD/lib -lncbi-vdb -ldiagnose
     } else {
+# QCreator build
         LIBS += -L~/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/$$BUILD/lib -lncbi-vdb -ldiagnose
     }
 }
@@ -64,27 +61,22 @@ win32 {
     INCLUDEPATH += ../../../ncbi-vdb/interfaces/os/win \
                     ../../../ncbi-vdb/interfaces/cc/vc++
 
-# on Windows, Makefiles are placed in .../sra-tools/../OUTDIR/sra-tools/$$projectname
-    TARGDIR = $$OUT_PWD/../win/v120/x64
-    NCBI_VDB_LIBDIR = $$OUT_PWD/../../ncbi-vdb/win/v120/x64
-
-    CONFIG(debug, debug|release) {
-        NCBI_VDB_LIBDIR = $$NCBI_VDB_LIBDIR/Debug/bin
-        TARGDIR = $$TARGDIR/Debug
+    CONFIG(debug) {
+        BUILD = Debug
     } else {
-#TODO: make Release work
-        NCBI_VDB_LIBDIR = $$NCBI_VDB_LIBDIR/Release/bin
-        TARGDIR = $$TARGDIR/Release
+        BUILD = Release
     }
 
-    LIBS += $$NCBI_VDB_LIBDIR/ncbi-vdb-md.lib
-
+    TARGDIR = $$OUT_PWD/../../$$BUILD
     DESTDIR = $$TARGDIR/bin
-    OBJECTS_DIR = $$TARGDIR/obj/sra-toolkit
-    MOC_DIR = $$OBJECTS_DIR/.moc
-    RCC_DIR = $$OBJECTS_DIR/.rcc
-    UI_DIR = $$OBJECTS_DIR/.ui
+
+    LIBS += $$OUT_PWD/../../../../../../../ncbi-vdb/win/v120/x64/$$BUILD/bin/ncbi-vdb-md.lib
 }
+
+OBJECTS_DIR = $$TARGDIR/obj/sra-toolkit
+MOC_DIR = $$OBJECTS_DIR/.moc
+RCC_DIR = $$OBJECTS_DIR/.rcc
+UI_DIR = $$OBJECTS_DIR/.ui
 
 SOURCES += main.cpp\
         sratoolkit.cpp \

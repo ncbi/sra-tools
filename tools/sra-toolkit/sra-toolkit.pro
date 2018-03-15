@@ -53,7 +53,8 @@ macx {
         LIBS += -L$$OUT_PWD/../../../../../../../../ncbi-vdb/mac/clang/x86_64/$$BUILD/lib -lncbi-vdb -ldiagnose
     } else {
 # QCreator build
-        LIBS += -L~/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/$$BUILD/lib -lncbi-vdb -ldiagnose
+        #LIBS += -L~/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/$$BUILD/lib -lncbi-vdb -ldiagnose
+        LIBS += -L$(HOME)/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/$$BUILD/lib -lncbi-vdb -ldiagnose
     }
 }
 

@@ -67,7 +67,7 @@ win32 {
         BUILD = Release
     }
 
-    TARGDIR = $$OUT_PWD/../../$$BUILD
+    TARGDIR = $$OUT_PWD/../../../$$BUILD
     DESTDIR = $$TARGDIR/bin
 
     LIBS += $$OUT_PWD/../../../../../../../ncbi-vdb/win/v120/x64/$$BUILD/bin/ncbi-vdb-md.lib

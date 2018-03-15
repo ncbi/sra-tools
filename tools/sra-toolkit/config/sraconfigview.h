@@ -84,7 +84,7 @@ private slots:
 private:
 
     void closeEvent ( QCloseEvent *event );
-    void init ();
+    void load_settings ();
 
     void add_workspace ( QString name, QString val, int ngc_id, bool insert = false );
 

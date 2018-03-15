@@ -13,7 +13,7 @@
 static
 void delay ()
 {
-    int delay = qrand () % 500;
+    int delay = qrand () % 250;
     QTime dieTime= QTime :: currentTime ( ) . addMSecs ( delay );
     while ( QTime :: currentTime() < dieTime )
         QCoreApplication::processEvents ( QEventLoop :: AllEvents );
@@ -33,7 +33,7 @@ void CC callback ( EKDiagTestState state, const KDiagnoseTest *diagnose_test, vo
         return;
     }
 
-    //delay ();
+    delay ();
     rc_t rc = KDiagnoseTestName ( diagnose_test, &name );
     if ( rc ==  0 )
     {

@@ -54,6 +54,10 @@ border: 1px;
    border-bottom: 1px solid gray;
 }
 
+#scroll_widget
+{
+border: 1px solid rgba(255,0,0,1.0);
+}
 
 #row_widget
 {
@@ -145,13 +149,13 @@ QLineEdit::disabled
 #start_diagnostics_button, #cancel_diagnostics_button
 {
    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-   stop: 0 #7DE22F,
+   stop: 0 #61c419,
    stop: 0.5 #61c419,
-   stop: 1.0 #7DE22F );
+   stop: 1.0 #61c419 );
    color: white;
 
    border: 1px solid black;
-   border-radius: 40px;
+   border-radius: 2px;
 
    font-size: 16px;
    font-family: "Candara";
@@ -161,9 +165,9 @@ QLineEdit::disabled
 #cancel_diagnostics_button
 {
    background: qlineargradient(x1: 0, y1: 0, x2: 0, y2: 1,
-   stop: 0 #cf0404,
+   stop: 0 #ff3019,
    stop: 0.5 #ff3019,
-   stop: 1.0 #cf0404 );
+   stop: 1.0 #ff3019 );
 }
 
 /*

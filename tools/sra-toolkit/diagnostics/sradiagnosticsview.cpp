@@ -12,7 +12,9 @@
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QGridLayout>
+#include <QHeaderView>
 #include <QLabel>
+#include <QProgressBar>
 #include <QPushButton>
 #include <QThread>
 #include <QTreeWidget>
@@ -108,30 +110,39 @@ void SRADiagnosticsView :: init_tree_view ()
 
 void SRADiagnosticsView :: init_controls ()
 {
+
     start_button = new QPushButton ("Start");
     start_button -> setObjectName ( "start_diagnostics_button" );
-    start_button -> setFixedSize ( 80, 80 );
+    start_button -> setFixedSize ( 120, 60 );
 
     cancel_button = new QPushButton ("Cancel");
     cancel_button -> setObjectName ( "cancel_diagnostics_button" );
-    cancel_button -> setFixedSize ( 80, 80 );
+    cancel_button -> setFixedSize ( 120, 60 );
     cancel_button -> hide ();
+
+    p_bar = new QProgressBar ();
+    p_bar -> hide ();
+    p_bar -> setFixedWidth ( 120 );
+    p_bar -> setMinimum ( 0 );
+    p_bar -> setMaximum ( 130 );
 
     connect ( start_button, SIGNAL ( clicked () ), this, SLOT ( start_diagnostics () ) );
     connect ( cancel_button, SIGNAL ( clicked () ), this, SLOT ( cancel_diagnostics () ) );
 
-    self_layout -> addWidget ( start_button );
-    self_layout -> addWidget ( cancel_button );
+    QHBoxLayout *controls_layout = new QHBoxLayout ();
+    controls_layout -> setAlignment ( Qt::AlignRight );
 
-    self_layout -> setAlignment ( start_button, Qt::AlignRight );
-    self_layout -> setAlignment ( cancel_button, Qt::AlignRight );
+    controls_layout -> addStretch ( 1 );
+    controls_layout -> addWidget ( p_bar );
+    controls_layout -> addWidget ( start_button );
+    controls_layout -> addWidget ( cancel_button );
+
+    self_layout -> addLayout ( controls_layout );
 }
 
 
 void SRADiagnosticsView :: handle_callback ( DiagnosticsTest *test )
 {
-    //qDebug () << test -> getName () << "- State: " << test -> getState ();
-
     switch ( test -> getState () )
     {
     case DTS_Started:
@@ -171,6 +182,7 @@ void SRADiagnosticsView :: handle_callback ( DiagnosticsTest *test )
     {
         QTreeWidgetItem *parent = currentTest -> parent ();
         currentTest -> setText ( 2, "Passed" );
+        currentTest -> setTextColor ( 2, QColor ("green") );
 
         switch ( test -> getLevel () )
         {
@@ -195,6 +207,7 @@ void SRADiagnosticsView :: handle_callback ( DiagnosticsTest *test )
     {
         QTreeWidgetItem *parent = currentTest -> parent ();
         currentTest -> setText ( 2, "Failed" );
+        currentTest -> setTextColor ( 2, QColor ("red") );
 
         switch ( test -> getLevel () )
         {
@@ -229,6 +242,9 @@ void SRADiagnosticsView :: handle_callback ( DiagnosticsTest *test )
     tree_view -> resizeColumnToContents ( 0 );
     tree_view -> resizeColumnToContents ( 1 );
     tree_view -> resizeColumnToContents ( 2 );
+
+    progress_val += 1;
+    p_bar -> setValue ( progress_val );
 }
 
 void SRADiagnosticsView :: start_diagnostics ()
@@ -246,7 +262,10 @@ void SRADiagnosticsView :: start_diagnostics ()
     connect ( worker, SIGNAL ( finished () ), this, SLOT ( worker_finished () ) );
     connect ( thread, SIGNAL ( finished () ), thread, SLOT ( deleteLater () ) );
 
+    progress_val = 0;
     thread -> start ();
+
+    p_bar -> show ();
     start_button -> hide ();
     cancel_button -> show ();
 }
@@ -266,6 +285,8 @@ void SRADiagnosticsView :: cancel_diagnostics ()
 
 void SRADiagnosticsView :: worker_finished ()
 {
+    p_bar -> reset ();
+    p_bar -> hide ();
     cancel_button -> hide ();
     start_button -> show ();
 }

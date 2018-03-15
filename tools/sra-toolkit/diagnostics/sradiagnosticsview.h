@@ -5,6 +5,7 @@
 
 QT_BEGIN_NAMESPACE
 class QVBoxLayout;
+class QProgressBar;
 class QPushButton;
 class QTreeWidget;
 class QTreeWidgetItem;
@@ -49,6 +50,8 @@ private:
 
     QPushButton *start_button;
     QPushButton *cancel_button;
+    QProgressBar *p_bar;
+    int progress_val;
 
     // Data
     const KConfig *config;

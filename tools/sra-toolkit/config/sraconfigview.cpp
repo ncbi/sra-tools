@@ -530,14 +530,14 @@ SRAConfigView :: SRAConfigView ( QWidget *parent )
 
     main_layout -> setAlignment ( Qt::AlignTop );
     main_layout -> setMargin ( 0 );
+    main_layout -> setSpacing ( 0 );
 
     main_layout -> addWidget ( setup_workflow_group () );
     main_layout -> addWidget ( setup_option_group () );
 
     setLayout ( main_layout );
 
-    init ();
-
+    load_settings ();
 
     show ();
 }
@@ -548,7 +548,7 @@ SRAConfigView :: ~SRAConfigView ()
 }
 
 
-void SRAConfigView :: init ()
+void SRAConfigView :: load_settings ()
 {
     if ( ! model -> remote_enabled () )
         bg_remote_access -> button ( 0 ) -> setChecked ( true );
@@ -797,7 +797,6 @@ QWidget * SRAConfigView::setup_option_group ()
 {
     scrollWidgetLayout = new QVBoxLayout ();
     scrollWidgetLayout -> setAlignment ( Qt::AlignTop );
-    scrollWidgetLayout -> setMargin ( 20 );
     scrollWidgetLayout -> setSpacing ( 0 );
 
     setup_general_settings ();
@@ -806,11 +805,12 @@ QWidget * SRAConfigView::setup_option_group ()
 
 
     QWidget *scrollWidget = new QWidget ();
+    scrollWidget -> setObjectName ("scroll_widget");
     scrollWidget -> setMinimumWidth ( size () . width () - 5 );
     scrollWidget -> setLayout ( scrollWidgetLayout );
 
-    QScrollArea *scrollArea = new QScrollArea (this);
-    scrollArea -> resize ( size () );
+    QScrollArea *scrollArea = new QScrollArea ();
+    scrollArea -> resize ( QSize ( size () . width (), size () . height () - 70 ) );
     scrollArea -> setHorizontalScrollBarPolicy ( Qt::ScrollBarAlwaysOff );
     scrollArea -> setWidget ( scrollWidget );
 
@@ -1004,7 +1004,7 @@ void SRAConfigView :: commit_config ()
 void SRAConfigView :: reload_config ()
 {
     model -> reload ();
-    init ();
+    load_settings ();
 
    if ( ! model -> config_changed () )
    {
@@ -1028,7 +1028,7 @@ void SRAConfigView :: default_config ()
     model -> set_global_cache_enabled ( true );
     model -> set_site_enabled ( true );
 
-    init ();
+    load_settings ();
 
     emit dirty_config ();
 }

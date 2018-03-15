@@ -44,7 +44,8 @@ urls_and_accs:
 	    else echo "^^^ failure when user repository is not set is expected"; \
 	    echo; fi
 
-	echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' > tmp/t.kfg
+	echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
+	echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
 
 	@if ls `pwd`/tmp2/support.shtml ; then exit 1; fi
 	@echo HTTP download when user repository is configured
@@ -100,7 +101,7 @@ urls_and_accs:
 	    else echo "Failure when user repository is not set is expected"; \
 	    echo; fi
 
-	echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg
+	echo '$(PUBLIC)/apps/sra/volumes/sraFlat = "sra"' >> tmp/t.kfg
 	@if ls `pwd`/tmp/sra/SRR053325.sra ; then exit 1; fi
 	@echo SRR download when user repository is configured
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -270,6 +271,7 @@ urls_and_accs:
 	@rm -rv tmp*
 
 out_dir_and_file:
+	@ echo
 	@ mkdir -pv tmp tmp2
 	@ rm -frv tmp*/*
 	@ echo  version 1.0     >  tmp/k
@@ -281,21 +283,16 @@ out_dir_and_file:
 	@ echo '$(PUBLIC)/root = "$(CWD)/tmp"'                      >> tmp/t.kfg
 
 ################################################################################
-	@ echo Prefetch accession to out-dir
-	@ if ls `pwd`/tmp3/SRR053325.sra ; then exit 1; fi
-	 export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-#	    $(BINDIR)/prefetch SRR053325 -O tmp3 -v \
-#	@ ls `pwd`/tmp3/SRR053325.sra
-	@ echo
 ################################################################################
+
 	@ if [ "$(BUILD)" = "dbg" ]; then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if $(BINDIR)/prefetch --text-kart tmp/k -O tmp/o ; then exit 1 ; \
-	    else echo "Failure when prefetch text-kart to out-file is expected" ; \
+	    else echo "FAILURE WHEN PREFETCH TEXT-KART TO OUT-FILE IS EXPECTED" ; \
 	    echo; fi ; \
 	    \
-	    echo Prefetch text-kart ; \
-	    if ls `pwd`/tmp/sra/SRR053325.sra ; then exit 1; fi ;\
+	    echo PREFETCH TEXT-KART ; \
+	    rm -v `pwd`/tmp/sra/SRR053325.sra ; \
 	    $(BINDIR)/prefetch --text-kart tmp/k > /dev/null ; \
 	    ls `pwd`/tmp/sra/SRR053325.sra ; \
 	    echo ; \
@@ -303,10 +300,10 @@ out_dir_and_file:
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	 if $(BINDIR)/prefetch SRR045450 SRR053325 -O tmp/o ; then exit 1 ; \
-	 else echo Failure when prefetch multiple items to out-file is expected ; \
+	 else echo FAILURE WHEN PREFETCH MULTIPLE ITEMS TO OUT-FILE IS EXPECTED ; \
 	 echo; fi ;
 
-	@ echo Prefetch multiple items
+	@ echo PREFETCH MULTIPLE ITEMS
 	@ if ls `pwd`/tmp/sra/SRR045450.sra ; then exit 1; fi ;
 	@ rm -v `pwd`/tmp/sra/SRR053325.sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
@@ -316,54 +313,97 @@ out_dir_and_file:
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	 if $(BINDIR)/prefetch -O tmp/o kart.krt ; then exit 1 ; \
-	 else echo Failure when prefetch kart to out-file is expected ; \
+	 else echo FAILURE WHEN PREFETCH KART TO OUT-FILE IS EXPECTED ; \
 	 echo; fi ;
 
-	@ echo Prefetch SRR HTTP URL
+	@ echo PREFETCH SRR HTTP URL
 	@ rm -v `pwd`/tmp/sra/SRR053325.sra
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRR)
+	    $(BINDIR)/prefetch $(SRR) > /dev/null
 	@ ls `pwd`/tmp/sra/SRR053325.sra
 	@ echo
 
 	@if ascp -h > /dev/null ; then \
-	    echo Prefetch SRR FASP URL ; \
+	    echo PREFETCH SRR FASP URL ; \
 	    rm -v `pwd`/tmp/sra/SRR053325.sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch $(SRRF) ; \
+	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
 	    ls `pwd`/tmp/sra/SRR053325.sra ; \
 	else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	fi
 	@ echo
 
-	@ echo Prefetch HTTP directory URL
+	@ echo PREFETCH HTTP DIRECTORY URL
 	@ if ls `pwd`/tmp2/index.html ; then exit 1; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ > /dev/null
 	@ ls `pwd`/tmp2/index.html
 	@ echo
 
-	@ echo Prefetch HTTP file URL
+	@ echo PREFETCH HTTP FILE URL
 	@ if ls `pwd`/tmp2/wiki ; then exit 1; fi
 	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki > /dev/null
 	@ ls `pwd`/tmp2/wiki
 	@ echo
-################################################################################
-	@ echo Prefetch accession to out-dir
-	@ if ls `pwd`/tmp3/SRR053325.sra ; then exit 1; fi
-#	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch SRR053325 -O tmp3
-#	@ ls `pwd`/tmp3/SRR053325.sra
-	@ echo
-################################################################################
+
 	@if ascp -h > /dev/null ; then \
-	    echo Prefetch FASP URL ; \
+	    echo PREFETCH FASP URL ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    $(BINDIR)/prefetch $(LARGE) ; \
+	    if ls `pwd`/100MB ; then exit 1; fi ; \
+	    $(BINDIR)/prefetch $(LARGE) > /dev/null ; \
 	    ls `pwd`/100MB ; \
 	 else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	 fi
 	@ echo
 
-	@ rm -rv tmp
+	@ echo PREFETCH ACCESSION TO OUT-DIR
+	@ rm -fv `pwd`/tmp3/dir/SRR053325.sra
+	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch SRR053325 -P tmp3/dir > /dev/null
+	@ ls `pwd`/tmp3/dir/SRR053325.sra
+	@ echo
+
+	@ echo PREFETCH SRR HTTP URL TO OUT-DIR
+	@ rm -fv `pwd`/tmp3/dir/SRR053325.sra
+	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch $(SRR) -P tmp3/dir > /dev/null
+	@ ls `pwd`/tmp3/dir/SRR053325.sra
+	@ echo
+
+	@if ascp -h > /dev/null ; then \
+	    echo PREFETCH SRR FASP URL TO OUT-DIR ; \
+	    rm -fv `pwd`/tmp3/dir/SRR053325.sra ; \
+	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch $(SRRF) -P tmp3/dir > /dev/null ; \
+	    ls `pwd`/tmp3/dir/SRR053325.sra ; \
+	else echo download of SRR FASP URL when ascp is not found is disabled ; \
+	fi
+	@ echo
+
+	@ echo PREFETCH HTTP DIRECTORY URL TO OUT-DIR
+	@ if ls `pwd`/tmp3/dir/index.html ; then exit 1; fi
+	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch https://github.com/ncbi/ -P tmp3/dir > /dev/null
+	@ ls `pwd`/tmp3/dir/index.html
+	@ echo
+
+	@ echo PREFETCH HTTP FILE URL TO OUT-DIR
+	@ if ls `pwd`/tmp3/dir/wiki ; then exit 1; fi
+	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch https://github.com/ncbi/ngs/wiki -P tmp3/dir \
+	                       > /dev/null
+	@ ls `pwd`/tmp3/dir/wiki
+	@ echo
+
+	@if ascp -h > /dev/null ; then \
+	    echo PREFETCH FASP URL TO OUT-DIR ; \
+	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    if `pwd`/tmp3/dir/100MB ; then exit 1; fi ; \
+	    $(BINDIR)/prefetch $(LARGE)  -P tmp3/dir > /dev/null ; \
+	    ls `pwd`/tmp3/dir/100MB ; \
+	 else echo download of SRR FASP URL when ascp is not found is disabled ; \
+	 fi
+	@ echo
+
+	@ rm -r tmp*

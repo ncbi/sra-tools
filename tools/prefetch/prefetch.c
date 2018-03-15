@@ -210,8 +210,10 @@ typedef struct {
     bool stripQuals;     /* this will download file without quality columns */
     bool eliminateQuals; /* this will download cache file with eliminated
                             quality columns which could filled later */
-    const char * outDir;  /* do not free! */
+
     const char * outFile; /* do not free! */
+    const char * outDir;  /* do not free! */
+
 #if _DEBUGGING
     const char *textkart;
 #endif
@@ -533,21 +535,23 @@ static rc_t _KDirectoryClean(KDirectory *self, const String *cache,
 /********** VResolver extension **********/
 static rc_t V_ResolverRemote(const VResolver *self,
     VRemoteProtocols protocols, struct VPath const * accession,
-    struct VPath const ** remote, struct VPath const ** cache)
+    struct VPath const ** remote, struct VPath const ** cache, const char * dir)
 {
-    return VResolverQuery(self, protocols, accession, NULL, remote, cache);
+    return VResolverQueryWithDir(self, protocols, accession, NULL,
+                                 remote, cache, true, dir, NULL);
 }
 
-static rc_t V_ResolverLocal(const VResolver *self,
-    struct VPath const * accession, struct VPath const ** path )
+static rc_t V_ResolverLocal(const VResolver *self, const VPath * accession,
+    const VPath ** path, const char * dir )
 {
-    return VResolverQuery(self, 0, accession, path, NULL, NULL);
+    return VResolverQueryWithDir(self, 0, accession, path, NULL, NULL,
+                                 true, dir, NULL);
 }
 
 static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
     const char *name, const VPath *vaccession,
     const VPath **vremote, const String **remote,
-    const String **cache)
+    const String **cache, const char * dir)
 {
     rc_t rc = 0;
     const VPath *vcache = NULL;
@@ -555,7 +559,7 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
     if (*vremote != NULL)
         RELEASE(VPath, *vremote);
 
-    rc = V_ResolverRemote(self, protocols, vaccession, vremote, &vcache);
+    rc = V_ResolverRemote(self, protocols, vaccession, vremote, &vcache, dir);
     if (rc == 0) {
         char path[PATH_MAX] = "";
         size_t len = 0;
@@ -1011,8 +1015,8 @@ static rc_t MainDownloadFile(Resolved *self,
     size_t num_read = 0;
     uint64_t opos = 0;
     size_t num_writ = 0;
-    uint64_t pos = 0;
 #if USE_KFILE_FOR_HTTP_DOWNLOADS
+    uint64_t pos = 0;
     uint64_t prevPos = 0;
 #endif
 
@@ -1134,7 +1138,7 @@ static rc_t MainDownloadFile(Resolved *self,
     RELEASE(KFile, out);
 
     if (rc == 0) {
-        STSMSG(STS_INFO, ("%s (%ld)", to, pos));
+        STSMSG(STS_INFO, ("%s (%ld)", to, opos));
     }
 
     return rc;
@@ -1352,9 +1356,9 @@ static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
                     }
                 }
                 RELEASE(KFile, self->file);
-                rc = _VResolverRemote(self->resolver,
-                    0, self->name, self->accession,
-                    &self->remote.path, &self->remote.str, &self->cache);
+                rc = _VResolverRemote(self->resolver, 0, self->name,
+                    self->accession, &self->remote.path,
+                    &self->remote.str, &self->cache, main->outDir);
             }
             if (rc == 0) {
              /* when eliminateQuals is specified we will try newer algorithm
@@ -1668,6 +1672,26 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
     return rc;
 }
 
+rc_t MainOutDirCheck ( Main * self, bool * setAndNotExists ) {
+    assert ( self && setAndNotExists );
+
+    * setAndNotExists = false;
+
+    if ( self -> outDir == NULL )
+        return 0;
+
+    if ( ( KDirectoryPathType ( self -> dir, self -> outDir ) & ~ kptAlias ) ==
+         kptNotFound )
+    {
+        * setAndNotExists = true;
+    }
+
+    return 0;
+/*  return KDirectoryOpenDirUpdate ( self -> dir, & self -> outDir, false,
+                                     self -> outDir );
+    return KDirectoryCreateDir ( self -> dir, 0775, kcmCreate | kcmParents,                                 self -> outDir );*/
+}
+
 /* resolve locations */
 static rc_t _ItemResolveResolved(VResolver *resolver,
     VRemoteProtocols protocols, Item *item,
@@ -1696,36 +1720,47 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
     rc = _ItemSetResolverAndAccessionInResolved(item,
         resolver, cfg, repoMgr, vfs);
 
+    assert ( item -> main );
+
     if (rc == 0) {
-        if ( resolved->isUri )
-            rc = VResolverQueryForUrl (resolved->resolver,
-                resolved->accession, &resolved->local.path, NULL, NULL, NULL);
-        else
-            rc = V_ResolverLocal(resolved->resolver,
-                resolved->accession, &resolved->local.path);
+        bool outDirSerAndNotExists = false;
+        rc = MainOutDirCheck ( item -> main, & outDirSerAndNotExists );
+        if ( rc == 0 ) {
+            if ( outDirSerAndNotExists ) {
+                rc = VPathStrFini ( & resolved -> local );
+                if ( rc == 0 )
+                    rc = SILENT_RC ( rcVFS, rcResolver, rcResolving,
+                                     rcNoObj,  rcNotFound);
+            }
+            else if ( resolved->isUri )
+                rc = VResolverQueryWithDir (resolved->resolver, 0,
+                    resolved->accession, &resolved->local.path, NULL, NULL,
+                    false, item -> main -> outDir, NULL );
+            else
+                rc = V_ResolverLocal(resolved->resolver, resolved->accession,
+                    &resolved->local.path, item->main->outDir);
+        }
         if (rc == 0) {
             rc = VPathMakeString(resolved->local.path, &resolved->local.str);
             DISP_RC2(rc, "VPathMakeString(VResolverLocal)", resolved->name);
         }
-        else if (NotFoundByResolver(rc)) {
+        else if (NotFoundByResolver(rc))
             rc = 0;
-        }
-        else {
+        else
             DISP_RC2(rc, "VResolverLocal", resolved->name);
-        }
     }
 
     if (rc == 0) {
         rc2 = 0;
         resolved->remoteSz = 0;
-        assert(item->main);
         if ((minSize > 0 || maxSize > 0 || item->main->order == eOrderSize)
             && has_proto [ eProtocolFasp ])
         {
             if ( ! resolved->isUri ) {
                 rc2 = _VResolverRemote(resolved->resolver, 0,
                     resolved->name, resolved->accession, &resolved->remote.path,
-                    &resolved->remote.str, &resolved->cache);
+                    &resolved->remote.str, &resolved->cache,
+                    item->main->outDir);
                 if (rc2 != 0 && rc == 0)
                     rc = rc2;
             }
@@ -1758,16 +1793,17 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             if ( ! resolved->isUri ) {
                 rc2 = _VResolverRemote(resolved->resolver, protocols,
                     resolved->name, resolved->accession, &resolved->remote.path,
-                    &resolved->remote.str, &resolved->cache);
+                    &resolved->remote.str, &resolved->cache,
+                    item->main->outDir);
                 if (rc2 != 0 && rc == 0)
                     rc = rc2;
             }
             else {
                 const VPath *vcache = NULL;
                 assert (resolved->remote.path && resolved->remote.str);
-                rc2 = VResolverQueryForUrl (resolved->resolver,
-                    resolved->accession, NULL, &vcache,
-                    NULL, &resolved->inOutDir);
+                rc2 = VResolverQueryWithDir (resolved->resolver, 0,
+                    resolved->accession, NULL, NULL, &vcache,
+                    false, item->main->outDir, &resolved->inOutDir);
                 if (rc2 != 0) {
                     if (rc == 0)
                         rc = rc2;
@@ -2091,13 +2127,20 @@ static rc_t ItemDownload(Item *item) {
                     const char * sep = string_rchr ( start, size, '/' );
                     if ( sep != NULL )
                         start = sep + 1;
-                    STSMSG(STS_TOP,
-                        ("%d) '%s' was downloaded successfully (%.*s)",
-                        n, self->name, ( uint32_t ) ( end - start ), start));
+                    if ( item->main->outDir != NULL )
+                        STSMSG(STS_TOP,
+                            ("%d) '%s' was downloaded successfully (%s/%.*s)",
+                            n, self->name, item->main->outDir,
+                            ( uint32_t ) ( end - start ), start));
+                    else
+                        STSMSG(STS_TOP,
+                            ("%d) '%s' was downloaded successfully (%.*s)",
+                            n, self->name,
+                            ( uint32_t ) ( end - start ), start));
                 }
                 else
-                    STSMSG(STS_TOP,
-                        ("%d) '%s' was downloaded successfully", n, self->name));
+                    STSMSG(STS_TOP, ("%d) '%s' was downloaded successfully",
+                                       n, self->name));
                 if (self->cache != NULL) {
                     VPathStrFini(&self->path);
                     rc = StringCopy(&self->path.str, self->cache);
@@ -2566,7 +2609,7 @@ static rc_t ItemDownloadVdbcache(Item *item) {
             RELEASE(KFile, resolved->file);
             rc = _VResolverRemote(resolved->resolver, 0,
                 resolved->name, resolved->accession, &resolved->remote.path,
-                &resolved->remote.str, &resolved->cache);
+                &resolved->remote.str, &resolved->cache, item->main->outDir);
         }
     }
     if (!checkRemote) {

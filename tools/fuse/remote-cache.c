@@ -1682,6 +1682,54 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
 }   /* _RCacneEntryOpenFileReadLocal () */
 
 rc_t CC
+_RCacheCheckCompleteAndCloseFile ( struct RCacheEntry * self )
+{
+    rc_t RCt;
+    bool IsComplete;
+
+    RCt = 0;
+    IsComplete = false;
+
+        /*  We do not need to close anything
+         */
+    if ( self -> file == NULL ) {
+        return 0;
+    }
+
+        /*  File is local and we don't care 'bout it
+         */
+    if ( self -> is_local ) {
+        return 0;
+    }
+
+        /*  Sutuation, when file is complete, strange enough ... may be
+         *  error thou.
+         */
+    if ( self -> is_complete ) {
+        return 0;
+    }
+
+        /*  Magic started here
+         */
+    RCt = IsCacheTeeComplete ( self -> file, & IsComplete );
+    if ( RCt == 0 ) {
+        if ( IsComplete ) {
+/*
+RmOutMsg ( "|||<-- Close completed file [%s][%s] [A=%d]\n", self -> Name, self -> Path, RCt );
+*/
+                /*  Closing file
+                 */
+            RCt = _RCacheEntryReleaseWithoutLock ( self );
+
+            self -> is_complete = true;
+            self -> is_local = true;
+        }
+    }
+
+    return RCt;
+}   /* _RCacheCheckCompleteAndCloseFile () */
+
+rc_t CC
 _RCacheEntryGetAndCheckFile (
                         struct RCacheEntry * self,
                         const struct KFile ** File,
@@ -1794,6 +1842,7 @@ _RCacheEntryGetAndCheckFile (
             }
         }
     }
+RmOutMsg ( "|||<-- IsComplete file [%s] [%d] Cl[%d]Ol[%d] [A=%d]\n", self -> Name, IsComplete, CloseFile, OpenLocal, RCt );
         /*) Stupid checks
          (*/
     if ( OpenLocal && OpenRemote ) {
@@ -1921,6 +1970,12 @@ RmOutMsg ( "[KLockUnlock] [%p] [ %d]\n", ( void * ) self -> mutabor, __LINE__ );
 /*
 RmOutMsg ( "|||<-- Reading [%s][%s] [O=%d][S=%d][R=%d][A=%d]\n", self -> Name, self -> Url, Offset, SizeToRead, * NumReaded, RCt );
 */
+            if ( RCt == 0 ) {
+                RCt = _RCacheCheckCompleteAndCloseFile ( self );
+            }
+
+            /*  Jojoba ... here we are closing file
+             */
         }
 
         if ( Synchronized ) {

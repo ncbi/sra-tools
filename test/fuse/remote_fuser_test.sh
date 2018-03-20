@@ -442,6 +442,66 @@ _msg TEST 1: Passed
 #####################################################################
 #####################################################################
 #####
+### First test is checking that file downloads full and correctly
+#
+
+_bump
+_msg "TEST 1(1): Downloading single file smaller than kernel cache size"
+
+## First we are trying to choose small file to download ( -le 8192 )
+##
+LINF=` grep "<File" $F_FUSE_XML | sed "s#name=##1" | sed "s#size=##1" | sed "s#path=##1" | sed "s#\"##g" | awk ' { print $2 " " $3 " " $4 } ' | sort -n -k 2 | awk ' BEGIN { SZ=0; NM=""; UR="" } { if ( SZ < 8192 ) { if ( SZ < int ( $2 ) ) { SZ = int ( $2 ); NM = $1; UR = $3 } } } END { print NM " " SZ " "  UR } ' `
+if [ -z "$LINF" ]
+then
+    _test_failed "Invalid XML file '$F_FUSE_XML'"
+fi
+
+REMOTE_URL=`echo $LINF | awk ' { print $3 } ' `
+LOCAL_FILE=`echo $LINF | awk ' { print $1 } ' `
+TEMP_FILE=$F_TEMP_DIR/${LOCAL_FILE}.${DAS_CTX}.${DAS_TSTAMP}
+
+## Downloading copy of proxied file
+##
+_msg "Downloading file '$REMOTE_URL'"
+eval GET "$REMOTE_URL" >$TEMP_FILE
+if [ $? -ne 0 ]
+then
+    _test_failed "Can not load small remote file '$REMOTE_URL'"
+fi
+
+## Compareing downloaded file with file proxied by FUSE
+##
+_msg "Compareing downloaded small file '$REMOTE_URL' with $F_MOUNT_DIR/$LOCAL_FILE"
+eval cmp $TEMP_FILE $F_MOUNT_DIR/$LOCAL_FILE
+if [ $? -ne 0 ]
+then
+    _test_failed "Invalid small file content '$F_MOUNT_DIR/$LOCAL_FILE'"
+fi
+
+## Checking CACHE directory, cuz here should be only one file,
+## without ".cache" extention
+##
+RCA_DIR=$F_CACHE_DIR/.cache
+FILES=(`ls $RCA_DIR`)
+if [ ${#FILES[@]} -ne 2 ]
+then
+    ls $RCA_DIR >&2
+    _test_failed "Invalid small content of cache directory '$RCA_DIR'"
+fi
+
+if [[ "${FILES[0]}" == *.cache ]]
+then
+    ls $RCA_DIR >&2
+    _test_failed "Partially downloaded small file at '$RCA_DIR'"
+fi
+
+_msg "TEST 1(1): Passed"
+
+_msg TEST PASSED!
+
+#####################################################################
+#####################################################################
+#####
 ### Second multithread access to singe file
 #
 
@@ -513,4 +573,7 @@ _msg TEST 3: Passed
 #
 _stop_fuser
 
-_msg TEST PASSED!
+#####
+### Here we are starting fuser with kernel_cache option
+#
+

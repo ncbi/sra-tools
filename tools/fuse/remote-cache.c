@@ -1690,7 +1690,7 @@ _RCacheCheckCompleteAndCloseFile ( struct RCacheEntry * self )
     RCt = 0;
     IsComplete = false;
 
-        /*  We do not need to close anything
+        /*  We do not need to close anything, exiting
          */
     if ( self -> file == NULL ) {
         return 0;

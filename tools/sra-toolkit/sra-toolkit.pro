@@ -29,7 +29,17 @@ INCLUDEPATH +=  ../../../ncbi-vdb/interfaces/os/linux \
                 ../../../ncbi-vdb/interfaces/os/unix \
                 ../../../ncbi-vdb/interfaces/cc/gcc \
                 ../../../ncbi-vdb/interfaces/cc/gcc/x86_64
-LIBS += -L/home/boshkins/ncbi-outdir/ncbi-vdb/linux/gcc/x86_64/dbg/lib -lncbi-vdb -ldiagnose
+
+    CONFIG(debug) {
+        BUILD = dbg
+    } else {
+        BUILD = rel
+    }
+
+    TARGDIR = $$OUT_PWD
+    DESTDIR = $$TARGDIR
+
+    LIBS += -L$$OUT_PWD/../../../../../../../../ncbi-vdb/linux/gcc/x86_64/$$BUILD/lib -lncbi-vdb -ldiagnose
 }
 
 macx {

@@ -48,7 +48,8 @@ Note: Need to have Qt (version 5.10.0 or newer) platform-specific binaries and t
                 <arg value="/p:Configuration=${Configuration}"/>
                 <arg value="/p:NGS_OUTDIR=${Output}\"/>
             </exec>
-            <exec executable="jom.exe" failonerror="false" dir="${TargetDir}\obj\sra-toolkit">
+            <mkdir dir="${TargetDir}\obj\sra-toolkit"/>
+            <exec executable="jom.exe" failonerror="false" failifexecutionfails="false" dir="${TargetDir}\obj\sra-toolkit">
                 <arg value="-f"/>
                 <arg value="Makefile.${Configuration}"/>
                 <arg value="clean"/>

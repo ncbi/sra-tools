@@ -2611,13 +2611,17 @@ static rc_t MainNetwotk ( const Main * self,
                 OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"true\"\n", root));
         }
         {
-            struct KNSProxies *p = KNSManagerGetProxies(self->knsMgr);
-            for ( size_t i = 0; ; ++ i ) {
+            struct KNSProxies *p
+                = KNSManagerGetProxies(self->knsMgr, NULL);
+            for ( size_t cnt = 0; ; ) {
                 const char root[] = "HttpProxy";
                 const String *http_proxy = NULL;
                 uint16_t http_proxy_port = 0;
-                if ( ! KNSProxiesGet(p, &http_proxy, &http_proxy_port, i) )
+                if ( ! KNSProxiesGet
+                    ( p, &http_proxy, &http_proxy_port, &cnt, NULL ) )
+                {
                     break;
+                }
                 if (self->xml) {
                     if ( http_proxy_port == 0)
                         OUTMSG ( ( "%s    <%s path=\"%S\"/>\n",

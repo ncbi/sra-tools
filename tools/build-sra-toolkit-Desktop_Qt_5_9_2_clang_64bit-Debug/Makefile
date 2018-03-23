@@ -38,7 +38,7 @@ DISTNAME      = sra-toolkit1.0.0
 DISTDIR = /Users/rodarme1/devel/sra-tools/tools/build-sra-toolkit-Desktop_Qt_5_9_2_clang_64bit-Debug/obj/sra-toolkit/sra-toolkit1.0.0
 LINK          = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++
 LFLAGS        = -stdlib=libc++ -headerpad_max_install_names $(EXPORT_ARCH_ARGS) -Wl,-syslibroot,/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk -mmacosx-version-min=10.10 -Wl,-rpath,@executable_path/Frameworks -Wl,-rpath,/Users/rodarme1/Qt/5.9.2/clang_64/lib
-LIBS          = $(SUBLIBS) -F/Users/rodarme1/Qt/5.9.2/clang_64/lib -L/Users/rodarme1/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-vdb -ldiagnose -framework QtWidgets -framework QtGui -framework QtCore -framework DiskArbitration -framework IOKit -framework OpenGL -framework AGL 
+LIBS          = $(SUBLIBS) -F/Users/rodarme1/Qt/5.9.2/clang_64/lib -L$(HOME)/ncbi-outdir/ncbi-vdb/mac/clang/x86_64/dbg/lib -lncbi-vdb -ldiagnose -framework QtWidgets -framework QtGui -framework QtCore -framework DiskArbitration -framework IOKit -framework OpenGL -framework AGL 
 AR            = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ar cq
 RANLIB        = /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib -s
 SED           = sed
@@ -1231,8 +1231,12 @@ obj/sra-toolkit/sradiagnosticsview.o: ../sra-toolkit/diagnostics/sradiagnosticsv
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QVBoxLayout \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QGridLayout \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qgridlayout.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QHeaderView \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qheaderview.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QLabel \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qlabel.h \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QProgressBar \
+		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qprogressbar.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/QPushButton \
 		../../../../Qt/5.9.2/clang_64/lib/QtWidgets.framework/Headers/qpushbutton.h \
 		../../../../Qt/5.9.2/clang_64/lib/QtCore.framework/Headers/QThread \

@@ -211,8 +211,9 @@ typedef struct {
     bool eliminateQuals; /* this will download cache file with eliminated
                             quality columns which could filled later */
 
-    const char * outFile; /* do not free! */
     const char * outDir;  /* do not free! */
+    const char * outFile; /* do not free! */
+    const char * orderOrOutFile; /* do not free! */
 
 #if _DEBUGGING
     const char *textkart;
@@ -2962,16 +2963,18 @@ static const char* MINSZ_USAGE[] =
 
 #define ORDR_OPTION "order"
 #define ORDR_ALIAS  "o"
-static const char* ORDR_USAGE[] = { "kart prefetch order: one of: kart, size.",
+static const char* ORDR_USAGE[] = {
+    "kart prefetch order when downloading a kart: one of: kart, size.",
     "(in kart order, by file size: smallest first), default: size", NULL };
 
-#define OUT_DIR_OPTION "directory-prefix"
-#define OUT_DIR_ALIAS  "P"
-static const char* OUT_DIR_USAGE[] = { "save files to PREFIX/...", NULL };
+#define OUT_DIR_OPTION "output-directory"
+#define OUT_DIR_ALIAS  "O"
+static const char* OUT_DIR_USAGE[] = { "save files to DIRECTORY/", NULL };
 
 #define OUT_FILE_OPTION "output-file"
-#define OUT_FILE_ALIAS  "O"
-static const char* OUT_FILE_USAGE[] = { "write file to FILE", NULL };
+#define OUT_FILE_ALIAS  "o"
+static const char* OUT_FILE_USAGE[] = {
+    "write file to FILE when downloading a single file", NULL };
 
 #define HBEAT_OPTION "progress"
 #define HBEAT_ALIAS  "p"
@@ -2982,7 +2985,7 @@ static const char* HBEAT_USAGE[] = {
 #define ROWS_OPTION "rows"
 #define ROWS_ALIAS  "R"
 static const char* ROWS_USAGE[] =
-{ "kart rows (default all).", "row list should be ordered", NULL };
+{ "kart rows to download (default all).", "row list should be ordered", NULL };
 
 #define SZ_L_OPTION "list-sizes"
 #define SZ_L_ALIAS  "s"
@@ -3044,7 +3047,7 @@ static OptDef Options[] = {
    ,{ TEXTKART_OPTION    , NULL              , NULL, TEXTKART_USAGE , 1, true , false}
 #endif
    ,{ CHECK_ALL_OPTION   , CHECK_ALL_ALIAS   , NULL, CHECK_ALL_USAGE, 1, false, false}
-   ,{ OUT_FILE_OPTION    , OUT_FILE_ALIAS    , NULL, OUT_FILE_USAGE , 1, true, false}
+   ,{ OUT_FILE_OPTION    , NULL              , NULL, OUT_FILE_USAGE , 1, true, false}
    ,{ OUT_DIR_OPTION     , OUT_DIR_ALIAS     , NULL, OUT_DIR_USAGE  , 1, true, false}
 };
 
@@ -3240,29 +3243,6 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
             self->heartbeat = (uint64_t)f;
         }
 
-/* ORDR_OPTION */
-        rc = ArgsOptionCount(self->args, ORDR_OPTION, &pcount);
-        if (rc != 0) {
-            LOGERR(klogErr, rc, "Failure to get '" ORDR_OPTION "' argument");
-            break;
-        }
-
-        if (pcount > 0) {
-            const char *val = NULL;
-            rc = ArgsOptionValue(self->args, ORDR_OPTION, 0, (const void **)&val);
-            if (rc != 0) {
-                LOGERR(klogErr, rc,
-                    "Failure to get '" ORDR_OPTION "' argument value");
-                break;
-            }
-            if (val != NULL && val[0] == 's') {
-                self->order = eOrderSize;
-            }
-            else {
-                self->order = eOrderOrig;
-            }
-        }
-
 /* ROWS_OPTION */
         rc = ArgsOptionCount(self->args, ROWS_OPTION, &pcount);
         if (rc != 0) {
@@ -3455,6 +3435,31 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
         if ( self->outFile != NULL )
             self->outDir = NULL;
 
+/* ORDR_OPTION */
+        rc = ArgsOptionCount(self->args, ORDR_OPTION, &pcount);
+        if (rc != 0) {
+            LOGERR(klogErr, rc, "Failure to get '" ORDR_OPTION "' argument");
+            break;
+        }
+
+        if (pcount > 0) {
+            bool asAlias = false;
+            const char *val = NULL;
+            rc = ArgsOptionValueExt(self->args, ORDR_OPTION, 0,
+                                    (const void **)&val, &asAlias);
+            if (rc != 0) {
+                LOGERR(klogErr, rc,
+                    "Failure to get '" ORDR_OPTION "' argument value");
+                break;
+            }
+            if (val != NULL && val[0] == 's')
+                self->order = eOrderSize;
+            else
+                self->order = eOrderOrig;
+            if (asAlias)
+                self -> orderOrOutFile = val;
+        }
+
 #if _DEBUGGING
 /* TEXTKART_OPTION */
         rc = ArgsOptionCount(self->args, TEXTKART_OPTION, &pcount);
@@ -3520,57 +3525,56 @@ rc_t CC Usage(const Args *args) {
 
     OUTMSG(("Options:\n"));
     for (i = 0; i < sizeof(Options) / sizeof(Options[0]); i++ ) {
+        const OptDef * opt = & Options[i];
+        const char * alias = opt->aliases;
+
         const char *param = NULL;
 
         if (Options[i].aliases != NULL) {
-            if (strcmp(Options[i].aliases, FAIL_ASCP_ALIAS) == 0) {
+            if (strcmp(alias, FAIL_ASCP_ALIAS) == 0)
                 continue; /* debug option */
-            }
-            if (strcmp(Options[i].aliases, ASCP_ALIAS) == 0) {
+
+            if (strcmp(alias, ASCP_ALIAS) == 0)
                 param = "ascp-binary|private-key-file";
-            }
-            else if (strcmp(Options[i].aliases, FORCE_ALIAS) == 0 ||
-                strcmp(Options[i].aliases, HBEAT_ALIAS) == 0 ||
-                strcmp(Options[i].aliases, HBEAT_ALIAS) == 0 ||
-                strcmp(Options[i].aliases, ORDR_ALIAS) == 0 ||
-                strcmp(Options[i].aliases, TRASN_ALIAS) == 0)
+            else if (strcmp(alias, FORCE_ALIAS) == 0 ||
+                strcmp(alias, HBEAT_ALIAS) == 0 ||
+                strcmp(alias, HBEAT_ALIAS) == 0 ||
+                strcmp(alias, ORDR_ALIAS) == 0 ||
+                strcmp(alias, TRASN_ALIAS) == 0)
             {
                 param = "value";
             }
-            else if (strcmp(Options[i].aliases, ROWS_ALIAS) == 0) {
+            else if (strcmp(alias, ROWS_ALIAS) == 0)
                 param = "rows";
-            }
-            else if (strcmp(Options[i].aliases, OUT_DIR_ALIAS) == 0) {
-                param = "PREFIX";
-            }
-            else if (strcmp(Options[i].aliases, OUT_FILE_ALIAS) == 0) {
-                param = "FILE";
-            }
-            else if (strcmp(Options[i].aliases, SIZE_ALIAS) == 0
-                  || strcmp(Options[i].aliases, MINSZ_ALIAS) == 0)
+            else if (strcmp(alias, OUT_DIR_ALIAS) == 0)
+                param = "DIRECTORY";
+            else if (strcmp(alias, SIZE_ALIAS) == 0
+                  || strcmp(alias, MINSZ_ALIAS) == 0)
             {
                 param = "size";
             }
         }
-        else if (strcmp(Options[i].name, ASCP_PAR_OPTION) == 0) {
-            param = "value";
+        else if (strcmp(opt->name, OUT_FILE_OPTION) == 0) {
+            param = "FILE";
+            alias = OUT_FILE_ALIAS;
         }
+        else if (strcmp(opt->name, ASCP_PAR_OPTION) == 0)
+            param = "value";
 #if _DEBUGGING
-        else if (strcmp(Options[i].name, TEXTKART_OPTION) == 0) {
+        else if (strcmp(opt->name, TEXTKART_OPTION) == 0)
             param = "value";
-        }
 #endif
 
-        if (Options[i].aliases != NULL &&
-            (strcmp(Options[i].aliases, TRASN_ALIAS    ) == 0 ||
-             strcmp(Options[i].aliases, CHECK_ALL_ALIAS) == 0 ||
-             strcmp(Options[i].aliases, OUT_FILE_ALIAS ) == 0 ))
+        if (alias != NULL &&
+            (  strcmp(alias    , TRASN_ALIAS    ) == 0
+             ||strcmp(alias    , CHECK_ALL_ALIAS) == 0
+             ||strcmp(opt->name, OUT_FILE_OPTION) == 0
+           ))
         {
             OUTMSG(("\n"));
         }
 
-        HelpOptionLine(Options[i].aliases, Options[i].name,
-            param, Options[i].help);
+        HelpOptionLine(alias, opt->name, param, opt->help);
     }
 
     OUTMSG(("\n"));
@@ -3732,20 +3736,42 @@ static rc_t MainInit(int argc, char *argv[], Main *self) {
 }
 
 /*********** Process one command line argument **********/
-static rc_t MainRun(Main *self, const char *arg, const char *realArg) {
+static rc_t MainRun ( Main * self, const char * arg, const char * realArg,
+                      uint32_t pcount, bool * multiErrorReported )
+{
     ERunType type = eRunTypeDownload;
     rc_t rc = 0;
     Iterator it;
-    assert(self && realArg);
+    assert(self && realArg && multiErrorReported);
     memset(&it, 0, sizeof it);
 
     if (rc == 0)
         rc = IteratorInit(&it, arg, self);
 
-    if ( rc == 0 && it . kart != NULL && self -> outFile ) {
-        rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
-        LOGERR ( klogErr, rc, "Cannot specify --" OUT_FILE_OPTION
+    if ( rc == 0 ) {
+        if ( it . kart != NULL ) {
+            if ( self -> outFile ) {
+                rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
+                LOGERR ( klogErr, rc, "Cannot specify --" OUT_FILE_OPTION
                                     " when downloading kart file" );
+            }
+        }
+        else {
+            if ( self -> orderOrOutFile != NULL )
+                self -> outFile = self -> orderOrOutFile;
+            if ( self -> outFile != NULL && pcount > 1 ) {
+                if ( ! * multiErrorReported ) {
+                    rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
+                    LOGERR ( klogErr, rc, "Cannot specify --" OUT_FILE_OPTION
+                                        " when downloading multiple objects" );
+                    * multiErrorReported = true;
+                }
+                else
+                    rc = SILENT_RC ( rcExe, rcArgv, rcParsing,
+                                     rcParam, rcInvalid );
+                return rc;
+            }
+        }
     }
 
     if (self->list_kart_sized)
@@ -3936,31 +3962,29 @@ rc_t CC KMain(int argc, char *argv[]) {
     }
 
     if (rc == 0) {
+        bool multiErrorReported = false;
         uint32_t i = ~0;
 
 #if _DEBUGGING
         if (pars.textkart) {
             if ( pars . outFile != NULL ) {
-                rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
-                LOGERR ( klogErr, rc, "Cannot specify both --" OUT_FILE_OPTION
-                                            " and --" TEXTKART_OPTION );
+                LOGERR ( klogWarn,
+                         RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid ),
+                         "Cannot specify both --" OUT_FILE_OPTION
+                         " and --" TEXTKART_OPTION ": "
+                         "--" OUT_FILE_OPTION " is ignored");
+                pars . outFile = NULL;
             }
-            else
-                rc = MainRun(&pars, NULL, pars.textkart);
+            rc = MainRun(&pars, NULL, pars.textkart, 1, &multiErrorReported);
         }
 #endif
 
-        if ( pars . outFile != NULL && pcount > 1 ) {
-            rc = RC ( rcExe, rcArgv, rcParsing, rcParam, rcInvalid );
-            LOGERR ( klogErr, rc, "Cannot specify --" OUT_FILE_OPTION
-                                        " when downloading multiple objects" );
-        }
         else for (i = 0; i < pcount; ++i) {
             const char *obj = NULL;
             rc_t rc2 = ArgsParamValue(pars.args, i, (const void **)&obj);
             DISP_RC(rc2, "ArgsParamValue");
             if (rc2 == 0) {
-                rc2 = MainRun(&pars, obj, obj);
+                rc2 = MainRun(&pars, obj, obj, pcount, &multiErrorReported);
                 if (rc2 != 0 && rc == 0)
                     rc = rc2;
             }

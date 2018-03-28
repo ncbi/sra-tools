@@ -551,11 +551,13 @@ static rc_t V_ResolverLocal(const VResolver *self, const VPath * accession,
 static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
     const char *name, const VPath *vaccession,
     const VPath **vremote, const String **remote,
-    const String **cache, const char * dir)
+    const String **cache, const Main * main)
 {
     rc_t rc = 0;
     const VPath *vcache = NULL;
-    assert(vaccession && vremote);
+    const char * dir = NULL;
+    assert(vaccession && vremote && main);
+    dir = main->outDir;
     if (*vremote != NULL)
         RELEASE(VPath, *vremote);
 
@@ -586,16 +588,18 @@ static rc_t _VResolverRemote(VResolver *self, VRemoteProtocols protocols,
 
     if (rc == 0 && cache != NULL) {
         String path_str;
-        if (vcache == NULL) {
+        if (main->outFile != NULL)
+            StringInitCString ( & path_str, main -> outFile );
+        else if (vcache == NULL) {
             rc = RC(rcExe, rcResolver, rcResolving, rcPath, rcNotFound);
             PLOGERR(klogInt, (klogInt, rc, "cannot get cache location "
-             "for $(acc). "
-             "Hint: run \"vdb-config --interactive\" and make sure Workspace Location Path is set. "
-             "See https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration", 
+             "for $(acc). Hint: run \"vdb-config --interactive\" "
+             "and make sure Workspace Location Path is set. "
+             "See https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration",
              "acc=%s" , name));
         }
 
-        if (rc == 0) {
+        if (rc == 0 && main->outFile == NULL) {
             rc = VPathGetPath(vcache, &path_str);
             DISP_RC2(rc, "VPathGetPath(VResolverCache)", name);
         }
@@ -1358,7 +1362,7 @@ static rc_t MainDownload(Resolved *self, Main *main, bool isDependency) {
                 RELEASE(KFile, self->file);
                 rc = _VResolverRemote(self->resolver, 0, self->name,
                     self->accession, &self->remote.path,
-                    &self->remote.str, &self->cache, main->outDir);
+                    &self->remote.str, &self->cache, main);
             }
             if (rc == 0) {
              /* when eliminateQuals is specified we will try newer algorithm
@@ -1726,7 +1730,24 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
         bool outDirSerAndNotExists = false;
         rc = MainOutDirCheck ( item -> main, & outDirSerAndNotExists );
         if ( rc == 0 ) {
-            if ( outDirSerAndNotExists ) {
+            bool isOutFile = false;
+            assert ( item -> main );
+            if ( item -> main -> outFile != NULL ) {
+                isOutFile = true;
+                if ( ( KDirectoryPathType(item->main->dir, item->main->outFile)
+                       & ~kptAlias )
+                     != kptNotFound )
+                {
+                    rc = VFSManagerMakePath ( item -> main -> vfsMgr,
+                        ( VPath**  ) & resolved -> local . path,
+                        item -> main -> outFile );
+                }
+                else
+                    rc = SILENT_RC ( rcVFS, rcResolver, rcResolving,
+                                     rcNoObj,  rcNotFound);
+            }
+            if ( isOutFile ) ;
+            else if ( outDirSerAndNotExists ) {
                 rc = VPathStrFini ( & resolved -> local );
                 if ( rc == 0 )
                     rc = SILENT_RC ( rcVFS, rcResolver, rcResolving,
@@ -1760,7 +1781,7 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 rc2 = _VResolverRemote(resolved->resolver, 0,
                     resolved->name, resolved->accession, &resolved->remote.path,
                     &resolved->remote.str, &resolved->cache,
-                    item->main->outDir);
+                    item->main);
                 if (rc2 != 0 && rc == 0)
                     rc = rc2;
             }
@@ -1794,35 +1815,43 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
                 rc2 = _VResolverRemote(resolved->resolver, protocols,
                     resolved->name, resolved->accession, &resolved->remote.path,
                     &resolved->remote.str, &resolved->cache,
-                    item->main->outDir);
+                    item->main);
                 if (rc2 != 0 && rc == 0)
                     rc = rc2;
             }
             else {
+                String path_str;
                 const VPath *vcache = NULL;
                 assert (resolved->remote.path && resolved->remote.str);
-                rc2 = VResolverQueryWithDir (resolved->resolver, 0,
-                    resolved->accession, NULL, NULL, &vcache,
-                    false, item->main->outDir, &resolved->inOutDir);
-                if (rc2 != 0) {
-                    if (rc == 0)
-                        rc = rc2;
+                if (item->main->outFile != NULL) {
+                    StringInitCString ( & path_str, item -> main -> outFile );
+                    rc = StringCopy(&resolved->cache, &path_str);
+                    DISP_RC2(rc, "StringCopy(VResolverCache)",
+                             item -> main -> outFile);
+                }
+                else {
+                    rc2 = VResolverQueryWithDir (resolved->resolver, 0,
+                        resolved->accession, NULL, NULL, &vcache,
+                        false, item->main->outDir, &resolved->inOutDir);
+                    if (rc2 != 0) {
+                        if (rc == 0)
+                            rc = rc2;
                     PLOGERR(klogInt, (klogInt, rc2, "cannot get cache location "
                         "for $(acc). Hint: run \"vdb-config --interactive\" and"
                         " make sure Workspace Location Path is set. See "
                  "https://github.com/ncbi/sra-tools/wiki/Toolkit-Configuration",
                         "acc=%s", resolved->name));
-                }
-                else {
-                    String path_str;
-                    rc = VPathGetPath(vcache, &path_str);
-                    DISP_RC2(rc, "VPathGetPath(VResolverCache)",
-                        resolved->name);
-                    if ( rc == 0 ) {
-                        free((void*)resolved->cache);
-                        rc = StringCopy(&resolved->cache, &path_str);
-                        DISP_RC2(rc, "StringCopy(VResolverCache)",
-                            resolved->name);
+                    }
+                    else {
+                        rc = VPathGetPath(vcache, &path_str);
+                        DISP_RC2(rc, "VPathGetPath(VResolverCache)",
+                                 resolved->name);
+                        if ( rc == 0 ) {
+                            free((void*)resolved->cache);
+                            rc = StringCopy(&resolved->cache, &path_str);
+                            DISP_RC2(rc, "StringCopy(VResolverCache)",
+                                     resolved->name);
+                        }
                     }
                 }
                 RELEASE(VPath, vcache);
@@ -1857,7 +1886,7 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
     rc_t rc = 0;
     VRemoteProtocols protocols = ascp ? eProtocolFaspHttpHttps : 0;
 
-    assert(self);
+    assert(self && self->main);
 
     resolved = &self->resolved;
     resolved->name = ItemName(self);
@@ -1867,29 +1896,29 @@ static rc_t ItemInitResolved(Item *self, VResolver *resolver, KDirectory *dir,
     if (!self->isDependency &&
         self->desc != NULL) /* object name is specified (not kart item) */
     {
-        KPathType type = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
-        if (type == kptFile || type == kptDir) {
-            rc = VPathStrInitStr(&resolved->path, self->desc, 0);
-            resolved->existing = true;
-            if (resolved->type != eRunTypeDownload) {
-                uint64_t s = -1;
-                const KFile *f = NULL;
-                rc = KDirectoryOpenFileRead(dir, &f, "%s", self->desc);
-                if (rc == 0) {
-                    rc = KFileSize(f, &s);
+        if ( self -> main -> outFile == NULL ) {
+            KPathType type
+                = KDirectoryPathType(dir, "%s", self->desc) & ~kptAlias;
+            if (type == kptFile || type == kptDir) {
+                rc = VPathStrInitStr(&resolved->path, self->desc, 0);
+                resolved->existing = true;
+                if (resolved->type != eRunTypeDownload) {
+                    uint64_t s = -1;
+                    const KFile *f = NULL;
+                    rc = KDirectoryOpenFileRead(dir, &f, "%s", self->desc);
+                    if (rc == 0)
+                        rc = KFileSize(f, &s);
+                    if (s != -1)
+                        resolved->remoteSz = s;
+                    else
+                        OUTMSG(("%s\tunknown\n", self->desc));
+                    RELEASE(KFile, f);
                 }
-                if (s != -1) {
-                    resolved->remoteSz = s;
-                }
-                else {
-                    OUTMSG(("%s\tunknown\n", self->desc));
-                }
-                RELEASE(KFile, f);
+                else
+                    STSMSG(STS_TOP,
+                        ("'%s' is a local non-kart file", self->desc));
+                return 0;
             }
-            else {
-                STSMSG(STS_TOP, ("'%s' is a local non-kart file", self->desc));
-            }
-            return 0;
         }
     }
 
@@ -2609,7 +2638,7 @@ static rc_t ItemDownloadVdbcache(Item *item) {
             RELEASE(KFile, resolved->file);
             rc = _VResolverRemote(resolved->resolver, 0,
                 resolved->name, resolved->accession, &resolved->remote.path,
-                &resolved->remote.str, &resolved->cache, item->main->outDir);
+                &resolved->remote.str, &resolved->cache, item->main);
         }
     }
     if (!checkRemote) {
@@ -2699,7 +2728,7 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
         assert(item->main);
         rc = _VDBManagerSetDbGapCtx(item->main->mgr, resolved->resolver);
         type = VDBManagerPathTypeUnreliable
-            (item->main->mgr, "%s", resolved->name) & ~kptAlias;
+            (item->main->mgr, "%S", resolved->cache) & ~kptAlias;
         if (type != kptDatabase) {
             if (type == kptTable) {
                  STSMSG(STS_DBG, ("...'%S' is a table", resolved->path.str));
@@ -3422,6 +3451,9 @@ static rc_t MainProcessArgs(Main *self, int argc, char *argv[]) {
                 break;
             }
         }
+
+        if ( self->outFile != NULL )
+            self->outDir = NULL;
 
 #if _DEBUGGING
 /* TEXTKART_OPTION */

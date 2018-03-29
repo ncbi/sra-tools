@@ -555,34 +555,35 @@ s-option:
 	@ echo '0||SRR053325||' >> tmp/k
 	@ echo '$$end'          >> tmp/k
 
-	@ echo DOWNLOADING TEXT KART
-	@ rm -v tmp/sra/*
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch --text-kart tmp/k > /dev/null
-	@ echo
-
-	@ echo DOWNLOADING TEXT KART: ORDER BY SIZE / SHORT OPTION
-	@ rm -v tmp/sra/*
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch --text-kart tmp/k -os > /dev/null
-	@ echo
-
-	@ echo DOWNLOADING TEXT KART: ORDER BY KART / SHORT OPTION
-	@ rm -v tmp/sra/*
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch --text-kart tmp/k -ok > /dev/null
-	@ echo
-
-	@ echo DOWNLOADING TEXT KART: ORDER BY SIZE / LONG OPTION
-	@ rm -v tmp/sra/*
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch --text-kart tmp/k --order s > /dev/null
-	@ echo
-
-	@ echo DOWNLOADING TEXT KART: ORDER BY KART / LONG OPTION
-	@ rm -v tmp/sra/*
-	@ export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    $(BINDIR)/prefetch --text-kart tmp/k --order k > /dev/null
-	@ echo
+	@ if [ "$(BUILD)" = "dbg" ]; then \
+	      echo DOWNLOADING TEXT KART ; \
+	      rm -v tmp/sra/* ; \
+	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      $(BINDIR)/prefetch --text-kart tmp/k > /dev/null ; \
+	      echo ; \
+          \
+	      echo DOWNLOADING TEXT KART: ORDER BY SIZE / SHORT OPTION ; \
+	      rm -v tmp/sra/* ; \
+	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      $(BINDIR)/prefetch --text-kart tmp/k -os > /dev/null ; \
+	      echo ; \
+          \
+	      echo DOWNLOADING TEXT KART: ORDER BY KART / SHORT OPTION ; \
+	      rm -v tmp/sra/* ; \
+	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      $(BINDIR)/prefetch --text-kart tmp/k -ok > /dev/null ; \
+	      echo ; \
+          \
+	      echo DOWNLOADING TEXT KART: ORDER BY SIZE / LONG OPTION ; \
+	      rm -v tmp/sra/* ; \
+	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      $(BINDIR)/prefetch --text-kart tmp/k --order s > /dev/null ; \
+	      echo ; \
+          \
+	      echo DOWNLOADING TEXT KART: ORDER BY KART / LONG OPTION ; \
+	      rm -v tmp/sra/* ; \
+	      export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	      $(BINDIR)/prefetch --text-kart tmp/k --order k > /dev/null ; \
+	      echo ; fi
 
 	@ rm -rv tmp*

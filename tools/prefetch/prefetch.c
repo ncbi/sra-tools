@@ -3977,9 +3977,10 @@ rc_t CC KMain(int argc, char *argv[]) {
             }
             rc = MainRun(&pars, NULL, pars.textkart, 1, &multiErrorReported);
         }
+        else
 #endif
 
-        else for (i = 0; i < pcount; ++i) {
+        for (i = 0; i < pcount; ++i) {
             const char *obj = NULL;
             rc_t rc2 = ArgsParamValue(pars.args, i, (const void **)&obj);
             DISP_RC(rc2, "ArgsParamValue");

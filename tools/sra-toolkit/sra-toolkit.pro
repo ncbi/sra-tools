@@ -78,10 +78,11 @@ win32 {
         BUILD = Release
     }
 
-    TARGDIR = $$OUT_PWD/../../../$$BUILD
+message("OUT_PWD=$$OUT_PWD")
+    TARGDIR = $$OUT_PWD/../$$BUILD
     DESTDIR = $$TARGDIR/bin
 
-    LIBS += $$OUT_PWD/../../../../../../../ncbi-vdb/win/v120/x64/$$BUILD/bin/ncbi-vdb-md.lib
+    LIBS += $$OUT_PWD/../../../../../ncbi-vdb/win/v120/x64/$$BUILD/bin/ncbi-vdb-md.lib
 }
 
 OBJECTS_DIR = $$TARGDIR/obj/sra-toolkit

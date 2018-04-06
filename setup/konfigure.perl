@@ -1501,21 +1501,19 @@ sub check_qmake {
 
             println "no" if ($OPT{'debug'});
         }
-    } else {
-        my $tool;
-        if ( $OS eq 'linux' ) {
-            $tool = '/usr/lib64/qt5/bin/qmake';
-        } elsif ( $OS eq 'mac' ) {
-            $tool = '/Applications/QT/5.10.1/clang_64/bin/qmake';
-        }
-        if ( $tool ) {
-            print "\n\t\tchecking $tool... " if ($OPT{'debug'});
-            my $out = `( $tool -v | grep QMake ) 2>&1`;
-            if ($? == 0) {
-                print "$out " if ($OPT{'debug'});
-                println $tool;
-                return $tool;
-            }
+    }
+    if ( $OS eq 'linux' ) {
+        $tool = '/usr/lib64/qt5/bin/qmake';
+    } elsif ( $OS eq 'mac' ) {
+        $tool = '/Applications/QT/5.10.1/clang_64/bin/qmake';
+    }
+    if ( $tool ) {
+        print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+        my $out = `( $tool -v | grep QMake ) 2>&1`;
+        if ($? == 0) {
+            print "$out " if ($OPT{'debug'});
+            println $tool;
+            return $tool;
         }
     }
 

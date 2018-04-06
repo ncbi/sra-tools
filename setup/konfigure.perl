@@ -448,6 +448,15 @@ if ( $PKG{REQ} ) {
 
 my @dependencies;
 
+if ( $PKG{OPT} ) {
+    foreach ( @{ $PKG{OPT} } ) {
+        if ( /^qmake$/ ) {
+            my $qmake = check_qmake();
+            push @dependencies, "QMAKE_BIN = $qmake";
+        } else { die; }
+    }
+}
+
 my %DEPEND_OPTIONS;
 foreach my $href (DEPENDS()) {
     $_ = $href->{name};
@@ -1459,6 +1468,59 @@ sub check_tool {
         println "no";
         return 0;
     }
+}
+
+sub check_qmake {
+    print "checking for QMake... ";
+
+    my $tool = 'qmake';
+    print "\n\t\trunning $tool... " if ($OPT{'debug'});
+    my $out = `$tool -v 2>&1`;
+    if ($? == 0) {
+        my $out = `( $tool -v | grep QMake ) 2>&1`;
+        if ($? == 0) {
+            print "$out " if ($OPT{'debug'});
+            println $tool;
+            return $tool;
+        }
+
+        println "wrong qmake" if ($OPT{'debug'});
+
+        print "\t\tchecking $ENV{PATH}...\n" if ($OPT{'debug'});
+        foreach ( split(/:/, $ENV{PATH})) {
+            my $cmd = "$_/$tool";
+            print "\t\trunning $cmd... " if ($OPT{'debug'});
+            my $out = `( $cmd -v | grep QMake ) 2>&1`;
+            if ($? == 0) {
+                print "$out " if ($OPT{'debug'});
+                if ( $out =~ /QMake/ ) {
+                    println $cmd;
+                    return $cmd;
+                }
+            }
+
+            println "no" if ($OPT{'debug'});
+        }
+    } else {
+        my $tool;
+        if ( $OS eq 'linux' ) {
+            $tool = '/usr/lib64/qt5/bin/qmake';
+        } elsif ( $OS eq 'mac' ) {
+            $tool = '/Applications/QT/5.10.1/clang_64/bin/qmake';
+        }
+        if ( $tool ) {
+            print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+            my $out = `( $tool -v | grep QMake ) 2>&1`;
+            if ($? == 0) {
+                print "$out " if ($OPT{'debug'});
+                println $tool;
+                return $tool;
+            }
+        }
+    }
+
+    println "no";
+    return;
 }
 
 sub check_static_libstdcpp {

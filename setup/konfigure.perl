@@ -556,7 +556,7 @@ foreach my $href (@REQ) {
                     ++$has_option{sources};
                 }
                 my ($fi, $fl, $fil, $fs)
-                    = find_in_dir($try, $i, $l, $il, undef, undef, $src);
+                        = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                 if ($fi || $fl || $fil) {
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
@@ -564,10 +564,12 @@ foreach my $href (@REQ) {
                     $found_src  = $fs  if (! $found_src  && $fs);
                 } elsif (! ($try =~ /$a{name}$/)) {
                     $try = File::Spec->catdir($try, $a{name});
-                    ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                    ($fi, $fl, $fil, $fs)
+                        = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
                     $found_ilib = $fil if (! $found_ilib && $fil);
+                    $found_src  = $fs  if (! $found_src  && $fs);
                 }
             } elsif ($need_bin) {
                 my (undef, $fl, $fil)

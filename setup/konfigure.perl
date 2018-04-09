@@ -1520,7 +1520,7 @@ sub check_qmake {
     }
 
     println "no";
-    return;
+    return '';
 }
 
 sub check_static_libstdcpp {

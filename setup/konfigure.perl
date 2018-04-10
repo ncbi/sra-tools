@@ -211,6 +211,12 @@ my $OS_DISTRIBUTOR = '';
 if ($OS eq 'linux') {
     print "checking OS distributor... " unless ($AUTORUN);
     $OS_DISTRIBUTOR = `lsb_release -si 2> /dev/null`;
+    if ( $? != 0 ) {
+        $_ = `cat /etc/redhat-release 2> /dev/null`;
+        @_ = split ( / /  );
+        $OS_DISTRIBUTOR = $_[0] if ( $_[0] );
+    }
+    $OS_DISTRIBUTOR = '' unless ( $OS_DISTRIBUTOR );
     chomp $OS_DISTRIBUTOR;
     println $OS_DISTRIBUTOR unless ($AUTORUN);
 }
@@ -1504,9 +1510,31 @@ sub check_qmake {
             println "no" if ($OPT{'debug'});
         }
     }
+
     if ( $OS eq 'linux' ) {
         if ( $OS_DISTRIBUTOR eq 'CentOS' ) {
             $tool = '/usr/lib64/qt5/bin/qmake';
+            print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+            my $out = `( $tool -v | grep QMake ) 2>&1`;
+            if ($? == 0) {
+                print "$out " if ($OPT{'debug'});
+                println $tool;
+                return $tool;
+            }
+
+            foreach ( glob ( "$ENV{HOME}/Qt/*/gcc_64" ) ) {
+                $tool =  "$_/bin/qmake";
+                print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+                my $out = `( $tool -v | grep QMake ) 2>&1`;
+                if ($? == 0) {
+                    print "$out " if ($OPT{'debug'});
+                    println $tool;
+                    return $tool;
+                }
+            }
+
+            $tool = '';
+
         } elsif ( $OS_DISTRIBUTOR eq 'Ubuntu' ) {
             foreach ( glob ( "$ENV{HOME}/Qt*/*/gcc_64" ) ) {
                 $tool =  "$_/bin/qmake";
@@ -1518,11 +1546,13 @@ sub check_qmake {
                     return $tool;
                 }
             }
+
             $tool = '';
         }
     } elsif ( $OS eq 'mac' ) {
         $tool = '/Applications/QT/5.10.1/clang_64/bin/qmake';
     }
+
     if ( $tool ) {
         print "\n\t\tchecking $tool... " if ($OPT{'debug'});
         my $out = `( $tool -v | grep QMake ) 2>&1`;

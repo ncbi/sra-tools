@@ -1507,7 +1507,7 @@ sub check_qmake {
     if ( $OS eq 'linux' ) {
         if ( $OS_DISTRIBUTOR eq 'CentOS' ) {
             $tool = '/usr/lib64/qt5/bin/qmake';
-        } elsif $OS_DISTRIBUTOR eq 'Ubuntu' ) {
+        } elsif ( $OS_DISTRIBUTOR eq 'Ubuntu' ) {
             foreach ( glob ( "$ENV{HOME}/Qt*/*/gcc_64" ) ) {
                 $tool =  "$_/bin/qmake";
                 print "\n\t\tchecking $tool... " if ($OPT{'debug'});

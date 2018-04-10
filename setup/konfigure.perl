@@ -1505,7 +1505,21 @@ sub check_qmake {
         }
     }
     if ( $OS eq 'linux' ) {
-        $tool = '/usr/lib64/qt5/bin/qmake';
+        if ( $OS_DISTRIBUTOR eq 'CentOS' ) {
+            $tool = '/usr/lib64/qt5/bin/qmake';
+        } elsif $OS_DISTRIBUTOR eq 'Ubuntu' ) {
+            foreach ( glob ( "$ENV{HOME}/Qt*/*/gcc_64" ) ) {
+                $tool =  "$_/bin/qmake";
+                print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+                my $out = `( $tool -v | grep QMake ) 2>&1`;
+                if ($? == 0) {
+                    print "$out " if ($OPT{'debug'});
+                    println $tool;
+                    return $tool;
+                }
+            }
+            $tool = '';
+        }
     } elsif ( $OS eq 'mac' ) {
         $tool = '/Applications/QT/5.10.1/clang_64/bin/qmake';
     }

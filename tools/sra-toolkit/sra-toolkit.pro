@@ -69,20 +69,23 @@ macx {
 }
 
 win32 {
-    INCLUDEPATH += ../../../ncbi-vdb/interfaces/os/win \
-                    ../../../ncbi-vdb/interfaces/cc/vc++
+    INCLUDEPATH += ../../../../../../ncbi-vdb/interfaces/os/win \
+                    ../../../../../../ncbi-vdb/interfaces/cc/vc++
 
-    CONFIG(debug) {
+    CONFIG(debug, debug|release) {
         BUILD = Debug
+    LIBS += $$OUT_PWD/../../../../../ncbi-vdb/win/v120/x64/Release/bin/ncbi-vdb-md.lib
     } else {
         BUILD = Release
+    LIBS += $$OUT_PWD/../../../../../ncbi-vdb/win/v120/x64/Release/bin/ncbi-vdb-md.lib
     }
 
-message("OUT_PWD=$$OUT_PWD")
     TARGDIR = $$OUT_PWD/../$$BUILD
     DESTDIR = $$TARGDIR/bin
+#message("OUT_PWD=$$OUT_PWD")
+#message("TARGDIR=$$TARGDIR")
+message("DESTDIR=$$DESTDIR")
 
-    LIBS += $$OUT_PWD/../../../../../ncbi-vdb/win/v120/x64/$$BUILD/bin/ncbi-vdb-md.lib
 }
 
 OBJECTS_DIR = $$TARGDIR/obj/sra-toolkit

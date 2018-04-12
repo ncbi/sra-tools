@@ -39,7 +39,7 @@ ALL_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
-ifeq (,$(QMAKE_BIN))
+ifeq (,$(shell qmake -v))
 all std: $(ALL_TOOLS)
 
 $(ALL_TOOLS):
@@ -75,9 +75,8 @@ else
    QT_CONF = release
 endif
 
-
 $(BINDIR)/sra-toolkit:
-	$(QMAKE_BIN) $(SRCDIR)/sra-toolkit.pro CONFIG+=$(QT_CONF) CONFIG+=make
+	qmake $(SRCDIR)/sra-toolkit.pro CONFIG+=$(QT_CONF) CONFIG+=make
 	make -C $(OBJDIR)
 	cp $(OBJDIR)/sra-toolkit $(BINDIR)/sra-toolkit$(VERSION_EXEX)
 	ln -s sra-toolkit$(VERSION_EXEX) $(BINDIR)/sra-toolkit$(MAJVERS_EXEX)

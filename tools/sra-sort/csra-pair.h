@@ -32,9 +32,8 @@
 #endif
 
 
-#ifndef SEQUENCE_BEFORE_SECONDARY
 #define SEQUENCE_BEFORE_SECONDARY 1
-#endif
+
 
 /*--------------------------------------------------------------------------
  * forwards

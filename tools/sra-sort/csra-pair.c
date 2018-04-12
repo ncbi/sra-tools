@@ -214,8 +214,7 @@ DbPair *cSRAPairMake ( const ctx_t *ctx,
                 "PRIMARY_ALIGNMENT",
                 "REFERENCE",
                 "SECONDARY_ALIGNMENT",
-                "SEQUENCE",
-                NULL
+                "SEQUENCE"
             };
             db -> dad . exclude_tbls = exclude_tbls;
 

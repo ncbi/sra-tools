@@ -4,14 +4,11 @@ sub PACKAGE_TYPE { 'B' }
 sub PACKAGE_NAME { 'SRA-TOOLS' }
 sub PACKAGE_NAMW { 'SRATOOLS' }
 sub CONFIG_OUT   { 'build' }
-sub PKG { my @OPT = qw ( qmake );
-          ( LNG   => 'C',
+sub PKG { ( LNG   => 'C',
             OUT   => 'ncbi-outdir',
             LOCOUT=> '../../OUTDIR',
             PATH  => '/usr/local/ncbi/sra-tools',
-            UPATH =>      '$HOME/ncbi/sra-tools',
-            OPT   => \@OPT,
-         ) }
+            UPATH =>      '$HOME/ncbi/sra-tools', ) }
 sub DEPENDS { ( { name => 'fuse' , Include => '/usr/include'        , },
                 { name => 'hdf5' , Include => '/usr/include'        , },
                 { name => 'magic', Include => '/usr/include'        , },

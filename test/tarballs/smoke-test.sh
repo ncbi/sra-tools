@@ -68,7 +68,7 @@ then
     exit 1
 fi
 INSTALL_DIR=$1
-BIN_DIR=${INSTALL_DIR}/bin
+BIN_DIR=${INSTALL_DIR}bin
 
 if [ "$2" == "" ]
 then
@@ -117,5 +117,41 @@ then
     exit 2
 fi
 
-echo "Smoke test successful"
+echo "Sratoolkit smoke test successful"
 
+echo
+
+########################### TEST GenomeAnalysisTK.jar ##########################
+
+JAR=GenomeAnalysisTK.jar
+echo "Smoke testing ${JAR} ..."
+
+LOG=-Dvdb.log=FINER
+
+ARGS=-Dvdb.System.loadLibrary=1
+
+cmd="java ${LOG} ${ARGS} -cp ./GenomeAnalysisTK.jar org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o chr20.SRR835775.vcf"
+
+eval ${cmd} 2>/dev/null
+if [ "$?" = "0" ] ; then
+    FAILED="${FAILED} GenomeAnalysisTK.jar with disabled smart dll search;"
+fi
+
+PWD=`pwd`
+ARGS=-Duser.home=${PWD}
+
+cmd="java ${LOG} ${ARGS} -cp ./GenomeAnalysisTK.jar org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o chr20.SRR835775.vcf"
+
+echo ${cmd}
+eval ${cmd} >/dev/null
+if [ "$?" != "0" ] ; then
+    FAILED="${FAILED} GenomeAnalysisTK.jar;"
+fi
+
+if [ "${FAILED}" != "" ]
+then
+    echo "Failed: ${FAILED}"
+    exit 3
+fi
+
+echo "${JAR} smoke test successful"

@@ -29,12 +29,9 @@
 #include "config/sraconfigview.h"
 #include "diagnostics/sradiagnosticsview.h"
 
-#include <QPropertyAnimation>
-
 #include <kfg/config.h>
 
-
-#include <QPainter>
+#include <QtWidgets>
 
 SRAToolView :: SRAToolView ( KConfig *p_config, QWidget *parent )
     : QWidget ( parent )
@@ -45,8 +42,8 @@ SRAToolView :: SRAToolView ( KConfig *p_config, QWidget *parent )
     , currentView ( nullptr )
 {
     setObjectName ( "sra_tool_view" );
-    resize ( QSize ( parent -> size (). width () - TOOLBAR_WIDTH_FACTOR, parent -> size () . height () ) );
-
+    setSizePolicy ( QSizePolicy::Ignored, QSizePolicy::Ignored);
+    resize ( parent -> size () . width () - TOOLBAR_WIDTH_FACTOR, parent -> size () . height () );
 
     home = new QWidget ( this );
     currentView = home;
@@ -80,7 +77,6 @@ void SRAToolView :: toolChanged ( int p_view )
     }
 }
 
-#if OFFICAL_LOOKNFEEL
 void SRAToolView :: paintEvent ( QPaintEvent *e )
 {
     bool vertical = false;
@@ -112,33 +108,10 @@ void SRAToolView :: paintEvent ( QPaintEvent *e )
 
     QWidget::paintEvent(e);
 }
-#elif MODERN_LOOKNFEEL
-void SRAToolView :: paintEvent ( QPaintEvent *e )
+
+void SRAToolView :: resizeEvent ( QResizeEvent *e )
 {
-    QPainter painter ( this );
-
-    painter.setBrush ( QColor ( 255, 255, 255, 255) );
-
-    painter.drawRect ( 0, 0, size () . width (), size () . height () );
-
-    QPixmap pxmp ( img_path + "ncbi_helix_blue_black" );
-    pxmp = pxmp. scaled ( this -> size (), Qt::KeepAspectRatio, Qt::SmoothTransformation );
-
-    painter.drawPixmap( size () . width () / 2 - pxmp.size ().width() / 2, size () . height () / 2 - pxmp.size ().height() / 2, pxmp );
-
-    show ();
-
-    QWidget::paintEvent(e);
+    QWidget::resizeEvent ( e );
+    config_view -> resize ( size () );
+    diagnostics_view -> resize ( size () );
 }
-#elif DARKGLASS_LOOKNFEEL
-void SRAToolView :: paintEvent ( QPaintEvent *e )
-{
-    QPainter painter ( this );
-
-    show ();
-
-    QWidget::paintEvent(e);
-}
-#endif
-
-

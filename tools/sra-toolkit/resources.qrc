@@ -1,7 +1,5 @@
 <RCC>
     <qresource prefix="/">
-        <file>qss/darkglass_style.qss</file>
-        <file>qss/modern_style.qss</file>
         <file>qss/official_style.qss</file>
         <file>images/ncbi_logo_long.svg</file>
         <file>images/ncbi_config_button_long.svg</file>

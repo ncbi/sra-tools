@@ -63,7 +63,8 @@ SOURCES       = ../sra-toolkit/main.cpp \
 		../vdb-config/util.cpp \
 		../sra-toolkit/diagnostics/diagnosticstest.cpp \
 		../sra-toolkit/diagnostics/diagnosticsthread.cpp \
-		../sra-toolkit/diagnostics/sradiagnosticsview.cpp obj/sra-toolkit/.rcc/qrc_resources.cpp \
+		../sra-toolkit/diagnostics/sradiagnosticsview.cpp \
+		../sra-toolkit/config/testwidget.cpp obj/sra-toolkit/.rcc/qrc_resources.cpp \
 		obj/sra-toolkit/.moc/moc_sratoolkit.cpp \
 		obj/sra-toolkit/.moc/moc_sratoolkitpreferences.cpp \
 		obj/sra-toolkit/.moc/moc_sraworkspace.cpp \
@@ -72,7 +73,8 @@ SOURCES       = ../sra-toolkit/main.cpp \
 		obj/sra-toolkit/.moc/moc_sraconfigmodel.cpp \
 		obj/sra-toolkit/.moc/moc_sraconfigview.cpp \
 		obj/sra-toolkit/.moc/moc_diagnosticsthread.cpp \
-		obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp
+		obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp \
+		obj/sra-toolkit/.moc/moc_testwidget.cpp
 OBJECTS       = obj/sra-toolkit/main.o \
 		obj/sra-toolkit/sratoolkit.o \
 		obj/sra-toolkit/sratoolkitpreferences.o \
@@ -87,6 +89,7 @@ OBJECTS       = obj/sra-toolkit/main.o \
 		obj/sra-toolkit/diagnosticstest.o \
 		obj/sra-toolkit/diagnosticsthread.o \
 		obj/sra-toolkit/sradiagnosticsview.o \
+		obj/sra-toolkit/testwidget.o \
 		obj/sra-toolkit/qrc_resources.o \
 		obj/sra-toolkit/moc_sratoolkit.o \
 		obj/sra-toolkit/moc_sratoolkitpreferences.o \
@@ -96,7 +99,8 @@ OBJECTS       = obj/sra-toolkit/main.o \
 		obj/sra-toolkit/moc_sraconfigmodel.o \
 		obj/sra-toolkit/moc_sraconfigview.o \
 		obj/sra-toolkit/moc_diagnosticsthread.o \
-		obj/sra-toolkit/moc_sradiagnosticsview.o
+		obj/sra-toolkit/moc_sradiagnosticsview.o \
+		obj/sra-toolkit/moc_testwidget.o
 DIST          = ../sra-toolkit/style.qss \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/spec_pre.prf \
 		../../../../Qt/5.10.0/clang_64/mkspecs/qdevice.pri \
@@ -250,6 +254,7 @@ DIST          = ../sra-toolkit/style.qss \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/qt_config.prf \
 		../../../../Qt/5.10.0/clang_64/mkspecs/macx-clang/qmake.conf \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/spec_post.prf \
+		../sra-toolkit/.qmake.stash \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/exclusive_builds.prf \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/mac/sdk.prf \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/toolchain.prf \
@@ -288,7 +293,8 @@ DIST          = ../sra-toolkit/style.qss \
 		../sra-toolkit/config/sraconfigview.h \
 		../sra-toolkit/diagnostics/diagnosticstest.h \
 		../sra-toolkit/diagnostics/diagnosticsthread.h \
-		../sra-toolkit/diagnostics/sradiagnosticsview.h ../sra-toolkit/main.cpp \
+		../sra-toolkit/diagnostics/sradiagnosticsview.h \
+		../sra-toolkit/config/testwidget.h ../sra-toolkit/main.cpp \
 		../sra-toolkit/sratoolkit.cpp \
 		../sra-toolkit/sratoolkitpreferences.cpp \
 		../sra-toolkit/sraworkspace.cpp \
@@ -301,7 +307,8 @@ DIST          = ../sra-toolkit/style.qss \
 		../vdb-config/util.cpp \
 		../sra-toolkit/diagnostics/diagnosticstest.cpp \
 		../sra-toolkit/diagnostics/diagnosticsthread.cpp \
-		../sra-toolkit/diagnostics/sradiagnosticsview.cpp
+		../sra-toolkit/diagnostics/sradiagnosticsview.cpp \
+		../sra-toolkit/config/testwidget.cpp
 QMAKE_TARGET  = sra-toolkit
 DESTDIR       = ./
 TARGET        = ./sra-toolkit
@@ -471,6 +478,7 @@ Makefile: ../sra-toolkit/sra-toolkit.pro ../../../../Qt/5.10.0/clang_64/mkspecs/
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/qt_config.prf \
 		../../../../Qt/5.10.0/clang_64/mkspecs/macx-clang/qmake.conf \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/spec_post.prf \
+		.qmake.stash \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/exclusive_builds.prf \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/mac/sdk.prf \
 		../../../../Qt/5.10.0/clang_64/mkspecs/features/toolchain.prf \
@@ -656,6 +664,7 @@ Makefile: ../sra-toolkit/sra-toolkit.pro ../../../../Qt/5.10.0/clang_64/mkspecs/
 ../../../../Qt/5.10.0/clang_64/mkspecs/features/qt_config.prf:
 ../../../../Qt/5.10.0/clang_64/mkspecs/macx-clang/qmake.conf:
 ../../../../Qt/5.10.0/clang_64/mkspecs/features/spec_post.prf:
+.qmake.stash:
 ../../../../Qt/5.10.0/clang_64/mkspecs/features/exclusive_builds.prf:
 ../../../../Qt/5.10.0/clang_64/mkspecs/features/mac/sdk.prf:
 ../../../../Qt/5.10.0/clang_64/mkspecs/features/toolchain.prf:
@@ -704,8 +713,8 @@ distdir: FORCE
 	$(COPY_FILE) --parents $(DIST) $(DISTDIR)/
 	$(COPY_FILE) --parents ../sra-toolkit/resources.qrc $(DISTDIR)/
 	$(COPY_FILE) --parents ../../../../Qt/5.10.0/clang_64/mkspecs/features/data/dummy.cpp $(DISTDIR)/
-	$(COPY_FILE) --parents ../sra-toolkit/sratoolkit.h ../sra-toolkit/sratoolkittemplate.h ../sra-toolkit/sratoolkitglobals.h ../sra-toolkit/sratoolkitpreferences.h ../sra-toolkit/sraworkspace.h ../sra-toolkit/sratoolbar.h ../sra-toolkit/sratoolview.h ../sra-toolkit/config/sraconfigmodel.h ../sra-toolkit/config/sraconfigview.h ../sra-toolkit/diagnostics/diagnosticstest.h ../sra-toolkit/diagnostics/diagnosticsthread.h ../sra-toolkit/diagnostics/sradiagnosticsview.h $(DISTDIR)/
-	$(COPY_FILE) --parents ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkitpreferences.cpp ../sra-toolkit/sraworkspace.cpp ../sra-toolkit/sratoolbar.cpp ../sra-toolkit/sratoolview.cpp ../sra-toolkit/config/sraconfigmodel.cpp ../sra-toolkit/config/sraconfigview.cpp ../vdb-config/configure.cpp ../vdb-config/vdb-config-model.cpp ../vdb-config/util.cpp ../sra-toolkit/diagnostics/diagnosticstest.cpp ../sra-toolkit/diagnostics/diagnosticsthread.cpp ../sra-toolkit/diagnostics/sradiagnosticsview.cpp $(DISTDIR)/
+	$(COPY_FILE) --parents ../sra-toolkit/sratoolkit.h ../sra-toolkit/sratoolkittemplate.h ../sra-toolkit/sratoolkitglobals.h ../sra-toolkit/sratoolkitpreferences.h ../sra-toolkit/sraworkspace.h ../sra-toolkit/sratoolbar.h ../sra-toolkit/sratoolview.h ../sra-toolkit/config/sraconfigmodel.h ../sra-toolkit/config/sraconfigview.h ../sra-toolkit/diagnostics/diagnosticstest.h ../sra-toolkit/diagnostics/diagnosticsthread.h ../sra-toolkit/diagnostics/sradiagnosticsview.h ../sra-toolkit/config/testwidget.h $(DISTDIR)/
+	$(COPY_FILE) --parents ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkitpreferences.cpp ../sra-toolkit/sraworkspace.cpp ../sra-toolkit/sratoolbar.cpp ../sra-toolkit/sratoolview.cpp ../sra-toolkit/config/sraconfigmodel.cpp ../sra-toolkit/config/sraconfigview.cpp ../vdb-config/configure.cpp ../vdb-config/vdb-config-model.cpp ../vdb-config/util.cpp ../sra-toolkit/diagnostics/diagnosticstest.cpp ../sra-toolkit/diagnostics/diagnosticsthread.cpp ../sra-toolkit/diagnostics/sradiagnosticsview.cpp ../sra-toolkit/config/testwidget.cpp $(DISTDIR)/
 
 
 clean: compiler_clean 
@@ -715,6 +724,7 @@ clean: compiler_clean
 
 distclean: clean 
 	-$(DEL_FILE) $(TARGET) 
+	-$(DEL_FILE) .qmake.stash
 	-$(DEL_FILE) Makefile
 
 
@@ -741,8 +751,6 @@ obj/sra-toolkit/.rcc/qrc_resources.cpp: ../sra-toolkit/resources.qrc \
 		../sra-toolkit/images/ncbi_expand_button_open.svg \
 		../sra-toolkit/images/ncbi_config_button_long.svg \
 		../sra-toolkit/images/ncbi_diagnostics_button.svg \
-		../sra-toolkit/qss/modern_style.qss \
-		../sra-toolkit/qss/darkglass_style.qss \
 		../sra-toolkit/qss/official_style.qss
 	/Users/rodarme1/Qt/5.10.0/clang_64/bin/rcc -name resources ../sra-toolkit/resources.qrc -o obj/sra-toolkit/.rcc/qrc_resources.cpp
 
@@ -752,9 +760,9 @@ compiler_moc_predefs_clean:
 obj/sra-toolkit/.moc/moc_predefs.h: ../../../../Qt/5.10.0/clang_64/mkspecs/features/data/dummy.cpp
 	/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++ -pipe -stdlib=libc++ -g -std=gnu++11 $(EXPORT_ARCH_ARGS) -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk -mmacosx-version-min=10.10 -Wall -W -dM -E -o obj/sra-toolkit/.moc/moc_predefs.h ../../../../Qt/5.10.0/clang_64/mkspecs/features/data/dummy.cpp
 
-compiler_moc_header_make_all: obj/sra-toolkit/.moc/moc_sratoolkit.cpp obj/sra-toolkit/.moc/moc_sratoolkitpreferences.cpp obj/sra-toolkit/.moc/moc_sraworkspace.cpp obj/sra-toolkit/.moc/moc_sratoolbar.cpp obj/sra-toolkit/.moc/moc_sratoolview.cpp obj/sra-toolkit/.moc/moc_sraconfigmodel.cpp obj/sra-toolkit/.moc/moc_sraconfigview.cpp obj/sra-toolkit/.moc/moc_diagnosticsthread.cpp obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp
+compiler_moc_header_make_all: obj/sra-toolkit/.moc/moc_sratoolkit.cpp obj/sra-toolkit/.moc/moc_sratoolkitpreferences.cpp obj/sra-toolkit/.moc/moc_sraworkspace.cpp obj/sra-toolkit/.moc/moc_sratoolbar.cpp obj/sra-toolkit/.moc/moc_sratoolview.cpp obj/sra-toolkit/.moc/moc_sraconfigmodel.cpp obj/sra-toolkit/.moc/moc_sraconfigview.cpp obj/sra-toolkit/.moc/moc_diagnosticsthread.cpp obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp obj/sra-toolkit/.moc/moc_testwidget.cpp
 compiler_moc_header_clean:
-	-$(DEL_FILE) obj/sra-toolkit/.moc/moc_sratoolkit.cpp obj/sra-toolkit/.moc/moc_sratoolkitpreferences.cpp obj/sra-toolkit/.moc/moc_sraworkspace.cpp obj/sra-toolkit/.moc/moc_sratoolbar.cpp obj/sra-toolkit/.moc/moc_sratoolview.cpp obj/sra-toolkit/.moc/moc_sraconfigmodel.cpp obj/sra-toolkit/.moc/moc_sraconfigview.cpp obj/sra-toolkit/.moc/moc_diagnosticsthread.cpp obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp
+	-$(DEL_FILE) obj/sra-toolkit/.moc/moc_sratoolkit.cpp obj/sra-toolkit/.moc/moc_sratoolkitpreferences.cpp obj/sra-toolkit/.moc/moc_sraworkspace.cpp obj/sra-toolkit/.moc/moc_sratoolbar.cpp obj/sra-toolkit/.moc/moc_sratoolview.cpp obj/sra-toolkit/.moc/moc_sraconfigmodel.cpp obj/sra-toolkit/.moc/moc_sraconfigview.cpp obj/sra-toolkit/.moc/moc_diagnosticsthread.cpp obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp obj/sra-toolkit/.moc/moc_testwidget.cpp
 obj/sra-toolkit/.moc/moc_sratoolkit.cpp: ../../../../Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers/QMainWindow \
 		../../../../Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers/qmainwindow.h \
 		../sra-toolkit/sratoolkit.h \
@@ -825,6 +833,13 @@ obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp: ../../../../Qt/5.10.0/clang_64/
 		../../../../Qt/5.10.0/clang_64/bin/moc
 	/Users/rodarme1/Qt/5.10.0/clang_64/bin/moc $(DEFINES) --include /Users/rodarme1/devel/sra-tools/tools/build-sra-toolkit-Desktop_Qt_5_10_0_clang_64bit-Debug/obj/sra-toolkit/.moc/moc_predefs.h -I/Users/rodarme1/Qt/5.10.0/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.10.0/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.10.0/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.10.0/clang_64/lib ../sra-toolkit/diagnostics/sradiagnosticsview.h -o obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp
 
+obj/sra-toolkit/.moc/moc_testwidget.cpp: ../../../../Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+		../../../../Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
+		../sra-toolkit/config/testwidget.h \
+		obj/sra-toolkit/.moc/moc_predefs.h \
+		../../../../Qt/5.10.0/clang_64/bin/moc
+	/Users/rodarme1/Qt/5.10.0/clang_64/bin/moc $(DEFINES) --include /Users/rodarme1/devel/sra-tools/tools/build-sra-toolkit-Desktop_Qt_5_10_0_clang_64bit-Debug/obj/sra-toolkit/.moc/moc_predefs.h -I/Users/rodarme1/Qt/5.10.0/clang_64/mkspecs/macx-clang -I/Users/rodarme1/devel/sra-tools/tools/sra-toolkit -I/Users/rodarme1/devel/ncbi-vdb/interfaces -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/mac -I/Users/rodarme1/devel/ncbi-vdb/interfaces/os/unix -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc -I/Users/rodarme1/devel/ncbi-vdb/interfaces/cc/gcc/x86_64 -I/Users/rodarme1/Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers -I/Users/rodarme1/Qt/5.10.0/clang_64/lib/QtGui.framework/Headers -I/Users/rodarme1/Qt/5.10.0/clang_64/lib/QtCore.framework/Headers -I. -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include/c++/v1 -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/clang/8.0.0/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.12.sdk/usr/include -F/Users/rodarme1/Qt/5.10.0/clang_64/lib ../sra-toolkit/config/testwidget.h -o obj/sra-toolkit/.moc/moc_testwidget.cpp
+
 compiler_moc_objc_header_make_all:
 compiler_moc_objc_header_clean:
 compiler_moc_source_make_all:
@@ -859,7 +874,9 @@ obj/sra-toolkit/main.o: ../sra-toolkit/main.cpp ../sra-toolkit/sratoolkit.h \
 		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/QFile \
 		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/qfile.h \
 		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/QPoint \
-		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/qpoint.h
+		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/qpoint.h \
+		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/QDebug \
+		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/qdebug.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/sra-toolkit/main.o ../sra-toolkit/main.cpp
 
 obj/sra-toolkit/sratoolkit.o: ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/sratoolkit.h \
@@ -875,6 +892,8 @@ obj/sra-toolkit/sratoolkit.o: ../sra-toolkit/sratoolkit.cpp ../sra-toolkit/srato
 		../../../../Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers/QWidget \
 		../../../../Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers/qwidget.h \
 		../sra-toolkit/sratoolview.h \
+		../sra-toolkit/config/sraconfigview.h \
+		../sra-toolkit/config/testwidget.h \
 		../../../ncbi-vdb/interfaces/kapp/main.h \
 		../../../ncbi-vdb/interfaces/klib/defs.h \
 		../../../ncbi-vdb/interfaces/kfc/defs.h \
@@ -968,7 +987,9 @@ obj/sra-toolkit/sratoolview.o: ../sra-toolkit/sratoolview.cpp ../sra-toolkit/sra
 		../../../ncbi-vdb/interfaces/klib/defs.h \
 		../../../ncbi-vdb/interfaces/kfc/defs.h \
 		../../../../Qt/5.10.0/clang_64/lib/QtGui.framework/Headers/QPainter \
-		../../../../Qt/5.10.0/clang_64/lib/QtGui.framework/Headers/qpainter.h
+		../../../../Qt/5.10.0/clang_64/lib/QtGui.framework/Headers/qpainter.h \
+		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/QDebug \
+		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/qdebug.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/sra-toolkit/sratoolview.o ../sra-toolkit/sratoolview.cpp
 
 obj/sra-toolkit/sraconfigmodel.o: ../sra-toolkit/config/sraconfigmodel.cpp ../sra-toolkit/config/sraconfigmodel.h \
@@ -1229,6 +1250,11 @@ obj/sra-toolkit/sradiagnosticsview.o: ../sra-toolkit/diagnostics/sradiagnosticsv
 		../../../../Qt/5.10.0/clang_64/lib/QtCore.framework/Headers/qdebug.h
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/sra-toolkit/sradiagnosticsview.o ../sra-toolkit/diagnostics/sradiagnosticsview.cpp
 
+obj/sra-toolkit/testwidget.o: ../sra-toolkit/config/testwidget.cpp ../sra-toolkit/config/testwidget.h \
+		../../../../Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers/QWidget \
+		../../../../Qt/5.10.0/clang_64/lib/QtWidgets.framework/Headers/qwidget.h
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/sra-toolkit/testwidget.o ../sra-toolkit/config/testwidget.cpp
+
 obj/sra-toolkit/qrc_resources.o: obj/sra-toolkit/.rcc/qrc_resources.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/sra-toolkit/qrc_resources.o obj/sra-toolkit/.rcc/qrc_resources.cpp
 
@@ -1258,6 +1284,9 @@ obj/sra-toolkit/moc_diagnosticsthread.o: obj/sra-toolkit/.moc/moc_diagnosticsthr
 
 obj/sra-toolkit/moc_sradiagnosticsview.o: obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp 
 	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/sra-toolkit/moc_sradiagnosticsview.o obj/sra-toolkit/.moc/moc_sradiagnosticsview.cpp
+
+obj/sra-toolkit/moc_testwidget.o: obj/sra-toolkit/.moc/moc_testwidget.cpp 
+	$(CXX) -c $(CXXFLAGS) $(INCPATH) -o obj/sra-toolkit/moc_testwidget.o obj/sra-toolkit/.moc/moc_testwidget.cpp
 
 ####### Install
 

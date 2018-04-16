@@ -60,26 +60,25 @@ signals:
 
 private slots:
 
-    void advanced_settings ();
+   // void advanced_settings ();
     void commit_config ();
     void reload_config ();
     void default_config ();
     void modified_config ();
 
-    void import_workspace ();
 
-    void edit_import_path ();
+    //void import_workspace ();
+
+    //void edit_import_path ();
     void edit_proxy_path ();
-    void edit_public_path ();
-    void edit_workspace_path ();
+    //void edit_public_path ();
+    //void edit_workspace_path ();
 
     void toggle_remote_enabled ( int toggled );
     void toggle_local_caching ( int toggled );
     void toggle_use_site ( int toggled );
     void toggle_use_proxy ( int toggled );
     void toggle_prioritize_http ( int toggled );
-
-
 
 private:
 

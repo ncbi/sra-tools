@@ -525,7 +525,6 @@ SRAConfigView :: SRAConfigView ( QWidget *parent )
     , main_layout ( new QVBoxLayout () )
 {
     setObjectName ( "config_view" );
-    resize ( QSize ( parent -> size (). width (), parent -> size () . height () ) );
     connect ( this, SIGNAL ( dirty_config () ), this, SLOT ( modified_config () ) );
 
     main_layout -> setAlignment ( Qt::AlignTop );
@@ -546,7 +545,6 @@ SRAConfigView :: ~SRAConfigView ()
 {
 
 }
-
 
 void SRAConfigView :: load_settings ()
 {
@@ -592,10 +590,10 @@ void SRAConfigView :: load_settings ()
 
 QWidget * SRAConfigView::setup_workflow_group ()
 {
+
     QWidget *widget = new QWidget ();
     widget -> setObjectName ( "workflow_widget" );
     widget -> setFixedHeight ( 70 );
-    widget -> setFixedWidth ( size () . width () );
 
     QHBoxLayout *layout = new QHBoxLayout ();
     layout -> setAlignment ( Qt::AlignBottom | Qt::AlignRight );
@@ -803,20 +801,37 @@ QWidget * SRAConfigView::setup_option_group ()
     scrollWidgetLayout -> addSpacing ( 20 );
     setup_network_setting ();
 
-
     QWidget *scrollWidget = new QWidget ();
     scrollWidget -> setObjectName ("scroll_widget");
-    scrollWidget -> setMinimumWidth ( size () . width () - 5 );
     scrollWidget -> setLayout ( scrollWidgetLayout );
+    scrollWidget -> setSizePolicy ( QSizePolicy::Ignored, QSizePolicy::Ignored);
 
     QScrollArea *scrollArea = new QScrollArea ();
-    scrollArea -> resize ( QSize ( size () . width (), size () . height () - 70 ) );
     scrollArea -> setHorizontalScrollBarPolicy ( Qt::ScrollBarAlwaysOff );
     scrollArea -> setWidget ( scrollWidget );
+    scrollArea -> setWidgetResizable ( true );
 
     return scrollArea;
 }
 
+void SRAConfigView :: closeEvent ( QCloseEvent *ev )
+{
+#if ALLOW_SLOTS
+    if ( model -> config_changed () )
+    {
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question ( this
+                                        , ""
+                                        , "Save changes? "
+                                        , QMessageBox::No | QMessageBox::Yes );
+
+        if ( reply == QMessageBox::Yes )
+            commit_config ();
+    }
+
+    ev -> accept ();
+#endif
+}
 
 void SRAConfigView :: add_workspace (QString name, QString val, int ngc_id, bool insert )
 {
@@ -847,7 +862,7 @@ void SRAConfigView :: add_workspace (QString name, QString val, int ngc_id, bool
         workspace_layout -> addLayout ( layout );
 }
 
-
+/*
 void SRAConfigView :: import_workspace ()
 {
     // open a file dialog to browse for the repository
@@ -883,7 +898,7 @@ void SRAConfigView :: import_workspace ()
     }
 }
 
-/*
+
 QGroupBox * SRAConfigView :: setup_workspace_group ()
 {
     QGroupBox *group = new QGroupBox ();
@@ -931,23 +946,8 @@ QGroupBox * SRAConfigView :: setup_workspace_group ()
 }
 */
 
-void SRAConfigView :: closeEvent ( QCloseEvent *ev )
-{
-    if ( model -> config_changed () )
-    {
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question ( this
-                                        , ""
-                                        , "Save changes? "
-                                        , QMessageBox::No | QMessageBox::Yes );
 
-        if ( reply == QMessageBox::Yes )
-            commit_config ();
-    }
-
-    ev -> accept ();
-}
-
+/*
 void SRAConfigView :: advanced_settings ()
 {
     adv_setting_window = new QFrame ();
@@ -991,6 +991,7 @@ void SRAConfigView :: advanced_settings ()
 
     adv_setting_window -> show ();
 }
+*/
 
 void SRAConfigView :: commit_config ()
 {
@@ -1116,6 +1117,25 @@ void SRAConfigView :: toggle_prioritize_http ( int toggled )
     emit dirty_config ();
 }
 
+void SRAConfigView :: edit_proxy_path ()
+{
+    QString text = proxyEditor -> text ();
+
+    if ( text . isEmpty () )
+        return;
+
+    proxy_string = &text;
+
+    if ( proxyEditor -> hasFocus () )
+        proxyEditor -> clearFocus ();
+
+    qDebug () << "set new proxy path: " << text;
+    //model -> set_proxy_path ( proxy_string -> toStdString () );
+
+    //emit dirty_config ();
+}
+
+/*
 void SRAConfigView :: edit_import_path ()
 {
     std :: string path = model -> get_user_default_path () . c_str ();
@@ -1140,23 +1160,6 @@ void SRAConfigView :: edit_import_path ()
     emit dirty_config ();
 }
 
-void SRAConfigView :: edit_proxy_path ()
-{
-    QString text = proxyEditor -> text ();
-
-    if ( text . isEmpty () )
-        return;
-
-    proxy_string = &text;
-
-    if ( proxyEditor -> hasFocus () )
-        proxyEditor -> clearFocus ();
-
-    qDebug () << "set new proxy path: " << text;
-    //model -> set_proxy_path ( proxy_string -> toStdString () );
-
-    //emit dirty_config ();
-}
 
 void SRAConfigView :: edit_public_path ()
 {
@@ -1191,4 +1194,4 @@ void SRAConfigView :: edit_workspace_path ()
     }
 }
 
-
+*/

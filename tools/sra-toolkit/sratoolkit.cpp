@@ -29,6 +29,8 @@
 #include "sratoolkitglobals.h"
 #include "sratoolbar.h"
 #include "sratoolview.h"
+#include "config/sraconfigview.h"
+#include "config/testwidget.h"
 
 #include <kapp/main.h>
 #include <kfg/config.h>
@@ -36,20 +38,10 @@
 #include <kfs/directory.h>
 #include <klib/rc.h>
 
-#include <QHBoxLayout>
-#include <QVBoxLayout>
-#include <QGroupBox>
-#include <QIcon>
-#include <QMenu>
-#include <QMenuBar>
-#include <QPainter>
-#include <QToolButton>
-#include <QTimer>
-
-#include <QDebug>
+#include <QtWidgets>
 
 
-SRAToolkit :: SRAToolkit ( const QRect &avail_geometry, QWidget *parent )
+SRAToolkit :: SRAToolkit ( QWidget *parent )
     : QMainWindow ( parent )
     , config ( nullptr )
 {
@@ -64,10 +56,19 @@ SRAToolkit :: SRAToolkit ( const QRect &avail_geometry, QWidget *parent )
             qDebug () << "Failed to make config";
     }
 
-    setFixedSize ( ( avail_geometry . width () / 2.5 ) , avail_geometry . height () / 2 );
-
-    move ( ( avail_geometry . width () - this -> width () ) / 2,
-           ( avail_geometry . height () - this -> height () ) / 2 );
+    QSize avail_size = QGuiApplication::primaryScreen () -> availableSize ();
+    if ( avail_size . isNull () ||
+         avail_size . width () < 1000 ||
+         avail_size . height () < 600 )
+    {
+        // Minimum size if no size can be determined or screen is too small
+        // 1440 * 900
+        setMinimumSize ( 1440 / 2, 900 / 1.75  );
+    }
+    else
+    {
+        setMinimumSize ( avail_size . width () / 2.5, avail_size . height () / 2 );
+    }
 
     init ();
 }
@@ -78,53 +79,36 @@ SRAToolkit :: ~SRAToolkit ()
 
 void SRAToolkit :: init ()
 {
-    init_menubar ();
-    init_view ();
-}
-
-void SRAToolkit :: init_menubar ()
-{
-    //QMenu *file = menuBar () -> addMenu ( tr ( "&File" ) );
-    //QMenu *edit = menuBar () -> addMenu ( tr ( "\u200CEdit" ) ); // \u200C was added because OSX auto-adds some unwanted menu items
-    //QMenu *help = menuBar () -> addMenu ( tr ( "&Help" ) );
-    //help -> addAction ( tr ( "&Diagnostics" ), this, SLOT ( open_diagnostics () ) );
-}
-
-void SRAToolkit :: init_view ()
-{
     mainWidget = new QWidget ();
     mainWidget -> setObjectName ( "main_widget" );
+    setCentralWidget ( mainWidget );
 
     mainLayout = new QHBoxLayout ();
     mainLayout -> setSpacing ( 0 );
     mainLayout -> setMargin ( 0 );
+    mainWidget -> setLayout ( mainLayout );
 
     toolBar = new SRAToolBar ( this );
 
-    toolView = new SRAToolView ( config, this );
+    toolView = new SRAToolView ( config, mainWidget );
     toolView -> setObjectName ( "sratool_view" );
+
     connect ( toolBar, SIGNAL ( toolSwitched ( int ) ), toolView, SLOT ( toolChanged ( int ) ) );
     connect ( toolBar, SIGNAL ( expanded ( bool ) ), this, SLOT ( expand ( bool ) ) );
-    connect ( toolBar, SIGNAL ( expanded ( bool ) ), toolView, SLOT ( expand ( bool ) ) );
 
     mainLayout -> addWidget ( toolBar );
     mainLayout -> addWidget ( toolView );
-
-    mainWidget -> setLayout ( mainLayout );
-
-    setCentralWidget ( mainWidget );
-
 }
+
 
 void SRAToolkit :: expand ( bool val )
 {
     if ( val )
-        setFixedSize ( size () . width () + TOOLBAR_WIDTH_FACTOR, size () . height () );
+        resize ( size () . width () + TOOLBAR_WIDTH_FACTOR, size () . height () );
     else
-        setFixedSize ( size () . width () - TOOLBAR_WIDTH_FACTOR, size () . height () );
+        resize ( size () . width () - TOOLBAR_WIDTH_FACTOR, size () . height () );
 }
 
-#if OFFICAL_LOOKNFEEL
 void SRAToolkit :: paintEvent ( QPaintEvent *e )
 {
     QPainter painter ( this );
@@ -140,49 +124,5 @@ void SRAToolkit :: paintEvent ( QPaintEvent *e )
 
     QWidget::paintEvent(e);
 }
-#elif MODERN_LOOKNFEEL
-void SRAToolkit :: paintEvent ( QPaintEvent *e )
-{
-    QPainter painter ( this );
 
-    QLinearGradient gradient = sraTemplate -> getBaseGradient();
-    gradient . setStart ( 0, 0 );
-    gradient . setFinalStop ( size () . width (), size () . height () );
-
-    painter.setBrush ( gradient );
-    //painter.setBrush ( QColor ( 255, 255, 255, 255) );
-
-    painter.drawRect ( 0, 0, size () . width (), size () . height () );
-
-    QPixmap pxmp ( img_path + "ncbi_helix_blue_black" );
-    pxmp = pxmp. scaled ( this -> size (), Qt::KeepAspectRatio, Qt::SmoothTransformation );
-
-    painter.drawPixmap( size () . width () / 2 - pxmp.size ().width() / 2, size () . height () / 2 - pxmp.size ().height() / 2, pxmp );
-
-    show ();
-
-    QWidget::paintEvent(e);
-}
-#elif DARKGLASS_LOOKNFEEL
-void SRAToolkit :: paintEvent ( QPaintEvent *e )
-{
-    QPainter painter ( this );
-
-    QLinearGradient gradient = sraTemplate -> getBaseGradient();
-    gradient . setStart ( 0, 0 );
-    gradient . setFinalStop ( size () . width (), size () . height () );
-
-    painter.setBrush ( gradient );
-    painter.drawRect ( 0, 0, size () . width (), size () . height () );
-
-    QPixmap pxmp ( img_path + "ncbi_helix_blue_black" );
-    pxmp = pxmp. scaled ( this -> size (), Qt::KeepAspectRatio, Qt::SmoothTransformation );
-
-    painter.drawPixmap( size () . width () / 2 - pxmp.size ().width() / 2, size () . height () / 2 - pxmp.size ().height() / 2, pxmp );
-
-    show ();
-
-    QWidget::paintEvent(e);
-}
-#endif
 

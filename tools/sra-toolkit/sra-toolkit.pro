@@ -102,7 +102,8 @@ SOURCES += main.cpp\
         ../vdb-config/util.cpp \
         diagnostics/diagnosticstest.cpp \
         diagnostics/diagnosticsthread.cpp \
-        diagnostics/sradiagnosticsview.cpp
+        diagnostics/sradiagnosticsview.cpp \
+    config/testwidget.cpp
 
 
 HEADERS  += sratoolkit.h \
@@ -116,7 +117,8 @@ HEADERS  += sratoolkit.h \
         config/sraconfigview.h \
         diagnostics/diagnosticstest.h \
         diagnostics/diagnosticsthread.h \
-        diagnostics/sradiagnosticsview.h
+        diagnostics/sradiagnosticsview.h \
+    config/testwidget.h
 
 
 RESOURCES += \
@@ -124,4 +126,6 @@ RESOURCES += \
 
 DISTFILES += \
     style.qss
+
+FORMS +=
 

@@ -27,15 +27,7 @@
 #include "sratoolbar.h"
 #include "sratoolkitglobals.h"
 
-#include <QVBoxLayout>
-#include <QBrush>
-#include <QButtonGroup>
-#include <QColor>
-#include <QLabel>
-#include <QPainter>
-#include <QPushButton>
-
-#include <QDebug>
+#include <QtWidgets>
 
 #define TOOLBAR_BUTTON_WIDTH_SHORT 96
 #define TOOLBAR_BUTTON_WIDTH_LONG 192
@@ -46,7 +38,6 @@ SRAToolBar::SRAToolBar ( QWidget *parent )
     , isExpanded ( false )
 {
     setObjectName ( "tool_bar_view" );
-    resize ( QSize ( TOOLBAR_WIDTH_FACTOR, parent -> size () . height () ) );
     setFixedWidth ( TOOLBAR_WIDTH_FACTOR );
 
     init ();
@@ -176,7 +167,6 @@ void SRAToolBar :: expand ()
     emit expanded ( isExpanded );
 }
 
-#if OFFICAL_LOOKNFEEL
 void SRAToolBar :: paintEvent ( QPaintEvent *e )
 {
     QPainter painter ( this );
@@ -193,38 +183,5 @@ void SRAToolBar :: paintEvent ( QPaintEvent *e )
 
     QWidget::paintEvent(e);
 }
-#elif MODERN_LOOKNFEEL
-void SRAToolBar :: paintEvent ( QPaintEvent *e )
-{
-    QPainter painter ( this );
 
-    QLinearGradient gradient = sraTemplate -> getBaseGradient();
-    gradient . setStart ( size () . width () / 2, 0 );
-    gradient . setFinalStop ( size () . width () / 2, size () . height () );
-
-    painter.setBrush ( gradient );
-
-    painter.drawRect ( 0, 0, 100, size () . height () );
-
-    show ();
-
-    QWidget::paintEvent(e);
-}
-#elif DARKGLASS_LOOKNFEEL
-void SRAToolBar :: paintEvent ( QPaintEvent *e )
-{
-    QPainter painter ( this );
-
-    QLinearGradient gradient = sraTemplate -> getBaseGradient();
-    gradient . setStart ( 0, 0 );
-    gradient . setFinalStop ( size () . width (), size () . height () );
-
-    painter.setBrush ( gradient );
-    painter.drawRect ( 0, 0, size () . width (), size () . height () );
-
-    show ();
-
-    QWidget::paintEvent(e);
-}
-#endif
 

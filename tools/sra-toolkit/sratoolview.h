@@ -54,6 +54,7 @@ private:
 
     void init ();
     void paintEvent ( QPaintEvent * );
+    void resizeEvent ( QResizeEvent * );
 
     KConfig *config;
 

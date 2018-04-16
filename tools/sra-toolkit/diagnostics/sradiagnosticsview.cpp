@@ -69,8 +69,6 @@ SRADiagnosticsView :: SRADiagnosticsView ( KConfig *p_config, QWidget *parent )
     self_layout -> setAlignment (  Qt::AlignCenter  );
     self_layout -> setMargin ( 30 );
 
-    resize ( QSize ( parent -> size (). width (), parent -> size () . height () ) );
-
     init ();
 
     show ();
@@ -100,8 +98,7 @@ void SRADiagnosticsView :: init_metadata_view ()
 {
     QWidget *metadata = new QWidget ();
     metadata -> setObjectName ( "diagnostics_metadata" );
-    metadata -> setFixedWidth ( width () - 56 );
-    metadata -> setMaximumHeight ( 200 );
+    metadata -> setFixedHeight ( 100 );
 
     QGridLayout *layout = new QGridLayout ( metadata );
     layout -> setColumnStretch ( 2, 2 );
@@ -116,15 +113,11 @@ void SRADiagnosticsView :: init_metadata_view ()
 
     QFrame *separator = new QFrame ();
     separator -> setFrameShape ( QFrame::HLine );
-    separator -> setFixedSize ( width () - 56, 2 );
-
-    //self_layout -> addWidget ( separator );
 }
 
 void SRADiagnosticsView :: init_tree_view ()
 {
     tree_view = new QTreeWidget ();
-    tree_view -> setFixedWidth ( width () - 56 );
     tree_view -> setSelectionMode ( QAbstractItemView::NoSelection );
     tree_view -> setAlternatingRowColors ( true );
     tree_view -> setColumnCount ( 3 );

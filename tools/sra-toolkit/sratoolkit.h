@@ -44,7 +44,7 @@ class SRAToolkit : public QMainWindow
     Q_OBJECT
 
 public:
-    SRAToolkit ( const QRect &avail_geometry, QWidget *parent = 0 );
+    SRAToolkit ( QWidget *parent = 0 );
     ~SRAToolkit ();
 
 private slots:
@@ -53,8 +53,6 @@ private slots:
 private:
 
     void init ();
-    void init_menubar ();
-    void init_view ();
     void paintEvent ( QPaintEvent * );
 
     QHBoxLayout *mainLayout;

@@ -24,6 +24,10 @@
 
 use strict;
 
+use Cwd 'abs_path';
+use File::Basename 'dirname';
+use lib dirname( abs_path $0 );
+
 sub println  { print @_; print "\n" }
 
 my ($filename, $directories, $suffix) = fileparse($0);
@@ -207,6 +211,12 @@ my $OS_DISTRIBUTOR = '';
 if ($OS eq 'linux') {
     print "checking OS distributor... " unless ($AUTORUN);
     $OS_DISTRIBUTOR = `lsb_release -si 2> /dev/null`;
+    if ( $? != 0 ) {
+        $_ = `cat /etc/redhat-release 2> /dev/null`;
+        @_ = split ( / /  );
+        $OS_DISTRIBUTOR = $_[0] if ( $_[0] );
+    }
+    $OS_DISTRIBUTOR = '' unless ( $OS_DISTRIBUTOR );
     chomp $OS_DISTRIBUTOR;
     println $OS_DISTRIBUTOR unless ($AUTORUN);
 }
@@ -433,7 +443,25 @@ if ($TOOLS =~ /gcc$/) {
     $STATIC_LIBSTDCPP = check_static_libstdcpp();
 }
 
+if ( $PKG{REQ} ) {
+    foreach ( @{ $PKG{REQ} } ) {
+        unless (check_tool__h($_)) {
+            println "configure: error: '$_' cannot be found";
+            exit 1;
+        }
+    }
+}
+
 my @dependencies;
+
+if ( $PKG{OPT} ) {
+    foreach ( @{ $PKG{OPT} } ) {
+        if ( /^qmake$/ ) {
+            my $qmake = check_qmake();
+            push @dependencies, "QMAKE_BIN = $qmake";
+        } else { die; }
+    }
+}
 
 my %DEPEND_OPTIONS;
 foreach my $href (DEPENDS()) {
@@ -534,7 +562,7 @@ foreach my $href (@REQ) {
                     ++$has_option{sources};
                 }
                 my ($fi, $fl, $fil, $fs)
-                    = find_in_dir($try, $i, $l, $il, undef, undef, $src);
+                        = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                 if ($fi || $fl || $fil) {
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
@@ -542,10 +570,12 @@ foreach my $href (@REQ) {
                     $found_src  = $fs  if (! $found_src  && $fs);
                 } elsif (! ($try =~ /$a{name}$/)) {
                     $try = File::Spec->catdir($try, $a{name});
-                    ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                    ($fi, $fl, $fil, $fs)
+                        = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
                     $found_ilib = $fil if (! $found_ilib && $fil);
+                    $found_src  = $fs  if (! $found_src  && $fs);
                 }
             } elsif ($need_bin) {
                 my (undef, $fl, $fil)
@@ -656,6 +686,9 @@ foreach my $href (@REQ) {
         } elsif ($quasi_optional && $found_itf && ($need_lib && ! $found_lib)) {
             println "configure: $a{name} package: "
                 . "found interface files but not libraries.";
+            $found_itf = abs_path($found_itf);
+            push(@dependencies, "$a{aname}_INCDIR = $found_itf");
+            println "includes: $found_itf";
         } else {
             if ($OPT{'debug'}) {
                 $_ = "$a{name}: includes: ";
@@ -1445,6 +1478,86 @@ sub check_tool {
     }
 }
 
+sub check_qmake {
+    print "checking for QMake... ";
+
+    my $tool = 'qmake';
+    print "\n\t\trunning $tool... " if ($OPT{'debug'});
+    my $out = `$tool -v 2>&1`;
+    if ($? == 0) {
+        my $out = `( $tool -v | grep QMake ) 2>&1`;
+        if ($? == 0) {
+            print "$out " if ($OPT{'debug'});
+            println $tool;
+            return $tool;
+        }
+
+        println "wrong qmake" if ($OPT{'debug'});
+
+        print "\t\tchecking $ENV{PATH}...\n" if ($OPT{'debug'});
+        foreach ( split(/:/, $ENV{PATH})) {
+            my $cmd = "$_/$tool";
+            print "\t\trunning $cmd... " if ($OPT{'debug'});
+            my $out = `( $cmd -v | grep QMake ) 2>&1`;
+            if ($? == 0) {
+                print "$out " if ($OPT{'debug'});
+                if ( $out =~ /QMake/ ) {
+                    println $cmd;
+                    return $cmd;
+                }
+            }
+
+            println "no" if ($OPT{'debug'});
+        }
+    }
+
+    if ( $OS eq 'linux' ) {
+        if ( $OS_DISTRIBUTOR eq 'CentOS' ) {
+            foreach ( glob ( "$ENV{HOME}/Qt/*/gcc_64" ) ) {
+                $tool =  "$_/bin/qmake";
+                print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+                my $out = `( $tool -v | grep QMake ) 2>&1`;
+                if ($? == 0) {
+                    print "$out " if ($OPT{'debug'});
+                    println $tool;
+                    return $tool;
+                }
+            }
+
+            $tool = '/usr/lib64/qt5/bin/qmake';
+
+        } elsif ( $OS_DISTRIBUTOR eq 'Ubuntu' ) {
+            foreach ( glob ( "$ENV{HOME}/Qt*/*/gcc_64" ) ) {
+                $tool =  "$_/bin/qmake";
+                print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+                my $out = `( $tool -v | grep QMake ) 2>&1`;
+                if ($? == 0) {
+                    print "$out " if ($OPT{'debug'});
+                    println $tool;
+                    return $tool;
+                }
+            }
+
+            $tool = '';
+        }
+    } elsif ( $OS eq 'mac' ) {
+        $tool = '/Applications/QT/5.10.1/clang_64/bin/qmake';
+    }
+
+    if ( $tool ) {
+        print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+        my $out = `( $tool -v | grep QMake ) 2>&1`;
+        if ($? == 0) {
+            print "$out " if ($OPT{'debug'});
+            println $tool;
+            return $tool;
+        }
+    }
+
+    println "no";
+    return '';
+}
+
 sub check_static_libstdcpp {
     my $option = '-static-libstdc++';
 
@@ -1506,7 +1619,7 @@ sub check_compiler {
             $flags = $n;
             $log = '                      int main() {                     }\n'
         } elsif ($n eq 'hdf5') {
-            $library = '-lhdf5';
+            $library = '-Wl,-Bstatic -lhdf5 -Wl,-Bdynamic -ldl -lm -lz';
             $log = '#include <hdf5.h>  \n int main() { H5close         (); }\n'
         } elsif ($n eq 'fuse') {
             $flags = '-D_FILE_OFFSET_BITS=64';
@@ -1549,7 +1662,14 @@ sub check_compiler {
         push ( @l, '' ) unless ( @l );
         for my $i ( 0 .. $#l ) {
             my $l = $l [ $i ];
-            next if ( $l && ! -d $l );
+            if ( $l && ! -d $l ) {
+                if ( $i == $#l ) {
+                    println 'no';
+                    return;
+                } else {
+                    next;
+                }
+            }
             my $gcc = "| $tool -xc $flags " . ($I ? "-I$I " : ' ')
                                       . ($l ? "-L$l " : ' ') . "- $library";
             $gcc .= ' 2> /dev/null' unless ($OPT{'debug'});
@@ -1728,9 +1848,12 @@ EndText
         foreach my $href (@REQ) {
             next unless (optional($href->{type}));
             my %a = %$href;
-            if ($a{option} =~ /-sources$/) {
+            if ($a{option} && $a{option} =~ /-sources$/) {
                 println "  --$a{option}=DIR    search for $a{name} package";
                 println "                                source files in DIR";
+            } elsif ($a{boption} && $a{boption} =~ /-build$/) {
+                println "  --$a{boption}=DIR     search for $a{name} package";
+                println "                                 build output in DIR";
             } else {
                 println "  --$a{option}=DIR    search for $a{name} files in DIR"
             }

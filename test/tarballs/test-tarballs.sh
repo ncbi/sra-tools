@@ -73,6 +73,7 @@ mkdir -p ${WORKDIR}
 OLDDIR=$(pwd)
 cd ${WORKDIR}
 
+df -h .
 wget -q --no-check-certificate ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
 gunzip -f ${TARGET}.tar.gz || exit 2
 PACKAGE=$(tar tf ${TARGET}.tar | head -n 1)

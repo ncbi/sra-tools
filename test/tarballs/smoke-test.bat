@@ -89,7 +89,7 @@ set ARGS=-Dvdb.System.loadLibrary=1 -Duser.home=%PWD%
 
 set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
 echo %cmd%
-%cmd% 2> NUL
+%cmd%
 if '%errorlevel%'=='1' goto skip
 set FAILED=%FAILED% GenomeAnalysisTK.jar with disabled smart dll search;
 :skip

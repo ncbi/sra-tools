@@ -65,7 +65,6 @@ SUBDIRS =             \
 	vdb-diff          \
 	kget              \
 	ngs-pileup        \
-	fastdump          \
 	vdb-sql           \
 	cg-load           \
 

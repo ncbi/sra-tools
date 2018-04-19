@@ -1,0 +1,141 @@
+/*===========================================================================
+ *
+ *                            PUBLIC DOMAIN NOTICE
+ *               National Center for Biotechnology Information
+ *
+ *  This software/database is a "United States Government Work" under the
+ *  terms of the United States Copyright Act.  It was written as part of
+ *  the author's official duties as a United States Government employee and
+ *  thus cannot be copyrighted.  This software/database is freely available
+ *  to the public for use. The National Library of Medicine and the U.S.
+ *  Government have not placed any restriction on its use or reproduction.
+ *
+ *  Although all reasonable efforts have been taken to ensure the accuracy
+ *  and reliability of the software and data, the NLM and the U.S.
+ *  Government do not and cannot warrant the performance or results that
+ *  may be obtained by using this software or data. The NLM and the U.S.
+ *  Government disclaim all warranties, express or implied, including
+ *  warranties of performance, merchantability or fitness for any particular
+ *  purpose.
+ *
+ *  Please cite the author in any work or product based on this material.
+ *
+ * ===========================================================================
+ *
+ */
+
+version 1;
+
+include 'vdb/vdb.vschema';
+
+table NCBI:tbl:IR:raw #1
+{
+    extern column <ascii>  zip_encoding READ_GROUP;
+    extern column <ascii>  zip_encoding NAME;
+    extern column   <I32> izip_encoding READNO;
+    extern column <ascii>  zip_encoding PLATFORM;
+    extern column <ascii>  zip_encoding SEQUENCE;
+    
+    /* the following would all be empty for unaligned */
+    extern column <ascii>  zip_encoding REFERENCE;
+    extern column <ascii>  zip_encoding STRAND;
+    extern column   <I32> izip_encoding POSITION;
+    extern column <ascii>  zip_encoding CIGAR;
+
+    extern column <ascii>  zip_encoding QUALITY;
+
+    extern column <ascii> zip_encoding REJECT_REASON;
+};
+
+table NCBI:tbl:aligned:SPOT_STATISTICS #1
+{
+    extern column ascii READ_GROUP;
+    extern column U8  LAYOUT;
+    extern column F64 FREQ_FORWARD;
+    extern column F64 FREQ_REVERSE;
+    extern column F64 FRAGMENT_LENGTH_AVERAGE;
+    extern column F64 FRAGMENT_LENGTH_STD_DEV;
+    extern column U32 FRAGMENT_LENGTH_MODE;
+    extern column U32 FRAGMENT_LENGTH_MEDIAN;
+    extern column U32 FRAGMENT_LENGTH_EQUIPART;
+};
+
+table NCBI:tbl:IR:CONTIGS #1
+{
+    extern column <ascii>  zip_encoding REFERENCE_1;
+    extern column   <I32> izip_encoding START_1;
+    extern column   <I32> izip_encoding END_1;
+
+    extern column <ascii>  zip_encoding REFERENCE_2;
+    extern column   <I32> izip_encoding START_2;
+    extern column   <I32> izip_encoding END_2;
+
+    extern column   <U32> izip_encoding COUNT;
+    extern column <ascii>  zip_encoding READ_GROUP;
+};
+
+table NCBI:tbl:aligned:CONTIGS #1
+{
+    extern column <ascii>  zip_encoding READ_GROUP;
+    extern column <ascii>  zip_encoding REFERENCE;
+    extern column   <I32> izip_encoding START;
+    extern column   <I32> izip_encoding END;
+
+/* these statistics were gathered from the fragments that the contig was built from */
+    extern column   <F32>  zip_encoding SEQ_LENGTH_AVERAGE;
+    extern column   <F32>  zip_encoding SEQ_LENGTH_STD_DEV;
+    extern column   <F32>  zip_encoding REF_LENGTH_AVERAGE;
+    extern column   <F32>  zip_encoding REF_LENGTH_STD_DEV;
+
+    extern column   <U32> izip_encoding FRAGMENT_COUNT;
+    extern column   <F32>  zip_encoding FRAGMENT_LENGTH_AVERAGE;
+    extern column   <F32>  zip_encoding FRAGMENT_LENGTH_STD_DEV;
+};
+
+table NCBI:tbl:aligned:REFERENCE #1
+{
+    extern column <ascii>  zip_encoding NAME;
+
+/* these columns are empty for a "real" reference */
+    extern column <ascii>  zip_encoding REFERENCE_1; ///< the name of a "real" reference (another record in this table)
+    extern column   <I32> izip_encoding START_1;
+    extern column   <I32> izip_encoding END_1;
+
+    extern column   <I32> izip_encoding GAP; ///< if >1, this value is a suggested adjustment to the fragment length of all fragments that aligned here;
+
+    extern column <ascii>  zip_encoding REFERENCE_2; ///< the name of a "real" reference (another record in this table)
+    extern column   <I32> izip_encoding START_2;
+    extern column   <I32> izip_encoding END_2;
+};
+
+table NCBI:tbl:aligned:FRAGMENT #1
+{
+    extern column <ascii>  zip_encoding READ_GROUP;
+    extern column <ascii>  zip_encoding PLATFORM;
+
+    extern column <ascii>  zip_encoding REFERENCE; ///< the NAME in the REFERENCE table; not a canonical link
+    extern column   <I64> izip_encoding CONTIG; ///< the ROW ID in the REFERENCE table; this is the canonical link between a fragments and its coresponding record in the REFERENCE table
+    extern column <ascii>  zip_encoding LAYOUT; ///< encoded as readno strand readno strand, e.g. 1+2- or 2+1-
+    extern column   <I32> izip_encoding POSITION; ///< this is the position of 5'-most base of the 5'-most mate; unlike SAM, it is not the position of the first aligned base
+    extern column   <I32> izip_encoding LENGTH; ///< the fragment length as implied by the alignment; i.e. the distance from the 5'-most base to the 3'-most base, but see GAP in the REFERENCE table
+    extern column <ascii>  zip_encoding CIGAR; ///< the CIGAR, as given, of the 5'-most mate + "0P" + the CIGAR of the other mate
+
+    extern column <ascii>  zip_encoding NAME; ///< the name of the fragment, as given, i.e. QNAME or SRA spot id
+    extern column <ascii>  zip_encoding SEQUENCE;
+    extern column <ascii>  zip_encoding QUALITY;
+};
+
+database NCBI:db:IR:raw #1
+{
+    table NCBI:tbl:IR:raw #1.0 RAW;
+    table NCBI:tbl:IR:raw #1.0 DISCARDED;
+    table NCBI:tbl:IR:CONTIGS #1.0 CONTIGS;
+};
+
+database NCBI:db:IR:aligned #1
+{
+    table NCBI:tbl:aligned:FRAGMENT #1.0 FRAGMENTS;
+    table NCBI:tbl:aligned:REFERENCE #1.0 REFERENCES;
+    table NCBI:tbl:IR:raw #1.0 REJECTS;
+    table NCBI:tbl:aligned:CONTIGS #1.0 CONTIGS;
+};

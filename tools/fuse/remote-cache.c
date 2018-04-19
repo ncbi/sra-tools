@@ -1596,7 +1596,7 @@ RmOutMsg ( "  |<-- Cache Entry [%s]\n", self -> Path );
         else {
             RCt = KDirectoryNativeDir ( & Directory );
             if ( RCt == 0 ) {
-                RCt = KDirectoryMakeCacheTee (
+                RCt = KDirectoryMakeCacheTeePromote (
                                     Directory,
                                     & TeeFile,
                                     HttpFile,

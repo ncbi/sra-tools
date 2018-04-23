@@ -126,9 +126,15 @@ echo
 JAR=GenomeAnalysisTK.jar
 echo "Smoke testing ${JAR} ..."
 
-LOG=-Dvdb.log=FINER
+LOG=-Dvdb.log=FINEST
+LOG=-Dvdb.log=WARNING
 
 ARGS=-Dvdb.System.loadLibrary=1
+
+java -version 2>&1 | grep -q 1.7
+if [ "$?" = "0" ] ; then
+    export PATH=/net/pan1.be-md/sra-test/bin/jre1.8.0_171/bin:$PATH
+fi
 
 cmd="java ${LOG} ${ARGS} -cp ./GenomeAnalysisTK.jar org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o chr20.SRR835775.vcf"
 

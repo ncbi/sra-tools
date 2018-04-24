@@ -78,6 +78,7 @@ then
 fi
 VERSION=$2
 
+echo
 echo "Smoke testing ${BIN_DIR} ..."
 FAILED=""
 
@@ -136,34 +137,52 @@ GLOG="-l WARN"
 ARGS=-Dvdb.System.loadLibrary=1
 
 java -version 2>&1 | grep -q 1.7
-if [ "$?" = "0" ] ; then
+if [ "$?" = "0" ] ; then # GenomeAnalysisTK was built for java 1.8
     export PATH=/net/pan1.be-md/sra-test/bin/jre1.8.0_171/bin:$PATH
 fi
 
-cmd="java ${LOG} ${ARGS} -cp ./${JAR} org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o chr20.SRR835775.vcf ${GLOG}"
+CL=org.broadinstitute.gatk.engine.CommandLineGATK
+L="-L NC_000020.10:61000001-61010000"
 
-eval ${cmd} 2>/dev/null
+# execute when dll download is disabled and dll-s cannot be located: should fail
+
+GARG="-T UnifiedGenotyper -I SRR835775 -R SRR835775 ${L} -o S.vcf"
+cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
+
+echo
+echo ${cmd}
+eval ${cmd} # 2>/dev/null
 if [ "$?" = "0" ] ; then
     FAILED="${FAILED} ${JAR} with disabled smart dll search;"
 fi
 
+# execute when dll download is enabled
+
 PWD=`pwd`
 ARGS=-Duser.home=${PWD}
 
-cmd="java ${LOG} ${ARGS} -cp ./${JAR} org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o chr20.SRR835775.vcf ${GLOG}"
+GARG="-T UnifiedGenotyper -I SRR835775 -R SRR835775 ${L} -o S.vcf"
+cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
 
+echo
 echo ${cmd}
 eval ${cmd} >/dev/null
 if [ "$?" != "0" ] ; then
     FAILED="${FAILED} ${JAR};"
 fi
 
-cmd="java ${LOG} ${ARGS} -jar ./${JAR} -T HaplotypeCaller -R SRR1108179 -I SRR1108179 -o SRR1108179.vcf -L GL000191.1 ${GLOG}"
+# execute with "-jar GenomeAnalysisTK.jar"
+
+GARG=-T HaplotypeCaller -R SRR1108179 -I SRR1108179 -o SRR8179.vcf -L GL000191.1
+cmd="java ${LOG} ${ARGS} -jar ./${JAR} ${GARG} ${GLOG}"
+echo
 echo ${cmd}
 eval ${cmd} >/dev/null
 if [ "$?" != "0" ] ; then
     FAILED="${FAILED} -jar ${JAR};"
 fi
+
+echo
 
 if [ "${FAILED}" != "" ]
 then

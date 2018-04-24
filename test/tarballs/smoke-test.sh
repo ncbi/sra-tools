@@ -128,6 +128,10 @@ echo "Smoke testing ${JAR} ..."
 
 LOG=-Dvdb.log=FINEST
 LOG=-Dvdb.log=WARNING
+LOG=
+
+GLOG="-l INFO"
+GLOG="-l WARN"
 
 ARGS=-Dvdb.System.loadLibrary=1
 
@@ -136,22 +140,29 @@ if [ "$?" = "0" ] ; then
     export PATH=/net/pan1.be-md/sra-test/bin/jre1.8.0_171/bin:$PATH
 fi
 
-cmd="java ${LOG} ${ARGS} -cp ./GenomeAnalysisTK.jar org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o chr20.SRR835775.vcf"
+cmd="java ${LOG} ${ARGS} -cp ./${JAR} org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o chr20.SRR835775.vcf ${GLOG}"
 
 eval ${cmd} 2>/dev/null
 if [ "$?" = "0" ] ; then
-    FAILED="${FAILED} GenomeAnalysisTK.jar with disabled smart dll search;"
+    FAILED="${FAILED} ${JAR} with disabled smart dll search;"
 fi
 
 PWD=`pwd`
 ARGS=-Duser.home=${PWD}
 
-cmd="java ${LOG} ${ARGS} -cp ./GenomeAnalysisTK.jar org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o chr20.SRR835775.vcf"
+cmd="java ${LOG} ${ARGS} -cp ./${JAR} org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o chr20.SRR835775.vcf ${GLOG}"
 
 echo ${cmd}
 eval ${cmd} >/dev/null
 if [ "$?" != "0" ] ; then
-    FAILED="${FAILED} GenomeAnalysisTK.jar;"
+    FAILED="${FAILED} ${JAR};"
+fi
+
+cmd="java ${LOG} ${ARGS} -jar ./${JAR} -T HaplotypeCaller -R SRR1108179 -I SRR1108179 -o SRR1108179.vcf -L GL000191.1 ${GLOG}"
+echo ${cmd}
+eval ${cmd} >/dev/null
+if [ "$?" != "0" ] ; then
+    FAILED="${FAILED} -jar ${JAR};"
 fi
 
 if [ "${FAILED}" != "" ]

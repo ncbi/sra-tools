@@ -147,10 +147,24 @@ static bool addFilter(std::string const &arg)
     }
 }
 
-static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bool const primary)
+enum {
+    OUT_READ_GROUP = 1,
+    OUT_NAME,
+    OUT_READNO,
+    OUT_SEQUENCE,
+    OUT_REFERENCE,
+    OUT_STRAND,
+    OUT_POSITION,
+    OUT_CIGAR,
+    OUT_QUALITY,
+};
+
+static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bool const primary, bool const quality)
 {
-    static char const *const FLDS[] = { "SEQ_SPOT_GROUP", "SEQ_SPOT_ID", "SEQ_READ_ID", "READ", "REF_NAME", "REF_ORIENTATION", "REF_POS", "CIGAR_SHORT" };
-    auto const N = sizeof(FLDS)/sizeof(FLDS[0]);
+    enum { SPOT_GROUP, NAME, READNO, READ, REFERENCE, STRAND, POSITION, CIGAR, QUALITY };
+    static char const *const FLDS[] = { "SEQ_SPOT_GROUP", "SEQ_SPOT_ID", "SEQ_READ_ID", "READ", "REF_NAME", "REF_ORIENTATION", "REF_POS", "CIGAR_SHORT", "(INSDC:quality:text:phred_33)QUALITY" };
+    auto const N0 = sizeof(FLDS)/sizeof(FLDS[0]);
+    auto const N = unsigned(quality ? N0 : (N0 - 1));
     auto const tblName = primary ? "PRIMARY_ALIGNMENT" : "SECONDARY_ALIGNMENT";
     auto const in = inDb[tblName].read(N, FLDS);
     auto const range = in.rowRange();
@@ -160,106 +174,126 @@ static void processAligned(VDB::Writer const &out, VDB::Database const &inDb, bo
     char buffer[32];
     auto const applyFilter = [](VDB::Cursor const &curs, int64_t row)
     {
-        auto const refName = curs.read(row, 5);
-        auto const refPos = curs.read(row, 7);
-        return filterInclude(refName.asString(), refPos.value<int32_t>() + 1);
+        auto const refName = curs.read(row, REFERENCE);
+        auto const refPos = curs.read(row, POSITION);
+        return filterInclude(refName.string(), refPos.value<int32_t>() + 1);
     };
     auto const keepAll = [](VDB::Cursor const &curs, int64_t row)
     {
         return true;
     };
 
-    std::cerr << "processing " << (range.second - range.first) << " records from " << tblName << std::endl;
+    std::cerr << "info: processing " << (range.second - range.first) << " records from " << tblName << std::endl;
     in.foreach(filter.empty() ? keepAll : applyFilter,
                [&](int64_t row, bool keep, std::vector<VDB::Cursor::RawData> const &data)
                {
                    if (keep) {
-                       auto const refName = data[4];
-                       auto const refPos = data[6];
-                       auto const n = snprintf(buffer, 32, "%" PRIi64, data[1].value<int64_t>());
-                       auto const strand = char(data[5].value<int8_t>() == 0 ? '+' : '-');
+                       auto const refName = data[REFERENCE];
+                       auto const refPos = data[POSITION];
+                       auto const n = snprintf(buffer, 32, "%" PRIi64, data[NAME].value<int64_t>());
+                       auto const strand = char(data[STRAND].value<int8_t>() == 0 ? '+' : '-');
                        
-                       write(out, 1, data[0]);     ///< spot group
-                       out.value(2, n, buffer);    ///< name
-                       write(out, 3, data[2]);     ///< read number
-                       write(out, 4, data[3]);     ///< sequence
-                       write(out, 5, refName);
-                       out.value(6, strand);
-                       write(out, 7, refPos);
-                       write(out, 8, data[7]);     ///< cigar
+                       write(out, OUT_READ_GROUP, data[SPOT_GROUP]);
+                       out.value(OUT_NAME, n, buffer);
+                       write(out, OUT_READNO, data[READNO]);
+                       write(out, OUT_SEQUENCE, data[READ]);
+                       write(out, OUT_REFERENCE, refName);
+                       out.value(OUT_STRAND, strand);
+                       write(out, OUT_POSITION, refPos);
+                       write(out, OUT_CIGAR, data[CIGAR]);
+                       if (quality)
+                           write(out, OUT_QUALITY, data[QUALITY]);
                        
                        out.closeRow(1);
                        ++written;
                    }
                    while (nextReport * freq <= row - range.first) {
-                       std::cerr << "processed " << nextReport << "%" << std::endl;
+                       std::cerr << "prog: processed " << nextReport << "%" << std::endl;
                        ++nextReport;
                    }
                });
     while (nextReport * freq <= range.second - range.first) {
-        std::cerr << "processed " << nextReport << "%" << std::endl;
+        std::cerr << "prog: processed " << nextReport << "%" << std::endl;
         ++nextReport;
     }
-    std::cerr << "imported " << written << " alignments from " << tblName << std::endl;
+    std::cerr << "info: imported " << written << " alignments from " << tblName << std::endl;
 }
 
-static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb)
+static void processUnaligned(VDB::Writer const &out, VDB::Database const &inDb, bool quality)
 {
-    static char const *const FLDS[] = { "SPOT_GROUP", "READ", "READ_START", "READ_LEN", "PRIMARY_ALIGNMENT_ID" };
-    auto const N = sizeof(FLDS)/sizeof(FLDS[0]);
+    enum { PRIMARY_ALIGNMENT_ID, SPOT_GROUP, READ, READ_START, READ_LEN, QUALITY };
+    static char const *const FLDS[] = { "PRIMARY_ALIGNMENT_ID", "SPOT_GROUP", "READ", "READ_START", "READ_LEN", "(INSDC:quality:text:phred_33)QUALITY" };
+    auto const N0 = sizeof(FLDS)/sizeof(FLDS[0]);
+    auto const N = unsigned(quality ? N0 : (N0 - 1));
     auto const in = inDb["SEQUENCE"].read(N, FLDS);
     auto const range = in.rowRange();
     auto const freq = (range.second - range.first) / 100.0;
     auto nextReport = 1;
     char buffer[32];
-    VDB::Cursor::RawData data[N];
+    VDB::Cursor::RawData data[N0];
     int64_t written = 0;
     
-    std::cerr << "processing " << (range.second - range.first) << " records from SEQUENCE" << std::endl;
+    std::cerr << "info: processing " << (range.second - range.first) << " records from SEQUENCE" << std::endl;
     for (int64_t row = range.first; row < range.second; ++row) {
-        data[4] = in.read(row, 5);
-        auto const nreads = data[4].elements;
-        auto const pid = (int64_t const *)data[4].data;
+        data[PRIMARY_ALIGNMENT_ID] = in.read(row, PRIMARY_ALIGNMENT_ID + 1);
+        auto const nreads = data[PRIMARY_ALIGNMENT_ID].elements;
+        auto const pid = (int64_t const *)data[PRIMARY_ALIGNMENT_ID].data;
         
         for (unsigned i = 0; i < nreads; ++i) {
-            if (pid[i] == 0) {
-                in.read(row, N - 1, data);
-                
-                auto const n = snprintf(buffer, 32, "%" PRIi64, row);
-                auto const sequence = (char const *)data[1].data;
-                auto const readStart = (int32_t const *)data[2].data;
-                auto const readLen = (uint32_t const *)data[3].data;
-                
-                write(out, 1, data[0]);
-                out.value(2, n, buffer);
-                out.value(3, int32_t(i + 1));
-                out.value(4, readLen[i], sequence + readStart[i]);
-                out.closeRow(1);
-                ++written;
+            if (pid[i] == 0)
+                goto UNALIGNED;
+        }
+        if (0) {
+        UNALIGNED:
+            in.read(row, N, data);
+            
+            auto const n = snprintf(buffer, 32, "%" PRIi64, row);
+            auto const sequence = (char const *)data[READ].data;
+            auto const readStart = (int32_t const *)data[READ_START].data;
+            auto const readLen = (uint32_t const *)data[READ_LEN].data;
+
+            for (unsigned i = 0; i < nreads; ++i) {
+                if (pid[i] == 0) {
+                    write(out, OUT_READ_GROUP, data[SPOT_GROUP]);
+                    out.value(OUT_NAME, n, buffer);
+                    out.value(OUT_READNO, int32_t(i + 1));
+                    out.value(OUT_SEQUENCE, readLen[i], sequence + readStart[i]);
+                    if (quality) {
+                        auto const qual = (char const *)data[QUALITY].data;
+                        out.value(OUT_QUALITY, readLen[i], qual + readStart[i]);
+                    }
+                    out.closeRow(1);
+                    ++written;
+                }
             }
         }
         if (nextReport * freq <= row - range.first) {
-            std::cerr << "processed " << nextReport << '%' << std::endl;;
+            std::cerr << "prog: processed " << nextReport << '%' << std::endl;;
             ++nextReport;
         }
     }
-    std::cerr << "processed 100%; imported " << written << " unaligned reads" << std::endl;
+    while (nextReport * freq <= range.second - range.first) {
+        std::cerr << "prog: processed " << nextReport << "%" << std::endl;
+        ++nextReport;
+    }
+    std::cerr << "info: imported " << written << " unaligned reads" << std::endl;
 }
 
-static int process(VDB::Writer const &out, VDB::Database const &inDb)
+static int process(VDB::Writer const &out, VDB::Database const &inDb, bool quality)
 {
     try {
-        processAligned(out, inDb, false);
+        processAligned(out, inDb, false, quality);
     }
     catch (...) {
         std::cerr << "an error occured trying to process secondary alignments" << std::endl;
     }
-    if (filter.empty()) processUnaligned(out, inDb);
-    processAligned(out, inDb, true);
+    if (filter.empty()) processUnaligned(out, inDb, quality);
+    processAligned(out, inDb, true, quality);
+    std::cerr << "prog: done" << std::endl;
     return 0;
 }
 
-static int process(std::string const &run, FILE *const out) {
+static int process(std::string const &run, FILE *const out, bool const quality) {
     auto const writer = VDB::Writer(out);
     
     writer.destination("IR.vdb");
@@ -267,26 +301,28 @@ static int process(std::string const &run, FILE *const out) {
     writer.info("sra2ir", "1.0.0");
     
     writer.openTable(1, "RAW");
-    writer.openColumn(1, 1,  8, "READ_GROUP");
-    writer.openColumn(2, 1,  8, "NAME");
-    writer.openColumn(3, 1, 32, "READNO");
-    writer.openColumn(4, 1,  8, "SEQUENCE");
-    writer.openColumn(5, 1,  8, "REFERENCE");
-    writer.openColumn(6, 1,  8, "STRAND");
-    writer.openColumn(7, 1, 32, "POSITION");
-    writer.openColumn(8, 1,  8, "CIGAR");
-    
+    writer.openColumn(OUT_READ_GROUP, 1,  8, "READ_GROUP");
+    writer.openColumn(OUT_NAME      , 1,  8, "NAME");
+    writer.openColumn(OUT_READNO    , 1, 32, "READNO");
+    writer.openColumn(OUT_SEQUENCE  , 1,  8, "SEQUENCE");
+    writer.openColumn(OUT_REFERENCE , 1,  8, "REFERENCE");
+    writer.openColumn(OUT_STRAND    , 1,  8, "STRAND");
+    writer.openColumn(OUT_POSITION  , 1, 32, "POSITION");
+    writer.openColumn(OUT_CIGAR     , 1,  8, "CIGAR");
+    if (quality)
+        writer.openColumn(OUT_QUALITY, 1,  8, "QUALITY");
+
     writer.beginWriting();
     
-    writer.defaultValue<char>(5, 0, 0);
-    writer.defaultValue<char>(6, 0, 0);
-    writer.defaultValue<int32_t>(7, 0, 0);
-    writer.defaultValue<char>(8, 0, 0);
-    
+    writer.defaultValue<char>(OUT_REFERENCE, 0, 0);
+    writer.defaultValue<char>(OUT_STRAND, 0, 0);
+    writer.defaultValue<int32_t>(OUT_POSITION, 0, 0);
+    writer.defaultValue<char>(OUT_CIGAR, 0, 0);
+
     writer.setMetadata(VDB::Writer::database, 0, "SOURCE", run);
 
     auto const mgr = VDB::Manager();
-    auto const result = process(writer, mgr[run]);
+    auto const result = process(writer, mgr[run], quality);
 
     writer.endWriting();
     
@@ -306,9 +342,14 @@ namespace sra2ir {
                 usage(commandLine, false);
             }
         }
+        auto quality = false;
         auto out = std::string();
         auto run = std::string();
         for (auto && arg : commandLine.argument) {
+            if (arg == "-quality") {
+                quality = !quality;
+                continue;
+            }
             if (arg.substr(0, 5) == "-out=") {
                 out = arg.substr(5);
                 continue;
@@ -324,14 +365,14 @@ namespace sra2ir {
             usage(commandLine, true);
         }
         if (out.empty())
-            return process(run, stdout);
+            return process(run, stdout, quality);
         
         auto stream = fopen(out.c_str(), "w");
         if (!stream) {
             std::cerr << "failed to open output file: " << out << std::endl;
             exit(3);
         }
-        auto const rslt = process(run, stream);
+        auto const rslt = process(run, stream, quality);
         fclose(stream);
         return rslt;
     }

@@ -103,7 +103,8 @@ SOURCES += main.cpp\
         diagnostics/diagnosticstest.cpp \
         diagnostics/diagnosticsthread.cpp \
         diagnostics/sradiagnosticsview.cpp \
-    config/testwidget.cpp
+    config/testwidget.cpp \
+    ../../../ncbi-vdb/libs/kfg/properties.c
 
 
 HEADERS  += sratoolkit.h \
@@ -118,7 +119,10 @@ HEADERS  += sratoolkit.h \
         diagnostics/diagnosticstest.h \
         diagnostics/diagnosticsthread.h \
         diagnostics/sradiagnosticsview.h \
-    config/testwidget.h
+    config/testwidget.h \
+    ../vdb-config/vdb-config-model.hpp \
+    ../../../ncbi-vdb/interfaces/kfg/config.h \
+    ../../../ncbi-vdb/interfaces/kfg/properties.h
 
 
 RESOURCES += \

@@ -44,7 +44,7 @@ QT_MOC_LITERAL(9, 125, 7), // "toggled"
 QT_MOC_LITERAL(10, 133, 20), // "toggle_local_caching"
 QT_MOC_LITERAL(11, 154, 15), // "toggle_use_site"
 QT_MOC_LITERAL(12, 170, 16), // "toggle_use_proxy"
-QT_MOC_LITERAL(13, 187, 22) // "toggle_prioritize_http"
+QT_MOC_LITERAL(13, 187, 22) // "toggle_allow_all_certs"
 
     },
     "SRAConfigView\0dirty_config\0\0commit_config\0"
@@ -52,7 +52,7 @@ QT_MOC_LITERAL(13, 187, 22) // "toggle_prioritize_http"
     "modified_config\0edit_proxy_path\0"
     "toggle_remote_enabled\0toggled\0"
     "toggle_local_caching\0toggle_use_site\0"
-    "toggle_use_proxy\0toggle_prioritize_http"
+    "toggle_use_proxy\0toggle_allow_all_certs"
 };
 #undef QT_MOC_LITERAL
 
@@ -118,7 +118,7 @@ void SRAConfigView::qt_static_metacall(QObject *_o, QMetaObject::Call _c, int _i
         case 7: _t->toggle_local_caching((*reinterpret_cast< int(*)>(_a[1]))); break;
         case 8: _t->toggle_use_site((*reinterpret_cast< int(*)>(_a[1]))); break;
         case 9: _t->toggle_use_proxy((*reinterpret_cast< int(*)>(_a[1]))); break;
-        case 10: _t->toggle_prioritize_http((*reinterpret_cast< int(*)>(_a[1]))); break;
+        case 10: _t->toggle_allow_all_certs((*reinterpret_cast< int(*)>(_a[1]))); break;
         default: ;
         }
     } else if (_c == QMetaObject::IndexOfMethod) {

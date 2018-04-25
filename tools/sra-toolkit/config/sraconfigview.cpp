@@ -582,10 +582,10 @@ void SRAConfigView :: load_settings ()
         proxyEditor -> setText ( QString ( model -> get_proxy_path () . c_str () ) );
     }
 
-    if ( ! model -> proxy_priority () )
-        bg_prioritize_http -> button ( 0 ) -> setChecked ( true );
+    if ( ! model -> allow_all_certs () )
+        bg_allow_all_certs -> button ( 0 ) -> setChecked ( true );
      else
-        bg_prioritize_http -> button ( 1 ) -> setChecked ( true );
+        bg_allow_all_certs -> button ( 1 ) -> setChecked ( true );
 }
 
 QWidget * SRAConfigView::setup_workflow_group ()
@@ -782,10 +782,10 @@ void SRAConfigView::setup_network_setting ()
     // row 2
 
     //row 3
-    connect ( bg_prioritize_http = make_no_yes_button_group ( &no, &yes ),
-              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_prioritize_http ( int ) ) );
+    connect ( bg_allow_all_certs = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_allow_all_certs ( int ) ) );
 
-    name = QString ( "Prioritize Environment Variable 'http-proxy'" );
+    name = QString ( "Allow All Certificates" );
 
     scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes) );
     // row 3
@@ -1101,17 +1101,17 @@ void SRAConfigView :: toggle_use_proxy ( int toggled )
     emit dirty_config ();
 }
 
-void SRAConfigView :: toggle_prioritize_http ( int toggled )
+void SRAConfigView :: toggle_allow_all_certs ( int toggled )
 {
     if ( toggled == 1 )
     {
-        qDebug () << "prioritize_http: yes";
-        model -> set_proxy_priority ( true );
+        qDebug () << "set_allow_all_certs: yes";
+        model -> set_allow_all_certs ( true );
     }
     else
     {
-        qDebug () << "prioritize_http: no";
-        model -> set_proxy_priority ( false );
+        qDebug () << "set_allow_all_certs: no";
+        model -> set_allow_all_certs ( false );
     }
 
     emit dirty_config ();

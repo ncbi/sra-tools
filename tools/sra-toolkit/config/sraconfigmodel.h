@@ -76,6 +76,9 @@ public:
     bool site_enabled ();
     void set_site_enabled ( bool enabled );
 
+    bool allow_all_certs ();
+    void set_allow_all_certs ( bool allow );
+
     // ngc
     bool import_ngc ( const std :: string path, const KNgcObj *ngc, uint32_t permissions, uint32_t *rslt_flags );
     bool get_ngc_obj_id ( const KNgcObj *ngc, uint32_t *id );

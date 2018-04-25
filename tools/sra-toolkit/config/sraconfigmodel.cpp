@@ -126,6 +126,16 @@ void SRAConfigModel :: set_site_enabled ( bool enabled )
     model . set_site_enabled ( enabled );
 }
 
+bool SRAConfigModel :: allow_all_certs ()
+{
+    return model . allow_all_certs ();
+}
+
+void SRAConfigModel :: set_allow_all_certs ( bool allow )
+{
+    model . set_allow_all_certs ( allow );
+}
+
 // ngc
 bool SRAConfigModel :: import_ngc ( const std :: string path, const KNgcObj *ngc, uint32_t permissions, uint32_t *rslt_flags )
 {

@@ -78,7 +78,7 @@ private slots:
     void toggle_local_caching ( int toggled );
     void toggle_use_site ( int toggled );
     void toggle_use_proxy ( int toggled );
-    void toggle_prioritize_http ( int toggled );
+    void toggle_allow_all_certs ( int toggled );
 
 private:
 
@@ -100,7 +100,7 @@ private:
     QButtonGroup *bg_local_caching;
     QButtonGroup *bg_use_site;
     QButtonGroup *bg_use_proxy;
-    QButtonGroup *bg_prioritize_http;
+    QButtonGroup *bg_allow_all_certs;
 
     QLineEdit *proxyEditor;
 

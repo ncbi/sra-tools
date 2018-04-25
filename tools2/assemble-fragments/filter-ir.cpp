@@ -43,7 +43,8 @@
 
 #include "fragment.hpp"
 
-void write(VDB::Writer const &out, unsigned const table, Fragment const &self, char const *const reason, bool const filter = false) {
+void write(VDB::Writer const &out, unsigned const table, Fragment const &self, char const *const reason, bool const filter, bool const quality)
+{
     for (auto && i : self.detail) {
         if (filter && !i.aligned) continue;
         out.value(1 + (table - 1) * 8, self.group);
@@ -58,6 +59,10 @@ void write(VDB::Writer const &out, unsigned const table, Fragment const &self, c
         }
         if (reason)
             out.value(9 + (table - 1) * 8, std::string(reason));
+        if (quality && table == 1)
+            out.value(18, i.quality);
+        if (quality && table == 2)
+            out.value(19, i.quality);
         out.closeRow(table);
     }
 }
@@ -113,18 +118,17 @@ static bool shouldKeep(Fragment const &fragment, char const **const reason)
     return true;
 }
 
-static void process(VDB::Writer const &out, Fragment const &fragment)
+static void process(VDB::Writer const &out, Fragment const &fragment, bool const quality)
 {
     char const *reason = nullptr;
     if (shouldKeep(fragment, &reason))
-        write(out, 1, fragment, nullptr, true);
+        write(out, 1, fragment, nullptr, true, quality);
     else
-        write(out, 2, fragment, reason);
+        write(out, 2, fragment, reason, false, quality);
 }
 
-static int process(VDB::Writer const &out, VDB::Database const &inDb)
+static int process(VDB::Writer const &out, Fragment::Cursor const &in, bool const quality)
 {
-    auto const in = Fragment::Cursor(inDb["RAW"]);
     auto const range = in.rowRange();
     auto const freq = (range.second - range.first) / 10.0;
     auto nextReport = 1;
@@ -135,7 +139,7 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
         if (spot.detail.empty())
             continue;
         std::sort(spot.detail.begin(), spot.detail.end());
-        process(out, spot);
+        process(out, spot, quality);
         while (nextReport * freq <= (row - range.first)) {
             std::cerr << "prog: processed " << nextReport << "0%" << std::endl;
             ++nextReport;
@@ -148,8 +152,12 @@ static int process(VDB::Writer const &out, VDB::Database const &inDb)
 
 static int process(std::string const &irdb, FILE *out)
 {
+    auto const mgr = VDB::Manager();
+    VDB::Database const &inDb = mgr[irdb];
+    auto const in = Fragment::Cursor(inDb["RAW"]);
     auto const writer = VDB::Writer(out);
-    
+    auto const quality = in.hasQuality();
+
     writer.destination("IR.vdb");
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
     writer.info("reorder-ir", "1.0.0");
@@ -175,6 +183,10 @@ static int process(std::string const &irdb, FILE *out)
     writer.openColumn(8 + 8, 2, 8, "CIGAR");
     writer.openColumn(9 + 8, 2, 8, "REJECT_REASON");
 
+    if (quality) {
+        writer.openColumn(18, 1, 8, "QUALITY");
+        writer.openColumn(19, 2, 8, "QUALITY");
+    }
     writer.beginWriting();
 
     writer.defaultValue<char>(5, 0, 0);
@@ -187,9 +199,8 @@ static int process(std::string const &irdb, FILE *out)
     writer.defaultValue<int32_t>(7 + 8, 0, 0);
     writer.defaultValue<char>(8 + 8, 0, 0);
     writer.defaultValue<char>(9 + 8, 0, 0);
-    
-    auto const mgr = VDB::Manager();
-    auto const result = process(writer, mgr[irdb]);
+
+    auto const result = process(writer, in, quality);
     
     writer.endWriting();
     

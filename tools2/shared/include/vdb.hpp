@@ -165,13 +165,13 @@ namespace VDB {
                 std::copy(source, source + size(), (char *)(rslt + 1));
                 return rslt;
             }
-            std::string asString() const {
+            std::string string() const {
                 if (elem_bits == 8)
                     return elements == 0 ? std::string() : std::string((char *)data, elements);
                 else
                     throw std::logic_error("bad cast");
             }
-            template <typename T> std::vector<T> asVector() const {
+            template <typename T> std::vector<T> vector() const {
                 if (elem_bits == sizeof(T) * 8)
                     return std::vector<T>((T *)data, ((T *)data) + elements);
                 else
@@ -225,12 +225,12 @@ namespace VDB {
             uint64_t rows = 0;
             
             data.resize(N);
-            for (auto i = range.first; i < range.second; ++i) {
-                for (auto j = 0; j < N; ++j) {
-                    try { data[j] = read(i, j + 1); }
+            for (auto row = range.first; row < range.second; ++row) {
+                for (auto i = 0; i < N; ++i) {
+                    try { data[i] = read(row, i + 1); }
                     catch (...) { return rows; }
                 }
-                f(i, data);
+                f(row, data);
                 ++rows;
             }
             return rows;
@@ -242,15 +242,16 @@ namespace VDB {
             uint64_t rows = 0;
             
             data.resize(N);
-            for (auto i = range.first; i < range.second; ++i) {
-                auto const keep = filt(*this, i);
+            for (auto row = range.first; row < range.second; ++row) {
+                auto const keep = filt(*this, row);
                 if (keep) {
-                    for (auto j = 0; j < N; ++j) {
-                        try { data[j] = read(i, j + 1); }
+                    for (auto i = 0; i < N; ++i) {
+                        try { data[i] = read(row, i + 1); }
                         catch (...) { return rows; }
                     }
                 }
-                func(i, keep, data);
+                func(row, keep, data);
+                data.clear();
                 ++rows;
             }
             return rows;

@@ -71,7 +71,7 @@
 			children = (
 				BEBFD91A1FD602C7008AC438 /* contig-consensus.cpp */,
 			);
-			path = "contig-consensus";
+			name = "contig-consensus";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */

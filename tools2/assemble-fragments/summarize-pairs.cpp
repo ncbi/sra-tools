@@ -181,10 +181,10 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
         
         Contig() {}
 
-        Contig(Alignment const &algn, CIGAR const &cigar)
+        Contig(Alignment const &algn)
         : ref(unsigned(references[algn.reference]))
-        , start(algn.position - cigar.qfirst)
-        , end(algn.position + cigar.rlength + cigar.qclip)
+        , start(algn.qstart())
+        , end(algn.qended())
         {
             assert(start < end);
         }
@@ -228,8 +228,8 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
     ContigPair(Alignment const &one, Alignment const &two, std::string const &group)
     : group(unsigned(groups[group]))
     {
-        auto const &c1 = Contig(one, one.cigar);
-        auto const &c2 = Contig(two, two.cigar);
+        auto const &c1 = Contig(one);
+        auto const &c2 = Contig(two);
         
         if (two.reference < one.reference || (c2.ref == c1.ref && (c2.start < c1.start || (c2.start == c1.start && c2.end < c1.end)))) {
             first = c2;
@@ -284,7 +284,7 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
             }
         }
         if (n < 6) {
-            std::cerr << "truncated record: " << std::string(line.first, line.second) << std::endl;
+            std::cerr << "error: truncated record: " << std::string(line.first, line.second) << std::endl;
             return;
         }
         if (n < 7)
@@ -294,7 +294,7 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
         return;
         
     CONVERSION_ERROR:
-        std::cerr << "error parsing record: " << std::string(line.first, line.second) << std::endl;
+        std::cerr << "error: failed to parse: " << std::string(line.first, line.second) << std::endl;
         return;
     }
     
@@ -512,8 +512,10 @@ static int process(VDB::Writer const &out, LineBuffer &ifs)
             if (elapsed > 0)
                 std::cerr << " (" << out_count / elapsed << " per sec)";
             std::cerr << "; ratio: " << double(in_count) / out_count << std::endl;
-            if (isEOF)
+            if (isEOF) {
+                std::cerr << "prog: done" << std::endl;
                 return 0;
+            }
         }
     }
 }
@@ -524,7 +526,7 @@ static int reduce(FILE *out, std::string const &source)
     if (source != "-") {
         fd = POSIX::open(source.c_str(), O_RDONLY);
         if (fd < 0) {
-            std::cerr << "failed to open pairs file: " << source << std::endl;
+            std::cerr << "error: failed to open pairs file: " << source << std::endl;
             exit(3);
         }
     }
@@ -610,7 +612,7 @@ namespace pairsStatistics {
         if (!outPath.empty()) {
             ofs = fopen(outPath.c_str(), "w");
             if (!ofs) {
-                std::cerr << "failed to open output file: " << outPath << std::endl;
+                std::cerr << "error: failed to open output file: " << outPath << std::endl;
                 exit(3);
             }
         }

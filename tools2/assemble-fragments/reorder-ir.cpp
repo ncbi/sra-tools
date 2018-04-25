@@ -408,12 +408,12 @@ static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
         auto const i = row - range.first;
         index[i] = makeIndexRow(row, data[0], data[1]);
         while (nextReport * freq <= i) {
-            std::cerr << "progress: generating keys " << nextReport << "0%" << std::endl;;
+            std::cerr << "prog: generating keys " << nextReport << "0%" << std::endl;;
             ++nextReport;
         }
     });
-    std::cerr << "status: processed " << N << " records" << std::endl;
-    std::cerr << "status: indexing" << std::endl;
+    std::cerr << "prog: processed " << N << " records" << std::endl;
+    std::cerr << "prog: indexing" << std::endl;
     
     sortIndex(N, index);
 
@@ -437,8 +437,20 @@ struct RawRecord : public VDB::IndexedCursorBase::Record {
         }
         return true;
     }
-    static std::initializer_list<char const *> columns() {
+    bool write(std::array<Writer2::Column, 9> const &out) const {
+        auto data = this->data;
+        for (auto i = 0; i < 9; ++i) {
+            if (!out[i].setValue(data))
+                return false;
+            data = data->next();
+        }
+        return true;
+    }
+    static std::initializer_list<char const *> columnsNoQuality() {
         return { "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "POSITION" };
+    }
+    static std::initializer_list<char const *> columns() {
+        return { "READ_GROUP", "NAME", "READNO", "SEQUENCE", "REFERENCE", "CIGAR", "STRAND", "POSITION", "QUALITY" };
     }
     friend bool operator <(RawRecord const &a, RawRecord const &b) {
         auto const agroup = a.data->string();
@@ -483,10 +495,10 @@ void validate(RawRecord const &r) {
 }
 #endif
 
-static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT const *const beg, RawRecord::IndexT const *const end)
+static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT const *const beg, RawRecord::IndexT const *const end, bool const quality)
 {
     auto const otbl = out.table("RAW");
-    std::array<Writer2::Column, 8> const columns = {
+    std::array<Writer2::Column, 8> const columnsNoQual = {
         otbl.column("READ_GROUP"),
         otbl.column("NAME"),
         otbl.column("READNO"),
@@ -496,7 +508,18 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
         otbl.column("STRAND"),
         otbl.column("POSITION")
     };
-    
+    std::array<Writer2::Column, 9> const columns = {
+        otbl.column("READ_GROUP"),
+        otbl.column("NAME"),
+        otbl.column("READNO"),
+        otbl.column("SEQUENCE"),
+        otbl.column("REFERENCE"),
+        otbl.column("CIGAR"),
+        otbl.column("STRAND"),
+        otbl.column("POSITION"),
+        otbl.column("QUALITY")
+    };
+
     auto const range = in.rowRange();
     if (end - beg != range.second - range.first) {
         std::cerr << "error: index size doesn't match input table" << std::endl;
@@ -511,11 +534,14 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
     auto const indexedCursor = VDB::CollidableIndexedCursor<RawRecord>(in, beg, end);
     auto const rows = indexedCursor.foreach([&](RawRecord const &a) {
         validate(a);
-        a.write(columns);
+        if (quality)
+            a.write(columns);
+        else
+            a.write(columnsNoQual);
         otbl.closeRow();
         ++written;
-        if (nextReport * freq <= written) {
-            std::cerr << "progress: writing " << nextReport << "0%" << std::endl;
+        while (nextReport * freq <= written) {
+            std::cerr << "prog: writing " << nextReport << "0%" << std::endl;
             ++nextReport;
         }
     });
@@ -529,41 +555,65 @@ static int process(std::string const &irdb, FILE *out)
 {
     auto const mgr = VDB::Manager();
     auto const inDb = mgr[irdb];
+    RawRecord::IndexT *index;
+    size_t rows;
     auto writer = Writer2(out);
+    int result;
     
     writer.destination("IR.vdb");
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
     writer.info("reorder-ir", "1.0.0");
     
-    writer.addTable("RAW", {
-        { "READ_GROUP"  , 1 },  ///< string
-        { "NAME"        , 1 },  ///< string
-        { "READNO"      , 4 },  ///< int32_t
-        { "SEQUENCE"    , 1 },  ///< string
-        { "REFERENCE"   , 1 },  ///< string
-        { "CIGAR"       , 1 },  ///< string
-        { "STRAND"      , 1 },  ///< char
-        { "POSITION"    , 4 },  ///< int32_t
-    });
-    writer.beginWriting();
-
-    RawRecord::IndexT *index;
-    size_t rows;
     {
-        std::cerr << "status: creating clustering index" << std::endl;
+        std::cerr << "prog: creating clustering index" << std::endl;
         auto const p = makeIndex(inDb);
         index = static_cast<RawRecord::IndexT *>(p.first);
         rows = p.second;
     }
-    
-    auto const in = inDb["RAW"].read(RawRecord::columns());
 
-    std::cerr << "status: rewriting rows in clustered order" << std::endl;
-    auto const result = process(writer, in, index, index + rows);
-    std::cerr << "status: done" << std::endl;
+    std::cerr << "prog: rewriting rows in clustered order" << std::endl;
+    try {
+        auto const in = inDb["RAW"].read(RawRecord::columns());
+        writer.addTable("RAW", {
+            { "READ_GROUP"  , 1 },  ///< string
+            { "NAME"        , 1 },  ///< string
+            { "READNO"      , 4 },  ///< int32_t
+            { "SEQUENCE"    , 1 },  ///< string
+            { "REFERENCE"   , 1 },  ///< string
+            { "CIGAR"       , 1 },  ///< string
+            { "STRAND"      , 1 },  ///< char
+            { "POSITION"    , 4 },  ///< int32_t
+            { "QUALITY"     , 1 },  ///< string
+        });
+        writer.beginWriting();
+        result = process(writer, in, index, index + rows, true);
+        writer.endWriting();
+        goto DONE;
+    }
+    catch (...) {}
 
-    writer.endWriting();
+    try {
+        auto const in = inDb["RAW"].read(RawRecord::columnsNoQuality());
+        writer.addTable("RAW", {
+            { "READ_GROUP"  , 1 },  ///< string
+            { "NAME"        , 1 },  ///< string
+            { "READNO"      , 4 },  ///< int32_t
+            { "SEQUENCE"    , 1 },  ///< string
+            { "REFERENCE"   , 1 },  ///< string
+            { "CIGAR"       , 1 },  ///< string
+            { "STRAND"      , 1 },  ///< char
+            { "POSITION"    , 4 },  ///< int32_t
+        });
+        writer.beginWriting();
+        result = process(writer, in, index, index + rows, false);
+        writer.endWriting();
+        goto DONE;
+    }
+    catch (...) {}
+
+DONE:
     delete [] index;
+    std::cerr << "prog: done" << std::endl;
     return result;
 }
 

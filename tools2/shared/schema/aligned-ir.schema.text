@@ -102,6 +102,26 @@ table NCBI:tbl:aligned:CONTIGS #1
     extern column <ascii>  zip_encoding REFERENCE_2;
     extern column   <I32> izip_encoding START_2;
     extern column   <I32> izip_encoding END_2;
+
+/* this group of coverage columns is for when read 1 is on the 5' strand */
+    extern column   <U32> izip_encoding FWD_FIRST;      ///< first base of a fragment alignment
+    extern column   <U32> izip_encoding FWD_LAST;       ///< last base of a fragment alignment
+    extern column   <U32> izip_encoding FWD_GAP_START;  ///< mate-pair gap starts
+    extern column   <U32> izip_encoding FWD_GAP_ENDED;  ///< mate-pair gap end
+    extern column   <U32> izip_encoding FWD_A;          ///< count of A's
+    extern column   <U32> izip_encoding FWD_C;          ///< count of C's
+    extern column   <U32> izip_encoding FWD_G;          ///< count of G's
+    extern column   <U32> izip_encoding FWD_T;          ///< count of T's
+
+/* this group of coverage columns is for when read 1 is on the 3' strand */
+    extern column   <U32> izip_encoding REV_FIRST;      ///< first base of a fragment alignment
+    extern column   <U32> izip_encoding REV_LAST;       ///< last base of a fragment alignment
+    extern column   <U32> izip_encoding REV_GAP_START;  ///< mate-pair gap starts
+    extern column   <U32> izip_encoding REV_GAP_ENDED;  ///< mate-pair gap ended
+    extern column   <U32> izip_encoding REV_A;          ///< count of A's
+    extern column   <U32> izip_encoding REV_C;          ///< count of C's
+    extern column   <U32> izip_encoding REV_G;          ///< count of G's
+    extern column   <U32> izip_encoding REV_T;          ///< count of T's
 };
 
 table NCBI:tbl:aligned:FRAGMENT #1

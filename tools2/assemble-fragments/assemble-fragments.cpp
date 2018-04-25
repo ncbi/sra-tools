@@ -67,7 +67,7 @@ static unsigned createMapulet(unsigned ref1, int start1, int end1, unsigned ref2
 {
     std::string name = references[ref1] + ":" + std::to_string(start1 + 1) + "-" + std::to_string(end1)
                + "+" + references[ref2] + ":" + std::to_string(start2 + 1) + "-" + std::to_string(end2);
-    Mapulet o = { name, unsigned(mapulets.size()), ref1, start1, end1, 1, ref2, start2, end2 };
+    Mapulet o = { name, unsigned(mapulets.size()), ref1, start1, end1, 0, ref2, start2, end2 };
     mapulets.push_back(o);
     return o.id;
 }
@@ -267,11 +267,11 @@ struct ContigStats {
             
             stat o = { row, 0, count };
             
-            o.ref1 = references[curs.read(row, 1).asString()];
+            o.ref1 = references[curs.read(row, 1).string()];
             o.start1 = curs.read(row, 2).value<int32_t>();
             o.end1 = curs.read(row, 3).value<int32_t>();
             
-            o.ref2 = references[curs.read(row, 4).asString()];
+            o.ref2 = references[curs.read(row, 4).string()];
             o.start2 = curs.read(row, 5).value<int32_t>();
             o.end2 = curs.read(row, 6).value<int32_t>();
             
@@ -280,7 +280,7 @@ struct ContigStats {
             else if (o.end1 != 0 && o.start2 != 0)
                 o.mapulet = createMapulet(o.ref1, o.start1, o.end1, o.ref2, o.start2, o.end2);
 
-            o.group = groups[curs.read(row, 7).asString()];
+            o.group = groups[curs.read(row, 7).string()];
             
             result.stats.emplace_back(o);
         }
@@ -344,8 +344,8 @@ std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment,
         decltype(references[fragment.detail[0].reference]) ref;
         
         alignment(decltype(fragment.detail.cbegin()) mom, decltype(ref) ref) : mom(mom), ref(ref) {
-            pos = mom->position - mom->cigar.qfirst;
-            end = mom->position + mom->cigar.rlength + mom->cigar.qclip;
+            pos = mom->qstart();
+            end = mom->qended();
         }
     };
     
@@ -393,17 +393,15 @@ std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment,
     if (rslt.size() == 0 && r1 > 0 && r2 > 0 && loopNumber == 1) {
         throw std::logic_error("no fully-aligned spots should be dropped on the first pass!");
     }
+    std::sort(rslt.begin(), rslt.end(), [](BestAlignment const &a, BestAlignment const &b) { return a.isBetterThan(b); });
     return rslt;
 }
 
 static BestAlignment bestPair(Fragment const &fragment, ContigStats const &contigs, int const loopNumber)
 {
-    BestAlignment result = { contigs.end(), fragment.detail.end(), fragment.detail.end(), 0 };
     std::vector<BestAlignment> all = candidateFragmentAlignments(fragment, contigs, loopNumber);
-
-    std::sort(all.begin(), all.end(), [](BestAlignment const &a, BestAlignment const &b) { return a.isBetterThan(b); });
-    if (!all.empty())
-        result = all.front();
+    BestAlignment result = { contigs.end(), fragment.detail.end(), fragment.detail.end(), 0 };
+    if (!all.empty()) result = all.front();
     return result;
 }
 
@@ -518,16 +516,16 @@ static void writeContigs(Writer2 const &out, std::vector<ContigStats::stat> cons
             auto const &mapulet = mapulets[i.mapulet];
             REF.setValueEmpty();
             STR.setValue(int32_t(0));
-            END.setValue(int32_t((mapulet.end1 - mapulet.start1) + mapulet.gap + (mapulet.end2 - mapulet.start2)));
+            END.setValue(int32_t((i.end1 - i.start1) + mapulet.gap + (i.end2 - i.start2)));
             AVERAGE.setValue(float(i.length.average() + mapulet.gap));
 
-            REF_1.setValue(references[mapulet.ref1]);
-            STR_1.setValue(int32_t(mapulet.start1));
-            END_1.setValue(int32_t(mapulet.end1));
+            REF_1.setValue(references[i.ref1]);
+            STR_1.setValue(int32_t(i.start1));
+            END_1.setValue(int32_t(i.end1));
             GAP.setValue(int32_t(mapulet.gap));
-            REF_2.setValue(references[mapulet.ref2]);
-            STR_2.setValue(int32_t(mapulet.start2));
-            END_2.setValue(int32_t(mapulet.end2));
+            REF_2.setValue(references[i.ref2]);
+            STR_2.setValue(int32_t(i.start2));
+            END_2.setValue(int32_t(i.end2));
         }
         table.closeRow();
     }
@@ -656,6 +654,9 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
         }
     }
     
+    auto good = int64_t(0);
+    auto reject = int64_t(0);
+
     nextReport = 1;
     for (auto row = range.first; row < range.second; ) {
         auto const fragment = in.read(row, range.second);
@@ -667,41 +668,27 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             auto const layout = std::to_string(first.readNo) + first.strand + std::to_string(second.readNo) + second.strand; ///< encodes order and strand, e.g. "1+2-" or "2+1-" for normal Illumina
             auto const cigar = first.cigarString + "0P" + second.cigarString; ///< 0P is like a double-no-op; used here to mark the division between the two CIGAR strings; also represents the mate-pair gap, the length of which is inferred from the fragment length
             auto const sequence = fragment.sequence(first.readNo) + fragment.sequence(second.readNo); ///< just concatenate them
-            
+            auto const cut = contig.mapulet == 0 ? 0 : contig.ref1 == contig.ref2 ? (contig.start2 - contig.end1) : -((contig.end1 - first.position) + (second.position - contig.start2));
+            auto const pos = first.qstart() - contig.start1;
+            auto const len = best.fragmentLength - cut;
+
             keepName.setValue(fragment.name);
             keepLayout.setValue(layout);
             keepCIGAR.setValue(cigar);
             keepSequence.setValue(static_cast<std::string>(sequence));
             keepContig.setValue(contig.sourceRow);
+            keepPosition.setValue(pos);
+            keepLength.setValue(len);
 
             ///* update statistics about contig
-            contig.qlength1.add(best.a->cigar.qlength);
-            contig.qlength2.add(best.b->cigar.qlength);
-            contig.rlength1.add(best.a->cigar.rlength);
-            contig.rlength2.add(best.b->cigar.rlength);
+            contig.length.add(len);
+            contig.qlength1.add(first.cigar.qlength);
+            contig.qlength2.add(second.cigar.qlength);
+            contig.rlength1.add(first.cigar.rlength);
+            contig.rlength2.add(second.cigar.rlength);
 
-            if (contig.mapulet == 0) {
-                keepPosition.setValue(best.pos1 - contig.start1);
-                keepLength.setValue(best.fragmentLength);
-                
-                contig.length.add(best.fragmentLength);
-            }
-            else {
-                ///* modify the placement according to mapping
-                auto const &mapulet = mapulets[contig.mapulet];
-                auto const pos1 = best.pos1 - mapulet.start1;
-                auto const end1 = pos1 + best.a->cigar.qlength;
-                auto const pos2 = best.pos2 - mapulet.start2 + (mapulet.end1 - mapulet.start1) + mapulet.gap;
-                auto const end2 = pos2 + best.b->cigar.qlength;
-                auto const length = end2 - pos1;
-                
-                keepPosition.setValue(pos1); ///< aligned position changes
-                keepLength.setValue(length); ///< fragment length changes; N.B. there is a gap in the mapping that has not been computed yet, this length doesn't take that into account, the gap needs to be added in on read
-                (void)end1;
-                
-                contig.length.add(length);
-            }
             keepTable.closeRow();
+            ++good;
         }
         else {
             ///* there's no good contig for this fragment; probably the coverage was too low
@@ -716,12 +703,14 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
                 badSequence.setValue(static_cast<std::string>(i.sequence));
                 badTable.closeRow();
             }
+            ++reject;
         }
-        if (nextReport * freq <= (row - range.first)) {
+        while (nextReport * freq <= (row - range.first)) {
             std::cerr << "prog: generating fragment alignments, processed " << nextReport << "0%" << std::endl;
             ++nextReport;
         }
     }
+    std::cerr << "info: generated " << good << " fragment alignments, rejected all alignments for " << reject << " fragments" << std::endl;
     std::cerr << "prog: adjusting virtual references" << std::endl;
     stats.adjustMapulets(); ///< adjust for previously unknown gap, now that it's been computed
 
@@ -771,7 +760,7 @@ namespace assembleFragments {
         if (!outPath.empty()) {
             ofs = fopen(outPath.c_str(), "w");
             if (!ofs) {
-                std::cerr << "failed to open output file: " << outPath << std::endl;
+                std::cerr << "error: failed to open output file: " << outPath << std::endl;
                 exit(3);
             }
         }

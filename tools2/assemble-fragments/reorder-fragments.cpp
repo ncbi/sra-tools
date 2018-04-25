@@ -69,20 +69,20 @@ static IndexRow makeIndexRow(VDB::Cursor::RowID row, VDB::Cursor::RawData const 
     
     auto contig = CONTIG.value<int64_t>();
     assert(contig >= 0);
-    assert(contig <= UINT_MAX);
     y.key[3] = contig & 0xFF; contig >>= 8;
     y.key[2] = contig & 0xFF; contig >>= 8;
     y.key[1] = contig & 0xFF; contig >>= 8;
-    y.key[0] = contig & 0xFF;
+    y.key[0] = contig & 0xFF; contig >>= 8;
+    assert(contig == 0);
 
     auto position = int64_t(POSITION.value<int32_t>()) + INT_MAX;
     assert(position >= 0);
-    assert(position <= UINT_MAX);
     y.key[7] = position & 0xFF; position >>= 8;
     y.key[6] = position & 0xFF; position >>= 8;
     y.key[5] = position & 0xFF; position >>= 8;
-    y.key[4] = position & 0xFF;
-    
+    y.key[4] = position & 0xFF; position >>= 8;
+    assert(position == 0);
+
     y.row = row;
     return y;
 }
@@ -321,12 +321,12 @@ static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
         auto const i = row - range.first;
         index[i] = makeIndexRow(row, data[0], data[1]);
         while (nextReport * freq <= i) {
-            std::cerr << "progress: generating keys " << nextReport << "0%" << std::endl;;
+            std::cerr << "prog: generating keys " << nextReport << "0%" << std::endl;;
             ++nextReport;
         }
     });
-    std::cerr << "status: processed " << N << " records" << std::endl;
-    std::cerr << "status: indexing" << std::endl;
+    std::cerr << "info: processed " << N << " records" << std::endl;
+    std::cerr << "info: indexing" << std::endl;
     
     sortIndex(N, index);
 
@@ -384,7 +384,7 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
         otbl.closeRow();
         ++written;
         if (nextReport * freq <= written) {
-            std::cerr << "progress: writing " << nextReport << "0%" << std::endl;
+            std::cerr << "prog: writing " << nextReport << "0%" << std::endl;
             ++nextReport;
         }
     });
@@ -418,7 +418,7 @@ static int process(std::string const &irdb, FILE *out)
     RawRecord::IndexT *index;
     size_t rows;
     {
-        std::cerr << "status: creating index" << std::endl;
+        std::cerr << "prog: creating index" << std::endl;
         auto const p = makeIndex(inDb);
         index = static_cast<RawRecord::IndexT *>(p.first);
         rows = p.second;
@@ -426,9 +426,9 @@ static int process(std::string const &irdb, FILE *out)
     
     auto const in = inDb["FRAGMENTS"].read(RawRecord::columns());
 
-    std::cerr << "status: rewriting rows in index order" << std::endl;
+    std::cerr << "prog: rewriting rows in index order" << std::endl;
     auto const result = process(writer, in, index, index + rows);
-    std::cerr << "status: done" << std::endl;
+    std::cerr << "prog: done" << std::endl;
 
     writer.endWriting();
     free(index);
@@ -476,7 +476,7 @@ namespace reorderIR {
         if (ofs)
             return process(db, ofs);
         
-        std::cerr << "failed to open output file: " << out << std::endl;
+        std::cerr << "error: failed to open output file: " << out << std::endl;
         exit(3);
     }
 }

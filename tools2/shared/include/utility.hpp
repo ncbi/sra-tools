@@ -27,8 +27,9 @@
 #define __UTILITY_HPP_INCLUDED__ 1
 
 #include <vector>
+#include <cmath>
+#include <cstdlib>
 namespace utility {
-    
     struct StatisticsAccumulator {
     private:
         double N;
@@ -113,8 +114,10 @@ namespace utility {
     };
 
     class strings_map {
-        typedef std::vector<char> char_store_t;
+    public:
         typedef unsigned index_t;
+    private:
+        typedef std::vector<char> char_store_t;
         typedef std::vector<index_t> reverse_lookup_t;
         typedef std::pair<index_t, index_t> ordered_list_elem_t;
         typedef std::vector<ordered_list_elem_t> ordered_list_t;
@@ -179,6 +182,34 @@ namespace utility {
             throw std::out_of_range("invalid id");
         }
     };
+    static inline unsigned uniform_random(unsigned const lower_bound, unsigned const upper_bound) {
+        if (lower_bound > upper_bound) return uniform_random(upper_bound, lower_bound);
+        if (lower_bound == upper_bound) return lower_bound;
+        unsigned const n = upper_bound - lower_bound;
+        unsigned r;
+#if __APPLE__
+        r = arc4random_uniform(n);
+#else
+        struct Seed {
+            enum { smallest = 8, small = 32, normal = 64, big = 128, biggest = 256 };
+            char state[normal];
+            Seed() {
+                initstate(unsigned(time(0)), state, sizeof(state));
+            }
+            unsigned random(unsigned const max) const {
+                for ( ; ; ) {
+                    auto const r = ::random();
+                    if (r < max)
+                        return unsigned(r);
+                }
+            }
+            static unsigned max() { return unsigned(RAND_MAX); }
+        };
+        static auto seed = Seed();
+        r = seed.random(unsigned(Seed::max() / n) * n) % n;
+#endif
+        return r + lower_bound;
+    }
 }
 
-#endif //__VDB_HPP_INCLUDED__
+#endif //__UTILITY_HPP_INCLUDED__

@@ -47,7 +47,7 @@ table NCBI:tbl:IR:raw #1
     extern column <ascii> zip_encoding REJECT_REASON;
 };
 
-table NCBI:tbl:aligned:SPOT_STATISTICS #1
+table NCBI:tbl:IR:SPOT_STATISTICS #1
 {
     extern column ascii READ_GROUP;
     extern column U8  LAYOUT;
@@ -58,6 +58,15 @@ table NCBI:tbl:aligned:SPOT_STATISTICS #1
     extern column U32 FRAGMENT_LENGTH_MODE;
     extern column U32 FRAGMENT_LENGTH_MEDIAN;
     extern column U32 FRAGMENT_LENGTH_EQUIPART;
+};
+
+table NCBI:tbl:IR:QUALITY_STATISTICS #1
+{
+    extern column ascii READ_GROUP;
+    extern column I32 READNO;
+    extern column U32 READ_CYCLE; // as opposed to machine cycle; starts at 1 for each read
+    extern column ascii QUALITY;
+    extern column F64 FREQUENCY;
 };
 
 table NCBI:tbl:IR:CONTIGS #1 ///< these are temporary contiguous regions
@@ -149,4 +158,5 @@ database NCBI:db:IR:aligned #1
     table NCBI:tbl:aligned:FRAGMENT #1.0 FRAGMENTS;
     table NCBI:tbl:aligned:CONTIGS #1.0 CONTIGS;
     table NCBI:tbl:IR:raw #1.0 REJECTS;
+    table NCBI:tbl:IR:QUALITY_STATISTICS #1.0 QUALITY_STATISTICS;
 };

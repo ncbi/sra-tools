@@ -336,7 +336,7 @@ struct BestAlignment {
     }
 };
 
-std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment, ContigStats const &contigs, int const loopNumber)
+std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment, ContigStats const &contigs, int const loopNumber, unsigned const group)
 {
     struct alignment {
         decltype(fragment.detail.cbegin()) mom;
@@ -353,10 +353,6 @@ std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment,
     auto const &alignments = fragment.detail;
     int r1 = 0, r2 = 0;
     
-    decltype(groups[fragment.group]) group;
-    if (!groups.contains(fragment.group, group))
-        return rslt;
-
     for (auto one = alignments.begin(); one < alignments.end(); ++one) {
         decltype(references[one->reference]) ref1;
         
@@ -397,9 +393,9 @@ std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment,
     return rslt;
 }
 
-static BestAlignment bestPair(Fragment const &fragment, ContigStats const &contigs, int const loopNumber)
+static BestAlignment bestPair(Fragment const &fragment, ContigStats const &contigs, int const loopNumber, unsigned const group)
 {
-    std::vector<BestAlignment> all = candidateFragmentAlignments(fragment, contigs, loopNumber);
+    std::vector<BestAlignment> all = candidateFragmentAlignments(fragment, contigs, loopNumber, group);
     BestAlignment result = { contigs.end(), fragment.detail.end(), fragment.detail.end(), 0 };
     if (!all.empty()) result = all.front();
     return result;
@@ -531,8 +527,73 @@ static void writeContigs(Writer2 const &out, std::vector<ContigStats::stat> cons
     }
 }
 
+struct QualityStats {
+    struct Key {
+        unsigned group, read, cycle;
+        int quality;
+        bool operator <(Key const &rhs) const {
+            if (group < rhs.group) return true;
+            if (group > rhs.group) return false;
+            if (read < rhs.read) return true;
+            if (read > rhs.read) return false;
+            if (cycle < rhs.cycle) return true;
+            if (cycle > rhs.cycle) return false;
+            return quality < rhs.quality;
+        }
+    };
+    std::map<Key, uint64_t> stats;
+    
+    void add(unsigned group, unsigned read, bool reversed, std::string const &quality) {
+        auto const last = quality.length() - 1;
+        auto I = 0;
+        for (auto && phred : quality) {
+            auto i = I++;
+            auto const cycle = reversed ? (last - i) : i;
+            auto const key = Key({ group, read, unsigned(cycle), int(phred) });
+            auto const j = stats.insert(std::make_pair(key, 0));
+            j.first->second += 1;
+        }
+    }
+    
+    void write(Writer2 const &out) const {
+        auto const table = out.table("QUALITY_STATISTICS");
+        auto const READ_GROUP = table.column("READ_GROUP");
+        auto const READNO = table.column("READNO");
+        auto const CYCLE = table.column("READ_CYCLE");
+        auto const QUALITY = table.column("QUALITY");
+        auto const FREQUENCY = table.column("FREQUENCY");
+        auto count = decltype(stats)();
+        
+        for (auto && i : stats) {
+            auto const key = decltype(i.first)({ i.first.group, i.first.read, i.first.cycle, 0 });
+            auto const j = count.insert(std::make_pair(key, 0));
+            j.first->second += i.second;
+        }
+        for (auto && i : stats) {
+            auto const key = decltype(i.first)({ i.first.group, i.first.read, i.first.cycle, 0 });
+            auto const freq = double(i.second) / count[key];
+            auto const &readGroup = groups[i.first.group];
+            
+            READ_GROUP.setValue(readGroup);
+            READNO.setValue(int32_t(i.first.read));
+            CYCLE.setValue(uint32_t(i.first.cycle));
+            QUALITY.setValue(char(i.first.quality));
+            FREQUENCY.setValue(freq);
+            
+            table.closeRow();
+        }
+    }
+};
+
 static int assemble(FILE *out, std::string const &data_run, std::string const &stats_run)
 {
+    auto const mgr = VDB::Manager();
+    auto stats = ContigStats::load(mgr[stats_run]);
+    auto const inDb = mgr[data_run];
+    auto const in = Fragment::Cursor(inDb["RAW"]);
+    auto const quality = in.hasQuality();
+    auto qstats = QualityStats();
+
     auto writer = Writer2(out);
     writer.destination("IR.vdb");
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:aligned");
@@ -583,7 +644,16 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
                         { "START_2", sizeof(int32_t) },
                         { "END_2", sizeof(int32_t) },
                     });
-    
+    if (quality) {
+        writer.addTable(
+                        "QUALITY_STATISTICS", {
+                            { "READ_GROUP", sizeof(char) },
+                            { "READNO", sizeof(int32_t) },
+                            { "READ_CYCLE", sizeof(uint32_t) },
+                            { "QUALITY", sizeof(char) },
+                            { "FREQUENCY", sizeof(double) },
+                        });
+    }
     writer.beginWriting();
     writer.flush();
     
@@ -606,10 +676,6 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
     auto const badCIGAR = badTable.column("CIGAR");
     auto const badSequence = badTable.column("SEQUENCE");
     
-    auto const mgr = VDB::Manager();
-    auto stats = ContigStats::load(mgr[stats_run]);
-    auto const inDb = mgr[data_run];
-    auto const in = Fragment::Cursor(inDb["RAW"]);
     auto const range = in.rowRange();
     auto const freq = (range.second - range.first) / 10.0;
 
@@ -622,7 +688,10 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
 
         for (auto row = range.first; row < range.second; ) {
             auto const fragment = in.read(row, range.second);
-            auto const best = bestPair(fragment, stats, loops);
+            unsigned group;
+            if (!groups.contains(fragment.group, group)) continue;
+
+            auto const best = bestPair(fragment, stats, loops, group);
             ++spots;
             if (best.contig != stats.end()) {
                 ++aligned;
@@ -660,14 +729,19 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
     nextReport = 1;
     for (auto row = range.first; row < range.second; ) {
         auto const fragment = in.read(row, range.second);
-        auto const best = bestPair(fragment, stats, 0);
+        unsigned group;
+        if (!groups.contains(fragment.group, group)) continue;
+        
+        auto const best = bestPair(fragment, stats, 0, group);
         if (best.a != fragment.detail.end() && best.b != fragment.detail.end()) {
             auto &contig = *best.contig;
             auto const &first = *best.a;
             auto const &second = *best.b;
             auto const layout = std::to_string(first.readNo) + first.strand + std::to_string(second.readNo) + second.strand; ///< encodes order and strand, e.g. "1+2-" or "2+1-" for normal Illumina
             auto const cigar = first.cigarString + "0P" + second.cigarString; ///< 0P is like a double-no-op; used here to mark the division between the two CIGAR strings; also represents the mate-pair gap, the length of which is inferred from the fragment length
-            auto const sequence = fragment.sequence(first.readNo) + fragment.sequence(second.readNo); ///< just concatenate them
+            auto const best1 = fragment.bestIndex(first.readNo);
+            auto const best2 = fragment.bestIndex(second.readNo);
+            auto const sequence = fragment.detail[best1].sequence + fragment.detail[best2].sequence; ///< just concatenate them
             auto const cut = contig.mapulet == 0 ? 0 : contig.ref1 == contig.ref2 ? (contig.start2 - contig.end1) : -((contig.end1 - first.position) + (second.position - contig.start2));
             auto const pos = first.qstart() - contig.start1;
             auto const len = best.fragmentLength - cut;
@@ -688,6 +762,11 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             contig.rlength2.add(second.cigar.rlength);
 
             keepTable.closeRow();
+            
+            if (quality) {
+                qstats.add(group, first.readNo, first.strand == '-', fragment.detail[best1].quality);
+                qstats.add(group, second.readNo, second.strand == '-', fragment.detail[best2].quality);
+            }
             ++good;
         }
         else {
@@ -717,6 +796,11 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
     std::cerr << "prog: writing reference and contiguous region info" << std::endl;
     writeContigs(writer, stats.stats);
 
+    if (quality) {
+        std::cerr << "prog: writing quality statistics" << std::endl;
+        qstats.write(writer);
+    }
+    
     writer.endWriting();
     std::cerr << "prog: DONE" << std::endl;
     return 0;

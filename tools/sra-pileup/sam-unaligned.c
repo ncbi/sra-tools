@@ -857,7 +857,7 @@ static rc_t dump_seq_prim_row_sam( const samdump_opts * const opts,
             /* SAM-FIELD: POS       SRA-column: look up in cache, or none */
             if ( rc == 0 )
             {
-                if ( ptx == NULL )
+                if ( ptx == NULL || !mate_available )
                 {
                     rc = KOutMsg( "0\t0\t" );   /* no way to get that without PRIM_ALIGN-table */
                 }

@@ -1,0 +1,60 @@
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    cmake_minimum_required (VERSION 3.0)
+else ()
+    cmake_minimum_required (VERSION 2.8)
+endif ()
+project (assemble-fragments)
+
+if (CMAKE_MAJOR_VERSION LESS 3)
+    set (CMAKE_CXX_FLAGS "-std=gnu++11 ${CMAKE_CXX_FLAGS}")
+    message (STATUS "Enabling gnu++11")
+endif ()
+
+set (CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/../shared/cmake")
+find_package (ncbi-vdb REQUIRED)
+include_directories (${ncbi-vdb_INCLUDE_DIRS})
+link_libraries (${ncbi-vdb_LIBRARIES})
+if (CMAKE_SYSTEM_NAME MATCHES "Linux")
+    find_library (PTHREAD pthread)
+    link_libraries (${PTHREAD})
+    find_library (MATH m)
+    link_libraries (${MATH})
+endif ()
+
+include_directories (${CMAKE_SOURCE_DIR}/../shared/include)
+
+add_executable (sra2ir sra2ir.cpp)
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    target_compile_features (sra2ir PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
+endif ()
+
+add_executable (sam2ir sam2ir.cpp)
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    target_compile_features (sam2ir PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
+endif ()
+
+add_executable (text2ir text2ir.cpp)
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    target_compile_features (text2ir PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
+endif ()
+
+add_executable (reorder-ir reorder-ir.cpp)
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    target_compile_features (reorder-ir PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
+endif ()
+
+add_executable (filter-ir filter-ir.cpp)
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    target_compile_features (filter-ir PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
+endif ()
+
+add_executable (summarize-pairs summarize-pairs.cpp)
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    target_compile_features (summarize-pairs PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
+endif ()
+
+add_executable (assemble-fragments assemble-fragments.cpp)
+if (CMAKE_MAJOR_VERSION GREATER 2)
+    target_compile_features (assemble-fragments PRIVATE cxx_auto_type cxx_lambdas cxx_range_for)
+endif ()
+

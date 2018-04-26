@@ -1,0 +1,74 @@
+
+================================================================================================
+additional command-line arguments in vdb-sql:
+================================================================================================
+-acc SRRXXXXXX  ... create a virtual VDB-table named VDB
+-tbl XXX        ... use table XXX instead of SEQUENCE
+-col C1;C2;C3   ... semicolon-separated list of columns to open instead of all columns
+-exclude C5     ... semicolon-separated list of columns to exclude of -col was not given
+-cache XXXX     ... size of cursor-cache ( dflt. 32 MB )
+
+see example1.sh ... example6.sh for usage!
+
+
+================================================================================================
+syntax for creation of virtual table via SQL-statement:
+================================================================================================
+create virtual table NAME using vdb( ACC );
+
+NAME ... can be chosen like VDB, VDB1, etc
+ACC .... mandatory argument: the accession to be opened
+
+example:
+
+create virtual table VDB using vdb( SRR341578 );
+
+-------------------------------------------------------------------------------------------------------
+table/T ..... table to be opened ( if accession is a database, and a specific table is requested )
+
+example:
+
+create virtual table VDB using vdb( SRR341578, table = PRIM );
+or
+create virtual table VDB using vdb( SRR341578, T = PRIM );
+
+note: The table name can be shortened for convenience. In this case PRIMARY_ALIGNMENTS has been
+      shortened to PRIM. The shortened name has to avoid ambiguity.
+
+
+
+-------------------------------------------------------------------------------------------------------
+columns/C ... specific set of columns to be opened ( if ommited all readable columns will be opened )
+
+example:
+
+create virtual table VDB using vdb( SRR341578, columns = READ;(INSDC:quality:text:phred_33)QUALITY );
+or
+create virtual table VDB using vdb( SRR341578, C = READ;(INSDC:quality:text:phred_33)QUALITY );
+
+note: The list of columns has to be separated by semicolons. A column can be prefixed by a type-cast.
+
+
+
+-------------------------------------------------------------------------------------------------------
+exclude/X ... set of columns to be excluded ( if no set of columns has been given )
+
+example:
+
+create virtual table VDB using vdb( SRR341578, exclude = NAME );
+or
+create virtual table VDB using vdb( SRR341578, X = NAME );
+
+note: This opens all readable columns, except the NAME-column. If more than one column is to be
+      excluded, than the list has to be separated by semicolons.
+
+
+-------------------------------------------------------------------------------------------------------
+cache ... size of cursor-cache ( if ommited the cursor-cache uses 32 MB of RAM )
+
+example:
+
+create virtual table VDB using vdb( SRR341578, cache = 1000000 );
+
+note: The cache is reduced to 1 MB of RAM.
+

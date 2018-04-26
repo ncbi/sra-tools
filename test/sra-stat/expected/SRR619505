@@ -1,0 +1,77 @@
+<Run accession="SRR619505" read_length="variable" spot_count="163" base_count="6322" base_count_bio="6322" spot_count_mates="0" base_count_bio_mates="0" spot_count_bad="2" base_count_bio_bad="100" spot_count_filtered="0" base_count_bio_filtered="0">
+  <Member member_name="20110416210345564" spot_count="163" base_count="6322" base_count_bio="6322" spot_count_mates="0" base_count_bio_mates="0" spot_count_bad="2" base_count_bio_bad="100" spot_count_filtered="0" base_count_bio_filtered="0" library="50x25RRBC" sample="443_N"/>
+  <Size value="164368" units="bytes"/>
+  <Bases cs_native="false" count="6322">
+    <Base value="A" count="1352"/>
+    <Base value="C" count="1847"/>
+    <Base value="G" count="1824"/>
+    <Base value="T" count="1281"/>
+    <Base value="N" count="18"/>
+  </Bases>
+  <AlignInfo>
+    <Ref seqId="NC_000005.8" name="chr5" circular="false" local="remote" path="/NC_000005.8"/>
+  </AlignInfo>
+  <QualityCount>
+    <Quality value="0" count="3"/>
+    <Quality value="1" count="47"/>
+    <Quality value="4" count="107"/>
+    <Quality value="5" count="13"/>
+    <Quality value="6" count="57"/>
+    <Quality value="7" count="27"/>
+    <Quality value="8" count="56"/>
+    <Quality value="9" count="13"/>
+    <Quality value="10" count="42"/>
+    <Quality value="11" count="22"/>
+    <Quality value="12" count="51"/>
+    <Quality value="13" count="16"/>
+    <Quality value="14" count="41"/>
+    <Quality value="15" count="17"/>
+    <Quality value="16" count="44"/>
+    <Quality value="17" count="30"/>
+    <Quality value="18" count="32"/>
+    <Quality value="19" count="20"/>
+    <Quality value="20" count="45"/>
+    <Quality value="21" count="33"/>
+    <Quality value="22" count="56"/>
+    <Quality value="23" count="32"/>
+    <Quality value="24" count="47"/>
+    <Quality value="25" count="40"/>
+    <Quality value="26" count="55"/>
+    <Quality value="27" count="60"/>
+    <Quality value="28" count="46"/>
+    <Quality value="29" count="44"/>
+    <Quality value="30" count="52"/>
+    <Quality value="31" count="68"/>
+    <Quality value="32" count="52"/>
+    <Quality value="33" count="76"/>
+    <Quality value="34" count="58"/>
+    <Quality value="35" count="90"/>
+    <Quality value="36" count="89"/>
+    <Quality value="37" count="75"/>
+    <Quality value="38" count="88"/>
+    <Quality value="39" count="87"/>
+    <Quality value="40" count="4491"/>
+  </QualityCount>
+  <Databases>
+    <Database>
+      <Table name="PRIMARY_ALIGNMENT">
+        <Statistics source="meta">
+          <Rows count="163"/>
+          <Elements count="6322"/>
+        </Statistics>
+      </Table>
+      <Table name="REFERENCE">
+        <Statistics source="meta">
+          <Rows count="36172"/>
+          <Elements count="180857866"/>
+        </Statistics>
+      </Table>
+      <Table name="SEQUENCE">
+        <Statistics source="meta">
+          <Rows count="163"/>
+          <Elements count="6322"/>
+        </Statistics>
+      </Table>
+    </Database>
+  </Databases>
+</Run>

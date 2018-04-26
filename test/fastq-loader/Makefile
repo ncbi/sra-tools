@@ -32,6 +32,7 @@ MODULE = test/fastq-loader
 
 TEST_TOOLS = \
 	wb-test-fastq \
+	wb-test-fastq-parse \
 	test-fastq-loader
 
 include $(TOP)/build/Makefile.env
@@ -42,6 +43,29 @@ $(TEST_TOOLS): makedirs
 .PHONY: $(TEST_TOOLS)
 
 clean: stdclean
+
+#-------------------------------------------------------------------------------
+# FASTQ parsing test
+#
+FASTQ_PARSE_SRC = \
+	wb-test-fastq-parse
+
+FASTQ_PARSE_OBJ = \
+	$(addsuffix .$(OBJX),$(FASTQ_PARSE_SRC))
+
+FASTQ_PARSE_LIB = \
+	-skapp \
+	-sktst \
+	-sfastqloader \
+	-sload \
+	-sncbi-vdb \
+
+$(TEST_BINDIR)/wb-test-fastq-parse: $(FASTQ_PARSE_OBJ)
+	$(LP) --exe -o $@ $^ $(FASTQ_PARSE_LIB)
+
+parse: wb-test-fastq-parse
+	$(TEST_BINDIR)/wb-test-fastq-parse  2>&1
+
 
 #-------------------------------------------------------------------------------
 # white-box test
@@ -86,7 +110,7 @@ tfl:
 #-------------------------------------------------------------------------------
 # scripted tests
 #
-runtests: set_schema smalltests
+runtests: wb parse set_schema smalltests
 	rm -v tmp.kfg
 
 set_schema:
@@ -209,9 +233,11 @@ smalltests: $(TEST_TOOLS)
 	rm -rf $(SRCDIR)/actual
     # VDB-3154: buffer insufficient
 	$(SMALLRUN) 15.0 0 $(SRCDIR)/input/15.0.fastq --quality PHRED_33
+    # VDB-3413: multi-line reads and qualities
+	$(SMALLRUN) 16.0 0 $(SRCDIR)/input/16.0.fasta --quality PHRED_33 --platform=PACBIO
+	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
 
 onetest:
 	rm -rf $(SRCDIR)/actual
-    # VDB-3154: buffer insufficient
-	$(SMALLRUN) 15.0 0 $(SRCDIR)/input/15.0.fastq --quality PHRED_33
+	$(SMALLRUN) 16.1 0 $(SRCDIR)/input/16.1.fastq --quality PHRED_33 --platform=PACBIO
 

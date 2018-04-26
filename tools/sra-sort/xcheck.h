@@ -35,6 +35,7 @@
 /*--------------------------------------------------------------------------
  * forwards
  */
+struct KThread;
 struct VTable;
 
 
@@ -44,6 +45,6 @@ struct VTable;
  *  runs a cross-check of REFERENCE.<name>_IDS against <name>.REF_ID
  */
 void CrossCheckRefAlignTbl ( const ctx_t *ctx,
-    struct VTable const *ref_tbl, struct VTable const *align_tbl, const char *align_name );
+    struct VTable const *ref_tbl, struct VTable const *align_tbl, const char *align_name, struct KThread ** pt );
 
 #endif

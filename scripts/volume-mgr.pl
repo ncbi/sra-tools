@@ -3,13 +3,19 @@
 ################################################################################
 
 use strict;
+
 use Cwd "abs_path";
+use File::Copy "copy";
+use File::Path "make_path";
 use Getopt::Long "GetOptions";
+use POSIX "strftime";
 
 my $NOT_FOUND = 0;
 my $SYMLINK   = 1;
 my $DIR       = 2;
 my $BAD_TYPE  = 3;
+
+my @saved;
 
 my %OPT;
 my @options
@@ -24,6 +30,9 @@ if ($OPT{'use-new-volume-as-root'}) {
     $OPT{'use-new-volume-as-root'} = 0;
     $OPT{use_new_volume_as_root} = 1;
 }
+
+print "WARNING: " .
+    "THIS SCRIPT IS EXPERIMENTAL AND MIGHT NOT BE SUPPORTED IN THE FUTURE\n\n";
 
 if ( $OPT{'help'} ) {
     help();
@@ -42,10 +51,12 @@ unless ( $OPT{workspaces} || $OPT{volumes} || $OPT{add} || $OPT{move} ) {
 die 'error. vdb-config is not found. Add its directory to $PATH' if ( $? );
 
 my %workspace;
-foreach ( `vdb-config -on / | grep ^/repository/user` ) {
-    if      (m|/repository/user/main/public/root = "(.*)"$|) {
+my @out = `vdb-config -on / | grep ^/repository/user`;
+foreach ( @out ) {
+    if    (m|/repository/user/main/public/root = "(.*)"$|) {
         $workspace{public} = $1;
-    } elsif (m|/repository/user/protected/(.*)/root = "(.*)"$|) {
+    }
+    elsif (m|/repository/user/protected/(.*)/root = "(.*)"$|) {
         $workspace{$1} = $2;
     }
 }
@@ -70,6 +81,12 @@ if ( $OPT{volumes} ) {
 
     volumes ( $wrksp_name );
 }
+
+my $t = `date +%s.%N`;
+my $TIMESTAMP = strftime ( "%Y%m%d-%H%M%S", localtime $t );
+$TIMESTAMP   .= sprintf ( ".%01d", ( $t - int ( $t ) ) * 10 );
+my $NCBI_SETTINGS = ncbi_settings();
+my $saved;
 
 my $added;
 
@@ -103,6 +120,12 @@ if ( $OPT{move} ) {
         move ( $wrksp_name ) ;
     }
 }
+
+if ( $saved ) {
+    print "Old configuration was saved to '$NCBI_SETTINGS.$TIMESTAMP'\n";
+    print "Update log was saved to '$NCBI_SETTINGS.log.$TIMESTAMP'\n";
+}
+
 ################################################################################
 
 
@@ -175,6 +198,7 @@ sub add_volume {
     my $p = $OPT{use_new_volume_as_root}
             ? $new_root_path : $workspace{$wrksp_name};
     if ( $need_update ) {
+        mk_dir ( $p ) unless ( $OPT{use_new_volume_as_root} || -e $p );
         chdir $p || die "FATAL: cannot cd $p";
 #   print "dbg: making symlinks from current root to new volume...\n";
         print "dbg: cd $p: ok\n";
@@ -407,6 +431,7 @@ sub volumes {
 
     my $cmd = 'vdb-config -on | grep ' . volumes_node ( $wrksp_name );
     my $volumes = `$cmd`;
+    die if ( $? );
     my @volumes;
     $volumes =~ /^.* = "(.*)"$/;
     @volumes = split ':', $1 if ( $1 );
@@ -518,11 +543,20 @@ sub root {
 
     my %roots;
     my @roots = `vdb-config -on | grep '$node '`;
+    die if ( $? );
     die 'inclompete configuration' if ( $#roots == -1 );
     die if ( $#roots != 0 );
     die unless ( $roots[0] =~/^$node = "(.*)"$/ );
     $1;
 }
+
+
+sub ncbi_settings {
+    $_ = `vdb-config -on NCBI_SETTINGS`;
+    die if ( $? );
+    die unless ( /^NCBI_SETTINGS = "(.*)"/ );
+    $1;
+};
 
 
 sub save_new_root_in_configuration {
@@ -551,6 +585,16 @@ sub run {
 }
 
 
+sub log_ {
+    my ( $msg ) = @_;
+    my $filename = "$NCBI_SETTINGS.log.$TIMESTAMP";
+    open ( my $fh, ">>$filename" ) or die "Cannot open file '$filename' $!";
+    print $fh "cd " . `pwd`;
+    print $fh "$msg\n\n";
+    close $fh;
+}
+
+
 sub sym_link {
     my ( $old, $new ) = @_;
     print "dbg: symlink '$old' '$new'... ";
@@ -559,6 +603,8 @@ sub sym_link {
         print "ok";
     }
     print "\n";
+
+    log_ ( "ln -s $old $new" );
 }
 
 
@@ -566,10 +612,12 @@ sub mk_dir {
     my ( $path ) = @_;
     print "dbg: mkdir '$path'... ";
     unless ($OPT{dry}) {
-        mkdir ( $path ) or die;
+        make_path ( $path ) or die;
         print "ok";
     }
     print "\n";
+
+    log_ ( "mkdir -p $path" );
 }
 
 
@@ -605,6 +653,16 @@ sub set_volumes {
 
 sub set {
     my ( $n, $v ) = @_;
+
+    my $old = `vdb-config -on $n`;
+
+    unless ( $saved ) {
+        if ( -e $NCBI_SETTINGS ) {
+            copy ( $NCBI_SETTINGS, "$NCBI_SETTINGS.$TIMESTAMP" ) or die;
+        }
+        ++ $saved;
+    }
+
     run ( "vdb-config -s $n=$v", "Setting $n=$v" );
 }
 

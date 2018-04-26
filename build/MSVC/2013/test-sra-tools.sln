@@ -7,8 +7,6 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-fastq-loader", "test-f
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-vcf-loader", "test-vcf-loader.vcxproj", "{1FFE966A-6DFA-9E14-2542-7C693F1B9BCC}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-general-loader", "test-general-loader.vcxproj", "{9979DBC5-E171-1EAD-2336-E829EEECA0C3}"
-EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test-align-info", "test-align-info.vcxproj", "{72BD3AEE-0CE1-D9EC-C75A-4DCD5ED3184F}"
 EndProject
 Global

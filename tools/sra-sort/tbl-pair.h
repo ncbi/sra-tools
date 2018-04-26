@@ -45,6 +45,7 @@
  */
 struct VTable;
 struct DbPair;
+struct KThread;
 struct ColumnReader;
 struct ColumnWriter;
 struct ColumnPair;
@@ -108,6 +109,9 @@ struct TablePair
 
     /* true if already exploded */
     bool exploded;
+
+    /* Thread launched by TablePairPostCopy [ to do consistency-check ] */
+    struct KThread * thread;
 
     uint8_t align [ 2 ];
 };

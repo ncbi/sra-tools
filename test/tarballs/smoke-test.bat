@@ -36,6 +36,8 @@ cd %1
 set VERSION_CHECKER=%2
 set VERSION=%3
 
+echo Smoke testing %VERSION% tarball ...
+
 set FAILED=
 
 for %%t in ( %TOOLS% ) do (
@@ -65,12 +67,47 @@ call :RunTool fastq-dump SRR002749 -fasta -Z
 call :RunTool sam-dump SRR002749
 call :RunTool sra-pileup SRR619505 --quiet
 
-if "%FAILED%" NEQ "" ( 
+if "%FAILED%" NEQ "" (
     echo "Failed: %FAILED%"
-    exit /B 1 
+    exit /B 1
 )
 
-echo "Tarballs test successful"
+echo Tarball smoke test successful
+
+echo.
+
+set JAR=..\GenomeAnalysisTK.jar
+
+echo Smoke testing %JAR% ...
+
+set PWD=%CD%
+
+set LOG=-Dvdb.log=FINEST
+set LOG=
+
+set ARGS=-Dvdb.System.loadLibrary=1 -Duser.home=%PWD%
+
+set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
+echo %cmd%
+%cmd%
+if '%errorlevel%'=='1' goto skip
+set FAILED=%FAILED% GenomeAnalysisTK.jar with disabled smart dll search;
+:skip
+
+set ARGS=-Duser.home=%PWD%
+
+set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
+echo %cmd%
+%cmd% >NUL 2>&1
+if errorlevel 1 ( call set FAILED=%%FAILED%% GenomeAnalysisTK.jar; )
+
+if "%FAILED%" NEQ "" (
+    echo "Failed: %FAILED%"
+    exit /B 1
+)
+
+echo %JAR% smoke test successful
+
 exit /B 0
 
 ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

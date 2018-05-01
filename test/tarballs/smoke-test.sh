@@ -68,7 +68,7 @@ then
     exit 1
 fi
 INSTALL_DIR=$1
-BIN_DIR=${INSTALL_DIR}/bin
+BIN_DIR=${INSTALL_DIR}bin
 
 if [ "$2" == "" ]
 then
@@ -78,6 +78,7 @@ then
 fi
 VERSION=$2
 
+echo
 echo "Smoke testing ${BIN_DIR} ..."
 FAILED=""
 
@@ -117,5 +118,76 @@ then
     exit 2
 fi
 
-echo "Smoke test successful"
+echo "Sratoolkit smoke test successful"
 
+echo
+
+########################### TEST GenomeAnalysisTK.jar ##########################
+
+JAR=GenomeAnalysisTK.jar
+echo "Smoke testing ${JAR} ..."
+
+LOG=-Dvdb.log=FINEST
+LOG=-Dvdb.log=WARNING
+LOG=
+
+GLOG="-l INFO"
+GLOG="-l WARN"
+
+ARGS=-Dvdb.System.loadLibrary=1
+
+java -version 2>&1 | grep -q 1.7
+if [ "$?" = "0" ] ; then # GenomeAnalysisTK was built for java 1.8
+    export PATH=/net/pan1.be-md/sra-test/bin/jre1.8.0_171/bin:$PATH
+fi
+
+CL=org.broadinstitute.gatk.engine.CommandLineGATK
+L="-L NC_000020.10:61000001-61010000"
+
+# execute when dll download is disabled and dll-s cannot be located: should fail
+
+GARG="-T UnifiedGenotyper -I SRR835775 -R SRR835775 ${L} -o S.vcf"
+cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
+
+echo
+echo ${cmd}
+eval ${cmd} # 2>/dev/null
+if [ "$?" = "0" ] ; then
+    FAILED="${FAILED} ${JAR} with disabled smart dll search;"
+fi
+
+# execute when dll download is enabled
+
+PWD=`pwd`
+ARGS=-Duser.home=${PWD}
+
+GARG="-T UnifiedGenotyper -I SRR835775 -R SRR835775 ${L} -o S.vcf"
+cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
+
+echo
+echo ${cmd}
+eval ${cmd} >/dev/null
+if [ "$?" != "0" ] ; then
+    FAILED="${FAILED} ${JAR};"
+fi
+
+# execute with "-jar GenomeAnalysisTK.jar"
+
+GARG=-T HaplotypeCaller -R SRR1108179 -I SRR1108179 -o SRR8179.vcf -L GL000191.1
+cmd="java ${LOG} ${ARGS} -jar ./${JAR} ${GARG} ${GLOG}"
+echo
+echo ${cmd}
+eval ${cmd} >/dev/null
+if [ "$?" != "0" ] ; then
+    FAILED="${FAILED} -jar ${JAR};"
+fi
+
+echo
+
+if [ "${FAILED}" != "" ]
+then
+    echo "Failed: ${FAILED}"
+    exit 3
+fi
+
+echo "${JAR} smoke test successful"

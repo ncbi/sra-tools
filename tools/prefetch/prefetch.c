@@ -78,7 +78,7 @@
 
 #define DISP_RC(rc, err) (void)((rc == 0) ? 0 : LOGERR(klogInt, rc, err))
 
-#define DISP_RC2(rc, name, msg) (void)((rc == 0) ? 0 : \
+#define DISP_RC2(rc, msg, name) (void)((rc == 0) ? 0 : \
     PLOGERR(klogInt, (klogInt,rc, "$(msg): $(name)","msg=%s,name=%s",msg,name)))
 
 #define RELEASE(type, obj) do { rc_t rc2 = type##Release(obj); \
@@ -1066,27 +1066,27 @@ static rc_t MainDownloadFile(Resolved *self,
         KClientHttpRequest * kns_req = NULL;
         rc = KNSManagerMakeClientRequest ( main -> kns,
             & kns_req, http_vers, NULL, "%S", self -> remote . str );
-        DISP_RC2
-            ( rc, "Cannot KNSManagerMakeClientRequest", self -> remote . str );
+        DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest",
+                   self -> remote . str -> addr );
 
         if ( rc == 0 ) {
             KClientHttpResult * rslt = NULL;
             rc = KClientHttpRequestGET ( kns_req, & rslt );
-            DISP_RC2
-                ( rc, "Cannot KClientHttpRequestGET", self -> remote . str );
+            DISP_RC2 ( rc, "Cannot KClientHttpRequestGET",
+                       self -> remote . str -> addr );
 
             if ( rc == 0 ) {
                 KStream * s = NULL;
                 rc = KClientHttpResultGetInputStream ( rslt, & s );
                 DISP_RC2 ( rc, "Cannot KClientHttpResultGetInputStream",
-                    self -> remote . str );
+                           self -> remote . str -> addr );
 
                 while ( rc == 0 ) {
                     rc = KStreamRead
                         ( s, main -> buffer, main -> bsize, & num_read );
                     if ( rc != 0 || num_read == 0) {
                         DISP_RC2 ( rc, "Cannot KStreamRead",
-                            self -> remote . str );
+                                   self -> remote . str -> addr );
                         break;
                     }
 
@@ -2039,7 +2039,7 @@ static rc_t ItemDownloadDependencies(Item *item) {
                 count == 1 ? "y" : "ies"));
         }
         else {
-            DISP_RC2(rc, "Failed to check %s's dependencies", resolved->name);
+            DISP_RC2(rc, "Failed to check dependencies", resolved->name);
         }
     }
 

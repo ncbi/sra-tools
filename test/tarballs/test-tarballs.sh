@@ -73,6 +73,7 @@ mkdir -p ${WORKDIR}
 OLDDIR=$(pwd)
 cd ${WORKDIR}
 
+df -h .
 wget -q --no-check-certificate ${TARBALLS_URL}${TARGET}.tar.gz || exit 1
 gunzip -f ${TARGET}.tar.gz || exit 2
 PACKAGE=$(tar tf ${TARGET}.tar | head -n 1)
@@ -82,6 +83,9 @@ tar xf ${TARGET}.tar || exit 3
 # extract version number from the package's name
 [[ ${PACKAGE} =~ \.[0-9]+\.[0-9]+\.[0-9]+ ]] && VERSION=${BASH_REMATCH[0]:1} # clip leading '.'
 echo Current version: ${VERSION}
+
+TARGET=GenomeAnalysisTK.jar
+wget -q --no-check-certificate ${TARBALLS_URL}${TARGET} || exit 6
 
 echo $HOMEDIR/smoke-test.sh ./${PACKAGE} ${VERSION}
 $HOMEDIR/smoke-test.sh ./${PACKAGE} ${VERSION}

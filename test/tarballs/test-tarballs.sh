@@ -102,6 +102,7 @@ NGS_TARGET=ngs-sdk.current-${OS}
 if [ "${OS}" == "centos_linux64" ] ; then
     NGS_TARGET=ngs-sdk.current-linux;
 fi
+echo wget -q --no-check-certificate ${TARBALLS_URL}${NGS_TARGET}.tar.gz
 wget -q --no-check-certificate ${TARBALLS_URL}${NGS_TARGET}.tar.gz || exit 5
 gunzip -f ${NGS_TARGET}.tar.gz || exit 6
 NGS_PACKAGE=$(tar tf ${NGS_TARGET}.tar | head -n 1)

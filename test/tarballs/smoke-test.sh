@@ -152,7 +152,8 @@ L="-L NC_000020.10:61000001-61010000"
 
 # execute when dll download is disabled and dll-s cannot be located: should fail
 
-GARG="-T UnifiedGenotyper -I SRR835775 -R SRR835775 ${L} -o S.vcf"
+ACC=SRR835775
+GARG="-T UnifiedGenotyper -I ${ACC} -R ${ACC} ${L} -o S.vcf"
 cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
 
 echo
@@ -167,7 +168,7 @@ fi
 PWD=`pwd`
 ARGS=-Duser.home=${PWD}
 
-GARG="-T UnifiedGenotyper -I SRR835775 -R SRR835775 ${L} -o S.vcf"
+GARG="-T UnifiedGenotyper -I ${ACC} -R ${ACC} ${L} -o S.vcf"
 cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
 
 echo
@@ -179,7 +180,6 @@ fi
 
 # execute with "-jar GenomeAnalysisTK.jar"
 
-ACC=SRR1108179
 GARG="-T HaplotypeCaller -R ${ACC} -I ${ACC} -o SRR8179.vcf -L GL000191.1"
 cmd="java ${LOG} ${ARGS} -jar ./${JAR} ${GARG} ${GLOG}"
 echo

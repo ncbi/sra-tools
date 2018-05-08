@@ -180,7 +180,7 @@ fi
 
 # execute with "-jar GenomeAnalysisTK.jar"
 
-GARG="-T HaplotypeCaller -R ${ACC} -I ${ACC} -o SRR8179.vcf -L GL000191.1"
+GARG="-T HaplotypeCaller -R ${ACC} -I ${ACC} -o SRR8179.vcf ${L}"
 cmd="java ${LOG} ${ARGS} -jar ./${JAR} ${GARG} ${GLOG}"
 echo
 echo ${cmd}

@@ -148,7 +148,7 @@ if [ "$?" = "0" ] ; then # GenomeAnalysisTK was built for java 1.8
 fi
 
 CL=org.broadinstitute.gatk.engine.CommandLineGATK
-L="-L NC_000020.10:61000001-61010000"
+L="-L NC_000020.10:61000001-61001000"
 
 # execute when dll download is disabled and dll-s cannot be located: should fail
 
@@ -202,8 +202,8 @@ echo "${JAR} smoke test successful"
 ########################## TEST broken symbolic links ##########################
 echo
 echo "Checking broken symbolic links ..."
-echo find . -xtype l
-FAILED=`find . -xtype l`
+echo    find . -type l ! -exec test -e {} \; -print
+FAILED=`find . -type l ! -exec test -e {} \; -print`
 if [ "${FAILED}" != "" ]
 then
     echo "Failed: found broken symbolic links ${FAILED}" | tr '\n' ' '

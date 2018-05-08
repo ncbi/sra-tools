@@ -34,11 +34,15 @@ echo $0 $*
 #
 # return codes:
 # 0 - tests passed
-# 1 - wget failed
-# 2 - gunzip failed
-# 3 - tar failed
-# 4 - one of the tools failed
-# 5 - example failed
+# 1 - wget sratoolkit failed
+# 2 - gunzip sratoolkit failed
+# 3 - tar sratoolkit failed
+# 4 - wget GenomeAnalysisTK.jar failed
+# 5 - wget ngs-sdk failed
+# 6 - gunzip ngs-sdk failed
+# 7 - tar ngs-sdk failed
+# 8 - one of smoke tests failed
+# 9 - example failed
 
 WORKDIR=$1
 if [ "${WORKDIR}" == "" ]
@@ -89,7 +93,7 @@ echo Current version: ${VERSION}
 ############################### GenomeAnalysisTK ###############################
 
 GATK_TARGET=GenomeAnalysisTK.jar
-wget -q --no-check-certificate ${TARBALLS_URL}${GATK_TARGET} || exit 6
+wget -q --no-check-certificate ${TARBALLS_URL}${GATK_TARGET} || exit 4
 
 ################################### ngs-sdk ####################################
 
@@ -98,11 +102,11 @@ NGS_TARGET=ngs-sdk.current-${OS}
 if [ "${OS}" == "centos_linux64" ] ; then
     NGS_TARGET=ngs-sdk.current-linux;
 fi
-wget -q --no-check-certificate ${TARBALLS_URL}${NGS_TARGET}.tar.gz || exit 7
-gunzip -f ${NGS_TARGET}.tar.gz || exit 8
+wget -q --no-check-certificate ${TARBALLS_URL}${NGS_TARGET}.tar.gz || exit 5
+gunzip -f ${NGS_TARGET}.tar.gz || exit 6
 NGS_PACKAGE=$(tar tf ${NGS_TARGET}.tar | head -n 1)
 rm -rf ${NGS_PACKAGE}
-tar xf ${NGS_TARGET}.tar || exit 9
+tar xf ${NGS_TARGET}.tar || exit 7
 
 ################################## smoke-test ##################################
 
@@ -113,7 +117,7 @@ RC=$?
 if [ "${RC}" != "0" ]
 then
     echo "Smoke test returned ${RC}"
-    exit 10
+    exit 8
 fi
 
 # run an example
@@ -122,7 +126,7 @@ $EXAMPLE | grep -q EM7LVYS02FOYNU
 if [ "$?" != "0" ]
 then
     echo "The example failed: $EXAMPLE"
-    exit 11
+    exit 9
 fi
 
 echo rm ${TK_PACKAGE} ${TK_TARGET}.tar ${GATK_TARGET} \

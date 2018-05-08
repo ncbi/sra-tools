@@ -77,6 +77,7 @@ HOMEDIR=$(dirname $(realpath $0))
 TARBALLS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
 TK_TARGET=sratoolkit.current-${OS}
 
+rm -rv ${WORKDIR}
 mkdir -p ${WORKDIR}
 OLDDIR=$(pwd)
 cd ${WORKDIR}

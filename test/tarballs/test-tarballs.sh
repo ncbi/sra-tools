@@ -60,12 +60,14 @@ Linux)
     realpath() {
         readlink -f $1
     }
+    uname=linux
     ;;
 Darwin)
     OS=mac64
     realpath() {
         [[ $1 = /* ]] && echo "$1" || echo "$PWD/${1#./}"
     }
+    uname=mac
     ;;
 esac
 HOMEDIR=$(dirname $(realpath $0))
@@ -98,10 +100,7 @@ wget -q --no-check-certificate ${TARBALLS_URL}${GATK_TARGET} || exit 4
 ################################### ngs-sdk ####################################
 
 TARBALLS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/current/
-NGS_TARGET=ngs-sdk.current-${OS}
-if [ "${OS}" == "centos_linux64" ] ; then
-    NGS_TARGET=ngs-sdk.current-linux;
-fi
+NGS_TARGET=ngs-sdk.current-${uname}
 echo wget -q --no-check-certificate ${TARBALLS_URL}${NGS_TARGET}.tar.gz
 wget -q --no-check-certificate ${TARBALLS_URL}${NGS_TARGET}.tar.gz || exit 5
 gunzip -f ${NGS_TARGET}.tar.gz || exit 6

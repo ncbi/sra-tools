@@ -109,20 +109,25 @@ class vdbconf_model
 
         // ----------------------------------------------------------------
 
-        bool is_http_proxy_enabled( void ) const {
+        bool is_http_proxy_enabled( void )  {
             bool enabled = true;
             KConfig_Get_Http_Proxy_Enabled(_config, &enabled, true);
 			if ( enabled )
 			{
 				std::string path = get_http_proxy_path();
-				if ( path.empty() ) enabled = false;
+                if ( path.empty() )
+                {
+                    enabled = false;
+                    set_http_proxy_enabled ( enabled );
+                }
 			}
             return enabled;
         }
 
-        void set_http_proxy_enabled( bool enabled ) {
+        void set_http_proxy_enabled( bool enabled )
+        {
             KConfig_Set_Http_Proxy_Enabled(_config, enabled);
-			_config_changed = true;
+            _config_changed = true;
         }
 
         std::string get_http_proxy_path( void ) const;

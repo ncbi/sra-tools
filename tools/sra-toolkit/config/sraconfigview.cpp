@@ -111,8 +111,13 @@ void SRAConfigView :: load_settings ()
     {
         bg_use_proxy -> button ( 0 ) -> setChecked ( true );
         proxyEditor -> setDisabled ( true );
+
+        if ( ! model -> commit () )
+        {
+            QMessageBox::information ( this, "", "Error saving changes" );
+        }
     }
-     else
+    else
     {
         bg_use_proxy -> button ( 1 ) -> setChecked ( true );
         proxyEditor -> setText ( QString ( model -> get_proxy_path () . c_str () ) );
@@ -363,12 +368,46 @@ void SRAConfigView :: toggle_use_site ( int toggled )
 void SRAConfigView :: toggle_use_proxy ( int toggled )
 {
     model -> set_proxy_enabled ( toggled );
+    proxyEditor -> setEnabled ( toggled );
+    proxyEditor -> setFocus ();
+
 
     if ( ! model -> commit () )
     {
         bool toggle = toggled;
         bg_use_proxy -> button ( ! toggle ) -> setChecked ( true );
         QMessageBox::information ( this, "", "Error saving changes" );
+    }
+}
+
+void SRAConfigView :: edit_proxy_path ()
+{
+    QString text = proxyEditor -> text ();
+
+    if ( text . isEmpty () )
+    {
+        proxyEditor -> setEnabled ( false );
+        //proxyEditor -> clearFocus ();
+        bg_use_proxy -> button ( 0 ) -> setChecked ( true );
+        QMessageBox::information ( this, "", "Missing proxy address." );
+    }
+    else
+    {
+        proxy_string = &text;
+
+        if ( proxyEditor -> hasFocus () )
+            proxyEditor -> clearFocus ();
+
+        qDebug () << "set new proxy path: " << text;
+        model -> set_proxy_path ( proxy_string -> toStdString () );
+
+        if ( ! model -> commit () )
+        {
+            proxyEditor -> clear ();
+            proxyEditor -> setEnabled ( false );
+            bg_use_proxy -> button ( 0 ) -> setChecked ( true );
+            QMessageBox::information ( this, "", "Error saving changes" );
+        }
     }
 }
 
@@ -411,25 +450,6 @@ QWidget * SRAConfigView::setup_workflow_group ()
 
     return widget;
 }
-
-void SRAConfigView :: edit_proxy_path ()
-{
-    QString text = proxyEditor -> text ();
-
-    if ( text . isEmpty () )
-        return;
-
-    proxy_string = &text;
-
-    if ( proxyEditor -> hasFocus () )
-        proxyEditor -> clearFocus ();
-
-    qDebug () << "set new proxy path: " << text;
-    //model -> set_proxy_path ( proxy_string -> toStdString () );
-
-    //emit dirty_config ();
-}
-
 
 void SRAConfigView :: edit_import_path ()
 {

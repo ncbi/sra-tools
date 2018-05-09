@@ -67,7 +67,7 @@ private slots:
 
     //void import_workspace ();
     //void edit_import_path ();
-    //void edit_proxy_path ();
+    void edit_proxy_path ();
     //void edit_public_path ();
     //void edit_workspace_path ();
 
@@ -82,16 +82,16 @@ private:
     //void closeEvent ( QCloseEvent *event );
     void load_settings ();
 
-    void add_workspace ( QString name, QString val, int ngc_id, bool insert = false );
+    //void add_workspace ( QString name, QString val, int ngc_id, bool insert = false );
 
     SRAConfigModel *model;
 
-    QAction *discard_action;
-    QAction *apply_action;
+   // QAction *discard_action;
+    //QAction *apply_action;
 
     QVBoxLayout *main_layout;
     QVBoxLayout *scrollWidgetLayout;
-    QVBoxLayout *workspace_layout;
+    //QVBoxLayout *workspace_layout;
 
     QButtonGroup *bg_remote_access;
     QButtonGroup *bg_local_caching;
@@ -102,20 +102,20 @@ private:
     QLineEdit *proxyEditor;
 
     QString *proxy_string;
-    QLabel *import_path_label;
+    //QLabel *import_path_label;
 
-    QFrame *adv_setting_window;
+    //QFrame *adv_setting_window;
 
-    QPushButton *apply_btn;
-    QPushButton *discard_btn;
+    //QPushButton *apply_btn;
+    //QPushButton *discard_btn;
 
     //QWidget* setup_workflow_group ();
     QWidget* setup_option_group ();
     void setup_general_settings ();
     void setup_network_setting ();
 
-    WorkspaceItem *public_workspace;
-    QVector <WorkspaceItem *> protected_workspaces;
+    //WorkspaceItem *public_workspace;
+    //QVector <WorkspaceItem *> protected_workspaces;
 
 };
 

@@ -134,4 +134,4 @@ echo rm ${TK_PACKAGE} ${TK_TARGET}.tar ${GATK_TARGET} \
             ${NGS_PACKAGE} ${NGS_TARGET}.tar
 rm -rf  ${TK_PACKAGE} ${TK_TARGET}.tar ${GATK_TARGET} \
             ${NGS_PACKAGE} ${NGS_TARGET}.tar
-cd ${OLDDIR} && rmdir ${WORKDIR}
+cd ${OLDDIR} && ls ${WORKDIR} && rmdir ${WORKDIR}

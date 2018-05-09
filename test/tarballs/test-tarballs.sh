@@ -74,7 +74,7 @@ HOMEDIR=$(dirname $(realpath $0))
 
 ################################## sratoolkit ##################################
 
-TARBALLS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
+SDK_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/
 TK_TARGET=sratoolkit.current-${OS}
 
 rm -rv ${WORKDIR}
@@ -83,7 +83,7 @@ OLDDIR=$(pwd)
 cd ${WORKDIR}
 
 df -h .
-wget -q --no-check-certificate ${TARBALLS_URL}${TK_TARGET}.tar.gz || exit 1
+wget -q --no-check-certificate ${SDK_URL}${TK_TARGET}.tar.gz || exit 1
 gunzip -f ${TK_TARGET}.tar.gz || exit 2
 TK_PACKAGE=$(tar tf ${TK_TARGET}.tar | head -n 1)
 rm -rf ${TK_PACKAGE}
@@ -96,14 +96,14 @@ echo Current version: ${VERSION}
 ############################### GenomeAnalysisTK ###############################
 
 GATK_TARGET=GenomeAnalysisTK.jar
-wget -q --no-check-certificate ${TARBALLS_URL}${GATK_TARGET} || exit 4
+wget -q --no-check-certificate ${SDK_URL}${GATK_TARGET} || exit 4
 
 ################################### ngs-sdk ####################################
 
-TARBALLS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/current/
+NGS_URL=https://ftp-trace.ncbi.nlm.nih.gov/sra/ngs/current/
 NGS_TARGET=ngs-sdk.current-${uname}
-echo wget -q --no-check-certificate ${TARBALLS_URL}${NGS_TARGET}.tar.gz
-wget -q --no-check-certificate ${TARBALLS_URL}${NGS_TARGET}.tar.gz || exit 5
+echo wget -q --no-check-certificate ${NGS_URL}${NGS_TARGET}.tar.gz
+wget -q --no-check-certificate ${NGS_URL}${NGS_TARGET}.tar.gz || exit 5
 gunzip -f ${NGS_TARGET}.tar.gz || exit 6
 NGS_PACKAGE=$(tar tf ${NGS_TARGET}.tar | head -n 1)
 rm -rf ${NGS_PACKAGE}
@@ -133,4 +133,5 @@ fi
 echo rm ${TK_PACKAGE} ${TK_TARGET}.tar ${GATK_TARGET} \
             ${NGS_PACKAGE} ${NGS_TARGET}.tar
 rm -rf  ${TK_PACKAGE} ${TK_TARGET}.tar ${GATK_TARGET} \
-            ${NGS_PACKAGE} ${NGS_TARGET}.tar && cd ${OLDDIR} && rmdir ${WORKDIR}
+            ${NGS_PACKAGE} ${NGS_TARGET}.tar
+cd ${OLDDIR} && rmdir ${WORKDIR}

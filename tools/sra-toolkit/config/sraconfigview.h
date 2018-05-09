@@ -56,21 +56,18 @@ public:
 
 signals:
 
-    void dirty_config ();
-
 private slots:
 
    // void advanced_settings ();
-    void commit_config ();
-    void reload_config ();
-    void default_config ();
-    void modified_config ();
+    //void commit_config ();
+    //void reload_config ();
+    //void default_config ();
+    //void modified_config ();
 
 
     //void import_workspace ();
-
     //void edit_import_path ();
-    void edit_proxy_path ();
+    //void edit_proxy_path ();
     //void edit_public_path ();
     //void edit_workspace_path ();
 
@@ -82,7 +79,7 @@ private slots:
 
 private:
 
-    void closeEvent ( QCloseEvent *event );
+    //void closeEvent ( QCloseEvent *event );
     void load_settings ();
 
     void add_workspace ( QString name, QString val, int ngc_id, bool insert = false );
@@ -112,7 +109,7 @@ private:
     QPushButton *apply_btn;
     QPushButton *discard_btn;
 
-    QWidget* setup_workflow_group ();
+    //QWidget* setup_workflow_group ();
     QWidget* setup_option_group ();
     void setup_general_settings ();
     void setup_network_setting ();

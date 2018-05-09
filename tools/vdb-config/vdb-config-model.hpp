@@ -241,6 +241,8 @@ class vdbconf_model
         {
 #ifdef ALLOW_USER_REPOSITORY_DISABLING
             if ( _config_valid ) KConfig_Set_User_Access_Enabled( _config, enabled );
+#else
+            (void) enabled;
 #endif
         }
 
@@ -284,6 +286,8 @@ class vdbconf_model
             bool res = true;
 #ifdef ALLOW_USER_REPOSITORY_DISABLING
             if ( _config_valid ) KConfigGetProtectedRepositoryEnabledById( _config, id, &res ); 
+#else
+            (void) id;
 #endif
             return res;
         }
@@ -291,6 +295,9 @@ class vdbconf_model
         {
 #ifdef ALLOW_USER_REPOSITORY_DISABLING
             if ( _config_valid ) KConfigSetProtectedRepositoryEnabledById( _config, id, enabled ); 
+#else
+            (void) id;
+            (void) enabled;
 #endif
         }
 

@@ -396,11 +396,19 @@ public:
     void Update(const std::string &root, const std::string &name,
         const std::string &type, const std::string &path)
     {
+        (void) root;
+        (void) name;
+
         m_Volumes[type] = CAppVolume(type, path);
     }
     void Update(const CKDirectory &dir, const CKConfigNode &rep,
         const std::string &root, const std::string &name) const
     {
+        (void) dir;
+        (void) rep;
+        (void) root;
+        (void) name;
+
         assert(0);
     }
     rc_t Update(CKConfig &kfg, const char *node, bool verbose = false) const {

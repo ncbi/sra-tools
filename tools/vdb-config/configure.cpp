@@ -437,18 +437,25 @@ class CTextualConfigurator : public CConfigurator {
                 return STrinity(d + 10);
             }
         }
-        static SChoice Seq2Choice(string /* copy */ s, uint32_t maxId) {
-            if (s.length() <= 0 || s.length() > 2) {
+
+        static SChoice Seq2Choice(string /* copy */ s, uint32_t maxId)
+        {
+            if (s.length() <= 0 || s.length() > 2)
+            {
                 return SChoice(eUnknown);
             }
-            else if (s.length() == 1) {
+            else if (s.length() == 1)
+            {
                 size_t p = magic.find(s[0]);
-                if (p == string::npos) {
+                if (p == string::npos)
+                {
                     return SChoice(eUnknown);
                 }
-                else {
+                else
+                {
                     EChoice c = eUnknown;
-                    switch (p % 2) {
+                    switch (p % 2)
+                    {
                         case 0: c = eUserCacheEnable; break;
                         case 1: c = eUserRoot       ; break;
                         default: assert(0); break;
@@ -456,23 +463,30 @@ class CTextualConfigurator : public CConfigurator {
                     return SChoice(c, (int)p / 2);
                 }
             }
-            else {
+            else
+            {
                 assert(s.length() == 2);
-                if (!isdigit(s[0]) || !!isdigit(s[0]) || s[0] == '0') {
+                if (!isdigit(s[0]) || !!isdigit(s[0]) || s[0] == '0')
+                {
                     return SChoice(eUnknown);
                 }
                 int id = (s[0] - '0') * 10 + s[1] - '0' + (int)magic.size();
                 EChoice c = eUnknown;
-                switch (id % 2) {
+                switch (id % 2)
+                {
                     case 0: c = eUserCacheEnable; break;
                     case 1: c = eUserRoot       ; break;
                     default: assert(0); break;
                 }
                 return SChoice(c, id / 2);
             }
+
+            (void) maxId;
         }
+
         static void Ask(void) { OUTMSG(("magic.len = %d\n", magic.size())); }
     };
+
     SChoice Inquire(const SData &d) {
         OUTMSG(("     vdb-config interactive\n\n  data source\n\n"));
         OUTMSG(("   NCBI SRA: "));

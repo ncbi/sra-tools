@@ -63,12 +63,12 @@ fi
 
 if [ "$1" == "" ]
 then
-    echo "Missing argument: installation directory"
+    echo "Missing argument: sratoolkit installation directory"
     Usage
     exit 1
 fi
-INSTALL_DIR=$1
-BIN_DIR=${INSTALL_DIR}bin
+TK_INSTALL_DIR=$1
+BIN_DIR=${TK_INSTALL_DIR}bin
 
 if [ "$2" == "" ]
 then
@@ -78,9 +78,12 @@ then
 fi
 VERSION=$2
 
+FAILED=""
+
+################################ TEST sratoolkit ###############################
+
 echo
 echo "Smoke testing ${BIN_DIR} ..."
-FAILED=""
 
 # list all tools; vdb-passwd is obsolete but still in the package
 TOOLS=$(ls -1 ${BIN_DIR} | grep -vw ncbi | grep -v vdb-passwd | grep -vE '[0-9]$')
@@ -133,6 +136,9 @@ LOG=
 
 GLOG="-l INFO"
 GLOG="-l WARN"
+#GLOG="-l ERROR"
+#GLOG="-l FATAL"
+#GLOG="-l OFF"
 
 ARGS=-Dvdb.System.loadLibrary=1
 
@@ -142,16 +148,17 @@ if [ "$?" = "0" ] ; then # GenomeAnalysisTK was built for java 1.8
 fi
 
 CL=org.broadinstitute.gatk.engine.CommandLineGATK
-L="-L NC_000020.10:61000001-61010000"
+L="-L NC_000020.10:61000001-61001000"
 
 # execute when dll download is disabled and dll-s cannot be located: should fail
 
-GARG="-T UnifiedGenotyper -I SRR835775 -R SRR835775 ${L} -o S.vcf"
+ACC=SRR835775
+GARG="-T UnifiedGenotyper -I ${ACC} -R ${ACC} ${L} -o S.vcf"
 cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
 
 echo
 echo ${cmd}
-eval ${cmd} # 2>/dev/null
+eval ${cmd} 2>/dev/null
 if [ "$?" = "0" ] ; then
     FAILED="${FAILED} ${JAR} with disabled smart dll search;"
 fi
@@ -161,7 +168,7 @@ fi
 PWD=`pwd`
 ARGS=-Duser.home=${PWD}
 
-GARG="-T UnifiedGenotyper -I SRR835775 -R SRR835775 ${L} -o S.vcf"
+GARG="-T UnifiedGenotyper -I ${ACC} -R ${ACC} ${L} -o S.vcf"
 cmd="java ${LOG} ${ARGS} -cp ./${JAR} ${CL} ${GARG} ${GLOG}"
 
 echo
@@ -173,7 +180,7 @@ fi
 
 # execute with "-jar GenomeAnalysisTK.jar"
 
-GARG=-T HaplotypeCaller -R SRR1108179 -I SRR1108179 -o SRR8179.vcf -L GL000191.1
+GARG="-T HaplotypeCaller -R ${ACC} -I ${ACC} -o SRR8179.vcf ${L}"
 cmd="java ${LOG} ${ARGS} -jar ./${JAR} ${GARG} ${GLOG}"
 echo
 echo ${cmd}
@@ -191,3 +198,15 @@ then
 fi
 
 echo "${JAR} smoke test successful"
+
+########################## TEST broken symbolic links ##########################
+echo
+echo "Checking broken symbolic links ..."
+echo    find . -type l ! -exec test -e {} \; -print
+FAILED=`find . -type l ! -exec test -e {} \; -print`
+if [ "${FAILED}" != "" ]
+then
+    echo "Failed: found broken symbolic links ${FAILED}" | tr '\n' ' '
+    echo
+    exit 4
+fi

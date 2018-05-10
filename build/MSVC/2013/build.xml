@@ -104,34 +104,13 @@ Qt-dependent tools are only built with -DConfiguration=Release and -DPlatform=x6
     </target>
 
     <target name="build" depends="buildQt">
-        <sequential>
-            <exec executable="msbuild.exe" failonerror="true">
-                <arg value="sra-tools.sln"/>
-                <arg value="/m"/>
-                <arg value="/p:Platform=${Platform}"/>
-                <arg value="/p:Configuration=${Configuration}"/>
-                <arg value="/p:NGS_OUTDIR=${Output}\"/>
-            </exec>
-            <mkdir dir="${TargetDir}\..\sra-toolkit"/>
-            <exec executable="qmake.exe" failonerror="true" dir="${TargetDir}\..\sra-toolkit">
-                <arg value="${basedir}\..\..\..\tools\sra-toolkit\sra-toolkit.pro"/>
-                <arg value="-spec"/>
-                <arg value="win32-msvc"/>
-                <arg value="CONFIG+=${QtConfiguration}"/>
-            </exec>
-            <exec executable="jom.exe" failonerror="true" dir="${TargetDir}\..\sra-toolkit">
-                <arg value="-f"/>
-                <arg value="Makefile.${Configuration}"/>
-            </exec>
-            <exec executable="windeployqt.exe" failonerror="true" dir="${TargetDir}\bin">
-                <arg value="sra-toolkit.exe"/>
-                <arg value="--compiler-runtime"/>
-            </exec>
-            <copy file="${Output}\ncbi-vdb\win\${Toolset}\${Platform}\${Configuration}\bin\ncbi-vdb-md.dll" todir="${TargetDir}\bin"/>
-            <copy file="${MSVC_Redistributables}\msvcp120.dll" todir="${TargetDir}\bin"/>
-            <copy file="${MSVC_Redistributables}\msvcr120.dll" todir="${TargetDir}\bin"/>
-            <copy file="${MSVC_Redistributables}\vccorlib120.dll" todir="${TargetDir}\bin"/>
-        </sequential>
+        <exec executable="msbuild.exe" failonerror="true">
+            <arg value="sra-tools.sln"/>
+            <arg value="/m"/>
+            <arg value="/p:Platform=${Platform}"/>
+            <arg value="/p:Configuration=${Configuration}"/>
+            <arg value="/p:NGS_OUTDIR=${Output}\"/>
+        </exec>
     </target>
 
     <target name="runtests" depends="build">

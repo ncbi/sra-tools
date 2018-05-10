@@ -211,6 +211,12 @@ my $OS_DISTRIBUTOR = '';
 if ($OS eq 'linux') {
     print "checking OS distributor... " unless ($AUTORUN);
     $OS_DISTRIBUTOR = `lsb_release -si 2> /dev/null`;
+    if ( $? != 0 ) {
+        $_ = `cat /etc/redhat-release 2> /dev/null`;
+        @_ = split ( / /  );
+        $OS_DISTRIBUTOR = $_[0] if ( $_[0] );
+    }
+    $OS_DISTRIBUTOR = '' unless ( $OS_DISTRIBUTOR );
     chomp $OS_DISTRIBUTOR;
     println $OS_DISTRIBUTOR unless ($AUTORUN);
 }
@@ -448,6 +454,15 @@ if ( $PKG{REQ} ) {
 
 my @dependencies;
 
+if ( $PKG{OPT} ) {
+    foreach ( @{ $PKG{OPT} } ) {
+        if ( /^qmake$/ ) {
+            my $qmake = check_qmake();
+            push @dependencies, "QMAKE_BIN = $qmake";
+        } else { die; }
+    }
+}
+
 my %DEPEND_OPTIONS;
 foreach my $href (DEPENDS()) {
     $_ = $href->{name};
@@ -547,7 +562,7 @@ foreach my $href (@REQ) {
                     ++$has_option{sources};
                 }
                 my ($fi, $fl, $fil, $fs)
-                    = find_in_dir($try, $i, $l, $il, undef, undef, $src);
+                        = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                 if ($fi || $fl || $fil) {
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
@@ -555,10 +570,12 @@ foreach my $href (@REQ) {
                     $found_src  = $fs  if (! $found_src  && $fs);
                 } elsif (! ($try =~ /$a{name}$/)) {
                     $try = File::Spec->catdir($try, $a{name});
-                    ($fi, $fl, $fil) = find_in_dir($try, $i, $l, $il);
+                    ($fi, $fl, $fil, $fs)
+                        = find_in_dir($try, $i, $l, $il, undef, undef, $src);
                     $found_itf  = $fi  if (! $found_itf  && $fi);
                     $found_lib  = $fl  if (! $found_lib  && $fl);
                     $found_ilib = $fil if (! $found_ilib && $fil);
+                    $found_src  = $fs  if (! $found_src  && $fs);
                 }
             } elsif ($need_bin) {
                 my (undef, $fl, $fil)
@@ -1459,6 +1476,86 @@ sub check_tool {
         println "no";
         return 0;
     }
+}
+
+sub check_qmake {
+    print "checking for QMake... ";
+
+    my $tool = 'qmake';
+    print "\n\t\trunning $tool... " if ($OPT{'debug'});
+    my $out = `$tool -v 2>&1`;
+    if ($? == 0) {
+        my $out = `( $tool -v | grep QMake ) 2>&1`;
+        if ($? == 0) {
+            print "$out " if ($OPT{'debug'});
+            println $tool;
+            return $tool;
+        }
+
+        println "wrong qmake" if ($OPT{'debug'});
+
+        print "\t\tchecking $ENV{PATH}...\n" if ($OPT{'debug'});
+        foreach ( split(/:/, $ENV{PATH})) {
+            my $cmd = "$_/$tool";
+            print "\t\trunning $cmd... " if ($OPT{'debug'});
+            my $out = `( $cmd -v | grep QMake ) 2>&1`;
+            if ($? == 0) {
+                print "$out " if ($OPT{'debug'});
+                if ( $out =~ /QMake/ ) {
+                    println $cmd;
+                    return $cmd;
+                }
+            }
+
+            println "no" if ($OPT{'debug'});
+        }
+    }
+
+    if ( $OS eq 'linux' ) {
+        if ( $OS_DISTRIBUTOR eq 'CentOS' ) {
+            foreach ( glob ( "$ENV{HOME}/Qt/*/gcc_64" ) ) {
+                $tool =  "$_/bin/qmake";
+                print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+                my $out = `( $tool -v | grep QMake ) 2>&1`;
+                if ($? == 0) {
+                    print "$out " if ($OPT{'debug'});
+                    println $tool;
+                    return $tool;
+                }
+            }
+
+            $tool = '/usr/lib64/qt5/bin/qmake';
+
+        } elsif ( $OS_DISTRIBUTOR eq 'Ubuntu' ) {
+            foreach ( glob ( "$ENV{HOME}/Qt*/*/gcc_64" ) ) {
+                $tool =  "$_/bin/qmake";
+                print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+                my $out = `( $tool -v | grep QMake ) 2>&1`;
+                if ($? == 0) {
+                    print "$out " if ($OPT{'debug'});
+                    println $tool;
+                    return $tool;
+                }
+            }
+
+            $tool = '';
+        }
+    } elsif ( $OS eq 'mac' ) {
+        $tool = '/Applications/QT/5.10.1/clang_64/bin/qmake';
+    }
+
+    if ( $tool ) {
+        print "\n\t\tchecking $tool... " if ($OPT{'debug'});
+        my $out = `( $tool -v | grep QMake ) 2>&1`;
+        if ($? == 0) {
+            print "$out " if ($OPT{'debug'});
+            println $tool;
+            return $tool;
+        }
+    }
+
+    println "no";
+    return '';
 }
 
 sub check_static_libstdcpp {

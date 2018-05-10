@@ -1,73 +1,129 @@
 <project name="SRA-TOOLS" default="std" basedir=".">
 
     <description>
-        Ant script for NCBI-VDB
+        Ant script for SRA-TOOLS using MSVC 2013
     </description>
-	
+
     <property environment="env"/>
     <property name="Platform"       value="x64" />
-    <property name="Configuration"  value="Debug" />
-    <property name="Output"         value="${basedir}\..\..\..\OUTDIR" />
-	
+    <property name="Configuration"  value="Release" />
+    <property name="Toolset"        value="v120" />
+
+    <property name="Output"         value="${basedir}\..\..\..\..\OUTDIR" />
+    <property name="TargetDir"      value="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}"/>
+
+    <condition property="QtConfiguration" value="debug">
+        <equals arg1="${Configuration}" arg2="Debug"/>
+    </condition>
+    <condition property="QtConfiguration" value="release">
+        <equals arg1="${Configuration}" arg2="Release"/>
+    </condition>
+
+    <condition property="BuildQt" value="true">
+        <and>
+            <equals arg1="${Platform}" arg2="x64"/>
+            <equals arg1="${Configuration}" arg2="Release"/>
+            <equals arg1="${Toolset}" arg2="v120"/>
+        </and>
+    </condition>
+    <property name="MSVC_Redistributables" value="${env.VS120COMNTOOLS}\..\..\VC\redist\${Platform}\Microsoft.VC120.CRT"/>
+
     <target name="help">
   		<echo message="">
 Apache Ant script for automated testing of SRA-TOOLS on Windonws
 
 Usage (in the directory of this file, build.xml):
-  ant [options] target1 target2 ... 
-  
+  ant [options] target1 target2 ...
+
 Example:
   ant -DConfiguration=Debug -Platform=Win32 help std
-  
+
 Supported targets:
-	help - print this text and exit
+	help        - print this text and exit
     clean       - remove all build artefacts
-    build       - regular build
+    build       - regular build (in Release/64, includes Qt-dependent tools)
     quick       - same as build
     runtests    - build and run small tests
     std         - clean, runtests (default)
-	
+    buildQt     - build Qt-dependent tools only (Release/x64)
+
 Options:
-    -DConfiguration=Debug or -DConfiguration=Release (default)  
-    -DPlatform=Win32 or -DPlatform=x64 (default)  
-    -DOutput=path   folder to create output in (default: ../../../OUTDIR)
+    -DConfiguration=Debug or -DConfiguration=Release (default)
+    -DPlatform=Win32 or -DPlatform=x64 (default)
+    -DOutput=path   folder to create output in (default: ../../../../OUTDIR)
+
+Note: To build Qt-dependent tools, need to have Qt (version 5.10.0 or newer) platform-specific binaries and tools in PATH, e.g.: C:\Qt\5.10.1\msvc2013_64\bin;C:\Qt\Tools\QtCreator\bin.
+Qt-dependent tools are only built with -DConfiguration=Release and -DPlatform=x64 (which is the default)
+
   		</echo>
     </target>
 
     <target name="clean">
-        <exec executable="msbuild.exe"  failonerror="true">
-            <arg value="sra-tools.sln"/>
-            <arg value="/t:clean"/>
-            <arg value="/m"/>
-            <arg value="/p:Platform=${Platform}"/>
-            <arg value="/p:Configuration=${Configuration}"/>
-            <arg value="/p:NGS_OUTDIR=${Output}"/>
-        </exec>
+        <sequential>
+            <exec executable="msbuild.exe"  failonerror="true">
+                <arg value="sra-tools.sln"/>
+                <arg value="/t:clean"/>
+                <arg value="/m"/>
+                <arg value="/p:Platform=${Platform}"/>
+                <arg value="/p:Configuration=${Configuration}"/>
+                <arg value="/p:NGS_OUTDIR=${Output}\"/>
+            </exec>
+            <mkdir dir="${TargetDir}\obj\sra-toolkit"/>
+            <exec executable="jom.exe" failonerror="false" failifexecutionfails="false" dir="${TargetDir}\obj\sra-toolkit">
+                <arg value="-f"/>
+                <arg value="Makefile.${Configuration}"/>
+                <arg value="clean"/>
+            </exec>
+            <delete file="${TargetDir}\bin\sra-toolkit.exe" failonerror="false"/>
+            <delete file="${TargetDir}\bin\sra-toolkit.pdb" failonerror="false"/>
+        </sequential>
     </target>
-    
-    <target name="build">
+
+    <target name="buildQt" if="${BuildQt}">
+        <sequential>
+            <mkdir dir="${TargetDir}\..\sra-toolkit"/>
+            <exec executable="qmake.exe" failonerror="true" dir="${TargetDir}\..\sra-toolkit">
+                <arg value="${basedir}\..\..\..\tools\sra-toolkit\sra-toolkit.pro"/>
+                <arg value="-spec"/>
+                <arg value="win32-msvc"/>
+                <arg value="CONFIG+=${QtConfiguration}"/>
+            </exec>
+            <exec executable="jom.exe" failonerror="true" dir="${TargetDir}\obj\sra-toolkit">
+                <arg value="-f"/>
+                <arg value="Makefile.${Configuration}"/>
+            </exec>
+            <exec executable="windeployqt.exe" failonerror="true" dir="${TargetDir}\bin">
+                <arg value="sra-toolkit.exe"/>
+                <arg value="--compiler-runtime"/>
+            </exec>
+            <copy file="${Output}\ncbi-vdb\win\${Toolset}\${Platform}\${Configuration}\bin\ncbi-vdb-md.dll" todir="${TargetDir}\bin"/>
+            <copy file="${MSVC_Redistributables}\msvcp120.dll" todir="${TargetDir}\bin"/>
+            <copy file="${MSVC_Redistributables}\msvcr120.dll" todir="${TargetDir}\bin"/>
+            <copy file="${MSVC_Redistributables}\vccorlib120.dll" todir="${TargetDir}\bin"/>
+        </sequential>
+    </target>
+
+    <target name="build" depends="buildQt">
         <exec executable="msbuild.exe" failonerror="true">
             <arg value="sra-tools.sln"/>
             <arg value="/m"/>
             <arg value="/p:Platform=${Platform}"/>
             <arg value="/p:Configuration=${Configuration}"/>
-            <arg value="/p:NGS_OUTDIR=${Output}"/>
+            <arg value="/p:NGS_OUTDIR=${Output}\"/>
         </exec>
     </target>
-    
-    
+
     <target name="runtests" depends="build">
         <exec executable="msbuild.exe" failonerror="true">
             <arg value="test-sra-tools.sln"/>
             <arg value="/p:Platform=${Platform}"/>
             <arg value="/p:Configuration=${Configuration}"/>
-            <arg value="/p:NGS_OUTDIR=${Output}"/>
+            <arg value="/p:NGS_OUTDIR=${Output}\"/>
             <arg value="/p:Autorun=true"/>
         </exec>
     </target>
-    
+
     <target name="std" depends="clean,runtests" />
-        
+
     <target name="quick" depends="build" />
-	
 </project>

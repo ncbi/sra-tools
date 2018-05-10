@@ -1,7 +1,7 @@
 <project name="SRA-TOOLS" default="runtests" basedir=".">
 
     <description>
-        Ant script for NCBI-VDB
+        Ant script for SRA_TOOLS
     </description>
 	
     <property environment="env"/>
@@ -35,35 +35,27 @@ Options:
     </target>
 
     <target name="clean">
-        <exec executable="msbuild.exe"  failonerror="true">
-            <arg value="${MSVS}\sra-tools.sln"/>
-            <arg value="/t:clean"/>
-            <arg value="/m"/>
-            <arg value="/p:Platform=${Platform}"/>
-            <arg value="/p:Configuration=${Configuration}"/>
-            <arg value="/p:NGS_OUTDIR=${Output}"/>
-        </exec>
+        <subant target="clean" buildpath="./${MSVS}">
+            <property name="Platform" value="${Platform}"/>
+            <property name="Configuration" value="${Configuration}"/>
+            <property name="Output" value="${Output}"/>    
+        </subant>
     </target>
     
     <target name="build">
-        <exec executable="msbuild.exe" failonerror="true">
-            <arg value="${MSVS}\sra-tools.sln"/>
-            <arg value="/m"/>
-            <arg value="/p:Platform=${Platform}"/>
-            <arg value="/p:Configuration=${Configuration}"/>
-            <arg value="/p:NGS_OUTDIR=${Output}"/>
-        </exec>
+        <subant target="build" buildpath="./${MSVS}">
+            <property name="Platform" value="${Platform}"/>
+            <property name="Configuration" value="${Configuration}"/>
+            <property name="Output" value="${Output}"/>    
+        </subant>
     </target>
     
-    
     <target name="runtests" depends="build">
-        <exec executable="msbuild.exe" failonerror="true">
-            <arg value="${MSVS}\test-sra-tools.sln"/>
-            <arg value="/p:Platform=${Platform}"/>
-            <arg value="/p:Configuration=${Configuration}"/>
-            <arg value="/p:NGS_OUTDIR=${Output}"/>
-            <arg value="/p:Autorun=true"/>
-        </exec>
+        <subant target="runtests" buildpath="./${MSVS}">
+            <property name="Platform" value="${Platform}"/>
+            <property name="Configuration" value="${Configuration}"/>
+            <property name="Output" value="${Output}"/>    
+        </subant>
     </target>
     
 </project>

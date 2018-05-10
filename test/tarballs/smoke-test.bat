@@ -24,6 +24,36 @@
 
 @echo off
 
+set FAILED=
+
+echo Smoke testing ngs tarball in %3 ...
+
+if exist %3\ngs-java\ngs-java.jar (
+    echo ngs-java.jar exists
+) else (
+    set FAILED=%FAILED% ngs-java.jar doesn't exist;
+)
+
+if exist %3\ngs-java\ngs-doc.jar (
+    rem ngs-doc.jar exists
+) else (
+    set FAILED=%FAILED% ngs-doc.jar doesn't exist;
+)
+
+if exist %3\ngs-java\ngs-src.jar (
+    rem ngs-src.jar exists
+) else (
+    set FAILED=%FAILED% ngs-src.jar doesn't exist;
+)
+
+if "%FAILED%" NEQ "" (
+    echo "Failed: %FAILED%"
+    exit /B 1
+)
+
+echo Ngs tarball smoke test successful
+echo.
+
 rem this is needed to expand variables inside the loop, e/g/ !VERSION_OPTION!
 setlocal enabledelayedexpansion
 
@@ -34,11 +64,9 @@ for /f %%F in ('dir /A:-D /B %1') do if "%%F" NEQ "vdb-passwd.exe" ( call set TO
 
 cd %1
 set VERSION_CHECKER=%2
-set VERSION=%3
+set VERSION=%4
 
-echo Smoke testing %VERSION% tarball ...
-
-set FAILED=
+echo Smoke testing %VERSION% toolkit tarball ...
 
 for %%t in ( %TOOLS% ) do (
     call :RunTool %%t -h
@@ -72,7 +100,7 @@ if "%FAILED%" NEQ "" (
     exit /B 1
 )
 
-echo Tarball smoke test successful
+echo Toolkit tarball smoke test successful
 
 echo.
 
@@ -89,7 +117,7 @@ set ARGS=-Dvdb.System.loadLibrary=1 -Duser.home=%PWD%
 
 set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
 echo %cmd%
-%cmd%
+%cmd% 2> NUL
 if '%errorlevel%'=='1' goto skip
 set FAILED=%FAILED% GenomeAnalysisTK.jar with disabled smart dll search;
 :skip
@@ -98,7 +126,7 @@ set ARGS=-Duser.home=%PWD%
 
 set cmd=java %LOG% %ARGS% -cp %JAR% org.broadinstitute.gatk.engine.CommandLineGATK -T UnifiedGenotyper -I SRR835775 -R SRR835775 -L NC_000020.10:61000001-61010000 -o ..\chr20.SRR835775.vcf
 echo %cmd%
-%cmd% >NUL 2>&1
+%cmd% > NUL 2>&1
 if errorlevel 1 ( call set FAILED=%%FAILED%% GenomeAnalysisTK.jar; )
 
 if "%FAILED%" NEQ "" (

@@ -35,6 +35,7 @@ include $(TOP)/build/Makefile.config
 # default
 #
 SUBDIRS =    \
+	prefetch        \
 	dump-test       \
 	vdb-config      \
 	vcf-loader      \

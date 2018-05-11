@@ -32,12 +32,15 @@
 //#include "../sra-tools-gui/interfaces/ktoolbaritem.h"
 
 #include <klib/rc.h>
+#include <klib/text.h>
 #include <kfg/config.h>
 #include <kfg/properties.h>
 #include <kfg/repository.h>
 #include <kfg/ngc.h>
 #include <kfs/directory.h>
 #include <kfs/file.h>
+#include <vfs/path.h>
+#include <vfs/manager.h>
 
 #include <QtWidgets>
 
@@ -110,6 +113,14 @@ void SRAConfigView :: load_settings ()
     if ( ! model -> proxy_enabled () )
     {
         bg_use_proxy -> button ( 0 ) -> setChecked ( true );
+
+        std::string proxy_path = model -> get_proxy_path ();
+        if ( ! proxy_path . empty () )
+        {
+            proxy_string = QString ( proxy_path . c_str () );
+            proxyEditor -> setText ( proxy_string );
+        }
+
         proxyEditor -> setDisabled ( true );
 
         if ( ! model -> commit () )
@@ -119,6 +130,13 @@ void SRAConfigView :: load_settings ()
     }
     else
     {
+        std::string proxy_path = model -> get_proxy_path ();
+        if ( ! proxy_path . empty () )
+        {
+            proxy_string = QString ( proxy_path . c_str () );
+            proxyEditor -> setText ( proxy_string );
+        }
+
         bg_use_proxy -> button ( 1 ) -> setChecked ( true );
         proxyEditor -> setText ( QString ( model -> get_proxy_path () . c_str () ) );
     }
@@ -368,8 +386,11 @@ void SRAConfigView :: toggle_use_site ( int toggled )
 void SRAConfigView :: toggle_use_proxy ( int toggled )
 {
     model -> set_proxy_enabled ( toggled );
+
     proxyEditor -> setEnabled ( toggled );
-    proxyEditor -> setFocus ();
+
+    if ( proxy_string . isEmpty () )
+        proxyEditor -> setFocus ();
 
 
     if ( ! model -> commit () )
@@ -380,9 +401,50 @@ void SRAConfigView :: toggle_use_proxy ( int toggled )
     }
 }
 
+static
+bool is_valid_proxy_address ( std::string address )
+{
+    VFSManager *mgr;
+
+    rc_t rc = VFSManagerMake ( & mgr );
+    if ( rc == 0 )
+    {
+        VPath *path;
+
+        rc = VFSManagerMakePath ( mgr, &path, address .c_str () );
+        if ( rc == 0 )
+        {
+            String scheme;
+
+            rc = VPathGetScheme ( path, &scheme );
+            if ( rc == 0 )
+            {
+                String http, https, s3;
+                CONST_STRING ( & http, "http" );
+                CONST_STRING ( & https, "https" );
+                CONST_STRING ( & s3, "s3" );
+
+                // if valid scheme
+                if ( StringCaseCompare ( &scheme, &http ) == 0  ||
+                     StringCaseCompare ( &scheme, &https ) == 0 ||
+                     StringCaseCompare ( &scheme, &s3 ) == 0 )
+                {
+                    return true;
+                }
+            }
+            VPathRelease ( path );
+        }
+        VFSManagerRelease ( mgr );
+    }
+
+    return false;
+}
+
 void SRAConfigView :: edit_proxy_path ()
 {
     QString text = proxyEditor -> text ();
+    qDebug () << "editor text: " << text;
+    qDebug () << "proxy_string: " << proxy_string ;
 
     if ( text . isEmpty () )
     {
@@ -391,22 +453,25 @@ void SRAConfigView :: edit_proxy_path ()
         bg_use_proxy -> button ( 0 ) -> setChecked ( true );
         QMessageBox::information ( this, "", "Missing proxy address." );
     }
-    else
+    else if ( proxy_string != text )
     {
-        proxy_string = &text;
-
-        if ( proxyEditor -> hasFocus () )
-            proxyEditor -> clearFocus ();
-
-        qDebug () << "set new proxy path: " << text;
-        model -> set_proxy_path ( proxy_string -> toStdString () );
-
-        if ( ! model -> commit () )
+        std :: string proxy_str = text . toStdString ();
+        if ( is_valid_proxy_address ( proxy_str ) )
         {
-            proxyEditor -> clear ();
-            proxyEditor -> setEnabled ( false );
-            bg_use_proxy -> button ( 0 ) -> setChecked ( true );
-            QMessageBox::information ( this, "", "Error saving changes" );
+            if ( proxyEditor -> hasFocus () )
+                proxyEditor -> clearFocus ();
+
+            qDebug () << "set new proxy path: " << text;
+            model -> set_proxy_path ( proxy_str );
+            proxy_string = text;
+
+            if ( ! model -> commit () )
+            {
+                proxyEditor -> clear ();
+                proxyEditor -> setEnabled ( false );
+                bg_use_proxy -> button ( 0 ) -> setChecked ( true );
+                QMessageBox::information ( this, "", "Error saving changes" );
+            }
         }
     }
 }

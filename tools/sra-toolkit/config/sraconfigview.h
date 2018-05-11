@@ -101,7 +101,7 @@ private:
 
     QLineEdit *proxyEditor;
 
-    QString *proxy_string;
+    QString proxy_string;
     //QLabel *import_path_label;
 
     //QFrame *adv_setting_window;

@@ -48,7 +48,7 @@ macx {
                     ../../../ncbi-vdb/interfaces/cc/gcc \
                     ../../../ncbi-vdb/interfaces/cc/gcc/x86_64
 
-    CONFIG -= app_bundle
+    #CONFIG -= app_bundle
 
     CONFIG(debug) {
         BUILD = dbg

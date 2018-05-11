@@ -39,9 +39,11 @@ ALL_TOOLS = \
 
 include $(TOP)/build/Makefile.env
 
-ifeq (,$(QMAKE_BIN))
 all std: $(ALL_TOOLS)
 
+.PHONY: all std $(ALL_TOOLS)
+
+ifeq (,$(QMAKE_BIN))
 $(ALL_TOOLS):
 	@ echo "NOTE - $(@F) cannot be built:"               \
 	       "It requires Qt to be installed"
@@ -53,15 +55,11 @@ else
 all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
-$(ALL_TOOLS): makedirs
-	@ $(MAKE_CMD) $(BINDIR)/$@
-
-.PHONY: all std $(ALL_TOOLS)
-
 #-------------------------------------------------------------------------------
 # clean
 #
 clean: stdclean
+	rm -rf $(OBJDIR); rm -f $(BINDIR)/sra-toolkit*
 
 .PHONY: clean
 
@@ -71,15 +69,32 @@ clean: stdclean
 
 ifeq (dbg,$(BUILD))
    QT_CONF = debug
+   QT_NOCONF = release
 else
    QT_CONF = release
+   QT_NOCONF = debug
 endif
 
-
-$(BINDIR)/sra-toolkit:
-	$(QMAKE_BIN) $(SRCDIR)/sra-toolkit.pro CONFIG+=$(QT_CONF) CONFIG+=make
+$(OBJDIR)/sra-toolkit:
+	# configure and run Qt make
+	$(QMAKE_BIN) $(SRCDIR)/sra-toolkit.pro CONFIG-=$(QT_NOCONF) CONFIG+=$(QT_CONF) CONFIG+=make
 	make -C $(OBJDIR)
-	cp $(OBJDIR)/sra-toolkit $(BINDIR)/sra-toolkit$(VERSION_EXEX)
+
+BUNDLE_DIR =  $(BINDIR)/sra-toolkit-bundle
+QT_DIR = $(dir $(shell which qmake))..
+
+$(BINDIR)/sra-toolkit: $(OBJDIR)/sra-toolkit
+	# run the packaging tool
+	mkdir -p $(BUNDLE_DIR)/lib
+	cp $(OBJDIR)/sra-toolkit $(BUNDLE_DIR)/sra-toolkit$(VERSION_EXEX)
+	export LD_LIBRARY_PATH=$(VDB_LIBDIR); $(SRCDIR)/linuxdeployqt-continuous-x86_64.AppImage $(BUNDLE_DIR)/sra-toolkit$(VERSION_EXEX) -bundle-non-qt-libs -verbose=1
+	# post-process the package: remove junk, add missed libraries
+	rm $(BUNDLE_DIR)/AppRun
+	cp $(QT_DIR)/lib/libQt5Svg.so.5 $(BUNDLE_DIR)/lib
+	cp $(QT_DIR)/plugins/iconengines/ $(BUNDLE_DIR)/plugins -r
+	#
+	# create links
+	ln -s sra-toolkit-bundle/sra-toolkit$(VERSION_EXEX) $(BINDIR)/sra-toolkit$(VERSION_EXEX)
 	ln -s sra-toolkit$(VERSION_EXEX) $(BINDIR)/sra-toolkit$(MAJVERS_EXEX)
 	ln -s sra-toolkit$(MAJVERS_EXEX) $(BINDIR)/sra-toolkit
 endif

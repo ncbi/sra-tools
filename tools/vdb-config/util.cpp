@@ -294,7 +294,7 @@ rc_t CKConfig::Commit(void) const {
 
 rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     rc_t rc = UpdateNode("/repository/remote/main/CGI/resolver-cgi",
-        "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
+        "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
 
     if (fix) {
         const string name("/repository/remote/main/CGI/disabled");
@@ -307,7 +307,7 @@ rc_t CKConfig::CreateRemoteRepositories(bool fix) {
     }
 
     rc_t r2 = UpdateNode("/repository/remote/protected/CGI/resolver-cgi",
-        "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
+        "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
     if (r2 != 0 && rc == 0) {
         rc = r2;
     }
@@ -867,7 +867,7 @@ rc_t CRemoteRepository::Fix(CKConfig &kfg, bool disable, bool verbose) {
 
     if (Is("main")) {
         m_ResolverCgi
-            = "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
+            = "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi";
         ClearApps();
     }
     else {
@@ -1100,7 +1100,7 @@ void CRemoteRepositories::Fix(CKConfig &kfg, bool disable, bool verbose) {
     }
 
     const string cgi
-        ("https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi");
+        ("https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi");
     if (main == NULL) {
         main = new CRemoteRepository("main", "CGI", cgi);
         main->Fix(kfg, disable);

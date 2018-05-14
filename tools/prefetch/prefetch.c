@@ -42,7 +42,7 @@
 
 #include <vfs/manager.h> /* VFSManager */
 #include <vfs/manager-priv.h> /* VResolverCacheForUrl */
-#include <vfs/path.h> /* VPath */
+#include <vfs/path-priv.h> /* NCBI_ACCESSION_SCHEME */
 #include <vfs/resolver.h> /* VResolver */
 
 #include <kns/ascp.h> /* ascp_locate */
@@ -1572,6 +1572,16 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
         if (rc == 0) {
             resolved->resolver = resolver;
             resolved->isUri = VPathFromUri (resolved->accession);
+            if (resolved->isUri) {
+                String scheme;
+                String ncbiacc;
+                CONST_STRING ( & ncbiacc, NCBI_ACCESSION_SCHEME );
+                rc_t rc = VPathGetScheme ( resolved->accession, & scheme );
+                if ( rc == 0 && StringEqual ( & scheme, & ncbiacc ) )
+                    resolved->isUri = false;
+                    /* resolved->isUri is set to true just when
+                       resolved->accession is a full URI to download */
+            }
         }
         if (rc == 0 && resolved->isUri) {
             resolved->remote.path = resolved->accession;

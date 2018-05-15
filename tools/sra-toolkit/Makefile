@@ -88,7 +88,7 @@ ifeq (linux,$(OS))
 
 QT_DIR ?= $(dir $(shell which qmake))..
 
-ifneq ("$(wildcard $(QT_DIR))","")
+ifneq ("$(wildcard $(QT_DIR)/lib/libQt5Svg.so.5)","")
 
 $(OBJDIR)/linuxdeployqt-continuous-x86_64.AppImage:
 	# download the packaging tool
@@ -114,8 +114,10 @@ deploy-sra-toolkit: $(BINDIR)/sra-toolkit $(OBJDIR)/linuxdeployqt-continuous-x86
 
 else
 deploy-sra-toolkit:
-	@ echo "NOTE - sra-toolkit app cannot be deployed:"               \
+	@ echo "NOTE - Missing $(QT_DIR)/lib/libQt5Svg.so.5"
+	@ echo "sra-toolkit app cannot be deployed:" \
 	       "Please provide path to Qt SDK on the make command line, e.g. make deploy-sra-toolkit QT_DIR=/opt/Qt/5.10.1/gcc_64"
+	exit 1
 endif
 
 endif

@@ -251,6 +251,16 @@ urls_and_accs:
 	@ls `pwd`/tmp/sra/SRR053325.sra > /dev/null
 #	@echo
 
+	@echo prefetch run with refseqs
+	@if ls `pwd`/tmp/sra/SRR619505.sra 2> /dev/null ; \
+     then echo SRR619505 found ; exit 1; fi
+	@if ls `pwd`/tmp/refseq/NC_000005.8 2> /dev/null ; \
+     then echo NC_000005.8 found ; exit 1; fi
+	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
+	    $(BINDIR)/prefetch SRR619505 > /dev/null
+	@ls `pwd`/tmp/sra/SRR619505.sra > /dev/null
+	@ls `pwd`/tmp/refseq/NC_000005.8 > /dev/null
+
 	@echo REFSEQ accession download
 	@rm -f `pwd`/tmp/refseq/KC702174.1
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \

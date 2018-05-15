@@ -42,8 +42,8 @@
 
 #include <vfs/manager.h> /* VFSManager */
 #include <vfs/manager-priv.h> /* VResolverCacheForUrl */
-#include <vfs/path.h> /* VPath */
-#include <vfs/resolver.h> /* VResolver */
+#include <vfs/path.h> /* VPathRelease */
+#include <vfs/resolver-priv.h> /* VResolverQueryWithDir */
 
 #include <kns/ascp.h> /* ascp_locate */
 #include <kns/manager.h>
@@ -1571,7 +1571,10 @@ static rc_t _ItemSetResolverAndAccessionInResolved(Item *item,
             rc = VResolverAddRef(resolver);
         if (rc == 0) {
             resolved->resolver = resolver;
-            resolved->isUri = VPathFromUri (resolved->accession);
+            resolved->isUri = item->isDependency
+                ? false : VPathFromUri (resolved->accession);
+            /* resolved->isUri is set to true just when
+                resolved->accession is a full URI to download */
         }
         if (rc == 0 && resolved->isUri) {
             resolved->remote.path = resolved->accession;

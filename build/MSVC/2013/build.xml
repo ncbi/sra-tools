@@ -88,7 +88,7 @@ Qt-dependent tools are only built with -DConfiguration=Release and -DPlatform=x6
                 <arg value="win32-msvc"/>
                 <arg value="CONFIG+=${QtConfiguration}"/>
             </exec>
-            <exec executable="jom.exe" failonerror="true" dir="${TargetDir}\obj\sra-toolkit">
+            <exec executable="jom.exe" failonerror="true" dir="${TargetDir}\..\sra-toolkit">
                 <arg value="-f"/>
                 <arg value="Makefile.${Configuration}"/>
             </exec>

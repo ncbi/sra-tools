@@ -32,32 +32,20 @@
 //#include "../sra-tools-gui/interfaces/ktoolbaritem.h"
 
 #include <klib/rc.h>
+#include <klib/text.h>
 #include <kfg/config.h>
 #include <kfg/properties.h>
 #include <kfg/repository.h>
 #include <kfg/ngc.h>
 #include <kfs/directory.h>
 #include <kfs/file.h>
+#include <vfs/path.h>
+#include <vfs/manager.h>
 
-#include <QAction>
-#include <QBoxLayout>
-#include <QButtonGroup>
-#include <QCloseEvent>
-#include <QCheckBox>
-#include <QComboBox>
-#include <QFileDialog>
-#include <QGridLayout>
-#include <QGroupBox>
-#include <QInputDialog>
-#include <QLabel>
-#include <QMenu>
-#include <QMenuBar>
-#include <QMessageBox>
-#include <QPushButton>
-#include <QScrollArea>
-#include <QToolBar>
+#include <QtWidgets>
 
 #include <QDebug>
+
 
 extern "C"
 {
@@ -68,6 +56,747 @@ extern "C"
     }
 }
 
+/* Class methods */
+
+SRAConfigView :: SRAConfigView ( QWidget *parent )
+    : QWidget ( parent )
+    , model ( new SRAConfigModel ( configure_model (), this ) )
+    , main_layout ( new QVBoxLayout () )
+{
+    setObjectName ( "config_view" );
+    //connect ( this, SIGNAL ( dirty_config () ), this, SLOT ( modified_config () ) );
+
+    main_layout -> setAlignment ( Qt::AlignTop );
+    main_layout -> setMargin ( 0 );
+    main_layout -> setSpacing ( 0 );
+
+    //main_layout -> addWidget ( setup_workflow_group () );
+    main_layout -> addWidget ( setup_option_group () );
+
+    setLayout ( main_layout );
+
+    load_settings ();
+
+    show ();
+}
+
+SRAConfigView :: ~SRAConfigView ()
+{
+
+}
+
+void SRAConfigView :: load_settings ()
+{
+    if ( ! model -> remote_enabled () )
+        bg_remote_access -> button ( 0 ) -> setChecked ( true );
+     else
+        bg_remote_access -> button ( 1 ) -> setChecked ( true );
+
+    if ( ! model -> global_cache_enabled () )
+        bg_local_caching -> button ( 0 ) -> setChecked ( true );
+     else
+        bg_local_caching -> button ( 1 ) -> setChecked ( true );
+
+    if ( model -> site_workspace_exists () ) // TBD - Possible bug
+    {
+        if ( ! model -> site_enabled () )
+            bg_use_site -> button ( 0 ) -> setChecked ( true );
+        else
+            bg_use_site -> button ( 1 ) -> setChecked ( true );
+    }
+    else
+    {
+        bg_use_site -> button ( 0 ) -> setDisabled ( true );
+        bg_use_site -> button ( 1 ) -> setDisabled ( true );
+    }
+
+    if ( ! model -> proxy_enabled () )
+    {
+        bg_use_proxy -> button ( 0 ) -> setChecked ( true );
+
+        std::string proxy_path = model -> get_proxy_path ();
+        if ( ! proxy_path . empty () )
+        {
+            proxy_string = QString ( proxy_path . c_str () );
+            proxyEditor -> setText ( proxy_string );
+        }
+
+        proxyEditor -> setDisabled ( true );
+
+        if ( ! model -> commit () )
+        {
+            QMessageBox::information ( this, "", "Error saving changes" );
+        }
+    }
+    else
+    {
+        std::string proxy_path = model -> get_proxy_path ();
+        if ( ! proxy_path . empty () )
+        {
+            proxy_string = QString ( proxy_path . c_str () );
+            proxyEditor -> setText ( proxy_string );
+        }
+
+        bg_use_proxy -> button ( 1 ) -> setChecked ( true );
+        proxyEditor -> setText ( QString ( model -> get_proxy_path () . c_str () ) );
+    }
+
+    if ( ! model -> allow_all_certs () )
+        bg_allow_all_certs -> button ( 0 ) -> setChecked ( true );
+     else
+        bg_allow_all_certs -> button ( 1 ) -> setChecked ( true );
+}
+
+static
+QButtonGroup * make_no_yes_button_group ( QPushButton **p_no, QPushButton **p_yes )
+{
+    QButtonGroup *group = new QButtonGroup ();
+
+    QPushButton *no = new QPushButton ( "No" );
+    no -> setObjectName ( "button_no" );
+    no -> setCheckable ( true );
+    no -> setFixedSize ( 60, 40 );
+
+    QPushButton *yes = new QPushButton ( "Yes" );
+    yes -> setObjectName ( "button_yes" );
+    yes -> setCheckable ( true );
+    yes -> setFixedSize ( 60, 40 );
+
+    group -> addButton ( no, 0 );
+    group -> addButton ( yes, 1 );
+
+    *p_no = no;
+    *p_yes = yes;
+
+    return group;
+}
+
+static
+QWidget * make_button_option_row ( QString name, QString desc,
+                                   QPushButton *b1, QPushButton *b2 )
+{
+    QWidget *row = new QWidget ();
+    row -> setObjectName ( "row_widget" );
+
+    QLabel *name_l = new QLabel ( name );
+    name_l -> setObjectName ( "name_label" );
+    name_l -> setFixedHeight ( 40 );
+
+    QLabel *desc_l = new QLabel ( desc );
+    desc_l -> setObjectName ( "desc_label" );
+    desc_l -> setFixedWidth ( ( row -> size () . width () ) );
+    desc_l -> setWordWrap ( true );
+
+    QHBoxLayout *row_h_layout = new QHBoxLayout ();
+    row_h_layout -> setSpacing ( 10 );
+    row_h_layout -> addWidget ( name_l );
+    row_h_layout -> setAlignment ( name_l, Qt::AlignLeft );
+    row_h_layout -> addWidget ( b1 );
+    row_h_layout -> setAlignment ( b1, Qt::AlignRight );
+    row_h_layout -> addWidget ( b2 );
+
+    QVBoxLayout *row_v_layout = new QVBoxLayout ();
+    row_v_layout -> setSpacing ( 5 );
+    row_v_layout -> addLayout ( row_h_layout );
+    row_v_layout -> addWidget ( desc_l, 0, Qt::AlignLeft );
+
+    row -> setLayout ( row_v_layout );
+
+    return row;
+}
+
+static
+QWidget * make_editor_button_option_row ( QString name, QString desc, QLineEdit *editor,
+                                          QPushButton *b1, QPushButton *b2 )
+{
+    QWidget *row = new QWidget ();
+    row -> setObjectName ( "row_widget" );
+
+    QLabel *name_l = new QLabel ( name );
+    name_l -> setObjectName ( "name_label" );
+    name_l -> setFixedHeight ( 40 );
+
+    QLabel *desc_l = new QLabel ( desc );
+    desc_l -> setObjectName ( "desc_label" );
+    desc_l -> setFixedWidth ( ( row -> size () . width () ) );
+    desc_l -> setWordWrap ( true );
+
+
+    editor -> setFocusPolicy ( Qt::FocusPolicy::ClickFocus );
+    editor -> setFixedHeight ( 40 );
+    editor -> setAlignment ( Qt::AlignCenter );
+
+    QHBoxLayout *row_h_layout = new QHBoxLayout ();
+    row_h_layout -> setSpacing ( 10 );
+    row_h_layout -> addWidget ( name_l );
+    row_h_layout -> setAlignment ( name_l, Qt::AlignLeft );
+    row_h_layout -> addWidget ( editor );
+    row_h_layout -> setAlignment ( editor, Qt::AlignRight );
+    row_h_layout -> addWidget ( b1 );
+    row_h_layout -> addWidget ( b2 );
+
+    QVBoxLayout *row_v_layout = new QVBoxLayout ();
+    row_v_layout -> setSpacing ( 5 );
+    row_v_layout -> addLayout ( row_h_layout );
+    row_v_layout -> addWidget ( desc_l, 0, Qt::AlignLeft );
+
+    row -> setLayout ( row_v_layout );
+
+    return row;
+}
+
+void SRAConfigView::setup_general_settings ()
+{
+    QLabel *label = new QLabel ( "General Settings" );
+    QPushButton *no = nullptr;
+    QPushButton *yes = nullptr;
+    QString name;
+    QString desc;
+
+    scrollWidgetLayout -> addWidget ( label );
+    scrollWidgetLayout -> addSpacing ( 5 );
+
+    // row 1
+    name = QString ("Enable Remote Access");
+    desc = QString ("Connect to NCBI over http or https. Connect to NCBI over http or https."
+                            "Connect to NCBI over http or https.Connect to NCBI over http or https."
+                            "Connect to NCBI over http or https.Connect to NCBI over http or https.");
+    connect ( bg_remote_access = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_remote_enabled ( int ) ) );
+
+    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
+    // row 1
+
+    // row 2
+    name = QString ("Enable Local File Caching");
+    connect ( bg_local_caching = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_local_caching ( int ) ) );
+
+    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
+    // row 2
+}
+
+void SRAConfigView::setup_network_setting ()
+{
+    QLabel *label = new QLabel ( "Network Settings" );
+    QPushButton *no = nullptr;
+    QPushButton *yes = nullptr;
+    QString name;
+    QString desc;
+
+    scrollWidgetLayout -> addWidget ( label );
+    scrollWidgetLayout -> addSpacing ( 5 );
+
+    // row 1
+    name = QString ("Use Site Installation") ;
+    desc = QString ("Connect to NCBI over http or https. Connect to NCBI over http or https."
+                            "Connect to NCBI over http or https.Connect to NCBI over http or https."
+                            "Connect to NCBI over http or https.Connect to NCBI over http or https.");
+
+    connect ( bg_use_site = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_site ( int ) ) );
+
+    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
+    // row 1
+
+    // row 2
+    proxyEditor = new QLineEdit ();
+    proxyEditor -> setPlaceholderText ( "xxx.xxx.xxx.xxx" );
+    connect ( proxyEditor, SIGNAL ( editingFinished () ), this, SLOT ( edit_proxy_path () ) );
+
+    name = QString ("Use Proxy");
+    connect ( bg_use_proxy = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_proxy ( int ) ) );
+
+    scrollWidgetLayout -> addWidget ( make_editor_button_option_row ( name, desc, proxyEditor,
+                                                          no, yes ) );
+
+    // row 2
+
+    //row 3
+    connect ( bg_allow_all_certs = make_no_yes_button_group ( &no, &yes ),
+              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_allow_all_certs ( int ) ) );
+
+    name = QString ( "Allow All Certificates" );
+
+    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes) );
+    // row 3
+}
+
+QWidget * SRAConfigView::setup_option_group ()
+{
+    scrollWidgetLayout = new QVBoxLayout ();
+    scrollWidgetLayout -> setAlignment ( Qt::AlignTop );
+    scrollWidgetLayout -> setSpacing ( 0 );
+
+    setup_general_settings ();
+    scrollWidgetLayout -> addSpacing ( 20 );
+    setup_network_setting ();
+
+    QWidget *scrollWidget = new QWidget ();
+    scrollWidget -> setObjectName ("scroll_widget");
+    scrollWidget -> setLayout ( scrollWidgetLayout );
+    scrollWidget -> setSizePolicy ( QSizePolicy::Ignored, QSizePolicy::Ignored);
+
+    QScrollArea *scrollArea = new QScrollArea ();
+    scrollArea -> setHorizontalScrollBarPolicy ( Qt::ScrollBarAlwaysOff );
+    scrollArea -> setWidget ( scrollWidget );
+    scrollArea -> setWidgetResizable ( true );
+
+    return scrollArea;
+}
+
+
+void SRAConfigView :: toggle_remote_enabled ( int toggled )
+{
+    model -> set_remote_enabled ( toggled );
+
+    if ( ! model -> commit () )
+    {
+        bool toggle = toggled;
+        bg_remote_access -> button ( ! toggle ) -> setChecked ( true );
+        QMessageBox::information ( this, "", "Error saving changes" );
+    }
+}
+
+void SRAConfigView :: toggle_local_caching ( int toggled )
+{
+    model -> set_global_cache_enabled ( toggled );
+
+    if ( ! model -> commit () )
+    {
+        bool toggle = toggled;
+        bg_local_caching -> button ( ! toggle ) -> setChecked ( true );
+        QMessageBox::information ( this, "", "Error saving changes" );
+    }
+}
+
+void SRAConfigView :: toggle_use_site ( int toggled )
+{
+    model -> set_site_enabled ( toggled );
+
+    if ( ! model -> commit () )
+    {
+        bool toggle = toggled;
+        bg_use_site -> button ( ! toggle ) -> setChecked ( true );
+        QMessageBox::information ( this, "", "Error saving changes" );
+    }
+}
+
+void SRAConfigView :: toggle_use_proxy ( int toggled )
+{
+    model -> set_proxy_enabled ( toggled );
+
+    proxyEditor -> setEnabled ( toggled );
+
+    if ( proxy_string . isEmpty () )
+        proxyEditor -> setFocus ();
+
+
+    if ( ! model -> commit () )
+    {
+        bool toggle = toggled;
+        bg_use_proxy -> button ( ! toggle ) -> setChecked ( true );
+        QMessageBox::information ( this, "", "Error saving changes" );
+    }
+}
+
+static
+bool is_valid_proxy_address ( std::string address )
+{
+    VFSManager *mgr;
+
+    rc_t rc = VFSManagerMake ( & mgr );
+    if ( rc == 0 )
+    {
+        VPath *path;
+
+        rc = VFSManagerMakePath ( mgr, &path, address .c_str () );
+        if ( rc == 0 )
+        {
+            String scheme;
+
+            rc = VPathGetScheme ( path, &scheme );
+            if ( rc == 0 )
+            {
+                String http, https, s3;
+                CONST_STRING ( & http, "http" );
+                CONST_STRING ( & https, "https" );
+                CONST_STRING ( & s3, "s3" );
+
+                // if valid scheme
+                if ( StringCaseCompare ( &scheme, &http ) == 0  ||
+                     StringCaseCompare ( &scheme, &https ) == 0 ||
+                     StringCaseCompare ( &scheme, &s3 ) == 0 )
+                {
+                    return true;
+                }
+            }
+            VPathRelease ( path );
+        }
+        VFSManagerRelease ( mgr );
+    }
+
+    return false;
+}
+
+void SRAConfigView :: edit_proxy_path ()
+{
+    QString text = proxyEditor -> text ();
+    qDebug () << "editor text: " << text;
+    qDebug () << "proxy_string: " << proxy_string ;
+
+    if ( text . isEmpty () )
+    {
+        proxyEditor -> setEnabled ( false );
+        //proxyEditor -> clearFocus ();
+        bg_use_proxy -> button ( 0 ) -> setChecked ( true );
+        QMessageBox::information ( this, "", "Missing proxy address." );
+    }
+    else if ( proxy_string != text )
+    {
+        std :: string proxy_str = text . toStdString ();
+        if ( is_valid_proxy_address ( proxy_str ) )
+        {
+            if ( proxyEditor -> hasFocus () )
+                proxyEditor -> clearFocus ();
+
+            qDebug () << "set new proxy path: " << text;
+            model -> set_proxy_path ( proxy_str );
+            proxy_string = text;
+
+            if ( ! model -> commit () )
+            {
+                proxyEditor -> clear ();
+                proxyEditor -> setEnabled ( false );
+                bg_use_proxy -> button ( 0 ) -> setChecked ( true );
+                QMessageBox::information ( this, "", "Error saving changes" );
+            }
+        }
+    }
+}
+
+void SRAConfigView :: toggle_allow_all_certs ( int toggled )
+{
+    model -> set_allow_all_certs ( toggled );
+
+    if ( ! model -> commit () )
+    {
+        bool toggle = toggled;
+        bg_allow_all_certs -> button ( ! toggle ) -> setChecked ( true );
+        QMessageBox::information ( this, "", "Error saving changes" );
+    }
+}
+
+/*
+QWidget * SRAConfigView::setup_workflow_group ()
+{
+
+    QWidget *widget = new QWidget ();
+    widget -> setObjectName ( "workflow_widget" );
+    widget -> setFixedHeight ( 70 );
+
+    QHBoxLayout *layout = new QHBoxLayout ();
+    layout -> setAlignment ( Qt::AlignBottom | Qt::AlignRight );
+    layout -> setSpacing ( 5 );
+
+    apply_btn = new QPushButton ( "Apply" );
+    apply_btn -> setDisabled ( true );
+    connect ( apply_btn, SIGNAL ( clicked () ), this, SLOT ( commit_config  () ) );
+
+    discard_btn = new QPushButton ( "Revert" );
+    discard_btn -> setDisabled ( true );
+    connect ( discard_btn, SIGNAL ( clicked () ), this, SLOT ( reload_config () ) );
+
+    layout -> addWidget ( discard_btn );
+    layout -> addWidget ( apply_btn );
+
+    widget -> setLayout ( layout );
+
+    return widget;
+}
+
+void SRAConfigView :: edit_import_path ()
+{
+    std :: string path = model -> get_user_default_path () . c_str ();
+
+    if ( ! model -> path_exists ( path ) )
+        path = model -> get_home_path ();
+
+    if ( ! model -> path_exists ( path ) )
+        path = model -> get_current_path ();
+
+    QString e_path = QFileDialog :: getOpenFileName ( adv_setting_window
+                                                    , ""
+                                                    , path . c_str () );
+
+
+    if ( e_path . isEmpty () )
+        return;
+
+    import_path_label -> setText ( e_path );
+    model -> set_user_default_path ( e_path . toStdString () . c_str () );
+
+    emit dirty_config ();
+}
+
+
+void SRAConfigView :: edit_public_path ()
+{
+    qDebug () << public_workspace -> ngc_id;
+    if ( select_public_location ( model, this ) )
+    {
+        public_workspace -> path_label -> setText ( model -> get_public_path () . c_str () );
+
+        emit dirty_config ();
+    }
+}
+
+void SRAConfigView :: edit_workspace_path ()
+{
+    foreach ( WorkspaceItem *item,  protected_workspaces )
+    {
+        if ( sender () == item -> edit_button )
+        {
+            qDebug () << item -> ngc_id;
+
+            if ( select_protected_location ( model, item -> ngc_id, this ) )
+            {
+                QString path =  model -> get_workspace_path ( item -> ngc_id ) . c_str ();
+                item -> path_label -> setText ( path );
+                import_path_label -> setText ( path );
+
+                emit dirty_config ();
+            }
+
+            return;
+        }
+    }
+}
+
+void SRAConfigView :: closeEvent ( QCloseEvent *ev )
+{
+    if ( model -> config_changed () )
+    {
+        QMessageBox::StandardButton reply;
+        reply = QMessageBox::question ( this
+                                        , ""
+                                        , "Save changes? "
+                                        , QMessageBox::No | QMessageBox::Yes );
+
+        if ( reply == QMessageBox::Yes )
+            commit_config ();
+    }
+
+    ev -> accept ();
+}
+
+
+void SRAConfigView :: add_workspace (QString name, QString val, int ngc_id, bool insert )
+{
+    QHBoxLayout *layout = new QHBoxLayout ();
+
+    WorkspaceItem *ws = new WorkspaceItem ( name . append ( ':' ), val, ngc_id );
+
+    if ( ngc_id == -1 )
+    {
+        public_workspace = ws;
+        connect ( ws -> edit_button, SIGNAL ( clicked () ), this, SLOT ( edit_public_path () ) );
+    }
+    else
+    {
+        protected_workspaces . append ( ws );
+        connect ( ws -> edit_button, SIGNAL ( clicked () ), this, SLOT ( edit_workspace_path () ) );
+    }
+
+    layout -> addWidget ( ws -> name_label );
+    layout -> addWidget ( ws -> path_label );
+    layout -> addWidget ( ws -> edit_button );
+
+    if ( insert )
+    {
+        workspace_layout -> insertLayout ( workspace_layout -> count () - 1, layout );
+    }
+    else
+        workspace_layout -> addLayout ( layout );
+}
+
+
+void SRAConfigView :: import_workspace ()
+{
+    // open a file dialog to browse for the repository
+    std :: string path = model -> get_home_path ();
+    if ( ! model -> path_exists ( path ) )
+        path = model -> get_current_path ();
+
+    QString filter = tr ("NGS (*.ngc)" );
+    QString file = QFileDialog :: getOpenFileName ( this
+                                                    , "Import Workspace"
+                                                    , path . c_str ()
+                                                    , tr ( "NGC files (*.ngc)" ) );
+
+    if ( ! file . isEmpty () )
+    {
+        std :: string s = file . toStdString ();
+        uint32_t ngc_id;
+        if ( import_ngc ( model, s, ngc_id, this ) )
+        {
+            QString name = model -> get_workspace_name ( ngc_id ) . c_str ();
+
+            name = QInputDialog::getText ( this
+                                                   , tr ( "Name Workspace" )
+                                                   , tr ( "Choose a name for your workspace" )
+                                                   , QLineEdit::Normal
+                                                   , name );
+
+            if ( name . isEmpty () )
+                name = model -> get_workspace_name ( ngc_id ) . c_str ();
+
+            add_workspace ( name, file, ngc_id, true );
+        }
+    }
+}
+
+
+QGroupBox * SRAConfigView :: setup_workspace_group ()
+{
+    QGroupBox *group = new QGroupBox ();
+    group -> setObjectName ( "config_options_group" );
+
+    workspace_layout = new QVBoxLayout ();
+    workspace_layout -> setAlignment ( Qt :: AlignTop );
+    workspace_layout -> setSpacing ( 15 );
+
+    add_workspace ( "Public", model -> get_public_path () . c_str(), -1 );
+
+    int ws_count = model -> workspace_count ();
+    qDebug () << "Setup workspace group: repo-count: " << ws_count;
+    for ( int i = 0; i < ws_count; ++ i )
+    {
+        std :: string name = model -> get_workspace_name ( i );
+        add_workspace ( name . c_str () ,
+                        model -> get_workspace_path ( i ) . c_str (),
+                        model -> get_workspace_id ( name ) );
+    }
+
+    //3
+    QHBoxLayout *i_layout = new QHBoxLayout ();
+
+    i_layout -> addSpacing ( 125 );
+
+    QPushButton *import = new QPushButton ( "+" );
+    import -> setFixedSize ( 30, 25 );
+    connect ( import, SIGNAL ( clicked () ), this, SLOT ( import_workspace () ) );
+    i_layout -> addWidget ( import );
+
+    i_layout -> addSpacing ( 5 );
+
+    QLabel *label = new QLabel ();
+    label -> setFrameShape ( QFrame::Panel );
+    label -> setFrameShadow ( QFrame::Sunken );
+
+    i_layout -> addWidget ( label );
+
+    workspace_layout -> addLayout ( i_layout );
+
+    //group -> setLayout ( workspace_layout );
+
+    return group;
+}
+
+
+
+
+void SRAConfigView :: advanced_settings ()
+{
+    adv_setting_window = new QFrame ();
+    adv_setting_window -> resize ( this -> width () * .7, this -> height () / 2 );
+    adv_setting_window -> setWindowTitle ( "Advanced Settings" );
+
+    QVBoxLayout *v_layout = new QVBoxLayout ();
+
+    // 1
+    QHBoxLayout *layout = new QHBoxLayout ();
+
+    QLabel *label = new QLabel ( "Default import path:" );
+    label -> setFixedWidth ( 150 );
+    label -> setAlignment ( Qt::AlignRight );
+    layout -> addWidget ( label);
+
+    import_path_label = new QLabel ( model -> get_user_default_path () . c_str () );
+    import_path_label -> setFrameShape ( QFrame::Panel );
+    import_path_label -> setFrameShadow ( QFrame::Sunken );
+    layout -> addWidget ( import_path_label );
+
+    QPushButton *edit = new QPushButton ( "Edit" );
+    connect ( edit, SIGNAL ( clicked () ), this, SLOT ( edit_import_path () ) );
+    edit -> setFixedSize ( 30, 20 );
+    layout -> addWidget ( edit );
+
+    v_layout -> addLayout ( layout );
+    v_layout -> addStretch ( 1 );
+
+    // last
+    layout = new QHBoxLayout ();
+    layout -> setAlignment ( Qt::AlignBottom | Qt::AlignRight );
+
+    QPushButton *done = new QPushButton ( "Done" );
+    connect ( done, SIGNAL ( clicked () ), adv_setting_window, SLOT ( close () ) );
+
+    layout -> addWidget ( done );
+    v_layout -> addLayout ( layout );
+
+    adv_setting_window -> setLayout ( v_layout );
+
+    adv_setting_window -> show ();
+}
+
+
+void SRAConfigView :: commit_config ()
+{
+    if ( ! model -> commit () )
+        QMessageBox::information ( this, "", "Error saving changes" );
+
+    apply_btn -> setDisabled ( true );
+    discard_btn -> setDisabled ( true );
+}
+
+
+void SRAConfigView :: reload_config ()
+{
+    model -> reload ();
+    load_settings ();
+
+   if ( ! model -> config_changed () )
+   {
+       apply_btn -> setDisabled ( true );
+       discard_btn -> setDisabled ( true );
+   }
+}
+
+void SRAConfigView :: modified_config ()
+{
+    if ( model -> config_changed () ) // this wont trigger on workspace addition yet
+    {
+        apply_btn -> setDisabled ( false );
+        discard_btn -> setDisabled ( false );
+    }
+}
+
+void SRAConfigView :: default_config ()
+{
+    model -> set_remote_enabled ( true );
+    model -> set_global_cache_enabled ( true );
+    model -> set_site_enabled ( true );
+
+    load_settings ();
+
+    emit dirty_config ();
+}
+
+
+*/
+/*
 struct WorkspaceItem
 {
     WorkspaceItem ( QString name, QString path, uint32_t id )
@@ -103,7 +832,7 @@ struct WorkspaceItem
 };
 
 
-/* static functions */
+
 static
 bool location_error ( RootState state, QWidget *w )
 {
@@ -385,11 +1114,11 @@ bool import_ngc ( SRAConfigModel *model, std :: string file, uint32_t &ngc_id, Q
 
            if ( model -> import_ngc ( path . toStdString (), ngc, INP_CREATE_REPOSITORY, &result_flags ) )
            {
-               /* we have it imported or it exists and no changes made */
+               //we have it imported or it exists and no changes made
                bool modified = false;
                if ( result_flags & INP_CREATE_REPOSITORY )
                {
-                   /* success is the most common outcome, the repository was created */
+                   //success is the most common outcome, the repository was created
                    QMessageBox::information ( w
                                               , "Import Successful"
                                               , "project successfully imported" );
@@ -398,7 +1127,7 @@ bool import_ngc ( SRAConfigModel *model, std :: string file, uint32_t &ngc_id, Q
                }
                else
                {
-                   /* repository did exist and is completely identical to the given ngc-obj */
+                   // repository did exist and is completely identical to the given ngc-obj
                    QMessageBox::information ( w
                                               , ""
                                               , "this project exists already, no changes made" );
@@ -479,7 +1208,7 @@ bool import_ngc ( SRAConfigModel *model, std :: string file, uint32_t &ngc_id, Q
 
                                    if ( reply == QMessageBox::Yes )
                                    {
-                                       /* we have to find out the id of the imported/existing repository */
+                                       //we have to find out the id of the imported/existing repository
                                        if ( model -> get_ngc_obj_id ( ngc, &ngc_id ) )
                                        {
                                            qDebug () << "NGC ID: " << ngc_id;
@@ -514,684 +1243,4 @@ bool import_ngc ( SRAConfigModel *model, std :: string file, uint32_t &ngc_id, Q
 
     return false;
 }
-
-
-
-/* Class methods */
-
-SRAConfigView :: SRAConfigView ( QWidget *parent )
-    : QWidget ( parent )
-    , model ( new SRAConfigModel ( configure_model (), this ) )
-    , main_layout ( new QVBoxLayout () )
-{
-    setObjectName ( "config_view" );
-    connect ( this, SIGNAL ( dirty_config () ), this, SLOT ( modified_config () ) );
-
-    main_layout -> setAlignment ( Qt::AlignTop );
-    main_layout -> setMargin ( 0 );
-    main_layout -> setSpacing ( 0 );
-
-    main_layout -> addWidget ( setup_workflow_group () );
-    main_layout -> addWidget ( setup_option_group () );
-
-    setLayout ( main_layout );
-
-    load_settings ();
-
-    show ();
-}
-
-SRAConfigView :: ~SRAConfigView ()
-{
-
-}
-
-void SRAConfigView :: load_settings ()
-{
-    if ( ! model -> remote_enabled () )
-        bg_remote_access -> button ( 0 ) -> setChecked ( true );
-     else
-        bg_remote_access -> button ( 1 ) -> setChecked ( true );
-
-    if ( ! model -> global_cache_enabled () )
-        bg_local_caching -> button ( 0 ) -> setChecked ( true );
-     else
-        bg_local_caching -> button ( 1 ) -> setChecked ( true );
-
-    if ( model -> site_workspace_exists () ) // TBD - Possible bug
-    {
-        if ( ! model -> site_enabled () )
-            bg_use_site -> button ( 0 ) -> setChecked ( true );
-        else
-            bg_use_site -> button ( 1 ) -> setChecked ( true );
-    }
-    else
-    {
-        bg_use_site -> button ( 0 ) -> setDisabled ( true );
-        bg_use_site -> button ( 1 ) -> setDisabled ( true );
-    }
-
-    if ( ! model -> proxy_enabled () )
-    {
-        bg_use_proxy -> button ( 0 ) -> setChecked ( true );
-        proxyEditor -> setDisabled ( true );
-    }
-     else
-    {
-        bg_use_proxy -> button ( 1 ) -> setChecked ( true );
-        proxyEditor -> setText ( QString ( model -> get_proxy_path () . c_str () ) );
-    }
-
-    if ( ! model -> allow_all_certs () )
-        bg_allow_all_certs -> button ( 0 ) -> setChecked ( true );
-     else
-        bg_allow_all_certs -> button ( 1 ) -> setChecked ( true );
-}
-
-QWidget * SRAConfigView::setup_workflow_group ()
-{
-
-    QWidget *widget = new QWidget ();
-    widget -> setObjectName ( "workflow_widget" );
-    widget -> setFixedHeight ( 70 );
-
-    QHBoxLayout *layout = new QHBoxLayout ();
-    layout -> setAlignment ( Qt::AlignBottom | Qt::AlignRight );
-    layout -> setSpacing ( 5 );
-
-    apply_btn = new QPushButton ( "Apply" );
-    apply_btn -> setDisabled ( true );
-    connect ( apply_btn, SIGNAL ( clicked () ), this, SLOT ( commit_config  () ) );
-
-    discard_btn = new QPushButton ( "Revert" );
-    discard_btn -> setDisabled ( true );
-    connect ( discard_btn, SIGNAL ( clicked () ), this, SLOT ( reload_config () ) );
-
-    layout -> addWidget ( discard_btn );
-    layout -> addWidget ( apply_btn );
-
-    widget -> setLayout ( layout );
-
-    return widget;
-}
-
-static
-QButtonGroup * make_no_yes_button_group ( QPushButton **p_no, QPushButton **p_yes )
-{
-    QButtonGroup *group = new QButtonGroup ();
-
-    QPushButton *no = new QPushButton ( "No" );
-    no -> setObjectName ( "button_no" );
-    no -> setCheckable ( true );
-    no -> setFixedSize ( 60, 40 );
-
-    QPushButton *yes = new QPushButton ( "Yes" );
-    yes -> setObjectName ( "button_yes" );
-    yes -> setCheckable ( true );
-    yes -> setFixedSize ( 60, 40 );
-
-    group -> addButton ( no, 0 );
-    group -> addButton ( yes, 1 );
-
-    *p_no = no;
-    *p_yes = yes;
-
-    return group;
-}
-
-static
-QWidget * make_button_option_row ( QString name, QString desc,
-                                   QPushButton *b1, QPushButton *b2 )
-{
-    QWidget *row = new QWidget ();
-    row -> setObjectName ( "row_widget" );
-
-    QLabel *name_l = new QLabel ( name );
-    name_l -> setObjectName ( "name_label" );
-    name_l -> setFixedHeight ( 40 );
-
-    QLabel *desc_l = new QLabel ( desc );
-    desc_l -> setObjectName ( "desc_label" );
-    desc_l -> setFixedWidth ( ( row -> size () . width () ) );
-    desc_l -> setWordWrap ( true );
-
-    QHBoxLayout *row_h_layout = new QHBoxLayout ();
-    row_h_layout -> setSpacing ( 10 );
-    row_h_layout -> addWidget ( name_l );
-    row_h_layout -> setAlignment ( name_l, Qt::AlignLeft );
-    row_h_layout -> addWidget ( b1 );
-    row_h_layout -> setAlignment ( b1, Qt::AlignRight );
-    row_h_layout -> addWidget ( b2 );
-
-    QVBoxLayout *row_v_layout = new QVBoxLayout ();
-    row_v_layout -> setSpacing ( 5 );
-    row_v_layout -> addLayout ( row_h_layout );
-    row_v_layout -> addWidget ( desc_l, 0, Qt::AlignLeft );
-
-    row -> setLayout ( row_v_layout );
-
-    return row;
-}
-
-static
-QWidget * make_editor_button_option_row ( QString name, QString desc, QLineEdit *editor,
-                                          QPushButton *b1, QPushButton *b2 )
-{
-    QWidget *row = new QWidget ();
-    row -> setObjectName ( "row_widget" );
-
-    QLabel *name_l = new QLabel ( name );
-    name_l -> setObjectName ( "name_label" );
-    name_l -> setFixedHeight ( 40 );
-
-    QLabel *desc_l = new QLabel ( desc );
-    desc_l -> setObjectName ( "desc_label" );
-    desc_l -> setFixedWidth ( ( row -> size () . width () ) );
-    desc_l -> setWordWrap ( true );
-
-
-    editor -> setFocusPolicy ( Qt::FocusPolicy::ClickFocus );
-    editor -> setFixedHeight ( 40 );
-    editor -> setAlignment ( Qt::AlignCenter );
-
-    QHBoxLayout *row_h_layout = new QHBoxLayout ();
-    row_h_layout -> setSpacing ( 10 );
-    row_h_layout -> addWidget ( name_l );
-    row_h_layout -> setAlignment ( name_l, Qt::AlignLeft );
-    row_h_layout -> addWidget ( editor );
-    row_h_layout -> setAlignment ( editor, Qt::AlignRight );
-    row_h_layout -> addWidget ( b1 );
-    row_h_layout -> addWidget ( b2 );
-
-    QVBoxLayout *row_v_layout = new QVBoxLayout ();
-    row_v_layout -> setSpacing ( 5 );
-    row_v_layout -> addLayout ( row_h_layout );
-    row_v_layout -> addWidget ( desc_l, 0, Qt::AlignLeft );
-
-    row -> setLayout ( row_v_layout );
-
-    return row;
-}
-
-void SRAConfigView::setup_general_settings ()
-{
-    QLabel *label = new QLabel ( "General Settings" );
-    QPushButton *no = nullptr;
-    QPushButton *yes = nullptr;
-    QString name;
-    QString desc;
-
-    scrollWidgetLayout -> addWidget ( label );
-    scrollWidgetLayout -> addSpacing ( 5 );
-
-    // row 1
-    name = QString ("Enable Remote Access");
-    desc = QString ("Connect to NCBI over http or https. Connect to NCBI over http or https."
-                            "Connect to NCBI over http or https.Connect to NCBI over http or https."
-                            "Connect to NCBI over http or https.Connect to NCBI over http or https.");
-    connect ( bg_remote_access = make_no_yes_button_group ( &no, &yes ),
-              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_remote_enabled ( int ) ) );
-
-    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
-    // row 1
-
-    // row 2
-    name = QString ("Enable Local File Caching");
-    connect ( bg_local_caching = make_no_yes_button_group ( &no, &yes ),
-              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_local_caching ( int ) ) );
-
-    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
-    // row 2
-}
-
-void SRAConfigView::setup_network_setting ()
-{
-    QLabel *label = new QLabel ( "Network Settings" );
-    QPushButton *no = nullptr;
-    QPushButton *yes = nullptr;
-    QString name;
-    QString desc;
-
-    scrollWidgetLayout -> addWidget ( label );
-    scrollWidgetLayout -> addSpacing ( 5 );
-
-    // row 1
-    name = QString ("Use Site Installation") ;
-    desc = QString ("Connect to NCBI over http or https. Connect to NCBI over http or https."
-                            "Connect to NCBI over http or https.Connect to NCBI over http or https."
-                            "Connect to NCBI over http or https.Connect to NCBI over http or https.");
-
-    connect ( bg_use_site = make_no_yes_button_group ( &no, &yes ),
-              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_site ( int ) ) );
-
-    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes ) );
-    // row 1
-
-    // row 2
-    proxyEditor = new QLineEdit ();
-    proxyEditor -> setPlaceholderText ( "xxx.xxx.xxx.xxx" );
-    connect ( proxyEditor, SIGNAL ( editingFinished () ), this, SLOT ( edit_proxy_path () ) );
-
-    name = QString ("Use Proxy");
-    connect ( bg_use_proxy = make_no_yes_button_group ( &no, &yes ),
-              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_use_proxy ( int ) ) );
-
-    scrollWidgetLayout -> addWidget ( make_editor_button_option_row ( name, desc, proxyEditor,
-                                                          no, yes ) );
-
-    // row 2
-
-    //row 3
-    connect ( bg_allow_all_certs = make_no_yes_button_group ( &no, &yes ),
-              SIGNAL ( buttonClicked ( int ) ), this, SLOT ( toggle_allow_all_certs ( int ) ) );
-
-    name = QString ( "Allow All Certificates" );
-
-    scrollWidgetLayout -> addWidget ( make_button_option_row ( name, desc, no, yes) );
-    // row 3
-}
-
-QWidget * SRAConfigView::setup_option_group ()
-{
-    scrollWidgetLayout = new QVBoxLayout ();
-    scrollWidgetLayout -> setAlignment ( Qt::AlignTop );
-    scrollWidgetLayout -> setSpacing ( 0 );
-
-    setup_general_settings ();
-    scrollWidgetLayout -> addSpacing ( 20 );
-    setup_network_setting ();
-
-    QWidget *scrollWidget = new QWidget ();
-    scrollWidget -> setObjectName ("scroll_widget");
-    scrollWidget -> setLayout ( scrollWidgetLayout );
-    scrollWidget -> setSizePolicy ( QSizePolicy::Ignored, QSizePolicy::Ignored);
-
-    QScrollArea *scrollArea = new QScrollArea ();
-    scrollArea -> setHorizontalScrollBarPolicy ( Qt::ScrollBarAlwaysOff );
-    scrollArea -> setWidget ( scrollWidget );
-    scrollArea -> setWidgetResizable ( true );
-
-    return scrollArea;
-}
-
-void SRAConfigView :: closeEvent ( QCloseEvent *ev )
-{
-#if ALLOW_SLOTS
-    if ( model -> config_changed () )
-    {
-        QMessageBox::StandardButton reply;
-        reply = QMessageBox::question ( this
-                                        , ""
-                                        , "Save changes? "
-                                        , QMessageBox::No | QMessageBox::Yes );
-
-        if ( reply == QMessageBox::Yes )
-            commit_config ();
-    }
-
-    ev -> accept ();
-#endif
-}
-
-void SRAConfigView :: add_workspace (QString name, QString val, int ngc_id, bool insert )
-{
-    QHBoxLayout *layout = new QHBoxLayout ();
-
-    WorkspaceItem *ws = new WorkspaceItem ( name . append ( ':' ), val, ngc_id );
-
-    if ( ngc_id == -1 )
-    {
-        public_workspace = ws;
-        connect ( ws -> edit_button, SIGNAL ( clicked () ), this, SLOT ( edit_public_path () ) );
-    }
-    else
-    {
-        protected_workspaces . append ( ws );
-        connect ( ws -> edit_button, SIGNAL ( clicked () ), this, SLOT ( edit_workspace_path () ) );
-    }
-
-    layout -> addWidget ( ws -> name_label );
-    layout -> addWidget ( ws -> path_label );
-    layout -> addWidget ( ws -> edit_button );
-
-    if ( insert )
-    {
-        workspace_layout -> insertLayout ( workspace_layout -> count () - 1, layout );
-    }
-    else
-        workspace_layout -> addLayout ( layout );
-}
-
-/*
-void SRAConfigView :: import_workspace ()
-{
-    // open a file dialog to browse for the repository
-    std :: string path = model -> get_home_path ();
-    if ( ! model -> path_exists ( path ) )
-        path = model -> get_current_path ();
-
-    QString filter = tr ("NGS (*.ngc)" );
-    QString file = QFileDialog :: getOpenFileName ( this
-                                                    , "Import Workspace"
-                                                    , path . c_str ()
-                                                    , tr ( "NGC files (*.ngc)" ) );
-
-    if ( ! file . isEmpty () )
-    {
-        std :: string s = file . toStdString ();
-        uint32_t ngc_id;
-        if ( import_ngc ( model, s, ngc_id, this ) )
-        {
-            QString name = model -> get_workspace_name ( ngc_id ) . c_str ();
-
-            name = QInputDialog::getText ( this
-                                                   , tr ( "Name Workspace" )
-                                                   , tr ( "Choose a name for your workspace" )
-                                                   , QLineEdit::Normal
-                                                   , name );
-
-            if ( name . isEmpty () )
-                name = model -> get_workspace_name ( ngc_id ) . c_str ();
-
-            add_workspace ( name, file, ngc_id, true );
-        }
-    }
-}
-
-
-QGroupBox * SRAConfigView :: setup_workspace_group ()
-{
-    QGroupBox *group = new QGroupBox ();
-    group -> setObjectName ( "config_options_group" );
-
-    workspace_layout = new QVBoxLayout ();
-    workspace_layout -> setAlignment ( Qt :: AlignTop );
-    workspace_layout -> setSpacing ( 15 );
-
-    add_workspace ( "Public", model -> get_public_path () . c_str(), -1 );
-
-    int ws_count = model -> workspace_count ();
-    qDebug () << "Setup workspace group: repo-count: " << ws_count;
-    for ( int i = 0; i < ws_count; ++ i )
-    {
-        std :: string name = model -> get_workspace_name ( i );
-        add_workspace ( name . c_str () ,
-                        model -> get_workspace_path ( i ) . c_str (),
-                        model -> get_workspace_id ( name ) );
-    }
-
-    //3
-    QHBoxLayout *i_layout = new QHBoxLayout ();
-
-    i_layout -> addSpacing ( 125 );
-
-    QPushButton *import = new QPushButton ( "+" );
-    import -> setFixedSize ( 30, 25 );
-    connect ( import, SIGNAL ( clicked () ), this, SLOT ( import_workspace () ) );
-    i_layout -> addWidget ( import );
-
-    i_layout -> addSpacing ( 5 );
-
-    QLabel *label = new QLabel ();
-    label -> setFrameShape ( QFrame::Panel );
-    label -> setFrameShadow ( QFrame::Sunken );
-
-    i_layout -> addWidget ( label );
-
-    workspace_layout -> addLayout ( i_layout );
-
-    //group -> setLayout ( workspace_layout );
-
-    return group;
-}
-*/
-
-
-/*
-void SRAConfigView :: advanced_settings ()
-{
-    adv_setting_window = new QFrame ();
-    adv_setting_window -> resize ( this -> width () * .7, this -> height () / 2 );
-    adv_setting_window -> setWindowTitle ( "Advanced Settings" );
-
-    QVBoxLayout *v_layout = new QVBoxLayout ();
-
-    // 1
-    QHBoxLayout *layout = new QHBoxLayout ();
-
-    QLabel *label = new QLabel ( "Default import path:" );
-    label -> setFixedWidth ( 150 );
-    label -> setAlignment ( Qt::AlignRight );
-    layout -> addWidget ( label);
-
-    import_path_label = new QLabel ( model -> get_user_default_path () . c_str () );
-    import_path_label -> setFrameShape ( QFrame::Panel );
-    import_path_label -> setFrameShadow ( QFrame::Sunken );
-    layout -> addWidget ( import_path_label );
-
-    QPushButton *edit = new QPushButton ( "Edit" );
-    connect ( edit, SIGNAL ( clicked () ), this, SLOT ( edit_import_path () ) );
-    edit -> setFixedSize ( 30, 20 );
-    layout -> addWidget ( edit );
-
-    v_layout -> addLayout ( layout );
-    v_layout -> addStretch ( 1 );
-
-    // last
-    layout = new QHBoxLayout ();
-    layout -> setAlignment ( Qt::AlignBottom | Qt::AlignRight );
-
-    QPushButton *done = new QPushButton ( "Done" );
-    connect ( done, SIGNAL ( clicked () ), adv_setting_window, SLOT ( close () ) );
-
-    layout -> addWidget ( done );
-    v_layout -> addLayout ( layout );
-
-    adv_setting_window -> setLayout ( v_layout );
-
-    adv_setting_window -> show ();
-}
-*/
-
-void SRAConfigView :: commit_config ()
-{
-    if ( ! model -> commit () )
-        QMessageBox::information ( this, "", "Error saving changes" );
-
-    apply_btn -> setDisabled ( true );
-    discard_btn -> setDisabled ( true );
-}
-
-void SRAConfigView :: reload_config ()
-{
-    model -> reload ();
-    load_settings ();
-
-   if ( ! model -> config_changed () )
-   {
-       apply_btn -> setDisabled ( true );
-       discard_btn -> setDisabled ( true );
-   }
-}
-
-void SRAConfigView :: modified_config ()
-{
-    if ( model -> config_changed () ) // this wont trigger on workspace addition yet
-    {
-        apply_btn -> setDisabled ( false );
-        discard_btn -> setDisabled ( false );
-    }
-}
-
-void SRAConfigView :: default_config ()
-{
-    model -> set_remote_enabled ( true );
-    model -> set_global_cache_enabled ( true );
-    model -> set_site_enabled ( true );
-
-    load_settings ();
-
-    emit dirty_config ();
-}
-
-void SRAConfigView :: toggle_remote_enabled ( int toggled )
-{
-    if ( toggled == 1 )
-    {
-        qDebug () << "remote_enabled: yes";
-        model -> set_remote_enabled ( true );
-    }
-    else
-    {
-        qDebug () << "remote_enabled: no";
-        model -> set_remote_enabled ( false );
-    }
-
-    emit dirty_config ();
-}
-
-void SRAConfigView :: toggle_local_caching ( int toggled )
-{
-    if ( toggled == 1 )
-    {
-        qDebug () << "local_caching: yes";
-        model -> set_global_cache_enabled ( true );
-    }
-    else
-    {
-        qDebug () << "local_caching: no";
-        model -> set_global_cache_enabled ( false );
-    }
-
-    emit dirty_config ();
-}
-
-void SRAConfigView :: toggle_use_site ( int toggled )
-{
-    if ( toggled == 1 )
-    {
-        qDebug () << "use_site: yes";
-        model -> set_site_enabled ( true );
-
-    }
-    else
-    {
-        qDebug () << "use_site: no";
-        model -> set_site_enabled ( false );
-    }
-
-    emit dirty_config ();
-}
-
-void SRAConfigView :: toggle_use_proxy ( int toggled )
-{
-    if ( toggled == 1 )
-    {
-        qDebug () << "use_proxy: yes";
-        model -> set_proxy_enabled ( true );
-        proxyEditor -> setDisabled ( false );
-    }
-    else
-    {
-        qDebug () << "use_proxy: no";
-        model -> set_proxy_enabled ( false );
-        proxyEditor -> setDisabled ( true );
-    }
-
-    emit dirty_config ();
-}
-
-void SRAConfigView :: toggle_allow_all_certs ( int toggled )
-{
-    if ( toggled == 1 )
-    {
-        qDebug () << "set_allow_all_certs: yes";
-        model -> set_allow_all_certs ( true );
-    }
-    else
-    {
-        qDebug () << "set_allow_all_certs: no";
-        model -> set_allow_all_certs ( false );
-    }
-
-    emit dirty_config ();
-}
-
-void SRAConfigView :: edit_proxy_path ()
-{
-    QString text = proxyEditor -> text ();
-
-    if ( text . isEmpty () )
-        return;
-
-    proxy_string = &text;
-
-    if ( proxyEditor -> hasFocus () )
-        proxyEditor -> clearFocus ();
-
-    qDebug () << "set new proxy path: " << text;
-    //model -> set_proxy_path ( proxy_string -> toStdString () );
-
-    //emit dirty_config ();
-}
-
-/*
-void SRAConfigView :: edit_import_path ()
-{
-    std :: string path = model -> get_user_default_path () . c_str ();
-
-    if ( ! model -> path_exists ( path ) )
-        path = model -> get_home_path ();
-
-    if ( ! model -> path_exists ( path ) )
-        path = model -> get_current_path ();
-
-    QString e_path = QFileDialog :: getOpenFileName ( adv_setting_window
-                                                    , ""
-                                                    , path . c_str () );
-
-
-    if ( e_path . isEmpty () )
-        return;
-
-    import_path_label -> setText ( e_path );
-    model -> set_user_default_path ( e_path . toStdString () . c_str () );
-
-    emit dirty_config ();
-}
-
-
-void SRAConfigView :: edit_public_path ()
-{
-    qDebug () << public_workspace -> ngc_id;
-    if ( select_public_location ( model, this ) )
-    {
-        public_workspace -> path_label -> setText ( model -> get_public_path () . c_str () );
-
-        emit dirty_config ();
-    }
-}
-
-void SRAConfigView :: edit_workspace_path ()
-{
-    foreach ( WorkspaceItem *item,  protected_workspaces )
-    {
-        if ( sender () == item -> edit_button )
-        {
-            qDebug () << item -> ngc_id;
-
-            if ( select_protected_location ( model, item -> ngc_id, this ) )
-            {
-                QString path =  model -> get_workspace_path ( item -> ngc_id ) . c_str ();
-                item -> path_label -> setText ( path );
-                import_path_label -> setText ( path );
-
-                emit dirty_config ();
-            }
-
-            return;
-        }
-    }
-}
-
 */

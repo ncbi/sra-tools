@@ -41,6 +41,10 @@ ifeq (1,$(HAVE_HDF5))
         TOOLS_TO_INSTALL += pacbio-load
 endif
 
+# unset outside defined variables
+ROOT =
+LINUX_ROOT =
+
 #fake root for debugging
 #uncomment this line and change the test for root ( see under install: ) to succeed:
 #ROOT = ~/root

@@ -46,6 +46,7 @@ check_exit_code:
 
 SRP:
 	$(BINDIR)/srapath SRP000001 # works & does not crash
+	$(BINDIR)/srapath SRR000001 -fnames
 
 .PHONY: $(TEST_TOOLS)
 

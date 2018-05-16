@@ -7,10 +7,9 @@
     <property environment="env"/>
     <property name="Platform"       value="x64" />
     <property name="Configuration"  value="Release" />
-    <property name="Toolset"        value="v120" />
 
     <property name="Output"         value="${basedir}\..\..\..\..\OUTDIR" />
-    <property name="TargetDir"      value="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}"/>
+    <property name="TargetDir"      value="${Output}\sra-tools\win\v120\${Platform}\${Configuration}"/>
 
     <condition property="QtConfiguration" value="debug">
         <equals arg1="${Configuration}" arg2="Debug"/>
@@ -20,11 +19,7 @@
     </condition>
 
     <condition property="BuildQt" value="true">
-        <and>
-            <equals arg1="${Platform}" arg2="x64"/>
-            <equals arg1="${Configuration}" arg2="Release"/>
-            <equals arg1="${Toolset}" arg2="v120"/>
-        </and>
+        <equals arg1="${Platform}" arg2="x64"/>
     </condition>
     <property name="MSVC_Redistributables" value="${env.VS120COMNTOOLS}\..\..\VC\redist\${Platform}\Microsoft.VC120.CRT"/>
 
@@ -41,11 +36,11 @@ Example:
 Supported targets:
 	help        - print this text and exit
     clean       - remove all build artefacts
-    build       - regular build (in Release/64, includes Qt-dependent tools)
+    build       - regular build (in Platform=x64, includes Qt-dependent tools)
     quick       - same as build
     runtests    - build and run small tests
     std         - clean, runtests (default)
-    buildQt     - build Qt-dependent tools only (Release/x64)
+    buildQt     - build Qt-dependent tools only (Platform=x64 only)
 
 Options:
     -DConfiguration=Debug or -DConfiguration=Release (default)
@@ -53,7 +48,7 @@ Options:
     -DOutput=path   folder to create output in (default: ../../../../OUTDIR)
 
 Note: To build Qt-dependent tools, need to have Qt (version 5.10.0 or newer) platform-specific binaries and tools in PATH, e.g.: C:\Qt\5.10.1\msvc2013_64\bin;C:\Qt\Tools\QtCreator\bin.
-Qt-dependent tools are only built with -DConfiguration=Release and -DPlatform=x64 (which is the default)
+Qt-dependent tools are only built with -DPlatform=x64 (which is the default)
 
   		</echo>
     </target>
@@ -96,7 +91,7 @@ Qt-dependent tools are only built with -DConfiguration=Release and -DPlatform=x6
                 <arg value="sra-toolkit.exe"/>
                 <arg value="--compiler-runtime"/>
             </exec>
-            <copy file="${Output}\ncbi-vdb\win\${Toolset}\${Platform}\${Configuration}\bin\ncbi-vdb-md.dll" todir="${TargetDir}\bin"/>
+            <copy file="${Output}\ncbi-vdb\win\v120\${Platform}\${Configuration}\bin\ncbi-vdb-md.dll" todir="${TargetDir}\bin"/>
             <copy file="${MSVC_Redistributables}\msvcp120.dll" todir="${TargetDir}\bin"/>
             <copy file="${MSVC_Redistributables}\msvcr120.dll" todir="${TargetDir}\bin"/>
             <copy file="${MSVC_Redistributables}\vccorlib120.dll" todir="${TargetDir}\bin"/>

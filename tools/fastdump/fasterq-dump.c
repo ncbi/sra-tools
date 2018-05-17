@@ -94,9 +94,11 @@ static const char * split_3_usage[] = { "writes single fragments in special file
 #define OPTION_SPLIT_3   "split-3"
 #define ALIAS_SPLIT_3    "3"
 
+/*
 static const char * stdout_usage[] = { "print output to stdout", NULL };
 #define OPTION_STDOUT    "stdout"
 #define ALIAS_STDOUT     "Z"
+*/
 
 static const char * gzip_usage[] = { "compress output using gzip", NULL };
 #define OPTION_GZIP      "gzip"
@@ -153,7 +155,7 @@ OptDef ToolOptions[] =
     { OPTION_SPLIT_SPOT,ALIAS_SPLIT_SPOT,NULL, split_spot_usage, 1, false,  false },
     { OPTION_SPLIT_FILE,ALIAS_SPLIT_FILE,NULL, split_file_usage, 1, false,  false },
     { OPTION_SPLIT_3,   ALIAS_SPLIT_3,   NULL, split_3_usage,    1, false,  false },
-    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false },
+/*    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false }, */
     { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false },
     { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false },
     { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
@@ -331,7 +333,7 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
     tool_ctx -> show_details = get_bool_option( args, OPTION_DETAILS );
     tool_ctx -> tmp_id . temp_path = get_str_option( args, OPTION_TEMP, NULL );
-    tool_ctx -> print_to_stdout = get_bool_option( args, OPTION_STDOUT );
+    tool_ctx -> print_to_stdout = false; /* get_bool_option( args, OPTION_STDOUT ); */
     tool_ctx -> force = get_bool_option( args, OPTION_FORCE );        
     tool_ctx -> remove_temp_path = false;
     tool_ctx -> output_filename = get_str_option( args, OPTION_OUTPUT, NULL );

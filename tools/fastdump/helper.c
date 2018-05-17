@@ -163,6 +163,9 @@ format_t get_format_t( const char * format, bool split_spot, bool split_file, bo
     format_t res = ft_unknown;
     if ( format != NULL && format[ 0 ] != 0 )
     {
+        /* the format option has been used, try to recognize one of the options,
+           the legacy options will be ignored now */
+
         String Format;
         StringInitCString( &Format, format );
         
@@ -176,11 +179,10 @@ format_t get_format_t( const char * format, bool split_spot, bool split_file, bo
         if ( res == ft_unknown )
             res = format_cmp( &Format, "fastq-split-3", ft_fastq_split_3 );
     }
-    
-    if ( res == ft_unknown )
-        res = ft_fastq;
-    if ( res == ft_fastq )
+    else
     {
+        /* the format option has not been used, let us see if some of the legacy-options
+            have been used */
         if ( split_3 )
             res = ft_fastq_split_3;
         else if ( split_file )
@@ -188,6 +190,11 @@ format_t get_format_t( const char * format, bool split_spot, bool split_file, bo
         else if ( split_spot )
             res = ft_fastq_split_spot;
     }
+    
+    /* default to split_3 if no format has been given at all */
+    if ( res == ft_unknown )
+        res = ft_fastq_split_3;
+
     return res;
 }
 

@@ -28,7 +28,7 @@ default: std
 TOP ?= $(abspath ../..)
 MODULE = tools/kqsh
 
-include $(TOP)/build/Makefile.env
+include $(TOP)/build/Makefile.shell
 
 INT_TOOLS =
 
@@ -38,6 +38,8 @@ EXT_TOOLS = \
 ALL_TOOLS = \
 	$(INT_TOOLS) \
 	$(EXT_TOOLS)
+
+include $(TOP)/build/Makefile.env
 
 #-------------------------------------------------------------------------------
 # outer targets

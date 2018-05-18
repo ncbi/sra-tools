@@ -83,6 +83,10 @@ static rc_t print_fastq_1_read( join_stats * stats,
                                 uint32_t read_id )
 {
     rc_t rc = 0;
+
+    if ( rec -> read . len != rec -> quality . len )
+        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+
     if ( filter1( stats, rec, jo ) )
     {
         if ( join_results_match( results, &( rec -> read ) ) )
@@ -111,7 +115,19 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
     String R, Q;
     uint32_t read_id_0 = 0;
     uint32_t offset = 0;
+    uint32_t read_len_sum = 0;
     
+    if ( rec -> read . len != rec -> quality . len )
+        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+
+    while ( read_id_0 < rec -> num_read_len )
+        read_len_sum += rec -> read_len[ read_id_0++ ];
+
+    if ( rec -> read . len != read_len_sum )
+        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+    
+    read_id_0 = 0;
+
     while ( rc == 0 && read_id_0 < rec -> num_read_len )
     {
         if ( rec -> read_len[ read_id_0 ] > 0 )
@@ -159,6 +175,18 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
     uint32_t read_id_0 = 0;
     uint32_t write_id_1 = 1;
     uint32_t offset = 0;
+    uint32_t read_len_sum = 0;
+    
+    if ( rec -> read . len != rec -> quality . len )
+        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+
+    while ( read_id_0 < rec -> num_read_len )
+        read_len_sum += rec -> read_len[ read_id_0++ ];
+
+    if ( rec -> read . len != read_len_sum )
+        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+    
+    read_id_0 = 0;
     
     while ( rc == 0 && read_id_0 < rec -> num_read_len )
     {
@@ -210,19 +238,30 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
     uint32_t write_id_1 = 1;
     uint32_t valid_fragments = 0;
     uint32_t offset = 0;
+    uint32_t read_len_sum = 0;
     
+    if ( rec -> read . len != rec -> quality . len )
+        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+
     while ( read_id_0 < rec -> num_read_len )
     {
+        read_len_sum += rec -> read_len[ read_id_0 ];
         if ( rec -> read_len[ read_id_0 ] > 0 )
             valid_fragments++;
         read_id_0++;
     }
+
+    if ( rec -> read . len != read_len_sum )
+        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
     
     if ( valid_fragments == 0 )
         return rc;
 
+    /*
     if ( valid_fragments < rec -> num_read_len )
         write_id_1 = 0;
+    */
+    
     read_id_0 = 0;
     
     while ( rc == 0 && read_id_0 < rec -> num_read_len )

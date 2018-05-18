@@ -50,9 +50,13 @@ static const char * format_usage[] = { "format (special, fastq, lookup, default=
 #define OPTION_FORMAT   "format"
 #define ALIAS_FORMAT    "F"
 
-static const char * output_usage[] = { "output-file", NULL };
-#define OPTION_OUTPUT   "out"
-#define ALIAS_OUTPUT    "o"
+static const char * outputf_usage[] = { "output-file", NULL };
+#define OPTION_OUTPUT_F "outfile"
+#define ALIAS_OUTPUT_F  "o"
+
+static const char * outputd_usage[] = { "output-dir", NULL };
+#define OPTION_OUTPUT_D "outdir"
+#define ALIAS_OUTPUT_D  "O"
 
 static const char * progress_usage[] = { "show progress", NULL };
 #define OPTION_PROGRESS "progress"
@@ -144,7 +148,8 @@ static const char * table_usage[] = { "which seq-table to use in case of pacbio"
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
-    { OPTION_OUTPUT,    ALIAS_OUTPUT,    NULL, output_usage,     1, true,   false },
+    { OPTION_OUTPUT_F,  ALIAS_OUTPUT_F,  NULL, outputf_usage,    1, true,   false },
+    { OPTION_OUTPUT_D,  ALIAS_OUTPUT_D,  NULL, outputd_usage,    1, true,   false },
     { OPTION_BUFSIZE,   ALIAS_BUFSIZE,   NULL, bufsize_usage,    1, true,   false },
     { OPTION_CURCACHE,  ALIAS_CURCACHE,  NULL, curcache_usage,   1, true,   false },
     { OPTION_MEM,       ALIAS_MEM,       NULL, mem_usage,        1, true,   false },
@@ -211,12 +216,12 @@ rc_t CC Usage ( const Args * args )
 
 typedef struct tool_ctx_t
 {
-    /*cmn_params cmn; cmn_iter.h */
     KDirectory * dir;
 
     const char * accession_path;
     const char * accession_short;
     const char * output_filename;
+    const char * output_dirname;
     const char * seq_tbl_name;
     
     tmp_id tmp_id;
@@ -311,7 +316,10 @@ static rc_t show_details( tool_ctx_t * tool_ctx )
         }
     }
     if ( rc == 0 )
-        rc = KOutMsg( "output       : '%s'\n", tool_ctx -> output_filename );
+    {
+        rc = KOutMsg( "output-file  : '%s'\n", tool_ctx -> output_filename );
+        rc = KOutMsg( "output-dir   : '%s'\n", tool_ctx -> output_dirname );
+    }
     return rc;
 }
 
@@ -336,7 +344,8 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> print_to_stdout = false; /* get_bool_option( args, OPTION_STDOUT ); */
     tool_ctx -> force = get_bool_option( args, OPTION_FORCE );        
     tool_ctx -> remove_temp_path = false;
-    tool_ctx -> output_filename = get_str_option( args, OPTION_OUTPUT, NULL );
+    tool_ctx -> output_filename = get_str_option( args, OPTION_OUTPUT_F, NULL );
+    tool_ctx -> output_dirname = get_str_option( args, OPTION_OUTPUT_D, NULL );
     tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
@@ -455,51 +464,89 @@ static rc_t handle_lookup_path( tool_ctx_t * tool_ctx )
     return rc;
 }
 
-static rc_t handle_output_filename( tool_ctx_t * tool_ctx )
+/* we have NO output-dir and NO output-file */
+static rc_t make_output_filename_from_accession( tool_ctx_t * tool_ctx )
+{
+    rc_t rc = 0;
+    /* we DO NOT have a output-directory : build output-filename from the accession */
+    /* generate the full path of the output-file, if not given */
+    size_t num_writ;        
+    rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
+                        &num_writ,
+                        "%s.fastq",
+                        tool_ctx -> accession_short );
+    if ( rc != 0 )
+        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+    else
+        tool_ctx -> output_filename = tool_ctx -> dflt_output;
+    return rc;
+}
+
+/* we have an output-dir and NO output-file */
+static rc_t make_output_filename_from_dir_and_accession( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
     size_t num_writ;
-    if ( tool_ctx -> output_filename == NULL )
+    bool es = ends_in_slash( tool_ctx -> output_dirname );
+    rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                        &num_writ,
+                        es ? "%s%s.fastq" : "%s/%s.fastq",
+                        tool_ctx -> output_dirname,
+                        tool_ctx -> accession_short );
+    if ( rc != 0 )
+        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+    else
+        tool_ctx -> output_filename = tool_ctx -> dflt_output;
+    return rc;
+}
+
+static rc_t optionally_create_paths_in_output_filename( tool_ctx_t * tool_ctx )
+{
+    rc_t rc = 0;
+    String path;
+    if ( extract_path( tool_ctx -> output_filename, &path ) )
     {
-        /* generate the full path of the output-file, if not given */
-        rc = string_printf( &tool_ctx -> dflt_output[ 0 ], sizeof tool_ctx -> dflt_output,
-                            &num_writ,
-                            "%s.fastq",
-                            tool_ctx -> accession_short );
-        if ( rc != 0 )
-            ErrMsg( "string_printf( output-filename ) -> %R", rc );
-        else
-            tool_ctx -> output_filename = tool_ctx -> dflt_output;
+        /* the output-filename contains a path... */
+        if ( !dir_exists( tool_ctx -> dir, "%S", &path ) )
+        {
+            /* this path does not ( yet ) exist, create it... */
+            rc = create_this_dir( tool_ctx -> dir, &path, true );
+        }
+    }
+    return rc;
+}
+
+static rc_t adjust_output_filename( tool_ctx_t * tool_ctx )
+{
+    rc_t rc = 0;
+    /* we do have a output-filename : use it */
+    if ( dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) )
+    {
+        /* the given output-filename is an existing directory ! */
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+        ErrMsg( "string_printf( output-filename ) -> %R", rc );
     }
     else
+        rc = optionally_create_paths_in_output_filename( tool_ctx );
+    return rc;
+}
+
+static rc_t adjust_output_filename_by_dir( tool_ctx_t * tool_ctx )
+{
+    rc_t rc = 0;
+    size_t num_writ;
+    bool es = ends_in_slash( tool_ctx -> output_dirname );
+    rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
+                        &num_writ,
+                        es ? "%s%s" : "%s/%s",
+                        tool_ctx -> output_dirname,
+                        tool_ctx -> output_filename );
+    if ( rc != 0 )
+        ErrMsg( "string_printf( output-filename ) -> %R", rc );
+    else
     {
-        if ( dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_filename ) )
-        {
-            /* the given output-filename is an existing directory */
-            bool es = ends_in_slash( tool_ctx -> output_filename );
-            rc = string_printf( tool_ctx -> dflt_output, sizeof tool_ctx -> dflt_output,
-                                &num_writ,
-                                es ? "%s%s.fastq" : "%s/%s.fastq",
-                                tool_ctx -> output_filename,
-                                tool_ctx -> accession_short );
-            if ( rc != 0 )
-                ErrMsg( "string_printf( output-filename ) -> %R", rc );
-            else
-                tool_ctx -> output_filename = tool_ctx -> dflt_output;
-        }
-        else
-        {
-            String path;
-            if ( extract_path( tool_ctx -> output_filename, &path ) )
-            {
-                /* the output-filename contains a path... */
-                if ( !dir_exists( tool_ctx -> dir, "%S", &path ) )
-                {
-                    /* this path does not ( yet ) exist, create it... */
-                    rc = create_this_dir( tool_ctx -> dir, &path, true );
-                }
-            }
-        }
+        tool_ctx -> output_filename = tool_ctx -> dflt_output;
+        rc = optionally_create_paths_in_output_filename( tool_ctx );
     }
     return rc;
 }
@@ -528,8 +575,29 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
     if ( rc == 0 )
         rc = handle_lookup_path( tool_ctx );
     
+    if ( rc == 0 && tool_ctx -> output_dirname != NULL )
+    {
+        if ( !dir_exists( tool_ctx -> dir, "%s", tool_ctx -> output_dirname ) )
+            rc = create_this_dir_2( tool_ctx -> dir, tool_ctx -> output_dirname, true );
+    }
+    
     if ( rc == 0 )
-        rc = handle_output_filename( tool_ctx );
+    {
+        if ( tool_ctx -> output_filename == NULL )
+        {
+            if ( tool_ctx -> output_dirname == NULL )
+                rc = make_output_filename_from_accession( tool_ctx );
+            else
+                rc = make_output_filename_from_dir_and_accession( tool_ctx );
+        }
+        else
+        {
+            if ( tool_ctx -> output_dirname == NULL )
+                rc = adjust_output_filename( tool_ctx );
+            else
+                rc = adjust_output_filename_by_dir( tool_ctx );
+        }
+    }
     
     if ( rc == 0 )
         rc = Make_FastDump_Cleanup_Task ( &( tool_ctx -> cleanup_task ) );

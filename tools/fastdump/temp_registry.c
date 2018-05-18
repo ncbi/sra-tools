@@ -193,8 +193,25 @@ static rc_t CC merge_thread_func( const KThread *self, void *data )
 
     VNamelistReorder ( md -> files, false );
     if ( md -> idx > 0 )
-        rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s.%u",
-                    md -> cmn -> output_filename, md -> idx );
+    {
+        /* we have to split md -> cmn -> output_filename into name and extension
+           then append '_%u' to the name, then re-append the extension */
+        String S_in, S_name, S_ext;
+        StringInitCString( &S_in, md -> cmn -> output_filename );
+        rc = split_string_r( &S_in, &S_name, &S_ext, '.' );
+        if ( rc == 0 )
+        {
+            /* we found a dot to split the filename! */
+            rc = make_and_print_to_SBuffer( &s_filename, 4096, "%S_%u.%S",
+                        &S_name, md -> idx, &S_ext );
+        }
+        else
+        {
+            /* we did not find a dot to split the filename! */
+            rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s_%u.fastq",
+                        md -> cmn -> output_filename, md -> idx );
+        }
+    }
     else
         rc = make_and_print_to_SBuffer( &s_filename, 4096, "%s",
                     md -> cmn -> output_filename );

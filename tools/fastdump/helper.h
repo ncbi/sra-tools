@@ -132,6 +132,7 @@ rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err );
 rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... );
 
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
+rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
 
 format_t get_format_t( const char * format, bool split_spot, bool split_file, bool split_3 );
 
@@ -156,6 +157,7 @@ const char * extract_acc( const char * s );
 
 rc_t create_this_file( KDirectory * dir, const char * filename, bool force );
 rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
+rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force );
 
 bool file_exists( const KDirectory * dir, const char * fmt, ... );
 bool dir_exists( const KDirectory * dir, const char * fmt, ... );

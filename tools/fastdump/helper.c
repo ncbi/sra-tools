@@ -326,6 +326,24 @@ rc_t split_string( String * in, String * p0, String * p1, uint32_t ch )
     return rc;
 }
 
+rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch )
+{
+    rc_t rc = 0;
+    char * ch_ptr = string_rchr( in -> addr, in -> size, ch );
+    if ( ch_ptr == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
+    else
+    {
+        p0 -> addr = in -> addr;
+        p0 -> size = ( ch_ptr - p0 -> addr );
+        p0 -> len  = ( uint32_t ) p0 -> size;
+        p1 -> addr = ch_ptr + 1;
+        p1 -> size = in -> len - ( p0 -> len + 1 );
+        p1 -> len  = ( uint32_t ) p1 -> size;
+    }
+    return rc;
+}
+
 compress_t get_compress_t( bool gzip, bool bzip2 )
 {
     if ( gzip && bzip2 )
@@ -742,6 +760,15 @@ rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force )
     rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%.*s", dir_name -> len, dir_name -> addr );
     if ( rc != 0 )
         ErrMsg( "KDirectoryCreateDir( '%.*s' ) -> %R", dir_name -> len, dir_name -> addr, rc );
+    return rc;
+}
+
+rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force )
+{
+    KCreateMode create_mode = force ? kcmInit : kcmCreate;
+    rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%s", dir_name );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryCreateDir( '%s' ) -> %R", dir_name, rc );
     return rc;
 }
 

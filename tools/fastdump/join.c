@@ -807,6 +807,8 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     else
     {
         fastq_rec rec; /* fastq_iter.h */
+        rc_t rc_iter = 0;
+        
         join_options local_opt =
             {
                 jo -> rowid_as_name,
@@ -817,7 +819,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
                 jo -> filter_bases
             };
 
-        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
+        while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -839,6 +841,9 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
             }
         }
         destroy_fastq_csra_iter( iter );
+        
+        if ( rc == 0 && rc_iter != 0 )
+            rc = rc_iter;
     }
     return rc;
 }

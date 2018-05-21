@@ -69,6 +69,7 @@ static rc_t read_bounded_quality( struct cmn_iter * cmn,
     }
     if ( rc != 0 )
     {
+        quality -> addr = NULL;
         quality -> len = 0;
         quality -> size = 0;
         rc = 0;
@@ -196,6 +197,12 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
                 rec -> num_read_type = 0;
         }
         
+        if ( rec -> read . len != rec -> quality . len )
+        {
+            rc1 = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            ErrMsg( "row #%ld : READ.len != QUALITY.len\n", rec -> row_id );
+        }
+        
         if ( rc != NULL )
             *rc = rc1;
     }   
@@ -320,6 +327,12 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
                 rc1 = cmn_read_uint8_array( self -> cmn, self -> read_type_id, &rec -> read_type, &( rec -> num_read_type ) );
             else
                 rec -> num_read_type = 0;
+        }
+
+        if ( rec -> read . len != rec -> quality . len )
+        {
+            rc1 = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            ErrMsg( "row #%ld : READ.len != QUALITY.len\n", rec -> row_id );
         }
         
         if ( rc != NULL )

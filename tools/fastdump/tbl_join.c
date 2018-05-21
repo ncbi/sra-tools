@@ -85,8 +85,11 @@ static rc_t print_fastq_1_read( join_stats * stats,
     rc_t rc = 0;
 
     if ( rec -> read . len != rec -> quality . len )
+    {
+        ErrMsg( "row #%ld : READ.len != QUALITY.len\n", rec -> row_id );
         return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-
+    }
+    
     if ( filter1( stats, rec, jo ) )
     {
         if ( join_results_match( results, &( rec -> read ) ) )
@@ -118,8 +121,11 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
     uint32_t read_len_sum = 0;
     
     if ( rec -> read . len != rec -> quality . len )
+    {
+        ErrMsg( "row #%ld : READ.len != QUALITY.len\n", rec -> row_id );
         return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-
+    }
+    
     while ( read_id_0 < rec -> num_read_len )
         read_len_sum += rec -> read_len[ read_id_0++ ];
 
@@ -326,6 +332,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
         ErrMsg( "perform_fastq_join().make_fastq_iter() -> %R", rc );
     else
     {
+        rc_t rc_iter;
         fastq_rec rec;
         join_options local_opt =
         {
@@ -337,7 +344,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
             jo -> filter_bases
         };
 
-        while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        while ( rc == 0 && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
         {
             stats -> spots_read++;
             stats -> fragments_read += rec . num_read_len;
@@ -350,6 +357,8 @@ static rc_t perform_fastq_join( cmn_params * cp,
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
+        if ( rc == 0 && rc_iter != 0 )
+            rc = rc_iter;
         destroy_fastq_sra_iter( iter );
     }
     return rc;
@@ -372,8 +381,9 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( rc == 0 )
     {
+        rc_t rc_iter;
         fastq_rec rec;
-        while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        while ( rc == 0 && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -389,6 +399,8 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
+        if ( rc == 0 && rc_iter != 0 )
+            rc = rc_iter;
         destroy_fastq_sra_iter( iter );
     }
     else
@@ -413,8 +425,9 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( rc == 0 )
     {
+        rc_t rc_iter;
         fastq_rec rec;
-        while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        while ( rc == 0 && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -430,6 +443,8 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
+        if ( rc == 0 && rc_iter != 0 )
+            rc = rc_iter;
         destroy_fastq_sra_iter( iter );
     }
     else
@@ -454,6 +469,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
     rc = make_fastq_sra_iter( cp, opt, tbl_name, &iter ); /* fastq-iter.c */
     if ( rc == 0 )
     {
+        rc_t rc_iter;
         fastq_rec rec;
         join_options local_opt =
         {
@@ -465,7 +481,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
             jo -> filter_bases
         };
         
-        while ( get_from_fastq_sra_iter( iter, &rec, &rc ) && rc == 0 ) /* fastq-iter.c */
+        while ( rc == 0 && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
         {
             rc = Quitting();
             if ( rc == 0 )
@@ -481,6 +497,8 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
                 bg_progress_inc( progress ); /* progress_thread.c (ignores NULL) */
             }
         }
+        if ( rc == 0 && rc_iter != 0 )
+            rc = rc_iter;
         destroy_fastq_sra_iter( iter );
     }
     else

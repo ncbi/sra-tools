@@ -35,19 +35,23 @@ extern "C" {
 #include <klib/vector.h>
 
 struct VCursor;
+struct VDatabase;
+struct VSchema;
+struct VView;
 
 typedef struct view_spec view_spec;
 struct view_spec
 {
-    String  view_name;
-    Vector  args; /* char*, owned */
-    char    error[1024];
+    char *          view_name;
+    Vector          args; /* char*, owned */
+    char            error[1024];
+    const struct VView *  view;
 };
 
 rc_t view_spec_parse ( const char * spec, view_spec ** self );
 void view_spec_free ( view_spec * self );
 
-rc_t CreateViewCursor ( view_spec * self, struct VCursor **  );
+rc_t view_spec_make_cursor ( view_spec * self, const struct VDatabase * db, const struct VSchema * schema, const struct VCursor ** );
 
 #ifdef __cplusplus
 }

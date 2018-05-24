@@ -1,0 +1,7 @@
+version 2;
+
+view V#1 < NCBI:SRA:Nanopore:sequence t >
+{
+    column ascii READ = t.READ;
+}
+

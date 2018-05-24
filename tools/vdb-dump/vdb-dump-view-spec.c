@@ -31,6 +31,12 @@
 #include <klib/text.h>
 #include <klib/token.h>
 
+#include <vdb/cursor.h>
+#include <vdb/view.h>
+#include <vdb/table.h>
+#include <vdb/database.h>
+#include <vdb/manager.h>
+
 static
 rc_t Error ( view_spec * p_self, const char * p_message )
 {
@@ -57,9 +63,10 @@ view_spec_parse ( const char * p_spec, view_spec ** p_self )
         }
         else
         {
-            StringInit ( & self -> view_name, NULL, 0, 0 );
+            self -> view_name = NULL;
             VectorInit( & self -> args, 0, 4 );
             self -> error [0] = 0;
+            self -> view = NULL;
             * p_self = self;
 
             if ( p_spec == NULL )
@@ -84,7 +91,7 @@ view_spec_parse ( const char * p_spec, view_spec ** p_self )
                 }
                 else
                 {
-                    self -> view_name = tok . str;
+                    self -> view_name = string_dup ( tok . str . addr, tok . str . size );
 
                     if ( KTokenizerNext ( kDefaultTokenizer, & src, & tok ) -> id != eLeftAngle )
                     {
@@ -133,5 +140,87 @@ void view_spec_free ( view_spec * p_self )
     if ( p_self != NULL )
     {
         VectorWhack( & p_self -> args, free_arg, NULL );
+        free ( p_self -> view_name );
+        VViewRelease ( p_self -> view );
+        free ( p_self );
+    }
+}
+
+rc_t
+view_spec_make_cursor ( view_spec *       p_self, 
+                        const VDatabase *       p_db, 
+                        const struct VSchema *  p_schema, 
+                        const VCursor **        p_curs )
+{
+    if ( p_self == NULL )
+    {
+        return RC( rcVDB, rcCursor, rcConstructing, rcSelf, rcNull );
+    }
+    else if ( p_db == NULL || p_schema == NULL || p_curs == NULL )
+    {
+        return RC( rcVDB, rcCursor, rcConstructing, rcParam, rcNull );
+    }
+    else
+    {
+        const VDBManager * mgr;
+        rc_t rc = VDatabaseOpenManagerRead ( p_db, & mgr );
+        if ( rc == 0 )
+        {
+            rc = VDBManagerOpenView ( mgr, & p_self -> view, p_schema, p_self -> view_name );
+            if ( rc == 0 )
+            {
+                // bind parameters
+                uint32_t count = VectorLength ( & p_self -> args );
+                if ( count != VViewParameterCount ( p_self -> view ) )
+                {
+                    rc = RC( rcVDB, rcCursor, rcConstructing, rcParam, rcIncorrect );
+                }
+                else
+                {
+                    uint32_t start = VectorStart ( & p_self -> args );
+                    uint32_t i;
+                    for ( i = 0; i < count; ++i )
+                    {
+                        uint32_t idx = start + i;
+                        const String * paramName;
+                        bool is_table;
+                        rc = VViewGetParameter ( p_self -> view, idx, & paramName, & is_table );
+                        if ( rc != 0 )
+                        {
+                            break;
+                        }
+                        else
+                        {
+                            const char * name = (const char*)VectorGet ( & p_self -> args, idx );
+                            if ( is_table )
+                            {
+                                const VTable * tbl;
+                                rc = VDatabaseOpenTableRead ( p_db, & tbl, "%s", name );
+                                if ( rc != 0 )
+                                {
+                                    break;
+                                }
+                                rc = VViewBindParameterTable ( p_self -> view, paramName, tbl );
+                                VTableRelease ( tbl );
+                                if ( rc != 0 )
+                                {
+                                    break;
+                                }
+                            }
+                            else
+                            {
+                                assert (false); /*TODO: view */
+                            }
+                        }
+                    }
+                    if ( rc == 0 )
+                    {
+                        rc = VViewCreateCursor ( p_self -> view, p_curs );
+                    }
+                }
+            }
+            VDBManagerRelease ( mgr );
+        }
+        return rc;
     }
 }

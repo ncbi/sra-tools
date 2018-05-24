@@ -68,6 +68,9 @@ rc_t vdh_parse_schema( const VDBManager *my_manager,
                        VSchema **new_schema,
                        Vector *schema_list,
                        bool with_sra_schema );
+rc_t vdh_parse_schema_add_on ( const VDBManager *my_manager,
+                               VSchema *base_schema,
+                               Vector *schema_list );
 
 bool vdh_is_path_table( const VDBManager *my_manager, const char *path,
                         Vector *schema_list );

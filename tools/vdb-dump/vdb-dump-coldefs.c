@@ -425,6 +425,68 @@ uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *my_ta
 }
 
 
+uint32_t vdcd_parse_string_view( col_defs* defs, const char* src, const VView *my_view )
+{
+    uint32_t count, found = 0;
+    char colname[MAX_COL_NAME_LEN+1];
+    size_t i_dest = 0;
+    if ( defs == NULL ) return false;
+    if ( src == NULL ) return false;
+    while ( *src )
+    {
+        if ( *src == ',' )
+        {
+            if ( i_dest > 0 )
+            {
+                colname[i_dest]=0;
+                vdcd_append_col( defs, colname );
+            }
+            i_dest = 0;
+        }
+        else
+        {
+            if ( i_dest < MAX_COL_NAME_LEN ) colname[i_dest++]=*src;
+        }
+        src++;
+    }
+    if ( i_dest > 0 )
+    {
+        colname[i_dest]=0;
+        vdcd_append_col( defs, colname );
+    }
+    count = VectorLength( &defs->cols );
+    if ( count > 0 && my_view != NULL )
+    {
+        const VCursor *my_cursor;
+        rc_t rc = VViewCreateCursor( my_view, &my_cursor );
+        DISP_RC( rc, "VViewCreateCursor() failed" );
+        if ( rc == 0 )
+        {
+            uint32_t idx;
+            for ( idx = 0; idx < count; ++idx )
+            {
+                col_def *col = ( col_def * )VectorGet( &(defs->cols), idx );
+                if ( col != NULL )
+                {
+                    rc = VCursorAddColumn( my_cursor, &(col->idx), "%s", col->name );
+                    DISP_RC( rc, "VCursorAddColumn() failed" );
+                    if ( rc == 0 )
+                    {
+                        rc = VCursorDatatype( my_cursor, col->idx,
+                                  &(col->type_decl), &(col->type_desc) );
+                        DISP_RC( rc, "VCursorDatatype() failed" );
+                        if ( rc == 0 )
+                            found++;
+                    }
+                }
+            }
+            rc = VCursorRelease( my_cursor );
+            DISP_RC( rc, "VCursorRelease() failed" );
+        }
+    }
+    return found;
+}
+
 bool vdcd_table_has_column( const VTable *my_table, const char * to_find )
 {
 	bool res = false;
@@ -515,6 +577,56 @@ uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *my_table )
     return found;
 }
 
+uint32_t vdcd_extract_from_view( col_defs* defs, const VView *my_view )
+{
+    uint32_t found = 0;
+    KNamelist *names;
+    rc_t rc = VViewListCol( my_view, &names );
+    DISP_RC( rc, "VViewListCol() failed" );
+    if ( rc == 0 )
+    {
+        const VCursor *my_cursor;
+        rc = VViewCreateCursor( my_view, &my_cursor );
+        DISP_RC( rc, "VViewCreateCursor() failed" );
+        if ( rc == 0 )
+        {
+            uint32_t n;
+            rc = KNamelistCount( names, &n );
+            DISP_RC( rc, "KNamelistCount() failed" );
+            if ( rc == 0 )
+            {
+                uint32_t i;
+                for ( i = 0; i < n && rc == 0; ++i )
+                {
+                    const char *col_name;
+                    rc = KNamelistGet( names, i, &col_name );
+                    DISP_RC( rc, "KNamelistGet() failed" );
+                    if ( rc == 0 )
+                    {
+                        p_col_def def = vdcd_append_col( defs, col_name );
+                        rc = VCursorAddColumn( my_cursor, &(def->idx), "%s", def->name );
+                        DISP_RC( rc, "vdcd_extract_from_view:VCursorAddColumn() failed" );
+                        if ( rc == 0 )
+                        {
+                            rc = VCursorDatatype( my_cursor, def->idx,
+                                      &(def->type_decl), &(def->type_desc) );
+                            DISP_RC( rc, "VCursorDatatype() failed" );
+                            if ( rc == 0 )
+                            {
+                                found++;
+                            }
+                        }
+                    }
+                }
+            }
+            rc = VCursorRelease( my_cursor );
+            DISP_RC( rc, "VCursorRelease() failed" );
+        }
+        rc = KNamelistRelease( names );
+        DISP_RC( rc, "KNamelistRelease() failed" );
+    }
+    return found;
+}
 
 bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *my_table )
 {
@@ -568,7 +680,7 @@ static void CC vdcd_add_1_to_cursor( void *item, void *data )
     if ( ctx == NULL ) return;
     if ( ctx->my_cursor == NULL ) return;
     rc = VCursorAddColumn( ctx->my_cursor, &(my_col_def->idx), "%s", my_col_def->name );
-    DISP_RC( rc, "VCursorAddColumn() failed" );
+    DISP_RC( rc, "vdcd_add_1_to_cursor:VCursorAddColumn() failed" );
 
     /***************************************************************************
     !!! extract type information !!!
@@ -766,10 +878,10 @@ static rc_t vdcd_collect_spread_col( const struct num_gen * row_set, col_def * c
 		int64_t row_id;
 		spread s;
 		spread * sp = &s;
-		
+
 		s.max = s.sum = s.sum_sq = s.count = 0;
 		s.min = INT64_MAX;
-		
+
 		while ( ( rc == 0 ) && num_gen_iterator_next( iter, &row_id, &rc ) )
 		{
 			if ( rc == 0 )	rc = Quitting();
@@ -818,11 +930,11 @@ static rc_t vdcd_collect_spread_col( const struct num_gen * row_set, col_def * c
 				if ( rc == 0 )
 				{
 					double stdev = sqrt( ( ( s.sum_sq - ( s.sum * s.sum ) / s.count ) ) / ( s.count - 1 ) );
-					rc = KOutMsg( "stdev  = %,ld\n", round_to_uint64_t( stdev ) );	
+					rc = KOutMsg( "stdev  = %,ld\n", round_to_uint64_t( stdev ) );
 				}
 			}
 		}
-		
+
 		num_gen_iterator_destroy( iter );
 	}
 	return rc;

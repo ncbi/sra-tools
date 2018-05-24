@@ -119,7 +119,8 @@ VDB_THUNK_OBJ = \
 	VTypedesc=tdesc \
 	:VDatabase=db \
 	:VTable=tbl \
-	:VCursor=curs
+	:VCursor=curs \
+	:VView=view
 
 kqsh-vdb.c: $(VDB_THUNK_DEPS)
 	perl kqsh-thunk.pl -mvdb -I$(ITF) $(addprefix -i,$(VDB_THUNK_INCS)) \

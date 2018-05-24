@@ -27,6 +27,7 @@
 #include <vdb/manager.h>
 #include <vdb/schema.h>
 #include <vdb/table.h>
+#include <vdb/view.h>
 #include <vdb/cursor.h>
 #include <vdb/database.h>
 #include <vdb/dependencies.h>
@@ -606,6 +607,31 @@ static bool vdm_extract_or_parse_static_columns( const p_dump_context ctx,
     return res;
 
 }
+
+static uint32_t vdm_extract_or_parse_columns_view( const p_dump_context ctx,
+                                                   const VView *my_view,
+                                                   p_col_defs my_col_defs )
+{
+    uint32_t count = 0;
+    if ( ctx != NULL && my_col_defs != NULL )
+    {
+        bool cols_unknown = ( ( ctx->columns == NULL ) || ( string_cmp( ctx->columns, 1, "*", 1, 1 ) == 0 ) );
+        if ( cols_unknown )
+        {
+            /* the user does not know the column-names or wants all of them */
+            count = vdcd_extract_from_view( my_col_defs, my_view );
+        }
+        else
+            /* the user knows the names of the wanted columns... */
+            count = vdcd_parse_string_view( my_col_defs, ctx->columns, my_view );
+
+        if ( ctx->excluded_columns != NULL )
+            vdcd_exclude_these_columns( my_col_defs, ctx->excluded_columns );
+    }
+
+    return count;
+}
+
 
 /*************************************************************************************
     dump_tab_table:
@@ -1953,80 +1979,122 @@ static rc_t vdm_dump_database( const p_dump_context ctx, const VDBManager *my_ma
 ctx        [IN] ... contains path, view instantiation string, columns, row-range etc.
 my_manager [IN] ... open manager needed for vdb-calls
 ***************************************************************************/
-static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *my_manager )
+static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr )
 {
     view_spec * view;
-    rc_t rc = view_spec_parse ( ctx -> view, & view );
+    rc_t rc;
+
+    if ( ! vdh_is_path_database( mgr, ctx->path, NULL ) )
+    {
+        ErrMsg( "Option --view can only be used with a database object" );
+        return RC( rcVDB, rcTable, rcConstructing, rcFormat, rcIncorrect );
+    }
+
+    rc = view_spec_parse ( ctx -> view, & view );
     if ( rc == 0 )
     {
-        const VView *my_view;
-        VSchema *my_schema = NULL;
-        rc = vdh_parse_schema( my_manager, &my_schema, &(ctx->schema_list), ctx->force_sra_schema );
-        if ( rc == 0 )
+        const VDatabase * db;
+        rc_t rc;
+        rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", ctx->path );
+        if ( rc != 0 )
         {
-            const VView * view;
-            rc = VDBManagerOpenView ( my_manager, & view, my_schema, ctx -> view );
+            ErrMsg( "VDBManagerOpenDBRead( '%s' ) -> %R", ctx->path, rc );
+        }
+        else
+        {
+            row_context r_ctx;
+            VSchema * schema = NULL;
+            rc = VDatabaseOpenSchema ( db, ( const VSchema ** ) & schema );
+            if ( rc != 0 )
+            {
+                ErrMsg( "VDatabaseOpenSchema( '%s' ) -> %R", ctx->path, rc );
+            }
+            else
+            {
+                rc = vdh_parse_schema_add_on ( mgr, schema, &(ctx->schema_list) );
+                if ( rc != 0 )
+                {
+                    ErrMsg( "vdh_parse_schema_add_on( '%s' ) -> %R", ctx->path, rc );
+                }
+            }
             if ( rc == 0 )
-            {   /* bind */
+            {
+                rc = view_spec_make_cursor ( view, db, schema, & r_ctx.cursor );
+                if ( rc != 0 )
+                {
+                    ErrMsg( "view_spec_make_cursor( '%s' ) -> %R", ctx->path, rc );
+                }
+            }
+            if ( rc == 0 )
+            {
+                if ( !vdcd_init( &(r_ctx.col_defs), ctx->max_line_len ) )
+                {
+                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                    DISP_RC( rc, "col_defs_init() failed" );
+                }
+            }
+            if ( rc == 0 )
+            {
+                uint32_t n = vdm_extract_or_parse_columns_view( ctx, view -> view, r_ctx.col_defs );
+                if ( n < 1 )
+                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                else
+                {
+                    n = vdcd_add_to_cursor( r_ctx.col_defs, r_ctx.cursor );
+                    if ( n < 1 )
+                        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                }
+            }
+            if ( rc == 0 )
+            {
+                rc = VCursorOpen( r_ctx.cursor );
+                DISP_RC( rc, "VCursorOpen() failed" );
+                if ( rc == 0 )
+                {
+                    int64_t  first;
+                    uint64_t count;
+                    rc = VCursorIdRange( r_ctx.cursor, 0, &first, &count );
+                    DISP_RC( rc, "VCursorIdRange() failed" );
+                    if ( rc == 0 )
+                    {
+                        if ( ctx->rows == NULL )
+                        {
+                            /* if the user did not specify a row-range, take all rows */
+                            rc = num_gen_make_from_range( &ctx->rows, first, count );
+                            DISP_RC( rc, "num_gen_make_from_range() failed" );
+                        }
+                        else
+                        {
+                            /* if the user did specify a row-range, check the boundaries */
+                            if ( count > 0 )
+                            {
+                                /* trim only if the row-range is not zero, otherwise
+                                    we will not get data if the user specified only static columns
+                                    because they report a row-range of zero! */
+                                rc = num_gen_trim( ctx->rows, first, count );
+                                DISP_RC( rc, "num_gen_trim() failed" );
+                            }
+                        }
 
+                        if ( rc == 0 )
+                        {
+                            if ( num_gen_empty( ctx->rows ) )
+                            {
+                                rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                            }
+                            else
+                            {
+                                r_ctx.ctx = ctx;
+                                rc = vdm_dump_rows( &r_ctx ); /* <--- */
+                            }
+                        }
+                    }
+                }
             }
         }
     }
 
     return rc;
-
-#if 0
-    rc_t rc;
-
-    bool table_valid = ( ctx->table == NULL )||( is_sequence( ctx->table ) );
-    if ( !table_valid )
-    {
-        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcItem, rcNotFound );
-        ErrMsg( "Table '%s' not found-> %R", ctx->table, rc );
-    }
-    else
-    {
-        if ( ctx->schema_dump_requested )
-        {
-            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_tab_schema );
-        }
-        else if ( ctx->table_enum_requested )
-        {
-            KOutMsg( "cannot enum tables of a table-object\n" );
-            vdm_clear_recorded_errors();
-            rc = 0;
-        }
-        else if ( enum_col_request( ctx ) )
-        {
-            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_enum_tab_columns );
-        }
-        else if ( ctx->id_range_requested )
-        {
-            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_print_tab_id_range );
-        }
-        else if ( ctx->idx_enum_requested )
-        {
-            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_enum_tab_index );
-        }
-        else if ( ctx->idx_range_requested )
-        {
-            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_range_tab_index );
-        }
-        else if ( ctx->show_spotgroups )
-        {
-            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spotgroups );
-        }
-        else if ( ctx->show_spread )
-        {
-            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_show_tab_spread );
-        }
-        else
-        {
-            rc = vdm_dump_tab_fkt( ctx, my_manager, vdm_dump_opened_table );
-        }
-    }
-    return rc;
-#endif
 }
 
 static rc_t vdm_print_objver( const p_dump_context ctx, const VDBManager *mgr )

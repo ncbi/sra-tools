@@ -24,3 +24,4 @@
 *.stash
 tmp.kfg
 .gdb_history
+.vscode/

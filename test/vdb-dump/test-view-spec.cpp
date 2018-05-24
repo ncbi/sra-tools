@@ -32,7 +32,15 @@
 
 #include <ktst/unit_test.hpp>
 
+#include <kfs/directory.h>
+#include <vdb/manager.h>
+#include <vdb/schema.h>
+#include <vdb/database.h>
+#include <vdb/table.h>
+
 using namespace std;
+
+const string ScratchDir = "./db/";
 
 TEST_SUITE ( VdbDumpViewSpecTestSuite );
 
@@ -83,7 +91,7 @@ TEST_CASE ( OneParam )
     REQUIRE_RC ( view_spec_parse ( "name<param>", & self ) );
     REQUIRE_EQ ( 0, (int)self -> error [ 0 ] );
     REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( string ( "name" ), string ( self -> view_name . addr, self -> view_name . len ));
+    REQUIRE_EQ ( string ( "name" ), string ( self -> view_name ) );
     REQUIRE_EQ ( 1u, VectorLength ( & self -> args ) );
     REQUIRE_EQ ( string ( "param" ), string ( (const char*) VectorGet ( & self -> args, 0 ) ) );
     view_spec_free ( self );
@@ -95,7 +103,7 @@ TEST_CASE ( ManyParams )
     REQUIRE_RC ( view_spec_parse ( "name<p0,p1, p2 ,p3    , \t  p4>", & self ) );
     REQUIRE_NOT_NULL ( self );
     REQUIRE_EQ ( 0, (int)self -> error [ 0 ] );
-    REQUIRE_EQ ( string ( "name" ), string ( self -> view_name . addr, self -> view_name . len ));
+    REQUIRE_EQ ( string ( "name" ), string ( self -> view_name ) );
     REQUIRE_EQ ( 5u, VectorLength ( & self -> args ) );
     REQUIRE_EQ ( string ( "p0" ), string ( (const char*) VectorGet ( & self -> args, 0 ) ) );
     REQUIRE_EQ ( string ( "p1" ), string ( (const char*) VectorGet ( & self -> args, 1 ) ) );
@@ -133,17 +141,160 @@ TEST_CASE ( ExtraChars )
     view_spec_free ( self );
 }
 
-TEST_CASE ( CreateViewCursor_NullSelf )
+class ViewCursorFixture
 {
-    VCursor * cur;
-    REQUIRE_RC_FAIL ( CreateViewCursor ( NULL, & cur ) );
+public:
+    ViewCursorFixture()
+    :   m_spec ( 0 ),
+        m_mgr ( 0 ),
+        m_schema ( 0 ),
+        m_db ( 0 ),
+        m_cursor ( 0 )
+    {
+        KDirectory *dir;
+        THROW_ON_RC ( KDirectoryNativeDir( & dir ) );
+        THROW_ON_RC ( VDBManagerMakeUpdate( & m_mgr, dir ) );
+        THROW_ON_RC ( VDBManagerMakeSchema( m_mgr, & m_schema ) );
+        KDirectoryRelease ( dir );
+    }
+    ~ViewCursorFixture()
+    {
+        VCursorRelease ( m_cursor );
+        VDatabaseRelease ( m_db );
+        VSchemaRelease ( m_schema );
+        VDBManagerRelease ( m_mgr );
+        view_spec_free ( m_spec );
+    }
+
+    void MakeDatabase ( const string & p_dbName, const string & p_schemaText, const  string & p_schemaSpec )
+    {
+        KDirectory* wd;
+        KDirectoryNativeDir ( & wd );
+        KDirectoryRemove ( wd, true, p_dbName . c_str () );
+        KDirectoryRelease ( wd );
+
+        THROW_ON_RC ( VSchemaParseText ( m_schema, NULL, p_schemaText . c_str(), p_schemaText . size () ) );
+        THROW_ON_RC ( VDBManagerCreateDB ( m_mgr,
+                                          & m_db,
+                                          m_schema,
+                                          p_schemaSpec . c_str (),
+                                          kcmInit + kcmMD5,
+                                          "%s",
+                                          p_dbName . c_str () ) );
+    }
+
+    void WriteRow ( VCursor * p_cursor, uint32_t p_colIdx, const std :: string & p_value )
+    {
+        THROW_ON_RC ( VCursorOpenRow ( p_cursor ) );
+        THROW_ON_RC ( VCursorWrite ( p_cursor, p_colIdx, 8, p_value . c_str (), 0, p_value . length () ) );
+        THROW_ON_RC ( VCursorCommitRow ( p_cursor ) );
+        THROW_ON_RC ( VCursorCloseRow ( p_cursor ) );
+    }
+
+    void CreateDb ( const string & p_testName )
+    {
+        const string SchemaText =
+            "version 2;"
+            "table T#1 { column ascii col; } "
+            "database D#1 { table T t; } "
+            "view V#1 < T tbl > { column ascii c = tbl . col; }";
+        const char * TableName = "t";
+        const char * TableColumnName = "col";
+
+        MakeDatabase ( ScratchDir + p_testName, SchemaText, "D" );
+
+        VTable* table;
+        THROW_ON_RC ( VDatabaseCreateTable ( m_db, & table, TableName, kcmCreate | kcmMD5, "%s", TableName ) );
+        VCursor * cursor;
+        THROW_ON_RC ( VTableCreateCursorWrite ( table, & cursor, kcmInsert ) );
+        THROW_ON_RC ( VTableRelease ( table ) );
+
+        uint32_t column_idx;
+        THROW_ON_RC ( VCursorAddColumn ( cursor, & column_idx, TableColumnName ) );
+        THROW_ON_RC ( VCursorOpen ( cursor ) );
+
+        // insert some rows
+        WriteRow ( cursor, column_idx, "blah" );
+        WriteRow ( cursor, column_idx, "eeee" );
+
+        THROW_ON_RC ( VCursorCommit ( cursor ) );
+        THROW_ON_RC ( VCursorRelease ( cursor ) );
+    }
+
+    view_spec *     m_spec;
+    VDBManager *    m_mgr;
+    VSchema *       m_schema;
+    VDatabase *     m_db;
+    const VCursor * m_cursor;
+};
+
+FIXTURE_TEST_CASE ( MakeCursor_NullSelf, ViewCursorFixture )
+{
+    CreateDb ( GetName () );
+
+    REQUIRE_RC_FAIL ( view_spec_make_cursor ( NULL, m_db, m_schema, & m_cursor ) );
 }
 
-TEST_CASE ( CreateViewCursor_NullParam )
+FIXTURE_TEST_CASE ( MakeCursor_NullParam_Db, ViewCursorFixture )
 {
-    view_spec * self;
-    REQUIRE_RC ( view_spec_parse ( "name<p>", & self ) );
-    REQUIRE_RC_FAIL ( CreateViewCursor ( self, NULL ) );
+    REQUIRE_RC ( view_spec_parse ( "name<p>", & m_spec ) );
+
+    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, NULL, m_schema, & m_cursor ) );
+}
+
+FIXTURE_TEST_CASE ( MakeCursor_NullParam_Schema, ViewCursorFixture )
+{
+    CreateDb ( GetName () );
+    REQUIRE_RC ( view_spec_parse ( "name<p>", & m_spec ) );
+
+    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, m_db, NULL, & m_cursor ) );
+}
+
+FIXTURE_TEST_CASE ( MakeCursor_NullParam_Cursor, ViewCursorFixture )
+{
+    CreateDb ( GetName () );
+    REQUIRE_RC ( view_spec_parse ( "name<p>", & m_spec ) );
+
+    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, m_db, m_schema, NULL ) );
+}
+
+FIXTURE_TEST_CASE ( MakeCursor_WrongNumberOfParams, ViewCursorFixture )
+{
+    CreateDb ( GetName () );
+    REQUIRE_RC ( view_spec_parse ( "V<t, t>", & m_spec ) );
+
+    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, m_db, m_schema, & m_cursor ) );
+    //TODO need to set m_spec -> error ?
+}
+
+FIXTURE_TEST_CASE ( MakeCursor_ParamNotTable, ViewCursorFixture )
+{
+    CreateDb ( GetName () );
+    REQUIRE_RC ( view_spec_parse ( "V<not_a_t>", & m_spec ) );
+
+    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, m_db, m_schema, & m_cursor ) );
+}
+
+//TODO: param not a view
+
+FIXTURE_TEST_CASE ( MakeCursor, ViewCursorFixture )
+{
+    CreateDb ( GetName () );
+    REQUIRE_RC ( view_spec_parse ( "V<t>", & m_spec ) );
+
+    REQUIRE_RC ( view_spec_make_cursor ( m_spec, m_db, m_schema, & m_cursor ) );
+    REQUIRE_NOT_NULL ( m_cursor );
+    REQUIRE_NOT_NULL ( m_spec -> view );
+    // walk the cursor
+    uint32_t colIdx;
+    REQUIRE_RC ( VCursorAddColumn ( m_cursor, & colIdx, "c" ) );
+    REQUIRE_RC ( VCursorOpen ( m_cursor ) );
+    char buf[1024];
+    uint32_t rowLen;
+    REQUIRE_RC ( VCursorReadDirect ( m_cursor, 1, colIdx, 8, buf, sizeof ( buf ), & rowLen ) );
+    REQUIRE_EQ ( string ( "blah" ), string ( buf, rowLen ) );
+    REQUIRE_RC ( VCursorReadDirect ( m_cursor, 2, colIdx, 8, buf, sizeof ( buf ), & rowLen ) );
+    REQUIRE_EQ ( string ( "eeee") , string ( buf, rowLen ) );
 }
 
 //TODO: nested views v1<v2<t>,V3<t>>

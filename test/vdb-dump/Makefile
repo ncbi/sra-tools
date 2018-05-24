@@ -50,6 +50,7 @@ clean: stdclean
 #
 all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@
+	@ mkdir -p actual db
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
@@ -106,7 +107,7 @@ VIEW_SPEC_OBJ = \
 VIEW_SPEC_LIB = \
 	-skapp \
 	-sktst \
-	-sncbi-vdb \
+	-sncbi-wvdb \
 
 $(TEST_BINDIR)/test-view-spec: $(VIEW_SPEC_OBJ)
 	$(LP) --exe -o $@ $^ $(VIEW_SPEC_LIB)
@@ -116,24 +117,54 @@ viewspec: test-view-spec
 
 #-------------------------------------------------------------------------------
 # run tests for vdb-dump
+VDB_DUMP = $(BINDIR)/vdb-dump
 vdb-dump: makedb
 	@ rm -rf actual
 	@ mkdir -p actual
 	@ echo "testing vdb-dump..."
-	@ # output format
-	@ $(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
-	@ $(BINDIR)/vdb-dump SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
-	@ # nested databases
-	@ $(BINDIR)/vdb-dump -E data/NestedDatabase >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
-	@ $(BINDIR)/vdb-dump -T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase >actual/2.1.stdout && diff expected/2.1.stdout actual/2.1.stdout
-	@ $(BINDIR)/vdb-dump -T SUBDB_1.SUBSUBDB_2.TABLE2 data/NestedDatabase >actual/2.2.stdout && diff expected/2.2.stdout actual/2.2.stdout
+	# output format
+	@ $(VDB_DUMP) SRR056386 -R 1 -C READ -f tab >actual/1.0.stdout && diff expected/1.0.stdout actual/1.0.stdout
+	@ $(VDB_DUMP) SRR056386 -R 1 -C READ -f tab -I >actual/1.1.stdout && diff expected/1.1.stdout actual/1.1.stdout
+	# nested databases
+	@ $(VDB_DUMP) -E data/NestedDatabase >actual/2.0.stdout && diff expected/2.0.stdout actual/2.0.stdout
+	@ $(VDB_DUMP) -T SUBDB_1.SUBSUBDB_1.TABLE1 data/NestedDatabase >actual/2.1.stdout && diff expected/2.1.stdout actual/2.1.stdout
+	#
+	# Views
+	#	the accessions used below were taken from a blackbox test run, each represents a
+	#  	different table type in a CSRA object.
+	#
+	# NCBI:align:tbl:seq; 2 views (used to clash on Id with tables)
+	$(VDB_DUMP) SRR1063272 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.0.stdout && diff expected/3.0.stdout actual/3.0.stdout
+	$(VDB_DUMP) SRR1063272 -S view.vschema --view "V2<SEQUENCE>" -R 1-2 >actual/3.1.stdout && diff expected/3.1.stdout actual/3.1.stdout
+	# NCBI:SRA:Nanopore:sequence
+	$(VDB_DUMP) ERR968961 -S view.nanopore.vschema --view "V<SEQUENCE>" -R 1-2 >actual/3.2.stdout && diff expected/3.2.stdout actual/3.2.stdout
+	# NCBI:SRA:PacBio:smrt:sequence (very old and the latest)
+	$(VDB_DUMP) SRR353493 -S view.pacbio.vschema --view "V<SEQUENCE>" -R 1-2 >actual/3.3.stdout && diff expected/3.3.stdout actual/3.3.stdout
+	$(VDB_DUMP) ERR976792 -S view.pacbio.vschema --view "V<SEQUENCE>" -R 1-2 >actual/3.4.stdout && diff expected/3.4.stdout actual/3.4.stdout
+	# NCBI:align:db:alignment_evidence_sorted
+	$(VDB_DUMP) SRR2070515 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.5.stdout && diff expected/3.5.stdout actual/3.5.stdout
+	# NCBI:align:db:alignment_sorted
+	$(VDB_DUMP) ERR957001 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.6.stdout && diff expected/3.6.stdout actual/3.6.stdout
+	# NCBI:align:db:alignment_unsorted
+	$(VDB_DUMP) ERR570054 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.7.stdout && diff expected/3.7.stdout actual/3.7.stdout
+	# table object - views not supported
+	! $(VDB_DUMP) ERR997444 -S view.vschema --view "V1<SEQUENCE>"
+
 	@ rm -rf actual
 	@ rm -rf data
 	@ python $(TOP)/build/check-exit-code.py $(BINDIR)/vdb-dump
 	@ echo "...all tests passed"
 
-view:
-	vdb-dump SRR056386 -S view.vschema --view "V<SEQUENCE>" -R 1
+onetest: std
+	$(VDB_DUMP) ERR997444 --view "V1<SEQUENCE>" -S view.vschema  -R 1-2 expect an error
+
+ACC = SRR2070515
+acc:
+	$(VDB_DUMP) $(ACC) -T SEQUENCE -C READ -R 1-2 >actual/$(ACC).old
+	cat actual/$(ACC).old
+	$(VDB_DUMP) $(ACC) -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/$(ACC).new
+	diff actual/$(ACC).old actual/$(ACC).new
+
 
 .PHONY: kar
 

@@ -32,6 +32,7 @@
 #include <vdb/table.h>
 #include <vdb/cursor.h>
 #include <vdb/database.h>
+#include <vdb/view.h>
 
 #include <klib/vector.h>
 #include <klib/text.h>
@@ -93,6 +94,10 @@ void vdcd_destroy( col_defs* defs );
 
 uint32_t vdcd_parse_string( col_defs* defs, const char* src, const VTable *my_table );
 uint32_t vdcd_extract_from_table( col_defs* defs, const VTable *my_table );
+
+uint32_t vdcd_parse_string_view( col_defs* defs, const char* src, const VView *my_view );
+uint32_t vdcd_extract_from_view( col_defs* defs, const VView *my_view );
+
 bool vdcd_table_has_column( const VTable *my_table, const char * to_find );
 bool vdcd_extract_from_phys_table( col_defs* defs, const VTable *my_table );
 uint32_t vdcd_add_to_cursor( col_defs* defs, const VCursor *my_cursor );

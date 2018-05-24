@@ -133,6 +133,25 @@ rc_t vdh_parse_schema( const VDBManager *my_manager,
     return rc;
 }
 
+rc_t vdh_parse_schema_add_on ( const VDBManager *my_manager,
+                               VSchema *base_schema,
+                               Vector *schema_list )
+{
+    rc_t rc = 0;
+
+    if ( my_manager == NULL )
+        return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+
+    if ( base_schema == NULL )
+        return RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcNull );
+
+    if ( schema_list != NULL )
+    {
+       VectorForEach( schema_list, false, vdh_parse_1_schema, base_schema );
+    }
+    return rc;
+}
+
 /********************************************************************
 helper function to test if a given path is a vdb-table
 ********************************************************************/

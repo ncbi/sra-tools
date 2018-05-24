@@ -1,6 +1,12 @@
 version 2;
 
-view V#1 < NCBI:SRA:_454_:tbl:v2 t >
+// view V1#1 < NCBI:tbl:base_space t >
+view V1#1 < NCBI:align:tbl:seq t >
+{
+    column ascii READ = t.READ;
+}
+
+view V2#1 < NCBI:align:tbl:seq t >
 {
     column ascii READ = t.READ;
 }

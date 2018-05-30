@@ -237,7 +237,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
         {
             rc = join_results_print_fastq_v1( j -> results,
                                               row_id,
-                                              1, /* dst_id ( into which file to write ) */
+                                              0, /* dst_id ( into which file to write ) */
                                               1, /* read_id for tag-line */
                                               jo -> rowid_as_name ? NULL : &( rec -> name ),
                                               &( rec -> read ),
@@ -257,7 +257,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
             {
                 rc = join_results_print_fastq_v1( j -> results,
                                                   row_id,
-                                                  1, /* dst_id ( into which file to write ) */
+                                                  0, /* dst_id ( into which file to write ) */
                                                   1, /* read_id for tag-line */
                                                   jo -> rowid_as_name ? NULL : &( rec -> name ),
                                                   &( j -> B1 . S ),
@@ -391,8 +391,8 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
     
     if ( !split_file && jo -> skip_tech )
     {
-        process_0 = filter( stats, rec, jo, 0 );
-        process_1 = filter( stats, rec, jo, 1 );
+        process_0 = filter( stats, rec, jo, 0 ); /* above */
+        process_1 = filter( stats, rec, jo, 1 ); /* above */
     }
     
     Q1 . addr = rec -> quality . addr;
@@ -402,46 +402,78 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
     Q2 . size = rec -> read_len[ 1 ];
     Q2 . len  = ( uint32_t )Q2 . size;
 
+    if ( ( Q1 . len + Q2 . len ) != rec -> quality . len )
+    {
+        ErrMsg( "row #%ld : Q[1].len(%u) + Q[2].len(%u) != Q.len(%u)\n", row_id, Q1 . len, Q2 . len, rec -> quality . len );
+        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+    }
+    
     if ( rec -> prim_alig_id[ 0 ] == 0 )
     {
         if ( rec -> prim_alig_id[ 1 ] == 0 )
         {
-            String READ;
-            /* both unaligned, print what is in row->cmp_read (no lookup) */
-            
+            String READ1, READ2;
             if ( process_0 )
             {
-                READ . addr = rec -> read . addr;
-                READ . size = rec -> read_len[ 0 ];
-                READ . len = ( uint32_t )READ . size;
-                if ( join_results_match( j -> results, &READ ) ) /* join-results.c */
+                READ1 . addr = rec -> read . addr;
+                READ1 . size = rec -> read_len[ 0 ];
+                READ1 . len = ( uint32_t )READ1 . size;
+                if ( READ1 . len != Q1 . len )
+                {
+                    ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 . len, Q1 . len );
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                }
+                process_0 = ( READ1 . len > 0 );
+            }
+            if ( !process_0 )
+                dst_id = 0;
+
+            if ( process_1 )
+            {
+                READ2 . addr = &rec -> read . addr[ rec -> read_len[ 0 ] ];
+                READ2 . size = rec -> read_len[ 1 ];
+                READ2 . len = ( uint32_t )READ2 . size;
+                if ( READ2 . len != Q2 . len )
+                {
+                    ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 . len, Q2 . len );
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                }
+                process_1 = ( READ2 . len > 0 );
+            }
+            if ( !process_1 )
+                dst_id = 0;
+
+            /* both unaligned, print what is in row -> cmp_read ( no lookup ) */
+            if ( process_0 )
+            {
+                if ( join_results_match( j -> results, &READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
                                                       1,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &READ,
+                                                      &READ1,
                                                       &Q1 ); /* join_results.c */
                     if ( rc == 0 )
+                    {
                         stats -> fragments_written ++;
+                        if ( split_file && dst_id > 0 )
+                            dst_id++;
+                    }
                 }
             }
+
             if ( rc == 0 && process_1 )
             {
-                READ . addr = &rec -> read . addr[ rec -> read_len[ 0 ] ];
-                READ . size = rec -> read_len[ 1 ];
-                READ . len = ( uint32_t )READ . size;
-                if ( split_file )
-                    dst_id++;
-                if ( join_results_match( j -> results, &READ ) ) /* join-results.c */
+                if ( join_results_match( j -> results, &READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
                                                       2,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &READ,
+                                                      &READ2,
                                                       &Q2 ); /* join_results.c */
                     if ( rc == 0 )
                         stats -> fragments_written ++;
@@ -451,41 +483,68 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
         else
         {
             /* A0 is unaligned / A1 is aligned (lookup) */
+            const String * READ1 = &( rec -> read );
+            String * READ2 = NULL;
             if ( process_0 )
             {
-                if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
+                if ( READ1 -> len != Q1 . len )
+                {
+                    ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                }
+                process_0 = ( READ1 -> len > 0 );
+            }
+            if ( !process_0 )
+                dst_id = 0;
+
+            if ( process_1 )
+            {
+                bool reverse = is_reverse( rec, 1 );
+                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2, reverse ); /* lookup_reader.c */
+                if ( rc == 0 )
+                {
+                    READ2 = &( j -> B2 . S );
+                    if ( READ2 -> len != Q2 . len )
+                    {
+                        ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
+                    process_1 = ( READ2 -> len > 0 );
+                }
+            }
+            if ( !process_1 )
+                dst_id = 0;
+
+            if ( rc == 0 && process_0 )
+            {
+                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
                                                       1,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &( rec -> read ),
+                                                      READ1,
                                                       &Q1 ); /* join_results.c */
                     if ( rc == 0 )
                         stats -> fragments_written ++;
+                    if ( split_file && dst_id > 0 )
+                        dst_id++;
                 }
             }
             if ( rc == 0 && process_1 )
             {
-                bool reverse = is_reverse( rec, 1 );
-                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2, reverse ); /* lookup_reader.c */
-                if ( rc == 0 )
+                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
                 {
-                    if ( split_file )
-                        dst_id++;
-                    if ( join_results_match( j -> results, &( j -> B2 . S ) ) ) /* join-results.c */
-                    {
-                        rc = join_results_print_fastq_v1( j -> results,
-                                                          row_id,
-                                                          dst_id,
-                                                          2,
-                                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                          &( j -> B2 . S ),
-                                                          &Q2 ); /* join_results.c */
-                        if ( rc == 0 )
-                            stats -> fragments_written ++;
-                    }
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      2,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ2,
+                                                      &Q2 ); /* join_results.c */
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
                 }
             }
         }
@@ -495,38 +554,66 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
         if ( rec -> prim_alig_id[ 1 ] == 0 )
         {
             /* A0 is aligned (lookup) / A1 is unaligned */
+            String * READ1 = NULL;
+            const String * READ2 = &( rec -> read );
+            
             if ( process_0 )
             {
                 bool reverse = is_reverse( rec, 0 );
                 rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1, reverse ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
-                    if ( join_results_match( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
+                    READ1 = &j -> B1 . S;
+                    if ( READ1 -> len != Q1 . len )
                     {
-                        rc = join_results_print_fastq_v1( j -> results,
-                                                          row_id,
-                                                          dst_id,
-                                                          1,
-                                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                          &( j -> B1 . S ),
-                                                          &Q1 ); /* join_results.c */
-                        if ( rc == 0 )
-                            stats -> fragments_written ++;
+                        ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
+                    process_0 = ( READ1 -> len > 0 );
+                }
+            }
+            if ( !process_0 )
+                dst_id = 0;
+
+            if ( process_1 )
+            {
+                if ( READ2 -> len != Q2 . len )
+                {
+                    ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                }
+                process_1 = ( READ2 -> len > 0 );
+            }
+            if ( !process_1 )
+                dst_id = 0;
+           
+            if ( rc == 0 && process_0 )
+            {
+                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ1,
+                                                      &Q1 ); /* join_results.c */
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
+                    if ( split_file && dst_id > 0 )
+                        dst_id++;
                 }
             }
             if ( rc == 0 && process_1 )
             {
-                if ( split_file )
-                    dst_id++;
-                if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
+                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
                 {
                     rc = join_results_print_fastq_v1( j -> results,
                                                       row_id,
                                                       dst_id,
                                                       2,
                                                       jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                      &( rec -> read ),
+                                                      READ2,
                                                       &Q2 ); /* join_results.c */
                     if ( rc == 0 )
                         stats -> fragments_written ++;
@@ -536,46 +623,75 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
         else
         {
             /* A0 and A1 are aligned (2 lookups)*/
+            String * READ1 = NULL;
+            String * READ2 = NULL;
+
             if ( process_0 )
             {
                 bool reverse = is_reverse( rec, 0 );
                 rc = lookup_bases( j -> lookup, row_id, 1, &j -> B1, reverse ); /* lookup_reader.c */
                 if ( rc == 0 )
                 {
-                    if ( join_results_match( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
+                    READ1 = &j -> B1 . S;
+                    if ( READ1 -> len != Q1 . len )
                     {
-                        rc = join_results_print_fastq_v1( j -> results,
-                                                          row_id,
-                                                          dst_id,
-                                                          1,
-                                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                          &( j -> B1 . S ),
-                                                          &Q1 ); /* join_results.c */
-                        if ( rc == 0 )
-                            stats -> fragments_written ++;
+                        ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
+                    process_0 = ( READ1 -> len > 0 );
+                }
+            }
+            if ( !process_0 )
+                dst_id = 0;
+
+            if ( rc == 0 && process_1 )
+            {
+                bool reverse = is_reverse( rec, 1 );
+                rc = lookup_bases( j -> lookup, row_id, 2, &j -> B2, reverse ); /* lookup_reader.c */
+                if ( rc == 0 )
+                {
+                    READ2 = &j -> B2 . S;
+                    if ( READ2 -> len != Q2 . len )
+                    {
+                        ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
+                    process_1 =( READ2 -> len > 0 );
+                }
+            }
+            if ( !process_1 )
+                dst_id = 0;
+                
+            if ( rc == 0 && process_0 )
+            {
+                if ( join_results_match( j -> results, READ1 ) ) /* join-results.c */
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      1,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ1,
+                                                      &Q1 ); /* join_results.c */
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
+                    if ( split_file && dst_id > 0 )
+                        dst_id++;
                 }
             }
             if ( rc == 0 && process_1 )
             {
-                bool reverse = is_reverse( rec, 1 );
-                rc = lookup_bases( j -> lookup, row_id, 2, & j -> B2, reverse ); /* lookup_reader.c */
-                if ( rc == 0 )
+                if ( join_results_match( j -> results, READ2 ) ) /* join-results.c */
                 {
-                    if ( split_file )
-                        dst_id++;
-                    if ( join_results_match( j -> results, &( j -> B2 . S ) ) ) /* join-results.c */
-                    {
-                        rc = join_results_print_fastq_v1( j -> results,
-                                                          row_id,
-                                                          dst_id,
-                                                          2,
-                                                          jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                          &( j -> B2 . S ),
-                                                          &Q2 ); /* join_results.c */
-                        if ( rc == 0 )
-                            stats -> fragments_written ++;
-                    }
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      dst_id,
+                                                      2,
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      READ2,
+                                                      &Q2 ); /* join_results.c */
+                    if ( rc == 0 )
+                        stats -> fragments_written ++;
                 }
             }
         }

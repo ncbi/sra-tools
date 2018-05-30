@@ -165,9 +165,11 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
     bool res = cmn_iter_next( self -> cmn, rc );
     if ( res )
     {
+        rc_t rc1;
+        
         rec -> row_id = cmn_iter_row_id( self -> cmn );
 
-        rc_t rc1 = cmn_read_uint64_array( self -> cmn, self -> prim_alig_id, rec -> prim_alig_id, 2, &( rec -> num_alig_id ) );
+        rc1 = cmn_read_uint64_array( self -> cmn, self -> prim_alig_id, rec -> prim_alig_id, 2, &( rec -> num_alig_id ) );
 
         if ( rc1 == 0 && self -> opt . with_name )
             rc1 = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
@@ -196,11 +198,15 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
             else
                 rec -> num_read_type = 0;
         }
-        
-        if ( rec -> read . len != rec -> quality . len )
+
+        if ( rc1 == 0 )
         {
-            rc1 = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            ErrMsg( "row #%ld : READ.len != QUALITY.len\n", rec -> row_id );
+            if ( rec -> prim_alig_id[ 0 ] == 0 && rec -> prim_alig_id[ 1 ] == 0 &&
+                 rec -> read . len != rec -> quality . len )
+            {
+                rc1 = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) /1\n", rec -> row_id, rec -> read .len, rec -> quality . len );
+            }
         }
         
         if ( rc != NULL )
@@ -331,8 +337,8 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
 
         if ( rec -> read . len != rec -> quality . len )
         {
-            rc1 = RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            ErrMsg( "row #%ld : READ.len != QUALITY.len\n", rec -> row_id );
+            rc1 = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) /2\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         }
         
         if ( rc != NULL )

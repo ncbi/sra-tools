@@ -303,7 +303,6 @@ rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * p
                 {
                     uint16_t dna_len;
                     size_t to_read;
-                    uint8_t * dst = ( uint8_t * )( packed_bases -> S . addr );
                     
                     /* we get the key out of the 10 bytes */
                     memmove( key, buffer1, sizeof *key );
@@ -312,13 +311,8 @@ rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * p
                     dna_len = buffer1[ 8 ];
                     dna_len <<= 8;
                     dna_len |= buffer1[ 9 ];
-                    
-                    /* we write the dna-len into the first 2 bytes of the destination */
-                    dst[ 0 ] = buffer1[ 8 ];
-                    dst[ 1 ] = buffer1[ 9 ];
-                    dst += 2;
 
-                    /* */
+                    /* adjust the number of bytes to read to the half of the dna_len */
                     to_read = ( dna_len & 1 ) ? ( dna_len + 1 ) >> 1 : dna_len >> 1;
                     if ( to_read == 0 )
                     {
@@ -330,22 +324,33 @@ rc_t lookup_reader_get( struct lookup_reader * self, uint64_t * key, SBuffer * p
                     }
                     else
                     {
-                        if ( to_read > ( packed_bases -> buffer_size - 2 ) )
-                            to_read = ( packed_bases -> buffer_size - 2 );
+                        /* maybe we have to increase the size of the SBuffer, after seeing the real dna-length */
+                        if ( packed_bases -> buffer_size < ( to_read + 2 ) )
+                            rc = increase_SBuffer( packed_bases, ( to_read + 2 ) - packed_bases -> buffer_size );
+                        
+                        if ( rc == 0 )
+                        {
+                            uint8_t * dst = ( uint8_t * )( packed_bases -> S . addr );
+                            
+                            /* we write the dna-len into the first 2 bytes of the destination */
+                            dst[ 0 ] = buffer1[ 8 ];
+                            dst[ 1 ] = buffer1[ 9 ];
+                            dst += 2;
 
-                        rc = KFileReadAll( self -> f, self -> pos + 10, dst, to_read, &num_read );
-                        if ( rc != 0 )
-                            ErrMsg( "lookup_reader.c lookup_reader_get().KFileReadAll( at %ld, to_read %u ) -> %R", self -> pos + 10, to_read, rc );
-                        else if ( num_read != to_read )
-                        {
-                            rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
-                            ErrMsg( "lookup_reader.c lookup_reader_get().KFileReadAll( %ld ) %d vs %d -> %R", self -> pos + 10, num_read, to_read, rc );
-                        }
-                        else
-                        {
-                            packed_bases -> S . size = num_read + 2;
-                            packed_bases -> S . len = ( uint32_t )packed_bases -> S . size;
-                            self -> pos += ( num_read + 10 );
+                            rc = KFileReadAll( self -> f, self -> pos + 10, dst, to_read, &num_read );
+                            if ( rc != 0 )
+                                ErrMsg( "lookup_reader.c lookup_reader_get().KFileReadAll( at %ld, to_read %u ) -> %R", self -> pos + 10, to_read, rc );
+                            else if ( num_read != to_read )
+                            {
+                                rc = RC( rcVDB, rcNoTarg, rcReading, rcFormat, rcInvalid );
+                                ErrMsg( "lookup_reader.c lookup_reader_get().KFileReadAll( %ld ) %d vs %d -> %R", self -> pos + 10, num_read, to_read, rc );
+                            }
+                            else
+                            {
+                                packed_bases -> S . size = num_read + 2;
+                                packed_bases -> S . len = ( uint32_t )packed_bases -> S . size;
+                                self -> pos += ( num_read + 10 );
+                            }
                         }
                     }
                 }
@@ -369,7 +374,7 @@ rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id
         
         if ( found_row_id == row_id && found_read_id == read_id )
         {
-            unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
+            rc = unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
         }
         else
         {
@@ -395,7 +400,7 @@ rc_t lookup_bases( struct lookup_reader * self, int64_t row_id, uint32_t read_id
 
                     if ( found_row_id == row_id && found_read_id == read_id )
                     {
-                        unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
+                        rc = unpack_4na( &self -> buf . S, B, reverse ); /* helper.c */
                     }
                     else
                     {

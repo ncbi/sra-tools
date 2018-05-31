@@ -502,50 +502,58 @@ static const char x4na_to_ASCII_rev[ 16 ] =
        'N', 'T', 'G', 'N', 'C', 'N', 'N', 'N', 'A', 'N', 'N', 'N', 'N', 'N', 'N', 'N'
 };
 
-void unpack_4na( const String * packed, SBuffer * unpacked, bool reverse )
+rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse )
 {
+    rc_t rc = 0;
     uint8_t * src = ( uint8_t * )packed -> addr;
-    uint8_t * dst = ( uint8_t * )unpacked -> S . addr;
-    uint32_t dst_idx;
     uint16_t dna_len;
-    uint32_t i;
-    
-    /* use the complement-lookup-table in case of reverse */
-    const char * lookup = reverse ? x4na_to_ASCII_rev : x4na_to_ASCII_fwd;
-    
+
     /* the first 2 bytes are the 16-bit dna-length */
     dna_len = src[ 0 ];
     dna_len <<= 8;
     dna_len |= src[ 1 ];
-    
-    dst_idx = reverse ? dna_len - 1 : 0;
-        
-    for ( i = 2; i < packed -> len; ++i )
+
+    if ( dna_len > unpacked -> buffer_size )
+        rc = increase_SBuffer( unpacked, dna_len - unpacked -> buffer_size );
+    if ( rc == 0 )
     {
-        /* get the packed byte out of the packed input */
-        uint8_t packed_byte = src[ i ];
+        uint8_t * dst = ( uint8_t * )unpacked -> S . addr;
+        uint32_t dst_idx;
+        uint32_t i;
         
-        /* write the first unpacked byte */
-        if ( dst_idx < unpacked -> buffer_size )
+        /* use the complement-lookup-table in case of reverse */
+        const char * lookup = reverse ? x4na_to_ASCII_rev : x4na_to_ASCII_fwd;
+        
+        dst_idx = reverse ? dna_len - 1 : 0;
+            
+        for ( i = 2; i < packed -> len; ++i )
         {
-            dst[ dst_idx ] = lookup[ ( packed_byte >> 4 ) & 0x0F ];
-            dst_idx += reverse ? -1 : 1;
+            /* get the packed byte out of the packed input */
+            uint8_t packed_byte = src[ i ];
+            
+            /* write the first unpacked byte */
+            if ( dst_idx < unpacked -> buffer_size )
+            {
+                dst[ dst_idx ] = lookup[ ( packed_byte >> 4 ) & 0x0F ];
+                dst_idx += reverse ? -1 : 1;
+            }
+            
+            /* write the second unpacked byte */
+            if ( dst_idx < unpacked -> buffer_size )
+            {
+                dst[ dst_idx ] = lookup[ packed_byte & 0x0F ];
+                dst_idx += reverse ? -1 : 1;
+            }
         }
         
-        /* write the second unpacked byte */
-        if ( dst_idx < unpacked -> buffer_size )
-        {
-            dst[ dst_idx ] = lookup[ packed_byte & 0x0F ];
-            dst_idx += reverse ? -1 : 1;
-        }
+        /* set the dna-length in the output-string */
+        unpacked -> S . size = dna_len;
+        unpacked -> S . len = ( uint32_t )unpacked -> S . size;
+        
+        /* terminated the output-string, just in case */
+        dst[ dna_len ] = 0;
     }
-    
-    /* set the dna-length in the output-string */
-    unpacked -> S . size = dna_len;
-    unpacked -> S .len = ( uint32_t )unpacked -> S . size;
-    
-    /* terminated the output-string, just in case */
-    dst[ dna_len + 2 ] = 0;
+    return rc;
 }
 
 bool file_exists( const KDirectory * dir, const char * fmt, ... )

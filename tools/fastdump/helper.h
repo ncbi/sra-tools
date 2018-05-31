@@ -126,6 +126,7 @@ rc_t ErrMsg( const char * fmt, ... );
 
 rc_t make_SBuffer( SBuffer * self, size_t len );
 void release_SBuffer( SBuffer * self );
+rc_t increase_SBuffer( SBuffer * self, size_t by );
 rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args );
 rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... );
 rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err );
@@ -149,7 +150,7 @@ uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
 
 rc_t pack_4na( const String * unpacked, SBuffer * packed );
 rc_t pack_read_2_4na( const String * read, SBuffer * packed );
-void unpack_4na( const String * packed, SBuffer * unpacked, bool reverse );
+rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse );
 
 bool ends_in_slash( const char * s );
 bool extract_path( const char * s, String * path );

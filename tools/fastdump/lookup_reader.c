@@ -195,7 +195,7 @@ static rc_t full_table_seek( struct lookup_reader * self, uint64_t key_to_find, 
             self -> pos = offset;
         else
         {
-            rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+            rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
             ErrMsg( "lookup_reader.c full_table_seek( key: %ld ) -> %R", key_to_find, rc );
         }
     }
@@ -210,8 +210,8 @@ static rc_t indexed_seek( struct lookup_reader * self, uint64_t key_to_find, uin
     uint64_t offset = 0;
     if ( self -> max_key > 0 && ( key_to_find > self -> max_key ) )
     {
-        rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcTooBig );
-        ErrMsg( "lookup_reader.c indexed_seek( key_to_find=%lu, max_key=%lu ) -> %R", key_to_find, self -> max_key, rc );
+        rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcTooBig );
+        /* ErrMsg( "lookup_reader.c indexed_seek( key_to_find=%lu, max_key=%lu ) -> %R", key_to_find, self -> max_key, rc ); */
     }
     else
     {
@@ -230,15 +230,15 @@ static rc_t indexed_seek( struct lookup_reader * self, uint64_t key_to_find, uin
                         if ( keys_equal( key_to_find, *key_found ) )
                             self -> pos = offset;
                         else
-                            rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+                            rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
                     }
                     else
-                        rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+                        rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
                 }
                 else
                 {
                     self -> pos = offset;
-                    rc = RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
+                    rc = SILENT_RC( rcVDB, rcNoTarg, rcReading, rcId, rcNotFound );
                 }
             }
         }

@@ -207,9 +207,11 @@ static rc_t CC producer_thread_func( const KThread *self, void *data )
         rc = push_store_to_merger( producer, true ); /* this might block ! */
     }
 
-    release_producer( producer ); /* above */
     if ( rc == 0 && producer -> processed_row_count != 0 )
         atomic64_read_and_add( producer -> processed_row_count, row_count );
+
+    release_producer( producer ); /* above */
+
     return rc;
 }
 

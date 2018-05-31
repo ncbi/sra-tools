@@ -77,6 +77,42 @@ static rc_t read_bounded_quality( struct cmn_iter * cmn,
     return rc;
 }
 
+static rc_t read_bounded_quality_fix( struct cmn_iter * cmn,
+                                  uint32_t col_id,
+                                  KDataBuffer * qual_buffer,
+                                  char * q2a,
+                                  String * quality,
+                                  uint32_t fixed_len )
+{
+    uint8_t * qual_values = NULL;
+    uint32_t num_qual;
+    rc_t rc = cmn_read_uint8_array( cmn, col_id, &qual_values, &num_qual );
+    num_qual = fixed_len;
+    if ( rc == 0 && num_qual > 0 && qual_values != NULL )
+    { 
+        if ( num_qual > qual_buffer -> elem_count )
+            rc = KDataBufferResize ( qual_buffer, num_qual );
+        if ( rc == 0 )
+        {
+            uint32_t idx;
+            uint8_t * b = qual_buffer -> base;
+            for ( idx = 0; idx < num_qual; idx++ )
+                b[ idx ] = q2a[ qual_values[ idx ] ];
+            quality -> addr = qual_buffer -> base;
+            quality -> len  = num_qual;
+            quality -> size = num_qual;
+        }
+    }
+    if ( rc != 0 )
+    {
+        quality -> addr = NULL;
+        quality -> len = 0;
+        quality -> size = 0;
+        rc = 0;
+    }
+    return rc;
+}
+
 typedef struct fastq_csra_iter
 {
     struct cmn_iter * cmn; /* cmn_iter.h */
@@ -306,18 +342,12 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
         rc_t rc1 = 0;
         
         rec -> row_id = cmn_iter_row_id( self -> cmn );
-        
+
         if ( self -> opt . with_name )
             rc1 = cmn_read_String( self -> cmn, self -> name_id, &( rec -> name ) );
-            
+
         if ( rc1 == 0 )
             rc1 = cmn_read_String( self -> cmn, self -> read_id, &( rec -> read ) );
-            
-        if ( rc1 == 0 )
-            rc1 = read_bounded_quality( self -> cmn, self -> quality_id,
-                                        &( self -> qual_buffer ),
-                                        &( self -> qual_2_ascii[ 0 ] ),
-                                        &( rec ->quality ) );
         
         if ( rc1 == 0 )
         {
@@ -326,6 +356,12 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
             else
                 rec -> num_read_len = 1;
         }
+            
+        if ( rc1 == 0 )
+            rc1 = read_bounded_quality( self -> cmn, self -> quality_id,
+                                        &( self -> qual_buffer ),
+                                        &( self -> qual_2_ascii[ 0 ] ),
+                                        &( rec -> quality ) );
         
         if ( rc1 == 0 )
         {
@@ -335,12 +371,38 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
                 rec -> num_read_type = 0;
         }
 
-        if ( rec -> read . len != rec -> quality . len )
+        if ( rc1 == 0 && ( rec -> read . len != rec -> quality . len ) )
         {
             rc1 = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
             ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) /2\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         }
-        
+
+        if ( rc1 == 0 && self -> opt . with_read_len )
+        {
+            uint32_t sum_read_len = 0;
+            uint32_t i;
+            for ( i = 0; i < rec -> num_read_len; ++i )
+                sum_read_len += rec -> read_len[ i ];
+            if ( rec -> read . len != sum_read_len )
+            {
+#ifdef STRICT_FASTQ
+                /* in strict mode complain about invalid data */
+                rc1 = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                ErrMsg( "row #%ld : READ.len(%u) != sum( READ_LEN )(%u) /2\n", rec -> row_id, rec -> read . len, sum_read_len );
+#else
+                /* in none strict mode, fix the length of READ and QUALITY to match the invalid sum( READ_LEN ) */
+                rec -> read . len  = sum_read_len;
+                rec -> read . size = sum_read_len;
+
+                rc1 = read_bounded_quality_fix( self -> cmn, self -> quality_id,
+                                &( self -> qual_buffer ),
+                                &( self -> qual_2_ascii[ 0 ] ),
+                                &( rec -> quality ),
+                                sum_read_len );             
+#endif
+            }
+        }
+
         if ( rc != NULL )
             *rc = rc1;
     }

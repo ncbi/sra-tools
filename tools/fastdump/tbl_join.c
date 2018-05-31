@@ -83,17 +83,18 @@ static rc_t print_fastq_1_read( join_stats * stats,
                                 uint32_t read_id )
 {
     rc_t rc = 0;
-
+   
     if ( rec -> read . len != rec -> quality . len )
     {
-        ErrMsg( "row #%ld : READ.len != QUALITY.len\n", rec -> row_id );
+        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
         return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
     }
-    
+
     if ( filter1( stats, rec, jo ) )
     {
         if ( join_results_match( results, &( rec -> read ) ) )
         {
+            
             rc = join_results_print_fastq_v1( results,
                                               rec -> row_id,
                                               dst_id,

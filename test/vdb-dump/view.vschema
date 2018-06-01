@@ -1,12 +1,47 @@
 version 2;
 
-// view V1#1 < NCBI:tbl:base_space t >
-view V1#1 < NCBI:align:tbl:seq t >
+// any table derived from tbl:base_space
+view V1#1 < NCBI:tbl:base_space t >
 {
     column ascii READ = t.READ;
 }
 
+// only align:tbl:seq (and derived)
 view V2#1 < NCBI:align:tbl:seq t >
 {
     column ascii READ = t.READ;
 }
+
+// joins
+view V3#1 < NCBI:align:tbl:seq t, NCBI:align:tbl:align_sorted al >
+{
+
+    column I64 pa_id_1 = < I64 > cut < 1 > ( t.PRIMARY_ALIGNMENT_ID );
+
+//    column ascii READ = t.READ;
+//    column ascii SPOT_GROUP = t.SPOT_GROUP;
+//    column INSDC:SRA:xread_type READ_TYPE = t.READ_TYPE;
+
+//    I64 pa_id_0 = < I64 > cut < 0 > ( t.PRIMARY_ALIGNMENT_ID );
+//    I64 pa_id_1 = < I64 > cut < 1 > ( t.PRIMARY_ALIGNMENT_ID );
+
+//    column ascii CIGAR_1 = al [ pa_id_0 ] . CIGAR_LONG;
+//    column ascii CIGAR_2 = al [ pa_id_1 ] . CIGAR_LONG;
+
+//    column ascii CIGAR_1 = al [ t.PRIMARY_ALIGNMENT_ID [ 0 ] ] . CIGAR_LONG;
+}
+
+// join from PRIMARY_ALIGNMENT to SEQUENCE
+view V4#1 < NCBI:align:tbl:align_sorted al, NCBI:align:tbl:seq t >
+{
+    column ascii cs_read = t [ al . SPOT_ID ] . CSREAD;
+    column ascii mate_cs_read = t [ al [ al . MATE_ALIGN_ID ] . SPOT_ID ] . CSREAD;
+}
+
+// using base table types
+view V5#1 < NCBI:align:tbl:compressed_by_reference al, INSDC:tbl:sequence t >
+{
+    column ascii cs_read = t [ al . SPOT_ID ] . CSREAD;
+    column ascii mate_cs_read = t [ al [ al . MATE_ALIGN_ID ] . SPOT_ID ] . CSREAD;
+}
+

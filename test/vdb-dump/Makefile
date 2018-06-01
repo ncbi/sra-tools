@@ -156,7 +156,7 @@ vdb-dump: makedb
 	@ echo "...all tests passed"
 
 onetest: std
-	$(VDB_DUMP) ERR997444 --view "V1<SEQUENCE>" -S view.vschema  -R 1-2 expect an error
+	$(VDB_DUMP) SRR1063272 --view "V4<PRIMARY_ALIGNMENT,SEQUENCE>" -S view.vschema  -R 1-2
 
 ACC = SRR2070515
 acc:

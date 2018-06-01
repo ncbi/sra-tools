@@ -175,7 +175,8 @@ static rc_t print_v1_syn_name_frag_nr( join_results * self,
                                quality -> len, quality );
 }
 
-static const char * fmt_fastq_v1_real_name_no_frag_nr   = "@%s.%ld %S length=%u\n%S\n+%s.%ld %S length=%u\n%S\n";
+static const char * fmt_fastq_v1_real_name_no_frag_nr  = "@%s.%ld %S length=%u\n%S\n+%s.%ld %S length=%u\n%S\n";
+static const char * fmt_fastq_v1_empty_name_no_frag_nr = "@%s.%ld length=%u\n%S\n+%s.%ld length=%u\n%S\n";
 static rc_t print_v1_real_name_no_frag_nr( join_results * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
@@ -184,20 +185,32 @@ static rc_t print_v1_real_name_no_frag_nr( join_results * self,
                                          const String * read,
                                          const String * quality )
 {
+    if ( name -> len > 0 )
+        return join_results_print( self,
+                                   dst_id, 
+                                   fmt_fastq_v1_real_name_no_frag_nr,
+                                   /* READ... */
+                                   self -> accession_short, row_id,
+                                   name,
+                                   read -> len, read,
+                                   /* QUALITY... */
+                                   self -> accession_short, row_id,
+                                   name,
+                                   quality -> len, quality );
+
     return join_results_print( self,
                                dst_id, 
-                               fmt_fastq_v1_real_name_no_frag_nr,
+                               fmt_fastq_v1_empty_name_no_frag_nr,
                                /* READ... */
                                self -> accession_short, row_id,
-                               name,
                                read -> len, read,
                                /* QUALITY... */
                                self -> accession_short, row_id,
-                               name,
                                quality -> len, quality );
 }
 
 static const char * fmt_fastq_v1_real_name_frag_nr = "@%s.%ld/%u %S length=%u\n%S\n+%s.%ld/%u %S length=%u\n%S\n";
+static const char * fmt_fastq_v1_empty_name_frag_nr = "@%s.%ld/%u length=%u\n%S\n+%s.%ld/%u length=%u\n%S\n";
 static rc_t print_v1_real_name_frag_nr( join_results * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
@@ -206,16 +219,27 @@ static rc_t print_v1_real_name_frag_nr( join_results * self,
                                          const String * read,
                                          const String * quality )
 {
-    return join_results_print( self,
+    if ( name -> len > 0 )
+        return join_results_print( self,
+                                   dst_id, 
+                                   fmt_fastq_v1_real_name_frag_nr,
+                                   /* READ... */
+                                   self -> accession_short, row_id, read_id,
+                                   name,
+                                   read -> len, read,
+                                   /* QUALITY... */
+                                   self -> accession_short, row_id, read_id,
+                                   name,
+                                   quality -> len, quality );
+
+   return join_results_print( self,
                                dst_id, 
-                               fmt_fastq_v1_real_name_frag_nr,
+                               fmt_fastq_v1_empty_name_frag_nr,
                                /* READ... */
                                self -> accession_short, row_id, read_id,
-                               name,
                                read -> len, read,
                                /* QUALITY... */
                                self -> accession_short, row_id, read_id,
-                               name,
                                quality -> len, quality );
 }
 
@@ -308,6 +332,7 @@ static rc_t print_v2_syn_name_frag_nr( join_results * self,
 }
 
 static const char * fmt_fastq_v2_real_name_no_frag_nr = "@%s.%ld %S length=%u\n%S%S\n+%s.%ld %S length=%u\n%S\n";
+static const char * fmt_fastq_v2_empty_name_no_frag_nr = "@%s.%ld length=%u\n%S%S\n+%s.%ld length=%u\n%S\n";
 static rc_t print_v2_real_name_no_frag_nr( join_results * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
@@ -317,20 +342,32 @@ static rc_t print_v2_real_name_no_frag_nr( join_results * self,
                                          const String * read2,
                                          const String * quality )
 {
+    if ( name -> len > 0 )
+        return join_results_print( self,
+                                   dst_id, 
+                                   fmt_fastq_v2_real_name_no_frag_nr,
+                                   /* READ... */
+                                   self -> accession_short, row_id,
+                                   name,
+                                   read1 -> len + read2 -> len, read1, read2,
+                                   /* QUALITY... */
+                                   self -> accession_short, row_id,
+                                   name,
+                                   quality -> len, quality );
+
     return join_results_print( self,
                                dst_id, 
-                               fmt_fastq_v2_real_name_no_frag_nr,
+                               fmt_fastq_v2_empty_name_no_frag_nr,
                                /* READ... */
                                self -> accession_short, row_id,
-                               name,
                                read1 -> len + read2 -> len, read1, read2,
                                /* QUALITY... */
                                self -> accession_short, row_id,
-                               name,
                                quality -> len, quality );
 }
 
-static const char * fmt_fastq_v2_real_name_frag_nr    = "@%s.%ld/%u %S length=%u\n%S%S\n+%s.%ld/%u %S length=%u\n%S\n";
+static const char * fmt_fastq_v2_real_name_frag_nr  = "@%s.%ld/%u %S length=%u\n%S%S\n+%s.%ld/%u %S length=%u\n%S\n";
+static const char * fmt_fastq_v2_empty_name_frag_nr = "@%s.%ld/%u length=%u\n%S%S\n+%s.%ld/%u length=%u\n%S\n";
 static rc_t print_v2_real_name_frag_nr( join_results * self,
                                          int64_t row_id,
                                          uint32_t dst_id,
@@ -340,16 +377,27 @@ static rc_t print_v2_real_name_frag_nr( join_results * self,
                                          const String * read2,
                                          const String * quality )
 {
+    if ( name -> len > 0 )
+        return join_results_print( self,
+                                   dst_id, 
+                                   fmt_fastq_v2_real_name_frag_nr,
+                                   /* READ... */
+                                   self -> accession_short, row_id, read_id,
+                                   name,
+                                   read1 -> len + read2 -> len, read1, read2,
+                                   /* QUALITY... */
+                                   self -> accession_short, row_id, read_id,
+                                   name,
+                                   quality -> len, quality );
+
     return join_results_print( self,
                                dst_id, 
-                               fmt_fastq_v2_real_name_frag_nr,
+                               fmt_fastq_v2_empty_name_frag_nr,
                                /* READ... */
                                self -> accession_short, row_id, read_id,
-                               name,
                                read1 -> len + read2 -> len, read1, read2,
                                /* QUALITY... */
                                self -> accession_short, row_id, read_id,
-                               name,
                                quality -> len, quality );
 }
 

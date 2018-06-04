@@ -45,14 +45,14 @@ static bool filter1( join_stats * stats,
         process = ( rec -> read . len > 0 );
 
     if ( !process )
-        stats -> fragments_too_short++;
+        stats -> reads_too_short++;
     else
     {
         if ( jo -> skip_tech )
         {
             process = ( rec -> read_type[ 0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
             if ( !process )
-                stats -> fragments_technical++;
+                stats -> reads_technical++;
         }
     }
     return process;
@@ -68,7 +68,7 @@ static bool filter( join_stats * stats,
     {
         process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
         if ( !process )
-            stats -> fragments_technical++;
+            stats -> reads_technical++;
     }
     
     if ( process )
@@ -78,7 +78,7 @@ static bool filter( join_stats * stats,
         else
             process = ( rec -> read_len[ read_id_0 ] > 0 );        
         if ( !process )
-            stats -> fragments_too_short++;
+            stats -> reads_too_short++;
     }
     return process;
 }
@@ -95,7 +95,9 @@ static rc_t print_fastq_1_read( join_stats * stats,
     if ( rec -> read . len != rec -> quality . len )
     {
         ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
-        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+        stats -> reads_invalid++;
+        if ( jo -> terminate_on_invalid )
+            return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
     }
 
     if ( filter1( stats, rec, jo ) )
@@ -111,7 +113,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
                                               &( rec -> read ),
                                               &( rec -> quality ) );
             if ( rc == 0 )
-                stats -> fragments_written++;
+                stats -> reads_written++;
         }
     }
     return rc;
@@ -131,15 +133,22 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
     
     if ( rec -> read . len != rec -> quality . len )
     {
-        ErrMsg( "row #%ld : READ.len != QUALITY.len\n", rec -> row_id );
-        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
+        stats -> reads_invalid++;
+        if ( jo -> terminate_on_invalid )
+            return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
     }
     
     while ( read_id_0 < rec -> num_read_len )
         read_len_sum += rec -> read_len[ read_id_0++ ];
 
     if ( rec -> read . len != read_len_sum )
-        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+    {
+        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u)\n", rec -> row_id, rec -> read . len, read_len_sum );
+        stats -> reads_invalid++;
+        if ( jo -> terminate_on_invalid )
+            return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+    }
     
     read_id_0 = 0;
 
@@ -168,13 +177,13 @@ static rc_t print_fastq_n_reads_split( join_stats * stats,
                                                       &R,
                                                       &Q );
                     if ( rc == 0 )
-                        stats -> fragments_written++;
+                        stats -> reads_written++;
                 }
             }
             offset += rec -> read_len[ read_id_0 ];           
         }
         else
-            stats -> fragments_zero_length++;
+            stats -> reads_zero_length++;
         read_id_0++;
     }
     return rc;
@@ -193,16 +202,25 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
     uint32_t read_len_sum = 0;
     
     if ( rec -> read . len != rec -> quality . len )
-        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-
+    {
+        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
+        stats -> reads_invalid++;
+        if ( jo -> terminate_on_invalid )
+            return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+    }
+    
     while ( read_id_0 < rec -> num_read_len )
         read_len_sum += rec -> read_len[ read_id_0++ ];
 
     if ( rec -> read . len != read_len_sum )
-        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    
+    {
+        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u)\n", rec -> row_id, rec -> read . len, read_len_sum );
+        stats -> reads_invalid++;
+        if ( jo -> terminate_on_invalid )
+            return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+    }
+
     read_id_0 = 0;
-    
     while ( rc == 0 && read_id_0 < rec -> num_read_len )
     {
         if ( rec -> read_len[ read_id_0 ] > 0 )
@@ -228,13 +246,13 @@ static rc_t print_fastq_n_reads_split_file( join_stats * stats,
                                                       &R,
                                                       &Q );
                     if ( rc == 0 )
-                        stats -> fragments_written++;
+                        stats -> reads_written++;
                 }
             }
             offset += rec -> read_len[ read_id_0 ];            
         }
         else
-            stats -> fragments_zero_length++;
+            stats -> reads_zero_length++;
 
         write_id_1++;
         read_id_0++;
@@ -251,34 +269,38 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
     String R, Q;
     uint32_t read_id_0 = 0;
     uint32_t write_id_1 = 1;
-    uint32_t valid_fragments = 0;
+    uint32_t valid_reads = 0;
     uint32_t offset = 0;
     uint32_t read_len_sum = 0;
     
     if ( rec -> read . len != rec -> quality . len )
-        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-
+    {
+        ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u)\n", rec -> row_id, rec -> read . len, rec -> quality . len );
+        stats -> reads_invalid++;
+        if ( jo -> terminate_on_invalid )
+            return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+    }
+    
     while ( read_id_0 < rec -> num_read_len )
     {
         read_len_sum += rec -> read_len[ read_id_0 ];
         if ( rec -> read_len[ read_id_0 ] > 0 )
-            valid_fragments++;
+            valid_reads++;
         read_id_0++;
     }
 
     if ( rec -> read . len != read_len_sum )
-        return RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
-    
-    if ( valid_fragments == 0 )
-        return rc;
+    {
+        ErrMsg( "row #%ld : READ.len(%u) != sum(READ_LEN)(%u)\n", rec -> row_id, rec -> read . len, read_len_sum );
+        stats -> reads_invalid++;
+        if ( jo -> terminate_on_invalid )
+            return SILENT_RC( rcApp, rcNoTarg, rcReading, rcItem, rcInvalid );
+    }
 
-    /*
-    if ( valid_fragments < rec -> num_read_len )
-        write_id_1 = 0;
-    */
-    
+    if ( valid_reads == 0 )
+        return rc;
+   
     read_id_0 = 0;
-    
     while ( rc == 0 && read_id_0 < rec -> num_read_len )
     {
         if ( rec -> read_len[ read_id_0 ] > 0 )
@@ -304,7 +326,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
                                                       &R,
                                                       &Q );
                     if ( rc == 0 )
-                        stats -> fragments_written++;
+                        stats -> reads_written++;
                 }
 
                 if ( write_id_1 > 0 )
@@ -313,7 +335,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
             offset += rec -> read_len[ read_id_0 ];            
         }
         else
-            stats -> fragments_zero_length++;
+            stats -> reads_zero_length++;
             
         read_id_0++;
     }
@@ -349,6 +371,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
             false,
             jo -> print_frag_nr,
             jo -> print_name,
+            jo -> terminate_on_invalid,
             jo -> min_read_len,
             jo -> filter_bases
         };
@@ -356,7 +379,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
         while ( rc == 0 && get_from_fastq_sra_iter( iter, &rec, &rc_iter ) && rc_iter == 0 ) /* fastq-iter.c */
         {
             stats -> spots_read++;
-            stats -> fragments_read += rec . num_read_len;
+            stats -> reads_read += rec . num_read_len;
             
             rc = Quitting();
             if ( rc == 0 )
@@ -398,7 +421,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
             if ( rc == 0 )
             {
                 stats -> spots_read++;
-                stats -> fragments_read += rec . num_read_len;
+                stats -> reads_read += rec . num_read_len;
             
                 if ( rec . num_read_len == 1 )
                     rc = print_fastq_1_read( stats, results, &rec, jo, 0, 1 );
@@ -442,7 +465,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
             if ( rc == 0 )
             {
                 stats -> spots_read++;
-                stats -> fragments_read += rec . num_read_len;
+                stats -> reads_read += rec . num_read_len;
 
                 if ( rec . num_read_len == 1 )
                     rc = print_fastq_1_read( stats, results, &rec, jo, 1, 1 );
@@ -486,6 +509,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
             true,
             jo -> print_frag_nr,
             jo -> print_name,
+            jo -> terminate_on_invalid,
             jo -> min_read_len,
             jo -> filter_bases
         };
@@ -496,7 +520,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
             if ( rc == 0 )
             {
                 stats -> spots_read++;
-                stats -> fragments_read += rec . num_read_len;
+                stats -> reads_read += rec . num_read_len;
                 
                 if ( rec . num_read_len == 1 )
                     rc = print_fastq_1_read( stats, results, &rec, &local_opt, 0, 1 );
@@ -665,6 +689,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                 corrected_join_options . print_name = name_column_present;
                 corrected_join_options . min_read_len = join_options -> min_read_len;
                 corrected_join_options . filter_bases = join_options -> filter_bases;
+                corrected_join_options . terminate_on_invalid = join_options -> terminate_on_invalid;
                 
                 if ( row_count < ( num_threads * 100 ) )
                 {

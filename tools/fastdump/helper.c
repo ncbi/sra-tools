@@ -606,11 +606,12 @@ void clear_join_stats( join_stats * stats )
     if ( stats != NULL )
     {
         stats -> spots_read = 0;
-        stats -> fragments_read = 0;
-        stats -> fragments_written = 0;
-        stats -> fragments_zero_length = 0;
-        stats -> fragments_technical = 0;
-        stats -> fragments_too_short = 0;
+        stats -> reads_read = 0;
+        stats -> reads_written = 0;
+        stats -> reads_zero_length = 0;
+        stats -> reads_technical = 0;
+        stats -> reads_too_short = 0;
+        stats -> reads_invalid = 0;
     }
 }
 
@@ -619,11 +620,12 @@ void add_join_stats( join_stats * stats, const join_stats * to_add )
     if ( stats != NULL && to_add != NULL )
     {
         stats -> spots_read += to_add -> spots_read;
-        stats -> fragments_read += to_add -> fragments_read;
-        stats -> fragments_written += to_add -> fragments_written;
-        stats -> fragments_zero_length += to_add -> fragments_zero_length;
-        stats -> fragments_technical += to_add -> fragments_technical;
-        stats -> fragments_too_short += to_add -> fragments_too_short;
+        stats -> reads_read += to_add -> reads_read;
+        stats -> reads_written += to_add -> reads_written;
+        stats -> reads_zero_length += to_add -> reads_zero_length;
+        stats -> reads_technical += to_add -> reads_technical;
+        stats -> reads_too_short += to_add -> reads_too_short;
+        stats -> reads_invalid += to_add -> reads_invalid;
     }
 }
 

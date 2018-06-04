@@ -245,16 +245,6 @@ bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, r
                 rec -> num_read_type = 0;
         }
 
-        if ( rc1 == 0 )
-        {
-            if ( rec -> prim_alig_id[ 0 ] == 0 && rec -> prim_alig_id[ 1 ] == 0 &&
-                 rec -> read . len != rec -> quality . len )
-            {
-                rc1 = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) /1\n", rec -> row_id, rec -> read .len, rec -> quality . len );
-            }
-        }
-        
         if ( rc != NULL )
             *rc = rc1;
     }   
@@ -381,12 +371,6 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
                 rec -> num_read_type = 0;
         }
 
-        if ( rc1 == 0 && ( rec -> read . len != rec -> quality . len ) )
-        {
-            rc1 = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-            ErrMsg( "row #%ld : READ.len(%u) != QUALITY.len(%u) /2\n", rec -> row_id, rec -> read . len, rec -> quality . len );
-        }
-
         if ( rc1 == 0 && self -> opt . with_read_len )
         {
             uint32_t sum_read_len = 0;
@@ -395,12 +379,6 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
                 sum_read_len += rec -> read_len[ i ];
             if ( rec -> read . len != sum_read_len )
             {
-#ifdef STRICT_FASTQ
-                /* in strict mode complain about invalid data */
-                rc1 = SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-                ErrMsg( "row #%ld : READ.len(%u) != sum( READ_LEN )(%u) /2\n", rec -> row_id, rec -> read . len, sum_read_len );
-#else
-                /* in none strict mode, fix the length of READ and QUALITY to match the invalid sum( READ_LEN ) */
                 rec -> read . len  = sum_read_len;
                 rec -> read . size = sum_read_len;
 
@@ -409,7 +387,6 @@ bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_
                                 &( self -> qual_2_ascii[ 0 ] ),
                                 &( rec -> quality ),
                                 sum_read_len );             
-#endif
             }
         }
 

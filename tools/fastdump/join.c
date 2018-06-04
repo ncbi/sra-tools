@@ -207,13 +207,13 @@ static bool filter( join_stats * stats,
     {
         process = ( rec -> read_type[ read_id_0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
         if ( !process )
-            stats -> fragments_technical++;
+            stats -> reads_technical++;
     }
     if ( process && jo -> min_read_len > 0 )
     {
         process = ( rec -> read_len[ read_id_0 ] >= jo -> min_read_len );
         if ( !process )
-            stats -> fragments_too_short++;
+            stats -> reads_too_short++;
     }
     return process;
 }
@@ -239,7 +239,9 @@ static rc_t print_fastq_1_read( join_stats * stats,
             {
                 ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
                         rec -> read . len, rec -> quality . len );
-                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                stats -> reads_invalid++;
+                if ( jo -> terminate_on_invalid )
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
             }
         
             if ( rec -> read . len > 0 )
@@ -252,7 +254,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
                                                   &( rec -> read ),
                                                   &( rec -> quality ) ); /* join_results.c */
                 if ( rc == 0 )
-                    stats -> fragments_written++;
+                    stats -> reads_written++;
             }
         }
     }
@@ -269,7 +271,9 @@ static rc_t print_fastq_1_read( join_stats * stats,
                 {
                     ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
                              j -> B1 . S . len, rec -> quality . len );
-                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    stats -> reads_invalid++;
+                    if ( jo -> terminate_on_invalid )
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
 
                 if ( j -> B1 . S . len > 0 )
@@ -282,7 +286,7 @@ static rc_t print_fastq_1_read( join_stats * stats,
                                                       &( j -> B1 . S ),
                                                       &( rec -> quality ) ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written++;
+                        stats -> reads_written++;
                 }
             }
         }
@@ -312,7 +316,9 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                 {
                     ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
                             rec -> read . len, rec -> quality . len );
-                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    stats -> reads_invalid++;
+                    if ( jo -> terminate_on_invalid )
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
             
                 rc = join_results_print_fastq_v1( j -> results,
@@ -323,7 +329,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                                   &( rec -> read ),
                                                   &( rec -> quality ) ); /* join_results.c */
                 if ( rc == 0 )
-                    stats -> fragments_written += 2;
+                    stats -> reads_written += 2;
             }
         }
         else
@@ -339,7 +345,9 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                     {
                         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
                                 j -> B2 . S. len, rec -> quality . len );
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        stats -> reads_invalid++;
+                        if ( jo -> terminate_on_invalid )
+                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                 
                     rc = join_results_print_fastq_v2( j -> results,
@@ -351,7 +359,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                       &( j -> B2 . S ),
                                       &( rec -> quality ) ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written += 2;
+                        stats -> reads_written += 2;
                 }
             }
         }
@@ -372,7 +380,9 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                     {
                         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
                                 rl, rec -> quality . len );
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        stats -> reads_invalid++;
+                        if ( jo -> terminate_on_invalid )
+                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     
                     rc = join_results_print_fastq_v2( j -> results,
@@ -384,7 +394,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                       &( rec -> read ),
                                       &( rec -> quality ) ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written += 2;
+                        stats -> reads_written += 2;
                 }
             }
         }
@@ -405,7 +415,9 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                     {
                         ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
                                 rl, rec -> quality . len );
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        stats -> reads_invalid++;
+                        if ( jo -> terminate_on_invalid )
+                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                 
                     rc = join_results_print_fastq_v2( j -> results,
@@ -417,7 +429,7 @@ static rc_t print_fastq_2_reads( join_stats * stats,
                                       &( j -> B2 . S ),
                                       &( rec -> quality ) ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written += 2;
+                        stats -> reads_written += 2;
                 }
             }
         }
@@ -455,7 +467,9 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
     if ( ( Q1 . len + Q2 . len ) != rec -> quality . len )
     {
         ErrMsg( "row #%ld : Q[1].len(%u) + Q[2].len(%u) != Q.len(%u)\n", row_id, Q1 . len, Q2 . len, rec -> quality . len );
-        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+        stats -> reads_invalid++;
+        if ( jo -> terminate_on_invalid )
+            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
     }
     
     if ( rec -> prim_alig_id[ 0 ] == 0 )
@@ -471,7 +485,9 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 if ( READ1 . len != Q1 . len )
                 {
                     ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 . len, Q1 . len );
-                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    stats -> reads_invalid++;
+                    if ( jo -> terminate_on_invalid )
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 process_0 = ( READ1 . len > 0 );
             }
@@ -486,7 +502,9 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 if ( READ2 . len != Q2 . len )
                 {
                     ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 . len, Q2 . len );
-                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    stats -> reads_invalid++;
+                    if ( jo -> terminate_on_invalid )
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 process_1 = ( READ2 . len > 0 );
             }
@@ -507,7 +525,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       &Q1 ); /* join_results.c */
                     if ( rc == 0 )
                     {
-                        stats -> fragments_written ++;
+                        stats -> reads_written ++;
                         if ( split_file && dst_id > 0 )
                             dst_id++;
                     }
@@ -526,7 +544,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       &READ2,
                                                       &Q2 ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written ++;
+                        stats -> reads_written ++;
                 }
             }
         }
@@ -540,7 +558,9 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 if ( READ1 -> len != Q1 . len )
                 {
                     ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
-                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    stats -> reads_invalid++;
+                    if ( jo -> terminate_on_invalid )
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 process_0 = ( READ1 -> len > 0 );
             }
@@ -557,7 +577,9 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     if ( READ2 -> len != Q2 . len )
                     {
                         ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        stats -> reads_invalid++;
+                        if ( jo -> terminate_on_invalid )
+                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     process_1 = ( READ2 -> len > 0 );
                 }
@@ -577,7 +599,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       READ1,
                                                       &Q1 ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written ++;
+                        stats -> reads_written ++;
                     if ( split_file && dst_id > 0 )
                         dst_id++;
                 }
@@ -594,7 +616,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       READ2,
                                                       &Q2 ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written ++;
+                        stats -> reads_written ++;
                 }
             }
         }
@@ -617,7 +639,9 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     if ( READ1 -> len != Q1 . len )
                     {
                         ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        stats -> reads_invalid++;
+                        if ( jo -> terminate_on_invalid )
+                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     process_0 = ( READ1 -> len > 0 );
                 }
@@ -630,7 +654,9 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                 if ( READ2 -> len != Q2 . len )
                 {
                     ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
-                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    stats -> reads_invalid++;
+                    if ( jo -> terminate_on_invalid )
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                 }
                 process_1 = ( READ2 -> len > 0 );
             }
@@ -649,7 +675,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       READ1,
                                                       &Q1 ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written ++;
+                        stats -> reads_written ++;
                     if ( split_file && dst_id > 0 )
                         dst_id++;
                 }
@@ -666,7 +692,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       READ2,
                                                       &Q2 ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written ++;
+                        stats -> reads_written ++;
                 }
             }
         }
@@ -686,7 +712,9 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     if ( READ1 -> len != Q1 . len )
                     {
                         ErrMsg( "row #%ld : R[1].len(%u) != Q[1].len(%u)\n", row_id, READ1 -> len, Q1 . len );
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        stats -> reads_invalid++;
+                        if ( jo -> terminate_on_invalid )
+                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     process_0 = ( READ1 -> len > 0 );
                 }
@@ -704,7 +732,9 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                     if ( READ2 -> len != Q2 . len )
                     {
                         ErrMsg( "row #%ld : R[2].len(%u) != Q[2].len(%u)\n", row_id, READ2 -> len, Q2 . len );
-                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                        stats -> reads_invalid++;
+                        if ( jo -> terminate_on_invalid )
+                            return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
                     }
                     process_1 =( READ2 -> len > 0 );
                 }
@@ -724,7 +754,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       READ1,
                                                       &Q1 ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written ++;
+                        stats -> reads_written ++;
                     if ( split_file && dst_id > 0 )
                         dst_id++;
                 }
@@ -741,7 +771,7 @@ static rc_t print_fastq_2_reads_splitted( join_stats * stats,
                                                       READ2,
                                                       &Q2 ); /* join_results.c */
                     if ( rc == 0 )
-                        stats -> fragments_written ++;
+                        stats -> reads_written ++;
                 }
             }
         }
@@ -823,6 +853,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
                                    false, 
                                    jo -> print_frag_nr,
                                    jo -> print_name,
+                                   jo -> terminate_on_invalid,
                                    jo -> min_read_len,
                                    jo -> filter_bases };
         while ( rc == 0 && get_from_fastq_csra_iter( iter, &rec, &rc ) ) /* fastq-iter.c */
@@ -831,7 +862,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
             if ( rc == 0 )
             {
                 stats -> spots_read++;
-                stats -> fragments_read += rec . num_alig_id;
+                stats -> reads_read += rec . num_alig_id;
             
                 if ( rec . num_alig_id == 1 )
                     rc = print_fastq_1_read( stats, &rec, j, &local_opt ); /* above */
@@ -877,7 +908,7 @@ static rc_t perform_fastq_split_spot_join( cmn_params * cp,
             if ( rc == 0 )
             {
                 stats -> spots_read++;
-                stats -> fragments_read += rec . num_alig_id;
+                stats -> reads_read += rec . num_alig_id;
             
                 if ( rec . num_alig_id == 1 )
                     rc = print_fastq_1_read( stats, &rec, j, jo ); /* above */
@@ -923,6 +954,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
                 false,
                 jo -> print_frag_nr,
                 jo -> print_name,
+                jo -> terminate_on_invalid,
                 jo -> min_read_len,
                 jo -> filter_bases
             };
@@ -933,7 +965,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
             if ( rc == 0 )
             {
                 stats -> spots_read++;
-                stats -> fragments_read += rec . num_alig_id;
+                stats -> reads_read += rec . num_alig_id;
             
                 if ( rec . num_alig_id == 1 )
                     rc = print_fastq_1_read( stats, &rec, j, &local_opt );
@@ -981,6 +1013,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
                 false,
                 jo -> print_frag_nr,
                 jo -> print_name,
+                jo -> terminate_on_invalid,
                 jo -> min_read_len,
                 jo -> filter_bases
             };
@@ -991,7 +1024,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
             if ( rc == 0 )
             {
                 stats -> spots_read++;
-                stats -> fragments_read += rec . num_alig_id;
+                stats -> reads_read += rec . num_alig_id;
 
                 if ( rec . num_alig_id == 1 )
                     rc = print_fastq_1_read( stats, &rec, j, &local_opt );
@@ -1163,6 +1196,7 @@ rc_t execute_db_join( KDirectory * dir,
             corrected_join_options . print_name = join_options -> print_name;
             corrected_join_options . min_read_len = join_options -> min_read_len;
             corrected_join_options . filter_bases = join_options -> filter_bases;
+            corrected_join_options . terminate_on_invalid = join_options -> terminate_on_invalid;
             
             if ( row_count < ( num_threads * 100 ) )
             {

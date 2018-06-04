@@ -145,6 +145,9 @@ static const char * base_flt_usage[] = { "filter by bases", NULL };
 static const char * table_usage[] = { "which seq-table to use in case of pacbio", NULL };
 #define OPTION_TABLE    "table"
 
+static const char * strict_usage[] = { "terminate on invalid read", NULL };
+#define OPTION_STRICT   "strict"
+
 OptDef ToolOptions[] =
 {
     { OPTION_FORMAT,    ALIAS_FORMAT,    NULL, format_usage,     1, true,   false },
@@ -170,7 +173,8 @@ OptDef ToolOptions[] =
     { OPTION_PFNR,      ALIAS_PFNR,      NULL, print_frag_nr,    1, false,  false },
     { OPTION_MINRDLEN,  ALIAS_MINRDLEN,  NULL, min_rl_usage,     1, true,   false },
     { OPTION_TABLE,     NULL,            NULL, table_usage,      1, true,   false },
-    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,   false }    
+    { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
+    { OPTION_BASE_FLT,  ALIAS_BASE_FLT,  NULL, base_flt_usage,   10, true,  false }
 };
 
 const char UsageDefaultName[] = "fasterq-dump";
@@ -355,6 +359,7 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> join_options . print_name = true;
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
+    tool_ctx -> join_options . terminate_on_invalid = get_bool_option( args, OPTION_STRICT );
 
     split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
     split_file = get_bool_option( args, OPTION_SPLIT_FILE );
@@ -606,17 +611,19 @@ static rc_t populate_tool_ctx( tool_ctx_t * tool_ctx, const Args * args )
 
 static rc_t print_stats( const join_stats * stats )
 {
-    rc_t rc = KOutMsg( "spots read          : %,lu\n", stats -> spots_read );
+    rc_t rc = KOutMsg( "spots read      : %,lu\n", stats -> spots_read );
     if ( rc == 0 )
-         rc = KOutMsg( "fragments read      : %,lu\n", stats -> fragments_read );
+         rc = KOutMsg( "reads read      : %,lu\n", stats -> reads_read );
     if ( rc == 0 )
-         rc = KOutMsg( "fragments written   : %,lu\n", stats -> fragments_written );
-    if ( rc == 0 && stats -> fragments_zero_length > 0 )
-         rc = KOutMsg( "fragments 0-length  : %,lu\n", stats -> fragments_zero_length );
-    if ( rc == 0 && stats -> fragments_technical > 0 )
-         rc = KOutMsg( "technical fragmenst : %,lu\n", stats -> fragments_technical );
-    if ( rc == 0 && stats -> fragments_too_short > 0 )
-         rc = KOutMsg( "too short fragmenst : %,lu\n", stats -> fragments_too_short );
+         rc = KOutMsg( "reads written   : %,lu\n", stats -> reads_written );
+    if ( rc == 0 && stats -> reads_zero_length > 0 )
+         rc = KOutMsg( "reads 0-length  : %,lu\n", stats -> reads_zero_length );
+    if ( rc == 0 && stats -> reads_technical > 0 )
+         rc = KOutMsg( "technical reads : %,lu\n", stats -> reads_technical );
+    if ( rc == 0 && stats -> reads_too_short > 0 )
+         rc = KOutMsg( "reads too short : %,lu\n", stats -> reads_too_short );
+    if ( rc == 0 && stats -> reads_invalid > 0 )
+         rc = KOutMsg( "reads invalid   : %,lu\n", stats -> reads_invalid );
     return rc;
 }
 

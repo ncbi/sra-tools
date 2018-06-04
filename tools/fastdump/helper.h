@@ -72,11 +72,12 @@ rc_t CC Quitting(); /* to avoid including kapp/main.h */
 typedef struct join_stats
 {
     uint64_t spots_read;
-    uint64_t fragments_read;
-    uint64_t fragments_written;
-    uint64_t fragments_zero_length;
-    uint64_t fragments_technical;
-    uint64_t fragments_too_short;
+    uint64_t reads_read;
+    uint64_t reads_written;
+    uint64_t reads_zero_length;
+    uint64_t reads_technical;
+    uint64_t reads_too_short;
+    uint64_t reads_invalid;
 } join_stats;
 
 typedef struct join_options
@@ -85,6 +86,7 @@ typedef struct join_options
     bool skip_tech;
     bool print_frag_nr;
     bool print_name;
+    bool terminate_on_invalid;
     uint32_t min_read_len;
     const char * filter_bases;
 } join_options;

@@ -43,6 +43,13 @@ static void init_qual_to_ascii( char * q2a, size_t size )
     }
 }
 
+static void clear_quality( String * quality )
+{
+    quality -> addr = NULL;
+    quality -> len = 0;
+    quality -> size = 0;
+}
+
 static rc_t read_bounded_quality( struct cmn_iter * cmn,
                                   uint32_t col_id,
                                   KDataBuffer * qual_buffer,
@@ -52,26 +59,29 @@ static rc_t read_bounded_quality( struct cmn_iter * cmn,
     uint8_t * qual_values = NULL;
     uint32_t num_qual = 0;
     rc_t rc = cmn_read_uint8_array( cmn, col_id, &qual_values, &num_qual );
-    if ( rc == 0 && num_qual > 0 && qual_values != NULL )
-    { 
-        if ( num_qual > qual_buffer -> elem_count )
-            rc = KDataBufferResize ( qual_buffer, num_qual );
-        if ( rc == 0 )
-        {
-            uint32_t idx;
-            uint8_t * b = qual_buffer -> base;
-            for ( idx = 0; idx < num_qual; idx++ )
-                b[ idx ] = q2a[ qual_values[ idx ] ];
-            quality -> addr = qual_buffer -> base;
-            quality -> len  = num_qual;
-            quality -> size = num_qual;
+    if ( rc == 0 )
+    {
+        if ( num_qual > 0 && qual_values != NULL )
+        { 
+            if ( num_qual > qual_buffer -> elem_count )
+                rc = KDataBufferResize ( qual_buffer, num_qual );
+            if ( rc == 0 )
+            {
+                uint32_t idx;
+                uint8_t * b = qual_buffer -> base;
+                for ( idx = 0; idx < num_qual; idx++ )
+                    b[ idx ] = q2a[ qual_values[ idx ] ];
+                quality -> addr = qual_buffer -> base;
+                quality -> len  = num_qual;
+                quality -> size = num_qual;
+            }
         }
+        else
+            clear_quality( quality );        
     }
     if ( rc != 0 )
     {
-        quality -> addr = NULL;
-        quality -> len = 0;
-        quality -> size = 0;
+        clear_quality( quality );
         rc = 0;
     }
     return rc;

@@ -235,15 +235,25 @@ static rc_t print_fastq_1_read( join_stats * stats,
         /* read is unaligned, print what is in rec -> cmp_read ( no lookup ) */
         if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
         {
-            rc = join_results_print_fastq_v1( j -> results,
-                                              row_id,
-                                              0, /* dst_id ( into which file to write ) */
-                                              1, /* read_id for tag-line */
-                                              jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                              &( rec -> read ),
-                                              &( rec -> quality ) ); /* join_results.c */
-            if ( rc == 0 )
-                stats -> fragments_written++;
+            if ( rec -> read . len != rec -> quality . len )
+            {
+                ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                        rec -> read . len, rec -> quality . len );
+                return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+            }
+        
+            if ( rec -> read . len > 0 )
+            {
+                rc = join_results_print_fastq_v1( j -> results,
+                                                  row_id,
+                                                  0, /* dst_id ( into which file to write ) */
+                                                  1, /* read_id for tag-line */
+                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                  &( rec -> read ),
+                                                  &( rec -> quality ) ); /* join_results.c */
+                if ( rc == 0 )
+                    stats -> fragments_written++;
+            }
         }
     }
     else
@@ -255,15 +265,25 @@ static rc_t print_fastq_1_read( join_stats * stats,
         {
             if ( join_results_match( j -> results, &( j -> B1 . S ) ) ) /* join-results.c */
             {
-                rc = join_results_print_fastq_v1( j -> results,
-                                                  row_id,
-                                                  0, /* dst_id ( into which file to write ) */
-                                                  1, /* read_id for tag-line */
-                                                  jo -> rowid_as_name ? NULL : &( rec -> name ),
-                                                  &( j -> B1 . S ),
-                                                  &( rec -> quality ) ); /* join_results.c */
-                if ( rc == 0 )
-                    stats -> fragments_written++;
+                if ( j -> B1 . S . len != rec -> quality . len )
+                {
+                    ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                             j -> B1 . S . len, rec -> quality . len );
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                }
+
+                if ( j -> B1 . S . len > 0 )
+                {
+                    rc = join_results_print_fastq_v1( j -> results,
+                                                      row_id,
+                                                      0, /* dst_id ( into which file to write ) */
+                                                      1, /* read_id for tag-line */
+                                                      jo -> rowid_as_name ? NULL : &( rec -> name ),
+                                                      &( j -> B1 . S ),
+                                                      &( rec -> quality ) ); /* join_results.c */
+                    if ( rc == 0 )
+                        stats -> fragments_written++;
+                }
             }
         }
     }
@@ -288,6 +308,13 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             /* both unaligned, print what is in row->read (no lookup)*/        
             if ( join_results_match( j -> results, &( rec -> read ) ) ) /* join-results.c */
             {
+                if ( rec -> read . len != rec -> quality . len )
+                {
+                    ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                            rec -> read . len, rec -> quality . len );
+                    return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                }
+            
                 rc = join_results_print_fastq_v1( j -> results,
                                                   row_id,
                                                   dst_id,
@@ -308,6 +335,13 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             {
                 if ( join_results_match2( j -> results, &( rec -> read ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
+                    if ( j -> B2 . S. len != rec -> quality . len )
+                    {
+                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                                j -> B2 . S. len, rec -> quality . len );
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
+                
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
                                       dst_id,
@@ -333,6 +367,14 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             {
                 if ( join_results_match2( j -> results, &( j -> B1 . S ), &( rec -> read ) ) ) /* join-results.c */
                 {
+                    uint32_t rl = j -> B1 . S . len + rec -> read . len;
+                    if ( rl != rec -> quality . len )
+                    {
+                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                                rl, rec -> quality . len );
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
+                    
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
                                       dst_id,
@@ -358,6 +400,14 @@ static rc_t print_fastq_2_reads( join_stats * stats,
             {
                 if ( join_results_match2( j -> results, &( j -> B1 . S ), &( j -> B2 . S ) ) ) /* join-results.c */
                 {
+                    uint32_t rl = j -> B1 . S . len + j -> B2 . S . len;
+                    if ( rl != rec -> quality . len )
+                    {
+                        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id,
+                                rl, rec -> quality . len );
+                        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
+                    }
+                
                     rc = join_results_print_fastq_v2( j -> results,
                                       row_id,
                                       dst_id,
@@ -942,7 +992,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
             {
                 stats -> spots_read++;
                 stats -> fragments_read += rec . num_alig_id;
-            
+
                 if ( rec . num_alig_id == 1 )
                     rc = print_fastq_1_read( stats, &rec, j, &local_opt );
                 else

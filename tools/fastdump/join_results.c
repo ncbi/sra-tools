@@ -632,12 +632,6 @@ rc_t join_results_print_fastq_v1( join_results * self,
                                   const String * read,
                                   const String * quality )
 {
-    if ( read -> len != quality -> len )
-    {
-        ErrMsg( "row #%ld : read.len(%u) != quality.len(%u)\n", row_id, read -> len, quality -> len );
-        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-    }
-    
     if ( name == NULL )
         return self -> v1_print_name_null( self, row_id, dst_id, read_id, name, read, quality );
     else
@@ -653,12 +647,6 @@ rc_t join_results_print_fastq_v2( join_results * self,
                                   const String * read2,
                                   const String * quality )
 {
-    if ( read1 -> len + read2 -> len != quality -> len )
-    {
-        ErrMsg( "row #%ld : read[1].len(%u) + read[2].len(%u)!= quality.len(%u)\n", row_id, read1 -> len, read2 -> len, quality -> len );
-        return SILENT_RC( rcApp, rcNoTarg, rcAccessing, rcRow, rcInvalid );
-    }
-    
     if ( name == NULL )
         return self -> v2_print_name_null( self, row_id, dst_id, read_id, name, read1, read2, quality );
     else

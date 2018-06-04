@@ -44,7 +44,7 @@ def perform( fn1, fn2 ) :
                         print( "B[3]: %s" % B[ 3 ] )
                     else :
                         print( "*[3]: %s" % A[ 3 ] )
-                    print()
+                    print( "" )
 
 if __name__ == '__main__':
     if len( sys.argv ) > 2 :

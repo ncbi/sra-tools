@@ -46,7 +46,15 @@ static bool filter1( join_stats * stats,
 
     if ( !process )
         stats -> fragments_too_short++;
-
+    else
+    {
+        if ( jo -> skip_tech )
+        {
+            process = ( rec -> read_type[ 0 ] & READ_TYPE_BIOLOGICAL ) == READ_TYPE_BIOLOGICAL;
+            if ( !process )
+                stats -> fragments_technical++;
+        }
+    }
     return process;
 }
 

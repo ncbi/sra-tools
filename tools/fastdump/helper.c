@@ -158,7 +158,8 @@ static format_t format_cmp( String * Format, const char * test, format_t test_fm
     return ft_unknown;
 }
 
-format_t get_format_t( const char * format, bool split_spot, bool split_file, bool split_3 )
+format_t get_format_t( const char * format,
+            bool split_spot, bool split_file, bool split_3, bool whole_spot )
 {
     format_t res = ft_unknown;
     if ( format != NULL && format[ 0 ] != 0 )
@@ -171,7 +172,7 @@ format_t get_format_t( const char * format, bool split_spot, bool split_file, bo
         
         res = format_cmp( &Format, "special", ft_special );
         if ( res == ft_unknown )
-            res = format_cmp( &Format, "fastq", ft_fastq );
+            res = format_cmp( &Format, "whole-spot", ft_whole_spot );
         if ( res == ft_unknown )
             res = format_cmp( &Format, "fastq-split-spot", ft_fastq_split_spot );
         if ( res == ft_unknown )
@@ -189,6 +190,8 @@ format_t get_format_t( const char * format, bool split_spot, bool split_file, bo
             res = ft_fastq_split_file;
         else if ( split_spot )
             res = ft_fastq_split_spot;
+        else if ( whole_spot )
+            res = ft_whole_spot;
     }
     
     /* default to split_3 if no format has been given at all */

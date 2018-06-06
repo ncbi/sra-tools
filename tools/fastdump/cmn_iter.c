@@ -454,12 +454,18 @@ static acc_type_t cmn_get_db_type( const VDBManager * mgr, const char * accessio
             {
                 if ( contains( tables, "SEQUENCE" ) )
                 {
+                    res = acc_sra_db;
+                    
                     /* we have at least a SEQUENCE-table */
                     if ( contains( tables, "PRIMARY_ALIGNMENT" ) &&
                          contains( tables, "REFERENCE" ) )
+                    {
                         res = acc_csra;
-                    else
-                        res = acc_sra_db;
+                    }
+                    else if ( contains( tables, "CONSENSUS" ) )
+                    {
+                        res = acc_pacbio;
+                    }
                 }
             }
             KNamelistRelease ( k_tables );

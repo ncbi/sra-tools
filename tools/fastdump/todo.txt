@@ -1,3 +1,10 @@
 * progress-bar in merge ( if asked for )
 * check memory if no memory-limit provided
 * check for space on scratch or current-directory
+* projects and experiments
+* as lib
+* maybe 'lmdb' is faster as lookup-table, removes the merge-sorting, and merge-step
+
+problems:
+SRR2989969 ( difference in ref-orientation between SEQUENCE- and PRIMARY_ALIGNMENT-table )
+

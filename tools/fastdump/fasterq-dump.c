@@ -86,23 +86,25 @@ static const char * detail_usage[] = { "print details", NULL };
 #define OPTION_DETAILS  "details"
 #define ALIAS_DETAILS    "x"
 
-static const char * split_spot_usage[] = { "split spots into fragments", NULL };
+static const char * split_spot_usage[] = { "split spots into reads", NULL };
 #define OPTION_SPLIT_SPOT "split-spot"
 #define ALIAS_SPLIT_SPOT  "s"
 
-static const char * split_file_usage[] = { "write fragments into different files", NULL };
+static const char * split_file_usage[] = { "write reads into different files", NULL };
 #define OPTION_SPLIT_FILE "split-file"
 #define ALIAS_SPLIT_FILE  "S"
 
-static const char * split_3_usage[] = { "writes single fragments in special file", NULL };
+static const char * split_3_usage[] = { "writes single reads in special file", NULL };
 #define OPTION_SPLIT_3   "split-3"
 #define ALIAS_SPLIT_3    "3"
+
+static const char * whole_spot_usage[] = { "writes whole spots into one file", NULL };
+#define OPTION_WHOLE_SPOT   "whole-spot"
 
 /*
 static const char * stdout_usage[] = { "print output to stdout", NULL };
 #define OPTION_STDOUT    "stdout"
 #define ALIAS_STDOUT     "Z"
-*/
 
 static const char * gzip_usage[] = { "compress output using gzip", NULL };
 #define OPTION_GZIP      "gzip"
@@ -111,6 +113,7 @@ static const char * gzip_usage[] = { "compress output using gzip", NULL };
 static const char * bzip2_usage[] = { "compress output using bzip2", NULL };
 #define OPTION_BZIP2     "bzip2"
 #define ALIAS_BZIP2      "z"
+*/
 
 static const char * force_usage[] = { "force to overwrite existing file(s)", NULL };
 #define OPTION_FORCE     "force"
@@ -127,12 +130,14 @@ static const char * ridn_usage[] = { "use row-id as name", NULL };
 #define ALIAS_RIDN       "N"
 
 static const char * skip_tech_usage[] = { "skip technical reads", NULL };
-#define OPTION_TECH      "skip-technical"
-#define ALIAS_TECH       "T"
+#define OPTION_SKIP_TECH      "skip-technical"
 
-static const char * print_frag_nr[] = { "print fragment-numbers", NULL };
-#define OPTION_PFNR      "print-frag-nr"
-#define ALIAS_PFNR       "P"
+static const char * incl_tech_usage[] = { "include technical reads", NULL };
+#define OPTION_INCL_TECH      "include-technical"
+
+static const char * print_read_nr[] = { "print read-numbers", NULL };
+#define OPTION_PRNR      "print-read-nr"
+#define ALIAS_PRNR       "P"
 
 static const char * min_rl_usage[] = { "filter by sequence-len", NULL };
 #define OPTION_MINRDLEN  "min-read-len"
@@ -163,14 +168,16 @@ OptDef ToolOptions[] =
     { OPTION_SPLIT_SPOT,ALIAS_SPLIT_SPOT,NULL, split_spot_usage, 1, false,  false },
     { OPTION_SPLIT_FILE,ALIAS_SPLIT_FILE,NULL, split_file_usage, 1, false,  false },
     { OPTION_SPLIT_3,   ALIAS_SPLIT_3,   NULL, split_3_usage,    1, false,  false },
-/*    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false }, */
+    { OPTION_WHOLE_SPOT,    NULL,        NULL, whole_spot_usage, 1, false,  false },    
+/*    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false },
     { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false },
-    { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false },
+    { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false }, */
     { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
 /*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
     { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false },
-    { OPTION_TECH,      ALIAS_TECH,      NULL, skip_tech_usage,  1, false,  false },
-    { OPTION_PFNR,      ALIAS_PFNR,      NULL, print_frag_nr,    1, false,  false },
+    { OPTION_SKIP_TECH, NULL,            NULL, skip_tech_usage,  1, false,  false },
+    { OPTION_INCL_TECH, NULL,            NULL, incl_tech_usage,  1, false,  false },
+    { OPTION_PRNR,      ALIAS_PRNR,      NULL, print_read_nr,    1, false,  false },
     { OPTION_MINRDLEN,  ALIAS_MINRDLEN,  NULL, min_rl_usage,     1, true,   false },
     { OPTION_TABLE,     NULL,            NULL, table_usage,      1, true,   false },
     { OPTION_STRICT,    NULL,            NULL, strict_usage,     1, false,  false },
@@ -312,7 +319,7 @@ static rc_t show_details( tool_ctx_t * tool_ctx )
         switch ( tool_ctx -> fmt )
         {
             case ft_special             : rc = KOutMsg( "SPECIAL\n" ); break;
-            case ft_fastq               : rc = KOutMsg( "FASTQ\n" ); break;
+            case ft_whole_spot          : rc = KOutMsg( "FASTQ whole spot\n" ); break;
             case ft_fastq_split_spot    : rc = KOutMsg( "FASTQ split spot\n" ); break;
             case ft_fastq_split_file    : rc = KOutMsg( "FASTQ split file\n" ); break;
             case ft_fastq_split_3       : rc = KOutMsg( "FASTQ split 3\n" ); break;
@@ -336,10 +343,12 @@ static const char * dflt_seq_tabl_name = "SEQUENCE";
 #define DFLT_NUM_THREADS 6
 static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
 {
-    bool split_spot, split_file, split_3;
+    bool split_spot, split_file, split_3, whole_spot;
     
+    /*
     tool_ctx -> compress = get_compress_t( get_bool_option( args, OPTION_GZIP ),
-                                            get_bool_option( args, OPTION_BZIP2 ) ); /* helper.c */
+                                            get_bool_option( args, OPTION_BZIP2 ) ); helper.c */
+    tool_ctx -> compress = ct_none;
     
     tool_ctx -> cursor_cache = get_size_t_option( args, OPTION_CURCACHE, DFLT_CUR_CACHE );            
     tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
@@ -353,9 +362,10 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> buf_size = get_size_t_option( args, OPTION_BUFSIZE, DFLT_BUF_SIZE );
     tool_ctx -> mem_limit = get_size_t_option( args, OPTION_MEM, DFLT_MEM_LIMIT );
     tool_ctx -> num_threads = get_uint32_t_option( args, OPTION_THREADS, DFLT_NUM_THREADS );
+
     tool_ctx -> join_options . rowid_as_name = get_bool_option( args, OPTION_RIDN );
-    tool_ctx -> join_options . skip_tech = get_bool_option( args, OPTION_TECH );
-    tool_ctx -> join_options . print_frag_nr = get_bool_option( args, OPTION_PFNR );
+    tool_ctx -> join_options . skip_tech = !( get_bool_option( args, OPTION_INCL_TECH ) );
+    tool_ctx -> join_options . print_read_nr = get_bool_option( args, OPTION_PRNR );
     tool_ctx -> join_options . print_name = true;
     tool_ctx -> join_options . min_read_len = get_uint32_t_option( args, OPTION_MINRDLEN, 0 );
     tool_ctx -> join_options . filter_bases = get_str_option( args, OPTION_BASE_FLT, NULL );
@@ -364,10 +374,13 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     split_spot = get_bool_option( args, OPTION_SPLIT_SPOT );
     split_file = get_bool_option( args, OPTION_SPLIT_FILE );
     split_3    = get_bool_option( args, OPTION_SPLIT_3 );
+    whole_spot = get_bool_option( args, OPTION_WHOLE_SPOT );
     
     tool_ctx -> fmt = get_format_t( get_str_option( args, OPTION_FORMAT, NULL ),
-                            split_spot, split_file, split_3 ); /* helper.c */
-                            
+                            split_spot, split_file, split_3, whole_spot ); /* helper.c */
+    if ( tool_ctx -> fmt == ft_fastq_split_3 )
+        tool_ctx -> join_options . skip_tech = true;
+
     tool_ctx -> seq_tbl_name = get_str_option( args, OPTION_TABLE, dflt_seq_tabl_name );
 }
 
@@ -784,7 +797,7 @@ static rc_t produce_final_db_output( tool_ctx_t * tool_ctx )
 
 /* -------------------------------------------------------------------------------------------- */
 
-static rc_t fastdump_database( tool_ctx_t * tool_ctx )
+static rc_t fastdump_csra( tool_ctx_t * tool_ctx )
 {
     rc_t rc = 0;
     
@@ -879,25 +892,26 @@ static rc_t perform_tool( tool_ctx_t * tool_ctx )
         /* =================================================== */
         switch( acc_type )
         {
-            case acc_csra       : rc = fastdump_database( tool_ctx ); break; /* above */
+            case acc_csra       : rc = fastdump_csra( tool_ctx ); break; /* above */
+            case acc_pacbio     : ErrMsg( "accession '%s' is PACBIO, please use fastq-dump instead", tool_ctx -> accession_path ); break;
             case acc_sra_flat   : rc = fastdump_table( tool_ctx, NULL ); break; /* above */
             case acc_sra_db     : rc = fastdump_table( tool_ctx, get_db_seq_tbl_name( tool_ctx ) ); break; /* above */
             default : ErrMsg( "invalid accession '%s'", tool_ctx -> accession_path );
         }
         /* =================================================== */
-    }
-    
-    if ( tool_ctx -> remove_temp_path )
-    {
-        bool tmp_exists = dir_exists( tool_ctx -> dir, "%s", tool_ctx -> tmp_id . temp_path ); /* helper.c */
-        if ( tmp_exists )
+        
+        if ( tool_ctx -> remove_temp_path )
         {
-            rc_t rc1 = KDirectoryClearDir ( tool_ctx -> dir, true, "%s", tool_ctx -> tmp_id . temp_path );
-            if ( rc1 == 0 )
+            bool tmp_exists = dir_exists( tool_ctx -> dir, "%s", tool_ctx -> tmp_id . temp_path ); /* helper.c */
+            if ( tmp_exists )
             {
-                tmp_exists = dir_exists( tool_ctx -> dir, "%s", tool_ctx -> tmp_id . temp_path ); /* helper.c */
-                if ( tmp_exists )
-                    rc1 = KDirectoryRemove ( tool_ctx -> dir, true, "%s", tool_ctx -> tmp_id . temp_path );
+                rc_t rc1 = KDirectoryClearDir ( tool_ctx -> dir, true, "%s", tool_ctx -> tmp_id . temp_path );
+                if ( rc1 == 0 )
+                {
+                    tmp_exists = dir_exists( tool_ctx -> dir, "%s", tool_ctx -> tmp_id . temp_path ); /* helper.c */
+                    if ( tmp_exists )
+                        rc1 = KDirectoryRemove ( tool_ctx -> dir, true, "%s", tool_ctx -> tmp_id . temp_path );
+                }
             }
         }
     }

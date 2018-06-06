@@ -829,11 +829,11 @@ static rc_t perform_special_join( cmn_params * cp,
 }
 
 
-static rc_t perform_fastq_join( cmn_params * cp,
-                                join_stats * stats,
-                                join * j,
-                                struct bg_progress * progress,
-                                const join_options * jo )
+static rc_t perform_whole_spot_join( cmn_params * cp,
+                                     join_stats * stats,
+                                     join * j,
+                                     struct bg_progress * progress,
+                                     const join_options * jo )
 {
     rc_t rc;
     struct fastq_csra_iter * iter;
@@ -851,7 +851,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
         fastq_rec rec; /* fastq_iter.h */
         join_options local_opt = { jo -> rowid_as_name,
                                    false, 
-                                   jo -> print_frag_nr,
+                                   jo -> print_read_nr,
                                    jo -> print_name,
                                    jo -> terminate_on_invalid,
                                    jo -> min_read_len,
@@ -952,7 +952,7 @@ static rc_t perform_fastq_split_file_join( cmn_params * cp,
             { 
                 jo -> rowid_as_name,
                 false,
-                jo -> print_frag_nr,
+                jo -> print_read_nr,
                 jo -> print_name,
                 jo -> terminate_on_invalid,
                 jo -> min_read_len,
@@ -1011,7 +1011,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
             {
                 jo -> rowid_as_name,
                 false,
-                jo -> print_frag_nr,
+                jo -> print_read_nr,
                 jo -> print_name,
                 jo -> terminate_on_invalid,
                 jo -> min_read_len,
@@ -1090,7 +1090,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
                                 jtd -> accession_short,
                                 jtd -> buf_size,
                                 4096,
-                                jtd -> join_options -> print_frag_nr,
+                                jtd -> join_options -> print_read_nr,
                                 jtd -> join_options -> print_name,
                                 jtd -> join_options -> filter_bases );
     
@@ -1116,7 +1116,7 @@ static rc_t CC cmn_thread_func( const KThread * self, void * data )
                                                         &j,
                                                         jtd -> progress ); break;
 
-                case ft_fastq               : rc = perform_fastq_join( &cp,
+                case ft_whole_spot          : rc = perform_whole_spot_join( &cp,
                                                         &jtd -> stats,
                                                         &j,
                                                         jtd -> progress,
@@ -1192,7 +1192,7 @@ rc_t execute_db_join( KDirectory * dir,
 
             corrected_join_options . rowid_as_name = name_column_present ? join_options -> rowid_as_name : true;
             corrected_join_options . skip_tech = join_options -> skip_tech;
-            corrected_join_options . print_frag_nr = join_options -> print_frag_nr;
+            corrected_join_options . print_read_nr = join_options -> print_read_nr;
             corrected_join_options . print_name = join_options -> print_name;
             corrected_join_options . min_read_len = join_options -> min_read_len;
             corrected_join_options . filter_bases = join_options -> filter_bases;

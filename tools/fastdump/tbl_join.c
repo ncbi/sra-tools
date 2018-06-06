@@ -344,7 +344,7 @@ static rc_t print_fastq_n_reads_split_3( join_stats * stats,
 
 /* ------------------------------------------------------------------------------------------ */
 
-static rc_t perform_fastq_join( cmn_params * cp,
+static rc_t perform_whole_spot_join( cmn_params * cp,
                                 join_stats * stats,
                                 const char * tbl_name,
                                 struct join_results * results,
@@ -369,7 +369,7 @@ static rc_t perform_fastq_join( cmn_params * cp,
         {
             jo -> rowid_as_name,
             false,
-            jo -> print_frag_nr,
+            jo -> print_read_nr,
             jo -> print_name,
             jo -> terminate_on_invalid,
             jo -> min_read_len,
@@ -507,7 +507,7 @@ static rc_t perform_fastq_split_3_join( cmn_params * cp,
         {
             jo -> rowid_as_name,
             true,
-            jo -> print_frag_nr,
+            jo -> print_read_nr,
             jo -> print_name,
             jo -> terminate_on_invalid,
             jo -> min_read_len,
@@ -578,7 +578,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
                                 jtd -> accession_short,
                                 jtd -> buf_size,
                                 4096,
-                                jtd -> join_options -> print_frag_nr,
+                                jtd -> join_options -> print_read_nr,
                                 jtd -> join_options -> print_name,
                                 jtd -> join_options -> filter_bases );
     
@@ -587,7 +587,7 @@ static rc_t CC cmn_thread_func( const KThread *self, void *data )
         cmn_params cp = { jtd -> dir, jtd -> accession_path, jtd -> first_row, jtd -> row_count, jtd -> cur_cache };
         switch( jtd -> fmt )
         {
-            case ft_fastq       : rc = perform_fastq_join( &cp,
+            case ft_whole_spot       : rc = perform_whole_spot_join( &cp,
                                             &jtd -> stats,
                                             jtd -> tbl_name,
                                             results,
@@ -685,7 +685,7 @@ rc_t execute_tbl_join( KDirectory * dir,
                 
                 corrected_join_options . rowid_as_name = name_column_present ? join_options -> rowid_as_name : true;
                 corrected_join_options . skip_tech = join_options -> skip_tech;
-                corrected_join_options . print_frag_nr = join_options -> print_frag_nr;
+                corrected_join_options . print_read_nr = join_options -> print_read_nr;
                 corrected_join_options . print_name = name_column_present;
                 corrected_join_options . min_read_len = join_options -> min_read_len;
                 corrected_join_options . filter_bases = join_options -> filter_bases;

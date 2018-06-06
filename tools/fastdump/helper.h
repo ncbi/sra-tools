@@ -84,7 +84,7 @@ typedef struct join_options
 {
     bool rowid_as_name;
     bool skip_tech;
-    bool print_frag_nr;
+    bool print_read_nr;
     bool print_name;
     bool terminate_on_invalid;
     uint32_t min_read_len;
@@ -111,8 +111,8 @@ typedef struct part_head
     uint32_t total, len, part, padd;
 } part_head;
 
-typedef enum format_t { ft_unknown, ft_special, ft_fastq,
-                         ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3 } format_t;
+typedef enum format_t { ft_unknown, ft_special, ft_whole_spot,
+                        ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3 } format_t;
 typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
 
 typedef struct cmn_params
@@ -137,7 +137,8 @@ rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ..
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
 rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
 
-format_t get_format_t( const char * format, bool split_spot, bool split_file, bool split_3 );
+format_t get_format_t( const char * format,
+        bool split_spot, bool split_file, bool split_3, bool whole_spot );
 
 compress_t get_compress_t( bool gzip, bool bzip2 );
 

@@ -99,7 +99,7 @@ static const char * split_3_usage[] = { "writes single reads in special file", N
 #define ALIAS_SPLIT_3    "3"
 
 static const char * whole_spot_usage[] = { "writes whole spots into one file", NULL };
-#define OPTION_WHOLE_SPOT   "whole-spot"
+#define OPTION_WHOLE_SPOT   "concatenate-reads"
 
 /*
 static const char * stdout_usage[] = { "print output to stdout", NULL };

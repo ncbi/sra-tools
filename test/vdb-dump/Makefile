@@ -147,6 +147,8 @@ vdb-dump: makedb
 	$(VDB_DUMP) ERR957001 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.6.stdout && diff expected/3.6.stdout actual/3.6.stdout
 	# NCBI:align:db:alignment_unsorted
 	$(VDB_DUMP) ERR570054 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.7.stdout && diff expected/3.7.stdout actual/3.7.stdout
+	# NULL as foreign key
+	$(VDB_DUMP) SRR1063272 --view "V4<PRIMARY_ALIGNMENT,SEQUENCE>" -S view.vschema  -R 6  >actual/3.8.stdout && diff expected/3.8.stdout actual/3.8.stdout
 	# table object - views not supported
 	! $(VDB_DUMP) ERR997444 -S view.vschema --view "V1<SEQUENCE>"
 
@@ -156,7 +158,8 @@ vdb-dump: makedb
 	@ echo "...all tests passed"
 
 onetest: std
-	$(VDB_DUMP) SRR1063272 --view "V4<PRIMARY_ALIGNMENT,SEQUENCE>" -S view.vschema  -R 1-2
+	#$(VDB_DUMP) ERR570054 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.7.stdout && diff expected/3.7.stdout actual/3.7.stdout
+	$(VDB_DUMP) SRR1063272 --view "V4<PRIMARY_ALIGNMENT,SEQUENCE>" -S view.vschema  -R 6  >actual/3.8.stdout && diff expected/3.8.stdout actual/3.8.stdout
 
 ACC = SRR2070515
 acc:

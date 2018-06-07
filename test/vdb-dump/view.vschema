@@ -1,7 +1,7 @@
 version 2;
 
-// any table derived from tbl:base_space
-view V1#1 < NCBI:tbl:base_space t >
+// any table derived from INSDC:tbl:sequence
+view V1#1 < INSDC:tbl:sequence t >
 {
     column ascii READ = t.READ;
 }
@@ -35,7 +35,9 @@ view V3#1 < NCBI:align:tbl:seq t, NCBI:align:tbl:align_sorted al >
 view V4#1 < NCBI:align:tbl:align_sorted al, NCBI:align:tbl:seq t >
 {
     column ascii cs_read = t [ al . SPOT_ID ] . CSREAD;
-    column ascii mate_cs_read = t [ al [ al . MATE_ALIGN_ID ] . SPOT_ID ] . CSREAD;
+    column I64 mate_id = al . MATE_ALIGN_ID;
+    column U32 mate_spot_id = al [ mate_id ] . SPOT_ID;
+    column ascii mate_cs_read = t [ mate_spot_id ] . CSREAD;
 }
 
 // using base table types

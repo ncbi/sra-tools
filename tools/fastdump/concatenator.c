@@ -59,7 +59,6 @@ static rc_t print_file( const KFile * src, size_t buf_size )
             rc = Quitting();
             if ( rc == 0 )
             {
-                size_t num_read;
                 rc = KFileRead( src, src_pos, buffer, buf_size, &num_read );
                 if ( rc != 0 )
                     ErrMsg( "concatenator.c print_file().KFileRead( at %lu ) -> %R", src_pos, rc );
@@ -309,7 +308,7 @@ rc_t execute_concat( KDirectory * dir,
     rc_t rc;
     if ( print_to_stdout )
     {
-        rc = print_files( dir, files, buf_size ); /* helper.c */
+        rc = print_files( dir, files, buf_size ); /* above */
     }
     else
     {

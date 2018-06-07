@@ -76,10 +76,10 @@ The tool can create different formats:
                             each n-th read into a different file
                             --split-file ( -S )
 
-(4) FASTQ unsplit       ... the spots are not split,
+(4) FASTQ concatenated  ... the spots are not split,
                             for each spot - 4 lines of FASTQ are written
                             into one output-file
-                            --legacy
+                            --concatenate-reads
 
 
 It is possible that you exhaust the space at your filesystem while converting
@@ -145,4 +145,34 @@ spots read          : 470,985
 fragments read      : 470,985
 fragments written   : 470,985
 
+Because we have changed the defaults to be different and more meaningful
+than fastq-dump, here is a list of equivalent command-lines that produce
+the same ouput, but fasterq-dump will be faster.
 
+fastq-dump SRRXXXXXX --split-3 --skip-technical
+fasterq-dump SRRXXXXXX
+
+fastq-dump SRRXXXXXX --split-spot --skip-technical
+fasterq-dump SRRXXXXXX --split-spot
+
+fastq-dump SRRXXXXXX --split-files --skip-technical
+fasterq-dump SRRXXXXXX --split-files
+
+fastq-dump SRRXXXXXX
+fasterq-dump SRRXXXXXX --concatenate-reads --include-technical
+
+Here are some important differences to fastq-dump:
+
+1. The -Z|--stdout option does not work for split-3 and split-files.
+   The tool will fall back to producing files in these cases.
+   
+2. There is no --gzip|--bizp2 option, you have to compress your files
+   explicitly after they have been written.
+
+3. There is no -A option for the accession, just specify the accession
+   or the absolute path directly.
+
+4. fasterq-dump does not take multiple accessions, just one.
+
+5. There is no -N|--minSpotId and no -X|--maxSpotId option.
+   fasterq-dump processes always the whole accession.

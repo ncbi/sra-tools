@@ -91,7 +91,7 @@ static const char * split_spot_usage[] = { "split spots into reads", NULL };
 #define ALIAS_SPLIT_SPOT  "s"
 
 static const char * split_file_usage[] = { "write reads into different files", NULL };
-#define OPTION_SPLIT_FILE "split-file"
+#define OPTION_SPLIT_FILE "split-files"
 #define ALIAS_SPLIT_FILE  "S"
 
 static const char * split_3_usage[] = { "writes single reads in special file", NULL };
@@ -101,11 +101,11 @@ static const char * split_3_usage[] = { "writes single reads in special file", N
 static const char * whole_spot_usage[] = { "writes whole spots into one file", NULL };
 #define OPTION_WHOLE_SPOT   "concatenate-reads"
 
-/*
 static const char * stdout_usage[] = { "print output to stdout", NULL };
 #define OPTION_STDOUT    "stdout"
 #define ALIAS_STDOUT     "Z"
 
+/*
 static const char * gzip_usage[] = { "compress output using gzip", NULL };
 #define OPTION_GZIP      "gzip"
 #define ALIAS_GZIP       "g"
@@ -113,17 +113,15 @@ static const char * gzip_usage[] = { "compress output using gzip", NULL };
 static const char * bzip2_usage[] = { "compress output using bzip2", NULL };
 #define OPTION_BZIP2     "bzip2"
 #define ALIAS_BZIP2      "z"
+
+static const char * maxfd_usage[] = { "maximal number of file-descriptors", NULL };
+#define OPTION_MAXFD     "maxfd"
+#define ALIAS_MAXFD      "a"
 */
 
 static const char * force_usage[] = { "force to overwrite existing file(s)", NULL };
 #define OPTION_FORCE     "force"
 #define ALIAS_FORCE      "f"
-
-/*
-static const char * maxfd_usage[] = { "maximal number of file-descriptors", NULL };
-#define OPTION_MAXFD     "maxfd"
-#define ALIAS_MAXFD      "a"
-*/
 
 static const char * ridn_usage[] = { "use row-id as name", NULL };
 #define OPTION_RIDN      "rowid-as-name"
@@ -169,11 +167,11 @@ OptDef ToolOptions[] =
     { OPTION_SPLIT_FILE,ALIAS_SPLIT_FILE,NULL, split_file_usage, 1, false,  false },
     { OPTION_SPLIT_3,   ALIAS_SPLIT_3,   NULL, split_3_usage,    1, false,  false },
     { OPTION_WHOLE_SPOT,    NULL,        NULL, whole_spot_usage, 1, false,  false },    
-/*    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false },
-    { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false },
-    { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false }, */
-    { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
+    { OPTION_STDOUT,    ALIAS_STDOUT,    NULL, stdout_usage,     1, false,  false },
+/*    { OPTION_GZIP,      ALIAS_GZIP,      NULL, gzip_usage,       1, false,  false }, */
+/*    { OPTION_BZIP2,     ALIAS_BZIP2,     NULL, bzip2_usage,      1, false,  false }, */
 /*    { OPTION_MAXFD,     ALIAS_MAXFD,     NULL, maxfd_usage,      1, true,   false }, */
+    { OPTION_FORCE,     ALIAS_FORCE,     NULL, force_usage,      1, false,  false },
     { OPTION_RIDN,      ALIAS_RIDN,      NULL, ridn_usage,       1, false,  false },
     { OPTION_SKIP_TECH, NULL,            NULL, skip_tech_usage,  1, false,  false },
     { OPTION_INCL_TECH, NULL,            NULL, incl_tech_usage,  1, false,  false },
@@ -354,7 +352,7 @@ static void get_user_input( tool_ctx_t * tool_ctx, const Args * args )
     tool_ctx -> show_progress = get_bool_option( args, OPTION_PROGRESS );
     tool_ctx -> show_details = get_bool_option( args, OPTION_DETAILS );
     tool_ctx -> tmp_id . temp_path = get_str_option( args, OPTION_TEMP, NULL );
-    tool_ctx -> print_to_stdout = false; /* get_bool_option( args, OPTION_STDOUT ); */
+    tool_ctx -> print_to_stdout = get_bool_option( args, OPTION_STDOUT );
     tool_ctx -> force = get_bool_option( args, OPTION_FORCE );        
     tool_ctx -> remove_temp_path = false;
     tool_ctx -> output_filename = get_str_option( args, OPTION_OUTPUT_F, NULL );

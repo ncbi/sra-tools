@@ -2611,9 +2611,10 @@ static rc_t MainNetwotk ( const Main * self,
                 OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"true\"\n", root));
         }
         {
+            size_t cnt = 0;
             struct KNSProxies *p
                 = KNSManagerGetProxies(self->knsMgr, NULL);
-            for ( size_t cnt = 0; ; ) {
+            for ( cnt = 0; ; ) {
                 const char root[] = "HttpProxy";
                 const String *http_proxy = NULL;
                 uint16_t http_proxy_port = 0;

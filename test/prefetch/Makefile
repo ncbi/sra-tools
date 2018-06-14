@@ -60,16 +60,18 @@ urls_and_accs:
 	    fi
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    ping -c1 intranet > /dev/null && \
-	     ( if $(BINDIR)/prefetch http://intranet/ 2>/dev/null ; \
+	    if ping -c1 intranet > /dev/null ; then \
+	       if $(BINDIR)/prefetch http://intranet/ 2>/dev/null ; \
 	       then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	       fi )
+	       fi ; \
+	    fi
 
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
-	    ping -c1 intranet > /dev/null && \
-	    (if $(BINDIR)/prefetch http://intranet/irb/support.shtml  2>/dev/null ; \
+	    if ping -c1 intranet > /dev/null ; then \
+	     if $(BINDIR)/prefetch http://intranet/irb/support.shtml  2>/dev/null ; \
 	     then echo "prefetch URL-2 when there is no kfg should fail"; exit 1; \
-	     fi )
+	     fi ; \
+	    fi
 
 	@echo '$(PUBLIC)/apps/file/volumes/flat = "files"' > tmp/t.kfg
 	@echo '$(PUBLIC)/root = "$(CWD)/tmp"' >> tmp/t.kfg

@@ -11,8 +11,9 @@
 
     <property name="Output"         value="${basedir}\..\..\..\..\OUTDIR" />
     <property name="TargetDir"      value="${Output}\sra-tools\win\${Toolset}\${Platform}\${Configuration}"/>
+    <property name="QmakeDir"      value="${Output}\sra-tools\win\${Toolset}\${Platform}\sra-toolkit"/>
 
-    <condition property="QtConfiguration" value="debug">
+  <condition property="QtConfiguration" value="debug">
         <equals arg1="${Configuration}" arg2="Debug"/>
     </condition>
     <condition property="QtConfiguration" value="release">
@@ -68,8 +69,8 @@ Qt-dependent tools are only built with -DConfiguration=Release and -DPlatform=x6
                 <arg value="/p:Configuration=${Configuration}"/>
                 <arg value="/p:NGS_OUTDIR=${Output}\"/>
             </exec>
-            <mkdir dir="${TargetDir}\obj\sra-toolkit"/>
-            <exec executable="jom.exe" failonerror="false" failifexecutionfails="false" dir="${TargetDir}\obj\sra-toolkit">
+            <mkdir dir="${QmakeDir}"/>
+            <exec executable="jom.exe" failonerror="false" failifexecutionfails="false" dir="${QmakeDir}">
                 <arg value="-f"/>
                 <arg value="Makefile.${Configuration}"/>
                 <arg value="clean"/>
@@ -81,14 +82,14 @@ Qt-dependent tools are only built with -DConfiguration=Release and -DPlatform=x6
 
     <target name="buildQt" if="${BuildQt}">
         <sequential>
-            <mkdir dir="${TargetDir}\..\sra-toolkit"/>
-            <exec executable="qmake.exe" failonerror="true" dir="${TargetDir}\..\sra-toolkit">
+            <mkdir dir="${QmakeDir}"/>
+            <exec executable="qmake.exe" failonerror="true" dir="${QmakeDir}">
                 <arg value="${basedir}\..\..\..\tools\sra-toolkit\sra-toolkit.pro"/>
                 <arg value="-spec"/>
                 <arg value="win32-msvc"/>
                 <arg value="CONFIG+=${QtConfiguration}"/>
             </exec>
-            <exec executable="jom.exe" failonerror="true" dir="${TargetDir}\obj\sra-toolkit">
+            <exec executable="jom.exe" failonerror="true" dir="${QmakeDir}">
                 <arg value="-f"/>
                 <arg value="Makefile.${Configuration}"/>
             </exec>

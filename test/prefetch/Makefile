@@ -80,31 +80,32 @@ urls_and_accs:
      then echo support.shtml found ; exit 1 ; fi
 	@echo HTTP download when user repository is configured
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	    ping -c1 intranet > /dev/null && \
-	    $(BINDIR)/prefetch http://intranet/irb/support.shtml > /dev/null 
-	@ping -c1 intranet > /dev/null && ls `pwd`/tmp2/support.shtml > /dev/null
+	    if ping -c1 intranet > /dev/null ; then \
+	    $(BINDIR)/prefetch http://intranet/irb/support.shtml > /dev/null ; fi
+	@if ping -c1 intranet > /dev/null ; \
+	 then ls `pwd`/tmp2/support.shtml > /dev/null ; fi
 #	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	 ping -c1 intranet > /dev/null && \
-	 $(BINDIR)/prefetch http://intranet/irb/support.shtml \
-	        | grep "found local" > /dev/null
+	 if ping -c1 intranet > /dev/null ; then \
+	     $(BINDIR)/prefetch http://intranet/irb/support.shtml \
+	        | grep "found local" > /dev/null ; fi
 #	@echo
 
 	@if ls `pwd`/tmp2/index.html 2> /dev/null ; \
      then echo index.shtml found ; exit 1; fi
 	@echo HTTP download when user repository is configured
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	 ping -c1 intranet > /dev/null && \
-	    $(BINDIR)/prefetch http://intranet/ > /dev/null
-	@ping -c1 intranet > /dev/null && ls `pwd`/tmp2/index.html > /dev/null
+	 if ping -c1 intranet > /dev/null ; then \
+	    $(BINDIR)/prefetch http://intranet/ > /dev/null ; fi
+	@if ping -c1 intranet>/dev/null; then ls `pwd`/tmp2/index.html > /dev/null;fi
 #	@echo
 
 	@echo Running prefetch second time finds previous download
 	@export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
-	 ping -c1 intranet > /dev/null && \
-	    $(BINDIR)/prefetch http://intranet/ | grep "found local" > /dev/null
+	 if ping -c1 intranet > /dev/null ; then \
+	    $(BINDIR)/prefetch http://intranet/ | grep "found local" > /dev/null ; fi
 	@rm -f tmp2/index.html
 #	@echo
 

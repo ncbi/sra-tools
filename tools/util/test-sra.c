@@ -2434,7 +2434,7 @@ static rc_t perform_cgi_test ( const Main * self,
         KTimeMs_t time = 0;
         const char root[] = "Response";
         rc = call_cgi ( self,
-            "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi",
+            "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi",
             1, 2, "http,https", acc, & databuffer, eol );
         time = KTimeMsStamp() - start_time;
         if (rc == 0) {
@@ -2593,68 +2593,62 @@ static rc_t MainNetwotk ( const Main * self,
 {
     const char root[] = "Network";
     assert(self);
-    if (self->xml) {
+    if (self->xml)
         OUTMSG(("%s<%s>\n", bol, root));
-    }
     if (arg == NULL) {
         const char root[] = "KNSManager";
         bool enabled = KNSManagerGetHTTPProxyEnabled(self->knsMgr);
         if (!enabled) {
-            if (self->xml) {
+            if (self->xml)
                 OUTMSG(("%s  <%s GetHTTPProxyEnabled=\"false\">\n", bol, root));
-            }
-            else {
+            else
                 OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"false\"\n", root));
-            }
         }
         else {
-            if (self->xml) {
+            if (self->xml)
                 OUTMSG(("%s  <%s GetHTTPProxyEnabled=\"true\">\n", bol, root));
-            }
-            else {
+            else
                 OUTMSG(("KNSManagerGetHTTPProxyEnabled=\"true\"\n", root));
-            }
         }
         {
-            const HttpProxy *p = KNSManagerGetHttpProxy(self->knsMgr);
-            while (p) {
+            size_t cnt = 0;
+            struct KNSProxies *p
+                = KNSManagerGetProxies(self->knsMgr, NULL);
+            for ( cnt = 0; ; ) {
                 const char root[] = "HttpProxy";
                 const String *http_proxy = NULL;
                 uint16_t http_proxy_port = 0;
-                HttpProxyGet(p, &http_proxy, &http_proxy_port);
+                if ( ! KNSProxiesGet
+                    ( p, &http_proxy, &http_proxy_port, &cnt, NULL ) )
+                {
+                    break;
+                }
                 if (self->xml) {
-                    if ( http_proxy_port == 0) {
+                    if ( http_proxy_port == 0)
                         OUTMSG ( ( "%s    <%s path=\"%S\"/>\n",
                             bol, root, http_proxy ) );
-                    }
-                    else {
+                    else
                         OUTMSG(("%s    <%s path=\"%S\" port=\"%d\"/>\n",
                             bol, root, http_proxy, http_proxy_port));
-                    }
                 }
                 else {
-                    if ( http_proxy_port == 0) {
+                    if ( http_proxy_port == 0)
                         OUTMSG(("HTTPProxy=\"%S\"\n", http_proxy));
-                    }
-                    else {
+                    else
                         OUTMSG(("HTTPProxy=\"%S\":%d\n",
                             http_proxy, http_proxy_port));
-                    }
                 }
-                p = HttpProxyGetNextHttpProxy ( p );
             }
         }
-        if (self->xml) {
+        if (self->xml)
             OUTMSG(("%s  </%s>\n", bol, root));
-        }
     }
 
     if (arg == NULL) {
         const char *user_agent = NULL;
         rc_t rc = KNSManagerGetUserAgent(&user_agent);
-        if (rc != 0) {
+        if (rc != 0)
             OUTMSG(("KNSManagerGetUserAgent()=%R%s", rc, eol));
-        }
         else {
             const char root[] = "UserAgent";
             if (self->xml) {

@@ -809,9 +809,11 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
 
     ColumnInfo readLen;
     ColumnInfo spotLen;
+    ColumnInfo read;
 
     memset(&readLen, 0, sizeof readLen);
     memset(&spotLen, 0, sizeof spotLen);
+    memset(&read   , 0, sizeof read   );
 
     assert(pb);
 
@@ -831,9 +833,13 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
         spotLen.name = "SPOT_LEN";
         rce = VCursorAddColumn(curs, &spotLen.idx, "%s", spotLen.name);
     }
+    if (rce == 0) {
+        read.name = "READ";
+        rce = VCursorAddColumn(curs, &read.idx, "%s", read.name);
+    }
 
     if (rce == 0) {
-        assert(readLen.idx && spotLen.idx);
+        assert(readLen.idx && spotLen.idx && read.idx);
         if (readLen.idx == 0) {
             rce = RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound);
             LOGERR(klogErr, rce, "Cannot find 'READ_LEN' column");
@@ -841,6 +847,10 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
         else if (spotLen.idx == 0) {
             rce = RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound);
             LOGERR(klogErr, rce, "Cannot find 'SPOT_LEN' column");
+        }
+        else if (read.idx == 0) {
+            rce = RC(rcExe, rcTable, rcValidating, rcColumn, rcNotFound);
+            LOGERR(klogErr, rce, "Cannot find 'READ' column");
         }
     }
 
@@ -901,6 +911,20 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
                 break;
             }
         }
+        rc = VCursorCellDataDirect(curs, firstREAD_LEN + i,
+            read.idx, &read.elem_bits,
+            &read.value.vp, NULL, &read.elem_count);
+        if (rc != 0) {
+            PLOGERR(klogErr, (klogErr, rc,
+                "Cannot read 'READ' column at row $(row)",
+                "row=%ld", firstREAD_LEN + i));
+            if (rce == 0) {
+                rce = rc;
+            }
+            if (!pb->exhaustive) {
+                break;
+            }
+        }
 
         if (readLen.value.vp == NULL || spotLen.value.vp == NULL) {
             rc = RC(rcExe, rcTable, rcValidating, rcData, rcNull);
@@ -921,6 +945,18 @@ static rc_t tableConsistCheck(const vdb_validate_params *pb, const VTable *tbl)
             rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt);
             PLOGERR(klogErr, (klogErr, rc,
                 "Sum(READ_LEN) != SPOT_LEN in row $(row)",
+                "row=%ld", firstREAD_LEN + i));
+            if (rce == 0) {
+                rce = rc;
+            }
+            if (!pb->exhaustive) {
+                break;
+            }
+        }
+        if (n != read.elem_count) {
+            rc = RC(rcExe, rcTable, rcValidating, rcData, rcCorrupt);
+            PLOGERR(klogErr, (klogErr, rc,
+                "Sum(READ_LEN) != length(READ) in row $(row)",
                 "row=%ld", firstREAD_LEN + i));
             if (rce == 0) {
                 rce = rc;

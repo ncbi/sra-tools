@@ -117,7 +117,8 @@ DoFukan (
         const char * LogFile,
         const char * ProgName,
         bool Daemonize,
-        bool ReadOnly
+        bool AccCtrl
+        // bool ReadOnly
 )
 {
     rc_t RCt;
@@ -146,17 +147,20 @@ DoFukan (
     if ( LogFile != NULL ) {
         pLogMsg ( klogInfo, "LogFile: $(file)", "file=%s", LogFile );
     }
-    pLogMsg ( klogInfo, "ReadOnly: $(ro)", "ro=%s", ( ReadOnly ? "true" : "false" ) );
+    // JOJOBA pLogMsg ( klogInfo, "ReadOnly: $(ro)", "ro=%s", ( ReadOnly ? "true" : "false" ) );
     pLogMsg ( klogInfo, "Daemonize: $(pokemon)", "pokemon=%s", ( Daemonize ? "true" : "false" ) );
+    pLogMsg ( klogInfo, "AccCtrl: $(acc)", "acc=%s", ( AccCtrl ? "true" : "false" ) );
 
         /*  Initializing all depots and heavy gunz
          */
     RCt = XFS_InitAll_MHR ( NULL );
     pLogMsg ( klogDebug, "[XFS_InitAll_MHR][$(rc)]", "rc=%d", RCt );
     if ( RCt == 0 ) {
-        RCt = XFSAccessInit4Gap ( atol ( ProjectId ) );
+        if ( AccCtrl ) {
+            RCt = XFSAccessInit4Gap ( atol ( ProjectId ) );
+        }
         if ( RCt == 0 ) {
-            RCt = MakeModel ( & TheModel, ProjectId, ReadOnly );
+            RCt = MakeModel ( & TheModel, ProjectId, true /* JOJOBA ReadOnly */ );
             pLogMsg ( klogDebug, "[XFSModelMake][$(rc)]", "rc=%d", RCt );
             if ( RCt == 0 ) {
 
@@ -206,7 +210,7 @@ DoFukan (
                 XFSModelRelease ( TheModel );
             }
 
-            RCt = XFSAccessDispose ();
+            XFSAccessDispose ();
         }
 
         XFS_DisposeAll_MHR ();
@@ -317,7 +321,8 @@ CheckArgs (
         struct Args * TheArgs,
         const char ** LogFile,
         const char ** ProgName,
-        bool * Daemonize
+        bool * Daemonize,
+        bool * AccCtrl
 )
 {
     rc_t RCt;
@@ -354,6 +359,11 @@ CheckArgs (
         * Daemonize = OptCount == 1;
     }
 
+    RCt = ArgsOptionCount ( TheArgs, OPT_ACCCTRL, & OptCount ); 
+    if ( RCt == 0 ) {
+        * AccCtrl = OptCount == 1;
+    }
+
     RCt = ArgsProgram ( TheArgs, & OptValue, ProgName );
 
     return RCt;
@@ -370,6 +380,7 @@ RunApp ( struct Args * TheArgs )
     const char * ProgName;
     bool ReadOnly;
     bool Daemonize;
+    bool AccCtrl;
 
     RCt = 0;
     ProjectId = NULL;
@@ -378,6 +389,7 @@ RunApp ( struct Args * TheArgs )
     ProgName = NULL;
     ReadOnly = false;
     Daemonize = false;
+    AccCtrl = false;
 
     XFS_CAN ( TheArgs )
 
@@ -395,7 +407,7 @@ RunApp ( struct Args * TheArgs )
     if ( RCt == 0 ) {
             /*  Second we are checking Arguments
              */
-        RCt = CheckArgs ( TheArgs, & LogFile, & ProgName, & Daemonize );
+        RCt = CheckArgs ( TheArgs, & LogFile, & ProgName, & Daemonize, & AccCtrl );
     }
 
     if ( RCt != 0 ) {
@@ -408,7 +420,8 @@ RunApp ( struct Args * TheArgs )
                     LogFile,
                     ProgName,
                     Daemonize,
-                    ReadOnly
+                    AccCtrl
+                    // ReadOnly
                     );
     }
 
@@ -439,6 +452,7 @@ DoUnmount ( const char * MountPoint )
 struct OptDef ToolOpts [] = {
     { OPT_DAEMONIZE, ALS_DAEMONIZE, NULL, UsgDaemonize, 1, false, false },
     { OPT_LOGFILE, ALS_LOGFILE, NULL, UsgLogFile, 1, true, false },
+    { OPT_ACCCTRL, ALS_ACCCTRL, NULL, UsgAccCtrl, 1, false, false },
     { OPT_UNMOUNT, ALS_UNMOUNT, NULL, UsgUnmount, 1, true, false }
 };  /* OptDef */
 
@@ -451,7 +465,7 @@ UsageSummary ( const char * ProgName )
                     "\n"
                     "Usage:\n"
                     "  %s [options]"
-                    " [%s|%s]"
+                    // JOJOBA " [%s|%s]"
                     " <project-id>"
                     " <mount-point>"
                     "\n"
@@ -460,8 +474,8 @@ UsageSummary ( const char * ProgName )
                     "\n"
                     "\n",
                     ProgName,
-                    PARAM_RO,
-                    PARAM_RW,
+                    // JOJOBA PARAM_RO,
+                    // JOJOBA PARAM_RW,
                     ProgName
                     );
 }   /* UsageSummary () */
@@ -491,6 +505,13 @@ Usage ( const struct Args * TheArgs )
     UsageSummary ( ProgName );
 
     KOutMsg ( "Options:\n" );
+
+    HelpOptionLine (
+                ALS_ACCCTRL,
+                OPT_ACCCTRL,
+                PRM_ACCCTRL,
+                UsgAccCtrl
+                );
 
     HelpOptionLine (
                 ALS_DAEMONIZE,

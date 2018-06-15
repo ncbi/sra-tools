@@ -30,4 +30,6 @@ default: runtests
 slowtests: test-copy
 
 test-copy:
+	echo PATH=$(PATH)
+	echo PATH-BINDIR=$(BINDIR):$(PATH)
 	PATH=$(BINDIR):$(PATH) ./md-created.sh

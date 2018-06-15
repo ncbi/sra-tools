@@ -47,10 +47,11 @@ TProtocol;
 
 static const TProtocol PROTOCOLS [] = {
     { eProtocolHttps, "https", sizeof "https" - 1 },
-    { eProtocolHttp, "http", sizeof "http" - 1 },
-    { eProtocolFasp, "fasp", sizeof "fasp" - 1 },
-    { eProtocolFile, "file", sizeof "file" - 1 },
-    { eProtocolS3, "s3", sizeof "s3" - 1 },
+    { eProtocolHttp , "http" , sizeof "http"  - 1 },
+    { eProtocolFasp , "fasp" , sizeof "fasp"  - 1 },
+    { eProtocolFile , "file" , sizeof "file"  - 1 },
+    { eProtocolS3   , "s3"   , sizeof "s3"    - 1 },
+    { eProtocolGS   , "gs"   , sizeof "gs"    - 1 },
 };
 
 
@@ -362,8 +363,12 @@ rc_t names_request ( const request_params * request, bool cache, bool path ) {
 
     assert ( request && request -> terms );
 
-    if ( sizeof PROTOCOLS / sizeof PROTOCOLS [ 0 ] != eProtocolMax )
-        return -1;
+    if ( sizeof PROTOCOLS / sizeof PROTOCOLS [ 0 ] != eProtocolMax ) {
+        rc = RC ( rcExe, rcTable, rcValidating, rcTable, rcIncomplete );
+        LOGERR ( klogFatal, rc, "Incomplete PROTOCOLS array" );
+        assert ( sizeof PROTOCOLS / sizeof PROTOCOLS [ 0 ] == eProtocolMax );
+        return rc;
+    }
 
     if ( request -> params != NULL && * request -> params != NULL )
         LOGMSG ( klogWarn, "'--" OPTION_PARAM "' is ignored: "

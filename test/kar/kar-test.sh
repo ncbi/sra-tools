@@ -49,10 +49,10 @@ case $UNAME in
 esac
 
 
-OLDKAR=/net/snowman/vol/projects/trace_software/vdb/$OS/debug/x86_64/bin/kar.2.6.3
+OLDKAR=/net/snowman/vol/projects/trace_software/vdb/$OS/debug/x86_64/bin/kar.2.9.0
 if [ ! -x $OLDKAR ]
 then
-    OLDKAR=/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/vdb/vdb-versions/2.6.3/$OS/debug/x86_64/bin/kar.2.6.3
+    OLDKAR=/panfs/traces01.be-md.ncbi.nlm.nih.gov/trace_software/vdb/vdb-versions/2.9.0/$OS/debug/x86_64/bin/kar.2.9.0
 fi
 
 cleanup ()

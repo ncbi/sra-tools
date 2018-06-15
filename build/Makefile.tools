@@ -6,7 +6,7 @@ TOOLS_TO_INSTALL = \
 	cache-mgr       \
 	cg-load         \
 	copycat         \
-	fastdump        \
+	fasterq-dump    \
 	fastq-dump      \
 	fastq-load      \
 	helicos-load    \

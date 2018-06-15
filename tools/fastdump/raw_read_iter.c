@@ -25,6 +25,7 @@
 */
 
 #include "raw_read_iter.h"
+#include "file_printer.h"
 #include "cmn_iter.h"
 #include "helper.h"
 
@@ -34,7 +35,7 @@
 typedef struct raw_read_iter
 {
     struct cmn_iter * cmn;
-    uint32_t seq_spot_id, seq_read_id, raw_read_id;
+    uint32_t seq_spot_id, seq_read_id, read_id;
 } raw_read_iter;
 
 
@@ -42,11 +43,10 @@ void destroy_raw_read_iter( struct raw_read_iter * iter )
 {
     if ( iter != NULL )
     {
-        destroy_cmn_iter( iter->cmn );
+        destroy_cmn_iter( iter -> cmn );
         free( ( void * ) iter );
     }
 }
-
 
 rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter )
 {
@@ -60,15 +60,15 @@ rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter )
     }
     else
     {
-        rc = make_cmn_iter( params, "PRIMARY_ALIGNMENT", &i->cmn );
+        rc = make_cmn_iter( params, "PRIMARY_ALIGNMENT", &i -> cmn );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "SEQ_SPOT_ID", &i->seq_spot_id );
+            rc = cmn_iter_add_column( i -> cmn, "SEQ_SPOT_ID", &i -> seq_spot_id );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "SEQ_READ_ID", &i->seq_read_id );
+            rc = cmn_iter_add_column( i -> cmn, "SEQ_READ_ID", &i -> seq_read_id );
         if ( rc == 0 )
-            rc = cmn_iter_add_column( i->cmn, "(INSDC:4na:bin)RAW_READ", &i->raw_read_id );
+            rc = cmn_iter_add_column( i -> cmn, /*"(INSDC:4na:bin)RAW_READ"*/"READ", &i -> read_id );
         if ( rc == 0 )
-            rc = cmn_iter_range( i->cmn, i->seq_spot_id );
+            rc = cmn_iter_range( i -> cmn, i -> seq_spot_id );
 
         if ( rc != 0 )
             destroy_raw_read_iter( i );
@@ -78,23 +78,64 @@ rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter )
     return rc;
 }
 
-
 bool get_from_raw_read_iter( struct raw_read_iter * iter, raw_read_rec * rec, rc_t * rc )
 {
-    bool res = cmn_iter_next( iter->cmn, rc );
+    bool res = cmn_iter_next( iter -> cmn, rc );
     if ( res )
     {
-        *rc = cmn_read_uint64( iter->cmn, iter->seq_spot_id, &rec->seq_spot_id );
+        *rc = cmn_read_uint64( iter -> cmn, iter -> seq_spot_id, &rec -> seq_spot_id );
         if ( *rc == 0 )
-            *rc = cmn_read_uint32( iter->cmn, iter->seq_read_id, &rec->seq_read_id );
+            *rc = cmn_read_uint32( iter -> cmn, iter -> seq_read_id, &rec -> seq_read_id );
         if ( *rc == 0 )
-            *rc = cmn_read_String( iter->cmn, iter->raw_read_id, &rec->raw_read );
+            *rc = cmn_read_String( iter -> cmn, iter -> read_id, &rec -> read );
     }
     return res;
 }
 
-
 uint64_t get_row_count_of_raw_read( struct raw_read_iter * iter )
 {
     return cmn_iter_row_count( iter->cmn );
+}
+
+rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache,
+                     const char * accession, const char * output_file )
+{
+    rc_t rc;
+    struct raw_read_iter * iter;
+    cmn_params params; /* helper.h */
+    
+    params . dir = dir;
+    params . accession = accession;
+    params . first_row = 0;
+    params . row_count = 0;
+    params . cursor_cache = cursor_cache;
+    
+    rc = make_raw_read_iter( &params, &iter ); /* raw_read_iter.c */
+    if ( rc == 0 )
+    {
+        struct file_printer * printer;
+        rc = make_file_printer_from_filename( dir, &printer, buf_size, 1024, "%s", output_file );
+        if ( rc == 0 )
+        {
+            raw_read_rec rec;
+            bool running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */
+            while( rc == 0 && running )
+            {
+                uint64_t key = rec . seq_spot_id;
+
+                key <<= 1;
+                if ( rec. seq_read_id == 1 )
+                    key &= 0xFFFFFFFFFFFFFFFE;
+                else
+                    key |= 1;
+                
+                rc = file_print( printer, "%lu\n", key );
+                if ( rc == 0 )
+                    running = get_from_raw_read_iter( iter, &rec, &rc ); /* raw_read_iter.c */    
+            }
+            destroy_file_printer( printer );
+        }
+        destroy_raw_read_iter( iter );
+    }
+    return rc;
 }

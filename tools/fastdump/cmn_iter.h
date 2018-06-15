@@ -35,45 +35,52 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
+#ifndef _h_klib_namelist_
+#include <klib/namelist.h>
 #endif
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
+#ifndef _h_helper_
+#include "helper.h"
 #endif
 
 struct cmn_iter;
 
-typedef struct cmn_params
-{
-    KDirectory * dir;
-    const char * acc;
-    const char * row_range;
-    int64_t first;
-    uint64_t count;
-    size_t cursor_cache;
-    bool show_progress;
-	bool show_details;
-} cmn_params;
+void destroy_cmn_iter( struct cmn_iter * self );
 
-void destroy_cmn_iter( struct cmn_iter * iter );
+rc_t make_cmn_iter( const cmn_params * cp, const char * tblname, struct cmn_iter ** iter );
 
-rc_t make_cmn_iter( cmn_params * params, const char * tblname, struct cmn_iter ** iter );
+rc_t cmn_iter_add_column( struct cmn_iter * self, const char * name, uint32_t * id );
+rc_t cmn_iter_range( struct cmn_iter * selfr, uint32_t col_id );
 
-rc_t cmn_iter_add_column( struct cmn_iter * iter, const char * name, uint32_t * id );
-rc_t cmn_iter_range( struct cmn_iter * iter, uint32_t col_id );
+bool cmn_iter_next( struct cmn_iter * self, rc_t * rc );
+int64_t cmn_iter_row_id( const struct cmn_iter * self );
 
-bool cmn_iter_next( struct cmn_iter * iter, rc_t * rc );
-int64_t cmn_iter_row_id( const struct cmn_iter * iter );
+uint64_t cmn_iter_row_count( struct cmn_iter * self );
 
-uint64_t cmn_iter_row_count( struct cmn_iter * iter );
-
-rc_t cmn_read_uint64( struct cmn_iter * iter, uint32_t col_id, uint64_t *value );
-rc_t cmn_read_uint64_array( struct cmn_iter * iter, uint32_t col_id, uint64_t *value,
+rc_t cmn_read_uint64( struct cmn_iter * self, uint32_t col_id, uint64_t *value );
+rc_t cmn_read_uint64_array( struct cmn_iter * self, uint32_t col_id, uint64_t *value,
                             uint32_t num_values, uint32_t * values_read );
-rc_t cmn_read_uint32( struct cmn_iter * iter, uint32_t col_id, uint32_t *value );
-rc_t cmn_read_String( struct cmn_iter * iter, uint32_t col_id, String *value );
+rc_t cmn_read_uint32( struct cmn_iter * selfr, uint32_t col_id, uint32_t *value );
+
+rc_t cmn_read_uint32_array( struct cmn_iter * self, uint32_t col_id, uint32_t ** values,
+                           uint32_t * values_read );
+
+rc_t cmn_read_uint8_array( struct cmn_iter * self, uint32_t col_id, uint8_t ** values,
+                           uint32_t * values_read );
+                            
+rc_t cmn_read_String( struct cmn_iter * self, uint32_t col_id, String *value );
+
+typedef enum acc_type_t { acc_csra, acc_pacbio, acc_sra_flat, acc_sra_db, acc_none } acc_type_t;
+
+rc_t cmn_get_acc_type( KDirectory * dir, const char * accession, acc_type_t * acc_type );
+
+rc_t cmn_check_tbl_column( KDirectory * dir, const char * accession,
+                           const char * col_name, bool * present );
+
+rc_t cmn_check_db_column( KDirectory * dir, const char * accession, const char * tbl_name,
+                          const char * col_name,  bool * present );
+
+VNamelist * cmn_get_table_names( KDirectory * dir, const char * accession );
 
 #ifdef __cplusplus
 }

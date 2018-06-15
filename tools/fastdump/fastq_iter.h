@@ -43,24 +43,48 @@ extern "C" {
 #include "cmn_iter.h"
 #endif
 
-struct fastq_iter;
+typedef struct fastq_iter_opt
+{
+   bool with_read_len;
+   bool with_name;
+   bool with_read_type;
+   bool with_cmp_read;
+} fastq_iter_opt;
 
 typedef struct fastq_rec
 {
     int64_t row_id;
+    uint32_t num_alig_id;
     uint64_t prim_alig_id[ 2 ];
-    uint32_t num_reads;
-    String cmp_read;
+    uint32_t num_read_len;
+    uint32_t * read_len;
+    uint32_t num_read_type;
+    uint8_t * read_type;
+    String name;
+    String read;
     String quality;
 } fastq_rec;
 
-void destroy_fastq_iter( struct fastq_iter * iter );
+struct fastq_csra_iter;
 
-rc_t make_fastq_iter( cmn_params * params, struct fastq_iter ** iter );
+void destroy_fastq_csra_iter( struct fastq_csra_iter * self );
+rc_t make_fastq_csra_iter( const cmn_params * params,
+                           fastq_iter_opt opt,
+                           struct fastq_csra_iter ** iter );
+                         
+bool get_from_fastq_csra_iter( struct fastq_csra_iter * self, fastq_rec * rec, rc_t * rc );
+uint64_t get_row_count_of_fastq_csra_iter( struct fastq_csra_iter * self );
 
-bool get_from_fastq_iter( struct fastq_iter * iter, fastq_rec * rec, rc_t * rc );
+struct fastq_sra_iter;
 
-uint64_t get_row_count_of_fastq_iter( struct fastq_iter * iter );
+void destroy_fastq_sra_iter( struct fastq_sra_iter * self );
+rc_t make_fastq_sra_iter( const cmn_params * params,
+                          fastq_iter_opt opt,
+                          const char * tbl_name,
+                          struct fastq_sra_iter ** iter );
+
+bool get_from_fastq_sra_iter( struct fastq_sra_iter * self, fastq_rec * rec, rc_t * rc );
+uint64_t get_row_count_of_fastq_sra_iter( struct fastq_sra_iter * self );
 
 #ifdef __cplusplus
 }

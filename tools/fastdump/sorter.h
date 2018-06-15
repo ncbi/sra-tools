@@ -35,38 +35,23 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
+
+#ifndef _h_cmn_iter_
+#include "cmn_iter.h"
 #endif
 
-#ifndef _h_atomic_
-#include <atomic.h>
+#ifndef _h_merge_sorter_
+#include "merge_sorter.h"
 #endif
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
-
-#ifndef _h_raw_read_iter_
-#include "raw_read_iter.h"
-#endif
-
-
-typedef struct sorter_params
-{
-    KDirectory * dir;
-    const char * acc;    
-    const char * output_filename;
-    const char * index_filename;
-    const char * temp_path;
-    struct raw_read_iter * src;
-    size_t buf_size, mem_limit, prefix, num_threads, cursor_cache;
-    atomic_t * sort_progress;
-    bool show_progress;
-} sorter_params;
-
-rc_t run_sorter( const sorter_params * params );
-rc_t run_sorter_pool( const sorter_params * params );
+rc_t execute_lookup_production( KDirectory * dir,
+                                const char * accession,
+                                struct background_vector_merger * merger,
+                                size_t cursor_cache,
+                                size_t buf_size,
+                                size_t mem_limit,
+                                uint32_t num_threads,
+                                bool show_progress );
 
 #ifdef __cplusplus
 }

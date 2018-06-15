@@ -39,16 +39,12 @@ extern "C" {
 #include <klib/text.h>
 #endif
 
-#ifndef _h_klib_num_gen_
-#include <klib/num-gen.h>
-#endif
-
-#ifndef _h_vdb_cursor_
-#include <vdb/cursor.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
+#endif
+
+#ifndef _h_kfs_file_
+#include <kfs/file.h>
 #endif
 
 #ifndef _h_klib_vector_
@@ -59,18 +55,49 @@ extern "C" {
 #include <klib/namelist.h>
 #endif
 
-/* 
-    this is in interfaces/cc/XXX/YYY/atomic.h
-    XXX ... the compiler ( cc, gcc, icc, vc++ )
-    YYY ... the architecture ( fat86, i386, noarch, ppc32, x86_64 )
- */
-#ifndef _h_atomic_
-#include <atomic.h>
+#ifndef _h_klib_vector_
+#include <klib/vector.h>
 #endif
 
 #ifndef _h_kproc_thread_
 #include <kproc/thread.h>
 #endif
+
+#ifndef _h_kproc_lock_
+#include <kproc/lock.h>
+#endif
+
+rc_t CC Quitting(); /* to avoid including kapp/main.h */
+
+typedef struct join_stats
+{
+    uint64_t spots_read;
+    uint64_t reads_read;
+    uint64_t reads_written;
+    uint64_t reads_zero_length;
+    uint64_t reads_technical;
+    uint64_t reads_too_short;
+    uint64_t reads_invalid;
+} join_stats;
+
+typedef struct join_options
+{
+    bool rowid_as_name;
+    bool skip_tech;
+    bool print_read_nr;
+    bool print_name;
+    bool terminate_on_invalid;
+    uint32_t min_read_len;
+    const char * filter_bases;
+} join_options;
+
+typedef struct tmp_id
+{
+    const char * temp_path;
+    const char * hostname;
+    uint32_t pid;
+    bool temp_path_ends_in_slash;
+} tmp_id;
 
 typedef struct SBuffer
 {
@@ -78,61 +105,135 @@ typedef struct SBuffer
     size_t buffer_size;
 } SBuffer;
 
+typedef struct part_head
+{
+    uint64_t row_id;
+    uint32_t total, len, part, padd;
+} part_head;
 
-typedef enum format_t { ft_special, ft_fastq } format_t;
+typedef enum format_t { ft_unknown, ft_special, ft_whole_spot,
+                        ft_fastq_split_spot, ft_fastq_split_file, ft_fastq_split_3 } format_t;
+typedef enum compress_t { ct_none, ct_gzip, ct_bzip2 } compress_t;
+
+typedef struct cmn_params
+{
+    const KDirectory * dir;
+    const char * accession;
+    int64_t first_row;
+    uint64_t row_count;
+    size_t cursor_cache;
+} cmn_params;
 
 rc_t ErrMsg( const char * fmt, ... );
 
-rc_t make_SBuffer( SBuffer * buffer, size_t len );
-void release_SBuffer( SBuffer * buffer );
-rc_t print_to_SBufferV( SBuffer * buffer, const char * fmt, va_list args );
-rc_t print_to_SBuffer( SBuffer * buffer, const char * fmt, ... );
-
-rc_t add_column( const VCursor * cursor, const char * name, uint32_t * id );
-
-rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count, 
-                    const struct num_gen_iter ** iter );
+rc_t make_SBuffer( SBuffer * self, size_t len );
+void release_SBuffer( SBuffer * self );
+rc_t increase_SBuffer( SBuffer * self, size_t by );
+rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args );
+rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... );
+rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err );
+rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... );
 
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch );
+rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch );
 
-format_t get_format_t( const char * format );
+format_t get_format_t( const char * format,
+        bool split_spot, bool split_file, bool split_3, bool whole_spot );
+
+compress_t get_compress_t( bool gzip, bool bzip2 );
 
 struct Args;
 const char * get_str_option( const struct Args *args, const char *name, const char * dflt );
 bool get_bool_option( const struct Args *args, const char *name );
 size_t get_size_t_option( const struct Args * args, const char *name, size_t dflt );
 uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64_t dflt );
+uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt );
 
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id );
 
-void pack_4na( const String * unpacked, SBuffer * packed );
-void unpack_4na( const String * packed, SBuffer * unpacked );
+rc_t pack_4na( const String * unpacked, SBuffer * packed );
+rc_t pack_read_2_4na( const String * read, SBuffer * packed );
+rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse );
 
-uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits );
+bool ends_in_slash( const char * s );
+bool extract_path( const char * s, String * path );
+const char * extract_acc( const char * s );
+
+rc_t create_this_file( KDirectory * dir, const char * filename, bool force );
+rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force );
+rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force );
 
 bool file_exists( const KDirectory * dir, const char * fmt, ... );
+bool dir_exists( const KDirectory * dir, const char * fmt, ... );
 
-void join_and_release_threads( Vector * threads );
-
-rc_t concat_files( KDirectory * dir, const VNamelist * files, size_t buf_size,
-                   const char * output, bool show_progress );
+rc_t join_and_release_threads( Vector * threads );
 
 rc_t delete_files( KDirectory * dir, const VNamelist * files );
+uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files );
 
+int get_vdb_pathtype( KDirectory * dir, const char * accession );
 
-typedef struct multi_progress
+rc_t make_joined_filename( char * buffer, size_t bufsize,
+                           const char * accession,
+                           const tmp_id * tmp_id,
+                           uint32_t id );
+
+void clear_join_stats( join_stats * stats );
+void add_join_stats( join_stats * stats, const join_stats * to_add );
+
+rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
+                             const char * filename, size_t buf_size );
+
+/* ===================================================================================== */
+
+typedef struct locked_file_list
 {
-    atomic_t progress_done;
-    atomic_t progress_rows;
-    uint64_t row_count;
-} multi_progress;
+    KLock * lock;
+    VNamelist * files;
+} locked_file_list;
 
-void init_progress_data( multi_progress * progress_data, uint64_t row_count );
-rc_t start_multi_progress( KThread **t, multi_progress * progress_data );
-void join_multi_progress( KThread *t, multi_progress * progress_data );
+rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize );
+rc_t locked_file_list_release( locked_file_list * self, KDirectory * dir );
+rc_t locked_file_list_append( const locked_file_list * self, const char * filename );
+rc_t locked_file_list_delete_all( KDirectory * dir, locked_file_list * self );
+rc_t locked_file_list_count( const locked_file_list * self, uint32_t * count );
+rc_t locked_file_list_pop( locked_file_list * self, const String ** item );
 
-rc_t make_prefixed( char * buffer, size_t bufsize, const char * prefix,
-                    const char * path, const char * postfix );
+/* ===================================================================================== */
+
+typedef struct locked_vector
+{
+    KLock * lock;
+    Vector vector;
+    bool sealed;
+} locked_vector;
+
+rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize );
+void locked_vector_release( locked_vector * self,
+                            void ( CC * whack ) ( void *item, void *data ), void *data );
+rc_t locked_vector_push( locked_vector * self, const void * item, bool seal );
+rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed );
+
+/* ===================================================================================== */
+
+typedef struct locked_value
+{
+    KLock * lock;
+    uint64_t value;
+} locked_value;
+
+rc_t locked_value_init( locked_value * self, uint64_t init_value );
+void locked_value_release( locked_value * self );
+rc_t locked_value_get( locked_value * self, uint64_t * value );
+rc_t locked_value_set( locked_value * self, uint64_t value );
+
+/* ===================================================================================== */
+
+struct Buf2NA;
+
+rc_t make_Buf2NA( struct Buf2NA ** self, size_t size, const char * pattern );
+void release_Buf2NA( struct Buf2NA * self );
+bool match_Buf2NA( struct Buf2NA * self, const String * ascii );
 
 #ifdef __cplusplus
 }

@@ -39,12 +39,20 @@ extern "C" {
 #include <kfs/directory.h>
 #endif
 
+#ifndef _h_kfs_file_
+#include <kfs/file.h>
+#endif
+
 struct file_printer;
 
 void destroy_file_printer( struct file_printer * printer );
 
-rc_t make_file_printer( KDirectory *dir, struct file_printer ** printer,
-        size_t file_buffer_size, size_t print_buffer_size, const char * fmt, ... );
+rc_t make_file_printer_from_file( struct KFile * f, struct file_printer ** printer,
+                size_t print_buffer_size );
+                
+rc_t make_file_printer_from_filename( const struct KDirectory * dir, struct file_printer ** printer,
+                size_t file_buffer_size, size_t print_buffer_size,
+                const char * fmt, ... );
 
 rc_t file_print( struct file_printer * printer, const char * fmt, ... );
 

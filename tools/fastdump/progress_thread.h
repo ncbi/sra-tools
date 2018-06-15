@@ -24,8 +24,8 @@
 *
 */
 
-#ifndef _h_index_
-#define _h_index_
+#ifndef _h_progress_thread_
+#define _h_progress_thread_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,32 +35,21 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
-#endif
+struct bg_progress;
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
-#endif
+rc_t bg_progress_make( struct bg_progress ** bgp, uint64_t max_value, uint32_t sleep_time, uint32_t digits );
+void bg_progress_update( struct bg_progress * self, uint64_t by );
+void bg_progress_inc( struct bg_progress * self );
+void bg_progress_get( struct bg_progress * self, uint64_t * value );
+void bg_progress_set_max( struct bg_progress * self, uint64_t value );
+void bg_progress_release( struct bg_progress * self );
 
-#define DFLT_INDEX_FREQUENCY 20000
+struct bg_update;
 
-struct index_writer;
-
-void release_index_writer( struct index_writer * writer );
-rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
-                        size_t buf_size, uint64_t frequency, const char * fmt, ... );
-rc_t write_key( struct index_writer * writer, uint64_t key, uint64_t offset );
-
-struct index_reader;
-
-void release_index_reader( struct index_reader * reader );
-rc_t make_index_reader( const KDirectory * dir, struct index_reader ** reader,
-                        size_t buf_size, const char * fmt, ... );
-rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key_to_find,
-                   uint64_t * key_found, uint64_t * offset );
-
-rc_t get_max_key( const struct index_reader * reader, uint64_t * max_key );
+rc_t bg_update_make( struct bg_update ** bga, uint32_t sleep_time );
+void bg_update_start( struct bg_update * self, const char * caption );
+void bg_update_update( struct bg_update * self, uint64_t by );
+void bg_update_release( struct bg_update * self );
 
 #ifdef __cplusplus
 }

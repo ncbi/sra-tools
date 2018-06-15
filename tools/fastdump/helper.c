@@ -25,15 +25,17 @@
 */
 
 #include "helper.h"
+
 #include <klib/log.h>
 #include <klib/printf.h>
-#include <klib/progressbar.h>
-#include <klib/time.h>
 #include <klib/out.h>
 #include <kfs/defs.h>
 #include <kfs/file.h>
 #include <kfs/buffile.h>
-#include <kproc/thread.h>
+#include <search/nucstrstr.h>
+
+#include <kdb/manager.h>
+#include <vdb/manager.h>
 
 rc_t ErrMsg( const char * fmt, ... )
 {
@@ -45,8 +47,6 @@ rc_t ErrMsg( const char * fmt, ... )
     va_start( list, fmt );
     rc = string_vprintf( buffer, sizeof buffer, &num_writ, fmt, list );
     if ( rc == 0 )
-        /* rc = KOutMsg( "%s\n", buffer ); */
-        /* rc = pLogErr( klogErr, 1, "$(E)", "E=%s", buffer ); */
         rc = pLogMsg( klogErr, "$(E)", "E=%s", buffer );
     va_end( list );
     return rc;
@@ -87,6 +87,22 @@ uint64_t get_uint64_t_option( const struct Args * args, const char *name, uint64
         {
             char * endptr;
             res = strtol( s, &endptr, 0 );
+        }
+    }
+    return res;
+}
+
+uint32_t get_uint32_t_option( const struct Args * args, const char *name, uint32_t dflt )
+{
+    uint32_t res = dflt;
+    const char * s = get_str_option( args, name, NULL );
+    if ( s != NULL )
+    {
+        size_t l = string_size( s );
+        if ( l > 0 )
+        {
+            char * endptr;
+            res = ( uint32_t )strtol( s, &endptr, 0 );
         }
     }
     return res;
@@ -133,129 +149,214 @@ size_t get_size_t_option( const struct Args * args, const char *name, size_t dfl
     return res;
 }
 
+static format_t format_cmp( String * Format, const char * test, format_t test_fmt )
+{
+    String TestFormat;
+    StringInitCString( &TestFormat, test );
+    if ( 0 == StringCaseCompare ( Format, &TestFormat ) )
+        return test_fmt;
+    return ft_unknown;
+}
+
+format_t get_format_t( const char * format,
+            bool split_spot, bool split_file, bool split_3, bool whole_spot )
+{
+    format_t res = ft_unknown;
+    if ( format != NULL && format[ 0 ] != 0 )
+    {
+        /* the format option has been used, try to recognize one of the options,
+           the legacy options will be ignored now */
+
+        String Format;
+        StringInitCString( &Format, format );
+        
+        res = format_cmp( &Format, "special", ft_special );
+        if ( res == ft_unknown )
+            res = format_cmp( &Format, "whole-spot", ft_whole_spot );
+        if ( res == ft_unknown )
+            res = format_cmp( &Format, "fastq-split-spot", ft_fastq_split_spot );
+        if ( res == ft_unknown )
+            res = format_cmp( &Format, "fastq-split-file", ft_fastq_split_file );
+        if ( res == ft_unknown )
+            res = format_cmp( &Format, "fastq-split-3", ft_fastq_split_3 );
+    }
+    else
+    {
+        /* the format option has not been used, let us see if some of the legacy-options
+            have been used */
+        if ( split_3 )
+            res = ft_fastq_split_3;
+        else if ( split_file )
+            res = ft_fastq_split_file;
+        else if ( split_spot )
+            res = ft_fastq_split_spot;
+        else if ( whole_spot )
+            res = ft_whole_spot;
+    }
+    
+    /* default to split_3 if no format has been given at all */
+    if ( res == ft_unknown )
+        res = ft_fastq_split_3;
+
+    return res;
+}
 
 rc_t make_SBuffer( SBuffer * buffer, size_t len )
 {
     rc_t rc = 0;
-    String * S = &buffer->S;
-    S->addr = malloc( len );
-    if ( S->addr == NULL )
+    String * S = &buffer -> S;
+    S -> addr = malloc( len );
+    if ( S -> addr == NULL )
     {
-        S->size = S->len = 0;
+        S -> size = S -> len = 0;
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
         ErrMsg( "malloc( %d ) -> %R", ( len ), rc );
     }
     else
     {
-        S->size = 0;
-        S->len = 0;
-        buffer->buffer_size = len;
+        S -> size = 0;
+        S -> len = 0;
+        buffer -> buffer_size = len;
     }
     return rc;
 }
 
-
-void release_SBuffer( SBuffer * buffer )
+void release_SBuffer( SBuffer * self )
 {
-    if ( buffer != NULL )
+    if ( self != NULL )
     {
-        String * S = &buffer->S;
-        if ( S->addr != NULL )
-            free( ( void * ) S->addr );
+        String * S = &self -> S;
+        if ( S -> addr != NULL )
+            free( ( void * ) S -> addr );
     }
 }
 
-
-rc_t print_to_SBufferV( SBuffer * buffer, const char * fmt, va_list args )
-{
-    char * dst = ( char * )buffer->S.addr;
-    size_t num_writ = 0;
-    
-    rc_t rc = string_vprintf( dst, buffer->buffer_size, &num_writ, fmt, args );
-    if ( rc != 0 )
-        ErrMsg( "string_vprintf() -> %R", rc );
-    buffer->S.len = buffer->S.size = num_writ;
-    
-    return rc;
-}
-
-
-rc_t print_to_SBuffer( SBuffer * buffer, const char * fmt, ... )
+rc_t increase_SBuffer( SBuffer * self, size_t by )
 {
     rc_t rc;
-    va_list args;
-
-    va_start( args, fmt );
-    rc = print_to_SBufferV( buffer, fmt, args );
-    va_end( args );
-
-    return rc;
-}
-
-
-rc_t add_column( const VCursor * cursor, const char * name, uint32_t * id )
-{
-    rc_t rc = VCursorAddColumn( cursor, id, name );
-    if ( rc != 0 )
-        ErrMsg( "VCursorAddColumn( '%s' ) -> %R", name, rc );
-    return rc;
-}
-
-
-rc_t make_row_iter( struct num_gen * ranges, int64_t first, uint64_t count, 
-                    const struct num_gen_iter ** iter )
-{
-    rc_t rc;
-    if ( num_gen_empty( ranges ) )
-    {
-        rc = num_gen_add( ranges, first, count );
-        if ( rc != 0 )
-            ErrMsg( "num_gen_add( %li, %ld ) -> %R", first, count, rc );
-    }
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
     else
     {
-        rc = num_gen_trim( ranges, first, count );
-        if ( rc != 0 )
-            ErrMsg( "num_gen_trim( %li, %ld ) -> %R", first, count, rc );
+        size_t new_size = self -> buffer_size + by;
+        release_SBuffer( self );
+        rc = make_SBuffer( self, new_size );
     }
-    rc = num_gen_iterator_make( ranges, iter );
-    if ( rc != 0 )
-        ErrMsg( "num_gen_iterator_make() -> %R", rc );
     return rc;
 }
 
+rc_t print_to_SBufferV( SBuffer * self, const char * fmt, va_list args )
+{
+    rc_t rc = 0;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcSelf, rcNull );
+    else
+    {
+        char * dst = ( char * )( self -> S . addr );
+        size_t num_writ = 0;
+            
+        rc = string_vprintf( dst, self -> buffer_size, &num_writ, fmt, args );
+        if ( rc == 0 )
+        {
+            self -> S . size = num_writ;
+            self -> S . len = ( uint32_t )self -> S . size;
+        }
+    }
+    return rc;
+}
+
+rc_t try_to_enlarge_SBuffer( SBuffer * self, rc_t rc_err )
+{
+    rc_t rc = rc_err;
+    if ( ( GetRCObject( rc ) == ( enum RCObject )rcBuffer ) && ( GetRCState( rc ) == rcInsufficient ) )
+    {
+        rc = increase_SBuffer( self, self -> buffer_size ); /* double it's size */
+        if ( rc != 0 )
+            ErrMsg( "increase_SBuffer() -> %R", rc );
+    }
+    return rc;
+}
+
+rc_t print_to_SBuffer( SBuffer * self, const char * fmt, ... )
+{
+    rc_t rc = 0;
+    bool done = false;
+    while ( rc == 0 && !done )
+    {
+        va_list args;
+        
+        va_start( args, fmt );
+        rc = print_to_SBufferV( self, fmt, args );
+        va_end( args );
+        
+        done = ( rc == 0 );
+        if ( !done )
+            rc = try_to_enlarge_SBuffer( self, rc );
+    }
+    return rc;
+}
+
+
+rc_t make_and_print_to_SBuffer( SBuffer * self, size_t len, const char * fmt, ... )
+{
+    rc_t rc = make_SBuffer( self, len );
+    if ( rc == 0 )
+    {
+        va_list args;
+
+        va_start( args, fmt );
+        rc = print_to_SBufferV( self, fmt, args );
+        va_end( args );
+    }
+    return rc;
+}
 
 rc_t split_string( String * in, String * p0, String * p1, uint32_t ch )
 {
     rc_t rc = 0;
-    char * ch_ptr = string_chr( in->addr, in->size, ch );
+    char * ch_ptr = string_chr( in -> addr, in -> size, ch );
     if ( ch_ptr == NULL )
         rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
     else
     {
-        p0->addr = in->addr;
-        p0->len  = p0->size = ( ch_ptr - p0->addr );
-        p1->addr = ch_ptr + 1;
-        p1->len  = p1->size = in->len - ( p0->len + 1 );
+        p0 -> addr = in -> addr;
+        p0 -> size = ( ch_ptr - p0 -> addr );
+        p0 -> len  = ( uint32_t ) p0 -> size;
+        p1 -> addr = ch_ptr + 1;
+        p1 -> size = in -> len - ( p0 -> len + 1 );
+        p1 -> len  = ( uint32_t ) p1 -> size;
     }
     return rc;
 }
 
-
-format_t get_format_t( const char * format )
+rc_t split_string_r( String * in, String * p0, String * p1, uint32_t ch )
 {
-    format_t res = ft_special;
-    if ( format != NULL && format[ 0 ] != 0 )
+    rc_t rc = 0;
+    char * ch_ptr = string_rchr( in -> addr, in -> size, ch );
+    if ( ch_ptr == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcTransfer, rcInvalid );
+    else
     {
-        String Format, FastqFormat;
-        StringInitCString( &Format, format );
-        StringInitCString( &FastqFormat, "fastq" );
-        if ( 0 == StringCaseCompare ( &Format, &FastqFormat ) )
-            res = ft_fastq;
+        p0 -> addr = in -> addr;
+        p0 -> size = ( ch_ptr - p0 -> addr );
+        p0 -> len  = ( uint32_t ) p0 -> size;
+        p1 -> addr = ch_ptr + 1;
+        p1 -> size = in -> len - ( p0 -> len + 1 );
+        p1 -> len  = ( uint32_t ) p1 -> size;
     }
-    return res;
+    return rc;
 }
 
+compress_t get_compress_t( bool gzip, bool bzip2 )
+{
+    if ( gzip && bzip2 )
+        return ct_bzip2;
+    else if ( gzip )
+        return ct_gzip;
+    else if ( bzip2 )
+        return ct_bzip2;
+    return ct_none;
+}
 
 uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id )
 {
@@ -265,75 +366,198 @@ uint64_t make_key( int64_t seq_spot_id, uint32_t seq_read_id )
     return key;
 }
 
-
-void pack_4na( const String * unpacked, SBuffer * packed )
+rc_t pack_4na( const String * unpacked, SBuffer * packed )
 {
-    uint32_t i;
-    char * src = ( char * )unpacked->addr;
-    char * dst = ( char * )packed->S.addr;
-    uint16_t dna_len = ( unpacked->len & 0xFFFF );
-    uint32_t len = 0;
-    dst[ len++ ] = ( dna_len >> 8 );
-    dst[ len++ ] = ( dna_len & 0xFF );
-    for ( i = 0; i < unpacked->len; ++i )
+    rc_t rc = 0;
+    if ( unpacked -> len < 1 )
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
+    else
     {
-        if ( len < packed->buffer_size )
+        if ( unpacked -> len > 0xFFFF )
+            rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
+        else
         {
-            char base = ( src[ i ] & 0x0F );
-            if ( 0 == ( i & 0x01 ) )
-                dst[ len ] = ( base << 4 );
-            else
-                dst[ len++ ] |= base;
+            uint32_t i;
+            uint8_t * src = ( uint8_t * )unpacked -> addr;
+            uint8_t * dst = ( uint8_t * )packed -> S . addr;
+            uint16_t dna_len = ( unpacked -> len & 0xFFFF );
+            uint32_t len = 0;
+            dst[ len++ ] = ( dna_len >> 8 );
+            dst[ len++ ] = ( dna_len & 0xFF );
+            for ( i = 0; i < unpacked -> len; ++i )
+            {
+                if ( len < packed -> buffer_size )
+                {
+                    uint8_t base = ( src[ i ] & 0x0F );
+                    if ( 0 == ( i & 0x01 ) )
+                        dst[ len ] = ( base << 4 );
+                    else
+                        dst[ len++ ] |= base;
+                }
+            }
+            if ( unpacked -> len & 0x01 )
+                len++;
+            packed -> S . size = packed -> S . len = len;
         }
     }
-    if ( unpacked->len & 0x01 )
-        len++;
-    packed->S.size = packed->S.len = len;
+    return rc;
 }
 
+static const char xASCII_to_4na[ 256 ] =
+{
+    /* 0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0A 0x0B 0x0C 0x0D 0x0E 0x0F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
 
-static char x4na_to_ASCII[ 16 ] =
+    /* 0x10 0x11 0x12 0x13 0x14 0x15 0x16 0x17 0x18 0x19 0x1A 0x1B 0x1C 0x1D 0x1E 0x1F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x20 0x21 0x22 0x23 0x24 0x25 0x26 0x27 0x28 0x29 0x2A 0x2B 0x2C 0x2D 0x2E 0x2F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x30 0x31 0x32 0x33 0x34 0x35 0x36 0x37 0x38 0x39 0x3A 0x3B 0x3C 0x3D 0x3E 0x3F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x40 0x41 0x42 0x43 0x44 0x45 0x46 0x47 0x48 0x49 0x4A 0x4B 0x4C 0x4D 0x4E 0x4F */
+    /* @    A    B    C    D    E    F    G    H    I    J    K    L    M    N    O */
+       0,   1,   0,   2,   0,   0,   0,   4,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x50 0x51 0x52 0x53 0x54 0x55 0x56 0x57 0x58 0x59 0x5A 0x5B 0x5C 0x5D 0x5E 0x5F */
+    /* P    Q    R    S    T    U    V    W    X    Y    Z    [    \    ]    ^    _ */
+       0,   0,   0,   0,   8,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x60 0x61 0x62 0x63 0x64 0x65 0x66 0x67 0x68 0x69 0x6A 0x6B 0x6C 0x6D 0x6E 0x6F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x70 0x71 0x72 0x73 0x74 0x75 0x76 0x77 0x78 0x79 0x7A 0x7B 0x7C 0x7D 0x7E 0x7F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x80 0x81 0x82 0x83 0x84 0x85 0x86 0x87 0x88 0x89 0x8A 0x8B 0x8C 0x8D 0x8E 0x8F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0x90 0x91 0x92 0x93 0x94 0x95 0x96 0x97 0x98 0x99 0x9A 0x9B 0x9C 0x9D 0x9E 0x9F */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xA0 0xA1 0xA2 0xA3 0xA4 0xA5 0xA6 0xA7 0xA8 0xA9 0xAA 0xAB 0xAC 0xAD 0xAE 0xAF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xB0 0xB1 0xB2 0xB3 0xB4 0xB5 0xB6 0xB7 0xB8 0xB9 0xBA 0xBB 0xBC 0xBD 0xBE 0xBF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xC0 0xC1 0xC2 0xC3 0xC4 0xC5 0xC6 0xC7 0xC8 0xC9 0xCA 0xCB 0xCC 0xCD 0xCE 0xCF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xD0 0xD1 0xD2 0xD3 0xD4 0xD5 0xD6 0xD7 0xD8 0xD9 0xDA 0xDB 0xDC 0xDD 0xDE 0xDF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xE0 0xE1 0xE2 0xE3 0xE4 0xE5 0xE6 0xE7 0xE8 0xE9 0xEA 0xEB 0xEC 0xED 0xEE 0xEF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,
+
+    /* 0xF0 0xF1 0xF2 0xF3 0xF4 0xF5 0xF6 0xF7 0xF8 0xF9 0xFA 0xFB 0xFC 0xFD 0xFE 0xFF */
+       0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0
+};
+
+rc_t pack_read_2_4na( const String * read, SBuffer * packed )
+{
+    rc_t rc = 0;
+    if ( read -> len < 1 )
+        rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcNull );
+    else
+    {
+        if ( read -> len > 0xFFFF )
+            rc = RC( rcVDB, rcNoTarg, rcWriting, rcFormat, rcExcessive );
+        else
+        {
+            uint32_t i;
+            uint8_t * src = ( uint8_t * )read -> addr;
+            uint8_t * dst = ( uint8_t * )packed -> S . addr;
+            uint16_t dna_len = ( read -> len & 0xFFFF );
+            uint32_t len = 0;
+            dst[ len++ ] = ( dna_len >> 8 );
+            dst[ len++ ] = ( dna_len & 0xFF );
+            for ( i = 0; i < read -> len; ++i )
+            {
+                if ( len < packed -> buffer_size )
+                {
+                    uint8_t base = ( xASCII_to_4na[ src[ i ] ] & 0x0F );
+                    if ( 0 == ( i & 0x01 ) )
+                        dst[ len ] = ( base << 4 );
+                    else
+                        dst[ len++ ] |= base;
+                }
+            }
+            if ( read -> len & 0x01 )
+                len++;
+            packed -> S . size = packed -> S . len = len;
+        }
+    }
+    return rc;
+}
+
+static const char x4na_to_ASCII_fwd[ 16 ] =
 {
     /* 0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0A 0x0B 0x0C 0x0D 0x0E 0x0F */
        'N', 'A', 'C', 'N', 'G', 'N', 'N', 'N', 'T', 'N', 'N', 'N', 'N', 'N', 'N', 'N'
 };
 
-
-void unpack_4na( const String * packed, SBuffer * unpacked )
+static const char x4na_to_ASCII_rev[ 16 ] =
 {
-    uint32_t i;
-    char * src = ( char * )packed->addr;
-    char * dst = ( char * )unpacked->S.addr;
-    uint32_t dst_idx = 0;
-    uint16_t dna_len = src[ 0 ];
+    /* 0x00 0x01 0x02 0x03 0x04 0x05 0x06 0x07 0x08 0x09 0x0A 0x0B 0x0C 0x0D 0x0E 0x0F */
+       'N', 'T', 'G', 'N', 'C', 'N', 'N', 'N', 'A', 'N', 'N', 'N', 'N', 'N', 'N', 'N'
+};
+
+rc_t unpack_4na( const String * packed, SBuffer * unpacked, bool reverse )
+{
+    rc_t rc = 0;
+    uint8_t * src = ( uint8_t * )packed -> addr;
+    uint16_t dna_len;
+
+    /* the first 2 bytes are the 16-bit dna-length */
+    dna_len = src[ 0 ];
     dna_len <<= 8;
     dna_len |= src[ 1 ];
-    for ( i = 2; i < packed->len; ++i )
+
+    if ( dna_len > unpacked -> buffer_size )
+        rc = increase_SBuffer( unpacked, dna_len - unpacked -> buffer_size );
+    if ( rc == 0 )
     {
-        uint8_t packed_byte = src[ i ];
-        if ( dst_idx < unpacked->buffer_size )
-            dst[ dst_idx++ ] = x4na_to_ASCII[ ( packed_byte >> 4 ) & 0x0F ];
-        if ( dst_idx < unpacked->buffer_size )
-            dst[ dst_idx++ ] = x4na_to_ASCII[ packed_byte & 0x0F ];
+        uint8_t * dst = ( uint8_t * )unpacked -> S . addr;
+        uint32_t dst_idx;
+        uint32_t i;
+        
+        /* use the complement-lookup-table in case of reverse */
+        const char * lookup = reverse ? x4na_to_ASCII_rev : x4na_to_ASCII_fwd;
+        
+        dst_idx = reverse ? dna_len - 1 : 0;
+            
+        for ( i = 2; i < packed -> len; ++i )
+        {
+            /* get the packed byte out of the packed input */
+            uint8_t packed_byte = src[ i ];
+            
+            /* write the first unpacked byte */
+            if ( dst_idx < unpacked -> buffer_size )
+            {
+                dst[ dst_idx ] = lookup[ ( packed_byte >> 4 ) & 0x0F ];
+                dst_idx += reverse ? -1 : 1;
+            }
+            
+            /* write the second unpacked byte */
+            if ( dst_idx < unpacked -> buffer_size )
+            {
+                dst[ dst_idx ] = lookup[ packed_byte & 0x0F ];
+                dst_idx += reverse ? -1 : 1;
+            }
+        }
+        
+        /* set the dna-length in the output-string */
+        unpacked -> S . size = dna_len;
+        unpacked -> S . len = ( uint32_t )unpacked -> S . size;
+        
+        /* terminated the output-string, just in case */
+        dst[ dna_len ] = 0;
     }
-    unpacked->S.len = unpacked->S.size = dna_len;
-    dst[ dna_len + 2 ] = 0;
+    return rc;
 }
-
-
-uint64_t calc_percent( uint64_t max, uint64_t value, uint16_t digits )
-{
-    uint64_t res = value;
-    switch ( digits )
-    {
-        case 1 : res *= 1000; break;
-        case 2 : res *= 10000; break;
-        default : res *= 100; break;
-    }
-    if ( max > 0 ) res /= max;
-    return res;
-}
-
 
 bool file_exists( const KDirectory * dir, const char * fmt, ... )
 {
@@ -347,195 +571,65 @@ bool file_exists( const KDirectory * dir, const char * fmt, ... )
     return ( pt == kptFile ) ;
 }
 
-
-void join_and_release_threads( Vector * threads )
+bool dir_exists( const KDirectory * dir, const char * fmt, ... )
 {
+    uint32_t pt;
+    va_list list;
+    
+    va_start( list, fmt );
+    pt = KDirectoryVPathType( dir, fmt, list );
+    va_end( list );
+
+    return ( pt == kptDir ) ;
+}
+
+rc_t join_and_release_threads( Vector * threads )
+{
+    rc_t rc = 0;
     uint32_t i, n = VectorLength( threads );
     for ( i = VectorStart( threads ); i < n; ++i )
     {
         KThread * thread = VectorGet( threads, i );
         if ( thread != NULL )
         {
-            KThreadWait( thread, NULL );
+            rc_t rc1;
+            KThreadWait( thread, &rc1 );
+            if ( rc == 0 && rc1 != 0 )
+                rc = rc1;
             KThreadRelease( thread );
         }
     }
-}
-
-
-typedef struct cf_progress
-{
-    struct progressbar * progressbar;
-    uint64_t total_size;
-    uint64_t current_size;
-    uint32_t current_percent;
-} cf_progress;
-
-rc_t CC Quitting();
-
-static rc_t copy_file( KFile * dst, const KFile * src, uint64_t * dst_pos,
-                       size_t buf_size, cf_progress * cfp )
-{
-    rc_t rc = 0;
-    char * buffer = malloc( buf_size );
-    if ( buffer == NULL )
-    {
-        rc = RC( rcExe, rcFile, rcPacking, rcMemory, rcExhausted );
-        ErrMsg( "copy_file.malloc( %d ) -> %R", buf_size, rc );
-    }
-    else
-    {
-        uint64_t src_pos = 0;
-        size_t num_trans = 1;
-        while ( rc == 0 && num_trans > 0 )
-        {
-            rc = Quitting();
-            if ( rc == 0 )
-            {
-                size_t num_read;
-                rc = KFileRead( src, src_pos, buffer, buf_size, &num_read );
-                if ( rc != 0 )
-                    ErrMsg( "copy_file.KFileRead( at %lu ) -> %R", src_pos, rc );
-                else if ( num_read > 0 )
-                {
-                    rc = KFileWrite( dst, *dst_pos, buffer, num_read, &num_trans );
-                    if ( rc != 0 )
-                        ErrMsg( "copy_file.KFileWrite( at %lu ) -> %R", *dst_pos, rc );
-                    else
-                    {
-                        *dst_pos += num_trans;
-                        src_pos += num_trans;
-                        if ( cfp != NULL && cfp->progressbar != NULL )
-                        {
-                            uint32_t percent;
-                            
-                            cfp->current_size += num_trans;
-                            percent = calc_percent( cfp->total_size, cfp->current_size, 2 );
-                            if ( percent > cfp->current_percent )
-                            {
-                                uint32_t i;
-                                for ( i = cfp->current_percent + 1; i <= percent; ++i )
-                                    update_progressbar( cfp->progressbar, i );
-                                cfp->current_percent = percent;
-                            }
-                        }
-                    }
-                }
-                else
-                    num_trans = 0;
-            }
-        }
-        free( buffer );
-    }
+    VectorWhack ( threads, NULL, NULL );
     return rc;
 }
 
 
-static rc_t total_filesize( const KDirectory * dir, const VNamelist * files, uint64_t *total )
+void clear_join_stats( join_stats * stats )
 {
-    uint32_t count;
-    rc_t rc = VNameListCount( files, &count );
-    *total = 0;
-    if ( rc != 0 )
-        ErrMsg( "VNameListCount() -> %R", rc );
-    else
+    if ( stats != NULL )
     {
-        uint32_t idx;
-        for ( idx = 0; rc == 0 && idx < count; ++idx )
-        {
-            const char * filename;
-            rc = VNameListGet( files, idx, &filename );
-            if ( rc != 0 )
-                ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
-            else
-            {
-                uint64_t size;
-                rc_t rc1 = KDirectoryFileSize( dir, &size, "%s", filename );
-                if ( rc1 == 0 )
-                    *total += size;
-            }
-        }
+        stats -> spots_read = 0;
+        stats -> reads_read = 0;
+        stats -> reads_written = 0;
+        stats -> reads_zero_length = 0;
+        stats -> reads_technical = 0;
+        stats -> reads_too_short = 0;
+        stats -> reads_invalid = 0;
     }
-    return rc;
 }
 
-rc_t concat_files( KDirectory * dir, const VNamelist * files, size_t buf_size,
-                   const char * output, bool show_progress )
+void add_join_stats( join_stats * stats, const join_stats * to_add )
 {
-    struct KFile * dst;
-    rc_t rc = KDirectoryCreateFile( dir, &dst, false, 0664, kcmInit, "%s", output );
-    if ( rc != 0 )
-        ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", output, rc );
-    else
+    if ( stats != NULL && to_add != NULL )
     {
-        struct KFile * temp_dst;
-        rc = KBufFileMakeWrite( &temp_dst, dst, false, buf_size );
-        KFileRelease( dst );
-        if ( rc != 0 )
-            ErrMsg( "KBufFileMakeWrite() -> %R", rc );
-        else
-        {
-            cf_progress cfp;
-            uint32_t count;
-
-            dst = temp_dst;
-            if ( show_progress )
-            {
-                cfp.current_size = 0;
-                cfp.current_percent = 0;
-                rc = make_progressbar( &cfp.progressbar, 2 );
-                if ( rc == 0 )
-                    rc = total_filesize( dir, files, &cfp.total_size );
-            }
-            else
-                cfp.progressbar = NULL;
-            if ( rc == 0 )
-            {
-                rc = VNameListCount( files, &count );
-                if ( rc != 0 )
-                    ErrMsg( "VNameListCount() -> %R", rc );
-                else
-                {
-                    uint32_t idx;
-                    uint64_t dst_pos = 0;
-                    for ( idx = 0; rc == 0 && idx < count; ++idx )
-                    {
-                        const char * filename;
-                        rc = VNameListGet( files, idx, &filename );
-                        if ( rc != 0 )
-                            ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
-                        else
-                        {
-                            const struct KFile * src;
-                            rc_t rc1 = KDirectoryOpenFileRead( dir, &src, "%s", filename );
-                            if ( rc1 == 0 )
-                            {
-                                const struct KFile * temp_src;
-                                rc = KBufFileMakeRead( &temp_src, src, buf_size );
-                                KFileRelease( src );
-                                if ( rc != 0 )
-                                    ErrMsg( "KBufFileMakeRead() -> %R", rc );
-                                else
-                                {
-                                    src = temp_src;
-                                    rc = copy_file( dst, src, &dst_pos, buf_size, &cfp );
-                                }
-                                KFileRelease( src );
-                            }
-                        }
-                    }
-                }
-                
-                if ( cfp.progressbar != NULL )
-                {
-                    destroy_progressbar( cfp.progressbar );
-                    KOutMsg( "\n" );
-                }
-            }
-        }
-        KFileRelease( dst );
+        stats -> spots_read += to_add -> spots_read;
+        stats -> reads_read += to_add -> reads_read;
+        stats -> reads_written += to_add -> reads_written;
+        stats -> reads_zero_length += to_add -> reads_zero_length;
+        stats -> reads_technical += to_add -> reads_technical;
+        stats -> reads_too_short += to_add -> reads_too_short;
+        stats -> reads_invalid += to_add -> reads_invalid;
     }
-    return rc;
 }
 
 rc_t delete_files( KDirectory * dir, const VNamelist * files )
@@ -555,119 +649,539 @@ rc_t delete_files( KDirectory * dir, const VNamelist * files )
                 ErrMsg( "VNameListGet( #%d) -> %R", idx, rc );
             else
             {
-                rc = KDirectoryRemove( dir, true, "%s", filename );
-                if ( rc != 0 )
-                    ErrMsg( "KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                if ( file_exists( dir, "%s", filename ) )
+                {
+                    rc = KDirectoryRemove( dir, true, "%s", filename );
+                    if ( rc != 0 )
+                        ErrMsg( "KDirectoryRemove( '%s' ) -> %R", filename, rc );
+                }
             }
         }
     }
     return rc;
 }
 
-
-static rc_t CC progress_thread_func( const KThread *self, void *data )
+uint64_t total_size_of_files_in_list( KDirectory * dir, const VNamelist * files )
 {
-    multi_progress * sp = data;
-    struct progressbar * progressbar;
-    uint32_t curr = 0, percent = 0;
-    rc_t rc = make_progressbar( &progressbar, 2 );
-    
-    update_progressbar( progressbar, curr );
-    while ( atomic_read( &sp->progress_done ) == 0 )
+    uint64_t res = 0;
+    if ( dir != NULL && files != NULL )
     {
-        percent = calc_percent( sp->row_count, atomic_read( &sp->progress_rows ), 2 );
-        if ( percent > curr )
+        uint32_t idx, count;
+        rc_t rc = VNameListCount( files, &count );
+        for ( idx = 0; rc == 0 && idx < count; ++idx )
         {
-            uint32_t i;
-            for ( i = curr + 1; i <= percent; ++i )
-                update_progressbar( progressbar, i );
-            curr = percent;
+            const char * filename;
+            rc = VNameListGet( files, idx, &filename );
+            if ( rc == 0 )
+            {
+                uint64_t size;
+                rc_t rc1 = KDirectoryFileSize( dir, &size, "%s", filename );
+                if ( rc1 == 0 )
+                    res += size;
+            }
         }
-        KSleepMs( 100 );
     }
-    
-    percent = calc_percent( sp->row_count, atomic_read( &sp->progress_rows ), 2 );
-    if ( percent > curr )
-    {
-        uint32_t i;
-        for ( i = curr + 1; i <= percent; ++i )
-            update_progressbar( progressbar, i );
-        curr = percent;
-    }
-
-    destroy_progressbar( progressbar );
-    KOutMsg( "\n" );
-    return rc;
+    return res;
 }
 
-
-void init_progress_data( multi_progress * progress_data, uint64_t row_count )
+int get_vdb_pathtype( KDirectory * dir, const char * accession )
 {
-    atomic_set( &progress_data->progress_done, 0 );
-    atomic_set( &progress_data->progress_rows, 0 );
-    progress_data->row_count = row_count;
-}
-
-rc_t start_multi_progress( KThread **t, multi_progress * progress_data )
-{
-    rc_t rc = KThreadMake( t, progress_thread_func, progress_data );
+    int res = kptAny;
+    const VDBManager * vdb_mgr;
+    rc_t rc = VDBManagerMakeRead( &vdb_mgr, dir );
     if ( rc != 0 )
-        ErrMsg( "KThreadMake( progress_thread ) -> %R", rc );
-    return rc;
-}
-
-
-void join_multi_progress( KThread *t, multi_progress * progress_data )
-{
-    if ( t != NULL )
+        ErrMsg( "get_vdb_pathtype().VDBManagerMakeRead() -> %R\n", rc );
+    else
     {
-        atomic_set( &progress_data->progress_done, 1 );
-        KThreadWait( t, NULL );
-        KThreadRelease( t );
+        res = ( VDBManagerPathType ( vdb_mgr, "%s", accession ) & ~ kptAlias );
+        VDBManagerRelease( vdb_mgr );
     }
+    return res;
 }
 
+/* ===================================================================================== */
 
-rc_t make_prefixed( char * buffer, size_t bufsize, const char * prefix,
-                    const char * path, const char * postfix )
+bool ends_in_slash( const char * s )
 {
-    rc_t rc;
-    size_t num_writ;
-    if ( prefix != NULL )
+    bool res = false;
+    if ( s != NULL )
     {
-        uint32_t l = string_measure( prefix, NULL );
-        if ( l == 0 )
-        {
-            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-            ErrMsg( "make_prefixed.string_measure() = 0 -> %R", rc );
-        }
+        uint32_t len = string_measure( s, NULL );
+        if ( len > 0 )
+            res = ( s[ len - 1 ] == '/' );
+    }
+    return res;
+}
+
+bool extract_path( const char * s, String * path )
+{
+    bool res = false;
+    if ( s != NULL && path != NULL )
+    {
+        path -> addr = s;
+        res = ends_in_slash( s );
+        if ( res )
+            path -> len = string_measure( s, & path -> size );
         else
         {
-            if ( postfix == NULL )
+            size_t size = string_size ( s );
+            char * slash = string_rchr ( s, size, '/' );
+            res = ( slash != NULL );
+            if ( res )
             {
-                if ( prefix[ l-1 ] == '/' )
-                    rc = string_printf( buffer, bufsize, &num_writ, "%s%s",  prefix, path );
-                else
-                    rc = string_printf( buffer, bufsize, &num_writ, "%s/%s", prefix, path );
+                path -> len = ( slash - s );
+                path -> size = ( size_t ) path -> len;
+            }
+        }
+    }
+    return res;
+}
+
+const char * extract_acc( const char * s )
+{
+    const char * res = NULL;
+    if ( s != NULL )
+    {
+        if ( !ends_in_slash( s ) )
+        {
+            size_t size = string_size ( s );
+            char * slash = string_rchr ( s, size, '/' );
+            if ( slash == NULL )
+                res = s;
+            else
+                res = slash + 1;
+        }
+    }
+    return res;
+}
+
+rc_t create_this_file( KDirectory * dir, const char * filename, bool force )
+{
+    struct KFile * f;
+    KCreateMode create_mode = force ? kcmInit : kcmCreate;
+    rc_t rc = KDirectoryCreateFile( dir, &f, false, 0664, create_mode | kcmParents, "%s", filename );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryCreateFile( '%s' ) -> %R", filename, rc );
+    else
+        KFileRelease( f );
+    return rc;
+}
+
+rc_t create_this_dir( KDirectory * dir, const String * dir_name, bool force )
+{
+    KCreateMode create_mode = force ? kcmInit : kcmCreate;
+    rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%.*s", dir_name -> len, dir_name -> addr );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryCreateDir( '%.*s' ) -> %R", dir_name -> len, dir_name -> addr, rc );
+    return rc;
+}
+
+rc_t create_this_dir_2( KDirectory * dir, const char * dir_name, bool force )
+{
+    KCreateMode create_mode = force ? kcmInit : kcmCreate;
+    rc_t rc = KDirectoryCreateDir( dir, 0774, create_mode | kcmParents, "%s", dir_name );
+    if ( rc != 0 )
+        ErrMsg( "KDirectoryCreateDir( '%s' ) -> %R", dir_name, rc );
+    return rc;
+}
+
+rc_t make_joined_filename( char * buffer, size_t bufsize,
+                           const char * accession,
+                           const tmp_id * tmp_id,
+                           uint32_t id )
+{
+    size_t num_writ;
+    rc_t rc = string_printf( buffer, bufsize, &num_writ,
+                             tmp_id -> temp_path_ends_in_slash ? "%s%s.%s.%u.%u" : "%s/%s.%s.%u.%u",
+                             tmp_id -> temp_path,
+                             accession,
+                             tmp_id -> hostname,
+                             tmp_id -> pid,
+                             id );
+    if ( rc != 0 )
+        ErrMsg( "make_joined_filename.string_printf() -> %R", rc );
+    return rc;
+
+}
+
+rc_t make_buffered_for_read( KDirectory * dir, const struct KFile ** f,
+                             const char * filename, size_t buf_size )
+{
+    const struct KFile * fr;
+    rc_t rc = KDirectoryOpenFileRead( dir, &fr, "%s", filename );
+    if ( rc == 0 )
+    {
+        if ( buf_size > 0 )
+        {
+            const struct KFile * fb;
+            rc = KBufFileMakeRead( &fb, fr, buf_size );
+            if ( rc == 0 )
+            {
+                KFileRelease( fr );
+                fr = fb;
+            }
+        }
+        if ( rc == 0 )
+            *f = fr;
+        else
+            KFileRelease( fr );
+    }
+    return rc;
+}
+
+/* ===================================================================================== */
+
+rc_t locked_file_list_init( locked_file_list * self, uint32_t alloc_blocksize )
+{
+    rc_t rc;
+    if ( self == NULL || alloc_blocksize == 0 )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockMake ( &( self -> lock ) );
+        if ( rc == 0 )
+            rc = VNamelistMake ( & self -> files, alloc_blocksize );
+    }
+    return rc;
+}
+
+rc_t locked_file_list_release( locked_file_list * self, KDirectory * dir )
+{
+    rc_t rc = 0;
+    if ( self != NULL )
+    {
+        KLockRelease ( self -> lock );
+        if ( dir != NULL )
+            rc = delete_files( dir, self -> files );
+        VNamelistRelease ( self -> files );
+    }
+    return rc;
+}
+
+rc_t locked_file_list_append( const locked_file_list * self, const char * filename )
+{
+    rc_t rc = 0;
+    if ( self == NULL || filename == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = VNamelistAppend ( self -> files, filename );
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_file_list_delete_all( KDirectory * dir, locked_file_list * self )
+{
+    rc_t rc = 0;
+    if ( self == NULL || dir == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = delete_files( dir, self -> files );
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_file_list_count( const locked_file_list * self, uint32_t * count )
+{
+    rc_t rc = 0;
+    if ( self == NULL || count == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = VNameListCount( self -> files, count );
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_file_list_pop( locked_file_list * self, const String ** item )
+{
+    rc_t rc = 0;
+    if ( self == NULL || item == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        *item = NULL;
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            const char * s;
+            rc = VNameListGet ( self -> files, 0, &s );
+            if ( rc == 0 )
+            {
+                String S;
+                StringInitCString( &S, s );
+                rc = StringCopy ( item, &S );
+                if ( rc == 0 )
+                    rc = VNamelistRemoveIdx( self -> files, 0 );
+            }
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+/* ===================================================================================== */
+
+rc_t locked_vector_init( locked_vector * self, uint32_t alloc_blocksize )
+{
+    rc_t rc;
+    if ( self == NULL || alloc_blocksize == 0 )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockMake ( &( self -> lock ) );
+        if ( rc == 0 )
+        {
+            VectorInit ( &( self -> vector ), 0, alloc_blocksize );
+            self -> sealed = false;
+        }
+    }
+    return rc;
+}
+
+void locked_vector_release( locked_vector * self,
+                            void ( CC * whack ) ( void *item, void *data ), void *data )
+{
+    if ( self == NULL )
+    {
+        rc_t rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            VectorWhack ( &( self -> vector ), whack, data );
+            KLockUnlock ( self -> lock );    
+        }
+        KLockRelease ( self -> lock );
+    }
+}
+
+rc_t locked_vector_push( locked_vector * self, const void * item, bool seal )
+{
+    rc_t rc;
+    if ( self == NULL || item == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            rc = VectorAppend ( &( self -> vector ), NULL, item );
+            if ( seal )
+                self -> sealed = true;
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_vector_pop( locked_vector * self, void ** item, bool * sealed )
+{
+    rc_t rc;
+    if ( self == NULL || item == NULL || sealed == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            if ( VectorLength( &( self -> vector ) ) == 0 )
+            {
+                rc = 0;
+                *sealed = self -> sealed;
+                *item = NULL;
             }
             else
             {
-                if ( prefix[ l-1 ] == '/' )
-                    rc = string_printf( buffer, bufsize, &num_writ, "%s%s%s",  prefix, path, postfix );
-                else
-                    rc = string_printf( buffer, bufsize, &num_writ, "%s/%s%s", prefix, path, postfix );
+                *sealed = false;
+                rc = VectorRemove ( &( self -> vector ), 0, item );
+            }
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+/* ===================================================================================== */
+rc_t locked_value_init( locked_value * self, uint64_t init_value )
+{
+    rc_t rc;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockMake ( &( self -> lock ) );
+        if ( rc == 0 )
+            self -> value = init_value;
+    }
+    return rc;
+}
+
+void locked_value_release( locked_value * self )
+{
+    if ( self == NULL )
+        KLockRelease ( self -> lock );
+}
+
+rc_t locked_value_get( locked_value * self, uint64_t * value )
+{
+    rc_t rc;
+    if ( self == NULL || value == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            *value = self -> value;
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+rc_t locked_value_set( locked_value * self, uint64_t value )
+{
+    rc_t rc;
+    if ( self == NULL )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        rc = KLockAcquire ( self -> lock );
+        if ( rc == 0 )
+        {
+            self -> value = value;
+            KLockUnlock ( self -> lock );
+        }
+    }
+    return rc;
+}
+
+/* ===================================================================================== */
+typedef struct Buf2NA
+{
+    unsigned char map [ 1 << ( sizeof ( char ) * 8 ) ];
+    size_t shiftLeft[ 4 ];
+    NucStrstr * nss;
+    uint8_t * buffer;
+    size_t allocated;
+} Buf2NA;
+
+rc_t make_Buf2NA( Buf2NA ** self, size_t size, const char * pattern )
+{
+    rc_t rc = 0;
+    NucStrstr * nss;
+    int res = NucStrstrMake ( &nss, 0, pattern, string_size ( pattern ) );
+    if ( res != 0 )
+        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+    else
+    {
+        uint8_t * buffer = calloc( size, sizeof * buffer );
+        if ( buffer == NULL )
+        {
+            rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+            NucStrstrWhack ( nss );
+        }
+        else
+        {
+            Buf2NA * res = calloc( 1, sizeof * res );
+            if ( res == NULL )
+            {
+                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                NucStrstrWhack ( nss );
+                free( ( void * ) buffer );
+            }
+            else
+            {
+                res -> nss = nss;
+                res -> buffer = buffer;
+                res -> allocated = size;
+                res -> map[ 'A' ] = res -> map[ 'a' ] = 0;
+                res -> map[ 'C' ] = res -> map[ 'c' ] = 1;
+                res -> map[ 'G' ] = res -> map[ 'g' ] = 2;
+                res -> map[ 'T' ] = res -> map[ 't' ] = 3;
+                res -> shiftLeft [ 0 ] = 6;
+                res -> shiftLeft [ 1 ] = 4;
+                res -> shiftLeft [ 2 ] = 2;
+                res -> shiftLeft [ 3 ] = 0;
+                *self = res;
             }
         }
     }
-    else
-    {
-        if ( postfix == NULL )
-            rc = string_printf( buffer, bufsize, &num_writ, "%s", path );
-        else
-            rc = string_printf( buffer, bufsize, &num_writ, "%s%s", path, postfix );
-    }
-    
-    if ( rc != 0 )
-        ErrMsg( "make_prefixed.string_printf() -> %R", rc );
     return rc;
+}
+
+void release_Buf2NA( Buf2NA * self )
+{
+    if ( self != NULL )
+    {
+        if ( self -> buffer != NULL )
+            free( ( void * ) self -> buffer );
+        if ( self -> nss != NULL )
+            NucStrstrWhack ( self -> nss );
+        free( ( void * ) self );
+    }
+}
+
+bool match_Buf2NA( Buf2NA * self, const String * ascii )
+{
+    bool res = false;
+    if ( self != NULL && ascii != NULL )
+    {
+        int i;
+        size_t needed = ( ( ascii -> len + 3 ) / 4 );
+        if ( needed > self -> allocated )
+        {
+            free( ( void * )self -> buffer );
+            self -> buffer = calloc( needed, sizeof *( self -> buffer ) );
+        }
+        else
+            memset( self -> buffer, 0, needed );
+
+        if ( self -> buffer != NULL )
+        {
+            unsigned int selflen;
+            int dst = 0;
+            int src = 0;
+            i = ascii -> len;
+            while ( i >= 4 )
+            {
+                self -> buffer[ dst++ ] =
+                    self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
+                    self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4 |
+                    self -> map[ ( unsigned char )ascii -> addr[ src + 2 ] ] << 2 |
+                    self -> map[ ( unsigned char )ascii -> addr[ src + 3 ] ];
+                src += 4;
+                i -= 4;
+            }
+            switch( i )
+            {
+                case 3 : self -> buffer[ dst ] = 
+                            self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
+                            self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4 |
+                            self -> map[ ( unsigned char )ascii -> addr[ src + 2 ] ] << 2; break;
+                case 2 : self -> buffer[ dst ] = 
+                            self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6 |
+                            self -> map[ ( unsigned char )ascii -> addr[ src + 1 ] ] << 4; break;
+                case 1 : self -> buffer[ dst ] = 
+                            self -> map[ ( unsigned char )ascii -> addr[ src ] ] << 6; break;
+            }
+            res = ( 0 != NucStrstrSearch ( self -> nss, self -> buffer, 0, ascii -> len, & selflen ) );
+        }
+    }
+    return res;
 }

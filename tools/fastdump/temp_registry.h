@@ -23,9 +23,8 @@
 * ===========================================================================
 *
 */
-
-#ifndef _h_index_
-#define _h_index_
+#ifndef _h_temp_registry_
+#define _h_temp_registry_
 
 #ifdef __cplusplus
 extern "C" {
@@ -35,32 +34,34 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
 #endif
 
-#define DFLT_INDEX_FREQUENCY 20000
+#ifndef _h_helper_
+#include "helper.h"
+#endif
 
-struct index_writer;
+#ifndef _h_fastdump_cleanup_task_
+#include "cleanup_task.h"
+#endif
 
-void release_index_writer( struct index_writer * writer );
-rc_t make_index_writer( KDirectory * dir, struct index_writer ** writer,
-                        size_t buf_size, uint64_t frequency, const char * fmt, ... );
-rc_t write_key( struct index_writer * writer, uint64_t key, uint64_t offset );
+struct temp_registry;
 
-struct index_reader;
+void destroy_temp_registry( struct temp_registry * self );
 
-void release_index_reader( struct index_reader * reader );
-rc_t make_index_reader( const KDirectory * dir, struct index_reader ** reader,
-                        size_t buf_size, const char * fmt, ... );
-rc_t get_nearest_offset( const struct index_reader * reader, uint64_t key_to_find,
-                   uint64_t * key_found, uint64_t * offset );
+rc_t make_temp_registry( struct temp_registry ** registry, struct KFastDumpCleanupTask * cleanup_task );
 
-rc_t get_max_key( const struct index_reader * reader, uint64_t * max_key );
+rc_t register_temp_file( struct temp_registry * self, uint32_t read_id, const char * filename );
+
+rc_t temp_registry_merge( struct temp_registry * self,
+                          KDirectory * dir,
+                          const char * output_filename,
+                          size_t buf_size,
+                          bool show_progress,
+                          bool print_to_stdout,
+                          bool force,
+                          compress_t compress );
 
 #ifdef __cplusplus
 }

@@ -35,29 +35,63 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_kfs_directory_
-#include <kfs/directory.h>
+#ifndef _h_fastdump_cleanup_task_
+#include "cleanup_task.h"
 #endif
 
-struct merge_sorter;
+#ifndef _h_helper_
+#include "helper.h"
+#endif
 
-typedef struct merge_sorter_params
-{
-    KDirectory *dir;
-    const char * output_filename;
-    const char * index_filename;
-    uint32_t count;
-    size_t buf_size;
-} merge_sorter_params;
+#ifndef _h_progress_thread_
+#include "progress_thread.h"
+#endif
+
+struct background_vector_merger;
+struct background_file_merger;
+
+/* ================================================================================= */
+
+rc_t make_background_vector_merger( struct background_vector_merger ** merger,
+                             KDirectory * dir,
+                             const tmp_id * tmp_id,
+                             struct KFastDumpCleanupTask * cleanup_task,                             
+                             struct background_file_merger * file_merger,
+                             uint32_t batch_size,
+                             uint32_t q_wait_time,
+                             size_t buf_size,
+                             struct bg_update * gap );
+
+void tell_total_rowcount_to_vector_merger( struct background_vector_merger * self, uint64_t value );
+
+rc_t push_to_background_vector_merger( struct background_vector_merger * self, KVector * store );
+
+rc_t seal_background_vector_merger( struct background_vector_merger * self );
+
+rc_t wait_for_and_release_background_vector_merger( struct background_vector_merger * self );
 
 
-rc_t make_merge_sorter( struct merge_sorter ** ms, const merge_sorter_params * params );
+/* ================================================================================= */
 
-rc_t add_merge_sorter_src( struct merge_sorter *ms, const char * filename, uint32_t id );
+rc_t make_background_file_merger( struct background_file_merger ** merger,
+                                KDirectory * dir,
+                                const tmp_id * tmp_id,
+                                struct KFastDumpCleanupTask * cleanup_task,                                
+                                const char * lookup_filename,
+                                const char * index_filename,
+                                uint32_t batch_size,
+                                uint32_t wait_time,
+                                size_t buf_size,
+                                struct bg_update * gap );
 
-void release_merge_sorter( struct merge_sorter *ms );
+void tell_total_rowcount_to_file_merger( struct background_file_merger * self, uint64_t value );
 
-rc_t run_merge_sorter( struct merge_sorter *ms );
+rc_t push_to_background_file_merger( struct background_file_merger * self, const char * filename );
+
+rc_t seal_background_file_merger( struct background_file_merger * self );
+
+rc_t wait_for_and_release_background_file_merger( struct background_file_merger * self );
+
 
 #ifdef __cplusplus
 }

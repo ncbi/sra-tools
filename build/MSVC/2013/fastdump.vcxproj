@@ -1,0 +1,17 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="12.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project=".\exe-project.props" />
+  
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(VDB_TARGET)lib\ncbi-vdb.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>  
+  
+  <Import Project="..\fastdump.files" />
+
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{5E85344A-92C9-4407-8A76-1EF0C8AB0D60}</ProjectGuid>
+  </PropertyGroup>
+
+</Project>

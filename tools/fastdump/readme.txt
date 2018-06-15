@@ -7,7 +7,7 @@ extraction of FASTQ from SRA-accessions. If a minimal commandline is given:
 
 $fasterq-dump SRR000001
 
-The tool produces output files named 'SRR000001_1.fastq' and 'SRR000001_1.fastq'
+The tool produces output files named 'SRR000001_1.fastq' and 'SRR000001_2.fastq'
 in the current directory. The tool will also create a directory named 'fast.tmp'
 in the current directory if it needs to ( no need for it in case of SRR000001 )
 and use it for temporary files. After the extraction is finished, this directory

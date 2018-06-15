@@ -189,6 +189,12 @@ rc_t vdco_destroy( p_dump_context ctx )
             ctx->table = NULL;
         }
 
+        if ( ctx->view != NULL )
+        {
+            free( (void*)ctx->view );
+            ctx->view = NULL;
+        }
+
         if ( ctx->columns != NULL )
         {
             free( (void*)ctx->columns );

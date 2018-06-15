@@ -13,9 +13,10 @@ view V2#1 < NCBI:align:tbl:seq t >
 }
 
 // joins
+
+// join from SEQUENCE to PRIMARY_ALIGNMENT
 view V3#1 < NCBI:align:tbl:seq t, NCBI:align:tbl:align_sorted al >
 {
-
     column I64 pa_id_1 = < I64 > cut < 1 > ( t.PRIMARY_ALIGNMENT_ID );
 
 //    column ascii READ = t.READ;
@@ -36,7 +37,7 @@ view V4#1 < NCBI:align:tbl:align_sorted al, NCBI:align:tbl:seq t >
 {
     column ascii cs_read = t [ al . SPOT_ID ] . CSREAD;
     column I64 mate_id = al . MATE_ALIGN_ID;
-    column U32 mate_spot_id = al [ mate_id ] . SPOT_ID;
+    column I64 mate_spot_id = al [ mate_id ] . SEQ_SPOT_ID;
     column ascii mate_cs_read = t [ mate_spot_id ] . CSREAD;
 }
 
@@ -47,3 +48,29 @@ view V5#1 < NCBI:align:tbl:compressed_by_reference al, INSDC:tbl:sequence t >
     column ascii mate_cs_read = t [ al [ al . MATE_ALIGN_ID ] . SPOT_ID ] . CSREAD;
 }
 
+// join into itself
+view V6#1 < NCBI:align:tbl:align_sorted al, NCBI:align:tbl:seq t >
+{
+    column I64 spot_id = al . SEQ_SPOT_ID;
+    column I64 mate_id = al . MATE_ALIGN_ID;
+
+    column I64 spot_id_mate = al [ mate_id ] . SEQ_SPOT_ID; // has to be same as my_spot_id
+
+    // the two sets of columns refere to the same row in SEQUENCE and will have matching values
+    column INSDC:dna:text   read_           = t [ spot_id ] . READ;
+    column INSDC:dna:text   cmp_read        = t [ spot_id ] . CMP_READ;
+    column INSDC:color:text cs_read         = t [ spot_id ] . CSREAD;
+
+    column INSDC:dna:text   read_mate       = t [ spot_id_mate ] . READ;
+    column INSDC:dna:text   cmp_read_mate   = t [ spot_id_mate ] . CMP_READ;
+    column INSDC:color:text cs_read_mate    = t [ spot_id_mate ] . CSREAD;
+}
+
+// view on view
+view V7#1 < V6 v >
+{
+    column I64              spot_id         = v . mate_id;
+    column INSDC:dna:text   read_mate       = v . read_mate;
+    column INSDC:dna:text   cmp_read_mate   = v . cmp_read_mate;
+    column INSDC:color:text cs_read_mate    = v . cs_read_mate;
+}

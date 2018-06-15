@@ -42,16 +42,14 @@ struct VView;
 typedef struct view_spec view_spec;
 struct view_spec
 {
-    char *          view_name;
-    Vector          args; /* char*, owned */
-    char            error[1024];
-    const struct VView *  view;
+    char *  name;
+    Vector  args; /* view_spec*; 0 elements if table */
 };
 
-rc_t view_spec_parse ( const char * spec, view_spec ** self );
+rc_t view_spec_parse ( const char * spec, view_spec ** self, char * error, size_t error_size );
 void view_spec_free ( view_spec * self );
 
-rc_t view_spec_make_cursor ( view_spec * self, const struct VDatabase * db, const struct VSchema * schema, const struct VCursor ** );
+rc_t view_spec_open ( view_spec * self, const struct VDatabase * db, const struct VSchema * schema, const struct VView ** view ) ;
 
 #ifdef __cplusplus
 }

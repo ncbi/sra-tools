@@ -145,10 +145,14 @@ vdb-dump: makedb
 	$(VDB_DUMP) SRR2070515 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.5.stdout && diff expected/3.5.stdout actual/3.5.stdout
 	# NCBI:align:db:alignment_sorted
 	$(VDB_DUMP) ERR957001 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.6.stdout && diff expected/3.6.stdout actual/3.6.stdout
-	# NCBI:align:db:alignment_unsorted
+	# NCBI:align:db:alignment_unsorted. this will issue some "Undeclared identifier" messages for views that rely on table types not in this accession's schema, but will do the job since V1's declaration is correct
 	$(VDB_DUMP) ERR570054 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.7.stdout && diff expected/3.7.stdout actual/3.7.stdout
 	# NULL as foreign key
 	$(VDB_DUMP) SRR1063272 --view "V4<PRIMARY_ALIGNMENT,SEQUENCE>" -S view.vschema  -R 6  >actual/3.8.stdout && diff expected/3.8.stdout actual/3.8.stdout
+	# join a table to itself
+	$(VDB_DUMP) SRR1063272 --view "V6<PRIMARY_ALIGNMENT,SEQUENCE>" -S view.vschema  -R 36  >actual/3.9.stdout && diff expected/3.9.stdout actual/3.9.stdout
+	# view on view
+	$(VDB_DUMP) SRR1063272 --view "V7<V6<PRIMARY_ALIGNMENT,SEQUENCE>>" -S view.vschema  -R 36  >actual/3.10.stdout && diff expected/3.10.stdout actual/3.10.stdout
 	# table object - views not supported
 	! $(VDB_DUMP) ERR997444 -S view.vschema --view "V1<SEQUENCE>"
 
@@ -159,7 +163,8 @@ vdb-dump: makedb
 
 onetest: std
 	#$(VDB_DUMP) ERR570054 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.7.stdout && diff expected/3.7.stdout actual/3.7.stdout
-	$(VDB_DUMP) SRR1063272 --view "V4<PRIMARY_ALIGNMENT,SEQUENCE>" -S view.vschema  -R 6  >actual/3.8.stdout && diff expected/3.8.stdout actual/3.8.stdout
+	# row not found
+	$(VDB_DUMP) SRR1063272 --view "V7<V6<PRIMARY_ALIGNMENT,SEQUENCE>>" -S view.vschema  -R 36  >actual/3.10.stdout
 
 ACC = SRR2070515
 acc:

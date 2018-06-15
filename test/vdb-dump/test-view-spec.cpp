@@ -44,102 +44,156 @@ const string ScratchDir = "./db/";
 
 TEST_SUITE ( VdbDumpViewSpecTestSuite );
 
+char error [ 1024 ] = { 0 };
+
 TEST_CASE ( NullSelf )
 {
-    REQUIRE_RC_FAIL ( view_spec_parse ( "", NULL ) );
+    REQUIRE_RC_FAIL ( view_spec_parse ( "", NULL, error, sizeof ( error ) ) );
 }
 
 TEST_CASE ( NullSpec )
 {
     view_spec * self;
-    REQUIRE_RC_FAIL ( view_spec_parse ( NULL, & self ) );
-    REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( string ( "empty view specification" ), string ( self -> error ) );
-    view_spec_free ( self );
+    REQUIRE_RC_FAIL ( view_spec_parse ( NULL, & self, error, sizeof ( error ) ) );
+    REQUIRE_NULL ( self );
+    REQUIRE_EQ ( string ( "empty view specification" ), string ( error ) );
 }
 
 TEST_CASE ( EmptySpec )
 {
     view_spec * self;
-    REQUIRE_RC_FAIL ( view_spec_parse ( "", & self ) );
-    REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( string ( "missing view name" ), string ( self -> error ) );
-    view_spec_free ( self );
+    REQUIRE_RC_FAIL ( view_spec_parse ( "", & self, error, sizeof ( error ) ) );
+    REQUIRE_NULL ( self );
+    REQUIRE_EQ ( string ( "missing view name" ), string ( error ) );
+}
+
+TEST_CASE ( NullError )
+{
+    view_spec * self;
+    REQUIRE_RC_FAIL ( view_spec_parse ( "name<param>", & self, NULL, sizeof ( error ) ) );
+    REQUIRE_NULL ( self );
+}
+
+TEST_CASE ( ZeroSizeError )
+{
+    view_spec * self;
+    REQUIRE_RC_FAIL ( view_spec_parse ( "name<param>", & self, error, 0 ) );
+    REQUIRE_NULL ( self );
 }
 
 TEST_CASE ( MissingLeftAngle )
 {
     view_spec * self;
-    REQUIRE_RC_FAIL ( view_spec_parse ( "name", & self ) );
-    REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( string ( "missing '<' after the view name" ), string ( self -> error ) );
-    view_spec_free ( self );
+    REQUIRE_RC_FAIL ( view_spec_parse ( "name", & self, error, sizeof ( error ) ) );
+    REQUIRE_NULL ( self );
+    REQUIRE_EQ ( string ( "missing '<' after the view name" ), string ( error ) );
 }
 
 TEST_CASE ( EmptyAngles )
 {
     view_spec * self;
-    REQUIRE_RC_FAIL ( view_spec_parse ( "name<>", & self ) );
-    REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( string ( "missing view parameter(s)" ), string ( self -> error ) );
-    view_spec_free ( self );
+    REQUIRE_RC_FAIL ( view_spec_parse ( "name<>", & self, error, sizeof ( error ) ) );
+    REQUIRE_NULL ( self );
+    REQUIRE_EQ ( string ( "missing view parameter(s)" ), string ( error ) );
 }
 
 TEST_CASE ( OneParam )
 {
     view_spec * self;
-    REQUIRE_RC ( view_spec_parse ( "name<param>", & self ) );
-    REQUIRE_EQ ( 0, (int)self -> error [ 0 ] );
+    REQUIRE_RC ( view_spec_parse ( "name<param>", & self, error, sizeof ( error ) ) );
     REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( string ( "name" ), string ( self -> view_name ) );
+    REQUIRE ( string ( error ) . empty() );
+    REQUIRE_EQ ( string ( "name" ), string ( self -> name ) );
     REQUIRE_EQ ( 1u, VectorLength ( & self -> args ) );
-    REQUIRE_EQ ( string ( "param" ), string ( (const char*) VectorGet ( & self -> args, 0 ) ) );
+    REQUIRE_EQ ( string ( "param" ), string ( ( (const view_spec*) VectorGet ( & self -> args, 0 ) ) -> name ) );
     view_spec_free ( self );
 }
 
 TEST_CASE ( ManyParams )
 {
     view_spec * self;
-    REQUIRE_RC ( view_spec_parse ( "name<p0,p1, p2 ,p3    , \t  p4>", & self ) );
+    REQUIRE_RC ( view_spec_parse ( "name<p0,p1, p2 ,p3    , \t  p4>", & self, error, sizeof ( error ) ) );
     REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( 0, (int)self -> error [ 0 ] );
-    REQUIRE_EQ ( string ( "name" ), string ( self -> view_name ) );
+    REQUIRE ( string ( error ) . empty() );
+    REQUIRE_EQ ( string ( "name" ), string ( self -> name ) );
     REQUIRE_EQ ( 5u, VectorLength ( & self -> args ) );
-    REQUIRE_EQ ( string ( "p0" ), string ( (const char*) VectorGet ( & self -> args, 0 ) ) );
-    REQUIRE_EQ ( string ( "p1" ), string ( (const char*) VectorGet ( & self -> args, 1 ) ) );
-    REQUIRE_EQ ( string ( "p2" ), string ( (const char*) VectorGet ( & self -> args, 2 ) ) );
-    REQUIRE_EQ ( string ( "p3" ), string ( (const char*) VectorGet ( & self -> args, 3 ) ) );
-    REQUIRE_EQ ( string ( "p4" ), string ( (const char*) VectorGet ( & self -> args, 4 ) ) );
-    REQUIRE_EQ ( 0, (int)self -> error [ 0 ] );
+    REQUIRE_EQ ( string ( "p0" ), string ( ( (const view_spec*) VectorGet ( & self -> args, 0 ) ) -> name ) );
+    REQUIRE_EQ ( string ( "p1" ), string ( ( (const view_spec*) VectorGet ( & self -> args, 1 ) ) -> name ) );
+    REQUIRE_EQ ( string ( "p2" ), string ( ( (const view_spec*) VectorGet ( & self -> args, 2 ) ) -> name ) );
+    REQUIRE_EQ ( string ( "p3" ), string ( ( (const view_spec*) VectorGet ( & self -> args, 3 ) ) -> name ) );
+    REQUIRE_EQ ( string ( "p4" ), string ( ( (const view_spec*) VectorGet ( & self -> args, 4 ) ) -> name ) );
+    REQUIRE_EQ ( string(), string(error) );
     view_spec_free ( self );
 }
 
 TEST_CASE ( MissingComma )
 {
     view_spec * self;
-    REQUIRE_RC_FAIL ( view_spec_parse ( "name<p0 p1>", & self ) );
-    REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( string ( "expected ',' or '>' after a view parameter" ), string ( self -> error ) );
-    view_spec_free ( self );
+    REQUIRE_RC_FAIL ( view_spec_parse ( "name<p0 p1>", & self, error, sizeof ( error ) ) );
+    REQUIRE_NULL ( self );
+    REQUIRE_EQ ( string ( "expected ',' or '>' after a view parameter" ), string ( error ) );
 }
 
 TEST_CASE ( MissingParam )
 {
     view_spec * self;
-    REQUIRE_RC_FAIL ( view_spec_parse ( "name<p0, >", & self ) );
-    REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( string ( "missing view parameter(s) after ','" ), string ( self -> error ) );
-    view_spec_free ( self );
+    REQUIRE_RC_FAIL ( view_spec_parse ( "name<p0, >", & self, error, sizeof ( error ) ) );
+    REQUIRE_NULL ( self );
+    REQUIRE_EQ ( string ( "missing view parameter(s)" ), string ( error ) );
 }
 
 TEST_CASE ( ExtraChars )
 {
     view_spec * self;
-    REQUIRE_RC_FAIL ( view_spec_parse ( "name<p>blah", & self ) );
+    REQUIRE_RC_FAIL ( view_spec_parse ( "name<p>blah", & self, error, sizeof ( error ) ) );
+    REQUIRE_NULL ( self );
+    REQUIRE_EQ ( string ( "extra characters after '>'" ), string ( error ) );
+}
+
+TEST_CASE ( NestedViews )
+{
+    view_spec * self;
+
+    REQUIRE_RC ( view_spec_parse ( "name<v1<n1,v12<n121,m122>>, t2, v3<t3>>", & self, error, sizeof ( error ) ) );
     REQUIRE_NOT_NULL ( self );
-    REQUIRE_EQ ( string ( "extra characters after '>'" ), string ( self -> error ) );
+    REQUIRE_EQ ( string ( "name" ), string ( self -> name ) );
+    REQUIRE_EQ ( 3u, VectorLength ( & self -> args ) );
+
+    {
+        const view_spec* v1 = (const view_spec*) VectorGet ( & self -> args, 0 );
+        REQUIRE_EQ ( string ( "v1" ), string ( v1 -> name ) );
+        REQUIRE_EQ ( (uint32_t)2, VectorLength ( & v1 -> args ) );
+
+        const view_spec* n1 = (const view_spec*) VectorGet ( & v1 -> args, 0 );
+        REQUIRE_EQ ( string ( "n1" ), string ( n1 -> name ) );
+        REQUIRE_EQ ( (uint32_t)0, VectorLength ( & n1 -> args ) );
+
+        const view_spec* v12 = (const view_spec*) VectorGet ( & v1 -> args, 1 );
+        REQUIRE_EQ ( string ( "v12" ), string ( v12 -> name ) );
+        REQUIRE_EQ ( (uint32_t)2, VectorLength ( & v12 -> args ) );
+    }
+
+    const view_spec* t2 = (const view_spec*) VectorGet ( & self -> args, 1 );
+    REQUIRE_EQ ( string ( "t2" ), string ( t2 -> name ) );
+
+    {
+        const view_spec* v3 = (const view_spec*) VectorGet ( & self -> args, 2 );
+        REQUIRE_EQ ( string ( "v3" ), string ( v3 -> name ) );
+        REQUIRE_EQ ( (uint32_t)1, VectorLength ( & v3 -> args ) );
+        const view_spec* t3 = (const view_spec*) VectorGet ( & v3 -> args, 0 );
+        REQUIRE_EQ ( string ( "t3" ), string ( t3 -> name ) );
+        REQUIRE_EQ ( (uint32_t)0, VectorLength ( & t3 -> args ) );
+    }
+
     view_spec_free ( self );
 }
+
+
+const string SchemaText =
+    "version 2;"
+    "table T#1 { column ascii col; } "
+    "database D#1 { table T t; } "
+    "view V#1 < T tbl > { column ascii c = tbl . col; }";
 
 class ViewCursorFixture
 {
@@ -149,6 +203,7 @@ public:
         m_mgr ( 0 ),
         m_schema ( 0 ),
         m_db ( 0 ),
+        m_view ( 0 ),
         m_cursor ( 0 )
     {
         KDirectory *dir;
@@ -160,6 +215,7 @@ public:
     ~ViewCursorFixture()
     {
         VCursorRelease ( m_cursor );
+        VViewRelease ( m_view );
         VDatabaseRelease ( m_db );
         VSchemaRelease ( m_schema );
         VDBManagerRelease ( m_mgr );
@@ -191,17 +247,12 @@ public:
         THROW_ON_RC ( VCursorCloseRow ( p_cursor ) );
     }
 
-    void CreateDb ( const string & p_testName )
+    void CreateDb ( const string & p_testName, const string p_schemaText = SchemaText )
     {
-        const string SchemaText =
-            "version 2;"
-            "table T#1 { column ascii col; } "
-            "database D#1 { table T t; } "
-            "view V#1 < T tbl > { column ascii c = tbl . col; }";
         const char * TableName = "t";
         const char * TableColumnName = "col";
 
-        MakeDatabase ( ScratchDir + p_testName, SchemaText, "D" );
+        MakeDatabase ( ScratchDir + p_testName, p_schemaText, "D" );
 
         VTable* table;
         THROW_ON_RC ( VDatabaseCreateTable ( m_db, & table, TableName, kcmCreate | kcmMD5, "%s", TableName ) );
@@ -225,54 +276,54 @@ public:
     VDBManager *    m_mgr;
     VSchema *       m_schema;
     VDatabase *     m_db;
+    const VView *   m_view;
     const VCursor * m_cursor;
 };
 
-FIXTURE_TEST_CASE ( MakeCursor_NullSelf, ViewCursorFixture )
+FIXTURE_TEST_CASE ( ViewSpecOpen_NullSelf, ViewCursorFixture )
 {
     CreateDb ( GetName () );
 
-    REQUIRE_RC_FAIL ( view_spec_make_cursor ( NULL, m_db, m_schema, & m_cursor ) );
+    REQUIRE_RC_FAIL ( view_spec_open ( NULL, m_db, m_schema, & m_view ) );
 }
 
-FIXTURE_TEST_CASE ( MakeCursor_NullParam_Db, ViewCursorFixture )
+FIXTURE_TEST_CASE ( ViewSpecOpen_NullParam_Db, ViewCursorFixture )
 {
-    REQUIRE_RC ( view_spec_parse ( "name<p>", & m_spec ) );
+    REQUIRE_RC ( view_spec_parse ( "name<p>", & m_spec, error, sizeof ( error ) ) );
 
-    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, NULL, m_schema, & m_cursor ) );
+    REQUIRE_RC_FAIL ( view_spec_open ( m_spec, NULL, m_schema, & m_view ) );
 }
 
-FIXTURE_TEST_CASE ( MakeCursor_NullParam_Schema, ViewCursorFixture )
-{
-    CreateDb ( GetName () );
-    REQUIRE_RC ( view_spec_parse ( "name<p>", & m_spec ) );
-
-    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, m_db, NULL, & m_cursor ) );
-}
-
-FIXTURE_TEST_CASE ( MakeCursor_NullParam_Cursor, ViewCursorFixture )
+FIXTURE_TEST_CASE ( ViewSpecOpen_NullParam_Schema, ViewCursorFixture )
 {
     CreateDb ( GetName () );
-    REQUIRE_RC ( view_spec_parse ( "name<p>", & m_spec ) );
+    REQUIRE_RC ( view_spec_parse ( "name<p>", & m_spec, error, sizeof ( error ) ) );
 
-    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, m_db, m_schema, NULL ) );
+    REQUIRE_RC_FAIL ( view_spec_open ( m_spec, m_db, NULL, & m_view ) );
 }
 
-FIXTURE_TEST_CASE ( MakeCursor_WrongNumberOfParams, ViewCursorFixture )
+FIXTURE_TEST_CASE ( ViewSpecOpen_NullParam_View, ViewCursorFixture )
 {
     CreateDb ( GetName () );
-    REQUIRE_RC ( view_spec_parse ( "V<t, t>", & m_spec ) );
+    REQUIRE_RC ( view_spec_parse ( "name<p>", & m_spec, error, sizeof ( error ) ) );
 
-    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, m_db, m_schema, & m_cursor ) );
-    //TODO need to set m_spec -> error ?
+    REQUIRE_RC_FAIL ( view_spec_open ( m_spec, m_db, m_schema, NULL ) );
 }
 
-FIXTURE_TEST_CASE ( MakeCursor_ParamNotTable, ViewCursorFixture )
+FIXTURE_TEST_CASE ( ViewSpecOpen_WrongNumberOfParams, ViewCursorFixture )
 {
     CreateDb ( GetName () );
-    REQUIRE_RC ( view_spec_parse ( "V<not_a_t>", & m_spec ) );
+    REQUIRE_RC ( view_spec_parse ( "V<t, t>", & m_spec, error, sizeof ( error ) ) );
 
-    REQUIRE_RC_FAIL ( view_spec_make_cursor ( m_spec, m_db, m_schema, & m_cursor ) );
+    REQUIRE_RC_FAIL ( view_spec_open ( m_spec, m_db, m_schema, & m_view ) );
+}
+
+FIXTURE_TEST_CASE ( ViewSpecOpen_ParamNotTable, ViewCursorFixture )
+{
+    CreateDb ( GetName () );
+    REQUIRE_RC ( view_spec_parse ( "V<not_a_t>", & m_spec, error, sizeof ( error ) ) );
+
+    REQUIRE_RC_FAIL ( view_spec_open ( m_spec, m_db, m_schema, & m_view ) );
 }
 
 //TODO: param not a view
@@ -280,14 +331,36 @@ FIXTURE_TEST_CASE ( MakeCursor_ParamNotTable, ViewCursorFixture )
 FIXTURE_TEST_CASE ( MakeCursor, ViewCursorFixture )
 {
     CreateDb ( GetName () );
-    REQUIRE_RC ( view_spec_parse ( "V<t>", & m_spec ) );
+    REQUIRE_RC ( view_spec_parse ( "V<t>", & m_spec, error, sizeof ( error ) ) );
 
-    REQUIRE_RC ( view_spec_make_cursor ( m_spec, m_db, m_schema, & m_cursor ) );
+    REQUIRE_RC ( view_spec_open ( m_spec, m_db, m_schema, & m_view ) );
+    REQUIRE_NOT_NULL ( m_view );
+    REQUIRE_RC ( VViewCreateCursor ( m_view, & m_cursor) );
     REQUIRE_NOT_NULL ( m_cursor );
-    REQUIRE_NOT_NULL ( m_spec -> view );
     // walk the cursor
     uint32_t colIdx;
     REQUIRE_RC ( VCursorAddColumn ( m_cursor, & colIdx, "c" ) );
+    REQUIRE_RC ( VCursorOpen ( m_cursor ) );
+    char buf[1024];
+    uint32_t rowLen;
+    REQUIRE_RC ( VCursorReadDirect ( m_cursor, 1, colIdx, 8, buf, sizeof ( buf ), & rowLen ) );
+    REQUIRE_EQ ( string ( "blah" ), string ( buf, rowLen ) );
+    REQUIRE_RC ( VCursorReadDirect ( m_cursor, 2, colIdx, 8, buf, sizeof ( buf ), & rowLen ) );
+    REQUIRE_EQ ( string ( "eeee") , string ( buf, rowLen ) );
+}
+
+FIXTURE_TEST_CASE ( NestedView, ViewCursorFixture )
+{
+    CreateDb ( GetName (), SchemaText + "view V1#1 < V v > { column ascii c1 = v . c; }" );
+    REQUIRE_RC ( view_spec_parse ( "V1<V<t>>", & m_spec, error, sizeof ( error ) ) );
+
+    REQUIRE_RC ( view_spec_open ( m_spec, m_db, m_schema, & m_view ) );
+    REQUIRE_NOT_NULL ( m_view );
+    REQUIRE_RC ( VViewCreateCursor ( m_view, & m_cursor) );
+    REQUIRE_NOT_NULL ( m_cursor );
+    // walk the cursor
+    uint32_t colIdx;
+    REQUIRE_RC ( VCursorAddColumn ( m_cursor, & colIdx, "c1" ) );
     REQUIRE_RC ( VCursorOpen ( m_cursor ) );
     char buf[1024];
     uint32_t rowLen;

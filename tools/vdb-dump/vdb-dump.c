@@ -1971,30 +1971,18 @@ static rc_t vdm_dump_database( const p_dump_context ctx, const VDBManager *my_ma
     return rc;
 }
 
-/***************************************************************************
-    dump_view:
-    * called by "dump_main()" to handle a view
-    * similar to dump_table but dumps a view
-
-ctx        [IN] ... contains path, view instantiation string, columns, row-range etc.
-my_manager [IN] ... open manager needed for vdb-calls
-***************************************************************************/
-static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr )
+static rc_t vdb_dump_view_make_cursor ( const p_dump_context ctx, const VDBManager *mgr, row_context * r_ctx )
 {
-    view_spec * view;
-    rc_t rc;
-
-    if ( ! vdh_is_path_database( mgr, ctx->path, NULL ) )
+    view_spec * spec;
+    char error [1024];
+    rc_t rc = view_spec_parse ( ctx -> view, & spec, error, sizeof ( error ) );
+    if ( rc != 0 )
     {
-        ErrMsg( "Option --view can only be used with a database object" );
-        return RC( rcVDB, rcTable, rcConstructing, rcFormat, rcIncorrect );
+        ErrMsg( "view_spec_parse( '%s' ) -> %R (%s)", ctx->path, rc, error );
     }
-
-    rc = view_spec_parse ( ctx -> view, & view );
-    if ( rc == 0 )
+    else
     {
         const VDatabase * db;
-        rc_t rc;
         rc = VDBManagerOpenDBRead( mgr, &db, NULL, "%s", ctx->path );
         if ( rc != 0 )
         {
@@ -2002,7 +1990,6 @@ static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr )
         }
         else
         {
-            row_context r_ctx;
             VSchema * schema = NULL;
             rc = VDatabaseOpenSchema ( db, ( const VSchema ** ) & schema );
             if ( rc != 0 )
@@ -2016,84 +2003,123 @@ static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr )
                 {
                     ErrMsg( "vdh_parse_schema_add_on( '%s' ) -> %R", ctx->path, rc );
                 }
-            }
-            if ( rc == 0 )
-            {
-                rc = view_spec_make_cursor ( view, db, schema, & r_ctx.cursor );
-                if ( rc != 0 )
-                {
-                    ErrMsg( "view_spec_make_cursor( '%s' ) -> %R", ctx->path, rc );
-                }
-            }
-            if ( rc == 0 )
-            {
-                if ( !vdcd_init( &(r_ctx.col_defs), ctx->max_line_len ) )
-                {
-                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
-                    DISP_RC( rc, "col_defs_init() failed" );
-                }
-            }
-            if ( rc == 0 )
-            {
-                uint32_t n = vdm_extract_or_parse_columns_view( ctx, view -> view, r_ctx.col_defs );
-                if ( n < 1 )
-                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
                 else
                 {
-                    n = vdcd_add_to_cursor( r_ctx.col_defs, r_ctx.cursor );
-                    if ( n < 1 )
-                        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
-                }
-            }
-            if ( rc == 0 )
-            {
-                rc = VCursorOpen( r_ctx.cursor );
-                DISP_RC( rc, "VCursorOpen() failed" );
-                if ( rc == 0 )
-                {
-                    int64_t  first;
-                    uint64_t count;
-                    rc = VCursorIdRange( r_ctx.cursor, 0, &first, &count );
-                    DISP_RC( rc, "VCursorIdRange() failed" );
-                    if ( rc == 0 )
+                    const struct VView * view;
+                    rc = view_spec_open ( spec, db, schema, & view );
+                    if ( rc != 0 )
                     {
-                        if ( ctx->rows == NULL )
-                        {
-                            /* if the user did not specify a row-range, take all rows */
-                            rc = num_gen_make_from_range( &ctx->rows, first, count );
-                            DISP_RC( rc, "num_gen_make_from_range() failed" );
-                        }
-                        else
-                        {
-                            /* if the user did specify a row-range, check the boundaries */
-                            if ( count > 0 )
-                            {
-                                /* trim only if the row-range is not zero, otherwise
-                                    we will not get data if the user specified only static columns
-                                    because they report a row-range of zero! */
-                                rc = num_gen_trim( ctx->rows, first, count );
-                                DISP_RC( rc, "num_gen_trim() failed" );
-                            }
-                        }
-
+                        ErrMsg( "view_spec_make_cursor( '%s' ) -> %R", ctx->path, rc );
+                    }
+                    else
+                    {
+                        rc = VViewCreateCursor ( view, & r_ctx->cursor );
                         if ( rc == 0 )
                         {
-                            if ( num_gen_empty( ctx->rows ) )
+                            if ( ! vdcd_init( &(r_ctx->col_defs), ctx->max_line_len ) )
                             {
-                                rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                                rc = RC( rcVDB, rcNoTarg, rcConstructing, rcMemory, rcExhausted );
+                                DISP_RC( rc, "col_defs_init() failed" );
                             }
                             else
                             {
-                                r_ctx.ctx = ctx;
-                                rc = vdm_dump_rows( &r_ctx ); /* <--- */
+                                uint32_t n = vdm_extract_or_parse_columns_view( ctx, view, r_ctx->col_defs );
+                                if ( n < 1 )
+                                {
+                                    rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                                }
+                                else
+                                {
+                                    n = vdcd_add_to_cursor( r_ctx->col_defs, r_ctx->cursor );
+                                    if ( n < 1 )
+                                    {
+                                        rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
+                                    }
+                                }
                             }
+                        }
+                        VViewRelease ( view );
+                    }
+                }
+                VSchemaRelease ( schema );
+            }
+            VDatabaseRelease ( db );
+        }
+        view_spec_free ( spec );
+    }
+    return rc;
+}
+
+/***************************************************************************
+    dump_view:
+    * called by "dump_main()" to handle a view
+    * similar to dump_table but dumps a view
+
+ctx        [IN] ... contains path, view instantiation string, columns, row-range etc.
+my_manager [IN] ... open manager needed for vdb-calls
+***************************************************************************/
+static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr )
+{
+    rc_t rc;
+
+    if ( ! vdh_is_path_database( mgr, ctx->path, NULL ) )
+    {
+        ErrMsg( "Option --view can only be used with a database object" );
+        rc = RC( rcVDB, rcTable, rcConstructing, rcFormat, rcIncorrect );
+    }
+    else
+    {
+        row_context r_ctx;
+        rc = vdb_dump_view_make_cursor ( ctx, mgr, & r_ctx );
+        if ( rc == 0 )
+        {
+            rc = VCursorOpen( r_ctx.cursor );
+            DISP_RC( rc, "VCursorOpen() failed" );
+            if ( rc == 0 )
+            {
+                int64_t  first;
+                uint64_t count;
+                rc = VCursorIdRange( r_ctx.cursor, 0, &first, &count );
+                DISP_RC( rc, "VCursorIdRange() failed" );
+                if ( rc == 0 )
+                {
+                    if ( ctx->rows == NULL )
+                    {
+                        /* if the user did not specify a row-range, take all rows */
+                        rc = num_gen_make_from_range( &ctx->rows, first, count );
+                        DISP_RC( rc, "num_gen_make_from_range() failed" );
+                    }
+                    else
+                    {
+                        /* if the user did specify a row-range, check the boundaries */
+                        if ( count > 0 )
+                        {
+                            /* trim only if the row-range is not zero, otherwise
+                                we will not get data if the user specified only static columns
+                                because they report a row-range of zero! */
+                            rc = num_gen_trim( ctx->rows, first, count );
+                            DISP_RC( rc, "num_gen_trim() failed" );
+                        }
+                    }
+
+                    if ( rc == 0 )
+                    {
+                        if ( num_gen_empty( ctx->rows ) )
+                        {
+                            rc = RC( rcExe, rcDatabase, rcReading, rcRange, rcEmpty );
+                        }
+                        else
+                        {
+                            r_ctx.ctx = ctx;
+                            rc = vdm_dump_rows( &r_ctx ); /* <--- */
                         }
                     }
                 }
+                VCursorRelease( r_ctx.cursor );
             }
+            vdcd_destroy( r_ctx.col_defs );
         }
     }
-
     return rc;
 }
 

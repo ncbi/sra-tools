@@ -104,6 +104,7 @@
 		BE7200C31F605B3E004A3C2F /* summarize-pairs */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "summarize-pairs"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BE7200CA1F605B73004A3C2F /* summarize-pairs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "summarize-pairs.cpp"; sourceTree = SOURCE_ROOT; };
 		BE80D8AA1F9F96B9009F2B07 /* libncbi-vdb.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = "libncbi-vdb.a"; path = "../shared/libncbi-vdb.a"; sourceTree = "<group>"; };
+		BEA54EBE20D1F62B00BBA31F /* sam2ir.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = sam2ir.cpp; sourceTree = "<group>"; };
 		BEA996A71F697F4900467C88 /* assemble-fragments */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "assemble-fragments"; sourceTree = BUILT_PRODUCTS_DIR; };
 		BEA996AF1F697FB300467C88 /* assemble-fragments.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "assemble-fragments.cpp"; sourceTree = SOURCE_ROOT; };
 		BED896CE1FBDF3CC00294F36 /* text2ir */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = text2ir; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -174,6 +175,7 @@
 		BE4F77C51EA51DE900CB45D6 = {
 			isa = PBXGroup;
 			children = (
+				BEA54EBE20D1F62B00BBA31F /* sam2ir.cpp */,
 				BE3BC8711EE8945A0033AC5F /* fragment.hpp */,
 				BE1766511ED4B0B0005ECFFB /* README.md */,
 				BED896D31FBE0F5900294F36 /* generate-test-data.pl */,

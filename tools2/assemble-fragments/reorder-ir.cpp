@@ -327,17 +327,18 @@ static size_t getSmallSize(int const workers)
 }
 #endif
 
-static void sortIndex(uint64_t const N, IndexRow *const index)
+static void sortIndex(utility::SizedPointer<IndexRow> &index)
 {
-    auto const scratch = reinterpret_cast<IndexRow *>(malloc(N * sizeof(IndexRow)));
-    if (scratch == NULL) {
+    auto const N = index.count;
+    auto scratch = utility::SizedPointer<IndexRow>(index.count);
+    if (scratch.pointer == NULL) {
         perror("error: insufficient memory to create temporary index");
         exit(1);
     }
     {
         auto const workers = getWorkerCount();
         auto const smallSize = getSmallSize(workers);
-        auto context = Context(index, scratch, N, smallSize);
+        auto context = Context(index.pointer, scratch.pointer, N, smallSize);
         
         for (auto i = 1; i < workers; ++i) {
             pthread_t tid = 0;
@@ -347,38 +348,30 @@ static void sortIndex(uint64_t const N, IndexRow *const index)
         }
         worker(&context);
     }
-    uint64_t keys = 1;
-    {
-        auto last = scratch->key64();
-        for (auto i = uint64_t(1); i < N; ++i) {
-            auto const key = scratch[i].key64();
-            if (last == key) continue;
-            last = key;
-            ++keys;
-        }
-    }
+    auto const keys = scratch.reduce(std::make_pair(uint64_t(0), uint64_t(0)), [](std::pair<uint64_t, uint64_t> const &v, IndexRow const &i)
+                                     {
+                                         return (v.first > 0 && v.second == i.key64()) ? v : std::make_pair(v.first + 1, i.key64());
+                                     }).first;
     
-    auto const tmp = reinterpret_cast<IndexRow **>(malloc(keys * sizeof(IndexRow *)));
-    if (tmp == NULL) {
+    auto tmp = utility::SizedPointer<IndexRow *>(keys);
+    if (tmp.pointer == NULL) {
         perror("error: insufficient memory to create temporary index");
         exit(1);
     }
     {
-        auto last = scratch->key64();
+        auto last = scratch[0].key64();
         uint64_t j = 0;
-        tmp[j++] = scratch;
+        tmp[j++] = scratch.begin();
         for (auto i = uint64_t(0); i < N; ++i) {
-            auto const key = scratch[i].key64();
+            auto const k = &scratch[i];
+            auto const key = k->key64();
             if (last == key) continue;
             last = key;
-            tmp[j++] = scratch + i;
+            tmp[j++] = k;
         }
         assert(j == keys);
     }
-    {
-        struct foo { static bool less(IndexRow const *a, IndexRow const *b) { return a->row < b->row; } };
-        std::sort(tmp, tmp + keys, foo::less);
-    }
+    tmp.sort([](IndexRow const *const a, IndexRow const *const b) { return a->row < b->row; });
     {
         uint64_t j = 0;
         for (auto i = uint64_t(0); i < keys; ++i) {
@@ -388,19 +381,18 @@ static void sortIndex(uint64_t const N, IndexRow *const index)
         }
     }
     std::cerr << "info: Number of keys " << keys << std::endl;
-    free(tmp);
-    free(scratch);
 }
 
-static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
+static utility::SizedPointer<IndexRow> makeIndex(VDB::Database const &run)
 {
     static char const *const FLDS[] = { "READ_GROUP", "NAME" };
     auto const in = run["RAW"].read(2, FLDS);
     auto const range = in.rowRange();
     auto const N = size_t(range.second - range.first);
-    if (N == 0) return std::make_pair(nullptr, N);
+    if (N == 0)
+        return utility::SizedPointer<IndexRow>();
     
-    auto const index = new IndexRow[N];
+    auto index = utility::SizedPointer<IndexRow>(N, false);
     auto const freq = N / 10.0;
     auto nextReport = 1;
     
@@ -415,9 +407,9 @@ static std::pair<IndexRow *, size_t> makeIndex(VDB::Database const &run)
     std::cerr << "prog: processed " << N << " records" << std::endl;
     std::cerr << "prog: indexing" << std::endl;
     
-    sortIndex(N, index);
+    sortIndex(index);
 
-    return std::make_pair(index, N);
+    return index;
 }
 
 struct RawRecord : public VDB::IndexedCursorBase::Record {
@@ -495,7 +487,7 @@ void validate(RawRecord const &r) {
 }
 #endif
 
-static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT const *const beg, RawRecord::IndexT const *const end, bool const quality)
+static int process(Writer2 const &out, VDB::Cursor const &in, utility::SizedPointer<RawRecord::IndexT> const &index, bool const quality)
 {
     auto const otbl = out.table("RAW");
     std::array<Writer2::Column, 8> const columnsNoQual = {
@@ -521,7 +513,7 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
     };
 
     auto const range = in.rowRange();
-    if (end - beg != range.second - range.first) {
+    if (index.count != range.second - range.first) {
         std::cerr << "error: index size doesn't match input table" << std::endl;
         return -1;
     }
@@ -531,7 +523,7 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
 
     std::cerr << "info: processing " << (range.second - range.first) << " records" << std::endl;
     
-    auto const indexedCursor = VDB::CollidableIndexedCursor<RawRecord>(in, beg, end);
+    auto const indexedCursor = VDB::CollidableIndexedCursor<RawRecord>(in, index.begin(), index.end());
     auto const rows = indexedCursor.foreach([&](RawRecord const &a) {
         validate(a);
         if (quality)
@@ -547,7 +539,7 @@ static int process(Writer2 const &out, VDB::Cursor const &in, RawRecord::IndexT 
     });
     assert(rows == written);
     assert(rows == range.second - range.first);
-    assert(rows == end - beg);
+    assert(rows == index.count);
     return 0;
 }
 
@@ -555,8 +547,10 @@ static int process(std::string const &irdb, FILE *out)
 {
     auto const mgr = VDB::Manager();
     auto const inDb = mgr[irdb];
-    RawRecord::IndexT *index;
-    size_t rows;
+
+    std::cerr << "prog: creating clustering index" << std::endl;
+    auto index = utility::SizedPointer<RawRecord::IndexT>(makeIndex(inDb), true);
+
     auto writer = Writer2(out);
     int result;
     
@@ -564,13 +558,6 @@ static int process(std::string const &irdb, FILE *out)
     writer.schema("aligned-ir.schema.text", "NCBI:db:IR:raw");
     writer.info("reorder-ir", "1.0.0");
     
-    {
-        std::cerr << "prog: creating clustering index" << std::endl;
-        auto const p = makeIndex(inDb);
-        index = static_cast<RawRecord::IndexT *>(p.first);
-        rows = p.second;
-    }
-
     std::cerr << "prog: rewriting rows in clustered order" << std::endl;
     try {
         auto const in = inDb["RAW"].read(RawRecord::columns());
@@ -586,7 +573,7 @@ static int process(std::string const &irdb, FILE *out)
             { "QUALITY"     , 1 },  ///< string
         });
         writer.beginWriting();
-        result = process(writer, in, index, index + rows, true);
+        result = process(writer, in, index, true);
         writer.endWriting();
         goto DONE;
     }
@@ -605,14 +592,13 @@ static int process(std::string const &irdb, FILE *out)
             { "POSITION"    , 4 },  ///< int32_t
         });
         writer.beginWriting();
-        result = process(writer, in, index, index + rows, false);
+        result = process(writer, in, index, false);
         writer.endWriting();
         goto DONE;
     }
     catch (...) {}
 
 DONE:
-    delete [] index;
     std::cerr << "prog: done" << std::endl;
     return result;
 }

@@ -26,10 +26,61 @@
 #ifndef __UTILITY_HPP_INCLUDED__
 #define __UTILITY_HPP_INCLUDED__ 1
 
+#include <algorithm>
 #include <vector>
 #include <cmath>
 #include <cstdlib>
 namespace utility {
+    template <typename T>
+    struct SizedPointer
+    {
+        T *const pointer;
+        size_t const count;
+        bool const freeOnDestruct;
+        
+        template <typename U>
+        SizedPointer(SizedPointer<U> const &other, bool owned = false)
+        : pointer(reinterpret_cast<T *>(other.pointer))
+        , count((other.count * sizeof(U)) / sizeof(T))
+        , freeOnDestruct(owned)
+        {}
+        
+        explicit SizedPointer(T *const p = nullptr, size_t const n = 0, bool owned = false) noexcept
+        : pointer(p)
+        , count(n)
+        , freeOnDestruct(owned)
+        {}
+        
+        explicit SizedPointer(size_t const n, bool owned = true) noexcept
+        : pointer((T *)malloc(n * sizeof(T)))
+        , count(n)
+        , freeOnDestruct(owned)
+        {}
+        
+        ~SizedPointer() noexcept {
+            if (pointer && freeOnDestruct)
+                free(pointer);
+        }
+        
+        T *begin() const noexcept { return pointer; }
+        T *end() const noexcept { return pointer + count; }
+        T &front() noexcept { return *pointer; }
+        T const &front() const noexcept { return *pointer; }
+        T &operator [](size_t i) noexcept { return pointer[i]; }
+        T const &operator [](size_t i) const noexcept { return pointer[i]; }
+        
+        template <typename Comp> void sort(Comp const comp) { std::sort(pointer, pointer + count, comp); }
+
+        template <typename U, typename F> U reduce(U const initial, F const func) const
+        {
+            auto v = initial;
+            for (auto && i : *this) {
+                v = func(v, i);
+            }
+            return v;
+        }
+    };
+    
     struct StatisticsAccumulator {
     private:
         double N;
@@ -81,6 +132,22 @@ namespace utility {
             return *this + other;
         }
     };
+
+    template <typename T, typename F>
+    static T advanceWhile(T const &iter, F const &comp) {
+        T rslt = iter;
+        while (comp(rslt))
+            ++rslt;
+        return rslt;
+    }
+
+    template <typename T, typename F>
+    static T advanceUntil(T const &iter, F const &comp) {
+        T rslt = iter;
+        while (!comp(rslt))
+            ++rslt;
+        return rslt;
+    }
 
     static char const *programNameFromArgv0(char const *const argv0)
     {

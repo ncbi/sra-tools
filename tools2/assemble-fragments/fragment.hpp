@@ -85,17 +85,15 @@ struct DNASequence : public std::string {
     DNASequence(std::string const &str) : std::string(str) {}
 };
 
-struct Alignment {
-    DNASequence sequence;
-    std::string quality;
+struct AlignmentShort {
     std::string reference;
     std::string cigarString;
     CIGAR cigar;
+    int64_t row;
     int readNo;
     int position;
     char strand;
     bool aligned;
-    bool syntheticQuality;
     
     int qstart() const {
         return position - cigar.qfirst;
@@ -104,80 +102,221 @@ struct Alignment {
         return position + cigar.rlength + cigar.qclip;
     }
     
-    static std::string const &SyntheticQuality() {
-        static auto const synthetic = std::string();
-        return synthetic;
-    }
-    
-    Alignment(int readNo, std::string const &sequence, std::string const &quality)
+    AlignmentShort(int readNo, int64_t const source)
     : readNo(readNo)
-    , sequence(sequence)
-    , quality(quality)
+    , row(source)
     , aligned(false)
     , strand(0)
     , position(0)
-    , syntheticQuality(&quality == &SyntheticQuality())
     {}
-
-    Alignment(int readNo, std::string const &sequence, std::string const &quality, std::string const &reference, char strand, int position, std::string const &CIGAR)
+    
+    AlignmentShort(int readNo, int64_t const source, std::string const &reference, char strand, int position, std::string const &CIGAR)
     : readNo(readNo)
-    , sequence(sequence)
-    , quality(quality)
+    , row(source)
     , aligned(true)
     , reference(reference)
     , strand(strand)
     , position(position)
     , cigarString(CIGAR)
     , cigar(cigarString)
-    , syntheticQuality(&quality == &SyntheticQuality())
     {}
-
-    Alignment truncated() const {
-        if (aligned)
-            return Alignment(readNo, "", "", reference, strand, position, cigarString);
-        else
-            return Alignment(readNo, "", "");
+    
+    friend std::ostream &operator <<(std::ostream &os, AlignmentShort const &a) {
+        os << a.readNo;
+        if (a.aligned)
+            os << '\t' << a.reference << '\t' << a.strand << a.position << '\t' << a.cigarString;
+        return os;
     }
-
-    friend bool operator <(Alignment const &a, Alignment const &b) {
-        if (a.readNo < b.readNo)
-            return true;
-        if (!a.aligned && b.aligned)
-            return true;
-        if (a.aligned && b.aligned) {
-            if (a.strand == '+' && b.strand == '-')
-                return true;
-            if (a.strand == '-' && b.strand == '+')
-                return false;
-            return a.position < b.position;
-        }
-        return false;
+    
+    friend bool operator <(AlignmentShort const &a, AlignmentShort const &b) {
+        if (a.readNo < b.readNo) return true;
+        if (b.readNo < a.readNo) return false;
+        if (!a.aligned && !b.aligned) return false; ///< they are equal
+        if (!a.aligned) return true;
+        if (!b.aligned) return false;
+        if (a.reference < b.reference) return true;
+        if (b.reference < a.reference) return false;
+        return a.position < b.position;
     }
     
     bool isClipped(unsigned spos) const {
         return (spos < cigar.qfirst) || (spos > cigar.qfirst + cigar.qlength);
     }
-
-    bool sequenceEquivalentTo(Alignment const &other) const {
-        auto const n = sequence.length();
-        if (n != other.sequence.length()) return false;
-        
-        auto const adjoint = other.strand != strand;
-        int equal = 0;
-        for (auto i = 0; i < n; ++i) {
-            auto const b1 = sequence[i];
-            auto const j = adjoint ? (n - i - 1) : i;
-            auto const ob = other.sequence[j];
-            auto const b2 = adjoint ? DNASequence::adjoint(ob) : ob;
-            
-            if (b1 == b2)
-                ++equal;
-            else if ((isClipped(i) && DNASequence::isAmbiguous(b1)) || (other.isClipped(i) && DNASequence::isAmbiguous(b2)))
-                ;
-            else
-                return false;
+    
+    bool isBefore(AlignmentShort const &other) const {
+        if (aligned && other.aligned) {
+            if (reference < other.reference) return true;
+            if (reference != other.reference) return false;
+            if (qstart() < other.qstart()) return true;
+            if (other.qstart() < qstart()) return false;
+            return qended() <= other.qended();
         }
-        return equal > 0;
+        throw std::logic_error("isBefore requires both arguments to be aligned");
+    }
+};
+
+struct Alignment : public AlignmentShort {
+    DNASequence sequence;
+    std::string quality;
+    bool syntheticQuality;
+    
+    static std::string const &SyntheticQuality() {
+        static auto const synthetic = std::string();
+        return synthetic;
+    }
+    
+    Alignment(int readNo, std::string const &sequence, std::string const &quality, int64_t const source)
+    : AlignmentShort(readNo, source)
+    , sequence(sequence)
+    , quality(quality)
+    , syntheticQuality(&quality == &SyntheticQuality())
+    {}
+
+    Alignment(int readNo, std::string const &sequence, std::string const &quality, int64_t const source, std::string const &reference, char strand, int position, std::string const &CIGAR)
+    : AlignmentShort(readNo, source, reference, strand, position, CIGAR)
+    , sequence(sequence)
+    , quality(quality)
+    , syntheticQuality(&quality == &SyntheticQuality())
+    {}
+
+    Alignment truncated() const {
+        if (aligned)
+            return Alignment(readNo, "", "", row, reference, strand, position, cigarString);
+        else
+            return Alignment(readNo, "", "", row);
+    }
+#if 0
+    friend bool operator <(Alignment const &a, Alignment const &b) {
+        return static_cast<AlignmentShort const &>(a) < static_cast<AlignmentShort const &>(b);
+    }
+#endif
+    friend std::ostream &operator <<(std::ostream &os, Alignment const &a) {
+        os << a.readNo << '\t' << a.sequence << '\t';
+        if (!a.syntheticQuality)
+            os << a.quality;
+        if (a.aligned)
+            os << '\t' << a.reference << '\t' << a.strand << a.position << '\t' << a.cigarString;
+        return os;
+    }
+
+private:
+    struct S {
+        char const *seq;
+        unsigned length, left, right;
+
+    private:
+        S() {}
+        static bool equivFwd(char const *a, char const *b, unsigned const n) {
+            auto const e = a + n;
+            while (a != e) {
+                auto const A = *a++;
+                auto const B = *b++;
+                if (A == B)
+                    continue;
+                return false;
+            }
+            return true;
+        }
+        static bool equivFwdClipped(char const *a, char const *b, unsigned const n) {
+            auto const e = a + n;
+            while (a != e) {
+                auto const A = *a++;
+                auto const B = *b++;
+                if (A == B || DNASequence::isAmbiguous(A) || DNASequence::isAmbiguous(B))
+                    continue;
+                return false;
+            }
+            return true;
+        }
+        static bool equivRev(char const *a, char const *b, unsigned const n) {
+            auto const e = a + n;
+            while (a != e) {
+                auto const A = *a++;
+                auto const B = DNASequence::adjoint(*--b);
+                if (A == B)
+                    continue;
+                return false;
+            }
+            return true;
+        }
+        static bool equivRevClipped(char const *a, char const *b, unsigned const n) {
+            auto const e = a + n;
+            while (a != e) {
+                auto const A = *a++;
+                auto const B = DNASequence::adjoint(*--b);
+                if (A == B || DNASequence::isAmbiguous(A) || DNASequence::isAmbiguous(B))
+                    continue;
+                return false;
+            }
+            return true;
+        }
+    public:
+        explicit S(Alignment const &o) : seq(o.sequence.data()), length((unsigned)o.sequence.length()), left(o.cigar.qfirst), right(o.cigar.qlength - o.cigar.qclip) {}
+        
+        static bool equivalent(S const &a, S const &b, bool const adjoint) {
+            if (a.length != b.length) return false;
+            auto const length = a.length;
+
+            if (adjoint) {
+                auto const lclip = std::max(a.left, length - b.right);
+                auto const rclip = std::min(a.right, length - b.left);
+                if (!equivRevClipped(a.seq, b.seq + length, lclip))
+                    return false;
+                if (!equivRev(a.seq + lclip, b.seq + length - lclip, rclip - lclip))
+                    return false;
+                if (!equivRevClipped(a.seq + rclip, b.seq + length - rclip, length - rclip))
+                    return false;
+            }
+            else {
+                auto const lclip = std::max(a.left, b.left);
+                auto const rclip = std::min(a.right, b.right);
+                if (!equivFwdClipped(a.seq, b.seq, lclip))
+                    return false;
+                if (!equivFwd(a.seq + lclip, b.seq + lclip, rclip - lclip))
+                    return false;
+                if (!equivFwdClipped(a.seq + rclip, b.seq + rclip, length - rclip))
+                    return false;
+            }
+            return true;
+        }
+        
+        static void testFwd() {
+            auto a = S();
+            auto b = S();
+            
+            a.seq = "TGTTTTGCAATGGAAATTCCTTCAACTGTTAATTTTTTTTTTTTTTTTTTTTAGGAGAAGTCCCCCTCTGTTGCCCACGCTCACATGACA";
+            b.seq = "NNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNTTTTTTTTTTTTTTTTTTTTAGGAGAAGTCCCCCTCTGTTGCCCANNNNNNNNNNNNN";
+            a.length = b.length = 90;
+            a.left = 0; a.right = 90-41;
+            b.left = 32; b.right = 90-13;
+            
+            auto const eq = S::equivalent(a, b, false);
+            if (!eq)
+                throw std::logic_error("assertion failed");
+        }
+        static void testRev() {
+            auto a = S();
+            auto b = S();
+            
+            a.seq = "TGTTTTGCAATGGAAATTCCTTCAACTGTTAATTTTTTTTTTTTTTTTTTTTAGGAGAAGTCCCCCTCTGTTGCCCACGCTCACATGACA";
+            b.seq = "NNNNNNNNNNNNNTGGGCAACAGAGGGGGACTTCTCCTAAAAAAAAAAAAAAAAAAAANNNNNNNNNNNNNNNNNNNNNNNNNNNNNNNN";
+            a.length = b.length = 90;
+            a.left = 0; a.right = 90-41;
+            b.left = 13; b.right = 90-32;
+            
+            auto const eq = S::equivalent(a, b, true);
+            if (!eq)
+                throw std::logic_error("assertion failed");
+        }
+    };
+public:
+    bool sequenceEquivalentTo(Alignment const &other) const {
+        return S::equivalent(S(*this), S(other), strand != other.strand);
+    }
+    
+    static void test() {
+        S::testFwd();
+        S::testRev();
     }
 };
 
@@ -185,12 +324,59 @@ struct Fragment {
     std::string group;
     std::string name;
     std::vector<Alignment> detail;
+    int64_t firstRow;
     
-    Fragment(std::string const &group, std::string const &name, std::vector<Alignment> const &algn)
+    Fragment(std::string const &group, std::string const &name, std::vector<Alignment> const &algn, int64_t const source)
     : group(group)
     , name(name)
     , detail(algn)
+    , firstRow(source)
     {
+        std::sort(detail.begin(), detail.end());
+    }
+    
+    unsigned numberOfReads() const {
+        unsigned nr = 0;
+        int lr = 0;
+        for (auto && i : detail) {
+            if (nr == 0 || lr != i.readNo) {
+                ++nr;
+                lr = i.readNo;
+            }
+        }
+        return nr;
+    }
+    unsigned countOfAlignments(int readNo) const {
+        unsigned n = 0;
+        for (auto && i : detail) {
+            if (i.aligned && i.readNo == readNo)
+                ++n;
+        }
+        return n;
+    }
+    
+    static Fragment testFragment() {
+        auto const spotGroup = std::string("06A010111-46676E3D");
+        auto const spotName = std::string("661961051");
+        auto const firstRow = 1334114741;
+        auto const read1 = Alignment(1
+                                     , "GGGGTTAGGGTTAGGGTTAGGGGTTAGGGTTAGGGTTAGGGGTTAGGGTTAGGGGTAGGGGTTAGGGTTAGGGTTAGGGGTTAGGGGTGG"
+                                     , "DDDC8EEECEEEGGGGCGFEGBGCGDBDE9DAD@D<5?C@EE9CC#############################################"
+                                     , firstRow, "chrX", '+', 156030216, "13M1D19M7D56M2S");
+        auto const read2 = Alignment(2
+                                     , "GGGTTAGGGTTAGGGTTAGGGGTTAGGGTTAGGGTTAGGGGTTAGGGTTAGGGTTAGGGGTTAGGGTTAGGGTTAGGGGTTAGGGTTAGG"
+                                     , "######A@=DF+>FDF?FFBFEFE.D@DA==FFFBFEFDCE.FF?FFFHFBHGHGGHFHFCHHHGHHHGHHHHHHHGHHFHHHHFHHEHH"
+                                     , firstRow + 1, "chrX", '-', 156030616, "18M1I18M1I18M1I18M1I14M");
+        auto const rslt = std::vector<Alignment>({read1, read2});
+        return Fragment(spotGroup, spotName, rslt, firstRow);
+    }
+    
+    friend std::ostream &operator <<(std::ostream &os, Fragment const &o) {
+        os << o.group << '\t' << o.name << '\t' << o.firstRow << '\n';
+        for (auto && i : o.detail) {
+            os << '\t' << i << '\n';
+        }
+        return os;
     }
     
     int bestIndex(int readNo) const {
@@ -251,11 +437,11 @@ struct Fragment {
             auto rslt = std::vector<Alignment>();
             auto spotGroup = std::string();
             auto spotName = std::string();
+            auto firstRow = row;
             
             while (row < endRow) {
-                auto const r = row;
-                auto const sg = in.read(r, READ_GROUP).string();
-                auto const name = in.read(r, NAME).string();
+                auto const sg = in.read(row, READ_GROUP).string();
+                auto const name = in.read(row, NAME).string();
                 if (rslt.size() > 0) {
                     if (name != spotName || sg != spotGroup)
                         break;
@@ -265,28 +451,82 @@ struct Fragment {
                     spotGroup = sg;
                 }
 
-                auto const position = in.read(r, POSITION);
-                if (position.elements > 0) {
-                    auto const algn = Alignment(  in.read(r, READNO).value<int32_t>()
-                                                , in.read(r, SEQUENCE).string()
-                                                , hasQuality() ? in.read(r, QUALITY).string() : Alignment::SyntheticQuality()
-                                                , in.read(r, REFERENCE).string()
-                                                , in.read(r, STRAND).value<char>()
-                                                , position.value<int32_t>()
-                                                , in.read(r, CIGAR).string()
+                auto const posColData = in.read(row, POSITION);
+                auto const readNo = in.read(row, READNO).value<int32_t>();
+                auto const sequence = in.read(row, SEQUENCE).string();
+                auto const quality = hasQuality() ? in.read(row, QUALITY).string() : Alignment::SyntheticQuality();
+                if (posColData.elements > 0) {
+                    auto const reference = in.read(row, REFERENCE).string();
+                    auto const strand = in.read(row, STRAND).value<char>();
+                    auto const position = posColData.value<int32_t>();
+                    auto const cigar = in.read(row, CIGAR).string();
+                    auto const algn = Alignment(  readNo
+                                                , sequence
+                                                , quality
+                                                , row
+                                                , reference
+                                                , strand
+                                                , position
+                                                , cigar
                                                 );
                     rslt.push_back(algn);
                 }
                 else {
-                    auto const algn = Alignment(  in.read(r, READNO).value<int32_t>()
-                                                , in.read(r, SEQUENCE).string()
-                                                , hasQuality() ? in.read(r, QUALITY).string() : Alignment::SyntheticQuality()
+                    auto const algn = Alignment(  readNo
+                                                , sequence
+                                                , quality
+                                                , row
                                                 );
                     rslt.push_back(algn);
                 }
                 ++row;
             }
-            return Fragment(spotGroup, spotName, rslt);
+            return Fragment(spotGroup, spotName, rslt, firstRow);
+        }
+        
+        ///: Skips reading READ and QUALITY (the two biggest columns)
+        Fragment readShort(int64_t &row, int64_t endRow) const
+        {
+            auto &in = *static_cast<VDB::Cursor const *>(this);
+            auto rslt = std::vector<Alignment>();
+            auto spotGroup = std::string();
+            auto spotName = std::string();
+            auto firstRow = row;
+            
+            while (row < endRow) {
+                auto const sg = in.read(row, READ_GROUP).string();
+                auto const name = in.read(row, NAME).string();
+                if (rslt.size() > 0) {
+                    if (name != spotName || sg != spotGroup)
+                        break;
+                }
+                else {
+                    spotName = name;
+                    spotGroup = sg;
+                }
+                
+                auto const posColData = in.read(row, POSITION);
+                auto const readNo = in.read(row, READNO).value<int32_t>();
+                if (posColData.elements > 0) {
+                    auto const reference = in.read(row, REFERENCE).string();
+                    auto const strand = in.read(row, STRAND).value<char>();
+                    auto const position = posColData.value<int32_t>();
+                    auto const cigar = in.read(row, CIGAR).string();
+                    auto const algn = Alignment(  readNo, "", ""
+                                                , row
+                                                , reference
+                                                , strand
+                                                , position
+                                                , cigar
+                                                );
+                    rslt.emplace_back(algn);
+                }
+                else {
+                    rslt.emplace_back(Alignment(readNo, "", "", row));
+                }
+                ++row;
+            }
+            return Fragment(spotGroup, spotName, rslt, firstRow);
         }
     };
 };

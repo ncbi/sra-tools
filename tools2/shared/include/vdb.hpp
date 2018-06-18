@@ -33,6 +33,8 @@
 #include <utility>
 #include <map>
 
+static_assert(sizeof(unsigned) >= sizeof(uint32_t), "unsigned int is too small!");
+
 namespace VDB {
     namespace C {
 #include <vdb/manager.h>
@@ -54,20 +56,22 @@ namespace VDB {
         Error(C::rc_t const rc_, char const *file, int line) : rc(rc_) {
             std::cerr << "RC " << rc << " thrown by " << file << ':' << line << std::endl;
         }
-        char const *what() const throw() { return ""; }
+        char const *what() const noexcept { return ""; }
     };
     class Schema {
         friend class Manager;
         C::VSchema *const o;
         
-        static C::rc_t dumpToStream(void *const p, void const *const b, size_t const s)
+        static C::rc_t dumpToStream(void *const p, void const *const b, size_t const s) noexcept
         {
-            ((std::ostream *)p)->write((char const *)b, s);
+            auto &strm = *reinterpret_cast<std::ostream *>(p);
+            auto const string = reinterpret_cast<char const *>(b);
+            strm.write(string, s);
             return 0;
         }
         void parseText(size_t const length, char const text[], char const *const name = 0)
         {
-            C::rc_t const rc = VSchemaParseText(o, name, text, length);
+            auto const rc = VSchemaParseText(o, name, text, length);
             if (rc) throw Error(rc, __FILE__, __LINE__);
         }
         void addIncludePath(char const *const path)
@@ -77,12 +81,12 @@ namespace VDB {
         }
         Schema(C::VSchema *const o_) : o(o_) {}
     public:
-        Schema(Schema const &other) : o(other.o) { C::VSchemaAddRef(o); }
-        ~Schema() { C::VSchemaRelease(o); }
+        Schema(Schema const &other) noexcept : o(other.o) { C::VSchemaAddRef(o); }
+        ~Schema() noexcept { C::VSchemaRelease(o); }
         
         friend std::ostream &operator <<(std::ostream &strm, Schema const &s)
         {
-            C::rc_t const rc = VSchemaDump(s.o, C::sdmPrint, 0, dumpToStream, (void *)&strm);
+            auto const rc = VSchemaDump(s.o, C::sdmPrint, 0, dumpToStream, (void *)&strm);
             if (rc) throw Error(rc, __FILE__, __LINE__);
             return strm;
         }
@@ -93,51 +97,55 @@ namespace VDB {
     protected:
         unsigned const N;
         
-        Cursor(C::VCursor *const o_, unsigned columns_) :o(o_), N(columns_) {}
+        Cursor(C::VCursor *const o_, unsigned columns_) noexcept :o(o_), N(columns_) {}
     public:
         using RowID = int64_t;
         struct Data {
             unsigned elem_bits;
             unsigned elements;
             
-            size_t size() const {
-                return (elem_bits * elements + 7) / 8;
+            /// \brief size of data in bytes
+            size_t size() const noexcept {
+                return (elem_bits * elements + 7) >> 3;
             }
-            void *data() const {
-                return (void *)(this + 1);
+            static int constexpr alignment() noexcept { return 4; }
+            /// \brief offset of data
+            static size_t constexpr offset() noexcept {
+                return ((sizeof(Data) + 15) >> alignment()) << alignment();
+            }
+            void *data() const noexcept {
+                return (void *)(reinterpret_cast<uint8_t const *>(this) + offset());
             }
             std::string string() const {
-                if (elem_bits == 8)
-                    return elements == 0 ? std::string() : std::string(reinterpret_cast<char const *>(data()), elements);
-                else
-                    throw std::logic_error("bad cast");
+                if (elem_bits != 8 * sizeof(std::string::value_type))
+                    throw std::bad_cast();
+                return elements == 0 ? std::string() : std::string(reinterpret_cast<char const *>(data()), elements);
             }
             template <typename T> std::vector<T> vector() const {
-                if (elem_bits == sizeof(T) * 8) {
-                    return std::vector<T>(reinterpret_cast<T const *>(data()), reinterpret_cast<T const *>(data()) + elements);
-                }
-                else
-                    throw std::logic_error("bad cast");
+                if (elem_bits != sizeof(T) * 8)
+                    throw std::bad_cast();
+
+                auto result = std::vector<T>(elements);
+                std::memmove(result.data(), data(), elements * sizeof(T));
+                return result;
             }
             template <typename T> T value() const {
-                if (elem_bits == sizeof(T) * 8 && elements == 1) {
-                    union { uint8_t u8[sizeof(T)]; T t; } value;
-                    std::copy(reinterpret_cast<uint8_t const *>(data()), reinterpret_cast<uint8_t const *>(data()) + sizeof(T), value.u8);
-                    return value.t;
-                }
-                else
-                    throw std::logic_error("bad cast");
+                if (elem_bits != sizeof(T) * 8 || elements != 1)
+                    throw std::bad_cast();
+
+                T result;
+                std::memmove(&result, data(), sizeof(T));
+                return result;
             }
         };
         struct DataList : public Data {
-            size_t stride() const {
-                auto const sz = ((elem_bits * elements + 7) / 8 + 3) / 4;
-                return 8 + sz * 4;
+            size_t stride() const noexcept {
+                return offset() + (((size() + 15) >> alignment()) << alignment());
             }
-            void *end() const {
+            void *end() const noexcept {
                 return (void *)(((char const *)this) + stride());
             }
-            DataList const *next() const {
+            DataList const *next() const noexcept {
                 return (DataList const *)end();
             }
         };
@@ -146,23 +154,21 @@ namespace VDB {
             unsigned elem_bits;
             unsigned elements;
             
-            size_t size() const {
+            size_t size() const noexcept {
                 return (elem_bits * elements + 7) / 8;
             }
-            size_t storedSize() const {
-                auto const words = ((elem_bits * elements + 7) / 8 + 3) >> 2;
-                return sizeof(Data) + (words << 2);
-            }
-            Data const *copy(void *memory, void const *endp) const {
-                auto const source = (char const *)(this->data);
+            DataList const *copy(void *memory, void const *endp) const noexcept {
+                if (endp <= memory) return nullptr;
+
+                auto const avail = (uint8_t *)endp - (uint8_t *)memory;
+                if (avail < sizeof(DataList)) return nullptr;
+                    
                 auto const rslt = (DataList *)memory;
-                if (rslt + 1 > endp)
-                    return nullptr;
                 rslt->elem_bits = elem_bits;
                 rslt->elements = elements;
-                if (rslt->end() > endp)
-                    return nullptr;
-                std::copy(source, source + size(), (char *)(rslt + 1));
+                
+                if (avail < rslt->stride()) return nullptr;
+                std::memmove(rslt->data(), this->data, size());
                 return rslt;
             }
             std::string string() const {
@@ -177,9 +183,11 @@ namespace VDB {
                 else
                     throw std::logic_error("bad cast");
             }
-            template <typename T> T value() const {
-                if (elem_bits == sizeof(T) * 8 && elements == 1)
-                    return *(T *)data;
+            template <typename T> T value(unsigned index = 0) const {
+                if (elem_bits == sizeof(T) * 8 && index < elements)
+                    return ((T *)data)[index];
+                else if (index >= elements)
+                    throw std::out_of_range("RawData");
                 else
                     throw std::logic_error("bad cast");
             }
@@ -260,7 +268,7 @@ namespace VDB {
             auto out = dst;
             for (auto i = 0; i < N; ++i) {
                 auto const data = read(row, i + 1);
-                auto p = static_cast<VDB::Cursor::DataList const *>(data.copy(out, end));
+                auto const p = data.copy(out, end);
                 if (p == nullptr)
                     return nullptr;
                 out = p->end();
@@ -270,38 +278,65 @@ namespace VDB {
     };
     class IndexedCursorBase : public Cursor {
     protected:
-        char *const buffer;
-        char const *const bufEnd;
+        using RowMap = std::map<RowID, unsigned>;
+        void *const buffer;
+        void const *const bufEnd;
         
-        char *save(RowID row, char *at) const {
-            auto const rslt = Cursor::save(row, reinterpret_cast<void *>(at), reinterpret_cast<void const *>(bufEnd));
-            return reinterpret_cast<char *>(rslt);
+        void *save(RowID row, void *at) const {
+            return Cursor::save(row, (void *)at, (void *)bufEnd);
         }
 
         IndexedCursorBase(Cursor const &curs, size_t bufSize)
         : Cursor(curs)
-        , buffer((char *)malloc(bufSize ? bufSize : defaultBufferSize()))
-        , bufEnd(buffer + (bufSize ? bufSize : defaultBufferSize()))
+        , buffer(malloc(bufSize ? bufSize : defaultBufferSize()))
+        , bufEnd(((char *)buffer) + (bufSize ? bufSize : defaultBufferSize()))
         {
             if (buffer == nullptr) throw std::bad_alloc();
         }
         ~IndexedCursorBase() {
             free(buffer);
         }
+        RowMap loadBuffer(std::vector<RowID> const &rows, unsigned &numread, size_t &bytesused) const {
+            auto result = RowMap();
+            auto cur = buffer;
+            for (auto && row : rows) {
+                auto const tmp = Cursor::save(row, cur, bufEnd);
+                if (tmp) {
+                    auto const bytes = (uint8_t const *)tmp - (uint8_t const *)cur;
+                    cur = tmp;
+                    result[row] = unsigned(bytesused >> VDB::Cursor::Data::alignment());
+                    bytesused += bytes;
+                    ++numread;
+                    assert((bytesused & ((1 << VDB::Cursor::Data::alignment()) - 1)) == 0);
+                }
+                else
+                    break;
+            }
+            return result;
+        }
     public:
         struct Record {
-            RowID row;
             Cursor::DataList const *data;
+            RowID row;
             
-            Record(void const *const data, RowID row) : row(row), data((Cursor::DataList const *)data) {}
+            Record(void const *const data, RowID row)
+            : data((Cursor::DataList const *)data)
+            , row(row)
+            {}
         };
 
-        size_t bufferSize() const { return bufEnd - buffer; }
+        size_t bufferSize() const { return (char *)bufEnd - (char *)buffer; }
         static size_t defaultBufferSize() {
             return 4ull * 1024ull * 1024ull * 1024ull;
         }
         RawData read(RowID row, unsigned cid) const = delete;
         void read(RowID row, unsigned const N, RawData out[]) const = delete;
+    protected:
+        Record getRecord(RowMap const &rowmap, RowID const row) const {
+            auto const i = rowmap.find(row); assert(i != rowmap.end());
+            auto const offset = i->second << VDB::Cursor::Data::alignment();
+            return Record((void const *)((uint8_t const *)buffer + offset), row);
+        }
     };
     
     /*
@@ -323,8 +358,7 @@ namespace VDB {
         IndexIteratorT beg;
         IndexIteratorT const end;
         
-        std::map<RowID, unsigned> loadBlock(IndexIteratorT const i, IndexIteratorT const j, unsigned &count, size_t &used) const {
-            auto map = std::map<RowID, unsigned>();
+        RowMap loadBlock(IndexIteratorT const i, IndexIteratorT const j, unsigned &count, size_t &used) const {
             auto v = std::vector<RowID>();
             
             v.reserve(std::min(j, end) - i);
@@ -337,22 +371,8 @@ namespace VDB {
                     v.emplace_back((*ii).row());
             }
             std::sort(v.begin(), v.end());
-            
-            auto cur = buffer;
-            for (auto && row : v) {
-                auto const tmp = save(row, cur);
-                if (tmp) {
-                    auto const bytes = tmp - cur;
-                    cur = tmp;
-                    map[row] = unsigned(used >> 2);
-                    used += bytes;
-                    ++count;
-                    assert((used & 0x3) == 0);
-                    continue;
-                }
-                break;
-            }
-            return map;
+
+            return loadBuffer(v, count, used);
         }
     public:
         IndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 0)
@@ -373,9 +393,8 @@ namespace VDB {
                 auto const j = i + block.size();
                 while (i < j) {
                     auto const a = (*i++).row();
-                    auto const aa = block.find(a); assert(aa != block.end());
-                    T const &A = Record((void const *)(buffer + (aa->second << 2)), a);
-                    f(A);
+                    T const &rec = getRecord(block, a);
+                    f(rec);
                     ++rows;
                 }
                 if (firstTime) {
@@ -404,8 +423,7 @@ namespace VDB {
         IndexIteratorT beg;
         IndexIteratorT const end;
         
-        std::map<RowID, unsigned> loadBlock(IndexIteratorT const i, IndexIteratorT const j, unsigned &count, size_t &used) const {
-            auto map = std::map<RowID, unsigned>();
+        RowMap loadBlock(IndexIteratorT const i, IndexIteratorT const j, unsigned &count, size_t &used) const {
             auto v = std::vector<RowID>();
 
             v.reserve(std::min(j, end) - i);
@@ -428,22 +446,10 @@ namespace VDB {
             }
             std::sort(v.begin(), v.end());
             
-            auto cur = buffer;
-            for (auto && row : v) {
-                auto const tmp = save(row, cur);
-                if (tmp) {
-                    auto const bytes = tmp - cur;
-                    cur = tmp;
-                    map[row] = unsigned(used >> 2);
-                    used += bytes;
-                    ++count;
-                    assert((used & 0x3) == 0);
-                    continue;
-                }
-                map.clear();
-                break;
-            }
-            return map;
+            auto result = loadBuffer(v, count, used);
+            if (count != v.size())
+                result.clear();
+            return result;
         }
     public:
         CollidableIndexedCursor(Cursor const &p, IndexIteratorT index, IndexIteratorT indexEnd, size_t bufSize = 0)
@@ -468,16 +474,13 @@ namespace VDB {
                     do { rowset.emplace_back((*i++).row()); } while (i < j && *i == k);
                     
                     std::sort(rowset.begin(), rowset.end(), [&](RowID a, RowID b) {
-                        auto const aa = block.find(a); assert(aa != block.end());
-                        auto const bb = block.find(b); assert(bb != block.end());
-                        T const &A = Record((void const *)(buffer + (aa->second << 2)), a);
-                        T const &B = Record((void const *)(buffer + (bb->second << 2)), b);
+                        T const &A = getRecord(block, a);
+                        T const &B = getRecord(block, b);
                         return A < B;
                     });
                     for (auto && a : rowset) {
-                        auto const aa = block.find(a); assert(aa != block.end());
-                        T const &A = Record((void const *)(buffer + (aa->second << 2)), a);
-                        f(A);
+                        T const &rec = getRecord(block, a);
+                        f(rec);
                         ++rows;
                     }
                     rowset.clear();
@@ -510,8 +513,9 @@ namespace VDB {
             
             for (unsigned i = 0; i < N; ++i) {
                 uint32_t cid = 0;
+                auto const name = fields[i];
                 
-                rc = C::VCursorAddColumn(curs, &cid, "%s", fields[i]);
+                rc = C::VCursorAddColumn(curs, &cid, "%s", name);
                 if (rc) throw Error(rc, __FILE__, __LINE__);
                 ++n;
             }

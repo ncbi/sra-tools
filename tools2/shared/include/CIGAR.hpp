@@ -73,10 +73,10 @@ struct CIGAR_OP {
         }
     }
     
-    /** parse a single operation
-     * /param str the string to be parsed
-     * /offset the first character to be parsed; the value is in/out
-     * /returns length and opcode
+    /** \brief parse a single operation
+     * \param str the string to be parsed
+     * \param offset the first character to be parsed; the value is in/out
+     * \returns length and opcode
      */
     static std::pair<int, int> parse(std::string const &str, unsigned &offset)
     {
@@ -109,9 +109,9 @@ struct CIGAR_OP {
         }
         return std::string(cp);
     }
-    /** construct a new value
-     * /param in the pair of length, opcode like as returned by parse
-     * /returns a new value or 0
+    /** \brief construct a new value
+     * \param in the pair of length, opcode like as returned by parse
+     * \returns a new value or a '0' value
      */
     static CIGAR_OP compose(std::pair<int, int> const &in)
     {
@@ -168,47 +168,59 @@ public:
         auto p = CIGAR_OP::parse(str, i);
         auto v = std::vector<CIGAR_OP>();
         
+        /* ([1-9][0-9]*H){0,1} #left hard clip
+           ([1-9][0-9]*S){0,1} #left soft clip
+           ([1-9][0-9]*[MIDNPX=])+ #regular CIGAR operations
+           ([1-9][0-9]*S){0,1} #right soft clip
+           ([1-9][0-9]*H){0,1} #right hard clip
+         */
         while (p.first != 0 && p.second != 0) {
             auto const wasFirst = isFirst; isFirst = false;
             if (p.second == 'H') {
-                if (wasFirst) goto NEXT;
-                if (i == str.length()) break;
-                goto INVALID;
+                if (wasFirst) goto NEXT;        ///< left hard clip; ignored
+                if (i == str.length()) break;   ///< right hard clip; ignored
+                goto INVALID;                   ///< invalid hard clip
             }
             if (qclip != 0)
-                goto INVALID;
-            if (p.second == 'P') continue;
+                goto INVALID;                   ///< invalid, no operation other than 'H' should follow the right soft clip
+            if (p.second == 'P') goto NEXT;     ///< P is ignored
             if (p.second == 'S') {
                 if (v.size() == 0) {
                     if (qfirst != 0)
-                        goto INVALID;
-                    qfirst = p.first;
+                        goto INVALID;           ///< invalid soft clip
+                    qfirst = p.first;           ///< left soft clip
                 }
                 else
-                    qclip = p.first;
+                    qclip = p.first;            ///< right soft clip
                 
                 goto NEXT;
             }
-            if (p.second == '=' || p.second == 'X') p.second = 'M';
+            if (p.second == '=' || p.second == 'X') p.second = 'M'; ///< convert 'X' & '=' to 'M'
             {
                 auto const elem = CIGAR_OP::compose(p);
                 if (elem.value == 0)
                     goto INVALID;
                 
                 if (size() == 0 || (v.back().value & 0xF) != (elem.value & 0xF))
-                    v.push_back(elem);
+                    v.push_back(elem);              ///< append to vector
                 else
-                    v.back().value += p.first << 4;
+                    v.back().value += p.first << 4; ///< combine with last element
             }
         NEXT:
             p = CIGAR_OP::parse(str, i);
         }
-        if (i == str.length() && v.size() != 0) {
+        if (i != str.length()) goto INVALID;        ///< was the entire CIGAR string parsed?
+        
+        if (v.size() != 0) {
             int first = 0;
+            
+            // convert+remove any leading 'I' into left soft clip
             while (first != v.size() && v[first].opcode() == 'I') {
                 qfirst += v[first].length();
                 ++first;
             }
+
+            // remove any trailing 'D' and convert+remove any trailing 'I' into right soft clip
             int end = (int)v.size();
             while (end - 1 >= first) {
                 auto const opcode = v[end - 1].opcode();
@@ -219,8 +231,10 @@ public:
             }
             if (end > first)
                 assign(v.begin() + first, v.begin() + end);
+            else
+                goto INVALID;
         }
-        if (i == str.length() && size() != 0 && front().opcode() == 'M' && back().opcode() == 'M') {
+        if (size() != 0 && front().opcode() == 'M' && back().opcode() == 'M') {
             qlength = qfirst + qclip;
             for (auto && op : *this) {
                 auto const length = op.length();

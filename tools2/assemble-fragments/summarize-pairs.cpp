@@ -181,7 +181,7 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
         
         Contig() {}
 
-        Contig(Alignment const &algn)
+        Contig(AlignmentShort const &algn)
         : ref(unsigned(references[algn.reference]))
         , start(algn.qstart())
         , end(algn.qended())
@@ -225,19 +225,16 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
         return result;
     }
     
-    ContigPair(Alignment const &one, Alignment const &two, std::string const &group)
-    : group(unsigned(groups[group]))
+    ContigPair(AlignmentShort const &one, AlignmentShort const &two)
+    : group(0)
     {
-        auto const &c1 = Contig(one);
-        auto const &c2 = Contig(two);
-        
-        if (two.reference < one.reference || (c2.ref == c1.ref && (c2.start < c1.start || (c2.start == c1.start && c2.end < c1.end)))) {
-            first = c2;
-            second = c1;
+        if (one.isBefore(two)) {
+            first = Contig(one);
+            second = Contig(two);
         }
         else {
-            first = c1;
-            second = c2;
+            first = Contig(two);
+            second = Contig(one);
         }
         count = 1;
     }
@@ -298,21 +295,15 @@ struct ContigPair { ///< a pair of contigs that are *known* to be joined, e.g. t
         return;
     }
     
-    bool write(FILE *fp) const {
-        auto const &ref1 = references[first.ref];
-        auto const &ref2 = references[second.ref];
-        auto const &grp = groups[group];
-        return fprintf(fp, "%s\t%i\t%i\t%s\t%i\t%i\t%s\n", ref1.c_str(), first.start, first.end, ref2.c_str(), second.start, second.end, grp.c_str()) > 0;
-    }
-    friend std::ostream &operator <<(std::ostream &strm, ContigPair const &i) {
-        auto const &ref1 = references[i.first.ref];
-        auto const &ref2 = references[i.second.ref];
-        auto const &grp = groups[i.group];
-        strm
-             << ref1 << '\t' << i.first.start << '\t' << i.first.end << '\t'
-             << ref2 << '\t' << i.second.start << '\t' << i.second.end << '\t'
-             << grp;
-        return strm;
+    static bool write(FILE *fp, AlignmentShort const &one, AlignmentShort const &two, std::string const &group)
+    {
+        auto const format = "%s\t%i\t%i\t%s\t%i\t%i\t%s\n";
+        if (one.isBefore(two)) {
+            return fprintf(fp, format, one.reference.c_str(), one.qstart(), one.qended(), two.reference.c_str(), two.qstart(), two.qended(), group.c_str());
+        }
+        else {
+            return fprintf(fp, format, two.reference.c_str(), two.qstart(), two.qended(), one.reference.c_str(), one.qstart(), one.qended(), group.c_str());
+        }
     }
     void write(VDB::Writer const &out) const {
         out.value(1, references[first.ref]);
@@ -554,15 +545,21 @@ static int map(FILE *out, std::string const &run)
     auto const range = in.rowRange();
     
     for (auto row = range.first; row < range.second; ) {
-        auto const fragment = in.read(row, range.second);
-        
-        for (auto && one : fragment.detail) {
-            if (one.readNo != 1 || !one.aligned) continue;
+        auto const fragment = in.readShort(row, range.second);
+        auto const end = fragment.detail.cend();
+        auto one = fragment.detail.cbegin();
+        while (one != end && one->readNo < 1)
+            ++one;
 
-            for (auto && two : fragment.detail) {
-                if (two.readNo != 2 || !two.aligned) continue;
-                
-                ContigPair(one, two, fragment.group).write(out);
+        auto twoBeg = one;
+        while (twoBeg != end && twoBeg->readNo < 2)
+            ++twoBeg;
+
+        for ( ; one != end && one->readNo == 1; ++one) {
+            if (!one->aligned) continue;
+            for (auto two = twoBeg; two != end && two->readNo == 2; ++two) {
+                if (!two->aligned) continue;
+                ContigPair::write(out, *one, *two, fragment.group);
             }
         }
     }

@@ -41,9 +41,9 @@ A vdb database containing
 1. `filter-ir` - removes problem fragments
     Moves problem fragments from `RAW` table to `DISCARDED` table.
     Problems are:
-    1. fragment contains unaligned reads
+    1. fragment is not fully aligned (there is not an alignment for both reads)
     1. fragment contains reads with inconsistent sequence
-    1. fragment contains alignments with bad CIGAR strings
+    1. fragment contains alignments with bad CIGAR
     Example:
     ```
     filter-ir test.sorted.IR | general-loader --include include --schema ./schema/aligned-ir.schema.text --target test.filtered.IR

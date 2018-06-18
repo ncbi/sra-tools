@@ -122,21 +122,12 @@ struct ContigStats {
 
     std::vector<stat>::const_iterator end() const { return stats.end(); }
     std::vector<stat>::const_iterator find_start_of(unsigned ref, int start) const {
-        auto f = refIndex[ref];
-        auto e = refIndex[ref + 1];
-        while (f < e) {
-            auto const m = f + ((e - f) >> 1);
-            auto const &fnd = stats[m];
-            if (fnd.start1 < start)
-                f = m + 1;
-            else
-                e = m;
-        }
-        if (f >= refIndex[ref + 1])
-            f = refIndex[ref + 1] - 1;
-        else
-            f -= stats[f].window;
-        return stats.begin() + f;
+        auto const beg = stats.begin() + refIndex[ref];
+        auto const end = stats.begin() + refIndex[ref + 1];
+        auto const upper = std::upper_bound(beg, end, start, [](int v, stat const &a) { return v < a.start1; });
+        if (upper != end)
+            return upper - upper->window;
+        return (upper - 1) - (upper - 1)->window;
     }
     void generateRefIndex() {
         int lastRef = -1;
@@ -336,7 +327,7 @@ struct BestAlignment {
     }
 };
 
-std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment, ContigStats const &contigs, int const loopNumber, unsigned const group)
+std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment, ContigStats const &contigs, unsigned const group, bool simple)
 {
     struct alignment {
         decltype(fragment.detail.cbegin()) mom;
@@ -348,46 +339,69 @@ std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment,
             end = mom->qended();
         }
     };
-    
     std::vector<BestAlignment> rslt;
-    auto const &alignments = fragment.detail;
-    int r1 = 0, r2 = 0;
-    
-    for (auto one = alignments.begin(); one < alignments.end(); ++one) {
-        decltype(references[one->reference]) ref1;
-        
-        if (one->readNo != 1 || one->aligned == false) continue;
-        ++r1;
-        if (!references.contains(one->reference, ref1)) continue;
-        
-        auto const a1 = alignment(one, ref1);
-        
-        for (auto two = alignments.begin(); two < alignments.end(); ++two) {
-            decltype(references[one->reference]) ref2;
-            
-            if (two->readNo != 2 || two->aligned == false) continue;
-            ++r2;
-            if (!references.contains(two->reference, ref2)) continue;
-            
-            auto const a2 = alignment(two, ref2);
-            auto const pair = (two->reference < one->reference || (two->reference == one->reference && a2.pos < a1.pos)) ? std::make_pair(a2, a1) : std::make_pair(a1, a2);
-            auto i = contigs.find_start_of(pair.first.ref, pair.first.pos);
-            while (i != contigs.end() && i->ref1 == pair.first.ref && i->start1 <= pair.first.pos) {
-                if (i->group == group && i->ref2 == pair.second.ref && pair.second.end <= i->end2 && (i->isGapless() || i->start2 <= pair.second.pos))
-                {
-                    BestAlignment const best = {
-                        i, pair.first.mom, pair.second.mom,
-                        pair.first.pos, pair.second.pos,
-                        pair.first.ref == pair.second.ref ? pair.second.end - pair.first.pos : 0
-                    };
-                    rslt.push_back(best);
-                }
-                ++i;
+    auto const add = [&](alignment const &a, alignment const &b) -> void {
+        auto const fragmentLength = a.ref == b.ref ? (b.end - a.pos) : 0;
+        auto const beg = contigs.find_start_of(a.ref, a.pos);
+        auto const end = advanceUntil(beg, [&](decltype(beg) i) {
+            return i == contigs.end()
+                || i->ref1 != a.ref
+                || i->start1 > a.pos;
+        });
+        for (auto i = beg; i != end; ++i) {
+            if (i->group == group
+                && i->ref2 == b.ref
+                && b.end <= i->end2
+                && (i->isGapless() || i->start2 <= b.pos))
+            {
+                rslt.emplace_back(BestAlignment { i, a.mom, b.mom, a.pos, b.pos, fragmentLength });
             }
         }
+    };
+    
+    rslt.reserve(1);
+    if (simple) {
+        auto one = fragment.detail.begin();
+        auto two = one + 1;
+        decltype(references[one->reference]) ref1, ref2;
+
+        assert(one->readNo == 1 && one->aligned);
+        assert(two->readNo == 2 && two->aligned);
+        if (references.contains(one->reference, ref1)
+            && references.contains(two->reference, ref2))
+        {
+            auto const a1 = alignment(one, ref1);
+            auto const a2 = alignment(two, ref2);
+            if ((a1.pos <= a2.pos && ref1 == ref2) || one->reference < two->reference)
+                add(a1, a2);
+            else
+                add(a2, a1);
+        }
     }
-    if (rslt.size() == 0 && r1 > 0 && r2 > 0 && loopNumber == 1) {
-        throw std::logic_error("no fully-aligned spots should be dropped on the first pass!");
+    else {
+        auto const &alignments = fragment.detail;
+        
+        for (auto one = alignments.begin(); one < alignments.end(); ++one) {
+            decltype(references[one->reference]) ref1;
+            
+            if (one->readNo != 1 || one->aligned == false) continue;
+            if (!references.contains(one->reference, ref1)) continue;
+            
+            auto const a1 = alignment(one, ref1);
+            
+            for (auto two = alignments.begin(); two < alignments.end(); ++two) {
+                decltype(references[one->reference]) ref2;
+                
+                if (two->readNo != 2 || two->aligned == false) continue;
+                if (!references.contains(two->reference, ref2)) continue;
+                
+                auto const a2 = alignment(two, ref2);
+                if ((a1.pos <= a2.pos && ref1 == ref2) || one->reference < two->reference)
+                    add(a1, a2);
+                else
+                    add(a2, a1);
+            }
+        }
     }
     std::sort(rslt.begin(), rslt.end(), [](BestAlignment const &a, BestAlignment const &b) { return a.isBetterThan(b); });
     return rslt;
@@ -395,53 +409,26 @@ std::vector<BestAlignment> candidateFragmentAlignments(Fragment const &fragment,
 
 static BestAlignment bestPair(Fragment const &fragment, ContigStats const &contigs, int const loopNumber, unsigned const group)
 {
-    std::vector<BestAlignment> all = candidateFragmentAlignments(fragment, contigs, loopNumber, group);
     BestAlignment result = { contigs.end(), fragment.detail.end(), fragment.detail.end(), 0 };
-    if (!all.empty()) result = all.front();
+
+    if (fragment.numberOfReads() == 2) {
+        auto const n1 = fragment.countOfAlignments(1);
+        auto const n2 = fragment.countOfAlignments(2);
+        
+        if (n1 == 0 || n2 == 0)
+            ;
+        else {
+            std::vector<BestAlignment> all = candidateFragmentAlignments(fragment, contigs, group, n1 == 1 && n2 == 1);
+            if (!all.empty())
+                result = all.front();
+            else if (loopNumber == 1) {
+                std::cerr << fragment << std::endl;
+                throw std::logic_error("no fully-aligned spots should be dropped on the first pass!");
+            }
+        }
+    }
     return result;
 }
-
-#if 0
-static void writeReferences(Writer2 const &out, strings_map const &realRefs, std::vector<Mapulet> const &virtualRefs)
-{
-    auto const table = out.table("REFERENCES");
-    auto const NAME = table.column("NAME");
-    auto const REF1 = table.column("REFERENCE_1");
-    auto const STR1 = table.column("START_1");
-    auto const END1 = table.column("END_1");
-    auto const GAP  = table.column("GAP");
-    auto const REF2 = table.column("REFERENCE_2");
-    auto const STR2 = table.column("START_2");
-    auto const END2 = table.column("END_2");
-    
-    REF1.setDefaultEmpty();
-    STR1.setDefaultEmpty();
-    END1.setDefaultEmpty();
-    GAP.setDefaultEmpty();
-    REF2.setDefaultEmpty();
-    STR2.setDefaultEmpty();
-    END2.setDefaultEmpty();
-    
-    for (auto i = 0; i < realRefs.count(); ++i) {
-        NAME.setValue(realRefs[i]);
-        table.closeRow();
-    }
-
-    for (auto && i : virtualRefs) {
-        if (i.id == 0) continue; // id 0 is the bogus one
-        if (i.count == 0) continue; // skip unused one
-        NAME.setValue(i.name);
-        REF1.setValue(references[i.ref1]);
-        STR1.setValue(i.start1);
-        END1.setValue(i.end1);
-        REF2.setValue(references[i.ref2]);
-        STR2.setValue(i.start2);
-        END2.setValue(i.end2);
-        GAP.setValue(i.gap);
-        table.closeRow();
-    }
-}
-#endif
 
 static void writeContigs(Writer2 const &out, std::vector<ContigStats::stat> const &contigs)
 {
@@ -687,7 +674,7 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
         nextReport = 1;
 
         for (auto row = range.first; row < range.second; ) {
-            auto const fragment = in.read(row, range.second);
+            auto const fragment = in.readShort(row, range.second);
             unsigned group;
             if (!groups.contains(fragment.group, group)) continue;
 
@@ -754,6 +741,8 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             keepPosition.setValue(pos);
             keepLength.setValue(len);
 
+            keepTable.closeRow();
+            
             ///* update statistics about contig
             contig.length.add(len);
             contig.qlength1.add(first.cigar.qlength);
@@ -761,8 +750,6 @@ static int assemble(FILE *out, std::string const &data_run, std::string const &s
             contig.rlength1.add(first.cigar.rlength);
             contig.rlength2.add(second.cigar.rlength);
 
-            keepTable.closeRow();
-            
             if (quality) {
                 qstats.add(group, first.readNo, first.strand == '-', fragment.detail[best1].quality);
                 qstats.add(group, second.readNo, second.strand == '-', fragment.detail[best2].quality);

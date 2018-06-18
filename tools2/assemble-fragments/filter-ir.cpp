@@ -45,24 +45,33 @@
 
 void write(VDB::Writer const &out, unsigned const table, Fragment const &self, char const *const reason, bool const filter, bool const quality)
 {
+    auto const groupCID     = 1 + (table - 1) * 8;
+    auto const nameCID      = groupCID + 1;
+    auto const readNoCID    = nameCID + 1;
+    auto const sequenceCID  = readNoCID + 1;
+    auto const referenceCID = sequenceCID + 1;
+    auto const strandCID    = referenceCID + 1;
+    auto const positionCID  = strandCID + 1;
+    auto const cigarCID     = positionCID + 1;
+    auto const reasonCID    = (reason && table == 2) ? 17 : 0;
+    auto const qualityCID   = (quality && table == 1) ? 18 : (quality && table == 2) ? 19 : 0;
+
     for (auto && i : self.detail) {
         if (filter && !i.aligned) continue;
-        out.value(1 + (table - 1) * 8, self.group);
-        out.value(2 + (table - 1) * 8, self.name);
-        out.value(3 + (table - 1) * 8, int32_t(i.readNo));
-        out.value(4 + (table - 1) * 8, std::string(i.sequence));
+        out.value(groupCID, self.group);
+        out.value(nameCID, self.name);
+        out.value(readNoCID, int32_t(i.readNo));
+        out.value(sequenceCID, std::string(i.sequence));
         if (i.aligned) {
-            out.value(5 + (table - 1) * 8, i.reference);
-            out.value(6 + (table - 1) * 8, i.strand);
-            out.value(7 + (table - 1) * 8, int32_t(i.position));
-            out.value(8 + (table - 1) * 8, i.cigarString);
+            out.value(referenceCID, i.reference);
+            out.value(strandCID, i.strand);
+            out.value(positionCID, int32_t(i.position));
+            out.value(cigarCID, i.cigarString);
         }
-        if (reason)
-            out.value(9 + (table - 1) * 8, std::string(reason));
-        if (quality && table == 1)
-            out.value(18, i.quality);
-        if (quality && table == 2)
-            out.value(19, i.quality);
+        if (reasonCID)
+            out.value(reasonCID, std::string(reason));
+        if (qualityCID)
+            out.value(qualityCID, i.quality);
         out.closeRow(table);
     }
 }
@@ -250,6 +259,7 @@ namespace filterIR {
 
 int main(int argc, char *argv[])
 {
+    Alignment::test();
     return filterIR::main(CommandLine(argc, argv));
 }
 

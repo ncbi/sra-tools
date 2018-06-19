@@ -133,28 +133,30 @@ vdb-dump: makedb
 	#	the accessions used below were taken from a blackbox test run, each represents a
 	#  	different table type in a CSRA object.
 	#
-	# NCBI:align:tbl:seq; 2 views (used to clash on Id with tables)
+	# 3.0, 3.1 NCBI:align:tbl:seq; 2 views (used to clash on Id with tables)
 	$(VDB_DUMP) SRR1063272 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.0.stdout && diff expected/3.0.stdout actual/3.0.stdout
 	$(VDB_DUMP) SRR1063272 -S view.vschema --view "V2<SEQUENCE>" -R 1-2 >actual/3.1.stdout && diff expected/3.1.stdout actual/3.1.stdout
-	# NCBI:SRA:Nanopore:sequence
+	# 3.2 NCBI:SRA:Nanopore:sequence
 	$(VDB_DUMP) ERR968961 -S view.nanopore.vschema --view "V<SEQUENCE>" -R 1-2 >actual/3.2.stdout && diff expected/3.2.stdout actual/3.2.stdout
-	# NCBI:SRA:PacBio:smrt:sequence (very old and the latest)
+	# 3.3, 3.4 NCBI:SRA:PacBio:smrt:sequence (very old and the latest)
 	$(VDB_DUMP) SRR353493 -S view.pacbio.vschema --view "V<SEQUENCE>" -R 1-2 >actual/3.3.stdout && diff expected/3.3.stdout actual/3.3.stdout
 	$(VDB_DUMP) ERR976792 -S view.pacbio.vschema --view "V<SEQUENCE>" -R 1-2 >actual/3.4.stdout && diff expected/3.4.stdout actual/3.4.stdout
-	# NCBI:align:db:alignment_evidence_sorted
+	# 3.5 NCBI:align:db:alignment_evidence_sorted
 	$(VDB_DUMP) SRR2070515 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.5.stdout && diff expected/3.5.stdout actual/3.5.stdout
-	# NCBI:align:db:alignment_sorted
+	# 3.6 NCBI:align:db:alignment_sorted
 	$(VDB_DUMP) ERR957001 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.6.stdout && diff expected/3.6.stdout actual/3.6.stdout
-	# NCBI:align:db:alignment_unsorted. this will issue some "Undeclared identifier" messages for views that rely on table types not in this accession's schema, but will do the job since V1's declaration is correct
-	$(VDB_DUMP) ERR570054 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.7.stdout && diff expected/3.7.stdout actual/3.7.stdout
-	# NULL as foreign key
+	# 3.7 NCBI:align:db:alignment_unsorted. this will issue some "Undeclared identifier" messages for views that rely on table types not in this accession's schema, but will do the job since V1's declaration is correct
+	$(VDB_DUMP) ERR570054 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 2>/dev/null >actual/3.7.stdout && diff expected/3.7.stdout actual/3.7.stdout
+	# 3.8 NULL as foreign key
 	$(VDB_DUMP) SRR1063272 --view "V4<PRIMARY_ALIGNMENT,SEQUENCE>" -S view.vschema  -R 6  >actual/3.8.stdout && diff expected/3.8.stdout actual/3.8.stdout
-	# join a table to itself
+	# 3.9 join a table to itself
 	$(VDB_DUMP) SRR1063272 --view "V6<PRIMARY_ALIGNMENT,SEQUENCE>" -S view.vschema  -R 36  >actual/3.9.stdout && diff expected/3.9.stdout actual/3.9.stdout
-	# view on view
+	# 3.10 view on view
 	$(VDB_DUMP) SRR1063272 --view "V7<V6<PRIMARY_ALIGNMENT,SEQUENCE>>" -S view.vschema  -R 36  >actual/3.10.stdout && diff expected/3.10.stdout actual/3.10.stdout
-	# table object - views not supported
-	! $(VDB_DUMP) ERR997444 -S view.vschema --view "V1<SEQUENCE>"
+	# 3.11 same table as differente parameters of a view
+	$(VDB_DUMP) SRR1063272 --view "V8<PRIMARY_ALIGNMENT,PRIMARY_ALIGNMENT,PRIMARY_ALIGNMENT>" -S view.vschema  -R 1-5  >actual/3.11.stdout && diff expected/3.11.stdout actual/3.11.stdout
+	# 4.0 table object - views not supported
+	! $(VDB_DUMP) ERR997444 -S view.vschema --view "V1<SEQUENCE>" 2>/dev/null >actual/4.0.stdout && diff expected/4.0.stdout actual/4.0.stdout
 
 	@ rm -rf actual
 	@ rm -rf data
@@ -164,7 +166,7 @@ vdb-dump: makedb
 onetest: std
 	#$(VDB_DUMP) ERR570054 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.7.stdout && diff expected/3.7.stdout actual/3.7.stdout
 	# row not found
-	$(VDB_DUMP) SRR1063272 --view "V7<V6<PRIMARY_ALIGNMENT,SEQUENCE>>" -S view.vschema  -R 36  >actual/3.10.stdout
+	$(VDB_DUMP) SRR1063272 --view "V8<PRIMARY_ALIGNMENT,PRIMARY_ALIGNMENT,PRIMARY_ALIGNMENT>" -S view.vschema  -R 1-5  >actual/3.11.stdout && diff expected/3.11.stdout actual/3.11.stdout
 
 ACC = SRR2070515
 acc:

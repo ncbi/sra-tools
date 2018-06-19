@@ -74,3 +74,16 @@ view V7#1 < V6 v >
     column INSDC:dna:text   cmp_read_mate   = v . cmp_read_mate;
     column INSDC:color:text cs_read_mate    = v . cs_read_mate;
 }
+
+// same table for different parameters
+// different ancestor of NCBI:align:tbl:align_sorted
+view V8#1 < INSDC:tbl:sequence              sequence,
+            NCBI:align:tbl:ref_block_cmn    ref_block,
+            NCBI:align:tbl:align_cmn        align
+          >
+{
+    column INSDC:dna:text READ  = sequence.READ;
+    column I64 REF_ID           = ref_block.REF_ID;
+    column I64 SEQ_SPOT_ID      = align.SEQ_SPOT_ID;
+}
+

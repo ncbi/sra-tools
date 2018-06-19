@@ -41,7 +41,7 @@ runtests: download
 
 download:
 	export PATH=$(BINDIR):$$PATH; export VDB_CONFIG=`pwd` ; \
-		python test_kget.py # expect rc = 0 
+		NCBI_SETTINGS=/ python test_kget.py # expect rc = 0 
 
 #-------------------------------------------------------------------------------
 # slowtests: match output vs wget

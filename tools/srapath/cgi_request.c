@@ -396,7 +396,7 @@ typedef struct reply_parse_ctx
 
 enum request_type { request_type_names, request_type_search };
 
-static const char * names_cgi_url = "https://www.ncbi.nlm.nih.gov/Traces/names/names.cgi";
+static const char * names_cgi_url = "https://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi";
 static const char * search_cgi_url = "https://www.ncbi.nlm.nih.gov/Traces/names/search.cgi";
 
 static const char * validate_url( const char * src, enum request_type request_type )

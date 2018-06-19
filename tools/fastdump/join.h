@@ -35,39 +35,47 @@ extern "C" {
 #include <klib/rc.h>
 #endif
 
-#ifndef _h_klib_text_
-#include <klib/text.h>
-#endif
-
 #ifndef _h_kfs_directory_
 #include <kfs/directory.h>
-#endif
-
-#ifndef _h_atomic_
-#include <atomic.h>
 #endif
 
 #ifndef _h_helper_
 #include "helper.h"
 #endif
 
-typedef struct join_params
-{
-    KDirectory * dir;
-    const char * accession;
-    const char * lookup_filename;
-    const char * index_filename;
-    const char * output_filename;
-    const char * temp_path;
-    atomic_t   * join_progress;
-    size_t buf_size, cur_cache, num_threads;
-    int64_t first;
-    uint64_t count;
-    bool show_progress;
-    format_t fmt;
-} join_params;
+#ifndef _h_temp_registry_
+#include "temp_registry.h"
+#endif
 
-rc_t execute_join( const join_params * jp );
+rc_t execute_db_join( KDirectory * dir,
+                    const char * accession_path,
+                    const char * accession_short,
+                    join_stats * stats,
+                    const char * lookup_filename,
+                    const char * index_filename,
+                    const tmp_id * tmp_id,
+                    struct temp_registry * registry,
+                    size_t cur_cache,
+                    size_t buf_size,
+                    uint32_t num_threads,
+                    bool show_progress,
+                    format_t fmt,
+                    const join_options * join_options );
+
+rc_t check_lookup( const KDirectory * dir,
+                   size_t buf_size,
+                   size_t cursor_cache,
+                   const char * lookup_filename,
+                   const char * index_filename,
+                   const char * accession );
+
+rc_t check_lookup_this( const KDirectory * dir,
+                        size_t buf_size,
+                        size_t cursor_cache,
+                        const char * lookup_filename,
+                        const char * index_filename,
+                        uint64_t seq_spot_id,
+                        uint32_t seq_read_id );
 
 #ifdef __cplusplus
 }

@@ -190,6 +190,19 @@ class vdbconf_model
         }
 
         // ----------------------------------------------------------------
+        bool allow_all_certs( void ) const
+        {
+            bool res = false;
+            if ( _config_valid ) KConfig_Get_Allow_All_Certs( _config, &res );
+            return res;
+        }
+        void set_allow_all_certs( bool enabled )
+        {
+            KConfig_Set_Allow_All_Certs( _config, enabled );
+            _config_changed = true;
+        }
+
+        // ----------------------------------------------------------------
         /* THIS IS NEW AND NOT YET IMPLEMENTED IN CONFIG: global cache on/off !!! */
         bool is_global_cache_enabled( void ) const
         {

@@ -49,7 +49,7 @@ typedef struct raw_read_rec
 {
     uint64_t seq_spot_id;
     uint32_t seq_read_id;
-    String raw_read;
+    String read;
 } raw_read_rec;
 
 void destroy_raw_read_iter( struct raw_read_iter * iter );
@@ -59,6 +59,8 @@ rc_t make_raw_read_iter( cmn_params * params, struct raw_read_iter ** iter );
 bool get_from_raw_read_iter( struct raw_read_iter * iter, raw_read_rec * rec, rc_t * rc );
 
 uint64_t get_row_count_of_raw_read( struct raw_read_iter * iter );
+
+rc_t write_out_prim( const KDirectory *dir, size_t buf_size, size_t cursor_cache, const char * accession, const char * output_file );
 
 #ifdef __cplusplus
 }

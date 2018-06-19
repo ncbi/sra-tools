@@ -1,2 +1,2 @@
-/repository/remote/main/CGI/resolver-cgi = "http://www.ncbi.nlm.nih.gov/Traces/names/names.cgi"
+/repository/remote/main/CGI/resolver-cgi = "http://www.ncbi.nlm.nih.gov/Traces/names/names.fcgi"
 /repository/user/main/public/cache-enabled = "false"

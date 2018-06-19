@@ -65,10 +65,8 @@ SUBDIRS =             \
 	vdb-diff          \
 	kget              \
 	ngs-pileup        \
-	fastdump          \
 	vdb-sql           \
 	cg-load           \
-
 
 # common targets for non-leaf Makefiles; must follow a definition of SUBDIRS
 include $(TOP)/build/Makefile.targets

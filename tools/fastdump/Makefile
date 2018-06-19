@@ -31,7 +31,7 @@ MODULE = tools/fastdump
 INT_TOOLS = \
 
 EXT_TOOLS = \
-	fastdump
+	fasterq-dump
 
 ALL_TOOLS = \
 	$(INT_TOOLS) \
@@ -58,10 +58,12 @@ clean: stdclean
 .PHONY: clean
 
 #-------------------------------------------------------------------------------
-# fastdump
+# fasterq-dump
 #
 TOOL_SRC = \
 	helper \
+	progress_thread \
+    cleanup_task \
 	index \
 	lookup_writer \
 	lookup_reader \
@@ -73,7 +75,12 @@ TOOL_SRC = \
 	special_iter \
 	fastq_iter \
 	join \
-	fastdump
+	tbl_join \
+	join_results \
+	temp_registry \
+	copy_machine \
+	concatenator \
+	fasterq-dump
 
 TOOL_OBJ = \
 	$(addsuffix .$(OBJX),$(TOOL_SRC))
@@ -84,6 +91,6 @@ TOOL_LIB = \
 	-sncbi-vdb \
 	-lm
 
-$(BINDIR)/fastdump: $(TOOL_OBJ)
+$(BINDIR)/fasterq-dump: $(TOOL_OBJ)
 	$(LD) --exe --vers $(SRCDIR)/../../shared/toolkit.vers -o $@ $^ $(TOOL_LIB)
 

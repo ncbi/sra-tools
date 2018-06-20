@@ -26,7 +26,7 @@
 default: std
 
 TOP ?= $(abspath ../..)
-MODULE = tools/fastdump
+MODULE = tools/fasterq-dump
 
 INT_TOOLS = \
 

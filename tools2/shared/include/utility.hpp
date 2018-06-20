@@ -134,17 +134,17 @@ namespace utility {
     };
 
     template <typename T, typename F>
-    static T advanceWhile(T const &iter, F const &comp) {
+    static T advanceWhile(T const &iter, T const &end, F const &comp) {
         T rslt = iter;
-        while (comp(rslt))
+        while (rslt != end && comp(*rslt))
             ++rslt;
         return rslt;
     }
 
     template <typename T, typename F>
-    static T advanceUntil(T const &iter, F const &comp) {
+    static T advanceUntil(T const &iter, T const &end, F const &comp) {
         T rslt = iter;
-        while (!comp(rslt))
+        while (rslt != end && !comp(*rslt))
             ++rslt;
         return rslt;
     }

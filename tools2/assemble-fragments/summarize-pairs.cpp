@@ -555,11 +555,10 @@ static int map(FILE *out, std::string const &run)
         while (twoBeg != end && twoBeg->readNo < 2)
             ++twoBeg;
 
-        for ( ; one != end && one->readNo == 1; ++one) {
-            if (!one->aligned) continue;
+        for ( ; one != twoBeg && one->readNo == 1; ++one) {
             for (auto two = twoBeg; two != end && two->readNo == 2; ++two) {
-                if (!two->aligned) continue;
-                ContigPair::write(out, *one, *two, fragment.group);
+                if (one->isGoodAlignedPair(*two))
+                    ContigPair::write(out, *one, *two, fragment.group);
             }
         }
     }

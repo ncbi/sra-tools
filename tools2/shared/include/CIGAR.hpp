@@ -141,6 +141,11 @@ struct CIGAR : public std::vector<CIGAR_OP> {
     int qfirst;  ///< first aligned base of the query
     int qlength; ///< total length of query
     int qclip;   ///< number of clipped bases of query
+
+    ///: number of bases [first ... last] aligned bases
+    int alignedLength() const {
+        return qlength - (qfirst + qclip);
+    }
     
 private:
     CIGAR(unsigned rlength, unsigned left_clip, unsigned qlength, unsigned right_clip, std::vector<CIGAR_OP> const &other)

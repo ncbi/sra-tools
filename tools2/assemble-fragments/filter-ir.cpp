@@ -94,10 +94,12 @@ static bool shouldKeep(Fragment const &fragment, char const **const reason)
     
     auto const n = int(fragment.detail.size());
     auto next = 0;
+    auto numreads = 0;
     while (next < n) {
         auto const first = next;
         auto const readNo = fragment.detail[first].readNo;
 
+        ++numreads;
         while (next < n && fragment.detail[next].readNo == readNo)
             ++next;
         
@@ -122,6 +124,22 @@ static bool shouldKeep(Fragment const &fragment, char const **const reason)
                     return false;
                 }
             }
+        }
+    }
+    
+    if (numreads == 2) {
+        auto goodPairs = 0;
+        for (auto && one : fragment.detail) {
+            if (one.readNo != 1 || !one.aligned) continue;
+            for (auto && two : fragment.detail) {
+                if (two.readNo != 2 || !two.aligned) continue;
+                if (one.isGoodAlignedPair(two))
+                    ++goodPairs;
+            }
+        }
+        if (goodPairs == 0) {
+            *reason = "no good whole fragment alignment";
+            return false;
         }
     }
     return true;

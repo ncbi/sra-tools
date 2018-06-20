@@ -112,7 +112,7 @@ space available in its home directory. Either try to delete files, or perform
 the conversion to a different location with more space.
 
 If you want to use for instance a virtual 'RAM-drive' as scratch-space:
-(If you have such a device and how bit it is, dependes on your system-admin!)
+(If you have such a device and how big it is, dependes on your system-admin!)
 
 $df -h /dev/shm
 
@@ -141,9 +141,9 @@ for a flat table like SRR000001 it looks like this:
 
 join   :|-------------------------------------------------- 100.00%
 concat :|-------------------------------------------------- 100.00%
-spots read          : 470,985
-fragments read      : 470,985
-fragments written   : 470,985
+spots read      : 470,985
+reads read      : 470,985
+reads written   : 470,985
 
 Because we have changed the defaults to be different and more meaningful
 than fastq-dump, here is a list of equivalent command-lines that produce

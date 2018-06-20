@@ -153,6 +153,15 @@ struct AlignmentShort {
         }
         throw std::logic_error("isBefore requires both arguments to be aligned");
     }
+    
+    bool isGoodAlignedPair(AlignmentShort const &other) const {
+        if (!aligned || !other.aligned) return false;
+        if (reference != other.reference) return true;
+        if (qstart() <= other.qstart())
+            return qended() <= other.qended();
+        else
+            return other.qended() <= qended();
+    }
 };
 
 struct Alignment : public AlignmentShort {

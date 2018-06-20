@@ -58,6 +58,7 @@ SUBDIRS =             \
 	cache-mgr         \
 	vcf-loader        \
 	copycat           \
+	fasterq-dump      \
 	sra-load          \
 	ccextract         \
 	pacbio-load       \

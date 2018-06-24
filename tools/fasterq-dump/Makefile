@@ -42,11 +42,23 @@ include $(TOP)/build/Makefile.env
 #-------------------------------------------------------------------------------
 # outer targets
 #
+
+ifeq (fat86,$(ARCH))
+
+all std: $(ALL_TOOLS)
+
+$(ALL_TOOLS):
+	@ echo "NOTE - $(@F) is not built on $(ARCH) architecture"
+
+else
+
 all std: makedirs
 	@ $(MAKE_CMD) $(TARGDIR)/$@-cmn
 
 $(ALL_TOOLS): makedirs
 	@ $(MAKE_CMD) $(BINDIR)/$@
+
+endif
 
 .PHONY: all std $(ALL_TOOLS)
 
@@ -63,7 +75,7 @@ clean: stdclean
 TOOL_SRC = \
 	helper \
 	progress_thread \
-    cleanup_task \
+	cleanup_task \
 	index \
 	lookup_writer \
 	lookup_reader \

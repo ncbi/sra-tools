@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.9.1-1
+**June 26, 2018**
+
+  **prefetch**: restored download of dependencies when running "prefetch <local file>"
+
+
 ## SRA Toolkit 2.9.1
 **June 15, 2018**
 

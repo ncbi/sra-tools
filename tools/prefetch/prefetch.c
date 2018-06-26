@@ -2731,8 +2731,12 @@ static rc_t ItemPostDownload(Item *item, int32_t row) {
     if (resolved->path.str != NULL) {
         assert(item->main);
         rc = _VDBManagerSetDbGapCtx(item->main->mgr, resolved->resolver);
-        type = VDBManagerPathTypeUnreliable
-            (item->main->mgr, "%S", resolved->cache) & ~kptAlias;
+        if ( resolved->cache != NULL )
+            type = VDBManagerPathTypeUnreliable
+                (item->main->mgr, "%S", resolved->cache) & ~kptAlias;
+        else
+            type = VDBManagerPathTypeUnreliable
+                (item->main->mgr, "%s", resolved->name) & ~kptAlias;
         if (type != kptDatabase) {
             if (type == kptTable) {
                  STSMSG(STS_DBG, ("...'%S' is a table", resolved->path.str));

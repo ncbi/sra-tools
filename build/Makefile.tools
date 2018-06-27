@@ -37,5 +37,5 @@ TOOLS_TO_INSTALL = \
 	vdb-passwd      \
 	vdb-unlock      \
 	vdb-validate    \
-    sra-toolkit     \
+	sra-toolkit     \
 

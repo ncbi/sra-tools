@@ -1092,10 +1092,15 @@ static rc_t MainDownloadFile(Resolved *self,
 
 #else
     {
+        bool reliable = ! self -> isUri;
         ver_t http_vers = 0x01010000;
         KClientHttpRequest * kns_req = NULL;
-        rc = KNSManagerMakeClientRequest ( main -> kns,
-            & kns_req, http_vers, NULL, "%S", self -> remote . str );
+        if ( reliable )
+            rc = KNSManagerMakeReliableClientRequest ( main -> kns,
+                & kns_req, http_vers, NULL, "%S", self -> remote . str );
+        else
+            rc = KNSManagerMakeClientRequest ( main -> kns,
+                & kns_req, http_vers, NULL, "%S", self -> remote . str );
         DISP_RC2 ( rc, "Cannot KNSManagerMakeClientRequest",
                    self -> remote . str -> addr );
 
@@ -1794,8 +1799,9 @@ static rc_t _ItemResolveResolved(VResolver *resolver,
             if (rc == 0) {
                 rc_t rc3 = 0;
                 if (resolved->file == NULL) {
+                    bool reliable = ! resolved->isUri;
                     rc3 = _KFileOpenRemote(&resolved->file, kns,
-                        resolved->remote.str, !resolved->isUri);
+                        resolved->remote.str, reliable);
                     if ( !resolved->isUri )
                         DISP_RC2(rc3, "cannot open remote file",
                                  resolved->remote.str->addr);

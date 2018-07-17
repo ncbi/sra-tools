@@ -1,6 +1,12 @@
 # NCBI External Developer Release:
 
 
+## SRA Toolkit 2.9.1-2
+**July 17, 2018**
+
+  **bam-load**: fixed a bug preventing early termination on error
+
+
 ## SRA Toolkit 2.9.1-1
 **June 26, 2018**
 

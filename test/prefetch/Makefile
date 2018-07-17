@@ -205,7 +205,8 @@ urls_and_accs:
 
 	@rm `pwd`/tmp/sra/SRR053325.sra
 	@echo SRR FASP download when user repository is configured
-	 if ascp -h > /dev/null ; then \
+	 if ascp -h
+	@if ascp -h > /dev/null ; then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
 	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \

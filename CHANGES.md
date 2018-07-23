@@ -1,5 +1,9 @@
 # NCBI External Developer Release:
 
+## SRA Toolkit 2.9.2
+**July 23, 2018**
+  **kfg, vfs**: Introduced enhanced handling of download-only NGC files that lack read/decrypt permissions
+
 
 ## SRA Toolkit 2.9.1-2
 **July 17, 2018**

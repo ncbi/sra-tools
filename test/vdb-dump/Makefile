@@ -164,12 +164,11 @@ vdb-dump: makedb
 	@ echo "...all tests passed"
 
 onetest: std
-	#$(VDB_DUMP) ERR570054 -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/3.7.stdout && diff expected/3.7.stdout actual/3.7.stdout
-	# row not found
-	$(VDB_DUMP) SRR1063272 --view "V8<PRIMARY_ALIGNMENT,PRIMARY_ALIGNMENT,PRIMARY_ALIGNMENT>" -S view.vschema  -R 1-5  >actual/3.11.stdout && diff expected/3.11.stdout actual/3.11.stdout
+	$(VDB_DUMP) SRR1063272 --view "V9<SEQUENCE>" -S view.vschema  -R 1
 
 ACC = SRR2070515
 acc:
+	mkdir -p actual
 	$(VDB_DUMP) $(ACC) -T SEQUENCE -C READ -R 1-2 >actual/$(ACC).old
 	cat actual/$(ACC).old
 	$(VDB_DUMP) $(ACC) -S view.vschema --view "V1<SEQUENCE>" -R 1-2 >actual/$(ACC).new

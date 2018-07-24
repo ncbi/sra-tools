@@ -2005,15 +2005,14 @@ static rc_t vdb_dump_view_make_cursor ( const p_dump_context ctx, const VDBManag
                 }
                 else
                 {
-                    const struct VView * view;
-                    rc = view_spec_open ( spec, db, schema, & view );
+                    rc = view_spec_open ( spec, db, schema, & r_ctx -> view );
                     if ( rc != 0 )
                     {
                         ErrMsg( "view_spec_make_cursor( '%s' ) -> %R", ctx->path, rc );
                     }
                     else
                     {
-                        rc = VViewCreateCursor ( view, & r_ctx->cursor );
+                        rc = VViewCreateCursor ( r_ctx -> view, & r_ctx->cursor );
                         if ( rc == 0 )
                         {
                             if ( ! vdcd_init( &(r_ctx->col_defs), ctx->max_line_len ) )
@@ -2023,7 +2022,7 @@ static rc_t vdb_dump_view_make_cursor ( const p_dump_context ctx, const VDBManag
                             }
                             else
                             {
-                                uint32_t n = vdm_extract_or_parse_columns_view( ctx, view, r_ctx->col_defs );
+                                uint32_t n = vdm_extract_or_parse_columns_view( ctx, r_ctx->view, r_ctx->col_defs );
                                 if ( n < 1 )
                                 {
                                     rc = RC( rcVDB, rcNoTarg, rcConstructing, rcParam, rcInvalid );
@@ -2038,7 +2037,6 @@ static rc_t vdb_dump_view_make_cursor ( const p_dump_context ctx, const VDBManag
                                 }
                             }
                         }
-                        VViewRelease ( view );
                     }
                 }
                 VSchemaRelease ( schema );
@@ -2073,6 +2071,16 @@ static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr )
         rc = vdb_dump_view_make_cursor ( ctx, mgr, & r_ctx );
         if ( rc == 0 )
         {
+            const VSchema * my_schema;
+            rc = VViewOpenSchema( r_ctx.view, & my_schema );
+            DISP_RC( rc, "VViewOpenSchema() failed" );
+            if ( rc == 0 )
+            {
+                /* translate in special columns to numeric values to strings */
+                vdcd_ins_trans_fkt( r_ctx.col_defs, my_schema );
+                VSchemaRelease( my_schema );
+            }
+
             rc = VCursorOpen( r_ctx.cursor );
             DISP_RC( rc, "VCursorOpen() failed" );
             if ( rc == 0 )
@@ -2117,6 +2125,7 @@ static rc_t vdm_dump_view( const p_dump_context ctx, const VDBManager *mgr )
                 }
                 VCursorRelease( r_ctx.cursor );
             }
+            VViewRelease ( r_ctx.view );
             vdcd_destroy( r_ctx.col_defs );
         }
     }

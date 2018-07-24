@@ -53,6 +53,7 @@ extern "C" {
 typedef struct row_context
 {
     const VTable* table;
+    const VView* view;
     const VCursor* cursor;
     p_col_defs col_defs;
     p_dump_context ctx;

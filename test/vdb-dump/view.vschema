@@ -87,3 +87,55 @@ view V8#1 < INSDC:tbl:sequence              sequence,
     column I64 SEQ_SPOT_ID      = align.SEQ_SPOT_ID;
 }
 
+const INSDC:x2cs:bin INSDC:x2cs:map:BINSET       = [ 0,1,2,3,4 ];
+const INSDC:color:text INSDC:x2cs:map:CHARSET    = "0123.";
+
+view V9#1 < NCBI:align:tbl:seq seq >
+{
+    // seq's physical columns
+    column I64 PRIMARY_ALIGNMENT_ID             = seq.PRIMARY_ALIGNMENT_ID;
+    column U8 ALIGNMENT_COUNT                   = seq.ALIGNMENT_COUNT;
+    column INSDC:dna:text READ                  = seq.READ;
+    column INSDC:quality:phred QUALITY          = seq.QUALITY;
+    column INSDC:2na:packed CMP_READ            = seq.CMP_READ;
+    column INSDC:coord:zero READ_START          = seq.READ_START;
+    column INSDC:coord:len READ_LEN             = seq.READ_LEN;
+    column INSDC:SRA:xread_type READ_TYPE       = seq.READ_TYPE;
+    column INSDC:SRA:read_filter RD_FILTER      = seq.RD_FILTER;
+    column INSDC:SRA:read_filter READ_FILTER    = seq.READ_FILTER;
+    column INSDC:dna:text CS_KEY                = seq.CS_KEY;
+
+    // seq's other columns
+
+    column U64 BASE_COUNT                   = seq.base_count;       // < U64 > meta:value #1 < 'STATS/TABLE/BASE_COUNT' > ();
+
+    column U64 BIO_BASE_COUNT               = seq.bio_base_count;   //< U64 > meta:value #1 < 'STATS/TABLE/BIO_BASE_COUNT' > ()
+
+    column U64 CMP_BASE_COUNT               = seq.cmp_base_count | seq.base_count;
+        // < U64 > meta:value #1 < 'STATS/TABLE/CMP_BASE_COUNT' > () | base_count
+
+    column U8 COLOR_MATRIX                  = seq.out_color_matrix;
+        // < U8 > echo #1 < [ 0, 1, 2, 3, 4, 1, 0, 3, 2, 4, 2, 3, 0, 1, 4, 3, 2, 1, 0, 4, 4, 4, 4, 4, 4 ] > ()
+
+    column INSDC:color:text CSREAD          = seq.out_color_text;
+        // < INSDC:x2cs:bin, INSDC:color:text > map #1 < [ 0, 1, 2, 3, 4 ], '0123.' > ( seq.out_x2cs_bin );
+
+    column bool CS_NATIVE                   = seq.cs_native;; // < bool > echo #1 < false > ();
+
+    column INSDC:coord:len FIXED_SPOT_LEN   = seq.static_fixed_spot_len | seq.base_space_fixed_spot_len | seq.color_space_fixed_spot_len;
+//    column INSDC:coord:len FIXED_SPOT_LEN   = seq.fixed_spot_len;
+
+    column INSDC:SRA:spotid_t MAX_SPOT_ID   = seq.max_spot_id | cast ( seq.spot_count );
+    column INSDC:SRA:spotid_t MIN_SPOT_ID   = seq.min_spot_id | < INSDC:SRA:spotid_t > echo < 1 > ();
+    column ascii NAME                       = seq._out_name;
+    column INSDC:SRA:platform_id PLATFORM   = seq.PLATFORM; // = seq. .PLATFORM | seq.out_platform; - no access to .PLATFORM in v2
+// out_read_seg not found
+//    column NCBI:SRA:Segment READ_SEG        = seq.out_read_seg | cast ( seq.out_read_seg32 ) | cast ( seq._out_read_seg32 );
+    column INSDC:coord:len SIGNAL_LEN       = seq.signal_len;
+    column U64 SPOT_COUNT                   = seq.spot_count;
+    column ascii SPOT_GROUP                 = seq.SPOT_GROUP; // = seq.out_spot_group | .SPOT_GROUP | < ascii > echo #1 < '' > (); - no access to .SPOT_GROUP in v2
+    column INSDC:SRA:spotid_t SPOT_ID       = seq.SPOT_ID; // = < INSDC:SRA:spotid_t > add_row_id #1 ( .SPOT_ID ) | cast #1 ( rowid_64 ); - no access to .SPOT_ID
+    column INSDC:coord:len SPOT_LEN         = seq.spot_len;
+    column INSDC:coord:len TRIM_LEN         = seq.trim_len | seq.spot_len;
+    column INSDC:coord:zero TRIM_START      = seq.trim_start | < INSDC:coord:zero > echo #1 < 0 > ();
+};

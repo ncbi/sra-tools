@@ -84,28 +84,6 @@ struct karChiveDS {
                         );
 };
 
-static
-rc_t
-karChiveDSInit (
-                struct karChiveDS * self,
-                rc_t ( CC * read ) (
-                                const struct karChiveDS * DataSource,
-                                uint64_t Ofsset,
-                                void * Buffer,
-                                size_t BuggerSize,
-                                size_t * NumReaded
-                                ),
-                rc_t ( CC * size ) (
-                                const struct karChiveDS * DataSource,
-                                uint64_t * Size
-                                )
-                );
-
-static
-rc_t
-karChiveDSWhack (
-                struct karChiveDS * self
-                );
 /*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*
  *  Misk Archive entries
  *_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*_*/

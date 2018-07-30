@@ -205,11 +205,13 @@ urls_and_accs:
 
 	@rm `pwd`/tmp/sra/SRR053325.sra
 	@echo SRR FASP download when user repository is configured
-	 if ascp -h; then echo; fi
-	@if ascp -h > /dev/null ; then \
+	if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
 	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	 else echo download of $(SRRF) when ascp is not found is disabled ; \
 	 fi
 #	@echo
@@ -217,9 +219,12 @@ urls_and_accs:
 	@rm `pwd`/tmp/refseq/KC702174.1
 	@echo REFSEQ download when user repository is configured
 	@if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	      $(BINDIR)/prefetch $(REFSEQF) > /dev/null ; \
 	    ls `pwd`/tmp/refseq/KC702174.1 > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	 else echo download of $(REFSEQF) when ascp is not found is disabled ; \
 	 fi
 #	@echo
@@ -227,9 +232,12 @@ urls_and_accs:
 	@rm `pwd`/tmp/nannot/GCA_000390265.1_R
 	@echo NANNOT FASP download when user repository is configured
 	@if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	      $(BINDIR)/prefetch $(KMERF) > /dev/null ; \
 	      ls `pwd`/tmp/nannot/GCA_000390265.1_R > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	 else echo download of $(KMERF) when ascp is not found is disabled ; \
 	 fi
 #	@echo
@@ -239,10 +247,13 @@ urls_and_accs:
 	@if ls `pwd`/tmp/wgs/AFVF01 2> /dev/null ; \
      then echo AFVF01 found ; exit 1; fi
 	@if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	      $(BINDIR)/prefetch $(WGSF) > /dev/null ; \
 	    echo INCORRECT DOWNLOAD OF WGS SHOULD BE FIXED: VDB-3537 ; \
 	    ls `pwd`/tmp/wgs/AFVF01 > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	 else echo download of $(WGSF) when ascp is not found is disabled ; \
 	 fi
 	@echo
@@ -296,9 +307,12 @@ urls_and_accs:
 	@if ls `pwd`/tmp2/100MB 2> /dev/null ; \
      then echo 100MB found ; exit 1; fi
 	@if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch $(LARGE) > /dev/null ; \
 	    ls `pwd`/100MB > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	 else \
 	  if $(BINDIR)/prefetch $(LARGE) 2> /dev/null ; \
       then echo "prefetch <FASP URL> when ascp is not found should fail" ; \
@@ -311,9 +325,12 @@ urls_and_accs:
 	@if ls `pwd`/tmp2/1GB 2> /dev/null; \
      then echo 1GB found ; exit 1; fi
 	@if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	  export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    $(BINDIR)/prefetch fasp://anonftp@ftp.ncbi.nlm.nih.gov:1GB > /dev/null;\
 	    ls `pwd`/1GB > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	 fi
 #	@echo
 
@@ -359,11 +376,14 @@ out_dir_and_file:
 #	@ echo
 
 	@ if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    echo PREFETCH SRR FASP URL TO OUT-FILE ; \
 	    rm -f `pwd`/tmp3/dir/file ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) -O / -o tmp3/dir/file > /dev/null ; \
 	    ls `pwd`/tmp3/dir/file > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -385,11 +405,14 @@ out_dir_and_file:
 #	@ echo
 
 	@ if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    echo PREFETCH FASP URL TO OUT-FILE ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    rm -f `pwd`/tmp3/dir/file ; \
 	    $(BINDIR)/prefetch $(LARGE) -O / -o tmp3/dir/file > /dev/null ; \
 	    ls `pwd`/tmp3/dir/file > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -425,11 +448,14 @@ out_dir_and_file:
 #	@ echo
 
 	@ if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    echo PREFETCH SRR FASP URL ; \
 	    rm `pwd`/tmp/sra/SRR053325.sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) > /dev/null ; \
 	    ls `pwd`/tmp/sra/SRR053325.sra > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -450,11 +476,14 @@ out_dir_and_file:
 #	@ echo
 
 	@ if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    echo PREFETCH FASP URL ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; cd tmp2 ; \
 	    if ls `pwd`/100MB 2> /dev/null ; then exit 1; fi ; \
 	    $(BINDIR)/prefetch $(LARGE) > /dev/null ; \
 	    ls `pwd`/100MB > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -474,11 +503,14 @@ out_dir_and_file:
 #	@ echo
 
 	@ if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    echo PREFETCH SRR FASP URL TO OUT-DIR ; \
 	    rm -f `pwd`/tmp3/dir/SRR053325.sra ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    $(BINDIR)/prefetch $(SRRF) -O tmp3/dir > /dev/null ; \
 	    ls `pwd`/tmp3/dir/SRR053325.sra > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
@@ -501,12 +533,15 @@ out_dir_and_file:
 #	@ echo
 
 	@ if ascp -h > /dev/null ; then \
+	  if [ `hostname` != 'iebdev21' ] ; then \
 	    echo PREFETCH FASP URL TO OUT-DIR ; \
 	    export VDB_CONFIG=`pwd`/tmp; export NCBI_SETTINGS=/ ; \
 	    if ls `pwd`/tmp3/dir/100MB 2> /dev/null ; then \
         echo 100MB found ; exit 1 ; fi ; \
 	    $(BINDIR)/prefetch $(LARGE) -O tmp3/dir > /dev/null ; \
 	    ls `pwd`/tmp3/dir/100MB > /dev/null ; \
+	  else echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD HOST; echo BAD;\
+	  fi \
 	  else echo download of SRR FASP URL when ascp is not found is disabled ; \
 	  fi
 #	@ echo
